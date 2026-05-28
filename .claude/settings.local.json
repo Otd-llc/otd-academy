@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ' *)",
+      "PowerShell(pnpm --version)",
+      "PowerShell(node --version)",
+      "PowerShell(corepack --version)",
+      "PowerShell(Get-Command pnpm -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command npm -ErrorAction SilentlyContinue)",
+      "PowerShell(corepack enable pnpm 2>&1)",
+      "PowerShell(corepack prepare pnpm@latest --activate 2>&1)",
+      "PowerShell(corepack pnpm --version)",
+      "PowerShell($pnpmDir = Split-Path \\(corepack pnpm bin -g 2>$null\\) -ErrorAction SilentlyContinue; corepack pnpm bin -g 2>&1; Get-ChildItem \"$env:LOCALAPPDATA\\\\pnpm\" -ErrorAction SilentlyContinue | Select-Object Name -First 20)",
+      "PowerShell($env:PATH = \"c:\\\\Users\\\\raven\\\\.local\\\\bin;$env:PATH\"; pnpm --version)",
+      "PowerShell($env:PATH = \"c:\\\\Users\\\\raven\\\\.local\\\\bin;$env:PATH\"; pnpm install 2>&1 | Select-Object -Last 30)",
+      "PowerShell($env:PATH = \"c:\\\\Users\\\\raven\\\\.local\\\\bin;$env:PATH\"; Set-Location c:/zzz/design-foundry; pnpm build 2>&1 | Select-Object -Last 40)",
+      "PowerShell($env:PATH = \"c:\\\\Users\\\\raven\\\\.local\\\\bin;$env:PATH\"; Set-Location c:/zzz/design-foundry; pnpm config get strict-dep-builds 2>&1)",
+      "PowerShell($env:PATH = \"c:\\\\Users\\\\raven\\\\.local\\\\bin;$env:PATH\"; Set-Location c:/zzz/design-foundry; pnpm config set strict-dep-builds false --location project 2>&1; Get-Content c:/zzz/design-foundry/.npmrc -ErrorAction SilentlyContinue)",
+      "PowerShell(git -C c:/zzz/design-foundry status 2>&1)",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ]
+  }
+}
