@@ -1,26 +1,35 @@
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Lora:wght@400;500&display=swap");
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * Design system tokens — design doc §8.1.
+ *
+ * Tailwind v4 reads CSS custom properties under `@theme` to generate utility
+ * classes. e.g. `--color-deep-space` → `bg-deep-space`, `text-deep-space`,
+ * `border-deep-space`. Font tokens (`--font-display`, etc.) become
+ * `font-display`, `font-mono`, `font-serif`.
+ *
+ * This is the Tailwind v4 equivalent of `theme.extend` in `tailwind.config.ts`.
+ * Since Next.js 16's `--tailwind` scaffold uses v4, there is no JS config file.
+ */
+@theme {
+  --color-deep-space: #08090d;
+  --color-navy-dark: #1f2438;
+  --color-panel-border: #3a3f50;
+  --color-command-gold: #c8963e;
+  --color-signal-blue: #4a8fff;
+  --color-link-muted: #c8c8c8;
+  --color-muted: #aaaaaa;
+  --color-alert-red: #ef5350;
+  --color-status-green: #66bb6a;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-display: "Bebas Neue", sans-serif;
+  --font-mono: "Space Mono", monospace;
+  --font-serif: "Lora", serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-deep-space);
+  color: var(--color-muted);
+  font-family: var(--font-serif);
 }
