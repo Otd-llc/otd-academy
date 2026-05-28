@@ -8,3 +8,415 @@ datasource db {
 generator client {
   provider = "prisma-client-js"
 }
+
+// ─── Auth.js v5 adapter models ─────────────────────────
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  createdAt     DateTime  @default(now())
+
+  accounts Account[]
+  sessions Session[]
+
+  transitions             StageTransition[]
+  artifacts               Artifact[]
+  partsCreated            Part[]
+  bomLinesCreated         BomLine[]
+  projectsCreated         Project[]
+  errataCreated           Erratum[]
+  revisionsFrozen         Revision[]        @relation("FrozenBy")
+  buildsCreated           Build[]
+  checklistsCreated       Checklist[]
+  checklistItemsCompleted ChecklistItem[]   @relation("CompletedBy")
+  measurementsTaken       Measurement[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Project + Revision ────────────────────────────────
+model Project {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  description String?
+  targetCost  Decimal?  @db.Decimal(10, 2)
+  repoUrl     String?
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  revisions Revision[]
+
+  @@index([archivedAt])
+}
+
+model Revision {
+  id                    String    @id @default(cuid())
+  projectId             String
+  project               Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  label                 String // case-preserving; case-insensitive uniqueness via functional index (§4.3)
+  currentStage          Stage     @default(REQUIREMENTS)
+  currentStageEnteredAt DateTime  @default(now())
+  bomFrozenAt           DateTime?
+  frozenAt              DateTime?
+  frozenById            String?
+  frozenBy              User?     @relation("FrozenBy", fields: [frozenById], references: [id], onDelete: Restrict)
+  schematicCommit       String?
+  layoutCommit          String?
+  notes                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  transitions     StageTransition[]
+  artifacts       Artifact[]
+  bomLines        BomLine[]
+  builds          Build[]
+  errata          Erratum[]         @relation("RevisionErrata")
+  addressedErrata Erratum[]         @relation("AddressedByRevision")
+  // Raw migration: CREATE UNIQUE INDEX revision_project_label_ci ON "Revision"(projectId, lower(label));
+
+  @@index([projectId, currentStage])
+}
+
+// ─── Stage state machine ───────────────────────────────
+enum Stage {
+  REQUIREMENTS
+  SCHEMATIC
+  BOM_SOURCING
+  LAYOUT
+  DRC_GERBER
+  ORDERING
+  ASSEMBLY
+  BRINGUP
+  REVISION
+}
+
+enum TransitionDirection {
+  INIT
+  ADVANCE
+  REGRESS
+}
+
+model StageTransition {
+  id             String              @id @default(cuid())
+  revisionId     String
+  revision       Revision            @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  fromStage      Stage? // null for INIT
+  toStage        Stage // may skip intermediates on createBuild regress (§5.3)
+  direction      TransitionDirection
+  gateSnapshot   Json // see §5.2
+  notes          String? // required when direction = REGRESS
+  transitionedBy String
+  user           User                @relation(fields: [transitionedBy], references: [id], onDelete: Restrict)
+  transitionedAt DateTime            @default(now())
+
+  @@index([revisionId, transitionedAt])
+}
+
+// ─── Artifacts (Revision-scoped XOR Build-scoped) ──────
+enum ArtifactKind {
+  FILE
+  NOTE
+  LINK
+}
+
+enum ArtifactSubkind {
+  GENERIC // owner-agnostic (either Revision or Build)
+  REQUIREMENTS_DOC // Revision-scoped
+  SCHEMATIC_FILE // Revision-scoped
+  BOM_EXPORT // Revision-scoped
+  LAYOUT_FILE // Revision-scoped
+  DRC_REPORT // Revision-scoped
+  GERBER_ZIP // Revision-scoped
+  PCB_ORDER // Build-scoped; ORDERING gate
+  PARTS_ORDER // Build-scoped; ORDERING gate
+  ASSEMBLY_PROCEDURE // Revision-scoped template
+  BENCH_PROCEDURE // Revision-scoped template
+  BRINGUP_LOG // Build-scoped; BRINGUP gate
+  BRINGUP_COMPLETE // Build-scoped; BRINGUP gate; created via "Mark bring-up complete" button only
+}
+
+model Artifact {
+  id         String          @id @default(cuid())
+  revisionId String?
+  revision   Revision?       @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  buildId    String?
+  build      Build?          @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  stage      Stage // workflow stage this artifact belongs to
+  kind       ArtifactKind
+  subkind    ArtifactSubkind @default(GENERIC)
+  title      String
+  fileKey    String?
+  fileMime   String?
+  fileBytes  Int? // server-enforced ≤ 100 MB; HEAD-verified
+  noteBody   String? // markdown
+  linkUrl    String?
+  createdBy  String
+  user       User            @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+  createdAt  DateTime        @default(now())
+
+  @@index([revisionId, stage])
+  @@index([buildId, stage])
+  @@index([buildId, subkind])
+}
+
+// Raw migration CHECKs:
+//   artifact_owner_xor: exactly one of (revisionId, buildId) is non-null.
+//   artifact_kind_payload_xor: exactly one of (fileKey, noteBody, linkUrl) is non-null per kind.
+
+// ─── Builds + Boards ───────────────────────────────────
+model Build {
+  id                String    @id @default(cuid())
+  revisionId        String
+  revision          Revision  @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  label             String // case-preserving (e.g. "BUILD-001"); case-insensitive uniqueness via functional index
+  boardCount        Int
+  pcbOrderRef       String?
+  partsOrderRef     String?
+  orderedAt         DateTime?
+  receivedAt        DateTime?
+  assemblyStartedAt DateTime?
+  frozenAt          DateTime? // set when parent revision freezes; freeze actor lives on Revision.frozenById
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  createdById       String
+  createdBy         User      @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  boards     Board[]
+  checklists Checklist[]
+  artifacts  Artifact[]
+  // Raw migration: CREATE UNIQUE INDEX build_revision_label_ci ON "Build"(revisionId, lower(label));
+  // Phase 1 invariant via raw migration:
+  //   CREATE UNIQUE INDEX build_one_unfrozen_per_revision ON "Build"(revisionId) WHERE "frozenAt" IS NULL;
+
+  // Covers (a) the §9.1 Builds-pane sort `ORDER BY frozenAt NULLS FIRST, createdAt DESC`
+  // and (b) the active-Build lookup `WHERE frozenAt IS NULL` (Phase 1: 0 or 1 row).
+  @@index([revisionId, frozenAt, createdAt])
+}
+
+enum BoardStatus {
+  BARE
+  SCREENED
+  ASSEMBLED
+  POWERED
+  BROUGHT_UP
+  FAILED // blocks gates; must be repaired (→ASSEMBLED) or QUARANTINED
+  QUARANTINED // permanently removed; passes gates as "done"
+}
+
+model Board {
+  id             String      @id @default(cuid())
+  buildId        String
+  build          Build       @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  serial         String // case-preserving (e.g. "B01"); case-insensitive uniqueness via functional index
+  silkscreenHash String? // git hash printed on PCB; raw migration CHECK validates format if non-null
+  status         BoardStatus @default(BARE)
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  checklists   Checklist[]
+  measurements Measurement[]
+  // Raw migration: CREATE UNIQUE INDEX board_build_serial_ci ON "Board"(buildId, lower(serial));
+
+  @@index([buildId, status])
+}
+
+// ─── Checklists + Items ────────────────────────────────
+enum ChecklistSubkind {
+  GENERIC
+  EQUIPMENT_PREFLIGHT
+  SCREENING_STEP_0
+  ASSEMBLY_STEPS
+  POST_ASSEMBLY_CONTINUITY // ASSEMBLY gate matches on this subkind
+  POLARITY_VERIFICATION
+}
+
+model Checklist {
+  id          String           @id @default(cuid())
+  buildId     String?
+  build       Build?           @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  boardId     String?
+  board       Board?           @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  stage       Stage
+  subkind     ChecklistSubkind @default(GENERIC)
+  title       String // user-facing label; subkind drives gate matching
+  createdAt   DateTime         @default(now())
+  createdById String
+  createdBy   User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  items ChecklistItem[]
+
+  @@index([buildId, stage])
+  @@index([boardId, stage])
+  @@index([stage])
+  @@index([buildId, subkind])
+}
+
+// Raw migration CHECK:
+//   checklist_owner_xor:
+//     (buildId IS NOT NULL AND boardId IS NULL) OR (buildId IS NULL AND boardId IS NOT NULL)
+
+model ChecklistItem {
+  id            String    @id @default(cuid())
+  checklistId   String
+  checklist     Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  ordinal       Int
+  label         String
+  expectedValue String?
+  actualValue   String?
+  checked       Boolean   @default(false)
+  completedAt   DateTime?
+  completedById String?
+  completedBy   User?     @relation("CompletedBy", fields: [completedById], references: [id], onDelete: Restrict)
+
+  @@unique([checklistId, ordinal])
+}
+
+// ─── Measurements ──────────────────────────────────────
+enum MeasurementResult {
+  PASS
+  FAIL
+  OBSERVED // recorded reading without pass/fail adjudication (e.g., "OL", "3.7 V baseline")
+  PEND // not yet measured
+}
+
+model Measurement {
+  id            String            @id @default(cuid())
+  boardId       String
+  board         Board             @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  stage         Stage
+  step          String
+  expectedValue String?
+  actualValue   String
+  unit          String?
+  result        MeasurementResult @default(PEND)
+  notes         String?
+  measuredAt    DateTime          @default(now())
+  measuredById  String
+  measuredBy    User              @relation(fields: [measuredById], references: [id], onDelete: Restrict)
+
+  @@index([boardId, stage])
+  @@index([boardId, step])
+}
+
+// ─── Parts library (GLOBAL) ────────────────────────────
+enum PartLifecycle {
+  ACTIVE
+  NRND
+  EOL
+  OBSOLETE
+}
+
+model Part {
+  id           String        @id @default(cuid())
+  mpn          String
+  manufacturer String
+  description  String
+  category     String?
+  footprint    String?
+  datasheetUrl String?
+  lifecycle    PartLifecycle @default(ACTIVE)
+  notes        String? // ECN/sourcing swaps recorded here (free text)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  createdById  String
+  createdBy    User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  bomLines BomLine[]
+
+  @@unique([manufacturer, mpn])
+  @@index([mpn])
+  @@index([category])
+  @@index([lifecycle])
+}
+
+model BomLine {
+  id          String   @id @default(cuid())
+  revisionId  String
+  revision    Revision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  partId      String
+  part        Part     @relation(fields: [partId], references: [id], onDelete: Restrict)
+  refDes      String // raw migration CHECK: array_length(string_to_array(refDes, ','), 1) = quantity
+  quantity    Int
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([revisionId, partId])
+  @@index([partId])
+}
+
+// ─── Errata ────────────────────────────────────────────
+enum ErratumSeverity {
+  BLOCKER
+  MAJOR
+  MINOR
+}
+
+enum ErratumStatus {
+  OPEN
+  FIXED_NEXT_REV
+  WONT_FIX
+}
+
+model Erratum {
+  id                    String          @id @default(cuid())
+  revisionId            String
+  revision              Revision        @relation("RevisionErrata", fields: [revisionId], references: [id], onDelete: Cascade)
+  title                 String
+  description           String
+  severity              ErratumSeverity
+  status                ErratumStatus   @default(OPEN)
+  addressedByRevisionId String?
+  addressedBy           Revision?       @relation("AddressedByRevision", fields: [addressedByRevisionId], references: [id], onDelete: Restrict)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  createdById           String
+  createdBy             User            @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([revisionId, status])
+  @@index([addressedByRevisionId])
+}
