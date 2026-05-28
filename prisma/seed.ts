@@ -323,6 +323,50 @@ async function main() {
         },
       });
     }
+
+    // ─── StageTransition log (INIT + 7 ADVANCE) ─────────
+    // The Revision was created directly at BRINGUP via the seed-trapdoor
+    // (design §5.3). This log makes the audit trail internally coherent
+    // even though no gate engine ran during seeding. We delete-then-recreate
+    // so re-running the seed leaves exactly 8 rows.
+    await tx.stageTransition.deleteMany({ where: { revisionId: revision.id } });
+
+    const stages: Array<{ from: typeof revision.currentStage | null; to: typeof revision.currentStage }> = [
+      { from: null, to: "REQUIREMENTS" },
+      { from: "REQUIREMENTS", to: "SCHEMATIC" },
+      { from: "SCHEMATIC", to: "BOM_SOURCING" },
+      { from: "BOM_SOURCING", to: "LAYOUT" },
+      { from: "LAYOUT", to: "DRC_GERBER" },
+      { from: "DRC_GERBER", to: "ORDERING" },
+      { from: "ORDERING", to: "ASSEMBLY" },
+      { from: "ASSEMBLY", to: "BRINGUP" },
+    ];
+
+    // 8 timestamps spanning the past ~4 weeks, monotonically increasing.
+    const startMs = now.getTime() - 28 * 24 * 60 * 60 * 1000;
+    const endMs = now.getTime() - 24 * 60 * 60 * 1000; // last one was ~1d ago
+    const stepMs = (endMs - startMs) / (stages.length - 1);
+
+    for (let i = 0; i < stages.length; i++) {
+      const { from, to } = stages[i]!;
+      const ts = new Date(startMs + stepMs * i);
+      const direction = from === null ? "INIT" : "ADVANCE";
+      const gateSnapshot =
+        direction === "INIT"
+          ? { v: 1, kind: "init", ts: ts.toISOString() }
+          : { v: 1, kind: "gate", result: { ok: true }, ts: ts.toISOString() };
+      await tx.stageTransition.create({
+        data: {
+          revisionId: revision.id,
+          fromStage: from,
+          toStage: to,
+          direction,
+          gateSnapshot,
+          transitionedBy: user.id,
+          transitionedAt: ts,
+        },
+      });
+    }
   });
 
   console.log("seed: complete");
