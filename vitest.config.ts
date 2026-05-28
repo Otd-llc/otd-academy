@@ -5,6 +5,7 @@ export default defineConfig({
     environment: "node",
     globals: false,
     testTimeout: 30_000,
+    setupFiles: ["./vitest.setup.ts"],
   },
   resolve: { alias: { "@": "/src" } },
 });
