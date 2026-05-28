@@ -57,6 +57,69 @@ async function main() {
         });
 
     console.log(`seed: user=${user.id} project=${project.id} revision=${revision.id}`);
+
+    // ─── Parts library + BOM ────────────────────────────
+    const partSpecs = [
+      {
+        manufacturer: "Espressif",
+        mpn: "ESP32-S3-WROOM-1-N16R8",
+        description: "ESP32-S3 SoC module, 16 MB flash, 8 MB PSRAM",
+        category: "MCU",
+        footprint: "ESP32-WROOM",
+        datasheetUrl: "https://www.example.com/ESP32-S3-WROOM-1-N16R8.pdf",
+        refDes: "U1",
+        quantity: 1,
+      },
+      {
+        manufacturer: "Microchip",
+        mpn: "MCP73831T-2ACI/OT",
+        description: "Single-cell Li-ion/Li-Po charge management controller, SOT-23-5",
+        category: "PMIC",
+        footprint: "SOT-23-5",
+        datasheetUrl: "https://www.example.com/MCP73831T-2ACI-OT.pdf",
+        refDes: "U2",
+        quantity: 1,
+      },
+      {
+        manufacturer: "Bosch",
+        mpn: "BME280",
+        description: "Combined humidity, pressure, and temperature sensor, LGA-8",
+        category: "Sensor",
+        footprint: "LGA-8",
+        datasheetUrl: "https://www.example.com/BME280.pdf",
+        refDes: "U3",
+        quantity: 1,
+      },
+    ] as const;
+
+    for (const spec of partSpecs) {
+      const part = await tx.part.upsert({
+        where: { manufacturer_mpn: { manufacturer: spec.manufacturer, mpn: spec.mpn } },
+        update: {},
+        create: {
+          manufacturer: spec.manufacturer,
+          mpn: spec.mpn,
+          description: spec.description,
+          category: spec.category,
+          footprint: spec.footprint,
+          datasheetUrl: spec.datasheetUrl,
+          lifecycle: "ACTIVE",
+          createdById: user.id,
+        },
+      });
+
+      await tx.bomLine.upsert({
+        where: { revisionId_partId: { revisionId: revision.id, partId: part.id } },
+        update: {},
+        create: {
+          revisionId: revision.id,
+          partId: part.id,
+          refDes: spec.refDes,
+          quantity: spec.quantity,
+          createdById: user.id,
+        },
+      });
+    }
   });
 
   console.log("seed: complete");
