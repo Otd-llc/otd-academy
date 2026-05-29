@@ -10,6 +10,7 @@ import {
   type CreateBoardFormState,
 } from "@/lib/actions/boards-form";
 import { SILKSCREEN_HASH_RE } from "@/lib/constants";
+import { InlineBanner } from "@/components/InlineBanner";
 
 const initialState: CreateBoardFormState = {};
 
@@ -43,9 +44,7 @@ export function NewBoardForm({ buildId }: { buildId: string }) {
       <input type="hidden" name="buildId" value={buildId} />
 
       {state.message && (
-        <p className="border-l-4 border-alert-red bg-navy-dark px-4 py-3 font-mono text-sm font-bold text-alert-red">
-          {state.message}
-        </p>
+        <InlineBanner variant="error">{state.message}</InlineBanner>
       )}
 
       <div>

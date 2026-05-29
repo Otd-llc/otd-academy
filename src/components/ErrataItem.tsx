@@ -25,6 +25,7 @@ import {
   type ErratumFormState,
   linkErratumFormAction,
 } from "@/lib/actions/errata-form";
+import { InlineBanner } from "@/components/InlineBanner";
 
 const initialState: ErratumFormState = {};
 
@@ -201,9 +202,7 @@ export function ErrataItem({
           <input type="hidden" name="id" value={erratum.id} />
 
           {editState.message ? (
-            <p className="border-l-4 border-alert-red bg-deep-space px-3 py-2 font-mono text-xs font-bold text-alert-red">
-              {editState.message}
-            </p>
+            <InlineBanner variant="error">{editState.message}</InlineBanner>
           ) : null}
 
           <div>
@@ -306,9 +305,9 @@ export function ErrataItem({
           </div>
           <SubmitButton label="Link" />
           {linkState.message ? (
-            <p className="w-full border-l-4 border-alert-red bg-deep-space px-3 py-2 font-mono text-xs font-bold text-alert-red">
-              {linkState.message}
-            </p>
+            <div className="w-full">
+              <InlineBanner variant="error">{linkState.message}</InlineBanner>
+            </div>
           ) : null}
         </form>
       ) : null}
@@ -319,9 +318,7 @@ export function ErrataItem({
         <DeleteButton />
       </form>
       {deleteState.message ? (
-        <p className="border-l-4 border-alert-red bg-deep-space px-3 py-2 font-mono text-xs font-bold text-alert-red">
-          {deleteState.message}
-        </p>
+        <InlineBanner variant="error">{deleteState.message}</InlineBanner>
       ) : null}
     </li>
   );

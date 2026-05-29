@@ -1,4 +1,5 @@
 import { signIn } from "@/auth";
+import { InlineBanner } from "@/components/InlineBanner";
 
 // Auth.js redirects rejected signIn attempts to `/sign-in?error=AccessDenied`.
 // We render an alert-red Space Mono banner when that param is present —
@@ -15,9 +16,11 @@ export default async function SignInPage({
     <main className="flex min-h-screen items-center justify-center bg-deep-space px-4">
       <div className="w-full max-w-md text-center">
         {denied && (
-          <p className="mb-6 border-l-4 border-alert-red bg-navy-dark px-4 py-3 text-left font-mono text-sm font-bold text-alert-red">
-            ACCESS DENIED — this email is not on the allowlist.
-          </p>
+          <div className="mb-6 text-left">
+            <InlineBanner variant="error">
+              ACCESS DENIED — this email is not on the allowlist.
+            </InlineBanner>
+          </div>
         )}
         <h1 className="mb-8 font-display text-4xl tracking-wide text-command-gold">
           PROJECT FOUNDRY

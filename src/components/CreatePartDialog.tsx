@@ -14,6 +14,7 @@ import {
   createPartFormAction,
   type PartFormState,
 } from "@/lib/actions/parts";
+import { InlineBanner } from "@/components/InlineBanner";
 
 export type PartOption = {
   id: string;
@@ -109,9 +110,7 @@ export function PartFields({
   return (
     <form action={action} className="mt-4 space-y-4">
       {state.message && (
-        <p className="border-l-4 border-alert-red bg-deep-space px-3 py-2 font-mono text-sm font-bold text-alert-red">
-          {state.message}
-        </p>
+        <InlineBanner variant="error">{state.message}</InlineBanner>
       )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

@@ -19,6 +19,7 @@ import {
   type ChecklistFormState,
   createChecklistFormAction,
 } from "@/lib/actions/checklists-form";
+import { InlineBanner } from "@/components/InlineBanner";
 
 const initialState: ChecklistFormState = {};
 
@@ -111,9 +112,7 @@ export function NewChecklistDialog({
           </div>
 
           {state.message ? (
-            <p className="border-l-4 border-alert-red bg-deep-space px-3 py-2 font-mono text-xs font-bold text-alert-red">
-              {state.message}
-            </p>
+            <InlineBanner variant="error">{state.message}</InlineBanner>
           ) : null}
 
           <div>

@@ -21,6 +21,7 @@ import {
   type ArtifactFormState,
 } from "@/lib/actions/artifacts";
 import { STAGES } from "@/lib/stages";
+import { InlineBanner } from "@/components/InlineBanner";
 
 type Owner = { kind: "revision" | "build"; id: string };
 
@@ -98,9 +99,7 @@ export function ArtifactPicker({
       <input type="hidden" name="stage" value={stage} />
 
       {state.message && (
-        <p className="border-l-4 border-alert-red bg-deep-space px-3 py-2 font-mono text-sm font-bold text-alert-red">
-          {state.message}
-        </p>
+        <InlineBanner variant="error">{state.message}</InlineBanner>
       )}
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">

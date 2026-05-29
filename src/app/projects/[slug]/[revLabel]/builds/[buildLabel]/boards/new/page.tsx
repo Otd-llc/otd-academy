@@ -8,6 +8,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { NewBoardForm } from "./_form";
+import { InlineBanner } from "@/components/InlineBanner";
 
 type Params = { slug: string; revLabel: string; buildLabel: string };
 
@@ -74,9 +75,7 @@ export default async function NewBoardPage({
 
       <div className="mt-8 border border-panel-border bg-navy-dark p-6">
         {blocker ? (
-          <p className="border-l-4 border-alert-red bg-navy-dark px-4 py-3 font-mono text-sm font-bold text-alert-red">
-            {blocker}
-          </p>
+          <InlineBanner variant="error">{blocker}</InlineBanner>
         ) : (
           <NewBoardForm buildId={build.id} />
         )}

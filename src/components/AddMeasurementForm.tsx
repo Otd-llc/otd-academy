@@ -13,6 +13,7 @@ import {
   type MeasurementFormState,
   createMeasurementFormAction,
 } from "@/lib/actions/measurements-form";
+import { InlineBanner } from "@/components/InlineBanner";
 
 const initialState: MeasurementFormState = {};
 
@@ -80,9 +81,7 @@ export function AddMeasurementForm({
     <form action={action} className="space-y-3 font-mono text-sm text-link-muted">
       <input type="hidden" name="boardId" value={boardId} />
       {state.message ? (
-        <p className="border-l-4 border-alert-red bg-deep-space px-3 py-2 font-mono text-xs font-bold text-alert-red">
-          {state.message}
-        </p>
+        <InlineBanner variant="error">{state.message}</InlineBanner>
       ) : null}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">

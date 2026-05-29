@@ -28,6 +28,7 @@ import {
   reorderChecklistItemsFormAction,
   toggleChecklistItemFormAction,
 } from "@/lib/actions/checklists-form";
+import { InlineBanner } from "@/components/InlineBanner";
 
 const initialState: ChecklistFormState = {};
 
@@ -222,9 +223,7 @@ function ItemRow({
         >
           <input type="hidden" name="id" value={item.id} />
           {editState.message ? (
-            <p className="border-l-4 border-alert-red bg-deep-space px-3 py-2 font-mono text-xs font-bold text-alert-red">
-              {editState.message}
-            </p>
+            <InlineBanner variant="error">{editState.message}</InlineBanner>
           ) : null}
 
           <div>
@@ -289,9 +288,7 @@ function ItemRow({
         </button>
       </form>
       {deleteState.message ? (
-        <p className="border-l-4 border-alert-red bg-deep-space px-3 py-2 font-mono text-xs font-bold text-alert-red">
-          {deleteState.message}
-        </p>
+        <InlineBanner variant="error">{deleteState.message}</InlineBanner>
       ) : null}
     </li>
   );
@@ -372,9 +369,7 @@ export function ChecklistEditor({
         >
           <input type="hidden" name="checklistId" value={checklistId} />
           {addState.message ? (
-            <p className="border-l-4 border-alert-red bg-deep-space px-3 py-2 font-mono text-xs font-bold text-alert-red">
-              {addState.message}
-            </p>
+            <InlineBanner variant="error">{addState.message}</InlineBanner>
           ) : null}
           <div>
             <label className="block font-mono text-xs uppercase tracking-wider text-muted">

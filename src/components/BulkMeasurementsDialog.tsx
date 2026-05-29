@@ -19,6 +19,7 @@ import {
   addMeasurementsBulkFormAction,
   type MeasurementFormState,
 } from "@/lib/actions/measurements-form";
+import { InlineBanner } from "@/components/InlineBanner";
 
 const initialState: MeasurementFormState = {};
 
@@ -102,9 +103,7 @@ export function BulkMeasurementsDialog({
           </div>
 
           {state.message ? (
-            <p className="border-l-4 border-alert-red bg-deep-space px-3 py-2 font-mono text-xs font-bold text-alert-red">
-              {state.message}
-            </p>
+            <InlineBanner variant="error">{state.message}</InlineBanner>
           ) : null}
 
           <p className="font-mono text-xs uppercase tracking-wider text-muted">

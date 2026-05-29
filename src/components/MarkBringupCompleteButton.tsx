@@ -17,6 +17,7 @@ import {
   markBringupCompleteAction,
   type BringupCompleteFormState,
 } from "@/lib/actions/bringup";
+import { InlineBanner } from "@/components/InlineBanner";
 
 const initialState: BringupCompleteFormState = {};
 
@@ -71,9 +72,9 @@ export function MarkBringupCompleteButton({
       <input type="hidden" name="buildId" value={buildId} />
       <SubmitButton />
       {state.message ? (
-        <p className="max-w-xs border-l-4 border-alert-red bg-deep-space px-3 py-1 text-right font-mono text-xs font-bold text-alert-red">
-          {state.message}
-        </p>
+        <div className="max-w-xs">
+          <InlineBanner variant="error">{state.message}</InlineBanner>
+        </div>
       ) : null}
     </form>
   );

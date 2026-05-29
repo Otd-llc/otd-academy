@@ -10,6 +10,7 @@ import {
   createProjectFormAction,
   type ProjectFormState,
 } from "@/lib/actions/projects";
+import { InlineBanner } from "@/components/InlineBanner";
 
 const initialState: ProjectFormState = {};
 
@@ -44,9 +45,7 @@ export function NewProjectForm() {
   return (
     <form action={formAction} className="space-y-6">
       {state.message && (
-        <p className="border-l-4 border-alert-red bg-navy-dark px-4 py-3 font-mono text-sm font-bold text-alert-red">
-          {state.message}
-        </p>
+        <InlineBanner variant="error">{state.message}</InlineBanner>
       )}
 
       <div>

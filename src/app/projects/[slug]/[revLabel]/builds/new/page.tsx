@@ -8,6 +8,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import type { StageName } from "@/lib/stages";
 import { NewBuildForm } from "./_form";
+import { InlineBanner } from "@/components/InlineBanner";
 
 type Params = { slug: string; revLabel: string };
 
@@ -83,9 +84,7 @@ export default async function NewBuildPage({
 
       <div className="mt-8 border border-panel-border bg-navy-dark p-6">
         {blocker ? (
-          <p className="border-l-4 border-alert-red bg-navy-dark px-4 py-3 font-mono text-sm font-bold text-alert-red">
-            {blocker}
-          </p>
+          <InlineBanner variant="error">{blocker}</InlineBanner>
         ) : (
           <NewBuildForm revisionId={revision.id} />
         )}

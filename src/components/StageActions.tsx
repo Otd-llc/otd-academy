@@ -21,6 +21,7 @@ import {
   type StageFormState,
 } from "@/lib/actions/stages";
 import type { StageName } from "@/lib/stages";
+import { InlineBanner } from "@/components/InlineBanner";
 
 const initialState: StageFormState = {};
 
@@ -65,26 +66,20 @@ function RegressSubmit() {
 function ReasonsBanner({ reasons }: { reasons?: string[] }) {
   if (!reasons || reasons.length === 0) return null;
   return (
-    <div className="border-l-4 border-alert-red bg-navy-dark px-4 py-3">
-      <p className="font-mono text-xs font-bold uppercase tracking-wider text-alert-red">
-        Gate blocked:
-      </p>
-      <ul className="mt-2 list-disc space-y-1 pl-5 font-mono text-sm font-bold text-alert-red">
+    <InlineBanner variant="error">
+      <span className="block">Gate blocked:</span>
+      <ul className="mt-2 list-disc space-y-1 pl-5">
         {reasons.map((r) => (
           <li key={r}>{r}</li>
         ))}
       </ul>
-    </div>
+    </InlineBanner>
   );
 }
 
 function MessageBanner({ message }: { message?: string }) {
   if (!message) return null;
-  return (
-    <p className="border-l-4 border-alert-red bg-navy-dark px-4 py-3 font-mono text-sm font-bold text-alert-red">
-      {message}
-    </p>
-  );
+  return <InlineBanner variant="error">{message}</InlineBanner>;
 }
 
 export function StageActions({

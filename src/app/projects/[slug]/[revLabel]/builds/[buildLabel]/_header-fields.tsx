@@ -21,6 +21,7 @@ import {
   editBuildReceivedAtAction,
   type BuildFormState,
 } from "@/lib/actions/builds";
+import { InlineBanner } from "@/components/InlineBanner";
 
 const initialState: BuildFormState = {};
 
@@ -49,9 +50,9 @@ function FieldError({ messages }: { messages?: string[] }) {
 function ActionMessage({ state }: { state: BuildFormState }) {
   if (!state.message) return null;
   return (
-    <p className="mt-1 font-mono text-xs font-bold text-alert-red">
-      {state.message}
-    </p>
+    <div className="mt-1">
+      <InlineBanner variant="error">{state.message}</InlineBanner>
+    </div>
   );
 }
 

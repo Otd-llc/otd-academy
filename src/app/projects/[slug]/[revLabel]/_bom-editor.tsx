@@ -12,6 +12,7 @@ import {
   type BomLineFormState,
 } from "@/lib/actions/bom-lines";
 import { CreatePartDialog, type PartOption } from "@/components/CreatePartDialog";
+import { InlineBanner } from "@/components/InlineBanner";
 
 type BomLineRow = {
   id: string;
@@ -81,9 +82,9 @@ export function BomEditor({
           </p>
         )}
         {state.message && (
-          <p className="mt-2 font-mono text-xs font-bold text-alert-red">
-            {state.message}
-          </p>
+          <div className="mt-2">
+            <InlineBanner variant="error">{state.message}</InlineBanner>
+          </div>
         )}
         <form action={action} className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-5">
           <input type="hidden" name="revisionId" value={revisionId} />

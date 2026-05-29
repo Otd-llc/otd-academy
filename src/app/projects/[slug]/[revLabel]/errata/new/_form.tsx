@@ -12,6 +12,7 @@ import {
   createErratumPageFormAction,
   type ErratumFormState,
 } from "@/lib/actions/errata-form";
+import { InlineBanner } from "@/components/InlineBanner";
 
 const initialState: ErratumFormState = {};
 
@@ -56,9 +57,7 @@ export function NewErratumForm({
       <input type="hidden" name="revisionId" value={revisionId} />
 
       {state.message && (
-        <p className="border-l-4 border-alert-red bg-navy-dark px-4 py-3 font-mono text-sm font-bold text-alert-red">
-          {state.message}
-        </p>
+        <InlineBanner variant="error">{state.message}</InlineBanner>
       )}
 
       <div>
