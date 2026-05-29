@@ -15,6 +15,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { BoardChecklistsPane } from "@/components/BoardChecklistsPane";
+import { MeasurementsLog } from "@/components/MeasurementsLog";
 import {
   BoardNotesField,
   BoardSilkscreenHashField,
@@ -82,6 +83,12 @@ export default async function BoardDetailPage({
       checklists: {
         orderBy: { createdAt: "asc" },
         include: { items: { orderBy: { ordinal: "asc" } } },
+      },
+      measurements: {
+        orderBy: { measuredAt: "asc" },
+        include: {
+          measuredBy: { select: { name: true, email: true } },
+        },
       },
     },
   });
@@ -178,16 +185,15 @@ export default async function BoardDetailPage({
 
       {/* Two-column grid — design §9.3 */}
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* LEFT 2/3 — Measurements log (Phase 14 / M9c) */}
+        {/* LEFT 2/3 — Measurements log (Task 14.2) */}
         <div className="space-y-6 lg:col-span-2">
-          <section className="border border-panel-border bg-navy-dark p-6">
-            <h2 className="font-display text-2xl tracking-wider text-white">
-              MEASUREMENTS
-            </h2>
-            <p className="mt-4 font-mono text-xs uppercase tracking-wider text-muted">
-              NO MEASUREMENTS YET.
-            </p>
-          </section>
+          <MeasurementsLog
+            boardId={board.id}
+            measurements={board.measurements}
+            defaultStage={revision.currentStage}
+            disabled={editsDisabled}
+            disabledReason={editsDisabledReason}
+          />
         </div>
 
         {/* RIGHT 1/3 — Board checklists (Task 13.3) */}
