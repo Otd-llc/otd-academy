@@ -14,6 +14,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
+import { BoardChecklistsPane } from "@/components/BoardChecklistsPane";
 import {
   BoardNotesField,
   BoardSilkscreenHashField,
@@ -52,7 +53,7 @@ export default async function BoardDetailPage({
       projectId: project.id,
       label: { equals: decodedRev, mode: "insensitive" },
     },
-    select: { id: true, label: true, frozenAt: true },
+    select: { id: true, label: true, frozenAt: true, currentStage: true },
   });
   if (!revision) notFound();
 
@@ -78,6 +79,10 @@ export default async function BoardDetailPage({
       notes: true,
       createdAt: true,
       updatedAt: true,
+      checklists: {
+        orderBy: { createdAt: "asc" },
+        include: { items: { orderBy: { ordinal: "asc" } } },
+      },
     },
   });
   if (!board) notFound();
@@ -185,16 +190,15 @@ export default async function BoardDetailPage({
           </section>
         </div>
 
-        {/* RIGHT 1/3 — Board checklists (Phase 13 / M9b) */}
+        {/* RIGHT 1/3 — Board checklists (Task 13.3) */}
         <div className="space-y-6">
-          <section className="border border-panel-border bg-navy-dark p-6">
-            <h2 className="font-display text-2xl tracking-wider text-white">
-              BOARD CHECKLISTS
-            </h2>
-            <p className="mt-4 font-mono text-xs uppercase tracking-wider text-muted">
-              NO CHECKLISTS YET.
-            </p>
-          </section>
+          <BoardChecklistsPane
+            boardId={board.id}
+            checklists={board.checklists}
+            stage={revision.currentStage}
+            disabled={editsDisabled}
+            disabledReason={editsDisabledReason}
+          />
         </div>
       </div>
     </main>
