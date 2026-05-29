@@ -5,8 +5,10 @@
 // helpers — pulls strings out of FormData, dispatches to the canonical
 // action, and surfaces ZodError per-field or a single `message` for
 // non-validation rejections (e.g., the same-project link guard).
+import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { ErratumSeverity, ErratumStatus } from "@prisma/client";
+import { db } from "@/lib/db";
 import {
   createErratum,
   deleteErratum,
@@ -136,6 +138,51 @@ export async function linkErratumFormAction(
     }
     return { message: err instanceof Error ? err.message : "Unknown error" };
   }
+}
+
+// Full-page create form (Task 11.3). Mirrors createRevisionFormAction:
+// dispatches createErratum, then redirects to the revision detail page on
+// success. The redirect-throw lives OUTSIDE the try/catch so Next.js's
+// internal NEXT_REDIRECT marker isn't swallowed.
+export async function createErratumPageFormAction(
+  _prev: ErratumFormState,
+  formData: FormData,
+): Promise<ErratumFormState> {
+  const revisionId = pickString(formData, "revisionId");
+  const title = pickString(formData, "title");
+  const description = pickRaw(formData, "description");
+  const severityRaw = pickString(formData, "severity");
+  const addressedByRevisionId = pickString(formData, "addressedByRevisionId");
+
+  if (!revisionId) return { message: "Missing revisionId." };
+  if (severityRaw && !(severityRaw in ErratumSeverity)) {
+    return { message: "Invalid severity." };
+  }
+
+  let redirectTo: string;
+  try {
+    await createErratum({
+      revisionId,
+      title,
+      description,
+      severity: severityRaw,
+      addressedByRevisionId,
+    });
+    // Resolve the revision's URL post-create so we can redirect into it.
+    const rev = await db.revision.findUniqueOrThrow({
+      where: { id: revisionId },
+      select: { label: true, project: { select: { slug: true } } },
+    });
+    redirectTo = `/projects/${rev.project.slug}/${encodeURIComponent(rev.label)}`;
+  } catch (err) {
+    if (err instanceof ZodError) {
+      return { errors: zodErrors(err) };
+    }
+    return { message: err instanceof Error ? err.message : "Unknown error" };
+  }
+
+  // Outside the try so Next.js's redirect-throw isn't caught.
+  redirect(redirectTo);
 }
 
 export async function deleteErratumFormAction(
