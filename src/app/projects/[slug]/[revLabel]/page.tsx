@@ -14,6 +14,10 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { STAGE_LABELS, STAGE_ORDER, type StageName } from "@/lib/stages";
 import { TransitionsLog } from "@/components/TransitionsLog";
+import {
+  EditLayoutCommitForm,
+  EditSchematicCommitForm,
+} from "./_commit-fields";
 
 type Params = { slug: string; revLabel: string };
 
@@ -85,24 +89,18 @@ export default async function RevisionDetailPage({
           </span>
         </div>
 
-        {/* Commit-SHA inputs land in Task 5.3 — placeholders for now */}
+        {/* Commit-SHA inline-edit (Task 5.3) — disabled when frozen */}
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <p className="font-mono text-xs uppercase tracking-wider text-muted">
-              Schematic commit
-            </p>
-            <p className="mt-1 font-mono text-sm text-link-muted">
-              {revision.schematicCommit ?? "—"}
-            </p>
-          </div>
-          <div>
-            <p className="font-mono text-xs uppercase tracking-wider text-muted">
-              Layout commit
-            </p>
-            <p className="mt-1 font-mono text-sm text-link-muted">
-              {revision.layoutCommit ?? "—"}
-            </p>
-          </div>
+          <EditSchematicCommitForm
+            revisionId={revision.id}
+            value={revision.schematicCommit}
+            disabled={isFrozen}
+          />
+          <EditLayoutCommitForm
+            revisionId={revision.id}
+            value={revision.layoutCommit}
+            disabled={isFrozen}
+          />
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3">
