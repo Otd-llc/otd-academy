@@ -8,13 +8,17 @@ import { config as loadEnv } from "dotenv";
 // Load .env.local before importing anything that reads process.env.DATABASE_URL.
 loadEnv({ path: ".env.local" });
 
-import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+
+// Derive the transaction-callback parameter type from the client itself.
+// Prisma 7 restructured `Prisma` namespace exports, so importing
+// `Prisma.TransactionClient` is fragile. This pattern is version-proof.
+type Tx = Parameters<Parameters<typeof db.$transaction>[0]>[0];
 
 async function main() {
   console.log("seed: starting");
 
-  await db.$transaction(async (tx: Prisma.TransactionClient) => {
+  await db.$transaction(async (tx: Tx) => {
     const user = await tx.user.upsert({
       where: { email: "seed@example.com" },
       update: {},
