@@ -15,6 +15,7 @@ import { db } from "@/lib/db";
 import { type StageName } from "@/lib/stages";
 import { loadGateContext } from "@/lib/load-gate-context";
 import { StageTracker } from "@/components/StageTracker";
+import { StageActions } from "@/components/StageActions";
 import { TransitionsLog } from "@/components/TransitionsLog";
 import {
   EditLayoutCommitForm,
@@ -175,6 +176,16 @@ export default async function RevisionDetailPage({
         <StageTracker
           revision={{ currentStage: revision.currentStage }}
           ctx={gateCtx}
+        />
+      </div>
+
+      {/* Advance / Regress buttons (Task 8.3) — sibling to the read-only
+          tracker per design §5.3 + §9.1. Hidden entirely when frozen. */}
+      <div className="mt-4">
+        <StageActions
+          revisionId={revision.id}
+          currentStage={revision.currentStage as StageName}
+          isFrozen={isFrozen}
         />
       </div>
 
