@@ -27,6 +27,7 @@ import {
 } from "./_header-fields";
 import { ArtifactPicker } from "@/components/ArtifactPicker";
 import { BoardsTable } from "@/components/BoardsTable";
+import { BuildChecklistsPane } from "@/components/BuildChecklistsPane";
 import { MarkBringupCompleteButton } from "@/components/MarkBringupCompleteButton";
 
 type Params = { slug: string; revLabel: string; buildLabel: string };
@@ -69,7 +70,10 @@ export default async function BuildDetailPage({
     include: {
       boards: { orderBy: { serial: "asc" } },
       artifacts: { orderBy: { createdAt: "asc" } },
-      checklists: { orderBy: { createdAt: "asc" } },
+      checklists: {
+        orderBy: { createdAt: "asc" },
+        include: { items: { orderBy: { ordinal: "asc" } } },
+      },
     },
   });
   if (!build) notFound();
@@ -306,30 +310,13 @@ export default async function BuildDetailPage({
             ) : null}
           </section>
 
-          <section className="border border-panel-border bg-navy-dark p-6">
-            <h2 className="font-display text-2xl tracking-wider text-white">
-              BUILD CHECKLISTS
-            </h2>
-            {build.checklists.length === 0 ? (
-              <p className="mt-4 font-mono text-xs uppercase tracking-wider text-muted">
-                NO CHECKLISTS YET.
-              </p>
-            ) : (
-              <ul className="mt-4 divide-y divide-panel-border">
-                {build.checklists.map((c) => (
-                  <li key={c.id} className="py-3 font-mono text-sm">
-                    <p className="text-link-muted">{c.title}</p>
-                    <p className="mt-1 font-mono text-xs uppercase tracking-wider text-muted">
-                      {c.subkind} · {c.stage}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <p className="mt-4 font-mono text-xs uppercase tracking-wider text-muted">
-              Checklist form ships in Phase 13 (M9b).
-            </p>
-          </section>
+          <BuildChecklistsPane
+            buildId={build.id}
+            checklists={build.checklists}
+            stage={revision.currentStage}
+            disabled={editsDisabled}
+            disabledReason={editsDisabledReason}
+          />
         </div>
       </div>
     </main>
