@@ -5,8 +5,11 @@
 //   - ADVANCE  → "Advanced: {fromStage} → {toStage}"
 //   - REGRESS  → "{fromStage} → {toStage}: {reason}"
 //
-// Phase 5a renders the rows only. Phase 8 (Task 8.5) will enhance the
-// gateSnapshot blob display (click-to-expand).
+// Stage names render in `text-command-gold` to anchor the eye; the
+// timestamp + actor line stays `text-muted` (design §8.1 typography rule).
+// Multi-stage skip-regress rows (e.g., `BRINGUP → ORDERING` from
+// createBuild) read naturally with the spread.
+import type { ReactNode } from "react";
 import type { Stage, TransitionDirection } from "@prisma/client";
 
 type TransitionRow = {
@@ -19,12 +22,42 @@ type TransitionRow = {
   user: { email: string; name: string | null };
 };
 
-function formatRow(t: TransitionRow): string {
-  if (t.direction === "INIT") return "Revision created";
-  if (t.direction === "ADVANCE")
-    return `Advanced: ${t.fromStage} → ${t.toStage}`;
+function Stagepiece({ stage }: { stage: Stage | null }) {
+  return (
+    <span className="font-mono text-sm text-command-gold">
+      {stage ?? "—"}
+    </span>
+  );
+}
+
+function renderRow(t: TransitionRow): ReactNode {
+  if (t.direction === "INIT") {
+    return (
+      <span className="font-mono text-sm text-link-muted">
+        Revision created
+      </span>
+    );
+  }
+  if (t.direction === "ADVANCE") {
+    return (
+      <span className="font-mono text-sm text-link-muted">
+        Advanced: <Stagepiece stage={t.fromStage} />{" "}
+        <span className="text-muted">→</span>{" "}
+        <Stagepiece stage={t.toStage} />
+      </span>
+    );
+  }
   // REGRESS — notes carries the reason per design §5.3.
-  return `${t.fromStage} → ${t.toStage}: ${t.notes ?? "(no reason recorded)"}`;
+  return (
+    <span className="font-mono text-sm text-link-muted">
+      <Stagepiece stage={t.fromStage} />{" "}
+      <span className="text-muted">→</span>{" "}
+      <Stagepiece stage={t.toStage} />:{" "}
+      <span className="text-link-muted">
+        {t.notes ?? "(no reason recorded)"}
+      </span>
+    </span>
+  );
 }
 
 export function TransitionsLog({
@@ -49,7 +82,7 @@ export function TransitionsLog({
     <ul className="divide-y divide-panel-border">
       {sorted.map((t) => (
         <li key={t.id} className="py-3">
-          <p className="font-mono text-sm text-link-muted">{formatRow(t)}</p>
+          <p>{renderRow(t)}</p>
           <p className="mt-1 font-mono text-xs uppercase tracking-wider text-muted">
             {t.transitionedAt.toISOString().slice(0, 10)} ·{" "}
             {t.user.name ?? t.user.email}
