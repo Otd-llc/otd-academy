@@ -19,6 +19,7 @@ import { ZodError } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { assertBomNotFrozen, assertNotFrozen } from "@/lib/assertions";
+import { withTxRetry } from "@/lib/tx-retry";
 import {
   createBomLineSchema,
   deleteBomLineSchema,
@@ -37,22 +38,24 @@ export async function createBomLine(input: unknown) {
   const data = createBomLineSchema.parse(input);
   const user = await requireUser();
 
-  const result = await db.$transaction(
-    async (tx) => {
-      await assertNotFrozen(tx, data.revisionId);
-      await assertBomNotFrozen(tx, data.revisionId);
-      return tx.bomLine.create({
-        data: {
-          revisionId: data.revisionId,
-          partId: data.partId,
-          refDes: data.refDes,
-          quantity: data.quantity,
-          notes: data.notes ?? null,
-          createdById: user.id,
-        },
-      });
-    },
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  const result = await withTxRetry(() =>
+    db.$transaction(
+      async (tx) => {
+        await assertNotFrozen(tx, data.revisionId);
+        await assertBomNotFrozen(tx, data.revisionId);
+        return tx.bomLine.create({
+          data: {
+            revisionId: data.revisionId,
+            partId: data.partId,
+            refDes: data.refDes,
+            quantity: data.quantity,
+            notes: data.notes ?? null,
+            createdById: user.id,
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    ),
   );
 
   const { revLabel, projectSlug } = await loadRevisionRouteContext(
@@ -72,17 +75,19 @@ export async function editBomLine(input: unknown) {
     if (v !== undefined) data[k] = v;
   }
 
-  const result = await db.$transaction(
-    async (tx) => {
-      const row = await tx.bomLine.findUniqueOrThrow({
-        where: { id },
-        select: { revisionId: true },
-      });
-      await assertNotFrozen(tx, row.revisionId);
-      await assertBomNotFrozen(tx, row.revisionId);
-      return tx.bomLine.update({ where: { id }, data });
-    },
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  const result = await withTxRetry(() =>
+    db.$transaction(
+      async (tx) => {
+        const row = await tx.bomLine.findUniqueOrThrow({
+          where: { id },
+          select: { revisionId: true },
+        });
+        await assertNotFrozen(tx, row.revisionId);
+        await assertBomNotFrozen(tx, row.revisionId);
+        return tx.bomLine.update({ where: { id }, data });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    ),
   );
 
   const { revLabel, projectSlug } = await loadRevisionRouteContext(
@@ -96,18 +101,20 @@ export async function deleteBomLine(input: unknown) {
   const { id } = deleteBomLineSchema.parse(input);
   await requireUser();
 
-  const { revisionId } = await db.$transaction(
-    async (tx) => {
-      const row = await tx.bomLine.findUniqueOrThrow({
-        where: { id },
-        select: { revisionId: true },
-      });
-      await assertNotFrozen(tx, row.revisionId);
-      await assertBomNotFrozen(tx, row.revisionId);
-      await tx.bomLine.delete({ where: { id } });
-      return { revisionId: row.revisionId };
-    },
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  const { revisionId } = await withTxRetry(() =>
+    db.$transaction(
+      async (tx) => {
+        const row = await tx.bomLine.findUniqueOrThrow({
+          where: { id },
+          select: { revisionId: true },
+        });
+        await assertNotFrozen(tx, row.revisionId);
+        await assertBomNotFrozen(tx, row.revisionId);
+        await tx.bomLine.delete({ where: { id } });
+        return { revisionId: row.revisionId };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    ),
   );
 
   const { revLabel, projectSlug } = await loadRevisionRouteContext(revisionId);

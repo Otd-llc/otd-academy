@@ -17,6 +17,7 @@ import { ZodError } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { assertNotFrozen } from "@/lib/assertions";
+import { withTxRetry } from "@/lib/tx-retry";
 import {
   createRevisionSchema,
   setCommitSchema,
@@ -26,7 +27,8 @@ export async function createRevision(input: unknown) {
   const data = createRevisionSchema.parse(input);
   const user = await requireUser();
 
-  const { revision, projectSlug } = await db.$transaction(
+  const { revision, projectSlug } = await withTxRetry(() =>
+    db.$transaction(
     async (tx) => {
       // Pre-load the project so we can revalidate its detail page outside
       // the transaction (we need the slug, not just the id).
@@ -111,6 +113,7 @@ export async function createRevision(input: unknown) {
       return { revision: rev, projectSlug: project.slug };
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    ),
   );
 
   // Revalidate the parent project page (revision list) and the new rev URL.
@@ -130,25 +133,27 @@ async function setRevisionCommit(
   const user = await requireUser();
   void user; // requireUser establishes auth; no audit fields on Revision for this op.
 
-  const { revision, projectSlug } = await db.$transaction(
-    async (tx) => {
-      await assertNotFrozen(tx, data.revisionId);
-      // Empty string means "clear" (Zod schema permits "").
-      const value = data.value === "" ? null : data.value;
-      const updated = await tx.revision.update({
-        where: { id: data.revisionId },
-        data: { [field]: value },
-        select: {
-          id: true,
-          label: true,
-          schematicCommit: true,
-          layoutCommit: true,
-          project: { select: { slug: true } },
-        },
-      });
-      return { revision: updated, projectSlug: updated.project.slug };
-    },
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  const { revision, projectSlug } = await withTxRetry(() =>
+    db.$transaction(
+      async (tx) => {
+        await assertNotFrozen(tx, data.revisionId);
+        // Empty string means "clear" (Zod schema permits "").
+        const value = data.value === "" ? null : data.value;
+        const updated = await tx.revision.update({
+          where: { id: data.revisionId },
+          data: { [field]: value },
+          select: {
+            id: true,
+            label: true,
+            schematicCommit: true,
+            layoutCommit: true,
+            project: { select: { slug: true } },
+          },
+        });
+        return { revision: updated, projectSlug: updated.project.slug };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    ),
   );
 
   revalidatePath(`/projects/${projectSlug}/${revision.label}`);

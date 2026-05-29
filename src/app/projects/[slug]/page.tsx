@@ -96,14 +96,22 @@ export default async function ProjectDetailPage({
         )}
       </div>
 
-      {/* Revisions placeholder — replaced by M5a */}
+      {/* Revisions */}
       <section className="mt-10">
-        <h2 className="font-display text-3xl tracking-wider text-white">
-          REVISIONS
-        </h2>
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="font-display text-3xl tracking-wider text-white">
+            REVISIONS
+          </h2>
+          <Link
+            href={`/projects/${project.slug}/revisions/new`}
+            className="rounded border border-command-gold bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+          >
+            + New revision
+          </Link>
+        </div>
         {project.revisions.length === 0 ? (
           <p className="mt-4 font-mono text-sm uppercase tracking-wider text-muted">
-            NO REVISIONS YET — REVISION CRUD ARRIVES IN M5A.
+            NO REVISIONS YET.
           </p>
         ) : (
           <ul className="mt-4 divide-y divide-panel-border border border-panel-border">
