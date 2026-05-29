@@ -37,6 +37,14 @@ async function main() {
     const existingRevision = await tx.revision.findFirst({
       where: { projectId: project.id, label: { equals: "v1", mode: "insensitive" } },
     });
+    // bomFrozenAt is set at BOM_SOURCING → LAYOUT advance and the seed
+    // bypasses to BRINGUP — well past LAYOUT — so the realistic state
+    // is `bomFrozenAt` non-null. Without this, downstream BomLine writes
+    // would slip past `assertBomNotFrozen` in tests that exercise the
+    // seeded rev's frozen-BOM path (design §5.3).
+    const seedBomFrozenAt = new Date(
+      Date.now() - 20 * 24 * 60 * 60 * 1000,
+    );
     const revision = existingRevision
       ? await tx.revision.update({
           where: { id: existingRevision.id },
@@ -44,6 +52,7 @@ async function main() {
             currentStage: "BRINGUP",
             schematicCommit: "g1ebc1cc",
             layoutCommit: "gb170ddb",
+            bomFrozenAt: seedBomFrozenAt,
           },
         })
       : await tx.revision.create({
@@ -53,6 +62,7 @@ async function main() {
             currentStage: "BRINGUP",
             schematicCommit: "g1ebc1cc",
             layoutCommit: "gb170ddb",
+            bomFrozenAt: seedBomFrozenAt,
           },
         });
 

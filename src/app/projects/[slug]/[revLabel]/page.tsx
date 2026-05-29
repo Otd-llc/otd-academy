@@ -18,6 +18,7 @@ import {
   EditLayoutCommitForm,
   EditSchematicCommitForm,
 } from "./_commit-fields";
+import { BomEditor } from "./_bom-editor";
 
 type Params = { slug: string; revLabel: string };
 
@@ -60,6 +61,18 @@ export default async function RevisionDetailPage({
 
   const isFrozen = revision.frozenAt !== null;
   const currentIdx = STAGE_ORDER.indexOf(revision.currentStage as StageName);
+
+  // Parts list for the BomEditor dropdown — capped at 200 for Phase 5a;
+  // search/pagination lands when the parts library grows past that. The
+  // global parts library is shared across projects per design §4.3.
+  const parts =
+    revision.currentStage === "BOM_SOURCING"
+      ? await db.part.findMany({
+          orderBy: [{ manufacturer: "asc" }, { mpn: "asc" }],
+          take: 200,
+          select: { id: true, mpn: true, manufacturer: true },
+        })
+      : [];
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-10">
@@ -202,9 +215,43 @@ export default async function RevisionDetailPage({
                 Stage · {revision.currentStage}
               </span>
             </div>
-            <p className="mt-4 font-mono text-xs uppercase tracking-wider text-muted">
-              NO ARTIFACTS AT THIS STAGE.
-            </p>
+
+            {/* BomLine editor — visible only in BOM_SOURCING (design §9.1). */}
+            {revision.currentStage === "BOM_SOURCING" ? (
+              <div className="mt-4">
+                <BomEditor
+                  revisionId={revision.id}
+                  lines={revision.bomLines.map((l) => ({
+                    id: l.id,
+                    refDes: l.refDes,
+                    quantity: l.quantity,
+                    notes: l.notes,
+                    part: {
+                      id: l.part.id,
+                      mpn: l.part.mpn,
+                      manufacturer: l.part.manufacturer,
+                    },
+                  }))}
+                  parts={parts.map((p) => ({
+                    id: p.id,
+                    mpn: p.mpn,
+                    manufacturer: p.manufacturer,
+                  }))}
+                  disabled={isFrozen || revision.bomFrozenAt !== null}
+                  disabledReason={
+                    isFrozen
+                      ? "Revision is frozen."
+                      : revision.bomFrozenAt !== null
+                        ? "BOM is frozen."
+                        : undefined
+                  }
+                />
+              </div>
+            ) : (
+              <p className="mt-4 font-mono text-xs uppercase tracking-wider text-muted">
+                NO ARTIFACTS AT THIS STAGE.
+              </p>
+            )}
           </section>
         </div>
 
