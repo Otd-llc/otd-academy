@@ -62,6 +62,22 @@ export default async function RevisionDetailPage({
   const isFrozen = revision.frozenAt !== null;
   const currentIdx = STAGE_ORDER.indexOf(revision.currentStage as StageName);
 
+  // "Create new Build" gating (design §9.1): mirror createBuild's stage
+  // assertion AND the Phase 1 one-unfrozen-Build-per-revision invariant.
+  // Hiding the button when it would be rejected anyway keeps the affordance
+  // honest.
+  const buildCreatableStages: StageName[] = [
+    "DRC_GERBER",
+    "ORDERING",
+    "ASSEMBLY",
+    "BRINGUP",
+  ];
+  const hasUnfrozenBuild = revision.builds.some((b) => b.frozenAt === null);
+  const canCreateBuild =
+    !isFrozen &&
+    buildCreatableStages.includes(revision.currentStage as StageName) &&
+    !hasUnfrozenBuild;
+
   // Parts list for the BomEditor dropdown — capped at 200 for Phase 5a;
   // search/pagination lands when the parts library grows past that. The
   // global parts library is shared across projects per design §4.3.
@@ -177,11 +193,27 @@ export default async function RevisionDetailPage({
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* LEFT 2/3 — Builds + Artifacts */}
         <div className="space-y-6 lg:col-span-2">
-          {/* Builds pane */}
+          {/* Builds pane — design §9.1 */}
           <section className="border border-panel-border bg-navy-dark p-6">
-            <h2 className="font-display text-2xl tracking-wider text-white">
-              BUILDS
-            </h2>
+            <div className="flex items-baseline justify-between gap-4">
+              <h2 className="font-display text-2xl tracking-wider text-white">
+                BUILDS
+              </h2>
+              {/*
+                "Create new Build" visibility (design §9.1): revision in
+                DRC_GERBER/ORDERING/ASSEMBLY/BRINGUP, unfrozen, AND no unfrozen
+                Build exists. Matches the createBuild action's gates so the
+                user never sees the deeper error.
+              */}
+              {canCreateBuild ? (
+                <Link
+                  href={`/projects/${project.slug}/${encodeURIComponent(revision.label)}/builds/new`}
+                  className="rounded border border-command-gold bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+                >
+                  + New build
+                </Link>
+              ) : null}
+            </div>
             {revision.builds.length === 0 ? (
               <p className="mt-4 font-mono text-xs uppercase tracking-wider text-muted">
                 NO BUILDS YET.
@@ -193,7 +225,12 @@ export default async function RevisionDetailPage({
                     key={b.id}
                     className="flex items-baseline justify-between gap-4 py-3 font-mono text-sm"
                   >
-                    <span className="text-command-gold">{b.label}</span>
+                    <Link
+                      href={`/projects/${project.slug}/${encodeURIComponent(revision.label)}/builds/${encodeURIComponent(b.label)}`}
+                      className="text-command-gold underline-offset-4 hover:underline"
+                    >
+                      {b.label}
+                    </Link>
                     <span className="text-muted">
                       {b.boardCount} boards ·{" "}
                       {b.frozenAt ? "frozen" : "active"}
