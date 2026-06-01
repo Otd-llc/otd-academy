@@ -20,6 +20,8 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { withTxRetry } from "@/lib/tx-retry";
 import { loadGateContext } from "@/lib/load-gate-context";
+import { checkProjectDependencies } from "@/lib/check-project-dependencies";
+import { dependentsAtRisk } from "@/lib/dependents-at-risk";
 import {
   STAGES,
   STAGE_ORDER,
@@ -110,7 +112,7 @@ export async function advanceStage(
   const { result, projectSlug, revLabel } = await withTxRetry(() =>
     db.$transaction(
       async (tx) => {
-        // 1. Load revision (with project slug for revalidation).
+        // 1. Load revision (with project slug for revalidation, id for DAG check).
         const rev = await tx.revision.findUniqueOrThrow({
           where: { id: data.revisionId },
           select: {
@@ -118,7 +120,7 @@ export async function advanceStage(
             label: true,
             currentStage: true,
             frozenAt: true,
-            project: { select: { slug: true } },
+            project: { select: { slug: true, id: true } },
           },
         });
 
@@ -143,18 +145,30 @@ export async function advanceStage(
           );
         }
 
-        // 4. Run the exit gate. Build context inside the same tx so SSI
-        //    picks up any concurrent writes to boards / artifacts / etc.
+        // 4. Run the exit gate AND the project-dependency DAG check. Build
+        //    context inside the same tx so SSI picks up concurrent writes
+        //    to boards / artifacts / dependency edges / dep revisions.
+        //    Reasons from both checks are unioned before the decision so
+        //    a single advance attempt surfaces every blocker (proposal §3.1,
+        //    Task 12.6).
         const ctx = await loadGateContext(tx, rev.id);
-        const gate = STAGES[currentStage].exitGate;
-        const gateResult: GateResult = gate
-          ? await gate(ctx)
+        const gateResult: GateResult = STAGES[currentStage].exitGate
+          ? await STAGES[currentStage].exitGate(ctx)
           : { ok: true };
-        if (!gateResult.ok) {
+        const depResult: GateResult = await checkProjectDependencies(
+          tx,
+          rev.project.id,
+          currentStage,
+        );
+        const mergedReasons = [
+          ...(gateResult.ok ? [] : gateResult.reasons),
+          ...(depResult.ok ? [] : depResult.reasons),
+        ];
+        if (mergedReasons.length > 0) {
           // Return — don't throw — so the caller can render `reasons`
           // inline. The tx will commit cleanly with no state change.
           return {
-            result: { ok: false as const, reasons: gateResult.reasons },
+            result: { ok: false as const, reasons: mergedReasons },
             projectSlug: rev.project.slug,
             revLabel: rev.label,
           };
@@ -383,6 +397,49 @@ export async function regressStage(
 
   revalidatePath(`/projects/${projectSlug}/${revLabel}`);
   return result;
+}
+
+// ─── previewRegress ────────────────────────────────────
+//
+// Advisory preview for the regress confirm modal (Task 12.8 / proposal §3.1).
+// Read-only — derives `toStage` server-side the same way `regressStage` does,
+// then returns the inbound `dependentsAtRisk` edges projected down to
+// `{ slug, name }` for the banner. No tx needed.
+
+const previewRegressSchema = z.object({
+  revisionId: z.cuid(),
+});
+
+export async function previewRegress(
+  input: unknown,
+): Promise<{ atRisk: { slug: string; name: string }[] }> {
+  const data = previewRegressSchema.parse(input);
+  await requireUser();
+
+  const rev = await db.revision.findUniqueOrThrow({
+    where: { id: data.revisionId },
+    select: {
+      currentStage: true,
+      project: { select: { id: true } },
+    },
+  });
+
+  const currentStage = rev.currentStage as StageName;
+  const toStage = prevStage(currentStage);
+  if (!toStage) return { atRisk: [] };
+
+  const result = await dependentsAtRisk(
+    db,
+    rev.project.id,
+    currentStage as Stage,
+    toStage as Stage,
+  );
+  return {
+    atRisk: result.map((e) => ({
+      slug: e.dependentProject.slug,
+      name: e.dependentProject.name,
+    })),
+  };
 }
 
 // ─── Form action wrappers (useActionState-compatible) ──────────────────

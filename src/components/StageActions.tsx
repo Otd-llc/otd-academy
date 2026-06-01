@@ -13,15 +13,20 @@
 // Regress opens a <dialog> modal that collects the required reason. The
 // reason is sent to regressStageAction inside the form's action.
 
-import { useActionState, useRef } from "react";
+import { useActionState, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
   advanceStageAction,
+  previewRegress,
   regressStageAction,
   type StageFormState,
 } from "@/lib/actions/stages";
 import type { StageName } from "@/lib/stages";
 import { InlineBanner } from "@/components/InlineBanner";
+import {
+  RegressAtRiskBanner,
+  type RegressAtRiskEntry,
+} from "@/components/RegressAtRiskBanner";
 
 const initialState: StageFormState = {};
 
@@ -101,6 +106,7 @@ export function StageActions({
   );
 
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const [atRisk, setAtRisk] = useState<RegressAtRiskEntry[]>([]);
 
   if (isFrozen) {
     // No actions surface when frozen — the revision is locked except for
@@ -119,7 +125,17 @@ export function StageActions({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         {canRegress ? (
-          <RegressTrigger onClick={() => dialogRef.current?.showModal()} />
+          <RegressTrigger
+            onClick={async () => {
+              dialogRef.current?.showModal();
+              try {
+                const { atRisk: next } = await previewRegress({ revisionId });
+                setAtRisk(next);
+              } catch {
+                setAtRisk([]);
+              }
+            }}
+          />
         ) : null}
         {canAdvance ? (
           <form action={advanceAction}>
@@ -152,6 +168,7 @@ export function StageActions({
               reason is written to the transitions log.
             </p>
             <input type="hidden" name="revisionId" value={revisionId} />
+            <RegressAtRiskBanner atRisk={atRisk} />
             <label className="block font-mono text-xs uppercase tracking-wider text-muted">
               Reason
               <textarea

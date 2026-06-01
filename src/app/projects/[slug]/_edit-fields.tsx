@@ -9,10 +9,15 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import {
+  editProjectCriticalPathAction,
   editProjectDescriptionAction,
+  editProjectDisciplineTaughtAction,
+  editProjectLevelAction,
   editProjectNameAction,
   editProjectRepoUrlAction,
+  editProjectRequiresStripboardAction,
   editProjectTargetCostAction,
+  editProjectTrackAction,
   type ProjectFormState,
 } from "@/lib/actions/projects";
 import { InlineBanner } from "@/components/InlineBanner";
@@ -158,6 +163,166 @@ export function EditTargetCostForm({
       />
       <SaveButton />
       <FieldError messages={state.errors?.targetCost} />
+      <ActionMessage state={state} />
+    </form>
+  );
+}
+
+export function EditTrackForm({
+  id,
+  value,
+}: {
+  id: string;
+  value: "SENSE" | "ACT" | "POWER" | "COMMS" | null;
+}) {
+  const [state, action] = useActionState(editProjectTrackAction, initialState);
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="id" value={id} />
+      <label className="block font-mono text-xs uppercase tracking-wider text-muted">
+        Track
+      </label>
+      <select
+        name="track"
+        defaultValue={value ?? ""}
+        className="block w-full rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+      >
+        <option value="">— none —</option>
+        <option value="SENSE">SENSE</option>
+        <option value="ACT">ACT</option>
+        <option value="POWER">POWER</option>
+        <option value="COMMS">COMMS</option>
+      </select>
+      <SaveButton />
+      <FieldError messages={state.errors?.track} />
+      <ActionMessage state={state} />
+    </form>
+  );
+}
+
+export function EditLevelForm({
+  id,
+  value,
+}: {
+  id: string;
+  value: "L1" | "L2" | "L3" | null;
+}) {
+  const [state, action] = useActionState(editProjectLevelAction, initialState);
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="id" value={id} />
+      <label className="block font-mono text-xs uppercase tracking-wider text-muted">
+        Level
+      </label>
+      <select
+        name="level"
+        defaultValue={value ?? ""}
+        className="block w-full rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+      >
+        <option value="">— none —</option>
+        <option value="L1">L1</option>
+        <option value="L2">L2</option>
+        <option value="L3">L3</option>
+      </select>
+      <SaveButton />
+      <FieldError messages={state.errors?.level} />
+      <ActionMessage state={state} />
+    </form>
+  );
+}
+
+export function EditDisciplineTaughtForm({
+  id,
+  value,
+}: {
+  id: string;
+  value: string | null;
+}) {
+  const [state, action] = useActionState(
+    editProjectDisciplineTaughtAction,
+    initialState,
+  );
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="id" value={id} />
+      <label className="block font-mono text-xs uppercase tracking-wider text-muted">
+        Discipline taught
+      </label>
+      <input
+        name="disciplineTaught"
+        type="text"
+        maxLength={200}
+        defaultValue={value ?? ""}
+        className="w-full rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+      />
+      <SaveButton />
+      <FieldError messages={state.errors?.disciplineTaught} />
+      <ActionMessage state={state} />
+    </form>
+  );
+}
+
+export function EditCriticalPathForm({
+  id,
+  value,
+}: {
+  id: string;
+  value: boolean;
+}) {
+  const [state, action] = useActionState(
+    editProjectCriticalPathAction,
+    initialState,
+  );
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="id" value={id} />
+      <label className="inline-flex items-center gap-2">
+        <input
+          name="criticalPath"
+          type="checkbox"
+          defaultChecked={value}
+        />
+        <span className="font-mono text-xs uppercase tracking-wider text-muted">
+          Critical path (uncheck for bench tool)
+        </span>
+      </label>
+      <div>
+        <SaveButton />
+      </div>
+      <FieldError messages={state.errors?.criticalPath} />
+      <ActionMessage state={state} />
+    </form>
+  );
+}
+
+export function EditRequiresStripboardForm({
+  id,
+  value,
+}: {
+  id: string;
+  value: boolean;
+}) {
+  const [state, action] = useActionState(
+    editProjectRequiresStripboardAction,
+    initialState,
+  );
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="id" value={id} />
+      <label className="inline-flex items-center gap-2">
+        <input
+          name="requiresStripboard"
+          type="checkbox"
+          defaultChecked={value}
+        />
+        <span className="font-mono text-xs uppercase tracking-wider text-muted">
+          Requires stripboard de-risk rung
+        </span>
+      </label>
+      <div>
+        <SaveButton />
+      </div>
+      <FieldError messages={state.errors?.requiresStripboard} />
       <ActionMessage state={state} />
     </form>
   );

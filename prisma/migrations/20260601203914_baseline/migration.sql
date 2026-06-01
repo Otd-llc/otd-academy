@@ -1,3 +1,6 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
 -- CreateEnum
 CREATE TYPE "Stage" AS ENUM ('REQUIREMENTS', 'SCHEMATIC', 'BOM_SOURCING', 'LAYOUT', 'DRC_GERBER', 'ORDERING', 'ASSEMBLY', 'BRINGUP', 'REVISION');
 
@@ -27,6 +30,12 @@ CREATE TYPE "ErratumSeverity" AS ENUM ('BLOCKER', 'MAJOR', 'MINOR');
 
 -- CreateEnum
 CREATE TYPE "ErratumStatus" AS ENUM ('OPEN', 'FIXED_NEXT_REV', 'WONT_FIX');
+
+-- CreateEnum
+CREATE TYPE "CurriculumTrack" AS ENUM ('SENSE', 'ACT', 'POWER', 'COMMS');
+
+-- CreateEnum
+CREATE TYPE "CurriculumLevel" AS ENUM ('L1', 'L2', 'L3');
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -83,6 +92,11 @@ CREATE TABLE "Project" (
     "description" TEXT,
     "targetCost" DECIMAL(10,2),
     "repoUrl" TEXT,
+    "track" "CurriculumTrack",
+    "level" "CurriculumLevel",
+    "criticalPath" BOOLEAN NOT NULL DEFAULT true,
+    "disciplineTaught" TEXT,
+    "requiresStripboard" BOOLEAN NOT NULL DEFAULT false,
     "archivedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -441,3 +455,67 @@ ALTER TABLE "Erratum" ADD CONSTRAINT "Erratum_addressedByRevisionId_fkey" FOREIG
 
 -- AddForeignKey
 ALTER TABLE "Erratum" ADD CONSTRAINT "Erratum_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- ============================================================================
+-- Raw-SQL invariants merged from pre-rebaseline migrations
+-- ============================================================================
+
+-- From 20260528182622_revision_project_label_ci
+-- CreateIndex (functional unique index for case-insensitive label uniqueness per project)
+CREATE UNIQUE INDEX revision_project_label_ci
+ON "Revision" ("projectId", lower("label"));
+
+-- From 20260528182842_build_revision_label_ci
+-- CreateIndex
+CREATE UNIQUE INDEX build_revision_label_ci
+ON "Build" ("revisionId", lower("label"));
+
+-- From 20260528182843_board_build_serial_ci
+-- CreateIndex
+CREATE UNIQUE INDEX board_build_serial_ci
+ON "Board" ("buildId", lower("serial"));
+
+-- From 20260528183057_build_one_unfrozen_per_revision
+-- CreateIndex (partial unique index: only one unfrozen Build per Revision)
+CREATE UNIQUE INDEX build_one_unfrozen_per_revision
+ON "Build" ("revisionId")
+WHERE "frozenAt" IS NULL;
+
+-- From 20260528225549_artifact_owner_xor
+-- AddCheckConstraint
+ALTER TABLE "Artifact"
+ADD CONSTRAINT artifact_owner_xor CHECK (
+  ("revisionId" IS NOT NULL AND "buildId" IS NULL)
+  OR ("revisionId" IS NULL AND "buildId" IS NOT NULL)
+);
+
+-- From 20260528230523_artifact_payload_xor
+-- AddCheckConstraint
+ALTER TABLE "Artifact"
+ADD CONSTRAINT artifact_kind_payload_xor CHECK (
+  (kind = 'FILE' AND "fileKey" IS NOT NULL AND "noteBody" IS NULL AND "linkUrl" IS NULL)
+  OR (kind = 'NOTE' AND "noteBody" IS NOT NULL AND "fileKey" IS NULL AND "linkUrl" IS NULL)
+  OR (kind = 'LINK' AND "linkUrl" IS NOT NULL AND "fileKey" IS NULL AND "noteBody" IS NULL)
+);
+
+-- From 20260528231452_checklist_owner_xor
+-- AddCheckConstraint
+ALTER TABLE "Checklist"
+ADD CONSTRAINT checklist_owner_xor CHECK (
+  ("buildId" IS NOT NULL AND "boardId" IS NULL)
+  OR ("buildId" IS NULL AND "boardId" IS NOT NULL)
+);
+
+-- From 20260528231740_bomline_refdes_count
+-- AddCheckConstraint
+ALTER TABLE "BomLine"
+ADD CONSTRAINT bomline_refdes_count CHECK (
+  array_length(string_to_array("refDes", ','), 1) = "quantity"
+);
+
+-- From 20260528232032_board_silkscreen_format
+-- AddCheckConstraint
+ALTER TABLE "Board"
+ADD CONSTRAINT board_silkscreen_format CHECK (
+  "silkscreenHash" IS NULL OR "silkscreenHash" ~* '^g?[0-9a-f]{7,40}$'
+);

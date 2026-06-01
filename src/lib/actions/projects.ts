@@ -28,6 +28,15 @@ export async function createProject(input: unknown) {
       description: data.description ?? null,
       repoUrl: data.repoUrl ?? null,
       targetCost: data.targetCost ?? null,
+      track: data.track ?? null,
+      level: data.level ?? null,
+      ...(data.criticalPath !== undefined
+        ? { criticalPath: data.criticalPath }
+        : {}),
+      disciplineTaught: data.disciplineTaught ?? null,
+      ...(data.requiresStripboard !== undefined
+        ? { requiresStripboard: data.requiresStripboard }
+        : {}),
       createdById: user.id,
     },
   });
@@ -97,12 +106,19 @@ export async function createProjectFormAction(
   _prev: ProjectFormState,
   formData: FormData,
 ): Promise<ProjectFormState> {
+  const trackRaw = pickString(formData, "track");
+  const levelRaw = pickString(formData, "level");
   const raw = {
     slug: pickString(formData, "slug"),
     name: pickString(formData, "name"),
     description: pickString(formData, "description"),
     repoUrl: pickString(formData, "repoUrl"),
     targetCost: pickString(formData, "targetCost"),
+    track: trackRaw ?? null,
+    level: levelRaw ?? null,
+    criticalPath: formData.get("criticalPath") === "on",
+    disciplineTaught: pickString(formData, "disciplineTaught") ?? null,
+    requiresStripboard: formData.get("requiresStripboard") === "on",
   };
 
   let createdSlug: string;
@@ -134,7 +150,14 @@ export async function createProjectFormAction(
 // the page).
 
 async function editProjectSingleField(
-  fieldName: "name" | "description" | "repoUrl" | "targetCost",
+  fieldName:
+    | "name"
+    | "description"
+    | "repoUrl"
+    | "targetCost"
+    | "track"
+    | "level"
+    | "disciplineTaught",
   formData: FormData,
 ): Promise<ProjectFormState> {
   const id = formData.get("id");
@@ -149,6 +172,34 @@ async function editProjectSingleField(
       : raw === undefined
         ? null
         : raw;
+
+  try {
+    await editProject({ id, [fieldName]: value });
+    return {};
+  } catch (err) {
+    if (err instanceof ZodError) {
+      const errors: Record<string, string[]> = {};
+      for (const issue of err.issues) {
+        const key = issue.path.join(".") || "_root";
+        (errors[key] ??= []).push(issue.message);
+      }
+      return { errors };
+    }
+    return { message: err instanceof Error ? err.message : "Unknown error" };
+  }
+}
+
+async function editProjectBooleanField(
+  fieldName: "criticalPath" | "requiresStripboard",
+  formData: FormData,
+): Promise<ProjectFormState> {
+  const id = formData.get("id");
+  if (typeof id !== "string" || id.length === 0) {
+    return { message: "Missing project id" };
+  }
+  // Checkbox form-data semantics: present iff checked. We persist the
+  // resolved boolean either way so the toggle is round-trip stable.
+  const value = formData.get(fieldName) === "on";
 
   try {
     await editProject({ id, [fieldName]: value });
@@ -192,6 +243,41 @@ export async function editProjectTargetCostAction(
   formData: FormData,
 ): Promise<ProjectFormState> {
   return editProjectSingleField("targetCost", formData);
+}
+
+export async function editProjectTrackAction(
+  _prev: ProjectFormState,
+  formData: FormData,
+): Promise<ProjectFormState> {
+  return editProjectSingleField("track", formData);
+}
+
+export async function editProjectLevelAction(
+  _prev: ProjectFormState,
+  formData: FormData,
+): Promise<ProjectFormState> {
+  return editProjectSingleField("level", formData);
+}
+
+export async function editProjectDisciplineTaughtAction(
+  _prev: ProjectFormState,
+  formData: FormData,
+): Promise<ProjectFormState> {
+  return editProjectSingleField("disciplineTaught", formData);
+}
+
+export async function editProjectCriticalPathAction(
+  _prev: ProjectFormState,
+  formData: FormData,
+): Promise<ProjectFormState> {
+  return editProjectBooleanField("criticalPath", formData);
+}
+
+export async function editProjectRequiresStripboardAction(
+  _prev: ProjectFormState,
+  formData: FormData,
+): Promise<ProjectFormState> {
+  return editProjectBooleanField("requiresStripboard", formData);
 }
 
 export async function archiveProjectAction(formData: FormData): Promise<void> {

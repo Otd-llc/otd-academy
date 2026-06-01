@@ -7,6 +7,12 @@
 // fields onto the update.
 import { z } from "zod";
 
+const trackSchema = z
+  .enum(["SENSE", "ACT", "POWER", "COMMS"])
+  .optional()
+  .nullable();
+const levelSchema = z.enum(["L1", "L2", "L3"]).optional().nullable();
+
 export const createProjectSchema = z.object({
   slug: z
     .string()
@@ -17,6 +23,11 @@ export const createProjectSchema = z.object({
   description: z.string().max(2000).optional().nullable(),
   repoUrl: z.url().optional().nullable(),
   targetCost: z.coerce.number().nonnegative().optional().nullable(),
+  track: trackSchema,
+  level: levelSchema,
+  criticalPath: z.boolean().optional(),
+  disciplineTaught: z.string().max(200).optional().nullable(),
+  requiresStripboard: z.boolean().optional(),
 });
 
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;

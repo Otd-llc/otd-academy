@@ -9,19 +9,60 @@
 // its currentStage as a navy-dark chip pill (command-gold for the active
 // stage). Sorting is by last-activity (max of project.updatedAt and the
 // most-recent revision.updatedAt) so freshly-touched work surfaces first.
+//
+// Task 11.6: track/level filter chips + bench-tool toggle. Default hides
+// non-critical-path projects (bench tools) so the dashboard surfaces the
+// curriculum spine. `?track=`, `?level=`, `?showBenchTools=1`, `?archived=1`
+// each independently narrow the query.
 import Link from "next/link";
 import { db } from "@/lib/db";
+
+// Inline filter-chip presentational component. Each chip is a Link to a
+// pre-baked URL; `active` flips the fill from outlined panel-border to
+// filled command-gold per §8.3 chip anatomy.
+function FilterChip({
+  label,
+  active,
+  href,
+}: {
+  label: string;
+  active: boolean;
+  href: string;
+}) {
+  const base =
+    "inline-flex items-center rounded border px-2 py-0.5 font-mono text-xs uppercase tracking-wider transition-colors";
+  const activeCls =
+    "border-command-gold bg-command-gold text-navy-dark";
+  const inactiveCls =
+    "border-panel-border bg-navy-dark text-muted hover:border-command-gold hover:text-command-gold";
+  return (
+    <Link href={href} className={`${base} ${active ? activeCls : inactiveCls}`}>
+      {label}
+    </Link>
+  );
+}
 
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ archived?: string }>;
+  searchParams: Promise<{
+    archived?: string;
+    track?: string;
+    level?: string;
+    showBenchTools?: string;
+  }>;
 }) {
   const params = await searchParams;
   const showArchived = params.archived === "1";
+  const showBenchTools = params.showBenchTools === "1";
 
   const projects = await db.project.findMany({
-    where: showArchived ? {} : { archivedAt: null },
+    where: {
+      ...(showArchived ? {} : { archivedAt: null }),
+      ...(params.track ? { track: params.track as any } : {}),
+      ...(params.level ? { level: params.level as any } : {}),
+      ...(showBenchTools ? {} : { criticalPath: true }),
+    },
     include: {
       revisions: {
         orderBy: { updatedAt: "desc" },
@@ -60,12 +101,54 @@ export default async function HomePage({
             {showArchived ? "Hide archived" : "Show archived"}
           </Link>
           <Link
+            href="/curriculum"
+            className="rounded border border-panel-border bg-navy-dark px-4 py-2 text-signal-blue transition-colors hover:border-signal-blue"
+          >
+            CURRICULUM →
+          </Link>
+          <Link
             href="/projects/new"
             className="rounded border border-panel-border bg-navy-dark px-4 py-2 text-command-gold transition-colors hover:border-command-gold"
           >
             + New project
           </Link>
         </div>
+      </div>
+
+      {/*
+        Filter chip row — track + level + bench-tool toggle. Each chip is a
+        Link to the relevant URL; the "ALL …" chips reset just their facet
+        by linking back to `/`. Chips for unrelated facets (e.g. archived)
+        are intentionally left out of the URLs here: clicking a track chip
+        clears any level/bench-tools state, matching the single-axis browse
+        pattern from the design doc.
+      */}
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        <FilterChip label="ALL TRACKS" active={!params.track} href="/" />
+        {["SENSE", "ACT", "POWER", "COMMS"].map((t) => (
+          <FilterChip
+            key={t}
+            label={t}
+            active={params.track === t}
+            href={`/?track=${t}`}
+          />
+        ))}
+        <span className="mx-2 text-muted">·</span>
+        <FilterChip label="ALL LEVELS" active={!params.level} href="/" />
+        {["L1", "L2", "L3"].map((l) => (
+          <FilterChip
+            key={l}
+            label={l}
+            active={params.level === l}
+            href={`/?level=${l}`}
+          />
+        ))}
+        <span className="mx-2 text-muted">·</span>
+        <FilterChip
+          label="SHOW BENCH TOOLS"
+          active={showBenchTools}
+          href={showBenchTools ? "/" : "/?showBenchTools=1"}
+        />
       </div>
 
       {sorted.length === 0 ? (

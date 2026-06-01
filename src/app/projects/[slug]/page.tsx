@@ -13,11 +13,27 @@ import {
   unarchiveProjectAction,
 } from "@/lib/actions/projects";
 import {
+  EditCriticalPathForm,
   EditDescriptionForm,
+  EditDisciplineTaughtForm,
+  EditLevelForm,
   EditNameForm,
   EditRepoUrlForm,
+  EditRequiresStripboardForm,
   EditTargetCostForm,
+  EditTrackForm,
 } from "./_edit-fields";
+import { ProjectDependenciesPane } from "@/components/ProjectDependenciesPane";
+
+// Track → text-color mapping for the curriculum badge pill. Lives next to
+// the only consumer (the detail page header strip); when a second view
+// needs it we'll lift it into `src/lib/curriculum-colors.ts`.
+const TRACK_COLOR: Record<string, string> = {
+  SENSE: "text-status-green",
+  ACT: "text-command-gold",
+  POWER: "text-alert-red",
+  COMMS: "text-signal-blue",
+};
 
 export default async function ProjectDetailPage({
   params,
@@ -31,6 +47,16 @@ export default async function ProjectDetailPage({
     include: {
       revisions: {
         orderBy: { updatedAt: "desc" },
+      },
+      // Outbound — this project depends on others (Task 12.10).
+      dependentEdges: {
+        include: { dependsOnProject: { select: { slug: true } } },
+        orderBy: { createdAt: "asc" },
+      },
+      // Inbound — others depend on this project.
+      dependsOnEdges: {
+        include: { dependentProject: { select: { slug: true } } },
+        orderBy: { createdAt: "asc" },
       },
     },
   });
@@ -65,6 +91,30 @@ export default async function ProjectDetailPage({
           </p>
         </div>
 
+        {/* Curriculum badge row — track / level / bench-tool chips. Each is
+            optional; the row collapses cleanly when nothing is set. */}
+        {(project.track || project.level || !project.criticalPath) && (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {project.track && (
+              <span
+                className={`inline-flex items-center rounded border border-panel-border bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider ${TRACK_COLOR[project.track]}`}
+              >
+                {project.track}
+              </span>
+            )}
+            {project.level && (
+              <span className="inline-flex items-center rounded border border-panel-border bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-command-gold">
+                {project.level}
+              </span>
+            )}
+            {!project.criticalPath && (
+              <span className="inline-flex items-center rounded border border-panel-border bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-muted">
+                BENCH TOOL
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="mt-4">
           <EditNameForm id={project.id} value={project.name} />
         </div>
@@ -75,6 +125,33 @@ export default async function ProjectDetailPage({
             value={project.description}
           />
           <EditTargetCostForm id={project.id} value={targetCostStr} />
+        </div>
+      </div>
+
+      {/* Curriculum metadata — edit-in-place per Phase 4 pattern. Each field
+          its own form action so saves are surgical and FieldError surfaces
+          land next to the changed input. */}
+      <div className="mt-6 border border-panel-border bg-navy-dark p-6">
+        <h2 className="font-mono text-sm uppercase tracking-wider text-muted">
+          Curriculum metadata
+        </h2>
+        <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
+          <EditTrackForm id={project.id} value={project.track} />
+          <EditLevelForm id={project.id} value={project.level} />
+          <div className="md:col-span-2">
+            <EditDisciplineTaughtForm
+              id={project.id}
+              value={project.disciplineTaught}
+            />
+          </div>
+          <EditCriticalPathForm
+            id={project.id}
+            value={project.criticalPath}
+          />
+          <EditRequiresStripboardForm
+            id={project.id}
+            value={project.requiresStripboard}
+          />
         </div>
       </div>
 
@@ -135,6 +212,29 @@ export default async function ProjectDetailPage({
           </ul>
         )}
       </section>
+
+      {/* Dependencies pane (Task 12.10). Read-only inbound + editable
+          outbound; the create flow lives at /projects/[slug]/dependencies/new
+          (Task 12.11). */}
+      <ProjectDependenciesPane
+        slug={project.slug}
+        outbound={project.dependentEdges.map((e) => ({
+          id: e.id,
+          targetSlug: e.dependsOnProject.slug,
+          kind: e.kind,
+          dependsOnStageRequired: e.dependsOnStageRequired,
+          dependentStageGated: e.dependentStageGated,
+          notes: e.notes,
+        }))}
+        inbound={project.dependsOnEdges.map((e) => ({
+          id: e.id,
+          sourceSlug: e.dependentProject.slug,
+          kind: e.kind,
+          dependentStageGated: e.dependentStageGated,
+          dependsOnStageRequired: e.dependsOnStageRequired,
+          notes: e.notes,
+        }))}
+      />
 
       {/* Archive / unarchive */}
       <div className="mt-10 border-t border-panel-border pt-6">

@@ -46,6 +46,8 @@ const createdRevisionIds: string[] = [];
 const createdBuildIds: string[] = [];
 const createdArtifactIds: string[] = [];
 const createdBoardIds: string[] = [];
+const createdProjectIds: string[] = [];
+const createdEdgeIds: string[] = [];
 
 beforeAll(() => {
   mockAuth.mockImplementation(async () => ({
@@ -54,6 +56,11 @@ beforeAll(() => {
 });
 
 afterAll(async () => {
+  if (createdEdgeIds.length > 0) {
+    await db.projectDependency.deleteMany({
+      where: { id: { in: createdEdgeIds } },
+    });
+  }
   if (createdArtifactIds.length > 0) {
     await db.artifact.deleteMany({
       where: { id: { in: createdArtifactIds } },
@@ -68,6 +75,19 @@ afterAll(async () => {
   if (createdRevisionIds.length > 0) {
     await db.revision.deleteMany({
       where: { id: { in: createdRevisionIds } },
+    });
+  }
+  if (createdProjectIds.length > 0) {
+    await db.projectDependency.deleteMany({
+      where: {
+        OR: [
+          { dependentProjectId: { in: createdProjectIds } },
+          { dependsOnProjectId: { in: createdProjectIds } },
+        ],
+      },
+    });
+    await db.project.deleteMany({
+      where: { id: { in: createdProjectIds } },
     });
   }
 });
@@ -334,6 +354,97 @@ describe("advanceStage — rejection paths", () => {
       advanceStage({ revisionId: rev.id }),
     ).rejects.toThrow(/terminal|cannot advance/i);
   });
+
+  test("surfaces both exitGate reasons AND dep reasons (Task 12.6 union)", async () => {
+    // Setup: project A at REQUIREMENTS with NO requirements artifact → the
+    // REQUIREMENTS exitGate fails. Also: dep edge A→B at
+    // dependentStageGated=REQUIREMENTS, dependsOnStageRequired=BRINGUP; B's
+    // latest revision is at SCHEMATIC < BRINGUP → the DAG check fails.
+    // advanceStage must surface BOTH reasons in a single { ok: false }.
+    const user = await seedUser();
+    const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+    const a = await db.project.create({
+      data: {
+        slug: `t12.6-union-a-${stamp}`,
+        name: "A (union)",
+        createdById: user.id,
+      },
+    });
+    createdProjectIds.push(a.id);
+    const bSlug = `t12.6-union-b-${stamp}`;
+    const b = await db.project.create({
+      data: {
+        slug: bSlug,
+        name: "B (union)",
+        createdById: user.id,
+      },
+    });
+    createdProjectIds.push(b.id);
+
+    const aRev = await db.revision.create({
+      data: {
+        projectId: a.id,
+        label: "v1",
+        currentStage: "REQUIREMENTS",
+      },
+    });
+    createdRevisionIds.push(aRev.id);
+    await db.stageTransition.create({
+      data: {
+        revisionId: aRev.id,
+        fromStage: null,
+        toStage: "REQUIREMENTS",
+        direction: "INIT",
+        gateSnapshot: {
+          v: 1,
+          kind: "init",
+          ts: new Date().toISOString(),
+        },
+        transitionedBy: user.id,
+      },
+    });
+
+    const bRev = await db.revision.create({
+      data: {
+        projectId: b.id,
+        label: "v1",
+        currentStage: "SCHEMATIC",
+      },
+    });
+    createdRevisionIds.push(bRev.id);
+
+    const edge = await db.projectDependency.create({
+      data: {
+        dependentProjectId: a.id,
+        dependsOnProjectId: b.id,
+        kind: "DE_RISK",
+        dependentStageGated: "REQUIREMENTS",
+        dependsOnStageRequired: "BRINGUP",
+        createdById: user.id,
+      },
+    });
+    createdEdgeIds.push(edge.id);
+
+    const result = await advanceStage({ revisionId: aRev.id });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+
+    // BOTH reasons must be present: the REQUIREMENTS gate failure AND the
+    // DAG-check failure (one entry per reason).
+    expect(result.reasons.length).toBeGreaterThanOrEqual(2);
+    const joined = result.reasons.join("\n");
+    expect(joined.toLowerCase()).toMatch(/no requirements artifact/);
+    expect(joined).toContain(bSlug);
+    expect(joined).toContain("BRINGUP");
+    expect(joined).toContain("SCHEMATIC");
+
+    // Revision stage unchanged.
+    const after = await db.revision.findUniqueOrThrow({
+      where: { id: aRev.id },
+    });
+    expect(after.currentStage).toBe("REQUIREMENTS");
+  });
 });
 
 describe("advanceStage — concurrent attempts", () => {
@@ -484,5 +595,137 @@ describe("regressStage — rejection paths", () => {
     await expect(
       regressStage({ revisionId: rev.id, reason: "go back" }),
     ).rejects.toThrow(/frozen/i);
+  });
+});
+
+describe("regressStage — DAG policy (Task 12.12)", () => {
+  test("regressStage: does not block on DAG state (lazy catch policy)", async () => {
+    // Policy: regressStage NEVER consults the dependency DAG. The "lazy
+    // catch" is that regressing a dependency to a stage below
+    // dependsOnStageRequired may leave dependents downstream-invalid, but
+    // the dependent only discovers this the next time IT tries to advance.
+    //
+    // Setup: A (dependent) depends on B (depended-upon) with
+    //   dependsOnStageRequired = BRINGUP, dependentStageGated = REQUIREMENTS.
+    //   Both A and B sit at BRINGUP via the direct-insert trapdoor.
+    //
+    // Step 1: regressStage(B) BRINGUP → ASSEMBLY must succeed even though
+    //   that leaves A downstream-invalid (regress doesn't look at edges).
+    //
+    // Step 2: advanceStage(A) must fail — the dep gate (dependentStageGated
+    //   = REQUIREMENTS, so it fires at any A.currentStage) now sees B at
+    //   ASSEMBLY < BRINGUP. Per Task 12.6, exitGate + dep reasons are
+    //   unioned, so the BRINGUP exit gate may also contribute reasons; we
+    //   only assert the dep reason is present in the joined output.
+    const user = await seedUser();
+    const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+    const a = await db.project.create({
+      data: {
+        slug: `t12.12-lazy-a-${stamp}`,
+        name: "A (lazy catch)",
+        createdById: user.id,
+      },
+    });
+    createdProjectIds.push(a.id);
+    const bSlug = `t12.12-lazy-b-${stamp}`;
+    const b = await db.project.create({
+      data: {
+        slug: bSlug,
+        name: "B (lazy catch)",
+        createdById: user.id,
+      },
+    });
+    createdProjectIds.push(b.id);
+
+    // A at BRINGUP directly (skip the gate chain via the trapdoor).
+    const aRev = await db.revision.create({
+      data: {
+        projectId: a.id,
+        label: "v1",
+        currentStage: "BRINGUP",
+      },
+    });
+    createdRevisionIds.push(aRev.id);
+    await db.stageTransition.create({
+      data: {
+        revisionId: aRev.id,
+        fromStage: null,
+        toStage: "REQUIREMENTS",
+        direction: "INIT",
+        gateSnapshot: {
+          v: 1,
+          kind: "init",
+          ts: new Date().toISOString(),
+        },
+        transitionedBy: user.id,
+      },
+    });
+
+    // B at BRINGUP directly.
+    const bRev = await db.revision.create({
+      data: {
+        projectId: b.id,
+        label: "v1",
+        currentStage: "BRINGUP",
+      },
+    });
+    createdRevisionIds.push(bRev.id);
+    await db.stageTransition.create({
+      data: {
+        revisionId: bRev.id,
+        fromStage: null,
+        toStage: "REQUIREMENTS",
+        direction: "INIT",
+        gateSnapshot: {
+          v: 1,
+          kind: "init",
+          ts: new Date().toISOString(),
+        },
+        transitionedBy: user.id,
+      },
+    });
+
+    // Edge: A depends on B; dep fires for A at any stage ≥ REQUIREMENTS,
+    // requires B at ≥ BRINGUP.
+    const edge = await db.projectDependency.create({
+      data: {
+        dependentProjectId: a.id,
+        dependsOnProjectId: b.id,
+        kind: "DE_RISK",
+        dependentStageGated: "REQUIREMENTS",
+        dependsOnStageRequired: "BRINGUP",
+        createdById: user.id,
+      },
+    });
+    createdEdgeIds.push(edge.id);
+
+    // Step 1: regress B — must succeed, DAG be damned.
+    const regressResult = await regressStage({
+      revisionId: bRev.id,
+      reason: "test: regress should ignore DAG",
+    });
+    expect(regressResult.ok).toBe(true);
+
+    const bAfter = await db.revision.findUniqueOrThrow({
+      where: { id: bRev.id },
+    });
+    expect(bAfter.currentStage).toBe("ASSEMBLY");
+
+    // Step 2: advance A — the lazy catch fires; dep reason surfaces.
+    const advanceResult = await advanceStage({ revisionId: aRev.id });
+    expect(advanceResult.ok).toBe(false);
+    if (advanceResult.ok) throw new Error("unreachable");
+
+    const joined = advanceResult.reasons.join("\n");
+    expect(joined).toContain(bSlug);
+    expect(joined).toContain("BRINGUP");
+    expect(joined).toContain("ASSEMBLY");
+
+    // A's stage unchanged by the failed advance.
+    const aAfter = await db.revision.findUniqueOrThrow({
+      where: { id: aRev.id },
+    });
+    expect(aAfter.currentStage).toBe("BRINGUP");
   });
 });

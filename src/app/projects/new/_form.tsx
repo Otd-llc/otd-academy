@@ -138,6 +138,89 @@ export function NewProjectForm() {
         <FieldError messages={state.errors?.targetCost} />
       </div>
 
+      <fieldset className="rounded border border-panel-border p-4">
+        <legend className="px-2 font-mono text-sm uppercase tracking-wider text-muted">
+          Curriculum metadata (optional)
+        </legend>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label htmlFor="track" className="block">
+            <span className="block font-mono text-xs uppercase tracking-wider text-muted">
+              Track
+            </span>
+            <select
+              id="track"
+              name="track"
+              defaultValue=""
+              className="mt-1 block w-full rounded border border-panel-border bg-navy-dark px-2 py-1 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+            >
+              <option value="">— none —</option>
+              <option value="SENSE">SENSE</option>
+              <option value="ACT">ACT</option>
+              <option value="POWER">POWER</option>
+              <option value="COMMS">COMMS</option>
+            </select>
+            <FieldError messages={state.errors?.track} />
+          </label>
+          <label htmlFor="level" className="block">
+            <span className="block font-mono text-xs uppercase tracking-wider text-muted">
+              Level
+            </span>
+            <select
+              id="level"
+              name="level"
+              defaultValue=""
+              className="mt-1 block w-full rounded border border-panel-border bg-navy-dark px-2 py-1 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+            >
+              <option value="">— none —</option>
+              <option value="L1">L1</option>
+              <option value="L2">L2</option>
+              <option value="L3">L3</option>
+            </select>
+            <FieldError messages={state.errors?.level} />
+          </label>
+          <label htmlFor="disciplineTaught" className="block md:col-span-2">
+            <span className="block font-mono text-xs uppercase tracking-wider text-muted">
+              Discipline taught
+            </span>
+            <input
+              id="disciplineTaught"
+              name="disciplineTaught"
+              type="text"
+              maxLength={200}
+              className="mt-1 block w-full rounded border border-panel-border bg-navy-dark px-2 py-1 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+            />
+            <FieldError messages={state.errors?.disciplineTaught} />
+          </label>
+          <label
+            htmlFor="criticalPath"
+            className="inline-flex items-center gap-2"
+          >
+            <input
+              id="criticalPath"
+              name="criticalPath"
+              type="checkbox"
+              defaultChecked
+            />
+            <span className="font-mono text-xs uppercase tracking-wider text-muted">
+              Critical path (uncheck for bench tool)
+            </span>
+          </label>
+          <label
+            htmlFor="requiresStripboard"
+            className="inline-flex items-center gap-2"
+          >
+            <input
+              id="requiresStripboard"
+              name="requiresStripboard"
+              type="checkbox"
+            />
+            <span className="font-mono text-xs uppercase tracking-wider text-muted">
+              Requires stripboard de-risk rung
+            </span>
+          </label>
+        </div>
+      </fieldset>
+
       <div className="flex items-center gap-3">
         <SubmitButton />
         <a

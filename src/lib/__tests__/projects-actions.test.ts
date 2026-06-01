@@ -116,3 +116,35 @@ describe("archiveProject / unarchiveProject", () => {
     expect(unarchived.archivedAt).toBeNull();
   });
 });
+
+describe("createProject curriculum metadata", () => {
+  test("accepts curriculum metadata fields", async () => {
+    const slug = `${TEST_SLUG_PREFIX}curriculum-${Date.now()}`;
+    const project = await createProject({
+      slug,
+      name: "Test curriculum",
+      track: "SENSE",
+      level: "L1",
+      criticalPath: false,
+      disciplineTaught: "precision SPI ADC layout",
+      requiresStripboard: true,
+    });
+    createdProjectIds.push(project.id);
+
+    expect(project.track).toBe("SENSE");
+    expect(project.level).toBe("L1");
+    expect(project.criticalPath).toBe(false);
+    expect(project.disciplineTaught).toBe("precision SPI ADC layout");
+    expect(project.requiresStripboard).toBe(true);
+  });
+
+  test("rejects invalid track value", async () => {
+    await expect(
+      createProject({
+        slug: `${TEST_SLUG_PREFIX}bad-track-${Date.now()}`,
+        name: "x",
+        track: "NOTATRACK",
+      } as unknown),
+    ).rejects.toThrow();
+  });
+});
