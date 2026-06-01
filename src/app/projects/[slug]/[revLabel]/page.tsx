@@ -23,6 +23,7 @@ import {
 } from "./_commit-fields";
 import { BomEditor } from "./_bom-editor";
 import { ArtifactPicker } from "@/components/ArtifactPicker";
+import { ArtifactDownloadLink } from "@/components/ArtifactDownloadLink";
 import { ErrataPane } from "@/components/ErrataPane";
 
 type Params = { slug: string; revLabel: string };
@@ -332,6 +333,14 @@ export default async function RevisionDetailPage({
                         >
                           {a.linkUrl}
                         </a>
+                      ) : null}
+                      {a.kind === "FILE" && a.fileKey ? (
+                        <ArtifactDownloadLink
+                          artifactId={a.id}
+                          filename={
+                            a.fileKey.split("/").pop() ?? "download"
+                          }
+                        />
                       ) : null}
                     </li>
                   ))}

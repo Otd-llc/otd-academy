@@ -45,8 +45,12 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({
 }));
 
 import type { Stage } from "@prisma/client";
+import {
+  DeleteObjectCommand,
+  HeadObjectCommand,
+} from "@aws-sdk/client-s3";
 import { db } from "@/lib/db";
-import { createUploadUrl } from "@/lib/actions/uploads";
+import { createUploadUrl, recordArtifact } from "@/lib/actions/uploads";
 import { MAX_UPLOAD_BYTES } from "@/lib/schemas/upload";
 
 const SEED_EMAIL = "seed@example.com";
@@ -54,6 +58,7 @@ const SEED_PROJECT_SLUG = "esp32-sensor-breakout";
 
 const createdBuildIds: string[] = [];
 const createdRevisionIds: string[] = [];
+const createdArtifactIds: string[] = [];
 
 beforeAll(() => {
   mockAuth.mockImplementation(async () => ({
@@ -66,6 +71,11 @@ beforeEach(() => {
 });
 
 afterAll(async () => {
+  if (createdArtifactIds.length > 0) {
+    await db.artifact.deleteMany({
+      where: { id: { in: createdArtifactIds } },
+    });
+  }
   if (createdBuildIds.length > 0) {
     await db.build.deleteMany({ where: { id: { in: createdBuildIds } } });
   }
@@ -264,5 +274,126 @@ describe("createUploadUrl — happy path", () => {
       new RegExp(`^builds/${build.id}/ORDERING/[a-z0-9]+-jlc-receipt\\.pdf$`),
     );
     expect(result.uploadUrl).toContain(encodeURIComponent(result.key));
+  });
+});
+
+// ─── recordArtifact ────────────────────────────────────
+
+// `recordArtifact` HEADs R2 and inserts the Artifact row. We mock `r2.send`
+// to return either a clean HEAD (size matches) or an oversize HEAD (and
+// then verify the subsequent DeleteObjectCommand is dispatched).
+describe("recordArtifact — HEAD-verified happy path + reject paths", () => {
+  test("HEAD reports correct size → inserts FILE-kind Artifact row", async () => {
+    const rev = await makeRevAtStage(
+      "SCHEMATIC",
+      `t10.4-record-ok-${Date.now()}`,
+    );
+
+    // Simulate a clean HEAD: actual size matches declared.
+    r2SendMock.mockImplementation(async (cmd: unknown) => {
+      if (cmd instanceof HeadObjectCommand) {
+        return { ContentLength: 4096 };
+      }
+      throw new Error(
+        `unexpected R2 command in happy-path test: ${(cmd as object).constructor.name}`,
+      );
+    });
+
+    const artifact = await recordArtifact({
+      cuid: "abc123",
+      key: `revisions/${rev.id}/SCHEMATIC/abc123-spec.kicad-sch`,
+      owner: { kind: "revision", id: rev.id },
+      stage: "SCHEMATIC",
+      subkind: "SCHEMATIC_FILE",
+      title: "Schematic v1",
+      mime: "application/octet-stream",
+      sizeBytes: 4096,
+      filename: "spec.kicad_sch",
+    });
+    createdArtifactIds.push(artifact.id);
+
+    expect(artifact.kind).toBe("FILE");
+    expect(artifact.subkind).toBe("SCHEMATIC_FILE");
+    expect(artifact.revisionId).toBe(rev.id);
+    expect(artifact.buildId).toBeNull();
+    expect(artifact.fileKey).toBe(
+      `revisions/${rev.id}/SCHEMATIC/abc123-spec.kicad-sch`,
+    );
+    expect(artifact.fileMime).toBe("application/octet-stream");
+    expect(artifact.fileBytes).toBe(4096);
+    expect(artifact.title).toBe("Schematic v1");
+
+    // The action HEADed exactly once; no DeleteObjectCommand was sent.
+    const calls = r2SendMock.mock.calls.map((c) => c[0]);
+    expect(calls.filter((c) => c instanceof HeadObjectCommand)).toHaveLength(1);
+    expect(calls.filter((c) => c instanceof DeleteObjectCommand)).toHaveLength(
+      0,
+    );
+  });
+
+  test("HEAD reports oversize → DeleteObject dispatched + reject", async () => {
+    const rev = await makeRevAtStage(
+      "SCHEMATIC",
+      `t10.4-record-over-${Date.now()}`,
+    );
+
+    // Simulate an oversize PUT: actual ContentLength much bigger than declared.
+    r2SendMock.mockImplementation(async (cmd: unknown) => {
+      if (cmd instanceof HeadObjectCommand) {
+        return { ContentLength: 99_999 };
+      }
+      if (cmd instanceof DeleteObjectCommand) {
+        return {}; // R2 ack.
+      }
+      throw new Error(
+        `unexpected R2 command in oversize test: ${(cmd as object).constructor.name}`,
+      );
+    });
+
+    await expect(
+      recordArtifact({
+        cuid: "abc123",
+        key: `revisions/${rev.id}/SCHEMATIC/abc123-spec.kicad-sch`,
+        owner: { kind: "revision", id: rev.id },
+        stage: "SCHEMATIC",
+        subkind: "SCHEMATIC_FILE",
+        title: "should fail",
+        mime: "application/octet-stream",
+        sizeBytes: 4096,
+        filename: "spec.kicad_sch",
+      }),
+    ).rejects.toThrow(/exceeds declared size/i);
+
+    const calls = r2SendMock.mock.calls.map((c) => c[0]);
+    expect(calls.filter((c) => c instanceof HeadObjectCommand)).toHaveLength(1);
+    // Critical: DeleteObject was dispatched to clean up the orphan R2 object.
+    expect(calls.filter((c) => c instanceof DeleteObjectCommand)).toHaveLength(
+      1,
+    );
+  });
+
+  test("forged token (ownerMatches fails): rejected before HEAD", async () => {
+    const rev = await makeRevAtStage(
+      "ORDERING",
+      `t10.4-record-forged-${Date.now()}`,
+    );
+
+    await expect(
+      recordArtifact({
+        cuid: "abc123",
+        key: `revisions/${rev.id}/ORDERING/abc123-bogus.pdf`,
+        // PCB_ORDER is build-scoped; revision owner → mismatch.
+        owner: { kind: "revision", id: rev.id },
+        stage: "ORDERING",
+        subkind: "PCB_ORDER",
+        title: "forged",
+        mime: "application/pdf",
+        sizeBytes: 1000,
+        filename: "bogus.pdf",
+      }),
+    ).rejects.toThrow(/not valid for revision/i);
+
+    // No R2 call at all — ownerMatches caught the forgery first.
+    expect(r2SendMock).not.toHaveBeenCalled();
   });
 });

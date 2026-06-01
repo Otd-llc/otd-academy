@@ -26,6 +26,7 @@ import {
   BuildReceivedAtField,
 } from "./_header-fields";
 import { ArtifactPicker } from "@/components/ArtifactPicker";
+import { ArtifactDownloadLink } from "@/components/ArtifactDownloadLink";
 import { BoardsTable } from "@/components/BoardsTable";
 import { BuildChecklistsPane } from "@/components/BuildChecklistsPane";
 import { MarkBringupCompleteButton } from "@/components/MarkBringupCompleteButton";
@@ -288,6 +289,14 @@ export default async function BuildDetailPage({
                       >
                         {a.linkUrl}
                       </a>
+                    ) : null}
+                    {a.kind === "FILE" && a.fileKey ? (
+                      <ArtifactDownloadLink
+                        artifactId={a.id}
+                        filename={
+                          a.fileKey.split("/").pop() ?? "download"
+                        }
+                      />
                     ) : null}
                   </li>
                 ))}
