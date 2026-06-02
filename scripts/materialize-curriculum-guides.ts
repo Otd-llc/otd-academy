@@ -18,8 +18,13 @@
 import { config as loadEnv } from "dotenv";
 loadEnv({ path: ".env.local" });
 
+// Type-only import for the Prisma input types used below. The runtime values
+// (Prisma.JsonNull) come from the dynamic import inside main() so .env.local is
+// loaded before @prisma/client reads DATABASE_URL (matching populate-…-dag.ts).
+import type { Prisma } from "@prisma/client";
+
 async function main() {
-  const { Prisma } = await import("@prisma/client");
+  const { Prisma: PrismaRuntime } = await import("@prisma/client");
   const { db } = await import("@/lib/db");
   const { composeGuide } = await import("@/lib/guide-templates/compose");
 
@@ -96,7 +101,7 @@ async function main() {
             lead: c.lead ?? null,
             contentBlocks: c.contentBlocks as Prisma.InputJsonValue,
             isGate: c.isGate,
-            completionRef: (c.completionRef ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+            completionRef: (c.completionRef ?? PrismaRuntime.JsonNull) as Prisma.InputJsonValue,
           })),
         },
       },
