@@ -30,6 +30,7 @@ import { ArtifactDownloadLink } from "@/components/ArtifactDownloadLink";
 import { BoardsTable } from "@/components/BoardsTable";
 import { BuildChecklistsPane } from "@/components/BuildChecklistsPane";
 import { MarkBringupCompleteButton } from "@/components/MarkBringupCompleteButton";
+import { ChevronLeftIcon } from "@/components/icons";
 
 type Params = { slug: string; revLabel: string; buildLabel: string };
 
@@ -115,9 +116,10 @@ export default async function BuildDetailPage({
       <nav className="mb-6 font-mono text-xs uppercase tracking-wider">
         <Link
           href={`/projects/${project.slug}/${encodeURIComponent(revision.label)}`}
-          className="text-signal-blue underline"
+          className="inline-flex items-center gap-1.5 text-signal-blue underline"
         >
-          ← {project.name} / {revision.label}
+          <ChevronLeftIcon className="h-4 w-4" />
+          {project.name} / {revision.label}
         </Link>
       </nav>
 
