@@ -8,10 +8,12 @@
 // Content is intentionally NON-interactive (per the ARIA tooltip pattern — use
 // `GlossaryTerm`'s popover for click-to-read/interactive content instead).
 //
-// Styling reuses existing design tokens: a `.glass-card` surface with a serif
-// `.note-italic` body and an optional small `font-mono` label. The content is
-// given `z-50` so it floats ABOVE the app's `sticky top-0 z-20` header
-// (Radix portals to `document.body`).
+// Styling uses existing tokens but a SOLID surface (not the translucent
+// `.glass-card`): a `bg-deep-space` bubble with a gold hairline, a near-white
+// `text-gray-1` non-italic body, and an optional small `font-mono` gold label.
+// Tooltips must be opaque + high-contrast (underlying content must not bleed
+// through, and the body must read at 12px). `z-50` floats it ABOVE the app's
+// `sticky top-0 z-20` header (Radix portals to `document.body`).
 //
 // Usage:
 //   <Tooltip content="Save">{<button>…</button>}</Tooltip>
@@ -63,15 +65,20 @@ export function Tooltip({
             side={side}
             sideOffset={6}
             collisionPadding={8}
-            className="glass-card z-50 max-w-xs px-3 py-2 text-xs leading-relaxed shadow-xl"
+            // Opaque, high-contrast bubble: a tooltip must not let underlying
+            // content bleed through, and the body must read at small sizes — so
+            // a SOLID deep-space surface (not the translucent .glass-card) with a
+            // gold hairline + near-white non-italic body. The arrow matches the
+            // solid surface so it reads as part of the bubble.
+            className="z-50 max-w-xs rounded-lg border border-[rgba(200,150,62,0.45)] bg-deep-space px-3 py-2 text-xs leading-relaxed shadow-xl"
           >
             {label ? (
-              <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.2em] text-gold-dim">
+              <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">
                 {label}
               </p>
             ) : null}
-            <p className="note-italic text-link-muted">{content}</p>
-            <RadixTooltip.Arrow className="fill-[rgba(200,150,62,0.35)]" />
+            <p className="text-gray-1">{content}</p>
+            <RadixTooltip.Arrow className="fill-deep-space" />
           </RadixTooltip.Content>
         </RadixTooltip.Portal>
       </RadixTooltip.Root>
