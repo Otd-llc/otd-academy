@@ -188,11 +188,13 @@ function ReorderButton({
 }
 
 // Big primary toggle — the most-used action, so it gets the largest target.
-// A real <button> with `aria-pressed` (the row IS the pressed/checked state)
-// + an explicit `aria-label`. Gold fill + check glyph when checked; an empty
-// high-contrast well otherwise. ~36px square (min recommended 28–32px, sized
-// up for gloves). The label area is ALSO click-to-toggle (see ItemRow) for a
-// large hit zone; this remains the explicit, labelled checkbox.
+// A real <button> with `role="checkbox"` + `aria-checked` conveying the state,
+// named statelessly by the item label (so a screen reader announces e.g.
+// "<label>, checkbox, checked" rather than a redundant action verb + state).
+// Gold fill + check glyph when checked; an empty high-contrast well otherwise.
+// ~36px square (min recommended 28–32px, sized up for gloves). The label area
+// is ALSO click-to-toggle (see ItemRow) for a large hit zone; this remains the
+// explicit, labelled checkbox.
 function ToggleCheckbox({
   item,
   disabled,
@@ -207,7 +209,7 @@ function ToggleCheckbox({
       type="submit"
       role="checkbox"
       aria-checked={item.checked}
-      aria-label={item.checked ? "Mark unchecked" : "Mark checked"}
+      aria-label={item.label || `Item ${item.ordinal + 1}`}
       disabled={blocked || pending}
       className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-command-gold ${
         item.checked
