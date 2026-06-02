@@ -11,7 +11,6 @@
 // Empty string clears the field (the action coerces "" → null per the
 // edit semantics defined in src/lib/actions/builds.ts).
 import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
 import {
   editBuildAssemblyStartedAtAction,
   editBuildNotesAction,
@@ -22,21 +21,9 @@ import {
   type BuildFormState,
 } from "@/lib/actions/builds";
 import { InlineBanner } from "@/components/InlineBanner";
+import { SaveButton } from "@/components/SaveButton";
 
 const initialState: BuildFormState = {};
-
-function SaveButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="rounded border border-panel-border bg-deep-space px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:border-command-gold disabled:opacity-50"
-    >
-      {pending ? "WORKING…" : "Save"}
-    </button>
-  );
-}
 
 function FieldError({ messages }: { messages?: string[] }) {
   if (!messages || messages.length === 0) return null;
@@ -161,15 +148,17 @@ export function BuildNotesField({
       <label className="block font-mono text-xs uppercase tracking-wider text-muted">
         Notes
       </label>
-      <textarea
-        name="notes"
-        defaultValue={value ?? ""}
-        disabled={disabled}
-        rows={3}
-        maxLength={4000}
-        className="w-full rounded border border-panel-border bg-deep-space px-3 py-2 font-serif text-base text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
-      />
-      <SaveButton />
+      <div className="flex items-start gap-2">
+        <textarea
+          name="notes"
+          defaultValue={value ?? ""}
+          disabled={disabled}
+          rows={3}
+          maxLength={4000}
+          className="flex-1 rounded border border-panel-border bg-deep-space px-3 py-2 font-serif text-base text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
+        />
+        <SaveButton />
+      </div>
       <DisabledNote reason={disabled ? disabledReason : undefined} />
       <FieldError messages={state.errors?.notes} />
       <ActionMessage state={state} />

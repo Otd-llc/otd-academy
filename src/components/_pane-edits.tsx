@@ -10,27 +10,14 @@
 // editable in place; delete + recreate is the supported flow (see
 // `ProjectDependenciesPane.tsx` header for rationale).
 import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
 import {
   editProjectDependencyNotesAction,
   type ProjectDependencyFormState,
 } from "@/lib/actions/project-dependencies";
 import { InlineBanner } from "@/components/InlineBanner";
+import { SaveButton } from "@/components/SaveButton";
 
 const initialState: ProjectDependencyFormState = {};
-
-function SaveButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="rounded border border-panel-border bg-deep-space px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:border-command-gold disabled:opacity-50"
-    >
-      {pending ? "WORKING…" : "Save"}
-    </button>
-  );
-}
 
 function FieldError({ messages }: { messages?: string[] }) {
   if (!messages || messages.length === 0) return null;
@@ -67,14 +54,16 @@ export function EditDependencyNotesForm({
       <label className="block font-mono text-xs uppercase tracking-wider text-muted">
         Notes
       </label>
-      <textarea
-        name="notes"
-        defaultValue={value ?? ""}
-        rows={2}
-        maxLength={500}
-        className="w-full rounded border border-panel-border bg-deep-space px-3 py-2 font-serif text-sm text-link-muted focus:border-command-gold focus:outline-none"
-      />
-      <SaveButton />
+      <div className="flex items-start gap-2">
+        <textarea
+          name="notes"
+          defaultValue={value ?? ""}
+          rows={2}
+          maxLength={500}
+          className="flex-1 rounded border border-panel-border bg-deep-space px-3 py-2 font-serif text-sm text-link-muted focus:border-command-gold focus:outline-none"
+        />
+        <SaveButton />
+      </div>
       <FieldError messages={state.errors?.notes} />
       <ActionMessage state={state} />
     </form>

@@ -4,28 +4,15 @@
 // Space Mono input style; Zod-validated against SILKSCREEN_HASH_RE — empty
 // string clears. assertNotFrozen rejects on a frozen revision.
 import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
 import {
   setLayoutCommitAction,
   setSchematicCommitAction,
   type RevisionFormState,
 } from "@/lib/actions/revisions";
 import { InlineBanner } from "@/components/InlineBanner";
+import { SaveButton } from "@/components/SaveButton";
 
 const initialState: RevisionFormState = {};
-
-function SaveButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="rounded border border-panel-border bg-deep-space px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:border-command-gold disabled:opacity-50"
-    >
-      {pending ? "WORKING…" : "Save"}
-    </button>
-  );
-}
 
 function FieldError({ messages }: { messages?: string[] }) {
   if (!messages || messages.length === 0) return null;

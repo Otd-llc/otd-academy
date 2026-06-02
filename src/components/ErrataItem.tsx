@@ -26,6 +26,7 @@ import {
   linkErratumFormAction,
 } from "@/lib/actions/errata-form";
 import { InlineBanner } from "@/components/InlineBanner";
+import { SaveButton } from "@/components/SaveButton";
 
 const initialState: ErratumFormState = {};
 
@@ -267,7 +268,7 @@ export function ErrataItem({
           </div>
 
           <div className="flex items-center gap-2">
-            <SubmitButton label="Save" />
+            <SaveButton />
             <button
               type="button"
               onClick={() => setEditing(false)}

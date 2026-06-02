@@ -31,6 +31,7 @@ import {
 } from "@/lib/actions/checklists-form";
 import { InlineBanner } from "@/components/InlineBanner";
 import { ChecklistItemLabelCell } from "@/components/ChecklistItemLabelCell";
+import { SaveButton } from "@/components/SaveButton";
 
 const initialState: ChecklistFormState = {};
 
@@ -301,7 +302,7 @@ function ItemRow({
           </div>
 
           <div className="flex items-center justify-between gap-2">
-            <SubmitButton label="Save" />
+            <SaveButton />
             <button
               type="button"
               onClick={() => setEditing(false)}
