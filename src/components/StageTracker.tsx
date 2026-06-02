@@ -5,25 +5,22 @@
 //
 //   • Active     — currentStage. glass-button-active gold-glow treatment.
 //   • Completed  — order < currentStage. Outlined command-gold.
-//   • Blocked    — active AND exitGate(ctx) fails. Outlined alert-red,
-//                  first failure reason inline.
+//   • Blocked    — active AND exitGate(ctx) fails. Outlined alert-red.
+//                  The failure reason is rendered as a banner BELOW the
+//                  grid, never inside the chip.
 //   • Future     — order > currentStage. Outlined panel-border + muted.
 //
-// Responsive layout (revised — no internal scrollbar):
-//   • ≥ 2xl (1536px+): single row, all 9 slots show "01 / REQUIREMENTS"-
-//     style full labels. Below this width the longest full label
-//     ("01 / BOM SOURCING") exceeds the per-chip track width even at xl
-//     because the page caps at max-w-7xl (1280px); the chips themselves
-//     are only ~130px wide.
-//   • sm–2xl (640–1536px): single row, compact "01 / REQ"-style 3-letter
-//     code abbreviations so chips stay readable.
-//   • < sm (mobile): numeric-only chips ("01", "02", ...) plus a separate
-//     "Current stage" banner above the grid for the active label + first
-//     failure reason. No horizontal scroll anywhere.
+// Responsive labels:
+//   • ≥ 2xl (1536px+): full "01 / REQUIREMENTS"-style labels.
+//   • sm–2xl: compact "01 / REQ" 3-letter codes.
+//   • < sm:   numeric chips ("01"…) plus a "Current stage" banner above.
 //
-// Defence-in-depth: every chip has `min-w-0` and every label span has
-// `truncate` so even if a future label exceeds the chip width, the text
-// is ellipsised instead of bleeding past the chip border.
+// Overflow policy — bulletproof: every chip <li> has min-w-0 +
+// overflow-hidden, and every text span has max-w-full + truncate so the
+// chip border is the ALWAYS-RESPECTED visual boundary. The failure reason
+// is rendered OUTSIDE the chip grid (above the grid on mobile, below the
+// grid on sm+) so no long error string can ever push a chip wider than its
+// grid track.
 //
 // Server component — caller loads `ctx` via `loadGateContext` and passes
 // it in. Treats the tracker as a pure render of `(revision, ctx)`.
@@ -81,22 +78,17 @@ export async function StageTracker({ revision, ctx }: Props) {
         <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-gold-dim">
           Current stage
         </p>
-        <p className="mt-1 font-display text-2xl tracking-wider text-command-gold">
+        <p className="mt-1 break-words font-display text-2xl tracking-wider text-command-gold">
           {String(currentIdx + 1).padStart(2, "0")} / {STAGE_LABELS[currentStage]}
         </p>
         {firstReason ? (
-          <p className="mt-1 font-mono text-[10px] tracking-normal text-alert-red">
+          <p className="mt-1 break-words font-mono text-[10px] tracking-normal text-alert-red">
             {firstReason}
           </p>
         ) : null}
       </div>
 
-      <ol
-        className="
-          grid grid-cols-9 gap-1.5
-          sm:gap-2
-        "
-      >
+      <ol className="grid grid-cols-9 gap-1.5 sm:gap-2">
         {STAGE_ORDER.map((stage, idx) => {
           const isActive = idx === currentIdx;
           const isCompleted = idx < currentIdx;
@@ -124,6 +116,7 @@ export async function StageTracker({ revision, ctx }: Props) {
               title={fullLabel}
               className={`
                 flex min-w-0 flex-col items-center justify-center
+                overflow-hidden
                 rounded border
                 px-1 py-1.5
                 sm:px-2 sm:py-2
@@ -133,28 +126,32 @@ export async function StageTracker({ revision, ctx }: Props) {
               `}
             >
               {/* < sm: just the number. */}
-              <span className="block sm:hidden">{num}</span>
+              <span className="block max-w-full truncate sm:hidden">
+                {num}
+              </span>
               {/* sm–2xl: number + 3-letter short code. */}
               <span className="hidden max-w-full truncate sm:block 2xl:hidden">
                 {shortLabel}
               </span>
-              {/* ≥ 2xl: full label. Truncate-with-ellipsis fallback if any
-                  future label still doesn't fit. */}
+              {/* ≥ 2xl: full label. */}
               <span className="hidden max-w-full truncate 2xl:block">
                 {fullLabel}
               </span>
-              {/* Blocked-slot inline reason — only on the active slot when its
-                  gate fails. Rendered at ≥ 2xl only (the < sm banner above
-                  already surfaces it on mobile; sm–2xl keeps the row tight). */}
-              {isBlocked && firstReason ? (
-                <span className="mt-1 hidden font-mono text-[10px] normal-case tracking-normal text-alert-red 2xl:block">
-                  {firstReason}
-                </span>
-              ) : null}
             </li>
           );
         })}
       </ol>
+
+      {/* Failure reason banner — rendered OUTSIDE the chip grid so a long
+          error string can never push a chip wider than its grid track.
+          Only renders on sm+ (the mobile banner above the grid already
+          surfaces it). break-words handles unbreakable identifier-style
+          tokens (POST_ASSEMBLY_CONTINUITY etc.) without overflow. */}
+      {firstReason ? (
+        <p className="mt-3 hidden break-words font-mono text-xs tracking-normal text-alert-red sm:block">
+          {firstReason}
+        </p>
+      ) : null}
     </nav>
   );
 }

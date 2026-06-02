@@ -171,16 +171,19 @@ describe("StageTracker", () => {
     }
   });
 
-  test("blocked active slot uses outlined alert-red and inlines first reason", async () => {
+  test("blocked active slot uses outlined alert-red and renders reason banner outside the chip", async () => {
     // REQUIREMENTS with no artifacts → gate fails → blocked.
     const tree = await renderTracker("REQUIREMENTS", emptyCtx("REQUIREMENTS"));
     const slots = findSlots(tree);
     const active = slots[0]!;
     expect(classOf(active)).toContain("border-alert-red");
     expect(classOf(active)).toContain("text-alert-red");
-    // First reason rendered inline somewhere in the slot's text.
-    const text = textOf(active);
-    expect(text.toLowerCase()).toMatch(/no requirements artifact/);
+    // The first failure reason is rendered as a banner OUTSIDE the chip
+    // grid (so a long error string can never push a chip wider than its
+    // grid track). Assert it appears somewhere in the tracker's full
+    // text output, not inside the active chip.
+    expect(textOf(tree).toLowerCase()).toMatch(/no requirements artifact/);
+    expect(textOf(active).toLowerCase()).not.toMatch(/no requirements artifact/);
   });
 
   test("seeded BRINGUP demo state: 8 completed slots + 1 active-blocked + 1 future", async () => {
@@ -273,11 +276,16 @@ describe("StageTracker", () => {
       expect(cls).not.toContain("bg-command-gold");
     }
 
-    // Slot 7: BRINGUP, active-blocked → outlined alert-red + first reason.
+    // Slot 7: BRINGUP, active-blocked → outlined alert-red.
     const bringup = slots[7]!;
     expect(classOf(bringup)).toContain("border-alert-red");
     expect(classOf(bringup)).toContain("text-alert-red");
-    expect(textOf(bringup)).toContain(
+    // Reason now lives in a sibling banner outside the chip grid (not in
+    // the slot). Assert it shows up in the tracker's full output.
+    expect(textOf(tree)).toContain(
+      "5 board(s) not yet BROUGHT_UP or QUARANTINED.",
+    );
+    expect(textOf(bringup)).not.toContain(
       "5 board(s) not yet BROUGHT_UP or QUARANTINED.",
     );
 
