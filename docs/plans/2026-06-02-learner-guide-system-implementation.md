@@ -727,6 +727,12 @@ TDD: materialize POST_ASSEMBLY_CONTINUITY against a build; dedupe by `(buildId, 
 **Files:** Create `src/lib/guide-completion.ts`; Test `src/lib/__tests__/guide-completion.test.ts`
 **Reuse:** `loadGateContext` (`src/lib/load-gate-context.ts`) and the stage gate predicates (`src/lib/stages.ts`) so "done" never diverges from the real gate.
 
+> **AUTHORITATIVE-DONE RULE (resolves M3 review Important #1).** A card's `completionRef` selects **which actionable widget to render** (the primary affordance) — it is NOT, by itself, the definition of "done". For any stage that has a real exit gate, `resolveCardCompletion` MUST compute the `complete` verdict from that stage's **actual gate predicate** (`src/lib/stages.ts`), not from the single `completionRef` alone. This matters for the three **dual-source** stages whose gate checks more than the primary ref:
+> - **BRINGUP** — skeleton ref is `boardStatus` (BROUGHT_UP/QUARANTINED), but the real gate ALSO requires the `BRINGUP_LOG`/`BRINGUP_COMPLETE` artifacts (`stages.ts:428-452`). "Done" must require both.
+> - **SCHEMATIC** — primary ref `artifact SCHEMATIC_FILE`, but the gate also wants `schematicCommit`.
+> - **ASSEMBLY** — primary ref `buildChecklist POST_ASSEMBLY_CONTINUITY`; surface the per-board `boardMeasurements` as a secondary affordance but let the gate predicate define done.
+> Implement `resolveCardCompletion` to delegate the `complete` decision to a per-stage gate evaluation (or directly reuse the stage's gate function) and use `completionRef` for the `done/total/href` widget rendering. Add a test asserting a BRINGUP card with all-`BROUGHT_UP` boards but NO `BRINGUP_COMPLETE` artifact reports **not** `complete`.
+
 **Step 1: Write the failing test** (real DB; use the seeded revision which has a REQUIREMENTS_REVIEW checklist):
 
 ```ts
