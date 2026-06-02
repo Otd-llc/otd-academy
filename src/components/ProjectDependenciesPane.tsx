@@ -18,6 +18,7 @@ import Link from "next/link";
 import {
   deleteProjectDependencyAction,
 } from "@/lib/actions/project-dependencies";
+import { DeleteConfirmButton } from "@/components/DeleteConfirmButton";
 import { EditDependencyNotesForm } from "./_pane-edits";
 
 export type OutboundEdge = {
@@ -100,15 +101,17 @@ export function ProjectDependenciesPane({
                         </span>{" "}
                         <span className="text-muted">(kind={e.kind})</span>
                       </span>
-                      <form action={deleteProjectDependencyAction}>
-                        <input type="hidden" name="id" value={e.id} />
-                        <button
-                          type="submit"
-                          className="rounded border border-panel-border bg-deep-space px-3 py-1 font-mono text-xs uppercase tracking-wider text-alert-red transition-colors hover:border-alert-red"
-                        >
-                          Delete
-                        </button>
-                      </form>
+                      {/* Delete — shared two-tap trash confirm. Posts the
+                          unchanged deleteProjectDependencyAction (a server
+                          action, valid to pass to this client leaf); the hidden
+                          `id` is carried inside DeleteConfirmButton's own form. */}
+                      <DeleteConfirmButton
+                        action={deleteProjectDependencyAction}
+                        id={e.id}
+                        hint="Delete dependency"
+                        ariaLabel="Delete dependency"
+                        confirmAriaLabel="Confirm delete dependency"
+                      />
                     </div>
                     <EditDependencyNotesForm id={e.id} value={e.notes} />
                     <p className="font-mono text-xs uppercase tracking-wider text-muted">

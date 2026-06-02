@@ -40,6 +40,8 @@ import {
 } from "@/lib/actions/checklists-form";
 import { InlineBanner } from "@/components/InlineBanner";
 import { ChecklistItemLabelCell } from "@/components/ChecklistItemLabelCell";
+import { DeleteConfirmButton } from "@/components/DeleteConfirmButton";
+import { IconButton } from "@/components/IconButton";
 import { SaveButton } from "@/components/SaveButton";
 import { Tooltip } from "@/components/Tooltip";
 import {
@@ -50,7 +52,6 @@ import {
   NotApplicableIcon,
   PencilIcon,
   PlusIcon,
-  TrashIcon,
 } from "@/components/icons";
 
 const initialState: ChecklistFormState = {};
@@ -80,59 +81,6 @@ export type ChecklistItemRow = {
   // `checklist_item_checked_xor_napplicable` + Zod refinement enforce it).
   notApplicable: boolean;
 };
-
-// Shared ghost icon button used for every per-row action. Renders a real
-// <button> (keyboard + SR accessible via `aria-label`), wrapped in a <Tooltip>
-// so the label shows on hover/focus — consistent with SaveButton /
-// MarkBringupCompleteButton across the app. No border, no filled background:
-// just a muted ghost glyph that warms to gold on hover. The `p-2.5` padding
-// around the `h-5 w-5` glyph preserves a ~40px touch target for bench use.
-//
-// The Tooltip's Radix Trigger forwards a ref + handlers to its single child.
-// A disabled <button> fires no pointer/focus events, so (matching SaveButton)
-// we wrap the button in a focusable <span> so the tooltip stays reachable;
-// the `aria-label` on the button remains the always-available accessible name.
-function IconButton({
-  hint,
-  ariaLabel,
-  children,
-  type = "submit",
-  onClick,
-  disabled,
-  tone = "default",
-}: {
-  hint: string;
-  ariaLabel: string;
-  children: React.ReactNode;
-  type?: "submit" | "button";
-  onClick?: () => void;
-  disabled?: boolean;
-  /** `danger` tints toward alert-red on hover (destructive actions). */
-  tone?: "default" | "danger";
-}) {
-  const toneClasses =
-    tone === "danger"
-      ? "text-muted hover:text-alert-red hover:bg-navy-dark/40"
-      : "text-muted hover:text-command-gold hover:bg-navy-dark/40";
-  return (
-    <Tooltip content={hint}>
-      <span
-        tabIndex={0}
-        className="inline-flex rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold"
-      >
-        <button
-          type={type}
-          aria-label={ariaLabel}
-          onClick={onClick}
-          disabled={disabled}
-          className={`inline-flex shrink-0 items-center justify-center rounded p-2.5 transition-colors disabled:opacity-40 disabled:hover:bg-transparent ${toneClasses} disabled:hover:text-muted`}
-        >
-          {children}
-        </button>
-      </span>
-    </Tooltip>
-  );
-}
 
 function FieldError({ messages }: { messages?: string[] }) {
   if (!messages || messages.length === 0) return null;
@@ -246,7 +194,6 @@ function ItemRow({
   onMutated?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [editState, editAction] = useActionState(
     editChecklistItemFormAction,
     initialState,
@@ -436,49 +383,23 @@ function ItemRow({
             )}
           </IconButton>
 
-          {/* Delete — inline two-tap confirm so a stray gloved tap can't drop
-              a step. First tap arms it (trash → confirm ✓ / cancel ✕); the
-              confirm submits the unchanged deleteChecklistItem action. */}
-          {confirmingDelete ? (
-            <>
-              <form action={deleteAction} className="inline-block">
-                <input type="hidden" name="id" value={item.id} />
-                <IconButton
-                  hint="Confirm delete"
-                  ariaLabel="Confirm delete item"
-                  disabled={disabled}
-                  tone="danger"
-                >
-                  {/* Armed confirm reads red at rest (the icon inherits this
-                      span's color via currentColor) so the destructive step is
-                      unmistakable while the button stays ghost-light. */}
-                  <span className="text-alert-red">
-                    <CheckIcon className="h-5 w-5" />
-                  </span>
-                </IconButton>
-              </form>
-              <IconButton
-                type="button"
-                hint="Keep item"
-                ariaLabel="Cancel delete"
-                onClick={() => setConfirmingDelete(false)}
-                disabled={disabled}
-              >
-                <CloseIcon className="h-5 w-5" />
-              </IconButton>
-            </>
-          ) : (
-            <IconButton
-              type="button"
-              hint="Delete item"
-              ariaLabel="Delete item"
-              onClick={() => setConfirmingDelete(true)}
-              disabled={disabled}
-              tone="danger"
-            >
-              <TrashIcon className="h-5 w-5" />
-            </IconButton>
-          )}
+          {/* Delete — the shared two-tap confirm control (trash → confirm ✓ /
+              cancel ✕) so a stray gloved tap can't drop a step. The `id` posts
+              the unchanged deleteChecklistItem action via its useActionState
+              dispatch; the success-gated refresh stays wired through
+              `useMutatedEffect(deleteState, onMutated)` above (so we do NOT
+              pass onDeleted, which would fire on click rather than on commit). */}
+          <DeleteConfirmButton
+            action={deleteAction}
+            id={item.id}
+            hint="Delete item"
+            ariaLabel="Delete item"
+            confirmHint="Confirm delete"
+            confirmAriaLabel="Confirm delete item"
+            cancelHint="Keep item"
+            cancelAriaLabel="Cancel delete"
+            disabled={disabled}
+          />
         </div>
       </div>
 
