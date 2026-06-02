@@ -31,7 +31,10 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { assertNotFrozen } from "@/lib/assertions";
 import { withTxRetry } from "@/lib/tx-retry";
-import { materializeGuideSchema } from "@/lib/schemas/guide";
+import {
+  editGuideCardSchema,
+  materializeGuideSchema,
+} from "@/lib/schemas/guide";
 import { composeGuide } from "@/lib/guide-templates/compose";
 
 const GUIDE_EXISTS_MESSAGE = "A guide already exists for this revision.";
@@ -131,4 +134,53 @@ export async function materializeGuide(input: unknown) {
 
   await revalidateGuideRoute(revisionId);
   return guide;
+}
+
+// ─── editGuideCard ─────────────────────────────────────
+//
+// Mirrors `editChecklistItem`: resolve the owning revision via
+// `card.guide.revisionId`, freeze-guard it, then patch ONLY the fields the
+// caller supplied. `contentBlocks` arrives already Zod-validated by
+// `editGuideCardSchema`; `lead`/`completionRef` honor the null-clears /
+// undefined-leaves-alone convention.
+
+export async function editGuideCard(input: unknown) {
+  const data = editGuideCardSchema.parse(input);
+  await requireUser();
+
+  const updated = await withTxRetry(() =>
+    db.$transaction(
+      async (tx) => {
+        const existing = await tx.guideCard.findUniqueOrThrow({
+          where: { id: data.id },
+          select: { id: true, guide: { select: { revisionId: true } } },
+        });
+        const revisionId = existing.guide.revisionId;
+        await assertNotFrozen(tx, revisionId);
+
+        const patch: Prisma.GuideCardUpdateInput = {};
+        if (data.eyebrow !== undefined) patch.eyebrow = data.eyebrow;
+        if (data.title !== undefined) patch.title = data.title;
+        if (data.lead !== undefined) patch.lead = data.lead;
+        if (data.isGate !== undefined) patch.isGate = data.isGate;
+        if (data.contentBlocks !== undefined) {
+          patch.contentBlocks = data.contentBlocks as Prisma.InputJsonValue;
+        }
+        if (data.completionRef !== undefined) {
+          patch.completionRef = (data.completionRef ??
+            Prisma.JsonNull) as Prisma.InputJsonValue;
+        }
+
+        return tx.guideCard.update({ where: { id: data.id }, data: patch });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    ),
+  );
+
+  const owner = await db.guideCard.findUniqueOrThrow({
+    where: { id: updated.id },
+    select: { guide: { select: { revisionId: true } } },
+  });
+  await revalidateGuideRoute(owner.guide.revisionId);
+  return updated;
 }
