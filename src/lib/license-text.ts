@@ -1,23 +1,23 @@
-// Proprietary license text — single source of truth for the `/license` page.
+// License text — single source of truth for the `/license` page.
 //
-// Kept in sync MANUALLY with the repo-root `LICENSE` file (they hold the same
-// wording). Inlining the body as a constant avoids reading from disk via `fs`
-// at render time and keeps the text out of any client bundle concerns; the
-// `/license` route imports `LICENSE_TEXT` and renders it as prose.
+// Kept in sync MANUALLY with the repo-root `LICENSE.md` file (the canonical
+// license; this constant renders the same terms as paragraph prose). Inlining
+// the body avoids reading from disk via `fs` at render time; the `/license`
+// route imports these and renders them.
 
-export const LICENSE_TITLE = "PROPRIETARY SOFTWARE LICENSE" as const;
+export const LICENSE_TITLE =
+  "All rights reserved — published for transparency and reference, not for use or reuse." as const;
 
 export const LICENSE_COPYRIGHT =
-  "Copyright © 2026 One Thousand Drones. All rights reserved." as const;
+  "Copyright © 2026 Raven Savage / One Thousand Drones LLC. All rights reserved." as const;
 
 /**
- * The body paragraphs of the all-rights-reserved license, in order. Rendered as
- * a stack of paragraphs by the `/license` page; joined with blank lines for the
- * plain-text `LICENSE` file.
+ * The license terms as ordered paragraphs, mirroring `LICENSE.md`. Rendered as a
+ * stack of paragraphs by the `/license` page.
  */
 export const LICENSE_BODY = [
-  "This software and its accompanying source code, documentation, and assets (the “Software”) are the proprietary and confidential property of One Thousand Drones.",
-  "No part of the Software may be reproduced, copied, modified, adapted, published, distributed, sublicensed, sold, or used, in whole or in part, by any means or in any form, without the express prior written permission of One Thousand Drones.",
-  "Unauthorized use, reproduction, or distribution of the Software, or any portion of it, is strictly prohibited and may result in civil and criminal penalties.",
-  "THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.",
+  "This source code is published publicly for transparency, reference, and portfolio purposes only. It is NOT licensed for use, copying, modification, distribution, or commercial use by any party other than the copyright holder without express prior written permission.",
+  "You may: view the source code, and cite it in good-faith technical discussion or commentary, with attribution.",
+  "You may not: copy any portion of this code into your own project (public or private); fork, modify, or redistribute it in any form, including derivative works; use it, in whole or in part, to operate any service or product; use the project’s name, branding, trademarks, or any associated identifiers in your own work; or train any machine learning model or AI system on this source code.",
+  "For licensing inquiries, contact ravenduanesavage@gmail.com.",
 ] as const;
