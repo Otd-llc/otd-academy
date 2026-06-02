@@ -8,9 +8,11 @@
 //   • no BRINGUP_COMPLETE artifact exists on this Build yet
 //
 // Disabled state — when any board's status is NOT in {BROUGHT_UP, QUARANTINED}.
-// Tooltip (HTML `title=` attr) lists up to 5 blocking serials, then `…and N
-// more` if more exist (design §9.2 truncation rule). Full list reachable via
-// the Boards table below the header strip.
+// A Radix `Tooltip` lists up to 5 blocking serials, then `…and N more` if more
+// exist (design §9.2 truncation rule). Full list reachable via the Boards table
+// below the header strip. Because a disabled <button> fires no pointer/focus
+// events, the trigger is a focusable wrapper <span> (tabIndex=0 + focus ring) so
+// keyboard users can reach the blocking-reason hint too.
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import {
@@ -58,9 +60,15 @@ export function MarkBringupCompleteButton({
     const tooltip = `Boards not yet BROUGHT_UP or QUARANTINED: ${sample}${more}`;
     return (
       <Tooltip label="Blocked" content={tooltip}>
-        {/* Wrapped in a span so the tooltip still shows on a disabled button
-            (a disabled <button> fires no pointer/focus events). */}
-        <span className="inline-flex">
+        {/* Disabled <button> fires no pointer/focus events, so the Radix
+            Trigger targets this wrapper span instead. Radix's asChild Trigger
+            does NOT inject tabIndex, so we set tabIndex=0 (+ a visible focus
+            ring) ourselves so keyboard users can focus the wrapper and surface
+            the blocking-reason tooltip. */}
+        <span
+          tabIndex={0}
+          className="inline-flex rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold"
+        >
           <button
             type="button"
             disabled

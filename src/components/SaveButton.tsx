@@ -20,11 +20,16 @@ export function SaveButton({ className = "" }: { className?: string }) {
   const hint = pending ? "Saving…" : "Save";
   return (
     <Tooltip content={hint}>
-      {/* Wrapped in a span so the tooltip still shows while the button is
-          disabled (pending) — a disabled <button> fires no pointer/focus
-          events. aria-label stays on the button as the always-available
-          accessible name. */}
-      <span className="inline-flex">
+      {/* While pending the button is disabled and fires no pointer/focus
+          events, so the Radix Trigger targets this wrapper span. Radix's
+          asChild Trigger does NOT inject tabIndex, so we set tabIndex=0 (+ a
+          visible focus ring) ourselves to keep the tooltip keyboard-reachable.
+          aria-label stays on the button as the always-available accessible
+          name. */}
+      <span
+        tabIndex={0}
+        className="inline-flex rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold"
+      >
         <button
           type="submit"
           disabled={pending}

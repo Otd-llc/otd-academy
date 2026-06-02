@@ -19,9 +19,11 @@
 //
 // The trigger child must be able to receive a ref + the hover/focus handlers
 // Radix forwards. Plain interactive elements (button, a, label) work directly.
-// For a DISABLED button, wrap it so the wrapper stays hoverable/focusable —
-// see `MarkBringupCompleteButton` for that pattern (disabled elements fire no
-// pointer/focus events themselves).
+// For a DISABLED button, wrap it in a span (disabled elements fire no
+// pointer/focus events themselves). Note the `asChild` Trigger does NOT inject
+// tabIndex onto that wrapper, so the wrapper must set `tabIndex={0}` itself (+ a
+// focus ring) to stay keyboard-reachable — see `MarkBringupCompleteButton` /
+// `SaveButton` for that pattern.
 
 import * as RadixTooltip from "@radix-ui/react-tooltip";
 

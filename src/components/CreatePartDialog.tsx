@@ -15,6 +15,7 @@ import {
   type PartFormState,
 } from "@/lib/actions/parts";
 import { InlineBanner } from "@/components/InlineBanner";
+import { Tooltip } from "@/components/Tooltip";
 
 export type PartOption = {
   id: string;
@@ -94,7 +95,16 @@ export function CreatePartDialog({
         </form>
       </div>
 
-      <PartFields state={state} action={action} />
+      {/* Pass the open <dialog> element as the tooltip portal container so
+          in-dialog hints (e.g. isCertifiedModule) render inside the top layer
+          rather than behind the modal backdrop (design §6 in-dialog note). By
+          the time the user can hover a field the dialog is open and `ref.current`
+          is populated; /parts/new omits this and portals to body. */}
+      <PartFields
+        state={state}
+        action={action}
+        tooltipContainer={ref.current}
+      />
     </dialog>
   );
 }
@@ -103,9 +113,16 @@ export function CreatePartDialog({
 export function PartFields({
   state,
   action,
+  tooltipContainer,
 }: {
   state: PartFormState;
   action: (formData: FormData) => void | Promise<void>;
+  /**
+   * Portal container for in-form tooltips. The modal passes its open <dialog>
+   * element so hints render inside the top layer; /parts/new omits it so they
+   * portal to document.body. (Tooltip coerces null → undefined.)
+   */
+  tooltipContainer?: HTMLElement | null;
 }) {
   return (
     <form action={action} className="mt-4 space-y-4">
@@ -210,18 +227,20 @@ export function PartFields({
           BOM_SOURCING mains-net certified-module gate when the parent
           Project has `hasMainsNet === true` (proposal §3 #5). */}
       <div>
-        <label
-          className="inline-flex items-center gap-2"
-          title="Marks this part as fulfilling the mains-net certified-module gate"
+        <Tooltip
+          content="Marks this part as fulfilling the mains-net certified-module gate"
+          container={tooltipContainer}
         >
-          <input
-            name="isCertifiedModule"
-            type="checkbox"
-          />
-          <span className="font-mono text-xs uppercase tracking-wider text-muted">
-            Certified module (fulfills mains-net BOM gate)
-          </span>
-        </label>
+          <label className="inline-flex items-center gap-2">
+            <input
+              name="isCertifiedModule"
+              type="checkbox"
+            />
+            <span className="font-mono text-xs uppercase tracking-wider text-muted">
+              Certified module (fulfills mains-net BOM gate)
+            </span>
+          </label>
+        </Tooltip>
         <FieldError messages={state.errors?.isCertifiedModule} />
       </div>
 
