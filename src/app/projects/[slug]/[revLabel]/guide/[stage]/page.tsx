@@ -23,6 +23,7 @@ import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import { GuideBlocks } from "@/components/guide/GuideBlocks";
+import { GuideCardEditor } from "@/components/guide/GuideCardEditor";
 import { StageGate } from "@/components/guide/StageGate";
 import { BoardSelector } from "@/components/guide/BoardSelector";
 import { GenerateGuideButton } from "@/components/guide/GenerateGuideButton";
@@ -199,27 +200,44 @@ export default async function GuideCardPage({
   const cardNumber = String(card.ordinal + 1).padStart(2, "0");
   const cardTotal = String(GUIDE_STAGES.length).padStart(2, "0");
 
+  // The page is auth-gated by middleware, so a session exists; the only
+  // additional editability gate is the revision freeze (defense-in-depth:
+  // editGuideCard rejects edits on a frozen revision regardless).
+  const canEdit = !frozen;
+
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-      <PageHeader
-        backHref={hubHref}
-        backLabel="Build guide"
+      {/* Inline edit-in-place island: view mode renders the server-rendered
+          PageHeader + GuideBlocks below as `children`; edit mode swaps in the
+          authoring forms. StageGate + nav stay OUTSIDE (gate-wiring locked). */}
+      <GuideCardEditor
+        cardId={card.id}
         eyebrow={card.eyebrow}
         title={card.title}
-        accentWord={accentWordFor(card.title)}
-        lead={card.lead ?? undefined}
-        meta={[
-          { label: "Card", value: `${cardNumber} / ${cardTotal}` },
-          { label: "Phase", value: stage },
-          { label: "Project", value: project.name },
-          {
-            label: "Build",
-            value: activeBuild ? activeBuild.label : "—",
-          },
-        ]}
-      />
+        lead={card.lead}
+        blocks={blocks}
+        canEdit={canEdit}
+      >
+        <PageHeader
+          backHref={hubHref}
+          backLabel="Build guide"
+          eyebrow={card.eyebrow}
+          title={card.title}
+          accentWord={accentWordFor(card.title)}
+          lead={card.lead ?? undefined}
+          meta={[
+            { label: "Card", value: `${cardNumber} / ${cardTotal}` },
+            { label: "Phase", value: stage },
+            { label: "Project", value: project.name },
+            {
+              label: "Build",
+              value: activeBuild ? activeBuild.label : "—",
+            },
+          ]}
+        />
 
-      <GuideBlocks blocks={blocks} />
+        <GuideBlocks blocks={blocks} />
+      </GuideCardEditor>
 
       {/* Per-board scope selector (ASSEMBLY / BRINGUP). */}
       {isPerBoard ? (
