@@ -16,6 +16,7 @@
 // each independently narrow the query.
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { PlusIcon } from "@/components/icons";
 
 // Inline filter-chip presentational component. Each chip is a Link to a
 // pre-baked URL; `active` flips the fill from outlined panel-border to
@@ -114,9 +115,10 @@ export default async function HomePage({
           </Link>
           <Link
             href="/projects/new"
-            className="glass-button glass-button-cta px-3 py-2 sm:px-4"
+            className="glass-button glass-button-cta inline-flex items-center gap-1.5 px-3 py-2 sm:px-4"
           >
-            + New project
+            <PlusIcon className="h-4 w-4" />
+            New project
           </Link>
         </div>
       </div>

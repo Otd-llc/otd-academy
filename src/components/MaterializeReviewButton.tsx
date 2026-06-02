@@ -17,6 +17,7 @@ import {
   type ChecklistFormState,
   materializeCanonicalChecklistFormAction,
 } from "@/lib/actions/checklists-form";
+import { PlusIcon } from "@/components/icons";
 
 const initialState: ChecklistFormState = {};
 
@@ -26,9 +27,16 @@ function SubmitPill({ label }: { label: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded border border-command-gold bg-navy-dark px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
     >
-      {pending ? "WORKING…" : `+ ${label}`}
+      {pending ? (
+        "WORKING…"
+      ) : (
+        <>
+          <PlusIcon className="h-3.5 w-3.5" />
+          {label}
+        </>
+      )}
     </button>
   );
 }

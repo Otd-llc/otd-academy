@@ -19,6 +19,7 @@ import {
   deleteProjectDependencyAction,
 } from "@/lib/actions/project-dependencies";
 import { DeleteConfirmButton } from "@/components/DeleteConfirmButton";
+import { PlusIcon } from "@/components/icons";
 import { EditDependencyNotesForm } from "./_pane-edits";
 
 export type OutboundEdge = {
@@ -58,9 +59,10 @@ export function ProjectDependenciesPane({
         </h2>
         <Link
           href={`/projects/${slug}/dependencies/new`}
-          className="rounded border border-command-gold bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+          className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
         >
-          + New dependency
+          <PlusIcon className="h-4 w-4" />
+          New dependency
         </Link>
       </div>
 

@@ -14,6 +14,7 @@ import {
 import { CreatePartDialog, type PartOption } from "@/components/CreatePartDialog";
 import { DeleteConfirmButton } from "@/components/DeleteConfirmButton";
 import { InlineBanner } from "@/components/InlineBanner";
+import { PlusIcon } from "@/components/icons";
 
 type BomLineRow = {
   id: string;
@@ -112,10 +113,11 @@ export function BomEditor({
                 type="button"
                 onClick={() => setShowPartDialog(true)}
                 disabled={disabled}
-                className="rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-xs uppercase tracking-wider text-signal-blue transition-colors hover:border-signal-blue disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-xs uppercase tracking-wider text-signal-blue transition-colors hover:border-signal-blue disabled:opacity-50"
                 title="Create new Part"
               >
-                +Part
+                <PlusIcon className="h-4 w-4" />
+                Part
               </button>
             </div>
             <FieldError messages={state.errors?.partId} />
