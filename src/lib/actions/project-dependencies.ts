@@ -36,10 +36,15 @@ export async function createProjectDependency(input: unknown) {
   return withTxRetry(() =>
     db.$transaction(
       async (tx) => {
-        // Sorted pair → same advisory lock for A→B as for B→A. Two concurrent
-        // inserts of the inverse edge will serialize here; whichever runs the
-        // cycle CTE second sees the first edge already committed (within the
-        // serialized critical section) and rejects.
+        // Sorted pair → same advisory lock for A→B as for B→A. The lock
+        // orders execution but does NOT advance the loser's snapshot, so the
+        // CTE below still won't see the winner's edge on the first try.
+        // Cycle safety actually comes from the full chain:
+        //   1. advisory lock serializes the two transactions,
+        //   2. SSI raises 40001 at commit when the loser's read/write set
+        //      conflicts with the winner's,
+        //   3. withTxRetry re-runs with a fresh snapshot, and
+        //   4. the CTE now sees the winner's edge and rejects.
         const [low, high] = [
           data.dependentProjectId,
           data.dependsOnProjectId,

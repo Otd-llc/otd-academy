@@ -56,11 +56,16 @@ export default async function HomePage({
   const showArchived = params.archived === "1";
   const showBenchTools = params.showBenchTools === "1";
 
+  const TRACKS = ["SENSE", "ACT", "POWER", "COMMS"] as const;
+  const LEVELS = ["L1", "L2", "L3"] as const;
+  const track = TRACKS.find((t) => t === params.track);
+  const level = LEVELS.find((l) => l === params.level);
+
   const projects = await db.project.findMany({
     where: {
       ...(showArchived ? {} : { archivedAt: null }),
-      ...(params.track ? { track: params.track as any } : {}),
-      ...(params.level ? { level: params.level as any } : {}),
+      ...(track ? { track } : {}),
+      ...(level ? { level } : {}),
       ...(showBenchTools ? {} : { criticalPath: true }),
     },
     include: {

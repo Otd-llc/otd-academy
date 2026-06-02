@@ -1,15 +1,15 @@
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import { db } from "@/lib/db";
 
+const SEED_EMAIL = "seed@example.com";
+
 describe("CHECK project_dependency_no_self_edge", () => {
   let userId: string;
   let projectId: string;
 
   beforeAll(async () => {
-    const u = await db.user.upsert({
-      where: { email: "test-pdne@example.com" },
-      update: {},
-      create: { email: "test-pdne@example.com" },
+    const u = await db.user.findUniqueOrThrow({
+      where: { email: SEED_EMAIL },
     });
     userId = u.id;
     const p = await db.project.create({
@@ -20,10 +20,6 @@ describe("CHECK project_dependency_no_self_edge", () => {
       },
     });
     projectId = p.id;
-    // Clean up any leftover dependency rows for this project from prior failed runs.
-    await db.projectDependency.deleteMany({
-      where: { dependentProjectId: projectId },
-    });
   });
 
   afterAll(async () => {
