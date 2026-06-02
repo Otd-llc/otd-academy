@@ -10,15 +10,20 @@
 //   • Future     — order > currentStage. Outlined panel-border + muted.
 //
 // Responsive layout (revised — no internal scrollbar):
-//   • ≥ xl (1280px+): single row, all 9 slots show "01 / REQUIREMENTS"-style
-//     full labels. Below this width the full labels overflow the chip
-//     because 9 × the longest label ("01 / BOM SOURCING") exceeds the
-//     grid track width.
-//   • sm–xl (640–1280px): single row, compact "01 / REQ"-style 3-letter
+//   • ≥ 2xl (1536px+): single row, all 9 slots show "01 / REQUIREMENTS"-
+//     style full labels. Below this width the longest full label
+//     ("01 / BOM SOURCING") exceeds the per-chip track width even at xl
+//     because the page caps at max-w-7xl (1280px); the chips themselves
+//     are only ~130px wide.
+//   • sm–2xl (640–1536px): single row, compact "01 / REQ"-style 3-letter
 //     code abbreviations so chips stay readable.
 //   • < sm (mobile): numeric-only chips ("01", "02", ...) plus a separate
 //     "Current stage" banner above the grid for the active label + first
 //     failure reason. No horizontal scroll anywhere.
+//
+// Defence-in-depth: every chip has `min-w-0` and every label span has
+// `truncate` so even if a future label exceeds the chip width, the text
+// is ellipsised instead of bleeding past the chip border.
 //
 // Server component — caller loads `ctx` via `loadGateContext` and passes
 // it in. Treats the tracker as a pure render of `(revision, ctx)`.
@@ -118,7 +123,7 @@ export async function StageTracker({ revision, ctx }: Props) {
               key={stage}
               title={fullLabel}
               className={`
-                flex flex-col items-center justify-center
+                flex min-w-0 flex-col items-center justify-center
                 rounded border
                 px-1 py-1.5
                 sm:px-2 sm:py-2
@@ -129,19 +134,20 @@ export async function StageTracker({ revision, ctx }: Props) {
             >
               {/* < sm: just the number. */}
               <span className="block sm:hidden">{num}</span>
-              {/* sm–xl: number + 3-letter short code. */}
-              <span className="hidden whitespace-nowrap sm:block xl:hidden">
+              {/* sm–2xl: number + 3-letter short code. */}
+              <span className="hidden max-w-full truncate sm:block 2xl:hidden">
                 {shortLabel}
               </span>
-              {/* ≥ xl: full label. */}
-              <span className="hidden whitespace-nowrap xl:block">
+              {/* ≥ 2xl: full label. Truncate-with-ellipsis fallback if any
+                  future label still doesn't fit. */}
+              <span className="hidden max-w-full truncate 2xl:block">
                 {fullLabel}
               </span>
               {/* Blocked-slot inline reason — only on the active slot when its
-                  gate fails. Rendered at ≥ xl only (the < sm banner above
-                  already surfaces it on mobile; sm–xl keeps the row tight). */}
+                  gate fails. Rendered at ≥ 2xl only (the < sm banner above
+                  already surfaces it on mobile; sm–2xl keeps the row tight). */}
               {isBlocked && firstReason ? (
-                <span className="mt-1 hidden font-mono text-[10px] normal-case tracking-normal text-alert-red xl:block">
+                <span className="mt-1 hidden font-mono text-[10px] normal-case tracking-normal text-alert-red 2xl:block">
                   {firstReason}
                 </span>
               ) : null}
