@@ -48,6 +48,7 @@ const createdArtifactIds: string[] = [];
 const createdBoardIds: string[] = [];
 const createdProjectIds: string[] = [];
 const createdEdgeIds: string[] = [];
+const createdChecklistIds: string[] = [];
 
 beforeAll(() => {
   mockAuth.mockImplementation(async () => ({
@@ -59,6 +60,11 @@ afterAll(async () => {
   if (createdEdgeIds.length > 0) {
     await db.projectDependency.deleteMany({
       where: { id: { in: createdEdgeIds } },
+    });
+  }
+  if (createdChecklistIds.length > 0) {
+    await db.checklist.deleteMany({
+      where: { id: { in: createdChecklistIds } },
     });
   }
   if (createdArtifactIds.length > 0) {
@@ -150,6 +156,63 @@ async function addRequirementsArtifact(revisionId: string) {
   return art;
 }
 
+// m16: REQUIREMENTS gate also requires a REQUIREMENTS_REVIEW checklist with
+// all items checked or N/A. This helper materializes a one-item checked
+// REQUIREMENTS_REVIEW so happy-path advances work without dragging the full
+// canonical template into every test fixture.
+async function addPassingRequirementsReview(revisionId: string) {
+  const user = await seedUser();
+  const cl = await db.checklist.create({
+    data: {
+      revisionId,
+      stage: "REQUIREMENTS",
+      subkind: "REQUIREMENTS_REVIEW",
+      title: "Requirements review",
+      createdById: user.id,
+      items: {
+        create: [
+          {
+            ordinal: 0,
+            label: "Reviewed",
+            checked: true,
+            completedAt: new Date(),
+            completedById: user.id,
+          },
+        ],
+      },
+    },
+  });
+  createdChecklistIds.push(cl.id);
+  return cl;
+}
+
+// m16: LAYOUT gate also requires a LAYOUT_REVIEW checklist (same shape).
+async function addPassingLayoutReview(revisionId: string) {
+  const user = await seedUser();
+  const cl = await db.checklist.create({
+    data: {
+      revisionId,
+      stage: "LAYOUT",
+      subkind: "LAYOUT_REVIEW",
+      title: "Layout review",
+      createdById: user.id,
+      items: {
+        create: [
+          {
+            ordinal: 0,
+            label: "Reviewed",
+            checked: true,
+            completedAt: new Date(),
+            completedById: user.id,
+          },
+        ],
+      },
+    },
+  });
+  createdChecklistIds.push(cl.id);
+  return cl;
+}
+
 // ─── advanceStage tests ────────────────────────────────
 
 describe("advanceStage — happy paths", () => {
@@ -159,6 +222,7 @@ describe("advanceStage — happy paths", () => {
       `t8.1-adv-${Date.now()}`,
     );
     await addRequirementsArtifact(rev.id);
+    await addPassingRequirementsReview(rev.id);
 
     const before = await db.stageTransition.count({
       where: { revisionId: rev.id },
@@ -454,6 +518,7 @@ describe("advanceStage — concurrent attempts", () => {
       `t8.1-conc-${Date.now()}`,
     );
     await addRequirementsArtifact(rev.id);
+    await addPassingRequirementsReview(rev.id);
 
     const results = await Promise.allSettled([
       advanceStage({ revisionId: rev.id }),
@@ -529,6 +594,173 @@ describe("regressStage — happy paths", () => {
     expect(snap.v).toBe(1);
     expect(snap.kind).toBe("regress");
     expect(snap.reason).toBe("BOM mistake; need to swap a part.");
+  });
+
+  // m17: regress LAYOUT → BOM_SOURCING side-effect for revisions with a
+  // STRIPBOARD_VALIDATION checklist. Every item's `checked` flag flips back
+  // to false; the audit fields (`completedAt`, `completedById`) MUST be
+  // preserved so the original validator + timestamp stays in the record
+  // (proposal §3 #4). Gated internally on `project.requiresStripboard` so a
+  // stray checklist on a non-stripboard project is never touched.
+  test("regress LAYOUT → BOM_SOURCING: clears checked on STRIPBOARD_VALIDATION items but preserves completedAt/completedById", async () => {
+    const user = await seedUser();
+    const p = await db.project.create({
+      data: {
+        slug: `regress-sv-${Date.now()}`,
+        name: "stripboard regress fixture",
+        createdById: user.id,
+        requiresStripboard: true,
+      },
+    });
+    createdProjectIds.push(p.id);
+    const rev = await db.revision.create({
+      data: {
+        projectId: p.id,
+        label: "v1",
+        currentStage: "LAYOUT",
+        bomFrozenAt: new Date(),
+      },
+    });
+    createdRevisionIds.push(rev.id);
+    await db.stageTransition.create({
+      data: {
+        revisionId: rev.id,
+        fromStage: null,
+        toStage: "REQUIREMENTS",
+        direction: "INIT",
+        gateSnapshot: {
+          v: 1,
+          kind: "init",
+          ts: new Date().toISOString(),
+        },
+        transitionedBy: user.id,
+      },
+    });
+    const completedAt = new Date("2026-04-01T12:00:00.000Z");
+    const c = await db.checklist.create({
+      data: {
+        revisionId: rev.id,
+        stage: "BOM_SOURCING",
+        subkind: "STRIPBOARD_VALIDATION",
+        title: "sv",
+        createdById: user.id,
+        items: {
+          create: [
+            {
+              ordinal: 0,
+              label: "topology",
+              checked: true,
+              completedAt,
+              completedById: user.id,
+            },
+            {
+              ordinal: 1,
+              label: "rails",
+              checked: true,
+              completedAt,
+              completedById: user.id,
+            },
+          ],
+        },
+      },
+      include: { items: { orderBy: { ordinal: "asc" } } },
+    });
+    createdChecklistIds.push(c.id);
+    const item0Before = c.items[0]!;
+
+    const result = await regressStage({
+      revisionId: rev.id,
+      reason: "redo stripboard",
+    });
+    expect(result.ok).toBe(true);
+
+    const items = await db.checklistItem.findMany({
+      where: { checklistId: c.id },
+      orderBy: { ordinal: "asc" },
+    });
+    expect(items[0]!.checked).toBe(false);
+    expect(items[1]!.checked).toBe(false);
+    // Audit fields preserved.
+    expect(items[0]!.completedAt?.toISOString()).toBe(
+      item0Before.completedAt?.toISOString(),
+    );
+    expect(items[0]!.completedById).toBe(item0Before.completedById);
+    expect(items[1]!.completedAt?.toISOString()).toBe(
+      item0Before.completedAt?.toISOString(),
+    );
+    expect(items[1]!.completedById).toBe(item0Before.completedById);
+  });
+
+  // m17: side-effect is gated on the same predicate as the BOM_SOURCING gate.
+  // A revision whose project has `requiresStripboard: false` MUST NOT have its
+  // STRIPBOARD_VALIDATION items touched on a LAYOUT → BOM_SOURCING regress.
+  test("regress LAYOUT → BOM_SOURCING: skips the STRIPBOARD_VALIDATION reset when requiresStripboard=false", async () => {
+    const user = await seedUser();
+    const p = await db.project.create({
+      data: {
+        slug: `regress-sv-skip-${Date.now()}`,
+        name: "non-stripboard fixture",
+        createdById: user.id,
+        requiresStripboard: false,
+      },
+    });
+    createdProjectIds.push(p.id);
+    const rev = await db.revision.create({
+      data: {
+        projectId: p.id,
+        label: "v1",
+        currentStage: "LAYOUT",
+        bomFrozenAt: new Date(),
+      },
+    });
+    createdRevisionIds.push(rev.id);
+    await db.stageTransition.create({
+      data: {
+        revisionId: rev.id,
+        fromStage: null,
+        toStage: "REQUIREMENTS",
+        direction: "INIT",
+        gateSnapshot: {
+          v: 1,
+          kind: "init",
+          ts: new Date().toISOString(),
+        },
+        transitionedBy: user.id,
+      },
+    });
+    const c = await db.checklist.create({
+      data: {
+        revisionId: rev.id,
+        stage: "BOM_SOURCING",
+        subkind: "STRIPBOARD_VALIDATION",
+        title: "sv",
+        createdById: user.id,
+        items: {
+          create: [
+            {
+              ordinal: 0,
+              label: "stray",
+              checked: true,
+              completedAt: new Date(),
+              completedById: user.id,
+            },
+          ],
+        },
+      },
+    });
+    createdChecklistIds.push(c.id);
+
+    const result = await regressStage({
+      revisionId: rev.id,
+      reason: "non-stripboard regress",
+    });
+    expect(result.ok).toBe(true);
+
+    const items = await db.checklistItem.findMany({
+      where: { checklistId: c.id },
+    });
+    // Untouched — predicate gates the side-effect.
+    expect(items[0]!.checked).toBe(true);
   });
 
   test("DRC_GERBER → LAYOUT preserves bomFrozenAt", async () => {

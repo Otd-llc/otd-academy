@@ -12,6 +12,7 @@ import {
   editProjectCriticalPathAction,
   editProjectDescriptionAction,
   editProjectDisciplineTaughtAction,
+  editProjectHasMainsNetAction,
   editProjectLevelAction,
   editProjectNameAction,
   editProjectRepoUrlAction,
@@ -323,6 +324,45 @@ export function EditRequiresStripboardForm({
         <SaveButton />
       </div>
       <FieldError messages={state.errors?.requiresStripboard} />
+      <ActionMessage state={state} />
+    </form>
+  );
+}
+
+// m18: hasMainsNet edit-in-place. Drives the BOM_SOURCING certified-module
+// gate (proposal §3 #5). Mirrors EditRequiresStripboardForm so the inline
+// toggle ergonomics stay consistent across curriculum flags.
+export function EditHasMainsNetForm({
+  id,
+  value,
+}: {
+  id: string;
+  value: boolean;
+}) {
+  const [state, action] = useActionState(
+    editProjectHasMainsNetAction,
+    initialState,
+  );
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="id" value={id} />
+      <label
+        className="inline-flex items-center gap-2"
+        title="When checked, BOM_SOURCING gate requires at least one BomLine.part.isCertifiedModule === true"
+      >
+        <input
+          name="hasMainsNet"
+          type="checkbox"
+          defaultChecked={value}
+        />
+        <span className="font-mono text-xs uppercase tracking-wider text-muted">
+          Has mains net (requires certified-module BOM line)
+        </span>
+      </label>
+      <div>
+        <SaveButton />
+      </div>
+      <FieldError messages={state.errors?.hasMainsNet} />
       <ActionMessage state={state} />
     </form>
   );

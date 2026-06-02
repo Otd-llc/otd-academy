@@ -25,6 +25,10 @@ import { BomEditor } from "./_bom-editor";
 import { ArtifactPicker } from "@/components/ArtifactPicker";
 import { ArtifactDownloadLink } from "@/components/ArtifactDownloadLink";
 import { ErrataPane } from "@/components/ErrataPane";
+import {
+  RevisionChecklistsPane,
+  isRevisionChecklistVisibleAtStage,
+} from "@/components/RevisionChecklistsPane";
 
 type Params = { slug: string; revLabel: string };
 
@@ -38,7 +42,14 @@ export default async function RevisionDetailPage({
 
   const project = await db.project.findUnique({
     where: { slug },
-    select: { id: true, slug: true, name: true },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      // m17: surfaces the stripboard-required indicator for the
+      // RevisionChecklistsPane (materialize button visibility).
+      requiresStripboard: true,
+    },
   });
   if (!project) notFound();
 
@@ -60,6 +71,12 @@ export default async function RevisionDetailPage({
       errata: { orderBy: { createdAt: "desc" } },
       builds: {
         orderBy: [{ frozenAt: "asc" }, { createdAt: "desc" }],
+      },
+      // m15: revision-scoped checklists rendered on this page (visible only
+      // through LAYOUT — past LAYOUT the pane is hidden entirely).
+      checklists: {
+        include: { items: { orderBy: { ordinal: "asc" } } },
+        orderBy: { createdAt: "asc" },
       },
     },
   });
@@ -362,6 +379,22 @@ export default async function RevisionDetailPage({
               </div>
             ) : null}
           </section>
+
+          {/* Revision-scoped checklists pane (m15) — visible REQUIREMENTS
+              through LAYOUT only; past LAYOUT the design-time review
+              checklists don't apply. */}
+          {isRevisionChecklistVisibleAtStage(revision.currentStage) ? (
+            <RevisionChecklistsPane
+              revisionId={revision.id}
+              checklists={revision.checklists}
+              stage={revision.currentStage}
+              requiresStripboard={project.requiresStripboard}
+              disabled={isFrozen}
+              disabledReason={
+                isFrozen ? "Revision is frozen." : undefined
+              }
+            />
+          ) : null}
         </div>
 
         {/* RIGHT 1/3 — Transitions + Errata */}

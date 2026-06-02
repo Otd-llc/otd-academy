@@ -53,7 +53,7 @@ export function NewChecklistDialog({
   disabled,
   disabledReason,
 }: {
-  ownerKind: "build" | "board";
+  ownerKind: "revision" | "build" | "board";
   ownerId: string;
   stage: Stage;
   allowedSubkinds: ChecklistSubkind[];

@@ -2,13 +2,14 @@
 
 // Checklist + ChecklistItem server actions (design §4.2, §5.2, §9.2/§9.3).
 //
-// Phase 13 / M9b scope: full CRUD with the Build XOR Board owner split.
-// The ASSEMBLY gate (`STAGES.ASSEMBLY.exitGate`) matches the active Build's
-// `POST_ASSEMBLY_CONTINUITY` checklist by `subkind` — NOT by title — so the
-// create path here pins the subkind at insert time and editChecklist refuses
-// to touch it.
+// m15 widened scope: full CRUD with the Revision XOR Build XOR Board owner
+// split. The ASSEMBLY gate (`STAGES.ASSEMBLY.exitGate`) matches the active
+// Build's `POST_ASSEMBLY_CONTINUITY` checklist by `subkind` — NOT by title —
+// so the create path here pins the subkind at insert time and editChecklist
+// refuses to touch it.
 //
 // Freeze policy (design §5.3):
+//   - Revision-scoped: assert parent Revision not frozen.
 //   - Build-scoped: assert parent Revision + Build not frozen.
 //   - Board-scoped: resolve `board.buildId`, then assert parent Revision +
 //     resolved Build not frozen. Mirrors the artifacts.ts symmetric guard.
@@ -40,14 +41,30 @@ import {
   editChecklistSchema,
   reorderChecklistItemsSchema,
 } from "@/lib/schemas/checklist";
+import { CANONICAL_TEMPLATES } from "@/lib/canonical-checklist-templates";
+import { materializeCanonicalChecklistSchema } from "@/lib/schemas/canonical-checklist";
 
 // ─── Route revalidation helpers ────────────────────────
 
 async function revalidateChecklistOwner(
-  tx: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient | typeof db,
+  revisionId: string | null,
   buildId: string | null,
   boardId: string | null,
 ): Promise<void> {
+  if (revisionId) {
+    const rev = await tx.revision.findUniqueOrThrow({
+      where: { id: revisionId },
+      select: {
+        label: true,
+        project: { select: { slug: true } },
+      },
+    });
+    revalidatePath(
+      `/projects/${rev.project.slug}/${encodeURIComponent(rev.label)}`,
+    );
+    return;
+  }
   if (buildId) {
     const build = await tx.build.findUniqueOrThrow({
       where: { id: buildId },
@@ -94,16 +111,33 @@ async function revalidateChecklistOwner(
   }
 }
 
-// Resolve the (revisionId, buildId) pair we need to assert freeze on,
-// given a checklist row. Build-scoped checklists carry the buildId
-// directly; board-scoped resolve buildId via the parent board.
+// Resolve the freeze targets for a checklist row.
+//
+// m15: three owner shapes are now possible. The dispatch table (per
+// proposal §3 #3) is:
+//
+//   Revision-scoped → assertNotFrozen(rev)
+//   Build-scoped    → assertNotFrozen(rev) + assertBuildNotFrozen(build)
+//   Board-scoped    → resolve board.buildId → revision; same as Build-scoped
+//
+// `buildId` is null for revision-scoped rows; callers must skip
+// `assertBuildNotFrozen` when it's null. `ownerRevisionId / ownerBuildId /
+// ownerBoardId` carry the originating owner ids so the revalidation step
+// can route to the right route.
 async function resolveChecklistFreezeRefs(
   tx: Prisma.TransactionClient,
   checklistId: string,
-): Promise<{ revisionId: string; buildId: string; ownerBuildId: string | null; ownerBoardId: string | null }> {
+): Promise<{
+  revisionId: string;
+  buildId: string | null;
+  ownerRevisionId: string | null;
+  ownerBuildId: string | null;
+  ownerBoardId: string | null;
+}> {
   const checklist = await tx.checklist.findUniqueOrThrow({
     where: { id: checklistId },
     select: {
+      revisionId: true,
       buildId: true,
       boardId: true,
       build: { select: { revisionId: true } },
@@ -111,10 +145,20 @@ async function resolveChecklistFreezeRefs(
     },
   });
 
+  if (checklist.revisionId) {
+    return {
+      revisionId: checklist.revisionId,
+      buildId: null,
+      ownerRevisionId: checklist.revisionId,
+      ownerBuildId: null,
+      ownerBoardId: null,
+    };
+  }
   if (checklist.buildId && checklist.build) {
     return {
       revisionId: checklist.build.revisionId,
       buildId: checklist.buildId,
+      ownerRevisionId: null,
       ownerBuildId: checklist.buildId,
       ownerBoardId: null,
     };
@@ -123,6 +167,7 @@ async function resolveChecklistFreezeRefs(
     return {
       revisionId: checklist.board.build.revisionId,
       buildId: checklist.board.buildId,
+      ownerRevisionId: null,
       ownerBuildId: null,
       ownerBoardId: checklist.boardId,
     };
@@ -140,6 +185,22 @@ export async function createChecklist(input: unknown) {
   const checklist = await withTxRetry(() =>
     db.$transaction(
       async (tx) => {
+        if (data.ownerKind === "revision") {
+          // Revision-scoped: only the Revision needs a freeze check; there
+          // is no Build to resolve. The CHECK enforces revisionId is the
+          // only owner set.
+          await assertNotFrozen(tx, data.revisionId);
+          return tx.checklist.create({
+            data: {
+              revisionId: data.revisionId,
+              stage: data.stage,
+              subkind: data.subkind,
+              title: data.title,
+              createdById: user.id,
+            },
+          });
+        }
+
         let revisionId: string;
         let buildId: string;
 
@@ -180,7 +241,12 @@ export async function createChecklist(input: unknown) {
     ),
   );
 
-  await revalidateChecklistOwner(db, checklist.buildId, checklist.boardId);
+  await revalidateChecklistOwner(
+    db,
+    checklist.revisionId,
+    checklist.buildId,
+    checklist.boardId,
+  );
   return checklist;
 }
 
@@ -195,7 +261,7 @@ export async function editChecklist(input: unknown) {
       async (tx) => {
         const refs = await resolveChecklistFreezeRefs(tx, data.id);
         await assertNotFrozen(tx, refs.revisionId);
-        await assertBuildNotFrozen(tx, refs.buildId);
+        if (refs.buildId) await assertBuildNotFrozen(tx, refs.buildId);
 
         const patch: Prisma.ChecklistUpdateInput = {};
         if (data.title !== undefined) patch.title = data.title;
@@ -205,7 +271,12 @@ export async function editChecklist(input: unknown) {
     ),
   );
 
-  await revalidateChecklistOwner(db, updated.buildId, updated.boardId);
+  await revalidateChecklistOwner(
+    db,
+    updated.revisionId,
+    updated.buildId,
+    updated.boardId,
+  );
   return updated;
 }
 
@@ -220,7 +291,7 @@ export async function deleteChecklist(input: unknown) {
       async (tx) => {
         const r = await resolveChecklistFreezeRefs(tx, data.id);
         await assertNotFrozen(tx, r.revisionId);
-        await assertBuildNotFrozen(tx, r.buildId);
+        if (r.buildId) await assertBuildNotFrozen(tx, r.buildId);
         await tx.checklist.delete({ where: { id: data.id } });
         return r;
       },
@@ -228,7 +299,12 @@ export async function deleteChecklist(input: unknown) {
     ),
   );
 
-  await revalidateChecklistOwner(db, refs.ownerBuildId, refs.ownerBoardId);
+  await revalidateChecklistOwner(
+    db,
+    refs.ownerRevisionId,
+    refs.ownerBuildId,
+    refs.ownerBoardId,
+  );
   return { ok: true as const };
 }
 
@@ -243,7 +319,7 @@ export async function addChecklistItem(input: unknown) {
       async (tx) => {
         const refs = await resolveChecklistFreezeRefs(tx, data.checklistId);
         await assertNotFrozen(tx, refs.revisionId);
-        await assertBuildNotFrozen(tx, refs.buildId);
+        if (refs.buildId) await assertBuildNotFrozen(tx, refs.buildId);
 
         // Compute ordinal server-side when missing. Read the current max
         // inside the same tx — SSI catches a concurrent inserter racing on
@@ -273,9 +349,14 @@ export async function addChecklistItem(input: unknown) {
   // Revalidate via the parent checklist's owner.
   const owner = await db.checklist.findUniqueOrThrow({
     where: { id: data.checklistId },
-    select: { buildId: true, boardId: true },
+    select: { revisionId: true, buildId: true, boardId: true },
   });
-  await revalidateChecklistOwner(db, owner.buildId, owner.boardId);
+  await revalidateChecklistOwner(
+    db,
+    owner.revisionId,
+    owner.buildId,
+    owner.boardId,
+  );
   return item;
 }
 
@@ -304,7 +385,7 @@ export async function editChecklistItem(input: unknown) {
           existing.checklistId,
         );
         await assertNotFrozen(tx, refs.revisionId);
-        await assertBuildNotFrozen(tx, refs.buildId);
+        if (refs.buildId) await assertBuildNotFrozen(tx, refs.buildId);
 
         const patch: Prisma.ChecklistItemUpdateInput = {};
         if (data.label !== undefined) patch.label = data.label;
@@ -343,6 +424,15 @@ export async function editChecklistItem(input: unknown) {
           }
         }
 
+        // m16: `notApplicable` rides through to the DB column. The Zod
+        // refinement on `editChecklistItemSchema` and the raw CHECK
+        // `checklist_item_checked_xor_napplicable` together guarantee we
+        // never write `checked=true` AND `notApplicable=true` in the same
+        // patch — see schema and Task 16.3 migration.
+        if (data.notApplicable !== undefined) {
+          patch.notApplicable = data.notApplicable;
+        }
+
         return tx.checklistItem.update({
           where: { id: data.id },
           data: patch,
@@ -354,9 +444,14 @@ export async function editChecklistItem(input: unknown) {
 
   const owner = await db.checklist.findUniqueOrThrow({
     where: { id: updated.checklistId },
-    select: { buildId: true, boardId: true },
+    select: { revisionId: true, buildId: true, boardId: true },
   });
-  await revalidateChecklistOwner(db, owner.buildId, owner.boardId);
+  await revalidateChecklistOwner(
+    db,
+    owner.revisionId,
+    owner.buildId,
+    owner.boardId,
+  );
   return updated;
 }
 
@@ -371,7 +466,7 @@ export async function reorderChecklistItems(input: unknown) {
       async (tx) => {
         const refs = await resolveChecklistFreezeRefs(tx, data.checklistId);
         await assertNotFrozen(tx, refs.revisionId);
-        await assertBuildNotFrozen(tx, refs.buildId);
+        if (refs.buildId) await assertBuildNotFrozen(tx, refs.buildId);
 
         // Load all items on the checklist so we can verify the supplied
         // id-set is exhaustive (no partial reorder, no foreign rows).
@@ -435,9 +530,14 @@ export async function reorderChecklistItems(input: unknown) {
 
   const owner = await db.checklist.findUniqueOrThrow({
     where: { id: data.checklistId },
-    select: { buildId: true, boardId: true },
+    select: { revisionId: true, buildId: true, boardId: true },
   });
-  await revalidateChecklistOwner(db, owner.buildId, owner.boardId);
+  await revalidateChecklistOwner(
+    db,
+    owner.revisionId,
+    owner.buildId,
+    owner.boardId,
+  );
   return items;
 }
 
@@ -459,7 +559,7 @@ export async function deleteChecklistItem(input: unknown) {
           existing.checklistId,
         );
         await assertNotFrozen(tx, refs.revisionId);
-        await assertBuildNotFrozen(tx, refs.buildId);
+        if (refs.buildId) await assertBuildNotFrozen(tx, refs.buildId);
         await tx.checklistItem.delete({ where: { id: data.id } });
         return { checklistId: existing.checklistId };
       },
@@ -469,8 +569,80 @@ export async function deleteChecklistItem(input: unknown) {
 
   const owner = await db.checklist.findUniqueOrThrow({
     where: { id: checklistId },
-    select: { buildId: true, boardId: true },
+    select: { revisionId: true, buildId: true, boardId: true },
   });
-  await revalidateChecklistOwner(db, owner.buildId, owner.boardId);
+  await revalidateChecklistOwner(
+    db,
+    owner.revisionId,
+    owner.buildId,
+    owner.boardId,
+  );
   return { ok: true as const };
+}
+
+// ─── materializeCanonicalChecklist (m16 / Task 16.7) ───
+//
+// Turns a canonical TypeScript-literal template
+// (`CANONICAL_TEMPLATES[templateKey]`) into a real Revision-scoped Checklist
+// with its items inside a single Serializable transaction. Refuses to
+// materialize twice for the same `(revisionId, subkind)` pair — the existing
+// row should be edited instead. Frozen revisions are rejected via
+// `assertNotFrozen`.
+export async function materializeCanonicalChecklist(input: unknown) {
+  const data = materializeCanonicalChecklistSchema.parse(input);
+  const user = await requireUser();
+  const template = CANONICAL_TEMPLATES[data.templateKey];
+
+  const checklist = await withTxRetry(() =>
+    db.$transaction(
+      async (tx) => {
+        await assertNotFrozen(tx, data.revisionId);
+
+        // Guard: refuse to materialize twice for the same (revision, subkind).
+        // The plan-quoted error message is asserted in tests so keep this
+        // string stable.
+        const existing = await tx.checklist.findFirst({
+          where: {
+            revisionId: data.revisionId,
+            subkind: template.subkind,
+          },
+        });
+        if (existing) {
+          throw new Error(
+            `A ${template.subkind} checklist already exists for this revision.`,
+          );
+        }
+
+        return tx.checklist.create({
+          data: {
+            revisionId: data.revisionId,
+            stage: template.stage,
+            subkind: template.subkind,
+            title: template.title,
+            createdById: user.id,
+            items: {
+              create: template.items.map((it, idx) => ({
+                ordinal: idx,
+                label: it.label,
+              })),
+            },
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    ),
+  );
+
+  // Revalidate the revision detail route so the new pane row shows up.
+  const rev = await db.revision.findUniqueOrThrow({
+    where: { id: data.revisionId },
+    select: {
+      label: true,
+      project: { select: { slug: true } },
+    },
+  });
+  revalidatePath(
+    `/projects/${rev.project.slug}/${encodeURIComponent(rev.label)}`,
+  );
+  return checklist;
 }

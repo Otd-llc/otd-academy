@@ -28,6 +28,7 @@ export const createProjectSchema = z.object({
   criticalPath: z.boolean().optional(),
   disciplineTaught: z.string().max(200).optional().nullable(),
   requiresStripboard: z.boolean().optional(),
+  hasMainsNet: z.boolean().optional(),
 });
 
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;

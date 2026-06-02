@@ -54,6 +54,7 @@ import {
   deleteChecklistItem,
   editChecklist,
   editChecklistItem,
+  materializeCanonicalChecklist,
   reorderChecklistItems,
 } from "@/lib/actions/checklists";
 import { loadGateContext } from "@/lib/load-gate-context";
@@ -593,5 +594,228 @@ describe("delete paths", () => {
     await deleteChecklist({ id: ck.id });
     const gone = await db.checklist.findUnique({ where: { id: ck.id } });
     expect(gone).toBeNull();
+  });
+});
+
+// ─── m15: Revision-scoped Checklists ───────────────────
+
+describe("createChecklist — revision ownerKind (m15)", () => {
+  test("Revision-scoped GENERIC at REQUIREMENTS: succeeds", async () => {
+    const rev = await makeRevAtStage(
+      "REQUIREMENTS",
+      `t15-rev-ck-${Date.now()}`,
+    );
+    const user = await seedUser();
+
+    const checklist = await createChecklist({
+      ownerKind: "revision",
+      revisionId: rev.id,
+      subkind: "GENERIC",
+      stage: "REQUIREMENTS",
+      title: "Revision-scoped review checklist",
+    });
+    createdChecklistIds.push(checklist.id);
+
+    expect(checklist.revisionId).toBe(rev.id);
+    expect(checklist.buildId).toBeNull();
+    expect(checklist.boardId).toBeNull();
+    expect(checklist.subkind).toBe("GENERIC");
+    expect(checklist.stage).toBe("REQUIREMENTS");
+    expect(checklist.createdById).toBe(user.id);
+  });
+
+  test("Revision-scoped on frozen revision: rejected", async () => {
+    const user = await seedUser();
+    const rev = await makeRevAtStage(
+      "REQUIREMENTS",
+      `t15-rev-ck-fz-${Date.now()}`,
+    );
+    await db.revision.update({
+      where: { id: rev.id },
+      data: { frozenAt: new Date(), frozenById: user.id },
+    });
+
+    await expect(
+      createChecklist({
+        ownerKind: "revision",
+        revisionId: rev.id,
+        subkind: "GENERIC",
+        stage: "REQUIREMENTS",
+        title: "should fail",
+      }),
+    ).rejects.toThrow(/frozen/i);
+  });
+
+  test("Revision-scoped: edit + add-item + tick + delete flow", async () => {
+    const rev = await makeRevAtStage(
+      "REQUIREMENTS",
+      `t15-rev-flow-${Date.now()}`,
+    );
+    const ck = await createChecklist({
+      ownerKind: "revision",
+      revisionId: rev.id,
+      subkind: "GENERIC",
+      stage: "REQUIREMENTS",
+      title: "original",
+    });
+
+    // edit title (freeze-guard via resolveChecklistFreezeRefs revision arm)
+    const renamed = await editChecklist({ id: ck.id, title: "renamed" });
+    expect(renamed.title).toBe("renamed");
+
+    // add an item — exercises the addChecklistItem freeze dispatch for the
+    // revision-scoped path (buildId null, no assertBuildNotFrozen call).
+    const item = await addChecklistItem({
+      checklistId: ck.id,
+      label: "Capture interfaces",
+    });
+    expect(item.ordinal).toBe(0);
+
+    // tick — exercises editChecklistItem freeze dispatch
+    const ticked = await editChecklistItem({ id: item.id, checked: true });
+    expect(ticked.checked).toBe(true);
+    expect(ticked.completedAt).not.toBeNull();
+
+    // reorder (single-item, trivially)
+    const reordered = await reorderChecklistItems({
+      checklistId: ck.id,
+      orderedIds: [item.id],
+    });
+    expect(reordered[0]!.id).toBe(item.id);
+
+    // delete the item then the checklist — exercises both delete paths
+    await deleteChecklistItem({ id: item.id });
+    await deleteChecklist({ id: ck.id });
+    const gone = await db.checklist.findUnique({ where: { id: ck.id } });
+    expect(gone).toBeNull();
+  });
+});
+
+// ─── m16: editChecklistItemSchema refinement ─────────────────────────────
+//
+// Mirrors the raw CHECK `checklist_item_checked_xor_napplicable`. The schema
+// must reject a payload that sets both `checked: true` and `notApplicable:
+// true`, while accepting either alone.
+//
+// Uses a hardcoded cuid v1 fixture because `z.cuid()` validates the v1
+// regex `^[cC][0-9a-z]{6,}$`. `createId()` from `@paralleldrive/cuid2`
+// produces v2-shaped strings without the leading `c`, which fail
+// validation — flagged in the plan §16.4 gotcha.
+describe("editChecklistItemSchema (m16 refinement)", () => {
+  test("rejects checked=true AND notApplicable=true with canonical message", async () => {
+    const { editChecklistItemSchema } = await import(
+      "@/lib/schemas/checklist"
+    );
+    // Hardcoded cuid v1 fixture: `z.cuid()` regex is `^[cC][0-9a-z]{6,}$`
+    // (cuid v1). `createId()` from `@paralleldrive/cuid2` produces v2-shaped
+    // strings (no leading 'c'), which fail validation; the plan flags this
+    // explicitly in §16.4's gotcha.
+    const VALID_CUID = "cl9z0jjg100007bsh4d9c4n3h";
+    expect(() =>
+      editChecklistItemSchema.parse({
+        id: VALID_CUID,
+        checked: true,
+        notApplicable: true,
+      }),
+    ).toThrow(/cannot be both checked and N\/A/i);
+  });
+
+  test("accepts checked=true alone", async () => {
+    const { editChecklistItemSchema } = await import(
+      "@/lib/schemas/checklist"
+    );
+    // Hardcoded cuid v1 fixture: `z.cuid()` regex is `^[cC][0-9a-z]{6,}$`
+    // (cuid v1). `createId()` from `@paralleldrive/cuid2` produces v2-shaped
+    // strings (no leading 'c'), which fail validation; the plan flags this
+    // explicitly in §16.4's gotcha.
+    const VALID_CUID = "cl9z0jjg100007bsh4d9c4n3h";
+    expect(() =>
+      editChecklistItemSchema.parse({
+        id: VALID_CUID,
+        checked: true,
+      }),
+    ).not.toThrow();
+  });
+
+  test("accepts notApplicable=true alone", async () => {
+    const { editChecklistItemSchema } = await import(
+      "@/lib/schemas/checklist"
+    );
+    // Hardcoded cuid v1 fixture: `z.cuid()` regex is `^[cC][0-9a-z]{6,}$`
+    // (cuid v1). `createId()` from `@paralleldrive/cuid2` produces v2-shaped
+    // strings (no leading 'c'), which fail validation; the plan flags this
+    // explicitly in §16.4's gotcha.
+    const VALID_CUID = "cl9z0jjg100007bsh4d9c4n3h";
+    expect(() =>
+      editChecklistItemSchema.parse({
+        id: VALID_CUID,
+        notApplicable: true,
+      }),
+    ).not.toThrow();
+  });
+});
+
+// ─── m16: materializeCanonicalChecklist ────────────────────────────────────
+//
+// Materializes a canonical TypeScript-literal template
+// (`CANONICAL_TEMPLATES[templateKey]`) into a real Revision-scoped Checklist
+// + ChecklistItem row-set. Refuses to materialize twice for the same
+// `(revisionId, subkind)` pair — the existing row should be edited instead.
+
+describe("materializeCanonicalChecklist", () => {
+  test("REQUIREMENTS_REVIEW creates a revision-scoped checklist + 4 items", async () => {
+    const rev = await makeRevAtStage(
+      "REQUIREMENTS",
+      `t16.7-mat-rr-${Date.now()}`,
+    );
+
+    const checklist = await materializeCanonicalChecklist({
+      revisionId: rev.id,
+      templateKey: "REQUIREMENTS_REVIEW",
+    });
+    createdChecklistIds.push(checklist.id);
+
+    expect(checklist.revisionId).toBe(rev.id);
+    expect(checklist.buildId).toBeNull();
+    expect(checklist.boardId).toBeNull();
+    expect(checklist.subkind).toBe("REQUIREMENTS_REVIEW");
+    expect(checklist.stage).toBe("REQUIREMENTS");
+    expect(checklist.title).toBe("REQUIREMENTS review checklist");
+
+    const items = await db.checklistItem.findMany({
+      where: { checklistId: checklist.id },
+      orderBy: { ordinal: "asc" },
+    });
+    expect(items.length).toBe(4);
+    expect(items[0]!.label).toMatch(/WS2812 level-shift/i);
+    expect(items[1]!.label).toMatch(/Servo brownout/i);
+    expect(items[2]!.label).toMatch(/ADC1-only/i);
+    expect(items[3]!.label).toMatch(/Auto-shutoff/i);
+    // Items default to unchecked / not-applicable=false.
+    for (const it of items) {
+      expect(it.checked).toBe(false);
+      expect(it.notApplicable).toBe(false);
+    }
+  });
+
+  test("refuses to materialize twice for the same (revisionId, subkind)", async () => {
+    const rev = await makeRevAtStage(
+      "LAYOUT",
+      `t16.7-mat-twice-${Date.now()}`,
+    );
+
+    const first = await materializeCanonicalChecklist({
+      revisionId: rev.id,
+      templateKey: "LAYOUT_REVIEW",
+    });
+    createdChecklistIds.push(first.id);
+    expect(first.subkind).toBe("LAYOUT_REVIEW");
+
+    await expect(
+      materializeCanonicalChecklist({
+        revisionId: rev.id,
+        templateKey: "LAYOUT_REVIEW",
+      }),
+    ).rejects.toThrow(/LAYOUT_REVIEW checklist already exists/);
   });
 });

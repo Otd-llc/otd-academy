@@ -61,6 +61,9 @@ function makePart(overrides: Partial<Part> = {}): Part {
     footprint: null,
     datasheetUrl: "https://example.com/datasheet.pdf",
     lifecycle: "ACTIVE" satisfies PartLifecycle,
+    // m18: Part schema gained `isCertifiedModule` (proposal §3 #5). Default
+    // false — BOM_SOURCING m18 tests opt in explicitly.
+    isCertifiedModule: false,
     notes: null,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -143,11 +146,12 @@ function makeBoard(
 
 function makeChecklist(
   subkind: ChecklistSubkind,
-  items: { checked: boolean }[],
+  items: { checked: boolean; notApplicable?: boolean }[],
   overrides: Partial<Checklist> = {},
 ): Checklist & { items: ChecklistItem[] } {
   return {
     id: `cl-${subkind}`,
+    revisionId: null,
     buildId: "build-test",
     boardId: null,
     stage: "ASSEMBLY",
@@ -164,6 +168,7 @@ function makeChecklist(
       expectedValue: null,
       actualValue: null,
       checked: i.checked,
+      notApplicable: i.notApplicable ?? false,
       completedAt: i.checked ? new Date() : null,
       completedById: i.checked ? "user-test" : null,
     })),
@@ -207,8 +212,13 @@ function ctx(
 ): GateContext {
   return {
     revision: makeRevision(stage),
+    // m17 / m18: GateContext widened with project Pick. Default fixture sets
+    // both flags false so existing per-stage tests stay unaffected;
+    // BOM_SOURCING m17/m18 tests override these explicitly.
+    project: { id: "p1", requiresStripboard: false, hasMainsNet: false },
     bomLines: [],
     artifacts: [],
+    revisionChecklists: [],
     activeBuild: null,
     ...overrides,
   };
@@ -262,13 +272,80 @@ describe("REQUIREMENTS exit gate", () => {
     });
   });
 
-  test("passes when at least one requirements-stage artifact exists", async () => {
+  test("passes when artifact AND REQUIREMENTS_REVIEW checklist is complete", async () => {
     const r = await STAGES.REQUIREMENTS.exitGate!(
       ctx("REQUIREMENTS", {
         artifacts: [makeArtifact("REQUIREMENTS", "REQUIREMENTS_DOC")],
+        revisionChecklists: [
+          makeChecklist(
+            "REQUIREMENTS_REVIEW",
+            [{ checked: true }, { checked: false, notApplicable: true }],
+            { stage: "REQUIREMENTS", revisionId: "rev-test", buildId: null },
+          ),
+        ],
       }),
     );
     expect(r).toEqual({ ok: true });
+  });
+
+  // m16: REQUIREMENTS gate now also consumes the REQUIREMENTS_REVIEW
+  // checklist. Mirrors the 3-branch ASSEMBLY predicate (missing / zero items
+  // / unchecked non-N/A).
+  test("REQUIREMENTS gate: fails when REQUIREMENTS_REVIEW checklist is missing entirely", async () => {
+    const r = await STAGES.REQUIREMENTS.exitGate!(
+      ctx("REQUIREMENTS", {
+        artifacts: [makeArtifact("REQUIREMENTS", "REQUIREMENTS_DOC")],
+        revisionChecklists: [],
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.reasons).toContain(
+        "No REQUIREMENTS_REVIEW Checklist on the revision.",
+      );
+    }
+  });
+
+  test("REQUIREMENTS gate: fails with 'no items' when REQUIREMENTS_REVIEW checklist is empty", async () => {
+    const r = await STAGES.REQUIREMENTS.exitGate!(
+      ctx("REQUIREMENTS", {
+        artifacts: [makeArtifact("REQUIREMENTS", "REQUIREMENTS_DOC")],
+        revisionChecklists: [
+          makeChecklist("REQUIREMENTS_REVIEW", [], {
+            stage: "REQUIREMENTS",
+            revisionId: "rev-test",
+            buildId: null,
+          }),
+        ],
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.reasons).toContain(
+        "REQUIREMENTS_REVIEW Checklist has no items.",
+      );
+    }
+  });
+
+  test("REQUIREMENTS gate: fails with 'unchecked' when one item is checked=false, notApplicable=false", async () => {
+    const r = await STAGES.REQUIREMENTS.exitGate!(
+      ctx("REQUIREMENTS", {
+        artifacts: [makeArtifact("REQUIREMENTS", "REQUIREMENTS_DOC")],
+        revisionChecklists: [
+          makeChecklist(
+            "REQUIREMENTS_REVIEW",
+            [{ checked: false, notApplicable: false }],
+            { stage: "REQUIREMENTS", revisionId: "rev-test", buildId: null },
+          ),
+        ],
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.reasons).toContain(
+        "REQUIREMENTS_REVIEW Checklist has unchecked items.",
+      );
+    }
   });
 });
 
@@ -366,6 +443,159 @@ describe("BOM_SOURCING exit gate", () => {
     );
     expect(r).toEqual({ ok: true });
   });
+
+  // m17: BOM_SOURCING gate now also consumes a STRIPBOARD_VALIDATION
+  // checklist when `project.requiresStripboard === true`. Same 3-branch
+  // predicate as REQUIREMENTS / LAYOUT / ASSEMBLY for diagnostic copy parity.
+  test("BOM_SOURCING gate: when requiresStripboard=false, STRIPBOARD_VALIDATION is not consulted", async () => {
+    const r = await STAGES.BOM_SOURCING.exitGate!(
+      ctx("BOM_SOURCING", {
+        project: { id: "p1", requiresStripboard: false, hasMainsNet: false },
+        bomLines: [makeBomLine(makePart({ id: "p1" }))],
+        revisionChecklists: [],
+      }),
+    );
+    expect(r).toEqual({ ok: true });
+  });
+
+  test("BOM_SOURCING gate: when requiresStripboard=true, missing STRIPBOARD_VALIDATION fails the gate", async () => {
+    const r = await STAGES.BOM_SOURCING.exitGate!(
+      ctx("BOM_SOURCING", {
+        project: { id: "p1", requiresStripboard: true, hasMainsNet: false },
+        bomLines: [makeBomLine(makePart({ id: "p1" }))],
+        revisionChecklists: [],
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.reasons).toContain(
+        "No STRIPBOARD_VALIDATION Checklist on the revision.",
+      );
+    }
+  });
+
+  test("BOM_SOURCING gate: when requiresStripboard=true, STRIPBOARD_VALIDATION with empty items fails", async () => {
+    const r = await STAGES.BOM_SOURCING.exitGate!(
+      ctx("BOM_SOURCING", {
+        project: { id: "p1", requiresStripboard: true, hasMainsNet: false },
+        bomLines: [makeBomLine(makePart({ id: "p1" }))],
+        revisionChecklists: [
+          makeChecklist("STRIPBOARD_VALIDATION", [], {
+            stage: "BOM_SOURCING",
+            revisionId: "rev-test",
+            buildId: null,
+          }),
+        ],
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.reasons).toContain(
+        "STRIPBOARD_VALIDATION Checklist has no items.",
+      );
+    }
+  });
+
+  test("BOM_SOURCING gate: when requiresStripboard=true, all-checked-or-N/A STRIPBOARD_VALIDATION passes", async () => {
+    const r = await STAGES.BOM_SOURCING.exitGate!(
+      ctx("BOM_SOURCING", {
+        project: { id: "p1", requiresStripboard: true, hasMainsNet: false },
+        bomLines: [makeBomLine(makePart({ id: "p1" }))],
+        revisionChecklists: [
+          makeChecklist(
+            "STRIPBOARD_VALIDATION",
+            [{ checked: true }, { checked: false, notApplicable: true }],
+            {
+              stage: "BOM_SOURCING",
+              revisionId: "rev-test",
+              buildId: null,
+            },
+          ),
+        ],
+      }),
+    );
+    expect(r).toEqual({ ok: true });
+  });
+
+  test("BOM_SOURCING gate: when requiresStripboard=true, unchecked non-N/A item fails", async () => {
+    const r = await STAGES.BOM_SOURCING.exitGate!(
+      ctx("BOM_SOURCING", {
+        project: { id: "p1", requiresStripboard: true, hasMainsNet: false },
+        bomLines: [makeBomLine(makePart({ id: "p1" }))],
+        revisionChecklists: [
+          makeChecklist(
+            "STRIPBOARD_VALIDATION",
+            [{ checked: false, notApplicable: false }],
+            {
+              stage: "BOM_SOURCING",
+              revisionId: "rev-test",
+              buildId: null,
+            },
+          ),
+        ],
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.reasons).toContain(
+        "STRIPBOARD_VALIDATION Checklist has unchecked items.",
+      );
+    }
+  });
+
+  // m18: BOM_SOURCING gate now also consumes `project.hasMainsNet`. When
+  // true, the gate requires at least one BomLine whose part.isCertifiedModule
+  // is true. Independent of the stripboard branch (proposal §3 #5).
+  test("BOM_SOURCING gate: when hasMainsNet=false, certified-module check is skipped", async () => {
+    const r = await STAGES.BOM_SOURCING.exitGate!(
+      ctx("BOM_SOURCING", {
+        project: { id: "p1", requiresStripboard: false, hasMainsNet: false },
+        bomLines: [
+          makeBomLine(makePart({ id: "p1", isCertifiedModule: false })),
+        ],
+        revisionChecklists: [],
+      }),
+    );
+    expect(r).toEqual({ ok: true });
+  });
+
+  test("BOM_SOURCING gate: when hasMainsNet=true, no certified module fails the gate", async () => {
+    const r = await STAGES.BOM_SOURCING.exitGate!(
+      ctx("BOM_SOURCING", {
+        project: { id: "p1", requiresStripboard: false, hasMainsNet: true },
+        bomLines: [
+          makeBomLine(makePart({ id: "p1", isCertifiedModule: false })),
+        ],
+        revisionChecklists: [],
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.reasons).toContain(
+        "Project has mains net but no certified-module part on the BOM.",
+      );
+    }
+  });
+
+  test("BOM_SOURCING gate: when hasMainsNet=true, at least one certified module passes", async () => {
+    const r = await STAGES.BOM_SOURCING.exitGate!(
+      ctx("BOM_SOURCING", {
+        project: { id: "p1", requiresStripboard: false, hasMainsNet: true },
+        bomLines: [
+          makeBomLine(makePart({ id: "p1", isCertifiedModule: false })),
+          makeBomLine(
+            makePart({
+              id: "p2",
+              datasheetUrl: "https://y",
+              isCertifiedModule: true,
+            }),
+          ),
+        ],
+        revisionChecklists: [],
+      }),
+    );
+    expect(r).toEqual({ ok: true });
+  });
 });
 
 // ─── LAYOUT ────────────────────────────────────────────
@@ -382,14 +612,81 @@ describe("LAYOUT exit gate", () => {
     });
   });
 
-  test("passes when artifact + layoutCommit present", async () => {
+  test("passes when artifact + layoutCommit + LAYOUT_REVIEW checklist complete", async () => {
     const r = await STAGES.LAYOUT.exitGate!(
       ctx("LAYOUT", {
         revision: makeRevision("LAYOUT", { layoutCommit: "def5678" }),
         artifacts: [makeArtifact("LAYOUT", "LAYOUT_FILE")],
+        revisionChecklists: [
+          makeChecklist(
+            "LAYOUT_REVIEW",
+            [{ checked: true }, { checked: false, notApplicable: true }],
+            { stage: "LAYOUT", revisionId: "rev-test", buildId: null },
+          ),
+        ],
       }),
     );
     expect(r).toEqual({ ok: true });
+  });
+
+  // m16: LAYOUT gate now also consumes the LAYOUT_REVIEW checklist —
+  // 3-branch predicate mirrors REQUIREMENTS / ASSEMBLY.
+  test("LAYOUT gate: fails when LAYOUT_REVIEW checklist is missing entirely", async () => {
+    const r = await STAGES.LAYOUT.exitGate!(
+      ctx("LAYOUT", {
+        revision: makeRevision("LAYOUT", { layoutCommit: "def5678" }),
+        artifacts: [makeArtifact("LAYOUT", "LAYOUT_FILE")],
+        revisionChecklists: [],
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.reasons).toContain(
+        "No LAYOUT_REVIEW Checklist on the revision.",
+      );
+    }
+  });
+
+  test("LAYOUT gate: fails with 'no items' when LAYOUT_REVIEW checklist is empty", async () => {
+    const r = await STAGES.LAYOUT.exitGate!(
+      ctx("LAYOUT", {
+        revision: makeRevision("LAYOUT", { layoutCommit: "def5678" }),
+        artifacts: [makeArtifact("LAYOUT", "LAYOUT_FILE")],
+        revisionChecklists: [
+          makeChecklist("LAYOUT_REVIEW", [], {
+            stage: "LAYOUT",
+            revisionId: "rev-test",
+            buildId: null,
+          }),
+        ],
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.reasons).toContain("LAYOUT_REVIEW Checklist has no items.");
+    }
+  });
+
+  test("LAYOUT gate: fails with 'unchecked' when one item is checked=false, notApplicable=false", async () => {
+    const r = await STAGES.LAYOUT.exitGate!(
+      ctx("LAYOUT", {
+        revision: makeRevision("LAYOUT", { layoutCommit: "def5678" }),
+        artifacts: [makeArtifact("LAYOUT", "LAYOUT_FILE")],
+        revisionChecklists: [
+          makeChecklist(
+            "LAYOUT_REVIEW",
+            [{ checked: false, notApplicable: false }],
+            { stage: "LAYOUT", revisionId: "rev-test", buildId: null },
+          ),
+        ],
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.reasons).toContain(
+        "LAYOUT_REVIEW Checklist has unchecked items.",
+      );
+    }
   });
 });
 
@@ -717,6 +1014,75 @@ describe("FAILED_BOARD_MSG", () => {
     expect(FAILED_BOARD_MSG(3)).toBe(
       "3 board(s) FAILED — investigate and either return to ASSEMBLED (repaired) or set QUARANTINED (removed from build).",
     );
+  });
+});
+
+// ─── m14: build-allowed artifact subkinds (R2 build-snapshot widening) ──
+
+describe("STAGES build-allowed artifact subkinds (m14)", () => {
+  test("STAGES.ORDERING.buildAllowedArtifactSubkinds includes BOM_CSV_AS_ORDERED + GERBER_ZIP", () => {
+    expect(STAGES.ORDERING.buildAllowedArtifactSubkinds).toContain(
+      "BOM_CSV_AS_ORDERED",
+    );
+    expect(STAGES.ORDERING.buildAllowedArtifactSubkinds).toContain(
+      "GERBER_ZIP",
+    );
+  });
+
+  test("STAGES.ASSEMBLY.buildAllowedArtifactSubkinds includes ASSEMBLY_PHOTO", () => {
+    expect(STAGES.ASSEMBLY.buildAllowedArtifactSubkinds).toContain(
+      "ASSEMBLY_PHOTO",
+    );
+  });
+
+  test("STAGES.BRINGUP.buildAllowedArtifactSubkinds includes BRINGUP_MEASUREMENTS_CSV but NOT BRINGUP_COMPLETE", () => {
+    expect(STAGES.BRINGUP.buildAllowedArtifactSubkinds).toContain(
+      "BRINGUP_MEASUREMENTS_CSV",
+    );
+    // BRINGUP_COMPLETE must NOT be picker-creatable — design §9.2 pins
+    // it as the sentinel created only by the markBringupComplete action.
+    expect(STAGES.BRINGUP.buildAllowedArtifactSubkinds).not.toContain(
+      "BRINGUP_COMPLETE",
+    );
+  });
+});
+
+// ─── m14: DRC_GERBER gate widening (Build-scoped GERBER_ZIP fallback) ──
+
+describe("DRC_GERBER exit gate — m14 Build-scoped GERBER_ZIP fallback", () => {
+  test("passes when GERBER_ZIP lives on the active Build (not the revision)", async () => {
+    const r = await STAGES.DRC_GERBER.exitGate!(
+      ctx("DRC_GERBER", {
+        artifacts: [makeArtifact("DRC_GERBER", "DRC_REPORT")],
+        activeBuild: makeBuild({
+          artifacts: [makeBuildArtifact("DRC_GERBER", "GERBER_ZIP")],
+        }),
+      }),
+    );
+    expect(r).toEqual({ ok: true });
+  });
+
+  test("still passes when GERBER_ZIP is revision-scoped (existing behavior)", async () => {
+    const r = await STAGES.DRC_GERBER.exitGate!(
+      ctx("DRC_GERBER", {
+        artifacts: [
+          makeArtifact("DRC_GERBER", "DRC_REPORT"),
+          makeArtifact("DRC_GERBER", "GERBER_ZIP"),
+        ],
+      }),
+    );
+    expect(r).toEqual({ ok: true });
+  });
+
+  test("fails with reason when no GERBER_ZIP anywhere (revision nor active Build)", async () => {
+    const r = await STAGES.DRC_GERBER.exitGate!(
+      ctx("DRC_GERBER", {
+        artifacts: [makeArtifact("DRC_GERBER", "DRC_REPORT")],
+        activeBuild: makeBuild({ artifacts: [] }),
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reasons).toContain("No GERBER_ZIP artifact.");
   });
 });
 

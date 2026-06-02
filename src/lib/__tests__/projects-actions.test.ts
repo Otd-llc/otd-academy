@@ -147,4 +147,27 @@ describe("createProject curriculum metadata", () => {
       } as unknown),
     ).rejects.toThrow();
   });
+
+  // m18: hasMainsNet flag flows through the Zod schema and is persisted.
+  // Drives the BOM_SOURCING certified-module gate branch (proposal §3 #5).
+  test("createProject: accepts hasMainsNet", async () => {
+    const slug = `${TEST_SLUG_PREFIX}mains-${Date.now()}`;
+    const project = await createProject({
+      slug,
+      name: "mains-net project",
+      hasMainsNet: true,
+    });
+    createdProjectIds.push(project.id);
+    expect(project.hasMainsNet).toBe(true);
+  });
+
+  test("createProject: hasMainsNet defaults to false when omitted", async () => {
+    const slug = `${TEST_SLUG_PREFIX}mains-default-${Date.now()}`;
+    const project = await createProject({
+      slug,
+      name: "default mains-net",
+    });
+    createdProjectIds.push(project.id);
+    expect(project.hasMainsNet).toBe(false);
+  });
 });

@@ -11,6 +11,7 @@ export const createPartSchema = z.object({
   footprint: z.string().trim().max(128).optional().nullable(),
   datasheetUrl: z.url().optional().nullable(),
   lifecycle: z.enum(PartLifecycle).default("ACTIVE"),
+  isCertifiedModule: z.boolean().optional(),
   notes: z.string().max(2000).optional().nullable(),
 });
 

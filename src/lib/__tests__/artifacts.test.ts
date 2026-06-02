@@ -22,6 +22,9 @@ const ALL_SUBKINDS = [
   "PARTS_ORDER",
   "BRINGUP_LOG",
   "BRINGUP_COMPLETE",
+  "BOM_CSV_AS_ORDERED",
+  "ASSEMBLY_PHOTO",
+  "BRINGUP_MEASUREMENTS_CSV",
 ] as const satisfies readonly ArtifactSubkind[];
 
 describe("ARTIFACT_SUBKIND_OWNER", () => {
@@ -52,7 +55,6 @@ describe("ownerMatches — revision-bound subkinds", () => {
     "BOM_EXPORT",
     "LAYOUT_FILE",
     "DRC_REPORT",
-    "GERBER_ZIP",
     "ASSEMBLY_PROCEDURE",
     "BENCH_PROCEDURE",
   ];
@@ -73,6 +75,9 @@ describe("ownerMatches — build-bound subkinds", () => {
     "PARTS_ORDER",
     "BRINGUP_LOG",
     "BRINGUP_COMPLETE",
+    "BOM_CSV_AS_ORDERED",
+    "ASSEMBLY_PHOTO",
+    "BRINGUP_MEASUREMENTS_CSV",
   ];
 
   for (const s of BUILD_BOUND) {
@@ -83,6 +88,22 @@ describe("ownerMatches — build-bound subkinds", () => {
       expect(ownerMatches(s, "revision")).toBe(false);
     });
   }
+});
+
+describe("ownerMatches — either-scoped subkinds (m14 widening)", () => {
+  test("GERBER_ZIP is 'either' (covers revision-scoped designed gerbers AND build-scoped fab-submission snapshot)", () => {
+    expect(ARTIFACT_SUBKIND_OWNER.GERBER_ZIP).toBe("either");
+    expect(ownerMatches("GERBER_ZIP", "revision")).toBe(true);
+    expect(ownerMatches("GERBER_ZIP", "build")).toBe(true);
+  });
+
+  test("BOM_CSV_AS_ORDERED + ASSEMBLY_PHOTO + BRINGUP_MEASUREMENTS_CSV are Build-scoped", () => {
+    expect(ARTIFACT_SUBKIND_OWNER.BOM_CSV_AS_ORDERED).toBe("build");
+    expect(ARTIFACT_SUBKIND_OWNER.ASSEMBLY_PHOTO).toBe("build");
+    expect(ARTIFACT_SUBKIND_OWNER.BRINGUP_MEASUREMENTS_CSV).toBe("build");
+    expect(ownerMatches("BOM_CSV_AS_ORDERED", "revision")).toBe(false);
+    expect(ownerMatches("ASSEMBLY_PHOTO", "revision")).toBe(false);
+  });
 });
 
 describe("ownerMatches — exhaustive cross-product sanity", () => {

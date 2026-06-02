@@ -54,6 +54,9 @@ export async function createPart(input: unknown) {
         footprint: data.footprint ?? null,
         datasheetUrl: data.datasheetUrl ?? null,
         lifecycle: data.lifecycle,
+        ...(data.isCertifiedModule !== undefined
+          ? { isCertifiedModule: data.isCertifiedModule }
+          : {}),
         notes: data.notes ?? null,
         createdById: user.id,
       },
@@ -119,6 +122,7 @@ export async function createPartFormAction(
     footprint: pickString(formData, "footprint"),
     datasheetUrl: pickString(formData, "datasheetUrl"),
     lifecycle: pickString(formData, "lifecycle") ?? "ACTIVE",
+    isCertifiedModule: formData.get("isCertifiedModule") === "on",
     notes: pickString(formData, "notes"),
   };
   try {

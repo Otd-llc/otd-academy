@@ -25,6 +25,7 @@ import type {
   Checklist,
   ChecklistItem,
   Part,
+  Project,
   Revision,
   Stage,
 } from "@prisma/client";
@@ -85,8 +86,18 @@ export interface GateContext {
     Revision,
     "id" | "currentStage" | "schematicCommit" | "layoutCommit"
   >;
+  // m17 / m18: surface project-level flags consumed by gate predicates.
+  // `requiresStripboard` (m17) drives the STRIPBOARD_VALIDATION branch of
+  // the BOM_SOURCING gate; `hasMainsNet` (m18) drives the certified-module
+  // branch of the same gate (proposal §3 #5).
+  project: Pick<Project, "id" | "requiresStripboard" | "hasMainsNet">;
   bomLines: (BomLine & { part: Part })[];
   artifacts: Artifact[];
+  // m15: revision-scoped checklists across ALL stages. Each gate that
+  // consumes them filters by `subkind` (see m16 — REQUIREMENTS_REVIEW,
+  // LAYOUT_REVIEW). Loading all of them keeps the loader simple and lets
+  // each gate predicate own its subkind→stage policy.
+  revisionChecklists: (Checklist & { items: ChecklistItem[] })[];
   activeBuild:
     | (Build & {
         boards: Board[];
@@ -121,11 +132,30 @@ export const STAGES: Record<Stage, StageDef> = {
     ],
     revisionAllowedArtifactSubkinds: ["REQUIREMENTS_DOC", "GENERIC"],
     buildAllowedArtifactSubkinds: [],
-    exitGate: ({ artifacts }) => {
+    // m16: in addition to a stage-tagged artifact, REQUIREMENTS now also
+    // requires a REQUIREMENTS_REVIEW Checklist with every item checked or
+    // flagged N/A. Mirrors the ASSEMBLY 3-branch predicate
+    // (missing / zero items / unchecked non-N/A) so the failure copy stays
+    // diagnostic.
+    exitGate: ({ artifacts, revisionChecklists }) => {
       const reasons: string[] = [];
       const present = artifacts.some((a) => a.stage === "REQUIREMENTS");
       if (!present)
         reasons.push("No requirements artifact at this stage.");
+
+      const review = revisionChecklists.find(
+        (c) => c.subkind === "REQUIREMENTS_REVIEW",
+      );
+      if (!review) {
+        reasons.push("No REQUIREMENTS_REVIEW Checklist on the revision.");
+      } else if (review.items.length === 0) {
+        reasons.push("REQUIREMENTS_REVIEW Checklist has no items.");
+      } else if (
+        review.items.some((i) => !i.checked && !i.notApplicable)
+      ) {
+        reasons.push("REQUIREMENTS_REVIEW Checklist has unchecked items.");
+      }
+
       return reasons.length ? { ok: false, reasons } : { ok: true };
     },
   },
@@ -164,7 +194,17 @@ export const STAGES: Record<Stage, StageDef> = {
     ],
     revisionAllowedArtifactSubkinds: ["BOM_EXPORT", "GENERIC"],
     buildAllowedArtifactSubkinds: [],
-    exitGate: ({ bomLines }) => {
+    // m17: when `project.requiresStripboard === true`, the gate additionally
+    // requires a STRIPBOARD_VALIDATION Checklist on the revision with every
+    // item checked-or-N/A. Mirrors the 3-branch ASSEMBLY / REQUIREMENTS /
+    // LAYOUT predicate (missing / zero items / unchecked non-N/A) for
+    // diagnostic copy parity (proposal §3 #4).
+    //
+    // m18: when `project.hasMainsNet === true`, the gate additionally
+    // requires at least one BomLine whose part.isCertifiedModule is true
+    // (proposal §3 #5). Independent from the stripboard branch — a project
+    // can have neither, either, or both flags.
+    exitGate: ({ project, bomLines, revisionChecklists }) => {
       const reasons: string[] = [];
       if (bomLines.length === 0) reasons.push("BOM is empty.");
       const noDatasheet = bomLines.filter((l) => !l.part.datasheetUrl);
@@ -176,6 +216,33 @@ export const STAGES: Record<Stage, StageDef> = {
         (l) => l.part.lifecycle === "EOL" || l.part.lifecycle === "OBSOLETE",
       );
       if (eol.length) reasons.push(`${eol.length} part(s) are EOL or OBSOLETE.`);
+
+      if (project.requiresStripboard) {
+        const sv = revisionChecklists.find(
+          (c) => c.subkind === "STRIPBOARD_VALIDATION",
+        );
+        if (!sv) {
+          reasons.push("No STRIPBOARD_VALIDATION Checklist on the revision.");
+        } else if (sv.items.length === 0) {
+          reasons.push("STRIPBOARD_VALIDATION Checklist has no items.");
+        } else if (
+          sv.items.some((i) => !i.checked && !i.notApplicable)
+        ) {
+          reasons.push(
+            "STRIPBOARD_VALIDATION Checklist has unchecked items.",
+          );
+        }
+      }
+
+      if (project.hasMainsNet) {
+        const hasCertified = bomLines.some((l) => l.part.isCertifiedModule);
+        if (!hasCertified) {
+          reasons.push(
+            "Project has mains net but no certified-module part on the BOM.",
+          );
+        }
+      }
+
       return reasons.length ? { ok: false, reasons } : { ok: true };
     },
   },
@@ -193,12 +260,29 @@ export const STAGES: Record<Stage, StageDef> = {
     ],
     revisionAllowedArtifactSubkinds: ["LAYOUT_FILE", "GENERIC"],
     buildAllowedArtifactSubkinds: [],
-    exitGate: ({ revision, artifacts }) => {
+    // m16: LAYOUT additionally requires a LAYOUT_REVIEW Checklist with every
+    // item checked or N/A — same 3-branch predicate as REQUIREMENTS /
+    // ASSEMBLY for diagnostic copy parity.
+    exitGate: ({ revision, artifacts, revisionChecklists }) => {
       const reasons: string[] = [];
       const present = artifacts.some((a) => a.stage === "LAYOUT");
       if (!present) reasons.push("No layout artifact at this stage.");
       if (!revision.layoutCommit)
         reasons.push("layoutCommit not pinned on the revision.");
+
+      const review = revisionChecklists.find(
+        (c) => c.subkind === "LAYOUT_REVIEW",
+      );
+      if (!review) {
+        reasons.push("No LAYOUT_REVIEW Checklist on the revision.");
+      } else if (review.items.length === 0) {
+        reasons.push("LAYOUT_REVIEW Checklist has no items.");
+      } else if (
+        review.items.some((i) => !i.checked && !i.notApplicable)
+      ) {
+        reasons.push("LAYOUT_REVIEW Checklist has unchecked items.");
+      }
+
       return reasons.length ? { ok: false, reasons } : { ok: true };
     },
   },
@@ -214,10 +298,15 @@ export const STAGES: Record<Stage, StageDef> = {
     ],
     revisionAllowedArtifactSubkinds: ["DRC_REPORT", "GERBER_ZIP", "GENERIC"],
     buildAllowedArtifactSubkinds: [],
-    exitGate: ({ artifacts }) => {
+    // m14: GERBER_ZIP is now either-scoped (proposal §3 #9). The DRC_GERBER
+    // exit gate accepts a GERBER_ZIP that lives on the revision OR on the
+    // active Build (the fab-submission snapshot).
+    exitGate: ({ artifacts, activeBuild }) => {
       const reasons: string[] = [];
       const hasDrc = artifacts.some((a) => a.subkind === "DRC_REPORT");
-      const hasGerber = artifacts.some((a) => a.subkind === "GERBER_ZIP");
+      const hasGerber =
+        artifacts.some((a) => a.subkind === "GERBER_ZIP") ||
+        (activeBuild?.artifacts ?? []).some((a) => a.subkind === "GERBER_ZIP");
       if (!hasDrc) reasons.push("No DRC_REPORT artifact.");
       if (!hasGerber) reasons.push("No GERBER_ZIP artifact.");
       return reasons.length ? { ok: false, reasons } : { ok: true };
@@ -234,7 +323,15 @@ export const STAGES: Record<Stage, StageDef> = {
       "Attach PCB_ORDER + PARTS_ORDER artifacts to the Build.",
     ],
     revisionAllowedArtifactSubkinds: ["GENERIC"],
-    buildAllowedArtifactSubkinds: ["PCB_ORDER", "PARTS_ORDER", "GENERIC"],
+    // m14: ORDERING build pane accepts the BOM_CSV_AS_ORDERED snapshot + the
+    // GERBER_ZIP fab-submission snapshot alongside the order receipts.
+    buildAllowedArtifactSubkinds: [
+      "PCB_ORDER",
+      "PARTS_ORDER",
+      "BOM_CSV_AS_ORDERED",
+      "GERBER_ZIP",
+      "GENERIC",
+    ],
     exitGate: ({ activeBuild }) => {
       const reasons: string[] = [];
       if (!activeBuild) {
@@ -260,7 +357,8 @@ export const STAGES: Record<Stage, StageDef> = {
       "Create a Build-scoped Checklist with subkind = POST_ASSEMBLY_CONTINUITY and tick all items before advancing.",
     ],
     revisionAllowedArtifactSubkinds: ["GENERIC"],
-    buildAllowedArtifactSubkinds: ["GENERIC"],
+    // m14: ASSEMBLY build pane accepts ASSEMBLY_PHOTO snapshots.
+    buildAllowedArtifactSubkinds: ["ASSEMBLY_PHOTO", "GENERIC"],
     exitGate: ({ activeBuild }) => {
       const reasons: string[] = [];
       if (!activeBuild) {
@@ -284,14 +382,26 @@ export const STAGES: Record<Stage, StageDef> = {
       const continuity = activeBuild.checklists.find(
         (c) => c.subkind === "POST_ASSEMBLY_CONTINUITY",
       );
-      if (!continuity)
+      // m16: 3-branch predicate. Zero-item checklists previously slipped
+      // through because `Array.prototype.some` on an empty array is `false`
+      // (vacuous pass). The new branch explicitly fails on length === 0, and
+      // the unchecked-items branch now ignores items flagged
+      // `notApplicable: true` so the optional / "skip this step" workflow
+      // (Task 16.10) does not block the gate. Mirrors the raw CHECK
+      // `checklist_item_checked_xor_napplicable` (Task 16.3).
+      if (!continuity) {
         reasons.push(
           "No POST_ASSEMBLY_CONTINUITY Checklist on the active Build.",
         );
-      else if (continuity.items.some((i) => !i.checked))
+      } else if (continuity.items.length === 0) {
+        reasons.push("POST_ASSEMBLY_CONTINUITY Checklist has no items.");
+      } else if (
+        continuity.items.some((i) => !i.checked && !i.notApplicable)
+      ) {
         reasons.push(
           "POST_ASSEMBLY_CONTINUITY Checklist has unchecked items.",
         );
+      }
       return reasons.length ? { ok: false, reasons } : { ok: true };
     },
   },
@@ -306,7 +416,15 @@ export const STAGES: Record<Stage, StageDef> = {
       "Click 'Mark bring-up complete' on the Build page when ready — this unlocks advance to REVISION (and freezes).",
     ],
     revisionAllowedArtifactSubkinds: ["GENERIC"],
-    buildAllowedArtifactSubkinds: ["BRINGUP_LOG", "GENERIC"],
+    // m14: BRINGUP build pane accepts BRINGUP_MEASUREMENTS_CSV exports.
+    // BRINGUP_COMPLETE remains intentionally OUT of this list — only the
+    // dedicated `markBringupComplete` server action creates that sentinel
+    // (design §9.2; pinned by artifacts-actions test).
+    buildAllowedArtifactSubkinds: [
+      "BRINGUP_LOG",
+      "BRINGUP_MEASUREMENTS_CSV",
+      "GENERIC",
+    ],
     exitGate: ({ activeBuild }) => {
       const reasons: string[] = [];
       if (!activeBuild) {

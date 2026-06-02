@@ -164,6 +164,95 @@ describe("createRevision", () => {
     expect(transitions[0]?.direction).toBe("INIT");
   });
 
+  test("copy-forward (m14): revision-scoped GERBER_ZIP IS cloned; Build-scoped GERBER_ZIP is NOT (new rev has no Builds)", async () => {
+    // Per m14 / proposal §3 #9, GERBER_ZIP is now either-scoped. A
+    // revision-scoped GERBER_ZIP (designed gerbers) must still copy
+    // forward to the next rev. A Build-scoped GERBER_ZIP (fab-submission
+    // snapshot) must NOT — it's tied to its originating Build and the new
+    // rev starts with zero Builds.
+    const project = await db.project.findUniqueOrThrow({
+      where: { slug: SEED_PROJECT_SLUG },
+    });
+    const seedUser = await db.user.findUniqueOrThrow({
+      where: { email: SEED_EMAIL },
+    });
+
+    const sourceLabel = `t14.5-src-${Date.now()}`;
+    const source = await createRevision({
+      projectId: project.id,
+      label: sourceLabel,
+    });
+    createdRevisionIds.push(source.id);
+
+    // Revision-scoped GERBER_ZIP (the designed gerbers).
+    await db.artifact.create({
+      data: {
+        revisionId: source.id,
+        stage: "DRC_GERBER",
+        kind: "FILE",
+        subkind: "GERBER_ZIP",
+        title: "designed gerbers (revision-scoped)",
+        fileKey: "test/designed.zip",
+        fileMime: "application/zip",
+        fileBytes: 1024,
+        createdBy: seedUser.id,
+      },
+    });
+
+    // A Build with a Build-scoped GERBER_ZIP (the fab-submission snapshot).
+    const build = await db.build.create({
+      data: {
+        revisionId: source.id,
+        label: `BUILD-T14.5-${Date.now()}`,
+        boardCount: 1,
+        createdById: seedUser.id,
+      },
+    });
+    await db.artifact.create({
+      data: {
+        buildId: build.id,
+        stage: "DRC_GERBER",
+        kind: "FILE",
+        subkind: "GERBER_ZIP",
+        title: "fab-submission gerbers (build-scoped)",
+        fileKey: "test/submission.zip",
+        fileMime: "application/zip",
+        fileBytes: 1024,
+        createdBy: seedUser.id,
+      },
+    });
+
+    const destLabel = `t14.5-dst-${Date.now()}`;
+    const dest = await createRevision({
+      projectId: project.id,
+      label: destLabel,
+      copyForwardFromRevisionId: source.id,
+    });
+    createdRevisionIds.push(dest.id);
+
+    // The new revision must have exactly one GERBER_ZIP artifact —
+    // the revision-scoped one that was cloned. Zero Builds carried over.
+    const cloned = await db.artifact.findMany({
+      where: { revisionId: dest.id, subkind: "GERBER_ZIP" },
+    });
+    expect(cloned).toHaveLength(1);
+    expect(cloned[0]?.title).toBe("designed gerbers (revision-scoped)");
+
+    const newBuildCount = await db.build.count({
+      where: { revisionId: dest.id },
+    });
+    expect(newBuildCount).toBe(0);
+
+    // No build-scoped GERBER_ZIP on the new rev under any path.
+    const strayBuildScoped = await db.artifact.count({
+      where: {
+        build: { revisionId: dest.id },
+        subkind: "GERBER_ZIP",
+      },
+    });
+    expect(strayBuildScoped).toBe(0);
+  });
+
   test("copy-forward preserves artifact subkind on cloned rows", async () => {
     // To exercise this end-to-end we need at least one rev-scoped artifact
     // on the source. Create a throwaway rev, attach a rev-scoped artifact

@@ -16,6 +16,7 @@ import {
   EditCriticalPathForm,
   EditDescriptionForm,
   EditDisciplineTaughtForm,
+  EditHasMainsNetForm,
   EditLevelForm,
   EditNameForm,
   EditRepoUrlForm,
@@ -91,9 +92,14 @@ export default async function ProjectDetailPage({
           </p>
         </div>
 
-        {/* Curriculum badge row — track / level / bench-tool chips. Each is
-            optional; the row collapses cleanly when nothing is set. */}
-        {(project.track || project.level || !project.criticalPath) && (
+        {/* Curriculum badge row — track / level / bench-tool / stripboard /
+            mains-net chips. Each is optional; the row collapses cleanly
+            when nothing is set. */}
+        {(project.track ||
+          project.level ||
+          !project.criticalPath ||
+          project.requiresStripboard ||
+          project.hasMainsNet) && (
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {project.track && (
               <span
@@ -110,6 +116,22 @@ export default async function ProjectDetailPage({
             {!project.criticalPath && (
               <span className="inline-flex items-center rounded border border-panel-border bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-muted">
                 BENCH TOOL
+              </span>
+            )}
+            {/* m17: surfaces the BOM_SOURCING stripboard-validation gate
+                requirement so reviewers know to expect the extra checklist
+                materialized on each revision. */}
+            {project.requiresStripboard && (
+              <span className="inline-flex items-center rounded border border-panel-border bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-signal-blue">
+                REQUIRES STRIPBOARD
+              </span>
+            )}
+            {/* m18: surfaces the BOM_SOURCING certified-module gate
+                requirement (proposal §3 #5). Painted alert-red because
+                mains exposure is the highest-stakes safety flag. */}
+            {project.hasMainsNet && (
+              <span className="inline-flex items-center rounded border border-panel-border bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-alert-red">
+                HAS MAINS NET
               </span>
             )}
           </div>
@@ -151,6 +173,10 @@ export default async function ProjectDetailPage({
           <EditRequiresStripboardForm
             id={project.id}
             value={project.requiresStripboard}
+          />
+          <EditHasMainsNetForm
+            id={project.id}
+            value={project.hasMainsNet}
           />
         </div>
       </div>

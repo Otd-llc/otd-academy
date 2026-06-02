@@ -18,6 +18,7 @@ import {
   deleteChecklistItem,
   editChecklist,
   editChecklistItem,
+  materializeCanonicalChecklist,
   reorderChecklistItems,
 } from "@/lib/actions/checklists";
 
@@ -60,7 +61,11 @@ export async function createChecklistFormAction(
   const stageRaw = pickString(formData, "stage");
   const title = pickString(formData, "title") ?? "";
 
-  if (ownerKind !== "build" && ownerKind !== "board") {
+  if (
+    ownerKind !== "revision" &&
+    ownerKind !== "build" &&
+    ownerKind !== "board"
+  ) {
     return { message: "Invalid owner kind." };
   }
   if (!ownerId) return { message: "Missing owner id." };
@@ -72,21 +77,29 @@ export async function createChecklistFormAction(
   }
 
   const payload =
-    ownerKind === "build"
+    ownerKind === "revision"
       ? {
-          ownerKind: "build" as const,
-          buildId: ownerId,
+          ownerKind: "revision" as const,
+          revisionId: ownerId,
           subkind: subkindRaw as ChecklistSubkind,
           stage: stageRaw as Stage,
           title,
         }
-      : {
-          ownerKind: "board" as const,
-          boardId: ownerId,
-          subkind: subkindRaw as ChecklistSubkind,
-          stage: stageRaw as Stage,
-          title,
-        };
+      : ownerKind === "build"
+        ? {
+            ownerKind: "build" as const,
+            buildId: ownerId,
+            subkind: subkindRaw as ChecklistSubkind,
+            stage: stageRaw as Stage,
+            title,
+          }
+        : {
+            ownerKind: "board" as const,
+            boardId: ownerId,
+            subkind: subkindRaw as ChecklistSubkind,
+            stage: stageRaw as Stage,
+            title,
+          };
 
   try {
     const c = await createChecklist(payload);
@@ -221,6 +234,33 @@ export async function toggleChecklistItemFormAction(
   }
 }
 
+// ─── toggleChecklistItemNotApplicable form action (m16 / Task 16.10) ───
+//
+// Mirrors the checked-toggle, but flips `notApplicable`. The action layer
+// (editChecklistItem) trusts the Zod refinement to reject the
+// checked=true ∧ notApplicable=true conflict, so this wrapper only needs
+// to pass the boolean through.
+export async function toggleChecklistItemNotApplicableFormAction(
+  _prev: ChecklistFormState,
+  formData: FormData,
+): Promise<ChecklistFormState> {
+  const id = pickString(formData, "id");
+  const nextNaRaw = pickString(formData, "nextNotApplicable");
+  if (!id) return { message: "Missing item id." };
+  if (nextNaRaw !== "true" && nextNaRaw !== "false") {
+    return { message: "Invalid notApplicable value." };
+  }
+  try {
+    await editChecklistItem({
+      id,
+      notApplicable: nextNaRaw === "true",
+    });
+    return { ok: true };
+  } catch (err) {
+    return { message: err instanceof Error ? err.message : "Unknown error" };
+  }
+}
+
 // ─── reorderChecklistItems form action ─────────────────
 
 export async function reorderChecklistItemsFormAction(
@@ -253,6 +293,34 @@ export async function deleteChecklistItemFormAction(
   try {
     await deleteChecklistItem({ id });
     return { ok: true };
+  } catch (err) {
+    return { message: err instanceof Error ? err.message : "Unknown error" };
+  }
+}
+
+// ─── materializeCanonicalChecklist form action (m16 / Task 16.7) ───────
+//
+// Backs the "Materialize REQUIREMENTS_REVIEW / LAYOUT_REVIEW" one-click
+// buttons on the revision detail page. Surface-level error handling — the
+// action layer rejects double-materialize attempts with a stable error
+// string consumed by the pane copy.
+export async function materializeCanonicalChecklistFormAction(
+  _prev: ChecklistFormState,
+  formData: FormData,
+): Promise<ChecklistFormState> {
+  const revisionId = pickString(formData, "revisionId");
+  const templateKey = pickString(formData, "templateKey");
+  if (!revisionId) return { message: "Missing revision id." };
+  if (
+    templateKey !== "REQUIREMENTS_REVIEW" &&
+    templateKey !== "LAYOUT_REVIEW" &&
+    templateKey !== "STRIPBOARD_VALIDATION"
+  ) {
+    return { message: "Invalid template key." };
+  }
+  try {
+    const c = await materializeCanonicalChecklist({ revisionId, templateKey });
+    return { createdId: c.id, ok: true };
   } catch (err) {
     return { message: err instanceof Error ? err.message : "Unknown error" };
   }

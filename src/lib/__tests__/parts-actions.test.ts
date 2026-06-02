@@ -96,4 +96,29 @@ describe("createPart", () => {
     createdPartIds.push(part.id);
     expect(part.lifecycle).toBe("ACTIVE");
   });
+
+  // m18: isCertifiedModule flag fulfills the BOM_SOURCING mains-net gate
+  // when project.hasMainsNet === true (proposal §3 #5).
+  test("createPart: accepts isCertifiedModule", async () => {
+    const mpn = `CERT-${Date.now()}`;
+    const part = await createPart({
+      manufacturer: TEST_MFR,
+      mpn,
+      description: "certified module",
+      isCertifiedModule: true,
+    });
+    createdPartIds.push(part.id);
+    expect(part.isCertifiedModule).toBe(true);
+  });
+
+  test("createPart: isCertifiedModule defaults to false when omitted", async () => {
+    const mpn = `CERT-DEF-${Date.now()}`;
+    const part = await createPart({
+      manufacturer: TEST_MFR,
+      mpn,
+      description: "default cert flag",
+    });
+    createdPartIds.push(part.id);
+    expect(part.isCertifiedModule).toBe(false);
+  });
 });

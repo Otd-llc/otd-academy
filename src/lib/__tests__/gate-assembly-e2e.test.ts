@@ -187,4 +187,213 @@ describe("ASSEMBLY gate — end-to-end red-to-green via advanceStage", () => {
     });
     expect(after3.currentStage).toBe("BRINGUP");
   });
+
+  // ─── m16: predicate-fix tests ─────────────────────────────────────────
+  //
+  // The pre-m16 predicate at `src/lib/stages.ts:291` did
+  //   `items.some((i) => !i.checked)`
+  // which (a) vacuously passed on empty checklists and (b) treated N/A
+  // items as unchecked (blocking the gate). m16 rewrites it as a 3-branch
+  // predicate that explicitly fails on length === 0 and ignores items
+  // flagged `notApplicable: true`. These tests pin the new behaviour.
+
+  test("m16: passes when continuity checklist has N/A + checked items only", async () => {
+    const user = await db.user.findUniqueOrThrow({
+      where: { email: SEED_EMAIL },
+    });
+    const project = await db.project.findUniqueOrThrow({
+      where: { slug: SEED_PROJECT_SLUG },
+    });
+
+    const rev = await db.revision.create({
+      data: {
+        projectId: project.id,
+        label: `t16.5-na-${Date.now()}`,
+        currentStage: "ASSEMBLY",
+      },
+    });
+    createdRevisionIds.push(rev.id);
+    await db.stageTransition.create({
+      data: {
+        revisionId: rev.id,
+        fromStage: null,
+        toStage: "REQUIREMENTS",
+        direction: "INIT",
+        gateSnapshot: { v: 1, kind: "init", ts: new Date().toISOString() },
+        transitionedBy: user.id,
+      },
+    });
+
+    const build = await db.build.create({
+      data: {
+        revisionId: rev.id,
+        label: `BUILD-NA-${Date.now()}`,
+        boardCount: 1,
+        createdById: user.id,
+      },
+    });
+    createdBuildIds.push(build.id);
+    const board = await db.board.create({
+      data: { buildId: build.id, serial: "B01", status: "ASSEMBLED" },
+    });
+    createdBoardIds.push(board.id);
+
+    const checklist = await db.checklist.create({
+      data: {
+        buildId: build.id,
+        subkind: "POST_ASSEMBLY_CONTINUITY",
+        stage: "ASSEMBLY",
+        title: "continuity (na mix)",
+        createdById: user.id,
+        items: {
+          create: [
+            { ordinal: 0, label: "5V rail", checked: true },
+            { ordinal: 1, label: "3V3 rail", checked: true },
+            {
+              ordinal: 2,
+              label: "GND continuity (skipped)",
+              notApplicable: true,
+            },
+          ],
+        },
+      },
+    });
+    createdChecklistIds.push(checklist.id);
+
+    const result = await advanceStage({ revisionId: rev.id });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.transition.toStage).toBe("BRINGUP");
+    }
+  });
+
+  test("m16: FAILS when continuity checklist has zero items (was vacuous-pass)", async () => {
+    const user = await db.user.findUniqueOrThrow({
+      where: { email: SEED_EMAIL },
+    });
+    const project = await db.project.findUniqueOrThrow({
+      where: { slug: SEED_PROJECT_SLUG },
+    });
+
+    const rev = await db.revision.create({
+      data: {
+        projectId: project.id,
+        label: `t16.5-empty-${Date.now()}`,
+        currentStage: "ASSEMBLY",
+      },
+    });
+    createdRevisionIds.push(rev.id);
+    await db.stageTransition.create({
+      data: {
+        revisionId: rev.id,
+        fromStage: null,
+        toStage: "REQUIREMENTS",
+        direction: "INIT",
+        gateSnapshot: { v: 1, kind: "init", ts: new Date().toISOString() },
+        transitionedBy: user.id,
+      },
+    });
+    const build = await db.build.create({
+      data: {
+        revisionId: rev.id,
+        label: `BUILD-EMPTY-${Date.now()}`,
+        boardCount: 1,
+        createdById: user.id,
+      },
+    });
+    createdBuildIds.push(build.id);
+    const board = await db.board.create({
+      data: { buildId: build.id, serial: "B01", status: "ASSEMBLED" },
+    });
+    createdBoardIds.push(board.id);
+
+    const checklist = await db.checklist.create({
+      data: {
+        buildId: build.id,
+        subkind: "POST_ASSEMBLY_CONTINUITY",
+        stage: "ASSEMBLY",
+        title: "continuity (empty)",
+        createdById: user.id,
+      },
+    });
+    createdChecklistIds.push(checklist.id);
+
+    const result = await advanceStage({ revisionId: rev.id });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reasons).toContain(
+        "POST_ASSEMBLY_CONTINUITY Checklist has no items.",
+      );
+    }
+  });
+
+  test("m16: FAILS when continuity checklist has one unchecked non-N/A item", async () => {
+    const user = await db.user.findUniqueOrThrow({
+      where: { email: SEED_EMAIL },
+    });
+    const project = await db.project.findUniqueOrThrow({
+      where: { slug: SEED_PROJECT_SLUG },
+    });
+
+    const rev = await db.revision.create({
+      data: {
+        projectId: project.id,
+        label: `t16.5-unchecked-${Date.now()}`,
+        currentStage: "ASSEMBLY",
+      },
+    });
+    createdRevisionIds.push(rev.id);
+    await db.stageTransition.create({
+      data: {
+        revisionId: rev.id,
+        fromStage: null,
+        toStage: "REQUIREMENTS",
+        direction: "INIT",
+        gateSnapshot: { v: 1, kind: "init", ts: new Date().toISOString() },
+        transitionedBy: user.id,
+      },
+    });
+    const build = await db.build.create({
+      data: {
+        revisionId: rev.id,
+        label: `BUILD-UNCH-${Date.now()}`,
+        boardCount: 1,
+        createdById: user.id,
+      },
+    });
+    createdBuildIds.push(build.id);
+    const board = await db.board.create({
+      data: { buildId: build.id, serial: "B01", status: "ASSEMBLED" },
+    });
+    createdBoardIds.push(board.id);
+
+    const checklist = await db.checklist.create({
+      data: {
+        buildId: build.id,
+        subkind: "POST_ASSEMBLY_CONTINUITY",
+        stage: "ASSEMBLY",
+        title: "continuity (one unchecked)",
+        createdById: user.id,
+        items: {
+          create: [
+            {
+              ordinal: 0,
+              label: "5V rail",
+              checked: false,
+              notApplicable: false,
+            },
+          ],
+        },
+      },
+    });
+    createdChecklistIds.push(checklist.id);
+
+    const result = await advanceStage({ revisionId: rev.id });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reasons).toContain(
+        "POST_ASSEMBLY_CONTINUITY Checklist has unchecked items.",
+      );
+    }
+  });
 });

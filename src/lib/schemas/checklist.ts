@@ -1,13 +1,14 @@
 // Zod 4 schemas for Checklist + ChecklistItem CRUD (design §4.2 + §9.2/§9.3).
 //
-// Phase 13 / M9b scope: Build XOR Board owned Checklists. The owner XOR is
-// enforced at three layers:
-//   1. The DB CHECK constraint `checklist_owner_xor` (raw migration in
-//      Phase 1) rejects rows with both or neither id set.
+// m15 widened scope: Revision XOR Build XOR Board owned Checklists. The owner
+// XOR is enforced at three layers:
+//   1. The DB CHECK constraint `checklist_owner_xor` (raw migration; widened
+//      to 3-way in m15) rejects rows with more than one or no id set.
 //   2. The action layer dispatches on `ownerKind` to set exactly one of
-//      `buildId` / `boardId` on insert.
-//   3. The discriminated union here makes the two payload shapes structurally
-//      distinct so the client can't accidentally send both.
+//      `revisionId` / `buildId` / `boardId` on insert.
+//   3. The discriminated union here makes the three payload shapes
+//      structurally distinct so the client can't accidentally send more
+//      than one.
 //
 // Subkind / stage / owner are immutable post-create — editing those would
 // invalidate the gate-relevant lookup semantics (the ASSEMBLY gate matches
@@ -30,6 +31,11 @@ const baseCreateFields = {
 };
 
 export const createChecklistSchema = z.discriminatedUnion("ownerKind", [
+  z.object({
+    ...baseCreateFields,
+    ownerKind: z.literal("revision"),
+    revisionId: z.cuid(),
+  }),
   z.object({
     ...baseCreateFields,
     ownerKind: z.literal("build"),
@@ -82,13 +88,26 @@ export type AddChecklistItemInput = z.infer<typeof addChecklistItemSchema>;
 // `completedById = user.id` if either is not already populated.
 // Setting `checked = false` clears both stamps so a toggled-off row
 // behaves like a never-completed item.
-export const editChecklistItemSchema = z.object({
-  id: z.cuid(),
-  label: z.string().trim().min(1).max(500).optional(),
-  expectedValue: z.union([z.string().max(500), z.null()]).optional(),
-  actualValue: z.union([z.string().max(500), z.null()]).optional(),
-  checked: z.boolean().optional(),
-});
+//
+// m16: `notApplicable` mirrors the DB column; the `.refine` below
+// matches the raw CHECK `checklist_item_checked_xor_napplicable` so the
+// action layer rejects the conflict before the DB does. The
+// `addChecklistItemSchema` does NOT expose `checked` on the wire
+// (creation forces `checked = false`), so an analogous refinement there
+// would collapse to trivially-true — skipped per Task 16.4.
+export const editChecklistItemSchema = z
+  .object({
+    id: z.cuid(),
+    label: z.string().trim().min(1).max(500).optional(),
+    expectedValue: z.union([z.string().max(500), z.null()]).optional(),
+    actualValue: z.union([z.string().max(500), z.null()]).optional(),
+    checked: z.boolean().optional(),
+    notApplicable: z.boolean().optional(),
+  })
+  .refine((d) => !(d.checked === true && d.notApplicable === true), {
+    message: "An item cannot be both checked and N/A simultaneously.",
+    path: ["notApplicable"],
+  });
 
 export type EditChecklistItemInput = z.infer<typeof editChecklistItemSchema>;
 

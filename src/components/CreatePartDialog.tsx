@@ -206,6 +206,25 @@ export function PartFields({
         <FieldError messages={state.errors?.datasheetUrl} />
       </div>
 
+      {/* m18: isCertifiedModule marks the part as fulfilling the
+          BOM_SOURCING mains-net certified-module gate when the parent
+          Project has `hasMainsNet === true` (proposal §3 #5). */}
+      <div>
+        <label
+          className="inline-flex items-center gap-2"
+          title="Marks this part as fulfilling the mains-net certified-module gate"
+        >
+          <input
+            name="isCertifiedModule"
+            type="checkbox"
+          />
+          <span className="font-mono text-xs uppercase tracking-wider text-muted">
+            Certified module (fulfills mains-net BOM gate)
+          </span>
+        </label>
+        <FieldError messages={state.errors?.isCertifiedModule} />
+      </div>
+
       <div>
         <label className="block font-mono text-xs uppercase tracking-wider text-muted">
           Notes (optional)

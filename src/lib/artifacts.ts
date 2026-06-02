@@ -26,13 +26,16 @@ export const ARTIFACT_SUBKIND_OWNER: Readonly<
   BOM_EXPORT: "revision",
   LAYOUT_FILE: "revision",
   DRC_REPORT: "revision",
-  GERBER_ZIP: "revision",
+  GERBER_ZIP: "either", // m14 / proposal §3 #9: revision-scoped designed gerbers AND build-scoped fab-submission snapshot
   ASSEMBLY_PROCEDURE: "revision",
   BENCH_PROCEDURE: "revision",
   PCB_ORDER: "build",
   PARTS_ORDER: "build",
   BRINGUP_LOG: "build",
   BRINGUP_COMPLETE: "build",
+  BOM_CSV_AS_ORDERED: "build", // m14: BOM as actually sent to distributor
+  ASSEMBLY_PHOTO: "build", // m14: photos taken during assembly / bring-up
+  BRINGUP_MEASUREMENTS_CSV: "build", // m14: export of Measurement rows for this build
 };
 
 /**

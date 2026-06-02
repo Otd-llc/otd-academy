@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "ChecklistSubkind" ADD VALUE 'STRIPBOARD_VALIDATION';

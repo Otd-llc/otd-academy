@@ -218,6 +218,23 @@ export function NewProjectForm() {
               Requires stripboard de-risk rung
             </span>
           </label>
+          {/* m18: hasMainsNet drives the BOM_SOURCING certified-module
+              gate. Tooltip surfaces the gate implication so the form is
+              self-documenting (proposal §3 #5). */}
+          <label
+            htmlFor="hasMainsNet"
+            className="inline-flex items-center gap-2"
+            title="When checked, BOM_SOURCING gate requires at least one BomLine.part.isCertifiedModule === true"
+          >
+            <input
+              id="hasMainsNet"
+              name="hasMainsNet"
+              type="checkbox"
+            />
+            <span className="font-mono text-xs uppercase tracking-wider text-muted">
+              Has mains net (requires certified-module BOM line)
+            </span>
+          </label>
         </div>
       </fieldset>
 

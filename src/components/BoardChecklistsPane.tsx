@@ -103,6 +103,7 @@ export function BoardChecklistsPane({
                     expectedValue: i.expectedValue,
                     actualValue: i.actualValue,
                     checked: i.checked,
+                    notApplicable: i.notApplicable,
                   }))}
                   disabled={disabled}
                   disabledReason={disabledReason}

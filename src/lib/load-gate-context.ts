@@ -45,6 +45,14 @@ export async function loadGateContext(
     },
   });
 
+  // m17 / m18: surface the parent Project's gate-relevant flags.
+  // `requiresStripboard` (m17) and `hasMainsNet` (m18) both feed into the
+  // BOM_SOURCING gate predicate.
+  const project = await tx.project.findFirstOrThrow({
+    where: { revisions: { some: { id: revisionId } } },
+    select: { id: true, requiresStripboard: true, hasMainsNet: true },
+  });
+
   const bomLines = await tx.bomLine.findMany({
     where: { revisionId },
     include: { part: true },
@@ -52,6 +60,15 @@ export async function loadGateContext(
 
   const artifacts = await tx.artifact.findMany({
     where: { revisionId, stage: revision.currentStage },
+  });
+
+  // m15: revision-scoped checklists across ALL stages. Each gate predicate
+  // (REQUIREMENTS_REVIEW, LAYOUT_REVIEW — m16) owns its subkind→stage
+  // policy; the loader stays scope-agnostic.
+  const revisionChecklists = await tx.checklist.findMany({
+    where: { revisionId },
+    include: { items: true },
+    orderBy: { createdAt: "asc" },
   });
 
   const activeBuild = await tx.build.findFirst({
@@ -64,5 +81,12 @@ export async function loadGateContext(
     },
   });
 
-  return { revision, bomLines, artifacts, activeBuild };
+  return {
+    revision,
+    project,
+    bomLines,
+    artifacts,
+    revisionChecklists,
+    activeBuild,
+  };
 }

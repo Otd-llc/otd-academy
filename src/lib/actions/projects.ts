@@ -37,6 +37,9 @@ export async function createProject(input: unknown) {
       ...(data.requiresStripboard !== undefined
         ? { requiresStripboard: data.requiresStripboard }
         : {}),
+      ...(data.hasMainsNet !== undefined
+        ? { hasMainsNet: data.hasMainsNet }
+        : {}),
       createdById: user.id,
     },
   });
@@ -119,6 +122,7 @@ export async function createProjectFormAction(
     criticalPath: formData.get("criticalPath") === "on",
     disciplineTaught: pickString(formData, "disciplineTaught") ?? null,
     requiresStripboard: formData.get("requiresStripboard") === "on",
+    hasMainsNet: formData.get("hasMainsNet") === "on",
   };
 
   let createdSlug: string;
@@ -190,7 +194,7 @@ async function editProjectSingleField(
 }
 
 async function editProjectBooleanField(
-  fieldName: "criticalPath" | "requiresStripboard",
+  fieldName: "criticalPath" | "requiresStripboard" | "hasMainsNet",
   formData: FormData,
 ): Promise<ProjectFormState> {
   const id = formData.get("id");
@@ -278,6 +282,13 @@ export async function editProjectRequiresStripboardAction(
   formData: FormData,
 ): Promise<ProjectFormState> {
   return editProjectBooleanField("requiresStripboard", formData);
+}
+
+export async function editProjectHasMainsNetAction(
+  _prev: ProjectFormState,
+  formData: FormData,
+): Promise<ProjectFormState> {
+  return editProjectBooleanField("hasMainsNet", formData);
 }
 
 export async function archiveProjectAction(formData: FormData): Promise<void> {

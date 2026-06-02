@@ -84,6 +84,7 @@ model Project {
   criticalPath       Boolean              @default(true)
   disciplineTaught   String?
   requiresStripboard Boolean              @default(false)
+  hasMainsNet        Boolean              @default(false)
   archivedAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -118,6 +119,7 @@ model Revision {
   artifacts       Artifact[]
   bomLines        BomLine[]
   builds          Build[]
+  checklists      Checklist[]
   errata          Erratum[]         @relation("RevisionErrata")
   addressedErrata Erratum[]         @relation("AddressedByRevision")
   // Raw migration: CREATE UNIQUE INDEX revision_project_label_ci ON "Revision"(projectId, lower(label));
@@ -181,6 +183,9 @@ enum ArtifactSubkind {
   BENCH_PROCEDURE // Revision-scoped template
   BRINGUP_LOG // Build-scoped; BRINGUP gate
   BRINGUP_COMPLETE // Build-scoped; BRINGUP gate; created via "Mark bring-up complete" button only
+  BOM_CSV_AS_ORDERED // Build-scoped; the BOM as actually sent to the distributor
+  ASSEMBLY_PHOTO // Build-scoped; photos taken during assembly / bring-up
+  BRINGUP_MEASUREMENTS_CSV // Build-scoped; export of Measurement rows for this build
 }
 
 model Artifact {
@@ -278,10 +283,15 @@ enum ChecklistSubkind {
   ASSEMBLY_STEPS
   POST_ASSEMBLY_CONTINUITY // ASSEMBLY gate matches on this subkind
   POLARITY_VERIFICATION
+  REQUIREMENTS_REVIEW      // m16: gated at REQUIREMENTS exit
+  LAYOUT_REVIEW            // m16: gated at LAYOUT exit
+  STRIPBOARD_VALIDATION    // m17: gated at BOM_SOURCING exit when project.requiresStripboard
 }
 
 model Checklist {
   id          String           @id @default(cuid())
+  revisionId  String?
+  revision    Revision?        @relation(fields: [revisionId], references: [id], onDelete: Cascade)
   buildId     String?
   build       Build?           @relation(fields: [buildId], references: [id], onDelete: Cascade)
   boardId     String?
@@ -295,15 +305,17 @@ model Checklist {
 
   items ChecklistItem[]
 
+  @@index([revisionId, stage])
   @@index([buildId, stage])
   @@index([boardId, stage])
   @@index([stage])
   @@index([buildId, subkind])
+  @@index([revisionId, subkind])
 }
 
 // Raw migration CHECK:
-//   checklist_owner_xor:
-//     (buildId IS NOT NULL AND boardId IS NULL) OR (buildId IS NULL AND boardId IS NOT NULL)
+//   checklist_owner_xor (3-way per m15):
+//     exactly one of (revisionId, buildId, boardId) is non-null.
 
 model ChecklistItem {
   id            String    @id @default(cuid())
@@ -314,12 +326,16 @@ model ChecklistItem {
   expectedValue String?
   actualValue   String?
   checked       Boolean   @default(false)
+  notApplicable Boolean   @default(false)
   completedAt   DateTime?
   completedById String?
   completedBy   User?     @relation("CompletedBy", fields: [completedById], references: [id], onDelete: Restrict)
 
   @@unique([checklistId, ordinal])
 }
+
+// Raw migration CHECK:
+//   checklist_item_checked_xor_napplicable: NOT (checked AND notApplicable).
 
 // ─── Measurements ──────────────────────────────────────
 enum MeasurementResult {
@@ -365,6 +381,7 @@ model Part {
   footprint    String?
   datasheetUrl String?
   lifecycle    PartLifecycle @default(ACTIVE)
+  isCertifiedModule Boolean  @default(false)
   notes        String? // ECN/sourcing swaps recorded here (free text)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt

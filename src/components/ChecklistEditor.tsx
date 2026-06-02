@@ -27,8 +27,10 @@ import {
   editChecklistItemFormAction,
   reorderChecklistItemsFormAction,
   toggleChecklistItemFormAction,
+  toggleChecklistItemNotApplicableFormAction,
 } from "@/lib/actions/checklists-form";
 import { InlineBanner } from "@/components/InlineBanner";
+import { ChecklistItemLabelCell } from "@/components/ChecklistItemLabelCell";
 
 const initialState: ChecklistFormState = {};
 
@@ -39,6 +41,10 @@ export type ChecklistItemRow = {
   expectedValue: string | null;
   actualValue: string | null;
   checked: boolean;
+  // m16: when true the row is exempt from the gate predicates' unchecked-items
+  // branch. Mutually exclusive with `checked` (DB CHECK
+  // `checklist_item_checked_xor_napplicable` + Zod refinement enforce it).
+  notApplicable: boolean;
 };
 
 function SubmitButton({ label }: { label: string }) {
@@ -126,6 +132,10 @@ function ItemRow({
     toggleChecklistItemFormAction,
     initialState,
   );
+  const [naState, naAction] = useActionState(
+    toggleChecklistItemNotApplicableFormAction,
+    initialState,
+  );
   const [deleteState, deleteAction] = useActionState(
     deleteChecklistItemFormAction,
     initialState,
@@ -135,7 +145,9 @@ function ItemRow({
     <li className="space-y-2 py-3 font-mono text-sm">
       <div className="flex items-start gap-3">
         {/* Checkbox — a tiny dedicated form so the checkbox toggle posts
-            on change. Disabled when the surrounding pane is frozen. */}
+            on change. Disabled when the surrounding pane is frozen OR when
+            the row is flagged N/A (mutually exclusive per the DB CHECK
+            and Zod refinement). */}
         <form action={toggleAction} className="pt-1">
           <input type="hidden" name="id" value={item.id} />
           <input
@@ -146,30 +158,24 @@ function ItemRow({
           <button
             type="submit"
             aria-label={item.checked ? "Mark unchecked" : "Mark checked"}
-            disabled={disabled}
+            disabled={disabled || item.notApplicable}
             className={`inline-flex h-5 w-5 items-center justify-center rounded border font-mono text-xs ${
               item.checked
                 ? "border-status-green bg-status-green text-deep-space"
                 : "border-panel-border bg-navy-dark text-muted hover:border-command-gold"
-            } ${disabled ? "opacity-40" : ""}`}
+            } ${disabled || item.notApplicable ? "opacity-40" : ""}`}
           >
             {item.checked ? "✓" : ""}
           </button>
         </form>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
-            <span className="font-mono text-xs uppercase tracking-wider text-muted">
-              #{item.ordinal + 1}
-            </span>
-            <p
-              className={`font-serif text-base ${
-                item.checked ? "text-muted line-through" : "text-white"
-              }`}
-            >
-              {item.label}
-            </p>
-          </div>
+          <ChecklistItemLabelCell
+            ordinal={item.ordinal}
+            label={item.label}
+            checked={item.checked}
+            notApplicable={item.notApplicable}
+          />
           {item.expectedValue || item.actualValue ? (
             <p className="mt-1 font-mono text-xs uppercase tracking-wider text-muted">
               {item.expectedValue ? (
@@ -184,6 +190,11 @@ function ItemRow({
           {toggleState.message ? (
             <p className="mt-1 font-mono text-xs font-bold text-alert-red">
               {toggleState.message}
+            </p>
+          ) : null}
+          {naState.message ? (
+            <p className="mt-1 font-mono text-xs font-bold text-alert-red">
+              {naState.message}
             </p>
           ) : null}
         </div>
@@ -205,6 +216,31 @@ function ItemRow({
               disabled={disabled || !canMoveDown}
             />
           </div>
+          {/* N/A toggle pill (m16 / Task 16.10). Posts to
+              `editChecklistItem({ id, notApplicable })` via the dedicated
+              form-action wrapper. When the row is already checked we'd
+              violate the Zod refinement by flipping N/A on, so the button
+              is disabled in that case — the user un-checks first. */}
+          <form action={naAction} className="inline-block">
+            <input type="hidden" name="id" value={item.id} />
+            <input
+              type="hidden"
+              name="nextNotApplicable"
+              value={item.notApplicable ? "false" : "true"}
+            />
+            <button
+              type="submit"
+              aria-label={item.notApplicable ? "Clear N/A" : "Mark as N/A"}
+              disabled={disabled || item.checked}
+              className={`rounded border px-2 py-1 font-mono text-[10px] uppercase tracking-wider ${
+                item.notApplicable
+                  ? "border-command-gold bg-command-gold text-deep-space"
+                  : "border-panel-border bg-navy-dark text-muted hover:border-command-gold hover:text-command-gold"
+              } disabled:opacity-40`}
+            >
+              N/A
+            </button>
+          </form>
           <button
             type="button"
             onClick={() => setEditing((v) => !v)}

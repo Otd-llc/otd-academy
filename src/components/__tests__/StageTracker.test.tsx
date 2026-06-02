@@ -35,8 +35,12 @@ function emptyCtx(stage: StageName): GateContext {
       schematicCommit: null,
       layoutCommit: null,
     },
+    // m17: project Pick on GateContext. The tracker render tests don't
+    // exercise the BOM_SOURCING stripboard branch, so default to false.
+    project: { id: "p1", requiresStripboard: false, hasMainsNet: false },
     bomLines: [],
     artifacts: [],
+    revisionChecklists: [],
     activeBuild: null,
   };
 }
@@ -108,8 +112,9 @@ describe("StageTracker", () => {
   });
 
   test("active stage gets filled command-gold treatment when gate passes", async () => {
-    // REQUIREMENTS gate is satisfied iff a REQUIREMENTS-stage artifact is
-    // present. Pass one so the slot is "active" (not "blocked").
+    // REQUIREMENTS gate (m16) is satisfied iff a REQUIREMENTS-stage artifact
+    // is present AND a REQUIREMENTS_REVIEW checklist with all items checked
+    // or N/A exists. Provide both so the slot is "active" (not "blocked").
     const ctx = emptyCtx("REQUIREMENTS");
     ctx.artifacts = [
       {
@@ -127,6 +132,33 @@ describe("StageTracker", () => {
         linkUrl: null,
         createdBy: "u",
         createdAt: new Date(),
+      },
+    ];
+    ctx.revisionChecklists = [
+      {
+        id: "cl-rr",
+        revisionId: "rev",
+        buildId: null,
+        boardId: null,
+        stage: "REQUIREMENTS",
+        subkind: "REQUIREMENTS_REVIEW",
+        title: "Requirements review",
+        createdAt: new Date(),
+        createdById: "u",
+        items: [
+          {
+            id: "i1",
+            checklistId: "cl-rr",
+            ordinal: 0,
+            label: "ok",
+            expectedValue: null,
+            actualValue: null,
+            checked: true,
+            notApplicable: false,
+            completedAt: new Date(),
+            completedById: "u",
+          },
+        ],
       },
     ];
     const tree = await renderTracker("REQUIREMENTS", ctx);
@@ -163,8 +195,10 @@ describe("StageTracker", () => {
         schematicCommit: "g1ebc1cc",
         layoutCommit: "gb170ddb",
       },
+      project: { id: "p1", requiresStripboard: false, hasMainsNet: false },
       bomLines: [],
       artifacts: [],
+      revisionChecklists: [],
       activeBuild: {
         id: "build-seed",
         revisionId: "rev-seed",

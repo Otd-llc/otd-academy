@@ -299,7 +299,9 @@ export async function regressStage(
             label: true,
             currentStage: true,
             frozenAt: true,
-            project: { select: { slug: true } },
+            project: {
+              select: { slug: true, requiresStripboard: true },
+            },
           },
         });
 
@@ -336,6 +338,28 @@ export async function regressStage(
             WHERE "id" = ${rev.id}
               AND "currentStage" = ${currentStage}::"Stage"
           `;
+          // m17: when the project requires stripboard validation, the regress
+          // back to BOM_SOURCING means the prior stripboard sign-off no
+          // longer holds. Flip every STRIPBOARD_VALIDATION item's `checked`
+          // flag to false, but PRESERVE `completedAt` / `completedById` so
+          // the audit trail of who originally validated and when remains in
+          // the record (proposal §3 #4). Predicate is gated on
+          // `project.requiresStripboard` so a stray STRIPBOARD_VALIDATION on
+          // a non-stripboard project is left alone.
+          //
+          // NB: this is an internal-to-checklist side-effect — NOT a DAG
+          // consultation. Regress remains lazy-catch for the dependency DAG.
+          if (rev.project.requiresStripboard) {
+            await tx.$executeRaw`
+              UPDATE "ChecklistItem"
+              SET "checked" = false
+              WHERE "checklistId" IN (
+                SELECT "id" FROM "Checklist"
+                WHERE "revisionId" = ${rev.id}
+                  AND "subkind" = 'STRIPBOARD_VALIDATION'
+              )
+            `;
+          }
         } else {
           rowCount = await tx.$executeRaw`
             UPDATE "Revision"
