@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { contentBlockSchema, completionRefSchema, guideContentBlocksSchema } from "@/lib/schemas/guide";
+import { contentBlockSchema, completionRefSchema, guideContentBlocksSchema, guideCardInputSchema } from "@/lib/schemas/guide";
 
 describe("guide schemas", () => {
   it("accepts a valid callout block", () => {
@@ -20,5 +20,19 @@ describe("guide schemas", () => {
   });
   it("rejects a completionRef with an invalid subkind", () => {
     expect(completionRefSchema.safeParse({ kind: "revisionChecklist", subkind: "NOPE" }).success).toBe(false);
+  });
+  it("applies the steps.ordered default", () => {
+    const r = contentBlockSchema.parse({ type: "steps", items: ["a"] });
+    expect((r as any).ordered).toBe(true);
+  });
+  it("applies the isGate default on a card", () => {
+    const r = guideCardInputSchema.parse({ stage: "REQUIREMENTS", ordinal: 0, eyebrow: "PHASE 01", title: "REQUIREMENTS", contentBlocks: [] });
+    expect(r.isGate).toBe(false);
+  });
+  it("accepts the none completionRef arm", () => {
+    expect(completionRefSchema.safeParse({ kind: "none" }).success).toBe(true);
+  });
+  it("rejects a javascript: sourceRef href", () => {
+    expect(contentBlockSchema.safeParse({ type: "sourceRef", label: "x", href: "javascript:alert(1)" }).success).toBe(false);
   });
 });

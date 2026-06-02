@@ -19,11 +19,18 @@ const cellSchema = z.object({
 
 export const contentBlockSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("prose"), md: z.string().max(4000) }),
-  z.object({ type: z.literal("callout"), severity: z.enum(["critical", "warn", "info"]), label: z.string().max(120), body: z.string().max(2000) }),
+  z.object({ type: z.literal("callout"), severity: z.enum(["critical", "warn", "info"]), label: z.string().trim().min(1).max(120), body: z.string().max(2000) }),
   z.object({ type: z.literal("steps"), ordered: z.boolean().default(true), items: z.array(z.string().max(500)).min(1) }),
   z.object({ type: z.literal("table"), columns: z.array(z.string()).min(1), rows: z.array(z.array(cellSchema)) }),
   z.object({ type: z.literal("termRef"), term: z.string().max(80) }),
-  z.object({ type: z.literal("sourceRef"), label: z.string().max(160), href: z.string().max(500) }),
+  z.object({
+    type: z.literal("sourceRef"),
+    label: z.string().max(160),
+    href: z.string().max(500).refine(
+      (v) => /^(https?:\/\/|\/)/.test(v),
+      "href must be http(s):// or a root-relative path",
+    ),
+  }),
 ]);
 export type ContentBlock = z.infer<typeof contentBlockSchema>;
 
@@ -42,9 +49,9 @@ export type CompletionRef = z.infer<typeof completionRefSchema>;
 
 export const guideCardInputSchema = z.object({
   stage: z.enum(STAGE_VALUES),
-  ordinal: z.number().int().nonnegative(),
-  eyebrow: z.string().min(1).max(40),
-  title: z.string().min(1).max(80),
+  ordinal: z.int().nonnegative(),
+  eyebrow: z.string().trim().min(1).max(40),
+  title: z.string().trim().min(1).max(80),
   lead: z.string().max(400).nullable().optional(),
   contentBlocks: guideContentBlocksSchema,
   isGate: z.boolean().default(false),
@@ -54,8 +61,8 @@ export const guideCardInputSchema = z.object({
 export const materializeGuideSchema = z.object({ revisionId: z.cuid() });
 export const editGuideCardSchema = z.object({
   id: z.cuid(),
-  eyebrow: z.string().min(1).max(40).optional(),
-  title: z.string().min(1).max(80).optional(),
+  eyebrow: z.string().trim().min(1).max(40).optional(),
+  title: z.string().trim().min(1).max(80).optional(),
   lead: z.string().max(400).nullable().optional(),
   contentBlocks: guideContentBlocksSchema.optional(),
   isGate: z.boolean().optional(),
