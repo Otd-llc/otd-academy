@@ -325,3 +325,28 @@ export async function materializeCanonicalChecklistFormAction(
     return { message: err instanceof Error ? err.message : "Unknown error" };
   }
 }
+
+// ─── build-scoped materializeCanonicalChecklist form action (m5/M9) ────
+//
+// Backs the guide ASSEMBLY card's "Generate checklist" affordance: the
+// POST_ASSEMBLY_CONTINUITY checklist is BUILD-scoped (the action's m5
+// build-owner branch), so it posts `buildId` instead of `revisionId`. Kept
+// separate from the revision-scoped action above so the owner shape stays
+// unambiguous (the canonical action enforces revisionId XOR buildId).
+export async function materializeBuildChecklistFormAction(
+  _prev: ChecklistFormState,
+  formData: FormData,
+): Promise<ChecklistFormState> {
+  const buildId = pickString(formData, "buildId");
+  const templateKey = pickString(formData, "templateKey");
+  if (!buildId) return { message: "Missing build id." };
+  if (templateKey !== "POST_ASSEMBLY_CONTINUITY") {
+    return { message: "Invalid template key." };
+  }
+  try {
+    const c = await materializeCanonicalChecklist({ buildId, templateKey });
+    return { createdId: c.id, ok: true };
+  } catch (err) {
+    return { message: err instanceof Error ? err.message : "Unknown error" };
+  }
+}
