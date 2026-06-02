@@ -25,14 +25,24 @@ async function main() {
       create: { email: "seed@example.com", name: "Seed User" },
     });
 
+    // Reset the curriculum / safety flags on every seed run so UI
+    // toggles during development can't bleed into the test fixtures
+    // that exercise the seeded project's BOM_SOURCING gate.
     const project = await tx.project.upsert({
       where: { slug: "esp32-sensor-breakout" },
-      update: {},
+      update: {
+        requiresStripboard: false,
+        hasMainsNet: false,
+        criticalPath: true,
+      },
       create: {
         slug: "esp32-sensor-breakout",
         name: "ESP32 sensor breakout",
         description: "Reference ESP32-S3 breakout with I2C sensor headers.",
         createdById: user.id,
+        requiresStripboard: false,
+        hasMainsNet: false,
+        criticalPath: true,
       },
     });
 

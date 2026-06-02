@@ -10,10 +10,13 @@
 //   • Advance: unfrozen revision AND currentStage !== "REVISION".
 //   • Regress: unfrozen revision AND currentStage !== "REQUIREMENTS".
 //
-// Regress opens a <dialog> modal that collects the required reason. The
-// reason is sent to regressStageAction inside the form's action.
+// Regress UX is now inline — click ← Regress to expand a glass-card panel
+// in-place with an OPTIONAL reason field + dependents-at-risk advisory +
+// Confirm / Cancel. No <dialog> modal. The reason defaults to
+// "Manual rollback" on the server side when blank so the audit trail still
+// records something; the user can override with anything more specific.
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
   advanceStageAction,
@@ -39,18 +42,6 @@ function AdvanceSubmit() {
       className="glass-button glass-button-cta px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider"
     >
       {pending ? "WORKING…" : "Advance →"}
-    </button>
-  );
-}
-
-function RegressTrigger({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="glass-button glass-button-danger px-4 py-2 font-mono text-xs uppercase tracking-wider"
-    >
-      ← Regress
     </button>
   );
 }
@@ -105,8 +96,27 @@ export function StageActions({
     initialState,
   );
 
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [confirming, setConfirming] = useState(false);
   const [atRisk, setAtRisk] = useState<RegressAtRiskEntry[]>([]);
+
+  // When the user opens the inline regress panel, fetch the
+  // dependents-at-risk preview so the advisory banner can show the
+  // downstream impact alongside the reason input.
+  useEffect(() => {
+    if (!confirming) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { atRisk: next } = await previewRegress({ revisionId });
+        if (!cancelled) setAtRisk(next);
+      } catch {
+        if (!cancelled) setAtRisk([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [confirming, revisionId]);
 
   if (isFrozen) {
     // No actions surface when frozen — the revision is locked except for
@@ -125,17 +135,13 @@ export function StageActions({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         {canRegress ? (
-          <RegressTrigger
-            onClick={async () => {
-              dialogRef.current?.showModal();
-              try {
-                const { atRisk: next } = await previewRegress({ revisionId });
-                setAtRisk(next);
-              } catch {
-                setAtRisk([]);
-              }
-            }}
-          />
+          <button
+            type="button"
+            onClick={() => setConfirming((v) => !v)}
+            className="glass-button glass-button-danger px-4 py-2 font-mono text-xs uppercase tracking-wider"
+          >
+            ← Regress
+          </button>
         ) : null}
         {canAdvance ? (
           <form action={advanceAction}>
@@ -149,57 +155,54 @@ export function StageActions({
       <ReasonsBanner reasons={advanceState.reasons} />
       <MessageBanner message={advanceState.message} />
 
-      {/* Regress modal — native <dialog>; reason required. */}
-      {canRegress ? (
-        <dialog
-          ref={dialogRef}
-          className="rounded border border-panel-border bg-navy-dark p-0 text-link-muted backdrop:bg-deep-space/80"
+      {/* Inline regress confirm panel — replaces the previous <dialog>
+          modal. Expands in-place under the action row when the user
+          clicks ← Regress; collapses when they confirm or cancel. */}
+      {canRegress && confirming ? (
+        <form
+          action={(formData) => {
+            // Wrap the action so we collapse the panel optimistically once
+            // submission starts; the useActionState reducer still surfaces
+            // errors afterwards if the server rejects.
+            setConfirming(false);
+            return regressAction(formData);
+          }}
+          className="glass-card space-y-3 p-4"
         >
-          <form
-            action={regressAction}
-            className="w-[min(90vw,32rem)] space-y-4 p-6"
-          >
-            <h3 className="font-display text-2xl tracking-wider text-white">
-              REGRESS STAGE
-            </h3>
-            <p className="font-mono text-xs uppercase tracking-wider text-muted">
-              Regressing from{" "}
-              <span className="text-command-gold">{currentStage}</span>. The
-              reason is written to the transitions log.
+          <h3 className="font-mono text-xs uppercase tracking-[0.2em] text-gold-dim">
+            Regress from{" "}
+            <span className="text-command-gold">{currentStage}</span>
+          </h3>
+          <input type="hidden" name="revisionId" value={revisionId} />
+          <RegressAtRiskBanner atRisk={atRisk} />
+          <label className="block font-mono text-xs uppercase tracking-wider text-muted">
+            Reason (optional)
+            <textarea
+              name="reason"
+              maxLength={2000}
+              rows={2}
+              placeholder='Leave blank for "Manual rollback"'
+              className="mt-2 w-full rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+            />
+          </label>
+          {regressState.errors?.reason ? (
+            <p className="font-mono text-xs font-bold text-alert-red">
+              {regressState.errors.reason.join("; ")}
             </p>
-            <input type="hidden" name="revisionId" value={revisionId} />
-            <RegressAtRiskBanner atRisk={atRisk} />
-            <label className="block font-mono text-xs uppercase tracking-wider text-muted">
-              Reason
-              <textarea
-                name="reason"
-                required
-                minLength={1}
-                maxLength={2000}
-                rows={4}
-                placeholder="Why are we regressing?"
-                className="mt-2 w-full rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
-              />
-            </label>
-            {regressState.errors?.reason ? (
-              <p className="font-mono text-xs font-bold text-alert-red">
-                {regressState.errors.reason.join("; ")}
-              </p>
-            ) : null}
-            <MessageBanner message={regressState.message} />
-            <ReasonsBanner reasons={regressState.reasons} />
-            <div className="flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => dialogRef.current?.close()}
-                className="rounded border border-panel-border bg-deep-space px-4 py-2 font-mono text-xs uppercase tracking-wider text-muted hover:border-muted"
-              >
-                Cancel
-              </button>
-              <RegressSubmit />
-            </div>
-          </form>
-        </dialog>
+          ) : null}
+          <MessageBanner message={regressState.message} />
+          <ReasonsBanner reasons={regressState.reasons} />
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              className="glass-button px-4 py-2 font-mono text-xs uppercase tracking-wider"
+            >
+              Cancel
+            </button>
+            <RegressSubmit />
+          </div>
+        </form>
       ) : null}
     </div>
   );

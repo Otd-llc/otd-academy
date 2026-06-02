@@ -514,7 +514,12 @@ export async function regressStageAction(
     return { message: "Missing revisionId" };
   }
   const reasonRaw = formData.get("reason");
-  const reason = typeof reasonRaw === "string" ? reasonRaw : "";
+  // Reason is optional from the UI side now (inline regress flow has it as
+  // a placeholder rather than a hard requirement). Default to a generic
+  // string so the server-side schema's .min(1) still passes; the audit
+  // trail records this default verbatim when the user leaves it blank.
+  const reasonTrimmed = typeof reasonRaw === "string" ? reasonRaw.trim() : "";
+  const reason = reasonTrimmed.length === 0 ? "Manual rollback" : reasonTrimmed;
   try {
     const result = await regressStage({ revisionId, reason });
     if (!result.ok) return { reasons: result.reasons };
