@@ -3,7 +3,16 @@
 // `src/lib/schemas/guide.ts`; where the schema requires a non-empty field
 // (callout.label, steps.items, table.columns) the default supplies a sensible
 // placeholder the author then edits.
+import type { JSX } from "react";
 import type { ContentBlock } from "@/lib/schemas/guide";
+import {
+  AlertTriangleIcon,
+  DocumentIcon,
+  LinkIcon,
+  ListIcon,
+  TableIcon,
+  TagIcon,
+} from "@/components/icons";
 
 export const BLOCK_TYPES = [
   "prose", "callout", "steps", "table", "termRef", "sourceRef",
@@ -17,6 +26,21 @@ export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   table: "Table",
   termRef: "Glossary term",
   sourceRef: "Source link",
+};
+
+// Type glyph for each block, paired with BLOCK_TYPE_LABELS to give blocks a
+// legible identity in the inline editor (block header + Add-block menu items).
+// Each entry is a component taking the shared `{ className }` icon props.
+export const BLOCK_TYPE_ICON: Record<
+  BlockType,
+  (props: { className?: string }) => JSX.Element
+> = {
+  prose: DocumentIcon,
+  callout: AlertTriangleIcon,
+  steps: ListIcon,
+  table: TableIcon,
+  termRef: TagIcon,
+  sourceRef: LinkIcon,
 };
 
 // A valid, schema-passing starting block for each type. Where the schema
