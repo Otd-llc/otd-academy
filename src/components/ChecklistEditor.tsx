@@ -1,12 +1,21 @@
 "use client";
 
-// Checklist item editor (Task 13.4).
+// Checklist item editor (Task 13.4) — bench / shop-floor redesign.
 //
 // Renders one checklist's item list with inline edit + tick + reorder +
-// delete. Mounted as the expanded body of each Checklist row on the
-// Build / Board panes (BuildChecklistsPane, BoardChecklistsPane).
+// delete + N/A. Mounted as the expanded body of each Checklist row on the
+// Revision / Build / Board panes AND inside the guide's StageGate (via
+// GuideChecklistEditor). The redesign is shared, so it applies on every
+// surface; the component's props + behavior are unchanged.
 //
-// Reorder uses up/down arrow buttons (no external dnd library) — the
+// USE CASE: this list is read on a screen while someone is physically
+// assembling / soldering — often one-handed, possibly gloved, glancing up
+// between steps. So the design optimizes for: big tap targets, a large
+// obvious checkbox, high-contrast glanceable rows (zebra striping), and
+// sleek inline-SVG icon buttons (Tooltip + aria-label) instead of small text
+// buttons. See `icons.tsx` for the glyphs.
+//
+// Reorder uses up/down chevron buttons (no external dnd library) — the
 // `reorderChecklistItems` action takes the canonical final order as a list
 // of ids and swaps ordinals atomically inside a Serializable tx (negative-
 // ordinal scratch pass to dodge the `@@unique` constraint mid-swap).
@@ -15,9 +24,9 @@
 // first transition to `checked = true` and clears them on `false`. The UI
 // just sends the next boolean — no client-side audit logic.
 //
-// Completion percentage is computed from `items.length` + the number of
-// `checked` rows; pane rows expect the parent to pass the latest items
-// snapshot so the % stays in sync without a re-fetch.
+// Delete carries a lightweight inline two-tap confirm (trash → confirm /
+// cancel) so an accidental gloved tap can't drop a step; the underlying
+// server action + signature are unchanged.
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import {
@@ -32,6 +41,17 @@ import {
 import { InlineBanner } from "@/components/InlineBanner";
 import { ChecklistItemLabelCell } from "@/components/ChecklistItemLabelCell";
 import { SaveButton } from "@/components/SaveButton";
+import { Tooltip } from "@/components/Tooltip";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  CloseIcon,
+  NotApplicableIcon,
+  PencilIcon,
+  PlusIcon,
+  TrashIcon,
+} from "@/components/icons";
 
 const initialState: ChecklistFormState = {};
 
@@ -61,16 +81,55 @@ export type ChecklistItemRow = {
   notApplicable: boolean;
 };
 
-function SubmitButton({ label }: { label: string }) {
-  const { pending } = useFormStatus();
+// Shared touch-friendly icon button used for every per-row action. Renders a
+// real <button> (keyboard + SR accessible via `aria-label`), wrapped in a
+// <Tooltip> so the label shows on hover/focus — consistent with SaveButton /
+// MarkBringupCompleteButton across the app. Min 44×44 hit area (recommended
+// touch target) regardless of the glyph size.
+//
+// The Tooltip's Radix Trigger forwards a ref + handlers to its single child.
+// A disabled <button> fires no pointer/focus events, so (matching SaveButton)
+// we wrap the button in a focusable <span> so the tooltip stays reachable;
+// the `aria-label` on the button remains the always-available accessible name.
+function IconButton({
+  hint,
+  ariaLabel,
+  children,
+  type = "submit",
+  onClick,
+  disabled,
+  tone = "default",
+}: {
+  hint: string;
+  ariaLabel: string;
+  children: React.ReactNode;
+  type?: "submit" | "button";
+  onClick?: () => void;
+  disabled?: boolean;
+  /** `danger` tints toward alert-red on hover (destructive actions). */
+  tone?: "default" | "danger";
+}) {
+  const toneClasses =
+    tone === "danger"
+      ? "text-danger-coral hover:border-alert-red hover:bg-alert-red hover:text-deep-space"
+      : "text-link-muted hover:border-command-gold hover:text-command-gold";
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="rounded border border-command-gold bg-navy-dark px-2 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
-    >
-      {pending ? "WORKING…" : label}
-    </button>
+    <Tooltip content={hint}>
+      <span
+        tabIndex={0}
+        className="inline-flex rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold"
+      >
+        <button
+          type={type}
+          aria-label={ariaLabel}
+          onClick={onClick}
+          disabled={disabled}
+          className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-panel-border bg-navy-dark transition-colors disabled:opacity-40 disabled:hover:border-panel-border disabled:hover:bg-navy-dark ${toneClasses}`}
+        >
+          {children}
+        </button>
+      </span>
+    </Tooltip>
   );
 }
 
@@ -86,19 +145,18 @@ function FieldError({ messages }: { messages?: string[] }) {
 function ReorderButton({
   ids,
   checklistId,
-  label,
-  ariaLabel,
+  direction,
   disabled,
   onMutated,
 }: {
   ids: string[];
   checklistId: string;
-  label: string;
-  ariaLabel: string;
+  direction: "up" | "down";
   disabled?: boolean;
   onMutated?: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
+  const isUp = direction === "up";
   return (
     <form
       action={(fd: FormData) => {
@@ -114,20 +172,57 @@ function ReorderButton({
       }}
       className="inline-block"
     >
-      <button
-        type="submit"
-        aria-label={ariaLabel}
+      <IconButton
+        hint={isUp ? "Move up" : "Move down"}
+        ariaLabel={isUp ? "Move up" : "Move down"}
         disabled={disabled || isPending}
-        className="rounded border border-panel-border bg-navy-dark px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-link-muted hover:border-command-gold hover:text-command-gold disabled:opacity-40"
       >
-        {label}
-      </button>
+        {isUp ? (
+          <ChevronUpIcon className="h-5 w-5" />
+        ) : (
+          <ChevronDownIcon className="h-5 w-5" />
+        )}
+      </IconButton>
     </form>
+  );
+}
+
+// Big primary toggle — the most-used action, so it gets the largest target.
+// A real <button> with `aria-pressed` (the row IS the pressed/checked state)
+// + an explicit `aria-label`. Gold fill + check glyph when checked; an empty
+// high-contrast well otherwise. ~36px square (min recommended 28–32px, sized
+// up for gloves). The label area is ALSO click-to-toggle (see ItemRow) for a
+// large hit zone; this remains the explicit, labelled checkbox.
+function ToggleCheckbox({
+  item,
+  disabled,
+}: {
+  item: ChecklistItemRow;
+  disabled?: boolean;
+}) {
+  const { pending } = useFormStatus();
+  const blocked = disabled || item.notApplicable;
+  return (
+    <button
+      type="submit"
+      role="checkbox"
+      aria-checked={item.checked}
+      aria-label={item.checked ? "Mark unchecked" : "Mark checked"}
+      disabled={blocked || pending}
+      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-command-gold ${
+        item.checked
+          ? "border-status-green bg-status-green text-deep-space"
+          : "border-panel-border bg-deep-space text-transparent hover:border-command-gold"
+      } ${blocked ? "opacity-40" : ""}`}
+    >
+      <CheckIcon className="h-5 w-5" />
+    </button>
   );
 }
 
 function ItemRow({
   item,
+  rowIndex,
   reorderUpIds,
   reorderDownIds,
   canMoveUp,
@@ -137,6 +232,7 @@ function ItemRow({
   onMutated,
 }: {
   item: ChecklistItemRow;
+  rowIndex: number;
   reorderUpIds: string[];
   reorderDownIds: string[];
   canMoveUp: boolean;
@@ -146,6 +242,7 @@ function ItemRow({
   onMutated?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [editState, editAction] = useActionState(
     editChecklistItemFormAction,
     initialState,
@@ -168,49 +265,93 @@ function ItemRow({
   useMutatedEffect(naState, onMutated);
   useMutatedEffect(deleteState, onMutated);
 
+  // Zebra striping so rows are easy to track on a busy bench display.
+  const zebra = rowIndex % 2 === 0 ? "bg-deep-space/40" : "bg-navy-dark/40";
+  // Checked / N-A rows read as resolved: a touch dimmer + a status hairline.
+  const resolved = item.checked || item.notApplicable;
+  const stateAccent = item.checked
+    ? "border-l-2 border-l-status-green"
+    : item.notApplicable
+      ? "border-l-2 border-l-command-gold"
+      : "border-l-2 border-l-transparent";
+  // The label area is a second large toggle target. We render it as a tiny
+  // form so the click posts the same toggle action as the explicit checkbox.
+  // Disabled when frozen or N/A (matching the checkbox), in which case it is
+  // a plain (non-interactive) container.
+  const labelToggleDisabled = disabled || item.notApplicable;
+
   return (
-    <li className="space-y-2 py-3 font-mono text-sm">
-      <div className="flex items-start gap-3">
-        {/* Checkbox — a tiny dedicated form so the checkbox toggle posts
-            on change. Disabled when the surrounding pane is frozen OR when
-            the row is flagged N/A (mutually exclusive per the DB CHECK
-            and Zod refinement). */}
-        <form action={toggleAction} className="pt-1">
+    <li
+      className={`rounded-md ${zebra} ${stateAccent} ${
+        resolved ? "opacity-90" : ""
+      }`}
+    >
+      <div className="flex items-start gap-3 p-3 sm:gap-4">
+        {/* Big checkbox — its own form so the toggle posts on submit. */}
+        <form action={toggleAction} className="pt-0.5">
           <input type="hidden" name="id" value={item.id} />
           <input
             type="hidden"
             name="nextChecked"
             value={item.checked ? "false" : "true"}
           />
-          <button
-            type="submit"
-            aria-label={item.checked ? "Mark unchecked" : "Mark checked"}
-            disabled={disabled || item.notApplicable}
-            className={`inline-flex h-5 w-5 items-center justify-center rounded border font-mono text-xs ${
-              item.checked
-                ? "border-status-green bg-status-green text-deep-space"
-                : "border-panel-border bg-navy-dark text-muted hover:border-command-gold"
-            } ${disabled || item.notApplicable ? "opacity-40" : ""}`}
-          >
-            {item.checked ? "✓" : ""}
-          </button>
+          <ToggleCheckbox item={item} disabled={disabled} />
         </form>
 
         <div className="min-w-0 flex-1">
-          <ChecklistItemLabelCell
-            ordinal={item.ordinal}
-            label={item.label}
-            checked={item.checked}
-            notApplicable={item.notApplicable}
-          />
+          {/* Click-the-label-to-toggle: a large secondary hit zone wrapping
+              the label cell. Same action as the checkbox; we render it as a
+              full-width <button> when toggling is allowed, else a plain div.
+              The explicit checkbox above remains the labelled control, so we
+              mark this convenience target aria-hidden to avoid a duplicate
+              announcement for SR users. */}
+          {labelToggleDisabled ? (
+            <div className="py-1">
+              <ChecklistItemLabelCell
+                ordinal={item.ordinal}
+                label={item.label}
+                checked={item.checked}
+                notApplicable={item.notApplicable}
+              />
+            </div>
+          ) : (
+            <form action={toggleAction}>
+              <input type="hidden" name="id" value={item.id} />
+              <input
+                type="hidden"
+                name="nextChecked"
+                value={item.checked ? "false" : "true"}
+              />
+              <button
+                type="submit"
+                aria-hidden
+                tabIndex={-1}
+                className="block w-full rounded py-1 text-left transition-colors hover:bg-command-gold/5"
+              >
+                <ChecklistItemLabelCell
+                  ordinal={item.ordinal}
+                  label={item.label}
+                  checked={item.checked}
+                  notApplicable={item.notApplicable}
+                />
+              </button>
+            </form>
+          )}
+
           {item.expectedValue || item.actualValue ? (
             <p className="mt-1 font-mono text-xs uppercase tracking-wider text-muted">
               {item.expectedValue ? (
-                <>Expected: <span className="text-link-muted">{item.expectedValue}</span></>
+                <>
+                  Expected:{" "}
+                  <span className="text-link-muted">{item.expectedValue}</span>
+                </>
               ) : null}
               {item.expectedValue && item.actualValue ? " · " : null}
               {item.actualValue ? (
-                <>Actual: <span className="text-link-muted">{item.actualValue}</span></>
+                <>
+                  Actual:{" "}
+                  <span className="text-link-muted">{item.actualValue}</span>
+                </>
               ) : null}
             </p>
           ) : null}
@@ -226,30 +367,28 @@ function ItemRow({
           ) : null}
         </div>
 
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          <div className="flex gap-1">
-            <ReorderButton
-              ids={reorderUpIds}
-              checklistId={checklistId}
-              label="↑"
-              ariaLabel="Move up"
-              disabled={disabled || !canMoveUp}
-              onMutated={onMutated}
-            />
-            <ReorderButton
-              ids={reorderDownIds}
-              checklistId={checklistId}
-              label="↓"
-              ariaLabel="Move down"
-              disabled={disabled || !canMoveDown}
-              onMutated={onMutated}
-            />
-          </div>
-          {/* N/A toggle pill (m16 / Task 16.10). Posts to
+        {/* Action icon cluster — wraps on narrow screens; every control is a
+            44px touch target. */}
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+          <ReorderButton
+            ids={reorderUpIds}
+            checklistId={checklistId}
+            direction="up"
+            disabled={disabled || !canMoveUp}
+            onMutated={onMutated}
+          />
+          <ReorderButton
+            ids={reorderDownIds}
+            checklistId={checklistId}
+            direction="down"
+            disabled={disabled || !canMoveDown}
+            onMutated={onMutated}
+          />
+
+          {/* N/A toggle (m16 / Task 16.10). Posts to
               `editChecklistItem({ id, notApplicable })` via the dedicated
-              form-action wrapper. When the row is already checked we'd
-              violate the Zod refinement by flipping N/A on, so the button
-              is disabled in that case — the user un-checks first. */}
+              form-action wrapper. Disabled when the row is already checked
+              (the Zod refinement forbids both true). Active state = gold fill. */}
           <form action={naAction} className="inline-block">
             <input type="hidden" name="id" value={item.id} />
             <input
@@ -257,34 +396,90 @@ function ItemRow({
               name="nextNotApplicable"
               value={item.notApplicable ? "false" : "true"}
             />
-            <button
-              type="submit"
-              aria-label={item.notApplicable ? "Clear N/A" : "Mark as N/A"}
-              disabled={disabled || item.checked}
-              className={`rounded border px-2 py-1 font-mono text-[10px] uppercase tracking-wider ${
-                item.notApplicable
-                  ? "border-command-gold bg-command-gold text-deep-space"
-                  : "border-panel-border bg-navy-dark text-muted hover:border-command-gold hover:text-command-gold"
-              } disabled:opacity-40`}
-            >
-              N/A
-            </button>
+            <Tooltip content={item.notApplicable ? "Clear N/A" : "Mark N/A"}>
+              <span
+                tabIndex={0}
+                className="inline-flex rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold"
+              >
+                <button
+                  type="submit"
+                  aria-pressed={item.notApplicable}
+                  aria-label={
+                    item.notApplicable ? "Clear N/A" : "Mark as N/A"
+                  }
+                  disabled={disabled || item.checked}
+                  className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border transition-colors disabled:opacity-40 ${
+                    item.notApplicable
+                      ? "border-command-gold bg-command-gold text-deep-space"
+                      : "border-panel-border bg-navy-dark text-link-muted hover:border-command-gold hover:text-command-gold"
+                  }`}
+                >
+                  <NotApplicableIcon className="h-5 w-5" />
+                </button>
+              </span>
+            </Tooltip>
           </form>
-          <button
+
+          {/* Edit toggle (pencil / close). */}
+          <IconButton
             type="button"
+            hint={editing ? "Cancel edit" : "Edit item"}
+            ariaLabel={editing ? "Cancel edit" : "Edit item"}
             onClick={() => setEditing((v) => !v)}
             disabled={disabled}
-            className="rounded border border-panel-border bg-navy-dark px-2 py-1 font-mono text-xs uppercase tracking-wider text-link-muted hover:border-command-gold hover:text-command-gold disabled:opacity-40"
           >
-            {editing ? "Cancel" : "Edit"}
-          </button>
+            {editing ? (
+              <CloseIcon className="h-5 w-5" />
+            ) : (
+              <PencilIcon className="h-5 w-5" />
+            )}
+          </IconButton>
+
+          {/* Delete — inline two-tap confirm so a stray gloved tap can't drop
+              a step. First tap arms it (trash → confirm ✓ / cancel ✕); the
+              confirm submits the unchanged deleteChecklistItem action. */}
+          {confirmingDelete ? (
+            <>
+              <form action={deleteAction} className="inline-block">
+                <input type="hidden" name="id" value={item.id} />
+                <IconButton
+                  hint="Confirm delete"
+                  ariaLabel="Confirm delete item"
+                  disabled={disabled}
+                  tone="danger"
+                >
+                  <CheckIcon className="h-5 w-5" />
+                </IconButton>
+              </form>
+              <IconButton
+                type="button"
+                hint="Keep item"
+                ariaLabel="Cancel delete"
+                onClick={() => setConfirmingDelete(false)}
+                disabled={disabled}
+              >
+                <CloseIcon className="h-5 w-5" />
+              </IconButton>
+            </>
+          ) : (
+            <IconButton
+              type="button"
+              hint="Delete item"
+              ariaLabel="Delete item"
+              onClick={() => setConfirmingDelete(true)}
+              disabled={disabled}
+              tone="danger"
+            >
+              <TrashIcon className="h-5 w-5" />
+            </IconButton>
+          )}
         </div>
       </div>
 
       {editing ? (
         <form
           action={editAction}
-          className="space-y-2 border-t border-panel-border pt-3"
+          className="space-y-2 border-t border-panel-border px-3 pb-3 pt-3"
         >
           <input type="hidden" name="id" value={item.id} />
           {editState.message ? (
@@ -299,12 +494,12 @@ function ItemRow({
               name="label"
               defaultValue={item.label}
               maxLength={500}
-              className="mt-1 w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+              className="mt-1 w-full rounded border border-panel-border bg-deep-space px-3 py-2 text-base text-link-muted focus:border-command-gold focus:outline-none"
             />
             <FieldError messages={editState.errors?.label} />
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <div>
               <label className="block font-mono text-xs uppercase tracking-wider text-muted">
                 Expected
@@ -313,7 +508,7 @@ function ItemRow({
                 name="expectedValue"
                 defaultValue={item.expectedValue ?? ""}
                 maxLength={500}
-                className="mt-1 w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+                className="mt-1 w-full rounded border border-panel-border bg-deep-space px-3 py-2 text-base text-link-muted focus:border-command-gold focus:outline-none"
               />
             </div>
             <div>
@@ -324,7 +519,7 @@ function ItemRow({
                 name="actualValue"
                 defaultValue={item.actualValue ?? ""}
                 maxLength={500}
-                className="mt-1 w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+                className="mt-1 w-full rounded border border-panel-border bg-deep-space px-3 py-2 text-base text-link-muted focus:border-command-gold focus:outline-none"
               />
             </div>
           </div>
@@ -334,7 +529,7 @@ function ItemRow({
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="rounded border border-panel-border bg-navy-dark px-2 py-1 font-mono text-xs uppercase tracking-wider text-muted hover:border-command-gold hover:text-command-gold"
+              className="rounded border border-panel-border bg-navy-dark px-3 py-2 font-mono text-xs uppercase tracking-wider text-muted hover:border-command-gold hover:text-command-gold"
             >
               Done
             </button>
@@ -342,20 +537,26 @@ function ItemRow({
         </form>
       ) : null}
 
-      <form action={deleteAction} className="flex justify-end">
-        <input type="hidden" name="id" value={item.id} />
-        <button
-          type="submit"
-          disabled={disabled}
-          className="rounded border border-panel-border bg-navy-dark px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-alert-red hover:bg-alert-red hover:text-deep-space disabled:opacity-40"
-        >
-          Delete item
-        </button>
-      </form>
       {deleteState.message ? (
-        <InlineBanner variant="error">{deleteState.message}</InlineBanner>
+        <div className="px-3 pb-3">
+          <InlineBanner variant="error">{deleteState.message}</InlineBanner>
+        </div>
       ) : null}
     </li>
+  );
+}
+
+function AddItemButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="inline-flex items-center gap-2 rounded-md border border-command-gold bg-navy-dark px-4 py-2.5 font-mono text-sm uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+    >
+      <PlusIcon className="h-4 w-4" />
+      {pending ? "WORKING…" : "Add item"}
+    </button>
   );
 }
 
@@ -404,7 +605,7 @@ export function ChecklistEditor({
           NO ITEMS YET.
         </p>
       ) : (
-        <ul className="divide-y divide-panel-border border-t border-panel-border">
+        <ul className="space-y-1.5">
           {sorted.map((item, idx) => {
             // Build the orderedIds for an up-swap (item at idx → idx-1):
             const reorderUpIds = sorted.map((i) => i.id);
@@ -426,6 +627,7 @@ export function ChecklistEditor({
               <ItemRow
                 key={item.id}
                 item={item}
+                rowIndex={idx}
                 reorderUpIds={reorderUpIds}
                 reorderDownIds={reorderDownIds}
                 canMoveUp={idx > 0}
@@ -457,7 +659,7 @@ export function ChecklistEditor({
               name="label"
               required
               maxLength={500}
-              className="mt-1 w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+              className="mt-1 w-full rounded border border-panel-border bg-deep-space px-3 py-2 text-base text-link-muted focus:border-command-gold focus:outline-none"
             />
             <FieldError messages={addState.errors?.label} />
           </div>
@@ -468,10 +670,10 @@ export function ChecklistEditor({
             <input
               name="expectedValue"
               maxLength={500}
-              className="mt-1 w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+              className="mt-1 w-full rounded border border-panel-border bg-deep-space px-3 py-2 text-base text-link-muted focus:border-command-gold focus:outline-none"
             />
           </div>
-          <SubmitButton label="Add item" />
+          <AddItemButton />
         </form>
       ) : null}
     </div>
