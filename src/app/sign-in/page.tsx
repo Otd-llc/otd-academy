@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { signIn } from "@/auth";
 import { InlineBanner } from "@/components/InlineBanner";
 
@@ -41,14 +40,17 @@ export default async function SignInPage({
       )}
 
       {/* Row 1 — upper third. The brand mark sits at the bottom of this
-          row so it lands on the upper-third line of the viewport. */}
+          row so it lands on the upper-third line of the viewport.
+          Plain <img> rather than next/Image because next/Image refuses
+          SVG sources unless `dangerouslyAllowSVG` is set in next.config;
+          the brand mark is self-controlled so optimization isn't needed. */}
       <div className="z-10 flex items-end justify-center pb-6">
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src="/brand/1kd-icon.svg"
           alt="One Thousand Drones"
           width={72}
           height={72}
-          priority
           className="animate-pulse-brand h-[60px] w-[60px] sm:h-[72px] sm:w-[72px]"
         />
       </div>
