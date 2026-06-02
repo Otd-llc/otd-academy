@@ -4,13 +4,16 @@ import { InlineBanner } from "@/components/InlineBanner";
 
 // Sign-in screen — full-viewport "boot" treatment matching the hex-viz
 // loading screen at c:/zzz/otd/bioscale-viz/src/styles/loading.css.
-// Centered brand mark over deep-space, pulse-glow gold accent, Bebas Neue
-// title with clamp-sized type so it scales fluidly from phone portrait
-// through desktop. Lora italic tagline below.
+//
+// Layout follows the rule of thirds: a three-row grid spans the full
+// viewport with the brand mark anchored at the upper-third line, the
+// title cluster sitting in the middle band, and the sign-in CTA anchored
+// at the lower-third line. The eye sweeps logo → title → button across
+// the thirds instead of clustering everything dead-center.
 //
 // Auth.js redirects rejected signIn attempts to `/sign-in?error=AccessDenied`.
-// We render an alert-red Space Mono banner above the brand mark when that
-// param is present — design §6 "clear reject screen" requirement for M3.
+// The alert-red banner mounts above the brand mark when that param is
+// present — design §6 "clear reject screen" requirement for M3.
 export default async function SignInPage({
   searchParams,
 }: {
@@ -20,7 +23,7 @@ export default async function SignInPage({
   const denied = params.error === "AccessDenied";
 
   return (
-    <main className="relative flex min-h-[100svh] flex-col items-center justify-center overflow-hidden bg-deep-space px-4 py-10">
+    <main className="relative grid min-h-[100svh] grid-rows-[1fr_1fr_1fr] overflow-hidden bg-deep-space px-4 py-6 sm:py-10">
       {/* Subtle radial gold-glow behind the brand — emulates the inspector's
           inner highlight without needing a separate canvas. Pointer-events
           disabled so the form stays the focal target. */}
@@ -30,17 +33,16 @@ export default async function SignInPage({
       />
 
       {denied && (
-        <div className="z-10 mb-8 w-full max-w-md">
+        <div className="absolute inset-x-4 top-4 z-10 mx-auto max-w-md sm:top-6">
           <InlineBanner variant="error">
             ACCESS DENIED — this email is not on the allowlist.
           </InlineBanner>
         </div>
       )}
 
-      <div className="z-10 flex flex-col items-center text-center">
-        {/* Brand mark — pulses opacity 0.35 ↔ 0.8 every 2.8s. Sized to
-            match the hex viz loading screen (72px desktop / 60px mobile)
-            so the foundry boot screen reads as a sibling experience. */}
+      {/* Row 1 — upper third. The brand mark sits at the bottom of this
+          row so it lands on the upper-third line of the viewport. */}
+      <div className="z-10 flex items-end justify-center pb-6">
         <Image
           src="/brand/1kd-icon.svg"
           alt="One Thousand Drones"
@@ -49,9 +51,14 @@ export default async function SignInPage({
           priority
           className="animate-pulse-brand h-[60px] w-[60px] sm:h-[72px] sm:w-[72px]"
         />
+      </div>
 
+      {/* Row 2 — middle third. Title + subtitle + tagline centered
+          vertically within the row so the title visually anchors the
+          dead-centre of the viewport. */}
+      <div className="z-10 flex flex-col items-center justify-center text-center">
         <h1
-          className="mt-7 font-display text-gray-1"
+          className="font-display text-gray-1"
           style={{
             fontSize: "clamp(2.25rem, 6.4vw, 4rem)",
             letterSpacing: "clamp(0.25rem, 0.9vw, 0.45rem)",
@@ -65,13 +72,18 @@ export default async function SignInPage({
         <p className="mt-5 font-serif text-base italic text-gold-dim sm:text-lg">
           Where prototypes become production.
         </p>
+      </div>
 
+      {/* Row 3 — lower third. The CTA button anchors at the top of this
+          row so it lands on the lower-third line of the viewport. The
+          hairline divider sits a generous gap below as a decorative
+          base. */}
+      <div className="z-10 flex flex-col items-center justify-start gap-12 pt-6">
         <form
           action={async () => {
             "use server";
             await signIn("google", { redirectTo: "/" });
           }}
-          className="mt-10"
         >
           <button
             type="submit"
@@ -81,10 +93,7 @@ export default async function SignInPage({
           </button>
         </form>
 
-        {/* Hairline divider with gold fill — mirrors the loading-bar in the
-            hex viz, here as a static accent rather than an animated progress
-            bar. Width is small so it reads as a decorative seam. */}
-        <div className="mt-12 h-px w-24 bg-gradient-to-r from-transparent via-command-gold to-transparent" />
+        <div className="h-px w-24 bg-gradient-to-r from-transparent via-command-gold to-transparent" />
       </div>
     </main>
   );
