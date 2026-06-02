@@ -27,7 +27,10 @@ export interface CanonicalTemplate {
 }
 
 export const CANONICAL_TEMPLATES: Record<
-  "REQUIREMENTS_REVIEW" | "LAYOUT_REVIEW" | "STRIPBOARD_VALIDATION",
+  | "REQUIREMENTS_REVIEW"
+  | "LAYOUT_REVIEW"
+  | "STRIPBOARD_VALIDATION"
+  | "POST_ASSEMBLY_CONTINUITY",
   CanonicalTemplate
 > = {
   REQUIREMENTS_REVIEW: {
@@ -69,6 +72,44 @@ export const CANONICAL_TEMPLATES: Record<
         label:
           "Isolation barrier post-regulator added on analog side.",
         notApplicableHint: "N/A if no isolation barrier.",
+      },
+    ],
+  },
+  // m5 (learner-guide): POST_ASSEMBLY screening + continuity — materialized
+  // on the active Build (NOT the Revision). The ASSEMBLY exit gate
+  // (`stages.ts` ~382) matches `activeBuild.checklists` by this subkind, so
+  // the stage is ASSEMBLY. Items are drawn from the TB-1-POWER Step-0
+  // screening / continuity sweep: power up only after a clean cold check.
+  POST_ASSEMBLY_CONTINUITY: {
+    subkind: "POST_ASSEMBLY_CONTINUITY",
+    stage: "ASSEMBLY",
+    title: "POST-ASSEMBLY continuity + screening checklist",
+    items: [
+      {
+        label:
+          "Visual + polarity pass: all polarized parts (electrolytics, diodes, connectors, IC pin-1) oriented per assembly drawing.",
+      },
+      {
+        label:
+          "No solder bridges: inspect every fine-pitch / QFN pad row under magnification; reflow any suspect joint.",
+      },
+      {
+        label:
+          "VBUS↔GND resistance reads above the short threshold (no dead short across the input rail before applying power).",
+      },
+      {
+        label:
+          "No power rail measures below 100 Ω to GND (a sub-100 Ω rail indicates a solder bridge or reversed part).",
+        notApplicableHint:
+          "N/A for rails intentionally terminated below 100 Ω.",
+      },
+      {
+        label:
+          "3V3 rail healthy under current-limited bring-up (rail comes up to spec, no current foldback).",
+      },
+      {
+        label:
+          "Continuity sweep TP1–TPn: every labelled test point reads continuity to its net per the bring-up procedure.",
       },
     ],
   },
