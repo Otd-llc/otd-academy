@@ -30,6 +30,7 @@ import {
 } from "@/lib/actions/projects";
 import { InlineBanner } from "@/components/InlineBanner";
 import { SaveButton } from "@/components/SaveButton";
+import { Tooltip } from "@/components/Tooltip";
 
 const initialState: ProjectFormState = {};
 
@@ -349,20 +350,19 @@ export function EditHasMainsNetForm({
   return (
     <form action={action} className="space-y-1">
       <input type="hidden" name="id" value={id} />
-      <label
-        className="inline-flex items-center gap-2"
-        title="When checked, BOM_SOURCING gate requires at least one BomLine.part.isCertifiedModule === true"
-      >
-        <input
-          name="hasMainsNet"
-          type="checkbox"
-          defaultChecked={value}
-          onChange={(e) => e.currentTarget.form?.requestSubmit()}
-        />
-        <span className="font-mono text-xs uppercase tracking-wider text-muted">
-          Has mains net (requires certified-module BOM line)
-        </span>
-      </label>
+      <Tooltip content="When checked, BOM_SOURCING gate requires at least one BomLine.part.isCertifiedModule === true">
+        <label className="inline-flex items-center gap-2">
+          <input
+            name="hasMainsNet"
+            type="checkbox"
+            defaultChecked={value}
+            onChange={(e) => e.currentTarget.form?.requestSubmit()}
+          />
+          <span className="font-mono text-xs uppercase tracking-wider text-muted">
+            Has mains net (requires certified-module BOM line)
+          </span>
+        </label>
+      </Tooltip>
       <FieldError messages={state.errors?.hasMainsNet} />
       <ActionMessage state={state} />
     </form>

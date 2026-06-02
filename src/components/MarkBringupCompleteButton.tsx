@@ -18,21 +18,22 @@ import {
   type BringupCompleteFormState,
 } from "@/lib/actions/bringup";
 import { InlineBanner } from "@/components/InlineBanner";
+import { Tooltip } from "@/components/Tooltip";
 
 const initialState: BringupCompleteFormState = {};
 
 function SubmitButton({ tooltip }: { tooltip?: string }) {
   const { pending } = useFormStatus();
-  return (
+  const button = (
     <button
       type="submit"
       disabled={pending}
-      title={tooltip}
       className="rounded border border-command-gold bg-command-gold px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider text-deep-space transition-colors hover:bg-deep-space hover:text-command-gold disabled:opacity-50"
     >
       {pending ? "WORKING…" : "Mark bring-up complete"}
     </button>
   );
+  return tooltip ? <Tooltip content={tooltip}>{button}</Tooltip> : button;
 }
 
 export function MarkBringupCompleteButton({
@@ -56,14 +57,19 @@ export function MarkBringupCompleteButton({
         : "";
     const tooltip = `Boards not yet BROUGHT_UP or QUARANTINED: ${sample}${more}`;
     return (
-      <button
-        type="button"
-        disabled
-        title={tooltip}
-        className="rounded border border-panel-border bg-deep-space px-3 py-1 font-mono text-xs uppercase tracking-wider text-muted opacity-60"
-      >
-        Mark bring-up complete
-      </button>
+      <Tooltip label="Blocked" content={tooltip}>
+        {/* Wrapped in a span so the tooltip still shows on a disabled button
+            (a disabled <button> fires no pointer/focus events). */}
+        <span className="inline-flex">
+          <button
+            type="button"
+            disabled
+            className="rounded border border-panel-border bg-deep-space px-3 py-1 font-mono text-xs uppercase tracking-wider text-muted opacity-60"
+          >
+            Mark bring-up complete
+          </button>
+        </span>
+      </Tooltip>
     );
   }
 

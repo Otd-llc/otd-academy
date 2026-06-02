@@ -13,18 +13,25 @@
 // rendering this button.
 
 import { useFormStatus } from "react-dom";
+import { Tooltip } from "@/components/Tooltip";
 
 export function SaveButton({ className = "" }: { className?: string }) {
   const { pending } = useFormStatus();
+  const hint = pending ? "Saving…" : "Save";
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      title={pending ? "Saving…" : "Save"}
-      aria-label={pending ? "Saving" : "Save"}
-      className={`glass-button inline-flex h-9 w-9 shrink-0 items-center justify-center rounded text-command-gold transition-colors hover:text-gold-light disabled:opacity-50 ${className}`}
-    >
-      {pending ? (
+    <Tooltip content={hint}>
+      {/* Wrapped in a span so the tooltip still shows while the button is
+          disabled (pending) — a disabled <button> fires no pointer/focus
+          events. aria-label stays on the button as the always-available
+          accessible name. */}
+      <span className="inline-flex">
+        <button
+          type="submit"
+          disabled={pending}
+          aria-label={hint}
+          className={`glass-button inline-flex h-9 w-9 shrink-0 items-center justify-center rounded text-command-gold transition-colors hover:text-gold-light disabled:opacity-50 ${className}`}
+        >
+          {pending ? (
         <svg
           viewBox="0 0 24 24"
           fill="none"
@@ -51,7 +58,9 @@ export function SaveButton({ className = "" }: { className?: string }) {
           <polyline points="17 21 17 13 7 13 7 21" />
           <polyline points="7 3 7 8 15 8" />
         </svg>
-      )}
-    </button>
+          )}
+        </button>
+      </span>
+    </Tooltip>
   );
 }
