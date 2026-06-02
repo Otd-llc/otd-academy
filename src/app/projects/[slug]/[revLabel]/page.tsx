@@ -132,9 +132,18 @@ export default async function RevisionDetailPage({
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
-      <nav className="mb-6 font-mono text-xs uppercase tracking-wider">
+      <nav className="mb-6 flex items-center justify-between gap-4 font-mono text-xs uppercase tracking-wider">
         <Link href={`/projects/${project.slug}`} className="text-signal-blue underline">
           ← {project.name}
+        </Link>
+        {/* Task 9.4: link to the learner-guide hub. Matches this page's
+            signal-blue link convention (the bench nav-back gold is reserved
+            for the PageHeader on the guide pages themselves). */}
+        <Link
+          href={`/projects/${project.slug}/${encodeURIComponent(revision.label)}/guide`}
+          className="text-signal-blue underline"
+        >
+          Build guide →
         </Link>
       </nav>
 
