@@ -1,4 +1,5 @@
 import { signIn } from "@/auth";
+import { BrandMark } from "@/components/BrandMark";
 import { InlineBanner } from "@/components/InlineBanner";
 
 // Sign-in screen — full-viewport "boot" treatment matching the hex-viz
@@ -41,18 +42,11 @@ export default async function SignInPage({
 
       {/* Row 1 — upper third. The brand mark sits at the bottom of this
           row so it lands on the upper-third line of the viewport.
-          Plain <img> rather than next/Image because next/Image refuses
-          SVG sources unless `dangerouslyAllowSVG` is set in next.config;
-          the brand mark is self-controlled so optimization isn't needed. */}
+          BrandMark is an inlined SVG component (currentColor-tinted) so
+          there's no external asset fetch — Vercel caching / MIME-type /
+          public-path issues all go away. */}
       <div className="z-10 flex items-end justify-center pb-6">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/brand/1kd-icon.svg"
-          alt="One Thousand Drones"
-          width={72}
-          height={72}
-          className="animate-pulse-brand h-[60px] w-[60px] sm:h-[72px] sm:w-[72px]"
-        />
+        <BrandMark className="animate-pulse-brand h-[60px] w-[60px] text-gray-1 sm:h-[72px] sm:w-[72px]" />
       </div>
 
       {/* Row 2 — middle third. Title + subtitle + tagline centered
