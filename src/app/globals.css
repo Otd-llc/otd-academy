@@ -202,22 +202,29 @@ body {
 }
 
 /*
- * Animation primitives — lifted from bioscale-viz/src/styles/base.css.
- * `pulse` ramps opacity between 0.35 and 0.8 over ~2.8s; used on the
- * sign-in / loading brand mark to give the page a heartbeat without
- * any JS.
+ * Animation primitives — pulse is a slow, breath-like opacity ramp on
+ * the sign-in / loading brand mark. 6-second cycle so the rhythm reads
+ * as breathing rather than a metronome; asymmetric keyframes (quick
+ * lift, brief hold at peak, slow settle) emulate inhale → hold →
+ * exhale. Tuned slower / more meditative than the original bioscale-viz
+ * 2.8s pulse.
  */
 @keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.35;
+  0% {
+    opacity: 0.4;
   }
-  50% {
-    opacity: 0.8;
+  45% {
+    opacity: 0.85;
+  }
+  55% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0.4;
   }
 }
 
 .animate-pulse-brand {
-  animation: pulse 2.8s ease-in-out infinite;
+  animation: pulse 6s ease-in-out infinite;
 }
 
