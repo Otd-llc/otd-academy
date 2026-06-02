@@ -10,13 +10,15 @@
 //   • Future     — order > currentStage. Outlined panel-border + muted.
 //
 // Responsive layout (revised — no internal scrollbar):
-//   • ≥ lg (1024px+): single row, all 9 slots show "01 / REQUIREMENTS"-style
-//     full labels. Flex with shrink so the row fits naturally.
-//   • md–lg (768–1024px): single row, compact "01 / REQ"-style abbreviations
-//     (3-letter codes); active slot still expands to show full text via
-//     flex-grow so the band reads at a glance.
-//   • < md (mobile): grid wrap — 3×3 numeric chips with the active slot's
-//     full label rendered above the grid. No horizontal scroll anywhere.
+//   • ≥ xl (1280px+): single row, all 9 slots show "01 / REQUIREMENTS"-style
+//     full labels. Below this width the full labels overflow the chip
+//     because 9 × the longest label ("01 / BOM SOURCING") exceeds the
+//     grid track width.
+//   • sm–xl (640–1280px): single row, compact "01 / REQ"-style 3-letter
+//     code abbreviations so chips stay readable.
+//   • < sm (mobile): numeric-only chips ("01", "02", ...) plus a separate
+//     "Current stage" banner above the grid for the active label + first
+//     failure reason. No horizontal scroll anywhere.
 //
 // Server component — caller loads `ctx` via `loadGateContext` and passes
 // it in. Treats the tracker as a pure render of `(revision, ctx)`.
@@ -127,19 +129,19 @@ export async function StageTracker({ revision, ctx }: Props) {
             >
               {/* < sm: just the number. */}
               <span className="block sm:hidden">{num}</span>
-              {/* sm–lg: number + 3-letter short code. */}
-              <span className="hidden whitespace-nowrap sm:block lg:hidden">
+              {/* sm–xl: number + 3-letter short code. */}
+              <span className="hidden whitespace-nowrap sm:block xl:hidden">
                 {shortLabel}
               </span>
-              {/* ≥ lg: full label. */}
-              <span className="hidden whitespace-nowrap lg:block">
+              {/* ≥ xl: full label. */}
+              <span className="hidden whitespace-nowrap xl:block">
                 {fullLabel}
               </span>
               {/* Blocked-slot inline reason — only on the active slot when its
-                  gate fails. Rendered at ≥ lg only (the < sm banner above
-                  already surfaces it on mobile; sm–lg keeps the row tight). */}
+                  gate fails. Rendered at ≥ xl only (the < sm banner above
+                  already surfaces it on mobile; sm–xl keeps the row tight). */}
               {isBlocked && firstReason ? (
-                <span className="mt-1 hidden font-mono text-[10px] normal-case tracking-normal text-alert-red lg:block">
+                <span className="mt-1 hidden font-mono text-[10px] normal-case tracking-normal text-alert-red xl:block">
                   {firstReason}
                 </span>
               ) : null}
