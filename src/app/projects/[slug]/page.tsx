@@ -25,6 +25,12 @@ import {
   EditTrackForm,
 } from "./_edit-fields";
 import { ProjectDependenciesPane } from "@/components/ProjectDependenciesPane";
+import {
+  ArchiveIcon,
+  ArchiveRestoreIcon,
+  ChevronLeftIcon,
+  PlusIcon,
+} from "@/components/icons";
 
 // Track → text-color mapping for the curriculum badge pill. Lives next to
 // the only consumer (the detail page header strip); when a second view
@@ -71,8 +77,12 @@ export default async function ProjectDetailPage({
   return (
     <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
       <nav className="mb-6 font-mono text-xs uppercase tracking-wider">
-        <Link href="/" className="text-signal-blue underline">
-          ← All projects
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-signal-blue underline"
+        >
+          <ChevronLeftIcon className="h-4 w-4" />
+          All projects
         </Link>
       </nav>
 
@@ -207,9 +217,10 @@ export default async function ProjectDetailPage({
           </h2>
           <Link
             href={`/projects/${project.slug}/revisions/new`}
-            className="rounded border border-command-gold bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+            className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
           >
-            + New revision
+            <PlusIcon className="h-4 w-4" />
+            New revision
           </Link>
         </div>
         {project.revisions.length === 0 ? (
@@ -269,8 +280,9 @@ export default async function ProjectDetailPage({
             <input type="hidden" name="id" value={project.id} />
             <button
               type="submit"
-              className="rounded border border-panel-border bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-status-green transition-colors hover:border-status-green"
+              className="inline-flex items-center gap-1.5 rounded border border-panel-border bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-status-green transition-colors hover:border-status-green"
             >
+              <ArchiveRestoreIcon className="h-4 w-4" />
               Unarchive project
             </button>
           </form>
@@ -279,8 +291,9 @@ export default async function ProjectDetailPage({
             <input type="hidden" name="id" value={project.id} />
             <button
               type="submit"
-              className="rounded border border-panel-border bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-alert-red transition-colors hover:border-alert-red"
+              className="inline-flex items-center gap-1.5 rounded border border-panel-border bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-alert-red transition-colors hover:border-alert-red"
             >
+              <ArchiveIcon className="h-4 w-4" />
               Archive project
             </button>
           </form>
