@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { composeGuide } from "@/lib/guide-templates/compose";
+import { guideCardInputSchema } from "@/lib/schemas/guide";
 
 const eeg = {
   slug: "foundry-l3-01-eeg-front-end",
@@ -30,6 +31,6 @@ describe("composeGuide", () => {
   it("validates every card against the schema", () => {
     // composeGuide should return cards that pass guideCardInputSchema
     const g = composeGuide(eeg);
-    expect(g.cards.every((c) => typeof c.eyebrow === "string")).toBe(true);
+    g.cards.forEach((c) => expect(guideCardInputSchema.safeParse(c).success).toBe(true));
   });
 });

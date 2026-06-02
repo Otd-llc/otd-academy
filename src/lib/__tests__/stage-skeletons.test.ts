@@ -22,6 +22,7 @@ describe("stage skeletons", () => {
   });
   it("gives ASSEMBLY a buildChecklist completionRef", () => {
     expect(STAGE_CARD_SKELETONS.ASSEMBLY.completionRef?.kind).toBe("buildChecklist");
+    expect((STAGE_CARD_SKELETONS.ASSEMBLY.completionRef as any).subkind).toBe("POST_ASSEMBLY_CONTINUITY");
   });
   it("marks gate stages isGate", () => {
     expect(STAGE_CARD_SKELETONS.LAYOUT.isGate).toBe(true);
