@@ -23,6 +23,7 @@ import type { ContentBlock } from "@/lib/schemas/guide";
 import { editGuideCardSchema, guideContentBlocksSchema } from "@/lib/schemas/guide";
 import {
   BLOCK_TYPES,
+  BLOCK_TYPE_ICON,
   BLOCK_TYPE_LABELS,
   defaultBlock,
   type BlockType,
@@ -193,7 +194,11 @@ export function GuideCardEditor({
 
   // ─── EDIT mode ──────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 rounded border-t-2 border-command-gold bg-navy-dark/20 p-4">
+      <span className="block font-mono text-[10px] uppercase tracking-[0.25em] text-gold-dim">
+        Editing
+      </span>
+
       <HeaderFields
         eyebrow={eyebrowDraft}
         title={titleDraft}
@@ -204,7 +209,7 @@ export function GuideCardEditor({
         fieldErrors={fieldErrors}
       />
 
-      <fieldset className="space-y-3">
+      <fieldset className="space-y-3 border-t border-panel-border pt-4">
         <legend className={labelClass}>Content blocks</legend>
         {blocksDraft.length === 0 ? (
           <p className="font-mono text-xs text-muted">
@@ -216,13 +221,15 @@ export function GuideCardEditor({
               const blockErrors = collectBlockErrors(fieldErrors, i);
               const hasBlockError = blockErrors.length > 0;
               const blockErrListId = `${blockErrId}-block-${i}-error`;
+              const TypeIcon = BLOCK_TYPE_ICON[block.type];
               return (
                 <div
                   key={i}
-                  className="rounded border border-panel-border bg-navy-dark/40 p-3"
+                  className={`rounded-r border-l-2 bg-navy-dark/30 p-3 ${blockAccentClass(block)}`}
                 >
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="font-mono text-xs uppercase tracking-wider text-command-gold">
+                    <span className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-command-gold">
+                      <TypeIcon className="h-4 w-4" />
                       {BLOCK_TYPE_LABELS[block.type]}
                     </span>
                     <div className="flex items-center gap-1">
@@ -302,7 +309,7 @@ export function GuideCardEditor({
           type="button"
           onClick={save}
           disabled={isPending}
-          className="rounded border border-command-gold bg-navy-dark px-3 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+          className="rounded border border-command-gold bg-command-gold px-3 py-2 font-mono text-xs uppercase tracking-wider text-deep-space transition-colors hover:border-gold-light hover:bg-gold-light disabled:opacity-50"
         >
           {isPending ? "Saving…" : "Save"}
         </button>
@@ -349,6 +356,9 @@ function HeaderFields({
   const hasLeadError = (fieldErrors?.lead?.length ?? 0) > 0;
   return (
     <div className="space-y-3">
+      <p className="font-mono text-[10px] uppercase tracking-wider text-muted">
+        Card header
+      </p>
       <div>
         <label htmlFor={`${baseId}-eyebrow`} className={labelClass}>
           Eyebrow
@@ -466,14 +476,18 @@ function AddBlockMenu({ onAdd }: { onAdd: (type: BlockType) => void }) {
         }
       }}
     >
-      <IconButton
+      <button
         type="button"
-        hint="Add block"
-        ariaLabel="Add block"
+        aria-label="Add block"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-1.5 rounded border border-command-gold px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold"
       >
         <PlusIcon className="h-4 w-4" />
-      </IconButton>
+        Add block
+      </button>
       {open ? (
         <ul
           id={menuId}
@@ -481,19 +495,23 @@ function AddBlockMenu({ onAdd }: { onAdd: (type: BlockType) => void }) {
           aria-label="Block types"
           className="absolute left-0 z-20 mt-1 min-w-44 rounded border border-panel-border bg-navy-dark p-1 shadow-xl"
         >
-          {BLOCK_TYPES.map((type, i) => (
-            <li key={type} role="none">
-              <button
-                ref={i === 0 ? firstItemRef : undefined}
-                type="button"
-                role="menuitem"
-                onClick={() => choose(type)}
-                className="block w-full rounded px-3 py-1.5 text-left font-mono text-sm text-link-muted transition-colors hover:bg-deep-space hover:text-command-gold focus-visible:bg-deep-space focus-visible:text-command-gold focus-visible:outline-none"
-              >
-                {BLOCK_TYPE_LABELS[type]}
-              </button>
-            </li>
-          ))}
+          {BLOCK_TYPES.map((type, i) => {
+            const ItemIcon = BLOCK_TYPE_ICON[type];
+            return (
+              <li key={type} role="none">
+                <button
+                  ref={i === 0 ? firstItemRef : undefined}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => choose(type)}
+                  className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left font-mono text-sm text-link-muted transition-colors hover:bg-deep-space hover:text-command-gold focus-visible:bg-deep-space focus-visible:text-command-gold focus-visible:outline-none"
+                >
+                  <ItemIcon className="h-4 w-4" />
+                  {BLOCK_TYPE_LABELS[type]}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
     </div>
@@ -508,6 +526,24 @@ function FieldError({ id, messages }: { id?: string; messages?: string[] }) {
       {messages.join("; ")}
     </p>
   );
+}
+
+// Left-accent rule color for a block card. Defaults to command-gold; callouts
+// inherit their severity's hue (critical→alert-red, warn→gold, info→signal-blue)
+// so the editor previews the block's emphasis at a glance.
+function blockAccentClass(block: ContentBlock): string {
+  if (block.type === "callout") {
+    switch (block.severity) {
+      case "critical":
+        return "border-alert-red";
+      case "info":
+        return "border-signal-blue";
+      case "warn":
+      default:
+        return "border-command-gold";
+    }
+  }
+  return "border-command-gold";
 }
 
 // Pull every field error whose key targets block index `i` (e.g.
