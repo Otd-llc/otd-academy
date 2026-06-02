@@ -375,6 +375,7 @@ export async function editChecklistItem(input: unknown) {
             id: true,
             checklistId: true,
             checked: true,
+            notApplicable: true,
             completedAt: true,
             completedById: true,
           },
@@ -386,6 +387,15 @@ export async function editChecklistItem(input: unknown) {
         );
         await assertNotFrozen(tx, refs.revisionId);
         if (refs.buildId) await assertBuildNotFrozen(tx, refs.buildId);
+
+        const resultChecked = data.checked ?? existing.checked;
+        const resultNotApplicable =
+          data.notApplicable ?? existing.notApplicable;
+        if (resultChecked && resultNotApplicable) {
+          throw new Error(
+            "An item cannot be both checked and N/A simultaneously.",
+          );
+        }
 
         const patch: Prisma.ChecklistItemUpdateInput = {};
         if (data.label !== undefined) patch.label = data.label;

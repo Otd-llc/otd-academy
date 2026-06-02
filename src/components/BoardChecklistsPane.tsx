@@ -74,8 +74,11 @@ export function BoardChecklistsPane({
         <ul className="mt-4 divide-y divide-panel-border">
           {checklists.map((c) => {
             const total = c.items.length;
-            const done = c.items.filter((i) => i.checked).length;
-            const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+            const resolved = c.items.filter(
+              (i) => i.checked || i.notApplicable,
+            ).length;
+            const pct =
+              total === 0 ? 0 : Math.round((resolved / total) * 100);
             return (
               <li key={c.id} className="space-y-3 py-4 font-mono text-sm">
                 <div className="flex items-start justify-between gap-3">
@@ -89,7 +92,7 @@ export function BoardChecklistsPane({
                         {c.stage}
                       </span>
                       <span className="font-mono text-xs uppercase tracking-wider text-muted">
-                        {done}/{total} · {pct}%
+                        {resolved}/{total} · {pct}%
                       </span>
                     </div>
                   </div>
