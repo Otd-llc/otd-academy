@@ -27,7 +27,9 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     type: z.literal("sourceRef"),
     label: z.string().max(160),
     href: z.string().max(500).refine(
-      (v) => /^(https?:\/\/|\/)/.test(v),
+      // Reject a leading `//` (protocol-relative open-redirect, e.g. //evil.com)
+      // while still allowing http(s):// and root-relative `/path`.
+      (v) => /^(https?:\/\/|\/(?!\/))/.test(v),
       "href must be http(s):// or a root-relative path",
     ),
   }),

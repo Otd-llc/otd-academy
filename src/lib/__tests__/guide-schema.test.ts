@@ -35,4 +35,13 @@ describe("guide schemas", () => {
   it("rejects a javascript: sourceRef href", () => {
     expect(contentBlockSchema.safeParse({ type: "sourceRef", label: "x", href: "javascript:alert(1)" }).success).toBe(false);
   });
+  it("rejects a protocol-relative // sourceRef href (open-redirect)", () => {
+    expect(contentBlockSchema.safeParse({ type: "sourceRef", label: "x", href: "//evil.com" }).success).toBe(false);
+  });
+  it("accepts an https:// sourceRef href", () => {
+    expect(contentBlockSchema.safeParse({ type: "sourceRef", label: "x", href: "https://x" }).success).toBe(true);
+  });
+  it("accepts a root-relative sourceRef href", () => {
+    expect(contentBlockSchema.safeParse({ type: "sourceRef", label: "x", href: "/rel/path" }).success).toBe(true);
+  });
 });
