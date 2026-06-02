@@ -157,6 +157,20 @@ describe("resolveCardCompletion — AUTHORITATIVE-DONE (BRINGUP dual-source)", (
     expect(r.state).not.toBe("complete");
   });
 
+  test("a `none` completionRef on a gated stage must NOT shortcut the closed gate → not complete", async () => {
+    // Defensive: `none` previously short-circuited to `complete` whenever stage
+    // was absent (the removed ref-only fallback). With the authoritative-done
+    // contract, a `none` ref on a stage whose REAL gate is still closed (this
+    // BRINGUP rev has no BRINGUP_LOG / BRINGUP_COMPLETE yet) must NOT report
+    // complete — proving the ref can never bypass the gate.
+    const r = await resolveCardCompletion({
+      revisionId: revId,
+      stage: "BRINGUP",
+      completionRef: { kind: "none" },
+    });
+    expect(r.state).not.toBe("complete");
+  });
+
   test("adding BRINGUP_LOG + BRINGUP_COMPLETE closes the gate → state complete", async () => {
     const user = await db.user.findUniqueOrThrow({
       where: { email: SEED_EMAIL },

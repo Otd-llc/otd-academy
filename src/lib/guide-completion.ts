@@ -44,8 +44,14 @@ export interface CardCompletion {
 
 export interface ResolveCardCompletionInput {
   revisionId: string;
-  /** Card stage — drives the authoritative gate evaluation. */
-  stage?: Stage;
+  /**
+   * Card stage — REQUIRED. Drives the authoritative `complete` verdict via the
+   * real stage gate. Every `GuideCard` always carries a non-null stage (it's a
+   * non-null DB column and every skeleton supplies one), so making this required
+   * structurally enforces the authoritative-done contract: there is no code path
+   * that can report `complete` from the completionRef alone, bypassing the gate.
+   */
+  stage: Stage;
   /** Optional explicit board scope for board-scoped refs. */
   boardId?: string;
   completionRef: CompletionRef;
@@ -303,21 +309,18 @@ export async function resolveCardCompletion(
     };
   }
 
-  // AUTHORITATIVE-DONE: delegate the `complete` verdict to the real stage gate
-  // when the card carries a stage with a gate. Otherwise fall back to the
-  // completionRef-derived doneness (covers `none` and any gate-less stage).
-  let complete: boolean;
-  if (input.stage) {
-    const gate = await evaluateStageGate(input.revisionId, input.stage);
-    complete =
-      gate ??
-      (input.completionRef.kind === "none" ||
-        (widget.total > 0 && widget.done >= widget.total));
-  } else {
-    complete =
-      input.completionRef.kind === "none" ||
-      (widget.total > 0 && widget.done >= widget.total);
-  }
+  // AUTHORITATIVE-DONE: the `complete` verdict ALWAYS comes from the real stage
+  // gate (`STAGES[stage].exitGate(ctx).ok`) — never from `completionRef` alone.
+  // `stage` is required, so there is no ref-only shortcut to `complete`.
+  //
+  // No-gate guard: if a stage genuinely has no `exitGate` defined in STAGES
+  // (`evaluateStageGate` returns null — e.g. the terminal REVISION stage; all 8
+  // guide stages currently define one), we CANNOT assert authoritative done. We
+  // must not fake `complete` from the ref, so we leave `complete === false` and
+  // let the partial/untouched logic below cap the state at `partial` (when the
+  // widget shows progress/substrate) or `untouched`/`blocked` per scope.
+  const gate = await evaluateStageGate(input.revisionId, input.stage);
+  const complete = gate === true;
 
   let state: CompletionState;
   if (complete) {
