@@ -10,7 +10,7 @@
 // import the FormState type + the form-action wrappers without dragging the
 // whole action module into the bundle's server graph.
 import { ZodError } from "zod";
-import { materializeGuide } from "@/lib/actions/guides";
+import { editGuideCard, materializeGuide } from "@/lib/actions/guides";
 
 export type GuideFormState = {
   errors?: Record<string, string[]>;
@@ -49,6 +49,23 @@ export async function materializeGuideFormAction(
   try {
     const g = await materializeGuide({ revisionId });
     return { createdId: g.id, ok: true };
+  } catch (err) {
+    if (err instanceof ZodError) return { errors: zodErrors(err) };
+    return { message: err instanceof Error ? err.message : "Unknown error" };
+  }
+}
+
+// ─── saveGuideCard ─────────────────────────────────────
+//
+// Structured wrapper (NOT FormData — the nested contentBlocks array is awkward
+// to serialize through FormData). The inline editor dispatches this via
+// useTransition. editGuideCard Zod-validates + freeze-guards + revalidates;
+// here we map its resolution onto GuideFormState (ZodError → field `errors`,
+// any other rejection → a single `message`, success → `{ ok, createdId }`).
+export async function saveGuideCard(input: unknown): Promise<GuideFormState> {
+  try {
+    const card = await editGuideCard(input);
+    return { ok: true, createdId: card.id };
   } catch (err) {
     if (err instanceof ZodError) return { errors: zodErrors(err) };
     return { message: err instanceof Error ? err.message : "Unknown error" };
