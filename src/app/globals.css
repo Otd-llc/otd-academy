@@ -199,6 +199,201 @@ body {
     color: var(--color-muted);
     line-height: 1.5;
   }
+
+  /*
+   * Bench-console recipes — ported from the TB-1-POWER bench stylesheet
+   * (otd/.../docs/bench/_bench.css) for the learner-guide PageHeader +
+   * content-block renderer. The bench used a parallel set of raw color vars
+   * (--command-gold, --muted-gray, --deep-space, …); every one is remapped to
+   * the EXISTING Foundry `@theme` token below — NO palette additions. Hairlines
+   * the bench expressed as derived gold/divider rgbas (--gold-dim-line,
+   * --row-divider, --gold-dim-bg, etc.) become rgba()s of the same existing
+   * gold/muted/blue/red channels already used by `.glass-card` above.
+   *
+   *   --command-gold → --color-command-gold     --muted-gray   → --color-muted
+   *   --gold-light   → --color-gold-light        --deep-space  → --color-deep-space
+   *   --signal-blue  → --color-signal-blue       --navy-dark   → --color-navy-dark
+   *   --alert-red    → --color-alert-red         --white       → #fff (no token)
+   *   --gold-dim-line / --gold-dim-bg → rgba(200,150,62, .15 / .06)
+   *   --blue-dim-bg  → rgba(74,143,255,.06)       --red-dim-bg → rgba(239,83,80,.08)
+   *   --row-divider  → rgba(170,170,170,.1)
+   */
+
+  /* meta-strip — mono, caps, gold labels, slash separators. */
+  .meta-strip {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-muted);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 1.5rem;
+  }
+  .meta-strip .label {
+    color: var(--color-command-gold);
+  }
+  .meta-strip .sep {
+    color: rgba(200, 150, 62, 0.4);
+  }
+
+  /* bench-hero — oversized Bebas title with a gold .ord eyebrow + .accent word. */
+  .bench-hero {
+    font-family: var(--font-display);
+    font-size: clamp(54px, 9vw, 108px);
+    letter-spacing: 0.04em;
+    color: #fff;
+    line-height: 0.95;
+    margin: 0;
+    font-weight: 400;
+  }
+  .bench-hero .accent {
+    color: var(--color-command-gold);
+  }
+  .bench-hero .ord {
+    display: block;
+    font-size: 0.3em;
+    letter-spacing: 0.3em;
+    color: var(--color-command-gold);
+    margin-bottom: 0.5rem;
+  }
+
+  /* subhead — Lora italic lead beneath the hero. */
+  .subhead {
+    font-family: var(--font-serif);
+    font-size: 18px;
+    color: var(--color-muted);
+    font-style: italic;
+    margin-top: 1.5rem;
+    max-width: 780px;
+  }
+
+  /* nav-back — "← Back" breadcrumb link in mono caps. */
+  .nav-back {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: color 0.2s;
+  }
+  .nav-back:hover {
+    color: var(--color-command-gold);
+  }
+  .nav-back .arrow {
+    color: var(--color-command-gold);
+  }
+
+  /* callout — left-rule advisory block with severity tints + mono label. */
+  .callout {
+    border-left: 4px solid var(--color-command-gold);
+    background: rgba(200, 150, 62, 0.06);
+    padding: 1.1rem 1.4rem;
+    margin: 1.5rem 0;
+    font-size: 15px;
+  }
+  .callout .callout-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--color-command-gold);
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+  }
+  .callout.critical {
+    border-left-color: var(--color-alert-red);
+    background: rgba(239, 83, 80, 0.08);
+  }
+  .callout.critical .callout-label {
+    color: var(--color-alert-red);
+  }
+  .callout.warn {
+    border-left-color: var(--color-command-gold);
+    background: rgba(200, 150, 62, 0.06);
+  }
+  .callout.warn .callout-label {
+    color: var(--color-command-gold);
+  }
+  .callout.info {
+    border-left-color: var(--color-signal-blue);
+    background: rgba(74, 143, 255, 0.06);
+  }
+  .callout.info .callout-label {
+    color: var(--color-signal-blue);
+  }
+
+  /* badge — small mono caps pill, outlined; tone sets text + border color. */
+  .badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid;
+    font-weight: 700;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  .badge.gold {
+    color: var(--color-command-gold);
+    border-color: var(--color-command-gold);
+  }
+  .badge.critical {
+    color: var(--color-alert-red);
+    border-color: var(--color-alert-red);
+  }
+  .badge.blue {
+    color: var(--color-signal-blue);
+    border-color: var(--color-signal-blue);
+  }
+  .badge.dim {
+    color: var(--color-muted);
+    border-color: var(--color-muted);
+  }
+
+  /* table-tech — mono data table; gold caps header, hairline row dividers,
+   * .ref (white bold) / .mpn (gold-light) cell decorations. */
+  .table-tech {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    margin: 1rem 0;
+  }
+  .table-tech th {
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--color-command-gold);
+    border-bottom: 2px solid var(--color-command-gold);
+    padding: 0.75rem 0.85rem;
+    font-weight: 700;
+    font-size: 10px;
+    background: transparent;
+  }
+  .table-tech td {
+    padding: 0.6rem 0.85rem;
+    border-bottom: 1px solid rgba(170, 170, 170, 0.1);
+    vertical-align: middle;
+    color: var(--color-muted);
+  }
+  .table-tech td .ref {
+    color: #fff;
+    font-weight: 700;
+  }
+  .table-tech td .mpn {
+    color: var(--color-gold-light);
+  }
+  .table-tech tr:hover td {
+    background: rgba(200, 150, 62, 0.03);
+  }
 }
 
 /*
