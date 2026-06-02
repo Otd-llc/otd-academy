@@ -64,6 +64,12 @@ describe("ChecklistItemLabelCell", () => {
     expect(text).not.toContain("N/A");
     const allClasses = classListOf(tree).join(" ");
     expect(allClasses).not.toContain("line-through");
+    // Unstruck label is a readable serif body in gray-1 (not the prior heavy
+    // mono `text-white text-lg font-semibold`).
+    expect(allClasses).toContain("font-serif");
+    expect(allClasses).toContain("text-gray-1");
+    expect(allClasses).not.toContain("text-white");
+    expect(allClasses).not.toContain("font-semibold");
   });
 
   test("checked=true: strikethrough + muted, no N/A badge", () => {
@@ -80,6 +86,8 @@ describe("ChecklistItemLabelCell", () => {
     const allClasses = classListOf(tree).join(" ");
     expect(allClasses).toContain("line-through");
     expect(allClasses).toContain("text-muted");
+    // Struck label keeps the readable serif body (just muted + struck now).
+    expect(allClasses).toContain("font-serif");
   });
 
   test("notApplicable=true: N/A badge + strikethrough + command-gold treatment", () => {

@@ -81,11 +81,12 @@ export type ChecklistItemRow = {
   notApplicable: boolean;
 };
 
-// Shared touch-friendly icon button used for every per-row action. Renders a
-// real <button> (keyboard + SR accessible via `aria-label`), wrapped in a
-// <Tooltip> so the label shows on hover/focus — consistent with SaveButton /
-// MarkBringupCompleteButton across the app. Min 44×44 hit area (recommended
-// touch target) regardless of the glyph size.
+// Shared ghost icon button used for every per-row action. Renders a real
+// <button> (keyboard + SR accessible via `aria-label`), wrapped in a <Tooltip>
+// so the label shows on hover/focus — consistent with SaveButton /
+// MarkBringupCompleteButton across the app. No border, no filled background:
+// just a muted ghost glyph that warms to gold on hover. The `p-2.5` padding
+// around the `h-5 w-5` glyph preserves a ~40px touch target for bench use.
 //
 // The Tooltip's Radix Trigger forwards a ref + handlers to its single child.
 // A disabled <button> fires no pointer/focus events, so (matching SaveButton)
@@ -111,8 +112,8 @@ function IconButton({
 }) {
   const toneClasses =
     tone === "danger"
-      ? "text-danger-coral hover:border-alert-red hover:bg-alert-red hover:text-deep-space"
-      : "text-link-muted hover:border-command-gold hover:text-command-gold";
+      ? "text-muted hover:text-alert-red hover:bg-navy-dark/40"
+      : "text-muted hover:text-command-gold hover:bg-navy-dark/40";
   return (
     <Tooltip content={hint}>
       <span
@@ -124,7 +125,7 @@ function IconButton({
           aria-label={ariaLabel}
           onClick={onClick}
           disabled={disabled}
-          className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-panel-border bg-navy-dark transition-colors disabled:opacity-40 disabled:hover:border-panel-border disabled:hover:bg-navy-dark ${toneClasses}`}
+          className={`inline-flex shrink-0 items-center justify-center rounded p-2.5 transition-colors disabled:opacity-40 disabled:hover:bg-transparent ${toneClasses} disabled:hover:text-muted`}
         >
           {children}
         </button>
@@ -187,14 +188,15 @@ function ReorderButton({
   );
 }
 
-// Big primary toggle — the most-used action, so it gets the largest target.
-// A real <button> with `role="checkbox"` + `aria-checked` conveying the state,
-// named statelessly by the item label (so a screen reader announces e.g.
-// "<label>, checkbox, checked" rather than a redundant action verb + state).
-// Gold fill + check glyph when checked; an empty high-contrast well otherwise.
-// ~36px square (min recommended 28–32px, sized up for gloves). The label area
-// is ALSO click-to-toggle (see ItemRow) for a large hit zone; this remains the
-// explicit, labelled checkbox.
+// Primary toggle — the most-used action. A real <button> with `role="checkbox"`
+// + `aria-checked` conveying the state, named statelessly by the item label (so
+// a screen reader announces e.g. "<label>, checkbox, checked" rather than a
+// redundant action verb + state). Small gold filled check when checked (dark
+// glyph on gold, matching the reference bench guide's gold checkmarks); a thin
+// gold-ringed transparent well otherwise. 28px square — small but still a
+// comfortable tap target paired with the click-to-toggle label area (see
+// ItemRow), which provides the larger hit zone for gloved bench use. This
+// remains the explicit, labelled checkbox.
 function ToggleCheckbox({
   item,
   disabled,
@@ -211,13 +213,13 @@ function ToggleCheckbox({
       aria-checked={item.checked}
       aria-label={item.label || `Item ${item.ordinal + 1}`}
       disabled={blocked || pending}
-      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-command-gold ${
+      className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-command-gold ${
         item.checked
-          ? "border-status-green bg-status-green text-deep-space"
-          : "border-panel-border bg-deep-space text-transparent hover:border-command-gold"
+          ? "border-command-gold bg-command-gold text-deep-space"
+          : "border-command-gold bg-transparent text-transparent hover:border-gold-light"
       } ${blocked ? "opacity-40" : ""}`}
     >
-      <CheckIcon className="h-5 w-5" />
+      <CheckIcon className="h-4 w-4" />
     </button>
   );
 }
@@ -267,15 +269,11 @@ function ItemRow({
   useMutatedEffect(naState, onMutated);
   useMutatedEffect(deleteState, onMutated);
 
-  // Zebra striping so rows are easy to track on a busy bench display.
-  const zebra = rowIndex % 2 === 0 ? "bg-deep-space/40" : "bg-navy-dark/40";
-  // Checked / N-A rows read as resolved: a touch dimmer + a status hairline.
+  // Subtle zebra so rows are easy to track on a busy bench display without
+  // turning each row into a heavy box: odd rows carry a faint navy wash, even
+  // rows stay transparent. Light hover. Resolved rows dim a touch.
+  const zebra = rowIndex % 2 === 1 ? "bg-navy-dark/20" : "";
   const resolved = item.checked || item.notApplicable;
-  const stateAccent = item.checked
-    ? "border-l-2 border-l-status-green"
-    : item.notApplicable
-      ? "border-l-2 border-l-command-gold"
-      : "border-l-2 border-l-transparent";
   // The label area is a second large toggle target. We render it as a tiny
   // form so the click posts the same toggle action as the explicit checkbox.
   // Disabled when frozen or N/A (matching the checkbox), in which case it is
@@ -284,13 +282,13 @@ function ItemRow({
 
   return (
     <li
-      className={`rounded-md ${zebra} ${stateAccent} ${
-        resolved ? "opacity-90" : ""
+      className={`border-b border-[rgba(170,170,170,0.08)] transition-colors hover:bg-navy-dark/30 ${zebra} ${
+        resolved ? "opacity-70" : ""
       }`}
     >
-      <div className="flex items-start gap-3 p-3 sm:gap-4">
-        {/* Big checkbox — its own form so the toggle posts on submit. */}
-        <form action={toggleAction} className="pt-0.5">
+      <div className="flex items-center gap-3 px-2 py-3.5 sm:gap-4">
+        {/* Checkbox — its own form so the toggle posts on submit. */}
+        <form action={toggleAction} className="flex items-center">
           <input type="hidden" name="id" value={item.id} />
           <input
             type="hidden"
@@ -410,10 +408,10 @@ function ItemRow({
                     item.notApplicable ? "Clear N/A" : "Mark as N/A"
                   }
                   disabled={disabled || item.checked}
-                  className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border transition-colors disabled:opacity-40 ${
+                  className={`inline-flex shrink-0 items-center justify-center rounded p-2.5 transition-colors disabled:opacity-40 ${
                     item.notApplicable
-                      ? "border-command-gold bg-command-gold text-deep-space"
-                      : "border-panel-border bg-navy-dark text-link-muted hover:border-command-gold hover:text-command-gold"
+                      ? "text-command-gold hover:bg-navy-dark/40"
+                      : "text-muted hover:bg-navy-dark/40 hover:text-command-gold"
                   }`}
                 >
                   <NotApplicableIcon className="h-5 w-5" />
@@ -450,7 +448,12 @@ function ItemRow({
                   disabled={disabled}
                   tone="danger"
                 >
-                  <CheckIcon className="h-5 w-5" />
+                  {/* Armed confirm reads red at rest (the icon inherits this
+                      span's color via currentColor) so the destructive step is
+                      unmistakable while the button stays ghost-light. */}
+                  <span className="text-alert-red">
+                    <CheckIcon className="h-5 w-5" />
+                  </span>
                 </IconButton>
               </form>
               <IconButton

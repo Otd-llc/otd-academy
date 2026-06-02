@@ -21,21 +21,22 @@ export function ChecklistItemLabelCell({
   const struck = checked || notApplicable;
   return (
     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      {/* Ordinal badge — high-contrast mono numeral so the step is callable
-          out loud ("number five") at a glance on a bench display. */}
+      {/* Ordinal badge — small, light mono numeral so the step is callable
+          out loud ("number five") at a glance without shouting over the
+          label. Gold normally, muted when the row is resolved. */}
       <span
-        className={`shrink-0 font-mono text-sm font-bold tabular-nums tracking-wider ${
+        className={`shrink-0 font-mono text-xs font-bold tabular-nums ${
           struck ? "text-muted" : "text-command-gold"
         }`}
       >
         #{ordinal + 1}
       </span>
-      {/* Label — larger + bolder than the prior `text-base` so it stays
-          readable from arm's length; wraps freely (no truncation). A checked
+      {/* Label — readable serif body (Lora) so full sentences scan easily,
+          not the prior heavy mono. Wraps freely (no truncation). A checked
           or N/A row dims + strikes the label so "done" reads instantly. */}
       <p
-        className={`min-w-0 text-lg font-semibold leading-snug ${
-          struck ? "text-muted line-through" : "text-white"
+        className={`min-w-0 font-serif text-[15px] leading-relaxed ${
+          struck ? "text-muted line-through" : "text-gray-1"
         }`}
       >
         {label}
