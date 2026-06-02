@@ -21,6 +21,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
+import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import { GuideBlocks } from "@/components/guide/GuideBlocks";
 import { StageGate } from "@/components/guide/StageGate";
 import { BoardSelector } from "@/components/guide/BoardSelector";
@@ -242,12 +243,16 @@ export default async function GuideCardPage({
         {prevStage ? (
           <Link
             href={cardHref(prevStage)}
-            className="text-link-muted transition-colors hover:text-command-gold"
+            className="inline-flex items-center gap-1.5 text-link-muted transition-colors hover:text-command-gold"
           >
-            ← {prevStage}
+            <ChevronLeftIcon className="h-3.5 w-3.5" />
+            {prevStage}
           </Link>
         ) : (
-          <span className="text-muted opacity-40">← {stage}</span>
+          <span className="inline-flex items-center gap-1.5 text-muted opacity-40">
+            <ChevronLeftIcon className="h-3.5 w-3.5" />
+            {stage}
+          </span>
         )}
         <Link
           href={hubHref}
@@ -258,12 +263,16 @@ export default async function GuideCardPage({
         {nextStage ? (
           <Link
             href={cardHref(nextStage)}
-            className="text-link-muted transition-colors hover:text-command-gold"
+            className="inline-flex items-center gap-1.5 text-link-muted transition-colors hover:text-command-gold"
           >
-            {nextStage} →
+            {nextStage}
+            <ChevronRightIcon className="h-3.5 w-3.5" />
           </Link>
         ) : (
-          <span className="text-muted opacity-40">{stage} →</span>
+          <span className="inline-flex items-center gap-1.5 text-muted opacity-40">
+            {stage}
+            <ChevronRightIcon className="h-3.5 w-3.5" />
+          </span>
         )}
       </nav>
     </main>
