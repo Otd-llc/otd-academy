@@ -1,11 +1,14 @@
 "use client";
 
 // Inline edit-in-place fields for the project detail page. Each field is a
-// tiny client form that renders an input + Save button and submits the
+// tiny client form that renders an input + save *icon* and submits the
 // matching server action. Field errors come back via useActionState.
 //
-// "Edit in place" is intentionally simple for Phase 1 — server actions
-// handle writes; there's no fancy optimistic UI.
+// Save buttons are square glass icon buttons that sit INLINE next to the
+// input they save — see the screenshot the user critiqued: a column of
+// stacked "SAVE" text buttons reads as overkill when each field is its
+// own form. An icon button next to the field reads as the natural
+// "commit this change" affordance for the field above / left.
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import {
@@ -25,15 +28,46 @@ import { InlineBanner } from "@/components/InlineBanner";
 
 const initialState: ProjectFormState = {};
 
-function SaveButton() {
+// Square glass icon button. While the action is running, the floppy
+// flips to a rotating arc so the user knows it's in flight.
+function SaveButton({ className = "" }: { className?: string }) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
       disabled={pending}
-      className="rounded border border-panel-border bg-deep-space px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:border-command-gold disabled:opacity-50"
+      title={pending ? "Saving…" : "Save"}
+      aria-label={pending ? "Saving" : "Save"}
+      className={`glass-button inline-flex h-9 w-9 shrink-0 items-center justify-center rounded text-command-gold transition-colors hover:text-gold-light disabled:opacity-50 ${className}`}
     >
-      {pending ? "WORKING…" : "Save"}
+      {pending ? (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          aria-hidden
+          className="h-4 w-4 animate-spin"
+        >
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
+      ) : (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+          className="h-4 w-4"
+        >
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+          <polyline points="17 21 17 13 7 13 7 21" />
+          <polyline points="7 3 7 8 15 8" />
+        </svg>
+      )}
     </button>
   );
 }
@@ -59,16 +93,18 @@ function ActionMessage({ state }: { state: ProjectFormState }) {
 export function EditNameForm({ id, value }: { id: string; value: string }) {
   const [state, action] = useActionState(editProjectNameAction, initialState);
   return (
-    <form action={action} className="flex items-start gap-2">
+    <form action={action} className="space-y-1">
       <input type="hidden" name="id" value={id} />
-      <input
-        name="name"
-        defaultValue={value}
-        required
-        maxLength={200}
-        className="flex-1 rounded border border-panel-border bg-deep-space px-3 py-2 font-display text-2xl tracking-wider text-command-gold focus:border-command-gold focus:outline-none"
-      />
-      <SaveButton />
+      <div className="flex items-start gap-2">
+        <input
+          name="name"
+          defaultValue={value}
+          required
+          maxLength={200}
+          className="flex-1 rounded border border-panel-border bg-deep-space px-3 py-2 font-display text-2xl tracking-wider text-command-gold focus:border-command-gold focus:outline-none"
+        />
+        <SaveButton className="mt-1 h-10 w-10" />
+      </div>
       <FieldError messages={state.errors?.name} />
       <ActionMessage state={state} />
     </form>
@@ -92,14 +128,16 @@ export function EditDescriptionForm({
       <label className="block font-mono text-xs uppercase tracking-wider text-muted">
         Description
       </label>
-      <textarea
-        name="description"
-        defaultValue={value ?? ""}
-        rows={3}
-        maxLength={2000}
-        className="w-full rounded border border-panel-border bg-deep-space px-3 py-2 font-serif text-base text-link-muted focus:border-command-gold focus:outline-none"
-      />
-      <SaveButton />
+      <div className="flex items-start gap-2">
+        <textarea
+          name="description"
+          defaultValue={value ?? ""}
+          rows={3}
+          maxLength={2000}
+          className="flex-1 rounded border border-panel-border bg-deep-space px-3 py-2 font-serif text-base text-link-muted focus:border-command-gold focus:outline-none"
+        />
+        <SaveButton />
+      </div>
       <FieldError messages={state.errors?.description} />
       <ActionMessage state={state} />
     </form>
@@ -123,14 +161,16 @@ export function EditRepoUrlForm({
       <label className="block font-mono text-xs uppercase tracking-wider text-muted">
         Repo URL
       </label>
-      <input
-        name="repoUrl"
-        type="url"
-        defaultValue={value ?? ""}
-        placeholder="https://github.com/you/your-project"
-        className="w-full rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
-      />
-      <SaveButton />
+      <div className="flex items-start gap-2">
+        <input
+          name="repoUrl"
+          type="url"
+          defaultValue={value ?? ""}
+          placeholder="https://github.com/you/your-project"
+          className="flex-1 rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+        />
+        <SaveButton />
+      </div>
       <FieldError messages={state.errors?.repoUrl} />
       <ActionMessage state={state} />
     </form>
@@ -154,15 +194,17 @@ export function EditTargetCostForm({
       <label className="block font-mono text-xs uppercase tracking-wider text-muted">
         Target cost (USD)
       </label>
-      <input
-        name="targetCost"
-        type="number"
-        step="0.01"
-        min="0"
-        defaultValue={value ?? ""}
-        className="w-full rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
-      />
-      <SaveButton />
+      <div className="flex items-start gap-2">
+        <input
+          name="targetCost"
+          type="number"
+          step="0.01"
+          min="0"
+          defaultValue={value ?? ""}
+          className="flex-1 rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+        />
+        <SaveButton />
+      </div>
       <FieldError messages={state.errors?.targetCost} />
       <ActionMessage state={state} />
     </form>
@@ -183,18 +225,20 @@ export function EditTrackForm({
       <label className="block font-mono text-xs uppercase tracking-wider text-muted">
         Track
       </label>
-      <select
-        name="track"
-        defaultValue={value ?? ""}
-        className="block w-full rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
-      >
-        <option value="">— none —</option>
-        <option value="SENSE">SENSE</option>
-        <option value="ACT">ACT</option>
-        <option value="POWER">POWER</option>
-        <option value="COMMS">COMMS</option>
-      </select>
-      <SaveButton />
+      <div className="flex items-start gap-2">
+        <select
+          name="track"
+          defaultValue={value ?? ""}
+          className="flex-1 rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+        >
+          <option value="">— none —</option>
+          <option value="SENSE">SENSE</option>
+          <option value="ACT">ACT</option>
+          <option value="POWER">POWER</option>
+          <option value="COMMS">COMMS</option>
+        </select>
+        <SaveButton />
+      </div>
       <FieldError messages={state.errors?.track} />
       <ActionMessage state={state} />
     </form>
@@ -215,17 +259,19 @@ export function EditLevelForm({
       <label className="block font-mono text-xs uppercase tracking-wider text-muted">
         Level
       </label>
-      <select
-        name="level"
-        defaultValue={value ?? ""}
-        className="block w-full rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
-      >
-        <option value="">— none —</option>
-        <option value="L1">L1</option>
-        <option value="L2">L2</option>
-        <option value="L3">L3</option>
-      </select>
-      <SaveButton />
+      <div className="flex items-start gap-2">
+        <select
+          name="level"
+          defaultValue={value ?? ""}
+          className="flex-1 rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+        >
+          <option value="">— none —</option>
+          <option value="L1">L1</option>
+          <option value="L2">L2</option>
+          <option value="L3">L3</option>
+        </select>
+        <SaveButton />
+      </div>
       <FieldError messages={state.errors?.level} />
       <ActionMessage state={state} />
     </form>
@@ -249,14 +295,16 @@ export function EditDisciplineTaughtForm({
       <label className="block font-mono text-xs uppercase tracking-wider text-muted">
         Discipline taught
       </label>
-      <input
-        name="disciplineTaught"
-        type="text"
-        maxLength={200}
-        defaultValue={value ?? ""}
-        className="w-full rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
-      />
-      <SaveButton />
+      <div className="flex items-start gap-2">
+        <input
+          name="disciplineTaught"
+          type="text"
+          maxLength={200}
+          defaultValue={value ?? ""}
+          className="flex-1 rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+        />
+        <SaveButton />
+      </div>
       <FieldError messages={state.errors?.disciplineTaught} />
       <ActionMessage state={state} />
     </form>
@@ -275,19 +323,19 @@ export function EditCriticalPathForm({
     initialState,
   );
   return (
-    <form action={action} className="space-y-2">
+    <form action={action} className="space-y-1">
       <input type="hidden" name="id" value={id} />
-      <label className="inline-flex items-center gap-2">
-        <input
-          name="criticalPath"
-          type="checkbox"
-          defaultChecked={value}
-        />
-        <span className="font-mono text-xs uppercase tracking-wider text-muted">
-          Critical path (uncheck for bench tool)
-        </span>
-      </label>
-      <div>
+      <div className="flex items-center justify-between gap-2">
+        <label className="inline-flex items-center gap-2">
+          <input
+            name="criticalPath"
+            type="checkbox"
+            defaultChecked={value}
+          />
+          <span className="font-mono text-xs uppercase tracking-wider text-muted">
+            Critical path (uncheck for bench tool)
+          </span>
+        </label>
         <SaveButton />
       </div>
       <FieldError messages={state.errors?.criticalPath} />
@@ -308,19 +356,19 @@ export function EditRequiresStripboardForm({
     initialState,
   );
   return (
-    <form action={action} className="space-y-2">
+    <form action={action} className="space-y-1">
       <input type="hidden" name="id" value={id} />
-      <label className="inline-flex items-center gap-2">
-        <input
-          name="requiresStripboard"
-          type="checkbox"
-          defaultChecked={value}
-        />
-        <span className="font-mono text-xs uppercase tracking-wider text-muted">
-          Requires stripboard de-risk rung
-        </span>
-      </label>
-      <div>
+      <div className="flex items-center justify-between gap-2">
+        <label className="inline-flex items-center gap-2">
+          <input
+            name="requiresStripboard"
+            type="checkbox"
+            defaultChecked={value}
+          />
+          <span className="font-mono text-xs uppercase tracking-wider text-muted">
+            Requires stripboard de-risk rung
+          </span>
+        </label>
         <SaveButton />
       </div>
       <FieldError messages={state.errors?.requiresStripboard} />
@@ -344,22 +392,22 @@ export function EditHasMainsNetForm({
     initialState,
   );
   return (
-    <form action={action} className="space-y-2">
+    <form action={action} className="space-y-1">
       <input type="hidden" name="id" value={id} />
-      <label
-        className="inline-flex items-center gap-2"
-        title="When checked, BOM_SOURCING gate requires at least one BomLine.part.isCertifiedModule === true"
-      >
-        <input
-          name="hasMainsNet"
-          type="checkbox"
-          defaultChecked={value}
-        />
-        <span className="font-mono text-xs uppercase tracking-wider text-muted">
-          Has mains net (requires certified-module BOM line)
-        </span>
-      </label>
-      <div>
+      <div className="flex items-center justify-between gap-2">
+        <label
+          className="inline-flex items-center gap-2"
+          title="When checked, BOM_SOURCING gate requires at least one BomLine.part.isCertifiedModule === true"
+        >
+          <input
+            name="hasMainsNet"
+            type="checkbox"
+            defaultChecked={value}
+          />
+          <span className="font-mono text-xs uppercase tracking-wider text-muted">
+            Has mains net (requires certified-module BOM line)
+          </span>
+        </label>
         <SaveButton />
       </div>
       <FieldError messages={state.errors?.hasMainsNet} />
