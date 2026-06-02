@@ -200,3 +200,24 @@ body {
     line-height: 1.5;
   }
 }
+
+/*
+ * Animation primitives — lifted from bioscale-viz/src/styles/base.css.
+ * `pulse` ramps opacity between 0.35 and 0.8 over ~2.8s; used on the
+ * sign-in / loading brand mark to give the page a heartbeat without
+ * any JS.
+ */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.animate-pulse-brand {
+  animation: pulse 2.8s ease-in-out infinite;
+}
+

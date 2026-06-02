@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { signIn } from "@/auth";
 import { InlineBanner } from "@/components/InlineBanner";
 
@@ -37,8 +38,20 @@ export default async function SignInPage({
       )}
 
       <div className="z-10 flex flex-col items-center text-center">
+        {/* Brand mark — pulses opacity 0.35 ↔ 0.8 every 2.8s. Sized to
+            match the hex viz loading screen (72px desktop / 60px mobile)
+            so the foundry boot screen reads as a sibling experience. */}
+        <Image
+          src="/brand/1kd-icon.svg"
+          alt="One Thousand Drones"
+          width={72}
+          height={72}
+          priority
+          className="animate-pulse-brand h-[60px] w-[60px] sm:h-[72px] sm:w-[72px]"
+        />
+
         <h1
-          className="font-display text-gray-1"
+          className="mt-7 font-display text-gray-1"
           style={{
             fontSize: "clamp(2.25rem, 6.4vw, 4rem)",
             letterSpacing: "clamp(0.25rem, 0.9vw, 0.45rem)",
@@ -50,7 +63,7 @@ export default async function SignInPage({
           Hardware engineering · 9-stage workflow
         </p>
         <p className="mt-5 font-serif text-base italic text-gold-dim sm:text-lg">
-          Sign in to continue to the foundry.
+          Where prototypes become production.
         </p>
 
         <form
