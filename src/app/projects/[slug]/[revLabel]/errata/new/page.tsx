@@ -7,6 +7,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
+import { ChevronLeftIcon } from "@/components/icons";
 import { NewErratumForm } from "./_form";
 
 type Params = { slug: string; revLabel: string };
@@ -52,9 +53,10 @@ export default async function NewErratumPage({
       <nav className="mb-6 font-mono text-xs uppercase tracking-wider">
         <Link
           href={`/projects/${project.slug}/${encodeURIComponent(revision.label)}`}
-          className="text-signal-blue underline"
+          className="inline-flex items-center gap-1.5 text-signal-blue underline"
         >
-          ← {project.name} / {revision.label}
+          <ChevronLeftIcon className="h-4 w-4" />
+          {project.name} / {revision.label}
         </Link>
       </nav>
 

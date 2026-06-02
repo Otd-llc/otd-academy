@@ -29,6 +29,7 @@ import {
   RevisionChecklistsPane,
   isRevisionChecklistVisibleAtStage,
 } from "@/components/RevisionChecklistsPane";
+import { ChevronLeftIcon, PlusIcon } from "@/components/icons";
 
 type Params = { slug: string; revLabel: string };
 
@@ -133,8 +134,12 @@ export default async function RevisionDetailPage({
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
       <nav className="mb-6 flex items-center justify-between gap-4 font-mono text-xs uppercase tracking-wider">
-        <Link href={`/projects/${project.slug}`} className="text-signal-blue underline">
-          ← {project.name}
+        <Link
+          href={`/projects/${project.slug}`}
+          className="inline-flex items-center gap-1.5 text-signal-blue underline"
+        >
+          <ChevronLeftIcon className="h-4 w-4" />
+          {project.name}
         </Link>
         {/* Task 9.4: link to the learner-guide hub. Matches this page's
             signal-blue link convention (the bench nav-back gold is reserved
@@ -253,9 +258,10 @@ export default async function RevisionDetailPage({
               {canCreateBuild ? (
                 <Link
                   href={`/projects/${project.slug}/${encodeURIComponent(revision.label)}/builds/new`}
-                  className="rounded border border-command-gold bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+                  className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
                 >
-                  + New build
+                  <PlusIcon className="h-4 w-4" />
+                  New build
                 </Link>
               ) : null}
             </div>

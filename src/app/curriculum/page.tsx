@@ -9,6 +9,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { CurriculumDag, type ProjectCard } from "@/components/CurriculumDag";
+import { ChevronLeftIcon } from "@/components/icons";
 
 export default async function CurriculumPage() {
   // One query — pull each non-archived project with both edge sides and its
@@ -65,8 +66,12 @@ export default async function CurriculumPage() {
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
       <nav className="mb-6 font-mono text-xs uppercase tracking-wider">
-        <Link href="/" className="text-signal-blue underline">
-          ← All projects
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-signal-blue underline"
+        >
+          <ChevronLeftIcon className="h-4 w-4" />
+          All projects
         </Link>
       </nav>
 

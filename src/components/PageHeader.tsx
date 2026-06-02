@@ -2,13 +2,15 @@
 //
 // Pure presentational; safe as a server component (no client hooks, no state).
 // Renders the bench-console header stack:
-//   - optional `.nav-back` breadcrumb ("← {backLabel}")
+//   - optional `.nav-back` breadcrumb (ChevronLeftIcon + {backLabel})
 //   - `.meta-strip` of mono key/value pairs with "/" `.sep` separators
 //   - `.bench-hero` Bebas title with a gold `.ord` eyebrow and an optional
 //     trailing gold `.accent` word
 //   - optional `.subhead` Lora-italic lead
 //
 // The CSS recipes live in `src/app/globals.css` (@layer components, Task 8.1).
+
+import { ChevronLeftIcon } from "@/components/icons";
 
 export interface PageHeaderMeta {
   label: string;
@@ -97,8 +99,8 @@ export function PageHeader({
     <header className="mb-10">
       {backHref ? (
         <a href={backHref} className="nav-back">
-          <span className="arrow" aria-hidden="true">
-            ←
+          <span className="arrow inline-flex" aria-hidden="true">
+            <ChevronLeftIcon className="h-3.5 w-3.5" />
           </span>
           {backLabel}
         </a>

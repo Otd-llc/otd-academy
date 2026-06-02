@@ -10,7 +10,7 @@
 //   • Advance: unfrozen revision AND currentStage !== "REVISION".
 //   • Regress: unfrozen revision AND currentStage !== "REQUIREMENTS".
 //
-// Regress UX is now inline — click ← Regress to expand a glass-card panel
+// Regress UX is now inline — click Regress to expand a glass-card panel
 // in-place with an OPTIONAL reason field + dependents-at-risk advisory +
 // Confirm / Cancel. No <dialog> modal. The reason defaults to
 // "Manual rollback" on the server side when blank so the audit trail still
@@ -30,6 +30,7 @@ import {
   RegressAtRiskBanner,
   type RegressAtRiskEntry,
 } from "@/components/RegressAtRiskBanner";
+import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 
 const initialState: StageFormState = {};
 
@@ -39,9 +40,16 @@ function AdvanceSubmit() {
     <button
       type="submit"
       disabled={pending}
-      className="glass-button glass-button-cta px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider"
+      className="glass-button glass-button-cta inline-flex items-center gap-1.5 px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider"
     >
-      {pending ? "WORKING…" : "Advance →"}
+      {pending ? (
+        "WORKING…"
+      ) : (
+        <>
+          Advance
+          <ChevronRightIcon className="h-4 w-4" />
+        </>
+      )}
     </button>
   );
 }
@@ -138,9 +146,10 @@ export function StageActions({
           <button
             type="button"
             onClick={() => setConfirming((v) => !v)}
-            className="glass-button glass-button-danger px-4 py-2 font-mono text-xs uppercase tracking-wider"
+            className="glass-button glass-button-danger inline-flex items-center gap-1.5 px-4 py-2 font-mono text-xs uppercase tracking-wider"
           >
-            ← Regress
+            <ChevronLeftIcon className="h-4 w-4" />
+            Regress
           </button>
         ) : null}
         {canAdvance ? (
@@ -157,7 +166,7 @@ export function StageActions({
 
       {/* Inline regress confirm panel — replaces the previous <dialog>
           modal. Expands in-place under the action row when the user
-          clicks ← Regress; collapses when they confirm or cancel. */}
+          clicks Regress; collapses when they confirm or cancel. */}
       {canRegress && confirming ? (
         <form
           action={(formData) => {

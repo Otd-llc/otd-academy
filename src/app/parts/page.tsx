@@ -7,6 +7,7 @@
 // allowlist rather than passed raw into `where`).
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { ChevronLeftIcon, PlusIcon } from "@/components/icons";
 
 function FilterChip({
   label,
@@ -63,15 +64,17 @@ export default async function PartsListPage({
         <div className="flex items-center gap-4 font-mono text-xs uppercase">
           <Link
             href="/"
-            className="text-signal-blue underline"
+            className="inline-flex items-center gap-1.5 text-signal-blue underline"
           >
-            ← Projects
+            <ChevronLeftIcon className="h-4 w-4" />
+            Projects
           </Link>
           <Link
             href="/parts/new"
-            className="rounded border border-panel-border bg-navy-dark px-4 py-2 text-command-gold transition-colors hover:border-command-gold"
+            className="inline-flex items-center gap-1.5 rounded border border-panel-border bg-navy-dark px-4 py-2 text-command-gold transition-colors hover:border-command-gold"
           >
-            + New part
+            <PlusIcon className="h-4 w-4" />
+            New part
           </Link>
         </div>
       </div>
