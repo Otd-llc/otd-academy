@@ -33,6 +33,17 @@ describe("canonical checklist templates", () => {
     ]);
   });
 
+  // m5 (learner-guide): POST_ASSEMBLY_CONTINUITY canonical template — the
+  // ASSEMBLY guide card's buildChecklist completionRef materializes this on
+  // the active Build. The ASSEMBLY exit gate matches on this subkind
+  // (`stages.ts` ~382), so the template stage must be ASSEMBLY.
+  test("POST_ASSEMBLY_CONTINUITY template has continuity/rail items", () => {
+    const t = CANONICAL_TEMPLATES.POST_ASSEMBLY_CONTINUITY;
+    expect(t.subkind).toBe("POST_ASSEMBLY_CONTINUITY");
+    expect(t.stage).toBe("ASSEMBLY");
+    expect(t.items.length).toBeGreaterThan(0);
+  });
+
   // m17: STRIPBOARD_VALIDATION canonical template — gated at BOM_SOURCING
   // exit when project.requiresStripboard === true (proposal §3 #4).
   test("STRIPBOARD_VALIDATION template has 5 canonical items", () => {

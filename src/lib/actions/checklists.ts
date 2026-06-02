@@ -590,14 +590,23 @@ export async function deleteChecklistItem(input: unknown) {
   return { ok: true as const };
 }
 
-// ─── materializeCanonicalChecklist (m16 / Task 16.7) ───
+// ─── materializeCanonicalChecklist (m16 / Task 16.7; m5 build owner) ───
 //
 // Turns a canonical TypeScript-literal template
-// (`CANONICAL_TEMPLATES[templateKey]`) into a real Revision-scoped Checklist
-// with its items inside a single Serializable transaction. Refuses to
-// materialize twice for the same `(revisionId, subkind)` pair — the existing
-// row should be edited instead. Frozen revisions are rejected via
-// `assertNotFrozen`.
+// (`CANONICAL_TEMPLATES[templateKey]`) into a real Checklist with its items
+// inside a single Serializable transaction. The owner is `revisionId XOR
+// buildId` (the schema enforces exactly one):
+//
+//   Revision-scoped (default) → assertNotFrozen(rev); dedupe by
+//                               (revisionId, subkind); revalidate rev route.
+//   Build-scoped (m5)         → resolve rev from build, assertNotFrozen(rev)
+//                               + assertBuildNotFrozen(build); dedupe by
+//                               (buildId, subkind); revalidate build route.
+//                               Mirrors createChecklist's build-owner branch.
+//
+// Refuses to materialize twice for the same `(owner, subkind)` pair — the
+// existing row should be edited instead. The "already exists" message text
+// is asserted in tests so keep it stable.
 export async function materializeCanonicalChecklist(input: unknown) {
   const data = materializeCanonicalChecklistSchema.parse(input);
   const user = await requireUser();
@@ -606,16 +615,49 @@ export async function materializeCanonicalChecklist(input: unknown) {
   const checklist = await withTxRetry(() =>
     db.$transaction(
       async (tx) => {
-        await assertNotFrozen(tx, data.revisionId);
+        // Build-scoped owner: resolve the parent revision and apply BOTH
+        // freeze guards, mirroring createChecklist's build-owner branch.
+        if (data.buildId) {
+          const buildId = data.buildId;
+          const build = await tx.build.findUniqueOrThrow({
+            where: { id: buildId },
+            select: { revisionId: true },
+          });
+          await assertNotFrozen(tx, build.revisionId);
+          await assertBuildNotFrozen(tx, buildId);
 
-        // Guard: refuse to materialize twice for the same (revision, subkind).
-        // The plan-quoted error message is asserted in tests so keep this
-        // string stable.
+          const existing = await tx.checklist.findFirst({
+            where: { buildId, subkind: template.subkind },
+          });
+          if (existing) {
+            throw new Error(
+              `A ${template.subkind} checklist already exists for this build.`,
+            );
+          }
+
+          return tx.checklist.create({
+            data: {
+              buildId,
+              stage: template.stage,
+              subkind: template.subkind,
+              title: template.title,
+              createdById: user.id,
+              items: {
+                create: template.items.map((it, idx) => ({
+                  ordinal: idx,
+                  label: it.label,
+                })),
+              },
+            },
+          });
+        }
+
+        // Revision-scoped owner (default, unchanged from m16).
+        const revisionId = data.revisionId!;
+        await assertNotFrozen(tx, revisionId);
+
         const existing = await tx.checklist.findFirst({
-          where: {
-            revisionId: data.revisionId,
-            subkind: template.subkind,
-          },
+          where: { revisionId, subkind: template.subkind },
         });
         if (existing) {
           throw new Error(
@@ -625,7 +667,7 @@ export async function materializeCanonicalChecklist(input: unknown) {
 
         return tx.checklist.create({
           data: {
-            revisionId: data.revisionId,
+            revisionId,
             stage: template.stage,
             subkind: template.subkind,
             title: template.title,
@@ -643,16 +685,14 @@ export async function materializeCanonicalChecklist(input: unknown) {
     ),
   );
 
-  // Revalidate the revision detail route so the new pane row shows up.
-  const rev = await db.revision.findUniqueOrThrow({
-    where: { id: data.revisionId },
-    select: {
-      label: true,
-      project: { select: { slug: true } },
-    },
-  });
-  revalidatePath(
-    `/projects/${rev.project.slug}/${encodeURIComponent(rev.label)}`,
+  // Revalidate the owning route so the new pane row shows up. Reuse the
+  // shared owner-router (revision route for rev-scoped, build route for
+  // build-scoped — mirrors createChecklist's revalidation).
+  await revalidateChecklistOwner(
+    db,
+    checklist.revisionId,
+    checklist.buildId,
+    checklist.boardId,
   );
   return checklist;
 }

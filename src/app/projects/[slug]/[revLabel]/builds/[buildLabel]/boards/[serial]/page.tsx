@@ -21,6 +21,7 @@ import {
   BoardSilkscreenHashField,
   BoardStatusField,
 } from "./_header-fields";
+import { ChevronLeftIcon } from "@/components/icons";
 
 type Params = {
   slug: string;
@@ -110,8 +111,12 @@ export default async function BoardDetailPage({
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
       <nav className="mb-6 font-mono text-xs uppercase tracking-wider">
-        <Link href={buildHref} className="text-signal-blue underline">
-          ← {project.name} / {revision.label} / {build.label}
+        <Link
+          href={buildHref}
+          className="inline-flex items-center gap-1.5 text-signal-blue underline"
+        >
+          <ChevronLeftIcon className="h-4 w-4" />
+          {project.name} / {revision.label} / {build.label}
         </Link>
       </nav>
 

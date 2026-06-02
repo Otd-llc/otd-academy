@@ -819,3 +819,89 @@ describe("materializeCanonicalChecklist", () => {
     ).rejects.toThrow(/LAYOUT_REVIEW checklist already exists/);
   });
 });
+
+// ─── m5: build-scoped materializeCanonicalChecklist ─────────────────────────
+//
+// The ASSEMBLY guide card's buildChecklist completionRef materializes the
+// POST_ASSEMBLY_CONTINUITY template onto the active Build (not the Revision).
+// The generalized action accepts an optional `buildId` owner; dedupe is by
+// `(buildId, subkind)`; both the Revision AND the Build freeze guards apply.
+
+describe("materializeCanonicalChecklist — build-scoped (m5)", () => {
+  test("POST_ASSEMBLY_CONTINUITY on a build creates a build-scoped checklist + items; second call dedupes", async () => {
+    const rev = await makeRevAtStage(
+      "ASSEMBLY",
+      `t5.2-mat-build-${Date.now()}`,
+    );
+    const build = await makeBuild(rev.id, `BUILD-PAC-${Date.now()}`);
+
+    const checklist = await materializeCanonicalChecklist({
+      buildId: build.id,
+      templateKey: "POST_ASSEMBLY_CONTINUITY",
+    });
+    createdChecklistIds.push(checklist.id);
+
+    expect(checklist.buildId).toBe(build.id);
+    expect(checklist.revisionId).toBeNull();
+    expect(checklist.boardId).toBeNull();
+    expect(checklist.subkind).toBe("POST_ASSEMBLY_CONTINUITY");
+    expect(checklist.stage).toBe("ASSEMBLY");
+
+    const items = await db.checklistItem.findMany({
+      where: { checklistId: checklist.id },
+      orderBy: { ordinal: "asc" },
+    });
+    expect(items.length).toBeGreaterThan(0);
+    for (const it of items) {
+      expect(it.checked).toBe(false);
+      expect(it.notApplicable).toBe(false);
+    }
+
+    // Second call on the same build → dedupe by (buildId, subkind).
+    await expect(
+      materializeCanonicalChecklist({
+        buildId: build.id,
+        templateKey: "POST_ASSEMBLY_CONTINUITY",
+      }),
+    ).rejects.toThrow(/already exists/i);
+  });
+
+  test("frozen build: rejected", async () => {
+    const rev = await makeRevAtStage(
+      "ASSEMBLY",
+      `t5.2-mat-build-fzb-${Date.now()}`,
+    );
+    const build = await makeBuild(rev.id, `BUILD-PACFZB-${Date.now()}`);
+    await db.build.update({
+      where: { id: build.id },
+      data: { frozenAt: new Date() },
+    });
+
+    await expect(
+      materializeCanonicalChecklist({
+        buildId: build.id,
+        templateKey: "POST_ASSEMBLY_CONTINUITY",
+      }),
+    ).rejects.toThrow(/build is frozen/i);
+  });
+
+  test("frozen revision (build-scoped): rejected", async () => {
+    const user = await seedUser();
+    const rev = await makeRevAtStage(
+      "ASSEMBLY",
+      `t5.2-mat-build-fzr-${Date.now()}`,
+    );
+    const build = await makeBuild(rev.id, `BUILD-PACFZR-${Date.now()}`);
+    await db.revision.update({
+      where: { id: rev.id },
+      data: { frozenAt: new Date(), frozenById: user.id },
+    });
+
+    await expect(
+      materializeCanonicalChecklist({
+        buildId: build.id,
+        templateKey: "POST_ASSEMBLY_CONTINUITY",
+      }),
+    ).rejects.toThrow(/frozen/i);
+  });
+});

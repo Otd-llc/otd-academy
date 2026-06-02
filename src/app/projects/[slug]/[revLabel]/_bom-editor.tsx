@@ -12,7 +12,9 @@ import {
   type BomLineFormState,
 } from "@/lib/actions/bom-lines";
 import { CreatePartDialog, type PartOption } from "@/components/CreatePartDialog";
+import { DeleteConfirmButton } from "@/components/DeleteConfirmButton";
 import { InlineBanner } from "@/components/InlineBanner";
+import { PlusIcon } from "@/components/icons";
 
 type BomLineRow = {
   id: string;
@@ -111,10 +113,11 @@ export function BomEditor({
                 type="button"
                 onClick={() => setShowPartDialog(true)}
                 disabled={disabled}
-                className="rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-xs uppercase tracking-wider text-signal-blue transition-colors hover:border-signal-blue disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-xs uppercase tracking-wider text-signal-blue transition-colors hover:border-signal-blue disabled:opacity-50"
                 title="Create new Part"
               >
-                +Part
+                <PlusIcon className="h-4 w-4" />
+                Part
               </button>
             </div>
             <FieldError messages={state.errors?.partId} />
@@ -191,16 +194,19 @@ export function BomEditor({
                 </span>
                 <span className="text-muted">qty {line.quantity}</span>
                 <span className="text-muted">{line.notes ?? ""}</span>
-                <form action={deleteBomLineAction}>
-                  <input type="hidden" name="id" value={line.id} />
-                  <button
-                    type="submit"
+                {/* Delete — shared two-tap trash confirm. Posts the unchanged
+                    deleteBomLineAction (plain FormData action); the hidden `id`
+                    is carried inside DeleteConfirmButton's own form. */}
+                <div className="flex items-center justify-end">
+                  <DeleteConfirmButton
+                    action={deleteBomLineAction}
+                    id={line.id}
+                    hint="Delete BOM line"
+                    ariaLabel="Delete BOM line"
+                    confirmAriaLabel="Confirm delete BOM line"
                     disabled={disabled}
-                    className="rounded border border-panel-border bg-deep-space px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-alert-red transition-colors hover:border-alert-red disabled:opacity-50"
-                  >
-                    Delete
-                  </button>
-                </form>
+                  />
+                </div>
               </li>
             ))}
           </ul>

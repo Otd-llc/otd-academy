@@ -25,6 +25,7 @@ import {
   type ErratumFormState,
   linkErratumFormAction,
 } from "@/lib/actions/errata-form";
+import { DeleteConfirmButton } from "@/components/DeleteConfirmButton";
 import { InlineBanner } from "@/components/InlineBanner";
 import { SaveButton } from "@/components/SaveButton";
 
@@ -71,19 +72,6 @@ function SubmitButton({ label }: { label: string }) {
       className="rounded border border-command-gold bg-navy-dark px-2 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
     >
       {pending ? "WORKING…" : label}
-    </button>
-  );
-}
-
-function DeleteButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="rounded border border-panel-border bg-navy-dark px-2 py-1 font-mono text-xs uppercase tracking-wider text-alert-red transition-colors hover:bg-alert-red hover:text-deep-space disabled:opacity-50"
-    >
-      {pending ? "WORKING…" : "Delete"}
     </button>
   );
 }
@@ -313,11 +301,19 @@ export function ErrataItem({
         </form>
       ) : null}
 
-      {/* Delete form. */}
-      <form action={deleteAction} className="flex items-center justify-end">
-        <input type="hidden" name="id" value={erratum.id} />
-        <DeleteButton />
-      </form>
+      {/* Delete — shared two-tap trash confirm (the inline confirm replaces the
+          prior plain submit's WORKING… safety). Posts the unchanged
+          deleteErratumFormAction via its useActionState dispatch; the hidden
+          `id` is carried inside DeleteConfirmButton's own form. */}
+      <div className="flex items-center justify-end">
+        <DeleteConfirmButton
+          action={deleteAction}
+          id={erratum.id}
+          hint="Delete erratum"
+          ariaLabel="Delete erratum"
+          confirmAriaLabel="Confirm delete erratum"
+        />
+      </div>
       {deleteState.message ? (
         <InlineBanner variant="error">{deleteState.message}</InlineBanner>
       ) : null}

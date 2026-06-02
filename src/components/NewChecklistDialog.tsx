@@ -20,6 +20,7 @@ import {
   createChecklistFormAction,
 } from "@/lib/actions/checklists-form";
 import { InlineBanner } from "@/components/InlineBanner";
+import { PlusIcon } from "@/components/icons";
 
 const initialState: ChecklistFormState = {};
 
@@ -84,9 +85,10 @@ export function NewChecklistDialog({
         onClick={() => ref.current?.showModal()}
         disabled={disabled}
         title={disabled ? disabledReason : undefined}
-        className="rounded border border-command-gold bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-40"
+        className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-40"
       >
-        + New checklist
+        <PlusIcon className="h-4 w-4" />
+        New checklist
       </button>
 
       <dialog

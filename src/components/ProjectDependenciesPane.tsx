@@ -18,6 +18,8 @@ import Link from "next/link";
 import {
   deleteProjectDependencyAction,
 } from "@/lib/actions/project-dependencies";
+import { DeleteConfirmButton } from "@/components/DeleteConfirmButton";
+import { PlusIcon } from "@/components/icons";
 import { EditDependencyNotesForm } from "./_pane-edits";
 
 export type OutboundEdge = {
@@ -57,9 +59,10 @@ export function ProjectDependenciesPane({
         </h2>
         <Link
           href={`/projects/${slug}/dependencies/new`}
-          className="rounded border border-command-gold bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+          className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
         >
-          + New dependency
+          <PlusIcon className="h-4 w-4" />
+          New dependency
         </Link>
       </div>
 
@@ -100,15 +103,17 @@ export function ProjectDependenciesPane({
                         </span>{" "}
                         <span className="text-muted">(kind={e.kind})</span>
                       </span>
-                      <form action={deleteProjectDependencyAction}>
-                        <input type="hidden" name="id" value={e.id} />
-                        <button
-                          type="submit"
-                          className="rounded border border-panel-border bg-deep-space px-3 py-1 font-mono text-xs uppercase tracking-wider text-alert-red transition-colors hover:border-alert-red"
-                        >
-                          Delete
-                        </button>
-                      </form>
+                      {/* Delete — shared two-tap trash confirm. Posts the
+                          unchanged deleteProjectDependencyAction (a server
+                          action, valid to pass to this client leaf); the hidden
+                          `id` is carried inside DeleteConfirmButton's own form. */}
+                      <DeleteConfirmButton
+                        action={deleteProjectDependencyAction}
+                        id={e.id}
+                        hint="Delete dependency"
+                        ariaLabel="Delete dependency"
+                        confirmAriaLabel="Confirm delete dependency"
+                      />
                     </div>
                     <EditDependencyNotesForm id={e.id} value={e.notes} />
                     <p className="font-mono text-xs uppercase tracking-wider text-muted">

@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
+import { ChevronLeftIcon } from "@/components/icons";
 import { NewRevisionForm } from "./_form";
 
 export default async function NewRevisionPage({
@@ -30,8 +31,12 @@ export default async function NewRevisionPage({
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-10">
       <nav className="mb-6 font-mono text-xs uppercase tracking-wider">
-        <Link href={`/projects/${project.slug}`} className="text-signal-blue underline">
-          ← {project.name}
+        <Link
+          href={`/projects/${project.slug}`}
+          className="inline-flex items-center gap-1.5 text-signal-blue underline"
+        >
+          <ChevronLeftIcon className="h-4 w-4" />
+          {project.name}
         </Link>
       </nav>
 

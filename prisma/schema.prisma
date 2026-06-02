@@ -30,6 +30,7 @@ model User {
   revisionsFrozen         Revision[]        @relation("FrozenBy")
   buildsCreated           Build[]
   checklistsCreated       Checklist[]
+  guidesCreated           Guide[]
   checklistItemsCompleted ChecklistItem[]   @relation("CompletedBy")
   measurementsTaken       Measurement[]
   projectDependenciesCreated ProjectDependency[]
@@ -120,6 +121,7 @@ model Revision {
   bomLines        BomLine[]
   builds          Build[]
   checklists      Checklist[]
+  guide           Guide?
   errata          Erratum[]         @relation("RevisionErrata")
   addressedErrata Erratum[]         @relation("AddressedByRevision")
   // Raw migration: CREATE UNIQUE INDEX revision_project_label_ci ON "Revision"(projectId, lower(label));
@@ -482,4 +484,37 @@ model ProjectDependency {
   @@unique([dependentProjectId, dependsOnProjectId, dependentStageGated])
   @@index([dependentProjectId])
   @@index([dependsOnProjectId])
+}
+
+model Guide {
+  id            String           @id @default(cuid())
+  revisionId    String           @unique
+  revision      Revision         @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  title         String
+  trackSnapshot CurriculumTrack?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  createdById   String
+  createdBy     User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  cards         GuideCard[]
+}
+
+model GuideCard {
+  id            String   @id @default(cuid())
+  guideId       String
+  guide         Guide    @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  stage         Stage
+  ordinal       Int
+  eyebrow       String
+  title         String
+  lead          String?
+  contentBlocks Json
+  isGate        Boolean  @default(false)
+  completionRef Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([guideId, ordinal])
+  @@unique([guideId, stage])
+  @@index([guideId])
 }

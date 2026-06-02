@@ -34,7 +34,6 @@ import {
   type GateResult,
   type StageName,
 } from "@/lib/stages";
-
 const STAGE_SHORT: Record<StageName, string> = {
   REQUIREMENTS: "REQ",
   SCHEMATIC: "SCH",
@@ -111,9 +110,15 @@ export async function StageTracker({ revision, ctx }: Props) {
           const fullLabel = `${num} / ${STAGE_LABELS[stage]}`;
 
           return (
+            // Native `title=` (hover-only, hydration-safe) rather than a Radix
+            // Tooltip: these chips are non-interactive status indicators (not
+            // tab stops), and wrapping all 9 in a Radix Tooltip under SSR churned
+            // `useId` and tripped a hydration mismatch. `aria-label` carries the
+            // full label for assistive tech regardless of hover.
             <li
               key={stage}
               title={fullLabel}
+              aria-label={fullLabel}
               className={`
                 flex min-w-0 flex-col items-center justify-center
                 overflow-hidden

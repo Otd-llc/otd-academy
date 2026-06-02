@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
+import { ChevronLeftIcon } from "@/components/icons";
 import { NewDependencyForm } from "./_form";
 
 export default async function NewDependencyPage({
@@ -33,9 +34,10 @@ export default async function NewDependencyPage({
       <nav className="mb-6 font-mono text-xs uppercase tracking-wider">
         <Link
           href={`/projects/${currentProject.slug}`}
-          className="text-signal-blue underline"
+          className="inline-flex items-center gap-1.5 text-signal-blue underline"
         >
-          ← {currentProject.name}
+          <ChevronLeftIcon className="h-4 w-4" />
+          {currentProject.name}
         </Link>
       </nav>
 

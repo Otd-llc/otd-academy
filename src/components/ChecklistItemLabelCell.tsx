@@ -20,13 +20,23 @@ export function ChecklistItemLabelCell({
 }): ReactNode {
   const struck = checked || notApplicable;
   return (
-    <div className="flex flex-wrap items-baseline gap-2">
-      <span className="font-mono text-xs uppercase tracking-wider text-muted">
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      {/* Ordinal badge — small, light mono numeral so the step is callable
+          out loud ("number five") at a glance without shouting over the
+          label. Gold normally, muted when the row is resolved. */}
+      <span
+        className={`shrink-0 font-mono text-xs font-bold tabular-nums ${
+          struck ? "text-muted" : "text-command-gold"
+        }`}
+      >
         #{ordinal + 1}
       </span>
+      {/* Label — readable serif body (Lora) so full sentences scan easily,
+          not the prior heavy mono. Wraps freely (no truncation). A checked
+          or N/A row dims + strikes the label so "done" reads instantly. */}
       <p
-        className={`font-serif text-base ${
-          struck ? "text-muted line-through" : "text-white"
+        className={`min-w-0 font-serif text-[15px] leading-relaxed ${
+          struck ? "text-muted line-through" : "text-gray-1"
         }`}
       >
         {label}

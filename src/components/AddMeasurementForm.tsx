@@ -6,7 +6,7 @@
 // createMeasurementFormAction. The stage default is sourced from the
 // parent (current revision stage) — most measurements happen at the
 // current stage and the picker can be flipped on the fly.
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { MeasurementResult, Stage } from "@prisma/client";
 import {
@@ -58,16 +58,29 @@ export function AddMeasurementForm({
   defaultStage,
   disabled,
   disabledReason,
+  onMutated,
 }: {
   boardId: string;
   defaultStage: Stage;
   disabled?: boolean;
   disabledReason?: string;
+  /**
+   * Optional post-commit hook. Fired once after a measurement is successfully
+   * created (state.ok). Existing non-guide call sites (MeasurementsLog) omit
+   * it, so behavior there is unchanged. The guide route supplies it to trigger
+   * a router.refresh() — the create action revalidates the board pane route,
+   * not the guide route, so without this the guide RSC stays stale.
+   */
+  onMutated?: () => void;
 }) {
   const [state, action] = useActionState(
     createMeasurementFormAction,
     initialState,
   );
+
+  useEffect(() => {
+    if (state.ok) onMutated?.();
+  }, [state, onMutated]);
 
   if (disabled) {
     return (
