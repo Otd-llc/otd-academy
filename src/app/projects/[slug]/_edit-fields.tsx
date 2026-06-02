@@ -1,14 +1,19 @@
 "use client";
 
 // Inline edit-in-place fields for the project detail page. Each field is a
-// tiny client form that renders an input + save *icon* and submits the
-// matching server action. Field errors come back via useActionState.
+// tiny client form that submits the matching server action. Field errors
+// come back via useActionState.
 //
-// Save buttons are square glass icon buttons that sit INLINE next to the
-// input they save — see the screenshot the user critiqued: a column of
-// stacked "SAVE" text buttons reads as overkill when each field is its
-// own form. An icon button next to the field reads as the natural
-// "commit this change" affordance for the field above / left.
+// Two patterns, picked per field type:
+//   • Autosave (no Save button) for selects + checkboxes — picking a value
+//     or toggling commits immediately via form.requestSubmit(). These
+//     inputs have no intermediate "typing" state worth waiting for; the
+//     visible field state IS the confirmation.
+//   • Inline floppy icon Save button for text inputs / textareas /
+//     numbers / URLs — these need an explicit commit because the user
+//     may still be typing. The icon sits beside the field, not below,
+//     so a column of stacked SAVE rectangles doesn't drown out the
+//     fields themselves.
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import {
@@ -225,20 +230,19 @@ export function EditTrackForm({
       <label className="block font-mono text-xs uppercase tracking-wider text-muted">
         Track
       </label>
-      <div className="flex items-start gap-2">
-        <select
-          name="track"
-          defaultValue={value ?? ""}
-          className="flex-1 rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
-        >
-          <option value="">— none —</option>
-          <option value="SENSE">SENSE</option>
-          <option value="ACT">ACT</option>
-          <option value="POWER">POWER</option>
-          <option value="COMMS">COMMS</option>
-        </select>
-        <SaveButton />
-      </div>
+      {/* Autosave: selects commit on change — no explicit Save needed. */}
+      <select
+        name="track"
+        defaultValue={value ?? ""}
+        onChange={(e) => e.currentTarget.form?.requestSubmit()}
+        className="block w-full rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+      >
+        <option value="">— none —</option>
+        <option value="SENSE">SENSE</option>
+        <option value="ACT">ACT</option>
+        <option value="POWER">POWER</option>
+        <option value="COMMS">COMMS</option>
+      </select>
       <FieldError messages={state.errors?.track} />
       <ActionMessage state={state} />
     </form>
@@ -259,19 +263,17 @@ export function EditLevelForm({
       <label className="block font-mono text-xs uppercase tracking-wider text-muted">
         Level
       </label>
-      <div className="flex items-start gap-2">
-        <select
-          name="level"
-          defaultValue={value ?? ""}
-          className="flex-1 rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
-        >
-          <option value="">— none —</option>
-          <option value="L1">L1</option>
-          <option value="L2">L2</option>
-          <option value="L3">L3</option>
-        </select>
-        <SaveButton />
-      </div>
+      <select
+        name="level"
+        defaultValue={value ?? ""}
+        onChange={(e) => e.currentTarget.form?.requestSubmit()}
+        className="block w-full rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+      >
+        <option value="">— none —</option>
+        <option value="L1">L1</option>
+        <option value="L2">L2</option>
+        <option value="L3">L3</option>
+      </select>
       <FieldError messages={state.errors?.level} />
       <ActionMessage state={state} />
     </form>
@@ -325,19 +327,18 @@ export function EditCriticalPathForm({
   return (
     <form action={action} className="space-y-1">
       <input type="hidden" name="id" value={id} />
-      <div className="flex items-center justify-between gap-2">
-        <label className="inline-flex items-center gap-2">
-          <input
-            name="criticalPath"
-            type="checkbox"
-            defaultChecked={value}
-          />
-          <span className="font-mono text-xs uppercase tracking-wider text-muted">
-            Critical path (uncheck for bench tool)
-          </span>
-        </label>
-        <SaveButton />
-      </div>
+      {/* Autosave: checkbox commits on toggle. No explicit Save button. */}
+      <label className="inline-flex items-center gap-2">
+        <input
+          name="criticalPath"
+          type="checkbox"
+          defaultChecked={value}
+          onChange={(e) => e.currentTarget.form?.requestSubmit()}
+        />
+        <span className="font-mono text-xs uppercase tracking-wider text-muted">
+          Critical path (uncheck for bench tool)
+        </span>
+      </label>
       <FieldError messages={state.errors?.criticalPath} />
       <ActionMessage state={state} />
     </form>
@@ -358,19 +359,17 @@ export function EditRequiresStripboardForm({
   return (
     <form action={action} className="space-y-1">
       <input type="hidden" name="id" value={id} />
-      <div className="flex items-center justify-between gap-2">
-        <label className="inline-flex items-center gap-2">
-          <input
-            name="requiresStripboard"
-            type="checkbox"
-            defaultChecked={value}
-          />
-          <span className="font-mono text-xs uppercase tracking-wider text-muted">
-            Requires stripboard de-risk rung
-          </span>
-        </label>
-        <SaveButton />
-      </div>
+      <label className="inline-flex items-center gap-2">
+        <input
+          name="requiresStripboard"
+          type="checkbox"
+          defaultChecked={value}
+          onChange={(e) => e.currentTarget.form?.requestSubmit()}
+        />
+        <span className="font-mono text-xs uppercase tracking-wider text-muted">
+          Requires stripboard de-risk rung
+        </span>
+      </label>
       <FieldError messages={state.errors?.requiresStripboard} />
       <ActionMessage state={state} />
     </form>
@@ -394,22 +393,20 @@ export function EditHasMainsNetForm({
   return (
     <form action={action} className="space-y-1">
       <input type="hidden" name="id" value={id} />
-      <div className="flex items-center justify-between gap-2">
-        <label
-          className="inline-flex items-center gap-2"
-          title="When checked, BOM_SOURCING gate requires at least one BomLine.part.isCertifiedModule === true"
-        >
-          <input
-            name="hasMainsNet"
-            type="checkbox"
-            defaultChecked={value}
-          />
-          <span className="font-mono text-xs uppercase tracking-wider text-muted">
-            Has mains net (requires certified-module BOM line)
-          </span>
-        </label>
-        <SaveButton />
-      </div>
+      <label
+        className="inline-flex items-center gap-2"
+        title="When checked, BOM_SOURCING gate requires at least one BomLine.part.isCertifiedModule === true"
+      >
+        <input
+          name="hasMainsNet"
+          type="checkbox"
+          defaultChecked={value}
+          onChange={(e) => e.currentTarget.form?.requestSubmit()}
+        />
+        <span className="font-mono text-xs uppercase tracking-wider text-muted">
+          Has mains net (requires certified-module BOM line)
+        </span>
+      </label>
       <FieldError messages={state.errors?.hasMainsNet} />
       <ActionMessage state={state} />
     </form>
