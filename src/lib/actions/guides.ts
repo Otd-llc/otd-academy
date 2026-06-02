@@ -34,6 +34,7 @@ import { withTxRetry } from "@/lib/tx-retry";
 import {
   editGuideCardSchema,
   materializeGuideSchema,
+  reorderGuideCardsSchema,
 } from "@/lib/schemas/guide";
 import { composeGuide } from "@/lib/guide-templates/compose";
 
@@ -183,4 +184,93 @@ export async function editGuideCard(input: unknown) {
   });
   await revalidateGuideRoute(owner.guide.revisionId);
   return updated;
+}
+
+// ─── reorderGuideCards ─────────────────────────────────
+//
+// Copy of `reorderChecklistItems`' two-pass negative-scratch swap, substituting
+// `guideCard`/`guideId`. The `@@unique([guideId, ordinal])` constraint cannot
+// tolerate two cards sharing an ordinal mid-transaction, so:
+//   pass 1 ─ flip every ordinal to `-(ordinal + 1)` (range [-N..-1], disjoint
+//            from any non-negative target);
+//   pass 2 ─ write the final 0..N-1 order from the supplied id sequence.
+// The supplied id-set must be exhaustive (no partial reorder, no foreign rows).
+
+export async function reorderGuideCards(input: unknown) {
+  const data = reorderGuideCardsSchema.parse(input);
+  await requireUser();
+
+  const cards = await withTxRetry(() =>
+    db.$transaction(
+      async (tx) => {
+        const guide = await tx.guide.findUniqueOrThrow({
+          where: { id: data.guideId },
+          select: { revisionId: true },
+        });
+        await assertNotFrozen(tx, guide.revisionId);
+
+        // Load all cards so we can verify the supplied id-set is exhaustive
+        // (no partial reorder, no foreign rows).
+        const existing = await tx.guideCard.findMany({
+          where: { guideId: data.guideId },
+          select: { id: true, ordinal: true },
+        });
+        const existingIds = new Set(existing.map((c) => c.id));
+        const suppliedIds = new Set(data.orderedIds);
+
+        if (existing.length !== data.orderedIds.length) {
+          throw new Error(
+            `Reorder list must include every card on the guide (expected ${existing.length}, got ${data.orderedIds.length}).`,
+          );
+        }
+        for (const id of data.orderedIds) {
+          if (!existingIds.has(id)) {
+            throw new Error(
+              "Reorder list contains an id that is not on the guide.",
+            );
+          }
+        }
+        // Belt-and-braces: every existing row must also appear in the
+        // supplied order.
+        for (const row of existing) {
+          if (!suppliedIds.has(row.id)) {
+            throw new Error(
+              "Reorder list is missing one or more existing card ids.",
+            );
+          }
+        }
+
+        // Pass 1: flip every ordinal to its negative-scratch value so pass 2
+        // can write 0..N-1 without violating the unique constraint mid-stream.
+        for (const row of existing) {
+          await tx.guideCard.update({
+            where: { id: row.id },
+            data: { ordinal: -(row.ordinal + 1) },
+          });
+        }
+
+        // Pass 2: write the final order.
+        for (let i = 0; i < data.orderedIds.length; i++) {
+          const id = data.orderedIds[i]!;
+          await tx.guideCard.update({
+            where: { id },
+            data: { ordinal: i },
+          });
+        }
+
+        return tx.guideCard.findMany({
+          where: { guideId: data.guideId },
+          orderBy: { ordinal: "asc" },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    ),
+  );
+
+  const guide = await db.guide.findUniqueOrThrow({
+    where: { id: data.guideId },
+    select: { revisionId: true },
+  });
+  await revalidateGuideRoute(guide.revisionId);
+  return cards;
 }

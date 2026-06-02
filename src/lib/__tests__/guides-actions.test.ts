@@ -35,7 +35,11 @@ vi.mock("@/auth", () => ({
 }));
 
 import { db } from "@/lib/db";
-import { editGuideCard, materializeGuide } from "@/lib/actions/guides";
+import {
+  editGuideCard,
+  materializeGuide,
+  reorderGuideCards,
+} from "@/lib/actions/guides";
 
 const SEED_EMAIL = "seed@example.com";
 
@@ -44,6 +48,7 @@ const SEED_EMAIL = "seed@example.com";
 // tracked below and deleted in afterAll (cascades its cards).
 const ESPNOW_SLUG = "foundry-l1-02-espnow-link"; // materializeGuide
 const EDIT_SLUG = "foundry-bn-04-curve-tracer"; // editGuideCard
+const REORDER_SLUG = "foundry-bn-05-spot-welder-controller"; // reorderGuideCards
 
 const createdGuideIds: string[] = [];
 const frozenRevisionIds: string[] = []; // restore frozenAt -> null in afterAll
@@ -177,5 +182,54 @@ describe("editGuideCard", () => {
     await expect(
       editGuideCard({ id: card.id, lead: "should fail" }),
     ).rejects.toThrow(/frozen/i);
+  });
+});
+
+// ─── reorderGuideCards ─────────────────────────────────
+
+describe("reorderGuideCards", () => {
+  test("reverses card order; ordinals end up 0..N-1 in the supplied order", async () => {
+    const revisionId = await v1RevisionId(REORDER_SLUG);
+    const guide = await materializeGuide({ revisionId });
+    createdGuideIds.push(guide.id);
+
+    const before = await db.guideCard.findMany({
+      where: { guideId: guide.id },
+      orderBy: { ordinal: "asc" },
+      select: { id: true },
+    });
+    const orderedIds = before.map((c) => c.id).reverse();
+
+    const reordered = await reorderGuideCards({
+      guideId: guide.id,
+      orderedIds,
+    });
+
+    // Ordinals are a contiguous 0..N-1 sequence.
+    expect(reordered.map((c) => c.ordinal)).toEqual(
+      orderedIds.map((_, i) => i),
+    );
+    // Each card landed at its supplied index.
+    const byId = new Map(reordered.map((c) => [c.id, c.ordinal]));
+    orderedIds.forEach((id, i) => expect(byId.get(id)).toBe(i));
+  });
+
+  test("rejects a non-exhaustive id set", async () => {
+    const revisionId = await v1RevisionId(REORDER_SLUG);
+    const guide = await db.guide.findUniqueOrThrow({
+      where: { revisionId },
+      select: { id: true },
+    });
+    const cards = await db.guideCard.findMany({
+      where: { guideId: guide.id },
+      select: { id: true },
+    });
+
+    await expect(
+      reorderGuideCards({
+        guideId: guide.id,
+        orderedIds: cards.slice(0, cards.length - 1).map((c) => c.id),
+      }),
+    ).rejects.toThrow(/must include every/i);
   });
 });
