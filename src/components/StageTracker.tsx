@@ -34,8 +34,6 @@ import {
   type GateResult,
   type StageName,
 } from "@/lib/stages";
-import { Tooltip } from "@/components/Tooltip";
-
 const STAGE_SHORT: Record<StageName, string> = {
   REQUIREMENTS: "REQ",
   SCHEMATIC: "SCH",
@@ -112,41 +110,39 @@ export async function StageTracker({ revision, ctx }: Props) {
           const fullLabel = `${num} / ${STAGE_LABELS[stage]}`;
 
           return (
-            // Tooltip is a client leaf rendered from this server component —
-            // that's the standard RSC island pattern and does NOT make
-            // StageTracker a client component. `asChild` makes the <li>
-            // itself the trigger, so the grid track layout is unchanged
-            // (no extra wrapper element). Replaces the prior raw `title=`
-            // (design §6 retrofit). aria-label keeps the full label on the
-            // chip for assistive tech regardless of tooltip visibility.
-            <Tooltip key={stage} content={fullLabel}>
-              <li
-                aria-label={fullLabel}
-                className={`
-                  flex min-w-0 flex-col items-center justify-center
-                  overflow-hidden
-                  rounded border
-                  px-1 py-1.5
-                  sm:px-2 sm:py-2
-                  font-mono text-[10px] uppercase tracking-wider
-                  sm:text-xs
-                  ${slotClass}
-                `}
-              >
-                {/* < sm: just the number. */}
-                <span className="block max-w-full truncate sm:hidden">
-                  {num}
-                </span>
-                {/* sm–2xl: number + 3-letter short code. */}
-                <span className="hidden max-w-full truncate sm:block 2xl:hidden">
-                  {shortLabel}
-                </span>
-                {/* ≥ 2xl: full label. */}
-                <span className="hidden max-w-full truncate 2xl:block">
-                  {fullLabel}
-                </span>
-              </li>
-            </Tooltip>
+            // Native `title=` (hover-only, hydration-safe) rather than a Radix
+            // Tooltip: these chips are non-interactive status indicators (not
+            // tab stops), and wrapping all 9 in a Radix Tooltip under SSR churned
+            // `useId` and tripped a hydration mismatch. `aria-label` carries the
+            // full label for assistive tech regardless of hover.
+            <li
+              key={stage}
+              title={fullLabel}
+              aria-label={fullLabel}
+              className={`
+                flex min-w-0 flex-col items-center justify-center
+                overflow-hidden
+                rounded border
+                px-1 py-1.5
+                sm:px-2 sm:py-2
+                font-mono text-[10px] uppercase tracking-wider
+                sm:text-xs
+                ${slotClass}
+              `}
+            >
+              {/* < sm: just the number. */}
+              <span className="block max-w-full truncate sm:hidden">
+                {num}
+              </span>
+              {/* sm–2xl: number + 3-letter short code. */}
+              <span className="hidden max-w-full truncate sm:block 2xl:hidden">
+                {shortLabel}
+              </span>
+              {/* ≥ 2xl: full label. */}
+              <span className="hidden max-w-full truncate 2xl:block">
+                {fullLabel}
+              </span>
+            </li>
           );
         })}
       </ol>

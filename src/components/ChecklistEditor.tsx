@@ -269,10 +269,11 @@ function ItemRow({
   useMutatedEffect(naState, onMutated);
   useMutatedEffect(deleteState, onMutated);
 
-  // Subtle zebra so rows are easy to track on a busy bench display without
-  // turning each row into a heavy box: odd rows carry a faint navy wash, even
-  // rows stay transparent. Light hover. Resolved rows dim a touch.
-  const zebra = rowIndex % 2 === 1 ? "bg-navy-dark/20" : "";
+  // Visible alternating rows on the near-black (deep-space) table surface — a
+  // NEUTRAL light wash (not navy, which vanished against the pane's blue) so the
+  // alternation actually reads, like the bench reference table. Light hover.
+  // Resolved rows dim a touch. Dividers come from `divide-y` on the <ul>.
+  const zebra = rowIndex % 2 === 1 ? "bg-white/[0.04]" : "";
   const resolved = item.checked || item.notApplicable;
   // The label area is a second large toggle target. We render it as a tiny
   // form so the click posts the same toggle action as the explicit checkbox.
@@ -282,7 +283,7 @@ function ItemRow({
 
   return (
     <li
-      className={`border-b border-[rgba(170,170,170,0.08)] transition-colors hover:bg-navy-dark/30 ${zebra} ${
+      className={`transition-colors hover:bg-white/[0.06] ${zebra} ${
         resolved ? "opacity-70" : ""
       }`}
     >
@@ -610,7 +611,7 @@ export function ChecklistEditor({
           NO ITEMS YET.
         </p>
       ) : (
-        <ul className="space-y-1.5">
+        <ul className="divide-y divide-white/[0.06]">
           {sorted.map((item, idx) => {
             // Build the orderedIds for an up-swap (item at idx → idx-1):
             const reorderUpIds = sorted.map((i) => i.id);

@@ -51,9 +51,9 @@ export function BoardChecklistsPane({
   disabledReason?: string;
 }) {
   return (
-    <section className="border border-panel-border bg-navy-dark p-6">
-      <div className="flex items-baseline justify-between gap-4">
-        <h2 className="font-display text-2xl tracking-wider text-white">
+    <section>
+      <div className="flex items-baseline justify-between gap-4 border-b border-[rgba(200,150,62,0.3)] pb-2">
+        <h2 className="font-display text-2xl tracking-wider text-command-gold">
           BOARD CHECKLISTS
         </h2>
         <NewChecklistDialog
