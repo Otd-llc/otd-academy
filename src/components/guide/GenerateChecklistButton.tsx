@@ -15,7 +15,8 @@
 // host (StageGate) renders a plain "not materialized" note rather than this
 // button — see `isCanonicalSubkind` there.
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
 import {
   type ChecklistFormState,
@@ -48,11 +49,22 @@ type Props =
   | { scope: "build"; buildId: string; templateKey: "POST_ASSEMBLY_CONTINUITY" };
 
 export function GenerateChecklistButton(props: Props) {
+  const router = useRouter();
   const formAction =
     props.scope === "revision"
       ? materializeCanonicalChecklistFormAction
       : materializeBuildChecklistFormAction;
   const [state, action] = useActionState(formAction, initialState);
+
+  // The materialize action `revalidatePath`s its OWNER route (revision/build),
+  // NOT this guide route — so on the guide card the freshly materialized
+  // checklist wouldn't appear until a hard reload. After a successful
+  // materialize (state.ok), refresh the current route so this RSC re-renders
+  // with the live <ChecklistEditor>. Fires post-commit (the action resolved
+  // and returned ok), so there's no stale-read race.
+  useEffect(() => {
+    if (state.ok) router.refresh();
+  }, [state, router]);
 
   return (
     <div className="inline-flex flex-col items-start gap-2">

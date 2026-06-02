@@ -4,7 +4,7 @@
 // stage. RSC: resolves the project → revision → guide → card by (slug,
 // revLabel, stage), then renders:
 //   - PageHeader  (bench-hero; eyebrow=card.eyebrow, title=card.title with a
-//                  sensible trailing accent word; meta-strip Card NN/08 / Phase
+//                  sensible trailing accent word; meta-strip Card NN/TT / Phase
 //                  / Project / Build; backHref=hub)
 //   - GuideBlocks (the card's teaching contentBlocks)
 //   - a board selector on ASSEMBLY/BRINGUP (decision B — per-board scope via the
@@ -196,6 +196,7 @@ export default async function GuideCardPage({
     `/projects/${project.slug}/${encodeURIComponent(revision.label)}/guide/${s}`;
 
   const cardNumber = String(card.ordinal + 1).padStart(2, "0");
+  const cardTotal = String(GUIDE_STAGES.length).padStart(2, "0");
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
@@ -207,7 +208,7 @@ export default async function GuideCardPage({
         accentWord={accentWordFor(card.title)}
         lead={card.lead ?? undefined}
         meta={[
-          { label: "Card", value: `${cardNumber} / 08` },
+          { label: "Card", value: `${cardNumber} / ${cardTotal}` },
           { label: "Phase", value: stage },
           { label: "Project", value: project.name },
           {

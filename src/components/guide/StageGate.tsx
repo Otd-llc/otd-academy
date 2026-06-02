@@ -30,11 +30,9 @@
 
 import type { Stage } from "@prisma/client";
 import type { CardCompletion } from "@/lib/guide-completion";
-import {
-  ChecklistEditor,
-  type ChecklistItemRow,
-} from "@/components/ChecklistEditor";
-import { AddMeasurementForm } from "@/components/AddMeasurementForm";
+import type { ChecklistItemRow } from "@/components/ChecklistEditor";
+import { GuideChecklistEditor } from "@/components/guide/GuideChecklistEditor";
+import { GuideMeasurementForm } from "@/components/guide/GuideMeasurementForm";
 import { GenerateChecklistButton } from "@/components/guide/GenerateChecklistButton";
 
 // Canonical checklist subkinds that have a one-click materialize template.
@@ -131,7 +129,7 @@ function ChecklistWidget({
 }) {
   if (widget.checklist) {
     return (
-      <ChecklistEditor
+      <GuideChecklistEditor
         checklistId={widget.checklist.id}
         items={widget.checklist.items}
         disabled={widget.disabled}
@@ -220,7 +218,7 @@ function MeasurementsWidget({
           <p className="mt-1 text-status-green">All steps captured.</p>
         )}
       </div>
-      <AddMeasurementForm
+      <GuideMeasurementForm
         boardId={widget.board.id}
         defaultStage={widget.stage}
         disabled={widget.disabled}

@@ -18,7 +18,7 @@
 // Completion percentage is computed from `items.length` + the number of
 // `checked` rows; pane rows expect the parent to pass the latest items
 // snapshot so the % stays in sync without a re-fetch.
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import {
   addChecklistItemFormAction,
@@ -34,6 +34,19 @@ import { ChecklistItemLabelCell } from "@/components/ChecklistItemLabelCell";
 import { SaveButton } from "@/components/SaveButton";
 
 const initialState: ChecklistFormState = {};
+
+// Fire an optional post-commit callback once a form action settles with
+// `ok: true`. Used only by the guide route (via `onMutated`) to trigger a
+// router.refresh(); non-guide panes pass no callback, so this is a no-op for
+// them and their behavior is unchanged.
+function useMutatedEffect(
+  state: ChecklistFormState,
+  onMutated?: () => void,
+): void {
+  useEffect(() => {
+    if (state.ok) onMutated?.();
+  }, [state, onMutated]);
+}
 
 export type ChecklistItemRow = {
   id: string;
@@ -76,12 +89,14 @@ function ReorderButton({
   label,
   ariaLabel,
   disabled,
+  onMutated,
 }: {
   ids: string[];
   checklistId: string;
   label: string;
   ariaLabel: string;
   disabled?: boolean;
+  onMutated?: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
   return (
@@ -90,7 +105,11 @@ function ReorderButton({
         fd.set("checklistId", checklistId);
         for (const id of ids) fd.append("orderedIds", id);
         startTransition(async () => {
-          await reorderChecklistItemsFormAction(initialState, fd);
+          const result = await reorderChecklistItemsFormAction(
+            initialState,
+            fd,
+          );
+          if (result.ok) onMutated?.();
         });
       }}
       className="inline-block"
@@ -115,6 +134,7 @@ function ItemRow({
   canMoveDown,
   checklistId,
   disabled,
+  onMutated,
 }: {
   item: ChecklistItemRow;
   reorderUpIds: string[];
@@ -123,6 +143,7 @@ function ItemRow({
   canMoveDown: boolean;
   checklistId: string;
   disabled?: boolean;
+  onMutated?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [editState, editAction] = useActionState(
@@ -141,6 +162,11 @@ function ItemRow({
     deleteChecklistItemFormAction,
     initialState,
   );
+
+  useMutatedEffect(editState, onMutated);
+  useMutatedEffect(toggleState, onMutated);
+  useMutatedEffect(naState, onMutated);
+  useMutatedEffect(deleteState, onMutated);
 
   return (
     <li className="space-y-2 py-3 font-mono text-sm">
@@ -208,6 +234,7 @@ function ItemRow({
               label="↑"
               ariaLabel="Move up"
               disabled={disabled || !canMoveUp}
+              onMutated={onMutated}
             />
             <ReorderButton
               ids={reorderDownIds}
@@ -215,6 +242,7 @@ function ItemRow({
               label="↓"
               ariaLabel="Move down"
               disabled={disabled || !canMoveDown}
+              onMutated={onMutated}
             />
           </div>
           {/* N/A toggle pill (m16 / Task 16.10). Posts to
@@ -336,16 +364,28 @@ export function ChecklistEditor({
   items,
   disabled,
   disabledReason,
+  onMutated,
 }: {
   checklistId: string;
   items: ChecklistItemRow[];
   disabled?: boolean;
   disabledReason?: string;
+  /**
+   * Optional post-commit hook. Fired once after ANY successful item mutation
+   * (add / edit / toggle / N/A / delete / reorder — each gated on `ok: true`).
+   * Existing non-guide panes (Revision/Build/Board checklist panes) omit it,
+   * so their behavior is unchanged; the guide route supplies it to trigger a
+   * router.refresh(), since the checklist actions revalidate the owner pane
+   * route, not the guide route.
+   */
+  onMutated?: () => void;
 }) {
   const [addState, addAction] = useActionState(
     addChecklistItemFormAction,
     initialState,
   );
+
+  useMutatedEffect(addState, onMutated);
 
   // Pre-compute the reorder id-lists so each ItemRow gets the exact final
   // order for "move up" and "move down" without recomputing.
@@ -392,6 +432,7 @@ export function ChecklistEditor({
                 canMoveDown={idx < sorted.length - 1}
                 checklistId={checklistId}
                 disabled={disabled}
+                onMutated={onMutated}
               />
             );
           })}
