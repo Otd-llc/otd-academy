@@ -100,3 +100,68 @@ export function PlusIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+/** Chevron left — back / previous navigation. */
+export function ChevronLeftIcon({ className }: IconProps) {
+  return (
+    <svg {...baseProps} className={className}>
+      <polyline points="15 18 9 12 15 6" />
+    </svg>
+  );
+}
+
+/** Chevron right — advance / next navigation. */
+export function ChevronRightIcon({ className }: IconProps) {
+  return (
+    <svg {...baseProps} className={className}>
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  );
+}
+
+/** Floppy disk — save / commit an edit-in-place form. */
+export function SaveIcon({ className }: IconProps) {
+  return (
+    <svg {...baseProps} className={className}>
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+      <polyline points="17 21 17 13 7 13 7 21" />
+      <polyline points="7 3 7 8 15 8" />
+    </svg>
+  );
+}
+
+/**
+ * Rotating arc — in-flight / pending state. Pair with `animate-spin` on the
+ * className. Decorative; the accessible name lives on the wrapping control.
+ */
+export function SpinnerIcon({ className }: IconProps) {
+  return (
+    <svg {...baseProps} className={className}>
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
+  );
+}
+
+/** Archive box — stow a project out of the active list. */
+export function ArchiveIcon({ className }: IconProps) {
+  return (
+    <svg {...baseProps} className={className}>
+      <rect x="3" y="4" width="18" height="4" rx="1" />
+      <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8" />
+      <line x1="10" y1="12" x2="14" y2="12" />
+    </svg>
+  );
+}
+
+/** Archive box with an up-arrow — restore a project from the archive. */
+export function ArchiveRestoreIcon({ className }: IconProps) {
+  return (
+    <svg {...baseProps} className={className}>
+      <rect x="3" y="4" width="18" height="4" rx="1" />
+      <path d="M5 8v11a1 1 0 0 0 1 1h4" />
+      <path d="M19 8v3" />
+      <polyline points="9 15 12 12 15 15" />
+      <line x1="12" y1="12" x2="12" y2="20" />
+    </svg>
+  );
+}
