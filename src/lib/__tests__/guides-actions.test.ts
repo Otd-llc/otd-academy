@@ -23,10 +23,12 @@
 //   - Reverses card order; final ordinals are a contiguous 0..N-1 permutation.
 //   - Rejects a non-exhaustive id set.
 //
-// Cleanup: the single materialized Guide is deleted in afterAll (cascades its
-// cards). Any frozenAt set during a freeze test is on a Guide-owning revision
-// that is itself torn down with the Guide, so no real curriculum revision is
-// left mutated.
+// Isolation: each test materializes its guide against a DEDICATED throwaway
+// revision it creates on a curriculum project (NOT the live v1 revision), so it
+// never collides with the M10.1 backfilled curriculum guide (one-guide-
+// per-revision via Guide.revisionId unique). The throwaway revisions are torn
+// down in afterAll (cascading their guides + cards), leaving the real
+// curriculum revisions and their backfilled guides untouched.
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 
 vi.mock("next/cache", () => ({
@@ -47,16 +49,17 @@ import {
 
 const SEED_EMAIL = "seed@example.com";
 
-// Distinct foundry v1 revisions per describe block so the tests don't collide
-// on the one-guide-per-revision constraint. Each materialized guide is
-// tracked below and deleted in afterAll (cascades its cards).
+// Distinct foundry projects per describe block; each test gets its OWN
+// throwaway revision on that project (label `guide-actions-test-*`) so the
+// tests neither collide with each other nor with the backfilled curriculum
+// guide on the live v1 revision. Throwaway revisions are deleted in afterAll
+// (cascading their guides + cards).
 const ESPNOW_SLUG = "foundry-l1-02-espnow-link"; // materializeGuide
 const EDIT_SLUG = "foundry-bn-04-curve-tracer"; // editGuideCard
 const REORDER_SLUG = "foundry-bn-05-spot-welder-controller"; // reorderGuideCards
 const P2002_SLUG = "foundry-l2-04-power-led-driver"; // materializeGuide P2002 race
 
-const createdGuideIds: string[] = [];
-const frozenRevisionIds: string[] = []; // restore frozenAt -> null in afterAll
+const createdRevisionIds: string[] = []; // throwaway revisions to delete in afterAll
 
 beforeAll(() => {
   mockAuth.mockImplementation(async () => ({
@@ -65,32 +68,30 @@ beforeAll(() => {
 });
 
 afterAll(async () => {
-  // Restore any frozenAt we set on a Guide-owning revision before deleting
-  // the guides (a frozen revision is otherwise harmless, but we leave no
-  // mutation behind on the real curriculum revisions).
-  if (frozenRevisionIds.length > 0) {
+  // Deleting the throwaway revisions cascades their guides + cards. The real
+  // curriculum revisions and their backfilled guides are never touched.
+  if (createdRevisionIds.length > 0) {
     await db.revision
-      .updateMany({
-        where: { id: { in: frozenRevisionIds } },
-        data: { frozenAt: null, frozenById: null },
-      })
-      .catch(() => {});
-  }
-  if (createdGuideIds.length > 0) {
-    await db.guide
-      .deleteMany({ where: { id: { in: createdGuideIds } } })
+      .deleteMany({ where: { id: { in: createdRevisionIds } } })
       .catch(() => {});
   }
 });
 
-async function v1RevisionId(slug: string): Promise<string> {
-  const rev = await db.revision.findFirstOrThrow({
-    where: {
-      project: { slug },
-      label: { equals: "v1", mode: "insensitive" },
+// Create a dedicated throwaway revision on the given curriculum project and
+// return its id. Tracked for teardown.
+async function freshRevisionId(slug: string): Promise<string> {
+  const project = await db.project.findFirstOrThrow({
+    where: { slug },
+    select: { id: true },
+  });
+  const rev = await db.revision.create({
+    data: {
+      projectId: project.id,
+      label: `guide-actions-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     },
     select: { id: true },
   });
+  createdRevisionIds.push(rev.id);
   return rev.id;
 }
 
@@ -98,10 +99,9 @@ async function v1RevisionId(slug: string): Promise<string> {
 
 describe("materializeGuide", () => {
   test("materializes 8 cards for a curriculum revision; second call rejects", async () => {
-    const revisionId = await v1RevisionId(ESPNOW_SLUG);
+    const revisionId = await freshRevisionId(ESPNOW_SLUG);
 
     const guide = await materializeGuide({ revisionId });
-    createdGuideIds.push(guide.id);
 
     const cards = await db.guideCard.count({ where: { guideId: guide.id } });
     expect(cards).toBe(8);
@@ -120,10 +120,9 @@ describe("materializeGuide", () => {
     // `db.guide` delegate does NOT intercept the separate Prisma transaction
     // client (`tx`). So we wrap `db.$transaction`, grab the real `tx` it hands
     // the callback, and patch that proxy's `guide.findUnique` for one call.
-    const revisionId = await v1RevisionId(P2002_SLUG);
+    const revisionId = await freshRevisionId(P2002_SLUG);
 
-    const guide = await materializeGuide({ revisionId });
-    createdGuideIds.push(guide.id);
+    await materializeGuide({ revisionId });
 
     // Minimal shape of the tx-client surface we touch — just enough to stub
     // `guide.findUnique`. The real Prisma transaction client is far wider; we
@@ -169,10 +168,13 @@ describe("materializeGuide", () => {
 // ─── editGuideCard ─────────────────────────────────────
 
 describe("editGuideCard", () => {
+  // The three tests in this block share one throwaway revision + guide; the
+  // first test creates it and the rest reuse it via this id.
+  let editRevisionId: string;
+
   test("patches contentBlocks + lead on a card", async () => {
-    const revisionId = await v1RevisionId(EDIT_SLUG);
-    const guide = await materializeGuide({ revisionId });
-    createdGuideIds.push(guide.id);
+    editRevisionId = await freshRevisionId(EDIT_SLUG);
+    const guide = await materializeGuide({ revisionId: editRevisionId });
 
     const card = await db.guideCard.findFirstOrThrow({
       where: { guideId: guide.id, stage: "SCHEMATIC" },
@@ -196,10 +198,9 @@ describe("editGuideCard", () => {
   });
 
   test("rejects an invalid content-block array", async () => {
-    const revisionId = await v1RevisionId(EDIT_SLUG);
     // Guide already materialized by the prior test in this block; reuse it.
     const guide = await db.guide.findUniqueOrThrow({
-      where: { revisionId },
+      where: { revisionId: editRevisionId },
       select: { id: true },
     });
     const card = await db.guideCard.findFirstOrThrow({
@@ -218,9 +219,8 @@ describe("editGuideCard", () => {
   });
 
   test("rejects when the owning revision is frozen", async () => {
-    const revisionId = await v1RevisionId(EDIT_SLUG);
     const guide = await db.guide.findUniqueOrThrow({
-      where: { revisionId },
+      where: { revisionId: editRevisionId },
       select: { id: true },
     });
     const card = await db.guideCard.findFirstOrThrow({
@@ -232,11 +232,11 @@ describe("editGuideCard", () => {
       where: { email: SEED_EMAIL },
       select: { id: true },
     });
+    // Freezing the throwaway revision is harmless — it is deleted in afterAll.
     await db.revision.update({
-      where: { id: revisionId },
+      where: { id: editRevisionId },
       data: { frozenAt: new Date(), frozenById: user.id },
     });
-    frozenRevisionIds.push(revisionId);
 
     await expect(
       editGuideCard({ id: card.id, lead: "should fail" }),
@@ -247,10 +247,12 @@ describe("editGuideCard", () => {
 // ─── reorderGuideCards ─────────────────────────────────
 
 describe("reorderGuideCards", () => {
+  // Both tests in this block share one throwaway revision + guide.
+  let reorderRevisionId: string;
+
   test("reverses card order; ordinals end up 0..N-1 in the supplied order", async () => {
-    const revisionId = await v1RevisionId(REORDER_SLUG);
-    const guide = await materializeGuide({ revisionId });
-    createdGuideIds.push(guide.id);
+    reorderRevisionId = await freshRevisionId(REORDER_SLUG);
+    const guide = await materializeGuide({ revisionId: reorderRevisionId });
 
     const before = await db.guideCard.findMany({
       where: { guideId: guide.id },
@@ -274,9 +276,8 @@ describe("reorderGuideCards", () => {
   });
 
   test("rejects a non-exhaustive id set", async () => {
-    const revisionId = await v1RevisionId(REORDER_SLUG);
     const guide = await db.guide.findUniqueOrThrow({
-      where: { revisionId },
+      where: { revisionId: reorderRevisionId },
       select: { id: true },
     });
     const cards = await db.guideCard.findMany({

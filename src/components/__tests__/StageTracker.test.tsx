@@ -103,11 +103,12 @@ describe("StageTracker", () => {
     const tree = await renderTracker("REQUIREMENTS", emptyCtx("REQUIREMENTS"));
     const slots = findSlots(tree);
     expect(slots).toHaveLength(9);
-    // Each slot's full label encodes the stage; check the title attribute
-    // includes the stage name (verbatim from STAGE_LABELS).
+    // Each slot's full label encodes the stage; check the aria-label
+    // (verbatim from STAGE_LABELS). The §6 Tooltip retrofit replaced the raw
+    // `title=` on the <li> with `aria-label={fullLabel}` (StageTracker.tsx).
     for (let i = 0; i < STAGE_ORDER.length; i++) {
-      const props = slots[i]!.props as { title?: string };
-      expect(props.title).toMatch(new RegExp(`^${String(i + 1).padStart(2, "0")} / `));
+      const props = slots[i]!.props as { "aria-label"?: string };
+      expect(props["aria-label"]).toMatch(new RegExp(`^${String(i + 1).padStart(2, "0")} / `));
     }
   });
 
