@@ -131,7 +131,7 @@ export default async function RevisionDetailPage({
   });
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-10">
+    <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
       <nav className="mb-6 font-mono text-xs uppercase tracking-wider">
         <Link href={`/projects/${project.slug}`} className="text-signal-blue underline">
           ← {project.name}
@@ -140,20 +140,23 @@ export default async function RevisionDetailPage({
 
       {/* Header strip — gold-accented per §9.1 when unfrozen */}
       <div
-        className={`border border-panel-border bg-navy-dark p-6 ${
+        className={`glass-card p-4 sm:p-6 ${
           isFrozen ? "" : "border-l-4 border-l-command-gold"
         }`}
       >
-        <div className="flex items-start justify-between gap-4">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
+          <div className="min-w-0">
             <p className="font-mono text-xs uppercase tracking-wider text-muted">
               Revision
             </p>
-            <h1 className="mt-1 font-display text-5xl tracking-wider text-command-gold">
+            <h1
+              className="mt-1 break-all font-display tracking-wider text-command-gold"
+              style={{ fontSize: "clamp(2rem, 5vw, 3rem)" }}
+            >
               {revision.label}
             </h1>
           </div>
-          <span className="rounded border border-panel-border bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-command-gold">
+          <span className="rounded border border-panel-border bg-deep-space/60 px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-command-gold">
             {revision.currentStage}
           </span>
         </div>
@@ -227,7 +230,7 @@ export default async function RevisionDetailPage({
         {/* LEFT 2/3 — Builds + Artifacts */}
         <div className="space-y-6 lg:col-span-2">
           {/* Builds pane — design §9.1 */}
-          <section className="border border-panel-border bg-navy-dark p-6">
+          <section className="glass-card p-4 sm:p-6">
             <div className="flex items-baseline justify-between gap-4">
               <h2 className="font-display text-2xl tracking-wider text-white">
                 BUILDS
@@ -276,7 +279,7 @@ export default async function RevisionDetailPage({
 
           {/* Artifacts pane (design §9.1). Revision-scoped artifacts only;
               the per-stage subkind picker is mounted below the list. */}
-          <section className="border border-panel-border bg-navy-dark p-6">
+          <section className="glass-card p-4 sm:p-6">
             <div className="flex items-center justify-between gap-4">
               <h2 className="font-display text-2xl tracking-wider text-white">
                 ARTIFACTS
@@ -399,7 +402,7 @@ export default async function RevisionDetailPage({
 
         {/* RIGHT 1/3 — Transitions + Errata */}
         <div className="space-y-6">
-          <section className="border border-panel-border bg-navy-dark p-6">
+          <section className="glass-card p-4 sm:p-6">
             <h2 className="font-display text-2xl tracking-wider text-white">
               TRANSITIONS
             </h2>

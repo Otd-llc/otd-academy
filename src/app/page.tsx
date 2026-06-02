@@ -91,12 +91,15 @@ export default async function HomePage({
     .sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime());
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-10">
-      <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-display text-5xl tracking-wider text-white">
+    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-baseline sm:justify-between">
+        <h1
+          className="font-display tracking-wider text-white"
+          style={{ fontSize: "clamp(2rem, 6vw, 3rem)" }}
+        >
           PROJECT FOUNDRY
         </h1>
-        <div className="flex items-center gap-4 font-mono text-xs uppercase">
+        <div className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase sm:gap-3">
           <Link
             href={showArchived ? "/" : "/?archived=1"}
             className="text-signal-blue underline"
@@ -105,13 +108,13 @@ export default async function HomePage({
           </Link>
           <Link
             href="/curriculum"
-            className="glass-button px-4 py-2 text-signal-blue hover:text-gold-light"
+            className="glass-button px-3 py-2 text-signal-blue hover:text-gold-light sm:px-4"
           >
             CURRICULUM →
           </Link>
           <Link
             href="/projects/new"
-            className="glass-button glass-button-cta px-4 py-2"
+            className="glass-button glass-button-cta px-3 py-2 sm:px-4"
           >
             + New project
           </Link>
@@ -136,7 +139,7 @@ export default async function HomePage({
             href={`/?track=${t}`}
           />
         ))}
-        <span className="mx-2 text-muted">·</span>
+        <span className="mx-1 hidden text-muted sm:inline">·</span>
         <FilterChip label="ALL LEVELS" active={!params.level} href="/" />
         {["L1", "L2", "L3"].map((l) => (
           <FilterChip
@@ -146,7 +149,7 @@ export default async function HomePage({
             href={`/?level=${l}`}
           />
         ))}
-        <span className="mx-2 text-muted">·</span>
+        <span className="mx-1 hidden text-muted sm:inline">·</span>
         <FilterChip
           label="SHOW BENCH TOOLS"
           active={showBenchTools}
@@ -159,73 +162,63 @@ export default async function HomePage({
           NO PROJECTS — CREATE ONE TO BEGIN.
         </p>
       ) : (
-        <table className="mt-10 w-full border-collapse font-mono text-sm">
-          <thead>
-            <tr className="border-b border-panel-border text-left text-xs uppercase tracking-wider text-muted">
-              <th className="py-3 pr-4 font-normal">Name</th>
-              {/* Slug + Updated hidden at < md (Task 15.5 responsive pass). */}
-              <th className="hidden py-3 pr-4 font-normal md:table-cell">
-                Slug
-              </th>
-              <th className="hidden py-3 pr-4 font-normal md:table-cell">
-                Updated
-              </th>
-              <th className="py-3 pr-4 font-normal">Current state</th>
-              <th className="py-3 pr-4 font-normal">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((p) => (
-              <tr
-                key={p.id}
-                className="border-b border-panel-border align-top"
-              >
-                <td className="py-3 pr-4">
-                  <Link
-                    href={`/projects/${p.slug}`}
-                    className="text-command-gold transition-colors hover:text-gold-light"
-                  >
-                    {p.name}
-                  </Link>
-                </td>
-                <td className="hidden py-3 pr-4 text-muted md:table-cell">
+        <ul className="mt-8 flex flex-col gap-3 font-mono text-sm sm:mt-10">
+          {sorted.map((p) => (
+            <li
+              key={p.id}
+              className="glass-card grid grid-cols-1 gap-3 p-4 sm:grid-cols-[2fr_1fr_auto_auto] sm:items-center sm:gap-4 sm:p-5"
+            >
+              {/* Name + slug — stack on mobile; name leads in both cases. */}
+              <div className="min-w-0">
+                <Link
+                  href={`/projects/${p.slug}`}
+                  className="block truncate text-base text-command-gold transition-colors hover:text-gold-light"
+                >
+                  {p.name}
+                </Link>
+                <p className="mt-0.5 truncate text-xs text-gray-3 sm:hidden">
                   {p.slug}
-                </td>
-                <td className="hidden py-3 pr-4 text-muted md:table-cell">
-                  {p.lastActivity.toISOString().slice(0, 10)}
-                </td>
-                <td className="py-3 pr-4">
-                  {p.latest ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Link
-                        href={`/projects/${p.slug}/${encodeURIComponent(p.latest.label)}`}
-                        className="text-link-muted underline-offset-2 hover:underline"
-                      >
-                        {p.latest.label}
-                      </Link>
-                      {/*
-                        Stage pill — Space Mono caps on a navy-dark chip with
-                        command-gold text + 1px panel-border per §8.3 pill
-                        anatomy. Mirrors the active-stage treatment used in
-                        the revision header strip.
-                      */}
-                      <span className="inline-block rounded border border-panel-border bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-command-gold">
-                        {p.latest.currentStage}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="font-mono text-xs uppercase tracking-wider text-muted">
-                      NO REVISIONS
+                </p>
+              </div>
+              {/* Slug column — visible only at sm+; muted secondary text. */}
+              <p className="hidden truncate text-xs text-muted sm:block">
+                {p.slug}
+              </p>
+              {/* Current-state pill — revision label + stage chip. Wraps to a
+                  new line if both don't fit. */}
+              <div className="flex flex-wrap items-center gap-2">
+                {p.latest ? (
+                  <>
+                    <Link
+                      href={`/projects/${p.slug}/${encodeURIComponent(p.latest.label)}`}
+                      className="text-link-muted underline-offset-2 hover:underline"
+                    >
+                      {p.latest.label}
+                    </Link>
+                    <span className="inline-block rounded border border-panel-border bg-deep-space/60 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-command-gold sm:text-xs">
+                      {p.latest.currentStage}
                     </span>
-                  )}
-                </td>
-                <td className="py-3 pr-4 text-muted">
+                  </>
+                ) : (
+                  <span className="text-xs uppercase tracking-wider text-muted">
+                    NO REVISIONS
+                  </span>
+                )}
+              </div>
+              {/* Status + last-activity. Last-activity shows on mobile as a
+                  small subtitle under name, so this column only carries
+                  ACTIVE / ARCHIVED. */}
+              <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:gap-1">
+                <span className="text-[10px] uppercase tracking-wider text-muted sm:text-xs">
                   {p.archivedAt ? "ARCHIVED" : "ACTIVE"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </span>
+                <span className="text-[10px] text-gray-3 sm:text-xs">
+                  {p.lastActivity.toISOString().slice(0, 10)}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
     </main>
   );

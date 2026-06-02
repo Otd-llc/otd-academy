@@ -1,25 +1,25 @@
-// 9-slot horizontal stage tracker (design §8.3, Task 7.2).
+// 9-slot stage tracker (design §8.3, Task 7.2).
 //
-// Renders the revision's stage progression as nine horizontal slots, each
-// with one of four treatments per design §8.3:
+// Renders the revision's stage progression as nine slots, each with one of
+// four treatments per design §8.3:
 //
-//   • Active     — currentStage. Filled command-gold with deep-space text.
+//   • Active     — currentStage. glass-button-active gold-glow treatment.
 //   • Completed  — order < currentStage. Outlined command-gold.
 //   • Blocked    — active AND exitGate(ctx) fails. Outlined alert-red,
-//                  first failure reason inline in Space Mono small text.
-//   • Future     — order > currentStage. Outlined muted.
+//                  first failure reason inline.
+//   • Future     — order > currentStage. Outlined panel-border + muted.
 //
-// Server component (no client interaction needed). The caller loads
-// `ctx` via `loadGateContext` (src/lib/load-gate-context.ts) and passes
-// it in — keeping IO at the page boundary, treating the tracker as a
-// pure render of `(revision, ctx)`.
+// Responsive layout (revised — no internal scrollbar):
+//   • ≥ lg (1024px+): single row, all 9 slots show "01 / REQUIREMENTS"-style
+//     full labels. Flex with shrink so the row fits naturally.
+//   • md–lg (768–1024px): single row, compact "01 / REQ"-style abbreviations
+//     (3-letter codes); active slot still expands to show full text via
+//     flex-grow so the band reads at a glance.
+//   • < md (mobile): grid wrap — 3×3 numeric chips with the active slot's
+//     full label rendered above the grid. No horizontal scroll anywhere.
 //
-// Overflow rule (§8.3):
-//   • Viewport ≥ 1100px (lg:): full labels visible.
-//   • Viewport 700-1099px (md:): truncate to stage number only; full label
-//     in HTML `title=` for hover tooltip.
-//   • Viewport < 700px: `overflow-x-auto` on the band; `whitespace-nowrap`
-//     on the row. Tracker never wraps; outer page does not horizontal-scroll.
+// Server component — caller loads `ctx` via `loadGateContext` and passes
+// it in. Treats the tracker as a pure render of `(revision, ctx)`.
 
 import type { Revision } from "@prisma/client";
 import {
@@ -30,6 +30,18 @@ import {
   type GateResult,
   type StageName,
 } from "@/lib/stages";
+
+const STAGE_SHORT: Record<StageName, string> = {
+  REQUIREMENTS: "REQ",
+  SCHEMATIC: "SCH",
+  BOM_SOURCING: "BOM",
+  LAYOUT: "LAY",
+  DRC_GERBER: "DRC",
+  ORDERING: "ORD",
+  ASSEMBLY: "ASM",
+  BRINGUP: "BRG",
+  REVISION: "REV",
+};
 
 type Props = {
   revision: Pick<Revision, "currentStage">;
@@ -55,56 +67,79 @@ export async function StageTracker({ revision, ctx }: Props) {
       : null;
 
   return (
-    <nav
-      aria-label="Stage tracker"
-      // < 700px: band-internal horizontal scroll; row never wraps. Outer
-      // page does NOT horizontal-scroll (max-w-7xl on the page handles it).
-      className="glass-card overflow-x-auto p-4"
-    >
-      <ol className="flex min-w-max items-stretch gap-2 whitespace-nowrap">
+    <nav aria-label="Stage tracker" className="glass-card p-3 sm:p-4">
+      {/* Mobile-only "current stage" banner — gives the user a one-glance
+          read of where they are without having to parse 9 small chips. */}
+      <div className="mb-3 sm:hidden">
+        <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-gold-dim">
+          Current stage
+        </p>
+        <p className="mt-1 font-display text-2xl tracking-wider text-command-gold">
+          {String(currentIdx + 1).padStart(2, "0")} / {STAGE_LABELS[currentStage]}
+        </p>
+        {firstReason ? (
+          <p className="mt-1 font-mono text-[10px] tracking-normal text-alert-red">
+            {firstReason}
+          </p>
+        ) : null}
+      </div>
+
+      <ol
+        className="
+          grid grid-cols-9 gap-1.5
+          sm:gap-2
+        "
+      >
         {STAGE_ORDER.map((stage, idx) => {
           const isActive = idx === currentIdx;
           const isCompleted = idx < currentIdx;
           const isBlocked = isActive && activeIsBlocked;
-          // `isActive && !isBlocked` reads as the "filled gold" active slot;
-          // `isBlocked` overrides to outlined alert-red.
 
           let slotClass: string;
           if (isBlocked) {
-            slotClass =
-              "border-alert-red text-alert-red bg-deep-space/60";
+            slotClass = "border-alert-red text-alert-red bg-deep-space/60";
           } else if (isActive) {
-            slotClass =
-              "glass-button glass-button-active border";
+            slotClass = "glass-button glass-button-active border";
           } else if (isCompleted) {
-            slotClass = "border-command-gold text-command-gold bg-deep-space/60";
+            slotClass =
+              "border-command-gold text-command-gold bg-deep-space/60";
           } else {
             slotClass = "border-panel-border text-muted bg-deep-space/40";
           }
 
           const num = String(idx + 1).padStart(2, "0");
+          const shortLabel = `${num} / ${STAGE_SHORT[stage]}`;
           const fullLabel = `${num} / ${STAGE_LABELS[stage]}`;
-          // `title` is what browsers render as a hover tooltip — used at the
-          // 700-1099px range where the label collapses to "01" / "02" / ...
-          const titleAttr = fullLabel;
 
           return (
             <li
               key={stage}
-              title={titleAttr}
-              className={`flex min-w-[44px] flex-col justify-center rounded border px-3 py-2 font-mono text-xs uppercase tracking-wider lg:min-w-[110px] ${slotClass}`}
+              title={fullLabel}
+              className={`
+                flex flex-col items-center justify-center
+                rounded border
+                px-1 py-1.5
+                sm:px-2 sm:py-2
+                font-mono text-[10px] uppercase tracking-wider
+                sm:text-xs
+                ${slotClass}
+              `}
             >
-              {/* Compact label: only the number at < lg, full label at lg+ */}
-              <span className="block lg:hidden">{num}</span>
-              <span className="hidden lg:block">{fullLabel}</span>
-              {/*
-                Blocked-slot inline reason — only ever rendered on the active
-                slot when its gate fails. Space Mono small text per §8.3.
-                Hidden below md to keep the < 700px band compact (the page
-                surfaces the same reason elsewhere via the gate block).
-              */}
+              {/* < sm: just the number. */}
+              <span className="block sm:hidden">{num}</span>
+              {/* sm–lg: number + 3-letter short code. */}
+              <span className="hidden whitespace-nowrap sm:block lg:hidden">
+                {shortLabel}
+              </span>
+              {/* ≥ lg: full label. */}
+              <span className="hidden whitespace-nowrap lg:block">
+                {fullLabel}
+              </span>
+              {/* Blocked-slot inline reason — only on the active slot when its
+                  gate fails. Rendered at ≥ lg only (the < sm banner above
+                  already surfaces it on mobile; sm–lg keeps the row tight). */}
               {isBlocked && firstReason ? (
-                <span className="mt-1 hidden font-mono text-[10px] normal-case tracking-normal text-alert-red md:block">
+                <span className="mt-1 hidden font-mono text-[10px] normal-case tracking-normal text-alert-red lg:block">
                   {firstReason}
                 </span>
               ) : null}

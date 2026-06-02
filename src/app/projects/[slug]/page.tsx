@@ -69,7 +69,7 @@ export default async function ProjectDetailPage({
   const isArchived = project.archivedAt !== null;
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10">
+    <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
       <nav className="mb-6 font-mono text-xs uppercase tracking-wider">
         <Link href="/" className="text-signal-blue underline">
           ← All projects
@@ -77,12 +77,12 @@ export default async function ProjectDetailPage({
       </nav>
 
       {/* Header strip — gold-accented per design §8.3 / §9.1 */}
-      <div className="glass-card border-l-4 border-l-command-gold p-6">
-        <div className="flex items-center justify-between gap-4">
+      <div className="glass-card border-l-4 border-l-command-gold p-4 sm:p-6">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <p className="font-mono text-xs uppercase tracking-wider text-muted">
-            Project · {project.slug}
+            Project · <span className="break-all">{project.slug}</span>
             {isArchived && (
-              <span className="ml-2 rounded border border-panel-border bg-deep-space px-2 py-0.5 text-alert-red">
+              <span className="ml-2 inline-block rounded border border-panel-border bg-deep-space px-2 py-0.5 text-alert-red">
                 ARCHIVED
               </span>
             )}
@@ -153,7 +153,7 @@ export default async function ProjectDetailPage({
       {/* Curriculum metadata — edit-in-place per Phase 4 pattern. Each field
           its own form action so saves are surgical and FieldError surfaces
           land next to the changed input. */}
-      <div className="glass-card mt-6 p-6">
+      <div className="glass-card mt-6 p-4 sm:p-6">
         <h2 className="font-mono text-sm uppercase tracking-wider text-gold-dim">
           Curriculum metadata
         </h2>
@@ -182,7 +182,7 @@ export default async function ProjectDetailPage({
       </div>
 
       {/* Free-floating repo URL — signal-blue per design §8.3 rule */}
-      <div className="glass-card mt-6 p-6">
+      <div className="glass-card mt-6 p-4 sm:p-6">
         <EditRepoUrlForm id={project.id} value={project.repoUrl} />
         {project.repoUrl && (
           <p className="mt-3 font-mono text-xs uppercase tracking-wider text-muted">

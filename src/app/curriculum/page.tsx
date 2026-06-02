@@ -63,7 +63,7 @@ export default async function CurriculumPage() {
   }));
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-10">
+    <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
       <nav className="mb-6 font-mono text-xs uppercase tracking-wider">
         <Link href="/" className="text-signal-blue underline">
           ← All projects

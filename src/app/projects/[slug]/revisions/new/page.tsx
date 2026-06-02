@@ -28,7 +28,7 @@ export default async function NewRevisionPage({
   if (!project) notFound();
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-10">
+    <main className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-10">
       <nav className="mb-6 font-mono text-xs uppercase tracking-wider">
         <Link href={`/projects/${project.slug}`} className="text-signal-blue underline">
           ← {project.name}
@@ -42,7 +42,7 @@ export default async function NewRevisionPage({
         Every new revision starts at REQUIREMENTS, regardless of copy-forward.
       </p>
 
-      <div className="mt-8 border border-panel-border bg-navy-dark p-6">
+      <div className="mt-8 glass-card p-4 sm:p-6">
         <NewRevisionForm
           projectId={project.id}
           existingRevisions={project.revisions}

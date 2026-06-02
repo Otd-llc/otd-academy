@@ -111,7 +111,7 @@ export default async function BuildDetailPage({
       : undefined;
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-10">
+    <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
       <nav className="mb-6 font-mono text-xs uppercase tracking-wider">
         <Link
           href={`/projects/${project.slug}/${encodeURIComponent(revision.label)}`}
@@ -123,7 +123,7 @@ export default async function BuildDetailPage({
 
       {/* Header strip — gold-accented when active+unfrozen per §9.2 */}
       <div
-        className={`border border-panel-border bg-navy-dark p-6 ${
+        className={`glass-card p-4 sm:p-6 ${
           goldAccent ? "border-l-4 border-l-command-gold" : ""
         }`}
       >
@@ -259,7 +259,7 @@ export default async function BuildDetailPage({
 
         {/* RIGHT 1/3 — Build artifacts + checklists */}
         <div className="space-y-6">
-          <section className="border border-panel-border bg-navy-dark p-6">
+          <section className="glass-card p-4 sm:p-6">
             <div className="flex items-center justify-between gap-4">
               <h2 className="font-display text-2xl tracking-wider text-white">
                 BUILD ARTIFACTS

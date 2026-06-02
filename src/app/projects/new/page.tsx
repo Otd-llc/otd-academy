@@ -5,7 +5,7 @@ import { NewProjectForm } from "./_form";
 
 export default function NewProjectPage() {
   return (
-    <main className="mx-auto max-w-2xl px-6 py-10">
+    <main className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-10">
       <h1 className="font-display text-5xl tracking-wider text-white">
         NEW PROJECT
       </h1>
@@ -13,7 +13,7 @@ export default function NewProjectPage() {
         Create a project — slug becomes the URL path; everything else is editable later.
       </p>
 
-      <div className="mt-8 border border-panel-border bg-navy-dark p-6">
+      <div className="mt-8 glass-card p-4 sm:p-6">
         <NewProjectForm />
       </div>
     </main>
