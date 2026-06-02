@@ -8,6 +8,12 @@
 // Content is intentionally NON-interactive (per the ARIA tooltip pattern — use
 // `GlossaryTerm`'s popover for click-to-read/interactive content instead).
 //
+// This renders ONLY a `<Root>` — the single app-wide `<Provider>` lives in
+// `TooltipProvider` (mounted once in the root layout). Mounting a provider per
+// instance churned React `useId` and tripped a hydration mismatch on multi-chip
+// surfaces like StageTracker; one hoisted provider fixes that. The hover open
+// delay is therefore set on the shared provider, not here.
+//
 // Styling uses existing tokens but a SOLID surface (not the translucent
 // `.glass-card`): a `bg-deep-space` bubble with a gold hairline, a near-white
 // `text-gray-1` non-italic body, and an optional small `font-mono` gold label.
@@ -36,8 +42,6 @@ export interface TooltipProps {
   children: React.ReactNode;
   /** Optional small mono label rendered above the body (e.g. "GATE"). */
   label?: React.ReactNode;
-  /** Hover open delay in ms. Defaults to 200. */
-  delayDuration?: number;
   /** Preferred side of the trigger to render on. Defaults to "top". */
   side?: RadixTooltip.TooltipContentProps["side"];
   /**
@@ -52,36 +56,33 @@ export function Tooltip({
   content,
   children,
   label,
-  delayDuration = 200,
   side = "top",
   container,
 }: TooltipProps) {
   return (
-    <RadixTooltip.Provider delayDuration={delayDuration}>
-      <RadixTooltip.Root>
-        <RadixTooltip.Trigger asChild>{children}</RadixTooltip.Trigger>
-        <RadixTooltip.Portal container={container ?? undefined}>
-          <RadixTooltip.Content
-            side={side}
-            sideOffset={6}
-            collisionPadding={8}
-            // Opaque, high-contrast bubble: a tooltip must not let underlying
-            // content bleed through, and the body must read at small sizes — so
-            // a SOLID deep-space surface (not the translucent .glass-card) with a
-            // gold hairline + near-white non-italic body. The arrow matches the
-            // solid surface so it reads as part of the bubble.
-            className="z-50 max-w-xs rounded-lg border border-[rgba(200,150,62,0.45)] bg-deep-space px-3 py-2 text-xs leading-relaxed shadow-xl"
-          >
-            {label ? (
-              <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">
-                {label}
-              </p>
-            ) : null}
-            <p className="text-gray-1">{content}</p>
-            <RadixTooltip.Arrow className="fill-deep-space" />
-          </RadixTooltip.Content>
-        </RadixTooltip.Portal>
-      </RadixTooltip.Root>
-    </RadixTooltip.Provider>
+    <RadixTooltip.Root>
+      <RadixTooltip.Trigger asChild>{children}</RadixTooltip.Trigger>
+      <RadixTooltip.Portal container={container ?? undefined}>
+        <RadixTooltip.Content
+          side={side}
+          sideOffset={6}
+          collisionPadding={8}
+          // Opaque, high-contrast bubble: a tooltip must not let underlying
+          // content bleed through, and the body must read at small sizes — so
+          // a SOLID deep-space surface (not the translucent .glass-card) with a
+          // gold hairline + near-white non-italic body. The arrow matches the
+          // solid surface so it reads as part of the bubble.
+          className="z-50 max-w-xs rounded-lg border border-[rgba(200,150,62,0.45)] bg-deep-space px-3 py-2 text-xs leading-relaxed shadow-xl"
+        >
+          {label ? (
+            <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">
+              {label}
+            </p>
+          ) : null}
+          <p className="text-gray-1">{content}</p>
+          <RadixTooltip.Arrow className="fill-deep-space" />
+        </RadixTooltip.Content>
+      </RadixTooltip.Portal>
+    </RadixTooltip.Root>
   );
 }
