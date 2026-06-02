@@ -59,7 +59,7 @@ export async function StageTracker({ revision, ctx }: Props) {
       aria-label="Stage tracker"
       // < 700px: band-internal horizontal scroll; row never wraps. Outer
       // page does NOT horizontal-scroll (max-w-7xl on the page handles it).
-      className="overflow-x-auto border border-panel-border bg-navy-dark p-4"
+      className="glass-card overflow-x-auto p-4"
     >
       <ol className="flex min-w-max items-stretch gap-2 whitespace-nowrap">
         {STAGE_ORDER.map((stage, idx) => {
@@ -72,14 +72,14 @@ export async function StageTracker({ revision, ctx }: Props) {
           let slotClass: string;
           if (isBlocked) {
             slotClass =
-              "border-alert-red text-alert-red bg-navy-dark";
+              "border-alert-red text-alert-red bg-deep-space/60";
           } else if (isActive) {
             slotClass =
-              "border-command-gold bg-command-gold text-deep-space";
+              "glass-button glass-button-active border";
           } else if (isCompleted) {
-            slotClass = "border-command-gold text-command-gold bg-navy-dark";
+            slotClass = "border-command-gold text-command-gold bg-deep-space/60";
           } else {
-            slotClass = "border-muted text-muted bg-navy-dark";
+            slotClass = "border-panel-border text-muted bg-deep-space/40";
           }
 
           const num = String(idx + 1).padStart(2, "0");

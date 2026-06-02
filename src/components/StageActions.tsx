@@ -36,7 +36,7 @@ function AdvanceSubmit() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded border border-command-gold bg-command-gold px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider text-deep-space transition-colors hover:bg-deep-space hover:text-command-gold disabled:opacity-50"
+      className="glass-button glass-button-cta px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider"
     >
       {pending ? "WORKING…" : "Advance →"}
     </button>
@@ -48,7 +48,7 @@ function RegressTrigger({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="rounded border border-panel-border bg-deep-space px-4 py-2 font-mono text-xs uppercase tracking-wider text-muted transition-colors hover:border-alert-red hover:text-alert-red"
+      className="glass-button glass-button-danger px-4 py-2 font-mono text-xs uppercase tracking-wider"
     >
       ← Regress
     </button>
@@ -61,7 +61,7 @@ function RegressSubmit() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded border border-alert-red bg-deep-space px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider text-alert-red transition-colors hover:bg-alert-red hover:text-deep-space disabled:opacity-50"
+      className="glass-button glass-button-danger px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider"
     >
       {pending ? "WORKING…" : "Confirm regress"}
     </button>

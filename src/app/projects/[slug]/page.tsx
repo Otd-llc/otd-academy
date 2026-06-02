@@ -77,7 +77,7 @@ export default async function ProjectDetailPage({
       </nav>
 
       {/* Header strip — gold-accented per design §8.3 / §9.1 */}
-      <div className="border border-panel-border border-l-4 border-l-command-gold bg-navy-dark p-6">
+      <div className="glass-card border-l-4 border-l-command-gold p-6">
         <div className="flex items-center justify-between gap-4">
           <p className="font-mono text-xs uppercase tracking-wider text-muted">
             Project · {project.slug}
@@ -153,8 +153,8 @@ export default async function ProjectDetailPage({
       {/* Curriculum metadata — edit-in-place per Phase 4 pattern. Each field
           its own form action so saves are surgical and FieldError surfaces
           land next to the changed input. */}
-      <div className="mt-6 border border-panel-border bg-navy-dark p-6">
-        <h2 className="font-mono text-sm uppercase tracking-wider text-muted">
+      <div className="glass-card mt-6 p-6">
+        <h2 className="font-mono text-sm uppercase tracking-wider text-gold-dim">
           Curriculum metadata
         </h2>
         <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -182,7 +182,7 @@ export default async function ProjectDetailPage({
       </div>
 
       {/* Free-floating repo URL — signal-blue per design §8.3 rule */}
-      <div className="mt-6 border border-panel-border bg-navy-dark p-6">
+      <div className="glass-card mt-6 p-6">
         <EditRepoUrlForm id={project.id} value={project.repoUrl} />
         {project.repoUrl && (
           <p className="mt-3 font-mono text-xs uppercase tracking-wider text-muted">

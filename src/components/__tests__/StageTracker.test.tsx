@@ -163,11 +163,10 @@ describe("StageTracker", () => {
     ];
     const tree = await renderTracker("REQUIREMENTS", ctx);
     const [active, ...rest] = findSlots(tree);
-    expect(classOf(active!)).toContain("bg-command-gold");
-    expect(classOf(active!)).toContain("text-deep-space");
-    // All others are future → outlined muted.
+    expect(classOf(active!)).toContain("glass-button-active");
+    // All others are future → outlined panel-border + muted text.
     for (const f of rest) {
-      expect(classOf(f)).toContain("border-muted");
+      expect(classOf(f)).toContain("border-panel-border");
       expect(classOf(f)).toContain("text-muted");
     }
   });
@@ -282,9 +281,9 @@ describe("StageTracker", () => {
       "5 board(s) not yet BROUGHT_UP or QUARANTINED.",
     );
 
-    // Slot 8: REVISION, future → outlined muted.
+    // Slot 8: REVISION, future → outlined panel-border + muted text.
     const future = slots[8]!;
-    expect(classOf(future)).toContain("border-muted");
+    expect(classOf(future)).toContain("border-panel-border");
     expect(classOf(future)).toContain("text-muted");
   });
 });

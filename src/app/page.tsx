@@ -30,11 +30,9 @@ function FilterChip({
   href: string;
 }) {
   const base =
-    "inline-flex items-center rounded border px-2 py-0.5 font-mono text-xs uppercase tracking-wider transition-colors";
-  const activeCls =
-    "border-command-gold bg-command-gold text-navy-dark";
-  const inactiveCls =
-    "border-panel-border bg-navy-dark text-muted hover:border-command-gold hover:text-command-gold";
+    "inline-flex items-center glass-button px-2.5 py-1 font-mono text-xs uppercase tracking-wider";
+  const activeCls = "glass-button-active";
+  const inactiveCls = "hover:text-gold-light";
   return (
     <Link href={href} className={`${base} ${active ? activeCls : inactiveCls}`}>
       {label}
@@ -107,13 +105,13 @@ export default async function HomePage({
           </Link>
           <Link
             href="/curriculum"
-            className="rounded border border-panel-border bg-navy-dark px-4 py-2 text-signal-blue transition-colors hover:border-signal-blue"
+            className="glass-button px-4 py-2 text-signal-blue hover:text-gold-light"
           >
             CURRICULUM →
           </Link>
           <Link
             href="/projects/new"
-            className="rounded border border-panel-border bg-navy-dark px-4 py-2 text-command-gold transition-colors hover:border-command-gold"
+            className="glass-button glass-button-cta px-4 py-2"
           >
             + New project
           </Link>
@@ -185,7 +183,7 @@ export default async function HomePage({
                 <td className="py-3 pr-4">
                   <Link
                     href={`/projects/${p.slug}`}
-                    className="text-command-gold hover:underline"
+                    className="text-command-gold transition-colors hover:text-gold-light"
                   >
                     {p.name}
                   </Link>
