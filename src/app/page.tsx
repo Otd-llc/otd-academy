@@ -184,16 +184,22 @@ export default async function HomePage({
               <p className="hidden truncate text-xs text-muted sm:block">
                 {p.slug}
               </p>
-              {/* Current-state pill — revision label + stage chip. Wraps to a
-                  new line if both don't fit. */}
+              {/* Current-state pill — revision link + stage chip. The
+                  revision link is the secondary drill-in target (the
+                  primary one is the project name above); it carries a
+                  persistent signal-blue underline + an arrow so it
+                  reads unambiguously as "go to revision". */}
               <div className="flex flex-wrap items-center gap-2">
                 {p.latest ? (
                   <>
                     <Link
                       href={`/projects/${p.slug}/${encodeURIComponent(p.latest.label)}`}
-                      className="text-link-muted underline-offset-2 hover:underline"
+                      className="group inline-flex items-center gap-1 text-signal-blue underline decoration-signal-blue/40 decoration-1 underline-offset-4 transition-colors hover:text-gold-light hover:decoration-gold-light"
                     >
-                      {p.latest.label}
+                      <span>{p.latest.label}</span>
+                      <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
+                        →
+                      </span>
                     </Link>
                     <span className="inline-block rounded border border-panel-border bg-deep-space/60 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-command-gold sm:text-xs">
                       {p.latest.currentStage}
