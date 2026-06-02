@@ -42,7 +42,7 @@ export interface PageHeaderProps {
  *   splitTitle("INVENTORY CHECK", "CHECK") → { head: "INVENTORY", accent: "CHECK" }
  *   splitTitle("REQUIREMENTS")             → { head: "REQUIREMENTS", accent: null }
  *   splitTitle("INVENTORY CHECK", "FOO")   → { head: "INVENTORY CHECK", accent: null }
- *   splitTitle("BRINGUP", "BRINGUP")       → { head: "", accent: "BRINGUP" }
+ *   splitTitle("BRINGUP", "BRINGUP")       → { head: "BRINGUP", accent: null }  (whole-title accent → white)
  */
 export function splitTitle(
   title: string,
@@ -62,8 +62,11 @@ export function splitTitle(
   const lowerAccent = trimmedAccent.toLowerCase();
 
   if (lowerTitle === lowerAccent) {
-    // The whole title is the accent.
-    return { head: "", accent: trimmedTitle };
+    // The accent would be the ENTIRE title → an all-gold hero with no white
+    // anchor (and the gold `.ord` eyebrow already supplies the gold). Render the
+    // whole title white instead; the eyebrow is the accent. This is what keeps
+    // single-word stage titles (LAYOUT, BRINGUP, …) from becoming a wall of gold.
+    return { head: trimmedTitle, accent: null };
   }
 
   const suffix = " " + lowerAccent;

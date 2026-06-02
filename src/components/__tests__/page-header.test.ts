@@ -47,10 +47,15 @@ describe("splitTitle", () => {
     });
   });
 
-  it("puts the whole title in accent when it equals the accentWord", () => {
+  it("renders the whole title white (head, no accent) when accentWord equals the entire title — prevents an all-gold hero against the gold eyebrow", () => {
     expect(splitTitle("BRINGUP", "BRINGUP")).toEqual({
-      head: "",
-      accent: "BRINGUP",
+      head: "BRINGUP",
+      accent: null,
+    });
+    // Case-insensitive whole-title match still degrades to all-white.
+    expect(splitTitle("Layout", "layout")).toEqual({
+      head: "Layout",
+      accent: null,
     });
   });
 
