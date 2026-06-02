@@ -9,6 +9,10 @@
 //   - Materializes 8 cards for a real curriculum revision (espnow-link v1).
 //   - Second call on the same revision rejects with /already exists/i (the
 //     pre-check dedupe path).
+//   - The race-safe P2002 catch (guides.ts ~120-130): with a guide already
+//     present, the in-tx pre-check is stubbed to null so the action proceeds
+//     to `tx.guide.create`, hits the real Guide.revisionId unique constraint
+//     (P2002), and surfaces the same friendly /already exists/i error.
 //
 // editGuideCard covers:
 //   - Patches a card's contentBlocks + lead.
@@ -49,6 +53,7 @@ const SEED_EMAIL = "seed@example.com";
 const ESPNOW_SLUG = "foundry-l1-02-espnow-link"; // materializeGuide
 const EDIT_SLUG = "foundry-bn-04-curve-tracer"; // editGuideCard
 const REORDER_SLUG = "foundry-bn-05-spot-welder-controller"; // reorderGuideCards
+const P2002_SLUG = "foundry-l2-04-power-led-driver"; // materializeGuide P2002 race
 
 const createdGuideIds: string[] = [];
 const frozenRevisionIds: string[] = []; // restore frozenAt -> null in afterAll
@@ -104,6 +109,60 @@ describe("materializeGuide", () => {
     await expect(materializeGuide({ revisionId })).rejects.toThrow(
       /already exists/i,
     );
+  });
+
+  test("race-safe P2002 catch surfaces the friendly error", async () => {
+    // A guide already exists for this revision (created out-of-band below),
+    // so `tx.guide.create` will violate the Guide.revisionId unique index and
+    // throw P2002. We force execution PAST the in-tx pre-check by stubbing
+    // `tx.guide.findUnique` to return null exactly once — that's the only way
+    // to reach the `create` → P2002 path, because spying the top-level
+    // `db.guide` delegate does NOT intercept the separate Prisma transaction
+    // client (`tx`). So we wrap `db.$transaction`, grab the real `tx` it hands
+    // the callback, and patch that proxy's `guide.findUnique` for one call.
+    const revisionId = await v1RevisionId(P2002_SLUG);
+
+    const guide = await materializeGuide({ revisionId });
+    createdGuideIds.push(guide.id);
+
+    // Minimal shape of the tx-client surface we touch — just enough to stub
+    // `guide.findUnique`. The real Prisma transaction client is far wider; we
+    // only patch this one method on the actual proxy and pass it through.
+    type TxLike = { guide: { findUnique: (...a: unknown[]) => unknown } };
+    type TxCallback = (tx: TxLike) => unknown;
+    type RawTransaction = (arg: unknown, opts?: unknown) => unknown;
+
+    const realTransaction = db.$transaction.bind(db) as unknown as RawTransaction;
+    const txSpy = vi
+      .spyOn(db, "$transaction")
+      .mockImplementation(((arg: unknown, opts?: unknown) => {
+        // Only the interactive (function) form needs the pre-check stubbed;
+        // the batch-array form is passed straight through.
+        if (typeof arg !== "function") {
+          return realTransaction(arg, opts);
+        }
+        const callback = arg as TxCallback;
+        return realTransaction((tx: TxLike) => {
+          const originalFindUnique = tx.guide.findUnique.bind(tx.guide);
+          let bypassed = false;
+          tx.guide.findUnique = (...callArgs: unknown[]) => {
+            if (!bypassed) {
+              bypassed = true; // pre-check sees no guide → execution reaches create
+              return Promise.resolve(null);
+            }
+            return originalFindUnique(...callArgs);
+          };
+          return callback(tx);
+        }, opts);
+      }) as typeof db.$transaction);
+
+    try {
+      await expect(materializeGuide({ revisionId })).rejects.toThrow(
+        /already exists/i,
+      );
+    } finally {
+      txSpy.mockRestore();
+    }
   });
 });
 
