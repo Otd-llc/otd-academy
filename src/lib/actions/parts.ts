@@ -13,7 +13,7 @@
 //      DB-side @@unique constraint — defense in depth for the race where
 //      two concurrent submissions slip past the pre-check.
 
-import { Prisma } from "@prisma/client";
+import { Prisma, PartCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import { db } from "@/lib/db";
@@ -22,6 +22,15 @@ import {
   createPartSchema,
   listPartsBySearchSchema,
 } from "@/lib/schemas/part";
+
+// `Part.category` is now a `PartCategory` enum (migration parts_knowledge_stage_a).
+// The create form still posts free text (the constrained <select> lands in
+// Task 5); narrow any non-canonical value to NULL at the write boundary,
+// mirroring the migration's `USING (CASE … ELSE NULL)` cast.
+function toPartCategory(value: string | null | undefined): PartCategory | null {
+  if (value && value in PartCategory) return value as PartCategory;
+  return null;
+}
 
 export async function createPart(input: unknown) {
   const data = createPartSchema.parse(input);
@@ -50,7 +59,7 @@ export async function createPart(input: unknown) {
         mpn: data.mpn,
         manufacturer: data.manufacturer,
         description: data.description,
-        category: data.category ?? null,
+        category: toPartCategory(data.category),
         footprint: data.footprint ?? null,
         datasheetUrl: data.datasheetUrl ?? null,
         lifecycle: data.lifecycle,

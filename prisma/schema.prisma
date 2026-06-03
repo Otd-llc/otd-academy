@@ -374,12 +374,43 @@ enum PartLifecycle {
   OBSOLETE
 }
 
+// ─── Parts knowledge (Stage A) ─────────────────────────
+enum PartCategory {
+  RF_MODULE
+  LDO_REGULATOR
+  USB_UART_IC
+  MLCC_CAPACITOR
+  USB_CONNECTOR
+  PASSIVE_RESISTOR
+}
+
+enum PartFactGroup {
+  PARAMETRICS
+  PINOUT
+  POWER
+  DERATING
+  MECHANICAL
+  NOTES
+}
+
+enum FactTrust {
+  UNVERIFIED
+  VERIFIED
+  FLAGGED
+}
+
+enum FactSourceKind {
+  DATASHEET
+  MANUAL
+  API
+}
+
 model Part {
   id           String        @id @default(cuid())
   mpn          String
   manufacturer String
   description  String
-  category     String?
+  category     PartCategory?
   footprint    String?
   datasheetUrl String?
   lifecycle    PartLifecycle @default(ACTIVE)
@@ -390,12 +421,50 @@ model Part {
   createdById  String
   createdBy    User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
 
-  bomLines BomLine[]
+  bomLines   BomLine[]
+  factGroups PartFact[]
+  datasheet  PartDatasheet?
 
   @@unique([manufacturer, mpn])
   @@index([mpn])
   @@index([category])
   @@index([lifecycle])
+}
+
+model PartDatasheet {
+  id          String   @id @default(cuid())
+  partId      String   @unique
+  part        Part     @relation(fields: [partId], references: [id], onDelete: Cascade)
+  r2Key       String // parts/{partId}/datasheet-...pdf
+  filename    String
+  byteSize    Int
+  createdById String
+  createdAt   DateTime @default(now())
+}
+
+model PartFact {
+  id              String         @id @default(cuid())
+  partId          String
+  part            Part           @relation(fields: [partId], references: [id], onDelete: Cascade)
+  group           PartFactGroup
+  data            Json
+  trust           FactTrust      @default(UNVERIFIED)
+  // provenance (group-level fallback; element anchors live in `data`)
+  sourceKind      FactSourceKind @default(DATASHEET)
+  partDatasheetId String?
+  sourcePage      Int?
+  sourceUrl       String?
+  sourceNote      String?
+  // verification + audit
+  verifiedById    String?
+  verifiedAt      DateTime?
+  lastEditedById  String?
+  createdById     String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([partId, group])
+  @@index([trust])
 }
 
 model BomLine {
