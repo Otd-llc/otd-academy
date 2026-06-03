@@ -33,6 +33,14 @@ const TRACK_COLOR: Record<CurriculumTrack, string> = {
   COMMS: "text-signal-blue",
 };
 
+// Parallel border-color map for the stacked mobile track-section bands.
+const TRACK_BORDER: Record<CurriculumTrack, string> = {
+  SENSE: "border-status-green",
+  ACT: "border-command-gold",
+  POWER: "border-alert-red",
+  COMMS: "border-signal-blue",
+};
+
 const TRACKS: CurriculumTrack[] = ["SENSE", "ACT", "POWER", "COMMS"];
 const LEVELS: CurriculumLevel[] = ["L1", "L2", "L3"];
 
@@ -118,28 +126,53 @@ export function CurriculumDag({ projects }: Props) {
     else cells.set(key, [p]);
   }
 
+  // Per-track grouping for the stacked mobile/tablet layout. Built straight
+  // from `cells` so it shares the matrix's fully-assigned population and
+  // comes out ordered L1→L2→L3 within each track (LEVELS order).
+  const byTrack = new Map<CurriculumTrack, ProjectCard[]>();
+  for (const t of TRACKS) {
+    const arr: ProjectCard[] = [];
+    for (const l of LEVELS) arr.push(...(cells.get(`${t}:${l}`) ?? []));
+    byTrack.set(t, arr);
+  }
+
   return (
     <div>
-      {/* Column header row — track chips above each column. The leading
-          empty cell aligns with the row-label column on the left. */}
-      <div className="grid grid-cols-[80px_repeat(4,1fr)] gap-2">
-        <div />
-        {TRACKS.map((t) => (
-          <div
-            key={t}
-            className={`border border-panel-border bg-deep-space px-2 py-1 text-center font-mono text-xs uppercase tracking-wider ${TRACK_COLOR[t]}`}
-          >
-            {t}
-          </div>
-        ))}
+      {/* Desktop (lg+): the full track×level matrix. Needs real width for
+          four card columns + the row-label rail, so it's hidden below lg
+          where it would crush the cards. */}
+      <div className="hidden lg:block">
+        {/* Column header row — track chips above each column. The leading
+            empty cell aligns with the row-label column on the left. */}
+        <div className="grid grid-cols-[80px_repeat(4,1fr)] gap-2">
+          <div />
+          {TRACKS.map((t) => (
+            <div
+              key={t}
+              className={`border border-panel-border bg-deep-space px-2 py-1 text-center font-mono text-xs uppercase tracking-wider ${TRACK_COLOR[t]}`}
+            >
+              {t}
+            </div>
+          ))}
+        </div>
+
+        {/* Body — one grid row per level. Each level's row gets a leading
+            row-label cell, then four track cells. Empty cells render an
+            em-dash placeholder so the grid skeleton stays visible. */}
+        <div className="mt-2 grid grid-cols-[80px_repeat(4,1fr)] gap-2">
+          {LEVELS.map((l) => (
+            <CurriculumGridRow key={l} level={l} cells={cells} />
+          ))}
+        </div>
       </div>
 
-      {/* Body — one grid row per level. Each level's row gets a leading
-          row-label cell, then four track cells. Empty cells render an
-          em-dash placeholder so the grid skeleton stays visible. */}
-      <div className="mt-2 grid grid-cols-[80px_repeat(4,1fr)] gap-2">
-        {LEVELS.map((l) => (
-          <CurriculumGridRow key={l} level={l} cells={cells} />
+      {/* Mobile/tablet (<lg): the matrix's four track columns become
+          full-width, color-coded vertical sections, each listing its
+          projects in level order. Every Card still shows its level in the
+          meta strip, so the level axis stays legible without grid rows. */}
+      <div className="space-y-8 lg:hidden">
+        {TRACKS.map((t) => (
+          <TrackSection key={t} track={t} cards={byTrack.get(t) ?? []} />
         ))}
       </div>
 
@@ -195,5 +228,45 @@ function CurriculumGridRow({
         );
       })}
     </>
+  );
+}
+
+// One stacked track section for the mobile/tablet layout (<lg): a color-coded
+// band header (track name + project count) and the track's projects rendered
+// as a 1-up (sm: 2-up) card grid, ordered L1→L2→L3. Reuses the same `Card` as
+// the matrix, so the level stays visible in each card's meta strip.
+function TrackSection({
+  track,
+  cards,
+}: {
+  track: CurriculumTrack;
+  cards: ProjectCard[];
+}) {
+  return (
+    <section>
+      <div
+        className={`flex items-baseline justify-between border-b-2 pb-1.5 ${TRACK_BORDER[track]}`}
+      >
+        <h3
+          className={`font-mono text-sm uppercase tracking-wider ${TRACK_COLOR[track]}`}
+        >
+          {track}
+        </h3>
+        <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
+          {cards.length} {cards.length === 1 ? "PROJECT" : "PROJECTS"}
+        </span>
+      </div>
+      {cards.length === 0 ? (
+        <p className="mt-3 font-mono text-[10px] uppercase tracking-wider text-muted">
+          —
+        </p>
+      ) : (
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {cards.map((p) => (
+            <Card key={p.id} p={p} />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

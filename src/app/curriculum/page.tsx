@@ -76,7 +76,7 @@ export default async function CurriculumPage() {
       </nav>
 
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-display text-5xl tracking-wider text-white">
+        <h1 className="font-display text-4xl tracking-wider text-white sm:text-5xl">
           CURRICULUM
         </h1>
         <p className="font-mono text-xs uppercase tracking-wider text-muted">
@@ -85,7 +85,7 @@ export default async function CurriculumPage() {
       </div>
 
       <p className="mt-4 max-w-3xl font-mono text-xs uppercase tracking-wider text-muted">
-        TRACK × LEVEL GRID. EACH CARD SHOWS LATEST STAGE AND TERSE INBOUND /
+        TRACK × LEVEL MAP. EACH CARD SHOWS LATEST STAGE AND TERSE INBOUND /
         OUTBOUND DEPENDENCIES. BENCH TOOLS ARE DIMMED.
       </p>
 
