@@ -181,7 +181,7 @@ describe("handleLookupPart", () => {
   test("a miss abstains with structuredContent.found=false", async () => {
     const out = await handleLookupPart(db, { mpn: "no-such-mpn-zzz" });
     expect((out.structuredContent as { found: boolean }).found).toBe(false);
-    expect(out.content[0]!.text).toMatch(/abstain/i);
+    expect(out.content[0]!.text).toMatch(/not in the .*parts library/i);
   });
 
   test("a hit returns ONLY the verified fact with its citation; unverified+flagged absent by default", async () => {
@@ -210,15 +210,42 @@ describe("handleLookupPart", () => {
     expect(sc.unverified.map((f) => f.group)).toEqual(["PINOUT"]);
     expect(sc.facts.map((f) => f.group)).not.toContain("POWER");
     expect(sc.unverified.map((f) => f.group)).not.toContain("POWER");
+    // The formatter's unverified head line renders (the structured keys above stay).
+    expect(out.content[0]!.text).toMatch(/Unverified groups/);
   });
 });
 
 describe("handleLookupBom", () => {
   test("resolves a project slug to its frozen revision's lines with verified facts", async () => {
     const out = await handleLookupBom(db, { projectSlug: PROJECT_SLUG });
-    const sc = out.structuredContent as { found: true; revisionId: string; lines: { refDes: string }[] };
+    // `lines[].part` is a LookupPartResult (PartHit | NotFound); when found it
+    // carries `.facts[]` with `.group` and the required non-null `.citation`.
+    const sc = out.structuredContent as {
+      found: true;
+      revisionId: string;
+      lines: {
+        refDes: string;
+        part:
+          | { found: true; facts: { group: string; citation: string }[] }
+          | { found: false };
+      }[];
+    };
     expect(sc.found).toBe(true);
     expect(sc.revisionId).toBe(frozenRevisionId);
     expect(sc.lines.map((l) => l.refDes)).toContain("C1");
+
+    // The C1 line's part resolves, and its VERIFIED PARAMETRICS fact carries its
+    // citation THROUGH the BOM formatter — structured projection first.
+    const c1 = sc.lines.find((l) => l.refDes === "C1");
+    expect(c1).toBeDefined();
+    const part = c1!.part;
+    expect(part.found).toBe(true);
+    if (!part.found) throw new Error("expected C1's part to resolve");
+    const parametrics = part.facts.find((f) => f.group === "PARAMETRICS");
+    expect(parametrics).toBeDefined();
+    expect(parametrics!.citation).toBe(`${TEST_MPN} datasheet p.4`);
+
+    // …and the same citation surfaces through the BOM envelope's per-line render.
+    expect(out.content[0]!.text).toContain(`${TEST_MPN} datasheet p.4`);
   });
 });
