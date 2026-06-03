@@ -46,12 +46,11 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { factDataSchema } from "@/lib/schemas/part-fact";
-import { shouldDemote, type DemoteRelevant } from "@/lib/part-fact-demote";
-
-// Re-export the pure demote decision's type for callers that referenced it here
-// historically (the function itself now lives in `part-fact-demote.ts` because a
-// `"use server"` module may only export async functions).
-export type { DemoteRelevant };
+import { shouldDemote } from "@/lib/part-fact-demote";
+// NB: a "use server" module may export ONLY async functions — not even a
+// `export type { … }` re-export (Next's server-actions transform registers
+// every export at runtime and crashes on the type-erased binding). Import
+// `DemoteRelevant` straight from `@/lib/part-fact-demote` where needed.
 
 // ─── Messages ───────────────────────────────────────────
 const CONFLICT_MESSAGE =
