@@ -16,23 +16,24 @@
 // Nothing here auto-verifies or weakens the gate; a human reviews before Verify.
 
 /**
- * First symbol/footprint name in a KiCad 6/7 S-expression:
- *   - `(symbol "NAME"`     — .kicad_sym  (KiCad 6/7 ALWAYS quotes the name)
- *   - `(footprint "NAME"`  — .kicad_mod  (KiCad 6/7 ALWAYS quotes the name)
- *   - `(module "NAME"`     — legacy .kicad_mod, quoted name
- *   - `(module NAME`       — legacy .kicad_mod, bare (unquoted) name
+ * First symbol/footprint name in a KiCad S-expression. The name may be QUOTED
+ * (KiCad 6/7 native) OR BARE/unquoted — third-party generators (SamacSys /
+ * Component Search Engine, older SnapEDA, Ultra Librarian) emit the legacy
+ * unquoted form, e.g. `(footprint SOP65P640X120-8N (layer F.Cu) (tedit …)`:
+ *   - `(symbol "NAME"` / `(footprint "NAME"` / `(module "NAME"`   — quoted
+ *   - `(footprint NAME` / `(module NAME`                           — bare/unquoted
  *
- * The bare (unquoted) fallback is scoped to `module` ONLY: symbol/footprint
- * names are matched solely when QUOTED. This prevents a malformed/headerless
- * `(footprint (layer …)` from grabbing a bogus token like `(layer` as the ref.
- * The NAME is captured either quoted (group 1) or bare-module (group 2).
+ * The bare alternative's char class EXCLUDES `(` (`[^\s"()]+`), so a
+ * malformed/headerless `(footprint (layer …)` can't grab a bogus token like
+ * `(layer` as the ref — it falls through to no match. NAME is captured either
+ * quoted (group 1) or bare (group 2).
  *
  * Known limitation: an escaped quote inside a name (e.g. `(symbol "A\"B"`)
  * truncates the captured ref at the inner quote — acceptable for a
  * human-reviewed suggestion; escaped quotes are intentionally not handled.
  */
 const REF_RE =
-  /\((?:(?:symbol|footprint|module)\s+"([^"]+)"|module\s+([^\s")]+))/i;
+  /\((?:symbol|footprint|module)\s+(?:"([^"]+)"|([^\s"()]+))/i;
 
 /** Distinct generator signatures — each maps a regex to its canonical label. */
 const SOURCE_SIGNATURES: ReadonlyArray<{ re: RegExp; label: string }> = [

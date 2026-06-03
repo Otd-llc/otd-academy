@@ -22,10 +22,21 @@ describe("extractKicadMeta — ref", () => {
     expect(extractKicadMeta(text).ref).toBe("AP2112K-3.3");
   });
 
-  test("extracts the footprint name from a .kicad_mod snippet", () => {
+  test("extracts the footprint name from a QUOTED .kicad_mod snippet (KiCad 6/7 native)", () => {
     const text = `(footprint "SOP65P640X120-8N" (layer "F.Cu")
   (attr smd)
   (fp_text reference "REF**" (at 0 0))
+)`;
+    expect(extractKicadMeta(text).ref).toBe("SOP65P640X120-8N");
+  });
+
+  test("extracts an UNQUOTED footprint name (SamacSys/Component Search Engine/legacy — the real-world form)", () => {
+    // Third-party generators (SamacSys / Component Search Engine, older SnapEDA)
+    // emit `(footprint NAME (layer …) (tedit …)` with the name UNQUOTED. This is
+    // the real format that the earlier 'bare-name = module only' hardening regressed.
+    const text = `(footprint SOP65P640X120-8N (layer F.Cu) (tedit 69BF7AFB)
+  (descr "")
+  (attr smd)
 )`;
     expect(extractKicadMeta(text).ref).toBe("SOP65P640X120-8N");
   });
