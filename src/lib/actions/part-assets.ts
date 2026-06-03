@@ -34,12 +34,29 @@
 // to THIS file — the gate half below is self-contained and R2-free.
 
 import { type PartAsset } from "@prisma/client";
+import { createId } from "@paralleldrive/cuid2";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { env } from "@/env";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
-import { editPartAssetSchema, shouldDemoteAsset } from "@/lib/schemas/part-asset";
+import { partAssetKey } from "@/lib/r2";
+import {
+  ensureR2Enabled,
+  headVerifySize,
+  presignGet,
+  presignPut,
+} from "@/lib/part-r2";
+import {
+  editPartAssetSchema,
+  shouldDemoteAsset,
+  ASSET_KIND_CONFIG,
+  createPartAssetUploadUrlSchema,
+  recordPartAssetSchema,
+  extOf,
+  PART_ASSET_KINDS,
+} from "@/lib/schemas/part-asset";
 
 // ─── Messages ───────────────────────────────────────────
 const CONFLICT_MESSAGE =
@@ -232,4 +249,139 @@ export async function clearPartAssetFlag(input: unknown): Promise<PartAsset> {
 
   revalidatePartRoute(row.partId);
   return db.partAsset.findUniqueOrThrow({ where: { id } });
+}
+
+// ─── R2 upload pipeline (design §3.1, Stage C Task 5) ───
+//
+// Three R2 actions clone the Stage A datasheet pipeline (part-datasheet.ts)
+// per-kind, parameterized by `ASSET_KIND_CONFIG` (extension allowlist + a
+// SERVER-FORCED content-type + a size cap). All three are `requireUser`-gated;
+// the upload + record actions are also `ensureR2Enabled`-gated; the download
+// action returns `null` (not a throw) on the disabled / missing path so the
+// part page can render a graceful fallback.
+//
+// CONTENT-TYPE is load-bearing. KiCad files (`.kicad_sym` / `.kicad_mod` /
+// `.step`) usually report an EMPTY browser `file.type`, so we validate by
+// EXTENSION and the server FORCES a per-kind content-type. That forced value is
+// (a) signed into the presigned PUT and (b) RETURNED to the client, which MUST
+// echo it in the PUT `Content-Type` header — R2's presigned signature requires
+// the request header match the signed `ContentType` exactly.
+
+// ─── createPartAssetUploadUrl ───────────────────────────
+/**
+ * Mint a presigned PUT URL for a part's per-kind CAD asset. The upload schema
+ * parses FIRST — so its ext/cap `superRefine` runs BEFORE the R2 gate — then
+ * `requireUser` + `ensureR2Enabled` + a part-exists check, then `presignPut`
+ * over the minted `parts/{partId}/{kind}-{cuid}.{ext}` key with the kind's
+ * forced content-type. Returns `{ uploadUrl, r2Key, contentType }`; the client
+ * MUST send `contentType` (NOT `file.type`) in the PUT `Content-Type` header.
+ */
+export async function createPartAssetUploadUrl(
+  input: unknown,
+): Promise<{ uploadUrl: string; r2Key: string; contentType: string }> {
+  // Parse FIRST so the ext/cap superRefine runs before the R2 gate (lets the
+  // extension/cap rejections be exercised with R2 off).
+  const data = createPartAssetUploadUrlSchema.parse(input);
+  await requireUser();
+  ensureR2Enabled();
+
+  // Part must exist before we mint a key under its prefix.
+  await db.part.findUniqueOrThrow({
+    where: { id: data.partId },
+    select: { id: true },
+  });
+
+  const cfg = ASSET_KIND_CONFIG[data.kind];
+  const r2Key = partAssetKey(
+    data.partId,
+    data.kind,
+    createId(),
+    extOf(data.filename),
+  );
+  const uploadUrl = await presignPut(r2Key, cfg.contentType, data.byteSize);
+
+  // The client MUST echo this exact contentType in the PUT Content-Type header
+  // (R2's presigned signature requires the request header match the signed
+  // ContentType — and KiCad files report an empty file.type in browsers).
+  return { uploadUrl, r2Key, contentType: cfg.contentType };
+}
+
+// ─── recordPartAsset ────────────────────────────────────
+/**
+ * Record the PartAsset row after the client PUT succeeds. HEADs the R2 object to
+ * confirm it exists + the actual ContentLength doesn't exceed the declared
+ * byteSize OR the kind cap (oversize → DeleteObject + reject). Upserts on the
+ * compound-unique `partId_kind` selector: CREATE trusts the schema default
+ * (UNVERIFIED) and sets the kind's content-type; a REPLACE (update) repoints
+ * r2Key/filename/byteSize/contentType AND re-enters UNVERIFIED + clears the
+ * verifier — a replaced file must be re-verified. ref/source/license are left
+ * as-is on update (managed by editPartAsset).
+ */
+export async function recordPartAsset(input: unknown): Promise<PartAsset> {
+  const data = recordPartAssetSchema.parse(input);
+  const user = await requireUser();
+  ensureR2Enabled();
+
+  // Part must exist (a clean error beats a Prisma FK violation).
+  await db.part.findUniqueOrThrow({
+    where: { id: data.partId },
+    select: { id: true },
+  });
+
+  const cfg = ASSET_KIND_CONFIG[data.kind];
+  // HEAD the uploaded object + enforce the declared size AND the kind cap.
+  // Oversize deletes the orphan and throws (load-bearing per part-datasheet.ts).
+  const actual = await headVerifySize(data.r2Key, data.byteSize, cfg.maxBytes);
+
+  // @@unique([partId, kind]) → a replacement upserts in place. A new file
+  // ALWAYS re-enters UNVERIFIED (a replaced asset must be re-verified): we keep
+  // the metadata (ref/source/license — managed by editPartAsset) but clear the
+  // verifier. CREATE trusts the schema default (UNVERIFIED).
+  const asset = await db.partAsset.upsert({
+    where: { partId_kind: { partId: data.partId, kind: data.kind } },
+    create: {
+      partId: data.partId,
+      kind: data.kind,
+      r2Key: data.r2Key,
+      filename: data.filename,
+      byteSize: actual,
+      contentType: cfg.contentType,
+      createdById: user.id,
+    },
+    update: {
+      r2Key: data.r2Key,
+      filename: data.filename,
+      byteSize: actual,
+      contentType: cfg.contentType,
+      trust: "UNVERIFIED",
+      verifiedById: null,
+      verifiedAt: null,
+      lastEditedById: user.id,
+    },
+  });
+
+  revalidatePartRoute(data.partId);
+  return asset;
+}
+
+// ─── getPartAssetDownloadUrl ────────────────────────────
+/**
+ * Presigned GET for a part's per-kind asset, or `null` when R2 is off / no row
+ * exists. Returning `null` (rather than throwing on the disabled / missing path)
+ * is deliberate: the part page calls this server-side and renders the download
+ * link only when a URL comes back.
+ */
+export async function getPartAssetDownloadUrl(
+  partId: string,
+  kind: unknown,
+): Promise<string | null> {
+  const k = z.enum(PART_ASSET_KINDS).parse(kind);
+  await requireUser();
+  if (!env.R2_ENABLED || !env.R2_BUCKET) return null;
+
+  const asset = await db.partAsset.findUnique({
+    where: { partId_kind: { partId, kind: k } },
+    select: { r2Key: true },
+  });
+  return asset ? presignGet(asset.r2Key) : null;
 }
