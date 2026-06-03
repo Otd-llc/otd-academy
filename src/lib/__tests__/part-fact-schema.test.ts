@@ -209,6 +209,10 @@ describe("derating", () => {
     expect(curveSchema.safeParse(noConditions).success).toBe(false);
   });
 
+  it("requires at least one operating condition (the citable operating point)", () => {
+    expect(curveSchema.safeParse({ ...goodCurve, conditions: [] }).success).toBe(false);
+  });
+
   it("rejects an unknown yKind or kind", () => {
     expect(curveSchema.safeParse({ ...goodCurve, yKind: "nope" }).success).toBe(false);
     expect(curveSchema.safeParse({ ...goodCurve, kind: "nope" }).success).toBe(false);
@@ -268,6 +272,20 @@ describe("notes (reuses guide content blocks)", () => {
 
   it("rejects an invalid block", () => {
     expect(notesSchema.safeParse({ blocks: [{ type: "nope" }] }).success).toBe(false);
+  });
+
+  it("inherits the guide sourceRef href guard (rejects javascript: / protocol-relative)", () => {
+    // Locks the reuse contract: NOTES must NOT become an XSS vector via a
+    // sourceRef href just because it reuses guideContentBlocksSchema.
+    expect(
+      notesSchema.safeParse({ blocks: [{ type: "sourceRef", label: "x", href: "javascript:alert(1)" }] }).success,
+    ).toBe(false);
+    expect(
+      notesSchema.safeParse({ blocks: [{ type: "sourceRef", label: "x", href: "//evil.com" }] }).success,
+    ).toBe(false);
+    expect(
+      notesSchema.safeParse({ blocks: [{ type: "sourceRef", label: "x", href: "https://example.com" }] }).success,
+    ).toBe(true);
   });
 });
 

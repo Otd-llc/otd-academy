@@ -104,7 +104,9 @@ export const curveSchema = z
     xUnit: z.string().trim().min(1),
     yUnit: z.string().trim().min(1),
     yKind: z.enum(CURVE_Y_KINDS),
-    conditions: z.array(conditionSchema),
+    // At least one operating point (temperature / AC level / frequency) — a
+    // curve is uninterpretable and uncitable without it (design §3.3, §5).
+    conditions: z.array(conditionSchema).min(1),
     points: z.array(pointSchema).min(2),
     ...anchor,
   })
