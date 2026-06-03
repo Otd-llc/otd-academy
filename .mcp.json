@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "foundry-parts": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "tsx", "mcp/parts-server/index.ts"]
+    }
+  }
+}
