@@ -68,11 +68,17 @@ export default async function RootLayout({
                 </span>
               </Link>
 
-              <MainNav />
+              {/* On mobile the nav drops to its own full-width row below the
+                  brand/user cluster (order-last + w-full); from sm up it sits
+                  inline between them again. Keeps the top row cleanly
+                  brand-left / avatar-right instead of wrapping unpredictably. */}
+              <MainNav className="order-last w-full sm:order-none sm:w-auto" />
 
-              {/* Right cluster — explicit header sign-out + the email menu. */}
+              {/* Right cluster — explicit header sign-out + the email menu. The
+                  text sign-out is hidden on mobile to declutter the top row; the
+                  same action stays reachable inside the UserMenu dropdown. */}
               <div className="ml-auto flex items-center gap-3">
-                <form action={signOutAction}>
+                <form action={signOutAction} className="hidden sm:block">
                   <button
                     type="submit"
                     className="font-mono text-xs uppercase tracking-wider text-muted transition-colors hover:text-command-gold"
@@ -90,8 +96,10 @@ export default async function RootLayout({
 
           {email ? (
             <footer className="border-t border-panel-border px-4 py-6 font-mono text-xs text-muted sm:px-6">
-              <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3">
-                <div className="flex items-center gap-2">
+              {/* Stacked + left-aligned on mobile; the space-between row only
+                  kicks in from sm up, where there's room for both clusters. */}
+              <div className="mx-auto flex max-w-6xl flex-col items-start gap-x-6 gap-y-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <BrandMark className="h-4 w-4 text-gold-dim" />
                   <span>
                     © 2026 One Thousand Drones. All rights reserved.
