@@ -461,9 +461,9 @@ function FactDataEditor({
         />
       );
     case "PINOUT":
-      return <PinoutEditor data={data as Pinout} />;
+      return <PinoutEditor data={data as Pinout} onChange={onChange} />;
     case "DERATING":
-      return <DeratingEditor data={data as Derating} />;
+      return <DeratingEditor data={data as Derating} onChange={onChange} />;
     default: {
       const _exhaustive: never = group;
       return <p className="text-alert-red">Unknown group: {String(_exhaustive)}</p>;
