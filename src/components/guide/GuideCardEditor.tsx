@@ -30,6 +30,12 @@ import {
 } from "@/lib/guide-block-defaults";
 import { saveGuideCard } from "@/lib/actions/guides-form";
 import { BlockEditor } from "@/components/guide/BlockEditor";
+import { collectBlockErrors } from "@/lib/guide-card-errors";
+import { moveWithin, resizeRows } from "@/lib/guide-table";
+import {
+  inputClass as fieldInputClass,
+  labelClass,
+} from "@/components/guide/field-styles";
 import { IconButton } from "@/components/IconButton";
 import {
   ChevronDownIcon,
@@ -39,11 +45,9 @@ import {
   TrashIcon,
 } from "@/components/icons";
 
-// Shared bench-flat styling (matches NewChecklistDialog / BlockEditor).
-const inputClass =
-  "mt-1 w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none";
-const labelClass =
-  "block font-mono text-xs uppercase tracking-wider text-muted";
+// Header inputs span the card width; compose the shared field box (aligned to
+// the same px-2 py-1 the block editors use, so the two render at one height).
+const inputClass = `mt-1 w-full ${fieldInputClass}`;
 
 export function GuideCardEditor({
   cardId,
@@ -84,7 +88,17 @@ export function GuideCardEditor({
     setEyebrowDraft(eyebrow);
     setTitleDraft(title);
     setLeadDraft(lead ?? "");
-    setBlocksDraft(blocks);
+    // Normalize table rows on entry so a pre-existing ragged table (reachable
+    // via out-of-band writes — resizeRows otherwise only runs on column/row
+    // add/remove) becomes rectangular, and a subsequent cell-only edit persists
+    // rectangular. Non-table blocks pass through untouched.
+    setBlocksDraft(
+      blocks.map((b) =>
+        b.type === "table"
+          ? { ...b, rows: resizeRows(b.rows, b.columns.length) }
+          : b,
+      ),
+    );
     setError(null);
     setFieldErrors(undefined);
     setEditing(true);
@@ -98,23 +112,32 @@ export function GuideCardEditor({
   }
 
   // ─── block-array mutations (index swap / splice / append) ───────────────
+  // Per-block errors are keyed by ARRAY INDEX, so any structural edit
+  // (reorder / delete / append) — and any content edit — must clear the stale
+  // error state, or a now-valid block would keep a mis-targeted red error +
+  // aria-invalid/aria-describedby until the next save (fix C).
+  function clearBlockErrors() {
+    setError(null);
+    setFieldErrors(undefined);
+  }
   function updateBlockAt(i: number) {
-    return (next: ContentBlock) =>
+    return (next: ContentBlock) => {
+      clearBlockErrors();
       setBlocksDraft((prev) => prev.map((b, bi) => (bi === i ? next : b)));
+    };
   }
   function moveBlock(i: number, dir: -1 | 1) {
-    const j = i + dir;
-    if (j < 0 || j >= blocksDraft.length) return;
-    setBlocksDraft((prev) => {
-      const next = [...prev];
-      [next[i], next[j]] = [next[j]!, next[i]!];
-      return next;
-    });
+    if (i + dir < 0 || i + dir >= blocksDraft.length) return;
+    clearBlockErrors();
+    // moveWithin (guide-table) is a bounds-checked adjacent swap.
+    setBlocksDraft((prev) => moveWithin(prev, i, dir));
   }
   function removeBlock(i: number) {
+    clearBlockErrors();
     setBlocksDraft((prev) => prev.filter((_, bi) => bi !== i));
   }
   function addBlock(type: BlockType) {
+    clearBlockErrors();
     setBlocksDraft((prev) => [...prev, defaultBlock(type)]);
   }
 
@@ -154,19 +177,29 @@ export function GuideCardEditor({
     const validBlocks = parsed.data;
     const trimmedLead = leadDraft.trim();
     startTransition(async () => {
-      const r = await saveGuideCard({
-        id: cardId,
-        eyebrow: eyebrowDraft,
-        title: titleDraft,
-        lead: trimmedLead === "" ? null : trimmedLead,
-        contentBlocks: validBlocks,
-      });
-      if (r.ok) {
-        setEditing(false);
-        router.refresh();
-      } else {
-        setError(r.message ?? "Could not save");
-        setFieldErrors(r.errors);
+      // `saveGuideCard`'s own try/catch runs on the SERVER and only maps
+      // action-body errors (ZodError → field errors, other rejections →
+      // `message`). A transport-layer rejection (offline, network drop, a 500
+      // before the action body runs, a serialization error) rejects the awaited
+      // promise instead — without this catch the button silently reverts
+      // "Saving…" → "Save" with no feedback.
+      try {
+        const r = await saveGuideCard({
+          id: cardId,
+          eyebrow: eyebrowDraft,
+          title: titleDraft,
+          lead: trimmedLead === "" ? null : trimmedLead,
+          contentBlocks: validBlocks,
+        });
+        if (r.ok) {
+          setEditing(false);
+          router.refresh();
+        } else {
+          setError(r.message ?? "Could not save");
+          setFieldErrors(r.errors);
+        }
+      } catch {
+        setError("Could not save — check your connection and try again.");
       }
     });
   }
@@ -271,7 +304,12 @@ export function GuideCardEditor({
                     aria-invalid={hasBlockError || undefined}
                     aria-describedby={hasBlockError ? blockErrListId : undefined}
                   >
-                    <BlockEditor block={block} onChange={updateBlockAt(i)} />
+                    <BlockEditor
+                      block={block}
+                      onChange={updateBlockAt(i)}
+                      hasError={hasBlockError}
+                      errorId={blockErrListId}
+                    />
                   </div>
                   {hasBlockError ? (
                     <ul
@@ -412,11 +450,13 @@ function HeaderFields({
 }
 
 // ─── add-block menu ─────────────────────────────────────────────────────────
-// A Plus IconButton that toggles a small keyboard-operable menu of block
-// types; choosing one appends defaultBlock(type) and closes the menu.
+// A Plus button that toggles a small popup list of block types; choosing one
+// appends defaultBlock(type) and closes the popup. The popup is a plain list of
+// buttons in natural tab order (NOT an ARIA `role="menu"` — see the trigger's
+// aria-haspopup="true"): Tab/Shift+Tab move between items.
 //
 // Keyboard/dismissal contract:
-//   • On open, focus moves to the first menu item (useEffect keyed on `open`).
+//   • On open, focus moves to the first item (useEffect keyed on `open`).
 //   • Escape closes the menu from anywhere inside the menu region (handler on
 //     the container, so it fires whether focus is on the trigger or an item),
 //     then returns focus to the trigger.
@@ -476,10 +516,15 @@ function AddBlockMenu({ onAdd }: { onAdd: (type: BlockType) => void }) {
         }
       }}
     >
+      {/* aria-haspopup="true" (not "menu"): the popup is a plain list of
+          buttons in natural tab order, NOT an ARIA menu — there is no
+          roving-tabindex / Arrow-key navigation, so promising `role="menu"`
+          would mislead AT users. Tab/Shift+Tab moves between items; Escape and
+          outside-interaction dismiss (handled on the container). */}
       <button
         type="button"
         aria-label="Add block"
-        aria-haspopup="menu"
+        aria-haspopup="true"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((v) => !v)}
@@ -491,18 +536,16 @@ function AddBlockMenu({ onAdd }: { onAdd: (type: BlockType) => void }) {
       {open ? (
         <ul
           id={menuId}
-          role="menu"
           aria-label="Block types"
           className="absolute left-0 z-20 mt-1 min-w-44 rounded border border-panel-border bg-navy-dark p-1 shadow-xl"
         >
           {BLOCK_TYPES.map((type, i) => {
             const ItemIcon = BLOCK_TYPE_ICON[type];
             return (
-              <li key={type} role="none">
+              <li key={type}>
                 <button
                   ref={i === 0 ? firstItemRef : undefined}
                   type="button"
-                  role="menuitem"
                   onClick={() => choose(type)}
                   className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left font-mono text-sm text-link-muted transition-colors hover:bg-deep-space hover:text-command-gold focus-visible:bg-deep-space focus-visible:text-command-gold focus-visible:outline-none"
                 >
@@ -544,23 +587,4 @@ function blockAccentClass(block: ContentBlock): string {
     }
   }
   return "border-command-gold";
-}
-
-// Pull every field error whose key targets block index `i` (e.g.
-// "contentBlocks.0.label"), stripping the "contentBlocks.<i>." prefix so the
-// surfaced message names the offending sub-field.
-function collectBlockErrors(
-  fieldErrors: Record<string, string[]> | undefined,
-  i: number,
-): string[] {
-  if (!fieldErrors) return [];
-  const prefix = `contentBlocks.${i}`;
-  const out: string[] = [];
-  for (const [key, messages] of Object.entries(fieldErrors)) {
-    if (key === prefix || key.startsWith(`${prefix}.`)) {
-      const sub = key.slice(prefix.length).replace(/^\./, "");
-      for (const msg of messages) out.push(sub ? `${sub}: ${msg}` : msg);
-    }
-  }
-  return out;
 }

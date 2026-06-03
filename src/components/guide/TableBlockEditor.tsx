@@ -17,7 +17,17 @@ import { useId } from "react";
 import type { ContentBlock } from "@/lib/schemas/guide";
 import { IconButton } from "@/components/IconButton";
 import { PlusIcon, TrashIcon } from "@/components/icons";
-import { resizeRows, type TableCell } from "@/lib/guide-table";
+import {
+  applyCellDecoration,
+  normalizeCell,
+  resizeRows,
+  type TableCell,
+} from "@/lib/guide-table";
+import {
+  inputClass as fieldInputClass,
+  labelClass,
+  selectClass,
+} from "@/components/guide/field-styles";
 
 type TableBlock = Extract<ContentBlock, { type: "table" }>;
 type Decoration = NonNullable<TableCell["decoration"]>;
@@ -26,12 +36,8 @@ type Tone = NonNullable<TableCell["tone"]>;
 const DECORATIONS: Decoration[] = ["ref", "mpn", "badge"];
 const TONES: Tone[] = ["gold", "blue", "critical", "dim"];
 
-const inputClass =
-  "w-full rounded border border-panel-border bg-deep-space px-2 py-1 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none";
-const selectClass =
-  "rounded border border-panel-border bg-deep-space px-2 py-1 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none";
-const labelClass =
-  "block font-mono text-xs uppercase tracking-wider text-muted";
+// Cell text inputs span the cell column; the shared field box + full width.
+const inputClass = `w-full ${fieldInputClass}`;
 
 export function TableBlockEditor({
   block,
@@ -86,26 +92,16 @@ export function TableBlockEditor({
     updateCell(ri, ci, { text });
   }
   function setCellDecoration(ri: number, ci: number, value: string) {
-    const writeCell = (build: (c: TableCell) => TableCell) =>
-      onChange({
-        ...block,
-        rows: rows.map((row, r) =>
-          r === ri ? row.map((c, ci2) => (ci2 === ci ? build(c) : c)) : row,
-        ),
-      });
-    if (value === "") {
-      // "none": strip decoration AND tone → a plain {text} cell.
-      writeCell((c) => ({ text: c.text }));
-      return;
-    }
-    const decoration = value as Decoration;
-    if (decoration === "badge") {
-      // Badges keep a tone (default gold).
-      writeCell((c) => ({ text: c.text, decoration, tone: c.tone ?? "gold" }));
-    } else {
-      // ref/mpn carry no tone — drop it.
-      writeCell((c) => ({ text: c.text, decoration }));
-    }
+    // applyCellDecoration (guide-table) is the pure transition: '' → {text},
+    // badge → tone (default gold), ref/mpn → no tone.
+    onChange({
+      ...block,
+      rows: rows.map((row, r) =>
+        r === ri
+          ? row.map((c, ci2) => (ci2 === ci ? applyCellDecoration(c, value) : c))
+          : row,
+      ),
+    });
   }
   function setCellTone(ri: number, ci: number, value: string) {
     updateCell(ri, ci, { tone: value as Tone });
@@ -254,16 +250,4 @@ export function TableBlockEditor({
       </fieldset>
     </div>
   );
-}
-
-// Drop optional keys that have fallen empty so a plain cell is exactly
-// `{text}` (matches the schema's optional `decoration`/`tone`). A non-badge
-// decoration never carries a tone.
-function normalizeCell(cell: TableCell): TableCell {
-  const next: TableCell = { text: cell.text };
-  if (cell.decoration) {
-    next.decoration = cell.decoration;
-    if (cell.decoration === "badge" && cell.tone) next.tone = cell.tone;
-  }
-  return next;
 }

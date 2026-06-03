@@ -20,38 +20,55 @@ import {
   TrashIcon,
 } from "@/components/icons";
 import { TableBlockEditor } from "@/components/guide/TableBlockEditor";
+import { moveWithin } from "@/lib/guide-table";
+import {
+  inputClass as fieldInputClass,
+  helpClass,
+  labelClass,
+  selectClass,
+  textareaClass as fieldTextareaClass,
+} from "@/components/guide/field-styles";
 
-// Shared bench-flat input styling (matches NewChecklistDialog / _form.tsx).
-const inputClass =
-  "w-full rounded border border-panel-border bg-deep-space px-2 py-1 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none";
-const selectClass =
-  "rounded border border-panel-border bg-deep-space px-2 py-1 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none";
-const textareaClass =
-  "w-full rounded border border-panel-border bg-deep-space px-2 py-1 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none";
-const labelClass =
-  "block font-mono text-xs uppercase tracking-wider text-muted";
-const helpClass = "mt-1 font-mono text-xs text-muted";
+// Block inputs/textareas span their container; compose full-width onto the
+// shared field box.
+const inputClass = `w-full ${fieldInputClass}`;
+const textareaClass = `w-full ${fieldTextareaClass}`;
+
+// Per-block error wiring (fix D): when the parent block has a save error, the
+// PRIMARY input of each editor flips `aria-invalid` and points its
+// `aria-describedby` at the parent's block-error list, mirroring HeaderFields.
+type BlockErrorProps = { hasError?: boolean; errorId?: string };
+
+function ariaErrorProps({ hasError, errorId }: BlockErrorProps) {
+  return {
+    "aria-invalid": hasError || undefined,
+    "aria-describedby": hasError ? errorId : undefined,
+  } as const;
+}
 
 export function BlockEditor({
   block,
   onChange,
+  hasError,
+  errorId,
 }: {
   block: ContentBlock;
   onChange: (next: ContentBlock) => void;
-}) {
+} & BlockErrorProps) {
+  const err: BlockErrorProps = { hasError, errorId };
   switch (block.type) {
     case "prose":
-      return <ProseEditor block={block} onChange={onChange} />;
+      return <ProseEditor block={block} onChange={onChange} {...err} />;
     case "callout":
-      return <CalloutEditor block={block} onChange={onChange} />;
+      return <CalloutEditor block={block} onChange={onChange} {...err} />;
     case "steps":
-      return <StepsEditor block={block} onChange={onChange} />;
+      return <StepsEditor block={block} onChange={onChange} {...err} />;
     case "table":
-      return <TableBlockEditor block={block} onChange={onChange} />;
+      return <TableBlockEditor block={block} onChange={onChange} {...err} />;
     case "termRef":
-      return <TermRefEditor block={block} onChange={onChange} />;
+      return <TermRefEditor block={block} onChange={onChange} {...err} />;
     case "sourceRef":
-      return <SourceRefEditor block={block} onChange={onChange} />;
+      return <SourceRefEditor block={block} onChange={onChange} {...err} />;
     default: {
       // Exhaustiveness guard: if a new block.type is added to the schema and
       // not handled above, this line fails to typecheck.
@@ -65,10 +82,12 @@ export function BlockEditor({
 function ProseEditor({
   block,
   onChange,
+  hasError,
+  errorId,
 }: {
   block: Extract<ContentBlock, { type: "prose" }>;
   onChange: (next: ContentBlock) => void;
-}) {
+} & BlockErrorProps) {
   const id = useId();
   return (
     <div>
@@ -82,6 +101,7 @@ function ProseEditor({
         value={block.md}
         onChange={(e) => onChange({ type: "prose", md: e.target.value })}
         className={`mt-1 ${textareaClass}`}
+        {...ariaErrorProps({ hasError, errorId })}
       />
     </div>
   );
@@ -94,10 +114,12 @@ const SEVERITIES: Array<Extract<ContentBlock, { type: "callout" }>["severity"]> 
 function CalloutEditor({
   block,
   onChange,
+  hasError,
+  errorId,
 }: {
   block: Extract<ContentBlock, { type: "callout" }>;
   onChange: (next: ContentBlock) => void;
-}) {
+} & BlockErrorProps) {
   const baseId = useId();
   return (
     <div className="space-y-2">
@@ -134,6 +156,7 @@ function CalloutEditor({
           value={block.label}
           onChange={(e) => onChange({ ...block, label: e.target.value })}
           className={`mt-1 ${inputClass}`}
+          {...ariaErrorProps({ hasError, errorId })}
         />
       </div>
       <div>
@@ -157,10 +180,12 @@ function CalloutEditor({
 function StepsEditor({
   block,
   onChange,
+  hasError,
+  errorId,
 }: {
   block: Extract<ContentBlock, { type: "steps" }>;
   onChange: (next: ContentBlock) => void;
-}) {
+} & BlockErrorProps) {
   const baseId = useId();
   const { items } = block;
 
@@ -175,11 +200,9 @@ function StepsEditor({
     onChange({ ...block, items: items.filter((_, si) => si !== i) });
   }
   function move(i: number, dir: -1 | 1) {
-    const j = i + dir;
-    if (j < 0 || j >= items.length) return;
-    const next = [...items];
-    [next[i], next[j]] = [next[j]!, next[i]!];
-    onChange({ ...block, items: next });
+    // moveWithin is a bounds-checked adjacent swap (guide-table); a no-op move
+    // returns an equivalent array, so behavior is unchanged.
+    onChange({ ...block, items: moveWithin(items, i, dir) });
   }
 
   return (
@@ -210,6 +233,7 @@ function StepsEditor({
                   value={item}
                   onChange={(e) => setItem(i, e.target.value)}
                   className={inputClass}
+                  {...(i === 0 ? ariaErrorProps({ hasError, errorId }) : {})}
                 />
                 <IconButton
                   type="button"
@@ -262,10 +286,12 @@ function StepsEditor({
 function TermRefEditor({
   block,
   onChange,
+  hasError,
+  errorId,
 }: {
   block: Extract<ContentBlock, { type: "termRef" }>;
   onChange: (next: ContentBlock) => void;
-}) {
+} & BlockErrorProps) {
   const id = useId();
   return (
     <div>
@@ -279,6 +305,7 @@ function TermRefEditor({
         value={block.term}
         onChange={(e) => onChange({ type: "termRef", term: e.target.value })}
         className={`mt-1 ${inputClass}`}
+        {...ariaErrorProps({ hasError, errorId })}
       />
     </div>
   );
@@ -288,10 +315,12 @@ function TermRefEditor({
 function SourceRefEditor({
   block,
   onChange,
+  hasError,
+  errorId,
 }: {
   block: Extract<ContentBlock, { type: "sourceRef" }>;
   onChange: (next: ContentBlock) => void;
-}) {
+} & BlockErrorProps) {
   const baseId = useId();
   return (
     <div className="space-y-2">
@@ -306,6 +335,7 @@ function SourceRefEditor({
           value={block.label}
           onChange={(e) => onChange({ ...block, label: e.target.value })}
           className={`mt-1 ${inputClass}`}
+          {...ariaErrorProps({ hasError, errorId })}
         />
       </div>
       <div>
