@@ -92,9 +92,12 @@ export function AssetRow({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  // Two-step inline delete confirm (mirrors DeleteConfirmButton): a first tap
-  // ARMS the control (trash → red confirm ✓ + cancel ✕) so a stray tap can't
-  // drop an asset; the confirm ✓ dispatches deletePartAssetForm.
+  // Two-step inline delete confirm (mirrors DeleteConfirmButton's UX): a first
+  // tap ARMS the control (trash → red confirm ✓ + cancel ✕) so a stray tap can't
+  // drop an asset; the confirm ✓ dispatches deletePartAssetForm. NOT the shared
+  // DeleteConfirmButton component — that posts a `<form action>` with only a
+  // hidden id and can't carry the loaded `updatedAt` optimistic-lock fence this
+  // delete requires. Do NOT "simplify" this back into it without that fence.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   // Edit drafts — seeded from the existing asset (controlled inputs).
@@ -294,7 +297,10 @@ export function AssetRow({
                   hint="Keep"
                   ariaLabel={`Cancel delete ${label}`}
                   disabled={isPending}
-                  onClick={() => setConfirmingDelete(false)}
+                  onClick={() => {
+                    setConfirmingDelete(false);
+                    setError(null);
+                  }}
                 >
                   <CloseIcon className="h-5 w-5" />
                 </IconButton>
