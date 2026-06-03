@@ -17,12 +17,13 @@ import { env } from "@/env";
 import { db } from "@/lib/db";
 import { getPartDatasheetDownloadUrl } from "@/lib/actions/part-datasheet";
 import { PageHeader } from "@/components/PageHeader";
-import { LinkIcon, DocumentIcon } from "@/components/icons";
+import { DocumentIcon } from "@/components/icons";
 import {
   FactGroupCard,
   type SerializedFact,
 } from "@/components/parts/FactGroupCard";
 import { DatasheetUpload } from "@/components/parts/DatasheetUpload";
+import { DatasheetUrlEditor } from "@/components/parts/DatasheetUrlEditor";
 import { GROUP_ORDER } from "@/components/parts/fact-group-meta";
 import type { DatasheetOption } from "@/components/parts/ProvenanceFields";
 
@@ -105,17 +106,11 @@ export default async function PartDetailPage({
 
       {/* ─── datasheet links ─── */}
       <section className="mb-10 flex flex-wrap items-center gap-4 font-mono text-xs uppercase tracking-wider">
-        {part.datasheetUrl ? (
-          <a
-            href={part.datasheetUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-signal-blue underline"
-          >
-            <LinkIcon className="h-4 w-4" />
-            Datasheet URL
-          </a>
-        ) : null}
+        <DatasheetUrlEditor
+          partId={part.id}
+          url={part.datasheetUrl}
+          canEdit={canEdit}
+        />
         {part.datasheet ? (
           cachedDatasheetUrl ? (
             <a
@@ -134,7 +129,9 @@ export default async function PartDetailPage({
             </span>
           )
         ) : null}
-        {!part.datasheetUrl && !part.datasheet ? (
+        {/* Editors get the "Add datasheet URL" affordance from the editor
+            island instead; this fallback is for read-only viewers only. */}
+        {!part.datasheetUrl && !part.datasheet && !canEdit ? (
           <span className="text-muted">No datasheet on file.</span>
         ) : null}
         {/* Upload control: only when R2 is on AND the user can edit. When R2 is

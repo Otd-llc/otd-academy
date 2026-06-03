@@ -87,6 +87,36 @@ export async function createPart(input: unknown) {
   }
 }
 
+// Update (or clear) a part's canonical datasheet URL from the detail page.
+//
+// `datasheetUrl` is the R2-off provenance fallback — it's rendered as an
+// `<a href>`, so an empty value clears it to NULL while a non-empty value MUST
+// be an http(s) URL. This is a security check, not cosmetics: rejecting
+// `javascript:` / `data:` / relative / "see page 4" prevents a stored
+// dangerous-href from ever reaching the anchor.
+export async function updatePartDatasheetUrl(input: {
+  partId: string;
+  datasheetUrl: string;
+}) {
+  await requireUser();
+
+  const trimmed = input.datasheetUrl.trim();
+  const next = trimmed === "" ? null : trimmed;
+
+  if (next !== null && !/^https?:\/\//i.test(next)) {
+    throw new Error("Datasheet URL must start with http:// or https://");
+  }
+
+  await db.part.update({
+    where: { id: input.partId },
+    data: { datasheetUrl: next },
+  });
+
+  revalidatePath(`/parts/${input.partId}`);
+  revalidatePath("/parts");
+  return { ok: true as const, datasheetUrl: next };
+}
+
 export async function listPartsBySearch(input: unknown) {
   const { q, take } = listPartsBySearchSchema.parse(input);
   return db.part.findMany({
