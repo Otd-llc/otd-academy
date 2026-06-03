@@ -10,6 +10,7 @@
 // routes table).
 import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
+import { PartCategory } from "@prisma/client";
 import {
   createPartFormAction,
   type PartFormState,
@@ -175,11 +176,21 @@ export function PartFields({
           <label className="block font-mono text-xs uppercase tracking-wider text-muted">
             Category (optional)
           </label>
-          <input
+          {/* Constrained to the PartCategory enum (Task 5). The blank "—"
+              option posts an empty string → the form wrapper drops it →
+              category stays NULL, so a part can be created without a category. */}
+          <select
             name="category"
-            maxLength={128}
+            defaultValue=""
             className="mt-1 w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
-          />
+          >
+            <option value="">—</option>
+            {Object.values(PartCategory).map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
           <FieldError messages={state.errors?.category} />
         </div>
         <div>
