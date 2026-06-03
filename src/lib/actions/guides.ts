@@ -16,8 +16,10 @@
 // error) AND catch the P2002 unique violation (race-safe) so two concurrent
 // callers can't both insert.
 //
-// editGuideCard patches only the supplied fields of a single card, resolving
-// the owning revision via `card.guide.revisionId` for the freeze guard.
+// editGuideCard patches only the supplied TEACHING-CONTENT fields of a single
+// card, resolving the owning revision via `card.guide.revisionId` for the
+// freeze guard. The gate-wiring fields (`isGate` / `completionRef`) are LOCKED:
+// they are not part of `editGuideCardSchema`, so this path can never mutate them.
 //
 // reorderGuideCards copies the two-pass negative-scratch swap from
 // `reorderChecklistItems`: the `@@unique([guideId, ordinal])` constraint can't
@@ -142,8 +144,8 @@ export async function materializeGuide(input: unknown) {
 // Mirrors `editChecklistItem`: resolve the owning revision via
 // `card.guide.revisionId`, freeze-guard it, then patch ONLY the fields the
 // caller supplied. `contentBlocks` arrives already Zod-validated by
-// `editGuideCardSchema`; `lead`/`completionRef` honor the null-clears /
-// undefined-leaves-alone convention.
+// `editGuideCardSchema`; `lead` honors the null-clears / undefined-leaves-alone
+// convention.
 
 export async function editGuideCard(input: unknown) {
   const data = editGuideCardSchema.parse(input);
@@ -159,17 +161,15 @@ export async function editGuideCard(input: unknown) {
         const revisionId = existing.guide.revisionId;
         await assertNotFrozen(tx, revisionId);
 
+        // Patch TEACHING CONTENT ONLY. The gate-wiring fields (`isGate` /
+        // `completionRef`) are absent from `editGuideCardSchema` and are NEVER
+        // patched here — they stay locked to their materialize-time values.
         const patch: Prisma.GuideCardUpdateInput = {};
         if (data.eyebrow !== undefined) patch.eyebrow = data.eyebrow;
         if (data.title !== undefined) patch.title = data.title;
         if (data.lead !== undefined) patch.lead = data.lead;
-        if (data.isGate !== undefined) patch.isGate = data.isGate;
         if (data.contentBlocks !== undefined) {
           patch.contentBlocks = data.contentBlocks as Prisma.InputJsonValue;
-        }
-        if (data.completionRef !== undefined) {
-          patch.completionRef = (data.completionRef ??
-            Prisma.JsonNull) as Prisma.InputJsonValue;
         }
 
         return tx.guideCard.update({ where: { id: data.id }, data: patch });

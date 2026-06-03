@@ -61,15 +61,28 @@ export const guideCardInputSchema = z.object({
 });
 
 export const materializeGuideSchema = z.object({ revisionId: z.cuid() });
+
+// editGuideCard edits TEACHING CONTENT ONLY. The gate-wiring fields
+// (`isGate` / `completionRef`) drive the authoritative-done mapping and are
+// LOCKED — they are deliberately ABSENT from this schema so they can never be
+// patched through `editGuideCard`. They are seeded once, at materialize time,
+// via direct Prisma in `materializeGuide`. This is the defense-in-depth floor;
+// `saveGuideCardSchema` (below) is the strict network boundary on top of it.
 export const editGuideCardSchema = z.object({
   id: z.cuid(),
   eyebrow: z.string().trim().min(1).max(40).optional(),
   title: z.string().trim().min(1).max(80).optional(),
   lead: z.string().max(400).nullable().optional(),
   contentBlocks: guideContentBlocksSchema.optional(),
-  isGate: z.boolean().optional(),
-  completionRef: completionRefSchema.nullable().optional(),
 });
+
+// The network-reachable boundary for the inline guide-card editor. `.strict()`
+// so a hand-crafted POST that injects gate-wiring keys (`isGate` /
+// `completionRef`) — or any other unknown key — is REJECTED with an
+// `unrecognized_keys` ZodError rather than silently dropped. `saveGuideCard`
+// (guides-form.ts) parses with this and forwards ONLY the parsed result, so the
+// locked fields are never reachable through the editor's "use server" door.
+export const saveGuideCardSchema = editGuideCardSchema.strict();
 export const reorderGuideCardsSchema = z.object({
   guideId: z.cuid(),
   orderedIds: z.array(z.cuid()).min(1),
