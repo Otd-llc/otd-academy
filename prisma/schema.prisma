@@ -24,6 +24,8 @@ model User {
   transitions             StageTransition[]
   artifacts               Artifact[]
   partsCreated            Part[]
+  partFacts               PartFact[]
+  partDatasheets          PartDatasheet[]
   bomLinesCreated         BomLine[]
   projectsCreated         Project[]
   errataCreated           Erratum[]
@@ -439,6 +441,7 @@ model PartDatasheet {
   filename    String
   byteSize    Int
   createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
   createdAt   DateTime @default(now())
 }
 
@@ -460,6 +463,7 @@ model PartFact {
   verifiedAt      DateTime?
   lastEditedById  String?
   createdById     String
+  createdBy       User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 

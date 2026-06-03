@@ -28,7 +28,8 @@ import {
 // Task 5); narrow any non-canonical value to NULL at the write boundary,
 // mirroring the migration's `USING (CASE … ELSE NULL)` cast.
 function toPartCategory(value: string | null | undefined): PartCategory | null {
-  if (value && value in PartCategory) return value as PartCategory;
+  if (value && Object.prototype.hasOwnProperty.call(PartCategory, value))
+    return value as PartCategory;
   return null;
 }
 
