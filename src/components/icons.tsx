@@ -81,6 +81,16 @@ export function CheckIcon({ className }: IconProps) {
   );
 }
 
+/** Curved arrow back — revert / undo (e.g. unverify a fact). */
+export function UndoIcon({ className }: IconProps) {
+  return (
+    <svg {...baseProps} className={className}>
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h11a5 5 0 0 1 0 10h-5" />
+    </svg>
+  );
+}
+
 /** X / close — used for the cancel arm of edit + the cancel-confirm of delete. */
 export function CloseIcon({ className }: IconProps) {
   return (

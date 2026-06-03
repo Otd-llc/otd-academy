@@ -441,6 +441,40 @@ export async function verifyFact(input: unknown): Promise<PartFact> {
   return db.partFact.findUniqueOrThrow({ where: { id } });
 }
 
+// ─── unverifyFact ───────────────────────────────────────
+/**
+ * Undo an accidental verify: move VERIFIED → UNVERIFIED and clear the verifier
+ * stamp (`verifiedById`/`verifiedAt`). The conditional WHERE pins
+ * `trust: "VERIFIED"` so the action is idempotent + race-safe and can NEVER
+ * touch a FLAGGED row (a flag is a dispute, cleared only via `clearFlag`) nor a
+ * row that changed underneath. Optimistic lock on `updatedAt`. Any signed-in
+ * user may unverify (mirrors the verify/flag authz, design §4) — it strictly
+ * REDUCES trust, so it needs no precondition.
+ */
+export async function unverifyFact(input: unknown): Promise<PartFact> {
+  const { id, updatedAt } = idWithLockSchema.parse(input);
+  await requireUser();
+
+  const row = await db.partFact.findUniqueOrThrow({
+    where: { id },
+    select: { partId: true, trust: true },
+  });
+  if (row.trust !== "VERIFIED") {
+    throw new Error("Only a VERIFIED fact can be unverified.");
+  }
+
+  const { count } = await db.partFact.updateMany({
+    // Pin trust: VERIFIED so the unverify is idempotent + race-safe: if another
+    // caller moved it off VERIFIED (e.g. a flag landed), count is 0 → rejected.
+    where: { id, updatedAt, trust: "VERIFIED" },
+    data: { trust: "UNVERIFIED", verifiedById: null, verifiedAt: null },
+  });
+  if (count === 0) throw new Error(CONFLICT_MESSAGE);
+
+  revalidatePartRoute(row.partId);
+  return db.partFact.findUniqueOrThrow({ where: { id } });
+}
+
 // ─── flagFact ───────────────────────────────────────────
 /**
  * Set `trust: FLAGGED` (any signed-in user). NO reason column in v1 — a

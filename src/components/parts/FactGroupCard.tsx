@@ -44,12 +44,19 @@ import {
   createFactForm,
   editFactForm,
   verifyFactForm,
+  unverifyFactForm,
   flagFactForm,
   clearFlagForm,
   type FactFormState,
 } from "@/lib/actions/part-facts-form";
 import { IconButton } from "@/components/IconButton";
-import { PencilIcon, CheckIcon, AlertTriangleIcon, CloseIcon } from "@/components/icons";
+import {
+  PencilIcon,
+  CheckIcon,
+  AlertTriangleIcon,
+  CloseIcon,
+  UndoIcon,
+} from "@/components/icons";
 import { VerifyBadge } from "@/components/parts/VerifyBadge";
 import {
   ProvenanceFields,
@@ -339,7 +346,7 @@ export function FactGroupCard({
                 <PencilIcon className="h-5 w-5" />
               </IconButton>
 
-              {fact.trust !== "FLAGGED" ? (
+              {fact.trust === "UNVERIFIED" ? (
                 <IconButton
                   type="button"
                   hint="Verify"
@@ -348,6 +355,18 @@ export function FactGroupCard({
                   onClick={() => runGate(verifyFactForm)}
                 >
                   <CheckIcon className="h-5 w-5" />
+                </IconButton>
+              ) : null}
+
+              {fact.trust === "VERIFIED" ? (
+                <IconButton
+                  type="button"
+                  hint="Undo verify"
+                  ariaLabel={`Undo verify on ${label}`}
+                  disabled={isPending}
+                  onClick={() => runGate(unverifyFactForm)}
+                >
+                  <UndoIcon className="h-5 w-5" />
                 </IconButton>
               ) : null}
 

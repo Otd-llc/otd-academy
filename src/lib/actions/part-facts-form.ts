@@ -22,6 +22,7 @@ import {
   createFact,
   editFact,
   flagFact,
+  unverifyFact,
   verifyFact,
 } from "@/lib/actions/part-facts";
 
@@ -41,7 +42,7 @@ function zodErrors(err: ZodError): Record<string, string[]> {
   return errors;
 }
 
-// Single mapping shell shared by all five wrappers: run the action, normalize
+// Single mapping shell shared by every wrapper: run the action, normalize
 // its result/rejection onto FactFormState. ZodError → field errors; any other
 // Error → `message`.
 async function dispatch(
@@ -65,9 +66,13 @@ export async function editFactForm(input: unknown): Promise<FactFormState> {
   return dispatch(() => editFact(input));
 }
 
-// ─── verify / flag / clearFlag (carry { id, updatedAt }) ────────────────────
+// ─── verify / unverify / flag / clearFlag (carry { id, updatedAt }) ─────────
 export async function verifyFactForm(input: unknown): Promise<FactFormState> {
   return dispatch(() => verifyFact(input));
+}
+
+export async function unverifyFactForm(input: unknown): Promise<FactFormState> {
+  return dispatch(() => unverifyFact(input));
 }
 
 export async function flagFactForm(input: unknown): Promise<FactFormState> {
