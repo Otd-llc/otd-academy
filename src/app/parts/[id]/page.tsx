@@ -13,13 +13,16 @@
 
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
+import { env } from "@/env";
 import { db } from "@/lib/db";
+import { getPartDatasheetDownloadUrl } from "@/lib/actions/part-datasheet";
 import { PageHeader } from "@/components/PageHeader";
 import { LinkIcon, DocumentIcon } from "@/components/icons";
 import {
   FactGroupCard,
   type SerializedFact,
 } from "@/components/parts/FactGroupCard";
+import { DatasheetUpload } from "@/components/parts/DatasheetUpload";
 import { GROUP_ORDER } from "@/components/parts/fact-group-meta";
 import type { DatasheetOption } from "@/components/parts/ProvenanceFields";
 
@@ -72,6 +75,17 @@ export default async function PartDetailPage({
     ? { id: part.datasheet.id, filename: part.datasheet.filename }
     : null;
 
+  // R2 is gated: only expose the upload control + cached-PDF download link when
+  // R2_ENABLED. We pass a plain boolean to the client (no R2 internals leak).
+  // The presigned GET is minted server-side; it's `null` when R2 is off or no
+  // PartDatasheet row exists, in which case provenance falls back to
+  // `datasheetUrl` + page via ProvenanceFields.
+  const r2Enabled = env.R2_ENABLED;
+  const cachedDatasheetUrl =
+    r2Enabled && canEdit && part.datasheet
+      ? await getPartDatasheetDownloadUrl(part.id)
+      : null;
+
   return (
     <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-10">
       <PageHeader
@@ -103,13 +117,30 @@ export default async function PartDetailPage({
           </a>
         ) : null}
         {part.datasheet ? (
-          <span className="inline-flex items-center gap-1.5 text-command-gold">
-            <DocumentIcon className="h-4 w-4" />
-            Cached PDF: {part.datasheet.filename}
-          </span>
+          cachedDatasheetUrl ? (
+            <a
+              href={cachedDatasheetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-command-gold underline"
+            >
+              <DocumentIcon className="h-4 w-4" />
+              Datasheet (cached): {part.datasheet.filename}
+            </a>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-command-gold">
+              <DocumentIcon className="h-4 w-4" />
+              Cached PDF: {part.datasheet.filename}
+            </span>
+          )
         ) : null}
         {!part.datasheetUrl && !part.datasheet ? (
           <span className="text-muted">No datasheet on file.</span>
+        ) : null}
+        {/* Upload control: only when R2 is on AND the user can edit. When R2 is
+            off this renders nothing and provenance relies on datasheetUrl. */}
+        {r2Enabled && canEdit ? (
+          <DatasheetUpload partId={part.id} hasDatasheet={!!part.datasheet} />
         ) : null}
       </section>
 
