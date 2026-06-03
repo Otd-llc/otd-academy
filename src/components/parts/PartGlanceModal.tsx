@@ -125,7 +125,10 @@ export function PartGlanceModal({
       onCancel={onClose}
       onClick={onDialogClick}
       aria-label={`Quick glance: ${mpn}`}
-      className="w-full max-w-2xl rounded border border-panel-border bg-navy-dark p-0 text-link-muted backdrop:bg-deep-space/80"
+      // Center explicitly (fixed inset-0 + m-auto + h-fit) rather than relying on
+      // the UA's default modal centering, which Tailwind's preflight margin reset
+      // defeats — without this the dialog falls to the inset-0 origin (top-left).
+      className="fixed inset-0 m-auto h-fit w-[calc(100%-2rem)] max-w-2xl rounded border border-panel-border bg-navy-dark p-0 text-link-muted backdrop:bg-deep-space/80"
     >
       {/* inner content wrapper — clicks here do NOT hit the backdrop */}
       <div className="max-h-[80vh] overflow-y-auto p-6">
