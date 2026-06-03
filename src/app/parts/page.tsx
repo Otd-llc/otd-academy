@@ -8,6 +8,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { ChevronLeftIcon, PlusIcon } from "@/components/icons";
+import { PartGlanceTrigger } from "@/components/parts/PartGlanceTrigger";
 
 function FilterChip({
   label,
@@ -113,13 +114,23 @@ export default async function PartsListPage({
               </th>
               <th className="py-3 pr-4 font-normal">Lifecycle</th>
               <th className="py-3 pr-4 font-normal">Flags</th>
+              <th className="py-3 pr-4 text-right font-normal">
+                <span className="sr-only">Quick glance</span>
+              </th>
             </tr>
           </thead>
           <tbody>
             {parts.map((p) => (
               <tr key={p.id} className="border-b border-panel-border align-top">
                 <td className="py-3 pr-4 text-link-muted">{p.manufacturer}</td>
-                <td className="py-3 pr-4 text-command-gold">{p.mpn}</td>
+                <td className="py-3 pr-4">
+                  <Link
+                    href={`/parts/${p.id}`}
+                    className="text-command-gold underline-offset-2 hover:underline"
+                  >
+                    {p.mpn}
+                  </Link>
+                </td>
                 <td className="py-3 pr-4 text-link-muted">{p.description}</td>
                 <td className="hidden py-3 pr-4 text-muted md:table-cell">
                   {p.category ?? "—"}
@@ -131,6 +142,9 @@ export default async function PartsListPage({
                       CERTIFIED MODULE
                     </span>
                   )}
+                </td>
+                <td className="py-3 pr-0 text-right">
+                  <PartGlanceTrigger partId={p.id} mpn={p.mpn} />
                 </td>
               </tr>
             ))}

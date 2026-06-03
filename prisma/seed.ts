@@ -125,7 +125,10 @@ async function main() {
           manufacturer: spec.manufacturer,
           mpn: spec.mpn,
           description: spec.description,
-          category: spec.category,
+          // `Part.category` is now the `PartCategory` enum. These legacy demo
+          // tokens (MCU/PMIC/Sensor) are not canonical values — leave the
+          // column NULL (mirroring the migration's non-conforming → NULL cast).
+          // The canonical pilot tokens are written by the Task 10 WROOM seed.
           footprint: spec.footprint,
           datasheetUrl: spec.datasheetUrl,
           lifecycle: "ACTIVE",

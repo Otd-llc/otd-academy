@@ -46,7 +46,9 @@ describe("createPart", () => {
       manufacturer: TEST_MFR,
       mpn,
       description: "Phase 5.5 test part",
-      category: "TEST",
+      // category is now constrained to the PartCategory enum (Task 5); a
+      // canonical token round-trips, free text is rejected (see below).
+      category: "MLCC_CAPACITOR",
       lifecycle: "ACTIVE",
     });
     createdPartIds.push(part.id);
@@ -54,8 +56,22 @@ describe("createPart", () => {
     expect(part.manufacturer).toBe(TEST_MFR);
     expect(part.mpn).toBe(mpn);
     expect(part.description).toBe("Phase 5.5 test part");
+    expect(part.category).toBe("MLCC_CAPACITOR");
     expect(part.createdById).toBe(seedUser.id);
     expect(part.lifecycle).toBe("ACTIVE");
+  });
+
+  // Task 5: category is constrained to the PartCategory enum at the schema
+  // boundary; a non-canonical free-text value is a ZodError, not a silent NULL.
+  test("rejects a non-PartCategory category via Zod", async () => {
+    await expect(
+      createPart({
+        manufacturer: TEST_MFR,
+        mpn: `BADCAT-${Date.now()}`,
+        description: "bad category",
+        category: "TEST",
+      }),
+    ).rejects.toThrow();
   });
 
   test("duplicate (manufacturer, mpn) returns a clean error", async () => {

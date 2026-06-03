@@ -13,7 +13,7 @@
 //      DB-side @@unique constraint — defense in depth for the race where
 //      two concurrent submissions slip past the pre-check.
 
-import { Prisma } from "@prisma/client";
+import { Prisma, PartCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import { db } from "@/lib/db";
@@ -22,6 +22,16 @@ import {
   createPartSchema,
   listPartsBySearchSchema,
 } from "@/lib/schemas/part";
+
+// `Part.category` is now a `PartCategory` enum (migration parts_knowledge_stage_a).
+// The create form still posts free text (the constrained <select> lands in
+// Task 5); narrow any non-canonical value to NULL at the write boundary,
+// mirroring the migration's `USING (CASE … ELSE NULL)` cast.
+function toPartCategory(value: string | null | undefined): PartCategory | null {
+  if (value && Object.prototype.hasOwnProperty.call(PartCategory, value))
+    return value as PartCategory;
+  return null;
+}
 
 export async function createPart(input: unknown) {
   const data = createPartSchema.parse(input);
@@ -50,7 +60,7 @@ export async function createPart(input: unknown) {
         mpn: data.mpn,
         manufacturer: data.manufacturer,
         description: data.description,
-        category: data.category ?? null,
+        category: toPartCategory(data.category),
         footprint: data.footprint ?? null,
         datasheetUrl: data.datasheetUrl ?? null,
         lifecycle: data.lifecycle,
@@ -75,6 +85,36 @@ export async function createPart(input: unknown) {
     }
     throw err;
   }
+}
+
+// Update (or clear) a part's canonical datasheet URL from the detail page.
+//
+// `datasheetUrl` is the R2-off provenance fallback — it's rendered as an
+// `<a href>`, so an empty value clears it to NULL while a non-empty value MUST
+// be an http(s) URL. This is a security check, not cosmetics: rejecting
+// `javascript:` / `data:` / relative / "see page 4" prevents a stored
+// dangerous-href from ever reaching the anchor.
+export async function updatePartDatasheetUrl(input: {
+  partId: string;
+  datasheetUrl: string;
+}) {
+  await requireUser();
+
+  const trimmed = input.datasheetUrl.trim();
+  const next = trimmed === "" ? null : trimmed;
+
+  if (next !== null && !/^https?:\/\//i.test(next)) {
+    throw new Error("Datasheet URL must start with http:// or https://");
+  }
+
+  await db.part.update({
+    where: { id: input.partId },
+    data: { datasheetUrl: next },
+  });
+
+  revalidatePath(`/parts/${input.partId}`);
+  revalidatePath("/parts");
+  return { ok: true as const, datasheetUrl: next };
 }
 
 export async function listPartsBySearch(input: unknown) {

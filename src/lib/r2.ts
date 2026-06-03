@@ -48,3 +48,13 @@ export function artifactKey(
   const folder = owner.kind === "revision" ? "revisions" : "builds";
   return `${folder}/${owner.id}/${stage}/${cuid}-${slug(filename)}`;
 }
+
+// Part-scoped datasheet key (design §3.1 / Stage A Task 9). NOT the Artifact
+// key — the cached datasheet is net-new infra (`PartDatasheet`), keyed only by
+// `partId` (one PDF per part). The `{cuid}` segment is a per-attempt unique id
+// minted at presign time, so re-uploading a replacement never collides with a
+// stale object; the upsert points `r2Key` at whichever attempt was recorded.
+//   parts/{partId}/datasheet-{cuid}.pdf
+export function partDatasheetKey(partId: string, cuid: string): string {
+  return `parts/${partId}/datasheet-${cuid}.pdf`;
+}

@@ -238,3 +238,13 @@ export function LinkIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+/** Eye — the quick-glance / preview affordance (parts-list glance trigger). */
+export function EyeIcon({ className }: IconProps) {
+  return (
+    <svg {...baseProps} className={className}>
+      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
