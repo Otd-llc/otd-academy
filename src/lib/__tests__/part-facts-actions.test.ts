@@ -396,7 +396,6 @@ describe("editFact auto-demote", () => {
       const edited = await editFact({
         id: v.id,
         updatedAt: v.updatedAt,
-        group: "PARAMETRICS",
         data: {
           entries: [
             { label: "capacitance", value: "22uF" }, // changed
@@ -431,7 +430,6 @@ describe("editFact auto-demote", () => {
       const edited = await editFact({
         id: v.id,
         updatedAt: v.updatedAt,
-        group: "PARAMETRICS",
         data: validParametricsData(), // unchanged
         sourceKind: "DATASHEET",
         sourceUrl: "https://example.com/ds.pdf",
@@ -461,7 +459,6 @@ describe("editFact auto-demote", () => {
       const edited = await editFact({
         id: v.id,
         updatedAt: v.updatedAt,
-        group: "PARAMETRICS",
         data: validParametricsData(), // unchanged
         sourceKind: "DATASHEET",
         sourceUrl: "https://example.com/ds.pdf", // unchanged
@@ -494,7 +491,6 @@ describe("optimistic concurrency", () => {
       const moved = await editFact({
         id: fact.id,
         updatedAt: fact.updatedAt,
-        group: "PARAMETRICS",
         data: validParametricsData(),
         sourceKind: "DATASHEET",
         sourcePage: 9, // bump the page so the row genuinely changes
@@ -506,7 +502,6 @@ describe("optimistic concurrency", () => {
         editFact({
           id: fact.id,
           updatedAt: staleUpdatedAt,
-          group: "PARAMETRICS",
           data: validParametricsData(),
           sourceKind: "DATASHEET",
           sourcePage: 99,
@@ -539,7 +534,6 @@ describe("optimistic concurrency", () => {
       await editFact({
         id: fact.id,
         updatedAt: fact.updatedAt,
-        group: "PARAMETRICS",
         data: validParametricsData(),
         sourceKind: "DATASHEET",
         sourceUrl: "https://example.com/ds.pdf",
@@ -646,5 +640,265 @@ describe("flagFact + clearFlag", () => {
     } finally {
       await deleteFact(fact.id);
     }
+  });
+
+  // FIX: optimistic-lock fence on flagFact + clearFlag (was untested).
+  test("a stale updatedAt on flagFact is rejected and the row is not flagged", async () => {
+    const fact = await createFact({
+      partId: throwawayPartId,
+      group: "PARAMETRICS",
+      data: validParametricsData(),
+      sourceKind: "DATASHEET",
+      sourcePage: 4,
+    });
+    try {
+      const staleUpdatedAt = fact.updatedAt;
+      // A concurrent edit bumps updatedAt forward.
+      await editFact({
+        id: fact.id,
+        updatedAt: fact.updatedAt,
+        data: validParametricsData(),
+        sourceKind: "DATASHEET",
+        sourcePage: 8,
+      });
+
+      await expect(
+        flagFact({ id: fact.id, updatedAt: staleUpdatedAt }),
+      ).rejects.toThrow(/reload|changed/i);
+
+      // No write: the row was never flagged.
+      const row = await db.partFact.findUniqueOrThrow({
+        where: { id: fact.id },
+        select: { trust: true },
+      });
+      expect(row.trust).toBe("UNVERIFIED");
+    } finally {
+      await deleteFact(fact.id);
+    }
+  });
+
+  test("a stale updatedAt on clearFlag is rejected and the row stays FLAGGED", async () => {
+    const fact = await createFact({
+      partId: throwawayPartId,
+      group: "PARAMETRICS",
+      data: validParametricsData(),
+      sourceKind: "DATASHEET",
+      sourcePage: 4,
+    });
+    try {
+      const flagged = await flagFact({
+        id: fact.id,
+        updatedAt: fact.updatedAt,
+      });
+      expect(flagged.trust).toBe("FLAGGED");
+      const staleUpdatedAt = flagged.updatedAt;
+
+      // A concurrent flag (re-flag) bumps updatedAt forward while staying FLAGGED.
+      // Use a second flag via updateMany on updatedAt is not exposed, so re-flag
+      // through clearFlag→flagFact would change trust; instead bump updatedAt by
+      // touching sourceNote via editFact (still FLAGGED).
+      await db.partFact.update({
+        where: { id: fact.id },
+        data: { sourceNote: "touched to bump updatedAt" },
+      });
+
+      await expect(
+        clearFlag({ id: fact.id, updatedAt: staleUpdatedAt }),
+      ).rejects.toThrow(/reload|changed/i);
+
+      // No write: the row is still FLAGGED.
+      const row = await db.partFact.findUniqueOrThrow({
+        where: { id: fact.id },
+        select: { trust: true },
+      });
+      expect(row.trust).toBe("FLAGGED");
+    } finally {
+      await deleteFact(fact.id);
+    }
+  });
+});
+
+// ─── FIX 1 — a FLAGGED fact must NOT be verifiable directly ──────────────────
+describe("verifyFact trust guard (no verify-while-flagged)", () => {
+  test("verifyFact on a FLAGGED row is rejected AND the row stays FLAGGED", async () => {
+    const fact = await createFact({
+      partId: throwawayPartId,
+      group: "PARAMETRICS",
+      data: validParametricsData(),
+      sourceKind: "DATASHEET",
+      sourceUrl: "https://example.com/ds.pdf",
+      sourcePage: 4,
+    });
+    try {
+      const flagged = await flagFact({
+        id: fact.id,
+        updatedAt: fact.updatedAt,
+      });
+      expect(flagged.trust).toBe("FLAGGED");
+
+      // The only exit from FLAGGED is clearFlag → UNVERIFIED, then re-earn
+      // VERIFIED. A direct verify must be rejected and must NOT erase the flag.
+      await expect(
+        verifyFact({ id: flagged.id, updatedAt: flagged.updatedAt }),
+      ).rejects.toThrow(/flag/i);
+
+      const row = await db.partFact.findUniqueOrThrow({
+        where: { id: fact.id },
+        select: { trust: true, verifiedById: true },
+      });
+      expect(row.trust).toBe("FLAGGED");
+      expect(row.verifiedById).toBeNull();
+    } finally {
+      await deleteFact(fact.id);
+    }
+  });
+});
+
+// ─── FIX 2 — editFact must not let `group` (the row's shape) change ──────────
+describe("editFact group immutability", () => {
+  test("a PARAMETRICS row edited with NOTES-shaped data is rejected", async () => {
+    const fact = await createFact({
+      partId: throwawayPartId,
+      group: "PARAMETRICS",
+      data: validParametricsData(),
+      sourceKind: "DATASHEET",
+      sourcePage: 4,
+    });
+    try {
+      // NOTES-shaped `{ blocks: [...] }` payload must fail the PARAMETRICS
+      // schema (the row's group is immutable by construction).
+      await expect(
+        editFact({
+          id: fact.id,
+          updatedAt: fact.updatedAt,
+          data: { blocks: [{ type: "prose", md: "smuggled notes" }] },
+          sourceKind: "DATASHEET",
+          sourcePage: 4,
+        }),
+      ).rejects.toThrow();
+
+      // The row still holds its original PARAMETRICS shape.
+      const row = await db.partFact.findUniqueOrThrow({
+        where: { id: fact.id },
+        select: { group: true, data: true },
+      });
+      expect(row.group).toBe("PARAMETRICS");
+      expect((row.data as { entries?: unknown }).entries).toBeDefined();
+    } finally {
+      await deleteFact(fact.id);
+    }
+  });
+
+  test("a valid same-group data edit succeeds", async () => {
+    const fact = await createFact({
+      partId: throwawayPartId,
+      group: "PARAMETRICS",
+      data: validParametricsData(),
+      sourceKind: "DATASHEET",
+      sourcePage: 4,
+    });
+    try {
+      const edited = await editFact({
+        id: fact.id,
+        updatedAt: fact.updatedAt,
+        data: {
+          entries: [
+            { label: "capacitance", value: "22uF" },
+            { label: "voltage", value: "16V" },
+            { label: "dielectric", value: "X7R" },
+          ],
+        },
+        sourceKind: "DATASHEET",
+        sourcePage: 4,
+      });
+      expect(edited.group).toBe("PARAMETRICS");
+      expect((edited.data as { entries: { value: string }[] }).entries[0].value).toBe(
+        "22uF",
+      );
+    } finally {
+      await deleteFact(fact.id);
+    }
+  });
+});
+
+// ─── FIX 3 — NOTES is pinned to MANUAL ───────────────────────────────────────
+describe("NOTES sourceKind pin", () => {
+  test("creating a NOTES fact with sourceKind DATASHEET is rejected", async () => {
+    await expect(
+      createFact({
+        partId: throwawayPartId,
+        group: "NOTES",
+        data: { blocks: [{ type: "prose", md: "narrative" }] },
+        sourceKind: "DATASHEET",
+        sourcePage: 4,
+      }),
+    ).rejects.toThrow(/NOTES/i);
+    const count = await db.partFact.count({
+      where: { partId: throwawayPartId, group: "NOTES" },
+    });
+    expect(count).toBe(0);
+  });
+
+  test("editing a NOTES fact to a non-MANUAL sourceKind is rejected", async () => {
+    const fact = await createFact({
+      partId: throwawayPartId,
+      group: "NOTES",
+      data: { blocks: [{ type: "prose", md: "narrative" }] },
+      sourceKind: "MANUAL",
+      sourceNote: "editorial basis",
+    });
+    try {
+      await expect(
+        editFact({
+          id: fact.id,
+          updatedAt: fact.updatedAt,
+          data: { blocks: [{ type: "prose", md: "narrative" }] },
+          sourceKind: "DATASHEET",
+          sourcePage: 4,
+        }),
+      ).rejects.toThrow(/NOTES/i);
+    } finally {
+      await deleteFact(fact.id);
+    }
+  });
+});
+
+// ─── FIX 4 — sourceUrl must be a valid URL ───────────────────────────────────
+describe("sourceUrl URL validation", () => {
+  test("a non-URL sourceUrl is rejected on create", async () => {
+    await expect(
+      createFact({
+        partId: throwawayPartId,
+        group: "PARAMETRICS",
+        data: validParametricsData(),
+        sourceKind: "DATASHEET",
+        sourceUrl: "see page 4",
+        sourcePage: 4,
+      }),
+    ).rejects.toThrow();
+    const count = await db.partFact.count({
+      where: { partId: throwawayPartId, group: "PARAMETRICS" },
+    });
+    expect(count).toBe(0);
+  });
+});
+
+// ─── FIX 5 — partDatasheetId referential check ───────────────────────────────
+describe("partDatasheetId referential check", () => {
+  test("a made-up partDatasheetId is rejected on create", async () => {
+    await expect(
+      createFact({
+        partId: throwawayPartId,
+        group: "PARAMETRICS",
+        data: validParametricsData(),
+        sourceKind: "DATASHEET",
+        partDatasheetId: "ds_does_not_exist",
+        sourcePage: 4,
+      }),
+    ).rejects.toThrow(/datasheet/i);
+    const count = await db.partFact.count({
+      where: { partId: throwawayPartId, group: "PARAMETRICS" },
+    });
+    expect(count).toBe(0);
   });
 });

@@ -34,7 +34,12 @@
 // (FLAGGED → UNVERIFIED) — NEVER straight to VERIFIED; a cleared fact must
 // re-earn VERIFIED through the gate.
 
-import { Prisma, type FactSourceKind, type PartFact } from "@prisma/client";
+import {
+  Prisma,
+  type FactSourceKind,
+  type PartFact,
+  type PartFactGroup,
+} from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -71,30 +76,29 @@ const createFactSchema = z
     sourceKind: sourceKindSchema,
     partDatasheetId: z.string().min(1).optional(),
     sourcePage: z.number().int().positive().optional(),
-    sourceUrl: z.string().min(1).optional(),
+    // The R2-off fallback uses the real `datasheetUrl`, which is a URL; an
+    // API source is also a URL. Reject free text like "see page 4".
+    sourceUrl: z.string().url().optional(),
     sourceNote: z.string().trim().min(1).optional(),
   })
   .strict();
 export type CreateFactInput = z.infer<typeof createFactSchema>;
 
+// NOTE: `group` is intentionally ABSENT — a fact's group (and thus its `data`
+// shape) is IMMUTABLE by construction. The group is read from the stored row
+// and `data` is validated against it; a curator cannot re-point a row to a
+// foreign shape (which would bypass the per-category required-keys and leave
+// the row reporting a `group` it no longer holds).
 const editFactSchema = z
   .object({
     id: z.string().min(1),
     // The optimistic-lock fence — the `updatedAt` the caller loaded.
     updatedAt: z.coerce.date(),
-    group: z.enum([
-      "PARAMETRICS",
-      "PINOUT",
-      "POWER",
-      "DERATING",
-      "MECHANICAL",
-      "NOTES",
-    ]),
     data: z.unknown(),
     sourceKind: sourceKindSchema,
     partDatasheetId: z.string().min(1).optional(),
     sourcePage: z.number().int().positive().optional(),
-    sourceUrl: z.string().min(1).optional(),
+    sourceUrl: z.string().url().optional(),
     sourceNote: z.string().trim().min(1).optional(),
   })
   .strict();
@@ -173,6 +177,41 @@ function deepEqual(a: unknown, b: unknown): boolean {
 // Refresh the part detail route on every mutation (mirrors guides.ts).
 function revalidatePartRoute(partId: string): void {
   revalidatePath(`/parts/${partId}`);
+}
+
+// ─── Provenance guards (shared by create + edit) ────────────────────────────
+/**
+ * NOTES is editorial narrative (design §4): `MANUAL` only, exempt from the
+ * datasheet-page rule. A NOTES row carrying a `DATASHEET`/`API` kind would
+ * imply page-checked provenance it can't have, so reject it outright.
+ */
+function assertNotesSourceKind(
+  group: PartFactGroup,
+  sourceKind: FactSourceKind,
+): void {
+  if (group === "NOTES" && sourceKind !== "MANUAL") {
+    throw new Error("NOTES facts must use sourceKind MANUAL.");
+  }
+}
+
+/**
+ * When a `partDatasheetId` is supplied, it must reference a real `PartDatasheet`
+ * whose `partId` matches THIS fact's part — a cached PDF for a different part is
+ * not valid provenance. (Real `PartDatasheet` rows arrive in Task 9; until then
+ * this simply rejects bogus ids.)
+ */
+async function assertDatasheetBelongsToPart(
+  partDatasheetId: string | undefined,
+  partId: string,
+): Promise<void> {
+  if (!partDatasheetId) return;
+  const ds = await db.partDatasheet.findUnique({
+    where: { id: partDatasheetId },
+    select: { partId: true },
+  });
+  if (!ds || ds.partId !== partId) {
+    throw new Error("Unknown datasheet for this part.");
+  }
 }
 
 // ─── Verify precondition (per sourceKind) ───────────────────────────────────
@@ -260,12 +299,18 @@ export async function createFact(input: unknown): Promise<PartFact> {
   const env = createFactSchema.parse(input);
   const user = await requireUser();
 
+  // NOTES is MANUAL-only (design §4).
+  assertNotesSourceKind(env.group, env.sourceKind);
+
   // Load the part to get its category — the per-category required-keys for
   // PARAMETRICS can't be validated without it.
   const part = await db.part.findUniqueOrThrow({
     where: { id: env.partId },
     select: { category: true },
   });
+
+  // A supplied cached-datasheet id must belong to this part.
+  await assertDatasheetBelongsToPart(env.partDatasheetId, env.partId);
 
   const data = factDataSchema(env.group, part.category).parse(env.data);
 
@@ -312,11 +357,13 @@ export async function editFact(input: unknown): Promise<PartFact> {
   const user = await requireUser();
 
   // Load the existing row (for the part category + the stored values the
-  // demote decision diffs against).
+  // demote decision diffs against). Crucially, `group` and `partId` come from
+  // the STORED row — never from the caller — so the row's shape is immutable.
   const existing = await db.partFact.findUniqueOrThrow({
     where: { id: env.id },
     select: {
       partId: true,
+      group: true,
       trust: true,
       data: true,
       partDatasheetId: true,
@@ -327,7 +374,22 @@ export async function editFact(input: unknown): Promise<PartFact> {
     },
   });
 
-  const data = factDataSchema(env.group, existing.part.category).parse(env.data);
+  // NOTES is MANUAL-only (design §4) — re-checked on edit so a curator can't
+  // promote an editorial note to a page-checked kind.
+  assertNotesSourceKind(existing.group, env.sourceKind);
+
+  // A supplied cached-datasheet id must belong to this fact's part.
+  await assertDatasheetBelongsToPart(env.partDatasheetId, existing.partId);
+
+  // Validate `data` against the STORED group (immutable). A foreign-shaped
+  // payload (e.g. NOTES `{blocks}` on a PARAMETRICS row) is rejected here.
+  const data = factDataSchema(existing.group, existing.part.category).parse(
+    env.data,
+  );
+
+  // Editing a FLAGGED row intentionally KEEPS the FLAG: FLAGGED is excluded
+  // from all retrieval, so re-pointing the flag at edited content is acceptable
+  // for v1 (the only exit remains clearFlag → UNVERIFIED, then re-verify).
 
   const next = {
     data,
@@ -390,6 +452,7 @@ export async function verifyFact(input: unknown): Promise<PartFact> {
     where: { id },
     select: {
       partId: true,
+      trust: true,
       sourceKind: true,
       partDatasheetId: true,
       sourcePage: true,
@@ -399,11 +462,23 @@ export async function verifyFact(input: unknown): Promise<PartFact> {
     },
   });
 
+  // A FLAGGED fact must NOT be verifiable directly (design §4): the only exit
+  // from FLAGGED is clearFlag (→ UNVERIFIED), after which it must re-earn
+  // VERIFIED through the gate. Verifying straight from FLAGGED would silently
+  // erase the dispute.
+  if (row.trust === "FLAGGED") {
+    throw new Error(
+      "A flagged fact must be cleared and re-reviewed before it can be verified.",
+    );
+  }
+
   const reason = verifyPreconditionReason(row);
   if (reason) throw new Error(reason);
 
   const { count } = await db.partFact.updateMany({
-    where: { id, updatedAt },
+    // Pin `trust: { not: "FLAGGED" }` so a flag landing concurrently between the
+    // load above and this write still blocks the verify (count 0 → rejected).
+    where: { id, updatedAt, trust: { not: "FLAGGED" } },
     data: {
       trust: "VERIFIED",
       verifiedById: user.id,
