@@ -5,6 +5,11 @@ export const env = createEnv({
   server: {
     DATABASE_URL: z.url(),
     DIRECT_URL: z.url(),
+    // Read-only Neon role for the standalone parts MCP server (Stage B). Optional:
+    // only that server reads it (asserting its own presence + that it differs from
+    // DATABASE_URL at startup); the Next app never uses it, so requiring it would
+    // break `next build` anywhere it is unset.
+    PARTS_MCP_DATABASE_URL: z.url().optional(),
     AUTH_SECRET: z.string().min(32),
     AUTH_GOOGLE_ID: z.string().min(1),
     AUTH_GOOGLE_SECRET: z.string().min(1),
@@ -19,6 +24,7 @@ export const env = createEnv({
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
     DIRECT_URL: process.env.DIRECT_URL,
+    PARTS_MCP_DATABASE_URL: process.env.PARTS_MCP_DATABASE_URL,
     AUTH_SECRET: process.env.AUTH_SECRET,
     AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
     AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
