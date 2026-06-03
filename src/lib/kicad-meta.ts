@@ -17,13 +17,22 @@
 
 /**
  * First symbol/footprint name in a KiCad 6/7 S-expression:
- *   - `(symbol "NAME"`     — .kicad_sym
- *   - `(footprint "NAME"`  — .kicad_mod
- *   - `(module NAME`       — legacy .kicad_mod (NAME may be quoted OR unquoted)
- * The NAME group is captured either quoted (group 1) or bare (group 2, module).
+ *   - `(symbol "NAME"`     — .kicad_sym  (KiCad 6/7 ALWAYS quotes the name)
+ *   - `(footprint "NAME"`  — .kicad_mod  (KiCad 6/7 ALWAYS quotes the name)
+ *   - `(module "NAME"`     — legacy .kicad_mod, quoted name
+ *   - `(module NAME`       — legacy .kicad_mod, bare (unquoted) name
+ *
+ * The bare (unquoted) fallback is scoped to `module` ONLY: symbol/footprint
+ * names are matched solely when QUOTED. This prevents a malformed/headerless
+ * `(footprint (layer …)` from grabbing a bogus token like `(layer` as the ref.
+ * The NAME is captured either quoted (group 1) or bare-module (group 2).
+ *
+ * Known limitation: an escaped quote inside a name (e.g. `(symbol "A\"B"`)
+ * truncates the captured ref at the inner quote — acceptable for a
+ * human-reviewed suggestion; escaped quotes are intentionally not handled.
  */
 const REF_RE =
-  /\((?:symbol|footprint|module)\s+(?:"([^"]+)"|([^\s")]+))/i;
+  /\((?:(?:symbol|footprint|module)\s+"([^"]+)"|module\s+([^\s")]+))/i;
 
 /** Distinct generator signatures — each maps a regex to its canonical label. */
 const SOURCE_SIGNATURES: ReadonlyArray<{ re: RegExp; label: string }> = [
