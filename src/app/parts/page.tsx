@@ -8,6 +8,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { ChevronLeftIcon, PlusIcon } from "@/components/icons";
+import { PartGlanceTrigger } from "@/components/parts/PartGlanceTrigger";
 
 function FilterChip({
   label,
@@ -113,6 +114,9 @@ export default async function PartsListPage({
               </th>
               <th className="py-3 pr-4 font-normal">Lifecycle</th>
               <th className="py-3 pr-4 font-normal">Flags</th>
+              <th className="py-3 pr-4 text-right font-normal">
+                <span className="sr-only">Quick glance</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -138,6 +142,9 @@ export default async function PartsListPage({
                       CERTIFIED MODULE
                     </span>
                   )}
+                </td>
+                <td className="py-3 pr-0 text-right">
+                  <PartGlanceTrigger partId={p.id} mpn={p.mpn} />
                 </td>
               </tr>
             ))}
