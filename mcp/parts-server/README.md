@@ -162,9 +162,11 @@ The server requires `PARTS_MCP_DATABASE_URL` in the environment (loaded from `.e
 - the injected-client tool handlers ([src/lib/\_\_tests\_\_/parts-mcp-tools.test.ts](../../src/lib/__tests__/parts-mcp-tools.test.ts)),
 - the source guards ([\_\_tests\_\_/source-guards.test.ts](./__tests__/source-guards.test.ts)).
 
-**Pending the parked infra step** (provisioning `foundry_ro`, §6):
+**Read-only role provisioned + cannot-write proof GREEN.** The `foundry_ro` role (§6) **is provisioned**, and the **cannot-write proof** test ([src/lib/\_\_tests\_\_/parts-mcp-readonly.test.ts](../../src/lib/__tests__/parts-mcp-readonly.test.ts)) **passes as part of the suite** (540 tests passing): a `SELECT` succeeds, while an `UPDATE` is rejected (either `permission denied` or `read-only transaction`).
 
-- the **cannot-write proof** test (`src/lib/__tests__/parts-mcp-readonly.test.ts`) — it can `SELECT` but the `UPDATE` rejects (either `permission denied` or `read-only transaction`); and
-- the **live Claude Code demo** (`lookup_part` returns cited VERIFIED facts; `lookup_bom("foundry-l1-01-wroom-breakout")` resolves the BOM-frozen revision; an un-curated fact **abstains**).
+**Still pending — the live Claude Code demo.** This is the one remaining step, and it is **not** a code/infra gate; it requires the user to:
 
-Both are deferred with the role provisioning. See the design doc §5/§9 and the [Stage B plan](../../docs/plans/2026-06-03-parts-knowledge-stage-b-implementation.md) (Task 1 = the role runbook; Task 6 = the cannot-write test).
+- **reconnect Claude Code** so it picks up `.mcp.json` (§7) and lists the two `foundry-parts` tools; and
+- **curate + VERIFY at least one pilot part** so the demo can show cited facts end-to-end (`lookup_part` returns cited VERIFIED facts; `lookup_bom("foundry-l1-01-wroom-breakout")` resolves the BOM-frozen revision; an un-curated fact **abstains**).
+
+See the design doc §5/§9 and the [Stage B plan](../../docs/plans/2026-06-03-parts-knowledge-stage-b-implementation.md) (Task 1 = the role runbook; Task 6 = the cannot-write test).

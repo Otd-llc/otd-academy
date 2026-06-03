@@ -134,4 +134,37 @@ describe("formatBomResult", () => {
     expect(count(text.slice(0, fenceStart), INJECTION)).toBe(0);
     expect(count(text.slice(fenceStart), INJECTION)).toBe(count(text, INJECTION));
   });
+
+  test("ACCEPTED EXCEPTION: a line refDes ARE in the trusted head, with whitespace collapsed", () => {
+    // refDes is curator free-text whose schema permits interior newlines. It is
+    // interpolated un-fenced into the BOM head (like mpn/manufacturer), so a malicious
+    // newline must NOT forge a new head line — ident() collapses it to a space.
+    const dirtyRefDes = `C1\n${INJECTION}`;
+    const r: LookupBomResult = {
+      found: true,
+      revisionId: "rev1",
+      projectSlug: "proj",
+      lines: [
+        {
+          refDes: dirtyRefDes,
+          quantity: 1,
+          part: {
+            found: true,
+            part: { id: "p1", mpn: "AP2112", manufacturer: "Diodes", category: "LDO_REGULATOR" },
+            facts: [],
+          },
+        },
+      ],
+    };
+    const out = formatBomResult(r);
+    const text = out.content[0]!.text;
+    const fenceStart = text.indexOf("BEGIN untrusted reference text");
+    // No facts → no fence; the head is everything before the (absent) fence marker.
+    const headEnd = fenceStart === -1 ? text.length : fenceStart;
+    const renderedHead = text.slice(0, headEnd);
+    // The raw newline-bearing refDes must NOT survive in the head…
+    expect(renderedHead).not.toContain(`C1\n${INJECTION}`);
+    // …but the collapsed single-line form DOES (the accepted identity exception).
+    expect(renderedHead).toContain(`C1 ${INJECTION}`);
+  });
 });

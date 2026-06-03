@@ -103,10 +103,10 @@ export function formatBomResult(result: LookupBomResult): McpToolResult {
     const p = line.part;
     if (p.found) {
       const groups = p.facts.map((f) => f.group).join(", ") || "no verified facts";
-      head += `\n- ${line.refDes} ×${line.quantity} → ${ident(p.part.mpn)} [${groups}]`;
+      head += `\n- ${ident(line.refDes)} ×${line.quantity} → ${ident(p.part.mpn)} [${groups}]`;
       for (const f of p.facts) refs.push(factRef(`${line.refDes} ${f.group}`, "VERIFIED", f.citation, f.data));
     } else {
-      head += `\n- ${line.refDes} ×${line.quantity} → (not in library — abstain)`;
+      head += `\n- ${ident(line.refDes)} ×${line.quantity} → (not in library — abstain)`;
     }
   }
   const text = refs.length ? head + fence(refs.join("\n\n")) : head;
