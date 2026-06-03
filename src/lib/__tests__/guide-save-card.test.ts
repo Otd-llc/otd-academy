@@ -124,4 +124,96 @@ describe("saveGuideCard", () => {
     expect(r.ok).toBeUndefined();
     expect(r.errors).toBeTruthy();
   });
+
+  // ─── authoritative-done invariant: gate-wiring fields are LOCKED ─────────
+  //
+  // `isGate` / `completionRef` drive the authoritative-done mapping and must
+  // NEVER be mutable through the inline editor's `saveGuideCard` network door.
+
+  test("editing teaching content leaves the gate-wiring fields (isGate/completionRef) untouched", async () => {
+    const { saveGuideCard } = await import("@/lib/actions/guides-form");
+
+    // Seed a KNOWN non-default gate wiring on the card via direct Prisma
+    // (mirroring how materializeGuide seeds it — NOT through editGuideCard).
+    const knownCompletionRef = {
+      kind: "revisionChecklist",
+      subkind: "REQUIREMENTS_REVIEW",
+    } as const;
+    await db.guideCard.update({
+      where: { id: firstCardId },
+      data: {
+        isGate: true,
+        completionRef: knownCompletionRef,
+      },
+    });
+
+    // Edit ONLY teaching content.
+    const r = await saveGuideCard({
+      id: firstCardId,
+      title: "TEACHING ONLY EDIT",
+      contentBlocks: [{ type: "prose", md: "fresh teaching prose" }],
+    });
+    expect(r.ok).toBe(true);
+    expect(r.createdId).toBe(firstCardId);
+
+    // Read the row back: teaching content updated, gate wiring UNCHANGED.
+    const card = await db.guideCard.findUniqueOrThrow({
+      where: { id: firstCardId },
+      select: {
+        title: true,
+        contentBlocks: true,
+        isGate: true,
+        completionRef: true,
+      },
+    });
+    expect(card.title).toBe("TEACHING ONLY EDIT");
+    const blocks = card.contentBlocks as Array<{ type: string; md?: string }>;
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]!.md).toBe("fresh teaching prose");
+
+    // The locked fields kept their seeded values.
+    expect(card.isGate).toBe(true);
+    expect(card.completionRef).toEqual(knownCompletionRef);
+  });
+
+  test("rejects an injected isGate/completionRef and never writes the gate-wiring columns", async () => {
+    const { saveGuideCard } = await import("@/lib/actions/guides-form");
+
+    // Establish a KNOWN gate wiring + title baseline.
+    const knownCompletionRef = {
+      kind: "buildChecklist",
+      subkind: "ASSEMBLY_STEPS",
+    } as const;
+    await db.guideCard.update({
+      where: { id: firstCardId },
+      data: {
+        isGate: false,
+        completionRef: knownCompletionRef,
+        title: "BASELINE TITLE",
+      },
+    });
+
+    // Adversarial payload: a hand-crafted POST that injects the LOCKED
+    // gate-wiring fields alongside a legit teaching edit.
+    const r = await saveGuideCard({
+      id: firstCardId,
+      title: "ATTACKER TITLE",
+      isGate: true,
+      completionRef: { kind: "none" },
+    } as unknown);
+
+    // The strict boundary rejects it (unrecognized_keys → ZodError → errors).
+    expect(r.ok).toBeUndefined();
+    expect(r.errors).toBeTruthy();
+
+    // Nothing was written — neither the gate-wiring columns NOR the title
+    // (the whole payload was rejected at the boundary, before editGuideCard).
+    const card = await db.guideCard.findUniqueOrThrow({
+      where: { id: firstCardId },
+      select: { title: true, isGate: true, completionRef: true },
+    });
+    expect(card.title).toBe("BASELINE TITLE");
+    expect(card.isGate).toBe(false);
+    expect(card.completionRef).toEqual(knownCompletionRef);
+  });
 });
