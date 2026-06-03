@@ -347,6 +347,14 @@ export async function recordPartAsset(input: unknown): Promise<PartAsset> {
       byteSize: actual,
       contentType: cfg.contentType,
       createdById: user.id,
+      // CREATE-ONLY: pre-seed the auto-extracted KiCad ref/source (from
+      // `@/lib/kicad-meta`) as a STARTING SUGGESTION on the fresh UNVERIFIED row
+      // (the schema default keeps trust UNVERIFIED — this never auto-verifies).
+      // The UPDATE (replace) branch deliberately OMITS ref/source so a replaced
+      // file never clobbers a human's edited metadata (extracted values from a
+      // replaced file are intentionally ignored in v1).
+      ref: data.ref ?? null,
+      source: data.source ?? null,
     },
     update: {
       r2Key: data.r2Key,
