@@ -29,11 +29,15 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function MainNav() {
+export function MainNav({ className }: { className?: string }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-xs uppercase tracking-wider">
+    <nav
+      className={`flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-xs uppercase tracking-wider${
+        className ? ` ${className}` : ""
+      }`}
+    >
       {LINKS.map((link) => {
         const active = isActive(pathname, link.href);
         return (
