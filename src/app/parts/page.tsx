@@ -119,7 +119,14 @@ export default async function PartsListPage({
             {parts.map((p) => (
               <tr key={p.id} className="border-b border-panel-border align-top">
                 <td className="py-3 pr-4 text-link-muted">{p.manufacturer}</td>
-                <td className="py-3 pr-4 text-command-gold">{p.mpn}</td>
+                <td className="py-3 pr-4">
+                  <Link
+                    href={`/parts/${p.id}`}
+                    className="text-command-gold underline-offset-2 hover:underline"
+                  >
+                    {p.mpn}
+                  </Link>
+                </td>
                 <td className="py-3 pr-4 text-link-muted">{p.description}</td>
                 <td className="hidden py-3 pr-4 text-muted md:table-cell">
                   {p.category ?? "—"}

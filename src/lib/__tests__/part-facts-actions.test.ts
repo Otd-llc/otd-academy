@@ -42,9 +42,11 @@ import {
   createFact,
   editFact,
   flagFact,
-  shouldDemote,
   verifyFact,
 } from "@/lib/actions/part-facts";
+// `shouldDemote` is the pure auto-demote decision, extracted out of the
+// "use server" action module (which may only export async functions).
+import { shouldDemote } from "@/lib/part-fact-demote";
 import { lookupPart } from "@/lib/parts-knowledge/query";
 
 const SEED_EMAIL = "seed@example.com";
