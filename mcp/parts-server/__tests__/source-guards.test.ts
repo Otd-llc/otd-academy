@@ -11,16 +11,20 @@ describe("MCP server source guards", () => {
   test("no module imports the read-write owner client (src/lib/db)", () => {
     for (const f of FILES) {
       const src = readFileSync(join(SRC, f), "utf8");
-      // Line-anchored: catches real `import ... lib/db` statements but NOT prose
-      // comments that mention the path (e.g. "deliberately does NOT import src/lib/db.ts").
-      expect(src, `${f} must not import src/lib/db`).not.toMatch(/^\s*import\b[^\n]*\blib\/db/m);
+      // Quote-anchored: catches real module refs in any form — static `import`,
+      // dynamic `import("…lib/db")`, `require("…lib/db")`, and `export {…} from "…lib/db"` —
+      // by requiring a quote between the keyword and `lib/db`. Prose comments that mention
+      // the unquoted path (e.g. "deliberately does NOT import src/lib/db.ts") never match.
+      expect(src, `${f} must not import src/lib/db`).not.toMatch(/(?:from|import|require)\s*\(?\s*["'][^"']*lib\/db/);
     }
   });
 
   test("no module writes to stdout (console.log / process.stdout) — stdio is the MCP channel", () => {
     for (const f of FILES) {
       const src = readFileSync(join(SRC, f), "utf8");
-      expect(src, `${f} must not console.log`).not.toMatch(/console\.log\s*\(/);
+      // On Node 24, console.info/debug/dir/table also write to stdout (only
+      // warn/error/trace go to stderr) — any would corrupt the MCP protocol stream.
+      expect(src, `${f} must not write stdout via console`).not.toMatch(/console\.(log|info|debug|dir|table)\s*\(/);
       expect(src, `${f} must not write process.stdout`).not.toMatch(/process\.stdout/);
     }
   });
