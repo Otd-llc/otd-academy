@@ -42,6 +42,7 @@ import {
   createFact,
   editFact,
   flagFact,
+  unverifyFact,
   verifyFact,
 } from "@/lib/actions/part-facts";
 // `shouldDemote` is the pure auto-demote decision, extracted out of the
@@ -902,5 +903,121 @@ describe("partDatasheetId referential check", () => {
       where: { partId: throwawayPartId, group: "PARAMETRICS" },
     });
     expect(count).toBe(0);
+  });
+});
+
+// ─── unverifyFact — undo an accidental verify ────────────────────────────────
+// The inverse of verifyFact: VERIFIED → UNVERIFIED, clearing the verifier stamp.
+// Pins `trust: "VERIFIED"` in the conditional WHERE so it is idempotent +
+// race-safe and can NEVER un-flag a FLAGGED row (the only exit from FLAGGED is
+// clearFlag). Optimistic lock on `updatedAt`.
+describe("unverifyFact", () => {
+  test("moves VERIFIED → UNVERIFIED and clears the verifier", async () => {
+    const fact = await createFact({
+      partId: throwawayPartId,
+      group: "PARAMETRICS",
+      data: validParametricsData(),
+      sourceKind: "DATASHEET",
+      sourceUrl: "https://example.com/ds.pdf",
+      sourcePage: 4,
+    });
+    try {
+      const v = await verifyFact({ id: fact.id, updatedAt: fact.updatedAt });
+      expect(v.trust).toBe("VERIFIED");
+      expect(v.verifiedById).toBe(seedUserId);
+
+      const un = await unverifyFact({ id: v.id, updatedAt: v.updatedAt });
+      expect(un.trust).toBe("UNVERIFIED");
+      expect(un.verifiedById).toBeNull();
+      expect(un.verifiedAt).toBeNull();
+    } finally {
+      await deleteFact(fact.id);
+    }
+  });
+
+  test("rejects a non-VERIFIED (UNVERIFIED) row and leaves it untouched", async () => {
+    const fact = await createFact({
+      partId: throwawayPartId,
+      group: "PARAMETRICS",
+      data: validParametricsData(),
+      sourceKind: "DATASHEET",
+      sourcePage: 4,
+    });
+    try {
+      await expect(
+        unverifyFact({ id: fact.id, updatedAt: fact.updatedAt }),
+      ).rejects.toThrow();
+      const row = await db.partFact.findUniqueOrThrow({
+        where: { id: fact.id },
+        select: { trust: true },
+      });
+      expect(row.trust).toBe("UNVERIFIED");
+    } finally {
+      await deleteFact(fact.id);
+    }
+  });
+
+  test("does NOT un-flag a FLAGGED row (FLAGGED stays put)", async () => {
+    const fact = await createFact({
+      partId: throwawayPartId,
+      group: "PARAMETRICS",
+      data: validParametricsData(),
+      sourceKind: "DATASHEET",
+      sourcePage: 4,
+    });
+    try {
+      const flagged = await flagFact({ id: fact.id, updatedAt: fact.updatedAt });
+      expect(flagged.trust).toBe("FLAGGED");
+      await expect(
+        unverifyFact({ id: flagged.id, updatedAt: flagged.updatedAt }),
+      ).rejects.toThrow();
+      const row = await db.partFact.findUniqueOrThrow({
+        where: { id: fact.id },
+        select: { trust: true },
+      });
+      expect(row.trust).toBe("FLAGGED");
+    } finally {
+      await deleteFact(fact.id);
+    }
+  });
+
+  test("a stale updatedAt is rejected and the row stays VERIFIED", async () => {
+    const fact = await createFact({
+      partId: throwawayPartId,
+      group: "PARAMETRICS",
+      data: validParametricsData(),
+      sourceKind: "DATASHEET",
+      sourceUrl: "https://example.com/ds.pdf",
+      sourcePage: 4,
+    });
+    try {
+      const v = await verifyFact({ id: fact.id, updatedAt: fact.updatedAt });
+      const staleUpdatedAt = v.updatedAt;
+      // A concurrent sourceNote-only edit bumps updatedAt while STAYING VERIFIED
+      // (a cosmetic note is not a demote trigger).
+      await editFact({
+        id: v.id,
+        updatedAt: v.updatedAt,
+        data: validParametricsData(),
+        sourceKind: "DATASHEET",
+        sourceUrl: "https://example.com/ds.pdf",
+        sourcePage: 4,
+        sourceNote: "touched to bump updatedAt",
+      });
+
+      await expect(
+        unverifyFact({ id: fact.id, updatedAt: staleUpdatedAt }),
+      ).rejects.toThrow(/reload|changed/i);
+
+      // No write from the stale call: still VERIFIED, verifier intact.
+      const row = await db.partFact.findUniqueOrThrow({
+        where: { id: fact.id },
+        select: { trust: true, verifiedById: true },
+      });
+      expect(row.trust).toBe("VERIFIED");
+      expect(row.verifiedById).toBe(seedUserId);
+    } finally {
+      await deleteFact(fact.id);
+    }
   });
 });
