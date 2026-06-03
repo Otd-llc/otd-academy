@@ -38,6 +38,7 @@ import type { PartAssetKind } from "@prisma/client";
 import { db } from "@/lib/db";
 import {
   clearPartAssetFlag,
+  deletePartAsset,
   editPartAsset,
   flagPartAsset,
   unverifyPartAsset,
@@ -225,6 +226,58 @@ describe("verifyPartAsset precondition", () => {
     } finally {
       await deleteAsset(asset.id);
     }
+  });
+});
+
+// ─── deletePartAsset — deliberate removal (optimistic-lock fenced) ───────────
+// Any signed-in user may delete from ANY trust state (UNVERIFIED/VERIFIED/
+// FLAGGED) — the deliberate confirm lives in the UI, not a server precondition.
+// The optimistic lock on `updatedAt` still applies: a stale fence is rejected
+// (CONFLICT) and the row stays put. R2 cleanup is best-effort — the throwaway
+// rows' r2Key never exists in R2, and the action swallows the DeleteObject error.
+describe("deletePartAsset", () => {
+  test("deletes the row", async () => {
+    const asset = await createAsset({ kind: "SYMBOL", source: "SnapEDA" });
+    await deletePartAsset({ id: asset.id, updatedAt: asset.updatedAt });
+    const row = await db.partAsset.findUnique({ where: { id: asset.id } });
+    expect(row).toBeNull();
+  });
+
+  test("a stale updatedAt is rejected (CONFLICT) and the row is still present", async () => {
+    const asset = await createAsset({ kind: "FOOTPRINT", source: "SnapEDA" });
+    try {
+      const staleUpdatedAt = asset.updatedAt;
+      // A concurrent license-only edit bumps updatedAt forward (no demote).
+      await editPartAsset({
+        id: asset.id,
+        updatedAt: asset.updatedAt,
+        source: "SnapEDA",
+        license: "MIT",
+      });
+
+      await expect(
+        deletePartAsset({ id: asset.id, updatedAt: staleUpdatedAt }),
+      ).rejects.toThrow(/reload|changed/i);
+
+      // The stale delete did NOT remove the row.
+      const row = await db.partAsset.findUnique({ where: { id: asset.id } });
+      expect(row).not.toBeNull();
+    } finally {
+      await deleteAsset(asset.id);
+    }
+  });
+
+  test("deleting a VERIFIED asset is allowed", async () => {
+    const asset = await createAsset({ kind: "MODEL_3D", source: "SnapEDA" });
+    const v = await verifyPartAsset({
+      id: asset.id,
+      updatedAt: asset.updatedAt,
+    });
+    expect(v.trust).toBe("VERIFIED");
+
+    await deletePartAsset({ id: v.id, updatedAt: v.updatedAt });
+    const row = await db.partAsset.findUnique({ where: { id: asset.id } });
+    expect(row).toBeNull();
   });
 });
 

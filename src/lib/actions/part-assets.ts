@@ -43,6 +43,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { partAssetKey } from "@/lib/r2";
 import {
+  deleteR2Object,
   ensureR2Enabled,
   headVerifySize,
   presignGet,
@@ -249,6 +250,43 @@ export async function clearPartAssetFlag(input: unknown): Promise<PartAsset> {
 
   revalidatePartRoute(row.partId);
   return db.partAsset.findUniqueOrThrow({ where: { id } });
+}
+
+// ─── deletePartAsset ────────────────────────────────────
+/**
+ * Deliberately remove an asset (e.g. a wrong footprint), reverting that kind's
+ * row to the empty "Upload" affordance. Any signed-in user may delete from ANY
+ * trust state (UNVERIFIED/VERIFIED/FLAGGED) — there is NO trust precondition;
+ * the deliberate confirm lives in the UI. The optimistic-lock fence still
+ * applies: a conditional `deleteMany({ where: { id, updatedAt } })` returns 0
+ * rows if the row changed since the caller loaded it → "reload" (no delete).
+ * AFTER the row is gone we best-effort delete the R2 object; a failure is
+ * swallowed (the orphan is the design's accepted fallback, swept later).
+ */
+export async function deletePartAsset(input: unknown): Promise<void> {
+  const { id, updatedAt } = idWithLockSchema.parse(input);
+  await requireUser();
+
+  const row = await db.partAsset.findUniqueOrThrow({
+    where: { id },
+    select: { partId: true, r2Key: true },
+  });
+
+  // Optimistic lock: don't delete a row that changed since the caller loaded it.
+  const { count } = await db.partAsset.deleteMany({ where: { id, updatedAt } });
+  if (count === 0) throw new Error(CONFLICT_MESSAGE);
+
+  // Best-effort R2 cleanup AFTER the row is gone. A failure here leaves an
+  // orphan object — the design's accepted fallback (swept later), so swallow it.
+  if (env.R2_ENABLED && env.R2_BUCKET) {
+    try {
+      await deleteR2Object(row.r2Key);
+    } catch {
+      /* leave orphan — the design's accepted fallback; swept later */
+    }
+  }
+
+  revalidatePartRoute(row.partId);
 }
 
 // ─── R2 upload pipeline (design §3.1, Stage C Task 5) ───

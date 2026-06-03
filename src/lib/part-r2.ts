@@ -40,3 +40,10 @@ export async function headVerifySize(key: string, declaredBytes: number, maxByte
 export function presignGet(key: string) {
   return getSignedUrl(r2, new GetObjectCommand({ Bucket: env.R2_BUCKET!, Key: key }), { expiresIn: GET_TTL_SECONDS });
 }
+
+/** Best-effort delete of a single R2 object. DeleteObject is idempotent (a
+ *  missing key is a no-op), so callers use this to clean up after a row is
+ *  removed; a failure here is swallowed by the caller (orphan swept later). */
+export async function deleteR2Object(key: string): Promise<void> {
+  await r2.send(new DeleteObjectCommand({ Bucket: env.R2_BUCKET!, Key: key }));
+}

@@ -30,6 +30,7 @@ import type { FactTrust } from "@prisma/client";
 
 import {
   clearPartAssetFlagForm,
+  deletePartAssetForm,
   editPartAssetForm,
   flagPartAssetForm,
   unverifyPartAssetForm,
@@ -47,6 +48,7 @@ import {
   CloseIcon,
   UndoIcon,
   DocumentIcon,
+  TrashIcon,
 } from "@/components/icons";
 import { VerifyBadge } from "@/components/parts/VerifyBadge";
 import { AssetUpload } from "@/components/parts/AssetUpload";
@@ -90,6 +92,10 @@ export function AssetRow({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Two-step inline delete confirm (mirrors DeleteConfirmButton): a first tap
+  // ARMS the control (trash → red confirm ✓ + cancel ✕) so a stray tap can't
+  // drop an asset; the confirm ✓ dispatches deletePartAssetForm.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   // Edit drafts — seeded from the existing asset (controlled inputs).
   const [ref, setRef] = useState(asset?.ref ?? "");
@@ -116,6 +122,34 @@ export function AssetRow({
           err instanceof ZodError
             ? "Invalid request."
             : "Action failed — check your connection and try again.",
+        );
+      }
+    });
+  }
+
+  // ─── delete (armed confirm → dispatch deletePartAssetForm) ────────────────
+  // On success the row re-renders as the empty Upload affordance (the part
+  // route revalidates server-side + router.refresh() repaints the client).
+  function runDelete() {
+    if (!asset) return;
+    setError(null);
+    startTransition(async () => {
+      try {
+        const r = await deletePartAssetForm({
+          id: asset.id,
+          updatedAt: asset.updatedAt,
+        });
+        if (r.ok) {
+          setConfirmingDelete(false);
+          router.refresh();
+        } else {
+          setError(r.message ?? "Could not delete.");
+        }
+      } catch (err) {
+        setError(
+          err instanceof ZodError
+            ? "Invalid request."
+            : "Could not delete — check your connection and try again.",
         );
       }
     });
@@ -233,6 +267,48 @@ export function AssetRow({
                 onClick={() => runGate(clearPartAssetFlagForm)}
               >
                 <CloseIcon className="h-5 w-5" />
+              </IconButton>
+            )}
+
+            {/* Delete (two-step inline confirm — mirrors DeleteConfirmButton).
+                Shown for ANY existing asset; the deliberate confirm is the
+                safeguard (the server action has no trust precondition). */}
+            {confirmingDelete ? (
+              <>
+                <IconButton
+                  type="button"
+                  tone="danger"
+                  hint="Confirm delete"
+                  ariaLabel={`Confirm delete ${label}`}
+                  disabled={isPending}
+                  onClick={runDelete}
+                >
+                  {/* Armed confirm reads red at rest so the destructive step is
+                      unmistakable while the button stays ghost-light. */}
+                  <span className="text-alert-red">
+                    <CheckIcon className="h-5 w-5" />
+                  </span>
+                </IconButton>
+                <IconButton
+                  type="button"
+                  hint="Keep"
+                  ariaLabel={`Cancel delete ${label}`}
+                  disabled={isPending}
+                  onClick={() => setConfirmingDelete(false)}
+                >
+                  <CloseIcon className="h-5 w-5" />
+                </IconButton>
+              </>
+            ) : (
+              <IconButton
+                type="button"
+                tone="danger"
+                hint="Delete"
+                ariaLabel={`Delete ${label}`}
+                disabled={isPending}
+                onClick={() => setConfirmingDelete(true)}
+              >
+                <TrashIcon className="h-5 w-5" />
               </IconButton>
             )}
           </div>
