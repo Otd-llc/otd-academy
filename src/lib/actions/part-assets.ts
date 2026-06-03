@@ -133,24 +133,24 @@ export async function verifyPartAsset(input: unknown): Promise<PartAsset> {
  * demote. Fields are written `?? null` — OMITTING a field CLEARS it.
  */
 export async function editPartAsset(input: unknown): Promise<PartAsset> {
-  const env = editPartAssetSchema.parse(input);
+  const data = editPartAssetSchema.parse(input);
   const user = await requireUser();
 
   const existing = await db.partAsset.findUniqueOrThrow({
-    where: { id: env.id },
+    where: { id: data.id },
     select: { partId: true, trust: true, ref: true, source: true },
   });
 
   const demote =
     existing.trust === "VERIFIED" &&
-    shouldDemoteAsset(existing, { ref: env.ref, source: env.source });
+    shouldDemoteAsset(existing, { ref: data.ref, source: data.source });
 
   const { count } = await db.partAsset.updateMany({
-    where: { id: env.id, updatedAt: env.updatedAt },
+    where: { id: data.id, updatedAt: data.updatedAt },
     data: {
-      ref: env.ref ?? null,
-      source: env.source ?? null,
-      license: env.license ?? null,
+      ref: data.ref ?? null,
+      source: data.source ?? null,
+      license: data.license ?? null,
       lastEditedById: user.id,
       ...(demote
         ? { trust: "UNVERIFIED", verifiedById: null, verifiedAt: null }
@@ -160,7 +160,7 @@ export async function editPartAsset(input: unknown): Promise<PartAsset> {
   if (count === 0) throw new Error(CONFLICT_MESSAGE);
 
   revalidatePartRoute(existing.partId);
-  return db.partAsset.findUniqueOrThrow({ where: { id: env.id } });
+  return db.partAsset.findUniqueOrThrow({ where: { id: data.id } });
 }
 
 // ─── unverifyPartAsset ──────────────────────────────────
