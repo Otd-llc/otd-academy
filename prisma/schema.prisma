@@ -26,6 +26,7 @@ model User {
   partsCreated            Part[]
   partFacts               PartFact[]
   partDatasheets          PartDatasheet[]
+  partAssets              PartAsset[]
   bomLinesCreated         BomLine[]
   projectsCreated         Project[]
   errataCreated           Erratum[]
@@ -426,6 +427,7 @@ model Part {
   bomLines   BomLine[]
   factGroups PartFact[]
   datasheet  PartDatasheet?
+  assets     PartAsset[]
 
   @@unique([manufacturer, mpn])
   @@index([mpn])
@@ -468,6 +470,37 @@ model PartFact {
   updatedAt       DateTime       @updatedAt
 
   @@unique([partId, group])
+  @@index([trust])
+}
+
+enum PartAssetKind {
+  SYMBOL
+  FOOTPRINT
+  MODEL_3D
+}
+
+model PartAsset {
+  id             String        @id @default(cuid())
+  partId         String
+  part           Part          @relation(fields: [partId], references: [id], onDelete: Cascade)
+  kind           PartAssetKind
+  r2Key          String        // parts/{partId}/{kind}-{cuid}.{ext}
+  filename       String
+  byteSize       Int
+  contentType    String
+  ref            String?       // symbol/footprint name (sym-lib-table descr data)
+  source         String?       // SnapEDA | SamacSys | Ultra Librarian | manufacturer | hand-made
+  license        String?
+  trust          FactTrust     @default(UNVERIFIED)
+  verifiedById   String?
+  verifiedAt     DateTime?
+  lastEditedById String?
+  createdById    String
+  createdBy      User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([partId, kind])
   @@index([trust])
 }
 
