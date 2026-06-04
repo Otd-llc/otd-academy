@@ -8,7 +8,7 @@
 // wrong extension for the kind and a too-large byteSize, and accepting a
 // correct case-insensitive one; and `shouldDemoteAsset` (ref OR source change
 // demotes; a license-only change / no-op does not).
-import { describe, it, expect } from "vitest";
+import { describe, it, test, expect } from "vitest";
 
 import { MAX_UPLOAD_BYTES } from "@/lib/schemas/upload";
 import {
@@ -18,6 +18,9 @@ import {
   isExtAllowed,
   createPartAssetUploadUrlSchema,
   shouldDemoteAsset,
+  recordPartAssetSchema,
+  renderBoundsSchema,
+  createPartAssetRenderUploadUrlSchema,
 } from "@/lib/schemas/part-asset";
 
 // A realistically-shaped cuid (z.cuid()) used for the valid-case partId.
@@ -188,5 +191,42 @@ describe("shouldDemoteAsset", () => {
   it("demotes when going from a value to null/empty", () => {
     expect(shouldDemoteAsset({ ref: "AP2112", source: null }, { ref: null, source: null })).toBe(true);
     expect(shouldDemoteAsset({ ref: null, source: "SnapEDA" }, { ref: null, source: "" })).toBe(true);
+  });
+});
+
+describe("render schemas", () => {
+  const partId = "c".repeat(24); // a cuid-shaped placeholder; adjust if z.cuid rejects
+
+  test("recordPartAssetSchema accepts the optional render trio", () => {
+    const parsed = recordPartAssetSchema.parse({
+      partId,
+      kind: "MODEL_3D",
+      r2Key: "parts/x/model_3d-abc.step",
+      filename: "x.step",
+      byteSize: 10,
+      renderKey: "parts/x/model_3d_render-abc.glb",
+      renderBytes: 5,
+      renderBounds: { center: [0, 0, 0], radius: 1 },
+    });
+    expect(parsed.renderKey).toContain("render");
+  });
+
+  test("recordPartAssetSchema is valid WITHOUT render fields (conversion failed)", () => {
+    const parsed = recordPartAssetSchema.parse({
+      partId,
+      kind: "MODEL_3D",
+      r2Key: "parts/x/model_3d-abc.step",
+      filename: "x.step",
+      byteSize: 10,
+    });
+    expect(parsed.renderKey).toBeUndefined();
+  });
+
+  test("renderBoundsSchema rejects a non-positive radius", () => {
+    expect(() => renderBoundsSchema.parse({ center: [0, 0, 0], radius: 0 })).toThrow();
+  });
+
+  test("createPartAssetRenderUploadUrlSchema requires partId + byteSize", () => {
+    expect(() => createPartAssetRenderUploadUrlSchema.parse({ partId })).toThrow();
   });
 });

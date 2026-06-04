@@ -17,6 +17,16 @@ export const ASSET_KIND_CONFIG: Record<
   MODEL_3D:  { exts: [".step", ".stp", ".wrl"], contentType: "application/octet-stream", maxBytes: MAX_UPLOAD_BYTES, label: "3D Model" },
 };
 
+export const RENDER_MIME = "model/gltf-binary";
+export const RENDER_MAX_BYTES = MAX_UPLOAD_BYTES; // a .glb is always ≤ the source cap
+
+/** Bounding sphere the viewer uses to frame the camera. */
+export const renderBoundsSchema = z.object({
+  center: z.tuple([z.number(), z.number(), z.number()]),
+  radius: z.number().positive(),
+});
+export type RenderBounds = z.infer<typeof renderBoundsSchema>;
+
 /** Lowercased extension incl. the dot, e.g. "ESP32.STEP" → ".step". "" if none. */
 export function extOf(filename: string): string {
   const i = filename.lastIndexOf(".");
@@ -46,6 +56,11 @@ export const createPartAssetUploadUrlSchema = z
     }
   });
 
+export const createPartAssetRenderUploadUrlSchema = z.object({
+  partId: z.cuid(),
+  byteSize: z.int().positive().max(RENDER_MAX_BYTES),
+});
+
 export const recordPartAssetSchema = z.object({
   partId: z.cuid(),
   kind: z.enum(PART_ASSET_KINDS),
@@ -57,6 +72,10 @@ export const recordPartAssetSchema = z.object({
   // suggestion the curator reviews); ignored on REPLACE — see recordPartAsset.
   ref: z.string().trim().max(200).optional(),
   source: z.string().trim().max(200).optional(),
+  // Optional derived-.glb render (present only when client conversion succeeded).
+  renderKey: z.string().trim().min(1).max(1024).optional(),
+  renderBytes: z.int().positive().max(RENDER_MAX_BYTES).optional(),
+  renderBounds: renderBoundsSchema.optional(),
 });
 
 /** Metadata edit (no file). `.strict()` so a typo'd key is rejected, not dropped. */

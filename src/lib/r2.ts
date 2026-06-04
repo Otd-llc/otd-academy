@@ -69,3 +69,9 @@ export function partAssetKey(
   const e = (ext.startsWith(".") ? ext.slice(1) : ext).toLowerCase();
   return `parts/${partId}/${kind.toLowerCase()}-${cuid}.${e}`;
 }
+
+// Derived-render key for a part's MODEL_3D .glb (sibling of partAssetKey).
+//   parts/{partId}/model_3d_render-{cuid}.glb
+export function partRenderKey(partId: string, cuid: string): string {
+  return `parts/${partId}/model_3d_render-${cuid}.glb`;
+}
