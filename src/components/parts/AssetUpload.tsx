@@ -28,11 +28,13 @@ import { useRouter } from "next/navigation";
 import {
   createPartAssetUploadUrl,
   recordPartAsset,
+  createPartAssetRenderUploadUrl,
 } from "@/lib/actions/part-assets";
 import {
   ASSET_KIND_CONFIG,
   isExtAllowed,
   type PartAssetKindT,
+  type RenderBounds,
 } from "@/lib/schemas/part-asset";
 import { extractKicadMeta } from "@/lib/kicad-meta";
 import { DocumentIcon, SpinnerIcon } from "@/components/icons";
@@ -105,6 +107,39 @@ export function AssetUpload({
           }
         }
 
+        // MODEL_3D: derive a .glb render in-browser (best-effort). Heavy occt/
+        // three deps code-split via the dynamic import inside convertToGlb. A
+        // failed conversion OR a failed render PUT records the asset
+        // download-only — it must NEVER throw (curation can't be blocked).
+        let render: {
+          renderKey?: string;
+          renderBytes?: number;
+          renderBounds?: RenderBounds;
+        } = {};
+        if (kind === "MODEL_3D") {
+          const { convertToGlb } = await import("@/lib/model-convert");
+          const converted = await convertToGlb(file);
+          if (converted) {
+            const r = await createPartAssetRenderUploadUrl({
+              partId,
+              byteSize: converted.glb.size,
+            });
+            const putR = await fetch(r.uploadUrl, {
+              method: "PUT",
+              headers: { "Content-Type": r.contentType },
+              body: converted.glb,
+            });
+            if (putR.ok) {
+              render = {
+                renderKey: r.renderKey,
+                renderBytes: converted.glb.size,
+                renderBounds: converted.bounds,
+              };
+            }
+            // a failed render PUT → just record download-only; never throw here
+          }
+        }
+
         await recordPartAsset({
           partId,
           kind,
@@ -113,6 +148,7 @@ export function AssetUpload({
           byteSize: file.size,
           ref: meta.ref,
           source: meta.source,
+          ...render,
         });
 
         router.refresh();
