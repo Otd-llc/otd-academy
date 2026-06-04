@@ -31,8 +31,13 @@ import {
   createArtifactFormAction,
   type ArtifactFormState,
 } from "@/lib/actions/artifacts";
-import { createUploadUrl, recordArtifact } from "@/lib/actions/uploads";
+import {
+  createUploadUrl,
+  recordArtifact,
+  createArtifactRenderUploadUrl,
+} from "@/lib/actions/uploads";
 import { MAX_UPLOAD_BYTES } from "@/lib/schemas/upload";
+import type { RenderBounds } from "@/lib/schemas/part-asset";
 import { STAGES } from "@/lib/stages";
 import { InlineBanner } from "@/components/InlineBanner";
 
@@ -183,6 +188,49 @@ export function ArtifactPicker({
         );
       }
 
+      // Step 2.5 (board stub): MODEL_3D only — derive a .glb render in-browser
+      // (best-effort). Heavy occt/three deps code-split via the dynamic import
+      // inside convertToGlb. The WHOLE branch is wrapped in try/catch and
+      // swallows to `render = {}` — a chunk-load, conversion, presign, render
+      // PUT, or network failure is NON-FATAL: the FILE artifact still records
+      // download-only. All other subkinds/kinds are unchanged.
+      let render: {
+        renderKey?: string;
+        renderBytes?: number;
+        renderBounds?: RenderBounds;
+      } = {};
+      if (subkind === "MODEL_3D") {
+        try {
+          const file3d = file; // narrow capture for the async branch
+          const { convertToGlb } = await import("@/lib/model-convert");
+          const converted = await convertToGlb(file3d);
+          if (converted) {
+            const r = await createArtifactRenderUploadUrl({
+              owner,
+              stage,
+              byteSize: converted.glb.size,
+            });
+            const putR = await fetch(r.uploadUrl, {
+              method: "PUT",
+              headers: { "Content-Type": r.contentType },
+              body: converted.glb,
+            });
+            if (putR.ok) {
+              render = {
+                renderKey: r.renderKey,
+                renderBytes: converted.glb.size,
+                renderBounds: converted.bounds,
+              };
+            }
+          }
+        } catch {
+          // Any render-path failure is NON-FATAL — fall through with render = {}
+          // so the source artifact still records. Curation can't be blocked by
+          // the derived render.
+          render = {};
+        }
+      }
+
       // Step 3: record (server HEADs + inserts row).
       setFileStatus("recording");
       await recordArtifact({
@@ -195,6 +243,7 @@ export function ArtifactPicker({
         mime,
         sizeBytes,
         filename,
+        ...render,
       });
 
       // Reset form + refresh.
