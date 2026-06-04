@@ -20,8 +20,7 @@ import {
   getPartAssetDownloadUrl,
   getPartAssetRenderUrl,
 } from "@/lib/actions/part-assets";
-import { PART_ASSET_KINDS } from "@/lib/schemas/part-asset";
-import type { RenderBounds } from "@/lib/schemas/part-asset";
+import { PART_ASSET_KINDS, renderBoundsSchema } from "@/lib/schemas/part-asset";
 import { PageHeader } from "@/components/PageHeader";
 import { DocumentIcon } from "@/components/icons";
 import {
@@ -218,8 +217,11 @@ export default async function PartDetailPage({
                 downloadUrl={assetDownloadUrls.get(kind) ?? null}
                 renderUrl={kind === "MODEL_3D" ? modelRenderUrl : null}
                 renderBounds={
+                  // Validate the untrusted JSON column rather than cast it: a
+                  // malformed/legacy row degrades to null (the viewer's clean
+                  // default frame) instead of NaN camera coords.
                   kind === "MODEL_3D"
-                    ? ((a?.renderBounds as RenderBounds | null) ?? null)
+                    ? (renderBoundsSchema.safeParse(a?.renderBounds).data ?? null)
                     : null
                 }
               />
