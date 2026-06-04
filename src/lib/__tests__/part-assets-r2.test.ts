@@ -54,6 +54,7 @@ import {
   recordPartAsset,
   getPartAssetDownloadUrl,
 } from "@/lib/actions/part-assets";
+import { presignGetInline } from "@/lib/part-r2";
 
 const SEED_EMAIL = "seed@example.com";
 const TEST_MFR = "T5-AssetCo";
@@ -182,5 +183,13 @@ describe("getPartAssetDownloadUrl — graceful fallback", () => {
   test("returns null when no PartAsset row exists", async () => {
     const partId = await makePart();
     await expect(getPartAssetDownloadUrl(partId, "SYMBOL")).resolves.toBeNull();
+  });
+});
+
+describe("presignGetInline — no Content-Disposition (inline .glb fetch)", () => {
+  test("presignGetInline omits response-content-disposition", async () => {
+    const url = await presignGetInline("parts/x/model_3d_render-abc.glb");
+    expect(url).toContain("X-Amz-Signature");
+    expect(url.toLowerCase()).not.toContain("response-content-disposition");
   });
 });
