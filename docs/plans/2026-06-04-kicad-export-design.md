@@ -1,7 +1,18 @@
 # BOM → KiCad Export — Design Document
 
-**Status:** Validated (brainstorm complete) — ready for writing-plans → subagent-driven-development.
+**Status:** SHIPPED — with one **scope change** discovered during real-KiCad acceptance (below).
 **Date:** 2026-06-04
+
+> **⚠️ Shipped scope ≠ this design.** During KiCad-10 acceptance testing the connectivity
+> approach was dropped: the export ships **fully UNWIRED** (no nets, no power/ground rails) —
+> placing + fielding + footprint-assigning the parts on a clean canvas, and leaving *all* wiring
+> (power included) to the student, since wiring is the L1 lesson. Consequently the entire
+> connectivity subsystem in this doc — the `Net`/`NetNode` model (§2), the net-editor + `deriveRails`
+> (§4), and the geometric power-rail wiring (§3.4) — was **removed** before merge. The sections
+> below are the *original* design and are kept for history; treat §2/§3.4/§4 as not-shipped.
+> What did ship: KiCad-10 library assembly with symbol↔footprint↔3D association, project/board
+> config, grid placement, PINOUT-derived stubs + coverage report, a complete title block
+> (title/date/rev/company), and the zip→R2→`BOM_EXPORT` artifact + download button.
 
 **Goal:** From a revision's frozen BOM and its curated, verified part assets, generate a KiCad-ready project tree (libraries + scaffold + auto-wired power/ground rails), downloadable as a `.zip`, so an L1 learner opens a project that has the tedious setup already done and only the signal wiring + layout left to learn.
 
