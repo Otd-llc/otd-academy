@@ -696,3 +696,64 @@ describe("recordPartAsset render columns", () => {
     }
   });
 });
+
+// ─── recordPartAsset source inheritance (footprint/3D from a sibling) ───────
+// Footprints (.kicad_mod) and 3D models (.step — binary) frequently carry NO
+// generator signature, so `extractKicadMeta` finds no `source`. To save the
+// curator re-typing, a NEW asset with no source inherits a SUGGESTION from a
+// sibling asset of the same part (e.g. the SYMBOL uploaded first from the same
+// SnapEDA/SamacSys download). Still UNVERIFIED — the human reviews + can override.
+describe("recordPartAsset source inheritance", () => {
+  test("a new asset with NO source inherits it from a sibling of the same part", async () => {
+    const symbol = await createAsset({ kind: "SYMBOL", source: "SnapEDA" });
+    const fp = await recordPartAsset({
+      partId: throwawayPartId,
+      kind: "FOOTPRINT",
+      r2Key: `parts/${throwawayPartId}/footprint-inh.kicad_mod`,
+      filename: "inh.kicad_mod",
+      byteSize: 400,
+      // no `source` — the .kicad_mod carried no generator signature
+    });
+    try {
+      expect(fp.source).toBe("SnapEDA");
+    } finally {
+      await deleteAsset(symbol.id);
+      await deleteAsset(fp.id);
+    }
+  });
+
+  test("an explicitly-provided source is NOT overridden by a sibling", async () => {
+    const symbol = await createAsset({ kind: "SYMBOL", source: "SnapEDA" });
+    const fp = await recordPartAsset({
+      partId: throwawayPartId,
+      kind: "FOOTPRINT",
+      r2Key: `parts/${throwawayPartId}/footprint-own.kicad_mod`,
+      filename: "own.kicad_mod",
+      byteSize: 400,
+      source: "SamacSys",
+    });
+    try {
+      expect(fp.source).toBe("SamacSys");
+    } finally {
+      await deleteAsset(symbol.id);
+      await deleteAsset(fp.id);
+    }
+  });
+
+  test("no sibling with a source → source stays null", async () => {
+    // Clean slate so no leftover sibling from another test leaks a source.
+    await db.partAsset.deleteMany({ where: { partId: throwawayPartId } });
+    const fp = await recordPartAsset({
+      partId: throwawayPartId,
+      kind: "FOOTPRINT",
+      r2Key: `parts/${throwawayPartId}/footprint-none.kicad_mod`,
+      filename: "none.kicad_mod",
+      byteSize: 400,
+    });
+    try {
+      expect(fp.source).toBeNull();
+    } finally {
+      await deleteAsset(fp.id);
+    }
+  });
+});

@@ -105,6 +105,12 @@ export function AssetUpload({
           } catch {
             meta = {};
           }
+        } else {
+          // MODEL_3D is binary — no embedded KiCad metadata to extract. Suggest
+          // the `ref` from the filename base (e.g. "AP2112K-3.3.step" → "AP2112K-3.3");
+          // `source` is inherited from a sibling asset server-side (recordPartAsset).
+          const base = file.name.replace(/\.[^./\\]+$/, "");
+          if (base) meta = { ref: base };
         }
 
         // MODEL_3D: derive a .glb render in-browser (best-effort). Heavy occt/
