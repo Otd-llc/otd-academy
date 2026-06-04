@@ -37,7 +37,6 @@ model User {
   checklistItemsCompleted ChecklistItem[]   @relation("CompletedBy")
   measurementsTaken       Measurement[]
   projectDependenciesCreated ProjectDependency[]
-  netsCreated             Net[]
 }
 
 model Account {
@@ -128,7 +127,6 @@ model Revision {
   guide           Guide?
   errata          Erratum[]         @relation("RevisionErrata")
   addressedErrata Erratum[]         @relation("AddressedByRevision")
-  nets            Net[]
   // Raw migration: CREATE UNIQUE INDEX revision_project_label_ci ON "Revision"(projectId, lower(label));
 
   @@index([projectId, currentStage])
@@ -636,41 +634,3 @@ model GuideCard {
   @@index([guideId])
 }
 
-// ─── Nets (first-class revision connectivity; seed of the netlist) ──────
-enum NetClass {
-  GROUND
-  POWER
-  SIGNAL
-}
-
-model Net {
-  id           String    @id @default(cuid())
-  revisionId   String
-  revision     Revision  @relation(fields: [revisionId], references: [id], onDelete: Cascade)
-  name         String // "GND", "+3V3", "+5V", "VBUS"
-  netClass     NetClass
-  trust        FactTrust @default(UNVERIFIED) // reuse the existing verify gate
-  verifiedById String?
-  verifiedAt   DateTime?
-  createdById  String
-  createdBy    User      @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  nodes NetNode[]
-
-  @@unique([revisionId, name])
-  @@index([revisionId])
-  @@index([trust])
-}
-
-model NetNode {
-  id     String @id @default(cuid())
-  netId  String
-  net    Net    @relation(fields: [netId], references: [id], onDelete: Cascade)
-  refDes String // one physical designator: "U2", "C2" (NOT the comma-joined BomLine ref)
-  pin    String // "VOUT" | "1" — matches the part's PINOUT fact pin number/name
-
-  @@unique([netId, refDes, pin])
-  @@index([netId])
-}

@@ -1,16 +1,15 @@
-// Tests for `.kicad_sch` generation + power-rail geometric wiring
-// (export-engine Task 7, design §3.4 — the crux).
+// Tests for `.kicad_sch` generation — placed-parts (UNWIRED) export
+// (export-engine Task 7).
 //
-// buildSchematic places each part's symbol instance at its placement and, for
-// each VERIFIED GROUND/POWER net node, drops a power-port symbol at the target
-// pin's COMPUTED connection coordinate (via pin-geometry). The test proves the
-// carrier lands exactly on the pin, that SIGNAL pins / unlisted pins are left
-// open, that SIGNAL nets are skipped, that the output is a well-formed
-// `.kicad_sch`, and that generation is deterministic.
+// buildSchematic places each part's symbol instance at its placement and
+// registers each part's symbol in lib_symbols. The export is UNWIRED (no nets /
+// power ports) — wiring is the student's lesson. The tests prove the header /
+// title block, per-part instance fields (Value/Footprint/Datasheet/Description),
+// the lib_symbols unit-prefix rename invariant, and that generation is
+// deterministic.
 //
 // PURE module (no React/DB/env/network/fs). Target format KiCad 10. We can't run
-// KiCad here; tests lock OUR output shape + the geometric-coincidence invariant
-// for manual acceptance.
+// KiCad here; tests lock OUR output shape for manual acceptance.
 
 import { describe, expect, test } from "vitest";
 import {
@@ -22,15 +21,12 @@ import {
   isList,
   isStr,
   atomValue,
-  type SNode,
   type SList,
 } from "@/lib/kicad/sexpr";
 import {
   buildSchematic,
-  type SchematicNet,
   type SchematicPart,
 } from "@/lib/kicad/schematic";
-import { extractSymbolPins, pinConnectionPoint } from "@/lib/kicad/pin-geometry";
 import type { Placement } from "@/lib/kicad/placement";
 
 // Two parts, each with a known GND pin on the left edge. Pin `(at)` is the
@@ -82,49 +78,7 @@ function baseInput() {
       { refDes: "C2", symbolText: SYM_C2, libId: "wroom-breakout:C" },
     ] as SchematicPart[],
     placements,
-    nets: [
-      {
-        name: "GND",
-        netClass: "GROUND",
-        nodes: [
-          { refDes: "U2", pin: "2" }, // U2 GND pin (number "2")
-          { refDes: "C2", pin: "2" }, // C2 pin 2
-        ],
-      },
-    ] as SchematicNet[],
   };
-}
-
-// The expected absolute connection coordinate of a node, computed the same way
-// the module should — proves geometric coincidence rather than re-deriving.
-function expectedPoint(
-  symbolText: string,
-  pinKey: string,
-  placement: Placement,
-): { x: number; y: number } {
-  const pins = extractSymbolPins(symbolText);
-  const pin = pins.find((p) => p.number === pinKey || p.name === pinKey)!;
-  const p = pinConnectionPoint(pin, placement);
-  return { x: p.x, y: p.y };
-}
-
-// Collect all power-port symbol instances (lib_id starting "power:") from the
-// schematic, with their `(at x y rot)`.
-function powerPorts(node: SNode): { libId: string; x: number; y: number }[] {
-  if (!isList(node)) return [];
-  const out: { libId: string; x: number; y: number }[] = [];
-  for (const sym of findChildren(node, "symbol")) {
-    const libId = findChild(sym, "lib_id");
-    const libVal = libId && isStr(libId.items[1]) ? libId.items[1].value : "";
-    if (!libVal.startsWith("power:")) continue;
-    const at = findChild(sym, "at")!;
-    out.push({
-      libId: libVal,
-      x: Number(atomValue(at.items[1])),
-      y: Number(atomValue(at.items[2])),
-    });
-  }
-  return out;
 }
 
 describe("schematic — buildSchematic structure", () => {
@@ -225,8 +179,6 @@ describe("schematic — buildSchematic structure", () => {
     input.placements = new Map<string, Placement>([
       ["J1", { x: 100, y: 100, rotation: 0 }],
     ]);
-    input.nets = [];
-
     const node = parseSexpr(buildSchematic(input));
     if (!isList(node)) throw new Error("unreachable");
     const comp = findChildren(node, "symbol").find((s) => {
@@ -269,8 +221,6 @@ describe("schematic — buildSchematic structure", () => {
     input.placements = new Map<string, Placement>([
       ["U2", { x: 100, y: 100, rotation: 0 }],
     ]);
-    input.nets = [];
-
     const node = parseSexpr(buildSchematic(input));
     if (!isList(node)) throw new Error("unreachable");
     const comp = findChildren(node, "symbol").find((s) => {
@@ -314,8 +264,6 @@ describe("schematic — buildSchematic structure", () => {
     input.placements = new Map<string, Placement>([
       ["U2", { x: 100, y: 100, rotation: 0 }],
     ]);
-    input.nets = [];
-
     const node = parseSexpr(buildSchematic(input));
     if (!isList(node)) throw new Error("unreachable");
     const comp = findChildren(node, "symbol").find((s) => {
@@ -398,20 +346,6 @@ describe("schematic — buildSchematic structure", () => {
     expect(isStr(page.items[1]) && page.items[1].value).toBe("1");
   });
 
-  test("power-port instances are NOT annotated with an (instances ...) block", () => {
-    const node = parseSexpr(buildSchematic(baseInput()));
-    if (!isList(node)) throw new Error("unreachable");
-    const ports = findChildren(node, "symbol").filter((s) => {
-      const libId = findChild(s, "lib_id");
-      const v = libId && isStr(libId.items[1]) ? libId.items[1].value : "";
-      return v.startsWith("power:");
-    });
-    expect(ports.length).toBeGreaterThan(0);
-    for (const p of ports) {
-      expect(findChild(p, "instances")).toBeUndefined();
-    }
-  });
-
   test("REGRESSION (KiCad load error): each lib_symbols component's unit prefix matches its parent name", () => {
     // A stub-style part whose INTERNAL parent + unit names carry a `STUB-`
     // prefix, re-hosted under lib_id `wroom-breakout:USB4110-GF-A`. KiCad rejects
@@ -435,8 +369,6 @@ describe("schematic — buildSchematic structure", () => {
     input.placements = new Map<string, Placement>([
       ["J1", { x: 100, y: 100, rotation: 0 }],
     ]);
-    input.nets = [];
-
     const node = parseSexpr(buildSchematic(input));
     const libSymbols = findChild(node, "lib_symbols")!;
     const comp = findChildren(libSymbols, "symbol").find(
@@ -458,120 +390,6 @@ describe("schematic — buildSchematic structure", () => {
       kind: "str",
       value: "USB4110-GF-A_0_1",
     });
-  });
-});
-
-describe("schematic — power-rail geometric wiring", () => {
-  test("emits a GND power port at EACH gnd pin's computed connection coordinate", () => {
-    const input = baseInput();
-    const out = buildSchematic(input);
-    const node = parseSexpr(out);
-    const ports = powerPorts(node);
-
-    // exactly two GND ports (one per node)
-    const gndPorts = ports.filter((p) => p.libId === "power:GND");
-    expect(gndPorts).toHaveLength(2);
-
-    const u2Pt = expectedPoint(SYM_U2, "2", input.placements.get("U2")!);
-    const c2Pt = expectedPoint(SYM_C2, "2", input.placements.get("C2")!);
-
-    const has = (pt: { x: number; y: number }) =>
-      gndPorts.some(
-        (p) => Math.abs(p.x - pt.x) < 1e-6 && Math.abs(p.y - pt.y) < 1e-6,
-      );
-    expect(has(u2Pt)).toBe(true);
-    expect(has(c2Pt)).toBe(true);
-  });
-
-  test("REGRESSION (KiCad load error): power-port def unit prefix is bare (no nick), matching its parent", () => {
-    const node = parseSexpr(buildSchematic(baseInput()));
-    const libSymbols = findChild(node, "lib_symbols")!;
-    // EVERY symbol def — component AND synthesized power-port — must have units
-    // whose name starts with the parent's UNQUALIFIED name (strip any "nick:") + "_".
-    for (const def of findChildren(libSymbols, "symbol")) {
-      const parent = isStr(def.items[1]) ? def.items[1].value : "";
-      const bare = parent.includes(":") ? parent.slice(parent.indexOf(":") + 1) : parent;
-      for (const unit of findChildren(def, "symbol")) {
-        const unitName = isStr(unit.items[1]) ? unit.items[1].value : "";
-        if (!/_\d+_\d+$/.test(unitName)) continue;
-        expect(unitName.startsWith(`${bare}_`)).toBe(true);
-      }
-    }
-    // Specifically: the power:GND def's unit is "GND_0_1", not "power:GND_0_1".
-    const gndDef = findChildren(libSymbols, "symbol").find(
-      (s) => isStr(s.items[1]) && s.items[1].value === "power:GND",
-    )!;
-    expect(gndDef).toBeDefined();
-    expect(findChild(gndDef, "symbol")!.items[1]).toEqual({ kind: "str", value: "GND_0_1" });
-  });
-
-  test("uses the right power-port symbol per net class/name (GND vs +3V3 vs +5V)", () => {
-    const input = baseInput();
-    input.nets = [
-      { name: "GND", netClass: "GROUND", nodes: [{ refDes: "U2", pin: "2" }] },
-      { name: "+3V3", netClass: "POWER", nodes: [{ refDes: "U2", pin: "5" }] },
-      { name: "+5V", netClass: "POWER", nodes: [{ refDes: "U2", pin: "1" }] },
-    ];
-    const ports = powerPorts(parseSexpr(buildSchematic(input)));
-    const ids = ports.map((p) => p.libId).sort();
-    expect(ids).toEqual(["power:+3V3", "power:+5V", "power:GND"]);
-  });
-
-  test("SIGNAL-class nets are skipped (defensive — no carrier emitted)", () => {
-    const input = baseInput();
-    input.nets = [
-      // a SIGNAL net touching U2's VOUT pin — must NOT produce a port
-      { name: "NET1", netClass: "SIGNAL", nodes: [{ refDes: "U2", pin: "5" }] },
-    ];
-    const ports = powerPorts(parseSexpr(buildSchematic(input)));
-    expect(ports).toHaveLength(0);
-  });
-
-  test("a node referencing an unknown refDes or pin is skipped, not crashed", () => {
-    const input = baseInput();
-    input.nets = [
-      {
-        name: "GND",
-        netClass: "GROUND",
-        nodes: [
-          { refDes: "U2", pin: "2" }, // valid
-          { refDes: "NOPE", pin: "2" }, // unknown part
-          { refDes: "U2", pin: "999" }, // unknown pin
-        ],
-      },
-    ];
-    const ports = powerPorts(parseSexpr(buildSchematic(input)));
-    // only the one valid node produced a port
-    expect(ports.filter((p) => p.libId === "power:GND")).toHaveLength(1);
-  });
-
-  test("signal pins (VOUT) get NO power port when not on a power/ground net", () => {
-    const input = baseInput();
-    const node = parseSexpr(buildSchematic(input));
-    const u2VoutPt = expectedPoint(SYM_U2, "5", input.placements.get("U2")!);
-    const ports = powerPorts(node);
-    const onVout = ports.some(
-      (p) => Math.abs(p.x - u2VoutPt.x) < 1e-6 && Math.abs(p.y - u2VoutPt.y) < 1e-6,
-    );
-    expect(onVout).toBe(false);
-  });
-
-  test("lib_symbols contains the power-port definitions actually used", () => {
-    const input = baseInput();
-    input.nets = [
-      { name: "GND", netClass: "GROUND", nodes: [{ refDes: "U2", pin: "2" }] },
-      { name: "+3V3", netClass: "POWER", nodes: [{ refDes: "U2", pin: "5" }] },
-    ];
-    const node = parseSexpr(buildSchematic(input));
-    const libSymbols = findChild(node, "lib_symbols")!;
-    if (!isList(libSymbols)) throw new Error("unreachable");
-    const names = findChildren(libSymbols, "symbol")
-      .map((s) => (isStr(s.items[1]) ? s.items[1].value : ""))
-      .filter(Boolean);
-    expect(names).toContain("power:GND");
-    expect(names).toContain("power:+3V3");
-    // a component symbol is registered too
-    expect(names).toContain("wroom-breakout:AP2112K-3.3");
   });
 });
 
@@ -598,13 +416,16 @@ describe("schematic — determinism", () => {
     }
   });
 
-  test("ordering is stable: nodes wired by refDes then pin", () => {
-    // reverse the node order in the input → output ports come out in the same
-    // (sorted) sequence, proving the module sorts rather than echoing input.
+  test("instance UUIDs are seeded per refDes (stable regardless of part list order)", () => {
+    // The per-instance UUID seed is `${projectName}|inst|${refDes}`, so reversing
+    // the part list must not change any instance's UUID — proving seeds are keyed
+    // by refDes, not by position.
     const a = buildSchematic(baseInput());
-    const rev = baseInput();
-    rev.nets[0]!.nodes.reverse();
-    const b = buildSchematic(rev);
-    expect(a).toBe(b);
+    const reversed = baseInput();
+    reversed.parts = [...reversed.parts].reverse();
+    const b = buildSchematic(reversed);
+    const uuids = (text: string) =>
+      [...text.matchAll(/\(uuid "([0-9a-f-]+)"\)/g)].map((m) => m[1]).sort();
+    expect(uuids(a)).toEqual(uuids(b));
   });
 });

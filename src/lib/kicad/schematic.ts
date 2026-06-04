@@ -1,36 +1,19 @@
-// KiCad `.kicad_sch` generation + power-rail GEOMETRIC wiring
-// (export-engine Task 7, design §3.4 / §5 — the crux, highest risk).
+// KiCad `.kicad_sch` generation — placed-parts (UNWIRED) export
+// (export-engine Task 7, design §5).
 //
 // PURE (no React/DB/env/network/fs). Builds a valid KiCad 10 schematic that:
 //   1. registers every part's symbol in `lib_symbols`,
-//   2. places one symbol instance per part at its grid placement,
-//   3. for each GROUND/POWER net node (the caller passes only verified nets),
-//      drops a POWER-PORT symbol
-//      (`power:GND` / `power:+3V3` / `power:+5V` / …) at that pin's absolute
-//      connection coordinate — so KiCad treats the pin as wired to the rail.
+//   2. places one symbol instance per part at its grid placement.
 //
-// ─────────────────────────────────────────────────────────────────────────────
-// WHY POWER PORTS (carrier choice). KiCad connects schematics GEOMETRICALLY: a
-// pin joins a net when a net-carrying element sits at the pin's exact connection
-// point (design §3.4). Two mechanisms can carry a net to a point: a power-port
-// symbol, or a `(global_label)`. We use POWER PORTS because:
-//   • they are the conventional, learner-recognisable way to show GND/+3V3/+5V;
-//   • a KiCad power-port symbol's own pin sits at the symbol ORIGIN (0,0) — see
-//     the port definitions below, each has `(pin ... (at 0 0 …) (length 0))`.
-//     Placing the port instance `(at X Y rot)` at the component pin's connection
-//     point therefore makes the port's pin geometrically COINCIDE with the
-//     component pin. No connecting wire is needed: the two pins share a point,
-//     which is exactly KiCad's connectivity rule. (If a port pin were offset
-//     from origin we'd add a short `(wire)`; ours aren't, so we don't.)
-//
-// COORDINATE / PIN conventions are defined+tested in pin-geometry.ts. We wire to
-// the transformed pin `(at)` (the connection node), Y-down, mm.
+// The export is deliberately UNWIRED: no nets, no power ports, no connections —
+// wiring the canvas (power rails included) is the student's lesson. Each instance
+// carries Reference/Value/Footprint/Datasheet/Description fields + an (instances)
+// block so KiCad annotates and opens it correctly.
 //
 // DETERMINISM. No `crypto.randomUUID()` / `Math.random()` (golden tests must be
 // reproducible). UUIDs are derived from a stable seed string (projectName + a
 // per-element key) via a small FNV-1a hash expanded into a v5-shaped UUID. Same
-// input → byte-identical output. Net nodes are wired in a stable order (net
-// name, then refDes natural-ish, then pin).
+// input → byte-identical output.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
@@ -45,7 +28,6 @@ import {
   type SNode,
   type SList,
 } from "@/lib/kicad/sexpr";
-import { extractSymbolPins, pinConnectionPoint } from "@/lib/kicad/pin-geometry";
 import { renameSymbol, setFootprintOnSymbolNode } from "@/lib/kicad/symbol-lib";
 import type { Placement } from "@/lib/kicad/placement";
 
@@ -56,8 +38,6 @@ const SCH_VERSION = "20260306";
 const GENERATOR = "project-foundry";
 // generator_version stamp KiCad 8+ writes; "10.0" marks the file as KiCad 10.
 const GENERATOR_VERSION = "10.0";
-
-export type NetClass = "GROUND" | "POWER" | "SIGNAL";
 
 export type SchematicPart = {
   /** Single physical designator, e.g. "U2". */
@@ -74,19 +54,10 @@ export type SchematicPart = {
   description?: string;
 };
 
-export type SchematicNet = {
-  /** Net name, e.g. "GND", "+3V3", "+5V". */
-  name: string;
-  netClass: NetClass;
-  /** Pins on this net; `pin` matches a symbol pin number OR name. */
-  nodes: { refDes: string; pin: string }[];
-};
-
 export type BuildSchematicInput = {
   projectName: string;
   parts: SchematicPart[];
   placements: Map<string, Placement>;
-  nets: SchematicNet[];
   /** Title-block revision label (e.g. the revision's `label`). Emitted as
    *  `(rev "<rev>")` when non-empty; omitted otherwise. */
   rev?: string;
@@ -140,98 +111,6 @@ function uuidNode(seed: string): SNode {
   return list([sym("uuid"), str(deterministicUuid(seed))]);
 }
 
-// ── Power-port symbol definitions (for lib_symbols) ─────────────────────────
-
-/**
- * Map a (verified, non-signal) net to the KiCad power-port `lib_id` to drop at
- * each of its pins. GROUND → `power:GND`. POWER → a port keyed by the net name
- * (`+3V3`, `+5V`, `+3.3V`, …) so the schematic shows the rail's real name; the
- * port symbol is synthesized on demand. SIGNAL returns undefined (skipped).
- */
-function portLibIdForNet(net: SchematicNet): string | undefined {
-  if (net.netClass === "GROUND") return "power:GND";
-  if (net.netClass === "POWER") return `power:${net.name}`;
-  return undefined; // SIGNAL — never carried in v1.
-}
-
-/** The short port label shown next to a power port (its Value). */
-function portLabel(libId: string): string {
-  // "power:GND" → "GND", "power:+3V3" → "+3V3".
-  const idx = libId.indexOf(":");
-  return idx >= 0 ? libId.slice(idx + 1) : libId;
-}
-
-/**
- * A KiCad power-port `(symbol "power:<label>" ...)` lib definition. Crucially the
- * port's single `(pin power_in line (at 0 0 ...) (length 0) ...)` sits at the
- * symbol ORIGIN, so an instance placed `(at X Y rot)` puts the pin exactly at
- * (X, Y) — guaranteeing geometric coincidence with the component pin we target.
- * `power:` symbols carry `(power)` and a hidden Reference "#PWR".
- */
-function buildPowerSymbolDef(libId: string): SNode {
-  const label = portLabel(libId);
-  return list([
-    sym("symbol"),
-    str(libId),
-    list([sym("power")]),
-    list([sym("pin_names"), list([sym("offset"), sym("0")])]),
-    list([sym("in_bom"), sym("no")]),
-    list([sym("on_board"), sym("yes")]),
-    // Reference "#PWR" (hidden) — KiCad's power-symbol convention.
-    list([
-      sym("property"),
-      str("Reference"),
-      str("#PWR"),
-      list([sym("at"), sym("0"), sym("0"), sym("0")]),
-      list([
-        sym("effects"),
-        list([sym("font"), list([sym("size"), sym("1.27"), sym("1.27")])]),
-        sym("hide"),
-      ]),
-    ]),
-    // Value = the rail label (visible).
-    list([
-      sym("property"),
-      str("Value"),
-      str(label),
-      list([sym("at"), sym("0"), sym("0"), sym("0")]),
-      list([
-        sym("effects"),
-        list([sym("font"), list([sym("size"), sym("1.27"), sym("1.27")])]),
-      ]),
-    ]),
-    // The drawable unit: just the connection pin at the origin (length 0 so the
-    // pin's connection point == the symbol origin == the instance placement).
-    list([
-      sym("symbol"),
-      // Unit name must use the BARE label (no "power:" nickname) so its prefix
-      // matches the parent symbol's unqualified name, else KiCad rejects it with
-      // "Invalid symbol unit name prefix" (same rule as component symbols).
-      str(`${label}_0_1`),
-      list([
-        sym("pin"),
-        sym("power_in"),
-        sym("line"),
-        // Angle (90) is irrelevant: the pin is at the origin with length 0, so
-        // its connection point is the origin regardless of orientation — the
-        // instance placement alone fixes geometric coincidence.
-        list([sym("at"), sym("0"), sym("0"), sym("90")]),
-        list([sym("length"), sym("0")]),
-        list([
-          sym("name"),
-          str(label),
-          list([sym("effects"), list([sym("font"), list([sym("size"), sym("1.27"), sym("1.27")])])]),
-        ]),
-        list([
-          sym("number"),
-          str("1"),
-          list([sym("effects"), list([sym("font"), list([sym("size"), sym("1.27"), sym("1.27")])])]),
-        ]),
-      ]),
-    ]),
-  ]);
-}
-
 // ── lib_symbols assembly ────────────────────────────────────────────────────
 
 /**
@@ -269,63 +148,6 @@ function symbolDefForPart(part: SchematicPart): SList {
   // synthesizes a hidden one if absent.
   setFootprintOnSymbolNode(symbolNode, part.libId);
   return symbolNode;
-}
-
-// ── Geometry: resolve a node to its absolute connection point ───────────────
-
-type ResolvedNode = {
-  net: SchematicNet;
-  refDes: string;
-  pin: string;
-  libId: string; // power-port lib_id
-  x: number;
-  y: number;
-};
-
-/**
- * For each verified GROUND/POWER net node, find the part's pin and compute its
- * absolute sheet connection coordinate. SIGNAL nets and nodes whose part/pin
- * can't be resolved are skipped. Output is sorted (net name, refDes, pin) for a
- * deterministic, reproducible emission order.
- */
-function resolveNodes(input: BuildSchematicInput): ResolvedNode[] {
-  // Pre-parse each part's pins once (keyed by refDes).
-  const pinsByRef = new Map<string, ReturnType<typeof extractSymbolPins>>();
-  const placementByRef = input.placements;
-  for (const part of input.parts) {
-    pinsByRef.set(part.refDes, extractSymbolPins(part.symbolText));
-  }
-
-  const resolved: ResolvedNode[] = [];
-  for (const net of input.nets) {
-    const libId = portLibIdForNet(net);
-    if (!libId) continue; // SIGNAL or unknown class → no carrier.
-    for (const node of net.nodes) {
-      const pins = pinsByRef.get(node.refDes);
-      const placement = placementByRef.get(node.refDes);
-      if (!pins || !placement) continue; // unknown part / no placement.
-      const pin = pins.find(
-        (p) => p.number === node.pin || p.name === node.pin,
-      );
-      if (!pin) continue; // unknown pin on this part.
-      const pt = pinConnectionPoint(pin, placement);
-      resolved.push({
-        net,
-        refDes: node.refDes,
-        pin: node.pin,
-        libId,
-        x: pt.x,
-        y: pt.y,
-      });
-    }
-  }
-
-  resolved.sort((a, b) => {
-    if (a.net.name !== b.net.name) return a.net.name < b.net.name ? -1 : 1;
-    if (a.refDes !== b.refDes) return a.refDes < b.refDes ? -1 : 1;
-    return a.pin < b.pin ? -1 : a.pin > b.pin ? 1 : 0;
-  });
-  return resolved;
 }
 
 // ── Number formatting (match KiCad's coordinate style) ──────────────────────
@@ -441,45 +263,6 @@ function buildComponentInstance(
   ]);
 }
 
-// ── Power-port instance ─────────────────────────────────────────────────────
-
-function buildPowerPortInstance(rn: ResolvedNode, projectName: string): SNode {
-  // Deterministic per (project, net, refDes, pin) — unique + reproducible.
-  const seed = `${projectName}|pwr|${rn.net.name}|${rn.refDes}|${rn.pin}`;
-  const refSeed = `${projectName}|pwrref|${rn.net.name}|${rn.refDes}|${rn.pin}`;
-  return list([
-    sym("symbol"),
-    list([sym("lib_id"), str(rn.libId)]),
-    // The port instance sits AT the component pin's connection point; the port's
-    // own pin is at its origin (length 0), so the two pins coincide → wired.
-    list([sym("at"), num(rn.x), num(rn.y), sym("0")]),
-    list([sym("unit"), sym("1")]),
-    list([sym("in_bom"), sym("no")]),
-    list([sym("on_board"), sym("yes")]),
-    uuidNode(seed),
-    // Hidden #PWR reference, deterministic instance ref via the seed hash so two
-    // ports never collide.
-    list([
-      sym("property"),
-      str("Reference"),
-      str(`#PWR_${hex8(fnv1a(refSeed)).toUpperCase()}`),
-      list([sym("at"), num(rn.x), num(rn.y), sym("0")]),
-      list([
-        sym("effects"),
-        list([sym("font"), list([sym("size"), sym("1.27"), sym("1.27")])]),
-        sym("hide"),
-      ]),
-    ]),
-    list([
-      sym("property"),
-      str("Value"),
-      str(portLabel(rn.libId)),
-      list([sym("at"), num(rn.x), num(rn.y), sym("0")]),
-      list([sym("effects"), list([sym("font"), list([sym("size"), sym("1.27"), sym("1.27")])])]),
-    ]),
-  ]);
-}
-
 // ── Title block ─────────────────────────────────────────────────────────────
 
 /**
@@ -502,23 +285,14 @@ function buildTitleBlock(input: BuildSchematicInput): SNode {
 
 /**
  * Build a complete `.kicad_sch` for a revision: header + lib_symbols (component
- * symbols + every power-port definition used) + one symbol instance per part +
- * a power-port symbol at each verified GROUND/POWER pin's computed connection
- * coordinate. SIGNAL nets and unresolved nodes are skipped. Deterministic.
+ * symbols) + one symbol instance per part at its placement. The export is
+ * UNWIRED (no nets / power ports) — wiring is the student's lesson. Deterministic.
  */
 export function buildSchematic(input: BuildSchematicInput): string {
-  const resolved = resolveNodes(input);
-
-  // Distinct power-port lib_ids actually used (stable order for lib_symbols).
-  const portLibIds = Array.from(new Set(resolved.map((r) => r.libId))).sort();
-
-  // lib_symbols: component definitions (in part order) + power-port defs.
+  // lib_symbols: component definitions (in part order).
   const libSymbolItems: SNode[] = [sym("lib_symbols")];
   for (const part of input.parts) {
     libSymbolItems.push(symbolDefForPart(part));
-  }
-  for (const libId of portLibIds) {
-    libSymbolItems.push(buildPowerSymbolDef(libId));
   }
 
   // Component instances (one per part, placement order = sorted by placement map
@@ -531,11 +305,6 @@ export function buildSchematic(input: BuildSchematicInput): string {
       buildComponentInstance(part, placement, input.projectName),
     );
   }
-
-  // Power-port instances at each resolved connection point.
-  const portInstances: SNode[] = resolved.map((rn) =>
-    buildPowerPortInstance(rn, input.projectName),
-  );
 
   const top = list([
     sym("kicad_sch"),
@@ -550,7 +319,6 @@ export function buildSchematic(input: BuildSchematicInput): string {
     buildTitleBlock(input),
     list(libSymbolItems),
     ...componentInstances,
-    ...portInstances,
     // NOTE (KiCad-10 fidelity): KiCad 7+/10 require a root (sheet_instances ...)
     // node alongside the per-symbol (instances ...) blocks for the schematic to
     // annotate/open correctly. The single root sheet has path "/" and page "1".

@@ -5,11 +5,12 @@
 // PUTs the zip to R2, and records a `BOM_EXPORT` FILE artifact. On success it
 // surfaces an inline download link (via `ArtifactDownloadLink`) for the freshly
 // created artifact AND `router.refresh()`es so the Artifacts pane repaints with
-// the new row. A handled rejection surfaces inline (mirrors DeriveRailsButton).
+// the new row. A handled rejection surfaces inline.
 //
-// The export reads the revision's verified GROUND/POWER nets + curated assets;
-// missing assets degrade to clearly-marked stubs (see EXPORT_REPORT.md inside
-// the zip), so the button is always safe to press — it never blocks on coverage.
+// The export reads the revision's BOM + curated part assets (the schematic is
+// UNWIRED — placed parts only); missing assets degrade to clearly-marked stubs
+// (see EXPORT_REPORT.md inside the zip), so the button is always safe to press —
+// it never blocks on coverage.
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";

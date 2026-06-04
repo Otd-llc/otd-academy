@@ -208,27 +208,6 @@ beforeAll(async () => {
       createdById: seedUserId,
     },
   });
-
-  // A VERIFIED GROUND net spanning U1.pin2 + the three caps' pin2.
-  await db.net.create({
-    data: {
-      revisionId,
-      name: "GND",
-      netClass: "GROUND",
-      trust: "VERIFIED",
-      verifiedById: seedUserId,
-      verifiedAt: new Date(),
-      createdById: seedUserId,
-      nodes: {
-        create: [
-          { refDes: "U1", pin: "2" },
-          { refDes: "C2", pin: "2" },
-          { refDes: "C3", pin: "2" },
-          { refDes: "C7", pin: "2" },
-        ],
-      },
-    },
-  });
 });
 
 afterAll(async () => {
@@ -237,7 +216,7 @@ afterAll(async () => {
       .deleteMany({ where: { id: { in: createdArtifactIds } } })
       .catch(() => {});
   }
-  // Project delete cascades Revision → BomLines + Nets + NetNodes + Artifacts.
+  // Project delete cascades Revision → BomLines + Artifacts.
   if (projectId) {
     await db.project.deleteMany({ where: { id: projectId } }).catch(() => {});
   }
@@ -302,9 +281,8 @@ describe("buildKicadExportZip", () => {
     for (const ref of ["U1", "C2", "C3", "C7"]) {
       expect(sch).toContain(`"${ref}"`);
     }
-    // UNWIRED export: even though a VERIFIED GND net exists in the DB, the export
-    // no longer passes nets to buildSchematic, so the schematic carries NO
-    // power-port symbols of any kind (wiring is the student's lesson).
+    // UNWIRED export: the schematic carries NO power-port symbols of any kind —
+    // wiring (power rails included) is the student's lesson.
     expect(sch).not.toContain("power:");
 
     // The title block carries the revision's label as `rev` and a formatted
