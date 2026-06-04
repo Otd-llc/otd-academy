@@ -20,6 +20,7 @@
 // the S3 SDK's URL builder.
 import { S3Client } from "@aws-sdk/client-s3";
 import { env } from "@/env";
+import type { PartAssetKindT } from "@/lib/schemas/part-asset";
 
 export const r2 = new S3Client({
   region: "auto",
@@ -57,4 +58,14 @@ export function artifactKey(
 //   parts/{partId}/datasheet-{cuid}.pdf
 export function partDatasheetKey(partId: string, cuid: string): string {
   return `parts/${partId}/datasheet-${cuid}.pdf`;
+}
+
+// Part-scoped CAD asset key (design §2). parts/{partId}/{kind}-{cuid}.{ext}
+// `extOf` already lowercases in production, but the helper strips a leading dot
+// and lowercases the ext itself so the key shape is stable for any caller.
+export function partAssetKey(
+  partId: string, kind: PartAssetKindT, cuid: string, ext: string,
+): string {
+  const e = (ext.startsWith(".") ? ext.slice(1) : ext).toLowerCase();
+  return `parts/${partId}/${kind.toLowerCase()}-${cuid}.${e}`;
 }

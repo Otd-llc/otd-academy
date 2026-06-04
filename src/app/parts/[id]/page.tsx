@@ -16,12 +16,15 @@ import { auth } from "@/auth";
 import { env } from "@/env";
 import { db } from "@/lib/db";
 import { getPartDatasheetDownloadUrl } from "@/lib/actions/part-datasheet";
+import { getPartAssetDownloadUrl } from "@/lib/actions/part-assets";
+import { PART_ASSET_KINDS } from "@/lib/schemas/part-asset";
 import { PageHeader } from "@/components/PageHeader";
 import { DocumentIcon } from "@/components/icons";
 import {
   FactGroupCard,
   type SerializedFact,
 } from "@/components/parts/FactGroupCard";
+import { AssetRow, type SerializedAsset } from "@/components/parts/AssetRow";
 import { DatasheetUpload } from "@/components/parts/DatasheetUpload";
 import { DatasheetUrlEditor } from "@/components/parts/DatasheetUrlEditor";
 import { GROUP_ORDER } from "@/components/parts/fact-group-meta";
@@ -41,6 +44,9 @@ export default async function PartDetailPage({
       // Ordered by group; the verifier display name is resolved separately
       // below (PartFact carries verifiedById but no verifiedBy relation).
       factGroups: { orderBy: { group: "asc" } },
+      // CAD assets (SYMBOL / FOOTPRINT / MODEL_3D); verifier names resolved with
+      // the fact verifiers below.
+      assets: true,
     },
   });
 
@@ -53,8 +59,8 @@ export default async function PartDetailPage({
   // but no relation; map id → name/email for the badge).
   const verifierIds = Array.from(
     new Set(
-      part.factGroups
-        .map((f) => f.verifiedById)
+      [...part.factGroups, ...part.assets]
+        .map((row) => row.verifiedById)
         .filter((v): v is string => !!v),
     ),
   );
@@ -72,6 +78,9 @@ export default async function PartDetailPage({
   // Index the curated facts by group for O(1) lookup against GROUP_ORDER.
   const factByGroup = new Map(part.factGroups.map((f) => [f.group, f]));
 
+  // Index the CAD assets by kind for O(1) lookup against PART_ASSET_KINDS.
+  const assetByKind = new Map(part.assets.map((a) => [a.kind, a]));
+
   const datasheetOption: DatasheetOption | null = part.datasheet
     ? { id: part.datasheet.id, filename: part.datasheet.filename }
     : null;
@@ -86,6 +95,22 @@ export default async function PartDetailPage({
     r2Enabled && canEdit && part.datasheet
       ? await getPartDatasheetDownloadUrl(part.id)
       : null;
+
+  // Server-resolve a presigned GET per asset kind (mirrors cachedDatasheetUrl):
+  // null when R2 is off, the viewer can't edit, or no row exists for the kind.
+  const assetDownloadUrls = new Map(
+    await Promise.all(
+      PART_ASSET_KINDS.map(
+        async (kind) =>
+          [
+            kind,
+            r2Enabled && canEdit && assetByKind.has(kind)
+              ? await getPartAssetDownloadUrl(part.id, kind)
+              : null,
+          ] as const,
+      ),
+    ),
+  );
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-10">
@@ -139,6 +164,44 @@ export default async function PartDetailPage({
         {r2Enabled && canEdit ? (
           <DatasheetUpload partId={part.id} hasDatasheet={!!part.datasheet} />
         ) : null}
+      </section>
+
+      {/* ─── CAD assets (symbol / footprint / 3D model) ─── */}
+      <section className="mb-10 space-y-4">
+        <h2 className="font-display text-2xl tracking-wider text-white">
+          Assets
+        </h2>
+        <div className="space-y-4">
+          {PART_ASSET_KINDS.map((kind) => {
+            const a = assetByKind.get(kind) ?? null;
+            const serialized: SerializedAsset | null = a
+              ? {
+                  id: a.id,
+                  trust: a.trust,
+                  ref: a.ref,
+                  source: a.source,
+                  license: a.license,
+                  filename: a.filename,
+                  verifiedAt: a.verifiedAt ? a.verifiedAt.toISOString() : null,
+                  verifierName: a.verifiedById
+                    ? verifierName.get(a.verifiedById) ?? null
+                    : null,
+                  updatedAt: a.updatedAt.toISOString(),
+                }
+              : null;
+            return (
+              <AssetRow
+                key={kind}
+                partId={part.id}
+                kind={kind}
+                asset={serialized}
+                canEdit={canEdit}
+                canUpload={r2Enabled && canEdit}
+                downloadUrl={assetDownloadUrls.get(kind) ?? null}
+              />
+            );
+          })}
+        </div>
       </section>
 
       {/* ─── fact-group cards ─── */}
