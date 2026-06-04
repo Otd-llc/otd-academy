@@ -633,3 +633,4 @@ model GuideCard {
   @@unique([guideId, stage])
   @@index([guideId])
 }
+

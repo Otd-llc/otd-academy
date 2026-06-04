@@ -32,6 +32,7 @@ import {
   RevisionChecklistsPane,
   isRevisionChecklistVisibleAtStage,
 } from "@/components/RevisionChecklistsPane";
+import { KicadExportButton } from "@/components/KicadExportButton";
 import { ChevronLeftIcon, PlusIcon } from "@/components/icons";
 
 type Params = { slug: string; revLabel: string };
@@ -315,13 +316,20 @@ export default async function RevisionDetailPage({
           {/* Artifacts pane (design §9.1). Revision-scoped artifacts only;
               the per-stage subkind picker is mounted below the list. */}
           <section className="glass-card p-4 sm:p-6">
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <h2 className="font-display text-2xl tracking-wider text-white">
                 ARTIFACTS
               </h2>
               <span className="font-mono text-xs uppercase tracking-wider text-muted">
                 Stage · {revision.currentStage}
               </span>
+            </div>
+
+            {/* KiCad export (Task 8) — generates a BOM_EXPORT zip artifact from
+                the revision's BOM + verified rails + curated assets. A
+                BOM_SOURCING-stage action; rendered unconditionally for v1. */}
+            <div className="mt-4 border-b border-panel-border pb-4">
+              <KicadExportButton revisionId={revision.id} />
             </div>
 
             {/* BomLine editor — visible only in BOM_SOURCING (design §9.1). */}

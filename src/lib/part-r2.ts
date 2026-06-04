@@ -73,3 +73,42 @@ export function presignGetInline(key: string) {
 export async function deleteR2Object(key: string): Promise<void> {
   await r2.send(new DeleteObjectCommand({ Bucket: env.R2_BUCKET!, Key: key }));
 }
+
+/** GET an object's body as UTF-8 text (KiCad symbol/footprint assets). Throws
+ *  on a missing key (the S3 SDK raises NoSuchKey) — callers that want a
+ *  fall-back-to-stub path catch the error. Reuses the shared `r2` client. */
+export async function getR2ObjectText(key: string): Promise<string> {
+  const out = await r2.send(
+    new GetObjectCommand({ Bucket: env.R2_BUCKET!, Key: key }),
+  );
+  // `Body` is an SdkStream with a `transformToString` mixin in the node runtime.
+  return out.Body!.transformToString("utf-8");
+}
+
+/** GET an object's body as raw bytes (binary 3D models). Throws on a missing
+ *  key; callers omit the asset when it can't be fetched. */
+export async function getR2ObjectBytes(key: string): Promise<Buffer> {
+  const out = await r2.send(
+    new GetObjectCommand({ Bucket: env.R2_BUCKET!, Key: key }),
+  );
+  const bytes = await out.Body!.transformToByteArray();
+  return Buffer.from(bytes);
+}
+
+/** PUT raw bytes at `key` with the given content-type (the KiCad export zip).
+ *  Mirrors the presign helpers but writes server-side directly. */
+export async function putR2Object(
+  key: string,
+  body: Buffer,
+  contentType: string,
+): Promise<void> {
+  await r2.send(
+    new PutObjectCommand({
+      Bucket: env.R2_BUCKET!,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+      ContentLength: body.byteLength,
+    }),
+  );
+}
