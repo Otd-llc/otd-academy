@@ -61,6 +61,13 @@ import {
 
 const inputClass = `mt-1 w-full ${fieldInputClass}`;
 
+/** Human-readable byte size (B / KB / MB) for the CAD metadata panel. */
+function fmtBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(n < 10 * 1024 ? 1 : 0)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 // Serialized existing asset (dates → ISO strings cross the server→client seam).
 export type SerializedAsset = {
   id: string;
@@ -69,6 +76,8 @@ export type SerializedAsset = {
   source: string | null;
   license: string | null;
   filename: string;
+  byteSize: number;
+  renderBytes: number | null;
   verifiedAt: string | null;
   verifierName: string | null;
   updatedAt: string;
@@ -219,6 +228,105 @@ export function AssetRow({
   }
 
   // ─── existing asset → header + download + gate controls + editor + replace ─
+  // Filename / download link (presigned GET resolved server-side).
+  const downloadEl = (
+    <div className="flex flex-wrap items-center gap-4 font-mono text-xs uppercase tracking-wider">
+      {downloadUrl ? (
+        <a
+          href={downloadUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-command-gold underline"
+        >
+          <DocumentIcon className="h-4 w-4" />
+          Download: {asset.filename}
+        </a>
+      ) : (
+        <span className="inline-flex items-center gap-1.5 text-command-gold">
+          <DocumentIcon className="h-4 w-4" />
+          {asset.filename}
+        </span>
+      )}
+    </div>
+  );
+
+  // Inline ref / source / license editor (canEdit only). No own separator —
+  // the layout below adds one contextually (stacked vs side-by-side).
+  const provenanceEl = canEdit ? (
+    <fieldset className="space-y-3">
+      <legend className={labelClass}>Provenance</legend>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div>
+          <label className={labelClass}>Ref</label>
+          <input
+            type="text"
+            value={ref}
+            onChange={(e) => setRef(e.target.value)}
+            placeholder="symbol/footprint name"
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Source</label>
+          <input
+            type="text"
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+            placeholder="SnapEDA · manufacturer · hand-made"
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label className={labelClass}>License</label>
+          <input
+            type="text"
+            value={license}
+            onChange={(e) => setLicense(e.target.value)}
+            placeholder="free text"
+            className={inputClass}
+          />
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={save}
+        disabled={isPending}
+        className="rounded border border-command-gold bg-command-gold px-3 py-2 font-mono text-xs uppercase tracking-wider text-deep-space transition-colors hover:border-gold-light hover:bg-gold-light disabled:opacity-50"
+      >
+        {isPending ? "Saving…" : "Save"}
+      </button>
+    </fieldset>
+  ) : null;
+
+  // Compact CAD metadata panel — shown beside the viewer (MODEL_3D w/ a render).
+  // Source format ← filename ext; render is always glTF. Extent = the bounding-
+  // sphere diameter from renderBounds (STEP/SnapEDA models are mm-valued).
+  const ext = asset.filename.slice(asset.filename.lastIndexOf(".")).toLowerCase();
+  const sourceFmt =
+    ext === ".step" || ext === ".stp"
+      ? "STEP"
+      : ext === ".wrl"
+        ? "VRML"
+        : ext.replace(".", "").toUpperCase() || "—";
+  const extentMm = renderBounds ? (renderBounds.radius * 2).toFixed(1) : null;
+  const infoEl = renderUrl ? (
+    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 font-mono text-xs">
+      <dt className="uppercase tracking-wider text-muted">Format</dt>
+      <dd className="text-link-muted">{sourceFmt} → glTF</dd>
+      <dt className="uppercase tracking-wider text-muted">Size</dt>
+      <dd className="text-link-muted">
+        {fmtBytes(asset.byteSize)}
+        {asset.renderBytes ? ` → ${fmtBytes(asset.renderBytes)}` : ""}
+      </dd>
+      {extentMm ? (
+        <>
+          <dt className="uppercase tracking-wider text-muted">Extent</dt>
+          <dd className="text-link-muted">⌀ {extentMm} mm</dd>
+        </>
+      ) : null}
+    </dl>
+  ) : null;
+
   return (
     <section className="space-y-4 rounded border border-panel-border bg-navy-dark/30 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -330,81 +438,34 @@ export function AssetRow({
         ) : null}
       </div>
 
-      {/* filename + download link (presigned GET resolved server-side) */}
-      <div className="flex flex-wrap items-center gap-4 font-mono text-xs uppercase tracking-wider">
-        {downloadUrl ? (
-          <a
-            href={downloadUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-command-gold underline"
-          >
-            <DocumentIcon className="h-4 w-4" />
-            Download: {asset.filename}
-          </a>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 text-command-gold">
-            <DocumentIcon className="h-4 w-4" />
-            {asset.filename}
-          </span>
-        )}
-      </div>
-
-      {/* Inline 3D viewer (MODEL_3D only). Trust-agnostic AND ungated: it renders
-          whenever a render URL exists, for ANYONE (signed-out included) and at
-          any `asset.trust`. A render-less asset (renderUrl null) shows nothing. */}
+      {/* Body: with a 3D render, lay the viewer beside the metadata on wide
+          screens (viewer left, provenance right); otherwise stack download +
+          provenance as before. The viewer is trust-agnostic AND ungated — it
+          renders whenever a render URL exists, for ANYONE (signed-out included)
+          and at any `asset.trust`. A render-less asset shows just the download. */}
       {renderUrl ? (
-        <div className="pt-1">
+        <div className="grid gap-4 md:grid-cols-2">
           <ModelViewerLazy src={renderUrl} bounds={renderBounds ?? null} />
-        </div>
-      ) : null}
-
-      {/* inline ref / source / license editor (canEdit only) */}
-      {canEdit ? (
-        <fieldset className="space-y-3 border-t border-panel-border pt-4">
-          <legend className={labelClass}>Provenance</legend>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div>
-              <label className={labelClass}>Ref</label>
-              <input
-                type="text"
-                value={ref}
-                onChange={(e) => setRef(e.target.value)}
-                placeholder="symbol/footprint name"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Source</label>
-              <input
-                type="text"
-                value={source}
-                onChange={(e) => setSource(e.target.value)}
-                placeholder="SnapEDA · manufacturer · hand-made"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>License</label>
-              <input
-                type="text"
-                value={license}
-                onChange={(e) => setLicense(e.target.value)}
-                placeholder="free text"
-                className={inputClass}
-              />
-            </div>
+          {/* Right column: file identity + CAD metadata + provenance — fills the
+              space beside the viewer instead of stranding the download under it. */}
+          <div className="space-y-4">
+            {downloadEl}
+            {infoEl}
+            {provenanceEl ? (
+              <div className="border-t border-panel-border/60 pt-4">
+                {provenanceEl}
+              </div>
+            ) : null}
           </div>
-          <button
-            type="button"
-            onClick={save}
-            disabled={isPending}
-            className="rounded border border-command-gold bg-command-gold px-3 py-2 font-mono text-xs uppercase tracking-wider text-deep-space transition-colors hover:border-gold-light hover:bg-gold-light disabled:opacity-50"
-          >
-            {isPending ? "Saving…" : "Save"}
-          </button>
-        </fieldset>
-      ) : null}
+        </div>
+      ) : (
+        <>
+          {downloadEl}
+          {provenanceEl ? (
+            <div className="border-t border-panel-border pt-4">{provenanceEl}</div>
+          ) : null}
+        </>
+      )}
 
       {error ? (
         <p

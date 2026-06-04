@@ -195,6 +195,8 @@ export default async function PartDetailPage({
                   source: a.source,
                   license: a.license,
                   filename: a.filename,
+                  byteSize: a.byteSize,
+                  renderBytes: a.renderBytes,
                   verifiedAt: a.verifiedAt ? a.verifiedAt.toISOString() : null,
                   verifierName: a.verifiedById
                     ? verifierName.get(a.verifiedById) ?? null

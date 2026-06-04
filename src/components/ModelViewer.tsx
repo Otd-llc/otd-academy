@@ -7,7 +7,17 @@
 import { useEffect, useRef, useState } from "react";
 import type { RenderBounds } from "@/lib/schemas/part-asset";
 
-export default function ModelViewer({ src, bounds }: { src: string; bounds?: RenderBounds | null }) {
+export default function ModelViewer({
+  src,
+  bounds,
+  heightClass = "h-64",
+}: {
+  src: string;
+  bounds?: RenderBounds | null;
+  /** Tailwind height class for the canvas box. Compact (h-64 ≈ 256px) by
+   *  default; callers can pass a taller class (e.g. a full-board view). */
+  heightClass?: string;
+}) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState(false);
   const boundsKey = JSON.stringify(bounds);
@@ -24,7 +34,7 @@ export default function ModelViewer({ src, bounds }: { src: string; bounds?: Ren
         if (!mount || disposed) return;
 
         const width = mount.clientWidth || 600;
-        const height = mount.clientHeight || 420;
+        const height = mount.clientHeight || 256;
         const scene = new THREE.Scene();
         let loadedRoot: { traverse: (cb: (o: unknown) => void) => void } | null = null;
         scene.background = new THREE.Color(0x0b0f1a);
@@ -61,7 +71,7 @@ export default function ModelViewer({ src, bounds }: { src: string; bounds?: Ren
         tick();
 
         const onResize = () => {
-          const w = mount.clientWidth, h = mount.clientHeight || 420;
+          const w = mount.clientWidth, h = mount.clientHeight || 256;
           camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h);
         };
         window.addEventListener("resize", onResize);
@@ -98,5 +108,5 @@ export default function ModelViewer({ src, bounds }: { src: string; bounds?: Ren
       </p>
     );
   }
-  return <div ref={mountRef} className="h-[420px] w-full overflow-hidden rounded border border-panel-border bg-deep-space" />;
+  return <div ref={mountRef} className={`${heightClass} w-full overflow-hidden rounded border border-panel-border bg-deep-space`} />;
 }
