@@ -32,6 +32,8 @@ import {
   RevisionChecklistsPane,
   isRevisionChecklistVisibleAtStage,
 } from "@/components/RevisionChecklistsPane";
+import { NetEditor } from "@/components/nets/NetEditor";
+import { DeriveRailsButton } from "@/components/nets/DeriveRailsButton";
 import { ChevronLeftIcon, PlusIcon } from "@/components/icons";
 
 type Params = { slug: string; revLabel: string };
@@ -81,6 +83,12 @@ export default async function RevisionDetailPage({
       checklists: {
         include: { items: { orderBy: { ordinal: "asc" } } },
         orderBy: { createdAt: "asc" },
+      },
+      // KiCad export (Task 3): the revision's connectivity nets + nodes, drives
+      // the NetEditor pane. Ordered by name so the list is stable across loads.
+      nets: {
+        include: { nodes: { orderBy: [{ refDes: "asc" }, { pin: "asc" }] } },
+        orderBy: { name: "asc" },
       },
     },
   });
@@ -448,6 +456,35 @@ export default async function RevisionDetailPage({
               }
             />
           ) : null}
+
+          {/* Nets pane (KiCad export Task 3) — the revision's connectivity
+              data. Derive-rails seeds GROUND/POWER rails from the BOM's PINOUT
+              facts; the editor curates + verifies them before export wires the
+              schematic. Dates serialized to ISO strings across the client seam
+              (the NetEditor uses `updatedAt` as the optimistic-lock fence). */}
+          <section className="glass-card p-4 sm:p-6">
+            <div className="flex flex-wrap items-baseline justify-between gap-4">
+              <h2 className="font-display text-2xl tracking-wider text-white">
+                NETS
+              </h2>
+              <DeriveRailsButton revisionId={revision.id} />
+            </div>
+            <NetEditor
+              revisionId={revision.id}
+              nets={revision.nets.map((n) => ({
+                id: n.id,
+                name: n.name,
+                netClass: n.netClass,
+                trust: n.trust,
+                updatedAt: n.updatedAt.toISOString(),
+                nodes: n.nodes.map((node) => ({
+                  id: node.id,
+                  refDes: node.refDes,
+                  pin: node.pin,
+                })),
+              }))}
+            />
+          </section>
         </div>
 
         {/* RIGHT 1/3 — Transitions + Errata */}
