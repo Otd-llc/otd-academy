@@ -175,6 +175,64 @@ describe("schematic — buildSchematic structure", () => {
       "wroom-breakout:AP2112K-3.3",
     );
   });
+
+  test("each component instance carries an (instances ...) block with project + path + reference + unit", () => {
+    const node = parseSexpr(buildSchematic(baseInput()));
+    if (!isList(node)) throw new Error("unreachable");
+    const comps = findChildren(node, "symbol").filter((s) => {
+      const libId = findChild(s, "lib_id");
+      const v = libId && isStr(libId.items[1]) ? libId.items[1].value : "";
+      return !v.startsWith("power:");
+    });
+    expect(comps).toHaveLength(2);
+
+    for (const c of comps) {
+      // the refDes on this instance's Reference property
+      const refProp = findChildren(c, "property").find(
+        (p) => isStr(p.items[1]) && p.items[1].value === "Reference",
+      )!;
+      const refDes = isStr(refProp.items[2]) ? refProp.items[2].value : "";
+
+      const instances = findChild(c, "instances")!;
+      expect(instances).toBeDefined();
+      const project = findChild(instances, "project")!;
+      // project name threaded through buildSchematic
+      expect(isStr(project.items[1]) && project.items[1].value).toBe(
+        "wroom-breakout",
+      );
+      const path = findChild(project, "path")!;
+      // root-sheet path is "/"
+      expect(isStr(path.items[1]) && path.items[1].value).toBe("/");
+      const reference = findChild(path, "reference")!;
+      expect(isStr(reference.items[1]) && reference.items[1].value).toBe(refDes);
+      const unit = findChild(path, "unit")!;
+      expect(atomValue(unit.items[1])).toBe("1");
+    }
+  });
+
+  test("root carries a (sheet_instances ...) node with path '/' and page '1'", () => {
+    const node = parseSexpr(buildSchematic(baseInput()));
+    const sheetInstances = findChild(node, "sheet_instances")!;
+    expect(sheetInstances).toBeDefined();
+    const path = findChild(sheetInstances, "path")!;
+    expect(isStr(path.items[1]) && path.items[1].value).toBe("/");
+    const page = findChild(path, "page")!;
+    expect(isStr(page.items[1]) && page.items[1].value).toBe("1");
+  });
+
+  test("power-port instances are NOT annotated with an (instances ...) block", () => {
+    const node = parseSexpr(buildSchematic(baseInput()));
+    if (!isList(node)) throw new Error("unreachable");
+    const ports = findChildren(node, "symbol").filter((s) => {
+      const libId = findChild(s, "lib_id");
+      const v = libId && isStr(libId.items[1]) ? libId.items[1].value : "";
+      return v.startsWith("power:");
+    });
+    expect(ports.length).toBeGreaterThan(0);
+    for (const p of ports) {
+      expect(findChild(p, "instances")).toBeUndefined();
+    }
+  });
 });
 
 describe("schematic — power-rail geometric wiring", () => {

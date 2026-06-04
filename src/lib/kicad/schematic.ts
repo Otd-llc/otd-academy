@@ -4,7 +4,8 @@
 // PURE (no React/DB/env/network/fs). Builds a valid KiCad 10 schematic that:
 //   1. registers every part's symbol in `lib_symbols`,
 //   2. places one symbol instance per part at its grid placement,
-//   3. for each VERIFIED GROUND/POWER net node, drops a POWER-PORT symbol
+//   3. for each GROUND/POWER net node (the caller passes only verified nets),
+//      drops a POWER-PORT symbol
 //      (`power:GND` / `power:+3V3` / `power:+5V` / …) at that pin's absolute
 //      connection coordinate — so KiCad treats the pin as wired to the rail.
 //
@@ -194,6 +195,9 @@ function buildPowerSymbolDef(libId: string): SNode {
         sym("pin"),
         sym("power_in"),
         sym("line"),
+        // Angle (90) is irrelevant: the pin is at the origin with length 0, so
+        // its connection point is the origin regardless of orientation — the
+        // instance placement alone fixes geometric coincidence.
         list([sym("at"), sym("0"), sym("0"), sym("90")]),
         list([sym("length"), sym("0")]),
         list([
@@ -335,6 +339,25 @@ function buildComponentInstance(
       list([sym("at"), num(placement.x), num(placement.y - 5.08), sym("0")]),
       list([sym("effects"), list([sym("font"), list([sym("size"), sym("1.27"), sym("1.27")])])]),
     ]),
+    // NOTE (KiCad-10 fidelity): KiCad 7+/10 require a per-symbol (instances ...)
+    // block — without it the schematic won't annotate/open correctly. The
+    // root-sheet path is "/". This shape is anchored to documented KiCad
+    // structure and CANNOT be validated against a real KiCad here; the
+    // (instances)/(sheet_instances) path format MUST be confirmed against a real
+    // KiCad-10-saved schematic at manual acceptance.
+    list([
+      sym("instances"),
+      list([
+        sym("project"),
+        str(projectName),
+        list([
+          sym("path"),
+          str("/"),
+          list([sym("reference"), str(part.refDes)]),
+          list([sym("unit"), sym("1")]),
+        ]),
+      ]),
+    ]),
   ]);
 }
 
@@ -425,6 +448,16 @@ export function buildSchematic(input: BuildSchematicInput): string {
     list(libSymbolItems),
     ...componentInstances,
     ...portInstances,
+    // NOTE (KiCad-10 fidelity): KiCad 7+/10 require a root (sheet_instances ...)
+    // node alongside the per-symbol (instances ...) blocks for the schematic to
+    // annotate/open correctly. The single root sheet has path "/" and page "1".
+    // This shape is documented-KiCad-anchored and CANNOT be validated here; the
+    // path/page format MUST be confirmed against a real KiCad-10-saved schematic
+    // at manual acceptance.
+    list([
+      sym("sheet_instances"),
+      list([sym("path"), str("/"), list([sym("page"), str("1")])]),
+    ]),
   ]);
 
   return serializeSexpr(top) + "\n";

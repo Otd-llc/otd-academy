@@ -157,7 +157,6 @@ function roundMm(n: number): number {
 import {
   parseSexpr,
   isList,
-  isSym,
   head,
   atomValue,
   findChild,
@@ -250,6 +249,3 @@ export function extractSymbolPins(symbolText: string): ExtractedPin[] {
   }
   return out;
 }
-
-// Re-export the guard used above for callers that want it without sexpr import.
-export { isSym };
