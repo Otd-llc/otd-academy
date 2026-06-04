@@ -50,11 +50,13 @@ import { renameSymbol } from "@/lib/kicad/symbol-lib";
 import type { Placement } from "@/lib/kicad/placement";
 
 // KiCad 10 schematic format version. The `.kicad_sch` format has drifted across
-// 6→10; 20230121 is the KiCad 7/8-era stamp that KiCad 10 still reads. Verify
-// against a real KiCad-10 reference project at manual acceptance and bump here
-// if needed (see fidelity risks in the task report).
-const SCH_VERSION = "20230121";
+// 6→10; 20260512 is the KiCad 10 stamp (from the KiCad 10 doxygen source,
+// mid-2026). We previously wrote 20230121 (KiCad 7/8 era), which KiCad 10
+// reported as a KiCad-9-era file. Bump here if a future KiCad reference differs.
+const SCH_VERSION = "20260512";
 const GENERATOR = "project-foundry";
+// generator_version stamp KiCad 8+ writes; "10.0" marks the file as KiCad 10.
+const GENERATOR_VERSION = "10.0";
 
 export type NetClass = "GROUND" | "POWER" | "SIGNAL";
 
@@ -446,6 +448,7 @@ export function buildSchematic(input: BuildSchematicInput): string {
     sym("kicad_sch"),
     list([sym("version"), sym(SCH_VERSION)]),
     list([sym("generator"), str(GENERATOR)]),
+    list([sym("generator_version"), str(GENERATOR_VERSION)]),
     uuidNode(`${input.projectName}|sheet`),
     list([sym("paper"), str("A4")]),
     list(libSymbolItems),

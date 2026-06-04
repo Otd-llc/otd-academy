@@ -28,10 +28,10 @@ import {
   type SList,
 } from "@/lib/kicad/sexpr";
 
-// KiCad 10 still stamps the symbol-lib format version as 20211014 (the format
-// has been stable across 6→10 for symbol libs). Bump here if a KiCad-10
-// reference project shows otherwise at manual acceptance.
-const SYMBOL_LIB_VERSION = "20211014";
+// KiCad 10 stamps the symbol-lib format version as 20260508 (from the KiCad 10
+// doxygen source, mid-2026). Earlier we wrote 20211014, which KiCad 10 reported
+// as a KiCad-9-era file. Bump here if a future KiCad reference shows otherwise.
+const SYMBOL_LIB_VERSION = "20260508";
 const GENERATOR = "project-foundry";
 
 /**
@@ -184,7 +184,7 @@ export type BuildSymbolLibOpts = {
    * `name`; return undefined to leave that symbol's Footprint property untouched.
    */
   footprintFor?: (name: string) => string | undefined;
-  /** Override the emitted format version (defaults to KiCad-stable 20211014). */
+  /** Override the emitted format version (defaults to KiCad-10 20260508). */
   version?: string;
 };
 

@@ -25,10 +25,10 @@ import {
 import { resolveBoardConfig, type BoardConfig } from "@/lib/kicad/project";
 
 // KiCad 10 board-file format version. KiCad stamps `.kicad_pcb` with a dated
-// integer; 20240108 is the KiCad 8 baseline that 9/10 continue to accept.
-// FIDELITY: confirm against a KiCad-10-saved board at manual acceptance and
-// bump if KiCad 10 writes a newer stamp.
-const PCB_VERSION = "20240108";
+// integer; 20260603 is the KiCad 10 stamp (from the KiCad 10 doxygen source,
+// mid-2026). We previously wrote 20240108 (KiCad 8 baseline), which KiCad 10
+// reported as a KiCad-9-era file. Bump if a future KiCad writes a newer stamp.
+const PCB_VERSION = "20260603";
 const GENERATOR = "project-foundry";
 const GENERATOR_VERSION = "10.0";
 
