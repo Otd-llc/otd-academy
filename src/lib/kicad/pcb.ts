@@ -24,11 +24,10 @@ import {
 } from "@/lib/kicad/sexpr";
 import { resolveBoardConfig, type BoardConfig } from "@/lib/kicad/project";
 
-// KiCad 10 board-file format version. KiCad stamps `.kicad_pcb` with a dated
-// integer; 20260603 is the KiCad 10 stamp (from the KiCad 10 doxygen source,
-// mid-2026). We previously wrote 20240108 (KiCad 8 baseline), which KiCad 10
-// reported as a KiCad-9-era file. Bump if a future KiCad writes a newer stamp.
-const PCB_VERSION = "20260603";
+// KiCad 10 board-file format version, taken from a KiCad 10.0 RELEASE-saved
+// .kicad_pcb. NOT the doxygen/master value (20260603) — master runs ahead of
+// the release and was rejected as "more recent version".
+const PCB_VERSION = "20260206";
 const GENERATOR = "project-foundry";
 const GENERATOR_VERSION = "10.0";
 

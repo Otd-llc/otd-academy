@@ -28,10 +28,11 @@ import {
   type SList,
 } from "@/lib/kicad/sexpr";
 
-// KiCad 10 stamps the symbol-lib format version as 20260508 (from the KiCad 10
-// doxygen source, mid-2026). Earlier we wrote 20211014, which KiCad 10 reported
-// as a KiCad-9-era file. Bump here if a future KiCad reference shows otherwise.
-const SYMBOL_LIB_VERSION = "20260508";
+// Symbol-lib format version: the long-stable 20211014 (KiCad 6–8 era). KiCad 10
+// reads it natively, and it does NOT gate schematic load (the .kicad_sch embeds
+// lib_symbols inline). The KiCad-10 release sym-lib stamp wasn't captured; bump
+// to it for a fully-native standalone .kicad_sym if needed.
+const SYMBOL_LIB_VERSION = "20211014";
 const GENERATOR = "project-foundry";
 
 /**

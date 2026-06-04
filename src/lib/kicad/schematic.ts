@@ -49,11 +49,10 @@ import { extractSymbolPins, pinConnectionPoint } from "@/lib/kicad/pin-geometry"
 import { renameSymbol } from "@/lib/kicad/symbol-lib";
 import type { Placement } from "@/lib/kicad/placement";
 
-// KiCad 10 schematic format version. The `.kicad_sch` format has drifted across
-// 6→10; 20260512 is the KiCad 10 stamp (from the KiCad 10 doxygen source,
-// mid-2026). We previously wrote 20230121 (KiCad 7/8 era), which KiCad 10
-// reported as a KiCad-9-era file. Bump here if a future KiCad reference differs.
-const SCH_VERSION = "20260512";
+// KiCad 10 schematic format version, taken from a KiCad 10.0 RELEASE-saved
+// .kicad_sch. NOT the doxygen/master value (20260512) — master is ahead of the
+// release and KiCad rejected it as "created with a more recent version".
+const SCH_VERSION = "20260306";
 const GENERATOR = "project-foundry";
 // generator_version stamp KiCad 8+ writes; "10.0" marks the file as KiCad 10.
 const GENERATOR_VERSION = "10.0";
