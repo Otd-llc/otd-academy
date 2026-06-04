@@ -2,14 +2,15 @@
 
 // three.js GLB viewer. Loaded ONLY via ModelViewerLazy (next/dynamic, ssr:false)
 // so three is never in the server bundle or the initial client entry. Orbit
-// controls; camera framed from `bounds`. On load error, calls onError so the
-// parent can show the download fallback.
+// controls; camera framed from `bounds`. On load error, it is self-contained:
+// local `error` state renders an inline download fallback (no onError prop).
 import { useEffect, useRef, useState } from "react";
 import type { RenderBounds } from "@/lib/schemas/part-asset";
 
 export default function ModelViewer({ src, bounds }: { src: string; bounds?: RenderBounds | null }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState(false);
+  const boundsKey = JSON.stringify(bounds);
 
   useEffect(() => {
     let disposed = false;
@@ -25,6 +26,7 @@ export default function ModelViewer({ src, bounds }: { src: string; bounds?: Ren
         const width = mount.clientWidth || 600;
         const height = mount.clientHeight || 420;
         const scene = new THREE.Scene();
+        let loadedRoot: { traverse: (cb: (o: unknown) => void) => void } | null = null;
         scene.background = new THREE.Color(0x0b0f1a);
         const camera = new THREE.PerspectiveCamera(45, width / height, 0.01, 10000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -49,7 +51,7 @@ export default function ModelViewer({ src, bounds }: { src: string; bounds?: Ren
 
         new GLTFLoader().load(
           src,
-          (gltf) => { if (!disposed) scene.add(gltf.scene); },
+          (gltf) => { if (!disposed) { loadedRoot = gltf.scene; scene.add(gltf.scene); } },
           undefined,
           () => { if (!disposed) setError(true); },
         );
@@ -67,6 +69,17 @@ export default function ModelViewer({ src, bounds }: { src: string; bounds?: Ren
         cleanup = () => {
           cancelAnimationFrame(raf);
           window.removeEventListener("resize", onResize);
+          loadedRoot?.traverse((o) => {
+            const mesh = o as Partial<{ geometry: { dispose?: () => void }; material: unknown }>;
+            mesh.geometry?.dispose?.();
+            const mat = mesh.material;
+            const mats = Array.isArray(mat) ? mat : mat ? [mat] : [];
+            for (const m of mats) {
+              const mm = m as Partial<{ map: { dispose?: () => void }; dispose: () => void }>;
+              mm.map?.dispose?.();
+              mm.dispose?.();
+            }
+          });
           controls.dispose();
           renderer.dispose();
           renderer.domElement.remove();
@@ -76,7 +89,7 @@ export default function ModelViewer({ src, bounds }: { src: string; bounds?: Ren
       }
     })();
     return () => { disposed = true; cleanup(); };
-  }, [src, bounds]);
+  }, [src, boundsKey]);
 
   if (error) {
     return (
