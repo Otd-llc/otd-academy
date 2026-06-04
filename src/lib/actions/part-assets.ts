@@ -427,7 +427,9 @@ export async function getPartAssetDownloadUrl(
 
   const asset = await db.partAsset.findUnique({
     where: { partId_kind: { partId, kind: k } },
-    select: { r2Key: true },
+    select: { r2Key: true, filename: true },
   });
-  return asset ? presignGet(asset.r2Key) : null;
+  // Pass the filename so the GET forces a download (KiCad files aren't viewable
+  // inline; symbols/footprints are text and would otherwise render in the tab).
+  return asset ? presignGet(asset.r2Key, asset.filename) : null;
 }
