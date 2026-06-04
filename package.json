@@ -7,7 +7,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "db:seed": "prisma db seed",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate && node scripts/copy-occt-wasm.cjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
@@ -24,10 +24,12 @@
     "dotenv": "^17.4.2",
     "next": "16.2.6",
     "next-auth": "5.0.0-beta.31",
+    "occt-import-js": "^0.0.23",
     "prisma": "^7.8.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "sanitize-html": "^2.17.4",
+    "three": "^0.184.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -36,6 +38,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/sanitize-html": "^2.16.1",
+    "@types/three": "^0.184.1",
     "@vitest/ui": "^4.1.7",
     "tailwindcss": "^4",
     "tsx": "^4.22.3",

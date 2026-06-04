@@ -57,6 +57,16 @@ export function presignGet(key: string, downloadFilename?: string) {
   );
 }
 
+/** Presigned GET WITHOUT a Content-Disposition override → the browser may fetch
+ *  the object inline (CORS GET). Used ONLY for the derived `.glb` render that
+ *  <ModelViewer> loads; every human-facing download uses `presignGet(key, name)`
+ *  (attachment). Identical to `presignGet(key)` with no filename — named for
+ *  intent so a future reader doesn't "tidy" the render path onto the attachment
+ *  presign and break in-browser rendering. */
+export function presignGetInline(key: string) {
+  return presignGet(key);
+}
+
 /** Best-effort delete of a single R2 object. DeleteObject is idempotent (a
  *  missing key is a no-op), so callers use this to clean up after a row is
  *  removed; a failure here is swallowed by the caller (orphan swept later). */

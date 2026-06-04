@@ -191,6 +191,7 @@ enum ArtifactSubkind {
   BOM_CSV_AS_ORDERED // Build-scoped; the BOM as actually sent to the distributor
   ASSEMBLY_PHOTO // Build-scoped; photos taken during assembly / bring-up
   BRINGUP_MEASUREMENTS_CSV // Build-scoped; export of Measurement rows for this build
+  MODEL_3D // 3D model artifact (board/sub-assembly); renderable via <ModelViewer>
 }
 
 model Artifact {
@@ -206,6 +207,10 @@ model Artifact {
   fileKey    String?
   fileMime   String?
   fileBytes  Int? // server-enforced ≤ 100 MB; HEAD-verified
+  renderKey    String?   // derived .glb for MODEL_3D artifacts (board stub)
+  renderBytes  Int?
+  renderMime   String?
+  renderBounds Json?
   noteBody   String? // markdown
   linkUrl    String?
   createdBy  String
@@ -488,6 +493,10 @@ model PartAsset {
   filename       String
   byteSize       Int
   contentType    String
+  renderKey      String?   // R2 key of the derived .glb (parts/{partId}/model_3d_render-{cuid}.glb)
+  renderBytes    Int?
+  renderMime     String?   // "model/gltf-binary"
+  renderBounds   Json?     // { center: [x,y,z], radius } — frames the viewer camera
   ref            String?       // symbol/footprint name (sym-lib-table descr data)
   source         String?       // SnapEDA | SamacSys | Ultra Librarian | manufacturer | hand-made
   license        String?

@@ -33,6 +33,23 @@ vi.mock("@/auth", () => ({
   auth: () => mockAuth(),
 }));
 
+// `recordPartAsset` / `getPartAssetRenderUrl` HEAD/presign/delete R2. Stub the
+// R2 helper layer so these tests never touch the real bucket — the HEAD echoes
+// the declared bytes, the presigns return fixed URLs, and DeleteObject is a
+// no-op. (`ensureR2Enabled` no-op = R2 "on" regardless of env.)
+vi.mock("@/lib/part-r2", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/part-r2")>();
+  return {
+    ...actual,
+    ensureR2Enabled: vi.fn(),                                   // no-op (R2 "on")
+    presignPut: vi.fn(async () => "https://r2.example/put"),
+    presignGet: vi.fn(async () => "https://r2.example/get"),
+    presignGetInline: vi.fn(async () => "https://r2.example/inline"),
+    headVerifySize: vi.fn(async (_k: string, declared: number) => declared), // echo bytes
+    deleteR2Object: vi.fn(async () => {}),
+  };
+});
+
 import type { PartAssetKind } from "@prisma/client";
 
 import { db } from "@/lib/db";
@@ -41,6 +58,8 @@ import {
   deletePartAsset,
   editPartAsset,
   flagPartAsset,
+  recordPartAsset,
+  getPartAssetRenderUrl,
   unverifyPartAsset,
   verifyPartAsset,
 } from "@/lib/actions/part-assets";
@@ -628,6 +647,52 @@ describe("unverifyPartAsset", () => {
       expect(row.verifiedById).toBe(seedUserId);
     } finally {
       await deleteAsset(asset.id);
+    }
+  });
+});
+
+// ─── recordPartAsset render columns (derived .glb) ──────────────────────────
+// The `@/lib/part-r2` mock stubs the HEAD (echoes declared bytes), the presigns,
+// and DeleteObject — so `recordPartAsset` persists the render trio and the stale-
+// render cleanup is a no-op delete. `getPartAssetRenderUrl` returns the stubbed
+// inline URL when a renderKey is present.
+describe("recordPartAsset render columns", () => {
+  test("records the render trio on a fresh MODEL_3D upload", async () => {
+    const r = await recordPartAsset({
+      partId: throwawayPartId,
+      kind: "MODEL_3D",
+      r2Key: `parts/${throwawayPartId}/model_3d-a.step`,
+      filename: "a.step",
+      byteSize: 2000,
+      renderKey: `parts/${throwawayPartId}/model_3d_render-a.glb`,
+      renderBytes: 500,
+      renderBounds: { center: [0, 0, 0], radius: 3 },
+    });
+    try {
+      expect(r.renderKey).toContain("model_3d_render");
+      expect(r.renderMime).toBe("model/gltf-binary");
+      expect(await getPartAssetRenderUrl(throwawayPartId)).toBe("https://r2.example/inline");
+    } finally {
+      await deleteAsset(r.id);
+    }
+  });
+
+  test("a replace WITHOUT a render clears the render columns + cleans up the old .glb", async () => {
+    await recordPartAsset({
+      partId: throwawayPartId, kind: "MODEL_3D",
+      r2Key: `parts/${throwawayPartId}/model_3d-b.step`, filename: "b.step", byteSize: 2000,
+      renderKey: `parts/${throwawayPartId}/model_3d_render-b.glb`, renderBytes: 500,
+      renderBounds: { center: [0, 0, 0], radius: 3 },
+    });
+    const second = await recordPartAsset({ // conversion failed → no render fields
+      partId: throwawayPartId, kind: "MODEL_3D",
+      r2Key: `parts/${throwawayPartId}/model_3d-b2.step`, filename: "b2.step", byteSize: 2100,
+    });
+    try {
+      expect(second.renderKey).toBeNull();
+      expect(second.renderBytes).toBeNull();
+    } finally {
+      await deleteAsset(second.id);
     }
   });
 });

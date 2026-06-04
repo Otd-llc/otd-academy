@@ -50,6 +50,19 @@ export function artifactKey(
   return `${folder}/${owner.id}/${stage}/${cuid}-${slug(filename)}`;
 }
 
+// Derived-render key for a MODEL_3D Artifact's .glb (board stub; sibling of
+// artifactKey). Reuses the same {revisions|builds}/{ownerId}/{stage} folder so
+// the render lives next to the source file it was derived from.
+//   {folder}/{ownerId}/{stage}/render-{cuid}.glb
+export function artifactRenderKey(
+  owner: { kind: "revision" | "build"; id: string },
+  stage: string,
+  cuid: string,
+): string {
+  const folder = owner.kind === "revision" ? "revisions" : "builds";
+  return `${folder}/${owner.id}/${stage}/render-${cuid}.glb`;
+}
+
 // Part-scoped datasheet key (design §3.1 / Stage A Task 9). NOT the Artifact
 // key — the cached datasheet is net-new infra (`PartDatasheet`), keyed only by
 // `partId` (one PDF per part). The `{cuid}` segment is a per-attempt unique id
@@ -68,4 +81,10 @@ export function partAssetKey(
 ): string {
   const e = (ext.startsWith(".") ? ext.slice(1) : ext).toLowerCase();
   return `parts/${partId}/${kind.toLowerCase()}-${cuid}.${e}`;
+}
+
+// Derived-render key for a part's MODEL_3D .glb (sibling of partAssetKey).
+//   parts/{partId}/model_3d_render-{cuid}.glb
+export function partRenderKey(partId: string, cuid: string): string {
+  return `parts/${partId}/model_3d_render-${cuid}.glb`;
 }

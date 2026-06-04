@@ -258,7 +258,10 @@ export const STAGES: Record<Stage, StageDef> = {
       "Pin the layout git commit on the revision header strip.",
       "Attach the layout artifact (KiCad PCB or file link).",
     ],
-    revisionAllowedArtifactSubkinds: ["LAYOUT_FILE", "GENERIC"],
+    // MODEL_3D (board stub): the board's physical 3D form is a LAYOUT-stage
+    // output (KiCad's 3D export of the routed PCB), so the design-side picker
+    // offers it here alongside the layout file.
+    revisionAllowedArtifactSubkinds: ["LAYOUT_FILE", "MODEL_3D", "GENERIC"],
     buildAllowedArtifactSubkinds: [],
     // m16: LAYOUT additionally requires a LAYOUT_REVIEW Checklist with every
     // item checked or N/A — same 3-branch predicate as REQUIREMENTS /
@@ -420,9 +423,13 @@ export const STAGES: Record<Stage, StageDef> = {
     // BRINGUP_COMPLETE remains intentionally OUT of this list — only the
     // dedicated `markBringupComplete` server action creates that sentinel
     // (design §9.2; pinned by artifacts-actions test).
+    // MODEL_3D (board stub): a physical assembled-board / sub-assembly 3D model
+    // is captured against the Build during bring-up, so the build-side picker
+    // offers it here. Consistent with ARTIFACT_SUBKIND_OWNER's MODEL_3D: "either".
     buildAllowedArtifactSubkinds: [
       "BRINGUP_LOG",
       "BRINGUP_MEASUREMENTS_CSV",
+      "MODEL_3D",
       "GENERIC",
     ],
     exitGate: ({ activeBuild }) => {

@@ -33,7 +33,7 @@
 // (`createPartAssetUploadUrl` / `recordPartAsset` / `getPartAssetDownloadUrl`)
 // to THIS file — the gate half below is self-contained and R2-free.
 
-import { type PartAsset } from "@prisma/client";
+import { Prisma, type PartAsset } from "@prisma/client";
 import { createId } from "@paralleldrive/cuid2";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -41,12 +41,13 @@ import { z } from "zod";
 import { env } from "@/env";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
-import { partAssetKey } from "@/lib/r2";
+import { partAssetKey, partRenderKey } from "@/lib/r2";
 import {
   deleteR2Object,
   ensureR2Enabled,
   headVerifySize,
   presignGet,
+  presignGetInline,
   presignPut,
 } from "@/lib/part-r2";
 import {
@@ -54,9 +55,12 @@ import {
   shouldDemoteAsset,
   ASSET_KIND_CONFIG,
   createPartAssetUploadUrlSchema,
+  createPartAssetRenderUploadUrlSchema,
   recordPartAssetSchema,
   extOf,
   PART_ASSET_KINDS,
+  RENDER_MIME,
+  RENDER_MAX_BYTES,
 } from "@/lib/schemas/part-asset";
 
 // ─── Messages ───────────────────────────────────────────
@@ -269,7 +273,7 @@ export async function deletePartAsset(input: unknown): Promise<void> {
 
   const row = await db.partAsset.findUniqueOrThrow({
     where: { id },
-    select: { partId: true, r2Key: true },
+    select: { partId: true, r2Key: true, renderKey: true },
   });
 
   // Optimistic lock: don't delete a row that changed since the caller loaded it.
@@ -283,6 +287,14 @@ export async function deletePartAsset(input: unknown): Promise<void> {
       await deleteR2Object(row.r2Key);
     } catch {
       /* leave orphan — the design's accepted fallback; swept later */
+    }
+    // Also drop the derived .glb render object (MODEL_3D), same best-effort policy.
+    if (row.renderKey) {
+      try {
+        await deleteR2Object(row.renderKey);
+      } catch {
+        /* orphan swept later */
+      }
     }
   }
 
@@ -344,6 +356,27 @@ export async function createPartAssetUploadUrl(
   return { uploadUrl, r2Key, contentType: cfg.contentType };
 }
 
+// ─── createPartAssetRenderUploadUrl ─────────────────────
+/**
+ * Mint a presigned PUT for a part's DERIVED .glb render (produced client-side by
+ * `convertToGlb`). Kind is implicitly MODEL_3D (only models have a render). The
+ * forced content-type is RENDER_MIME ("model/gltf-binary"); the client MUST echo
+ * it in the PUT Content-Type header (R2 signature match). Returns the minted key
+ * so the client can pass it to `recordPartAsset` as `renderKey`.
+ */
+export async function createPartAssetRenderUploadUrl(
+  input: unknown,
+): Promise<{ uploadUrl: string; renderKey: string; contentType: string }> {
+  const data = createPartAssetRenderUploadUrlSchema.parse(input);
+  await requireUser();
+  ensureR2Enabled();
+  await db.part.findUniqueOrThrow({ where: { id: data.partId }, select: { id: true } });
+
+  const renderKey = partRenderKey(data.partId, createId());
+  const uploadUrl = await presignPut(renderKey, RENDER_MIME, data.byteSize);
+  return { uploadUrl, renderKey, contentType: RENDER_MIME };
+}
+
 // ─── recordPartAsset ────────────────────────────────────
 /**
  * Record the PartAsset row after the client PUT succeeds. HEADs the R2 object to
@@ -371,6 +404,29 @@ export async function recordPartAsset(input: unknown): Promise<PartAsset> {
   // Oversize deletes the orphan and throws (load-bearing per part-datasheet.ts).
   const actual = await headVerifySize(data.r2Key, data.byteSize, cfg.maxBytes);
 
+  // Optional derived render: HEAD-verify the uploaded .glb (best-effort — a
+  // failed verify just drops the render; the source asset still records).
+  let render: { renderKey: string; renderBytes: number; renderMime: string; renderBounds: unknown } | null = null;
+  if (data.renderKey && data.renderBytes) {
+    try {
+      const actualRender = await headVerifySize(data.renderKey, data.renderBytes, RENDER_MAX_BYTES);
+      render = {
+        renderKey: data.renderKey,
+        renderBytes: actualRender,
+        renderMime: RENDER_MIME,
+        renderBounds: data.renderBounds ?? null,
+      };
+    } catch {
+      render = null; // render is non-load-bearing; never block the source record
+    }
+  }
+
+  // Capture the PRIOR render key so a replace can clean up the stale .glb after.
+  const prior = await db.partAsset.findUnique({
+    where: { partId_kind: { partId: data.partId, kind: data.kind } },
+    select: { renderKey: true },
+  });
+
   // @@unique([partId, kind]) → a replacement upserts in place. A new file
   // ALWAYS re-enters UNVERIFIED (a replaced asset must be re-verified): we keep
   // the metadata (ref/source/license — managed by editPartAsset) but clear the
@@ -393,6 +449,10 @@ export async function recordPartAsset(input: unknown): Promise<PartAsset> {
       // replaced file are intentionally ignored in v1).
       ref: data.ref ?? null,
       source: data.source ?? null,
+      renderKey: render?.renderKey ?? null,
+      renderBytes: render?.renderBytes ?? null,
+      renderMime: render?.renderMime ?? null,
+      renderBounds: render?.renderBounds ?? Prisma.JsonNull,
     },
     update: {
       r2Key: data.r2Key,
@@ -403,8 +463,21 @@ export async function recordPartAsset(input: unknown): Promise<PartAsset> {
       verifiedById: null,
       verifiedAt: null,
       lastEditedById: user.id,
+      // A replace ALWAYS repoints the render, even to null (conversion failed).
+      renderKey: render?.renderKey ?? null,
+      renderBytes: render?.renderBytes ?? null,
+      renderMime: render?.renderMime ?? null,
+      renderBounds: render?.renderBounds ?? Prisma.JsonNull,
     },
   });
+
+  // Best-effort delete the OLD render object when a replace repointed it
+  // (orphan is the accepted fallback, same as the source cleanup policy).
+  if (prior?.renderKey && prior.renderKey !== render?.renderKey) {
+    if (env.R2_ENABLED && env.R2_BUCKET) {
+      try { await deleteR2Object(prior.renderKey); } catch { /* swept later */ }
+    }
+  }
 
   revalidatePartRoute(data.partId);
   return asset;
@@ -432,4 +505,20 @@ export async function getPartAssetDownloadUrl(
   // Pass the filename so the GET forces a download (KiCad files aren't viewable
   // inline; symbols/footprints are text and would otherwise render in the tab).
   return asset ? presignGet(asset.r2Key, asset.filename) : null;
+}
+
+// ─── getPartAssetRenderUrl ──────────────────────────────
+/**
+ * Inline presigned GET for a part's MODEL_3D render `.glb`, or null when R2 is
+ * off / no render exists. NOT `requireUser`-gated and NOT trust-gated: viewing
+ * is how a curator verifies, and the part page is the auth boundary. Uses
+ * `presignGetInline` (no attachment disposition) so the browser can fetch it.
+ */
+export async function getPartAssetRenderUrl(partId: string): Promise<string | null> {
+  if (!env.R2_ENABLED || !env.R2_BUCKET) return null;
+  const asset = await db.partAsset.findUnique({
+    where: { partId_kind: { partId, kind: "MODEL_3D" } },
+    select: { renderKey: true },
+  });
+  return asset?.renderKey ? presignGetInline(asset.renderKey) : null;
 }

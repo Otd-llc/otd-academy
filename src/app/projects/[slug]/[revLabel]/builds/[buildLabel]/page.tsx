@@ -27,6 +27,9 @@ import {
 } from "./_header-fields";
 import { ArtifactPicker } from "@/components/ArtifactPicker";
 import { ArtifactDownloadLink } from "@/components/ArtifactDownloadLink";
+import { ModelViewerLazy } from "@/components/ModelViewerLazy";
+import { getArtifactRenderUrl } from "@/lib/actions/uploads";
+import { renderBoundsSchema } from "@/lib/schemas/part-asset";
 import { BoardsTable } from "@/components/BoardsTable";
 import { BuildChecklistsPane } from "@/components/BuildChecklistsPane";
 import { MarkBringupCompleteButton } from "@/components/MarkBringupCompleteButton";
@@ -110,6 +113,18 @@ export default async function BuildDetailPage({
     : buildIsFrozen
       ? "Build is frozen."
       : undefined;
+
+  // Board stub: resolve INLINE render URLs server-side for the build-scoped
+  // MODEL_3D artifacts that carry a derived `.glb`. Keyed by artifact id; only
+  // these rows mount <ModelViewerLazy>.
+  const renderableArtifacts = build.artifacts.filter(
+    (a) => a.subkind === "MODEL_3D" && a.renderKey,
+  );
+  const artifactRenderUrls = new Map<string, string>();
+  for (const a of renderableArtifacts) {
+    const url = await getArtifactRenderUrl(a.id);
+    if (url) artifactRenderUrls.set(a.id, url);
+  }
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
@@ -299,6 +314,21 @@ export default async function BuildDetailPage({
                           a.fileKey.split("/").pop() ?? "download"
                         }
                       />
+                    ) : null}
+                    {/* Board stub: render the same <ModelViewer> for a
+                        MODEL_3D artifact carrying a derived .glb. */}
+                    {a.subkind === "MODEL_3D" &&
+                    a.renderKey &&
+                    artifactRenderUrls.has(a.id) ? (
+                      <div className="pt-1">
+                        <ModelViewerLazy
+                          src={artifactRenderUrls.get(a.id)!}
+                          bounds={
+                            renderBoundsSchema.safeParse(a.renderBounds)
+                              .data ?? null
+                          }
+                        />
+                      </div>
                     ) : null}
                   </li>
                 ))}

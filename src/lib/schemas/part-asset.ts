@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { MAX_UPLOAD_BYTES } from "@/lib/schemas/upload";
+// Local import so the schemas below (createPartAssetRenderUploadUrlSchema /
+// recordPartAssetSchema) can reference these; the `export … from` line below
+// re-exports them so external `@/lib/schemas/part-asset` importers are unchanged.
+import { RENDER_MAX_BYTES, renderBoundsSchema } from "@/lib/schemas/render";
 
 export const PART_ASSET_KINDS = ["SYMBOL", "FOOTPRINT", "MODEL_3D"] as const;
 export type PartAssetKindT = (typeof PART_ASSET_KINDS)[number];
@@ -16,6 +20,13 @@ export const ASSET_KIND_CONFIG: Record<
   FOOTPRINT: { exts: [".kicad_mod"], contentType: "text/plain",               maxBytes: 5 * 1024 * 1024, label: "Footprint" },
   MODEL_3D:  { exts: [".step", ".stp", ".wrl"], contentType: "application/octet-stream", maxBytes: MAX_UPLOAD_BYTES, label: "3D Model" },
 };
+
+// Render primitives live in the neutral leaf module `@/lib/schemas/render`
+// (imports nothing back) so the part side and the upload side validate
+// renderBounds against ONE source of truth. Re-exported here so every existing
+// `@/lib/schemas/part-asset` importer keeps working unchanged.
+export { RENDER_MIME, RENDER_MAX_BYTES, renderBoundsSchema } from "@/lib/schemas/render";
+export type { RenderBounds } from "@/lib/schemas/render";
 
 /** Lowercased extension incl. the dot, e.g. "ESP32.STEP" → ".step". "" if none. */
 export function extOf(filename: string): string {
@@ -46,6 +57,11 @@ export const createPartAssetUploadUrlSchema = z
     }
   });
 
+export const createPartAssetRenderUploadUrlSchema = z.object({
+  partId: z.cuid(),
+  byteSize: z.int().positive().max(RENDER_MAX_BYTES),
+});
+
 export const recordPartAssetSchema = z.object({
   partId: z.cuid(),
   kind: z.enum(PART_ASSET_KINDS),
@@ -57,6 +73,10 @@ export const recordPartAssetSchema = z.object({
   // suggestion the curator reviews); ignored on REPLACE — see recordPartAsset.
   ref: z.string().trim().max(200).optional(),
   source: z.string().trim().max(200).optional(),
+  // Optional derived-.glb render (present only when client conversion succeeded).
+  renderKey: z.string().trim().min(1).max(1024).optional(),
+  renderBytes: z.int().positive().max(RENDER_MAX_BYTES).optional(),
+  renderBounds: renderBoundsSchema.optional(),
 });
 
 /** Metadata edit (no file). `.strict()` so a typo'd key is rejected, not dropped. */

@@ -35,13 +35,15 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { env } from "@/env";
 import { db } from "@/lib/db";
-import { r2, artifactKey } from "@/lib/r2";
+import { r2, artifactKey, artifactRenderKey } from "@/lib/r2";
 import { ownerMatches } from "@/lib/artifacts";
 import { requireUser } from "@/lib/auth-helpers";
 import { assertBuildNotFrozen, assertNotFrozen } from "@/lib/assertions";
 import { withTxRetry } from "@/lib/tx-retry";
+import { RENDER_MIME, RENDER_MAX_BYTES } from "@/lib/schemas/render";
 import {
   createUploadUrlSchema,
+  createArtifactRenderUploadUrlSchema,
   MAX_UPLOAD_BYTES,
   recordArtifactSchema,
 } from "@/lib/schemas/upload";
@@ -191,6 +193,44 @@ export async function createUploadUrl(
   };
 }
 
+// ─── createArtifactRenderUploadUrl ─────────────────────
+//
+// Board stub. Mints a presigned PUT for an Artifact's DERIVED .glb render
+// (produced client-side by `convertToGlb`). Mirrors the part-side
+// `createPartAssetRenderUploadUrl`: subkind is implicitly MODEL_3D (only models
+// carry a render), the forced content-type is RENDER_MIME ("model/gltf-binary")
+// — signed into the PUT and echoed by the client — and the minted `.glb` key is
+// returned so the client passes it back to `recordArtifact` as `renderKey`.
+// Deliberately thin: no freeze re-check here (the source file's createUploadUrl
+// already gated freeze; the render PUT is best-effort and non-load-bearing).
+
+export type CreateArtifactRenderUploadUrlResult = {
+  uploadUrl: string;
+  renderKey: string;
+  contentType: string;
+};
+
+export async function createArtifactRenderUploadUrl(
+  input: unknown,
+): Promise<CreateArtifactRenderUploadUrlResult> {
+  const data = createArtifactRenderUploadUrlSchema.parse(input);
+  await requireUser();
+  ensureR2Enabled();
+
+  const renderKey = artifactRenderKey(data.owner, data.stage, createId());
+  const uploadUrl = await getSignedUrl(
+    r2,
+    new PutObjectCommand({
+      Bucket: env.R2_BUCKET!,
+      Key: renderKey,
+      ContentLength: data.byteSize,
+      ContentType: RENDER_MIME,
+    }),
+    { expiresIn: PUT_TTL_SECONDS },
+  );
+  return { uploadUrl, renderKey, contentType: RENDER_MIME };
+}
+
 // ─── recordArtifact ────────────────────────────────────
 
 export async function recordArtifact(input: unknown) {
@@ -232,6 +272,39 @@ export async function recordArtifact(input: unknown) {
     );
   }
 
+  // Board stub: optional DERIVED .glb render (present only when the client's
+  // MODEL_3D conversion succeeded). HEAD-verify the render object — best-effort,
+  // null-on-failure (mirrors the part side): a failed/oversize/missing render
+  // simply drops the render columns; the FILE record ALWAYS proceeds. The render
+  // is non-load-bearing and must NEVER block recording the source file.
+  let render: {
+    renderKey: string;
+    renderBytes: number;
+    renderMime: string;
+    renderBounds: unknown;
+  } | null = null;
+  if (data.renderKey && data.renderBytes) {
+    try {
+      const renderHead = await r2.send(
+        new HeadObjectCommand({
+          Bucket: env.R2_BUCKET!,
+          Key: data.renderKey,
+        }),
+      );
+      const actualRender = renderHead.ContentLength ?? 0;
+      if (actualRender > 0 && actualRender <= RENDER_MAX_BYTES) {
+        render = {
+          renderKey: data.renderKey,
+          renderBytes: actualRender,
+          renderMime: RENDER_MIME,
+          renderBounds: data.renderBounds ?? null,
+        };
+      }
+    } catch {
+      render = null; // render is non-load-bearing; never block the source record
+    }
+  }
+
   const artifact = await withTxRetry(() =>
     db.$transaction(
       async (tx) => {
@@ -256,6 +329,15 @@ export async function recordArtifact(input: unknown) {
             fileMime: data.mime,
             fileBytes: actualSize,
             createdBy: user.id,
+            // Board stub: derived render columns (null when no render passed /
+            // verify failed). Existing FILE/NOTE/LINK records leave these null.
+            renderKey: render?.renderKey ?? null,
+            renderBytes: render?.renderBytes ?? null,
+            renderMime: render?.renderMime ?? null,
+            renderBounds:
+              (render?.renderBounds ?? null) === null
+                ? Prisma.JsonNull
+                : (render!.renderBounds as Prisma.InputJsonValue),
           },
         });
       },
@@ -299,6 +381,34 @@ export async function getDownloadUrl(artifactId: string): Promise<string> {
     new GetObjectCommand({
       Bucket: env.R2_BUCKET!,
       Key: artifact.fileKey,
+    }),
+    { expiresIn: GET_TTL_SECONDS },
+  );
+}
+
+// ─── getArtifactRenderUrl ──────────────────────────────
+//
+// Board stub. INLINE presigned GET (no Content-Disposition) for a MODEL_3D
+// Artifact's render `.glb`, or null when R2 is off / the artifact carries no
+// render. Mirrors the part-side `getPartAssetRenderUrl`: NOT `requireUser`-gated
+// (board renders are viewable like part renders, and the artifact's owning page
+// is the auth boundary) and uses a no-disposition GetObjectCommand so the
+// browser <ModelViewer> can fetch the bytes inline. `getDownloadUrl` above stays
+// auth-gated — only this render resolver is ungated.
+export async function getArtifactRenderUrl(
+  artifactId: string,
+): Promise<string | null> {
+  if (!env.R2_ENABLED || !env.R2_BUCKET) return null;
+  const artifact = await db.artifact.findUnique({
+    where: { id: artifactId },
+    select: { renderKey: true },
+  });
+  if (!artifact?.renderKey) return null;
+  return getSignedUrl(
+    r2,
+    new GetObjectCommand({
+      Bucket: env.R2_BUCKET!,
+      Key: artifact.renderKey,
     }),
     { expiresIn: GET_TTL_SECONDS },
   );
