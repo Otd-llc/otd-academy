@@ -37,6 +37,29 @@ export async function headVerifySize(key: string, declaredBytes: number, maxByte
   return actual;
 }
 
-export function presignGet(key: string) {
-  return getSignedUrl(r2, new GetObjectCommand({ Bucket: env.R2_BUCKET!, Key: key }), { expiresIn: GET_TTL_SECONDS });
+/** Presigned GET. When `downloadFilename` is given, signs a
+ *  `Content-Disposition: attachment` override so the browser DOWNLOADS the file
+ *  (with that name) instead of rendering it inline — the `<a download>` attr is
+ *  ignored for cross-origin R2 URLs, so the disposition must be signed in here.
+ *  Quotes/CR/LF are stripped from the name to prevent header injection. */
+export function presignGet(key: string, downloadFilename?: string) {
+  const safeName = downloadFilename?.replace(/["\\\r\n]/g, "");
+  return getSignedUrl(
+    r2,
+    new GetObjectCommand({
+      Bucket: env.R2_BUCKET!,
+      Key: key,
+      ...(safeName
+        ? { ResponseContentDisposition: `attachment; filename="${safeName}"` }
+        : {}),
+    }),
+    { expiresIn: GET_TTL_SECONDS },
+  );
+}
+
+/** Best-effort delete of a single R2 object. DeleteObject is idempotent (a
+ *  missing key is a no-op), so callers use this to clean up after a row is
+ *  removed; a failure here is swallowed by the caller (orphan swept later). */
+export async function deleteR2Object(key: string): Promise<void> {
+  await r2.send(new DeleteObjectCommand({ Bucket: env.R2_BUCKET!, Key: key }));
 }

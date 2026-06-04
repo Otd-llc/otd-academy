@@ -190,8 +190,12 @@ export default async function PartDetailPage({
                 }
               : null;
             return (
+              // Key on the asset's updatedAt so the row REMOUNTS when an upload
+              // creates it or an edit changes it — re-seeding AssetRow's
+              // useState-backed ref/source/license inputs from the fresh server
+              // data (otherwise the inputs keep their initial "" after refresh).
               <AssetRow
-                key={kind}
+                key={`${kind}:${serialized?.updatedAt ?? "empty"}`}
                 partId={part.id}
                 kind={kind}
                 asset={serialized}

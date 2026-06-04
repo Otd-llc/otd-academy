@@ -52,6 +52,11 @@ export const recordPartAssetSchema = z.object({
   r2Key: z.string().trim().min(1).max(1024),
   filename: z.string().trim().min(1).max(255),
   byteSize: z.int().positive().max(MAX_UPLOAD_BYTES),
+  // Optional auto-extracted KiCad metadata (from `@/lib/kicad-meta`). Used to
+  // pre-seed `ref`/`source` on the CREATE branch ONLY (an UNVERIFIED starting
+  // suggestion the curator reviews); ignored on REPLACE — see recordPartAsset.
+  ref: z.string().trim().max(200).optional(),
+  source: z.string().trim().max(200).optional(),
 });
 
 /** Metadata edit (no file). `.strict()` so a typo'd key is rejected, not dropped. */

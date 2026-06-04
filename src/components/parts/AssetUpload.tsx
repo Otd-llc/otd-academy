@@ -34,6 +34,7 @@ import {
   isExtAllowed,
   type PartAssetKindT,
 } from "@/lib/schemas/part-asset";
+import { extractKicadMeta } from "@/lib/kicad-meta";
 import { DocumentIcon, SpinnerIcon } from "@/components/icons";
 
 export function AssetUpload({
@@ -89,12 +90,29 @@ export function AssetUpload({
           throw new Error(`Upload failed (${put.status}).`);
         }
 
+        // For the TWO TEXT kinds (SYMBOL / FOOTPRINT) only, best-effort
+        // auto-extract ref/source from the KiCad text to pre-seed the new
+        // UNVERIFIED row. We decide text-vs-binary by KIND (not file.type):
+        // MODEL_3D is binary and can be tens of MB, so it's NEVER text-read.
+        // A parse/read failure must never block the upload — on failure we just
+        // record the asset without metadata.
+        let meta: { ref?: string; source?: string } = {};
+        if (kind !== "MODEL_3D") {
+          try {
+            meta = extractKicadMeta(await file.text());
+          } catch {
+            meta = {};
+          }
+        }
+
         await recordPartAsset({
           partId,
           kind,
           r2Key,
           filename: file.name,
           byteSize: file.size,
+          ref: meta.ref,
+          source: meta.source,
         });
 
         router.refresh();

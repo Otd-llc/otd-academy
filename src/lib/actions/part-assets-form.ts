@@ -18,6 +18,7 @@ import type { PartAsset } from "@prisma/client";
 
 import {
   clearPartAssetFlag,
+  deletePartAsset,
   editPartAsset,
   flagPartAsset,
   unverifyPartAsset,
@@ -81,4 +82,21 @@ export async function clearPartAssetFlagForm(
   input: unknown,
 ): Promise<AssetFormState> {
   return dispatch(() => clearPartAssetFlag(input));
+}
+
+// ─── delete (carries { id, updatedAt }) ─────────────────────────────────────
+// `deletePartAsset` resolves to `void` (the row is gone — there's no PartAsset
+// to echo back), so the generic `dispatch` shell (which returns the written
+// row in `asset`) doesn't fit. A small dedicated wrapper maps success → `{ ok:
+// true }` and any rejection (the optimistic-lock "reload" conflict, a Zod
+// envelope error, etc.) → a `message`.
+export async function deletePartAssetForm(
+  input: unknown,
+): Promise<AssetFormState> {
+  try {
+    await deletePartAsset(input);
+    return { ok: true };
+  } catch (err) {
+    return { message: err instanceof Error ? err.message : "Delete failed." };
+  }
 }
