@@ -25,7 +25,11 @@ import {
   type SNode,
   type SList,
 } from "@/lib/kicad/sexpr";
-import { buildSchematic, type SchematicNet } from "@/lib/kicad/schematic";
+import {
+  buildSchematic,
+  type SchematicNet,
+  type SchematicPart,
+} from "@/lib/kicad/schematic";
 import { extractSymbolPins, pinConnectionPoint } from "@/lib/kicad/pin-geometry";
 import type { Placement } from "@/lib/kicad/placement";
 
@@ -76,7 +80,7 @@ function baseInput() {
     parts: [
       { refDes: "U2", symbolText: SYM_U2, libId: "wroom-breakout:AP2112K-3.3" },
       { refDes: "C2", symbolText: SYM_C2, libId: "wroom-breakout:C" },
-    ],
+    ] as SchematicPart[],
     placements,
     nets: [
       {
@@ -220,6 +224,89 @@ describe("schematic — buildSchematic structure", () => {
       (it) => !isList(it) && atomValue(it) === "hide",
     );
     expect(hidden).toBe(true);
+  });
+
+  test("each component instance carries Datasheet + Description (from part data, hidden)", () => {
+    const input = baseInput();
+    input.parts = [
+      {
+        refDes: "U2",
+        symbolText: SYM_U2,
+        libId: "wroom-breakout:AP2112K-3.3",
+        datasheet: "https://example.com/AP2112K-3.3.pdf",
+        description: "600mA LDO regulator, 3.3V fixed",
+      },
+    ];
+    input.placements = new Map<string, Placement>([
+      ["U2", { x: 100, y: 100, rotation: 0 }],
+    ]);
+    input.nets = [];
+
+    const node = parseSexpr(buildSchematic(input));
+    if (!isList(node)) throw new Error("unreachable");
+    const comp = findChildren(node, "symbol").find((s) => {
+      const lib = findChild(s, "lib_id");
+      return lib && isStr(lib.items[1]) && lib.items[1].value === "wroom-breakout:AP2112K-3.3";
+    })!;
+    expect(comp).toBeDefined();
+
+    const props = findChildren(comp, "property");
+    const isHidden = (p: SList) => {
+      const effects = findChild(p, "effects")!;
+      return effects.items.some((it) => !isList(it) && atomValue(it) === "hide");
+    };
+
+    const datasheet = props.find(
+      (p) => isStr(p.items[1]) && p.items[1].value === "Datasheet",
+    )!;
+    expect(datasheet).toBeDefined();
+    expect(isStr(datasheet.items[2]) && datasheet.items[2].value).toBe(
+      "https://example.com/AP2112K-3.3.pdf",
+    );
+    expect(isHidden(datasheet)).toBe(true);
+
+    const description = props.find(
+      (p) => isStr(p.items[1]) && p.items[1].value === "Description",
+    )!;
+    expect(description).toBeDefined();
+    expect(isStr(description.items[2]) && description.items[2].value).toBe(
+      "600mA LDO regulator, 3.3V fixed",
+    );
+    expect(isHidden(description)).toBe(true);
+  });
+
+  test("Datasheet + Description are ALWAYS emitted (empty value) when part data is absent", () => {
+    // No datasheet/description supplied on the part — KiCad's Datasheet field is
+    // mandatory, so both properties must still be present with an empty value.
+    const input = baseInput();
+    input.parts = [
+      { refDes: "U2", symbolText: SYM_U2, libId: "wroom-breakout:AP2112K-3.3" },
+    ];
+    input.placements = new Map<string, Placement>([
+      ["U2", { x: 100, y: 100, rotation: 0 }],
+    ]);
+    input.nets = [];
+
+    const node = parseSexpr(buildSchematic(input));
+    if (!isList(node)) throw new Error("unreachable");
+    const comp = findChildren(node, "symbol").find((s) => {
+      const lib = findChild(s, "lib_id");
+      return lib && isStr(lib.items[1]) && lib.items[1].value === "wroom-breakout:AP2112K-3.3";
+    })!;
+    expect(comp).toBeDefined();
+
+    const props = findChildren(comp, "property");
+    const datasheet = props.find(
+      (p) => isStr(p.items[1]) && p.items[1].value === "Datasheet",
+    )!;
+    expect(datasheet).toBeDefined();
+    expect(isStr(datasheet.items[2]) && datasheet.items[2].value).toBe("");
+
+    const description = props.find(
+      (p) => isStr(p.items[1]) && p.items[1].value === "Description",
+    )!;
+    expect(description).toBeDefined();
+    expect(isStr(description.items[2]) && description.items[2].value).toBe("");
   });
 
   test("lib_symbols def for a part carries a Footprint property == its libId", () => {

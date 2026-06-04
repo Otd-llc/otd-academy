@@ -66,6 +66,12 @@ export type SchematicPart = {
   symbolText: string;
   /** KiCad library id `<nick>:<symbolName>` used on the instance + lib_symbols. */
   libId: string;
+  /** Datasheet URL (`Part.datasheetUrl`). KiCad-mandatory Datasheet field — the
+   *  instance always emits it (empty string when absent). */
+  datasheet?: string;
+  /** Human-readable part description (`Part.description`). Emitted as the
+   *  instance's Description field. */
+  description?: string;
 };
 
 export type SchematicNet = {
@@ -373,6 +379,33 @@ function buildComponentInstance(
       sym("property"),
       str("Footprint"),
       str(part.libId),
+      list([sym("at"), num(placement.x), num(placement.y), sym("0")]),
+      list([
+        sym("effects"),
+        list([sym("font"), list([sym("size"), sym("1.27"), sym("1.27")])]),
+        sym("hide"),
+      ]),
+    ]),
+    // Datasheet (hidden) — KiCad-MANDATORY field. The uploaded symbols don't
+    // carry it, so we populate it from `Part.datasheetUrl`. Always emitted (empty
+    // string when absent) so KiCad's Symbol Properties dialog always has the field.
+    list([
+      sym("property"),
+      str("Datasheet"),
+      str(part.datasheet ?? ""),
+      list([sym("at"), num(placement.x), num(placement.y), sym("0")]),
+      list([
+        sym("effects"),
+        list([sym("font"), list([sym("size"), sym("1.27"), sym("1.27")])]),
+        sym("hide"),
+      ]),
+    ]),
+    // Description (hidden) — populated from `Part.description`. Emitted always for
+    // consistency (empty string when absent).
+    list([
+      sym("property"),
+      str("Description"),
+      str(part.description ?? ""),
       list([sym("at"), num(placement.x), num(placement.y), sym("0")]),
       list([
         sym("effects"),
