@@ -12,25 +12,13 @@
 // again before generating the presigned URL.
 import { z } from "zod";
 import { ArtifactSubkind, Stage } from "@prisma/client";
+// Render primitives come from the neutral leaf module `@/lib/schemas/render`
+// (imports nothing back), so the part side and the board/artifact side validate
+// `renderBounds` against ONE source of truth. Importing render.ts here is safe —
+// it never imports upload.ts, so no init-order cycle is reintroduced.
+import { RENDER_MAX_BYTES, renderBoundsSchema } from "@/lib/schemas/render";
 
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024; // 100 MB
-
-// Board-stub render primitives. These intentionally MIRROR the part side
-// (`renderBoundsSchema` / `RENDER_MAX_BYTES` in `@/lib/schemas/part-asset`) but
-// are re-declared locally rather than imported: `part-asset.ts` already imports
-// `MAX_UPLOAD_BYTES` from THIS module, so importing back from it would create an
-// init-order cycle (its `RENDER_MAX_BYTES = MAX_UPLOAD_BYTES` would read a TDZ
-// binding when `upload.ts` is the entry of the cycle). The shapes are kept in
-// lock-step by the shared `RenderBounds` consumers (the viewer + display pages).
-const RENDER_MAX_BYTES = MAX_UPLOAD_BYTES; // a .glb is always ≤ the source cap
-
-/** Bounding sphere the viewer uses to frame the camera (board stub). Mirrors
- *  `renderBoundsSchema` in `@/lib/schemas/part-asset` — structurally identical
- *  so the parsed value satisfies the shared `RenderBounds` consumers. */
-const renderBoundsSchema = z.object({
-  center: z.tuple([z.number(), z.number(), z.number()]),
-  radius: z.number().positive(),
-});
 
 const ownerSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("revision"), id: z.cuid() }),

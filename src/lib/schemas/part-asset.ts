@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { MAX_UPLOAD_BYTES } from "@/lib/schemas/upload";
+// Local import so the schemas below (createPartAssetRenderUploadUrlSchema /
+// recordPartAssetSchema) can reference these; the `export … from` line below
+// re-exports them so external `@/lib/schemas/part-asset` importers are unchanged.
+import { RENDER_MAX_BYTES, renderBoundsSchema } from "@/lib/schemas/render";
 
 export const PART_ASSET_KINDS = ["SYMBOL", "FOOTPRINT", "MODEL_3D"] as const;
 export type PartAssetKindT = (typeof PART_ASSET_KINDS)[number];
@@ -17,15 +21,12 @@ export const ASSET_KIND_CONFIG: Record<
   MODEL_3D:  { exts: [".step", ".stp", ".wrl"], contentType: "application/octet-stream", maxBytes: MAX_UPLOAD_BYTES, label: "3D Model" },
 };
 
-export const RENDER_MIME = "model/gltf-binary";
-export const RENDER_MAX_BYTES = MAX_UPLOAD_BYTES; // a .glb is always ≤ the source cap
-
-/** Bounding sphere the viewer uses to frame the camera. */
-export const renderBoundsSchema = z.object({
-  center: z.tuple([z.number(), z.number(), z.number()]),
-  radius: z.number().positive(),
-});
-export type RenderBounds = z.infer<typeof renderBoundsSchema>;
+// Render primitives live in the neutral leaf module `@/lib/schemas/render`
+// (imports nothing back) so the part side and the upload side validate
+// renderBounds against ONE source of truth. Re-exported here so every existing
+// `@/lib/schemas/part-asset` importer keeps working unchanged.
+export { RENDER_MIME, RENDER_MAX_BYTES, renderBoundsSchema } from "@/lib/schemas/render";
+export type { RenderBounds } from "@/lib/schemas/render";
 
 /** Lowercased extension incl. the dot, e.g. "ESP32.STEP" → ".step". "" if none. */
 export function extOf(filename: string): string {

@@ -40,7 +40,7 @@ import { ownerMatches } from "@/lib/artifacts";
 import { requireUser } from "@/lib/auth-helpers";
 import { assertBuildNotFrozen, assertNotFrozen } from "@/lib/assertions";
 import { withTxRetry } from "@/lib/tx-retry";
-import { RENDER_MIME, RENDER_MAX_BYTES } from "@/lib/schemas/part-asset";
+import { RENDER_MIME, RENDER_MAX_BYTES } from "@/lib/schemas/render";
 import {
   createUploadUrlSchema,
   createArtifactRenderUploadUrlSchema,
