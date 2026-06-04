@@ -192,7 +192,10 @@ function buildPowerSymbolDef(libId: string): SNode {
     // pin's connection point == the symbol origin == the instance placement).
     list([
       sym("symbol"),
-      str(`${libId}_0_1`),
+      // Unit name must use the BARE label (no "power:" nickname) so its prefix
+      // matches the parent symbol's unqualified name, else KiCad rejects it with
+      // "Invalid symbol unit name prefix" (same rule as component symbols).
+      str(`${label}_0_1`),
       list([
         sym("pin"),
         sym("power_in"),

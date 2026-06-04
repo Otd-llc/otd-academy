@@ -305,6 +305,28 @@ describe("schematic — power-rail geometric wiring", () => {
     expect(has(c2Pt)).toBe(true);
   });
 
+  test("REGRESSION (KiCad load error): power-port def unit prefix is bare (no nick), matching its parent", () => {
+    const node = parseSexpr(buildSchematic(baseInput()));
+    const libSymbols = findChild(node, "lib_symbols")!;
+    // EVERY symbol def — component AND synthesized power-port — must have units
+    // whose name starts with the parent's UNQUALIFIED name (strip any "nick:") + "_".
+    for (const def of findChildren(libSymbols, "symbol")) {
+      const parent = isStr(def.items[1]) ? def.items[1].value : "";
+      const bare = parent.includes(":") ? parent.slice(parent.indexOf(":") + 1) : parent;
+      for (const unit of findChildren(def, "symbol")) {
+        const unitName = isStr(unit.items[1]) ? unit.items[1].value : "";
+        if (!/_\d+_\d+$/.test(unitName)) continue;
+        expect(unitName.startsWith(`${bare}_`)).toBe(true);
+      }
+    }
+    // Specifically: the power:GND def's unit is "GND_0_1", not "power:GND_0_1".
+    const gndDef = findChildren(libSymbols, "symbol").find(
+      (s) => isStr(s.items[1]) && s.items[1].value === "power:GND",
+    )!;
+    expect(gndDef).toBeDefined();
+    expect(findChild(gndDef, "symbol")!.items[1]).toEqual({ kind: "str", value: "GND_0_1" });
+  });
+
   test("uses the right power-port symbol per net class/name (GND vs +3V3 vs +5V)", () => {
     const input = baseInput();
     input.nets = [
