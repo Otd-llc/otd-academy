@@ -16,8 +16,12 @@ import { auth } from "@/auth";
 import { env } from "@/env";
 import { db } from "@/lib/db";
 import { getPartDatasheetDownloadUrl } from "@/lib/actions/part-datasheet";
-import { getPartAssetDownloadUrl } from "@/lib/actions/part-assets";
+import {
+  getPartAssetDownloadUrl,
+  getPartAssetRenderUrl,
+} from "@/lib/actions/part-assets";
 import { PART_ASSET_KINDS } from "@/lib/schemas/part-asset";
+import type { RenderBounds } from "@/lib/schemas/part-asset";
 import { PageHeader } from "@/components/PageHeader";
 import { DocumentIcon } from "@/components/icons";
 import {
@@ -112,6 +116,16 @@ export default async function PartDetailPage({
     ),
   );
 
+  // The inline render URL is minted whenever a MODEL_3D render exists — viewing
+  // is open to ANYONE (NOT gated on `canEdit`), so the in-browser 3D preview
+  // works for signed-out visitors too. `getPartAssetRenderUrl` uses an inline
+  // presigned GET (no attachment disposition) so the browser can fetch the .glb.
+  const model3d = assetByKind.get("MODEL_3D");
+  const modelRenderUrl =
+    r2Enabled && model3d?.renderKey
+      ? await getPartAssetRenderUrl(part.id)
+      : null;
+
   return (
     <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-10">
       <PageHeader
@@ -202,6 +216,12 @@ export default async function PartDetailPage({
                 canEdit={canEdit}
                 canUpload={r2Enabled && canEdit}
                 downloadUrl={assetDownloadUrls.get(kind) ?? null}
+                renderUrl={kind === "MODEL_3D" ? modelRenderUrl : null}
+                renderBounds={
+                  kind === "MODEL_3D"
+                    ? ((a?.renderBounds as RenderBounds | null) ?? null)
+                    : null
+                }
               />
             );
           })}

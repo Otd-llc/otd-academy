@@ -41,6 +41,8 @@ import {
   ASSET_KIND_CONFIG,
   type PartAssetKindT,
 } from "@/lib/schemas/part-asset";
+import type { RenderBounds } from "@/lib/schemas/part-asset";
+import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { IconButton } from "@/components/IconButton";
 import {
   CheckIcon,
@@ -79,6 +81,8 @@ export function AssetRow({
   canEdit,
   canUpload,
   downloadUrl,
+  renderUrl,
+  renderBounds,
 }: {
   partId: string;
   kind: PartAssetKindT;
@@ -88,6 +92,11 @@ export function AssetRow({
   canUpload: boolean;
   /** Presigned GET URL resolved server-side; null when R2 off / no row. */
   downloadUrl: string | null;
+  /** Inline presigned GET for the MODEL_3D `.glb` render; null when none.
+   *  Meaningful only for MODEL_3D — minted for ANYONE (not gated on canEdit). */
+  renderUrl?: string | null;
+  /** Bounding sphere that frames the viewer camera; null when no render. */
+  renderBounds?: RenderBounds | null;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -340,6 +349,15 @@ export function AssetRow({
           </span>
         )}
       </div>
+
+      {/* Inline 3D viewer (MODEL_3D only). Trust-agnostic AND ungated: it renders
+          whenever a render URL exists, for ANYONE (signed-out included) and at
+          any `asset.trust`. A render-less asset (renderUrl null) shows nothing. */}
+      {renderUrl ? (
+        <div className="pt-1">
+          <ModelViewerLazy src={renderUrl} bounds={renderBounds ?? null} />
+        </div>
+      ) : null}
 
       {/* inline ref / source / license editor (canEdit only) */}
       {canEdit ? (
