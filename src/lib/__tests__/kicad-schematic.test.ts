@@ -91,7 +91,7 @@ describe("schematic — buildSchematic structure", () => {
   });
 
   test("carries header: version, generator project-foundry, uuid, paper, title_block (title+date+rev), lib_symbols", () => {
-    const input = { ...baseInput(), rev: "v3", date: "2026-06-03" };
+    const input = { ...baseInput(), rev: "v3", date: "2026-06-03", company: "Acme Co" };
     const node = parseSexpr(buildSchematic(input));
     expect(findChild(node, "version")).toBeDefined();
     const gen = findChild(node, "generator")!;
@@ -115,6 +115,8 @@ describe("schematic — buildSchematic structure", () => {
     expect(isStr(date.items[1]) && date.items[1].value).toBe("2026-06-03");
     const rev = findChild(titleBlock, "rev")!;
     expect(isStr(rev.items[1]) && rev.items[1].value).toBe("v3");
+    const company = findChild(titleBlock, "company")!;
+    expect(isStr(company.items[1]) && company.items[1].value).toBe("Acme Co");
     expect(findChild(node, "lib_symbols")).toBeDefined();
   });
 

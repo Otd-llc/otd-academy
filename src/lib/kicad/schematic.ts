@@ -64,6 +64,8 @@ export type BuildSchematicInput = {
   /** Title-block date, formatted "YYYY-MM-DD". Emitted as `(date "<date>")`
    *  when non-empty; omitted otherwise. */
   date?: string;
+  /** Title-block company name. Emitted as `(company "<company>")` when non-empty. */
+  company?: string;
 };
 
 // ── Deterministic UUID ──────────────────────────────────────────────────────
@@ -278,6 +280,7 @@ function buildTitleBlock(input: BuildSchematicInput): SNode {
   ];
   if (input.date) items.push(list([sym("date"), str(input.date)]));
   if (input.rev) items.push(list([sym("rev"), str(input.rev)]));
+  if (input.company) items.push(list([sym("company"), str(input.company)]));
   return list(items);
 }
 
