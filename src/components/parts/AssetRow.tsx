@@ -148,6 +148,52 @@ export function AssetRow({
     });
   }
 
+  // ─── verify (save any pending provenance edits FIRST, then verify) ────────
+  // The ref/source/license editor is always visible next to the gate controls,
+  // so a curator can type a value and click Verify without first clicking Save.
+  // Persist the current draft (when it differs from the stored row) BEFORE
+  // verifying — so e.g. a just-typed `source` satisfies the "needs a stated
+  // source" precondition — then verify against the freshly-written updatedAt.
+  function runVerify() {
+    if (!asset) return;
+    setError(null);
+    startTransition(async () => {
+      try {
+        const dirty =
+          (ref.trim() || "") !== (asset.ref ?? "") ||
+          (source.trim() || "") !== (asset.source ?? "") ||
+          (license.trim() || "") !== (asset.license ?? "");
+        let lock: string | Date = asset.updatedAt;
+        if (dirty) {
+          const saved = await editPartAssetForm({
+            id: asset.id,
+            updatedAt: asset.updatedAt,
+            ref: ref.trim() || undefined,
+            source: source.trim() || undefined,
+            license: license.trim() || undefined,
+          });
+          if (!saved.ok || !saved.asset) {
+            setError(saved.message ?? "Could not save before verifying.");
+            return;
+          }
+          lock = saved.asset.updatedAt; // new optimistic-lock fence after the save
+        }
+        const r = await verifyPartAssetForm({ id: asset.id, updatedAt: lock });
+        if (r.ok) {
+          router.refresh();
+        } else {
+          setError(r.message ?? "Action failed.");
+        }
+      } catch (err) {
+        setError(
+          err instanceof ZodError
+            ? "Invalid request."
+            : "Action failed — check your connection and try again.",
+        );
+      }
+    });
+  }
+
   // ─── delete (armed confirm → dispatch deletePartAssetForm) ────────────────
   // On success the row re-renders as the empty Upload affordance (the part
   // route revalidates server-side + router.refresh() repaints the client).
@@ -349,7 +395,7 @@ export function AssetRow({
                 hint="Verify"
                 ariaLabel={`Verify ${label}`}
                 disabled={isPending}
-                onClick={() => runGate(verifyPartAssetForm)}
+                onClick={runVerify}
               >
                 <CheckIcon className="h-5 w-5" />
               </IconButton>

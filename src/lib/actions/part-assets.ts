@@ -427,6 +427,23 @@ export async function recordPartAsset(input: unknown): Promise<PartAsset> {
     select: { renderKey: true },
   });
 
+  // CREATE source SUGGESTION: prefer the source the client extracted/sent;
+  // otherwise inherit it from a sibling asset of the same part (e.g. the SYMBOL
+  // uploaded first from the same SnapEDA/SamacSys download). Footprints
+  // (.kicad_mod) and 3D models (.step — binary) often carry no generator
+  // signature of their own, so without this the curator must re-type a source
+  // they already entered. Still an UNVERIFIED suggestion — the human reviews +
+  // can override. CREATE-only (the update/replace branch never touches source).
+  let createSource = data.source ?? null;
+  if (!createSource) {
+    const sibling = await db.partAsset.findFirst({
+      where: { partId: data.partId, source: { not: null } },
+      select: { source: true },
+      orderBy: { createdAt: "asc" },
+    });
+    createSource = sibling?.source ?? null;
+  }
+
   // @@unique([partId, kind]) → a replacement upserts in place. A new file
   // ALWAYS re-enters UNVERIFIED (a replaced asset must be re-verified): we keep
   // the metadata (ref/source/license — managed by editPartAsset) but clear the
@@ -448,7 +465,7 @@ export async function recordPartAsset(input: unknown): Promise<PartAsset> {
       // file never clobbers a human's edited metadata (extracted values from a
       // replaced file are intentionally ignored in v1).
       ref: data.ref ?? null,
-      source: data.source ?? null,
+      source: createSource,
       renderKey: render?.renderKey ?? null,
       renderBytes: render?.renderBytes ?? null,
       renderMime: render?.renderMime ?? null,
