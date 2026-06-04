@@ -87,6 +87,12 @@ export type BuildSchematicInput = {
   parts: SchematicPart[];
   placements: Map<string, Placement>;
   nets: SchematicNet[];
+  /** Title-block revision label (e.g. the revision's `label`). Emitted as
+   *  `(rev "<rev>")` when non-empty; omitted otherwise. */
+  rev?: string;
+  /** Title-block date, formatted "YYYY-MM-DD". Emitted as `(date "<date>")`
+   *  when non-empty; omitted otherwise. */
+  date?: string;
 };
 
 // ── Deterministic UUID ──────────────────────────────────────────────────────
@@ -474,6 +480,24 @@ function buildPowerPortInstance(rn: ResolvedNode, projectName: string): SNode {
   ]);
 }
 
+// ── Title block ─────────────────────────────────────────────────────────────
+
+/**
+ * `(title_block (title <project>) [(date <date>)] [(rev <rev>)])`. The `date`
+ * and `rev` sub-nodes are emitted ONLY when their value is a non-empty string,
+ * so an absent value yields no `(date "")` / `(rev "")` node at all. KiCad's own
+ * order is title, then date, then rev.
+ */
+function buildTitleBlock(input: BuildSchematicInput): SNode {
+  const items: SNode[] = [
+    sym("title_block"),
+    list([sym("title"), str(input.projectName)]),
+  ];
+  if (input.date) items.push(list([sym("date"), str(input.date)]));
+  if (input.rev) items.push(list([sym("rev"), str(input.rev)]));
+  return list(items);
+}
+
 // ── Top-level builder ───────────────────────────────────────────────────────
 
 /**
@@ -520,9 +544,10 @@ export function buildSchematic(input: BuildSchematicInput): string {
     list([sym("generator_version"), str(GENERATOR_VERSION)]),
     uuidNode(`${input.projectName}|sheet`),
     list([sym("paper"), str("A4")]),
-    // Title block (KiCad position: after paper, before lib_symbols). Title alone
-    // is sufficient; rev/date are optional and omitted for determinism.
-    list([sym("title_block"), list([sym("title"), str(input.projectName)])]),
+    // Title block (KiCad position: after paper, before lib_symbols). Title is
+    // the project name; date + rev are optional sub-nodes — emitted only when a
+    // non-empty value is supplied (no empty `(date "")`/`(rev "")` nodes).
+    buildTitleBlock(input),
     list(libSymbolItems),
     ...componentInstances,
     ...portInstances,

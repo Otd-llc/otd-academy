@@ -136,8 +136,9 @@ describe("schematic — buildSchematic structure", () => {
     expect(parseSexpr(serializeSexpr(node))).toEqual(node);
   });
 
-  test("carries header: version, generator project-foundry, uuid, paper, title_block, lib_symbols", () => {
-    const node = parseSexpr(buildSchematic(baseInput()));
+  test("carries header: version, generator project-foundry, uuid, paper, title_block (title+date+rev), lib_symbols", () => {
+    const input = { ...baseInput(), rev: "v3", date: "2026-06-03" };
+    const node = parseSexpr(buildSchematic(input));
     expect(findChild(node, "version")).toBeDefined();
     const gen = findChild(node, "generator")!;
     expect(isList(gen) && isStr(gen.items[1]) && gen.items[1].value).toBe(
@@ -148,14 +149,42 @@ describe("schematic — buildSchematic structure", () => {
     expect(isList(paper) && isStr(paper.items[1]) && paper.items[1].value).toBe(
       "A4",
     );
-    // title_block carries the project name as its title.
+    // title_block carries the project name as its title, plus date + rev when
+    // they're supplied.
     const titleBlock = findChild(node, "title_block")!;
     expect(titleBlock).toBeDefined();
     const title = findChild(titleBlock, "title")!;
     expect(isStr(title.items[1]) && title.items[1].value).toBe(
       "wroom-breakout",
     );
+    const date = findChild(titleBlock, "date")!;
+    expect(isStr(date.items[1]) && date.items[1].value).toBe("2026-06-03");
+    const rev = findChild(titleBlock, "rev")!;
+    expect(isStr(rev.items[1]) && rev.items[1].value).toBe("v3");
     expect(findChild(node, "lib_symbols")).toBeDefined();
+  });
+
+  test("title_block omits date/rev sub-nodes entirely when not supplied (no empty values)", () => {
+    // baseInput() supplies neither rev nor date → no (date ...)/(rev ...) at all.
+    const titleBlock = findChild(
+      parseSexpr(buildSchematic(baseInput())),
+      "title_block",
+    )!;
+    expect(titleBlock).toBeDefined();
+    // title is present, but date + rev sub-nodes are absent (not emitted empty).
+    expect(findChild(titleBlock, "title")).toBeDefined();
+    expect(findChild(titleBlock, "date")).toBeUndefined();
+    expect(findChild(titleBlock, "rev")).toBeUndefined();
+  });
+
+  test("title_block omits an empty-string rev/date (treated same as absent)", () => {
+    const input = { ...baseInput(), rev: "", date: "" };
+    const titleBlock = findChild(
+      parseSexpr(buildSchematic(input)),
+      "title_block",
+    )!;
+    expect(findChild(titleBlock, "date")).toBeUndefined();
+    expect(findChild(titleBlock, "rev")).toBeUndefined();
   });
 
   test("places one component instance per part at its placement with lib_id + reference", () => {

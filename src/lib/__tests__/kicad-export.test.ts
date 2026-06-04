@@ -6,8 +6,10 @@
 //      PINOUT fact, others WITHOUT assets) → BomLines (incl. a GROUPED refDes
 //      "C2,C3,C7") → a VERIFIED GROUND net with NetNodes. We assert the zip's
 //      entry list matches the §1 tree, that the report marks the asset-backed
-//      part `verified`/`unverified` while the stubbed parts read `stubbed`, and
-//      that the grouped refDes produced multiple placed instances.
+//      part `verified`/`unverified` while the stubbed parts read `stubbed`, that
+//      the grouped refDes produced multiple placed instances, that the schematic
+//      is UNWIRED (the VERIFIED net exists in the DB but the export drops NO
+//      power ports), and that the title block carries the revision's rev + date.
 //   2. `exportKicad({ revisionId })` — the auth-gated action. With auth +
 //      `next/cache` mocked (as in part-assets-actions.test.ts) we assert the R2
 //      PutObject spy fired and a revision-owned `BOM_EXPORT` Artifact row exists.
@@ -22,6 +24,7 @@
 // Parts (cascading their PartAssets/PartFacts), torn down in afterAll.
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import JSZip from "jszip";
+import { parseSexpr, findChild, isStr } from "@/lib/kicad/sexpr";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -91,6 +94,8 @@ let seedUserId: string;
 let projectId: string;
 let revisionId: string;
 let projectSlug: string;
+let revisionLabel: string;
+let revisionDate: string; // revision.updatedAt formatted "YYYY-MM-DD"
 const partIds: string[] = [];
 const createdArtifactIds: string[] = [];
 
@@ -114,10 +119,17 @@ beforeAll(async () => {
         create: { label: "v1", currentStage: "BOM_SOURCING" },
       },
     },
-    select: { id: true, revisions: { select: { id: true } } },
+    select: {
+      id: true,
+      revisions: { select: { id: true, label: true, updatedAt: true } },
+    },
   });
   projectId = project.id;
-  revisionId = project.revisions[0]!.id;
+  const rev = project.revisions[0]!;
+  revisionId = rev.id;
+  revisionLabel = rev.label;
+  // Same formatting the export uses (deterministic from the DB value).
+  revisionDate = rev.updatedAt.toISOString().slice(0, 10);
 
   // Part A — has a SYMBOL PartAsset (VERIFIED) + a PINOUT fact. The export
   // should fetch the symbol (real path) and stub only the footprint.
@@ -290,8 +302,20 @@ describe("buildKicadExportZip", () => {
     for (const ref of ["U1", "C2", "C3", "C7"]) {
       expect(sch).toContain(`"${ref}"`);
     }
-    // The verified GND net dropped power-port symbols (power:GND) on the sheet.
-    expect(sch).toContain("power:GND");
+    // UNWIRED export: even though a VERIFIED GND net exists in the DB, the export
+    // no longer passes nets to buildSchematic, so the schematic carries NO
+    // power-port symbols of any kind (wiring is the student's lesson).
+    expect(sch).not.toContain("power:");
+
+    // The title block carries the revision's label as `rev` and a formatted
+    // `date` (from revision.updatedAt). Assert against the parsed s-expression.
+    const schNode = parseSexpr(sch);
+    const titleBlock = findChild(schNode, "title_block")!;
+    expect(titleBlock).toBeDefined();
+    const rev = findChild(titleBlock, "rev")!;
+    expect(isStr(rev.items[1]) && rev.items[1].value).toBe(revisionLabel);
+    const date = findChild(titleBlock, "date")!;
+    expect(isStr(date.items[1]) && date.items[1].value).toBe(revisionDate);
 
     // The fetched fixture symbol's value made it into the symbol lib (real, not
     // stub) — the stub would be named "STUB-...".
