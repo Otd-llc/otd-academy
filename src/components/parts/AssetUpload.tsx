@@ -117,26 +117,33 @@ export function AssetUpload({
           renderBounds?: RenderBounds;
         } = {};
         if (kind === "MODEL_3D") {
-          const { convertToGlb } = await import("@/lib/model-convert");
-          const converted = await convertToGlb(file);
-          if (converted) {
-            const r = await createPartAssetRenderUploadUrl({
-              partId,
-              byteSize: converted.glb.size,
-            });
-            const putR = await fetch(r.uploadUrl, {
-              method: "PUT",
-              headers: { "Content-Type": r.contentType },
-              body: converted.glb,
-            });
-            if (putR.ok) {
-              render = {
-                renderKey: r.renderKey,
-                renderBytes: converted.glb.size,
-                renderBounds: converted.bounds,
-              };
+          try {
+            const { convertToGlb } = await import("@/lib/model-convert");
+            const converted = await convertToGlb(file);
+            if (converted) {
+              const r = await createPartAssetRenderUploadUrl({
+                partId,
+                byteSize: converted.glb.size,
+              });
+              const putR = await fetch(r.uploadUrl, {
+                method: "PUT",
+                headers: { "Content-Type": r.contentType },
+                body: converted.glb,
+              });
+              if (putR.ok) {
+                render = {
+                  renderKey: r.renderKey,
+                  renderBytes: converted.glb.size,
+                  renderBounds: converted.bounds,
+                };
+              }
             }
-            // a failed render PUT → just record download-only; never throw here
+          } catch {
+            // Any render-path failure — chunk-load, presign, render PUT, or a
+            // CORS/network drop — is NON-FATAL. Fall through with render = {} so
+            // the source asset still records download-only and the UI refreshes.
+            // Curation must never be blocked by the derived render.
+            render = {};
           }
         }
 
