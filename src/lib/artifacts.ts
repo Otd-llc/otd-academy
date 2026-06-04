@@ -27,6 +27,7 @@ export const ARTIFACT_SUBKIND_OWNER: Readonly<
   LAYOUT_FILE: "revision",
   DRC_REPORT: "revision",
   GERBER_ZIP: "either", // m14 / proposal §3 #9: revision-scoped designed gerbers AND build-scoped fab-submission snapshot
+  MODEL_3D: "either", // renderable 3D artifact subkind: a board/sub-assembly model can be owned by a revision OR a build
   ASSEMBLY_PROCEDURE: "revision",
   BENCH_PROCEDURE: "revision",
   PCB_ORDER: "build",
