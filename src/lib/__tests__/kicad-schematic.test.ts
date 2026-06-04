@@ -233,6 +233,54 @@ describe("schematic — buildSchematic structure", () => {
       expect(findChild(p, "instances")).toBeUndefined();
     }
   });
+
+  test("REGRESSION (KiCad load error): each lib_symbols component's unit prefix matches its parent name", () => {
+    // A stub-style part whose INTERNAL parent + unit names carry a `STUB-`
+    // prefix, re-hosted under lib_id `wroom-breakout:USB4110-GF-A`. KiCad rejects
+    // the schematic if the unit name prefix (e.g. STUB-USB4110-GF-A_0_1) does not
+    // match the parent's unqualified name (USB4110-GF-A) — so symbolDefForPart
+    // must rename the unit sub-symbol too.
+    const stub = `(symbol "STUB-USB4110-GF-A" (in_bom yes) (on_board yes)
+  (property "Reference" "U" (at 0 0 0) (effects (font (size 1.27 1.27))))
+  (property "Value" "USB4110-GF-A" (at 0 2.54 0) (effects (font (size 1.27 1.27))))
+  (symbol "STUB-USB4110-GF-A_0_1"
+    (pin passive line (at -7.62 0 0) (length 2.54)
+      (name "VBUS" (effects (font (size 1.27 1.27))))
+      (number "1" (effects (font (size 1.27 1.27))))
+    )
+  )
+)`;
+    const input = baseInput();
+    input.parts = [
+      { refDes: "J1", symbolText: stub, libId: "wroom-breakout:USB4110-GF-A" },
+    ];
+    input.placements = new Map<string, Placement>([
+      ["J1", { x: 100, y: 100, rotation: 0 }],
+    ]);
+    input.nets = [];
+
+    const node = parseSexpr(buildSchematic(input));
+    const libSymbols = findChild(node, "lib_symbols")!;
+    const comp = findChildren(libSymbols, "symbol").find(
+      (s) => isStr(s.items[1]) && s.items[1].value === "wroom-breakout:USB4110-GF-A",
+    )!;
+    expect(comp).toBeDefined();
+    // EVERY nested unit sub-symbol's name must start with the parent's
+    // UNQUALIFIED name + "_".
+    for (const unit of findChildren(comp, "symbol")) {
+      const unitName = isStr(unit.items[1]) ? unit.items[1].value : "";
+      if (!/_\d+_\d+$/.test(unitName)) continue;
+      expect(unitName.startsWith("USB4110-GF-A_")).toBe(true);
+    }
+    // Specifically, the unit is renamed (no STUB- leak).
+    expect(isStr(comp.items[1]) && comp.items[1].value).toBe(
+      "wroom-breakout:USB4110-GF-A",
+    );
+    expect(findChild(comp, "symbol")!.items[1]).toEqual({
+      kind: "str",
+      value: "USB4110-GF-A_0_1",
+    });
+  });
 });
 
 describe("schematic — power-rail geometric wiring", () => {

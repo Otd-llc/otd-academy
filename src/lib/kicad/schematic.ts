@@ -46,6 +46,7 @@ import {
   type SList,
 } from "@/lib/kicad/sexpr";
 import { extractSymbolPins, pinConnectionPoint } from "@/lib/kicad/pin-geometry";
+import { renameSymbol } from "@/lib/kicad/symbol-lib";
 import type { Placement } from "@/lib/kicad/placement";
 
 // KiCad 10 schematic format version. The `.kicad_sch` format has drifted across
@@ -240,8 +241,10 @@ function symbolDefForPart(part: SchematicPart): SList {
       `symbolDefForPart(${part.refDes}): no (symbol ...) in symbolText`,
     );
   }
-  // Re-name the symbol to the lib_id (items[1] is the name string).
-  symbolNode.items[1] = str(part.libId);
+  // Re-name the symbol to the lib_id AND its nested unit sub-symbols so the unit
+  // prefix matches the parent's unqualified name (KiCad rejects a mismatch, e.g.
+  // parent "<slug>:USB4110-GF-A" with a unit "STUB-USB4110-GF-A_0_1").
+  renameSymbol(symbolNode, part.libId);
   return symbolNode;
 }
 

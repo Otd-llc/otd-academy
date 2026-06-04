@@ -23,7 +23,11 @@ import {
   findChildren,
   type SNode,
 } from "@/lib/kicad/sexpr";
-import { setSymbolFootprint, buildSymbolLib } from "@/lib/kicad/symbol-lib";
+import {
+  setSymbolFootprint,
+  buildSymbolLib,
+  renameSymbol,
+} from "@/lib/kicad/symbol-lib";
 import { setFootprintModelPath } from "@/lib/kicad/footprint-lib";
 import { buildSymLibTable, buildFpLibTable } from "@/lib/kicad/lib-tables";
 
@@ -65,6 +69,41 @@ const SAMPLE_FP_NO_MODEL = `(footprint "R_0805" (layer "F.Cu")
   (attr smd)
   (fp_text reference "REF**" (at 0 0))
 )`;
+
+// A symbol whose INTERNAL name (parent + unit sub-symbol prefix) differs from
+// the lib_id it will be re-hosted under — exactly the shape that produced the
+// real KiCad-10 load error ("Invalid symbol unit name prefix
+// STUB-USB4110-GF-A_0_1 ..."). The unit prefix `STUB-USB4110-GF-A` must be
+// rewritten to match the parent's unqualified name when renamed.
+const SAMPLE_SYM_STUB_UNIT = `(symbol "STUB-USB4110-GF-A" (in_bom yes) (on_board yes)
+  (property "Reference" "U" (at 0 0 0) (effects (font (size 1.27 1.27))))
+  (property "Value" "USB4110-GF-A" (at 0 2.54 0) (effects (font (size 1.27 1.27))))
+  (symbol "STUB-USB4110-GF-A_0_1"
+    (pin passive line (at -7.62 0 0) (length 2.54)
+      (name "VBUS" (effects (font (size 1.27 1.27))))
+      (number "1" (effects (font (size 1.27 1.27))))
+    )
+  )
+)`;
+
+// The invariant KiCad enforces: every nested unit sub-symbol's name must start
+// with the parent's UNQUALIFIED name + "_". Returns the offending pair (or null).
+function unitPrefixMismatch(
+  symbolNode: SNode,
+): { parent: string; unit: string } | null {
+  if (!isList(symbolNode)) return null;
+  const parentFull = isAtom(symbolNode.items[1]) ? symbolNode.items[1].value : "";
+  const colon = parentFull.lastIndexOf(":");
+  const parentBare = colon >= 0 ? parentFull.slice(colon + 1) : parentFull;
+  for (const child of findChildren(symbolNode, "symbol")) {
+    const unit = isAtom(child.items[1]) ? child.items[1].value : "";
+    if (!/_\d+_\d+$/.test(unit)) continue; // not a unit sub-symbol
+    if (!unit.startsWith(parentBare + "_")) {
+      return { parent: parentBare, unit };
+    }
+  }
+  return null;
+}
 
 describe("sexpr — parse / serialize round-trip", () => {
   test("distinguishes bare symbols from quoted strings", () => {
@@ -172,6 +211,55 @@ describe("symbol-lib — setSymbolFootprint", () => {
   });
 });
 
+describe("symbol-lib — renameSymbol", () => {
+  test("renames the parent AND its unit sub-symbol prefix to a qualified name", () => {
+    const node = parseSexpr(SAMPLE_SYM_STUB_UNIT);
+    if (!isList(node)) throw new Error("unreachable");
+    renameSymbol(node, "wroom-breakout:USB4110-GF-A");
+
+    // Parent gets the FULL qualified name.
+    expect(node.items[1]).toEqual(str("wroom-breakout:USB4110-GF-A"));
+    // Unit prefix uses the UNQUALIFIED name, keeping its `_<unit>_<style>` suffix.
+    const unit = findChild(node, "symbol")!;
+    expect(unit.items[1]).toEqual(str("USB4110-GF-A_0_1"));
+    // The KiCad invariant now holds.
+    expect(unitPrefixMismatch(node)).toBeNull();
+  });
+
+  test("a bare target name renames parent + unit consistently", () => {
+    const node = parseSexpr(SAMPLE_SYM_STUB_UNIT);
+    if (!isList(node)) throw new Error("unreachable");
+    renameSymbol(node, "USB4110-GF-A");
+    expect(node.items[1]).toEqual(str("USB4110-GF-A"));
+    expect(findChild(node, "symbol")!.items[1]).toEqual(str("USB4110-GF-A_0_1"));
+    expect(unitPrefixMismatch(node)).toBeNull();
+  });
+
+  test("rewrites a unit whose original prefix itself contains underscores", () => {
+    const node = parseSexpr(`(symbol "STUB-MY_PART_X" (in_bom yes)
+  (symbol "STUB-MY_PART_X_2_1"
+    (pin passive line (at 0 0 0) (length 1) (name "~" (effects (font (size 1 1)))) (number "1" (effects (font (size 1 1)))))
+  )
+)`);
+    if (!isList(node)) throw new Error("unreachable");
+    renameSymbol(node, "lib:MY_PART_X");
+    // Only the trailing `_2_1` suffix is preserved; the rest becomes the bare name.
+    expect(findChild(node, "symbol")!.items[1]).toEqual(str("MY_PART_X_2_1"));
+    expect(unitPrefixMismatch(node)).toBeNull();
+  });
+
+  test("leaves a child (symbol ...) without a _<unit>_<style> suffix untouched", () => {
+    const node = parseSexpr(`(symbol "STUB-X" (in_bom yes)
+  (symbol "not-a-unit" (pin passive line (at 0 0 0) (length 1) (name "~" (effects (font (size 1 1)))) (number "1" (effects (font (size 1 1))))))
+)`);
+    if (!isList(node)) throw new Error("unreachable");
+    renameSymbol(node, "lib:X");
+    expect(node.items[1]).toEqual(str("lib:X"));
+    // The non-unit child keeps its name (no `_<digits>_<digits>` suffix).
+    expect(findChild(node, "symbol")!.items[1]).toEqual(str("not-a-unit"));
+  });
+});
+
 describe("symbol-lib — buildSymbolLib", () => {
   test("unwraps a kicad_symbol_lib wrapper and re-hosts the symbol", () => {
     const out = buildSymbolLib([{ name: "AP2112K-3.3", kicadSymText: SAMPLE_SYM }], {});
@@ -203,6 +291,29 @@ describe("symbol-lib — buildSymbolLib", () => {
     if (!isList(node)) throw new Error("unreachable");
     const symbols = findChildren(node, "symbol");
     expect(symbols).toHaveLength(2);
+  });
+
+  test("REGRESSION (KiCad load error): every emitted symbol's unit prefix matches its parent name", () => {
+    // The stub symbol is named STUB-USB4110-GF-A internally; re-hosting it under
+    // the canonical bare name must rename BOTH the parent and its unit
+    // sub-symbol, or KiCad rejects the file with
+    //   "Invalid symbol unit name prefix STUB-USB4110-GF-A_0_1 ...".
+    const out = buildSymbolLib(
+      [{ name: "USB4110-GF-A", kicadSymText: SAMPLE_SYM_STUB_UNIT }],
+      {},
+    );
+    const node = parseSexpr(out);
+    if (!isList(node)) throw new Error("unreachable");
+    const symbol = findChild(node, "symbol")!;
+    // Parent re-named to the canonical bare name passed by the caller.
+    expect(symbol.items[1]).toEqual(str("USB4110-GF-A"));
+    // The unit sub-symbol now carries the matching prefix (no STUB- leak).
+    const unit = findChild(symbol, "symbol")!;
+    expect(unit.items[1]).toEqual(str("USB4110-GF-A_0_1"));
+    // The whole-library invariant: no symbol has a mismatched unit prefix.
+    for (const s of findChildren(node, "symbol")) {
+      expect(unitPrefixMismatch(s)).toBeNull();
+    }
   });
 
   test("applies a footprintRef per symbol via opts.footprintFor", () => {

@@ -62,6 +62,49 @@ function extractSymbolNode(kicadSymText: string): SList {
 }
 
 /**
+ * Re-name a `(symbol "<name>" ...)` node AND its nested unit sub-symbols so the
+ * whole symbol is consistently named after `fullName`.
+ *
+ * KiCad requires each unit sub-symbol's name to be
+ * `<parentUnqualifiedName>_<unit>_<style>` (e.g. parent `USB4110-GF-A`, unit
+ * `USB4110-GF-A_0_1`). When we re-host an uploaded/stub symbol under a new
+ * lib_id, renaming ONLY the parent (and leaving the units carrying the original
+ * prefix, e.g. `STUB-USB4110-GF-A_0_1`) makes KiCad reject the file:
+ *   "Invalid symbol unit name prefix STUB-USB4110-GF-A_0_1 ...".
+ * So this renames the parent AND every direct `_<unit>_<style>` unit child.
+ *
+ * `fullName` may be qualified (`"<nick>:USB4110-GF-A"`) or bare
+ * (`"USB4110-GF-A"`). The parent is set to `fullName` verbatim; unit prefixes
+ * use the UNQUALIFIED part (the substring after the last `:`), since KiCad
+ * derives the unit prefix from the symbol's own (unqualified) name.
+ *
+ * Mutates and returns the passed `SList`.
+ */
+export function renameSymbol(symbolNode: SList, fullName: string): SList {
+  // Parent name is set verbatim (qualified `<nick>:<name>` or bare `<name>`).
+  symbolNode.items[1] = str(fullName);
+
+  // The bare name KiCad uses to derive unit prefixes: substring after the LAST
+  // ":" (a bare name has no ":" → itself).
+  const colon = fullName.lastIndexOf(":");
+  const bare = colon >= 0 ? fullName.slice(colon + 1) : fullName;
+
+  // A unit sub-symbol name ends in `_<unit>_<style>` (two trailing _<digits>
+  // groups). Replace everything BEFORE that suffix with `bare`, keeping the
+  // matched suffix — this is robust to prefixes that themselves contain "_".
+  const UNIT_SUFFIX = /_\d+_\d+$/;
+  for (const child of symbolNode.items) {
+    if (!isList(child) || head(child) !== "symbol") continue;
+    const childName = symbolName(child);
+    if (childName === undefined) continue;
+    const m = UNIT_SUFFIX.exec(childName);
+    if (!m) continue; // not a `_<unit>_<style>` unit sub-symbol — leave it.
+    child.items[1] = str(bare + m[0]);
+  }
+  return symbolNode;
+}
+
+/**
  * Set (or insert) a symbol node's `(property "Footprint" "<value>" ...)`.
  * Mutates and returns the passed `SList`. Preserves any existing `(at ...)` /
  * `(effects ...)` sub-nodes on the property; on insert, places the new property
@@ -164,6 +207,10 @@ export function buildSymbolLib(
   ];
   for (const { name, kicadSymText } of symbols) {
     const symbolNode = extractSymbolNode(kicadSymText);
+    // Re-name the symbol (parent + unit sub-symbols) to its canonical bare name
+    // so the emitted library entry, its units, and the sym-lib-table/lib_id
+    // references all agree (KiCad rejects mismatched unit-name prefixes).
+    renameSymbol(symbolNode, name);
     const ref = opts.footprintFor?.(name);
     if (ref !== undefined) {
       setFootprintOnSymbolNode(symbolNode, ref);
