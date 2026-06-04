@@ -46,7 +46,7 @@ import {
   type SList,
 } from "@/lib/kicad/sexpr";
 import { extractSymbolPins, pinConnectionPoint } from "@/lib/kicad/pin-geometry";
-import { renameSymbol } from "@/lib/kicad/symbol-lib";
+import { renameSymbol, setFootprintOnSymbolNode } from "@/lib/kicad/symbol-lib";
 import type { Placement } from "@/lib/kicad/placement";
 
 // KiCad 10 schematic format version, taken from a KiCad 10.0 RELEASE-saved
@@ -249,6 +249,13 @@ function symbolDefForPart(part: SchematicPart): SList {
   // prefix matches the parent's unqualified name (KiCad rejects a mismatch, e.g.
   // parent "<slug>:USB4110-GF-A" with a unit "STUB-USB4110-GF-A_0_1").
   renameSymbol(symbolNode, part.libId);
+  // The export names each part's footprint identically to its symbol lib_id
+  // (`<slug>:<mpn>`), so the embedded lib_symbols definition must carry
+  // `(property "Footprint" "<part.libId>" ...)` — this is what the symbol
+  // chooser shows and what "Update PCB from Schematic" reads. setFootprint…
+  // replaces an existing Footprint property's value in place (no double-set) or
+  // synthesizes a hidden one if absent.
+  setFootprintOnSymbolNode(symbolNode, part.libId);
   return symbolNode;
 }
 
@@ -325,6 +332,11 @@ function buildComponentInstance(
   projectName: string,
 ): SNode {
   const seed = `${projectName}|inst|${part.refDes}`;
+  // The export names each part's footprint identically to its symbol lib_id
+  // (`<slug>:<mpn>`), so the instance Footprint == part.libId and the visible
+  // Value == the bare name after the last ":" (whole libId if no colon).
+  const colon = part.libId.lastIndexOf(":");
+  const bare = colon >= 0 ? part.libId.slice(colon + 1) : part.libId;
   return list([
     sym("symbol"),
     list([sym("lib_id"), str(part.libId)]),
@@ -345,6 +357,28 @@ function buildComponentInstance(
       str(part.refDes),
       list([sym("at"), num(placement.x), num(placement.y - 5.08), sym("0")]),
       list([sym("effects"), list([sym("font"), list([sym("size"), sym("1.27"), sym("1.27")])])]),
+    ]),
+    // Value = the bare part name (visible) — so the part is identifiable.
+    list([
+      sym("property"),
+      str("Value"),
+      str(bare),
+      list([sym("at"), num(placement.x), num(placement.y - 2.54), sym("0")]),
+      list([sym("effects"), list([sym("font"), list([sym("size"), sym("1.27"), sym("1.27")])])]),
+    ]),
+    // Footprint = the full lib_id (hidden, KiCad convention) — carries the
+    // symbol↔footprint association to the instance so "Update PCB from
+    // Schematic" can assign footprints.
+    list([
+      sym("property"),
+      str("Footprint"),
+      str(part.libId),
+      list([sym("at"), num(placement.x), num(placement.y), sym("0")]),
+      list([
+        sym("effects"),
+        list([sym("font"), list([sym("size"), sym("1.27"), sym("1.27")])]),
+        sym("hide"),
+      ]),
     ]),
     // NOTE (KiCad-10 fidelity): KiCad 7+/10 require a per-symbol (instances ...)
     // block — without it the schematic won't annotate/open correctly. The
@@ -453,6 +487,9 @@ export function buildSchematic(input: BuildSchematicInput): string {
     list([sym("generator_version"), str(GENERATOR_VERSION)]),
     uuidNode(`${input.projectName}|sheet`),
     list([sym("paper"), str("A4")]),
+    // Title block (KiCad position: after paper, before lib_symbols). Title alone
+    // is sufficient; rev/date are optional and omitted for determinism.
+    list([sym("title_block"), list([sym("title"), str(input.projectName)])]),
     list(libSymbolItems),
     ...componentInstances,
     ...portInstances,

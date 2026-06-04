@@ -111,7 +111,7 @@ export function renameSymbol(symbolNode: SList, fullName: string): SList {
  * `(effects ...)` sub-nodes on the property; on insert, places the new property
  * after the last existing `(property ...)` (or after the head atoms if none).
  */
-function setFootprintOnSymbolNode(symbolNode: SList, footprintRef: string): SList {
+export function setFootprintOnSymbolNode(symbolNode: SList, footprintRef: string): SList {
   // Find an existing (property "Footprint" ...).
   for (const child of symbolNode.items) {
     if (

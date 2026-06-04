@@ -132,7 +132,7 @@ describe("schematic — buildSchematic structure", () => {
     expect(parseSexpr(serializeSexpr(node))).toEqual(node);
   });
 
-  test("carries header: version, generator project-foundry, uuid, paper, lib_symbols", () => {
+  test("carries header: version, generator project-foundry, uuid, paper, title_block, lib_symbols", () => {
     const node = parseSexpr(buildSchematic(baseInput()));
     expect(findChild(node, "version")).toBeDefined();
     const gen = findChild(node, "generator")!;
@@ -143,6 +143,13 @@ describe("schematic — buildSchematic structure", () => {
     const paper = findChild(node, "paper")!;
     expect(isList(paper) && isStr(paper.items[1]) && paper.items[1].value).toBe(
       "A4",
+    );
+    // title_block carries the project name as its title.
+    const titleBlock = findChild(node, "title_block")!;
+    expect(titleBlock).toBeDefined();
+    const title = findChild(titleBlock, "title")!;
+    expect(isStr(title.items[1]) && title.items[1].value).toBe(
+      "wroom-breakout",
     );
     expect(findChild(node, "lib_symbols")).toBeDefined();
   });
@@ -172,6 +179,61 @@ describe("schematic — buildSchematic structure", () => {
     expect(Number(atomValue(at.items[2]))).toBe(100);
     const libId = findChild(u2, "lib_id")!;
     expect(isStr(libId.items[1]) && libId.items[1].value).toBe(
+      "wroom-breakout:AP2112K-3.3",
+    );
+  });
+
+  test("each component instance carries Value (bare name) + Footprint (full libId, hidden)", () => {
+    // Use a libId with a distinct bare name to prove the split logic.
+    const input = baseInput();
+    input.parts = [
+      { refDes: "J1", symbolText: SYM_U2, libId: "wroom-breakout:USB4110-GF-A" },
+    ];
+    input.placements = new Map<string, Placement>([
+      ["J1", { x: 100, y: 100, rotation: 0 }],
+    ]);
+    input.nets = [];
+
+    const node = parseSexpr(buildSchematic(input));
+    if (!isList(node)) throw new Error("unreachable");
+    const comp = findChildren(node, "symbol").find((s) => {
+      const lib = findChild(s, "lib_id");
+      return lib && isStr(lib.items[1]) && lib.items[1].value === "wroom-breakout:USB4110-GF-A";
+    })!;
+    expect(comp).toBeDefined();
+
+    const props = findChildren(comp, "property");
+    const value = props.find((p) => isStr(p.items[1]) && p.items[1].value === "Value")!;
+    expect(value).toBeDefined();
+    // bare name = substring after last ":" in the libId
+    expect(isStr(value.items[2]) && value.items[2].value).toBe("USB4110-GF-A");
+
+    const fp = props.find((p) => isStr(p.items[1]) && p.items[1].value === "Footprint")!;
+    expect(fp).toBeDefined();
+    // Footprint == full libId
+    expect(isStr(fp.items[2]) && fp.items[2].value).toBe(
+      "wroom-breakout:USB4110-GF-A",
+    );
+    // Footprint property is hidden (KiCad convention) — `hide` atom in effects.
+    const fpEffects = findChild(fp, "effects")!;
+    const hidden = fpEffects.items.some(
+      (it) => !isList(it) && atomValue(it) === "hide",
+    );
+    expect(hidden).toBe(true);
+  });
+
+  test("lib_symbols def for a part carries a Footprint property == its libId", () => {
+    const node = parseSexpr(buildSchematic(baseInput()));
+    const libSymbols = findChild(node, "lib_symbols")!;
+    const def = findChildren(libSymbols, "symbol").find(
+      (s) => isStr(s.items[1]) && s.items[1].value === "wroom-breakout:AP2112K-3.3",
+    )!;
+    expect(def).toBeDefined();
+    const fp = findChildren(def, "property").find(
+      (p) => isStr(p.items[1]) && p.items[1].value === "Footprint",
+    )!;
+    expect(fp).toBeDefined();
+    expect(isStr(fp.items[2]) && fp.items[2].value).toBe(
       "wroom-breakout:AP2112K-3.3",
     );
   });
