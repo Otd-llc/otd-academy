@@ -17,9 +17,13 @@ type Option = { id: string; label: string; path: string };
 export function CategoryCombobox({
   name = "categoryId",
   error,
+  onSelect,
 }: {
   name?: string;
   error?: string[];
+  /** Notified with the chosen category id (or null on clear) — drives the
+   *  Phase C KiCad auto-suggest in the create form. */
+  onSelect?: (id: string | null) => void;
 }) {
   const [options, setOptions] = useState<Option[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -60,11 +64,13 @@ export function CategoryCombobox({
     setSelected(o);
     setInputValue(o.label);
     setOpen(false);
+    onSelect?.(o.id);
   }
 
   function clear() {
     setSelected(null);
     setInputValue("");
+    onSelect?.(null);
   }
 
   return (

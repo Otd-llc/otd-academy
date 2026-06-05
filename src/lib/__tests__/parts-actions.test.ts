@@ -208,3 +208,50 @@ describe("listCategoriesForPicker", () => {
     expect(mlcc?.label).toBe("Passives › Capacitors › MLCC Capacitors");
   });
 });
+
+describe("createPart KiCad references", () => {
+  test("links a real indexed symbol + footprint", async () => {
+    const stamp = Date.now();
+    const symId = `TSym${stamp}:R`;
+    const fpId = `TFp${stamp}:R_0805`;
+    await db.kicadLibSymbol.create({ data: { libId: symId, lib: `TSym${stamp}`, name: "R" } });
+    await db.kicadLibFootprint.create({ data: { libId: fpId, lib: `TFp${stamp}`, name: "R_0805", padCount: 2 } });
+    try {
+      const part = await createPart({
+        manufacturer: TEST_MFR,
+        mpn: `KICAD-${stamp}`,
+        description: "with kicad refs",
+        kicadSymbol: symId,
+        kicadFootprint: fpId,
+      });
+      createdPartIds.push(part.id);
+      expect(part.kicadSymbol).toBe(symId);
+      expect(part.kicadFootprint).toBe(fpId);
+    } finally {
+      await db.kicadLibSymbol.deleteMany({ where: { libId: symId } }).catch(() => {});
+      await db.kicadLibFootprint.deleteMany({ where: { libId: fpId } }).catch(() => {});
+    }
+  });
+
+  test("rejects an unknown symbol lib-id", async () => {
+    await expect(
+      createPart({
+        manufacturer: TEST_MFR,
+        mpn: `KICAD-BADSYM-${Date.now()}`,
+        description: "bad symbol",
+        kicadSymbol: "NoSuchLib:Z",
+      }),
+    ).rejects.toThrow(/symbol/i);
+  });
+
+  test("rejects an unknown footprint lib-id", async () => {
+    await expect(
+      createPart({
+        manufacturer: TEST_MFR,
+        mpn: `KICAD-BADFP-${Date.now()}`,
+        description: "bad footprint",
+        kicadFootprint: "NoSuchLib:Z",
+      }),
+    ).rejects.toThrow(/footprint/i);
+  });
+});
