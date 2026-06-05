@@ -14,6 +14,7 @@ import { PartCard } from "@/components/parts/PartCard";
 import { PartGlanceTrigger } from "@/components/parts/PartGlanceTrigger";
 import { PartsSearch } from "@/components/parts/PartsSearch";
 import { PartsPagination } from "@/components/parts/PartsPagination";
+import { CategoryTreePicker } from "@/components/parts/CategoryTreePicker";
 import { partsListParamsSchema, PART_SORTS } from "@/lib/schemas/part";
 import { listParts } from "@/lib/parts-list";
 import { partsHref } from "@/lib/parts-list-url";
@@ -52,6 +53,7 @@ export default async function PartsListPage({
     q: params.q,
     lifecycle: params.lifecycle,
     mains: params.mains ? "1" : undefined,
+    cat: params.cat,
     sort: params.sort === "manufacturer" ? undefined : params.sort,
     page: page > 1 ? String(page) : undefined,
   };
@@ -129,9 +131,13 @@ export default async function PartsListPage({
         </span>
       </div>
 
+      {/* Category subtree navigation (Phase B): tree of links setting ?cat=, an
+          active-node breadcrumb, and per-node subtree counts. */}
+      <CategoryTreePicker activePath={params.cat} current={current} />
+
       {total === 0 ? (
         <p className="mt-10 font-mono text-sm uppercase tracking-wider text-muted">
-          {params.q || params.lifecycle || params.mains
+          {params.q || params.lifecycle || params.mains || params.cat
             ? "NO PARTS MATCH THESE FILTERS."
             : "NO PARTS — CREATE ONE TO BEGIN."}
         </p>
@@ -176,7 +182,7 @@ export default async function PartsListPage({
                       {p.description}
                     </td>
                     <td className="hidden py-3 pr-4 text-muted md:table-cell">
-                      {p.category ?? "—"}
+                      {p.categoryRef?.name ?? p.category ?? "—"}
                     </td>
                     <td className="py-3 pr-4 text-muted">{p.lifecycle}</td>
                     <td className="py-3 pr-4">

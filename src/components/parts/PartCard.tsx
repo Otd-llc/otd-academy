@@ -16,7 +16,7 @@ export function PartCard({ part: p }: { part: PartsListRow }) {
       <p className="text-link-muted">{p.manufacturer}</p>
       <p className="text-link-muted">{p.description}</p>
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-        <span>{p.category ?? "—"}</span>
+        <span>{p.categoryRef?.name ?? p.category ?? "—"}</span>
         <span>·</span>
         <span>{p.lifecycle}</span>
         {p.isCertifiedModule && (
