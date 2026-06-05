@@ -3,7 +3,11 @@
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
 import { db } from "@/lib/db";
-import { searchKicadSymbols, searchKicadFootprints } from "@/lib/actions/kicad-search";
+import {
+  searchKicadSymbols,
+  searchKicadFootprints,
+  getKicadSymbolMeta,
+} from "@/lib/actions/kicad-search";
 
 const STAMP = Date.now();
 const LIB = `KS${STAMP}`;
@@ -84,5 +88,34 @@ describe("searchKicadFootprints", () => {
     const names = (await searchKicadFootprints({ q: "R", lib: FPLIB })).map((x) => x.name);
     expect(names).toContain("R_0805");
     expect(names).toContain("R_0603");
+  });
+});
+
+describe("getKicadSymbolMeta", () => {
+  test("returns the symbol's fpFilters + datasheet", async () => {
+    const libId = `KSmeta${STAMP}:Sym`;
+    await db.kicadLibSymbol.create({
+      data: {
+        libId,
+        lib: `KSmeta${STAMP}`,
+        name: "Sym",
+        fpFilters: "C_*",
+        datasheet: "https://example.com/ds.pdf",
+      },
+    });
+    try {
+      const m = await getKicadSymbolMeta(libId);
+      expect(m.fpFilters).toBe("C_*");
+      expect(m.datasheet).toBe("https://example.com/ds.pdf");
+    } finally {
+      await db.kicadLibSymbol.deleteMany({ where: { libId } }).catch(() => {});
+    }
+  });
+
+  test("returns nulls for an unknown lib-id", async () => {
+    expect(await getKicadSymbolMeta("NoSuch:Z")).toEqual({
+      fpFilters: null,
+      datasheet: null,
+    });
   });
 });
