@@ -24,3 +24,18 @@ export const listPartsBySearchSchema = z.object({
   q: z.string().trim().max(128).optional(),
   take: z.coerce.number().int().positive().max(50).default(25),
 });
+
+export const PART_SORTS = ["manufacturer", "mpn", "recent"] as const;
+export type PartSort = (typeof PART_SORTS)[number];
+
+// Total parser for the parts-list URL params: every field `.catch`es to a safe
+// default so a hand-edited/garbage querystring narrows nothing rather than 500ing.
+// `mains` is true ONLY for the literal "1" (mirrors the existing list-page check).
+export const partsListParamsSchema = z.object({
+  q: z.string().trim().max(128).optional().catch(undefined),
+  lifecycle: z.enum(PartLifecycle).optional().catch(undefined),
+  mains: z.preprocess((v) => v === "1", z.boolean()).catch(false),
+  sort: z.enum(PART_SORTS).catch("manufacturer"),
+  page: z.coerce.number().int().min(1).catch(1),
+});
+export type PartsListParams = z.infer<typeof partsListParamsSchema>;

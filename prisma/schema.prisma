@@ -441,6 +441,7 @@ model Part {
 
   @@unique([manufacturer, mpn])
   @@index([mpn])
+  @@index([manufacturer])
   @@index([category])
   @@index([lifecycle])
 }
