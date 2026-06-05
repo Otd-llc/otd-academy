@@ -113,6 +113,37 @@ export function flattenCategoryTree(
   return out;
 }
 
+// ─── ancestry + display helpers ─────────────────────────────────────────────
+/**
+ * The ancestor chain for a node, ROOT-first and including the node itself,
+ * resolved by walking `parentId` through `byId`. Single source for both the
+ * list picker's breadcrumb label and the tree picker's active-node breadcrumb.
+ */
+export function categoryAncestry<T extends { id: string; parentId: string | null }>(
+  node: T,
+  byId: Map<string, T>,
+): T[] {
+  const chain: T[] = [];
+  let cur: T | undefined = node;
+  while (cur) {
+    chain.unshift(cur);
+    cur = cur.parentId ? byId.get(cur.parentId) : undefined;
+  }
+  return chain;
+}
+
+/**
+ * The human display label for a part's category: the linked category's name
+ * wins (the enum→tree bridge), falling back to the legacy enum token, then "—".
+ * Single source for the list cell, the mobile card, and the detail header.
+ */
+export function categoryLabel(part: {
+  categoryRef?: { name: string } | null;
+  category?: string | null;
+}): string {
+  return part.categoryRef?.name ?? part.category ?? "—";
+}
+
 // ─── subtree filter ─────────────────────────────────────────────────────────
 /**
  * A `Part` where-clause matching every part in `node`'s subtree: the node

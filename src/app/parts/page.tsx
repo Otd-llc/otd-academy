@@ -18,6 +18,7 @@ import { CategoryTreePicker } from "@/components/parts/CategoryTreePicker";
 import { partsListParamsSchema, PART_SORTS } from "@/lib/schemas/part";
 import { listParts } from "@/lib/parts-list";
 import { partsHref } from "@/lib/parts-list-url";
+import { categoryLabel } from "@/lib/categories";
 
 function FilterChip({
   label,
@@ -182,7 +183,7 @@ export default async function PartsListPage({
                       {p.description}
                     </td>
                     <td className="hidden py-3 pr-4 text-muted md:table-cell">
-                      {p.categoryRef?.name ?? p.category ?? "—"}
+                      {categoryLabel(p)}
                     </td>
                     <td className="py-3 pr-4 text-muted">{p.lifecycle}</td>
                     <td className="py-3 pr-4">

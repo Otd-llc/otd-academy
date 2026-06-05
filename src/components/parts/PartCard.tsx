@@ -2,6 +2,7 @@
 // Mobile (< md) card for one part row. Desktop uses the table in page.tsx.
 import Link from "next/link";
 import type { PartsListRow } from "@/lib/parts-list";
+import { categoryLabel } from "@/lib/categories";
 import { PartGlanceTrigger } from "@/components/parts/PartGlanceTrigger";
 
 export function PartCard({ part: p }: { part: PartsListRow }) {
@@ -16,7 +17,7 @@ export function PartCard({ part: p }: { part: PartsListRow }) {
       <p className="text-link-muted">{p.manufacturer}</p>
       <p className="text-link-muted">{p.description}</p>
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-        <span>{p.categoryRef?.name ?? p.category ?? "—"}</span>
+        <span>{categoryLabel(p)}</span>
         <span>·</span>
         <span>{p.lifecycle}</span>
         {p.isCertifiedModule && (

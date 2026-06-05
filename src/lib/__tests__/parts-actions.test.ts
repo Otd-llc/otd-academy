@@ -11,7 +11,7 @@ vi.mock("@/auth", () => ({
 }));
 
 import { db } from "@/lib/db";
-import { createPart } from "@/lib/actions/parts";
+import { createPart, listCategoriesForPicker } from "@/lib/actions/parts";
 
 const SEED_EMAIL = "seed@example.com";
 const TEST_MFR = "T5.5-TestCo";
@@ -189,5 +189,22 @@ describe("createPart category picker (categoryId)", () => {
         categoryId: "cat_does_not_exist",
       }),
     ).rejects.toThrow(/category/i);
+  });
+});
+
+describe("listCategoriesForPicker", () => {
+  test("returns only LEAF categories, each labelled by its name breadcrumb", async () => {
+    const opts = await listCategoriesForPicker();
+    const paths = opts.map((o) => o.path);
+    // The seeded leaves are present…
+    expect(paths).toContain("passives/capacitors/MLCC_CAPACITOR");
+    expect(paths).toContain("modules/RF_MODULE");
+    // …and interior nodes are NOT selectable.
+    expect(paths).not.toContain("passives");
+    expect(paths).not.toContain("ics");
+    expect(paths).not.toContain("passives/capacitors");
+    // A leaf's label is the full name breadcrumb.
+    const mlcc = opts.find((o) => o.path === "passives/capacitors/MLCC_CAPACITOR");
+    expect(mlcc?.label).toBe("Passives › Capacitors › MLCC Capacitors");
   });
 });

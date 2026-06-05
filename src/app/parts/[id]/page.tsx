@@ -15,6 +15,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { env } from "@/env";
 import { db } from "@/lib/db";
+import { categoryLabel } from "@/lib/categories";
 import { getPartDatasheetDownloadUrl } from "@/lib/actions/part-datasheet";
 import {
   getPartAssetDownloadUrl,
@@ -137,7 +138,7 @@ export default async function PartDetailPage({
         eyebrow={part.manufacturer}
         title={part.mpn}
         meta={[
-          { label: "Category", value: part.categoryRef?.name ?? part.category ?? "—" },
+          { label: "Category", value: categoryLabel(part) },
           { label: "Lifecycle", value: part.lifecycle },
           ...(part.isCertifiedModule
             ? [{ label: "Flag", value: "CERTIFIED MODULE" }]

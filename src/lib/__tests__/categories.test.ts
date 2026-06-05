@@ -8,6 +8,8 @@ import {
   categoryPath,
   subtreeWhere,
   flattenCategoryTree,
+  categoryAncestry,
+  categoryLabel,
   CATEGORY_TREE,
   type CategoryNode,
 } from "@/lib/categories";
@@ -106,5 +108,44 @@ describe("subtreeWhere", () => {
         { categoryRef: { path: { startsWith: "passives/" } } },
       ],
     });
+  });
+});
+
+describe("categoryAncestry", () => {
+  const byId = new Map([
+    ["a", { id: "a", parentId: null, name: "Passives" }],
+    ["b", { id: "b", parentId: "a", name: "Capacitors" }],
+    ["c", { id: "c", parentId: "b", name: "MLCC" }],
+  ]);
+
+  it("returns the root-first chain including the node", () => {
+    expect(categoryAncestry(byId.get("c")!, byId).map((n) => n.name)).toEqual([
+      "Passives",
+      "Capacitors",
+      "MLCC",
+    ]);
+  });
+
+  it("a root resolves to just itself", () => {
+    expect(categoryAncestry(byId.get("a")!, byId).map((n) => n.id)).toEqual(["a"]);
+  });
+
+  it("stops gracefully when a parent is missing from the map", () => {
+    const orphan = new Map([["b", { id: "b", parentId: "missing", name: "Child" }]]);
+    expect(categoryAncestry(orphan.get("b")!, orphan).map((n) => n.id)).toEqual(["b"]);
+  });
+});
+
+describe("categoryLabel", () => {
+  it("prefers the linked category name (the bridge)", () => {
+    expect(
+      categoryLabel({ categoryRef: { name: "MLCC Capacitors" }, category: "MLCC_CAPACITOR" }),
+    ).toBe("MLCC Capacitors");
+  });
+
+  it("falls back to the legacy enum, then to a dash", () => {
+    expect(categoryLabel({ categoryRef: null, category: "MLCC_CAPACITOR" })).toBe("MLCC_CAPACITOR");
+    expect(categoryLabel({ categoryRef: null, category: null })).toBe("—");
+    expect(categoryLabel({})).toBe("—");
   });
 });

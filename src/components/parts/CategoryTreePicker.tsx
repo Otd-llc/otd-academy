@@ -15,6 +15,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { partsHref } from "@/lib/parts-list-url";
+import { categoryAncestry } from "@/lib/categories";
 
 type Current = Record<string, string | undefined>;
 
@@ -69,17 +70,12 @@ export async function CategoryTreePicker({
   }
   const roots = childrenOf.get(null) ?? [];
   const byPath = new Map(categories.map((c) => [c.path, c]));
+  const byId = new Map(categories.map((c) => [c.id, c]));
 
-  // ─── breadcrumb of the active node's ancestors ──────────────────────────
-  const crumbs: Node[] = [];
-  if (activePath) {
-    let acc = "";
-    for (const seg of activePath.split("/")) {
-      acc = acc ? `${acc}/${seg}` : seg;
-      const n = byPath.get(acc);
-      if (n) crumbs.push(n);
-    }
-  }
+  // Resolve the active node. An ABSENT or UNKNOWN `cat` (listParts degrades the
+  // latter to "all parts") → no active node → "All categories" is the active row.
+  const activeNode = activePath ? byPath.get(activePath) ?? null : null;
+  const crumbs: Node[] = activeNode ? categoryAncestry(activeNode, byId) : [];
 
   const rowCls = (active: boolean) =>
     `flex items-center gap-2 rounded px-2 py-1 font-mono text-xs transition-colors ${
@@ -122,8 +118,8 @@ export async function CategoryTreePicker({
     <div className="space-y-0.5">
       <Link
         href={partsHref(current, { cat: undefined })}
-        aria-current={!activePath ? "true" : undefined}
-        className={rowCls(!activePath)}
+        aria-current={!activeNode ? "true" : undefined}
+        className={rowCls(!activeNode)}
       >
         <span className="truncate">All categories</span>
       </Link>

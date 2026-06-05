@@ -22,6 +22,7 @@ export function CategoryCombobox({
   error?: string[];
 }) {
   const [options, setOptions] = useState<Option[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [selected, setSelected] = useState<Option | null>(null);
   const [open, setOpen] = useState(false);
@@ -31,20 +32,27 @@ export function CategoryCombobox({
     let active = true;
     listCategoriesForPicker()
       .then((opts) => {
-        if (active) setOptions(opts);
+        if (active) {
+          setOptions(opts);
+          setLoaded(true);
+        }
       })
       .catch(() => {
         // Non-fatal: the field degrades to "no categories" — the part can still
-        // be created uncategorized.
+        // be created uncategorized. `loaded` flips so the list shows the empty
+        // state rather than a permanent "Loading…".
+        if (active) setLoaded(true);
       });
     return () => {
       active = false;
     };
   }, []);
 
+  // Always filter by the typed text (a prior selection does NOT suppress it),
+  // so re-opening and typing narrows the list.
   const filter = inputValue.trim().toLowerCase();
   const filtered =
-    selected || filter === ""
+    filter === ""
       ? options
       : options.filter((o) => o.label.toLowerCase().includes(filter));
 
@@ -90,6 +98,9 @@ export function CategoryCombobox({
           <button
             type="button"
             aria-label="Clear category"
+            // preventDefault so the mousedown doesn't blur the input (and arm the
+            // close timer) before the click registers — matches the option rows.
+            onMouseDown={(e) => e.preventDefault()}
             onClick={clear}
             className="absolute inset-y-0 right-1 my-auto h-5 w-5 rounded font-mono text-xs text-muted hover:text-command-gold"
           >
@@ -105,7 +116,11 @@ export function CategoryCombobox({
           >
             {filtered.length === 0 ? (
               <li className="px-2 py-1 font-mono text-xs text-muted">
-                {options.length === 0 ? "Loading…" : "No matches"}
+                {options.length === 0
+                  ? loaded
+                    ? "No categories available"
+                    : "Loading…"
+                  : "No matches"}
               </li>
             ) : (
               filtered.map((o) => (

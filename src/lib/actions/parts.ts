@@ -22,6 +22,7 @@ import {
   createPartSchema,
   listPartsBySearchSchema,
 } from "@/lib/schemas/part";
+import { categoryAncestry } from "@/lib/categories";
 
 // `Part.category` is now a `PartCategory` enum (migration parts_knowledge_stage_a).
 // The create form still posts free text (the constrained <select> lands in
@@ -153,10 +154,12 @@ export async function listPartsBySearch(input: unknown) {
   });
 }
 
-// List the category tree for the create-form picker. Each node carries a
-// breadcrumb `label` of NAMES ("Passives › Capacitors › MLCC Capacitors") and
-// its `path`, ordered by path (parents before children). Read-only; called from
-// the CategoryCombobox client island on mount.
+// List the SELECTABLE categories for the create-form picker — LEAF nodes only.
+// A part belongs to a specific leaf type; an interior node has no enum-token
+// slug, so categorizing there would skip the per-category required-parametrics
+// and leave the legacy enum NULL. Each leaf carries a breadcrumb `label` of
+// NAMES ("Passives › Capacitors › MLCC Capacitors") and its `path`, ordered by
+// path. Read-only; called from the CategoryCombobox client island on mount.
 export async function listCategoriesForPicker(): Promise<
   { id: string; label: string; path: string }[]
 > {
@@ -165,16 +168,18 @@ export async function listCategoriesForPicker(): Promise<
     select: { id: true, name: true, path: true, parentId: true },
   });
   const byId = new Map(cats.map((c) => [c.id, c]));
-  const label = (c: (typeof cats)[number]): string => {
-    const names: string[] = [];
-    let cur: (typeof cats)[number] | undefined = c;
-    while (cur) {
-      names.unshift(cur.name);
-      cur = cur.parentId ? byId.get(cur.parentId) : undefined;
-    }
-    return names.join(" › ");
-  };
-  return cats.map((c) => ({ id: c.id, label: label(c), path: c.path }));
+  const parentIds = new Set(
+    cats.map((c) => c.parentId).filter((p): p is string => p !== null),
+  );
+  return cats
+    .filter((c) => !parentIds.has(c.id)) // leaves: never referenced as a parent
+    .map((c) => ({
+      id: c.id,
+      label: categoryAncestry(c, byId)
+        .map((n) => n.name)
+        .join(" › "),
+      path: c.path,
+    }));
 }
 
 // ─── Form action wrappers (useActionState-compatible) ──────────────────
