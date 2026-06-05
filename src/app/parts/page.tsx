@@ -10,6 +10,7 @@ import Link from "next/link";
 import { PartLifecycle } from "@prisma/client";
 import { db } from "@/lib/db";
 import { ChevronLeftIcon, PlusIcon } from "@/components/icons";
+import { PartCard } from "@/components/parts/PartCard";
 import { PartGlanceTrigger } from "@/components/parts/PartGlanceTrigger";
 import { PartsSearch } from "@/components/parts/PartsSearch";
 import { PartsPagination } from "@/components/parts/PartsPagination";
@@ -135,53 +136,71 @@ export default async function PartsListPage({
             : "NO PARTS — CREATE ONE TO BEGIN."}
         </p>
       ) : (
-        <table className="mt-10 w-full border-collapse font-mono text-sm">
-          <thead>
-            <tr className="border-b border-panel-border text-left text-xs uppercase tracking-wider text-muted">
-              <th className="py-3 pr-4 font-normal">Manufacturer</th>
-              <th className="py-3 pr-4 font-normal">MPN</th>
-              <th className="py-3 pr-4 font-normal">Description</th>
-              <th className="hidden py-3 pr-4 font-normal md:table-cell">
-                Category
-              </th>
-              <th className="py-3 pr-4 font-normal">Lifecycle</th>
-              <th className="py-3 pr-4 font-normal">Flags</th>
-              <th className="py-3 pr-4 text-right font-normal">
-                <span className="sr-only">Quick glance</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {parts.map((p) => (
-              <tr key={p.id} className="border-b border-panel-border align-top">
-                <td className="py-3 pr-4 text-link-muted">{p.manufacturer}</td>
-                <td className="py-3 pr-4">
-                  <Link
-                    href={`/parts/${p.id}`}
-                    className="text-command-gold underline-offset-2 hover:underline"
+        <>
+          {/* Desktop: table at md+ (overflow guard mirrors BoardsTable). */}
+          <div className="mt-10 hidden overflow-x-auto md:block">
+            <table className="w-full border-collapse font-mono text-sm">
+              <thead>
+                <tr className="border-b border-panel-border text-left text-xs uppercase tracking-wider text-muted">
+                  <th className="py-3 pr-4 font-normal">Manufacturer</th>
+                  <th className="py-3 pr-4 font-normal">MPN</th>
+                  <th className="py-3 pr-4 font-normal">Description</th>
+                  <th className="hidden py-3 pr-4 font-normal md:table-cell">
+                    Category
+                  </th>
+                  <th className="py-3 pr-4 font-normal">Lifecycle</th>
+                  <th className="py-3 pr-4 font-normal">Flags</th>
+                  <th className="py-3 pr-4 text-right font-normal">
+                    <span className="sr-only">Quick glance</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {parts.map((p) => (
+                  <tr
+                    key={p.id}
+                    className="border-b border-panel-border align-top"
                   >
-                    {p.mpn}
-                  </Link>
-                </td>
-                <td className="py-3 pr-4 text-link-muted">{p.description}</td>
-                <td className="hidden py-3 pr-4 text-muted md:table-cell">
-                  {p.category ?? "—"}
-                </td>
-                <td className="py-3 pr-4 text-muted">{p.lifecycle}</td>
-                <td className="py-3 pr-4">
-                  {p.isCertifiedModule && (
-                    <span className="inline-flex items-center rounded border border-panel-border bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-alert-red">
-                      CERTIFIED MODULE
-                    </span>
-                  )}
-                </td>
-                <td className="py-3 pr-0 text-right">
-                  <PartGlanceTrigger partId={p.id} mpn={p.mpn} />
-                </td>
-              </tr>
+                    <td className="py-3 pr-4 text-link-muted">
+                      {p.manufacturer}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <Link
+                        href={`/parts/${p.id}`}
+                        className="text-command-gold underline-offset-2 hover:underline"
+                      >
+                        {p.mpn}
+                      </Link>
+                    </td>
+                    <td className="py-3 pr-4 text-link-muted">
+                      {p.description}
+                    </td>
+                    <td className="hidden py-3 pr-4 text-muted md:table-cell">
+                      {p.category ?? "—"}
+                    </td>
+                    <td className="py-3 pr-4 text-muted">{p.lifecycle}</td>
+                    <td className="py-3 pr-4">
+                      {p.isCertifiedModule && (
+                        <span className="inline-flex items-center rounded border border-panel-border bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-alert-red">
+                          CERTIFIED MODULE
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 pr-0 text-right">
+                      <PartGlanceTrigger partId={p.id} mpn={p.mpn} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {/* Mobile: stacked cards below md. */}
+          <ul className="mt-8 flex flex-col gap-3 md:hidden">
+            {parts.map((p) => (
+              <PartCard key={p.id} part={p} />
             ))}
-          </tbody>
-        </table>
+          </ul>
+        </>
       )}
 
       <PartsPagination page={page} totalPages={totalPages} current={current} />
