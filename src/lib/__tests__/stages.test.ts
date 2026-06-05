@@ -60,6 +60,8 @@ function makePart(overrides: Partial<Part> = {}): Part {
     category: null,
     footprint: null,
     datasheetUrl: "https://example.com/datasheet.pdf",
+    kicadSymbol: null,
+    kicadFootprint: null,
     lifecycle: "ACTIVE" satisfies PartLifecycle,
     // m18: Part schema gained `isCertifiedModule` (proposal §3 #5). Default
     // false — BOM_SOURCING m18 tests opt in explicitly.

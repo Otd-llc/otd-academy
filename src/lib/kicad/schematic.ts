@@ -42,10 +42,24 @@ const GENERATOR_VERSION = "10.0";
 export type SchematicPart = {
   /** Single physical designator, e.g. "U2". */
   refDes: string;
-  /** The part's `.kicad_sym` body (bare symbol or kicad_symbol_lib wrapper). */
-  symbolText: string;
-  /** KiCad library id `<nick>:<symbolName>` used on the instance + lib_symbols. */
+  /** The part's `.kicad_sym` body (bare symbol or kicad_symbol_lib wrapper).
+   *  OPTIONAL: a *referenced* part (symbol resolved from a KiCad standard library
+   *  via its `libId`) carries NO symbolText — we emit only its instance and never
+   *  embed a `lib_symbols` definition (KiCad resolves the def from the global lib). */
+  symbolText?: string;
+  /** KiCad library id used on the instance + (for embedded parts) the
+   *  `lib_symbols` def. For an uploaded/stub part this is `<nick>:<symbolName>`;
+   *  for a referenced part it is the standard-library symbol lib-id (e.g.
+   *  `"Device:R"`). */
   libId: string;
+  /** Footprint library reference emitted in the instance's Footprint property.
+   *  Resolved INDEPENDENTLY of the symbol: it may be a project `<nick>:<fpName>`
+   *  (uploaded/stub footprint) OR a KiCad standard footprint lib-id (e.g.
+   *  `"Resistor_SMD:R_0805_2012Metric"`), regardless of how the symbol resolved.
+   *  Falls back to `libId` when omitted (legacy behaviour). */
+  footprintRef?: string;
+  /** Visible Value field. Defaults to the bare name after the last ":" of `libId`. */
+  value?: string;
   /** Datasheet URL (`Part.datasheetUrl`). KiCad-mandatory Datasheet field — the
    *  instance always emits it (empty string when absent). */
   datasheet?: string;
@@ -122,6 +136,13 @@ function uuidNode(seed: string): SNode {
  * re-parsed, so callers can't mutate shared state).
  */
 function symbolDefForPart(part: SchematicPart): SList {
+  if (part.symbolText === undefined) {
+    // A referenced part has no project symbol body — it must never reach here
+    // (buildSchematic skips referenced parts when assembling lib_symbols).
+    throw new Error(
+      `symbolDefForPart(${part.refDes}): referenced part has no symbolText to embed`,
+    );
+  }
   const node = parseSexpr(part.symbolText);
   if (!isList(node)) {
     throw new Error(`symbolDefForPart(${part.refDes}): not an S-expression`);
@@ -168,11 +189,15 @@ function buildComponentInstance(
   projectName: string,
 ): SNode {
   const seed = `${projectName}|inst|${part.refDes}`;
-  // The export names each part's footprint identically to its symbol lib_id
-  // (`<slug>:<mpn>`), so the instance Footprint == part.libId and the visible
-  // Value == the bare name after the last ":" (whole libId if no colon).
+  // The visible Value defaults to the bare name after the last ":" of the symbol
+  // lib_id (whole libId if no colon) unless an explicit value is supplied.
   const colon = part.libId.lastIndexOf(":");
   const bare = colon >= 0 ? part.libId.slice(colon + 1) : part.libId;
+  const value = part.value ?? bare;
+  // The Footprint property carries the footprint library reference, resolved
+  // INDEPENDENTLY of the symbol (uploaded/stub project footprint OR a KiCad
+  // standard footprint lib-id). Falls back to the symbol lib_id when absent.
+  const footprintRef = part.footprintRef ?? part.libId;
   return list([
     sym("symbol"),
     list([sym("lib_id"), str(part.libId)]),
@@ -198,17 +223,18 @@ function buildComponentInstance(
     list([
       sym("property"),
       str("Value"),
-      str(bare),
+      str(value),
       list([sym("at"), num(placement.x), num(placement.y - 2.54), sym("0")]),
       list([sym("effects"), list([sym("font"), list([sym("size"), sym("1.27"), sym("1.27")])])]),
     ]),
-    // Footprint = the full lib_id (hidden, KiCad convention) — carries the
-    // symbol↔footprint association to the instance so "Update PCB from
-    // Schematic" can assign footprints.
+    // Footprint = the resolved footprint lib reference (hidden, KiCad
+    // convention) — carries the symbol↔footprint association to the instance so
+    // "Update PCB from Schematic" can assign footprints. Resolved independently
+    // of the symbol (project `<nick>:<fp>` OR a standard footprint lib-id).
     list([
       sym("property"),
       str("Footprint"),
-      str(part.libId),
+      str(footprintRef),
       list([sym("at"), num(placement.x), num(placement.y), sym("0")]),
       list([
         sym("effects"),
@@ -292,9 +318,12 @@ function buildTitleBlock(input: BuildSchematicInput): SNode {
  * UNWIRED (no nets / power ports) — wiring is the student's lesson. Deterministic.
  */
 export function buildSchematic(input: BuildSchematicInput): string {
-  // lib_symbols: component definitions (in part order).
+  // lib_symbols: component definitions (in part order). A REFERENCED part (no
+  // symbolText) is skipped — its symbol lives in the user's KiCad standard
+  // library and is resolved from `lib_id`, so embedding a def would be wrong.
   const libSymbolItems: SNode[] = [sym("lib_symbols")];
   for (const part of input.parts) {
+    if (part.symbolText === undefined) continue;
     libSymbolItems.push(symbolDefForPart(part));
   }
 

@@ -9,7 +9,12 @@
 // markdown (parts are emitted in the order given; counts are stable).
 
 /** Coverage state of one asset kind for one part. */
-export type AssetStatus = "verified" | "unverified" | "stubbed" | "missing";
+export type AssetStatus =
+  | "verified"
+  | "unverified"
+  | "referenced"
+  | "stubbed"
+  | "missing";
 
 /** Per-part asset coverage row. `refDes` is the BOM line's (possibly grouped) designator string. */
 export type PartCoverage = {
@@ -27,7 +32,13 @@ export type BuildExportReportOpts = {
   generatedNote?: string;
 };
 
-const STATUSES: readonly AssetStatus[] = ["verified", "unverified", "stubbed", "missing"];
+const STATUSES: readonly AssetStatus[] = [
+  "verified",
+  "unverified",
+  "referenced",
+  "stubbed",
+  "missing",
+];
 
 /** Count how many parts have `status` for the given asset selector. */
 function countBy(
@@ -100,8 +111,8 @@ export function buildExportReport(
   // ── Summary ──
   lines.push("## Summary");
   lines.push("");
-  lines.push("| Asset | Verified | Unverified | Stubbed | Missing |");
-  lines.push("| --- | --- | --- | --- | --- |");
+  lines.push("| Asset | Verified | Unverified | Referenced | Stubbed | Missing |");
+  lines.push("| --- | --- | --- | --- | --- | --- |");
   lines.push(summaryRow("Symbol", parts, (p) => p.symbol));
   lines.push(summaryRow("Footprint", parts, (p) => p.footprint));
   lines.push(summaryRow("3D model", parts, (p) => p.model3d));
@@ -112,6 +123,9 @@ export function buildExportReport(
   lines.push("");
   lines.push("- **verified** — a curated asset that passed the Foundry verify gate.");
   lines.push("- **unverified** — an uploaded asset not yet verified; used as-is.");
+  lines.push(
+    "- **referenced** — no uploaded asset; the part is emitted by KiCad standard-library lib-id (Device:R, etc.) and resolved from your global libraries (no file bundled).",
+  );
   lines.push(
     "- **stubbed** — no asset; an auto-generated placeholder was synthesized (replace before fabrication).",
   );

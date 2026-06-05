@@ -288,6 +288,85 @@ describe("schematic — buildSchematic structure", () => {
     expect(isStr(description.items[2]) && description.items[2].value).toBe("");
   });
 
+  test("a REFERENCED part (symbolText undefined) emits an instance with its lib_id but NO lib_symbols def", () => {
+    // A part whose symbol is resolved from a KiCad standard library: it carries a
+    // reference libId ("Device:R") and NO symbolText. The schematic must emit its
+    // component instance (so the part is placed) but must NOT embed a lib_symbols
+    // definition for it — KiCad resolves the symbol from the user's global lib.
+    const input = baseInput();
+    input.parts = [
+      { refDes: "R1", libId: "Device:R", footprintRef: "Resistor_SMD:R_0805_2012Metric" },
+      // Keep one embedded (uploaded/stub-style) part to prove the two coexist.
+      { refDes: "C2", symbolText: SYM_C2, libId: "wroom-breakout:C" },
+    ];
+    input.placements = new Map<string, Placement>([
+      ["R1", { x: 100, y: 100, rotation: 0 }],
+      ["C2", { x: 150, y: 100, rotation: 0 }],
+    ]);
+    const node = parseSexpr(buildSchematic(input));
+    if (!isList(node)) throw new Error("unreachable");
+
+    // (a) The referenced part's component INSTANCE is emitted with its lib_id.
+    const refInstance = findChildren(node, "symbol").find((s) => {
+      const lib = findChild(s, "lib_id");
+      return lib && isStr(lib.items[1]) && lib.items[1].value === "Device:R";
+    });
+    expect(refInstance).toBeDefined();
+
+    // (b) NO lib_symbols def matches the reference lib_id (not embedded).
+    const libSymbols = findChild(node, "lib_symbols")!;
+    const refDef = findChildren(libSymbols, "symbol").find(
+      (s) => isStr(s.items[1]) && s.items[1].value === "Device:R",
+    );
+    expect(refDef).toBeUndefined();
+
+    // (c) The embedded part IS still in lib_symbols (regression guard).
+    const embeddedDef = findChildren(libSymbols, "symbol").find(
+      (s) => isStr(s.items[1]) && s.items[1].value === "wroom-breakout:C",
+    );
+    expect(embeddedDef).toBeDefined();
+
+    // (d) The referenced instance's Footprint property == the passed footprintRef
+    //     (a standard footprint lib-id distinct from the symbol libId).
+    const fp = findChildren(refInstance!, "property").find(
+      (p) => isStr(p.items[1]) && p.items[1].value === "Footprint",
+    )!;
+    expect(fp).toBeDefined();
+    expect(isStr(fp.items[2]) && fp.items[2].value).toBe(
+      "Resistor_SMD:R_0805_2012Metric",
+    );
+  });
+
+  test("footprintRef drives the instance Footprint independently of the symbol libId", () => {
+    // An UPLOADED/STUB symbol (project libId) paired with a REFERENCED footprint:
+    // the Footprint property must be the std-lib footprint ref, not the symbol libId.
+    const input = baseInput();
+    input.parts = [
+      {
+        refDes: "U2",
+        symbolText: SYM_U2,
+        libId: "wroom-breakout:AP2112K-3.3",
+        footprintRef: "Package_TO_SOT_SMD:SOT-23-5",
+      },
+    ];
+    input.placements = new Map<string, Placement>([
+      ["U2", { x: 100, y: 100, rotation: 0 }],
+    ]);
+    const node = parseSexpr(buildSchematic(input));
+    if (!isList(node)) throw new Error("unreachable");
+    const comp = findChildren(node, "symbol").find((s) => {
+      const lib = findChild(s, "lib_id");
+      return lib && isStr(lib.items[1]) && lib.items[1].value === "wroom-breakout:AP2112K-3.3";
+    })!;
+    const fp = findChildren(comp, "property").find(
+      (p) => isStr(p.items[1]) && p.items[1].value === "Footprint",
+    )!;
+    // Footprint == the passed footprintRef (NOT the symbol libId).
+    expect(isStr(fp.items[2]) && fp.items[2].value).toBe(
+      "Package_TO_SOT_SMD:SOT-23-5",
+    );
+  });
+
   test("lib_symbols def for a part carries a Footprint property == its libId", () => {
     const node = parseSexpr(buildSchematic(baseInput()));
     const libSymbols = findChild(node, "lib_symbols")!;
