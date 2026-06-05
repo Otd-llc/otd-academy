@@ -238,19 +238,25 @@ export async function buildKicadExportZip(
     let symbolText: string | undefined;
     let symbolStatus: AssetStatus;
     const fetchedSymbol = await tryFetchText(bySymbol?.r2Key, r2On);
+    // Resolve the standard-lib def ONCE, only when there's no uploaded symbol and
+    // the part carries a lib-id (the layered resolver is async + may hit R2).
+    const vendoredSymbol =
+      fetchedSymbol === undefined && part.kicadSymbol
+        ? await resolveVendoredSymbol(part.kicadSymbol)
+        : undefined;
     if (fetchedSymbol !== undefined && bySymbol) {
       symbolMode = "uploaded";
       symbolLibId = projectLibId;
       symbolText = fetchedSymbol;
       symbolStatus = statusForTrust(bySymbol.trust);
-    } else if (part.kicadSymbol && resolveVendoredSymbol(part.kicadSymbol) !== undefined) {
+    } else if (part.kicadSymbol && vendoredSymbol !== undefined) {
       // Referenced: emit the standard-lib lib-id AND embed its VENDORED def into
       // lib_symbols — KiCad 6+ schematics are self-contained and won't resolve an
       // unembedded reference on open (it shows "??"). The def is NOT added to the
       // project .kicad_sym (it's a global-lib symbol, cached in the schematic only).
       symbolMode = "referenced";
       symbolLibId = part.kicadSymbol;
-      symbolText = resolveVendoredSymbol(part.kicadSymbol);
+      symbolText = vendoredSymbol;
       symbolStatus = "referenced";
     } else {
       // No asset, and no usable standard reference (unset or not vendored) → stub.
