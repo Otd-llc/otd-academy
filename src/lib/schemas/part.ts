@@ -35,6 +35,9 @@ export const partsListParamsSchema = z.object({
   q: z.string().trim().max(128).optional().catch(undefined),
   lifecycle: z.enum(PartLifecycle).optional().catch(undefined),
   mains: z.preprocess((v) => v === "1", z.boolean()).catch(false),
+  // Category subtree filter (Phase B): a materialized category `path` (e.g.
+  // "passives/capacitors/MLCC_CAPACITOR"). An unknown path narrows nothing.
+  cat: z.string().trim().max(256).optional().catch(undefined),
   sort: z.enum(PART_SORTS).catch("manufacturer"),
   page: z.coerce.number().int().min(1).catch(1),
 });
