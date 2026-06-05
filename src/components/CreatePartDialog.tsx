@@ -15,6 +15,7 @@ import {
   getCategoryDefaults,
   type PartFormState,
 } from "@/lib/actions/parts";
+import { getKicadSymbolFpFilters } from "@/lib/actions/kicad-search";
 import { CategoryCombobox } from "@/components/parts/CategoryCombobox";
 import { KicadLibPicker } from "@/components/parts/KicadLibPicker";
 import { InlineBanner } from "@/components/InlineBanner";
@@ -128,20 +129,43 @@ export function PartFields({
   tooltipContainer?: HTMLElement | null;
 }) {
   // Auto-suggest (Phase C): on category select, prefill the KiCad symbol and
-  // constrain the footprint picker to the category's defaults.
-  const [defaultSymbol, setDefaultSymbol] = useState<string | null>(null);
+  // constrain the footprint picker. `currentSymbol` (controlled) is set by the
+  // category default OR a manual pick; the selected symbol's fp-filters then
+  // narrow the footprint picker.
+  const [currentSymbol, setCurrentSymbol] = useState<string | null>(null);
   const [defaultFootprintLib, setDefaultFootprintLib] = useState<string | null>(null);
+  const [symbolFpFilters, setSymbolFpFilters] = useState<string | null>(null);
 
   async function onCategorySelect(id: string | null) {
     if (!id) {
-      setDefaultSymbol(null);
+      setCurrentSymbol(null);
       setDefaultFootprintLib(null);
       return;
     }
     const d = await getCategoryDefaults(id);
-    setDefaultSymbol(d?.defaultKicadSymbol ?? null);
+    setCurrentSymbol(d?.defaultKicadSymbol ?? null);
     setDefaultFootprintLib(d?.defaultKicadFootprintLib ?? null);
   }
+
+  // Fetch the selected symbol's fp-filters whenever it changes (auto-suggest or
+  // manual pick) → narrows the footprint picker.
+  useEffect(() => {
+    let active = true;
+    if (!currentSymbol) {
+      setSymbolFpFilters(null);
+      return;
+    }
+    getKicadSymbolFpFilters(currentSymbol)
+      .then((f) => {
+        if (active) setSymbolFpFilters(f);
+      })
+      .catch(() => {
+        if (active) setSymbolFpFilters(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [currentSymbol]);
 
   return (
     <form action={action} className="mt-4 space-y-4">
@@ -234,7 +258,8 @@ export function PartFields({
           kind="symbol"
           name="kicadSymbol"
           label="KiCad symbol (optional)"
-          value={defaultSymbol}
+          value={currentSymbol}
+          onSelect={setCurrentSymbol}
           error={state.errors?.kicadSymbol}
         />
         <KicadLibPicker
@@ -242,6 +267,7 @@ export function PartFields({
           name="kicadFootprint"
           label="KiCad footprint (optional)"
           lib={defaultFootprintLib}
+          fpFilters={symbolFpFilters}
           error={state.errors?.kicadFootprint}
         />
       </div>

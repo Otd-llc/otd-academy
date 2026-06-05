@@ -9,6 +9,7 @@
 // exact → prefix → trigram-similarity → name. The `%` operand expression is
 // byte-identical to the GIN index expression in the Task 1 migration so the index
 // is used.
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { db } from "@/lib/db";
@@ -16,8 +17,23 @@ import { db } from "@/lib/db";
 const searchSchema = z.object({
   q: z.string().trim().max(128),
   lib: z.string().trim().max(128).optional(),
+  // Symbol `ki_fp_filters` (space-separated globs) — narrows the footprint
+  // picker to footprints whose name matches the selected symbol's filters.
+  fpFilters: z.string().trim().max(512).optional(),
   take: z.coerce.number().int().positive().max(50).default(25),
 });
+
+// Convert a KiCad fp-filter glob to a SQL ILIKE pattern: `*`→`%`, `?`→`_`, with
+// the LIKE metacharacters (`\ % _`) that are LITERAL in the glob escaped first
+// (KiCad footprint names are underscore-heavy, so `_` must stay literal).
+function globToLike(glob: string): string {
+  return glob
+    .replace(/\\/g, "\\\\")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_")
+    .replace(/\*/g, "%")
+    .replace(/\?/g, "_");
+}
 
 export type KicadSymbolHit = {
   libId: string;
@@ -55,19 +71,45 @@ export async function searchKicadSymbols(input: unknown): Promise<KicadSymbolHit
 export async function searchKicadFootprints(
   input: unknown,
 ): Promise<KicadFootprintHit[]> {
-  const { q, lib, take } = searchSchema.parse(input);
+  const { q, lib, take, fpFilters } = searchSchema.parse(input);
   if (q.length === 0) return [];
   const prefix = likeEscape(q) + "%";
   const libParam = lib ?? null;
-  return db.$queryRaw<KicadFootprintHit[]>`
+
+  // The selected symbol's fp-filter globs (if any) → an OR of literal ILIKE
+  // patterns the footprint name must match.
+  const patterns = (fpFilters ?? "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(globToLike);
+  const fpClause =
+    patterns.length > 0
+      ? Prisma.sql`AND "name" ILIKE ANY(ARRAY[${Prisma.join(patterns)}])`
+      : Prisma.empty;
+
+  return db.$queryRaw<KicadFootprintHit[]>(Prisma.sql`
     SELECT "libId", "lib", "name", "description"
     FROM "KicadLibFootprint"
     WHERE (${libParam}::text IS NULL OR "lib" = ${libParam})
       AND ("name" ILIKE ${prefix}
            OR (coalesce("name",'') || ' ' || coalesce("description",'') || ' ' || coalesce("tags",'')) % ${q})
+      ${fpClause}
     ORDER BY ("name" = ${q}) DESC,
              ("name" ILIKE ${prefix}) DESC,
              similarity(coalesce("name",'') || ' ' || coalesce("description",'') || ' ' || coalesce("tags",''), ${q}) DESC,
              "name" ASC
-    LIMIT ${take};`;
+    LIMIT ${take}`);
+}
+
+// The `ki_fp_filters` of a symbol lib-id (space-separated globs), or null. Drives
+// the create-form footprint narrowing when a symbol is selected/auto-suggested.
+export async function getKicadSymbolFpFilters(
+  libId: string,
+): Promise<string | null> {
+  if (!libId) return null;
+  const s = await db.kicadLibSymbol.findUnique({
+    where: { libId },
+    select: { fpFilters: true },
+  });
+  return s?.fpFilters ?? null;
 }
