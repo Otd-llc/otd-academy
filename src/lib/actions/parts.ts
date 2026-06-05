@@ -54,13 +54,31 @@ export async function createPart(input: unknown) {
     );
   }
 
+  // Resolve the category. A picker-supplied `categoryId` wins: look it up
+  // (validating it exists) and dual-write the legacy enum when its leaf slug is
+  // an enum token, so old enum readers stay consistent during the transition;
+  // a non-enum-token leaf leaves `category` NULL. With no categoryId, fall back
+  // to the directly-supplied enum (seed scripts / back-compat / tests).
+  let categoryId: string | null = null;
+  let category = toPartCategory(data.category);
+  if (data.categoryId) {
+    const cat = await db.category.findUnique({
+      where: { id: data.categoryId },
+      select: { id: true, slug: true },
+    });
+    if (!cat) throw new Error("Unknown category.");
+    categoryId = cat.id;
+    category = toPartCategory(cat.slug);
+  }
+
   try {
     const part = await db.part.create({
       data: {
         mpn: data.mpn,
         manufacturer: data.manufacturer,
         description: data.description,
-        category: toPartCategory(data.category),
+        category,
+        categoryId,
         footprint: data.footprint ?? null,
         datasheetUrl: data.datasheetUrl ?? null,
         lifecycle: data.lifecycle,
@@ -135,6 +153,30 @@ export async function listPartsBySearch(input: unknown) {
   });
 }
 
+// List the category tree for the create-form picker. Each node carries a
+// breadcrumb `label` of NAMES ("Passives › Capacitors › MLCC Capacitors") and
+// its `path`, ordered by path (parents before children). Read-only; called from
+// the CategoryCombobox client island on mount.
+export async function listCategoriesForPicker(): Promise<
+  { id: string; label: string; path: string }[]
+> {
+  const cats = await db.category.findMany({
+    orderBy: { path: "asc" },
+    select: { id: true, name: true, path: true, parentId: true },
+  });
+  const byId = new Map(cats.map((c) => [c.id, c]));
+  const label = (c: (typeof cats)[number]): string => {
+    const names: string[] = [];
+    let cur: (typeof cats)[number] | undefined = c;
+    while (cur) {
+      names.unshift(cur.name);
+      cur = cur.parentId ? byId.get(cur.parentId) : undefined;
+    }
+    return names.join(" › ");
+  };
+  return cats.map((c) => ({ id: c.id, label: label(c), path: c.path }));
+}
+
 // ─── Form action wrappers (useActionState-compatible) ──────────────────
 
 export type PartFormState = {
@@ -159,6 +201,7 @@ export async function createPartFormAction(
     manufacturer: pickString(formData, "manufacturer"),
     description: pickString(formData, "description"),
     category: pickString(formData, "category"),
+    categoryId: pickString(formData, "categoryId"),
     footprint: pickString(formData, "footprint"),
     datasheetUrl: pickString(formData, "datasheetUrl"),
     lifecycle: pickString(formData, "lifecycle") ?? "ACTIVE",

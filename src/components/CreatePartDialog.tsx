@@ -10,11 +10,11 @@
 // routes table).
 import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
-import { PartCategory } from "@prisma/client";
 import {
   createPartFormAction,
   type PartFormState,
 } from "@/lib/actions/parts";
+import { CategoryCombobox } from "@/components/parts/CategoryCombobox";
 import { InlineBanner } from "@/components/InlineBanner";
 import { Tooltip } from "@/components/Tooltip";
 
@@ -172,27 +172,10 @@ export function PartFields({
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div>
-          <label className="block font-mono text-xs uppercase tracking-wider text-muted">
-            Category (optional)
-          </label>
-          {/* Constrained to the PartCategory enum (Task 5). The blank "—"
-              option posts an empty string → the form wrapper drops it →
-              category stays NULL, so a part can be created without a category. */}
-          <select
-            name="category"
-            defaultValue=""
-            className="mt-1 w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
-          >
-            <option value="">—</option>
-            {Object.values(PartCategory).map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-          <FieldError messages={state.errors?.category} />
-        </div>
+        {/* Category tree picker (Phase B): a searchable combobox posting
+            `categoryId`. Replaces the flat PartCategory <select>; an empty
+            selection leaves the part uncategorized. */}
+        <CategoryCombobox error={state.errors?.categoryId} />
         <div>
           <label className="block font-mono text-xs uppercase tracking-wider text-muted">
             Footprint (optional)

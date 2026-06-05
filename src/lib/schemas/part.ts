@@ -7,10 +7,14 @@ export const createPartSchema = z.object({
   mpn: z.string().trim().min(1).max(128),
   manufacturer: z.string().trim().min(1).max(128),
   description: z.string().trim().min(1).max(500),
-  // Constrained to the PartCategory enum (migration parts_knowledge_stage_a;
-  // the create form is a <select> as of Task 5). A blank select option posts
-  // no value → the form wrapper omits it → optional/nullable lets it be NULL.
+  // Legacy enum category (retained during the Phase B transition). The create
+  // form now posts `categoryId` (the picker); `category` stays accepted for
+  // back-compat (and is still set directly by seed scripts / tests).
   category: z.enum(PartCategory).optional().nullable(),
+  // Category tree FK (Phase B). The picker posts this; createPart resolves it,
+  // sets categoryId, and dual-writes the legacy enum when the leaf slug is an
+  // enum token. Blank → omitted → optional/nullable → NULL.
+  categoryId: z.string().optional().nullable(),
   footprint: z.string().trim().max(128).optional().nullable(),
   datasheetUrl: z.url().optional().nullable(),
   lifecycle: z.enum(PartLifecycle).default("ACTIVE"),

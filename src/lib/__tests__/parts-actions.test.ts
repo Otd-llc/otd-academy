@@ -138,3 +138,56 @@ describe("createPart", () => {
     expect(part.isCertifiedModule).toBe(false);
   });
 });
+
+// ─── Phase B — categoryId picker ────────────────────────────────────────────
+describe("createPart category picker (categoryId)", () => {
+  test("links categoryId and dual-writes the legacy enum for an enum-token leaf", async () => {
+    const mlcc = await db.category.findUniqueOrThrow({
+      where: { slug: "MLCC_CAPACITOR" },
+      select: { id: true },
+    });
+    const part = await createPart({
+      manufacturer: TEST_MFR,
+      mpn: `CATID-${Date.now()}`,
+      description: "linked via categoryId",
+      categoryId: mlcc.id,
+    });
+    createdPartIds.push(part.id);
+    expect(part.categoryId).toBe(mlcc.id);
+    // Dual-write: the leaf slug IS an enum token, so the legacy column is set.
+    expect(part.category).toBe("MLCC_CAPACITOR");
+  });
+
+  test("a categoryId whose slug is NOT an enum token leaves the legacy enum NULL", async () => {
+    const slug = `nonenum-leaf-${Date.now()}`;
+    const cat = await db.category.create({
+      data: { slug, name: "Non-enum Leaf", path: slug, depth: 0, order: 99 },
+      select: { id: true },
+    });
+    try {
+      const part = await createPart({
+        manufacturer: TEST_MFR,
+        mpn: `CATID-NOENUM-${Date.now()}`,
+        description: "linked to a non-enum leaf",
+        categoryId: cat.id,
+      });
+      createdPartIds.push(part.id);
+      expect(part.categoryId).toBe(cat.id);
+      expect(part.category).toBeNull();
+    } finally {
+      await db.part.deleteMany({ where: { categoryId: cat.id } }).catch(() => {});
+      await db.category.deleteMany({ where: { id: cat.id } }).catch(() => {});
+    }
+  });
+
+  test("an unknown categoryId is rejected", async () => {
+    await expect(
+      createPart({
+        manufacturer: TEST_MFR,
+        mpn: `CATID-BAD-${Date.now()}`,
+        description: "bad categoryId",
+        categoryId: "cat_does_not_exist",
+      }),
+    ).rejects.toThrow(/category/i);
+  });
+});
