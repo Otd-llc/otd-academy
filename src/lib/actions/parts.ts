@@ -72,6 +72,22 @@ export async function createPart(input: unknown) {
     category = toPartCategory(cat.slug);
   }
 
+  // Validate the picker-supplied KiCad lib-ids exist in the index before linking.
+  if (data.kicadSymbol) {
+    const s = await db.kicadLibSymbol.findUnique({
+      where: { libId: data.kicadSymbol },
+      select: { libId: true },
+    });
+    if (!s) throw new Error("Unknown KiCad symbol.");
+  }
+  if (data.kicadFootprint) {
+    const f = await db.kicadLibFootprint.findUnique({
+      where: { libId: data.kicadFootprint },
+      select: { libId: true },
+    });
+    if (!f) throw new Error("Unknown KiCad footprint.");
+  }
+
   try {
     const part = await db.part.create({
       data: {
@@ -81,6 +97,8 @@ export async function createPart(input: unknown) {
         category,
         categoryId,
         footprint: data.footprint ?? null,
+        kicadSymbol: data.kicadSymbol ?? null,
+        kicadFootprint: data.kicadFootprint ?? null,
         datasheetUrl: data.datasheetUrl ?? null,
         lifecycle: data.lifecycle,
         ...(data.isCertifiedModule !== undefined
@@ -182,6 +200,18 @@ export async function listCategoriesForPicker(): Promise<
     }));
 }
 
+// A category's KiCad defaults, for the create-form auto-suggest (Phase C): on
+// category select, prefill the symbol picker and constrain the footprint picker.
+export async function getCategoryDefaults(
+  categoryId: string,
+): Promise<{ defaultKicadSymbol: string | null; defaultKicadFootprintLib: string | null } | null> {
+  if (!categoryId) return null;
+  return db.category.findUnique({
+    where: { id: categoryId },
+    select: { defaultKicadSymbol: true, defaultKicadFootprintLib: true },
+  });
+}
+
 // ─── Form action wrappers (useActionState-compatible) ──────────────────
 
 export type PartFormState = {
@@ -208,6 +238,8 @@ export async function createPartFormAction(
     category: pickString(formData, "category"),
     categoryId: pickString(formData, "categoryId"),
     footprint: pickString(formData, "footprint"),
+    kicadSymbol: pickString(formData, "kicadSymbol"),
+    kicadFootprint: pickString(formData, "kicadFootprint"),
     datasheetUrl: pickString(formData, "datasheetUrl"),
     lifecycle: pickString(formData, "lifecycle") ?? "ACTIVE",
     isCertifiedModule: formData.get("isCertifiedModule") === "on",

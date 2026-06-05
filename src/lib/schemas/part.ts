@@ -3,6 +3,14 @@
 import { z } from "zod";
 import { PartCategory, PartLifecycle } from "@prisma/client";
 
+// A KiCad library reference id — `Lib:Name` with exactly one colon (Phase C).
+// `Device:R`, `Resistor_SMD:R_0805_2012Metric`, `Regulator_Linear:AP2112K-3.3`.
+export const kicadLibId = z
+  .string()
+  .trim()
+  .max(200)
+  .regex(/^[\w.-]+:[\w./-]+$/, "must be a KiCad lib-id (Lib:Name)");
+
 export const createPartSchema = z.object({
   mpn: z.string().trim().min(1).max(128),
   manufacturer: z.string().trim().min(1).max(128),
@@ -16,6 +24,10 @@ export const createPartSchema = z.object({
   // enum token. Blank → omitted → optional/nullable → NULL.
   categoryId: z.string().optional().nullable(),
   footprint: z.string().trim().max(128).optional().nullable(),
+  // KiCad standard-library references (Phase C). The form pickers post these;
+  // createPart validates they exist in the index before setting them.
+  kicadSymbol: kicadLibId.optional().nullable(),
+  kicadFootprint: kicadLibId.optional().nullable(),
   datasheetUrl: z.url().optional().nullable(),
   lifecycle: z.enum(PartLifecycle).default("ACTIVE"),
   isCertifiedModule: z.boolean().optional(),

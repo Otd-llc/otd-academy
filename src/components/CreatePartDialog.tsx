@@ -8,13 +8,15 @@
 //
 // The same form is also reachable as the full page /parts/new (per §9
 // routes table).
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
   createPartFormAction,
+  getCategoryDefaults,
   type PartFormState,
 } from "@/lib/actions/parts";
 import { CategoryCombobox } from "@/components/parts/CategoryCombobox";
+import { KicadLibPicker } from "@/components/parts/KicadLibPicker";
 import { InlineBanner } from "@/components/InlineBanner";
 import { Tooltip } from "@/components/Tooltip";
 
@@ -125,6 +127,22 @@ export function PartFields({
    */
   tooltipContainer?: HTMLElement | null;
 }) {
+  // Auto-suggest (Phase C): on category select, prefill the KiCad symbol and
+  // constrain the footprint picker to the category's defaults.
+  const [defaultSymbol, setDefaultSymbol] = useState<string | null>(null);
+  const [defaultFootprintLib, setDefaultFootprintLib] = useState<string | null>(null);
+
+  async function onCategorySelect(id: string | null) {
+    if (!id) {
+      setDefaultSymbol(null);
+      setDefaultFootprintLib(null);
+      return;
+    }
+    const d = await getCategoryDefaults(id);
+    setDefaultSymbol(d?.defaultKicadSymbol ?? null);
+    setDefaultFootprintLib(d?.defaultKicadFootprintLib ?? null);
+  }
+
   return (
     <form action={action} className="mt-4 space-y-4">
       {state.message && (
@@ -175,7 +193,10 @@ export function PartFields({
         {/* Category tree picker (Phase B): a searchable combobox posting
             `categoryId`. Replaces the flat PartCategory <select>; an empty
             selection leaves the part uncategorized. */}
-        <CategoryCombobox error={state.errors?.categoryId} />
+        <CategoryCombobox
+          error={state.errors?.categoryId}
+          onSelect={onCategorySelect}
+        />
         <div>
           <label className="block font-mono text-xs uppercase tracking-wider text-muted">
             Footprint (optional)
@@ -203,6 +224,26 @@ export function PartFields({
           </select>
           <FieldError messages={state.errors?.lifecycle} />
         </div>
+      </div>
+
+      {/* KiCad standard-library pickers (Phase C): server-search typeahead,
+          auto-suggested from the chosen category's defaults; post the
+          kicadSymbol / kicadFootprint lib-ids. */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <KicadLibPicker
+          kind="symbol"
+          name="kicadSymbol"
+          label="KiCad symbol (optional)"
+          value={defaultSymbol}
+          error={state.errors?.kicadSymbol}
+        />
+        <KicadLibPicker
+          kind="footprint"
+          name="kicadFootprint"
+          label="KiCad footprint (optional)"
+          lib={defaultFootprintLib}
+          error={state.errors?.kicadFootprint}
+        />
       </div>
 
       <div>

@@ -548,6 +548,43 @@ model PartAsset {
   @@index([trust])
 }
 
+// ─── KiCad standard-library index + def cache (Phase C) ────────────────
+// Searchable mirror of the KiCad 10 standard libraries (ingested from the local
+// install), powering the create-form symbol/footprint pickers. pg_trgm GIN
+// search indexes on a name‖keywords‖description (resp. name‖description‖tags)
+// expression are added in the raw migration (not expressible in Prisma schema).
+model KicadLibSymbol {
+  libId       String  @id // "Device:R"
+  lib         String
+  name        String
+  keywords    String?
+  description String?
+  datasheet   String? // seeds Part.datasheetUrl on pick when present
+  fpFilters   String? // ki_fp_filters → (future) footprint-picker narrowing
+
+  @@index([lib])
+}
+
+model KicadLibFootprint {
+  libId       String  @id // "Resistor_SMD:R_0805_2012Metric"
+  lib         String
+  name        String
+  description String?
+  tags        String?
+  padCount    Int?
+
+  @@index([lib])
+}
+
+// Flattened (extends-resolved), self-contained "(symbol ...)" text the export
+// embeds. Populated lazily by the layered resolver on first reference.
+model KicadSymbolDefCache {
+  libId   String   @id
+  text    String
+  version String // KiCad release tag; cache-bust on bump
+  builtAt DateTime @default(now())
+}
+
 model BomLine {
   id          String   @id @default(cuid())
   revisionId  String
