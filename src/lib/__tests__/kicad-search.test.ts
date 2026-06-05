@@ -65,4 +65,24 @@ describe("searchKicadFootprints", () => {
     expect(r[0].name).toBe("R_0805");
     expect(r.every((x) => x.lib === FPLIB)).toBe(true);
   });
+
+  test("fpFilters narrows results to the symbol's glob patterns", async () => {
+    const r = await searchKicadFootprints({ q: "R", lib: FPLIB, fpFilters: "R_0603*" });
+    const names = r.map((x) => x.name);
+    expect(names).toContain("R_0603");
+    expect(names).not.toContain("R_0805"); // glob R_0603* excludes it
+  });
+
+  test("multiple fpFilters globs are OR'd; '_' in a glob is literal", async () => {
+    const r = await searchKicadFootprints({ q: "R", lib: FPLIB, fpFilters: "R_0805* C_*" });
+    const names = r.map((x) => x.name);
+    expect(names).toContain("R_0805");
+    expect(names).not.toContain("R_0603"); // matches neither glob
+  });
+
+  test("empty/absent fpFilters imposes no glob constraint", async () => {
+    const names = (await searchKicadFootprints({ q: "R", lib: FPLIB })).map((x) => x.name);
+    expect(names).toContain("R_0805");
+    expect(names).toContain("R_0603");
+  });
 });

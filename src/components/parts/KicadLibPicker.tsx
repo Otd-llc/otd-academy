@@ -22,7 +22,9 @@ export function KicadLibPicker({
   name,
   label,
   lib,
+  fpFilters,
   value,
+  onSelect,
   error,
 }: {
   kind: Kind;
@@ -31,8 +33,13 @@ export function KicadLibPicker({
   label: string;
   /** Optional lib filter (the category's default footprint lib). */
   lib?: string | null;
+  /** Footprint kind only: the selected symbol's `ki_fp_filters` globs — narrows
+   *  the results to footprints whose name matches. */
+  fpFilters?: string | null;
   /** Controlled initial/auto-suggested lib-id (e.g. the category default symbol). */
   value?: string | null;
+  /** Notified with the chosen lib-id (or null on clear). */
+  onSelect?: (libId: string | null) => void;
   error?: string[];
 }) {
   const [selected, setSelected] = useState<string | null>(value ?? null);
@@ -60,7 +67,7 @@ export function KicadLibPicker({
     setLoading(true);
     const t = setTimeout(() => {
       const search = kind === "symbol" ? searchKicadSymbols : searchKicadFootprints;
-      search({ q: term, lib: lib ?? undefined, take: 20 })
+      search({ q: term, lib: lib ?? undefined, fpFilters: fpFilters ?? undefined, take: 20 })
         .then((r) => {
           if (mySeq === seq.current) {
             setHits(r);
@@ -75,19 +82,21 @@ export function KicadLibPicker({
         });
     }, 200);
     return () => clearTimeout(t);
-  }, [query, kind, lib]);
+  }, [query, kind, lib, fpFilters]);
 
   function choose(libId: string) {
     setSelected(libId);
     setQuery("");
     setHits([]);
     setOpen(false);
+    onSelect?.(libId);
   }
 
   function clear() {
     setSelected(null);
     setQuery("");
     setHits([]);
+    onSelect?.(null);
   }
 
   return (
