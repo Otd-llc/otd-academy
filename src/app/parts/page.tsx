@@ -1,14 +1,19 @@
 // Parts library list page (design §9 routes table).
 //
-// Phase 1 scope: list every Part with a single MAINS PARTS filter chip
-// (m18, proposal §3 #5). When `?mains=1`, narrow to certified-module parts
-// only. The filter chip pattern mirrors `src/app/page.tsx`'s FilterChip
-// helper (Wave 1 review-fix: URL params are pre-validated against a known
-// allowlist rather than passed raw into `where`).
+// Phase A scope: query-driven list — search (`?q=`), lifecycle filter, MAINS
+// filter, and sort, all built via `partsHref` and served by `listParts`.
+// URL params are normalized through `partsListParamsSchema` (every field
+// `.catch`es to a safe default, so a hand-edited querystring degrades rather
+// than 500ing). Pagination + the responsive card/table split land in later
+// tasks. The filter chip pattern mirrors `src/app/page.tsx`'s FilterChip helper.
 import Link from "next/link";
+import { PartLifecycle } from "@prisma/client";
 import { db } from "@/lib/db";
 import { ChevronLeftIcon, PlusIcon } from "@/components/icons";
 import { PartGlanceTrigger } from "@/components/parts/PartGlanceTrigger";
+import { partsListParamsSchema, PART_SORTS } from "@/lib/schemas/part";
+import { listParts } from "@/lib/parts-list";
+import { partsHref } from "@/lib/parts-list-url";
 
 function FilterChip({
   label,
@@ -34,27 +39,19 @@ function FilterChip({
 export default async function PartsListPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mains?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const params = await searchParams;
-  // URL-param validation: explicit `=== "1"` check so any other value
-  // (including the empty string) falls through to the un-filtered list
-  // (Wave 1 review-fix pattern).
-  const mainsOnly = params.mains === "1";
-
-  const parts = await db.part.findMany({
-    where: mainsOnly ? { isCertifiedModule: true } : {},
-    orderBy: [{ manufacturer: "asc" }, { mpn: "asc" }],
-    select: {
-      id: true,
-      mpn: true,
-      manufacturer: true,
-      description: true,
-      category: true,
-      lifecycle: true,
-      isCertifiedModule: true,
-    },
-  });
+  const raw = await searchParams;
+  const params = partsListParamsSchema.parse(raw);
+  const { parts, total, page, totalPages } = await listParts(db, params);
+  // `current` for partsHref: only the string-valued params we honor.
+  const current = {
+    q: params.q,
+    lifecycle: params.lifecycle,
+    mains: params.mains ? "1" : undefined,
+    sort: params.sort === "manufacturer" ? undefined : params.sort,
+    page: page > 1 ? String(page) : undefined,
+  };
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
@@ -80,26 +77,57 @@ export default async function PartsListPage({
         </div>
       </div>
 
-      {/* m18: MAINS PARTS filter chip — narrows to certified-module parts.
-          Toggle is round-trip stable: clicking the active chip clears the
-          facet by linking back to `/parts`. */}
+      {/* Filter chips: ALL / MAINS + per-lifecycle. Each chip toggles its own
+          facet off when active (links back through partsHref, which resets the
+          page param on any filter change). */}
       <div className="mt-6 flex flex-wrap items-center gap-2">
         <FilterChip
           label="ALL PARTS"
-          active={!mainsOnly}
-          href="/parts"
+          active={!params.mains && !params.lifecycle}
+          href={partsHref(current, { mains: undefined, lifecycle: undefined })}
         />
         <FilterChip
           label="MAINS PARTS"
-          active={mainsOnly}
-          href={mainsOnly ? "/parts" : "/parts?mains=1"}
+          active={params.mains}
+          href={partsHref(current, {
+            mains: params.mains ? undefined : "1",
+          })}
         />
+        <span className="mx-1 hidden text-muted sm:inline">·</span>
+        {Object.values(PartLifecycle).map((lc) => (
+          <FilterChip
+            key={lc}
+            label={lc}
+            active={params.lifecycle === lc}
+            href={partsHref(current, {
+              lifecycle: params.lifecycle === lc ? undefined : lc,
+            })}
+          />
+        ))}
       </div>
 
-      {parts.length === 0 ? (
+      {/* Sort control: chips mirroring the filter pattern; right-aligned count. */}
+      <div className="mt-4 flex flex-wrap items-center gap-2 font-mono text-xs uppercase text-muted">
+        <span>Sort</span>
+        {PART_SORTS.map((s) => (
+          <FilterChip
+            key={s}
+            label={s}
+            active={params.sort === s}
+            href={partsHref(current, {
+              sort: s === "manufacturer" ? undefined : s,
+            })}
+          />
+        ))}
+        <span className="ml-auto normal-case">
+          {total} part{total === 1 ? "" : "s"}
+        </span>
+      </div>
+
+      {total === 0 ? (
         <p className="mt-10 font-mono text-sm uppercase tracking-wider text-muted">
-          {mainsOnly
-            ? "NO CERTIFIED-MODULE PARTS YET."
+          {params.q || params.lifecycle || params.mains
+            ? "NO PARTS MATCH THESE FILTERS."
             : "NO PARTS — CREATE ONE TO BEGIN."}
         </p>
       ) : (
