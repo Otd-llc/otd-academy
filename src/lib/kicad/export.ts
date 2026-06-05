@@ -48,6 +48,7 @@ import {
   buildSchematic,
   type SchematicPart,
 } from "@/lib/kicad/schematic";
+import { resolveVendoredSymbol } from "@/lib/kicad/vendor-symbols";
 
 // ── Internal shapes ─────────────────────────────────────────────────────────
 
@@ -242,13 +243,17 @@ export async function buildKicadExportZip(
       symbolLibId = projectLibId;
       symbolText = fetchedSymbol;
       symbolStatus = statusForTrust(bySymbol.trust);
-    } else if (part.kicadSymbol) {
-      // Referenced: emit the standard-lib lib-id; NO project file, NO embedded def.
+    } else if (part.kicadSymbol && resolveVendoredSymbol(part.kicadSymbol) !== undefined) {
+      // Referenced: emit the standard-lib lib-id AND embed its VENDORED def into
+      // lib_symbols — KiCad 6+ schematics are self-contained and won't resolve an
+      // unembedded reference on open (it shows "??"). The def is NOT added to the
+      // project .kicad_sym (it's a global-lib symbol, cached in the schematic only).
       symbolMode = "referenced";
       symbolLibId = part.kicadSymbol;
-      symbolText = undefined;
+      symbolText = resolveVendoredSymbol(part.kicadSymbol);
       symbolStatus = "referenced";
     } else {
+      // No asset, and no usable standard reference (unset or not vendored) → stub.
       symbolMode = "stub";
       symbolLibId = projectLibId;
       symbolText = buildStubSymbol({ mpn: part.mpn, pinout });
@@ -339,7 +344,7 @@ export async function buildKicadExportZip(
       allDesignators.push(refDes);
       schematicParts.push({
         refDes,
-        // Referenced symbols carry NO symbolText → no embedded lib_symbols def.
+        // symbolText embeds in lib_symbols: uploaded body / stub / vendored std-lib def.
         symbolText: p.symbolText,
         libId: p.symbolLibId,
         // Footprint ref is resolved INDEPENDENTLY of the symbol (project or std-lib).
@@ -361,7 +366,7 @@ export async function buildKicadExportZip(
   // empty when every part is referenced — buildSymbolLib still emits a valid
   // (kicad_symbol_lib ...) with zero (symbol ...) children.
   const embeddedSymbolParts = resolvedParts.filter(
-    (p) => p.symbolText !== undefined,
+    (p) => p.symbolMode !== "referenced" && p.symbolText !== undefined,
   );
   // The embedded symbol's Footprint property points at the part's footprint ref
   // (project `<slug>:<fp>` for uploaded/stub, or the std-lib footprint lib-id for
