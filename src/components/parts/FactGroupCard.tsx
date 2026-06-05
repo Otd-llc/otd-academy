@@ -27,7 +27,6 @@ import { ZodError } from "zod";
 import type {
   FactSourceKind,
   FactTrust,
-  PartCategory,
   PartFactGroup,
 } from "@prisma/client";
 
@@ -99,7 +98,10 @@ export function FactGroupCard({
   datasheet,
 }: {
   partId: string;
-  category: PartCategory | null;
+  // Category SLUG (the enum→tree bridge), or null — drives the PARAMETRICS
+  // required-keys via `factDataSchema`. The detail page passes
+  // `categoryRef?.slug ?? category`.
+  category: string | null;
   group: PartFactGroup;
   fact: SerializedFact | null;
   canEdit: boolean;

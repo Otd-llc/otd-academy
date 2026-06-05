@@ -109,6 +109,13 @@ describe("parametricsFor (category required-keys)", () => {
     const schema = parametricsFor("PASSIVE_RESISTOR");
     expect(schema.safeParse({ entries: [{ label: "resistance", value: "10k" }] }).success).toBe(true);
   });
+
+  it("an unknown slug (a future leaf not in CATEGORY_REQUIRED) imposes nothing", () => {
+    // The signature is now `string | null` (the enum→tree bridge): a slug that
+    // isn't a key in CATEGORY_REQUIRED must add no required-key constraint.
+    const schema = parametricsFor("SOME_FUTURE_SLUG");
+    expect(schema.safeParse({ entries: [] }).success).toBe(true);
+  });
 });
 
 describe("pinout", () => {

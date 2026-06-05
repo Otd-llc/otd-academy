@@ -5,13 +5,14 @@
 // `{ sourcePage?, sourceNote? }`; the row-level `PartFact` anchor is the
 // fallback and is enforced elsewhere (the verify gate, Task 4).
 //
-// DRY with guide.ts: the `PartCategory` literal set is the Prisma enum object
-// itself, fed to `z.enum(...)` — the same pattern guide.ts uses for
-// `ChecklistSubkind` — so the required-keys dispatch stays in lockstep with
-// `prisma/schema.prisma` with no hand-maintained array. NOTES reuses
-// `guideContentBlocksSchema` verbatim rather than redefining the block union.
+// Category is identified by SLUG (a plain string) here, not the `PartCategory`
+// enum — the Phase B enum→tree bridge. The 6 migrated leaves carry slug = the
+// old enum token, so `CATEGORY_REQUIRED`'s keys are unchanged from the enum era
+// and every caller that passes a token string (or `categoryRef?.slug ?? category`)
+// keeps working. NOTES reuses `guideContentBlocksSchema` verbatim rather than
+// redefining the block union.
 import { z } from "zod";
-import { PartCategory, type PartFactGroup } from "@prisma/client";
+import { type PartFactGroup } from "@prisma/client";
 
 import { guideContentBlocksSchema } from "./guide";
 
@@ -39,19 +40,20 @@ export const parametricsSchema = z.object({
 export type Parametrics = z.infer<typeof parametricsSchema>;
 
 // Per-category required parametric labels (case-insensitive match against
-// `entries[].label`). Additive — pilot categories only; categories absent
-// here (or `null`) impose no constraint.
-const CATEGORY_REQUIRED: Partial<Record<PartCategory, readonly string[]>> = {
-  [PartCategory.MLCC_CAPACITOR]: ["capacitance", "voltage", "dielectric"],
-  [PartCategory.LDO_REGULATOR]: ["vout", "iout", "dropout"],
+// `entries[].label`), keyed by category SLUG. Additive — pilot categories only;
+// slugs absent here (or `null`) impose no constraint.
+const CATEGORY_REQUIRED: Record<string, readonly string[]> = {
+  MLCC_CAPACITOR: ["capacitance", "voltage", "dielectric"],
+  LDO_REGULATOR: ["vout", "iout", "dropout"],
 };
 
 /**
- * The PARAMETRICS schema for a given category, with the per-category
+ * The PARAMETRICS schema for a given category slug, with the per-category
  * required-label refinement applied. A missing required label (case-insensitive)
- * adds one custom issue per missing key.
+ * adds one custom issue per missing key. `category` is a slug string (the
+ * enum→tree bridge) or `null`.
  */
-export function parametricsFor(category: PartCategory | null) {
+export function parametricsFor(category: string | null) {
   const required = (category && CATEGORY_REQUIRED[category]) ?? [];
   return parametricsSchema.superRefine((v, ctx) => {
     if (required.length === 0) return;
@@ -172,7 +174,7 @@ export type Notes = z.infer<typeof notesSchema>;
  * Returns the Zod schema for a fact group's `data`. PARAMETRICS folds in the
  * category required-keys; every other group ignores `category`.
  */
-export function factDataSchema(group: PartFactGroup, category: PartCategory | null) {
+export function factDataSchema(group: PartFactGroup, category: string | null) {
   switch (group) {
     case "PARAMETRICS":
       return parametricsFor(category);

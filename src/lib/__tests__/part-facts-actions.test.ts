@@ -25,7 +25,14 @@
 // to the seeded User row. Isolation: ONE throwaway Part (cascading its
 // PartFacts) created in `beforeAll`, torn down in `afterAll` (which asserts zero
 // leftover rows). The real curriculum / seed data is never touched.
-import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  test,
+  vi,
+} from "vitest";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -1016,6 +1023,75 @@ describe("unverifyFact", () => {
       });
       expect(row.trust).toBe("VERIFIED");
       expect(row.verifiedById).toBe(seedUserId);
+    } finally {
+      await deleteFact(fact.id);
+    }
+  });
+});
+
+// ─── Phase B — server-side category bridge (categoryRef.slug ?? category) ─────
+// The per-category required-parametrics enforcement must read the category via
+// the SAME bridge the rest of the app uses: `categoryRef?.slug ?? category`. A
+// part linked to the MLCC leaf by `categoryId` but with a NULL enum column must
+// STILL have the MLCC required keys enforced on createFact/editFact. This locks
+// the invariant server-side and guards the next phase (a leaf whose slug is not
+// an enum token, where the enum column would be NULL by construction).
+describe("createFact category bridge (categoryId → slug)", () => {
+  let bridgePartId: string;
+
+  beforeAll(async () => {
+    const mlcc = await db.category.findUniqueOrThrow({
+      where: { slug: "MLCC_CAPACITOR" },
+      select: { id: true },
+    });
+    const part = await db.part.create({
+      data: {
+        manufacturer: TEST_MFR,
+        mpn: `PFA-BRIDGE-${Date.now()}`,
+        description: "bridge: categoryId set, enum column NULL",
+        category: null, // enum deliberately NULL — only the FK links the category
+        categoryId: mlcc.id,
+        createdById: seedUserId,
+      },
+      select: { id: true },
+    });
+    bridgePartId = part.id;
+  });
+
+  afterAll(async () => {
+    if (bridgePartId) {
+      await db.part.deleteMany({ where: { id: bridgePartId } }).catch(() => {});
+    }
+  });
+
+  test("enforces MLCC required parametrics via categoryRef.slug when the enum is NULL", async () => {
+    await expect(
+      createFact({
+        partId: bridgePartId,
+        group: "PARAMETRICS",
+        // Missing voltage + dielectric — enforced ONLY if the server resolves
+        // the category through the slug bridge (the enum column is NULL here).
+        data: { entries: [{ label: "capacitance", value: "10uF" }] },
+        sourceKind: "DATASHEET",
+        sourcePage: 4,
+      }),
+    ).rejects.toThrow();
+    const count = await db.partFact.count({
+      where: { partId: bridgePartId, group: "PARAMETRICS" },
+    });
+    expect(count).toBe(0);
+  });
+
+  test("accepts a complete MLCC parametrics set (bridge resolves the required keys)", async () => {
+    const fact = await createFact({
+      partId: bridgePartId,
+      group: "PARAMETRICS",
+      data: validParametricsData(),
+      sourceKind: "DATASHEET",
+      sourcePage: 4,
+    });
+    try {
+      expect(fact.group).toBe("PARAMETRICS");
     } finally {
       await deleteFact(fact.id);
     }
