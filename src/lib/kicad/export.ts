@@ -48,6 +48,7 @@ import {
   buildSchematic,
   type SchematicPart,
 } from "@/lib/kicad/schematic";
+import { resolveVendoredSymbol } from "@/lib/kicad/vendor-symbols";
 
 // ── Internal shapes ─────────────────────────────────────────────────────────
 
@@ -57,13 +58,14 @@ function safeLibItemName(mpn: string): string {
   return mpn.replace(/[^A-Za-z0-9._+-]+/g, "_").replace(/^_+|_+$/g, "") || "PART";
 }
 
-/** A single asset kind's resolution outcome for one part. `text`/`bytes` carry
- *  the fetched body when an asset existed; otherwise we synthesize a stub. */
-type AssetResolution = {
-  status: AssetStatus;
-  /** The KiCad text body to bundle (symbol/footprint) — present for symbol/fp. */
-  text?: string;
-};
+/** How a part's symbol resolved (independent of its footprint):
+ *   - `uploaded` — a SYMBOL PartAsset fetched from R2 (project lib carries it).
+ *   - `referenced` — no asset; emitted by the part's `kicadSymbol` lib-id and
+ *      resolved from the user's KiCad standard libs (NO file, NO embedded def).
+ *   - `stub`      — neither; an auto-generated placeholder symbol. */
+type SymbolMode = "uploaded" | "referenced" | "stub";
+/** How a part's footprint resolved (independent of its symbol). Mirrors above. */
+type FootprintMode = "uploaded" | "referenced" | "stub";
 
 /** Per-part assembled data the generators consume. */
 type ResolvedPart = {
@@ -77,13 +79,30 @@ type ResolvedPart = {
   refDesGroup: string;
   /** Individual designators expanded from the group. */
   designators: string[];
-  /** Symbol/footprint item name + lib id used across libs + instances. */
+  /** Symbol/footprint item name used across the PROJECT libs + instances
+   *  (`<slug>:<itemName>`). Unused for the referenced lib-ids. */
   itemName: string;
-  /** The resolved (real-or-stub) symbol body text. */
-  symbolText: string;
-  /** The resolved (real-or-stub) footprint body text (3D path already rewritten). */
-  footprintText: string;
-  /** Bundled 3D model { filename, bytes } when a MODEL_3D asset existed. */
+
+  // ── Symbol resolution ──
+  symbolMode: SymbolMode;
+  /** Symbol lib-id placed on the schematic instance: `<slug>:<itemName>` for
+   *  uploaded/stub, or the standard-lib `kicadSymbol` for referenced. */
+  symbolLibId: string;
+  /** The symbol body to embed (uploaded/stub). UNDEFINED for `referenced` — a
+   *  referenced part gets no project symbol + no embedded lib_symbols def. */
+  symbolText?: string;
+
+  // ── Footprint resolution ──
+  footprintMode: FootprintMode;
+  /** Footprint reference for the instance's Footprint property: `<slug>:<itemName>`
+   *  for uploaded/stub, or the standard-lib `kicadFootprint` for referenced. */
+  footprintRef: string;
+  /** The footprint body to bundle in `.pretty/` (uploaded/stub; 3D path already
+   *  rewritten). UNDEFINED for `referenced` — no file is emitted. */
+  footprintText?: string;
+
+  /** Bundled 3D model { filename, bytes } when a MODEL_3D asset existed. A
+   *  referenced footprint brings its own 3D from KiCad, so we never bundle one. */
   model3d?: { filename: string; bytes: Buffer };
   /** Coverage row for the report. */
   coverage: PartCoverage;
@@ -157,6 +176,8 @@ export async function buildKicadExportZip(
           footprint: true,
           description: true,
           datasheetUrl: true,
+          kicadSymbol: true,
+          kicadFootprint: true,
           assets: {
             select: { kind: true, r2Key: true, filename: true, trust: true },
           },
@@ -209,26 +230,56 @@ export async function buildKicadExportZip(
     const byFootprint = part.assets.find((a) => a.kind === "FOOTPRINT");
     const byModel = part.assets.find((a) => a.kind === "MODEL_3D");
 
-    // SYMBOL: real asset text from R2, else a stub.
-    let symbolText: string;
+    const projectLibId = `${projectName}:${itemName}`;
+
+    // SYMBOL — precedence: uploaded asset → standard-lib reference → stub.
+    let symbolMode: SymbolMode;
+    let symbolLibId: string;
+    let symbolText: string | undefined;
     let symbolStatus: AssetStatus;
     const fetchedSymbol = await tryFetchText(bySymbol?.r2Key, r2On);
     if (fetchedSymbol !== undefined && bySymbol) {
+      symbolMode = "uploaded";
+      symbolLibId = projectLibId;
       symbolText = fetchedSymbol;
       symbolStatus = statusForTrust(bySymbol.trust);
+    } else if (part.kicadSymbol && resolveVendoredSymbol(part.kicadSymbol) !== undefined) {
+      // Referenced: emit the standard-lib lib-id AND embed its VENDORED def into
+      // lib_symbols — KiCad 6+ schematics are self-contained and won't resolve an
+      // unembedded reference on open (it shows "??"). The def is NOT added to the
+      // project .kicad_sym (it's a global-lib symbol, cached in the schematic only).
+      symbolMode = "referenced";
+      symbolLibId = part.kicadSymbol;
+      symbolText = resolveVendoredSymbol(part.kicadSymbol);
+      symbolStatus = "referenced";
     } else {
+      // No asset, and no usable standard reference (unset or not vendored) → stub.
+      symbolMode = "stub";
+      symbolLibId = projectLibId;
       symbolText = buildStubSymbol({ mpn: part.mpn, pinout });
       symbolStatus = "stubbed";
     }
 
-    // FOOTPRINT: real asset text from R2, else a stub.
-    let footprintText: string;
+    // FOOTPRINT — precedence: uploaded asset → standard-lib reference → stub.
+    let footprintMode: FootprintMode;
+    let footprintRef: string;
+    let footprintText: string | undefined;
     let footprintStatus: AssetStatus;
     const fetchedFootprint = await tryFetchText(byFootprint?.r2Key, r2On);
     if (fetchedFootprint !== undefined && byFootprint) {
+      footprintMode = "uploaded";
+      footprintRef = projectLibId;
       footprintText = fetchedFootprint;
       footprintStatus = statusForTrust(byFootprint.trust);
+    } else if (part.kicadFootprint) {
+      // Referenced: emit the standard footprint lib-id; NO project .kicad_mod file.
+      footprintMode = "referenced";
+      footprintRef = part.kicadFootprint;
+      footprintText = undefined;
+      footprintStatus = "referenced";
     } else {
+      footprintMode = "stub";
+      footprintRef = projectLibId;
       footprintText = buildStubFootprint({
         mpn: part.mpn,
         footprint: part.footprint ?? undefined,
@@ -237,9 +288,11 @@ export async function buildKicadExportZip(
     }
 
     // MODEL_3D: real bytes from R2 (optional — missing → omitted, never stubbed).
+    // Only an UPLOADED footprint carries a bundled model; a REFERENCED footprint
+    // brings its own 3D from KiCad's standard library, so we never bundle one.
     let model3d: ResolvedPart["model3d"];
     let model3dStatus: AssetStatus = "missing";
-    if (byModel) {
+    if (byModel && footprintMode !== "referenced") {
       const bytes = await tryFetchBytes(byModel.r2Key, r2On);
       if (bytes !== undefined) {
         // Name the bundled model deterministically by item name + its extension.
@@ -249,8 +302,9 @@ export async function buildKicadExportZip(
       }
     }
 
-    // Rewrite the footprint's 3D-model path to the bundled file (or omit if none).
-    if (model3d) {
+    // Rewrite the (bundled) footprint's 3D-model path to the bundled file. Only
+    // applies when we have a project footprint body (uploaded/stub).
+    if (model3d && footprintText !== undefined) {
       footprintText = setFootprintModelPath(
         footprintText,
         `\${KIPRJMOD}/3dmodels/${model3d.filename}`,
@@ -264,7 +318,11 @@ export async function buildKicadExportZip(
       refDesGroup: line.refDes,
       designators,
       itemName,
+      symbolMode,
+      symbolLibId,
       symbolText,
+      footprintMode,
+      footprintRef,
       footprintText,
       model3d,
       coverage: {
@@ -278,9 +336,7 @@ export async function buildKicadExportZip(
   }
 
   // ── 5. Expanded per-instance designator list (for placement + schematic). ──
-  // Each designator maps to its part's resolved symbol/lib-id.
-  const symbolLibId = (p: ResolvedPart) => `${projectName}:${p.itemName}`;
-
+  // Each designator maps to its part's resolved symbol lib-id + footprint ref.
   const allDesignators: string[] = [];
   const schematicParts: SchematicPart[] = [];
   for (const p of resolvedParts) {
@@ -288,8 +344,14 @@ export async function buildKicadExportZip(
       allDesignators.push(refDes);
       schematicParts.push({
         refDes,
+        // symbolText embeds in lib_symbols: uploaded body / stub / vendored std-lib def.
         symbolText: p.symbolText,
-        libId: symbolLibId(p),
+        libId: p.symbolLibId,
+        // Footprint ref is resolved INDEPENDENTLY of the symbol (project or std-lib).
+        footprintRef: p.footprintRef,
+        // Visible Value is the part's MPN (uploaded/stub use the bare item name;
+        // referenced lib-ids like "Device:R" would otherwise show "R").
+        value: p.mpn,
         datasheet: p.datasheetUrl ?? undefined,
         description: p.description ?? undefined,
       });
@@ -299,14 +361,25 @@ export async function buildKicadExportZip(
   // ── 6. Run the generators. ──
   const placements = gridPlacement(allDesignators);
 
-  // Symbol library: every part's symbol, Footprint pre-wired to <slug>:<fp>.
-  // The footprint name in the .pretty matches the symbol's item name.
+  // Project symbol library: ONLY uploaded + stub symbols (a `referenced` symbol
+  // lives in the user's KiCad standard lib and must NOT be embedded here). May be
+  // empty when every part is referenced — buildSymbolLib still emits a valid
+  // (kicad_symbol_lib ...) with zero (symbol ...) children.
+  const embeddedSymbolParts = resolvedParts.filter(
+    (p) => p.symbolMode !== "referenced" && p.symbolText !== undefined,
+  );
+  // The embedded symbol's Footprint property points at the part's footprint ref
+  // (project `<slug>:<fp>` for uploaded/stub, or the std-lib footprint lib-id for
+  // a referenced footprint) — resolved INDEPENDENTLY of how the symbol resolved.
   const footprintRefByItem = new Map<string, string>();
   for (const p of resolvedParts) {
-    footprintRefByItem.set(p.itemName, `${projectName}:${p.itemName}`);
+    footprintRefByItem.set(p.itemName, p.footprintRef);
   }
   const symbolLib = buildSymbolLib(
-    resolvedParts.map((p) => ({ name: p.itemName, kicadSymText: p.symbolText })),
+    embeddedSymbolParts.map((p) => ({
+      name: p.itemName,
+      kicadSymText: p.symbolText!,
+    })),
     {
       footprintFor: (name) => footprintRefByItem.get(name),
     },
@@ -353,9 +426,13 @@ export async function buildKicadExportZip(
   const libs = root.folder("libs")!;
   libs.file(`${projectName}.kicad_sym`, symbolLib, opts);
 
-  // Each footprint as its own `.kicad_mod` inside the `.pretty/` dir.
+  // Each footprint as its own `.kicad_mod` inside the `.pretty/` dir — ONLY
+  // uploaded + stub footprints. A `referenced` footprint resolves from the user's
+  // KiCad standard libs (no file bundled). The `.pretty/` dir is still created
+  // (possibly empty) so the fp-lib-table entry resolves to a valid directory.
   const pretty = libs.folder(`${projectName}.pretty`)!;
   for (const p of resolvedParts) {
+    if (p.footprintText === undefined) continue;
     pretty.file(`${p.itemName}.kicad_mod`, p.footprintText, opts);
   }
 

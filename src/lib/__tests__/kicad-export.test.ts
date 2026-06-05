@@ -24,7 +24,7 @@
 // Parts (cascading their PartAssets/PartFacts), torn down in afterAll.
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import JSZip from "jszip";
-import { parseSexpr, findChild, isStr } from "@/lib/kicad/sexpr";
+import { parseSexpr, findChild, findChildren, isStr } from "@/lib/kicad/sexpr";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -89,6 +89,12 @@ import { exportKicad } from "@/lib/actions/kicad-export";
 
 const SEED_EMAIL = "seed@example.com";
 const TAG = `KicadExport-${Date.now()}`;
+
+// KiCad standard-library lib-ids for the referenced part (Part C). Distinct from
+// the project `<slug>:<item>` nicks so the assertions prove the export emits the
+// reference verbatim (and never bundles a file for it).
+const REF_SYMBOL_LIBID = "Device:R";
+const REF_FOOTPRINT_LIBID = "Resistor_SMD:R_0805_2012Metric";
 
 let seedUserId: string;
 let projectId: string;
@@ -189,6 +195,24 @@ beforeAll(async () => {
   });
   partIds.push(partB.id);
 
+  // Part C — NO assets but standard-lib references set on BOTH symbol + footprint.
+  // The export must emit it by lib-id (NO project symbol/footprint file) and mark
+  // it `referenced` in coverage.
+  const partC = await db.part.create({
+    data: {
+      manufacturer: `${TAG}Co`,
+      mpn: `${TAG}-RES`,
+      description: "referenced resistor",
+      category: "PASSIVE_RESISTOR",
+      footprint: "0805",
+      kicadSymbol: REF_SYMBOL_LIBID,
+      kicadFootprint: REF_FOOTPRINT_LIBID,
+      createdById: seedUserId,
+    },
+    select: { id: true },
+  });
+  partIds.push(partC.id);
+
   // BomLines: Part A as a single U-designator; Part B as a GROUPED 3-cap line.
   await db.bomLine.create({
     data: {
@@ -205,6 +229,16 @@ beforeAll(async () => {
       partId: partB.id,
       refDes: "C2,C3,C7",
       quantity: 3,
+      createdById: seedUserId,
+    },
+  });
+  // Part C as a single R-designator (standard-lib referenced).
+  await db.bomLine.create({
+    data: {
+      revisionId,
+      partId: partC.id,
+      refDes: "R1",
+      quantity: 1,
       createdById: seedUserId,
     },
   });
@@ -252,20 +286,25 @@ describe("buildKicadExportZip", () => {
     expectEntry("fp-lib-table");
     expectEntry(`libs/${projectSlug}.kicad_sym`);
     expectEntry("EXPORT_REPORT.md");
-    // Two footprints (one per part) under the .pretty dir.
+    // Two footprints under the .pretty dir: the LDO (stub) + the cap (stub). The
+    // referenced resistor (Part C) bundles NO project footprint file.
     expect(
       names.filter((n) => n.includes(`.pretty/`) && n.endsWith(".kicad_mod"))
         .length,
     ).toBe(2);
 
     // Coverage: the asset-backed part's symbol is `verified`; its footprint is
-    // `stubbed` (no FOOTPRINT asset). The cap is `stubbed` on both.
+    // `stubbed` (no FOOTPRINT asset). The cap is `stubbed` on both. The resistor
+    // (Part C) is `referenced` on both (standard-lib lib-ids, no asset/stub).
     const ldo = coverage.find((c) => c.mpn.endsWith("-LDO"))!;
     const cap = coverage.find((c) => c.mpn.endsWith("-CAP"))!;
+    const res = coverage.find((c) => c.mpn.endsWith("-RES"))!;
     expect(ldo.symbol).toBe("verified");
     expect(ldo.footprint).toBe("stubbed");
     expect(cap.symbol).toBe("stubbed");
     expect(cap.footprint).toBe("stubbed");
+    expect(res.symbol).toBe("referenced");
+    expect(res.footprint).toBe("referenced");
 
     // The grouped refDes shows up verbatim in the per-part report row.
     expect(report).toContain("C2,C3,C7");
@@ -274,16 +313,56 @@ describe("buildKicadExportZip", () => {
     expect(report).toMatch(/-LDO \|[^\n]*verified/);
     expect(report).toMatch(/-CAP \|[^\n]*stubbed/);
 
-    // The schematic placed 4 component instances: U1 + the three expanded caps.
+    // The schematic placed 5 component instances: U1 + the three expanded caps +
+    // the referenced resistor R1.
     const sch = await parsed
       .file(`${projectSlug}/${projectSlug}.kicad_sch`)!
       .async("string");
-    for (const ref of ["U1", "C2", "C3", "C7"]) {
+    for (const ref of ["U1", "C2", "C3", "C7", "R1"]) {
       expect(sch).toContain(`"${ref}"`);
     }
     // UNWIRED export: the schematic carries NO power-port symbols of any kind —
     // wiring (power rails included) is the student's lesson.
     expect(sch).not.toContain("power:");
+
+    // ── Referenced part (Part C / R1): emitted by standard-lib lib-id, NOT in
+    //    the project lib/.pretty. ──
+    const schNode2 = parseSexpr(sch);
+    // (a) An R1 component instance whose lib_id is the standard symbol lib-id.
+    const r1Inst = findChildren(schNode2, "symbol").find((s) => {
+      const refProp = findChildren(s, "property").find(
+        (p) => isStr(p.items[1]) && p.items[1].value === "Reference",
+      );
+      return refProp && isStr(refProp.items[2]) && refProp.items[2].value === "R1";
+    })!;
+    expect(r1Inst).toBeDefined();
+    const r1LibId = findChild(r1Inst, "lib_id")!;
+    expect(isStr(r1LibId.items[1]) && r1LibId.items[1].value).toBe(
+      REF_SYMBOL_LIBID,
+    );
+    // Its Footprint property is the standard footprint lib-id (not a project nick).
+    const r1Fp = findChildren(r1Inst, "property").find(
+      (p) => isStr(p.items[1]) && p.items[1].value === "Footprint",
+    )!;
+    expect(isStr(r1Fp.items[2]) && r1Fp.items[2].value).toBe(
+      REF_FOOTPRINT_LIBID,
+    );
+
+    // (b) The referenced part is NOT embedded in the project symbol lib...
+    const symLibText = await parsed
+      .file(`${projectSlug}/libs/${projectSlug}.kicad_sym`)!
+      .async("string");
+    expect(symLibText).not.toContain(REF_SYMBOL_LIBID);
+    expect(symLibText).not.toContain(`${TAG}-RES`);
+    // ...and NO .pretty/ entry was emitted for it.
+    const resItem = `${projectSlug}/libs/${projectSlug}.pretty/`;
+    const prettyForRes = names.filter(
+      (n) => n.startsWith(resItem) && n.toLowerCase().includes("res"),
+    );
+    expect(prettyForRes).toHaveLength(0);
+
+    // (c) The referenced row in the per-part report reads `referenced`.
+    expect(report).toMatch(/-RES \|[^\n]*referenced[^\n]*referenced/);
 
     // The title block carries the revision's label as `rev` and a formatted
     // `date` (from revision.updatedAt). Assert against the parsed s-expression.

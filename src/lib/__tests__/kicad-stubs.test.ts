@@ -267,32 +267,37 @@ describe("report — buildExportReport", () => {
     { mpn: "ESP32-WROOM-32E", refDes: "U1", symbol: "verified", footprint: "verified", model3d: "verified" },
     { mpn: "AP2112K-3.3", refDes: "U2", symbol: "stubbed", footprint: "stubbed", model3d: "missing" },
     { mpn: "GRM188R61A106KE69D", refDes: "C2,C3,C7", symbol: "unverified", footprint: "stubbed", model3d: "missing" },
-    { mpn: "RC0805FR-0710KL", refDes: "R1", symbol: "missing", footprint: "missing", model3d: "missing" },
+    // A standard-lib REFERENCED part: symbol + footprint resolved from KiCad's
+    // global libraries (no asset, no stub, no bundled file). 3D comes with it.
+    { mpn: "Generic-R-0805", refDes: "R1", symbol: "referenced", footprint: "referenced", model3d: "missing" },
+    { mpn: "RC0805FR-0710KL", refDes: "R2", symbol: "missing", footprint: "missing", model3d: "missing" },
   ];
 
   test("renders a per-part table with mpn / refDes / symbol / footprint / 3D", () => {
     const md = buildExportReport(PARTS);
     expect(md).toContain("| ESP32-WROOM-32E | U1 | verified | verified | verified |");
     expect(md).toContain("| AP2112K-3.3 | U2 | stubbed | stubbed | missing |");
-    expect(md).toContain("| RC0805FR-0710KL | R1 | missing | missing | missing |");
+    expect(md).toContain("| Generic-R-0805 | R1 | referenced | referenced | missing |");
+    expect(md).toContain("| RC0805FR-0710KL | R2 | missing | missing | missing |");
     // the comma-joined refDes is preserved (it is data, not split)
     expect(md).toContain("C2,C3,C7");
   });
 
-  test("summary counts verified/unverified/stubbed/missing per asset kind", () => {
+  test("summary counts verified/unverified/referenced/stubbed/missing per asset kind", () => {
     const md = buildExportReport(PARTS);
-    // Symbol column: 1 verified, 1 unverified, 1 stubbed, 1 missing
-    // Footprint: 1 verified, 0 unverified, 2 stubbed, 1 missing
-    // 3D: 1 verified, 0 unverified, 0 stubbed, 3 missing
-    expect(md).toContain("| Symbol | 1 | 1 | 1 | 1 |");
-    expect(md).toContain("| Footprint | 1 | 0 | 2 | 1 |");
-    expect(md).toContain("| 3D model | 1 | 0 | 0 | 3 |");
+    // Symbol column: 1 verified, 1 unverified, 1 referenced, 1 stubbed, 1 missing
+    // Footprint: 1 verified, 0 unverified, 1 referenced, 2 stubbed, 1 missing
+    // 3D: 1 verified, 0 unverified, 0 referenced, 0 stubbed, 4 missing
+    expect(md).toContain("| Symbol | 1 | 1 | 1 | 1 | 1 |");
+    expect(md).toContain("| Footprint | 1 | 0 | 1 | 2 | 1 |");
+    expect(md).toContain("| 3D model | 1 | 0 | 0 | 0 | 4 |");
   });
 
-  test("includes a legend explaining the four statuses", () => {
+  test("includes a legend explaining the five statuses", () => {
     const md = buildExportReport(PARTS);
     expect(md).toMatch(/verified/);
     expect(md).toMatch(/unverified/);
+    expect(md).toMatch(/referenced/);
     expect(md).toMatch(/stubbed/);
     expect(md).toMatch(/missing/);
     expect(md.toLowerCase()).toContain("legend");
@@ -337,20 +342,22 @@ the KiCad project opens; replace them with verified assets before fabrication.
 | ESP32-WROOM-32E | U1 | verified | verified | verified |
 | AP2112K-3.3 | U2 | stubbed | stubbed | missing |
 | GRM188R61A106KE69D | C2,C3,C7 | unverified | stubbed | missing |
-| RC0805FR-0710KL | R1 | missing | missing | missing |
+| Generic-R-0805 | R1 | referenced | referenced | missing |
+| RC0805FR-0710KL | R2 | missing | missing | missing |
 
 ## Summary
 
-| Asset | Verified | Unverified | Stubbed | Missing |
-| --- | --- | --- | --- | --- |
-| Symbol | 1 | 1 | 1 | 1 |
-| Footprint | 1 | 0 | 2 | 1 |
-| 3D model | 1 | 0 | 0 | 3 |
+| Asset | Verified | Unverified | Referenced | Stubbed | Missing |
+| --- | --- | --- | --- | --- | --- |
+| Symbol | 1 | 1 | 1 | 1 | 1 |
+| Footprint | 1 | 0 | 1 | 2 | 1 |
+| 3D model | 1 | 0 | 0 | 0 | 4 |
 
 ## Legend
 
 - **verified** — a curated asset that passed the Foundry verify gate.
 - **unverified** — an uploaded asset not yet verified; used as-is.
+- **referenced** — no uploaded asset; the part is emitted by KiCad standard-library lib-id (Device:R, etc.) and resolved from your global libraries (no file bundled).
 - **stubbed** — no asset; an auto-generated placeholder was synthesized (replace before fabrication).
 - **missing** — no asset and no stub emitted (3D models are optional and omitted when absent).
 `;
