@@ -11,7 +11,7 @@ jobs:
       - uses: pnpm/action-setup@v3
         with: { version: 11 }
       - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: pnpm }
+        with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm tsc --noEmit
       - run: pnpm prisma validate
@@ -24,7 +24,21 @@ jobs:
           AUTH_GOOGLE_SECRET: stub
           ALLOWED_EMAILS: "stub@stub"
           R2_ENABLED: "false"
+      # Keep the test branch's schema current as migrations are added (the branch
+      # carries the seed + KiCad data, which CI can't regenerate). No-op when the
+      # branch is already up to date.
+      - run: pnpm exec prisma migrate deploy
+        env:
+          DIRECT_URL: ${{ secrets.NEON_TEST_DIRECT_URL }}
       - run: pnpm vitest run
         env:
+          # DB-backed tests need a REAL seeded Postgres — these repo secrets point
+          # at the seeded `ci-test` Neon branch (it inherits the schema + seed data).
           DATABASE_URL: ${{ secrets.NEON_TEST_DATABASE_URL }}
           DIRECT_URL: ${{ secrets.NEON_TEST_DIRECT_URL }}
+          # Non-DB env so `@/env` validation passes (mirrors the build step).
+          AUTH_SECRET: "stub-secret-32-chars-long-padding-x"
+          AUTH_GOOGLE_ID: stub
+          AUTH_GOOGLE_SECRET: stub
+          ALLOWED_EMAILS: "seed@example.com"
+          R2_ENABLED: "false"
