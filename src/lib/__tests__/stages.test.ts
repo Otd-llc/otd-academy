@@ -58,6 +58,7 @@ function makePart(overrides: Partial<Part> = {}): Part {
     manufacturer: "TEST-MFR",
     description: "Test part",
     category: null,
+    categoryId: null,
     footprint: null,
     datasheetUrl: "https://example.com/datasheet.pdf",
     kicadSymbol: null,
