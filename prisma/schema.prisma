@@ -413,12 +413,40 @@ enum FactSourceKind {
   API
 }
 
+// Hierarchical category tree (Phase B). Parent/child + a materialized `path`
+// of slugs ("passives/capacitors/MLCC_CAPACITOR") so a subtree filter is a
+// single `path startsWith` scan. The 6 migrated leaves carry slug = the old
+// `PartCategory` enum token (the enum→tree bridge); new interior nodes get
+// kebab slugs. The `PartCategory` enum column on `Part` is RETAINED during the
+// transition; reads bridge `categoryRef?.slug ?? category`.
+model Category {
+  id        String     @id @default(cuid())
+  slug      String     @unique // migrated leaves: the old enum token; new nodes: kebab
+  name      String // human label, e.g. "MLCC Capacitors"
+  parentId  String?
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  Category[] @relation("CategoryTree")
+  path      String     @unique // materialized slugs: "passives/capacitors/MLCC_CAPACITOR"
+  depth     Int        @default(0)
+  order     Int        @default(0)
+  defaultKicadSymbol       String? // Phase C (seeded empty here)
+  defaultKicadFootprintLib String? // Phase C (seeded empty here)
+  parts     Part[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([parentId])
+  @@index([path])
+}
+
 model Part {
   id           String        @id @default(cuid())
   mpn          String
   manufacturer String
   description  String
   category     PartCategory?
+  categoryId   String?
+  categoryRef  Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   footprint    String?
   datasheetUrl String?
   // KiCad standard-library references — used by the export when a part has no
@@ -443,6 +471,7 @@ model Part {
   @@index([mpn])
   @@index([manufacturer])
   @@index([category])
+  @@index([categoryId])
   @@index([lifecycle])
 }
 

@@ -7,6 +7,7 @@
 import type { Prisma } from "@prisma/client";
 import type { db as Db } from "@/lib/db";
 import type { PartsListParams } from "@/lib/schemas/part";
+import { subtreeWhere } from "@/lib/categories";
 
 export const PARTS_PAGE_SIZE = 50;
 
@@ -16,6 +17,10 @@ const LIST_SELECT = {
   manufacturer: true,
   description: true,
   category: true,
+  // Linked category (Phase B). `name` is the human label shown in the list;
+  // `slug`/`path` back the picker's active-node + breadcrumb. Bridge display:
+  // `categoryRef?.name ?? category ?? "—"`.
+  categoryRef: { select: { slug: true, name: true, path: true } },
   lifecycle: true,
   isCertifiedModule: true,
 } satisfies Prisma.PartSelect;
@@ -35,18 +40,35 @@ export async function listParts(
   params: PartsListParams,
   pageSize: number = PARTS_PAGE_SIZE,
 ): Promise<PartsListResult> {
+  // Resolve the `cat` path to its node, then AND-in its subtree filter. An
+  // unknown path resolves to null → no category constraint (degrade gracefully,
+  // mirroring the params schema's `.catch`). Both the `q` filter and the subtree
+  // filter use `OR`, so they MUST be combined under `AND` (a flat spread would
+  // have the second `OR` clobber the first).
+  const catNode = params.cat
+    ? await client.category.findUnique({
+        where: { path: params.cat },
+        select: { id: true, path: true },
+      })
+    : null;
+
   const where: Prisma.PartWhereInput = {
-    ...(params.q
-      ? {
-          OR: [
-            { mpn: { contains: params.q, mode: "insensitive" } },
-            { manufacturer: { contains: params.q, mode: "insensitive" } },
-            { description: { contains: params.q, mode: "insensitive" } },
-          ],
-        }
-      : {}),
     ...(params.lifecycle ? { lifecycle: params.lifecycle } : {}),
     ...(params.mains ? { isCertifiedModule: true } : {}),
+    AND: [
+      ...(params.q
+        ? [
+            {
+              OR: [
+                { mpn: { contains: params.q, mode: "insensitive" as const } },
+                { manufacturer: { contains: params.q, mode: "insensitive" as const } },
+                { description: { contains: params.q, mode: "insensitive" as const } },
+              ],
+            },
+          ]
+        : []),
+      ...(catNode ? [subtreeWhere(catNode)] : []),
+    ],
   };
 
   const orderBy: Prisma.PartOrderByWithRelationInput[] =

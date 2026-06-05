@@ -74,3 +74,72 @@ describe("listParts", () => {
     expect(r.parts.map((p) => p.mpn)).toEqual(["CC-300"]);
   });
 });
+
+// ─── Phase B — cat subtree filter ───────────────────────────────────────────
+// `?cat=<path>` narrows to a category's subtree: parts on the node itself OR any
+// descendant (matched by materialized-path prefix via subtreeWhere). Throwaway
+// parent+child categories with Date.now()-suffixed slugs keep this isolated from
+// the seeded tree; swept in afterAll (child before parent — parentId is RESTRICT).
+describe("listParts cat subtree filter", () => {
+  const STAMP = Date.now();
+  const CAT_MFR = `PartsListCat-TestCo-${STAMP}`;
+  const parentSlug = `test-parent-${STAMP}`;
+  const childSlug = `test-child-${STAMP}`;
+  const parentPath = parentSlug;
+  const childPath = `${parentSlug}/${childSlug}`;
+  let parentId: string;
+  let childId: string;
+
+  beforeAll(async () => {
+    const parent = await db.category.create({
+      data: { slug: parentSlug, name: "Test Parent", path: parentPath, depth: 0, order: 0 },
+      select: { id: true },
+    });
+    parentId = parent.id;
+    const child = await db.category.create({
+      data: { slug: childSlug, name: "Test Child", path: childPath, depth: 1, order: 0, parentId },
+      select: { id: true },
+    });
+    childId = child.id;
+    await db.part.createMany({
+      data: [
+        { manufacturer: CAT_MFR, mpn: "PARENT-1", description: "on the parent node", categoryId: parentId, createdById: userId },
+        { manufacturer: CAT_MFR, mpn: "CHILD-1", description: "on the child node", categoryId: childId, createdById: userId },
+      ],
+    });
+  });
+
+  afterAll(async () => {
+    await db.part.deleteMany({ where: { manufacturer: CAT_MFR } }).catch(() => {});
+    await db.category.deleteMany({ where: { id: childId } }).catch(() => {});
+    await db.category.deleteMany({ where: { id: parentId } }).catch(() => {});
+    expect(await db.part.count({ where: { manufacturer: CAT_MFR } })).toBe(0);
+  });
+
+  const catBase = { q: undefined, lifecycle: undefined, mains: false, sort: "mpn" as const, page: 1 };
+
+  test("cat = parent path returns parts on the parent AND its descendants", async () => {
+    const r = await listParts(db, { ...catBase, cat: parentPath });
+    expect(r.parts.map((p) => p.mpn).sort()).toEqual(["CHILD-1", "PARENT-1"]);
+  });
+
+  test("cat = child path returns only the child's parts", async () => {
+    const r = await listParts(db, { ...catBase, cat: childPath });
+    expect(r.parts.map((p) => p.mpn)).toEqual(["CHILD-1"]);
+  });
+
+  test("the returned rows carry categoryRef {slug,name,path} for display", async () => {
+    const r = await listParts(db, { ...catBase, cat: childPath });
+    expect(r.parts[0].categoryRef).toEqual({
+      slug: childSlug,
+      name: "Test Child",
+      path: childPath,
+    });
+  });
+
+  test("an unknown cat path narrows nothing (degrades gracefully)", async () => {
+    // Scope by manufacturer so the assertion sees only this test's rows.
+    const r = await listParts(db, { ...catBase, q: CAT_MFR, cat: `no-such-path-${STAMP}` });
+    expect(r.parts.map((p) => p.mpn).sort()).toEqual(["CHILD-1", "PARENT-1"]);
+  });
+});

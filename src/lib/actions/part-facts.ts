@@ -13,8 +13,8 @@
 // INPUT VALIDATION. Create/edit parse a `.strict()` Zod ENVELOPE so a typo'd
 // provenance key (e.g. `sourcePag`) is REJECTED, not silently dropped — losing
 // a provenance anchor silently would corrupt the gate. The `data` payload is
-// validated SEPARATELY via `factDataSchema(group, part.category)` (we load the
-// part to get its category, which drives the per-category required-keys).
+// validated SEPARATELY via `factDataSchema(group, categoryRef?.slug ?? category)`
+// (we load the part to get its category slug, which drives the required-keys).
 //
 // AUTO-DEMOTE (field-granular, design §4). Editing the `data` OR any ROW
 // provenance anchor (`partDatasheetId`, `sourcePage`, `sourceUrl`, `sourceKind`)
@@ -62,8 +62,8 @@ const DUPLICATE_GROUP_MESSAGE =
 // `.strict()` is the whole point: an unrecognized key (a typo'd provenance
 // field) yields an `unrecognized_keys` ZodError instead of being dropped. The
 // `data` field is parsed as a passthrough here (`z.unknown()`) and validated
-// SEPARATELY against `factDataSchema(group, part.category)` once we've loaded
-// the part — the per-category required-keys can't be known until then.
+// SEPARATELY against `factDataSchema(group, categoryRef?.slug ?? category)` once
+// we've loaded the part — the per-category required-keys can't be known until then.
 const sourceKindSchema = z.enum(["DATASHEET", "MANUAL", "API"]);
 
 const createFactSchema = z
@@ -252,17 +252,23 @@ export async function createFact(input: unknown): Promise<PartFact> {
   // NOTES is MANUAL-only (design §4).
   assertNotesSourceKind(env.group, env.sourceKind);
 
-  // Load the part to get its category — the per-category required-keys for
-  // PARAMETRICS can't be validated without it.
+  // Load the part's category for the per-category required-keys. Read via the
+  // enum→tree bridge `categoryRef?.slug ?? category`: a part linked by
+  // categoryId (its leaf slug) wins; the retained enum column is the fallback
+  // for rows not yet linked. Without this a categoryId-only part (enum NULL)
+  // would silently skip required-parametrics enforcement.
   const part = await db.part.findUniqueOrThrow({
     where: { id: env.partId },
-    select: { category: true },
+    select: { category: true, categoryRef: { select: { slug: true } } },
   });
 
   // A supplied cached-datasheet id must belong to this part.
   await assertDatasheetBelongsToPart(env.partDatasheetId, env.partId);
 
-  const data = factDataSchema(env.group, part.category).parse(env.data);
+  const data = factDataSchema(
+    env.group,
+    part.categoryRef?.slug ?? part.category,
+  ).parse(env.data);
 
   let fact: PartFact;
   try {
@@ -320,7 +326,8 @@ export async function editFact(input: unknown): Promise<PartFact> {
       sourcePage: true,
       sourceUrl: true,
       sourceKind: true,
-      part: { select: { category: true } },
+      // Category for the required-keys, read via the enum→tree bridge below.
+      part: { select: { category: true, categoryRef: { select: { slug: true } } } },
     },
   });
 
@@ -333,9 +340,11 @@ export async function editFact(input: unknown): Promise<PartFact> {
 
   // Validate `data` against the STORED group (immutable). A foreign-shaped
   // payload (e.g. NOTES `{blocks}` on a PARAMETRICS row) is rejected here.
-  const data = factDataSchema(existing.group, existing.part.category).parse(
-    env.data,
-  );
+  // Category via the enum→tree bridge (`categoryRef?.slug ?? category`).
+  const data = factDataSchema(
+    existing.group,
+    existing.part.categoryRef?.slug ?? existing.part.category,
+  ).parse(env.data);
 
   // Editing a FLAGGED row intentionally KEEPS the FLAG: FLAGGED is excluded
   // from all retrieval, so re-pointing the flag at edited content is acceptable

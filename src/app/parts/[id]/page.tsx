@@ -15,6 +15,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { env } from "@/env";
 import { db } from "@/lib/db";
+import { categoryLabel } from "@/lib/categories";
 import { getPartDatasheetDownloadUrl } from "@/lib/actions/part-datasheet";
 import {
   getPartAssetDownloadUrl,
@@ -44,6 +45,10 @@ export default async function PartDetailPage({
     where: { id },
     include: {
       datasheet: true,
+      // Linked category (Phase B). `slug` drives the PARAMETRICS required-keys
+      // (the enum→tree bridge below); `name` is the human label shown in the
+      // header.
+      categoryRef: { select: { slug: true, name: true } },
       // Ordered by group; the verifier display name is resolved separately
       // below (PartFact carries verifiedById but no verifiedBy relation).
       factGroups: { orderBy: { group: "asc" } },
@@ -133,7 +138,7 @@ export default async function PartDetailPage({
         eyebrow={part.manufacturer}
         title={part.mpn}
         meta={[
-          { label: "Category", value: part.category ?? "—" },
+          { label: "Category", value: categoryLabel(part) },
           { label: "Lifecycle", value: part.lifecycle },
           ...(part.isCertifiedModule
             ? [{ label: "Flag", value: "CERTIFIED MODULE" }]
@@ -259,7 +264,7 @@ export default async function PartDetailPage({
             <FactGroupCard
               key={group}
               partId={part.id}
-              category={part.category}
+              category={part.categoryRef?.slug ?? part.category}
               group={group}
               fact={serialized}
               canEdit={canEdit}

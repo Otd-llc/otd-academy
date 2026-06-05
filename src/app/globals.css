@@ -219,7 +219,9 @@ body {
    *   --row-divider  → rgba(170,170,170,.1)
    */
 
-  /* meta-strip — mono, caps, gold labels, slash separators. */
+  /* meta-strip — mono, caps, gold labels. Mobile: a clean vertical stack with a
+     steady label column (values line up) and NO separators. At ≥sm it becomes
+     the original single-line, slash-separated row. */
   .meta-strip {
     font-family: var(--font-mono);
     font-size: 11px;
@@ -227,15 +229,33 @@ body {
     letter-spacing: 0.22em;
     text-transform: uppercase;
     display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 1.5rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.45rem;
   }
   .meta-strip .label {
     color: var(--color-command-gold);
+    /* Mobile: a steady column so the values align; reset to natural width ≥sm. */
+    min-width: 5.5rem;
   }
   .meta-strip .sep {
+    /* Mobile: hidden — a leading "/" would strand at the start of each line. */
+    display: none;
     color: rgba(200, 150, 62, 0.4);
+  }
+  @media (min-width: 640px) {
+    .meta-strip {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 1.5rem;
+    }
+    .meta-strip .label {
+      min-width: 0;
+    }
+    .meta-strip .sep {
+      display: inline;
+    }
   }
 
   /* bench-hero — oversized Bebas title with a gold .ord eyebrow + .accent word. */

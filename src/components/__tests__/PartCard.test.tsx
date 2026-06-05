@@ -20,7 +20,7 @@ function hrefs(n: ReactNode, out: string[] = []): string[] {
   return out;
 }
 
-const part = { id: "p1", mpn: "RT9080-33GJ5", manufacturer: "Richtek", description: "LDO", category: "LDO_REGULATOR" as const, lifecycle: "ACTIVE" as const, isCertifiedModule: false };
+const part = { id: "p1", mpn: "RT9080-33GJ5", manufacturer: "Richtek", description: "LDO", category: "LDO_REGULATOR" as const, categoryRef: null, lifecycle: "ACTIVE" as const, isCertifiedModule: false };
 
 describe("PartCard", () => {
   test("shows mpn + manufacturer and links to the detail page", () => {

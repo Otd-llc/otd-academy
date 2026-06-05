@@ -22,6 +22,7 @@ import {
   createPartSchema,
   listPartsBySearchSchema,
 } from "@/lib/schemas/part";
+import { categoryAncestry } from "@/lib/categories";
 
 // `Part.category` is now a `PartCategory` enum (migration parts_knowledge_stage_a).
 // The create form still posts free text (the constrained <select> lands in
@@ -54,13 +55,31 @@ export async function createPart(input: unknown) {
     );
   }
 
+  // Resolve the category. A picker-supplied `categoryId` wins: look it up
+  // (validating it exists) and dual-write the legacy enum when its leaf slug is
+  // an enum token, so old enum readers stay consistent during the transition;
+  // a non-enum-token leaf leaves `category` NULL. With no categoryId, fall back
+  // to the directly-supplied enum (seed scripts / back-compat / tests).
+  let categoryId: string | null = null;
+  let category = toPartCategory(data.category);
+  if (data.categoryId) {
+    const cat = await db.category.findUnique({
+      where: { id: data.categoryId },
+      select: { id: true, slug: true },
+    });
+    if (!cat) throw new Error("Unknown category.");
+    categoryId = cat.id;
+    category = toPartCategory(cat.slug);
+  }
+
   try {
     const part = await db.part.create({
       data: {
         mpn: data.mpn,
         manufacturer: data.manufacturer,
         description: data.description,
-        category: toPartCategory(data.category),
+        category,
+        categoryId,
         footprint: data.footprint ?? null,
         datasheetUrl: data.datasheetUrl ?? null,
         lifecycle: data.lifecycle,
@@ -135,6 +154,34 @@ export async function listPartsBySearch(input: unknown) {
   });
 }
 
+// List the SELECTABLE categories for the create-form picker — LEAF nodes only.
+// A part belongs to a specific leaf type; an interior node has no enum-token
+// slug, so categorizing there would skip the per-category required-parametrics
+// and leave the legacy enum NULL. Each leaf carries a breadcrumb `label` of
+// NAMES ("Passives › Capacitors › MLCC Capacitors") and its `path`, ordered by
+// path. Read-only; called from the CategoryCombobox client island on mount.
+export async function listCategoriesForPicker(): Promise<
+  { id: string; label: string; path: string }[]
+> {
+  const cats = await db.category.findMany({
+    orderBy: { path: "asc" },
+    select: { id: true, name: true, path: true, parentId: true },
+  });
+  const byId = new Map(cats.map((c) => [c.id, c]));
+  const parentIds = new Set(
+    cats.map((c) => c.parentId).filter((p): p is string => p !== null),
+  );
+  return cats
+    .filter((c) => !parentIds.has(c.id)) // leaves: never referenced as a parent
+    .map((c) => ({
+      id: c.id,
+      label: categoryAncestry(c, byId)
+        .map((n) => n.name)
+        .join(" › "),
+      path: c.path,
+    }));
+}
+
 // ─── Form action wrappers (useActionState-compatible) ──────────────────
 
 export type PartFormState = {
@@ -159,6 +206,7 @@ export async function createPartFormAction(
     manufacturer: pickString(formData, "manufacturer"),
     description: pickString(formData, "description"),
     category: pickString(formData, "category"),
+    categoryId: pickString(formData, "categoryId"),
     footprint: pickString(formData, "footprint"),
     datasheetUrl: pickString(formData, "datasheetUrl"),
     lifecycle: pickString(formData, "lifecycle") ?? "ACTIVE",
