@@ -11,6 +11,7 @@ import { PartLifecycle } from "@prisma/client";
 import { db } from "@/lib/db";
 import { ChevronLeftIcon, PlusIcon } from "@/components/icons";
 import { PartGlanceTrigger } from "@/components/parts/PartGlanceTrigger";
+import { PartsSearch } from "@/components/parts/PartsSearch";
 import { partsListParamsSchema, PART_SORTS } from "@/lib/schemas/part";
 import { listParts } from "@/lib/parts-list";
 import { partsHref } from "@/lib/parts-list-url";
@@ -76,6 +77,8 @@ export default async function PartsListPage({
           </Link>
         </div>
       </div>
+
+      <PartsSearch initialQ={params.q ?? ""} current={current} />
 
       {/* Filter chips: ALL / MAINS + per-lifecycle. Each chip toggles its own
           facet off when active (links back through partsHref, which resets the
