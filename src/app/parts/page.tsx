@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { ChevronLeftIcon, PlusIcon } from "@/components/icons";
 import { PartGlanceTrigger } from "@/components/parts/PartGlanceTrigger";
 import { PartsSearch } from "@/components/parts/PartsSearch";
+import { PartsPagination } from "@/components/parts/PartsPagination";
 import { partsListParamsSchema, PART_SORTS } from "@/lib/schemas/part";
 import { listParts } from "@/lib/parts-list";
 import { partsHref } from "@/lib/parts-list-url";
@@ -182,6 +183,8 @@ export default async function PartsListPage({
           </tbody>
         </table>
       )}
+
+      <PartsPagination page={page} totalPages={totalPages} current={current} />
     </main>
   );
 }
