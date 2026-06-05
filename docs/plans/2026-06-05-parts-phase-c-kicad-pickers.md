@@ -132,11 +132,11 @@ Build the `libNode` fixtures with `parseSexpr` over small inline `.kicad_sym` st
 
 **Files:** Create `scripts/ingest-kicad-libs.ts` (idempotent, direct-Prisma seed style; copy the dotenv + deferred-`db`-import shape from `scripts/seed-category-tree.ts`).
 
-**Symbols:** for each `*.kicad_sym` in the symbols dir, `parseSexpr`, then for each `(symbol …)` child (top-level only — skip unit sub-symbols whose name contains `_<n>_<m>`), read properties via a `getProp(sym, key)` helper (`findChildren(sym,"property")` → match `items[1]` name → `items[2]` value). Upsert `KicadLibSymbol { libId: `${lib}:${name}`, lib, name, keywords: getProp("ki_keywords"), description: getProp("ki_description"), datasheet: getProp("Datasheet"), fpFilters: getProp("ki_fp_filters") }`.
+**Symbols:** for each `*.kicad_sym` in the symbols dir, `parseSexpr`, then for each `(symbol …)` child of the lib node via `findChildren(libNode,"symbol")` — these are **top-level symbols only**; KiCad nests unit sub-symbols (`R_0_1`) *inside* each parent symbol, so they are not direct lib children and need no filtering. Read properties via a `getProp(sym, key)` helper (`findChildren(sym,"property")` → match `items[1]` name → `items[2]` value). Build `KicadLibSymbol { libId: `${lib}:${name}`, lib, name, keywords: getProp("ki_keywords"), description: getProp("ki_description"), datasheet: getProp("Datasheet"), fpFilters: getProp("ki_fp_filters") }`.
 
-**Footprints:** for each `*.pretty` dir, for each `*.kicad_mod`, `parseSexpr`; the node head is `footprint`; `name = items[1]`. Upsert `KicadLibFootprint { libId: `${lib}:${name}`, lib (the .pretty dir name minus suffix), name, description: atomValue(findChild(fp,"descr")?.items[1]), tags: …"tags"…, padCount: findChildren(fp,"pad").length }`.
+**Footprints:** for each `*.pretty` dir, for each `*.kicad_mod`, `parseSexpr`; the node head is `footprint`; `name = items[1]`. Build `KicadLibFootprint { libId: `${lib}:${name}`, lib (the .pretty dir name minus the `.pretty` suffix), name, description: atomValue(findChild(fp,"descr")?.items[1]), tags: …"tags"…, padCount: findChildren(fp,"pad").length }`.
 
-Batch upserts (chunk with `createMany` + `skipDuplicates`, or `$transaction` in groups of ~500) — there are ~20k + ~15k rows. Print counts. Re-runnable.
+**Re-sync strategy (true idempotency):** the index is a derived mirror of the install, so re-running must REPLACE it, not skip. For each table: `deleteMany({})` then `createMany` in batches of ~1000 (`skipDuplicates` is the WRONG tool — it skips existing rows, so a changed description never updates). Wrap each table's delete+insert in a `$transaction`. ~20k symbol + ~15k footprint rows; print counts. (A KiCad version bump → re-run → the index re-syncs.)
 
 **Run it** and record the counts. Leave the script tracked (commit the script only, not DB state).
 **Commit.** `feat(kicad): ingest full KiCad 10 standard library into the index`
@@ -147,7 +147,7 @@ Batch upserts (chunk with `createMany` + `skipDuplicates`, or `$transaction` in 
 
 **Files:** Create `scripts/upload-kicad-symbol-libs.ts`.
 
-Upload the 222 `*.kicad_sym` **symbol** sources to R2 (footprints are never uploaded). Use the `r2` `S3Client` + `env` from `src/lib/r2.ts` / `@/env` (read the bucket name there; mirror the `PutObjectCommand` usage in `src/lib/actions/part-assets.ts`). Key scheme: `kicad/symbols/<KICAD_VERSION>/<Lib>.kicad_sym` (define `KICAD_VERSION = "20260508"` shared with the cache `version`). Skip-if-exists (HEAD) so re-runs are cheap. Requires `R2_ENABLED`; abort with a clear message otherwise. Print uploaded/skipped counts.
+Upload the 222 `*.kicad_sym` **symbol** sources to R2 (footprints are never uploaded). Use the `r2` `S3Client` from `src/lib/r2.ts` with `PutObjectCommand` (mirror `src/lib/actions/part-assets.ts`); the bucket is **`env.R2_BUCKET`**. Gate on `env.R2_ENABLED && !!env.R2_BUCKET` (mirror [export.ts:207](../../src/lib/kicad/export.ts#L207)); abort with a clear message otherwise. Key scheme: `kicad/symbols/<KICAD_VERSION>/<Lib>.kicad_sym` (define `KICAD_VERSION = "20260508"` in `src/lib/kicad/` and share it with the cache `version` + the resolver). Skip-if-exists (`HeadObjectCommand`) so re-runs are cheap. Print uploaded/skipped counts.
 
 **Commit.** `feat(kicad): upload standard symbol-lib sources to R2`
 
@@ -157,16 +157,28 @@ Upload the 222 `*.kicad_sym` **symbol** sources to R2 (footprints are never uplo
 
 **Files:** Modify `src/lib/kicad/vendor-symbols.ts`; Modify `src/lib/kicad/export.ts:246-253`; Test `src/lib/__tests__/kicad-resolver.test.ts`.
 
-**Step 1 — Failing tests** (DB; inject `db`): a `libId` present in the committed JSON resolves WITHOUT hitting the cache; a `libId` absent from JSON but present in `KicadSymbolDefCache` returns the cached text; a miss path is asserted structurally (the R2 fetch is the seam — gate it behind a thin `fetchLibSource(libId)` so the test stubs it, returns a flattened def, and asserts a cache row was written).
+The resolver imports `db` directly and reads R2 via **`getR2ObjectText` from `@/lib/part-r2`** (the same seam `export.ts`'s tests `vi.mock` — don't reach for raw S3 commands). `vendor-symbols.ts` becomes **server-only** (db + R2) — confirmed only `export.ts` imports it.
+
+**Step 1 — Failing tests** (real `db` + throwaway `KicadSymbolDefCache` rows, swept in `afterAll`): (a) a `libId` in the committed JSON resolves with NO cache row present; (b) a `libId` absent from JSON but with a cache row returns the cached text; (c) miss path — `vi.mock("@/lib/part-r2")` so `getR2ObjectText` returns a raw lib → assert the result is the flattened def AND a `KicadSymbolDefCache` row was written.
 
 **Step 2 — Implement** `resolveVendoredSymbol(libId): Promise<string | undefined>`:
 1. `DEFS[libId]` (committed JSON) → return.
 2. `db.kicadSymbolDefCache.findUnique({ where: { libId } })` → return `.text`.
-3. `const src = await fetchLibSource(libId)`; if none → `undefined`. Parse, `flattenSymbol(libNode, name)`, `serializeSexpr`, `db.kicadSymbolDefCache.upsert(... { text, version: KICAD_VERSION })`, return text.
+3. miss: `const src = await getR2ObjectText(`kicad/symbols/${KICAD_VERSION}/${lib}.kicad_sym`)`; if none → `undefined`. Parse, `flattenSymbol(libNode, name)`, `serializeSexpr`, `db.kicadSymbolDefCache.upsert(… { text, version: KICAD_VERSION })`, return text.
 
-`fetchLibSource(libId)` does the R2 `GetObjectCommand` for `kicad/symbols/<version>/<Lib>.kicad_sym` and returns the body text (or undefined on 404). Keep `vendoredSymbolIds()` for the committed set.
+Keep `vendoredSymbolIds()` (sync, committed set).
 
-**Step 3 — Update `export.ts`.** The assembly loop (line ~246) calls `resolveVendoredSymbol` twice synchronously; change to `const vendored = await resolveVendoredSymbol(part.kicadSymbol)` once, then branch on `vendored !== undefined`. The enclosing loop is already `async` (it `await`s asset fetches) — confirm and `await`.
+**Step 3 — Update `export.ts`.** The loop (line ~211) is already `async`. `resolveVendoredSymbol` is called at **lines 246 + 253** only. Resolve ONCE, gated so it runs only when the uploaded-asset branch missed AND a `kicadSymbol` is set, then branch:
+```ts
+const vendored =
+  fetchedSymbol === undefined && part.kicadSymbol
+    ? await resolveVendoredSymbol(db, part.kicadSymbol)
+    : undefined;
+// ... if (fetchedSymbol !== undefined && bySymbol) { uploaded }
+// else if (vendored !== undefined) { referenced; symbolText = vendored; symbolLibId = part.kicadSymbol! }
+// else { stub }
+```
+Confirm no test calls `resolveVendoredSymbol` synchronously (grep showed none).
 
 **Step 4 — Run** the resolver test + the existing kicad export tests (`pnpm exec vitest run -t kicad`) → PASS.
 **Commit.** `feat(kicad): layered async symbol resolver (JSON -> cache -> R2 flatten)`
@@ -177,21 +189,24 @@ Upload the 222 `*.kicad_sym` **symbol** sources to R2 (footprints are never uplo
 
 **Files:** Create `src/lib/actions/kicad-search.ts` (`"use server"`); Test `src/lib/__tests__/kicad-search.test.ts`.
 
-`searchKicadSymbols(input)` / `searchKicadFootprints(input)` — Zod-parse `{ q: string (≤128), lib?: string, take?: ≤50 default 25 }`, then `db.$queryRaw` with pg_trgm:
+`searchKicadSymbols(input)` / `searchKicadFootprints(input)` — Zod-parse `{ q: string (≤128), lib?: string, take?: ≤50 default 25 }`, then `db.$queryRaw` with pg_trgm. **Name-first ranking + a prefix fallback** — trigrams need ≥3 chars, but the commonest symbol names are 1–2 chars (R, C, L, D, U), whose similarity to the blob is ~0 and is rejected by the 0.3 threshold. So OR-in a prefix match and rank exact/prefix name hits ahead of trigram:
 
 ```ts
-// symbols (footprints mirror with the footprint search expression)
+const likePrefix = q + "%";
 const rows = await db.$queryRaw<SymbolHit[]>`
-  SELECT "libId", "lib", "name", "description",
+  SELECT "libId","lib","name","description",
          similarity(coalesce("name",'')||' '||coalesce("keywords",'')||' '||coalesce("description",''), ${q}) AS sim
   FROM "KicadLibSymbol"
-  WHERE (${lib}::text IS NULL OR "lib" = ${lib})
-    AND (coalesce("name",'')||' '||coalesce("keywords",'')||' '||coalesce("description",'')) % ${q}
-  ORDER BY sim DESC, "name" ASC
+  WHERE (${lib ?? null}::text IS NULL OR "lib" = ${lib ?? null})
+    AND ("name" ILIKE ${likePrefix}
+         OR (coalesce("name",'')||' '||coalesce("keywords",'')||' '||coalesce("description",'')) % ${q})
+  ORDER BY ("name" = ${q}) DESC, ("name" ILIKE ${likePrefix}) DESC, sim DESC, "name" ASC
   LIMIT ${take};`;
 ```
 
-**TDD:** seed a handful of throwaway `KicadLibSymbol` rows (distinct `lib` prefix, `Date.now()`-suffixed) incl. near-miss names; assert the closest match ranks first, the `lib` filter narrows, and `take` caps. Sweep in `afterAll`. (Set `pg_trgm.similarity_threshold` is the default 0.3; if the test's tokens fall below it, lower via `set_limit` in the same tx or assert on the ordered subset.)
+**CRITICAL — index match:** the `%` operand expression must be **byte-identical** to the GIN-indexed expression from Task 1 (`coalesce("name",'')||' '||coalesce("keywords",'')||' '||coalesce("description",'')`) or Postgres won't use the index. The `name ILIKE prefix` is a seq scan over ≤20k rows (fine; a `text_pattern_ops` index is a later optimization). Pass `lib ?? null` (never `undefined`). Footprints mirror with the footprint blob (`name||' '||description||' '||tags`).
+
+**TDD:** seed throwaway rows (distinct `lib` prefix, `Date.now()`-suffixed) incl. a 1-char name (`"R"`), a prefix sibling (`"R_Pack"`), and a fuzzy near-miss; assert (a) `q="R"` returns `R` first (prefix path — the trigram-only query would miss it), (b) a ≥3-char fuzzy query ranks the closest by `sim`, (c) the `lib` filter narrows, (d) `take` caps. Sweep in `afterAll`. (If the default `pg_trgm.similarity_threshold` 0.3 over-filters a fuzzy test token, `SET LOCAL` it lower in the same `$transaction`.)
 
 **Commit.** `feat(kicad): pg_trgm-ranked symbol/footprint search actions`
 
@@ -201,8 +216,8 @@ const rows = await db.$queryRaw<SymbolHit[]>`
 
 **Files:** Create `src/components/parts/KicadSymbolPicker.tsx`, `src/components/parts/KicadFootprintPicker.tsx`; Modify `src/components/CreatePartDialog.tsx` (the shared `PartFields`); Modify `src/lib/actions/parts.ts` (`createPart`); Test: extend `src/lib/__tests__/parts-actions.test.ts`.
 
-- Both pickers are client islands modeled on `src/components/parts/CategoryCombobox.tsx` (same loaded/empty state, `onMouseDown` preventDefault, filter-after-select fixes). `KicadSymbolPicker` calls `searchKicadSymbols` (debounced on input, not load-all — the index is large), posts `kicadSymbol` via a hidden input, renders `name · lib · description`. `KicadFootprintPicker` calls `searchKicadFootprints`, posts `kicadFootprint`, and accepts a `lib?`/`fpFilters?` prop to pre-narrow.
-- **Auto-suggest:** in `PartFields`, lift the chosen category into state; when it changes, fetch its `Category.defaultKicadSymbol`/`defaultKicadFootprintLib` (extend `listCategoriesForPicker` to include them, or a small `getCategoryDefaults(id)` action) → seed the symbol picker's value and pass the footprint lib to the footprint picker.
+- **This is the heaviest task — the pickers are a NEW pattern, not a `CategoryCombobox` copy.** CategoryCombobox loads all 14 rows once and filters client-side; that does NOT scale to 20k. The pickers must **server-search per keystroke**: debounce (~200 ms), call the search action, and **cancel stale responses** (a monotonically-increasing request seq, or `AbortController` — apply only the latest response so a slow earlier query can't overwrite a newer one). Reuse CategoryCombobox only for the *visual* shell + the `onMouseDown` preventDefault / clear-button / empty-vs-loading polish. `KicadSymbolPicker` calls `searchKicadSymbols`, posts `kicadSymbol` via a hidden input, renders `name · lib · description`. `KicadFootprintPicker` calls `searchKicadFootprints`, posts `kicadFootprint`, accepts a `lib?` prop (the category's footprint lib) to pre-narrow.
+- **Auto-suggest:** the Phase B `CategoryCombobox` only posts a hidden input — **add a small `onSelect?(id: string | null)` callback** to it so `PartFields` can lift the chosen category into state. On change, fetch that category's `defaultKicadSymbol`/`defaultKicadFootprintLib` (a small `getCategoryDefaults(id)` `"use server"` action) → seed the symbol picker's value and pass the footprint lib as the footprint picker's `lib` prop. (This `onSelect` addition is the only change to Phase B code.)
 - `createPart`: validate `kicadSymbol`/`kicadFootprint` exist in the index (`db.kicadLibSymbol.findUnique`), set them. Unknown → throw a clean error.
 - **Verify:** `tsc` clean; extend `parts-actions.test.ts` (createPart links a real indexed symbol/footprint; rejects an unknown lib-id). Dev-server pass — picking a category prefills the symbol, the footprint picker narrows, create succeeds (note: `/parts/new` is auth-gated).
 
@@ -240,3 +255,7 @@ Set `defaultKicadSymbol`/`defaultKicadFootprintLib` on the 6 pilot leaves (idemp
 - Admin UI to edit category KiCad defaults (seed-only).
 - Footprint file bundling (footprints stay referenced).
 - Auto re-sync on KiCad version bump (re-run ingest + R2 upload).
+- **`fpFilters` glob narrowing** of the footprint picker (the design's symbol-`fpFilters`
+  pre-filter). The category `lib` filter delivers most of the value; matching the
+  symbol's `ki_fp_filters` glob patterns (`R_*`, `C_*`) against footprint names is a
+  follow-up. `fpFilters` is still INGESTED (Task 3) so the data is ready.
