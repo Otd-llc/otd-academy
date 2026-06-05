@@ -421,6 +421,11 @@ model Part {
   category     PartCategory?
   footprint    String?
   datasheetUrl String?
+  // KiCad standard-library references — used by the export when a part has no
+  // uploaded asset (before falling back to a stub): a symbol lib-id (e.g.
+  // "Device:R") and a footprint lib-id (e.g. "Resistor_SMD:R_0805_2012Metric").
+  kicadSymbol    String?
+  kicadFootprint String?
   lifecycle    PartLifecycle @default(ACTIVE)
   isCertifiedModule Boolean  @default(false)
   notes        String? // ECN/sourcing swaps recorded here (free text)
