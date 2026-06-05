@@ -101,15 +101,16 @@ export async function searchKicadFootprints(
     LIMIT ${take}`);
 }
 
-// The `ki_fp_filters` of a symbol lib-id (space-separated globs), or null. Drives
-// the create-form footprint narrowing when a symbol is selected/auto-suggested.
-export async function getKicadSymbolFpFilters(
+// A selected symbol's metadata for the create-form: `fpFilters` (space-separated
+// globs) narrows the footprint picker; `datasheet` powers the "use the symbol's
+// datasheet" offer. Both null for an unknown lib-id.
+export async function getKicadSymbolMeta(
   libId: string,
-): Promise<string | null> {
-  if (!libId) return null;
+): Promise<{ fpFilters: string | null; datasheet: string | null }> {
+  if (!libId) return { fpFilters: null, datasheet: null };
   const s = await db.kicadLibSymbol.findUnique({
     where: { libId },
-    select: { fpFilters: true },
+    select: { fpFilters: true, datasheet: true },
   });
-  return s?.fpFilters ?? null;
+  return { fpFilters: s?.fpFilters ?? null, datasheet: s?.datasheet ?? null };
 }

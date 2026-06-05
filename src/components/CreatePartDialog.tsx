@@ -15,7 +15,7 @@ import {
   getCategoryDefaults,
   type PartFormState,
 } from "@/lib/actions/parts";
-import { getKicadSymbolFpFilters } from "@/lib/actions/kicad-search";
+import { getKicadSymbolMeta } from "@/lib/actions/kicad-search";
 import { CategoryCombobox } from "@/components/parts/CategoryCombobox";
 import { KicadLibPicker } from "@/components/parts/KicadLibPicker";
 import { InlineBanner } from "@/components/InlineBanner";
@@ -135,6 +135,9 @@ export function PartFields({
   const [currentSymbol, setCurrentSymbol] = useState<string | null>(null);
   const [defaultFootprintLib, setDefaultFootprintLib] = useState<string | null>(null);
   const [symbolFpFilters, setSymbolFpFilters] = useState<string | null>(null);
+  const [symbolDatasheet, setSymbolDatasheet] = useState<string | null>(null);
+  // Controlled so the "use the symbol's datasheet" offer can fill it.
+  const [datasheetUrl, setDatasheetUrl] = useState("");
 
   async function onCategorySelect(id: string | null) {
     if (!id) {
@@ -147,20 +150,28 @@ export function PartFields({
     setDefaultFootprintLib(d?.defaultKicadFootprintLib ?? null);
   }
 
-  // Fetch the selected symbol's fp-filters whenever it changes (auto-suggest or
-  // manual pick) → narrows the footprint picker.
+  // Fetch the selected symbol's metadata whenever it changes (auto-suggest or
+  // manual pick): fp-filters narrow the footprint picker; the datasheet powers
+  // the fill-datasheet offer below.
   useEffect(() => {
     let active = true;
     if (!currentSymbol) {
       setSymbolFpFilters(null);
+      setSymbolDatasheet(null);
       return;
     }
-    getKicadSymbolFpFilters(currentSymbol)
-      .then((f) => {
-        if (active) setSymbolFpFilters(f);
+    getKicadSymbolMeta(currentSymbol)
+      .then((m) => {
+        if (active) {
+          setSymbolFpFilters(m.fpFilters);
+          setSymbolDatasheet(m.datasheet);
+        }
       })
       .catch(() => {
-        if (active) setSymbolFpFilters(null);
+        if (active) {
+          setSymbolFpFilters(null);
+          setSymbolDatasheet(null);
+        }
       });
     return () => {
       active = false;
@@ -279,8 +290,24 @@ export function PartFields({
         <input
           name="datasheetUrl"
           type="url"
+          value={datasheetUrl}
+          onChange={(e) => setDatasheetUrl(e.target.value)}
           className="mt-1 w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
         />
+        {/* Offer the selected symbol's datasheet when the field is empty
+            (Phase C follow-up). Only for http(s) URLs; never overwrites a value
+            the user already typed. */}
+        {symbolDatasheet &&
+        /^https?:\/\//i.test(symbolDatasheet) &&
+        datasheetUrl.trim() === "" ? (
+          <button
+            type="button"
+            onClick={() => setDatasheetUrl(symbolDatasheet)}
+            className="mt-1 font-mono text-xs text-signal-blue hover:underline"
+          >
+            ↳ Use the symbol&apos;s datasheet
+          </button>
+        ) : null}
         <FieldError messages={state.errors?.datasheetUrl} />
       </div>
 
