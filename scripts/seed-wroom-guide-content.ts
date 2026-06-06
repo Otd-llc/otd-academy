@@ -29,6 +29,12 @@ const SCHEMATIC_BLOCKS: ContentBlock[] = [
     md: "Six small problems stand between a bare ESP32 module and a board you can plug in and flash: it needs the right voltage, a steady supply, a defined way to boot, a USB port that negotiates power, something you can see, and a shield from the outside world. Each section below takes one of those problems and the exact parts on your board that solve it. Read them in order — they roughly follow the power as it enters at the USB connector and works its way to the chip.\n\nEvery part carries a [[refdes]] — U1, C5, R3 — the label that ties its symbol, its BOM line, and its footprint on the board together. You'll meet them in the tables under each section, and you can rotate the real 3D model of the headline parts as you go.",
   },
   {
+    type: "image",
+    src: "/guide-diagrams/wroom-power-flow.svg",
+    alt: "Power-flow block diagram: USB-C J1 to polyfuse F1 to RT9080 LDO U2 to 3.3 V for the ESP32-S3 U1; USB data via the D1 ESD array; with C1 bulk, C2/C3/C7 decoupling, and R3/R4 CC resistors to ground.",
+    caption: "How it all connects — power flows left to right; the six lessons below follow this path.",
+  },
+  {
     type: "partModel",
     mpn: "ESP32-S3-WROOM-1-N16R2",
     caption: "U1 — ESP32-S3-WROOM-1 module (drag to rotate)",

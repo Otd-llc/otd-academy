@@ -71,6 +71,8 @@ export function BlockEditor({
       return <SourceRefEditor block={block} onChange={onChange} {...err} />;
     case "partModel":
       return <PartModelEditor block={block} onChange={onChange} {...err} />;
+    case "image":
+      return <ImageEditor block={block} onChange={onChange} {...err} />;
     default: {
       // Exhaustiveness guard: if a new block.type is added to the schema and
       // not handled above, this line fails to typecheck.
@@ -405,6 +407,73 @@ function PartModelEditor({
           id={`${baseId}-cap`}
           type="text"
           maxLength={160}
+          value={block.caption ?? ""}
+          onChange={(e) =>
+            onChange({ ...block, caption: e.target.value || undefined })
+          }
+          className={`mt-1 ${inputClass}`}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── image ──────────────────────────────────────────────────────────────
+function ImageEditor({
+  block,
+  onChange,
+  hasError,
+  errorId,
+}: {
+  block: Extract<ContentBlock, { type: "image" }>;
+  onChange: (next: ContentBlock) => void;
+} & BlockErrorProps) {
+  const baseId = useId();
+  return (
+    <div className="space-y-2">
+      <div>
+        <label htmlFor={`${baseId}-src`} className={labelClass}>
+          Image source
+        </label>
+        <input
+          id={`${baseId}-src`}
+          type="text"
+          maxLength={500}
+          value={block.src}
+          onChange={(e) => onChange({ ...block, src: e.target.value })}
+          className={`mt-1 ${inputClass}`}
+          aria-invalid={hasError || undefined}
+          aria-describedby={
+            hasError && errorId
+              ? `${errorId} ${baseId}-src-help`
+              : `${baseId}-src-help`
+          }
+        />
+        <p id={`${baseId}-src-help`} className={helpClass}>
+          A root-relative path (e.g. /guide-diagrams/x.svg) or an http(s):// URL.
+        </p>
+      </div>
+      <div>
+        <label htmlFor={`${baseId}-alt`} className={labelClass}>
+          Alt text
+        </label>
+        <input
+          id={`${baseId}-alt`}
+          type="text"
+          maxLength={200}
+          value={block.alt}
+          onChange={(e) => onChange({ ...block, alt: e.target.value })}
+          className={`mt-1 ${inputClass}`}
+        />
+      </div>
+      <div>
+        <label htmlFor={`${baseId}-cap`} className={labelClass}>
+          Caption (optional)
+        </label>
+        <input
+          id={`${baseId}-cap`}
+          type="text"
+          maxLength={200}
           value={block.caption ?? ""}
           onChange={(e) =>
             onChange({ ...block, caption: e.target.value || undefined })
