@@ -34,6 +34,10 @@ const SEED_PROJECT_SLUG = "esp32-sensor-breakout";
 
 let seededBoardId = "";
 const createdMeasurementIds: string[] = [];
+// The seed populates B01 with baseline measurements; capture them so the
+// bulk-id reconciliation below counts ONLY what THIS test inserts (and so
+// afterAll never deletes the seed's baseline).
+const preExistingMeasurementIds: string[] = [];
 
 beforeAll(async () => {
   mockAuth.mockImplementation(async () => ({
@@ -59,6 +63,12 @@ beforeAll(async () => {
     },
   });
   seededBoardId = board.id;
+
+  const existing = await db.measurement.findMany({
+    where: { boardId: board.id },
+    select: { id: true },
+  });
+  preExistingMeasurementIds.push(...existing.map((m) => m.id));
 });
 
 afterAll(async () => {
@@ -104,9 +114,13 @@ describe("M9c checkpoint — Measurements on seeded B01", () => {
     });
     expect(bulkResult.count).toBe(10);
 
-    // Track the bulk-inserted ids for cleanup.
+    // Track the bulk-inserted ids for cleanup — excluding the 5 singles AND any
+    // seed-baseline measurements already on B01, so we capture only the 10 bulk.
     const bulkRows = await db.measurement.findMany({
-      where: { boardId: seededBoardId, id: { notIn: createdMeasurementIds } },
+      where: {
+        boardId: seededBoardId,
+        id: { notIn: [...preExistingMeasurementIds, ...createdMeasurementIds] },
+      },
       select: { id: true },
     });
     for (const r of bulkRows) createdMeasurementIds.push(r.id);
