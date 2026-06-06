@@ -8,6 +8,7 @@ const eeg = {
   track: "SENSE" as const,
   requiresStripboard: false,
   disciplineTaught: "8-ch ADS1299 AFE",
+  level: "L3" as const,
 };
 
 describe("composeGuide", () => {
@@ -32,5 +33,23 @@ describe("composeGuide", () => {
     // composeGuide should return cards that pass guideCardInputSchema
     const g = composeGuide(eeg);
     g.cards.forEach((c) => expect(guideCardInputSchema.safeParse(c).success).toBe(true));
+  });
+  it("L1 REQUIREMENTS card gates on the artifact, not the review checklist", () => {
+    const req = composeGuide({ ...eeg, level: "L1" }).cards.find(
+      (c) => c.stage === "REQUIREMENTS",
+    )!;
+    expect(req.completionRef).toEqual({
+      kind: "artifact",
+      subkinds: ["REQUIREMENTS_DOC"],
+    });
+  });
+  it("non-L1 REQUIREMENTS card keeps the review-checklist ref", () => {
+    const req = composeGuide(eeg).cards.find(
+      (c) => c.stage === "REQUIREMENTS",
+    )!;
+    expect(req.completionRef).toEqual({
+      kind: "revisionChecklist",
+      subkind: "REQUIREMENTS_REVIEW",
+    });
   });
 });

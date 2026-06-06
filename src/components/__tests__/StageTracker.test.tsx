@@ -37,7 +37,7 @@ function emptyCtx(stage: StageName): GateContext {
     },
     // m17: project Pick on GateContext. The tracker render tests don't
     // exercise the BOM_SOURCING stripboard branch, so default to false.
-    project: { id: "p1", requiresStripboard: false, hasMainsNet: false },
+    project: { id: "p1", requiresStripboard: false, hasMainsNet: false, level: null },
     bomLines: [],
     artifacts: [],
     revisionChecklists: [],
@@ -205,7 +205,7 @@ describe("StageTracker", () => {
         schematicCommit: "g1ebc1cc",
         layoutCommit: "gb170ddb",
       },
-      project: { id: "p1", requiresStripboard: false, hasMainsNet: false },
+      project: { id: "p1", requiresStripboard: false, hasMainsNet: false, level: null },
       bomLines: [],
       artifacts: [],
       revisionChecklists: [],

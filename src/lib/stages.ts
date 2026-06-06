@@ -96,7 +96,12 @@ export interface GateContext {
   // `requiresStripboard` (m17) drives the STRIPBOARD_VALIDATION branch of
   // the BOM_SOURCING gate; `hasMainsNet` (m18) drives the certified-module
   // branch of the same gate (proposal §3 #5).
-  project: Pick<Project, "id" | "requiresStripboard" | "hasMainsNet">;
+  // `level` lets the REQUIREMENTS gate drop the formal REQUIREMENTS_REVIEW
+  // design-review checklist for true-beginner (L1) guided builds — those have no
+  // open design decisions to "review", so the requirements artifact + the
+  // comprehension quiz carry the gate. L2/L3 (and level-less projects, e.g. the
+  // seed fixture) keep the review checklist.
+  project: Pick<Project, "id" | "requiresStripboard" | "hasMainsNet" | "level">;
   bomLines: (BomLine & { part: Part })[];
   artifacts: Artifact[];
   // m15: revision-scoped checklists across ALL stages. Each gate that
@@ -170,23 +175,29 @@ const BASE_STAGES: Record<Stage, StageDef> = {
     // flagged N/A. Mirrors the ASSEMBLY 3-branch predicate
     // (missing / zero items / unchecked non-N/A) so the failure copy stays
     // diagnostic.
-    exitGate: ({ artifacts, revisionChecklists }) => {
+    exitGate: ({ project, artifacts, revisionChecklists }) => {
       const reasons: string[] = [];
       const present = artifacts.some((a) => a.stage === "REQUIREMENTS");
       if (!present)
         reasons.push("No requirements artifact at this stage.");
 
-      const review = revisionChecklists.find(
-        (c) => c.subkind === "REQUIREMENTS_REVIEW",
-      );
-      if (!review) {
-        reasons.push("No REQUIREMENTS_REVIEW Checklist on the revision.");
-      } else if (review.items.length === 0) {
-        reasons.push("REQUIREMENTS_REVIEW Checklist has no items.");
-      } else if (
-        review.items.some((i) => !i.checked && !i.notApplicable)
-      ) {
-        reasons.push("REQUIREMENTS_REVIEW Checklist has unchecked items.");
+      // True-beginner (L1) guided builds skip the formal REQUIREMENTS_REVIEW
+      // design-review checklist — there are no open design decisions to review,
+      // and the comprehension quiz already gates understanding. L2/L3 and
+      // level-less projects still require the review.
+      if (project.level !== "L1") {
+        const review = revisionChecklists.find(
+          (c) => c.subkind === "REQUIREMENTS_REVIEW",
+        );
+        if (!review) {
+          reasons.push("No REQUIREMENTS_REVIEW Checklist on the revision.");
+        } else if (review.items.length === 0) {
+          reasons.push("REQUIREMENTS_REVIEW Checklist has no items.");
+        } else if (
+          review.items.some((i) => !i.checked && !i.notApplicable)
+        ) {
+          reasons.push("REQUIREMENTS_REVIEW Checklist has unchecked items.");
+        }
       }
 
       return reasons.length ? { ok: false, reasons } : { ok: true };
