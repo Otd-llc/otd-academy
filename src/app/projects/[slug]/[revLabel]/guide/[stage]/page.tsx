@@ -22,8 +22,10 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
-import { GuideBlocks } from "@/components/guide/GuideBlocks";
+import { GuideBlocks, type ResolvedModel } from "@/components/guide/GuideBlocks";
 import { GuideCardEditor } from "@/components/guide/GuideCardEditor";
+import { getPartAssetRenderUrl } from "@/lib/actions/part-assets";
+import { renderBoundsSchema } from "@/lib/schemas/part-asset";
 import { StageGate } from "@/components/guide/StageGate";
 import { BoardSelector } from "@/components/guide/BoardSelector";
 import { GenerateGuideButton } from "@/components/guide/GenerateGuideButton";
@@ -153,6 +155,28 @@ export default async function GuideCardPage({
   const blocksResult = guideContentBlocksSchema.safeParse(card.contentBlocks);
   const blocks = blocksResult.success ? blocksResult.data : [];
 
+  // Resolve any partModel blocks → presigned MODEL_3D render URL + camera bounds,
+  // keyed by MPN. An MPN with no part / no 3D asset / R2 off is simply omitted,
+  // and the block degrades to its caption.
+  const modelMpns = Array.from(
+    new Set(blocks.flatMap((b) => (b.type === "partModel" && b.mpn ? [b.mpn] : []))),
+  );
+  const models: Record<string, ResolvedModel> = {};
+  for (const mpn of modelMpns) {
+    const part = await db.part.findFirst({ where: { mpn }, select: { id: true } });
+    if (!part) continue;
+    const src = await getPartAssetRenderUrl(part.id);
+    if (!src) continue;
+    const asset = await db.partAsset.findUnique({
+      where: { partId_kind: { partId: part.id, kind: "MODEL_3D" } },
+      select: { renderBounds: true },
+    });
+    models[mpn] = {
+      src,
+      bounds: renderBoundsSchema.safeParse(asset?.renderBounds).data ?? null,
+    };
+  }
+
   let completionRef: CompletionRef = { kind: "none" };
   if (card.completionRef != null) {
     const refResult = completionRefSchema.safeParse(card.completionRef);
@@ -236,7 +260,7 @@ export default async function GuideCardPage({
           ]}
         />
 
-        <GuideBlocks blocks={blocks} />
+        <GuideBlocks blocks={blocks} models={models} />
       </GuideCardEditor>
 
       {/* Per-board scope selector (ASSEMBLY / BRINGUP). */}

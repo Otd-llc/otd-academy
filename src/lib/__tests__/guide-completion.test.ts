@@ -42,20 +42,47 @@ afterAll(async () => {
 
 describe("resolveCardCompletion — plan-pinned states", () => {
   test("revisionChecklist REQUIREMENTS_REVIEW with unchecked items → partial, total>0", async () => {
-    const rev = await db.revision.findFirstOrThrow({
-      where: {
-        project: { slug: FOUNDRY_SLUG },
-        label: { equals: "v1", mode: "insensitive" },
-      },
+    // Self-contained: a FRESH revision with a REQUIREMENTS_REVIEW checklist that
+    // still has an unchecked item, so the requirements gate is open. (This used
+    // to read the real foundry v1 board, whose requirements review flips to
+    // "complete" — and this assertion to red — once that board is actually
+    // advanced. The state under test is the checklist's, not the live board's.)
+    const user = await db.user.findUniqueOrThrow({ where: { email: SEED_EMAIL } });
+    const project = await db.project.findUniqueOrThrow({
+      where: { slug: SEED_PROJECT_SLUG },
       select: { id: true },
     });
+    const rev = await db.revision.create({
+      data: {
+        projectId: project.id,
+        label: `gc-reqpartial-${Date.now()}`,
+        currentStage: "REQUIREMENTS",
+      },
+    });
+    createdRevisionIds.push(rev.id);
+    await db.checklist.create({
+      data: {
+        revisionId: rev.id,
+        stage: "REQUIREMENTS",
+        subkind: "REQUIREMENTS_REVIEW",
+        title: "Requirements review",
+        createdById: user.id,
+        items: {
+          create: [
+            { ordinal: 0, label: "Interfaces defined", checked: true },
+            { ordinal: 1, label: "Power budget bounded", checked: false },
+          ],
+        },
+      },
+    });
+
     const r = await resolveCardCompletion({
       revisionId: rev.id,
       stage: "REQUIREMENTS",
       completionRef: { kind: "revisionChecklist", subkind: "REQUIREMENTS_REVIEW" },
     });
     expect(r.state).toBe("partial");
-    expect(r.total).toBeGreaterThan(0);
+    expect(r.total).toBe(2);
   });
 
   test("buildChecklist card with no active build → blocked", async () => {

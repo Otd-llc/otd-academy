@@ -44,4 +44,13 @@ describe("guide schemas", () => {
   it("accepts a root-relative sourceRef href", () => {
     expect(contentBlockSchema.safeParse({ type: "sourceRef", label: "x", href: "/rel/path" }).success).toBe(true);
   });
+  it("accepts a partModel block with mpn + caption", () => {
+    expect(contentBlockSchema.safeParse({ type: "partModel", mpn: "USB4110-GF-A", caption: "USB-C" }).success).toBe(true);
+  });
+  it("accepts a partModel block with no caption and an empty mpn (editor default)", () => {
+    expect(contentBlockSchema.safeParse({ type: "partModel", mpn: "" }).success).toBe(true);
+  });
+  it("rejects a partModel mpn over 80 chars", () => {
+    expect(contentBlockSchema.safeParse({ type: "partModel", mpn: "x".repeat(81) }).success).toBe(false);
+  });
 });

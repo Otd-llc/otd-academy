@@ -20,6 +20,14 @@
 import sanitizeHtml from "sanitize-html";
 import type { ContentBlock } from "@/lib/schemas/guide";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
+import { ModelViewerLazy } from "@/components/ModelViewerLazy";
+import { parseInlineTerms } from "@/lib/inline-terms";
+import type { RenderBounds } from "@/lib/schemas/part-asset";
+
+// A partModel block's resolved 3D render, keyed by MPN. The card route presigns
+// the part's MODEL_3D render URL + camera bounds server-side and passes this map
+// in; a block whose MPN isn't present degrades to its caption.
+export type ResolvedModel = { src: string; bounds: RenderBounds | null };
 
 // Strict allow-list mirrors `sanitizeNote` in artifacts.ts: drop every tag so
 // the prose markdown source can never inject HTML. The output is plain text
@@ -48,10 +56,59 @@ const BADGE_TONE_CLASS: Record<"gold" | "blue" | "critical" | "dim", string> = {
   dim: "dim",
 };
 
+// Render text with inline `[[term]]` / `[[term|label]]` markers as a mix of
+// plain text and click-to-read <GlossaryTerm> popovers. Pure split lives in
+// `@/lib/inline-terms`; an unknown term degrades to plain text in GlossaryTerm.
+function Inline({ text }: { text: string }) {
+  const segments = parseInlineTerms(text);
+  return (
+    <>
+      {segments.map((seg, i) =>
+        seg.kind === "term" ? (
+          <GlossaryTerm key={i} term={seg.term}>
+            {seg.label}
+          </GlossaryTerm>
+        ) : (
+          <span key={i}>{seg.value}</span>
+        ),
+      )}
+    </>
+  );
+}
+
+// 3D part viewer block. `model` is the route-resolved render (presigned R2 URL +
+// camera bounds). Absent (no MODEL_3D asset, R2 off, or empty MPN) → caption
+// only, so a card never shows a broken viewer.
+function PartModelBlock({
+  caption,
+  model,
+}: {
+  caption?: string;
+  model?: ResolvedModel;
+}) {
+  if (!model) {
+    return caption ? (
+      <p className="font-mono text-xs uppercase tracking-wider text-muted">
+        {caption}
+      </p>
+    ) : null;
+  }
+  return (
+    <figure className="space-y-2">
+      <ModelViewerLazy src={model.src} bounds={model.bounds} />
+      {caption ? (
+        <figcaption className="font-mono text-xs uppercase tracking-wider text-muted">
+          {caption}
+        </figcaption>
+      ) : null}
+    </figure>
+  );
+}
+
 function ProseBlock({ md }: { md: string }) {
   return (
     <p className="whitespace-pre-wrap font-serif text-base leading-relaxed text-muted">
-      {sanitizeProse(md)}
+      <Inline text={sanitizeProse(md)} />
     </p>
   );
 }
@@ -68,7 +125,9 @@ function CalloutBlock({
   return (
     <div className={`callout ${SEVERITY_CLASS[severity]}`}>
       <span className="callout-label">{label}</span>
-      <p className="whitespace-pre-wrap font-serif">{body}</p>
+      <p className="whitespace-pre-wrap font-serif">
+        <Inline text={body} />
+      </p>
     </div>
   );
 }
@@ -125,7 +184,13 @@ function TableCell({
   return <td>{text}</td>;
 }
 
-function GuideBlock({ block }: { block: ContentBlock }) {
+function GuideBlock({
+  block,
+  models,
+}: {
+  block: ContentBlock;
+  models?: Record<string, ResolvedModel>;
+}) {
   switch (block.type) {
     case "prose":
       return <ProseBlock md={block.md} />;
@@ -172,6 +237,14 @@ function GuideBlock({ block }: { block: ContentBlock }) {
     case "termRef":
       return <GlossaryTerm term={block.term} />;
 
+    case "partModel":
+      return (
+        <PartModelBlock
+          caption={block.caption}
+          model={block.mpn ? models?.[block.mpn] : undefined}
+        />
+      );
+
     case "sourceRef":
       // href is scheme-validated by the schema (http(s):// or root-relative).
       return (
@@ -189,11 +262,17 @@ function GuideBlock({ block }: { block: ContentBlock }) {
   }
 }
 
-export function GuideBlocks({ blocks }: { blocks: ContentBlock[] }) {
+export function GuideBlocks({
+  blocks,
+  models,
+}: {
+  blocks: ContentBlock[];
+  models?: Record<string, ResolvedModel>;
+}) {
   return (
     <div className="space-y-4">
       {blocks.map((block, i) => (
-        <GuideBlock key={i} block={block} />
+        <GuideBlock key={i} block={block} models={models} />
       ))}
     </div>
   );

@@ -3,9 +3,9 @@ import { BLOCK_TYPES, BLOCK_TYPE_LABELS, defaultBlock } from "@/lib/guide-block-
 import { contentBlockSchema } from "@/lib/schemas/guide";
 
 describe("guide block defaults", () => {
-  it("lists all six block types", () => {
+  it("lists all block types", () => {
     expect([...BLOCK_TYPES].sort()).toEqual(
-      ["callout", "prose", "sourceRef", "steps", "table", "termRef"],
+      ["callout", "partModel", "prose", "sourceRef", "steps", "table", "termRef"],
     );
   });
   it("has a human label for every type", () => {
