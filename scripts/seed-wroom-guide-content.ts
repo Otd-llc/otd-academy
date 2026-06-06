@@ -412,6 +412,11 @@ const REQUIREMENTS_BLOCKS: ContentBlock[] = [
     body: "Why does this board need no separate USB-to-serial programmer chip? Because the ESP32-S3 has native USB built in — it enumerates and takes firmware over the USB-C port directly.",
   },
   {
+    type: "deepDive",
+    summary: "Native USB vs a separate bridge chip",
+    body: "Most older microcontrollers can't speak USB at all — they talk a plain serial protocol, so the board needs a little translator chip (a CP2102 or CH340) sitting between the USB port and the chip just to load code. The ESP32-S3 has a USB controller built into the silicon, so the USB-C port wires almost straight to the module. That's one fewer chip to buy, place, and solder, and you get extras for free: the same port can act as a serial console and even a hardware debugger. The tradeoff is that if your own firmware ever jams the USB peripheral, you fall back on the BOOT and EN buttons to force a download — which is exactly why those two buttons are on the board.",
+  },
+  {
     type: "callout",
     severity: "info",
     label: "02 · Power budget",
@@ -425,7 +430,12 @@ const REQUIREMENTS_BLOCKS: ContentBlock[] = [
     type: "callout",
     severity: "info",
     label: "Check yourself",
-    body: "The LDO can deliver 600 mA. If the ESP32 peaks near 500 mA on a Wi-Fi burst and the rest of the board draws ~50 mA, are you inside budget? Just — about 550 mA leaves thin margin, which is why bulk cap C1 is there to ride out the spikes.",
+    body: "The 3.3 V regulator can supply up to 600 mA. The ESP32 mostly sips current but gulps hard for a few milliseconds each time its radio transmits. What rides out those gulps so the rail doesn't dip? The bulk capacitor (C1) — a little local reservoir of charge, right where it's needed.",
+  },
+  {
+    type: "deepDive",
+    summary: "The power budget, with numbers",
+    body: "Add up the worst case: the ESP32-S3 can peak near 500 mA during a Wi-Fi transmit burst, and the rest of the board — LEDs, the regulator's own draw, anything you hang off the headers — is maybe 50 mA. That's about 550 mA against the [[LDO]]'s 600 mA ceiling, leaving only ~50 mA of margin. A tiny 150 mA regulator would [[brownout|brown out]] the instant Wi-Fi keyed up. The transmit spikes are also far faster than the regulator can react to, so C1, the 10 µF [[bulk capacitor]], holds a local pool of charge to cover them while the regulator catches up. Hang a motor or a servo on the rail and you blow the budget — those want their own supply.",
   },
   {
     type: "callout",
@@ -442,6 +452,11 @@ const REQUIREMENTS_BLOCKS: ContentBlock[] = [
     severity: "info",
     label: "Check yourself",
     body: "You wire a potentiometer to an ADC2 pin and the reading is garbage only when Wi-Fi is on. What's the rule you broke? Sampled analog inputs must be on ADC1 — ADC2 is claimed by the radio.",
+  },
+  {
+    type: "deepDive",
+    summary: "Why ADC2 goes dark when Wi-Fi is on",
+    body: "The ESP32-S3 has two analog-to-digital converters, [[ADC1]] and [[ADC2]]. The Wi-Fi radio borrows ADC2's hardware while it's running, so a program that reads an ADC2 pin with Wi-Fi active gets an error or a meaningless number — and because this is a Wi-Fi board, the radio is essentially always on. The fix is a layout decision, not a code workaround: route anything you'll sample as analog to an ADC1 pin (on the S3 those are GPIO1 through GPIO10). Settle it here, while pins are still just lines on a schematic, and you'll never hit the maddening 'works until I connect to Wi-Fi' bug at bring-up.",
   },
   {
     type: "callout",
@@ -485,6 +500,11 @@ const BOM_BLOCKS: ContentBlock[] = [
     severity: "info",
     label: "Check yourself",
     body: "Two '10 kΩ resistors' from different reels — why might only one fit your board? Package size. An 0805 and an 0402 are both 10 kΩ but won't share a footprint; the MPN locks the size.",
+  },
+  {
+    type: "deepDive",
+    summary: "Reading the part number RC0805FR-075K1L",
+    body: "A manufacturer part number isn't random — it's a spec sheet squeezed into a string. Walk RC0805FR-075K1L: RC is Yageo's thick-film resistor family, 0805 is the package size, F means ±1% tolerance, the 07 is a packaging code, and 5K1 is the value — '5K1' reads as 5.1 kΩ, the same trick that writes 4.7 Ω as '4R7'. Why 5.1 and not a round 5.0? Resistors come in fixed [[E-series|E24]] steps (…, 4.7, 5.1, 5.6, …), so 5.1 kΩ is a real, stockable value and 5.0 kΩ simply isn't made. Once you can read the number, two near-identical parts tell themselves apart at a glance.",
   },
   {
     type: "callout",
@@ -566,6 +586,11 @@ const BOM_BLOCKS: ContentBlock[] = [
     label: "Check yourself",
     body: "Why 0805 passives instead of smaller 0402? Hand-soldering. 0805 is large enough to place and drag-solder with an iron; 0402 really wants paste and hot air.",
   },
+  {
+    type: "deepDive",
+    summary: "0805 and 0402, in millimeters",
+    body: "The package code is just the size in hundredths of an inch: an 0805 part is 0.08\" × 0.05\", about 2.0 × 1.25 mm — roughly a grain of rice. An 0402 is 1.0 × 0.5 mm, half that on each side and a quarter of the area. Both come in every common value, but 0805 is about the smallest you can comfortably hold with tweezers and drag-solder with an iron; 0402 really wants solder paste and a stencil. That's the whole reason this board specs 0805 throughout. One catch when you order: passives ship on reels with an [[MOQ]] in the thousands — but the parts are pennies, so buy the reel and keep the spares for the ones you'll inevitably flick across the room.",
+  },
 ];
 
 // ── LAYOUT ────────────────────────────────────────────────────────────────────
@@ -604,6 +629,11 @@ const LAYOUT_BLOCKS: ContentBlock[] = [
     body: "You pour ground everywhere for a clean return path. Why must it stop short of U1's antenna? Copper near the antenna detunes it — the keep-out must stay bare.",
   },
   {
+    type: "deepDive",
+    summary: "Why nearby copper detunes the antenna",
+    body: "The WROOM's printed antenna is tuned to radiate at 2.4 GHz — its shape and surroundings are designed for exactly that frequency. Bring copper close (a [[ground pour]], a trace, even thick silkscreen) and you add stray capacitance that shifts the tuning, like detuning a guitar string by hanging a weight on it. The antenna still 'works,' but its sweet spot slides off 2.4 GHz and most of your transmit power reflects back into the chip instead of leaving the board — range drops from across-the-house to across-the-desk. No firmware setting recovers it; the only cure is keeping the keep-out genuinely empty, which is why the module is usually placed hanging off the board edge.",
+  },
+  {
     type: "callout",
     severity: "info",
     label: "02 · Decoupling caps go first, and close",
@@ -624,6 +654,11 @@ const LAYOUT_BLOCKS: ContentBlock[] = [
     severity: "info",
     label: "Check yourself",
     body: "A decoupling cap is electrically correct in the schematic but placed 15 mm from the pin. Does it still work? Barely — trace inductance chokes the fast current, so proximity is the entire point.",
+  },
+  {
+    type: "deepDive",
+    summary: "Loop area becomes inductance becomes droop",
+    body: "When the ESP32 suddenly demands current, that current flows out of the [[decoupling capacitor]], into the pin, and back through ground — a little loop. Every loop of conductor has inductance, and inductance fights sudden changes in current: the voltage it costs you is V = L × (di/dt). The chip's demand changes incredibly fast — a big di/dt — so even a few nanohenries of trace inductance turns into a real voltage dip right at the pin, exactly when the chip needs the rail to hold steady. The fix is pure geometry: a shorter, fatter path from cap to pin to ground makes a smaller loop, which means less inductance and less droop. So 'close to the pin' isn't a nicety — it's the whole mechanism.",
   },
   {
     type: "callout",
@@ -674,6 +709,11 @@ const DRC_BLOCKS: ContentBlock[] = [
     body: "DRC flags a 5-mil clearance where the fab requires 6. Ship it anyway? No — fix it, or confirm the fab can do 5 and document the exception. A clearance violation can short in production.",
   },
   {
+    type: "deepDive",
+    summary: "What the rules checker actually tests",
+    body: "A [[design rule check]] compares your layout against a list of fabrication limits and flags anything the board house can't reliably make. The usual suspects: copper-to-copper clearance (traces too close bridge when the copper is etched), minimum trace width (too thin and it etches away or can't carry its current), annular ring (too little copper around a drilled hole and the drill can break out of the pad), drill-to-copper spacing, and silkscreen printed over a bare pad. It also re-checks the electrics — nets that should connect but don't, or nets accidentally shorted together. You load the fab's capability numbers in first, so the check is measured against the shop that will actually build the board, not a generic guess.",
+  },
+  {
     type: "callout",
     severity: "info",
     label: "02 · Gerbers — the fab's instructions",
@@ -688,6 +728,11 @@ const DRC_BLOCKS: ContentBlock[] = [
     severity: "info",
     label: "Check yourself",
     body: "Why open the Gerbers in a viewer after exporting? The fab builds exactly what's in those files, not what's in your design tool — a viewer catches export mistakes while they're still free to fix.",
+  },
+  {
+    type: "deepDive",
+    summary: "What's inside a Gerber set",
+    body: "A [[gerber]] set is a stack of flat 2D drawings, one file per physical layer: the front copper, the back copper, the [[solder mask]] for each side (the green coating, with openings where the pads are), the silkscreen (the white labels), and the paste layer (where a stencil would lay down solder). Riding alongside is a drill file — historically called Excellon — listing every hole's position and diameter, plus a board-outline file telling the fab where to cut. The format is decades old and deliberately literal: it describes shapes and nothing else, so there's no ambiguity about what gets built. That's why you open them in a viewer before ordering — the viewer shows you the actual board, not your hopeful design intent.",
   },
   {
     type: "callout",
@@ -720,6 +765,11 @@ const ORDERING_BLOCKS: ContentBlock[] = [
     severity: "info",
     label: "Check yourself",
     body: "Your board has the fine-pitch WROOM module pads. HASL or ENIG? ENIG — its flat surface solders fine-pitch parts more reliably than lumpy HASL.",
+  },
+  {
+    type: "deepDive",
+    summary: "ENIG vs HASL — why the finish matters here",
+    body: "Bare copper pads tarnish, so the fab coats them. [[HASL]] (hot-air solder leveling) dips the board in molten solder and blows the excess off with hot air — cheap and very solderable, but it leaves pads slightly domed and uneven in height. [[ENIG]] plates a flat layer of nickel capped with a thin gold flash — dead flat, long shelf life, a little pricier. For through-hole and 0805 work HASL is perfectly fine. But the WROOM's underside pads are fine-pitch and packed close, and there a flat surface lets every pad meet the module at the same height; uneven HASL bumps invite a missed or bridged joint you can't even see under the module. That coplanarity is what makes this board worth the ENIG upcharge.",
   },
   {
     type: "callout",
@@ -775,6 +825,11 @@ const ASSEMBLY_BLOCKS: ContentBlock[] = [
     body: "Why solder the WROOM module before the 0805 resistors? Hot-air rework near already-placed passives blows them off — do the hot-air parts first, irons after.",
   },
   {
+    type: "deepDive",
+    summary: "Why the heavy parts go down first",
+    body: "U1 and J1 are the thermally heavy parts: the module is a big slab with many pads (several hidden underneath), and the USB-C connector has chunky retention tabs that drain heat away. To solder them you flood the whole area with hot air or run the board through [[reflow]] — heat that radiates several millimeters in every direction. If the little 0805 passives are already sitting nearby, that same heat remelts their joints and the airflow can tumble them off (or stand one up on end — [[tombstoning]]). So you place the hard, heat-hungry parts onto the bare board first, then iron the passives one at a time afterward, where the heat stays local and nothing you've already placed gets cooked twice.",
+  },
+  {
     type: "image",
     src: "",
     alt: "U1 and J1 tacked onto the bare board before the passives go on.",
@@ -810,6 +865,11 @@ const ASSEMBLY_BLOCKS: ContentBlock[] = [
     severity: "info",
     label: "Check yourself",
     body: "Your drag pass leaves a bridge between two pins. First move? More flux and a clean dragged pass — flux lets surface tension pull the excess off; you rarely need wick for a small bridge.",
+  },
+  {
+    type: "deepDive",
+    summary: "Why dragging molten solder doesn't bridge every pin",
+    body: "It feels like dragging a bead of molten metal across a row of pins should short them all together — flux is what makes it not. Liquid flux strips the oxide off the copper and lowers the solder's surface tension, so molten solder wets clean metal eagerly but beads up and refuses to stick to the [[solder mask]] between pads. Drag a loaded tip along the row and surface tension pulls just enough solder onto each lead while the excess rides along; any bridge that forms gets reflowed and pulled apart by that same tension. Run out of flux and the magic stops — the oxide creeps back and solder clumps wherever it lands. On this lead-free board you're dragging [[SAC305]], which melts hotter and dries to a more matte finish than old leaded solder, so set the iron a touch higher.",
   },
   {
     type: "callout",
@@ -898,6 +958,11 @@ const BRINGUP_BLOCKS: ContentBlock[] = [
     body: "The board powers but TP1 reads 4.9 V, not 3.3. What failed? Likely the LDO (U2) — its output is sitting at the input voltage, so it's mis-soldered, mis-oriented, or its enable isn't asserted. Stop before you connect 3.3 V logic to 5 V.",
   },
   {
+    type: "deepDive",
+    summary: "Reading the rail voltage like a diagnostician",
+    body: "The number on the meter at TP1 tells you where the fault is. A healthy ~3.3 V means the [[LDO]] is regulating — move on. 4.9 V (basically the USB input) means the regulator isn't regulating at all and is passing its input straight through: it's mis-oriented, mis-soldered, or its enable pin isn't pulled high — and you must NOT connect 3.3 V parts to that rail. 0 V means either no power is reaching it (a broken joint upstream) or something is dragging it down (a short). Around 3.3 V but LED1 stays dark points at the LED or its resistor, not the rail. The regulator also needs its input to sit comfortably above 3.3 V plus its [[dropout voltage|dropout]], so a sagging USB cable can starve it — measure the input too whenever the output looks low.",
+  },
+  {
     type: "image",
     src: "",
     alt: "Probing 3.3 V at TP1 with the meter's black lead on TP2 (GND).",
@@ -918,6 +983,11 @@ const BRINGUP_BLOCKS: ContentBlock[] = [
     severity: "info",
     label: "Check yourself",
     body: "The board powers fine but won't enter flash mode. The button move? Hold BOOT (GPIO0 low), pulse EN (reset), then release BOOT — sampling GPIO0 low at reset selects USB download.",
+  },
+  {
+    type: "deepDive",
+    summary: "Strapping pins: why holding BOOT picks download mode",
+    body: "A few pins do double duty: at the instant the chip comes out of reset it samples its [[strapping pin|strapping pins]] to decide how to start, and then they go back to being ordinary [[GPIO]]. On the ESP32-S3, GPIO0 is the one that matters here — sampled HIGH (its resting default) the chip boots your firmware; sampled LOW it drops into USB download mode, ready to be flashed. That's the entire button dance: hold BOOT to force GPIO0 low, tap EN to reset the chip so it re-reads the strap, then release BOOT. Because the level is only read at that one instant, you can let go right after. It's also why you don't hang a heavy load on GPIO0 — pull it the wrong way at power-up and the board boots into the wrong mode all on its own.",
   },
   {
     type: "callout",

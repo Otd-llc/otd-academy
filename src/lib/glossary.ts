@@ -130,6 +130,10 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
     term: "current-limiting resistor",
     def: "A resistor in series with an LED (or similar) that sets its current. An LED barely limits its own current, so the resistor does it: I = (Vsupply − Vf) / R.",
   },
+  "e-series": {
+    term: "E-series values",
+    def: "The standard preferred values components come in — E24 (the common 5%/1% set) steps 10, 11, 12, 13, 15, … 47, 51, 56, …, spaced so each is ~10% above the last. It's why you see 5.1 kΩ and 4.7 kΩ rather than a round 5.0 kΩ: the catalog values are fixed, so designs snap to them.",
+  },
   ptc: {
     term: "PTC / polyfuse",
     def: "A resettable fuse (Positive Temperature Coefficient). On overcurrent it heats up, its resistance shoots up, and it throttles the current to a trickle — then it returns to normal once it cools. Protects without needing replacement, unlike a one-shot glass fuse.",
@@ -183,6 +187,10 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
   hasl: {
     term: "HASL",
     def: "Hot-Air Solder Leveling — a cheap, slightly lumpy tin PCB finish. Fine for through-hole and larger SMD; ENIG is flatter and better for fine-pitch parts like a module's pads.",
+  },
+  "solder mask": {
+    term: "solder mask",
+    def: "The thin lacquer coating (usually green) over the copper, with openings only where pads need to be soldered. It stops solder bridging between adjacent pads and protects the traces — molten solder beads up on the mask and refuses to stick to it.",
   },
   "differential pair": {
     term: "differential pair",
@@ -280,6 +288,8 @@ const ALIASES: Record<string, string> = {
   "reference designator": "refdes",
   "low-dropout regulator": "ldo",
   "low dropout regulator": "ldo",
+  "dropout voltage": "dropout",
+  "decoupling capacitor": "decoupling",
   "decoupling cap": "decoupling",
   "bypass capacitor": "decoupling",
   "bypass cap": "decoupling",
