@@ -676,6 +676,12 @@ const ASSEMBLY_BLOCKS: ContentBlock[] = [
     body: "Why solder the WROOM module before the 0805 resistors? Hot-air rework near already-placed passives blows them off — do the hot-air parts first, irons after.",
   },
   {
+    type: "image",
+    src: "",
+    alt: "U1 and J1 tacked onto the bare board before the passives go on.",
+    caption: "Your board — U1 + J1 placed first (drop your photo in here when you build it).",
+  },
+  {
     type: "callout",
     severity: "info",
     label: "02 · Flux and drag-soldering",
@@ -693,6 +699,12 @@ const ASSEMBLY_BLOCKS: ContentBlock[] = [
       "Load the iron tip with fresh solder.",
       "Drag along one pad row at ~3 mm/sec.",
     ],
+  },
+  {
+    type: "video",
+    src: "",
+    alt: "A single drag-solder pass along one pad row.",
+    caption: "Your board — one drag-solder pass (drop a short clip in here when you solder it).",
   },
   {
     type: "callout",
@@ -779,6 +791,12 @@ const BRINGUP_BLOCKS: ContentBlock[] = [
     severity: "info",
     label: "Check yourself",
     body: "The board powers but TP1 reads 4.9 V, not 3.3. What failed? Likely the LDO (U2) — its output is sitting at the input voltage, so it's mis-soldered, mis-oriented, or its enable isn't asserted. Stop before you connect 3.3 V logic to 5 V.",
+  },
+  {
+    type: "image",
+    src: "",
+    alt: "Probing 3.3 V at TP1 with the meter's black lead on TP2 (GND).",
+    caption: "Your board — the 3.3 V rail check at TP1/TP2 (add your photo here).",
   },
   {
     type: "callout",

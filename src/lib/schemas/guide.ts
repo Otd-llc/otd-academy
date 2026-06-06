@@ -56,6 +56,19 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     alt: z.string().max(200),
     caption: z.string().max(200).optional(),
   }),
+  // video — an mp4 clip, same scheme guard + empty-as-placeholder rule as image.
+  // An empty src renders a "to be added" placeholder slot (the alt/caption is the
+  // description), so a card can stake out where real build footage will land and
+  // the author fills the src in later — no block-type swap.
+  z.object({
+    type: z.literal("video"),
+    src: z.string().max(500).refine(
+      (v) => v === "" || /^(https?:\/\/|\/(?!\/))/.test(v),
+      "src must be empty, http(s)://, or a root-relative path",
+    ),
+    alt: z.string().max(200),
+    caption: z.string().max(200).optional(),
+  }),
 ]);
 export type ContentBlock = z.infer<typeof contentBlockSchema>;
 

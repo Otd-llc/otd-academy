@@ -21,6 +21,7 @@ import sanitizeHtml from "sanitize-html";
 import type { ContentBlock } from "@/lib/schemas/guide";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
+import { PhotoIcon, VideoIcon } from "@/components/icons";
 import { parseInlineTerms } from "@/lib/inline-terms";
 import type { RenderBounds } from "@/lib/schemas/part-asset";
 
@@ -105,10 +106,37 @@ function PartModelBlock({
   );
 }
 
-// Diagram / illustration block. `src` is scheme-validated by the schema
-// (empty | http(s):// | root-relative); empty renders nothing. A plain <img>
-// (not next/image) keeps arbitrary root-relative SVGs and external URLs simple
-// and needs no domain config; it's a static asset, not a user upload.
+// Empty media (image/video with no src) → an intentional "to be added" slot
+// rather than nothing, so a card can stake out where real build footage will go.
+// The author fills the src in later and the same block becomes the real media.
+function MediaPlaceholder({
+  kind,
+  description,
+}: {
+  kind: "photo" | "video";
+  description?: string;
+}) {
+  const Icon = kind === "photo" ? PhotoIcon : VideoIcon;
+  const label = kind === "photo" ? "Photo — to be added" : "Video — to be added";
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 rounded border border-dashed border-panel-border bg-deep-space/40 px-6 py-10 text-center">
+      <Icon className="h-7 w-7 text-muted" />
+      <span className="font-mono text-xs uppercase tracking-wider text-muted">
+        {label}
+      </span>
+      {description ? (
+        <span className="max-w-md font-serif text-sm text-muted">
+          {description}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+// Diagram / illustration / photo block. `src` is scheme-validated by the schema
+// (empty | http(s):// | root-relative); empty renders the placeholder slot. A
+// plain <img> (not next/image) keeps arbitrary root-relative SVGs and external
+// URLs simple and needs no domain config; it's a static asset, not a user upload.
 function ImageBlock({
   src,
   alt,
@@ -118,7 +146,7 @@ function ImageBlock({
   alt: string;
   caption?: string;
 }) {
-  if (!src) return null;
+  if (!src) return <MediaPlaceholder kind="photo" description={caption || alt} />;
   return (
     <figure className="space-y-2">
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -126,6 +154,36 @@ function ImageBlock({
         src={src}
         alt={alt}
         loading="lazy"
+        className="w-full rounded border border-panel-border bg-deep-space"
+      />
+      {caption ? (
+        <figcaption className="font-mono text-xs uppercase tracking-wider text-muted">
+          {caption}
+        </figcaption>
+      ) : null}
+    </figure>
+  );
+}
+
+// Video block. An mp4 source plays inline (controls); an empty src renders the
+// placeholder slot, so build footage can be slotted in once it's filmed.
+function VideoBlock({
+  src,
+  alt,
+  caption,
+}: {
+  src: string;
+  alt: string;
+  caption?: string;
+}) {
+  if (!src) return <MediaPlaceholder kind="video" description={caption || alt} />;
+  return (
+    <figure className="space-y-2">
+      <video
+        controls
+        preload="metadata"
+        aria-label={alt || undefined}
+        src={src}
         className="w-full rounded border border-panel-border bg-deep-space"
       />
       {caption ? (
@@ -280,6 +338,11 @@ function GuideBlock({
     case "image":
       return (
         <ImageBlock src={block.src} alt={block.alt} caption={block.caption} />
+      );
+
+    case "video":
+      return (
+        <VideoBlock src={block.src} alt={block.alt} caption={block.caption} />
       );
 
     case "sourceRef":

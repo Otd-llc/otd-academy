@@ -269,3 +269,13 @@ export function PhotoIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+/** Video — framed play triangle (video block / placeholder). */
+export function VideoIcon({ className }: IconProps) {
+  return (
+    <svg {...baseProps} className={className}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M10 8.5l5 3.5-5 3.5z" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
