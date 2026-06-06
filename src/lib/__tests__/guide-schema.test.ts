@@ -68,4 +68,13 @@ describe("guide schemas", () => {
   it("rejects a protocol-relative // image src", () => {
     expect(contentBlockSchema.safeParse({ type: "image", src: "//evil.com/x.png", alt: "a" }).success).toBe(false);
   });
+  it("accepts a video block with a root-relative src", () => {
+    expect(contentBlockSchema.safeParse({ type: "video", src: "/guide-media/x.mp4", alt: "a", caption: "c" }).success).toBe(true);
+  });
+  it("accepts an empty-src video block as a placeholder", () => {
+    expect(contentBlockSchema.safeParse({ type: "video", src: "", alt: "solder a row" }).success).toBe(true);
+  });
+  it("rejects a javascript: video src", () => {
+    expect(contentBlockSchema.safeParse({ type: "video", src: "javascript:alert(1)", alt: "a" }).success).toBe(false);
+  });
 });

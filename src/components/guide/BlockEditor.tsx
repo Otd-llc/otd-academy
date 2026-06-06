@@ -72,7 +72,23 @@ export function BlockEditor({
     case "partModel":
       return <PartModelEditor block={block} onChange={onChange} {...err} />;
     case "image":
-      return <ImageEditor block={block} onChange={onChange} {...err} />;
+      return (
+        <MediaEditor
+          block={block}
+          onChange={onChange}
+          srcHelp="A root-relative path (e.g. /guide-diagrams/x.svg) or an http(s):// URL."
+          {...err}
+        />
+      );
+    case "video":
+      return (
+        <MediaEditor
+          block={block}
+          onChange={onChange}
+          srcHelp="A root-relative path (e.g. /guide-media/x.mp4) or an http(s):// URL. Leave empty for a placeholder."
+          {...err}
+        />
+      );
     default: {
       // Exhaustiveness guard: if a new block.type is added to the schema and
       // not handled above, this line fails to typecheck.
@@ -418,22 +434,26 @@ function PartModelEditor({
   );
 }
 
-// ─── image ──────────────────────────────────────────────────────────────
-function ImageEditor({
+// ─── image / video ──────────────────────────────────────────────────────
+// Both media blocks share the same fields (src / alt / caption); only the
+// source help text differs (passed in). An empty src is a valid placeholder.
+function MediaEditor({
   block,
   onChange,
+  srcHelp,
   hasError,
   errorId,
 }: {
-  block: Extract<ContentBlock, { type: "image" }>;
+  block: Extract<ContentBlock, { type: "image" | "video" }>;
   onChange: (next: ContentBlock) => void;
+  srcHelp: string;
 } & BlockErrorProps) {
   const baseId = useId();
   return (
     <div className="space-y-2">
       <div>
         <label htmlFor={`${baseId}-src`} className={labelClass}>
-          Image source
+          {block.type === "video" ? "Video source" : "Image source"}
         </label>
         <input
           id={`${baseId}-src`}
@@ -450,12 +470,12 @@ function ImageEditor({
           }
         />
         <p id={`${baseId}-src-help`} className={helpClass}>
-          A root-relative path (e.g. /guide-diagrams/x.svg) or an http(s):// URL.
+          {srcHelp}
         </p>
       </div>
       <div>
         <label htmlFor={`${baseId}-alt`} className={labelClass}>
-          Alt text
+          {block.type === "video" ? "Description" : "Alt text"}
         </label>
         <input
           id={`${baseId}-alt`}
