@@ -27,7 +27,18 @@ jobs:
       # Keep the test branch's schema current as migrations are added (the branch
       # carries the seed + KiCad data, which CI can't regenerate). No-op when the
       # branch is already up to date.
-      - run: pnpm exec prisma migrate deploy
+      # The ci-test Neon compute auto-suspends when idle; the first connection
+      # has to wake it, which can outrun a single migrate's connect timeout
+      # (P1001). Retry so a cold branch wakes instead of failing the run.
+      - name: Migrate the test DB (waking it if cold)
+        run: |
+          for i in 1 2 3 4 5 6; do
+            pnpm exec prisma migrate deploy && exit 0
+            echo "test DB not reachable yet (attempt $i) — waiting 10s…"
+            sleep 10
+          done
+          echo "test DB still unreachable after retries" >&2
+          exit 1
         env:
           DIRECT_URL: ${{ secrets.NEON_TEST_DIRECT_URL }}
       # Reset the seeded fixtures to a KNOWN state before tests. The ci-test
