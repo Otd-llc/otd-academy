@@ -7,65 +7,65 @@
     </pattern>
   </defs>
 
-  <!-- carrier-board outline, flooded with ground pour (copper); subject centred -->
-  <rect x="60" y="92" width="660" height="232" rx="8" fill="url(#pour)" stroke="#c8963e" stroke-width="2"/>
+  <!-- carrier-board outline, flooded with ground pour (copper) -->
+  <rect x="60" y="96" width="660" height="228" rx="8" fill="url(#pour)" stroke="#c8963e" stroke-width="2"/>
 
   <!-- antenna keep-out: a clear no-copper band at the board edge, around the antenna ONLY.
        Its bottom stops at the antenna/body boundary, so every pad row sits below it. -->
-  <rect x="300" y="92" width="180" height="30" fill="#0b0f1a" stroke="#ef5350" stroke-width="2" stroke-dasharray="6 4"/>
+  <rect x="230" y="96" width="244" height="26" fill="#0b0f1a" stroke="#ef5350" stroke-width="2" stroke-dasharray="6 4"/>
 
   <!-- WROOM module: PORTRAIT, antenna on the short top edge, at the board edge so the antenna
-       end overhangs above the outline (module top y=70 sits above board top y=92) -->
-  <rect x="338" y="70" width="104" height="52" fill="rgba(200,150,62,0.06)" stroke="#c8963e" stroke-width="2"/>
-  <rect x="338" y="122" width="104" height="120" rx="2" fill="rgba(170,170,170,0.10)" stroke="#c8963e" stroke-width="2"/>
+       end overhangs above the outline (module top y=74 sits above board top y=96) -->
+  <rect x="300" y="74" width="104" height="48" fill="rgba(200,150,62,0.06)" stroke="#c8963e" stroke-width="2"/>
+  <rect x="300" y="122" width="104" height="120" rx="2" fill="rgba(170,170,170,0.10)" stroke="#c8963e" stroke-width="2"/>
 
   <!-- castellated / LGA pads down the two long sides and the bottom edge — all BELOW the keep-out -->
   <g stroke="#c8963e" stroke-width="2" stroke-opacity="0.85">
-    <line x1="338" y1="134" x2="330" y2="134"/><line x1="338" y1="146" x2="330" y2="146"/>
-    <line x1="338" y1="158" x2="330" y2="158"/><line x1="338" y1="170" x2="330" y2="170"/>
-    <line x1="338" y1="182" x2="330" y2="182"/><line x1="338" y1="194" x2="330" y2="194"/>
-    <line x1="338" y1="206" x2="330" y2="206"/><line x1="338" y1="218" x2="330" y2="218"/>
-    <line x1="338" y1="230" x2="330" y2="230"/>
-    <line x1="442" y1="134" x2="450" y2="134"/><line x1="442" y1="146" x2="450" y2="146"/>
-    <line x1="442" y1="158" x2="450" y2="158"/><line x1="442" y1="170" x2="450" y2="170"/>
-    <line x1="442" y1="182" x2="450" y2="182"/><line x1="442" y1="194" x2="450" y2="194"/>
-    <line x1="442" y1="206" x2="450" y2="206"/><line x1="442" y1="218" x2="450" y2="218"/>
-    <line x1="442" y1="230" x2="450" y2="230"/>
-    <line x1="362" y1="242" x2="362" y2="250"/><line x1="384" y1="242" x2="384" y2="250"/>
-    <line x1="406" y1="242" x2="406" y2="250"/><line x1="428" y1="242" x2="428" y2="250"/>
+    <line x1="300" y1="134" x2="292" y2="134"/><line x1="300" y1="146" x2="292" y2="146"/>
+    <line x1="300" y1="158" x2="292" y2="158"/><line x1="300" y1="170" x2="292" y2="170"/>
+    <line x1="300" y1="182" x2="292" y2="182"/><line x1="300" y1="194" x2="292" y2="194"/>
+    <line x1="300" y1="206" x2="292" y2="206"/><line x1="300" y1="218" x2="292" y2="218"/>
+    <line x1="300" y1="230" x2="292" y2="230"/>
+    <line x1="404" y1="134" x2="412" y2="134"/><line x1="404" y1="146" x2="412" y2="146"/>
+    <line x1="404" y1="158" x2="412" y2="158"/><line x1="404" y1="170" x2="412" y2="170"/>
+    <line x1="404" y1="182" x2="412" y2="182"/><line x1="404" y1="194" x2="412" y2="194"/>
+    <line x1="404" y1="206" x2="412" y2="206"/><line x1="404" y1="218" x2="412" y2="218"/>
+    <line x1="404" y1="230" x2="412" y2="230"/>
+    <line x1="324" y1="242" x2="324" y2="250"/><line x1="346" y1="242" x2="346" y2="250"/>
+    <line x1="368" y1="242" x2="368" y2="250"/><line x1="390" y1="242" x2="390" y2="250"/>
   </g>
 
   <!-- meandered PCB antenna across the top edge, inside the keep-out -->
-  <path d="M352,116 v-14 h12 v14 h12 v-14 h12 v14 h12 v-14 h12 v14 h12"
-        fill="none" stroke="#fff" stroke-width="2"/>
+  <path d="M314,116 v-12 h13 v12 h13 v-12 h13 v12 h13 v-12 h13 v12" fill="none" stroke="#fff" stroke-width="2"/>
 
   <!-- ── annotations · leaders run at 0 / 45 / 90° only ──────────────────────────── -->
 
+  <!-- D · keep-out — label in the clear top-left gutter, 90° leader straight down into the
+       cleared zone (text above the leader, never beside it) -->
+  <g fill="#ef5350" text-anchor="middle">
+    <text x="250" y="54" font-size="14" font-weight="700">KEEP-OUT</text>
+    <text x="250" y="71" font-size="10">no copper</text>
+    <text x="250" y="84" font-size="10">no ground pour</text>
+  </g>
+  <line x1="250" y1="92" x2="250" y2="110" stroke="#ef5350" stroke-width="1"/>
+
   <!-- A · PCB antenna — 90° leader down to the antenna -->
-  <text x="390" y="46" text-anchor="middle" fill="#cfcfcf" font-size="11">PCB antenna</text>
-  <line x1="390" y1="52" x2="390" y2="70" stroke="#8a8a8a" stroke-width="1"/>
+  <text x="352" y="56" text-anchor="middle" fill="#cfcfcf" font-size="11">PCB antenna</text>
+  <line x1="352" y1="62" x2="352" y2="74" stroke="#8a8a8a" stroke-width="1"/>
 
   <!-- B · overhang note — 45° leader to the overhanging corner -->
-  <text x="488" y="44" fill="#8a8a8a" font-size="10">antenna end overhangs the board edge</text>
-  <text x="488" y="58" fill="#8a8a8a" font-size="10">(or a board cut-out under it)</text>
-  <line x1="476" y1="54" x2="444" y2="86" stroke="#8a8a8a" stroke-width="1"/>
+  <text x="450" y="52" fill="#8a8a8a" font-size="10">antenna end overhangs the board edge</text>
+  <text x="450" y="66" fill="#8a8a8a" font-size="10">(or a board cut-out under it)</text>
+  <line x1="438" y1="58" x2="404" y2="92" stroke="#8a8a8a" stroke-width="1"/>
 
   <!-- C · part name — 0° leader into the body -->
-  <text x="506" y="176" fill="#fff" font-size="13" font-weight="700">ESP32-S3-WROOM-1</text>
-  <line x1="500" y1="172" x2="446" y2="172" stroke="#8a8a8a" stroke-width="1"/>
+  <text x="470" y="178" fill="#fff" font-size="13" font-weight="700">ESP32-S3-WROOM-1</text>
+  <line x1="464" y1="174" x2="404" y2="174" stroke="#8a8a8a" stroke-width="1"/>
 
   <!-- module ref, centred in the shield body -->
-  <text x="390" y="190" text-anchor="middle" fill="#fff" font-size="17" font-weight="700">U1</text>
-
-  <!-- D · keep-out — 0° leader into the cleared zone beside the antenna -->
-  <g fill="#ef5350">
-    <text x="78" y="104" font-size="14" font-weight="700">KEEP-OUT</text>
-    <text x="78" y="122" font-size="10">no copper</text>
-    <text x="78" y="136" font-size="10">no ground pour</text>
-  </g>
-  <line x1="196" y1="100" x2="296" y2="100" stroke="#ef5350" stroke-width="1"/>
+  <text x="352" y="192" text-anchor="middle" fill="#fff" font-size="17" font-weight="700">U1</text>
 
   <!-- E · ground pour — open lower-right, no leader needed -->
-  <text x="600" y="256" text-anchor="middle" fill="#8a8a8a" font-size="11">ground pour (copper) — everywhere</text>
-  <text x="600" y="270" text-anchor="middle" fill="#8a8a8a" font-size="11">except the keep-out</text>
+  <text x="556" y="262" text-anchor="middle" fill="#8a8a8a" font-size="11">ground pour (copper) — everywhere</text>
+  <text x="556" y="276" text-anchor="middle" fill="#8a8a8a" font-size="11">except the keep-out</text>
 </svg>
