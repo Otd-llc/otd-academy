@@ -13,8 +13,10 @@
 // so an authoring typo degrades gracefully to inert prose.
 //
 // Styling reuses existing tokens: a dotted-underline affordance in
-// `text-link-muted` (hover → `signal-blue`), and a `.glass-card` popover with a
-// `font-mono` term header + serif body. Content is `z-50` to float above the
+// `text-link-muted` (hover → `signal-blue`), and a `.glass-popover` (a denser,
+// more-opaque glass than `.glass-card`, so body text doesn't bleed through this
+// little floating pane) with a `font-mono` term header + serif body. Content is
+// `z-50` to float above the
 // `sticky top-0 z-20` header.
 //
 // `container` is forwarded to Radix's Portal + Content so in-dialog triggers
@@ -65,7 +67,7 @@ export function GlossaryTerm({ term, children, container }: GlossaryTermProps) {
           align="start"
           sideOffset={6}
           collisionPadding={8}
-          className="glass-card z-50 max-w-xs p-3 shadow-xl"
+          className="glass-popover z-50 max-w-xs p-3 shadow-xl"
         >
           <p className="mb-1 font-mono text-xs font-bold uppercase tracking-wider text-command-gold">
             {entry.term}
