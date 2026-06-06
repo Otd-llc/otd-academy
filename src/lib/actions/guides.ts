@@ -77,6 +77,7 @@ export async function materializeGuide(input: unknown) {
                 track: true,
                 requiresStripboard: true,
                 disciplineTaught: true,
+                level: true,
               },
             },
           },
@@ -95,6 +96,7 @@ export async function materializeGuide(input: unknown) {
           track: rev.project.track,
           requiresStripboard: rev.project.requiresStripboard,
           disciplineTaught: rev.project.disciplineTaught,
+          level: rev.project.level,
         });
 
         try {

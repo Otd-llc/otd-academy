@@ -50,7 +50,12 @@ export async function loadGateContext(
   // BOM_SOURCING gate predicate.
   const project = await tx.project.findFirstOrThrow({
     where: { revisions: { some: { id: revisionId } } },
-    select: { id: true, requiresStripboard: true, hasMainsNet: true },
+    select: {
+      id: true,
+      requiresStripboard: true,
+      hasMainsNet: true,
+      level: true,
+    },
   });
 
   const bomLines = await tx.bomLine.findMany({
