@@ -77,7 +77,12 @@ const SCHEMATIC_BLOCKS: ContentBlock[] = [
     type: "callout",
     severity: "info",
     label: "Check yourself",
-    body: "The RT9080 drops 0.53 V at 600 mA. If USB sags to 4.6 V under load, do you still clear 3.3 V at the output? Yes: 4.6 − 0.53 = 4.07 V, well above 3.3 V. That headroom is exactly why we picked a low-dropout part.",
+    body: "In plain terms, why use a regulator (U2) instead of just resistors to drop the voltage? Because a regulator holds 3.3 V steady no matter how much the chip draws — a plain resistor divider would sag the moment the chip gets busy.",
+  },
+  {
+    type: "deepDive",
+    summary: "Why a low-dropout (LDO) part?",
+    body: "Even when USB sags to about 4.6 V under load, the RT9080 only needs ~0.53 V of headroom to keep regulating: 4.6 − 0.53 = 4.07 V, still comfortably above 3.3 V. A cheaper regulator that needs 1–2 V of headroom would drop out here and the 3.3 V rail would collapse. That margin is the whole reason we chose a [[dropout voltage|low-dropout]] (LDO) part.",
   },
 
   // 2 — Decoupling the module
@@ -117,7 +122,12 @@ const SCHEMATIC_BLOCKS: ContentBlock[] = [
     type: "callout",
     severity: "info",
     label: "Check yourself",
-    body: "Why three 0.1 µF caps instead of one 0.3 µF cap? Because each has to sit next to a different power pin. A capacitor's help fades with distance, so proximity beats raw capacitance.",
+    body: "In one line, what do C2/C3/C7 do? They sit right at the chip's power pins and keep its 3.3 V steady when it suddenly pulls current.",
+  },
+  {
+    type: "deepDive",
+    summary: "Why three small caps, not one big one?",
+    body: "A capacitor only helps if it's close — the longer the trace between it and the pin, the more its help fades (trace inductance gets in the way). Three 0.1 µF caps, one hard against each power pin, beat a single 0.3 µF cap sitting a few millimetres away: proximity matters more than raw capacitance. The 10 µF [[bulk capacitor|bulk cap]] (C1) handles the slower, larger swings the little ones can't.",
   },
 
   // 3 — Boot & reset straps (pull-ups)
@@ -151,7 +161,12 @@ const SCHEMATIC_BLOCKS: ContentBlock[] = [
     type: "callout",
     severity: "info",
     label: "Check yourself",
-    body: "Why 10 kΩ and not 100 Ω? A pull-up wants to be weak — just enough to define the level. At 3.3 V a 10 kΩ pull-up leaks only 0.33 mA yet holds the pin firmly high; a 100 Ω pull-up would burn 33 mA and turn the button press into a tug-of-war. Ohm's law: I = V / R.",
+    body: "If R1 weren't there and you pressed nothing, what would the EN pin read? It would float — pick up electrical noise and read randomly, so the chip might reset or never start. The pull-up gives it a steady, known level.",
+  },
+  {
+    type: "deepDive",
+    summary: "Why 10 kΩ, and why 'weak'?",
+    body: "A pull-up only has to set the resting level, not power anything — so it should be 'weak' (a high value). At 3.3 V, a 10 kΩ pull-up leaks just 0.33 mA (3.3 V ÷ 10 kΩ) — negligible — yet still firmly holds the pin high. A 100 Ω pull-up would burn 33 mA doing the same job and fight the button when you press it. Weaker is better here.",
   },
 
   // 4 — USB-C as a sink (pull-downs)
@@ -185,7 +200,12 @@ const SCHEMATIC_BLOCKS: ContentBlock[] = [
     type: "callout",
     severity: "info",
     label: "Check yourself",
-    body: "Leave them off and plug into a modern USB-C charger — what happens? Nothing powers up: the charger never sees an Rd and keeps VBUS off. The cruel part is that a legacy USB-A-to-C cable would still work (A ports always have 5 V), so the board seems fine on an old cable and dead on a new charger. That ghost is why these two resistors are not optional.",
+    body: "What is R3/R4's message to a charger, in plain words? 'I'm a device that wants power.' That's what makes a USB-C charger turn its 5 V on.",
+  },
+  {
+    type: "deepDive",
+    summary: "Why exactly 5.1 kΩ, and why two?",
+    body: "A device advertises itself as a power 'sink' by tying each [[CC pin]] to ground through a 5.1 kΩ resistor (called [[Rd]]) — that exact value is what the USB-C spec assigns to a basic sink. There are two (R3, R4) because Type-C is reversible: whichever way the plug goes in, one CC pin is the live one, so both need their own Rd. The sneaky failure: with an old USB-A-to-C cable it would still work (A ports always have 5 V), so the board can seem fine on an old cable yet dead on a new charger.",
   },
 
   // 5 — Indicator LEDs (current-limiting)
@@ -230,7 +250,12 @@ const SCHEMATIC_BLOCKS: ContentBlock[] = [
     type: "callout",
     severity: "info",
     label: "Check yourself",
-    body: "The yellow LED drops about 2.0 V. Through the same 470 Ω, does it run brighter or dimmer than the red? Dimmer: a higher Vf leaves less voltage for the resistor — (3.3 − 2.0)/470 ≈ 2.8 mA versus the red's 3.2 mA. That's why swapping LED colours at a fixed resistor quietly changes the brightness.",
+    body: "Why can't you wire an LED straight to 3.3 V with no resistor? An LED doesn't limit its own current — without a resistor it pulls far too much and burns out almost instantly.",
+  },
+  {
+    type: "deepDive",
+    summary: "Sizing the resistor (Ohm's law)",
+    body: "The resistor sets the current from the leftover voltage: I = (Vsupply − Vf) / R. The red LED drops about 1.8 V across itself (its [[forward voltage|forward voltage, Vf]]), so on 3.3 V through 470 Ω: (3.3 − 1.8) / 470 ≈ 3.2 mA — bright enough to see, easy on the GPIO. The yellow LED's Vf is higher (~2.0 V), so the same 470 Ω gives a bit less — (3.3 − 2.0) / 470 ≈ 2.8 mA — which is why swapping LED colours at a fixed resistor quietly changes the brightness.",
   },
 
   // 6 — Protecting the port
@@ -264,7 +289,12 @@ const SCHEMATIC_BLOCKS: ContentBlock[] = [
     type: "callout",
     severity: "info",
     label: "Check yourself",
-    body: "Why a resettable PTC instead of an ordinary one-shot fuse? A blown glass fuse is dead weight until you desolder it and fit a new one — miserable on a populated board. The PTC trips to protect, then heals when the fault clears. Protection without a service call.",
+    body: "What two things does the USB port need protecting from? Too much current (a short or a greedy device) and static-electricity zaps on the data lines.",
+  },
+  {
+    type: "deepDive",
+    summary: "How F1 and D1 actually protect the port",
+    body: "F1 is a [[PTC|resettable fuse]] (a 'polyfuse'): on overcurrent it heats up, its resistance shoots up to throttle the current, then it heals once it cools — unlike a glass fuse you'd have to desolder and replace. D1 is an [[ESD]] array on the data lines; when a static spike arrives — thousands of volts off a fingertip — it clamps that spike to ground in a nanosecond. It's deliberately a low-capacitance part because USB data is fast and a bulky protector would smear the signal.",
   },
 
   // Comprehension check (additive to the work-gate, not a replacement).
