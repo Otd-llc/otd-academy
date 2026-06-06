@@ -300,17 +300,17 @@ const SCHEMATIC_BLOCKS: ContentBlock[] = [
   // ── Draw it in KiCad (the 'how', after the 'why') ──────────────────────────────
   {
     type: "prose",
-    md: "You've reasoned out every part — now you draw it. Open KiCad, drop in the parts from your BOM export, and capture the circuit as a real schematic. A good schematic isn't just correct, it's readable: someone (including future-you) should follow it at a glance. A few conventions and one rules-check get you there.",
+    md: "You've reasoned out every part — now you draw it. Open the KiCad export: it's a ready-made project — the symbol library plus every BOM part already dropped onto the sheet, spaced out but not yet wired. Your job isn't to find parts, it's to arrange them into a readable layout and wire them into the real circuit. A good schematic isn't just correct, it's readable: someone (including future-you) should follow it at a glance. A few conventions and one rules-check get you there.",
   },
   {
     type: "callout",
     severity: "info",
     label: "Draw it · place by convention",
-    body: "Lay parts out so the drawing reads the way the circuit works — power in at the top, signal flowing left to right.",
+    body: "Arrange the parts the export gave you so the drawing reads the way the circuit works — power in at the top, signal flowing left to right.",
   },
   {
     type: "prose",
-    md: "Place each part so the sheet reads left → right: inputs on the left, outputs on the right. Put [[power port|power symbols]] (3V3, VBUS) at the top pointing up and grounds at the bottom pointing down. Group parts by sub-circuit, the same way you just learned them — the USB-C front end together, the regulator together, the ESP32 and its caps together. And draw each [[decoupling capacitor]] right next to the pin it feeds, so the schematic mirrors how the part must sit on the board.",
+    md: "Drag each part so the sheet reads left → right: inputs on the left, outputs on the right. Put [[power port|power symbols]] (3V3, VBUS) at the top pointing up and grounds at the bottom pointing down. Group parts by sub-circuit, the same way you just learned them — the USB-C front end together, the regulator together, the ESP32 and its caps together. And keep each [[decoupling capacitor]] right next to the pin it feeds, so the schematic mirrors how the part must sit on the board.",
   },
   {
     type: "image",
