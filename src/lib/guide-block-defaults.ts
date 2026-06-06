@@ -12,13 +12,14 @@ import {
   LinkIcon,
   ListIcon,
   PhotoIcon,
+  QuizIcon,
   TableIcon,
   TagIcon,
   VideoIcon,
 } from "@/components/icons";
 
 export const BLOCK_TYPES = [
-  "prose", "callout", "steps", "table", "termRef", "sourceRef", "partModel", "image", "video",
+  "prose", "callout", "steps", "table", "termRef", "sourceRef", "partModel", "image", "video", "quiz",
 ] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
 
@@ -32,6 +33,7 @@ export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   partModel: "3D part",
   image: "Image",
   video: "Video",
+  quiz: "Quiz",
 };
 
 // Type glyph for each block, paired with BLOCK_TYPE_LABELS to give blocks a
@@ -50,6 +52,7 @@ export const BLOCK_TYPE_ICON: Record<
   partModel: EyeIcon,
   image: PhotoIcon,
   video: VideoIcon,
+  quiz: QuizIcon,
 };
 
 // A valid, schema-passing starting block for each type. Where the schema
@@ -75,5 +78,12 @@ export function defaultBlock(type: BlockType): ContentBlock {
       return { type: "image", src: "", alt: "" };
     case "video":
       return { type: "video", src: "", alt: "" };
+    case "quiz":
+      return {
+        type: "quiz",
+        questions: [
+          { q: "New question?", options: ["Option A", "Option B"], answer: 0 },
+        ],
+      };
   }
 }

@@ -77,4 +77,29 @@ describe("guide schemas", () => {
   it("rejects a javascript: video src", () => {
     expect(contentBlockSchema.safeParse({ type: "video", src: "javascript:alert(1)", alt: "a" }).success).toBe(false);
   });
+  it("accepts a valid quiz block", () => {
+    expect(contentBlockSchema.safeParse({
+      type: "quiz",
+      prompt: "Check your understanding",
+      questions: [
+        { q: "2 + 2?", options: ["3", "4", "5"], answer: 1, explain: "basic" },
+        { q: "Pull-up holds a pin?", options: ["high", "low"], answer: 0 },
+      ],
+    }).success).toBe(true);
+  });
+  it("rejects a quiz answer index out of range", () => {
+    expect(contentBlockSchema.safeParse({
+      type: "quiz",
+      questions: [{ q: "x", options: ["a", "b"], answer: 2 }],
+    }).success).toBe(false);
+  });
+  it("rejects a quiz question with fewer than 2 options", () => {
+    expect(contentBlockSchema.safeParse({
+      type: "quiz",
+      questions: [{ q: "x", options: ["only one"], answer: 0 }],
+    }).success).toBe(false);
+  });
+  it("rejects a quiz with no questions", () => {
+    expect(contentBlockSchema.safeParse({ type: "quiz", questions: [] }).success).toBe(false);
+  });
 });

@@ -21,6 +21,7 @@ import sanitizeHtml from "sanitize-html";
 import type { ContentBlock } from "@/lib/schemas/guide";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
+import { QuizBlock } from "@/components/guide/QuizBlock";
 import { PhotoIcon, VideoIcon } from "@/components/icons";
 import { parseInlineTerms } from "@/lib/inline-terms";
 import type { RenderBounds } from "@/lib/schemas/part-asset";
@@ -344,6 +345,9 @@ function GuideBlock({
       return (
         <VideoBlock src={block.src} alt={block.alt} caption={block.caption} />
       );
+
+    case "quiz":
+      return <QuizBlock prompt={block.prompt} questions={block.questions} />;
 
     case "sourceRef":
       // href is scheme-validated by the schema (http(s):// or root-relative).
