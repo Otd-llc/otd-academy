@@ -101,3 +101,4 @@ with sync_playwright() as p:
 | `decoupling-placement.svg` | decoupling loop area | ✅ |
 | `bringup-probe-points.svg` | rail probe points | ✅ |
 | `wroom-power-flow.svg` | 5 V → 3.3 V power flow | ✅ |
+| `schematic-conventions.svg` | KiCad schematic-drawing conventions | ✅ |

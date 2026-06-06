@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 360" role="img"
+     aria-label="Schematic-drawing conventions: signal flows left to right, supply symbols point up and grounds point down, parts are grouped by sub-circuit, and a decoupling capacitor sits right at the IC power pin"
+     font-family="ui-monospace, 'SFMono-Regular', Menlo, monospace">
+  <defs>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#c8963e"/></marker>
+  </defs>
+
+  <!-- legend (left gutter) — the conventions, listed -->
+  <text x="56" y="92" fill="#c8963e" font-size="13" font-weight="700">SCHEMATIC CONVENTIONS</text>
+  <g fill="#cfcfcf" font-size="12">
+    <text x="56" y="124">› signal flows left → right</text>
+    <text x="56" y="150">› supplies up, grounds down</text>
+    <text x="56" y="176">› group by sub-circuit</text>
+    <text x="56" y="202">› decoupling cap at the pin</text>
+  </g>
+
+  <!-- ── the example, showing every convention ──────────────────────────────────── -->
+
+  <!-- supply port (3V3) — points UP -->
+  <text x="470" y="86" text-anchor="middle" fill="#c8963e" font-size="12" font-weight="700">3V3</text>
+  <line x1="448" y1="92" x2="492" y2="92" stroke="#c8963e" stroke-width="2"/>
+  <line x1="470" y1="92" x2="470" y2="150" stroke="#c8963e" stroke-width="2"/>
+
+  <!-- decoupling cap, right at the power pin (taps the 3V3 net just before the IC) -->
+  <line x1="470" y1="116" x2="540" y2="116" stroke="#c8963e" stroke-width="2"/>
+  <line x1="540" y1="116" x2="540" y2="132" stroke="#8a8a8a" stroke-width="1.5"/>
+  <line x1="528" y1="132" x2="552" y2="132" stroke="#8a8a8a" stroke-width="1.5"/>
+  <line x1="528" y1="138" x2="552" y2="138" stroke="#8a8a8a" stroke-width="1.5"/>
+  <line x1="540" y1="138" x2="540" y2="154" stroke="#8a8a8a" stroke-width="1.5"/>
+  <line x1="531" y1="154" x2="549" y2="154" stroke="#8a8a8a" stroke-width="1.5"/>
+  <line x1="534" y1="158" x2="546" y2="158" stroke="#8a8a8a" stroke-width="1.5"/>
+  <line x1="537" y1="162" x2="543" y2="162" stroke="#8a8a8a" stroke-width="1.5"/>
+  <text x="566" y="128" fill="#8a8a8a" font-size="11">C — decoupling cap,</text>
+  <text x="566" y="142" fill="#8a8a8a" font-size="11">right at the pin</text>
+
+  <!-- the IC (a sub-circuit block) -->
+  <rect x="410" y="150" width="120" height="96" rx="3" fill="rgba(170,170,170,0.10)" stroke="#c8963e" stroke-width="2"/>
+  <text x="470" y="204" text-anchor="middle" fill="#fff" font-size="17" font-weight="700">U1</text>
+
+  <!-- signal in (from the left) and out (to the right) -->
+  <line x1="318" y1="198" x2="408" y2="198" stroke="#c8963e" stroke-width="2.5" marker-end="url(#ar)"/>
+  <text x="330" y="188" fill="#8a8a8a" font-size="11">in</text>
+  <line x1="530" y1="198" x2="624" y2="198" stroke="#c8963e" stroke-width="2.5" marker-end="url(#ar)"/>
+  <text x="610" y="188" text-anchor="end" fill="#8a8a8a" font-size="11">out</text>
+
+  <!-- ground (GND) — points DOWN -->
+  <line x1="470" y1="246" x2="470" y2="300" stroke="#8a8a8a" stroke-width="2"/>
+  <line x1="452" y1="300" x2="488" y2="300" stroke="#8a8a8a" stroke-width="2"/>
+  <line x1="459" y1="306" x2="481" y2="306" stroke="#8a8a8a" stroke-width="2"/>
+  <line x1="465" y1="312" x2="475" y2="312" stroke="#8a8a8a" stroke-width="2"/>
+  <text x="470" y="332" text-anchor="middle" fill="#8a8a8a" font-size="12" font-weight="700">GND</text>
+</svg>

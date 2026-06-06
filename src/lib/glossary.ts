@@ -213,6 +213,28 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
     def: "Minimum Order Quantity — the smallest amount a distributor will sell of a part. Cheap passives often come on reels of thousands; plan a few extras of any part you hand-place and might lose or cook.",
   },
 
+  // ── Schematic capture (KiCad) ────────────────────────
+  erc: {
+    term: "ERC (Electrical Rules Check)",
+    def: "KiCad's schematic checker (Inspect → Electrical Rules Checker). It flags unconnected pins, power rails nothing drives, and conflicting outputs. Run it until it's clean — or until every remaining flag is an intentional exception you've marked and understood. It's the schematic-stage cousin of the PCB's DRC.",
+  },
+  "pwr-flag": {
+    term: "PWR_FLAG",
+    def: "A special one-pin 'power-output' symbol you drop on a net to tell ERC the rail really is driven. Needed where power enters externally (a USB-C connector) or passes through a part that strips its power designation (a fuse, a regulator output) — it legitimately silences the 'input power pin not driven' error.",
+  },
+  "net label": {
+    term: "net label",
+    def: "A name you attach to a wire so that every wire sharing that name is the same connection — without drawing a line clear across the sheet. The main tool for keeping a schematic readable (KiCad hotkey: L).",
+  },
+  "power port": {
+    term: "power port",
+    def: "A power symbol (3V3, GND, VBUS) that names a power net; every matching port on the sheet is the same net. By convention supply ports point up and ground ports point down (KiCad hotkey: P).",
+  },
+  "no-connect": {
+    term: "no-connect flag",
+    def: "A small X you place on a pin you deliberately leave unconnected, so ERC stops warning about it and records that the open pin is intentional (KiCad hotkey: Q).",
+  },
+
   // ── Stage / gate vocabulary (mirrors src/lib/stages.ts) ──
   "exit gate": {
     term: "exit gate",
@@ -309,6 +331,15 @@ const ALIASES: Record<string, string> = {
   "esd diode": "tvs",
   "strapping pins": "strapping pin",
   ufp: "sink",
+  // Schematic capture (KiCad) long-forms / variants.
+  "electrical rules check": "erc",
+  "electrical rules checker": "erc",
+  "pwr_flag": "pwr-flag",
+  "power flag": "pwr-flag",
+  "net labels": "net label",
+  "power ports": "power port",
+  "no connect": "no-connect",
+  "no-connect flag": "no-connect",
 };
 
 /**

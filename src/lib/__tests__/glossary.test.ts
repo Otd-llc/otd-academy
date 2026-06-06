@@ -75,6 +75,15 @@ describe("glossary", () => {
     }
   });
 
+  it("seeds the KiCad schematic-capture terms (+ long-form aliases)", () => {
+    for (const t of ["ERC", "PWR_FLAG", "net label", "power port", "no-connect"]) {
+      expect(lookupTerm(t), `expected glossary to define "${t}"`).not.toBeNull();
+    }
+    expect(lookupTerm("electrical rules check")).toEqual(lookupTerm("ERC"));
+    expect(lookupTerm("power flag")).toEqual(lookupTerm("PWR_FLAG"));
+    expect(lookupTerm("no connect")).toEqual(lookupTerm("no-connect"));
+  });
+
   it("every entry has a non-empty term and definition", () => {
     for (const entry of Object.values(GLOSSARY)) {
       expect(entry.term.length).toBeGreaterThan(0);

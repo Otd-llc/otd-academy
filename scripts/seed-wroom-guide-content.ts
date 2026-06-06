@@ -297,6 +297,107 @@ const SCHEMATIC_BLOCKS: ContentBlock[] = [
     body: "F1 is a [[PTC|resettable fuse]] (a 'polyfuse'): on overcurrent it heats up, its resistance shoots up to throttle the current, then it heals once it cools — unlike a glass fuse you'd have to desolder and replace. D1 is an [[ESD]] array on the data lines; when a static spike arrives — thousands of volts off a fingertip — it clamps that spike to ground in a nanosecond. It's deliberately a low-capacitance part because USB data is fast and a bulky protector would smear the signal.",
   },
 
+  // ── Draw it in KiCad (the 'how', after the 'why') ──────────────────────────────
+  {
+    type: "prose",
+    md: "You've reasoned out every part — now you draw it. Open KiCad, drop in the parts from your BOM export, and capture the circuit as a real schematic. A good schematic isn't just correct, it's readable: someone (including future-you) should follow it at a glance. A few conventions and one rules-check get you there.",
+  },
+  {
+    type: "callout",
+    severity: "info",
+    label: "Draw it · place by convention",
+    body: "Lay parts out so the drawing reads the way the circuit works — power in at the top, signal flowing left to right.",
+  },
+  {
+    type: "prose",
+    md: "Place each part so the sheet reads left → right: inputs on the left, outputs on the right. Put [[power port|power symbols]] (3V3, VBUS) at the top pointing up and grounds at the bottom pointing down. Group parts by sub-circuit, the same way you just learned them — the USB-C front end together, the regulator together, the ESP32 and its caps together. And draw each [[decoupling capacitor]] right next to the pin it feeds, so the schematic mirrors how the part must sit on the board.",
+  },
+  {
+    type: "image",
+    src: "/guide-diagrams/schematic-conventions.svg",
+    alt: "An IC with signal flowing in from the left and out to the right, a 3V3 supply symbol pointing up, a GND symbol pointing down, and a decoupling capacitor drawn right at the power pin.",
+    caption: "The four habits that make a schematic readable.",
+  },
+  {
+    type: "callout",
+    severity: "info",
+    label: "Draw it · wire it cleanly",
+    body: "Connect with names, not a maze of lines. Two wires with the same label are the same net.",
+  },
+  {
+    type: "prose",
+    md: "For anything that crosses the sheet — a power rail, a reset line — give the wire a [[net label]] instead of dragging a line across everything: two wires sharing a label are connected, and the drawing stays clean. Use [[power port|power ports]] for 3V3 and GND so every part taps the rail by name. And remember wires that merely cross aren't joined unless there's a junction dot — let KiCad drop those at real T-connections.",
+  },
+  {
+    type: "deepDive",
+    summary: "Why named labels beat long wires",
+    body: "A net is defined by connection, not by a drawn line — so a [[net label]] called 3V3 in one corner of the sheet is the same wire as a 3V3 label in the other corner, with nothing drawn between them. That isn't a shortcut, it's the readable way: a schematic with twenty rails crossing it hides mistakes, while one built from named [[power port|ports]] and short local wires shows each sub-circuit as a tidy island. The electrical meaning is identical; the human meaning is night and day.",
+  },
+  {
+    type: "callout",
+    severity: "info",
+    label: "Draw it · KiCad 10 shortcuts",
+    body: "A handful of keys do most of the work — hover over a part and press the key. (Live list: Preferences → Hotkeys, or press ? in the editor.)",
+  },
+  {
+    type: "table",
+    columns: ["Key", "What it does"],
+    rows: [
+      [{ text: "A", decoration: "badge", tone: "gold" }, { text: "Add a symbol (place a part)" }],
+      [{ text: "P", decoration: "badge", tone: "gold" }, { text: "Add a power port — 3V3, GND, VBUS" }],
+      [{ text: "W", decoration: "badge", tone: "gold" }, { text: "Draw a wire" }],
+      [{ text: "L", decoration: "badge", tone: "gold" }, { text: "Place a net label" }],
+      [{ text: "R / M / G", decoration: "badge", tone: "gold" }, { text: "Rotate / move / drag (G keeps wires attached)" }],
+      [{ text: "X / Y", decoration: "badge", tone: "gold" }, { text: "Mirror across the X / Y axis" }],
+      [{ text: "E / V / U", decoration: "badge", tone: "gold" }, { text: "Edit properties / value / reference" }],
+      [{ text: "Q", decoration: "badge", tone: "gold" }, { text: "No-connect flag — mark a pin you leave open" }],
+    ],
+  },
+  {
+    type: "callout",
+    severity: "info",
+    label: "Draw it · run ERC",
+    body: "Before you trust the schematic, let KiCad check it: Inspect → Electrical Rules Checker.",
+  },
+  {
+    type: "prose",
+    md: "[[ERC]] reads your whole schematic and flags what's electrically wrong — a pin connected to nothing, two outputs fighting, a power rail nothing drives. Run it, then work the list to zero. The bar is the very one you'll meet again at DRC: clean, or every remaining flag is an exception you've marked and understood — not one you scrolled past.",
+  },
+  {
+    type: "table",
+    columns: ["ERC says…", "…you do"],
+    rows: [
+      [{ text: "Input power pin not driven", decoration: "badge", tone: "critical" }, { text: "Add a PWR_FLAG to rails that arrive from outside (VBUS from USB) or leave a regulator — it tells ERC the rail really is powered. Fix it, don't ignore it." }],
+      [{ text: "Pin not connected", decoration: "badge", tone: "critical" }, { text: "Meant to leave it open? Drop a no-connect flag (Q) on it — now it reads as intentional, not an oversight." }],
+      [{ text: "Unconnected wire / net", decoration: "badge", tone: "critical" }, { text: "A real mistake — join it, or delete the stray end. Don't scroll past this one." }],
+    ],
+  },
+  {
+    type: "deepDive",
+    summary: "Why a powered rail still trips ERC (and PWR_FLAG fixes it)",
+    body: "ERC checks by pin type: it wants every power-input pin (like the ESP32's 3V3) fed by a power-output pin somewhere. But your 3.3 V comes out of the [[LDO|regulator]], whose output KiCad may not mark as a power-output, and your 5 V arrives from a connector that has no 'output' pin at all — so ERC sees a rail nothing officially drives and warns you. A [[PWR_FLAG]] is a tiny symbol whose single pin IS a power-output: drop it on VBUS and on 3V3 and you've told ERC, truthfully, that the rail is driven and you checked. That's the honest way to clear the warning, not a mute button.",
+  },
+  {
+    type: "callout",
+    severity: "info",
+    label: "Draw it · export & upload",
+    body: "A clean, readable schematic is the artifact this stage wants.",
+  },
+  {
+    type: "steps",
+    ordered: true,
+    items: [
+      "Run ERC until it's clean — or every remaining flag is marked and understood.",
+      "Plot the schematic to PDF (File → Plot) for a readable copy, and keep the .kicad_sch source.",
+      "Attach the schematic as this stage's artifact — that's what the gate below checks.",
+    ],
+  },
+  {
+    type: "sourceRef",
+    label: "KiCad 10 — Schematic Editor manual",
+    href: "https://docs.kicad.org/10.0/en/eeschema/eeschema.html",
+  },
+
   // Comprehension check (additive to the work-gate, not a replacement).
   {
     type: "quiz",
@@ -351,6 +452,26 @@ const SCHEMATIC_BLOCKS: ContentBlock[] = [
         ],
         answer: 0,
         explain: "EN resets the chip; holding BOOT while you reset lets you load (flash) new code onto it over USB.",
+      },
+      {
+        q: "In KiCad, you give two far-apart wires the same label, '3V3'. What happens?",
+        options: [
+          "Nothing — labels are just notes",
+          "They become the same connection (the same net), no line needed between them",
+          "KiCad warns you they conflict",
+        ],
+        answer: 1,
+        explain: "A net is defined by connection, not by a drawn line. Same label = same net — that's how you keep a schematic readable instead of running wires everywhere.",
+      },
+      {
+        q: "Your schematic is right, but ERC says 'input power pin not driven' on the 3.3 V rail. Best move?",
+        options: [
+          "Ignore it — the regulator obviously powers the rail",
+          "Add a PWR_FLAG to the rail so ERC knows it's really driven",
+          "Delete the power pin to silence it",
+        ],
+        answer: 1,
+        explain: "A PWR_FLAG honestly tells ERC the rail is powered (a regulator output or a connector doesn't count as a 'power output' on its own). It clears the warning without hiding a real problem.",
       },
     ],
   },
