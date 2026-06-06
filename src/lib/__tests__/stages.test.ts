@@ -36,6 +36,22 @@ import {
   type GateContext,
 } from "@/lib/stages";
 
+describe("revision artifact subkind defaults", () => {
+  test("SCHEMATIC pre-selects SCHEMATIC_FILE", () => {
+    expect(STAGES.SCHEMATIC.defaultRevisionArtifactSubkind).toBe("SCHEMATIC_FILE");
+  });
+
+  test("every stage's preferred default is one of its allowed revision subkinds", () => {
+    for (const def of Object.values(STAGES)) {
+      if (def.defaultRevisionArtifactSubkind) {
+        expect(def.revisionAllowedArtifactSubkinds).toContain(
+          def.defaultRevisionArtifactSubkind,
+        );
+      }
+    }
+  });
+});
+
 // ─── Canned-context helpers ────────────────────────────
 
 function makeRevision(

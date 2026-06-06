@@ -69,6 +69,12 @@ export interface StageDef {
   /** Absent ⇒ terminal stage (REVISION). */
   exitGate?: (ctx: GateContext) => GateResult | Promise<GateResult>;
   revisionAllowedArtifactSubkinds: ArtifactSubkind[];
+  /** Preferred subkind the revision artifact picker pre-selects — the artifact
+   *  this stage exists to produce (e.g. SCHEMATIC ⇒ SCHEMATIC_FILE). MUST be one
+   *  of `revisionAllowedArtifactSubkinds`; absent ⇒ the picker falls back to the
+   *  first allowed subkind. Decouples the default from list order so it can't
+   *  silently drift if the allowed-list is reordered. */
+  defaultRevisionArtifactSubkind?: ArtifactSubkind;
   buildAllowedArtifactSubkinds: ArtifactSubkind[];
 }
 
@@ -171,6 +177,7 @@ export const STAGES: Record<Stage, StageDef> = {
       "Attach the schematic artifact (PDF or file link).",
     ],
     revisionAllowedArtifactSubkinds: ["SCHEMATIC_FILE", "GENERIC"],
+    defaultRevisionArtifactSubkind: "SCHEMATIC_FILE",
     buildAllowedArtifactSubkinds: [],
     exitGate: ({ revision, artifacts }) => {
       const reasons: string[] = [];

@@ -107,6 +107,18 @@ export function ArtifactPicker({
     (s) => s !== ("BRINGUP_COMPLETE" satisfies ArtifactSubkind),
   );
 
+  // Pre-select the stage's preferred subkind (the artifact it exists to produce,
+  // e.g. SCHEMATIC ⇒ SCHEMATIC_FILE) when it's defined + allowed; else the first
+  // allowed subkind. Revision-scoped (build pickers have no preferred default).
+  const preferredSubkind =
+    owner.kind === "revision"
+      ? STAGES[stage].defaultRevisionArtifactSubkind
+      : undefined;
+  const defaultSubkind =
+    preferredSubkind && allowedSubkinds.some((s) => s === preferredSubkind)
+      ? preferredSubkind
+      : allowedSubkinds[0];
+
   // Clear local form state + fire onCreated callback when a NOTE/LINK
   // create succeeds.
   useEffect(() => {
@@ -292,7 +304,7 @@ export function ArtifactPicker({
           <select
             ref={subkindSelectRef}
             name="subkind"
-            defaultValue={allowedSubkinds[0]}
+            defaultValue={defaultSubkind}
             className="mt-1 w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
           >
             {allowedSubkinds.map((s) => (
