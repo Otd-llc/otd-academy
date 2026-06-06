@@ -24,12 +24,14 @@ import { PageHeader } from "@/components/PageHeader";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import { GuideBlocks, type ResolvedModel } from "@/components/guide/GuideBlocks";
 import { GuideCardEditor } from "@/components/guide/GuideCardEditor";
+import { GuideStepper } from "@/components/guide/GuideStepper";
 import { getPartAssetRenderUrl } from "@/lib/actions/part-assets";
 import { renderBoundsSchema } from "@/lib/schemas/part-asset";
 import { StageGate } from "@/components/guide/StageGate";
 import { BoardSelector } from "@/components/guide/BoardSelector";
 import { GenerateGuideButton } from "@/components/guide/GenerateGuideButton";
 import { resolveCardCompletion } from "@/lib/guide-completion";
+import { resolveGuideProgress } from "@/lib/guide-progress";
 import { buildStageGateWidget } from "@/lib/guide-widget";
 import {
   GUIDE_STAGES,
@@ -213,6 +215,13 @@ export default async function GuideCardPage({
     completion,
   });
 
+  // The 8-stage "order of operations" rail (board-scoped on the build cards).
+  const guideProgress = await resolveGuideProgress(
+    revision.id,
+    revision.guide.id,
+    selectedBoardId,
+  );
+
   // prev / next across GUIDE_STAGES.
   const idx = GUIDE_STAGES.indexOf(stage);
   const prevStage = idx > 0 ? GUIDE_STAGES[idx - 1] : null;
@@ -231,6 +240,14 @@ export default async function GuideCardPage({
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+      <div className="mb-6">
+        <GuideStepper
+          slug={project.slug}
+          revLabel={revision.label}
+          stages={guideProgress}
+          viewingStage={stage}
+        />
+      </div>
       {/* Inline edit-in-place island: view mode renders the server-rendered
           PageHeader + GuideBlocks below as `children`; edit mode swaps in the
           authoring forms. StageGate + nav stay OUTSIDE (gate-wiring locked). */}

@@ -19,6 +19,8 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
 import { GenerateGuideButton } from "@/components/guide/GenerateGuideButton";
+import { GuideStepper } from "@/components/guide/GuideStepper";
+import { resolveGuideProgress } from "@/lib/guide-progress";
 import {
   resolveCardCompletion,
   type CardCompletion,
@@ -168,6 +170,12 @@ export default async function GuideHubPage({
   const cards = revision.guide.cards;
   const cardByStage = new Map(cards.map((c) => [c.stage, c]));
 
+  // The 8-stage order-of-operations rail (revision-level).
+  const guideProgress = await resolveGuideProgress(
+    revision.id,
+    revision.guide.id,
+  );
+
   // ─── Tier 1: design-stage roll-up (revision-level) ──────
   const designCells = await Promise.all(
     DESIGN_STAGES.map(async (stage) => {
@@ -225,6 +233,14 @@ export default async function GuideHubPage({
           { label: "Stage", value: revision.currentStage },
         ]}
       />
+
+      <div className="mb-8">
+        <GuideStepper
+          slug={project.slug}
+          revLabel={revision.label}
+          stages={guideProgress}
+        />
+      </div>
 
       {/* ─── Tier 1: design-stage card grid ─── */}
       <section>
