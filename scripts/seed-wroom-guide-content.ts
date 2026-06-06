@@ -641,7 +641,7 @@ const REQUIREMENTS_BLOCKS: ContentBlock[] = [
     type: "callout",
     severity: "info",
     label: "Exit this stage",
-    body: "The REQUIREMENTS_REVIEW checklist captures the COMMS-track design decisions — the ADC1 rule, level-shifting for any addressable LEDs, brownout mitigation for motors/servos, idle-current and power-source choices — plus the one that binds this board hardest: the WROOM [[antenna keep-out]] confirmed against the module datasheet. Complete it to advance.",
+    body: "You've pinned down what this board has to do — powered and programmed over one USB-C port, a 3.3 V budget that survives a Wi-Fi burst, and the ADC1-only rule. Write those decisions up as your requirements note and attach it, then pass the quick check above. That's the gate — no formal design-review checklist on a build this size.",
   },
 ];
 

@@ -55,6 +55,7 @@ async function main() {
           track: true,
           requiresStripboard: true,
           disciplineTaught: true,
+          level: true,
         },
       },
     },
@@ -81,6 +82,7 @@ async function main() {
       track: rev.project.track,
       requiresStripboard: rev.project.requiresStripboard,
       disciplineTaught: rev.project.disciplineTaught,
+      level: rev.project.level,
     });
 
     // Replicate the materializeGuide WRITE shape exactly (src/lib/actions/guides.ts).

@@ -36,7 +36,7 @@ export const STAGE_CARD_SKELETONS: Record<GuideStage, StageSkeleton> = {
     baseBlocks: [
       {
         type: "prose",
-        md: "Capture the functional requirements, the discipline this board teaches, and every safety/DFM constraint. Complete the REQUIREMENTS review checklist to exit.",
+        md: "Capture the functional requirements, the discipline this board teaches, and every safety/DFM constraint, then attach your requirements artifact to exit.",
       },
     ],
     isGate: true,

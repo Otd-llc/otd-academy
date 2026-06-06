@@ -239,7 +239,7 @@ function ctx(
     // m17 / m18: GateContext widened with project Pick. Default fixture sets
     // both flags false so existing per-stage tests stay unaffected;
     // BOM_SOURCING m17/m18 tests override these explicitly.
-    project: { id: "p1", requiresStripboard: false, hasMainsNet: false },
+    project: { id: "p1", requiresStripboard: false, hasMainsNet: false, level: null },
     bomLines: [],
     artifacts: [],
     revisionChecklists: [],
@@ -251,6 +251,71 @@ function ctx(
     ...overrides,
   };
 }
+
+// ─── REQUIREMENTS gate by level ────────────────────────
+
+describe("REQUIREMENTS gate — L1 builds skip the review checklist", () => {
+  const reqArtifact = () => [makeArtifact("REQUIREMENTS", "REQUIREMENTS_DOC")];
+  const projectAt = (level: "L1" | "L2" | null) => ({
+    id: "p1",
+    requiresStripboard: false,
+    hasMainsNet: false,
+    level,
+  });
+
+  test("L1: artifact present, NO review checklist → ok (checklist skipped)", async () => {
+    const r = await STAGES.REQUIREMENTS.exitGate!(
+      ctx("REQUIREMENTS", {
+        project: projectAt("L1"),
+        artifacts: reqArtifact(),
+        revisionChecklists: [],
+      }),
+    );
+    expect(r.ok).toBe(true);
+  });
+
+  test("L1: NO artifact → fails on the artifact only (no checklist reason)", async () => {
+    const r = await STAGES.REQUIREMENTS.exitGate!(
+      ctx("REQUIREMENTS", {
+        project: projectAt("L1"),
+        artifacts: [],
+        revisionChecklists: [],
+      }),
+    );
+    expect(r.ok).toBe(false);
+    const reasons = (r as { reasons: string[] }).reasons;
+    expect(reasons).toContain("No requirements artifact at this stage.");
+    expect(reasons.some((x) => x.includes("REQUIREMENTS_REVIEW"))).toBe(false);
+  });
+
+  test("L2: artifact present but NO review checklist → still blocked", async () => {
+    const r = await STAGES.REQUIREMENTS.exitGate!(
+      ctx("REQUIREMENTS", {
+        project: projectAt("L2"),
+        artifacts: reqArtifact(),
+        revisionChecklists: [],
+      }),
+    );
+    expect(r.ok).toBe(false);
+    expect((r as { reasons: string[] }).reasons).toContain(
+      "No REQUIREMENTS_REVIEW Checklist on the revision.",
+    );
+  });
+
+  test("null level (e.g. the seed fixture): review checklist still required", async () => {
+    const r = await STAGES.REQUIREMENTS.exitGate!(
+      ctx("REQUIREMENTS", {
+        project: projectAt(null),
+        artifacts: reqArtifact(),
+        revisionChecklists: [],
+      }),
+    );
+    expect(r.ok).toBe(false);
+    expect((r as { reasons: string[] }).reasons).toContain(
+      "No REQUIREMENTS_REVIEW Checklist on the revision.",
+    );
+  });
+});
 
 // ─── Soft quiz-gate ────────────────────────────────────
 
@@ -537,7 +602,7 @@ describe("BOM_SOURCING exit gate", () => {
   test("BOM_SOURCING gate: when requiresStripboard=false, STRIPBOARD_VALIDATION is not consulted", async () => {
     const r = await STAGES.BOM_SOURCING.exitGate!(
       ctx("BOM_SOURCING", {
-        project: { id: "p1", requiresStripboard: false, hasMainsNet: false },
+        project: { id: "p1", requiresStripboard: false, hasMainsNet: false, level: null },
         bomLines: [makeBomLine(makePart({ id: "p1" }))],
         revisionChecklists: [],
       }),
@@ -548,7 +613,7 @@ describe("BOM_SOURCING exit gate", () => {
   test("BOM_SOURCING gate: when requiresStripboard=true, missing STRIPBOARD_VALIDATION fails the gate", async () => {
     const r = await STAGES.BOM_SOURCING.exitGate!(
       ctx("BOM_SOURCING", {
-        project: { id: "p1", requiresStripboard: true, hasMainsNet: false },
+        project: { id: "p1", requiresStripboard: true, hasMainsNet: false, level: null },
         bomLines: [makeBomLine(makePart({ id: "p1" }))],
         revisionChecklists: [],
       }),
@@ -564,7 +629,7 @@ describe("BOM_SOURCING exit gate", () => {
   test("BOM_SOURCING gate: when requiresStripboard=true, STRIPBOARD_VALIDATION with empty items fails", async () => {
     const r = await STAGES.BOM_SOURCING.exitGate!(
       ctx("BOM_SOURCING", {
-        project: { id: "p1", requiresStripboard: true, hasMainsNet: false },
+        project: { id: "p1", requiresStripboard: true, hasMainsNet: false, level: null },
         bomLines: [makeBomLine(makePart({ id: "p1" }))],
         revisionChecklists: [
           makeChecklist("STRIPBOARD_VALIDATION", [], {
@@ -586,7 +651,7 @@ describe("BOM_SOURCING exit gate", () => {
   test("BOM_SOURCING gate: when requiresStripboard=true, all-checked-or-N/A STRIPBOARD_VALIDATION passes", async () => {
     const r = await STAGES.BOM_SOURCING.exitGate!(
       ctx("BOM_SOURCING", {
-        project: { id: "p1", requiresStripboard: true, hasMainsNet: false },
+        project: { id: "p1", requiresStripboard: true, hasMainsNet: false, level: null },
         bomLines: [makeBomLine(makePart({ id: "p1" }))],
         revisionChecklists: [
           makeChecklist(
@@ -607,7 +672,7 @@ describe("BOM_SOURCING exit gate", () => {
   test("BOM_SOURCING gate: when requiresStripboard=true, unchecked non-N/A item fails", async () => {
     const r = await STAGES.BOM_SOURCING.exitGate!(
       ctx("BOM_SOURCING", {
-        project: { id: "p1", requiresStripboard: true, hasMainsNet: false },
+        project: { id: "p1", requiresStripboard: true, hasMainsNet: false, level: null },
         bomLines: [makeBomLine(makePart({ id: "p1" }))],
         revisionChecklists: [
           makeChecklist(
@@ -636,7 +701,7 @@ describe("BOM_SOURCING exit gate", () => {
   test("BOM_SOURCING gate: when hasMainsNet=false, certified-module check is skipped", async () => {
     const r = await STAGES.BOM_SOURCING.exitGate!(
       ctx("BOM_SOURCING", {
-        project: { id: "p1", requiresStripboard: false, hasMainsNet: false },
+        project: { id: "p1", requiresStripboard: false, hasMainsNet: false, level: null },
         bomLines: [
           makeBomLine(makePart({ id: "p1", isCertifiedModule: false })),
         ],
@@ -649,7 +714,7 @@ describe("BOM_SOURCING exit gate", () => {
   test("BOM_SOURCING gate: when hasMainsNet=true, no certified module fails the gate", async () => {
     const r = await STAGES.BOM_SOURCING.exitGate!(
       ctx("BOM_SOURCING", {
-        project: { id: "p1", requiresStripboard: false, hasMainsNet: true },
+        project: { id: "p1", requiresStripboard: false, hasMainsNet: true, level: null },
         bomLines: [
           makeBomLine(makePart({ id: "p1", isCertifiedModule: false })),
         ],
@@ -667,7 +732,7 @@ describe("BOM_SOURCING exit gate", () => {
   test("BOM_SOURCING gate: when hasMainsNet=true, at least one certified module passes", async () => {
     const r = await STAGES.BOM_SOURCING.exitGate!(
       ctx("BOM_SOURCING", {
-        project: { id: "p1", requiresStripboard: false, hasMainsNet: true },
+        project: { id: "p1", requiresStripboard: false, hasMainsNet: true, level: null },
         bomLines: [
           makeBomLine(makePart({ id: "p1", isCertifiedModule: false })),
           makeBomLine(
