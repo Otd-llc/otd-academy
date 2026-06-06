@@ -500,6 +500,12 @@ const LAYOUT_BLOCKS: ContentBlock[] = [
     md: "The WROOM module radiates from a printed antenna at one end. Under and around it you hold an [[antenna keep-out]]: no copper, no [[ground pour]], no traces — ideally the module overhangs the board edge entirely. Copper there detunes the antenna and quietly destroys your wireless range. This is the headline item on the LAYOUT review, and it's the one mistake you can't fix without re-spinning the board.",
   },
   {
+    type: "image",
+    src: "/guide-diagrams/antenna-keepout.svg",
+    alt: "Board top view: ground pour fills the copper everywhere except a red dashed keep-out zone under the WROOM module's antenna, reaching the board edge.",
+    caption: "Top view — the antenna keep-out: no copper, no pour, no traces (often a board cut-out).",
+  },
+  {
     type: "partModel",
     mpn: "ESP32-S3-WROOM-1-N16R2",
     caption: "U1 — the antenna sits at one end; keep all copper out from under it",
@@ -519,6 +525,12 @@ const LAYOUT_BLOCKS: ContentBlock[] = [
   {
     type: "prose",
     md: "A [[decoupling capacitor]] only does its job parked hard against the pin it feeds, with a short fat path to ground. So place C2, C3, and C7 right at U1's 3V3 pins before you route the scenic stuff — and put C1, the [[bulk capacitor]], near where power enters the module. Route them the long way and the trace inductance throttles the fast current they exist to deliver; they become decoration.",
+  },
+  {
+    type: "image",
+    src: "/guide-diagrams/decoupling-placement.svg",
+    alt: "Two panels: a decoupling cap right at the IC pin makes a small current loop (low inductance); the same cap placed far makes a large loop that chokes the fast current.",
+    caption: "Why placement matters — the current-loop area sets the inductance.",
   },
   {
     type: "callout",
@@ -785,6 +797,12 @@ const BRINGUP_BLOCKS: ContentBlock[] = [
         { text: "Ground reference for your meter" },
       ],
     ],
+  },
+  {
+    type: "image",
+    src: "/guide-diagrams/bringup-probe-points.svg",
+    alt: "Board top view with a multimeter: the red probe on TP1 (3V3) and the black probe on TP2 (GND), the meter reading 3.30 V.",
+    caption: "Probing the rail — red on TP1 (3V3), black on TP2 (GND); expect 3.3 V.",
   },
   {
     type: "callout",
