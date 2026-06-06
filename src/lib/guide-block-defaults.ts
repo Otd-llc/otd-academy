@@ -7,6 +7,7 @@ import type { JSX } from "react";
 import type { ContentBlock } from "@/lib/schemas/guide";
 import {
   AlertTriangleIcon,
+  ChevronDownIcon,
   DocumentIcon,
   EyeIcon,
   LinkIcon,
@@ -19,7 +20,7 @@ import {
 } from "@/components/icons";
 
 export const BLOCK_TYPES = [
-  "prose", "callout", "steps", "table", "termRef", "sourceRef", "partModel", "image", "video", "quiz",
+  "prose", "callout", "steps", "table", "termRef", "sourceRef", "partModel", "image", "video", "quiz", "deepDive",
 ] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
 
@@ -34,6 +35,7 @@ export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   image: "Image",
   video: "Video",
   quiz: "Quiz",
+  deepDive: "Deep dive",
 };
 
 // Type glyph for each block, paired with BLOCK_TYPE_LABELS to give blocks a
@@ -53,6 +55,7 @@ export const BLOCK_TYPE_ICON: Record<
   image: PhotoIcon,
   video: VideoIcon,
   quiz: QuizIcon,
+  deepDive: ChevronDownIcon,
 };
 
 // A valid, schema-passing starting block for each type. Where the schema
@@ -85,5 +88,7 @@ export function defaultBlock(type: BlockType): ContentBlock {
           { q: "New question?", options: ["Option A", "Option B"], answer: 0 },
         ],
       };
+    case "deepDive":
+      return { type: "deepDive", summary: "Deep dive", body: "" };
   }
 }

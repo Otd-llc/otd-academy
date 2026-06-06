@@ -102,4 +102,10 @@ describe("guide schemas", () => {
   it("rejects a quiz with no questions", () => {
     expect(contentBlockSchema.safeParse({ type: "quiz", questions: [] }).success).toBe(false);
   });
+  it("accepts a valid deepDive block", () => {
+    expect(contentBlockSchema.safeParse({ type: "deepDive", summary: "Why a low-dropout part?", body: "Even when USB sags…" }).success).toBe(true);
+  });
+  it("rejects a deepDive with an empty summary", () => {
+    expect(contentBlockSchema.safeParse({ type: "deepDive", summary: "", body: "x" }).success).toBe(false);
+  });
 });

@@ -91,6 +91,8 @@ export function BlockEditor({
       );
     case "quiz":
       return <QuizEditor block={block} onChange={onChange} {...err} />;
+    case "deepDive":
+      return <DeepDiveEditor block={block} onChange={onChange} {...err} />;
     default: {
       // Exhaustiveness guard: if a new block.type is added to the schema and
       // not handled above, this line fails to typecheck.
@@ -664,6 +666,50 @@ function QuizEditor({
       >
         <PlusIcon className="h-4 w-4" />
       </IconButton>
+    </div>
+  );
+}
+
+// ─── deepDive ───────────────────────────────────────────────────────────
+function DeepDiveEditor({
+  block,
+  onChange,
+  hasError,
+  errorId,
+}: {
+  block: Extract<ContentBlock, { type: "deepDive" }>;
+  onChange: (next: ContentBlock) => void;
+} & BlockErrorProps) {
+  const baseId = useId();
+  return (
+    <div className="space-y-2">
+      <div>
+        <label htmlFor={`${baseId}-sum`} className={labelClass}>
+          Summary (the collapsed toggle label)
+        </label>
+        <input
+          id={`${baseId}-sum`}
+          type="text"
+          maxLength={120}
+          value={block.summary}
+          onChange={(e) => onChange({ ...block, summary: e.target.value })}
+          className={`mt-1 ${inputClass}`}
+          {...ariaErrorProps({ hasError, errorId })}
+        />
+      </div>
+      <div>
+        <label htmlFor={`${baseId}-body`} className={labelClass}>
+          Body (markdown — the math / why, shown when expanded)
+        </label>
+        <textarea
+          id={`${baseId}-body`}
+          rows={4}
+          maxLength={4000}
+          value={block.body}
+          onChange={(e) => onChange({ ...block, body: e.target.value })}
+          className={`mt-1 ${textareaClass}`}
+        />
+      </div>
     </div>
   );
 }

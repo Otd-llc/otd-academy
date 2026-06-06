@@ -93,6 +93,15 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
       .min(1)
       .max(10),
   }),
+  // deepDive — optional "go deeper" disclosure (progressive disclosure): the
+  // plain explanation stays on the surface; the math/why lives in a COLLAPSED
+  // <details>. `body` is prose (markdown source + inline [[term]] glossary, same
+  // as a prose block). Keeps a beginner card readable while serving the curious.
+  z.object({
+    type: z.literal("deepDive"),
+    summary: z.string().trim().min(1).max(120),
+    body: z.string().max(4000),
+  }),
 ]);
 export type ContentBlock = z.infer<typeof contentBlockSchema>;
 

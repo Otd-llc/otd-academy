@@ -204,6 +204,28 @@ function ProseBlock({ md }: { md: string }) {
   );
 }
 
+// Optional "go deeper" disclosure — the surface stays plain; the math/why is one
+// click away. Native <details> (no JS needed, keyboard/screen-reader accessible),
+// COLLAPSED by default. The body renders like prose (sanitized + inline terms).
+function DeepDiveBlock({ summary, body }: { summary: string; body: string }) {
+  return (
+    <details className="group rounded border border-panel-border bg-deep-space/40">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-wider [&::-webkit-details-marker]:hidden">
+        <span className="text-gold-dim transition-transform group-open:rotate-90">
+          ▸
+        </span>
+        <span className="text-gold-dim">Deep dive</span>
+        <span className="text-command-gold">· {summary}</span>
+      </summary>
+      <div className="border-t border-panel-border px-4 py-3">
+        <p className="whitespace-pre-wrap font-serif text-base leading-relaxed text-muted">
+          <Inline text={sanitizeProse(body)} />
+        </p>
+      </div>
+    </details>
+  );
+}
+
 function CalloutBlock({
   severity,
   label,
@@ -348,6 +370,9 @@ function GuideBlock({
 
     case "quiz":
       return <QuizBlock prompt={block.prompt} questions={block.questions} />;
+
+    case "deepDive":
+      return <DeepDiveBlock summary={block.summary} body={block.body} />;
 
     case "sourceRef":
       // href is scheme-validated by the schema (http(s):// or root-relative).
