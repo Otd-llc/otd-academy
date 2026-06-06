@@ -111,6 +111,12 @@ export interface GateContext {
         checklists: (Checklist & { items: ChecklistItem[] })[];
       })
     | null;
+  // Soft quiz-gate: the set of stages whose comprehension quiz this revision has
+  // passed (from the QuizPass table). Every gated stage's exit gate ANDs
+  // `quizPasses.has(stage)` via `withQuizGate` below — so a stage won't open
+  // until BOTH its work-gate is met AND its quiz is passed. Per-revision scope,
+  // same as every other gate input. `loadGateContext` always populates it.
+  quizPasses: Set<Stage>;
 }
 
 // ─── Canonical messages ────────────────────────────────
@@ -125,7 +131,28 @@ export const FAILED_BOARD_MSG = (n: number) =>
 
 // ─── STAGES record ─────────────────────────────────────
 
-export const STAGES: Record<Stage, StageDef> = {
+// Canonical message a gated stage emits when its comprehension quiz hasn't been
+// passed yet. The work-gate reasons (if any) come first; this is appended.
+export const QUIZ_NOT_PASSED_MSG =
+  "Comprehension check not passed yet — pass the quiz on this stage's guide card.";
+
+// Wrap a stage's work-gate so it ALSO requires that stage's quiz pass (the soft
+// quiz-gate AND). Applied uniformly to every stage that has an `exitGate`, so
+// any future gated stage inherits it; the terminal REVISION stage (no exitGate)
+// is left untouched.
+function withQuizGate(
+  stage: Stage,
+  base: NonNullable<StageDef["exitGate"]>,
+): NonNullable<StageDef["exitGate"]> {
+  return async (ctx: GateContext): Promise<GateResult> => {
+    const result = await base(ctx);
+    if (ctx.quizPasses.has(stage)) return result;
+    const reasons = result.ok ? [] : result.reasons;
+    return { ok: false, reasons: [...reasons, QUIZ_NOT_PASSED_MSG] };
+  };
+}
+
+const BASE_STAGES: Record<Stage, StageDef> = {
   REQUIREMENTS: {
     stage: "REQUIREMENTS",
     order: 1,
@@ -480,6 +507,19 @@ export const STAGES: Record<Stage, StageDef> = {
     // No exitGate — terminal.
   },
 };
+
+// The exported config: every stage's work-gate wrapped to ALSO require its quiz
+// pass (soft quiz-gate). Consumers (`STAGES[stage].exitGate`, the stage tracker,
+// the `advanceStage` action, `resolveCardCompletion`) all read this, so the
+// quiz requirement is enforced and reflected from one source.
+export const STAGES: Record<Stage, StageDef> = Object.fromEntries(
+  (Object.entries(BASE_STAGES) as [Stage, StageDef][]).map(([stage, def]) => [
+    stage,
+    def.exitGate
+      ? { ...def, exitGate: withQuizGate(stage, def.exitGate) }
+      : def,
+  ]),
+) as Record<Stage, StageDef>;
 
 // ─── Tracker display labels ────────────────────────────
 

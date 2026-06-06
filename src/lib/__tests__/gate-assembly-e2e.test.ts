@@ -32,6 +32,7 @@ vi.mock("@/auth", () => ({
 
 import { db } from "@/lib/db";
 import { advanceStage } from "@/lib/actions/stages";
+import { passAllQuizzes } from "@/lib/__tests__/quiz-pass-helper";
 import {
   addChecklistItem,
   createChecklist,
@@ -90,6 +91,7 @@ describe("ASSEMBLY gate — end-to-end red-to-green via advanceStage", () => {
       },
     });
     createdRevisionIds.push(rev.id);
+    await passAllQuizzes(rev.id);
     await db.stageTransition.create({
       data: {
         revisionId: rev.id,
@@ -213,6 +215,7 @@ describe("ASSEMBLY gate — end-to-end red-to-green via advanceStage", () => {
       },
     });
     createdRevisionIds.push(rev.id);
+    await passAllQuizzes(rev.id);
     await db.stageTransition.create({
       data: {
         revisionId: rev.id,
@@ -283,6 +286,7 @@ describe("ASSEMBLY gate — end-to-end red-to-green via advanceStage", () => {
       },
     });
     createdRevisionIds.push(rev.id);
+    await passAllQuizzes(rev.id);
     await db.stageTransition.create({
       data: {
         revisionId: rev.id,
@@ -343,6 +347,7 @@ describe("ASSEMBLY gate — end-to-end red-to-green via advanceStage", () => {
       },
     });
     createdRevisionIds.push(rev.id);
+    await passAllQuizzes(rev.id);
     await db.stageTransition.create({
       data: {
         revisionId: rev.id,

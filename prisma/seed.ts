@@ -395,7 +395,33 @@ async function main() {
         },
       });
     }
-  });
+
+    // Soft quiz-gate: the demo learner passed every stage's comprehension quiz,
+    // so the quiz requirement (ANDed into each exit gate) never blocks the
+    // seeded states — the existing work-gate verdicts stand. Idempotent: one
+    // QuizPass row per (revision, stage) on re-seed.
+    const quizStages = [
+      "REQUIREMENTS",
+      "SCHEMATIC",
+      "BOM_SOURCING",
+      "LAYOUT",
+      "DRC_GERBER",
+      "ORDERING",
+      "ASSEMBLY",
+      "BRINGUP",
+    ] as const;
+    // delete-then-createMany (2 round-trips, not 16) so the wrapping
+    // transaction stays well under its timeout; leaves exactly 8 rows on re-seed.
+    await tx.quizPass.deleteMany({ where: { revisionId: revision.id } });
+    await tx.quizPass.createMany({
+      data: quizStages.map((stage) => ({
+        revisionId: revision.id,
+        stage,
+        score: 5,
+        total: 5,
+      })),
+    });
+  }, { timeout: 20000, maxWait: 10000 });
 
   console.log("seed: complete");
 }
