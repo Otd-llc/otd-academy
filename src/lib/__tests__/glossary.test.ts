@@ -61,6 +61,20 @@ describe("glossary", () => {
     expect(lookupTerm("right-leg-drive")).toEqual(lookupTerm("RLD"));
   });
 
+  it("resolves long-form term spellings used in guide content", () => {
+    // The guide deep-dives reference these by their full display names; the
+    // canonical glossary keys are shorter, so aliases must bridge the gap or
+    // the inline [[term]] silently degrades to plain text.
+    expect(lookupTerm("dropout voltage")).toEqual(lookupTerm("dropout"));
+    expect(lookupTerm("decoupling capacitor")).toEqual(lookupTerm("decoupling"));
+  });
+
+  it("seeds the guide deep-dive terms", () => {
+    for (const t of ["E-series", "solder mask"]) {
+      expect(lookupTerm(t), `expected glossary to define "${t}"`).not.toBeNull();
+    }
+  });
+
   it("every entry has a non-empty term and definition", () => {
     for (const entry of Object.values(GLOSSARY)) {
       expect(entry.term.length).toBeGreaterThan(0);
