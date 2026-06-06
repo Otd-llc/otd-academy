@@ -33,6 +33,16 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
       "href must be http(s):// or a root-relative path",
     ),
   }),
+  // partModel — embeds the three.js .glb viewer for a part identified by MPN.
+  // The card route resolves the MPN → the part's VERIFIED MODEL_3D render URL +
+  // camera bounds at render time; an MPN with no 3D asset degrades to a caption.
+  // `mpn` has no min-length (mirrors termRef) so the editor's empty default is
+  // schema-valid; an empty/unknown MPN simply renders nothing.
+  z.object({
+    type: z.literal("partModel"),
+    mpn: z.string().trim().max(80),
+    caption: z.string().max(160).optional(),
+  }),
 ]);
 export type ContentBlock = z.infer<typeof contentBlockSchema>;
 

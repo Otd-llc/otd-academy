@@ -69,6 +69,8 @@ export function BlockEditor({
       return <TermRefEditor block={block} onChange={onChange} {...err} />;
     case "sourceRef":
       return <SourceRefEditor block={block} onChange={onChange} {...err} />;
+    case "partModel":
+      return <PartModelEditor block={block} onChange={onChange} {...err} />;
     default: {
       // Exhaustiveness guard: if a new block.type is added to the schema and
       // not handled above, this line fails to typecheck.
@@ -354,6 +356,61 @@ function SourceRefEditor({
         <p id={`${baseId}-href-help`} className={helpClass}>
           Must be an http(s):// URL or a root-relative path (e.g. /docs/x).
         </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── partModel ──────────────────────────────────────────────────────────
+function PartModelEditor({
+  block,
+  onChange,
+  hasError,
+  errorId,
+}: {
+  block: Extract<ContentBlock, { type: "partModel" }>;
+  onChange: (next: ContentBlock) => void;
+} & BlockErrorProps) {
+  const baseId = useId();
+  return (
+    <div className="space-y-2">
+      <div>
+        <label htmlFor={`${baseId}-mpn`} className={labelClass}>
+          Part MPN
+        </label>
+        <input
+          id={`${baseId}-mpn`}
+          type="text"
+          maxLength={80}
+          value={block.mpn}
+          onChange={(e) => onChange({ ...block, mpn: e.target.value })}
+          className={`mt-1 ${inputClass}`}
+          aria-invalid={hasError || undefined}
+          aria-describedby={
+            hasError && errorId
+              ? `${errorId} ${baseId}-mpn-help`
+              : `${baseId}-mpn-help`
+          }
+        />
+        <p id={`${baseId}-mpn-help`} className={helpClass}>
+          MPN of a part with a 3D model (e.g. USB4110-GF-A). The card embeds its
+          viewer; an MPN with no 3D asset shows the caption only.
+        </p>
+      </div>
+      <div>
+        <label htmlFor={`${baseId}-cap`} className={labelClass}>
+          Caption (optional)
+        </label>
+        <input
+          id={`${baseId}-cap`}
+          type="text"
+          maxLength={160}
+          value={block.caption ?? ""}
+          onChange={(e) =>
+            onChange({ ...block, caption: e.target.value || undefined })
+          }
+          className={`mt-1 ${inputClass}`}
+        />
       </div>
     </div>
   );
