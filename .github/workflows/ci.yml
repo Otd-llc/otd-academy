@@ -3,6 +3,12 @@ on:
   pull_request:
   push:
     branches: [main]
+# All runs share ONE persistent ci-test Neon branch, so concurrent runs race on
+# the seeded fixtures (TransactionWriteConflict, drift). Serialize them: queue
+# instead of cancelling so each run executes against the branch alone.
+concurrency:
+  group: ci-shared-test-db
+  cancel-in-progress: false
 jobs:
   build:
     runs-on: ubuntu-latest
