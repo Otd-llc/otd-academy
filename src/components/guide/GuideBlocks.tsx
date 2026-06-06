@@ -105,6 +105,38 @@ function PartModelBlock({
   );
 }
 
+// Diagram / illustration block. `src` is scheme-validated by the schema
+// (empty | http(s):// | root-relative); empty renders nothing. A plain <img>
+// (not next/image) keeps arbitrary root-relative SVGs and external URLs simple
+// and needs no domain config; it's a static asset, not a user upload.
+function ImageBlock({
+  src,
+  alt,
+  caption,
+}: {
+  src: string;
+  alt: string;
+  caption?: string;
+}) {
+  if (!src) return null;
+  return (
+    <figure className="space-y-2">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        className="w-full rounded border border-panel-border bg-deep-space"
+      />
+      {caption ? (
+        <figcaption className="font-mono text-xs uppercase tracking-wider text-muted">
+          {caption}
+        </figcaption>
+      ) : null}
+    </figure>
+  );
+}
+
 function ProseBlock({ md }: { md: string }) {
   return (
     <p className="whitespace-pre-wrap font-serif text-base leading-relaxed text-muted">
@@ -243,6 +275,11 @@ function GuideBlock({
           caption={block.caption}
           model={block.mpn ? models?.[block.mpn] : undefined}
         />
+      );
+
+    case "image":
+      return (
+        <ImageBlock src={block.src} alt={block.alt} caption={block.caption} />
       );
 
     case "sourceRef":

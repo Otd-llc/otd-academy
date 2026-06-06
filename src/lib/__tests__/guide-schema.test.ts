@@ -53,4 +53,19 @@ describe("guide schemas", () => {
   it("rejects a partModel mpn over 80 chars", () => {
     expect(contentBlockSchema.safeParse({ type: "partModel", mpn: "x".repeat(81) }).success).toBe(false);
   });
+  it("accepts an image block with a root-relative src + alt + caption", () => {
+    expect(contentBlockSchema.safeParse({ type: "image", src: "/guide-diagrams/x.svg", alt: "a", caption: "c" }).success).toBe(true);
+  });
+  it("accepts an image block with an empty src (editor default)", () => {
+    expect(contentBlockSchema.safeParse({ type: "image", src: "", alt: "" }).success).toBe(true);
+  });
+  it("accepts an https:// image src", () => {
+    expect(contentBlockSchema.safeParse({ type: "image", src: "https://x/y.png", alt: "a" }).success).toBe(true);
+  });
+  it("rejects a javascript: image src", () => {
+    expect(contentBlockSchema.safeParse({ type: "image", src: "javascript:alert(1)", alt: "a" }).success).toBe(false);
+  });
+  it("rejects a protocol-relative // image src", () => {
+    expect(contentBlockSchema.safeParse({ type: "image", src: "//evil.com/x.png", alt: "a" }).success).toBe(false);
+  });
 });

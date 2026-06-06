@@ -43,6 +43,19 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     mpn: z.string().trim().max(80),
     caption: z.string().max(160).optional(),
   }),
+  // image — a diagram / illustration. `src` is an app-served asset (root-relative
+  // path under /public) or an http(s) URL — same scheme guard as sourceRef, plus
+  // empty (so the editor's blank default is valid and renders nothing). `alt` is
+  // the required text alternative; `caption` is shown beneath the figure.
+  z.object({
+    type: z.literal("image"),
+    src: z.string().max(500).refine(
+      (v) => v === "" || /^(https?:\/\/|\/(?!\/))/.test(v),
+      "src must be empty, http(s)://, or a root-relative path",
+    ),
+    alt: z.string().max(200),
+    caption: z.string().max(200).optional(),
+  }),
 ]);
 export type ContentBlock = z.infer<typeof contentBlockSchema>;
 
