@@ -21,7 +21,7 @@ import sanitizeHtml from "sanitize-html";
 import type { ContentBlock } from "@/lib/schemas/guide";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
-import { QuizBlock } from "@/components/guide/QuizBlock";
+import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
 import { ExternalLinkIcon, PhotoIcon, VideoIcon } from "@/components/icons";
 import { parseInlineTerms } from "@/lib/inline-terms";
 import type { RenderBounds } from "@/lib/schemas/part-asset";
@@ -300,9 +300,11 @@ function TableCell({
 function GuideBlock({
   block,
   models,
+  quizContext,
 }: {
   block: ContentBlock;
   models?: Record<string, ResolvedModel>;
+  quizContext?: QuizContext;
 }) {
   switch (block.type) {
     case "prose":
@@ -369,7 +371,13 @@ function GuideBlock({
       );
 
     case "quiz":
-      return <QuizBlock prompt={block.prompt} questions={block.questions} />;
+      return (
+        <QuizBlock
+          prompt={block.prompt}
+          questions={block.questions}
+          context={quizContext}
+        />
+      );
 
     case "deepDive":
       return <DeepDiveBlock summary={block.summary} body={block.body} />;
@@ -409,14 +417,21 @@ function GuideBlock({
 export function GuideBlocks({
   blocks,
   models,
+  quizContext,
 }: {
   blocks: ContentBlock[];
   models?: Record<string, ResolvedModel>;
+  quizContext?: QuizContext;
 }) {
   return (
     <div className="space-y-4">
       {blocks.map((block, i) => (
-        <GuideBlock key={i} block={block} models={models} />
+        <GuideBlock
+          key={i}
+          block={block}
+          models={models}
+          quizContext={quizContext}
+        />
       ))}
     </div>
   );

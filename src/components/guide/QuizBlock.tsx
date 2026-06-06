@@ -8,11 +8,14 @@
 // running score — then can retry. This is ADDITIVE to the stage work-gate, not a
 // replacement, so it never blocks the build pipeline.
 //
-// Scoring is client-side (the answer key ships in the props) — fine for low-stakes
-// self-assessment. A graded/gating version would score server-side via a
-// QuizAttempt model + a `quizPassed` completionRef.
+// Scoring stays client-side for instant feedback. SOFT-GATING: when a learner
+// gets every question right AND the card supplies a `quizContext` (revisionId +
+// stage), we persist the pass via `recordQuizPass` so the stage exit gate can
+// require it (ANDed with the work-gate). Without a context (e.g. the editor
+// preview), the quiz is a pure self-check and records nothing.
 
 import { useState } from "react";
+import { recordQuizPass } from "@/lib/actions/quiz";
 
 export interface QuizQuestion {
   q: string;
@@ -21,17 +24,29 @@ export interface QuizQuestion {
   explain?: string;
 }
 
+/** Live-card context that turns the quiz into a recorded stage gate. */
+export interface QuizContext {
+  revisionId: string;
+  stage: string;
+  /** This revision has already passed this stage's quiz. */
+  passed: boolean;
+}
+
 export function QuizBlock({
   prompt,
   questions,
+  context,
 }: {
   prompt?: string;
   questions: QuizQuestion[];
+  context?: QuizContext;
 }) {
   const [selected, setSelected] = useState<(number | null)[]>(() =>
     questions.map(() => null),
   );
   const [checked, setChecked] = useState(false);
+  const [passed, setPassed] = useState(context?.passed ?? false);
+  const [recording, setRecording] = useState(false);
 
   const allAnswered = selected.every((s) => s !== null);
   const score = questions.reduce(
@@ -48,11 +63,50 @@ export function QuizBlock({
     setChecked(false);
   }
 
+  async function check() {
+    setChecked(true);
+    // Record the pass once, only on a perfect score with a live card context.
+    if (
+      !passed &&
+      context &&
+      questions.every((q, i) => selected[i] === q.answer)
+    ) {
+      setRecording(true);
+      try {
+        const res = await recordQuizPass({
+          revisionId: context.revisionId,
+          stage: context.stage,
+          score: questions.length,
+          total: questions.length,
+        });
+        if (res.ok) setPassed(true);
+      } catch {
+        // Soft: a failed write never blocks the self-check. The gate simply
+        // stays closed until a pass is successfully recorded.
+      } finally {
+        setRecording(false);
+      }
+    }
+  }
+
   return (
     <section className="glass-card space-y-5 p-5">
-      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-command-gold">
-        {prompt ?? "Quick check"}
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-command-gold">
+          {prompt ?? "Quick check"}
+        </p>
+        {context ? (
+          passed ? (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded border border-status-green/50 bg-status-green/10 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-status-green">
+              ✓ passed · gate
+            </span>
+          ) : (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded border border-panel-border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-muted">
+              required to advance
+            </span>
+          )
+        ) : null}
+      </div>
 
       {questions.map((q, qi) => (
         <fieldset key={qi} className="space-y-2">
@@ -107,11 +161,11 @@ export function QuizBlock({
         </fieldset>
       ))}
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         {!checked ? (
           <button
             type="button"
-            onClick={() => setChecked(true)}
+            onClick={check}
             disabled={!allAnswered}
             className="rounded border border-command-gold bg-navy-dark px-3 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -122,6 +176,15 @@ export function QuizBlock({
             <span className="font-mono text-sm font-bold uppercase tracking-wider text-command-gold">
               {score} / {questions.length} correct
             </span>
+            {recording ? (
+              <span className="font-mono text-xs uppercase tracking-wider text-muted">
+                Recording…
+              </span>
+            ) : context && passed ? (
+              <span className="font-mono text-xs uppercase tracking-wider text-status-green">
+                ✓ recorded for the stage gate
+              </span>
+            ) : null}
             <button
               type="button"
               onClick={reset}

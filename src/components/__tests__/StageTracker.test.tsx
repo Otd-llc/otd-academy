@@ -42,6 +42,9 @@ function emptyCtx(stage: StageName): GateContext {
     artifacts: [],
     revisionChecklists: [],
     activeBuild: null,
+    // Soft quiz-gate default: all quizzes passed, so these tracker-render tests
+    // are unaffected by it (only the work-gate drives the rendered states).
+    quizPasses: new Set(STAGE_ORDER),
   };
 }
 
@@ -275,6 +278,9 @@ describe("StageTracker", () => {
         ],
         checklists: [],
       },
+      // Soft quiz-gate: the seeded demo learner passed every quiz, so the prior
+      // 8 stages stay "completed" (the quiz never blocks the seeded states).
+      quizPasses: new Set(STAGE_ORDER),
     };
 
     const tree = await renderTracker("BRINGUP", ctx);

@@ -125,6 +125,7 @@ model Revision {
   builds          Build[]
   checklists      Checklist[]
   guide           Guide?
+  quizPasses      QuizPass[]
   errata          Erratum[]         @relation("RevisionErrata")
   addressedErrata Erratum[]         @relation("AddressedByRevision")
   // Raw migration: CREATE UNIQUE INDEX revision_project_label_ci ON "Revision"(projectId, lower(label));
@@ -704,5 +705,23 @@ model GuideCard {
   @@unique([guideId, ordinal])
   @@unique([guideId, stage])
   @@index([guideId])
+}
+
+// A learner's recorded pass of a stage card's comprehension quiz. Soft-gating:
+// the quiz is client-scored and this row is written when the learner passes, so
+// the stage exit gate can require it (ANDed with the work-gate). Scoped to the
+// Revision — the same per-revision scope every other gate uses — so one row per
+// (revision, stage). `score`/`total` are kept for record-keeping only.
+model QuizPass {
+  id         String   @id @default(cuid())
+  revisionId String
+  revision   Revision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  stage      Stage
+  score      Int
+  total      Int
+  passedAt   DateTime @default(now())
+
+  @@unique([revisionId, stage])
+  @@index([revisionId])
 }
 

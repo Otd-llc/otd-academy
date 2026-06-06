@@ -222,6 +222,13 @@ export default async function GuideCardPage({
     selectedBoardId,
   );
 
+  // Soft quiz-gate: has this revision already passed this stage's comprehension
+  // quiz? Drives the QuizBlock's recorded-pass badge + lets it skip re-recording.
+  const quizPass = await db.quizPass.findUnique({
+    where: { revisionId_stage: { revisionId: revision.id, stage } },
+    select: { id: true },
+  });
+
   // prev / next across GUIDE_STAGES.
   const idx = GUIDE_STAGES.indexOf(stage);
   const prevStage = idx > 0 ? GUIDE_STAGES[idx - 1] : null;
@@ -277,7 +284,15 @@ export default async function GuideCardPage({
           ]}
         />
 
-        <GuideBlocks blocks={blocks} models={models} />
+        <GuideBlocks
+          blocks={blocks}
+          models={models}
+          quizContext={{
+            revisionId: revision.id,
+            stage,
+            passed: quizPass != null,
+          }}
+        />
       </GuideCardEditor>
 
       {/* Per-board scope selector (ASSEMBLY / BRINGUP). */}
