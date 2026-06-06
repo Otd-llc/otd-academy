@@ -279,3 +279,14 @@ export function VideoIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+/** Quiz — help/question circle (multiple-choice comprehension check). */
+export function QuizIcon({ className }: IconProps) {
+  return (
+    <svg {...baseProps} className={className}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" />
+      <path d="M12 17h.01" />
+    </svg>
+  );
+}

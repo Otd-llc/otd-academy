@@ -69,6 +69,30 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     alt: z.string().max(200),
     caption: z.string().max(200).optional(),
   }),
+  // quiz — an interactive multiple-choice comprehension check. Client-scored
+  // (immediate feedback), and ADDITIVE to the stage work-gate, not a replacement.
+  // Each question's `answer` indexes a real option (guarded below); `explain` is
+  // revealed once the learner checks their answers.
+  z.object({
+    type: z.literal("quiz"),
+    prompt: z.string().max(300).optional(),
+    questions: z
+      .array(
+        z
+          .object({
+            q: z.string().trim().min(1).max(500),
+            options: z.array(z.string().trim().min(1).max(300)).min(2).max(6),
+            answer: z.int().nonnegative(),
+            explain: z.string().max(500).optional(),
+          })
+          .refine((qq) => qq.answer < qq.options.length, {
+            message: "answer must index a valid option",
+            path: ["answer"],
+          }),
+      )
+      .min(1)
+      .max(10),
+  }),
 ]);
 export type ContentBlock = z.infer<typeof contentBlockSchema>;
 

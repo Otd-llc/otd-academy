@@ -267,6 +267,63 @@ const SCHEMATIC_BLOCKS: ContentBlock[] = [
     body: "Why a resettable PTC instead of an ordinary one-shot fuse? A blown glass fuse is dead weight until you desolder it and fit a new one — miserable on a populated board. The PTC trips to protect, then heals when the fault clears. Protection without a service call.",
   },
 
+  // Comprehension check (additive to the work-gate, not a replacement).
+  {
+    type: "quiz",
+    prompt: "Quick check — schematic",
+    questions: [
+      {
+        q: "USB sags to 4.6 V under load. The RT9080 LDO drops 0.53 V at 600 mA. Do you still clear 3.3 V at the output?",
+        options: [
+          "No — the regulator can't hold 3.3 V that low.",
+          "Yes — 4.6 − 0.53 = 4.07 V, well above 3.3 V.",
+          "Only if you remove the output cap.",
+        ],
+        answer: 1,
+        explain: "That headroom is exactly why we chose a low-dropout part.",
+      },
+      {
+        q: "Why three 0.1 µF caps at U1's power pins instead of one 0.3 µF cap?",
+        options: [
+          "More total capacitance is always better.",
+          "Each must sit next to a different power pin — proximity beats raw capacitance.",
+          "0.3 µF caps don't exist.",
+        ],
+        answer: 1,
+        explain: "A cap's help fades with trace distance, so one per pin beats one big shared cap.",
+      },
+      {
+        q: "The EN / boot straps use 10 kΩ pull-ups, not 100 Ω. Why keep them 'weak'?",
+        options: [
+          "100 Ω would leak ~33 mA and fight the button; 10 kΩ sets the level for ~0.33 mA.",
+          "10 kΩ is the only value that comes in 0805.",
+          "A stronger pull-up boots the chip faster.",
+        ],
+        answer: 0,
+        explain: "A pull-up only needs to set the resting level; weaker wastes less and lets the button win.",
+      },
+      {
+        q: "You omit R3/R4 (the 5.1 kΩ CC resistors) and plug into a modern USB-C charger. What happens?",
+        options: [
+          "It charges normally.",
+          "Nothing powers up — the charger never sees a sink and keeps VBUS off.",
+          "The board draws too much current and trips the fuse.",
+        ],
+        answer: 1,
+        explain: "The 5.1 kΩ Rd is how a sink advertises itself; without it a C-to-C source won't enable VBUS.",
+      },
+      {
+        q: "The yellow LED (Vf ≈ 2.0 V) has a higher forward voltage than the red (≈ 1.8 V). Through the same 470 Ω it runs…",
+        options: [
+          "brighter — a higher Vf means more current.",
+          "dimmer — a higher Vf leaves less voltage across the resistor, so less current.",
+          "exactly the same — the resistor fixes the current.",
+        ],
+        answer: 1,
+        explain: "I = (3.3 − Vf) / 470, so a higher Vf gives a smaller current.",
+      },
+    ],
+  },
   // Exit
   {
     type: "callout",
@@ -857,6 +914,15 @@ async function main() {
   const { db } = await import("@/lib/db");
   const { guideContentBlocksSchema } = await import("@/lib/schemas/guide");
 
+  // Optional `--stage SCHEMATIC` (or `--stage=SCHEMATIC`) to update ONE card —
+  // useful when the live cards for other stages are ahead of this branch's seed
+  // (e.g. content seeded from a not-yet-merged branch) and a full run would
+  // clobber them.
+  const i = process.argv.indexOf("--stage");
+  const onlyStage =
+    process.argv.find((a) => a.startsWith("--stage="))?.split("=")[1] ??
+    (i >= 0 ? process.argv[i + 1] : undefined);
+
   const project = await db.project.findUniqueOrThrow({
     where: { slug: PROJECT_SLUG },
     select: { id: true, name: true },
@@ -871,6 +937,7 @@ async function main() {
   });
 
   for (const [stage, content] of Object.entries(CARDS)) {
+    if (onlyStage && stage !== onlyStage) continue;
     // Defense-in-depth: validate against the same schema the page + persistence
     // layer enforce, so a malformed block fails here, not in the browser.
     guideContentBlocksSchema.parse(content.blocks);

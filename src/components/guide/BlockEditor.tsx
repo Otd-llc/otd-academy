@@ -89,6 +89,8 @@ export function BlockEditor({
           {...err}
         />
       );
+    case "quiz":
+      return <QuizEditor block={block} onChange={onChange} {...err} />;
     default: {
       // Exhaustiveness guard: if a new block.type is added to the schema and
       // not handled above, this line fails to typecheck.
@@ -501,6 +503,167 @@ function MediaEditor({
           className={`mt-1 ${inputClass}`}
         />
       </div>
+    </div>
+  );
+}
+
+// ─── quiz ───────────────────────────────────────────────────────────────
+function QuizEditor({
+  block,
+  onChange,
+  hasError,
+  errorId,
+}: {
+  block: Extract<ContentBlock, { type: "quiz" }>;
+  onChange: (next: ContentBlock) => void;
+} & BlockErrorProps) {
+  const baseId = useId();
+  const { questions } = block;
+
+  const setQuestions = (qs: typeof questions) =>
+    onChange({ ...block, questions: qs });
+  const patchQ = (qi: number, patch: Partial<(typeof questions)[number]>) =>
+    setQuestions(questions.map((q, i) => (i === qi ? { ...q, ...patch } : q)));
+  const addQ = () => {
+    if (questions.length >= 10) return;
+    setQuestions([
+      ...questions,
+      { q: "New question?", options: ["Option A", "Option B"], answer: 0 },
+    ]);
+  };
+  const removeQ = (qi: number) => {
+    if (questions.length <= 1) return;
+    setQuestions(questions.filter((_, i) => i !== qi));
+  };
+  const setOpt = (qi: number, oi: number, val: string) =>
+    patchQ(qi, {
+      options: questions[qi]!.options.map((o, i) => (i === oi ? val : o)),
+    });
+  const addOpt = (qi: number) => {
+    const q = questions[qi]!;
+    if (q.options.length >= 6) return;
+    patchQ(qi, {
+      options: [
+        ...q.options,
+        `Option ${String.fromCharCode(65 + q.options.length)}`,
+      ],
+    });
+  };
+  const removeOpt = (qi: number, oi: number) => {
+    const q = questions[qi]!;
+    if (q.options.length <= 2) return;
+    const options = q.options.filter((_, i) => i !== oi);
+    // Keep `answer` pointing at the same option (or reset if it was removed).
+    const answer = q.answer === oi ? 0 : q.answer > oi ? q.answer - 1 : q.answer;
+    patchQ(qi, { options, answer });
+  };
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className={labelClass}>Prompt (optional)</label>
+        <input
+          type="text"
+          maxLength={300}
+          value={block.prompt ?? ""}
+          onChange={(e) =>
+            onChange({ ...block, prompt: e.target.value || undefined })
+          }
+          className={`mt-1 ${inputClass}`}
+        />
+      </div>
+
+      {questions.map((q, qi) => (
+        <fieldset
+          key={qi}
+          className="space-y-2 rounded border border-panel-border p-2"
+        >
+          <div className="flex items-center justify-between">
+            <legend className={labelClass}>Question {qi + 1}</legend>
+            <IconButton
+              type="button"
+              tone="danger"
+              hint="Remove question"
+              ariaLabel={`Remove question ${qi + 1}`}
+              disabled={questions.length <= 1}
+              onClick={() => removeQ(qi)}
+            >
+              <TrashIcon className="h-4 w-4" />
+            </IconButton>
+          </div>
+          <input
+            type="text"
+            maxLength={500}
+            value={q.q}
+            onChange={(e) => patchQ(qi, { q: e.target.value })}
+            className={inputClass}
+            {...(qi === 0 ? ariaErrorProps({ hasError, errorId }) : {})}
+          />
+          <p className={helpClass}>
+            Select the radio beside the correct option.
+          </p>
+          <div className="space-y-1">
+            {q.options.map((opt, oi) => (
+              <div key={oi} className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name={`${baseId}-q${qi}`}
+                  checked={q.answer === oi}
+                  onChange={() => patchQ(qi, { answer: oi })}
+                  className="accent-command-gold"
+                  aria-label={`Mark option ${oi + 1} correct`}
+                />
+                <input
+                  type="text"
+                  maxLength={300}
+                  value={opt}
+                  onChange={(e) => setOpt(qi, oi, e.target.value)}
+                  className={inputClass}
+                />
+                <IconButton
+                  type="button"
+                  tone="danger"
+                  hint="Remove option"
+                  ariaLabel={`Remove option ${oi + 1}`}
+                  disabled={q.options.length <= 2}
+                  onClick={() => removeOpt(qi, oi)}
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </IconButton>
+              </div>
+            ))}
+          </div>
+          <IconButton
+            type="button"
+            hint="Add option"
+            ariaLabel="Add option"
+            onClick={() => addOpt(qi)}
+          >
+            <PlusIcon className="h-4 w-4" />
+          </IconButton>
+          <div>
+            <label className={labelClass}>Explanation (optional)</label>
+            <input
+              type="text"
+              maxLength={500}
+              value={q.explain ?? ""}
+              onChange={(e) =>
+                patchQ(qi, { explain: e.target.value || undefined })
+              }
+              className={`mt-1 ${inputClass}`}
+            />
+          </div>
+        </fieldset>
+      ))}
+
+      <IconButton
+        type="button"
+        hint="Add question"
+        ariaLabel="Add question"
+        onClick={addQ}
+      >
+        <PlusIcon className="h-4 w-4" />
+      </IconButton>
     </div>
   );
 }
