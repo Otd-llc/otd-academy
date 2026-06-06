@@ -53,6 +53,10 @@ annotations from crowding or overlapping. **Every diagram must pass the
      (e.g. a 45° run into a short horizontal stub at the label). This is what
      makes a set of leaders read as intentional rather than scattered.
    - Start **≥ 12 px** from the label — a clear gap, never sprung from the glyphs.
+   - **A leader must not run level with its own label's text.** A horizontal
+     leader sitting at the text's height reads as crowding even with a gap —
+     put the label above/below and lead away vertically, or otherwise offset the
+     leader from the text band.
    - End **2–4 px short** of the target stroke.
    - **Never cross another leader, the subject body, or any text.**
    - Color = the label's semantic color (red label → red leader; note → gray).
