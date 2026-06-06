@@ -11,8 +11,10 @@
   <rect x="60" y="96" width="660" height="228" rx="8" fill="url(#pour)" stroke="#c8963e" stroke-width="2"/>
 
   <!-- antenna keep-out: a clear no-copper band at the board edge, around the antenna ONLY.
+       Per the WROOM-1 datasheet (Fig 10-1) the PCB antenna spans the full 18 mm module
+       width, so the keep-out is the module width + a small clearance margin — NOT wider.
        Its bottom stops at the antenna/body boundary, so every pad row sits below it. -->
-  <rect x="230" y="96" width="244" height="26" fill="#0b0f1a" stroke="#ef5350" stroke-width="2" stroke-dasharray="6 4"/>
+  <rect x="282" y="96" width="140" height="26" fill="#0b0f1a" stroke="#ef5350" stroke-width="2" stroke-dasharray="6 4"/>
 
   <!-- WROOM module: PORTRAIT, antenna on the short top edge, at the board edge so the antenna
        end overhangs above the outline (module top y=74 sits above board top y=96) -->
@@ -40,14 +42,14 @@
 
   <!-- ── annotations · leaders run at 0 / 45 / 90° only ──────────────────────────── -->
 
-  <!-- D · keep-out — label in the clear top-left gutter, 90° leader straight down into the
-       cleared zone (text above the leader, never beside it) -->
-  <g fill="#ef5350" text-anchor="middle">
-    <text x="250" y="54" font-size="14" font-weight="700">KEEP-OUT</text>
-    <text x="250" y="71" font-size="10">no copper</text>
-    <text x="250" y="84" font-size="10">no ground pour</text>
+  <!-- D · keep-out — label in the top-left gutter, 45° leader into the cleared sliver beside
+       the antenna (text above-left of the leader, never beside it) -->
+  <g fill="#ef5350" text-anchor="end">
+    <text x="238" y="52" font-size="14" font-weight="700">KEEP-OUT</text>
+    <text x="238" y="69" font-size="10">no copper</text>
+    <text x="238" y="82" font-size="10">no ground pour</text>
   </g>
-  <line x1="250" y1="92" x2="250" y2="110" stroke="#ef5350" stroke-width="1"/>
+  <line x1="244" y1="60" x2="286" y2="102" stroke="#ef5350" stroke-width="1"/>
 
   <!-- A · PCB antenna — 90° leader down to the antenna -->
   <text x="352" y="56" text-anchor="middle" fill="#cfcfcf" font-size="11">PCB antenna</text>
