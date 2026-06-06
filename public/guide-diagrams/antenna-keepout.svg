@@ -14,7 +14,7 @@
        Per the WROOM-1 datasheet (Fig 10-1) the PCB antenna spans the full 18 mm module
        width, so the keep-out is the module width + a small clearance margin — NOT wider.
        Its bottom stops at the antenna/body boundary, so every pad row sits below it. -->
-  <rect x="282" y="96" width="140" height="26" fill="#0b0f1a" stroke="#ef5350" stroke-width="2" stroke-dasharray="6 4"/>
+  <rect x="292" y="96" width="120" height="26" fill="#0b0f1a" stroke="#ef5350" stroke-width="2" stroke-dasharray="6 4"/>
 
   <!-- WROOM module: PORTRAIT, antenna on the short top edge, at the board edge so the antenna
        end overhangs above the outline (module top y=74 sits above board top y=96) -->
@@ -49,7 +49,7 @@
     <text x="238" y="69" font-size="10">no copper</text>
     <text x="238" y="82" font-size="10">no ground pour</text>
   </g>
-  <line x1="244" y1="60" x2="286" y2="102" stroke="#ef5350" stroke-width="1"/>
+  <line x1="252" y1="60" x2="294" y2="102" stroke="#ef5350" stroke-width="1"/>
 
   <!-- A · PCB antenna — 90° leader down to the antenna -->
   <text x="352" y="56" text-anchor="middle" fill="#cfcfcf" font-size="11">PCB antenna</text>
