@@ -37,8 +37,10 @@ annotations from crowding or overlapping. **Every diagram must pass the
 
 ## Layout rules
 
-1. **Annotations live in the gutters, never on the subject** — the only text
-   allowed on a part is a single centered ref (`U1`) inside its body.
+1. **Annotations live in the gutters, never on the subject** — two exceptions:
+   a single centered ref (`U1`) inside a part body, and a **region label**
+   centered inside its own filled region (a keep-out, a current loop, a pour),
+   provided it clears every stroke by the same ≥ 16 px.
 2. **Clearance:** a text block stays **≥ 16 px** from any stroke it does not
    label, and **≥ 12 px** from the canvas edge.
 3. **Text never touches a line.** No glyph may overlap a leader, outline, pad, or
@@ -92,6 +94,6 @@ with sync_playwright() as p:
 | File | Subject | Conforms |
 |---|---|---|
 | `antenna-keepout.svg` | WROOM antenna keep-out (top view) | ✅ reference |
-| `decoupling-placement.svg` | decoupling loop area | ⏳ pending pass |
-| `bringup-probe-points.svg` | rail probe points | ⏳ pending pass |
-| `wroom-power-flow.svg` | 5 V → 3.3 V power flow | ⏳ pending pass |
+| `decoupling-placement.svg` | decoupling loop area | ✅ |
+| `bringup-probe-points.svg` | rail probe points | ✅ |
+| `wroom-power-flow.svg` | 5 V → 3.3 V power flow | ✅ |
