@@ -458,6 +458,64 @@ const REQUIREMENTS_BLOCKS: ContentBlock[] = [
     summary: "Why ADC2 goes dark when Wi-Fi is on",
     body: "The ESP32-S3 has two analog-to-digital converters, [[ADC1]] and [[ADC2]]. The Wi-Fi radio borrows ADC2's hardware while it's running, so a program that reads an ADC2 pin with Wi-Fi active gets an error or a meaningless number — and because this is a Wi-Fi board, the radio is essentially always on. The fix is a layout decision, not a code workaround: route anything you'll sample as analog to an ADC1 pin (on the S3 those are GPIO1 through GPIO10). Settle it here, while pins are still just lines on a schematic, and you'll never hit the maddening 'works until I connect to Wi-Fi' bug at bring-up.",
   },
+  // Comprehension check (additive to the work-gate, not a replacement).
+  {
+    type: "quiz",
+    prompt: "Quick check — requirements",
+    questions: [
+      {
+        q: "This board programs over its USB-C port with no extra 'programmer' chip. Why?",
+        options: [
+          "The ESP32-S3 can speak USB all by itself",
+          "Because USB-C is faster than older USB",
+          "Because the board has no other chips",
+        ],
+        answer: 0,
+        explain: "The ESP32-S3 has USB built into the chip, so the USB-C port can load code directly — no separate translator chip needed.",
+      },
+      {
+        q: "The 3.3 V regulator can supply up to 600 mA. Why not pick a tiny 150 mA one to save money?",
+        options: [
+          "Smaller parts always cost more",
+          "The ESP32 briefly needs much more than that whenever Wi-Fi transmits",
+          "150 mA regulators don't exist",
+        ],
+        answer: 1,
+        explain: "A Wi-Fi burst pushes the current near 500 mA for a moment — a 150 mA part would brown out and reset the board.",
+      },
+      {
+        q: "What is the bulk capacitor (C1) there for?",
+        options: [
+          "To store your program",
+          "To hold a little spare charge for sudden current spikes",
+          "To lower the voltage",
+        ],
+        answer: 1,
+        explain: "C1 is a small local reservoir — it covers the fast Wi-Fi current spikes the regulator can't react to in time.",
+      },
+      {
+        q: "You want to read a knob (a potentiometer) as an analog value while Wi-Fi is on. Which kind of pin must you use?",
+        options: [
+          "Any pin is fine",
+          "An ADC1 pin",
+          "An ADC2 pin",
+        ],
+        answer: 1,
+        explain: "The Wi-Fi radio takes over ADC2, so analog readings must land on an ADC1 pin or they come back as garbage.",
+      },
+      {
+        q: "When is the best time to decide which job each pin does?",
+        options: [
+          "Now, while planning — before drawing anything",
+          "At the very end, after the board is built",
+          "It doesn't matter when",
+        ],
+        answer: 0,
+        explain: "Pin choices like the ADC1 rule are cheap to get right on paper now and painful to fix once the board exists.",
+      },
+    ],
+  },
+  // Exit
   {
     type: "callout",
     severity: "info",
@@ -591,6 +649,63 @@ const BOM_BLOCKS: ContentBlock[] = [
     summary: "0805 and 0402, in millimeters",
     body: "The package code is just the size in hundredths of an inch: an 0805 part is 0.08\" × 0.05\", about 2.0 × 1.25 mm — roughly a grain of rice. An 0402 is 1.0 × 0.5 mm, half that on each side and a quarter of the area. Both come in every common value, but 0805 is about the smallest you can comfortably hold with tweezers and drag-solder with an iron; 0402 really wants solder paste and a stencil. That's the whole reason this board specs 0805 throughout. One catch when you order: passives ship on reels with an [[MOQ]] in the thousands — but the parts are pennies, so buy the reel and keep the spares for the ones you'll inevitably flick across the room.",
   },
+  // Comprehension check (additive to the work-gate, not a replacement).
+  {
+    type: "quiz",
+    prompt: "Quick check — sourcing",
+    questions: [
+      {
+        q: "A schematic says '5.1 kΩ resistor.' Why isn't that enough to actually order one?",
+        options: [
+          "It doesn't say the exact part — the size, tolerance, and maker are still missing",
+          "5.1 kΩ resistors don't exist",
+          "You can only order resistors in kits",
+        ],
+        answer: 0,
+        explain: "An exact part number (MPN) pins the size, tolerance, and manufacturer — '5.1 kΩ' alone could be a thousand different parts.",
+      },
+      {
+        q: "Two parts are both '10 kΩ' but only one fits your board. What's most likely different?",
+        options: [
+          "Their colour",
+          "Their physical package size (like 0805 vs 0402)",
+          "Their price",
+        ],
+        answer: 1,
+        explain: "Same value, different footprint — an 0805 won't sit on pads laid out for an 0402. The MPN locks the size.",
+      },
+      {
+        q: "When you open a new chip's datasheet, what should you find first?",
+        options: [
+          "Its price",
+          "Its power and ground pins, and its maximum voltage",
+          "Its release date",
+        ],
+        answer: 1,
+        explain: "Everything depends on powering the part correctly and not exceeding its limits — so that's the first thing to confirm.",
+      },
+      {
+        q: "Your chosen regulator goes out of stock halfway through the project. What saves you?",
+        options: [
+          "Waiting for it to come back",
+          "A pre-picked 'second source' with the same pinout and specs",
+          "Redesigning the whole board",
+        ],
+        answer: 1,
+        explain: "A compatible backup named ahead of time (like this board's RT9080-for-AP2112K) turns a dead stop into a quick swap.",
+      },
+      {
+        q: "Why does this board use 0805 parts instead of smaller 0402 ones?",
+        options: [
+          "0805 is cheaper",
+          "0805 is big enough to solder comfortably by hand",
+          "0402 is out of stock",
+        ],
+        answer: 1,
+        explain: "0805 is about the smallest you can place and drag-solder with an iron; 0402 really wants paste and a stencil.",
+      },
+    ],
+  },
 ];
 
 // ── LAYOUT ────────────────────────────────────────────────────────────────────
@@ -676,6 +791,64 @@ const LAYOUT_BLOCKS: ContentBlock[] = [
     label: "Check yourself",
     body: "Why route USB D+ and D− together and length-matched? They're a differential pair — the receiver reads their difference, so mismatched length or stray noise on one line corrupts the signal.",
   },
+  // Comprehension check (additive to the work-gate, not a replacement).
+  {
+    type: "quiz",
+    prompt: "Quick check — layout",
+    questions: [
+      {
+        q: "The WROOM module has a printed antenna at one end. What goes under and around it?",
+        options: [
+          "A ground pour, for shielding",
+          "Nothing — no copper, no traces (a keep-out)",
+          "The biggest capacitor",
+        ],
+        answer: 1,
+        explain: "Copper near the antenna detunes it and wrecks your wireless range, so that zone stays completely bare.",
+      },
+      {
+        q: "Why must the small decoupling caps sit right against the chip's power pins?",
+        options: [
+          "To save board space",
+          "A long path adds inductance that chokes the fast current they deliver",
+          "So the board looks neat",
+        ],
+        answer: 1,
+        explain: "Their whole job is delivering charge instantly; route them the long way and that benefit is throttled — proximity is the point.",
+      },
+      {
+        q: "How should USB D+ and D− be routed?",
+        options: [
+          "Together, side by side, and the same length",
+          "Far apart, on opposite sides of the board",
+          "As short as possible — length doesn't matter",
+        ],
+        answer: 0,
+        explain: "They're a differential pair: the receiver reads their difference, so they travel together and matched in length.",
+      },
+      {
+        q: "Where should the ESD protection (D1) sit on the USB lines?",
+        options: [
+          "Right at the connector, before the signal travels inward",
+          "Next to the ESP32",
+          "Anywhere on the board",
+        ],
+        answer: 0,
+        explain: "Put it at the connector so a static zap is clamped to ground before it can reach the module.",
+      },
+      {
+        q: "Which layout mistake on this board usually can't be fixed without making a new board?",
+        options: [
+          "A slightly long trace",
+          "Copper poured into the antenna keep-out",
+          "An LED placed a little crooked",
+        ],
+        answer: 1,
+        explain: "Detuning the antenna with copper is baked into the copper itself — the only cure is re-spinning the board.",
+      },
+    ],
+  },
+  // Exit
   {
     type: "callout",
     severity: "info",
@@ -734,6 +907,64 @@ const DRC_BLOCKS: ContentBlock[] = [
     summary: "What's inside a Gerber set",
     body: "A [[gerber]] set is a stack of flat 2D drawings, one file per physical layer: the front copper, the back copper, the [[solder mask]] for each side (the green coating, with openings where the pads are), the silkscreen (the white labels), and the paste layer (where a stencil would lay down solder). Riding alongside is a drill file — historically called Excellon — listing every hole's position and diameter, plus a board-outline file telling the fab where to cut. The format is decades old and deliberately literal: it describes shapes and nothing else, so there's no ambiguity about what gets built. That's why you open them in a viewer before ordering — the viewer shows you the actual board, not your hopeful design intent.",
   },
+  // Comprehension check (additive to the work-gate, not a replacement).
+  {
+    type: "quiz",
+    prompt: "Quick check — DRC & Gerbers",
+    questions: [
+      {
+        q: "What does a design rule check (DRC) do?",
+        options: [
+          "Makes the board run faster",
+          "Compares your layout to the fab's limits and flags what they can't make",
+          "Orders the parts for you",
+        ],
+        answer: 1,
+        explain: "DRC catches things like traces too close together or holes too small — mistakes your eyes would miss.",
+      },
+      {
+        q: "DRC flags a clearance smaller than the fab allows. Ship it anyway?",
+        options: [
+          "Yes, it's probably fine",
+          "No — fix it, or confirm the fab can do it and document why",
+          "Yes, the fab will quietly fix it",
+        ],
+        answer: 1,
+        explain: "A clearance the fab can't make reliably can short across a whole batch. Clear it, or document it as an understood exception.",
+      },
+      {
+        q: "What are Gerber files?",
+        options: [
+          "A backup of your design software",
+          "The exact per-layer files the board house builds from",
+          "A list of parts to buy",
+        ],
+        answer: 1,
+        explain: "Gerbers describe each copper, mask, and silkscreen layer plus the drilling — the literal recipe the fab follows.",
+      },
+      {
+        q: "Why open the Gerbers in a viewer before ordering?",
+        options: [
+          "To make the files smaller",
+          "The fab builds exactly those files — a viewer catches export mistakes while they're free to fix",
+          "It's required by law",
+        ],
+        answer: 1,
+        explain: "The fab uses the files, not your design tool — a quick look catches a mirrored layer or missing opening before it's a bad batch.",
+      },
+      {
+        q: "When is a board ready to leave this stage?",
+        options: [
+          "When DRC is clean (or every flag is understood and documented) and the Gerbers are exported",
+          "As soon as the layout looks finished",
+          "After the parts arrive",
+        ],
+        answer: 0,
+        explain: "A clean DRC plus inspected Gerbers is the proof that the design is actually manufacturable.",
+      },
+    ],
+  },
+  // Exit
   {
     type: "callout",
     severity: "info",
@@ -787,6 +1018,64 @@ const ORDERING_BLOCKS: ContentBlock[] = [
     label: "Check yourself",
     body: "You need two 5.1 kΩ resistors but they sell in reels of 5,000. What now? Buy the reel — it's cents — and keep the spares. Always order a few extra of any part you hand-place.",
   },
+  // Comprehension check (additive to the work-gate, not a replacement).
+  {
+    type: "quiz",
+    prompt: "Quick check — ordering",
+    questions: [
+      {
+        q: "Your board has the fine-pitch WROOM pads. Which surface finish solders them more reliably?",
+        options: [
+          "HASL — cheaper, slightly lumpy",
+          "ENIG — flat gold",
+          "It makes no difference",
+        ],
+        answer: 1,
+        explain: "ENIG's dead-flat surface lets every fine-pitch pad meet the module at the same height; lumpy HASL invites missed joints.",
+      },
+      {
+        q: "Why order a few spare PCBs?",
+        options: [
+          "The fab requires it",
+          "An extra board is nearly free, but a second shipping run isn't",
+          "Spares are worth more later",
+        ],
+        answer: 1,
+        explain: "The marginal board costs almost nothing; re-ordering because you only got one and damaged it costs time and shipping.",
+      },
+      {
+        q: "You need two 5.1 kΩ resistors, but they only sell on reels of thousands. What now?",
+        options: [
+          "Pick a different value",
+          "Buy the reel — it's pennies — and keep the spares",
+          "Try to order exactly two somewhere",
+        ],
+        answer: 1,
+        explain: "Passives have a minimum order quantity but cost almost nothing — buy the reel and keep extras of anything you hand-place.",
+      },
+      {
+        q: "A part on your BOM is out of stock when you go to order. What helps most?",
+        options: [
+          "The second source you noted back at sourcing",
+          "Cancelling the project",
+          "Ordering a random similar-looking part",
+        ],
+        answer: 0,
+        explain: "This is exactly when a pre-identified compatible backup — same pinout, same specs — earns its keep.",
+      },
+      {
+        q: "How should you order each line of the BOM?",
+        options: [
+          "By a general value, like '10k resistor'",
+          "By its exact part number (MPN)",
+          "By whatever's cheapest that day",
+        ],
+        answer: 1,
+        explain: "Ordering by exact MPN is what guarantees you get the part that actually fits your board.",
+      },
+    ],
+  },
+  // Exit
   {
     type: "callout",
     severity: "info",
@@ -887,6 +1176,64 @@ const ASSEMBLY_BLOCKS: ContentBlock[] = [
     label: "Check yourself",
     body: "Your meter beeps continuity between VBUS and GND before power-on. Power it anyway? Never — that's a dead short; find and clear it before any power reaches the board.",
   },
+  // Comprehension check (additive to the work-gate, not a replacement).
+  {
+    type: "quiz",
+    prompt: "Quick check — assembly",
+    questions: [
+      {
+        q: "Which parts go down first on the bare board?",
+        options: [
+          "The little resistors and capacitors",
+          "The heavy hot-air parts — the module (U1) and the USB-C connector (J1)",
+          "The headers and switches",
+        ],
+        answer: 1,
+        explain: "Do the heat-hungry parts first; reworking them later would remelt and knock off passives you'd already placed.",
+      },
+      {
+        q: "What is flux for when soldering the fine-pitch rows?",
+        options: [
+          "It glues the part down",
+          "It cleans the metal so solder flows onto pads and off bridges",
+          "It changes the solder's colour",
+        ],
+        answer: 1,
+        explain: "Flux strips oxide and lowers surface tension, so solder wets the pads cleanly and bridges pull themselves apart.",
+      },
+      {
+        q: "Your drag pass leaves a solder bridge between two pins. First thing to try?",
+        options: [
+          "Add more flux and drag again cleanly",
+          "Pull the part off and start over",
+          "Add more solder on top",
+        ],
+        answer: 0,
+        explain: "More flux lets surface tension lift the excess on the next pass — you rarely need solder wick for a small bridge.",
+      },
+      {
+        q: "Before you apply any power, your meter beeps continuity between VBUS and GND. What do you do?",
+        options: [
+          "Power it on to test it",
+          "Stop — that's a short; find and clear it first",
+          "Ignore it if the board looks fine",
+        ],
+        answer: 1,
+        explain: "VBUS shorted to ground would destroy the board the instant USB is plugged in. Never power a board showing that short.",
+      },
+      {
+        q: "Why inspect the board under magnification before powering it?",
+        options: [
+          "To make it look nicer",
+          "To catch bridges and tombstoned parts while they're still easy to fix",
+          "It isn't really necessary",
+        ],
+        answer: 1,
+        explain: "Finding a defect with your eyes or a meter costs a minute; finding it by powering up can cost the whole board.",
+      },
+    ],
+  },
+  // Exit
   {
     type: "callout",
     severity: "info",
@@ -989,6 +1336,64 @@ const BRINGUP_BLOCKS: ContentBlock[] = [
     summary: "Strapping pins: why holding BOOT picks download mode",
     body: "A few pins do double duty: at the instant the chip comes out of reset it samples its [[strapping pin|strapping pins]] to decide how to start, and then they go back to being ordinary [[GPIO]]. On the ESP32-S3, GPIO0 is the one that matters here — sampled HIGH (its resting default) the chip boots your firmware; sampled LOW it drops into USB download mode, ready to be flashed. That's the entire button dance: hold BOOT to force GPIO0 low, tap EN to reset the chip so it re-reads the strap, then release BOOT. Because the level is only read at that one instant, you can let go right after. It's also why you don't hang a heavy load on GPIO0 — pull it the wrong way at power-up and the board boots into the wrong mode all on its own.",
   },
+  // Comprehension check (additive to the work-gate, not a replacement).
+  {
+    type: "quiz",
+    prompt: "Quick check — bring-up",
+    questions: [
+      {
+        q: "What's the very first thing to do before plugging in USB for the first time?",
+        options: [
+          "Load your code",
+          "Check there's no short between VBUS and GND with a meter",
+          "Connect a sensor",
+        ],
+        answer: 1,
+        explain: "A short found with a meter costs a minute; the same short found by plugging in can cost the whole board.",
+      },
+      {
+        q: "You power the board and probe TP1. What reading means the 3.3 V rail is healthy?",
+        options: [
+          "About 3.3 V",
+          "About 5 V",
+          "0 V",
+        ],
+        answer: 0,
+        explain: "TP1 is the 3.3 V rail; ~3.3 V means the regulator is doing its job. Measure it before trusting anything downstream.",
+      },
+      {
+        q: "TP1 reads 4.9 V instead of 3.3 V. What does that point to?",
+        options: [
+          "Everything's fine",
+          "The regulator isn't regulating — it's passing the input straight through",
+          "The battery is low",
+        ],
+        answer: 1,
+        explain: "4.9 V is basically the USB input: the LDO is mis-soldered, backwards, or not enabled. Don't connect 3.3 V parts to it.",
+      },
+      {
+        q: "Why bring the board up 'rails first' — checking the 3.3 V before anything else?",
+        options: [
+          "It's just tradition",
+          "If the power is wrong, everything downstream can be damaged or misbehave",
+          "It makes the LEDs brighter",
+        ],
+        answer: 1,
+        explain: "Prove the power is correct before you trust the chip — a bad rail can take downstream parts with it.",
+      },
+      {
+        q: "The board powers but won't enter flash mode to load code. The button move?",
+        options: [
+          "Hold BOOT, tap EN to reset, then release BOOT",
+          "Hold both buttons down forever",
+          "Press EN twice quickly",
+        ],
+        answer: 0,
+        explain: "Holding BOOT pulls GPIO0 low; the chip samples that at reset (the EN tap) and drops into USB download mode.",
+      },
+    ],
+  },
+  // Exit
   {
     type: "callout",
     severity: "info",
