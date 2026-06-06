@@ -41,8 +41,11 @@ annotations from crowding or overlapping. **Every diagram must pass the
    a single centered ref (`U1`) inside a part body, and a **region label**
    centered inside its own filled region (a keep-out, a current loop, a pour),
    provided it clears every stroke by the same ≥ 16 px.
-2. **Clearance:** a text block stays **≥ 16 px** from any stroke it does not
-   label, and **≥ 12 px** from the canvas edge.
+2. **Clearance:** a text block **or a standalone symbol** (ground, power port,
+   capacitor, test point…) stays **≥ 16 px** from any stroke or symbol it does
+   not electrically connect to, and text stays **≥ 12 px** from the canvas edge.
+   Never tuck a ground or cap against an IC body, or crowd one symbol's leads
+   onto another's. Connected strokes may of course touch.
 3. **Text never touches a line.** No glyph may overlap a leader, outline, pad, or
    trace. (Text *may* sit over the faint background pour hatch — that is texture,
    not a line.)
@@ -69,6 +72,7 @@ annotations from crowding or overlapping. **Every diagram must pass the
 ## Pre-ship checklist
 
 - [ ] No text overlaps any line / stroke / pad / trace.
+- [ ] No symbol (ground, power port, cap…) crowds a stroke it doesn't connect to.
 - [ ] Every leader has a gap at the text end and stops short of its target.
 - [ ] Every leader runs at 0° / 45° / 90° (single segment or one elbow).
 - [ ] No two leaders cross; none crosses the subject or any text.
