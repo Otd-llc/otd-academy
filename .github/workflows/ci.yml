@@ -30,6 +30,21 @@ jobs:
       - run: pnpm exec prisma migrate deploy
         env:
           DIRECT_URL: ${{ secrets.NEON_TEST_DIRECT_URL }}
+      # Reset the seeded fixtures to a KNOWN state before tests. The ci-test
+      # branch is shared + persistent, so earlier runs that advance demo data
+      # (boards ASSEMBLED -> BROUGHT_UP, etc.) leave drift behind and break the
+      # DB-backed smoke tests (m9a-checkpoint, load-gate-context). The seed is
+      # idempotent (upserts; resets board status) and does NOT touch the branch's
+      # KiCad lib data, so this restores the fixtures without regenerating them.
+      - run: pnpm db:seed
+        env:
+          DATABASE_URL: ${{ secrets.NEON_TEST_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.NEON_TEST_DIRECT_URL }}
+          AUTH_SECRET: "stub-secret-32-chars-long-padding-x"
+          AUTH_GOOGLE_ID: stub
+          AUTH_GOOGLE_SECRET: stub
+          ALLOWED_EMAILS: "seed@example.com"
+          R2_ENABLED: "false"
       - run: pnpm vitest run
         env:
           # DB-backed tests need a REAL seeded Postgres — these repo secrets point
