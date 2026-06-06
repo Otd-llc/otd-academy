@@ -88,6 +88,27 @@ body {
       0 0 0 1px rgba(255, 255, 255, 0.04) inset;
   }
 
+  /* `.glass-popover` — a MORE OPAQUE glass for the little floating info panes
+   * (glossary term popovers). The big `.glass-card` panels sit in the page flow
+   * where translucency reads fine; a small pane floating over body text needs a
+   * denser fill so the text behind doesn't bleed through and hurt legibility.
+   * Keeps the frosted-blur + gold hairline character of `.glass-card`. */
+  .glass-popover {
+    background: linear-gradient(
+      180deg,
+      rgba(26, 26, 46, 0.92) 0%,
+      rgba(13, 14, 22, 0.95) 100%
+    );
+    backdrop-filter: blur(22px) saturate(1.1);
+    -webkit-backdrop-filter: blur(22px) saturate(1.1);
+    border: 1px solid rgba(200, 150, 62, 0.4);
+    border-radius: 14px;
+    box-shadow:
+      0 14px 48px rgba(0, 0, 0, 0.62),
+      0 1px 0 rgba(232, 184, 101, 0.12) inset,
+      0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  }
+
   .glass-button {
     background: linear-gradient(
       180deg,
