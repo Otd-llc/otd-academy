@@ -37,6 +37,27 @@ export async function enroll(
         if (!project.publishedRevisionId) {
           throw new Error("This board is not open for enrollment yet.");
         }
+
+        // Completion-gated DAG: every prerequisite (dependsOn) project must be at
+        // least COMPLETED by this learner before they can enroll.
+        const prereqEdges = await tx.projectDependency.findMany({
+          where: { dependentProjectId: projectId },
+          select: { dependsOnProjectId: true },
+        });
+        const required = new Set(prereqEdges.map((e) => e.dependsOnProjectId));
+        if (required.size > 0) {
+          const met = await tx.enrollment.count({
+            where: {
+              userId: user.id,
+              projectId: { in: [...required] },
+              status: { in: ["COMPLETED", "MASTERED"] },
+            },
+          });
+          if (met < required.size) {
+            throw new Error("Prerequisites not complete for this board.");
+          }
+        }
+
         // Idempotent: one Enrollment per (user, project). `update: {}` leaves an
         // existing enrollment (and its progress) untouched.
         return tx.enrollment.upsert({
