@@ -436,6 +436,44 @@ async function main() {
         total: 5,
       })),
     });
+
+    // A small optional board exam (server-scored → MASTERED) so the exam flow is
+    // demoable on the fixture board. The `questions` JSON holds the answer key
+    // (correctIndex); getExam strips it before sending to the client. Idempotent
+    // upsert on the unique projectId.
+    await tx.exam.upsert({
+      where: { projectId: project.id },
+      update: {},
+      create: {
+        projectId: project.id,
+        title: `${project.name} — comprehension exam`,
+        passThreshold: 80,
+        questions: [
+          {
+            id: "q1",
+            prompt: "What does the BOM_SOURCING stage verify before layout?",
+            options: [
+              "Trace widths",
+              "Stock + lifecycle of every part",
+              "Solder mask color",
+            ],
+            correctIndex: 1,
+          },
+          {
+            id: "q2",
+            prompt: "Which artifact does the SCHEMATIC stage produce?",
+            options: ["A Gerber zip", "A schematic file", "A bring-up log"],
+            correctIndex: 1,
+          },
+          {
+            id: "q3",
+            prompt: "Advancing into the terminal stage marks the board as…",
+            options: ["FAILED", "COMPLETED", "ARCHIVED"],
+            correctIndex: 1,
+          },
+        ],
+      },
+    });
   }, { timeout: 20000, maxWait: 10000 });
 
   console.log("seed: complete");
