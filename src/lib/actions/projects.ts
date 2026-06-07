@@ -16,7 +16,41 @@ import {
 } from "@/lib/schemas/project";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
+
+const setPublishedRevisionSchema = z.object({
+  projectId: z.cuid(),
+  revisionId: z.cuid(),
+});
+
+// Admin: designate the revision whose Guide learners follow. The revision must
+// belong to the project AND have a Guide (no point publishing a guideless rev).
+export async function setPublishedRevision(
+  input: unknown,
+): Promise<{ publishedRevisionId: string | null }> {
+  const { projectId, revisionId } = setPublishedRevisionSchema.parse(input);
+  await requireAdmin();
+
+  const revision = await db.revision.findUniqueOrThrow({
+    where: { id: revisionId },
+    select: { id: true, projectId: true, guide: { select: { id: true } } },
+  });
+  if (revision.projectId !== projectId) {
+    throw new Error("Revision does not belong to this project.");
+  }
+  if (!revision.guide) {
+    throw new Error("Publish a revision that has a guide.");
+  }
+
+  const project = await db.project.update({
+    where: { id: projectId },
+    data: { publishedRevisionId: revisionId },
+    select: { slug: true, publishedRevisionId: true },
+  });
+  revalidatePath(`/projects/${project.slug}`);
+  revalidatePath(`/learn/${project.slug}`);
+  return { publishedRevisionId: project.publishedRevisionId };
+}
 
 export async function createProject(input: unknown) {
   const data = createProjectSchema.parse(input);
