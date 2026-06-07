@@ -30,6 +30,8 @@ import { renderBoundsSchema } from "@/lib/schemas/part-asset";
 import { StageGate } from "@/components/guide/StageGate";
 import { BoardSelector } from "@/components/guide/BoardSelector";
 import { GenerateGuideButton } from "@/components/guide/GenerateGuideButton";
+import { auth } from "@/auth";
+import { AdvanceEnrollmentButton } from "@/components/learn/AdvanceEnrollmentButton";
 import { resolveCardCompletion } from "@/lib/guide-completion";
 import { resolveGuideProgress } from "@/lib/guide-progress";
 import { buildStageGateWidget } from "@/lib/guide-widget";
@@ -242,6 +244,35 @@ export default async function GuideCardPage({
   // editGuideCard rejects edits on a frozen revision regardless).
   const canEdit = !frozen;
 
+  // Learner overlay: if the signed-in user has an enrollment on this board, the
+  // quiz records against that enrollment, and on the learner's CURRENT stage we
+  // surface the advance affordance. Admins / non-enrolled viewers get the plain
+  // author preview (no quizContext, no advance button).
+  const session = await auth();
+  const learnerEmail = session?.user?.email ?? null;
+  let learnerQuizContext:
+    | { enrollmentId: string; stage: string; passed: boolean }
+    | undefined;
+  let showLearnerAdvance = false;
+  if (learnerEmail) {
+    const enrollment = await db.enrollment.findFirst({
+      where: { projectId: project.id, user: { email: learnerEmail } },
+      select: {
+        id: true,
+        currentStage: true,
+        quizPasses: { where: { stage }, select: { stage: true } },
+      },
+    });
+    if (enrollment) {
+      learnerQuizContext = {
+        enrollmentId: enrollment.id,
+        stage,
+        passed: enrollment.quizPasses.length > 0,
+      };
+      showLearnerAdvance = enrollment.currentStage === stage;
+    }
+  }
+
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <div className="mb-6">
@@ -281,7 +312,11 @@ export default async function GuideCardPage({
           ]}
         />
 
-        <GuideBlocks blocks={blocks} models={models} />
+        <GuideBlocks
+          blocks={blocks}
+          models={models}
+          quizContext={learnerQuizContext}
+        />
       </GuideCardEditor>
 
       {/* Per-board scope selector (ASSEMBLY / BRINGUP). */}
@@ -298,6 +333,19 @@ export default async function GuideCardPage({
           )}
         </div>
       ) : null}
+
+      {showLearnerAdvance && (
+        <section className="mt-8 glass-card border-l-4 border-l-command-gold p-5">
+          <p className="font-mono text-xs uppercase tracking-wider text-muted">
+            Your track · this is your current stage
+          </p>
+          <p className="mb-3 mt-1 font-serif text-sm text-gray-1">
+            Pass the comprehension check above (and add this stage’s proof
+            artifact where required) to advance your own progress.
+          </p>
+          <AdvanceEnrollmentButton projectId={project.id} />
+        </section>
+      )}
 
       <StageGate completion={completion} widget={widget} />
 
