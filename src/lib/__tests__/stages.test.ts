@@ -323,8 +323,8 @@ describe("STAGES config sanity", () => {
   test("STAGE_ORDER has all 9 stages in canonical order", () => {
     expect(STAGE_ORDER).toEqual([
       "REQUIREMENTS",
-      "SCHEMATIC",
       "BOM_SOURCING",
+      "SCHEMATIC",
       "LAYOUT",
       "DRC_GERBER",
       "ORDERING",

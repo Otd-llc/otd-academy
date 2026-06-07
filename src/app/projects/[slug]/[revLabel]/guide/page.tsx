@@ -32,8 +32,8 @@ type Params = { slug: string; revLabel: string };
 
 const DESIGN_STAGES = [
   "REQUIREMENTS",
-  "SCHEMATIC",
   "BOM_SOURCING",
+  "SCHEMATIC",
   "LAYOUT",
   "DRC_GERBER",
   "ORDERING",

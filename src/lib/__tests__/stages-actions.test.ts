@@ -235,7 +235,7 @@ describe("advanceStage — happy paths", () => {
     const after = await db.revision.findUniqueOrThrow({
       where: { id: rev.id },
     });
-    expect(after.currentStage).toBe("SCHEMATIC");
+    expect(after.currentStage).toBe("BOM_SOURCING");
     // currentStageEnteredAt bumped to "now" (within the last minute).
     expect(after.currentStageEnteredAt.getTime()).toBeGreaterThan(
       Date.now() - 60_000,
@@ -249,7 +249,7 @@ describe("advanceStage — happy paths", () => {
     const last = transitions[transitions.length - 1]!;
     expect(last.direction).toBe("ADVANCE");
     expect(last.fromStage).toBe("REQUIREMENTS");
-    expect(last.toStage).toBe("SCHEMATIC");
+    expect(last.toStage).toBe("BOM_SOURCING");
     const snap = last.gateSnapshot as {
       v: number;
       kind: string;
@@ -262,28 +262,29 @@ describe("advanceStage — happy paths", () => {
     expect(typeof snap.ts).toBe("string");
   });
 
-  test("BOM_SOURCING → LAYOUT: sets bomFrozenAt = NOW() on the revision", async () => {
+  test("SCHEMATIC → LAYOUT: sets bomFrozenAt = NOW() on the revision", async () => {
     const user = await seedUser();
     const rev = await makeRevAtStage(
-      "BOM_SOURCING",
+      "SCHEMATIC",
       `t8.1-bomfreeze-${Date.now()}`,
     );
 
-    // BOM_SOURCING gate requires bomLines with parts having datasheets and
-    // not EOL/OBSOLETE. Use the seeded parts (already meet the criteria).
-    const parts = await db.part.findMany({
-      where: { lifecycle: "ACTIVE" },
-      take: 1,
+    // Entering LAYOUT is what sets bomFrozenAt (the BOM was sourced one stage
+    // earlier). To advance SCHEMATIC → LAYOUT, satisfy the SCHEMATIC gate: a
+    // schematic artifact + a pinned schematicCommit.
+    await db.revision.update({
+      where: { id: rev.id },
+      data: { schematicCommit: "abc1234" },
     });
-    expect(parts.length).toBeGreaterThan(0);
-    const part = parts[0]!;
-    const line = await db.bomLine.create({
+    await db.artifact.create({
       data: {
         revisionId: rev.id,
-        partId: part.id,
-        refDes: "U1",
-        quantity: 1,
-        createdById: user.id,
+        stage: "SCHEMATIC",
+        kind: "NOTE",
+        subkind: "SCHEMATIC_FILE",
+        title: "schematic",
+        noteBody: "x",
+        createdBy: user.id,
       },
     });
 
@@ -296,9 +297,6 @@ describe("advanceStage — happy paths", () => {
     expect(after.currentStage).toBe("LAYOUT");
     expect(after.bomFrozenAt).not.toBeNull();
     expect(after.bomFrozenAt!.getTime()).toBeGreaterThan(Date.now() - 60_000);
-
-    // Clean up the BomLine (rev cascade handles it, but be defensive).
-    await db.bomLine.delete({ where: { id: line.id } }).catch(() => {});
   });
 
   test("BRINGUP → REVISION: sets frozenAt + frozenById, cascades frozenAt to active Build", async () => {
@@ -555,7 +553,7 @@ describe("advanceStage — concurrent attempts", () => {
 // ─── regressStage tests ────────────────────────────────
 
 describe("regressStage — happy paths", () => {
-  test("LAYOUT → BOM_SOURCING clears bomFrozenAt", async () => {
+  test("LAYOUT → SCHEMATIC (regress out of LAYOUT) clears bomFrozenAt", async () => {
     const rev = await makeRevAtStage(
       "LAYOUT",
       `t8.2-layout-out-${Date.now()}`,
@@ -575,7 +573,7 @@ describe("regressStage — happy paths", () => {
     const after = await db.revision.findUniqueOrThrow({
       where: { id: rev.id },
     });
-    expect(after.currentStage).toBe("BOM_SOURCING");
+    expect(after.currentStage).toBe("SCHEMATIC");
     expect(after.bomFrozenAt).toBeNull();
 
     const last = await db.stageTransition.findFirst({
@@ -583,7 +581,7 @@ describe("regressStage — happy paths", () => {
       orderBy: { transitionedAt: "desc" },
     });
     expect(last?.fromStage).toBe("LAYOUT");
-    expect(last?.toStage).toBe("BOM_SOURCING");
+    expect(last?.toStage).toBe("SCHEMATIC");
     expect(last?.notes).toBe("BOM mistake; need to swap a part.");
     const snap = last?.gateSnapshot as {
       v: number;
@@ -596,13 +594,13 @@ describe("regressStage — happy paths", () => {
     expect(snap.reason).toBe("BOM mistake; need to swap a part.");
   });
 
-  // m17: regress LAYOUT → BOM_SOURCING side-effect for revisions with a
+  // m17: regress SCHEMATIC → BOM_SOURCING side-effect for revisions with a
   // STRIPBOARD_VALIDATION checklist. Every item's `checked` flag flips back
   // to false; the audit fields (`completedAt`, `completedById`) MUST be
   // preserved so the original validator + timestamp stays in the record
   // (proposal §3 #4). Gated internally on `project.requiresStripboard` so a
   // stray checklist on a non-stripboard project is never touched.
-  test("regress LAYOUT → BOM_SOURCING: clears checked on STRIPBOARD_VALIDATION items but preserves completedAt/completedById", async () => {
+  test("regress SCHEMATIC → BOM_SOURCING: clears checked on STRIPBOARD_VALIDATION items but preserves completedAt/completedById", async () => {
     const user = await seedUser();
     const p = await db.project.create({
       data: {
@@ -617,8 +615,7 @@ describe("regressStage — happy paths", () => {
       data: {
         projectId: p.id,
         label: "v1",
-        currentStage: "LAYOUT",
-        bomFrozenAt: new Date(),
+        currentStage: "SCHEMATIC",
       },
     });
     createdRevisionIds.push(rev.id);
@@ -693,8 +690,8 @@ describe("regressStage — happy paths", () => {
 
   // m17: side-effect is gated on the same predicate as the BOM_SOURCING gate.
   // A revision whose project has `requiresStripboard: false` MUST NOT have its
-  // STRIPBOARD_VALIDATION items touched on a LAYOUT → BOM_SOURCING regress.
-  test("regress LAYOUT → BOM_SOURCING: skips the STRIPBOARD_VALIDATION reset when requiresStripboard=false", async () => {
+  // STRIPBOARD_VALIDATION items touched on a SCHEMATIC → BOM_SOURCING regress.
+  test("regress SCHEMATIC → BOM_SOURCING: skips the STRIPBOARD_VALIDATION reset when requiresStripboard=false", async () => {
     const user = await seedUser();
     const p = await db.project.create({
       data: {
@@ -709,8 +706,7 @@ describe("regressStage — happy paths", () => {
       data: {
         projectId: p.id,
         label: "v1",
-        currentStage: "LAYOUT",
-        bomFrozenAt: new Date(),
+        currentStage: "SCHEMATIC",
       },
     });
     createdRevisionIds.push(rev.id);

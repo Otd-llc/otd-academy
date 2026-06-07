@@ -9,8 +9,8 @@ import type { ContentBlock, CompletionRef } from "@/lib/schemas/guide";
 
 export const GUIDE_STAGES = [
   "REQUIREMENTS",
-  "SCHEMATIC",
   "BOM_SOURCING",
+  "SCHEMATIC",
   "LAYOUT",
   "DRC_GERBER",
   "ORDERING",
@@ -42,31 +42,31 @@ export const STAGE_CARD_SKELETONS: Record<GuideStage, StageSkeleton> = {
     isGate: true,
     completionRef: { kind: "revisionChecklist", subkind: "REQUIREMENTS_REVIEW" },
   },
-  SCHEMATIC: {
-    eyebrow: "PHASE 02",
-    title: "SCHEMATIC",
-    lead: "Draw the schematic and pin the commit.",
-    baseBlocks: [
-      {
-        type: "prose",
-        md: "Draft the schematic, then attach the schematic file artifact and record the schematic commit.",
-      },
-    ],
-    isGate: false,
-    completionRef: { kind: "artifact", subkinds: ["SCHEMATIC_FILE"] },
-  },
   BOM_SOURCING: {
-    eyebrow: "PHASE 03",
+    eyebrow: "PHASE 02",
     title: "BOM SOURCING",
-    lead: "Source every part; validate on stripboard where required.",
+    lead: "Lock and source every part before you draw a single net.",
     baseBlocks: [
       {
         type: "prose",
-        md: "Build the BOM and source parts. Stripboard-de-risk boards must pass the stripboard validation checklist.",
+        md: "Lock down every part and do the math up front (keep a calc trail so a reviewer can see where each value came from), then source each part on Digikey — real MPN + datasheet, and check stock, lifecycle stage, and lead time. Design around parts you can actually buy. Stripboard-de-risk boards must also pass the stripboard validation checklist.",
       },
     ],
     isGate: false,
     completionRef: { kind: "revisionChecklist", subkind: "STRIPBOARD_VALIDATION" },
+  },
+  SCHEMATIC: {
+    eyebrow: "PHASE 03",
+    title: "SCHEMATIC",
+    lead: "Capture your already-sourced circuit and pin the commit.",
+    baseBlocks: [
+      {
+        type: "prose",
+        md: "Your parts are locked and sourced, so this is capture, not design: open the provided KiCad files (symbols, footprints, and 3D models are pre-loaded), wire up your sourced parts, then attach the schematic file artifact and record the schematic commit.",
+      },
+    ],
+    isGate: false,
+    completionRef: { kind: "artifact", subkinds: ["SCHEMATIC_FILE"] },
   },
   LAYOUT: {
     eyebrow: "PHASE 04",

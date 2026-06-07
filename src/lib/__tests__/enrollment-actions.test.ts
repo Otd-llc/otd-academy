@@ -127,13 +127,13 @@ describe("advanceEnrollment", () => {
     expect((r as { reasons: string[] }).reasons.some((x) => /schematic/i.test(x))).toBe(true);
   });
 
-  test("advances REQUIREMENTS → SCHEMATIC when the gate passes", async () => {
+  test("advances REQUIREMENTS → BOM_SOURCING when the gate passes", async () => {
     const projectId = await enrollmentAt("REQUIREMENTS");
     await addProofArtifact(projectId, "REQUIREMENTS", "REQUIREMENTS_DOC");
     await addQuizPass(projectId, "REQUIREMENTS");
     const r = await advanceEnrollment({ projectId });
-    expect(r).toEqual({ ok: true, toStage: "SCHEMATIC" });
-    expect((await enrollmentRow(projectId)).currentStage).toBe("SCHEMATIC");
+    expect(r).toEqual({ ok: true, toStage: "BOM_SOURCING" });
+    expect((await enrollmentRow(projectId)).currentStage).toBe("BOM_SOURCING");
   });
 
   test("advancing into REVISION marks the enrollment COMPLETED", async () => {
@@ -183,7 +183,7 @@ describe("submitEnrollmentProof", () => {
     await submitEnrollmentProof({ projectId, stage: "SCHEMATIC", linkUrl: "https://example.com/s" });
     await addQuizPass(projectId, "SCHEMATIC");
     const r = await advanceEnrollment({ projectId });
-    expect(r).toEqual({ ok: true, toStage: "BOM_SOURCING" });
+    expect(r).toEqual({ ok: true, toStage: "LAYOUT" });
   });
 });
 

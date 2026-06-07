@@ -34,8 +34,8 @@ import type {
 
 export const STAGE_ORDER = [
   "REQUIREMENTS",
-  "SCHEMATIC",
   "BOM_SOURCING",
+  "SCHEMATIC",
   "LAYOUT",
   "DRC_GERBER",
   "ORDERING",
@@ -188,13 +188,13 @@ export const STAGES: Record<Stage, StageDef> = {
 
   SCHEMATIC: {
     stage: "SCHEMATIC",
-    order: 2,
+    order: 3,
     name: "Schematic",
-    description: "KiCad schematic capture.",
+    description: "Capture the already-sourced circuit in KiCad.",
     entryHints: [
-      "Capture the schematic in KiCad and commit.",
-      "Pin the schematic git commit on the revision header strip.",
-      "Attach the schematic artifact (PDF or file link).",
+      "Your parts are already locked and sourced — this stage is capture, not design.",
+      "Open the provided KiCad files (symbols, footprints, and 3D models are pre-loaded) and wire up your sourced parts.",
+      "Pin the schematic git commit, then attach the schematic artifact.",
     ],
     revisionAllowedArtifactSubkinds: ["SCHEMATIC_FILE", "GENERIC"],
     defaultRevisionArtifactSubkind: "SCHEMATIC_FILE",
@@ -211,13 +211,14 @@ export const STAGES: Record<Stage, StageDef> = {
 
   BOM_SOURCING: {
     stage: "BOM_SOURCING",
-    order: 3,
+    order: 2,
     name: "BOM sourcing",
     description:
-      "Parts picked, stock + lifecycle verified before layout.",
+      "Lock every part and source it BEFORE you draw the schematic.",
     entryHints: [
-      "Every schematic part should have an MPN.",
-      "Verify stock and lifecycle before committing.",
+      "Lock down every part you can and do the math up front — keep a calc trail so you (and a reviewer) can see where a value came from.",
+      "Source each part on Digikey (or Amazon): real MPN + datasheet, and check stock, lifecycle stage, and lead time before committing.",
+      "Design around parts you can actually buy — finalizing the BOM now is what makes schematic capture frictionless next.",
     ],
     revisionAllowedArtifactSubkinds: ["BOM_EXPORT", "GENERIC"],
     buildAllowedArtifactSubkinds: [],

@@ -107,7 +107,7 @@ async function makeProjectAtBomSourcing(
 }
 
 describe("BOM_SOURCING gate — m17 stripboard branch end-to-end", () => {
-  test("blocks → blocks unchecked → passes once ticked → rev moves to LAYOUT", async () => {
+  test("blocks → blocks unchecked → passes once ticked → rev moves to SCHEMATIC", async () => {
     const user = await db.user.findUniqueOrThrow({
       where: { email: SEED_EMAIL },
     });
@@ -178,7 +178,7 @@ describe("BOM_SOURCING gate — m17 stripboard branch end-to-end", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.transition.fromStage).toBe("BOM_SOURCING");
-      expect(result.transition.toStage).toBe("LAYOUT");
+      expect(result.transition.toStage).toBe("SCHEMATIC");
     }
     expect(
       (
@@ -187,7 +187,7 @@ describe("BOM_SOURCING gate — m17 stripboard branch end-to-end", () => {
           select: { currentStage: true },
         })
       ).currentStage,
-    ).toBe("LAYOUT");
+    ).toBe("SCHEMATIC");
 
     // Side-cleanup not needed — project cascade in afterAll handles it.
     void project;
@@ -275,7 +275,7 @@ describe("BOM_SOURCING gate — m18 mains-net certified-module branch end-to-end
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.transition.fromStage).toBe("BOM_SOURCING");
-      expect(result.transition.toStage).toBe("LAYOUT");
+      expect(result.transition.toStage).toBe("SCHEMATIC");
     }
     expect(
       (
@@ -284,7 +284,7 @@ describe("BOM_SOURCING gate — m18 mains-net certified-module branch end-to-end
           select: { currentStage: true },
         })
       ).currentStage,
-    ).toBe("LAYOUT");
+    ).toBe("SCHEMATIC");
 
     void project;
   });

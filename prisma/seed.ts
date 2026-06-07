@@ -361,9 +361,9 @@ async function main() {
 
     const stages: Array<{ from: typeof revision.currentStage | null; to: typeof revision.currentStage }> = [
       { from: null, to: "REQUIREMENTS" },
-      { from: "REQUIREMENTS", to: "SCHEMATIC" },
-      { from: "SCHEMATIC", to: "BOM_SOURCING" },
-      { from: "BOM_SOURCING", to: "LAYOUT" },
+      { from: "REQUIREMENTS", to: "BOM_SOURCING" },
+      { from: "BOM_SOURCING", to: "SCHEMATIC" },
+      { from: "SCHEMATIC", to: "LAYOUT" },
       { from: "LAYOUT", to: "DRC_GERBER" },
       { from: "DRC_GERBER", to: "ORDERING" },
       { from: "ORDERING", to: "ASSEMBLY" },
@@ -417,8 +417,8 @@ async function main() {
     });
     const quizStages = [
       "REQUIREMENTS",
-      "SCHEMATIC",
       "BOM_SOURCING",
+      "SCHEMATIC",
       "LAYOUT",
       "DRC_GERBER",
       "ORDERING",
