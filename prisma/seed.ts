@@ -21,8 +21,8 @@ async function main() {
   await db.$transaction(async (tx: Tx) => {
     const user = await tx.user.upsert({
       where: { email: "seed@example.com" },
-      update: {},
-      create: { email: "seed@example.com", name: "Seed User" },
+      update: { role: "ADMIN" },
+      create: { email: "seed@example.com", name: "Seed User", role: "ADMIN" },
     });
 
     // Reset the curriculum / safety flags on every seed run so UI
