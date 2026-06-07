@@ -8,8 +8,10 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const mockAuth = vi.fn<() => Promise<unknown>>();
 vi.mock("@/auth", () => ({ auth: () => mockAuth() }));
 
+import type { Stage } from "@prisma/client";
 import { db } from "@/lib/db";
-import { enroll } from "@/lib/actions/enrollment";
+import { enroll, advanceEnrollment } from "@/lib/actions/enrollment";
+import { QUIZ_NOT_PASSED_MSG } from "@/lib/learner-gates";
 
 const EMAIL = "enroll-learner@example.com";
 let userId = "";
@@ -44,11 +46,106 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // Delete enrollments first (Enrollment.revisionId is ON DELETE RESTRICT), then
+  // every project this user created (cascades revisions), then the user.
   await db.enrollment.deleteMany({ where: { userId } });
-  await db.project.deleteMany({
-    where: { id: { in: [publishedProjectId, unpublishedProjectId] } },
-  });
+  await db.project.deleteMany({ where: { createdById: userId } });
   await db.user.deleteMany({ where: { id: userId } });
+});
+
+// Build an isolated published board + an Enrollment parked at `stage`.
+let seq = 0;
+async function enrollmentAt(stage: Stage): Promise<string> {
+  seq += 1;
+  const project = await db.project.create({
+    data: { slug: `adv-${seq}-${Date.now()}`, name: "Adv", createdById: userId },
+  });
+  const rev = await db.revision.create({
+    data: { projectId: project.id, label: "v1" },
+  });
+  await db.project.update({
+    where: { id: project.id },
+    data: { publishedRevisionId: rev.id },
+  });
+  await db.enrollment.create({
+    data: { userId, projectId: project.id, revisionId: rev.id, currentStage: stage },
+  });
+  return project.id;
+}
+
+async function enrollmentRow(projectId: string) {
+  return db.enrollment.findUniqueOrThrow({
+    where: { userId_projectId: { userId, projectId } },
+  });
+}
+
+async function addProofArtifact(
+  projectId: string,
+  stage: Stage,
+  subkind: "REQUIREMENTS_DOC" | "SCHEMATIC_FILE" | "LAYOUT_FILE",
+) {
+  const e = await enrollmentRow(projectId);
+  await db.artifact.create({
+    data: {
+      enrollmentId: e.id,
+      stage,
+      kind: "NOTE",
+      subkind,
+      title: subkind,
+      noteBody: "x",
+      createdBy: userId,
+    },
+  });
+}
+
+async function addQuizPass(projectId: string, stage: Stage) {
+  const e = await enrollmentRow(projectId);
+  await db.quizPass.create({
+    data: { enrollmentId: e.id, stage, score: 5, total: 5 },
+  });
+}
+
+describe("advanceEnrollment", () => {
+  test("blocked when the current stage's quiz isn't passed", async () => {
+    const projectId = await enrollmentAt("REQUIREMENTS");
+    await addProofArtifact(projectId, "REQUIREMENTS", "REQUIREMENTS_DOC");
+    const r = await advanceEnrollment({ projectId });
+    expect(r.ok).toBe(false);
+    expect((r as { reasons: string[] }).reasons).toEqual([QUIZ_NOT_PASSED_MSG]);
+  });
+
+  test("blocked at SCHEMATIC without a proof artifact (quiz passed)", async () => {
+    const projectId = await enrollmentAt("SCHEMATIC");
+    await addQuizPass(projectId, "SCHEMATIC");
+    const r = await advanceEnrollment({ projectId });
+    expect(r.ok).toBe(false);
+    expect((r as { reasons: string[] }).reasons.some((x) => /schematic/i.test(x))).toBe(true);
+  });
+
+  test("advances REQUIREMENTS → SCHEMATIC when the gate passes", async () => {
+    const projectId = await enrollmentAt("REQUIREMENTS");
+    await addProofArtifact(projectId, "REQUIREMENTS", "REQUIREMENTS_DOC");
+    await addQuizPass(projectId, "REQUIREMENTS");
+    const r = await advanceEnrollment({ projectId });
+    expect(r).toEqual({ ok: true, toStage: "SCHEMATIC" });
+    expect((await enrollmentRow(projectId)).currentStage).toBe("SCHEMATIC");
+  });
+
+  test("advancing into REVISION marks the enrollment COMPLETED", async () => {
+    const projectId = await enrollmentAt("BRINGUP");
+    await addQuizPass(projectId, "BRINGUP"); // BRINGUP is quiz-only (no proof)
+    const r = await advanceEnrollment({ projectId });
+    expect(r).toEqual({ ok: true, toStage: "REVISION" });
+    const row = await enrollmentRow(projectId);
+    expect(row.currentStage).toBe("REVISION");
+    expect(row.status).toBe("COMPLETED");
+    expect(row.completedAt).not.toBeNull();
+  });
+
+  test("refuses to advance past the terminal stage", async () => {
+    const projectId = await enrollmentAt("REVISION");
+    await expect(advanceEnrollment({ projectId })).rejects.toThrow(/final stage/i);
+  });
 });
 
 describe("enroll", () => {

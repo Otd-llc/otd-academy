@@ -46,6 +46,13 @@ export const STAGE_ORDER = [
 
 export type StageName = (typeof STAGE_ORDER)[number];
 
+/** The next stage in canonical order, or null at the terminal stage. */
+export function nextStage(stage: StageName): StageName | null {
+  const idx = STAGE_ORDER.indexOf(stage);
+  if (idx < 0 || idx >= STAGE_ORDER.length - 1) return null;
+  return STAGE_ORDER[idx + 1]!;
+}
+
 // ─── Gate types (design §5.2) ──────────────────────────
 
 /** GateSnapshot version field — bump when the shape changes. */

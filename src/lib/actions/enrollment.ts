@@ -10,8 +10,16 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { withTxRetry } from "@/lib/tx-retry";
+import { nextStage, type StageName } from "@/lib/stages";
+import { learnerExitGate } from "@/lib/learner-gates";
+import { loadLearnerGateContext } from "@/lib/load-learner-gate-context";
+
+type AdvanceEnrollmentResult =
+  | { ok: true; toStage: StageName }
+  | { ok: false; reasons: string[] };
 
 const enrollSchema = z.object({ projectId: z.cuid() });
+const advanceEnrollmentSchema = z.object({ projectId: z.cuid() });
 
 export async function enroll(
   input: unknown,
@@ -48,4 +56,54 @@ export async function enroll(
 
   revalidatePath(`/learn/${enrollment.project.slug}`);
   return { id: enrollment.id, status: enrollment.status };
+}
+
+// Advance the learner's OWN currentStage past `learnerExitGate`. Mirrors the
+// author advanceStage optimistic-lock pattern (conditional UPDATE WHERE the
+// stage still matches what we read). Advancing into the terminal REVISION stage
+// flips the enrollment to COMPLETED.
+export async function advanceEnrollment(
+  input: unknown,
+): Promise<AdvanceEnrollmentResult> {
+  const { projectId } = advanceEnrollmentSchema.parse(input);
+  const user = await requireUser();
+
+  return withTxRetry(() =>
+    db.$transaction(
+      async (tx) => {
+        const e = await tx.enrollment.findUniqueOrThrow({
+          where: { userId_projectId: { userId: user.id, projectId } },
+          select: {
+            id: true,
+            currentStage: true,
+            project: { select: { slug: true } },
+          },
+        });
+        const stage = e.currentStage as StageName;
+        const to = nextStage(stage);
+        if (!to) throw new Error("Already at the final stage.");
+
+        const ctx = await loadLearnerGateContext(tx, e.id);
+        const gate = learnerExitGate(stage, ctx);
+        if (!gate.ok) return { ok: false as const, reasons: gate.reasons };
+
+        const now = new Date();
+        const terminal = to === "REVISION";
+        const rows = await tx.$executeRaw`
+          UPDATE "Enrollment"
+          SET "currentStage" = ${to}::"Stage", "currentStageEnteredAt" = ${now}
+              ${
+                terminal
+                  ? Prisma.sql`, "status" = 'COMPLETED'::"EnrollmentStatus", "completedAt" = ${now}`
+                  : Prisma.empty
+              }
+          WHERE "id" = ${e.id} AND "currentStage" = ${stage}::"Stage"`;
+        if (rows === 0) throw new Error("Stale state — refresh and try again.");
+
+        revalidatePath(`/learn/${e.project.slug}`);
+        return { ok: true as const, toStage: to };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    ),
+  );
 }
