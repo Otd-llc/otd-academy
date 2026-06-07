@@ -619,7 +619,12 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "You've now reasoned out every part — so now you draw it. Open the KiCad export: it's a ready-made project, with the symbol library plus every BOM part already dropped onto the sheet, spaced out but not yet wired. Your job isn't to find parts, it's to arrange them into a readable layout and wire them into the real circuit. A good schematic isn't just correct, it's readable: someone (including future-you) should be able to follow it at a glance. A few habits and one rules-check get you there.",
+        md: "You've now reasoned out every part — so now you draw it. Start from the KiCad starter below: it's a ready-made project, with the symbol library plus every BOM part already dropped onto the sheet, spaced out but not yet wired. Your job isn't to find parts, it's to arrange them into a readable layout and wire them into the real circuit. A good schematic isn't just correct, it's readable: someone (including future-you) should be able to follow it at a glance. A few habits and one rules-check get you there.",
+      },
+      {
+        type: "action",
+        action: "downloadKicadStarter",
+        label: "Download the KiCad starter",
       },
       {
         type: "callout",

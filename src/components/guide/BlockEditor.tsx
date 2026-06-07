@@ -93,6 +93,8 @@ export function BlockEditor({
       return <QuizEditor block={block} onChange={onChange} {...err} />;
     case "deepDive":
       return <DeepDiveEditor block={block} onChange={onChange} {...err} />;
+    case "action":
+      return <ActionEditor block={block} onChange={onChange} {...err} />;
     default: {
       // Exhaustiveness guard: if a new block.type is added to the schema and
       // not handled above, this line fails to typecheck.
@@ -708,6 +710,54 @@ function DeepDiveEditor({
           value={block.body}
           onChange={(e) => onChange({ ...block, body: e.target.value })}
           className={`mt-1 ${textareaClass}`}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── action ─────────────────────────────────────────────────────────────
+// An inline learner affordance (a button). `action` is a fixed enum the
+// renderer knows how to handle; the author only edits the visible label.
+function ActionEditor({
+  block,
+  onChange,
+  hasError,
+  errorId,
+}: {
+  block: Extract<ContentBlock, { type: "action" }>;
+  onChange: (next: ContentBlock) => void;
+} & BlockErrorProps) {
+  const baseId = useId();
+  return (
+    <div className="space-y-2">
+      <div>
+        <label htmlFor={`${baseId}-action`} className={labelClass}>
+          Action
+        </label>
+        <select
+          id={`${baseId}-action`}
+          value={block.action}
+          onChange={(e) =>
+            onChange({ ...block, action: e.target.value as typeof block.action })
+          }
+          className={`mt-1 ${inputClass}`}
+        >
+          <option value="downloadKicadStarter">Download KiCad starter</option>
+        </select>
+      </div>
+      <div>
+        <label htmlFor={`${baseId}-label`} className={labelClass}>
+          Button label
+        </label>
+        <input
+          id={`${baseId}-label`}
+          type="text"
+          maxLength={120}
+          value={block.label}
+          onChange={(e) => onChange({ ...block, label: e.target.value })}
+          className={`mt-1 ${inputClass}`}
+          {...ariaErrorProps({ hasError, errorId })}
         />
       </div>
     </div>

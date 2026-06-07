@@ -333,6 +333,7 @@ export default async function GuideCardPage({
           blocks={blocks}
           models={models}
           quizContext={learnerQuizContext}
+          projectId={project.id}
         />
       </GuideCardEditor>
 

@@ -22,6 +22,7 @@ import type { ContentBlock } from "@/lib/schemas/guide";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
+import { GuideActionButton } from "@/components/guide/GuideActionButton";
 import { ExternalLinkIcon, PhotoIcon, VideoIcon } from "@/components/icons";
 import { parseInlineTerms } from "@/lib/inline-terms";
 import type { RenderBounds } from "@/lib/schemas/part-asset";
@@ -301,10 +302,12 @@ function GuideBlock({
   block,
   models,
   quizContext,
+  projectId,
 }: {
   block: ContentBlock;
   models?: Record<string, ResolvedModel>;
   quizContext?: QuizContext;
+  projectId?: string;
 }) {
   switch (block.type) {
     case "prose":
@@ -382,6 +385,15 @@ function GuideBlock({
     case "deepDive":
       return <DeepDiveBlock summary={block.summary} body={block.body} />;
 
+    case "action":
+      return (
+        <GuideActionButton
+          action={block.action}
+          label={block.label}
+          projectId={projectId}
+        />
+      );
+
     case "sourceRef": {
       // href is scheme-validated by the schema (http(s):// or root-relative).
       // External links leave the guide, so open them in a new tab (with
@@ -418,10 +430,12 @@ export function GuideBlocks({
   blocks,
   models,
   quizContext,
+  projectId,
 }: {
   blocks: ContentBlock[];
   models?: Record<string, ResolvedModel>;
   quizContext?: QuizContext;
+  projectId?: string;
 }) {
   return (
     <div className="space-y-4">
@@ -431,6 +445,7 @@ export function GuideBlocks({
           block={block}
           models={models}
           quizContext={quizContext}
+          projectId={projectId}
         />
       ))}
     </div>
