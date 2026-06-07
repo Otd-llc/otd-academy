@@ -17,7 +17,7 @@
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireAdmin } from "@/lib/auth-helpers";
 import { assertBuildNotFrozen, assertNotFrozen } from "@/lib/assertions";
 import { withTxRetry } from "@/lib/tx-retry";
 import {
@@ -54,7 +54,7 @@ async function loadBoardRoute(boardId: string) {
 
 export async function createBoard(input: unknown) {
   const data = createBoardSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const { board, projectSlug, revLabel, buildLabel } = await withTxRetry(() =>
     db.$transaction(
@@ -118,7 +118,7 @@ export async function createBoard(input: unknown) {
 
 export async function editBoard(input: unknown) {
   const data = editBoardSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const patch: Prisma.BoardUpdateInput = {};
   if (data.silkscreenHash !== undefined) {
@@ -169,7 +169,7 @@ export async function editBoard(input: unknown) {
 
 export async function deleteBoard(input: unknown) {
   const data = deleteBoardSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const route = await withTxRetry(() =>
     db.$transaction(

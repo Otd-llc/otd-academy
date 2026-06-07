@@ -17,7 +17,7 @@ import { Prisma, PartCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireAdmin } from "@/lib/auth-helpers";
 import {
   createPartSchema,
   listPartsBySearchSchema,
@@ -36,7 +36,7 @@ function toPartCategory(value: string | null | undefined): PartCategory | null {
 
 export async function createPart(input: unknown) {
   const data = createPartSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   // Pre-check: clean error before the insert. The DB constraint is still
   // the authority; the race is handled by the catch below.
@@ -135,7 +135,7 @@ export async function updatePartDatasheetUrl(input: {
   partId: string;
   datasheetUrl: string;
 }) {
-  await requireUser();
+  await requireAdmin();
 
   const trimmed = input.datasheetUrl.trim();
   const next = trimmed === "" ? null : trimmed;

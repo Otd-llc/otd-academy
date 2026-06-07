@@ -9,7 +9,7 @@
 // land in later phases.
 
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireAdmin } from "@/lib/auth-helpers";
 import {
   createProjectSchema,
   editProjectSchema,
@@ -20,7 +20,7 @@ import { ZodError } from "zod";
 
 export async function createProject(input: unknown) {
   const data = createProjectSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
   const project = await db.project.create({
     data: {
       slug: data.slug,
@@ -49,7 +49,7 @@ export async function createProject(input: unknown) {
 
 export async function editProject(input: unknown) {
   const { id, ...rest } = editProjectSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   // Drop undefined fields so Prisma only updates what the caller supplied.
   // (Zod .partial() makes everything optional; we mustn't write `null` over
@@ -71,7 +71,7 @@ export async function editProject(input: unknown) {
 }
 
 export async function archiveProject(id: string) {
-  await requireUser();
+  await requireAdmin();
   await db.project.update({
     where: { id },
     data: { archivedAt: new Date() },
@@ -80,7 +80,7 @@ export async function archiveProject(id: string) {
 }
 
 export async function unarchiveProject(id: string) {
-  await requireUser();
+  await requireAdmin();
   await db.project.update({
     where: { id },
     data: { archivedAt: null },

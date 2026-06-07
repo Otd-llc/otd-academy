@@ -19,7 +19,7 @@
 //
 // Regress side does NOT consult the DAG (lazy catch policy); see m12 §3.2.
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireAdmin } from "@/lib/auth-helpers";
 import {
   createProjectDependencySchema,
   editProjectDependencySchema,
@@ -31,7 +31,7 @@ import { ZodError } from "zod";
 
 export async function createProjectDependency(input: unknown) {
   const data = createProjectDependencySchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   return withTxRetry(() =>
     db.$transaction(
@@ -95,7 +95,7 @@ export async function createProjectDependency(input: unknown) {
 
 export async function editProjectDependency(input: unknown) {
   const { id, ...rest } = editProjectDependencySchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   // Drop undefined fields so Prisma only updates what the caller supplied.
   const data: Record<string, unknown> = {};
@@ -107,7 +107,7 @@ export async function editProjectDependency(input: unknown) {
 }
 
 export async function deleteProjectDependency(id: string) {
-  await requireUser();
+  await requireAdmin();
   await db.projectDependency.delete({ where: { id } });
 }
 

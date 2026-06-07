@@ -30,7 +30,7 @@
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireAdmin } from "@/lib/auth-helpers";
 import { assertNotFrozen } from "@/lib/assertions";
 import { withTxRetry } from "@/lib/tx-retry";
 import {
@@ -60,7 +60,7 @@ async function revalidateGuideRoute(revisionId: string): Promise<void> {
 
 export async function materializeGuide(input: unknown) {
   const { revisionId } = materializeGuideSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const guide = await withTxRetry(() =>
     db.$transaction(
@@ -151,7 +151,7 @@ export async function materializeGuide(input: unknown) {
 
 export async function editGuideCard(input: unknown) {
   const data = editGuideCardSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const updated = await withTxRetry(() =>
     db.$transaction(
@@ -200,7 +200,7 @@ export async function editGuideCard(input: unknown) {
 
 export async function reorderGuideCards(input: unknown) {
   const data = reorderGuideCardsSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const cards = await withTxRetry(() =>
     db.$transaction(

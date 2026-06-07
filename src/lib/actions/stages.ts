@@ -17,7 +17,7 @@ import { Prisma, type Stage } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireUser, requireAdmin } from "@/lib/auth-helpers";
 import { withTxRetry } from "@/lib/tx-retry";
 import { loadGateContext } from "@/lib/load-gate-context";
 import { checkProjectDependencies } from "@/lib/check-project-dependencies";
@@ -107,7 +107,7 @@ export async function advanceStage(
   input: unknown,
 ): Promise<AdvanceStageResult> {
   const data = advanceStageSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const { result, projectSlug, revLabel } = await withTxRetry(() =>
     db.$transaction(
@@ -287,7 +287,7 @@ export async function regressStage(
   input: unknown,
 ): Promise<RegressStageResult> {
   const data = regressStageSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const { result, projectSlug, revLabel } = await withTxRetry(() =>
     db.$transaction(

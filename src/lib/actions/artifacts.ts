@@ -36,7 +36,7 @@ import sanitizeHtml from "sanitize-html";
 import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireAdmin } from "@/lib/auth-helpers";
 import { assertBuildNotFrozen, assertNotFrozen } from "@/lib/assertions";
 import { ownerMatches } from "@/lib/artifacts";
 import { STAGES } from "@/lib/stages";
@@ -103,7 +103,7 @@ async function loadBuildRoute(
 
 export async function createArtifact(input: unknown) {
   const data = createArtifactSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   // Cross-check #1: subkind ↔ owner-kind. Run before any DB call so a forged
   // payload gets the cheapest possible rejection (also keeps the DB-tx
@@ -184,7 +184,7 @@ export async function createArtifact(input: unknown) {
 
 export async function editArtifact(input: unknown) {
   const data = editArtifactSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const updated = await withTxRetry(() =>
     db.$transaction(
@@ -251,7 +251,7 @@ export async function editArtifact(input: unknown) {
 
 export async function deleteArtifact(input: unknown) {
   const data = deleteArtifactSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const { revisionId, buildId } = await withTxRetry(() =>
     db.$transaction(

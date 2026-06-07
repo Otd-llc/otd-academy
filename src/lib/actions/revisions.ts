@@ -15,7 +15,7 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireAdmin } from "@/lib/auth-helpers";
 import { assertNotFrozen } from "@/lib/assertions";
 import { withTxRetry } from "@/lib/tx-retry";
 import {
@@ -25,7 +25,7 @@ import {
 
 export async function createRevision(input: unknown) {
   const data = createRevisionSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const { revision, projectSlug } = await withTxRetry(() =>
     db.$transaction(
@@ -130,7 +130,7 @@ async function setRevisionCommit(
   field: "schematicCommit" | "layoutCommit",
 ) {
   const data = setCommitSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
   void user; // requireUser establishes auth; no audit fields on Revision for this op.
 
   const { revision, projectSlug } = await withTxRetry(() =>

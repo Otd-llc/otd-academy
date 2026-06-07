@@ -29,7 +29,7 @@
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireAdmin } from "@/lib/auth-helpers";
 import { assertBuildNotFrozen, assertNotFrozen } from "@/lib/assertions";
 import { withTxRetry } from "@/lib/tx-retry";
 import {
@@ -180,7 +180,7 @@ async function resolveChecklistFreezeRefs(
 
 export async function createChecklist(input: unknown) {
   const data = createChecklistSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const checklist = await withTxRetry(() =>
     db.$transaction(
@@ -254,7 +254,7 @@ export async function createChecklist(input: unknown) {
 
 export async function editChecklist(input: unknown) {
   const data = editChecklistSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const updated = await withTxRetry(() =>
     db.$transaction(
@@ -284,7 +284,7 @@ export async function editChecklist(input: unknown) {
 
 export async function deleteChecklist(input: unknown) {
   const data = deleteChecklistSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const refs = await withTxRetry(() =>
     db.$transaction(
@@ -312,7 +312,7 @@ export async function deleteChecklist(input: unknown) {
 
 export async function addChecklistItem(input: unknown) {
   const data = addChecklistItemSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const item = await withTxRetry(() =>
     db.$transaction(
@@ -364,7 +364,7 @@ export async function addChecklistItem(input: unknown) {
 
 export async function editChecklistItem(input: unknown) {
   const data = editChecklistItemSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const updated = await withTxRetry(() =>
     db.$transaction(
@@ -469,7 +469,7 @@ export async function editChecklistItem(input: unknown) {
 
 export async function reorderChecklistItems(input: unknown) {
   const data = reorderChecklistItemsSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const items = await withTxRetry(() =>
     db.$transaction(
@@ -555,7 +555,7 @@ export async function reorderChecklistItems(input: unknown) {
 
 export async function deleteChecklistItem(input: unknown) {
   const data = deleteChecklistItemSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const { checklistId } = await withTxRetry(() =>
     db.$transaction(
@@ -609,7 +609,7 @@ export async function deleteChecklistItem(input: unknown) {
 // is asserted in tests so keep it stable.
 export async function materializeCanonicalChecklist(input: unknown) {
   const data = materializeCanonicalChecklistSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
   const template = CANONICAL_TEMPLATES[data.templateKey];
 
   const checklist = await withTxRetry(() =>

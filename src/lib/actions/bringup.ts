@@ -25,7 +25,7 @@
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireAdmin } from "@/lib/auth-helpers";
 import { withTxRetry } from "@/lib/tx-retry";
 
 const BRINGUP_BOARD_ALLOWED = new Set(["BROUGHT_UP", "QUARANTINED"]);
@@ -43,7 +43,7 @@ export async function markBringupComplete(buildId: string) {
   if (typeof buildId !== "string" || buildId.length === 0) {
     throw new Error("Missing buildId.");
   }
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const { artifact, projectSlug, revLabel, buildLabel } = await withTxRetry(
     () =>
