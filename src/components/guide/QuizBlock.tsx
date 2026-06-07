@@ -26,9 +26,9 @@ export interface QuizQuestion {
 
 /** Live-card context that turns the quiz into a recorded stage gate. */
 export interface QuizContext {
-  revisionId: string;
+  enrollmentId: string;
   stage: string;
-  /** This revision has already passed this stage's quiz. */
+  /** This learner has already passed this stage's quiz. */
   passed: boolean;
 }
 
@@ -74,7 +74,7 @@ export function QuizBlock({
       setRecording(true);
       try {
         const res = await recordQuizPass({
-          revisionId: context.revisionId,
+          enrollmentId: context.enrollmentId,
           stage: context.stage,
           score: questions.length,
           total: questions.length,

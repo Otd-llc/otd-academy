@@ -222,12 +222,9 @@ export default async function GuideCardPage({
     selectedBoardId,
   );
 
-  // Soft quiz-gate: has this revision already passed this stage's comprehension
-  // quiz? Drives the QuizBlock's recorded-pass badge + lets it skip re-recording.
-  const quizPass = await db.quizPass.findUnique({
-    where: { revisionId_stage: { revisionId: revision.id, stage } },
-    select: { id: true },
-  });
+  // Quizzes are learner-only now (recorded per Enrollment). The author preview
+  // has no enrollment, so it renders the quiz cards without a recording context;
+  // the enrollment-aware learner guide (Task 4.2) supplies the live quizContext.
 
   // prev / next across GUIDE_STAGES.
   const idx = GUIDE_STAGES.indexOf(stage);
@@ -284,15 +281,7 @@ export default async function GuideCardPage({
           ]}
         />
 
-        <GuideBlocks
-          blocks={blocks}
-          models={models}
-          quizContext={{
-            revisionId: revision.id,
-            stage,
-            passed: quizPass != null,
-          }}
-        />
+        <GuideBlocks blocks={blocks} models={models} />
       </GuideCardEditor>
 
       {/* Per-board scope selector (ASSEMBLY / BRINGUP). */}
