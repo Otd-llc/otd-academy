@@ -396,9 +396,46 @@ async function main() {
       });
     }
 
-    // Quizzes are learner-only now (per-Enrollment). A fixture Enrollment with
-    // its quiz passes is seeded separately (see below) — the author reference
-    // build is no longer quiz-gated.
+    // Publish the fixture revision so the project is enrollable, then seed a
+    // fixture Enrollment for the seed operator with its per-stage quiz passes.
+    // Quizzes are learner-only now (per-Enrollment); this gives the demo learner
+    // a complete track and keeps learner-facing fixtures populated. Upsert because
+    // the QuizPass re-key migration already backfilled this enrollment.
+    await tx.project.update({
+      where: { id: project.id },
+      data: { publishedRevisionId: revision.id },
+    });
+    const enrollment = await tx.enrollment.upsert({
+      where: { userId_projectId: { userId: user.id, projectId: project.id } },
+      update: { revisionId: revision.id, currentStage: revision.currentStage },
+      create: {
+        userId: user.id,
+        projectId: project.id,
+        revisionId: revision.id,
+        currentStage: revision.currentStage,
+      },
+    });
+    const quizStages = [
+      "REQUIREMENTS",
+      "SCHEMATIC",
+      "BOM_SOURCING",
+      "LAYOUT",
+      "DRC_GERBER",
+      "ORDERING",
+      "ASSEMBLY",
+      "BRINGUP",
+    ] as const;
+    // delete-then-createMany (2 round-trips) so the wrapping tx stays well under
+    // its timeout; leaves exactly 8 rows on re-seed.
+    await tx.quizPass.deleteMany({ where: { enrollmentId: enrollment.id } });
+    await tx.quizPass.createMany({
+      data: quizStages.map((stage) => ({
+        enrollmentId: enrollment.id,
+        stage,
+        score: 5,
+        total: 5,
+      })),
+    });
   }, { timeout: 20000, maxWait: 10000 });
 
   console.log("seed: complete");
