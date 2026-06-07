@@ -12,6 +12,11 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     Google({
       clientId: env.AUTH_GOOGLE_ID,
       clientSecret: env.AUTH_GOOGLE_SECRET,
+      // Always show Google's account chooser. Without this, Google silently
+      // returns whichever account the browser is already logged into — so a
+      // user with one active Google session can never pick a different account
+      // (e.g. to sign in as a learner instead of an admin).
+      authorization: { params: { prompt: "select_account" } },
     }),
   ],
   // session.maxAge caps absolute lifetime; jwt.maxAge forces re-mint of the
