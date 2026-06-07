@@ -38,7 +38,6 @@ vi.mock("@/auth", () => ({
 import type { Stage } from "@prisma/client";
 import { db } from "@/lib/db";
 import { advanceStage, regressStage } from "@/lib/actions/stages";
-import { passAllQuizzes } from "@/lib/__tests__/quiz-pass-helper";
 
 const SEED_EMAIL = "seed@example.com";
 const SEED_PROJECT_SLUG = "esp32-sensor-breakout";
@@ -123,8 +122,6 @@ async function makeRevAtStage(
     },
   });
   createdRevisionIds.push(rev.id);
-  // Satisfy the soft quiz-gate so these advance tests exercise the work-gate.
-  await passAllQuizzes(rev.id);
   await db.stageTransition.create({
     data: {
       revisionId: rev.id,

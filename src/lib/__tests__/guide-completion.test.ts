@@ -14,7 +14,6 @@
 // (stages.ts:428-452) additionally requires BRINGUP_LOG + BRINGUP_COMPLETE.
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { db } from "@/lib/db";
-import { passAllQuizzes } from "@/lib/__tests__/quiz-pass-helper";
 import { resolveCardCompletion } from "@/lib/guide-completion";
 
 const SEED_EMAIL = "seed@example.com";
@@ -61,7 +60,6 @@ describe("resolveCardCompletion — plan-pinned states", () => {
       },
     });
     createdRevisionIds.push(rev.id);
-    await passAllQuizzes(rev.id);
     await db.checklist.create({
       data: {
         revisionId: rev.id,
@@ -150,7 +148,6 @@ describe("resolveCardCompletion — AUTHORITATIVE-DONE (BRINGUP dual-source)", (
     });
     revId = rev.id;
     createdRevisionIds.push(rev.id);
-    await passAllQuizzes(rev.id);
 
     const build = await db.build.create({
       data: {

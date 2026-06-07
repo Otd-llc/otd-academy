@@ -31,7 +31,6 @@ import type {
 import {
   FAILED_BOARD_MSG,
   GATE_SNAPSHOT_VERSION,
-  QUIZ_NOT_PASSED_MSG,
   STAGES,
   STAGE_ORDER,
   type GateContext,
@@ -119,6 +118,7 @@ function makeArtifact(
     id: `art-${stage}-${subkind}`,
     revisionId: "rev-test",
     buildId: null,
+    enrollmentId: null,
     stage,
     kind: "NOTE",
     subkind,
@@ -244,10 +244,6 @@ function ctx(
     artifacts: [],
     revisionChecklists: [],
     activeBuild: null,
-    // Default: every stage's quiz is passed, so the existing per-stage WORK-gate
-    // tests are unaffected by the soft quiz-gate. The quiz-gate tests override
-    // this with an empty/partial set.
-    quizPasses: new Set<Stage>(STAGE_ORDER),
     ...overrides,
   };
 }
@@ -314,65 +310,6 @@ describe("REQUIREMENTS gate — L1 builds skip the review checklist", () => {
     expect((r as { reasons: string[] }).reasons).toContain(
       "No REQUIREMENTS_REVIEW Checklist on the revision.",
     );
-  });
-});
-
-// ─── Soft quiz-gate ────────────────────────────────────
-
-describe("soft quiz-gate (every gated stage ALSO requires its quiz pass)", () => {
-  // A REQUIREMENTS context whose WORK-gate is fully satisfied (artifact +
-  // checked review checklist) — the quiz is then the only remaining variable.
-  function reqWorkPassCtx(overrides: Partial<GateContext> = {}): GateContext {
-    return ctx("REQUIREMENTS", {
-      artifacts: [makeArtifact("REQUIREMENTS", "REQUIREMENTS_DOC")],
-      revisionChecklists: [
-        makeChecklist("REQUIREMENTS_REVIEW", [{ checked: true }]),
-      ],
-      ...overrides,
-    });
-  }
-
-  test("work-gate satisfied but quiz NOT passed → fails with the quiz reason", async () => {
-    const r = await STAGES.REQUIREMENTS.exitGate!(
-      reqWorkPassCtx({ quizPasses: new Set() }),
-    );
-    expect(r.ok).toBe(false);
-    expect((r as { reasons: string[] }).reasons).toEqual([QUIZ_NOT_PASSED_MSG]);
-  });
-
-  test("work-gate satisfied AND quiz passed → ok", async () => {
-    const r = await STAGES.REQUIREMENTS.exitGate!(
-      reqWorkPassCtx({ quizPasses: new Set(["REQUIREMENTS"]) }),
-    );
-    expect(r.ok).toBe(true);
-  });
-
-  test("quiz reason is appended AFTER the work-gate reasons", async () => {
-    const r = await STAGES.REQUIREMENTS.exitGate!(
-      ctx("REQUIREMENTS", { quizPasses: new Set() }),
-    );
-    expect(r.ok).toBe(false);
-    const reasons = (r as { reasons: string[] }).reasons;
-    expect(reasons.length).toBeGreaterThan(1);
-    expect(reasons[reasons.length - 1]).toBe(QUIZ_NOT_PASSED_MSG);
-  });
-
-  test("a passing quiz for a DIFFERENT stage doesn't satisfy this gate", async () => {
-    const r = await STAGES.REQUIREMENTS.exitGate!(
-      reqWorkPassCtx({ quizPasses: new Set(["SCHEMATIC"]) }),
-    );
-    expect(r.ok).toBe(false);
-    expect((r as { reasons: string[] }).reasons).toContain(QUIZ_NOT_PASSED_MSG);
-  });
-
-  test("every gated stage requires its own quiz; REVISION (no gate) is exempt", async () => {
-    for (const def of Object.values(STAGES)) {
-      if (!def.exitGate) continue;
-      const r = await def.exitGate(ctx(def.stage, { quizPasses: new Set() }));
-      expect(r.ok).toBe(false);
-      expect((r as { reasons: string[] }).reasons).toContain(QUIZ_NOT_PASSED_MSG);
-    }
-    expect(STAGES.REVISION.exitGate).toBeUndefined();
   });
 });
 

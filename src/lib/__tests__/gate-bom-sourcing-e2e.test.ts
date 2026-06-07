@@ -21,7 +21,6 @@ vi.mock("@/auth", () => ({
 
 import { db } from "@/lib/db";
 import { advanceStage } from "@/lib/actions/stages";
-import { passAllQuizzes } from "@/lib/__tests__/quiz-pass-helper";
 import {
   editChecklistItem,
   materializeCanonicalChecklist,
@@ -90,7 +89,6 @@ async function makeProjectAtBomSourcing(
     },
   });
   createdRevisionIds.push(r.id);
-  await passAllQuizzes(r.id);
   await db.stageTransition.create({
     data: {
       revisionId: r.id,
@@ -309,7 +307,6 @@ describe("editChecklistItem — I1 post-merge bypass guard", () => {
       data: { projectId: project.id, label: "v1" },
     });
     createdRevisionIds.push(rev.id);
-    await passAllQuizzes(rev.id);
 
     // Item pre-staged as checked=true via direct DB write.
     const checklist = await db.checklist.create({
