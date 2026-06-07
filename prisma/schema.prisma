@@ -109,6 +109,7 @@ model Project {
 
   revisions Revision[]
   enrollments      Enrollment[]
+  exam             Exam?
   dependentEdges   ProjectDependency[] @relation("DependentProject")
   dependsOnEdges   ProjectDependency[] @relation("DependsOnProject")
 
@@ -771,10 +772,40 @@ model Enrollment {
   completedAt           DateTime?
   masteredAt            DateTime?
 
-  quizPasses QuizPass[]
-  artifacts  Artifact[] @relation("EnrollmentArtifacts")
+  quizPasses  QuizPass[]
+  artifacts   Artifact[]   @relation("EnrollmentArtifacts")
+  examResults ExamResult[]
 
   @@unique([userId, projectId])
   @@index([userId])
+}
+
+// ─── Optional board exam (server-scored → MASTERED) ────
+model Exam {
+  id            String   @id @default(cuid())
+  projectId     String   @unique
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title         String
+  passThreshold Int // percent 0-100 the learner must reach
+  questions     Json // [{id,prompt,options[],correctIndex}] — answer key server-only
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  results ExamResult[]
+}
+
+model ExamResult {
+  id           String     @id @default(cuid())
+  examId       String
+  exam         Exam       @relation(fields: [examId], references: [id], onDelete: Cascade)
+  enrollmentId String
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  score        Int
+  total        Int
+  passed       Boolean
+  answers      Json? // the learner's submitted answers, for review
+  submittedAt  DateTime   @default(now())
+
+  @@index([enrollmentId])
 }
 
