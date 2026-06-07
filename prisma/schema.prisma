@@ -243,7 +243,8 @@ model Artifact {
 }
 
 // Raw migration CHECKs:
-//   artifact_owner_xor: exactly one of (revisionId, buildId) is non-null.
+//   artifact_owner_xor: exactly one of (revisionId, buildId, enrollmentId) is non-null.
+//     (enrollmentId-owned = learner proof artifacts; revision/build-owned = author/reference.)
 //   artifact_kind_payload_xor: exactly one of (fileKey, noteBody, linkUrl) is non-null per kind.
 
 // ─── Builds + Boards ───────────────────────────────────
