@@ -28,6 +28,12 @@ export interface LearnerGateContext {
   quizPasses: Set<Stage>;
 }
 
+/** The proof-artifact subkind a stage requires of a learner, or undefined when
+ *  the stage is quiz-only. */
+export function learnerProofSubkind(stage: Stage): ArtifactSubkind | undefined {
+  return LEARNER_PROOF[stage];
+}
+
 export function learnerExitGate(
   stage: Stage,
   ctx: LearnerGateContext,

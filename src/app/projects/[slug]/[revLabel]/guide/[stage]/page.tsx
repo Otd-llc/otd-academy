@@ -32,6 +32,8 @@ import { BoardSelector } from "@/components/guide/BoardSelector";
 import { GenerateGuideButton } from "@/components/guide/GenerateGuideButton";
 import { auth } from "@/auth";
 import { AdvanceEnrollmentButton } from "@/components/learn/AdvanceEnrollmentButton";
+import { ProofSubmitForm } from "@/components/learn/ProofSubmitForm";
+import { learnerProofSubkind } from "@/lib/learner-gates";
 import { resolveCardCompletion } from "@/lib/guide-completion";
 import { resolveGuideProgress } from "@/lib/guide-progress";
 import { buildStageGateWidget } from "@/lib/guide-widget";
@@ -57,6 +59,13 @@ const PER_BOARD_STAGES: ReadonlySet<GuideStage> = new Set([
 function isGuideStage(s: string): s is GuideStage {
   return (GUIDE_STAGES as readonly string[]).includes(s);
 }
+
+// Friendly labels for the learner proof-artifact subkinds (design stages).
+const PROOF_LABEL: Record<string, string> = {
+  REQUIREMENTS_DOC: "requirements doc",
+  SCHEMATIC_FILE: "schematic",
+  LAYOUT_FILE: "layout file",
+};
 
 // Pick a sensible trailing accent word for the hero (the last whitespace- or
 // slash-delimited token of the title — e.g. "DRC / GERBER" → "GERBER",
@@ -250,10 +259,13 @@ export default async function GuideCardPage({
   // author preview (no quizContext, no advance button).
   const session = await auth();
   const learnerEmail = session?.user?.email ?? null;
+  const proofSubkind = learnerProofSubkind(stage);
+  const proofLabel = proofSubkind ? PROOF_LABEL[proofSubkind] : null;
   let learnerQuizContext:
     | { enrollmentId: string; stage: string; passed: boolean }
     | undefined;
   let showLearnerAdvance = false;
+  let learnerNeedsProof = false;
   if (learnerEmail) {
     const enrollment = await db.enrollment.findFirst({
       where: { projectId: project.id, user: { email: learnerEmail } },
@@ -261,6 +273,7 @@ export default async function GuideCardPage({
         id: true,
         currentStage: true,
         quizPasses: { where: { stage }, select: { stage: true } },
+        artifacts: { select: { subkind: true } },
       },
     });
     if (enrollment) {
@@ -270,6 +283,10 @@ export default async function GuideCardPage({
         passed: enrollment.quizPasses.length > 0,
       };
       showLearnerAdvance = enrollment.currentStage === stage;
+      learnerNeedsProof =
+        showLearnerAdvance &&
+        proofSubkind != null &&
+        !enrollment.artifacts.some((a) => a.subkind === proofSubkind);
     }
   }
 
@@ -343,6 +360,15 @@ export default async function GuideCardPage({
             Pass the comprehension check above (and add this stage’s proof
             artifact where required) to advance your own progress.
           </p>
+          {learnerNeedsProof && proofLabel && (
+            <div className="mb-4">
+              <ProofSubmitForm
+                projectId={project.id}
+                stage={stage}
+                label={proofLabel}
+              />
+            </div>
+          )}
           <AdvanceEnrollmentButton projectId={project.id} />
         </section>
       )}

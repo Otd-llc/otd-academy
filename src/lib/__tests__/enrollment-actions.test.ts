@@ -10,7 +10,11 @@ vi.mock("@/auth", () => ({ auth: () => mockAuth() }));
 
 import type { Stage } from "@prisma/client";
 import { db } from "@/lib/db";
-import { enroll, advanceEnrollment } from "@/lib/actions/enrollment";
+import {
+  enroll,
+  advanceEnrollment,
+  submitEnrollmentProof,
+} from "@/lib/actions/enrollment";
 import { QUIZ_NOT_PASSED_MSG } from "@/lib/learner-gates";
 
 const EMAIL = "enroll-learner@example.com";
@@ -145,6 +149,40 @@ describe("advanceEnrollment", () => {
   test("refuses to advance past the terminal stage", async () => {
     const projectId = await enrollmentAt("REVISION");
     await expect(advanceEnrollment({ projectId })).rejects.toThrow(/final stage/i);
+  });
+});
+
+describe("submitEnrollmentProof", () => {
+  test("creates the stage's proof artifact (LINK) on the enrollment", async () => {
+    const projectId = await enrollmentAt("SCHEMATIC");
+    const res = await submitEnrollmentProof({
+      projectId,
+      stage: "SCHEMATIC",
+      linkUrl: "https://example.com/my-schematic.pdf",
+    });
+    expect(res.ok).toBe(true);
+    const e = await enrollmentRow(projectId);
+    const arts = await db.artifact.findMany({ where: { enrollmentId: e.id } });
+    expect(arts).toHaveLength(1);
+    expect(arts[0]!.subkind).toBe("SCHEMATIC_FILE");
+    expect(arts[0]!.kind).toBe("LINK");
+  });
+
+  test("is idempotent — a second submit does not duplicate the proof", async () => {
+    const projectId = await enrollmentAt("SCHEMATIC");
+    await submitEnrollmentProof({ projectId, stage: "SCHEMATIC", linkUrl: "https://example.com/a" });
+    await submitEnrollmentProof({ projectId, stage: "SCHEMATIC", linkUrl: "https://example.com/b" });
+    const e = await enrollmentRow(projectId);
+    const count = await db.artifact.count({ where: { enrollmentId: e.id, subkind: "SCHEMATIC_FILE" } });
+    expect(count).toBe(1);
+  });
+
+  test("proof + quiz together unblock advanceEnrollment at SCHEMATIC", async () => {
+    const projectId = await enrollmentAt("SCHEMATIC");
+    await submitEnrollmentProof({ projectId, stage: "SCHEMATIC", linkUrl: "https://example.com/s" });
+    await addQuizPass(projectId, "SCHEMATIC");
+    const r = await advanceEnrollment({ projectId });
+    expect(r).toEqual({ ok: true, toStage: "BOM_SOURCING" });
   });
 });
 

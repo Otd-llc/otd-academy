@@ -11,8 +11,9 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { withTxRetry } from "@/lib/tx-retry";
 import { nextStage, type StageName } from "@/lib/stages";
-import { learnerExitGate } from "@/lib/learner-gates";
+import { learnerExitGate, learnerProofSubkind } from "@/lib/learner-gates";
 import { loadLearnerGateContext } from "@/lib/load-learner-gate-context";
+import { STAGE_VALUES } from "@/lib/schemas/project-dependency";
 
 type AdvanceEnrollmentResult =
   | { ok: true; toStage: StageName }
@@ -20,6 +21,11 @@ type AdvanceEnrollmentResult =
 
 const enrollSchema = z.object({ projectId: z.cuid() });
 const advanceEnrollmentSchema = z.object({ projectId: z.cuid() });
+const submitProofSchema = z.object({
+  projectId: z.cuid(),
+  stage: z.enum(STAGE_VALUES),
+  linkUrl: z.url().max(2000),
+});
 
 export async function enroll(
   input: unknown,
@@ -127,4 +133,52 @@ export async function advanceEnrollment(
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     ),
   );
+}
+
+// Learner proof artifact for a design stage (REQUIREMENTS / SCHEMATIC / LAYOUT).
+// A lightweight LINK artifact (a URL to the learner's doc/file) — sidesteps R2
+// and the frozen-reference problem by attaching to the enrollment, not the
+// revision. Idempotent: one proof per (enrollment, subkind) satisfies the gate.
+export async function submitEnrollmentProof(
+  input: unknown,
+): Promise<{ ok: true }> {
+  const { projectId, stage, linkUrl } = submitProofSchema.parse(input);
+  const user = await requireUser();
+  const subkind = learnerProofSubkind(stage);
+  if (!subkind) {
+    throw new Error("This stage does not take a proof artifact.");
+  }
+
+  await withTxRetry(() =>
+    db.$transaction(
+      async (tx) => {
+        const enrollment = await tx.enrollment.findUniqueOrThrow({
+          where: { userId_projectId: { userId: user.id, projectId } },
+          select: { id: true, project: { select: { slug: true } } },
+        });
+        const existing = await tx.artifact.findFirst({
+          where: { enrollmentId: enrollment.id, subkind },
+          select: { id: true },
+        });
+        if (!existing) {
+          await tx.artifact.create({
+            data: {
+              enrollmentId: enrollment.id,
+              stage,
+              kind: "LINK",
+              subkind,
+              title: `${subkind} (learner submission)`,
+              linkUrl,
+              createdBy: user.id,
+            },
+          });
+        }
+        revalidatePath(
+          `/projects/${enrollment.project.slug}`,
+        );
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    ),
+  );
+  return { ok: true };
 }
