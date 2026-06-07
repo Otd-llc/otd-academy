@@ -32,7 +32,7 @@ import { BoardSelector } from "@/components/guide/BoardSelector";
 import { GenerateGuideButton } from "@/components/guide/GenerateGuideButton";
 import { auth } from "@/auth";
 import { AdvanceEnrollmentButton } from "@/components/learn/AdvanceEnrollmentButton";
-import { ProofSubmitForm } from "@/components/learn/ProofSubmitForm";
+import { ProofUploadForm } from "@/components/learn/ProofUploadForm";
 import { learnerProofSubkind } from "@/lib/learner-gates";
 import { resolveCardCompletion } from "@/lib/guide-completion";
 import { resolveGuideProgress } from "@/lib/guide-progress";
@@ -362,7 +362,7 @@ export default async function GuideCardPage({
           </p>
           {learnerNeedsProof && proofLabel && (
             <div className="mb-4">
-              <ProofSubmitForm
+              <ProofUploadForm
                 projectId={project.id}
                 stage={stage}
                 label={proofLabel}

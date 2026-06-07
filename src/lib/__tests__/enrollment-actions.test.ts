@@ -14,6 +14,7 @@ import {
   enroll,
   advanceEnrollment,
   submitEnrollmentProof,
+  createEnrollmentProofUploadUrl,
 } from "@/lib/actions/enrollment";
 import { QUIZ_NOT_PASSED_MSG } from "@/lib/learner-gates";
 
@@ -183,6 +184,39 @@ describe("submitEnrollmentProof", () => {
     await addQuizPass(projectId, "SCHEMATIC");
     const r = await advanceEnrollment({ projectId });
     expect(r).toEqual({ ok: true, toStage: "BOM_SOURCING" });
+  });
+});
+
+// Guard tests for the upload presign (the R2 round-trip itself is verified
+// manually with R2 on, like the author uploads suite). These reject BEFORE any
+// R2 call, so they run in CI without R2.
+describe("createEnrollmentProofUploadUrl guards", () => {
+  test("refuses a stage that takes no proof artifact", async () => {
+    const projectId = await enrollmentAt("ORDERING");
+    await expect(
+      createEnrollmentProofUploadUrl({
+        projectId,
+        stage: "ORDERING",
+        filename: "x.pdf",
+        mime: "application/pdf",
+        sizeBytes: 100,
+      }),
+    ).rejects.toThrow(/does not take a proof/i);
+  });
+
+  test("refuses when the caller has no enrollment on the board", async () => {
+    const orphan = await db.project.create({
+      data: { slug: `proof-orphan-${Date.now()}`, name: "Orphan", createdById: userId },
+    });
+    await expect(
+      createEnrollmentProofUploadUrl({
+        projectId: orphan.id,
+        stage: "SCHEMATIC",
+        filename: "x.pdf",
+        mime: "application/pdf",
+        sizeBytes: 100,
+      }),
+    ).rejects.toThrow();
   });
 });
 

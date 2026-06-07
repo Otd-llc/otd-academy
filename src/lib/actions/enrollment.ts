@@ -4,16 +4,37 @@
 // board; `advanceEnrollment` (below) moves the learner's OWN currentStage,
 // gated by learnerExitGate. Both require only a signed-in user (requireUser) —
 // these are learner, not curriculum-authoring, mutations.
+import {
+  DeleteObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { createId } from "@paralleldrive/cuid2";
 import { Prisma, type EnrollmentStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { env } from "@/env";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { withTxRetry } from "@/lib/tx-retry";
+import { r2, enrollmentArtifactKey } from "@/lib/r2";
 import { nextStage, type StageName } from "@/lib/stages";
 import { learnerExitGate, learnerProofSubkind } from "@/lib/learner-gates";
 import { loadLearnerGateContext } from "@/lib/load-learner-gate-context";
 import { STAGE_VALUES } from "@/lib/schemas/project-dependency";
+import { MAX_UPLOAD_BYTES } from "@/lib/schemas/upload";
+
+const PROOF_PUT_TTL_SECONDS = 900; // 15 min, mirrors uploads.ts
+
+function ensureR2Enabled(): void {
+  if (!env.R2_ENABLED) {
+    throw new Error(
+      "R2 file storage is not enabled on this deployment. Set R2_ENABLED=true and configure R2_* credentials.",
+    );
+  }
+  if (!env.R2_BUCKET) throw new Error("R2_BUCKET is not configured.");
+}
 
 type AdvanceEnrollmentResult =
   | { ok: true; toStage: StageName }
@@ -25,6 +46,21 @@ const submitProofSchema = z.object({
   projectId: z.cuid(),
   stage: z.enum(STAGE_VALUES),
   linkUrl: z.url().max(2000),
+});
+const proofUploadUrlSchema = z.object({
+  projectId: z.cuid(),
+  stage: z.enum(STAGE_VALUES),
+  filename: z.string().trim().min(1).max(255),
+  mime: z.string().trim().min(1).max(255),
+  sizeBytes: z.int().positive().max(MAX_UPLOAD_BYTES),
+});
+const recordProofSchema = z.object({
+  projectId: z.cuid(),
+  stage: z.enum(STAGE_VALUES),
+  key: z.string().min(1).max(1024),
+  filename: z.string().trim().min(1).max(255),
+  mime: z.string().trim().min(1).max(255),
+  sizeBytes: z.int().positive().max(MAX_UPLOAD_BYTES),
 });
 
 export async function enroll(
@@ -180,5 +216,114 @@ export async function submitEnrollmentProof(
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     ),
   );
+  return { ok: true };
+}
+
+// ─── Learner proof UPLOAD (presigned PUT to R2) ────────────────────────────
+// The primary proof path: the learner uploads their own file straight to R2,
+// mirroring the author upload flow (createUploadUrl → client PUT → recordArtifact
+// + HEAD-verify). Two steps so the bytes never transit the server. Both gate on
+// the caller owning the enrollment and the stage actually taking a proof.
+
+export type EnrollmentProofUploadUrl = {
+  uploadUrl: string;
+  key: string;
+  filename: string;
+  mime: string;
+  sizeBytes: number;
+  stage: StageName;
+};
+
+export async function createEnrollmentProofUploadUrl(
+  input: unknown,
+): Promise<EnrollmentProofUploadUrl> {
+  const data = proofUploadUrlSchema.parse(input);
+  const user = await requireUser();
+  const subkind = learnerProofSubkind(data.stage);
+  if (!subkind) throw new Error("This stage does not take a proof artifact.");
+  if (data.sizeBytes > MAX_UPLOAD_BYTES) {
+    throw new Error(`File too large: ${data.sizeBytes} exceeds ${MAX_UPLOAD_BYTES}.`);
+  }
+  // Caller must own the enrollment (throws if they aren't enrolled).
+  const enrollment = await db.enrollment.findUniqueOrThrow({
+    where: { userId_projectId: { userId: user.id, projectId: data.projectId } },
+    select: { id: true },
+  });
+  ensureR2Enabled();
+
+  const key = enrollmentArtifactKey(
+    enrollment.id,
+    data.stage,
+    createId(),
+    data.filename,
+  );
+  const uploadUrl = await getSignedUrl(
+    r2,
+    new PutObjectCommand({
+      Bucket: env.R2_BUCKET!,
+      Key: key,
+      ContentLength: data.sizeBytes,
+      ContentType: data.mime,
+    }),
+    { expiresIn: PROOF_PUT_TTL_SECONDS },
+  );
+  return {
+    uploadUrl,
+    key,
+    filename: data.filename,
+    mime: data.mime,
+    sizeBytes: data.sizeBytes,
+    stage: data.stage as StageName,
+  };
+}
+
+export async function recordEnrollmentProof(
+  input: unknown,
+): Promise<{ ok: true }> {
+  const data = recordProofSchema.parse(input);
+  const user = await requireUser();
+  const subkind = learnerProofSubkind(data.stage);
+  if (!subkind) throw new Error("This stage does not take a proof artifact.");
+
+  const enrollment = await db.enrollment.findUniqueOrThrow({
+    where: { userId_projectId: { userId: user.id, projectId: data.projectId } },
+    select: { id: true, project: { select: { slug: true } } },
+  });
+  // The key must live under this enrollment's prefix — blocks a forged token
+  // from pointing the row at another enrollment's (or the author's) object.
+  if (!data.key.startsWith(`enrollments/${enrollment.id}/`)) {
+    throw new Error("Upload key does not belong to this enrollment.");
+  }
+  ensureR2Enabled();
+
+  // HEAD-verify the uploaded object (R2 has been inconsistent about enforcing
+  // presigned Content-Length); delete + reject an oversize object.
+  const head = await r2.send(
+    new HeadObjectCommand({ Bucket: env.R2_BUCKET!, Key: data.key }),
+  );
+  const actualSize = head.ContentLength ?? 0;
+  if (actualSize > data.sizeBytes || actualSize > MAX_UPLOAD_BYTES) {
+    await r2.send(
+      new DeleteObjectCommand({ Bucket: env.R2_BUCKET!, Key: data.key }),
+    );
+    throw new Error(
+      `Uploaded file exceeds declared size (${actualSize} > ${data.sizeBytes}).`,
+    );
+  }
+
+  await db.artifact.create({
+    data: {
+      enrollmentId: enrollment.id,
+      stage: data.stage,
+      kind: "FILE",
+      subkind,
+      title: data.filename,
+      fileKey: data.key,
+      fileMime: data.mime,
+      fileBytes: actualSize,
+      createdBy: user.id,
+    },
+  });
+  revalidatePath(`/projects/${enrollment.project.slug}`);
   return { ok: true };
 }

@@ -63,6 +63,19 @@ export function artifactRenderKey(
   return `${folder}/${owner.id}/${stage}/render-${cuid}.glb`;
 }
 
+// Enrollment-scoped learner proof artifact key (Slice 4). Mirrors artifactKey
+// but under an `enrollments/` prefix so learner uploads never collide with the
+// author/reference `revisions/`|`builds/` trees.
+//   enrollments/{enrollmentId}/{stage}/{cuid}-{slug(filename)}
+export function enrollmentArtifactKey(
+  enrollmentId: string,
+  stage: string,
+  cuid: string,
+  filename: string,
+): string {
+  return `enrollments/${enrollmentId}/${stage}/${cuid}-${slug(filename)}`;
+}
+
 // Part-scoped datasheet key (design §3.1 / Stage A Task 9). NOT the Artifact
 // key — the cached datasheet is net-new infra (`PartDatasheet`), keyed only by
 // `partId` (one PDF per part). The `{cuid}` segment is a per-attempt unique id
