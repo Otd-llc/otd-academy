@@ -43,6 +43,7 @@ model User {
   checklistItemsCompleted ChecklistItem[]   @relation("CompletedBy")
   measurementsTaken       Measurement[]
   projectDependenciesCreated ProjectDependency[]
+  enrollments             Enrollment[]
 }
 
 model Account {
@@ -101,7 +102,13 @@ model Project {
   createdById String
   createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Restrict)
 
+  // The revision whose Guide learners follow (typically a frozen reference).
+  // Until an admin sets it, the project is not enrollable.
+  publishedRevisionId String?   @unique
+  publishedRevision   Revision? @relation("PublishedRevision", fields: [publishedRevisionId], references: [id], onDelete: SetNull)
+
   revisions Revision[]
+  enrollments      Enrollment[]
   dependentEdges   ProjectDependency[] @relation("DependentProject")
   dependsOnEdges   ProjectDependency[] @relation("DependsOnProject")
 
@@ -131,9 +138,10 @@ model Revision {
   builds          Build[]
   checklists      Checklist[]
   guide           Guide?
-  quizPasses      QuizPass[]
   errata          Erratum[]         @relation("RevisionErrata")
   addressedErrata Erratum[]         @relation("AddressedByRevision")
+  enrollments     Enrollment[]      @relation("EnrollmentRevision")
+  publishedFor    Project?          @relation("PublishedRevision")
   // Raw migration: CREATE UNIQUE INDEX revision_project_label_ci ON "Revision"(projectId, lower(label));
 
   @@index([projectId, currentStage])
@@ -207,6 +215,10 @@ model Artifact {
   revision   Revision?       @relation(fields: [revisionId], references: [id], onDelete: Cascade)
   buildId    String?
   build      Build?          @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  // Learner proof artifacts attach to an Enrollment (enrollmentId non-null);
+  // author/reference artifacts keep enrollmentId = null (revision-scoped).
+  enrollmentId String?
+  enrollment   Enrollment?   @relation("EnrollmentArtifacts", fields: [enrollmentId], references: [id], onDelete: Cascade)
   stage      Stage // workflow stage this artifact belongs to
   kind       ArtifactKind
   subkind    ArtifactSubkind @default(GENERIC)
@@ -227,6 +239,7 @@ model Artifact {
   @@index([revisionId, stage])
   @@index([buildId, stage])
   @@index([buildId, subkind])
+  @@index([enrollmentId])
 }
 
 // Raw migration CHECKs:
@@ -719,15 +732,48 @@ model GuideCard {
 // Revision — the same per-revision scope every other gate uses — so one row per
 // (revision, stage). `score`/`total` are kept for record-keeping only.
 model QuizPass {
-  id         String   @id @default(cuid())
-  revisionId String
-  revision   Revision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
-  stage      Stage
-  score      Int
-  total      Int
-  passedAt   DateTime @default(now())
+  id           String     @id @default(cuid())
+  enrollmentId String
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  stage        Stage
+  score        Int
+  total        Int
+  passedAt     DateTime   @default(now())
 
-  @@unique([revisionId, stage])
-  @@index([revisionId])
+  @@unique([enrollmentId, stage])
+  @@index([enrollmentId])
+}
+
+// ─── Per-user progress ─────────────────────────────────
+enum EnrollmentStatus {
+  IN_PROGRESS
+  COMPLETED
+  MASTERED
+}
+
+// A learner's own track through a board. Carries the learner's `currentStage`
+// (the shared Revision.currentStage is "where the AUTHOR is on the reference
+// build"). Gated by per-enrollment quizzes + proof artifacts (see learner-gates).
+model Enrollment {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  revisionId String // snapshot of project.publishedRevisionId at enroll time
+  revision   Revision @relation("EnrollmentRevision", fields: [revisionId], references: [id], onDelete: Restrict)
+
+  currentStage          Stage            @default(REQUIREMENTS)
+  currentStageEnteredAt DateTime         @default(now())
+  status                EnrollmentStatus @default(IN_PROGRESS)
+  startedAt             DateTime         @default(now())
+  completedAt           DateTime?
+  masteredAt            DateTime?
+
+  quizPasses QuizPass[]
+  artifacts  Artifact[] @relation("EnrollmentArtifacts")
+
+  @@unique([userId, projectId])
+  @@index([userId])
 }
 
