@@ -34,6 +34,7 @@ export default async function RootLayout({
   // returns null and the menu stays hidden.
   const session = await auth();
   const email = session?.user?.email ?? null;
+  const role = session?.user?.role ?? null;
 
   async function signOutAction() {
     "use server";
@@ -86,7 +87,7 @@ export default async function RootLayout({
                     Sign out
                   </button>
                 </form>
-                <UserMenu email={email} signOutAction={signOutAction} />
+                <UserMenu email={email} role={role} signOutAction={signOutAction} />
               </div>
             </header>
           ) : null}

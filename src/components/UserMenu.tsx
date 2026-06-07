@@ -25,9 +25,11 @@ import { useEffect, useRef, useState } from "react";
 
 export function UserMenu({
   email,
+  role,
   signOutAction,
 }: {
   email: string;
+  role?: "ADMIN" | "LEARNER" | null;
   signOutAction: () => Promise<void>;
 }) {
   const ref = useRef<HTMLDetailsElement>(null);
@@ -77,6 +79,17 @@ export function UserMenu({
           <p className="mt-1 truncate font-mono text-xs text-link-muted">
             {email}
           </p>
+          {role && (
+            <span
+              className={`mt-2 inline-flex items-center rounded border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${
+                role === "ADMIN"
+                  ? "border-command-gold/50 text-command-gold"
+                  : "border-signal-blue/50 text-signal-blue"
+              }`}
+            >
+              {role === "ADMIN" ? "★ Admin" : "Learner"}
+            </span>
+          )}
         </div>
         <form action={signOutAction} className="p-2">
           <button

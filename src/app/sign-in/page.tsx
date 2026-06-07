@@ -35,7 +35,7 @@ export default async function SignInPage({
       {denied && (
         <div className="absolute inset-x-4 top-4 z-10 mx-auto max-w-md sm:top-6">
           <InlineBanner variant="error">
-            ACCESS DENIED — this email is not on the allowlist.
+            SIGN-IN NEEDS A VERIFIED GOOGLE ACCOUNT — try again.
           </InlineBanner>
         </div>
       )}
@@ -88,6 +88,12 @@ export default async function SignInPage({
             Sign in with Google
           </button>
         </form>
+
+        {/* Open registration: there is no separate sign-up. A first Google
+            sign-in creates a learner account automatically. */}
+        <p className="-mt-6 max-w-xs text-center font-mono text-[11px] uppercase leading-relaxed tracking-wider text-gray-3">
+          New here? Signing in creates your free learner account.
+        </p>
 
         <div className="h-px w-24 bg-gradient-to-r from-transparent via-command-gold to-transparent" />
       </div>
