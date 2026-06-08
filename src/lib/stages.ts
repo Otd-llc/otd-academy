@@ -34,8 +34,8 @@ import type {
 
 export const STAGE_ORDER = [
   "REQUIREMENTS",
-  "SCHEMATIC",
   "BOM_SOURCING",
+  "SCHEMATIC",
   "LAYOUT",
   "DRC_GERBER",
   "ORDERING",
@@ -45,6 +45,13 @@ export const STAGE_ORDER = [
 ] as const satisfies readonly Stage[];
 
 export type StageName = (typeof STAGE_ORDER)[number];
+
+/** The next stage in canonical order, or null at the terminal stage. */
+export function nextStage(stage: StageName): StageName | null {
+  const idx = STAGE_ORDER.indexOf(stage);
+  if (idx < 0 || idx >= STAGE_ORDER.length - 1) return null;
+  return STAGE_ORDER[idx + 1]!;
+}
 
 // ─── Gate types (design §5.2) ──────────────────────────
 
@@ -116,12 +123,6 @@ export interface GateContext {
         checklists: (Checklist & { items: ChecklistItem[] })[];
       })
     | null;
-  // Soft quiz-gate: the set of stages whose comprehension quiz this revision has
-  // passed (from the QuizPass table). Every gated stage's exit gate ANDs
-  // `quizPasses.has(stage)` via `withQuizGate` below — so a stage won't open
-  // until BOTH its work-gate is met AND its quiz is passed. Per-revision scope,
-  // same as every other gate input. `loadGateContext` always populates it.
-  quizPasses: Set<Stage>;
 }
 
 // ─── Canonical messages ────────────────────────────────
@@ -136,28 +137,9 @@ export const FAILED_BOARD_MSG = (n: number) =>
 
 // ─── STAGES record ─────────────────────────────────────
 
-// Canonical message a gated stage emits when its comprehension quiz hasn't been
-// passed yet. The work-gate reasons (if any) come first; this is appended.
-export const QUIZ_NOT_PASSED_MSG =
-  "Comprehension check not passed yet — pass the quiz on this stage's guide card.";
-
-// Wrap a stage's work-gate so it ALSO requires that stage's quiz pass (the soft
-// quiz-gate AND). Applied uniformly to every stage that has an `exitGate`, so
-// any future gated stage inherits it; the terminal REVISION stage (no exitGate)
-// is left untouched.
-function withQuizGate(
-  stage: Stage,
-  base: NonNullable<StageDef["exitGate"]>,
-): NonNullable<StageDef["exitGate"]> {
-  return async (ctx: GateContext): Promise<GateResult> => {
-    const result = await base(ctx);
-    if (ctx.quizPasses.has(stage)) return result;
-    const reasons = result.ok ? [] : result.reasons;
-    return { ok: false, reasons: [...reasons, QUIZ_NOT_PASSED_MSG] };
-  };
-}
-
-const BASE_STAGES: Record<Stage, StageDef> = {
+// Quizzes are LEARNER-only now (gated per-Enrollment via learnerExitGate); the
+// author/reference build is NOT quiz-gated. So STAGES holds the raw work-gates.
+export const STAGES: Record<Stage, StageDef> = {
   REQUIREMENTS: {
     stage: "REQUIREMENTS",
     order: 1,
@@ -206,13 +188,13 @@ const BASE_STAGES: Record<Stage, StageDef> = {
 
   SCHEMATIC: {
     stage: "SCHEMATIC",
-    order: 2,
+    order: 3,
     name: "Schematic",
-    description: "KiCad schematic capture.",
+    description: "Capture the already-sourced circuit in KiCad.",
     entryHints: [
-      "Capture the schematic in KiCad and commit.",
-      "Pin the schematic git commit on the revision header strip.",
-      "Attach the schematic artifact (PDF or file link).",
+      "Your parts are already locked and sourced — this stage is capture, not design.",
+      "Open the provided KiCad files (symbols, footprints, and 3D models are pre-loaded) and wire up your sourced parts.",
+      "Pin the schematic git commit, then attach the schematic artifact.",
     ],
     revisionAllowedArtifactSubkinds: ["SCHEMATIC_FILE", "GENERIC"],
     defaultRevisionArtifactSubkind: "SCHEMATIC_FILE",
@@ -229,13 +211,14 @@ const BASE_STAGES: Record<Stage, StageDef> = {
 
   BOM_SOURCING: {
     stage: "BOM_SOURCING",
-    order: 3,
+    order: 2,
     name: "BOM sourcing",
     description:
-      "Parts picked, stock + lifecycle verified before layout.",
+      "Lock every part and source it BEFORE you draw the schematic.",
     entryHints: [
-      "Every schematic part should have an MPN.",
-      "Verify stock and lifecycle before committing.",
+      "Lock down every part you can and do the math up front — keep a calc trail so you (and a reviewer) can see where a value came from.",
+      "Source each part on Digikey (or Amazon): real MPN + datasheet, and check stock, lifecycle stage, and lead time before committing.",
+      "Design around parts you can actually buy — finalizing the BOM now is what makes schematic capture frictionless next.",
     ],
     revisionAllowedArtifactSubkinds: ["BOM_EXPORT", "GENERIC"],
     buildAllowedArtifactSubkinds: [],
@@ -518,19 +501,6 @@ const BASE_STAGES: Record<Stage, StageDef> = {
     // No exitGate — terminal.
   },
 };
-
-// The exported config: every stage's work-gate wrapped to ALSO require its quiz
-// pass (soft quiz-gate). Consumers (`STAGES[stage].exitGate`, the stage tracker,
-// the `advanceStage` action, `resolveCardCompletion`) all read this, so the
-// quiz requirement is enforced and reflected from one source.
-export const STAGES: Record<Stage, StageDef> = Object.fromEntries(
-  (Object.entries(BASE_STAGES) as [Stage, StageDef][]).map(([stage, def]) => [
-    stage,
-    def.exitGate
-      ? { ...def, exitGate: withQuizGate(stage, def.exitGate) }
-      : def,
-  ]),
-) as Record<Stage, StageDef>;
 
 // ─── Tracker display labels ────────────────────────────
 

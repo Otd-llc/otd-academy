@@ -43,7 +43,7 @@ import { revalidatePath } from "next/cache";
 import { env } from "@/env";
 import { db } from "@/lib/db";
 import { r2, partDatasheetKey } from "@/lib/r2";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireUser, requireAdmin } from "@/lib/auth-helpers";
 import { MAX_UPLOAD_BYTES } from "@/lib/schemas/upload";
 import {
   createPartDatasheetUploadUrlSchema,
@@ -77,7 +77,7 @@ export async function createPartDatasheetUploadUrl(
   input: unknown,
 ): Promise<CreatePartDatasheetUploadUrlResult> {
   const data = createPartDatasheetUploadUrlSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
   ensureR2Enabled();
 
   // Server-enforced cap (defense-in-depth — Zod already enforced it).
@@ -114,7 +114,7 @@ export async function createPartDatasheetUploadUrl(
 
 export async function recordPartDatasheet(input: unknown) {
   const data = recordPartDatasheetSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
   ensureR2Enabled();
 
   // Part must exist (the @unique partId FK would fail anyway, but a clean

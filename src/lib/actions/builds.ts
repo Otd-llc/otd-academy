@@ -26,7 +26,7 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireAdmin } from "@/lib/auth-helpers";
 import { assertBuildNotFrozen, assertNotFrozen } from "@/lib/assertions";
 import { withTxRetry } from "@/lib/tx-retry";
 import { STAGE_ORDER, type StageName } from "@/lib/stages";
@@ -67,7 +67,7 @@ async function loadBuildRoute(buildId: string) {
 
 export async function createBuild(input: unknown) {
   const data = createBuildSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const { build, projectSlug, revLabel } = await withTxRetry(() =>
     db.$transaction(
@@ -203,7 +203,7 @@ function coerceTextOrNull(v: unknown): string | null | undefined {
 
 export async function editBuild(input: unknown) {
   const parsed: EditBuildInput = editBuildSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   // Normalize the partial update payload. Fields the caller didn't supply
   // are left untouched; empty strings on optional fields clear them.

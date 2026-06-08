@@ -56,3 +56,32 @@ export async function resolveGuideProgress(
     }),
   );
 }
+
+// Learner-scoped progress: a learner's OWN journey through the pipeline, derived
+// from their `Enrollment.currentStage` — NOT the shared reference revision's
+// author completion (resolveGuideProgress). Because a learner cannot advance a
+// stage without passing its gate, every stage before the current one is
+// complete, the current stage is in-progress (partial), and the rest are
+// untouched. `null` (not enrolled) → all untouched; a currentStage past the last
+// guide stage (REVISION / COMPLETED) → all complete. Pure — no DB, no `await`.
+export function resolveLearnerGuideProgress(
+  currentStage: string | null,
+): GuideStageStatus[] {
+  if (!currentStage) {
+    return GUIDE_STAGES.map((stage, ordinal) => ({
+      stage,
+      ordinal,
+      state: "untouched" as CompletionState,
+    }));
+  }
+  const ci = GUIDE_STAGES.indexOf(currentStage as GuideStage);
+  return GUIDE_STAGES.map((stage, ordinal) => {
+    const state: CompletionState =
+      ci === -1 || ordinal < ci
+        ? "complete"
+        : ordinal === ci
+          ? "partial"
+          : "untouched";
+    return { stage, ordinal, state };
+  });
+}

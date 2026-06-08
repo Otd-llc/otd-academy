@@ -30,8 +30,17 @@ import { renderBoundsSchema } from "@/lib/schemas/part-asset";
 import { StageGate } from "@/components/guide/StageGate";
 import { BoardSelector } from "@/components/guide/BoardSelector";
 import { GenerateGuideButton } from "@/components/guide/GenerateGuideButton";
+import { auth } from "@/auth";
+import { AdvanceEnrollmentButton } from "@/components/learn/AdvanceEnrollmentButton";
+import { ProofUploadForm } from "@/components/learn/ProofUploadForm";
+import { learnerProofSubkind } from "@/lib/learner-gates";
+import { proofHelp } from "@/lib/learner-proof-help";
+import { guideCardView } from "@/lib/guide-view";
 import { resolveCardCompletion } from "@/lib/guide-completion";
-import { resolveGuideProgress } from "@/lib/guide-progress";
+import {
+  resolveGuideProgress,
+  resolveLearnerGuideProgress,
+} from "@/lib/guide-progress";
 import { buildStageGateWidget } from "@/lib/guide-widget";
 import {
   GUIDE_STAGES,
@@ -55,6 +64,12 @@ const PER_BOARD_STAGES: ReadonlySet<GuideStage> = new Set([
 function isGuideStage(s: string): s is GuideStage {
   return (GUIDE_STAGES as readonly string[]).includes(s);
 }
+
+// Friendly labels for the learner proof-artifact subkinds (CAD stages only).
+const PROOF_LABEL: Record<string, string> = {
+  SCHEMATIC_FILE: "schematic",
+  LAYOUT_FILE: "layout file",
+};
 
 // Pick a sensible trailing accent word for the hero (the last whitespace- or
 // slash-delimited token of the title — e.g. "DRC / GERBER" → "GERBER",
@@ -215,19 +230,9 @@ export default async function GuideCardPage({
     completion,
   });
 
-  // The 8-stage "order of operations" rail (board-scoped on the build cards).
-  const guideProgress = await resolveGuideProgress(
-    revision.id,
-    revision.guide.id,
-    selectedBoardId,
-  );
-
-  // Soft quiz-gate: has this revision already passed this stage's comprehension
-  // quiz? Drives the QuizBlock's recorded-pass badge + lets it skip re-recording.
-  const quizPass = await db.quizPass.findUnique({
-    where: { revisionId_stage: { revisionId: revision.id, stage } },
-    select: { id: true },
-  });
+  // Quizzes are learner-only now (recorded per Enrollment). The author preview
+  // has no enrollment, so it renders the quiz cards without a recording context;
+  // the enrollment-aware learner guide (Task 4.2) supplies the live quizContext.
 
   // prev / next across GUIDE_STAGES.
   const idx = GUIDE_STAGES.indexOf(stage);
@@ -240,10 +245,62 @@ export default async function GuideCardPage({
   const cardNumber = String(card.ordinal + 1).padStart(2, "0");
   const cardTotal = String(GUIDE_STAGES.length).padStart(2, "0");
 
-  // The page is auth-gated by middleware, so a session exists; the only
-  // additional editability gate is the revision freeze (defense-in-depth:
-  // editGuideCard rejects edits on a frozen revision regardless).
-  const canEdit = !frozen;
+  // The page is auth-gated by middleware, so a session exists. Role decides the
+  // ENTIRE view: ADMINs author/QA the shared reference revision (Stage Gate,
+  // edit-in-place, board selector); everyone else is a learner who sees only
+  // their own per-enrollment overlay. We never leak author tooling to a learner,
+  // nor the learner overlay to an admin (even one who happens to be enrolled).
+  const session = await auth();
+  const view = guideCardView(session?.user?.role);
+  const learnerEmail = session?.user?.email ?? null;
+
+  // Edit-in-place is author-only, additionally blocked on a frozen revision
+  // (defense-in-depth: editGuideCard rejects frozen edits regardless).
+  const canEdit = !frozen && view.isAuthorView;
+
+  // Learner overlay (learner view only): if the signed-in learner has an
+  // enrollment on this board, the quiz records against it and on their CURRENT
+  // stage we surface the advance affordance.
+  const proofSubkind = learnerProofSubkind(stage);
+  const proofLabel = proofSubkind ? PROOF_LABEL[proofSubkind] : null;
+  const proofHelpData = proofSubkind ? proofHelp(proofSubkind) : null;
+  let learnerQuizContext:
+    | { enrollmentId: string; stage: string; passed: boolean }
+    | undefined;
+  let showLearnerAdvance = false;
+  let learnerNeedsProof = false;
+  let learnerCurrentStage: string | null = null;
+  if (learnerEmail && view.isLearnerView) {
+    const enrollment = await db.enrollment.findFirst({
+      where: { projectId: project.id, user: { email: learnerEmail } },
+      select: {
+        id: true,
+        currentStage: true,
+        quizPasses: { where: { stage }, select: { stage: true } },
+        artifacts: { select: { subkind: true } },
+      },
+    });
+    if (enrollment) {
+      learnerCurrentStage = enrollment.currentStage;
+      learnerQuizContext = {
+        enrollmentId: enrollment.id,
+        stage,
+        passed: enrollment.quizPasses.length > 0,
+      };
+      showLearnerAdvance = enrollment.currentStage === stage;
+      learnerNeedsProof =
+        showLearnerAdvance &&
+        proofSubkind != null &&
+        !enrollment.artifacts.some((a) => a.subkind === proofSubkind);
+    }
+  }
+
+  // The 8-stage "order of operations" rail. ADMINs see the shared reference
+  // revision's completion (board-scoped on the build cards); learners see their
+  // OWN journey derived from their enrollment's currentStage.
+  const guideProgress = view.isAuthorView
+    ? await resolveGuideProgress(revision.id, revision.guide.id, selectedBoardId)
+    : resolveLearnerGuideProgress(learnerCurrentStage);
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
@@ -287,16 +344,14 @@ export default async function GuideCardPage({
         <GuideBlocks
           blocks={blocks}
           models={models}
-          quizContext={{
-            revisionId: revision.id,
-            stage,
-            passed: quizPass != null,
-          }}
+          quizContext={learnerQuizContext}
+          projectId={project.id}
         />
       </GuideCardEditor>
 
-      {/* Per-board scope selector (ASSEMBLY / BRINGUP). */}
-      {isPerBoard ? (
+      {/* Per-board scope selector (ASSEMBLY / BRINGUP) — author tooling, drives
+          the Stage Gate's per-board widget; hidden in the learner view. */}
+      {isPerBoard && view.isAuthorView ? (
         <div className="mt-8">
           {boards.length > 0 && selectedBoardId ? (
             <BoardSelector boards={boards} selectedBoardId={selectedBoardId} />
@@ -310,7 +365,70 @@ export default async function GuideCardPage({
         </div>
       ) : null}
 
-      <StageGate completion={completion} widget={widget} />
+      {showLearnerAdvance && (
+        <section className="mt-8 glass-card border-l-4 border-l-command-gold p-5">
+          <p className="font-mono text-xs uppercase tracking-wider text-muted">
+            Your track · this is your current stage
+          </p>
+          <p className="mb-4 mt-1 font-serif text-sm text-gray-1">
+            {proofSubkind
+              ? "Pass the comprehension check above and add the required artifact below to advance your own progress."
+              : "Pass the comprehension check above to advance your own progress."}
+          </p>
+
+          {/* Proof requirement — only when THIS stage actually needs an artifact.
+              Earlier stages (REQUIREMENTS, BOM_SOURCING) are quiz-only and show
+              no upload UI at all. */}
+          {proofSubkind && proofLabel && proofHelpData && (
+            <div className="mb-4 rounded border border-panel-border bg-deep-space/40 p-4">
+              <p className="font-mono text-[11px] uppercase tracking-wider text-command-gold">
+                Required to advance · {proofLabel}
+              </p>
+              <p className="mt-2 font-serif text-sm text-gray-1">
+                {proofHelpData.requirement}
+              </p>
+
+              <details className="mt-3">
+                <summary className="cursor-pointer select-none font-mono text-[11px] uppercase tracking-wider text-link-muted transition-colors hover:text-command-gold">
+                  {proofHelpData.howToTitle}
+                </summary>
+                <ol className="mt-2 list-decimal space-y-1.5 pl-5 font-serif text-sm text-gray-2">
+                  {proofHelpData.steps.map((step, i) => (
+                    <li key={i}>{step}</li>
+                  ))}
+                </ol>
+              </details>
+
+              <div className="mt-4">
+                {learnerNeedsProof ? (
+                  <ProofUploadForm
+                    projectId={project.id}
+                    stage={stage}
+                    label={proofLabel}
+                  />
+                ) : (
+                  <p className="font-mono text-xs uppercase tracking-wider text-status-green">
+                    ✓ Your {proofLabel} is on file for this stage.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          <AdvanceEnrollmentButton
+            projectId={project.id}
+            cardBaseHref={hubHref}
+            guideStages={GUIDE_STAGES}
+          />
+        </section>
+      )}
+
+      {/* STAGE GATE is the author's completion substrate (review checklists,
+          commit/board widgets) for the shared reference revision — admin only.
+          Learners advance via their own YOUR TRACK panel above. */}
+      {view.isAuthorView && (
+        <StageGate completion={completion} widget={widget} />
+      )}
 
       {/* prev / CONSOLE / next nav. */}
       <nav className="mt-12 flex items-center justify-between border-t border-panel-border pt-6 font-mono text-xs uppercase tracking-wider">

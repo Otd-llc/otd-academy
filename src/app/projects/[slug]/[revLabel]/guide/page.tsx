@@ -20,7 +20,12 @@ import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
 import { GenerateGuideButton } from "@/components/guide/GenerateGuideButton";
 import { GuideStepper } from "@/components/guide/GuideStepper";
-import { resolveGuideProgress } from "@/lib/guide-progress";
+import {
+  resolveGuideProgress,
+  resolveLearnerGuideProgress,
+} from "@/lib/guide-progress";
+import { auth } from "@/auth";
+import { guideCardView } from "@/lib/guide-view";
 import {
   resolveCardCompletion,
   type CardCompletion,
@@ -32,8 +37,8 @@ type Params = { slug: string; revLabel: string };
 
 const DESIGN_STAGES = [
   "REQUIREMENTS",
-  "SCHEMATIC",
   "BOM_SOURCING",
+  "SCHEMATIC",
   "LAYOUT",
   "DRC_GERBER",
   "ORDERING",
@@ -66,6 +71,18 @@ function stateLabel(c: CardCompletion): string {
     case "untouched":
     default:
       return "Not started";
+  }
+}
+
+// Learner-facing label: their journey position, not author done/total counts.
+function learnerStateLabel(state: CompletionState): string {
+  switch (state) {
+    case "complete":
+      return "✓ Done";
+    case "partial":
+      return "In progress";
+    default:
+      return "Upcoming";
   }
 }
 
@@ -133,6 +150,21 @@ export default async function GuideHubPage({
   });
   if (!revision) notFound();
 
+  // Role decides the view: ADMINs see the shared reference revision's completion
+  // (design roll-up + per-board build matrix); learners see their OWN journey and
+  // never the operator build matrix.
+  const session = await auth();
+  const view = guideCardView(session?.user?.role);
+  const learnerEmail = session?.user?.email ?? null;
+  let learnerCurrentStage: string | null = null;
+  if (learnerEmail && view.isLearnerView) {
+    const enrollment = await db.enrollment.findFirst({
+      where: { projectId: project.id, user: { email: learnerEmail } },
+      select: { currentStage: true },
+    });
+    learnerCurrentStage = enrollment?.currentStage ?? null;
+  }
+
   const frozen = revision.frozenAt !== null;
   const activeBuild = revision.builds[0] ?? null;
   const revPath = `/projects/${project.slug}/${encodeURIComponent(revision.label)}`;
@@ -170,48 +202,64 @@ export default async function GuideHubPage({
   const cards = revision.guide.cards;
   const cardByStage = new Map(cards.map((c) => [c.stage, c]));
 
-  // The 8-stage order-of-operations rail (revision-level).
-  const guideProgress = await resolveGuideProgress(
-    revision.id,
-    revision.guide.id,
-  );
+  // The 8-stage order-of-operations rail: authors see revision completion,
+  // learners see their own enrollment journey.
+  const guideProgress = view.isAuthorView
+    ? await resolveGuideProgress(revision.id, revision.guide.id)
+    : resolveLearnerGuideProgress(learnerCurrentStage);
 
-  // ─── Tier 1: design-stage roll-up (revision-level) ──────
+  // ─── Tier 1: design-stage roll-up ──────
+  // Authors see the reference revision's completion (done/total); learners see
+  // their own per-stage progress drawn from the same journey as the rail.
+  const learnerStateByStage = new Map(
+    guideProgress.map((s) => [s.stage, s.state]),
+  );
   const designCells = await Promise.all(
     DESIGN_STAGES.map(async (stage) => {
       const card = cardByStage.get(stage);
       if (!card) return null;
-      const completionRef = parseRef(card.completionRef);
-      const completion = await resolveCardCompletion({
-        revisionId: revision.id,
-        stage,
-        completionRef,
-      });
-      return { stage, card, completion };
+      if (view.isAuthorView) {
+        const completion = await resolveCardCompletion({
+          revisionId: revision.id,
+          stage,
+          completionRef: parseRef(card.completionRef),
+        });
+        return {
+          stage,
+          card,
+          state: completion.state,
+          label: stateLabel(completion),
+        };
+      }
+      const state = learnerStateByStage.get(stage) ?? "untouched";
+      return { stage, card, state, label: learnerStateLabel(state) };
     }),
   );
 
-  // ─── Tier 2: per-board build matrix ─────────────────────
+  // ─── Tier 2: per-board build matrix (author/operator only) ──────
   const boards = activeBuild?.boards ?? [];
-  // matrix[boardIndex][buildStageIndex] = completion
-  const matrix = await Promise.all(
-    boards.map(async (board) =>
-      Promise.all(
-        BUILD_STAGES.map(async (stage) => {
-          const card = cardByStage.get(stage);
-          if (!card) return null;
-          const completionRef = parseRef(card.completionRef);
-          const completion = await resolveCardCompletion({
-            revisionId: revision.id,
-            stage,
-            completionRef,
-            boardId: board.id,
-          });
-          return completion;
-        }),
-      ),
-    ),
-  );
+  // matrix[boardIndex][buildStageIndex] = completion. Builds/boards are operator
+  // tooling — not computed or shown in the learner view.
+  const matrix = view.isAuthorView
+    ? await Promise.all(
+        boards.map(async (board) =>
+          Promise.all(
+            BUILD_STAGES.map(async (stage) => {
+              const card = cardByStage.get(stage);
+              if (!card) return null;
+              const completionRef = parseRef(card.completionRef);
+              const completion = await resolveCardCompletion({
+                revisionId: revision.id,
+                stage,
+                completionRef,
+                boardId: board.id,
+              });
+              return completion;
+            }),
+          ),
+        ),
+      )
+    : [];
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
@@ -254,7 +302,7 @@ export default async function GuideHubPage({
                 key={cell.stage}
                 href={cardHref(cell.stage)}
                 className={`glass-card flex flex-col gap-2 border-l-4 p-4 transition-colors hover:bg-command-gold/5 ${stateClasses(
-                  cell.completion.state,
+                  cell.state,
                 )}`}
               >
                 <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-command-gold">
@@ -269,7 +317,7 @@ export default async function GuideHubPage({
                   </span>
                 ) : null}
                 <span className="mt-1 font-mono text-xs font-bold uppercase tracking-wider">
-                  {stateLabel(cell.completion)}
+                  {cell.label}
                 </span>
               </Link>
             ) : null,
@@ -277,7 +325,8 @@ export default async function GuideHubPage({
         </div>
       </section>
 
-      {/* ─── Tier 2: per-board build matrix ─── */}
+      {/* ─── Tier 2: per-board build matrix (author/operator only) ─── */}
+      {view.isAuthorView && (
       <section className="mt-10">
         <h2 className="font-display text-2xl tracking-wider text-white">
           BUILD STAGES{" "}
@@ -356,6 +405,7 @@ export default async function GuideHubPage({
           </div>
         )}
       </section>
+      )}
     </main>
   );
 }

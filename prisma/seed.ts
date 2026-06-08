@@ -21,8 +21,8 @@ async function main() {
   await db.$transaction(async (tx: Tx) => {
     const user = await tx.user.upsert({
       where: { email: "seed@example.com" },
-      update: {},
-      create: { email: "seed@example.com", name: "Seed User" },
+      update: { role: "ADMIN" },
+      create: { email: "seed@example.com", name: "Seed User", role: "ADMIN" },
     });
 
     // Reset the curriculum / safety flags on every seed run so UI
@@ -361,9 +361,9 @@ async function main() {
 
     const stages: Array<{ from: typeof revision.currentStage | null; to: typeof revision.currentStage }> = [
       { from: null, to: "REQUIREMENTS" },
-      { from: "REQUIREMENTS", to: "SCHEMATIC" },
-      { from: "SCHEMATIC", to: "BOM_SOURCING" },
-      { from: "BOM_SOURCING", to: "LAYOUT" },
+      { from: "REQUIREMENTS", to: "BOM_SOURCING" },
+      { from: "BOM_SOURCING", to: "SCHEMATIC" },
+      { from: "SCHEMATIC", to: "LAYOUT" },
       { from: "LAYOUT", to: "DRC_GERBER" },
       { from: "DRC_GERBER", to: "ORDERING" },
       { from: "ORDERING", to: "ASSEMBLY" },
@@ -396,30 +396,83 @@ async function main() {
       });
     }
 
-    // Soft quiz-gate: the demo learner passed every stage's comprehension quiz,
-    // so the quiz requirement (ANDed into each exit gate) never blocks the
-    // seeded states — the existing work-gate verdicts stand. Idempotent: one
-    // QuizPass row per (revision, stage) on re-seed.
+    // Publish the fixture revision so the project is enrollable, then seed a
+    // fixture Enrollment for the seed operator with its per-stage quiz passes.
+    // Quizzes are learner-only now (per-Enrollment); this gives the demo learner
+    // a complete track and keeps learner-facing fixtures populated. Upsert because
+    // the QuizPass re-key migration already backfilled this enrollment.
+    await tx.project.update({
+      where: { id: project.id },
+      data: { publishedRevisionId: revision.id },
+    });
+    const enrollment = await tx.enrollment.upsert({
+      where: { userId_projectId: { userId: user.id, projectId: project.id } },
+      update: { revisionId: revision.id, currentStage: revision.currentStage },
+      create: {
+        userId: user.id,
+        projectId: project.id,
+        revisionId: revision.id,
+        currentStage: revision.currentStage,
+      },
+    });
     const quizStages = [
       "REQUIREMENTS",
-      "SCHEMATIC",
       "BOM_SOURCING",
+      "SCHEMATIC",
       "LAYOUT",
       "DRC_GERBER",
       "ORDERING",
       "ASSEMBLY",
       "BRINGUP",
     ] as const;
-    // delete-then-createMany (2 round-trips, not 16) so the wrapping
-    // transaction stays well under its timeout; leaves exactly 8 rows on re-seed.
-    await tx.quizPass.deleteMany({ where: { revisionId: revision.id } });
+    // delete-then-createMany (2 round-trips) so the wrapping tx stays well under
+    // its timeout; leaves exactly 8 rows on re-seed.
+    await tx.quizPass.deleteMany({ where: { enrollmentId: enrollment.id } });
     await tx.quizPass.createMany({
       data: quizStages.map((stage) => ({
-        revisionId: revision.id,
+        enrollmentId: enrollment.id,
         stage,
         score: 5,
         total: 5,
       })),
+    });
+
+    // A small optional board exam (server-scored → MASTERED) so the exam flow is
+    // demoable on the fixture board. The `questions` JSON holds the answer key
+    // (correctIndex); getExam strips it before sending to the client. Idempotent
+    // upsert on the unique projectId.
+    await tx.exam.upsert({
+      where: { projectId: project.id },
+      update: {},
+      create: {
+        projectId: project.id,
+        title: `${project.name} — comprehension exam`,
+        passThreshold: 80,
+        questions: [
+          {
+            id: "q1",
+            prompt: "What does the BOM_SOURCING stage verify before layout?",
+            options: [
+              "Trace widths",
+              "Stock + lifecycle of every part",
+              "Solder mask color",
+            ],
+            correctIndex: 1,
+          },
+          {
+            id: "q2",
+            prompt: "Which artifact does the SCHEMATIC stage produce?",
+            options: ["A Gerber zip", "A schematic file", "A bring-up log"],
+            correctIndex: 1,
+          },
+          {
+            id: "q3",
+            prompt: "Advancing into the terminal stage marks the board as…",
+            options: ["FAILED", "COMPLETED", "ARCHIVED"],
+            correctIndex: 1,
+          },
+        ],
+      },
     });
   }, { timeout: 20000, maxWait: 10000 });
 

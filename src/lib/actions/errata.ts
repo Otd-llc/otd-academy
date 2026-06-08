@@ -18,7 +18,7 @@
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireAdmin } from "@/lib/auth-helpers";
 import { withTxRetry } from "@/lib/tx-retry";
 import {
   createErratumSchema,
@@ -44,7 +44,7 @@ async function loadRevisionRoute(
 
 export async function createErratum(input: unknown) {
   const data = createErratumSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const created = await withTxRetry(() =>
     db.$transaction(
@@ -94,7 +94,7 @@ export async function createErratum(input: unknown) {
 
 export async function editErratum(input: unknown) {
   const data = editErratumSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const updated = await withTxRetry(() =>
     db.$transaction(
@@ -161,7 +161,7 @@ export async function editErratum(input: unknown) {
 
 export async function linkErratumToRevision(input: unknown) {
   const data = linkErratumSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const updated = await withTxRetry(() =>
     db.$transaction(
@@ -210,7 +210,7 @@ export async function linkErratumToRevision(input: unknown) {
 
 export async function deleteErratum(input: unknown) {
   const data = deleteErratumSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const { revisionId } = await withTxRetry(() =>
     db.$transaction(

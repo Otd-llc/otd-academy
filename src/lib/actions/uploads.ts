@@ -37,7 +37,7 @@ import { env } from "@/env";
 import { db } from "@/lib/db";
 import { r2, artifactKey, artifactRenderKey } from "@/lib/r2";
 import { ownerMatches } from "@/lib/artifacts";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireUser, requireAdmin } from "@/lib/auth-helpers";
 import { assertBuildNotFrozen, assertNotFrozen } from "@/lib/assertions";
 import { withTxRetry } from "@/lib/tx-retry";
 import { RENDER_MIME, RENDER_MAX_BYTES } from "@/lib/schemas/render";
@@ -133,7 +133,7 @@ export async function createUploadUrl(
   input: unknown,
 ): Promise<CreateUploadUrlResult> {
   const data = createUploadUrlSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
   ensureR2Enabled();
 
   // Cross-check #1: owner kind ↔ subkind (design §7 step 2). Run before any
@@ -214,7 +214,7 @@ export async function createArtifactRenderUploadUrl(
   input: unknown,
 ): Promise<CreateArtifactRenderUploadUrlResult> {
   const data = createArtifactRenderUploadUrlSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
   ensureR2Enabled();
 
   const renderKey = artifactRenderKey(data.owner, data.stage, createId());
@@ -235,7 +235,7 @@ export async function createArtifactRenderUploadUrl(
 
 export async function recordArtifact(input: unknown) {
   const data = recordArtifactSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
   ensureR2Enabled();
 
   // Defense-in-depth: re-check owner ↔ subkind. The token's `subkind` /

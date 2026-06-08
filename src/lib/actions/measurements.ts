@@ -20,7 +20,7 @@
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireAdmin } from "@/lib/auth-helpers";
 import { assertBuildNotFrozen, assertNotFrozen } from "@/lib/assertions";
 import { withTxRetry } from "@/lib/tx-retry";
 import {
@@ -76,7 +76,7 @@ async function resolveBoardFreezeRefs(
 
 export async function createMeasurement(input: unknown) {
   const data = createMeasurementSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const measurement = await withTxRetry(() =>
     db.$transaction(
@@ -116,7 +116,7 @@ export async function createMeasurement(input: unknown) {
 
 export async function addMeasurementsBulk(input: unknown) {
   const data = addMeasurementsBulkSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const inserted = await withTxRetry(() =>
     db.$transaction(
@@ -162,7 +162,7 @@ export async function addMeasurementsBulk(input: unknown) {
 
 export async function editMeasurement(input: unknown) {
   const data = editMeasurementSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const updated = await withTxRetry(() =>
     db.$transaction(
@@ -217,7 +217,7 @@ export async function editMeasurement(input: unknown) {
 
 export async function deleteMeasurement(input: unknown) {
   const data = deleteMeasurementSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const { boardId } = await withTxRetry(() =>
     db.$transaction(

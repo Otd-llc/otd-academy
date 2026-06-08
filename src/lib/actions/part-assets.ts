@@ -40,7 +40,7 @@ import { z } from "zod";
 
 import { env } from "@/env";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireUser, requireAdmin } from "@/lib/auth-helpers";
 import { partAssetKey, partRenderKey } from "@/lib/r2";
 import {
   deleteR2Object,
@@ -91,7 +91,7 @@ function revalidatePartRoute(partId: string): void {
  */
 export async function verifyPartAsset(input: unknown): Promise<PartAsset> {
   const { id, updatedAt } = idWithLockSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const row = await db.partAsset.findUniqueOrThrow({
     where: { id },
@@ -139,7 +139,7 @@ export async function verifyPartAsset(input: unknown): Promise<PartAsset> {
  */
 export async function editPartAsset(input: unknown): Promise<PartAsset> {
   const data = editPartAssetSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const existing = await db.partAsset.findUniqueOrThrow({
     where: { id: data.id },
@@ -179,7 +179,7 @@ export async function editPartAsset(input: unknown): Promise<PartAsset> {
  */
 export async function unverifyPartAsset(input: unknown): Promise<PartAsset> {
   const { id, updatedAt } = idWithLockSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const row = await db.partAsset.findUniqueOrThrow({
     where: { id },
@@ -208,7 +208,7 @@ export async function unverifyPartAsset(input: unknown): Promise<PartAsset> {
  */
 export async function flagPartAsset(input: unknown): Promise<PartAsset> {
   const { id, updatedAt } = idWithLockSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const row = await db.partAsset.findUniqueOrThrow({
     where: { id },
@@ -234,7 +234,7 @@ export async function flagPartAsset(input: unknown): Promise<PartAsset> {
  */
 export async function clearPartAssetFlag(input: unknown): Promise<PartAsset> {
   const { id, updatedAt } = idWithLockSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const row = await db.partAsset.findUniqueOrThrow({
     where: { id },
@@ -269,7 +269,7 @@ export async function clearPartAssetFlag(input: unknown): Promise<PartAsset> {
  */
 export async function deletePartAsset(input: unknown): Promise<void> {
   const { id, updatedAt } = idWithLockSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const row = await db.partAsset.findUniqueOrThrow({
     where: { id },
@@ -332,7 +332,7 @@ export async function createPartAssetUploadUrl(
   // Parse FIRST so the ext/cap superRefine runs before the R2 gate (lets the
   // extension/cap rejections be exercised with R2 off).
   const data = createPartAssetUploadUrlSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
   ensureR2Enabled();
 
   // Part must exist before we mint a key under its prefix.
@@ -368,7 +368,7 @@ export async function createPartAssetRenderUploadUrl(
   input: unknown,
 ): Promise<{ uploadUrl: string; renderKey: string; contentType: string }> {
   const data = createPartAssetRenderUploadUrlSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
   ensureR2Enabled();
   await db.part.findUniqueOrThrow({ where: { id: data.partId }, select: { id: true } });
 
@@ -390,7 +390,7 @@ export async function createPartAssetRenderUploadUrl(
  */
 export async function recordPartAsset(input: unknown): Promise<PartAsset> {
   const data = recordPartAssetSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
   ensureR2Enabled();
 
   // Part must exist (a clean error beats a Prisma FK violation).

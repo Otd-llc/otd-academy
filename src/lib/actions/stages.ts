@@ -17,7 +17,7 @@ import { Prisma, type Stage } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireUser, requireAdmin } from "@/lib/auth-helpers";
 import { withTxRetry } from "@/lib/tx-retry";
 import { loadGateContext } from "@/lib/load-gate-context";
 import { checkProjectDependencies } from "@/lib/check-project-dependencies";
@@ -107,7 +107,7 @@ export async function advanceStage(
   input: unknown,
 ): Promise<AdvanceStageResult> {
   const data = advanceStageSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const { result, projectSlug, revLabel } = await withTxRetry(() =>
     db.$transaction(
@@ -287,7 +287,7 @@ export async function regressStage(
   input: unknown,
 ): Promise<RegressStageResult> {
   const data = regressStageSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const { result, projectSlug, revLabel } = await withTxRetry(() =>
     db.$transaction(
@@ -325,48 +325,50 @@ export async function regressStage(
 
         const now = new Date();
 
-        // Conditional UPDATE — same optimistic-lock pattern as advance.
-        // Side-effect: regressing OUT of LAYOUT clears bomFrozenAt.
-        // Regressing INTO LAYOUT (e.g., DRC_GERBER → LAYOUT) preserves it.
-        let rowCount: number;
-        if (currentStage === "LAYOUT" && toStage === "BOM_SOURCING") {
-          rowCount = await tx.$executeRaw`
-            UPDATE "Revision"
-            SET "currentStage" = ${toStage}::"Stage",
-                "currentStageEnteredAt" = ${now},
-                "bomFrozenAt" = NULL
-            WHERE "id" = ${rev.id}
-              AND "currentStage" = ${currentStage}::"Stage"
-          `;
-          // m17: when the project requires stripboard validation, the regress
-          // back to BOM_SOURCING means the prior stripboard sign-off no
-          // longer holds. Flip every STRIPBOARD_VALIDATION item's `checked`
-          // flag to false, but PRESERVE `completedAt` / `completedById` so
-          // the audit trail of who originally validated and when remains in
-          // the record (proposal §3 #4). Predicate is gated on
-          // `project.requiresStripboard` so a stray STRIPBOARD_VALIDATION on
-          // a non-stripboard project is left alone.
-          //
-          // NB: this is an internal-to-checklist side-effect — NOT a DAG
-          // consultation. Regress remains lazy-catch for the dependency DAG.
-          if (rev.project.requiresStripboard) {
-            await tx.$executeRaw`
-              UPDATE "ChecklistItem"
-              SET "checked" = false
-              WHERE "checklistId" IN (
-                SELECT "id" FROM "Checklist"
-                WHERE "revisionId" = ${rev.id}
-                  AND "subkind" = 'STRIPBOARD_VALIDATION'
-              )
+        // Conditional UPDATE — same optimistic-lock pattern as advance. Two
+        // independent regress side-effects (decoupled now that BOM_SOURCING sits
+        // BEFORE SCHEMATIC, so they fall on different one-step transitions):
+        //   • bomFrozenAt is cleared when regressing OUT of LAYOUT (LAYOUT →
+        //     SCHEMATIC). bomFrozenAt is set on entry to LAYOUT, so leaving
+        //     LAYOUT downward unfreezes it; regressing INTO LAYOUT
+        //     (DRC_GERBER → LAYOUT) preserves it.
+        //   • the stripboard sign-off is reset when regressing INTO BOM_SOURCING
+        //     (SCHEMATIC → BOM_SOURCING) — see below.
+        const clearsBomFreeze = currentStage === "LAYOUT";
+        const rowCount = clearsBomFreeze
+          ? await tx.$executeRaw`
+              UPDATE "Revision"
+              SET "currentStage" = ${toStage}::"Stage",
+                  "currentStageEnteredAt" = ${now},
+                  "bomFrozenAt" = NULL
+              WHERE "id" = ${rev.id}
+                AND "currentStage" = ${currentStage}::"Stage"
+            `
+          : await tx.$executeRaw`
+              UPDATE "Revision"
+              SET "currentStage" = ${toStage}::"Stage",
+                  "currentStageEnteredAt" = ${now}
+              WHERE "id" = ${rev.id}
+                AND "currentStage" = ${currentStage}::"Stage"
             `;
-          }
-        } else {
-          rowCount = await tx.$executeRaw`
-            UPDATE "Revision"
-            SET "currentStage" = ${toStage}::"Stage",
-                "currentStageEnteredAt" = ${now}
-            WHERE "id" = ${rev.id}
-              AND "currentStage" = ${currentStage}::"Stage"
+
+        // m17: regressing back INTO BOM_SOURCING means the prior stripboard
+        // sign-off no longer holds. Flip every STRIPBOARD_VALIDATION item's
+        // `checked` flag to false, but PRESERVE `completedAt` / `completedById`
+        // so the audit trail of who originally validated and when remains in the
+        // record (proposal §3 #4). Gated on `project.requiresStripboard` so a
+        // stray STRIPBOARD_VALIDATION on a non-stripboard project is left alone.
+        // NB: internal-to-checklist side-effect — NOT a DAG consultation;
+        // regress remains lazy-catch for the dependency DAG.
+        if (toStage === "BOM_SOURCING" && rev.project.requiresStripboard) {
+          await tx.$executeRaw`
+            UPDATE "ChecklistItem"
+            SET "checked" = false
+            WHERE "checklistId" IN (
+              SELECT "id" FROM "Checklist"
+              WHERE "revisionId" = ${rev.id}
+                AND "subkind" = 'STRIPBOARD_VALIDATION'
+            )
           `;
         }
 

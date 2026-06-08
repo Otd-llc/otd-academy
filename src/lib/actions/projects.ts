@@ -9,18 +9,52 @@
 // land in later phases.
 
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireAdmin } from "@/lib/auth-helpers";
 import {
   createProjectSchema,
   editProjectSchema,
 } from "@/lib/schemas/project";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
+
+const setPublishedRevisionSchema = z.object({
+  projectId: z.cuid(),
+  revisionId: z.cuid(),
+});
+
+// Admin: designate the revision whose Guide learners follow. The revision must
+// belong to the project AND have a Guide (no point publishing a guideless rev).
+export async function setPublishedRevision(
+  input: unknown,
+): Promise<{ publishedRevisionId: string | null }> {
+  const { projectId, revisionId } = setPublishedRevisionSchema.parse(input);
+  await requireAdmin();
+
+  const revision = await db.revision.findUniqueOrThrow({
+    where: { id: revisionId },
+    select: { id: true, projectId: true, guide: { select: { id: true } } },
+  });
+  if (revision.projectId !== projectId) {
+    throw new Error("Revision does not belong to this project.");
+  }
+  if (!revision.guide) {
+    throw new Error("Publish a revision that has a guide.");
+  }
+
+  const project = await db.project.update({
+    where: { id: projectId },
+    data: { publishedRevisionId: revisionId },
+    select: { slug: true, publishedRevisionId: true },
+  });
+  revalidatePath(`/projects/${project.slug}`);
+  revalidatePath(`/learn/${project.slug}`);
+  return { publishedRevisionId: project.publishedRevisionId };
+}
 
 export async function createProject(input: unknown) {
   const data = createProjectSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
   const project = await db.project.create({
     data: {
       slug: data.slug,
@@ -49,7 +83,7 @@ export async function createProject(input: unknown) {
 
 export async function editProject(input: unknown) {
   const { id, ...rest } = editProjectSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   // Drop undefined fields so Prisma only updates what the caller supplied.
   // (Zod .partial() makes everything optional; we mustn't write `null` over
@@ -71,7 +105,7 @@ export async function editProject(input: unknown) {
 }
 
 export async function archiveProject(id: string) {
-  await requireUser();
+  await requireAdmin();
   await db.project.update({
     where: { id },
     data: { archivedAt: new Date() },
@@ -80,7 +114,7 @@ export async function archiveProject(id: string) {
 }
 
 export async function unarchiveProject(id: string) {
-  await requireUser();
+  await requireAdmin();
   await db.project.update({
     where: { id },
     data: { archivedAt: null },

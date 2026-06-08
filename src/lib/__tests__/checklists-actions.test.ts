@@ -47,7 +47,6 @@ vi.mock("@/auth", () => ({
 
 import type { Stage } from "@prisma/client";
 import { db } from "@/lib/db";
-import { passAllQuizzes } from "@/lib/__tests__/quiz-pass-helper";
 import {
   addChecklistItem,
   createChecklist,
@@ -116,7 +115,6 @@ async function makeRevAtStage(
     },
   });
   createdRevisionIds.push(rev.id);
-  await passAllQuizzes(rev.id);
   await db.stageTransition.create({
     data: {
       revisionId: rev.id,

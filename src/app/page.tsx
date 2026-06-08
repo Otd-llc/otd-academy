@@ -15,7 +15,10 @@
 // curriculum spine. `?track=`, `?level=`, `?showBenchTools=1`, `?archived=1`
 // each independently narrow the query.
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { learnerLandingPath } from "@/lib/learner-landing";
 import { PlusIcon } from "@/components/icons";
 
 // Inline filter-chip presentational component. Each chip is a Link to a
@@ -51,6 +54,20 @@ export default async function HomePage({
     showBenchTools?: string;
   }>;
 }) {
+  // Role-aware landing: "/" is the admin dashboard. A signed-in LEARNER is
+  // routed into the learner flow instead — first-timers are auto-enrolled in
+  // WROOM L1 and dropped into card 1; returning learners go to /learn.
+  const session = await auth();
+  if (session?.user?.email) {
+    const me = await db.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true, role: true },
+    });
+    if (me?.role === "LEARNER") {
+      redirect(await learnerLandingPath(me.id));
+    }
+  }
+
   const params = await searchParams;
   const showArchived = params.archived === "1";
   const showBenchTools = params.showBenchTools === "1";

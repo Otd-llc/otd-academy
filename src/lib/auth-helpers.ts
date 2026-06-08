@@ -14,3 +14,16 @@ export async function requireUser() {
     where: { email: session.user.email },
   });
 }
+
+// Authz guard for curriculum-authoring mutations: requires a signed-in user
+// whose DB `role` mirror is ADMIN. The mirror is synced from the admin roster
+// (`ALLOWED_EMAILS`) on sign-in (src/auth.ts). Known limitation: admin
+// *revocation* takes effect on the user's next sign-in — acceptable for the
+// small operator set; hardening deferred.
+export async function requireAdmin() {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") {
+    throw new Error("Forbidden: admin only");
+  }
+  return user;
+}

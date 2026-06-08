@@ -1,18 +1,11 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
+import type { UserRole } from "@prisma/client";
 import { db } from "@/lib/db";
 import { env } from "@/env";
-
-// Allowlist parsed once at module load. Comma-separated emails, trimmed and
-// lowercased. The `jwt` callback re-reads this on every token refresh (every
-// `jwt.maxAge` seconds), so updating `ALLOWED_EMAILS` invalidates removed
-// users within ~1h — see design §6.
-const allowlist = new Set(
-  env.ALLOWED_EMAILS.split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter((s) => s.length > 0),
-);
+import { isAdminEmail } from "@/lib/admin-allowlist";
+import { resolveGoogleSignIn } from "@/lib/auth-link-guard";
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
@@ -20,27 +13,62 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     Google({
       clientId: env.AUTH_GOOGLE_ID,
       clientSecret: env.AUTH_GOOGLE_SECRET,
+      // Always show Google's account chooser. Without this, Google silently
+      // returns whichever account the browser is already logged into — so a
+      // user with one active Google session can never pick a different account
+      // (e.g. to sign in as a learner instead of an admin).
+      authorization: { params: { prompt: "select_account" } },
     }),
   ],
   // session.maxAge caps absolute lifetime; jwt.maxAge forces re-mint of the
-  // JWT (and thus the `jwt` callback's allowlist re-check). Both values are
-  // load-bearing per design §6 — do not change without re-reading that section.
+  // JWT (and thus the `jwt` callback's role re-check). Removing someone from
+  // ALLOWED_EMAILS demotes them to LEARNER on their next token refresh.
   session: { strategy: "jwt", maxAge: 86_400 }, // 24h
   jwt: { maxAge: 3_600 }, // 1h
   callbacks: {
+    // Open registration: any verified Google account may sign in. The admin
+    // roster (ALLOWED_EMAILS) no longer gates the door — it sets the role.
+    //
+    // We ALSO read the currently-signed-in user here so we can refuse to LINK a
+    // different Google account onto an active session. Auth.js does that linking
+    // silently (no veto at its `linkAccount` call), which once permanently
+    // attached a learner's Google login to an admin's user. See auth-link-guard.
+    // The `auth()` read is wrapped so that if it ever throws we fall back to
+    // allowing the sign-in rather than locking everyone out.
     async signIn({ profile, account }) {
-      if (account?.provider !== "google") return false;
-      if (!profile?.email) return false;
-      if (profile.email_verified !== true) return false;
-      return allowlist.has(profile.email.toLowerCase());
+      let activeUserEmail: string | undefined;
+      try {
+        const active = await auth();
+        activeUserEmail = active?.user?.email ?? undefined;
+      } catch {
+        activeUserEmail = undefined;
+      }
+      return resolveGoogleSignIn({
+        provider: account?.provider,
+        emailVerified: profile?.email_verified ?? undefined,
+        profileEmail: typeof profile?.email === "string" ? profile.email : undefined,
+        activeUserEmail,
+      });
     },
-    async jwt({ token }) {
-      // Re-check allowlist on every JWT refresh. Throwing here invalidates the
-      // token, forcing the user back through `signIn` (which will also reject).
-      if (!token.email || !allowlist.has(token.email.toLowerCase())) {
-        throw new Error("Email no longer allowlisted");
+    // Resolve the role from the admin roster on every refresh; on first sign-in
+    // (when `user` is present) sync the DB `User.role` mirror that requireAdmin
+    // reads. The mirror update is best-effort — the token role is authoritative
+    // for the session either way.
+    async jwt({ token, user }) {
+      const email = (user?.email ?? token.email)?.toLowerCase();
+      if (!email) return token;
+      const role: UserRole = isAdminEmail(email) ? "ADMIN" : "LEARNER";
+      token.role = role;
+      if (user) {
+        await db.user.update({ where: { email }, data: { role } }).catch(() => {});
       }
       return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.role = (token.role as UserRole | undefined) ?? "LEARNER";
+      }
+      return session;
     },
   },
   pages: { signIn: "/sign-in" },

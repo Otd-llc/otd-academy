@@ -17,7 +17,7 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireAdmin } from "@/lib/auth-helpers";
 import { assertBomNotFrozen, assertNotFrozen } from "@/lib/assertions";
 import { withTxRetry } from "@/lib/tx-retry";
 import {
@@ -36,7 +36,7 @@ async function loadRevisionRouteContext(revisionId: string) {
 
 export async function createBomLine(input: unknown) {
   const data = createBomLineSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const result = await withTxRetry(() =>
     db.$transaction(
@@ -67,7 +67,7 @@ export async function createBomLine(input: unknown) {
 
 export async function editBomLine(input: unknown) {
   const { id, ...rest } = editBomLineSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   // Drop undefined keys so Prisma only updates supplied fields.
   const data: Record<string, unknown> = {};
@@ -99,7 +99,7 @@ export async function editBomLine(input: unknown) {
 
 export async function deleteBomLine(input: unknown) {
   const { id } = deleteBomLineSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const { revisionId } = await withTxRetry(() =>
     db.$transaction(

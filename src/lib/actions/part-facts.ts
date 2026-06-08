@@ -44,7 +44,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireAdmin } from "@/lib/auth-helpers";
 import { factDataSchema } from "@/lib/schemas/part-fact";
 import { shouldDemote } from "@/lib/part-fact-demote";
 // NB: a "use server" module may export ONLY async functions — not even a
@@ -247,7 +247,7 @@ function dataHasElementPage(data: unknown): boolean {
  */
 export async function createFact(input: unknown): Promise<PartFact> {
   const env = createFactSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   // NOTES is MANUAL-only (design §4).
   assertNotesSourceKind(env.group, env.sourceKind);
@@ -310,7 +310,7 @@ export async function createFact(input: unknown): Promise<PartFact> {
  */
 export async function editFact(input: unknown): Promise<PartFact> {
   const env = editFactSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   // Load the existing row (for the part category + the stored values the
   // demote decision diffs against). Crucially, `group` and `partId` come from
@@ -405,7 +405,7 @@ export async function editFact(input: unknown): Promise<PartFact> {
  */
 export async function verifyFact(input: unknown): Promise<PartFact> {
   const { id, updatedAt } = idWithLockSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const row = await db.partFact.findUniqueOrThrow({
     where: { id },
@@ -462,7 +462,7 @@ export async function verifyFact(input: unknown): Promise<PartFact> {
  */
 export async function unverifyFact(input: unknown): Promise<PartFact> {
   const { id, updatedAt } = idWithLockSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const row = await db.partFact.findUniqueOrThrow({
     where: { id },
@@ -492,7 +492,7 @@ export async function unverifyFact(input: unknown): Promise<PartFact> {
  */
 export async function flagFact(input: unknown): Promise<PartFact> {
   const { id, updatedAt } = idWithLockSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const row = await db.partFact.findUniqueOrThrow({
     where: { id },
@@ -518,7 +518,7 @@ export async function flagFact(input: unknown): Promise<PartFact> {
  */
 export async function clearFlag(input: unknown): Promise<PartFact> {
   const { id, updatedAt } = idWithLockSchema.parse(input);
-  await requireUser();
+  await requireAdmin();
 
   const row = await db.partFact.findUniqueOrThrow({
     where: { id },

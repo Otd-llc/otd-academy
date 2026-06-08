@@ -102,6 +102,16 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     summary: z.string().trim().min(1).max(120),
     body: z.string().max(4000),
   }),
+  // action — a learner affordance rendered inline, right where the guide tells
+  // the student to DO something (e.g. download the KiCad starter). Keeps every
+  // required action one click away instead of a hunt for it elsewhere. `action`
+  // is a small validated enum; the renderer resolves it to the right button +
+  // handler (a client island).
+  z.object({
+    type: z.literal("action"),
+    action: z.enum(["downloadKicadStarter"]),
+    label: z.string().trim().min(1).max(120),
+  }),
 ]);
 export type ContentBlock = z.infer<typeof contentBlockSchema>;
 

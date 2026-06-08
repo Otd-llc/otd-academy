@@ -27,7 +27,7 @@ import { z } from "zod";
 import type { Artifact } from "@prisma/client";
 
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { requireAdmin } from "@/lib/auth-helpers";
 import { ensureR2Enabled, putR2Object } from "@/lib/part-r2";
 import { buildKicadExportZip } from "@/lib/kicad/export";
 
@@ -48,7 +48,7 @@ function exportKey(revisionId: string, cuid: string): string {
  */
 export async function exportKicad(input: unknown): Promise<Artifact> {
   const { revisionId } = exportKicadSchema.parse(input);
-  const user = await requireUser();
+  const user = await requireAdmin();
   ensureR2Enabled();
 
   // The revision must exist (a clean error beats a deep Prisma failure) and

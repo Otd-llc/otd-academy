@@ -86,15 +86,6 @@ export async function loadGateContext(
     },
   });
 
-  // Soft quiz-gate: which stages' comprehension quizzes this revision has passed.
-  // Each gated stage's exit gate ANDs `quizPasses.has(stage)` (see `withQuizGate`
-  // in stages.ts). Always populated here so production always enforces it.
-  const quizRows = await tx.quizPass.findMany({
-    where: { revisionId },
-    select: { stage: true },
-  });
-  const quizPasses = new Set(quizRows.map((r) => r.stage));
-
   return {
     revision,
     project,
@@ -102,6 +93,5 @@ export async function loadGateContext(
     artifacts,
     revisionChecklists,
     activeBuild,
-    quizPasses,
   };
 }

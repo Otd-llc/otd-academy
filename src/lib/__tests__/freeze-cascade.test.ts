@@ -22,7 +22,6 @@ vi.mock("@/auth", () => ({
 }));
 
 import { db } from "@/lib/db";
-import { passAllQuizzes } from "@/lib/__tests__/quiz-pass-helper";
 import { advanceStage } from "@/lib/actions/stages";
 
 const SEED_EMAIL = "seed@example.com";
@@ -75,7 +74,6 @@ test("BRINGUP → REVISION cascades freeze to the active Build", async () => {
     },
   });
   createdRevisionIds.push(rev.id);
-  await passAllQuizzes(rev.id);
   await db.stageTransition.create({
     data: {
       revisionId: rev.id,

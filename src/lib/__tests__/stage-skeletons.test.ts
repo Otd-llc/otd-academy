@@ -5,8 +5,8 @@ describe("stage skeletons", () => {
   it("covers exactly the 8 design->bringup stages (REVISION excluded)", () => {
     expect(GUIDE_STAGES).toEqual([
       "REQUIREMENTS",
-      "SCHEMATIC",
       "BOM_SOURCING",
+      "SCHEMATIC",
       "LAYOUT",
       "DRC_GERBER",
       "ORDERING",
