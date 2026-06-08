@@ -1,22 +1,40 @@
 // Server component: the paywall a non-entitled visitor sees on a locked PREMIUM
 // lesson (Task B2). It is a sales surface, not a leak — it shows only public
-// facts (the project name and, when handed them, the lesson titles) plus the
-// anonymous waitlist form. It NEVER renders locked lesson body content.
+// facts (the project name and, when handed them, the lesson titles) plus a CTA.
+// It NEVER renders locked lesson body content.
+//
+// CTA selection (Task B1): when the project carries BOTH a `stripePriceId` and a
+// `priceCents` it's purchasable, so we render the BuyButton ("Unlock $X.XX") that
+// starts Hosted Stripe Checkout. Otherwise we fall back to the anonymous
+// WaitlistForm (the Phase-2 behavior for an un-priced premium course).
 //
 // Rendered by the guide card page on a `paywall` access decision, in place of
 // the lesson.
 import { WaitlistForm } from "@/components/learn/WaitlistForm";
+import { BuyButton } from "@/components/learn/BuyButton";
 
 export function Paywall({
   projectId,
   projectName,
   lessonTitles,
+  stripePriceId,
+  priceCents,
 }: {
   projectId: string;
   projectName: string;
   lessonTitles?: string[];
+  stripePriceId?: string | null;
+  priceCents?: number | null;
 }) {
   const titles = lessonTitles?.filter(Boolean) ?? [];
+  // Purchasable only when BOTH the Stripe price id and a display price exist.
+  // Resolve to a concrete `number | null` so the BuyButton call site is narrowed.
+  const hasPriceId = typeof stripePriceId === "string" && stripePriceId.length > 0;
+  const buyPriceCents =
+    hasPriceId && typeof priceCents === "number" && priceCents > 0
+      ? priceCents
+      : null;
+  const purchasable = buyPriceCents !== null;
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
@@ -28,8 +46,9 @@ export function Paywall({
           {projectName}
         </h1>
         <p className="mt-3 font-serif text-sm text-gray-2">
-          The first lesson is free. The rest of the build unlocks with access —
-          join the waitlist and we&apos;ll let you know the moment it opens.
+          {purchasable
+            ? "The first lesson is free. Unlock the rest of the build — design through bring-up — with a one-time purchase. Lifetime access."
+            : "The first lesson is free. The rest of the build unlocks with access — join the waitlist and we'll let you know the moment it opens."}
         </p>
 
         <div className="mt-6">
@@ -60,7 +79,11 @@ export function Paywall({
         </div>
 
         <div className="mt-8 border-t border-panel-border pt-6">
-          <WaitlistForm projectId={projectId} />
+          {buyPriceCents !== null ? (
+            <BuyButton projectId={projectId} priceCents={buyPriceCents} />
+          ) : (
+            <WaitlistForm projectId={projectId} />
+          )}
         </div>
       </div>
     </main>

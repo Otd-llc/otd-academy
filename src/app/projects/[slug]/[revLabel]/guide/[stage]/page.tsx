@@ -196,7 +196,14 @@ export default async function GuideCardPage({
 
   const project = await db.project.findUnique({
     where: { slug },
-    select: { id: true, slug: true, name: true, accessTier: true },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      accessTier: true,
+      stripePriceId: true,
+      priceCents: true,
+    },
   });
   if (!project) notFound();
 
@@ -252,7 +259,14 @@ export default async function GuideCardPage({
   });
   if (decision === "redirectSignIn") redirect("/sign-in");
   if (decision === "paywall") {
-    return <Paywall projectId={project.id} projectName={project.name} />;
+    return (
+      <Paywall
+        projectId={project.id}
+        projectName={project.name}
+        stripePriceId={project.stripePriceId}
+        priceCents={project.priceCents}
+      />
+    );
   }
 
   const revision = await db.revision.findFirst({
