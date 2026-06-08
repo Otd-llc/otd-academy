@@ -42,3 +42,28 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# Claude Code local project state + skills tooling (per-developer, not app code)
+/.claude/
+/skills-lock.json
+
+# Local one-off / scratch scripts — operational snapshots already applied to the
+# DB, kept locally for reference but not part of the app or build. Safe to delete.
+/scripts/_*
+/scripts/backfill-datasheets-from-symbols.ts
+/scripts/delete-fixture-project.ts
+/scripts/drop-nets.ts
+/scripts/finalize-wroom-bom.ts
+/scripts/inspect-project.ts
+/scripts/list-parts.ts
+/scripts/list-tables.cjs
+/scripts/materialize-esp32-demo-guide.ts
+/scripts/populate-wroom-kicad-refs.ts
+/scripts/read-s3-pinout.ts
+/scripts/seed-usb4110-facts.ts
+/scripts/seed-wroom-s3-parts.ts
+/scripts/set-wroom-datasheets.ts
+/scripts/swap-wroom-bom-s3.ts
+/scripts/verify-freeze-wroom-bom.ts
+/scripts/verify-seed.cjs
+/scripts/verify-seed.ts
