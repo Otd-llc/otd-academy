@@ -17,7 +17,7 @@
 // → a "Generate guide" affordance (the hub owns the primary button, but a card
 // deep-link shouldn't 500); a guide missing this stage's card → notFound().
 
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
@@ -36,6 +36,7 @@ import { ProofUploadForm } from "@/components/learn/ProofUploadForm";
 import { learnerProofSubkind } from "@/lib/learner-gates";
 import { proofHelp } from "@/lib/learner-proof-help";
 import { guideCardView } from "@/lib/guide-view";
+import { resolvePublicLessonAccess } from "@/lib/public-access";
 import { resolveCardCompletion } from "@/lib/guide-completion";
 import {
   resolveGuideProgress,
@@ -96,7 +97,7 @@ export default async function GuideCardPage({
 
   const project = await db.project.findUnique({
     where: { slug },
-    select: { id: true, slug: true, name: true },
+    select: { id: true, slug: true, name: true, accessTier: true },
   });
   if (!project) notFound();
 
@@ -251,6 +252,16 @@ export default async function GuideCardPage({
   // their own per-enrollment overlay. We never leak author tooling to a learner,
   // nor the learner overlay to an admin (even one who happens to be enrolled).
   const session = await auth();
+  // Page-level access gate: middleware admits guide routes for anonymous
+  // visitors, but only PUBLIC projects may actually be read without a session.
+  if (
+    resolvePublicLessonAccess({
+      hasSession: !!session?.user?.email,
+      accessTier: project.accessTier,
+    }) === "redirectSignIn"
+  ) {
+    redirect("/sign-in");
+  }
   const view = guideCardView(session?.user?.role);
   const learnerEmail = session?.user?.email ?? null;
 

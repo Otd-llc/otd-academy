@@ -14,7 +14,7 @@
 // NOT present the generate button (active build is null, so the build matrix
 // resolves to blocked); the page never crashes.
 
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
@@ -26,6 +26,7 @@ import {
 } from "@/lib/guide-progress";
 import { auth } from "@/auth";
 import { guideCardView } from "@/lib/guide-view";
+import { resolvePublicLessonAccess } from "@/lib/public-access";
 import {
   resolveCardCompletion,
   type CardCompletion,
@@ -102,7 +103,7 @@ export default async function GuideHubPage({
 
   const project = await db.project.findUnique({
     where: { slug },
-    select: { id: true, slug: true, name: true },
+    select: { id: true, slug: true, name: true, accessTier: true },
   });
   if (!project) notFound();
 
@@ -154,6 +155,16 @@ export default async function GuideHubPage({
   // (design roll-up + per-board build matrix); learners see their OWN journey and
   // never the operator build matrix.
   const session = await auth();
+  // Page-level access gate: middleware admits guide routes for anonymous
+  // visitors, but only PUBLIC projects may actually be read without a session.
+  if (
+    resolvePublicLessonAccess({
+      hasSession: !!session?.user?.email,
+      accessTier: project.accessTier,
+    }) === "redirectSignIn"
+  ) {
+    redirect("/sign-in");
+  }
   const view = guideCardView(session?.user?.role);
   const learnerEmail = session?.user?.email ?? null;
   let learnerCurrentStage: string | null = null;
