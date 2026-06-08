@@ -13,7 +13,7 @@
 //
 // Brand palette pulled from src/app/globals.css @theme tokens:
 //   deep-space  #08090d   (near-black navy background)
-//   command-gold #c8963e  (accent / "FOUNDRY" wordmark + rule)
+//   command-gold #c8963e  (accent / "ACADEMY" wordmark + rule)
 //   gold-light  #e8b865   (stage label)
 // Fonts: plain system sans (no custom-font fetch — keeps the route robust).
 
@@ -30,7 +30,7 @@ export const runtime = "nodejs";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "Project Foundry build-guide lesson";
+export const alt = "One Thousand Drones Academy build-guide lesson";
 
 // Brand tokens (kept inline so this file is self-contained / can't drift if the
 // theme file moves). Source: src/app/globals.css @theme.
@@ -70,7 +70,10 @@ async function resolveData(params: Params): Promise<{
       select: { name: true },
     });
     if (!project) {
-      return { projectName: "Project Foundry", stageText: fallbackStage };
+      return {
+        projectName: "One Thousand Drones Academy",
+        stageText: fallbackStage,
+      };
     }
 
     // Prefer the authored card title for the stage; fall back to the label map.
@@ -95,7 +98,10 @@ async function resolveData(params: Params): Promise<{
     return { projectName: project.name, stageText };
   } catch {
     // DB unavailable / bad params → still emit a branded card.
-    return { projectName: "Project Foundry", stageText: fallbackStage };
+    return {
+      projectName: "One Thousand Drones Academy",
+      stageText: fallbackStage,
+    };
   }
 }
 
@@ -105,7 +111,7 @@ export default async function Image({
   params: Promise<Params>;
 }) {
   // Even param resolution is guarded so the route can never throw.
-  let projectName = "Project Foundry";
+  let projectName = "One Thousand Drones Academy";
   let stageText = "BUILD GUIDE";
   try {
     const resolved = await params;
@@ -139,13 +145,13 @@ export default async function Image({
             display: "flex",
             alignItems: "center",
             fontSize: 34,
-            letterSpacing: 8,
+            letterSpacing: 6,
             fontWeight: 700,
             textTransform: "uppercase",
           }}
         >
-          <span style={{ color: WHITE }}>PROJECT&nbsp;</span>
-          <span style={{ color: COMMAND_GOLD }}>FOUNDRY</span>
+          <span style={{ color: WHITE }}>ONE THOUSAND DRONES&nbsp;</span>
+          <span style={{ color: COMMAND_GOLD }}>ACADEMY</span>
         </div>
 
         {/* Body: stage label + project name */}

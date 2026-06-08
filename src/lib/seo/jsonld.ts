@@ -31,7 +31,7 @@ export function serializeJsonLd(data: unknown): string {
 // metadataBase. JSON-LD `item`/`url` fields must be ABSOLUTE, so the pages build
 // `${siteUrl()}${path}` for breadcrumb/itemList entries.
 export function siteUrl(): string {
-  const base = env.NEXT_PUBLIC_SITE_URL ?? "https://foundry.onethousanddrones.com";
+  const base = env.NEXT_PUBLIC_SITE_URL ?? "https://academy.onethousanddrones.com";
   return base.replace(/\/$/, "");
 }
 const PROVIDER = {

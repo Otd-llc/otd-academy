@@ -22,7 +22,7 @@ import { JsonLd } from "@/components/seo/JsonLd";
 
 // SEO. Static-ish — the courses index is a stable funnel landing page. JSON-LD
 // (ItemList) + OG image land in later tasks (B2 / B3).
-const title = "Courses — Project Foundry";
+const title = "Courses — One Thousand Drones Academy";
 const description =
   "Hands-on hardware courses you can follow start to finish — schematic, layout, fabrication, and bring-up. No account required to read along.";
 

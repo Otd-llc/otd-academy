@@ -57,9 +57,9 @@ export async function generateMetadata({
   });
   if (!project) return {};
 
-  const title = `${project.name} — Project Foundry`;
+  const title = `${project.name} — One Thousand Drones Academy`;
   const description =
-    project.description ?? `${project.name} on Project Foundry.`;
+    project.description ?? `${project.name} on One Thousand Drones Academy.`;
 
   return {
     title,

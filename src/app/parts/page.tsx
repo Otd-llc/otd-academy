@@ -45,9 +45,9 @@ function FilterChip({
 
 // SEO. The list is query-driven (search/filter/sort via ?params) but the
 // indexable surface is the canonical, param-free catalog landing.
-const title = "Parts library — Project Foundry";
+const title = "Parts library — One Thousand Drones Academy";
 const description =
-  "Browse the Project Foundry parts catalog — manufacturer part numbers, datasheets, lifecycle status, and KiCad symbols/footprints.";
+  "Browse the One Thousand Drones Academy parts catalog — manufacturer part numbers, datasheets, lifecycle status, and KiCad symbols/footprints.";
 
 export const metadata: Metadata = {
   title,

@@ -52,7 +52,7 @@ export async function generateMetadata({
   const title = `${part.mpn} — ${part.manufacturer}`;
   const description =
     part.description ??
-    `${part.mpn} by ${part.manufacturer} in the Project Foundry parts library.`;
+    `${part.mpn} by ${part.manufacturer} in the One Thousand Drones Academy parts library.`;
 
   return {
     title,

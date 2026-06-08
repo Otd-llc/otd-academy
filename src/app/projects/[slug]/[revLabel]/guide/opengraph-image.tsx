@@ -21,7 +21,7 @@ export const runtime = "nodejs";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "Project Foundry build guide";
+export const alt = "One Thousand Drones Academy build guide";
 
 // Brand tokens (inline so this file is self-contained). Source: globals.css @theme.
 const DEEP_SPACE = "#08090d";
@@ -41,9 +41,9 @@ async function resolveProjectName(slug: string): Promise<string> {
       where: { slug },
       select: { name: true },
     });
-    return project?.name ?? "Project Foundry";
+    return project?.name ?? "One Thousand Drones Academy";
   } catch {
-    return "Project Foundry";
+    return "One Thousand Drones Academy";
   }
 }
 
@@ -52,7 +52,7 @@ export default async function Image({
 }: {
   params: Promise<Params>;
 }) {
-  let projectName = "Project Foundry";
+  let projectName = "One Thousand Drones Academy";
   try {
     const { slug } = await params;
     projectName = await resolveProjectName(slug);
@@ -83,13 +83,13 @@ export default async function Image({
             display: "flex",
             alignItems: "center",
             fontSize: 34,
-            letterSpacing: 8,
+            letterSpacing: 6,
             fontWeight: 700,
             textTransform: "uppercase",
           }}
         >
-          <span style={{ color: WHITE }}>PROJECT&nbsp;</span>
-          <span style={{ color: COMMAND_GOLD }}>FOUNDRY</span>
+          <span style={{ color: WHITE }}>ONE THOUSAND DRONES&nbsp;</span>
+          <span style={{ color: COMMAND_GOLD }}>ACADEMY</span>
         </div>
 
         {/* Body: eyebrow + project name */}

@@ -79,13 +79,15 @@ export default async function SignInPage({
           dead-centre of the viewport. */}
       <div className="z-10 flex flex-col items-center justify-center text-center">
         <h1
-          className="font-display text-gray-1"
+          className="font-display leading-[1.05] text-gray-1"
           style={{
-            fontSize: "clamp(2.25rem, 6.4vw, 4rem)",
-            letterSpacing: "clamp(0.25rem, 0.9vw, 0.45rem)",
+            fontSize: "clamp(1.75rem, 5.2vw, 3.25rem)",
+            letterSpacing: "clamp(0.2rem, 0.7vw, 0.4rem)",
           }}
         >
-          PROJECT <span className="text-command-gold">FOUNDRY</span>
+          ONE THOUSAND DRONES
+          <br />
+          <span className="text-command-gold">ACADEMY</span>
         </h1>
         <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.4em] text-gray-3">
           Hardware engineering · 9-stage workflow
