@@ -11,6 +11,22 @@ import { env } from "@/env";
 
 const SCHEMA_CONTEXT = "https://schema.org" as const;
 
+// Serialize a JSON-LD object for safe embedding inside an inline HTML
+// `<script type="application/ld+json">`. Plain `JSON.stringify` does NOT escape
+// `<`, `>`, `&` or the U+2028/U+2029 line separators, so a value containing
+// `</script>` (a project name, card title/lead, step text, …) would terminate
+// the <script> element and inject live HTML/JS — a stored-XSS sink on a public
+// page. Escaping these as `\uXXXX` is value-preserving for JSON-LD consumers:
+// `<` is valid JSON that parses straight back to `<`.
+export function serializeJsonLd(data: unknown): string {
+  return JSON.stringify(data)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
 // The public site origin (no trailing slash) — the same base as layout's
 // metadataBase. JSON-LD `item`/`url` fields must be ABSOLUTE, so the pages build
 // `${siteUrl()}${path}` for breadcrumb/itemList entries.

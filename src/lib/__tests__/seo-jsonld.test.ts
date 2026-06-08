@@ -3,6 +3,7 @@ import {
   courseJsonLd,
   breadcrumbJsonLd,
   guideCardToHowTo,
+  serializeJsonLd,
 } from "@/lib/seo/jsonld";
 
 describe("courseJsonLd", () => {
@@ -116,5 +117,30 @@ describe("guideCardToHowTo", () => {
     expect(obj.name).toBe("Reading-only card");
     // No steps block → omit `step` (still a valid HowTo).
     expect("step" in obj).toBe(false);
+  });
+});
+
+describe("serializeJsonLd", () => {
+  it("escapes `</script>` so a malicious string cannot break out of the <script> element", () => {
+    const out = serializeJsonLd({
+      name: "Hello </script><script>alert(1)</script>",
+    });
+
+    // The literal closing-script sequence must NOT survive — otherwise the
+    // injected markup would terminate the JSON-LD <script> and run as live HTML.
+    expect(out).not.toContain("</script>");
+    // `<` must be emitted as its unicode escape inside the JSON string.
+    expect(out).toContain("\\u003c");
+  });
+
+  it("is value-preserving — JSON.parse(serializeJsonLd(x)) deep-equals x", () => {
+    const x = {
+      name: "Hello </script><script>alert(1)</script>",
+      nested: { lt: "<", gt: ">", amp: "&" },
+      list: ["a < b", "c > d", "e & f"],
+    };
+    // `<` etc. are valid JSON escapes that parse back to the raw chars, so
+    // the round-trip is lossless for JSON-LD consumers.
+    expect(JSON.parse(serializeJsonLd(x))).toEqual(x);
   });
 });
