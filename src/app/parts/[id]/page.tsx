@@ -61,7 +61,11 @@ export default async function PartDetailPage({
   if (!part) notFound();
 
   const session = await auth();
-  const canEdit = !!session?.user?.email;
+  // Curation (edit/verify/flag/upload/delete) and the cached datasheet/CAD
+  // download URLs are ADMIN-only — NOT merely "signed in". The middleware
+  // (proxy.ts) already keeps learners off /parts entirely; this is the matching
+  // in-page gate (defense-in-depth + it controls download-URL minting below).
+  const canEdit = session?.user?.role === "ADMIN";
 
   // Resolve verifier display names in one query (PartFact carries verifiedById
   // but no relation; map id → name/email for the badge).

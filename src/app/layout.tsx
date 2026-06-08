@@ -30,8 +30,9 @@ export default async function RootLayout({
 }>) {
   // Resolve the session server-side so the UserMenu only renders for
   // signed-in users. `/sign-in` and `/api/auth/*` are excluded from the
-  // middleware matcher (src/middleware.ts), so on those routes auth()
-  // returns null and the menu stays hidden.
+  // middleware matcher (src/proxy.ts), so on those routes auth()
+  // returns null and the menu stays hidden. `role` also drives MainNav: the
+  // operator links (Projects / Curriculum / Parts) show for ADMINs only.
   const session = await auth();
   const email = session?.user?.email ?? null;
   const role = session?.user?.role ?? null;
@@ -73,7 +74,10 @@ export default async function RootLayout({
                   brand/user cluster (order-last + w-full); from sm up it sits
                   inline between them again. Keeps the top row cleanly
                   brand-left / avatar-right instead of wrapping unpredictably. */}
-              <MainNav className="order-last w-full sm:order-none sm:w-auto" />
+              <MainNav
+                role={role}
+                className="order-last w-full sm:order-none sm:w-auto"
+              />
 
               {/* Right cluster — explicit header sign-out + the email menu. The
                   text sign-out is hidden on mobile to declutter the top row; the

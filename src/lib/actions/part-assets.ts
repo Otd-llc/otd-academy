@@ -4,7 +4,7 @@
 //
 // Each part can carry a per-kind CAD bundle (SYMBOL / FOOTPRINT / MODEL_3D), and
 // each asset moves through `UNVERIFIED → VERIFIED → FLAGGED` ONLY via these
-// deliberate server actions, each behind `requireUser` first; every MUTATING
+// deliberate server actions, each behind `requireAdmin` (curation is admin-only); every MUTATING
 // action uses OPTIMISTIC CONCURRENCY (a conditional
 // `updateMany({ where: { id, updatedAt, trust:<pin> } })` — the same fence as
 // `part-facts.ts`, with `PartAsset.updatedAt` as the lock). A 0-row result means
@@ -203,7 +203,7 @@ export async function unverifyPartAsset(input: unknown): Promise<PartAsset> {
 
 // ─── flagPartAsset ──────────────────────────────────────
 /**
- * Set `trust: FLAGGED` (any signed-in user). NO reason column in v1. Conditional
+ * Set `trust: FLAGGED` (admin-only). NO reason column in v1. Conditional
  * update on `updatedAt`.
  */
 export async function flagPartAsset(input: unknown): Promise<PartAsset> {
@@ -259,7 +259,7 @@ export async function clearPartAssetFlag(input: unknown): Promise<PartAsset> {
 // ─── deletePartAsset ────────────────────────────────────
 /**
  * Deliberately remove an asset (e.g. a wrong footprint), reverting that kind's
- * row to the empty "Upload" affordance. Any signed-in user may delete from ANY
+ * row to the empty "Upload" affordance. An admin may delete from ANY
  * trust state (UNVERIFIED/VERIFIED/FLAGGED) — there is NO trust precondition;
  * the deliberate confirm lives in the UI. The optimistic-lock fence still
  * applies: a conditional `deleteMany({ where: { id, updatedAt } })` returns 0
@@ -305,10 +305,10 @@ export async function deletePartAsset(input: unknown): Promise<void> {
 //
 // Three R2 actions clone the Stage A datasheet pipeline (part-datasheet.ts)
 // per-kind, parameterized by `ASSET_KIND_CONFIG` (extension allowlist + a
-// SERVER-FORCED content-type + a size cap). All three are `requireUser`-gated;
-// the upload + record actions are also `ensureR2Enabled`-gated; the download
-// action returns `null` (not a throw) on the disabled / missing path so the
-// part page can render a graceful fallback.
+// SERVER-FORCED content-type + a size cap). Upload + record are `requireAdmin`-
+// gated (and `ensureR2Enabled`-gated); the download action is `requireUser` (any
+// signed-in user) and returns `null` (not a throw) on the disabled / missing
+// path so the part page can render a graceful fallback.
 //
 // CONTENT-TYPE is load-bearing. KiCad files (`.kicad_sym` / `.kicad_mod` /
 // `.step`) usually report an EMPTY browser `file.type`, so we validate by
@@ -321,7 +321,7 @@ export async function deletePartAsset(input: unknown): Promise<void> {
 /**
  * Mint a presigned PUT URL for a part's per-kind CAD asset. The upload schema
  * parses FIRST — so its ext/cap `superRefine` runs BEFORE the R2 gate — then
- * `requireUser` + `ensureR2Enabled` + a part-exists check, then `presignPut`
+ * `requireAdmin` + `ensureR2Enabled` + a part-exists check, then `presignPut`
  * over the minted `parts/{partId}/{kind}-{cuid}.{ext}` key with the kind's
  * forced content-type. Returns `{ uploadUrl, r2Key, contentType }`; the client
  * MUST send `contentType` (NOT `file.type`) in the PUT `Content-Type` header.
