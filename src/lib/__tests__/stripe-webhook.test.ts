@@ -148,7 +148,12 @@ describe("POST /api/stripe/webhook — checkout.session.completed", () => {
     constructEvent.mockReturnValue({
       id: "evt_grant",
       type: "checkout.session.completed",
-      data: { object: { metadata: { userId: "user_1", projectId: "proj_1" } } },
+      data: {
+        object: {
+          payment_status: "paid",
+          metadata: { userId: "user_1", projectId: "proj_1" },
+        },
+      },
     });
 
     const res = await POST(makeRequest("rawbody", SIG_HEADER));
@@ -172,7 +177,12 @@ describe("POST /api/stripe/webhook — checkout.session.completed", () => {
     constructEvent.mockReturnValue({
       id: "evt_grant",
       type: "checkout.session.completed",
-      data: { object: { metadata: { userId: "user_1", projectId: "proj_1" } } },
+      data: {
+        object: {
+          payment_status: "paid",
+          metadata: { userId: "user_1", projectId: "proj_1" },
+        },
+      },
     });
     // The dedupe row already exists — the unique @id violates with P2002.
     processedCreate.mockRejectedValue(
@@ -193,7 +203,7 @@ describe("POST /api/stripe/webhook — checkout.session.completed", () => {
     constructEvent.mockReturnValue({
       id: "evt_nometa",
       type: "checkout.session.completed",
-      data: { object: { metadata: {} } },
+      data: { object: { payment_status: "paid", metadata: {} } },
     });
 
     const res = await POST(makeRequest("rawbody", SIG_HEADER));
@@ -203,11 +213,36 @@ describe("POST /api/stripe/webhook — checkout.session.completed", () => {
     expect(entitlementUpsert).not.toHaveBeenCalled();
   });
 
+  test("an UNPAID session is acked (200) with NO ProcessedStripeEvent and NO grant", async () => {
+    constructEvent.mockReturnValue({
+      id: "evt_unpaid",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          payment_status: "unpaid",
+          metadata: { userId: "user_1", projectId: "proj_1" },
+        },
+      },
+    });
+
+    const res = await POST(makeRequest("rawbody", SIG_HEADER));
+
+    expect(res.status).toBe(200);
+    // The guard runs BEFORE any write: neither layer is touched.
+    expect(processedCreate).not.toHaveBeenCalled();
+    expect(entitlementUpsert).not.toHaveBeenCalled();
+  });
+
   test("rethrows a non-P2002 Prisma error from the dedupe insert", async () => {
     constructEvent.mockReturnValue({
       id: "evt_grant",
       type: "checkout.session.completed",
-      data: { object: { metadata: { userId: "user_1", projectId: "proj_1" } } },
+      data: {
+        object: {
+          payment_status: "paid",
+          metadata: { userId: "user_1", projectId: "proj_1" },
+        },
+      },
     });
     processedCreate.mockRejectedValue(
       new Prisma.PrismaClientKnownRequestError("Some other DB error", {

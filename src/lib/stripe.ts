@@ -23,7 +23,10 @@ export function getStripe(): Stripe {
   if (!key) {
     throw new Error("Payments are not configured (STRIPE_SECRET_KEY missing)");
   }
-  stripeSingleton = new Stripe(key);
+  // Pin the API version so payload/param shapes stay deterministic across SDK
+  // bumps. This string is the exact version the installed `stripe` package's
+  // types expect (Stripe.LatestApiVersion), so tsc stays happy.
+  stripeSingleton = new Stripe(key, { apiVersion: "2026-05-27.dahlia" });
   return stripeSingleton;
 }
 

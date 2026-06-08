@@ -47,12 +47,30 @@ export async function POST(req: Request): Promise<Response> {
   let event;
   try {
     event = getStripe().webhooks.constructEvent(rawBody, sig, secret);
-  } catch {
+  } catch (e) {
+    // A misconfigured prod webhook secret 400s EVERY event; logging the error
+    // MESSAGE (never the raw body or the secret) makes that diagnosable.
+    console.warn(
+      "Stripe webhook signature verification failed:",
+      e instanceof Error ? e.message : String(e),
+    );
     return new Response("Invalid signature", { status: 400 });
   }
 
   // 5. We only act on a completed Checkout Session. Everything else is acked.
   if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+
+    // 5a0. Guard against granting on an UNPAID session. With `mode: "payment"` +
+    //      card checkout this is normally `"paid"`, but asynchronous payment
+    //      methods can deliver `checkout.session.completed` as `"unpaid"` and
+    //      settle later via `checkout.session.async_payment_succeeded` (not
+    //      handled — card-only for now). Ack (200) WITHOUT recording a
+    //      ProcessedStripeEvent or granting an Entitlement.
+    if (session.payment_status !== "paid") {
+      return new Response(null, { status: 200 });
+    }
+
     // 5a. First idempotency layer: claim this event id. If it's already claimed
     //     (P2002), the event was processed before (a Stripe redelivery) — return
     //     200 and do NOTHING else, so we never grant twice.
@@ -72,7 +90,7 @@ export async function POST(req: Request): Promise<Response> {
 
     // 5b. Pull the grant target from the session metadata. Without it we cannot
     //     grant — log and ack (nothing to retry; a redelivery wouldn't help).
-    const grant = entitlementFromCheckoutSession(event.data.object);
+    const grant = entitlementFromCheckoutSession(session);
     if (!grant) {
       console.warn(
         `[stripe-webhook] checkout.session.completed ${event.id} has no userId/projectId metadata; skipping grant`,
