@@ -44,7 +44,8 @@ import { ProofUploadForm } from "@/components/learn/ProofUploadForm";
 import { learnerProofSubkind } from "@/lib/learner-gates";
 import { proofHelp } from "@/lib/learner-proof-help";
 import { guideCardView } from "@/lib/guide-view";
-import { resolvePublicLessonAccess } from "@/lib/public-access";
+import { resolveLessonAccess } from "@/lib/public-access";
+import { hasProjectEntitlement } from "@/lib/entitlements";
 import { resolveCardCompletion } from "@/lib/guide-completion";
 import {
   resolveGuideProgress,
@@ -174,22 +175,69 @@ export default async function GuideCardPage({
 
   // Page-level access gate (hoisted above the no-guide return + R2 work). The
   // page is auth-gated by middleware, which admits guide routes for anonymous
-  // visitors, but only PUBLIC projects may actually be read without a session.
+  // visitors; this page is the real gate. accessTier is the access product:
+  // PUBLIC is anonymous-readable; FREE needs an account; PREMIUM needs an
+  // Entitlement, except its card 0 (the free preview / sales surface).
   // Role decides the ENTIRE view below: ADMINs author/QA the shared reference
   // revision (Stage Gate, edit-in-place, board selector); everyone else is a
   // learner who sees only their own per-enrollment overlay. We never leak author
   // tooling to a learner, nor the learner overlay to an admin (even one who
   // happens to be enrolled). Gating here (right after the project resolves)
-  // avoids leaking the project name + doing wasted R2 presigning to anonymous
-  // hits on a non-PUBLIC project before the redirect.
+  // avoids doing wasted R2 presigning on a card the viewer can't read.
   const session = await auth();
-  if (
-    resolvePublicLessonAccess({
-      hasSession: !!session?.user?.email,
-      accessTier: project.accessTier,
-    }) === "redirectSignIn"
-  ) {
-    redirect("/sign-in");
+  const sessionEmail = session?.user?.email ?? null;
+  const isAdmin = session?.user?.role === "ADMIN";
+
+  // Resolve this stage's card ordinal cheaply for the gate (card 0 of a PREMIUM
+  // project is the free preview). A stage with no card here will notFound()
+  // below anyway; treat its ordinal as 0 (no leak — the page 404s regardless).
+  const gateCard = await db.guideCard.findFirst({
+    where: {
+      stage,
+      guide: { revision: { projectId: project.id, label: { equals: decodedLabel, mode: "insensitive" } } },
+    },
+    select: { ordinal: true },
+  });
+  const cardOrdinal = gateCard?.ordinal ?? 0;
+
+  // Entitlement is a signed-in-only concern; resolve the viewer's user id from
+  // their session email (reused below for the learner overlay).
+  let viewerUserId: string | null = null;
+  let hasEntitlement = false;
+  if (sessionEmail) {
+    const viewer = await db.user.findUnique({
+      where: { email: sessionEmail },
+      select: { id: true },
+    });
+    viewerUserId = viewer?.id ?? null;
+    if (viewerUserId) {
+      hasEntitlement = await hasProjectEntitlement(db, viewerUserId, project.id);
+    }
+  }
+
+  const decision = resolveLessonAccess({
+    accessTier: project.accessTier,
+    cardOrdinal,
+    hasSession: !!sessionEmail,
+    hasEntitlement,
+    isAdmin,
+  });
+  if (decision === "redirectSignIn") redirect("/sign-in");
+  if (decision === "paywall") {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+        <div className="glass-card border-l-4 border-l-command-gold p-8 text-center">
+          <p className="font-mono text-3xl">🔒</p>
+          <h1 className="mt-4 font-display text-2xl tracking-wider text-white">
+            This lesson is part of a premium course.
+          </h1>
+          <p className="mt-3 font-serif text-sm text-gray-2">
+            {project.name} is a premium project. The first lesson is free — the
+            rest unlock with access.
+          </p>
+        </div>
+      </main>
+    );
   }
 
   const revision = await db.revision.findFirst({

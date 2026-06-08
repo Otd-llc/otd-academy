@@ -27,7 +27,8 @@ import {
 } from "@/lib/guide-progress";
 import { auth } from "@/auth";
 import { guideCardView } from "@/lib/guide-view";
-import { resolvePublicLessonAccess } from "@/lib/public-access";
+import { resolveLessonAccess } from "@/lib/public-access";
+import { hasProjectEntitlement } from "@/lib/entitlements";
 import { courseJsonLd } from "@/lib/seo/jsonld";
 import { JsonLd } from "@/components/seo/JsonLd";
 import {
@@ -203,12 +204,31 @@ export default async function GuideHubPage({
   // (design roll-up + per-board build matrix); learners see their OWN journey and
   // never the operator build matrix.
   const session = await auth();
-  // Page-level access gate: middleware admits guide routes for anonymous
-  // visitors, but only PUBLIC projects may actually be read without a session.
+  const sessionEmail = session?.user?.email ?? null;
+  const isAdmin = session?.user?.role === "ADMIN";
+
+  // Page-level access gate. The hub is card-0 semantics (cardOrdinal: 0): a
+  // PREMIUM project's hub is its public sales surface (allow), a FREE project's
+  // hub still requires an account (redirect anonymous), PUBLIC is open. We load
+  // the viewer's entitlement so an entitled premium learner is treated as
+  // allowed even though card 0 already would be.
+  let hasEntitlement = false;
+  if (sessionEmail) {
+    const viewer = await db.user.findUnique({
+      where: { email: sessionEmail },
+      select: { id: true },
+    });
+    if (viewer) {
+      hasEntitlement = await hasProjectEntitlement(db, viewer.id, project.id);
+    }
+  }
   if (
-    resolvePublicLessonAccess({
-      hasSession: !!session?.user?.email,
+    resolveLessonAccess({
       accessTier: project.accessTier,
+      cardOrdinal: 0,
+      hasSession: !!sessionEmail,
+      hasEntitlement,
+      isAdmin,
     }) === "redirectSignIn"
   ) {
     redirect("/sign-in");
