@@ -27,7 +27,15 @@ export default auth((req) => {
   if (req.auth?.user?.role === "LEARNER" && isAdminOnlyPath(pathname)) {
     return NextResponse.redirect(new URL("/learn", req.nextUrl.origin));
   }
-  return NextResponse.next();
+
+  // Forward the request path as a header so the root layout (a Server
+  // Component, which can't read the URL otherwise) knows which route is
+  // rendering and can pick the right chrome — full app-shell for signed-in
+  // users, a public header + sign-up CTA on PUBLIC routes. Only the
+  // pass-through response carries it; the redirect branches above are unchanged.
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-pathname", pathname);
+  return NextResponse.next({ request: { headers: requestHeaders } });
 });
 
 export const config = {
