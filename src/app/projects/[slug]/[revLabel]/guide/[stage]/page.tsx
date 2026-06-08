@@ -17,9 +17,11 @@
 // → a "Generate guide" affordance (the hub owns the primary button, but a card
 // deep-link shouldn't 500); a guide missing this stage's card → notFound().
 
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { canonicalLessonPath } from "@/lib/seo/canonical";
 import { PageHeader } from "@/components/PageHeader";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import { GuideBlocks, type ResolvedModel } from "@/components/guide/GuideBlocks";
@@ -78,6 +80,69 @@ const PROOF_LABEL: Record<string, string> = {
 function accentWordFor(title: string): string {
   const tokens = title.trim().split(/[\s/]+/).filter(Boolean);
   return tokens[tokens.length - 1] ?? title;
+}
+
+// SEO. Runs separately from the component, so it re-resolves only what the
+// tags need (project name + published-revision label for the canonical, plus
+// the card title/lead) with tight selects. The canonical always points at the
+// PUBLISHED revision (not the viewed `revLabel`) so crawlers consolidate on one
+// URL; when the project has no published revision we omit `alternates.canonical`.
+// OG images land in a later task (B2).
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<Params>;
+}): Promise<Metadata> {
+  const { slug, revLabel, stage: stageParam } = await params;
+  const stageUpper = stageParam.toUpperCase();
+
+  const project = await db.project.findUnique({
+    where: { slug },
+    select: {
+      name: true,
+      publishedRevision: { select: { label: true } },
+    },
+  });
+  if (!project) return {};
+
+  const decodedLabel = decodeURIComponent(revLabel);
+  const card = isGuideStage(stageUpper)
+    ? await db.guideCard.findFirst({
+        where: {
+          stage: stageUpper,
+          guide: {
+            revision: {
+              project: { slug },
+              label: { equals: decodedLabel, mode: "insensitive" },
+            },
+          },
+        },
+        select: { title: true, lead: true },
+      })
+    : null;
+
+  const cardTitle = card?.title ?? stageUpper;
+  const title = `${cardTitle} — ${project.name}`;
+  const description =
+    card?.lead ?? `${project.name}: ${stageUpper} stage of the build guide.`;
+  const canonical = canonicalLessonPath({
+    slug,
+    publishedLabel: project.publishedRevision?.label ?? null,
+    stage: stageUpper,
+  });
+
+  return {
+    title,
+    description,
+    alternates: canonical ? { canonical } : undefined,
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      url: canonical ?? undefined,
+    },
+    twitter: { card: "summary_large_image", title, description },
+  };
 }
 
 export default async function GuideCardPage({

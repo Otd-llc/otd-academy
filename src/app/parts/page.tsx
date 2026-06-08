@@ -6,6 +6,7 @@
 // `.catch`es to a safe default, so a hand-edited querystring degrades rather
 // than 500ing). Pagination + the responsive card/table split land in later
 // tasks. The filter chip pattern mirrors `src/app/page.tsx`'s FilterChip helper.
+import type { Metadata } from "next";
 import Link from "next/link";
 import { PartLifecycle } from "@prisma/client";
 import { auth } from "@/auth";
@@ -41,6 +42,20 @@ function FilterChip({
     </Link>
   );
 }
+
+// SEO. The list is query-driven (search/filter/sort via ?params) but the
+// indexable surface is the canonical, param-free catalog landing.
+const title = "Parts library — Project Foundry";
+const description =
+  "Browse the Project Foundry parts catalog — manufacturer part numbers, datasheets, lifecycle status, and KiCad symbols/footprints.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: { canonical: "/parts" },
+  openGraph: { title, description, type: "website", url: "/parts" },
+  twitter: { card: "summary_large_image", title, description },
+};
 
 export default async function PartsListPage({
   searchParams,

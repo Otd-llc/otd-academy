@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { auth, signOut } from "@/auth";
+import { env } from "@/env";
 import { shouldRenderChrome } from "@/lib/chrome";
 import { BrandMark } from "@/components/BrandMark";
 import { MainNav } from "@/components/MainNav";
@@ -22,6 +23,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // Absolute base for canonical / OG / Twitter URLs. OPTIONAL env var with a
+  // prod-origin fallback so builds without NEXT_PUBLIC_SITE_URL set (local, CI)
+  // never break — Next resolves all relative metadata URLs against this.
+  metadataBase: new URL(
+    env.NEXT_PUBLIC_SITE_URL ?? "https://foundry.onethousanddrones.com",
+  ),
   title: "Project Foundry",
   description: "Hardware design lifecycle tracker",
 };

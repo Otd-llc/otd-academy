@@ -11,6 +11,7 @@
 // `canEdit = !!session` (resolved from `auth()` like the rest of the app); the
 // gate controls (Edit / Verify / Flag / Clear-flag) only render when signed in.
 
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { env } from "@/env";
@@ -33,6 +34,33 @@ import { DatasheetUpload } from "@/components/parts/DatasheetUpload";
 import { DatasheetUrlEditor } from "@/components/parts/DatasheetUrlEditor";
 import { GROUP_ORDER } from "@/components/parts/fact-group-meta";
 import type { DatasheetOption } from "@/components/parts/ProvenanceFields";
+
+// SEO. Title/description from the part's mpn + manufacturer + description
+// (tight select, re-resolved independently of the component).
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const part = await db.part.findUnique({
+    where: { id },
+    select: { mpn: true, manufacturer: true, description: true },
+  });
+  if (!part) return {};
+
+  const title = `${part.mpn} — ${part.manufacturer}`;
+  const description =
+    part.description ??
+    `${part.mpn} by ${part.manufacturer} in the Project Foundry parts library.`;
+
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: "website" },
+    twitter: { card: "summary_large_image", title, description },
+  };
+}
 
 export default async function PartDetailPage({
   params,

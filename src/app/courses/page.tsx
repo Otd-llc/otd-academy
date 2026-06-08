@@ -13,9 +13,24 @@
 // SEO metadata + JSON-LD (ItemList) for this page land in PR B; this task only
 // renders the page.
 
+import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
+
+// SEO. Static-ish — the courses index is a stable funnel landing page. JSON-LD
+// (ItemList) + OG image land in later tasks (B2 / B3).
+const title = "Courses — Project Foundry";
+const description =
+  "Hands-on hardware courses you can follow start to finish — schematic, layout, fabrication, and bring-up. No account required to read along.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: { canonical: "/courses" },
+  openGraph: { title, description, type: "website", url: "/courses" },
+  twitter: { card: "summary_large_image", title, description },
+};
 
 export default async function CoursesPage() {
   const courses = await db.project.findMany({

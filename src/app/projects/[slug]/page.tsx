@@ -5,6 +5,7 @@
 //
 // Phase 4 scope: project chrome only. The Revisions section is a
 // placeholder until M5a wires up the real revision list / create button.
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
@@ -41,6 +42,32 @@ const TRACK_COLOR: Record<string, string> = {
   POWER: "text-alert-red",
   COMMS: "text-signal-blue",
 };
+
+// SEO. Title/description from the project name + description (tight select,
+// re-resolved independently of the component). OG images land in a later task.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const project = await db.project.findUnique({
+    where: { slug },
+    select: { name: true, description: true },
+  });
+  if (!project) return {};
+
+  const title = `${project.name} — Project Foundry`;
+  const description =
+    project.description ?? `${project.name} on Project Foundry.`;
+
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: "website" },
+    twitter: { card: "summary_large_image", title, description },
+  };
+}
 
 export default async function ProjectDetailPage({
   params,

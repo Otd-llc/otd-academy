@@ -14,6 +14,7 @@
 // NOT present the generate button (active build is null, so the build matrix
 // resolves to blocked); the page never crashes.
 
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
@@ -91,6 +92,35 @@ function parseRef(value: unknown): CompletionRef {
   if (value == null) return { kind: "none" };
   const r = completionRefSchema.safeParse(value);
   return r.success ? r.data : { kind: "none" };
+}
+
+// SEO. Project-level title/description for the guide hub (the build-guide
+// landing for a revision). Tight select; canonical/OG-image are per-card
+// concerns handled on the card route (the hub canonicalizes to itself by
+// default). OG images land in a later task (B2).
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<Params>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const project = await db.project.findUnique({
+    where: { slug },
+    select: { name: true, description: true },
+  });
+  if (!project) return {};
+
+  const title = `${project.name} — Build guide`;
+  const description =
+    project.description ??
+    `Follow the ${project.name} build guide from design through bring-up.`;
+
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: "article" },
+    twitter: { card: "summary_large_image", title, description },
+  };
 }
 
 export default async function GuideHubPage({
