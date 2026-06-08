@@ -56,11 +56,22 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/parts/new")).toBe(false);
   });
 
+  it("admits guide routes (page enforces accessTier) and /courses", () => {
+    expect(isPublicPath("/projects/wroom/v1/guide")).toBe(true);
+    expect(isPublicPath("/projects/wroom/v1/guide/REQUIREMENTS")).toBe(true);
+    expect(isPublicPath("/courses")).toBe(true);
+    expect(isPublicPath("/courses/anything")).toBe(true);
+  });
+
+  it("still does not admit non-guide project routes", () => {
+    expect(isPublicPath("/projects/wroom/v1")).toBe(false);
+    expect(isPublicPath("/projects/new")).toBe(false);
+  });
+
   it("does NOT treat operator, learner, or neutral routes as public", () => {
     expect(isPublicPath("/")).toBe(false);
     expect(isPublicPath("/curriculum")).toBe(false);
     expect(isPublicPath("/projects/wroom/v1")).toBe(false);
-    expect(isPublicPath("/projects/wroom/v1/guide")).toBe(false);
     expect(isPublicPath("/learn")).toBe(false);
   });
 });
