@@ -37,7 +37,10 @@ import { learnerProofSubkind } from "@/lib/learner-gates";
 import { proofHelp } from "@/lib/learner-proof-help";
 import { guideCardView } from "@/lib/guide-view";
 import { resolveCardCompletion } from "@/lib/guide-completion";
-import { resolveGuideProgress } from "@/lib/guide-progress";
+import {
+  resolveGuideProgress,
+  resolveLearnerGuideProgress,
+} from "@/lib/guide-progress";
 import { buildStageGateWidget } from "@/lib/guide-widget";
 import {
   GUIDE_STAGES,
@@ -227,13 +230,6 @@ export default async function GuideCardPage({
     completion,
   });
 
-  // The 8-stage "order of operations" rail (board-scoped on the build cards).
-  const guideProgress = await resolveGuideProgress(
-    revision.id,
-    revision.guide.id,
-    selectedBoardId,
-  );
-
   // Quizzes are learner-only now (recorded per Enrollment). The author preview
   // has no enrollment, so it renders the quiz cards without a recording context;
   // the enrollment-aware learner guide (Task 4.2) supplies the live quizContext.
@@ -273,6 +269,7 @@ export default async function GuideCardPage({
     | undefined;
   let showLearnerAdvance = false;
   let learnerNeedsProof = false;
+  let learnerCurrentStage: string | null = null;
   if (learnerEmail && view.isLearnerView) {
     const enrollment = await db.enrollment.findFirst({
       where: { projectId: project.id, user: { email: learnerEmail } },
@@ -284,6 +281,7 @@ export default async function GuideCardPage({
       },
     });
     if (enrollment) {
+      learnerCurrentStage = enrollment.currentStage;
       learnerQuizContext = {
         enrollmentId: enrollment.id,
         stage,
@@ -296,6 +294,13 @@ export default async function GuideCardPage({
         !enrollment.artifacts.some((a) => a.subkind === proofSubkind);
     }
   }
+
+  // The 8-stage "order of operations" rail. ADMINs see the shared reference
+  // revision's completion (board-scoped on the build cards); learners see their
+  // OWN journey derived from their enrollment's currentStage.
+  const guideProgress = view.isAuthorView
+    ? await resolveGuideProgress(revision.id, revision.guide.id, selectedBoardId)
+    : resolveLearnerGuideProgress(learnerCurrentStage);
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
