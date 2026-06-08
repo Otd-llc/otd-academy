@@ -21,6 +21,7 @@ import { withTxRetry } from "@/lib/tx-retry";
 import { r2, enrollmentArtifactKey } from "@/lib/r2";
 import { nextStage, type StageName } from "@/lib/stages";
 import { learnerExitGate, learnerProofSubkind } from "@/lib/learner-gates";
+import { hasProjectEntitlement } from "@/lib/entitlements";
 import { loadLearnerGateContext } from "@/lib/load-learner-gate-context";
 import { STAGE_VALUES } from "@/lib/schemas/project-dependency";
 import { MAX_UPLOAD_BYTES } from "@/lib/schemas/upload";
@@ -74,10 +75,27 @@ export async function enroll(
       async (tx) => {
         const project = await tx.project.findUniqueOrThrow({
           where: { id: projectId },
-          select: { id: true, slug: true, publishedRevisionId: true },
+          select: {
+            id: true,
+            slug: true,
+            publishedRevisionId: true,
+            accessTier: true,
+          },
         });
         if (!project.publishedRevisionId) {
           throw new Error("This board is not open for enrollment yet.");
+        }
+
+        // Access-tier gate (Task A4): PUBLIC/FREE boards are open; PREMIUM ones
+        // require an Entitlement. The free-preview first card does NOT grant
+        // enrollment, so we check the row here rather than trusting page reads.
+        if (project.accessTier === "PREMIUM") {
+          const entitled = await hasProjectEntitlement(tx, user.id, projectId);
+          if (!entitled) {
+            throw new Error(
+              "This is a premium course — unlock it to enroll.",
+            );
+          }
         }
 
         // Completion-gated DAG: every prerequisite (dependsOn) project must be at

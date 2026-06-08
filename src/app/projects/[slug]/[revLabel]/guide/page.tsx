@@ -27,7 +27,9 @@ import {
 } from "@/lib/guide-progress";
 import { auth } from "@/auth";
 import { guideCardView } from "@/lib/guide-view";
-import { resolvePublicLessonAccess } from "@/lib/public-access";
+import { resolveLessonAccess } from "@/lib/public-access";
+import { hasProjectEntitlement } from "@/lib/entitlements";
+import { WaitlistForm } from "@/components/learn/WaitlistForm";
 import { courseJsonLd } from "@/lib/seo/jsonld";
 import { JsonLd } from "@/components/seo/JsonLd";
 import {
@@ -203,16 +205,44 @@ export default async function GuideHubPage({
   // (design roll-up + per-board build matrix); learners see their OWN journey and
   // never the operator build matrix.
   const session = await auth();
-  // Page-level access gate: middleware admits guide routes for anonymous
-  // visitors, but only PUBLIC projects may actually be read without a session.
+  const sessionEmail = session?.user?.email ?? null;
+  const isAdmin = session?.user?.role === "ADMIN";
+
+  // Page-level access gate. The hub is card-0 semantics (cardOrdinal: 0): a
+  // PREMIUM project's hub is its public sales surface (allow), a FREE project's
+  // hub still requires an account (redirect anonymous), PUBLIC is open. We load
+  // the viewer's entitlement so an entitled premium learner is treated as
+  // allowed even though card 0 already would be.
+  let hasEntitlement = false;
+  if (sessionEmail) {
+    const viewer = await db.user.findUnique({
+      where: { email: sessionEmail },
+      select: { id: true },
+    });
+    if (viewer) {
+      hasEntitlement = await hasProjectEntitlement(db, viewer.id, project.id);
+    }
+  }
   if (
-    resolvePublicLessonAccess({
-      hasSession: !!session?.user?.email,
+    resolveLessonAccess({
       accessTier: project.accessTier,
+      cardOrdinal: 0,
+      hasSession: !!sessionEmail,
+      hasEntitlement,
+      isAdmin,
     }) === "redirectSignIn"
   ) {
     redirect("/sign-in");
   }
+
+  // A PREMIUM project's hub, viewed by anyone who isn't an admin or already
+  // entitled, is a PUBLIC sales page (not the author/learner roll-up): the
+  // lesson list with card 0 open and cards 1+ locked, plus a waitlist CTA. The
+  // gate above already allowed the render (card-0 semantics); this only changes
+  // what we show. Entitled/admin viewers and PUBLIC/FREE projects fall through
+  // to the existing hub.
+  const isPremiumSalesView =
+    project.accessTier === "PREMIUM" && !isAdmin && !hasEntitlement;
   const view = guideCardView(session?.user?.role);
   const learnerEmail = session?.user?.email ?? null;
   let learnerCurrentStage: string | null = null;
@@ -248,9 +278,11 @@ export default async function GuideHubPage({
             { label: "Stage", value: revision.currentStage },
           ]}
         />
-        {frozen ? (
+        {frozen || isPremiumSalesView ? (
           <p className="font-mono text-sm uppercase tracking-wider text-muted">
-            Revision is frozen — no guide exists and none can be generated.
+            {isPremiumSalesView
+              ? "This premium course is being prepared — join the waitlist on the project page to be notified when it opens."
+              : "Revision is frozen — no guide exists and none can be generated."}
           </p>
         ) : (
           <GenerateGuideButton revisionId={revision.id} />
@@ -261,6 +293,94 @@ export default async function GuideHubPage({
 
   const cards = revision.guide.cards;
   const cardByStage = new Map(cards.map((c) => [c.stage, c]));
+
+  // ─── PREMIUM sales view ────────────────────────────────
+  // A public sales page for a non-entitled / anonymous visitor: the project
+  // pitch, a waitlist CTA, and the lesson list with card 0 open (free preview)
+  // and cards 1+ locked. Locked links still navigate to the card page, which
+  // serves the Paywall. Entitled/admin/PUBLIC/FREE never reach this branch.
+  if (isPremiumSalesView) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+        <JsonLd data={courseLd} />
+
+        {/* Sales hero + waitlist CTA */}
+        <section className="glass-card border-l-4 border-l-command-gold p-8">
+          <p className="font-mono text-xs uppercase tracking-wider text-command-gold">
+            🔒 Premium course
+          </p>
+          <h1 className="mt-3 font-display text-3xl tracking-wider text-white">
+            {project.name}
+          </h1>
+          {project.description ? (
+            <p className="mt-3 font-serif text-base text-gray-1">
+              {project.description}
+            </p>
+          ) : null}
+          <p className="mt-3 font-serif text-sm text-gray-2">
+            The first lesson is free. The rest of the build — design through
+            bring-up, with comprehension checks and proof artifacts at every
+            stage — unlocks with access. Join the waitlist and we&apos;ll let you
+            know the moment it opens.
+          </p>
+          <div className="mt-6 border-t border-panel-border pt-6">
+            <WaitlistForm projectId={project.id} />
+          </div>
+        </section>
+
+        {/* Lesson list — card 0 open, cards 1+ locked */}
+        <section className="mt-10">
+          <h2 className="font-display text-2xl tracking-wider text-white">
+            WHAT YOU&apos;LL BUILD
+          </h2>
+          <ul className="mt-4 space-y-3">
+            {cards.map((card) => {
+              const locked = card.ordinal !== 0;
+              const number = String(card.ordinal + 1).padStart(2, "0");
+              const inner = (
+                <>
+                  <span className="font-mono text-xs text-command-gold/70">
+                    {number}
+                  </span>
+                  <span className="flex-1">
+                    <span className="block font-display text-lg tracking-wider text-white">
+                      {card.title}
+                    </span>
+                    {card.lead ? (
+                      <span className="mt-0.5 block font-serif text-sm italic text-muted">
+                        {card.lead}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="font-mono text-[10px] uppercase tracking-wider">
+                    {locked ? (
+                      <span className="text-muted">🔒 Locked</span>
+                    ) : (
+                      <span className="text-status-green">Free preview</span>
+                    )}
+                  </span>
+                </>
+              );
+              return (
+                <li key={card.id}>
+                  <Link
+                    href={cardHref(card.stage)}
+                    className={`glass-card flex items-baseline gap-3 p-4 transition-colors hover:bg-command-gold/5 ${
+                      locked
+                        ? "border-l-4 border-panel-border opacity-70"
+                        : "border-l-4 border-status-green"
+                    }`}
+                  >
+                    {inner}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      </main>
+    );
+  }
 
   // The 8-stage order-of-operations rail: authors see revision completion,
   // learners see their own enrollment journey.

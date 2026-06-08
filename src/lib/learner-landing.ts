@@ -8,6 +8,11 @@
 // completing it unlocks dependents via the DAG.
 import { db } from "@/lib/db";
 
+// INVARIANT: the entry board MUST stay `accessTier: PUBLIC`. The auto-enroll
+// upsert below deliberately bypasses the PREMIUM entitlement gate in `enroll`
+// (Phase 2) — if this board were ever retiered PREMIUM, every first-time learner
+// would be silently enrolled with no entitlement. Keep it PUBLIC, or route this
+// through `enroll`.
 const ENTRY_BOARD_SLUG = "foundry-l1-01-wroom-breakout";
 
 export async function learnerLandingPath(userId: string): Promise<string> {

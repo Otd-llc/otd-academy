@@ -8,6 +8,10 @@
 //   - for each PUBLIC, published, non-archived project: the guide hub
 //     `/projects/{slug}/{label}/guide` plus one URL per guide stage
 //     `/projects/{slug}/{label}/guide/{STAGE}` (the 8 GUIDE_STAGES).
+//   - for each PREMIUM, published, non-archived project: only the public
+//     preview surface — the guide hub plus the card-0 (REQUIREMENTS) lesson.
+//     Cards 1+ are paywalled, so they are deliberately omitted (they noindex).
+//     FREE projects redirect anonymous visitors, so they are never listed.
 //
 // `/` is intentionally NOT public (no PUBLIC marketing home yet), so it is
 // skipped. All URLs are ABSOLUTE — prefixed with `siteUrl()` (the same origin as
@@ -19,6 +23,11 @@ import { db } from "@/lib/db";
 import { siteUrl } from "@/lib/seo/jsonld";
 import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
 
+// DB-backed: render at REQUEST time, never statically prerendered at build. The
+// CI build runs with a stub DATABASE_URL the query can't reach (and a build-time
+// snapshot of the sitemap has no value anyway).
+export const dynamic = "force-dynamic";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
   const lastModified = new Date();
@@ -26,12 +35,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [projects, parts] = await Promise.all([
     db.project.findMany({
       where: {
-        accessTier: "PUBLIC",
+        accessTier: { in: ["PUBLIC", "PREMIUM"] },
         publishedRevisionId: { not: null },
         archivedAt: null,
       },
       select: {
         slug: true,
+        accessTier: true,
         publishedRevision: { select: { label: true } },
       },
     }),
@@ -48,7 +58,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   for (const project of projects) {
-    // PUBLIC projects are always published (the query filters on
+    // PUBLIC/PREMIUM projects are always published (the query filters on
     // publishedRevisionId), so publishedRevision is non-null here; guard the
     // type and skip any anomalous row defensively.
     const label = project.publishedRevision?.label;
@@ -57,7 +67,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       label,
     )}/guide`;
     entries.push({ url: guideBase, lastModified });
-    for (const stage of GUIDE_STAGES) {
+    // PREMIUM projects expose only their public preview: the hub + card-0
+    // (REQUIREMENTS) lesson. Cards 1+ live behind the paywall (and noindex), so
+    // they are intentionally absent. PUBLIC projects list every stage.
+    const stages =
+      project.accessTier === "PREMIUM" ? ["REQUIREMENTS"] : GUIDE_STAGES;
+    for (const stage of stages) {
       entries.push({ url: `${guideBase}/${stage}`, lastModified });
     }
   }

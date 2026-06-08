@@ -44,6 +44,7 @@ model User {
   measurementsTaken       Measurement[]
   projectDependenciesCreated ProjectDependency[]
   enrollments             Enrollment[]
+  entitlements            Entitlement[]
 }
 
 model Account {
@@ -113,8 +114,38 @@ model Project {
   exam             Exam?
   dependentEdges   ProjectDependency[] @relation("DependentProject")
   dependsOnEdges   ProjectDependency[] @relation("DependsOnProject")
+  entitlements     Entitlement[]
+  waitlist         WaitlistSignup[]
 
   @@index([archivedAt])
+}
+
+// Per-project access entitlement (GTM Phase 2). owner-XOR (enforced by a CHECK in
+// the migration): projectId now; bundleId reserved for Phase 4. source stays
+// GRANT until Stripe (Phase 3) adds the PURCHASE path.
+model Entitlement {
+  id        String            @id @default(cuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project?          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  bundleId  String?
+  source    EntitlementSource @default(GRANT)
+  createdAt DateTime          @default(now())
+
+  @@unique([userId, projectId])
+  @@index([userId])
+}
+
+// Anonymous email capture for a PREMIUM project's waitlist (pre-Stripe lead-gen).
+model WaitlistSignup {
+  id        String   @id @default(cuid())
+  email     String
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([email, projectId])
 }
 
 model Revision {
@@ -677,6 +708,12 @@ enum AccessTier {
   PUBLIC
   FREE
   PREMIUM
+}
+
+// How an Entitlement was acquired. GRANT = admin comp/test; PURCHASE = Stripe (P3).
+enum EntitlementSource {
+  GRANT
+  PURCHASE
 }
 
 enum ProjectDepKind {
