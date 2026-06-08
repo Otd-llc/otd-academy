@@ -40,6 +40,7 @@ import { BoardSelector } from "@/components/guide/BoardSelector";
 import { GenerateGuideButton } from "@/components/guide/GenerateGuideButton";
 import { auth } from "@/auth";
 import { AdvanceEnrollmentButton } from "@/components/learn/AdvanceEnrollmentButton";
+import { Paywall } from "@/components/learn/Paywall";
 import { ProofUploadForm } from "@/components/learn/ProofUploadForm";
 import { learnerProofSubkind } from "@/lib/learner-gates";
 import { proofHelp } from "@/lib/learner-proof-help";
@@ -201,7 +202,8 @@ export default async function GuideCardPage({
   const cardOrdinal = gateCard?.ordinal ?? 0;
 
   // Entitlement is a signed-in-only concern; resolve the viewer's user id from
-  // their session email (reused below for the learner overlay).
+  // their session email solely to look up their entitlement here (the learner
+  // overlay below re-queries enrollments by email, so it does not reuse this id).
   let viewerUserId: string | null = null;
   let hasEntitlement = false;
   if (sessionEmail) {
@@ -224,20 +226,7 @@ export default async function GuideCardPage({
   });
   if (decision === "redirectSignIn") redirect("/sign-in");
   if (decision === "paywall") {
-    return (
-      <main className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-        <div className="glass-card border-l-4 border-l-command-gold p-8 text-center">
-          <p className="font-mono text-3xl">🔒</p>
-          <h1 className="mt-4 font-display text-2xl tracking-wider text-white">
-            This lesson is part of a premium course.
-          </h1>
-          <p className="mt-3 font-serif text-sm text-gray-2">
-            {project.name} is a premium project. The first lesson is free — the
-            rest unlock with access.
-          </p>
-        </div>
-      </main>
-    );
+    return <Paywall projectId={project.id} projectName={project.name} />;
   }
 
   const revision = await db.revision.findFirst({
