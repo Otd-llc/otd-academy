@@ -1,4 +1,4 @@
-import { signIn } from "@/auth";
+import { signIn, signOut } from "@/auth";
 import { BrandMark } from "@/components/BrandMark";
 import { InlineBanner } from "@/components/InlineBanner";
 
@@ -12,8 +12,11 @@ import { InlineBanner } from "@/components/InlineBanner";
 // the thirds instead of clustering everything dead-center.
 //
 // Auth.js redirects rejected signIn attempts to `/sign-in?error=AccessDenied`.
-// The alert-red banner mounts above the brand mark when that param is
-// present — design §6 "clear reject screen" requirement for M3.
+// The link guard (auth-link-guard.ts) redirects a different-account sign-in
+// attempted while already signed in to `?error=session_conflict`. Either way an
+// alert-red banner mounts above the brand mark — design §6 "clear reject
+// screen". The conflict banner also offers an inline Sign-out so the user can
+// switch accounts in one click instead of hunting for the menu.
 export default async function SignInPage({
   searchParams,
 }: {
@@ -21,6 +24,7 @@ export default async function SignInPage({
 }) {
   const params = await searchParams;
   const denied = params.error === "AccessDenied";
+  const conflict = params.error === "session_conflict";
 
   return (
     <main className="relative grid min-h-[100svh] grid-rows-[1fr_1fr_1fr] overflow-hidden bg-deep-space px-4 py-6 sm:py-10">
@@ -32,13 +36,34 @@ export default async function SignInPage({
         className="pointer-events-none absolute inset-0 [background:radial-gradient(ellipse_at_center,rgba(200,150,62,0.08)_0%,transparent_55%)]"
       />
 
-      {denied && (
+      {conflict ? (
+        <div className="absolute inset-x-4 top-4 z-10 mx-auto max-w-md sm:top-6">
+          <InlineBanner variant="error">
+            You&apos;re still signed in to another account. Sign out first, then
+            sign in to switch.
+          </InlineBanner>
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/sign-in" });
+            }}
+            className="mt-3 flex justify-center"
+          >
+            <button
+              type="submit"
+              className="glass-button px-5 py-2.5 font-mono text-xs uppercase tracking-[0.2em]"
+            >
+              Sign out
+            </button>
+          </form>
+        </div>
+      ) : denied ? (
         <div className="absolute inset-x-4 top-4 z-10 mx-auto max-w-md sm:top-6">
           <InlineBanner variant="error">
             SIGN-IN NEEDS A VERIFIED GOOGLE ACCOUNT — try again.
           </InlineBanner>
         </div>
-      )}
+      ) : null}
 
       {/* Row 1 — upper third. The brand mark sits at the bottom of this
           row so it lands on the upper-third line of the viewport.

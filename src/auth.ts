@@ -5,6 +5,7 @@ import type { UserRole } from "@prisma/client";
 import { db } from "@/lib/db";
 import { env } from "@/env";
 import { isAdminEmail } from "@/lib/admin-allowlist";
+import { resolveGoogleSignIn } from "@/lib/auth-link-guard";
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
@@ -27,11 +28,27 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
   callbacks: {
     // Open registration: any verified Google account may sign in. The admin
     // roster (ALLOWED_EMAILS) no longer gates the door — it sets the role.
+    //
+    // We ALSO read the currently-signed-in user here so we can refuse to LINK a
+    // different Google account onto an active session. Auth.js does that linking
+    // silently (no veto at its `linkAccount` call), which once permanently
+    // attached a learner's Google login to an admin's user. See auth-link-guard.
+    // The `auth()` read is wrapped so that if it ever throws we fall back to
+    // allowing the sign-in rather than locking everyone out.
     async signIn({ profile, account }) {
-      if (account?.provider !== "google") return false;
-      if (!profile?.email) return false;
-      if (profile.email_verified !== true) return false;
-      return true;
+      let activeUserEmail: string | undefined;
+      try {
+        const active = await auth();
+        activeUserEmail = active?.user?.email ?? undefined;
+      } catch {
+        activeUserEmail = undefined;
+      }
+      return resolveGoogleSignIn({
+        provider: account?.provider,
+        emailVerified: profile?.email_verified ?? undefined,
+        profileEmail: typeof profile?.email === "string" ? profile.email : undefined,
+        activeUserEmail,
+      });
     },
     // Resolve the role from the admin roster on every refresh; on first sign-in
     // (when `user` is present) sync the DB `User.role` mirror that requireAdmin
