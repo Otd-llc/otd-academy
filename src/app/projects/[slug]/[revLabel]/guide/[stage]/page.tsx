@@ -101,6 +101,26 @@ export default async function GuideCardPage({
   });
   if (!project) notFound();
 
+  // Page-level access gate (hoisted above the no-guide return + R2 work). The
+  // page is auth-gated by middleware, which admits guide routes for anonymous
+  // visitors, but only PUBLIC projects may actually be read without a session.
+  // Role decides the ENTIRE view below: ADMINs author/QA the shared reference
+  // revision (Stage Gate, edit-in-place, board selector); everyone else is a
+  // learner who sees only their own per-enrollment overlay. We never leak author
+  // tooling to a learner, nor the learner overlay to an admin (even one who
+  // happens to be enrolled). Gating here (right after the project resolves)
+  // avoids leaking the project name + doing wasted R2 presigning to anonymous
+  // hits on a non-PUBLIC project before the redirect.
+  const session = await auth();
+  if (
+    resolvePublicLessonAccess({
+      hasSession: !!session?.user?.email,
+      accessTier: project.accessTier,
+    }) === "redirectSignIn"
+  ) {
+    redirect("/sign-in");
+  }
+
   const revision = await db.revision.findFirst({
     where: {
       projectId: project.id,
@@ -246,22 +266,7 @@ export default async function GuideCardPage({
   const cardNumber = String(card.ordinal + 1).padStart(2, "0");
   const cardTotal = String(GUIDE_STAGES.length).padStart(2, "0");
 
-  // The page is auth-gated by middleware, so a session exists. Role decides the
-  // ENTIRE view: ADMINs author/QA the shared reference revision (Stage Gate,
-  // edit-in-place, board selector); everyone else is a learner who sees only
-  // their own per-enrollment overlay. We never leak author tooling to a learner,
-  // nor the learner overlay to an admin (even one who happens to be enrolled).
-  const session = await auth();
-  // Page-level access gate: middleware admits guide routes for anonymous
-  // visitors, but only PUBLIC projects may actually be read without a session.
-  if (
-    resolvePublicLessonAccess({
-      hasSession: !!session?.user?.email,
-      accessTier: project.accessTier,
-    }) === "redirectSignIn"
-  ) {
-    redirect("/sign-in");
-  }
+  // Role decides the view (session resolved + access-gated above).
   const view = guideCardView(session?.user?.role);
   const learnerEmail = session?.user?.email ?? null;
 
