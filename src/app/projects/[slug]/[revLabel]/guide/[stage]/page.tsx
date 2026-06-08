@@ -108,6 +108,7 @@ export async function generateMetadata({
     where: { slug },
     select: {
       name: true,
+      accessTier: true,
       publishedRevision: { select: { label: true } },
     },
   });
@@ -125,19 +126,44 @@ export async function generateMetadata({
             },
           },
         },
-        select: { title: true, lead: true },
+        select: { title: true, lead: true, ordinal: true },
       })
     : null;
 
   const cardTitle = card?.title ?? stageUpper;
   const title = `${cardTitle} — ${project.name}`;
-  const description =
-    card?.lead ?? `${project.name}: ${stageUpper} stage of the build guide.`;
   const canonical = canonicalLessonPath({
     slug,
     publishedLabel: project.publishedRevision?.label ?? null,
     stage: stageUpper,
   });
+
+  // A paywalled PREMIUM card (any card but the free card-0 preview) must NOT
+  // leak its lead into the description/OG and must not be indexed. Use a generic
+  // description and noindex it. PUBLIC/FREE, and a premium card-0, keep the
+  // normal lead-driven metadata. (card.ordinal is null only when the stage has
+  // no card — which the page 404s — so treat that as the non-walled default.)
+  const isWalledPremiumCard =
+    project.accessTier === "PREMIUM" && (card?.ordinal ?? 0) !== 0;
+  if (isWalledPremiumCard) {
+    const description = `A premium lesson in ${project.name}.`;
+    return {
+      title,
+      description,
+      robots: { index: false, follow: true },
+      alternates: canonical ? { canonical } : undefined,
+      openGraph: {
+        title,
+        description,
+        type: "article",
+        url: canonical ?? undefined,
+      },
+      twitter: { card: "summary_large_image", title, description },
+    };
+  }
+
+  const description =
+    card?.lead ?? `${project.name}: ${stageUpper} stage of the build guide.`;
 
   return {
     title,
