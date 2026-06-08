@@ -17,3 +17,27 @@ export function formatUsd(priceCents: number): string {
     currency: "USD",
   }).format(cents / 100);
 }
+
+/**
+ * Resolve a project's buy price in cents, or `null` when it isn't purchasable.
+ *
+ * A course is purchasable only when it carries BOTH a non-empty `stripePriceId`
+ * (a real Stripe price to charge against) AND a positive `priceCents` (a display
+ * price). Returns the cents when both hold, else `null` — so a `!== null` check
+ * narrows the type for the BuyButton call site. Pure + dependency-free so it's
+ * shared across server render sites; `checkout.ts` keeps its own server-side
+ * re-check for defense-in-depth.
+ */
+export function resolveBuyPriceCents(project: {
+  stripePriceId: string | null;
+  priceCents: number | null;
+}): number | null {
+  const hasPriceId =
+    typeof project.stripePriceId === "string" &&
+    project.stripePriceId.length > 0;
+  return hasPriceId &&
+    typeof project.priceCents === "number" &&
+    project.priceCents > 0
+    ? project.priceCents
+    : null;
+}

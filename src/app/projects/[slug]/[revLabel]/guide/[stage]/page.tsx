@@ -265,6 +265,7 @@ export default async function GuideCardPage({
         projectName={project.name}
         stripePriceId={project.stripePriceId}
         priceCents={project.priceCents}
+        signedIn={!!sessionEmail}
       />
     );
   }

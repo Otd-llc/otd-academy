@@ -8,10 +8,18 @@
 // starts Hosted Stripe Checkout. Otherwise we fall back to the anonymous
 // WaitlistForm (the Phase-2 behavior for an un-priced premium course).
 //
+// An anonymous visitor reaches this surface too (the public sales page) but
+// can't buy — `createCheckoutSession` requires a user. So when the course is
+// purchasable AND the viewer is signed OUT, we render a sign-in CTA (a link to
+// /sign-in styled like the buy button) instead of the BuyButton; signed-in
+// viewers get the real BuyButton.
+//
 // Rendered by the guide card page on a `paywall` access decision, in place of
 // the lesson.
 import { WaitlistForm } from "@/components/learn/WaitlistForm";
 import { BuyButton } from "@/components/learn/BuyButton";
+import { SignInToUnlock } from "@/components/learn/SignInToUnlock";
+import { resolveBuyPriceCents } from "@/lib/format-money";
 
 export function Paywall({
   projectId,
@@ -19,21 +27,22 @@ export function Paywall({
   lessonTitles,
   stripePriceId,
   priceCents,
+  signedIn,
 }: {
   projectId: string;
   projectName: string;
   lessonTitles?: string[];
   stripePriceId?: string | null;
   priceCents?: number | null;
+  signedIn: boolean;
 }) {
   const titles = lessonTitles?.filter(Boolean) ?? [];
   // Purchasable only when BOTH the Stripe price id and a display price exist.
-  // Resolve to a concrete `number | null` so the BuyButton call site is narrowed.
-  const hasPriceId = typeof stripePriceId === "string" && stripePriceId.length > 0;
-  const buyPriceCents =
-    hasPriceId && typeof priceCents === "number" && priceCents > 0
-      ? priceCents
-      : null;
+  // Resolves to a concrete `number | null` so the BuyButton call site is narrowed.
+  const buyPriceCents = resolveBuyPriceCents({
+    stripePriceId: stripePriceId ?? null,
+    priceCents: priceCents ?? null,
+  });
   const purchasable = buyPriceCents !== null;
 
   return (
@@ -80,7 +89,11 @@ export function Paywall({
 
         <div className="mt-8 border-t border-panel-border pt-6">
           {buyPriceCents !== null ? (
-            <BuyButton projectId={projectId} priceCents={buyPriceCents} />
+            signedIn ? (
+              <BuyButton projectId={projectId} priceCents={buyPriceCents} />
+            ) : (
+              <SignInToUnlock priceCents={buyPriceCents} />
+            )
           ) : (
             <WaitlistForm projectId={projectId} />
           )}

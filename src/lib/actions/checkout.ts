@@ -1,8 +1,8 @@
 "use server";
 
 // Checkout server action (GTM Phase 3). Turns a paywalled PREMIUM project into a
-// Hosted Stripe Checkout session. The webhook (a later task) is the source of
-// truth for granting the entitlement — this action only starts the purchase.
+// Hosted Stripe Checkout session. The webhook is the source of truth for
+// granting the entitlement — this action only starts the purchase.
 //
 // "use server" rule: this file exports ONLY async functions. No type re-exports
 // (a `export type { … }` here crashes at runtime, uncaught by tsc/build).
@@ -47,8 +47,9 @@ export async function createCheckoutSession(input: {
     mode: "payment",
     line_items: [{ price: project.stripePriceId, quantity: 1 }],
     customer,
-    // Success lands on a real success page in a later task; this URL is fine now.
-    success_url: `${base}/learn?purchased=${project.slug}`,
+    // Success lands on the learner home, which shows the purchase-confirmation
+    // banner for `?purchased=<slug>`. Escape the slug as a query value.
+    success_url: `${base}/learn?purchased=${encodeURIComponent(project.slug)}`,
     // Cancel returns to the project's guide hub.
     cancel_url: `${base}/learn/${project.slug}`,
     metadata: { userId: user.id, projectId: project.id },

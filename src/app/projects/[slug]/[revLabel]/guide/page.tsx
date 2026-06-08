@@ -31,6 +31,8 @@ import { resolveLessonAccess } from "@/lib/public-access";
 import { hasProjectEntitlement } from "@/lib/entitlements";
 import { WaitlistForm } from "@/components/learn/WaitlistForm";
 import { BuyButton } from "@/components/learn/BuyButton";
+import { SignInToUnlock } from "@/components/learn/SignInToUnlock";
+import { resolveBuyPriceCents } from "@/lib/format-money";
 import { courseJsonLd } from "@/lib/seo/jsonld";
 import { JsonLd } from "@/components/seo/JsonLd";
 import {
@@ -247,14 +249,11 @@ export default async function GuideHubPage({
   const isPremiumSalesView =
     project.accessTier === "PREMIUM" && !isAdmin && !hasEntitlement;
   // Buy-vs-waitlist for the sales CTA: a Buy button when the course carries both
-  // a Stripe price id and a display price; the waitlist otherwise (Task B1).
-  const buyPriceCents =
-    typeof project.stripePriceId === "string" &&
-    project.stripePriceId.length > 0 &&
-    typeof project.priceCents === "number" &&
-    project.priceCents > 0
-      ? project.priceCents
-      : null;
+  // a Stripe price id and a display price; the waitlist otherwise (Task B1). When
+  // purchasable but the viewer is signed OUT, a sign-in CTA stands in for the Buy
+  // button (they can't check out anonymously — createCheckoutSession needs a user).
+  const buyPriceCents = resolveBuyPriceCents(project);
+  const signedIn = !!sessionEmail;
   const view = guideCardView(session?.user?.role);
   const learnerEmail = session?.user?.email ?? null;
   let learnerCurrentStage: string | null = null;
@@ -339,7 +338,11 @@ export default async function GuideHubPage({
           </p>
           <div className="mt-6 border-t border-panel-border pt-6">
             {buyPriceCents !== null ? (
-              <BuyButton projectId={project.id} priceCents={buyPriceCents} />
+              signedIn ? (
+                <BuyButton projectId={project.id} priceCents={buyPriceCents} />
+              ) : (
+                <SignInToUnlock priceCents={buyPriceCents} />
+              )
             ) : (
               <WaitlistForm projectId={project.id} />
             )}
