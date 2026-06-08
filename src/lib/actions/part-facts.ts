@@ -4,7 +4,7 @@
 //
 // This is the trust foundation of the parts-knowledge system. Every fact-group
 // moves through `UNVERIFIED → VERIFIED → FLAGGED` ONLY via these deliberate
-// server actions, each behind `requireUser` first; every MUTATING action uses
+// server actions, each behind `requireAdmin` (curation is admin-only); every MUTATING action uses
 // OPTIMISTIC CONCURRENCY (a conditional `updateMany({ where: { id, updatedAt } })`
 // — the `stages.ts` optimistic-lock pattern, with `PartFact.updatedAt` as the
 // fence). A 0-row result means the row changed since the caller loaded it →
@@ -29,7 +29,7 @@
 // `sourceNote` (an editorial "reviewed" sign-off); API ⇒ `sourceUrl`.
 // SELF-VERIFICATION is allowed in v1 (`verifiedById === createdById` is fine).
 //
-// FLAGGED: any signed-in user may flag (NO reason column in v1 — a `reason` is
+// FLAGGED: flagging is admin-only like every mutation here (NO reason column in v1 — a `reason` is
 // a future addition; we omit it here). The only exit is `clearFlag`
 // (FLAGGED → UNVERIFIED) — NEVER straight to VERIFIED; a cleared fact must
 // re-earn VERIFIED through the gate.
@@ -486,7 +486,7 @@ export async function unverifyFact(input: unknown): Promise<PartFact> {
 
 // ─── flagFact ───────────────────────────────────────────
 /**
- * Set `trust: FLAGGED` (any signed-in user). NO reason column in v1 — a
+ * Set `trust: FLAGGED` (admin-only). NO reason column in v1 — a
  * `reason` is a future addition (would need a schema column). Conditional
  * update on `updatedAt`.
  */
