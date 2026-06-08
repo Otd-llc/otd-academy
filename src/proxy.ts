@@ -5,7 +5,8 @@ import { isAdminOnlyPath, isPublicPath } from "@/lib/admin-routes";
 // Auth.js v5's bare `auth` export only attaches `req.auth` to the request — it
 // does not redirect unauthenticated users on its own. Wrap it so unauth requests
 // land on `/sign-in`. The matcher excludes Auth.js callback routes, the sign-in
-// page itself, and Next's static asset paths.
+// page itself, the SEO crawl files (`sitemap.xml` / `robots.txt` — these MUST be
+// reachable by signed-out crawlers, never redirected), and Next's static assets.
 export default auth((req) => {
   const { pathname } = req.nextUrl;
 
@@ -39,5 +40,7 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!api/auth|sign-in|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!api/auth|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico).*)",
+  ],
 };
