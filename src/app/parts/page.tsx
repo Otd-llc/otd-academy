@@ -8,6 +8,7 @@
 // tasks. The filter chip pattern mirrors `src/app/page.tsx`'s FilterChip helper.
 import Link from "next/link";
 import { PartLifecycle } from "@prisma/client";
+import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { ChevronLeftIcon, PlusIcon } from "@/components/icons";
 import { PartCard } from "@/components/parts/PartCard";
@@ -49,6 +50,11 @@ export default async function PartsListPage({
   const raw = await searchParams;
   const params = partsListParamsSchema.parse(raw);
   const { parts, total, page, totalPages } = await listParts(db, params);
+  // The catalog is public (read-only) — the author affordances (New part, the
+  // operator dashboard back-link) render for ADMINs only. `auth()` is null for
+  // a signed-out visitor, so they simply get the read-only catalog.
+  const session = await auth();
+  const isAdmin = session?.user?.role === "ADMIN";
   // `current` for partsHref: only the string-valued params we honor.
   const current = {
     q: params.q,
@@ -65,22 +71,24 @@ export default async function PartsListPage({
         <h1 className="font-display text-5xl tracking-wider text-white">
           PARTS LIBRARY
         </h1>
-        <div className="flex items-center gap-4 font-mono text-xs uppercase">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-signal-blue underline"
-          >
-            <ChevronLeftIcon className="h-4 w-4" />
-            Projects
-          </Link>
-          <Link
-            href="/parts/new"
-            className="inline-flex items-center gap-1.5 rounded border border-panel-border bg-navy-dark px-4 py-2 text-command-gold transition-colors hover:border-command-gold"
-          >
-            <PlusIcon className="h-4 w-4" />
-            New part
-          </Link>
-        </div>
+        {isAdmin && (
+          <div className="flex items-center gap-4 font-mono text-xs uppercase">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-signal-blue underline"
+            >
+              <ChevronLeftIcon className="h-4 w-4" />
+              Projects
+            </Link>
+            <Link
+              href="/parts/new"
+              className="inline-flex items-center gap-1.5 rounded border border-panel-border bg-navy-dark px-4 py-2 text-command-gold transition-colors hover:border-command-gold"
+            >
+              <PlusIcon className="h-4 w-4" />
+              New part
+            </Link>
+          </div>
+        )}
       </div>
 
       <PartsSearch initialQ={params.q ?? ""} current={current} />
@@ -140,7 +148,9 @@ export default async function PartsListPage({
         <p className="mt-10 font-mono text-sm uppercase tracking-wider text-muted">
           {params.q || params.lifecycle || params.mains || params.cat
             ? "NO PARTS MATCH THESE FILTERS."
-            : "NO PARTS — CREATE ONE TO BEGIN."}
+            : isAdmin
+              ? "NO PARTS — CREATE ONE TO BEGIN."
+              : "NO PARTS YET."}
         </p>
       ) : (
         <>

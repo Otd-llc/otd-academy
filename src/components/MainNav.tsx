@@ -5,10 +5,10 @@
 // A tiny `"use client"` island so it can read `usePathname()` and highlight the
 // active route in `text-command-gold` (the rest stay muted with a gold hover).
 //
-// Audience: the operator surfaces (Projects / Curriculum / Parts) are admin-only
-// — they're gated at the route level (proxy.ts) so showing them to a learner
-// would just bounce them to /learn. So we hide those links unless `role` is
-// ADMIN; learners see only "Learn".
+// Audience: the operator surfaces (Projects / Curriculum) are admin-only — gated
+// at the route level (proxy.ts), so showing them to a learner would just bounce
+// them to /learn; we hide those unless `role` is ADMIN. The Parts catalog is
+// PUBLIC (read-only for everyone, edit is admin-only), so its link shows for all.
 //
 // Active matching: the projects dashboard ("/") is the home for the whole
 // `/projects/*` tree as well, so it stays active on any project detail route;
@@ -23,7 +23,7 @@ const LINKS = [
   { href: "/", label: "Projects", adminOnly: true },
   { href: "/curriculum", label: "Curriculum", adminOnly: true },
   { href: "/learn", label: "Learn", adminOnly: false },
-  { href: "/parts", label: "Parts", adminOnly: true },
+  { href: "/parts", label: "Parts", adminOnly: false },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
