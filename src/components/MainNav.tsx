@@ -1,14 +1,17 @@
 "use client";
 
-// Primary app navigation — Projects / Curriculum / Parts (admin) + Learn (all).
+// Primary app navigation — Projects / Curriculum (admin) + Courses / Parts (all)
+// + Learn (signed-in only).
 //
 // A tiny `"use client"` island so it can read `usePathname()` and highlight the
 // active route in `text-command-gold` (the rest stay muted with a gold hover).
 //
 // Audience: the operator surfaces (Projects / Curriculum) are admin-only — gated
 // at the route level (proxy.ts), so showing them to a learner would just bounce
-// them to /learn; we hide those unless `role` is ADMIN. The Parts catalog is
-// PUBLIC (read-only for everyone, edit is admin-only), so its link shows for all.
+// them to /learn; we hide those unless `role` is ADMIN. The Courses index and the
+// Parts catalog are PUBLIC (read-only for everyone), so those links show for all,
+// including anonymous visitors. Learn is each user's own dashboard, so it only
+// shows once `signedIn`.
 //
 // Active matching: the projects dashboard ("/") is the home for the whole
 // `/projects/*` tree as well, so it stays active on any project detail route;
@@ -22,6 +25,7 @@ import { usePathname } from "next/navigation";
 const LINKS = [
   { href: "/", label: "Projects", adminOnly: true },
   { href: "/curriculum", label: "Curriculum", adminOnly: true },
+  { href: "/courses", label: "Courses", adminOnly: false },
   { href: "/learn", label: "Learn", adminOnly: false },
   { href: "/parts", label: "Parts", adminOnly: false },
 ] as const;
@@ -37,13 +41,21 @@ function isActive(pathname: string, href: string): boolean {
 export function MainNav({
   className,
   role,
+  signedIn,
 }: {
   className?: string;
   role?: string | null;
+  signedIn?: boolean;
 }) {
   const pathname = usePathname();
   const isAdmin = role === "ADMIN";
-  const links = LINKS.filter((link) => isAdmin || !link.adminOnly);
+  const links = LINKS.filter((link) => {
+    // Admin-only links (Projects / Curriculum) show only for ADMINs.
+    if (link.adminOnly && !isAdmin) return false;
+    // Learn is the personal dashboard — hide it from anonymous visitors.
+    if (link.href === "/learn" && !signedIn) return false;
+    return true;
+  });
 
   return (
     <nav

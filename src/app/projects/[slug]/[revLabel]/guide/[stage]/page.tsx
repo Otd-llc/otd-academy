@@ -17,9 +17,17 @@
 // → a "Generate guide" affordance (the hub owns the primary button, but a card
 // deep-link shouldn't 500); a guide missing this stage's card → notFound().
 
-import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { canonicalLessonPath } from "@/lib/seo/canonical";
+import {
+  breadcrumbJsonLd,
+  guideCardToHowTo,
+  siteUrl,
+} from "@/lib/seo/jsonld";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/PageHeader";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import { GuideBlocks, type ResolvedModel } from "@/components/guide/GuideBlocks";
@@ -36,6 +44,7 @@ import { ProofUploadForm } from "@/components/learn/ProofUploadForm";
 import { learnerProofSubkind } from "@/lib/learner-gates";
 import { proofHelp } from "@/lib/learner-proof-help";
 import { guideCardView } from "@/lib/guide-view";
+import { resolvePublicLessonAccess } from "@/lib/public-access";
 import { resolveCardCompletion } from "@/lib/guide-completion";
 import {
   resolveGuideProgress,
@@ -79,6 +88,69 @@ function accentWordFor(title: string): string {
   return tokens[tokens.length - 1] ?? title;
 }
 
+// SEO. Runs separately from the component, so it re-resolves only what the
+// tags need (project name + published-revision label for the canonical, plus
+// the card title/lead) with tight selects. The canonical always points at the
+// PUBLISHED revision (not the viewed `revLabel`) so crawlers consolidate on one
+// URL; when the project has no published revision we omit `alternates.canonical`.
+// OG images land in a later task (B2).
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<Params>;
+}): Promise<Metadata> {
+  const { slug, revLabel, stage: stageParam } = await params;
+  const stageUpper = stageParam.toUpperCase();
+
+  const project = await db.project.findUnique({
+    where: { slug },
+    select: {
+      name: true,
+      publishedRevision: { select: { label: true } },
+    },
+  });
+  if (!project) return {};
+
+  const decodedLabel = decodeURIComponent(revLabel);
+  const card = isGuideStage(stageUpper)
+    ? await db.guideCard.findFirst({
+        where: {
+          stage: stageUpper,
+          guide: {
+            revision: {
+              project: { slug },
+              label: { equals: decodedLabel, mode: "insensitive" },
+            },
+          },
+        },
+        select: { title: true, lead: true },
+      })
+    : null;
+
+  const cardTitle = card?.title ?? stageUpper;
+  const title = `${cardTitle} — ${project.name}`;
+  const description =
+    card?.lead ?? `${project.name}: ${stageUpper} stage of the build guide.`;
+  const canonical = canonicalLessonPath({
+    slug,
+    publishedLabel: project.publishedRevision?.label ?? null,
+    stage: stageUpper,
+  });
+
+  return {
+    title,
+    description,
+    alternates: canonical ? { canonical } : undefined,
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      url: canonical ?? undefined,
+    },
+    twitter: { card: "summary_large_image", title, description },
+  };
+}
+
 export default async function GuideCardPage({
   params,
   searchParams,
@@ -96,9 +168,29 @@ export default async function GuideCardPage({
 
   const project = await db.project.findUnique({
     where: { slug },
-    select: { id: true, slug: true, name: true },
+    select: { id: true, slug: true, name: true, accessTier: true },
   });
   if (!project) notFound();
+
+  // Page-level access gate (hoisted above the no-guide return + R2 work). The
+  // page is auth-gated by middleware, which admits guide routes for anonymous
+  // visitors, but only PUBLIC projects may actually be read without a session.
+  // Role decides the ENTIRE view below: ADMINs author/QA the shared reference
+  // revision (Stage Gate, edit-in-place, board selector); everyone else is a
+  // learner who sees only their own per-enrollment overlay. We never leak author
+  // tooling to a learner, nor the learner overlay to an admin (even one who
+  // happens to be enrolled). Gating here (right after the project resolves)
+  // avoids leaking the project name + doing wasted R2 presigning to anonymous
+  // hits on a non-PUBLIC project before the redirect.
+  const session = await auth();
+  if (
+    resolvePublicLessonAccess({
+      hasSession: !!session?.user?.email,
+      accessTier: project.accessTier,
+    }) === "redirectSignIn"
+  ) {
+    redirect("/sign-in");
+  }
 
   const revision = await db.revision.findFirst({
     where: {
@@ -245,12 +337,7 @@ export default async function GuideCardPage({
   const cardNumber = String(card.ordinal + 1).padStart(2, "0");
   const cardTotal = String(GUIDE_STAGES.length).padStart(2, "0");
 
-  // The page is auth-gated by middleware, so a session exists. Role decides the
-  // ENTIRE view: ADMINs author/QA the shared reference revision (Stage Gate,
-  // edit-in-place, board selector); everyone else is a learner who sees only
-  // their own per-enrollment overlay. We never leak author tooling to a learner,
-  // nor the learner overlay to an admin (even one who happens to be enrolled).
-  const session = await auth();
+  // Role decides the view (session resolved + access-gated above).
   const view = guideCardView(session?.user?.role);
   const learnerEmail = session?.user?.email ?? null;
 
@@ -302,8 +389,27 @@ export default async function GuideCardPage({
     ? await resolveGuideProgress(revision.id, revision.guide.id, selectedBoardId)
     : resolveLearnerGuideProgress(learnerCurrentStage);
 
+  // ─── Structured data (JSON-LD) — public SEO surface ───
+  // HowTo from the resolved card (reusing the already-parsed `blocks` — no
+  // re-query); Breadcrumb trail Home › Courses › Project › Stage with absolute
+  // URLs. Both are emitted as inline <script type="application/ld+json">.
+  const base = siteUrl();
+  const howToJsonLd = guideCardToHowTo({
+    cardTitle: card.title,
+    cardLead: card.lead,
+    contentBlocks: blocks,
+  });
+  const lessonBreadcrumbJsonLd = breadcrumbJsonLd([
+    { name: "Home", url: `${base}/` },
+    { name: "Courses", url: `${base}/courses` },
+    { name: project.name, url: `${base}${hubHref}` },
+    { name: card.title, url: `${base}${cardHref(stage)}` },
+  ]);
+
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+      <JsonLd data={howToJsonLd} />
+      <JsonLd data={lessonBreadcrumbJsonLd} />
       <div className="mb-6">
         <GuideStepper
           slug={project.slug}

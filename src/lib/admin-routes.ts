@@ -23,7 +23,15 @@ export function isAdminOnlyPath(pathname: string): boolean {
 
 export function isPublicPath(pathname: string): boolean {
   const segments = pathname.split("/").filter(Boolean);
+  const top = segments[0];
   // Parts catalog list (/parts) + detail (/parts/[id]) are public; the create
   // form (/parts/new) is not.
-  return segments[0] === "parts" && segments[1] !== "new";
+  if (top === "parts") return segments[1] !== "new";
+  // The public /courses index (+ any subpaths) is crawlable.
+  if (top === "courses") return true;
+  // Guide routes are public-ELIGIBLE; the guide page enforces accessTier
+  // (anonymous may read only PUBLIC projects). Key on the "guide" position so a
+  // slug containing "guide" can't open the route.
+  if (top === "projects") return segments[3] === "guide";
+  return false;
 }

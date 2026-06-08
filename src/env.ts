@@ -23,8 +23,14 @@ export const env = createEnv({
     // (omitted from the title block if unset).
     KICAD_EXPORT_COMPANY: z.string().optional(),
   },
-  client: {},
+  client: {
+    // Public site origin used as the metadataBase for absolute SEO URLs
+    // (canonical / OG / sitemap). OPTIONAL: layout.tsx falls back to the prod
+    // origin when unset, so an unconfigured local/CI build never breaks.
+    NEXT_PUBLIC_SITE_URL: z.url().optional(),
+  },
   runtimeEnv: {
+    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
     DATABASE_URL: process.env.DATABASE_URL,
     DIRECT_URL: process.env.DIRECT_URL,
     PARTS_MCP_DATABASE_URL: process.env.PARTS_MCP_DATABASE_URL,

@@ -5,7 +5,8 @@ import { isAdminOnlyPath, isPublicPath } from "@/lib/admin-routes";
 // Auth.js v5's bare `auth` export only attaches `req.auth` to the request — it
 // does not redirect unauthenticated users on its own. Wrap it so unauth requests
 // land on `/sign-in`. The matcher excludes Auth.js callback routes, the sign-in
-// page itself, and Next's static asset paths.
+// page itself, the SEO crawl files (`sitemap.xml` / `robots.txt` — these MUST be
+// reachable by signed-out crawlers, never redirected), and Next's static assets.
 export default auth((req) => {
   const { pathname } = req.nextUrl;
 
@@ -27,9 +28,19 @@ export default auth((req) => {
   if (req.auth?.user?.role === "LEARNER" && isAdminOnlyPath(pathname)) {
     return NextResponse.redirect(new URL("/learn", req.nextUrl.origin));
   }
-  return NextResponse.next();
+
+  // Forward the request path as a header so the root layout (a Server
+  // Component, which can't read the URL otherwise) knows which route is
+  // rendering and can pick the right chrome — full app-shell for signed-in
+  // users, a public header + sign-up CTA on PUBLIC routes. Only the
+  // pass-through response carries it; the redirect branches above are unchanged.
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-pathname", pathname);
+  return NextResponse.next({ request: { headers: requestHeaders } });
 });
 
 export const config = {
-  matcher: ["/((?!api/auth|sign-in|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!api/auth|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico).*)",
+  ],
 };

@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { auth, signOut } from "@/auth";
+import { env } from "@/env";
+import { shouldRenderChrome } from "@/lib/chrome";
 import { BrandMark } from "@/components/BrandMark";
 import { MainNav } from "@/components/MainNav";
+import { SignUpCta } from "@/components/SignUpCta";
 import { TooltipProvider } from "@/components/TooltipProvider";
 import { UserMenu } from "@/components/UserMenu";
 
@@ -19,6 +23,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // Absolute base for canonical / OG / Twitter URLs. OPTIONAL env var with a
+  // prod-origin fallback so builds without NEXT_PUBLIC_SITE_URL set (local, CI)
+  // never break — Next resolves all relative metadata URLs against this.
+  metadataBase: new URL(
+    env.NEXT_PUBLIC_SITE_URL ?? "https://foundry.onethousanddrones.com",
+  ),
   title: "Project Foundry",
   description: "Hardware design lifecycle tracker",
 };
@@ -32,10 +42,18 @@ export default async function RootLayout({
   // signed-in users. `/sign-in` and `/api/auth/*` are excluded from the
   // middleware matcher (src/proxy.ts), so on those routes auth()
   // returns null and the menu stays hidden. `role` also drives MainNav: the
-  // operator links (Projects / Curriculum / Parts) show for ADMINs only.
+  // operator links (Projects / Curriculum) show for ADMINs only.
   const session = await auth();
   const email = session?.user?.email ?? null;
   const role = session?.user?.role ?? null;
+
+  // The middleware forwards the request path as `x-pathname` (src/proxy.ts) so
+  // this Server Component can decide whether to render the app-shell chrome:
+  // always for signed-in users, plus anonymous visitors on PUBLIC routes (the
+  // SEO funnel), never on /sign-in. Anonymous chrome swaps the UserMenu for a
+  // sign-up CTA.
+  const pathname = (await headers()).get("x-pathname") ?? "";
+  const renderChrome = shouldRenderChrome({ pathname, signedIn: !!email });
 
   async function signOutAction() {
     "use server";
@@ -54,10 +72,12 @@ export default async function RootLayout({
             server-rendered children pass straight through, and it adds no DOM
             wrapper so the body's flex column is preserved. */}
         <TooltipProvider>
-          {email ? (
-            // App-shell chrome only renders when signed in, so `/sign-in`
-            // stays a clean full-bleed boot screen. Header is `z-20` so the
-            // sticky bar stays below the `z-50` tooltips that portal above it.
+          {renderChrome ? (
+            // App-shell chrome renders for signed-in users plus anonymous
+            // visitors on PUBLIC routes (the SEO funnel); `/sign-in` stays a
+            // clean full-bleed boot screen (shouldRenderChrome returns false).
+            // Header is `z-20` so the sticky bar stays below the `z-50` tooltips
+            // that portal above it.
             <header className="sticky top-0 z-20 flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-panel-border bg-deep-space px-4 py-2 sm:px-6">
               <Link
                 href="/"
@@ -76,22 +96,34 @@ export default async function RootLayout({
                   brand-left / avatar-right instead of wrapping unpredictably. */}
               <MainNav
                 role={role}
+                signedIn={!!email}
                 className="order-last w-full sm:order-none sm:w-auto"
               />
 
-              {/* Right cluster — explicit header sign-out + the email menu. The
-                  text sign-out is hidden on mobile to declutter the top row; the
-                  same action stays reachable inside the UserMenu dropdown. */}
+              {/* Right cluster. Signed in: the explicit header sign-out (hidden
+                  on mobile to declutter — the same action stays reachable inside
+                  the UserMenu dropdown) + the email menu. Anonymous (public
+                  routes): a sign-up CTA in place of the menu, and no sign-out. */}
               <div className="ml-auto flex items-center gap-3">
-                <form action={signOutAction} className="hidden sm:block">
-                  <button
-                    type="submit"
-                    className="font-mono text-xs uppercase tracking-wider text-muted transition-colors hover:text-command-gold"
-                  >
-                    Sign out
-                  </button>
-                </form>
-                <UserMenu email={email} role={role} signOutAction={signOutAction} />
+                {email ? (
+                  <>
+                    <form action={signOutAction} className="hidden sm:block">
+                      <button
+                        type="submit"
+                        className="font-mono text-xs uppercase tracking-wider text-muted transition-colors hover:text-command-gold"
+                      >
+                        Sign out
+                      </button>
+                    </form>
+                    <UserMenu
+                      email={email}
+                      role={role}
+                      signOutAction={signOutAction}
+                    />
+                  </>
+                ) : (
+                  <SignUpCta />
+                )}
               </div>
             </header>
           ) : null}
@@ -99,7 +131,7 @@ export default async function RootLayout({
           {/* `flex-1` lets the footer settle at the bottom on short pages. */}
           <div className="flex-1">{children}</div>
 
-          {email ? (
+          {renderChrome ? (
             <footer className="border-t border-panel-border px-4 py-6 font-mono text-xs text-muted sm:px-6">
               {/* Stacked + left-aligned on mobile; the space-between row only
                   kicks in from sm up, where there's room for both clusters. */}

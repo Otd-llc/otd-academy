@@ -92,6 +92,7 @@ model Project {
   repoUrl     String?
   track              CurriculumTrack?
   level              CurriculumLevel?
+  accessTier         AccessTier           @default(FREE)
   criticalPath       Boolean              @default(true)
   disciplineTaught   String?
   requiresStripboard Boolean              @default(false)
@@ -668,6 +669,14 @@ enum CurriculumLevel {
   L1
   L2
   L3
+}
+
+// Per-project access tier (GTM roadmap). PUBLIC = no-account readable (the SEO
+// surface / per-track flagships); FREE = needs a free account; PREMIUM = paid.
+enum AccessTier {
+  PUBLIC
+  FREE
+  PREMIUM
 }
 
 enum ProjectDepKind {

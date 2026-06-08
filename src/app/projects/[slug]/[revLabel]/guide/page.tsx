@@ -14,7 +14,8 @@
 // NOT present the generate button (active build is null, so the build matrix
 // resolves to blocked); the page never crashes.
 
-import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
@@ -26,6 +27,9 @@ import {
 } from "@/lib/guide-progress";
 import { auth } from "@/auth";
 import { guideCardView } from "@/lib/guide-view";
+import { resolvePublicLessonAccess } from "@/lib/public-access";
+import { courseJsonLd } from "@/lib/seo/jsonld";
+import { JsonLd } from "@/components/seo/JsonLd";
 import {
   resolveCardCompletion,
   type CardCompletion,
@@ -92,6 +96,35 @@ function parseRef(value: unknown): CompletionRef {
   return r.success ? r.data : { kind: "none" };
 }
 
+// SEO. Project-level title/description for the guide hub (the build-guide
+// landing for a revision). Tight select; canonical/OG-image are per-card
+// concerns handled on the card route (the hub canonicalizes to itself by
+// default). OG images land in a later task (B2).
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<Params>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const project = await db.project.findUnique({
+    where: { slug },
+    select: { name: true, description: true },
+  });
+  if (!project) return {};
+
+  const title = `${project.name} — Build guide`;
+  const description =
+    project.description ??
+    `Follow the ${project.name} build guide from design through bring-up.`;
+
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: "article" },
+    twitter: { card: "summary_large_image", title, description },
+  };
+}
+
 export default async function GuideHubPage({
   params,
 }: {
@@ -102,9 +135,25 @@ export default async function GuideHubPage({
 
   const project = await db.project.findUnique({
     where: { slug },
-    select: { id: true, slug: true, name: true },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      description: true,
+      level: true,
+      accessTier: true,
+    },
   });
   if (!project) notFound();
+
+  // Course JSON-LD — the project rendered as a schema.org Course (provider =
+  // One Thousand Drones). Emitted on both the no-guide and the populated hub
+  // renders since the project is the course regardless of guide materialization.
+  const courseLd = courseJsonLd({
+    name: project.name,
+    description: project.description,
+    level: project.level,
+  });
 
   const revision = await db.revision.findFirst({
     where: {
@@ -154,6 +203,16 @@ export default async function GuideHubPage({
   // (design roll-up + per-board build matrix); learners see their OWN journey and
   // never the operator build matrix.
   const session = await auth();
+  // Page-level access gate: middleware admits guide routes for anonymous
+  // visitors, but only PUBLIC projects may actually be read without a session.
+  if (
+    resolvePublicLessonAccess({
+      hasSession: !!session?.user?.email,
+      accessTier: project.accessTier,
+    }) === "redirectSignIn"
+  ) {
+    redirect("/sign-in");
+  }
   const view = guideCardView(session?.user?.role);
   const learnerEmail = session?.user?.email ?? null;
   let learnerCurrentStage: string | null = null;
@@ -174,6 +233,7 @@ export default async function GuideHubPage({
   if (!revision.guide) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <JsonLd data={courseLd} />
         <PageHeader
           backHref={revPath}
           backLabel={revision.label}
@@ -263,6 +323,7 @@ export default async function GuideHubPage({
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <JsonLd data={courseLd} />
       <PageHeader
         backHref={revPath}
         backLabel={revision.label}
