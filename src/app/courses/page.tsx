@@ -17,6 +17,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
+import { courseListJsonLd, siteUrl } from "@/lib/seo/jsonld";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 // SEO. Static-ish — the courses index is a stable funnel landing page. JSON-LD
 // (ItemList) + OG image land in later tasks (B2 / B3).
@@ -50,8 +52,28 @@ export default async function CoursesPage() {
     orderBy: [{ level: "asc" }, { name: "asc" }],
   });
 
+  // ItemList JSON-LD — the public course index as an ordered list, each item an
+  // absolute URL to that course's published guide hub. Built from the same rows
+  // the grid renders (skipping any anomalous row missing a published label).
+  const base = siteUrl();
+  const courseListLd = courseListJsonLd(
+    courses.flatMap((course) =>
+      course.publishedRevision?.label
+        ? [
+            {
+              name: course.name,
+              url: `${base}/projects/${course.slug}/${encodeURIComponent(
+                course.publishedRevision.label,
+              )}/guide`,
+            },
+          ]
+        : [],
+    ),
+  );
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <JsonLd data={courseListLd} />
       <PageHeader
         eyebrow="COURSES"
         title="Build it for real"

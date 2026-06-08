@@ -28,6 +28,8 @@ import {
 import { auth } from "@/auth";
 import { guideCardView } from "@/lib/guide-view";
 import { resolvePublicLessonAccess } from "@/lib/public-access";
+import { courseJsonLd } from "@/lib/seo/jsonld";
+import { JsonLd } from "@/components/seo/JsonLd";
 import {
   resolveCardCompletion,
   type CardCompletion,
@@ -133,9 +135,25 @@ export default async function GuideHubPage({
 
   const project = await db.project.findUnique({
     where: { slug },
-    select: { id: true, slug: true, name: true, accessTier: true },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      description: true,
+      level: true,
+      accessTier: true,
+    },
   });
   if (!project) notFound();
+
+  // Course JSON-LD — the project rendered as a schema.org Course (provider =
+  // One Thousand Drones). Emitted on both the no-guide and the populated hub
+  // renders since the project is the course regardless of guide materialization.
+  const courseLd = courseJsonLd({
+    name: project.name,
+    description: project.description,
+    level: project.level,
+  });
 
   const revision = await db.revision.findFirst({
     where: {
@@ -215,6 +233,7 @@ export default async function GuideHubPage({
   if (!revision.guide) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <JsonLd data={courseLd} />
         <PageHeader
           backHref={revPath}
           backLabel={revision.label}
@@ -304,6 +323,7 @@ export default async function GuideHubPage({
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <JsonLd data={courseLd} />
       <PageHeader
         backHref={revPath}
         backLabel={revision.label}

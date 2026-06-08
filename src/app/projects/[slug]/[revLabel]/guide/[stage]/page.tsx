@@ -22,6 +22,12 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { canonicalLessonPath } from "@/lib/seo/canonical";
+import {
+  breadcrumbJsonLd,
+  guideCardToHowTo,
+  siteUrl,
+} from "@/lib/seo/jsonld";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/PageHeader";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import { GuideBlocks, type ResolvedModel } from "@/components/guide/GuideBlocks";
@@ -383,8 +389,27 @@ export default async function GuideCardPage({
     ? await resolveGuideProgress(revision.id, revision.guide.id, selectedBoardId)
     : resolveLearnerGuideProgress(learnerCurrentStage);
 
+  // ─── Structured data (JSON-LD) — public SEO surface ───
+  // HowTo from the resolved card (reusing the already-parsed `blocks` — no
+  // re-query); Breadcrumb trail Home › Courses › Project › Stage with absolute
+  // URLs. Both are emitted as inline <script type="application/ld+json">.
+  const base = siteUrl();
+  const howToJsonLd = guideCardToHowTo({
+    cardTitle: card.title,
+    cardLead: card.lead,
+    contentBlocks: blocks,
+  });
+  const lessonBreadcrumbJsonLd = breadcrumbJsonLd([
+    { name: "Home", url: `${base}/` },
+    { name: "Courses", url: `${base}/courses` },
+    { name: project.name, url: `${base}${hubHref}` },
+    { name: card.title, url: `${base}${cardHref(stage)}` },
+  ]);
+
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+      <JsonLd data={howToJsonLd} />
+      <JsonLd data={lessonBreadcrumbJsonLd} />
       <div className="mb-6">
         <GuideStepper
           slug={project.slug}
