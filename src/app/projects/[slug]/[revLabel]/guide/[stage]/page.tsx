@@ -35,6 +35,7 @@ import { AdvanceEnrollmentButton } from "@/components/learn/AdvanceEnrollmentBut
 import { ProofUploadForm } from "@/components/learn/ProofUploadForm";
 import { learnerProofSubkind } from "@/lib/learner-gates";
 import { proofHelp } from "@/lib/learner-proof-help";
+import { guideCardView } from "@/lib/guide-view";
 import { resolveCardCompletion } from "@/lib/guide-completion";
 import { resolveGuideProgress } from "@/lib/guide-progress";
 import { buildStageGateWidget } from "@/lib/guide-widget";
@@ -248,17 +249,22 @@ export default async function GuideCardPage({
   const cardNumber = String(card.ordinal + 1).padStart(2, "0");
   const cardTotal = String(GUIDE_STAGES.length).padStart(2, "0");
 
-  // The page is auth-gated by middleware, so a session exists; the only
-  // additional editability gate is the revision freeze (defense-in-depth:
-  // editGuideCard rejects edits on a frozen revision regardless).
-  const canEdit = !frozen;
-
-  // Learner overlay: if the signed-in user has an enrollment on this board, the
-  // quiz records against that enrollment, and on the learner's CURRENT stage we
-  // surface the advance affordance. Admins / non-enrolled viewers get the plain
-  // author preview (no quizContext, no advance button).
+  // The page is auth-gated by middleware, so a session exists. Role decides the
+  // ENTIRE view: ADMINs author/QA the shared reference revision (Stage Gate,
+  // edit-in-place, board selector); everyone else is a learner who sees only
+  // their own per-enrollment overlay. We never leak author tooling to a learner,
+  // nor the learner overlay to an admin (even one who happens to be enrolled).
   const session = await auth();
+  const view = guideCardView(session?.user?.role);
   const learnerEmail = session?.user?.email ?? null;
+
+  // Edit-in-place is author-only, additionally blocked on a frozen revision
+  // (defense-in-depth: editGuideCard rejects frozen edits regardless).
+  const canEdit = !frozen && view.isAuthorView;
+
+  // Learner overlay (learner view only): if the signed-in learner has an
+  // enrollment on this board, the quiz records against it and on their CURRENT
+  // stage we surface the advance affordance.
   const proofSubkind = learnerProofSubkind(stage);
   const proofLabel = proofSubkind ? PROOF_LABEL[proofSubkind] : null;
   const proofHelpData = proofSubkind ? proofHelp(proofSubkind) : null;
@@ -267,7 +273,7 @@ export default async function GuideCardPage({
     | undefined;
   let showLearnerAdvance = false;
   let learnerNeedsProof = false;
-  if (learnerEmail) {
+  if (learnerEmail && view.isLearnerView) {
     const enrollment = await db.enrollment.findFirst({
       where: { projectId: project.id, user: { email: learnerEmail } },
       select: {
@@ -338,8 +344,9 @@ export default async function GuideCardPage({
         />
       </GuideCardEditor>
 
-      {/* Per-board scope selector (ASSEMBLY / BRINGUP). */}
-      {isPerBoard ? (
+      {/* Per-board scope selector (ASSEMBLY / BRINGUP) — author tooling, drives
+          the Stage Gate's per-board widget; hidden in the learner view. */}
+      {isPerBoard && view.isAuthorView ? (
         <div className="mt-8">
           {boards.length > 0 && selectedBoardId ? (
             <BoardSelector boards={boards} selectedBoardId={selectedBoardId} />
@@ -411,7 +418,12 @@ export default async function GuideCardPage({
         </section>
       )}
 
-      <StageGate completion={completion} widget={widget} />
+      {/* STAGE GATE is the author's completion substrate (review checklists,
+          commit/board widgets) for the shared reference revision — admin only.
+          Learners advance via their own YOUR TRACK panel above. */}
+      {view.isAuthorView && (
+        <StageGate completion={completion} widget={widget} />
+      )}
 
       {/* prev / CONSOLE / next nav. */}
       <nav className="mt-12 flex items-center justify-between border-t border-panel-border pt-6 font-mono text-xs uppercase tracking-wider">
