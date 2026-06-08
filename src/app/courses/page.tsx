@@ -34,6 +34,10 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title, description },
 };
 
+// DB-backed + public (no `auth()` to opt it dynamic): force request-time
+// rendering so the CI build (stub DATABASE_URL) doesn't prerender the DB query.
+export const dynamic = "force-dynamic";
+
 export default async function CoursesPage() {
   const courses = await db.project.findMany({
     where: {

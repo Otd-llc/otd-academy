@@ -23,6 +23,11 @@ import { db } from "@/lib/db";
 import { siteUrl } from "@/lib/seo/jsonld";
 import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
 
+// DB-backed: render at REQUEST time, never statically prerendered at build. The
+// CI build runs with a stub DATABASE_URL the query can't reach (and a build-time
+// snapshot of the sitemap has no value anyway).
+export const dynamic = "force-dynamic";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
   const lastModified = new Date();
