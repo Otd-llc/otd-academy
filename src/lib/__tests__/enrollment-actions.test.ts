@@ -227,3 +227,61 @@ describe("enroll", () => {
     ).rejects.toThrow(/not open for enrollment/i);
   });
 });
+
+// Access-tier guard (Task A4): PREMIUM boards require an Entitlement before the
+// learner may enroll; the free-preview first card does NOT grant enrollment.
+// FREE/PUBLIC boards enroll without one. Each fixture is its own published
+// board so they never collide.
+describe("enroll access-tier guard", () => {
+  async function publishedTierProject(
+    accessTier: "PUBLIC" | "FREE" | "PREMIUM",
+  ): Promise<string> {
+    seq += 1;
+    const project = await db.project.create({
+      data: {
+        slug: `tier-${accessTier.toLowerCase()}-${seq}-${Date.now()}`,
+        name: `Tier ${accessTier}`,
+        createdById: userId,
+        accessTier,
+      },
+    });
+    const rev = await db.revision.create({
+      data: { projectId: project.id, label: "v1" },
+    });
+    await db.project.update({
+      where: { id: project.id },
+      data: { publishedRevisionId: rev.id },
+    });
+    return project.id;
+  }
+
+  test("rejects enrolling in a PREMIUM board with no entitlement", async () => {
+    const projectId = await publishedTierProject("PREMIUM");
+    await expect(enroll({ projectId })).rejects.toThrow(/premium/i);
+    const count = await db.enrollment.count({ where: { userId, projectId } });
+    expect(count).toBe(0);
+  });
+
+  test("enrolls in a PREMIUM board when a GRANT entitlement exists", async () => {
+    const projectId = await publishedTierProject("PREMIUM");
+    await db.entitlement.create({
+      data: { userId, projectId, source: "GRANT" },
+    });
+    const result = await enroll({ projectId });
+    expect(result.status).toBe("IN_PROGRESS");
+    const count = await db.enrollment.count({ where: { userId, projectId } });
+    expect(count).toBe(1);
+  });
+
+  test("enrolls in a FREE board without an entitlement", async () => {
+    const projectId = await publishedTierProject("FREE");
+    const result = await enroll({ projectId });
+    expect(result.status).toBe("IN_PROGRESS");
+  });
+
+  test("enrolls in a PUBLIC board without an entitlement", async () => {
+    const projectId = await publishedTierProject("PUBLIC");
+    const result = await enroll({ projectId });
+    expect(result.status).toBe("IN_PROGRESS");
+  });
+});
