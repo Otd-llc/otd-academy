@@ -84,25 +84,6 @@ async function enrollmentRow(projectId: string) {
   });
 }
 
-async function addProofArtifact(
-  projectId: string,
-  stage: Stage,
-  subkind: "REQUIREMENTS_DOC" | "SCHEMATIC_FILE" | "LAYOUT_FILE",
-) {
-  const e = await enrollmentRow(projectId);
-  await db.artifact.create({
-    data: {
-      enrollmentId: e.id,
-      stage,
-      kind: "NOTE",
-      subkind,
-      title: subkind,
-      noteBody: "x",
-      createdBy: userId,
-    },
-  });
-}
-
 async function addQuizPass(projectId: string, stage: Stage) {
   const e = await enrollmentRow(projectId);
   await db.quizPass.create({
@@ -113,7 +94,6 @@ async function addQuizPass(projectId: string, stage: Stage) {
 describe("advanceEnrollment", () => {
   test("blocked when the current stage's quiz isn't passed", async () => {
     const projectId = await enrollmentAt("REQUIREMENTS");
-    await addProofArtifact(projectId, "REQUIREMENTS", "REQUIREMENTS_DOC");
     const r = await advanceEnrollment({ projectId });
     expect(r.ok).toBe(false);
     expect((r as { reasons: string[] }).reasons).toEqual([QUIZ_NOT_PASSED_MSG]);
@@ -127,9 +107,8 @@ describe("advanceEnrollment", () => {
     expect((r as { reasons: string[] }).reasons.some((x) => /schematic/i.test(x))).toBe(true);
   });
 
-  test("advances REQUIREMENTS → BOM_SOURCING when the gate passes", async () => {
+  test("advances REQUIREMENTS → BOM_SOURCING on the quiz alone (no proof artifact)", async () => {
     const projectId = await enrollmentAt("REQUIREMENTS");
-    await addProofArtifact(projectId, "REQUIREMENTS", "REQUIREMENTS_DOC");
     await addQuizPass(projectId, "REQUIREMENTS");
     const r = await advanceEnrollment({ projectId });
     expect(r).toEqual({ ok: true, toStage: "BOM_SOURCING" });

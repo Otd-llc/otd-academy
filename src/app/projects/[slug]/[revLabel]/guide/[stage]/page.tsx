@@ -34,6 +34,7 @@ import { auth } from "@/auth";
 import { AdvanceEnrollmentButton } from "@/components/learn/AdvanceEnrollmentButton";
 import { ProofUploadForm } from "@/components/learn/ProofUploadForm";
 import { learnerProofSubkind } from "@/lib/learner-gates";
+import { proofHelp } from "@/lib/learner-proof-help";
 import { resolveCardCompletion } from "@/lib/guide-completion";
 import { resolveGuideProgress } from "@/lib/guide-progress";
 import { buildStageGateWidget } from "@/lib/guide-widget";
@@ -60,9 +61,8 @@ function isGuideStage(s: string): s is GuideStage {
   return (GUIDE_STAGES as readonly string[]).includes(s);
 }
 
-// Friendly labels for the learner proof-artifact subkinds (design stages).
+// Friendly labels for the learner proof-artifact subkinds (CAD stages only).
 const PROOF_LABEL: Record<string, string> = {
-  REQUIREMENTS_DOC: "requirements doc",
   SCHEMATIC_FILE: "schematic",
   LAYOUT_FILE: "layout file",
 };
@@ -261,6 +261,7 @@ export default async function GuideCardPage({
   const learnerEmail = session?.user?.email ?? null;
   const proofSubkind = learnerProofSubkind(stage);
   const proofLabel = proofSubkind ? PROOF_LABEL[proofSubkind] : null;
+  const proofHelpData = proofSubkind ? proofHelp(proofSubkind) : null;
   let learnerQuizContext:
     | { enrollmentId: string; stage: string; passed: boolean }
     | undefined;
@@ -357,20 +358,56 @@ export default async function GuideCardPage({
           <p className="font-mono text-xs uppercase tracking-wider text-muted">
             Your track · this is your current stage
           </p>
-          <p className="mb-3 mt-1 font-serif text-sm text-gray-1">
-            Pass the comprehension check above (and add this stage’s proof
-            artifact where required) to advance your own progress.
+          <p className="mb-4 mt-1 font-serif text-sm text-gray-1">
+            {proofSubkind
+              ? "Pass the comprehension check above and add the required artifact below to advance your own progress."
+              : "Pass the comprehension check above to advance your own progress."}
           </p>
-          {learnerNeedsProof && proofLabel && (
-            <div className="mb-4">
-              <ProofUploadForm
-                projectId={project.id}
-                stage={stage}
-                label={proofLabel}
-              />
+
+          {/* Proof requirement — only when THIS stage actually needs an artifact.
+              Earlier stages (REQUIREMENTS, BOM_SOURCING) are quiz-only and show
+              no upload UI at all. */}
+          {proofSubkind && proofLabel && proofHelpData && (
+            <div className="mb-4 rounded border border-panel-border bg-deep-space/40 p-4">
+              <p className="font-mono text-[11px] uppercase tracking-wider text-command-gold">
+                Required to advance · {proofLabel}
+              </p>
+              <p className="mt-2 font-serif text-sm text-gray-1">
+                {proofHelpData.requirement}
+              </p>
+
+              <details className="mt-3">
+                <summary className="cursor-pointer select-none font-mono text-[11px] uppercase tracking-wider text-link-muted transition-colors hover:text-command-gold">
+                  {proofHelpData.howToTitle}
+                </summary>
+                <ol className="mt-2 list-decimal space-y-1.5 pl-5 font-serif text-sm text-gray-2">
+                  {proofHelpData.steps.map((step, i) => (
+                    <li key={i}>{step}</li>
+                  ))}
+                </ol>
+              </details>
+
+              <div className="mt-4">
+                {learnerNeedsProof ? (
+                  <ProofUploadForm
+                    projectId={project.id}
+                    stage={stage}
+                    label={proofLabel}
+                  />
+                ) : (
+                  <p className="font-mono text-xs uppercase tracking-wider text-status-green">
+                    ✓ Your {proofLabel} is on file for this stage.
+                  </p>
+                )}
+              </div>
             </div>
           )}
-          <AdvanceEnrollmentButton projectId={project.id} />
+
+          <AdvanceEnrollmentButton
+            projectId={project.id}
+            cardBaseHref={hubHref}
+            guideStages={GUIDE_STAGES}
+          />
         </section>
       )}
 

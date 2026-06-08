@@ -5,6 +5,7 @@ import { describe, expect, test } from "vitest";
 import type { Stage } from "@prisma/client";
 import {
   learnerExitGate,
+  learnerProofSubkind,
   QUIZ_NOT_PASSED_MSG,
   type LearnerGateContext,
 } from "@/lib/learner-gates";
@@ -16,6 +17,28 @@ function ctx(over: Partial<LearnerGateContext> = {}): LearnerGateContext {
     ...over,
   };
 }
+
+describe("learnerExitGate — REQUIREMENTS (quiz-only, no proof artifact)", () => {
+  // There is no artifact requirement until the SCHEMATIC stage: REQUIREMENTS is
+  // pure comprehension, gated only by its quiz.
+  test("requires no proof subkind", () => {
+    expect(learnerProofSubkind("REQUIREMENTS")).toBeUndefined();
+  });
+
+  test("ok with just the quiz pass (no proof artifact required)", () => {
+    const r = learnerExitGate(
+      "REQUIREMENTS",
+      ctx({ quizPasses: new Set<Stage>(["REQUIREMENTS"]) }),
+    );
+    expect(r.ok).toBe(true);
+  });
+
+  test("blocked only on the quiz when not passed", () => {
+    const r = learnerExitGate("REQUIREMENTS", ctx());
+    expect(r.ok).toBe(false);
+    expect((r as { reasons: string[] }).reasons).toEqual([QUIZ_NOT_PASSED_MSG]);
+  });
+});
 
 describe("learnerExitGate — SCHEMATIC (proof + quiz)", () => {
   test("blocked when no SCHEMATIC_FILE proof artifact (quiz passed)", () => {

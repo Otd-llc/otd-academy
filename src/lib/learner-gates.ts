@@ -9,16 +9,16 @@ import type { GateResult } from "@/lib/stages";
 export const QUIZ_NOT_PASSED_MSG =
   "Comprehension check not passed yet — pass the quiz on this stage's guide card.";
 
-// Only the three design stages require a per-enrollment proof artifact; every
-// other stage is quiz-only (the deep fab chain stays the shared reference).
+// A per-enrollment proof artifact is required only once the learner is producing
+// real CAD: SCHEMATIC and LAYOUT. Everything before (REQUIREMENTS, BOM_SOURCING)
+// is comprehension — quiz-only — and the deep fab chain after stays the shared
+// reference. Each entry here MUST have matching how-to help in learner-proof-help.
 const LEARNER_PROOF: Partial<Record<Stage, ArtifactSubkind>> = {
-  REQUIREMENTS: "REQUIREMENTS_DOC",
   SCHEMATIC: "SCHEMATIC_FILE",
   LAYOUT: "LAYOUT_FILE",
 };
 
 const PROOF_LABEL: Record<string, string> = {
-  REQUIREMENTS_DOC: "requirements doc",
   SCHEMATIC_FILE: "schematic",
   LAYOUT_FILE: "layout file",
 };
