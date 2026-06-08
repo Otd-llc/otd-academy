@@ -16,7 +16,7 @@ import {
 } from "@/lib/license-text";
 
 export const metadata: Metadata = {
-  title: "License · Project Foundry",
+  title: "License · One Thousand Drones Academy",
   description: "Proprietary software license — One Thousand Drones.",
 };
 

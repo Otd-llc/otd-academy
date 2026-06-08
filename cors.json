@@ -1,6 +1,6 @@
 [
   {
-    "AllowedOrigins": ["http://localhost:3000", "https://foundry.onethousanddrones.com"],
+    "AllowedOrigins": ["http://localhost:3000", "https://academy.onethousanddrones.com", "https://foundry.onethousanddrones.com"],
     "AllowedMethods": ["PUT", "GET", "HEAD"],
     "AllowedHeaders": ["*"],
     "ExposeHeaders": ["ETag"],

@@ -1,8 +1,8 @@
-# Project Foundry
+# One Thousand Drones Academy
 
 > **License:** All rights reserved. See [LICENSE.md](LICENSE.md). This repo is public for transparency and reference; the code is **not** licensed for use, fork, or derivative work by anyone other than the copyright holder.
 
-**Production:** https://foundry.onethousanddrones.com (Google sign-in, allowlisted users only).
+**Production:** https://academy.onethousanddrones.com (Google sign-in, allowlisted users only).
 
 A personal web app for managing hardware engineering projects — primarily ESP32-based PCB designs — through a structured 9-stage workflow from requirements through revision, with an opinionated **curriculum** of teaching boards and per-project **build guides**.
 
@@ -78,7 +78,7 @@ If you are creating a new hardware project to be tracked by the foundry: spin up
 
 - **Host:** Vercel (auto-deploys on push to `main`).
 - **DB:** Neon Postgres (single project; one branch is prod, PR previews can spin per-branch databases).
-- **Domain:** `foundry.onethousanddrones.com` (CNAME → `cname.vercel-dns.com` at Porkbun; specific record overrides the wildcard parking redirect).
+- **Domain:** `academy.onethousanddrones.com` is the primary host (CNAME → `cname.vercel-dns.com` at Porkbun; specific record overrides the wildcard parking redirect). The legacy `foundry.onethousanddrones.com` host 301-redirects to `academy.` at the Vercel domain level.
 - **Auth:** Google OAuth client (web type); redirect URIs registered for both localhost and the prod host.
 - **Build:** `prisma generate && next build` (the `prisma generate` step is load-bearing — Vercel's clean install needs it to populate `@prisma/client` types before the TypeScript pass).
 

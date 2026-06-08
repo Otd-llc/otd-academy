@@ -113,9 +113,10 @@ export default async function HomePage({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-baseline sm:justify-between">
         <h1
           className="font-display tracking-wider text-white"
-          style={{ fontSize: "clamp(2rem, 6vw, 3rem)" }}
+          style={{ fontSize: "clamp(1.75rem, 5vw, 2.75rem)" }}
         >
-          PROJECT FOUNDRY
+          ONE THOUSAND DRONES{" "}
+          <span className="text-command-gold">ACADEMY</span>
         </h1>
         <div className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase sm:gap-3">
           <Link

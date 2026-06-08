@@ -27,9 +27,9 @@ export const metadata: Metadata = {
   // prod-origin fallback so builds without NEXT_PUBLIC_SITE_URL set (local, CI)
   // never break — Next resolves all relative metadata URLs against this.
   metadataBase: new URL(
-    env.NEXT_PUBLIC_SITE_URL ?? "https://foundry.onethousanddrones.com",
+    env.NEXT_PUBLIC_SITE_URL ?? "https://academy.onethousanddrones.com",
   ),
-  title: "Project Foundry",
+  title: "One Thousand Drones Academy",
   description: "Hardware design lifecycle tracker",
 };
 
@@ -81,12 +81,13 @@ export default async function RootLayout({
             <header className="sticky top-0 z-20 flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-panel-border bg-deep-space px-4 py-2 sm:px-6">
               <Link
                 href="/"
-                aria-label="Project Foundry home"
+                aria-label="One Thousand Drones Academy home"
                 className="group flex items-center gap-2"
               >
-                <BrandMark className="h-6 w-6 text-command-gold transition-colors group-hover:text-gold-light" />
-                <span className="font-display text-lg tracking-wider text-gray-1">
-                  PROJECT <span className="text-command-gold">FOUNDRY</span>
+                <BrandMark className="h-6 w-6 shrink-0 text-command-gold transition-colors group-hover:text-gold-light" />
+                <span className="font-display text-sm tracking-wider text-gray-1 sm:text-lg">
+                  ONE THOUSAND DRONES{" "}
+                  <span className="text-command-gold">ACADEMY</span>
                 </span>
               </Link>
 
@@ -149,7 +150,7 @@ export default async function RootLayout({
                   </Link>
                 </div>
                 <span className="text-gray-3">
-                  Project Foundry · hardware design lifecycle
+                  One Thousand Drones Academy · hardware design lifecycle
                 </span>
               </div>
             </footer>
