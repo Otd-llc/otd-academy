@@ -1450,8 +1450,14 @@ const CARDS: Record<string, Card> = {
 
 async function main() {
   const { db } = await import("@/lib/db");
+  const { guideContentBlocksSchema } = await import("@/lib/schemas/guide");
   let updated = 0;
   for (const [stage, card] of Object.entries(CARDS)) {
+    // Defense-in-depth: validate before writing. The render path (guide page)
+    // safeParses contentBlocks and drops the WHOLE array on failure (e.g. over
+    // the block cap), so a write that skips validation can silently blank a
+    // card. Fail loudly here instead.
+    guideContentBlocksSchema.parse(card.contentBlocks);
     const res = await db.guideCard.updateMany({
       where: {
         stage: stage as never,
