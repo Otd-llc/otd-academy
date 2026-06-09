@@ -11,9 +11,9 @@ import { legacySlugRedirect } from "@/lib/legacy-slug-redirect";
 // never be redirected to /sign-in), the sign-in page itself, the SEO crawl files
 // (`sitemap.xml` / `robots.txt` — must be reachable by signed-out crawlers, never
 // redirected), Next's static assets, AND any path with a file extension
-// (`.*\\..*`) — public/ files like `/brand/1kd-logotype.svg` and the guide
-// diagrams are served outside `_next`, so without this they'd be 307-redirected
-// to /sign-in for signed-out visitors and silently fail to load.
+// (`.*\\..*`) — public/ files (the guide-diagram SVGs, the brand icon, etc.)
+// are served outside `_next`, so without this they'd be 307-redirected to
+// /sign-in for signed-out visitors and silently fail to load.
 export default auth((req) => {
   const { pathname } = req.nextUrl;
 
