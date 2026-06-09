@@ -215,7 +215,7 @@ describe("pcb — buildBasePcb", () => {
     const gen = findChild(node, "generator")!;
     expect(isList(gen)).toBe(true);
     if (isList(gen) && isStr(gen.items[1])) {
-      expect(gen.items[1].value).toBe("project-foundry");
+      expect(gen.items[1].value).toBe("otd-academy");
     }
     const paper = findChild(node, "paper")!;
     if (isList(paper) && isAtom(paper.items[1])) {

@@ -33,7 +33,7 @@ import {
 // lib_symbols inline). The KiCad-10 release sym-lib stamp wasn't captured; bump
 // to it for a fully-native standalone .kicad_sym if needed.
 const SYMBOL_LIB_VERSION = "20211014";
-const GENERATOR = "project-foundry";
+const GENERATOR = "otd-academy";
 
 /**
  * The `(symbol ...)` node out of an uploaded `.kicad_sym` body, tolerating both
@@ -191,7 +191,7 @@ export type BuildSymbolLibOpts = {
 
 /**
  * Merge N parsed `.kicad_sym` bodies into one
- * `(kicad_symbol_lib (version ...) (generator "project-foundry") (symbol ...) ...)`.
+ * `(kicad_symbol_lib (version ...) (generator "otd-academy") (symbol ...) ...)`.
  * Each input is unwrapped (a `kicad_symbol_lib` wrapper is stripped so the inner
  * symbol is re-hosted, never nested), optionally has its Footprint set via
  * `opts.footprintFor(name)`, and is appended in input order.

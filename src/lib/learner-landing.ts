@@ -13,7 +13,7 @@ import { db } from "@/lib/db";
 // (Phase 2) — if this board were ever retiered PREMIUM, every first-time learner
 // would be silently enrolled with no entitlement. Keep it PUBLIC, or route this
 // through `enroll`.
-const ENTRY_BOARD_SLUG = "foundry-l1-01-wroom-breakout";
+const ENTRY_BOARD_SLUG = "l1-01-wroom-breakout";
 
 export async function learnerLandingPath(userId: string): Promise<string> {
   const enrollmentCount = await db.enrollment.count({ where: { userId } });

@@ -12,19 +12,19 @@
 //   - antenna-keepout: seed appends to EVERY board (`appliesTo: () => true`),
 //     because every curriculum board carries a WROOM. ✓ matches.
 //   - isolation-postreg: seed `ISOLATION_BOARDS` = exactly
-//     {foundry-l2-05-isolated-spi-bridge, foundry-l3-01-eeg-front-end}. ✓ matches.
+//     {l2-05-isolated-spi-bridge, l3-01-eeg-front-end}. ✓ matches.
 //   - ws2812 / servo / adc1 / auto-shutoff: the seed bakes the *checklist items*
 //     for these into the canonical REQUIREMENTS_REVIEW template applied to all
 //     boards (not as targeted per-board appends). As *teaching callouts*, though,
 //     they only make sense on the boards that actually teach that discipline, so
 //     these predicates target the real curriculum slugs:
-//       ws2812  → foundry-l1-03-ws2812-node + foundry-l3-03-lighting-array
+//       ws2812  → l1-03-ws2812-node + l3-03-lighting-array
 //                 (lighting-array DE_RISKs off the ws2812 node — both teach the
 //                  5V level-shift), via /ws2812|lighting/.
-//       servo   → foundry-l1-04-single-servo + foundry-l3-02-brushless-motor,
+//       servo   → l1-04-single-servo + l3-02-brushless-motor,
 //                 via /servo|brushless/.
-//       adc1    → foundry-l1-05-internal-adc, via /internal-adc/.
-//       auto-shutoff → the 6 bench tools foundry-bn-*, via /^foundry-bn-/.
+//       adc1    → l1-05-internal-adc, via /internal-adc/.
+//       auto-shutoff → the 6 bench tools bn-*, via /^bn-/.
 import type { ContentBlock } from "@/lib/schemas/guide";
 
 export interface GuideProjectFacts {
@@ -53,8 +53,8 @@ interface Gotcha {
 // Boards whose analog front-end sits behind an isolation barrier. Kept in
 // lockstep with the seed's ISOLATION_BOARDS set.
 const ISOLATION_SLUGS = new Set([
-  "foundry-l2-05-isolated-spi-bridge",
-  "foundry-l3-01-eeg-front-end",
+  "l2-05-isolated-spi-bridge",
+  "l3-01-eeg-front-end",
 ]);
 
 const GOTCHAS: Gotcha[] = [
@@ -116,7 +116,7 @@ const GOTCHAS: Gotcha[] = [
   {
     id: "auto-shutoff",
     appliesAt: ["REQUIREMENTS"],
-    appliesTo: (p) => /^foundry-bn-/.test(p.slug),
+    appliesTo: (p) => /^bn-/.test(p.slug),
     block: {
       type: "callout",
       severity: "info",

@@ -8,7 +8,7 @@
 import { config as loadEnv } from "dotenv";
 loadEnv({ path: ".env.local" });
 
-const SLUG = "foundry-l1-01-wroom-breakout";
+const SLUG = "l1-01-wroom-breakout";
 
 type Card = { lead: string; contentBlocks: unknown[] };
 

@@ -17,7 +17,7 @@ import { db } from "@/lib/db";
 import { resolveCardCompletion } from "@/lib/guide-completion";
 
 const SEED_EMAIL = "seed@example.com";
-const FOUNDRY_SLUG = "foundry-l1-01-wroom-breakout";
+const FOUNDRY_SLUG = "l1-01-wroom-breakout";
 const SEED_PROJECT_SLUG = "esp32-sensor-breakout";
 
 const createdArtifactIds: string[] = [];

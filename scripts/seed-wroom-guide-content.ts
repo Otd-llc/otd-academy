@@ -19,7 +19,7 @@ loadEnv({ path: ".env.local" });
 import type { ContentBlock } from "@/lib/schemas/guide";
 import type { GuideStage } from "@/lib/guide-templates/stage-skeletons";
 
-const PROJECT_SLUG = "foundry-l1-01-wroom-breakout";
+const PROJECT_SLUG = "l1-01-wroom-breakout";
 const REV_LABEL = "v1";
 
 // ── SCHEMATIC card: six sub-circuit mini-lessons, in power-flow order ──────────

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isAdminOnlyPath, isPublicPath } from "@/lib/admin-routes";
+import { legacyFoundryRedirect } from "@/lib/legacy-foundry-redirect";
 
 // Auth.js v5's bare `auth` export only attaches `req.auth` to the request — it
 // does not redirect unauthenticated users on its own. Wrap it so unauth requests
@@ -15,6 +16,16 @@ import { isAdminOnlyPath, isPublicPath } from "@/lib/admin-routes";
 // to /sign-in for signed-out visitors and silently fail to load.
 export default auth((req) => {
   const { pathname } = req.nextUrl;
+
+  // Legacy `foundry-` slug URLs (pre-rename) 308 → their prefix-free form so
+  // indexed/bookmarked project links keep resolving. Runs BEFORE the auth gate so
+  // signed-out crawlers following an old public-lesson link land on the canonical
+  // URL directly instead of bouncing through /sign-in. 308 (permanent + method-
+  // preserving) tells search engines to update the index.
+  const legacyPath = legacyFoundryRedirect(pathname);
+  if (legacyPath) {
+    return NextResponse.redirect(new URL(legacyPath, req.nextUrl.origin), 308);
+  }
 
   // Public surfaces (the parts catalog list + detail) are viewable by ANYONE,
   // including signed-out visitors — that's deliberate, for SEO / public browsing.

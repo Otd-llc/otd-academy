@@ -32,7 +32,7 @@ const SEED_EMAIL = "seed@example.com";
 
 // A foundry project distinct from the slugs used by guides-actions.test.ts so
 // the two suites never contend for the same project's revisions.
-const SAVE_SLUG = "foundry-bn-06-tec-thermal-chamber";
+const SAVE_SLUG = "bn-06-tec-thermal-chamber";
 
 let throwawayRevisionId: string;
 let throwawayGuideId: string;

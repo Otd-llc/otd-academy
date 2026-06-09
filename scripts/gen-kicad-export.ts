@@ -1,4 +1,4 @@
-// Generate a real KiCad export zip for foundry-l1-01-wroom-breakout@v1 headlessly,
+// Generate a real KiCad export zip for l1-01-wroom-breakout@v1 headlessly,
 // so it can be opened in KiCad 10 for manual fidelity acceptance (the one gate I
 // can't run myself). The export is UNWIRED (placed parts only — no nets/power),
 // so it just loads the revision id and calls the real buildKicadExportZip.
@@ -8,7 +8,7 @@ loadEnv({ path: ".env.local" });
 
 import { writeFileSync } from "node:fs";
 
-const PROJECT_SLUG = "foundry-l1-01-wroom-breakout";
+const PROJECT_SLUG = "l1-01-wroom-breakout";
 const OUT = "c:\\tmp\\foundry-kicad-export.zip";
 
 async function main() {

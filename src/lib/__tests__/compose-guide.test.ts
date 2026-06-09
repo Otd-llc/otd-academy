@@ -3,7 +3,7 @@ import { composeGuide } from "@/lib/guide-templates/compose";
 import { guideCardInputSchema } from "@/lib/schemas/guide";
 
 const eeg = {
-  slug: "foundry-l3-01-eeg-front-end",
+  slug: "l3-01-eeg-front-end",
   name: "L3.01 EEG front-end",
   track: "SENSE" as const,
   requiresStripboard: false,
