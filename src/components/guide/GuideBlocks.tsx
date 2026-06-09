@@ -17,6 +17,7 @@
 // Resilience: an unknown/extra block type is skipped (renders nothing) rather
 // than crashing the page.
 
+import { Fragment } from "react";
 import sanitizeHtml from "sanitize-html";
 import type { ContentBlock } from "@/lib/schemas/guide";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
@@ -264,6 +265,127 @@ function StepsBlock({
   );
 }
 
+// ── Role-styled callouts ──────────────────────────────────────────────
+// A callout's ROLE is encoded in its label ("Exit this stage", "Check yourself",
+// "Draw it · …", "NN · …"). The flat grey `info` box made all of them read alike,
+// so a student couldn't tell teaching from a self-test from a thing to DO from
+// "how do I advance". These give each role its own shape — rendering only, so
+// every card gets the new signposting without touching content.
+
+// "Exit this stage" → the unmissable advance banner: gold-rimmed, the literal
+// answer to "where do I go next".
+function AdvanceBlock({ body }: { body: string }) {
+  return (
+    <div className="rounded-lg border border-command-gold/50 bg-command-gold/[0.06] px-5 py-4">
+      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-command-gold">
+        ✓ Exit this stage
+      </span>
+      <p className="mt-2 whitespace-pre-wrap font-serif text-base leading-relaxed text-gray-1">
+        <Inline text={body} />
+      </p>
+    </div>
+  );
+}
+
+// "Check yourself" → an interactive self-test: the question shows, the answer is
+// one tap away (native <details>, no JS). Body is "…question?  answer." — split
+// at the last "?" so the prompt is the summary and the rest is the reveal.
+function SelfCheckBlock({
+  body,
+  severity,
+}: {
+  body: string;
+  severity: "critical" | "warn" | "info";
+}) {
+  const cut = body.lastIndexOf("?");
+  const question = cut >= 0 ? body.slice(0, cut + 1).trim() : body.trim();
+  const answer = cut >= 0 ? body.slice(cut + 1).trim() : "";
+  const accent = severity === "critical" ? "text-alert-red" : "text-signal-blue";
+  return (
+    <details className="group rounded border border-panel-border bg-deep-space/40">
+      <summary className="flex cursor-pointer list-none items-start gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+        <span
+          className={`mt-1 shrink-0 font-mono text-[10px] font-bold uppercase tracking-[0.18em] ${accent}`}
+        >
+          Check
+        </span>
+        <span className="flex-1 font-serif text-base leading-relaxed text-gray-1">
+          <Inline text={question} />
+        </span>
+        {answer ? (
+          <span className="mt-0.5 shrink-0 font-mono text-[10px] uppercase tracking-wider text-gold-dim group-open:hidden">
+            Show
+          </span>
+        ) : null}
+      </summary>
+      {answer ? (
+        <div className="border-t border-panel-border py-3 pl-[4.25rem] pr-4">
+          <p className="whitespace-pre-wrap font-serif text-base leading-relaxed text-gray-2">
+            <Inline text={answer} />
+          </p>
+        </div>
+      ) : null}
+    </details>
+  );
+}
+
+// "Draw it · X" → a DO-THIS step: gold left-rule, distinct from the boxed
+// teaching callouts. The phase divider supplies the "Draw it" context, so the
+// label drops that prefix.
+function ActionCalloutBlock({ label, body }: { label: string; body: string }) {
+  const title = label.split("·").pop()?.trim() || label;
+  return (
+    <div className="border-l-2 border-l-command-gold pl-4">
+      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-command-gold">
+        Do · {title}
+      </span>
+      <p className="mt-1.5 whitespace-pre-wrap font-serif text-base leading-relaxed text-gray-2">
+        <Inline text={body} />
+      </p>
+    </div>
+  );
+}
+
+// "NN · Title" → a real numbered section header, not another grey box — so the
+// card's spine is scannable at a glance.
+function SectionHeaderBlock({ label, body }: { label: string; body: string }) {
+  const m = label.match(/^(\d+)\s*·\s*(.*)$/);
+  const num = m?.[1] ?? "";
+  const title = m?.[2] ?? label;
+  return (
+    <div className="border-t border-panel-border/60 pt-5">
+      <div className="flex items-baseline gap-3">
+        <span className="font-mono text-sm font-bold tabular-nums text-command-gold">
+          {num}
+        </span>
+        <h3 className="font-mono text-sm font-bold uppercase tracking-[0.12em] text-gray-1">
+          {title}
+        </h3>
+      </div>
+      {body ? (
+        <p className="mt-2 whitespace-pre-wrap font-serif text-base leading-relaxed text-muted">
+          <Inline text={body} />
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+// Phase divider — marks a hard shift within a card (SCHEMATIC's
+// understand-the-circuit → draw-it-in-KiCad), rendered before the first
+// "Draw it ·" block.
+function PhaseDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 pt-3">
+      <span className="h-px flex-1 bg-command-gold/30" />
+      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-command-gold">
+        {label}
+      </span>
+      <span className="h-px flex-1 bg-command-gold/30" />
+    </div>
+  );
+}
+
 function TableCell({
   text,
   decoration,
@@ -316,14 +438,22 @@ function GuideBlock({
     case "prose":
       return <ProseBlock md={block.md} />;
 
-    case "callout":
+    case "callout": {
+      // Dispatch by the label's ROLE so teaching / do-this / self-check / exit
+      // each read distinctly (see the role-styled callout components above).
+      const label = block.label ?? "";
+      if (/^exit this stage/i.test(label))
+        return <AdvanceBlock body={block.body} />;
+      if (/^check yourself/i.test(label))
+        return <SelfCheckBlock body={block.body} severity={block.severity} />;
+      if (/^draw it\b/i.test(label))
+        return <ActionCalloutBlock label={label} body={block.body} />;
+      if (/^\d+\s*·/.test(label))
+        return <SectionHeaderBlock label={label} body={block.body} />;
       return (
-        <CalloutBlock
-          severity={block.severity}
-          label={block.label}
-          body={block.body}
-        />
+        <CalloutBlock severity={block.severity} label={label} body={block.body} />
       );
+    }
 
     case "steps":
       return <StepsBlock ordered={block.ordered} items={block.items} />;
@@ -455,16 +585,23 @@ export function GuideBlocks({
   quizContext?: QuizContext;
   projectId?: string;
 }) {
+  // Mark the understand → "draw it" phase shift (SCHEMATIC) with a divider
+  // before the first "Draw it ·" block.
+  const drawStartIdx = blocks.findIndex(
+    (b) => b.type === "callout" && /^draw it\b/i.test(b.label ?? ""),
+  );
   return (
     <div className="space-y-5">
       {blocks.map((block, i) => (
-        <GuideBlock
-          key={i}
-          block={block}
-          models={models}
-          quizContext={quizContext}
-          projectId={projectId}
-        />
+        <Fragment key={i}>
+          {i === drawStartIdx ? <PhaseDivider label="Draw it in KiCad" /> : null}
+          <GuideBlock
+            block={block}
+            models={models}
+            quizContext={quizContext}
+            projectId={projectId}
+          />
+        </Fragment>
       ))}
     </div>
   );
