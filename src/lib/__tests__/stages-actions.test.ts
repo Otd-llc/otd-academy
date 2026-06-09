@@ -271,19 +271,15 @@ describe("advanceStage — happy paths", () => {
 
     // Entering LAYOUT is what sets bomFrozenAt (the BOM was sourced one stage
     // earlier). To advance SCHEMATIC → LAYOUT, satisfy the SCHEMATIC gate: a
-    // schematic artifact + a pinned schematicCommit.
-    await db.revision.update({
-      where: { id: rev.id },
-      data: { schematicCommit: "abc1234" },
-    });
+    // clean ERC report (the schematic file + commit are no longer the gate).
     await db.artifact.create({
       data: {
         revisionId: rev.id,
         stage: "SCHEMATIC",
         kind: "NOTE",
-        subkind: "SCHEMATIC_FILE",
-        title: "schematic",
-        noteBody: "x",
+        subkind: "ERC_REPORT",
+        title: "erc",
+        noteBody: "0 errors",
         createdBy: user.id,
       },
     });

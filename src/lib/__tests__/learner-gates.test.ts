@@ -41,29 +41,33 @@ describe("learnerExitGate — REQUIREMENTS (quiz-only, no proof artifact)", () =
 });
 
 describe("learnerExitGate — SCHEMATIC (proof + quiz)", () => {
-  test("blocked when no SCHEMATIC_FILE proof artifact (quiz passed)", () => {
+  test("requires a clean ERC report as the proof artifact", () => {
+    expect(learnerProofSubkind("SCHEMATIC")).toBe("ERC_REPORT");
+  });
+
+  test("blocked when no ERC_REPORT proof artifact (quiz passed)", () => {
     const r = learnerExitGate(
       "SCHEMATIC",
       ctx({ quizPasses: new Set<Stage>(["SCHEMATIC"]) }),
     );
     expect(r.ok).toBe(false);
-    expect((r as { reasons: string[] }).reasons.some((x) => /schematic/i.test(x))).toBe(true);
+    expect((r as { reasons: string[] }).reasons.some((x) => /ERC/i.test(x))).toBe(true);
   });
 
   test("blocked when quiz not passed (proof present)", () => {
     const r = learnerExitGate(
       "SCHEMATIC",
-      ctx({ enrollmentArtifacts: [{ subkind: "SCHEMATIC_FILE" }] }),
+      ctx({ enrollmentArtifacts: [{ subkind: "ERC_REPORT" }] }),
     );
     expect(r.ok).toBe(false);
     expect((r as { reasons: string[] }).reasons).toContain(QUIZ_NOT_PASSED_MSG);
   });
 
-  test("ok when both proof artifact and quiz pass are present", () => {
+  test("ok when both the ERC report and quiz pass are present", () => {
     const r = learnerExitGate(
       "SCHEMATIC",
       ctx({
-        enrollmentArtifacts: [{ subkind: "SCHEMATIC_FILE" }],
+        enrollmentArtifacts: [{ subkind: "ERC_REPORT" }],
         quizPasses: new Set<Stage>(["SCHEMATIC"]),
       }),
     );

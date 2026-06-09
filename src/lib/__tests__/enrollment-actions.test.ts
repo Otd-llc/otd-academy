@@ -144,7 +144,7 @@ describe("submitEnrollmentProof", () => {
     const e = await enrollmentRow(projectId);
     const arts = await db.artifact.findMany({ where: { enrollmentId: e.id } });
     expect(arts).toHaveLength(1);
-    expect(arts[0]!.subkind).toBe("SCHEMATIC_FILE");
+    expect(arts[0]!.subkind).toBe("ERC_REPORT");
     expect(arts[0]!.kind).toBe("LINK");
   });
 
@@ -153,7 +153,7 @@ describe("submitEnrollmentProof", () => {
     await submitEnrollmentProof({ projectId, stage: "SCHEMATIC", linkUrl: "https://example.com/a" });
     await submitEnrollmentProof({ projectId, stage: "SCHEMATIC", linkUrl: "https://example.com/b" });
     const e = await enrollmentRow(projectId);
-    const count = await db.artifact.count({ where: { enrollmentId: e.id, subkind: "SCHEMATIC_FILE" } });
+    const count = await db.artifact.count({ where: { enrollmentId: e.id, subkind: "ERC_REPORT" } });
     expect(count).toBe(1);
   });
 

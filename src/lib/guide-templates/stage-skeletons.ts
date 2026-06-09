@@ -58,11 +58,11 @@ export const STAGE_CARD_SKELETONS: Record<GuideStage, StageSkeleton> = {
   SCHEMATIC: {
     eyebrow: "PHASE 03",
     title: "SCHEMATIC",
-    lead: "Capture your already-sourced circuit and pin the commit.",
+    lead: "Capture your already-sourced circuit, then pass ERC.",
     baseBlocks: [
       {
         type: "prose",
-        md: "Your parts are locked and sourced, so this is capture, not design: open the provided KiCad files (symbols, footprints, and 3D models are pre-loaded), wire up your sourced parts, then attach the schematic file artifact and record the schematic commit.",
+        md: "Your parts are locked and sourced, so this is capture, not design: open the provided KiCad files (symbols, footprints, and 3D models are pre-loaded), wire up your sourced parts, then run ERC until it's clean and attach the ERC report to advance.",
       },
       // Every project's SCHEMATIC card hands the learner the generated KiCad
       // starter (BOM parts placed, with footprints/3D/datasheets). The button
@@ -75,7 +75,7 @@ export const STAGE_CARD_SKELETONS: Record<GuideStage, StageSkeleton> = {
       },
     ],
     isGate: false,
-    completionRef: { kind: "artifact", subkinds: ["SCHEMATIC_FILE"] },
+    completionRef: { kind: "artifact", subkinds: ["ERC_REPORT"] },
   },
   LAYOUT: {
     eyebrow: "PHASE 04",

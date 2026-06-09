@@ -28,6 +28,18 @@ const PROOF_HELP: Partial<Record<ArtifactSubkind, ProofHelp>> = {
       "Upload the .kicad_sch file (or the plotted PDF) with the picker below.",
     ],
   },
+  ERC_REPORT: {
+    requirement:
+      "Run KiCad's Electrical Rules Check (ERC) on your schematic and upload the report once it's clean — zero errors.",
+    howToTitle: "How to run ERC and export the report in KiCad 10",
+    steps: [
+      "In KiCad 10, open the Schematic Editor for your project.",
+      "Run Inspect ▸ Electrical Rules Checker, then press Run ERC.",
+      "Fix every error: unconnected pins (wire them or add a no-connect ✕), power pins not driven (add a PWR_FLAG to each supply net), and any pin-conflict warnings.",
+      "Re-run until it reports zero errors, then use Save… in the ERC dialog to write the report file.",
+      "Upload that ERC report with the picker below.",
+    ],
+  },
   LAYOUT_FILE: {
     requirement:
       "Add your board layout from KiCad — the .kicad_pcb file itself, or a PDF you plot from it.",

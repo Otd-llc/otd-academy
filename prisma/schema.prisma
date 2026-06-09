@@ -237,6 +237,7 @@ enum ArtifactSubkind {
   GENERIC // owner-agnostic (either Revision or Build)
   REQUIREMENTS_DOC // Revision-scoped
   SCHEMATIC_FILE // Revision-scoped
+  ERC_REPORT // Revision-scoped; SCHEMATIC gate (clean ERC — the schematic-stage analog of DRC_REPORT)
   BOM_EXPORT // Revision-scoped
   LAYOUT_FILE // Revision-scoped
   DRC_REPORT // Revision-scoped
