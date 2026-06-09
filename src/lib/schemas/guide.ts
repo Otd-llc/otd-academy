@@ -115,7 +115,11 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
 ]);
 export type ContentBlock = z.infer<typeof contentBlockSchema>;
 
-export const guideContentBlocksSchema = z.array(contentBlockSchema).max(60);
+// Cap raised 60 → 80: the flagship SCHEMATIC card legitimately runs ~62 rich
+// blocks (subsystems + the wiring connection-map). The render path
+// (guide page) safeParses against this, so the cap is a hard render gate — keep
+// real headroom above the richest authored card.
+export const guideContentBlocksSchema = z.array(contentBlockSchema).max(80);
 
 export const completionRefSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("revisionChecklist"), subkind: z.enum(ChecklistSubkind) }),
