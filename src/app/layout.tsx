@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { auth, signOut } from "@/auth";
 import { env } from "@/env";
@@ -11,16 +10,6 @@ import { MainNav } from "@/components/MainNav";
 import { SignUpCta } from "@/components/SignUpCta";
 import { TooltipProvider } from "@/components/TooltipProvider";
 import { UserMenu } from "@/components/UserMenu";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   // Absolute base for canonical / OG / Twitter URLs. OPTIONAL env var with a
@@ -63,7 +52,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className="h-full antialiased"
     >
       <body className="min-h-full flex flex-col">
         {/* One app-wide tooltip provider — hoisted here so every `<Tooltip>`

@@ -32,6 +32,7 @@
 
   --color-link-muted: #c8c8c8;
   --color-gray-1: #e8e8e8;
+  --color-gray-2: #cdcdcd;
   --color-muted: #aaaaaa;
   --color-gray-3: #555555;
 
@@ -72,14 +73,13 @@ body {
  *                          text and tooltips.
  */
 @layer components {
+  /* In-flow panels sit on the solid deep-space field, where a backdrop-blur has
+     nothing behind it to blur — it's invisible GPU cost (and the glassmorphism
+     "AI-default" tell). So the fill is OPAQUE — tuned to the colour the old
+     translucent fill resolved to over deep-space, so the look is unchanged — with
+     no backdrop-filter. The genuinely-floating `.glass-popover` keeps its blur. */
   .glass-card {
-    background: linear-gradient(
-      180deg,
-      rgba(26, 26, 46, 0.55) 0%,
-      rgba(15, 16, 24, 0.65) 100%
-    );
-    backdrop-filter: blur(18px) saturate(1.1);
-    -webkit-backdrop-filter: blur(18px) saturate(1.1);
+    background: linear-gradient(180deg, #13131f 0%, #0d0e14 100%);
     border: 1px solid rgba(200, 150, 62, 0.35);
     border-radius: 14px;
     box-shadow:
@@ -434,6 +434,46 @@ body {
   }
   .table-tech tr:hover td {
     background: rgba(200, 150, 62, 0.03);
+  }
+
+  /* Below the `sm` breakpoint a 2-column table crushes long-text cells into a
+     word-per-line ribbon. Stack each row into a labelled card instead — the
+     column header (carried on `data-label`) becomes the caption above its cell. */
+  @media (max-width: 639px) {
+    .table-tech,
+    .table-tech tbody,
+    .table-tech tr,
+    .table-tech td {
+      display: block;
+      width: 100%;
+    }
+    .table-tech thead {
+      display: none;
+    }
+    .table-tech tr {
+      border: 1px solid var(--color-panel-border);
+      border-radius: 6px;
+      padding: 0.5rem 0.85rem;
+      margin-bottom: 0.75rem;
+    }
+    .table-tech td {
+      border-bottom: none;
+      padding: 0.45rem 0;
+      vertical-align: top;
+    }
+    .table-tech td:empty {
+      display: none;
+    }
+    .table-tech td::before {
+      content: attr(data-label);
+      display: block;
+      margin-bottom: 0.3rem;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--color-command-gold);
+    }
   }
 }
 
