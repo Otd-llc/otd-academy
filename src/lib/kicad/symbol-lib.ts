@@ -3,7 +3,7 @@
 // Two jobs, both PURE (no React/DB/env/network/fs):
 //   1. `setSymbolFootprint` — pre-wire a symbol's `(property "Footprint" ...)`
 //      to `<nick>:<fpName>` so KiCad opens with the symbol↔footprint pairing
-//      already done (normally a manual step). Foundry already pairs symbol+
+//      already done (normally a manual step). The academy already pairs symbol+
 //      footprint per part, so we hand them over connected.
 //   2. `buildSymbolLib` — merge N uploaded `.kicad_sym` bodies into ONE
 //      `(kicad_symbol_lib ...)` library. Tolerant of the two real-world upload

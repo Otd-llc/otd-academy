@@ -17,7 +17,7 @@ import { db } from "@/lib/db";
 import { resolveCardCompletion } from "@/lib/guide-completion";
 
 const SEED_EMAIL = "seed@example.com";
-const FOUNDRY_SLUG = "l1-01-wroom-breakout";
+const WROOM_SLUG = "l1-01-wroom-breakout";
 const SEED_PROJECT_SLUG = "esp32-sensor-breakout";
 
 const createdArtifactIds: string[] = [];
@@ -44,7 +44,7 @@ describe("resolveCardCompletion — plan-pinned states", () => {
   test("revisionChecklist REQUIREMENTS_REVIEW with unchecked items → partial, total>0", async () => {
     // Self-contained: a FRESH revision with a REQUIREMENTS_REVIEW checklist that
     // still has an unchecked item, so the requirements gate is open. (This used
-    // to read the real foundry v1 board, whose requirements review flips to
+    // to read the real curriculum v1 board, whose requirements review flips to
     // "complete" — and this assertion to red — once that board is actually
     // advanced. The state under test is the checklist's, not the live board's.)
     const user = await db.user.findUniqueOrThrow({ where: { email: SEED_EMAIL } });
@@ -88,7 +88,7 @@ describe("resolveCardCompletion — plan-pinned states", () => {
   test("buildChecklist card with no active build → blocked", async () => {
     const rev = await db.revision.findFirstOrThrow({
       where: {
-        project: { slug: FOUNDRY_SLUG },
+        project: { slug: WROOM_SLUG },
         label: { equals: "v1", mode: "insensitive" },
       },
       select: { id: true },
@@ -105,10 +105,10 @@ describe("resolveCardCompletion — plan-pinned states", () => {
   });
 
   test("revisionChecklist that has never been materialized → untouched (total 0) with materialize href", async () => {
-    // The foundry rev sits at REQUIREMENTS and has no LAYOUT_REVIEW yet.
+    // The rev sits at REQUIREMENTS and has no LAYOUT_REVIEW yet.
     const rev = await db.revision.findFirstOrThrow({
       where: {
-        project: { slug: FOUNDRY_SLUG },
+        project: { slug: WROOM_SLUG },
         label: { equals: "v1", mode: "insensitive" },
       },
       select: { id: true },

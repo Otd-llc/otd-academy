@@ -10,7 +10,7 @@
  * `font-display`, `font-mono`, `font-serif`.
  *
  * Palette is aligned with the bioscale-viz hex cluster viewer so the
- * foundry and the visualizer share a single visual vocabulary: warm
+ * academy and the visualizer share a single visual vocabulary: warm
  * gold + electric blue + deep-space dark with Bebas / Space Mono / Lora.
  * Tonal ramps (gold-light/dim, blue-dim, bg-2/3, gray-1..3) carry the
  * glass-and-gold polish vocabulary from the viz across to dashboard,
@@ -226,7 +226,7 @@ body {
    * (otd/.../docs/bench/_bench.css) for the learner-guide PageHeader +
    * content-block renderer. The bench used a parallel set of raw color vars
    * (--command-gold, --muted-gray, --deep-space, …); every one is remapped to
-   * the EXISTING Foundry `@theme` token below — NO palette additions. Hairlines
+   * the EXISTING `@theme` token below — NO palette additions. Hairlines
    * the bench expressed as derived gold/divider rgbas (--gold-dim-line,
    * --row-divider, --gold-dim-bg, etc.) become rgba()s of the same existing
    * gold/muted/blue/red channels already used by `.glass-card` above.

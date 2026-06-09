@@ -1,11 +1,11 @@
 // Learner-guide backfill → materialize a Guide + GuideCard[] for each of the
-// 22 `foundry-*` curriculum projects' v1 revision.
+// 22 curriculum projects' v1 revision.
 //
-// One-off, idempotent backfill script. Writes via Prisma directly: the
+// One-off backfill: idempotent. Writes via Prisma directly: the
 // `materializeGuide` server action can't be scripted headlessly because
 // `requireUser()` reads an Auth.js request-context session and the action calls
 // `revalidatePath`, which throws outside a Next request (the documented
-// `[[foundry-headless-scripting]]` constraint). This script replicates the
+// headless-scripting constraint). This script replicates the
 // action's WRITE shape exactly — `composeGuide(...)` → nested `Guide` +
 // `GuideCard[]` create, same field mapping incl. `Prisma.JsonNull` for a null
 // `completionRef`/`trackSnapshot`, and the audited `createdById`.
@@ -22,6 +22,20 @@ loadEnv({ path: ".env.local" });
 // (Prisma.JsonNull) come from the dynamic import inside main() so .env.local is
 // loaded before @prisma/client reads DATABASE_URL (matching populate-…-dag.ts).
 import type { Prisma } from "@prisma/client";
+
+// The 22 curriculum projects all carry a level/track slug prefix
+// (`l1-`/`l2-`/`l3-`/`bn-`), distinguishing them from the `esp32-sensor-breakout`
+// seed fixture and any ad-hoc project. (The old `foundry-` prefix was dropped
+// from slugs.) Used as a Prisma `project` filter at both query sites below so
+// the load + the count stay in sync.
+const CURRICULUM_PROJECT = {
+  OR: [
+    { slug: { startsWith: "l1-" } },
+    { slug: { startsWith: "l2-" } },
+    { slug: { startsWith: "l3-" } },
+    { slug: { startsWith: "bn-" } },
+  ],
+};
 
 async function main() {
   const { Prisma: PrismaRuntime } = await import("@prisma/client");
@@ -40,10 +54,10 @@ async function main() {
     (await db.user.findUniqueOrThrow({ where: { email: "seed@example.com" } }));
   console.log(`author: ${author.email} (${author.id})`);
 
-  // ─── Load the 22 foundry-* v1 revisions ─────────────────
+  // ─── Load the 22 curriculum v1 revisions ────────────────
   const revisions = await db.revision.findMany({
     where: {
-      project: { slug: { startsWith: "foundry-" } },
+      project: CURRICULUM_PROJECT,
       label: { equals: "v1", mode: "insensitive" },
     },
     select: {
@@ -61,7 +75,7 @@ async function main() {
     },
     orderBy: { project: { slug: "asc" } },
   });
-  console.log(`foundry-* v1 revisions found: ${revisions.length}`);
+  console.log(`curriculum v1 revisions found: ${revisions.length}`);
 
   let created = 0;
   let skipped = 0;
@@ -112,7 +126,7 @@ async function main() {
   }
 
   const total = await db.guide.count({
-    where: { revision: { project: { slug: { startsWith: "foundry-" } } } },
+    where: { revision: { project: CURRICULUM_PROJECT } },
   });
   console.log(
     `guides: ${total} present (${created} created, ${skipped} already existed)`,

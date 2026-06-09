@@ -1,4 +1,4 @@
-// ESP32 curriculum → Project Foundry DAG population.
+// ESP32 curriculum → curriculum DAG population.
 //
 // One-off, idempotent seed-style script. Writes via Prisma directly (the
 // `"use server"` action layer can't be scripted headlessly because

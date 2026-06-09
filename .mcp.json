@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "foundry-parts": {
+    "otd-parts": {
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "tsx", "mcp/parts-server/index.ts"]

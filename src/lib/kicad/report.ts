@@ -121,7 +121,7 @@ export function buildExportReport(
   // ── Legend ──
   lines.push("## Legend");
   lines.push("");
-  lines.push("- **verified** — a curated asset that passed the Foundry verify gate.");
+  lines.push("- **verified** — a curated asset that passed the verify gate.");
   lines.push("- **unverified** — an uploaded asset not yet verified; used as-is.");
   lines.push(
     "- **referenced** — no uploaded asset; the part is emitted by KiCad standard-library lib-id (Device:R, etc.) and resolved from your global libraries (no file bundled).",

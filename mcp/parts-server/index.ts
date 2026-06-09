@@ -1,4 +1,4 @@
-// Foundry parts MCP server — stdio entry point.
+// OTD Academy parts MCP server — stdio entry point.
 //
 // IRON RULE: stdout is the MCP protocol channel. Nothing may write to stdout
 // except the transport — dotenv is `quiet`, Prisma logging is `[]` (client.ts),
@@ -23,10 +23,10 @@ async function main(): Promise<void> {
   const client = makeReadOnlyClient(url);
   const server = buildServer(client);
   await server.connect(new StdioServerTransport());
-  console.error("[foundry-parts] MCP server ready (stdio).");
+  console.error("[otd-parts] MCP server ready (stdio).");
 }
 
 main().catch((err) => {
-  console.error("[foundry-parts] fatal:", err);
+  console.error("[otd-parts] fatal:", err);
   process.exit(1);
 });

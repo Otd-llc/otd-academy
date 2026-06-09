@@ -355,7 +355,7 @@ the KiCad project opens; replace them with verified assets before fabrication.
 
 ## Legend
 
-- **verified** — a curated asset that passed the Foundry verify gate.
+- **verified** — a curated asset that passed the verify gate.
 - **unverified** — an uploaded asset not yet verified; used as-is.
 - **referenced** — no uploaded asset; the part is emitted by KiCad standard-library lib-id (Device:R, etc.) and resolved from your global libraries (no file bundled).
 - **stubbed** — no asset; an auto-generated placeholder was synthesized (replace before fabrication).

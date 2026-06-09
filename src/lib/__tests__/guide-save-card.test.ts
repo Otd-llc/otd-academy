@@ -9,7 +9,7 @@
 // `guides-actions.test.ts` does — `requireUser()` resolves the mocked session
 // email to the seeded User row.
 //
-// Isolation: a single DEDICATED throwaway revision is created on a foundry
+// Isolation: a single DEDICATED throwaway revision is created on a curriculum
 // project (NOT the live curriculum v1 revision), a guide is materialized on it,
 // and its first card id is grabbed for the edits. The throwaway revision is
 // deleted in afterAll (cascading its guide + cards), so the real curriculum
@@ -30,7 +30,7 @@ import { materializeGuide } from "@/lib/actions/guides";
 
 const SEED_EMAIL = "seed@example.com";
 
-// A foundry project distinct from the slugs used by guides-actions.test.ts so
+// A curriculum project distinct from the slugs used by guides-actions.test.ts so
 // the two suites never contend for the same project's revisions.
 const SAVE_SLUG = "bn-06-tec-thermal-chamber";
 
@@ -43,7 +43,7 @@ beforeAll(async () => {
     user: { email: SEED_EMAIL },
   }));
 
-  // Create a dedicated throwaway revision on a foundry project, materialize a
+  // Create a dedicated throwaway revision on a curriculum project, materialize a
   // guide onto it, and grab its first card id.
   const project = await db.project.findFirstOrThrow({
     where: { slug: SAVE_SLUG },
