@@ -423,7 +423,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "When the ESP32 switches its transistors millions of times a second, it grabs tiny gulps of current faster than the regulator across the board can possibly respond. Left unfed, the 3.3 V right at the chip's pins would dip on every gulp — and a microcontroller fed a dipping rail glitches or resets.\n\nThe fix is a small [[decoupling capacitor|capacitor]] parked right at each power pin: **C2, C3, and C7** (0.1 µF each). They hold a little reserve of charge and hand it over instantly when the chip asks, then refill between demands. **C1** (10 µF) plays the same game one size up — a [[bulk capacitor|bigger, slower reservoir]] for the whole rail, smoothing the larger swings the little caps don't cover. Together they're called bulk plus bypass.",
+        md: "When the ESP32 switches its transistors millions of times a second, it grabs tiny gulps of current faster than the regulator across the board can possibly respond. Left unfed, the 3.3 V right at the chip's pins would dip on every gulp — and a microcontroller fed a dipping rail glitches or resets.\n\nThe fix is a small [[decoupling capacitor|capacitor]] parked right at each power pin: **C2, C3, and C7** (0.1 µF each). They hold a little reserve of charge and hand it over instantly when the chip asks, then refill between demands. **C1** (10 µF) plays the same game one size up — a [[bulk capacitor|bigger, slower reservoir]] for the whole **3.3 V** rail, smoothing the larger swings the little caps don't cover. Together they're called bulk plus bypass.",
       },
       {
         type: "table",
@@ -432,7 +432,7 @@ const CARDS: Record<string, Card> = {
           [
             { text: "C2  C3  C7", decoration: "ref" },
             { text: "0.1 µF X7R" },
-            { text: "Bypass — one at each module 3V3 pin" },
+            { text: "Bypass — clustered at the module's 3V3 pin" },
           ],
           [
             { text: "C1", decoration: "ref" },
@@ -540,7 +540,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "Give an LED more voltage than it wants and it pulls more and more current until it cooks itself. So you never connect one straight across a supply — you put a [[current-limiting resistor|resistor in series]] with it to set the current.\n\nThe math is just Ohm's law on the leftover voltage. The supply is 3.3 V; the red LED drops about 1.8 V across itself (its [[forward voltage|forward voltage, Vf]]), leaving 1.5 V across **R5**. With 470 Ω that's I = 1.5 V ÷ 470 Ω ≈ 3.2 mA — bright enough to see, easy on the [[GPIO]] driving it. **R5** and **R6** do this for LED1 (red, power) and LED2 (yellow, user).",
+        md: "Give an LED more voltage than it wants and it pulls more and more current until it cooks itself. So you never connect one straight across a supply — you put a [[current-limiting resistor|resistor in series]] with it to set the current.\n\nThe math is just Ohm's law on the leftover voltage. The supply is 3.3 V; the red LED drops about 1.8 V across itself (its [[forward voltage|forward voltage, Vf]]), leaving 1.5 V across **R5**. With 470 Ω that's I = 1.5 V ÷ 470 Ω ≈ 3.2 mA — bright enough to see, easy on the [[GPIO]] driving it. **R5** and **R6** do this for the two LEDs: **LED1** (red) is the power light — wired **3V3 → R5 → LED1 → GND**, so it glows whenever the board has power; **LED2** (yellow) is the user light, driven by a pin — **IO2 → R6 → LED2 → GND**.",
       },
       {
         type: "table",
@@ -625,6 +625,10 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
+        md: "First, the thing nobody tells you outright: you wire by pin **name**, not pin **number**. Your chips, the module, and the connector label their pins by name — the regulator's pins read `VIN`, `VOUT`, `GND`, `EN`; the module's read `3V3`, `EN`, `IO0`, `IO19`, `IO20`. So when a step says 'U2's EN to VIN,' you find the pin *named* `EN` and wire it to the pin *named* `VIN`. (The little resistors and caps are the exception — they just show pins `1` and `2`; that's fine, and there's a heads-up on exactly what every symbol looks like right before you download.) The names in this lesson are the names on those symbols — for the chips, 'which pin?' is answered by reading the part in front of you.",
+      },
+      {
+        type: "prose",
         md: "Most of the ESP32's pins are yours to use however you like. A handful are already spoken for. The big one: the chip talks to your computer over **USB**, and that USB lives on two fixed pins — **D− is GPIO19, D+ is GPIO20**, always. They're wired straight into the chip's USB hardware; no other pins work, and nothing on the schematic hints at it. So the two data lines from the USB-C connector run to exactly those pins, with **D1** sitting across them to clamp static. (You already wired the other reserved pins back in section 03: **GPIO0** for boot and **EN** for reset.)\n\nOne rule for every *free* pin you choose: steer clear of the [[strapping pin|strapping pins]] — **GPIO0, 3, 45, 46** — for anything you actively drive at power-up. The chip reads those four the instant it wakes to decide how to boot, so a part tugging on one can stop it starting.",
       },
       {
@@ -635,6 +639,11 @@ const CARDS: Record<string, Card> = {
             { text: "USB data", tone: "gold", decoration: "badge" },
             { text: "D+ → module IO20,  D− → IO19" },
             { text: "The S3's USB hardware is fixed to these two pins — nowhere else works. D1 clamps both." },
+          ],
+          [
+            { text: "Power in", tone: "gold", decoration: "badge" },
+            { text: "USB VBUS → F1 → U2 VIN" },
+            { text: "The 5 V reaches the regulator through the polyfuse — VIN taps after F1, not straight off the connector." },
           ],
           [
             { text: "Regulator on-switch", tone: "gold", decoration: "badge" },
@@ -655,13 +664,19 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "callout",
+        label: "Two easy mix-ups",
+        severity: "warn",
+        body: "Two small things bite beginners here. Polarity: an LED — and the ESD diodes in D1 — only work one way round; match the bar/flat side of the symbol to the lower-voltage end (for an LED, the GND side). Backwards, an LED just stays dark. Two different ENs: the module's EN (reset — R1 + SW1) is NOT the regulator's EN (U2 → VIN). Same name, different pins, different nets — wire them as two separate things.",
+      },
+      {
+        type: "callout",
         label: "Picking the user-LED pin",
         severity: "info",
         body: "Why IO2 for LED2? It's a plain GPIO with no special duty. Avoid the strapping pins (0, 3, 45, 46), the USB pins (19, 20), and the serial-console pins (43, 44 — keep those for debugging); of what's left, the lowest tidy GPIO wins. (Reading an analog sensor one day? Prefer GPIO1–10 — that's ADC1, the only ADC that still works while Wi-Fi is on.)",
       },
       {
         type: "prose",
-        md: "That leaves the two long headers, **J2** and **J3** — they bring the spare GPIOs out to the board edge so you can jumper to them later. Wire each free GPIO to the header pin physically beside it, following the module's own pin order: straight, short runs that stay easy to route. Bring **3V3, GND, 5V and EN** out to the headers too, so a breadboard has power and a reset.",
+        md: "That leaves the two long headers, **J2** and **J3** — they bring the spare GPIOs out to the board edge so you can jumper to them later. Wire each free GPIO out to a header pin — electrically the order doesn't matter, so the tidy move is to follow the module's own physical pin order: straight, short runs that stay easy to route. Bring **3V3, GND, 5V and EN** out to the headers too, so a breadboard has power and a reset.\n\nA tidy default you can copy: put **3V3** on J2 pin 1 and **GND** on J2 pin 2, then march the module's spare GPIOs down the rest in pin order — `IO1`→pin 3, `IO4`→pin 4, `IO5`→pin 5, and so on, carrying onto J3 until every free GPIO has a home. Skip the ones already spoken for (the USB pins `IO19`/`IO20`, the strapping pins `0`/`3`/`45`/`46`, `EN` and `IO0`, and `IO2` driving your LED). It's ~40 little connections, but they're all the same move — label a few and the rest is muscle memory.",
       },
       {
         type: "callout",
@@ -672,6 +687,16 @@ const CARDS: Record<string, Card> = {
       {
         type: "prose",
         md: "You've now reasoned out every part and know what each one connects to — so now you draw it. Start from the KiCad starter below: it's a ready-made project, with the symbol library plus every BOM part already dropped onto the sheet, spaced out but not yet wired. Your job isn't to find parts, it's to arrange them into a readable layout and wire them into the real circuit. A good schematic isn't just correct, it's readable: someone (including future-you) should be able to follow it at a glance. A few habits and one rules-check get you there.",
+      },
+      {
+        type: "callout",
+        label: "Before you open it · what your symbols look like",
+        severity: "warn",
+        body: "The starter is real CAD, not a tidy textbook drawing — a few parts won't look how you'd expect. Skim this so nothing throws you when you open it.",
+      },
+      {
+        type: "prose",
+        md: "- **Resistors and caps show only pins `1` and `2`**, no names — that's normal, because a resistor and a non-polarised cap are symmetric, so either leg works. (Every cap here is a non-polarised ceramic — there's no `+` side, even on the 10 µF C1.)\n- **The regulator (U2) is drawn as an `AP2112K`** even though your part is the RT9080. Remember from sourcing — the RT9080 *second-sourced* the AP2112K: same 5-pin LDO, same `VIN`/`VOUT`/`GND`/`EN`. It *is* your regulator; you didn't grab the wrong file.\n- **The USB-C connector (J1) is a flat block listing every contact**, not a connector picture. Its data pins read **`DP1` / `DN1` / `DP2` / `DN2`** — that's just `D+` / `D−`, doubled because the plug is reversible. Wire **`DP1` + `DP2` → your D+ net** and **`DN1` + `DN2` → D−**, and tie the repeated `VBUS` and `GND` contacts each into one net. (`CC1` / `CC2` stay separate — those are your two Rd's.)\n- **The module's ground pad** is the pin named **`EPAD`** — that's the 'big pad underneath' the lesson keeps mentioning; tie it to GND.\n- **On D1** (the ESD array), **`I/O1`** rides the D+ line and **`I/O2`** the D−; its other two pins are **`VBUS`** (to your 5 V) and **`GND`**.\n- **The LED** has named pins **A** (anode, the resistor side) and **K** (cathode, to GND) — but those names are *hidden* on the symbol, so you'll see the diode's triangle-and-bar instead: the **bar** (flat) side is K, the GND side.\n- **The two headers (J2/J3)** are generic 22-pin strips — pins just numbered `1`–`22`, no signal names. You choose which GPIO lands on each; there's no wrong order.\n\n**One KiCad habit:** a couple of symbols (the LED, D1) *hide* their pin names by default, so a pin can show just a number. If you're unsure which is which, **hover the pin** to read its name, or turn on **View ▸ Show Hidden Pins**.",
       },
       {
         type: "action",
@@ -703,6 +728,23 @@ const CARDS: Record<string, Card> = {
       {
         type: "prose",
         md: "For anything that crosses the sheet — a power rail, a reset line — give the wire a [[net label]] instead of dragging a line all the way across: two wires that share a label are connected, and the drawing stays clean. Use [[power port|power ports]] for 3V3 and GND so every part taps the rail by name. And remember that wires which merely cross aren't joined unless there's a junction dot — let KiCad drop those at real T-connections.",
+      },
+      {
+        type: "callout",
+        label: "Draw it · one net, start to finish",
+        severity: "info",
+        body: "Wiring feels abstract until you've done one. Do the 3.3 V rail with me — every other net is the same handful of moves.",
+      },
+      {
+        type: "steps",
+        ordered: true,
+        items: [
+          "Press P and drop a 3V3 power port; click it onto U2's VOUT pin — that's where the 3.3 V comes out.",
+          "Drop a 3V3 port on U1's 3V3 pin too, and on one leg of C1, C2, C3, C7. Same label = same net, no wire drawn between them.",
+          "Press P for GND; drop GND ports on U1's GND and EPAD pins, the other leg of each of those caps, and U2's GND.",
+          "Run Inspect → Electrical Rules Checker. If it flags 'input power pin not driven' on 3V3, drop a PWR_FLAG on the rail — you're telling ERC the regulator really feeds it.",
+          "That's one net done. Every rail and signal after this is the same three moves: name it, drop ports, repeat.",
+        ],
       },
       {
         type: "deepDive",
@@ -752,6 +794,22 @@ const CARDS: Record<string, Card> = {
             { text: "No-connect flag — mark a pin you leave open" },
           ],
         ],
+      },
+      {
+        type: "callout",
+        label: "Draw it · grounds & loose ends",
+        severity: "info",
+        body: "Two quick sweeps before you check it: make every ground one net, and tell KiCad about every pin you're leaving open.",
+      },
+      {
+        type: "prose",
+        md: "First, **grounds**. Every GND pin on every part ties to the *same* net — the [[power port|power-port]] trick makes that painless: drop a GND port at each ground instead of running lines across the sheet. One ground hides where you can't see it on the symbol's edge: the big metal **pad under the WROOM module** is its ground (and heat) connection — wire that pad to GND like any other pin, or the module has no solid reference.\n\nSecond, the **USB-C connector's doubled pins**. Type-C is reversible, so the receptacle carries duplicates of the power and data lines. If your J1 symbol already merges them, there's nothing to do; if it shows them separately, tie each matching set to the same net. (The two **CC** pins are the deliberate exception — they stay separate, one [[Rd]] each, which is exactly why there are two.)\n\nThird, **anything you're leaving open**. A spare GPIO you didn't break out, the connector's unused SBU pins, an unused regulator pin — drop a no-connect flag (the **Q** key) on each. That turns 'I forgot this' into 'I meant this' — the difference between a clean ERC and a screen of warnings you'll be tempted to scroll past.",
+      },
+      {
+        type: "callout",
+        label: "Check yourself",
+        severity: "info",
+        body: "You leave a dozen unused module pins unwired and skip the no-connect flags. What does ERC give you? A dozen 'pin not connected' errors — real noise that buries a real mistake. Flag the ones you mean to leave open so the list shows only what matters.",
       },
       {
         type: "callout",

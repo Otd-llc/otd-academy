@@ -115,11 +115,13 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
 ]);
 export type ContentBlock = z.infer<typeof contentBlockSchema>;
 
-// Cap raised 60 → 80: the flagship SCHEMATIC card legitimately runs ~62 rich
-// blocks (subsystems + the wiring connection-map). The render path
-// (guide page) safeParses against this, so the cap is a hard render gate — keep
-// real headroom above the richest authored card.
-export const guideContentBlocksSchema = z.array(contentBlockSchema).max(80);
+// Block cap = a SANITY GUARDRAIL (against a runaway / buggy write), NOT a content
+// policy. The render path (guide page) safeParses against this and drops the
+// WHOLE card on failure, so keep it well above the richest authored card. 200
+// gives generous headroom (the flagship SCHEMATIC card runs ~65 rich blocks); if
+// a single stage ever genuinely needs more, the answer is a content-model change
+// (sub-sections / multiple cards per stage), not an unbounded single card.
+export const guideContentBlocksSchema = z.array(contentBlockSchema).max(200);
 
 export const completionRefSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("revisionChecklist"), subkind: z.enum(ChecklistSubkind) }),
