@@ -9,7 +9,10 @@ import { isAdminOnlyPath, isPublicPath } from "@/lib/admin-routes";
 // carries NO session cookie; it MUST reach the route to verify the signature,
 // never be redirected to /sign-in), the sign-in page itself, the SEO crawl files
 // (`sitemap.xml` / `robots.txt` — must be reachable by signed-out crawlers, never
-// redirected), and Next's static assets.
+// redirected), Next's static assets, AND any path with a file extension
+// (`.*\\..*`) — public/ files like `/brand/1kd-logotype.svg` and the guide
+// diagrams are served outside `_next`, so without this they'd be 307-redirected
+// to /sign-in for signed-out visitors and silently fail to load.
 export default auth((req) => {
   const { pathname } = req.nextUrl;
 
@@ -44,6 +47,6 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    "/((?!api/auth|api/stripe/webhook|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico).*)",
+    "/((?!api/auth|api/stripe/webhook|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico|.*\\..*).*)",
   ],
 };

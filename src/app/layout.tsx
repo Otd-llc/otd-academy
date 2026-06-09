@@ -86,8 +86,7 @@ export default async function RootLayout({
               >
                 <BrandMark className="h-6 w-6 shrink-0 text-command-gold transition-colors group-hover:text-gold-light" />
                 <span className="font-display text-sm tracking-wider text-gray-1 sm:text-lg">
-                  ONE THOUSAND DRONES{" "}
-                  <span className="text-command-gold">ACADEMY</span>
+                  OTD <span className="text-command-gold">ACADEMY</span>
                 </span>
               </Link>
 

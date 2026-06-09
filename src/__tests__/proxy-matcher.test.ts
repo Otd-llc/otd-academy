@@ -20,11 +20,15 @@ describe("middleware matcher", () => {
     expect(runsMiddleware("/api/stripe/webhook")).toBe(false);
   });
 
-  it("excludes Auth.js routes, the sign-in page, and the SEO crawl files", () => {
+  it("excludes Auth.js routes, sign-in, the SEO crawl files, and public/ static assets", () => {
     expect(runsMiddleware("/api/auth/callback/google")).toBe(false);
     expect(runsMiddleware("/sign-in")).toBe(false);
     expect(runsMiddleware("/sitemap.xml")).toBe(false);
     expect(runsMiddleware("/robots.txt")).toBe(false);
+    // public/ files (served outside _next) must NOT be 307'd to /sign-in, or
+    // the guide-diagram SVGs (and any public asset) break for signed-out users.
+    expect(runsMiddleware("/guide-diagrams/wroom-power-flow.svg")).toBe(false);
+    expect(runsMiddleware("/brand/1kd-icon.svg")).toBe(false);
   });
 
   it("DOES run on app pages so auth/role gating + chrome still apply", () => {
