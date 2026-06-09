@@ -618,8 +618,60 @@ const CARDS: Record<string, Card> = {
         body: "F1 is a [[PTC|resettable fuse]] (a 'polyfuse'): on overcurrent it heats up, its resistance shoots up to throttle the current, then it heals once it cools — unlike a glass fuse you'd have to desolder and replace. D1 is an [[ESD]] array on the data lines; when a static spike arrives — thousands of volts off a fingertip — it clamps that spike to ground in a nanosecond. It's deliberately a low-capacitance part, because USB data is fast and a bulky protector would smear the signal.",
       },
       {
+        type: "callout",
+        label: "07 · Which pin connects where",
+        severity: "info",
+        body: "You've met every part. Two kinds of connection are left: the ones you can reason out — and a few the chip decides for you, that you simply can't guess.",
+      },
+      {
         type: "prose",
-        md: "You've now reasoned out every part — so now you draw it. Start from the KiCad starter below: it's a ready-made project, with the symbol library plus every BOM part already dropped onto the sheet, spaced out but not yet wired. Your job isn't to find parts, it's to arrange them into a readable layout and wire them into the real circuit. A good schematic isn't just correct, it's readable: someone (including future-you) should be able to follow it at a glance. A few habits and one rules-check get you there.",
+        md: "Most of the ESP32's pins are yours to use however you like. A handful are already spoken for. The big one: the chip talks to your computer over **USB**, and that USB lives on two fixed pins — **D− is GPIO19, D+ is GPIO20**, always. They're wired straight into the chip's USB hardware; no other pins work, and nothing on the schematic hints at it. So the two data lines from the USB-C connector run to exactly those pins, with **D1** sitting across them to clamp static. (You already wired the other reserved pins back in section 03: **GPIO0** for boot and **EN** for reset.)\n\nOne rule for every *free* pin you choose: steer clear of the [[strapping pin|strapping pins]] — **GPIO0, 3, 45, 46** — for anything you actively drive at power-up. The chip reads those four the instant it wakes to decide how to boot, so a part tugging on one can stop it starting.",
+      },
+      {
+        type: "table",
+        columns: ["This connection", "Wire it", "Why it isn't a free choice"],
+        rows: [
+          [
+            { text: "USB data", tone: "gold", decoration: "badge" },
+            { text: "D+ → module IO20,  D− → IO19" },
+            { text: "The S3's USB hardware is fixed to these two pins — nowhere else works. D1 clamps both." },
+          ],
+          [
+            { text: "Regulator on-switch", tone: "gold", decoration: "badge" },
+            { text: "U2 EN → VIN" },
+            { text: "The LDO's active-high enable — a CMOS input that must not float; tie it high (to VIN) or the rail may never come up. (A different EN from the module's reset.)" },
+          ],
+          [
+            { text: "User LED", tone: "gold", decoration: "badge" },
+            { text: "IO2 → R6 → LED2 → GND" },
+            { text: "A free GPIO drives it high to light it — see the pin-pick note below." },
+          ],
+          [
+            { text: "Test points", tone: "gold", decoration: "badge" },
+            { text: "TP1 → 3V3,  TP2 → GND" },
+            { text: "Bare loops to clip a meter onto when you bring the board up." },
+          ],
+        ],
+      },
+      {
+        type: "callout",
+        label: "Picking the user-LED pin",
+        severity: "info",
+        body: "Why IO2 for LED2? It's a plain GPIO with no special duty. Avoid the strapping pins (0, 3, 45, 46), the USB pins (19, 20), and the serial-console pins (43, 44 — keep those for debugging); of what's left, the lowest tidy GPIO wins. (Reading an analog sensor one day? Prefer GPIO1–10 — that's ADC1, the only ADC that still works while Wi-Fi is on.)",
+      },
+      {
+        type: "prose",
+        md: "That leaves the two long headers, **J2** and **J3** — they bring the spare GPIOs out to the board edge so you can jumper to them later. Wire each free GPIO to the header pin physically beside it, following the module's own pin order: straight, short runs that stay easy to route. Bring **3V3, GND, 5V and EN** out to the headers too, so a breadboard has power and a reset.",
+      },
+      {
+        type: "callout",
+        label: "Check yourself",
+        severity: "info",
+        body: "You wire the user LED to GPIO0 by mistake. What might go wrong? GPIO0 is a strapping pin — an LED circuit can hold it low at power-up, which drops the chip into download mode instead of running your code. That's exactly why the free-pin rule skips the strapping four.",
+      },
+      {
+        type: "prose",
+        md: "You've now reasoned out every part and know what each one connects to — so now you draw it. Start from the KiCad starter below: it's a ready-made project, with the symbol library plus every BOM part already dropped onto the sheet, spaced out but not yet wired. Your job isn't to find parts, it's to arrange them into a readable layout and wire them into the real circuit. A good schematic isn't just correct, it's readable: someone (including future-you) should be able to follow it at a glance. A few habits and one rules-check get you there.",
       },
       {
         type: "action",
