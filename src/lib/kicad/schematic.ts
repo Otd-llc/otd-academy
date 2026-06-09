@@ -35,7 +35,7 @@ import type { Placement } from "@/lib/kicad/placement";
 // .kicad_sch. NOT the doxygen/master value (20260512) — master is ahead of the
 // release and KiCad rejected it as "created with a more recent version".
 const SCH_VERSION = "20260306";
-const GENERATOR = "project-foundry";
+const GENERATOR = "otd-academy";
 // generator_version stamp KiCad 8+ writes; "10.0" marks the file as KiCad 10.
 const GENERATOR_VERSION = "10.0";
 

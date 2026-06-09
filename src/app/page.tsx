@@ -115,8 +115,7 @@ export default async function HomePage({
           className="font-display tracking-wider text-white"
           style={{ fontSize: "clamp(1.75rem, 5vw, 2.75rem)" }}
         >
-          ONE THOUSAND DRONES{" "}
-          <span className="text-command-gold">ACADEMY</span>
+          OTD <span className="text-command-gold">Academy</span>
         </h1>
         <div className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase sm:gap-3">
           <Link

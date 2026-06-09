@@ -28,7 +28,7 @@ import { resolveBoardConfig, type BoardConfig } from "@/lib/kicad/project";
 // .kicad_pcb. NOT the doxygen/master value (20260603) — master runs ahead of
 // the release and was rejected as "more recent version".
 const PCB_VERSION = "20260206";
-const GENERATOR = "project-foundry";
+const GENERATOR = "otd-academy";
 const GENERATOR_VERSION = "10.0";
 
 /**
@@ -145,7 +145,7 @@ export type BuildBasePcbOpts = {
 /**
  * Build a minimal, board-setup-only `.kicad_pcb` body (S-expression text, one
  * trailing newline). Structure:
- *   (kicad_pcb (version ..)(generator "project-foundry")(generator_version ..)
+ *   (kicad_pcb (version ..)(generator "otd-academy")(generator_version ..)
  *     (general (thickness 1.6)(legacy_teardrops no))
  *     (paper "A4")
  *     (layers ..)        ; 2-layer copper stack + standard tech layers

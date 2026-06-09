@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isAdminOnlyPath, isPublicPath } from "@/lib/admin-routes";
+import { legacyFoundryRedirect } from "@/lib/legacy-foundry-redirect";
 
 // Auth.js v5's bare `auth` export only attaches `req.auth` to the request — it
 // does not redirect unauthenticated users on its own. Wrap it so unauth requests
@@ -9,9 +10,22 @@ import { isAdminOnlyPath, isPublicPath } from "@/lib/admin-routes";
 // carries NO session cookie; it MUST reach the route to verify the signature,
 // never be redirected to /sign-in), the sign-in page itself, the SEO crawl files
 // (`sitemap.xml` / `robots.txt` — must be reachable by signed-out crawlers, never
-// redirected), and Next's static assets.
+// redirected), Next's static assets, AND any path with a file extension
+// (`.*\\..*`) — public/ files like `/brand/1kd-logotype.svg` and the guide
+// diagrams are served outside `_next`, so without this they'd be 307-redirected
+// to /sign-in for signed-out visitors and silently fail to load.
 export default auth((req) => {
   const { pathname } = req.nextUrl;
+
+  // Legacy `foundry-` slug URLs (pre-rename) 308 → their prefix-free form so
+  // indexed/bookmarked project links keep resolving. Runs BEFORE the auth gate so
+  // signed-out crawlers following an old public-lesson link land on the canonical
+  // URL directly instead of bouncing through /sign-in. 308 (permanent + method-
+  // preserving) tells search engines to update the index.
+  const legacyPath = legacyFoundryRedirect(pathname);
+  if (legacyPath) {
+    return NextResponse.redirect(new URL(legacyPath, req.nextUrl.origin), 308);
+  }
 
   // Public surfaces (the parts catalog list + detail) are viewable by ANYONE,
   // including signed-out visitors — that's deliberate, for SEO / public browsing.
@@ -44,6 +58,6 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    "/((?!api/auth|api/stripe/webhook|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico).*)",
+    "/((?!api/auth|api/stripe/webhook|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico|.*\\..*).*)",
   ],
 };

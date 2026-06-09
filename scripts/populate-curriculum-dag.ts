@@ -42,7 +42,7 @@ interface ProjectSpec {
 
 const PROJECTS: ProjectSpec[] = [
   {
-    slug: "foundry-l1-01-wroom-breakout",
+    slug: "l1-01-wroom-breakout",
     name: "L1.01 WROOM breakout",
     level: "L1",
     track: "COMMS",
@@ -55,7 +55,7 @@ const PROJECTS: ProjectSpec[] = [
       "Universal-core board: ESP32-WROOM module, USB-C, 3.3V LDO, USB-UART bridge, and the two-transistor auto-program (DTR/RTS) circuit. PCB-only — a dev kit would skip the very subsystem it teaches. WROOM antenna keep-out per datasheet.",
   },
   {
-    slug: "foundry-l1-02-espnow-link",
+    slug: "l1-02-espnow-link",
     name: "L1.02 ESP-NOW link",
     level: "L1",
     track: "COMMS",
@@ -68,7 +68,7 @@ const PROJECTS: ProjectSpec[] = [
       "ESP-NOW pairing across a TX/RX pair, channel and peer addressing, role flashing. Stripboard de-risk before PCB.",
   },
   {
-    slug: "foundry-l1-03-ws2812-node",
+    slug: "l1-03-ws2812-node",
     name: "L1.03 WS2812 node",
     level: "L1",
     track: "ACT",
@@ -81,7 +81,7 @@ const PROJECTS: ProjectSpec[] = [
       "Addressable WS2812 drive via RMT. 3.3V ESP32 logic is out of spec for 5V WS2812 — level-shift via 74AHCT125, run the strip ~4.5V, or substitute SK6812. Dedicated 5V LED rail. Stripboard de-risk before PCB.",
   },
   {
-    slug: "foundry-l1-04-single-servo",
+    slug: "l1-04-single-servo",
     name: "L1.04 single servo",
     level: "L1",
     track: "ACT",
@@ -94,7 +94,7 @@ const PROJECTS: ProjectSpec[] = [
       "PWM hobby-servo drive. Brownout-on-stall mitigation: separate supply rail, bulk cap sized for stall current, wide/short high-current traces (double-tracked on stripboard). Stripboard de-risk before PCB.",
   },
   {
-    slug: "foundry-l1-05-internal-adc",
+    slug: "l1-05-internal-adc",
     name: "L1.05 internal ADC",
     level: "L1",
     track: "SENSE",
@@ -107,7 +107,7 @@ const PROJECTS: ProjectSpec[] = [
       "Internal ADC limitations: noise, nonlinearity, and the ADC1-vs-ADC2 trap. ADC2 pins are unusable while WiFi/ESP-NOW is active — all sampled inputs route to ADC1. Stripboard de-risk before PCB.",
   },
   {
-    slug: "foundry-l2-01-battery-power-module",
+    slug: "l2-01-battery-power-module",
     name: "L2.01 battery power module",
     level: "L2",
     track: "POWER",
@@ -120,7 +120,7 @@ const PROJECTS: ProjectSpec[] = [
       "Single-cell Li-ion charging, load-share, and LDO-after-switcher quiet rails. Becomes a hierarchical sheet in foundry-lib; portable downstream boards consume it via SHARED_BLOCK edges and pin to its known-good version.",
   },
   {
-    slug: "foundry-l2-02-ads1220-sense",
+    slug: "l2-02-ads1220-sense",
     name: "L2.02 ADS1220 sense",
     level: "L2",
     track: "SENSE",
@@ -133,7 +133,7 @@ const PROJECTS: ProjectSpec[] = [
       "Precision 24-bit SPI ADC (ADS1220): low-noise reference, analog ground, layout discipline. First rung of the locked biopotential de-risk chain ADS1220 → ADS1292R → ADS1299.",
   },
   {
-    slug: "foundry-l2-03-motor-driver",
+    slug: "l2-03-motor-driver",
     name: "L2.03 motor driver",
     level: "L2",
     track: "ACT",
@@ -146,7 +146,7 @@ const PROJECTS: ProjectSpec[] = [
       "Brushed-DC H-bridge drive (DRV8833) as an ESP-NOW-commanded actuator; actuator latency. Runs on the USB-C-rechargeable shared battery + low-noise block.",
   },
   {
-    slug: "foundry-l2-04-power-led-driver",
+    slug: "l2-04-power-led-driver",
     name: "L2.04 power LED driver",
     level: "L2",
     track: "POWER",
@@ -159,7 +159,7 @@ const PROJECTS: ProjectSpec[] = [
       "Constant-current power-LED driver with a deliberate linear-vs-switching topology tradeoff. DC-only — no student-laid-out mains copper.",
   },
   {
-    slug: "foundry-l2-05-isolated-spi-bridge",
+    slug: "l2-05-isolated-spi-bridge",
     name: "L2.05 isolated SPI bridge",
     level: "L2",
     track: "COMMS",
@@ -172,7 +172,7 @@ const PROJECTS: ProjectSpec[] = [
       "Digital SPI isolator + isolated DC-DC. Isolated DC-DC converters are themselves noisy — the isolated secondary rail must be post-regulated/filtered before feeding analog circuitry. EEG-prep lesson.",
   },
   {
-    slug: "foundry-l3-01-eeg-front-end",
+    slug: "l3-01-eeg-front-end",
     name: "L3.01 EEG front-end",
     level: "L3",
     track: "SENSE",
@@ -185,7 +185,7 @@ const PROJECTS: ProjectSpec[] = [
       "Sense capstone: 8-channel ADS1299 biopotential AFE with galvanic isolation. Don't clone the Cyton — fork the open Cyton schematic as reference for the hard analog front-end, replace the PIC32 + RFduino half with a single ESP32-WROOM, and speak the Cyton serial protocol to inherit the OpenBCI GUI / BrainFlow ecosystem. Buy one real Cyton as known-good reference + software target.",
   },
   {
-    slug: "foundry-l3-02-brushless-motor",
+    slug: "l3-02-brushless-motor",
     name: "L3.02 brushless motor",
     level: "L3",
     track: "ACT",
@@ -198,7 +198,7 @@ const PROJECTS: ProjectSpec[] = [
       "Act capstone: three-phase brushless drive at teaching RPMs, back-EMF sensing, and commutation. FPV-domain battery-powered actuator. High-current supply discipline carries over from the servo board.",
   },
   {
-    slug: "foundry-l3-03-lighting-array",
+    slug: "l3-03-lighting-array",
     name: "L3.03 lighting array",
     level: "L3",
     track: "ACT",
@@ -211,7 +211,7 @@ const PROJECTS: ProjectSpec[] = [
       "Act capstone: multi-channel power-LED + addressable scale, thermal management, DC distribution. DC-only — no student-laid-out mains copper; mains enters only via certified relay modules.",
   },
   {
-    slug: "foundry-l3-04-bms",
+    slug: "l3-04-bms",
     name: "L3.04 BMS",
     level: "L3",
     track: "POWER",
@@ -224,7 +224,7 @@ const PROJECTS: ProjectSpec[] = [
       "Power capstone: multi-cell BMS AFE (BQ769x0), balancing CC/CV charge, fire-safety protections. Builds on the single-cell charging + load-share lessons of the battery power module.",
   },
   {
-    slug: "foundry-l3-05-wireless-hub",
+    slug: "l3-05-wireless-hub",
     name: "L3.05 wireless hub",
     level: "L3",
     track: "COMMS",
@@ -237,7 +237,7 @@ const PROJECTS: ProjectSpec[] = [
       "Comms capstone: ESP-NOW many-to-one fleet scaling and latency; the many-to-one endpoint of the ESP-NOW chain seeded by the link pair. Integration of neural-mapping software. May be deployed portable in fleet trials.",
   },
   {
-    slug: "foundry-l3-de-ads1292r",
+    slug: "l3-de-ads1292r",
     name: "L3 de-risk ADS1292R",
     level: "L3",
     track: "SENSE",
@@ -251,7 +251,7 @@ const PROJECTS: ProjectSpec[] = [
   },
   // ─── Bench tools (level: null — CurriculumLevel is L1|L2|L3 only) ───
   {
-    slug: "foundry-bn-01-usb-c-power-meter",
+    slug: "bn-01-usb-c-power-meter",
     name: "BN-01 USB-C power meter",
     level: null,
     track: "POWER",
@@ -263,7 +263,7 @@ const PROJECTS: ProjectSpec[] = [
       "Inline USB-C power meter: high-side V/I sense, logging/display via an ESP32-WROOM. Source from a USB-C wall PD supply or include a periodic-pulse load to prevent power-bank auto-shutoff.",
   },
   {
-    slug: "foundry-bn-02-dc-electronic-load",
+    slug: "bn-02-dc-electronic-load",
     name: "BN-02 DC electronic load",
     level: null,
     track: "POWER",
@@ -276,7 +276,7 @@ const PROJECTS: ProjectSpec[] = [
       "DC electronic load: op-amp + MOSFET constant-current sink loop, thermal management, ESP32 setpoint + telemetry. Power-source choice documented to avoid power-bank auto-shutoff.",
   },
   {
-    slug: "foundry-bn-03-dds-function-generator",
+    slug: "bn-03-dds-function-generator",
     name: "BN-03 DDS function generator",
     level: null,
     track: "ACT",
@@ -289,7 +289,7 @@ const PROJECTS: ProjectSpec[] = [
       "DDS function generator (AD983x): waveform synthesis, precision clock, DAC output stage; ESP32-WROOM for control + UI.",
   },
   {
-    slug: "foundry-bn-04-curve-tracer",
+    slug: "bn-04-curve-tracer",
     name: "BN-04 curve tracer",
     level: null,
     track: "SENSE",
@@ -302,7 +302,7 @@ const PROJECTS: ProjectSpec[] = [
       "Curve tracer: swept DAC + current-sense ADC for device I-V curves; plotting via an ESP32-WROOM.",
   },
   {
-    slug: "foundry-bn-05-spot-welder-controller",
+    slug: "bn-05-spot-welder-controller",
     name: "BN-05 spot welder controller",
     level: null,
     track: "POWER",
@@ -315,7 +315,7 @@ const PROJECTS: ProjectSpec[] = [
       "Spot-welder controller: precise pulse timing, high-current gate drive, UI + safety interlocks via ESP32-WROOM. DC/low-voltage control only — no student-laid-out mains copper.",
   },
   {
-    slug: "foundry-bn-06-tec-thermal-chamber",
+    slug: "bn-06-tec-thermal-chamber",
     name: "BN-06 TEC thermal chamber",
     level: null,
     track: "POWER",
@@ -340,39 +340,39 @@ interface EdgeSpec {
 // dependsOn-count column and the §4 enumeration sum to 33). depStage
 // (dependsOnStageRequired) is BRINGUP throughout.
 const EDGES: EdgeSpec[] = [
-  { dependent: "foundry-l1-02-espnow-link", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l1-03-ws2812-node", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l1-04-single-servo", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l1-05-internal-adc", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l2-01-battery-power-module", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l2-02-ads1220-sense", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l2-03-motor-driver", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l2-03-motor-driver", kind: "SHARED_BLOCK", dependsOn: "foundry-l2-01-battery-power-module", dentStage: "LAYOUT" },
-  { dependent: "foundry-l2-04-power-led-driver", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l2-05-isolated-spi-bridge", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l3-de-ads1292r", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l3-de-ads1292r", kind: "DE_RISK", dependsOn: "foundry-l2-02-ads1220-sense", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l3-01-eeg-front-end", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l3-01-eeg-front-end", kind: "DE_RISK", dependsOn: "foundry-l3-de-ads1292r", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l3-01-eeg-front-end", kind: "DE_RISK", dependsOn: "foundry-l2-05-isolated-spi-bridge", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l3-01-eeg-front-end", kind: "SHARED_BLOCK", dependsOn: "foundry-l2-01-battery-power-module", dentStage: "LAYOUT" },
-  { dependent: "foundry-l3-02-brushless-motor", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l3-02-brushless-motor", kind: "DE_RISK", dependsOn: "foundry-l2-03-motor-driver", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l3-02-brushless-motor", kind: "SHARED_BLOCK", dependsOn: "foundry-l2-01-battery-power-module", dentStage: "LAYOUT" },
-  { dependent: "foundry-l3-03-lighting-array", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l3-03-lighting-array", kind: "DE_RISK", dependsOn: "foundry-l2-04-power-led-driver", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l3-03-lighting-array", kind: "DE_RISK", dependsOn: "foundry-l1-03-ws2812-node", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l3-04-bms", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l3-04-bms", kind: "DE_RISK", dependsOn: "foundry-l2-01-battery-power-module", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l3-05-wireless-hub", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l3-05-wireless-hub", kind: "FOUNDATION", dependsOn: "foundry-l1-02-espnow-link", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-l3-05-wireless-hub", kind: "SHARED_BLOCK", dependsOn: "foundry-l2-01-battery-power-module", dentStage: "LAYOUT" },
-  { dependent: "foundry-bn-01-usb-c-power-meter", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-bn-02-dc-electronic-load", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-bn-03-dds-function-generator", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-bn-04-curve-tracer", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-bn-05-spot-welder-controller", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
-  { dependent: "foundry-bn-06-tec-thermal-chamber", kind: "FOUNDATION", dependsOn: "foundry-l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "l1-02-espnow-link", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "l1-03-ws2812-node", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "l1-04-single-servo", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "l1-05-internal-adc", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "l2-01-battery-power-module", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "l2-02-ads1220-sense", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "l2-03-motor-driver", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "l2-03-motor-driver", kind: "SHARED_BLOCK", dependsOn: "l2-01-battery-power-module", dentStage: "LAYOUT" },
+  { dependent: "l2-04-power-led-driver", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "l2-05-isolated-spi-bridge", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "l3-de-ads1292r", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "l3-de-ads1292r", kind: "DE_RISK", dependsOn: "l2-02-ads1220-sense", dentStage: "REQUIREMENTS" },
+  { dependent: "l3-01-eeg-front-end", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "l3-01-eeg-front-end", kind: "DE_RISK", dependsOn: "l3-de-ads1292r", dentStage: "REQUIREMENTS" },
+  { dependent: "l3-01-eeg-front-end", kind: "DE_RISK", dependsOn: "l2-05-isolated-spi-bridge", dentStage: "REQUIREMENTS" },
+  { dependent: "l3-01-eeg-front-end", kind: "SHARED_BLOCK", dependsOn: "l2-01-battery-power-module", dentStage: "LAYOUT" },
+  { dependent: "l3-02-brushless-motor", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "l3-02-brushless-motor", kind: "DE_RISK", dependsOn: "l2-03-motor-driver", dentStage: "REQUIREMENTS" },
+  { dependent: "l3-02-brushless-motor", kind: "SHARED_BLOCK", dependsOn: "l2-01-battery-power-module", dentStage: "LAYOUT" },
+  { dependent: "l3-03-lighting-array", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "l3-03-lighting-array", kind: "DE_RISK", dependsOn: "l2-04-power-led-driver", dentStage: "REQUIREMENTS" },
+  { dependent: "l3-03-lighting-array", kind: "DE_RISK", dependsOn: "l1-03-ws2812-node", dentStage: "REQUIREMENTS" },
+  { dependent: "l3-04-bms", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "l3-04-bms", kind: "DE_RISK", dependsOn: "l2-01-battery-power-module", dentStage: "REQUIREMENTS" },
+  { dependent: "l3-05-wireless-hub", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "l3-05-wireless-hub", kind: "FOUNDATION", dependsOn: "l1-02-espnow-link", dentStage: "REQUIREMENTS" },
+  { dependent: "l3-05-wireless-hub", kind: "SHARED_BLOCK", dependsOn: "l2-01-battery-power-module", dentStage: "LAYOUT" },
+  { dependent: "bn-01-usb-c-power-meter", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "bn-02-dc-electronic-load", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "bn-03-dds-function-generator", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "bn-04-curve-tracer", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "bn-05-spot-welder-controller", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
+  { dependent: "bn-06-tec-thermal-chamber", kind: "FOUNDATION", dependsOn: "l1-01-wroom-breakout", dentStage: "REQUIREMENTS" },
 ];
 
 // §6 gotcha items to APPEND to each board's REQUIREMENTS_REVIEW checklist —
@@ -385,8 +385,8 @@ const ISOLATION_POSTREG_ITEM =
   "Isolated secondary rail has post-regulator + filter before feeding analog front-end.";
 // Boards whose front-end sits behind an isolation barrier.
 const ISOLATION_BOARDS = new Set([
-  "foundry-l2-05-isolated-spi-bridge",
-  "foundry-l3-01-eeg-front-end",
+  "l2-05-isolated-spi-bridge",
+  "l3-01-eeg-front-end",
 ]);
 
 const LEVEL_RANK: Record<string, number> = { L1: 1, L2: 2, L3: 3 };

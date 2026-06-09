@@ -54,10 +54,10 @@ const SEED_EMAIL = "seed@example.com";
 // tests neither collide with each other nor with the backfilled curriculum
 // guide on the live v1 revision. Throwaway revisions are deleted in afterAll
 // (cascading their guides + cards).
-const ESPNOW_SLUG = "foundry-l1-02-espnow-link"; // materializeGuide
-const EDIT_SLUG = "foundry-bn-04-curve-tracer"; // editGuideCard
-const REORDER_SLUG = "foundry-bn-05-spot-welder-controller"; // reorderGuideCards
-const P2002_SLUG = "foundry-l2-04-power-led-driver"; // materializeGuide P2002 race
+const ESPNOW_SLUG = "l1-02-espnow-link"; // materializeGuide
+const EDIT_SLUG = "bn-04-curve-tracer"; // editGuideCard
+const REORDER_SLUG = "bn-05-spot-welder-controller"; // reorderGuideCards
+const P2002_SLUG = "l2-04-power-led-driver"; // materializeGuide P2002 race
 
 const createdRevisionIds: string[] = []; // throwaway revisions to delete in afterAll
 

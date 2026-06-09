@@ -90,13 +90,13 @@ describe("schematic — buildSchematic structure", () => {
     expect(parseSexpr(serializeSexpr(node))).toEqual(node);
   });
 
-  test("carries header: version, generator project-foundry, uuid, paper, title_block (title+date+rev), lib_symbols", () => {
+  test("carries header: version, generator otd-academy, uuid, paper, title_block (title+date+rev), lib_symbols", () => {
     const input = { ...baseInput(), rev: "v3", date: "2026-06-03", company: "Acme Co" };
     const node = parseSexpr(buildSchematic(input));
     expect(findChild(node, "version")).toBeDefined();
     const gen = findChild(node, "generator")!;
     expect(isList(gen) && isStr(gen.items[1]) && gen.items[1].value).toBe(
-      "project-foundry",
+      "otd-academy",
     );
     expect(findChild(node, "uuid")).toBeDefined();
     const paper = findChild(node, "paper")!;

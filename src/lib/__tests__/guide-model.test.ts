@@ -2,12 +2,12 @@ import { describe, it, expect, afterAll } from "vitest";
 import { db } from "@/lib/db";
 
 // Round-trip smoke test for the Guide/GuideCard models. Uses a dedicated
-// throwaway revision (NOT the live foundry-l1-01 v1) so it never collides with
+// throwaway revision (NOT the live l1-01 v1) so it never collides with
 // the backfilled curriculum guide (one-guide-per-revision via the
 // Guide.revisionId unique index). The throwaway revision + its guide are torn
 // down in afterAll.
 describe("Guide model", () => {
-  const slug = "foundry-l1-01-wroom-breakout";
+  const slug = "l1-01-wroom-breakout";
   const testLabel = `guide-model-test-${Date.now()}`;
   let revisionId: string | null = null;
   let guideId: string | null = null;

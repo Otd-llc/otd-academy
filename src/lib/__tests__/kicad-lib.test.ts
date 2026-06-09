@@ -273,7 +273,7 @@ describe("symbol-lib — buildSymbolLib", () => {
     const gen = findChild(node, "generator");
     expect(gen).toBeDefined();
     if (!isList(gen!)) throw new Error("unreachable");
-    expect(gen.items[1]).toEqual(str("project-foundry"));
+    expect(gen.items[1]).toEqual(str("otd-academy"));
   });
 
   test("merges N symbol bodies into one library", () => {
