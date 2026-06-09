@@ -33,8 +33,8 @@ beforeAll(async () => {
       enrollmentId: enrollment.id,
       stage: "SCHEMATIC",
       kind: "NOTE",
-      subkind: "SCHEMATIC_FILE",
-      title: "my schematic",
+      subkind: "ERC_REPORT",
+      title: "my erc report",
       noteBody: "x",
       createdBy: user.id,
     },
@@ -53,7 +53,7 @@ afterAll(async () => {
 describe("loadLearnerGateContext", () => {
   test("returns the enrollment's proof artifacts and quiz-pass Set", async () => {
     const ctx = await loadLearnerGateContext(db, enrollmentId);
-    expect(ctx.enrollmentArtifacts).toEqual([{ subkind: "SCHEMATIC_FILE" }]);
+    expect(ctx.enrollmentArtifacts).toEqual([{ subkind: "ERC_REPORT" }]);
     expect(ctx.quizPasses.has("SCHEMATIC")).toBe(true);
     expect(ctx.quizPasses.size).toBe(1);
   });

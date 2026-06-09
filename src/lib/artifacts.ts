@@ -23,6 +23,7 @@ export const ARTIFACT_SUBKIND_OWNER: Readonly<
   GENERIC: "either",
   REQUIREMENTS_DOC: "revision",
   SCHEMATIC_FILE: "revision",
+  ERC_REPORT: "revision", // clean-ERC proof: the SCHEMATIC stage gate criterion
   BOM_EXPORT: "revision",
   LAYOUT_FILE: "revision",
   DRC_REPORT: "revision",

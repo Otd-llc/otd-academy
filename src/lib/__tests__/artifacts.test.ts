@@ -12,6 +12,7 @@ const ALL_SUBKINDS = [
   "GENERIC",
   "REQUIREMENTS_DOC",
   "SCHEMATIC_FILE",
+  "ERC_REPORT",
   "BOM_EXPORT",
   "LAYOUT_FILE",
   "MODEL_3D",
@@ -53,6 +54,7 @@ describe("ownerMatches — revision-bound subkinds", () => {
   const REVISION_BOUND: ArtifactSubkind[] = [
     "REQUIREMENTS_DOC",
     "SCHEMATIC_FILE",
+    "ERC_REPORT",
     "BOM_EXPORT",
     "LAYOUT_FILE",
     "DRC_REPORT",

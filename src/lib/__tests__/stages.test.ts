@@ -37,8 +37,8 @@ import {
 } from "@/lib/stages";
 
 describe("revision artifact subkind defaults", () => {
-  test("SCHEMATIC pre-selects SCHEMATIC_FILE", () => {
-    expect(STAGES.SCHEMATIC.defaultRevisionArtifactSubkind).toBe("SCHEMATIC_FILE");
+  test("SCHEMATIC pre-selects ERC_REPORT", () => {
+    expect(STAGES.SCHEMATIC.defaultRevisionArtifactSubkind).toBe("ERC_REPORT");
   });
 
   test("every stage's preferred default is one of its allowed revision subkinds", () => {
@@ -441,34 +441,27 @@ describe("REQUIREMENTS exit gate", () => {
 // ─── SCHEMATIC ─────────────────────────────────────────
 
 describe("SCHEMATIC exit gate", () => {
-  test("fails when artifact missing and commit not pinned", async () => {
+  test("fails when no ERC report is attached", async () => {
     const r = await STAGES.SCHEMATIC.exitGate!(ctx("SCHEMATIC"));
     expect(r).toMatchObject({
       ok: false,
-      reasons: expect.arrayContaining([
-        expect.stringMatching(/no schematic artifact/i),
-        expect.stringMatching(/schematicCommit not pinned/i),
-      ]),
+      reasons: expect.arrayContaining([expect.stringMatching(/ERC report/i)]),
     });
   });
 
-  test("fails when only commit is missing", async () => {
+  test("a schematic file alone does NOT pass — ERC is the gate criterion", async () => {
     const r = await STAGES.SCHEMATIC.exitGate!(
       ctx("SCHEMATIC", {
         artifacts: [makeArtifact("SCHEMATIC", "SCHEMATIC_FILE")],
       }),
     );
-    expect(r).toMatchObject({
-      ok: false,
-      reasons: [expect.stringMatching(/schematicCommit not pinned/i)],
-    });
+    expect(r.ok).toBe(false);
   });
 
-  test("passes when artifact + commit present", async () => {
+  test("passes with a clean ERC report (no schematicCommit required)", async () => {
     const r = await STAGES.SCHEMATIC.exitGate!(
       ctx("SCHEMATIC", {
-        revision: makeRevision("SCHEMATIC", { schematicCommit: "abc1234" }),
-        artifacts: [makeArtifact("SCHEMATIC", "SCHEMATIC_FILE")],
+        artifacts: [makeArtifact("SCHEMATIC", "ERC_REPORT")],
       }),
     );
     expect(r).toEqual({ ok: true });

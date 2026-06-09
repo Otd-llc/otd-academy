@@ -190,22 +190,28 @@ export const STAGES: Record<Stage, StageDef> = {
     stage: "SCHEMATIC",
     order: 3,
     name: "Schematic",
-    description: "Capture the already-sourced circuit in KiCad.",
+    description: "Capture the already-sourced circuit in KiCad and pass ERC.",
     entryHints: [
       "Your parts are already locked and sourced — this stage is capture, not design.",
       "Open the provided KiCad files (symbols, footprints, and 3D models are pre-loaded) and wire up your sourced parts.",
-      "Pin the schematic git commit, then attach the schematic artifact.",
+      "Run ERC until it's clean, then attach the ERC report to advance.",
     ],
-    revisionAllowedArtifactSubkinds: ["SCHEMATIC_FILE", "GENERIC"],
-    defaultRevisionArtifactSubkind: "SCHEMATIC_FILE",
+    revisionAllowedArtifactSubkinds: ["ERC_REPORT", "SCHEMATIC_FILE", "GENERIC"],
+    defaultRevisionArtifactSubkind: "ERC_REPORT",
     buildAllowedArtifactSubkinds: [],
-    exitGate: ({ revision, artifacts }) => {
-      const reasons: string[] = [];
-      const present = artifacts.some((a) => a.stage === "SCHEMATIC");
-      if (!present) reasons.push("No schematic artifact at this stage.");
-      if (!revision.schematicCommit)
-        reasons.push("schematicCommit not pinned on the revision.");
-      return reasons.length ? { ok: false, reasons } : { ok: true };
+    // Gate on a clean ERC report — the schematic-stage analog of DRC. ERC verifies
+    // electrical coherence (no floating pins, no output shorts, power rails driven);
+    // it is the meaningful, checkable signal. The schematic FILE stays an allowed
+    // record (the author attaches the reference) but no longer gates, and the
+    // schematicCommit requirement is dropped (a git artifact unfit for a learner).
+    exitGate: ({ artifacts }) => {
+      const hasErc = artifacts.some((a) => a.subkind === "ERC_REPORT");
+      return hasErc
+        ? { ok: true }
+        : {
+            ok: false,
+            reasons: ["No ERC report at this stage (run ERC clean, then attach it)."],
+          };
     },
   },
 

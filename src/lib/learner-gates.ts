@@ -10,16 +10,17 @@ export const QUIZ_NOT_PASSED_MSG =
   "Comprehension check not passed yet — pass the quiz on this stage's guide card.";
 
 // A per-enrollment proof artifact is required only once the learner is producing
-// real CAD: SCHEMATIC and LAYOUT. Everything before (REQUIREMENTS, BOM_SOURCING)
-// is comprehension — quiz-only — and the deep fab chain after stays the shared
-// reference. Each entry here MUST have matching how-to help in learner-proof-help.
+// real CAD: a clean ERC report at SCHEMATIC and the layout file at LAYOUT.
+// Everything before (REQUIREMENTS, BOM_SOURCING) is comprehension — quiz-only —
+// and the deep fab chain after stays the shared reference. Each entry here MUST
+// have matching how-to help in learner-proof-help.
 const LEARNER_PROOF: Partial<Record<Stage, ArtifactSubkind>> = {
-  SCHEMATIC: "SCHEMATIC_FILE",
+  SCHEMATIC: "ERC_REPORT",
   LAYOUT: "LAYOUT_FILE",
 };
 
 const PROOF_LABEL: Record<string, string> = {
-  SCHEMATIC_FILE: "schematic",
+  ERC_REPORT: "clean ERC report",
   LAYOUT_FILE: "layout file",
 };
 
