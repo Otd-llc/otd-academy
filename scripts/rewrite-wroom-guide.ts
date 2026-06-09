@@ -738,7 +738,7 @@ const CARDS: Record<string, Card> = {
         type: "callout",
         label: "Draw it · export & upload",
         severity: "info",
-        body: "A clean, readable schematic is the artifact this stage wants.",
+        body: "A clean ERC report is what this stage's gate wants — backed by a readable schematic you keep.",
       },
       {
         type: "steps",
@@ -746,7 +746,7 @@ const CARDS: Record<string, Card> = {
         items: [
           "Run ERC until it's clean — or every remaining flag is marked and understood.",
           "Plot the schematic to PDF (File → Plot) for a readable copy, and keep the .kicad_sch source.",
-          "Attach the schematic as this stage's artifact — that's what the gate below checks.",
+          "Attach your clean ERC report as this stage's artifact — that's what the gate below checks.",
         ],
       },
       {
@@ -806,7 +806,7 @@ const CARDS: Record<string, Card> = {
         type: "callout",
         label: "Exit this stage",
         severity: "info",
-        body: "You've now read every part on the board and why it's there, and captured it as a schematic. Attach the schematic file (the gate below tracks it). Carry one thing forward: U1 has a PCB antenna, so when you reach LAYOUT the keep-out underneath it is a hard constraint, not a suggestion.",
+        body: "You've now read every part on the board and why it's there, captured it as a schematic, and run ERC until it's clean. Attach the ERC report (the gate below tracks it). Carry one thing forward: U1 has a PCB antenna, so when you reach LAYOUT the keep-out underneath it is a hard constraint, not a suggestion.",
       },
     ],
   },
