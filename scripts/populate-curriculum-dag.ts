@@ -117,7 +117,7 @@ const PROJECTS: ProjectSpec[] = [
     disciplineTaught:
       "Power: single-cell charging + load-share + LDO-after-switcher quiet rails",
     description:
-      "Single-cell Li-ion charging, load-share, and LDO-after-switcher quiet rails. Becomes a hierarchical sheet in foundry-lib; portable downstream boards consume it via SHARED_BLOCK edges and pin to its known-good version.",
+      "Single-cell Li-ion charging, load-share, and LDO-after-switcher quiet rails. Becomes a reusable hierarchical sheet in a shared block library; portable downstream boards consume it via SHARED_BLOCK edges and pin to its known-good version.",
   },
   {
     slug: "l2-02-ads1220-sense",
