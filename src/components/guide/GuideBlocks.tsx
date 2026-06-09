@@ -199,7 +199,7 @@ function VideoBlock({
 
 function ProseBlock({ md }: { md: string }) {
   return (
-    <p className="whitespace-pre-wrap font-serif text-base leading-relaxed text-muted">
+    <p className="whitespace-pre-wrap font-serif text-base leading-relaxed text-gray-2">
       <Inline text={sanitizeProse(md)} />
     </p>
   );
@@ -219,7 +219,7 @@ function DeepDiveBlock({ summary, body }: { summary: string; body: string }) {
         <span className="text-command-gold">· {summary}</span>
       </summary>
       <div className="border-t border-panel-border px-4 py-3">
-        <p className="whitespace-pre-wrap font-serif text-base leading-relaxed text-muted">
+        <p className="whitespace-pre-wrap font-serif text-base leading-relaxed text-gray-2">
           <Inline text={sanitizeProse(body)} />
         </p>
       </div>
@@ -268,21 +268,24 @@ function TableCell({
   text,
   decoration,
   tone,
+  label,
 }: {
   text: string;
   decoration?: "ref" | "mpn" | "badge";
   tone?: "gold" | "blue" | "critical" | "dim";
+  /** Column header — surfaced as a caption when the table stacks on mobile. */
+  label?: string;
 }) {
   if (decoration === "ref") {
     return (
-      <td>
+      <td data-label={label}>
         <span className="ref">{text}</span>
       </td>
     );
   }
   if (decoration === "mpn") {
     return (
-      <td>
+      <td data-label={label}>
         <span className="mpn">{text}</span>
       </td>
     );
@@ -290,12 +293,12 @@ function TableCell({
   if (decoration === "badge") {
     const toneClass = tone ? ` ${BADGE_TONE_CLASS[tone]}` : "";
     return (
-      <td>
+      <td data-label={label}>
         <span className={`badge${toneClass}`}>{text}</span>
       </td>
     );
   }
-  return <td>{text}</td>;
+  return <td data-label={label}>{text}</td>;
 }
 
 function GuideBlock({
@@ -344,6 +347,7 @@ function GuideBlock({
                     text={cell.text}
                     decoration={cell.decoration}
                     tone={cell.tone}
+                    label={block.columns[ci]}
                   />
                 ))}
               </tr>
@@ -374,24 +378,38 @@ function GuideBlock({
       );
 
     case "quiz":
+      // Frame the comprehension check as a distinct CHECKPOINT — a hairline +
+      // gold eyebrow break the flat block stream into learn → check rhythm.
       return (
-        <QuizBlock
-          prompt={block.prompt}
-          questions={block.questions}
-          context={quizContext}
-        />
+        <section className="border-t border-panel-border/60 pt-6">
+          <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
+            Checkpoint
+          </p>
+          <QuizBlock
+            prompt={block.prompt}
+            questions={block.questions}
+            context={quizContext}
+          />
+        </section>
       );
 
     case "deepDive":
       return <DeepDiveBlock summary={block.summary} body={block.body} />;
 
     case "action":
+      // A "do this now" moment — same hairline + eyebrow treatment as the
+      // checkpoint so the card's actionable beats stand out from the prose.
       return (
-        <GuideActionButton
-          action={block.action}
-          label={block.label}
-          projectId={projectId}
-        />
+        <section className="border-t border-panel-border/60 pt-6">
+          <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
+            Do this
+          </p>
+          <GuideActionButton
+            action={block.action}
+            label={block.label}
+            projectId={projectId}
+          />
+        </section>
       );
 
     case "sourceRef": {
@@ -438,7 +456,7 @@ export function GuideBlocks({
   projectId?: string;
 }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {blocks.map((block, i) => (
         <GuideBlock
           key={i}

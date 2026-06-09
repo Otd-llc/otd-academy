@@ -57,6 +57,7 @@ import {
   GUIDE_STAGES,
   type GuideStage,
 } from "@/lib/guide-templates/stage-skeletons";
+import { STAGE_LABELS } from "@/lib/stages";
 import {
   completionRefSchema,
   guideContentBlocksSchema,
@@ -412,9 +413,6 @@ export default async function GuideCardPage({
   const cardHref = (s: string) =>
     `/projects/${project.slug}/${encodeURIComponent(revision.label)}/guide/${s}`;
 
-  const cardNumber = String(card.ordinal + 1).padStart(2, "0");
-  const cardTotal = String(GUIDE_STAGES.length).padStart(2, "0");
-
   // Role decides the view (session resolved + access-gated above).
   const view = guideCardView(session?.user?.role);
   const learnerEmail = session?.user?.email ?? null;
@@ -514,15 +512,21 @@ export default async function GuideCardPage({
           title={card.title}
           accentWord={accentWordFor(card.title)}
           lead={card.lead ?? undefined}
-          meta={[
-            { label: "Card", value: `${cardNumber} / ${cardTotal}` },
-            { label: "Phase", value: stage },
-            { label: "Project", value: project.name },
-            {
-              label: "Build",
-              value: activeBuild ? activeBuild.label : "—",
-            },
-          ]}
+          meta={
+            // The stepper owns "where am I", so the strip drops the redundant
+            // card number. Learners get a lean Phase / Project; the operator
+            // (author) view keeps the Build pointer.
+            view.isAuthorView
+              ? [
+                  { label: "Phase", value: STAGE_LABELS[stage] },
+                  { label: "Project", value: project.name },
+                  { label: "Build", value: activeBuild ? activeBuild.label : "—" },
+                ]
+              : [
+                  { label: "Phase", value: STAGE_LABELS[stage] },
+                  { label: "Project", value: project.name },
+                ]
+          }
         />
 
         <GuideBlocks
@@ -551,7 +555,7 @@ export default async function GuideCardPage({
 
       {showLearnerAdvance && (
         <section className="mt-8 glass-card border-l-4 border-l-command-gold p-5">
-          <p className="font-mono text-xs uppercase tracking-wider text-muted">
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
             Your track · this is your current stage
           </p>
           <p className="mb-4 mt-1 font-serif text-sm text-gray-1">
@@ -614,42 +618,49 @@ export default async function GuideCardPage({
         <StageGate completion={completion} widget={widget} />
       )}
 
-      {/* prev / CONSOLE / next nav. */}
-      <nav className="mt-12 flex items-center justify-between border-t border-panel-border pt-6 font-mono text-xs uppercase tracking-wider">
-        {prevStage ? (
+      {/* Stage browser — FREE navigation across the guide, distinct from the
+          gated YOUR TRACK advance above. The "Browse stages" caption + friendly
+          labels keep it from reading as the progress button. */}
+      <nav className="mt-12 border-t border-panel-border pt-6">
+        <p className="mb-3 text-center font-mono text-[10px] uppercase tracking-[0.22em] text-gray-3">
+          Browse stages
+        </p>
+        <div className="flex items-center justify-between font-mono text-xs uppercase tracking-wider">
+          {prevStage ? (
+            <Link
+              href={cardHref(prevStage)}
+              className="inline-flex items-center gap-1.5 text-link-muted transition-colors hover:text-command-gold"
+            >
+              <ChevronLeftIcon className="h-3.5 w-3.5" />
+              {STAGE_LABELS[prevStage]}
+            </Link>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-muted opacity-40">
+              <ChevronLeftIcon className="h-3.5 w-3.5" />
+              {STAGE_LABELS[stage]}
+            </span>
+          )}
           <Link
-            href={cardHref(prevStage)}
-            className="inline-flex items-center gap-1.5 text-link-muted transition-colors hover:text-command-gold"
+            href={hubHref}
+            className="text-command-gold transition-colors hover:underline"
           >
-            <ChevronLeftIcon className="h-3.5 w-3.5" />
-            {prevStage}
+            Build guide
           </Link>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 text-muted opacity-40">
-            <ChevronLeftIcon className="h-3.5 w-3.5" />
-            {stage}
-          </span>
-        )}
-        <Link
-          href={hubHref}
-          className="text-command-gold transition-colors hover:underline"
-        >
-          CONSOLE
-        </Link>
-        {nextStage ? (
-          <Link
-            href={cardHref(nextStage)}
-            className="inline-flex items-center gap-1.5 text-link-muted transition-colors hover:text-command-gold"
-          >
-            {nextStage}
-            <ChevronRightIcon className="h-3.5 w-3.5" />
-          </Link>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 text-muted opacity-40">
-            {stage}
-            <ChevronRightIcon className="h-3.5 w-3.5" />
-          </span>
-        )}
+          {nextStage ? (
+            <Link
+              href={cardHref(nextStage)}
+              className="inline-flex items-center gap-1.5 text-link-muted transition-colors hover:text-command-gold"
+            >
+              {STAGE_LABELS[nextStage]}
+              <ChevronRightIcon className="h-3.5 w-3.5" />
+            </Link>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-muted opacity-40">
+              {STAGE_LABELS[stage]}
+              <ChevronRightIcon className="h-3.5 w-3.5" />
+            </span>
+          )}
+        </div>
       </nav>
     </main>
   );
