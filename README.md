@@ -4,8 +4,7 @@
 
 **Production:** https://academy.onethousanddrones.com
 
-<!-- TODO: repo moving to OTD org + rename -->
-**Repo:** https://github.com/joshtol/project-foundry (package name `otd-academy`).
+**Repo:** https://github.com/otd-llc/otd-academy (package name `otd-academy`).
 
 An online hardware-engineering academy. Learners design real PCBs and electronics — schematic, BOM, layout, fabrication, and bring-up — by following interactive, stage-by-stage build-guide courses. The flagship curriculum is a deliberate ESP32-WROOM teaching ladder that climbs from a USB-C breakout to an 8-channel biopotential front-end.
 
