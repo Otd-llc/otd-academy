@@ -534,6 +534,7 @@ export default async function GuideCardPage({
           models={models}
           quizContext={learnerQuizContext}
           projectId={project.id}
+          isSignedIn={!!sessionEmail}
         />
       </GuideCardEditor>
 

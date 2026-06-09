@@ -64,6 +64,15 @@ export const STAGE_CARD_SKELETONS: Record<GuideStage, StageSkeleton> = {
         type: "prose",
         md: "Your parts are locked and sourced, so this is capture, not design: open the provided KiCad files (symbols, footprints, and 3D models are pre-loaded), wire up your sourced parts, then attach the schematic file artifact and record the schematic commit.",
       },
+      // Every project's SCHEMATIC card hands the learner the generated KiCad
+      // starter (BOM parts placed, with footprints/3D/datasheets). The button
+      // resolves the project's published-revision BOM_EXPORT artifact at click
+      // time; anonymous visitors are funnelled to sign-up (GuideActionButton).
+      {
+        type: "action",
+        action: "downloadKicadStarter",
+        label: "Download the KiCad starter (placed parts)",
+      },
     ],
     isGate: false,
     completionRef: { kind: "artifact", subkinds: ["SCHEMATIC_FILE"] },

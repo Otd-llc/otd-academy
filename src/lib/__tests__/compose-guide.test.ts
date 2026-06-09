@@ -52,4 +52,14 @@ describe("composeGuide", () => {
       subkind: "REQUIREMENTS_REVIEW",
     });
   });
+  it("SCHEMATIC card offers the KiCad-starter download action (every project)", () => {
+    const sch = composeGuide(eeg).cards.find((c) => c.stage === "SCHEMATIC")!;
+    expect(
+      sch.contentBlocks.some(
+        (b) =>
+          b.type === "action" &&
+          (b as { action?: string }).action === "downloadKicadStarter",
+      ),
+    ).toBe(true);
+  });
 });

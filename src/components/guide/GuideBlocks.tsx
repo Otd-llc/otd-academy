@@ -428,11 +428,13 @@ function GuideBlock({
   models,
   quizContext,
   projectId,
+  isSignedIn,
 }: {
   block: ContentBlock;
   models?: Record<string, ResolvedModel>;
   quizContext?: QuizContext;
   projectId?: string;
+  isSignedIn?: boolean;
 }) {
   switch (block.type) {
     case "prose":
@@ -538,6 +540,7 @@ function GuideBlock({
             action={block.action}
             label={block.label}
             projectId={projectId}
+            isSignedIn={isSignedIn}
           />
         </section>
       );
@@ -579,11 +582,13 @@ export function GuideBlocks({
   models,
   quizContext,
   projectId,
+  isSignedIn,
 }: {
   blocks: ContentBlock[];
   models?: Record<string, ResolvedModel>;
   quizContext?: QuizContext;
   projectId?: string;
+  isSignedIn?: boolean;
 }) {
   // Mark the understand → "draw it" phase shift (SCHEMATIC) with a divider
   // before the first "Draw it ·" block.
@@ -600,6 +605,7 @@ export function GuideBlocks({
             models={models}
             quizContext={quizContext}
             projectId={projectId}
+            isSignedIn={isSignedIn}
           />
         </Fragment>
       ))}
