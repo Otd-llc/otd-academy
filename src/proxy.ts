@@ -4,9 +4,12 @@ import { isAdminOnlyPath, isPublicPath } from "@/lib/admin-routes";
 
 // Auth.js v5's bare `auth` export only attaches `req.auth` to the request — it
 // does not redirect unauthenticated users on its own. Wrap it so unauth requests
-// land on `/sign-in`. The matcher excludes Auth.js callback routes, the sign-in
-// page itself, the SEO crawl files (`sitemap.xml` / `robots.txt` — these MUST be
-// reachable by signed-out crawlers, never redirected), and Next's static assets.
+// land on `/sign-in`. The matcher excludes Auth.js callback routes, the Stripe
+// webhook (`/api/stripe/webhook` — a server-to-server POST from Stripe that
+// carries NO session cookie; it MUST reach the route to verify the signature,
+// never be redirected to /sign-in), the sign-in page itself, the SEO crawl files
+// (`sitemap.xml` / `robots.txt` — must be reachable by signed-out crawlers, never
+// redirected), and Next's static assets.
 export default auth((req) => {
   const { pathname } = req.nextUrl;
 
@@ -41,6 +44,6 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    "/((?!api/auth|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico).*)",
+    "/((?!api/auth|api/stripe/webhook|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico).*)",
   ],
 };
