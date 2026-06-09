@@ -9,7 +9,7 @@ loadEnv({ path: ".env.local" });
 import { writeFileSync } from "node:fs";
 
 const PROJECT_SLUG = "l1-01-wroom-breakout";
-const OUT = "c:\\tmp\\foundry-kicad-export.zip";
+const OUT = "c:\\tmp\\otd-kicad-export.zip";
 
 async function main() {
   const { db } = await import("@/lib/db");

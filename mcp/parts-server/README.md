@@ -1,6 +1,6 @@
-# Foundry Parts MCP Server (Stage B)
+# OTD Academy Parts MCP Server (Stage B)
 
-A standalone, **read-only** [MCP](https://modelcontextprotocol.io) server (stdio) that exposes the curated Foundry parts knowledge base to AI sessions. It registers two tools — `lookup_part` and `lookup_bom` — over a dedicated read-only Neon role, and ships the answer contract (cite / prefer-VERIFIED / abstain) plus a prompt-injection boundary on the curated free text.
+A standalone, **read-only** [MCP](https://modelcontextprotocol.io) server (stdio) that exposes the curated OTD Academy parts knowledge base to AI sessions. It registers two tools — `lookup_part` and `lookup_bom` — over a dedicated read-only Neon role, and ships the answer contract (cite / prefer-VERIFIED / abstain) plus a prompt-injection boundary on the curated free text.
 
 > **Design source of truth:** [docs/plans/2026-06-02-parts-knowledge-design.md](../../docs/plans/2026-06-02-parts-knowledge-design.md) **§5** (MCP server + answer contract) and **§9** (read-only Neon role). Implementation plan: [docs/plans/2026-06-03-parts-knowledge-stage-b-implementation.md](../../docs/plans/2026-06-03-parts-knowledge-stage-b-implementation.md).
 
@@ -136,7 +136,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE neondb_owner IN SCHEMA public GRANT SELECT ON 
 ```json
 {
   "mcpServers": {
-    "foundry-parts": {
+    "otd-parts": {
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "tsx", "mcp/parts-server/index.ts"]
@@ -145,7 +145,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE neondb_owner IN SCHEMA public GRANT SELECT ON 
 }
 ```
 
-Claude Code picks this up on (re)connect and lists the two `foundry-parts` tools. `npx` ships with Node and is the most portable across however the client spawns the process.
+Claude Code picks this up on (re)connect and lists the two `otd-parts` tools. `npx` ships with Node and is the most portable across however the client spawns the process.
 
 **Windows fallback:** if `npx` won't spawn, swap `command`/`args` (in order) to `pnpm` + `["exec","tsx","mcp/parts-server/index.ts"]`, then a direct `node_modules/.bin/tsx` (Windows: `tsx.cmd`).
 
@@ -166,7 +166,7 @@ The server requires `PARTS_MCP_DATABASE_URL` in the environment (loaded from `.e
 
 **Still pending — the live Claude Code demo.** This is the one remaining step, and it is **not** a code/infra gate; it requires the user to:
 
-- **reconnect Claude Code** so it picks up `.mcp.json` (§7) and lists the two `foundry-parts` tools; and
+- **reconnect Claude Code** so it picks up `.mcp.json` (§7) and lists the two `otd-parts` tools; and
 - **curate + VERIFY at least one pilot part** so the demo can show cited facts end-to-end (`lookup_part` returns cited VERIFIED facts; `lookup_bom("foundry-l1-01-wroom-breakout")` resolves the BOM-frozen revision; an un-curated fact **abstains**).
 
 See the design doc §5/§9 and the [Stage B plan](../../docs/plans/2026-06-03-parts-knowledge-stage-b-implementation.md) (Task 1 = the role runbook; Task 6 = the cannot-write test).

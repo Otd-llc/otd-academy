@@ -49,7 +49,7 @@ import {
 
 const SEED_EMAIL = "seed@example.com";
 
-// Distinct foundry projects per describe block; each test gets its OWN
+// Distinct curriculum projects per describe block; each test gets its OWN
 // throwaway revision on that project (label `guide-actions-test-*`) so the
 // tests neither collide with each other nor with the backfilled curriculum
 // guide on the live v1 revision. Throwaway revisions are deleted in afterAll

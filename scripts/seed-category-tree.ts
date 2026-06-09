@@ -2,7 +2,7 @@
 //
 // One-off, IDEMPOTENT, direct-Prisma seed (the `"use server"` action layer
 // can't be scripted headlessly — requireUser()/revalidatePath — the documented
-// `[[foundry-headless-scripting]]` constraint). The tree is defined ONCE in
+// headless-scripting constraint). The tree is defined ONCE in
 // `src/lib/categories.ts` (CATEGORY_TREE); this script materializes it.
 //
 // What it does:

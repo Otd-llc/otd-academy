@@ -51,7 +51,7 @@ function effects(extra: SNode[] = []): SNode {
 }
 
 /**
- * Map a Foundry PINOUT pin `type` to a KiCad electrical pin type. Documented
+ * Map a curated PINOUT pin `type` to a KiCad electrical pin type. Documented
  * mapping (design §3.5 leaves the analog/clock/strapping/absent calls to us):
  *   gnd      → power_in     (ground rails are power inputs in KiCad)
  *   power    → power_in     (supply pins)

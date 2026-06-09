@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isAdminOnlyPath, isPublicPath } from "@/lib/admin-routes";
-import { legacyFoundryRedirect } from "@/lib/legacy-foundry-redirect";
+import { legacySlugRedirect } from "@/lib/legacy-slug-redirect";
 
 // Auth.js v5's bare `auth` export only attaches `req.auth` to the request — it
 // does not redirect unauthenticated users on its own. Wrap it so unauth requests
@@ -22,7 +22,7 @@ export default auth((req) => {
   // signed-out crawlers following an old public-lesson link land on the canonical
   // URL directly instead of bouncing through /sign-in. 308 (permanent + method-
   // preserving) tells search engines to update the index.
-  const legacyPath = legacyFoundryRedirect(pathname);
+  const legacyPath = legacySlugRedirect(pathname);
   if (legacyPath) {
     return NextResponse.redirect(new URL(legacyPath, req.nextUrl.origin), 308);
   }
