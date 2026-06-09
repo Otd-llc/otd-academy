@@ -104,7 +104,7 @@ describe("advanceEnrollment", () => {
     await addQuizPass(projectId, "SCHEMATIC");
     const r = await advanceEnrollment({ projectId });
     expect(r.ok).toBe(false);
-    expect((r as { reasons: string[] }).reasons.some((x) => /schematic/i.test(x))).toBe(true);
+    expect((r as { reasons: string[] }).reasons.some((x) => /ERC/i.test(x))).toBe(true);
   });
 
   test("advances REQUIREMENTS → BOM_SOURCING on the quiz alone (no proof artifact)", async () => {
