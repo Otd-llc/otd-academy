@@ -13,8 +13,24 @@ const STATUS_COLOR: Record<string, string> = {
   MASTERED: "text-command-gold",
 };
 
-export default async function LearnerHomePage() {
+export default async function LearnerHomePage({
+  searchParams,
+}: {
+  // `?purchased=<slug>` lands here after a successful Stripe Checkout (the
+  // `success_url` in createCheckoutSession). The webhook grants the PURCHASE
+  // entitlement out of band; this page just shows a confirmation and re-reads
+  // the learner's enrollments/access normally (no special-casing).
+  searchParams: Promise<{ purchased?: string }>;
+}) {
   const user = await currentUserOrRedirect();
+
+  const { purchased } = await searchParams;
+  const purchasedProject = purchased
+    ? await db.project.findUnique({
+        where: { slug: purchased },
+        select: { name: true },
+      })
+    : null;
 
   const enrollments = await db.enrollment.findMany({
     where: { userId: user.id },
@@ -54,6 +70,23 @@ export default async function LearnerHomePage() {
       <h1 className="font-display text-4xl tracking-wider text-white">
         MY <span className="text-command-gold">LEARNING</span>
       </h1>
+
+      {/* Purchase confirmation (Task B2). Shown on the `?purchased=<slug>`
+          redirect from Stripe Checkout. The entitlement is granted by the webhook
+          — if it has already landed the course shows unlocked below; either way
+          this banner confirms the payment succeeded. */}
+      {purchased && (
+        <div className="mt-6 glass-card border-l-4 border-l-status-green p-5">
+          <p className="font-mono text-xs uppercase tracking-wider text-status-green">
+            ✓ You&apos;re in — your course is unlocked
+          </p>
+          <p className="mt-2 font-serif text-sm text-gray-1">
+            {purchasedProject
+              ? `Payment received for ${purchasedProject.name}. It now appears in your boards below; open it to pick up where the free lesson left off.`
+              : "Payment received. Your course is unlocking now — it will appear in your boards below shortly."}
+          </p>
+        </div>
+      )}
 
       <section className="mt-8">
         <h2 className="font-mono text-sm uppercase tracking-wider text-gold-dim">

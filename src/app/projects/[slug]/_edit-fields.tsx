@@ -14,7 +14,7 @@
 //     may still be typing. The icon sits beside the field, not below,
 //     so a column of stacked SAVE rectangles doesn't drown out the
 //     fields themselves.
-import { useActionState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import {
   editProjectCriticalPathAction,
   editProjectDescriptionAction,
@@ -28,6 +28,8 @@ import {
   editProjectTrackAction,
   type ProjectFormState,
 } from "@/lib/actions/projects";
+import { setProjectPrice } from "@/lib/actions/project-price";
+import { formatUsd } from "@/lib/format-money";
 import { InlineBanner } from "@/components/InlineBanner";
 import { SaveButton } from "@/components/SaveButton";
 import { Tooltip } from "@/components/Tooltip";
@@ -366,5 +368,105 @@ export function EditHasMainsNetForm({
       <FieldError messages={state.errors?.hasMainsNet} />
       <ActionMessage state={state} />
     </form>
+  );
+}
+
+// Admin "Set price" control (Task B3). Unlike the edit-in-place fields above,
+// `setProjectPrice` is a plain typed server action (not a FormData/useActionState
+// action) that creates a Stripe Product + one-time Price, so this island calls it
+// directly through a transition — mirroring the BuyButton/WaitlistForm pattern.
+// The admin enters a DOLLAR amount; we convert to integer cents before sending.
+// On success we surface the new Stripe price id and re-read state via a refresh.
+export function SetPriceForm({
+  id,
+  priceCents,
+  stripePriceId,
+}: {
+  id: string;
+  priceCents: number | null;
+  stripePriceId: string | null;
+}) {
+  const initialDollars =
+    priceCents != null ? (priceCents / 100).toFixed(2) : "";
+  const [dollars, setDollars] = useState(initialDollars);
+  const [error, setError] = useState<string | null>(null);
+  const [savedPriceId, setSavedPriceId] = useState<string | null>(
+    stripePriceId,
+  );
+  const [savedCents, setSavedCents] = useState<number | null>(priceCents);
+  const [pending, start] = useTransition();
+
+  function save() {
+    start(async () => {
+      setError(null);
+      const amount = Number.parseFloat(dollars);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        setError("Enter a dollar amount greater than 0.");
+        return;
+      }
+      // Dollars → integer cents (round to avoid float drift, e.g. 49.99 → 4999).
+      const cents = Math.round(amount * 100);
+      try {
+        const { stripePriceId: newId } = await setProjectPrice({
+          projectId: id,
+          priceCents: cents,
+        });
+        setSavedPriceId(newId);
+        setSavedCents(cents);
+      } catch (e) {
+        setError(
+          e instanceof Error ? e.message : "Could not set the price.",
+        );
+      }
+    });
+  }
+
+  return (
+    <div className="space-y-2">
+      <label className="block font-mono text-xs uppercase tracking-wider text-muted">
+        Purchase price (USD)
+      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1">
+          <span className="font-mono text-sm text-muted">$</span>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={dollars}
+            onChange={(e) => setDollars(e.target.value)}
+            placeholder="49.00"
+            className="w-32 rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+          />
+        </div>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={save}
+          className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+        >
+          {pending ? "Saving…" : savedPriceId ? "Update price" : "Set price"}
+        </button>
+      </div>
+      {savedCents != null ? (
+        <p className="font-mono text-xs uppercase tracking-wider text-status-green">
+          Current price · {formatUsd(savedCents)}
+        </p>
+      ) : (
+        <p className="font-mono text-xs uppercase tracking-wider text-muted">
+          No price set — the paywall shows the waitlist until a price exists.
+        </p>
+      )}
+      {savedPriceId && (
+        <p className="break-all font-mono text-[11px] text-muted">
+          Stripe price · {savedPriceId}
+        </p>
+      )}
+      {error && (
+        <p className="font-mono text-xs uppercase tracking-wider text-alert-red">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }

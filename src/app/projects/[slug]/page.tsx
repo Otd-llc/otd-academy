@@ -24,6 +24,7 @@ import {
   EditRequiresStripboardForm,
   EditTargetCostForm,
   EditTrackForm,
+  SetPriceForm,
 } from "./_edit-fields";
 import { ProjectDependenciesPane } from "@/components/ProjectDependenciesPane";
 import {
@@ -234,6 +235,30 @@ export default async function ProjectDetailPage({
             </a>
           </p>
         )}
+      </div>
+
+      {/* Pricing — admin-only Stripe price setup (Task B3). This page is already
+          admin-gated by the route guard. Setting a price creates the Stripe
+          Product/Price; the paywall then offers a Buy button instead of the
+          waitlist. accessTier must be PREMIUM for the price to actually surface a
+          paywall — flagging the tier is a separate control. */}
+      <div className="glass-card mt-6 p-4 sm:p-6">
+        <h2 className="font-mono text-sm uppercase tracking-wider text-gold-dim">
+          Pricing
+        </h2>
+        {project.accessTier !== "PREMIUM" && (
+          <p className="mt-3 font-mono text-xs uppercase tracking-wider text-muted">
+            Tier is {project.accessTier} — a price only surfaces a paywall on a
+            PREMIUM course.
+          </p>
+        )}
+        <div className="mt-4">
+          <SetPriceForm
+            id={project.id}
+            priceCents={project.priceCents}
+            stripePriceId={project.stripePriceId}
+          />
+        </div>
       </div>
 
       {/* Revisions */}

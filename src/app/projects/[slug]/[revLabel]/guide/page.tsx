@@ -30,6 +30,9 @@ import { guideCardView } from "@/lib/guide-view";
 import { resolveLessonAccess } from "@/lib/public-access";
 import { hasProjectEntitlement } from "@/lib/entitlements";
 import { WaitlistForm } from "@/components/learn/WaitlistForm";
+import { BuyButton } from "@/components/learn/BuyButton";
+import { SignInToUnlock } from "@/components/learn/SignInToUnlock";
+import { resolveBuyPriceCents } from "@/lib/format-money";
 import { courseJsonLd } from "@/lib/seo/jsonld";
 import { JsonLd } from "@/components/seo/JsonLd";
 import {
@@ -144,6 +147,8 @@ export default async function GuideHubPage({
       description: true,
       level: true,
       accessTier: true,
+      stripePriceId: true,
+      priceCents: true,
     },
   });
   if (!project) notFound();
@@ -243,6 +248,12 @@ export default async function GuideHubPage({
   // to the existing hub.
   const isPremiumSalesView =
     project.accessTier === "PREMIUM" && !isAdmin && !hasEntitlement;
+  // Buy-vs-waitlist for the sales CTA: a Buy button when the course carries both
+  // a Stripe price id and a display price; the waitlist otherwise (Task B1). When
+  // purchasable but the viewer is signed OUT, a sign-in CTA stands in for the Buy
+  // button (they can't check out anonymously — createCheckoutSession needs a user).
+  const buyPriceCents = resolveBuyPriceCents(project);
+  const signedIn = !!sessionEmail;
   const view = guideCardView(session?.user?.role);
   const learnerEmail = session?.user?.email ?? null;
   let learnerCurrentStage: string | null = null;
@@ -281,7 +292,7 @@ export default async function GuideHubPage({
         {frozen || isPremiumSalesView ? (
           <p className="font-mono text-sm uppercase tracking-wider text-muted">
             {isPremiumSalesView
-              ? "This premium course is being prepared — join the waitlist on the project page to be notified when it opens."
+              ? "This premium course is being prepared — check back soon, it opens shortly."
               : "Revision is frozen — no guide exists and none can be generated."}
           </p>
         ) : (
@@ -320,11 +331,21 @@ export default async function GuideHubPage({
           <p className="mt-3 font-serif text-sm text-gray-2">
             The first lesson is free. The rest of the build — design through
             bring-up, with comprehension checks and proof artifacts at every
-            stage — unlocks with access. Join the waitlist and we&apos;ll let you
-            know the moment it opens.
+            stage —{" "}
+            {buyPriceCents !== null
+              ? "unlocks with a one-time purchase. Lifetime access."
+              : "unlocks with access. Join the waitlist and we'll let you know the moment it opens."}
           </p>
           <div className="mt-6 border-t border-panel-border pt-6">
-            <WaitlistForm projectId={project.id} />
+            {buyPriceCents !== null ? (
+              signedIn ? (
+                <BuyButton projectId={project.id} priceCents={buyPriceCents} />
+              ) : (
+                <SignInToUnlock priceCents={buyPriceCents} />
+              )
+            ) : (
+              <WaitlistForm projectId={project.id} />
+            )}
           </div>
         </section>
 
