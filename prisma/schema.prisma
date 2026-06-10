@@ -280,6 +280,11 @@ model Artifact {
   createdBy  String
   user       User            @relation(fields: [createdBy], references: [id], onDelete: Restrict)
   createdAt  DateTime        @default(now())
+  // Content-validation result for validated proof subkinds (ERC_REPORT → errors==0).
+  // null = not validated (presence-only subkinds, or links we can't parse).
+  valid            Boolean?
+  // Human-readable validator outcome surfaced in the gate + modal ("5 errors, 5 warnings").
+  validationDetail String?
 
   @@index([revisionId, stage])
   @@index([buildId, stage])

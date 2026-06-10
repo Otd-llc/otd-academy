@@ -54,20 +54,34 @@ describe("learnerExitGate — SCHEMATIC (proof + quiz)", () => {
     expect((r as { reasons: string[] }).reasons.some((x) => /ERC/i.test(x))).toBe(true);
   });
 
-  test("blocked when quiz not passed (proof present)", () => {
+  test("blocked when quiz not passed (passing proof present)", () => {
     const r = learnerExitGate(
       "SCHEMATIC",
-      ctx({ enrollmentArtifacts: [{ subkind: "ERC_REPORT" }] }),
+      ctx({ enrollmentArtifacts: [{ subkind: "ERC_REPORT", valid: true }] }),
     );
     expect(r.ok).toBe(false);
     expect((r as { reasons: string[] }).reasons).toContain(QUIZ_NOT_PASSED_MSG);
   });
 
-  test("ok when both the ERC report and quiz pass are present", () => {
+  test("blocked when the ERC report is present but did NOT pass (valid: false)", () => {
     const r = learnerExitGate(
       "SCHEMATIC",
       ctx({
-        enrollmentArtifacts: [{ subkind: "ERC_REPORT" }],
+        enrollmentArtifacts: [{ subkind: "ERC_REPORT", valid: false }],
+        quizPasses: new Set<Stage>(["SCHEMATIC"]),
+      }),
+    );
+    expect(r.ok).toBe(false);
+    expect((r as { reasons: string[] }).reasons.some((x) => /ERC/i.test(x))).toBe(
+      true,
+    );
+  });
+
+  test("ok when a PASSING ERC report and the quiz pass are present", () => {
+    const r = learnerExitGate(
+      "SCHEMATIC",
+      ctx({
+        enrollmentArtifacts: [{ subkind: "ERC_REPORT", valid: true }],
         quizPasses: new Set<Stage>(["SCHEMATIC"]),
       }),
     );

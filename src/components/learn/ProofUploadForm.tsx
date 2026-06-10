@@ -18,6 +18,7 @@ export function ProofUploadForm({
   stage,
   label,
   accept,
+  allowLink = true,
   onUploaded,
 }: {
   projectId: string;
@@ -25,8 +26,11 @@ export function ProofUploadForm({
   label: string;
   /** File-input `accept` filter, e.g. ".rpt,.txt". Omitted = accept anything. */
   accept?: string;
-  /** Called after a proof is successfully recorded (file or link) — e.g. to
-   *  close the enclosing modal before the route refreshes. */
+  /** Offer the "paste a link" alternative. Hidden when the stage validates file
+   *  contents (a link can't be parsed). Defaults to true. */
+  allowLink?: boolean;
+  /** Called after a proof is successfully recorded AND (if validated) passes —
+   *  e.g. to close the enclosing modal before the route refreshes. */
   onUploaded?: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -59,7 +63,7 @@ export function ProofUploadForm({
           body: file,
         });
         if (!put.ok) throw new Error("Upload to storage failed — try again.");
-        await recordEnrollmentProof({
+        const res = await recordEnrollmentProof({
           projectId,
           stage,
           key: presign.key,
@@ -67,6 +71,15 @@ export function ProofUploadForm({
           mime: presign.mime,
           sizeBytes: presign.sizeBytes,
         });
+        if (res.valid === false) {
+          // Recorded, but it didn't pass its check — keep the modal open and tell
+          // them exactly why; the gate stays red until they upload a clean one.
+          setError(
+            `Not clean yet — ERC found ${res.detail}. Fix the errors, re-export, and upload again.`,
+          );
+          router.refresh();
+          return;
+        }
         onUploaded?.();
         router.refresh();
       } catch (e) {
@@ -112,7 +125,8 @@ export function ProofUploadForm({
         </div>
       </div>
 
-      {showLink ? (
+      {allowLink &&
+        (showLink ? (
         <div className="space-y-2">
           <label className="block font-mono text-xs uppercase tracking-wider text-muted">
             …or paste a link to a hosted file
@@ -143,7 +157,7 @@ export function ProofUploadForm({
         >
           or paste a link instead
         </button>
-      )}
+        ))}
 
       {error && (
         <p className="font-mono text-xs uppercase tracking-wider text-alert-red">

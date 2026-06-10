@@ -138,6 +138,8 @@ describe("StageTracker", () => {
         linkUrl: null,
         createdBy: "u",
         createdAt: new Date(),
+        valid: null,
+        validationDetail: null,
       },
     ];
     ctx.revisionChecklists = [
@@ -253,6 +255,8 @@ describe("StageTracker", () => {
             linkUrl: null,
             createdBy: "u",
             createdAt: new Date(),
+            valid: null,
+            validationDetail: null,
           },
           {
             id: "art-complete",
@@ -274,6 +278,8 @@ describe("StageTracker", () => {
             linkUrl: null,
             createdBy: "u",
             createdAt: new Date(),
+            valid: null,
+            validationDetail: null,
           },
         ],
         checklists: [],
