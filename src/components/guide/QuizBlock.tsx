@@ -73,11 +73,12 @@ export function QuizBlock({
     ) {
       setRecording(true);
       try {
+        // Submit the PICKED answers; the server re-scores them against the card's
+        // real keys and records the pass only if they genuinely all match.
         const res = await recordQuizPass({
           enrollmentId: context.enrollmentId,
           stage: context.stage,
-          score: questions.length,
-          total: questions.length,
+          answers: selected as number[],
         });
         if (res.ok) setPassed(true);
       } catch {
