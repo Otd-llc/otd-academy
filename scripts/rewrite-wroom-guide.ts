@@ -540,7 +540,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "Give an LED more voltage than it wants and it pulls more and more current until it cooks itself. So you never connect one straight across a supply — you put a [[current-limiting resistor|resistor in series]] with it to set the current.\n\nThe math is just Ohm's law on the leftover voltage. The supply is 3.3 V; the red LED drops about 1.8 V across itself (its [[forward voltage|forward voltage, Vf]]), leaving 1.5 V across **R5**. With 470 Ω that's I = 1.5 V ÷ 470 Ω ≈ 3.2 mA — bright enough to see, easy on the [[GPIO]] driving it. **R5** and **R6** do this for the two LEDs: **LED1** (red) is the power light — wired **3V3 → R5 → LED1 → GND**, so it glows whenever the board has power; **LED2** (yellow) is the user light, driven by a pin — **IO2 → R6 → LED2 → GND**.",
+        md: "Give an LED more voltage than it wants and it pulls more and more current until it cooks itself. So you never connect one straight across a supply — you put a [[current-limiting resistor|resistor in series]] with it to set the current.\n\nThe math is just Ohm's law on the leftover voltage. The supply is 3.3 V; the red LED drops about 1.8 V across itself (its [[forward voltage|forward voltage, Vf]]), leaving 1.5 V across **R5**. With 470 Ω that's I = 1.5 V ÷ 470 Ω ≈ 3.2 mA — bright enough to see, easy on the [[GPIO]] driving it. **R5** and **R6** do this for the two LEDs: **LED1** (red) is the power light — wired **+3V3 → R5 → LED1 → GND**, so it glows whenever the board has power; **LED2** (yellow) is the user light, driven by a pin — **IO2 → R6 → LED2 → GND**.",
       },
       {
         type: "table",
@@ -676,7 +676,7 @@ const CARDS: Record<string, Card> = {
           ],
           [
             { text: "Test points", tone: "gold", decoration: "badge" },
-            { text: "TP1 → 3V3,  TP2 → GND" },
+            { text: "TP1 → +3V3,  TP2 → GND" },
             { text: "Bare loops to clip a meter onto when you bring the board up." },
           ],
         ],
@@ -699,7 +699,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "That leaves the two long headers, **J2** and **J3** — they bring the spare GPIOs out to the board edge so you can jumper to them later. Wire each free GPIO out to a header pin — electrically the order doesn't matter, so the tidy move is to follow the module's own physical pin order: straight, short runs that stay easy to route. Bring **3V3, GND, 5V and EN** out to the headers too, so a breadboard has power and a reset.\n\nA tidy default you can copy: put **3V3** on J2 pin 1 and **GND** on J2 pin 2, then march the module's spare GPIOs down the rest in pin order — `IO1`→pin 3, `IO4`→pin 4, `IO5`→pin 5, and so on, carrying onto J3 until every free GPIO has a home. Skip the ones already spoken for (the USB pins `IO19`/`IO20`, the strapping pins `0`/`3`/`45`/`46`, `EN` and `IO0`, and `IO2` driving your LED). It's ~40 little connections, but they're all the same move — label a few and the rest is muscle memory.",
+        md: "That leaves the two long headers, **J2** and **J3** — they bring the spare GPIOs out to the board edge so you can jumper to them later. Wire each free GPIO out to a header pin — electrically the order doesn't matter, so the tidy move is to follow the module's own physical pin order: straight, short runs that stay easy to route. Bring **+3V3, GND, +5V and EN** out to the headers too, so a breadboard has power and a reset.\n\nA tidy default you can copy: put **+3V3** on J2 pin 1 and **GND** on J2 pin 2, then march the module's spare GPIOs down the rest in pin order — `IO1`→pin 3, `IO4`→pin 4, `IO5`→pin 5, and so on, carrying onto J3 until every free GPIO has a home. Skip the ones already spoken for (the USB pins `IO19`/`IO20`, the strapping pins `0`/`3`/`45`/`46`, `EN` and `IO0`, and `IO2` driving your LED). It's ~40 little connections, but they're all the same move — label a few and the rest is muscle memory.",
       },
       {
         type: "prose",
@@ -723,7 +723,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "- **Resistors and caps show only pins `1` and `2`**, no names — that's normal, because a resistor and a non-polarised cap are symmetric, so either leg works. (Every cap here is a non-polarised ceramic — there's no `+` side, even on the 10 µF C1.)\n- **The regulator (U2) is drawn as an `AP2112K`** even though your part is the RT9080. Remember from sourcing — the RT9080 *second-sourced* the AP2112K: same 5-pin LDO, same `VIN`/`VOUT`/`GND`/`EN`. It *is* your regulator; you didn't grab the wrong file.\n- **The USB-C connector (J1) is a flat block listing every contact**, not a connector picture. Its data pins read **`DP1` / `DN1` / `DP2` / `DN2`** — that's just `D+` / `D−`, doubled because the plug is reversible. Wire **`DP1` + `DP2` → your D+ net** and **`DN1` + `DN2` → D−**. `VBUS` and `GND` are already single pins on this symbol — nothing to merge. (`CC1` / `CC2` stay separate — those are your two Rd's, which is exactly why there are two.)\n- **U1's grounds:** there's one **visible `GND` pin** — wire it. The big pad underneath is a stack of **hidden `GND` pins**; KiCad auto-connects hidden power pins to the matching rail, so the pad grounds itself the moment U1 lands — no wire to draw. Turn on **View ▸ Show Hidden Pins** to see them, and ERC won't flag a floating ground. (Trusting an invisible connection you *haven't* looked at is how a board ships with no ground reference — so look.)\n- **On D1** (the ESD array), **`I/O1`** rides the D+ line and **`I/O2`** the D−; its other two pins are **`VBUS`** (to your 5 V) and **`GND`**.\n- **The LED** has named pins **A** (anode, the resistor side) and **K** (cathode, to GND) — but those names are *hidden* on the symbol, so you'll see the diode's triangle-and-bar instead: the **bar** (flat) side is K, the GND side.\n- **The two headers (J2/J3)** are generic 22-pin strips — pins just numbered `1`–`22`, no signal names. You choose which GPIO lands on each; there's no wrong order.\n\n**One KiCad habit:** a couple of symbols (the LED, D1) *hide* their pin names by default, so a pin can show just a number. If you're unsure which is which, **hover the pin** to read its name, or turn on **View ▸ Show Hidden Pins**.",
+        md: "- **Resistors and caps show only pins `1` and `2`**, no names — that's normal, because a resistor and a non-polarised cap are symmetric, so either leg works. (Every cap here is a non-polarised ceramic — there's no `+` side, even on the 10 µF C1.)\n- **The regulator (U2) is drawn as an `AP2112K`** even though your part is the RT9080. Remember from sourcing — the RT9080 *second-sourced* the AP2112K: same 5-pin LDO, same `VIN`/`VOUT`/`GND`/`EN`. It *is* your regulator; you didn't grab the wrong file.\n- **The USB-C connector (J1) is a flat block listing every contact**, not a connector picture. Its data pins read **`DP1` / `DN1` / `DP2` / `DN2`** — that's just `D+` / `D−`, doubled because the plug is reversible. Wire **`DP1` + `DP2` → your D+ net** and **`DN1` + `DN2` → D−**. `VBUS` and `GND` are already single pins on this symbol — nothing to merge. (`CC1` / `CC2` stay separate — those are your two Rd's, which is exactly why there are two.)\n- **U1's grounds:** there's one **visible `GND` pin** — wire it. The big pad underneath is a stack of **hidden `GND` pins**; KiCad auto-connects hidden power pins to the matching rail, so the pad grounds itself the moment U1 lands — no wire to draw. Turn on **View ▸ Show Hidden Pins** to see them, and ERC won't flag a floating ground. (Trusting an invisible connection you *haven't* looked at is how a board ships with no ground reference — so look.)\n- **On D1** (the ESD array), **`I/O1`** rides the D+ line and **`I/O2`** the D−; its other two pins are **`VBUS`** (raw, ahead of the fuse) and **`GND`**.\n- **The LED** has named pins **A** (anode, the resistor side) and **K** (cathode, to GND) — but those names are *hidden* on the symbol, so you'll see the diode's triangle-and-bar instead: the **bar** (flat) side is K, the GND side.\n- **The two headers (J2/J3)** are generic 22-pin strips — pins just numbered `1`–`22`, no signal names. You choose which GPIO lands on each; there's no wrong order.\n\n**One KiCad habit:** a couple of symbols (the LED, D1) *hide* their pin names by default, so a pin can show just a number. If you're unsure which is which, **hover the pin** to read its name, or turn on **View ▸ Show Hidden Pins**.",
       },
       {
         type: "deepDive",
@@ -743,7 +743,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "Drag each part so the sheet reads left → right: inputs on the left, outputs on the right. Put [[power port|power symbols]] (3V3, VBUS) at the top pointing up, and grounds at the bottom pointing down. Group parts by sub-circuit, the same way you just learned them — the USB-C front end together, the regulator together, the ESP32 and its caps together. And place each [[decoupling capacitor]] near the pin it feeds for readability — but that's a drawing nicety, not a wiring rule: a cap connected only through same-named +3V3 / GND ports is already fully wired (same name, same net). Where it physically sits is a LAYOUT concern, enforced later in copper — so a tidy-but-scattered cap on the schematic isn't wrong.",
+        md: "Drag each part so the sheet reads left → right: inputs on the left, outputs on the right. Put [[power port|power symbols]] (+3V3, VBUS) at the top pointing up, and grounds at the bottom pointing down. Group parts by sub-circuit, the same way you just learned them — the USB-C front end together, the regulator together, the ESP32 and its caps together. And place each [[decoupling capacitor]] near the pin it feeds for readability — but that's a drawing nicety, not a wiring rule: a cap connected only through same-named +3V3 / GND ports is already fully wired (same name, same net). Where it physically sits is a LAYOUT concern, enforced later in copper — so a tidy-but-scattered cap on the schematic isn't wrong.",
       },
       {
         type: "image",
@@ -818,7 +818,7 @@ const CARDS: Record<string, Card> = {
           ],
           [
             { text: "P", tone: "gold", decoration: "badge" },
-            { text: "Add a power port — 3V3, GND, VBUS" },
+            { text: "Add a power port — +3V3, +5V, GND, VBUS" },
           ],
           [
             { text: "W", tone: "gold", decoration: "badge" },
@@ -845,6 +845,10 @@ const CARDS: Record<string, Card> = {
             { text: "No-connect flag — mark a pin you leave open" },
           ],
         ],
+      },
+      {
+        type: "prose",
+        md: "One more shortcut for the header slog: **Insert** repeats the last wire or label one grid-step down and **auto-increments the trailing number** (`IO4`→`IO5`→`IO6`…) — perfect for marching GPIOs onto J2/J3. Set the step under **Preferences ▸ Schematic Editor ▸ Editing Options ▸ Label increment**. The header order *jumps* in places (…`IO7` then `IO15`), so sprint each run with Insert and hand-place the seams. **No Insert key** (some compact laptops omit it)? Use the on-screen keyboard, or remap a key to Insert with Microsoft **PowerToys ▸ Keyboard Manager**. On a Mac it's **Fn+Enter**.",
       },
       {
         type: "callout",
