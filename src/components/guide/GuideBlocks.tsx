@@ -144,13 +144,15 @@ function ImageBlock({
   src,
   alt,
   caption,
+  reveal,
 }: {
   src: string;
   alt: string;
   caption?: string;
+  reveal?: string;
 }) {
   if (!src) return <MediaPlaceholder kind="photo" description={caption || alt} />;
-  return (
+  const figure = (
     <figure className="space-y-2">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -165,6 +167,17 @@ function ImageBlock({
         </figcaption>
       ) : null}
     </figure>
+  );
+  // A `reveal` summary turns the image into an opt-in "check your work" details
+  // element (collapsed by default) — the learner tries first, then compares.
+  if (!reveal) return figure;
+  return (
+    <details className="rounded border border-panel-border bg-deep-space/40 p-3">
+      <summary className="cursor-pointer select-none font-mono text-[11px] uppercase tracking-wider text-command-gold transition-colors hover:text-gold-light">
+        {reveal}
+      </summary>
+      <div className="mt-3">{figure}</div>
+    </details>
   );
 }
 
@@ -501,7 +514,12 @@ function GuideBlock({
 
     case "image":
       return (
-        <ImageBlock src={block.src} alt={block.alt} caption={block.caption} />
+        <ImageBlock
+          src={block.src}
+          alt={block.alt}
+          caption={block.caption}
+          reveal={block.reveal}
+        />
       );
 
     case "video":
