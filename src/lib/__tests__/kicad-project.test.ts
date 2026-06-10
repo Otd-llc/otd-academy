@@ -123,6 +123,10 @@ describe("project — buildKicadPro golden JSON shape", () => {
     expect(pro.pcbnew.last_paths).toBeDefined();
   });
 
+  test("erc severities silence lib_symbol_mismatch (embedded std-lib symbols differ from the user's stock)", () => {
+    expect(pro.erc.rule_severities.lib_symbol_mismatch).toBe("ignore");
+  });
+
   test("overrides flow through to the emitted JSON", () => {
     const out = JSON.parse(
       buildKicadPro({ projectName: "p", config: { minTrackWidth: 0.1 } }),
