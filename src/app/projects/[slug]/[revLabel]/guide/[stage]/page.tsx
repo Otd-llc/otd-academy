@@ -426,7 +426,8 @@ export default async function GuideCardPage({
     | undefined;
   let showLearnerAdvance = false;
   let learnerQuizPassed = false;
-  let learnerHasProof = false;
+  let learnerHasProof = false; // has a PASSING proof on file
+  let learnerProofInvalidDetail: string | null = null;
   let learnerCurrentStage: string | null = null;
   if (learnerEmail && view.isLearnerView) {
     const enrollment = await db.enrollment.findFirst({
@@ -435,7 +436,11 @@ export default async function GuideCardPage({
         id: true,
         currentStage: true,
         quizPasses: { where: { stage }, select: { stage: true } },
-        artifacts: { select: { subkind: true } },
+        artifacts: {
+          where: proofArtifact ? { subkind: proofArtifact.subkind } : undefined,
+          select: { valid: true, validationDetail: true, createdAt: true },
+          orderBy: { createdAt: "desc" },
+        },
       },
     });
     if (enrollment) {
@@ -447,9 +452,19 @@ export default async function GuideCardPage({
         passed: learnerQuizPassed,
       };
       showLearnerAdvance = enrollment.currentStage === stage;
-      learnerHasProof =
-        proofArtifact != null &&
-        enrollment.artifacts.some((a) => a.subkind === proofArtifact.subkind);
+      if (proofArtifact) {
+        // A validated subkind (ERC) clears only on a PASSING artifact; a
+        // presence-only subkind just needs one to exist.
+        const needsValidation = proofArtifact.validate !== null;
+        learnerHasProof = enrollment.artifacts.some(
+          (a) => !needsValidation || a.valid === true,
+        );
+        if (!learnerHasProof) {
+          learnerProofInvalidDetail =
+            enrollment.artifacts.find((a) => a.valid === false)
+              ?.validationDetail ?? null;
+        }
+      }
     }
   }
 
@@ -567,6 +582,8 @@ export default async function GuideCardPage({
                   howToTitle: proofHelpData.howToTitle,
                   steps: proofHelpData.steps,
                   onFile: learnerHasProof,
+                  requiresValidation: proofArtifact.validate !== null,
+                  invalidDetail: learnerProofInvalidDetail,
                 }
               : null
           }

@@ -21,12 +21,17 @@ import { withTxRetry } from "@/lib/tx-retry";
 import { r2, enrollmentArtifactKey } from "@/lib/r2";
 import { nextStage, type StageName } from "@/lib/stages";
 import { learnerExitGate, learnerProofSubkind } from "@/lib/learner-gates";
+import { gateSpec } from "@/lib/gate-spec";
+import { getR2ObjectText } from "@/lib/part-r2";
+import { validateErcReport } from "@/lib/kicad/erc-report";
 import { hasProjectEntitlement } from "@/lib/entitlements";
 import { loadLearnerGateContext } from "@/lib/load-learner-gate-context";
 import { STAGE_VALUES } from "@/lib/schemas/project-dependency";
 import { MAX_UPLOAD_BYTES } from "@/lib/schemas/upload";
 
 const PROOF_PUT_TTL_SECONDS = 900; // 15 min, mirrors uploads.ts
+// ERC reports are kilobytes; refuse to slurp a huge file into memory as text.
+const ERC_VALIDATE_MAX_BYTES = 5_000_000;
 
 function ensureR2Enabled(): void {
   if (!env.R2_ENABLED) {
@@ -202,6 +207,14 @@ export async function submitEnrollmentProof(
   if (!subkind) {
     throw new Error("This stage does not take a proof artifact.");
   }
+  // A validated stage checks the file's contents, so a pasted link (which we
+  // can't fetch + parse reliably) can't satisfy it — require the file itself.
+  const linkArtifact = gateSpec(stage).artifact;
+  if (linkArtifact?.validate) {
+    throw new Error(
+      `This stage checks the file's contents, so paste-a-link isn't accepted — upload the ${linkArtifact.label} file itself.`,
+    );
+  }
 
   await withTxRetry(() =>
     db.$transaction(
@@ -297,7 +310,7 @@ export async function createEnrollmentProofUploadUrl(
 
 export async function recordEnrollmentProof(
   input: unknown,
-): Promise<{ ok: true }> {
+): Promise<{ ok: true; valid: boolean | null; detail: string | null }> {
   const data = recordProofSchema.parse(input);
   const user = await requireUser();
   const subkind = learnerProofSubkind(data.stage);
@@ -329,7 +342,36 @@ export async function recordEnrollmentProof(
     );
   }
 
-  await db.artifact.create({
+  // Content validation ("passes muster") for subkinds that carry a validator —
+  // an ERC_REPORT must parse to ZERO errors. The artifact is still recorded on a
+  // fail (valid=false) so the gate can show the specific reason; the gate only
+  // clears on valid=true. Presence-only subkinds leave valid = null.
+  const validator = gateSpec(data.stage).artifact?.validate ?? null;
+  let valid: boolean | null = null;
+  let validationDetail: string | null = null;
+  if (validator === "erc") {
+    if (actualSize > ERC_VALIDATE_MAX_BYTES) {
+      valid = false;
+      validationDetail = "file is far too large to be an ERC report";
+    } else {
+      let text: string;
+      try {
+        text = await getR2ObjectText(data.key);
+      } catch {
+        await r2.send(
+          new DeleteObjectCommand({ Bucket: env.R2_BUCKET!, Key: data.key }),
+        );
+        throw new Error(
+          "Could not read the uploaded file to validate it — try again.",
+        );
+      }
+      const result = validateErcReport(text);
+      valid = result.ok;
+      validationDetail = result.detail;
+    }
+  }
+
+  const created = await db.artifact.create({
     data: {
       enrollmentId: enrollment.id,
       stage: data.stage,
@@ -339,9 +381,34 @@ export async function recordEnrollmentProof(
       fileKey: data.key,
       fileMime: data.mime,
       fileBytes: actualSize,
+      valid,
+      validationDetail,
       createdBy: user.id,
     },
   });
+
+  // Replace any earlier proof of the same subkind for this enrollment so the gate
+  // reflects the LATEST upload (and we don't accumulate dead files in R2).
+  const stale = await db.artifact.findMany({
+    where: { enrollmentId: enrollment.id, subkind, id: { not: created.id } },
+    select: { id: true, fileKey: true },
+  });
+  if (stale.length) {
+    await db.artifact.deleteMany({
+      where: { id: { in: stale.map((s) => s.id) } },
+    });
+    for (const s of stale) {
+      if (!s.fileKey) continue;
+      try {
+        await r2.send(
+          new DeleteObjectCommand({ Bucket: env.R2_BUCKET!, Key: s.fileKey }),
+        );
+      } catch {
+        // best-effort cleanup; a leftover object isn't worth failing the upload.
+      }
+    }
+  }
+
   revalidatePath(`/projects/${enrollment.project.slug}`);
-  return { ok: true };
+  return { ok: true, valid, detail: validationDetail };
 }

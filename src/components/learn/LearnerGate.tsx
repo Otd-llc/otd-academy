@@ -22,8 +22,12 @@ export interface GateArtifactProps {
   howToTitle: string;
   /** Ordered steps to produce the artifact. */
   steps: string[];
-  /** Whether the learner already has this proof on file. */
+  /** Whether the learner already has a PASSING proof on file. */
   onFile: boolean;
+  /** Uploads are content-validated (e.g. ERC) — hides the paste-a-link option. */
+  requiresValidation: boolean;
+  /** When not yet on file, why the last upload failed its check (or null). */
+  invalidDetail: string | null;
 }
 
 function Row({
@@ -114,6 +118,11 @@ export function LearnerGate({
                   <p className="mt-1 font-serif text-sm text-gray-1">
                     {artifact.requirement}
                   </p>
+                  {artifact.invalidDetail && (
+                    <p className="mt-1.5 font-mono text-[11px] uppercase tracking-wider text-alert-red">
+                      Last upload wasn&apos;t clean · ERC found {artifact.invalidDetail}
+                    </p>
+                  )}
                 </div>
                 <Dialog.Root open={open} onOpenChange={setOpen}>
                   <Dialog.Trigger asChild>
@@ -159,6 +168,7 @@ export function LearnerGate({
                           stage={stage}
                           label={artifact.label}
                           accept={artifact.accept}
+                          allowLink={!artifact.requiresValidation}
                           onUploaded={() => setOpen(false)}
                         />
                       </div>

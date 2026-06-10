@@ -134,6 +134,8 @@ function makeArtifact(
     linkUrl: null,
     createdBy: "user-test",
     createdAt: new Date(),
+    valid: null,
+    validationDetail: null,
     ...overrides,
   };
 }

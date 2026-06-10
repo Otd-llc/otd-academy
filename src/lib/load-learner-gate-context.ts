@@ -14,7 +14,7 @@ export async function loadLearnerGateContext(
   const [artifacts, quiz] = await Promise.all([
     tx.artifact.findMany({
       where: { enrollmentId },
-      select: { subkind: true },
+      select: { subkind: true, valid: true },
     }),
     tx.quizPass.findMany({
       where: { enrollmentId },

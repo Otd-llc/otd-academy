@@ -133,36 +133,82 @@ describe("advanceEnrollment", () => {
 });
 
 describe("submitEnrollmentProof", () => {
-  test("creates the stage's proof artifact (LINK) on the enrollment", async () => {
-    const projectId = await enrollmentAt("SCHEMATIC");
+  test("creates a LINK proof on a presence-only stage (LAYOUT)", async () => {
+    const projectId = await enrollmentAt("LAYOUT");
     const res = await submitEnrollmentProof({
       projectId,
-      stage: "SCHEMATIC",
-      linkUrl: "https://example.com/my-schematic.pdf",
+      stage: "LAYOUT",
+      linkUrl: "https://example.com/my-layout.pdf",
     });
     expect(res.ok).toBe(true);
     const e = await enrollmentRow(projectId);
     const arts = await db.artifact.findMany({ where: { enrollmentId: e.id } });
     expect(arts).toHaveLength(1);
-    expect(arts[0]!.subkind).toBe("ERC_REPORT");
+    expect(arts[0]!.subkind).toBe("LAYOUT_FILE");
     expect(arts[0]!.kind).toBe("LINK");
   });
 
   test("is idempotent — a second submit does not duplicate the proof", async () => {
-    const projectId = await enrollmentAt("SCHEMATIC");
-    await submitEnrollmentProof({ projectId, stage: "SCHEMATIC", linkUrl: "https://example.com/a" });
-    await submitEnrollmentProof({ projectId, stage: "SCHEMATIC", linkUrl: "https://example.com/b" });
+    const projectId = await enrollmentAt("LAYOUT");
+    await submitEnrollmentProof({ projectId, stage: "LAYOUT", linkUrl: "https://example.com/a" });
+    await submitEnrollmentProof({ projectId, stage: "LAYOUT", linkUrl: "https://example.com/b" });
     const e = await enrollmentRow(projectId);
-    const count = await db.artifact.count({ where: { enrollmentId: e.id, subkind: "ERC_REPORT" } });
+    const count = await db.artifact.count({ where: { enrollmentId: e.id, subkind: "LAYOUT_FILE" } });
     expect(count).toBe(1);
   });
 
-  test("proof + quiz together unblock advanceEnrollment at SCHEMATIC", async () => {
+  test("rejects a pasted link on a content-validated stage (ERC needs the file itself)", async () => {
     const projectId = await enrollmentAt("SCHEMATIC");
-    await submitEnrollmentProof({ projectId, stage: "SCHEMATIC", linkUrl: "https://example.com/s" });
+    await expect(
+      submitEnrollmentProof({
+        projectId,
+        stage: "SCHEMATIC",
+        linkUrl: "https://example.com/x",
+      }),
+    ).rejects.toThrow(/file's contents|isn't accepted|file itself/i);
+  });
+
+  test("a PASSING ERC proof + quiz together unblock advanceEnrollment at SCHEMATIC", async () => {
+    const projectId = await enrollmentAt("SCHEMATIC");
+    const e = await enrollmentRow(projectId);
+    // A validated stage clears only on a PASSING file artifact (valid === true);
+    // a dirty ERC or a link never satisfies it (see the guards above).
+    await db.artifact.create({
+      data: {
+        enrollmentId: e.id,
+        stage: "SCHEMATIC",
+        kind: "FILE",
+        subkind: "ERC_REPORT",
+        title: "clean erc",
+        fileKey: `enrollments/${e.id}/SCHEMATIC/erc.rpt`,
+        valid: true,
+        createdBy: userId,
+      },
+    });
     await addQuizPass(projectId, "SCHEMATIC");
     const r = await advanceEnrollment({ projectId });
     expect(r).toEqual({ ok: true, toStage: "LAYOUT" });
+  });
+
+  test("a DIRTY ERC proof (valid:false) does NOT unblock advanceEnrollment", async () => {
+    const projectId = await enrollmentAt("SCHEMATIC");
+    const e = await enrollmentRow(projectId);
+    await db.artifact.create({
+      data: {
+        enrollmentId: e.id,
+        stage: "SCHEMATIC",
+        kind: "FILE",
+        subkind: "ERC_REPORT",
+        title: "dirty erc",
+        fileKey: `enrollments/${e.id}/SCHEMATIC/dirty.rpt`,
+        valid: false,
+        validationDetail: "3 errors, 0 warnings",
+        createdBy: userId,
+      },
+    });
+    await addQuizPass(projectId, "SCHEMATIC");
+    const r = await advanceEnrollment({ projectId });
+    expect(r.ok).toBe(false);
   });
 });
 

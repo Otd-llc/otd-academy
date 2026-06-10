@@ -53,7 +53,9 @@ afterAll(async () => {
 describe("loadLearnerGateContext", () => {
   test("returns the enrollment's proof artifacts and quiz-pass Set", async () => {
     const ctx = await loadLearnerGateContext(db, enrollmentId);
-    expect(ctx.enrollmentArtifacts).toEqual([{ subkind: "ERC_REPORT" }]);
+    expect(ctx.enrollmentArtifacts).toEqual([
+      { subkind: "ERC_REPORT", valid: null },
+    ]);
     expect(ctx.quizPasses.has("SCHEMATIC")).toBe(true);
     expect(ctx.quizPasses.size).toBe(1);
   });
