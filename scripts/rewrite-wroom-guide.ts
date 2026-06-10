@@ -416,6 +416,13 @@ const CARDS: Record<string, Card> = {
         body: "Even when USB sags to about 4.6 V under load, the RT9080 only needs about 0.53 V of headroom to keep regulating: 4.6 − 0.53 = 4.07 V, still comfortably above 3.3 V. A cheaper regulator that needs 1–2 V of headroom would drop out right here, and the 3.3 V rail would collapse. That margin is the whole reason we chose a [[dropout voltage|low-dropout]] (LDO) part.",
       },
       {
+        type: "image",
+        src: "/guide-diagrams/l1-01-sub-power.svg",
+        alt: "Regulator sub-circuit: U2 (RT9080) with +5V on VIN, EN tied to VIN, VOUT to +3V3; C5 across the input, C6 across the output.",
+        caption: "VIN on +5V, VOUT on +3V3, a cap on each side, EN tied high.",
+        reveal: "Check your work · the regulator",
+      },
+      {
         type: "callout",
         label: "02 · Decoupling — a reservoir at the pins",
         severity: "info",
@@ -459,6 +466,13 @@ const CARDS: Record<string, Card> = {
         body: "A capacitor only helps if it's close — the longer the trace between it and the pin, the more its help fades (trace inductance gets in the way). Three 0.1 µF caps, one hard against each power pin, beat a single 0.3 µF cap sitting a few millimetres away: being close matters more than raw capacitance. The 10 µF [[bulk capacitor|bulk cap]] (C1) then handles the slower, larger swings the little ones can't.",
       },
       {
+        type: "image",
+        src: "/guide-diagrams/l1-01-sub-mcu.svg",
+        alt: "The ESP32-S3-WROOM-1 (U1) with its decoupling caps C1, C2, C3 and C7 — each tied between +3V3 and GND at the module's supply pin.",
+        caption: "Check the decoupling — each of C1/C2/C3/C7 between +3V3 and GND.",
+        reveal: "Check your work · decoupling",
+      },
+      {
         type: "callout",
         label: "03 · Boot & reset — pull-ups that set a default",
         severity: "info",
@@ -496,6 +510,13 @@ const CARDS: Record<string, Card> = {
         body: "A pull-up only has to set the resting level, not power anything — so it should be 'weak,' meaning a high value. At 3.3 V, a 10 kΩ pull-up leaks just 0.33 mA (3.3 V ÷ 10 kΩ), which is negligible, yet it still firmly holds the pin high. A 100 Ω pull-up would burn 33 mA doing the same job and would fight the button when you press it. Weaker is better here.",
       },
       {
+        type: "image",
+        src: "/guide-diagrams/l1-01-sub-bootreset.svg",
+        alt: "Boot and reset: R1 pulls EN up to +3V3 and SW1 pulls EN to GND; R2 pulls IO0 up to +3V3 and SW2 pulls IO0 to GND, at the ESP32 module.",
+        caption: "Check boot/reset — R1+SW1 on EN, R2+SW2 on IO0.",
+        reveal: "Check your work · boot & reset",
+      },
+      {
         type: "callout",
         label: "04 · USB-C — advertising as a sink",
         severity: "info",
@@ -531,6 +552,13 @@ const CARDS: Record<string, Card> = {
         type: "deepDive",
         summary: "Why exactly 5.1 kΩ, and why two?",
         body: "A device advertises itself as a power 'sink' by tying each [[CC pin]] to ground through a 5.1 kΩ resistor (called [[Rd]]) — that exact value is what the USB-C spec assigns to a basic sink. There are two (R3, R4) because Type-C is reversible: whichever way the plug goes in, one CC pin is the live one, so both need their own Rd. The sneaky failure: with an old USB-A-to-C cable the board would still work (A ports always have 5 V), so it can seem fine on an old cable yet look dead on a new charger.",
+      },
+      {
+        type: "image",
+        src: "/guide-diagrams/l1-01-sub-usb.svg",
+        alt: "USB front-end: J1 USB-C, R3/R4 (5.1k) on CC1/CC2, doubled data pins joined to USB_D+/USB_D−, F1 polyfuse on VBUS, D1 ESD array on the data lines.",
+        caption: "Check the connector — CC resistors to GND, the data pairs joined.",
+        reveal: "Check your work · USB-C connector",
       },
       {
         type: "callout",
@@ -579,6 +607,13 @@ const CARDS: Record<string, Card> = {
         type: "deepDive",
         summary: "Sizing the resistor (Ohm's law)",
         body: "The resistor sets the current from the leftover voltage: I = (Vsupply − Vf) ÷ R. The red LED drops about 1.8 V across itself (its [[forward voltage|forward voltage, Vf]]), so on 3.3 V through 470 Ω: (3.3 − 1.8) ÷ 470 ≈ 3.2 mA — bright enough to see, easy on the GPIO. The yellow LED's Vf is higher (~2.0 V), so the same 470 Ω gives a bit less: (3.3 − 2.0) ÷ 470 ≈ 2.8 mA. That's why swapping LED colours at a fixed resistor quietly changes the brightness.",
+      },
+      {
+        type: "image",
+        src: "/guide-diagrams/l1-01-sub-leds.svg",
+        alt: "Indicator LEDs: +3V3 through R5 into LED1 to GND (power light), and IO2 through R6 into LED2 to GND (user light), at the ESP32 module.",
+        caption: "Check the LEDs — +3V3→R5→LED1→GND, IO2→R6→LED2→GND.",
+        reveal: "Check your work · the LEDs",
       },
       {
         type: "callout",
@@ -630,6 +665,13 @@ const CARDS: Record<string, Card> = {
         type: "deepDive",
         summary: "How F1 and D1 actually protect the port",
         body: "F1 is a [[PTC|resettable fuse]] (a 'polyfuse'): on overcurrent it heats up, its resistance shoots up to throttle the current, then it heals once it cools — unlike a glass fuse you'd have to desolder and replace. D1 is an [[ESD]] array on the data lines; when a static spike arrives — thousands of volts off a fingertip — it clamps that spike to ground in a nanosecond. It's deliberately a low-capacitance part, because USB data is fast and a bulky protector would smear the signal.",
+      },
+      {
+        type: "image",
+        src: "/guide-diagrams/l1-01-sub-usb.svg",
+        alt: "Port protection on the USB front-end: F1 polyfuse in series on VBUS, and D1 (USBLC6) clamping the two data lines and VBUS to GND.",
+        caption: "Check the guardians — F1 in series on VBUS, D1 across the data lines.",
+        reveal: "Check your work · port protection",
       },
       {
         type: "callout",
@@ -700,6 +742,20 @@ const CARDS: Record<string, Card> = {
       {
         type: "prose",
         md: "That leaves the two long headers, **J2** and **J3** — they bring the spare GPIOs out to the board edge so you can jumper to them later. Wire each free GPIO out to a header pin — electrically the order doesn't matter, so the tidy move is to follow the module's own physical pin order: straight, short runs that stay easy to route. Bring **+3V3, GND, +5V and EN** out to the headers too, so a breadboard has power and a reset.\n\nA tidy default you can copy: put **+3V3** on J2 pin 1 and **GND** on J2 pin 2, then march the module's spare GPIOs down the rest in pin order — `IO1`→pin 3, `IO4`→pin 4, `IO5`→pin 5, and so on, carrying onto J3 until every free GPIO has a home. Skip the ones already spoken for (the USB pins `IO19`/`IO20`, the strapping pins `0`/`3`/`45`/`46`, `EN` and `IO0`, and `IO2` driving your LED). It's ~40 little connections, but they're all the same move — label a few and the rest is muscle memory.",
+      },
+      {
+        type: "image",
+        src: "/guide-diagrams/l1-01-sub-headers.svg",
+        alt: "The two breakout headers J2 and J3 — the spare GPIOs plus the +3V3/+5V/GND/EN rails brought out to the board edge in pin order.",
+        caption: "Check the breakout — rails + spare GPIOs marched out to J2/J3.",
+        reveal: "Check your work · breakout headers",
+      },
+      {
+        type: "image",
+        src: "/guide-diagrams/l1-01-sub-test-points.svg",
+        alt: "Test points: TP1 on the +3V3 rail and TP2 on GND — bare loops to clip a meter onto during bring-up.",
+        caption: "Check the test points — TP1 on +3V3, TP2 on GND.",
+        reveal: "Check your work · test points",
       },
       {
         type: "prose",

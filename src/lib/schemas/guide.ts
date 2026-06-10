@@ -55,6 +55,9 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     ),
     alt: z.string().max(200),
     caption: z.string().max(200).optional(),
+    // When set, the image renders inside a COLLAPSED <details> with this string as
+    // the summary (a "Check your work ▸" reveal) instead of always-visible.
+    reveal: z.string().max(80).optional(),
   }),
   // video — an mp4 clip, same scheme guard + empty-as-placeholder rule as image.
   // An empty src renders a "to be added" placeholder slot (the alt/caption is the
