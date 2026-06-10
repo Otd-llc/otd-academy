@@ -50,6 +50,8 @@ next-env.d.ts
 # Internal strategy / business docs — kept OUT of the public repo
 /docs/plans/2026-06-08-foundry-gtm-roadmap.md
 /docs/plans/2026-06-09-public-narrative-skill-tree.md
+/docs/plans/2026-06-10-l101-card-corrections-worklist.md
+/docs/plans/2026-06-10-l101-card-draft-copy.md
 
 # Local one-off / scratch scripts — operational snapshots already applied to the
 # DB, kept locally for reference but not part of the app or build. Safe to delete.
