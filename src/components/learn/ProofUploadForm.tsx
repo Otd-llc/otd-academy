@@ -17,10 +17,17 @@ export function ProofUploadForm({
   projectId,
   stage,
   label,
+  accept,
+  onUploaded,
 }: {
   projectId: string;
   stage: string;
   label: string;
+  /** File-input `accept` filter, e.g. ".rpt,.txt". Omitted = accept anything. */
+  accept?: string;
+  /** Called after a proof is successfully recorded (file or link) — e.g. to
+   *  close the enclosing modal before the route refreshes. */
+  onUploaded?: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +67,7 @@ export function ProofUploadForm({
           mime: presign.mime,
           sizeBytes: presign.sizeBytes,
         });
+        onUploaded?.();
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not upload.");
@@ -72,6 +80,7 @@ export function ProofUploadForm({
       setError(null);
       try {
         await submitEnrollmentProof({ projectId, stage, linkUrl: url });
+        onUploaded?.();
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not submit link.");
@@ -89,6 +98,7 @@ export function ProofUploadForm({
           <input
             ref={fileRef}
             type="file"
+            accept={accept}
             className="min-w-0 flex-1 font-mono text-xs text-gray-1 file:mr-3 file:rounded file:border file:border-panel-border file:bg-navy-dark file:px-3 file:py-1.5 file:font-mono file:text-xs file:uppercase file:tracking-wider file:text-command-gold"
           />
           <button

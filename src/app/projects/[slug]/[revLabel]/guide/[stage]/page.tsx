@@ -39,10 +39,9 @@ import { StageGate } from "@/components/guide/StageGate";
 import { BoardSelector } from "@/components/guide/BoardSelector";
 import { GenerateGuideButton } from "@/components/guide/GenerateGuideButton";
 import { auth } from "@/auth";
-import { AdvanceEnrollmentButton } from "@/components/learn/AdvanceEnrollmentButton";
+import { LearnerGate } from "@/components/learn/LearnerGate";
 import { Paywall } from "@/components/learn/Paywall";
-import { ProofUploadForm } from "@/components/learn/ProofUploadForm";
-import { learnerProofSubkind } from "@/lib/learner-gates";
+import { gateSpec } from "@/lib/gate-spec";
 import { proofHelp } from "@/lib/learner-proof-help";
 import { guideCardView } from "@/lib/guide-view";
 import { resolveLessonAccess } from "@/lib/public-access";
@@ -76,12 +75,6 @@ const PER_BOARD_STAGES: ReadonlySet<GuideStage> = new Set([
 function isGuideStage(s: string): s is GuideStage {
   return (GUIDE_STAGES as readonly string[]).includes(s);
 }
-
-// Friendly labels for the learner proof-artifact subkinds (CAD stages only).
-const PROOF_LABEL: Record<string, string> = {
-  SCHEMATIC_FILE: "schematic",
-  LAYOUT_FILE: "layout file",
-};
 
 // Pick a sensible trailing accent word for the hero (the last whitespace- or
 // slash-delimited token of the title — e.g. "DRC / GERBER" → "GERBER",
@@ -424,14 +417,16 @@ export default async function GuideCardPage({
   // Learner overlay (learner view only): if the signed-in learner has an
   // enrollment on this board, the quiz records against it and on their CURRENT
   // stage we surface the advance affordance.
-  const proofSubkind = learnerProofSubkind(stage);
-  const proofLabel = proofSubkind ? PROOF_LABEL[proofSubkind] : null;
-  const proofHelpData = proofSubkind ? proofHelp(proofSubkind) : null;
+  const gate = gateSpec(stage);
+  const proofArtifact = gate.artifact;
+  const proofHelpData = proofArtifact ? proofHelp(proofArtifact.subkind) : null;
+  const cardHasQuiz = blocks.some((b) => b.type === "quiz");
   let learnerQuizContext:
     | { enrollmentId: string; stage: string; passed: boolean }
     | undefined;
   let showLearnerAdvance = false;
-  let learnerNeedsProof = false;
+  let learnerQuizPassed = false;
+  let learnerHasProof = false;
   let learnerCurrentStage: string | null = null;
   if (learnerEmail && view.isLearnerView) {
     const enrollment = await db.enrollment.findFirst({
@@ -445,16 +440,16 @@ export default async function GuideCardPage({
     });
     if (enrollment) {
       learnerCurrentStage = enrollment.currentStage;
+      learnerQuizPassed = enrollment.quizPasses.length > 0;
       learnerQuizContext = {
         enrollmentId: enrollment.id,
         stage,
-        passed: enrollment.quizPasses.length > 0,
+        passed: learnerQuizPassed,
       };
       showLearnerAdvance = enrollment.currentStage === stage;
-      learnerNeedsProof =
-        showLearnerAdvance &&
-        proofSubkind != null &&
-        !enrollment.artifacts.some((a) => a.subkind === proofSubkind);
+      learnerHasProof =
+        proofArtifact != null &&
+        enrollment.artifacts.some((a) => a.subkind === proofArtifact.subkind);
     }
   }
 
@@ -555,61 +550,27 @@ export default async function GuideCardPage({
       ) : null}
 
       {showLearnerAdvance && (
-        <section className="mt-8 glass-card border-l-4 border-l-command-gold p-5">
-          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
-            Your track · this is your current stage
-          </p>
-          <p className="mb-4 mt-1 font-serif text-sm text-gray-1">
-            {proofSubkind
-              ? "Pass the comprehension check above and add the required artifact below to advance your own progress."
-              : "Pass the comprehension check above to advance your own progress."}
-          </p>
-
-          {/* Proof requirement — only when THIS stage actually needs an artifact.
-              Earlier stages (REQUIREMENTS, BOM_SOURCING) are quiz-only and show
-              no upload UI at all. */}
-          {proofSubkind && proofLabel && proofHelpData && (
-            <div className="mb-4 rounded border border-panel-border bg-deep-space/40 p-4">
-              <p className="font-mono text-[11px] uppercase tracking-wider text-command-gold">
-                Required to advance · {proofLabel}
-              </p>
-              <p className="mt-2 font-serif text-sm text-gray-1">
-                {proofHelpData.requirement}
-              </p>
-
-              <details className="mt-3">
-                <summary className="cursor-pointer select-none font-mono text-[11px] uppercase tracking-wider text-link-muted transition-colors hover:text-command-gold">
-                  {proofHelpData.howToTitle}
-                </summary>
-                <ol className="mt-2 list-decimal space-y-1.5 pl-5 font-serif text-sm text-gray-2">
-                  {proofHelpData.steps.map((step, i) => (
-                    <li key={i}>{step}</li>
-                  ))}
-                </ol>
-              </details>
-
-              <div className="mt-4">
-                {learnerNeedsProof ? (
-                  <ProofUploadForm
-                    projectId={project.id}
-                    stage={stage}
-                    label={proofLabel}
-                  />
-                ) : (
-                  <p className="font-mono text-xs uppercase tracking-wider text-status-green">
-                    ✓ Your {proofLabel} is on file for this stage.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          <AdvanceEnrollmentButton
-            projectId={project.id}
-            cardBaseHref={hubHref}
-            guideStages={GUIDE_STAGES}
-          />
-        </section>
+        <LearnerGate
+          projectId={project.id}
+          stage={stage}
+          cardBaseHref={hubHref}
+          guideStages={GUIDE_STAGES}
+          quizRequired={gate.quiz}
+          quizPassed={learnerQuizPassed}
+          cardHasQuiz={cardHasQuiz}
+          artifact={
+            proofArtifact && proofHelpData
+              ? {
+                  label: proofArtifact.label,
+                  accept: proofArtifact.accept,
+                  requirement: proofHelpData.requirement,
+                  howToTitle: proofHelpData.howToTitle,
+                  steps: proofHelpData.steps,
+                  onFile: learnerHasProof,
+                }
+              : null
+          }
+        />
       )}
 
       {/* STAGE GATE is the author's completion substrate (review checklists,

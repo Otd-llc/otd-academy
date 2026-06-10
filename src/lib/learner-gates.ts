@@ -5,24 +5,10 @@
 // comprehension quiz. Pure function over LearnerGateContext (no DB access).
 import type { Artifact, ArtifactSubkind, Stage } from "@prisma/client";
 import type { GateResult } from "@/lib/stages";
+import { gateSpec } from "@/lib/gate-spec";
 
 export const QUIZ_NOT_PASSED_MSG =
   "Comprehension check not passed yet — pass the quiz on this stage's guide card.";
-
-// A per-enrollment proof artifact is required only once the learner is producing
-// real CAD: a clean ERC report at SCHEMATIC and the layout file at LAYOUT.
-// Everything before (REQUIREMENTS, BOM_SOURCING) is comprehension — quiz-only —
-// and the deep fab chain after stays the shared reference. Each entry here MUST
-// have matching how-to help in learner-proof-help.
-const LEARNER_PROOF: Partial<Record<Stage, ArtifactSubkind>> = {
-  SCHEMATIC: "ERC_REPORT",
-  LAYOUT: "LAYOUT_FILE",
-};
-
-const PROOF_LABEL: Record<string, string> = {
-  ERC_REPORT: "clean ERC report",
-  LAYOUT_FILE: "layout file",
-};
 
 export interface LearnerGateContext {
   enrollmentArtifacts: Pick<Artifact, "subkind">[];
@@ -30,9 +16,9 @@ export interface LearnerGateContext {
 }
 
 /** The proof-artifact subkind a stage requires of a learner, or undefined when
- *  the stage is quiz-only. */
+ *  the stage is quiz-only. Delegates to the single gate spec (gate-spec.ts). */
 export function learnerProofSubkind(stage: Stage): ArtifactSubkind | undefined {
-  return LEARNER_PROOF[stage];
+  return gateSpec(stage).artifact?.subkind;
 }
 
 export function learnerExitGate(
@@ -40,10 +26,15 @@ export function learnerExitGate(
   ctx: LearnerGateContext,
 ): GateResult {
   const reasons: string[] = [];
-  const proof = LEARNER_PROOF[stage];
-  if (proof && !ctx.enrollmentArtifacts.some((a) => a.subkind === proof)) {
-    reasons.push(`Upload your ${PROOF_LABEL[proof]} on this stage to advance.`);
+  const spec = gateSpec(stage);
+  if (
+    spec.artifact &&
+    !ctx.enrollmentArtifacts.some((a) => a.subkind === spec.artifact!.subkind)
+  ) {
+    reasons.push(`Upload your ${spec.artifact.label} on this stage to advance.`);
   }
-  if (!ctx.quizPasses.has(stage)) reasons.push(QUIZ_NOT_PASSED_MSG);
+  if (spec.quiz && !ctx.quizPasses.has(stage)) {
+    reasons.push(QUIZ_NOT_PASSED_MSG);
+  }
   return reasons.length ? { ok: false, reasons } : { ok: true };
 }
