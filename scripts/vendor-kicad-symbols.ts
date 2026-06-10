@@ -27,6 +27,28 @@ import { flattenSymbol, symbolByName } from "@/lib/kicad/flatten";
 const SRC = "c:\\tmp\\kicad-symbols";
 const OUT = "src/lib/kicad/vendor/standard-symbols.json";
 
+// KiCad hides pin NAMES on some standard symbols (Device:LED's A/K,
+// USBLC6's I/O1/I/O2) by default. For the lesson-1 starter we want those names
+// visible on the canvas, so strip the `(hide ...)` from the symbol's pin_names.
+// (pin_numbers stay as the library set them; generic numbered headers/switches
+// keep their hidden names.) Embedding a modified copy makes the schematic's
+// lib_symbols differ from the user's stock lib — paired with the
+// `lib_symbol_mismatch` ERC severity set to "ignore" in buildKicadPro.
+const UNHIDE_PIN_NAMES = new Set<string>([
+  "Device:LED",
+  "Power_Protection:USBLC6-2SC6",
+]);
+
+/** Remove the `(hide ...)` flag from a symbol node's `pin_names`, in place. */
+function unhidePinNames(symbolNode: SList): void {
+  const pn = findChild(symbolNode, "pin_names");
+  if (!pn || !isList(pn)) return;
+  for (let i = pn.items.length - 1; i >= 0; i--) {
+    const it = pn.items[i]!;
+    if (isList(it) && head(it) === "hide") pn.items.splice(i, 1);
+  }
+}
+
 async function main() {
   const { db } = await import("@/lib/db");
 
@@ -65,7 +87,9 @@ async function main() {
       continue;
     }
     const wasDerived = !!findChild(sym, "extends");
-    out[libId] = serializeSexpr(flattenSymbol(libNode, name));
+    const flat = flattenSymbol(libNode, name);
+    if (UNHIDE_PIN_NAMES.has(libId)) unhidePinNames(flat);
+    out[libId] = serializeSexpr(flat);
     if (wasDerived) flattened.push(libId);
   }
 

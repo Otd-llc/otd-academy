@@ -222,6 +222,16 @@ export function buildKicadPro(opts: BuildKicadProOpts): string {
     cvpcb: {
       equivalence_files: [],
     },
+    erc: {
+      // The schematic embeds flattened copies of standard-library symbols
+      // (Device:LED, USBLC6, …) in lib_symbols, and we un-hide some pin names —
+      // so an embedded def intentionally differs from the user's stock library.
+      // Silence the "symbol doesn't match library" ERC nag that would otherwise
+      // fire on every referenced symbol; it isn't a real wiring error.
+      rule_severities: {
+        lib_symbol_mismatch: "ignore",
+      },
+    },
     libraries: {
       // Project-local libraries — nickname == project name, matching the
       // sym-lib-table / fp-lib-table rows Task 4 emits.
