@@ -17,7 +17,7 @@
 // Resilience: an unknown/extra block type is skipped (renders nothing) rather
 // than crashing the page.
 
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import sanitizeHtml from "sanitize-html";
 import type { ContentBlock } from "@/lib/schemas/guide";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
@@ -60,9 +60,41 @@ const BADGE_TONE_CLASS: Record<"gold" | "blue" | "critical" | "dim", string> = {
   dim: "dim",
 };
 
-// Render text with inline `[[term]]` / `[[term|label]]` markers as a mix of
-// plain text and click-to-read <GlossaryTerm> popovers. Pure split lives in
-// `@/lib/inline-terms`; an unknown term degrades to plain text in GlossaryTerm.
+// Render the two markdown emphasis marks the guide content uses — **bold** and
+// *italic* — as styled inline nodes inside a plain text run. Bold is a restrained
+// weight bump + a slightly brighter ink (gray-1 over the gray-2 body), kept
+// distinct from the gold [[glossary]] terms; italic is true italic. Non-nested:
+// the marks never cross a [[term]] or each other in our content. React escapes the
+// text children, so this stays XSS-safe by construction — no HTML is injected.
+function renderEmphasis(text: string, keyPrefix: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  let last = 0;
+  let n = 0;
+  for (const m of text.matchAll(/\*\*([^*]+)\*\*|\*([^*\s][^*]*)\*/g)) {
+    const idx = m.index ?? 0;
+    if (idx > last) out.push(text.slice(last, idx));
+    out.push(
+      m[1] !== undefined ? (
+        <strong key={`${keyPrefix}-${n}`} className="font-semibold text-gray-1">
+          {m[1]}
+        </strong>
+      ) : (
+        <em key={`${keyPrefix}-${n}`} className="italic">
+          {m[2]}
+        </em>
+      ),
+    );
+    last = idx + m[0].length;
+    n++;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
+// Render text with inline `[[term]]` / `[[term|label]]` markers as a mix of plain
+// text and click-to-read <GlossaryTerm> popovers, with **bold**/*italic* emphasis
+// styled inside each plain run. Pure term-split lives in `@/lib/inline-terms`; an
+// unknown term degrades to plain text in GlossaryTerm.
 function Inline({ text }: { text: string }) {
   const segments = parseInlineTerms(text);
   return (
@@ -73,7 +105,7 @@ function Inline({ text }: { text: string }) {
             {seg.label}
           </GlossaryTerm>
         ) : (
-          <span key={i}>{seg.value}</span>
+          <span key={i}>{renderEmphasis(seg.value, `e${i}`)}</span>
         ),
       )}
     </>
@@ -294,7 +326,11 @@ function StepsBlock({
   const className =
     "ml-6 space-y-1 font-serif text-base leading-relaxed text-muted " +
     (ordered ? "list-decimal" : "list-disc");
-  const lis = items.map((item, i) => <li key={i}>{item}</li>);
+  const lis = items.map((item, i) => (
+    <li key={i}>
+      <Inline text={item} />
+    </li>
+  ));
   return ordered ? (
     <ol className={className}>{lis}</ol>
   ) : (
@@ -457,7 +493,7 @@ function TableCell({
       </td>
     );
   }
-  return <td data-label={label}>{text}</td>;
+  return <td data-label={label}>{renderEmphasis(text, "c")}</td>;
 }
 
 function GuideBlock({
