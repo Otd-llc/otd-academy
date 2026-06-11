@@ -82,6 +82,24 @@ branding. Keep them in sync; later they could share one module.
 - **Global Space:** grabbed only while framing/recording; it does block Space in
   other apps during that window (by design — it's the trigger).
 
+## Troubleshooting — "the capture never shows up on the site"
+
+That means the app saved to disk instead of uploading — i.e. it never got a lesson
+target. Check, in order:
+
+1. **Are you on the latest build?** Each capture quits the app; `git pull` then
+   `npm start` again so you're running the current code (the very first build only
+   saved to disk).
+2. **Did the deep link reach it?** When connected, the panel shows a gold
+   **"Capture this"** callout. If instead you see a red **"No lesson target"** note,
+   the app was opened standalone — launch it from the gold **+** in the lesson, and
+   accept the browser's "Open OTD Capture?" prompt.
+3. **Read the log.** Every run appends to `~/Downloads/otd-captures/otd-capture.log`
+   — it records the launch argv, whether a deep link parsed, whether a session
+   reached the renderer, and each upload's HTTP response (or a `STANDALONE
+   save-to-disk` line if no target arrived). That line tells you exactly where it
+   broke.
+
 ## Still to do
 
 - A Windows installer (electron-builder) so it's a real app, not `npm start`, and a

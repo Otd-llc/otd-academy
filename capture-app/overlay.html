@@ -145,6 +145,15 @@
         letter-spacing: 0.04em;
         color: var(--muted);
       }
+      .info.warn { border-color: var(--red); background: rgba(239, 83, 80, 0.08); }
+      .info.warn .infoTag { color: var(--red); }
+      .info.warn p {
+        margin: 4px 0 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 13px;
+        line-height: 1.45;
+        color: var(--ink);
+      }
       #review img, #review video { width: 100%; border: 1px solid var(--border); border-radius: 6px; background: #000; margin-top: 8px; }
       kbd { border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; color: var(--ink); }
       .hidden { display: none !important; }
@@ -192,6 +201,15 @@
       </div>
 
       <div id="setup">
+        <div id="standaloneNote" class="info warn">
+          <span class="infoTag">No lesson target</span>
+          <p>
+            Opened standalone — captures save to your Downloads, they do NOT upload
+            to a lesson. To fill a lesson slot, click the gold <b>+</b> on that
+            placeholder in the lesson page.
+          </p>
+        </div>
+
         <div id="sessionInfo" class="info hidden">
           <span class="infoTag">Capture this</span>
           <p id="sessionWhat"></p>

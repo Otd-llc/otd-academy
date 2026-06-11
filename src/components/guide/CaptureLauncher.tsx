@@ -26,12 +26,18 @@ export function CaptureLauncher({
   blockIndex,
   captureHint,
   caption,
+  existing,
+  currentSrc,
 }: {
   kind: "image" | "video";
   cardId: string;
   blockIndex: number;
   captureHint?: string;
   caption?: string;
+  // The block already has media — render a "Redo" affordance, and wait for the
+  // slot src to CHANGE (not merely be non-empty) before swapping it in.
+  existing?: boolean;
+  currentSrc?: string;
 }) {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [browser, setBrowser] = useState(false);
@@ -50,7 +56,8 @@ export function CaptureLauncher({
     };
   }, []);
 
-  const label = kind === "video" ? "Add clip" : "Add screenshot";
+  const noun = kind === "video" ? "clip" : "screenshot";
+  const label = `${existing ? "Redo" : "Add"} ${noun}`;
 
   // Watch the slot; when the desktop app's upload lands, render it in place AND
   // soft-refresh — no manual reload.
@@ -70,7 +77,10 @@ export function CaptureLauncher({
         );
         if (!res.ok) return;
         const data = (await res.json()) as { filled?: boolean; src?: string };
-        if (data.filled && data.src) {
+        // New capture when the slot src is non-empty AND different from what was
+        // there when we launched (so a Redo waits for the replacement, not the
+        // pre-existing image).
+        if (data.src && data.src !== (currentSrc ?? "")) {
           if (pollRef.current) clearInterval(pollRef.current);
           setFilledSrc(data.src);
           setStatus({ kind: "opened", message: "Capture received ✓" });
