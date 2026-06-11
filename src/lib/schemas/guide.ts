@@ -62,6 +62,10 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     // as `reveal` (object-contain, no full-width balloon) — a teaching diagram that
     // sits open beside the prose. Ignored when `reveal` is set.
     boxed: z.boolean().optional(),
+    // Author instruction for an EMPTY-src placeholder that an admin fills via the
+    // in-app screen-capture tool — e.g. "KiCad ▸ Board Setup ▸ Constraints". Shown
+    // in the admin capture modal; ignored once `src` is filled.
+    captureHint: z.string().max(200).optional(),
   }),
   // video — an mp4 clip, same scheme guard + empty-as-placeholder rule as image.
   // An empty src renders a "to be added" placeholder slot (the alt/caption is the

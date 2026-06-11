@@ -101,3 +101,12 @@ export function partAssetKey(
 export function partRenderKey(partId: string, cuid: string): string {
   return `parts/${partId}/model_3d_render-${cuid}.glb`;
 }
+
+// Guide screenshot/clip key (admin in-app capture). A flat, content-addressed
+// tree keyed only by a per-capture cuid — these are public lesson media, served
+// (with long-cache headers) through `/api/shot/{cuid}`, NOT presigned. `.webp`
+// for screenshots; the same shape extends to `.webm`/`.mp4` clips later.
+//   guide-shots/{cuid}.{ext}
+export function guideShotKey(cuid: string, ext = "webp"): string {
+  return `guide-shots/${cuid}.${ext}`;
+}

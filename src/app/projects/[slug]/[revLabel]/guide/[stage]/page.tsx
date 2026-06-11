@@ -545,6 +545,8 @@ export default async function GuideCardPage({
           quizContext={learnerQuizContext}
           projectId={project.id}
           isSignedIn={!!sessionEmail}
+          cardId={card.id}
+          isAdmin={isAdmin}
         />
       </GuideCardEditor>
 
