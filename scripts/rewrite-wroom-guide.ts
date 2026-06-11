@@ -1161,13 +1161,13 @@ const CARDS: Record<string, Card> = {
     contentBlocks: [
       {
         type: "prose",
-        md: "Layout is where the schematic meets physics. The very same circuit can work flawlessly or *barely boot*, depending on where the parts sit and how the copper flows between them. You'll do it in five moves — **set up** the two-layer board, **place** the parts, **route** the copper, **pour** the ground, then **check** it with a rules pass (DRC), the same way ERC proved the schematic. A handful of placements decide whether this board has Wi-Fi range and a steady rail; the rest is tidy routing.",
+        md: "Layout is where the schematic meets physics. The very same circuit can work flawlessly or *barely boot*, depending on where the parts sit and how the copper flows between them. You'll do it in five moves — **set up** the board to your fab's rules, **place** the parts, **route** the copper, **pour** the ground, then **confirm** it with a rules check (DRC). The first move is the one beginners skip and pros never do: you tell KiCad what your factory can build *before* you route, so every trace is manufacturable from the start — you never route the whole board and then tear it up because a clearance was illegal.",
       },
       {
         type: "callout",
-        label: "00 · Two layers and a ground plane",
+        label: "00 · Set up the board — to your fab's rules",
         severity: "info",
-        body: "Before you place a single part: this is a two-layer board, and the bottom layer has one big job.",
+        body: "Before you place a single part: the board's two layers and its ground plane, and — the move beginners skip — loading your fab's design rules so every trace you draw is one the factory can actually make.",
       },
       {
         type: "prose",
@@ -1189,6 +1189,16 @@ const CARDS: Record<string, Card> = {
         type: "deepDive",
         summary: "The return path is half the circuit",
         body: "It's tempting to think a signal is just the trace going out. But current can't go anywhere without a way back — every signal travels in a loop, out on the trace and home through ground. A solid ground plane lets that return current flow *directly underneath* the trace, making the smallest possible loop. Small loop → low inductance → a clean signal and a rail that doesn't sag. Break the plane (a slot, a gap, a crowd of vias) and the return has to detour around it, the loop balloons, and you get the exact droop and noise the plane was there to prevent. So on a two-layer board the single most useful habit is: keep the bottom-layer ground pour as unbroken as you can.",
+      },
+      {
+        type: "prose",
+        md: "Now the move that decides whether your board *builds* or bounces back: **tell KiCad what your factory can make — before you route a trace.** Open **Board Setup ▸ Design Rules** and type in your fab's capability numbers — minimum trace width, copper-to-copper clearance, hole/drill size, annular ring — straight from their capability page (every board house publishes one). In the same place, set up **net classes**: a **Power** class (~0.4–0.5 mm) for the VBUS / +5V / +3V3 chain, a **Signal** class (~0.25 mm) for the rest, and the USB pair as a differential pair. From here on KiCad enforces all of it *live* — it won't let you draw a trace thinner than the fab can etch, and it flags a too-tight clearance the moment you make it, instead of after the whole board is routed.",
+      },
+      {
+        type: "callout",
+        label: "Check yourself",
+        severity: "info",
+        body: "Why load the fab's rules before routing instead of checking at the end? Because then the rules steer every trace as you draw it — you never route something the fab can't build, and never tear up finished work to fix a clearance. You prove it can be built, then build it. (Same reason you lock the BOM before drawing the schematic.)",
       },
       {
         type: "callout",
@@ -1322,7 +1332,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "You've got the floor plan and the rules in your head. Now you do it in the PCB editor, in the order that keeps you out of trouble: **set up → place → route → pour → check.**",
+        md: "You've got the floor plan and the rules in your head. Now you do it in the PCB editor, in the order that keeps you out of trouble: **set up → place → route → pour → confirm.**",
       },
       {
         type: "callout",
@@ -1361,7 +1371,7 @@ const CARDS: Record<string, Card> = {
         type: "steps",
         ordered: true,
         items: [
-          "Set trace widths: signals can be thin (~0.25 mm); make the power chain (VBUS / +5V / +3V3, up to ~600 mA) wider — ~0.4–0.5 mm.",
+          "Put each net on its class from Board Setup — Power (~0.4–0.5 mm) for the VBUS / +5V / +3V3 chain, Signal (~0.25 mm) for the rest — so every trace draws at a buildable width automatically.",
           "Route power and ground first — the short, fat paths the rail depends on.",
           "Route the USB pair with the differential-pair router (the next block walks it).",
           "Route the remaining signals — the GPIO breakouts can wander a little; just keep them off the keep-out.",
@@ -1411,11 +1421,11 @@ const CARDS: Record<string, Card> = {
         type: "callout",
         label: "Run DRC",
         severity: "info",
-        body: "The layout analogue of ERC: let KiCad check the copper against the rules, and work the list to zero.",
+        body: "You set your fab's rules up front and routed inside them — so this is the final confirmation, not a surprise.",
       },
       {
         type: "prose",
-        md: "Run **Inspect ▸ Design Rules Checker** against KiCad's built-in rules — a first pass that catches the mechanical mistakes. Like ERC, it lists every violation; clear the **errors** to zero (harmless warnings, like silk over a pad, are fine to leave). Most beginner hits are quick:",
+        md: "Run **Inspect ▸ Design Rules Checker**. Because your fab's rules have been switched on since Board Setup, a board you routed carefully comes up clean or close to it — what it flags now is usually a ratsnest line you never finished or a clearance you nudged tight. Clear the **errors** to zero (harmless warnings, like silk over a pad, are fine to leave):",
       },
       {
         type: "table",
@@ -1435,12 +1445,18 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "With your errors at zero, the layout is done — **save the report (Save… in the DRC dialog) and upload that `.rpt` to clear this stage** (the report, not the board file). The **next stage** loads the fab's own design rules, re-checks against those tighter numbers, and exports the **Gerber** files the factory builds from.",
+        md: "With your errors at zero — and because your fab's rules have been on since Board Setup, that's zero against *the shop that will build it* — the layout is done. **Save the report (Save… in the DRC dialog) and upload that `.rpt` to clear this stage** (the report, not the board file). The **next stage** exports the **Gerber** files the factory builds from, and you give them a last look before you order.",
       },
       {
         type: "quiz",
         prompt: "Quick check — layout",
         questions: [
+          {
+            q: "Before you route any traces, why load your fab's design rules into Board Setup?",
+            answer: 1,
+            explain: "With the rules loaded, KiCad enforces them as you route — you can't draw a trace the fab can't make, so the board is buildable from the start instead of a re-do at the end.",
+            options: ["To make DRC run faster at the end", "So KiCad enforces them live and every trace is manufacturable as you draw it", "You don't — you check at the very end and fix whatever fails"],
+          },
           {
             q: "The WROOM module has a printed antenna at one end. What goes under and around it?",
             answer: 1,
@@ -1495,38 +1511,33 @@ const CARDS: Record<string, Card> = {
         type: "callout",
         label: "Exit this stage",
         severity: "info",
-        body: "Run DRC to zero, then upload the clean DRC report (Save… from the DRC dialog) to clear this stage. The BOM freezes here — after this, a parts change means a new revision. Next: you'll prove the board against the fab's own design rules and export the Gerber files they build from.",
+        body: "Run DRC to zero against your fab's rules, then upload the clean DRC report (Save… from the DRC dialog) to clear this stage. The BOM freezes here — after this, a parts change means a new revision. Next: export the Gerber files the factory builds from, and inspect them before you order.",
       },
     ],
   },
 
   DRC_GERBER: {
-    lead: "Prove the layout obeys the fab's rules, then export the exact files that get manufactured.",
+    lead: "Your layout is already built to your fab's rules. Give it one last check, then export the exact files they manufacture from.",
     contentBlocks: [
       {
         type: "prose",
-        md: "Two gates stand between your layout and a box of boards: a rules check that catches what your eyes missed, and a file export that has to be exactly right — because the fab builds precisely what you send, no more and no less.",
+        md: "Your layout is done and DRC-clean to your fab's rules — you set them in Board Setup before you routed. Two things still stand between it and a box of boards: one last rules check, in case a late edit slipped something past you, and a file export that has to be exactly right — because the fab builds precisely what you send, no more and no less.",
       },
       {
         type: "callout",
-        label: "01 · DRC — now against the fab's rules",
+        label: "01 · One last DRC",
         severity: "info",
-        body: "You already ran DRC in LAYOUT against KiCad's defaults. Now load your fab's tighter numbers and run it again.",
+        body: "Your rules were set in Board Setup and your layout already passed DRC. This is the final confirmation that nothing changed.",
       },
       {
         type: "prose",
-        md: "You already ran [[design rule check|DRC]] in LAYOUT against KiCad's built-in rules. Here you do it for real: **load your fab's capability numbers** — their minimum trace width, clearance, drill, and annular ring, which every board house publishes on its capability page — into **Board Setup ▸ Design Rules**, then re-run. A board that passed on the defaults can fail now, and that's the point: you're measuring against the shop that will actually build it. Clear every error, or note any remaining flag as an understood exception. A clearance the fab can't make is a short waiting to happen across a whole batch.",
+        md: "You loaded your fab's rules back in **Board Setup** and routed inside them, so your layout is already clean against the shop that will build it. Here you simply confirm it: run **[[design rule check|DRC]]** one more time and expect zero errors. Its job now is to catch anything that slipped *after* your last clean run — a part you nudged, a trace you tweaked, a pour you refilled. A clearance the fab can't make is a short waiting to happen across a whole batch, so you don't hand off until this comes up clean.",
       },
       {
         type: "callout",
         label: "Check yourself",
         severity: "info",
         body: "DRC flags a 5-mil clearance where the fab requires 6. Ship it anyway? No — fix it, or confirm the fab can do 5 and write down the exception. A clearance violation can short in production.",
-      },
-      {
-        type: "deepDive",
-        summary: "What the rules checker actually tests",
-        body: "A [[design rule check]] compares your layout against a list of fabrication limits and flags anything the board house can't reliably make. The usual suspects: copper-to-copper clearance (traces too close bridge together when the copper is etched), minimum trace width (too thin and it etches away or can't carry its current), annular ring (too little copper around a drilled hole and the drill can break out of the pad), drill-to-copper spacing, and silkscreen printed over a bare pad. It also re-checks the electrics — nets that should connect but don't, or nets accidentally shorted together. You load the fab's capability numbers in first, so the check is measured against the shop that will actually build the board, not a generic guess.",
       },
       {
         type: "callout",
@@ -1589,7 +1600,7 @@ const CARDS: Record<string, Card> = {
         type: "callout",
         label: "Exit this stage",
         severity: "info",
-        body: "Re-run DRC against the fab's rules until your errors are zero, then export the Gerbers and open them in a viewer before you order — the fab builds exactly what's in those files.",
+        body: "Confirm a clean DRC, export the Gerbers, and open them in a viewer before you order — the fab builds exactly what's in those files, not what's in your design tool.",
       },
     ],
   },
