@@ -60,56 +60,52 @@ const BADGE_TONE_CLASS: Record<"gold" | "blue" | "critical" | "dim", string> = {
   dim: "dim",
 };
 
-// Render the two markdown emphasis marks the guide content uses — **bold** and
-// *italic* — as styled inline nodes inside a plain text run. Bold is a restrained
-// weight bump + a slightly brighter ink (gray-1 over the gray-2 body), kept
-// distinct from the gold [[glossary]] terms; italic is true italic. Non-nested:
-// the marks never cross a [[term]] or each other in our content. React escapes the
-// text children, so this stays XSS-safe by construction — no HTML is injected.
-function renderEmphasis(text: string, keyPrefix: string): ReactNode[] {
+// Resolve `[[term]]` / `[[term|label]]` markers in a run of text into click-to-read
+// <GlossaryTerm> popovers (plain text otherwise). Pure split lives in
+// `@/lib/inline-terms`; an unknown term degrades to plain text in GlossaryTerm.
+function withTerms(text: string, keyPrefix: string): ReactNode[] {
+  return parseInlineTerms(text).map((seg, i) =>
+    seg.kind === "term" ? (
+      <GlossaryTerm key={`${keyPrefix}-${i}`} term={seg.term}>
+        {seg.label}
+      </GlossaryTerm>
+    ) : (
+      <Fragment key={`${keyPrefix}-${i}`}>{seg.value}</Fragment>
+    ),
+  );
+}
+
+// Inline guide-text renderer. Emphasis (**bold**/*italic*) is the OUTER layer — a
+// bold/italic run can wrap a [[term]] (e.g. "**a filled [[ground pour]]**") — so we
+// split emphasis FIRST, then resolve glossary terms inside each run (and inside the
+// plain text between). Splitting terms first would orphan the `**` across segments.
+// Bold is a restrained semibold + a slightly brighter ink (gray-1 over the gray-2
+// body), kept distinct from the gold terms; italic is true italic. XSS-safe: only
+// **/* and [[term]] are parsed; all other text is escaped — no HTML injected, no
+// dangerouslySetInnerHTML (the established convention).
+function Inline({ text }: { text: string }) {
   const out: ReactNode[] = [];
   let last = 0;
   let n = 0;
   for (const m of text.matchAll(/\*\*([^*]+)\*\*|\*([^*\s][^*]*)\*/g)) {
     const idx = m.index ?? 0;
-    if (idx > last) out.push(text.slice(last, idx));
+    if (idx > last) out.push(...withTerms(text.slice(last, idx), `p${n}`));
     out.push(
       m[1] !== undefined ? (
-        <strong key={`${keyPrefix}-${n}`} className="font-semibold text-gray-1">
-          {m[1]}
+        <strong key={`b${n}`} className="font-semibold text-gray-1">
+          {withTerms(m[1], `b${n}`)}
         </strong>
       ) : (
-        <em key={`${keyPrefix}-${n}`} className="italic">
-          {m[2]}
+        <em key={`i${n}`} className="italic">
+          {withTerms(m[2], `i${n}`)}
         </em>
       ),
     );
     last = idx + m[0].length;
     n++;
   }
-  if (last < text.length) out.push(text.slice(last));
-  return out;
-}
-
-// Render text with inline `[[term]]` / `[[term|label]]` markers as a mix of plain
-// text and click-to-read <GlossaryTerm> popovers, with **bold**/*italic* emphasis
-// styled inside each plain run. Pure term-split lives in `@/lib/inline-terms`; an
-// unknown term degrades to plain text in GlossaryTerm.
-function Inline({ text }: { text: string }) {
-  const segments = parseInlineTerms(text);
-  return (
-    <>
-      {segments.map((seg, i) =>
-        seg.kind === "term" ? (
-          <GlossaryTerm key={i} term={seg.term}>
-            {seg.label}
-          </GlossaryTerm>
-        ) : (
-          <span key={i}>{renderEmphasis(seg.value, `e${i}`)}</span>
-        ),
-      )}
-    </>
-  );
+  if (last < text.length) out.push(...withTerms(text.slice(last), `p${n}`));
+  return <>{out}</>;
 }
 
 // 3D part viewer block. `model` is the route-resolved render (presigned R2 URL +
@@ -493,7 +489,11 @@ function TableCell({
       </td>
     );
   }
-  return <td data-label={label}>{renderEmphasis(text, "c")}</td>;
+  return (
+    <td data-label={label}>
+      <Inline text={text} />
+    </td>
+  );
 }
 
 function GuideBlock({
