@@ -28,6 +28,9 @@ export interface GateArtifactProps {
   requiresValidation: boolean;
   /** When not yet on file, why the last upload failed its check (or null). */
   invalidDetail: string | null;
+  /** Self-attestation statements the learner must tick before uploading — checks
+   *  the validator can't see (e.g. the antenna keep-out). Empty/absent = none. */
+  confirm?: string[];
 }
 
 function Row({
@@ -71,6 +74,9 @@ export function LearnerGate({
   artifact: GateArtifactProps | null;
 }) {
   const [open, setOpen] = useState(false);
+  const confirmItems = artifact?.confirm ?? [];
+  const [confirmed, setConfirmed] = useState<Set<number>>(() => new Set());
+  const allConfirmed = confirmItems.every((_, i) => confirmed.has(i));
 
   return (
     <section className="mt-8 glass-card border-l-4 border-l-command-gold p-5">
@@ -120,11 +126,17 @@ export function LearnerGate({
                   </p>
                   {artifact.invalidDetail && (
                     <p className="mt-1.5 font-mono text-[11px] uppercase tracking-wider text-alert-red">
-                      Last upload wasn&apos;t clean · ERC found {artifact.invalidDetail}
+                      Last upload wasn&apos;t clean · found {artifact.invalidDetail}
                     </p>
                   )}
                 </div>
-                <Dialog.Root open={open} onOpenChange={setOpen}>
+                <Dialog.Root
+                  open={open}
+                  onOpenChange={(o) => {
+                    setOpen(o);
+                    if (!o) setConfirmed(new Set());
+                  }}
+                >
                   <Dialog.Trigger asChild>
                     <button
                       type="button"
@@ -162,6 +174,39 @@ export function LearnerGate({
                         </ol>
                       </details>
 
+                      {confirmItems.length > 0 && (
+                        <fieldset className="mt-4 space-y-2 rounded border border-panel-border bg-deep-space/40 p-3">
+                          <legend className="px-1 font-mono text-[11px] uppercase tracking-wider text-command-gold">
+                            Confirm before you upload
+                          </legend>
+                          <p className="font-serif text-xs text-muted">
+                            The rules checker can&apos;t see these — tick each only
+                            if it&apos;s true of your board.
+                          </p>
+                          {confirmItems.map((item, i) => (
+                            <label
+                              key={i}
+                              className="flex cursor-pointer items-start gap-2.5 font-serif text-sm text-gray-1"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={confirmed.has(i)}
+                                onChange={(e) =>
+                                  setConfirmed((prev) => {
+                                    const next = new Set(prev);
+                                    if (e.target.checked) next.add(i);
+                                    else next.delete(i);
+                                    return next;
+                                  })
+                                }
+                                className="mt-1 shrink-0 accent-command-gold"
+                              />
+                              <span>{item}</span>
+                            </label>
+                          ))}
+                        </fieldset>
+                      )}
+
                       <div className="mt-5 border-t border-panel-border pt-4">
                         <ProofUploadForm
                           projectId={projectId}
@@ -169,6 +214,7 @@ export function LearnerGate({
                           label={artifact.label}
                           accept={artifact.accept}
                           allowLink={!artifact.requiresValidation}
+                          disabled={!allConfirmed}
                           onUploaded={() => setOpen(false)}
                         />
                       </div>

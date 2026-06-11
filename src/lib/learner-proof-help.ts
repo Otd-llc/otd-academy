@@ -14,6 +14,10 @@ export interface ProofHelp {
   howToTitle: string;
   /** Ordered, beginner-followable steps to produce/export the artifact. */
   steps: string[];
+  /** Self-attestation statements the learner must tick before uploading — the
+   *  human-review checks the automated validator is blind to (e.g. the antenna
+   *  keep-out, which DRC can't see). Optional; absent = no attestation required. */
+  confirm?: string[];
 }
 
 const PROOF_HELP: Partial<Record<ArtifactSubkind, ProofHelp>> = {
@@ -53,14 +57,20 @@ const PROOF_HELP: Partial<Record<ArtifactSubkind, ProofHelp>> = {
   },
   DRC_REPORT: {
     requirement:
-      "Run KiCad's Design Rules Check (DRC) on your board and upload the report once it's clean — zero violations.",
+      "Run KiCad's Design Rules Check (DRC) on your board and upload the report once it's clean — zero errors (harmless warnings, like silk over a pad, are fine to leave).",
     howToTitle: "How to run DRC and export the report in KiCad 10",
     steps: [
       "In KiCad 10, open the PCB Editor for your project.",
       "Run Inspect ▸ Design Rules Checker, then press Run DRC.",
-      "Fix every violation: clearance and track-width errors (nudge a trace apart or widen it), unconnected items (finish the route, or add a no-connect), and courtyard overlaps (move a part).",
-      "Re-run until it reports zero violations, then use Save… in the DRC dialog to write the report file.",
+      "Fix every error: clearance and track-width errors (nudge a trace apart or widen it), unconnected items (finish the route, or add a no-connect), and courtyard overlaps (move a part). Warnings (e.g. silk over a pad) won't block the gate.",
+      "Re-run until it reports zero errors, then use Save… in the DRC dialog to write the report file.",
       "Upload that DRC report with the picker below.",
+    ],
+    confirm: [
+      "The antenna keep-out is genuinely empty — no copper, pour, trace, or silk crept in.",
+      "Each decoupling cap sits right at its pin, with a ground via at its pad.",
+      "The USB pair is short, side by side, over unbroken ground pour.",
+      "U1's centre pad is stitched to the ground plane with vias.",
     ],
   },
 };

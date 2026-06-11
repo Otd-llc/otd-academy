@@ -1,5 +1,6 @@
 // Tests for the KiCad DRC-report validator. Fixtures use the real KiCad report
-// shape (summary lines `** Found N … **`). Policy: clean = zero violations.
+// shape (`** Found N … **` summaries + per-violation `Severity:` markers). Policy
+// MIRRORS ERC: clean = zero ERRORS; warnings are counted but do not block.
 import { describe, expect, test } from "vitest";
 import { parseDrcReport, validateDrcReport } from "@/lib/kicad/drc-report";
 
@@ -32,17 +33,34 @@ const DIRTY = `** Drc report for board.kicad_pcb **
 ** End of Report **
 `;
 
+// A real-world beginner case: only harmless warning-severity flags (silk over a
+// pad). These are counted but must NOT block — the layout is fundamentally fine.
+const WARN_ONLY = `** Drc report for board.kicad_pcb **
+** Created on 2024-04-22T18:38:28+0000 **
+
+** Found 1 DRC violations **
+[silk_over_copper]: Silkscreen overlaps with pad ; Severity: warning
+@(40.0 mm, 12.0 mm): Footprint J1 ; Pad 1
+
+** Found 0 unconnected items **
+
+** Found 0 schematic parity issues **
+
+** End of Report **
+`;
+
 describe("parseDrcReport", () => {
-  test("sums every 'Found N' summary line", () => {
-    expect(parseDrcReport(CLEAN)).toEqual({ violations: 0 });
-    expect(parseDrcReport(DIRTY)).toEqual({ violations: 3 });
+  test("counts error- and warning-severity markers", () => {
+    expect(parseDrcReport(CLEAN)).toEqual({ errors: 0, warnings: 0 });
+    expect(parseDrcReport(DIRTY)).toEqual({ errors: 3, warnings: 0 });
+    expect(parseDrcReport(WARN_ONLY)).toEqual({ errors: 0, warnings: 1 });
   });
 
-  test("falls back to counting Severity markers when there's no summary line", () => {
-    const noSummary = `Some DRC dump
-[x]: msg ; Severity: error
-[y]: msg ; Severity: error`;
-    expect(parseDrcReport(noSummary)).toEqual({ violations: 2 });
+  test("falls back to summing 'Found N' as errors when there's no severity line", () => {
+    const noSeverity = `** Drc report **
+** Found 2 DRC violations **
+** Found 1 unconnected items **`;
+    expect(parseDrcReport(noSeverity)).toEqual({ errors: 3, warnings: 0 });
   });
 
   test("returns null for an unrelated / empty file", () => {
@@ -52,16 +70,22 @@ describe("parseDrcReport", () => {
 });
 
 describe("validateDrcReport", () => {
-  test("clean report (0 violations) passes", () => {
+  test("clean report (0 errors) passes", () => {
     const v = validateDrcReport(CLEAN);
     expect(v.ok).toBe(true);
-    expect(v.detail).toBe("0 violations");
+    expect(v.detail).toBe("0 errors, 0 warnings");
   });
 
-  test("violations block", () => {
+  test("errors block", () => {
     const v = validateDrcReport(DIRTY);
     expect(v.ok).toBe(false);
-    expect(v.detail).toBe("3 violations");
+    expect(v.detail).toBe("3 errors, 0 warnings");
+  });
+
+  test("warnings alone do NOT block (matches the ERC policy)", () => {
+    const v = validateDrcReport(WARN_ONLY);
+    expect(v.ok).toBe(true);
+    expect(v.detail).toBe("0 errors, 1 warning");
   });
 
   test("an unrecognizable file fails with a clear message, not a blind pass", () => {

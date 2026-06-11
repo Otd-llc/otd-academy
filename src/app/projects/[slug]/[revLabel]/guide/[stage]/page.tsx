@@ -581,6 +581,7 @@ export default async function GuideCardPage({
                   requirement: proofHelpData.requirement,
                   howToTitle: proofHelpData.howToTitle,
                   steps: proofHelpData.steps,
+                  confirm: proofHelpData.confirm,
                   onFile: learnerHasProof,
                   requiresValidation: proofArtifact.validate !== null,
                   invalidDetail: learnerProofInvalidDetail,
