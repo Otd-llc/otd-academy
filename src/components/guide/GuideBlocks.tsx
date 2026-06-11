@@ -24,6 +24,7 @@ import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
+import { ScreenshotCapture } from "@/components/guide/ScreenshotCapture";
 import { affiliateLink, type AffiliateVendor } from "@/lib/affiliates";
 import { ExternalLinkIcon, PhotoIcon, VideoIcon } from "@/components/icons";
 import { parseInlineTerms } from "@/lib/inline-terms";
@@ -175,14 +176,40 @@ function ImageBlock({
   caption,
   reveal,
   boxed,
+  captureHint,
+  cardId,
+  blockIndex,
+  isAdmin,
 }: {
   src: string;
   alt: string;
   caption?: string;
   reveal?: string;
   boxed?: boolean;
+  captureHint?: string;
+  cardId?: string;
+  blockIndex?: number;
+  isAdmin?: boolean;
 }) {
-  if (!src) return <MediaPlaceholder kind="photo" description={caption || alt} />;
+  if (!src) {
+    const placeholder = (
+      <MediaPlaceholder kind="photo" description={caption || alt} />
+    );
+    // Admins get an in-place screen-capture affordance on the empty slot.
+    if (isAdmin && cardId && blockIndex !== undefined) {
+      return (
+        <div className="space-y-2">
+          {placeholder}
+          <ScreenshotCapture
+            cardId={cardId}
+            blockIndex={blockIndex}
+            captureHint={captureHint}
+          />
+        </div>
+      );
+    }
+    return placeholder;
+  }
   // Small, odd-aspect schematic crops render inside a fixed white box with
   // `object-contain` (the vector scales to FIT, no tall-narrow balloon). `reveal`
   // wraps that box in a collapsed <details> (a try-first "check your work");
@@ -533,16 +560,22 @@ function VendorCtaBlock({
 
 function GuideBlock({
   block,
+  index,
   models,
   quizContext,
   projectId,
   isSignedIn,
+  cardId,
+  isAdmin,
 }: {
   block: ContentBlock;
+  index: number;
   models?: Record<string, ResolvedModel>;
   quizContext?: QuizContext;
   projectId?: string;
   isSignedIn?: boolean;
+  cardId?: string;
+  isAdmin?: boolean;
 }) {
   switch (block.type) {
     case "prose":
@@ -615,6 +648,10 @@ function GuideBlock({
           caption={block.caption}
           reveal={block.reveal}
           boxed={block.boxed}
+          captureHint={block.captureHint}
+          cardId={cardId}
+          blockIndex={index}
+          isAdmin={isAdmin}
         />
       );
 
@@ -711,12 +748,16 @@ export function GuideBlocks({
   quizContext,
   projectId,
   isSignedIn,
+  cardId,
+  isAdmin,
 }: {
   blocks: ContentBlock[];
   models?: Record<string, ResolvedModel>;
   quizContext?: QuizContext;
   projectId?: string;
   isSignedIn?: boolean;
+  cardId?: string;
+  isAdmin?: boolean;
 }) {
   // Mark the understand → "draw it" phase shift (SCHEMATIC) with a divider
   // before the first "Draw it ·" block.
@@ -730,10 +771,13 @@ export function GuideBlocks({
           {i === drawStartIdx ? <PhaseDivider label="Draw it in KiCad" /> : null}
           <GuideBlock
             block={block}
+            index={i}
             models={models}
             quizContext={quizContext}
             projectId={projectId}
             isSignedIn={isSignedIn}
+            cardId={cardId}
+            isAdmin={isAdmin}
           />
         </Fragment>
       ))}
