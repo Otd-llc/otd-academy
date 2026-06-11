@@ -95,6 +95,8 @@ export function BlockEditor({
       return <DeepDiveEditor block={block} onChange={onChange} {...err} />;
     case "action":
       return <ActionEditor block={block} onChange={onChange} {...err} />;
+    case "vendorCta":
+      return <VendorCtaEditor block={block} onChange={onChange} {...err} />;
     default: {
       // Exhaustiveness guard: if a new block.type is added to the schema and
       // not handled above, this line fails to typecheck.
@@ -758,6 +760,79 @@ function ActionEditor({
           onChange={(e) => onChange({ ...block, label: e.target.value })}
           className={`mt-1 ${inputClass}`}
           {...ariaErrorProps({ hasError, errorId })}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── vendorCta ──────────────────────────────────────────────────────────
+// An external affiliate CTA. `vendor` is a fixed enum the renderer resolves to a
+// configured referral URL (env-driven); the author edits the visible label and an
+// optional sublabel/disclosure.
+const VENDORS: Array<Extract<ContentBlock, { type: "vendorCta" }>["vendor"]> = [
+  "pcbway-order",
+  "newark-bom",
+];
+
+function VendorCtaEditor({
+  block,
+  onChange,
+  hasError,
+  errorId,
+}: {
+  block: Extract<ContentBlock, { type: "vendorCta" }>;
+  onChange: (next: ContentBlock) => void;
+} & BlockErrorProps) {
+  const baseId = useId();
+  return (
+    <div className="space-y-2">
+      <div>
+        <label htmlFor={`${baseId}-vendor`} className={labelClass}>
+          Vendor
+        </label>
+        <select
+          id={`${baseId}-vendor`}
+          value={block.vendor}
+          onChange={(e) =>
+            onChange({ ...block, vendor: e.target.value as typeof block.vendor })
+          }
+          className={`mt-1 ${selectClass}`}
+        >
+          {VENDORS.map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label htmlFor={`${baseId}-label`} className={labelClass}>
+          Button label
+        </label>
+        <input
+          id={`${baseId}-label`}
+          type="text"
+          maxLength={120}
+          value={block.label}
+          onChange={(e) => onChange({ ...block, label: e.target.value })}
+          className={`mt-1 ${inputClass}`}
+          {...ariaErrorProps({ hasError, errorId })}
+        />
+      </div>
+      <div>
+        <label htmlFor={`${baseId}-sublabel`} className={labelClass}>
+          Sublabel / disclosure (optional)
+        </label>
+        <input
+          id={`${baseId}-sublabel`}
+          type="text"
+          maxLength={200}
+          value={block.sublabel ?? ""}
+          onChange={(e) =>
+            onChange({ ...block, sublabel: e.target.value || undefined })
+          }
+          className={`mt-1 ${inputClass}`}
         />
       </div>
     </div>

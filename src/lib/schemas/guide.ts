@@ -119,6 +119,17 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     action: z.enum(["downloadKicadStarter"]),
     label: z.string().trim().min(1).max(120),
   }),
+  // vendorCta — an external affiliate call-to-action (GTM monetization). `vendor`
+  // is a small validated enum; the SERVER renderer resolves it to the configured
+  // referral URL (`src/lib/affiliates.ts`, env-driven) and renders a styled
+  // rel="sponsored nofollow" link with an FTC disclosure. The actual affiliate URL
+  // is NEVER stored in content — only the vendor key — so the IDs stay in env.
+  z.object({
+    type: z.literal("vendorCta"),
+    vendor: z.enum(["pcbway-order", "newark-bom"]),
+    label: z.string().trim().min(1).max(120),
+    sublabel: z.string().max(200).optional(),
+  }),
 ]);
 export type ContentBlock = z.infer<typeof contentBlockSchema>;
 

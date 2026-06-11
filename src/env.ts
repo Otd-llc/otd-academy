@@ -27,6 +27,13 @@ export const env = createEnv({
     // key, so a build/CI with no keys must still pass.
     STRIPE_SECRET_KEY: z.string().optional(),
     STRIPE_WEBHOOK_SECRET: z.string().optional(),
+    // Affiliate referral URLs (GTM monetization). OPTIONAL: the affiliate CTA in a
+    // guide card falls back to the plain vendor URL when unset, so the link works
+    // (untracked) before you've joined the program and pasted your referral link.
+    // PCBWAY_AFFILIATE_URL — your PCBWay referral/order link.
+    // NEWARK_AFFILIATE_URL — your Newark (CJ Affiliate) deep link to newark.com.
+    PCBWAY_AFFILIATE_URL: z.url().optional(),
+    NEWARK_AFFILIATE_URL: z.url().optional(),
   },
   client: {
     // Public site origin used as the metadataBase for absolute SEO URLs
@@ -51,5 +58,7 @@ export const env = createEnv({
     KICAD_EXPORT_COMPANY: process.env.KICAD_EXPORT_COMPANY,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+    PCBWAY_AFFILIATE_URL: process.env.PCBWAY_AFFILIATE_URL,
+    NEWARK_AFFILIATE_URL: process.env.NEWARK_AFFILIATE_URL,
   },
 });
