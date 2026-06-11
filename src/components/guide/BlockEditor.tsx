@@ -509,6 +509,31 @@ function MediaEditor({
           className={`mt-1 ${inputClass}`}
         />
       </div>
+      <div>
+        <label htmlFor={`${baseId}-aspect`} className={labelClass}>
+          Capture aspect (locks the capture tool&rsquo;s crop)
+        </label>
+        <select
+          id={`${baseId}-aspect`}
+          value={block.aspect ?? ""}
+          onChange={(e) =>
+            onChange({
+              ...block,
+              aspect: (e.target.value || undefined) as typeof block.aspect,
+            })
+          }
+          className={`mt-1 ${selectClass}`}
+        >
+          <option value="">
+            Default ({block.type === "video" ? "16:9" : "16:10"})
+          </option>
+          {(["16:10", "16:9", "4:3", "1:1", "free"] as const).map((a) => (
+            <option key={a} value={a}>
+              {a}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }

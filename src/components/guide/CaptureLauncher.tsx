@@ -43,6 +43,7 @@ export function CaptureLauncher({
         kind: s.kind,
         hint: s.hint,
         caption: s.caption,
+        aspect: s.aspect,
       });
       // Hand off to the desktop app through the registered protocol.
       window.location.href = `otd-capture://capture?${params.toString()}`;
