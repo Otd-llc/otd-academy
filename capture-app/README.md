@@ -33,8 +33,9 @@ writes it to HKCU). After that the lesson **+** can launch it even when it's clo
    For a clip: **Space** starts, **Space** again stops. **Esc** cancels.
 5. **Review** → **Approve** / **Redo**.
 6. Approve → the cropped capture is encoded (WebP still · WebM/MP4 clip with the
-   duration fixes) and **uploaded into that placeholder**. Refresh the lesson to see
-   it.
+   duration fixes) and **uploaded into that placeholder**. The app then **closes
+   itself**, and the **lesson page updates in place** — no refresh. (On an upload
+   error it stays on Review so you can retry.)
 
 ## How the hand-off works
 

@@ -30,6 +30,8 @@
   const startBtnEl = $("startBtn");
   const headerEl = $("header");
   const closeBtnEl = $("closeBtn");
+  const reviewStatusEl = $("reviewStatus");
+  const againBtnEl = $("againBtn");
 
   // Aspect token (from the placeholder) → ratio. 0 = free (standalone only).
   const ASPECTS = {
@@ -85,6 +87,8 @@
     aspectRowEl.classList.add("hidden");
     aspectLabelEl.classList.add("hidden");
     startBtnEl.textContent = "Start capture";
+    // One-shot: the site initiated this capture, so there's no "capture another".
+    againBtnEl.classList.add("hidden");
     phase = "setup";
     showSection("setup");
   });
@@ -340,6 +344,7 @@
     window.otd.disarmSpace();
     stopStream();
     boxEl.classList.add("hidden");
+    reviewStatusEl.classList.add("hidden");
     if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     previewUrl = url;
     reviewMediaEl.innerHTML = isVideo
@@ -363,9 +368,18 @@
         base64: captured.base64,
         caption,
       });
-      doneMsg.textContent = res.ok
-        ? "Uploaded ✓ — refresh the lesson page to see it."
-        : "Upload failed: " + (res.error || "unknown error");
+      if (res.ok) {
+        // One-shot: the lesson page picks up the upload on its own. Close.
+        doneMsg.textContent = "Uploaded ✓";
+        setTimeout(() => window.otd.quit(), 800);
+      } else {
+        // Keep the capture; drop back to review so Approve retries (Redo re-frames).
+        reviewStatusEl.textContent =
+          "Upload failed: " + (res.error || "unknown error") + " — try again.";
+        reviewStatusEl.classList.remove("hidden");
+        phase = "review";
+        showSection("review");
+      }
       return;
     }
     const path = await window.otd.save({
