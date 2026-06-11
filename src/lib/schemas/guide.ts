@@ -79,6 +79,10 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     ),
     alt: z.string().max(200),
     caption: z.string().max(200).optional(),
+    // Author instruction for an EMPTY-src placeholder an admin fills via the
+    // in-app screen-record tool (e.g. "Route the USB diff-pair"). Shown in the
+    // capture modal; ignored once `src` is filled.
+    captureHint: z.string().max(200).optional(),
   }),
   // quiz — an interactive multiple-choice comprehension check. Client-scored
   // (immediate feedback), and ADDITIVE to the stage work-gate, not a replacement.

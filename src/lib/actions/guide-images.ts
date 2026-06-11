@@ -81,7 +81,7 @@ const setImageInputSchema = z.object({
   ext: SHOT_EXT.default("webp"),
 });
 
-export async function setGuideBlockImage(input: unknown) {
+export async function setGuideBlockMedia(input: unknown) {
   const data = setImageInputSchema.parse(input);
   await requireAdmin();
 
@@ -101,8 +101,8 @@ export async function setGuideBlockImage(input: unknown) {
 
         const blocks = guideContentBlocksSchema.parse(card.contentBlocks);
         const block = blocks[data.blockIndex];
-        if (!block || block.type !== "image") {
-          throw new Error("Target block is not an image block.");
+        if (!block || (block.type !== "image" && block.type !== "video")) {
+          throw new Error("Target block is not an image or video block.");
         }
         blocks[data.blockIndex] = { ...block, src };
         // Re-validate the whole array before writing (belt-and-suspenders).
