@@ -79,6 +79,8 @@ const setImageInputSchema = z.object({
   blockIndex: z.number().int().nonnegative(),
   shotId: z.string().regex(/^[a-z0-9]+$/),
   ext: SHOT_EXT.default("webp"),
+  // The capture description becomes the block's caption (the on-page metadata).
+  caption: z.string().max(200).optional(),
 });
 
 export async function setGuideBlockMedia(input: unknown) {
@@ -104,7 +106,11 @@ export async function setGuideBlockMedia(input: unknown) {
         if (!block || (block.type !== "image" && block.type !== "video")) {
           throw new Error("Target block is not an image or video block.");
         }
-        blocks[data.blockIndex] = { ...block, src };
+        blocks[data.blockIndex] = {
+          ...block,
+          src,
+          ...(data.caption !== undefined ? { caption: data.caption } : {}),
+        };
         // Re-validate the whole array before writing (belt-and-suspenders).
         const next = guideContentBlocksSchema.parse(blocks);
 
