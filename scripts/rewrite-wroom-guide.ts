@@ -1171,9 +1171,9 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "callout",
-        label: "00 · Set up the board — to your fab's rules",
+        label: "00 · The board: two copper layers",
         severity: "info",
-        body: "Before you place a single part: the board's two layers and its ground plane, and — the move beginners skip — loading your fab's design rules so every trace you draw is one the factory can actually make.",
+        body: "Before anything else, know your canvas: this is a two-layer board, and the bottom layer has one big job.",
       },
       {
         type: "prose",
@@ -1197,23 +1197,50 @@ const CARDS: Record<string, Card> = {
         body: "It's tempting to think a signal is just the trace going out. But current can't go anywhere without a way back — every signal travels in a loop, out on the trace and home through ground. A solid ground plane lets that return current flow *directly underneath* the trace, making the smallest possible loop. Small loop → low inductance → a clean signal and a rail that doesn't sag. Break the plane (a slot, a gap, a crowd of vias) and the return has to detour around it, the loop balloons, and you get the exact droop and noise the plane was there to prevent. So on a two-layer board the single most useful habit is: keep the bottom-layer ground pour as unbroken as you can.",
       },
       {
+        type: "callout",
+        label: "01 · Set up PCBWay's rules — before you route",
+        severity: "warn",
+        body: "The move beginners skip and pros never do: tell KiCad what your factory can build, before you draw a single trace. Then it won't let you draw one they can't.",
+      },
+      {
         type: "prose",
-        md: "Now the move that decides whether your board *builds* or bounces back: **tell KiCad what your factory can make — before you route a trace.** This course builds at **PCBWay**, and they publish their limits as a ready-made KiCad file, so you transcribe nothing: drop their **`.kicad_dru`** into your project folder and **Board Setup ▸ Design Rules** loads their real numbers — roughly **6 mil (0.15 mm) trace and space**, **0.3 mm vias on a 0.15 mm drill**. In the same place, set up **net classes**: a **Power** class (~0.4–0.5 mm) for the VBUS / +5V / +3V3 chain, a **Signal** class (~0.25 mm) for the rest, and the USB pair as a differential pair. From here on KiCad enforces all of it *live* — it won't let you draw a trace thinner than PCBWay can etch, and it flags a too-tight clearance the moment you make it, instead of after the whole board is routed.",
+        md: "Every board house has limits — the thinnest trace they can etch, the smallest gap, the smallest hole. **PCBWay** (where this course builds) is no exception. You type their numbers into KiCad **once**, here, and from then on it enforces them *live*: it won't let you draw a trace thinner than they can make, and it flags a too-tight gap the moment you create it — not after the whole board is routed. It's two screens of **File ▸ Board Setup**, then you load PCBWay's full rules file on top. Here's what each number means, then the exact clicks — copy the values straight in.",
+      },
+      {
+        type: "table",
+        columns: ["Rule", "What it means", "Type this"],
+        rows: [
+          [{ text: "Min track width" }, { text: "The thinnest copper trace PCBWay can reliably etch." }, { text: "0.15 mm", tone: "gold", decoration: "badge" }],
+          [{ text: "Min clearance" }, { text: "Smallest gap between two coppers before they risk shorting." }, { text: "0.15 mm", tone: "gold", decoration: "badge" }],
+          [{ text: "Min hole / drill" }, { text: "Smallest hole their drill makes (smaller than this costs extra)." }, { text: "0.3 mm", tone: "gold", decoration: "badge" }],
+          [{ text: "Min annular ring" }, { text: "The copper collar around a hole that must survive a slightly-off drill." }, { text: "0.15 mm", tone: "gold", decoration: "badge" }],
+        ],
+      },
+      {
+        type: "steps",
+        ordered: true,
+        items: [
+          "Open File ▸ Board Setup ▸ Design Rules ▸ Constraints. Type the four numbers from the table into the matching boxes: min track width 0.15 mm, min clearance 0.15 mm, min hole 0.3 mm, min annular ring 0.15 mm. This is the floor KiCad enforces as you route.",
+          "Go to Board Setup ▸ Net Classes. Leave the Default class at a 0.25 mm track width (your signals). Add a class called Power with a 0.5 mm track width and assign the nets VBUS, +5V, and +3V3 to it — 0.5 mm carries this board's ~600 mA with margin, so you don't have to think about it again.",
+          "Now PCBWay's full rules file. Open the link below, click the KiCad folder, click the .zip file, then click the Download (⤓) button (not the filename) — it saves to Downloads as a .zip. Right-click it ▸ Extract All to get the .kicad_dru inside.",
+          "Make KiCad use it: rename that file to exactly match your project — your-board.kicad_dru — and put it in your project folder (the one that holds your-board.kicad_pcb). KiCad only auto-loads a rules file whose name matches the project. (No luck? Open the file in Notepad, copy all of it, and paste it into Board Setup ▸ Design Rules ▸ Custom Rules instead.)",
+          "Verify it took: reopen Board Setup ▸ Design Rules ▸ Custom Rules — you should see PCBWay's rule text filling the panel. Empty? The filename doesn't match your project — fix it and reopen. (Your final DRC at the end is the last proof.)",
+        ],
       },
       {
         type: "sourceRef",
-        label: "PCBWay's official KiCad design-rules file (.kicad_dru)",
+        label: "PCBWay's KiCad design-rules file (the .zip is in the KiCad folder)",
         href: "https://github.com/pcbway/PCBWay-Design-Rules",
       },
       {
         type: "callout",
         label: "Check yourself",
         severity: "info",
-        body: "Why load the fab's rules before routing instead of checking at the end? Because then the rules steer every trace as you draw it — you never route something the fab can't build, and never tear up finished work to fix a clearance. You prove it can be built, then build it. (Same reason you lock the BOM before drawing the schematic.)",
+        body: "Why set the rules before routing instead of checking at the end? Because then KiCad steers every trace as you draw it — you never route something PCBWay can't build, and never tear up finished work to fix a clearance. You prove it can be built, then build it. (Same reason you lock the BOM before drawing the schematic.)",
       },
       {
         type: "callout",
-        label: "01 · Floor-plan before you route",
+        label: "02 · Floor-plan before you route",
         severity: "info",
         body: "Routing is easy when the parts sit in sensible places and miserable when they don't. Place first.",
       },
@@ -1235,7 +1262,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "callout",
-        label: "02 · The antenna keep-out",
+        label: "03 · The antenna keep-out",
         severity: "warn",
         body: "U1's antenna only works over empty board — and this is the one mistake you can't fix later.",
       },
@@ -1267,7 +1294,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "callout",
-        label: "03 · Decoupling caps go first, and close",
+        label: "04 · Decoupling caps go first, and close",
         severity: "info",
         body: "Remember C2/C3/C7? Their whole value is decided here, by where you place them.",
       },
@@ -1294,7 +1321,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "callout",
-        label: "04 · The USB data pair",
+        label: "05 · The USB data pair",
         severity: "info",
         body: "D+ and D− are a team — route them as one, with the tool the schematic naming unlocked.",
       },
@@ -1321,7 +1348,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "callout",
-        label: "05 · Pour and stitch the ground",
+        label: "06 · Pour and stitch the ground",
         severity: "info",
         body: "Now make the ground plane real — and tie everything to it.",
       },
@@ -1382,7 +1409,7 @@ const CARDS: Record<string, Card> = {
         type: "steps",
         ordered: true,
         items: [
-          "Put each net on its class from Board Setup — Power (~0.4–0.5 mm) for the VBUS / +5V / +3V3 chain, Signal (~0.25 mm) for the rest — so every trace draws at a buildable width automatically.",
+          "Your net classes are already set from setup: Power at 0.5 mm carries VBUS / +5V / +3V3, Default at 0.25 mm carries the signals — so every trace draws at the right width automatically. Nothing to pick here.",
           "Route power and ground first — the short, fat paths the rail depends on.",
           "Route the USB pair with the differential-pair router (the next block walks it).",
           "Route the remaining signals — the GPIO breakouts can wander a little; just keep them off the keep-out.",
