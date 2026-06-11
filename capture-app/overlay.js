@@ -22,6 +22,7 @@
   const framingStatus = framingEl.querySelector("#status");
   const doneMsg = doneEl.querySelector("#status");
   const sessionInfoEl = $("sessionInfo");
+  const standaloneNoteEl = $("standaloneNote");
   const sessionWhatEl = $("sessionWhat");
   const modeRowEl = $("modeRow");
   const modeLabelEl = $("modeLabel");
@@ -78,6 +79,7 @@
         ? "Record the clip described in the lesson."
         : "Capture the screenshot described in the lesson.");
     sessionInfoEl.classList.remove("hidden");
+    standaloneNoteEl.classList.add("hidden");
     captionEl.value = s.caption || "";
     // Aspect is LOCKED by the placeholder — never the operator's to change. Hide
     // the chooser and use the ratio the lesson specified.

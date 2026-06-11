@@ -245,7 +245,7 @@ function ImageBlock({
       </details>
     );
   }
-  return (
+  const figure = (
     <figure className="space-y-2">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -261,6 +261,30 @@ function ImageBlock({
       ) : null}
     </figure>
   );
+  // Admins can re-capture a shot they took (an /api/shot/ src) — not the baked-in
+  // SVG diagrams.
+  if (
+    isAdmin &&
+    cardId &&
+    blockIndex !== undefined &&
+    src.startsWith("/api/shot/")
+  ) {
+    return (
+      <div className="space-y-2">
+        {figure}
+        <CaptureLauncher
+          kind="image"
+          cardId={cardId}
+          blockIndex={blockIndex}
+          captureHint={captureHint}
+          caption={caption}
+          existing
+          currentSrc={src}
+        />
+      </div>
+    );
+  }
+  return figure;
 }
 
 // Video block. An mp4 source plays inline (controls); an empty src renders the
@@ -302,7 +326,7 @@ function VideoBlock({
     }
     return placeholder;
   }
-  return (
+  const figure = (
     <figure className="space-y-2">
       <video
         controls
@@ -318,6 +342,28 @@ function VideoBlock({
       ) : null}
     </figure>
   );
+  if (
+    isAdmin &&
+    cardId &&
+    blockIndex !== undefined &&
+    src.startsWith("/api/shot/")
+  ) {
+    return (
+      <div className="space-y-2">
+        {figure}
+        <CaptureLauncher
+          kind="video"
+          cardId={cardId}
+          blockIndex={blockIndex}
+          captureHint={captureHint}
+          caption={caption}
+          existing
+          currentSrc={src}
+        />
+      </div>
+    );
+  }
+  return figure;
 }
 
 function ProseBlock({ md }: { md: string }) {

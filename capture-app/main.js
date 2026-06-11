@@ -31,10 +31,29 @@ const PROTOCOL = "otd-capture";
 let overlay = null;
 let pendingSession = null; // a deep link that arrived before the overlay loaded
 
+// Debug log → ~/Downloads/otd-captures/otd-capture.log. The ground truth for "the
+// capture didn't show up": shows the launch argv, whether a deep link was parsed,
+// whether a session reached the renderer, and every upload's response (or a
+// STANDALONE save-to-disk line if no lesson target ever arrived).
+const LOG_FILE = path.join(
+  os.homedir(),
+  "Downloads",
+  "otd-captures",
+  "otd-capture.log",
+);
+function logLine(msg) {
+  try {
+    fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });
+    fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] ${msg}\n`);
+  } catch {
+    // logging must never break the app
+  }
+}
+
 function parseDeepLink(link) {
   try {
     const u = new URL(link);
-    return {
+    const s = {
       api: u.searchParams.get("api") || "",
       token: u.searchParams.get("token") || "",
       kind: u.searchParams.get("kind") === "video" ? "video" : "image",
@@ -42,19 +61,29 @@ function parseDeepLink(link) {
       caption: u.searchParams.get("caption") || "",
       aspect: u.searchParams.get("aspect") || "",
     };
-  } catch {
+    logLine(
+      `deep link parsed: api=${s.api} kind=${s.kind} aspect=${s.aspect} hasToken=${!!s.token}`,
+    );
+    return s;
+  } catch (e) {
+    logLine(`deep link PARSE FAILED for "${link}": ${e && e.message}`);
     return null;
   }
 }
 
 function deliverSession(s) {
-  if (!s || !s.token) return;
+  if (!s || !s.token) {
+    logLine("deliverSession: no session/token — ignored");
+    return;
+  }
   if (overlay && !overlay.webContents.isLoading()) {
     overlay.webContents.send("capture:session", s);
     overlay.show();
     overlay.focus();
+    logLine("session delivered to renderer (overlay ready)");
   } else {
     pendingSession = s; // flushed on did-finish-load
+    logLine("session queued (overlay not ready yet)");
   }
 }
 
@@ -161,9 +190,11 @@ if (!gotLock) {
       { useSystemPicker: false },
     );
 
+    logLine(`app ready. argv: ${JSON.stringify(process.argv)}`);
     // First-launch deep link (Windows passes it in argv).
     const link = process.argv.find((a) => a.startsWith(`${PROTOCOL}://`));
     if (link) pendingSession = parseDeepLink(link);
+    else logLine("no deep link in launch argv (standalone launch)");
 
     createOverlay();
 
@@ -199,6 +230,8 @@ ipcMain.on("disarm-space", () => {
 ipcMain.handle(
   "upload-capture",
   async (_e, { api, token, ext, base64, caption }) => {
+    const body = Buffer.from(base64, "base64");
+    logLine(`upload → ${api}/api/capture ext=${ext} bytes=${body.length}`);
     try {
       const ctype =
         ext === "webp" ? "image/webp" : ext === "mp4" ? "video/mp4" : "video/webm";
@@ -208,14 +241,16 @@ ipcMain.handle(
       const res = await fetch(`${api}/api/capture?${qs}`, {
         method: "POST",
         headers,
-        body: Buffer.from(base64, "base64"),
+        body,
       });
       const json = await res.json().catch(() => ({}));
+      logLine(`upload response: ${res.status} ${JSON.stringify(json)}`);
       if (!res.ok) {
         return { ok: false, error: json.error || `HTTP ${res.status}` };
       }
       return { ok: true, src: json.src };
     } catch (e) {
+      logLine(`upload THREW: ${e && e.message}`);
       return { ok: false, error: e && e.message ? e.message : "Upload failed." };
     }
   },
@@ -233,6 +268,7 @@ ipcMain.handle("save-capture", async (_e, { base64, ext, caption }) => {
       .slice(0, 48) || "capture";
   const file = path.join(dir, `${slug}-${Date.now()}.${ext}`);
   fs.writeFileSync(file, Buffer.from(base64, "base64"));
+  logLine(`STANDALONE save-to-disk (no lesson target): ${file}`);
   return file;
 });
 
