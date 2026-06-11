@@ -51,6 +51,18 @@ const PROOF_HELP: Partial<Record<ArtifactSubkind, ProofHelp>> = {
       "Upload the .kicad_pcb file (or the plotted PDF) with the picker below.",
     ],
   },
+  DRC_REPORT: {
+    requirement:
+      "Run KiCad's Design Rules Check (DRC) on your board and upload the report once it's clean — zero violations.",
+    howToTitle: "How to run DRC and export the report in KiCad 10",
+    steps: [
+      "In KiCad 10, open the PCB Editor for your project.",
+      "Run Inspect ▸ Design Rules Checker, then press Run DRC.",
+      "Fix every violation: clearance and track-width errors (nudge a trace apart or widen it), unconnected items (finish the route, or add a no-connect), and courtyard overlaps (move a part).",
+      "Re-run until it reports zero violations, then use Save… in the DRC dialog to write the report file.",
+      "Upload that DRC report with the picker below.",
+    ],
+  },
 };
 
 /** How-to guidance for a learner proof subkind, or undefined when none exists. */

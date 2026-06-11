@@ -31,8 +31,9 @@ export interface GateSpec {
 }
 
 // A proof artifact is required only where a learner produces real CAD: a clean
-// ERC report at SCHEMATIC, the layout file at LAYOUT. Everything before is
-// comprehension (quiz-only); the deep fab chain after stays the shared reference.
+// ERC report at SCHEMATIC, a clean DRC report at LAYOUT — each verified to zero
+// errors/violations. Everything before is comprehension (quiz-only); the deep fab
+// chain after stays the shared reference.
 const ARTIFACT: Partial<Record<Stage, GateArtifactSpec>> = {
   SCHEMATIC: {
     subkind: "ERC_REPORT",
@@ -41,10 +42,10 @@ const ARTIFACT: Partial<Record<Stage, GateArtifactSpec>> = {
     validate: "erc",
   },
   LAYOUT: {
-    subkind: "LAYOUT_FILE",
-    label: "layout file",
-    accept: ".kicad_pcb,.pdf",
-    validate: null,
+    subkind: "DRC_REPORT",
+    label: "clean DRC report",
+    accept: ".rpt,.txt",
+    validate: "drc",
   },
 };
 

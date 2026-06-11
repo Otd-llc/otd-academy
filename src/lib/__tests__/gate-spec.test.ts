@@ -27,11 +27,13 @@ describe("gateSpec", () => {
     expect(s.artifact?.validate).toBe("erc");
   });
 
-  test("LAYOUT: layout file, presence-only (no validator yet)", () => {
+  test("LAYOUT: quiz + clean DRC report, .rpt accept, drc validator", () => {
     const s = gateSpec("LAYOUT");
-    expect(s.artifact?.subkind).toBe("LAYOUT_FILE");
-    expect(s.artifact?.accept).toContain(".kicad_pcb");
-    expect(s.artifact?.validate).toBeNull();
+    expect(s.quiz).toBe(true);
+    expect(s.artifact?.subkind).toBe("DRC_REPORT");
+    expect(s.artifact?.label).toBe("clean DRC report");
+    expect(s.artifact?.accept).toContain(".rpt");
+    expect(s.artifact?.validate).toBe("drc");
   });
 
   test("quiz-only stages require a quiz and carry no artifact", () => {

@@ -24,6 +24,7 @@ import { learnerExitGate, learnerProofSubkind } from "@/lib/learner-gates";
 import { gateSpec } from "@/lib/gate-spec";
 import { getR2ObjectText } from "@/lib/part-r2";
 import { validateErcReport } from "@/lib/kicad/erc-report";
+import { validateDrcReport } from "@/lib/kicad/drc-report";
 import { hasProjectEntitlement } from "@/lib/entitlements";
 import { loadLearnerGateContext } from "@/lib/load-learner-gate-context";
 import { STAGE_VALUES } from "@/lib/schemas/project-dependency";
@@ -31,7 +32,7 @@ import { MAX_UPLOAD_BYTES } from "@/lib/schemas/upload";
 
 const PROOF_PUT_TTL_SECONDS = 900; // 15 min, mirrors uploads.ts
 // ERC reports are kilobytes; refuse to slurp a huge file into memory as text.
-const ERC_VALIDATE_MAX_BYTES = 5_000_000;
+const REPORT_VALIDATE_MAX_BYTES = 5_000_000;
 
 function ensureR2Enabled(): void {
   if (!env.R2_ENABLED) {
@@ -342,17 +343,18 @@ export async function recordEnrollmentProof(
     );
   }
 
-  // Content validation ("passes muster") for subkinds that carry a validator —
-  // an ERC_REPORT must parse to ZERO errors. The artifact is still recorded on a
-  // fail (valid=false) so the gate can show the specific reason; the gate only
-  // clears on valid=true. Presence-only subkinds leave valid = null.
+  // Content validation ("passes muster") for subkinds that carry a validator — an
+  // ERC_REPORT must parse to ZERO errors, a DRC_REPORT to ZERO violations. The
+  // artifact is still recorded on a fail (valid=false) so the gate can show the
+  // specific reason; the gate only clears on valid=true. Presence-only subkinds
+  // leave valid = null.
   const validator = gateSpec(data.stage).artifact?.validate ?? null;
   let valid: boolean | null = null;
   let validationDetail: string | null = null;
-  if (validator === "erc") {
-    if (actualSize > ERC_VALIDATE_MAX_BYTES) {
+  if (validator === "erc" || validator === "drc") {
+    if (actualSize > REPORT_VALIDATE_MAX_BYTES) {
       valid = false;
-      validationDetail = "file is far too large to be an ERC report";
+      validationDetail = `file is far too large to be a ${validator.toUpperCase()} report`;
     } else {
       let text: string;
       try {
@@ -365,7 +367,10 @@ export async function recordEnrollmentProof(
           "Could not read the uploaded file to validate it — try again.",
         );
       }
-      const result = validateErcReport(text);
+      const result =
+        validator === "erc"
+          ? validateErcReport(text)
+          : validateDrcReport(text);
       valid = result.ok;
       validationDetail = result.detail;
     }
