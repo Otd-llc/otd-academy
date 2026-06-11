@@ -115,6 +115,7 @@
       .btns .btn { flex: 1; }
       #status { margin-top: 10px; font-size: 11px; color: var(--muted); line-height: 1.5; }
       #status .rec { color: var(--red); }
+      #reviewStatus { margin: 8px 0 0; font-size: 11px; color: var(--red); line-height: 1.5; }
       /* deep-link "what to capture" callout */
       .info {
         margin-bottom: 6px;
@@ -228,6 +229,7 @@
 
       <div id="review" class="hidden">
         <div id="reviewMedia"></div>
+        <p id="reviewStatus" class="hidden"></p>
         <div class="btns">
           <button class="btn" id="approveBtn">Approve</button>
           <button class="btn ghost" id="redoBtn">Redo</button>

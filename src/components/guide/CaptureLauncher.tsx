@@ -7,7 +7,8 @@
 //   pops up showing that description → frame → Space → review → approve uploads
 //   straight into THIS block. A small "or capture in browser" link falls back to
 //   the in-page MediaCapture when the desktop app isn't installed.
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createCaptureSession } from "@/lib/actions/guide-images";
 import { MediaCapture } from "@/components/guide/MediaCapture";
 
@@ -15,6 +16,9 @@ type Status =
   | { kind: "idle" }
   | { kind: "opened"; message: string }
   | { kind: "error"; message: string };
+
+const POLL_MS = 2000;
+const POLL_MAX = 150; // ~5 min
 
 export function CaptureLauncher({
   kind,
@@ -31,8 +35,47 @@ export function CaptureLauncher({
 }) {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [browser, setBrowser] = useState(false);
+  const router = useRouter();
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Stop polling if this launcher unmounts (e.g. the slot filled and the block
+  // now renders the media instead of the "+").
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
 
   const label = kind === "video" ? "Add clip" : "Add screenshot";
+
+  // Watch the slot; when the desktop app's upload lands, soft-refresh so the
+  // image/clip appears in place — no manual reload.
+  function pollForFill(token: string) {
+    if (pollRef.current) clearInterval(pollRef.current);
+    let tries = 0;
+    pollRef.current = setInterval(async () => {
+      tries += 1;
+      if (tries > POLL_MAX) {
+        if (pollRef.current) clearInterval(pollRef.current);
+        return;
+      }
+      try {
+        const res = await fetch(
+          `/api/capture/status?token=${encodeURIComponent(token)}`,
+          { cache: "no-store" },
+        );
+        if (!res.ok) return;
+        const data = (await res.json()) as { filled?: boolean };
+        if (data.filled) {
+          if (pollRef.current) clearInterval(pollRef.current);
+          setStatus({ kind: "opened", message: "Capture received — updating…" });
+          router.refresh();
+        }
+      } catch {
+        // transient; keep polling
+      }
+    }, POLL_MS);
+  }
 
   async function launch() {
     try {
@@ -50,8 +93,9 @@ export function CaptureLauncher({
       setStatus({
         kind: "opened",
         message:
-          "Opening OTD Capture — frame it, press Space, approve, then refresh this page.",
+          "Opening OTD Capture — frame it, press Space, approve. This page updates itself.",
       });
+      pollForFill(s.token);
     } catch {
       setStatus({
         kind: "error",
