@@ -556,7 +556,7 @@ const CARDS: Record<string, Card> = {
       {
         type: "image",
         src: "/guide-diagrams/l1-01-sub-usb.svg",
-        alt: "USB front-end: J1 USB-C, R3/R4 (5.1k) on CC1/CC2, doubled data pins joined to USB_D+/USB_D−, F1 polyfuse on VBUS, D1 ESD array on the data lines.",
+        alt: "USB front-end: J1 USB-C, R3/R4 (5.1k) on CC1/CC2, doubled data pins joined to USB_D+/USB_D-, F1 polyfuse on VBUS, D1 ESD array on the data lines.",
         caption: "Check the connector — CC resistors to GND, the data pairs joined.",
         reveal: "Check your work · USB-C connector",
       },
@@ -646,7 +646,7 @@ const CARDS: Record<string, Card> = {
         columns: ["D1 pin", "Name", "Wire to"],
         rows: [
           [{ text: "1, 6" }, { text: "I/O1" }, { text: "USB_D+" }],
-          [{ text: "3, 4" }, { text: "I/O2" }, { text: "USB_D−" }],
+          [{ text: "3, 4" }, { text: "I/O2" }, { text: "USB_D-" }],
           [{ text: "2" }, { text: "GND" }, { text: "GND" }],
           [{ text: "5" }, { text: "VBUS" }, { text: "VBUS" }],
         ],
@@ -794,12 +794,12 @@ const CARDS: Record<string, Card> = {
           [
             { text: "J1 data pins: DP1 / DN1 / DP2 / DN2" },
             { text: "D+ / D− doubled (Type-C is reversible)" },
-            { text: "DP1+DP2 → USB_D+, DN1+DN2 → USB_D−. VBUS/GND are single pins; CC1/CC2 stay separate (your two Rd's)." },
+            { text: "DP1+DP2 → USB_D+, DN1+DN2 → USB_D-. VBUS/GND are single pins; CC1/CC2 stay separate (your two Rd's)." },
           ],
           [
             { text: "U1 shows one GND pin" },
-            { text: "The pad underneath is hidden GND pins that auto-connect" },
-            { text: "Wire the visible pin; the pad grounds itself. (View ▸ Show Hidden Pins to see it.)" },
+            { text: "Hidden GND pins on the pad (auto-join the GND net by name)" },
+            { text: "Drop a GND port on the visible pin; confirm the hidden ones land on GND (Show Hidden Pins)." },
           ],
           [
             { text: "D1 pins: I/O1 / I/O2" },
@@ -891,8 +891,8 @@ const CARDS: Record<string, Card> = {
         items: [
           "Press P and drop a +3V3 power port; click it onto U2's VOUT pin — that's where the 3.3 V comes out.",
           "Drop a +3V3 port on U1's 3V3 pin too, and on one leg of C1, C2, C3, C7. Same label = same net, no wire drawn between them.",
-          "Press P for GND; drop GND ports on U1's visible GND pin, the other leg of each of those caps, and U2's GND. (U1's hidden pad pins ground themselves — you don't place a port on them.)",
-          "Run Inspect → Electrical Rules Checker. The +3V3 rail comes up clean — KiCad sees the regulator's output driving it. Watch instead for the rails with no driver: when you wire VBUS and +5V, ERC says 'input power pin not driven' — drop a PWR_FLAG on each (and one on GND) to tell ERC real power enters there.",
+          "Press P for GND; drop GND ports on U1's visible GND pin, the other leg of each of those caps, and U2's GND. (U1's hidden pad pins auto-join GND by name — confirm with Show Hidden Pins; the port on the visible pin makes the tie certain.)",
+          "Hold off on a full ERC until the whole sheet is wired — with most pins still open it'd just be a wall of 'not connected' noise. But know what this rail does once you run it: +3V3 reads clean, because KiCad sees U2's VOUT driving it. The rails with no part as their source — VBUS, +5V, and GND — read 'input power pin not driven' until you drop a PWR_FLAG on each to tell ERC that real power enters there.",
           "That's one net done. Every rail and signal after this is the same three moves: name it, drop ports, repeat.",
         ],
       },
@@ -957,7 +957,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "First, **grounds**. Every GND pin ties to the *same* net — the [[power port|power-port]] trick makes that painless: drop a GND port at each ground instead of running lines across the sheet. The big pad under the WROOM module grounds *itself* — its hidden GND pins auto-connect, so you don't wire it by hand; just confirm it with **View ▸ Show Hidden Pins** and a clean ERC.\n\nSecond, the **USB-C data pins**. Type-C is reversible, so J1 carries **two copies of each data line** — tie `DP1` + `DP2` and `DN1` + `DN2` each into one net. (`VBUS` and `GND` are already single pins here; the two **CC** pins stay separate, one [[Rd]] each, which is why there are two.)\n\nThird, **anything you're leaving open**. A spare GPIO you didn't break out, the connector's unused SBU pins, an unused regulator pin — drop a no-connect flag (the **Q** key) on each. That turns 'I forgot this' into 'I meant this' — the difference between a clean ERC and a screen of warnings you'll be tempted to scroll past.",
+        md: "First, **grounds**. Every GND pin ties to the *same* net — the [[power port|power-port]] trick makes that painless: drop a GND port at each ground instead of running lines across the sheet. The big pad under the WROOM module has *hidden* GND pins: KiCad auto-connects an invisible power pin to the net of its name, so they join GND on their own — **but only because your ground net is named GND too**. Don't lean on that invisible link: turn on **View ▸ Show Hidden Pins**, confirm those pins land on GND, and drop a GND port on the module's visible ground pin so the tie is *on the sheet*, not just implied. (An unseen ground is exactly the kind ERC can miss.)\n\nSecond, the **USB-C data pins**. Type-C is reversible, so J1 carries **two copies of each data line** — tie `DP1` + `DP2` and `DN1` + `DN2` each into one net. (`VBUS` and `GND` are already single pins here; the two **CC** pins stay separate, one [[Rd]] each, which is why there are two.)\n\nThird, **anything you're leaving open**. A spare GPIO you didn't break out, the connector's unused SBU pins, an unused regulator pin — drop a no-connect flag (the **Q** key) on each. That turns 'I forgot this' into 'I meant this' — the difference between a clean ERC and a screen of warnings you'll be tempted to scroll past.",
       },
       {
         type: "callout",
