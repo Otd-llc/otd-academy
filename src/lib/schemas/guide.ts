@@ -58,6 +58,10 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     // When set, the image renders inside a COLLAPSED <details> with this string as
     // the summary (a "Check your work ▸" reveal) instead of always-visible.
     reveal: z.string().max(80).optional(),
+    // When true, the image renders ALWAYS-VISIBLE inside the same fixed white box
+    // as `reveal` (object-contain, no full-width balloon) — a teaching diagram that
+    // sits open beside the prose. Ignored when `reveal` is set.
+    boxed: z.boolean().optional(),
   }),
   // video — an mp4 clip, same scheme guard + empty-as-placeholder rule as image.
   // An empty src renders a "to be added" placeholder slot (the alt/caption is the

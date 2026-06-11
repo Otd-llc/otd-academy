@@ -365,7 +365,7 @@ const CARDS: Record<string, Card> = {
         type: "image",
         src: "/guide-diagrams/wroom-power-flow.svg",
         alt: "Power-flow block diagram: USB-C J1 to polyfuse F1 to RT9080 LDO U2 to 3.3 V for the ESP32-S3 U1; USB data via the D1 ESD array; with C1 bulk, C2/C3/C7 decoupling, and R3/R4 CC resistors to ground.",
-        caption: "How it all connects — power flows left to right; the six sections below follow this path.",
+        caption: "How it all connects — power flows left to right; the six sub-circuits below follow this path.",
       },
       {
         type: "partModel",
@@ -420,7 +420,7 @@ const CARDS: Record<string, Card> = {
         src: "/guide-diagrams/l1-01-sub-power.svg",
         alt: "Regulator sub-circuit: U2 (RT9080) with +5V on VIN, EN tied to VIN, VOUT to +3V3; C5 across the input, C6 across the output.",
         caption: "VIN on +5V, VOUT on +3V3, a cap on each side, EN tied high.",
-        reveal: "See it wired · the regulator",
+        boxed: true,
       },
       {
         type: "callout",
@@ -470,7 +470,7 @@ const CARDS: Record<string, Card> = {
         src: "/guide-diagrams/l1-01-sub-mcu.svg",
         alt: "The ESP32-S3-WROOM-1 (U1) with its decoupling caps C1, C2, C3 and C7 — each tied between +3V3 and GND at the module's supply pin.",
         caption: "Check the decoupling — each of C1/C2/C3/C7 between +3V3 and GND.",
-        reveal: "See it wired · decoupling",
+        boxed: true,
       },
       {
         type: "callout",
@@ -514,7 +514,7 @@ const CARDS: Record<string, Card> = {
         src: "/guide-diagrams/l1-01-sub-bootreset.svg",
         alt: "Boot and reset: R1 pulls EN up to +3V3 and SW1 pulls EN to GND; R2 pulls IO0 up to +3V3 and SW2 pulls IO0 to GND, at the ESP32 module.",
         caption: "Check boot/reset — R1+SW1 on EN, R2+SW2 on IO0.",
-        reveal: "See it wired · boot & reset",
+        boxed: true,
       },
       {
         type: "callout",
@@ -558,7 +558,7 @@ const CARDS: Record<string, Card> = {
         src: "/guide-diagrams/l1-01-sub-usb.svg",
         alt: "USB front-end: J1 USB-C, R3/R4 (5.1k) on CC1/CC2, doubled data pins joined to USB_D+/USB_D-, F1 polyfuse on VBUS, D1 ESD array on the data lines.",
         caption: "Check the connector — CC resistors to GND, the data pairs joined.",
-        reveal: "See it wired · USB-C connector",
+        boxed: true,
       },
       {
         type: "callout",
@@ -613,7 +613,7 @@ const CARDS: Record<string, Card> = {
         src: "/guide-diagrams/l1-01-sub-leds.svg",
         alt: "Indicator LEDs: +3V3 through R5 into LED1 to GND (power light), and IO2 through R6 into LED2 to GND (user light), at the ESP32 module.",
         caption: "Check the LEDs — +3V3→R5→LED1→GND, IO2→R6→LED2→GND.",
-        reveal: "See it wired · the LEDs",
+        boxed: true,
       },
       {
         type: "callout",
@@ -671,7 +671,7 @@ const CARDS: Record<string, Card> = {
         src: "/guide-diagrams/l1-01-sub-usb.svg",
         alt: "Port protection on the USB front-end: F1 polyfuse in series on VBUS, and D1 (USBLC6) clamping the two data lines and VBUS to GND.",
         caption: "Check the guardians — F1 in series on VBUS, D1 across the data lines.",
-        reveal: "See it wired · port protection",
+        boxed: true,
       },
       {
         type: "callout",
@@ -747,7 +747,13 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "There's a way to do this with **no skip-list to track**: mirror the module 1:1 — **header pin _N_ carries module pin _N_**. Every pin comes straight out, in physical order. A power position gets a [[power port|power symbol]] (it joins the rail by name); every other position gets a [[net label]] matching the module pin's name. A few positions are *already* on a named net — reuse that name (marked ⚠ below), don't invent a new one.",
+        md: "There's a way to do this with **no skip-list to track**: mirror the module 1:1 — **header pin _N_ carries module pin _N_**. Every pin comes straight out, in physical order. A power position gets a [[power port|power symbol]] (it joins the rail by name); every other position gets a [[net label]] matching the module pin's name. A few positions are *already* on a named net, and they take a moment's thought — you'll spot those next.",
+      },
+      {
+        type: "callout",
+        label: "Before you read the table · spot the reused pins",
+        severity: "info",
+        body: "Five of these positions already carry a named net from a circuit you built earlier — wiring them means reusing that name, not inventing one. Predict the five before you scroll: think about the two USB data pins, the two boot/reset pins, and the user-LED pin. They're marked ⚠ in the table.",
       },
       {
         type: "table",
@@ -797,7 +803,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "One habit makes the whole march safe: **label both ends of every net** — the module pin *and* its header pin, the same name. For the ⚠ nets (`EN`, `IO0`, `IO2`) the module side already has its label from its own circuit; you just add the matching one at the header. Now the catch ERC only half-covers: *miss* an end and ERC flags the orphaned pin — the safety net working. But *mis*label an end — `IO5` on the module, `IO6` at the header — and both nets look 'used,' so **ERC stays quiet**. The header order is the one place to check your work against the reference image, not just trust a green ERC.",
+        md: "One habit makes the whole march safe: **label both ends of every net** — the module pin *and* its header pin, the same name. For the ⚠ nets (`EN`, `IO0`, `IO2`) the module side already has its label from its own circuit; you just add the matching one at the header. Now the catch ERC only half-covers: *miss* an end and ERC flags the orphaned pin — the safety net working. But *mis*label an end — `IO5` on the module, `IO6` at the header — and both nets look 'used,' so **ERC stays quiet**. The header order is the one place to check your work against the reference image (the answer key at the end of this card), not just trust a green ERC.",
       },
       {
         type: "callout",
@@ -943,7 +949,7 @@ const CARDS: Record<string, Card> = {
         type: "callout",
         label: "Draw it · the build order",
         severity: "info",
-        body: "One worked net down — here's the whole board as a checklist. Wire it top to bottom: power first so the chip has a rail, then the edges. Each line is the same handful of moves you just did.",
+        body: "You wired the 3.3 V rail with me — its caps, U1's 3V3 pin, U2's VOUT. Here's the whole board in order, that rail folded into steps 1–3; everything else is the same moves. Power first, so the chip has a rail.",
       },
       {
         type: "steps",
@@ -1015,7 +1021,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "First, **grounds**. Every GND pin ties to the *same* net — the [[power port|power-port]] trick makes that painless: drop a GND port at each ground instead of running lines across the sheet. The big pad under the WROOM module has *hidden* GND pins: KiCad auto-connects an invisible power pin to the net of its name, so they join GND on their own — **but only because your ground net is named GND too**. Don't lean on that invisible link: turn on **View ▸ Show Hidden Pins**, confirm those pins land on GND, and drop a GND port on the module's visible ground pin so the tie is *on the sheet*, not just implied. (An unseen ground is exactly the kind ERC can miss.)\n\nSecond, the **USB-C data pins**. Type-C is reversible, so J1 carries **two copies of each data line** — tie `DP1` + `DP2` and `DN1` + `DN2` each into one net. (`VBUS` and `GND` are already single pins here; the two **CC** pins stay separate, one [[Rd]] each, which is why there are two.)\n\nThird, **anything you're leaving open**. With every module pin mirrored to a header, the open pins are the odd ones out — the USB connector's unused **SBU** pins, the regulator's **NC** pin, any J1 contact you didn't use. Drop a no-connect flag (the **Q** key) on each. That turns 'I forgot this' into 'I meant this' — the difference between a clean ERC and a screen of warnings you'll be tempted to scroll past.",
+        md: "First, **grounds**. Every GND pin ties to the *same* net — the [[power port|power-port]] trick makes that painless: drop a GND port at each ground instead of running lines across the sheet. The big pad under the WROOM module has *hidden* GND pins: KiCad auto-connects an invisible power pin to the net of its name, so they join GND on their own — **but only because your ground net is named GND too**. Don't lean on that invisible link: turn on **View ▸ Show Hidden Pins**, confirm those pins land on GND, and drop a GND port on the module's visible ground pin so the tie is *on the sheet*, not just implied. (An unseen ground is exactly the kind ERC can miss.)\n\nSecond, **anything you're leaving open**. With every module pin mirrored to a header, the open pins are the odd ones out — the USB connector's unused **SBU** pins, the regulator's **NC** pin, any J1 contact you didn't use. Drop a no-connect flag (the **Q** key) on each. That turns 'I forgot this' into 'I meant this' — the difference between a clean ERC and a screen of warnings you'll be tempted to scroll past.",
       },
       {
         type: "callout",
