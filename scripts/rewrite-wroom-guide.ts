@@ -346,6 +346,12 @@ const CARDS: Record<string, Card> = {
         ],
       },
       {
+        type: "vendorCta",
+        vendor: "newark-bom",
+        label: "Price the BOM at Newark",
+        sublabel: "Check live stock and price for each MPN as you lock your list. Affiliate link — it supports the academy at no extra cost to you.",
+      },
+      {
         type: "callout",
         label: "Exit this stage",
         severity: "info",
@@ -1192,7 +1198,12 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "Now the move that decides whether your board *builds* or bounces back: **tell KiCad what your factory can make — before you route a trace.** Open **Board Setup ▸ Design Rules** and type in your fab's capability numbers — minimum trace width, copper-to-copper clearance, hole/drill size, annular ring — straight from their capability page (every board house publishes one). In the same place, set up **net classes**: a **Power** class (~0.4–0.5 mm) for the VBUS / +5V / +3V3 chain, a **Signal** class (~0.25 mm) for the rest, and the USB pair as a differential pair. From here on KiCad enforces all of it *live* — it won't let you draw a trace thinner than the fab can etch, and it flags a too-tight clearance the moment you make it, instead of after the whole board is routed.",
+        md: "Now the move that decides whether your board *builds* or bounces back: **tell KiCad what your factory can make — before you route a trace.** This course builds at **PCBWay**, and they publish their limits as a ready-made KiCad file, so you transcribe nothing: drop their **`.kicad_dru`** into your project folder and **Board Setup ▸ Design Rules** loads their real numbers — roughly **6 mil (0.15 mm) trace and space**, **0.3 mm vias on a 0.15 mm drill**. In the same place, set up **net classes**: a **Power** class (~0.4–0.5 mm) for the VBUS / +5V / +3V3 chain, a **Signal** class (~0.25 mm) for the rest, and the USB pair as a differential pair. From here on KiCad enforces all of it *live* — it won't let you draw a trace thinner than PCBWay can etch, and it flags a too-tight clearance the moment you make it, instead of after the whole board is routed.",
+      },
+      {
+        type: "sourceRef",
+        label: "PCBWay's official KiCad design-rules file (.kicad_dru)",
+        href: "https://github.com/pcbway/PCBWay-Design-Rules",
       },
       {
         type: "callout",
@@ -1610,7 +1621,7 @@ const CARDS: Record<string, Card> = {
     contentBlocks: [
       {
         type: "prose",
-        md: "Ordering is mostly a handful of choices and a lot of double-checking. There are two carts to fill — one at the board house, one at the parts distributor — and a few traps that cost you a week if you miss them.",
+        md: "Ordering is mostly a handful of choices and a lot of double-checking. There are two carts to fill — your boards at **PCBWay**, your parts at **Newark** — and a few traps that cost you a week if you miss them.",
       },
       {
         type: "callout",
@@ -1620,7 +1631,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "Upload the Gerber zip and pick the fab options: a 2-layer board, a thickness (1.6 mm is standard), and a surface finish — [[HASL]] (cheap, slightly lumpy) or [[ENIG]] (flat gold, better for the WROOM's fine-pitch pads). Order a few spares; the extra board is nearly free, and the shipping isn't.",
+        md: "Upload the Gerber zip to PCBWay and pick the options: a 2-layer board, a thickness (1.6 mm is standard), and a surface finish — [[HASL]] (cheap, slightly lumpy) or [[ENIG]] (flat gold, better for the WROOM's fine-pitch pads). Order a few spares; the extra board is nearly free, and the shipping isn't.",
       },
       {
         type: "callout",
@@ -1634,6 +1645,12 @@ const CARDS: Record<string, Card> = {
         body: "Bare copper pads tarnish, so the fab coats them. [[HASL]] (hot-air solder leveling) dips the board in molten solder and blows the excess off with hot air — cheap and very solderable, but it leaves the pads slightly domed and uneven in height. [[ENIG]] plates a flat layer of nickel capped with a thin gold flash — dead flat, long shelf life, a little pricier. For through-hole and 0805 work, HASL is perfectly fine. But the WROOM's underside pads are fine-pitch and packed close, and there a flat surface lets every pad meet the module at the same height; uneven HASL bumps invite a missed or bridged joint you can't even see under the module. That flatness is what makes this board worth the ENIG upcharge.",
       },
       {
+        type: "vendorCta",
+        vendor: "pcbway-order",
+        label: "Order your boards at PCBWay",
+        sublabel: "Upload your Gerber zip here, choose 2-layer + ENIG, order a few spares. Affiliate link — it supports the academy at no extra cost to you.",
+      },
+      {
         type: "callout",
         label: "02 · Ordering the parts",
         severity: "info",
@@ -1641,13 +1658,19 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "Order every line by its exact [[MPN]]. Mind the [[MOQ]] — passives come on reels of thousands — and buy extra of the parts you'll hand-place and lose. If anything is out of stock, this is where the second sources you noted back at sourcing (the RT9080-for-AP2112K, the UMW USBLC6-2) pay off.",
+        md: "Order every line from Newark by its exact [[MPN]]. Mind the [[MOQ]] — passives come on reels of thousands — and buy extra of the parts you'll hand-place and lose. If anything is out of stock, this is where the second sources you noted back at sourcing (the RT9080-for-AP2112K, the UMW USBLC6-2) pay off.",
       },
       {
         type: "callout",
         label: "Check yourself",
         severity: "info",
         body: "You need two 5.1 kΩ resistors but they sell in reels of 5,000. What now? Buy the reel — it's cents — and keep the spares. Always order a few extra of any part you hand-place.",
+      },
+      {
+        type: "vendorCta",
+        vendor: "newark-bom",
+        label: "Shop the BOM at Newark",
+        sublabel: "Search each MPN from your BOM and add it to the cart. Affiliate link — it supports the academy at no extra cost to you.",
       },
       {
         type: "quiz",

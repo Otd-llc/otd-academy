@@ -24,6 +24,7 @@ import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
+import { affiliateLink, type AffiliateVendor } from "@/lib/affiliates";
 import { ExternalLinkIcon, PhotoIcon, VideoIcon } from "@/components/icons";
 import { parseInlineTerms } from "@/lib/inline-terms";
 import type { RenderBounds } from "@/lib/schemas/part-asset";
@@ -496,6 +497,40 @@ function TableCell({
   );
 }
 
+// vendorCta — an external AFFILIATE call-to-action (GTM). Server-resolves the
+// vendor key → its configured referral URL (affiliates.ts, env-driven) and renders
+// a gold CTA link. rel="sponsored nofollow" is the correct marking for a paid /
+// affiliate link, and an FTC disclosure line sits beneath. The affiliate ID lives
+// in env, never in guide content.
+function VendorCtaBlock({
+  vendor,
+  label,
+  sublabel,
+}: {
+  vendor: AffiliateVendor;
+  label: string;
+  sublabel?: string;
+}) {
+  const { href } = affiliateLink(vendor);
+  return (
+    <div className="my-2 space-y-1.5">
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer nofollow sponsored"
+        className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+      >
+        {label}
+        <ExternalLinkIcon className="h-3.5 w-3.5 shrink-0" />
+      </a>
+      <p className="font-mono text-[11px] uppercase tracking-wider text-muted">
+        {sublabel ??
+          "Affiliate link — buying through it supports the academy at no extra cost to you."}
+      </p>
+    </div>
+  );
+}
+
 function GuideBlock({
   block,
   models,
@@ -620,6 +655,20 @@ function GuideBlock({
             label={block.label}
             projectId={projectId}
             isSignedIn={isSignedIn}
+          />
+        </section>
+      );
+
+    case "vendorCta":
+      return (
+        <section className="border-t border-panel-border/60 pt-6">
+          <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
+            Order
+          </p>
+          <VendorCtaBlock
+            vendor={block.vendor}
+            label={block.label}
+            sublabel={block.sublabel}
           />
         </section>
       );
