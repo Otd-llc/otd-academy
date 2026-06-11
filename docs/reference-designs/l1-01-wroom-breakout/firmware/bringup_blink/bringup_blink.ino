@@ -7,10 +7,10 @@
 // Module"), and enable **USB CDC On Boot** so `Serial` runs over the native
 // USB-C port. First flash: hold BOOT, tap EN (reset), release BOOT.
 //
-// NOTE: set USER_LED to the GPIO your board wires LED2 (the user LED) to — match
-// the reference schematic. GPIO2 is a safe default placeholder.
+// NOTE: USER_LED is the GPIO the board wires LED2 (the user LED) to. On the
+// L1.01 reference that's IO2 (GPIO2) — set to match if you re-pin it.
 
-const int USER_LED = 2;  // <-- update to the reference design's LED2 net
+const int USER_LED = 2;  // IO2 — the reference design's LED2 net
 
 void setup() {
   pinMode(USER_LED, OUTPUT);

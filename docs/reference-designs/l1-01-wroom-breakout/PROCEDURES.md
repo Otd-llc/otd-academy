@@ -1,7 +1,7 @@
 # L1.01 — Assembly & Bring-up Procedures + Expected Measurements
 
 _Reference `ASSEMBLY_PROCEDURE` + `BENCH_PROCEDURE` content for `l1-01-wroom-breakout`.
-Draft for review; finalize current draw + the user-LED GPIO against the shipped design._
+Draft for review; finalize current draw against the shipped design (user LED = IO2)._
 
 ## Assembly (`ASSEMBLY_PROCEDURE`)
 

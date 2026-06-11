@@ -188,10 +188,10 @@ A WROOM-32E needs an onboard USB-UART bridge. Under the **Digikey + Amazon + han
 
 **Resolved (stock-verified 06-04):** ~~curriculum ripple~~ (D15, curriculum-wide) · ~~flash/PSRAM variant~~ (N16R2) · ~~LDO~~ (RT9080-33GJ5) · ~~USB-C MPN~~ (USB4110-GF-A). ESD (UMW USBLC6-2SC6) + fuse (1206L050YR) also locked.
 
-**Resolved (06-04):** module pinout **VERIFIED** in Foundry; header pinout = **adopt ESP32-S3-DevKitC-1 v1.1 J1/J3 verbatim** (2× 1×22 — the industry-standard reference for this module; see D19). User LED → **GPIO38** (the DevKitC-1 LED pin).
+**Resolved (06-04; user-LED updated 06-10):** module pinout **VERIFIED** in Foundry; header pinout = **mirror the module 1:1** (header pin N = module pin N; 2× 1×22, DevKitC-1-style — see D19). User LED → **IO2** (moved from the DevKitC-1's GPIO38 during the schematic walkthrough — lowest free GPIO with no special duty). Note: `IO35/36/37` break out to J3.6–8 only because this is the quad-PSRAM **N16R2**; an octal R8/R16V consumes those three, so a BOM swap would dead those header pins.
 
 **Still open:**
 1. Row spacing + board outline (physical — finalized in KiCad layout).
-2. LED series resistor 1 k vs 470 Ω; **simple single-color LED vs match-the-reference addressable RGB** on GPIO38.
+2. LED series resistor 1 k vs 470 Ω; **simple single-color LED vs match-the-reference addressable RGB** on the user-LED GPIO (now IO2).
 3. Commodity stock-check (0805 R/C, buttons B3F-1000, LEDs, headers, test points) — low risk, any in-stock equivalent works.
 4. Any further additions, or is this the L1 scope?
