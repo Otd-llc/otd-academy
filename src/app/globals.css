@@ -109,33 +109,24 @@ body {
       0 0 0 1px rgba(255, 255, 255, 0.04) inset;
   }
 
+  /* Secondary button — gold hairline outline on a dark surface, fills solid gold
+     on hover. Flat (no gradient/glow/bevel); the modern default that the in-guide
+     action buttons already use, so the whole app converges on one secondary look. */
   .glass-button {
-    background: linear-gradient(
-      180deg,
-      rgba(232, 232, 232, 0.06) 0%,
-      rgba(15, 16, 24, 0.35) 100%
-    );
-    color: var(--color-gray-1);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--color-navy-dark);
+    color: var(--color-command-gold);
+    border: 1px solid var(--color-command-gold);
     border-radius: 6px;
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.04) inset,
-      0 1px 2px rgba(0, 0, 0, 0.3);
     transition:
       background 0.14s,
       color 0.14s,
       border-color 0.14s,
-      box-shadow 0.14s,
       transform 0.06s;
   }
   .glass-button:hover:not(:disabled) {
-    background: linear-gradient(
-      180deg,
-      rgba(200, 150, 62, 0.18) 0%,
-      rgba(15, 16, 24, 0.35) 100%
-    );
-    color: #ffffff;
-    border-color: rgba(200, 150, 62, 0.45);
+    background: var(--color-command-gold);
+    color: var(--color-deep-space);
+    border-color: var(--color-command-gold);
   }
   .glass-button:active:not(:disabled) {
     transform: translateY(1px);
@@ -158,30 +149,21 @@ body {
       0 1px 0 rgba(232, 184, 101, 0.2) inset;
   }
 
+  /* Primary CTA — solid flat command-gold. No gradient, no outer glow, no inset
+     bevel (the old skeuomorphic tells); just a confident, modern gold fill that
+     lightens on hover. Composes over `.glass-button`, overriding its outline. */
   .glass-button-cta {
-    background: linear-gradient(
-      180deg,
-      var(--color-gold-light) 0%,
-      var(--color-command-gold) 100%
-    );
+    background: var(--color-command-gold);
     color: var(--color-deep-space);
     border-color: var(--color-command-gold);
     font-weight: 700;
-    box-shadow:
-      0 0 16px rgba(200, 150, 62, 0.4),
-      0 1px 0 rgba(255, 240, 200, 0.4) inset;
+    box-shadow: none;
   }
   .glass-button-cta:hover:not(:disabled) {
-    background: linear-gradient(
-      180deg,
-      #f0c97e 0%,
-      var(--color-gold-light) 100%
-    );
+    background: var(--color-gold-light);
     border-color: var(--color-gold-light);
     color: var(--color-deep-space);
-    box-shadow:
-      0 0 24px rgba(232, 184, 101, 0.65),
-      0 1px 0 rgba(255, 240, 200, 0.55) inset;
+    box-shadow: none;
   }
 
   .glass-button-danger {

@@ -68,6 +68,22 @@ export async function listParts(
           ]
         : []),
       ...(catNode ? [subtreeWhere(catNode)] : []),
+      // The catalog only shows parts complete enough to actually use: a symbol AND
+      // a footprint, assigned EITHER as a KiCad lib-id (the picker) OR an uploaded
+      // CAD asset. (The latter keeps the SnapEDA-symbol parts — WROOM / USB4110 /
+      // USBLC6 — which have asset uploads but no lib-id string.)
+      {
+        OR: [
+          { kicadSymbol: { not: null } },
+          { assets: { some: { kind: "SYMBOL" } } },
+        ],
+      },
+      {
+        OR: [
+          { kicadFootprint: { not: null } },
+          { assets: { some: { kind: "FOOTPRINT" } } },
+        ],
+      },
     ],
   };
 

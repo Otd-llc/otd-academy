@@ -11,7 +11,7 @@ export function SignUpCta() {
       href="/sign-in"
       className="glass-button glass-button-cta inline-flex items-center rounded-md px-3 py-1.5 text-center font-mono text-xs uppercase tracking-wider"
     >
-      Sign up free — track your progress, earn mastery, get the project files
+      Sign up free
     </Link>
   );
 }
