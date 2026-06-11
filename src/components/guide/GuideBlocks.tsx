@@ -79,7 +79,7 @@ function withTerms(text: string, keyPrefix: string): ReactNode[] {
 // bold/italic run can wrap a [[term]] (e.g. "**a filled [[ground pour]]**") — so we
 // split emphasis FIRST, then resolve glossary terms inside each run (and inside the
 // plain text between). Splitting terms first would orphan the `**` across segments.
-// Bold is a restrained semibold + a slightly brighter ink (gray-1 over the gray-2
+// Bold is a restrained medium weight + a slightly brighter ink (gray-1 over gray-2
 // body), kept distinct from the gold terms; italic is true italic. XSS-safe: only
 // **/* and [[term]] are parsed; all other text is escaped — no HTML injected, no
 // dangerouslySetInnerHTML (the established convention).
@@ -92,7 +92,7 @@ function Inline({ text }: { text: string }) {
     if (idx > last) out.push(...withTerms(text.slice(last, idx), `p${n}`));
     out.push(
       m[1] !== undefined ? (
-        <strong key={`b${n}`} className="font-semibold text-gray-1">
+        <strong key={`b${n}`} className="font-medium text-gray-1">
           {withTerms(m[1], `b${n}`)}
         </strong>
       ) : (
