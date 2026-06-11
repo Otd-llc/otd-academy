@@ -118,5 +118,7 @@ export async function createCaptureSession(input: unknown) {
     // The author's "what to capture" note guides the shot AND becomes the caption.
     hint: block.captureHint ?? "",
     caption: block.caption ?? "",
+    // Aspect is LOCKED by the placeholder — the capture tool obeys, can't change it.
+    aspect: block.aspect ?? (data.kind === "video" ? "16:9" : "16:10"),
   };
 }

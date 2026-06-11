@@ -40,13 +40,30 @@
         color: var(--ink);
         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
       }
-      #panel h1 {
+      #header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         margin: 0 0 10px;
+        cursor: move;
+      }
+      #panel h1 {
+        margin: 0;
         font-size: 13px;
         letter-spacing: 0.18em;
         text-transform: uppercase;
         color: var(--gold);
       }
+      #closeBtn {
+        background: none;
+        border: none;
+        color: var(--muted);
+        font-size: 20px;
+        line-height: 1;
+        padding: 0 2px;
+        cursor: pointer;
+      }
+      #closeBtn:hover { color: var(--red); }
       label.lbl {
         display: block;
         font-size: 10px;
@@ -168,7 +185,10 @@
     <div id="box" class="hidden"><div id="handle"></div></div>
 
     <div id="panel">
-      <h1>OTD Capture</h1>
+      <div id="header">
+        <h1>OTD Capture</h1>
+        <button id="closeBtn" title="Close (Ctrl+Shift+Q)" aria-label="Close">×</button>
+      </div>
 
       <div id="setup">
         <div id="sessionInfo" class="info hidden">
@@ -186,7 +206,7 @@
           <span class="chip" data-mode="video">Clip</span>
         </div>
 
-        <label class="lbl">Aspect</label>
+        <label class="lbl" id="aspectLabel">Aspect</label>
         <div class="row" id="aspectRow">
           <span class="chip on" data-aspect="1.6">16:10</span>
           <span class="chip" data-aspect="1.7778">16:9</span>

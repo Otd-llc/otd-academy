@@ -66,6 +66,9 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     // in-app screen-capture tool — e.g. "KiCad ▸ Board Setup ▸ Constraints". Shown
     // in the admin capture modal; ignored once `src` is filled.
     captureHint: z.string().max(200).optional(),
+    // Crop aspect the capture tool LOCKS to for this placeholder (the operator
+    // can't change it — the lesson owns the framing). Defaults to 16:10 if absent.
+    aspect: z.enum(["16:10", "16:9", "4:3", "1:1", "free"]).optional(),
   }),
   // video — an mp4 clip, same scheme guard + empty-as-placeholder rule as image.
   // An empty src renders a "to be added" placeholder slot (the alt/caption is the
@@ -83,6 +86,9 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     // in-app screen-record tool (e.g. "Route the USB diff-pair"). Shown in the
     // capture modal; ignored once `src` is filled.
     captureHint: z.string().max(200).optional(),
+    // Crop aspect the capture tool LOCKS to for this placeholder. Defaults to 16:9
+    // for clips if absent.
+    aspect: z.enum(["16:10", "16:9", "4:3", "1:1", "free"]).optional(),
   }),
   // quiz — an interactive multiple-choice comprehension check. Client-scored
   // (immediate feedback), and ADDITIVE to the stage work-gate, not a replacement.

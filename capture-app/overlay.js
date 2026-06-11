@@ -1,9 +1,10 @@
 // OTD Capture — overlay renderer.
 //
-// The window is a transparent, click-through, content-protected overlay over the
-// whole screen. You frame against the REAL desktop (seen through the transparent
-// overlay); the captured screen stream excludes this overlay (content protection),
-// so a Space-press grabs just what's behind the marching-ants box.
+// A transparent, content-protected overlay over the whole screen. The panel is
+// fully interactive (clickable ×/drag/buttons) in every phase EXCEPT framing —
+// only then does the window go click-through so you can arrange the REAL desktop
+// behind the marching-ants box. The captured stream excludes this overlay (content
+// protection), so a Space-press grabs just what's behind the box.
 (function () {
   "use strict";
 
@@ -24,7 +25,20 @@
   const sessionWhatEl = $("sessionWhat");
   const modeRowEl = $("modeRow");
   const modeLabelEl = $("modeLabel");
+  const aspectRowEl = $("aspectRow");
+  const aspectLabelEl = $("aspectLabel");
   const startBtnEl = $("startBtn");
+  const headerEl = $("header");
+  const closeBtnEl = $("closeBtn");
+
+  // Aspect token (from the placeholder) → ratio. 0 = free (standalone only).
+  const ASPECTS = {
+    "16:10": 1.6,
+    "16:9": 1.7778,
+    "4:3": 1.3333,
+    "1:1": 1,
+    free: 0,
+  };
 
   let scaleFactor = 1;
   let session = null; // deep-link session from the lesson "+" (null = standalone)
@@ -63,6 +77,13 @@
         : "Capture the screenshot described in the lesson.");
     sessionInfoEl.classList.remove("hidden");
     captionEl.value = s.caption || "";
+    // Aspect is LOCKED by the placeholder — never the operator's to change. Hide
+    // the chooser and use the ratio the lesson specified.
+    aspect =
+      ASPECTS[s.aspect] ??
+      (mode === "video" ? ASPECTS["16:9"] : ASPECTS["16:10"]);
+    aspectRowEl.classList.add("hidden");
+    aspectLabelEl.classList.add("hidden");
     startBtnEl.textContent = "Start capture";
     phase = "setup";
     showSection("setup");
@@ -78,6 +99,10 @@
     ]) {
       el.classList.toggle("hidden", n !== name);
     }
+    // The panel is fully interactive in every phase EXCEPT framing/recording —
+    // there the window goes click-through (so you can arrange apps behind the box)
+    // and the hover hit-test re-enables just the panel + box.
+    window.otd.setInteractive(name !== "framing");
   }
 
   // ── mode / aspect chips ──
@@ -157,21 +182,52 @@
     boxEl.releasePointerCapture(e.pointerId);
   });
 
-  // ── click-through hover toggle ──
-  // Click-through everywhere except over the panel or the box; forwarded mousemove
-  // (main sets ignoreMouseEvents(true,{forward:true})) lets us hit-test.
+  // ── click-through hover toggle (framing/recording ONLY) ──
+  // During framing the window is click-through so you can arrange apps behind the
+  // box; forwarded mousemove lets us re-enable interactivity over the panel/box.
+  // In every other phase the window is already fully interactive (showSection), so
+  // this handler does nothing — the panel never depends on the hit-test.
   function hit(el, x, y) {
     if (el.classList.contains("hidden")) return false;
     const r = el.getBoundingClientRect();
     return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
   }
   document.addEventListener("mousemove", (e) => {
-    if (dragging) return;
+    if (dragging || panelDrag) return;
+    if (phase !== "framing" && phase !== "recording") return;
     const interactive =
-      hit(panelEl, e.clientX, e.clientY) ||
-      ((phase === "framing" || phase === "recording") && hit(boxEl, e.clientX, e.clientY));
+      hit(panelEl, e.clientX, e.clientY) || hit(boxEl, e.clientX, e.clientY);
     window.otd.setInteractive(interactive);
   });
+
+  // ── draggable panel (by its header) + close button ──
+  let panelDrag = null;
+  headerEl.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("#closeBtn")) return;
+    const r = panelEl.getBoundingClientRect();
+    panelDrag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    headerEl.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  headerEl.addEventListener("pointermove", (e) => {
+    if (!panelDrag) return;
+    const left = Math.max(
+      0,
+      Math.min(e.clientX - panelDrag.dx, window.innerWidth - panelEl.offsetWidth),
+    );
+    const top = Math.max(
+      0,
+      Math.min(e.clientY - panelDrag.dy, window.innerHeight - panelEl.offsetHeight),
+    );
+    panelEl.style.left = left + "px";
+    panelEl.style.top = top + "px";
+    panelEl.style.right = "auto";
+  });
+  headerEl.addEventListener("pointerup", (e) => {
+    panelDrag = null;
+    headerEl.releasePointerCapture(e.pointerId);
+  });
+  closeBtnEl.addEventListener("click", () => window.otd.quit());
 
   // ── crop math (box CSS px → native source rect) ──
   function cropRect() {
@@ -362,4 +418,8 @@
   $("discardBtn").addEventListener("click", reset);
   $("againBtn").addEventListener("click", reset);
   $("quitBtn").addEventListener("click", () => window.otd.quit());
+
+  // Initial state: setup is shown — make sure the window is interactive so the
+  // panel is clickable immediately (standalone launch has no onSession).
+  showSection("setup");
 })();

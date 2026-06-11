@@ -40,6 +40,7 @@ function parseDeepLink(link) {
       kind: u.searchParams.get("kind") === "video" ? "video" : "image",
       hint: u.searchParams.get("hint") || "",
       caption: u.searchParams.get("caption") || "",
+      aspect: u.searchParams.get("aspect") || "",
     };
   } catch {
     return null;
@@ -91,9 +92,11 @@ function createOverlay() {
   overlay.setAlwaysOnTop(true, "screen-saver");
   overlay.setVisibleOnAllWorkspaces(true);
   overlay.setContentProtection(true);
-  // Click-through by default; the renderer flips this on while the pointer is over
-  // its own UI (panel / crop box) via the `set-interactive` IPC below.
-  overlay.setIgnoreMouseEvents(true, { forward: true });
+  // Fully interactive by default, so the panel (×, drag, buttons) ALWAYS works
+  // without depending on a hover hit-test. Only during FRAMING does the renderer
+  // switch the window to click-through (forward:true) — so you can arrange apps
+  // behind the box — and the hover hit-test then keeps just the panel + box live.
+  overlay.setIgnoreMouseEvents(false);
 
   overlay.loadFile(path.join(__dirname, "overlay.html"));
 
@@ -163,6 +166,9 @@ if (!gotLock) {
     if (link) pendingSession = parseDeepLink(link);
 
     createOverlay();
+
+    // Always-available safety hatch to quit, even if the renderer wedges.
+    globalShortcut.register("CommandOrControl+Shift+Q", () => app.quit());
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createOverlay();
