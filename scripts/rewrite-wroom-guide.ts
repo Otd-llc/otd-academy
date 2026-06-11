@@ -778,8 +778,51 @@ const CARDS: Record<string, Card> = {
         body: "The starter is real CAD, not a tidy textbook drawing — a few parts won't look how you'd expect. Skim this so nothing throws you when you open it.",
       },
       {
-        type: "prose",
-        md: "- **Resistors and caps show only pins `1` and `2`**, no names — that's normal, because a resistor and a non-polarised cap are symmetric, so either leg works. (Every cap here is a non-polarised ceramic — there's no `+` side, even on the 10 µF C1.)\n- **The regulator (U2) is drawn as an `AP2112K`** even though your part is the RT9080. Remember from sourcing — the RT9080 *second-sourced* the AP2112K: same 5-pin LDO, same `VIN`/`VOUT`/`GND`/`EN`. It *is* your regulator; you didn't grab the wrong file.\n- **The USB-C connector (J1) is a flat block listing every contact**, not a connector picture. Its data pins read **`DP1` / `DN1` / `DP2` / `DN2`** — that's just `D+` / `D−`, doubled because the plug is reversible. Wire **`DP1` + `DP2` → your D+ net** and **`DN1` + `DN2` → D−**. `VBUS` and `GND` are already single pins on this symbol — nothing to merge. (`CC1` / `CC2` stay separate — those are your two Rd's, which is exactly why there are two.)\n- **U1's grounds:** there's one **visible `GND` pin** — wire it. The big pad underneath is a stack of **hidden `GND` pins**; KiCad auto-connects hidden power pins to the matching rail, so the pad grounds itself the moment U1 lands — no wire to draw. Turn on **View ▸ Show Hidden Pins** to see them, and ERC won't flag a floating ground. (Trusting an invisible connection you *haven't* looked at is how a board ships with no ground reference — so look.)\n- **On D1** (the ESD array), **`I/O1`** rides the D+ line and **`I/O2`** the D−; its other two pins are **`VBUS`** (raw, ahead of the fuse) and **`GND`**.\n- **The LED's** pins are named **A** (anode, the resistor side) and **K** (cathode, to GND), and the starter **shows those names** on the symbol. (The triangle still points A→K, and the **bar**/flat side is K — the GND side — which is how you'd read polarity if a symbol ever hid the names.)\n- **The two headers (J2/J3)** are generic 22-pin strips — pins just numbered `1`–`22`, no signal names. You choose which GPIO lands on each; there's no wrong order.\n\n**One KiCad habit:** most symbols show their pin names, but a few in the standard library still hide them — here that's the headers (J2/J3), the buttons, and the test points, whose pins are just generic numbers anyway. If a pin you care about ever shows only a number, **hover it** to read the name, or turn on **View ▸ Show Hidden Pins**. (The starter already un-hides the names that matter — the LED's A/K and D1's I/O pins.)",
+        type: "table",
+        columns: ["What you'll see", "What it really is", "Wire it"],
+        rows: [
+          [
+            { text: "Resistors & caps: pins 1 / 2, no names" },
+            { text: "Symmetric parts — either leg works" },
+            { text: "Either way round. Every cap here is non-polarised — no + side, even the 10 µF C1." },
+          ],
+          [
+            { text: "U2 drawn as an AP2112K" },
+            { text: "The RT9080 second-sourced it — same 5-pin LDO" },
+            { text: "It's your regulator, not the wrong file. Same VIN / VOUT / GND / EN." },
+          ],
+          [
+            { text: "J1 data pins: DP1 / DN1 / DP2 / DN2" },
+            { text: "D+ / D− doubled (Type-C is reversible)" },
+            { text: "DP1+DP2 → USB_D+, DN1+DN2 → USB_D−. VBUS/GND are single pins; CC1/CC2 stay separate (your two Rd's)." },
+          ],
+          [
+            { text: "U1 shows one GND pin" },
+            { text: "The pad underneath is hidden GND pins that auto-connect" },
+            { text: "Wire the visible pin; the pad grounds itself. (View ▸ Show Hidden Pins to see it.)" },
+          ],
+          [
+            { text: "D1 pins: I/O1 / I/O2" },
+            { text: "I/O1 on D+, I/O2 on D− (symmetric)" },
+            { text: "Its other two pins are VBUS (raw, ahead of the fuse) and GND." },
+          ],
+          [
+            { text: "LED pins: A / K" },
+            { text: "Anode (resistor side) / cathode" },
+            { text: "Bar/flat side is K — the GND side." },
+          ],
+          [
+            { text: "J2 / J3: pins 1–22, no names" },
+            { text: "Generic 22-pin strips" },
+            { text: "You pick which GPIO lands on each — no wrong order." },
+          ],
+        ],
+      },
+      {
+        type: "callout",
+        label: "If a pin shows only a number",
+        severity: "info",
+        body: "A few symbols still hide their pin names — the headers, the buttons, the test points — whose pins are generic numbers anyway. Hover any pin to read its name, or turn on View ▸ Show Hidden Pins. (The starter already un-hides the ones that matter: the LED's A/K and D1's I/O pins.)",
       },
       {
         type: "deepDive",
@@ -809,11 +852,11 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "Aim for the same composition as the reference image: **J1 on the left edge** (USB in), **U1 in the centre** (the hub), **J2/J3 on the right edges** (breakout out). The **regulator island** (U2/F1/C5/C6) sits upper-left between J1 and U1 so power reads left → right; **D1** tucks against J1 at the port; the **decouplers** hug U1 at its 3V3 pin; **boot/reset** (R1/R2/SW1/SW2) sits by U1's EN/IO0. Connectors live on the edges.\n\nTwo habits make placing painless: drag a part to **empty space**, wire its little sub-circuit there, then move the finished **island** into position — it beats fighting auto-placement. And **Find (Ctrl+F)** → type a refdes (`U2`, `J1`) jumps you straight to it. Tying two adjacent pins directly (like `U2 EN` to `VIN`) is fine too — same net, less clutter; you don't need a power symbol on everything.",
+        md: "Aim for the same composition as the reference: J1 on the left edge (USB in), U1 in the centre (the hub), J2/J3 on the right edges (breakout out). The regulator island (U2/F1/C5/C6) sits upper-left so power reads left → right; D1 tucks against J1 at the port; the decoupling caps hug U1's 3V3 pin; boot/reset (R1/R2/SW1/SW2) sits by U1's EN/IO0. Rails point up, grounds down, connectors on the edges.\n\nTwo habits make this painless. Drag a part to *empty space*, wire its little sub-circuit there, then slide the finished island into position — it beats fighting auto-placement. And **Ctrl+F** jumps you straight to any refdes. (Tying two adjacent pins directly — `U2 EN` to `VIN` — is fine too; same net, less clutter.)",
       },
       {
         type: "prose",
-        md: "Two finishing touches. Place each part's **reference and value so they don't overlap the symbol, its pins, or a wire**, and keep net labels horizontal where you can. These come from the **KiCad Library Conventions** — which make the load-bearing things rules (power-input pins on the left, outputs on the right; a power symbol's reference is always `#PWR`) and leave the rest as **convention, not law**: nothing in KiCad enforces where a label sits, so the invariants that always hold are the cheap ones — *consistent, non-overlapping, readable.* And declutter by **moving a reference into open space — never by hiding it**: the BOM, the layout, the pick-and-place and future-you all key off the refdes. (Power symbols are the exception — their `#PWR…` reference is hidden by default, and that's standard.)",
+        md: "One finishing habit: keep each part's reference and value from overlapping the symbol, its pins, or a wire — and when a label's in the way, *move* it into open space. Never declutter by *hiding* a refdes: the BOM, the layout, and future-you all key off it. That's really the only placement rule that matters here; the rest is taste. (KiCad's own conventions, linked below, spell out the few that are genuinely rules — like power-input pins on the left, outputs on the right.)",
       },
       {
         type: "sourceRef",
