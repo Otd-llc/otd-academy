@@ -1161,7 +1161,7 @@ const CARDS: Record<string, Card> = {
     contentBlocks: [
       {
         type: "prose",
-        md: "Layout is where the schematic meets physics. The very same circuit can work flawlessly or *barely boot*, depending on where the parts sit and how the copper flows between them. You'll do it in four moves — **set up** the two-layer board, **place** the parts, **route** the copper, **pour** the ground — then prove it with a rules check, the same way ERC proved the schematic. A handful of placements decide whether this board has Wi-Fi range and a steady rail; the rest is tidy routing.",
+        md: "Layout is where the schematic meets physics. The very same circuit can work flawlessly or *barely boot*, depending on where the parts sit and how the copper flows between them. You'll do it in five moves — **set up** the two-layer board, **place** the parts, **route** the copper, **pour** the ground, then **check** it with a rules pass (DRC), the same way ERC proved the schematic. A handful of placements decide whether this board has Wi-Fi range and a steady rail; the rest is tidy routing.",
       },
       {
         type: "callout",
@@ -1322,7 +1322,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "You've got the floor plan and the five rules in your head. Now you do it in the PCB editor, in an order that keeps you out of trouble: **open the board → place → route → pour → check.**",
+        md: "You've got the floor plan and the rules in your head. Now you do it in the PCB editor, in the order that keeps you out of trouble: **set up → place → route → pour → check.**",
       },
       {
         type: "callout",
@@ -1405,7 +1405,7 @@ const CARDS: Record<string, Card> = {
         type: "callout",
         label: "Draw it · eyeball what DRC can't catch",
         severity: "warn",
-        body: "DRC checks clearances, widths, and drills — it is BLIND to the things that actually make this board work. Before you run it, trace these by eye against the reference. (1) The antenna keep-out is genuinely empty — no pour, trace, or silk crept in. (2) Each decoupling cap really is at its pin with a ground via, not 10 mm away. (3) The USB pair is short, matched, over unbroken pour. (4) U1's centre pad is stitched to ground. A clean DRC won't save you from any of these.",
+        body: "DRC checks clearances, widths, and drills — it is BLIND to the things that actually make this board work. Trace these by eye. (1) The antenna keep-out is genuinely empty — no pour, trace, or silk crept in. (2) Each decoupling cap really is at its pin with a ground via, not 10 mm away. (3) The USB pair is short, matched, over unbroken pour. (4) U1's centre pad is stitched to ground. A clean DRC won't save you from any of these — which is exactly why the gate makes you tick them off before it accepts your upload.",
       },
       {
         type: "callout",
@@ -1415,14 +1415,14 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "Run **Inspect ▸ Design Rules Checker**. Like ERC, it lists every violation and you clear them to zero. Most beginner hits are mechanical and quick:",
+        md: "Run **Inspect ▸ Design Rules Checker** against KiCad's built-in rules — a first pass that catches the mechanical mistakes. Like ERC, it lists every violation; clear the **errors** to zero (harmless warnings, like silk over a pad, are fine to leave). Most beginner hits are quick:",
       },
       {
         type: "table",
         columns: ["DRC says…", "…you do"],
         rows: [
           [{ text: "Clearance violation" }, { text: "Two coppers too close — nudge a trace or part apart." }],
-          [{ text: "Track / via too small" }, { text: "Widen the track or grow the via past the fab's minimum." }],
+          [{ text: "Track / via too small" }, { text: "Widen the track, or grow the via past its minimum." }],
           [{ text: "Unconnected items" }, { text: "A ratsnest line you never routed — finish it (or No-Connect it on purpose)." }],
           [{ text: "Courtyard overlap" }, { text: "Two parts physically clash — move one." }],
         ],
@@ -1435,7 +1435,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "With DRC clean, the layout is done — **save the report (Save… in the DRC dialog) and upload it to clear this stage.** The **next stage** loads the fab's own design rules, re-checks against them, and exports the **Gerber** files the factory builds from — the layout's manufacturing output.",
+        md: "With your errors at zero, the layout is done — **save the report (Save… in the DRC dialog) and upload that `.rpt` to clear this stage** (the report, not the board file). The **next stage** loads the fab's own design rules, re-checks against those tighter numbers, and exports the **Gerber** files the factory builds from.",
       },
       {
         type: "quiz",
@@ -1509,13 +1509,13 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "callout",
-        label: "01 · DRC — the rules checker",
+        label: "01 · DRC — now against the fab's rules",
         severity: "info",
-        body: "Before anyone builds your board, let the software find the mistakes.",
+        body: "You already ran DRC in LAYOUT against KiCad's defaults. Now load your fab's tighter numbers and run it again.",
       },
       {
         type: "prose",
-        md: "A [[design rule check]] tests your layout against the fab's limits — minimum trace width, copper-to-copper clearance, drill sizes, and any unconnected or shorted nets. Run it until it's clean, or until every remaining flag is an intentional exception you've understood and written down. A clearance the fab can't actually make is a short waiting to happen across a whole batch of boards.",
+        md: "You already ran [[design rule check|DRC]] in LAYOUT against KiCad's built-in rules. Here you do it for real: **load your fab's capability file** — their minimum trace width, clearance, drill, and annular ring — in **Board Setup ▸ Design Rules**, then re-run. A board that passed on the defaults can fail now, and that's the point: you're measuring against the shop that will actually build it. Clear every error, or note any remaining flag as an understood exception. A clearance the fab can't make is a short waiting to happen across a whole batch.",
       },
       {
         type: "callout",
@@ -1589,7 +1589,7 @@ const CARDS: Record<string, Card> = {
         type: "callout",
         label: "Exit this stage",
         severity: "info",
-        body: "Run DRC clean (or with documented exceptions) and attach the DRC report and the Gerber zip.",
+        body: "Re-run DRC against the fab's rules until your errors are zero, then export the Gerbers and open them in a viewer before you order — the fab builds exactly what's in those files.",
       },
     ],
   },
