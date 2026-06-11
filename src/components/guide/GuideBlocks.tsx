@@ -24,7 +24,7 @@ import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
-import { MediaCapture } from "@/components/guide/MediaCapture";
+import { CaptureLauncher } from "@/components/guide/CaptureLauncher";
 import { affiliateLink, type AffiliateVendor } from "@/lib/affiliates";
 import { ExternalLinkIcon, PhotoIcon, VideoIcon } from "@/components/icons";
 import { parseInlineTerms } from "@/lib/inline-terms";
@@ -200,7 +200,7 @@ function ImageBlock({
       return (
         <div className="space-y-2">
           {placeholder}
-          <MediaCapture
+          <CaptureLauncher
             kind="image"
             cardId={cardId}
             blockIndex={blockIndex}
@@ -290,7 +290,7 @@ function VideoBlock({
       return (
         <div className="space-y-2">
           {placeholder}
-          <MediaCapture
+          <CaptureLauncher
             kind="video"
             cardId={cardId}
             blockIndex={blockIndex}

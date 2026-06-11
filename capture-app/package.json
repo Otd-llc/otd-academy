@@ -3,7 +3,7 @@
   "productName": "OTD Capture",
   "version": "0.1.0",
   "private": true,
-  "description": "One Thousand Drones Academy — desktop screen-capture companion. Phase 1: the capture core (overlay box + global spacebar + crop + record + review, saving to disk). Phase 2 wires the deep-link from the lesson + upload-to-slot.",
+  "description": "One Thousand Drones Academy — desktop screen-capture companion. The lesson '+' launches it via the otd-capture:// deep link; it shows what to capture, frames a marching-ants box over any app (content-protected, global spacebar), and on approve uploads straight into the lesson slot. Standalone fallback saves to disk.",
   "main": "main.js",
   "scripts": {
     "start": "electron ."

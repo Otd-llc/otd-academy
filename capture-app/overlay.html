@@ -98,6 +98,35 @@
       .btns .btn { flex: 1; }
       #status { margin-top: 10px; font-size: 11px; color: var(--muted); line-height: 1.5; }
       #status .rec { color: var(--red); }
+      /* deep-link "what to capture" callout */
+      .info {
+        margin-bottom: 6px;
+        padding: 9px 11px;
+        border: 1px solid var(--gold);
+        border-radius: 8px;
+        background: rgba(200, 150, 62, 0.08);
+      }
+      .infoTag {
+        display: inline-block;
+        font-size: 9px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--gold);
+      }
+      #sessionWhat {
+        margin: 4px 0 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 13px;
+        line-height: 1.45;
+        color: var(--ink);
+      }
+      .infoNote {
+        display: block;
+        margin-top: 6px;
+        font-size: 10px;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+      }
       #review img, #review video { width: 100%; border: 1px solid var(--border); border-radius: 6px; background: #000; margin-top: 8px; }
       kbd { border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; color: var(--ink); }
       .hidden { display: none !important; }
@@ -142,10 +171,16 @@
       <h1>OTD Capture</h1>
 
       <div id="setup">
+        <div id="sessionInfo" class="info hidden">
+          <span class="infoTag">Capture this</span>
+          <p id="sessionWhat"></p>
+          <span class="infoNote">→ uploads straight into the lesson slot</span>
+        </div>
+
         <label class="lbl" for="caption">Caption (the image / clip description)</label>
         <input id="caption" type="text" maxlength="200" placeholder="What is this a shot of?" />
 
-        <label class="lbl">Mode</label>
+        <label class="lbl" id="modeLabel">Mode</label>
         <div class="row" id="modeRow">
           <span class="chip on" data-mode="image">Screenshot</span>
           <span class="chip" data-mode="video">Clip</span>

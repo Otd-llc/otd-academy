@@ -1,28 +1,27 @@
 "use server";
 
-// Admin in-app screen-capture → guide image (and, later, clip).
+// Admin screen-capture → guide media (image or clip). Two capture paths share
+// one storage convention and one block-writer (writeGuideBlockMedia):
 //
-// Two actions. Public lesson media: stored under `guide-shots/{cuid}.{ext}` and
-// served WITH LONG-CACHE HEADERS via `/api/shot/{cuid}.{ext}` (a stable,
-// CDN-cacheable, SEO-friendly URL) — NOT presigned. Admin-gated + freeze-checked,
-// mirroring editGuideCard.
+//   • In-browser (MediaCapture): createGuideShotUploadUrl → presigned PUT →
+//     setGuideBlockMedia points the block at the served URL.
+//   • Desktop app (OTD Capture): createCaptureSession mints a short-lived signed
+//     token + hands back the block's description; the app uploads through
+//     /api/capture, which verifies the token and calls the same block-writer.
 //
-//   1. createGuideShotUploadUrl(input) → presigned PUT for the captured blob.
-//   2. setGuideBlockImage(input)       → point a card's image block at the
-//      served URL (replacing an empty-src placeholder).
+// Media lives under `guide-shots/{cuid}.{ext}` and is served WITH LONG-CACHE
+// HEADERS via `/api/shot/{cuid}.{ext}` (stable, CDN-cacheable, SEO-friendly).
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createId } from "@paralleldrive/cuid2";
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
-import { Prisma } from "@prisma/client";
 import { env } from "@/env";
 import { db } from "@/lib/db";
 import { r2, guideShotKey } from "@/lib/r2";
 import { requireAdmin } from "@/lib/auth-helpers";
-import { assertNotFrozen } from "@/lib/assertions";
-import { withTxRetry } from "@/lib/tx-retry";
 import { guideContentBlocksSchema } from "@/lib/schemas/guide";
+import { writeGuideBlockMedia } from "@/lib/guide-block-write";
+import { signCaptureToken } from "@/lib/capture-token";
 
 const PUT_TTL_SECONDS = 900; // 15 min
 const MAX_SHOT_BYTES = 12_000_000; // 12 MB — generous for a webp shot / short clip
@@ -31,18 +30,6 @@ function ensureR2Enabled(): void {
   if (!env.R2_ENABLED || !env.R2_BUCKET) {
     throw new Error("R2 file storage is not enabled on this deployment.");
   }
-}
-
-// Revalidate the guide route for a revision (slug + url-encoded label) — mirrors
-// the private helper in actions/guides.ts.
-async function revalidateGuideRoute(revisionId: string): Promise<void> {
-  const rev = await db.revision.findUniqueOrThrow({
-    where: { id: revisionId },
-    select: { label: true, project: { select: { slug: true } } },
-  });
-  revalidatePath(
-    `/projects/${rev.project.slug}/${encodeURIComponent(rev.label)}/guide`,
-  );
 }
 
 const SHOT_EXT = z.enum(["webp", "webm", "mp4"]);
@@ -70,7 +57,7 @@ export async function createGuideShotUploadUrl(input: unknown) {
     { expiresIn: PUT_TTL_SECONDS },
   );
   // Client PUTs the blob to `uploadUrl`, then passes `shotId`/`ext` back to
-  // setGuideBlockImage. The served URL is /api/shot/{shotId}.{ext}.
+  // setGuideBlockMedia. The served URL is /api/shot/{shotId}.{ext}.
   return { uploadUrl, shotId, ext: data.ext };
 }
 
@@ -87,43 +74,49 @@ export async function setGuideBlockMedia(input: unknown) {
   const data = setImageInputSchema.parse(input);
   await requireAdmin();
 
-  const src = `/api/shot/${data.shotId}.${data.ext}`;
-
-  const updated = await withTxRetry(() =>
-    db.$transaction(
-      async (tx) => {
-        const card = await tx.guideCard.findUniqueOrThrow({
-          where: { id: data.cardId },
-          select: {
-            contentBlocks: true,
-            guide: { select: { revisionId: true } },
-          },
-        });
-        await assertNotFrozen(tx, card.guide.revisionId);
-
-        const blocks = guideContentBlocksSchema.parse(card.contentBlocks);
-        const block = blocks[data.blockIndex];
-        if (!block || (block.type !== "image" && block.type !== "video")) {
-          throw new Error("Target block is not an image or video block.");
-        }
-        blocks[data.blockIndex] = {
-          ...block,
-          src,
-          ...(data.caption !== undefined ? { caption: data.caption } : {}),
-        };
-        // Re-validate the whole array before writing (belt-and-suspenders).
-        const next = guideContentBlocksSchema.parse(blocks);
-
-        return tx.guideCard.update({
-          where: { id: data.cardId },
-          data: { contentBlocks: next as unknown as Prisma.InputJsonValue },
-          select: { id: true, guide: { select: { revisionId: true } } },
-        });
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    ),
+  const { src } = await writeGuideBlockMedia(
+    data.cardId,
+    data.blockIndex,
+    `/api/shot/${data.shotId}.${data.ext}`,
+    data.caption,
   );
-
-  await revalidateGuideRoute(updated.guide.revisionId);
   return { ok: true as const, src };
+}
+
+// ── Desktop capture (OTD Capture app) ──────────────────────────────────────
+// The lesson "+" calls this; it returns the block's description (what to
+// capture — shown in the app, becomes the caption) plus a token scoped to this
+// one block. The client builds the otd-capture:// deep link from the result.
+const captureSessionInputSchema = z.object({
+  cardId: z.cuid(),
+  blockIndex: z.number().int().nonnegative(),
+  kind: z.enum(["image", "video"]),
+});
+
+export async function createCaptureSession(input: unknown) {
+  const data = captureSessionInputSchema.parse(input);
+  await requireAdmin();
+
+  const card = await db.guideCard.findUniqueOrThrow({
+    where: { id: data.cardId },
+    select: { contentBlocks: true },
+  });
+  const blocks = guideContentBlocksSchema.parse(card.contentBlocks);
+  const block = blocks[data.blockIndex];
+  if (!block || (block.type !== "image" && block.type !== "video")) {
+    throw new Error("Target block is not an image or video block.");
+  }
+
+  const token = signCaptureToken({
+    cardId: data.cardId,
+    blockIndex: data.blockIndex,
+    kind: data.kind,
+  });
+  return {
+    token,
+    kind: data.kind,
+    // The author's "what to capture" note guides the shot AND becomes the caption.
+    hint: block.captureHint ?? "",
+    caption: block.caption ?? "",
+  };
 }

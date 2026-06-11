@@ -10,6 +10,10 @@ contextBridge.exposeInMainWorld("otd", {
     ipcRenderer.send("set-interactive", interactive),
   armSpace: () => ipcRenderer.send("arm-space"),
   disarmSpace: () => ipcRenderer.send("disarm-space"),
+  // Deep-link session from the lesson "+" (api/token/kind/hint/caption).
+  onSession: (cb) =>
+    ipcRenderer.on("capture:session", (_e, s) => cb(s)),
+  upload: (payload) => ipcRenderer.invoke("upload-capture", payload),
   save: (payload) => ipcRenderer.invoke("save-capture", payload),
   quit: () => ipcRenderer.send("quit"),
 });
