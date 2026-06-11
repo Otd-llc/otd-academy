@@ -24,7 +24,7 @@ import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
-import { ScreenshotCapture } from "@/components/guide/ScreenshotCapture";
+import { MediaCapture } from "@/components/guide/MediaCapture";
 import { affiliateLink, type AffiliateVendor } from "@/lib/affiliates";
 import { ExternalLinkIcon, PhotoIcon, VideoIcon } from "@/components/icons";
 import { parseInlineTerms } from "@/lib/inline-terms";
@@ -200,7 +200,8 @@ function ImageBlock({
       return (
         <div className="space-y-2">
           {placeholder}
-          <ScreenshotCapture
+          <MediaCapture
+            kind="image"
             cardId={cardId}
             blockIndex={blockIndex}
             captureHint={captureHint}
@@ -267,12 +268,38 @@ function VideoBlock({
   src,
   alt,
   caption,
+  captureHint,
+  cardId,
+  blockIndex,
+  isAdmin,
 }: {
   src: string;
   alt: string;
   caption?: string;
+  captureHint?: string;
+  cardId?: string;
+  blockIndex?: number;
+  isAdmin?: boolean;
 }) {
-  if (!src) return <MediaPlaceholder kind="video" description={caption || alt} />;
+  if (!src) {
+    const placeholder = (
+      <MediaPlaceholder kind="video" description={caption || alt} />
+    );
+    if (isAdmin && cardId && blockIndex !== undefined) {
+      return (
+        <div className="space-y-2">
+          {placeholder}
+          <MediaCapture
+            kind="video"
+            cardId={cardId}
+            blockIndex={blockIndex}
+            captureHint={captureHint}
+          />
+        </div>
+      );
+    }
+    return placeholder;
+  }
   return (
     <figure className="space-y-2">
       <video
@@ -657,7 +684,15 @@ function GuideBlock({
 
     case "video":
       return (
-        <VideoBlock src={block.src} alt={block.alt} caption={block.caption} />
+        <VideoBlock
+          src={block.src}
+          alt={block.alt}
+          caption={block.caption}
+          captureHint={block.captureHint}
+          cardId={cardId}
+          blockIndex={index}
+          isAdmin={isAdmin}
+        />
       );
 
     case "quiz":

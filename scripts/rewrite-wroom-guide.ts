@@ -1228,6 +1228,27 @@ const CARDS: Record<string, Card> = {
         ],
       },
       {
+        type: "image",
+        src: "",
+        alt: "GitHub: the PCBWay-Design-Rules repo's KiCad folder, showing the .zip file with the download button.",
+        caption: "Getting the file — open the KiCad folder, click the .zip, then the Download (⤓) button (not the filename).",
+        captureHint: "On github.com/pcbway/PCBWay-Design-Rules, open the KiCad folder; show the .zip with the Download (⤓) button.",
+      },
+      {
+        type: "image",
+        src: "",
+        alt: "KiCad 10 Board Setup ▸ Design Rules ▸ Constraints, with PCBWay's minimums entered: 0.15 mm track, 0.15 mm clearance, 0.3 mm hole, 0.15 mm annular ring.",
+        caption: "Board Setup ▸ Design Rules ▸ Constraints — PCBWay's four minimums typed in.",
+        captureHint: "KiCad ▸ File ▸ Board Setup ▸ Design Rules ▸ Constraints, with track 0.15, clearance 0.15, hole 0.3, annular ring 0.15 mm.",
+      },
+      {
+        type: "image",
+        src: "",
+        alt: "KiCad 10 Board Setup ▸ Design Rules ▸ Custom Rules, showing PCBWay's rule text loaded in the panel.",
+        caption: "Verify it loaded — PCBWay's rule text fills the Custom Rules panel.",
+        captureHint: "KiCad ▸ Board Setup ▸ Design Rules ▸ Custom Rules, showing PCBWay's rule text filling the panel.",
+      },
+      {
         type: "sourceRef",
         label: "PCBWay's KiCad design-rules file (the .zip is in the KiCad folder)",
         href: "https://github.com/pcbway/PCBWay-Design-Rules",
