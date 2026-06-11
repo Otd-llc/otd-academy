@@ -35,6 +35,10 @@ export function CaptureLauncher({
 }) {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [browser, setBrowser] = useState(false);
+  // The src the upload landed at. Once set we render the media right here — no
+  // dependence on the server re-render coming through (router.refresh() still
+  // runs, to reconcile the canonical block, but this guarantees it shows).
+  const [filledSrc, setFilledSrc] = useState<string | null>(null);
   const router = useRouter();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -48,8 +52,8 @@ export function CaptureLauncher({
 
   const label = kind === "video" ? "Add clip" : "Add screenshot";
 
-  // Watch the slot; when the desktop app's upload lands, soft-refresh so the
-  // image/clip appears in place — no manual reload.
+  // Watch the slot; when the desktop app's upload lands, render it in place AND
+  // soft-refresh — no manual reload.
   function pollForFill(token: string) {
     if (pollRef.current) clearInterval(pollRef.current);
     let tries = 0;
@@ -65,10 +69,11 @@ export function CaptureLauncher({
           { cache: "no-store" },
         );
         if (!res.ok) return;
-        const data = (await res.json()) as { filled?: boolean };
-        if (data.filled) {
+        const data = (await res.json()) as { filled?: boolean; src?: string };
+        if (data.filled && data.src) {
           if (pollRef.current) clearInterval(pollRef.current);
-          setStatus({ kind: "opened", message: "Capture received — updating…" });
+          setFilledSrc(data.src);
+          setStatus({ kind: "opened", message: "Capture received ✓" });
           router.refresh();
         }
       } catch {
@@ -80,6 +85,9 @@ export function CaptureLauncher({
   async function launch() {
     try {
       const s = await createCaptureSession({ cardId, blockIndex, kind });
+      // Start watching BEFORE the protocol hand-off, so nothing about the
+      // navigation can race the poll out of existence.
+      pollForFill(s.token);
       const params = new URLSearchParams({
         api: window.location.origin,
         token: s.token,
@@ -95,7 +103,6 @@ export function CaptureLauncher({
         message:
           "Opening OTD Capture — frame it, press Space, approve. This page updates itself.",
       });
-      pollForFill(s.token);
     } catch {
       setStatus({
         kind: "error",
@@ -103,6 +110,37 @@ export function CaptureLauncher({
           "Couldn't start a capture session — make sure you're signed in as admin.",
       });
     }
+  }
+
+  // Upload landed — show it immediately (the server re-render will replace this
+  // with the canonical block shortly).
+  if (filledSrc) {
+    return (
+      <figure className="space-y-2">
+        {kind === "video" ? (
+          <video
+            controls
+            loop
+            muted
+            preload="metadata"
+            src={filledSrc}
+            className="w-full rounded border border-panel-border bg-deep-space"
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={filledSrc}
+            alt={caption ?? ""}
+            className="w-full rounded border border-panel-border bg-deep-space"
+          />
+        )}
+        {caption ? (
+          <figcaption className="font-mono text-xs uppercase tracking-wider text-muted">
+            {caption}
+          </figcaption>
+        ) : null}
+      </figure>
+    );
   }
 
   if (browser) {
