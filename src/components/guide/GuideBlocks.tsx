@@ -201,6 +201,7 @@ function ImageBlock({
         <div className="space-y-2">
           {placeholder}
           <CaptureLauncher
+            key="capture-add"
             kind="image"
             cardId={cardId}
             blockIndex={blockIndex}
@@ -273,6 +274,7 @@ function ImageBlock({
       <div className="space-y-2">
         {figure}
         <CaptureLauncher
+          key="capture-redo"
           kind="image"
           cardId={cardId}
           blockIndex={blockIndex}
@@ -315,6 +317,7 @@ function VideoBlock({
         <div className="space-y-2">
           {placeholder}
           <CaptureLauncher
+            key="capture-add"
             kind="video"
             cardId={cardId}
             blockIndex={blockIndex}
@@ -352,6 +355,7 @@ function VideoBlock({
       <div className="space-y-2">
         {figure}
         <CaptureLauncher
+          key="capture-redo"
           kind="video"
           cardId={cardId}
           blockIndex={blockIndex}
