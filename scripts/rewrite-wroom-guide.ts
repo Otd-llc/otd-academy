@@ -1379,7 +1379,7 @@ const CARDS: Record<string, Card> = {
         ordered: true,
         items: [
           "Start the router and switch to Route ▸ Differential Pair.",
-          "Click D1's I/O1 pad (USB_D+). KiCad grabs USB_D− alongside automatically — because you named the pair in the schematic.",
+          "Click D1's I/O1 pad (USB_D+). KiCad grabs USB_D- alongside automatically — because you named the pair in the schematic.",
           "Route the two side by side, short, straight to U1's IO20 / IO19. They stay spaced and length-matched as you go.",
           "Finish, then look: the pair runs over unbroken bottom-layer pour the whole way. That's one net done — every other is the same handful of moves.",
         ],
@@ -1515,7 +1515,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "You already ran [[design rule check|DRC]] in LAYOUT against KiCad's built-in rules. Here you do it for real: **load your fab's capability file** — their minimum trace width, clearance, drill, and annular ring — in **Board Setup ▸ Design Rules**, then re-run. A board that passed on the defaults can fail now, and that's the point: you're measuring against the shop that will actually build it. Clear every error, or note any remaining flag as an understood exception. A clearance the fab can't make is a short waiting to happen across a whole batch.",
+        md: "You already ran [[design rule check|DRC]] in LAYOUT against KiCad's built-in rules. Here you do it for real: **load your fab's capability numbers** — their minimum trace width, clearance, drill, and annular ring, which every board house publishes on its capability page — into **Board Setup ▸ Design Rules**, then re-run. A board that passed on the defaults can fail now, and that's the point: you're measuring against the shop that will actually build it. Clear every error, or note any remaining flag as an understood exception. A clearance the fab can't make is a short waiting to happen across a whole batch.",
       },
       {
         type: "callout",
