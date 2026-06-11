@@ -1,0 +1,193 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>OTD Capture</title>
+    <style>
+      :root {
+        --gold: #c8963e;
+        --space: #08090d;
+        --navy: #1f2438;
+        --border: #3a3f50;
+        --ink: #e8e8e8;
+        --muted: #8a8f9c;
+        --red: #ef5350;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: transparent;
+        overflow: hidden;
+        font-family: "Space Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        -webkit-user-select: none;
+        user-select: none;
+        cursor: default;
+      }
+      #screen { display: none; }
+
+      /* ── control panel ── */
+      #panel {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        width: 340px;
+        max-width: 42vw;
+        background: rgba(8, 9, 13, 0.92);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 16px;
+        color: var(--ink);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+      }
+      #panel h1 {
+        margin: 0 0 10px;
+        font-size: 13px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--gold);
+      }
+      label.lbl {
+        display: block;
+        font-size: 10px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 10px 0 4px;
+      }
+      #caption {
+        width: 100%;
+        background: var(--space);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--ink);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 13px;
+        padding: 7px 9px;
+      }
+      .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+      .chip {
+        border: 1px solid var(--border);
+        background: var(--navy);
+        color: var(--muted);
+        border-radius: 6px;
+        padding: 5px 9px;
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .chip.on { border-color: var(--gold); color: var(--gold); background: rgba(200, 150, 62, 0.12); }
+      .btn {
+        margin-top: 12px;
+        width: 100%;
+        border: 1px solid var(--gold);
+        background: var(--navy);
+        color: var(--gold);
+        border-radius: 6px;
+        padding: 9px;
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .btn:hover { background: var(--gold); color: var(--space); }
+      .btn.ghost { border-color: var(--border); color: var(--muted); }
+      .btn.ghost:hover { border-color: var(--gold); color: var(--gold); background: var(--navy); }
+      .btns { display: flex; gap: 8px; }
+      .btns .btn { flex: 1; }
+      #status { margin-top: 10px; font-size: 11px; color: var(--muted); line-height: 1.5; }
+      #status .rec { color: var(--red); }
+      #review img, #review video { width: 100%; border: 1px solid var(--border); border-radius: 6px; background: #000; margin-top: 8px; }
+      kbd { border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; color: var(--ink); }
+      .hidden { display: none !important; }
+
+      /* ── crop box (marching ants + dim outside) ── */
+      #box {
+        position: fixed;
+        cursor: move;
+        background:
+          linear-gradient(90deg, var(--gold) 50%, transparent 0) repeat-x,
+          linear-gradient(90deg, var(--gold) 50%, transparent 0) repeat-x,
+          linear-gradient(0deg, var(--gold) 50%, transparent 0) repeat-y,
+          linear-gradient(0deg, var(--gold) 50%, transparent 0) repeat-y;
+        background-size: 12px 2px, 12px 2px, 2px 12px, 2px 12px;
+        background-position: 0 0, 0 100%, 0 0, 100% 0;
+        background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+        box-shadow: 0 0 0 9999px rgba(8, 9, 13, 0.5);
+        animation: ants 0.5s linear infinite;
+      }
+      @keyframes ants {
+        to { background-position: 12px 0, -12px 100%, 0 -12px, 100% 12px; }
+      }
+      #handle {
+        position: absolute;
+        right: -7px;
+        bottom: -7px;
+        width: 14px;
+        height: 14px;
+        background: var(--gold);
+        border: 1px solid var(--space);
+        border-radius: 3px;
+        cursor: nwse-resize;
+      }
+    </style>
+  </head>
+  <body>
+    <video id="screen" autoplay muted playsinline></video>
+
+    <div id="box" class="hidden"><div id="handle"></div></div>
+
+    <div id="panel">
+      <h1>OTD Capture</h1>
+
+      <div id="setup">
+        <label class="lbl" for="caption">Caption (the image / clip description)</label>
+        <input id="caption" type="text" maxlength="200" placeholder="What is this a shot of?" />
+
+        <label class="lbl">Mode</label>
+        <div class="row" id="modeRow">
+          <span class="chip on" data-mode="image">Screenshot</span>
+          <span class="chip" data-mode="video">Clip</span>
+        </div>
+
+        <label class="lbl">Aspect</label>
+        <div class="row" id="aspectRow">
+          <span class="chip on" data-aspect="1.6">16:10</span>
+          <span class="chip" data-aspect="1.7778">16:9</span>
+          <span class="chip" data-aspect="1.3333">4:3</span>
+          <span class="chip" data-aspect="1">1:1</span>
+          <span class="chip" data-aspect="0">Free</span>
+        </div>
+
+        <button class="btn" id="startBtn">Start framing</button>
+      </div>
+
+      <div id="framing" class="hidden">
+        <p id="status">
+          Drag the gold box over what you want, arrange the window behind it, then
+          press <kbd>Space</kbd> to capture. <kbd>Esc</kbd> cancels.
+        </p>
+        <button class="btn ghost" id="cancelFrameBtn">Cancel</button>
+      </div>
+
+      <div id="review" class="hidden">
+        <div id="reviewMedia"></div>
+        <div class="btns">
+          <button class="btn" id="approveBtn">Approve</button>
+          <button class="btn ghost" id="redoBtn">Redo</button>
+        </div>
+        <button class="btn ghost" id="discardBtn">Cancel</button>
+      </div>
+
+      <div id="done" class="hidden">
+        <p id="status"></p>
+        <button class="btn" id="againBtn">Capture another</button>
+        <button class="btn ghost" id="quitBtn">Quit</button>
+      </div>
+    </div>
+
+    <script src="recorder.js"></script>
+    <script src="overlay.js"></script>
+  </body>
+</html>
