@@ -205,6 +205,7 @@ function ImageBlock({
             cardId={cardId}
             blockIndex={blockIndex}
             captureHint={captureHint}
+            caption={caption}
           />
         </div>
       );
@@ -294,6 +295,7 @@ function VideoBlock({
             cardId={cardId}
             blockIndex={blockIndex}
             captureHint={captureHint}
+            caption={caption}
           />
         </div>
       );
