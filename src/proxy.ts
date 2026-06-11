@@ -8,7 +8,11 @@ import { legacySlugRedirect } from "@/lib/legacy-slug-redirect";
 // land on `/sign-in`. The matcher excludes Auth.js callback routes, the Stripe
 // webhook (`/api/stripe/webhook` — a server-to-server POST from Stripe that
 // carries NO session cookie; it MUST reach the route to verify the signature,
-// never be redirected to /sign-in), the sign-in page itself, the SEO crawl files
+// never be redirected to /sign-in), the desktop-capture routes (`/api/capture`
+// + `/api/capture/status` — the OTD Capture app POSTs/polls with NO session
+// cookie; they're gated by a short-lived signed token in the route itself, so
+// they MUST reach the route, never be 307'd to /sign-in), the sign-in page
+// itself, the SEO crawl files
 // (`sitemap.xml` / `robots.txt` — must be reachable by signed-out crawlers, never
 // redirected), Next's static assets, AND any path with a file extension
 // (`.*\\..*`) — public/ files (the guide-diagram SVGs, the brand icon, etc.)
@@ -58,6 +62,6 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    "/((?!api/auth|api/stripe/webhook|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico|.*\\..*).*)",
+    "/((?!api/auth|api/stripe/webhook|api/capture|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico|.*\\..*).*)",
   ],
 };

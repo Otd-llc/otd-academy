@@ -242,10 +242,20 @@ ipcMain.handle(
         method: "POST",
         headers,
         body,
+        // Do NOT follow redirects: an auth/middleware redirect to a 200 sign-in
+        // page would otherwise read as success and silently drop the upload.
+        redirect: "manual",
       });
+      if (res.status >= 300 && res.status < 400) {
+        logLine(`upload REDIRECTED: ${res.status} → ${res.headers.get("location")}`);
+        return {
+          ok: false,
+          error: `Redirected (${res.status}) — the upload didn't reach the server.`,
+        };
+      }
       const json = await res.json().catch(() => ({}));
       logLine(`upload response: ${res.status} ${JSON.stringify(json)}`);
-      if (!res.ok) {
+      if (!res.ok || !json.src) {
         return { ok: false, error: json.error || `HTTP ${res.status}` };
       }
       return { ok: true, src: json.src };
