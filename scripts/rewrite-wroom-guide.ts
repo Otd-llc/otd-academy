@@ -1435,7 +1435,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "With DRC clean, the layout is done. The **next stage** loads the fab's own design rules, re-checks against them, and exports the **Gerber** files the factory builds from — the layout's manufacturing output.",
+        md: "With DRC clean, the layout is done — **save the report (Save… in the DRC dialog) and upload it to clear this stage.** The **next stage** loads the fab's own design rules, re-checks against them, and exports the **Gerber** files the factory builds from — the layout's manufacturing output.",
       },
       {
         type: "quiz",
@@ -1495,7 +1495,7 @@ const CARDS: Record<string, Card> = {
         type: "callout",
         label: "Exit this stage",
         severity: "info",
-        body: "Run DRC to zero, then upload your layout to clear this stage. The BOM freezes here — after this, a parts change means a new revision. Next: you'll prove the board against the fab's own design rules and export the Gerber files they build from.",
+        body: "Run DRC to zero, then upload the clean DRC report (Save… from the DRC dialog) to clear this stage. The BOM freezes here — after this, a parts change means a new revision. Next: you'll prove the board against the fab's own design rules and export the Gerber files they build from.",
       },
     ],
   },

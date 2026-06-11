@@ -133,28 +133,37 @@ describe("advanceEnrollment", () => {
 });
 
 describe("submitEnrollmentProof", () => {
-  test("creates a LINK proof on a presence-only stage (LAYOUT)", async () => {
+  test("rejects a pasted link on LAYOUT (DRC needs the file itself)", async () => {
     const projectId = await enrollmentAt("LAYOUT");
-    const res = await submitEnrollmentProof({
-      projectId,
-      stage: "LAYOUT",
-      linkUrl: "https://example.com/my-layout.pdf",
-    });
-    expect(res.ok).toBe(true);
-    const e = await enrollmentRow(projectId);
-    const arts = await db.artifact.findMany({ where: { enrollmentId: e.id } });
-    expect(arts).toHaveLength(1);
-    expect(arts[0]!.subkind).toBe("LAYOUT_FILE");
-    expect(arts[0]!.kind).toBe("LINK");
+    await expect(
+      submitEnrollmentProof({
+        projectId,
+        stage: "LAYOUT",
+        linkUrl: "https://example.com/my-layout.pdf",
+      }),
+    ).rejects.toThrow(/file's contents|isn't accepted|file itself/i);
   });
 
-  test("is idempotent — a second submit does not duplicate the proof", async () => {
+  test("a PASSING DRC proof + quiz together unblock advanceEnrollment at LAYOUT", async () => {
     const projectId = await enrollmentAt("LAYOUT");
-    await submitEnrollmentProof({ projectId, stage: "LAYOUT", linkUrl: "https://example.com/a" });
-    await submitEnrollmentProof({ projectId, stage: "LAYOUT", linkUrl: "https://example.com/b" });
     const e = await enrollmentRow(projectId);
-    const count = await db.artifact.count({ where: { enrollmentId: e.id, subkind: "LAYOUT_FILE" } });
-    expect(count).toBe(1);
+    // LAYOUT is content-validated (like SCHEMATIC): clears only on a PASSING DRC
+    // report (valid === true) — a dirty DRC or a pasted link never satisfies it.
+    await db.artifact.create({
+      data: {
+        enrollmentId: e.id,
+        stage: "LAYOUT",
+        kind: "FILE",
+        subkind: "DRC_REPORT",
+        title: "clean drc",
+        fileKey: `enrollments/${e.id}/LAYOUT/drc.rpt`,
+        valid: true,
+        createdBy: userId,
+      },
+    });
+    await addQuizPass(projectId, "LAYOUT");
+    const r = await advanceEnrollment({ projectId });
+    expect(r).toEqual({ ok: true, toStage: "DRC_GERBER" });
   });
 
   test("rejects a pasted link on a content-validated stage (ERC needs the file itself)", async () => {
