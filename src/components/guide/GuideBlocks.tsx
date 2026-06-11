@@ -145,40 +145,45 @@ function ImageBlock({
   alt,
   caption,
   reveal,
+  boxed,
 }: {
   src: string;
   alt: string;
   caption?: string;
   reveal?: string;
+  boxed?: boolean;
 }) {
   if (!src) return <MediaPlaceholder kind="photo" description={caption || alt} />;
-  // A `reveal` summary turns the image into an opt-in "check your work" details
-  // element (collapsed by default) — the learner tries first, then compares.
-  // These are small, odd-aspect schematic crops, so they render inside a fixed
-  // white box with `object-contain`: the vector scales to FIT the box (up or
-  // down) without a tall-narrow crop ballooning to full page width.
-  if (reveal) {
+  // Small, odd-aspect schematic crops render inside a fixed white box with
+  // `object-contain` (the vector scales to FIT, no tall-narrow balloon). `reveal`
+  // wraps that box in a collapsed <details> (a try-first "check your work");
+  // `boxed` shows the same box always-open (a teaching diagram beside the prose).
+  if (reveal || boxed) {
+    const boxedFigure = (
+      <figure className="space-y-2">
+        <div className="mx-auto h-[24rem] w-full max-w-[34rem] rounded border border-panel-border bg-white">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt={alt}
+            loading="lazy"
+            className="h-full w-full object-contain p-2"
+          />
+        </div>
+        {caption ? (
+          <figcaption className="text-center font-mono text-xs uppercase tracking-wider text-muted">
+            {caption}
+          </figcaption>
+        ) : null}
+      </figure>
+    );
+    if (!reveal) return boxedFigure;
     return (
       <details className="rounded border border-panel-border bg-deep-space/40 p-3">
         <summary className="cursor-pointer select-none font-mono text-[11px] uppercase tracking-wider text-command-gold transition-colors hover:text-gold-light">
           {reveal}
         </summary>
-        <figure className="mt-3 space-y-2">
-          <div className="mx-auto h-[24rem] w-full max-w-[34rem] rounded border border-panel-border bg-white">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={src}
-              alt={alt}
-              loading="lazy"
-              className="h-full w-full object-contain p-2"
-            />
-          </div>
-          {caption ? (
-            <figcaption className="text-center font-mono text-xs uppercase tracking-wider text-muted">
-              {caption}
-            </figcaption>
-          ) : null}
-        </figure>
+        <div className="mt-3">{boxedFigure}</div>
       </details>
     );
   }
@@ -538,6 +543,7 @@ function GuideBlock({
           alt={block.alt}
           caption={block.caption}
           reveal={block.reveal}
+          boxed={block.boxed}
         />
       );
 
