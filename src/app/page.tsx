@@ -126,7 +126,7 @@ export default async function HomePage({
           </Link>
           <Link
             href="/curriculum"
-            className="glass-button px-3 py-2 text-signal-blue hover:text-gold-light sm:px-4"
+            className="glass-button px-3 py-2 sm:px-4"
           >
             CURRICULUM →
           </Link>

@@ -6,15 +6,18 @@ import { listParts } from "@/lib/parts-list";
 const SEED_EMAIL = "seed@example.com";
 const MFR = `PartsList-TestCo-${Date.now()}`;
 let userId: string;
+// listParts now only returns parts complete enough to use (a symbol AND a
+// footprint), so every fixture part gets a KiCad lib-id pair to clear the filter.
+const CAD = { kicadSymbol: "Device:R", kicadFootprint: "Resistor_SMD:R_0805" };
 
 beforeAll(async () => {
   userId = (await db.user.findUniqueOrThrow({ where: { email: SEED_EMAIL }, select: { id: true } })).id;
   // 3 rows under one manufacturer, distinct mpn/description/lifecycle/certified.
   await db.part.createMany({
     data: [
-      { manufacturer: MFR, mpn: "AA-100", description: "ten kilohm widget", lifecycle: "ACTIVE", isCertifiedModule: true,  createdById: userId },
-      { manufacturer: MFR, mpn: "BB-200", description: "voltage regulator",  lifecycle: "EOL",    isCertifiedModule: false, createdById: userId },
-      { manufacturer: MFR, mpn: "CC-300", description: "ten kilohm sensor",  lifecycle: "ACTIVE", isCertifiedModule: false, createdById: userId },
+      { manufacturer: MFR, mpn: "AA-100", description: "ten kilohm widget", lifecycle: "ACTIVE", isCertifiedModule: true,  createdById: userId, ...CAD },
+      { manufacturer: MFR, mpn: "BB-200", description: "voltage regulator",  lifecycle: "EOL",    isCertifiedModule: false, createdById: userId, ...CAD },
+      { manufacturer: MFR, mpn: "CC-300", description: "ten kilohm sensor",  lifecycle: "ACTIVE", isCertifiedModule: false, createdById: userId, ...CAD },
     ],
   });
 });
@@ -103,8 +106,8 @@ describe("listParts cat subtree filter", () => {
     childId = child.id;
     await db.part.createMany({
       data: [
-        { manufacturer: CAT_MFR, mpn: "PARENT-1", description: "on the parent node", categoryId: parentId, createdById: userId },
-        { manufacturer: CAT_MFR, mpn: "CHILD-1", description: "on the child node", categoryId: childId, createdById: userId },
+        { manufacturer: CAT_MFR, mpn: "PARENT-1", description: "on the parent node", categoryId: parentId, createdById: userId, ...CAD },
+        { manufacturer: CAT_MFR, mpn: "CHILD-1", description: "on the child node", categoryId: childId, createdById: userId, ...CAD },
       ],
     });
   });

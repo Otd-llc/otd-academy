@@ -505,6 +505,48 @@ function FactSummary({
 }) {
   const d = (data ?? {}) as Record<string, unknown>;
 
+  // PINOUT shows the full pin table on the public/student part view (not just a
+  // count) whenever a pinout is assigned — mirrors the glance-modal table.
+  if (group === "PINOUT") {
+    const pins = (Array.isArray(d.pins) ? d.pins : []) as Record<
+      string,
+      unknown
+    >[];
+    if (pins.length === 0) {
+      return <p className="font-mono text-xs text-muted">No content.</p>;
+    }
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse font-mono text-xs">
+          <thead>
+            <tr className="border-b border-panel-border text-left text-muted">
+              <th className="py-1 pr-3 font-normal">#</th>
+              <th className="py-1 pr-3 font-normal">Name</th>
+              <th className="py-1 pr-3 font-normal">Function</th>
+              <th className="py-1 pr-3 font-normal">Type</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pins.map((p, i) => (
+              <tr key={i} className="border-b border-panel-border/50">
+                <td className="py-1 pr-3 text-link-muted">
+                  {String(p.number ?? "—")}
+                </td>
+                <td className="py-1 pr-3 text-link-muted">
+                  {String(p.name ?? "—")}
+                </td>
+                <td className="py-1 pr-3 text-link-muted">
+                  {typeof p.function === "string" ? p.function : "—"}
+                </td>
+                <td className="py-1 pr-3 text-muted">{String(p.type ?? "—")}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
   function rows(): { k: string; v: string }[] {
     switch (group) {
       case "PARAMETRICS":
