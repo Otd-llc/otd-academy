@@ -420,7 +420,7 @@ const CARDS: Record<string, Card> = {
         src: "/guide-diagrams/l1-01-sub-power.svg",
         alt: "Regulator sub-circuit: U2 (RT9080) with +5V on VIN, EN tied to VIN, VOUT to +3V3; C5 across the input, C6 across the output.",
         caption: "VIN on +5V, VOUT on +3V3, a cap on each side, EN tied high.",
-        reveal: "Check your work · the regulator",
+        reveal: "See it wired · the regulator",
       },
       {
         type: "callout",
@@ -470,7 +470,7 @@ const CARDS: Record<string, Card> = {
         src: "/guide-diagrams/l1-01-sub-mcu.svg",
         alt: "The ESP32-S3-WROOM-1 (U1) with its decoupling caps C1, C2, C3 and C7 — each tied between +3V3 and GND at the module's supply pin.",
         caption: "Check the decoupling — each of C1/C2/C3/C7 between +3V3 and GND.",
-        reveal: "Check your work · decoupling",
+        reveal: "See it wired · decoupling",
       },
       {
         type: "callout",
@@ -514,7 +514,7 @@ const CARDS: Record<string, Card> = {
         src: "/guide-diagrams/l1-01-sub-bootreset.svg",
         alt: "Boot and reset: R1 pulls EN up to +3V3 and SW1 pulls EN to GND; R2 pulls IO0 up to +3V3 and SW2 pulls IO0 to GND, at the ESP32 module.",
         caption: "Check boot/reset — R1+SW1 on EN, R2+SW2 on IO0.",
-        reveal: "Check your work · boot & reset",
+        reveal: "See it wired · boot & reset",
       },
       {
         type: "callout",
@@ -551,14 +551,14 @@ const CARDS: Record<string, Card> = {
       {
         type: "deepDive",
         summary: "Why exactly 5.1 kΩ, and why two?",
-        body: "A device advertises itself as a power 'sink' by tying each [[CC pin]] to ground through a 5.1 kΩ resistor (called [[Rd]]) — that exact value is what the USB-C spec assigns to a basic sink. There are two (R3, R4) because Type-C is reversible: whichever way the plug goes in, one CC pin is the live one, so both need their own Rd. The sneaky failure: with an old USB-A-to-C cable the board would still work (A ports always have 5 V), so it can seem fine on an old cable yet look dead on a new charger.",
+        body: "The sneaky failure mode to file away: leave R3/R4 *off* and the board still works on an old USB-A-to-C cable — a USB-A port always has 5 V live, no [[Rd]] handshake required. So a missing sink resistor can look perfectly fine on the cable in your drawer and stone dead on a new USB-C charger. That's the worst kind of bug — intermittent by *cable*, not by board — and it's why the CC resistors are worth understanding, not just copying.",
       },
       {
         type: "image",
         src: "/guide-diagrams/l1-01-sub-usb.svg",
         alt: "USB front-end: J1 USB-C, R3/R4 (5.1k) on CC1/CC2, doubled data pins joined to USB_D+/USB_D-, F1 polyfuse on VBUS, D1 ESD array on the data lines.",
         caption: "Check the connector — CC resistors to GND, the data pairs joined.",
-        reveal: "Check your work · USB-C connector",
+        reveal: "See it wired · USB-C connector",
       },
       {
         type: "callout",
@@ -613,7 +613,7 @@ const CARDS: Record<string, Card> = {
         src: "/guide-diagrams/l1-01-sub-leds.svg",
         alt: "Indicator LEDs: +3V3 through R5 into LED1 to GND (power light), and IO2 through R6 into LED2 to GND (user light), at the ESP32 module.",
         caption: "Check the LEDs — +3V3→R5→LED1→GND, IO2→R6→LED2→GND.",
-        reveal: "Check your work · the LEDs",
+        reveal: "See it wired · the LEDs",
       },
       {
         type: "callout",
@@ -664,14 +664,14 @@ const CARDS: Record<string, Card> = {
       {
         type: "deepDive",
         summary: "How F1 and D1 actually protect the port",
-        body: "F1 is a [[PTC|resettable fuse]] (a 'polyfuse'): on overcurrent it heats up, its resistance shoots up to throttle the current, then it heals once it cools — unlike a glass fuse you'd have to desolder and replace. D1 is an [[ESD]] array on the data lines; when a static spike arrives — thousands of volts off a fingertip — it clamps that spike to ground in a nanosecond. It's deliberately a low-capacitance part, because USB data is fast and a bulky protector would smear the signal.",
+        body: "F1 is a [[PTC|resettable fuse]]: where a glass fuse blows once and needs desoldering, the PTC heats up on overcurrent, throttles the current, then heals when it cools — an accidental short is self-recovering. D1 works at the other end of the timescale: a static spike is over in nanoseconds, so the clamp has to react faster than that — and it has to be low-capacitance, because anything bulky sitting across the high-speed data lines would round off the USB edges and corrupt the signal.",
       },
       {
         type: "image",
         src: "/guide-diagrams/l1-01-sub-usb.svg",
         alt: "Port protection on the USB front-end: F1 polyfuse in series on VBUS, and D1 (USBLC6) clamping the two data lines and VBUS to GND.",
         caption: "Check the guardians — F1 in series on VBUS, D1 across the data lines.",
-        reveal: "Check your work · port protection",
+        reveal: "See it wired · port protection",
       },
       {
         type: "callout",
@@ -685,7 +685,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "Most of the ESP32's pins are yours to use however you like. A handful are already spoken for. The big one: the chip talks to your computer over **USB**, and that USB lives on two fixed pins — **D− is GPIO19, D+ is GPIO20**, always. They're wired straight into the chip's USB hardware; no other pins work, and nothing on the schematic hints at it. So the two data lines from the USB-C connector run to exactly those pins, with **D1** sitting across them to clamp static. (You already wired the other reserved pins back in section 03: **GPIO0** for boot and **EN** for reset.)\n\nOne rule for every *free* pin you choose: steer clear of the [[strapping pin|strapping pins]] — **GPIO0, 3, 45, 46** — for anything you actively drive at power-up. The chip reads those four the instant it wakes to decide how to boot, so a part tugging on one can stop it starting.",
+        md: "Most of the ESP32's pins are yours to use however you like. A handful are already spoken for. The big one: the chip talks to your computer over **USB**, and that USB lives on two fixed pins — **D− is IO19, D+ is IO20**, always (that's the name on the module's symbol). They're wired straight into the chip's USB hardware; no other pins work, and nothing on the schematic hints at it. So the two data lines from the USB-C connector run to exactly those pins, with **D1** sitting across them to clamp static. (You already wired the other reserved pins back in section 03: **GPIO0** for boot and **EN** for reset.)\n\nOne rule for every *free* pin you choose: steer clear of the [[strapping pin|strapping pins]] — **GPIO0, 3, 45, 46** — for anything you actively drive at power-up. The chip reads those four the instant it wakes to decide how to boot, so a part tugging on one can stop it starting.",
       },
       {
         type: "table",
@@ -740,26 +740,64 @@ const CARDS: Record<string, Card> = {
         body: "Why IO2 for LED2? It's a plain GPIO with no special duty. Avoid the strapping pins (0, 3, 45, 46), the USB pins (19, 20), and the serial-console pins (43, 44 — keep those for debugging); of what's left, the lowest tidy GPIO wins. (Reading an analog sensor one day? Prefer GPIO1–10 — that's ADC1, the only ADC that still works while Wi-Fi is on.)",
       },
       {
+        type: "callout",
+        label: "08 · Bring every pin out to the headers",
+        severity: "info",
+        body: "The two long headers, J2 and J3, break the module out to the board edge — so on a breadboard you can reach any pin with a jumper.",
+      },
+      {
         type: "prose",
-        md: "That leaves the two long headers, **J2** and **J3** — they bring the spare GPIOs out to the board edge so you can jumper to them later. Wire each free GPIO out to a header pin — electrically the order doesn't matter, so the tidy move is to follow the module's own physical pin order: straight, short runs that stay easy to route. Bring **+3V3, GND, +5V and EN** out to the headers too, so a breadboard has power and a reset.\n\nA tidy default you can copy: put **+3V3** on J2 pin 1 and **GND** on J2 pin 2, then march the module's spare GPIOs down the rest in pin order — `IO1`→pin 3, `IO4`→pin 4, `IO5`→pin 5, and so on, carrying onto J3 until every free GPIO has a home. Skip the ones already spoken for (the USB pins `IO19`/`IO20`, the strapping pins `0`/`3`/`45`/`46`, `EN` and `IO0`, and `IO2` driving your LED). It's ~40 little connections, but they're all the same move — label a few and the rest is muscle memory.",
+        md: "There's a way to do this with **no skip-list to track**: mirror the module 1:1 — **header pin _N_ carries module pin _N_**. Every pin comes straight out, in physical order. A power position gets a [[power port|power symbol]] (it joins the rail by name); every other position gets a [[net label]] matching the module pin's name. A few positions are *already* on a named net — reuse that name (marked ⚠ below), don't invent a new one.",
+      },
+      {
+        type: "table",
+        columns: ["J2", "carries", "J3", "carries"],
+        rows: [
+          [{ text: "1" }, { text: "GND" }, { text: "1" }, { text: "IO21" }],
+          [{ text: "2" }, { text: "+3V3" }, { text: "2" }, { text: "IO47" }],
+          [{ text: "3" }, { text: "EN ⚠" }, { text: "3" }, { text: "IO48" }],
+          [{ text: "4" }, { text: "IO4" }, { text: "4" }, { text: "IO45" }],
+          [{ text: "5" }, { text: "IO5" }, { text: "5" }, { text: "IO0 ⚠" }],
+          [{ text: "6" }, { text: "IO6" }, { text: "6" }, { text: "IO35" }],
+          [{ text: "7" }, { text: "IO7" }, { text: "7" }, { text: "IO36" }],
+          [{ text: "8" }, { text: "IO15" }, { text: "8" }, { text: "IO37" }],
+          [{ text: "9" }, { text: "IO16" }, { text: "9" }, { text: "IO38" }],
+          [{ text: "10" }, { text: "IO17" }, { text: "10" }, { text: "IO39" }],
+          [{ text: "11" }, { text: "IO18" }, { text: "11" }, { text: "IO40" }],
+          [{ text: "12" }, { text: "IO8" }, { text: "12" }, { text: "IO41" }],
+          [{ text: "13" }, { text: "USB_D- ⚠" }, { text: "13" }, { text: "IO42" }],
+          [{ text: "14" }, { text: "USB_D+ ⚠" }, { text: "14" }, { text: "RXD0" }],
+          [{ text: "15" }, { text: "IO3" }, { text: "15" }, { text: "TXD0" }],
+          [{ text: "16" }, { text: "IO46" }, { text: "16" }, { text: "IO2 ⚠" }],
+          [{ text: "17" }, { text: "IO9" }, { text: "17" }, { text: "IO1" }],
+          [{ text: "18" }, { text: "IO10" }, { text: "18" }, { text: "GND" }],
+          [{ text: "19" }, { text: "IO11" }, { text: "19" }, { text: "+5V" }],
+          [{ text: "20" }, { text: "IO12" }, { text: "20" }, { text: "GND" }],
+          [{ text: "21" }, { text: "IO13" }, { text: "21" }, { text: "+3V3" }],
+          [{ text: "22" }, { text: "IO14" }, { text: "22" }, { text: "GND" }],
+        ],
+      },
+      {
+        type: "prose",
+        md: "The **⚠** pins are already on a named net — reuse the exact name. **J2.13 / J2.14** are the USB data nets `USB_D-` / `USB_D+` (they live on `IO19` / `IO20`) — label them `USB_D-` / `USB_D+`, *not* `IO19`/`IO20`, or you trip a conflicting-label warning. **J2.3 `EN`, J3.5 `IO0`, J3.16 `IO2`** already carry a button or the LED on the module side — put the label on that existing node *and* on the header pin. The rail positions (`GND`, `+3V3`, `+5V`) get a power symbol; every other position is a plain net label that matches the module pin.",
       },
       {
         type: "image",
         src: "/guide-diagrams/l1-01-sub-headers.svg",
-        alt: "The two breakout headers J2 and J3 — the spare GPIOs plus the +3V3/+5V/GND/EN rails brought out to the board edge in pin order.",
-        caption: "Check the breakout — rails + spare GPIOs marched out to J2/J3.",
-        reveal: "Check your work · breakout headers",
+        alt: "The two breakout headers J2 and J3 — every module pin mirrored out 1:1, with power symbols on the rail positions.",
+        caption: "Every module pin mirrored out to J2/J3, rails on the power positions.",
+        reveal: "See it wired · breakout headers",
       },
       {
         type: "image",
         src: "/guide-diagrams/l1-01-sub-test-points.svg",
         alt: "Test points: TP1 on the +3V3 rail and TP2 on GND — bare loops to clip a meter onto during bring-up.",
         caption: "Check the test points — TP1 on +3V3, TP2 on GND.",
-        reveal: "Check your work · test points",
+        reveal: "See it wired · test points",
       },
       {
         type: "prose",
-        md: "One wiring habit that pays off here: a GPIO net needs the **same label on both ends** — the header pin *and* the module pin. That includes the three nets that already have a circuit on U1's side: label **`EN`, `IO0`, `IO2` on the module too**, not just at the header. (You skip those three when *marching spare GPIOs onto the header* — they're already used — but each still needs its label where its own circuit lives.) Miss one end and the two pins land on separate nets; ERC flags the loose one — and that flag is the point, the safety net catching the slip for you.",
+        md: "One habit makes the whole march safe: **label both ends of every net** — the module pin *and* its header pin, the same name. For the ⚠ nets (`EN`, `IO0`, `IO2`) the module side already has its label from its own circuit; you just add the matching one at the header. Now the catch ERC only half-covers: *miss* an end and ERC flags the orphaned pin — the safety net working. But *mis*label an end — `IO5` on the module, `IO6` at the header — and both nets look 'used,' so **ERC stays quiet**. The header order is the one place to check your work against the reference image, not just trust a green ERC.",
       },
       {
         type: "callout",
@@ -852,7 +890,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "Aim for the same composition as the reference: J1 on the left edge (USB in), U1 in the centre (the hub), J2/J3 on the right edges (breakout out). The regulator island (U2/F1/C5/C6) sits upper-left so power reads left → right; D1 tucks against J1 at the port; the decoupling caps hug U1's 3V3 pin; boot/reset (R1/R2/SW1/SW2) sits by U1's EN/IO0. Rails point up, grounds down, connectors on the edges.\n\nTwo habits make this painless. Drag a part to *empty space*, wire its little sub-circuit there, then slide the finished island into position — it beats fighting auto-placement. And **Ctrl+F** jumps you straight to any refdes. (Tying two adjacent pins directly — `U2 EN` to `VIN` — is fine too; same net, less clutter.)",
+        md: "Aim for the same composition as the reference image (the answer key at the end of this card): J1 on the left edge (USB in), U1 in the centre (the hub), J2/J3 on the right edges (breakout out). The regulator island (U2/F1/C5/C6) sits upper-left so power reads left → right; D1 tucks against J1 at the port; the decoupling caps hug U1's 3V3 pin; boot/reset (R1/R2/SW1/SW2) sits by U1's EN/IO0. Rails point up, grounds down, connectors on the edges.\n\nTwo habits make this painless. Drag a part to *empty space*, wire its little sub-circuit there, then slide the finished island into position — it beats fighting auto-placement. And **Ctrl+F** jumps you straight to any refdes. (Tying two adjacent pins directly — `U2 EN` to `VIN` — is fine too; same net, less clutter.)",
       },
       {
         type: "prose",
@@ -900,6 +938,26 @@ const CARDS: Record<string, Card> = {
         type: "deepDive",
         summary: "Why named labels beat long wires",
         body: "A net is defined by connection, not by a drawn line — so a [[net label]] called 3V3 in one corner of the sheet is the same wire as a 3V3 label in the other corner, with nothing drawn between them. That isn't a shortcut, it's the readable way: a schematic with twenty rails crossing it hides mistakes, while one built from named [[power port|ports]] and short local wires shows each sub-circuit as a tidy island. The electrical meaning is identical; the human meaning is night and day.",
+      },
+      {
+        type: "callout",
+        label: "Draw it · the build order",
+        severity: "info",
+        body: "One worked net down — here's the whole board as a checklist. Wire it top to bottom: power first so the chip has a rail, then the edges. Each line is the same handful of moves you just did.",
+      },
+      {
+        type: "steps",
+        ordered: true,
+        items: [
+          "Power chain — VBUS → F1 → +5V → U2 VIN; U2 VOUT → +3V3; U2 EN → VIN; C5 on +5V, C6 on +3V3.",
+          "Decoupling — a +3V3 and a GND on each of C1/C2/C3/C7, at U1's 3V3 pin (the net you just wired).",
+          "The chip — U1 3V3 → +3V3; U1's visible GND → GND.",
+          "Boot & reset — R1+SW1 on EN, R2+SW2 on IO0, the pull-ups to +3V3.",
+          "USB front-end — J1 data through D1 to IO20 (USB_D+) and IO19 (USB_D-); CC1/CC2 through R3/R4 to GND; D1's VBUS pin on raw VBUS.",
+          "LEDs — +3V3 → R5 → LED1 → GND, and IO2 → R6 → LED2 → GND.",
+          "Headers & test points — mirror J2/J3 from the section-08 table; TP1 → +3V3, TP2 → GND.",
+          "Grounds & loose ends — one GND net everywhere, then a no-connect (Q) on every pin you mean to leave open.",
+        ],
       },
       {
         type: "callout",
@@ -957,7 +1015,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "First, **grounds**. Every GND pin ties to the *same* net — the [[power port|power-port]] trick makes that painless: drop a GND port at each ground instead of running lines across the sheet. The big pad under the WROOM module has *hidden* GND pins: KiCad auto-connects an invisible power pin to the net of its name, so they join GND on their own — **but only because your ground net is named GND too**. Don't lean on that invisible link: turn on **View ▸ Show Hidden Pins**, confirm those pins land on GND, and drop a GND port on the module's visible ground pin so the tie is *on the sheet*, not just implied. (An unseen ground is exactly the kind ERC can miss.)\n\nSecond, the **USB-C data pins**. Type-C is reversible, so J1 carries **two copies of each data line** — tie `DP1` + `DP2` and `DN1` + `DN2` each into one net. (`VBUS` and `GND` are already single pins here; the two **CC** pins stay separate, one [[Rd]] each, which is why there are two.)\n\nThird, **anything you're leaving open**. A spare GPIO you didn't break out, the connector's unused SBU pins, an unused regulator pin — drop a no-connect flag (the **Q** key) on each. That turns 'I forgot this' into 'I meant this' — the difference between a clean ERC and a screen of warnings you'll be tempted to scroll past.",
+        md: "First, **grounds**. Every GND pin ties to the *same* net — the [[power port|power-port]] trick makes that painless: drop a GND port at each ground instead of running lines across the sheet. The big pad under the WROOM module has *hidden* GND pins: KiCad auto-connects an invisible power pin to the net of its name, so they join GND on their own — **but only because your ground net is named GND too**. Don't lean on that invisible link: turn on **View ▸ Show Hidden Pins**, confirm those pins land on GND, and drop a GND port on the module's visible ground pin so the tie is *on the sheet*, not just implied. (An unseen ground is exactly the kind ERC can miss.)\n\nSecond, the **USB-C data pins**. Type-C is reversible, so J1 carries **two copies of each data line** — tie `DP1` + `DP2` and `DN1` + `DN2` each into one net. (`VBUS` and `GND` are already single pins here; the two **CC** pins stay separate, one [[Rd]] each, which is why there are two.)\n\nThird, **anything you're leaving open**. With every module pin mirrored to a header, the open pins are the odd ones out — the USB connector's unused **SBU** pins, the regulator's **NC** pin, any J1 contact you didn't use. Drop a no-connect flag (the **Q** key) on each. That turns 'I forgot this' into 'I meant this' — the difference between a clean ERC and a screen of warnings you'll be tempted to scroll past.",
       },
       {
         type: "callout",
@@ -969,6 +1027,12 @@ const CARDS: Record<string, Card> = {
         type: "deepDive",
         summary: "ERC is the net, not a hoop",
         body: "You can't instruction your way out of every slip. A careful builder with the rule right in front of them still half-finishes a both-ends task across 40 pins — that's just how humans handle long, two-sided work. So the durable move isn't 'try harder,' it's design the safety net and learn to read it. That's why this lesson pairs each error-prone step with its ERC tell: label both ends — and if you miss one, ERC flags the loose pin. That flag IS your check. Work the list to zero and the net has done its job; it isn't a hoop to clear, it's the thing catching what your eyes skipped.",
+      },
+      {
+        type: "callout",
+        label: "Draw it · eyeball what ERC can't catch",
+        severity: "warn",
+        body: "ERC checks connectivity, not intent — so before you run it, trace three things by eye against the 'see it wired' reference crops. (1) U2 VIN sits on +5V (after the fuse), not raw VBUS — both are valid rails, so ERC can't tell them apart, but VIN on VBUS means no overcurrent protection. (2) Each LED's bar/flat side (K) faces GND — backwards it just stays dark, and ERC says nothing. (3) USB_D+ and USB_D- aren't swapped through D1. These are exactly the slips a green ERC won't save you from.",
       },
       {
         type: "callout",
