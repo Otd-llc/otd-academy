@@ -20,8 +20,14 @@
   const doneEl = $("done");
   const framingStatus = framingEl.querySelector("#status");
   const doneMsg = doneEl.querySelector("#status");
+  const sessionInfoEl = $("sessionInfo");
+  const sessionWhatEl = $("sessionWhat");
+  const modeRowEl = $("modeRow");
+  const modeLabelEl = $("modeLabel");
+  const startBtnEl = $("startBtn");
 
   let scaleFactor = 1;
+  let session = null; // deep-link session from the lesson "+" (null = standalone)
   let mode = "image"; // image | video
   let aspect = 1.6; // 0 = free
   let box = null; // { x, y, w, h } in CSS px
@@ -39,6 +45,27 @@
 
   window.otd.onDisplayInfo((info) => {
     scaleFactor = info.scaleFactor || 1;
+  });
+
+  // Deep-link from the lesson "+": fix the mode, show the description (what to
+  // capture), pre-fill the caption, and switch Approve to upload-into-the-slot.
+  window.otd.onSession((s) => {
+    session = s;
+    mode = s.kind === "video" ? "video" : "image";
+    for (const c of modeRowEl.children)
+      c.classList.toggle("on", c.dataset.mode === mode);
+    modeRowEl.classList.add("hidden");
+    modeLabelEl.classList.add("hidden");
+    sessionWhatEl.textContent =
+      s.hint ||
+      (mode === "video"
+        ? "Record the clip described in the lesson."
+        : "Capture the screenshot described in the lesson.");
+    sessionInfoEl.classList.remove("hidden");
+    captionEl.value = s.caption || "";
+    startBtnEl.textContent = "Start capture";
+    phase = "setup";
+    showSection("setup");
   });
 
   // ── panel sections ──
@@ -268,10 +295,27 @@
 
   async function approve() {
     if (!captured) return;
+    const caption = captionEl.value.trim();
+    if (session) {
+      doneMsg.textContent = "Uploading…";
+      phase = "done";
+      showSection("done");
+      const res = await window.otd.upload({
+        api: session.api,
+        token: session.token,
+        ext: captured.ext,
+        base64: captured.base64,
+        caption,
+      });
+      doneMsg.textContent = res.ok
+        ? "Uploaded ✓ — refresh the lesson page to see it."
+        : "Upload failed: " + (res.error || "unknown error");
+      return;
+    }
     const path = await window.otd.save({
       base64: captured.base64,
       ext: captured.ext,
-      caption: captionEl.value.trim(),
+      caption,
     });
     doneMsg.textContent = "Saved to " + path;
     phase = "done";
