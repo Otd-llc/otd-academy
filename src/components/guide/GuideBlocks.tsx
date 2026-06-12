@@ -562,6 +562,47 @@ function PhaseDivider({ label }: { label: string }) {
   );
 }
 
+// "Mode · <eyebrow> · <title>" → a full-width, colour-coded section ribbon that tells
+// the learner which MODE they're in — read (orient) vs hands-on (do) vs verify (check)
+// — so "should I have hands on the keyboard right now?" is never ambiguous. The COLOUR
+// keys off the first word of the eyebrow; the eyebrow text itself is free ("do — in
+// KiCad", "do — at the bench", …) so the same ribbon generalises across stages.
+const MODE_STYLE: Record<
+  string,
+  { icon: string; border: string; bg: string; eyebrow: string }
+> = {
+  orient: { icon: "📖", border: "border-signal-blue/40", bg: "bg-signal-blue/[0.06]", eyebrow: "text-signal-blue" },
+  do: { icon: "▶", border: "border-command-gold/50", bg: "bg-command-gold/[0.07]", eyebrow: "text-command-gold" },
+  check: { icon: "✓", border: "border-status-green/45", bg: "bg-status-green/[0.06]", eyebrow: "text-status-green" },
+};
+
+function ModeBandBlock({ label, body }: { label: string; body: string }) {
+  const parts = label.split("·").map((s) => s.trim());
+  const eyebrow = parts[1] ?? "";
+  const key = (eyebrow.split(/[\s—–-]+/)[0] || "do").toLowerCase();
+  const title = parts.slice(2).join(" · ");
+  const M = MODE_STYLE[key] ?? MODE_STYLE.do;
+  return (
+    <div className={`mt-3 rounded-lg border ${M.border} ${M.bg} px-5 py-3`}>
+      <span
+        className={`font-mono text-[10px] font-bold uppercase tracking-[0.22em] ${M.eyebrow}`}
+      >
+        {M.icon} {eyebrow}
+      </span>
+      {title ? (
+        <h2 className="mt-1 font-mono text-base font-bold uppercase tracking-[0.08em] text-gray-1">
+          {title}
+        </h2>
+      ) : null}
+      {body ? (
+        <p className="mt-1.5 whitespace-pre-wrap font-serif text-sm leading-relaxed text-muted">
+          <Inline text={body} />
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function TableCell({
   text,
   decoration,
@@ -672,6 +713,8 @@ function GuideBlock({
         return <ActionCalloutBlock label={label} body={block.body} />;
       if (/^\d+\s*·/.test(label))
         return <SectionHeaderBlock label={label} body={block.body} />;
+      if (/^mode\b/i.test(label))
+        return <ModeBandBlock label={label} body={block.body} />;
       return (
         <CalloutBlock severity={block.severity} label={label} body={block.body} />
       );
