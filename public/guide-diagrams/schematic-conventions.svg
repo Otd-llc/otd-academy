@@ -35,7 +35,7 @@
 
   <!-- the IC (a sub-circuit block) -->
   <rect x="360" y="160" width="120" height="96" rx="3" fill="rgba(170,170,170,0.10)" stroke="#c8963e" stroke-width="2"/>
-  <text x="420" y="214" text-anchor="middle" fill="#fff" font-size="17" font-weight="700">U1</text>
+  <text x="420" y="214" text-anchor="middle" fill="#fff" font-size="17" font-weight="700">IC</text>
 
   <!-- signal in (from the left) and out (to the right) -->
   <line x1="268" y1="208" x2="358" y2="208" stroke="#c8963e" stroke-width="2.5" marker-end="url(#ar)"/>

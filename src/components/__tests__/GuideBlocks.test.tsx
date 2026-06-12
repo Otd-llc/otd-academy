@@ -117,3 +117,20 @@ describe("GuideBlocks — empty media visibility", () => {
     expect(render([filledImage], false)).toBeTruthy();
   });
 });
+
+describe("GuideBlocks — mode band", () => {
+  const modeDo: ContentBlock = {
+    type: "callout",
+    severity: "info",
+    label: "Mode · do — in KiCad · Build it, island by island",
+    body: "From here, have KiCad open.",
+  };
+
+  test("a 'Mode ·' callout renders a parsed mode band, not a raw callout", () => {
+    const r = render([modeDo], false);
+    expect(r.text).toContain("Build it, island by island"); // the section title
+    expect(r.text).toContain("From here, have KiCad open"); // the subtitle/body
+    expect(r.text).toContain("do — in KiCad"); // the mode eyebrow
+    expect(r.text).not.toContain("Mode ·"); // parsed away — never shown as a raw label
+  });
+});
