@@ -1,0 +1,17 @@
+# Treat binary assets as binary so core.autocrlf can never line-ending-mangle
+# them on commit (which truncated a committed PDF before this file existed).
+# Intentionally NO `* text=auto` — that would mass-renormalize the existing
+# tree; this list only pins known-binary types.
+*.pdf   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.glb   binary
+*.woff  binary
+*.woff2 binary
+*.zip   binary
+*.mp4   binary
+*.webm  binary
