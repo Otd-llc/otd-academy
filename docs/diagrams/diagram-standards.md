@@ -107,3 +107,6 @@ with sync_playwright() as p:
 | `wroom-power-flow.svg` | 5 V → 3.3 V power flow | ✅ |
 | `schematic-conventions.svg` | KiCad schematic-drawing conventions | ✅ |
 | `two-layer-cross-section.svg` | 2-layer board edge-on (signals/core/ground plane) | ✅ |
+| `current-budget.svg` | current budget (≈550 mA draw) vs the 600 mA LDO ceiling | ✅ |
+| `adc1-pin-map.svg` | ADC1 (GPIO 1–10) usable vs ADC2 (11–20) radio-claimed | ✅ |
+| `0805-vs-0402.svg` | 0805 vs 0402 passive footprint, to scale | ✅ |
