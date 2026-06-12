@@ -9,7 +9,7 @@ export const LICENSE_TITLE =
   "All rights reserved — published for transparency and reference, not for use or reuse." as const;
 
 export const LICENSE_COPYRIGHT =
-  "Copyright © 2026 Raven Savage / One Thousand Drones LLC. All rights reserved." as const;
+  "Copyright © 2026 Joshua Tollette / One Thousand Drones LLC. All rights reserved." as const;
 
 /**
  * The license terms as ordered paragraphs, mirroring `LICENSE.md`. Rendered as a
@@ -19,5 +19,5 @@ export const LICENSE_BODY = [
   "This source code is published publicly for transparency, reference, and portfolio purposes only. It is NOT licensed for use, copying, modification, distribution, or commercial use by any party other than the copyright holder without express prior written permission.",
   "You may: view the source code, and cite it in good-faith technical discussion or commentary, with attribution.",
   "You may not: copy any portion of this code into your own project (public or private); fork, modify, or redistribute it in any form, including derivative works; use it, in whole or in part, to operate any service or product; use the project’s name, branding, trademarks, or any associated identifiers in your own work; or train any machine learning model or AI system on this source code.",
-  "For licensing inquiries, contact ravenduanesavage@gmail.com.",
+  "For licensing inquiries, contact josh@onethousanddrones.com.",
 ] as const;

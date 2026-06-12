@@ -1,6 +1,6 @@
 # License
 
-Copyright (c) 2026 Raven Savage / One Thousand Drones LLC.
+Copyright (c) 2026 Joshua Tollette / One Thousand Drones LLC.
 All rights reserved.
 
 This source code is published publicly for transparency, reference, and
@@ -24,4 +24,4 @@ copyright holder without express prior written permission.
 
 ## Contact
 
-For licensing inquiries, contact: ravenduanesavage@gmail.com
+For licensing inquiries, contact: josh@onethousanddrones.com
