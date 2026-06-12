@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 360" role="img"
+     aria-label="The manufacturer part number RC0805FR-075K1L split into its segments: RC is the Yageo thick-film family, 0805 the package size, F the tolerance, 5K1 the value 5.1 kilohm; R-07 and the trailing L are packaging codes you can ignore"
+     font-family="ui-monospace, 'SFMono-Regular', Menlo, monospace">
+
+  <!-- title (top gutter) -->
+  <text x="390" y="40" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700">A part number is a spec sheet squeezed into a string</text>
+
+  <!-- the MPN, centered, each segment in its own colour -->
+  <text x="390" y="132" text-anchor="middle" font-size="38" font-weight="700" letter-spacing="1">
+    <tspan fill="#8a8a8a">RC</tspan><tspan fill="#c8963e">0805</tspan><tspan fill="#4a8fff">F</tspan><tspan fill="#8a8a8a" fill-opacity="0.45">R-07</tspan><tspan fill="#c8963e">5K1</tspan><tspan fill="#8a8a8a" fill-opacity="0.45">L</tspan>
+  </text>
+
+  <!-- legend: colour links each glyph to its meaning (no leaders needed) -->
+  <g font-size="13">
+    <rect x="250" y="178" width="14" height="14" fill="#8a8a8a"/>
+    <text x="274" y="190"><tspan fill="#8a8a8a" font-weight="700">RC</tspan><tspan fill="#b9b9b9">  Yageo thick-film resistor family</tspan></text>
+
+    <rect x="250" y="214" width="14" height="14" fill="#c8963e"/>
+    <text x="274" y="226"><tspan fill="#c8963e" font-weight="700">0805</tspan><tspan fill="#b9b9b9">  package size — 2.0 × 1.25 mm</tspan></text>
+
+    <rect x="250" y="250" width="14" height="14" fill="#4a8fff"/>
+    <text x="274" y="262"><tspan fill="#4a8fff" font-weight="700">F</tspan><tspan fill="#b9b9b9">  tolerance — ±1%</tspan></text>
+
+    <rect x="250" y="286" width="14" height="14" fill="#c8963e"/>
+    <text x="274" y="298"><tspan fill="#c8963e" font-weight="700">5K1</tspan><tspan fill="#b9b9b9">  the value — 5.1 kΩ (E24 step, not a round 5.0)</tspan></text>
+  </g>
+
+  <!-- de-emphasised note (bottom gutter) -->
+  <text x="390" y="338" text-anchor="middle" fill="#8a8a8a" font-size="11">R-07 is a packaging code and L a suffix — ordering details you can ignore.</text>
+</svg>

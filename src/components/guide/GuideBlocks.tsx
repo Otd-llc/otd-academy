@@ -547,21 +547,6 @@ function SectionHeaderBlock({ label, body }: { label: string; body: string }) {
   );
 }
 
-// Phase divider — marks a hard shift within a card (SCHEMATIC's
-// understand-the-circuit → draw-it-in-KiCad), rendered before the first
-// "Draw it ·" block.
-function PhaseDivider({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-3 pt-3">
-      <span className="h-px flex-1 bg-command-gold/30" />
-      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-command-gold">
-        {label}
-      </span>
-      <span className="h-px flex-1 bg-command-gold/30" />
-    </div>
-  );
-}
-
 // "Mode · <eyebrow> · <title>" → a full-width, colour-coded section ribbon that tells
 // the learner which MODE they're in — read (orient) vs hands-on (do) vs verify (check)
 // — so "should I have hands on the keyboard right now?" is never ambiguous. The COLOUR
@@ -889,27 +874,26 @@ export function GuideBlocks({
   cardId?: string;
   isAdmin?: boolean;
 }) {
-  // Mark the understand → "draw it" phase shift (SCHEMATIC) with a divider
-  // before the first "Draw it ·" block.
-  const drawStartIdx = blocks.findIndex(
-    (b) => b.type === "callout" && /^draw it\b/i.test(b.label ?? ""),
-  );
+  // Phase signposting is now carried by the per-card "Mode · …" ribbons
+  // (ModeBandBlock) and the gold "Do ·" action blocks. The old hard-coded
+  // "Draw it in KiCad" divider — injected before the first "Draw it ·" block of
+  // ANY card — mislabelled the browser/bench cards (it told ORDERING and
+  // ASSEMBLY learners to open KiCad) and double-announced the mode shift on the
+  // ribboned cards, so it's been removed.
   return (
     <div className="space-y-5">
       {blocks.map((block, i) => (
-        <Fragment key={i}>
-          {i === drawStartIdx ? <PhaseDivider label="Draw it in KiCad" /> : null}
-          <GuideBlock
-            block={block}
-            index={i}
-            models={models}
-            quizContext={quizContext}
-            projectId={projectId}
-            isSignedIn={isSignedIn}
-            cardId={cardId}
-            isAdmin={isAdmin}
-          />
-        </Fragment>
+        <GuideBlock
+          key={i}
+          block={block}
+          index={i}
+          models={models}
+          quizContext={quizContext}
+          projectId={projectId}
+          isSignedIn={isSignedIn}
+          cardId={cardId}
+          isAdmin={isAdmin}
+        />
       ))}
     </div>
   );
