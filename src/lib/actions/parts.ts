@@ -24,10 +24,11 @@ import {
 } from "@/lib/schemas/part";
 import { categoryAncestry } from "@/lib/categories";
 
-// `Part.category` is now a `PartCategory` enum (migration parts_knowledge_stage_a).
-// The create form still posts free text (the constrained <select> lands in
-// Task 5); narrow any non-canonical value to NULL at the write boundary,
-// mirroring the migration's `USING (CASE … ELSE NULL)` cast.
+// `Part.category` is a retained `PartCategory` enum (migration parts_knowledge_stage_a),
+// kept in sync for old readers while the category tree is the source of truth. Inputs may
+// still carry a free-text/enum `category` (seed scripts, tests, back-compat), so narrow any
+// non-canonical value to NULL at the write boundary, mirroring the migration's
+// `USING (CASE … ELSE NULL)` cast. The picker also supplies a `categoryId` (handled below).
 function toPartCategory(value: string | null | undefined): PartCategory | null {
   if (value && Object.prototype.hasOwnProperty.call(PartCategory, value))
     return value as PartCategory;
