@@ -192,14 +192,15 @@ function ImageBlock({
   isAdmin?: boolean;
 }) {
   if (!src) {
-    const placeholder = (
-      <MediaPlaceholder kind="photo" description={caption || alt} />
-    );
-    // Admins get an in-place screen-capture affordance on the empty slot.
+    // An empty media slot is an ADMIN-ONLY affordance: admins get the "to be
+    // added" placeholder + the in-place screen-capture "+", but a student
+    // (non-admin) sees NOTHING — no half-finished slot for media we haven't
+    // shot yet (e.g. the deferred build photos/clips). The author fills `src`
+    // later and the block becomes the real, everyone-visible media.
     if (isAdmin && cardId && blockIndex !== undefined) {
       return (
         <div className="space-y-2">
-          {placeholder}
+          <MediaPlaceholder kind="photo" description={caption || alt} />
           <CaptureLauncher
             key="capture-add"
             kind="image"
@@ -211,7 +212,7 @@ function ImageBlock({
         </div>
       );
     }
-    return placeholder;
+    return null;
   }
   // Small, odd-aspect schematic crops render inside a fixed white box with
   // `object-contain` (the vector scales to FIT, no tall-narrow balloon). `reveal`
@@ -309,13 +310,12 @@ function VideoBlock({
   isAdmin?: boolean;
 }) {
   if (!src) {
-    const placeholder = (
-      <MediaPlaceholder kind="video" description={caption || alt} />
-    );
+    // Admin-only: a student (non-admin) sees nothing for an unshot clip; admins
+    // keep the placeholder + capture "+". (Mirrors ImageBlock.)
     if (isAdmin && cardId && blockIndex !== undefined) {
       return (
         <div className="space-y-2">
-          {placeholder}
+          <MediaPlaceholder kind="video" description={caption || alt} />
           <CaptureLauncher
             key="capture-add"
             kind="video"
@@ -327,7 +327,7 @@ function VideoBlock({
         </div>
       );
     }
-    return placeholder;
+    return null;
   }
   const figure = (
     <figure className="space-y-2">
