@@ -419,7 +419,7 @@ body {
      equal specificity to the hover rule below, which is ordered AFTER so a
      hovered even row still reads gold. */
   .table-tech tr:nth-child(even) td {
-    background: rgba(255, 255, 255, 0.025);
+    background: rgba(255, 255, 255, 0.05);
   }
   .table-tech tr:hover td {
     background: rgba(200, 150, 62, 0.03);
