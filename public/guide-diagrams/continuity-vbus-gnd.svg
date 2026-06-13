@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 360" role="img"
+     aria-label="Before any power: with the board unplugged and the meter in continuity mode, probe VBUS (at U2's input) against GND at TP2. The meter must read OL with no beep. A beep means a dead short — stop and fix it before plugging in."
+     font-family="ui-monospace, 'SFMono-Regular', Menlo, monospace">
+
+  <!-- title + subtitle (top gutter) -->
+  <text x="390" y="24" text-anchor="middle" fill="#c8963e" font-size="12" font-weight="700">Before any power — VBUS-to-GND must NOT beep</text>
+  <text x="390" y="42" text-anchor="middle" fill="#8a8a8a" font-size="10">Unpowered continuity check · a beep means a dead short</text>
+
+  <!-- carrier board (top view) -->
+  <rect x="40" y="58" width="700" height="178" rx="8" fill="rgba(74,143,255,0.04)" stroke="#c8963e" stroke-width="2"/>
+
+  <!-- WROOM module: PORTRAIT, antenna on the top edge (matches bringup-probe-points) -->
+  <rect x="96" y="52" width="72" height="26" fill="rgba(200,150,62,0.06)" stroke="#c8963e" stroke-width="2"/>
+  <rect x="96" y="78" width="72" height="84" rx="2" fill="rgba(170,170,170,0.10)" stroke="#c8963e" stroke-width="2"/>
+  <g stroke="#c8963e" stroke-width="2" stroke-opacity="0.85">
+    <line x1="96" y1="90" x2="88" y2="90"/><line x1="96" y1="104" x2="88" y2="104"/>
+    <line x1="96" y1="118" x2="88" y2="118"/><line x1="96" y1="132" x2="88" y2="132"/>
+    <line x1="96" y1="146" x2="88" y2="146"/>
+    <line x1="168" y1="90" x2="176" y2="90"/><line x1="168" y1="104" x2="176" y2="104"/>
+    <line x1="168" y1="118" x2="176" y2="118"/><line x1="168" y1="132" x2="176" y2="132"/>
+    <line x1="168" y1="146" x2="176" y2="146"/>
+    <line x1="116" y1="162" x2="116" y2="170"/><line x1="132" y1="162" x2="132" y2="170"/><line x1="148" y1="162" x2="148" y2="170"/>
+  </g>
+  <path d="M110,66 v-10 h11 v10 h11 v-10 h11 v10 h11 v-10" fill="none" stroke="#fff" stroke-width="1.5"/>
+  <text x="132" y="124" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">U1</text>
+  <text x="132" y="186" text-anchor="middle" fill="#8a8a8a" font-size="10">ESP32-S3-WROOM-1</text>
+
+  <!-- U2 regulator (left of the probe lead): VBUS enters at its input pad -->
+  <rect x="350" y="150" width="56" height="34" rx="2" fill="rgba(170,170,170,0.10)" stroke="#c8963e" stroke-width="2"/>
+  <text x="378" y="172" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">U2</text>
+  <text x="378" y="204" text-anchor="middle" fill="#8a8a8a" font-size="10">the LDO</text>
+
+  <!-- probe targets: VBUS (red) at U2 input, GND (black) at TP2 -->
+  <text x="430" y="106" text-anchor="middle" fill="#ef5350" font-size="11" font-weight="700">VBUS · U2 in</text>
+  <text x="540" y="106" text-anchor="middle" fill="#c9c9c9" font-size="11" font-weight="700">GND · TP2</text>
+  <circle cx="430" cy="138" r="11" fill="#0b0f1a" stroke="#ef5350" stroke-width="3"/>
+  <circle cx="430" cy="138" r="3.5" fill="#0b0f1a" stroke="#ef5350" stroke-width="1"/>
+  <circle cx="540" cy="138" r="11" fill="#0b0f1a" stroke="#c9c9c9" stroke-width="3"/>
+  <circle cx="540" cy="138" r="3.5" fill="#0b0f1a" stroke="#c9c9c9" stroke-width="1"/>
+
+  <!-- meter leads: straight up (90°) from the meter to each pad -->
+  <line x1="430" y1="270" x2="430" y2="153" stroke="#ef5350" stroke-width="2.5"/>
+  <line x1="540" y1="270" x2="540" y2="153" stroke="#c9c9c9" stroke-width="2.5"/>
+  <path d="M430,151 l-6,13 h12 z" fill="#ef5350"/>
+  <path d="M540,151 l-6,13 h12 z" fill="#c9c9c9"/>
+
+  <!-- multimeter (reads OL — nothing confirmed yet, so NOT green) -->
+  <rect x="340" y="270" width="210" height="74" rx="6" fill="rgba(74,143,255,0.08)" stroke="#c8963e" stroke-width="2"/>
+  <rect x="360" y="284" width="170" height="34" rx="3" fill="#0b0f1a" stroke="#2a3340" stroke-width="1"/>
+  <text x="514" y="310" text-anchor="end" fill="#c9c9c9" font-size="22" font-weight="700">OL</text>
+  <text x="352" y="336" fill="#8a8a8a" font-size="10">DMM · continuity (beep) mode</text>
+  <circle cx="430" cy="270" r="3.5" fill="#ef5350"/>
+  <circle cx="540" cy="270" r="3.5" fill="#c9c9c9"/>
+</svg>

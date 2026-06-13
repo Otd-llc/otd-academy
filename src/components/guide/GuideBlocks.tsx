@@ -180,6 +180,7 @@ function ImageBlock({
   cardId,
   blockIndex,
   isAdmin,
+  inlineSvg,
 }: {
   src: string;
   alt: string;
@@ -190,6 +191,10 @@ function ImageBlock({
   cardId?: string;
   blockIndex?: number;
   isAdmin?: boolean;
+  /** House-style diagram SVG markup, inlined so it inherits the site's
+   *  Space Mono (an <img> SVG can't use the page webfont). When set, the
+   *  figure renders the SVG inline instead of <img src>. */
+  inlineSvg?: string;
 }) {
   if (!src) {
     // An empty media slot is an ADMIN-ONLY affordance: admins get the "to be
@@ -249,13 +254,24 @@ function ImageBlock({
   }
   const figure = (
     <figure className="space-y-2">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt={alt}
-        loading="lazy"
-        className="w-full rounded border border-panel-border bg-deep-space"
-      />
+      {inlineSvg ? (
+        // House-style diagram inlined so it inherits the page's Space Mono.
+        // Trusted build asset (see resolveInlineDiagrams); not user content.
+        <div
+          className="guide-diagram w-full overflow-hidden rounded border border-panel-border bg-deep-space"
+          role="img"
+          aria-label={alt}
+          dangerouslySetInnerHTML={{ __html: inlineSvg }}
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          className="w-full rounded border border-panel-border bg-deep-space"
+        />
+      )}
       {caption ? (
         <figcaption className="font-mono text-xs uppercase tracking-wider text-muted">
           {caption}
@@ -547,21 +563,6 @@ function SectionHeaderBlock({ label, body }: { label: string; body: string }) {
   );
 }
 
-// Phase divider — marks a hard shift within a card (SCHEMATIC's
-// understand-the-circuit → draw-it-in-KiCad), rendered before the first
-// "Draw it ·" block.
-function PhaseDivider({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-3 pt-3">
-      <span className="h-px flex-1 bg-command-gold/30" />
-      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-command-gold">
-        {label}
-      </span>
-      <span className="h-px flex-1 bg-command-gold/30" />
-    </div>
-  );
-}
-
 // "Mode · <eyebrow> · <title>" → a full-width, colour-coded section ribbon that tells
 // the learner which MODE they're in — read (orient) vs hands-on (do) vs verify (check)
 // — so "should I have hands on the keyboard right now?" is never ambiguous. The COLOUR
@@ -682,6 +683,7 @@ function GuideBlock({
   block,
   index,
   models,
+  diagrams,
   quizContext,
   projectId,
   isSignedIn,
@@ -691,6 +693,7 @@ function GuideBlock({
   block: ContentBlock;
   index: number;
   models?: Record<string, ResolvedModel>;
+  diagrams?: Record<string, string>;
   quizContext?: QuizContext;
   projectId?: string;
   isSignedIn?: boolean;
@@ -774,6 +777,7 @@ function GuideBlock({
           cardId={cardId}
           blockIndex={index}
           isAdmin={isAdmin}
+          inlineSvg={block.src ? diagrams?.[block.src] : undefined}
         />
       );
 
@@ -875,6 +879,7 @@ function GuideBlock({
 export function GuideBlocks({
   blocks,
   models,
+  diagrams,
   quizContext,
   projectId,
   isSignedIn,
@@ -883,33 +888,34 @@ export function GuideBlocks({
 }: {
   blocks: ContentBlock[];
   models?: Record<string, ResolvedModel>;
+  diagrams?: Record<string, string>;
   quizContext?: QuizContext;
   projectId?: string;
   isSignedIn?: boolean;
   cardId?: string;
   isAdmin?: boolean;
 }) {
-  // Mark the understand → "draw it" phase shift (SCHEMATIC) with a divider
-  // before the first "Draw it ·" block.
-  const drawStartIdx = blocks.findIndex(
-    (b) => b.type === "callout" && /^draw it\b/i.test(b.label ?? ""),
-  );
+  // Phase signposting is now carried by the per-card "Mode · …" ribbons
+  // (ModeBandBlock) and the gold "Do ·" action blocks. The old hard-coded
+  // "Draw it in KiCad" divider — injected before the first "Draw it ·" block of
+  // ANY card — mislabelled the browser/bench cards (it told ORDERING and
+  // ASSEMBLY learners to open KiCad) and double-announced the mode shift on the
+  // ribboned cards, so it's been removed.
   return (
     <div className="space-y-5">
       {blocks.map((block, i) => (
-        <Fragment key={i}>
-          {i === drawStartIdx ? <PhaseDivider label="Draw it in KiCad" /> : null}
-          <GuideBlock
-            block={block}
-            index={i}
-            models={models}
-            quizContext={quizContext}
-            projectId={projectId}
-            isSignedIn={isSignedIn}
-            cardId={cardId}
-            isAdmin={isAdmin}
-          />
-        </Fragment>
+        <GuideBlock
+          key={i}
+          block={block}
+          index={i}
+          models={models}
+          diagrams={diagrams}
+          quizContext={quizContext}
+          projectId={projectId}
+          isSignedIn={isSignedIn}
+          cardId={cardId}
+          isAdmin={isAdmin}
+        />
       ))}
     </div>
   );

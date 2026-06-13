@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 310" role="img"
-     aria-label="An 0805 passive (2.0 by 1.25 mm) next to an 0402 (1.0 by 0.5 mm), drawn to scale: the 0402 is about a quarter of the area and wants paste and tweezers, while the 0805 can be placed by hand"
+     aria-label="An 0805 passive (2.0 by 1.25 mm) next to an 0402 (1.0 by 0.5 mm): the 0402 is about a fifth the area and wants solder paste and hot air, while the 0805 solders with a plain iron and tweezers"
      font-family="ui-monospace, 'SFMono-Regular', Menlo, monospace">
 
   <!-- title -->
-  <text x="390" y="40" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700">Same value, very different to solder (to scale)</text>
+  <text x="390" y="40" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700">Same value, very different to solder</text>
 
   <!-- shared baseline -->
   <line x1="170" y1="200" x2="590" y2="200" stroke="#8a8a8a" stroke-width="1" stroke-opacity="0.4"/>
@@ -13,19 +13,19 @@
   <rect x="200" y="100" width="22" height="100" fill="#8a8a8a" fill-opacity="0.55"/>
   <rect x="338" y="100" width="22" height="100" fill="#8a8a8a" fill-opacity="0.55"/>
   <text x="280" y="226" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700">0805 · 2.0 × 1.25 mm</text>
-  <text x="280" y="242" text-anchor="middle" fill="#8a8a8a" font-size="11">place it by hand</text>
+  <text x="280" y="242" text-anchor="middle" fill="#8a8a8a" font-size="11">iron + tweezers</text>
 
   <!-- ── 0402 · 1.0 × 0.5 mm  (→ 80 × 40) ───────────────────────────────────── -->
   <rect x="470" y="160" width="80" height="40" fill="rgba(200,150,62,0.22)" stroke="#c8963e" stroke-width="2"/>
   <rect x="470" y="160" width="12" height="40" fill="#8a8a8a" fill-opacity="0.55"/>
   <rect x="538" y="160" width="12" height="40" fill="#8a8a8a" fill-opacity="0.55"/>
   <text x="510" y="226" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700">0402 · 1.0 × 0.5 mm</text>
-  <text x="510" y="242" text-anchor="middle" fill="#8a8a8a" font-size="11">paste + tweezers</text>
+  <text x="510" y="242" text-anchor="middle" fill="#8a8a8a" font-size="11">paste + hot air</text>
 
-  <!-- ¼-area callout, top gutter above the 0402, 90° leader down -->
-  <text x="510" y="138" text-anchor="middle" fill="#4a8fff" font-size="11" font-weight="700">≈ ¼ the area</text>
+  <!-- area callout, top gutter above the 0402, 90° leader down -->
+  <text x="510" y="138" text-anchor="middle" fill="#4a8fff" font-size="11" font-weight="700">≈ 1/5 the area</text>
   <line x1="510" y1="144" x2="510" y2="158" stroke="#4a8fff" stroke-width="1"/>
 
   <!-- takeaway -->
-  <text x="390" y="288" text-anchor="middle" fill="#c8963e" font-size="11" font-weight="700">Same value either way — this board uses 0805 so you can hand-solder it.</text>
+  <text x="390" y="288" text-anchor="middle" fill="#c8963e" font-size="11" font-weight="700">Same value either way — this board uses 0805, which solders with a plain iron.</text>
 </svg>

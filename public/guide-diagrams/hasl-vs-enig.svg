@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 360" role="img"
+     aria-label="Two cross-sections under the WROOM module's fine-pitch pads. With HASL the solder is domed at uneven heights, so the module tilts and one pad never makes contact. With ENIG the finish is flat, so the module sits level and every pad meets it."
+     font-family="ui-monospace, 'SFMono-Regular', Menlo, monospace">
+
+  <!-- title (top gutter) -->
+  <text x="390" y="30" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700">Why ENIG under the WROOM — a flat finish makes every joint</text>
+
+  <!-- ===================== LEFT PANEL: HASL ===================== -->
+  <text x="230" y="74" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="700">HASL</text>
+  <text x="230" y="90" text-anchor="middle" fill="#8a8a8a" font-size="10">hot-air leveled — uneven domes</text>
+
+  <!-- module (tilts: rests on the tall dome at left, lifts at right) -->
+  <path d="M140,222 L320,210 L320,196 L140,208 Z" fill="rgba(170,170,170,0.10)" stroke="#c8963e" stroke-width="2"/>
+  <text x="230" y="186" text-anchor="middle" fill="#8a8a8a" font-size="10">WROOM underside</text>
+
+  <!-- uneven gray solder domes -->
+  <path d="M150,250 q12,-34 24,0 z" fill="#8a8a8a"/>
+  <path d="M210,250 q12,-24 24,0 z" fill="#8a8a8a"/>
+  <path d="M270,250 q12,-14 24,0 z" fill="#8a8a8a"/>
+
+  <!-- board pads + FR-4 slab -->
+  <rect x="148" y="250" width="28" height="6" fill="#c8963e"/>
+  <rect x="208" y="250" width="28" height="6" fill="#c8963e"/>
+  <rect x="268" y="250" width="28" height="6" fill="#c8963e"/>
+  <rect x="130" y="256" width="190" height="22" fill="#0b0f1a" stroke="#c8963e" stroke-width="1.5"/>
+  <text x="225" y="293" text-anchor="middle" fill="#8a8a8a" font-size="10">domed — the module tilts, one pad floats</text>
+
+  <!-- red hazard callout for the floating pad (upper gutter, 45° leader) -->
+  <text x="372" y="150" fill="#ef5350" font-size="12" font-weight="700">GAP</text>
+  <text x="372" y="165" fill="#ef5350" font-size="11">no joint forms</text>
+  <line x1="370" y1="160" x2="318" y2="212" stroke="#ef5350" stroke-width="1"/>
+
+  <!-- ===================== RIGHT PANEL: ENIG ===================== -->
+  <text x="550" y="74" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="700">ENIG</text>
+  <text x="550" y="90" text-anchor="middle" fill="#8a8a8a" font-size="10">flat gold plating — even</text>
+
+  <!-- module sits flat -->
+  <rect x="460" y="208" width="180" height="14" fill="rgba(170,170,170,0.10)" stroke="#c8963e" stroke-width="2"/>
+  <text x="550" y="186" text-anchor="middle" fill="#8a8a8a" font-size="10">WROOM underside</text>
+
+  <!-- equal flat solder fillets -->
+  <rect x="468" y="222" width="28" height="28" fill="#8a8a8a"/>
+  <rect x="528" y="222" width="28" height="28" fill="#8a8a8a"/>
+  <rect x="588" y="222" width="28" height="28" fill="#8a8a8a"/>
+
+  <!-- board pads (flat gold caps) + FR-4 slab -->
+  <rect x="466" y="250" width="32" height="6" fill="#c8963e"/>
+  <rect x="526" y="250" width="32" height="6" fill="#c8963e"/>
+  <rect x="586" y="250" width="32" height="6" fill="#c8963e"/>
+  <rect x="450" y="256" width="190" height="22" fill="#0b0f1a" stroke="#c8963e" stroke-width="1.5"/>
+  <text x="545" y="293" text-anchor="middle" fill="#4a8fff" font-size="10">flat — every pad meets the module</text>
+
+  <!-- takeaway (bottom gutter) -->
+  <text x="390" y="338" text-anchor="middle" fill="#c8963e" font-size="11" font-weight="700">The WROOM's fine-pitch pads need ENIG's flat surface — HASL's bumps miss joints you can't see.</text>
+</svg>

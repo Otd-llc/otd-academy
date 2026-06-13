@@ -130,7 +130,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // handler (a client island).
   z.object({
     type: z.literal("action"),
-    action: z.enum(["downloadKicadStarter"]),
+    action: z.enum(["downloadKicadStarter", "downloadReferenceFiles"]),
     label: z.string().trim().min(1).max(120),
   }),
   // vendorCta — an external affiliate call-to-action (GTM monetization). `vendor`
@@ -140,7 +140,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // is NEVER stored in content — only the vendor key — so the IDs stay in env.
   z.object({
     type: z.literal("vendorCta"),
-    vendor: z.enum(["pcbway-order", "newark-bom"]),
+    vendor: z.enum(["pcbway-order", "newark-bom", "amazon-bench"]),
     label: z.string().trim().min(1).max(120),
     sublabel: z.string().max(200).optional(),
   }),
