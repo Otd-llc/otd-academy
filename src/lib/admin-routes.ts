@@ -24,6 +24,11 @@ export function isAdminOnlyPath(pathname: string): boolean {
 export function isPublicPath(pathname: string): boolean {
   const segments = pathname.split("/").filter(Boolean);
   const top = segments[0];
+  // The home page "/" is public-eligible so a signed-out visitor isn't bounced
+  // to /sign-in at the domain root (bad for SEO + first impressions). The page
+  // itself sends anonymous visitors on to the public /courses catalog; only an
+  // ADMIN sees the operator dashboard there.
+  if (segments.length === 0) return true;
   // Parts catalog list (/parts) + detail (/parts/[id]) are public; the create
   // form (/parts/new) is not.
   if (top === "parts") return segments[1] !== "new";

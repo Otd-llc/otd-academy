@@ -58,14 +58,18 @@ export default async function HomePage({
   // routed into the learner flow instead — first-timers are auto-enrolled in
   // WROOM L1 and dropped into card 1; returning learners go to /learn.
   const session = await auth();
-  if (session?.user?.email) {
-    const me = await db.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true, role: true },
-    });
-    if (me?.role === "LEARNER") {
-      redirect(await learnerLandingPath(me.id));
-    }
+  const email = session?.user?.email;
+  // Signed-out visitors land on the public, crawlable course catalog — never a
+  // sign-in wall at the domain root (this page is the operator dashboard).
+  if (!email) {
+    redirect("/courses");
+  }
+  const me = await db.user.findUnique({
+    where: { email },
+    select: { id: true, role: true },
+  });
+  if (me?.role === "LEARNER") {
+    redirect(await learnerLandingPath(me.id));
   }
 
   const params = await searchParams;
