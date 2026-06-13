@@ -33,10 +33,13 @@ export const env = createEnv({
     // PCBWAY_AFFILIATE_URL — your PCBWay referral/order link.
     // NEWARK_AFFILIATE_URL — your Newark (CJ Affiliate) deep link to newark.com.
     // AMAZON_AFFILIATE_URL — your Amazon Associates link (e.g. an idea-list) for
-    //   the lab-bench kit on the REQUIREMENTS card.
+    //   the lab-bench CTA on the REQUIREMENTS card.
+    // AMAZON_ASSOCIATE_TAG — your Associates tracking tag (e.g. otdacademy-20),
+    //   appended to per-item kit-block product links so purchases attribute to you.
     PCBWAY_AFFILIATE_URL: z.url().optional(),
     NEWARK_AFFILIATE_URL: z.url().optional(),
     AMAZON_AFFILIATE_URL: z.url().optional(),
+    AMAZON_ASSOCIATE_TAG: z.string().optional(),
   },
   client: {
     // Public site origin used as the metadataBase for absolute SEO URLs
@@ -64,5 +67,6 @@ export const env = createEnv({
     PCBWAY_AFFILIATE_URL: process.env.PCBWAY_AFFILIATE_URL,
     NEWARK_AFFILIATE_URL: process.env.NEWARK_AFFILIATE_URL,
     AMAZON_AFFILIATE_URL: process.env.AMAZON_AFFILIATE_URL,
+    AMAZON_ASSOCIATE_TAG: process.env.AMAZON_ASSOCIATE_TAG,
   },
 });

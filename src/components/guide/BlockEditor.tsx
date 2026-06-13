@@ -97,6 +97,8 @@ export function BlockEditor({
       return <ActionEditor block={block} onChange={onChange} {...err} />;
     case "vendorCta":
       return <VendorCtaEditor block={block} onChange={onChange} {...err} />;
+    case "kit":
+      return <KitEditor block={block} onChange={onChange} {...err} />;
     default: {
       // Exhaustiveness guard: if a new block.type is added to the schema and
       // not handled above, this line fails to typecheck.
@@ -862,6 +864,111 @@ function VendorCtaEditor({
           className={`mt-1 ${inputClass}`}
         />
       </div>
+    </div>
+  );
+}
+
+// ─── kit ────────────────────────────────────────────────────────────────
+// A curated "shop the bench" list. Each item carries a label, an optional Amazon
+// ASIN (the renderer appends the associate tag from env), and an optional
+// "what to look for" note. The Amazon disclosure is rendered automatically.
+function KitEditor({
+  block,
+  onChange,
+  hasError,
+  errorId,
+}: {
+  block: Extract<ContentBlock, { type: "kit" }>;
+  onChange: (next: ContentBlock) => void;
+} & BlockErrorProps) {
+  const baseId = useId();
+  const setItem = (
+    i: number,
+    patch: Partial<(typeof block.items)[number]>,
+  ) =>
+    onChange({
+      ...block,
+      items: block.items.map((it, n) => (n === i ? { ...it, ...patch } : it)),
+    });
+  return (
+    <div className="space-y-3">
+      <div>
+        <label htmlFor={`${baseId}-intro`} className={labelClass}>
+          Intro (optional)
+        </label>
+        <input
+          id={`${baseId}-intro`}
+          type="text"
+          maxLength={300}
+          value={block.intro ?? ""}
+          onChange={(e) =>
+            onChange({ ...block, intro: e.target.value || undefined })
+          }
+          className={`mt-1 ${inputClass}`}
+          {...ariaErrorProps({ hasError, errorId })}
+        />
+      </div>
+      <div className="space-y-2">
+        {block.items.map((it, i) => (
+          <div
+            key={i}
+            className="space-y-2 rounded border border-panel-border p-2"
+          >
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
+                Item {i + 1}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  block.items.length > 1 &&
+                  onChange({
+                    ...block,
+                    items: block.items.filter((_, n) => n !== i),
+                  })
+                }
+                className="font-mono text-[10px] uppercase tracking-wider text-alert-red disabled:opacity-40"
+                disabled={block.items.length <= 1}
+              >
+                Remove
+              </button>
+            </div>
+            <input
+              type="text"
+              maxLength={120}
+              placeholder="Label (e.g. Hot-air station)"
+              value={it.label}
+              onChange={(e) => setItem(i, { label: e.target.value })}
+              className={inputClass}
+            />
+            <input
+              type="text"
+              maxLength={20}
+              placeholder="Amazon ASIN (e.g. B0XXXXXXXX) — optional"
+              value={it.asin ?? ""}
+              onChange={(e) => setItem(i, { asin: e.target.value || undefined })}
+              className={inputClass}
+            />
+            <input
+              type="text"
+              maxLength={200}
+              placeholder="What to look for — optional"
+              value={it.note ?? ""}
+              onChange={(e) => setItem(i, { note: e.target.value || undefined })}
+              className={inputClass}
+            />
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={() =>
+          onChange({ ...block, items: [...block.items, { label: "New item" }] })
+        }
+        className="font-mono text-xs uppercase tracking-wider text-command-gold"
+      >
+        + Add item
+      </button>
     </div>
   );
 }

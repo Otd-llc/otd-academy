@@ -36,3 +36,16 @@ export function affiliateLink(vendor: AffiliateVendor): AffiliateLink {
     tracked: Boolean(configured),
   };
 }
+
+/** Build a tagged Amazon product link from an ASIN (kit blocks). The associate
+ *  tag lives in env (AMAZON_ASSOCIATE_TAG), never in content — without it the
+ *  link still works, just untracked. Post-April-2026, attribution is per-ASIN,
+ *  so these specific product links are how the kit actually earns. */
+export function amazonProductLink(asin: string): AffiliateLink {
+  const tag = env.AMAZON_ASSOCIATE_TAG;
+  const base = `https://www.amazon.com/dp/${encodeURIComponent(asin)}/`;
+  return {
+    href: tag ? `${base}?tag=${encodeURIComponent(tag)}` : base,
+    tracked: Boolean(tag),
+  };
+}

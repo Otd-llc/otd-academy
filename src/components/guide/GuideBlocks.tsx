@@ -25,7 +25,11 @@ import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
 import { CaptureLauncher } from "@/components/guide/CaptureLauncher";
-import { affiliateLink, type AffiliateVendor } from "@/lib/affiliates";
+import {
+  affiliateLink,
+  amazonProductLink,
+  type AffiliateVendor,
+} from "@/lib/affiliates";
 import { ExternalLinkIcon, PhotoIcon, VideoIcon } from "@/components/icons";
 import { parseInlineTerms } from "@/lib/inline-terms";
 import type { RenderBounds } from "@/lib/schemas/part-asset";
@@ -679,6 +683,60 @@ function VendorCtaBlock({
   );
 }
 
+// kit — a curated "shop the bench" list. Each item optionally links to a
+// specific Amazon product (ASIN → env-tagged link via amazonProductLink); items
+// without an ASIN render as plain text so the list can be staged. The Amazon
+// Associates agreement REQUIRES the "As an Amazon Associate…" disclosure, so it
+// renders unconditionally beneath the list.
+function KitBlock({
+  intro,
+  items,
+}: {
+  intro?: string;
+  items: { label: string; asin?: string; note?: string }[];
+}) {
+  return (
+    <section className="border-t border-panel-border/60 pt-6">
+      <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
+        Shop the bench
+      </p>
+      {intro ? (
+        <p className="mb-3 whitespace-pre-wrap font-serif text-base leading-relaxed text-gray-2">
+          <Inline text={intro} />
+        </p>
+      ) : null}
+      <ul className="space-y-1.5">
+        {items.map((it, i) => {
+          const link = it.asin ? amazonProductLink(it.asin) : null;
+          return (
+            <li key={i} className="font-serif text-base leading-relaxed">
+              {link ? (
+                <a
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow sponsored"
+                  className="font-medium text-command-gold underline decoration-dotted underline-offset-2 transition-colors hover:text-gold-light"
+                >
+                  {it.label}
+                </a>
+              ) : (
+                <span className="font-medium text-gray-1">{it.label}</span>
+              )}
+              {it.note ? (
+                <span className="text-muted"> — {it.note}</span>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-3 font-mono text-[11px] uppercase tracking-wider text-muted">
+        As an Amazon Associate, the academy earns from qualifying purchases — at
+        no extra cost to you.
+      </p>
+    </section>
+  );
+}
+
 function GuideBlock({
   block,
   index,
@@ -843,6 +901,9 @@ function GuideBlock({
           />
         </section>
       );
+
+    case "kit":
+      return <KitBlock intro={block.intro} items={block.items} />;
 
     case "sourceRef": {
       // href is scheme-validated by the schema (http(s):// or root-relative).

@@ -20,7 +20,7 @@ import {
 } from "@/components/icons";
 
 export const BLOCK_TYPES = [
-  "prose", "callout", "steps", "table", "termRef", "sourceRef", "partModel", "image", "video", "quiz", "deepDive", "action", "vendorCta",
+  "prose", "callout", "steps", "table", "termRef", "sourceRef", "partModel", "image", "video", "quiz", "deepDive", "action", "vendorCta", "kit",
 ] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
 
@@ -38,6 +38,7 @@ export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   deepDive: "Deep dive",
   action: "Action button",
   vendorCta: "Affiliate CTA",
+  kit: "Bench kit",
 };
 
 // Type glyph for each block, paired with BLOCK_TYPE_LABELS to give blocks a
@@ -60,6 +61,7 @@ export const BLOCK_TYPE_ICON: Record<
   deepDive: ChevronDownIcon,
   action: LinkIcon,
   vendorCta: LinkIcon,
+  kit: ListIcon,
 };
 
 // A valid, schema-passing starting block for each type. Where the schema
@@ -105,6 +107,11 @@ export function defaultBlock(type: BlockType): ContentBlock {
         type: "vendorCta",
         vendor: "pcbway-order",
         label: "Order at PCBWay",
+      };
+    case "kit":
+      return {
+        type: "kit",
+        items: [{ label: "New item", note: "what to look for" }],
       };
   }
 }
