@@ -68,8 +68,11 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/projects/new")).toBe(false);
   });
 
-  it("does NOT treat operator, learner, or neutral routes as public", () => {
-    expect(isPublicPath("/")).toBe(false);
+  it("admits the home page (it forwards anonymous visitors to /courses)", () => {
+    expect(isPublicPath("/")).toBe(true);
+  });
+
+  it("does NOT treat operator or learner routes as public", () => {
     expect(isPublicPath("/curriculum")).toBe(false);
     expect(isPublicPath("/projects/wroom/v1")).toBe(false);
     expect(isPublicPath("/learn")).toBe(false);
