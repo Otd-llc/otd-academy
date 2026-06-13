@@ -8,6 +8,9 @@ import { currentUserOrRedirect } from "@/lib/learner";
 import { learnerBoardAvailability } from "@/lib/learner-board-availability";
 import { STAGE_ORDER, STAGE_LABELS, type StageName } from "@/lib/stages";
 import { EnrollButton } from "@/components/learn/EnrollButton";
+import { ModelViewerLazy } from "@/components/ModelViewerLazy";
+import { getArtifactRenderUrl } from "@/lib/actions/uploads";
+import { renderBoundsSchema, type RenderBounds } from "@/lib/schemas/part-asset";
 import { ChevronLeftIcon } from "@/components/icons";
 
 function guideHref(slug: string, revLabel: string, stage: string): string {
@@ -57,6 +60,34 @@ export default async function LearnerBoardPage({
   const stageIndex = enrollment
     ? STAGE_ORDER.indexOf(enrollment.currentStage as StageName) + 1
     : 0;
+  const isAdmin = user.role === "ADMIN";
+
+  // Completed-board 3D model: a MODEL_3D artifact on the published (reference)
+  // revision. Render the viewer when it exists (everyone sees the finished board
+  // they're building toward); show an admin-only "to be added" placeholder when
+  // it doesn't — students and the public see nothing until it's uploaded.
+  let boardModel: { src: string; bounds: RenderBounds | null } | null = null;
+  if (project.publishedRevisionId) {
+    const m = await db.artifact.findFirst({
+      where: {
+        revisionId: project.publishedRevisionId,
+        buildId: null,
+        subkind: "MODEL_3D",
+        renderKey: { not: null },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, renderBounds: true },
+    });
+    if (m) {
+      const src = await getArtifactRenderUrl(m.id);
+      if (src) {
+        boardModel = {
+          src,
+          bounds: renderBoundsSchema.safeParse(m.renderBounds).data ?? null,
+        };
+      }
+    }
+  }
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -84,6 +115,28 @@ export default async function LearnerBoardPage({
             {project.description}
           </p>
         )}
+        {/* Provisioning reassurance — set expectations out of the gate. */}
+        <p className="mt-3 font-mono text-xs uppercase tracking-wider text-status-green">
+          ✓ All parts, symbols &amp; footprints provided — download-ready
+        </p>
+        {/* Completed-board 3D: the hero render once it exists; an admin-only
+            placeholder until then (learners/public see nothing). */}
+        {boardModel ? (
+          <div className="mt-4">
+            <ModelViewerLazy src={boardModel.src} bounds={boardModel.bounds} />
+          </div>
+        ) : isAdmin ? (
+          <div className="mt-4 flex flex-col items-center justify-center gap-2 rounded border border-dashed border-panel-border bg-deep-space/40 px-6 py-8 text-center">
+            <span className="font-mono text-xs uppercase tracking-wider text-muted">
+              3D model — to be added
+            </span>
+            <span className="max-w-md font-serif text-sm text-muted">
+              Upload a MODEL_3D artifact on the published revision to show the
+              finished board here. Admins only — hidden from learners until it
+              exists.
+            </span>
+          </div>
+        ) : null}
       </div>
 
       <section className="glass-card mt-6 p-6">
