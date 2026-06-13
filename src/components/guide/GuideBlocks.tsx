@@ -722,53 +722,84 @@ function VendorCtaBlock({
   );
 }
 
-// kit — a curated "shop the bench" list. Each item optionally links to a
-// specific Amazon product (ASIN → env-tagged link via amazonProductLink); items
-// without an ASIN render as plain text so the list can be staged. The Amazon
-// Associates agreement REQUIRES the "As an Amazon Associate…" disclosure, so it
-// renders unconditionally beneath the list.
+// kit — the unified "bench" list. Each tool shows its Need badge, a
+// what-to-look-for note, and tagged Amazon picks (a single "Shop" link, or
+// Budget/Hobby/Pro chips for the big-ticket items). Picks resolve ASIN → tagged
+// link via amazonProductLink; an item with no picks renders as plain text so the
+// list stages cleanly. The Amazon agreement REQUIRES the "As an Amazon Associate…"
+// disclosure, so it renders unconditionally beneath the list.
+const KIT_NEED: Record<
+  "required" | "recommended" | "helpful",
+  { tone: string; label: string }
+> = {
+  required: { tone: "gold", label: "Required" },
+  recommended: { tone: "blue", label: "Recommended" },
+  helpful: { tone: "dim", label: "Helpful" },
+};
 function KitBlock({
   intro,
   items,
 }: {
   intro?: string;
-  items: { label: string; asin?: string; note?: string }[];
+  items: {
+    label: string;
+    need?: "required" | "recommended" | "helpful";
+    note?: string;
+    picks?: { label?: string; asin: string }[];
+  }[];
 }) {
   return (
     <section className="border-t border-panel-border/60 pt-6">
       <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
-        Shop the bench
+        The bench
       </p>
       {intro ? (
-        <p className="mb-3 whitespace-pre-wrap font-serif text-base leading-relaxed text-gray-2">
+        <p className="mb-4 whitespace-pre-wrap font-serif text-base leading-relaxed text-gray-2">
           <Inline text={intro} />
         </p>
       ) : null}
-      <ul className="space-y-1.5">
+      <ul className="space-y-3">
         {items.map((it, i) => {
-          const link = it.asin ? amazonProductLink(it.asin) : null;
+          const need = it.need ? KIT_NEED[it.need] : null;
           return (
-            <li key={i} className="font-serif text-base leading-relaxed">
-              {link ? (
-                <a
-                  href={link.href}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow sponsored"
-                  className="font-medium text-command-gold underline decoration-dotted underline-offset-2 transition-colors hover:text-gold-light"
-                >
+            <li
+              key={i}
+              className="border-l border-panel-border/70 pl-3 leading-relaxed"
+            >
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                {need ? (
+                  <span className={`badge ${need.tone}`}>{need.label}</span>
+                ) : null}
+                <span className="font-serif text-base font-medium text-gray-1">
                   {it.label}
-                </a>
-              ) : (
-                <span className="font-medium text-gray-1">{it.label}</span>
-              )}
-              {it.note ? (
-                <span className="text-muted"> — {it.note}</span>
+                </span>
+                {it.note ? (
+                  <span className="font-serif text-sm text-muted">
+                    — <Inline text={it.note} />
+                  </span>
+                ) : null}
+              </div>
+              {it.picks && it.picks.length > 0 ? (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {it.picks.map((p, j) => (
+                    <a
+                      key={j}
+                      href={amazonProductLink(p.asin).href}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow sponsored"
+                      className="inline-flex items-center gap-1 rounded border border-command-gold/60 px-2 py-0.5 font-mono text-[11px] uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+                    >
+                      {p.label || "Shop"}
+                      <ExternalLinkIcon className="h-3 w-3 shrink-0" />
+                    </a>
+                  ))}
+                </div>
               ) : null}
             </li>
           );
         })}
       </ul>
-      <p className="mt-3 font-mono text-[11px] uppercase tracking-wider text-muted">
+      <p className="mt-4 font-mono text-[11px] uppercase tracking-wider text-muted">
         As an Amazon Associate, the academy earns from qualifying purchases — at
         no extra cost to you.
       </p>
