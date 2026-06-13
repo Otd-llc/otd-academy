@@ -5,8 +5,9 @@
 // the page param). The active node is highlighted and a breadcrumb of its
 // ancestors sits above the list.
 //
-// Layout mirrors the page's desktop/mobile split: the tree renders inline at
-// md+ and collapses into a <details> disclosure below md (no client JS).
+// The tree lives in a <details> disclosure that's COLLAPSED by default on all
+// viewports (it auto-opens when a category is active so the current location
+// stays visible). Native <details> — no client JS.
 //
 // Counts are SUBTREE totals (a parent sums itself + all descendants), computed
 // in memory — the tree is tiny. They reflect the whole catalog, NOT the active
@@ -159,16 +160,12 @@ export async function CategoryTreePicker({
         </nav>
       ) : null}
 
-      {/* Desktop: tree always visible. */}
-      <div className="hidden md:block">
-        <h2 className="mb-2 font-mono text-xs uppercase tracking-wider text-muted">
-          Browse by category
-        </h2>
-        {tree}
-      </div>
-
-      {/* Mobile: collapse into a disclosure. */}
-      <details className="md:hidden rounded border border-panel-border bg-navy-dark/30 p-3">
+      {/* Collapsed by default on all viewports; auto-opens when a category is
+          active so the current location stays visible. Native <details>, no JS. */}
+      <details
+        open={activeNode !== null}
+        className="rounded border border-panel-border bg-navy-dark/30 p-3"
+      >
         <summary className="cursor-pointer font-mono text-xs uppercase tracking-wider text-command-gold">
           Browse by category
         </summary>
