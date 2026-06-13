@@ -97,7 +97,8 @@ const CSS = `
   color:var(--color-muted,#aaa);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;}
 .xsec-dot{display:inline-block;width:14px;height:6px;border-radius:3px;margin-right:.35rem;vertical-align:middle;}
 .xsec-dot-blue{background:var(--color-signal-blue,#4a8fff);}
-.xsec-dot-gold{background:var(--color-command-gold,#c8963e);}
+.xsec-dot-gold{box-sizing:border-box;background:var(--color-deep-space,#08090d);
+  border:2px solid var(--color-command-gold,#c8963e);}
 .xsec-part{width:46%;margin:0 auto;box-sizing:border-box;height:42px;
   display:flex;align-items:center;justify-content:center;
   background:var(--color-navy-dark,#1f2438);border:2.5px solid var(--color-command-gold,#c8963e);
@@ -111,10 +112,12 @@ const CSS = `
 .xsec-core-tag{color:var(--color-muted,#aaa);font-size:.62rem;font-weight:700;letter-spacing:.18em;}
 .xsec-trace{position:absolute;top:-7px;left:50%;transform:translateX(-50%);width:38px;height:5px;border-radius:3px;
   background:var(--color-signal-blue,#4a8fff);}
-/* a single solid plated via tying top copper -> bottom copper through the core
-   (one filled gold column, so its centre never reads as the navy FR4 core). */
-.xsec-via{position:absolute;width:12px;left:61%;border-radius:3px;
-  background:var(--color-command-gold,#c8963e);top:42px;bottom:0;}
+/* a plated via: a drilled hole (deep-space centre) with copper-plated walls
+   (gold ring) tying top copper -> bottom copper. The gold ring sets it apart
+   from the solid-gold copper layers; the dark centre, from the navy FR4 core. */
+.xsec-via{position:absolute;box-sizing:border-box;width:18px;left:60%;border-radius:4px;
+  background:var(--color-deep-space,#08090d);
+  border:3px solid var(--color-command-gold,#c8963e);top:42px;bottom:0;}
 
 /* ---- key ---- */
 .xsec-key{flex:1 1 auto;display:flex;flex-direction:column;gap:clamp(.75rem,2.5vw,1rem);}

@@ -29,7 +29,7 @@ export function AntennaKeepout({ caption }: { caption?: string }) {
         <div className="akz-figwrap">
           <svg
             className="akz-svg"
-            viewBox="0 0 220 240"
+            viewBox="0 0 220 250"
             preserveAspectRatio="xMidYMid meet"
             aria-hidden="true"
           >
@@ -39,11 +39,13 @@ export function AntennaKeepout({ caption }: { caption?: string }) {
               </pattern>
             </defs>
             {/* board flooded with ground pour; its TOP EDGE is at the U1 body top */}
-            <rect x="20" y="58" width="180" height="162" rx="8" fill="url(#akzpour)" stroke="#c8963e" strokeWidth="2.5" />
+            <rect x="20" y="58" width="180" height="182" rx="8" fill="url(#akzpour)" stroke="#c8963e" strokeWidth="2.5" />
+            {/* keep-out: the ground pour is CLEARED (no hatch) in this band at the edge */}
+            <rect x="38" y="60" width="144" height="16" fill="#08090d" />
             {/* the WROOM: square body on the board, antenna tab overhanging the top edge */}
-            <WroomU1 x={42} y={22} scale={1.3} />
-            {/* keep-out: dashed no-copper zone around the antenna at the board edge */}
-            <rect x="60" y="16" width="100" height="50" fill="none" stroke="#c8963e" strokeWidth="2" strokeDasharray="6 4" />
+            <WroomU1 x={55} y={27} scale={1.1} />
+            {/* keep-out boundary: dashed no-copper zone around the antenna + cleared band */}
+            <rect x="38" y="18" width="144" height="58" fill="none" stroke="#c8963e" strokeWidth="2" strokeDasharray="6 4" />
           </svg>
         </div>
 
