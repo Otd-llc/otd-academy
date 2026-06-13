@@ -144,12 +144,14 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     label: z.string().trim().min(1).max(120),
     sublabel: z.string().max(200).optional(),
   }),
-  // kit — a curated shopping list of bench gear. Each item optionally links to a
-  // specific Amazon product by `asin`; the SERVER renderer appends the associate
-  // tag from env (AMAZON_ASSOCIATE_TAG) so the tag is NEVER stored in content
-  // (same principle as vendorCta). An item with no `asin` renders as plain text,
-  // so the list can be staged (labels + "what to look for" notes) and the
-  // products filled in later. `note` is the per-item "what to look for" line.
+  // kit — the unified "bench" list: every tool with its Need tier, a "what to
+  // look for" note, and one-or-more tagged Amazon picks. `need` is the
+  // Required/Recommended/Helpful badge (what you must have). `picks` are buy
+  // links: a single pick for commodities, or up to three Budget/Hobby/Pro tiers
+  // for the big-ticket, quality-variable items. Each pick stores only an `asin`;
+  // the SERVER renderer appends the associate tag from env (AMAZON_ASSOCIATE_TAG)
+  // so the tag is NEVER in content. An item with no picks renders as plain text,
+  // so the list stages cleanly and products fill in later.
   z.object({
     type: z.literal("kit"),
     intro: z.string().max(300).optional(),
@@ -157,8 +159,19 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
       .array(
         z.object({
           label: z.string().trim().min(1).max(120),
-          asin: z.string().trim().max(20).optional(),
+          need: z.enum(["required", "recommended", "helpful"]).optional(),
           note: z.string().max(200).optional(),
+          picks: z
+            .array(
+              z.object({
+                // Free-text chip label — a tier ("Budget"/"Hobby"/"Pro") or any
+                // variant ("0.6 mm"/"0.8 mm"). Absent → the chip reads "Shop".
+                label: z.string().trim().max(24).optional(),
+                asin: z.string().trim().min(1).max(20),
+              }),
+            )
+            .max(3)
+            .optional(),
         }),
       )
       .min(1)

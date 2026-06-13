@@ -936,19 +936,29 @@ function KitEditor({
             <input
               type="text"
               maxLength={120}
-              placeholder="Label (e.g. Hot-air station)"
+              placeholder="Label (e.g. Soldering station)"
               value={it.label}
               onChange={(e) => setItem(i, { label: e.target.value })}
               className={inputClass}
             />
-            <input
-              type="text"
-              maxLength={20}
-              placeholder="Amazon ASIN (e.g. B0XXXXXXXX) — optional"
-              value={it.asin ?? ""}
-              onChange={(e) => setItem(i, { asin: e.target.value || undefined })}
-              className={inputClass}
-            />
+            <select
+              value={it.need ?? ""}
+              onChange={(e) =>
+                setItem(i, {
+                  need:
+                    (e.target.value as
+                      | "required"
+                      | "recommended"
+                      | "helpful") || undefined,
+                })
+              }
+              className={selectClass}
+            >
+              <option value="">No need badge</option>
+              <option value="required">Required</option>
+              <option value="recommended">Recommended</option>
+              <option value="helpful">Helpful</option>
+            </select>
             <input
               type="text"
               maxLength={200}
@@ -957,6 +967,66 @@ function KitEditor({
               onChange={(e) => setItem(i, { note: e.target.value || undefined })}
               className={inputClass}
             />
+            <div className="space-y-1.5">
+              {(it.picks ?? []).map((p, pi) => (
+                <div key={pi} className="flex gap-1.5">
+                  <input
+                    type="text"
+                    maxLength={24}
+                    placeholder="Chip (Budget / 0.6 mm)"
+                    value={p.label ?? ""}
+                    onChange={(e) =>
+                      setItem(i, {
+                        picks: (it.picks ?? []).map((q, qi) =>
+                          qi === pi
+                            ? { ...q, label: e.target.value || undefined }
+                            : q,
+                        ),
+                      })
+                    }
+                    className={`${inputClass} w-32 shrink-0`}
+                  />
+                  <input
+                    type="text"
+                    maxLength={20}
+                    placeholder="ASIN (B0XXXXXXXX)"
+                    value={p.asin}
+                    onChange={(e) =>
+                      setItem(i, {
+                        picks: (it.picks ?? []).map((q, qi) =>
+                          qi === pi ? { ...q, asin: e.target.value } : q,
+                        ),
+                      })
+                    }
+                    className={inputClass}
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setItem(i, {
+                        picks: (it.picks ?? []).filter((_, qi) => qi !== pi),
+                      })
+                    }
+                    className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-alert-red"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              {(it.picks?.length ?? 0) < 3 ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setItem(i, {
+                      picks: [...(it.picks ?? []), { asin: "" }],
+                    })
+                  }
+                  className="font-mono text-[10px] uppercase tracking-wider text-signal-blue"
+                >
+                  + Add pick (ASIN)
+                </button>
+              ) : null}
+            </div>
           </div>
         ))}
       </div>
