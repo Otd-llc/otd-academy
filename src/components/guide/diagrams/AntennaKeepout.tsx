@@ -9,6 +9,9 @@
 // paragraphs. Header / frame / caption come from the shared DiagramFrame
 // (site-standard Bebas title); this file supplies only the graphic body.
 //
+// The module is drawn at a realistic ~0.7 aspect (not a thin sliver) and its
+// PCB antenna OVERHANGS the board's top edge, inside the no-copper keep-out.
+//
 // BRAND (onethousanddrones.com/brand): gold-dominant on Deep Space, Navy Dark
 // module/board fills, white glyph, muted body. No off-palette hues. All colours
 // via @theme tokens with literal fallbacks so a standalone render still resolves.
@@ -20,7 +23,7 @@ export function AntennaKeepout({ caption }: { caption?: string }) {
       eyebrow="LAYOUT · ANTENNA KEEP-OUT"
       tone="gold"
       title="Keep the antenna zone clear"
-      ariaLabel="Top view of the carrier board: the ESP32-S3-WROOM-1 module (U1) sits at the board edge with its PCB antenna overhanging inside a no-copper keep-out; the module's pads sit below the keep-out on the ground pour, which fills the rest of the board."
+      ariaLabel="Top view of the carrier board: the ESP32-S3-WROOM-1 module (U1) sits at the board edge with its PCB antenna overhanging the top edge inside a no-copper keep-out; the module's pads sit below the keep-out on the ground pour, which fills the rest of the board."
       caption={caption}
       defaultCaption="Clear copper and parts beneath the antenna."
     >
@@ -29,7 +32,7 @@ export function AntennaKeepout({ caption }: { caption?: string }) {
         <div className="akz-figwrap">
           <svg
             className="akz-svg"
-            viewBox="0 0 200 280"
+            viewBox="0 0 220 240"
             preserveAspectRatio="xMidYMid meet"
             aria-hidden="true"
           >
@@ -44,46 +47,39 @@ export function AntennaKeepout({ caption }: { caption?: string }) {
                 <line x1="0" y1="0" x2="0" y2="8" stroke="#aaaaaa" strokeWidth="1" strokeOpacity="0.32" />
               </pattern>
             </defs>
-            {/* board outline flooded with ground pour */}
-            <rect x="40" y="40" width="120" height="220" rx="8" fill="url(#akzpour)" stroke="#c8963e" strokeWidth="2.5" />
-            {/* keep-out band: clear no-copper region punched out of the pour at the edge */}
-            <rect x="71" y="40" width="58" height="46" fill="#08090d" stroke="#c8963e" strokeWidth="2" strokeDasharray="6 4" />
-            {/* module: antenna head overhangs above the board edge */}
-            <rect x="70" y="14" width="60" height="72" fill="#1f2438" stroke="#c8963e" strokeWidth="2" />
-            <rect x="70" y="86" width="60" height="150" rx="2" fill="#1f2438" stroke="#c8963e" strokeWidth="2.5" />
-            {/* castellated pads, all below the keep-out */}
+            {/* board flooded with ground pour */}
+            <rect x="24" y="78" width="172" height="144" rx="8" fill="url(#akzpour)" stroke="#c8963e" strokeWidth="2.5" />
+            {/* keep-out: clear no-copper band punched out of the pour at the board edge, around the antenna */}
+            <rect x="66" y="78" width="88" height="46" fill="#08090d" stroke="#c8963e" strokeWidth="2" strokeDasharray="6 4" />
+            {/* module body: sits on the board, pads below the keep-out */}
+            <rect x="72" y="96" width="76" height="106" rx="2" fill="#1f2438" stroke="#c8963e" strokeWidth="2.5" />
+            {/* antenna head: overhangs ABOVE the board's top edge (y=78) */}
+            <rect x="72" y="48" width="76" height="48" fill="#1f2438" stroke="#c8963e" strokeWidth="2" />
+            {/* castellated pads, all BELOW the keep-out */}
             <g stroke="#c8963e" strokeWidth="2.5">
-              <line x1="70" y1="100" x2="60" y2="100" />
-              <line x1="70" y1="116" x2="60" y2="116" />
-              <line x1="70" y1="132" x2="60" y2="132" />
-              <line x1="70" y1="148" x2="60" y2="148" />
-              <line x1="70" y1="164" x2="60" y2="164" />
-              <line x1="70" y1="180" x2="60" y2="180" />
-              <line x1="70" y1="196" x2="60" y2="196" />
-              <line x1="70" y1="212" x2="60" y2="212" />
-              <line x1="130" y1="100" x2="140" y2="100" />
-              <line x1="130" y1="116" x2="140" y2="116" />
-              <line x1="130" y1="132" x2="140" y2="132" />
-              <line x1="130" y1="148" x2="140" y2="148" />
-              <line x1="130" y1="164" x2="140" y2="164" />
-              <line x1="130" y1="180" x2="140" y2="180" />
-              <line x1="130" y1="196" x2="140" y2="196" />
-              <line x1="130" y1="212" x2="140" y2="212" />
-              <line x1="86" y1="236" x2="86" y2="246" />
-              <line x1="100" y1="236" x2="100" y2="246" />
-              <line x1="114" y1="236" x2="114" y2="246" />
+              <line x1="72" y1="138" x2="62" y2="138" />
+              <line x1="72" y1="154" x2="62" y2="154" />
+              <line x1="72" y1="170" x2="62" y2="170" />
+              <line x1="72" y1="186" x2="62" y2="186" />
+              <line x1="148" y1="138" x2="158" y2="138" />
+              <line x1="148" y1="154" x2="158" y2="154" />
+              <line x1="148" y1="170" x2="158" y2="170" />
+              <line x1="148" y1="186" x2="158" y2="186" />
+              <line x1="92" y1="202" x2="92" y2="212" />
+              <line x1="110" y1="202" x2="110" y2="212" />
+              <line x1="128" y1="202" x2="128" y2="212" />
             </g>
-            {/* meandered PCB antenna inside the keep-out, overhanging the edge */}
+            {/* meandered PCB antenna, overhanging the board top edge */}
             <path
-              d="M78,80 v-13 h7 v13 h7 v-13 h7 v13 h7 v-13 h7 v13 h7 v-13 h7 v13"
+              d="M83,80 v-20 h9 v20 h9 v-20 h9 v20 h9 v-20 h9 v20 h9 v-20"
               fill="none"
               stroke="#ffffff"
               strokeWidth="2.5"
             />
-            {/* centred module ref */}
+            {/* module ref */}
             <text
-              x="100"
-              y="166"
+              x="110"
+              y="172"
               textAnchor="middle"
               fill="#ffffff"
               fontFamily="'Space Mono',monospace"
@@ -125,7 +121,7 @@ export function AntennaKeepout({ caption }: { caption?: string }) {
 const CSS = `
 .akz-body{display:flex;flex-direction:column;align-items:center;
   gap:clamp(1.25rem,4vw,1.75rem);text-align:left;}
-.akz-figwrap{width:100%;max-width:200px;}
+.akz-figwrap{width:100%;max-width:235px;}
 .akz-svg{display:block;width:100%;height:auto;}
 
 .akz-notes{list-style:none;margin:0;padding:0;width:100%;

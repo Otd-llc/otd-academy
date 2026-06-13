@@ -615,16 +615,4 @@ body {
     color-mix(in srgb, var(--mode) 15%, transparent)
   );
 }
-.mode-band::after {
-  content: "";
-  position: absolute;
-  top: 9px;
-  right: 9px;
-  width: 7px;
-  height: 7px;
-  opacity: 0.45;
-  background:
-    linear-gradient(var(--mode), var(--mode)) center / 100% 1px no-repeat,
-    linear-gradient(var(--mode), var(--mode)) center / 1px 100% no-repeat;
-}
 

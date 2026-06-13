@@ -40,8 +40,7 @@ export function TwoLayerCrossSection({ caption }: { caption?: string }) {
               <span className="xsec-core-tag">FR4</span>
             </div>
             <div className="xsec-layer xsec-cu xsec-bot" />
-            <span className="xsec-via xsec-via1" />
-            <span className="xsec-via xsec-via2" />
+            <span className="xsec-via" />
           </div>
           <p className="xsec-legend" aria-hidden="true">
             <span className="xsec-dot xsec-dot-blue" />signal trace&nbsp;&nbsp;
@@ -112,10 +111,10 @@ const CSS = `
 .xsec-core-tag{color:var(--color-muted,#aaa);font-size:.62rem;font-weight:700;letter-spacing:.18em;}
 .xsec-trace{position:absolute;top:-7px;left:50%;transform:translateX(-50%);width:38px;height:5px;border-radius:3px;
   background:var(--color-signal-blue,#4a8fff);}
-.xsec-via{position:absolute;width:8px;background:var(--color-command-gold,#c8963e);
-  top:42px;bottom:0;}
-.xsec-via1{left:60%;}
-.xsec-via2{left:74%;}
+/* a single solid plated via tying top copper -> bottom copper through the core
+   (one filled gold column, so its centre never reads as the navy FR4 core). */
+.xsec-via{position:absolute;width:12px;left:61%;border-radius:3px;
+  background:var(--color-command-gold,#c8963e);top:42px;bottom:0;}
 
 /* ---- key ---- */
 .xsec-key{flex:1 1 auto;display:flex;flex-direction:column;gap:clamp(.75rem,2.5vw,1rem);}
