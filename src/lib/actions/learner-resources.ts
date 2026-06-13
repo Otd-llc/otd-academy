@@ -15,6 +15,30 @@ const projectIdSchema = z.cuid();
 export async function getKicadStarterUrl(
   input: unknown,
 ): Promise<string | null> {
+  return getPublishedRevisionArtifactUrl(input, "BOM_EXPORT");
+}
+
+// getReferenceFilesUrl returns a presigned download for the board's REFERENCE
+// gerber set — the GERBER_ZIP artifact an admin attached to the published
+// (frozen reference) revision. It's the "order the proven board instead of
+// betting on your own layout" hedge at ORDERING and the "diff your export
+// against the reference" answer-key at DRC_GERBER. Returns null (→ "not
+// available yet") until that verified set is uploaded, so the feature never
+// promises a board that hasn't actually been built. Same public-resource rule
+// as the starter: anyone can SEE the button; downloading needs an account.
+export async function getReferenceFilesUrl(
+  input: unknown,
+): Promise<string | null> {
+  return getPublishedRevisionArtifactUrl(input, "GERBER_ZIP");
+}
+
+// Shared resolver: presign the latest file-backed artifact of `subkind` on the
+// project's published revision, or null if there's no published revision, no
+// such artifact, or R2 is unavailable.
+async function getPublishedRevisionArtifactUrl(
+  input: unknown,
+  subkind: "BOM_EXPORT" | "GERBER_ZIP",
+): Promise<string | null> {
   await requireUser();
   const projectId = projectIdSchema.parse(input);
 
@@ -24,19 +48,19 @@ export async function getKicadStarterUrl(
   });
   if (!project?.publishedRevisionId) return null;
 
-  const starter = await db.artifact.findFirst({
+  const artifact = await db.artifact.findFirst({
     where: {
       revisionId: project.publishedRevisionId,
-      subkind: "BOM_EXPORT",
+      subkind,
       fileKey: { not: null },
     },
     orderBy: { createdAt: "desc" },
     select: { id: true },
   });
-  if (!starter) return null;
+  if (!artifact) return null;
 
   try {
-    return await getDownloadUrl(starter.id);
+    return await getDownloadUrl(artifact.id);
   } catch {
     // R2 disabled or transient — surface "not available" rather than throw.
     return null;

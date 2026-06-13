@@ -771,6 +771,7 @@ function ActionEditor({
           className={`mt-1 ${inputClass}`}
         >
           <option value="downloadKicadStarter">Download KiCad starter</option>
+          <option value="downloadReferenceFiles">Download reference files</option>
         </select>
       </div>
       <div>

@@ -1,8 +1,9 @@
 "use client";
 
 // Client island for an in-guide `action` block — the button the guide tells the
-// student to click. Today it handles "downloadKicadStarter": fetch a presigned
-// URL for the board's KiCad starter and open it.
+// student to click. Each action maps to a server action that presigns a
+// download: "downloadKicadStarter" (the board's KiCad starter) and
+// "downloadReferenceFiles" (the verified reference gerber set).
 //
 // PUBLIC-RESOURCE RULE: anyone can SEE this on a public lesson, but downloading a
 // resource requires an account. An anonymous visitor is funnelled to sign-up
@@ -10,7 +11,27 @@
 // conversion moment. Apply this same rule to any future public resource download.
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { getKicadStarterUrl } from "@/lib/actions/learner-resources";
+import {
+  getKicadStarterUrl,
+  getReferenceFilesUrl,
+} from "@/lib/actions/learner-resources";
+
+// action key → { resolve, notReady }. `resolve` presigns the download (or null
+// when the asset isn't attached yet); `notReady` is the learner-facing message
+// for that null case.
+const ACTIONS: Record<
+  string,
+  { resolve: (projectId: string) => Promise<string | null>; notReady: string }
+> = {
+  downloadKicadStarter: {
+    resolve: getKicadStarterUrl,
+    notReady: "The KiCad starter isn't available for this board yet.",
+  },
+  downloadReferenceFiles: {
+    resolve: getReferenceFilesUrl,
+    notReady: "The reference files aren't available for this board yet.",
+  },
+};
 
 const BUTTON_CLASS =
   "inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space";
@@ -29,7 +50,8 @@ export function GuideActionButton({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  if (action !== "downloadKicadStarter") return null;
+  const config = ACTIONS[action];
+  if (!config) return null;
 
   // Funnel anonymous visitors to sign-up instead of attempting a download that
   // would only fail at requireUser(). A free account unlocks the files + progress.
@@ -54,11 +76,11 @@ export function GuideActionButton({
         return;
       }
       try {
-        const url = await getKicadStarterUrl(projectId);
+        const url = await config.resolve(projectId);
         if (url) {
           window.open(url, "_blank", "noopener,noreferrer");
         } else {
-          setError("The KiCad starter isn't available for this board yet.");
+          setError(config.notReady);
         }
       } catch {
         setError("Couldn't fetch the download — try again.");

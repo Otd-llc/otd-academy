@@ -130,7 +130,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // handler (a client island).
   z.object({
     type: z.literal("action"),
-    action: z.enum(["downloadKicadStarter"]),
+    action: z.enum(["downloadKicadStarter", "downloadReferenceFiles"]),
     label: z.string().trim().min(1).max(120),
   }),
   // vendorCta — an external affiliate call-to-action (GTM monetization). `vendor`
