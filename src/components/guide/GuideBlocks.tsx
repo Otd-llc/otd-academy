@@ -17,7 +17,7 @@
 // Resilience: an unknown/extra block type is skipped (renders nothing) rather
 // than crashing the page.
 
-import { Fragment, type ReactNode } from "react";
+import { Fragment, type CSSProperties, type ReactNode } from "react";
 import sanitizeHtml from "sanitize-html";
 import type { ContentBlock } from "@/lib/schemas/guide";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
@@ -572,15 +572,53 @@ function SectionHeaderBlock({ label, body }: { label: string; body: string }) {
 // — so "should I have hands on the keyboard right now?" is never ambiguous. The COLOUR
 // keys off the first word of the eyebrow; the eyebrow text itself is free ("do — in
 // KiCad", "do — at the bench", …) so the same ribbon generalises across stages.
-const MODE_STYLE: Record<
-  string,
-  { icon: string; border: string; bg: string; eyebrow: string }
-> = {
-  orient: { icon: "📖", border: "border-signal-blue/40", bg: "bg-signal-blue/[0.06]", eyebrow: "text-signal-blue" },
-  do: { icon: "▶", border: "border-command-gold/50", bg: "bg-command-gold/[0.07]", eyebrow: "text-command-gold" },
-  check: { icon: "✓", border: "border-status-green/45", bg: "bg-status-green/[0.06]", eyebrow: "text-status-green" },
+// The colour keys off the eyebrow's first word; the eyebrow text is free
+// ("do — in KiCad", "do — at the bench", …) so the same band generalises.
+const MODE_STYLE: Record<string, { color: string; eyebrow: string }> = {
+  orient: { color: "#4a8fff", eyebrow: "text-signal-blue" },
+  do: { color: "#c8963e", eyebrow: "text-command-gold" },
+  check: { color: "#8fe3a0", eyebrow: "text-status-green" },
 };
 
+// A thin-line mark per mode, stroke = the eyebrow colour (currentColor): a
+// reticle for orient ("get your bearings"), a play glyph for do (hands on), a
+// check for check.
+function ModeIcon({ mode }: { mode: string }) {
+  const p = {
+    className: "h-3.5 w-3.5 shrink-0",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.7,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+  if (mode === "orient")
+    return (
+      <svg {...p}>
+        <circle cx="12" cy="12" r="8" />
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+        <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  if (mode === "check")
+    return (
+      <svg {...p}>
+        <circle cx="12" cy="12" r="8" />
+        <path d="m8.5 12 2.4 2.4 4.6-5.2" />
+      </svg>
+    );
+  return (
+    <svg {...p} fill="currentColor" stroke="none">
+      <path d="M8 5.5v13l10.5-6.5z" />
+    </svg>
+  );
+}
+
+// A briefing-panel section marker: a colour-coded left spine, a soft corner glow
+// and a registration tick (the same command motif as the start-here beacon),
+// with the title set in the brand display face. `.mode-band` lives in
+// globals.css; `--mode` is the band colour, set inline per variant.
 function ModeBandBlock({ label, body }: { label: string; body: string }) {
   const parts = label.split("·").map((s) => s.trim());
   const eyebrow = parts[1] ?? "";
@@ -588,19 +626,20 @@ function ModeBandBlock({ label, body }: { label: string; body: string }) {
   const title = parts.slice(2).join(" · ");
   const M = MODE_STYLE[key] ?? MODE_STYLE.do;
   return (
-    <div className={`mt-3 rounded-lg border ${M.border} ${M.bg} px-5 py-3`}>
+    <div className="mode-band" style={{ "--mode": M.color } as CSSProperties}>
       <span
-        className={`font-mono text-[10px] font-bold uppercase tracking-[0.22em] ${M.eyebrow}`}
+        className={`flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.24em] ${M.eyebrow}`}
       >
-        {M.icon} {eyebrow}
+        <ModeIcon mode={key} />
+        {eyebrow}
       </span>
       {title ? (
-        <h2 className="mt-1 font-mono text-base font-bold uppercase tracking-[0.08em] text-gray-1">
+        <h2 className="mt-1.5 font-display text-2xl leading-none tracking-wide text-gray-1">
           {title}
         </h2>
       ) : null}
       {body ? (
-        <p className="mt-1.5 whitespace-pre-wrap font-serif text-sm leading-relaxed text-muted">
+        <p className="mt-2 whitespace-pre-wrap font-serif text-sm leading-relaxed text-muted">
           <Inline text={body} />
         </p>
       ) : null}

@@ -503,10 +503,24 @@ export default async function GuideHubPage({
               <Link
                 key={cell.stage}
                 href={cardHref(cell.stage)}
-                className={`glass-card flex flex-col gap-2 border-l-4 p-4 transition-colors hover:bg-command-gold/5 ${stateClasses(
+                className={`glass-card relative flex flex-col gap-2 border-l-4 p-4 transition-colors hover:bg-command-gold/5 ${stateClasses(
                   cell.state,
                 )}`}
               >
+                {/* Start-here beacon — the entry point of the whole build. */}
+                {cell.stage === "REQUIREMENTS" ? (
+                  <span className="start-beacon" aria-hidden="true">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2.4}
+                      strokeLinecap="round"
+                    >
+                      <path d="M12 4v16M4 12h16" />
+                    </svg>
+                  </span>
+                ) : null}
                 <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-command-gold">
                   {cell.card.eyebrow}
                 </span>
