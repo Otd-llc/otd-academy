@@ -419,8 +419,13 @@ body {
      falls back to system mono. The font-family rule overrides each SVG's own
      presentation attribute (CSS beats presentation attrs), so every diagram
      reads in Space Mono without editing 14 files. */
+  /* Every diagram renders inside a capped, centered frame so it never sprawls /
+     balloons on a wide screen (the standard diagram size). Components carry the
+     same cap on their own root. */
   .guide-diagram {
     line-height: 0;
+    max-width: 36rem;
+    margin-inline: auto;
   }
   .guide-diagram svg {
     display: block;
@@ -462,22 +467,27 @@ body {
       padding: 0.5rem 0.85rem;
       margin-bottom: 0.75rem;
     }
+    /* Field rows: label fixed-left, value right — short values (QTY, package)
+       no longer burn a whole stacked line, and values align in a column. */
     .table-tech td {
+      display: grid;
+      grid-template-columns: 6.5rem minmax(0, 1fr);
+      gap: 0.15rem 0.85rem;
+      align-items: start;
       border-bottom: none;
-      padding: 0.45rem 0;
-      vertical-align: top;
+      padding: 0.4rem 0;
+      overflow-wrap: anywhere;
     }
     .table-tech td:empty {
       display: none;
     }
     .table-tech td::before {
       content: attr(data-label);
-      display: block;
-      margin-bottom: 0.3rem;
       text-transform: uppercase;
-      letter-spacing: 0.18em;
+      letter-spacing: 0.16em;
       font-size: 9px;
       font-weight: 700;
+      line-height: 1.7;
       color: var(--color-command-gold);
     }
   }
