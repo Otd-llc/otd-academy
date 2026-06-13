@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 310" role="img"
-     aria-label="An 0805 passive (2.0 by 1.25 mm) next to an 0402 (1.0 by 0.5 mm), drawn to scale: the 0402 is about a fifth of the area and wants solder paste and hot air, while the 0805 solders with a plain iron and tweezers"
+     aria-label="An 0805 passive (2.0 by 1.25 mm) next to an 0402 (1.0 by 0.5 mm): the 0402 is about a fifth the area and wants solder paste and hot air, while the 0805 solders with a plain iron and tweezers"
      font-family="ui-monospace, 'SFMono-Regular', Menlo, monospace">
 
   <!-- title -->
-  <text x="390" y="40" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700">Same value, very different to solder (to scale)</text>
+  <text x="390" y="40" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700">Same value, very different to solder</text>
 
   <!-- shared baseline -->
   <line x1="170" y1="200" x2="590" y2="200" stroke="#8a8a8a" stroke-width="1" stroke-opacity="0.4"/>
