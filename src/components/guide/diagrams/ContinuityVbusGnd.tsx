@@ -13,6 +13,7 @@
 // white/gray-1 for the GND lead + the OL readout, Alert Red ONLY for the BEEP
 // (dead-short) failure state. All colours via @theme tokens.
 import { DiagramFrame } from "./DiagramFrame";
+import { WroomU1 } from "./WroomU1";
 
 export function ContinuityVbusGnd({ caption }: { caption?: string }) {
   return (
@@ -48,62 +49,8 @@ export function ContinuityVbusGnd({ caption }: { caption?: string }) {
               strokeWidth="1.6"
             />
 
-            {/* U1 — ESP32-S3-WROOM module (portrait, antenna up) */}
-            <rect
-              x="26"
-              y="66"
-              width="62"
-              height="108"
-              rx="3"
-              fill="var(--color-deep-space,#08090d)"
-              stroke="var(--color-command-gold,#c8963e)"
-              strokeWidth="1.6"
-            />
-            <rect
-              x="38"
-              y="48"
-              width="38"
-              height="18"
-              fill="var(--color-navy-dark,#1f2438)"
-              stroke="var(--color-command-gold,#c8963e)"
-              strokeWidth="1.4"
-            />
-            <path
-              d="M44,58 v-6 h6 v6 h6 v-6 h6 v6 h6 v-6"
-              fill="none"
-              stroke="#fff"
-              strokeWidth="1.3"
-            />
-            {/* castellated pin stubs down both long edges */}
-            <g
-              stroke="var(--color-command-gold,#c8963e)"
-              strokeWidth="1.3"
-              strokeOpacity="0.75"
-            >
-              <line x1="26" y1="80" x2="20" y2="80" />
-              <line x1="26" y1="96" x2="20" y2="96" />
-              <line x1="26" y1="112" x2="20" y2="112" />
-              <line x1="26" y1="128" x2="20" y2="128" />
-              <line x1="26" y1="144" x2="20" y2="144" />
-              <line x1="26" y1="160" x2="20" y2="160" />
-              <line x1="88" y1="80" x2="94" y2="80" />
-              <line x1="88" y1="96" x2="94" y2="96" />
-              <line x1="88" y1="112" x2="94" y2="112" />
-              <line x1="88" y1="128" x2="94" y2="128" />
-              <line x1="88" y1="144" x2="94" y2="144" />
-              <line x1="88" y1="160" x2="94" y2="160" />
-            </g>
-            <text
-              x="57"
-              y="126"
-              textAnchor="middle"
-              fill="#fff"
-              fontSize="17"
-              fontWeight="700"
-              fontFamily="var(--font-mono,monospace)"
-            >
-              U1
-            </text>
+            {/* U1 — square WROOM body with the antenna tab overhanging the board's top edge */}
+            <WroomU1 x={28} y={16} scale={0.85} />
 
             {/* ── VBUS pad (gold) ── */}
             <circle

@@ -16,6 +16,7 @@
 // muted gray for the black lead. All colours via @theme tokens with hex
 // fallbacks so a standalone render still resolves.
 import { DiagramFrame } from "./DiagramFrame";
+import { WroomU1 } from "./WroomU1";
 
 export function BringupProbePoints({ caption }: { caption?: string }) {
   return (
@@ -32,23 +33,9 @@ export function BringupProbePoints({ caption }: { caption?: string }) {
       <div className="bpp-stage">
         <div className="bpp-board">
           <svg className="bpp-svg" viewBox="0 0 320 150" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-            <rect x="2" y="2" width="316" height="146" rx="8" fill="var(--color-navy-dark,#1f2438)" stroke="var(--color-command-gold,#c8963e)" strokeWidth="2" />
-            <rect x="26" y="20" width="46" height="15" fill="none" stroke="var(--color-command-gold,#c8963e)" strokeWidth="1.6" />
-            <rect x="26" y="35" width="46" height="86" rx="2" fill="none" stroke="var(--color-command-gold,#c8963e)" strokeWidth="1.6" />
-            <path d="M37,30 v-6 h7 v6 h7 v-6 h7 v6 h7 v-6" fill="none" stroke="#fff" strokeWidth="1.4" />
-            <g stroke="var(--color-command-gold,#c8963e)" strokeWidth="1.6" strokeOpacity=".85">
-              <line x1="26" y1="48" x2="20" y2="48" />
-              <line x1="26" y1="62" x2="20" y2="62" />
-              <line x1="26" y1="76" x2="20" y2="76" />
-              <line x1="26" y1="90" x2="20" y2="90" />
-              <line x1="26" y1="104" x2="20" y2="104" />
-              <line x1="72" y1="48" x2="78" y2="48" />
-              <line x1="72" y1="62" x2="78" y2="62" />
-              <line x1="72" y1="76" x2="78" y2="76" />
-              <line x1="72" y1="90" x2="78" y2="90" />
-              <line x1="72" y1="104" x2="78" y2="104" />
-            </g>
-            <text x="49" y="82" textAnchor="middle" fill="#fff" fontFamily="var(--font-mono)" fontSize="13" fontWeight="700">U1</text>
+            <rect x="2" y="28" width="316" height="118" rx="8" fill="var(--color-navy-dark,#1f2438)" stroke="var(--color-command-gold,#c8963e)" strokeWidth="2" />
+            {/* U1 — square WROOM body, antenna tab overhanging the board's top edge */}
+            <WroomU1 x={26} y={6} scale={0.78} />
             <circle cx="170" cy="75" r="11" fill="var(--color-deep-space,#08090d)" stroke="var(--color-alert-red,#c62828)" strokeWidth="3" />
             <circle cx="170" cy="75" r="3.5" fill="none" stroke="var(--color-alert-red,#c62828)" strokeWidth="1.4" />
             <circle cx="262" cy="75" r="11" fill="var(--color-deep-space,#08090d)" stroke="var(--color-muted,#aaa)" strokeWidth="3" />
