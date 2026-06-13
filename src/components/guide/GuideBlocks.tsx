@@ -748,58 +748,74 @@ function KitBlock({
     picks?: { label?: string; asin: string }[];
   }[];
 }) {
+  // Group by Need so the badge appears ONCE per tier (not on every row) — the
+  // main declutter. Items with no need fall through into a trailing group.
+  const groups = (["required", "recommended", "helpful"] as const).map(
+    (need) => ({ need, meta: KIT_NEED[need], gi: items.filter((it) => it.need === need) }),
+  );
+  const ungrouped = items.filter((it) => !it.need);
+
+  const renderItem = (
+    it: (typeof items)[number],
+    i: number,
+  ) => (
+    <li key={i}>
+      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+        <span className="font-serif text-base font-medium text-gray-1">
+          {it.label}
+        </span>
+        {it.picks && it.picks.length > 0 ? (
+          <span className="flex flex-wrap gap-1.5">
+            {it.picks.map((p, j) => (
+              <a
+                key={j}
+                href={amazonProductLink(p.asin).href}
+                target="_blank"
+                rel="noopener noreferrer nofollow sponsored"
+                className="inline-flex items-center gap-1 rounded border border-command-gold/55 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+              >
+                {p.label || "Shop"}
+                <ExternalLinkIcon className="h-2.5 w-2.5 shrink-0" />
+              </a>
+            ))}
+          </span>
+        ) : null}
+      </div>
+      {it.note ? (
+        <p className="mt-0.5 font-serif text-sm leading-snug text-muted">
+          <Inline text={it.note} />
+        </p>
+      ) : null}
+    </li>
+  );
+
   return (
     <section className="border-t border-panel-border/60 pt-6">
       <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
         The bench
       </p>
       {intro ? (
-        <p className="mb-4 whitespace-pre-wrap font-serif text-base leading-relaxed text-gray-2">
+        <p className="mb-5 whitespace-pre-wrap font-serif text-base leading-relaxed text-gray-2">
           <Inline text={intro} />
         </p>
       ) : null}
-      <ul className="space-y-3">
-        {items.map((it, i) => {
-          const need = it.need ? KIT_NEED[it.need] : null;
-          return (
-            <li
-              key={i}
-              className="border-l border-panel-border/70 pl-3 leading-relaxed"
-            >
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                {need ? (
-                  <span className={`badge ${need.tone}`}>{need.label}</span>
-                ) : null}
-                <span className="font-serif text-base font-medium text-gray-1">
-                  {it.label}
-                </span>
-                {it.note ? (
-                  <span className="font-serif text-sm text-muted">
-                    — <Inline text={it.note} />
-                  </span>
-                ) : null}
+      <div className="space-y-5">
+        {groups.map(({ need, meta, gi }) =>
+          gi.length ? (
+            <div key={need}>
+              <div className="mb-2.5 flex items-center gap-3">
+                <span className={`badge ${meta.tone}`}>{meta.label}</span>
+                <span className="h-px flex-1 bg-panel-border/40" />
               </div>
-              {it.picks && it.picks.length > 0 ? (
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {it.picks.map((p, j) => (
-                    <a
-                      key={j}
-                      href={amazonProductLink(p.asin).href}
-                      target="_blank"
-                      rel="noopener noreferrer nofollow sponsored"
-                      className="inline-flex items-center gap-1 rounded border border-command-gold/60 px-2 py-0.5 font-mono text-[11px] uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
-                    >
-                      {p.label || "Shop"}
-                      <ExternalLinkIcon className="h-3 w-3 shrink-0" />
-                    </a>
-                  ))}
-                </div>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
-      <p className="mt-4 font-mono text-[11px] uppercase tracking-wider text-muted">
+              <ul className="space-y-3">{gi.map(renderItem)}</ul>
+            </div>
+          ) : null,
+        )}
+        {ungrouped.length ? (
+          <ul className="space-y-3">{ungrouped.map(renderItem)}</ul>
+        ) : null}
+      </div>
+      <p className="mt-5 font-mono text-[11px] uppercase tracking-wider text-muted">
         As an Amazon Associate, the academy earns from qualifying purchases — at
         no extra cost to you.
       </p>
