@@ -510,3 +510,111 @@ body {
   animation: pulse 6s ease-in-out infinite;
 }
 
+/* ── Start-here beacon ──────────────────────────────────────────────
+ * The animated gold "+" marking the entry-point card (Requirements) on the
+ * guide hub: a slow breath plus a radar ping — "begin here." Decorative;
+ * the card itself is the link. */
+.start-beacon {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.8rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  pointer-events: none;
+}
+.start-beacon::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 1px solid var(--color-command-gold);
+  animation: beacon-ping 2.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+.start-beacon svg {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  color: var(--color-command-gold);
+  filter: drop-shadow(
+    0 0 5px color-mix(in srgb, var(--color-command-gold) 55%, transparent)
+  );
+  animation: beacon-breathe 3s ease-in-out infinite;
+}
+@keyframes beacon-ping {
+  0% {
+    transform: scale(0.45);
+    opacity: 0.7;
+  }
+  80%,
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+@keyframes beacon-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .start-beacon::before,
+  .start-beacon svg {
+    animation: none;
+  }
+  .start-beacon svg {
+    opacity: 0.9;
+  }
+}
+
+/* ── Mode band (orient / do / check) ───────────────────────────────
+ * A briefing-panel treatment for the ModeBandBlock: a colour-coded left
+ * spine, a soft corner glow, and a corner registration tick — the same
+ * command motif as the beacon. `--mode` (the band colour) is set inline. */
+.mode-band {
+  position: relative;
+  margin-top: 0.75rem;
+  overflow: hidden;
+  border-radius: 0.55rem;
+  padding: 0.85rem 1.1rem 0.9rem 1.3rem;
+  border: 1px solid color-mix(in srgb, var(--mode) 26%, transparent);
+  background:
+    radial-gradient(
+      130% 150% at 0% 0%,
+      color-mix(in srgb, var(--mode) 13%, transparent),
+      transparent 52%
+    ),
+    rgba(255, 255, 255, 0.012);
+}
+.mode-band::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(
+    to bottom,
+    var(--mode),
+    color-mix(in srgb, var(--mode) 15%, transparent)
+  );
+}
+.mode-band::after {
+  content: "";
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 7px;
+  height: 7px;
+  opacity: 0.45;
+  background:
+    linear-gradient(var(--mode), var(--mode)) center / 100% 1px no-repeat,
+    linear-gradient(var(--mode), var(--mode)) center / 1px 100% no-repeat;
+}
+
