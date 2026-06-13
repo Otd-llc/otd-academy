@@ -23,6 +23,7 @@ import type { ContentBlock } from "@/lib/schemas/guide";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
+import { DIAGRAM_COMPONENTS } from "@/components/guide/diagram-registry";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
 import { CaptureLauncher } from "@/components/guide/CaptureLauncher";
 import {
@@ -222,6 +223,14 @@ function ImageBlock({
       );
     }
     return null;
+  }
+  // The part-number anatomy diagram renders as a responsive, scroll-triggered
+  // HTML/CSS component (cards reflow 4→2→1 col, the "decode" reveal fires on
+  // viewport entry) instead of the static fixed-viewBox SVG — see
+  // MpnAnatomyDiagram for the why. The DB content stays a plain image block.
+  const DiagramComponent = DIAGRAM_COMPONENTS[src];
+  if (DiagramComponent) {
+    return <DiagramComponent caption={caption} />;
   }
   // Small, odd-aspect schematic crops render inside a fixed white box with
   // `object-contain` (the vector scales to FIT, no tall-narrow balloon). `reveal`
@@ -683,7 +692,11 @@ function TableCell({
   }
   return (
     <td data-label={label}>
-      <Inline text={text} />
+      {text ? (
+        <span className="cell">
+          <Inline text={text} />
+        </span>
+      ) : null}
     </td>
   );
 }
