@@ -180,6 +180,7 @@ function ImageBlock({
   cardId,
   blockIndex,
   isAdmin,
+  inlineSvg,
 }: {
   src: string;
   alt: string;
@@ -190,6 +191,10 @@ function ImageBlock({
   cardId?: string;
   blockIndex?: number;
   isAdmin?: boolean;
+  /** House-style diagram SVG markup, inlined so it inherits the site's
+   *  Space Mono (an <img> SVG can't use the page webfont). When set, the
+   *  figure renders the SVG inline instead of <img src>. */
+  inlineSvg?: string;
 }) {
   if (!src) {
     // An empty media slot is an ADMIN-ONLY affordance: admins get the "to be
@@ -249,13 +254,24 @@ function ImageBlock({
   }
   const figure = (
     <figure className="space-y-2">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt={alt}
-        loading="lazy"
-        className="w-full rounded border border-panel-border bg-deep-space"
-      />
+      {inlineSvg ? (
+        // House-style diagram inlined so it inherits the page's Space Mono.
+        // Trusted build asset (see resolveInlineDiagrams); not user content.
+        <div
+          className="guide-diagram w-full overflow-hidden rounded border border-panel-border bg-deep-space"
+          role="img"
+          aria-label={alt}
+          dangerouslySetInnerHTML={{ __html: inlineSvg }}
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          className="w-full rounded border border-panel-border bg-deep-space"
+        />
+      )}
       {caption ? (
         <figcaption className="font-mono text-xs uppercase tracking-wider text-muted">
           {caption}
@@ -667,6 +683,7 @@ function GuideBlock({
   block,
   index,
   models,
+  diagrams,
   quizContext,
   projectId,
   isSignedIn,
@@ -676,6 +693,7 @@ function GuideBlock({
   block: ContentBlock;
   index: number;
   models?: Record<string, ResolvedModel>;
+  diagrams?: Record<string, string>;
   quizContext?: QuizContext;
   projectId?: string;
   isSignedIn?: boolean;
@@ -759,6 +777,7 @@ function GuideBlock({
           cardId={cardId}
           blockIndex={index}
           isAdmin={isAdmin}
+          inlineSvg={block.src ? diagrams?.[block.src] : undefined}
         />
       );
 
@@ -860,6 +879,7 @@ function GuideBlock({
 export function GuideBlocks({
   blocks,
   models,
+  diagrams,
   quizContext,
   projectId,
   isSignedIn,
@@ -868,6 +888,7 @@ export function GuideBlocks({
 }: {
   blocks: ContentBlock[];
   models?: Record<string, ResolvedModel>;
+  diagrams?: Record<string, string>;
   quizContext?: QuizContext;
   projectId?: string;
   isSignedIn?: boolean;
@@ -888,6 +909,7 @@ export function GuideBlocks({
           block={block}
           index={i}
           models={models}
+          diagrams={diagrams}
           quizContext={quizContext}
           projectId={projectId}
           isSignedIn={isSignedIn}

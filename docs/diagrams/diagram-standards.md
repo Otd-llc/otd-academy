@@ -7,7 +7,10 @@ annotations from crowding or overlapping. **Every diagram must pass the
 
 ## Canvas
 
-- `viewBox="0 0 780 360"`. No background rect — the page supplies `#08090D`.
+- `viewBox="0 0 780 <h>"` — **780 wide** (the house width); height varies by
+  content (300–400 typical). The 780-wide, zero-origin viewBox is also how the
+  renderer recognises a house diagram (see Font). No background rect — the page
+  supplies `#08090D`.
 - Keep a **≥ 24 px safe margin** inside the canvas edges.
 - The **subject** (board / circuit) is centered; **annotations live in the
   gutters** around it. Center the subject so the left and right gutters are
@@ -24,7 +27,24 @@ annotations from crowding or overlapping. **Every diagram must pass the
 | White | `#ffffff` | primary labels (part name, ref, antenna trace) |
 | Cleared | `#0b0f1a` | no-copper / cleared fill |
 
-## Type (monospace — `ui-monospace, 'SFMono-Regular', Menlo, monospace`)
+## Font
+
+House diagrams render in the **site mono, Space Mono** (`--font-mono`). The card
+renderer *inlines* house SVGs (`src/lib/inline-diagrams.ts` → `ImageBlock`) so
+they inherit the page webfont, and a CSS rule (`.guide-diagram svg text`) forces
+`var(--font-mono)` over each SVG's own `font-family`. So:
+
+- Keep `font-family="ui-monospace, 'SFMono-Regular', Menlo, monospace"` on the
+  root `<svg>` — it's only the **standalone fallback** (raw file / non-inlined
+  contexts). The renderer overrides it with Space Mono in the live card.
+- Author text as real `<text>` elements (the CSS font rule targets `text`), not
+  outlined paths.
+- Verify at 2× **with Space Mono loaded** (Space Mono is wider than system mono —
+  text that fit in a generic mono can overflow). KiCad Eeschema exports
+  (`l1-01-*.svg`) are *not* house diagrams: they stay `<img>` and keep their own
+  CAD typography.
+
+## Type (sizes — same scale regardless of family)
 
 | Role | px | weight | color |
 |---|---|---|---|

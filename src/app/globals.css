@@ -414,6 +414,23 @@ body {
   .table-tech td .mpn {
     color: var(--color-gold-light);
   }
+  /* Inlined house-style diagrams (resolveInlineDiagrams → ImageBlock). Inlining
+     lets the SVG inherit the site font: an <img>-sourced SVG is sandboxed and
+     falls back to system mono. The font-family rule overrides each SVG's own
+     presentation attribute (CSS beats presentation attrs), so every diagram
+     reads in Space Mono without editing 14 files. */
+  .guide-diagram {
+    line-height: 0;
+  }
+  .guide-diagram svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .guide-diagram svg text {
+    font-family: var(--font-mono);
+  }
+
   /* Zebra striping — a barely-there lift on even rows so long pin tables stay
      easy to track across. Kept very faint (well under the row-divider weight);
      equal specificity to the hover rule below, which is ordered AFTER so a

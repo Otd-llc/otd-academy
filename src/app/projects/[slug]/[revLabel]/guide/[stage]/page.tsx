@@ -31,6 +31,7 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/PageHeader";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import { GuideBlocks, type ResolvedModel } from "@/components/guide/GuideBlocks";
+import { resolveInlineDiagrams } from "@/lib/inline-diagrams";
 import { GuideCardEditor } from "@/components/guide/GuideCardEditor";
 import { GuideStepper } from "@/components/guide/GuideStepper";
 import { getPartAssetRenderUrl } from "@/lib/actions/part-assets";
@@ -358,6 +359,11 @@ export default async function GuideCardPage({
     };
   }
 
+  // Inline our house-style diagram SVGs so they render in the site's Space Mono
+  // (an <img> SVG is sandboxed and falls back to system mono). KiCad exports are
+  // excluded by resolveInlineDiagrams and stay <img>.
+  const diagrams = await resolveInlineDiagrams(blocks);
+
   let completionRef: CompletionRef = { kind: "none" };
   if (card.completionRef != null) {
     const refResult = completionRefSchema.safeParse(card.completionRef);
@@ -542,6 +548,7 @@ export default async function GuideCardPage({
         <GuideBlocks
           blocks={blocks}
           models={models}
+          diagrams={diagrams}
           quizContext={learnerQuizContext}
           projectId={project.id}
           isSignedIn={!!sessionEmail}
