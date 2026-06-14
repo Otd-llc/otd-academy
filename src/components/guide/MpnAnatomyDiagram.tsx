@@ -6,7 +6,8 @@
 // Bebas/var(--font-display) title in --color-gray-1). Each decoded segment + its
 // card carries a distinct BRAND hue (muted / gold / blue / gold-light) so the
 // glyph→card binding reads at a glance — gold stays dominant, blue secondary.
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { type CSSProperties } from "react";
+import { useScrollReveal } from "./diagrams/useScrollReveal";
 
 // glyph → brand accent (no off-palette hues; gold dominant, blue secondary).
 const COLOR: Record<string, string> = {
@@ -35,29 +36,8 @@ const CARDS: { glyph: string; label: string; value: string; sub: string }[] = [
 const d = (s: number): CSSProperties => ({ "--d": `${s}s` } as CSSProperties);
 
 export function MpnAnatomyDiagram({ caption }: { caption?: string }) {
-  const ref = useRef<HTMLElement>(null);
-  const [armed, setArmed] = useState(false);
-  const [inView, setInView] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    setArmed(true);
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) {
-            setInView(true);
-            io.disconnect();
-          }
-        }
-      },
-      { threshold: 0.25 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
+  // Shared reveal primitive — same mechanism every animated diagram uses.
+  const { ref, armed, inView } = useScrollReveal<HTMLElement>();
 
   return (
     <figure
