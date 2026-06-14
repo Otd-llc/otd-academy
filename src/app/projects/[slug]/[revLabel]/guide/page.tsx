@@ -84,14 +84,21 @@ function stateLabel(c: CardCompletion): string {
 }
 
 // Learner-facing label: their journey position, not author done/total counts.
-function learnerStateLabel(state: CompletionState): string {
+// Untouched stages show NO badge — a not-yet-started course shouldn't read as a
+// wall of "upcoming". The first stage of an unstarted journey gets a "Start
+// here" on-ramp instead.
+function learnerStateLabel(
+  state: CompletionState,
+  isFirst: boolean,
+  started: boolean,
+): string {
   switch (state) {
     case "complete":
       return "✓ Done";
     case "partial":
       return "In progress";
     default:
-      return "Upcoming";
+      return isFirst && !started ? "Start here" : "";
   }
 }
 
@@ -416,7 +423,7 @@ export default async function GuideHubPage({
     guideProgress.map((s) => [s.stage, s.state]),
   );
   const designCells = await Promise.all(
-    DESIGN_STAGES.map(async (stage) => {
+    DESIGN_STAGES.map(async (stage, i) => {
       const card = cardByStage.get(stage);
       if (!card) return null;
       if (view.isAuthorView) {
@@ -433,7 +440,12 @@ export default async function GuideHubPage({
         };
       }
       const state = learnerStateByStage.get(stage) ?? "untouched";
-      return { stage, card, state, label: learnerStateLabel(state) };
+      return {
+        stage,
+        card,
+        state,
+        label: learnerStateLabel(state, i === 0, learnerCurrentStage != null),
+      };
     }),
   );
 
@@ -532,9 +544,15 @@ export default async function GuideHubPage({
                     {cell.card.lead}
                   </span>
                 ) : null}
-                <span className="mt-1 font-mono text-xs font-bold uppercase tracking-wider">
-                  {cell.label}
-                </span>
+                {cell.label ? (
+                  <span
+                    className={`mt-1 font-mono text-xs font-bold uppercase tracking-wider ${
+                      cell.state === "untouched" ? "text-command-gold" : ""
+                    }`}
+                  >
+                    {cell.label}
+                  </span>
+                ) : null}
               </Link>
             ) : null,
           )}
