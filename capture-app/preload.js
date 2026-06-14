@@ -6,6 +6,9 @@ contextBridge.exposeInMainWorld("otd", {
     ipcRenderer.on("display-info", (_e, info) => cb(info)),
   onTrigger: (cb) => ipcRenderer.on("trigger", () => cb()),
   onCancel: (cb) => ipcRenderer.on("cancel", () => cb()),
+  onToggleFollow: (cb) => ipcRenderer.on("toggle-follow", () => cb()),
+  trackCursor: (on) => ipcRenderer.send("cursor-track", on),
+  onCursorPos: (cb) => ipcRenderer.on("cursor:pos", (_e, p) => cb(p)),
   setInteractive: (interactive) =>
     ipcRenderer.send("set-interactive", interactive),
   armSpace: () => ipcRenderer.send("arm-space"),
@@ -16,4 +19,7 @@ contextBridge.exposeInMainWorld("otd", {
   upload: (payload) => ipcRenderer.invoke("upload-capture", payload),
   save: (payload) => ipcRenderer.invoke("save-capture", payload),
   quit: () => ipcRenderer.send("quit"),
+  // Diagnostic: write a line into the main-process log (otd-capture.log) from the
+  // renderer, so we can see exactly when the recording pump stalls.
+  log: (msg) => ipcRenderer.send("renderer-log", String(msg)),
 });

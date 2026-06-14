@@ -30,7 +30,9 @@ writes it to HKCU). After that the lesson **+** can launch it even when it's clo
 3. A gold **marching-ants box** appears over your screen, dimming everything else.
    Drag / resize it; arrange KiCad *behind* it on the real desktop.
 4. Press **Space** (works even while KiCad is focused) → grabs the boxed region.
-   For a clip: **Space** starts, **Space** again stops. **Esc** cancels.
+   For a clip: **Space** starts recording — the box then turns **click-through**, so
+   you can drive KiCad inside it (click, select, type, press Insert…) *while it
+   records*. **Space** again or the on-panel **Stop** button finishes. **Esc** cancels.
 5. **Review** → **Approve** / **Redo**.
 6. Approve → the cropped capture is encoded (WebP still · WebM/MP4 clip with the
    duration fixes) and **uploaded into that placeholder**. The app then **closes
@@ -75,12 +77,16 @@ branding. Keep them in sync; later they could share one module.
   shot on refresh. (Needs an admin session + R2 enabled on the deployment.)
 - **Crop alignment:** the box → capture mapping uses `box CSS px × display.scaleFactor`.
   If a capture is offset or scaled on a HiDPI display, that scale factor is the knob.
-- **Click-through toggle:** the overlay should pass clicks to KiCad except over the
-  panel/box. If KiCad is unclickable, the `set-interactive` hover hit-test needs a
-  tweak.
+- **Click-through toggle:** while *framing*, the overlay passes clicks to KiCad
+  except over the panel/box (so you can size the box). While *recording*, the **box
+  is also click-through** — only the panel stays live — so you can work in KiCad
+  inside the recorded region. If KiCad is unclickable while recording, the
+  `set-interactive` hover hit-test (it drops the box from the live set once
+  `phase === "recording"`) is the knob.
 - **Content protection:** confirm the box/dim are NOT in the uploaded shot.
-- **Global Space:** grabbed only while framing/recording; it does block Space in
-  other apps during that window (by design — it's the trigger).
+- **Global Space / Esc:** grabbed while framing/recording — they're the trigger /
+  cancel, so they're blocked in other apps during that window (by design). If a clip
+  needs Space or Esc *inside* KiCad, use the on-panel **Stop** / **Cancel** instead.
 
 ## Troubleshooting — "the capture never shows up on the site"
 

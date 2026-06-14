@@ -33,6 +33,11 @@
   const closeBtnEl = $("closeBtn");
   const reviewStatusEl = $("reviewStatus");
   const againBtnEl = $("againBtn");
+  const stopBtnEl = $("stopBtn");
+  const followLabelEl = $("followLabel");
+  const followRowEl = $("followRow");
+  const followOffEl = $("followOff");
+  const followOnEl = $("followOn");
 
   // Aspect token (from the placeholder) → ratio. 0 = free (standalone only).
   const ASPECTS = {
@@ -52,7 +57,7 @@
   let stream = null;
   let recorder = null;
   let recCanvas = null;
-  let raf = null;
+  let recDraw = null; // setInterval id for the recording draw/requestFrame loop
   let recTimer = null;
   let recStart = 0;
   let captured = null; // { base64, ext }
@@ -60,8 +65,26 @@
   let dragging = false;
   const dragRef = { mode: null, x: 0, y: 0, box: null };
 
+  // Auto-follow: when on, the recording frame PANS to keep the cursor centred —
+  // size/aspect stay fixed (only the source-rect origin moves). `cursor` is the
+  // latest pointer position (CSS px, window-relative); `cam` is the smoothed frame
+  // centre that eases toward it each frame.
+  let follow = false;
+  const cursor = { x: 0, y: 0 };
+  const cam = { x: 0, y: 0 };
+  const REC_FPS = 60; // capture + pan frame rate (smoother; one constant to dial back)
+  const FOLLOW_TAU = 0.1; // seconds — follow easing time constant (frame-rate independent)
+
   window.otd.onDisplayInfo((info) => {
     scaleFactor = info.scaleFactor || 1;
+  });
+
+  // High-rate cursor from the main process (screen.getCursorScreenPoint polled),
+  // window-local — a cleaner, steadier signal than forwarded mousemove (which is
+  // throttled while the overlay is click-through) for the auto-follow pan.
+  window.otd.onCursorPos((p) => {
+    cursor.x = p.x;
+    cursor.y = p.y;
   });
 
   // Deep-link from the lesson "+": fix the mode, show the description (what to
@@ -88,6 +111,12 @@
       (mode === "video" ? ASPECTS["16:9"] : ASPECTS["16:10"]);
     aspectRowEl.classList.add("hidden");
     aspectLabelEl.classList.add("hidden");
+    // Auto-follow only applies to clips — hide it for a locked screenshot session
+    // (it stays available, operator's choice, for a video session).
+    if (mode === "image") {
+      followRowEl.classList.add("hidden");
+      followLabelEl.classList.add("hidden");
+    }
     startBtnEl.textContent = "Start capture";
     // One-shot: the site initiated this capture, so there's no "capture another".
     againBtnEl.classList.add("hidden");
@@ -105,10 +134,13 @@
     ]) {
       el.classList.toggle("hidden", n !== name);
     }
-    // The panel is fully interactive in every phase EXCEPT framing/recording —
-    // there the window goes click-through (so you can arrange apps behind the box)
-    // and the hover hit-test re-enables just the panel + box.
-    window.otd.setInteractive(name !== "framing");
+    // The full-screen overlay is click-through OUTSIDE its own panel in EVERY phase,
+    // so the rest of the screen (KiCad, other apps) stays usable the whole time OTD
+    // Capture is open. The mousemove hit-test below re-enables the window only while
+    // the cursor is over the panel (and the crop box, while framing) — the same
+    // proven mechanism the framing phase already uses. The window stays full-screen +
+    // on-top so the box can be drawn over any app and excluded from capture.
+    window.otd.setInteractive(false);
   }
 
   // ── mode / aspect chips ──
@@ -188,21 +220,28 @@
     boxEl.releasePointerCapture(e.pointerId);
   });
 
-  // ── click-through hover toggle (framing/recording ONLY) ──
-  // During framing the window is click-through so you can arrange apps behind the
-  // box; forwarded mousemove lets us re-enable interactivity over the panel/box.
-  // In every other phase the window is already fully interactive (showSection), so
-  // this handler does nothing — the panel never depends on the hit-test.
+  // ── click-through hover toggle (all phases) ──
+  // The overlay is click-through by default (showSection), so other apps stay usable.
+  // A forwarded mousemove re-enables interactivity ONLY while the cursor is over the
+  // panel (any phase) or the crop box (framing only). Topmost + forward:true means
+  // this works even when the overlay isn't the focused window.
   function hit(el, x, y) {
     if (el.classList.contains("hidden")) return false;
     const r = el.getBoundingClientRect();
     return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
   }
   document.addEventListener("mousemove", (e) => {
+    // Track the pointer everywhere (forwarded even while click-through) so
+    // auto-follow can re-centre the recording frame on it.
+    cursor.x = e.clientX;
+    cursor.y = e.clientY;
     if (dragging || panelDrag) return;
-    if (phase !== "framing" && phase !== "recording") return;
+    // Interactive over the panel (every phase) or the crop box (framing only).
+    // Everywhere else — the whole screen during setup, the box during recording — is
+    // click-through, so other apps get the mouse.
     const interactive =
-      hit(panelEl, e.clientX, e.clientY) || hit(boxEl, e.clientX, e.clientY);
+      hit(panelEl, e.clientX, e.clientY) ||
+      (phase === "framing" && hit(boxEl, e.clientX, e.clientY));
     window.otd.setInteractive(interactive);
   });
 
@@ -258,21 +297,29 @@
 
   // ── flow ──
   async function startFraming() {
+    // Switch to the framing panel FIRST so any capture error is visible (this is why
+    // standalone looked like it "did nothing" — the error was set on a hidden panel).
+    phase = "framing";
+    showSection("framing");
+    framingStatus.textContent = "Starting screen capture…";
+    window.otd.log("startFraming: requesting getDisplayMedia");
     try {
       stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
     } catch (e) {
+      window.otd.log("getDisplayMedia FAILED: " + (e && e.message));
       framingStatus.textContent = "Couldn't start screen capture: " + (e && e.message);
       return;
     }
+    window.otd.log("getDisplayMedia OK");
     screenVideo.srcObject = stream;
-    await screenVideo.play().catch(() => {});
+    await screenVideo
+      .play()
+      .catch((e) => window.otd.log("screenVideo.play err: " + (e && e.message)));
     initBox();
     boxEl.classList.remove("hidden");
-    phase = "framing";
-    showSection("framing");
     framingStatus.innerHTML =
       mode === "video"
-        ? 'Frame it, then <kbd>Space</kbd> to start — <kbd>Space</kbd> again to stop.'
+        ? 'Frame the box over KiCad, then <kbd>Space</kbd> to start. While recording the box goes <b>click-through</b> — work in KiCad normally; <kbd>Space</kbd> or Stop to finish.'
         : 'Frame it, then press <kbd>Space</kbd> to capture. <kbd>Esc</kbd> cancels.';
     window.otd.armSpace();
   }
@@ -303,38 +350,108 @@
     recCanvas.width = r.outW;
     recCanvas.height = r.outH;
     const ctx = recCanvas.getContext("2d");
-    const draw = () => {
-      ctx.drawImage(screenVideo, r.sx, r.sy, r.sw, r.sh, 0, 0, r.outW, r.outH);
-      raf = requestAnimationFrame(draw);
+    // Manual-frame capture: captureStream(0) emits a frame ONLY when we call
+    // requestFrame(), and we drive that from a wall-clock setInterval (kept
+    // real-time by the main-process anti-throttling switches). The default
+    // captureStream(30) ties frame cadence to the WINDOW COMPOSITOR, which runs slow
+    // while this overlay is unfocused (you're working in KiCad) — so it accumulated
+    // only ~6s of media time over a 20s recording and the clip came out sped-up.
+    // requestFrame() stamps each frame with the real clock, so the timeline matches
+    // wall-clock no matter the window's focus state.
+    const recStream = recCanvas.captureStream(0);
+    const recTrack = recStream.getVideoTracks()[0];
+    let pumpTicks = 0;
+    // Frame SIZE is fixed (r.sw × r.sh native → r.outW × r.outH canvas); only the
+    // source-rect ORIGIN moves. `cam` is the frame centre in CSS px, seeded at the
+    // box centre. In follow mode it eases toward the cursor each frame and the
+    // visible box moves with it; otherwise it stays put (identical to a fixed crop).
+    const halfW = box.w / 2;
+    const halfH = box.h / 2;
+    cam.x = box.x + halfW;
+    cam.y = box.y + halfH;
+    cursor.x = cam.x; // no jump until the pointer actually moves
+    cursor.y = cam.y;
+    let lastFrameMs = performance.now();
+    const pushFrame = () => {
+      if (!screenVideo.videoWidth) return;
+      if (follow) {
+        const now = performance.now();
+        const dt = Math.min(0.1, (now - lastFrameMs) / 1000);
+        lastFrameMs = now;
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+        // Clamp the target so the fixed-size frame never runs off-screen.
+        const tx = Math.max(halfW, Math.min(cursor.x, W - halfW));
+        const ty = Math.max(halfH, Math.min(cursor.y, H - halfH));
+        // Frame-rate-INDEPENDENT easing: same feel whether the timer hits 60 or 45 fps,
+        // so timer jitter no longer makes the pan jerk.
+        const k = 1 - Math.exp(-dt / FOLLOW_TAU);
+        cam.x += (tx - cam.x) * k;
+        cam.y += (ty - cam.y) * k;
+        // Move the box by TRANSFORM (GPU-composited) — with the screen-sized dim
+        // dropped via `.following`, there's no per-frame full-screen repaint. The box
+        // is excluded from the capture either way; box.x/box.y stay the framed origin.
+        boxEl.style.transform = `translate3d(${cam.x - halfW - box.x}px, ${cam.y - halfH - box.y}px, 0)`;
+      }
+      const maxSx = Math.max(0, screenVideo.videoWidth - r.sw);
+      const maxSy = Math.max(0, screenVideo.videoHeight - r.sh);
+      const sx = Math.max(0, Math.min(Math.round((cam.x - halfW) * scaleFactor), maxSx));
+      const sy = Math.max(0, Math.min(Math.round((cam.y - halfH) * scaleFactor), maxSy));
+      ctx.drawImage(screenVideo, sx, sy, r.sw, r.sh, 0, 0, r.outW, r.outH);
+      if (recTrack && recTrack.requestFrame) recTrack.requestFrame();
+      else if (recStream.requestFrame) recStream.requestFrame();
+      pumpTicks++;
     };
-    draw();
     try {
-      recorder = new window.StreamRecorder(recCanvas.captureStream(30));
+      recorder = new window.StreamRecorder(recStream);
       recorder.start();
     } catch (e) {
-      if (raf) cancelAnimationFrame(raf);
-      raf = null;
       framingStatus.textContent = "Couldn't start recording: " + (e && e.message);
       return;
     }
+    pushFrame(); // seed a frame at t=0
+    recDraw = setInterval(pushFrame, Math.round(1000 / REC_FPS)); // wall-clock capture
     recStart = Date.now();
     phase = "recording";
+    // Drop the overlay to click-through immediately, so the box (now over KiCad) is
+    // live without waiting for the first mouse move; the panel re-arms on hover via
+    // the mousemove hit-test. This is what lets you drive KiCad while recording.
+    stopBtnEl.classList.remove("hidden");
+    boxEl.classList.toggle("following", follow); // drop the dim while panning
+    window.otd.setInteractive(false);
+    window.otd.trackCursor(true); // high-rate cursor for a smooth follow pan
+    // ── diagnostics → otd-capture.log: pinpoint exactly when the pump stalls ──
+    const srcTrack = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+    window.otd.log(`recording started: mp4=${recorder.mp4} srcTrack=${srcTrack ? srcTrack.readyState : "?"}`);
+    if (recTrack) recTrack.addEventListener("ended", () => window.otd.log("recTrack ENDED"));
+    if (srcTrack) srcTrack.addEventListener("ended", () => window.otd.log("SCREEN track ENDED"));
     recTimer = setInterval(() => {
       const s = Math.floor((Date.now() - recStart) / 1000);
-      framingStatus.innerHTML = `<span class="rec">● Recording ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}</span> — <kbd>Space</kbd> to stop.`;
+      framingStatus.innerHTML = `<span class="rec">● Recording ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}</span> — ${follow ? "following cursor" : "fixed frame"} (<kbd>Ctrl+Shift+F</kbd> toggles). <kbd>Space</kbd> or Stop to finish.`;
+      window.otd.log(
+        `rec t=${((Date.now() - recStart) / 1000).toFixed(1)}s ticks=${pumpTicks}` +
+          ` recState=${recorder && recorder.rec ? recorder.rec.state : "?"}` +
+          ` recTrack=${recTrack ? recTrack.readyState : "?"}` +
+          ` srcTrack=${srcTrack ? srcTrack.readyState : "?"}` +
+          ` vPaused=${screenVideo.paused} vW=${screenVideo.videoWidth}` +
+          ` chunks=${recorder ? recorder.chunks.length : "?"}`,
+      );
     }, 500);
   }
 
   async function stopRecording() {
-    if (raf) cancelAnimationFrame(raf);
-    raf = null;
+    if (recDraw) clearInterval(recDraw);
+    recDraw = null;
     clearInterval(recTimer);
+    window.otd.log(`stopRecording: wallclock=${((Date.now() - recStart) / 1000).toFixed(1)}s`);
     try {
       const result = await recorder.stop();
       const buf = await result.blob.arrayBuffer();
+      window.otd.log(`stopped: ext=${result.ext} bytes=${buf.byteLength}`);
       captured = { base64: abToBase64(buf), ext: result.ext };
       finishToReview(URL.createObjectURL(result.blob), true);
     } catch (e) {
+      window.otd.log(`recording FAILED: ${e && e.message}`);
       framingStatus.textContent = "Recording failed: " + (e && e.message);
       reset();
     } finally {
@@ -344,8 +461,12 @@
 
   function finishToReview(url, isVideo) {
     window.otd.disarmSpace();
+    window.otd.trackCursor(false);
     stopStream();
     boxEl.classList.add("hidden");
+    boxEl.classList.remove("following");
+    boxEl.style.transform = "";
+    stopBtnEl.classList.add("hidden");
     reviewStatusEl.classList.add("hidden");
     if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     previewUrl = url;
@@ -395,15 +516,19 @@
   }
 
   function reset() {
-    if (raf) cancelAnimationFrame(raf);
-    raf = null;
+    if (recDraw) clearInterval(recDraw);
+    recDraw = null;
     clearInterval(recTimer);
     window.otd.disarmSpace();
+    window.otd.trackCursor(false);
     stopStream();
     recorder = null;
     captured = null;
     box = null;
     boxEl.classList.add("hidden");
+    boxEl.classList.remove("following");
+    boxEl.style.transform = "";
+    stopBtnEl.classList.add("hidden");
     if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     previewUrl = null;
     phase = "setup";
@@ -425,6 +550,9 @@
   });
 
   $("startBtn").addEventListener("click", startFraming);
+  stopBtnEl.addEventListener("click", () => {
+    if (phase === "recording") void stopRecording();
+  });
   $("cancelFrameBtn").addEventListener("click", reset);
   $("approveBtn").addEventListener("click", approve);
   $("redoBtn").addEventListener("click", () => {
@@ -434,6 +562,21 @@
   $("discardBtn").addEventListener("click", reset);
   $("againBtn").addEventListener("click", reset);
   $("quitBtn").addEventListener("click", () => window.otd.quit());
+
+  // ── auto-follow toggle ──
+  function setFollow(on) {
+    follow = on;
+    followOffEl.classList.toggle("on", !on);
+    followOnEl.classList.toggle("on", on);
+    // Only drop the box dim while actually recording — during framing you want the dim
+    // to size the box.
+    if (phase === "recording") boxEl.classList.toggle("following", on);
+  }
+  followOffEl.addEventListener("click", () => setFollow(false));
+  followOnEl.addEventListener("click", () => setFollow(true));
+  // Global Ctrl+Shift+F (armed with Space, only while framing/recording) flips it
+  // hands-free — chosen to not clash with KiCad's own shortcuts.
+  window.otd.onToggleFollow(() => setFollow(!follow));
 
   // Initial state: setup is shown — make sure the window is interactive so the
   // panel is clickable immediately (standalone launch has no onSession).

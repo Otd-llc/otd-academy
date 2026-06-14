@@ -24,7 +24,21 @@
         user-select: none;
         cursor: default;
       }
-      #screen { display: none; }
+      /* The screen-capture source. NOT display:none — Chromium suspends a hidden
+         video's decode pipeline after a few seconds, which stops feeding frames and
+         truncated the recording. Keep it in the viewport but imperceptible (2px,
+         near-zero opacity, behind everything); drawImage still reads its
+         full-resolution frames. */
+      #screen {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        width: 2px;
+        height: 2px;
+        opacity: 0.02;
+        pointer-events: none;
+        z-index: -1;
+      }
 
       /* ── control panel ── */
       #panel {
@@ -176,6 +190,13 @@
       @keyframes ants {
         to { background-position: 12px 0, -12px 100%, 0 -12px, 100% 12px; }
       }
+      /* While auto-following, drop the screen-sized dim (its per-frame repaint as the
+         box pans is what makes the whole thing glitchy) and promote the box to its own
+         compositor layer so transform-moves are GPU-cheap. */
+      #box.following {
+        box-shadow: none;
+        will-change: transform;
+      }
       #handle {
         position: absolute;
         right: -7px;
@@ -234,6 +255,12 @@
           <span class="chip" data-aspect="0">Free</span>
         </div>
 
+        <label class="lbl" id="followLabel">Motion (video clips) — Ctrl+Shift+F toggles live</label>
+        <div class="row" id="followRow">
+          <span class="chip on" id="followOff">Fixed frame</span>
+          <span class="chip" id="followOn">Follow cursor</span>
+        </div>
+
         <button class="btn" id="startBtn">Start framing</button>
       </div>
 
@@ -242,6 +269,7 @@
           Drag the gold box over what you want, arrange the window behind it, then
           press <kbd>Space</kbd> to capture. <kbd>Esc</kbd> cancels.
         </p>
+        <button class="btn hidden" id="stopBtn">■ Stop recording</button>
         <button class="btn ghost" id="cancelFrameBtn">Cancel</button>
       </div>
 
