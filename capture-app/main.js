@@ -31,6 +31,20 @@ const PROTOCOL = "otd-capture";
 let overlay = null;
 let pendingSession = null; // a deep link that arrived before the overlay loaded
 
+// The overlay is UNFOCUSED on purpose while recording (you're driving KiCad), and
+// Chromium throttles a backgrounded renderer's requestAnimationFrame + timers — which
+// would freeze the canvas draw loop that feeds the recording, so the clip skips and
+// doesn't cover the full duration. Disable that throttling so it keeps capturing at
+// full rate even when it isn't the focused window. (Pairs with backgroundThrottling:
+// false on the window below.)
+app.commandLine.appendSwitch("disable-background-timer-throttling");
+app.commandLine.appendSwitch("disable-renderer-backgrounding");
+app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
+// Windows-specific: Chromium's native occlusion calc can mark a transparent,
+// always-on-top, unfocused window "occluded" a few seconds in and freeze its
+// renderer — which would stop the recording pump mid-clip. Disable that calc.
+app.commandLine.appendSwitch("disable-features", "CalculateNativeWinOcclusion");
+
 // Debug log → ~/Downloads/otd-captures/otd-capture.log. The ground truth for "the
 // capture didn't show up": shows the launch argv, whether a deep link was parsed,
 // whether a session reached the renderer, and every upload's response (or a
@@ -114,6 +128,9 @@ function createOverlay() {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
+      // Keep rAF + timers running while the window is unfocused (it is, during
+      // recording) so the canvas draw loop feeding the clip never throttles.
+      backgroundThrottling: false,
     },
   });
 
@@ -121,10 +138,10 @@ function createOverlay() {
   overlay.setAlwaysOnTop(true, "screen-saver");
   overlay.setVisibleOnAllWorkspaces(true);
   overlay.setContentProtection(true);
-  // Fully interactive by default, so the panel (×, drag, buttons) ALWAYS works
-  // without depending on a hover hit-test. Only during FRAMING does the renderer
-  // switch the window to click-through (forward:true) — so you can arrange apps
-  // behind the box — and the hover hit-test then keeps just the panel + box live.
+  // Interactive at creation; the renderer then keeps the window click-through in
+  // every phase (setInteractive(false) in showSection) so the rest of the screen
+  // stays usable, with a forwarded-mousemove hit-test re-enabling it only over the
+  // panel (and the crop box, while framing).
   overlay.setIgnoreMouseEvents(false);
 
   overlay.loadFile(path.join(__dirname, "overlay.html"));
@@ -138,9 +155,11 @@ function createOverlay() {
     if (pendingSession) {
       overlay.webContents.send("capture:session", pendingSession);
       pendingSession = null;
-      overlay.show();
-      overlay.focus();
     }
+    // Show + focus in BOTH the deep-link and standalone cases, so the setup panel is
+    // reliably clickable (an unfocused transparent window wasn't getting the click).
+    overlay.show();
+    overlay.focus();
   });
 
   overlay.on("closed", () => {
@@ -178,14 +197,34 @@ if (!gotLock) {
   app.on("open-url", (_e, url) => handleDeepLink(url));
 
   app.whenReady().then(() => {
+    // Grant capture permission outright — this is a local tool the user explicitly
+    // launched; there's no third-party web content to guard against. Covers the case
+    // where getDisplayMedia is denied before the display-media handler is even hit.
+    session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(true));
+    session.defaultSession.setPermissionCheckHandler(() => true);
+
     // Auto-pick the primary screen for getDisplayMedia → no picker, no recursion
     // (the overlay is content-protected, so it's not in the captured frame).
     session.defaultSession.setDisplayMediaRequestHandler(
       (request, callback) => {
         desktopCapturer
           .getSources({ types: ["screen"] })
-          .then((sources) => callback({ video: sources[0] }))
-          .catch(() => callback({}));
+          .then((sources) => {
+            logLine(
+              `displayMedia request: ${sources.length} screen source(s) [${sources
+                .map((s) => s.name)
+                .join(", ")}]`,
+            );
+            if (sources.length) callback({ video: sources[0] });
+            else {
+              logLine("displayMedia: NO screen sources available — denying");
+              callback({});
+            }
+          })
+          .catch((e) => {
+            logLine(`displayMedia getSources threw: ${e && e.message}`);
+            callback({});
+          });
       },
       { useSystemPicker: false },
     );
@@ -218,10 +257,15 @@ ipcMain.on("set-interactive", (_e, interactive) => {
 ipcMain.on("arm-space", () => {
   globalShortcut.register("Space", () => overlay?.webContents.send("trigger"));
   globalShortcut.register("Escape", () => overlay?.webContents.send("cancel"));
+  // Auto-follow toggle — a combo unlikely to clash with KiCad's shortcuts.
+  globalShortcut.register("CommandOrControl+Shift+F", () =>
+    overlay?.webContents.send("toggle-follow"),
+  );
 });
 ipcMain.on("disarm-space", () => {
   globalShortcut.unregister("Space");
   globalShortcut.unregister("Escape");
+  globalShortcut.unregister("CommandOrControl+Shift+F");
 });
 
 // Deep-link flow: upload the approved capture to the academy. Done in the main
@@ -280,6 +324,31 @@ ipcMain.handle("save-capture", async (_e, { base64, ext, caption }) => {
   fs.writeFileSync(file, Buffer.from(base64, "base64"));
   logLine(`STANDALONE save-to-disk (no lesson target): ${file}`);
   return file;
+});
+
+ipcMain.on("renderer-log", (_e, msg) => logLine(`[renderer] ${msg}`));
+
+// High-rate cursor feed for the auto-follow pan: poll the OS cursor (~125 Hz) and
+// push window-local coords to the renderer. screen.getCursorScreenPoint() is a clean,
+// steady signal — unlike forwarded mousemove, which Windows throttles while the
+// overlay is click-through. Runs only while recording (renderer toggles it).
+let cursorTimer = null;
+ipcMain.on("cursor-track", (_e, on) => {
+  if (cursorTimer) {
+    clearInterval(cursorTimer);
+    cursorTimer = null;
+  }
+  if (!on || !overlay) return;
+  const b = overlay.getBounds(); // the overlay sits at the display origin
+  cursorTimer = setInterval(() => {
+    if (!overlay) {
+      clearInterval(cursorTimer);
+      cursorTimer = null;
+      return;
+    }
+    const p = screen.getCursorScreenPoint();
+    overlay.webContents.send("cursor:pos", { x: p.x - b.x, y: p.y - b.y });
+  }, 8);
 });
 
 ipcMain.on("quit", () => app.quit());
