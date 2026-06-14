@@ -6,6 +6,7 @@
 // local `error` state renders an inline download fallback (no onError prop).
 import { useEffect, useRef, useState } from "react";
 import type { RenderBounds } from "@/lib/schemas/part-asset";
+import { RotateIcon } from "@/components/icons";
 
 export default function ModelViewer({
   src,
@@ -108,5 +109,20 @@ export default function ModelViewer({
       </p>
     );
   }
-  return <div ref={mountRef} className={`${heightClass} w-full overflow-hidden rounded border border-panel-border bg-deep-space`} />;
+  return (
+    <div className={`relative ${heightClass} w-full`}>
+      <div
+        ref={mountRef}
+        className="h-full w-full overflow-hidden rounded border border-panel-border bg-deep-space"
+      />
+      {/* Affordance watermark: signals the pane is an interactive 3D model.
+          pointer-events-none so it never intercepts the orbit-drag below. */}
+      <div className="pointer-events-none absolute left-2 top-2 flex select-none items-center gap-1.5 rounded-md border border-panel-border/60 bg-deep-space/70 px-2 py-1 backdrop-blur-sm">
+        <RotateIcon className="h-3 w-3 text-command-gold" />
+        <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
+          3D · drag to rotate
+        </span>
+      </div>
+    </div>
+  );
 }
