@@ -1,5 +1,8 @@
 # Guide-diagram standards
 
+> Motion is a separate concern — see [`animation-standards.md`](./animation-standards.md)
+> for when and how a diagram may animate.
+
 Diagrams render inside guide cards on the dark app background (`#08090D`). The
 overriding rule, learned the hard way:
 

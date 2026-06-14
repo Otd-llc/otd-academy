@@ -1,16 +1,30 @@
+"use client";
+
 // Shared frame for guide-diagram components so every diagram uses the SAME,
 // site-standard header — never a one-off. Matches the section-header treatment
 // from ModeBandBlock / the guide cards: a gold/blue/green Space-Mono eyebrow
 // (uppercase, tracked) over a Bebas Neue (var(--font-display)) title in
 // --color-gray-1, inside the capped 36rem frame, with a Lora caption footer.
 // Individual diagrams supply ONLY their graphic body (and its own scoped <style>).
-import { type ReactNode } from "react";
+//
+// MOTION (see docs/diagrams/animation-standards.md): the frame owns the Tier-A
+// entrance reveal — eyebrow → title → body → foot fade+rise in reading order on
+// scroll-in, via the shared useScrollReveal primitive. The root carries the
+// `armed`/`in` contract so a Tier-B diagram can drive its own internal motion in
+// pure CSS off the SAME state (e.g. `.dgfrm.armed.in .my-bar{…}`) — no extra
+// observer, no client child needed. Reduced motion / no-JS → final state, static.
+import { type CSSProperties, type ReactNode } from "react";
+import { useScrollReveal } from "./useScrollReveal";
 
 const TONE: Record<string, string> = {
   gold: "var(--color-command-gold,#c8963e)",
   blue: "var(--color-signal-blue,#4a8fff)",
   green: "var(--color-status-green,#66bb6a)",
 };
+
+// stagger (seconds) — eyebrow → title → body → foot. Settles well under the
+// ~1.8s sequence cap (foot: 0.3 + 0.55 = 0.85s).
+const d = (s: number): CSSProperties => ({ "--d": `${s}s` } as CSSProperties);
 
 export function DiagramFrame({
   eyebrow,
@@ -30,16 +44,24 @@ export function DiagramFrame({
   children: ReactNode;
 }) {
   const foot = caption || defaultCaption;
+  const { ref, armed, inView } = useScrollReveal<HTMLElement>();
   return (
-    <figure className="dgfrm" role="img" aria-label={ariaLabel}>
+    <figure
+      ref={ref}
+      className={`dgfrm${armed ? " armed" : ""}${inView ? " in" : ""}`}
+      role="img"
+      aria-label={ariaLabel}
+    >
       <style>{FRAME_CSS}</style>
-      <p className="dgfrm-eyebrow" style={{ color: TONE[tone] }}>
+      <p className="dgfrm-anim dgfrm-eyebrow" style={{ color: TONE[tone], ...d(0) }}>
         <span aria-hidden="true">▸ </span>
         {eyebrow}
       </p>
-      <h3 className="dgfrm-title">{title}</h3>
-      <div className="dgfrm-body">{children}</div>
-      {foot ? <figcaption className="dgfrm-foot">{foot}</figcaption> : null}
+      <h3 className="dgfrm-anim dgfrm-title" style={d(0.1)}>{title}</h3>
+      <div className="dgfrm-anim dgfrm-body" style={d(0.2)}>{children}</div>
+      {foot ? (
+        <figcaption className="dgfrm-anim dgfrm-foot" style={d(0.3)}>{foot}</figcaption>
+      ) : null}
     </figure>
   );
 }
@@ -57,4 +79,14 @@ const FRAME_CSS = `
 .dgfrm-body{margin-top:clamp(1.15rem,4vw,1.7rem);}
 .dgfrm-foot{margin:clamp(1.15rem,3.5vw,1.6rem) 0 0;color:var(--color-muted,#aaa);
   font-family:var(--font-serif,"Lora",serif);font-size:clamp(.8rem,2vw,.9rem);line-height:1.5;}
+
+/* Tier-A entrance reveal. Hidden state is gated behind .armed (set by JS), so an
+   SSR / no-JS render shows the diagram fully visible — never blank. */
+.dgfrm.armed .dgfrm-anim{opacity:0;transform:translateY(8px);}
+.dgfrm.armed.in .dgfrm-anim{opacity:1;transform:none;
+  transition:opacity .55s cubic-bezier(.2,.7,.2,1),transform .55s cubic-bezier(.2,.7,.2,1);
+  transition-delay:var(--d,0s);}
+@media (prefers-reduced-motion:reduce){
+  .dgfrm .dgfrm-anim{opacity:1!important;transform:none!important;transition:none!important;}
+}
 `;

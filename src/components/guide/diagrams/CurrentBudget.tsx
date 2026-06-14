@@ -12,7 +12,13 @@
 // (onethousanddrones.com/brand): gold-dominant on Deep Space, Navy Dark bodies,
 // Signal Blue only as the secondary "rest of board" callout, Alert Red ONLY for
 // the hard 600 mA ceiling. All colours via @theme tokens.
+import { type CSSProperties } from "react";
 import { DiagramFrame } from "./DiagramFrame";
+
+// Segment widths live in a `--w` custom prop (not a plain inline width) so the
+// base/static state is full-width, and the Tier-B fill (see the scoped CSS)
+// animates 0 → var(--w) only once the frame is armed + in view.
+const w = (pct: string): CSSProperties => ({ "--w": pct } as CSSProperties);
 
 export function CurrentBudget({ caption }: { caption?: string }) {
   return (
@@ -31,10 +37,10 @@ export function CurrentBudget({ caption }: { caption?: string }) {
         <div className="crtbgt-row">
           <p className="crtbgt-rowlabel">What the board draws</p>
           <div className="crtbgt-track">
-            <div className="crtbgt-seg crtbgt-wifi" style={{ width: "83.333%" }}>
+            <div className="crtbgt-seg crtbgt-wifi" style={w("83.333%")}>
               <span className="crtbgt-segtext">Wi-Fi TX peak</span>
             </div>
-            <div className="crtbgt-seg crtbgt-rest" style={{ width: "8.333%" }} />
+            <div className="crtbgt-seg crtbgt-rest" style={w("8.333%")} />
           </div>
           <p className="crtbgt-sum">≈ 550&nbsp;mA total</p>
         </div>
@@ -43,10 +49,10 @@ export function CurrentBudget({ caption }: { caption?: string }) {
         <div className="crtbgt-row">
           <p className="crtbgt-rowlabel">What the RT9080 LDO supplies</p>
           <div className="crtbgt-track">
-            <div className="crtbgt-seg crtbgt-used" style={{ width: "91.666%" }}>
+            <div className="crtbgt-seg crtbgt-used" style={w("91.666%")}>
               <span className="crtbgt-segtext crtbgt-segtext-muted">used ≈ 550&nbsp;mA</span>
             </div>
-            <div className="crtbgt-seg crtbgt-headroom" style={{ width: "8.333%" }} />
+            <div className="crtbgt-seg crtbgt-headroom" style={w("8.333%")} />
             <div className="crtbgt-ceiling" />
           </div>
           <p className="crtbgt-sum crtbgt-sum-ceiling">600&nbsp;mA ceiling</p>
@@ -71,7 +77,7 @@ const CSS = `
 .crtbgt-rowlabel{margin:0;color:var(--color-muted,#aaa);font-size:clamp(.85rem,2.3vw,.95rem);letter-spacing:.04em;}
 .crtbgt-track{position:relative;display:flex;height:clamp(2.6rem,9vw,3rem);
   background:var(--color-navy-dark,#1f2438);border:1px solid var(--color-panel-border,#3a3f50);border-radius:3px;overflow:hidden;}
-.crtbgt-seg{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;}
+.crtbgt-seg{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;width:var(--w,auto);}
 .crtbgt-wifi{background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
 .crtbgt-rest{background:rgba(74,143,255,.18);box-shadow:inset 0 0 0 2px var(--color-signal-blue,#4a8fff);}
 .crtbgt-used{background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-command-gold,#c8963e);}
@@ -91,4 +97,16 @@ const CSS = `
 .crtbgt-sw-wifi{background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
 .crtbgt-sw-rest{background:rgba(74,143,255,.18);box-shadow:inset 0 0 0 2px var(--color-signal-blue,#4a8fff);}
 .crtbgt-sw-headroom{background:var(--color-command-gold,#c8963e);box-shadow:inset 0 0 0 2px var(--color-gold-light,#e8b865);}
+
+/* Tier-B fill (docs/diagrams/animation-standards.md), driven off the frame's
+   armed/in contract — no client child. The red 600 mA ceiling draws FIRST so the
+   constraint is set before the bars reach toward it; segments then grow 0 → --w
+   (linear, magnitude reads as length). Gated behind .armed, so a reduced-motion
+   / no-JS render keeps the base full-width final state — never collapsed. */
+.dgfrm.armed .crtbgt-seg{width:0;}
+.dgfrm.armed.in .crtbgt-seg{width:var(--w);transition:width .7s linear;}
+.dgfrm.armed .crtbgt-ceiling{transform:scaleY(0);}
+.dgfrm.armed.in .crtbgt-ceiling{transform:scaleY(1);transition:transform .35s cubic-bezier(.2,.7,.2,1);}
+/* the LDO-supply row reaches toward the ceiling a beat later than the draw row */
+.dgfrm.armed.in .crtbgt-used,.dgfrm.armed.in .crtbgt-headroom{transition-delay:.3s;}
 `;

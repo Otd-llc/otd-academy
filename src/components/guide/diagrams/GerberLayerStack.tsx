@@ -13,6 +13,7 @@
 // bodies, Signal Blue only as the secondary data accent (mask layers + the drill
 // pierce markers). Copper layers carry the gold emphasis; Edge_Cuts is the gold
 // dashed outline. All colours via @theme tokens with literal fallbacks.
+import { type CSSProperties } from "react";
 import { DiagramFrame } from "./DiagramFrame";
 
 type Row = {
@@ -45,8 +46,12 @@ export function GerberLayerStack({ caption }: { caption?: string }) {
     >
       <style>{CSS}</style>
       <ol className="glstk-stack">
-        {ROWS.map((r) => (
-          <li key={r.name} className={`glstk-row glstk-${r.kind}`}>
+        {ROWS.map((r, i) => (
+          <li
+            key={r.name}
+            className={`glstk-row glstk-${r.kind}`}
+            style={{ "--d": `${0.35 + i * 0.08}s` } as CSSProperties}
+          >
             <span className="glstk-swatch" aria-hidden="true" />
             <span className="glstk-body">
               <span className="glstk-name">{r.name}</span>
@@ -100,4 +105,15 @@ const CSS = `
 .glstk-drilltag{color:var(--color-signal-blue,#4a8fff);font-weight:700;font-size:.62rem;
   letter-spacing:.12em;border:1px solid var(--color-signal-blue,#4a8fff);border-radius:3px;
   padding:.18rem .4rem;margin-right:.5rem;white-space:nowrap;}
+
+/* Tier-B (docs/diagrams/animation-standards.md): the layers stack front-to-back,
+   each row dropping into place in order. Gated behind .armed so a reduced-motion
+   / no-JS render shows the full stack, static. */
+.dgfrm.armed .glstk-row{opacity:0;transform:translateY(-8px);}
+.dgfrm.armed.in .glstk-row{opacity:1;transform:none;
+  transition:opacity .5s cubic-bezier(.2,.7,.2,1),transform .5s cubic-bezier(.2,.7,.2,1);
+  transition-delay:var(--d,0s);}
+@media (prefers-reduced-motion:reduce){
+  .dgfrm .glstk-row{opacity:1!important;transform:none!important;transition:none!important;}
+}
 `;
