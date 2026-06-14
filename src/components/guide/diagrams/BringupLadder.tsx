@@ -12,6 +12,7 @@
 // BRAND (onethousanddrones.com/brand): gold-dominant on Deep Space, Navy Dark
 // bodies, Signal Blue only as the secondary "it's alive" callout on rung 5, and
 // Alert Red reserved for the stop rule. All colours via @theme tokens.
+import { type CSSProperties } from "react";
 import { DiagramFrame } from "./DiagramFrame";
 
 export function BringupLadder({ caption }: { caption?: string }) {
@@ -34,13 +35,18 @@ export function BringupLadder({ caption }: { caption?: string }) {
       </div>
 
       <div className="brl-rungs">
-        {RUNGS.map((r) => (
-          <div key={r.n} className={`brl-rung${r.alive ? " last" : ""}`}>
+        {RUNGS.map((r, i) => (
+          <div
+            key={r.n}
+            className={`brl-rung${r.alive ? " last" : ""}`}
+            style={{ "--d": `${0.35 + i * 0.1}s` } as CSSProperties}
+          >
             <span className="brl-num">{r.n}</span>
             <div className="brl-body">
               <div className="brl-name">{r.name}</div>
               <div className="brl-detail">{r.detail}</div>
             </div>
+            {r.alive ? <span className="brl-led" aria-hidden="true" /> : null}
           </div>
         ))}
       </div>
@@ -69,8 +75,8 @@ const CSS = `
 .brl-stop-v{color:var(--color-muted,#aaa);font-size:clamp(.85rem,2.3vw,.95rem);}
 
 .brl-rungs{display:flex;flex-direction:column;gap:.55rem;text-align:left;}
-.brl-rung{display:grid;grid-template-columns:auto 1fr;gap:.85rem;align-items:center;
-  padding:.7rem .85rem;border-radius:6px;
+.brl-rung{position:relative;display:grid;grid-template-columns:auto 1fr;gap:.85rem;align-items:center;
+  padding:.7rem 1.7rem .7rem .85rem;border-radius:6px;
   background:var(--color-navy-dark,#1f2438);
   border:1px solid var(--color-panel-border,#3a3f50);border-left:3px solid var(--color-command-gold,#c8963e);}
 .brl-num{display:flex;align-items:center;justify-content:center;width:2rem;height:2rem;flex:none;
@@ -80,4 +86,24 @@ const CSS = `
 .brl-name{color:#fff;font-weight:700;font-size:clamp(1.05rem,3vw,1.3rem);letter-spacing:.03em;line-height:1.2;}
 .brl-detail{margin-top:.18rem;color:var(--color-muted,#aaa);font-size:clamp(.95rem,2.5vw,1.05rem);line-height:1.35;}
 .brl-rung.last .brl-detail{color:var(--color-signal-blue,#4a8fff);}
+
+/* Tier-B (docs/diagrams/animation-standards.md): prove each rung before the next
+   — the rungs reveal 1→5 in order. Gated behind .armed so a reduced-motion /
+   no-JS render shows all five, static. */
+.dgfrm.armed .brl-rung{opacity:0;transform:translateX(-10px);}
+.dgfrm.armed.in .brl-rung{opacity:1;transform:none;
+  transition:opacity .5s cubic-bezier(.2,.7,.2,1),transform .5s cubic-bezier(.2,.7,.2,1);
+  transition-delay:var(--d,0s);}
+
+/* The one sanctioned ambient loop: LED2 on the final rung blinks — the board is
+   alive. Slow (1.8s), hard on/off like a real indicator, reduced-motion-gated. */
+.brl-led{position:absolute;right:.85rem;top:50%;width:.7rem;height:.7rem;margin-top:-.35rem;
+  border-radius:50%;background:var(--color-signal-blue,#4a8fff);
+  box-shadow:0 0 7px 1px rgba(74,143,255,.7);}
+.dgfrm.armed.in .brl-led{animation:brl-blink 1.8s steps(1,end) infinite;animation-delay:1s;}
+@keyframes brl-blink{0%,50%{opacity:1;}50.01%,100%{opacity:.18;}}
+@media (prefers-reduced-motion:reduce){
+  .dgfrm .brl-rung{opacity:1!important;transform:none!important;transition:none!important;}
+  .dgfrm .brl-led{animation:none!important;opacity:1;}
+}
 `;

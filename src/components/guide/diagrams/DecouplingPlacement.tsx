@@ -37,6 +37,7 @@ export function DecouplingPlacement({ caption }: { caption?: string }) {
               <span className="dcpl-cap" />
               <span className="dcpl-gnd" />
               <span className="dcpl-looplabel">small loop</span>
+              <span className="dcpl-dot" aria-hidden="true" />
             </div>
           </div>
           <div className="dcpl-notes">
@@ -59,6 +60,7 @@ export function DecouplingPlacement({ caption }: { caption?: string }) {
               <span className="dcpl-cap" />
               <span className="dcpl-gnd" />
               <span className="dcpl-looplabel">big loop</span>
+              <span className="dcpl-dot" aria-hidden="true" />
             </div>
           </div>
           <div className="dcpl-notes">
@@ -119,5 +121,28 @@ const CSS = `
   .dcpl-graphic{justify-content:center;}
   .dcpl-notes{text-align:center;}
   .dcpl-verdict{justify-content:center;}
+}
+
+/* Tier-B (docs/diagrams/animation-standards.md): a current dot makes ONE lap of
+   each loop — brisk on the small loop, sluggish on the big one — so the speed
+   contrast teaches WHY loop area (inductance) matters. Same gold dot both sides:
+   same current, only the placement differs. Single-play; fades out at the end.
+   Gated behind .armed so a reduced-motion / no-JS render is the static loops. */
+.dcpl-dot{position:absolute;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;
+  background:var(--color-gold-light,#e8b865);box-shadow:0 0 8px 1px rgba(232,184,101,.85);
+  opacity:0;z-index:3;pointer-events:none;}
+.dgfrm.armed.in .dcpl-loop-sm .dcpl-dot{animation:dcpl-lap .8s linear .5s 1 both;}
+.dgfrm.armed.in .dcpl-loop-lg .dcpl-dot{animation:dcpl-lap 1.9s linear .5s 1 both;}
+@keyframes dcpl-lap{
+  0%{left:3%;top:14px;opacity:0;}
+  7%{opacity:1;}
+  25%{left:90%;top:14px;}
+  50%{left:90%;top:82px;}
+  75%{left:3%;top:82px;}
+  93%{opacity:1;}
+  100%{left:3%;top:14px;opacity:0;}
+}
+@media (prefers-reduced-motion:reduce){
+  .dcpl-dot{display:none!important;}
 }
 `;

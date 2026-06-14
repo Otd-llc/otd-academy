@@ -172,4 +172,25 @@ const CSS = `
 .wpf-link .rail{color:var(--color-command-gold,#c8963e);font-weight:700;
   font-size:clamp(.95rem,2.5vw,1.05rem);line-height:1.2;}
 .wpf-link.data .rail{color:var(--color-signal-blue,#4a8fff);}
+
+/* Tier-B (docs/diagrams/animation-standards.md): a pulse runs DOWN each spine —
+   J1→F1→U2→U1 (gold power) then the data path (blue) — each arrow giving a
+   one-shot downward push as the pulse reaches it. Single-play; the arrow keeps
+   its own semantic colour. Gated behind .armed so a reduced-motion / no-JS
+   render keeps the static arrows. */
+.dgfrm.armed.in .wpf-spine > .wpf-link .arrow{animation:wpf-arrow .55s ease-out both;}
+.dgfrm.armed.in .wpf-spine > .wpf-link:nth-child(2) .arrow{animation-delay:.45s;}
+.dgfrm.armed.in .wpf-spine > .wpf-link:nth-child(4) .arrow{animation-delay:.6s;}
+.dgfrm.armed.in .wpf-spine > .wpf-link:nth-child(6) .arrow{animation-delay:.75s;}
+/* the blue data pulse follows the gold power pulse */
+.dgfrm.armed.in .wpf-link.data:nth-child(2) .arrow{animation-delay:1s;}
+.dgfrm.armed.in .wpf-link.data:nth-child(4) .arrow{animation-delay:1.15s;}
+@keyframes wpf-arrow{
+  0%{opacity:.25;transform:translateY(-4px);}
+  45%{opacity:1;transform:translateY(3px);}
+  100%{opacity:1;transform:translateY(0);}
+}
+@media (prefers-reduced-motion:reduce){
+  .dgfrm .wpf-link .arrow{animation:none!important;opacity:1;transform:none;}
+}
 `;
