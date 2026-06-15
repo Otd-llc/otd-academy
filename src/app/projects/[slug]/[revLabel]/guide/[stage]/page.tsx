@@ -198,6 +198,7 @@ export default async function GuideCardPage({
       accessTier: true,
       stripePriceId: true,
       priceCents: true,
+      exam: { select: { id: true } },
     },
   });
   if (!project) notFound();
@@ -580,6 +581,7 @@ export default async function GuideCardPage({
           cardBaseHref={hubHref}
           completedHref={`/learn/${project.slug}/complete`}
           guideStages={GUIDE_STAGES}
+          hasExam={!!project.exam}
           quizRequired={gate.quiz}
           quizPassed={learnerQuizPassed}
           cardHasQuiz={cardHasQuiz}

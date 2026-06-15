@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { currentUserOrRedirect } from "@/lib/learner";
 import { getExam } from "@/lib/actions/exam";
 import { ExamForm } from "@/components/learn/ExamForm";
+import { pickNextLessons } from "@/lib/learner-next-lessons";
 import { ChevronLeftIcon } from "@/components/icons";
 
 export default async function LearnerExamPage({
@@ -22,6 +23,25 @@ export default async function LearnerExamPage({
     select: { id: true, name: true },
   });
   if (!project) notFound();
+
+  // Continuation after passing: the published DAG dependents of this lesson.
+  const deps = await db.projectDependency.findMany({
+    where: { dependsOnProjectId: project.id },
+    select: { dependentProjectId: true },
+  });
+  const nextProjects = deps.length
+    ? await db.project.findMany({
+        where: {
+          id: { in: deps.map((d) => d.dependentProjectId) },
+          publishedRevisionId: { not: null },
+        },
+        select: { slug: true, name: true, criticalPath: true },
+      })
+    : [];
+  const nextLessons = pickNextLessons(
+    nextProjects.map((p) => ({ slug: p.slug, name: p.name, criticalPath: !!p.criticalPath })),
+  ).map((n) => ({ slug: n.slug, name: n.name }));
+  const userName = user.name?.trim() || user.email?.split("@")[0] || "Builder";
 
   const enrollment = await db.enrollment.findUnique({
     where: { userId_projectId: { userId: user.id, projectId: project.id } },
@@ -101,6 +121,10 @@ export default async function LearnerExamPage({
           projectId={project.id}
           questions={exam.questions}
           passThreshold={exam.passThreshold}
+          userName={userName}
+          projectName={project.name}
+          slug={slug}
+          nextLessons={nextLessons}
         />
       </div>
     </main>
