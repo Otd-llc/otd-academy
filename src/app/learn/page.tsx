@@ -76,7 +76,7 @@ export default async function LearnerHomePage({
           — if it has already landed the course shows unlocked below; either way
           this banner confirms the payment succeeded. */}
       {purchased && (
-        <div className="mt-6 glass-card border-l-4 border-l-status-green p-5">
+        <div className="mt-6 glass-card border-status-green/40 p-5">
           <p className="font-mono text-xs uppercase tracking-wider text-status-green">
             ✓ You&apos;re in — your course is unlocked
           </p>

@@ -351,7 +351,7 @@ export default async function GuideHubPage({
         <JsonLd data={courseLd} />
 
         {/* Sales hero + waitlist CTA */}
-        <section className="glass-card border-l-4 border-l-command-gold p-8">
+        <section className="glass-card p-8">
           <p className="font-mono text-xs uppercase tracking-wider text-command-gold">
             🔒 Premium course
           </p>
@@ -423,8 +423,8 @@ export default async function GuideHubPage({
                     href={cardHref(card.stage)}
                     className={`glass-card flex items-baseline gap-3 p-4 transition-colors hover:bg-command-gold/5 ${
                       locked
-                        ? "border-l-4 border-panel-border opacity-70"
-                        : "border-l-4 border-status-green"
+                        ? "border-panel-border opacity-70"
+                        : "border-status-green/50"
                     }`}
                   >
                     {inner}

@@ -59,8 +59,8 @@ export function ExamForm({
 
       {result ? (
         <div
-          className={`glass-card border-l-4 p-5 ${
-            result.passed ? "border-l-status-green" : "border-l-alert-red"
+          className={`glass-card p-5 ${
+            result.passed ? "border-status-green/45" : "border-alert-red/45"
           }`}
         >
           <p className="font-display text-2xl tracking-wider text-white">

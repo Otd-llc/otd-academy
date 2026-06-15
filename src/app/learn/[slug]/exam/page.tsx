@@ -77,7 +77,7 @@ export default async function LearnerExamPage({
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       {backLink}
-      <div className="glass-card border-l-4 border-l-command-gold p-6">
+      <div className="glass-card p-6">
         <p className="font-mono text-xs uppercase tracking-wider text-muted">
           Board exam · pass ≥ {exam.passThreshold}%
         </p>
