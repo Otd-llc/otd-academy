@@ -108,6 +108,34 @@ function parseRef(value: unknown): CompletionRef {
   return r.success ? r.data : { kind: "none" };
 }
 
+// ─── Design-stage visual language (bioscale-viz inspector) ───────────────────
+// Recast each design stage as an inspector tile with a hex stage-node, in the
+// viz's gold state-ladder: solid-gold DONE → gold-glow + lock-on CURRENT → dim
+// ghost UPCOMING (no green; gold is the whole palette there).
+type StageKind = "done" | "current" | "upcoming" | "blocked";
+
+function stageKind(state: CompletionState, isCurrent: boolean): StageKind {
+  if (state === "complete") return "done";
+  if (state === "blocked") return "blocked";
+  if (isCurrent) return "current";
+  return "upcoming";
+}
+
+// Per-state tile chrome: a glass-card surface with a state-driven border + the
+// gold-glow on the current tile (the viz's active-selection treatment).
+function stageCardClasses(kind: StageKind): string {
+  switch (kind) {
+    case "current":
+      return "border-command-gold shadow-[0_0_26px_rgba(200,150,62,0.16),0_12px_40px_rgba(0,0,0,0.5)]";
+    case "done":
+      return "border-command-gold/25 shadow-[0_12px_40px_rgba(0,0,0,0.45)]";
+    case "blocked":
+      return "border-alert-red/55 shadow-[0_12px_40px_rgba(0,0,0,0.45)]";
+    default:
+      return "border-panel-border shadow-[0_12px_40px_rgba(0,0,0,0.4)] hover:border-command-gold/50";
+  }
+}
+
 // SEO. Project-level title/description for the guide hub (the build-guide
 // landing for a revision). Tight select; canonical/OG-image are per-card
 // concerns handled on the card route (the hub canonicalizes to itself by
@@ -510,24 +538,64 @@ export default async function GuideHubPage({
         />
       </div>
 
-      {/* ─── Tier 1: design-stage card grid ─── */}
+      {/* ─── Tier 1: design-stage cluster ─── */}
       <section>
-        <h2 className="font-display text-2xl tracking-wider text-white">
-          DESIGN STAGES
-        </h2>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {designCells.map((cell) =>
-            cell ? (
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="font-display text-2xl tracking-wider text-white">
+            DESIGN STAGES
+          </h2>
+          <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold-dim">
+            {designCells.filter((c) => c?.state === "complete").length} /{" "}
+            {designCells.filter(Boolean).length} complete
+          </span>
+        </div>
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {designCells.map((cell, i) => {
+            if (!cell) return null;
+            const isCurrent = cell.stage === beaconStage;
+            const kind = stageKind(cell.state, isCurrent);
+            const statusText =
+              kind === "done"
+                ? "✓ Done"
+                : kind === "blocked"
+                  ? "Blocked"
+                  : kind === "current"
+                    ? cell.label || "In progress"
+                    : "Upcoming";
+            const kickerClass =
+              kind === "done"
+                ? "text-gold-dim"
+                : kind === "current"
+                  ? "text-command-gold"
+                  : kind === "blocked"
+                    ? "text-alert-red"
+                    : "text-gray-3";
+            const statusClass =
+              kind === "done"
+                ? "text-gold-dim"
+                : kind === "current"
+                  ? "text-gold-light"
+                  : kind === "blocked"
+                    ? "text-alert-red"
+                    : "text-gray-3";
+            const ruleClass =
+              kind === "upcoming"
+                ? "from-panel-border"
+                : kind === "blocked"
+                  ? "from-alert-red/40"
+                  : "from-command-gold/40";
+            return (
               <Link
                 key={cell.stage}
                 href={cardHref(cell.stage)}
-                className={`glass-card relative flex flex-col gap-2 border-l-4 p-4 transition-colors hover:bg-command-gold/5 ${stateClasses(
-                  cell.state,
+                className={`group relative flex flex-col gap-3 rounded-xl border p-5 transition-colors [background:linear-gradient(180deg,#13131f_0%,#0d0e14_100%)] hover:bg-command-gold/[0.03] ${stageCardClasses(
+                  kind,
                 )}`}
               >
-                {/* "Do this next" beacon — rides the earliest non-complete
-                    stage, so it advances with the learner's progress. */}
-                {cell.stage === beaconStage ? (
+                {/* "Do this next" beacon — the glowing radar-ping +, on the
+                    current (earliest non-complete) stage, so it rides progress.
+                    It stands in for the status text on this card. */}
+                {kind === "current" ? (
                   <span className="start-beacon" aria-hidden="true">
                     <svg
                       viewBox="0 0 24 24"
@@ -540,29 +608,39 @@ export default async function GuideHubPage({
                     </svg>
                   </span>
                 ) : null}
-                <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-command-gold">
-                  {cell.card.eyebrow}
-                </span>
-                <span className="font-display text-xl tracking-wider text-white">
+
+                {/* kicker row: STAGE 0X · gold hairline · status */}
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.25em] ${kickerClass}`}
+                  >
+                    Stage {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span
+                    aria-hidden
+                    className={`h-px flex-1 bg-gradient-to-r to-transparent ${ruleClass}`}
+                  />
+                  {/* The current card's status is carried by the + beacon, so the
+                      text is suppressed there to leave the corner clear. */}
+                  {kind !== "current" ? (
+                    <span
+                      className={`shrink-0 font-mono text-[10px] font-bold uppercase tracking-[0.16em] ${statusClass}`}
+                    >
+                      {statusText}
+                    </span>
+                  ) : null}
+                </div>
+                <span className="font-display text-2xl tracking-wider text-white">
                   {cell.card.title}
                 </span>
                 {cell.card.lead ? (
-                  <span className="font-serif text-sm italic text-muted">
+                  <span className="font-serif text-sm italic leading-relaxed text-gray-2">
                     {cell.card.lead}
                   </span>
                 ) : null}
-                {cell.label ? (
-                  <span
-                    className={`mt-1 font-mono text-xs font-bold uppercase tracking-wider ${
-                      cell.state === "untouched" ? "text-command-gold" : ""
-                    }`}
-                  >
-                    {cell.label}
-                  </span>
-                ) : null}
               </Link>
-            ) : null,
-          )}
+            );
+          })}
         </div>
       </section>
 
