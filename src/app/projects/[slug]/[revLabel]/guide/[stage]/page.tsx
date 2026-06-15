@@ -578,6 +578,7 @@ export default async function GuideCardPage({
           projectId={project.id}
           stage={stage}
           cardBaseHref={hubHref}
+          completedHref={`/learn/${project.slug}/complete`}
           guideStages={GUIDE_STAGES}
           quizRequired={gate.quiz}
           quizPassed={learnerQuizPassed}
