@@ -128,6 +128,14 @@ export default async function SignInPage({
           className="signin-rise z-10 flex w-full max-w-sm flex-col items-center gap-4"
           style={{ animationDelay: "210ms" }}
         >
+          {/* kicker — matches the Design-Stages "// LINK SENT" status motif */}
+          <div className="flex w-full items-center gap-3" aria-hidden>
+            <span className="h-px flex-1 bg-gradient-to-r from-transparent to-command-gold/30" />
+            <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.28em] text-command-gold">
+              // Link sent
+            </span>
+            <span className="h-px flex-1 bg-gradient-to-l from-transparent to-command-gold/30" />
+          </div>
           <h2 className="font-display text-3xl leading-none tracking-[0.12em] text-gray-1 sm:text-4xl">
             Check your inbox
           </h2>
@@ -148,6 +156,14 @@ export default async function SignInPage({
           className="signin-rise z-10 flex w-full max-w-xs flex-col gap-4"
           style={{ animationDelay: "210ms" }}
         >
+          {/* section kicker — the Design-Stages kicker + hairline motif */}
+          <div className="flex items-center gap-3" aria-hidden>
+            <span className="shrink-0 font-mono text-[10px] font-bold uppercase tracking-[0.28em] text-gold-dim">
+              // Select access
+            </span>
+            <span className="h-px flex-1 bg-gradient-to-r from-command-gold/30 to-transparent" />
+          </div>
+
           {/* Primary — Google */}
           <form
             action={async () => {
