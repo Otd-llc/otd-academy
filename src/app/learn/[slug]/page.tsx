@@ -164,6 +164,16 @@ export default async function LearnerBoardPage({
             >
               Continue
             </Link>
+            {enrollment.status !== "IN_PROGRESS" && (
+              <div className="border-t border-panel-border pt-4">
+                <Link
+                  href={`/learn/${project.slug}/complete`}
+                  className="font-mono text-xs uppercase tracking-[0.18em] text-command-gold underline"
+                >
+                  View completion
+                </Link>
+              </div>
+            )}
             {enrollment.status !== "IN_PROGRESS" && project.exam && (
               <div className="border-t border-panel-border pt-4">
                 <Link
