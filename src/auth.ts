@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { env } from "@/env";
 import { isAdminEmail } from "@/lib/admin-allowlist";
 import { resolveSignIn } from "@/lib/auth-link-guard";
+import { pickVerifiedGithubEmail, type GitHubEmail } from "@/lib/github-verified-email";
 
 // GitHub's OAuth profile carries no "email verified" flag, and the default
 // provider will use a public (possibly unverified) email. We only ever link
@@ -15,9 +16,9 @@ import { resolveSignIn } from "@/lib/auth-link-guard";
 // primary email from GitHub's /user/emails endpoint, make THAT the account email,
 // and stamp `email_verified` onto the raw profile — so the signIn callback reads
 // it uniformly with Google's OIDC `email_verified`. Fail closed: no verified
-// primary (or a fetch error) → `email_verified: false`, which the guard rejects.
-type GitHubEmail = { email: string; primary: boolean; verified: boolean };
-
+// primary (or any fetch/parse error) → `email_verified: false`, which the guard
+// rejects (or, if even the /user fetch failed, an unparseable profile that
+// Auth.js bounces to sign-in — either way no unverified linking).
 const github = GitHub({
   clientId: env.AUTH_GITHUB_ID,
   clientSecret: env.AUTH_GITHUB_SECRET,
@@ -32,18 +33,20 @@ const github = GitHub({
         "User-Agent": "otd-academy",
         Accept: "application/vnd.github+json",
       };
-      const profile = (await fetch("https://api.github.com/user", { headers }).then(
-        (r) => r.json(),
-      )) as Record<string, unknown>;
+
+      let profile: Record<string, unknown> = {};
+      try {
+        const res = await fetch("https://api.github.com/user", { headers });
+        if (res.ok) profile = (await res.json()) as Record<string, unknown>;
+      } catch {
+        profile = {};
+      }
 
       let verifiedPrimary: string | undefined;
       try {
         const res = await fetch("https://api.github.com/user/emails", { headers });
         if (res.ok) {
-          const emails = (await res.json()) as GitHubEmail[];
-          verifiedPrimary =
-            emails.find((e) => e.primary && e.verified)?.email ??
-            emails.find((e) => e.verified)?.email;
+          verifiedPrimary = pickVerifiedGithubEmail((await res.json()) as GitHubEmail[]);
         }
       } catch {
         verifiedPrimary = undefined;

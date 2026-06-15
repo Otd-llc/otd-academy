@@ -123,6 +123,31 @@ describe("resolveSignIn", () => {
     ).toBe(true);
   });
 
+  it("rejects a magic-link CLICK that is not flagged verified", () => {
+    // A click (isVerificationRequest=false) must still carry emailVerified=true;
+    // a falsy flag here means we never confirmed inbox control — reject.
+    expect(
+      resolveSignIn({ ...base, provider: "resend", emailVerified: false }),
+    ).toBe(false);
+    expect(
+      resolveSignIn({ ...base, provider: "resend", emailVerified: undefined }),
+    ).toBe(false);
+  });
+
+  it("rejects a verification-request that somehow has no email", () => {
+    // The missing-email check precedes the send-step branch, so a send step with
+    // no resolvable address is rejected rather than allowed.
+    expect(
+      resolveSignIn({
+        ...base,
+        provider: "resend",
+        profileEmail: undefined,
+        emailVerified: undefined,
+        isVerificationRequest: true,
+      }),
+    ).toBe(false);
+  });
+
   it("blocks a magic-link click that would link onto a different active session", () => {
     expect(
       resolveSignIn({
