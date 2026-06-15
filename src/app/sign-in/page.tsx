@@ -18,17 +18,17 @@ import { InlineBanner } from "@/components/InlineBanner";
 // alert-red banner mounts at the top — design §6 "clear reject screen". The
 // conflict banner also offers an inline Sign-out so the user can switch
 // accounts in one click instead of hunting for the menu. After a magic link is
-// sent, Auth.js routes to `?check=email` (pages.verifyRequest) → a "check your
-// inbox" success banner.
+// sent, Auth.js routes here (pages.verifyRequest) appending `type=email` → a
+// "check your inbox" success banner.
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; check?: string }>;
+  searchParams: Promise<{ error?: string; type?: string }>;
 }) {
   const params = await searchParams;
   const denied = params.error === "AccessDenied";
   const conflict = params.error === "session_conflict";
-  const checkEmail = params.check === "email";
+  const checkEmail = params.type === "email";
 
   return (
     <main className="relative flex min-h-[100svh] flex-col items-center justify-center gap-y-10 overflow-hidden bg-deep-space px-6 py-12 text-center sm:gap-y-12">
@@ -66,12 +66,6 @@ export default async function SignInPage({
             SIGN-IN NEEDS A VERIFIED ACCOUNT — try again.
           </InlineBanner>
         </div>
-      ) : checkEmail ? (
-        <div className="absolute inset-x-4 top-4 z-10 mx-auto max-w-md sm:top-6">
-          <InlineBanner variant="success">
-            CHECK YOUR INBOX — we sent you a sign-in link.
-          </InlineBanner>
-        </div>
       ) : null}
 
       {/* Brand mark */}
@@ -93,8 +87,31 @@ export default async function SignInPage({
         </p>
       </div>
 
-      {/* CTA — Google + GitHub OAuth, then an email magic-link */}
-      <div className="z-10 flex w-full max-w-xs flex-col items-center gap-5">
+      {/* After a magic link is sent, swap the providers for an on-brand
+          confirmation — command-console language, not a green success bar. */}
+      {checkEmail ? (
+        <div className="z-10 flex w-full max-w-sm flex-col items-center gap-5 text-center">
+          <span className="font-mono text-xs uppercase tracking-[0.3em] text-command-gold">
+            // Link sent
+          </span>
+          <h2 className="font-display text-3xl leading-none tracking-[0.12em] text-gray-1 sm:text-4xl">
+            Check your inbox
+          </h2>
+          <div className="h-px w-24 bg-gradient-to-r from-transparent via-command-gold to-transparent" />
+          <p className="font-serif text-base italic leading-relaxed text-gold-dim">
+            We sent a single-use sign-in link to your email.
+            <br />
+            It expires in 24&nbsp;hours.
+          </p>
+          <a
+            href="/sign-in"
+            className="mt-1 font-mono text-xs uppercase tracking-[0.2em] text-gray-1/60 transition-colors hover:text-command-gold"
+          >
+            &larr; Use another method
+          </a>
+        </div>
+      ) : (
+        <div className="z-10 flex w-full max-w-xs flex-col items-center gap-5">
         <form
           className="w-full"
           action={async () => {
@@ -162,7 +179,8 @@ export default async function SignInPage({
             Email me a link
           </button>
         </form>
-      </div>
+        </div>
+      )}
     </main>
   );
 }

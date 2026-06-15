@@ -9,6 +9,7 @@ import { env } from "@/env";
 import { isAdminEmail } from "@/lib/admin-allowlist";
 import { resolveSignIn } from "@/lib/auth-link-guard";
 import { pickVerifiedGithubEmail, type GitHubEmail } from "@/lib/github-verified-email";
+import { magicLinkEmail } from "@/lib/auth-magic-link-email";
 
 // GitHub's OAuth profile carries no "email verified" flag, and the default
 // provider will use a public (possibly unverified) email. We only ever link
@@ -81,9 +82,26 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     // Email magic-link. type:"email" → resolves to any existing same-email user
     // (Google/GitHub-created) via the adapter, no linking flag needed; this is
     // what enables a clean guest-purchase claim. Verified by construction.
+    // sendVerificationRequest is overridden to send a branded email (the default
+    // Resend template is unbranded); same Resend POST as the built-in provider.
     Resend({
       apiKey: env.AUTH_RESEND_KEY,
       from: env.AUTH_RESEND_FROM,
+      async sendVerificationRequest({ identifier: to, provider, url }) {
+        const { host } = new URL(url);
+        const { subject, html, text } = magicLinkEmail({ url, host });
+        const res = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${provider.apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ from: provider.from, to, subject, html, text }),
+        });
+        if (!res.ok) {
+          throw new Error("Resend error: " + JSON.stringify(await res.json()));
+        }
+      },
     }),
   ],
   // session.maxAge caps absolute lifetime; jwt.maxAge forces re-mint of the
@@ -163,6 +181,9 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     },
   },
   // verifyRequest renders our branded "check your inbox" state after a magic
-  // link is sent, instead of the default Auth.js page.
-  pages: { signIn: "/sign-in", verifyRequest: "/sign-in?check=email" },
+  // link is sent, instead of the default Auth.js page. Auth.js CONCATENATES its
+  // own query (`?provider=…&type=email`) onto this path, so it must be query-free
+  // (a query here would collide into a second `?`). The page keys the banner off
+  // the appended `type=email`.
+  pages: { signIn: "/sign-in", verifyRequest: "/sign-in" },
 });
