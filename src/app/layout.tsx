@@ -132,7 +132,7 @@ export default async function RootLayout({
                     <BrandMark className="foot-bee" />
                     <span className="foot-wm">ONE THOUSAND DRONES</span>
                   </Link>
-                  <p className="foot-tag">From mind to swarm.</p>
+                  <p className="foot-tag">One mind, many machines.</p>
                   <p className="foot-loc">Broken Arrow, Oklahoma · USA</p>
                 </div>
 
