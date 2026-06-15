@@ -520,6 +520,49 @@ body {
   animation: pulse 6s ease-in-out infinite;
 }
 
+/* Sign-in entrance — one orchestrated page-load reveal. Each cluster group
+ * (brand mark → header → console panel → microcopy) rises and fades in on a
+ * short stagger via inline animation-delay. */
+@keyframes signin-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.signin-rise {
+  opacity: 0;
+  animation: signin-rise 0.62s cubic-bezier(0.16, 0.84, 0.44, 1) both;
+}
+
+/* The signature hairline from the bioscale-viz loading screen (load-fill): a
+ * thin gold bar that draws left→right on entrance, after the cluster settles. */
+@keyframes signin-bar-fill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+.signin-bar-fill {
+  width: 0%;
+  animation: signin-bar-fill 1s 0.55s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .signin-rise {
+    opacity: 1;
+    animation: none;
+  }
+  .signin-bar-fill {
+    width: 100%;
+    animation: none;
+  }
+}
+
 /* ── Start-here beacon ──────────────────────────────────────────────
  * The animated gold "+" marking the entry-point card (Requirements) on the
  * guide hub: a slow breath plus a radar ping — "begin here." Decorative;
