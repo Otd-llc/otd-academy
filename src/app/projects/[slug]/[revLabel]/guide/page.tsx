@@ -485,13 +485,11 @@ export default async function GuideHubPage({
         accentWord={project.name.trim().split(/\s+/).pop()}
         lead={
           frozen
-            ? "This revision is frozen — the guide is shown read-only at its historical state."
+            ? "This is an earlier version of the lesson, shown read-only."
             : "Build this board start to finish — design it, lay it out, then assemble and bring a real one to life. One stage at a time, checked off as you go."
         }
         meta={[
           { label: "Project", value: project.name },
-          { label: "Revision", value: revision.label },
-          { label: "Build", value: activeBuild ? activeBuild.label : "—" },
           { label: "Stage", value: revision.currentStage },
         ]}
       />
