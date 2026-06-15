@@ -95,7 +95,7 @@ export function BlockListEditor({
             return (
               <div
                 key={i}
-                className={`rounded-r border-l-2 bg-navy-dark/30 p-3 ${blockAccentClass(block)}`}
+                className={`rounded border bg-navy-dark/30 p-3 ${blockAccentClass(block)}`}
               >
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <span className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-command-gold">
@@ -288,13 +288,13 @@ function blockAccentClass(block: ContentBlock): string {
   if (block.type === "callout") {
     switch (block.severity) {
       case "critical":
-        return "border-alert-red";
+        return "border-alert-red/30";
       case "info":
-        return "border-signal-blue";
+        return "border-signal-blue/30";
       case "warn":
       default:
-        return "border-command-gold";
+        return "border-command-gold/25";
     }
   }
-  return "border-command-gold";
+  return "border-command-gold/25";
 }
