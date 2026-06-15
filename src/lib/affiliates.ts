@@ -7,7 +7,11 @@
 // here keeps the affiliate IDs in env, never in guide content.
 import { env } from "@/env";
 
-export type AffiliateVendor = "pcbway-order" | "newark-bom" | "amazon-bench";
+export type AffiliateVendor =
+  | "pcbway-order"
+  | "jlcpcb"
+  | "newark-bom"
+  | "amazon-bench";
 
 export interface AffiliateLink {
   href: string;
@@ -18,12 +22,14 @@ export interface AffiliateLink {
 // Plain vendor destinations used until a referral URL is configured in env.
 const FALLBACK: Record<AffiliateVendor, string> = {
   "pcbway-order": "https://www.pcbway.com/orderonline.aspx",
+  "jlcpcb": "https://jlcpcb.com/",
   "newark-bom": "https://www.newark.com/",
   "amazon-bench": "https://www.amazon.com/",
 };
 
 const CONFIGURED: Record<AffiliateVendor, string | undefined> = {
   "pcbway-order": env.PCBWAY_AFFILIATE_URL,
+  "jlcpcb": env.JLCPCB_AFFILIATE_URL,
   "newark-bom": env.NEWARK_AFFILIATE_URL,
   "amazon-bench": env.AMAZON_AFFILIATE_URL,
 };

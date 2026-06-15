@@ -48,6 +48,7 @@ export const env = createEnv({
     // AMAZON_ASSOCIATE_TAG — your Associates tracking tag (e.g. otdacademy-20),
     //   appended to per-item kit-block product links so purchases attribute to you.
     PCBWAY_AFFILIATE_URL: z.url().optional(),
+    JLCPCB_AFFILIATE_URL: z.url().optional(),
     NEWARK_AFFILIATE_URL: z.url().optional(),
     AMAZON_AFFILIATE_URL: z.url().optional(),
     AMAZON_ASSOCIATE_TAG: z.string().optional(),
@@ -80,6 +81,7 @@ export const env = createEnv({
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     PCBWAY_AFFILIATE_URL: process.env.PCBWAY_AFFILIATE_URL,
+    JLCPCB_AFFILIATE_URL: process.env.JLCPCB_AFFILIATE_URL,
     NEWARK_AFFILIATE_URL: process.env.NEWARK_AFFILIATE_URL,
     AMAZON_AFFILIATE_URL: process.env.AMAZON_AFFILIATE_URL,
     AMAZON_ASSOCIATE_TAG: process.env.AMAZON_ASSOCIATE_TAG,
