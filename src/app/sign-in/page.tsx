@@ -9,20 +9,26 @@ import { InlineBanner } from "@/components/InlineBanner";
 // subtitle → CTA — with even breathing room between the three groups, over a
 // dark field with a soft gold glow behind the mark.
 //
+// Three providers: Google, GitHub, and an email magic-link (Resend). The OAuth
+// buttons and the email field each post to a server action that calls signIn().
+//
 // Auth.js redirects rejected signIn attempts to `/sign-in?error=AccessDenied`.
 // The link guard (auth-link-guard.ts) redirects a different-account sign-in
 // attempted while already signed in to `?error=session_conflict`. Either way an
 // alert-red banner mounts at the top — design §6 "clear reject screen". The
 // conflict banner also offers an inline Sign-out so the user can switch
-// accounts in one click instead of hunting for the menu.
+// accounts in one click instead of hunting for the menu. After a magic link is
+// sent, Auth.js routes to `?check=email` (pages.verifyRequest) → a "check your
+// inbox" success banner.
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; check?: string }>;
 }) {
   const params = await searchParams;
   const denied = params.error === "AccessDenied";
   const conflict = params.error === "session_conflict";
+  const checkEmail = params.check === "email";
 
   return (
     <main className="relative flex min-h-[100svh] flex-col items-center justify-center gap-y-10 overflow-hidden bg-deep-space px-6 py-12 text-center sm:gap-y-12">
@@ -57,7 +63,13 @@ export default async function SignInPage({
       ) : denied ? (
         <div className="absolute inset-x-4 top-4 z-10 mx-auto max-w-md sm:top-6">
           <InlineBanner variant="error">
-            SIGN-IN NEEDS A VERIFIED GOOGLE ACCOUNT — try again.
+            SIGN-IN NEEDS A VERIFIED ACCOUNT — try again.
+          </InlineBanner>
+        </div>
+      ) : checkEmail ? (
+        <div className="absolute inset-x-4 top-4 z-10 mx-auto max-w-md sm:top-6">
+          <InlineBanner variant="success">
+            CHECK YOUR INBOX — we sent you a sign-in link.
           </InlineBanner>
         </div>
       ) : null}
@@ -81,9 +93,10 @@ export default async function SignInPage({
         </p>
       </div>
 
-      {/* CTA */}
-      <div className="z-10 flex flex-col items-center gap-8">
+      {/* CTA — Google + GitHub OAuth, then an email magic-link */}
+      <div className="z-10 flex w-full max-w-xs flex-col items-center gap-5">
         <form
+          className="w-full"
           action={async () => {
             "use server";
             await signIn("google", { redirectTo: "/" });
@@ -91,13 +104,64 @@ export default async function SignInPage({
         >
           <button
             type="submit"
-            className="glass-button glass-button-cta px-7 py-3.5 font-mono text-sm uppercase tracking-[0.2em]"
+            className="glass-button glass-button-cta w-full px-7 py-3.5 font-mono text-sm uppercase tracking-[0.2em]"
           >
             Continue with Google
           </button>
         </form>
 
-        <div className="h-px w-24 bg-gradient-to-r from-transparent via-command-gold to-transparent" />
+        <form
+          className="w-full"
+          action={async () => {
+            "use server";
+            await signIn("github", { redirectTo: "/" });
+          }}
+        >
+          <button
+            type="submit"
+            className="glass-button w-full px-7 py-3.5 font-mono text-sm uppercase tracking-[0.2em]"
+          >
+            Continue with GitHub
+          </button>
+        </form>
+
+        {/* Divider between OAuth and the email magic-link */}
+        <div className="flex w-full items-center gap-3" aria-hidden>
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent to-command-gold/40" />
+          <span className="font-mono text-xs uppercase tracking-[0.2em] text-gold-dim">
+            or
+          </span>
+          <div className="h-px flex-1 bg-gradient-to-l from-transparent to-command-gold/40" />
+        </div>
+
+        {/* Email magic-link — posts the address to signIn("resend", …), which
+            emails a one-time link and routes to ?check=email. */}
+        <form
+          className="flex w-full flex-col gap-3"
+          action={async (formData: FormData) => {
+            "use server";
+            const email = formData.get("email");
+            if (typeof email === "string" && email.length > 0) {
+              await signIn("resend", { email, redirectTo: "/" });
+            }
+          }}
+        >
+          <input
+            type="email"
+            name="email"
+            required
+            autoComplete="email"
+            placeholder="you@example.com"
+            aria-label="Email address"
+            className="w-full rounded border border-command-gold/30 bg-navy-dark/60 px-4 py-3 text-center font-mono text-sm text-gray-1 placeholder:text-gold-dim/60 focus:border-command-gold focus:outline-none"
+          />
+          <button
+            type="submit"
+            className="glass-button w-full px-7 py-3 font-mono text-sm uppercase tracking-[0.2em]"
+          >
+            Email me a link
+          </button>
+        </form>
       </div>
     </main>
   );

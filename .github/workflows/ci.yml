@@ -28,6 +28,9 @@ jobs:
           AUTH_SECRET: "stub-secret-32-chars-long-padding-x"
           AUTH_GOOGLE_ID: stub
           AUTH_GOOGLE_SECRET: stub
+          AUTH_GITHUB_ID: stub
+          AUTH_GITHUB_SECRET: stub
+          AUTH_RESEND_KEY: stub
           ALLOWED_EMAILS: "stub@stub"
           R2_ENABLED: "false"
       # Keep the test branch's schema current as migrations are added (the branch
@@ -60,6 +63,9 @@ jobs:
           AUTH_SECRET: "stub-secret-32-chars-long-padding-x"
           AUTH_GOOGLE_ID: stub
           AUTH_GOOGLE_SECRET: stub
+          AUTH_GITHUB_ID: stub
+          AUTH_GITHUB_SECRET: stub
+          AUTH_RESEND_KEY: stub
           ALLOWED_EMAILS: "seed@example.com"
           R2_ENABLED: "false"
       - run: pnpm vitest run
@@ -72,5 +78,8 @@ jobs:
           AUTH_SECRET: "stub-secret-32-chars-long-padding-x"
           AUTH_GOOGLE_ID: stub
           AUTH_GOOGLE_SECRET: stub
+          AUTH_GITHUB_ID: stub
+          AUTH_GITHUB_SECRET: stub
+          AUTH_RESEND_KEY: stub
           ALLOWED_EMAILS: "seed@example.com"
           R2_ENABLED: "false"

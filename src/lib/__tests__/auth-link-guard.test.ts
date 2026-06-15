@@ -1,43 +1,52 @@
 import { describe, it, expect } from "vitest";
-import { resolveGoogleSignIn, SESSION_CONFLICT_REDIRECT } from "@/lib/auth-link-guard";
+import { resolveSignIn, SESSION_CONFLICT_REDIRECT } from "@/lib/auth-link-guard";
 
-// `resolveGoogleSignIn` is the pure decision behind the NextAuth `signIn`
-// callback. It returns `true` to allow, `false` to reject outright, or a
-// redirect-path string to bounce the user with a friendly message.
+// `resolveSignIn` is the pure decision behind the NextAuth `signIn` callback.
+// It returns `true` to allow, `false` to reject outright, or a redirect-path
+// string to bounce the user with a friendly message.
 //
-// The case that matters most: Auth.js silently LINKS a never-before-seen
-// OAuth account onto whatever user is currently signed in (handle-login.js).
-// We never offer "connect another account", so an active session whose email
-// differs from the incoming Google profile means someone is signing in as a
-// different person without signing out first — block it.
-describe("resolveGoogleSignIn", () => {
+// The case that matters most: Auth.js silently LINKS a never-before-seen OAuth
+// account onto whatever user is currently signed in (handle-login.js). We never
+// offer "connect another account", so an active session whose email differs from
+// the incoming profile means someone is signing in as a different person without
+// signing out first — block it.
+//
+// The guard is provider-aware but stays a PURE function: the caller (auth.ts)
+// computes `emailVerified` per provider (Google's profile.email_verified, the
+// GitHub verified-primary email, magic-link verified-by-construction) and passes
+// it in. The guard only knows the rules, not the providers' wire formats.
+describe("resolveSignIn", () => {
   const base = {
-    provider: "google",
-    emailVerified: true,
-    profileEmail: "brooke@example.com",
+    provider: "google" as string | undefined,
+    emailVerified: true as boolean | undefined,
+    profileEmail: "brooke@example.com" as string | undefined,
     activeUserEmail: undefined as string | undefined,
+    isVerificationRequest: false as boolean | undefined,
   };
 
-  it("rejects non-google providers", () => {
-    expect(resolveGoogleSignIn({ ...base, provider: "github" })).toBe(false);
+  // ── Provider allowlist ────────────────────────────────────────────────
+  it("rejects unknown providers", () => {
+    expect(resolveSignIn({ ...base, provider: "twitter" })).toBe(false);
+    expect(resolveSignIn({ ...base, provider: undefined })).toBe(false);
+  });
+
+  // ── Google (regression: the original resolveGoogleSignIn behaviour) ────
+  it("allows a verified google sign-in with no active session", () => {
+    expect(resolveSignIn({ ...base, activeUserEmail: undefined })).toBe(true);
   });
 
   it("rejects when the profile email is missing", () => {
-    expect(resolveGoogleSignIn({ ...base, profileEmail: undefined })).toBe(false);
+    expect(resolveSignIn({ ...base, profileEmail: undefined })).toBe(false);
   });
 
   it("rejects unverified google emails", () => {
-    expect(resolveGoogleSignIn({ ...base, emailVerified: false })).toBe(false);
-    expect(resolveGoogleSignIn({ ...base, emailVerified: undefined })).toBe(false);
-  });
-
-  it("allows a verified google sign-in with no active session (new/normal login)", () => {
-    expect(resolveGoogleSignIn({ ...base, activeUserEmail: undefined })).toBe(true);
+    expect(resolveSignIn({ ...base, emailVerified: false })).toBe(false);
+    expect(resolveSignIn({ ...base, emailVerified: undefined })).toBe(false);
   });
 
   it("allows re-authenticating as the same already-signed-in user", () => {
     expect(
-      resolveGoogleSignIn({
+      resolveSignIn({
         ...base,
         profileEmail: "raven@example.com",
         activeUserEmail: "raven@example.com",
@@ -47,7 +56,7 @@ describe("resolveGoogleSignIn", () => {
 
   it("matches the active user case-insensitively", () => {
     expect(
-      resolveGoogleSignIn({
+      resolveSignIn({
         ...base,
         profileEmail: "Raven@Example.com",
         activeUserEmail: "raven@example.com",
@@ -57,10 +66,84 @@ describe("resolveGoogleSignIn", () => {
 
   it("blocks linking a different google account onto an active session", () => {
     expect(
-      resolveGoogleSignIn({
+      resolveSignIn({
         ...base,
         profileEmail: "brooke@example.com",
         activeUserEmail: "raven@example.com",
+      }),
+    ).toBe(SESSION_CONFLICT_REDIRECT);
+  });
+
+  // ── GitHub ────────────────────────────────────────────────────────────
+  it("allows a github sign-in with a verified primary email", () => {
+    expect(resolveSignIn({ ...base, provider: "github", emailVerified: true })).toBe(true);
+  });
+
+  it("rejects a github sign-in whose primary email is unverified", () => {
+    expect(resolveSignIn({ ...base, provider: "github", emailVerified: false })).toBe(false);
+    expect(resolveSignIn({ ...base, provider: "github", emailVerified: undefined })).toBe(false);
+  });
+
+  it("rejects a github sign-in with no resolvable email", () => {
+    expect(
+      resolveSignIn({ ...base, provider: "github", profileEmail: undefined }),
+    ).toBe(false);
+  });
+
+  // ── Magic-link (Resend, type: "email") ────────────────────────────────
+  it("allows the magic-link SEND step (verification request, not yet verified)", () => {
+    // At the send step Auth.js passes email.verificationRequest=true with no
+    // verified email yet — there is nothing to verify, it's just emailing a token.
+    expect(
+      resolveSignIn({
+        ...base,
+        provider: "resend",
+        emailVerified: undefined,
+        isVerificationRequest: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("bounces a magic-link SEND step requested while signed in as someone else", () => {
+    expect(
+      resolveSignIn({
+        ...base,
+        provider: "resend",
+        profileEmail: "brooke@example.com",
+        activeUserEmail: "raven@example.com",
+        emailVerified: undefined,
+        isVerificationRequest: true,
+      }),
+    ).toBe(SESSION_CONFLICT_REDIRECT);
+  });
+
+  it("allows a magic-link click (verified by construction)", () => {
+    expect(
+      resolveSignIn({ ...base, provider: "resend", emailVerified: true }),
+    ).toBe(true);
+  });
+
+  it("blocks a magic-link click that would link onto a different active session", () => {
+    expect(
+      resolveSignIn({
+        ...base,
+        provider: "resend",
+        profileEmail: "brooke@example.com",
+        activeUserEmail: "raven@example.com",
+        emailVerified: true,
+      }),
+    ).toBe(SESSION_CONFLICT_REDIRECT);
+  });
+
+  // ── Cross-provider conflict ───────────────────────────────────────────
+  it("blocks linking a verified github account onto a different active session", () => {
+    expect(
+      resolveSignIn({
+        ...base,
+        provider: "github",
+        profileEmail: "brooke@example.com",
+        activeUserEmail: "raven@example.com",
+        emailVerified: true,
       }),
     ).toBe(SESSION_CONFLICT_REDIRECT);
   });
