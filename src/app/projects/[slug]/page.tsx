@@ -114,8 +114,8 @@ export default async function ProjectDetailPage({
         </Link>
       </nav>
 
-      {/* Header strip — gold-accented per design §8.3 / §9.1 */}
-      <div className="glass-card border-l-4 border-l-command-gold p-4 sm:p-6">
+      {/* Header strip — clean glass tile (no chunky side bar). */}
+      <div className="glass-card p-4 sm:p-6">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <p className="font-mono text-xs uppercase tracking-wider text-muted">
             Project · <span className="break-all">{project.slug}</span>

@@ -101,7 +101,7 @@ export default async function LearnerBoardPage({
         </Link>
       </nav>
 
-      <div className="glass-card border-l-4 border-l-command-gold p-6">
+      <div className="glass-card p-6">
         <p className="font-mono text-xs uppercase tracking-wider text-muted">
           Board · {project.slug}
           {project.level ? ` · ${project.level}` : ""}

@@ -79,7 +79,7 @@ export function LearnerGate({
   const allConfirmed = confirmItems.every((_, i) => confirmed.has(i));
 
   return (
-    <section className="mt-8 glass-card border-l-4 border-l-command-gold p-5">
+    <section className="mt-8 glass-card p-5">
       <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
         Your track · this is your current stage
       </p>

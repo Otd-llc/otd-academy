@@ -47,7 +47,7 @@ export function Paywall({
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-      <div className="glass-card border-l-4 border-l-command-gold p-8">
+      <div className="glass-card p-8">
         <p className="font-mono text-xs uppercase tracking-wider text-command-gold">
           🔒 Premium course
         </p>

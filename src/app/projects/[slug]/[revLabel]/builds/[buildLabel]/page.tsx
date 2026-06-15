@@ -88,7 +88,6 @@ export default async function BuildDetailPage({
   // Phase 1 invariant: at most one unfrozen Build per Revision. So an
   // unfrozen Build *is* the active Build — no extra lookup needed.
   const isActive = !buildIsFrozen;
-  const goldAccent = isActive && !revIsFrozen;
 
   // "Mark bring-up complete" visibility (design §9.2): parent rev at
   // BRINGUP, this Build is active+unfrozen, no BRINGUP_COMPLETE yet.
@@ -138,12 +137,8 @@ export default async function BuildDetailPage({
         </Link>
       </nav>
 
-      {/* Header strip — gold-accented when active+unfrozen per §9.2 */}
-      <div
-        className={`glass-card p-4 sm:p-6 ${
-          goldAccent ? "border-l-4 border-l-command-gold" : ""
-        }`}
-      >
+      {/* Header strip — clean glass tile (no chunky side bar). */}
+      <div className="glass-card p-4 sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="font-mono text-xs uppercase tracking-wider text-muted">

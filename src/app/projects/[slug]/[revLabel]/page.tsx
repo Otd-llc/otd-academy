@@ -173,12 +173,8 @@ export default async function RevisionDetailPage({
         </Link>
       </nav>
 
-      {/* Header strip — gold-accented per §9.1 when unfrozen */}
-      <div
-        className={`glass-card p-4 sm:p-6 ${
-          isFrozen ? "" : "border-l-4 border-l-command-gold"
-        }`}
-      >
+      {/* Header strip — clean glass tile (no chunky side bar). */}
+      <div className="glass-card p-4 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
           <div className="min-w-0">
             <p className="font-mono text-xs uppercase tracking-wider text-muted">
