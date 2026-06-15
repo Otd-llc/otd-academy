@@ -449,6 +449,14 @@ export default async function GuideHubPage({
     }),
   );
 
+  // The "do this next" beacon marks the earliest design stage that ISN'T yet
+  // complete — Requirements when nothing's started, advancing to the current
+  // in-progress stage as earlier ones are checked off. `null` once every design
+  // stage is complete (no beacon). Works for both views: learners read it off
+  // their own enrollment journey, authors off the reference revision's completion.
+  const beaconStage =
+    designCells.find((c) => c && c.state !== "complete")?.stage ?? null;
+
   // ─── Tier 2: per-board build matrix (author/operator only) ──────
   const boards = activeBuild?.boards ?? [];
   // matrix[boardIndex][buildStageIndex] = completion. Builds/boards are operator
@@ -517,8 +525,9 @@ export default async function GuideHubPage({
                   cell.state,
                 )}`}
               >
-                {/* Start-here beacon — the entry point of the whole build. */}
-                {cell.stage === "REQUIREMENTS" ? (
+                {/* "Do this next" beacon — rides the earliest non-complete
+                    stage, so it advances with the learner's progress. */}
+                {cell.stage === beaconStage ? (
                   <span className="start-beacon" aria-hidden="true">
                     <svg
                       viewBox="0 0 24 24"
