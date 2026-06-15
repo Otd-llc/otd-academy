@@ -23,7 +23,10 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { Prisma } from "@prisma/client";
 
-import { entitlementFromCheckoutSession } from "@/lib/stripe-webhook";
+import {
+  entitlementFromCheckoutSession,
+  tipFromCheckoutSession,
+} from "@/lib/stripe-webhook";
 
 // --- Pure helper ----------------------------------------------------------
 
@@ -66,13 +69,61 @@ describe("entitlementFromCheckoutSession (pure)", () => {
   });
 });
 
+describe("tipFromCheckoutSession (pure)", () => {
+  const base = {
+    id: "cs_tip_1",
+    amount_total: 500,
+    currency: "usd",
+    customer_details: { email: "fan@example.com" },
+  };
+
+  test("returns the tip record for a signed-in tip (amount from Stripe)", () => {
+    const session = {
+      ...base,
+      metadata: { kind: "tip", userId: "user_1" },
+    } as unknown as import("stripe").Stripe.Checkout.Session;
+    expect(tipFromCheckoutSession(session)).toEqual({
+      stripeSessionId: "cs_tip_1",
+      userId: "user_1",
+      email: "fan@example.com",
+      amountCents: 500,
+      currency: "usd",
+    });
+  });
+
+  test("returns a guest tip (userId null) when no userId metadata", () => {
+    const session = {
+      ...base,
+      metadata: { kind: "tip" },
+    } as unknown as import("stripe").Stripe.Checkout.Session;
+    expect(tipFromCheckoutSession(session)?.userId).toBeNull();
+  });
+
+  test("returns null when kind is not 'tip'", () => {
+    const session = {
+      ...base,
+      metadata: { userId: "user_1", projectId: "proj_1" },
+    } as unknown as import("stripe").Stripe.Checkout.Session;
+    expect(tipFromCheckoutSession(session)).toBeNull();
+  });
+
+  test("returns null when amount_total is missing or non-positive", () => {
+    const session = {
+      ...base,
+      amount_total: 0,
+      metadata: { kind: "tip" },
+    } as unknown as import("stripe").Stripe.Checkout.Session;
+    expect(tipFromCheckoutSession(session)).toBeNull();
+  });
+});
+
 // --- Route handler --------------------------------------------------------
 
 // The route is imported statically, so its dependency mocks must already be in
 // place when the module loads. `vi.mock` is hoisted ABOVE these declarations, so
 // the mutable spies/env they close over live in a `vi.hoisted` block (also
 // hoisted) to avoid the temporal-dead-zone error on first import.
-const { constructEvent, processedCreate, entitlementUpsert, fakeEnv } =
+const { constructEvent, processedCreate, entitlementUpsert, tipUpsert, fakeEnv } =
   vi.hoisted(() => ({
     // constructEvent is the signature-verifier; the route is only as trustworthy
     // as this call, so the mock lets each test drive it (return a parsed event,
@@ -80,6 +131,7 @@ const { constructEvent, processedCreate, entitlementUpsert, fakeEnv } =
     constructEvent: vi.fn(),
     processedCreate: vi.fn(),
     entitlementUpsert: vi.fn(),
+    tipUpsert: vi.fn(),
     // Mutable env so tests can set/unset STRIPE_WEBHOOK_SECRET.
     fakeEnv: {} as { STRIPE_WEBHOOK_SECRET?: string },
   }));
@@ -92,6 +144,7 @@ vi.mock("@/lib/db", () => ({
   db: {
     processedStripeEvent: { create: (...a: unknown[]) => processedCreate(...a) },
     entitlement: { upsert: (...a: unknown[]) => entitlementUpsert(...a) },
+    tip: { upsert: (...a: unknown[]) => tipUpsert(...a) },
   },
 }));
 
@@ -113,9 +166,11 @@ beforeEach(() => {
   constructEvent.mockReset();
   processedCreate.mockReset();
   entitlementUpsert.mockReset();
+  tipUpsert.mockReset();
   fakeEnv.STRIPE_WEBHOOK_SECRET = "whsec_test";
   processedCreate.mockResolvedValue({ eventId: "evt_1" });
   entitlementUpsert.mockResolvedValue({});
+  tipUpsert.mockResolvedValue({});
 });
 
 describe("POST /api/stripe/webhook — rejections", () => {
@@ -210,6 +265,43 @@ describe("POST /api/stripe/webhook — checkout.session.completed", () => {
 
     expect(res.status).toBe(200);
     expect(processedCreate).toHaveBeenCalledTimes(1);
+    expect(entitlementUpsert).not.toHaveBeenCalled();
+  });
+
+  test("a TIP session records a Tip (idempotent on stripeSessionId) and does NOT grant", async () => {
+    constructEvent.mockReturnValue({
+      id: "evt_tip",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_tip_1",
+          payment_status: "paid",
+          amount_total: 500,
+          currency: "usd",
+          customer_details: { email: "fan@example.com" },
+          metadata: { kind: "tip", userId: "user_1" },
+        },
+      },
+    });
+
+    const res = await POST(makeRequest("rawbody", SIG_HEADER));
+
+    expect(res.status).toBe(200);
+    expect(processedCreate).toHaveBeenCalledTimes(1);
+    // Recorded the tip (amount from Stripe), keyed on the session id.
+    expect(tipUpsert).toHaveBeenCalledTimes(1);
+    expect(tipUpsert).toHaveBeenCalledWith({
+      where: { stripeSessionId: "cs_tip_1" },
+      create: {
+        stripeSessionId: "cs_tip_1",
+        userId: "user_1",
+        email: "fan@example.com",
+        amountCents: 500,
+        currency: "usd",
+      },
+      update: {},
+    });
+    // A tip is NOT a purchase — never grant an entitlement.
     expect(entitlementUpsert).not.toHaveBeenCalled();
   });
 

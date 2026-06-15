@@ -46,6 +46,7 @@ model User {
   projectDependenciesCreated ProjectDependency[]
   enrollments             Enrollment[]
   entitlements            Entitlement[]
+  tips                    Tip[]
 }
 
 model Account {
@@ -157,6 +158,25 @@ model ProcessedStripeEvent {
   eventId   String   @id
   type      String
   createdAt DateTime @default(now())
+}
+
+// A one-time "Support the Academy" tip (GTM — not a course purchase, grants no
+// entitlement). Written by the Stripe webhook on a paid checkout.session.completed
+// carrying metadata.kind = "tip". The amount comes from Stripe (amount_total),
+// never the client. `stripeSessionId` is unique so a webhook redelivery can't
+// double-record. `userId` is nullable (guest tips) and SetNull so deleting a user
+// keeps the accounting row.
+model Tip {
+  id              String   @id @default(cuid())
+  stripeSessionId String   @unique
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email           String?
+  amountCents     Int
+  currency        String   @default("usd")
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Revision {

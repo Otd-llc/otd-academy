@@ -19,7 +19,10 @@ import { Prisma } from "@prisma/client";
 import { env } from "@/env";
 import { db } from "@/lib/db";
 import { getStripe } from "@/lib/stripe";
-import { entitlementFromCheckoutSession } from "@/lib/stripe-webhook";
+import {
+  entitlementFromCheckoutSession,
+  tipFromCheckoutSession,
+} from "@/lib/stripe-webhook";
 
 // Node runtime (raw body + crypto), and never statically prerender this route —
 // it depends on the request body, headers, and a runtime secret.
@@ -86,6 +89,27 @@ export async function POST(req: Request): Promise<Response> {
         return new Response(null, { status: 200 });
       }
       throw e;
+    }
+
+    // 5a-tip. A one-time "Support the Academy" tip (metadata.kind === "tip")
+    //     grants NO entitlement — record it for accounting and ack. Idempotent on
+    //     the unique stripeSessionId, so a redelivery (past the event-id layer or
+    //     not) can never double-record. The amount comes from Stripe, not the
+    //     client (see tipFromCheckoutSession).
+    const tip = tipFromCheckoutSession(session);
+    if (tip) {
+      await db.tip.upsert({
+        where: { stripeSessionId: tip.stripeSessionId },
+        create: {
+          stripeSessionId: tip.stripeSessionId,
+          userId: tip.userId,
+          email: tip.email,
+          amountCents: tip.amountCents,
+          currency: tip.currency,
+        },
+        update: {},
+      });
+      return new Response(null, { status: 200 });
     }
 
     // 5b. Pull the grant target from the session metadata. Without it we cannot
