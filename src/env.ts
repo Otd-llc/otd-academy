@@ -13,6 +13,17 @@ export const env = createEnv({
     AUTH_SECRET: z.string().min(32),
     AUTH_GOOGLE_ID: z.string().min(1),
     AUTH_GOOGLE_SECRET: z.string().min(1),
+    // GitHub OAuth (sign-in provider #2). Required: all three providers ship
+    // together, so a misconfigured deploy should fail loud at build rather than
+    // silently drop the GitHub button. Callback:
+    // https://academy.onethousanddrones.com/api/auth/callback/github
+    AUTH_GITHUB_ID: z.string().min(1),
+    AUTH_GITHUB_SECRET: z.string().min(1),
+    // Email magic-link via the Auth.js Resend provider (sign-in provider #3).
+    // AUTH_RESEND_KEY — Resend API key. AUTH_RESEND_FROM — verified sender; the
+    // sending domain (onethousanddrones.com) must be verified in Resend.
+    AUTH_RESEND_KEY: z.string().min(1),
+    AUTH_RESEND_FROM: z.string().min(1).default("OTD Academy <login@onethousanddrones.com>"),
     ALLOWED_EMAILS: z.string().min(1),
     R2_ENABLED: z.coerce.boolean().default(false),
     R2_ACCOUNT_ID: z.string().optional(),
@@ -55,6 +66,10 @@ export const env = createEnv({
     AUTH_SECRET: process.env.AUTH_SECRET,
     AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
     AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
+    AUTH_GITHUB_ID: process.env.AUTH_GITHUB_ID,
+    AUTH_GITHUB_SECRET: process.env.AUTH_GITHUB_SECRET,
+    AUTH_RESEND_KEY: process.env.AUTH_RESEND_KEY,
+    AUTH_RESEND_FROM: process.env.AUTH_RESEND_FROM,
     ALLOWED_EMAILS: process.env.ALLOWED_EMAILS,
     R2_ENABLED: process.env.R2_ENABLED,
     R2_ACCOUNT_ID: process.env.R2_ACCOUNT_ID,
