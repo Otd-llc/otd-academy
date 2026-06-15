@@ -121,25 +121,57 @@ export default async function RootLayout({
           <div className="flex-1">{children}</div>
 
           {renderChrome ? (
-            <footer className="border-t border-panel-border px-4 py-6 font-mono text-xs text-muted sm:px-6">
-              {/* Stacked + left-aligned on mobile; the space-between row only
-                  kicks in from sm up, where there's room for both clusters. */}
-              <div className="mx-auto flex max-w-6xl flex-col items-start gap-x-6 gap-y-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <BrandMark className="h-4 w-4 text-gold-dim" />
-                  <span>
-                    © 2026 One Thousand Drones. All rights reserved.
-                  </span>
+            <footer className="app-footer">
+              <div className="foot-inner">
+                <div className="foot-brand">
                   <Link
-                    href="/license"
-                    className="text-link-muted transition-colors hover:text-command-gold"
+                    href="/"
+                    aria-label="One Thousand Drones home"
+                    className="foot-mark"
                   >
-                    License
+                    <BrandMark className="foot-bee" />
+                    <span className="foot-wm">ONE THOUSAND DRONES</span>
                   </Link>
+                  <p className="foot-tag">From mind to swarm.</p>
+                  <p className="foot-loc">Broken Arrow, Oklahoma · USA</p>
                 </div>
-                <span className="text-gray-3">
-                  One Thousand Drones Academy · hardware design lifecycle
-                </span>
+
+                <nav className="foot-col" aria-label="Academy">
+                  <span className="foot-h">Academy</span>
+                  <Link href="/courses">Courses</Link>
+                  <Link href="/parts">Parts</Link>
+                  <Link href="/license">License</Link>
+                </nav>
+
+                <nav className="foot-col" aria-label="One Thousand Drones">
+                  <span className="foot-h">One Thousand Drones</span>
+                  <a href="https://onethousanddrones.com" rel="noopener">
+                    Main site <span className="ext">↗</span>
+                  </a>
+                  <a href="https://onethousanddrones.com/about" rel="noopener">
+                    About <span className="ext">↗</span>
+                  </a>
+                  <a href="https://onethousanddrones.com/contact" rel="noopener">
+                    Contact <span className="ext">↗</span>
+                  </a>
+                </nav>
+              </div>
+
+              <div className="foot-strip">
+                <p className="foot-reg">
+                  <span>
+                    <span className="lbl">SAM.gov</span> Registered
+                  </span>
+                  <span className="dot">·</span>
+                  <span>
+                    <span className="lbl">CAGE</span> 1ZYS4
+                  </span>
+                  <span className="dot">·</span>
+                  <span>
+                    <span className="lbl">UEI</span> WDQXD9L9UFH3
+                  </span>
+                </p>
+                <p className="foot-copy">© 2026 One Thousand Drones, LLC</p>
               </div>
             </footer>
           ) : null}
