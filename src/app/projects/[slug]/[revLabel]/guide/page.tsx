@@ -486,7 +486,7 @@ export default async function GuideHubPage({
         lead={
           frozen
             ? "This revision is frozen — the guide is shown read-only at its historical state."
-            : "Walk this revision through the full design → bring-up pipeline. Design stages roll up per revision; build stages track per board."
+            : "Build this board start to finish — design it, lay it out, then assemble and bring a real one to life. One stage at a time, checked off as you go."
         }
         meta={[
           { label: "Project", value: project.name },
