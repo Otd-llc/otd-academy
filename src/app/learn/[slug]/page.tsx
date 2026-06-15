@@ -6,7 +6,13 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { currentUserOrRedirect } from "@/lib/learner";
 import { learnerBoardAvailability } from "@/lib/learner-board-availability";
-import { STAGE_ORDER, STAGE_LABELS, type StageName } from "@/lib/stages";
+import {
+  STAGE_ORDER,
+  STAGE_LABELS,
+  ENROLLMENT_STATUS_LABEL,
+  type StageName,
+} from "@/lib/stages";
+import type { EnrollmentStatus } from "@prisma/client";
 import { EnrollButton } from "@/components/learn/EnrollButton";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { getArtifactRenderUrl } from "@/lib/actions/uploads";
@@ -150,7 +156,8 @@ export default async function LearnerBoardPage({
               <p className="font-mono text-xs uppercase tracking-wider text-muted">
                 Status ·{" "}
                 <span className={STATUS_COLOR[enrollment.status] ?? "text-gray-1"}>
-                  {enrollment.status}
+                  {ENROLLMENT_STATUS_LABEL[enrollment.status as EnrollmentStatus] ??
+                    enrollment.status}
                 </span>
               </p>
               <p className="font-mono text-xs uppercase tracking-wider text-muted">
@@ -182,7 +189,7 @@ export default async function LearnerBoardPage({
                 >
                   {enrollment.status === "MASTERED"
                     ? "Review exam"
-                    : "Take the board exam"}
+                    : "Take the final exam"}
                 </Link>
               </div>
             )}

@@ -5,7 +5,13 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { currentUserOrRedirect } from "@/lib/learner";
 import { learnerBoardAvailability } from "@/lib/learner-board-availability";
-import { STAGE_ORDER, STAGE_LABELS, type StageName } from "@/lib/stages";
+import {
+  STAGE_ORDER,
+  STAGE_LABELS,
+  ENROLLMENT_STATUS_LABEL,
+  type StageName,
+} from "@/lib/stages";
+import type { EnrollmentStatus } from "@prisma/client";
 
 const STATUS_COLOR: Record<string, string> = {
   IN_PROGRESS: "text-signal-blue",
@@ -116,7 +122,7 @@ export default async function LearnerHomePage({
                         STATUS_COLOR[e.status] ?? "text-gray-1"
                       }`}
                     >
-                      {e.status === "MASTERED" ? "★ MASTERED" : e.status}
+                      {ENROLLMENT_STATUS_LABEL[e.status as EnrollmentStatus] ?? e.status}
                     </span>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 font-mono text-xs uppercase tracking-wider text-muted">

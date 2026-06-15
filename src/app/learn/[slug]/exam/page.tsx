@@ -79,14 +79,14 @@ export default async function LearnerExamPage({
       {backLink}
       <div className="glass-card p-6">
         <p className="font-mono text-xs uppercase tracking-wider text-muted">
-          Board exam · pass ≥ {exam.passThreshold}%
+          Final exam · pass ≥ {exam.passThreshold}%
         </p>
         <h1 className="mt-2 font-display text-3xl tracking-wider text-white">
           {exam.title}
         </h1>
         {enrollment.status === "MASTERED" && (
           <p className="mt-2 font-mono text-xs uppercase tracking-wider text-command-gold">
-            ★ You’ve mastered this board. Re-takes are allowed.
+            ★ Verified Certificate of Achievement earned. Re-takes are allowed.
           </p>
         )}
         {latest && (

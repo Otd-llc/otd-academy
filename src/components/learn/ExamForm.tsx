@@ -72,7 +72,7 @@ export function ExamForm({
             }`}
           >
             {result.passed
-              ? "✓ Passed — board MASTERED"
+              ? "✓ Passed — Verified Certificate of Achievement earned"
               : `Not passed — ${passThreshold}% required`}
           </p>
         </div>
