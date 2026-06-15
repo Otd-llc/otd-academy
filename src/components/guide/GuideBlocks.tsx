@@ -534,16 +534,22 @@ function SelfCheckBlock({
   );
 }
 
-// "Draw it · X" → a DO-THIS step: gold left-rule, distinct from the boxed
-// teaching callouts. The phase divider supplies the "Draw it" context, so the
-// label drops that prefix.
+// "Draw it · X" → a DO-THIS step: a gold mono kicker + hairline (the Design-
+// Stages kicker motif), distinct from the boxed teaching callouts. The phase
+// divider supplies the "Draw it" context, so the label drops that prefix.
 function ActionCalloutBlock({ label, body }: { label: string; body: string }) {
   const title = label.split("·").pop()?.trim() || label;
   return (
-    <div className="border-l-2 border-l-command-gold pl-4">
-      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-command-gold">
-        Do · {title}
-      </span>
+    <div>
+      <div className="flex items-center gap-3">
+        <span className="shrink-0 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-command-gold">
+          Do · {title}
+        </span>
+        <span
+          aria-hidden
+          className="h-px flex-1 bg-gradient-to-r from-command-gold/30 to-transparent"
+        />
+      </div>
       <p className="mt-1.5 whitespace-pre-wrap font-serif text-base leading-relaxed text-gray-2">
         <Inline text={body} />
       </p>
