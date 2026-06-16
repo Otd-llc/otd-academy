@@ -76,8 +76,19 @@ describe("setPublishedRevision", () => {
     ).rejects.toThrow(/belong/i);
   });
 
-  test("publishes a revision that belongs to the project and has a guide", async () => {
-    const res = await setPublishedRevision({ projectId, revisionId: revWithGuide });
+  test("refuses a revision whose guide isn't publishable (no force)", async () => {
+    // revWithGuide's guide has no cards/quizzes/exam → fails the publishable bar.
+    await expect(
+      setPublishedRevision({ projectId, revisionId: revWithGuide }),
+    ).rejects.toThrow(/publishable/i);
+  });
+
+  test("publishes with force, overriding the publishable gate", async () => {
+    const res = await setPublishedRevision({
+      projectId,
+      revisionId: revWithGuide,
+      force: true,
+    });
     expect(res.publishedRevisionId).toBe(revWithGuide);
     const project = await db.project.findUniqueOrThrow({ where: { id: projectId } });
     expect(project.publishedRevisionId).toBe(revWithGuide);
