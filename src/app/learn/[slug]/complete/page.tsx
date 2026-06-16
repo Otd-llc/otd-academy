@@ -135,20 +135,31 @@ export default async function LessonCompletePage({
         <div className="signin-bar-fill h-full bg-command-gold" />
       </div>
 
-      {/* Share the completion / certificate card */}
+      {/* The certificate itself, shown on the page, with download + share */}
       {shareToken && (
         <div
-          className="signin-rise flex flex-col items-center gap-2"
+          className="signin-rise flex w-full max-w-2xl flex-col items-center gap-4"
           style={{ animationDelay: "190ms" }}
         >
           <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-gold-dim">
-            // {mastered ? "Share your certificate" : "Share your build"}
+            // {mastered ? "Your certificate" : "Your completion"}
           </span>
+          {/* eslint-disable-next-line @next/next/no-img-element — dynamic certificate PNG, not a static asset */}
+          <img
+            src={`/learn/${project.slug}/certificate/${shareToken}/image`}
+            alt={
+              mastered
+                ? `Verified Certificate of Achievement — ${userName}`
+                : `Lesson Complete — ${userName}`
+            }
+            width={1200}
+            height={848}
+            className="w-full rounded-lg border border-panel-border shadow-lg"
+          />
           <ShareCard
             downloadUrl={`/learn/${project.slug}/certificate/${shareToken}/pdf`}
             shareUrl={`/learn/${project.slug}/certificate/${shareToken}`}
             title={mastered ? "Verified Certificate of Achievement" : "Lesson Complete"}
-            compact
           />
         </div>
       )}
