@@ -20,6 +20,71 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { learnerLandingPath } from "@/lib/learner-landing";
 import { PlusIcon } from "@/components/icons";
+import { assessLessonReadiness } from "@/lib/lesson-readiness";
+import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
+import {
+  collectEmptyMedia,
+  emptyMediaCount,
+} from "@/lib/guide-media-queue";
+import { guideContentBlocksSchema } from "@/lib/schemas/guide";
+
+// Per-project pipeline summary for the operator dashboard: the readiness state
+// (from the latest revision's guide), how many media slots still need shooting,
+// and how many people are waiting on the course.
+type PipelineState = "none" | "not-ready" | "publishable" | "vetted";
+
+const PIPELINE_CHIP: Record<
+  Exclude<PipelineState, "none">,
+  { label: string; cls: string }
+> = {
+  "not-ready": {
+    label: "Not ready",
+    cls: "border-alert-red/50 text-alert-red",
+  },
+  publishable: {
+    label: "Publishable",
+    cls: "border-command-gold/50 text-command-gold",
+  },
+  vetted: { label: "Vetted", cls: "border-status-green/50 text-status-green" },
+};
+
+function PipelineBadges({
+  state,
+  captureCount,
+  waitlist,
+}: {
+  state: PipelineState;
+  captureCount: number;
+  waitlist: number;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {state !== "none" ? (
+        <span
+          className={`inline-flex items-center rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${PIPELINE_CHIP[state].cls}`}
+        >
+          {PIPELINE_CHIP[state].label}
+        </span>
+      ) : null}
+      {captureCount > 0 ? (
+        <span
+          title={`${captureCount} media slot${captureCount === 1 ? "" : "s"} to capture`}
+          className="inline-flex items-center rounded border border-panel-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted"
+        >
+          📷 {captureCount}
+        </span>
+      ) : null}
+      {waitlist > 0 ? (
+        <span
+          title={`${waitlist} on the waitlist`}
+          className="inline-flex items-center rounded border border-signal-blue/40 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-signal-blue"
+        >
+          ☆ {waitlist}
+        </span>
+      ) : null}
+    </div>
+  );
+}
 
 // Inline filter-chip presentational component. Each chip is a Link to a
 // pre-baked URL; `active` flips the fill from outlined panel-border to
@@ -89,10 +154,30 @@ export default async function HomePage({
       ...(showBenchTools ? {} : { criticalPath: true }),
     },
     include: {
+      exam: { select: { questions: true } },
+      _count: { select: { waitlist: true } },
       revisions: {
         orderBy: { updatedAt: "desc" },
         take: 1,
-        select: { label: true, currentStage: true, updatedAt: true },
+        select: {
+          label: true,
+          currentStage: true,
+          updatedAt: true,
+          // Latest revision's guide + brought-up boards feed the per-project
+          // readiness pill (admin pipeline overview). Admin-only page, ~dozens
+          // of rows, so loading contentBlocks here is acceptable.
+          guide: {
+            select: { cards: { select: { stage: true, contentBlocks: true } } },
+          },
+          builds: {
+            select: {
+              boards: {
+                where: { status: "BROUGHT_UP" },
+                select: { id: true },
+              },
+            },
+          },
+        },
       },
     },
   });
@@ -108,7 +193,46 @@ export default async function HomePage({
           ? p.updatedAt
           : latest.updatedAt
         : p.updatedAt;
-      return { ...p, latest, lastActivity };
+
+      // Pipeline summary from the latest revision's guide (if any).
+      let pipelineState: PipelineState = "none";
+      let captureCount = 0;
+      if (latest?.guide) {
+        const cards = latest.guide.cards.map((c) => ({
+          stage: c.stage as string,
+          blocks:
+            guideContentBlocksSchema.safeParse(c.contentBlocks).data ?? [],
+        }));
+        const broughtUpBoards = latest.builds.reduce(
+          (n, b) => n + b.boards.length,
+          0,
+        );
+        const examQuestions = Array.isArray(p.exam?.questions)
+          ? (p.exam.questions as unknown[]).length
+          : 0;
+        const r = assessLessonReadiness({
+          stages: GUIDE_STAGES,
+          cards,
+          exam: p.exam ? { questions: examQuestions } : null,
+          broughtUpBoards,
+          published: p.publishedRevisionId != null,
+        });
+        pipelineState = r.vetted
+          ? "vetted"
+          : r.publishable
+            ? "publishable"
+            : "not-ready";
+        captureCount = emptyMediaCount(collectEmptyMedia(cards));
+      }
+
+      return {
+        ...p,
+        latest,
+        lastActivity,
+        pipelineState,
+        captureCount,
+        waitlistCount: p._count.waitlist,
+      };
     })
     .sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime());
 
@@ -230,6 +354,11 @@ export default async function HomePage({
                     <span className="inline-block rounded border border-panel-border bg-deep-space/60 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-command-gold sm:text-xs">
                       {p.latest.currentStage}
                     </span>
+                    <PipelineBadges
+                      state={p.pipelineState}
+                      captureCount={p.captureCount}
+                      waitlist={p.waitlistCount}
+                    />
                   </>
                 ) : (
                   <span className="text-xs uppercase tracking-wider text-muted">
