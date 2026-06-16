@@ -40,7 +40,17 @@ import {
   type CardCompletion,
   type CompletionState,
 } from "@/lib/guide-completion";
-import { completionRefSchema, type CompletionRef } from "@/lib/schemas/guide";
+import {
+  completionRefSchema,
+  guideContentBlocksSchema,
+  type CompletionRef,
+} from "@/lib/schemas/guide";
+import { CaptureQueue } from "@/components/guide/CaptureQueue";
+import {
+  collectEmptyMedia,
+  emptyMediaCount,
+  type StageMediaQueue,
+} from "@/lib/guide-media-queue";
 
 type Params = { slug: string; revLabel: string };
 
@@ -510,6 +520,27 @@ export default async function GuideHubPage({
       )
     : [];
 
+  // Capture queue (author/operator view only): scan every card's blocks for
+  // empty media placeholders so the admin can shoot them all in one pass. One
+  // extra admin-only query for the contentBlocks (the roll-up above doesn't
+  // need them).
+  let mediaQueue: StageMediaQueue[] = [];
+  let mediaQueueTotal = 0;
+  if (view.isAuthorView) {
+    const blockRows = await db.guideCard.findMany({
+      where: { guideId: revision.guide.id },
+      orderBy: { ordinal: "asc" },
+      select: { stage: true, contentBlocks: true },
+    });
+    mediaQueue = collectEmptyMedia(
+      blockRows.map((c) => ({
+        stage: c.stage,
+        blocks: guideContentBlocksSchema.safeParse(c.contentBlocks).data ?? [],
+      })),
+    );
+    mediaQueueTotal = emptyMediaCount(mediaQueue);
+  }
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <JsonLd data={courseLd} />
@@ -537,6 +568,15 @@ export default async function GuideHubPage({
           stages={guideProgress}
         />
       </div>
+
+      {/* Admin capture queue — empty screenshot/clip slots across the guide. */}
+      {view.isAuthorView ? (
+        <CaptureQueue
+          queue={mediaQueue}
+          total={mediaQueueTotal}
+          cardHref={cardHref}
+        />
+      ) : null}
 
       {/* ─── Tier 1: design-stage cluster ─── */}
       <section>
