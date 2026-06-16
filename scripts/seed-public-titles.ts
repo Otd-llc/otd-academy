@@ -74,7 +74,9 @@ const PUBLIC_COPY: Record<string, PublicCopy> = {
     tagline: "Read ECG/EMG-class signals — the stepping-stone to EEG.",
   },
   "l3-01-eeg-front-end": {
-    publicTitle: "★ 8-Channel EEG Front-End on ESP32",
+    // §5's ★ is a capstone flourish rendered as a presentational glow
+    // (slug-keyed) — it is NOT part of the stored title.
+    publicTitle: "8-Channel EEG Front-End on ESP32",
     tagline: "Design the analog board that reads real brainwaves — the BCI.",
   },
   "l3-02-brushless-motor": {
@@ -90,7 +92,9 @@ const PUBLIC_COPY: Record<string, PublicCopy> = {
     tagline: "Charge and protect multi-cell packs safely.",
   },
   "l3-05-wireless-hub": {
-    publicTitle: "★ ESP-NOW Wireless Fleet Hub (ESP32)",
+    // §5's ★ is a capstone flourish rendered as a presentational glow
+    // (slug-keyed) — it is NOT part of the stored title.
+    publicTitle: "ESP-NOW Wireless Fleet Hub (ESP32)",
     tagline: "Command a swarm: many devices, one hub.",
   },
   // ── Bench tools (§5 paragraph — titles from doc; taglines AUTHORED) ─────────
