@@ -51,6 +51,7 @@ export async function buildSkillTree(
     accessTier: p.accessTier,
     criticalPath: p.criticalPath,
     priceCents: p.priceCents,
+    stripePriceId: p.stripePriceId,
     published: p.publishedRevisionId != null,
     publishedLabel: p.publishedRevision?.label ?? null,
   }));

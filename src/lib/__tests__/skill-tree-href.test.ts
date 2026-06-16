@@ -16,6 +16,7 @@ function mkNode(overrides: Partial<SkillNode> = {}): SkillNode {
     accessTier: "PUBLIC",
     criticalPath: true,
     priceCents: null,
+    stripePriceId: null,
     published: true,
     publishedLabel: "v1",
     title: "WROOM Breakout",

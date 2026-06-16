@@ -23,6 +23,7 @@ export interface RawProject {
   accessTier: "PUBLIC" | "FREE" | "PREMIUM";
   criticalPath: boolean;
   priceCents: number | null;
+  stripePriceId: string | null; // with priceCents → a real purchasable price
   published: boolean;
   // Label of the published Revision (for the project-outline href in Task 5).
   // Carried through untouched — ignored by all state logic.

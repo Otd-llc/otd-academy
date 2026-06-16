@@ -111,12 +111,13 @@ function Affordance({ node }: { node: SkillNode }) {
         </span>
       );
     case "locked-paywall": {
-      // SkillNode carries priceCents but not stripePriceId; pass it as null so
-      // the guard requires BOTH to surface a price. Prices are deferred (no
-      // stripePriceId on any project yet) → this resolves null → "Premium".
+      // Show a price only when the project is really purchasable — needs BOTH a
+      // positive priceCents AND a stripePriceId. Prices are deferred today (both
+      // null on every project), so this resolves to null → "Premium"; once a
+      // price is set it surfaces automatically.
       const cents = resolveBuyPriceCents({
         priceCents: node.priceCents,
-        stripePriceId: null,
+        stripePriceId: node.stripePriceId,
       });
       return (
         <span className="mt-auto inline-flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-command-gold">

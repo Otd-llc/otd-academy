@@ -19,6 +19,7 @@ function mk(slug: string, overrides: Partial<RawProject> = {}): RawProject {
     accessTier: "FREE",
     criticalPath: false,
     priceCents: null,
+    stripePriceId: null,
     published: false,
     publishedLabel: null,
     ...overrides,
