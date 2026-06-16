@@ -28,7 +28,7 @@ import { JsonLd } from "@/components/seo/JsonLd";
 // SEO. The courses index is a stable funnel landing page.
 const title = "Courses — One Thousand Drones Academy";
 const description =
-  "A skill tree from your first board to an EEG brain-computer interface that commands a swarm of IoT devices. Follow each subsystem start to finish — no account required to read along.";
+  "A skill tree from your first board to an EEG brain-computer interface that commands a swarm of IoT devices. Build each subsystem start to finish — schematic, layout, fabrication, and bring-up.";
 
 export const metadata: Metadata = {
   title,

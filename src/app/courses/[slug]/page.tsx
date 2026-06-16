@@ -156,8 +156,17 @@ export default async function CoursePreviewPage({
   const trackBlurb = project.track ? TRACK_BLURB[project.track] : null;
   const levelBlurb = project.level ? LEVEL_BLURB[project.level] : null;
 
+  // Reading access by tier — accurate per course. PUBLIC reads free, FREE needs
+  // a (free) account, PREMIUM is a one-time purchase (overview previews free).
+  const accessSentence =
+    project.accessTier === "PUBLIC"
+      ? "This course will be free to read — no account needed."
+      : project.accessTier === "PREMIUM"
+        ? "The course overview will preview for free; the full course is a one-time purchase (no subscription)."
+        : "Reading the course is free with a free account.";
+
   // FAQ — useful for readers AND emitted as FAQPage structured data. Answers
-  // are course-specific where the data allows (level / track / prereqs).
+  // are course-specific where the data allows (tier / level / track / prereqs).
   const faqs: { q: string; a: string }[] = [
     {
       q: "When does this course open?",
@@ -171,7 +180,7 @@ export default async function CoursePreviewPage({
     },
     {
       q: "What will I need to build it?",
-      a: "You can read the course free. Building the board for real needs its bill of materials (listed in the course) and a small PCB order from a fab house — the course walks you through both.",
+      a: `${accessSentence} Building the board for real also needs its bill of materials (listed in the course) and a small PCB order from a fab house — the course walks you through both.`,
     },
     {
       q: "What will I actually learn?",
