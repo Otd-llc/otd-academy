@@ -38,7 +38,8 @@ export function HexMedallion({
   isNext,
   isCapstone,
 }: HexMedallionProps) {
-  const rim = (track && TRACK_STROKE[track]) || "var(--color-muted)";
+  const GOLD = "var(--color-command-gold)";
+  const trackRim = (track && TRACK_STROKE[track]) || "var(--color-muted)";
   const done = state === "done";
   const locked =
     state === "locked-prereq" ||
@@ -47,10 +48,15 @@ export function HexMedallion({
   const comingSoon = state === "coming-soon";
   const actionable = state === "available" || state === "preview";
 
-  // Rim brightness + glow by state.
-  const rimOpacity = done ? 1 : actionable ? 1 : locked ? 0.4 : 0.25;
+  // OTD is gold-forward: the STATE emphasis is gold (done/available/capstone
+  // are the hero treatment), and the per-track colour is demoted to a quiet,
+  // dim rim accent on the not-yet-reachable nodes (locked / coming-soon). The
+  // track is still legible from the slab's track chip beside the hex.
+  const emphasised = done || actionable || isCapstone;
+  const stroke = emphasised ? GOLD : trackRim;
+  const strokeOpacity = emphasised ? 1 : locked ? 0.4 : 0.3;
   const fill = done
-    ? rim
+    ? GOLD
     : actionable
       ? "color-mix(in srgb, var(--color-deep-space) 70%, transparent)"
       : "color-mix(in srgb, var(--color-deep-space) 40%, transparent)";
@@ -59,14 +65,12 @@ export function HexMedallion({
   const glyph = done ? "✓" : isCapstone ? "★" : locked ? "🔒" : (level ?? "");
   const glyphColor = done
     ? "var(--color-deep-space)"
-    : isCapstone
-      ? "var(--color-command-gold)"
-      : actionable
-        ? rim
-        : "var(--color-muted)";
+    : isCapstone || actionable
+      ? GOLD
+      : "var(--color-muted)";
 
   const size = isCapstone ? 72 : 52;
-  const capRim = isCapstone ? "var(--color-command-gold)" : rim;
+  const capRim = stroke;
 
   return (
     <span
@@ -76,10 +80,9 @@ export function HexMedallion({
       style={{
         width: size,
         height: size,
-        filter:
-          actionable || isCapstone
-            ? `drop-shadow(0 0 6px ${isCapstone ? "var(--color-command-gold)" : rim})`
-            : undefined,
+        filter: emphasised
+          ? `drop-shadow(0 0 6px var(--color-command-gold))`
+          : undefined,
       }}
       aria-hidden="true"
     >
@@ -99,7 +102,7 @@ export function HexMedallion({
           points={HEX}
           fill={fill}
           stroke={capRim}
-          strokeOpacity={isCapstone ? 1 : rimOpacity}
+          strokeOpacity={strokeOpacity}
           strokeWidth={isCapstone ? 6 : 4}
           strokeDasharray={comingSoon ? "5 5" : undefined}
           strokeLinejoin="round"

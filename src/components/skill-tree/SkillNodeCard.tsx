@@ -40,9 +40,9 @@ const STATE_RING: Record<NodeState, string> = {
   done: "border-status-green/60",
   available: "border-command-gold shadow-[0_0_18px_-4px_rgba(200,150,62,0.55)]",
   "locked-prereq": "border-panel-border opacity-60",
-  "locked-account": "border-signal-blue/40",
+  "locked-account": "border-command-gold/30",
   "locked-paywall": "border-panel-border",
-  preview: "border-signal-blue/40",
+  preview: "border-command-gold/50 shadow-[0_0_18px_-6px_rgba(200,150,62,0.45)]",
   "coming-soon": "border-panel-border opacity-40",
 };
 
@@ -69,7 +69,7 @@ function Affordance({ node }: { node: SkillNode }) {
       );
     case "available":
       return (
-        <span className="mt-auto inline-flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-signal-blue">
+        <span className="mt-auto inline-flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-command-gold">
           Start the build
           <span aria-hidden="true">→</span>
           {node.isNext ? (
@@ -106,7 +106,7 @@ function Affordance({ node }: { node: SkillNode }) {
     }
     case "locked-account":
       return (
-        <span className="mt-auto inline-flex items-center gap-1 font-mono text-xs font-bold uppercase tracking-wider text-signal-blue">
+        <span className="mt-auto inline-flex items-center gap-1 font-mono text-xs font-bold uppercase tracking-wider text-command-gold">
           <span aria-hidden="true">🔒</span> Sign in — free
         </span>
       );
@@ -133,7 +133,7 @@ function Affordance({ node }: { node: SkillNode }) {
     }
     case "preview":
       return (
-        <span className="mt-auto inline-flex items-center gap-1 font-mono text-xs font-bold uppercase tracking-wider text-signal-blue">
+        <span className="mt-auto inline-flex items-center gap-1 font-mono text-xs font-bold uppercase tracking-wider text-command-gold">
           Preview
           <span aria-hidden="true">→</span>
         </span>
