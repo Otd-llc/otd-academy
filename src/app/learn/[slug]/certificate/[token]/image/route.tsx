@@ -40,26 +40,30 @@ function formatDate(iso?: string): string {
   return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
 }
 
+// A struck medallion: a clean gold rim with a beaded bezel, the OTD bee large and
+// integrated as the device. Beads are positioned with the transform trick (satori
+// mis-places top/left absolute children, but rotate+translate works).
 function Seal() {
-  const ticks = Array.from({ length: 24 });
+  const beads = Array.from({ length: 32 });
   return (
-    <div style={{ position: "relative", width: 130, height: 130, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      {ticks.map((_, i) => (
+    <div style={{ position: "relative", width: 168, height: 168, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      {beads.map((_, i) => (
         <div
           key={i}
           style={{
             position: "absolute",
-            width: i % 2 === 0 ? 2.5 : 1.5,
-            height: i % 2 === 0 ? 9 : 5,
-            backgroundColor: i % 2 === 0 ? GOLD : HAIRLINE,
-            transform: `rotate(${i * 15}deg) translateY(-60px)`,
+            width: 3,
+            height: 3,
+            borderRadius: 3,
+            backgroundColor: GOLD,
+            transform: `rotate(${(i * 360) / 32}deg) translateY(-68px)`,
             transformOrigin: "center",
           }}
         />
       ))}
-      <div style={{ position: "absolute", width: 104, height: 104, borderRadius: 104, border: `2px solid ${GOLD}` }} />
-      <div style={{ position: "absolute", width: 84, height: 84, borderRadius: 84, border: `1px solid ${HAIRLINE}` }} />
-      <svg width="46" height="44" viewBox={BRANDMARK_VIEWBOX} fill={GOLD}>
+      <div style={{ position: "absolute", width: 158, height: 158, borderRadius: 158, border: `2px solid ${GOLD}` }} />
+      <div style={{ position: "absolute", width: 124, height: 124, borderRadius: 124, border: `1px solid ${HAIRLINE}` }} />
+      <svg width="118" height="113" viewBox={BRANDMARK_VIEWBOX} fill={GOLD}>
         <path d={BRANDMARK_PATH} />
       </svg>
     </div>
@@ -83,6 +87,8 @@ function CornerOrnaments({ w, h }: { w: number; h: number }) {
   ];
   return (
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ position: "absolute", top: 0, left: 0 }}>
+      {/* fine beaded inner line, echoing the seal's bezel */}
+      <rect x={40} y={40} width={w - 80} height={h - 80} stroke={GOLD} strokeWidth={1} strokeDasharray="1.5 5" fill="none" />
       {corners.map((c, i) => (
         <g key={i}>
           <path d={`M ${c.x} ${c.y + c.sy * arm} L ${c.x} ${c.y} L ${c.x + c.sx * arm} ${c.y}`} stroke={GOLD} strokeWidth={1.6} fill="none" />

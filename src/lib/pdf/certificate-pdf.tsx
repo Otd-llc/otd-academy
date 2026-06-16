@@ -10,6 +10,7 @@ import {
   Text,
   Svg,
   Path,
+  Circle,
   StyleSheet,
 } from "@react-pdf/renderer";
 import type { CardClaims } from "@/lib/certificate-token";
@@ -25,6 +26,7 @@ const s = StyleSheet.create({
   page: { backgroundColor: IVORY, color: INK },
   frameOuter: { position: "absolute", top: 18, left: 18, right: 18, bottom: 18, border: `2pt solid ${GOLD}` },
   frameInner: { position: "absolute", top: 25, left: 25, right: 25, bottom: 25, border: `0.6pt solid ${MUTED}` },
+  frameBeaded: { position: "absolute", top: 38, left: 38, right: 38, bottom: 38, borderWidth: 0.7, borderStyle: "dotted", borderColor: GOLD },
   wmWrap: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
   content: { flexGrow: 1, paddingVertical: 50, paddingHorizontal: 80, alignItems: "center", justifyContent: "space-between" },
   wordmark: { fontFamily: "Helvetica", fontSize: 11, letterSpacing: 5, color: MUTED, textTransform: "uppercase" },
@@ -72,29 +74,22 @@ function Corner({ corner }: { corner: "tl" | "tr" | "bl" | "br" }) {
   );
 }
 
-// The seal: the OTD bee struck inside a fine bezel ring — the house mark, once.
+// A struck medallion: a clean gold rim with a beaded bezel, the OTD bee large and
+// integrated as the device (the house mark, once).
 function Seal() {
-  const ticks = Array.from({ length: 24 });
+  const beads = Array.from({ length: 32 });
   return (
-    <View style={{ width: 92, height: 92, position: "relative", alignItems: "center", justifyContent: "center" }}>
-      <Svg width={92} height={92} viewBox="0 0 100 100" style={{ position: "absolute", top: 0, left: 0 }}>
-        {ticks.map((_, i) => {
-          const a = (i * 15 * Math.PI) / 180;
-          const r1 = 48;
-          const r2 = i % 2 === 0 ? 42 : 45;
-          return (
-            <Path
-              key={i}
-              d={`M ${50 + r2 * Math.sin(a)} ${50 - r2 * Math.cos(a)} L ${50 + r1 * Math.sin(a)} ${50 - r1 * Math.cos(a)}`}
-              stroke={i % 2 === 0 ? GOLD : MUTED}
-              strokeWidth={i % 2 === 0 ? 1.4 : 0.7}
-            />
-          );
+    <View style={{ width: 110, height: 110, position: "relative", alignItems: "center", justifyContent: "center" }}>
+      <Svg width={110} height={110} viewBox="0 0 100 100" style={{ position: "absolute", top: 0, left: 0 }}>
+        <Path d="M50 5 A45 45 0 1 1 49.99 5 Z" stroke={GOLD} strokeWidth={1.6} fill="none" />
+        {beads.map((_, i) => {
+          const a = (i * 2 * Math.PI) / 32;
+          const r = 41;
+          return <Circle key={i} cx={50 + r * Math.sin(a)} cy={50 - r * Math.cos(a)} r={0.9} fill={GOLD} />;
         })}
-        <Path d="M50 11 A39 39 0 1 1 49.99 11 Z" stroke={GOLD} strokeWidth={1.4} fill="none" />
-        <Path d="M50 18 A32 32 0 1 1 49.99 18 Z" stroke={MUTED} strokeWidth={0.6} fill="none" />
+        <Path d="M50 13 A37 37 0 1 1 49.99 13 Z" stroke={MUTED} strokeWidth={0.6} fill="none" />
       </Svg>
-      <Svg width={44} height={42} viewBox={BRANDMARK_VIEWBOX}>
+      <Svg width={80} height={77} viewBox={BRANDMARK_VIEWBOX}>
         <Path d={BRANDMARK_PATH} fill={GOLD} />
       </Svg>
     </View>
@@ -129,6 +124,7 @@ export function CertificatePdf({
         </View>
         <View style={s.frameOuter} />
         <View style={s.frameInner} />
+        <View style={s.frameBeaded} />
         <Corner corner="tl" />
         <Corner corner="tr" />
         <Corner corner="bl" />
