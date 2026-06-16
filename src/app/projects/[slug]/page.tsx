@@ -82,6 +82,10 @@ export default async function ProjectDetailPage({
     include: {
       revisions: {
         orderBy: { updatedAt: "desc" },
+        // Open-errata count per revision for the status chips below.
+        include: {
+          _count: { select: { errata: { where: { status: "OPEN" } } } },
+        },
       },
       // Outbound — this project depends on others (Task 12.10).
       dependentEdges: {
@@ -286,12 +290,30 @@ export default async function ProjectDetailPage({
                 key={r.id}
                 className="flex items-baseline justify-between gap-4 px-4 py-3 font-mono text-sm"
               >
-                <Link
-                  href={`/projects/${project.slug}/${encodeURIComponent(r.label)}`}
-                  className="text-command-gold underline"
-                >
-                  {r.label}
-                </Link>
+                <span className="flex flex-wrap items-center gap-2">
+                  <Link
+                    href={`/projects/${project.slug}/${encodeURIComponent(r.label)}`}
+                    className="text-command-gold underline"
+                  >
+                    {r.label}
+                  </Link>
+                  {r.bomFrozenAt ? (
+                    <span
+                      title="BOM frozen — guide authoring may proceed"
+                      className="inline-flex items-center rounded border border-status-green/40 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-status-green"
+                    >
+                      BOM frozen
+                    </span>
+                  ) : null}
+                  {r._count.errata > 0 ? (
+                    <span
+                      title={`${r._count.errata} open erratum${r._count.errata === 1 ? "" : "s"}`}
+                      className="inline-flex items-center rounded border border-alert-red/40 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-alert-red"
+                    >
+                      {r._count.errata} errata
+                    </span>
+                  ) : null}
+                </span>
                 <span className="text-muted">
                   {r.currentStage} · updated{" "}
                   {r.updatedAt.toISOString().slice(0, 10)}
