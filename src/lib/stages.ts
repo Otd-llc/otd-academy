@@ -24,6 +24,7 @@ import type {
   Build,
   Checklist,
   ChecklistItem,
+  EnrollmentStatus,
   Part,
   Project,
   Revision,
@@ -526,4 +527,17 @@ export const STAGE_LABELS: Record<StageName, string> = {
   ASSEMBLY: "ASSEMBLY",
   BRINGUP: "BRING-UP",
   REVISION: "REVISION",
+};
+
+// ─── Enrollment status display labels ──────────────────
+//
+// Learner-facing labels for the EnrollmentStatus enum. The internal enum
+// (IN_PROGRESS / COMPLETED / MASTERED) must NEVER surface raw to a learner:
+// MASTERED is the public "Verified Certificate of Achievement" credential.
+// Legal wording (design §10) — never "Certified" / "Certification" /
+// "Accredited". Keep this the single source of truth for the badge text.
+export const ENROLLMENT_STATUS_LABEL: Record<EnrollmentStatus, string> = {
+  IN_PROGRESS: "In progress",
+  COMPLETED: "Completed",
+  MASTERED: "★ Verified Certificate",
 };
