@@ -376,6 +376,7 @@ export default async function GuideCardPage({
         quantity: true,
         part: {
           select: {
+            id: true,
             mpn: true,
             manufacturer: true,
             description: true,
@@ -386,6 +387,7 @@ export default async function GuideCardPage({
       orderBy: { refDes: "asc" },
     });
     bomRows = lines.map((l) => ({
+      partId: l.part.id,
       refDes: l.refDes,
       qty: l.quantity,
       mpn: l.part.mpn,

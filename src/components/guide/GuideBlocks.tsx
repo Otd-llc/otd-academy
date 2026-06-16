@@ -26,6 +26,7 @@ import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
 import { DIAGRAM_COMPONENTS } from "@/components/guide/diagram-registry";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
 import { CaptureLauncher } from "@/components/guide/CaptureLauncher";
+import { PartMpnLink } from "@/components/guide/PartMpnLink";
 import {
   affiliateLink,
   amazonProductLink,
@@ -44,6 +45,7 @@ export type ResolvedModel = { src: string; bounds: RenderBounds | null };
 // from BomLine + Part by the card route and passed in (like `models`). A card
 // with no BOM lines / no resolved rows degrades to a small "not locked" note.
 export type BomRow = {
+  partId: string;
   refDes: string;
   qty: number;
   mpn: string | null;
@@ -195,7 +197,13 @@ function BomTableBlock({
               </td>
               <td data-label="Qty">{r.qty}</td>
               <td data-label="Part">
-                <span className="mpn">{r.mpn ?? "—"}</span>
+                <PartMpnLink
+                  partId={r.partId}
+                  mpn={r.mpn}
+                  manufacturer={r.manufacturer}
+                  description={r.description}
+                  datasheetUrl={r.datasheetUrl}
+                />
                 {r.manufacturer ? (
                   <span className="mt-0.5 block font-mono text-[11px] normal-case text-muted">
                     {r.manufacturer}
