@@ -8,7 +8,7 @@ import { ImageResponse } from "next/og";
 import { db } from "@/lib/db";
 import { verifyCardToken, type CardClaims } from "@/lib/certificate-token";
 import { certificateId } from "@/lib/certificate-id";
-import { certFontData } from "@/lib/pdf/cert-font-files";
+import { certFontData, sealDataUri } from "@/lib/pdf/cert-font-files";
 import { publicTitle } from "@/lib/public-titles";
 import { BRANDMARK_PATH, BRANDMARK_VIEWBOX, CERT_SKILLS } from "@/lib/pdf/certificate-content";
 
@@ -40,34 +40,11 @@ function formatDate(iso?: string): string {
   return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
 }
 
-// A struck medallion: a clean gold rim with a beaded bezel, the OTD bee large and
-// integrated as the device. Beads are positioned with the transform trick (satori
-// mis-places top/left absolute children, but rotate+translate works).
+// The embossed gold-foil seal — a pre-rendered PNG (scripts/gen-seal.ts), since
+// satori can't draw metallic relief. Embedded as a data URI.
 function Seal() {
-  const beads = Array.from({ length: 32 });
-  return (
-    <div style={{ position: "relative", width: 168, height: 168, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      {beads.map((_, i) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            width: 3,
-            height: 3,
-            borderRadius: 3,
-            backgroundColor: GOLD,
-            transform: `rotate(${(i * 360) / 32}deg) translateY(-68px)`,
-            transformOrigin: "center",
-          }}
-        />
-      ))}
-      <div style={{ position: "absolute", width: 158, height: 158, borderRadius: 158, border: `2px solid ${GOLD}` }} />
-      <div style={{ position: "absolute", width: 124, height: 124, borderRadius: 124, border: `1px solid ${HAIRLINE}` }} />
-      <svg width="118" height="113" viewBox={BRANDMARK_VIEWBOX} fill={GOLD}>
-        <path d={BRANDMARK_PATH} />
-      </svg>
-    </div>
-  );
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={sealDataUri()} width={152} height={152} alt="" />;
 }
 
 // Ornate corners drawn as ONE full-size SVG (satori mis-places absolutely-

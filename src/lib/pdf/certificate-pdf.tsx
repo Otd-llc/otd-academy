@@ -8,13 +8,14 @@ import {
   Page,
   View,
   Text,
+  Image,
   Svg,
   Path,
-  Circle,
   StyleSheet,
 } from "@react-pdf/renderer";
 import type { CardClaims } from "@/lib/certificate-token";
 import { BRANDMARK_PATH, BRANDMARK_VIEWBOX, CERT_SKILLS } from "@/lib/pdf/certificate-content";
+import { sealDataUri } from "@/lib/pdf/cert-font-files";
 
 const IVORY = "#faf7f0";
 const INK = "#14181f";
@@ -74,26 +75,10 @@ function Corner({ corner }: { corner: "tl" | "tr" | "bl" | "br" }) {
   );
 }
 
-// A struck medallion: a clean gold rim with a beaded bezel, the OTD bee large and
-// integrated as the device (the house mark, once).
+// The embossed gold-foil seal — a pre-rendered PNG (scripts/gen-seal.ts), since
+// react-pdf can't draw metallic relief. Embedded as a data URI.
 function Seal() {
-  const beads = Array.from({ length: 32 });
-  return (
-    <View style={{ width: 110, height: 110, position: "relative", alignItems: "center", justifyContent: "center" }}>
-      <Svg width={110} height={110} viewBox="0 0 100 100" style={{ position: "absolute", top: 0, left: 0 }}>
-        <Path d="M50 5 A45 45 0 1 1 49.99 5 Z" stroke={GOLD} strokeWidth={1.6} fill="none" />
-        {beads.map((_, i) => {
-          const a = (i * 2 * Math.PI) / 32;
-          const r = 41;
-          return <Circle key={i} cx={50 + r * Math.sin(a)} cy={50 - r * Math.cos(a)} r={0.9} fill={GOLD} />;
-        })}
-        <Path d="M50 13 A37 37 0 1 1 49.99 13 Z" stroke={MUTED} strokeWidth={0.6} fill="none" />
-      </Svg>
-      <Svg width={80} height={77} viewBox={BRANDMARK_VIEWBOX}>
-        <Path d={BRANDMARK_PATH} fill={GOLD} />
-      </Svg>
-    </View>
-  );
+  return <Image src={sealDataUri()} style={{ width: 108, height: 108 }} />;
 }
 
 function formatDate(iso?: string): string {

@@ -5,8 +5,8 @@ const nextConfig: NextConfig = {
   // they're read from disk at render (react-pdf + satori), so Vercel's tracer
   // must include them or the routes 500 in prod.
   outputFileTracingIncludes: {
-    "/learn/[slug]/certificate/[token]/pdf": ["./src/lib/pdf/fonts/**"],
-    "/learn/[slug]/certificate/[token]/image": ["./src/lib/pdf/fonts/**"],
+    "/learn/[slug]/certificate/[token]/pdf": ["./src/lib/pdf/fonts/**", "./src/lib/pdf/seal.png"],
+    "/learn/[slug]/certificate/[token]/image": ["./src/lib/pdf/fonts/**", "./src/lib/pdf/seal.png"],
   },
   experimental: {
     serverActions: {
