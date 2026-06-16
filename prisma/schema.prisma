@@ -92,6 +92,8 @@ model Project {
   slug        String    @unique
   name        String
   description String?
+  publicTitle String?  // keyword-rich public title; render publicTitle ?? name
+  tagline     String?  // one-line benefit line shown on the skill-tree node card
   targetCost  Decimal?  @db.Decimal(10, 2)
   repoUrl     String?
   track              CurriculumTrack?
