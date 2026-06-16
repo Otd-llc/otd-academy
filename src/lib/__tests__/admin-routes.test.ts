@@ -77,4 +77,15 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/projects/wroom/v1")).toBe(false);
     expect(isPublicPath("/learn")).toBe(false);
   });
+
+  it("admits the public shareable certificate (page + image), token gates it", () => {
+    expect(isPublicPath("/learn/l1-01/certificate/sometoken")).toBe(true);
+    expect(isPublicPath("/learn/l1-01/certificate/sometoken/image")).toBe(true);
+  });
+
+  it("does NOT admit other learner routes (board, exam, complete)", () => {
+    expect(isPublicPath("/learn/l1-01")).toBe(false);
+    expect(isPublicPath("/learn/l1-01/exam")).toBe(false);
+    expect(isPublicPath("/learn/l1-01/complete")).toBe(false);
+  });
 });

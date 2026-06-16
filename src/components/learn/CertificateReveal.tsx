@@ -5,8 +5,11 @@
 // rise/pulse motion as sign-in + the complete screen), plus continuation CTAs so
 // passing pushes you onward instead of dead-ending. (The shareable/downloadable
 // version is a follow-on — #5.)
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
+import { ShareCard } from "@/components/learn/ShareCard";
+import { createCertificateShareToken } from "@/lib/actions/certificate";
 
 export type NextLessonLink = { slug: string; name: string };
 
@@ -25,6 +28,20 @@ export function CertificateReveal({
   slug: string;
   nextLessons: NextLessonLink[];
 }) {
+  // Mint a share token once the reveal mounts (i.e. once MASTERED), so the learner
+  // can share/download the public card. Best-effort: if it fails, the reveal still
+  // stands — just without the share controls.
+  const [token, setToken] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    createCertificateShareToken({ slug, variant: "cert", score, total })
+      .then((r) => live && setToken(r.token))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [slug, score, total]);
+
   return (
     <section className="signin-rise flex flex-col items-center gap-6 rounded border border-command-gold/40 bg-navy-dark px-6 py-12 text-center">
       <BrandMark className="signin-rise animate-pulse-brand h-16 w-16 text-command-gold" />
@@ -54,6 +71,15 @@ export function CertificateReveal({
       >
         <div className="signin-bar-fill h-full bg-command-gold" />
       </div>
+      {token && (
+        <div className="signin-rise" style={{ animationDelay: "180ms" }}>
+          <ShareCard
+            imageUrl={`/learn/${slug}/certificate/${token}/image`}
+            shareUrl={`/learn/${slug}/certificate/${token}`}
+            title="Verified Certificate of Achievement"
+          />
+        </div>
+      )}
       <div
         className="signin-rise flex w-full max-w-md flex-col items-center gap-3"
         style={{ animationDelay: "210ms" }}
