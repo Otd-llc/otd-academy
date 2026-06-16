@@ -39,63 +39,74 @@ function beeGroup(size: number): string {
   return `<g transform="translate(${C} ${C}) scale(${s}) translate(191 -600)"><path d="${BRANDMARK_PATH}"/></g>`;
 }
 
+const disc = scallop(50, C - 12, C - 30);
 const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="${S}" height="${S}" viewBox="0 0 ${S} ${S}">
   <defs>
-    <linearGradient id="metal" x1="14%" y1="2%" x2="86%" y2="100%">
-      <stop offset="0%"  stop-color="#6f4b13"/><stop offset="11%" stop-color="#ca9c3a"/>
-      <stop offset="20%" stop-color="#f6e7a2"/><stop offset="28%" stop-color="#fefad6"/>
-      <stop offset="37%" stop-color="#d3a743"/><stop offset="48%" stop-color="#94701d"/>
-      <stop offset="57%" stop-color="#e2bd5c"/><stop offset="68%" stop-color="#fdf4cb"/>
-      <stop offset="78%" stop-color="#ca9a3c"/><stop offset="90%" stop-color="#8a6219"/>
-      <stop offset="100%" stop-color="#5e3f10"/>
-    </linearGradient>
-    <radialGradient id="dome" cx="50%" cy="45%" r="60%">
-      <stop offset="0%" stop-color="#000" stop-opacity="0"/>
-      <stop offset="70%" stop-color="#1f1404" stop-opacity="0"/>
-      <stop offset="100%" stop-color="#241804" stop-opacity="0.5"/>
+    <!-- muted, believable gold (not neon) -->
+    <radialGradient id="base" cx="42%" cy="36%" r="74%">
+      <stop offset="0%"  stop-color="#e3c87e"/>
+      <stop offset="42%" stop-color="#c2a04c"/>
+      <stop offset="78%" stop-color="#977630"/>
+      <stop offset="100%" stop-color="#6a4f1d"/>
     </radialGradient>
-    <radialGradient id="spec" cx="34%" cy="25%" r="42%">
-      <stop offset="0%" stop-color="#fffdf4" stop-opacity="0.6"/>
-      <stop offset="70%" stop-color="#fffdf4" stop-opacity="0"/>
+    <radialGradient id="dome" cx="50%" cy="43%" r="63%">
+      <stop offset="0%"  stop-color="#000" stop-opacity="0"/>
+      <stop offset="66%" stop-color="#000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#2c1f08" stop-opacity="0.5"/>
     </radialGradient>
-    <!-- Emboss: blur the alpha into a bump map, light it with a top-left distant
-         light (sharp specular highlight) and an opposite dark diffuse (the shaded
-         side). Composited over the gold relief → raised metal. -->
+    <radialGradient id="hi" cx="35%" cy="25%" r="44%">
+      <stop offset="0%"  stop-color="#fff5d6" stop-opacity="0.45"/>
+      <stop offset="78%" stop-color="#fff5d6" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Real foil = uneven reflections. Drive a specular pass with fractal-noise
+         so the gold catches light in irregular glints + grain (kills the clean-
+         gradient "clipart" tell). -->
+    <filter id="foil" x="0%" y="0%" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.016 0.052" numOctaves="4" seed="13" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.9 0 0 0 0" result="bump"/>
+      <feSpecularLighting in="bump" surfaceScale="2.4" specularConstant="0.5" specularExponent="5.5" lighting-color="#fff3cf" result="g">
+        <feDistantLight azimuth="220" elevation="62"/>
+      </feSpecularLighting>
+      <feComposite in="g" in2="SourceAlpha" operator="in" result="gc"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.10 0 0 0 0" result="grain"/>
+      <feComposite in="grain" in2="SourceAlpha" operator="in" result="grainc"/>
+      <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="grainc"/><feMergeNode in="gc"/></feMerge>
+    </filter>
+
+    <!-- Struck relief: soft specular highlight (top-left) + dark diffuse (bottom-
+         right), gently blurred for a rolled embossed edge. -->
     <filter id="emboss" x="-25%" y="-25%" width="150%" height="150%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="3.4" result="blur"/>
-      <feSpecularLighting in="blur" surfaceScale="6.5" specularConstant="1.15" specularExponent="17" lighting-color="#fffaf0" result="hl">
-        <feDistantLight azimuth="228" elevation="50"/>
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2.4" result="b"/>
+      <feSpecularLighting in="b" surfaceScale="4.6" specularConstant="0.9" specularExponent="13" lighting-color="#fff4dd" result="hl">
+        <feDistantLight azimuth="222" elevation="46"/>
       </feSpecularLighting>
       <feComposite in="hl" in2="SourceAlpha" operator="in" result="hlc"/>
-      <feDiffuseLighting in="blur" surfaceScale="6.5" diffuseConstant="0.9" lighting-color="#4a3210" result="sh">
-        <feDistantLight azimuth="48" elevation="44"/>
+      <feDiffuseLighting in="b" surfaceScale="4.6" diffuseConstant="0.82" lighting-color="#4c3712" result="sh">
+        <feDistantLight azimuth="42" elevation="40"/>
       </feDiffuseLighting>
       <feComposite in="sh" in2="SourceAlpha" operator="in" result="shc"/>
-      <feMerge>
-        <feMergeNode in="SourceGraphic"/>
-        <feMergeNode in="shc"/>
-        <feMergeNode in="hlc"/>
-      </feMerge>
+      <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="shc"/><feMergeNode in="hlc"/></feMerge>
     </filter>
+
     <filter id="drop" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#2a1c06" flood-opacity="0.45"/>
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#1f1503" flood-opacity="0.38"/>
     </filter>
   </defs>
 
-  <!-- field: banded metal + domed edges + specular highlight -->
-  <g filter="url(#drop)">
-    <path d="${scallop(48, C - 12, C - 34)}" fill="url(#metal)" stroke="#4f370d" stroke-width="2"/>
-  </g>
-  <path d="${scallop(48, C - 12, C - 34)}" fill="url(#dome)"/>
-  <path d="${scallop(48, C - 12, C - 34)}" fill="url(#spec)"/>
+  <!-- field: muted gold, foil glints/grain, domed edges, soft highlight -->
+  <g filter="url(#drop)"><path d="${disc}" fill="url(#base)" filter="url(#foil)"/></g>
+  <path d="${disc}" fill="none" stroke="#4a3410" stroke-width="1.6" stroke-opacity="0.5"/>
+  <path d="${disc}" fill="url(#dome)"/>
+  <path d="${disc}" fill="url(#hi)"/>
 
-  <!-- relief (rings, beads, bee) struck into the same gold, lit by the emboss -->
-  <g fill="#c49633" stroke="none" filter="url(#emboss)">
-    <circle cx="${C}" cy="${C}" r="263" fill="none" stroke="#c49633" stroke-width="5"/>
-    <circle cx="${C}" cy="${C}" r="208" fill="none" stroke="#c49633" stroke-width="5"/>
-    ${beads(38, 235, 6)}
-    ${beeGroup(266)}
+  <!-- struck design: rings, beads, bee -->
+  <g fill="#bf9a44" stroke="none" filter="url(#emboss)">
+    <circle cx="${C}" cy="${C}" r="263" fill="none" stroke="#bf9a44" stroke-width="6"/>
+    <circle cx="${C}" cy="${C}" r="206" fill="none" stroke="#bf9a44" stroke-width="6"/>
+    ${beads(38, 234, 6.4)}
+    ${beeGroup(270)}
   </g>
 </svg>`;
 
