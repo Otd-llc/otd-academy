@@ -19,6 +19,7 @@ import { db } from "@/lib/db";
 import { isAdminEmail } from "@/lib/admin-allowlist";
 import { buildSkillTree } from "@/lib/skill-tree";
 import { SkillTreePath } from "@/components/skill-tree/SkillTreePath";
+import { resolvePath, SKILL_PATHS } from "@/lib/skill-paths";
 import { PageHeader } from "@/components/PageHeader";
 import { courseListJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -40,11 +41,14 @@ export const metadata: Metadata = {
 // rendering so the CI build (stub DATABASE_URL) doesn't prerender the DB query.
 export const dynamic = "force-dynamic";
 
-// The one destination the whole curriculum builds toward.
-const DESTINATION =
-  "Build an EEG brain-computer interface that commands a swarm of IoT devices";
+export default async function CoursesPage({
+  searchParams,
+}: {
+  // `?path=<key>` selects the learning path (default: the primary EEG build).
+  searchParams: Promise<{ path?: string }>;
+}) {
+  const { path: pathParam } = await searchParams;
 
-export default async function CoursesPage() {
   // Resolve the session once. No `requireUser` — that throws on anon; this
   // route is admitted by `isPublicPath` and MUST render signed-out. Treat a
   // missing session as anonymous.
@@ -71,18 +75,23 @@ export default async function CoursesPage() {
   // gates the inline tier toggle rendered inside SkillNodeCard (Task 10).
   const viewer = { signedIn: userId != null, isAdmin };
 
-  // Destination progress. `total` is the curriculum size (tree node count, not a
-  // hardcoded 22); `done` is the learner's completed/mastered nodes. For anon
-  // there is no progress — the banner frames the path ahead instead.
-  const total = tree.nodes.length;
-  const done = tree.nodes.filter((n) => n.state === "done").length;
+  // Resolve the selected learning path: a build goal + its auto-derived
+  // prerequisite chain (or the bench category), topo-ordered. The page is
+  // organised around ONE path at a time — mobile-first, and honest about which
+  // courses a given build actually needs.
+  const selected = resolvePath(pathParam, tree);
+
+  // Per-PATH progress (not whole-curriculum): how far the learner is along the
+  // selected build. `done`/`total` count only the path's nodes.
+  const total = selected.total;
+  const done = selected.done;
   const percent = total > 0 ? Math.round((done / total) * 100) : 0;
   const showProgress = viewer.signedIn && done > 0;
 
-  // Anchor target — the learner's single `isNext` node (set by the core). Used
-  // for a no-JS "jump to your next step" link in the banner. SkillNodeCard sets
+  // Path-local "next" — the first still-available step in this path's order —
+  // for the no-JS "jump to your next step" anchor. SkillNodeCard sets
   // `id="node-${slug}"` on its outer element.
-  const nextNode = tree.nodes.find((n) => n.isNext);
+  const nextNode = selected.nodes.find((n) => n.state === "available");
 
   // ItemList JSON-LD — sourced from ALL published, non-archived projects (Task
   // 10 broadened this from PUBLIC-only). Built from `tree.nodes` to avoid a
@@ -120,30 +129,58 @@ export default async function CoursesPage() {
         lead="One destination, one subsystem at a time — schematic, layout, fabrication, and bring-up. Follow the path from your first board to a brain-computer interface."
       />
 
+      {/* Path selector — pick a build goal; each resolves to its own linear
+          prerequisite chain (one path at a time = mobile-first). */}
+      <nav aria-label="Learning paths" className="mb-6">
+        <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.2em] text-gold-dim">
+          Choose your build
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {SKILL_PATHS.map((p) => {
+            const active = p.key === selected.def.key;
+            return (
+              <a
+                key={p.key}
+                href={`/courses?path=${p.key}`}
+                aria-current={active ? "page" : undefined}
+                className={`rounded border px-3 py-1.5 font-mono text-xs uppercase tracking-wider transition-colors ${
+                  active
+                    ? "border-command-gold bg-command-gold/15 text-command-gold"
+                    : "border-panel-border text-muted hover:border-command-gold/50 hover:text-gray-1"
+                }`}
+              >
+                {p.kind === "primary" ? "★ " : ""}
+                {p.label}
+              </a>
+            );
+          })}
+        </div>
+      </nav>
+
       {total === 0 ? (
         <p className="font-mono text-sm uppercase tracking-wider text-muted">
           Courses are coming soon.
         </p>
       ) : (
         <>
-          {/* Destination banner — always shown. Frames the whole tree against
-              the one build it ladders up to, with a quantified count. */}
+          {/* Per-path banner — frames the selected build + progress along IT. */}
           <section className="glass-card mb-6 flex flex-col gap-3 p-5">
             <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">
-              The destination
+              {selected.def.kind === "bench" ? "Bench builds" : "The build"}
             </p>
-            <p className="font-display text-2xl tracking-wide text-white">
-              {DESTINATION}
+            <p className="font-display text-3xl tracking-wide text-white">
+              {selected.def.label}
+            </p>
+            <p className="font-serif text-sm italic text-muted">
+              {selected.def.blurb}
             </p>
             <p className="font-mono text-xs uppercase tracking-wider text-muted">
               {showProgress
-                ? `${done} of ${total} projects complete — keep building.`
-                : viewer.signedIn
-                  ? `${total} projects from your first board to the BCI.`
-                  : `${total} projects from first board to the BCI.`}
+                ? `${done} of ${total} courses complete`
+                : `${total} courses${selected.def.kind === "bench" ? "" : " to the build"}`}
             </p>
 
-            {/* Endowed-progress bar — signed-in AND ≥1 done only. */}
+            {/* Endowed-progress bar — signed-in AND ≥1 done, along this path. */}
             {showProgress ? (
               <div className="mt-1">
                 <div
@@ -152,7 +189,7 @@ export default async function CoursesPage() {
                   aria-valuenow={percent}
                   aria-valuemin={0}
                   aria-valuemax={100}
-                  aria-label="Progress toward the BCI"
+                  aria-label={`Progress: ${selected.def.label}`}
                 >
                   <div
                     className="h-full rounded-full bg-command-gold"
@@ -160,19 +197,16 @@ export default async function CoursesPage() {
                   />
                 </div>
                 <p className="mt-1.5 font-mono text-xs font-bold uppercase tracking-wider text-command-gold">
-                  ~{percent}% toward the BCI
+                  ~{percent}% there
                 </p>
               </div>
             ) : null}
 
-            {/* No-JS anchor to the learner's next step. Signed-in only — anon
-                has no `isNext` overlay. The path renders each node exactly once
-                (one component at all breakpoints), so a single `#node-<slug>`
-                anchor is unambiguous. */}
+            {/* No-JS anchor to the path-local next step (signed-in only). */}
             {viewer.signedIn && nextNode ? (
               <a
                 href={`#node-${nextNode.slug}`}
-                className="mt-1 inline-flex items-center gap-1 font-mono text-xs font-bold uppercase tracking-wider text-signal-blue"
+                className="mt-1 inline-flex items-center gap-1 font-mono text-xs font-bold uppercase tracking-wider text-command-gold"
               >
                 Jump to your next step
                 <span aria-hidden="true">→</span>
@@ -180,9 +214,12 @@ export default async function CoursesPage() {
             ) : null}
           </section>
 
-          {/* The guided path — one responsive component, replaces the old
-              track×level matrix + SVG overlay. */}
-          <SkillTreePath tree={tree} viewer={viewer} />
+          {/* The selected path: its goal + prerequisite chain, topo-ordered. */}
+          <SkillTreePath
+            nodes={selected.nodes}
+            goalSlug={selected.goalSlug}
+            viewer={viewer}
+          />
         </>
       )}
     </main>

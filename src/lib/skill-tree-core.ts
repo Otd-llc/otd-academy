@@ -97,7 +97,23 @@ export function criticalPathOrder<T extends RawProject>(
   projects: T[],
   edges: RawEdge[],
 ): T[] {
-  const spine = projects.filter((p) => p.criticalPath);
+  return topoOrder(
+    projects.filter((p) => p.criticalPath),
+    edges,
+  );
+}
+
+/**
+ * Topologically order an ARBITRARY node subset by the same rules as
+ * `criticalPathOrder` (Kahn; frontier tie-broken by level → track → slug; only
+ * edges fully within the subset contribute; cycle/missing nodes appended in
+ * tie-break order so it always terminates). Used to order a single learning
+ * path's prerequisite chain (`skill-paths.ts`).
+ */
+export function topoOrder<T extends RawProject>(
+  spine: T[],
+  edges: RawEdge[],
+): T[] {
   const bySlug = new Map(spine.map((p) => [p.slug, p]));
 
   const indegree = new Map<string, number>();
