@@ -24,6 +24,28 @@
 
 ---
 
+## Task 0: Verify (and if needed, seed) the §2 access-tier map — PRECONDITION
+
+The whole tree reads `Project.accessTier` as the tier dimension, but **no script sets it** — `populate-curriculum-dag.ts` never touches `accessTier` (schema default `FREE`) and a grep of `scripts/` finds zero writes. `l1-01-wroom-breakout` is demonstrably `PUBLIC` in prod (the live `/courses` filters on it), so *something* was set by hand — but whether the §2 FREE/PREMIUM map reached the other 21 is **unverified**. If it didn't, the tree renders all-FREE with no paywalls and the role-aware demo is wrong.
+
+**Step 1: Check current state** (read-only):
+```sql
+SELECT slug, "accessTier", "priceCents" FROM "Project" ORDER BY slug;
+```
+Compare against the §2 table in `docs/plans/2026-06-09-public-narrative-skill-tree.md` (1 PUBLIC `l1-01` · 5 FREE: `l1-02..05` + `l2-01` · the other 16 PREMIUM).
+
+**Step 2: If it matches** → no write needed; note "tier map already present" and proceed to Task 1.
+
+**Step 3: If it does NOT match** → write `scripts/seed-access-tiers.ts` (direct-Prisma, idempotent `updateMany` per slug, same shape as Task 2's seed) applying the §2 map. Leave `priceCents`/`stripePriceId` alone — prices are DEFERRED (§7), and Task 5's card guards null prices. Run it, re-run the Step-1 query to confirm.
+
+**Step 4: Commit** (only if a script was written):
+```bash
+git add scripts/seed-access-tiers.ts
+git commit -m "feat: seed §2 access-tier map onto curriculum projects"
+```
+
+---
+
 ## Task 1: Add `publicTitle` + `tagline` columns
 
 **Files:**
@@ -117,6 +139,7 @@ This is the testable core. **No DB, no React** — pure functions over plain inp
 ```ts
 export type NodeState =
   | "done" | "available" | "locked-prereq"
+  | "locked-account"            // anon viewing a FREE node — "Sign in (free)" funnel
   | "locked-paywall" | "preview" | "coming-soon";
 
 export interface RawProject {
@@ -155,22 +178,34 @@ export function computeSkillTree(
 ): SkillTree;
 ```
 
-**State precedence (highest first):** `coming-soon` (!published) → `done` (completedSlugs) → `locked-paywall` (PREMIUM && !entitled && !admin) → `locked-prereq` (unsatisfied prereqs && !admin) → `available`/`preview`. For an anon viewer on an actionable published node: PUBLIC → `preview`; FREE/PREMIUM with no session already fell into paywall/account states. Admin: everything published is `available`. Reuse the truth tables in `src/lib/public-access.ts` (`resolveLessonAccess`) — mirror its tier logic, don't diverge.
+**State precedence — evaluate top-down, first match wins (total over every tier × session × admin × entitled × prereq × published combo).** Mirror `resolveLessonAccess` tier semantics in `src/lib/public-access.ts`; do not diverge.
+1. `!published` → **`coming-soon`** (any viewer).
+2. `slug ∈ completedSlugs` → **`done`**.
+3. `viewer.isAdmin` → **`available`** (admin sees every published node actionable).
+4. **Anon short-circuit — `!viewer.signedIn` skips ALL prereq logic, tier-only** (this is the §3 "anon = tier-only" rule, and the fix for the FREE-anon hole): PUBLIC → **`preview`** · FREE → **`locked-account`** · PREMIUM → **`locked-paywall`**.
+5. Signed-in, PREMIUM, `slug ∉ entitledSlugs` → **`locked-paywall`**.
+6. Signed-in, any unsatisfied prereq → **`locked-prereq`** (applies even to an *entitled* PREMIUM node — you own it but must still complete the path).
+7. Otherwise → **`available`** (PUBLIC/FREE/entitled-PREMIUM, prereqs met). `preview` is anon-only; a signed-in viewer never sees it.
 
 **`missingPrereqs`:** prerequisites (incoming `from` edges) whose `fromSlug ∉ completedSlugs`.
 
-**`isNext`:** exactly one node. Walk critical-path order (topo sort of `criticalPath` nodes; tie-break level `L1<L2<L3` then track `COMMS<ACT<SENSE<POWER`); pick the first node whose state is `available`. If none available (e.g. fresh anon), pick the first actionable PUBLIC node; if still none, no node is `isNext`.
+**`isNext`:** **at most one** node — **zero** when nothing is actionable (a student who completed everything; an anon when L1.01 is unpublished). Walk critical-path order (below). Signed-in: first node whose state is `available`. Anon: first PUBLIC, non-`done`, `preview` node. If neither yields a node, **no node carries `isNext`** — the "Next →" badge (Task 5) and the `#node-<slug>` anchor (Task 9) MUST handle the none case. (The design DTO comment saying "exactly one" is superseded by this — at most one.)
+
+**Critical-path order:** topological sort (Kahn) over `criticalPath === true` nodes; when several nodes sit in the frontier at once, tie-break by level (`L1<L2<L3`), then track (`COMMS<ACT<SENSE<POWER`), **then slug ascending**. The slug tertiary key is REQUIRED, not cosmetic: the real graph has same-(level,track) pairs with no edge between them (e.g. `l2-01-battery-power-module` vs `l2-04-power-led-driver`; `l1-03-ws2812-node` vs `l1-04-single-servo`), so without it `isNext` and the spine order flip nondeterministically between renders.
 
 **Step 1: Write failing tests** covering, at minimum:
 - unpublished project → `coming-soon` even if PUBLIC
 - completed project → `done` regardless of tier
-- PREMIUM, not entitled, not admin → `locked-paywall` (+ price carried through)
+- PREMIUM, signed-in, not entitled, not admin → `locked-paywall` (+ price carried through)
+- PREMIUM, signed-in, **entitled but prereq unmet** → `locked-prereq` (rule 6 beats ownership)
 - dependent with an incomplete prereq → `locked-prereq` with the prereq in `missingPrereqs`
-- admin sees a PREMIUM unpublished-but… (published PREMIUM) node as `available`
+- admin sees a published PREMIUM node as `available`
 - anon on PUBLIC published root → `preview`
+- **anon on a FREE node → `locked-account`** (the §1 bug regression test — must NOT be `locked-prereq`)
+- **signed-in on a FREE node with an unmet prereq → `locked-prereq`** (anon short-circuit must not leak to signed-in)
 - `title` falls back to `name` when `publicTitle` is null
-- exactly one node has `isNext`, and it's the earliest available in critical-path order
-- a known fixture graph yields a stable topo order (deterministic tie-breaks)
+- **at most one** node has `isNext`; the **zero case** — a viewer with no actionable node — yields none
+- **topo determinism with a real tie:** fixture MUST contain two same-(level,track) nodes with **no edge between them**; assert they come out **slug-ascending** (a tie-free fixture makes this test vacuous)
 
 Build small inline fixtures (don't touch the DB). Example shape:
 ```ts
@@ -223,8 +258,10 @@ export async function buildSkillTree(userId: string | null): Promise<SkillTree> 
     db.project.findMany({
       where: { archivedAt: null },
       select: { slug:true, name:true, publicTitle:true, tagline:true, track:true,
-        level:true, accessTier:true, criticalPath:true, priceCents:true,
-        publishedRevisionId:true },
+        level:true, accessTier:true, criticalPath:true,
+        priceCents:true, stripePriceId:true,            // both → resolveBuyPriceCents guard
+        publishedRevisionId:true,
+        publishedRevision:{ select:{ label:true } } },  // outline href (Task 5)
     }),
     db.projectDependency.findMany({
       select: { kind:true,
@@ -232,12 +269,20 @@ export async function buildSkillTree(userId: string | null): Promise<SkillTree> 
         dependentProject:{ select:{ slug:true } } },
     }),
   ]);
-  // viewer: if userId, load role + completed enrollments + entitlements
-  // ...map and call computeSkillTree
+  // viewer (only when userId): role for isAdmin, plus completed/entitled SLUG sets.
+  // ⚠️ Enrollment/Entitlement carry projectId, NOT slug — load the nested project
+  // slug so the sets are keyed by slug (computeSkillTree works in slugs):
+  //   db.enrollment.findMany({ where:{ userId, status:{ in:["COMPLETED","MASTERED"] } },
+  //     select:{ project:{ select:{ slug:true } } } })  → Set of slugs
+  //   db.entitlement.findMany({ where:{ userId },
+  //     select:{ project:{ select:{ slug:true } } } })  → Set of slugs
+  // ...map rows to Raw* (published = publishedRevisionId != null) and call computeSkillTree
 }
 ```
 
 **Step 1: Write the integration test** (mirror `learner-board-availability.test.ts`: `vi.mock("@/auth")`, create published projects + an edge + a COMPLETED enrollment with unique slugs, assert states, clean up). Assert: anon (`null`) yields tier-only states; a student with a completed prereq sees the dependent `available`; an unpublished project is `coming-soon`.
+
+**⚠️ Assert per-slug ONLY.** `buildSkillTree` loads the entire non-archived table, so the test's rows coexist with the real 22 projects + the `esp32-sensor-breakout` fixture. Find your nodes by their unique slugs (`nodes.find(n => n.slug === mySlug)`); never assert on global shape (total `isNext` count, full ordering, array length) — that's polluted by the rest of the table and is Task 3's job to test in isolation.
 
 **Step 2: Run, fail** → `pnpm exec vitest run src/lib/__tests__/skill-tree.test.ts` (FAIL: not a function).
 
@@ -262,16 +307,18 @@ git commit -m "feat(skill-tree): DB shell composing enrollment + entitlement sta
 
 **`hrefForNode(node, viewer)` (pure, TDD):**
 - `done`/`available` + signed-in → `/learn/${slug}`
-- `preview`/`locked-paywall`/`locked-prereq` → the project outline (card-0). Reuse the path `/courses` cards build today: `/projects/${slug}/${publishedLabel}/guide`. **Note:** the published revision label is needed — extend `buildSkillTree`'s select to include `publishedRevision: { select: { label: true } }` and carry `outlineHref` (or the label) on the node. (Fold this into Task 4 if not yet done.)
+- `locked-account` (FREE-anon) → `/sign-in?callbackUrl=/courses`. **Do not** send these to the outline: `resolveLessonAccess` returns `redirectSignIn` for FREE + no-session (`public-access.ts:29`), so a FREE outline link bounces an anon to sign-in anyway — link straight there.
+- `preview` (PUBLIC-anon) / `locked-paywall` (PREMIUM) / `locked-prereq` → the project outline (card-0): `/projects/${slug}/${publishedLabel}/guide` — the path `/courses` cards build today. This is public-eligible for PUBLIC/PREMIUM only (the FREE case is handled above). **The published revision label is required** — extend `buildSkillTree`'s select with `publishedRevision: { select: { label: true } }` and carry `outlineHref` (or the label) on the node. (Fold into Task 4.)
 - `coming-soon` → no link (card renders non-interactive).
 
-Write tests for each branch, then implement. `pnpm exec vitest run src/lib/__tests__/skill-tree-href.test.ts` red→green.
+Write tests for each branch (including `locked-account` → sign-in), then implement. `pnpm exec vitest run src/lib/__tests__/skill-tree-href.test.ts` red→green.
 
 **`SkillNodeCard`** (server component, presentational): renders `title`, `tagline`, track/level chips, and a state affordance:
 - `done` → check + full color
 - `available` → glowing border + (if `isNext`) a "Next →" badge
 - `locked-prereq` → dimmed + lock; Radix tooltip listing `missingPrereqs` titles (the tooltip dep `@radix-ui/react-tooltip` is already installed; follow existing tooltip usage)
-- `locked-paywall` → lock + price chip (`formatMoney(priceCents)` — reuse `src/lib/format-money`)
+- `locked-account` → lock + "Sign in — free" affordance (FREE-anon funnel)
+- `locked-paywall` → lock + **price chip ONLY when a real price exists**. Prices are DEFERRED (`priceCents`/`stripePriceId` null for every project right now — see Task 0), and `formatUsd(null)` is both a type error and renders `$0.00`. Guard with `resolveBuyPriceCents(project)` (from `src/lib/format-money`) → if it returns a number, show `formatUsd(cents)`; if `null`, show a plain "Premium" lock affordance, no price. (Export is **`formatUsd`**, not `formatMoney`.)
 - `preview` → "Preview" affordance
 - `coming-soon` → greyed, `<div>` not `<a>`
 Capstones (`l3-01-eeg-front-end`, `l3-05-wireless-hub`) get a ★ glow modifier. Match the existing `CurriculumDag`/`courses` Tailwind token vocabulary (`glass-card`, `command-gold`, `signal-blue`, `status-green`, `alert-red`, `panel-border`, font-display/font-mono).
@@ -351,9 +398,11 @@ Verify in-browser as: anon, brooke (student), Josh (admin) — see Task 11.
 
 **Server action** `setProjectAccessTier({ slug, tier })`: `requireAdmin()` (from `auth-helpers`), validate `tier ∈ {PUBLIC,FREE,PREMIUM}` (zod), `db.project.update`, `revalidatePath("/courses")`. Integration test: admin succeeds, non-admin throws "Forbidden" (mirror `require-admin.test.ts` + an existing action test).
 
+**⚠️ `"use server"` export rule:** this file must export **only async functions**. Keep the zod schema and any types **inline** — no `export const schema` and no `export type {...}` re-export. That pattern compiles clean under `tsc`/`build` but crashes at runtime (use-server-export-rule). Define helpers/schemas as module-local `const`/`type`.
+
 **Toggle component:** rendered by `SkillNodeCard` only when `viewer.isAdmin`; a small select/cycle calling the action. Optimistic or revalidate-on-success — keep it minimal.
 
-**JSON-LD:** keep the `courseListJsonLd` (`ItemList`) but build it from all published, non-archived projects (not just PUBLIC), using `publicTitle ?? name`. Items point at each project's outline URL. Confirm the `<JsonLd>` emit still validates (shape unchanged).
+**JSON-LD:** keep the `courseListJsonLd` (`ItemList`) but build it from all published, non-archived projects (not just PUBLIC), using `publicTitle ?? name`. Items point at each project's outline URL. Confirm the `<JsonLd>` emit still validates (shape unchanged). **Note:** the design's "`isAccessibleForFree` reflecting tier" is **not expressible** on `ItemList` `ListItem`s — that flag lives on a `WebPage`/`hasPart` paywall shape, not here. Leave the `ItemList` shape unchanged; this design line is intentionally not implemented in this task (don't treat it as a miss). Per-page paywall JSON-LD is a separate, later concern (narrative §6).
 
 Run: `pnpm exec vitest run src/lib/__tests__/project-visibility-actions.test.ts` red→green.
 

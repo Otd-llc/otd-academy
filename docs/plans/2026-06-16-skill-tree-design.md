@@ -81,9 +81,10 @@ SkillTreeNode {
   slug, publicTitle, tagline, track, level, accessTier,
   criticalPath, priceCents,
   published: boolean,                       // publishedRevisionId != null
-  state: "done" | "available" | "locked-prereq" | "locked-paywall"
-       | "preview" | "coming-soon",
-  isNext: boolean,                          // exactly one node, the recommended step
+  // locked-account = FREE node seen by an anon (sign-in funnel).
+  state: "done" | "available" | "locked-prereq" | "locked-account"
+       | "locked-paywall" | "preview" | "coming-soon",
+  isNext: boolean,                          // AT MOST one node (zero when nothing actionable)
   missingPrereqs: { slug; publicTitle }[],  // for the locked-prereq tooltip
   href: string,                             // role/state-appropriate target
 }
@@ -95,17 +96,25 @@ SkillTreeEdge { fromSlug, toSlug, kind }    // FOUNDATION | DE_RISK | SHARED_BLO
 - `resolveLessonAccess({...})` → the tier/paywall dimension.
 - Enrollment statuses (COMPLETED/MASTERED) → `done`.
 
-**Anonymous (`userId === null`):** skip availability; state is tier-only
-(PUBLIC → actionable, FREE/PREMIUM → locked, unpublished → coming-soon).
+**Anonymous (`userId === null`):** skip prereq logic; state is tier-only —
+PUBLIC → `preview`, **FREE → `locked-account`** (sign-in funnel), PREMIUM →
+`locked-paywall`, unpublished → `coming-soon`. (The plan's Task 3 holds the full
+top-down precedence; the anon short-circuit is what keeps a FREE node from
+mis-rendering as `locked-prereq`.)
 
-**State precedence (per node):** `coming-soon` (unpublished) → `done` → `locked-paywall`
-(tier/entitlement) → `locked-prereq` (DAG) → `available` → `preview`.
+**State precedence (per node, first match wins):** `coming-soon` (unpublished) → `done`
+→ admin-`available` → **anon short-circuit (tier-only)** → `locked-paywall` (PREMIUM,
+unentitled) → `locked-prereq` (DAG) → `available`.
 
-**`isNext`:** first node in critical-path order that is `available` (student) or first
-actionable PUBLIC node (anon). Exactly one.
+**`isNext`:** **at most one** node — first node in critical-path order that is
+`available` (signed-in) or the first `preview` PUBLIC node (anon). **Zero** when nothing
+is actionable (completed everything; or L1.01 unpublished for an anon); callers must
+handle none.
 
-**Critical-path order:** topological sort of the DAG restricted to `criticalPath === true`,
-tie-broken by level then track. Deterministic — no hand-maintained sequence.
+**Critical-path order:** topological sort restricted to `criticalPath === true`,
+tie-broken by level, then track, **then slug ascending** (the slug key is required — the
+real graph has same-(level,track) nodes with no edge between them, so it is otherwise
+nondeterministic).
 
 ---
 
@@ -191,6 +200,8 @@ rule (no SVG geometry on the smallest screens).
 
 ## 10. Build order (for the plan)
 
+0. **Precondition:** verify the §2 `accessTier` map is actually in the DB (no script
+   sets it today); seed it if not. The tree mis-renders tiers without it.
 1. Migration: add `publicTitle` + `tagline` (hand-authored SQL → `prisma migrate deploy`;
    run `tsc` + full vitest after, per the schema-change-check rule).
 2. `scripts/seed-public-titles.ts` — backfill 22 titles/taglines from plan §5.
