@@ -1,23 +1,24 @@
 "use client";
 
-// Reusable controlled editor for an ordered array of guide `ContentBlock`s
-// (extracted verbatim from GuideCardEditor — design §2/§4, Stage-A Task 6).
+// Reusable controlled editor for an ordered array of guide `ContentBlock`s.
 //
-// CONTROLLED + STATELESS: it renders the block-array "shell" only — one
-// per-type <BlockEditor> row per block (with reorder/delete chrome), an
-// Add-block menu, and the per-block error display + a11y wiring — and calls
-// `onChange` with the next array on every structural edit (reorder / delete /
-// append) and every content edit. It holds NO server state, NO header fields,
-// NO Save/Cancel, NO `cardId`, and dispatches NO actions: the parent owns the
-// surrounding chrome and persistence (GuideCardEditor for guide cards; the
-// part NOTES editor in Stage A).
+// CONTROLLED + STATELESS (re: persistence): it renders the block-array "shell"
+// only — one per-type <BlockEditor> row per block (with reorder/insert/delete
+// chrome), Add-block menus, and the per-block error display + a11y wiring — and
+// calls `onChange` with the next array on every structural edit (reorder /
+// insert / delete) and every content edit. It holds NO server state, NO header
+// fields, NO Save/Cancel, and dispatches NO actions: the parent owns the
+// surrounding chrome and persistence (GuideCardEditor).
 //
-// Per-block errors are keyed by ARRAY INDEX (`collectBlockErrors`), so the
-// parent is responsible for clearing the stale `errors` map on every `onChange`
-// (a now-valid block would otherwise keep a mis-targeted error until the next
-// save). GuideCardEditor's `onChange` does exactly that — it both stores the
-// next array and clears its error state — preserving the pre-extraction
-// behavior byte-for-byte.
+// Reordering: drag a block by its grip handle (native HTML5 DnD) to drop it at a
+// new position, OR use the up/down buttons (the keyboard/AT-friendly fallback —
+// DnD is a pointer affordance, so the buttons stay for accessibility). Inserting:
+// a reveal-on-hover "+ insert" zone sits before every block (and a full Add menu
+// at the end), so a block can be added ANYWHERE, not just appended.
+//
+// Per-block errors are keyed by ARRAY INDEX (`collectBlockErrors`), so the parent
+// clears the stale `errors` map on every `onChange` (a now-valid block would
+// otherwise keep a mis-targeted error). GuideCardEditor's `onChange` does that.
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { ContentBlock } from "@/lib/schemas/guide";
@@ -30,12 +31,12 @@ import {
 } from "@/lib/guide-block-defaults";
 import { BlockEditor } from "@/components/guide/BlockEditor";
 import { collectBlockErrors } from "@/lib/guide-card-errors";
-import { moveWithin } from "@/lib/guide-table";
 import { labelClass } from "@/components/guide/field-styles";
 import { IconButton } from "@/components/IconButton";
 import {
   ChevronDownIcon,
   ChevronUpIcon,
+  GripIcon,
   PlusIcon,
   TrashIcon,
 } from "@/components/icons";
@@ -47,157 +48,223 @@ export function BlockListEditor({
 }: {
   blocks: ContentBlock[];
   onChange: (next: ContentBlock[]) => void;
-  /**
-   * Per-block field errors keyed by Zod issue path under `contentBlocks.`
-   * (e.g. `contentBlocks.0.label`); `collectBlockErrors` pulls the messages
-   * for each block index. The parent clears this on every `onChange` so a
-   * now-valid block drops its red error + aria-invalid/aria-describedby.
-   */
   errors?: Record<string, string[]>;
 }) {
   const blockErrId = useId();
 
-  // ─── block-array mutations (index swap / splice / append) ───────────────
-  // Each mutation produces the next array and hands it to `onChange`; the
-  // parent is responsible for clearing the index-keyed `errors` map (see the
-  // file header). The reorder uses moveWithin (guide-table) — a bounds-checked
-  // adjacent swap — and the no-op guard matches the pre-extraction behavior.
+  // Drag-and-drop reorder state. `dragIndex` is the block being dragged (set on
+  // the grip handle's dragstart); `overIndex` is the drop target under the
+  // pointer (for the insertion-line cue). Both clear on drop/dragend.
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
+
+  // ─── block-array mutations ───────────────────────────────────────────────
   function updateBlockAt(i: number) {
     return (next: ContentBlock) => {
       onChange(blocks.map((b, bi) => (bi === i ? next : b)));
     };
   }
   function moveBlock(i: number, dir: -1 | 1) {
-    if (i + dir < 0 || i + dir >= blocks.length) return;
-    onChange(moveWithin(blocks, i, dir));
+    const j = i + dir;
+    if (j < 0 || j >= blocks.length) return;
+    const next = blocks.slice();
+    [next[i], next[j]] = [next[j]!, next[i]!];
+    onChange(next);
   }
   function removeBlock(i: number) {
     onChange(blocks.filter((_, bi) => bi !== i));
   }
-  function addBlock(type: BlockType) {
-    onChange([...blocks, defaultBlock(type)]);
+  // Insert a fresh default block at `at` (0…length). `at === length` appends.
+  function insertBlock(type: BlockType, at: number) {
+    const next = blocks.slice();
+    next.splice(at, 0, defaultBlock(type));
+    onChange(next);
+  }
+  // Move the dragged block so it lands BEFORE the block currently at `to`.
+  function reorder(from: number, to: number) {
+    if (from === to || to === from + 1) return; // no-op drops
+    const next = blocks.slice();
+    const [moved] = next.splice(from, 1);
+    next.splice(to > from ? to - 1 : to, 0, moved!);
+    onChange(next);
+  }
+
+  function clearDrag() {
+    setDragIndex(null);
+    setOverIndex(null);
   }
 
   return (
-    <fieldset className="space-y-3 border-t border-panel-border pt-4">
+    <fieldset className="space-y-1 border-t border-panel-border pt-4">
       <legend className={labelClass}>Content blocks</legend>
       {blocks.length === 0 ? (
         <p className="font-mono text-xs text-muted">
           No blocks yet — add one below.
         </p>
       ) : (
-        <div className="space-y-3">
+        <div>
           {blocks.map((block, i) => {
             const blockErrors = collectBlockErrors(errors, i);
             const hasBlockError = blockErrors.length > 0;
             const blockErrListId = `${blockErrId}-block-${i}-error`;
             const TypeIcon = BLOCK_TYPE_ICON[block.type];
+            const isDragging = dragIndex === i;
+            const isDropTarget =
+              overIndex === i && dragIndex !== null && dragIndex !== i;
             return (
-              <div
-                key={i}
-                className={`rounded border bg-navy-dark/30 p-3 ${blockAccentClass(block)}`}
-              >
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-command-gold">
-                    <TypeIcon className="h-4 w-4" />
-                    {BLOCK_TYPE_LABELS[block.type]}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <IconButton
-                      type="button"
-                      hint="Move up"
-                      ariaLabel={`Move block ${i + 1} up`}
-                      disabled={i === 0}
-                      onClick={() => moveBlock(i, -1)}
-                    >
-                      <ChevronUpIcon className="h-4 w-4" />
-                    </IconButton>
-                    <IconButton
-                      type="button"
-                      hint="Move down"
-                      ariaLabel={`Move block ${i + 1} down`}
-                      disabled={i === blocks.length - 1}
-                      onClick={() => moveBlock(i, 1)}
-                    >
-                      <ChevronDownIcon className="h-4 w-4" />
-                    </IconButton>
-                    <IconButton
-                      type="button"
-                      tone="danger"
-                      hint="Delete block"
-                      ariaLabel={`Delete block ${i + 1}`}
-                      onClick={() => removeBlock(i)}
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </IconButton>
-                  </div>
-                </div>
-                {/* role="group" so the per-block error list can be
-                    associated with the whole block's editing region via
-                    aria-describedby (the inputs live inside BlockEditor, and
-                    the errors aggregate across its sub-fields). */}
+              <div key={i}>
+                {/* Insert-before zone (reveal on hover/focus). */}
+                <InsertZone onInsert={(t) => insertBlock(t, i)} />
+
                 <div
-                  role="group"
-                  aria-invalid={hasBlockError || undefined}
-                  aria-describedby={hasBlockError ? blockErrListId : undefined}
+                  className={`rounded border bg-navy-dark/30 p-3 transition-shadow ${blockAccentClass(
+                    block,
+                  )} ${isDragging ? "opacity-40" : ""} ${
+                    isDropTarget
+                      ? "ring-2 ring-command-gold ring-offset-1 ring-offset-deep-space"
+                      : ""
+                  }`}
+                  onDragOver={(e) => {
+                    if (dragIndex === null) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    if (overIndex !== i) setOverIndex(i);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (dragIndex !== null) reorder(dragIndex, i);
+                    clearDrag();
+                  }}
                 >
-                  <BlockEditor
-                    block={block}
-                    onChange={updateBlockAt(i)}
-                    hasError={hasBlockError}
-                    errorId={blockErrListId}
-                  />
-                </div>
-                {hasBlockError ? (
-                  <ul
-                    id={blockErrListId}
-                    className="mt-2 list-disc space-y-0.5 pl-5 font-mono text-xs font-bold text-alert-red"
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-command-gold">
+                      {/* Grip = the drag source. draggable so a pointer drag
+                          starts here without breaking text selection in the
+                          fields below. */}
+                      <span
+                        draggable
+                        onDragStart={(e) => {
+                          setDragIndex(i);
+                          e.dataTransfer.effectAllowed = "move";
+                          // Firefox requires data to be set for a drag to begin.
+                          e.dataTransfer.setData("text/plain", String(i));
+                        }}
+                        onDragEnd={clearDrag}
+                        title="Drag to reorder"
+                        aria-label={`Drag block ${i + 1} to reorder`}
+                        className="cursor-grab text-gray-3 transition-colors hover:text-command-gold active:cursor-grabbing"
+                      >
+                        <GripIcon className="h-4 w-4" />
+                      </span>
+                      <TypeIcon className="h-4 w-4" />
+                      {BLOCK_TYPE_LABELS[block.type]}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <IconButton
+                        type="button"
+                        hint="Move up"
+                        ariaLabel={`Move block ${i + 1} up`}
+                        disabled={i === 0}
+                        onClick={() => moveBlock(i, -1)}
+                      >
+                        <ChevronUpIcon className="h-4 w-4" />
+                      </IconButton>
+                      <IconButton
+                        type="button"
+                        hint="Move down"
+                        ariaLabel={`Move block ${i + 1} down`}
+                        disabled={i === blocks.length - 1}
+                        onClick={() => moveBlock(i, 1)}
+                      >
+                        <ChevronDownIcon className="h-4 w-4" />
+                      </IconButton>
+                      <IconButton
+                        type="button"
+                        tone="danger"
+                        hint="Delete block"
+                        ariaLabel={`Delete block ${i + 1}`}
+                        onClick={() => removeBlock(i)}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </IconButton>
+                    </div>
+                  </div>
+                  <div
+                    role="group"
+                    aria-invalid={hasBlockError || undefined}
+                    aria-describedby={hasBlockError ? blockErrListId : undefined}
                   >
-                    {blockErrors.map((msg, mi) => (
-                      <li key={mi}>{msg}</li>
-                    ))}
-                  </ul>
-                ) : null}
+                    <BlockEditor
+                      block={block}
+                      onChange={updateBlockAt(i)}
+                      hasError={hasBlockError}
+                      errorId={blockErrListId}
+                    />
+                  </div>
+                  {hasBlockError ? (
+                    <ul
+                      id={blockErrListId}
+                      className="mt-2 list-disc space-y-0.5 pl-5 font-mono text-xs font-bold text-alert-red"
+                    >
+                      {blockErrors.map((msg, mi) => (
+                        <li key={mi}>{msg}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
               </div>
             );
           })}
         </div>
       )}
 
-      <AddBlockMenu onAdd={addBlock} />
+      <div className="pt-2">
+        <AddBlockMenu variant="full" onAdd={(t) => insertBlock(t, blocks.length)} />
+      </div>
     </fieldset>
   );
 }
 
+// ─── insert-between zone ─────────────────────────────────────────────────────
+// A slim row before each block. The hairline + "+ insert" trigger stay near-
+// invisible until the row is hovered or something inside it is focused, so the
+// editor isn't cluttered with N insert controls — they reveal where you point.
+function InsertZone({ onInsert }: { onInsert: (type: BlockType) => void }) {
+  return (
+    <div className="group/insert relative flex h-6 items-center justify-center">
+      <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-command-gold/0 transition-colors group-hover/insert:bg-command-gold/25 group-focus-within/insert:bg-command-gold/25" />
+      <span className="relative opacity-0 transition-opacity group-hover/insert:opacity-100 group-focus-within/insert:opacity-100">
+        <AddBlockMenu variant="inline" onAdd={onInsert} />
+      </span>
+    </div>
+  );
+}
+
 // ─── add-block menu ─────────────────────────────────────────────────────────
-// A Plus button that toggles a small popup list of block types; choosing one
-// appends defaultBlock(type) and closes the popup. The popup is a plain list of
-// buttons in natural tab order (NOT an ARIA `role="menu"` — see the trigger's
-// aria-haspopup="true"): Tab/Shift+Tab move between items.
+// A trigger that toggles a small popup list of block types; choosing one calls
+// `onAdd(type)` and closes. `variant` switches the trigger between the bottom
+// "Add block" button (full) and the compact "+" used inside an InsertZone.
 //
-// Keyboard/dismissal contract:
-//   • On open, focus moves to the first item (useEffect keyed on `open`).
-//   • Escape closes the menu from anywhere inside the menu region (handler on
-//     the container, so it fires whether focus is on the trigger or an item),
-//     then returns focus to the trigger.
-//   • Outside interaction (mousedown / focusin landing outside the container)
-//     closes the menu — a document-level listener mounted only while open and
-//     torn down on cleanup. No portal: the menu stays in the container subtree.
-//   • Choosing a type appends the block, closes the menu, and returns focus to
-//     the trigger so keyboard users aren't stranded.
-function AddBlockMenu({ onAdd }: { onAdd: (type: BlockType) => void }) {
+// Keyboard/dismissal contract (unchanged): focus moves to the first item on
+// open; Escape closes + returns focus to the trigger; an outside mousedown/focus
+// closes; choosing a type closes + returns focus to the trigger.
+function AddBlockMenu({
+  onAdd,
+  variant,
+}: {
+  onAdd: (type: BlockType) => void;
+  variant: "full" | "inline";
+}) {
   const [open, setOpen] = useState(false);
   const menuId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const firstItemRef = useRef<HTMLButtonElement>(null);
+  const triggerLabel = variant === "full" ? "Add block" : "Insert block here";
 
-  // Focus-on-open: move focus to the first menu item once the list mounts.
   useEffect(() => {
     if (open) firstItemRef.current?.focus();
   }, [open]);
 
-  // Outside-dismiss: while open, close when a mousedown or focus lands outside
-  // the trigger+list container. Listener lives only for the open lifetime.
   useEffect(() => {
     if (!open) return;
     function onOutside(e: MouseEvent | FocusEvent) {
@@ -212,13 +279,11 @@ function AddBlockMenu({ onAdd }: { onAdd: (type: BlockType) => void }) {
     };
   }, [open]);
 
-  // Return focus to the trigger button (inside the container) after close.
   function focusTrigger() {
     containerRef.current
-      ?.querySelector<HTMLButtonElement>('button[aria-label="Add block"]')
+      ?.querySelector<HTMLButtonElement>("button[data-add-trigger]")
       ?.focus();
   }
-
   function choose(type: BlockType) {
     onAdd(type);
     setOpen(false);
@@ -236,28 +301,30 @@ function AddBlockMenu({ onAdd }: { onAdd: (type: BlockType) => void }) {
         }
       }}
     >
-      {/* aria-haspopup="true" (not "menu"): the popup is a plain list of
-          buttons in natural tab order, NOT an ARIA menu — there is no
-          roving-tabindex / Arrow-key navigation, so promising `role="menu"`
-          would mislead AT users. Tab/Shift+Tab moves between items; Escape and
-          outside-interaction dismiss (handled on the container). */}
       <button
         type="button"
-        aria-label="Add block"
+        data-add-trigger
+        aria-label={triggerLabel}
         aria-haspopup="true"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1.5 rounded border border-command-gold px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold"
+        className={
+          variant === "full"
+            ? "inline-flex items-center gap-1.5 rounded border border-command-gold px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold"
+            : "inline-flex items-center gap-1 rounded-full border border-command-gold bg-deep-space px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold"
+        }
       >
-        <PlusIcon className="h-4 w-4" />
-        Add block
+        <PlusIcon className={variant === "full" ? "h-4 w-4" : "h-3 w-3"} />
+        {variant === "full" ? "Add block" : "Insert"}
       </button>
       {open ? (
         <ul
           id={menuId}
           aria-label="Block types"
-          className="absolute left-0 z-20 mt-1 min-w-44 rounded border border-panel-border bg-navy-dark p-1 shadow-xl"
+          className={`absolute z-20 mt-1 min-w-44 rounded border border-panel-border bg-navy-dark p-1 shadow-xl ${
+            variant === "full" ? "left-0" : "left-1/2 -translate-x-1/2"
+          }`}
         >
           {BLOCK_TYPES.map((type, i) => {
             const ItemIcon = BLOCK_TYPE_ICON[type];
@@ -282,8 +349,7 @@ function AddBlockMenu({ onAdd }: { onAdd: (type: BlockType) => void }) {
 }
 
 // Left-accent rule color for a block card. Defaults to command-gold; callouts
-// inherit their severity's hue (critical→alert-red, warn→gold, info→signal-blue)
-// so the editor previews the block's emphasis at a glance.
+// inherit their severity's hue so the editor previews the block's emphasis.
 function blockAccentClass(block: ContentBlock): string {
   if (block.type === "callout") {
     switch (block.severity) {
