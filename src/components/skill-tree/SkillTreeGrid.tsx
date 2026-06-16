@@ -22,6 +22,7 @@
 // font-mono.
 
 import { SkillNodeCard } from "@/components/skill-tree/SkillNodeCard";
+import { SkillTreeEdges } from "@/components/skill-tree/SkillTreeEdges";
 import type { SkillNode, SkillTree } from "@/lib/skill-tree-core";
 import type { HrefViewer } from "@/lib/skill-tree-href";
 
@@ -125,6 +126,11 @@ export function SkillTreeGrid({ tree, viewer }: SkillTreeGridProps) {
             />
           ))}
         </div>
+
+        {/* Decorative SVG dependency edges (Task 7). Client overlay, absolutely
+            positioned, pointer-events-none — locates node anchors by id and
+            tracks them on resize. The grid stays fully navigable without it. */}
+        <SkillTreeEdges edges={tree.edges} />
       </div>
 
       {/* Unassigned bucket — nodes missing track and/or level. Don't drop these
