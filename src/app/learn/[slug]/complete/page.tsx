@@ -5,16 +5,20 @@ import { currentUserOrRedirect } from "@/lib/learner";
 import { getExam } from "@/lib/actions/exam";
 import { BrandMark } from "@/components/BrandMark";
 import { SupportBlock } from "@/components/learn/SupportBlock";
+import { TipBlock } from "@/components/learn/TipBlock";
 import { ReferenceGerberAdmin } from "@/components/learn/ReferenceGerberAdmin";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
 import { pickNextLessons } from "@/lib/learner-next-lessons";
 
 export default async function LessonCompletePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ tipped?: string }>;
 }) {
   const { slug } = await params;
+  const tipped = (await searchParams).tipped === "1";
   const user = await currentUserOrRedirect();
 
   const project = await db.project.findUnique({
@@ -73,6 +77,12 @@ export default async function LessonCompletePage({
 
   return (
     <main className="relative mx-auto flex min-h-[80svh] max-w-3xl flex-col items-center gap-8 px-4 py-16 text-center sm:px-6">
+      {/* Thank-you banner after a successful tip checkout (?tipped=1). */}
+      {tipped && (
+        <p className="signin-rise w-full max-w-2xl rounded border border-command-gold/40 bg-navy-dark px-4 py-3 font-mono text-xs uppercase tracking-[0.18em] text-command-gold">
+          Thanks for supporting the Academy 💛
+        </p>
+      )}
       {/* Hero — the viz "mission complete" reveal */}
       <BrandMark className="signin-rise animate-pulse-brand h-14 w-14 text-command-gold" />
       <div className="signin-rise flex flex-col items-center" style={{ animationDelay: "90ms" }}>
@@ -134,6 +144,11 @@ export default async function LessonCompletePage({
       {/* Affiliate support */}
       <div className="signin-rise" style={{ animationDelay: "270ms" }}>
         <SupportBlock />
+      </div>
+
+      {/* One-time tip */}
+      <div className="signin-rise" style={{ animationDelay: "285ms" }}>
+        <TipBlock slug={project.slug} />
       </div>
 
       {/* Verified reference gerbers — download the proven board files (or a
