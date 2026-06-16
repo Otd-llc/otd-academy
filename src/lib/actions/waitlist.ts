@@ -1,11 +1,14 @@
 "use server";
 
-// Anonymous waitlist capture (Task B1). When a visitor hits a PREMIUM project's
-// paywall, they can leave an email so we notify them when the course opens —
-// the demand signal that precedes the Stripe checkout (Phase 3). There is NO
-// auth here on purpose: anonymous capture is the whole point. The action refuses
-// non-PREMIUM projects (only a premium paywall fronts a waitlist) and is
-// idempotent on the [email, projectId] unique, so a repeat submit is a no-op.
+// Anonymous waitlist capture. Two legitimate contexts leave an email so we
+// notify them when a course opens — the demand signal that precedes checkout:
+//   1. a PREMIUM project's paywall (the original Task B1 case), and
+//   2. any UNPUBLISHED "coming soon" course on the skill tree (any tier — the
+//      course doesn't exist yet, so a waitlist is the only action).
+// There is NO auth here on purpose: anonymous capture is the whole point. The
+// action refuses only published non-premium courses (those are already
+// available, so a waitlist is meaningless) and is idempotent on the
+// [email, projectId] unique, so a repeat submit is a no-op.
 import { z } from "zod";
 import { db } from "@/lib/db";
 
@@ -19,10 +22,13 @@ export async function joinWaitlist(input: unknown): Promise<{ ok: true }> {
 
   const project = await db.project.findUniqueOrThrow({
     where: { id: projectId },
-    select: { accessTier: true },
+    select: { accessTier: true, publishedRevisionId: true },
   });
-  if (project.accessTier !== "PREMIUM") {
-    throw new Error("Waitlist signups are only available for premium courses.");
+  const isComingSoon = project.publishedRevisionId === null;
+  if (!isComingSoon && project.accessTier !== "PREMIUM") {
+    throw new Error(
+      "Waitlist signups are for upcoming or premium courses only.",
+    );
   }
 
   // Idempotent: `update: {}` leaves an existing signup (and its createdAt)

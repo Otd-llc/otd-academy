@@ -88,9 +88,13 @@ describe("hrefForNode", () => {
     );
   });
 
-  test("coming-soon → null (non-interactive)", () => {
-    const node = mkNode({ state: "coming-soon", published: false });
-    expect(hrefForNode(node, { signedIn: false })).toBeNull();
+  test("coming-soon → /courses/<slug> (preview/waitlist landing)", () => {
+    const node = mkNode({
+      slug: "l3-04-bms",
+      state: "coming-soon",
+      published: false,
+    });
+    expect(hrefForNode(node, { signedIn: false })).toBe("/courses/l3-04-bms");
   });
 
   test("outline state with null publishedLabel → null (defensive)", () => {

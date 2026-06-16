@@ -10,7 +10,8 @@
 //   - preview (PUBLIC + anon) / locked-paywall (PREMIUM) / locked-prereq
 //       → the project outline (card-0) guide hub, the same path `/courses` cards
 //         build today: `/projects/<slug>/<publishedLabel>/guide`.
-//   - coming-soon → no link (the card renders as a non-interactive <div>).
+//   - coming-soon → the per-course preview/waitlist page `/courses/<slug>`
+//       (an indexable landing for the unbuilt course; the waitlist lives there).
 
 import type { SkillNode } from "@/lib/skill-tree-core";
 
@@ -51,7 +52,9 @@ export function hrefForNode(node: SkillNode, viewer: HrefViewer): string | null 
     case "locked-prereq":
       return outlineHref(node);
     case "coming-soon":
-      return null;
+      // The unbuilt course's preview/waitlist landing (indexable; captures the
+      // notify-me signup). Always linkable — no published label required.
+      return `/courses/${node.slug}`;
     default:
       return null;
   }

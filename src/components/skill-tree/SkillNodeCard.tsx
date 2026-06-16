@@ -43,7 +43,7 @@ const STATE_RING: Record<NodeState, string> = {
   "locked-account": "border-command-gold/30",
   "locked-paywall": "border-panel-border",
   preview: "border-command-gold/50 shadow-[0_0_18px_-6px_rgba(200,150,62,0.45)]",
-  "coming-soon": "border-panel-border opacity-40",
+  "coming-soon": "border-panel-border/70",
 };
 
 function Chip({ label, color }: { label: string; color?: string }) {
@@ -140,8 +140,12 @@ function Affordance({ node }: { node: SkillNode }) {
       );
     case "coming-soon":
       return (
-        <span className="mt-auto inline-flex items-center gap-1 font-mono text-xs uppercase tracking-wider text-muted">
-          Coming soon
+        <span className="mt-auto inline-flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs uppercase tracking-wider">
+          <span className="text-muted">Coming soon</span>
+          <span className="font-bold text-command-gold">
+            <span aria-hidden="true">🔔</span> Join waitlist
+            <span aria-hidden="true"> →</span>
+          </span>
         </span>
       );
     default:
