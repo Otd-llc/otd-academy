@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { verifyCardToken } from "@/lib/certificate-token";
 import { certificateId } from "@/lib/certificate-id";
 import { CertificatePdf } from "@/lib/pdf/certificate-pdf";
+import { registerCertFonts } from "@/lib/pdf/cert-fonts";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,8 @@ export async function GET(
   const { token } = await params;
   const claims = verifyCardToken(token);
   if (!claims) return new Response("Not found", { status: 404 });
+
+  registerCertFonts();
 
   let board = "a real board";
   try {
