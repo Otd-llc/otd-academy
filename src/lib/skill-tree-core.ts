@@ -87,11 +87,16 @@ function tieBreak(a: RawProject, b: RawProject): number {
  * ignored. Frontier ties broken by (level, track, slug). Defensive against
  * cycles / missing nodes: if Kahn stalls, the remaining nodes are appended in
  * tie-break order so the function always terminates and returns every node.
+ *
+ * Generic over `RawProject` so callers can pass already-computed `SkillNode`s
+ * (which extend `RawProject`) and get them back in critical-path order — the
+ * single source of truth shared by `computeSkillTree`'s `isNext` walk and the
+ * mobile spine (`SkillTreeSpine`).
  */
-function criticalPathOrder(
-  projects: RawProject[],
+export function criticalPathOrder<T extends RawProject>(
+  projects: T[],
   edges: RawEdge[],
-): RawProject[] {
+): T[] {
   const spine = projects.filter((p) => p.criticalPath);
   const bySlug = new Map(spine.map((p) => [p.slug, p]));
 
@@ -109,7 +114,7 @@ function criticalPathOrder(
     indegree.set(e.toSlug, (indegree.get(e.toSlug) ?? 0) + 1);
   }
 
-  const result: RawProject[] = [];
+  const result: T[] = [];
   const placed = new Set<string>();
   // Active frontier = spine nodes with indegree 0, kept sorted by tieBreak.
   let frontier = spine.filter((p) => (indegree.get(p.slug) ?? 0) === 0);
