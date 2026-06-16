@@ -67,6 +67,7 @@ const createdRevisionIds: string[] = [];
 const createdBuildIds: string[] = [];
 const createdBoardIds: string[] = [];
 const createdChecklistIds: string[] = [];
+const createdProjectIds: string[] = [];
 
 beforeAll(() => {
   mockAuth.mockImplementation(async () => ({
@@ -91,6 +92,11 @@ afterAll(async () => {
   if (createdRevisionIds.length > 0) {
     await db.revision.deleteMany({
       where: { id: { in: createdRevisionIds } },
+    });
+  }
+  if (createdProjectIds.length > 0) {
+    await db.project.deleteMany({
+      where: { id: { in: createdProjectIds } },
     });
   }
 });
@@ -130,6 +136,37 @@ async function makeRevAtStage(
     },
   });
   return { id: rev.id, projectId: project.id };
+}
+
+async function makeProjectWithFlags(flags: {
+  hasMainsNet?: boolean;
+  requiresStripboard?: boolean;
+}): Promise<{ id: string }> {
+  const user = await seedUser();
+  const stamp = Date.now() + Math.floor(Math.random() * 1000);
+  const project = await db.project.create({
+    data: {
+      slug: `t-ws1-dv-${stamp}`,
+      name: "WS1 DESIGN_VALIDATION test",
+      createdById: user.id,
+      hasMainsNet: flags.hasMainsNet ?? false,
+      requiresStripboard: flags.requiresStripboard ?? false,
+    },
+  });
+  createdProjectIds.push(project.id);
+  return project;
+}
+
+async function makeRevOnProject(
+  projectId: string,
+  stage: Stage,
+  label: string,
+): Promise<{ id: string }> {
+  const rev = await db.revision.create({
+    data: { projectId, label, currentStage: stage },
+  });
+  createdRevisionIds.push(rev.id);
+  return rev;
 }
 
 async function makeBuild(revisionId: string, label: string) {
@@ -903,5 +940,63 @@ describe("materializeCanonicalChecklist — build-scoped (m5)", () => {
         templateKey: "POST_ASSEMBLY_CONTINUITY",
       }),
     ).rejects.toThrow(/frozen/i);
+  });
+});
+
+// ─── WS1: DESIGN_VALIDATION conditional injection ──────────────────────────
+//
+// The revision branch reads the parent project's boolean flags and appends
+// any conditionalItems block whose flag is true. WS1 ships the hasMainsNet
+// block (2 items) on top of the 5 core items.
+
+describe("materializeCanonicalChecklist — DESIGN_VALIDATION conditional injection (WS1)", () => {
+  test("hasMainsNet=false → only the 5 core items", async () => {
+    const project = await makeProjectWithFlags({ hasMainsNet: false });
+    const rev = await makeRevOnProject(
+      project.id,
+      "BOM_SOURCING",
+      `ws1-dv-nomains-${Date.now()}`,
+    );
+
+    const checklist = await materializeCanonicalChecklist({
+      revisionId: rev.id,
+      templateKey: "DESIGN_VALIDATION",
+    });
+    createdChecklistIds.push(checklist.id);
+
+    expect(checklist.subkind).toBe("DESIGN_VALIDATION");
+    expect(checklist.stage).toBe("BOM_SOURCING");
+
+    const items = await db.checklistItem.findMany({
+      where: { checklistId: checklist.id },
+      orderBy: { ordinal: "asc" },
+    });
+    expect(items.length).toBe(5);
+    expect(
+      items.every((i) => !/Mains-safety|Isolation barrier/i.test(i.label)),
+    ).toBe(true);
+  });
+
+  test("hasMainsNet=true → 5 core items + 2 appended safety items, in order", async () => {
+    const project = await makeProjectWithFlags({ hasMainsNet: true });
+    const rev = await makeRevOnProject(
+      project.id,
+      "BOM_SOURCING",
+      `ws1-dv-mains-${Date.now()}`,
+    );
+
+    const checklist = await materializeCanonicalChecklist({
+      revisionId: rev.id,
+      templateKey: "DESIGN_VALIDATION",
+    });
+    createdChecklistIds.push(checklist.id);
+
+    const items = await db.checklistItem.findMany({
+      where: { checklistId: checklist.id },
+      orderBy: { ordinal: "asc" },
+    });
+    expect(items.length).toBe(7);
+    expect(items[5]!.label).toMatch(/Mains-safety/i);
+    expect(items[6]!.label).toMatch(/Isolation barrier/i);
   });
 });

@@ -665,6 +665,27 @@ export async function materializeCanonicalChecklist(input: unknown) {
           );
         }
 
+        // WS1: flag-driven conditional items. Read the parent project's
+        // boolean flags and append any conditionalItems block whose flag is
+        // true (DESIGN_VALIDATION uses this; other templates declare none, so
+        // `items` collapses to `template.items`). Core items keep their
+        // ordinals first; conditional items follow in declaration order.
+        const rev = await tx.revision.findUniqueOrThrow({
+          where: { id: revisionId },
+          select: {
+            project: {
+              select: { hasMainsNet: true, requiresStripboard: true },
+            },
+          },
+        });
+        const flags = rev.project;
+        const items = [
+          ...template.items,
+          ...(template.conditionalItems ?? [])
+            .filter((c) => flags[c.flag])
+            .flatMap((c) => c.items),
+        ];
+
         return tx.checklist.create({
           data: {
             revisionId,
@@ -673,7 +694,7 @@ export async function materializeCanonicalChecklist(input: unknown) {
             title: template.title,
             createdById: user.id,
             items: {
-              create: template.items.map((it, idx) => ({
+              create: items.map((it, idx) => ({
                 ordinal: idx,
                 label: it.label,
               })),
