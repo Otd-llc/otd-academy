@@ -108,6 +108,10 @@ export function BlockListEditor({
             const hasBlockError = blockErrors.length > 0;
             const blockErrListId = `${blockErrId}-block-${i}-error`;
             const TypeIcon = BLOCK_TYPE_ICON[block.type];
+            // Authoring-stub flag: the scaffold seeds quiz/image stubs marked
+            // TODO; surface any that survive so they're obvious at a glance (the
+            // same signal the lesson-readiness gate enforces before publish).
+            const hasTodo = JSON.stringify(block).includes("TODO");
             const isDragging = dragIndex === i;
             const isDropTarget =
               overIndex === i && dragIndex !== null && dragIndex !== i;
@@ -158,6 +162,14 @@ export function BlockListEditor({
                       </span>
                       <TypeIcon className="h-4 w-4" />
                       {BLOCK_TYPE_LABELS[block.type]}
+                      {hasTodo ? (
+                        <span
+                          title="Unfilled authoring stub — replace the TODO text before publishing"
+                          className="ml-1 inline-flex items-center rounded bg-command-gold/15 px-1 py-px font-mono text-[9px] font-bold uppercase tracking-wider text-command-gold"
+                        >
+                          TODO
+                        </span>
+                      ) : null}
                     </span>
                     <div className="flex items-center gap-1">
                       <IconButton

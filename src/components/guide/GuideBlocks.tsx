@@ -52,7 +52,35 @@ export type BomRow = {
   manufacturer: string | null;
   description: string | null;
   datasheetUrl: string | null;
+  // Sourcing-health signals (route-resolved from Part). `lifecycle` flags
+  // NRND/EOL/OBSOLETE parts; `hasDatasheet` is true when a datasheet exists via
+  // either the external URL or an uploaded PartDatasheet.
+  lifecycle: "ACTIVE" | "NRND" | "EOL" | "OBSOLETE";
+  hasDatasheet: boolean;
 };
+
+// Lifecycle chip — shown only for non-ACTIVE parts (NRND = caution/gold,
+// EOL/OBSOLETE = alert/red), so a healthy BOM stays clean.
+function LifecycleBadge({ lifecycle }: { lifecycle: BomRow["lifecycle"] }) {
+  if (lifecycle === "ACTIVE") return null;
+  const danger = lifecycle === "EOL" || lifecycle === "OBSOLETE";
+  return (
+    <span
+      className={`ml-1.5 inline-flex items-center rounded px-1 py-px align-middle font-mono text-[9px] font-bold uppercase tracking-wider ${
+        danger
+          ? "bg-alert-red/15 text-alert-red"
+          : "bg-command-gold/15 text-command-gold"
+      }`}
+      title={
+        danger
+          ? "End-of-life / obsolete — find a replacement before sourcing"
+          : "Not recommended for new designs — prefer an active alternative"
+      }
+    >
+      {lifecycle}
+    </span>
+  );
+}
 
 // Strict allow-list mirrors `sanitizeNote` in artifacts.ts: drop every tag so
 // the prose markdown source can never inject HTML. The output is plain text
@@ -177,6 +205,16 @@ function BomTableBlock({
     );
   }
   const totalParts = rows.reduce((sum, r) => sum + r.qty, 0);
+  const eolCount = rows.filter(
+    (r) => r.lifecycle === "EOL" || r.lifecycle === "OBSOLETE",
+  ).length;
+  const nrndCount = rows.filter((r) => r.lifecycle === "NRND").length;
+  const noDatasheetCount = rows.filter((r) => !r.hasDatasheet).length;
+  const health = [
+    eolCount ? `${eolCount} EOL/obsolete` : null,
+    nrndCount ? `${nrndCount} NRND` : null,
+    noDatasheetCount ? `${noDatasheetCount} missing datasheet` : null,
+  ].filter(Boolean);
   return (
     <figure className="space-y-2">
       <table className="table-tech">
@@ -204,6 +242,7 @@ function BomTableBlock({
                   description={r.description}
                   datasheetUrl={r.datasheetUrl}
                 />
+                <LifecycleBadge lifecycle={r.lifecycle} />
                 {r.manufacturer ? (
                   <span className="mt-0.5 block font-mono text-[11px] normal-case text-muted">
                     {r.manufacturer}
@@ -222,8 +261,14 @@ function BomTableBlock({
                     PDF
                     <ExternalLinkIcon className="h-3 w-3 shrink-0" />
                   </a>
+                ) : r.hasDatasheet ? (
+                  <span className="text-muted" title="Datasheet on file in the parts library">
+                    on file
+                  </span>
                 ) : (
-                  "—"
+                  <span className="font-mono text-[11px] uppercase tracking-wider text-alert-red">
+                    missing
+                  </span>
                 )}
               </td>
             </tr>
@@ -233,6 +278,9 @@ function BomTableBlock({
       <figcaption className="font-mono text-xs uppercase tracking-wider text-muted">
         {caption ??
           `${rows.length} line ${rows.length === 1 ? "item" : "items"} · ${totalParts} parts`}
+        {health.length ? (
+          <span className="ml-2 text-alert-red">· {health.join(" · ")}</span>
+        ) : null}
       </figcaption>
     </figure>
   );
