@@ -134,6 +134,9 @@ export default async function HomePage({
           >
             CURRICULUM →
           </Link>
+          <Link href="/admin/waitlist" className="glass-button px-3 py-2 sm:px-4">
+            WAITLIST →
+          </Link>
           <Link
             href="/projects/new"
             className="glass-button glass-button-cta inline-flex items-center gap-1.5 px-3 py-2 sm:px-4"
