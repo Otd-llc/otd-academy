@@ -1,12 +1,19 @@
-// Lesson "definition of done" — scores a guide against the L1.01 bar so "ready
-// to publish" is measurable, not a vibe. Pure + testable: the script
-// (scripts/lesson-readiness.ts) loads the DB rows and feeds the parsed cards in.
+// Lesson "definition of done" — scores a guide against two bars so "ready" is
+// measurable, not a vibe. Pure + testable: the script (scripts/lesson-readiness.ts)
+// and the guide hub load the DB rows and feed the parsed cards in.
+//
+// Two tiers (per docs/plans/2026-06-16-board-design-process.md):
+//   • publishable — the free / SEO floor. Content is complete (cards, quizzes,
+//     no TODO stubs, a real exam). Media may still be placeholder.
+//   • vetted — the premium bar. publishable PLUS real media in every slot and at
+//     least one board brought up (the team-built signal).
 //
 // Pairs with the per-stage authoring scaffold (stage-skeletons.ts): that seeds
 // every new stage with a screenshot placeholder + a quiz stub (marked TODO), and
-// this flags any of those left unfilled.
+// this flags any left unfilled.
 
 import type { ContentBlock } from "@/lib/schemas/guide";
+import { collectEmptyMedia } from "@/lib/guide-media-queue";
 
 export interface LessonCard {
   stage: string;
@@ -18,19 +25,27 @@ export interface LessonReadinessInput {
   stages: readonly string[];
   cards: LessonCard[];
   exam: { questions: number } | null;
+  /** Count of this project's boards at BROUGHT_UP — the vetted (team-built) signal. */
+  broughtUpBoards: number;
   published: boolean;
 }
+
+/** Which bar a check gates. "info" checks are reported but gate neither bar. */
+export type ReadinessTier = "publishable" | "vetted" | "info";
 
 export interface ReadinessCheck {
   label: string;
   ok: boolean;
+  tier: ReadinessTier;
   detail?: string;
 }
 
 export interface LessonReadiness {
   checks: ReadinessCheck[];
-  /** True when every GATING check passes (publish status is informational). */
-  ready: boolean;
+  /** All publishable-tier checks pass — the free/SEO bar. */
+  publishable: boolean;
+  /** publishable AND all vetted-tier checks pass — the premium bar. */
+  vetted: boolean;
 }
 
 // Minimum exam size to count as a real final exam (L1.01 has 18).
@@ -48,12 +63,14 @@ function cardFor(cards: LessonCard[], stage: string): LessonCard | undefined {
 export function assessLessonReadiness(
   input: LessonReadinessInput,
 ): LessonReadiness {
-  const { stages, cards, exam, published } = input;
+  const { stages, cards, exam, broughtUpBoards, published } = input;
   const checks: ReadinessCheck[] = [];
 
+  // ── Publishable tier: content completeness (free / SEO floor) ──────────────
   const missingStages = stages.filter((s) => !cardFor(cards, s));
   checks.push({
     label: "All stage cards present",
+    tier: "publishable",
     ok: missingStages.length === 0,
     detail: missingStages.length ? `missing: ${missingStages.join(", ")}` : undefined,
   });
@@ -64,44 +81,68 @@ export function assessLessonReadiness(
   });
   checks.push({
     label: "Every stage has a quiz checkpoint",
+    tier: "publishable",
     ok: noQuiz.length === 0,
     detail: noQuiz.length ? `no quiz: ${noQuiz.join(", ")}` : undefined,
-  });
-
-  const noImage = stages.filter((s) => {
-    const c = cardFor(cards, s);
-    return !c || !c.blocks.some((b) => b.type === "image" && b.src !== "");
-  });
-  checks.push({
-    label: "Every stage has a screenshot/diagram",
-    ok: noImage.length === 0,
-    detail: noImage.length ? `no image: ${noImage.join(", ")}` : undefined,
   });
 
   const todoStages = cards.filter((c) => hasTodo(c.blocks)).map((c) => c.stage);
   checks.push({
     label: "No TODO authoring stubs remain",
+    tier: "publishable",
     ok: todoStages.length === 0,
     detail: todoStages.length ? `TODO in: ${todoStages.join(", ")}` : undefined,
   });
 
   checks.push({
     label: `Final exam (≥ ${MIN_EXAM_QUESTIONS} questions)`,
+    tier: "publishable",
     ok: !!exam && exam.questions >= MIN_EXAM_QUESTIONS,
     detail: exam ? `${exam.questions} questions` : "no exam",
   });
 
-  // Publish status is reported but does NOT gate readiness — it's the action you
-  // take once the lesson IS ready.
+  // ── Vetted tier: real media + a team-built board (premium bar) ─────────────
+  const noImage = stages.filter((s) => {
+    const c = cardFor(cards, s);
+    return !c || !c.blocks.some((b) => b.type === "image" && b.src !== "");
+  });
+  checks.push({
+    label: "Every stage has a screenshot/diagram",
+    tier: "vetted",
+    ok: noImage.length === 0,
+    detail: noImage.length ? `no image: ${noImage.join(", ")}` : undefined,
+  });
+
+  // "Real media in every slot" — no empty-src image/video placeholders anywhere.
+  const emptyMedia = collectEmptyMedia(cards);
+  const emptyStages = emptyMedia.map((q) => q.stage);
+  checks.push({
+    label: "No empty media placeholders remain",
+    tier: "vetted",
+    ok: emptyMedia.length === 0,
+    detail: emptyStages.length ? `empty slots in: ${emptyStages.join(", ")}` : undefined,
+  });
+
+  checks.push({
+    label: "At least one board brought up",
+    tier: "vetted",
+    ok: broughtUpBoards > 0,
+    detail: `${broughtUpBoards} BROUGHT_UP`,
+  });
+
+  // ── Info: reported, gates nothing — it's the action you take once ready ────
   checks.push({
     label: "Published",
+    tier: "info",
     ok: published,
     detail: published ? undefined : "not yet published",
   });
 
-  const ready = checks
-    .filter((c) => c.label !== "Published")
+  const publishable = checks
+    .filter((c) => c.tier === "publishable")
     .every((c) => c.ok);
+  const vetted =
+    publishable && checks.filter((c) => c.tier === "vetted").every((c) => c.ok);
 
-  return { checks, ready };
+  return { checks, publishable, vetted };
 }

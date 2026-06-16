@@ -27,6 +27,11 @@ async function main() {
         select: {
           id: true,
           guide: { select: { cards: { select: { stage: true, contentBlocks: true } } } },
+          builds: {
+            select: {
+              boards: { where: { status: "BROUGHT_UP" }, select: { id: true } },
+            },
+          },
         },
       },
     },
@@ -45,21 +50,34 @@ async function main() {
     project.exam && Array.isArray(project.exam.questions)
       ? (project.exam.questions as unknown[]).length
       : 0;
+  // Brought-up boards across all revisions/builds — the vetted (team-built) signal.
+  const broughtUpBoards = project.revisions.reduce(
+    (n, r) => n + r.builds.reduce((m, b) => m + b.boards.length, 0),
+    0,
+  );
 
   const report = assessLessonReadiness({
     stages: GUIDE_STAGES,
     cards,
     exam: project.exam ? { questions: examQuestions } : null,
+    broughtUpBoards,
     published: project.publishedRevisionId != null,
   });
 
   console.log(`\nLesson readiness — ${project.name} (${slug})\n`);
   for (const c of report.checks) {
+    const mark = c.tier === "info" ? "·" : c.ok ? "✓" : "✗";
+    const tag = c.tier === "vetted" ? " [vetted]" : "";
     console.log(
-      `  ${c.ok ? "✓" : "✗"} ${c.label}${c.detail ? `  — ${c.detail}` : ""}`,
+      `  ${mark} ${c.label}${tag}${c.detail ? `  — ${c.detail}` : ""}`,
     );
   }
-  console.log(`\n  ${report.ready ? "✅ READY to publish" : "⛔ NOT ready"}\n`);
+  const bar = report.vetted
+    ? "✅ VETTED (premium-ready)"
+    : report.publishable
+      ? "🟡 PUBLISHABLE (free/SEO) — not yet vetted"
+      : "⛔ NOT ready";
+  console.log(`\n  ${bar}\n`);
   await db.$disconnect();
 }
 

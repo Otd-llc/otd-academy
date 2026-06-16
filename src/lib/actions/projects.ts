@@ -14,6 +14,9 @@ import {
   createProjectSchema,
   editProjectSchema,
 } from "@/lib/schemas/project";
+import { guideContentBlocksSchema } from "@/lib/schemas/guide";
+import { assessLessonReadiness } from "@/lib/lesson-readiness";
+import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z, ZodError } from "zod";
@@ -21,25 +24,76 @@ import { z, ZodError } from "zod";
 const setPublishedRevisionSchema = z.object({
   projectId: z.cuid(),
   revisionId: z.cuid(),
+  // Admin override for the publishable-content gate (e.g. re-publishing a
+  // known-good revision). The gate is enforced by default.
+  force: z.boolean().optional().default(false),
 });
 
 // Admin: designate the revision whose Guide learners follow. The revision must
-// belong to the project AND have a Guide (no point publishing a guideless rev).
+// belong to the project AND have a Guide (no point publishing a guideless rev),
+// AND clear the publishable (free/SEO) readiness bar — every stage card present,
+// a quiz per stage, no TODO authoring stubs, a real final exam — unless the
+// admin passes `force`. The vetted (premium) bar is deliberately NOT enforced
+// here: free lessons publish for SEO before they're team-built and media-complete.
 export async function setPublishedRevision(
   input: unknown,
 ): Promise<{ publishedRevisionId: string | null }> {
-  const { projectId, revisionId } = setPublishedRevisionSchema.parse(input);
+  const { projectId, revisionId, force } = setPublishedRevisionSchema.parse(input);
   await requireAdmin();
 
   const revision = await db.revision.findUniqueOrThrow({
     where: { id: revisionId },
-    select: { id: true, projectId: true, guide: { select: { id: true } } },
+    select: {
+      id: true,
+      projectId: true,
+      guide: {
+        select: {
+          id: true,
+          cards: {
+            orderBy: { ordinal: "asc" },
+            select: { stage: true, contentBlocks: true },
+          },
+        },
+      },
+      project: {
+        select: {
+          publishedRevisionId: true,
+          exam: { select: { questions: true } },
+        },
+      },
+    },
   });
   if (revision.projectId !== projectId) {
     throw new Error("Revision does not belong to this project.");
   }
   if (!revision.guide) {
     throw new Error("Publish a revision that has a guide.");
+  }
+
+  if (!force) {
+    const cards = revision.guide.cards.map((c) => ({
+      stage: c.stage as string,
+      blocks: guideContentBlocksSchema.safeParse(c.contentBlocks).data ?? [],
+    }));
+    const examQuestions = Array.isArray(revision.project.exam?.questions)
+      ? (revision.project.exam.questions as unknown[]).length
+      : 0;
+    const readiness = assessLessonReadiness({
+      stages: GUIDE_STAGES,
+      cards,
+      exam: revision.project.exam ? { questions: examQuestions } : null,
+      broughtUpBoards: 0, // not part of the publishable bar
+      published: revision.project.publishedRevisionId != null,
+    });
+    if (!readiness.publishable) {
+      const failing = readiness.checks
+        .filter((c) => c.tier === "publishable" && !c.ok)
+        .map((c) => (c.detail ? `${c.label} (${c.detail})` : c.label))
+        .join("; ");
+      throw new Error(
+        `Cannot publish — not yet publishable: ${failing}. Pass force to override.`,
+      );
+    }
   }
 
   const project = await db.project.update({
