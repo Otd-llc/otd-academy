@@ -15,6 +15,7 @@
 
 import Link from "next/link";
 import { Tooltip } from "@/components/Tooltip";
+import { AdminTierToggle } from "@/components/skill-tree/AdminTierToggle";
 import type { NodeState, SkillNode } from "@/lib/skill-tree-core";
 import { hrefForNode, type HrefViewer } from "@/lib/skill-tree-href";
 import { formatUsd, resolveBuyPriceCents } from "@/lib/format-money";
@@ -148,7 +149,7 @@ function Affordance({ node }: { node: SkillNode }) {
   }
 }
 
-function CardBody({ node }: { node: SkillNode }) {
+function CardBody({ node, viewer }: { node: SkillNode; viewer: HrefViewer }) {
   const trackColor = node.track ? TRACK_COLOR[node.track] : "text-muted";
   const isCapstone = CAPSTONE_SLUGS.has(node.slug);
   return (
@@ -174,6 +175,11 @@ function CardBody({ node }: { node: SkillNode }) {
         </span>
       ) : null}
       <Affordance node={node} />
+      {/* Admin-only inline tier toggle — server decides via `viewer.isAdmin`;
+          the action re-checks requireAdmin (defense in depth). */}
+      {viewer.isAdmin ? (
+        <AdminTierToggle slug={node.slug} tier={node.accessTier} />
+      ) : null}
     </>
   );
 }
@@ -198,7 +204,7 @@ export function SkillNodeCard({ node, viewer }: SkillNodeCardProps) {
         id={`node-${node.slug}`}
         className={`${base}${capstoneGlow} cursor-default`}
       >
-        <CardBody node={node} />
+        <CardBody node={node} viewer={viewer} />
       </div>
     );
   }
@@ -209,7 +215,7 @@ export function SkillNodeCard({ node, viewer }: SkillNodeCardProps) {
       href={href}
       className={`${base}${capstoneGlow} transition-colors hover:bg-command-gold/5`}
     >
-      <CardBody node={node} />
+      <CardBody node={node} viewer={viewer} />
     </Link>
   );
 }

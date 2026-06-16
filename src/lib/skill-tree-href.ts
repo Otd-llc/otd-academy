@@ -14,9 +14,12 @@
 
 import type { SkillNode } from "@/lib/skill-tree-core";
 
-// hrefForNode only needs to know whether the viewer is signed in.
+// The viewer shape that flows through grid/spine/card. `hrefForNode` only reads
+// `signedIn`; `isAdmin` (optional) is consumed by SkillNodeCard to decide
+// whether to render the admin tier toggle.
 export interface HrefViewer {
   signedIn: boolean;
+  isAdmin?: boolean;
 }
 
 // Build the project-outline guide href. Returns null defensively if the node

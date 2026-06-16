@@ -68,8 +68,9 @@ export default async function CoursesPage() {
 
   const tree = await buildSkillTree(userId);
 
-  // The minimal viewer shape the grid/spine/SkillNodeCard consume (HrefViewer).
-  const viewer = { signedIn: userId != null };
+  // The viewer shape the grid/spine/SkillNodeCard consume (HrefViewer). `isAdmin`
+  // gates the inline tier toggle rendered inside SkillNodeCard (Task 10).
+  const viewer = { signedIn: userId != null, isAdmin };
 
   // Destination progress. `total` is the curriculum size (tree node count, not a
   // hardcoded 22); `done` is the learner's completed/mastered nodes. For anon
@@ -84,31 +85,25 @@ export default async function CoursesPage() {
   // `id="node-${slug}"` on its outer element.
   const nextNode = tree.nodes.find((n) => n.isNext);
 
-  // ItemList JSON-LD — preserved as-is (Task 10 broadens its source set). The
-  // PUBLIC course index as an ordered list, each item an absolute URL to that
-  // course's published guide hub.
+  // ItemList JSON-LD — sourced from ALL published, non-archived projects (Task
+  // 10 broadened this from PUBLIC-only). Built from `tree.nodes` to avoid a
+  // second query: a `coming-soon` state ⇔ an unpublished project, so
+  // `state !== "coming-soon"` identifies the published set. Each item uses
+  // `node.title` (publicTitle ?? name) and an absolute outline-guide URL; nodes
+  // with no published label can't form a URL and are skipped.
+  //
+  // Note: the design's `isAccessibleForFree` flag is NOT expressible on an
+  // ItemList ListItem (it lives on a WebPage/paywall shape) — intentionally
+  // omitted here; the ItemList shape is unchanged, just a broader source set.
   const base = siteUrl();
-  const publicCourses = await db.project.findMany({
-    where: {
-      accessTier: "PUBLIC",
-      publishedRevisionId: { not: null },
-      archivedAt: null,
-    },
-    select: {
-      slug: true,
-      name: true,
-      publishedRevision: { select: { label: true } },
-    },
-    orderBy: [{ level: "asc" }, { name: "asc" }],
-  });
   const courseListLd = courseListJsonLd(
-    publicCourses.flatMap((course) =>
-      course.publishedRevision?.label
+    tree.nodes.flatMap((node) =>
+      node.state !== "coming-soon" && node.publishedLabel
         ? [
             {
-              name: course.name,
-              url: `${base}/projects/${course.slug}/${encodeURIComponent(
-                course.publishedRevision.label,
+              name: node.title,
+              url: `${base}/projects/${node.slug}/${encodeURIComponent(
+                node.publishedLabel,
               )}/guide`,
             },
           ]
