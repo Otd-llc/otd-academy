@@ -51,6 +51,12 @@ import {
   emptyMediaCount,
   type StageMediaQueue,
 } from "@/lib/guide-media-queue";
+import { ReadinessPanel } from "@/components/guide/ReadinessPanel";
+import {
+  assessLessonReadiness,
+  type LessonReadiness,
+} from "@/lib/lesson-readiness";
+import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
 
 type Params = { slug: string; revLabel: string };
 
@@ -194,6 +200,8 @@ export default async function GuideHubPage({
       accessTier: true,
       stripePriceId: true,
       priceCents: true,
+      publishedRevisionId: true,
+      exam: { select: { questions: true } },
     },
   });
   if (!project) notFound();
@@ -526,19 +534,39 @@ export default async function GuideHubPage({
   // need them).
   let mediaQueue: StageMediaQueue[] = [];
   let mediaQueueTotal = 0;
+  let readiness: LessonReadiness | null = null;
   if (view.isAuthorView) {
     const blockRows = await db.guideCard.findMany({
       where: { guideId: revision.guide.id },
       orderBy: { ordinal: "asc" },
       select: { stage: true, contentBlocks: true },
     });
-    mediaQueue = collectEmptyMedia(
-      blockRows.map((c) => ({
-        stage: c.stage,
-        blocks: guideContentBlocksSchema.safeParse(c.contentBlocks).data ?? [],
-      })),
-    );
+    const parsedCards = blockRows.map((c) => ({
+      stage: c.stage as string,
+      blocks: guideContentBlocksSchema.safeParse(c.contentBlocks).data ?? [],
+    }));
+    mediaQueue = collectEmptyMedia(parsedCards);
     mediaQueueTotal = emptyMediaCount(mediaQueue);
+
+    // Two-tier "definition of done": publishable (free/SEO) vs vetted (premium).
+    // broughtUpBoards is the team-built signal — counted across all of this
+    // project's builds, not just the active one.
+    const broughtUpBoards = await db.board.count({
+      where: {
+        status: "BROUGHT_UP",
+        build: { revision: { projectId: project.id } },
+      },
+    });
+    const examQuestions = Array.isArray(project.exam?.questions)
+      ? (project.exam.questions as unknown[]).length
+      : 0;
+    readiness = assessLessonReadiness({
+      stages: GUIDE_STAGES,
+      cards: parsedCards,
+      exam: project.exam ? { questions: examQuestions } : null,
+      broughtUpBoards,
+      published: project.publishedRevisionId != null,
+    });
   }
 
   return (
@@ -568,6 +596,11 @@ export default async function GuideHubPage({
           stages={guideProgress}
         />
       </div>
+
+      {/* Admin readiness panel — two-tier definition of done. */}
+      {view.isAuthorView && readiness ? (
+        <ReadinessPanel readiness={readiness} />
+      ) : null}
 
       {/* Admin capture queue — empty screenshot/clip slots across the guide. */}
       {view.isAuthorView ? (
