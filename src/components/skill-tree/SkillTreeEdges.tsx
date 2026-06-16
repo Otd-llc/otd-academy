@@ -5,7 +5,7 @@
 // This is a CLIENT component that draws the dependency edges as a purely
 // decorative SVG layer on top of `SkillTreeGrid`. It measures each node's
 // on-screen position by `document.getElementById('node-${slug}')`, computes
-// rects RELATIVE to this overlay's own offsetParent (the grid's `relative`
+// rects RELATIVE to this overlay's own parentElement (the grid's `relative`
 // container), and draws one cubic-Bézier `<path>` per edge from the
 // prerequisite's bottom-center to the dependent's top-center.
 //
@@ -50,17 +50,18 @@ export function SkillTreeEdges({ edges }: SkillTreeEdgesProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [paths, setPaths] = useState<DrawnEdge[]>([]);
 
+  // Resolve the overlay's container. The `<svg>` is mounted as the LAST CHILD of
+  // the grid's `relative` container, so its immediate parentElement IS always the
+  // correct container — no need for the unreliable `offsetParent` lookup.
+  const getContainer = useCallback(
+    (): HTMLElement | null => svgRef.current?.parentElement ?? null,
+    [],
+  );
+
   // Measure every edge relative to the overlay's container and rebuild the path
   // list. Safe to call only after mount (touches document/getBoundingClientRect).
   const measure = useCallback(() => {
-    const svg = svgRef.current;
-    // offsetParent is the nearest positioned ancestor — the grid's `relative`
-    // container that hosts this overlay. Fall back to parentElement.
-    const container =
-      ((svg as unknown as { offsetParent?: Element | null } | null)
-        ?.offsetParent as HTMLElement | null) ??
-      svg?.parentElement ??
-      null;
+    const container = getContainer();
     if (!container) {
       setPaths([]);
       return;
@@ -100,18 +101,13 @@ export function SkillTreeEdges({ edges }: SkillTreeEdgesProps) {
     }
 
     setPaths(drawn);
-  }, [edges]);
+  }, [edges, getContainer]);
 
   useEffect(() => {
     // Initial measure after mount, once node anchors exist in the DOM.
     measure();
 
-    const svg = svgRef.current;
-    const container =
-      ((svg as unknown as { offsetParent?: Element | null } | null)
-        ?.offsetParent as HTMLElement | null) ??
-      svg?.parentElement ??
-      null;
+    const container = getContainer();
 
     // Re-measure when the grid container resizes (reflow shifts node rects).
     let observer: ResizeObserver | null = null;
@@ -128,9 +124,11 @@ export function SkillTreeEdges({ edges }: SkillTreeEdgesProps) {
       observer?.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, [measure]);
+  }, [measure, getContainer]);
 
   return (
+    // NO `viewBox` on purpose: path `d` values are in CSS-pixel container
+    // coordinates, so adding a viewBox would rescale (and misplace) every edge.
     <svg
       ref={svgRef}
       className="pointer-events-none absolute inset-0 h-full w-full"
