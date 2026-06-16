@@ -28,7 +28,9 @@ export interface StageSkeleton {
   completionRef: CompletionRef;
 }
 
-export const STAGE_CARD_SKELETONS: Record<GuideStage, StageSkeleton> = {
+// The per-stage "process" skeletons. The exported STAGE_CARD_SKELETONS (below)
+// is these PLUS a uniform authoring scaffold appended to every stage.
+const BASE_SKELETONS: Record<GuideStage, StageSkeleton> = {
   REQUIREMENTS: {
     eyebrow: "PHASE 01",
     title: "REQUIREMENTS",
@@ -157,3 +159,67 @@ export const STAGE_CARD_SKELETONS: Record<GuideStage, StageSkeleton> = {
     completionRef: { kind: "boardStatus", statuses: ["BROUGHT_UP", "QUARANTINED"] },
   },
 };
+
+// What screenshot the scaffold's image placeholder stakes out per stage — shown
+// to the admin in the in-app capture tool (the learner sees nothing until it's
+// filled). Keeps the "where's the visual?" decision made up front.
+const CAPTURE_HINTS: Record<GuideStage, string> = {
+  REQUIREMENTS: "Your requirements doc / block diagram",
+  BOM_SOURCING: "The locked BOM (your spreadsheet or Digikey cart)",
+  SCHEMATIC: "KiCad ▸ the finished schematic (or a key sub-circuit)",
+  LAYOUT: "KiCad ▸ PCB editor ▸ the routed board",
+  DRC_GERBER: "KiCad ▸ DRC report (0 errors) + the Gerber/3D preview",
+  ORDERING: "Your PCB + parts order confirmation",
+  ASSEMBLY: "The assembled board, top side",
+  BRINGUP: "The board powered up + your bring-up readings",
+};
+
+// Authoring scaffold appended to EVERY stage so a freshly-materialized guide
+// arrives pre-structured (fill-in-the-blank), not a near-blank card:
+//   • a "check" mode-band ribbon — introduces L1.01's verify phase,
+//   • a screenshot placeholder (admin-only; the capture tool fills it), and
+//   • a quiz stub — every stage gates on a quiz, and a new guide otherwise has
+//     NONE, so the gating checkpoint is pre-wired for the author to write.
+// All three are schema-valid stubs the author edits; the Scaffold-D readiness
+// check flags any left as TODO before publish.
+function authoringScaffold(stage: GuideStage): ContentBlock[] {
+  const title = BASE_SKELETONS[stage].title;
+  return [
+    {
+      type: "callout",
+      severity: "info",
+      label: "Mode · check · Verify your work",
+      body: "Confirm this stage is actually done before moving on — then take the quick check.",
+    },
+    {
+      type: "image",
+      src: "",
+      alt: `${title} — screenshot`,
+      captureHint: CAPTURE_HINTS[stage],
+    },
+    {
+      type: "quiz",
+      prompt: "Quick check",
+      questions: [
+        {
+          q: `TODO — write a one-question comprehension check for the ${title} stage.`,
+          options: ["TODO — the correct answer", "TODO — a plausible wrong answer"],
+          answer: 0,
+          explain: "TODO — explain why the correct answer is right.",
+        },
+      ],
+    },
+  ];
+}
+
+// The exported skeletons: each stage's process blocks + the uniform scaffold.
+export const STAGE_CARD_SKELETONS: Record<GuideStage, StageSkeleton> =
+  Object.fromEntries(
+    GUIDE_STAGES.map((s) => [
+      s,
+      {
+        ...BASE_SKELETONS[s],
+        baseBlocks: [...BASE_SKELETONS[s].baseBlocks, ...authoringScaffold(s)],
+      },
+    ]),
+  ) as Record<GuideStage, StageSkeleton>;
