@@ -24,6 +24,9 @@ export interface RawProject {
   criticalPath: boolean;
   priceCents: number | null;
   published: boolean;
+  // Label of the published Revision (for the project-outline href in Task 5).
+  // Carried through untouched — ignored by all state logic.
+  publishedLabel: string | null;
 }
 
 export interface RawEdge {

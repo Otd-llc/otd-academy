@@ -20,6 +20,7 @@ function mk(slug: string, overrides: Partial<RawProject> = {}): RawProject {
     criticalPath: false,
     priceCents: null,
     published: false,
+    publishedLabel: null,
     ...overrides,
   };
 }
