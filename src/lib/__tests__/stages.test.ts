@@ -101,6 +101,8 @@ function makeBomLine(part: Part, overrides: Partial<BomLine> = {}): BomLine & {
     refDes: "U1",
     quantity: 1,
     notes: null,
+    altMpn: null,
+    altManufacturer: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     createdById: "user-test",
