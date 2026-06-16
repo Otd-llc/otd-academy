@@ -36,7 +36,7 @@ export async function createCertificateShareToken(input: {
 
   const enrollment = await db.enrollment.findUnique({
     where: { userId_projectId: { userId: user.id, projectId: project.id } },
-    select: { status: true },
+    select: { status: true, masteredAt: true },
   });
   if (!enrollment) throw new Error("You're not enrolled in this lesson.");
   if (variant === "cert" && enrollment.status !== "MASTERED") {
@@ -47,6 +47,9 @@ export async function createCertificateShareToken(input: {
   }
 
   const name = user.name?.trim() || user.email?.split("@")[0] || "Builder";
-  const token = signCardToken({ slug, name, variant, score, total });
+  // Stable issue date so the token (and its share URL / cert ID) doesn't drift:
+  // the pass date for a cert, else today.
+  const date = (enrollment.masteredAt ?? new Date()).toISOString().slice(0, 10);
+  const token = signCardToken({ slug, name, variant, score, total, date });
   return { token };
 }

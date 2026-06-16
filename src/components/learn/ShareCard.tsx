@@ -1,18 +1,18 @@
 "use client";
 
-// Share + Download controls for the completion / certificate card. Download pulls
-// the PNG straight from the image route; Share uses the native share sheet when
-// available (mobile) and falls back to copying the public share link. Used on the
-// share page, the certificate reveal, and the complete screen.
+// Share + Download controls for the certificate. Download pulls the premium PDF;
+// Share uses the native share sheet when available (mobile) and falls back to
+// copying the public share link. Used on the share page, the certificate reveal,
+// and the complete screen.
 import { useState } from "react";
 
 export function ShareCard({
-  imageUrl,
+  downloadUrl,
   shareUrl,
   title,
   compact = false,
 }: {
-  imageUrl: string;
+  downloadUrl: string;
   shareUrl: string;
   title: string;
   compact?: boolean;
@@ -48,11 +48,11 @@ export function ShareCard({
   return (
     <div className={compact ? "flex flex-wrap items-center justify-center gap-2" : "flex flex-wrap items-center justify-center gap-3"}>
       <a
-        href={imageUrl}
-        download={`otd-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`}
+        href={downloadUrl}
+        download="otd-certificate.pdf"
         className={`${btn} border-command-gold bg-command-gold text-deep-space hover:bg-gold-light`}
       >
-        ↓ Download
+        ↓ Download PDF
       </a>
       <button
         type="button"

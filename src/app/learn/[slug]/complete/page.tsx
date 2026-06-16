@@ -34,6 +34,7 @@ export default async function LessonCompletePage({
     where: { userId_projectId: { userId: user.id, projectId: project.id } },
     select: {
       status: true,
+      masteredAt: true,
       // Latest passing attempt → the score on the shareable certificate.
       examResults: {
         where: { passed: true },
@@ -98,6 +99,7 @@ export default async function LessonCompletePage({
           variant: mastered ? "cert" : "done",
           score: mastered ? latestPass?.score : undefined,
           total: mastered ? latestPass?.total : undefined,
+          date: (enrollment.masteredAt ?? new Date()).toISOString().slice(0, 10),
         })
       : null;
 
@@ -140,7 +142,7 @@ export default async function LessonCompletePage({
             // {mastered ? "Share your certificate" : "Share your build"}
           </span>
           <ShareCard
-            imageUrl={`/learn/${project.slug}/certificate/${shareToken}/image`}
+            downloadUrl={`/learn/${project.slug}/certificate/${shareToken}/pdf`}
             shareUrl={`/learn/${project.slug}/certificate/${shareToken}`}
             title={mastered ? "Verified Certificate of Achievement" : "Lesson Complete"}
             compact

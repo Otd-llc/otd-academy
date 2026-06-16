@@ -14,6 +14,9 @@ type Params = { slug: string; token: string };
 function imagePath(slug: string, token: string) {
   return `/learn/${slug}/certificate/${token}/image`;
 }
+function pdfPath(slug: string, token: string) {
+  return `/learn/${slug}/certificate/${token}/pdf`;
+}
 
 export async function generateMetadata({
   params,
@@ -64,16 +67,19 @@ export default async function CertificateSharePage({
       <span className="font-mono text-[11px] uppercase tracking-[0.4em] text-gold-dim">
         // {heading}
       </span>
-      {/* eslint-disable-next-line @next/next/no-img-element — dynamic OG PNG, not a static asset */}
-      <img
-        src={imagePath(slug, token)}
-        alt={`${heading} — ${claims.name}`}
-        width={1200}
-        height={630}
-        className="w-full max-w-2xl rounded-lg border border-panel-border"
-      />
+      {/* The real PDF certificate, embedded (landscape A4 aspect). */}
+      <div
+        className="w-full max-w-3xl overflow-hidden rounded-lg border border-panel-border bg-bg-2 shadow-lg"
+        style={{ aspectRatio: "1.414 / 1" }}
+      >
+        <iframe
+          src={`${pdfPath(slug, token)}#toolbar=0&navpanes=0&view=Fit`}
+          title={`${heading} — ${claims.name}`}
+          className="h-full w-full"
+        />
+      </div>
       <ShareCard
-        imageUrl={imagePath(slug, token)}
+        downloadUrl={pdfPath(slug, token)}
         shareUrl={`${siteUrl()}/learn/${slug}/certificate/${token}`}
         title={heading}
       />

@@ -74,7 +74,7 @@ export function CertificateReveal({
       {token && (
         <div className="signin-rise" style={{ animationDelay: "180ms" }}>
           <ShareCard
-            imageUrl={`/learn/${slug}/certificate/${token}/image`}
+            downloadUrl={`/learn/${slug}/certificate/${token}/pdf`}
             shareUrl={`/learn/${slug}/certificate/${token}`}
             title="Verified Certificate of Achievement"
           />

@@ -16,6 +16,8 @@ export interface CardClaims {
   variant: CardVariant;
   score?: number;
   total?: number;
+  /** Issue date (YYYY-MM-DD) stamped at mint — shown on the certificate. */
+  date?: string;
 }
 
 function sign(body: string): string {
