@@ -166,16 +166,28 @@ export default async function CoursesPage() {
               </div>
             ) : null}
 
-            {/* No-JS anchor to the learner's next step. Signed-in only — anon has
-                no `isNext` overlay. SkillNodeCard sets `id="node-${slug}"`. */}
+            {/* No-JS anchor to the learner's next step. Signed-in only — anon
+                has no `isNext` overlay. Every node renders in BOTH the desktop
+                grid (`node-${slug}`) and the mobile spine (`spine-node-${slug}`)
+                at once, so we render TWO breakpoint-gated anchors — each targets
+                the card that's actually visible at its breakpoint. */}
             {viewer.signedIn && nextNode ? (
-              <a
-                href={`#node-${nextNode.slug}`}
-                className="mt-1 inline-flex items-center gap-1 font-mono text-xs font-bold uppercase tracking-wider text-signal-blue"
-              >
-                Jump to your next step
-                <span aria-hidden="true">→</span>
-              </a>
+              <>
+                <a
+                  href={`#node-${nextNode.slug}`}
+                  className="mt-1 hidden items-center gap-1 font-mono text-xs font-bold uppercase tracking-wider text-signal-blue lg:inline-flex"
+                >
+                  Jump to your next step
+                  <span aria-hidden="true">→</span>
+                </a>
+                <a
+                  href={`#spine-node-${nextNode.slug}`}
+                  className="mt-1 inline-flex items-center gap-1 font-mono text-xs font-bold uppercase tracking-wider text-signal-blue lg:hidden"
+                >
+                  Jump to your next step
+                  <span aria-hidden="true">→</span>
+                </a>
+              </>
             ) : null}
           </section>
 

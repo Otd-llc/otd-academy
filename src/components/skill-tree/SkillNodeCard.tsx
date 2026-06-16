@@ -187,11 +187,21 @@ function CardBody({ node, viewer }: { node: SkillNode; viewer: HrefViewer }) {
 export interface SkillNodeCardProps {
   node: SkillNode;
   viewer: HrefViewer;
+  // Prefix for the card's DOM id (`${idPrefix}-${node.slug}`). Defaults to
+  // "node" so the grid + SVG edge overlay keep their `node-${slug}` anchors.
+  // The mobile spine passes "spine-node" so its duplicate cards don't collide
+  // with the grid's ids (every node renders in BOTH views at once).
+  idPrefix?: string;
 }
 
-export function SkillNodeCard({ node, viewer }: SkillNodeCardProps) {
+export function SkillNodeCard({
+  node,
+  viewer,
+  idPrefix = "node",
+}: SkillNodeCardProps) {
   const href = hrefForNode(node, viewer);
   const isCapstone = CAPSTONE_SLUGS.has(node.slug);
+  const domId = `${idPrefix}-${node.slug}`;
   const base = `glass-card flex h-full min-h-[9rem] flex-col gap-3 border p-5 ${STATE_RING[node.state]}`;
   const capstoneGlow = isCapstone
     ? " shadow-[0_0_24px_-6px_rgba(200,150,62,0.7)] ring-1 ring-command-gold/40"
@@ -200,10 +210,7 @@ export function SkillNodeCard({ node, viewer }: SkillNodeCardProps) {
   if (href === null) {
     // Non-interactive (coming-soon, or a missing outline label): a plain div.
     return (
-      <div
-        id={`node-${node.slug}`}
-        className={`${base}${capstoneGlow} cursor-default`}
-      >
+      <div id={domId} className={`${base}${capstoneGlow} cursor-default`}>
         <CardBody node={node} viewer={viewer} />
       </div>
     );
@@ -211,7 +218,7 @@ export function SkillNodeCard({ node, viewer }: SkillNodeCardProps) {
 
   return (
     <Link
-      id={`node-${node.slug}`}
+      id={domId}
       href={href}
       className={`${base}${capstoneGlow} transition-colors hover:bg-command-gold/5`}
     >

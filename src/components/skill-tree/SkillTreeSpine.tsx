@@ -50,7 +50,12 @@ function RelatedBuilds({
       </summary>
       <div className="flex flex-col gap-2 border-t border-panel-border p-3">
         {nodes.map((n) => (
-          <SkillNodeCard key={n.slug} node={n} viewer={viewer} />
+          <SkillNodeCard
+            key={n.slug}
+            node={n}
+            viewer={viewer}
+            idPrefix="spine-node"
+          />
         ))}
       </div>
     </details>
@@ -109,7 +114,7 @@ export function SkillTreeSpine({ tree, viewer }: SkillTreeSpineProps) {
               aria-hidden="true"
               className="absolute -left-[1.4rem] top-5 h-2 w-2 rounded-full border border-panel-border bg-deep-space"
             />
-            <SkillNodeCard node={node} viewer={viewer} />
+            <SkillNodeCard node={node} viewer={viewer} idPrefix="spine-node" />
             <RelatedBuilds
               label={`+${childrenByParent.get(node.slug)?.length ?? 0} related builds`}
               nodes={childrenByParent.get(node.slug) ?? []}
