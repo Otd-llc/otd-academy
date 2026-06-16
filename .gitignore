@@ -80,3 +80,7 @@ next-env.d.ts
 /scripts/verify-freeze-wroom-bom.ts
 /scripts/verify-seed.cjs
 /scripts/verify-seed.ts
+
+/docs/plans/2026-06-15-shareable-certificate-card-design.md
+
+/docs/plans/2026-06-15-certificate-design-philosophy.md

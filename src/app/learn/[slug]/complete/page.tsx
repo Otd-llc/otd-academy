@@ -4,7 +4,10 @@ import { db } from "@/lib/db";
 import { currentUserOrRedirect } from "@/lib/learner";
 import { getExam } from "@/lib/actions/exam";
 import { BrandMark } from "@/components/BrandMark";
+import { signCardToken } from "@/lib/certificate-token";
+import { recordCertificate } from "@/lib/certificate-record";
 import { SupportBlock } from "@/components/learn/SupportBlock";
+import { ShareCard } from "@/components/learn/ShareCard";
 import { TipBlock } from "@/components/learn/TipBlock";
 import { ReferenceGerberAdmin } from "@/components/learn/ReferenceGerberAdmin";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
@@ -30,7 +33,17 @@ export default async function LessonCompletePage({
   const isAdmin = user.role === "ADMIN";
   const enrollment = await db.enrollment.findUnique({
     where: { userId_projectId: { userId: user.id, projectId: project.id } },
-    select: { status: true },
+    select: {
+      status: true,
+      masteredAt: true,
+      // Latest passing attempt → the score on the shareable certificate.
+      examResults: {
+        where: { passed: true },
+        orderBy: { submittedAt: "desc" },
+        take: 1,
+        select: { score: true, total: true },
+      },
+    },
   });
   // Only a finished learner sees this screen; anyone else goes back to the board.
   // Admins bypass the gate so they can always reach it to manage the reference
@@ -75,6 +88,24 @@ export default async function LessonCompletePage({
     : null;
   const hasGerbers = !!refGerbers;
 
+  // Shareable card token (server-signed). Only a real finisher gets one — an admin
+  // previewing without an enrollment does not.
+  const userName = user.name?.trim() || user.email?.split("@")[0] || "Builder";
+  const latestPass = enrollment?.examResults[0];
+  let shareToken: string | null = null;
+  if (enrollment && enrollment.status !== "IN_PROGRESS") {
+    const claims = {
+      slug: project.slug,
+      name: userName,
+      variant: (mastered ? "cert" : "done") as "cert" | "done",
+      score: mastered ? latestPass?.score : undefined,
+      total: mastered ? latestPass?.total : undefined,
+      date: (enrollment.masteredAt ?? new Date()).toISOString().slice(0, 10),
+    };
+    shareToken = signCardToken(claims);
+    await recordCertificate(shareToken, claims, user.id); // make the code checkable
+  }
+
   return (
     <main className="relative mx-auto flex min-h-[80svh] max-w-3xl flex-col items-center gap-8 px-4 py-16 text-center sm:px-6">
       {/* Thank-you banner after a successful tip checkout (?tipped=1). */}
@@ -103,6 +134,35 @@ export default async function LessonCompletePage({
       >
         <div className="signin-bar-fill h-full bg-command-gold" />
       </div>
+
+      {/* The certificate itself, shown on the page, with download + share */}
+      {shareToken && (
+        <div
+          className="signin-rise flex w-full max-w-2xl flex-col items-center gap-4"
+          style={{ animationDelay: "190ms" }}
+        >
+          <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-gold-dim">
+            // {mastered ? "Your certificate" : "Your completion"}
+          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element — dynamic certificate PNG, not a static asset */}
+          <img
+            src={`/learn/${project.slug}/certificate/${shareToken}/image`}
+            alt={
+              mastered
+                ? `Verified Certificate of Achievement — ${userName}`
+                : `Lesson Complete — ${userName}`
+            }
+            width={1200}
+            height={848}
+            className="w-full rounded-lg border border-panel-border shadow-lg"
+          />
+          <ShareCard
+            downloadUrl={`/learn/${project.slug}/certificate/${shareToken}/pdf`}
+            shareUrl={`/learn/${project.slug}/certificate/${shareToken}`}
+            title={mastered ? "Verified Certificate of Achievement" : "Lesson Complete"}
+          />
+        </div>
+      )}
 
       {/* Exam entry / certificate */}
       {exam ? (

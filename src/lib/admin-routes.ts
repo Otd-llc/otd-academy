@@ -34,9 +34,17 @@ export function isPublicPath(pathname: string): boolean {
   if (top === "parts") return segments[1] !== "new";
   // The public /courses index (+ any subpaths) is crawlable.
   if (top === "courses") return true;
+  // Certificate verification is for third parties (employers) who have no
+  // account — must be reachable signed-out.
+  if (top === "verify") return true;
   // Guide routes are public-ELIGIBLE; the guide page enforces accessTier
   // (anonymous may read only PUBLIC projects). Key on the "guide" position so a
   // slug containing "guide" can't open the route.
   if (top === "projects") return segments[3] === "guide";
+  // The shareable certificate card (page + its OG image route) must be reachable
+  // by signed-out visitors AND crawlers — that's the whole point of a share link.
+  // The signed token in the path is the gate (verified in the route), so this is
+  // safe to expose. Everything else under /learn stays auth-gated.
+  if (top === "learn" && segments[2] === "certificate") return true;
   return false;
 }
