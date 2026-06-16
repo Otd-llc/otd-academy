@@ -129,7 +129,9 @@ since two of the quick wins depend on it.
    part-lifecycle warnings — small badges from existing data, no new models.
 8. **`docs/boards/<slug>/design.md` template.** One file: a design-doc template structured
    to mirror the guide's stage / mode-band shape, with the risk-register table baked in.
-   Kills the blank page; it's also the WS2 starter.
+   Kills the blank page; it's also the WS2 starter. **Shipped:** copy
+   [`docs/boards/_template/design.md`](../boards/_template/design.md) to
+   `docs/boards/<project-slug>/design.md`.
 
 > **Not a quick win:** design-to-cost roll-up. `Project.targetCost` exists, but `Part`
 > has **no price field**, so a BOM cost roll-up needs a schema/data add first. It belongs
