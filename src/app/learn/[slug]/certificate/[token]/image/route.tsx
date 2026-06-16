@@ -9,7 +9,6 @@ import { db } from "@/lib/db";
 import { verifyCardToken, type CardClaims } from "@/lib/certificate-token";
 import { certificateId } from "@/lib/certificate-id";
 import { certFontData, sealDataUri } from "@/lib/pdf/cert-font-files";
-import { publicTitle } from "@/lib/public-titles";
 import { BRANDMARK_PATH, BRANDMARK_VIEWBOX, CERT_SKILLS } from "@/lib/pdf/certificate-content";
 
 export const runtime = "nodejs";
@@ -27,10 +26,13 @@ const SANS = "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans
 
 async function resolveBoard(slug: string): Promise<string> {
   try {
-    const p = await db.project.findUnique({ where: { slug }, select: { name: true } });
-    return publicTitle(slug, p?.name ?? "a real board");
+    const p = await db.project.findUnique({
+      where: { slug },
+      select: { publicTitle: true, name: true },
+    });
+    return p?.publicTitle ?? p?.name ?? "a real board";
   } catch {
-    return publicTitle(slug, "a real board");
+    return "a real board";
   }
 }
 

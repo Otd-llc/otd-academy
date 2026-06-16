@@ -7,7 +7,6 @@ import { verifyCardToken } from "@/lib/certificate-token";
 import { certificateId } from "@/lib/certificate-id";
 import { CertificatePdf } from "@/lib/pdf/certificate-pdf";
 import { registerCertFonts } from "@/lib/pdf/cert-fonts";
-import { publicTitle } from "@/lib/public-titles";
 
 export const runtime = "nodejs";
 
@@ -25,12 +24,11 @@ export async function GET(
   try {
     const project = await db.project.findUnique({
       where: { slug: claims.slug },
-      select: { name: true },
+      select: { publicTitle: true, name: true },
     });
-    board = publicTitle(claims.slug, project?.name ?? board);
+    board = project?.publicTitle ?? project?.name ?? board;
   } catch {
     // keep the fallback — a transient DB error must not 500 a credential download
-    board = publicTitle(claims.slug, board);
   }
 
   const buffer = await renderToBuffer(
