@@ -67,17 +67,16 @@ export default async function CertificateSharePage({
       <span className="font-mono text-[11px] uppercase tracking-[0.4em] text-gold-dim">
         // {heading}
       </span>
-      {/* The real PDF certificate, embedded (landscape A4 aspect). */}
-      <div
-        className="w-full max-w-3xl overflow-hidden rounded-lg border border-panel-border bg-bg-2 shadow-lg"
-        style={{ aspectRatio: "1.414 / 1" }}
-      >
-        <iframe
-          src={`${pdfPath(slug, token)}#toolbar=0&navpanes=0&view=Fit`}
-          title={`${heading} — ${claims.name}`}
-          className="h-full w-full"
-        />
-      </div>
+      {/* Display the certificate as an image (renders reliably everywhere); the
+          Download button pulls the print-quality PDF. */}
+      {/* eslint-disable-next-line @next/next/no-img-element — dynamic certificate PNG, not a static asset */}
+      <img
+        src={imagePath(slug, token)}
+        alt={`${heading} — ${claims.name}`}
+        width={1200}
+        height={848}
+        className="w-full max-w-3xl rounded-lg border border-panel-border shadow-lg"
+      />
       <ShareCard
         downloadUrl={pdfPath(slug, token)}
         shareUrl={`${siteUrl()}/learn/${slug}/certificate/${token}`}

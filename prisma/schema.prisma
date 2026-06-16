@@ -47,6 +47,7 @@ model User {
   enrollments             Enrollment[]
   entitlements            Entitlement[]
   tips                    Tip[]
+  certificates            Certificate[]
 }
 
 model Account {
@@ -177,6 +178,28 @@ model Tip {
   createdAt       DateTime @default(now())
 
   @@index([userId])
+}
+
+// An ISSUED completion/certificate — the record that makes the printed verify
+// code checkable. Written (idempotent on `code`) whenever a learner's share token
+// is minted (complete screen / share action). `code` is the human-readable cert
+// id printed on the certificate (hash of the signed token); the /verify page looks
+// it up. Holds enough to re-render the certificate (the token is re-signed from
+// these fields), so no token is stored.
+model Certificate {
+  id       String   @id @default(cuid())
+  code     String   @unique
+  slug     String
+  name     String
+  variant  String // "cert" | "done"
+  score    Int?
+  total    Int?
+  issuedAt DateTime @default(now())
+  userId   String?
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([slug])
 }
 
 model Revision {

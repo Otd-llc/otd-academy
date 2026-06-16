@@ -5,6 +5,7 @@ import { currentUserOrRedirect } from "@/lib/learner";
 import { getExam } from "@/lib/actions/exam";
 import { BrandMark } from "@/components/BrandMark";
 import { signCardToken } from "@/lib/certificate-token";
+import { recordCertificate } from "@/lib/certificate-record";
 import { SupportBlock } from "@/components/learn/SupportBlock";
 import { ShareCard } from "@/components/learn/ShareCard";
 import { TipBlock } from "@/components/learn/TipBlock";
@@ -91,17 +92,19 @@ export default async function LessonCompletePage({
   // previewing without an enrollment does not.
   const userName = user.name?.trim() || user.email?.split("@")[0] || "Builder";
   const latestPass = enrollment?.examResults[0];
-  const shareToken =
-    enrollment && enrollment.status !== "IN_PROGRESS"
-      ? signCardToken({
-          slug: project.slug,
-          name: userName,
-          variant: mastered ? "cert" : "done",
-          score: mastered ? latestPass?.score : undefined,
-          total: mastered ? latestPass?.total : undefined,
-          date: (enrollment.masteredAt ?? new Date()).toISOString().slice(0, 10),
-        })
-      : null;
+  let shareToken: string | null = null;
+  if (enrollment && enrollment.status !== "IN_PROGRESS") {
+    const claims = {
+      slug: project.slug,
+      name: userName,
+      variant: (mastered ? "cert" : "done") as "cert" | "done",
+      score: mastered ? latestPass?.score : undefined,
+      total: mastered ? latestPass?.total : undefined,
+      date: (enrollment.masteredAt ?? new Date()).toISOString().slice(0, 10),
+    };
+    shareToken = signCardToken(claims);
+    await recordCertificate(shareToken, claims, user.id); // make the code checkable
+  }
 
   return (
     <main className="relative mx-auto flex min-h-[80svh] max-w-3xl flex-col items-center gap-8 px-4 py-16 text-center sm:px-6">

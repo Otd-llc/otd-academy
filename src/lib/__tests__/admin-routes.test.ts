@@ -83,6 +83,11 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/learn/l1-01/certificate/sometoken/image")).toBe(true);
   });
 
+  it("admits the public /verify route (third-party certificate checks)", () => {
+    // Middleware passes the pathname only (no query string).
+    expect(isPublicPath("/verify")).toBe(true);
+  });
+
   it("does NOT admit other learner routes (board, exam, complete)", () => {
     expect(isPublicPath("/learn/l1-01")).toBe(false);
     expect(isPublicPath("/learn/l1-01/exam")).toBe(false);

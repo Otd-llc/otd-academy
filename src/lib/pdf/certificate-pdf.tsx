@@ -15,6 +15,7 @@ import {
   StyleSheet,
 } from "@react-pdf/renderer";
 import type { CardClaims } from "@/lib/certificate-token";
+import { BRANDMARK_PATH, BRANDMARK_VIEWBOX, CERT_SKILLS } from "@/lib/pdf/certificate-content";
 
 const IVORY = "#faf7f0";
 const INK = "#0d1117";
@@ -29,9 +30,13 @@ const s = StyleSheet.create({
   page: { backgroundColor: IVORY, fontFamily: "Helvetica", color: INK },
   borderOuter: { position: "absolute", top: 16, left: 16, right: 16, bottom: 16, border: `1.5pt solid ${GOLD}` },
   borderInner: { position: "absolute", top: 22, left: 22, right: 22, bottom: 22, border: `0.6pt solid ${MUTED}` },
-  content: { flexGrow: 1, paddingVertical: 46, paddingHorizontal: 64, alignItems: "center", justifyContent: "space-between" },
-  wordmark: { fontFamily: "Helvetica-Bold", fontSize: 13, letterSpacing: 4, color: INK },
+  content: { flexGrow: 1, paddingVertical: 40, paddingHorizontal: 64, alignItems: "center", justifyContent: "space-between" },
+  header: { alignItems: "center" },
+  wordmark: { fontFamily: "Helvetica-Bold", fontSize: 13, letterSpacing: 4, color: INK, marginTop: 8 },
   wordmarkGold: { color: GOLD },
+  skillsWrap: { alignItems: "center", marginTop: 14 },
+  skillsLabel: { fontFamily: "Helvetica", fontSize: 8, letterSpacing: 2, color: MUTED, textTransform: "uppercase", marginBottom: 4 },
+  skills: { fontFamily: "Helvetica", fontSize: 8.5, letterSpacing: 0.3, color: INK },
   middle: { alignItems: "center" },
   title: { fontFamily: "Times-Roman", fontSize: 30, letterSpacing: 1, color: INK, marginBottom: 18 },
   lead: { fontFamily: "Times-Italic", fontSize: 12.5, color: MUTED, marginBottom: 8 },
@@ -92,9 +97,14 @@ export function CertificatePdf({
         <View style={s.borderOuter} />
         <View style={s.borderInner} />
         <View style={s.content}>
-          <Text style={s.wordmark}>
-            ONE THOUSAND DRONES <Text style={s.wordmarkGold}>ACADEMY</Text>
-          </Text>
+          <View style={s.header}>
+            <Svg width={40} height={38} viewBox={BRANDMARK_VIEWBOX}>
+              <Path d={BRANDMARK_PATH} fill={GOLD} />
+            </Svg>
+            <Text style={s.wordmark}>
+              ONE THOUSAND DRONES <Text style={s.wordmarkGold}>ACADEMY</Text>
+            </Text>
+          </View>
 
           <View style={s.middle}>
             <Text style={s.title}>Certificate of {isCert ? "Achievement" : "Completion"}</Text>
@@ -108,6 +118,10 @@ export function CertificatePdf({
             {hasScore ? (
               <Text style={s.score}>Final exam · {claims.score}/{claims.total} · Passed</Text>
             ) : null}
+            <View style={s.skillsWrap}>
+              <Text style={s.skillsLabel}>— covered in this build —</Text>
+              <Text style={s.skills}>{CERT_SKILLS.join("  ·  ")}</Text>
+            </View>
           </View>
 
           <View style={s.footer}>
@@ -120,7 +134,7 @@ export function CertificatePdf({
             <View style={s.colRight}>
               <Text style={s.metaValue}>{formatDate(claims.date)}</Text>
               <Text style={s.metaValue}>ID {certId}</Text>
-              <Text style={s.label}>verify · academy.onethousanddrones.com</Text>
+              <Text style={s.label}>verify at academy.onethousanddrones.com/verify</Text>
             </View>
           </View>
         </View>

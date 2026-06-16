@@ -11,6 +11,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { signCardToken } from "@/lib/certificate-token";
+import { recordCertificate } from "@/lib/certificate-record";
 
 const schema = z.object({
   slug: z.string().trim().min(1).max(200),
@@ -50,6 +51,8 @@ export async function createCertificateShareToken(input: {
   // Stable issue date so the token (and its share URL / cert ID) doesn't drift:
   // the pass date for a cert, else today.
   const date = (enrollment.masteredAt ?? new Date()).toISOString().slice(0, 10);
-  const token = signCardToken({ slug, name, variant, score, total, date });
+  const claims = { slug, name, variant, score, total, date } as const;
+  const token = signCardToken(claims);
+  await recordCertificate(token, claims, user.id); // make the printed code checkable
   return { token };
 }
