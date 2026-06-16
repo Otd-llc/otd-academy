@@ -19,10 +19,18 @@ const storedQuestionSchema = z.object({
   prompt: z.string(),
   options: z.array(z.string()).min(2),
   correctIndex: z.int().nonnegative(),
+  // Optional build-stage grouping label (e.g. "Schematic"). Carried through to the
+  // client so the exam renders as a sectioned capstone; absent → ungrouped.
+  section: z.string().optional(),
 });
 const storedQuestionsSchema = z.array(storedQuestionSchema);
 
-type PublicQuestion = { id: string; prompt: string; options: string[] };
+type PublicQuestion = {
+  id: string;
+  prompt: string;
+  options: string[];
+  section?: string;
+};
 type PublicExam = {
   id: string;
   title: string;
@@ -47,6 +55,7 @@ export async function getExam(projectId: string): Promise<PublicExam | null> {
       id: q.id,
       prompt: q.prompt,
       options: q.options,
+      section: q.section,
     })),
   };
 }

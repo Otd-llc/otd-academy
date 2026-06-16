@@ -123,18 +123,24 @@ export default async function LessonCompletePage({
               </Link>
             </div>
           ) : (
-            <div className="glass-card p-6">
-              <p className="font-display text-xl tracking-wider text-gray-1">
-                Earn your Verified Certificate of Achievement
+            <div className="glass-card border-command-gold/40 p-8 text-center">
+              <span className="font-mono text-[11px] uppercase tracking-[0.4em] text-gold-dim">
+                ★ Optional final
+              </span>
+              <p className="mt-3 font-display text-2xl leading-tight tracking-wider text-gray-1 sm:text-3xl">
+                Earn your Verified Certificate
+                <br className="hidden sm:block" /> of Achievement
               </p>
-              <p className="mt-2 font-serif text-sm italic text-gray-2">
-                Optional — take the final exam to verify what you learned.
+              <p className="mx-auto mt-3 max-w-md font-serif text-sm italic text-gray-2">
+                Take the final exam to prove you&rsquo;ve got the whole build
+                down — every stage, start to finish. Pass and the certificate is
+                yours.
               </p>
               <Link
                 href={`/learn/${slug}/exam`}
-                className="glass-button glass-button-cta mt-4 inline-block px-6 py-3 font-mono text-sm uppercase tracking-[0.18em]"
+                className="glass-button glass-button-cta mt-5 inline-block px-8 py-3.5 font-mono text-sm uppercase tracking-[0.18em]"
               >
-                Take the final exam
+                Take the final exam →
               </Link>
             </div>
           )}

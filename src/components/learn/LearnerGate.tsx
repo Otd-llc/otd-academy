@@ -59,6 +59,7 @@ export function LearnerGate({
   cardBaseHref,
   completedHref,
   guideStages,
+  hasExam = false,
   quizRequired,
   quizPassed,
   cardHasQuiz,
@@ -70,6 +71,8 @@ export function LearnerGate({
   /** Where the terminal advance lands — the lesson's complete screen. */
   completedHref?: string;
   guideStages: readonly string[];
+  /** Whether this lesson has an optional final exam (drives the finish-line signpost). */
+  hasExam?: boolean;
   quizRequired: boolean;
   quizPassed: boolean;
   /** Whether this stage's card actually renders a quiz the learner can take. */
@@ -229,6 +232,19 @@ export function LearnerGate({
           </Row>
         )}
       </ul>
+
+      {hasExam && stage === guideStages[guideStages.length - 1] && (
+        <div className="mt-4 rounded border border-command-gold/40 bg-navy-dark p-4 text-left">
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
+            ★ Finish line
+          </p>
+          <p className="mt-1 font-serif text-sm leading-relaxed text-gray-1">
+            Finishing this stage completes the board. Then there&rsquo;s an
+            optional <span className="text-command-gold">final exam</span> — pass
+            it to earn your Verified Certificate of Achievement.
+          </p>
+        </div>
+      )}
 
       <div className="mt-4">
         <AdvanceEnrollmentButton
