@@ -14,11 +14,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { WaitlistForm } from "@/components/learn/WaitlistForm";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { courseJsonLd, breadcrumbJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { ChevronLeftIcon } from "@/components/icons";
+import { STAGE_ORDER, STAGE_LABELS, type StageName } from "@/lib/stages";
+import { SKILL_PATHS, prereqClosure } from "@/lib/skill-paths";
 
 // DB-backed + public: force request-time rendering so the CI build (stub
 // DATABASE_URL) doesn't prerender the query.
@@ -106,6 +109,28 @@ export default async function CoursePreviewPage({
     (c): c is NonNullable<typeof c> => Boolean(c),
   );
 
+  // Signed-in email → one-click waitlist join (the form prefills + collapses to
+  // a single button). Anonymous visitors get the email input.
+  const session = await auth();
+  const sessionEmail = session?.user?.email ?? undefined;
+
+  // Which learning paths include this course (its goal closure contains it) —
+  // navigation + internal linking + context. One small all-edges read.
+  const allEdges = (
+    await db.projectDependency.findMany({
+      select: {
+        dependsOnProject: { select: { slug: true } },
+        dependentProject: { select: { slug: true } },
+      },
+    })
+  ).map((e) => ({
+    fromSlug: e.dependsOnProject.slug,
+    toSlug: e.dependentProject.slug,
+  }));
+  const inPaths = SKILL_PATHS.filter(
+    (p) => p.goalSlug && prereqClosure(p.goalSlug, allEdges).has(slug),
+  );
+
   const base = siteUrl();
   const courseLd = courseJsonLd({
     name,
@@ -167,7 +192,7 @@ export default async function CoursePreviewPage({
           build next.
         </p>
         <div className="mt-4">
-          <WaitlistForm projectId={project.id} />
+          <WaitlistForm projectId={project.id} defaultEmail={sessionEmail} />
         </div>
       </section>
 
@@ -179,8 +204,38 @@ export default async function CoursePreviewPage({
         </h2>
         <p className="mt-3 font-serif text-base leading-relaxed text-gray-1">
           {project.description ??
-            `${name} is a hands-on ESP32 hardware course. You'll take a real board from schematic through layout, fabrication, and bring-up — the same end-to-end workflow used across the One Thousand Drones Academy curriculum.`}
+            `${name} is a hands-on ESP32 hardware course. You design and build a real, manufacturable board — not a breadboard mock-up — and carry it all the way from a blank schematic to a working assembly you can hold in your hand.`}
         </p>
+      </section>
+
+      {/* The build workflow — true of every course, substantial + keyword-rich.
+          The 8 authoritative stages, in order. */}
+      <section className="mt-10">
+        <h2 className="font-mono text-sm uppercase tracking-wider text-gold-dim">
+          The build workflow
+        </h2>
+        <p className="mt-3 font-serif text-base leading-relaxed text-gray-1">
+          Like every course at the academy, you take the board through the full
+          hardware process — no steps skipped, no black boxes. Each stage is
+          gated on real proof of work (a clean ERC, valid gerbers, a passing
+          bring-up), so you finish having actually done the engineering, not just
+          watched it.
+        </p>
+        <ol className="mt-4 flex flex-wrap gap-2">
+          {STAGE_ORDER.map((s: StageName, i) => (
+            <li
+              key={s}
+              className="inline-flex items-baseline gap-1.5 rounded border border-panel-border bg-deep-space/50 px-2.5 py-1"
+            >
+              <span className="font-mono text-[11px] text-command-gold">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <span className="font-mono text-[11px] uppercase tracking-wider text-gray-1">
+                {STAGE_LABELS[s]}
+              </span>
+            </li>
+          ))}
+        </ol>
       </section>
 
       {/* Where it fits — prerequisites pulled straight from the curriculum DAG. */}
@@ -201,6 +256,28 @@ export default async function CoursePreviewPage({
               </li>
             ))}
           </ul>
+        </section>
+      ) : null}
+
+      {/* Part of these builds — which goal paths' prerequisite chains include
+          this course. Internal links + context for the reader and crawlers. */}
+      {inPaths.length > 0 ? (
+        <section className="mt-10">
+          <h2 className="font-mono text-sm uppercase tracking-wider text-gold-dim">
+            Part of these builds
+          </h2>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {inPaths.map((p) => (
+              <Link
+                key={p.key}
+                href={`/courses?path=${p.key}`}
+                className="rounded border border-panel-border bg-deep-space/60 px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:border-command-gold/50"
+              >
+                {p.kind === "primary" ? "★ " : ""}
+                {p.label}
+              </Link>
+            ))}
+          </div>
         </section>
       ) : null}
 

@@ -77,7 +77,7 @@ export function pathByKey(key: string | undefined): PathDef {
 // fromSlug=prerequisite → toSlug=dependent.
 export function prereqClosure(
   goalSlug: string,
-  edges: SkillTree["edges"],
+  edges: ReadonlyArray<{ fromSlug: string; toSlug: string }>,
 ): Set<string> {
   const closure = new Set<string>([goalSlug]);
   const stack = [goalSlug];
