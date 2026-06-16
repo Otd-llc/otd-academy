@@ -100,15 +100,24 @@ since two of the quick wins depend on it.
    (`src/lib/lesson-readiness.ts`) to return both a `publishable` and a `vetted` verdict
    (real media in every slot + ≥1 `BROUGHT_UP` board for vetted). No schema. Directly
    powers the free-SEO-vs-premium split. *Biggest value/effort in the run.*
-2. **Publish-gate on readiness.** The publish action (set `publishedRevisionId`) checks
-   the *publishable* bar and refuses if `TODO` stubs / missing quizzes remain — the
-   free-SEO content floor is enforced automatically, not by discipline. Depends on #1.
+   *Note (validation):* `vetted` needs a `broughtUpBoards` count added to the function's
+   input — its current signature is `{stages, cards, exam, published}`, so callers (the
+   script + the hub) change too. Media-slot emptiness is already derivable from `cards`.
+2. **Publish-gate on readiness.** The set-published-revision action
+   (`src/lib/actions/projects.ts`) checks the *publishable* bar and refuses if `TODO`
+   stubs / missing quizzes remain — the free-SEO content floor is enforced automatically,
+   not by discipline. Depends on #1. *Note (validation):* enforce the **publishable** bar
+   only (never the vetted bar — that would block free SEO publishing), and keep an admin
+   **force** path so we can't lock ourselves out of re-publishing.
 3. **Editor flags `TODO` stubs.** Highlight any block whose JSON contains `TODO` in the
    block editor (`BlockListEditor`), so the scaffold's unfilled quiz/screenshot stubs are
    obvious at a glance. Ties scaffold-B + readiness-D + the editor together.
 4. **BOM-table health flags.** In the `bomTable` block, show `Part.lifecycle` badges
-   (NRND/EOL) and flag parts missing a `datasheetUrl`. Data already exists; real sourcing
-   signal now and a free down payment on WS3's availability gate.
+   (NRND/EOL) and flag parts with **no datasheet**. Data already exists; real sourcing
+   signal now and a free down payment on WS3's availability gate. *Note (validation):* a
+   datasheet can come from either `Part.datasheetUrl` (external link) **or** the
+   `PartDatasheet` uploaded-PDF relation — treat *either* as present, or parts with an
+   uploaded PDF false-flag.
 5. **Readiness surfaced on the guide hub (admin), with actionable links.** Render
    `assessLessonReadiness` + the `collectEmptyMedia` queue on the hub; each failing check
    deep-links to the card/action that fixes it. Turns the script-only report into an
@@ -187,8 +196,10 @@ inputs exist. WS5 is the team-build loop that earns the vetted bar.
 
 ## Open questions (resolve when this becomes an implementation plan)
 
-- **Price field shape** for design-to-cost — a `Part.priceCents` typical price vs. a
-  per-`BomLine` quoted price? (Affects WS3 cost roll-up.)
+- **Price field shape** for design-to-cost — a `Part.unitPriceCents` typical price vs. a
+  per-`BomLine` quoted price? (Affects WS3 cost roll-up.) **Do not** reuse the name
+  `priceCents`: that already exists on `Project` as the *course* price (monetization), so
+  a part cost needs a distinct name to avoid confusion.
 - **Exact `design.md` section list** — the template's headings (mirrors guide stages, but
   the design-specific sections — topology, calc trail, IC selection rationale, risk
   register — need drafting).
