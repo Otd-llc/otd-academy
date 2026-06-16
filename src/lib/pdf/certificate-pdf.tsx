@@ -22,10 +22,6 @@ const INK = "#0d1117";
 const GOLD = "#b5882e"; // deepened for contrast on ivory (paper-safe)
 const MUTED = "#6b7280";
 
-const STAR =
-  "M50 27 L57.3 41.8 L73.6 44.2 L61.8 55.7 L64.6 71.9 L50 64.3 L35.4 71.9 L38.2 55.7 L26.4 44.2 L42.7 41.8 Z";
-const CHECK = "M38 51 L46 59 L64 40 L68.5 44.5 L46 68 L33.5 55.5 Z";
-
 const s = StyleSheet.create({
   page: { backgroundColor: IVORY, fontFamily: "Helvetica", color: INK },
   borderOuter: { position: "absolute", top: 16, left: 16, right: 16, bottom: 16, border: `1.5pt solid ${GOLD}` },
@@ -53,24 +49,31 @@ const s = StyleSheet.create({
   metaValue: { fontFamily: "Helvetica-Bold", fontSize: 10, letterSpacing: 1, color: INK, marginBottom: 4 },
 });
 
-function Seal({ isCert }: { isCert: boolean }) {
+// The seal: the brand's own device — the OTD bee struck inside a fine bezel ring,
+// the way a coin or wax seal bears the house mark. The same emblem as the header,
+// twice, binds the document to its house (see the design philosophy note).
+function Seal() {
   const ticks = Array.from({ length: 24 });
   return (
-    <Svg width={86} height={86} viewBox="0 0 100 100">
-      {ticks.map((_, i) => {
-        const a = (i * 15 * Math.PI) / 180;
-        const r1 = 47;
-        const r2 = i % 2 === 0 ? 41 : 44;
-        const x1 = 50 + r1 * Math.sin(a);
-        const y1 = 50 - r1 * Math.cos(a);
-        const x2 = 50 + r2 * Math.sin(a);
-        const y2 = 50 - r2 * Math.cos(a);
-        return <Line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={i % 2 === 0 ? GOLD : MUTED} strokeWidth={i % 2 === 0 ? 1.4 : 0.7} />;
-      })}
-      <Circle cx={50} cy={50} r={37} stroke={GOLD} strokeWidth={1.5} fill="none" />
-      <Circle cx={50} cy={50} r={30} stroke={MUTED} strokeWidth={0.6} fill="none" />
-      <Path d={isCert ? STAR : CHECK} fill={GOLD} />
-    </Svg>
+    <View style={{ width: 90, height: 90, position: "relative", alignItems: "center", justifyContent: "center" }}>
+      <Svg width={90} height={90} viewBox="0 0 100 100" style={{ position: "absolute", top: 0, left: 0 }}>
+        {ticks.map((_, i) => {
+          const a = (i * 15 * Math.PI) / 180;
+          const r1 = 48;
+          const r2 = i % 2 === 0 ? 42 : 45;
+          const x1 = 50 + r1 * Math.sin(a);
+          const y1 = 50 - r1 * Math.cos(a);
+          const x2 = 50 + r2 * Math.sin(a);
+          const y2 = 50 - r2 * Math.cos(a);
+          return <Line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={i % 2 === 0 ? GOLD : MUTED} strokeWidth={i % 2 === 0 ? 1.4 : 0.7} />;
+        })}
+        <Circle cx={50} cy={50} r={39} stroke={GOLD} strokeWidth={1.4} fill="none" />
+        <Circle cx={50} cy={50} r={32} stroke={MUTED} strokeWidth={0.6} fill="none" />
+      </Svg>
+      <Svg width={42} height={40} viewBox={BRANDMARK_VIEWBOX}>
+        <Path d={BRANDMARK_PATH} fill={GOLD} />
+      </Svg>
+    </View>
   );
 }
 
@@ -130,7 +133,7 @@ export function CertificatePdf({
               <View style={s.sigLine} />
               <Text style={s.label}>Founder · One Thousand Drones</Text>
             </View>
-            <Seal isCert={isCert} />
+            <Seal />
             <View style={s.colRight}>
               <Text style={s.metaValue}>{formatDate(claims.date)}</Text>
               <Text style={s.metaValue}>ID {certId}</Text>

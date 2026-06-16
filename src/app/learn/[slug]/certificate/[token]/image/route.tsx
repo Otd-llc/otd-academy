@@ -23,10 +23,6 @@ const HAIRLINE = "#d8cfbe";
 const MUTED = "#6b7280";
 const SANS = "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif";
 
-const STAR =
-  "M50 27 L57.3 41.8 L73.6 44.2 L61.8 55.7 L64.6 71.9 L50 64.3 L35.4 71.9 L38.2 55.7 L26.4 44.2 L42.7 41.8 Z";
-const CHECK = "M38 51 L46 59 L64 40 L68.5 44.5 L46 68 L33.5 55.5 Z";
-
 async function resolveBoard(slug: string): Promise<string> {
   try {
     const p = await db.project.findUnique({ where: { slug }, select: { name: true } });
@@ -42,7 +38,9 @@ function formatDate(iso?: string): string {
   return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
 }
 
-function Seal({ isCert }: { isCert: boolean }) {
+// The seal: the OTD bee struck inside a fine bezel ring — the same house mark as
+// the header, used again as the seal (brand-coherent, not a generic star).
+function Seal() {
   const ticks = Array.from({ length: 24 });
   return (
     <div style={{ position: "relative", width: 132, height: 132, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -59,10 +57,10 @@ function Seal({ isCert }: { isCert: boolean }) {
           }}
         />
       ))}
-      <div style={{ position: "absolute", width: 104, height: 104, borderRadius: 104, border: `2px solid ${GOLD}` }} />
-      <div style={{ position: "absolute", width: 82, height: 82, borderRadius: 82, border: `1px solid ${HAIRLINE}` }} />
-      <svg width="46" height="46" viewBox="0 0 100 100" fill={GOLD}>
-        <path d={isCert ? STAR : CHECK} />
+      <div style={{ position: "absolute", width: 106, height: 106, borderRadius: 106, border: `2px solid ${GOLD}` }} />
+      <div style={{ position: "absolute", width: 84, height: 84, borderRadius: 84, border: `1px solid ${HAIRLINE}` }} />
+      <svg width="48" height="46" viewBox={BRANDMARK_VIEWBOX} fill={GOLD}>
+        <path d={BRANDMARK_PATH} />
       </svg>
     </div>
   );
@@ -132,7 +130,7 @@ function Card({ claims, board, certId }: { claims: CardClaims; board: string; ce
           <div style={{ display: "flex", width: 200, height: 1, backgroundColor: INK, marginTop: 4, marginBottom: 5 }} />
           <div style={{ display: "flex", fontSize: 11, letterSpacing: 1.5, textTransform: "uppercase", color: MUTED }}>Founder · One Thousand Drones</div>
         </div>
-        <Seal isCert={isCert} />
+        <Seal />
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", width: 320 }}>
           <div style={{ display: "flex", fontSize: 12, fontWeight: 700, letterSpacing: 1, color: INK }}>{formatDate(claims.date)}</div>
           <div style={{ display: "flex", marginTop: 4, fontSize: 12, fontWeight: 700, letterSpacing: 1, color: INK }}>ID {certId}</div>
