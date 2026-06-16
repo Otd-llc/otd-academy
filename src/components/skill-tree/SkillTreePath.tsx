@@ -42,7 +42,7 @@ export function SkillTreePath({ nodes, goalSlug, viewer }: SkillTreePathProps) {
                 <div className="flex items-center gap-3">
                   <span className="h-px flex-1 bg-command-gold/40" />
                   <span className="font-mono text-xs uppercase tracking-[0.2em] text-command-gold">
-                    ★ The build · your destination
+                    ★ Your destination
                   </span>
                   <span className="h-px flex-1 bg-command-gold/40" />
                 </div>
@@ -76,7 +76,7 @@ export function SkillTreePath({ nodes, goalSlug, viewer }: SkillTreePathProps) {
                   ) : null}
                   {isGoal ? (
                     <span className="mb-2 inline-block rounded border border-command-gold/50 bg-command-gold/10 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-command-gold">
-                      ★ The build
+                      ★ The goal
                     </span>
                   ) : null}
                   <div

@@ -28,9 +28,9 @@ export const SKILL_PATHS: PathDef[] = [
   {
     key: "eeg",
     kind: "primary",
-    label: "Build the 8-Channel EEG",
+    label: "The 8-Channel EEG",
     blurb:
-      "The flagship build — the analog board that reads real brainwaves. The brain-computer interface, and the shortest path to it.",
+      "The flagship — the analog board that reads real brainwaves. The brain-computer interface, and the shortest path to it.",
     goalSlug: "l3-01-eeg-front-end",
   },
   {
@@ -60,9 +60,9 @@ export const SKILL_PATHS: PathDef[] = [
   {
     key: "bench",
     kind: "bench",
-    label: "Bench Builds",
+    label: "Bench Tools",
     blurb:
-      "Build your bench — standalone instruments to measure, drive, and test your work.",
+      "Your bench — standalone instruments to measure, drive, and test your work.",
   },
 ];
 

@@ -145,7 +145,11 @@ export default async function CoursesPage({
           {/* Per-path banner — frames the selected build + progress along IT. */}
           <section className="glass-card mb-6 flex flex-col gap-3 p-5">
             <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">
-              {selected.def.kind === "bench" ? "Bench builds" : "The build"}
+              {selected.def.kind === "bench"
+                ? "Bench tools"
+                : selected.def.kind === "primary"
+                  ? "Flagship path"
+                  : "Mastery path"}
             </p>
             <p className="font-display text-3xl tracking-wide text-white">
               {selected.def.label}
@@ -156,7 +160,7 @@ export default async function CoursesPage({
             <p className="font-mono text-xs uppercase tracking-wider text-muted">
               {showProgress
                 ? `${done} of ${total} courses complete`
-                : `${total} courses${selected.def.kind === "bench" ? "" : " to the build"}`}
+                : `${total} courses${selected.def.kind === "bench" ? "" : ", start to finish"}`}
             </p>
 
             {/* Endowed-progress bar — signed-in AND ≥1 done, along this path. */}
@@ -209,7 +213,7 @@ export default async function CoursesPage({
                 Go further
               </p>
               <p className="mb-5 font-serif text-sm italic text-muted">
-                Other builds you can take on — each shows only the courses it
+                Other paths you can take on — each shows only the courses it
                 needs.
               </p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -15,9 +15,9 @@ export interface PathCardProps {
 }
 
 const KIND_LABEL: Record<string, string> = {
-  primary: "★ Primary build",
-  mastery: "Mastery",
-  bench: "Bench",
+  primary: "★ Flagship path",
+  mastery: "Mastery path",
+  bench: "Bench tools",
 };
 
 export function PathCard({ def, total, done, signedIn }: PathCardProps) {
@@ -45,7 +45,7 @@ export function PathCard({ def, total, done, signedIn }: PathCardProps) {
           {signedIn && done > 0 ? `${done} / ${total} done` : `${total} courses`}
         </span>
         <span className="font-bold text-command-gold">
-          View build <span aria-hidden="true">→</span>
+          View path <span aria-hidden="true">→</span>
         </span>
       </span>
     </a>
