@@ -14,6 +14,11 @@ describe("isAdminOnlyPath", () => {
     expect(isAdminOnlyPath("/curriculum/anything")).toBe(true);
   });
 
+  it("gates the /admin operator section", () => {
+    expect(isAdminOnlyPath("/admin")).toBe(true);
+    expect(isAdminOnlyPath("/admin/waitlist")).toBe(true);
+  });
+
   it("gates ONLY the parts create form — the catalog list/detail are public", () => {
     expect(isAdminOnlyPath("/parts/new")).toBe(true);
     expect(isAdminOnlyPath("/parts")).toBe(false);

@@ -15,6 +15,7 @@
 export function isAdminOnlyPath(pathname: string): boolean {
   const segments = pathname.split("/").filter(Boolean);
   const top = segments[0];
+  if (top === "admin") return true; // operator-only section (e.g. /admin/waitlist)
   if (top === "curriculum") return true;
   if (top === "parts") return segments[1] === "new";
   if (top === "projects") return segments[3] !== "guide";
