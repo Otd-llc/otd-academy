@@ -16,6 +16,11 @@ const refDesField = z
   .max(512)
   .refine((s) => s === s.trim(), "no leading/trailing spaces");
 
+// WS1: second-source identity. Optional + nullable so a line may carry an
+// alternate MPN, an alternate manufacturer, both, or neither. Not coupled —
+// it's an informational sourcing hint, not a Part FK.
+const altSourceField = z.string().trim().max(200).optional().nullable();
+
 export const createBomLineSchema = z
   .object({
     revisionId: z.cuid(),
@@ -23,6 +28,8 @@ export const createBomLineSchema = z
     refDes: refDesField,
     quantity: z.coerce.number().int().positive(),
     notes: z.string().max(1000).optional().nullable(),
+    altMpn: altSourceField,
+    altManufacturer: altSourceField,
   })
   .refine(
     (v) => v.refDes.split(",").length === v.quantity,
@@ -46,6 +53,8 @@ export const editBomLineSchema = z
     refDes: refDesField.optional(),
     quantity: z.coerce.number().int().positive().optional(),
     notes: z.string().max(1000).optional().nullable(),
+    altMpn: altSourceField,
+    altManufacturer: altSourceField,
   })
   .refine(
     (v) => {
