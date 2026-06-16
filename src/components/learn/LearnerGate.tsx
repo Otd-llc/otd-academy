@@ -57,6 +57,7 @@ export function LearnerGate({
   projectId,
   stage,
   cardBaseHref,
+  completedHref,
   guideStages,
   quizRequired,
   quizPassed,
@@ -66,6 +67,8 @@ export function LearnerGate({
   projectId: string;
   stage: string;
   cardBaseHref: string;
+  /** Where the terminal advance lands — the lesson's complete screen. */
+  completedHref?: string;
   guideStages: readonly string[];
   quizRequired: boolean;
   quizPassed: boolean;
@@ -231,6 +234,7 @@ export function LearnerGate({
         <AdvanceEnrollmentButton
           projectId={projectId}
           cardBaseHref={cardBaseHref}
+          completedHref={completedHref}
           guideStages={guideStages}
         />
       </div>

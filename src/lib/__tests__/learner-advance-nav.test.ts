@@ -34,4 +34,14 @@ describe("advanceTargetHref", () => {
       "/learn",
     );
   });
+
+  it("routes a terminal advance to the completedHref (the complete screen)", () => {
+    const href = advanceTargetHref(
+      "REVISION",
+      ["REQUIREMENTS", "BOM_SOURCING"], // guideStages (REVISION not included)
+      "/projects/l1-01/A/guide",
+      "/learn/l1-01/complete",
+    );
+    expect(href).toBe("/learn/l1-01/complete");
+  });
 });

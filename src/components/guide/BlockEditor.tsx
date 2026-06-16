@@ -800,6 +800,7 @@ function ActionEditor({
 // optional sublabel/disclosure.
 const VENDORS: Array<Extract<ContentBlock, { type: "vendorCta" }>["vendor"]> = [
   "pcbway-order",
+  "jlcpcb",
   "newark-bom",
   "amazon-bench",
 ];
