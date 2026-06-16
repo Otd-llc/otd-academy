@@ -20,7 +20,7 @@ import {
 } from "@/components/icons";
 
 export const BLOCK_TYPES = [
-  "prose", "callout", "steps", "table", "termRef", "sourceRef", "partModel", "image", "video", "quiz", "deepDive", "action", "vendorCta", "kit",
+  "prose", "callout", "steps", "table", "bomTable", "termRef", "sourceRef", "partModel", "image", "video", "quiz", "deepDive", "action", "vendorCta", "kit",
 ] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
 
@@ -29,6 +29,7 @@ export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   callout: "Callout",
   steps: "Steps",
   table: "Table",
+  bomTable: "BOM table (auto)",
   termRef: "Glossary term",
   sourceRef: "Source link",
   partModel: "3D part",
@@ -52,6 +53,7 @@ export const BLOCK_TYPE_ICON: Record<
   callout: AlertTriangleIcon,
   steps: ListIcon,
   table: TableIcon,
+  bomTable: TableIcon,
   termRef: TagIcon,
   sourceRef: LinkIcon,
   partModel: EyeIcon,
@@ -77,6 +79,8 @@ export function defaultBlock(type: BlockType): ContentBlock {
       return { type: "steps", ordered: true, items: ["Step 1"] };
     case "table":
       return { type: "table", columns: ["Column 1"], rows: [[{ text: "" }]] };
+    case "bomTable":
+      return { type: "bomTable" };
     case "termRef":
       return { type: "termRef", term: "" };
     case "sourceRef":

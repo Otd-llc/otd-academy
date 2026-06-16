@@ -51,6 +51,9 @@ export const STAGE_CARD_SKELETONS: Record<GuideStage, StageSkeleton> = {
         type: "prose",
         md: "Lock down every part and do the math up front (keep a calc trail so a reviewer can see where each value came from), then source each part on Digikey — real MPN + datasheet, and check stock, lifecycle stage, and lead time. Design around parts you can actually buy. Stripboard-de-risk boards must also pass the stripboard validation checklist.",
       },
+      // Live bill of materials, rendered from this revision's BomLine data — the
+      // table fills in as the BOM is locked, so authors never hand-transcribe it.
+      { type: "bomTable" },
     ],
     isGate: false,
     completionRef: { kind: "revisionChecklist", subkind: "STRIPBOARD_VALIDATION" },

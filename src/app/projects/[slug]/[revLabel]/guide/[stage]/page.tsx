@@ -30,7 +30,11 @@ import {
 import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/PageHeader";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
-import { GuideBlocks, type ResolvedModel } from "@/components/guide/GuideBlocks";
+import {
+  GuideBlocks,
+  type ResolvedModel,
+  type BomRow,
+} from "@/components/guide/GuideBlocks";
 import { resolveInlineDiagrams } from "@/lib/inline-diagrams";
 import { GuideCardEditor } from "@/components/guide/GuideCardEditor";
 import { GuideStepper } from "@/components/guide/GuideStepper";
@@ -360,6 +364,37 @@ export default async function GuideCardPage({
     };
   }
 
+  // Resolve a bomTable block (if any) → the revision's Bill of Materials rows
+  // (BomLine + Part), keyed to this revision. Fetched only when a card uses the
+  // block; an empty BOM degrades to the block's "not locked yet" note.
+  let bomRows: BomRow[] | undefined;
+  if (blocks.some((b) => b.type === "bomTable")) {
+    const lines = await db.bomLine.findMany({
+      where: { revisionId: revision.id },
+      select: {
+        refDes: true,
+        quantity: true,
+        part: {
+          select: {
+            mpn: true,
+            manufacturer: true,
+            description: true,
+            datasheetUrl: true,
+          },
+        },
+      },
+      orderBy: { refDes: "asc" },
+    });
+    bomRows = lines.map((l) => ({
+      refDes: l.refDes,
+      qty: l.quantity,
+      mpn: l.part.mpn,
+      manufacturer: l.part.manufacturer,
+      description: l.part.description,
+      datasheetUrl: l.part.datasheetUrl,
+    }));
+  }
+
   // Inline our house-style diagram SVGs so they render in the site's Space Mono
   // (an <img> SVG is sandboxed and falls back to system mono). KiCad exports are
   // excluded by resolveInlineDiagrams and stay <img>.
@@ -549,6 +584,7 @@ export default async function GuideCardPage({
         <GuideBlocks
           blocks={blocks}
           models={models}
+          bomRows={bomRows}
           diagrams={diagrams}
           quizContext={learnerQuizContext}
           projectId={project.id}

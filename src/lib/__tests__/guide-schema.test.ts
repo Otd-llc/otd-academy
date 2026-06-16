@@ -15,6 +15,10 @@ describe("guide schemas", () => {
   it("validates a block array", () => {
     expect(guideContentBlocksSchema.safeParse([{ type: "prose", md: "hi" }]).success).toBe(true);
   });
+  it("accepts a bomTable block with and without a caption", () => {
+    expect(contentBlockSchema.safeParse({ type: "bomTable" }).success).toBe(true);
+    expect(contentBlockSchema.safeParse({ type: "bomTable", caption: "Parts" }).success).toBe(true);
+  });
   it("accepts a revisionChecklist completionRef", () => {
     expect(completionRefSchema.safeParse({ kind: "revisionChecklist", subkind: "LAYOUT_REVIEW" }).success).toBe(true);
   });
