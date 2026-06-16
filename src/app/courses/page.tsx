@@ -19,6 +19,7 @@ import { db } from "@/lib/db";
 import { isAdminEmail } from "@/lib/admin-allowlist";
 import { buildSkillTree } from "@/lib/skill-tree";
 import { SkillTreePath } from "@/components/skill-tree/SkillTreePath";
+import { PathCard } from "@/components/skill-tree/PathCard";
 import { resolvePath, SKILL_PATHS } from "@/lib/skill-paths";
 import { PageHeader } from "@/components/PageHeader";
 import { courseListJsonLd, siteUrl } from "@/lib/seo/jsonld";
@@ -81,6 +82,12 @@ export default async function CoursesPage({
   // courses a given build actually needs.
   const selected = resolvePath(pathParam, tree);
 
+  // The OTHER builds (everything but the one being featured) — resolved for the
+  // "Go further" card gallery so each card can show its own course count/progress.
+  const otherPaths = SKILL_PATHS.filter((p) => p.key !== selected.def.key).map(
+    (p) => resolvePath(p.key, tree),
+  );
+
   // Per-PATH progress (not whole-curriculum): how far the learner is along the
   // selected build. `done`/`total` count only the path's nodes.
   const total = selected.total;
@@ -128,34 +135,6 @@ export default async function CoursesPage({
         accentWord="real"
         lead="One destination, one subsystem at a time — schematic, layout, fabrication, and bring-up. Follow the path from your first board to a brain-computer interface."
       />
-
-      {/* Path selector — pick a build goal; each resolves to its own linear
-          prerequisite chain (one path at a time = mobile-first). */}
-      <nav aria-label="Learning paths" className="mb-6">
-        <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.2em] text-gold-dim">
-          Choose your build
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {SKILL_PATHS.map((p) => {
-            const active = p.key === selected.def.key;
-            return (
-              <a
-                key={p.key}
-                href={`/courses?path=${p.key}`}
-                aria-current={active ? "page" : undefined}
-                className={`rounded border px-3 py-1.5 font-mono text-xs uppercase tracking-wider transition-colors ${
-                  active
-                    ? "border-command-gold bg-command-gold/15 text-command-gold"
-                    : "border-panel-border text-muted hover:border-command-gold/50 hover:text-gray-1"
-                }`}
-              >
-                {p.kind === "primary" ? "★ " : ""}
-                {p.label}
-              </a>
-            );
-          })}
-        </div>
-      </nav>
 
       {total === 0 ? (
         <p className="font-mono text-sm uppercase tracking-wider text-muted">
@@ -220,6 +199,32 @@ export default async function CoursesPage({
             goalSlug={selected.goalSlug}
             viewer={viewer}
           />
+
+          {/* Go further — the other builds as self-explanatory cards. The
+              featured path above is the page; these are the opt-in alternatives
+              (incl. a card back to the ★ primary build). */}
+          {otherPaths.length > 0 ? (
+            <section className="mt-14 border-t border-panel-border pt-8">
+              <p className="mb-1 font-mono text-xs uppercase tracking-[0.2em] text-command-gold">
+                Go further
+              </p>
+              <p className="mb-5 font-serif text-sm italic text-muted">
+                Other builds you can take on — each shows only the courses it
+                needs.
+              </p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {otherPaths.map((o) => (
+                  <PathCard
+                    key={o.def.key}
+                    def={o.def}
+                    total={o.total}
+                    done={o.done}
+                    signedIn={viewer.signedIn}
+                  />
+                ))}
+              </div>
+            </section>
+          ) : null}
         </>
       )}
     </main>
