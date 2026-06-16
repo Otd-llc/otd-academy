@@ -1,13 +1,15 @@
 // PNG render of the certificate (landscape A4 ratio) — the on-page <img> display
-// AND the og:image. Mirrors the @react-pdf PDF exactly: bundled Garamond (serif) +
-// Great Vibes (script) fonts, ONE emblem (the OTD bee, only as the seal), a gold
-// frame with corner ornaments, a faint bee watermark, and the Date · Seal ·
+// AND the og:image. Mirrors the @react-pdf PDF exactly: bundled Crimson Text
+// (serif) + Great Vibes (script); ONE emblem (the OTD bee, only as the seal); gold
+// rationed (frame · subtitle · rule · seal), board in ink; ornate double-bracket
+// corners with a struck diamond; a large faint bee watermark; Date · Seal ·
 // Signature footer. Bad token → branded fallback, never a 500.
 import { ImageResponse } from "next/og";
 import { db } from "@/lib/db";
 import { verifyCardToken, type CardClaims } from "@/lib/certificate-token";
 import { certificateId } from "@/lib/certificate-id";
 import { certFontData } from "@/lib/pdf/cert-font-files";
+import { publicTitle } from "@/lib/public-titles";
 import { BRANDMARK_PATH, BRANDMARK_VIEWBOX, CERT_SKILLS } from "@/lib/pdf/certificate-content";
 
 export const runtime = "nodejs";
@@ -20,14 +22,15 @@ const INK = "#14181f";
 const GOLD = "#b5882e";
 const HAIRLINE = "#d8cfbe";
 const MUTED = "#6b7280";
+const FAINT = "#9aa0ad";
 const SANS = "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif";
 
 async function resolveBoard(slug: string): Promise<string> {
   try {
     const p = await db.project.findUnique({ where: { slug }, select: { name: true } });
-    return p?.name ?? "a real board";
+    return publicTitle(slug, p?.name ?? "a real board");
   } catch {
-    return "a real board";
+    return publicTitle(slug, "a real board");
   }
 }
 
@@ -63,13 +66,32 @@ function Seal() {
   );
 }
 
-function cornerStyle(pos: "tl" | "tr" | "bl" | "br") {
-  const b = `1.2px solid ${GOLD}`;
-  const base: Record<string, string | number> = { position: "absolute", width: 28, height: 28 };
-  if (pos === "tl") return { ...base, top: 34, left: 34, borderTop: b, borderLeft: b };
-  if (pos === "tr") return { ...base, top: 34, right: 34, borderTop: b, borderRight: b };
-  if (pos === "bl") return { ...base, bottom: 34, left: 34, borderBottom: b, borderLeft: b };
-  return { ...base, bottom: 34, right: 34, borderBottom: b, borderRight: b };
+// Ornate corners drawn as ONE full-size SVG (satori mis-places absolutely-
+// positioned div ornaments — but renders SVG paths at exact coordinates
+// reliably). Each corner: an outer + inner L-bracket and a struck diamond.
+function CornerOrnaments({ w, h }: { w: number; h: number }) {
+  const m = 34; // margin from the page edge to the vertex
+  const arm = 36;
+  const off = 8;
+  const armIn = 20;
+  const dr = 6; // diamond radius
+  const corners = [
+    { x: m, y: m, sx: 1, sy: 1 },
+    { x: w - m, y: m, sx: -1, sy: 1 },
+    { x: m, y: h - m, sx: 1, sy: -1 },
+    { x: w - m, y: h - m, sx: -1, sy: -1 },
+  ];
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ position: "absolute", top: 0, left: 0 }}>
+      {corners.map((c, i) => (
+        <g key={i}>
+          <path d={`M ${c.x} ${c.y + c.sy * arm} L ${c.x} ${c.y} L ${c.x + c.sx * arm} ${c.y}`} stroke={GOLD} strokeWidth={1.6} fill="none" />
+          <path d={`M ${c.x + c.sx * off} ${c.y + c.sy * (off + armIn)} L ${c.x + c.sx * off} ${c.y + c.sy * off} L ${c.x + c.sx * (off + armIn)} ${c.y + c.sy * off}`} stroke={GOLD} strokeWidth={1} fill="none" />
+          <path d={`M ${c.x} ${c.y - dr} L ${c.x + dr} ${c.y} L ${c.x} ${c.y + dr} L ${c.x - dr} ${c.y} Z`} fill={GOLD} />
+        </g>
+      ))}
+    </svg>
+  );
 }
 
 function Card({ claims, board, certId }: { claims: CardClaims; board: string; certId: string }) {
@@ -86,62 +108,59 @@ function Card({ claims, board, certId }: { claims: CardClaims; board: string; ce
         justifyContent: "space-between",
         backgroundColor: IVORY,
         backgroundImage: `radial-gradient(1100px 760px at 50% 40%, ${IVORY} 30%, ${PAPER_2} 100%)`,
-        padding: "60px 90px",
+        padding: "66px 96px",
         fontFamily: SANS,
         color: INK,
         textAlign: "center",
         position: "relative",
       }}
     >
-      {/* faint bee watermark */}
+      {/* large faint bee watermark */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <svg width="320" height="306" viewBox={BRANDMARK_VIEWBOX} fill={GOLD} style={{ opacity: 0.05 }}>
+        <svg width="560" height="536" viewBox={BRANDMARK_VIEWBOX} fill={GOLD} style={{ opacity: 0.035 }}>
           <path d={BRANDMARK_PATH} />
         </svg>
       </div>
-      {/* frame + corners */}
+      {/* frame + ornate corners */}
       <div style={{ position: "absolute", top: 22, left: 22, right: 22, bottom: 22, border: `2px solid ${GOLD}` }} />
       <div style={{ position: "absolute", top: 29, left: 29, right: 29, bottom: 29, border: `1px solid ${MUTED}` }} />
-      <div style={cornerStyle("tl")} />
-      <div style={cornerStyle("tr")} />
-      <div style={cornerStyle("bl")} />
-      <div style={cornerStyle("br")} />
+      <CornerOrnaments w={size.width} h={size.height} />
 
       {/* header */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
         <div style={{ display: "flex", fontSize: 16, letterSpacing: 6, color: MUTED, textTransform: "uppercase" }}>
           One Thousand Drones Academy
         </div>
-        <div style={{ display: "flex", marginTop: 16, fontFamily: "Serif", fontSize: 64, letterSpacing: 8, color: INK, textTransform: "uppercase" }}>
+        <div style={{ display: "flex", marginTop: 14, fontFamily: "Serif", fontSize: 60, letterSpacing: 5, color: INK, textTransform: "uppercase" }}>
           Certificate
         </div>
-        <div style={{ display: "flex", marginTop: 2, fontFamily: "Serif", fontSize: 24, letterSpacing: 12, color: GOLD, textTransform: "uppercase" }}>
+        <div style={{ display: "flex", marginTop: 3, fontFamily: "Serif", fontSize: 23, letterSpacing: 9, color: GOLD, textTransform: "uppercase" }}>
           of {isCert ? "Achievement" : "Completion"}
         </div>
       </div>
 
       {/* middle */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <div style={{ display: "flex", fontSize: 13, letterSpacing: 3, color: MUTED, textTransform: "uppercase" }}>
+        <div style={{ display: "flex", fontSize: 13, letterSpacing: 3, color: FAINT, textTransform: "uppercase" }}>
           This certifies that
         </div>
-        <div style={{ display: "flex", fontFamily: "Script", fontSize: 92, color: INK, marginTop: 2 }}>
+        <div style={{ display: "flex", fontFamily: "Script", fontSize: 92, color: INK, marginTop: 4 }}>
           {claims.name}
         </div>
-        <div style={{ display: "flex", width: 340, height: 1.5, backgroundColor: GOLD, marginTop: 6, marginBottom: 14 }} />
+        <div style={{ display: "flex", width: 360, height: 1.5, backgroundColor: GOLD, marginTop: 10, marginBottom: 20 }} />
         <div style={{ display: "flex", fontFamily: "Serif", fontSize: 19, fontStyle: "italic", color: MUTED }}>
           {isCert ? "earned this certificate for designing and building" : "designed and built a real board:"}
         </div>
-        <div style={{ display: "flex", fontFamily: "Serif", fontSize: 34, color: GOLD, marginTop: 4 }}>{board}</div>
+        <div style={{ display: "flex", fontFamily: "Serif", fontSize: 35, color: INK, marginTop: 5 }}>{board}</div>
         {hasScore ? (
-          <div style={{ display: "flex", marginTop: 8, fontSize: 12, letterSpacing: 2, color: MUTED, textTransform: "uppercase" }}>
+          <div style={{ display: "flex", marginTop: 12, fontSize: 11, letterSpacing: 2, color: FAINT, textTransform: "uppercase" }}>
             Final exam · {claims.score}/{claims.total} · Passed
           </div>
         ) : null}
-        <div style={{ display: "flex", marginTop: 16, fontSize: 10, letterSpacing: 2, color: MUTED, textTransform: "uppercase" }}>
+        <div style={{ display: "flex", marginTop: 22, fontSize: 9, letterSpacing: 2, color: FAINT, textTransform: "uppercase" }}>
           — covered in this build —
         </div>
-        <div style={{ display: "flex", marginTop: 5, fontFamily: "Serif", fontSize: 14, color: INK }}>
+        <div style={{ display: "flex", marginTop: 6, fontFamily: "Serif", fontSize: 13, color: MUTED }}>
           {CERT_SKILLS.join("   ·   ")}
         </div>
       </div>
@@ -149,20 +168,20 @@ function Card({ claims, board, certId }: { claims: CardClaims; board: string; ce
       {/* footer: date · seal · signature */}
       <div style={{ width: "100%", display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 300 }}>
-          <div style={{ display: "flex", fontFamily: "Script", fontSize: 30, color: INK }}>{formatDate(claims.date)}</div>
-          <div style={{ display: "flex", width: 180, height: 1, backgroundColor: INK, marginTop: 4, marginBottom: 5 }} />
+          <div style={{ display: "flex", fontFamily: "Serif", fontSize: 24, color: INK }}>{formatDate(claims.date)}</div>
+          <div style={{ display: "flex", width: 190, height: 1, backgroundColor: INK, marginTop: 4, marginBottom: 5 }} />
           <div style={{ display: "flex", fontSize: 11, letterSpacing: 2, color: MUTED, textTransform: "uppercase" }}>Date</div>
         </div>
         <Seal />
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 300 }}>
-          <div style={{ display: "flex", fontFamily: "Script", fontSize: 30, color: INK }}>Joshua Tollette</div>
-          <div style={{ display: "flex", width: 180, height: 1, backgroundColor: INK, marginTop: 4, marginBottom: 5 }} />
+          <div style={{ display: "flex", fontFamily: "Script", fontSize: 34, color: INK }}>Joshua Tollette</div>
+          <div style={{ display: "flex", width: 190, height: 1, backgroundColor: INK, marginTop: 4, marginBottom: 5 }} />
           <div style={{ display: "flex", fontSize: 11, letterSpacing: 2, color: MUTED, textTransform: "uppercase" }}>Founder · One Thousand Drones</div>
         </div>
       </div>
 
       {/* provenance */}
-      <div style={{ position: "absolute", bottom: 40, left: 0, right: 0, display: "flex", justifyContent: "center", fontSize: 10, letterSpacing: 1.5, color: MUTED, textTransform: "uppercase" }}>
+      <div style={{ position: "absolute", bottom: 44, left: 0, right: 0, display: "flex", justifyContent: "center", fontSize: 10, letterSpacing: 1.5, color: FAINT, textTransform: "uppercase" }}>
         ID {certId} · Verify at academy.onethousanddrones.com/verify
       </div>
     </div>
