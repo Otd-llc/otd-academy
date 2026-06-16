@@ -26,6 +26,7 @@ import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
 import { DIAGRAM_COMPONENTS } from "@/components/guide/diagram-registry";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
 import { CaptureLauncher } from "@/components/guide/CaptureLauncher";
+import { PartMpnLink } from "@/components/guide/PartMpnLink";
 import {
   affiliateLink,
   amazonProductLink,
@@ -39,6 +40,19 @@ import type { RenderBounds } from "@/lib/schemas/part-asset";
 // the part's MODEL_3D render URL + camera bounds server-side and passes this map
 // in; a block whose MPN isn't present degrades to its caption.
 export type ResolvedModel = { src: string; bounds: RenderBounds | null };
+
+// A bomTable block's resolved rows — the revision's Bill of Materials, fetched
+// from BomLine + Part by the card route and passed in (like `models`). A card
+// with no BOM lines / no resolved rows degrades to a small "not locked" note.
+export type BomRow = {
+  partId: string;
+  refDes: string;
+  qty: number;
+  mpn: string | null;
+  manufacturer: string | null;
+  description: string | null;
+  datasheetUrl: string | null;
+};
 
 // Strict allow-list mirrors `sanitizeNote` in artifacts.ts: drop every tag so
 // the prose markdown source can never inject HTML. The output is plain text
@@ -140,6 +154,86 @@ function PartModelBlock({
           {caption}
         </figcaption>
       ) : null}
+    </figure>
+  );
+}
+
+// bomTable — the revision's Bill of Materials, rendered live from BomLine data.
+// `rows` is route-resolved (BomLine + Part); absent / empty → a small note so a
+// card whose BOM isn't locked yet stages cleanly instead of showing a broken
+// table. Reuses the `.table-tech` / `.ref` / `.mpn` styling of the table block.
+function BomTableBlock({
+  caption,
+  rows,
+}: {
+  caption?: string;
+  rows?: BomRow[];
+}) {
+  if (!rows || rows.length === 0) {
+    return (
+      <p className="font-mono text-xs uppercase tracking-wider text-muted">
+        The bill of materials lists here once the BOM is locked.
+      </p>
+    );
+  }
+  const totalParts = rows.reduce((sum, r) => sum + r.qty, 0);
+  return (
+    <figure className="space-y-2">
+      <table className="table-tech">
+        <thead>
+          <tr>
+            <th>Ref</th>
+            <th>Qty</th>
+            <th>Part</th>
+            <th>Description</th>
+            <th>Datasheet</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i}>
+              <td data-label="Ref">
+                <span className="ref">{r.refDes}</span>
+              </td>
+              <td data-label="Qty">{r.qty}</td>
+              <td data-label="Part">
+                <PartMpnLink
+                  partId={r.partId}
+                  mpn={r.mpn}
+                  manufacturer={r.manufacturer}
+                  description={r.description}
+                  datasheetUrl={r.datasheetUrl}
+                />
+                {r.manufacturer ? (
+                  <span className="mt-0.5 block font-mono text-[11px] normal-case text-muted">
+                    {r.manufacturer}
+                  </span>
+                ) : null}
+              </td>
+              <td data-label="Description">{r.description ?? ""}</td>
+              <td data-label="Datasheet">
+                {r.datasheetUrl ? (
+                  <a
+                    href={r.datasheetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="inline-flex items-center gap-1 text-signal-blue underline decoration-dotted underline-offset-2 hover:text-command-gold"
+                  >
+                    PDF
+                    <ExternalLinkIcon className="h-3 w-3 shrink-0" />
+                  </a>
+                ) : (
+                  "—"
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <figcaption className="font-mono text-xs uppercase tracking-wider text-muted">
+        {caption ??
+          `${rows.length} line ${rows.length === 1 ? "item" : "items"} · ${totalParts} parts`}
+      </figcaption>
     </figure>
   );
 }
@@ -846,6 +940,7 @@ function GuideBlock({
   block,
   index,
   models,
+  bomRows,
   diagrams,
   quizContext,
   projectId,
@@ -856,6 +951,7 @@ function GuideBlock({
   block: ContentBlock;
   index: number;
   models?: Record<string, ResolvedModel>;
+  bomRows?: BomRow[];
   diagrams?: Record<string, string>;
   quizContext?: QuizContext;
   projectId?: string;
@@ -927,6 +1023,9 @@ function GuideBlock({
           model={block.mpn ? models?.[block.mpn] : undefined}
         />
       );
+
+    case "bomTable":
+      return <BomTableBlock caption={block.caption} rows={bomRows} />;
 
     case "image":
       return (
@@ -1045,6 +1144,7 @@ function GuideBlock({
 export function GuideBlocks({
   blocks,
   models,
+  bomRows,
   diagrams,
   quizContext,
   projectId,
@@ -1054,6 +1154,7 @@ export function GuideBlocks({
 }: {
   blocks: ContentBlock[];
   models?: Record<string, ResolvedModel>;
+  bomRows?: BomRow[];
   diagrams?: Record<string, string>;
   quizContext?: QuizContext;
   projectId?: string;
@@ -1075,6 +1176,7 @@ export function GuideBlocks({
           block={block}
           index={i}
           models={models}
+          bomRows={bomRows}
           diagrams={diagrams}
           quizContext={quizContext}
           projectId={projectId}

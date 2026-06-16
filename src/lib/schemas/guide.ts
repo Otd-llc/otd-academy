@@ -22,6 +22,11 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("callout"), severity: z.enum(["critical", "warn", "info"]), label: z.string().trim().min(1).max(120), body: z.string().max(2000) }),
   z.object({ type: z.literal("steps"), ordered: z.boolean().default(true), items: z.array(z.string().max(500)).min(1) }),
   z.object({ type: z.literal("table"), columns: z.array(z.string()).min(1), rows: z.array(z.array(cellSchema)) }),
+  // bomTable — the revision's bill of materials, rendered LIVE from BomLine data
+  // (refDes, qty, MPN, manufacturer, description, datasheet) at render time. Like
+  // partModel it stores NO data itself — drop it in the BOM_SOURCING card and it
+  // stays in sync with the actual BOM. `caption` overrides the default summary.
+  z.object({ type: z.literal("bomTable"), caption: z.string().max(160).optional() }),
   z.object({ type: z.literal("termRef"), term: z.string().max(80) }),
   z.object({
     type: z.literal("sourceRef"),

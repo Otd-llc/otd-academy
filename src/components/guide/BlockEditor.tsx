@@ -65,6 +65,8 @@ export function BlockEditor({
       return <StepsEditor block={block} onChange={onChange} {...err} />;
     case "table":
       return <TableBlockEditor block={block} onChange={onChange} {...err} />;
+    case "bomTable":
+      return <BomTableEditor block={block} onChange={onChange} {...err} />;
     case "termRef":
       return <TermRefEditor block={block} onChange={onChange} {...err} />;
     case "sourceRef":
@@ -106,6 +108,42 @@ export function BlockEditor({
       return _exhaustive;
     }
   }
+}
+
+// ─── bomTable ─────────────────────────────────────────────────────────────
+// The table content is auto-generated from the revision's BOM at render time,
+// so there is nothing to author but an optional caption override.
+function BomTableEditor({
+  block,
+  onChange,
+  hasError,
+  errorId,
+}: {
+  block: Extract<ContentBlock, { type: "bomTable" }>;
+  onChange: (next: ContentBlock) => void;
+} & BlockErrorProps) {
+  const id = useId();
+  return (
+    <div className="space-y-1">
+      <p className={helpClass}>
+        Renders this revision&apos;s bill of materials automatically — nothing to
+        enter. An optional caption overrides the summary line beneath the table.
+      </p>
+      <label htmlFor={id} className={labelClass}>
+        Caption (optional)
+      </label>
+      <input
+        id={id}
+        type="text"
+        value={block.caption ?? ""}
+        onChange={(e) =>
+          onChange({ ...block, caption: e.target.value || undefined })
+        }
+        className={inputClass}
+        {...ariaErrorProps({ hasError, errorId })}
+      />
+    </div>
+  );
 }
 
 // ─── prose ──────────────────────────────────────────────────────────────
