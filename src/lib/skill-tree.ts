@@ -1,0 +1,104 @@
+// Thin DB shell over the pure `computeSkillTree` engine. Loads the non-archived
+// projects, the dependency edges, and the viewer's role / completed-enrollments /
+// entitlements, maps DB rows to the `Raw*` shapes, then delegates. One pass, no
+// N+1 (everything fetched in a single Promise.all).
+import { db } from "@/lib/db";
+import {
+  computeSkillTree,
+  type RawEdge,
+  type RawProject,
+  type SkillTree,
+  type Viewer,
+} from "@/lib/skill-tree-core";
+
+export async function buildSkillTree(
+  userId: string | null,
+): Promise<SkillTree> {
+  const [projectRows, edgeRows] = await Promise.all([
+    db.project.findMany({
+      where: { archivedAt: null },
+      select: {
+        slug: true,
+        name: true,
+        publicTitle: true,
+        tagline: true,
+        track: true,
+        level: true,
+        accessTier: true,
+        criticalPath: true,
+        priceCents: true,
+        stripePriceId: true, // both → resolveBuyPriceCents guard (Task 5)
+        publishedRevisionId: true,
+        publishedRevision: { select: { label: true } }, // outline href (Task 5)
+      },
+    }),
+    db.projectDependency.findMany({
+      select: {
+        kind: true,
+        dependsOnProject: { select: { slug: true } },
+        dependentProject: { select: { slug: true } },
+      },
+    }),
+  ]);
+
+  const projects: RawProject[] = projectRows.map((p) => ({
+    slug: p.slug,
+    name: p.name,
+    publicTitle: p.publicTitle,
+    tagline: p.tagline,
+    track: p.track,
+    level: p.level,
+    accessTier: p.accessTier,
+    criticalPath: p.criticalPath,
+    priceCents: p.priceCents,
+    published: p.publishedRevisionId != null,
+    publishedLabel: p.publishedRevision?.label ?? null,
+  }));
+
+  const edges: RawEdge[] = edgeRows.map((e) => ({
+    // from = prerequisite (dependsOn), to = dependent.
+    fromSlug: e.dependsOnProject.slug,
+    toSlug: e.dependentProject.slug,
+    kind: e.kind,
+  }));
+
+  const viewer = await loadViewer(userId);
+  return computeSkillTree(projects, edges, viewer);
+}
+
+async function loadViewer(userId: string | null): Promise<Viewer> {
+  if (userId == null) {
+    return {
+      signedIn: false,
+      isAdmin: false,
+      completedSlugs: new Set<string>(),
+      entitledSlugs: new Set<string>(),
+    };
+  }
+
+  const [user, completed, entitled] = await Promise.all([
+    db.user.findUnique({ where: { id: userId }, select: { role: true } }),
+    db.enrollment.findMany({
+      where: { userId, status: { in: ["COMPLETED", "MASTERED"] } },
+      select: { project: { select: { slug: true } } },
+    }),
+    db.entitlement.findMany({
+      where: { userId },
+      select: { project: { select: { slug: true } } },
+    }),
+  ]);
+
+  const completedSlugs = new Set<string>(completed.map((e) => e.project.slug));
+  // Entitlement.projectId is nullable (bundles, Phase 4) — skip null-project rows.
+  const entitledSlugs = new Set<string>();
+  for (const e of entitled) {
+    if (e.project?.slug) entitledSlugs.add(e.project.slug);
+  }
+
+  return {
+    signedIn: true,
+    isAdmin: user?.role === "ADMIN",
+    completedSlugs,
+    entitledSlugs,
+  };
+}
