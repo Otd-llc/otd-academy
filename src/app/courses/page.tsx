@@ -18,8 +18,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { isAdminEmail } from "@/lib/admin-allowlist";
 import { buildSkillTree } from "@/lib/skill-tree";
-import { SkillTreeGrid } from "@/components/skill-tree/SkillTreeGrid";
-import { SkillTreeSpine } from "@/components/skill-tree/SkillTreeSpine";
+import { SkillTreePath } from "@/components/skill-tree/SkillTreePath";
 import { PageHeader } from "@/components/PageHeader";
 import { courseListJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -167,34 +166,23 @@ export default async function CoursesPage() {
             ) : null}
 
             {/* No-JS anchor to the learner's next step. Signed-in only — anon
-                has no `isNext` overlay. Every node renders in BOTH the desktop
-                grid (`node-${slug}`) and the mobile spine (`spine-node-${slug}`)
-                at once, so we render TWO breakpoint-gated anchors — each targets
-                the card that's actually visible at its breakpoint. */}
+                has no `isNext` overlay. The path renders each node exactly once
+                (one component at all breakpoints), so a single `#node-<slug>`
+                anchor is unambiguous. */}
             {viewer.signedIn && nextNode ? (
-              <>
-                <a
-                  href={`#node-${nextNode.slug}`}
-                  className="mt-1 hidden items-center gap-1 font-mono text-xs font-bold uppercase tracking-wider text-signal-blue lg:inline-flex"
-                >
-                  Jump to your next step
-                  <span aria-hidden="true">→</span>
-                </a>
-                <a
-                  href={`#spine-node-${nextNode.slug}`}
-                  className="mt-1 inline-flex items-center gap-1 font-mono text-xs font-bold uppercase tracking-wider text-signal-blue lg:hidden"
-                >
-                  Jump to your next step
-                  <span aria-hidden="true">→</span>
-                </a>
-              </>
+              <a
+                href={`#node-${nextNode.slug}`}
+                className="mt-1 inline-flex items-center gap-1 font-mono text-xs font-bold uppercase tracking-wider text-signal-blue"
+              >
+                Jump to your next step
+                <span aria-hidden="true">→</span>
+              </a>
             ) : null}
           </section>
 
-          {/* Both views render; CSS shows the right one (grid is
-              `hidden lg:block`, spine is `lg:hidden`). */}
-          <SkillTreeGrid tree={tree} viewer={viewer} />
-          <SkillTreeSpine tree={tree} viewer={viewer} />
+          {/* The guided path — one responsive component, replaces the old
+              track×level matrix + SVG overlay. */}
+          <SkillTreePath tree={tree} viewer={viewer} />
         </>
       )}
     </main>
