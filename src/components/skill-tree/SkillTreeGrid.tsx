@@ -129,8 +129,17 @@ export function SkillTreeGrid({ tree, viewer }: SkillTreeGridProps) {
 
         {/* Decorative SVG dependency edges (Task 7). Client overlay, absolutely
             positioned, pointer-events-none — locates node anchors by id and
-            tracks them on resize. The grid stays fully navigable without it. */}
-        <SkillTreeEdges edges={tree.edges} />
+            tracks them on resize. The grid stays fully navigable without it.
+            Edges OUT of the root are suppressed: L1.01 is the foundation for
+            ~everything, so drawing its ~20 outgoing FOUNDATION edges from one
+            point (the spanning root card's center) produced a sunburst that
+            added noise, not information — the labeled ROOT rail already conveys
+            "everything builds on this". Only the meaningful inter-node edges
+            (de-risk chains, the SHARED_BLOCK battery fan-out, cross-level
+            foundations) are drawn. */}
+        <SkillTreeEdges
+          edges={tree.edges.filter((e) => e.fromSlug !== ROOT_SLUG)}
+        />
       </div>
 
       {/* Unassigned bucket — nodes missing track and/or level. Don't drop these
