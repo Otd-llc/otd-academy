@@ -102,6 +102,10 @@ export function parseBomCsv(text: string): ParseResult {
 
   const rows: ParsedBomRow[] = [];
   const errors: RowError[] = [];
+  // Tracks the first source-row seen for each (manufacturer, mpn) key, so a
+  // later row that resolves to the same curated Part can be reported instead
+  // of silently overwriting the first at import time (see the dup guard below).
+  const seenPartKeyRow = new Map<string, number>();
 
   const cellAt = (fields: string[], col: string): string => {
     const idx = colIndex[col];
@@ -186,6 +190,25 @@ export function parseBomCsv(text: string): ParseResult {
       for (const message of rowErrors) errors.push({ row: rowNo, message });
       continue; // exclude rows with any error
     }
+
+    // Intra-file duplicate guard. Two rows with the same (manufacturer, mpn)
+    // resolve to the SAME curated Part, so importBomCsv's upsert on
+    // [revisionId, partId] would have the second row silently overwrite the
+    // first (last-row-wins data loss, reported as a clean import). Keep the
+    // first occurrence; report and exclude any later one. The key is
+    // case-sensitive to match the importer's Prisma composite-unique part
+    // match. A newline separator can't occur inside a single trimmed cell, so
+    // it can't collide two distinct (manufacturer, mpn) pairs into one key.
+    const partKey = `${manufacturer}\n${mpn}`;
+    const firstRow = seenPartKeyRow.get(partKey);
+    if (firstRow !== undefined) {
+      errors.push({
+        row: rowNo,
+        message: `duplicate part (manufacturer="${manufacturer}", mpn="${mpn}") - already declared on row ${firstRow}; merge all its refDes onto a single row`,
+      });
+      continue; // exclude the duplicate so it can't overwrite the first at import
+    }
+    seenPartKeyRow.set(partKey, rowNo);
 
     rows.push({
       refDes,
