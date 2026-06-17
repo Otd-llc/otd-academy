@@ -38,6 +38,13 @@ export interface GoldenReference {
   complete: boolean;
 }
 
+// The derived golden predicate — a board is golden when its lesson is published
+// AND vetted. Single source of truth, so callers that only need the verdict (e.g.
+// the operator dashboard's per-project pill) don't re-encode `published && vetted`.
+export function isGolden(published: boolean, vetted: boolean): boolean {
+  return published && vetted;
+}
+
 export function assessGoldenReference(
   input: GoldenReferenceInput,
 ): GoldenReference {
@@ -59,7 +66,7 @@ export function assessGoldenReference(
     },
   ];
   return {
-    isGolden: input.published && input.vetted,
+    isGolden: isGolden(input.published, input.vetted),
     bundle,
     complete: bundle.every((d) => d.present),
   };

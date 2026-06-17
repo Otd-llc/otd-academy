@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   assessGoldenReference,
+  isGolden,
   type GoldenReferenceInput,
 } from "@/lib/golden-reference";
 
@@ -58,5 +59,29 @@ describe("assessGoldenReference", () => {
     });
     expect(r.isGolden).toBe(true);
     expect(r.complete).toBe(false);
+  });
+});
+
+describe("isGolden", () => {
+  test("true only when both published and vetted", () => {
+    expect(isGolden(true, true)).toBe(true);
+    expect(isGolden(true, false)).toBe(false);
+    expect(isGolden(false, true)).toBe(false);
+    expect(isGolden(false, false)).toBe(false);
+  });
+
+  test("agrees with assessGoldenReference.isGolden", () => {
+    for (const published of [true, false]) {
+      for (const vetted of [true, false]) {
+        const r = assessGoldenReference({
+          published,
+          vetted,
+          hasKicadStarter: false,
+          hasReferenceGerbers: false,
+          hasMeasurementsCsv: false,
+        });
+        expect(r.isGolden).toBe(isGolden(published, vetted));
+      }
+    }
   });
 });

@@ -21,6 +21,7 @@ import { db } from "@/lib/db";
 import { learnerLandingPath } from "@/lib/learner-landing";
 import { PlusIcon } from "@/components/icons";
 import { assessLessonReadiness } from "@/lib/lesson-readiness";
+import { isGolden } from "@/lib/golden-reference";
 import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
 import {
   collectEmptyMedia,
@@ -31,7 +32,16 @@ import { guideContentBlocksSchema } from "@/lib/schemas/guide";
 // Per-project pipeline summary for the operator dashboard: the readiness state
 // (from the latest revision's guide), how many media slots still need shooting,
 // and how many people are waiting on the course.
-type PipelineState = "none" | "not-ready" | "publishable" | "vetted";
+//
+// "golden" is the top tier (WS5): published AND vetted — the board is a proven
+// golden reference, not merely content-vetted. A "vetted" board whose revision
+// isn't published yet stays on the vetted rung.
+type PipelineState =
+  | "none"
+  | "not-ready"
+  | "publishable"
+  | "vetted"
+  | "golden";
 
 const PIPELINE_CHIP: Record<
   Exclude<PipelineState, "none">,
@@ -46,6 +56,10 @@ const PIPELINE_CHIP: Record<
     cls: "border-command-gold/50 text-command-gold",
   },
   vetted: { label: "Vetted", cls: "border-status-green/50 text-status-green" },
+  golden: {
+    label: "★ Golden",
+    cls: "border-command-gold bg-command-gold/15 text-command-gold",
+  },
 };
 
 function PipelineBadges({
@@ -210,18 +224,21 @@ export default async function HomePage({
         const examQuestions = Array.isArray(p.exam?.questions)
           ? (p.exam.questions as unknown[]).length
           : 0;
+        const published = p.publishedRevisionId != null;
         const r = assessLessonReadiness({
           stages: GUIDE_STAGES,
           cards,
           exam: p.exam ? { questions: examQuestions } : null,
           broughtUpBoards,
-          published: p.publishedRevisionId != null,
+          published,
         });
-        pipelineState = r.vetted
-          ? "vetted"
-          : r.publishable
-            ? "publishable"
-            : "not-ready";
+        pipelineState = isGolden(published, r.vetted)
+          ? "golden"
+          : r.vetted
+            ? "vetted"
+            : r.publishable
+              ? "publishable"
+              : "not-ready";
         captureCount = emptyMediaCount(collectEmptyMedia(cards));
       }
 
