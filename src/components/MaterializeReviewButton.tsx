@@ -50,7 +50,8 @@ export function MaterializeReviewButton({
   templateKey:
     | "REQUIREMENTS_REVIEW"
     | "LAYOUT_REVIEW"
-    | "STRIPBOARD_VALIDATION";
+    | "STRIPBOARD_VALIDATION"
+    | "DESIGN_VALIDATION";
   label: string;
 }) {
   const [state, action] = useActionState(
