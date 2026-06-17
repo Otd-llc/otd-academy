@@ -56,6 +56,10 @@ import {
   assessLessonReadiness,
   type LessonReadiness,
 } from "@/lib/lesson-readiness";
+import {
+  boardReadinessFromRows,
+  failingRequiredCount,
+} from "@/lib/board-readiness-load";
 import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
 
 type Params = { slug: string; revLabel: string };
@@ -325,6 +329,37 @@ export default async function GuideHubPage({
 
   // ─── No guide yet ───────────────────────────────────────
   if (!revision.guide) {
+    // Board-readiness (WS4, advisory): load the assessor inputs scoped to this
+    // branch only — the button only renders here, so we don't bloat the main
+    // query for the populated-guide render. Drives the Generate button's
+    // soft-confirm ack when the revision isn't de-risked yet.
+    const boardRows = await db.revision.findUniqueOrThrow({
+      where: { id: revision.id },
+      select: {
+        bomFrozenAt: true,
+        bomLines: {
+          select: {
+            quantity: true,
+            unitPriceCents: true,
+            part: { select: { lifecycle: true } },
+          },
+        },
+        checklists: {
+          select: {
+            subkind: true,
+            items: { select: { checked: true, notApplicable: true } },
+          },
+        },
+        project: { select: { slug: true, targetCost: true } },
+      },
+    });
+    const readiness = boardReadinessFromRows({
+      bomFrozenAt: boardRows.bomFrozenAt,
+      bomLines: boardRows.bomLines,
+      checklists: boardRows.checklists,
+      projectSlug: boardRows.project.slug,
+      targetCost: boardRows.project.targetCost,
+    });
     return (
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <JsonLd data={courseLd} />
@@ -349,7 +384,11 @@ export default async function GuideHubPage({
               : "Revision is frozen — no guide exists and none can be generated."}
           </p>
         ) : (
-          <GenerateGuideButton revisionId={revision.id} />
+          <GenerateGuideButton
+            revisionId={revision.id}
+            boardReady={readiness.ready}
+            boardIssueCount={failingRequiredCount(readiness)}
+          />
         )}
       </main>
     );
