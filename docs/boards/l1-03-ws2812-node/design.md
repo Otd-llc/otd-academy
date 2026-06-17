@@ -6,20 +6,23 @@
 > The point of this board is **pipeline validation** — see the Friction log at the
 > bottom, which is the real deliverable.
 
-> ⛔ **NOT part-ready.** This board owes the **Recursive Board-Design Validation
-> Protocol** (`../_protocol.md`) before *any* part is created, BOM imported, or
-> revision advanced: ≥ 10 recursive audit passes, a "dry" pass, every applicable
-> audit clean, `validation-log.md` complete. The `DESIGN_VALIDATION` ticks are
-> honest human attestations — earn them. **Do not add parts until this passes.**
+> ✅ **Design-stage gate MET (2026-06-17).** The **Recursive Board-Design Validation
+> Protocol** (`../_protocol.md`) has run **12 passes with a design-stage DRY pass at
+> Pass 12** (`validation-log.md` is the evidence). The 8 new parts may now be created,
+> the BOM imported, and the revision advanced. **Still owed** (F7 phase-staging, *not*
+> blockers to part creation): footprint↔symbol↔pinout `[S]` at schematic, fab-DRU +
+> VBUS⟂5V_EXT ERC `[L]` at layout, and the F10-4 DOUT-VOH residual at bring-up. The
+> `DESIGN_VALIDATION` ticks remain **Josh's honest human attestations** — the log earns
+> them, but he signs them.
 
 | | |
 | --- | --- |
 | **Slug** | `l1-03-ws2812-node` |
 | **Owner** | Josh Tollette |
-| **Status** | `draft` (post Passes 1–9 — for review, not validated, not frozen) |
+| **Status** | `draft` (post Passes 1–12 — design-stage DRY, for review, not frozen) |
 | **Track / Level** | ACT / L1 |
 | **Teaches** | **3.3 V→5 V level shifting** (the primary, graded concept) — with a dedicated 5 V LED rail + common ground as the supporting idea |
-| **Validation** | `passes 1–9 folded` → owes a dry pass (+ schematic-stage Pass 6) before part-ready — see `validation-log.md` |
+| **Validation** | `passes 1–12, Pass 12 DRY` (design-stage) → footprint↔pinout [S] + fab-DRU [L] owed at schematic/layout — see `validation-log.md` |
 
 > **Headline:** the **WROOM core (L1.01) reused verbatim** + one new sub-circuit: a
 > **74AHCT125 level shifter** lifting the ESP32's 3.3 V data to a clean 5 V WS2812
@@ -61,7 +64,8 @@
 
 - **Electrical / power budget:**
   - **E1** — USB-C **VBUS 5 V** (sink) — powers the board, shifter, onboard pixel; a
-    **10 µF VBUS bulk cap (C11)** near the pixel/LDO-input node (PI-2).
+    **4.7 µF VBUS bulk cap (C11)** near the pixel/LDO-input node (PI-2) — sized so the
+    *total* VBUS bulk stays under the USB-2.0 10 µF inrush ceiling (F10-1).
   - **E2** — Regulate to **3.3 V** (RT9080 linear LDO, from L1.01).
   - **E3** — **Strip 5 V is external** (injection terminal), never sourced from VBUS.
     **VBUS and 5V_EXT are separate nets, never joined** — only GND is common (an
@@ -75,7 +79,10 @@
   - **I3** — Strip output (J4): **TE 282837-3** 3-pos 5.08 mm screw terminal
     (5 V / DATA / GND); **ESD diode (D3) on DATA**.
   - **I4** — 5 V injection (J5): **TE 282837-2** 2-pos 5.08 mm screw terminal
-    (5 V_EXT / GND, common GND); **TVS (D2) across 5V_EXT**.
+    (5 V_EXT / GND, common GND); **TVS (D2 SMAJ5.0A) across 5V_EXT**. Recommended
+    strip supply is a **regulated 5 V, ≤ 5.25 V** — keeps D2 within its no-conduction
+    band (below VBR 6.4 V; ~0.8 mA leakage at the 5.0 V nominal, a little more at the
+    5.25 V corner, but no avalanche; F10-3).
   - **I5** — **Data test point (TP3)** on the shifted line (1Y / pixel-DIN side) — to
     *see* the 5 V swing the lesson promises (L9-3).
 
@@ -101,7 +108,7 @@ L1.01 core untouched + the new WS2812 sub-circuit on GPIO5 + a second (external)
    ┌─────────────────── L1.01 CORE (reused verbatim, validated) ───────────────────┐
    │  USB-C(sink) → PTC polyfuse → USBLC6 ESD → RT9080 LDO → 3V3 → ESP32-S3-WROOM-1 │
    └───────────────────────────────────────────────────────────────────────────────┘
-        VBUS 5V │  [C11 10µF bulk]                   │ GPIO5 (non-strapping, non-USB)
+        VBUS 5V │  [C11 4.7µF bulk]                  │ GPIO5 (non-strapping, non-USB)
                 │                                     ▼
                 │  (VCC=VBUS, C8 0.1µF)    ┌──────────────────────┐
                 ├─────────────────────────►│ 74AHCT125 (gate 1)   │ 3.3V→~5V
@@ -153,24 +160,27 @@ Worst-case (min/max/temperature), not typical.
 
 | Value | Formula / source | Result | Notes |
 | --- | --- | --- | --- |
-| WS2812 data logic-high | WS2812B: **VIH = 0.7 × VDD**, VDD = 5 V | **3.5 V** | bar at the first DIN |
+| WS2812 data logic-high | XINGLIGHT XL-5050RGBC-WS2812B datasheet: **VIH = 0.7 × VDD**, VDD = 5 V | **3.5 V** | bar at the first DIN (DIN/SET, datasheet p.5) |
 | Bare 3.3 V GPIO vs threshold | 3.3 V < 3.5 V | **fails (−0.2 V)** | reason for the shifter (RK1) |
 | Shifter input acceptance | 74AHCT125 VIH = 2.0 V, VIL = 0.8 V (flat over VCC 4.5–5.5 V) | 3.3 V ✓ | TTL inputs; VBUS sag doesn't move the threshold |
 | Shifter VOH (actual µA load) | WS2812 DIN high-Z → VOH ≈ 4.4 V (@ −50 µA) | ~4.4 V | operating point |
 | Shifter VOH (guaranteed, **over-temp**) | 74AHCT125 **VOH = 3.8 V min @ −8 mA**, full temp range, VCC 4.5 V | 3.8 V | worst-case (3.94 V is the 25 °C value) |
-| **Onboard-hop margin** | actual 4.4 − 3.5 = **+0.9 V**; guaranteed worst **3.8 − 3.5 = +0.30 V** | **≥ +0.30 V** | RK1; threshold tracks VDD so it's robust |
-| **Cross-domain hop margin (strip)** | onboard DOUT ≈ V(VBUS,min ~4.6 V) vs VIH = 0.7·V(5V_EXT,max ≤5.5 V) = 3.85 V | **~+0.75 V** | PI-1: driver (VBUS) & threshold (5V_EXT) on *different* rails — margin does NOT track; assumes 5V_EXT ≤ 5.5 V |
+| **Onboard-hop margin** | actual 4.4 − 3.5 = **+0.9 V**; guaranteed floor **3.8 − 3.5 = +0.30 V** | **≥ +0.30 V** | RK1; VOH & VIH both track VBUS (same node) → robust. +0.30 V is a *conservative floor* (it mis-stacks VOH@VCC 4.5 V against VIH@VDD 5.0 V — same net, can't be both; true single-corner margin ≈ +0.65 V) |
+| **Cross-domain hop margin (strip)** | driver = onboard DOUT ≈ V(VBUS,local) − V_DOUT,drop; VBUS,local,min = USB **4.40 V** − PTC/trace IR ≈ **4.2 V**; threshold VIH = 0.7·V(5V_EXT,max **≤5.25 V**) = **3.68 V** | **~+0.2 … +0.5 V (residual)** | PI-1/F10-4: driver (VBUS) & threshold (5V_EXT) on *different* rails — margin does NOT track. **DOUT VOH is NOT specified in the XINGLIGHT datasheet** → the driver drop is an engineering assumption; **residual confirmed at bring-up** (measure DOUT-high + first-DIN). The ≤5.25 V bound buys ≈ +0.18 V vs the old 5.5 V |
 | Prop delay vs bit | AHCT125 tpd ~9–22 ns (≤30 ns max) vs 1.25 µs bit | tpd ≪ bit | negligible skew (P5 confirmed) |
-| **Reset/latch low time** | WS2812B RES ≥ 50 µs; **clones may need ≥ 280 µs** | **firmware latch ≥ 300 µs** | P5-3 — clone-safe (XINGLIGHT is a clone) |
+| **Reset/latch low time** | XINGLIGHT datasheet: RES ≥ **80 µs** (timing table p.7) / **≥ 100 µs** (note b — datasheet is internally inconsistent) | **firmware latch ≥ 300 µs** | P5-3/F8 — XINGLIGHT *actual* is ≥80–100 µs; 300 µs is comfortably conservative (also safe for generic strips) |
 | Data series R (shifter→pixel) | WS2812 guidance 300–500 Ω | **470 Ω (R7)** | reuses L1.01 470 Ω part |
 | Data series R (DOUT→strip) | guidance + parasitic-current limit | **470 Ω (R8)** | new placement, same part |
 | Parasitic clamp current (strip unpowered) | (VOH − Vf)/R8 = (5 − 0.7)/470 | **~9 mA** | RK8 — see honest framing below |
 | Onboard-pixel current | 1× WS2812 full white | 60 mA (max) | only LED load on VBUS; firmware-cap |
 | VBUS budget — continuous | ESP32 ~160 mA + pixel 60 mA + shifter µA | **~220 mA** | ≪ 0.5 A PTC hold |
-| VBUS budget — brief peak | linear LDO Iin≈Iout: WiFi-TX ~500 mA + 60 mA | **~560 mA (brief)** | < 1 A PTC trip; **C11 10 µF VBUS bulk + 3V3 bulk** ride it (RK4) |
+| VBUS budget — brief peak | linear LDO Iin≈Iout: WiFi-TX ~500 mA + 60 mA | **~560 mA (brief)** | < 1 A PTC trip; **C11 4.7 µF VBUS bulk + C1 10 µF 3V3 bulk** ride it (RK4) |
 | TVS clamp (over-injection) | D2 SMAJ5.0A: VRWM 5.0 V, VC ~9.2 V @ Ipp | clamps >~6 V | RK10 — sacrificial vs sustained 12 V; pair w/ "fuse your supply" |
 | Worst-case DATA back-drive current | (V_inject,max − VBUS)/R8, bounded by D2 clamp | bounded | RK11 — D2 caps 5V_EXT, R8 + D3 limit the bridge current into DOUT/1Y |
-| Decoupling | shifter 0.1 µF (C8); pixel 0.1 µF (C9); VBUS bulk 10 µF (C11) | — | TI also suggests 0.1+1 µF; 0.1 alone adequate for one gate |
+| Decoupling | shifter 0.1 µF (C8); pixel 0.1 µF (C9); **VBUS bulk 4.7 µF (C11)** | — | TI also suggests 0.1+1 µF; 0.1 alone adequate for one gate |
+| **Total VBUS bulk vs USB-2.0 ceiling** | C5 1 µF + C8 0.1 + C9 0.1 + C11 4.7 = **5.9 µF** | **< 10 µF** | F10-1: USB-2.0 limits a device's VBUS bulk to ≤10 µF (inrush); 4.7 µF still rides the 60 mA pixel pulse (ΔV ≈ 16 mV/bit) |
+| **D3 ESD-diode RC on the data edge** | R8 × C_D3 = 470 Ω × 45 pF (max) | **≈ 21 ns** | F10-2: ≪ the ~200–300 ns WS2812 high time → edge intact. D3 is **35/45 pF (NOT low-cap)** — chosen for SOD-323 solderability + clamp, not low-C |
+| **D2 TVS leakage @ VRWM** | SMAJ5.0A I_R ≈ 800 µA @ 5.0 V (datasheet) | **0.8 mA, budgeted** | F10-3: on the 5V_EXT rail (off-board source); recommended supply ≤5.25 V keeps D2 below VBR 6.4 V (no conduction) |
 
 > **RK8 honest framing (P5-1):** with the strip **unpowered (VDD = 0)** the WS2812
 > abs-max input voltage is VDD+0.5 V = **+0.5 V**, so ~5 V on DIN is an **abs-max-
@@ -187,30 +197,32 @@ Worst-case (min/max/temperature), not typical.
 | U2 | Richtek **RT9080-33GJ5** | Reused; **linear** LDO (P-MOSFET pass → Iin≈Iout). | (verified; P5 confirmed) |
 | D1 | UMW **USBLC6-2SC6** | Reused — USB ESD. | (verified in L1.01) |
 | U3 | TI **SN74AHCT125D** (SOIC-14) | NEW. HCT/TTL inputs accept 3.3 V, drive ~5 V; canonical NeoPixel shifter. Pinout: **7=GND, 14=VCC**; gate 1 used. | pinout, VIH/VIL/VOH(over-temp)/tpd, abs-max **(verified Pass 5)** |
-| LED3 | XINGLIGHT **XL-5050RGBC-WS2812B** (5050) | NEW. Digikey-orderable WS2812B-compatible pixel. ⚠ **its OWN datasheet must be obtained at part-creation** — numbers below are from Worldsemi WS2812B pending that (P5-2); the LED3 datasheet tick is BLOCKED until then. | DIN VIH (0.7VDD), VDD range, **DIN/DOUT abs-max** (RK8/RK11), RES time |
-| D2 | Littelfuse **SMAJ5.0A** (SMA) | NEW. Uni TVS across 5V_EXT — clamps 12 V over-injection (RK10) + reverse (forward-conducts, protects C10, RK9) + caps the DATA back-feed (RK11). | VRWM/VBR/VC, SMA solderable |
-| D3 | Nexperia **PESD5V0S1BA** (SOD-323) | NEW. Low-cap 5 V ESD diode on J4.DATA→GND — protects the exposed data pin (RK13) + absorbs coupled transients (RK15); low C keeps the 800 kHz edge. | standoff 5 V, capacitance, clamp |
+| LED3 | XINGLIGHT **XL-5050RGBC-WS2812B** (5050) | NEW. Digikey-orderable WS2812B-compatible pixel. **Datasheet OBTAINED** (LCSC C2843785, rev 2024-ish): pinout **1=VDD / 2=DO / 3=GND / 4=DI**; VDD 3.5–5.5 V; VIH 0.7·VDD, VIL 0.3·VDD; **logic-input abs-max VDI = −0.5…VDD+5.5 V**; VOUT(port) 7 V; IOL1 12 mA; ESD 2 kV HBM; RES ≥80 µs. **DOUT VOH NOT specified** (→ F10-4 residual). | ✅ verified (Pass 11) — exact string `XINGLIGHT` / `XL-5050RGBC-WS2812B` |
+| D2 | Littelfuse **SMAJ5.0A** (SMA) | NEW. Uni TVS across 5V_EXT — clamps 12 V over-injection (RK10) + reverse (forward-conducts, protects C10, RK9) + caps the DATA back-feed (RK11). **VRWM 5.0 V / VBR 6.4 V min / VC ~9.2 V**; **I_R ≈ 800 µA @5 V (budgeted, F10-3)**; recommend regulated 5V_EXT ≤5.25 V. | VRWM/VBR/VC, SMA solderable |
+| D3 | Nexperia **PESD5V0S1BA** (SOD-323) | NEW. 5 V bidirectional ESD diode on J4.DATA→GND — protects the exposed data pin (RK13) + absorbs coupled transients (RK15). **NOT low-cap: 35 pF typ / 45 pF max** — but R8·C ≈ 21 ns ≪ the ~200–300 ns WS2812 high time, so the edge survives; chosen for **SOD-323 solderability + clamp**, not low-C (F10-2). | VRWM 5 V, C 35/45 pF, VC ~14 V |
 
 **Connectors & supporting passives (NEW unless noted):**
 - **J4** TE Connectivity (Buchanan) **282837-3** (3-pos 5.08 mm screw terminal, strip
   out), THT — reused from TB-1-POWER family. **J5** TE **282837-2** (2-pos, injection).
 - **C10** Panasonic **EEU-FR1C102** 1000 µF/16 V radial (inrush bulk) — ~Ø10×20 mm
   **tall** (enclosure keep-out, L9-1).
-- **C11** 10 µF VBUS bulk — **reuses L1.01 CL21A106KOQNNNE** (= C1's part).
+- **C11** **4.7 µF** VBUS bulk — **NEW: Samsung CL21A475KAQNNNE** (0805, 25 V, X5R).
+  Dropped from 10 µF (F10-1): C5 1 µF + C8/C9 0.1 µF + C11 4.7 µF = 5.9 µF total VBUS
+  bulk, under the USB-2.0 10 µF inrush ceiling. (No longer reuses C1's 10 µF part.)
 - **R7, R8** 470 Ω, **C8, C9** 0.1 µF — reuse L1.01 parts (RC0805FR-07470RL,
   CL21B104KBCNNNC). **TP3** data test point (Keystone, or a labeled pad).
 - All **L1.01 core BOM** carries over unchanged (already in the library).
 
-> **Silkscreen rule:** label every pin; **J5: "5 V ONLY — NOT 12 V/24 V" + polarity**;
+> **Silkscreen rule:** label every pin; **J5: "5 V ONLY (regulated, ≤5.25 V) — NOT 12 V/24 V" + polarity**;
 > distinguish **"5V (USB)" vs "5V_EXT (strip)"**; WS2812 DIN→DOUT + pin-1; C10/D2
 > polarity; mark TP3.
 
 ## 5 · Power & thermal
 
 - **Rails:** **3.3 V** (RT9080, ESP32 only, from L1.01); **VBUS 5 V** (shifter +
-  onboard pixel; **C11 10 µF bulk** added, PI-2); **5V_EXT** (external strip,
-  *sourced* off-board, routed J5→J4 on board copper). **VBUS ⟂ 5V_EXT — separate
-  nets, never joined** (E3, §7 ERC check).
+  onboard pixel; **C11 4.7 µF bulk** added, PI-2/F10-1); **5V_EXT** (external strip,
+  *sourced* off-board as a **regulated 5 V, ≤5.25 V**, routed J5→J4 on board copper).
+  **VBUS ⟂ 5V_EXT — separate nets, never joined** (E3, §7 ERC check).
 - **Budget (worst-case):** continuous ~220 mA ≪ 0.5 A hold; brief peak ~560 mA <
   1 A trip, ridden by C11 + 3V3 bulk (§3, RK4).
 - **5V_EXT ampacity (layout):** J5→J4 5 V_EXT + common-GND return carry the strip
@@ -233,43 +245,48 @@ IDs `RK#` (risks ≠ resistor refDes).
 | RK5 | 5050 solderability (lens heat) | Med × Med | **Mandatory flux-pen** + temp-controlled iron ~315 °C / quick dwell + close-up; THT-pixel fallback. | open → build/guide |
 | RK6 | Shifter gate handling (active-low EN) | Low × Low | **Gate 1 `1OE→GND` (EN)**; gates 2–4 `nOE→VCC`, `nA→GND`; nY open (Hi-Z). | **DE-RISKED** |
 | RK7 | Data / 5V_EXT routing + ampacity | Low × Med | 470 Ω at each driver; short runs; size J5→J4 copper; antenna keep-out. | open → layout |
-| RK8 | Parasitic / data-before-power (strip unpowered) | Med × Med | **Abs-max-V excursion current-limited by R8 (~9 mA)** + **documented power-up order (primary)** + D2/D3 backstop. (P5-1 honest framing.) | **DE-RISKED** |
+| RK8 | Parasitic / data-before-power (strip unpowered) | Med × Med | **Documented power-up order (PRIMARY control)** + **R8 limits the steady excursion current (~9 mA)**; D2/D3 are an ESD/transient backstop only — **D3 is OFF at the steady ~4.3 V DOUT-high** (VRWM 5 V) so it does *not* limit the steady parasitic current (F10-5). (P5-1 honest framing; the external strip's DIN abs-max depends on the user's part — bound conservatively, not on our XINGLIGHT's VDD+5.5.) | **DE-RISKED** |
 | RK9 | Reverse-polarity on J5 | Med × Med | **D2 TVS forward-conducts on reverse → clamps ~−0.7 V, protects C10**; + silk polarity + keying. | **DE-RISKED** |
-| RK10 | **12 V/24 V wrong-supply into J5** | Med × High | **D2 TVS (5.0 V)** clamps/crowbars; silk "5 V ONLY"; "fuse your supply" guide rule. (Sustained 12 V = sacrificial D2 → blown supply fuse, not board death.) | **DE-RISKED (sacrificial)** |
+| RK10 | **12 V/24 V wrong-supply into J5** | Med × High | **D2 TVS (5.0 V)** clamps/crowbars; silk "5 V ONLY"; "fuse your supply" guide rule; recommend regulated 5V_EXT ≤5.25 V (F10-3). (Sustained 12 V = sacrificial D2 → blown supply fuse, not board death.) | **DE-RISKED (sacrificial)** |
 | RK11 | **DATA net bridges 5V_EXT→VBUS/AHCT125** (R8 + clamps) | Med × High | **D2 caps 5V_EXT** + **D3 on DATA** + R8 limit; worst-case back-drive bounded (§3); isolation invariant (E3). | **DE-RISKED** |
 | RK12 | Stray-strand short across J4 (5V-GND etc.) | Med × High | "Current-limited/fused injection supply" guide rule; silk; (optional rail PTC deferred). Document: no on-rail fault protection. | accept + document |
 | RK13 | ESD onto exposed J4.DATA | Med × Med-High | **D3 ESD diode on DATA**. | **DE-RISKED** |
 | RK14 | Hot-plug at J4 (ground-last; far-end-powered strip contention) | Med × Med | Guide: power-down before touching J4; strip must not be independently powered; D2/D3 blunt transients. | accept + document |
 | RK15 | Long strip lead as antenna/transient injector | Low-Med × Med | D3 + keep R8 near J4; max-lead-length + routing guide note. | **DE-RISKED** |
 | RK16 | AHCT125 always-enabled → strip flashes/latches during GPIO5 reset / VBUS brown-out while 5V_EXT up | Med × Med | Firmware blanks early + brightness cap; document GPIO5 reset state; optional 1OE-gating (deferred). | accept + document |
+| RK17 | **Protection parts fail / leak** (D2 TVS fail-short → dead, **unindicated** 5V_EXT rail; D3 ESD-diode reverse-leakage on DATA) | Low × Med | D2 fail-short relies on the user's **fused / current-limited** injection supply (RK12) to clear — no onboard fuse; failure is **silent** (no rail LED). D3 I_R is µA at the 4.3 V data-high (off) → negligible on the 470 Ω-driven line. **Document the symptom:** a dead onboard pixel + dark strip *with* 5V_EXT present ⇒ suspect a shorted D2. | accept + document (P10-2) |
 
 ## 7 · DESIGN_VALIDATION checklist
 
 Core — **6 items only** (no flags):
 
 - [ ] **Calc trail recorded** — every value (margins both hops, timing, reset, parasitic, budgets, TVS clamp, decoupling) traces to a source (§3).
-- [ ] **Each IC datasheet-verified** — 74AHCT125 ✓ (Pass 5); RT9080 ✓; D2/D3 to verify; **LED3 BLOCKED until the XINGLIGHT datasheet is obtained** (P5-2).
+- [ ] **Each IC datasheet-verified** — 74AHCT125 ✓ (Pass 5); RT9080 ✓; **D2 SMAJ5.0A ✓ / D3 PESD5V0S1BA ✓** (Pass 11); **LED3 XINGLIGHT ✓ — datasheet obtained** (LCSC C2843785, Pass 11), with the **DOUT-VOH residual** (F10-4) owed to bring-up.
 - [ ] **Footprint ↔ pinout cross-checked** — *schematic-stage* (Pass 6): U3 SOIC-14, LED3 5050, TE terminals, D2 SMA, D3 SOD-323.
 - [ ] **Fab-DRU DRC accounted for** — incl. an **ERC/DRC check that VBUS and 5V_EXT are never joined** (E3 isolation invariant). *Schematic/layout-stage.*
-- [ ] **BOM availability confirmed** — the 7 new parts + reused lines, exact `(mfr, mpn)` strings (§8).
-- [ ] **All top (design-stage) risks de-risked** — RK1–RK4, RK6, RK8–RK11, RK13, RK15 de-risked; RK5/RK7 at build/layout; RK12/RK14/RK16 accept+document.
+- [ ] **BOM availability confirmed** — the 8 new parts + reused lines, exact `(mfr, mpn)` strings (§8).
+- [ ] **All top (design-stage) risks de-risked** — RK1–RK4, RK6, RK8–RK11, RK13, RK15 de-risked; RK5/RK7 at build/layout; RK12/RK14/RK16/RK17 accept+document.
 
 > Evidence: `validation-log.md`.
 
 ## 8 · BOM sourcing & freeze
 
-- **Design-to-cost target:** ~**$14–15** (L1.01 core + ~$2.50 new: shifter, pixel, 2
-  terminals, 1000 µF, TVS, ESD, 10 µF). `targetCost` null (F3).
-- **New parts to create BEFORE import (strict `(mfr, mpn)` match — exact strings):**
+- **Design-to-cost target:** ~**$14–15**. **Actual ≈ $16–17 — over target** (F10-6):
+  L1.01 core (~$12–13) + **~$4 new** (shifter $0.40 + pixel $0.40 + J4 $1.30 + J5 $1.00
+  + 1000 µF $0.30 + TVS $0.30 + ESD $0.15 + 4.7 µF $0.10 ≈ $3.95). The two TE terminals
+  ($2.30) dominate the overage. `targetCost` null (F3). Owner-accept the overage or
+  value-engineer the terminals at freeze.
+- **New parts to create BEFORE import (strict `(mfr, mpn)` match — exact strings) — 8:**
   1. Texas Instruments **SN74AHCT125D** (SOIC-14)
-  2. XINGLIGHT **XL-5050RGBC-WS2812B** (5050) — *confirm exact string + obtain datasheet*
+  2. XINGLIGHT **XL-5050RGBC-WS2812B** (5050) — ✅ string confirmed + datasheet obtained
   3. TE Connectivity **282837-3** (J4)
   4. TE Connectivity **282837-2** (J5)
   5. Panasonic **EEU-FR1C102** (C10)
   6. Littelfuse **SMAJ5.0A** (D2 TVS)
   7. Nexperia **PESD5V0S1BA** (D3 ESD)
+  8. Samsung Electro-Mechanics **CL21A475KAQNNNE** (C11 4.7 µF — new per F10-1)
 - **Already in library (reused):** WROOM core lines incl. 470 Ω (R7/R8), 0.1 µF
-  (C8/C9), **10 µF CL21A106KOQNNNE (C1 + now C11)**.
+  (C8/C9), **10 µF CL21A106KOQNNNE (C1 only — C11 is now a NEW 4.7 µF part)**.
 - **Second sources:** shifter SN74AHCT125N (PDIP-14); pixel SK6812 (LCSC-only,
   noted not relied on); TVS/ESD have many drop-ins.
 - **BOM frozen:** **not yet** — and freeze is **gated on the design passing the
@@ -288,6 +305,6 @@ Core — **6 items only** (no flags):
 | F5 | Process / docs | The handoff doc the design references lives only on PR #149's branch (absent on main). | Low | Merge #149 or repoint. |
 | F6 | Design / consistency | Risk IDs `R#` collided with resistor refDes. | Low | Adopted `RK#`; bake the convention into `_template`. |
 | F7 | Protocol | The footprint↔pinout (Pass 6) + fab-DRU audits **can't fully close at the design.md stage** (no KiCad symbols/footprints yet) — they stage to schematic/layout. The flat protocol implies all audits close before "add a part." | Med | **Refine `_protocol.md` to phase-stage audits** (design vs schematic vs layout); a design-stage-dry board is "part-ready" with footprint/DRU explicitly owed. (Owner-approved; follow-up PR.) |
-| F8 | Validation / parts | A BOM part can be a **WS2812-compatible clone** (XINGLIGHT) whose own datasheet isn't readily available — so "each IC datasheet-verified" can't be honestly ticked from the *compatible* part's marketing; numbers get inherited from the reference part by assumption. | Med | Require the actual part datasheet (or an explicit "assumed-from-X, RISK" note) at part-creation; the datasheet audit can't pass on a substitute datasheet. |
+| F8 | Validation / parts | A BOM part can be a **WS2812-compatible clone** (XINGLIGHT) whose own datasheet isn't readily available — so "each IC datasheet-verified" can't be honestly ticked from the *compatible* part's marketing; numbers get inherited from the reference part by assumption. | Med | **Datasheet OBTAINED Pass 11** (LCSC C2843785) — VDD/VIH/VIL/abs-max/RES/pinout now verified *directly* (and the clone's logic-input abs-max VDD+5.5 V is **looser**, not tighter, than the Worldsemi VDD+0.5 V I'd assumed). **But DOUT VOH is unspecified even in the clone's own datasheet** → the F10-4 cross-domain residual stays owed to bring-up. Lesson holds: require the actual datasheet at part-creation; flag any number it still omits. |
 
 <!-- Append rows as the run continues (parts creation, import, freeze, guide). -->

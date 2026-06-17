@@ -7,9 +7,9 @@
 | | |
 | --- | --- |
 | **Slug** | `l1-03-ws2812-node` |
-| **Status** | `Pass 10 NOT dry` — caught 8 fold-regressions; fold + Pass 11 owed; NOT part-ready |
-| **Passes run** | 10 |
-| **Last dry pass** | — (Pass 10 found new material → not dry) |
+| **Status** | `Pass 12 DRY (design-stage)` — ≥10 passes + dry achieved; **8 new parts may now be created**. Footprint↔pinout `[S]` + fab-DRU `[L]` owed at schematic/layout (F7). |
+| **Passes run** | 12 |
+| **Last dry pass** | **Pass 12** (design-stage — zero new material findings) |
 
 ### Pass 10 — DRY-SWEEP of the folded design (2 fresh reviewers: electrical + consistency)
 
@@ -32,15 +32,73 @@ caught them (validates the rule). NEW findings:
 integrity (RK10≠RK11, §7 item-6 list matches statuses); "one combined lesson"
 decision reflected (no leftover tier language); all Passes-4–9 folds physically present.
 
+### Owner decision on the Pass-10 D2 fork (resolved 2026-06-17)
+
+**D2 = keep Littelfuse SMAJ5.0A** + **recommend a regulated strip supply ≤ 5.25 V**
+(silk + guide). Chosen over SMAJ6.0A because it (a) resolves F10-3 by keeping D2 within
+its no-conduction band, (b) tightens the F10-4 cross-domain margin (lower V(5V_EXT,max)
+→ lower VIH), and (c) keeps the stronger 12 V crowbar (VC ~9.2 V vs ~10.3 V). The 800 µA
+VRWM leakage is budgeted (off-board 5V_EXT, not VBUS). No new part added by this choice.
+
+### Pass 11 — re-fold of all 8 Pass-10 fixes, then fresh adversarial dry-sweep
+
+**The 8 Pass-10 fixes were folded** into design.md + bom.csv (F10-1 C11→4.7 µF new part
+`CL21A475KAQNNNE`; F10-2 D3 low-cap claim deleted + §3 RC row 470 Ω·45 pF ≈ 21 ns; F10-3
+5V_EXT ≤5.25 V bound + 800 µA leakage budgeted; F10-4 cross-domain margin re-derived
+honestly; F10-5 RK8 D3-clause trimmed; F10-6 §8 cost → ~$4 new/~$16–17 total; P10-2 new
+risk **RK17** protection-part FMEA).
+
+**XINGLIGHT datasheet OBTAINED + verified (P5-2/F8 closed):** LCSC C2843785. Key facts
+folded — VDD 3.5–5.5 V; **VIH 0.7·VDD / VIL 0.3·VDD**; **logic-input abs-max VDI =
+−0.5…VDD+5.5 V** (note: the clone is *looser* than the Worldsemi VDD+0.5 V assumed in
+Pass 5 — applies to *our onboard* pixel, NOT the user's external strip, so RK8 stays
+bound conservatively); VOUT(port) 7 V; IOL1 12 mA; ESD 2 kV HBM; **RES ≥ 80 µs** (table) /
+≥ 100 µs (note b — datasheet self-inconsistent), both ≪ the 300 µs firmware latch; pinout
+1=VDD/2=DO/3=GND/4=DI. **DOUT VOH is NOT specified even in the clone's own datasheet** →
+the F10-4 cross-domain residual is real and owed to bring-up. Two adversarial findings
+verified against the real datasheets before folding: **PESD5V0S1BA = 35 pF typ / 45 pF max**
+(Nexperia — confirms F10-2 "not low-cap"); **CL21A475KAQNNNE = 4.7 µF/25 V/X5R/0805**
+(Samsung — real, in stock).
+
+**Verdict: NOT DRY** — the fold introduced consistency regressions (the dry-pass rule
+earns its keep *again*):
+
+| # | Sev | Finding (NEW / fold-induced) | Disposition |
+| --- | --- | --- | --- |
+| F11-1 | MED | **§7 checklist still said "7 new parts"** while §8 + BOM now carry **8** (the new 4.7 µF C11). A part-creation step reading §7 would miss one. | FOLD: §7 → "8 new parts". |
+| F11-2 | LOW | §1 I4 wording claimed the ≤5.25 V bound "keeps D2 below its 5.0 V VRWM" — false (5.25 > 5.0 VRWM; it stays below *VBR 6.4 V*, not VRWM). | FOLD: reword to "within its no-conduction band (below VBR 6.4 V; ~0.8 mA leakage at 5.0 V nominal)". |
+| F11-3 | trivial | Status headers still read "post Passes 1–9 / owes a dry pass". | FOLD: → Passes 1–12, design-stage DRY. |
+
+**Clean (attacked, no regression):** total-VBUS-bulk arithmetic (C5 1 + C8 0.1 + C9 0.1 +
+C11 4.7 = 5.9 µF < 10 µF); cost arithmetic ($3.95 new); BOM refDes-count = quantity on
+every row (C1=1, C11=1, the 0.1 µF row still 5, 470 Ω still 4) → import-valid; reset 300 µs
+≥ datasheet 80–100 µs and ≠ the 35 µs intra-frame rule; RK8's conservative external-DIN
+bound; onboard-hop +0.30 V floor still positive; isolation invariant intact.
+
+### Pass 12 — dry-sweep after the F11 fixes (fresh adversarial: consistency + electrical)
+
+Re-ran the consistency + electrical lenses against the F11-corrected doc. **8-new-parts
+count now agrees across §7 / §8 / BOM (8 NEW rows: U3, LED3, J4, J5, C10, D2, D3, C11; C1
+reused).** I4 wording accurate. No stale "7 new" / "1–9" / "C11 10 µF" remain (grep-clean).
+No floating nodes introduced; every folded number re-checked at worst case.
+
+**Verdict: DRY (design-stage).** Zero new material findings. With 12 passes run and a
+design-stage dry pass achieved, the **design-stage gate is met** — the 8 new parts may be
+created, the BOM imported, and the revision advanced. Still explicitly owed (F7 phase-
+staging, legitimately): footprint↔symbol↔pinout `[S]` (Pass 6, at schematic), fab-DRU +
+the VBUS⟂5V_EXT ERC `[L]` (at layout), and the **DOUT-VOH cross-domain residual** (F10-4)
+confirmed by measurement at bring-up.
+
 ## Gate (Definition of done — all must hold before any part/BOM/revision)
 
-- [ ] Requirements traced · pins accounted + sequencing proven
-- [ ] Every number worst-case-proven · parts datasheet- + footprint-verified
-- [ ] Power integrity proven · every failure mode mitigated-or-accepted
-- [ ] Every part hand-buildable + sourceable (exact import strings)
-- [ ] Layout constraints captured · teachable · consistent · pipeline-conformant
-- [ ] Every applicable conditional audit run · every risk de-risked or scheduled
-- [ ] **≥ 10 passes AND a dry pass achieved**
+- [x] Requirements traced · pins accounted + sequencing proven (Pass 4)
+- [x] Every number worst-case-proven (Pass 3/5/7/11) · parts datasheet-verified (Pass 5/11 — incl. LED3 XINGLIGHT); **footprint cross-check `[S]`-staged** (Pass 6, schematic)
+- [x] Power integrity proven (Pass 7) · every failure mode mitigated-or-accepted (Pass 8, RK10–RK17)
+- [x] Every part hand-buildable (Pass 2/9) + sourceable, exact import strings (Pass 2/11 — 8 new + reused)
+- [x] Layout constraints captured (Pass 9) · teachable (Pass 9) · consistent (Pass 11/12) · pipeline-conformant (Pass 3)
+- [x] Every applicable conditional audit run (none fire — no flags) · every risk de-risked or scheduled
+- [x] **≥ 10 passes AND a dry pass achieved** — 12 passes, **Pass 12 design-stage DRY**
+- [ ] *Owed at schematic/layout (F7 phase-staging):* footprint↔symbol↔pinout `[S]` (Pass 6) · fab-DRU / VBUS⟂5V_EXT ERC `[L]` · the F10-4 **DOUT-VOH cross-domain residual** confirmed at bring-up
 
 ---
 
@@ -179,10 +237,14 @@ registered, F7 (protocol phase-staging) + F8 (clone-datasheet) logged.
 
 ## Remaining
 
-- **Pass 6 — Footprint ↔ symbol ↔ pinout:** staged to **schematic** (needs chosen
-  KiCad symbols/footprints) — per the F7 protocol phase-staging refinement.
-- **Open before the LED3 datasheet tick:** obtain the **XINGLIGHT XL-5050RGBC-WS2812B
-  datasheet** + confirm exact `(mfr, mpn)` string (P5-2/F8).
-- **Pass 10 — dry-pass re-sweep:** re-run all design-stage lenses against the folded
-  doc; only a zero-new-material-findings sweep makes it design-stage-dry (part-ready,
-  with footprint/DRU owed to schematic/layout). NOT dry yet.
+- ✅ **LED3 datasheet** — OBTAINED + verified (Pass 11, LCSC C2843785); exact string
+  `XINGLIGHT` / `XL-5050RGBC-WS2812B` confirmed (P5-2/F8 closed).
+- ✅ **Design-stage dry pass** — achieved at **Pass 12** (12 passes total). Design-stage
+  gate met → the 8 new parts may be created, BOM imported, revision advanced.
+- **Owed at schematic (`[S]`):** **Pass 6 — Footprint ↔ symbol ↔ pinout** (needs the
+  chosen KiCad symbols/footprints) — per the F7 phase-staging refinement.
+- **Owed at layout (`[L]`):** fab-DRU DRC + the **VBUS ⟂ 5V_EXT never-joined ERC/DRC**
+  check (E3 isolation invariant).
+- **Owed at bring-up:** the **F10-4 DOUT-VOH cross-domain residual** — measure onboard
+  DOUT-high + the external strip's first-DIN to confirm the ~+0.2…+0.5 V margin (the
+  XINGLIGHT datasheet does not specify DOUT VOH).
