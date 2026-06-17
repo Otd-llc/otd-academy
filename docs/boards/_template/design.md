@@ -1,10 +1,17 @@
 # <Board name> — design doc
 
 > Template. Copy this file to `docs/boards/<project-slug>/design.md` and fill it
-> in. The design doc is the first artifact in the board lifecycle (see
+> in. Also copy `docs/boards/_template/validation-log.md` into the board folder.
+> The design doc is the first artifact in the board lifecycle (see
 > `docs/plans/2026-06-16-board-design-process.md`): draft it → validate (lock the
 > math + ICs) → source/freeze the BOM → only then author the guide. Keep it in
 > the repo so it's diffable and reviewable in PRs.
+
+> ⛔ **NOT part-ready.** This board owes the **Recursive Board-Design Validation
+> Protocol** (`../_protocol.md`) before *any* part is created, BOM imported, or
+> revision advanced: ≥ 10 recursive audit passes, a "dry" pass, every applicable
+> audit clean, `validation-log.md` complete. The `DESIGN_VALIDATION` ticks are
+> honest human attestations — earn them. **Do not add parts until this passes.**
 
 | | |
 | --- | --- |
@@ -13,6 +20,7 @@
 | **Status** | `draft` → `validated` → `bom-frozen` |
 | **Track / Level** | <SENSE/ACT/POWER/COMMS> / <L1/L2/L3> |
 | **Teaches** | <the one discipline this board is the vehicle for> |
+| **Validation** | `not started` → `pass N/≥10` → `DRY ✓ (part-ready)` — see `validation-log.md` |
 
 ---
 
