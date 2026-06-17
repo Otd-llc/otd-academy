@@ -340,10 +340,12 @@ export default async function RevisionDetailPage({
                     notes: l.notes,
                     altMpn: l.altMpn,
                     altManufacturer: l.altManufacturer,
+                    unitPriceCents: l.unitPriceCents,
                     part: {
                       id: l.part.id,
                       mpn: l.part.mpn,
                       manufacturer: l.part.manufacturer,
+                      lifecycle: l.part.lifecycle,
                     },
                   }))}
                   parts={parts.map((p) => ({

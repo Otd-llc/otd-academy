@@ -52,6 +52,7 @@ export async function createBomLine(input: unknown) {
             notes: data.notes ?? null,
             altMpn: data.altMpn ?? null,
             altManufacturer: data.altManufacturer ?? null,
+            unitPriceCents: data.unitPriceCents ?? null,
             createdById: user.id,
           },
         });
@@ -137,6 +138,13 @@ function pickString(fd: FormData, key: string): string | undefined {
   return trimmed === "" ? undefined : trimmed;
 }
 
+// Dollars string from a form field → integer cents, or null when blank/invalid.
+function dollarsToCents(v: string | null | undefined): number | null {
+  if (v == null || v.trim() === "") return null;
+  const n = Number.parseFloat(v);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : null;
+}
+
 export async function createBomLineFormAction(
   _prev: BomLineFormState,
   formData: FormData,
@@ -149,6 +157,7 @@ export async function createBomLineFormAction(
     notes: pickString(formData, "notes"),
     altMpn: pickString(formData, "altMpn"),
     altManufacturer: pickString(formData, "altManufacturer"),
+    unitPriceCents: dollarsToCents(pickString(formData, "unitPrice")),
   };
   try {
     await createBomLine(raw);

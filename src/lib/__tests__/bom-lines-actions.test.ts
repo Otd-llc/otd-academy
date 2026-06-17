@@ -253,3 +253,35 @@ describe("BomLine alt-MPN (WS1)", () => {
     expect(line.altManufacturer).toBeNull();
   });
 });
+
+// ─── WS3: per-line unit price ──────────────────────────────────────────────
+
+describe("BomLine unitPriceCents (WS3)", () => {
+  test("create carries unitPriceCents; edit updates it; omitted → null", async () => {
+    const rev = await makeFreshRevision(`t-ws3-price-${Date.now()}`);
+    const part = await aPart();
+
+    const line = await createBomLine({
+      revisionId: rev.id,
+      partId: part.id,
+      refDes: "U11",
+      quantity: 1,
+      unitPriceCents: 123,
+    });
+    createdBomLineIds.push(line.id);
+    expect(line.unitPriceCents).toBe(123);
+
+    const edited = await editBomLine({ id: line.id, unitPriceCents: 456 });
+    expect(edited.unitPriceCents).toBe(456);
+
+    const rev2 = await makeFreshRevision(`t-ws3-price-null-${Date.now()}`);
+    const line2 = await createBomLine({
+      revisionId: rev2.id,
+      partId: part.id,
+      refDes: "U12",
+      quantity: 1,
+    });
+    createdBomLineIds.push(line2.id);
+    expect(line2.unitPriceCents).toBeNull();
+  });
+});

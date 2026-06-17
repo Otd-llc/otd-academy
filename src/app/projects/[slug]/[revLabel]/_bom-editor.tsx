@@ -6,6 +6,7 @@
 // inside this component (Task 5.5).
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
+import type { PartLifecycle } from "@prisma/client";
 import {
   createBomLineFormAction,
   deleteBomLineAction,
@@ -15,6 +16,7 @@ import { CreatePartDialog, type PartOption } from "@/components/CreatePartDialog
 import { DeleteConfirmButton } from "@/components/DeleteConfirmButton";
 import { InlineBanner } from "@/components/InlineBanner";
 import { PlusIcon } from "@/components/icons";
+import { formatUsd } from "@/lib/format-money";
 
 type BomLineRow = {
   id: string;
@@ -23,7 +25,8 @@ type BomLineRow = {
   notes: string | null;
   altMpn: string | null;
   altManufacturer: string | null;
-  part: PartOption;
+  unitPriceCents: number | null;
+  part: PartOption & { lifecycle: PartLifecycle };
 };
 
 const initialState: BomLineFormState = {};
@@ -199,6 +202,23 @@ export function BomEditor({
             />
             <FieldError messages={state.errors?.altManufacturer} />
           </div>
+
+          {/* WS3: per-line quoted unit price (dollars in UI → cents stored). */}
+          <div className="md:col-span-2">
+            <label className="block font-mono text-xs uppercase tracking-wider text-muted">
+              Unit price (USD)
+            </label>
+            <input
+              name="unitPrice"
+              type="number"
+              step="0.01"
+              min="0"
+              disabled={disabled}
+              placeholder="0.00"
+              className="mt-1 w-full rounded border border-panel-border bg-navy-dark px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
+            />
+            <FieldError messages={state.errors?.unitPriceCents} />
+          </div>
         </form>
       </div>
 
@@ -230,7 +250,14 @@ export function BomEditor({
                     </span>
                   ) : null}
                 </span>
-                <span className="text-muted">qty {line.quantity}</span>
+                <span className="text-muted">
+                  qty {line.quantity}
+                  {line.unitPriceCents != null ? (
+                    <span className="ml-2 text-muted">
+                      · {formatUsd(line.unitPriceCents)}
+                    </span>
+                  ) : null}
+                </span>
                 <span className="text-muted">{line.notes ?? ""}</span>
                 {/* Delete — shared two-tap trash confirm. Posts the unchanged
                     deleteBomLineAction (plain FormData action); the hidden `id`
