@@ -237,6 +237,36 @@ export function NewProjectForm() {
               </span>
             </label>
           </Tooltip>
+          {/* WS2: hasLiIon injects 2 Li-ion safety items into the
+              DESIGN_VALIDATION checklist at materialize time. */}
+          <Tooltip content="When checked, the DESIGN_VALIDATION checklist injects 2 Li-ion safety items at materialize time.">
+            <label
+              htmlFor="hasLiIon"
+              className="inline-flex items-center gap-2"
+            >
+              <input id="hasLiIon" name="hasLiIon" type="checkbox" />
+              <span className="font-mono text-xs uppercase tracking-wider text-muted">
+                Has Li-ion (adds battery-safety validation items)
+              </span>
+            </label>
+          </Tooltip>
+          {/* WS2: hasThermalConcern injects 2 thermal validation items into
+              the DESIGN_VALIDATION checklist at materialize time. */}
+          <Tooltip content="When checked, the DESIGN_VALIDATION checklist injects 2 thermal validation items at materialize time.">
+            <label
+              htmlFor="hasThermalConcern"
+              className="inline-flex items-center gap-2"
+            >
+              <input
+                id="hasThermalConcern"
+                name="hasThermalConcern"
+                type="checkbox"
+              />
+              <span className="font-mono text-xs uppercase tracking-wider text-muted">
+                Has thermal concern (adds thermal validation items)
+              </span>
+            </label>
+          </Tooltip>
         </div>
       </fieldset>
 

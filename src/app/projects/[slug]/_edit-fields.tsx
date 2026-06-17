@@ -19,7 +19,9 @@ import {
   editProjectCriticalPathAction,
   editProjectDescriptionAction,
   editProjectDisciplineTaughtAction,
+  editProjectHasLiIonAction,
   editProjectHasMainsNetAction,
+  editProjectHasThermalConcernAction,
   editProjectLevelAction,
   editProjectNameAction,
   editProjectRepoUrlAction,
@@ -366,6 +368,77 @@ export function EditHasMainsNetForm({
         </label>
       </Tooltip>
       <FieldError messages={state.errors?.hasMainsNet} />
+      <ActionMessage state={state} />
+    </form>
+  );
+}
+
+// WS2: hasLiIon edit-in-place. When set, the DESIGN_VALIDATION checklist
+// injects 2 Li-ion safety items at materialize time. Mirrors
+// EditHasMainsNetForm so toggle ergonomics stay consistent.
+export function EditHasLiIonForm({
+  id,
+  value,
+}: {
+  id: string;
+  value: boolean;
+}) {
+  const [state, action] = useActionState(
+    editProjectHasLiIonAction,
+    initialState,
+  );
+  return (
+    <form action={action} className="space-y-1">
+      <input type="hidden" name="id" value={id} />
+      <Tooltip content="When checked, the DESIGN_VALIDATION checklist injects 2 Li-ion safety items at materialize time.">
+        <label className="inline-flex items-center gap-2">
+          <input
+            name="hasLiIon"
+            type="checkbox"
+            defaultChecked={value}
+            onChange={(e) => e.currentTarget.form?.requestSubmit()}
+          />
+          <span className="font-mono text-xs uppercase tracking-wider text-muted">
+            Has Li-ion (adds battery-safety validation items)
+          </span>
+        </label>
+      </Tooltip>
+      <FieldError messages={state.errors?.hasLiIon} />
+      <ActionMessage state={state} />
+    </form>
+  );
+}
+
+// WS2: hasThermalConcern edit-in-place. When set, the DESIGN_VALIDATION
+// checklist injects 2 thermal validation items at materialize time.
+export function EditHasThermalConcernForm({
+  id,
+  value,
+}: {
+  id: string;
+  value: boolean;
+}) {
+  const [state, action] = useActionState(
+    editProjectHasThermalConcernAction,
+    initialState,
+  );
+  return (
+    <form action={action} className="space-y-1">
+      <input type="hidden" name="id" value={id} />
+      <Tooltip content="When checked, the DESIGN_VALIDATION checklist injects 2 thermal validation items at materialize time.">
+        <label className="inline-flex items-center gap-2">
+          <input
+            name="hasThermalConcern"
+            type="checkbox"
+            defaultChecked={value}
+            onChange={(e) => e.currentTarget.form?.requestSubmit()}
+          />
+          <span className="font-mono text-xs uppercase tracking-wider text-muted">
+            Has thermal concern (adds thermal validation items)
+          </span>
+        </label>
+      </Tooltip>
+      <FieldError messages={state.errors?.hasThermalConcern} />
       <ActionMessage state={state} />
     </form>
   );

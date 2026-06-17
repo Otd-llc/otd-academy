@@ -128,6 +128,10 @@ export async function createProject(input: unknown) {
       ...(data.hasMainsNet !== undefined
         ? { hasMainsNet: data.hasMainsNet }
         : {}),
+      ...(data.hasLiIon !== undefined ? { hasLiIon: data.hasLiIon } : {}),
+      ...(data.hasThermalConcern !== undefined
+        ? { hasThermalConcern: data.hasThermalConcern }
+        : {}),
       createdById: user.id,
     },
   });
@@ -211,6 +215,8 @@ export async function createProjectFormAction(
     disciplineTaught: pickString(formData, "disciplineTaught") ?? null,
     requiresStripboard: formData.get("requiresStripboard") === "on",
     hasMainsNet: formData.get("hasMainsNet") === "on",
+    hasLiIon: formData.get("hasLiIon") === "on",
+    hasThermalConcern: formData.get("hasThermalConcern") === "on",
   };
 
   let createdSlug: string;
@@ -282,7 +288,12 @@ async function editProjectSingleField(
 }
 
 async function editProjectBooleanField(
-  fieldName: "criticalPath" | "requiresStripboard" | "hasMainsNet",
+  fieldName:
+    | "criticalPath"
+    | "requiresStripboard"
+    | "hasMainsNet"
+    | "hasLiIon"
+    | "hasThermalConcern",
   formData: FormData,
 ): Promise<ProjectFormState> {
   const id = formData.get("id");
@@ -377,6 +388,20 @@ export async function editProjectHasMainsNetAction(
   formData: FormData,
 ): Promise<ProjectFormState> {
   return editProjectBooleanField("hasMainsNet", formData);
+}
+
+export async function editProjectHasLiIonAction(
+  _prev: ProjectFormState,
+  formData: FormData,
+): Promise<ProjectFormState> {
+  return editProjectBooleanField("hasLiIon", formData);
+}
+
+export async function editProjectHasThermalConcernAction(
+  _prev: ProjectFormState,
+  formData: FormData,
+): Promise<ProjectFormState> {
+  return editProjectBooleanField("hasThermalConcern", formData);
 }
 
 export async function archiveProjectAction(formData: FormData): Promise<void> {
