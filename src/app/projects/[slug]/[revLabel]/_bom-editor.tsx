@@ -223,7 +223,10 @@ export function BomEditor({
                   {line.part.manufacturer} {line.part.mpn}
                   {line.altMpn || line.altManufacturer ? (
                     <span className="mt-0.5 block text-xs text-muted">
-                      alt: {line.altManufacturer ?? ""} {line.altMpn ?? ""}
+                      alt:{" "}
+                      {[line.altManufacturer, line.altMpn]
+                        .filter(Boolean)
+                        .join(" ")}
                     </span>
                   ) : null}
                 </span>
