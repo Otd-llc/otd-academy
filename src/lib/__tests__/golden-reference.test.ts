@@ -23,6 +23,12 @@ describe("assessGoldenReference", () => {
       "referenceGerbers",
       "measurementsCsv",
     ]);
+    // Labels render to learners/operators — lock them against accidental edits.
+    expect(r.bundle.map((d) => d.label)).toEqual([
+      "KiCad starter",
+      "Verified reference gerbers",
+      "Bring-up measurements (CSV)",
+    ]);
   });
 
   test("not published → not golden (regardless of vetted)", () => {
