@@ -18,6 +18,7 @@ import { DeleteConfirmButton } from "@/components/DeleteConfirmButton";
 import { InlineBanner } from "@/components/InlineBanner";
 import { PlusIcon } from "@/components/icons";
 import { formatUsd } from "@/lib/format-money";
+import type { BomCost, BomWarning } from "@/lib/bom-cost";
 
 type BomLineRow = {
   id: string;
@@ -81,16 +82,122 @@ function FieldError({ messages }: { messages?: string[] }) {
   );
 }
 
+// WS3: admin lifecycle chip. Deliberately DUPLICATES the private `LifecycleBadge`
+// in src/components/guide/GuideBlocks.tsx (a public component this workstream
+// leaves untouched) rather than exporting it. Same semantics: EOL/OBSOLETE =
+// danger (red), NRND = caution (amber/gold).
+function AdminLifecycleChip({ lifecycle }: { lifecycle: string }) {
+  if (lifecycle === "ACTIVE") return null;
+  const danger = lifecycle === "EOL" || lifecycle === "OBSOLETE";
+  return (
+    <span
+      className={`inline-flex items-center rounded border px-1.5 py-px font-mono text-[10px] font-bold uppercase tracking-wider ${
+        danger
+          ? "border-alert-red/50 bg-alert-red/15 text-alert-red"
+          : "border-command-gold/50 bg-command-gold/15 text-command-gold"
+      }`}
+      title={
+        danger
+          ? "End-of-life / obsolete — find a replacement before sourcing"
+          : "Not recommended for new designs — prefer an active alternative"
+      }
+    >
+      {lifecycle}
+    </span>
+  );
+}
+
+// WS3: cost roll-up badge — "BOM total $X / target $Y", gold under target, red
+// over; total-only when no target; "(N lines unpriced)" caveat appended.
+function CostBadge({ cost }: { cost: BomCost }) {
+  const { totalCents, targetCents, overTarget, unpricedCount } = cost;
+  return (
+    <span
+      className={`inline-flex items-center rounded border border-panel-border bg-navy-dark px-2 py-1 font-mono text-xs ${
+        overTarget ? "text-alert-red" : "text-command-gold"
+      }`}
+    >
+      BOM total {formatUsd(totalCents)}
+      {targetCents != null ? (
+        <span className="text-muted">
+          {" / "}target {formatUsd(targetCents)}
+        </span>
+      ) : null}
+      {unpricedCount > 0 ? (
+        <span className="ml-1 text-muted">
+          ({unpricedCount} line{unpricedCount === 1 ? "" : "s"} unpriced)
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+// WS3: lifecycle/cost sourcing advisory. Lists each warning from
+// assessBomSourcing; a green "No sourcing warnings." when clean.
+function SourcingAdvisory({ warnings }: { warnings: BomWarning[] }) {
+  return (
+    <div className="border border-panel-border bg-deep-space p-4">
+      <h3 className="font-mono text-xs uppercase tracking-wider text-muted">
+        Sourcing advisory
+      </h3>
+      {warnings.length === 0 ? (
+        <p className="mt-2 font-mono text-xs text-green-400">
+          No sourcing warnings.
+        </p>
+      ) : (
+        <ul className="mt-2 space-y-1.5 font-mono text-xs">
+          {warnings.map((w, idx) => {
+            if (w.kind === "lifecycle") {
+              return (
+                <li
+                  key={`lifecycle-${w.refDesOrMpn}-${idx}`}
+                  className="flex items-center gap-2 text-link-muted"
+                >
+                  <AdminLifecycleChip lifecycle={w.lifecycle} />
+                  <span>
+                    {w.refDesOrMpn || "(part)"} —{" "}
+                    {w.lifecycle === "NRND"
+                      ? "not recommended for new designs"
+                      : "end-of-life / obsolete; find a replacement"}
+                  </span>
+                </li>
+              );
+            }
+            if (w.kind === "unpriced") {
+              return (
+                <li key={`unpriced-${idx}`} className="text-alert-red">
+                  {w.count} line{w.count === 1 ? "" : "s"} have no unit price —
+                  BOM total is understated.
+                </li>
+              );
+            }
+            return (
+              <li key={`over-target-${idx}`} className="text-alert-red">
+                Over target: total {formatUsd(w.totalCents)} exceeds target{" "}
+                {formatUsd(w.targetCents)}.
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function BomEditor({
   revisionId,
   lines,
   parts,
+  cost,
+  warnings,
   disabled,
   disabledReason,
 }: {
   revisionId: string;
   lines: BomLineRow[];
   parts: PartOption[];
+  cost: BomCost;
+  warnings: BomWarning[];
   disabled?: boolean;
   disabledReason?: string;
 }) {
@@ -112,6 +219,15 @@ export function BomEditor({
 
   return (
     <div className="space-y-4">
+      {/* WS3: cost roll-up badge — sits above the editor so the design-to-cost
+          total vs target is always in view. */}
+      <div className="flex flex-wrap items-center justify-end">
+        <CostBadge cost={cost} />
+      </div>
+
+      {/* WS3: lifecycle/cost sourcing advisory (always visible). */}
+      <SourcingAdvisory warnings={warnings} />
+
       <div className="border border-panel-border bg-deep-space p-4">
         <h3 className="font-mono text-xs uppercase tracking-wider text-muted">
           Add BOM line
@@ -367,7 +483,8 @@ export function BomEditor({
                 <span className="text-link-muted">
                   <span className="text-command-gold">{line.refDes}</span>{" "}
                   <span className="text-muted">·</span>{" "}
-                  {line.part.manufacturer} {line.part.mpn}
+                  {line.part.manufacturer} {line.part.mpn}{" "}
+                  <AdminLifecycleChip lifecycle={line.part.lifecycle} />
                   {line.altMpn || line.altManufacturer ? (
                     <span className="mt-0.5 block text-xs text-muted">
                       alt:{" "}
