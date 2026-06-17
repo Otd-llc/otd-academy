@@ -34,13 +34,13 @@ import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 
 const initialState: StageFormState = {};
 
-function AdvanceSubmit() {
+function AdvanceSubmit({ disabled = false }: { disabled?: boolean }) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
-      disabled={pending}
-      className="glass-button glass-button-cta inline-flex items-center gap-1.5 px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider"
+      disabled={pending || disabled}
+      className="glass-button glass-button-cta inline-flex items-center gap-1.5 px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider disabled:opacity-50"
     >
       {pending ? (
         "WORKING…"
@@ -90,10 +90,16 @@ export function StageActions({
   revisionId,
   currentStage,
   isFrozen,
+  bomWarningsCount,
 }: {
   revisionId: string;
   currentStage: StageName;
   isFrozen: boolean;
+  // WS3: count of BOM sourcing advisory warnings for this revision. Only
+  // meaningful in BOM_SOURCING (the advance that freezes the BOM on entry to
+  // LAYOUT). When > 0 we soft-confirm the advance with a client-side ack
+  // checkbox — advisory-first, advanceStage itself is untouched.
+  bomWarningsCount?: number;
 }) {
   const [advanceState, advanceAction] = useActionState(
     advanceStageAction,
@@ -106,6 +112,14 @@ export function StageActions({
 
   const [confirming, setConfirming] = useState(false);
   const [atRisk, setAtRisk] = useState<RegressAtRiskEntry[]>([]);
+
+  // WS3 soft-confirm: only the BOM_SOURCING advance (which freezes the BOM on
+  // entry to LAYOUT) gates on an "I've reviewed the advisory" ack, and only
+  // when there are sourcing warnings to review. Every other transition is
+  // unaffected.
+  const needsBomAck =
+    currentStage === "BOM_SOURCING" && (bomWarningsCount ?? 0) > 0;
+  const [bomAcked, setBomAcked] = useState(false);
 
   // When the user opens the inline regress panel, fetch the
   // dependents-at-risk preview so the advisory banner can show the
@@ -155,10 +169,31 @@ export function StageActions({
         {canAdvance ? (
           <form action={advanceAction}>
             <input type="hidden" name="revisionId" value={revisionId} />
-            <AdvanceSubmit />
+            <AdvanceSubmit disabled={needsBomAck && !bomAcked} />
           </form>
         ) : null}
       </div>
+
+      {/* WS3: BOM sourcing soft-confirm. Only mounts in BOM_SOURCING when
+          warnings exist — keeps the ack from gating any other transition. */}
+      {canAdvance && needsBomAck ? (
+        <div className="space-y-2 rounded border border-panel-border bg-deep-space px-3 py-2">
+          <p className="font-mono text-xs uppercase tracking-wider text-alert-red">
+            ⚠ {bomWarningsCount} BOM sourcing warning
+            {(bomWarningsCount ?? 0) === 1 ? "" : "s"} — review before freezing
+            the BOM.
+          </p>
+          <label className="flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-muted">
+            <input
+              type="checkbox"
+              checked={bomAcked}
+              onChange={(e) => setBomAcked(e.target.checked)}
+              className="accent-command-gold"
+            />
+            I&apos;ve reviewed the BOM sourcing advisory
+          </label>
+        </div>
+      ) : null}
 
       {/* Advance feedback — inline reasons / message. */}
       <ReasonsBanner reasons={advanceState.reasons} />

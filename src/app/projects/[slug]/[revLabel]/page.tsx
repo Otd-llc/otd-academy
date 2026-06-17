@@ -278,6 +278,7 @@ export default async function RevisionDetailPage({
           revisionId={revision.id}
           currentStage={revision.currentStage as StageName}
           isFrozen={isFrozen}
+          bomWarningsCount={bomWarnings.length}
         />
       </div>
 
