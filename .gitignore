@@ -43,8 +43,11 @@ next-env.d.ts
 
 /src/generated/prisma
 
-# Claude Code local project state + skills tooling (per-developer, not app code)
-/.claude/
+# Claude Code local project state (per-developer, not app code).
+# Ignore everything under .claude EXCEPT shared, version-controlled skills
+# (e.g. the board-design-validation gate skill), which must travel with the repo.
+/.claude/*
+!/.claude/skills/
 /skills-lock.json
 
 # Internal strategy / business docs — kept OUT of the public repo
