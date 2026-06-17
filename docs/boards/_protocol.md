@@ -45,40 +45,59 @@ BOM CSV import, no revision advanced — until its design has passed this protoc
 Each maps 1:1 to a `DESIGN_VALIDATION` attestation (the audit is the evidence; the
 tick is the sign-off on that evidence).
 
-1. **Requirements & traceability** — every functional/electrical/interface
+**Audit phases.** Not every audit can *close* at the `design.md` stage — some need
+artifacts that don't exist yet (chosen KiCad symbols/footprints; a routed board).
+Each audit is tagged with the phase it **closes** at:
+
+- **`[D]` design** — closes against `design.md` (gates **part creation** + BOM import).
+- **`[S]` schematic** — *captured* at design, **verified** at schematic capture
+  (needs the chosen symbols/footprints). Gates **layout**.
+- **`[L]` layout** — *captured* at design, **verified** at layout. Gates **gerbers /
+  fab order**.
+
+A board reaches **design-stage dry** (part-ready) when every **`[D]`** audit is clean
+and a `[D]` pass yields zero new material findings; the `[S]`/`[L]` audits are then
+explicitly *owed* at their phase before their own irreversible step. (Friction F7 of
+the l1-03 run surfaced this — footprint↔pinout and fab-DRU can't honestly close
+pre-schematic.)
+
+1. **`[D]` Requirements & traceability** — every functional/electrical/interface
    requirement is testable and traces forward: requirement → topology net → calc →
    BOM line → risk → validation item. No orphan requirement; no unrequired part.
-2. **Topology / net integrity** — *every pin of every part* accounted for
+2. **`[D]` Topology / net integrity** — *every pin of every part* accounted for
    (driven / pulled / NC / unused-parked); no floating nodes; current return paths;
-   power-up & power-down sequencing across all rails.
-3. **Math audit** — re-derive *every* number from first principles + datasheet at
-   **worst case (min/max/temperature)**; quantify each margin; check units.
-4. **Physics / first-principles** — what the equations assume away: signal
+   power-up & power-down sequencing across all rails. *(Logical net at `[D]`; the
+   exact pin map re-verifies at `[S]`.)*
+3. **`[D]` Math audit** — re-derive *every* number from first principles + datasheet
+   at **worst case (min/max/temperature)**; quantify each margin; check units.
+4. **`[D]` Physics / first-principles** — what the equations assume away: signal
    integrity, timing, thermal dissipation, inrush/transients, EMI, real-world
    behavior. Sanity beyond the math.
-5. **Part-truth (datasheet)** — per active part: abs-max vs operating, recommended
-   application circuit honored, pinout, logic-level compatibility, EN/strap/decoupling.
-6. **Footprint ↔ symbol ↔ pinout** — pad-by-pad: schematic-symbol pin = datasheet
-   pin = footprint pad, for every part.
-7. **Power integrity** — budgets worst-case, decoupling/bulk adequacy, brownout,
+5. **`[D]` Part-truth (datasheet)** — per active part: abs-max vs operating,
+   recommended application circuit, pinout, logic-level compatibility, EN/strap/decoupling.
+6. **`[S]` Footprint ↔ symbol ↔ pinout** — pad-by-pad: schematic-symbol pin =
+   datasheet pin = footprint pad, for every part. *Captured at `[D]` (intended pinout),
+   verified at `[S]` once symbols/footprints are chosen — cannot close pre-schematic.*
+7. **`[D]` Power integrity** — budgets worst-case, decoupling/bulk adequacy, brownout,
    regulator stability (cap value/ESR), fuse/PTC coordination.
-8. **Failure modes (FMEA)** — every plausible user error + part fault (reverse
+8. **`[D]` Failure modes (FMEA)** — every plausible user error + part fault (reverse
    polarity, hot-plug, ESD, short, mis-wire, latch-up, sequencing) → a mitigation
    or an explicitly-accepted risk.
-9. **DFM / solderability** — package-by-package against the board's skill envelope
-   (e.g. L1 = no leadless, passives ≥ 0805, leaded SMD + THT); courtyards;
+9. **`[D]` DFM / solderability** — package-by-package against the board's skill
+   envelope (e.g. L1 = no leadless, passives ≥ 0805, leaded SMD + THT); courtyards;
    polarity/pin-1 marking; test access; assembly order.
-10. **Sourcing / lifecycle** — every line: real orderable MPN, in stock, not
+10. **`[D]` Sourcing / lifecycle** — every line: real orderable MPN, in stock, not
     EOL/NRND, the **exact `(manufacturer, mpn)` string** the strict BOM import will
     match, ≥1 real second source for critical parts, cost vs target.
-11. **Layout-readiness** — keep-outs (e.g. antenna), high-speed/RF routing, trace
-    ampacity (esp. any high-current rail), ground strategy, fab design rules (`.kicad_dru`).
-12. **Learnability / pedagogy** — every concept teachable, the "one thing it
+11. **`[L]` Layout-readiness** — keep-outs (e.g. antenna), high-speed/RF routing,
+    trace ampacity (esp. any high-current rail), ground strategy, fab design rules
+    (`.kicad_dru`). *Constraints captured at `[D]`, verified at `[L]`.*
+12. **`[D]` Learnability / pedagogy** — every concept teachable, the "one thing it
     teaches" coherent, complexity matched to the audience tier.
-13. **Internal consistency** — refDes/values/quantities identical across every
+13. **`[D]` Internal consistency** — refDes/values/quantities identical across every
     section + the BOM; naming collisions (e.g. a risk "R1" vs resistor refDes R1);
     no contradictions.
-14. **Pipeline conformance** — project flags ↔ materialized checklists, each
+14. **`[D]` Pipeline conformance** — project flags ↔ materialized checklists, each
     attestation honestly checkable, freeze/gate semantics understood, friction logged.
 
 ## Conditional audits — fire on the board's nature / project flags
@@ -93,25 +112,42 @@ tick is the sign-off on that evidence).
   emissions.
 - **Stripboard** (`requiresStripboard`) — perfboard/stripboard buildability.
 
-## Definition of done — the gate to "add a part"
+## Definition of done — phase-gated
 
-All of:
+### Design-stage dry pass — the gate to **create parts + import the BOM**
+
+All **`[D]`** audits clean:
 - [ ] Every requirement traced (audit 1)
-- [ ] Every pin of every part accounted for; sequencing proven (audit 2)
+- [ ] Every pin accounted for; logical net + sequencing proven (audit 2 `[D]` part)
 - [ ] Every number worst-case-proven (audits 3–4)
-- [ ] Every active part datasheet-verified **and** footprint-cross-checked (audits 5–6)
+- [ ] Every active part datasheet-verified — *against the part's OWN datasheet*, incl.
+      compatible clones (audit 5)
 - [ ] Power integrity proven (audit 7)
 - [ ] Every plausible failure mode mitigated-or-accepted (audit 8)
 - [ ] Every part hand-buildable (skill envelope) **and** sourceable with exact import
       strings (audits 9–10)
-- [ ] Layout constraints captured for the layout stage (audit 11)
 - [ ] Teachable + internally consistent + pipeline-conformant (audits 12–14)
+- [ ] `[S]`/`[L]` constraints (footprint intent, layout-readiness) **captured** for
+      their stage (audits 6, 11)
 - [ ] Every applicable conditional audit run
-- [ ] Every risk de-risked, or explicitly scheduled to the layout/build stage
-- [ ] **≥ 10 passes run AND a dry pass achieved**
-- [ ] `validation-log.md` complete (every pass recorded)
+- [ ] Every risk de-risked, or explicitly scheduled to its later phase
+- [ ] **≥ 10 passes run AND a `[D]` dry pass achieved** (zero new material findings)
+- [ ] `validation-log.md` complete
 
-Only then: create the parts, import the BOM, advance the revision.
+**Then:** create the parts, import the BOM. The board is *part-ready* — but **not yet
+fab-ready**.
+
+### Schematic-stage — the gate to **layout**
+- [ ] Audit 6 **verified**: footprint ↔ symbol ↔ pinout pad-by-pad (now that symbols/
+      footprints exist)
+- [ ] Audit 2 pin map re-verified against the captured schematic
+
+### Layout-stage — the gate to **gerbers / fab order**
+- [ ] Audit 11 **verified**: keep-outs, ampacity, ground strategy honored
+- [ ] **Fab-DRU DRC clean** (the `.kicad_dru` rules actually applied) + any ERC
+      isolation invariants checked
+
+Each phase has its own dry pass before its irreversible step.
 
 ## How to run it
 
