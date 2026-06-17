@@ -716,6 +716,7 @@ model BomLine {
   // of scope here (cost roll-up is WS3; never reuse the name priceCents).
   altMpn          String?
   altManufacturer String?
+  unitPriceCents  Int?    // WS3: quoted unit price (cents) for design-to-cost. NOT priceCents (that's Project's course price).
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   createdById String
