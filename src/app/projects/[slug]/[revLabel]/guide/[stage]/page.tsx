@@ -43,6 +43,10 @@ import { renderBoundsSchema } from "@/lib/schemas/part-asset";
 import { StageGate } from "@/components/guide/StageGate";
 import { BoardSelector } from "@/components/guide/BoardSelector";
 import { GenerateGuideButton } from "@/components/guide/GenerateGuideButton";
+import {
+  boardReadinessFromRows,
+  failingRequiredCount,
+} from "@/lib/board-readiness-load";
 import { auth } from "@/auth";
 import { LearnerGate } from "@/components/learn/LearnerGate";
 import { Paywall } from "@/components/learn/Paywall";
@@ -302,6 +306,35 @@ export default async function GuideCardPage({
 
   // No guide materialized yet → offer to generate it (deep-link safety).
   if (!revision.guide) {
+    // Board-readiness (WS4, advisory): scoped to this branch (the button only
+    // renders here). Drives the Generate button's soft-confirm ack.
+    const boardRows = await db.revision.findUniqueOrThrow({
+      where: { id: revision.id },
+      select: {
+        bomFrozenAt: true,
+        bomLines: {
+          select: {
+            quantity: true,
+            unitPriceCents: true,
+            part: { select: { lifecycle: true } },
+          },
+        },
+        checklists: {
+          select: {
+            subkind: true,
+            items: { select: { checked: true, notApplicable: true } },
+          },
+        },
+        project: { select: { slug: true, targetCost: true } },
+      },
+    });
+    const readiness = boardReadinessFromRows({
+      bomFrozenAt: boardRows.bomFrozenAt,
+      bomLines: boardRows.bomLines,
+      checklists: boardRows.checklists,
+      projectSlug: boardRows.project.slug,
+      targetCost: boardRows.project.targetCost,
+    });
     return (
       <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
         <PageHeader
@@ -317,7 +350,11 @@ export default async function GuideCardPage({
             Revision is frozen — no guide can be generated.
           </p>
         ) : (
-          <GenerateGuideButton revisionId={revision.id} />
+          <GenerateGuideButton
+            revisionId={revision.id}
+            boardReady={readiness.ready}
+            boardIssueCount={failingRequiredCount(readiness)}
+          />
         )}
       </main>
     );
