@@ -679,7 +679,12 @@ export async function materializeCanonicalChecklist(input: unknown) {
           where: { id: revisionId },
           select: {
             project: {
-              select: { hasMainsNet: true, requiresStripboard: true },
+              select: {
+                hasMainsNet: true,
+                requiresStripboard: true,
+                hasLiIon: true,
+                hasThermalConcern: true,
+              },
             },
           },
         });

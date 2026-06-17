@@ -22,6 +22,8 @@ import {
   archiveProject,
   createProject,
   editProject,
+  editProjectHasLiIonAction,
+  editProjectHasThermalConcernAction,
   unarchiveProject,
 } from "@/lib/actions/projects";
 
@@ -169,5 +171,46 @@ describe("createProject curriculum metadata", () => {
     });
     createdProjectIds.push(project.id);
     expect(project.hasMainsNet).toBe(false);
+  });
+});
+
+// WS2: hasLiIon / hasThermalConcern edit-in-place toggles. No `makeProject`
+// helper in this file — seed via createProject, then drive the action under
+// test with a FormData payload (checkbox semantics: present iff checked).
+describe("editProjectHasLiIonAction / editProjectHasThermalConcernAction", () => {
+  test("editProjectHasLiIonAction toggles the flag on", async () => {
+    const slug = `${TEST_SLUG_PREFIX}liion-${Date.now()}`;
+    const project = await createProject({
+      slug,
+      name: "li-ion toggle",
+      hasLiIon: false,
+    });
+    createdProjectIds.push(project.id);
+
+    const fd = new FormData();
+    fd.set("id", project.id);
+    fd.set("hasLiIon", "on");
+    await editProjectHasLiIonAction({}, fd);
+
+    const p = await db.project.findUniqueOrThrow({ where: { id: project.id } });
+    expect(p.hasLiIon).toBe(true);
+  });
+
+  test("editProjectHasThermalConcernAction unchecked → sets false", async () => {
+    const slug = `${TEST_SLUG_PREFIX}thermal-${Date.now()}`;
+    const project = await createProject({
+      slug,
+      name: "thermal toggle",
+      hasThermalConcern: true,
+    });
+    createdProjectIds.push(project.id);
+
+    const fd = new FormData();
+    fd.set("id", project.id);
+    // unchecked checkbox sends no field → action persists false
+    await editProjectHasThermalConcernAction({}, fd);
+
+    const p = await db.project.findUniqueOrThrow({ where: { id: project.id } });
+    expect(p.hasThermalConcern).toBe(false);
   });
 });

@@ -28,7 +28,7 @@ export interface CanonicalTemplate {
   // only) the parent project's boolean flag is read; if true, this block's
   // items are appended after the core `items`. Keys are Project boolean flags.
   conditionalItems?: {
-    flag: "hasMainsNet" | "requiresStripboard";
+    flag: "hasMainsNet" | "requiresStripboard" | "hasLiIon" | "hasThermalConcern";
     items: CanonicalItem[];
   }[];
 }
@@ -173,6 +173,10 @@ export const CANONICAL_TEMPLATES: Record<
         label:
           "BOM availability confirmed — every part is in stock and not EOL/NRND at a real distributor.",
       },
+      {
+        label:
+          "All top risks de-risked — every risk in the design doc's risk register (§6) has a completed de-risk pass.",
+      },
     ],
     conditionalItems: [
       {
@@ -185,6 +189,32 @@ export const CANONICAL_TEMPLATES: Record<
           {
             label:
               "Isolation barrier verified — isolation gap on the layout plan and the certified module's isolation rating.",
+          },
+        ],
+      },
+      {
+        flag: "hasLiIon",
+        items: [
+          {
+            label:
+              "Li-ion protection verified — OVP/OCP/short protection, charge & discharge current limits, and cell balancing if multi-cell.",
+          },
+          {
+            label:
+              "Pack thermal/mechanical containment reviewed — cell placement, venting, and worst-case fault behavior per the design doc.",
+          },
+        ],
+      },
+      {
+        flag: "hasThermalConcern",
+        items: [
+          {
+            label:
+              "Thermal budget verified — worst-case dissipation, copper-pour/heatsink, and junction temperature within the part's abs-max.",
+          },
+          {
+            label:
+              "Derating applied — thermally-stressed parts run within a margin of their rated limits per the design doc.",
           },
         ],
       },

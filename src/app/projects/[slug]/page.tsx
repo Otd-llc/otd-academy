@@ -17,7 +17,9 @@ import {
   EditCriticalPathForm,
   EditDescriptionForm,
   EditDisciplineTaughtForm,
+  EditHasLiIonForm,
   EditHasMainsNetForm,
+  EditHasThermalConcernForm,
   EditLevelForm,
   EditNameForm,
   EditRepoUrlForm,
@@ -219,6 +221,11 @@ export default async function ProjectDetailPage({
           <EditHasMainsNetForm
             id={project.id}
             value={project.hasMainsNet}
+          />
+          <EditHasLiIonForm id={project.id} value={project.hasLiIon} />
+          <EditHasThermalConcernForm
+            id={project.id}
+            value={project.hasThermalConcern}
           />
         </div>
       </div>
