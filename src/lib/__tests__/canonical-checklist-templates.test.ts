@@ -62,24 +62,35 @@ describe("canonical checklist templates", () => {
 
   // WS1: DESIGN_VALIDATION — core mandatory items + a hasMainsNet conditional
   // block. Pinned to BOM_SOURCING (the validate → source-BOM handoff).
-  test("DESIGN_VALIDATION template has 5 core items + a hasMainsNet conditional", () => {
+  test("DESIGN_VALIDATION template has 6 core items + mains/Li-ion/thermal conditionals", () => {
     const t = CANONICAL_TEMPLATES.DESIGN_VALIDATION;
     expect(t.subkind).toBe("DESIGN_VALIDATION");
     expect(t.stage).toBe("BOM_SOURCING");
-    expect(t.items.length).toBe(5);
+    expect(t.items.length).toBe(6);
     expect(t.items.map((i) => i.label)).toEqual([
       expect.stringMatching(/Calc trail/i),
       expect.stringMatching(/datasheet-verified/i),
       expect.stringMatching(/Footprint/i),
       expect.stringMatching(/Fab-DRU/i),
       expect.stringMatching(/BOM availability/i),
+      expect.stringMatching(/risks de-risked/i),
     ]);
+
     const mains = t.conditionalItems?.find((c) => c.flag === "hasMainsNet");
-    expect(mains).toBeDefined();
-    expect(mains!.items.length).toBe(2);
-    expect(mains!.items.map((i) => i.label)).toEqual([
-      expect.stringMatching(/Mains-safety/i),
-      expect.stringMatching(/Isolation barrier/i),
+    expect(mains?.items.length).toBe(2);
+
+    const liion = t.conditionalItems?.find((c) => c.flag === "hasLiIon");
+    expect(liion).toBeDefined();
+    expect(liion!.items.map((i) => i.label)).toEqual([
+      expect.stringMatching(/Li-ion protection/i),
+      expect.stringMatching(/containment/i),
+    ]);
+
+    const thermal = t.conditionalItems?.find((c) => c.flag === "hasThermalConcern");
+    expect(thermal).toBeDefined();
+    expect(thermal!.items.map((i) => i.label)).toEqual([
+      expect.stringMatching(/Thermal budget/i),
+      expect.stringMatching(/Derating/i),
     ]);
   });
 });
