@@ -635,6 +635,11 @@ export async function materializeCanonicalChecklist(input: unknown) {
             );
           }
 
+          // Build-scoped templates carry only core `items` — WS1's
+          // `conditionalItems` injection is revision-scoped (it reads
+          // project flags). No conditional-bearing template is materialized
+          // build-scoped today; if that ever changes, the flag-driven items
+          // would need injecting here too.
           return tx.checklist.create({
             data: {
               buildId,
