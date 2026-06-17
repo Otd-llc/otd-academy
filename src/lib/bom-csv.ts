@@ -146,20 +146,24 @@ export function parseBomCsv(text: string): ParseResult {
     }
 
     // refDes split on commas AND whitespace, trim each segment, re-join with commas.
-    // Split on commas first (do NOT collapse, so a trailing/double comma yields a
-    // blank token that counts — rejecting "R1,"), then expand any whitespace within
-    // each token (whitespace-separated refs like "R1 R2"). Whitespace-only collapse
-    // drops nothing extra because each comma-token contributes >= 1 segment.
-    const refDesSegments = refDesRaw.split(",").flatMap((token) => {
-      const trimmed = token.trim();
-      if (trimmed === "") return [""]; // blank comma-token: kept so the count flags it
-      return trimmed.split(/\s+/).map((s) => s.trim());
-    });
-    const refDes = refDesSegments.filter((s) => s.length > 0).join(",");
+    // Split on commas first, then expand any whitespace within each token
+    // (whitespace-separated refs like "R1 R2"). Every piece is trimmed. A blank
+    // segment (empty cell, trailing comma "R1,", double comma "R1,,R2", or
+    // "R1, , R2") is a hard error: it would make the emitted comma-count diverge
+    // from the validated count, which the DB CHECK / zod refine then reject.
+    const refDesParts = refDesRaw
+      .split(",")
+      .flatMap((token) => token.trim().split(/\s+/))
+      .map((s) => s.trim());
+    if (refDesParts.some((s) => s.length === 0)) {
+      rowErrors.push(`refDes has an empty designator segment`);
+    }
+    const refDes = refDesParts.join(",");
 
-    // Segment count must equal quantity (only meaningful when quantity is valid).
-    if (Number.isInteger(quantity) && quantity > 0 && refDesSegments.length !== quantity) {
-      rowErrors.push(`refDes count ${refDesSegments.length} ≠ quantity ${quantity}`);
+    // Count guard compares the SAME segment list to quantity, so the emitted
+    // comma-count always equals the validated count (only meaningful when valid).
+    if (Number.isInteger(quantity) && quantity > 0 && refDesParts.length !== quantity) {
+      rowErrors.push(`refDes count ${refDesParts.length} ≠ quantity ${quantity}`);
     }
 
     if (rowErrors.length > 0) {

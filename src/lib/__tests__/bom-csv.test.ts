@@ -32,9 +32,29 @@ describe("parseBomCsv", () => {
     expect(bad.errors[0]).toMatchObject({ row: 2 });
   });
 
-  test("trailing comma in refDes is rejected (count mismatch)", () => {
-    const { errors } = parseBomCsv("refDes,manufacturer,mpn,quantity\n\"R1,\",Yageo,RC0805,1");
-    expect(errors.length).toBe(1);
+  test("trailing comma in refDes is rejected (blank segment)", () => {
+    const { rows, errors } = parseBomCsv(
+      "refDes,manufacturer,mpn,quantity\n\"R1,\",Yageo,RC0805,1",
+    );
+    expect(rows).toEqual([]);
+    expect(errors.some((e) => e.row === 2)).toBe(true);
+    expect(errors.some((e) => /empty designator segment/.test(e.message))).toBe(true);
+  });
+
+  test("blank segment from spaced double comma \"R1, , R2\" is rejected", () => {
+    const { rows, errors } = parseBomCsv(
+      "refDes,manufacturer,mpn,quantity\n\"R1, , R2\",Yageo,RC0805,3",
+    );
+    expect(rows).toEqual([]);
+    expect(errors.some((e) => e.row === 2)).toBe(true);
+  });
+
+  test("blank segment from bare double comma \"R1,,R2\" is rejected", () => {
+    const { rows, errors } = parseBomCsv(
+      "refDes,manufacturer,mpn,quantity\n\"R1,,R2\",Yageo,RC0805,3",
+    );
+    expect(rows).toEqual([]);
+    expect(errors.some((e) => e.row === 2)).toBe(true);
   });
 
   test("missing required column → top-level error, no rows", () => {
