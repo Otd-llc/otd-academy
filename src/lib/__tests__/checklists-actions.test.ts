@@ -141,6 +141,8 @@ async function makeRevAtStage(
 async function makeProjectWithFlags(flags: {
   hasMainsNet?: boolean;
   requiresStripboard?: boolean;
+  hasLiIon?: boolean;
+  hasThermalConcern?: boolean;
 }): Promise<{ id: string }> {
   const user = await seedUser();
   const stamp = Date.now() + Math.floor(Math.random() * 1000);
@@ -151,6 +153,8 @@ async function makeProjectWithFlags(flags: {
       createdById: user.id,
       hasMainsNet: flags.hasMainsNet ?? false,
       requiresStripboard: flags.requiresStripboard ?? false,
+      hasLiIon: flags.hasLiIon ?? false,
+      hasThermalConcern: flags.hasThermalConcern ?? false,
     },
   });
   createdProjectIds.push(project.id);
@@ -950,7 +954,7 @@ describe("materializeCanonicalChecklist — build-scoped (m5)", () => {
 // block (2 items) on top of the 5 core items.
 
 describe("materializeCanonicalChecklist — DESIGN_VALIDATION conditional injection (WS1)", () => {
-  test("hasMainsNet=false → only the 5 core items", async () => {
+  test("hasMainsNet=false → only the 6 core items", async () => {
     const project = await makeProjectWithFlags({ hasMainsNet: false });
     const rev = await makeRevOnProject(
       project.id,
@@ -971,13 +975,13 @@ describe("materializeCanonicalChecklist — DESIGN_VALIDATION conditional inject
       where: { checklistId: checklist.id },
       orderBy: { ordinal: "asc" },
     });
-    expect(items.length).toBe(5);
+    expect(items.length).toBe(6);
     expect(
       items.every((i) => !/Mains-safety|Isolation barrier/i.test(i.label)),
     ).toBe(true);
   });
 
-  test("hasMainsNet=true → 5 core items + 2 appended safety items, in order", async () => {
+  test("hasMainsNet=true → 6 core items + 2 appended safety items, in order", async () => {
     const project = await makeProjectWithFlags({ hasMainsNet: true });
     const rev = await makeRevOnProject(
       project.id,
@@ -995,8 +999,55 @@ describe("materializeCanonicalChecklist — DESIGN_VALIDATION conditional inject
       where: { checklistId: checklist.id },
       orderBy: { ordinal: "asc" },
     });
-    expect(items.length).toBe(7);
-    expect(items[5]!.label).toMatch(/Mains-safety/i);
-    expect(items[6]!.label).toMatch(/Isolation barrier/i);
+    expect(items.length).toBe(8);
+    expect(items[6]!.label).toMatch(/Mains-safety/i);
+    expect(items[7]!.label).toMatch(/Isolation barrier/i);
+  });
+
+  test("hasLiIon=true → 6 core + 2 Li-ion items appended", async () => {
+    const project = await makeProjectWithFlags({ hasLiIon: true });
+    const rev = await makeRevOnProject(
+      project.id,
+      "BOM_SOURCING",
+      `ws2-dv-liion-${Date.now()}`,
+    );
+    const checklist = await materializeCanonicalChecklist({
+      revisionId: rev.id,
+      templateKey: "DESIGN_VALIDATION",
+    });
+    createdChecklistIds.push(checklist.id);
+    const items = await db.checklistItem.findMany({
+      where: { checklistId: checklist.id },
+      orderBy: { ordinal: "asc" },
+    });
+    expect(items.length).toBe(8);
+    expect(items[6]!.label).toMatch(/Li-ion protection/i);
+    expect(items[7]!.label).toMatch(/containment/i);
+  });
+
+  test("hasMainsNet + hasThermalConcern → 6 core + 2 mains + 2 thermal, in declaration order", async () => {
+    const project = await makeProjectWithFlags({
+      hasMainsNet: true,
+      hasThermalConcern: true,
+    });
+    const rev = await makeRevOnProject(
+      project.id,
+      "BOM_SOURCING",
+      `ws2-dv-mains-thermal-${Date.now()}`,
+    );
+    const checklist = await materializeCanonicalChecklist({
+      revisionId: rev.id,
+      templateKey: "DESIGN_VALIDATION",
+    });
+    createdChecklistIds.push(checklist.id);
+    const items = await db.checklistItem.findMany({
+      where: { checklistId: checklist.id },
+      orderBy: { ordinal: "asc" },
+    });
+    // 6 core + mains(2) + thermal(2). Order follows conditionalItems declaration:
+    // hasMainsNet block precedes hasThermalConcern block.
+    expect(items.length).toBe(10);
+    expect(items[6]!.label).toMatch(/Mains-safety/i);
+    expect(items[8]!.label).toMatch(/Thermal budget/i);
   });
 });
