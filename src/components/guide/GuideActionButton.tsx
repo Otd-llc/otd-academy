@@ -12,6 +12,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import {
+  getBringupMeasurementsUrl,
   getKicadStarterUrl,
   getReferenceFilesUrl,
 } from "@/lib/actions/learner-resources";
@@ -30,6 +31,10 @@ const ACTIONS: Record<
   downloadReferenceFiles: {
     resolve: getReferenceFilesUrl,
     notReady: "The reference files aren't available for this board yet.",
+  },
+  downloadBringupMeasurements: {
+    resolve: getBringupMeasurementsUrl,
+    notReady: "The bring-up measurements aren't available for this board yet.",
   },
 };
 
