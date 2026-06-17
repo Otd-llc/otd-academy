@@ -20,6 +20,7 @@ import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { assertBomNotFrozen, assertNotFrozen } from "@/lib/assertions";
 import { withTxRetry } from "@/lib/tx-retry";
+import { parseBomCsv } from "@/lib/bom-csv";
 import {
   createBomLineSchema,
   deleteBomLineSchema,
@@ -124,6 +125,102 @@ export async function deleteBomLine(input: unknown) {
   revalidatePath(`/projects/${projectSlug}/${revLabel}`);
 }
 
+// ─── CSV import (WS3) ──────────────────────────────────────────────────
+//
+// Strict-match each parsed row's (manufacturer, mpn) against a curated Part
+// (Prisma composite-unique input name `manufacturer_mpn`); unmatched rows are
+// reported and skipped. Matched rows upsert on the per-revision composite
+// unique `[revisionId, partId]` (input name `revisionId_partId`) so a re-import
+// updates instead of duplicating. The whole batch runs in the same
+// Serializable retry transaction `createBomLine` uses and is guarded by BOTH
+// freeze asserts (`assertNotFrozen` + `assertBomNotFrozen`).
+//
+// The parser (Task 3) already guarantees every accepted row's refDes
+// comma-count equals its quantity with no blank segments, so the DB CHECK
+// `bomline_refdes_count` won't abort the tx for parser-accepted rows.
+
+export async function importBomCsv(input: {
+  revisionId: string;
+  csv: string;
+}): Promise<{
+  created: number;
+  updated: number;
+  unmatched: { manufacturer: string; mpn: string; row: number }[];
+  rowErrors: { row: number; message: string }[];
+}> {
+  const { revisionId, csv } = input;
+  const user = await requireAdmin();
+
+  const { rows, errors } = parseBomCsv(csv);
+
+  const result = await withTxRetry(() =>
+    db.$transaction(
+      async (tx) => {
+        await assertNotFrozen(tx, revisionId);
+        await assertBomNotFrozen(tx, revisionId);
+
+        let created = 0;
+        let updated = 0;
+        const unmatched: { manufacturer: string; mpn: string; row: number }[] =
+          [];
+
+        for (const [i, r] of rows.entries()) {
+          const part = await tx.part.findUnique({
+            where: {
+              manufacturer_mpn: { manufacturer: r.manufacturer, mpn: r.mpn },
+            },
+            select: { id: true },
+          });
+          if (!part) {
+            // Parser rows are 1-indexed by source line (header = 1, first
+            // data row = 2); `rows` only holds accepted rows so we can't
+            // recover the exact line — report manufacturer/mpn + position.
+            unmatched.push({
+              manufacturer: r.manufacturer,
+              mpn: r.mpn,
+              row: i + 2,
+            });
+            continue;
+          }
+
+          const data = {
+            refDes: r.refDes,
+            quantity: r.quantity,
+            unitPriceCents: r.unitPriceCents,
+            altMpn: r.altMpn,
+            altManufacturer: r.altManufacturer,
+            notes: r.notes,
+          };
+
+          const existing = await tx.bomLine.findUnique({
+            where: { revisionId_partId: { revisionId, partId: part.id } },
+            select: { id: true },
+          });
+          await tx.bomLine.upsert({
+            where: { revisionId_partId: { revisionId, partId: part.id } },
+            create: {
+              revisionId,
+              partId: part.id,
+              createdById: user.id,
+              ...data,
+            },
+            update: data,
+          });
+          if (existing) updated++;
+          else created++;
+        }
+
+        return { created, updated, unmatched };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    ),
+  );
+
+  const { revLabel, projectSlug } = await loadRevisionRouteContext(revisionId);
+  revalidatePath(`/projects/${projectSlug}/${revLabel}`);
+  return { ...result, rowErrors: errors };
+}
+
 // ─── Form action wrappers (useActionState-compatible) ──────────────────
 
 export type BomLineFormState = {
@@ -172,6 +269,44 @@ export async function createBomLineFormAction(
       return { errors };
     }
     return { message: err instanceof Error ? err.message : "Unknown error" };
+  }
+}
+
+// Form-action wrapper for the editor's Import-CSV panel. The return type is
+// structural (no exported type alias — this `"use server"` file may export
+// only async functions). The editor mirrors this shape as `ImportBomState`.
+export async function importBomCsvFormAction(
+  _prev: {
+    report?: {
+      created: number;
+      updated: number;
+      unmatched: { manufacturer: string; mpn: string; row: number }[];
+      rowErrors: { row: number; message: string }[];
+    };
+    message?: string;
+  },
+  formData: FormData,
+): Promise<{
+  report?: {
+    created: number;
+    updated: number;
+    unmatched: { manufacturer: string; mpn: string; row: number }[];
+    rowErrors: { row: number; message: string }[];
+  };
+  message?: string;
+}> {
+  const revisionId = pickString(formData, "revisionId");
+  const csv = pickString(formData, "csv");
+  if (!revisionId || !csv) {
+    return { message: "Provide a revision and CSV." };
+  }
+  try {
+    const report = await importBomCsv({ revisionId, csv });
+    return { report };
+  } catch (err) {
+    return {
+      message: err instanceof Error ? err.message : "Import failed.",
+    };
   }
 }
 

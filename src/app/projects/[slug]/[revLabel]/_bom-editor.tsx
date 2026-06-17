@@ -10,6 +10,7 @@ import type { PartLifecycle } from "@prisma/client";
 import {
   createBomLineFormAction,
   deleteBomLineAction,
+  importBomCsvFormAction,
   type BomLineFormState,
 } from "@/lib/actions/bom-lines";
 import { CreatePartDialog, type PartOption } from "@/components/CreatePartDialog";
@@ -31,6 +32,20 @@ type BomLineRow = {
 
 const initialState: BomLineFormState = {};
 
+// Mirrors the structural return type of `importBomCsvFormAction` (the
+// `"use server"` action file can't export a type alias).
+type ImportBomState = {
+  report?: {
+    created: number;
+    updated: number;
+    unmatched: { manufacturer: string; mpn: string; row: number }[];
+    rowErrors: { row: number; message: string }[];
+  };
+  message?: string;
+};
+
+const importInitialState: ImportBomState = {};
+
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
@@ -40,6 +55,19 @@ function SubmitButton() {
       className="rounded border border-command-gold bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
     >
       {pending ? "WORKING…" : "Add line"}
+    </button>
+  );
+}
+
+function ImportButton({ disabled }: { disabled?: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending || disabled}
+      className="rounded border border-command-gold bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+    >
+      {pending ? "IMPORTING…" : "Import CSV"}
     </button>
   );
 }
@@ -70,6 +98,11 @@ export function BomEditor({
     createBomLineFormAction,
     initialState,
   );
+  const [importState, importAction] = useActionState(
+    importBomCsvFormAction,
+    importInitialState,
+  );
+  const [showImport, setShowImport] = useState(false);
   const [showPartDialog, setShowPartDialog] = useState(false);
   // Track parts created during this session so the dropdown reflects them
   // immediately. The server-rendered list is the source of truth on next
@@ -220,6 +253,100 @@ export function BomEditor({
             <FieldError messages={state.errors?.unitPriceCents} />
           </div>
         </form>
+      </div>
+
+      {/* WS3: collapsible CSV import. Strict-matches (manufacturer, mpn) and
+          upserts on [revisionId, partId]; unmatched rows are reported. */}
+      <div className="border border-panel-border bg-deep-space p-4">
+        <button
+          type="button"
+          onClick={() => setShowImport((v) => !v)}
+          className="flex w-full items-center justify-between font-mono text-xs uppercase tracking-wider text-muted hover:text-command-gold"
+        >
+          <span>Import CSV</span>
+          <span className="text-command-gold">{showImport ? "−" : "+"}</span>
+        </button>
+
+        {showImport && (
+          <div className="mt-3 space-y-3">
+            {disabled && (
+              <p className="font-mono text-xs font-bold text-alert-red">
+                {disabledReason ?? "BOM editing disabled."}
+              </p>
+            )}
+            {importState.message && (
+              <InlineBanner variant="error">
+                {importState.message}
+              </InlineBanner>
+            )}
+
+            <form action={importAction} className="space-y-3">
+              <input type="hidden" name="revisionId" value={revisionId} />
+              <p className="font-mono text-xs text-muted">
+                Header row required:{" "}
+                <span className="text-link-muted">
+                  refDes,manufacturer,mpn,quantity
+                </span>{" "}
+                (optional: unitPrice,altMpn,altManufacturer,notes). Parts match
+                on exact manufacturer + MPN.
+              </p>
+              <textarea
+                name="csv"
+                rows={8}
+                disabled={disabled}
+                placeholder={
+                  "refDes,manufacturer,mpn,quantity,unitPrice\nR1,Yageo,RC0805JR-070R0L,1,0.02"
+                }
+                className="w-full rounded border border-panel-border bg-navy-dark px-2 py-2 font-mono text-xs text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
+              />
+              <ImportButton disabled={disabled} />
+            </form>
+
+            {importState.report && (
+              <div className="space-y-2 border border-panel-border bg-navy-dark p-3 font-mono text-xs">
+                <p className="text-link-muted">
+                  <span className="text-command-gold">
+                    {importState.report.created} created
+                  </span>{" "}
+                  ·{" "}
+                  <span className="text-signal-blue">
+                    {importState.report.updated} updated
+                  </span>{" "}
+                  ·{" "}
+                  <span className="text-muted">
+                    {importState.report.unmatched.length} skipped
+                  </span>
+                </p>
+
+                {importState.report.unmatched.length > 0 && (
+                  <div>
+                    <p className="text-alert-red">Unmatched MPNs (skipped):</p>
+                    <ul className="mt-1 list-inside list-disc text-muted">
+                      {importState.report.unmatched.map((u, idx) => (
+                        <li key={`${u.manufacturer}-${u.mpn}-${idx}`}>
+                          row {u.row}: {u.manufacturer} {u.mpn}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {importState.report.rowErrors.length > 0 && (
+                  <div>
+                    <p className="text-alert-red">Row errors (skipped):</p>
+                    <ul className="mt-1 list-inside list-disc text-muted">
+                      {importState.report.rowErrors.map((e, idx) => (
+                        <li key={`${e.row}-${idx}`}>
+                          row {e.row}: {e.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div>
