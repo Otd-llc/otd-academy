@@ -24,13 +24,21 @@ export interface CanonicalTemplate {
   stage: Stage;
   title: string;
   items: CanonicalItem[];
+  // WS1: declarative flag-driven items. At materialize time (revision-scoped
+  // only) the parent project's boolean flag is read; if true, this block's
+  // items are appended after the core `items`. Keys are Project boolean flags.
+  conditionalItems?: {
+    flag: "hasMainsNet" | "requiresStripboard";
+    items: CanonicalItem[];
+  }[];
 }
 
 export const CANONICAL_TEMPLATES: Record<
   | "REQUIREMENTS_REVIEW"
   | "LAYOUT_REVIEW"
   | "STRIPBOARD_VALIDATION"
-  | "POST_ASSEMBLY_CONTINUITY",
+  | "POST_ASSEMBLY_CONTINUITY"
+  | "DESIGN_VALIDATION",
   CanonicalTemplate
 > = {
   REQUIREMENTS_REVIEW: {
@@ -131,6 +139,54 @@ export const CANONICAL_TEMPLATES: Record<
       {
         label:
           "Bring-up measurements captured (link to Measurement IDs).",
+      },
+    ],
+  },
+  // WS1: DESIGN_VALIDATION — the gateable design-validation record. Core items
+  // are attestations (a process gate, not machine proof — plan decision 6).
+  // Conditional items are injected at materialize time from project flags;
+  // WS1 ships only the hasMainsNet block (requiresStripboard already owns its
+  // own STRIPBOARD_VALIDATION checklist; Li-ion/thermal have no flag yet).
+  // No exitGate consumes this in WS1 — WS4's advisory board-readiness will.
+  DESIGN_VALIDATION: {
+    subkind: "DESIGN_VALIDATION",
+    stage: "BOM_SOURCING",
+    title: "DESIGN_VALIDATION checklist",
+    items: [
+      {
+        label:
+          "Calc trail recorded — every derived value (rails, currents, divider/timing) traces to a source.",
+      },
+      {
+        label:
+          "Each IC datasheet-verified — the chosen part's datasheet matches the schematic symbol and intended use.",
+      },
+      {
+        label:
+          "Footprint ↔ pinout cross-checked — each part's footprint pad map matches the datasheet pinout.",
+      },
+      {
+        label:
+          "Fab-DRU DRC accounted for — the fab's design rules (.kicad_dru) will be applied before gerber export.",
+      },
+      {
+        label:
+          "BOM availability confirmed — every part is in stock and not EOL/NRND at a real distributor.",
+      },
+    ],
+    conditionalItems: [
+      {
+        flag: "hasMainsNet",
+        items: [
+          {
+            label:
+              "Mains-safety review completed — clearance/creepage, fusing, and earthing per the design doc.",
+          },
+          {
+            label:
+              "Isolation barrier verified — isolation gap on the layout plan and the certified module's isolation rating.",
+          },
+        ],
       },
     ],
   },

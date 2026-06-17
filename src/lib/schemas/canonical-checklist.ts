@@ -19,6 +19,7 @@ export const canonicalTemplateKeySchema = z.enum([
   "LAYOUT_REVIEW",
   "STRIPBOARD_VALIDATION",
   "POST_ASSEMBLY_CONTINUITY",
+  "DESIGN_VALIDATION",
 ]);
 
 export const materializeCanonicalChecklistSchema = z

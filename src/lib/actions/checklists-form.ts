@@ -314,7 +314,8 @@ export async function materializeCanonicalChecklistFormAction(
   if (
     templateKey !== "REQUIREMENTS_REVIEW" &&
     templateKey !== "LAYOUT_REVIEW" &&
-    templateKey !== "STRIPBOARD_VALIDATION"
+    templateKey !== "STRIPBOARD_VALIDATION" &&
+    templateKey !== "DESIGN_VALIDATION"
   ) {
     return { message: "Invalid template key." };
   }

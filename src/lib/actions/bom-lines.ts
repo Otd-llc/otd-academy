@@ -50,6 +50,8 @@ export async function createBomLine(input: unknown) {
             refDes: data.refDes,
             quantity: data.quantity,
             notes: data.notes ?? null,
+            altMpn: data.altMpn ?? null,
+            altManufacturer: data.altManufacturer ?? null,
             createdById: user.id,
           },
         });
@@ -145,6 +147,8 @@ export async function createBomLineFormAction(
     refDes: pickString(formData, "refDes"),
     quantity: pickString(formData, "quantity"),
     notes: pickString(formData, "notes"),
+    altMpn: pickString(formData, "altMpn"),
+    altManufacturer: pickString(formData, "altManufacturer"),
   };
   try {
     await createBomLine(raw);

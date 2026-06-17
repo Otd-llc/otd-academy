@@ -21,6 +21,8 @@ type BomLineRow = {
   refDes: string;
   quantity: number;
   notes: string | null;
+  altMpn: string | null;
+  altManufacturer: string | null;
   part: PartOption;
 };
 
@@ -169,6 +171,34 @@ export function BomEditor({
             />
             <FieldError messages={state.errors?.notes} />
           </div>
+
+          {/* WS1: optional second-source (alternate MPN / manufacturer). */}
+          <div className="md:col-span-3">
+            <label className="block font-mono text-xs uppercase tracking-wider text-muted">
+              Alt. MPN (optional)
+            </label>
+            <input
+              name="altMpn"
+              disabled={disabled}
+              maxLength={200}
+              placeholder="second-source part number"
+              className="mt-1 w-full rounded border border-panel-border bg-navy-dark px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
+            />
+            <FieldError messages={state.errors?.altMpn} />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block font-mono text-xs uppercase tracking-wider text-muted">
+              Alt. mfr. (optional)
+            </label>
+            <input
+              name="altManufacturer"
+              disabled={disabled}
+              maxLength={200}
+              placeholder="second-source maker"
+              className="mt-1 w-full rounded border border-panel-border bg-navy-dark px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
+            />
+            <FieldError messages={state.errors?.altManufacturer} />
+          </div>
         </form>
       </div>
 
@@ -191,6 +221,14 @@ export function BomEditor({
                   <span className="text-command-gold">{line.refDes}</span>{" "}
                   <span className="text-muted">·</span>{" "}
                   {line.part.manufacturer} {line.part.mpn}
+                  {line.altMpn || line.altManufacturer ? (
+                    <span className="mt-0.5 block text-xs text-muted">
+                      alt:{" "}
+                      {[line.altManufacturer, line.altMpn]
+                        .filter(Boolean)
+                        .join(" ")}
+                    </span>
+                  ) : null}
                 </span>
                 <span className="text-muted">qty {line.quantity}</span>
                 <span className="text-muted">{line.notes ?? ""}</span>

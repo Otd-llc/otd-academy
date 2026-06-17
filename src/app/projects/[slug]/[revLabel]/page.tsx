@@ -338,6 +338,8 @@ export default async function RevisionDetailPage({
                     refDes: l.refDes,
                     quantity: l.quantity,
                     notes: l.notes,
+                    altMpn: l.altMpn,
+                    altManufacturer: l.altManufacturer,
                     part: {
                       id: l.part.id,
                       mpn: l.part.mpn,

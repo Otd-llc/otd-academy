@@ -59,4 +59,27 @@ describe("canonical checklist templates", () => {
       expect.stringMatching(/Bring-up measurements captured/i),
     ]);
   });
+
+  // WS1: DESIGN_VALIDATION — core mandatory items + a hasMainsNet conditional
+  // block. Pinned to BOM_SOURCING (the validate → source-BOM handoff).
+  test("DESIGN_VALIDATION template has 5 core items + a hasMainsNet conditional", () => {
+    const t = CANONICAL_TEMPLATES.DESIGN_VALIDATION;
+    expect(t.subkind).toBe("DESIGN_VALIDATION");
+    expect(t.stage).toBe("BOM_SOURCING");
+    expect(t.items.length).toBe(5);
+    expect(t.items.map((i) => i.label)).toEqual([
+      expect.stringMatching(/Calc trail/i),
+      expect.stringMatching(/datasheet-verified/i),
+      expect.stringMatching(/Footprint/i),
+      expect.stringMatching(/Fab-DRU/i),
+      expect.stringMatching(/BOM availability/i),
+    ]);
+    const mains = t.conditionalItems?.find((c) => c.flag === "hasMainsNet");
+    expect(mains).toBeDefined();
+    expect(mains!.items.length).toBe(2);
+    expect(mains!.items.map((i) => i.label)).toEqual([
+      expect.stringMatching(/Mains-safety/i),
+      expect.stringMatching(/Isolation barrier/i),
+    ]);
+  });
 });

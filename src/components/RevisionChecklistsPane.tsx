@@ -37,6 +37,7 @@ const REVISION_SUBKINDS: ChecklistSubkind[] = [
   "REQUIREMENTS_REVIEW",
   "LAYOUT_REVIEW",
   "STRIPBOARD_VALIDATION",
+  "DESIGN_VALIDATION",
 ];
 
 const REVISION_CHECKLIST_VISIBLE_STAGES: ReadonlySet<Stage> = new Set([
@@ -102,6 +103,13 @@ export function RevisionChecklistsPane({
     stage === "BOM_SOURCING" &&
     requiresStripboard === true &&
     !hasStripboardValidation;
+  const hasDesignValidation = checklists.some(
+    (c) => c.subkind === "DESIGN_VALIDATION",
+  );
+  // WS1: offered at BOM_SOURCING regardless of flags (hasMainsNet only changes
+  // the injected item set, not button visibility).
+  const showMaterializeDesignValidation =
+    !disabled && stage === "BOM_SOURCING" && !hasDesignValidation;
 
   return (
     <section>
@@ -121,7 +129,8 @@ export function RevisionChecklistsPane({
 
       {showMaterializeRequirements ||
       showMaterializeLayout ||
-      showMaterializeStripboard ? (
+      showMaterializeStripboard ||
+      showMaterializeDesignValidation ? (
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <span className="font-mono text-xs uppercase tracking-wider text-muted">
             Materialize canonical:
@@ -145,6 +154,13 @@ export function RevisionChecklistsPane({
               revisionId={revisionId}
               templateKey="STRIPBOARD_VALIDATION"
               label="STRIPBOARD_VALIDATION"
+            />
+          ) : null}
+          {showMaterializeDesignValidation ? (
+            <MaterializeReviewButton
+              revisionId={revisionId}
+              templateKey="DESIGN_VALIDATION"
+              label="DESIGN_VALIDATION"
             />
           ) : null}
         </div>

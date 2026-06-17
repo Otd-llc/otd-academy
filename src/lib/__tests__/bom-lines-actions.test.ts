@@ -213,3 +213,43 @@ describe("editBomLine + deleteBomLine — normal CRUD", () => {
     expect(fresh).toBeNull();
   });
 });
+
+// ─── WS1: second-source alt-MPN fields ─────────────────────────────────────
+
+describe("BomLine alt-MPN (WS1)", () => {
+  test("create carries altMpn + altManufacturer; edit updates altMpn alone", async () => {
+    const rev = await makeFreshRevision(`t-ws1-alt-${Date.now()}`);
+    const part = await aPart();
+
+    const line = await createBomLine({
+      revisionId: rev.id,
+      partId: part.id,
+      refDes: "U9",
+      quantity: 1,
+      altMpn: "ALT-123",
+      altManufacturer: "AltCorp",
+    });
+    createdBomLineIds.push(line.id);
+    expect(line.altMpn).toBe("ALT-123");
+    expect(line.altManufacturer).toBe("AltCorp");
+
+    const edited = await editBomLine({ id: line.id, altMpn: "ALT-456" });
+    expect(edited.altMpn).toBe("ALT-456");
+    // untouched field preserved
+    expect(edited.altManufacturer).toBe("AltCorp");
+  });
+
+  test("alt fields default to null when omitted", async () => {
+    const rev = await makeFreshRevision(`t-ws1-alt-null-${Date.now()}`);
+    const part = await aPart();
+    const line = await createBomLine({
+      revisionId: rev.id,
+      partId: part.id,
+      refDes: "U10",
+      quantity: 1,
+    });
+    createdBomLineIds.push(line.id);
+    expect(line.altMpn).toBeNull();
+    expect(line.altManufacturer).toBeNull();
+  });
+});

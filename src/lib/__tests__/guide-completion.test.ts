@@ -105,14 +105,25 @@ describe("resolveCardCompletion — plan-pinned states", () => {
   });
 
   test("revisionChecklist that has never been materialized → untouched (total 0) with materialize href", async () => {
-    // The rev sits at REQUIREMENTS and has no LAYOUT_REVIEW yet.
-    const rev = await db.revision.findFirstOrThrow({
-      where: {
-        project: { slug: WROOM_SLUG },
-        label: { equals: "v1", mode: "insensitive" },
-      },
+    // Self-contained: a FRESH revision with NO LAYOUT_REVIEW checklist, so the
+    // ref resolves to untouched/total 0. (This used to read the real curriculum
+    // v1 board, which acquired a real LAYOUT_REVIEW checklist in prod — flipping
+    // this to "partial" and the assertion to red. The state under test is
+    // "no checklist exists", not the live board's. Same fix as the partial test
+    // above.)
+    const project = await db.project.findUniqueOrThrow({
+      where: { slug: SEED_PROJECT_SLUG },
       select: { id: true },
     });
+    const rev = await db.revision.create({
+      data: {
+        projectId: project.id,
+        label: `gc-untouched-${Date.now()}`,
+        currentStage: "REQUIREMENTS",
+      },
+    });
+    createdRevisionIds.push(rev.id);
+
     const r = await resolveCardCompletion({
       revisionId: rev.id,
       stage: "LAYOUT",

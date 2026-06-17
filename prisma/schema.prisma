@@ -412,6 +412,7 @@ enum ChecklistSubkind {
   REQUIREMENTS_REVIEW      // m16: gated at REQUIREMENTS exit
   LAYOUT_REVIEW            // m16: gated at LAYOUT exit
   STRIPBOARD_VALIDATION    // m17: gated at BOM_SOURCING exit when project.requiresStripboard
+  DESIGN_VALIDATION        // WS1: design-validation record (no gate yet; WS4 board-readiness consumes it)
 }
 
 model Checklist {
@@ -710,6 +711,11 @@ model BomLine {
   refDes      String // raw migration CHECK: array_length(string_to_array(refDes, ','), 1) = quantity
   quantity    Int
   notes       String?
+  // WS1: second-source / alternate part. Informational sourcing hint — NOT a
+  // FK to Part; either field may be present alone. Price is deliberately out
+  // of scope here (cost roll-up is WS3; never reuse the name priceCents).
+  altMpn          String?
+  altManufacturer String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   createdById String
