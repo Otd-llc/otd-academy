@@ -22,6 +22,7 @@ import {
   EditSchematicCommitForm,
 } from "./_commit-fields";
 import { BomEditor } from "./_bom-editor";
+import { bomCost, assessBomSourcing, type BomWarning } from "@/lib/bom-cost";
 import { ArtifactPicker } from "@/components/ArtifactPicker";
 import { ArtifactDownloadLink } from "@/components/ArtifactDownloadLink";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
@@ -54,6 +55,9 @@ export default async function RevisionDetailPage({
       // m17: surfaces the stripboard-required indicator for the
       // RevisionChecklistsPane (materialize button visibility).
       requiresStripboard: true,
+      // WS3: design-to-cost target (Decimal dollars) for the BOM cost roll-up
+      // badge + sourcing advisory. Null when no target was set.
+      targetCost: true,
     },
   });
   if (!project) notFound();
@@ -121,6 +125,27 @@ export default async function RevisionDetailPage({
           select: { id: true, mpn: true, manufacturer: true },
         })
       : [];
+
+  // WS3: cost roll-up + sourcing advisory, computed server-side from the
+  // revision's BomLines (already include `part`). `targetCost` is a Prisma
+  // Decimal (dollars) or null; bomCost/assessBomSourcing accept its toString().
+  const cost = bomCost(revision.bomLines, project.targetCost);
+  const { warnings } = assessBomSourcing(revision.bomLines, project.targetCost);
+  // The pure assessor can't know each non-ACTIVE part's identifier, so it
+  // leaves `refDesOrMpn` blank. Re-derive identifiers here in the same order
+  // the assessor iterates (lines order) and fill them in for display.
+  const nonActiveLines = revision.bomLines.filter(
+    (l) => l.part.lifecycle !== "ACTIVE",
+  );
+  let lifecycleIdx = 0;
+  const bomWarnings: BomWarning[] = warnings.map((w) => {
+    if (w.kind !== "lifecycle") return w;
+    const line = nonActiveLines[lifecycleIdx++];
+    return {
+      ...w,
+      refDesOrMpn: line ? line.refDes || line.part.mpn : w.refDesOrMpn,
+    };
+  });
 
   // Errata pane (§9.1 bottom-right; Task 11.2) — same-project linkable revs
   // are every revision under this project EXCEPT this one. The dropdown in
@@ -253,6 +278,7 @@ export default async function RevisionDetailPage({
           revisionId={revision.id}
           currentStage={revision.currentStage as StageName}
           isFrozen={isFrozen}
+          bomWarningsCount={bomWarnings.length}
         />
       </div>
 
@@ -333,6 +359,8 @@ export default async function RevisionDetailPage({
               <div className="mt-4">
                 <BomEditor
                   revisionId={revision.id}
+                  cost={cost}
+                  warnings={bomWarnings}
                   lines={revision.bomLines.map((l) => ({
                     id: l.id,
                     refDes: l.refDes,
@@ -340,10 +368,12 @@ export default async function RevisionDetailPage({
                     notes: l.notes,
                     altMpn: l.altMpn,
                     altManufacturer: l.altManufacturer,
+                    unitPriceCents: l.unitPriceCents,
                     part: {
                       id: l.part.id,
                       mpn: l.part.mpn,
                       manufacturer: l.part.manufacturer,
+                      lifecycle: l.part.lifecycle,
                     },
                   }))}
                   parts={parts.map((p) => ({

@@ -103,6 +103,7 @@ function makeBomLine(part: Part, overrides: Partial<BomLine> = {}): BomLine & {
     notes: null,
     altMpn: null,
     altManufacturer: null,
+    unitPriceCents: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     createdById: "user-test",

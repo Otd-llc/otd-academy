@@ -22,6 +22,7 @@ import {
   createBomLine,
   deleteBomLine,
   editBomLine,
+  importBomCsv,
 } from "@/lib/actions/bom-lines";
 
 const SEED_EMAIL = "seed@example.com";
@@ -251,5 +252,86 @@ describe("BomLine alt-MPN (WS1)", () => {
     createdBomLineIds.push(line.id);
     expect(line.altMpn).toBeNull();
     expect(line.altManufacturer).toBeNull();
+  });
+});
+
+// ─── WS3: per-line unit price ──────────────────────────────────────────────
+
+describe("BomLine unitPriceCents (WS3)", () => {
+  test("create carries unitPriceCents; edit updates it; omitted → null", async () => {
+    const rev = await makeFreshRevision(`t-ws3-price-${Date.now()}`);
+    const part = await aPart();
+
+    const line = await createBomLine({
+      revisionId: rev.id,
+      partId: part.id,
+      refDes: "U11",
+      quantity: 1,
+      unitPriceCents: 123,
+    });
+    createdBomLineIds.push(line.id);
+    expect(line.unitPriceCents).toBe(123);
+
+    const edited = await editBomLine({ id: line.id, unitPriceCents: 456 });
+    expect(edited.unitPriceCents).toBe(456);
+
+    const rev2 = await makeFreshRevision(`t-ws3-price-null-${Date.now()}`);
+    const line2 = await createBomLine({
+      revisionId: rev2.id,
+      partId: part.id,
+      refDes: "U12",
+      quantity: 1,
+    });
+    createdBomLineIds.push(line2.id);
+    expect(line2.unitPriceCents).toBeNull();
+  });
+});
+
+// ─── WS3: CSV import (strict-match upsert) ─────────────────────────────────
+
+describe("importBomCsv (WS3)", () => {
+  test("matched rows create, re-import updates; unmatched reported; frozen rejected", async () => {
+    const rev = await makeFreshRevision(`t-ws3-import-${Date.now()}`);
+    const part = await aPart(); // existing curated part with known manufacturer+mpn
+
+    const csv =
+      "refDes,manufacturer,mpn,quantity,unitPrice\n" +
+      `R1,${part.manufacturer},${part.mpn},1,0.05\n` +
+      "U1,NoSuch,NS-404,1,9.99";
+
+    const r1 = await importBomCsv({ revisionId: rev.id, csv });
+    // track the created line for cleanup
+    const created1 = await db.bomLine.findFirst({
+      where: { revisionId: rev.id, partId: part.id },
+    });
+    if (created1) createdBomLineIds.push(created1.id);
+    expect(r1.created).toBe(1);
+    expect(r1.updated).toBe(0);
+    expect(r1.unmatched).toHaveLength(1);
+    expect(r1.unmatched[0]!.mpn).toBe("NS-404");
+
+    // re-import the matched row with a new price → update, not duplicate
+    const r2 = await importBomCsv({
+      revisionId: rev.id,
+      csv: `refDes,manufacturer,mpn,quantity,unitPrice\nR1,${part.manufacturer},${part.mpn},1,0.07`,
+    });
+    expect(r2.created).toBe(0);
+    expect(r2.updated).toBe(1);
+    const line = await db.bomLine.findFirstOrThrow({
+      where: { revisionId: rev.id, partId: part.id },
+    });
+    expect(line.unitPriceCents).toBe(7);
+
+    // freeze the BOM → import rejected
+    await db.revision.update({
+      where: { id: rev.id },
+      data: { bomFrozenAt: new Date() },
+    });
+    await expect(
+      importBomCsv({
+        revisionId: rev.id,
+        csv: `refDes,manufacturer,mpn,quantity\nR2,${part.manufacturer},${part.mpn},1`,
+      }),
+    ).rejects.toThrow(/frozen/i);
   });
 });

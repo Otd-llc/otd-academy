@@ -30,6 +30,7 @@ export const createBomLineSchema = z
     notes: z.string().max(1000).optional().nullable(),
     altMpn: altSourceField,
     altManufacturer: altSourceField,
+    unitPriceCents: z.number().int().nonnegative().max(100_000_000).optional().nullable(),
   })
   .refine(
     (v) => v.refDes.split(",").length === v.quantity,
@@ -55,6 +56,7 @@ export const editBomLineSchema = z
     notes: z.string().max(1000).optional().nullable(),
     altMpn: altSourceField,
     altManufacturer: altSourceField,
+    unitPriceCents: z.number().int().nonnegative().max(100_000_000).optional().nullable(),
   })
   .refine(
     (v) => {
