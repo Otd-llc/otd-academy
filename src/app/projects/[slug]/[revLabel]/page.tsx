@@ -23,6 +23,8 @@ import {
 } from "./_commit-fields";
 import { BomEditor } from "./_bom-editor";
 import { bomCost, assessBomSourcing, type BomWarning } from "@/lib/bom-cost";
+import { assessBoardReadiness } from "@/lib/board-readiness";
+import { BoardReadinessPanel } from "@/components/BoardReadinessPanel";
 import { ArtifactPicker } from "@/components/ArtifactPicker";
 import { ArtifactDownloadLink } from "@/components/ArtifactDownloadLink";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
@@ -145,6 +147,27 @@ export default async function RevisionDetailPage({
       ...w,
       refDesOrMpn: line ? line.refDes || line.part.mpn : w.refDesOrMpn,
     };
+  });
+
+  // WS4: board-readiness verdict (advisory). Reuses the cost roll-up + enriched
+  // warnings computed above; `revision.checklists` is an included relation (no
+  // `?.` needed). "Design validated" folds the design-doc-presence requirement
+  // into the DESIGN_VALIDATION checklist being materialized + fully resolved.
+  const designValidation = revision.checklists.find(
+    (c) => c.subkind === "DESIGN_VALIDATION",
+  );
+  const dvItems = designValidation?.items ?? [];
+  const boardReadiness = assessBoardReadiness({
+    hasDesignValidation: !!designValidation,
+    designValidationComplete:
+      dvItems.length > 0 && dvItems.every((i) => i.checked || i.notApplicable),
+    bomFrozenAt: revision.bomFrozenAt,
+    bomLineCount: revision.bomLines.length,
+    lifecycleWarningCount: bomWarnings.filter((w) => w.kind === "lifecycle")
+      .length,
+    unpricedCount: cost.unpricedCount,
+    overTarget: cost.overTarget,
+    designDocPath: `docs/boards/${project.slug}/design.md`,
   });
 
   // Errata pane (§9.1 bottom-right; Task 11.2) — same-project linkable revs
@@ -345,6 +368,13 @@ export default async function RevisionDetailPage({
               <span className="font-mono text-xs uppercase tracking-wider text-muted">
                 Stage · {revision.currentStage}
               </span>
+            </div>
+
+            {/* WS4: board-readiness verdict (advisory) — de-risk readout above
+                the BOM editor / sourcing advisory. Gates nothing here; the
+                Generate-Guide button soft-confirms when not ready. */}
+            <div className="mt-4">
+              <BoardReadinessPanel readiness={boardReadiness} />
             </div>
 
             {/* KiCad export (Task 8) — generates a BOM_EXPORT zip artifact from
