@@ -72,6 +72,7 @@ export function GoldenReferencePanel({
             <li key={d.key} className="space-y-2">
               <div className="flex items-baseline gap-2 font-mono text-xs">
                 <span
+                  aria-hidden
                   className={`w-3 shrink-0 font-bold ${
                     d.present ? "text-status-green" : "text-muted"
                   }`}

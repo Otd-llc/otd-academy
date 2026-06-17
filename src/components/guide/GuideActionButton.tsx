@@ -2,8 +2,9 @@
 
 // Client island for an in-guide `action` block — the button the guide tells the
 // student to click. Each action maps to a server action that presigns a
-// download: "downloadKicadStarter" (the board's KiCad starter) and
-// "downloadReferenceFiles" (the verified reference gerber set).
+// download: "downloadKicadStarter" (the board's KiCad starter),
+// "downloadReferenceFiles" (the verified reference gerber set), and
+// "downloadBringupMeasurements" (the verified bring-up measurements CSV).
 //
 // PUBLIC-RESOURCE RULE: anyone can SEE this on a public lesson, but downloading a
 // resource requires an account. An anonymous visitor is funnelled to sign-up

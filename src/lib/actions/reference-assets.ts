@@ -39,7 +39,6 @@ const ASSET_CONFIG = {
     stage: "BRINGUP", // bring-up data's home stage (revision-allowed)
   },
 } as const;
-type ReferenceAssetKind = keyof typeof ASSET_CONFIG;
 const referenceAssetKind = z.enum(["gerbers", "measurements"]);
 const PUT_TTL_SECONDS = 900; // 15 min
 
@@ -66,7 +65,7 @@ async function publishedRevisionIdOrThrow(projectId: string): Promise<string> {
     select: { publishedRevisionId: true },
   });
   if (!project?.publishedRevisionId) {
-    throw new Error("This board has no published revision to attach gerbers to.");
+    throw new Error("This board has no published revision to attach reference assets to.");
   }
   return project.publishedRevisionId;
 }
@@ -77,7 +76,7 @@ export async function createReferenceAssetUploadUrl(input: unknown) {
   await requireAdmin();
   ensureR2Enabled();
 
-  const cfg = ASSET_CONFIG[data.kind as ReferenceAssetKind];
+  const cfg = ASSET_CONFIG[data.kind];
   const revisionId = await publishedRevisionIdOrThrow(data.projectId);
   const cuid = createId();
   const key = artifactKey({ kind: "revision", id: revisionId }, cfg.stage, cuid, data.filename);
@@ -102,7 +101,7 @@ export async function recordReferenceAsset(input: unknown) {
   const user = await requireAdmin();
   ensureR2Enabled();
 
-  const cfg = ASSET_CONFIG[data.kind as ReferenceAssetKind];
+  const cfg = ASSET_CONFIG[data.kind];
 
   // HEAD-verify the object exists + actual size (R2 doesn't always enforce
   // Content-Length on presigned PUTs); delete + refuse an oversize orphan.

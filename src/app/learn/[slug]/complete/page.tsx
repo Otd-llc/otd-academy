@@ -51,8 +51,8 @@ export default async function LessonCompletePage({
     },
   });
   // Only a finished learner sees this screen; anyone else goes back to the board.
-  // Admins bypass the gate so they can always reach it to manage the reference
-  // gerbers (they need not have completed the lesson themselves).
+  // Admins bypass the gate so they can always reach it to manage the golden-set
+  // deliverables (they need not have completed the lesson themselves).
   if (!isAdmin && (!enrollment || enrollment.status === "IN_PROGRESS")) {
     redirect(`/learn/${slug}`);
   }
