@@ -9,9 +9,14 @@ import { recordCertificate } from "@/lib/certificate-record";
 import { SupportBlock } from "@/components/learn/SupportBlock";
 import { ShareCard } from "@/components/learn/ShareCard";
 import { TipBlock } from "@/components/learn/TipBlock";
-import { ReferenceAssetAdmin } from "@/components/learn/ReferenceAssetAdmin";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
 import { pickNextLessons } from "@/lib/learner-next-lessons";
+import { guideContentBlocksSchema } from "@/lib/schemas/guide";
+import { assessLessonReadiness } from "@/lib/lesson-readiness";
+import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
+import { goldenReferenceFromRows } from "@/lib/golden-reference-load";
+import { type GoldenReference } from "@/lib/golden-reference";
+import { GoldenReferencePanel } from "@/components/GoldenReferencePanel";
 
 export default async function LessonCompletePage({
   params,
@@ -73,20 +78,64 @@ export default async function LessonCompletePage({
     nextProjects.map((p) => ({ slug: p.slug, name: p.name, criticalPath: !!p.criticalPath })),
   );
 
-  // Verified reference gerbers: the proven Gerber set on the published revision a
-  // learner can download to order the exact board. Placeholder until an admin
-  // attaches it (admins get an inline upload below — freeze-exempt).
-  const refGerbers = project.publishedRevisionId
-    ? await db.artifact.findFirst({
+  // Golden-set deliverables on the published revision (file-backed). One query
+  // drives both the learner "Proven board kit" downloads and the admin panel.
+  const goldenSubkinds = ["BOM_EXPORT", "GERBER_ZIP", "BRINGUP_MEASUREMENTS_CSV"] as const;
+  const goldenArtifacts = project.publishedRevisionId
+    ? await db.artifact.findMany({
         where: {
           revisionId: project.publishedRevisionId,
-          subkind: "GERBER_ZIP",
+          subkind: { in: [...goldenSubkinds] },
           fileKey: { not: null },
         },
-        select: { id: true },
+        select: { subkind: true },
       })
-    : null;
-  const hasGerbers = !!refGerbers;
+    : [];
+  const presentSubkinds = new Set(goldenArtifacts.map((a) => a.subkind));
+  const hasKicadStarter = presentSubkinds.has("BOM_EXPORT");
+  const hasGerbers = presentSubkinds.has("GERBER_ZIP");
+  const hasMeasurements = presentSubkinds.has("BRINGUP_MEASUREMENTS_CSV");
+
+  // Operator golden verdict (admin-only): vetted needs the published rev's guide
+  // cards + exam + brought-up board count. Mirrors the guide-hub readiness load.
+  let golden: GoldenReference | null = null;
+  if (isAdmin) {
+    let vetted = false;
+    if (project.publishedRevisionId) {
+      const [blockRows, broughtUpBoards] = await Promise.all([
+        db.guideCard.findMany({
+          where: { guide: { revisionId: project.publishedRevisionId } },
+          orderBy: { ordinal: "asc" },
+          select: { stage: true, contentBlocks: true },
+        }),
+        db.board.count({
+          where: {
+            status: "BROUGHT_UP",
+            build: { revision: { projectId: project.id } },
+          },
+        }),
+      ]);
+      const parsedCards = blockRows.map((c) => ({
+        stage: c.stage as string,
+        blocks: guideContentBlocksSchema.safeParse(c.contentBlocks).data ?? [],
+      }));
+      const examQuestions = Array.isArray(exam?.questions)
+        ? (exam.questions as unknown[]).length
+        : 0;
+      vetted = assessLessonReadiness({
+        stages: GUIDE_STAGES,
+        cards: parsedCards,
+        exam: exam ? { questions: examQuestions } : null,
+        broughtUpBoards,
+        published: project.publishedRevisionId != null,
+      }).vetted;
+    }
+    golden = goldenReferenceFromRows({
+      publishedRevisionId: project.publishedRevisionId,
+      vetted,
+      publishedArtifactSubkinds: [...presentSubkinds],
+    });
+  }
 
   // Shareable card token (server-signed). Only a real finisher gets one — an admin
   // previewing without an enrollment does not.
@@ -217,15 +266,34 @@ export default async function LessonCompletePage({
         <TipBlock slug={project.slug} />
       </div>
 
-      {/* Verified reference gerbers — download the proven board files (or a
-          placeholder until an admin attaches them). Admins get an inline upload. */}
+      {/* ─── Proven board kit — the golden-set bundle ─── */}
       <div
         className="signin-rise flex w-full max-w-2xl flex-col items-center gap-3"
         style={{ animationDelay: "300ms" }}
       >
         <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-gold-dim">
-          // Order the proven board
+          // Proven board kit
         </span>
+        <p className="font-serif text-sm italic text-muted">
+          The exact files behind the board we built and brought up — download them
+          to order or check your own.
+        </p>
+
+        {/* KiCad starter */}
+        {hasKicadStarter ? (
+          <GuideActionButton
+            action="downloadKicadStarter"
+            label="Download KiCad starter"
+            projectId={project.id}
+            isSignedIn
+          />
+        ) : (
+          <p className="font-mono text-xs uppercase tracking-wider text-muted">
+            KiCad starter — coming soon.
+          </p>
+        )}
+
+        {/* Verified reference gerbers */}
         {hasGerbers ? (
           <GuideActionButton
             action="downloadReferenceFiles"
@@ -238,15 +306,32 @@ export default async function LessonCompletePage({
             Verified reference gerbers — coming soon.
           </p>
         )}
-        {isAdmin && (
-          <ReferenceAssetAdmin
-            kind="gerbers"
+
+        {/* Bring-up measurements CSV */}
+        {hasMeasurements ? (
+          <GuideActionButton
+            action="downloadBringupMeasurements"
+            label="Download bring-up measurements"
             projectId={project.id}
-            hasAsset={hasGerbers}
-            published={!!project.publishedRevisionId}
+            isSignedIn
           />
+        ) : (
+          <p className="font-mono text-xs uppercase tracking-wider text-muted">
+            Bring-up measurements — coming soon.
+          </p>
         )}
       </div>
+
+      {/* Admin golden-reference panel — status + kit worklist + uploaders */}
+      {isAdmin && golden && (
+        <div className="signin-rise w-full max-w-2xl" style={{ animationDelay: "305ms" }}>
+          <GoldenReferencePanel
+            golden={golden}
+            projectId={project.id}
+            published={!!project.publishedRevisionId}
+          />
+        </div>
+      )}
 
       {/* Next lesson(s) */}
       <section
