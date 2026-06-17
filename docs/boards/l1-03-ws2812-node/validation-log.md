@@ -7,9 +7,30 @@
 | | |
 | --- | --- |
 | **Slug** | `l1-03-ws2812-node` |
-| **Status** | `passes 1–9 folded` — Pass 10 dry-sweep owed (+ schematic-stage Pass 6); NOT part-ready |
-| **Passes run** | 9 (+ folds) |
-| **Last dry pass** | — |
+| **Status** | `Pass 10 NOT dry` — caught 8 fold-regressions; fold + Pass 11 owed; NOT part-ready |
+| **Passes run** | 10 |
+| **Last dry pass** | — (Pass 10 found new material → not dry) |
+
+### Pass 10 — DRY-SWEEP of the folded design (2 fresh reviewers: electrical + consistency)
+
+**Verdict: NOT DRY.** The big Passes-4–9 fold introduced regressions — the dry-sweep
+caught them (validates the rule). NEW findings:
+
+| # | Sev | Finding (NEW / fold-induced) | Disposition |
+| --- | --- | --- | --- |
+| F10-1 | **MED** | **C11 = 10 µF pushes total VBUS cap (~11.2 µF w/ C5+C8+C9) over the USB-2.0 10 µF inrush ceiling** — a side-effect of the PI-2 fold, never checked. | FOLD: **C11 → 4.7 µF** (total ~6 µF, still rides the 60 mA pixel pulse) — new 4.7 µF part. |
+| F10-2 | **MED** | **D3 PESD5V0S1BA is NOT "low-cap"** — 35–45 pF (bidirectional); the §4 "low C keeps the 800 kHz edge" claim is **false**. RC w/ R8 ≈ 19 ns. | FOLD: keep the part (solderable SOD-323; 19 ns ≪ 300 ns WS2812 pulse = fine) but **correct the rationale** + add the RC row. |
+| F10-4 | **MED** | **Cross-domain margin row uses unjustified bounds** — VBUS,min "4.6 V" asserted (USB allows 4.40 V at the port; PTC/trace IR lowers it more) and DOUT-high ≈ VBUS is optimistic (ignores the WS2812 DOUT driver drop, unspecified for the clone). Real margin ~+0.2…+0.4 V, thinner than stated +0.75 V. | FOLD: re-derive honestly; flag residual gated on the XINGLIGHT DOUT VOH (P5-2). |
+| F10-3 | LOW/MED | SMAJ5.0A standoff is **correct** (no conduction at 5 V; VBR 6.4 V), BUT 800 µA leakage at 5 V is un-budgeted AND PI-1 assumes 5V_EXT up to **5.5 V** — above D2's VRWM 5.0 V → soft-conduction at top of tolerance. **Tension to resolve.** | **DECISION:** bound 5V_EXT ≤5.25 V + accept 800 µA leakage **OR** step D2 → SMAJ6.0A (VC 10.3 V). |
+| F10-6 / P10-1 | MED | **§8 cost "+~$2.50 new" contradicts the BOM** — actual ≈ **$3.85–4 new** (the two TE terminals alone are $2.30; D2/D3 added without updating). Likely **~$16–17 total**, over the $14–15 target. | FOLD: update §8 cost. |
+| F10-5 | LOW | RK8 "9 mA" unchanged by D3 (D3 inactive at 4.3 V) — the "D2/D3 backstop" clause **overstates D3's role** for the steady DOUT-high case. | FOLD: trim wording. |
+| P10-2 | LOW/MED | **FMEA gap on the new protection parts themselves** — D2 fail-short = dead, unindicated 5V_EXT rail (relies on the user's fused supply); D3 reverse-leakage on DATA not in its verify scope. | FOLD: extend RK10 + D3 verify scope. |
+| F10-7 | info | D2/D3 footprints join the `[S]`-staged Pass-6 list — correctly staged, no action. | (staged) |
+
+**Clean (attacked, no regression):** isolation invariant; refDes/qty consistency
+(BOM import-valid; R5-8=4, C2-9=5, C1,C11=2); §7 = 6 core items; risk-register
+integrity (RK10≠RK11, §7 item-6 list matches statuses); "one combined lesson"
+decision reflected (no leftover tier language); all Passes-4–9 folds physically present.
 
 ## Gate (Definition of done — all must hold before any part/BOM/revision)
 
