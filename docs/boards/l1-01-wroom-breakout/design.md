@@ -81,7 +81,7 @@
 
 ## 2 · Topology
 
-USB-C (sink) → PTC polyfuse → ESD clamp → AP2112K-class LDO → 3.3 V rail →
+USB-C (sink) → PTC polyfuse → ESD clamp → LDO (RT9080, AP2112K-class) → 3.3 V rail →
 ESP32-S3-WROOM-1. After the S3 pivot there is **no bridge IC** — D+/D- pass
 through the ESD array straight to the module's native-USB pins.
 
