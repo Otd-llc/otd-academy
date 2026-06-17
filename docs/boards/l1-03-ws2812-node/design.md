@@ -16,311 +16,278 @@
 | --- | --- |
 | **Slug** | `l1-03-ws2812-node` |
 | **Owner** | Josh Tollette |
-| **Status** | `draft` (Pass 1 — for review, not validated, not frozen) |
+| **Status** | `draft` (post Passes 1–9 — for review, not validated, not frozen) |
 | **Track / Level** | ACT / L1 |
-| **Teaches** | Driving an addressable-LED strip — **3.3 V→5 V level shifting** and a **dedicated 5 V LED rail with a common ground** |
-| **Validation** | `passes 1–3 logged` → owes ≥ 10 + a dry pass before part-ready — see `validation-log.md` |
+| **Teaches** | **3.3 V→5 V level shifting** (the primary, graded concept) — with a dedicated 5 V LED rail + common ground as the supporting idea |
+| **Validation** | `passes 1–9 folded` → owes a dry pass (+ schematic-stage Pass 6) before part-ready — see `validation-log.md` |
 
-> **Headline:** this board is the **WROOM core (L1.01) reused verbatim** + one small,
-> genuinely-new sub-circuit: a **74AHCT125 level shifter** lifting the ESP32's
-> 3.3 V data line to a clean 5 V WS2812 signal, an **onboard "first pixel"**, and a
-> **strip output + dedicated 5 V injection terminal** (the board never *sources* a
-> big strip's power from USB). No mains / Li-ion / thermal / stripboard flags → the
-> `DESIGN_VALIDATION` checklist is the **6 core items only** (the no-flags base path
-> this run is meant to validate).
+> **Headline:** the **WROOM core (L1.01) reused verbatim** + one new sub-circuit: a
+> **74AHCT125 level shifter** lifting the ESP32's 3.3 V data to a clean 5 V WS2812
+> signal, an **onboard "first pixel"**, and a **strip output + dedicated 5 V
+> injection terminal** (the board never *sources* a big strip's power from USB), now
+> with **external-connector protection** (TVS + ESD). No mains / Li-ion / thermal /
+> stripboard flags → `DESIGN_VALIDATION` is the **6 core items only**.
 
-> **Risk-ID note:** the §6 risk register uses IDs **`RK1`–`RK9`**. These are
-> *risks*, not reference designators — resistors are `R1`–`R8` (§3/§4). The two
-> namespaces are unrelated (a consistency-audit fix; see Friction F6).
+> **Priority (carried from L1.01):** (1) the learner — first success must be
+> frictionless; (2) the finished board's capability. **When they conflict,
+> beginner-success wins.** The onboard pixel makes the core lesson (level-shifting)
+> completable on **USB alone**; the external-strip features are the capability layer.
+
+> **Risk-ID note:** the §6 register uses IDs **`RK1`–`RK16`** — these are *risks*,
+> not reference designators (resistors are `R1`–`R8`). Unrelated namespaces (F6).
 
 ---
 
 ## 1 · ORIENT — what & why
 
-- **What it is:** A **USB-C ESP32-S3 node that drives a strip of addressable
-  WS2812/NeoPixel RGB LEDs** (curriculum **L1.03**, ACT track). It is the L1.01
-  WROOM breakout's proven core (USB-C power, RT9080 LDO, native-USB ESP32-S3) with
-  **one new job bolted on**: take the MCU's 3.3 V data output, **shift it to 5 V**,
-  and drive a WS2812 data chain — an onboard demo pixel first, then an external
-  strip powered from its **own 5 V supply** through a screw terminal. The lesson is
-  the new sub-circuit: **why 3.3 V isn't enough for a 5 V LED's data input**, and
-  **why the strip needs a dedicated rail with a ground tied common to the board**.
+- **What it is:** A **USB-C ESP32-S3 node that drives addressable WS2812/NeoPixel
+  RGB LEDs** (curriculum **L1.03**, ACT track) — the L1.01 WROOM core plus a small
+  new sub-circuit. **The one graded thing it teaches: why a 3.3 V GPIO can't reliably
+  drive a 5 V LED's data input, and how a level shifter fixes it** — provable by
+  watching the onboard pixel light. The dedicated-5 V-rail + common-ground idea is
+  the *supporting* concept the external-strip path introduces.
 
 - **Functional requirements:**
-  - **F1** — Run an ESP32-S3-WROOM-1 from a single USB-C cable (power + native-USB
-    flash/console) — **inherited unchanged from L1.01** (F1–F4 there).
-  - **F2** — Drive a WS2812 data chain from **GPIO5** (RMT/bit-bang), **level-shifted
-    to 5 V logic**.
-  - **F3** — **One onboard WS2812 pixel** that lights from USB power alone (the
-    "first pixel" — a self-contained bring-up target, no external strip needed).
-  - **F4** — A **3-pin strip output** (5 V, DATA, GND) to continue the chain to an
-    external strip.
-  - **F5** — A **dedicated 2-pin 5 V injection terminal** for the external strip's
-    power, with its **ground tied common** to board ground. The board does **not**
-    source the strip's power from USB.
-  - **F6** — **Series resistors + bulk capacitor** on the data/strip interface
-    (data-line damping + parasitic-current limit + inrush reservoir), per WS2812
-    application guidance.
+  - **F1** — Run an ESP32-S3-WROOM-1 from one USB-C cable (power + native-USB
+    flash/console) — **inherited from L1.01**.
+  - **F2** — Drive a WS2812 chain from **GPIO5** (RMT/bit-bang), **level-shifted to 5 V**.
+  - **F3** — **One onboard WS2812 pixel** lit from USB power alone (the "first pixel"
+    — a self-contained bring-up target; makes the core lesson USB-only).
+  - **F4** — A **3-pin strip output** (5 V, DATA, GND) to continue the chain.
+  - **F5** — A **dedicated 2-pin 5 V injection terminal** for the strip's power,
+    ground tied **common**; the board does not source strip power from USB.
+  - **F6** — **Series resistors + bulk cap + external-connector protection** (data
+    damping, parasitic limit, inrush reservoir, TVS/ESD) per WS2812 guidance + FMEA.
 
 - **Electrical / power budget:**
-  - **E1** — Input: USB-C **VBUS 5 V** (sink role) — powers the board, the level
-    shifter, and the **single onboard pixel** only.
-  - **E2** — Regulate to **3.3 V** for the ESP32 (RT9080 LDO, inherited from L1.01).
-  - **E3** — **Strip 5 V is external**, via the injection terminal — never sourced
-    from VBUS. Onboard pixel (≤ ~60 mA full white) is the only LED load on VBUS.
-    *(The board copper does carry the strip's 5 V from J5 → J4; see §5 / RK-ampacity.)*
-  - **E4** — Level shifter VCC = **VBUS 5 V** (it must swing its output to 5 V to be
-    read as logic-high by a 5 V-powered WS2812 — see §3).
+  - **E1** — USB-C **VBUS 5 V** (sink) — powers the board, shifter, onboard pixel; a
+    **10 µF VBUS bulk cap (C11)** near the pixel/LDO-input node (PI-2).
+  - **E2** — Regulate to **3.3 V** (RT9080 linear LDO, from L1.01).
+  - **E3** — **Strip 5 V is external** (injection terminal), never sourced from VBUS.
+    **VBUS and 5V_EXT are separate nets, never joined** — only GND is common (an
+    isolation invariant; §7 + ERC check). Board copper carries 5V_EXT J5→J4 (§5).
+  - **E4** — Level shifter VCC = **VBUS 5 V** (output must swing to 5 V — §3).
 
 - **Interfaces:**
   - **I1** — USB-C (power + native USB) — **inherited from L1.01**.
-  - **I2** — WS2812 data path: **GPIO5** → 74AHCT125 (gate 1) → **470 Ω (R7)** →
-    onboard pixel DIN → onboard pixel DOUT → **470 Ω (R8)** → strip output DATA.
+  - **I2** — WS2812 data: **GPIO5** → 74AHCT125 gate 1 → **470 Ω (R7)** → onboard
+    pixel DIN → DOUT → **470 Ω (R8)** → J4.DATA → external strip.
   - **I3** — Strip output (J4): **TE 282837-3** 3-pos 5.08 mm screw terminal
-    (5 V / DATA / GND).
+    (5 V / DATA / GND); **ESD diode (D3) on DATA**.
   - **I4** — 5 V injection (J5): **TE 282837-2** 2-pos 5.08 mm screw terminal
-    (5 V_EXT / GND, common GND).
+    (5 V_EXT / GND, common GND); **TVS (D2) across 5V_EXT**.
+  - **I5** — **Data test point (TP3)** on the shifted line (1Y / pixel-DIN side) — to
+    *see* the 5 V swing the lesson promises (L9-3).
 
 - **Constraints / DFM / safety flags:**
-  - **No mains, no Li-ion, no notable thermal concern, not a stripboard build** —
-    USB-5 V powered custom 2-layer PCB. All four project flags are **false**
-    (`hasMainsNet`/`hasLiIon`/`hasThermalConcern`/`requiresStripboard` = false), so
-    §7 lists **only the 6 core validation items**. *(The seeded project row had
-    `requiresStripboard=true`; flipped to false on review — see Friction F1.)*
-  - **Antenna keep-out (M1):** inherited from L1.01 — module on a board edge, PCB
-    antenna over a keep-out (Espressif S3-WROOM-1 integration rules).
-  - **Solderability (the L1 constraint — first-class):** every new part stays inside
-    the L1.01 envelope — leaded SMD (SOIC) or through-hole, passives ≥ 0805. The
-    level shifter is **SOIC-14** (leaded; PDIP-14 alt), the onboard WS2812 is a 5050
-    4-pad (hardest joint on the board — **mandatory flux-pen step in the guide**, see
-    RK5), and the strip/injection connectors are **THT screw terminals**.
-  - **Regulatory:** unchanged from L1.01 — ESP32-S3-WROOM-1 is a pre-certified
-    module; no board-level radiator cert needed given the antenna keep-out. No
+  - **No mains / Li-ion / thermal / stripboard** — all four flags **false** → §7 is
+    the **6 core items only**. *(Seeded `requiresStripboard` was wrongly true; flipped
+    — Friction F1.)*
+  - **Antenna keep-out (M1):** inherited — module on a board edge, antenna over a
+    keep-out (Espressif rules). New parts + screw-terminal wire-exits stay **off the
+    antenna edge** (L9-4/L9-5).
+  - **Solderability (first-class L1):** new parts in the L1.01 envelope — 74AHCT125
+    SOIC-14 (leaded), WS2812 5050 (hardest joint → **mandatory flux-pen step**, RK5),
+    TE screw terminals (THT), D2 SMA / D3 SOD-323 (leaded SMD).
+  - **Regulatory:** unchanged — pre-certified module; no board-level cert. No
     mains/battery/HV.
 
 ## 2 · Topology
 
-The signal/power chain is the **L1.01 core, untouched**, plus the new WS2812
-sub-circuit hanging off one GPIO and a second (external) 5 V rail.
+L1.01 core untouched + the new WS2812 sub-circuit on GPIO5 + a second (external)
+5 V rail with protection.
 
 ```
    ┌─────────────────── L1.01 CORE (reused verbatim, validated) ───────────────────┐
    │  USB-C(sink) → PTC polyfuse → USBLC6 ESD → RT9080 LDO → 3V3 → ESP32-S3-WROOM-1 │
-   │  (native USB Serial/JTAG, EN/BOOT buttons, power+user LEDs, GPIO headers)      │
    └───────────────────────────────────────────────────────────────────────────────┘
-        VBUS 5V │                                   │ GPIO5 (non-strapping, non-USB)
-                │                                    ▼
-                │  (VCC = VBUS 5V)         ┌──────────────────────┐
-                ├─────────────────────────►│ 74AHCT125 (gate 1)   │ 3.3V in → ~5V out
-                │                          │ 1OE→GND (ENABLE)      │ (HCT/TTL inputs)
-                │                          │ 1A←GPIO5  1Y──────────┼─►[470Ω R7]─┐
-                │                          │ gates 2-4 PARKED:     │            │
-                │                          │   nOE→VCC, nA→GND      │            ▼
-                │                          └──────────────────────┘   ┌──────────────┐
-                │   5V (onboard pixel only)                           │ WS2812 (LED3)│
-                ├─────────────────────────────────────────────────── │ onboard pixel│
-                │                            [0.1µF C9 decap]         │ VDD, GND     │
-                │                                                     │ DIN→…→DOUT ──┼─►[470Ω R8]─┐
-                │                                                     └──────────────┘            │
-               GND ◄──────────────────── common ground ─────────────────────────────────┐       │ DATA
-                ▲                                                                          │       ▼
-         ┌──────┴───────┐  5V_EXT ───────[board copper, see §5 ampacity]──────┬──────────────► J4 (strip out)
-         │ J5 injection │  (external strip power ONLY)                        │  5V / DATA / GND  TE 282837-3
-         │  TE 282837-2 │  [1000µF C10 bulk @ terminal]                       │  → external WS2812 strip
-         │ 5V_EXT, GND  │  GND tied COMMON to board GND ──────────────────────┘
-         └──────────────┘
+        VBUS 5V │  [C11 10µF bulk]                   │ GPIO5 (non-strapping, non-USB)
+                │                                     ▼
+                │  (VCC=VBUS, C8 0.1µF)    ┌──────────────────────┐
+                ├─────────────────────────►│ 74AHCT125 (gate 1)   │ 3.3V→~5V
+                │                          │ 1OE→GND(EN) 1A←GPIO5  │ 7=GND 14=VCC
+                │                          │ 1Y──[470Ω R7]──┐      │ gates2-4: nOE→VCC,nA→GND
+                │                          └────────────────┼──────┘
+                │   5V (onboard pixel)                       ▼     ┌──────────────┐
+                ├────────────────────────────[C9 0.1µF]──────────►│ WS2812 (LED3)│ VDD,VSS→GND
+                │                                                  │ DIN→DOUT ────┼─[470Ω R8]─┐
+                │                                                  └──────────────┘           │
+               GND ◄───────────────────── common GND (star @ J5) ──────────────────┐         │ DATA
+                ▲                                                                    │   [D3 ESD]
+         ┌──────┴───────┐  5V_EXT ──[board copper, §5]──┬──────────────────────────────────► J4 (strip out)
+         │ J5 injection │  [C10 1000µF] [D2 TVS 5.0V]   │   (5V_EXT / DATA / GND)   TE 282837-3
+         │  TE 282837-2 │  GND COMMON ─────────────────┘   → external WS2812 strip
+         └──────────────┘   ⚠ VBUS and 5V_EXT are SEPARATE nets — never joined
 ```
 
-**Sub-circuits the schematic is organised into:**
-1. **L1.01 core (reused):** USB-C input + CC sink pull-downs · protection (PTC +
-   USBLC6 ESD) · 3V3 power (RT9080 + decoupling) · the S3-WROOM-1 module with
-   EN/BOOT · indicators · breakout headers. *Copied from the validated L1.01
-   schematic — no new design work.*
-2. **Level shifter (NEW):** 74AHCT125, VCC = VBUS 5 V, 0.1 µF VCC decoupling (C8).
-   **Gate 1 USED:** `1OE → GND` (active-low enable → output ON), `1A ← GPIO5`,
-   `1Y → R7`. **Gates 2–4 PARKED:** `nOE → VCC` (disable → Hi-Z), `nA → GND`
-   (don't float CMOS inputs), `nY` open.
-3. **Onboard pixel (NEW):** one WS2812 (LED3), VDD = VBUS 5 V, DIN ← R7 (470 Ω) from
-   1Y, DOUT → R8 (470 Ω) → strip connector DATA; 0.1 µF decoupling (C9) at its VDD.
-4. **Strip interface (NEW):** J4 (TE 282837-3) 3-pos screw terminal (5 V_EXT /
-   DATA / GND) to the strip; J5 (TE 282837-2) 2-pos screw terminal (5 V_EXT / GND)
-   for external injection; 1000 µF bulk (C10) across 5 V_EXT; all grounds common.
+**Sub-circuits:**
+1. **L1.01 core (reused):** USB-C + CC pull-downs · PTC + USBLC6 · 3V3 (RT9080 +
+   decoupling) · S3-WROOM-1 + EN/BOOT · indicators · headers. *No new design work.*
+2. **Level shifter (NEW):** 74AHCT125, **VCC = VBUS (pin 14)**, **GND (pin 7) → board
+   GND**, C8 0.1 µF (pin 14→7). **Gate 1 USED:** `1OE → GND` (active-low enable ON),
+   `1A ← GPIO5`, `1Y → R7`. **Gates 2–4 PARKED:** `nOE → VCC` (disable → Hi-Z),
+   `nA → GND`; `nY` left open (OK — Hi-Z output, the one allowed float).
+3. **Onboard pixel (NEW):** WS2812 (LED3), **VDD = VBUS**, **VSS → board GND**,
+   DIN ← R7, DOUT → R8; C9 0.1 µF at VDD. TP3 (data test point) on the 1Y/DIN node.
+4. **Strip interface (NEW):** J4 (TE 282837-3) 5 V_EXT/DATA/GND; J5 (TE 282837-2)
+   5 V_EXT/GND; **C10 1000 µF** (C10− → common GND) + **D2 TVS (5.0 V) across 5V_EXT**
+   at J5; **D3 ESD diode on J4.DATA → GND**. **Star ground at J5/C10.** **VBUS and
+   5V_EXT never share copper** (isolation invariant).
 
-**Theory of operation:** the WROOM core boots and enumerates over native USB exactly
-as in L1.01. Firmware drives **GPIO5** with the WS2812 protocol. That 3.3 V signal is
-too low to be a reliable logic-high for a 5 V-powered WS2812 (§3), so it passes
-through one 74AHCT125 buffer (TTL inputs accept 3.3 V, output swings to ~5 V), a
-470 Ω series resistor (R7), into the onboard pixel's DIN. The onboard pixel runs off
-VBUS — a no-strip-needed bring-up target. **Its DOUT** (a fresh 5 V re-clocked
-output) drives the external strip via **R8** and J4. The **external strip is powered
-separately** through the injection terminal (J5) — its 5 V is *sourced* externally,
-though the board copper routes it J5 → J4 (an ampacity item, §5). All grounds are
-common so the single-ended data has a shared reference. A 1000 µF bulk cap at the
-injection terminal absorbs the strip's turn-on inrush.
+**Theory of operation:** core boots/enumerates as L1.01. GPIO5 drives the WS2812
+protocol; 3.3 V is too low for a 5 V-powered WS2812 (§3), so it passes through one
+74AHCT125 buffer (TTL inputs accept 3.3 V; output ~5 V), R7, into the onboard pixel
+(on VBUS — a no-strip bring-up target). Its DOUT drives the external strip via R8,
+D3, J4. The strip is powered separately at J5 (5V_EXT, off-board source); D2 clamps
+over-voltage/reverse, C10 absorbs inrush; all grounds common (star at J5).
 
-**Power-up note (RK8):** if USB is on but the injection supply is off, the onboard
-pixel's DOUT drives ~5 V into the *unpowered* strip's DIN; R8 limits the resulting
-parasitic clamp current to a safe ~9 mA (§3), and the guide instructs powering the
-strip supply **before/with** USB.
+**Sequencing (RK8 + P4-S1):** *Power-up* — strip supply before/with USB (else
+onboard DOUT drives the unpowered strip DIN; R8 limits to ~9 mA, D2/D3 bound it).
+*Power-down* — if USB is pulled while 5V_EXT stays on, the strip stays lit and U3
+(VBUS) loses VCC while GPIO5/3V3 briefly linger; back-drive into U3's input is small
+and clamped — documented, guide covers unplug order.
 
 ## 3 · Calc trail (DO — lock the math)
 
-Worst-case (min/max/temperature), not typical, per the protocol math audit.
+Worst-case (min/max/temperature), not typical.
 
 | Value | Formula / source | Result | Notes |
 | --- | --- | --- | --- |
-| WS2812 data logic-high threshold | WS2812B datasheet: **VIH = 0.7 × VDD**, VDD = 5 V | **3.5 V** | the bar the data line must clear at the first pixel's DIN |
-| Bare 3.3 V GPIO vs that threshold | ESP32 VOH ≈ 3.3 V < 3.5 V | **fails (−0.2 V)** | the whole reason for the level shifter (RK1) |
-| Level-shifter input acceptance | 74AHCT125 (HCT/TTL inputs): VIH = 2.0 V, VIL = 0.8 V @ VCC 5 V | 3.3 V ✓ | ESP32 3.3 V high ≥ 2.0 V; 0 V low ≤ 0.8 V — driven cleanly |
-| Level-shifter VOH (actual load) | WS2812 DIN is high-Z CMOS (~µA) → VOH ≈ 4.4 V (datasheet @ −50 µA) | ~4.4 V | the real operating point |
-| Level-shifter VOH (guaranteed min) | 74AHCT125: **VOH = 3.94 V min @ IOH = −8 mA**, VCC 4.5 V | 3.94 V | datasheet worst-case at heavy load |
-| **Data-level margin** | actual: 4.4 − 3.5 = **+0.9 V**; guaranteed-worst: 3.94 − 3.5 = **+0.44 V** | **≥ +0.44 V** | both positive → de-risks RK1. Margin is robust: 0.7·VDD **tracks** pixel VDD, so a sagging pixel VDD lowers the threshold too |
-| Level-shifter prop delay vs WS2812 timing | AHCT125 tpd ≈ 9–22 ns typ (~30 ns max @ 5 V) vs WS2812 bit period 1.25 µs (T0H/T1H ≈ 0.35/0.7 µs) | tpd ≪ bit | adds ~30 ns of skew to a 1.25 µs bit → negligible (< 3%); de-risks the timing concern |
-| Data series resistor (shifter→pixel) | WS2812 app guidance: 300–500 Ω at the driver to damp reflections | **470 Ω (R7)** | reuses the L1.01 470 Ω part (RC0805FR-07470RL) |
-| Data series resistor (pixel DOUT→strip) | same guidance, on the longer external run + limits parasitic clamp current | **470 Ω (R8)** | NEW placement of the same 470 Ω part |
-| Parasitic clamp current (strip unpowered) | (VOH − Vdiode)/R8 = (5 − 0.7)/470 | **~9 mA** | RK8: safe for the WS2812 DIN clamp diode; makes the USB-only state benign |
-| Onboard-pixel current | 1× WS2812 full white ≈ 60 mA @ 5 V | 60 mA (max) | the only LED load on VBUS; firmware-cap recommended |
-| VBUS budget — continuous | ESP32-S3 typ ~160 mA + pixel 60 mA + shifter ~µA | **~220 mA** | well under the 0.5 A PTC **hold** |
-| VBUS budget — brief peak | RT9080 is a **linear** LDO (Iin ≈ Iout): WiFi-TX peak ~500 mA + pixel 60 mA | **~560 mA (brief)** | between PTC hold (0.5 A) and trip (1 A); brief excursions don't trip; 3V3 bulk rides the TX transient (same regime L1.01 accepts) — de-risks RK4 |
-| Level-shifter decoupling | logic-IC standard 0.1 µF at VCC | 0.1 µF (C8) | reuses L1.01 0.1 µF part |
-| Onboard-pixel decoupling | WS2812 datasheet: 0.1 µF near each pixel VDD | 0.1 µF (C9) | reuses L1.01 0.1 µF part |
-| Strip inrush bulk cap | Adafruit NeoPixel guidance: ≥ 1000 µF across the strip's 5 V near injection | **1000 µF / 16 V (C10)** | a floor, not generous; size up for long strips. De-risks RK2 |
+| WS2812 data logic-high | WS2812B: **VIH = 0.7 × VDD**, VDD = 5 V | **3.5 V** | bar at the first DIN |
+| Bare 3.3 V GPIO vs threshold | 3.3 V < 3.5 V | **fails (−0.2 V)** | reason for the shifter (RK1) |
+| Shifter input acceptance | 74AHCT125 VIH = 2.0 V, VIL = 0.8 V (flat over VCC 4.5–5.5 V) | 3.3 V ✓ | TTL inputs; VBUS sag doesn't move the threshold |
+| Shifter VOH (actual µA load) | WS2812 DIN high-Z → VOH ≈ 4.4 V (@ −50 µA) | ~4.4 V | operating point |
+| Shifter VOH (guaranteed, **over-temp**) | 74AHCT125 **VOH = 3.8 V min @ −8 mA**, full temp range, VCC 4.5 V | 3.8 V | worst-case (3.94 V is the 25 °C value) |
+| **Onboard-hop margin** | actual 4.4 − 3.5 = **+0.9 V**; guaranteed worst **3.8 − 3.5 = +0.30 V** | **≥ +0.30 V** | RK1; threshold tracks VDD so it's robust |
+| **Cross-domain hop margin (strip)** | onboard DOUT ≈ V(VBUS,min ~4.6 V) vs VIH = 0.7·V(5V_EXT,max ≤5.5 V) = 3.85 V | **~+0.75 V** | PI-1: driver (VBUS) & threshold (5V_EXT) on *different* rails — margin does NOT track; assumes 5V_EXT ≤ 5.5 V |
+| Prop delay vs bit | AHCT125 tpd ~9–22 ns (≤30 ns max) vs 1.25 µs bit | tpd ≪ bit | negligible skew (P5 confirmed) |
+| **Reset/latch low time** | WS2812B RES ≥ 50 µs; **clones may need ≥ 280 µs** | **firmware latch ≥ 300 µs** | P5-3 — clone-safe (XINGLIGHT is a clone) |
+| Data series R (shifter→pixel) | WS2812 guidance 300–500 Ω | **470 Ω (R7)** | reuses L1.01 470 Ω part |
+| Data series R (DOUT→strip) | guidance + parasitic-current limit | **470 Ω (R8)** | new placement, same part |
+| Parasitic clamp current (strip unpowered) | (VOH − Vf)/R8 = (5 − 0.7)/470 | **~9 mA** | RK8 — see honest framing below |
+| Onboard-pixel current | 1× WS2812 full white | 60 mA (max) | only LED load on VBUS; firmware-cap |
+| VBUS budget — continuous | ESP32 ~160 mA + pixel 60 mA + shifter µA | **~220 mA** | ≪ 0.5 A PTC hold |
+| VBUS budget — brief peak | linear LDO Iin≈Iout: WiFi-TX ~500 mA + 60 mA | **~560 mA (brief)** | < 1 A PTC trip; **C11 10 µF VBUS bulk + 3V3 bulk** ride it (RK4) |
+| TVS clamp (over-injection) | D2 SMAJ5.0A: VRWM 5.0 V, VC ~9.2 V @ Ipp | clamps >~6 V | RK10 — sacrificial vs sustained 12 V; pair w/ "fuse your supply" |
+| Worst-case DATA back-drive current | (V_inject,max − VBUS)/R8, bounded by D2 clamp | bounded | RK11 — D2 caps 5V_EXT, R8 + D3 limit the bridge current into DOUT/1Y |
+| Decoupling | shifter 0.1 µF (C8); pixel 0.1 µF (C9); VBUS bulk 10 µF (C11) | — | TI also suggests 0.1+1 µF; 0.1 alone adequate for one gate |
+
+> **RK8 honest framing (P5-1):** with the strip **unpowered (VDD = 0)** the WS2812
+> abs-max input voltage is VDD+0.5 V = **+0.5 V**, so ~5 V on DIN is an **abs-max-
+> voltage excursion mitigated by R8 current-limiting (~9 mA)** — NOT "within abs-max."
+> WS2812 publishes **no DIN clamp-current rating**, so 9 mA is a conservative
+> engineering bound. **Primary control = documented power-up order**; D2/D3 + R8 are
+> the hardware backstop.
 
 ## 4 · IC selection (DO — lock the parts)
 
-"Datasheet-verified" means the relevant sections (pinout, abs-max, logic levels)
-were read, not just the marketing page. *(Datasheet + footprint↔pinout attestations
-are earned in Passes 4–6 of the validation run.)*
-
-| Ref | Part (MPN) | Why this part | Datasheet §s to verify |
+| Ref | Part (MPN) | Why | Datasheet §s to verify |
 | --- | --- | --- | --- |
-| U1 | Espressif **ESP32-S3-WROOM-1-N16R2** | **Reused from L1.01, unchanged** — validated core (native USB, pinout VERIFIED in Foundry). In the library. | (verified in L1.01) |
-| U2 | Richtek **RT9080-33GJ5** | **Reused from L1.01** — 3.3 V/600 mA **linear** LDO. In library. | (verified in L1.01) |
-| D1 | UMW **USBLC6-2SC6** | **Reused from L1.01** — USB ESD array. In library. | (verified in L1.01) |
-| U3 | TI **SN74AHCT125D** (SOIC-14) | **NEW.** Quad bus buffer, **HCT (TTL) inputs** → accepts 3.3 V as logic-high (VIH 2.0 V), drives clean ~5 V; the canonical NeoPixel shifter. SOIC-14 leaded (PDIP-14 `SN74AHCT125N` alt). Gate 1 used; 3-state OE parks the spares. | pinout (1OE/1A/1Y, VCC/GND), VIH/VIL + VOH vs load, tpd, abs-max |
-| LED3 | XINGLIGHT **XL-5050RGBC-WS2812B** (5050) | **NEW.** WS2812B-compatible 5050 pixel that is **Digikey-orderable** (bare Worldsemi WS2812B is not Western-distributor stocked — it would fail the §8 sourcing bar, the same trap that killed L1.01's bridge). One onboard. | DIN VIH (0.7VDD), VDD range, data timing, decoupling, **DIN abs-max input voltage** (for RK8) |
+| U1 | Espressif **ESP32-S3-WROOM-1-N16R2** | Reused from L1.01 (validated). | (verified in L1.01) |
+| U2 | Richtek **RT9080-33GJ5** | Reused; **linear** LDO (P-MOSFET pass → Iin≈Iout). | (verified; P5 confirmed) |
+| D1 | UMW **USBLC6-2SC6** | Reused — USB ESD. | (verified in L1.01) |
+| U3 | TI **SN74AHCT125D** (SOIC-14) | NEW. HCT/TTL inputs accept 3.3 V, drive ~5 V; canonical NeoPixel shifter. Pinout: **7=GND, 14=VCC**; gate 1 used. | pinout, VIH/VIL/VOH(over-temp)/tpd, abs-max **(verified Pass 5)** |
+| LED3 | XINGLIGHT **XL-5050RGBC-WS2812B** (5050) | NEW. Digikey-orderable WS2812B-compatible pixel. ⚠ **its OWN datasheet must be obtained at part-creation** — numbers below are from Worldsemi WS2812B pending that (P5-2); the LED3 datasheet tick is BLOCKED until then. | DIN VIH (0.7VDD), VDD range, **DIN/DOUT abs-max** (RK8/RK11), RES time |
+| D2 | Littelfuse **SMAJ5.0A** (SMA) | NEW. Uni TVS across 5V_EXT — clamps 12 V over-injection (RK10) + reverse (forward-conducts, protects C10, RK9) + caps the DATA back-feed (RK11). | VRWM/VBR/VC, SMA solderable |
+| D3 | Nexperia **PESD5V0S1BA** (SOD-323) | NEW. Low-cap 5 V ESD diode on J4.DATA→GND — protects the exposed data pin (RK13) + absorbs coupled transients (RK15); low C keeps the 800 kHz edge. | standoff 5 V, capacitance, clamp |
 
 **Connectors & supporting passives (NEW unless noted):**
-- **J4** — TE Connectivity (Buchanan) **282837-3** 3-pos 5.08 mm screw terminal
-  (strip out: 5 V / DATA / GND), THT. **NEW** — reused from the TB-1-POWER board
-  family (already team-vetted; `282837-2` is its 2-pos sibling).
-- **J5** — TE Connectivity (Buchanan) **282837-2** 2-pos 5.08 mm screw terminal
-  (5 V injection: 5 V_EXT / GND), THT. **NEW.**
-- **C10** — Panasonic **EEU-FR1C102** 1000 µF / 16 V radial electrolytic (strip
-  inrush bulk), THT. **NEW.**
-- **R7, R8** — 470 Ω 0805 data series resistors — **reuse L1.01 RC0805FR-07470RL.**
-- **C8, C9** — 0.1 µF 0805 (shifter + pixel decoupling) — **reuse L1.01
-  CL21B104KBCNNNC.**
-- All of the **L1.01 core BOM** (U1/U2/D1/F1/J1/J2/J3, C1/C2/C3/C5/C6/C7,
-  R1–R6, LED1/LED2, SW1/SW2, TP1/TP2) **carries over unchanged** and already
-  exists in the curated parts library.
+- **J4** TE Connectivity (Buchanan) **282837-3** (3-pos 5.08 mm screw terminal, strip
+  out), THT — reused from TB-1-POWER family. **J5** TE **282837-2** (2-pos, injection).
+- **C10** Panasonic **EEU-FR1C102** 1000 µF/16 V radial (inrush bulk) — ~Ø10×20 mm
+  **tall** (enclosure keep-out, L9-1).
+- **C11** 10 µF VBUS bulk — **reuses L1.01 CL21A106KOQNNNE** (= C1's part).
+- **R7, R8** 470 Ω, **C8, C9** 0.1 µF — reuse L1.01 parts (RC0805FR-07470RL,
+  CL21B104KBCNNNC). **TP3** data test point (Keystone, or a labeled pad).
+- All **L1.01 core BOM** carries over unchanged (already in the library).
 
-> **Silkscreen rule (L1 lesson, carried from L1.01):** label every connector pin
-> (esp. **J5 polarity + the 5 V_EXT / common-GND marking** — RK9), mark the WS2812
-> DIN→DOUT direction + pixel pin-1, mark C10 polarity, and call out 5 V vs 3V3.
+> **Silkscreen rule:** label every pin; **J5: "5 V ONLY — NOT 12 V/24 V" + polarity**;
+> distinguish **"5V (USB)" vs "5V_EXT (strip)"**; WS2812 DIN→DOUT + pin-1; C10/D2
+> polarity; mark TP3.
 
 ## 5 · Power & thermal
 
-- **Rails:**
-  - **3.3 V** (RT9080) — ESP32 only; **inherited from L1.01**, unchanged.
-  - **VBUS 5 V** — powers the 74AHCT125 and the single onboard pixel only (≤ ~60 mA
-    LED + a few mA logic, on top of the LDO input current).
-  - **5 V_EXT** (injection terminal) — the **external strip's power**, *sourced* off-board;
-    its **ground** is shared with the board, and **its 5 V is routed on board copper
-    from J5 → J4** (the strip current does cross the board — an ampacity item below).
-- **Budget (corrected, worst-case):** continuous VBUS ≈ 220 mA (well under the 0.5 A
-  PTC hold); brief peak ≈ 560 mA (RT9080 is linear, so Iin ≈ Iout = WiFi-TX ~500 mA,
-  + 60 mA pixel) — below the 1 A PTC trip, ridden by the 3V3 bulk, the same regime
-  L1.01 already accepts (§3, RK4).
-- **5 V_EXT ampacity (layout):** the J5 → J4 5 V_EXT and the common-GND return carry
-  the **strip's** current (amps for a real strip). The TE 282837 terminals are rated
-  ~15 A, so the **board copper** is the limit — size the J5→J4 5 V and GND traces for
-  the documented max strip current; keep J5 adjacent to J4 (close in layout, RK7).
-- **Thermal:** **not a flagged concern.** The LDO case is unchanged from L1.01
-  (≤ ~1 W transient), the 74AHCT125 sources µA into a high-Z CMOS input, and the
-  onboard pixel is a single LED → `hasThermalConcern = false`.
+- **Rails:** **3.3 V** (RT9080, ESP32 only, from L1.01); **VBUS 5 V** (shifter +
+  onboard pixel; **C11 10 µF bulk** added, PI-2); **5V_EXT** (external strip,
+  *sourced* off-board, routed J5→J4 on board copper). **VBUS ⟂ 5V_EXT — separate
+  nets, never joined** (E3, §7 ERC check).
+- **Budget (worst-case):** continuous ~220 mA ≪ 0.5 A hold; brief peak ~560 mA <
+  1 A trip, ridden by C11 + 3V3 bulk (§3, RK4).
+- **5V_EXT ampacity (layout):** J5→J4 5 V_EXT + common-GND return carry the strip
+  current; TE terminals ~15 A so **board copper is the limit** — size for the
+  documented max strip current; keep J5 adjacent to J4; **star-ground at J5/C10** so
+  the C10 hot-plug surge (PI-3) doesn't bounce the data reference.
+- **Thermal:** not flagged. LDO ≤ ~1 W transient (L1.01); shifter µA; one onboard
+  pixel → `hasThermalConcern = false`.
 
 ## 6 · Risk register
 
-Top risks, each with a de-risk pass. IDs are **`RK#`** (risks ≠ resistor refDes).
+IDs `RK#` (risks ≠ resistor refDes).
 
-| # | Risk | Likelihood × Impact | De-risk plan | Status |
+| # | Risk | L × I | De-risk | Status |
 | --- | --- | --- | --- | --- |
-| **RK1** | **3.3 V→5 V data-level margin** — a bare ESP32 GPIO (3.3 V) is **below** the WS2812 logic-high (0.7·VDD = 3.5 V at 5 V); marginal → flicker/wrong colors/dead chain. | Med × High (core function) | **74AHCT125 (U3):** HCT inputs accept 3.3 V; VOH gives **+0.9 V** (actual µA load) / **+0.44 V** (guaranteed @ 8 mA) over the 3.5 V threshold, and the threshold tracks VDD (§3). | **DE-RISKED** |
-| **RK2** | **Strip inrush / power** — WS2812 strips draw far more than USB can supply; turn-on inrush can glitch the first pixel. | Med × High | **Dedicated 5 V injection (J5);** strip power external; **1000 µF bulk (C10)** absorbs inrush; onboard pixel is a single budgeted VBUS load (§3). | **DE-RISKED** |
-| **RK3** | **Common-ground omission** — floating/un-shared strip-supply ground breaks the single-ended data reference. | Med × Med | J5 ground **tied common** to board ground; silkscreen + guide call it out; data resistors + bulk on the board side. | **DE-RISKED** |
-| **RK4** | **VBUS load vs PTC** — onboard pixel (60 mA) on top of the ESP32 WiFi-TX peak. | Low × Med | Corrected budget (§3): continuous ~220 mA ≪ 0.5 A hold; brief peak ~560 mA < 1 A trip, ridden by bulk (L1.01 regime); firmware brightness cap. | **DE-RISKED** |
-| **RK5** | **WS2812 5050 solderability** — the 4-pad 5050's epoxy lens deforms / hidden pads bridge under beginner iron heat (hardest joint on the board). | Med × Med | **Mandatory flux-pen step in the guide** for LED3 (cuts time-at-temperature → saves the lens) + temp-controlled iron ~315 °C / quick dwell + tin-one-pad-first + a close-up. PDIP/THT-pixel fallback noted. | open → close in build/guide |
-| **RK6** | **Level-shifter gate handling** — floating CMOS inputs / wrong enable polarity (AHCT125 OE is active-low). | Low × Low | **Gate 1 used: `1OE → GND` (enable).** Gates 2–4 parked: `nOE → VCC` (disable), `nA → GND`. Captured in §2 + schematic. | **DE-RISKED** |
-| **RK7** | **Data / 5 V_EXT routing** — long/noisy first-pixel & strip leads (800 kHz data); strip-current trace ampacity. | Low × Med | 470 Ω at each driver (R7, R8); short shifter→pixel→J4 runs; size J5→J4 5 V/GND copper; antenna keep-out. | open → close in layout |
-| **RK8** | **Parasitic power / data-before-power** — USB on + injection off: onboard-pixel DOUT drives ~5 V into the *unpowered* strip's DIN → the strip parasitically self-powers through the DIN clamp diode (degrades pixel #1 / drags the data line). **Inevitable in a classroom.** | Med × Med | **R8 (470 Ω)** limits the clamp current to ~9 mA (§3) → benign; **documented power-up order** (strip supply before/with USB) in the guide; silkscreen note. (Exact WS2812 DIN abs-max confirmed in the Pass-5 datasheet audit.) | **DE-RISKED** |
-| **RK9** | **Reverse-polarity / mis-wire on J5** — a beginner reverses the bare 5 V_EXT/GND screw-terminal wires → reverse-biases C10 (electrolytic vents) + back-feeds common ground. | Med × Med | **Clear silkscreen polarity mark + keying convention + logged risk** (owner's call for this rev; a series P-FET ideal-diode is the hardware option deferred to a future rev). | **DE-RISKED (process)** — hardware option deferred |
+| **RK1** | 3.3 V→5 V data-level margin (bare GPIO below 0.7·VDD) | Med × High | 74AHCT125: VOH margin **+0.9 V actual / +0.30 V guaranteed-over-temp**; threshold tracks VDD (§3). | **DE-RISKED** |
+| RK2 | Strip inrush | Med × High | Dedicated injection (J5); C10 1000 µF; budgeted onboard load. | **DE-RISKED** |
+| RK3 | Common-ground omission | Med × Med | J5 GND tied common (star); LED3.VSS + C10− netted to it; silk + guide. | **DE-RISKED** |
+| RK4 | VBUS load vs PTC | Low × Med | ~220 mA cont. ≪ 0.5 A; ~560 mA brief < 1 A trip; **C11** + 3V3 bulk ride it. | **DE-RISKED** |
+| RK5 | 5050 solderability (lens heat) | Med × Med | **Mandatory flux-pen** + temp-controlled iron ~315 °C / quick dwell + close-up; THT-pixel fallback. | open → build/guide |
+| RK6 | Shifter gate handling (active-low EN) | Low × Low | **Gate 1 `1OE→GND` (EN)**; gates 2–4 `nOE→VCC`, `nA→GND`; nY open (Hi-Z). | **DE-RISKED** |
+| RK7 | Data / 5V_EXT routing + ampacity | Low × Med | 470 Ω at each driver; short runs; size J5→J4 copper; antenna keep-out. | open → layout |
+| RK8 | Parasitic / data-before-power (strip unpowered) | Med × Med | **Abs-max-V excursion current-limited by R8 (~9 mA)** + **documented power-up order (primary)** + D2/D3 backstop. (P5-1 honest framing.) | **DE-RISKED** |
+| RK9 | Reverse-polarity on J5 | Med × Med | **D2 TVS forward-conducts on reverse → clamps ~−0.7 V, protects C10**; + silk polarity + keying. | **DE-RISKED** |
+| RK10 | **12 V/24 V wrong-supply into J5** | Med × High | **D2 TVS (5.0 V)** clamps/crowbars; silk "5 V ONLY"; "fuse your supply" guide rule. (Sustained 12 V = sacrificial D2 → blown supply fuse, not board death.) | **DE-RISKED (sacrificial)** |
+| RK11 | **DATA net bridges 5V_EXT→VBUS/AHCT125** (R8 + clamps) | Med × High | **D2 caps 5V_EXT** + **D3 on DATA** + R8 limit; worst-case back-drive bounded (§3); isolation invariant (E3). | **DE-RISKED** |
+| RK12 | Stray-strand short across J4 (5V-GND etc.) | Med × High | "Current-limited/fused injection supply" guide rule; silk; (optional rail PTC deferred). Document: no on-rail fault protection. | accept + document |
+| RK13 | ESD onto exposed J4.DATA | Med × Med-High | **D3 ESD diode on DATA**. | **DE-RISKED** |
+| RK14 | Hot-plug at J4 (ground-last; far-end-powered strip contention) | Med × Med | Guide: power-down before touching J4; strip must not be independently powered; D2/D3 blunt transients. | accept + document |
+| RK15 | Long strip lead as antenna/transient injector | Low-Med × Med | D3 + keep R8 near J4; max-lead-length + routing guide note. | **DE-RISKED** |
+| RK16 | AHCT125 always-enabled → strip flashes/latches during GPIO5 reset / VBUS brown-out while 5V_EXT up | Med × Med | Firmware blanks early + brightness cap; document GPIO5 reset state; optional 1OE-gating (deferred). | accept + document |
 
 ## 7 · DESIGN_VALIDATION checklist
 
-Core — **mandatory on every board** (no mains/Li-ion/thermal/stripboard flags → **no
-conditional items** — the no-flags base path):
+Core — **6 items only** (no flags):
 
-- [ ] **Calc trail recorded** — every derived value (thresholds, margins, timing,
-  series R, parasitic current, budgets, decoupling) traces to a source (§3).
-- [ ] **Each IC datasheet-verified** — esp. the **74AHCT125 HCT thresholds + VOH +
-  tpd** and the **XL-5050RGBC-WS2812B DIN VIH / timing / DIN abs-max** (§4).
-- [ ] **Footprint ↔ pinout cross-checked** — 74AHCT125 SOIC-14 (1OE/1A/1Y/VCC/GND),
-  WS2812 5050 DIN/DOUT/VDD/GND direction, the TE 282837 screw-terminal pinouts.
-- [ ] **Fab-DRU DRC accounted for** — the fab's `.kicad_dru` applied before export.
-- [ ] **BOM availability confirmed** — the 5 new parts + reused L1.01 lines, in stock,
-  exact `(manufacturer, mpn)` strings (§8).
-- [ ] **All top risks de-risked** — every **design-stage** risk in §6 has a completed
-  de-risk pass (RK1–RK4, RK6, RK8, RK9 de-risked; RK5/RK7 close at the build/layout
-  stage by design).
+- [ ] **Calc trail recorded** — every value (margins both hops, timing, reset, parasitic, budgets, TVS clamp, decoupling) traces to a source (§3).
+- [ ] **Each IC datasheet-verified** — 74AHCT125 ✓ (Pass 5); RT9080 ✓; D2/D3 to verify; **LED3 BLOCKED until the XINGLIGHT datasheet is obtained** (P5-2).
+- [ ] **Footprint ↔ pinout cross-checked** — *schematic-stage* (Pass 6): U3 SOIC-14, LED3 5050, TE terminals, D2 SMA, D3 SOD-323.
+- [ ] **Fab-DRU DRC accounted for** — incl. an **ERC/DRC check that VBUS and 5V_EXT are never joined** (E3 isolation invariant). *Schematic/layout-stage.*
+- [ ] **BOM availability confirmed** — the 7 new parts + reused lines, exact `(mfr, mpn)` strings (§8).
+- [ ] **All top (design-stage) risks de-risked** — RK1–RK4, RK6, RK8–RK11, RK13, RK15 de-risked; RK5/RK7 at build/layout; RK12/RK14/RK16 accept+document.
 
-> Attestations (a human — Josh — checked), not machine proofs — except BOM
-> availability (parts MCP) and DRU presence, which are verifiable. The evidence
-> behind each tick is in `validation-log.md`.
+> Evidence: `validation-log.md`.
 
 ## 8 · BOM sourcing & freeze
 
-- **Design-to-cost target:** ~**$13–14** BOM — the L1.01 ~$10–12 core + ~$1.50 of new
-  parts. (`Project.targetCost` currently null — set at the BOM stage; Friction F3.)
-- **New parts to create in the library BEFORE the CSV import** (strict
-  `(manufacturer, mpn)` match — unmatched rows are reported, never auto-created; create
-  each with the **exact** string the CSV uses):
-  1. Texas Instruments **SN74AHCT125D** (level shifter, SOIC-14)
-  2. XINGLIGHT **XL-5050RGBC-WS2812B** (onboard pixel, 5050) — *confirm exact mfr/MPN
-     string at Digikey when creating*
-  3. TE Connectivity **282837-3** (J4, 3-pos screw terminal)
-  4. TE Connectivity **282837-2** (J5, 2-pos screw terminal)
-  5. Panasonic **EEU-FR1C102** (C10, 1000 µF/16 V radial)
-- **Already in the library (reused L1.01 lines):** ESP32-S3-WROOM-1-N16R2, RT9080,
-  USBLC6, 1206L050YR, USB4110-GF-A, the Sullins headers, both Würth LEDs, the Yageo
-  10 k/5.1 k/470 Ω resistors (470 Ω = R7 + R8 too), the Samsung caps (0.1 µF = C8/C9
-  too), B3F-1000 buttons, Keystone test points.
-- **Second sources (exercise `altMpn`/`altManufacturer`):** level shifter —
-  **SN74AHCT125N** (PDIP-14); pixel — **SK6812** is electrically a drop-in but
-  **LCSC-only** (not a Western-distributor second source — noted, not relied on);
-  PTC — Bel Fuse `0ZCJ0050FF2G` carries over from L1.01.
-- **Stock verification:** the 5 new parts confirmed at Digikey/Newark during the
-  sourcing audit (SN74AHCT125D/N, TE 282837-2/-3, EEU-FR1C102 verified; XINGLIGHT
-  pixel to confirm exact string). Reused lines were stock-verified for L1.01.
-- **BOM frozen:** **not yet.** Freeze (`bomFrozenAt`) is the side-effect of advancing
-  the revision past `BOM_SOURCING` into `LAYOUT` — and that is itself **gated on the
-  design passing the validation protocol** (`../_protocol.md`).
+- **Design-to-cost target:** ~**$14–15** (L1.01 core + ~$2.50 new: shifter, pixel, 2
+  terminals, 1000 µF, TVS, ESD, 10 µF). `targetCost` null (F3).
+- **New parts to create BEFORE import (strict `(mfr, mpn)` match — exact strings):**
+  1. Texas Instruments **SN74AHCT125D** (SOIC-14)
+  2. XINGLIGHT **XL-5050RGBC-WS2812B** (5050) — *confirm exact string + obtain datasheet*
+  3. TE Connectivity **282837-3** (J4)
+  4. TE Connectivity **282837-2** (J5)
+  5. Panasonic **EEU-FR1C102** (C10)
+  6. Littelfuse **SMAJ5.0A** (D2 TVS)
+  7. Nexperia **PESD5V0S1BA** (D3 ESD)
+- **Already in library (reused):** WROOM core lines incl. 470 Ω (R7/R8), 0.1 µF
+  (C8/C9), **10 µF CL21A106KOQNNNE (C1 + now C11)**.
+- **Second sources:** shifter SN74AHCT125N (PDIP-14); pixel SK6812 (LCSC-only,
+  noted not relied on); TVS/ESD have many drop-ins.
+- **BOM frozen:** **not yet** — and freeze is **gated on the design passing the
+  validation protocol** (`../_protocol.md`).
 
 ---
 
 ## Friction log (the real deliverable)
 
-Running log of every rough edge hit driving this board through the pipeline. Each
-becomes a follow-up issue.
-
-| # | Stage | Friction | Severity | Proposed follow-up |
+| # | Stage | Friction | Severity | Follow-up |
 | --- | --- | --- | --- | --- |
-| F1 | Design / flags | The seeded `l1-03-ws2812-node` row had **`requiresStripboard = true`**, contradicting the custom-PCB topology. **Correction (validation Pass 3):** the real consequence isn't a DESIGN_VALIDATION conditional item — `requiresStripboard` materializes a **separate `STRIPBOARD_VALIDATION` checklist + BOM_SOURCING exit-gate coupling** (`canonical-checklist-templates.ts`; DV conditionals are only mains/Li-ion/thermal). Caught only by a DB query; flipped to false. | Med | Audit seeded flags vs intended topology on all project rows; surface the flag set on the project page so a mismatch is visible without SQL. |
-| F2 | Design / DB | `Project` has **no `title` column** — the human field is `name` (+ `publicTitle`); a reasonable first query errors. | Low | Document `name` vs `publicTitle` in the playbook's "where things live" map. |
-| F3 | Design / parts | `targetCost` is **null** — the WS3 cost advisory has nothing to compare against until set. | Low | Seed `targetCost` with the project row, or prompt for it at the BOM stage when null. |
-| F4 | BOM CSV authoring | Import upserts on **`[revisionId, partId]`**, so refDes sharing one part **must merge onto one row** (470 Ω → `R5,R6,R7,R8` qty 4; 0.1 µF → `C2,C3,C7,C8,C9` qty 5). Splitting per-refDes silently upsert-collapses to the last row — wrong BOM, no error. | Med | **FIXED in PR #150** (merged): `parseBomCsv` now reports + excludes intra-file duplicate `(manufacturer, mpn)` rows. |
-| F5 | Process / docs | The pipeline-handoff doc this design references (`docs/plans/2026-06-17-second-board-pipeline-handoff.md`) lives only on the PR #149 branch — **absent on main / this branch**, so the reference dangles until #149 merges. | Low | Merge #149, or repoint the reference to `docs/plans/2026-06-16-board-design-process.md` + the WS docs. |
-| F6 | Design / consistency | The risk register and reference designators **collided on `R#`** (risk R1 vs resistor R1; acute once R7/R8 resistors + RK7/RK8 risks coexist). | Low | Adopted `RK#` for risk IDs repo-wide; consider baking the convention into `_template/design.md`. |
+| F1 | Design / flags | Seeded `requiresStripboard=true` (custom PCB). It would have materialized a **separate `STRIPBOARD_VALIDATION` checklist + BOM_SOURCING exit gate** (not a DV conditional — those are mains/Li-ion/thermal only). Flipped to false. | Med | Audit seeded flags vs topology; surface flags on the project page. |
+| F2 | Design / DB | `Project` has no `title` column (it's `name`/`publicTitle`). | Low | Document in the playbook. |
+| F3 | Design / parts | `targetCost` null → cost advisory has no anchor. | Low | Seed `targetCost` or prompt at BOM stage. |
+| F4 | BOM CSV | Import upserts on `[revisionId, partId]` → shared-part refDes must merge to one row. | Med | **FIXED in PR #150.** |
+| F5 | Process / docs | The handoff doc the design references lives only on PR #149's branch (absent on main). | Low | Merge #149 or repoint. |
+| F6 | Design / consistency | Risk IDs `R#` collided with resistor refDes. | Low | Adopted `RK#`; bake the convention into `_template`. |
+| F7 | Protocol | The footprint↔pinout (Pass 6) + fab-DRU audits **can't fully close at the design.md stage** (no KiCad symbols/footprints yet) — they stage to schematic/layout. The flat protocol implies all audits close before "add a part." | Med | **Refine `_protocol.md` to phase-stage audits** (design vs schematic vs layout); a design-stage-dry board is "part-ready" with footprint/DRU explicitly owed. (Owner-approved; follow-up PR.) |
+| F8 | Validation / parts | A BOM part can be a **WS2812-compatible clone** (XINGLIGHT) whose own datasheet isn't readily available — so "each IC datasheet-verified" can't be honestly ticked from the *compatible* part's marketing; numbers get inherited from the reference part by assumption. | Med | Require the actual part datasheet (or an explicit "assumed-from-X, RISK" note) at part-creation; the datasheet audit can't pass on a substitute datasheet. |
 
-<!-- Append new rows as the pipeline run continues (parts creation, CSV import,
-     freeze, board-readiness, guide authoring). -->
+<!-- Append rows as the run continues (parts creation, import, freeze, guide). -->

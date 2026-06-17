@@ -7,8 +7,8 @@
 | | |
 | --- | --- |
 | **Slug** | `l1-03-ws2812-node` |
-| **Status** | `pass 3/≥10` — not yet dry, NOT part-ready |
-| **Passes run** | 3 |
+| **Status** | `passes 1–9 folded` — Pass 10 dry-sweep owed (+ schematic-stage Pass 6); NOT part-ready |
+| **Passes run** | 9 (+ folds) |
 | **Last dry pass** | — |
 
 ## Gate (Definition of done — all must hold before any part/BOM/revision)
@@ -71,20 +71,97 @@ addition all cross-checked).
 
 ---
 
-## Remaining passes (the run is NOT done — 3/≥10, no dry pass yet)
+### Pass 4 — Requirements & traceability + net integrity (fresh adversarial)
 
-Still owed, with fresh adversarial eyes each:
-- **Pass 4 — Requirements & traceability + net integrity:** every F/E/I requirement
-  → net → calc → BOM → risk → validation item; every pin of U3/LED3/J4/J5 accounted.
-- **Pass 5 — Part-truth (datasheet), worst-case:** pad/number-level read of the
-  74AHCT125 + XL-5050RGBC-WS2812B datasheets — incl. the **WS2812 DIN abs-max** that
-  RK8 depends on, VDD range, data-timing windows, abs-max.
-- **Pass 6 — Footprint ↔ symbol ↔ pinout:** pad-by-pad once symbols/footprints chosen.
-- **Pass 7 — Power integrity (deep):** decoupling placement, C10 ESR/inrush, regulator
-  stability margins.
-- **Pass 8 — FMEA (deep):** beyond RK8/RK9 — ESD on exposed J4/J5, hot-plug, short
-  across the strip output, brown-out recovery.
-- **Pass 9 — Layout-readiness + learnability:** keep-outs, ampacity, data routing;
-  and the L1 teachability of every new concept.
-- **Pass 10+ — dry-pass attempts:** re-sweep all lenses until a pass yields zero new
-  material findings. Only then is the board part-ready.
+Verified pinouts: SN74AHCT125 SOIC-14 (pin 7 = GND, 14 = VCC); WS2812B 5050 (VDD/DOUT/VSS/DIN).
+
+| # | Sev | Finding (NEW) | Disposition |
+| --- | --- | --- | --- |
+| P4-N1 | **HIGH** | **U3 pin 7 (GND) never stated** anywhere — gate pins + VCC specified, GND implicit; C8 decap drawn only to VCC. | FOLD: net U3.7→GND, C8 14→7. |
+| P4-R2 | MED | **VBUS ⟂ 5V_EXT isolation is documented-intent only** — no validation/ERC item asserts the two 5 V nets are never joined (the board's core claim). | FOLD: add isolation validation item + §2 statement (ties to RK11/RK10). |
+| P4-N2 | MED | LED3 VSS/GND never explicitly netted (RK3 only covers the *strip* ground, not the onboard pixel's). | FOLD: net LED3.VSS→GND. |
+| P4-S1 | MED | **Power-DOWN** case unanalyzed: USB removed while 5V_EXT on → GPIO5/3V3 may back-drive U3 input as U3.VCC collapses. | FOLD: add power-down analysis; extend power-order note. |
+| P4-N3 | MED | nY-open is correct (Hi-Z) but contradicts the doc's blanket "don't float" — note the exception. | FOLD (clarify). |
+| P4-N4 | MED | J4.DATA is an open 800 kHz stub when no strip attached (benign, high-Z) — unanalyzed. | FOLD into RK7. |
+| P4-N5 | LOW | C10− return node unstated (safety-relevant w/ RK9). | FOLD: C10−→common GND at J5. |
+| P4-R1/R3 | LOW | F3 not traced to a dedicated validation item; I2/I3 data seam. | FOLD (annotate). |
+
+Clean: no unrequired new part; U3-vs-pixel same-rail power-up (no skew); no 5V_EXT→VBUS back-power path except the current-limited DATA net.
+
+### Pass 5 — Part-truth / datasheet, worst-case (fresh adversarial, datasheets read)
+
+| # | Sev | Finding (NEW) | Disposition |
+| --- | --- | --- | --- |
+| P5-1 | **CRITICAL** | **RK8 framing wrong:** with strip unpowered (VDD=0) the WS2812 abs-max VI = VDD+0.5 V = **+0.5 V**, so ~5 V on DIN is a **gross abs-max-VOLTAGE violation** mitigated *only* by R8 current-limiting — NOT "within abs-max." WS2812 has **no published DIN clamp-current rating**, so "9 mA safe" is an engineering bound, not spec. | FOLD: reword RK8 honestly; power-up order = PRIMARY control; reinforces the protection-cluster decision. |
+| P5-2 | **HIGH** | **The XINGLIGHT XL-5050RGBC-WS2812B datasheet was never opened** — every WS2812 number is sourced to *Worldsemi WS2812B*. Clones differ on exactly VIH/abs-max/RES. LED3 "datasheet-verified" cannot be ticked. | FOLD/ACTION: obtain the XINGLIGHT datasheet at part creation; log as open until then. |
+| P5-3 | MED | **Reset/latch time missing** from §3: WS2812B RES ≥ 50 µs; clones need ≥ 280 µs → set firmware latch ≥ 300 µs (clone-safe). | FOLD: add §3 row + firmware note. |
+| P5-4 | MED | AHCT125 VOH 3.94 V is the **25 °C** value; over-temp guaranteed min = **3.8 V** → worst-case margin **+0.30 V**, not +0.44 V. | FOLD: correct §3 + RK1. |
+| P5-5/6 | LOW | VIH 2.0 V is flat across VCC (not VCC-specific); TI recommends 0.1 µF **+** 1 µF. | FOLD (wording). |
+
+Confirmed correct (backs §7 ticks): AHCT125 VIH/VIL/VOH-actual(4.4 V)/abs-max/tpd/OE-active-low; WS2812 VIH=0.7VDD; **RT9080 is a true linear LDO (P-MOSFET pass) → Iin≈Iout claim correct**; RT9080 dropout 0.53 V max @600 mA (3.3 V holds); LDO stable with C5/C6 + C1 10 µF on output.
+
+### Pass 7 — Power integrity, deep (fresh adversarial)
+
+| # | Sev | Finding (NEW) | Disposition |
+| --- | --- | --- | --- |
+| PI-1 | MED | **Cross-domain margin at the EXTERNAL strip's first DIN never proven** — driver = onboard DOUT (VBUS), receiver threshold = 0.7·V(5V_EXT); margin does NOT track (different rails). Worst corner: VBUS sag + 5V_EXT high. | FOLD: add §3 cross-domain row; document max V(5V_EXT). |
+| PI-2 | MED | **No bulk cap on VBUS itself** — onboard pixel's 60 mA pulses share bare VBUS with the LDO input. | DECISION: add 10 µF VBUS bulk (affects BOM) or prove the omission. |
+| PI-3 | LOW | C10 hot-plug inrush (tens of A) returns through the common GND (data reference bounce). | FOLD: star-ground note (layout). |
+
+Clean: 0.1 µF shifter decap adequate; C10 correctly scoped to 5V_EXT; PTC derating holds; LDO stable.
+
+### Pass 8 — FMEA, deep (fresh adversarial) — 6 NEW failure modes, converging on ONE gap
+
+**The board has ZERO protection on its external connectors** (all protection — PTC, USBLC6 — is on USB). 5 of these 6 converge on a **protection cluster at J4/J5**.
+
+| # | Sev | NEW failure mode | Disposition |
+| --- | --- | --- | --- |
+| RK10 | **CRITICAL** | **12 V/24 V wrong-supply into J5** (over-voltage; distinct from RK9 reverse). 12 V bricks are the most common wrong supply; no OVP on 5V_EXT. | DECISION: TVS at J5 + silk "5 V ONLY" + prove isolation. |
+| RK11 | **CRITICAL** | **DATA net bridges 5V_EXT→VBUS/AHCT125** via R8 + pixel clamps (always present by topology) — converts strip faults/over-injection into onboard damage. | DECISION: needs worst-case DOUT/1Y current calc + shared clamp. |
+| RK12 | HIGH | Stray-strand short across J4 (5V-GND/5V-DATA/DATA-GND); unfused 5V_EXT + C10 energy → trace burn/weld. | FOLD/DECISION: "fuse the injection supply" guidance; optional rail PTC. |
+| RK13 | HIGH | **ESD onto exposed J4 DATA** (nothing protects J4; WS2812 ESD-fragile) → kills onboard pixel / degrades AHCT125. | DECISION: ESD diode on J4 DATA. |
+| RK14 | HIGH | Hot-plug at J4: ground-last transient + far-end-powered-strip 2-supply contention. | FOLD (guide power-down rule) + staged Schottky. |
+| RK15 | MED | Long strip lead as antenna/transient injector back into DATA→board. | FOLD: shared clamp + max-lead-length note. |
+| RK16 | MED | **AHCT125 always-enabled (1OE→GND)** → strip flashes/latches full-white during GPIO5 reset / VBUS brown-out while 5V_EXT stays up. | FOLD: firmware blank-early + cap; optional 1OE-gating (note). |
+
+**Load-bearing missing calc:** worst-case current onboard-pixel DOUT + AHCT125 1Y must absorb when J4 DATA is driven to max credible external voltage (needs WS2812 DOUT abs-max — extends P5).
+
+### Pass 9 — Layout-readiness + learnability (fresh adversarial)
+
+| # | Sev | Finding (NEW) | Disposition |
+| --- | --- | --- | --- |
+| L9-6 | **HIGH** | **"Teaches" is two separable concepts** ("level shifting AND dedicated rail + common ground") — quiz-able core ambiguous; doc's own ORIENT exposes two why-questions. | DECISION: pick a primary, or adopt two-tier framing (L9-9). |
+| L9-2 | MED | Two 5 V domains lack a **"never-join" rule + star-ground point + silk distinction** (5V-USB vs 5V_EXT). | FOLD (ties P4-R2). |
+| L9-3 | MED | **No test point on the shifted data line** — the lesson's most probe-worthy node ("see the 5 V swing"). | FOLD: add data TP. |
+| L9-1 | MED | C10 (~Ø10×20 mm tall radial) **Z-height/enclosure keep-out** uncaptured. | FOLD: layout constraint; consider lower-profile cap. |
+| L9-7 | MED | 74AHCT125 brings un-budgeted teaching surface (active-low EN, Hi-Z, parked CMOS, HCT). | FOLD (guide budget). |
+| L9-8 | MED | Screw terminals + external supply + power-up order + deferred reverse guard = **4 new beginner failure surfaces**; thin for L1. | DECISION: ties to protection + two-tier. |
+| L9-9 | LOW | USB-only reward path IS met (good); **two-tier framing** (Tier 1 USB-only core / Tier 2 external extension) would resolve L9-6/L9-8/L9-10. | DECISION (the elegant unifier). |
+| L9-4/5/10 | LOW | Terminal wire-exit orientation vs antenna edge; pixel/R7/R8 placement intent; restate L1.01 "beginner-success wins" priority. | FOLD (layout/framing). |
+
+## Owner decisions on Passes 4–9 (resolved 2026-06-17)
+
+- **Protection cluster:** **TVS on 5V_EXT (D2 SMAJ5.0A) + ESD on J4 DATA (D3
+  PESD5V0S1BA)** — addresses RK10/RK11/RK13/RK15, and D2 also covers RK9 reverse.
+  (Full cluster w/ series Schottky/PTC NOT taken; RK12/RK14 stay accept+document.)
+- **Pedagogy:** **keep ONE combined lesson**; primary graded concept sharpened to
+  level-shifting (Teaches field updated), common-ground as supporting. (Two-tier NOT
+  taken — L9-6/8/9 addressed by the framing edit, not a tier split.)
+- **VBUS bulk:** **add 10 µF (C11)** on VBUS (PI-2).
+
+**Passes 4–9 FOLDED** into design.md + bom.csv: U3 GND + LED3 VSS + C10− netting
+(P4-N1/N2/N5), VBUS⟂5V_EXT isolation invariant + ERC item (P4-R2), power-down
+analysis (P4-S1), RK8 honest reword (P5-1), VOH over-temp +0.30 V (P5-4), reset/latch
+≥300 µs row (P5-3), cross-domain margin row (PI-1), D2/D3/C11 added, TP3 data test
+point (L9-3, labeled pad), C10 Z-height + star-ground (L9-1/PI-3), RK10–RK16
+registered, F7 (protocol phase-staging) + F8 (clone-datasheet) logged.
+
+## Remaining
+
+- **Pass 6 — Footprint ↔ symbol ↔ pinout:** staged to **schematic** (needs chosen
+  KiCad symbols/footprints) — per the F7 protocol phase-staging refinement.
+- **Open before the LED3 datasheet tick:** obtain the **XINGLIGHT XL-5050RGBC-WS2812B
+  datasheet** + confirm exact `(mfr, mpn)` string (P5-2/F8).
+- **Pass 10 — dry-pass re-sweep:** re-run all design-stage lenses against the folded
+  doc; only a zero-new-material-findings sweep makes it design-stage-dry (part-ready,
+  with footprint/DRU owed to schematic/layout). NOT dry yet.
