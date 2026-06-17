@@ -12,6 +12,7 @@ export interface ParsedBomRow {
   altMpn: string | null;
   altManufacturer: string | null;
   notes: string | null;
+  sourceRow: number; // 1-indexed source line this row was parsed from
 }
 
 export interface RowError {
@@ -142,7 +143,22 @@ export function parseBomCsv(text: string): ParseResult {
         rowErrors.push(`invalid unitPrice "${unitPriceRaw}"`);
       } else {
         unitPriceCents = Math.round(n * 100);
+        // Mirror createBomLineSchema's unitPriceCents .max(100_000_000).
+        if (unitPriceCents > 100_000_000) {
+          rowErrors.push(`unit price exceeds the maximum`);
+        }
       }
+    }
+
+    // Mirror createBomLineSchema's notes .max(1000) and altSourceField .max(200).
+    if (notesRaw.length > 1000) {
+      rowErrors.push(`notes exceed 1000 characters`);
+    }
+    if (altMpnRaw.length > 200) {
+      rowErrors.push(`altMpn exceeds 200 characters`);
+    }
+    if (altManufacturerRaw.length > 200) {
+      rowErrors.push(`altManufacturer exceeds 200 characters`);
     }
 
     // refDes split on commas AND whitespace, trim each segment, re-join with commas.
@@ -180,6 +196,7 @@ export function parseBomCsv(text: string): ParseResult {
       altMpn: altMpnRaw === "" ? null : altMpnRaw,
       altManufacturer: altManufacturerRaw === "" ? null : altManufacturerRaw,
       notes: notesRaw === "" ? null : notesRaw,
+      sourceRow: rowNo,
     });
   }
 

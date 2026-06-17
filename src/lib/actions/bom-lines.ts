@@ -164,7 +164,7 @@ export async function importBomCsv(input: {
         const unmatched: { manufacturer: string; mpn: string; row: number }[] =
           [];
 
-        for (const [i, r] of rows.entries()) {
+        for (const r of rows) {
           const part = await tx.part.findUnique({
             where: {
               manufacturer_mpn: { manufacturer: r.manufacturer, mpn: r.mpn },
@@ -172,13 +172,13 @@ export async function importBomCsv(input: {
             select: { id: true },
           });
           if (!part) {
-            // Parser rows are 1-indexed by source line (header = 1, first
-            // data row = 2); `rows` only holds accepted rows so we can't
-            // recover the exact line — report manufacturer/mpn + position.
+            // `sourceRow` is the row's true 1-indexed source line, so the
+            // unmatched report stays accurate even when earlier rows were
+            // rejected by parse errors.
             unmatched.push({
               manufacturer: r.manufacturer,
               mpn: r.mpn,
-              row: i + 2,
+              row: r.sourceRow,
             });
             continue;
           }

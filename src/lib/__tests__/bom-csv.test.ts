@@ -62,4 +62,47 @@ describe("parseBomCsv", () => {
     expect(rows).toEqual([]);
     expect(errors[0]!.message).toMatch(/refDes/i);
   });
+
+  test("unitPrice that exceeds the cents cap is rejected", () => {
+    // 100_000_000 cents = $1,000,000. One dollar over → 100_000_100 cents.
+    const { rows, errors } = parseBomCsv(
+      "refDes,manufacturer,mpn,quantity,unitPrice\nR1,Yageo,RC0805,1,1000001",
+    );
+    expect(rows).toEqual([]);
+    expect(errors.some((e) => e.row === 2)).toBe(true);
+    expect(errors.some((e) => /maximum/i.test(e.message))).toBe(true);
+  });
+
+  test("notes longer than 1000 chars is rejected", () => {
+    const longNotes = "x".repeat(1001);
+    const { rows, errors } = parseBomCsv(
+      `refDes,manufacturer,mpn,quantity,notes\nR1,Yageo,RC0805,1,${longNotes}`,
+    );
+    expect(rows).toEqual([]);
+    expect(errors.some((e) => e.row === 2)).toBe(true);
+    expect(errors.some((e) => /notes/i.test(e.message))).toBe(true);
+  });
+
+  test("altMpn longer than 200 chars is rejected", () => {
+    const longAlt = "y".repeat(201);
+    const { rows, errors } = parseBomCsv(
+      `refDes,manufacturer,mpn,quantity,altMpn\nR1,Yageo,RC0805,1,${longAlt}`,
+    );
+    expect(rows).toEqual([]);
+    expect(errors.some((e) => e.row === 2)).toBe(true);
+    expect(errors.some((e) => /altMpn/i.test(e.message))).toBe(true);
+  });
+
+  test("accepted row carries its true source line number", () => {
+    // Row 2 is a parse error (bad quantity); row 3 is the first accepted row,
+    // so its sourceRow must be 3, not 2.
+    const { rows, errors } = parseBomCsv(
+      "refDes,manufacturer,mpn,quantity\n" +
+        "R1,Yageo,RC0805,bad\n" +
+        "R2,Yageo,RC0805,1",
+    );
+    expect(errors.some((e) => e.row === 2)).toBe(true);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.sourceRow).toBe(3);
+  });
 });
