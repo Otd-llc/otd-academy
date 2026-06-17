@@ -1,24 +1,45 @@
 "use client";
 
-// Admin-only affordance on the Lesson Complete screen: attach or replace the
-// VERIFIED REFERENCE GERBERS for this board. Mirrors the proof-upload dance
-// (presign → PUT to R2 → record) but hits the freeze-exempt reference-asset
-// actions so it works on the already-published (frozen) revision. Learners never
-// see this; the download CTA picks up the newest upload automatically.
+// Admin-only affordance: attach/replace a freeze-exempt REFERENCE ASSET (verified
+// reference gerbers OR bring-up measurements CSV) on the board's published revision.
+// Mirrors the proof-upload dance but hits the freeze-exempt reference-asset actions.
+// Learners never see this; the matching download CTA picks up the newest upload.
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  createReferenceGerberUploadUrl,
-  recordReferenceGerber,
+  createReferenceAssetUploadUrl,
+  recordReferenceAsset,
 } from "@/lib/actions/reference-assets";
 
-export function ReferenceGerberAdmin({
+type Kind = "gerbers" | "measurements";
+
+const COPY: Record<
+  Kind,
+  { noun: string; accept: string; defaultMime: string; chooseHint: string }
+> = {
+  gerbers: {
+    noun: "gerbers",
+    accept: ".zip,application/zip",
+    defaultMime: "application/zip",
+    chooseHint: "Choose a .zip first.",
+  },
+  measurements: {
+    noun: "measurements",
+    accept: ".csv,text/csv",
+    defaultMime: "text/csv",
+    chooseHint: "Choose a .csv first.",
+  },
+};
+
+export function ReferenceAssetAdmin({
+  kind,
   projectId,
-  hasGerbers,
+  hasAsset,
   published,
 }: {
+  kind: Kind;
   projectId: string;
-  hasGerbers: boolean;
+  hasAsset: boolean;
   published: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -26,19 +47,21 @@ export function ReferenceGerberAdmin({
   const [done, setDone] = useState(false);
   const [pending, start] = useTransition();
   const router = useRouter();
+  const copy = COPY[kind];
 
   function upload() {
     const file = fileRef.current?.files?.[0];
     if (!file) {
-      setError("Choose a .zip first.");
+      setError(copy.chooseHint);
       return;
     }
     start(async () => {
       setError(null);
       setDone(false);
       try {
-        const mime = file.type || "application/zip";
-        const presign = await createReferenceGerberUploadUrl({
+        const mime = file.type || copy.defaultMime;
+        const presign = await createReferenceAssetUploadUrl({
+          kind,
           projectId,
           filename: file.name,
           mime,
@@ -50,7 +73,8 @@ export function ReferenceGerberAdmin({
           body: file,
         });
         if (!put.ok) throw new Error("Upload to storage failed — try again.");
-        await recordReferenceGerber({
+        await recordReferenceAsset({
+          kind,
           projectId,
           key: presign.key,
           filename: presign.filename,
@@ -67,22 +91,22 @@ export function ReferenceGerberAdmin({
   }
 
   return (
-    <section className="glass-card w-full max-w-2xl border-signal-blue/30 p-5 text-left">
+    <section className="glass-card w-full border-signal-blue/30 p-5 text-left">
       <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-signal-blue">
-        Admin · reference gerbers
+        Admin · {copy.noun}
       </p>
       <p className="mt-2 font-mono text-xs uppercase tracking-wider text-muted">
         {!published
           ? "No published revision — publish this board first."
-          : hasGerbers
-            ? "Verified gerbers attached. Upload a new .zip to replace."
-            : "No verified gerbers yet — learners see a placeholder until you attach them."}
+          : hasAsset
+            ? `Verified ${copy.noun} attached. Upload a new file to replace.`
+            : `No verified ${copy.noun} yet — learners see a placeholder until you attach them.`}
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <input
           ref={fileRef}
           type="file"
-          accept=".zip,application/zip"
+          accept={copy.accept}
           disabled={!published || pending}
           className="font-mono text-xs text-gray-2 file:mr-3 file:rounded file:border file:border-panel-border file:bg-navy-dark file:px-3 file:py-1.5 file:font-mono file:text-xs file:uppercase file:tracking-wider file:text-command-gold disabled:opacity-50"
         />
@@ -92,7 +116,7 @@ export function ReferenceGerberAdmin({
           disabled={!published || pending}
           className="inline-flex items-center gap-1.5 rounded border border-signal-blue bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-signal-blue transition-colors hover:bg-signal-blue hover:text-deep-space disabled:opacity-50"
         >
-          {pending ? "Uploading…" : hasGerbers ? "↑ Replace gerbers" : "↑ Attach gerbers"}
+          {pending ? "Uploading…" : hasAsset ? `↑ Replace ${copy.noun}` : `↑ Attach ${copy.noun}`}
         </button>
       </div>
       {done && (

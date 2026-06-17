@@ -2,8 +2,9 @@
 
 // Client island for an in-guide `action` block — the button the guide tells the
 // student to click. Each action maps to a server action that presigns a
-// download: "downloadKicadStarter" (the board's KiCad starter) and
-// "downloadReferenceFiles" (the verified reference gerber set).
+// download: "downloadKicadStarter" (the board's KiCad starter),
+// "downloadReferenceFiles" (the verified reference gerber set), and
+// "downloadBringupMeasurements" (the verified bring-up measurements CSV).
 //
 // PUBLIC-RESOURCE RULE: anyone can SEE this on a public lesson, but downloading a
 // resource requires an account. An anonymous visitor is funnelled to sign-up
@@ -12,6 +13,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import {
+  getBringupMeasurementsUrl,
   getKicadStarterUrl,
   getReferenceFilesUrl,
 } from "@/lib/actions/learner-resources";
@@ -30,6 +32,10 @@ const ACTIONS: Record<
   downloadReferenceFiles: {
     resolve: getReferenceFilesUrl,
     notReady: "The reference files aren't available for this board yet.",
+  },
+  downloadBringupMeasurements: {
+    resolve: getBringupMeasurementsUrl,
+    notReady: "The bring-up measurements aren't available for this board yet.",
   },
 };
 

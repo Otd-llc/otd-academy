@@ -32,12 +32,23 @@ export async function getReferenceFilesUrl(
   return getPublishedRevisionArtifactUrl(input, "GERBER_ZIP");
 }
 
+// getBringupMeasurementsUrl returns a presigned download for the board's verified
+// BRING-UP MEASUREMENTS — the BRINGUP_MEASUREMENTS_CSV artifact an admin attached to
+// the published (frozen reference) revision: the proven expected/actual readings at
+// each bring-up step, so a learner can check their own board against the golden one.
+// Returns null until that set is uploaded. Same public-resource rule as the starter.
+export async function getBringupMeasurementsUrl(
+  input: unknown,
+): Promise<string | null> {
+  return getPublishedRevisionArtifactUrl(input, "BRINGUP_MEASUREMENTS_CSV");
+}
+
 // Shared resolver: presign the latest file-backed artifact of `subkind` on the
 // project's published revision, or null if there's no published revision, no
 // such artifact, or R2 is unavailable.
 async function getPublishedRevisionArtifactUrl(
   input: unknown,
-  subkind: "BOM_EXPORT" | "GERBER_ZIP",
+  subkind: "BOM_EXPORT" | "GERBER_ZIP" | "BRINGUP_MEASUREMENTS_CSV",
 ): Promise<string | null> {
   await requireUser();
   const projectId = projectIdSchema.parse(input);
