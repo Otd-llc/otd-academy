@@ -9,7 +9,7 @@ import { recordCertificate } from "@/lib/certificate-record";
 import { SupportBlock } from "@/components/learn/SupportBlock";
 import { ShareCard } from "@/components/learn/ShareCard";
 import { TipBlock } from "@/components/learn/TipBlock";
-import { ReferenceGerberAdmin } from "@/components/learn/ReferenceGerberAdmin";
+import { ReferenceAssetAdmin } from "@/components/learn/ReferenceAssetAdmin";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
 import { pickNextLessons } from "@/lib/learner-next-lessons";
 
@@ -239,9 +239,10 @@ export default async function LessonCompletePage({
           </p>
         )}
         {isAdmin && (
-          <ReferenceGerberAdmin
+          <ReferenceAssetAdmin
+            kind="gerbers"
             projectId={project.id}
-            hasGerbers={hasGerbers}
+            hasAsset={hasGerbers}
             published={!!project.publishedRevisionId}
           />
         )}

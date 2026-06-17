@@ -297,7 +297,7 @@ enum ArtifactSubkind {
   BRINGUP_COMPLETE // Build-scoped; BRINGUP gate; created via "Mark bring-up complete" button only
   BOM_CSV_AS_ORDERED // Build-scoped; the BOM as actually sent to the distributor
   ASSEMBLY_PHOTO // Build-scoped; photos taken during assembly / bring-up
-  BRINGUP_MEASUREMENTS_CSV // Build-scoped; export of Measurement rows for this build
+  BRINGUP_MEASUREMENTS_CSV // Build- or revision-scoped; export of Measurement rows (WS5 attaches a verified set to the published revision)
   MODEL_3D // 3D model artifact (board/sub-assembly); renderable via <ModelViewer>
 }
 
