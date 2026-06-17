@@ -105,6 +105,8 @@ model Project {
   disciplineTaught   String?
   requiresStripboard Boolean              @default(false)
   hasMainsNet        Boolean              @default(false)
+  hasLiIon           Boolean              @default(false) // WS2: triggers DESIGN_VALIDATION Li-ion safety conditional
+  hasThermalConcern  Boolean              @default(false) // WS2: triggers DESIGN_VALIDATION thermal conditional
   archivedAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
