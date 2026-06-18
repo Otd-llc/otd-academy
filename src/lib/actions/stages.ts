@@ -66,6 +66,13 @@ export type RegressStageResult =
 const advanceStageSchema = z.object({
   revisionId: z.cuid(),
   notes: z.string().max(2000).optional(),
+  // Admin override: advance regardless of the exit-gate + dependency-DAG
+  // result. advanceStage is admin-only and authoring is manually reviewed
+  // before publish, so the admin UI always forces — gates stay ADVISORY
+  // (still computed, still shown in the stage tracker, still recorded in the
+  // transition snapshot). A programmatic caller that omits `force` keeps the
+  // hard gate. (Removes the cross-board DAG block for board authoring.)
+  force: z.boolean().optional(),
 });
 
 const regressStageSchema = z.object({
@@ -164,7 +171,11 @@ export async function advanceStage(
           ...(gateResult.ok ? [] : gateResult.reasons),
           ...(depResult.ok ? [] : depResult.reasons),
         ];
-        if (mergedReasons.length > 0) {
+        // `force` (admin override) advances past open gates/deps but records
+        // what was open so the audit trail shows the bypass. Without it, an
+        // open gate or dependency blocks exactly as before.
+        const forcedPastGates = mergedReasons.length > 0 && !!data.force;
+        if (mergedReasons.length > 0 && !data.force) {
           // Return — don't throw — so the caller can render `reasons`
           // inline. The tx will commit cleanly with no state change.
           return {
@@ -245,6 +256,9 @@ export async function advanceStage(
               v: 1,
               kind: "gate",
               result: gateResult,
+              ...(forcedPastGates
+                ? { forced: true, bypassedReasons: mergedReasons }
+                : {}),
               ts: now.toISOString(),
             },
             transitionedBy: user.id,
@@ -491,7 +505,10 @@ export async function advanceStageAction(
       ? notesRaw.trim()
       : undefined;
   try {
-    const result = await advanceStage({ revisionId, notes });
+    // Admin UI always forces — gates are advisory for admin authoring
+    // (manual review is the real gate before publish). This lets admins bring
+    // any board to any stage regardless of cross-board DAG state.
+    const result = await advanceStage({ revisionId, notes, force: true });
     if (!result.ok) return { reasons: result.reasons };
     return {};
   } catch (err) {
