@@ -546,6 +546,49 @@ describe("advanceStage — concurrent attempts", () => {
   });
 });
 
+describe("advanceStage — admin force override", () => {
+  test("force: true advances past a failing gate and records the bypass in the snapshot", async () => {
+    const rev = await makeRevAtStage(
+      "REQUIREMENTS",
+      `t-force-${Date.now()}`,
+    );
+    // No requirements artifact → the REQUIREMENTS gate fails.
+
+    // Without force: blocked (unchanged hard-gate behavior).
+    const blocked = await advanceStage({ revisionId: rev.id });
+    expect(blocked.ok).toBe(false);
+    const stillThere = await db.revision.findUniqueOrThrow({
+      where: { id: rev.id },
+    });
+    expect(stillThere.currentStage).toBe("REQUIREMENTS");
+
+    // With force: advances anyway (gates advisory for admin authoring).
+    const forced = await advanceStage({ revisionId: rev.id, force: true });
+    expect(forced.ok).toBe(true);
+
+    const after = await db.revision.findUniqueOrThrow({
+      where: { id: rev.id },
+    });
+    expect(after.currentStage).toBe("BOM_SOURCING");
+
+    const last = await db.stageTransition.findFirst({
+      where: { revisionId: rev.id, direction: "ADVANCE" },
+      orderBy: { transitionedAt: "desc" },
+    });
+    const snap = last!.gateSnapshot as {
+      forced?: boolean;
+      bypassedReasons?: string[];
+      result: { ok: boolean };
+    };
+    // The snapshot records the override + what was open at advance time.
+    expect(snap.forced).toBe(true);
+    expect(snap.result.ok).toBe(false);
+    expect((snap.bypassedReasons ?? []).join("\n").toLowerCase()).toMatch(
+      /no requirements artifact/,
+    );
+  });
+});
+
 // ─── regressStage tests ────────────────────────────────
 
 describe("regressStage — happy paths", () => {
