@@ -240,6 +240,8 @@ export async function makeDigikeyClient(): Promise<DkClient> {
 **Step 4: Run → PASS.** **Step 5: Commit.** `git add -A && git commit -m "feat(watchdog): DigiKey API client + normalizer"`
 
 > Note: `scripts/digikey-stock.ts` already proved this exact request/response mapping against a live key — keep them consistent.
+>
+> **V4:** also add a `fetch`-mocked test for `searchByMpn` that returns two products and asserts it picks the **exact-MPN** match (not `Products[0]`), and that a non-OK HTTP status throws.
 
 ---
 
@@ -262,12 +264,18 @@ describe("assessPartAvailability", () => {
   test("zero stock → OUT_OF_STOCK", () => {
     expect(assessPartAvailability({ ...base, dkInStock: false, dkCheckedAt: NOW }, NOW).status).toBe("OUT_OF_STOCK");
   });
-  test("obsolete DK status → OBSOLETE", () => {
-    expect(assessPartAvailability({ ...base, dkLifecycle: "Obsolete", dkCheckedAt: NOW }, NOW).status).toBe("OBSOLETE");
-  });
-  test("curated ACTIVE but DK Obsolete still flags OBSOLETE (divergent is unbuildable)", () => {
+  test("obsolete DK status → OBSOLETE, not buildable", () => {
     const r = assessPartAvailability({ ...base, dkLifecycle: "Obsolete", dkCheckedAt: NOW }, NOW);
+    expect(r.status).toBe("OBSOLETE");
     expect(r.buildable).toBe(false);
+  });
+  test("discontinued → EOL, not buildable", () => {
+    expect(assessPartAvailability({ ...base, dkLifecycle: "Discontinued at Digi-Key", dkCheckedAt: NOW }, NOW).buildable).toBe(false);
+  });
+  test("V2: NRND is still buyable → status NRND, BUILDABLE true", () => {
+    const r = assessPartAvailability({ ...base, dkLifecycle: "Not Recommended for New Designs", dkCheckedAt: NOW }, NOW);
+    expect(r.status).toBe("NRND");
+    expect(r.buildable).toBe(true);
   });
   test("never checked → UNKNOWN, not buildable-blocking", () => {
     expect(assessPartAvailability({ ...base, dkCheckedAt: null }, NOW).status).toBe("UNKNOWN");
@@ -287,30 +295,32 @@ describe("assessPartAvailability", () => {
 **Step 3: Implement `src/lib/part-availability.ts`:**
 ```ts
 export type AvailabilityStatus =
-  | "OK" | "OUT_OF_STOCK" | "EOL_NRND" | "OBSOLETE" | "DIVERGENT" | "STALE" | "UNKNOWN";
+  | "OK" | "OUT_OF_STOCK" | "EOL" | "OBSOLETE" | "NRND" | "STALE" | "UNKNOWN";
 
 export interface AvailabilityInput {
   dkInStock: boolean | null;
   dkLifecycle: string | null;
   dkCheckedAt: Date | null;
-  curatedLifecycle: string; // Part.lifecycle enum value
+  curatedLifecycle?: string; // unused after V3 dropped DIVERGENT; kept optional for a future non-blocking "divergence" note
 }
 const STALE_DAYS = 7;
-function isDead(dk: string | null): boolean {
-  if (!dk) return false;
-  const s = dk.toLowerCase();
-  return s.includes("obsolete") || s.includes("discontinued") || s.includes("not recommended") || s.includes("last time buy") || s.includes("end of life");
+// V2: "can't buy it" = genuinely unbuildable. NRND / "not recommended for new
+// designs" is still IN STOCK + buyable, so it is NOTED but NOT unbuildable.
+function isUnbuyable(dk: string): boolean {
+  return dk.includes("obsolete") || dk.includes("discontinued") || dk.includes("end of life") || dk.includes("last time buy");
+}
+function isNrnd(dk: string): boolean {
+  return dk.includes("not recommended") || dk === "nrnd";
 }
 
 export function assessPartAvailability(i: AvailabilityInput, now: Date): { status: AvailabilityStatus; buildable: boolean } {
   if (i.dkCheckedAt == null) return { status: "UNKNOWN", buildable: true }; // not yet checked → don't block
-  const ageDays = (now.getTime() - i.dkCheckedAt.getTime()) / 86_400_000;
-  if (ageDays > STALE_DAYS) return { status: "STALE", buildable: true };
+  if ((now.getTime() - i.dkCheckedAt.getTime()) / 86_400_000 > STALE_DAYS) return { status: "STALE", buildable: true };
   const dk = (i.dkLifecycle ?? "").toLowerCase();
   if (dk.includes("obsolete")) return { status: "OBSOLETE", buildable: false };
-  if (isDead(i.dkLifecycle)) return { status: "EOL_NRND", buildable: false };
+  if (isUnbuyable(dk)) return { status: "EOL", buildable: false };
   if (i.dkInStock === false) return { status: "OUT_OF_STOCK", buildable: false };
-  if (i.curatedLifecycle === "ACTIVE" && isDead(i.dkLifecycle)) return { status: "DIVERGENT", buildable: false };
+  if (isNrnd(dk)) return { status: "NRND", buildable: true }; // V2: buyable, just discouraged → noted, not blocking
   return { status: "OK", buildable: true };
 }
 
@@ -361,7 +371,9 @@ test("unbuildable parts → info check fails, does NOT gate ready", () => {
 
 **Files:** Create `src/lib/refresh-availability.ts`; Test `src/lib/__tests__/refresh-availability.test.ts` (DB-backed; throwaway parts)
 
-`refreshAvailability({ db, client, limit, now })` — selects up to `limit` parts (oldest `dkCheckedAt` first, nulls first), calls `client.searchByMpn`, upserts the snapshot, and writes a `PartAvailabilityEvent` when the buildable classification flips (compare prior snapshot vs new via `assessPartAvailability`). Returns `{ checked, changed }`.
+`refreshAvailability({ db, client, limit, now })` — selects up to `limit` parts, **oldest-checked first** via explicit `orderBy: { dkCheckedAt: { sort: 'asc', nulls: 'first' } }` (V5; never-checked parts get priority), calls `client.searchByMpn`, upserts the snapshot, and writes a `PartAvailabilityEvent` when the buildable classification flips (compare prior snapshot vs new via `assessPartAvailability`). Returns `{ checked, changed }`.
+
+**V1 — fit the serverless window:** process parts in **concurrent batches of 5** (`for` over chunks, `Promise.all` per chunk) so 200 parts complete in ~20 s, well under the Vercel Hobby 60 s cap, while staying under DigiKey's per-second burst. The batch size is the throttle.
 
 **Step 1: Test** (create 1 throwaway part with a borrowed `createdById`; inject a stub client returning OOS; assert snapshot written + a `WENT_OOS` event; cleanup in `afterAll`). Mirror the throwaway-row + cleanup pattern in `stages-actions.test.ts`. Single vitest process.
 
@@ -384,6 +396,7 @@ import { refreshAvailability } from "@/lib/refresh-availability";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 60; // V1: Vercel Hobby cap. With batch-5 concurrency, ~200 parts fit easily.
 
 export async function GET(req: Request): Promise<Response> {
   const auth = req.headers.get("authorization");
@@ -405,7 +418,9 @@ export async function GET(req: Request): Promise<Response> {
 ```json
 { "crons": [{ "path": "/api/cron/refresh-availability", "schedule": "0 7 * * *" }] }
 ```
-(Note: Vercel automatically sends the `Authorization: Bearer $CRON_SECRET` header for cron invocations when `CRON_SECRET` is set in project env — confirm this in the Vercel dashboard during deploy.)
+(Note: Vercel automatically sends the `Authorization: Bearer $CRON_SECRET` header for cron invocations when `CRON_SECRET` is set in project env — confirm in the Vercel dashboard at deploy.)
+
+**V1 — Vercel Hobby reality:** functions cap at **60 s**, crons run **daily** (both fine here). With batch-5 concurrency, ~200 parts finish in ~20 s. **Free escape hatch if the library ever outgrows the 60 s window:** move the trigger to a **GitHub Actions cron** (no timeout, $0) that calls the *same* `refreshAvailability` lib against prod — no code change beyond a workflow + GH secrets. No Vercel plan upgrade needed for the foreseeable future.
 
 **Step 3: Test** the guard — 401 without/with-wrong secret, `skipped` when creds absent (mock `digikeyConfigured`→false). **Step 4:** `pnpm exec tsc --noEmit`. **Step 5: Commit.** `git commit -am "feat(watchdog): cron route + vercel.json"`
 
@@ -431,7 +446,7 @@ export async function GET(req: Request): Promise<Response> {
 
 **Files:** Modify `src/app/page.tsx` (`PipelineBadges` ~90; per-project compute ~211-243).
 
-**Step:** In the dashboard's per-project load, count unbuildable parts across the published revision's BOM (reuse `countUnbuildable`); render a red `⚠ N unbuildable` chip in `PipelineBadges` when > 0. tsc. Manual verify the dashboard. Commit.
+**Step:** In the dashboard's per-project load, count unbuildable parts across the published revision's BOM (reuse `countUnbuildable`); render a red `⚠ N unbuildable` chip in `PipelineBadges` when > 0. **V7: fetch the BOM-line dk fields for all listed projects in ONE batched query** (group by project), not per-project in the render loop — avoid an N+1 on the dashboard. tsc. Manual verify the dashboard. Commit.
 
 ---
 
