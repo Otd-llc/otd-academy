@@ -11,7 +11,10 @@ import { legacySlugRedirect } from "@/lib/legacy-slug-redirect";
 // never be redirected to /sign-in), the desktop-capture routes (`/api/capture`
 // + `/api/capture/status` — the OTD Capture app POSTs/polls with NO session
 // cookie; they're gated by a short-lived signed token in the route itself, so
-// they MUST reach the route, never be 307'd to /sign-in), the sign-in page
+// they MUST reach the route, never be 307'd to /sign-in), the Vercel cron route
+// (`/api/cron/*` — invoked by Vercel's scheduler with an `Authorization: Bearer
+// $CRON_SECRET` header and NO session cookie; it has its own CRON_SECRET guard,
+// so it MUST reach the route, never be 307'd to /sign-in), the sign-in page
 // itself, the SEO crawl files
 // (`sitemap.xml` / `robots.txt` — must be reachable by signed-out crawlers, never
 // redirected), Next's static assets, AND any path with a file extension
@@ -62,6 +65,6 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    "/((?!api/auth|api/stripe/webhook|api/capture|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico|.*\\..*).*)",
+    "/((?!api/auth|api/stripe/webhook|api/capture|api/cron|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico|.*\\..*).*)",
   ],
 };
