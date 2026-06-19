@@ -427,6 +427,9 @@ export default async function GuideCardPage({
             datasheetUrl: true,
             lifecycle: true,
             datasheet: { select: { id: true } },
+            dkInStock: true,
+            dkLifecycle: true,
+            dkCheckedAt: true,
           },
         },
       },
@@ -443,6 +446,9 @@ export default async function GuideCardPage({
       lifecycle: l.part.lifecycle,
       // A datasheet via either the external URL or an uploaded PartDatasheet.
       hasDatasheet: !!l.part.datasheetUrl || l.part.datasheet !== null,
+      dkInStock: l.part.dkInStock,
+      dkLifecycle: l.part.dkLifecycle,
+      dkCheckedAt: l.part.dkCheckedAt,
     }));
   }
 

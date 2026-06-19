@@ -19,6 +19,7 @@ import { InlineBanner } from "@/components/InlineBanner";
 import { PlusIcon } from "@/components/icons";
 import { formatUsd } from "@/lib/format-money";
 import type { BomCost, BomWarning } from "@/lib/bom-cost";
+import { assessPartAvailability, availabilityBadge } from "@/lib/part-availability";
 
 type BomLineRow = {
   id: string;
@@ -28,7 +29,12 @@ type BomLineRow = {
   altMpn: string | null;
   altManufacturer: string | null;
   unitPriceCents: number | null;
-  part: PartOption & { lifecycle: PartLifecycle };
+  part: PartOption & {
+    lifecycle: PartLifecycle;
+    dkInStock: boolean | null;
+    dkLifecycle: string | null;
+    dkCheckedAt: Date | null;
+  };
 };
 
 const initialState: BomLineFormState = {};
@@ -103,6 +109,40 @@ function AdminLifecycleChip({ lifecycle }: { lifecycle: string }) {
       }
     >
       {lifecycle}
+    </span>
+  );
+}
+
+const ADMIN_DK_TONE: Record<string, string> = {
+  green: "border-signal-blue/50 bg-signal-blue/15 text-signal-blue",
+  amber: "border-command-gold/50 bg-command-gold/15 text-command-gold",
+  red: "border-alert-red/50 bg-alert-red/15 text-alert-red",
+  grey: "border-panel-border bg-navy-dark text-muted",
+};
+
+// DigiKey live-availability chip (watchdog). Always rendered for admins so a
+// never-checked / stale part is visible here (unlike the public BOM, which hides
+// the healthy/unchecked cases). Reuses the pure assessor + badge mapping.
+function AdminDkChip({
+  inStock,
+  lifecycle,
+  checkedAt,
+}: {
+  inStock: boolean | null;
+  lifecycle: string | null;
+  checkedAt: Date | null;
+}) {
+  const { status } = assessPartAvailability(
+    { dkInStock: inStock, dkLifecycle: lifecycle, dkCheckedAt: checkedAt },
+    new Date(),
+  );
+  const { label, tone, title } = availabilityBadge(status);
+  return (
+    <span
+      title={title}
+      className={`ml-1 inline-flex items-center rounded border px-1.5 py-px font-mono text-[10px] font-bold uppercase tracking-wider ${ADMIN_DK_TONE[tone]}`}
+    >
+      DK: {label}
     </span>
   );
 }
@@ -485,6 +525,11 @@ export function BomEditor({
                   <span className="text-muted">·</span>{" "}
                   {line.part.manufacturer} {line.part.mpn}{" "}
                   <AdminLifecycleChip lifecycle={line.part.lifecycle} />
+                  <AdminDkChip
+                    inStock={line.part.dkInStock}
+                    lifecycle={line.part.dkLifecycle}
+                    checkedAt={line.part.dkCheckedAt}
+                  />
                   {line.altMpn || line.altManufacturer ? (
                     <span className="mt-0.5 block text-xs text-muted">
                       alt:{" "}

@@ -414,6 +414,9 @@ export default async function RevisionDetailPage({
                       mpn: l.part.mpn,
                       manufacturer: l.part.manufacturer,
                       lifecycle: l.part.lifecycle,
+                      dkInStock: l.part.dkInStock,
+                      dkLifecycle: l.part.dkLifecycle,
+                      dkCheckedAt: l.part.dkCheckedAt,
                     },
                   }))}
                   parts={parts.map((p) => ({

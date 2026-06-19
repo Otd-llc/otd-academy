@@ -52,3 +52,33 @@ export function assessPartAvailability(
 export function countUnbuildable(lines: AvailabilityInput[], now: Date): number {
   return lines.filter((l) => !assessPartAvailability(l, now).buildable).length;
 }
+
+export type AvailabilityTone = "green" | "amber" | "red" | "grey";
+
+// Presentation mapping shared by every surface (guide BOM chip, admin BOM
+// editor, parts catalog) so the watchdog reads consistently. Pure: status → UI.
+export function availabilityBadge(
+  status: AvailabilityStatus,
+): { label: string; tone: AvailabilityTone; title: string } {
+  switch (status) {
+    case "OK":
+      return { label: "in stock", tone: "green", title: "In stock at DigiKey" };
+    case "NRND":
+      return {
+        label: "NRND",
+        tone: "amber",
+        title: "In stock but not recommended for new designs",
+      };
+    case "OUT_OF_STOCK":
+      return { label: "out of stock", tone: "red", title: "Out of stock at DigiKey" };
+    case "EOL":
+      return { label: "EOL", tone: "red", title: "End-of-life / discontinued at DigiKey" };
+    case "OBSOLETE":
+      return { label: "obsolete", tone: "red", title: "Obsolete at DigiKey" };
+    case "STALE":
+      return { label: "stale", tone: "grey", title: "DigiKey check is out of date" };
+    case "UNKNOWN":
+    default:
+      return { label: "unchecked", tone: "grey", title: "Not yet checked at DigiKey" };
+  }
+}
