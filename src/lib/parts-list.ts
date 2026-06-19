@@ -23,6 +23,11 @@ const LIST_SELECT = {
   categoryRef: { select: { slug: true, name: true, path: true } },
   lifecycle: true,
   isCertifiedModule: true,
+  // DigiKey availability snapshot (watchdog) for the catalog's "DigiKey" column.
+  dkStockQty: true,
+  dkInStock: true,
+  dkLifecycle: true,
+  dkCheckedAt: true,
 } satisfies Prisma.PartSelect;
 
 export type PartsListRow = Prisma.PartGetPayload<{ select: typeof LIST_SELECT }>;

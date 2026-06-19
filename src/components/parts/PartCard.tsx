@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { PartsListRow } from "@/lib/parts-list";
 import { categoryLabel } from "@/lib/categories";
 import { PartGlanceTrigger } from "@/components/parts/PartGlanceTrigger";
+import { DkAvailabilityCell } from "@/components/parts/DkAvailabilityCell";
 
 export function PartCard({ part: p }: { part: PartsListRow }) {
   return (
@@ -25,6 +26,9 @@ export function PartCard({ part: p }: { part: PartsListRow }) {
             CERTIFIED MODULE
           </span>
         )}
+      </div>
+      <div className="text-xs">
+        <DkAvailabilityCell part={p} />
       </div>
     </li>
   );
