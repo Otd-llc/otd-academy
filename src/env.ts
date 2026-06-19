@@ -52,6 +52,13 @@ export const env = createEnv({
     NEWARK_AFFILIATE_URL: z.url().optional(),
     AMAZON_AFFILIATE_URL: z.url().optional(),
     AMAZON_ASSOCIATE_TAG: z.string().optional(),
+    // DigiKey Product Information API v4 (parts availability watchdog). OPTIONAL:
+    // the refresh job + watchdog UI degrade gracefully (no-op / "unknown") when unset.
+    DIGIKEY_CLIENT_ID: z.string().optional(),
+    DIGIKEY_CLIENT_SECRET: z.string().optional(),
+    DIGIKEY_API_BASE: z.url().optional(), // default api.digikey.com; set to sandbox to test
+    // Shared secret the Vercel cron sends as `Authorization: Bearer` to the refresh route.
+    CRON_SECRET: z.string().optional(),
   },
   client: {
     // Public site origin used as the metadataBase for absolute SEO URLs
@@ -85,5 +92,9 @@ export const env = createEnv({
     NEWARK_AFFILIATE_URL: process.env.NEWARK_AFFILIATE_URL,
     AMAZON_AFFILIATE_URL: process.env.AMAZON_AFFILIATE_URL,
     AMAZON_ASSOCIATE_TAG: process.env.AMAZON_ASSOCIATE_TAG,
+    DIGIKEY_CLIENT_ID: process.env.DIGIKEY_CLIENT_ID,
+    DIGIKEY_CLIENT_SECRET: process.env.DIGIKEY_CLIENT_SECRET,
+    DIGIKEY_API_BASE: process.env.DIGIKEY_API_BASE,
+    CRON_SECRET: process.env.CRON_SECRET,
   },
 });
