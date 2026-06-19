@@ -285,16 +285,16 @@ export function BomEditor({
         <form action={action} className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-5">
           <input type="hidden" name="revisionId" value={revisionId} />
 
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 min-w-0">
             <label className="block font-mono text-xs uppercase tracking-wider text-muted">
               Part
             </label>
-            <div className="mt-1 flex gap-1">
+            <div className="mt-1 flex min-w-0 gap-1">
               <select
                 name="partId"
                 required
                 disabled={disabled}
-                className="flex-1 rounded border border-panel-border bg-navy-dark px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
+                className="min-w-0 flex-1 rounded border border-panel-border bg-navy-dark px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
               >
                 <option value="">— select —</option>
                 {allParts.map((p) => (
@@ -317,7 +317,7 @@ export function BomEditor({
             <FieldError messages={state.errors?.partId} />
           </div>
 
-          <div>
+          <div className="min-w-0">
             <label className="block font-mono text-xs uppercase tracking-wider text-muted">
               RefDes
             </label>
@@ -331,7 +331,7 @@ export function BomEditor({
             <FieldError messages={state.errors?.refDes} />
           </div>
 
-          <div>
+          <div className="min-w-0">
             <label className="block font-mono text-xs uppercase tracking-wider text-muted">
               Qty
             </label>
@@ -347,7 +347,7 @@ export function BomEditor({
             <FieldError messages={state.errors?.quantity} />
           </div>
 
-          <div className="flex items-end">
+          <div className="flex min-w-0 items-end">
             <SubmitButton />
           </div>
 
