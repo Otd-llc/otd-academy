@@ -42,14 +42,15 @@ export const env = createEnv({
     // guide card falls back to the plain vendor URL when unset, so the link works
     // (untracked) before you've joined the program and pasted your referral link.
     // PCBWAY_AFFILIATE_URL — your PCBWay referral/order link.
-    // NEWARK_AFFILIATE_URL — your Newark (CJ Affiliate) deep link to newark.com.
+    // DIGIKEY_AFFILIATE_URL — your DigiKey affiliate deep link to digikey.com
+    //   (the parts-cart CTA; distinct from the DIGIKEY_CLIENT_ID/SECRET API creds).
     // AMAZON_AFFILIATE_URL — your Amazon Associates link (e.g. an idea-list) for
     //   the lab-bench CTA on the REQUIREMENTS card.
     // AMAZON_ASSOCIATE_TAG — your Associates tracking tag (e.g. otdacademy-20),
     //   appended to per-item kit-block product links so purchases attribute to you.
     PCBWAY_AFFILIATE_URL: z.url().optional(),
     JLCPCB_AFFILIATE_URL: z.url().optional(),
-    NEWARK_AFFILIATE_URL: z.url().optional(),
+    DIGIKEY_AFFILIATE_URL: z.url().optional(),
     AMAZON_AFFILIATE_URL: z.url().optional(),
     AMAZON_ASSOCIATE_TAG: z.string().optional(),
     // DigiKey Product Information API v4 (parts availability watchdog). OPTIONAL:
@@ -89,7 +90,7 @@ export const env = createEnv({
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     PCBWAY_AFFILIATE_URL: process.env.PCBWAY_AFFILIATE_URL,
     JLCPCB_AFFILIATE_URL: process.env.JLCPCB_AFFILIATE_URL,
-    NEWARK_AFFILIATE_URL: process.env.NEWARK_AFFILIATE_URL,
+    DIGIKEY_AFFILIATE_URL: process.env.DIGIKEY_AFFILIATE_URL,
     AMAZON_AFFILIATE_URL: process.env.AMAZON_AFFILIATE_URL,
     AMAZON_ASSOCIATE_TAG: process.env.AMAZON_ASSOCIATE_TAG,
     DIGIKEY_CLIENT_ID: process.env.DIGIKEY_CLIENT_ID,

@@ -1,10 +1,10 @@
 import { affiliateLink, type AffiliateVendor } from "@/lib/affiliates";
 
-// Affiliate split (design §7): boards → PCBWay/JLCPCB, parts → Newark, bench → Amazon.
+// Affiliate split (design §7): boards → PCBWay/JLCPCB, parts → DigiKey, bench → Amazon.
 const ITEMS: { vendor: AffiliateVendor; label: string; sub: string }[] = [
   { vendor: "pcbway-order", label: "Order the board", sub: "PCBWay" },
   { vendor: "jlcpcb", label: "Order the board", sub: "JLCPCB" },
-  { vendor: "newark-bom", label: "Order the parts", sub: "Newark" },
+  { vendor: "digikey-bom", label: "Order the parts", sub: "DigiKey" },
   { vendor: "amazon-bench", label: "Bench gear", sub: "Amazon" },
 ];
 

@@ -7,4 +7,10 @@ describe("affiliateLink", () => {
     expect(link.href).toContain("jlcpcb.com");
     expect(link.tracked).toBe(false);
   });
+
+  it("resolves the parts vendor to DigiKey (Newark removed)", () => {
+    const link = affiliateLink("digikey-bom");
+    expect(link.href).toContain("digikey.com");
+    expect(link.href).not.toContain("newark");
+  });
 });

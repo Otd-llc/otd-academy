@@ -839,7 +839,7 @@ function ActionEditor({
 const VENDORS: Array<Extract<ContentBlock, { type: "vendorCta" }>["vendor"]> = [
   "pcbway-order",
   "jlcpcb",
-  "newark-bom",
+  "digikey-bom",
   "amazon-bench",
 ];
 
