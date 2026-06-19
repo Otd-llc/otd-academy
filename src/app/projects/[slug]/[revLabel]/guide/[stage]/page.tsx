@@ -316,7 +316,14 @@ export default async function GuideCardPage({
           select: {
             quantity: true,
             unitPriceCents: true,
-            part: { select: { lifecycle: true } },
+            part: {
+              select: {
+                lifecycle: true,
+                dkInStock: true,
+                dkLifecycle: true,
+                dkCheckedAt: true,
+              },
+            },
           },
         },
         checklists: {
