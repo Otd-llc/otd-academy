@@ -34,6 +34,7 @@ import {
 } from "@/lib/affiliates";
 import { ExternalLinkIcon, PhotoIcon, VideoIcon } from "@/components/icons";
 import { parseInlineTerms } from "@/lib/inline-terms";
+import { assessPartAvailability, availabilityBadge } from "@/lib/part-availability";
 import type { RenderBounds } from "@/lib/schemas/part-asset";
 
 // A partModel block's resolved 3D render, keyed by MPN. The card route presigns
@@ -57,6 +58,11 @@ export type BomRow = {
   // either the external URL or an uploaded PartDatasheet.
   lifecycle: "ACTIVE" | "NRND" | "EOL" | "OBSOLETE";
   hasDatasheet: boolean;
+  // DigiKey availability snapshot (watchdog). Null when never checked / creds
+  // absent → the badge renders a grey "unchecked".
+  dkInStock: boolean | null;
+  dkLifecycle: string | null;
+  dkCheckedAt: Date | null;
 };
 
 // Lifecycle chip — shown only for non-ACTIVE parts (NRND = caution/gold,
@@ -78,6 +84,42 @@ function LifecycleBadge({ lifecycle }: { lifecycle: BomRow["lifecycle"] }) {
       }
     >
       {lifecycle}
+    </span>
+  );
+}
+
+const DK_TONE_CLASS: Record<string, string> = {
+  green: "bg-signal-blue/15 text-signal-blue",
+  amber: "bg-command-gold/15 text-command-gold",
+  red: "bg-alert-red/15 text-alert-red",
+  grey: "bg-muted/15 text-muted",
+};
+
+// DigiKey live-availability chip (watchdog). Reuses the pure assessor so the
+// label matches board-readiness + the catalog. Hidden entirely when a part was
+// never checked (creds absent / new part) to keep a clean BOM.
+function DkAvailabilityBadge({
+  inStock,
+  lifecycle,
+  checkedAt,
+}: {
+  inStock: boolean | null;
+  lifecycle: string | null;
+  checkedAt: Date | null;
+}) {
+  if (checkedAt == null) return null; // never checked → no chip (vs a noisy "unchecked")
+  const { status } = assessPartAvailability(
+    { dkInStock: inStock, dkLifecycle: lifecycle, dkCheckedAt: checkedAt },
+    new Date(),
+  );
+  if (status === "OK") return null; // healthy parts stay clean
+  const { label, tone, title } = availabilityBadge(status);
+  return (
+    <span
+      title={title}
+      className={`ml-1.5 inline-flex items-center rounded px-1 py-px align-middle font-mono text-[9px] font-bold uppercase tracking-wider ${DK_TONE_CLASS[tone]}`}
+    >
+      DK: {label}
     </span>
   );
 }
@@ -243,6 +285,11 @@ function BomTableBlock({
                   datasheetUrl={r.datasheetUrl}
                 />
                 <LifecycleBadge lifecycle={r.lifecycle} />
+                <DkAvailabilityBadge
+                  inStock={r.dkInStock}
+                  lifecycle={r.dkLifecycle}
+                  checkedAt={r.dkCheckedAt}
+                />
                 {r.manufacturer ? (
                   <span className="mt-0.5 block font-mono text-[11px] normal-case text-muted">
                     {r.manufacturer}

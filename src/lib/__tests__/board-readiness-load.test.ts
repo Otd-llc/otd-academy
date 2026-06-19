@@ -5,11 +5,13 @@ import {
   type BoardReadinessRows,
 } from "@/lib/board-readiness-load";
 
+const dkNull = { dkInStock: null, dkLifecycle: null, dkCheckedAt: null };
+
 const ready: BoardReadinessRows = {
   bomFrozenAt: new Date("2026-06-16"),
   bomLines: [
-    { quantity: 2, unitPriceCents: 150, part: { lifecycle: "ACTIVE" } },
-    { quantity: 1, unitPriceCents: 99, part: { lifecycle: "ACTIVE" } },
+    { quantity: 2, unitPriceCents: 150, part: { lifecycle: "ACTIVE", ...dkNull } },
+    { quantity: 1, unitPriceCents: 99, part: { lifecycle: "ACTIVE", ...dkNull } },
   ],
   checklists: [
     {
@@ -41,8 +43,8 @@ describe("boardReadinessFromRows", () => {
     const r = boardReadinessFromRows({
       ...ready,
       bomLines: [
-        { quantity: 2, unitPriceCents: 150, part: { lifecycle: "ACTIVE" } },
-        { quantity: 1, unitPriceCents: 99, part: { lifecycle: "EOL" } },
+        { quantity: 2, unitPriceCents: 150, part: { lifecycle: "ACTIVE", ...dkNull } },
+        { quantity: 1, unitPriceCents: 99, part: { lifecycle: "EOL", ...dkNull } },
       ],
     });
     expect(r.ready).toBe(false);

@@ -84,6 +84,12 @@ function makePart(overrides: Partial<Part> = {}): Part {
     // false — BOM_SOURCING m18 tests opt in explicitly.
     isCertifiedModule: false,
     notes: null,
+    dkStockQty: null,
+    dkUnitPriceCents: null,
+    dkInStock: null,
+    dkLifecycle: null,
+    dkProductUrl: null,
+    dkCheckedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     createdById: "user-test",

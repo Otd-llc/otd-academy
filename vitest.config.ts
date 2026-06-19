@@ -41,7 +41,12 @@ export default defineConfig({
     // is a synthetic level of contention SSI isn't designed for. Run files
     // sequentially; tests within a file still parallelize.
     fileParallelism: false,
-    exclude: [...configDefaults.exclude, ...envGatedExclude],
+    // Never glob harness worktrees: `.claude/worktrees/*` are isolated copies of
+    // the repo created by background agents. A stale/orphaned one (one git no
+    // longer tracks) otherwise gets its *.test.ts collected alongside the real
+    // src copies, running duplicate DB-mutating tests that collide on the shared
+    // Neon DB — a false-failure unrelated to the working tree.
+    exclude: [...configDefaults.exclude, "**/.claude/**", ...envGatedExclude],
   },
   resolve: { alias: { "@": "/src" } },
 });

@@ -14,6 +14,7 @@ import { db } from "@/lib/db";
 import { ChevronLeftIcon, PlusIcon } from "@/components/icons";
 import { PartCard } from "@/components/parts/PartCard";
 import { PartGlanceTrigger } from "@/components/parts/PartGlanceTrigger";
+import { DkAvailabilityCell } from "@/components/parts/DkAvailabilityCell";
 import { PartsSearch } from "@/components/parts/PartsSearch";
 import { PartsPagination } from "@/components/parts/PartsPagination";
 import { CategoryTreePicker } from "@/components/parts/CategoryTreePicker";
@@ -181,6 +182,9 @@ export default async function PartsListPage({
                     Category
                   </th>
                   <th className="py-3 pr-4 font-normal">Lifecycle</th>
+                  <th className="hidden py-3 pr-4 font-normal lg:table-cell">
+                    DigiKey
+                  </th>
                   <th className="py-3 pr-4 font-normal">Flags</th>
                   <th className="py-3 pr-4 text-right font-normal">
                     <span className="sr-only">Quick glance</span>
@@ -211,6 +215,9 @@ export default async function PartsListPage({
                       {categoryLabel(p)}
                     </td>
                     <td className="py-3 pr-4 text-muted">{p.lifecycle}</td>
+                    <td className="hidden py-3 pr-4 lg:table-cell">
+                      <DkAvailabilityCell part={p} />
+                    </td>
                     <td className="py-3 pr-4">
                       {p.isCertifiedModule && (
                         <span className="inline-flex items-center rounded border border-panel-border bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-alert-red">

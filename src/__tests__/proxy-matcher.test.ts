@@ -20,6 +20,14 @@ describe("middleware matcher", () => {
     expect(runsMiddleware("/api/stripe/webhook")).toBe(false);
   });
 
+  it("does NOT run the auth middleware on the Vercel cron route", () => {
+    // Vercel's scheduler calls /api/cron/* with an Authorization: Bearer
+    // $CRON_SECRET header and NO session cookie; if the middleware ran it would
+    // 307-redirect to /sign-in and the watchdog refresh would never execute. The
+    // route's own CRON_SECRET guard is the gate. Regression guard for that bug.
+    expect(runsMiddleware("/api/cron/refresh-availability")).toBe(false);
+  });
+
   it("excludes Auth.js routes, sign-in, the SEO crawl files, and public/ static assets", () => {
     expect(runsMiddleware("/api/auth/callback/google")).toBe(false);
     expect(runsMiddleware("/sign-in")).toBe(false);

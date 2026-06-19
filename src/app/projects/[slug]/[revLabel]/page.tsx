@@ -24,6 +24,7 @@ import {
 import { BomEditor } from "./_bom-editor";
 import { bomCost, assessBomSourcing, type BomWarning } from "@/lib/bom-cost";
 import { assessBoardReadiness } from "@/lib/board-readiness";
+import { countUnbuildable } from "@/lib/part-availability";
 import { BoardReadinessPanel } from "@/components/BoardReadinessPanel";
 import { ArtifactPicker } from "@/components/ArtifactPicker";
 import { ArtifactDownloadLink } from "@/components/ArtifactDownloadLink";
@@ -167,6 +168,15 @@ export default async function RevisionDetailPage({
       .length,
     unpricedCount: cost.unpricedCount,
     overTarget: cost.overTarget,
+    unbuildablePartCount: countUnbuildable(
+      revision.bomLines.map((l) => ({
+        dkInStock: l.part.dkInStock,
+        dkLifecycle: l.part.dkLifecycle,
+        dkCheckedAt: l.part.dkCheckedAt,
+        curatedLifecycle: l.part.lifecycle,
+      })),
+      new Date(),
+    ),
     designDocPath: `docs/boards/${project.slug}/design.md`,
   });
 
@@ -404,6 +414,9 @@ export default async function RevisionDetailPage({
                       mpn: l.part.mpn,
                       manufacturer: l.part.manufacturer,
                       lifecycle: l.part.lifecycle,
+                      dkInStock: l.part.dkInStock,
+                      dkLifecycle: l.part.dkLifecycle,
+                      dkCheckedAt: l.part.dkCheckedAt,
                     },
                   }))}
                   parts={parts.map((p) => ({

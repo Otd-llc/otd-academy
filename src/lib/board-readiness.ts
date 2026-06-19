@@ -21,6 +21,7 @@ export interface BoardReadinessInput {
   lifecycleWarningCount: number;
   unpricedCount: number;
   overTarget: boolean;
+  unbuildablePartCount: number;
   designDocPath: string;
 }
 
@@ -77,6 +78,16 @@ export function assessBoardReadiness(input: BoardReadinessInput): BoardReadiness
     tier: "info",
     ok: !input.overTarget && input.unpricedCount === 0,
     detail: costBits.length ? costBits.join(", ") : "within target, fully priced",
+  });
+
+  checks.push({
+    label: "Parts buildable now",
+    tier: "info",
+    ok: input.unbuildablePartCount === 0,
+    detail:
+      input.unbuildablePartCount > 0
+        ? `${input.unbuildablePartCount} part(s) out-of-stock/EOL at DigiKey`
+        : "all parts in stock at DigiKey",
   });
 
   checks.push({

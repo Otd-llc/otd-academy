@@ -21,6 +21,7 @@ import { db } from "@/lib/db";
 import { learnerLandingPath } from "@/lib/learner-landing";
 import { PlusIcon } from "@/components/icons";
 import { assessLessonReadiness } from "@/lib/lesson-readiness";
+import { countUnbuildable } from "@/lib/part-availability";
 import { isGolden } from "@/lib/golden-reference";
 import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
 import {
@@ -66,10 +67,12 @@ function PipelineBadges({
   state,
   captureCount,
   waitlist,
+  unbuildable,
 }: {
   state: PipelineState;
   captureCount: number;
   waitlist: number;
+  unbuildable: number;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -94,6 +97,14 @@ function PipelineBadges({
           className="inline-flex items-center rounded border border-signal-blue/40 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-signal-blue"
         >
           ☆ {waitlist}
+        </span>
+      ) : null}
+      {unbuildable > 0 ? (
+        <span
+          title={`${unbuildable} part(s) out-of-stock/EOL at DigiKey in the published BOM`}
+          className="inline-flex items-center rounded border border-alert-red/50 bg-alert-red/15 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-alert-red"
+        >
+          ⚠ {unbuildable} unbuildable
         </span>
       ) : null}
     </div>
@@ -196,6 +207,51 @@ export default async function HomePage({
     },
   });
 
+  // Watchdog (V7): count unbuildable parts per published-revision BOM in ONE
+  // batched query across every listed project — no per-project N+1 in the render
+  // loop. Group the lines by revision, then assess each revision's buildability.
+  const publishedRevIds = projects
+    .map((p) => p.publishedRevisionId)
+    .filter((id): id is string => id != null);
+  const watchdogLines = publishedRevIds.length
+    ? await db.bomLine.findMany({
+        where: { revisionId: { in: publishedRevIds } },
+        select: {
+          revisionId: true,
+          part: {
+            select: {
+              lifecycle: true,
+              dkInStock: true,
+              dkLifecycle: true,
+              dkCheckedAt: true,
+            },
+          },
+        },
+      })
+    : [];
+  const now = new Date();
+  const linesByRev = new Map<string, (typeof watchdogLines)[number]["part"][]>();
+  for (const l of watchdogLines) {
+    const arr = linesByRev.get(l.revisionId) ?? [];
+    arr.push(l.part);
+    linesByRev.set(l.revisionId, arr);
+  }
+  const unbuildableByRev = new Map<string, number>();
+  for (const [revId, parts] of linesByRev) {
+    unbuildableByRev.set(
+      revId,
+      countUnbuildable(
+        parts.map((part) => ({
+          dkInStock: part.dkInStock,
+          dkLifecycle: part.dkLifecycle,
+          dkCheckedAt: part.dkCheckedAt,
+          curatedLifecycle: part.lifecycle,
+        })),
+        now,
+      ),
+    );
+  }
+
   // Compute last-activity as max(project.updatedAt, latestRevision.updatedAt)
   // and sort descending — most-recently-touched first. Prisma's `orderBy`
   // can't reach into the included relation, so the sort runs in memory.
@@ -249,6 +305,9 @@ export default async function HomePage({
         pipelineState,
         captureCount,
         waitlistCount: p._count.waitlist,
+        unbuildableCount: p.publishedRevisionId
+          ? (unbuildableByRev.get(p.publishedRevisionId) ?? 0)
+          : 0,
       };
     })
     .sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime());
@@ -375,6 +434,7 @@ export default async function HomePage({
                       state={p.pipelineState}
                       captureCount={p.captureCount}
                       waitlist={p.waitlistCount}
+                      unbuildable={p.unbuildableCount}
                     />
                   </>
                 ) : (

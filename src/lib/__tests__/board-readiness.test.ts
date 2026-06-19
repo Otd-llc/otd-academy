@@ -9,6 +9,7 @@ const base: BoardReadinessInput = {
   lifecycleWarningCount: 0,
   unpricedCount: 0,
   overTarget: false,
+  unbuildablePartCount: 0,
   designDocPath: "docs/boards/x/design.md",
 };
 
@@ -61,5 +62,13 @@ describe("assessBoardReadiness", () => {
   test("a design-doc pointer info line is always present", () => {
     const r = assessBoardReadiness(base);
     expect(r.checks.some((c) => c.tier === "info" && /design doc/i.test(c.label))).toBe(true);
+  });
+
+  test("unbuildable parts → info check fails, does NOT gate ready", () => {
+    const r = assessBoardReadiness({ ...base, unbuildablePartCount: 2 });
+    const chk = r.checks.find((c) => c.label === "Parts buildable now");
+    expect(chk?.tier).toBe("info");
+    expect(chk?.ok).toBe(false);
+    expect(r.ready).toBe(true); // info-tier doesn't gate in v1
   });
 });
