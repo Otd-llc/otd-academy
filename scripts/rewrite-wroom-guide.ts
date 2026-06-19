@@ -347,8 +347,8 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "vendorCta",
-        vendor: "newark-bom",
-        label: "Price the BOM at Newark",
+        vendor: "digikey-bom",
+        label: "Price the BOM at DigiKey",
         sublabel: "Check live stock and price for each MPN as you lock your list. Affiliate link — it supports the academy at no extra cost to you.",
       },
       {
@@ -1669,7 +1669,7 @@ const CARDS: Record<string, Card> = {
     contentBlocks: [
       {
         type: "prose",
-        md: "Ordering is mostly a handful of choices and a lot of double-checking. There are two carts to fill — your boards at **PCBWay**, your parts at **Newark** — and a few traps that cost you a week if you miss them.",
+        md: "Ordering is mostly a handful of choices and a lot of double-checking. There are two carts to fill — your boards at **PCBWay**, your parts at **DigiKey** — and a few traps that cost you a week if you miss them.",
       },
       {
         type: "callout",
@@ -1706,7 +1706,7 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "prose",
-        md: "Order every line from Newark by its exact [[MPN]]. Mind the [[MOQ]] — passives come on reels of thousands — and buy extra of the parts you'll hand-place and lose. If anything is out of stock, this is where the second sources you noted back at sourcing (the RT9080-for-AP2112K, the UMW USBLC6-2) pay off.",
+        md: "Order every line from DigiKey by its exact [[MPN]]. Mind the [[MOQ]] — passives come on reels of thousands — and buy extra of the parts you'll hand-place and lose. If anything is out of stock, this is where the second sources you noted back at sourcing (the RT9080-for-AP2112K, the UMW USBLC6-2) pay off.",
       },
       {
         type: "callout",
@@ -1716,8 +1716,8 @@ const CARDS: Record<string, Card> = {
       },
       {
         type: "vendorCta",
-        vendor: "newark-bom",
-        label: "Shop the BOM at Newark",
+        vendor: "digikey-bom",
+        label: "Shop the BOM at DigiKey",
         sublabel: "Search each MPN from your BOM and add it to the cart. Affiliate link — it supports the academy at no extra cost to you.",
       },
       {

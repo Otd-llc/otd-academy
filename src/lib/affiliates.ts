@@ -1,5 +1,6 @@
 // Central affiliate-link config (GTM monetization). The course features ONE board
-// house (PCBWay), ONE parts distributor (Newark), and Amazon for the lab-bench
+// house (PCBWay), ONE parts distributor (DigiKey — also the availability-watchdog
+// data source), and Amazon for the lab-bench
 // kit; their referral URLs live in env (set after signing up to each program —
 // see `src/env.ts`). Each falls back to the plain vendor URL, so a CTA always
 // works — just untracked — before the IDs are in place. SERVER module (read by the
@@ -10,7 +11,7 @@ import { env } from "@/env";
 export type AffiliateVendor =
   | "pcbway-order"
   | "jlcpcb"
-  | "newark-bom"
+  | "digikey-bom"
   | "amazon-bench";
 
 export interface AffiliateLink {
@@ -23,14 +24,14 @@ export interface AffiliateLink {
 const FALLBACK: Record<AffiliateVendor, string> = {
   "pcbway-order": "https://www.pcbway.com/orderonline.aspx",
   "jlcpcb": "https://jlcpcb.com/",
-  "newark-bom": "https://www.newark.com/",
+  "digikey-bom": "https://www.digikey.com/",
   "amazon-bench": "https://www.amazon.com/",
 };
 
 const CONFIGURED: Record<AffiliateVendor, string | undefined> = {
   "pcbway-order": env.PCBWAY_AFFILIATE_URL,
   "jlcpcb": env.JLCPCB_AFFILIATE_URL,
-  "newark-bom": env.NEWARK_AFFILIATE_URL,
+  "digikey-bom": env.DIGIKEY_AFFILIATE_URL,
   "amazon-bench": env.AMAZON_AFFILIATE_URL,
 };
 
