@@ -576,15 +576,24 @@ model Part {
   lifecycle    PartLifecycle @default(ACTIVE)
   isCertifiedModule Boolean  @default(false)
   notes        String? // ECN/sourcing swaps recorded here (free text)
+  // DigiKey availability snapshot (watchdog). DigiKey's OBSERVED status is kept
+  // separate from the curated `lifecycle` so a divergence is itself a signal.
+  dkStockQty        Int?
+  dkUnitPriceCents  Int?
+  dkInStock         Boolean?
+  dkLifecycle       String?   // DigiKey ProductStatus.Status (Active/Obsolete/NRND/…)
+  dkProductUrl      String?
+  dkCheckedAt       DateTime?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   createdById  String
   createdBy    User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
 
-  bomLines   BomLine[]
-  factGroups PartFact[]
-  datasheet  PartDatasheet?
-  assets     PartAsset[]
+  bomLines           BomLine[]
+  factGroups         PartFact[]
+  datasheet          PartDatasheet?
+  assets             PartAsset[]
+  availabilityEvents PartAvailabilityEvent[]
 
   @@unique([manufacturer, mpn])
   @@index([mpn])
@@ -592,6 +601,21 @@ model Part {
   @@index([category])
   @@index([categoryId])
   @@index([lifecycle])
+}
+
+// Append-only watchdog feed — one row only when a part's availability changes
+// materially (not every nightly check). `kind` is a free string (no enum mirror).
+model PartAvailabilityEvent {
+  id        String   @id @default(cuid())
+  partId    String
+  part      Part     @relation(fields: [partId], references: [id], onDelete: Cascade)
+  kind      String // WENT_OBSOLETE | WENT_OOS | BACK_IN_STOCK | LIFECYCLE_CHANGED | NO_MATCH
+  fromValue String?
+  toValue   String?
+  createdAt DateTime @default(now())
+
+  @@index([partId, createdAt])
+  @@index([createdAt])
 }
 
 model PartDatasheet {
