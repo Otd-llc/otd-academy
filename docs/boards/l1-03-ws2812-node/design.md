@@ -191,7 +191,7 @@ Worst-case (min/max/temperature), not typical.
 | Worst-case DATA back-drive current | (V_inject,max − VBUS)/R8, bounded by D2 clamp | bounded | RK11 — D2 caps 5V_EXT, R8 + D3 limit the bridge current into DOUT/1Y |
 | Decoupling | shifter 0.1 µF (C8); pixel 0.1 µF (C9); **VBUS bulk 4.7 µF (C11)** | — | TI also suggests 0.1+1 µF; 0.1 alone adequate for one gate |
 | **Total VBUS bulk vs USB-2.0 ceiling** | C5 1 µF + C8 0.1 + C9 0.1 + C11 4.7 = **5.9 µF** | **< 10 µF** | F10-1: USB-2.0 limits a device's VBUS bulk to ≤10 µF (inrush); 4.7 µF still rides the 60 mA pixel pulse (ΔV ≈ 16 mV/bit) |
-| **D3 ESD-diode RC on the data edge** | R8 × C_D3 = 470 Ω × 45 pF (max) | **≈ 21 ns** | F10-2: ≪ the ~200–300 ns WS2812 high time → edge intact. D3 is **35/45 pF (NOT low-cap)** — chosen for SOD-323 solderability + clamp, not low-C |
+| **D3 ESD-diode RC on the data edge** | R8 × C_D3 = 470 Ω × ~3 pF | **≈ 1.4 ns** | F10-2: ≪ the ~200–300 ns WS2812 high time → edge intact. D3 = **Bourns CDSOD323-T05C ~3 pF** (Pass-16 sub; was Nexperia 45 pF / 21 ns — the sub *improves* SI). SOD-323 same footprint |
 | **D2 TVS leakage @ VRWM** | SMAJ5.0A I_R ≈ 800 µA @ 5.0 V (datasheet) | **0.8 mA, budgeted** | F10-3: on the 5V_EXT rail (off-board source); recommended supply ≤5.25 V keeps D2 below VBR 6.4 V (no conduction) |
 
 > **RK8 honest framing (P5-1):** with the strip **unpowered (VDD = 0)** the WS2812
@@ -211,13 +211,14 @@ Worst-case (min/max/temperature), not typical.
 | U3 | TI **SN74AHCT125DR** (SOIC-14) | NEW. HCT/TTL inputs accept 3.3 V, drive ~5 V; canonical NeoPixel shifter. Pinout: **7=GND, 14=VCC**; gate 1 used. (DR = T&R/active; bare D obsolete — P13-4.) | pinout, VIH/VIL/VOH(over-temp)/tpd, abs-max **(verified Pass 5; tpd Pass 13)** |
 | LED3 | XINGLIGHT **XL-5050RGBC-WS2812B** (5050) | NEW. Digikey-orderable WS2812B-compatible pixel. **Datasheet OBTAINED** (LCSC C2843785, rev 2024-ish): pinout **1=VDD / 2=DO / 3=GND / 4=DI**; **VDD 3.5–7.5 V** (P13-2); VIH 0.7·VDD, VIL 0.3·VDD; **logic-input abs-max V1 = −0.5…+5.5 V (absolute)** (P13-3); VOUT(port) 7 V; IOL1 12 mA; ESD 2 kV HBM; RES ≥80 µs. **DOUT VOH NOT specified** (→ F10-4 residual). | ✅ Pass 11; **VDD range + V1 abs-max corrected Pass 13** (read direct from the C2843785 PDF) — exact string `XINGLIGHT` / `XL-5050RGBC-WS2812B` |
 | D2 | Littelfuse **SMAJ5.0A** (SMA) | NEW. Uni TVS across 5V_EXT — clamps 12 V over-injection (RK10) + reverse (forward-conducts, protects C10, RK9) + caps the DATA back-feed (RK11). **VRWM 5.0 V / VBR 6.4 V min / VC ~9.2 V**; **I_R ≈ 800 µA @5 V (budgeted, F10-3)**; recommend regulated 5V_EXT ≤5.25 V. | VRWM/VBR/VC, SMA solderable |
-| D3 | Nexperia **PESD5V0S1BA** (SOD-323) | NEW. 5 V bidirectional ESD diode on J4.DATA→GND — protects the exposed data pin (RK13) + absorbs coupled transients (RK15). **NOT low-cap: 35 pF typ / 45 pF max** — but R8·C ≈ 21 ns ≪ the ~200–300 ns WS2812 high time, so the edge survives; chosen for **SOD-323 solderability + clamp**, not low-C (F10-2). | VRWM 5 V, C 35/45 pF, VC ~14 V |
+| D3 | Bourns **CDSOD323-T05C** (SOD-323) | NEW (Pass-16 DK-stock sub for the backordered Nexperia PESD5V0S1BA, kept as alt). 5 V bidirectional ESD diode on J4.DATA→GND — protects the exposed data pin (RK13) + absorbs coupled transients (RK15). **Low-cap ~3 pF → R8·C ≈ 1.4 ns** ≪ the ~200–300 ns WS2812 high time (SI *better* than the Nexperia's 45 pF). Same SOD-323 footprint (no layout change). **Clamp ~18.3 V@17 A** — higher than the Nexperia's ~14 V@12 A but adequate for *transient* ESD of 5 V CMOS. | VRWM 5 V, C ~3 pF, VC ~18 V; SOD-323 solderable |
 
 **Connectors & supporting passives (NEW unless noted):**
 - **J4** TE Connectivity (Buchanan) **282837-3** (3-pos 5.08 mm screw terminal, strip
   out), THT — reused from TB-1-POWER family. **J5** TE **282837-2** (2-pos, injection).
-- **C10** Panasonic **EEU-FR1C102** 1000 µF/16 V radial (inrush bulk) — ~Ø10×20 mm
-  **tall** (enclosure keep-out, L9-1).
+- **C10** Panasonic **EEU-FM1C102** 1000 µF/16 V radial (inrush bulk) — ~Ø10×20 mm
+  **tall** (enclosure keep-out, L9-1). *(Pass-16 DK-stock sub for EEU-FR1C102 — same FM/FR
+  family, drop-in; original kept as alt.)*
 - **C11** **4.7 µF** VBUS bulk — **NEW: Samsung CL21A475KAQNNNE** (0805, 25 V, X5R).
   Dropped from 10 µF (F10-1): C5 1 µF + C8/C9 0.1 µF + C11 4.7 µF = 5.9 µF total VBUS
   bulk, under the USB-2.0 10 µF inrush ceiling. (No longer reuses C1's 10 µF part.)
@@ -273,7 +274,7 @@ IDs `RK#` (risks ≠ resistor refDes).
 Core — **6 items only** (no flags):
 
 - [ ] **Calc trail recorded** — every value (margins both hops, timing, reset, parasitic, budgets, TVS clamp, decoupling) traces to a source (§3).
-- [ ] **Each IC datasheet-verified** — 74AHCT125 ✓ (Pass 5); RT9080 ✓; **D2 SMAJ5.0A ✓ / D3 PESD5V0S1BA ✓** (Pass 11); **LED3 XINGLIGHT ✓ — datasheet obtained** (LCSC C2843785, Pass 11), with the **DOUT-VOH residual** (F10-4) owed to bring-up.
+- [ ] **Each IC datasheet-verified** — 74AHCT125 ✓ (Pass 5); RT9080 ✓; **D2 SMAJ5.0A ✓** (Pass 11); **D3 Bourns CDSOD323-T05C ✓** (Pass-16 sub: ~3 pF / SOD-323 / VRWM 5 V / bidir, spec-verified); **LED3 XINGLIGHT ✓ — datasheet obtained** (LCSC C2843785, Pass 11), with the **DOUT-VOH residual** (F10-4) owed to bring-up.
 - [ ] **Footprint ↔ pinout cross-checked** — *schematic-stage* (Pass 6): U3 SOIC-14, LED3 5050, TE terminals, D2 SMA, D3 SOD-323.
 - [ ] **Fab-DRU DRC accounted for** — incl. an **ERC/DRC check that VBUS and 5V_EXT are never joined** (E3 isolation invariant). *Schematic/layout-stage.*
 - [ ] **BOM availability confirmed** — the 8 new parts + reused lines, exact `(mfr, mpn)` strings (§8).
@@ -283,24 +284,26 @@ Core — **6 items only** (no flags):
 
 ## 8 · BOM sourcing & freeze
 
-- **Design-to-cost target:** ~**$14–15**. **Actual ≈ $16–17 — over target** (F10-6):
-  L1.01 core (~$12–13) + **~$4 new** (shifter $0.40 + pixel $0.40 + J4 $1.30 + J5 $1.00
-  + 1000 µF $0.30 + TVS $0.30 + ESD $0.15 + 4.7 µF $0.10 ≈ $3.95). The two TE terminals
-  ($2.30) dominate the overage. `targetCost` null (F3). Owner-accept the overage or
-  value-engineer the terminals at freeze.
-- **New parts to create BEFORE import (strict `(mfr, mpn)` match — exact strings) — 8:**
+- **Design-to-cost target:** ~**$14–15**. **Actual ≈ $18–19 — over target** (F10-6; rose ~$1.9
+  at the Pass-16 DK-stock subs): L1.01 core (~$12–13) + **~$6 new** (shifter $0.40 + pixel $0.40
+  + J4 $2.04 + J5 $1.22 + **1000 µF $1.07** + TVS $0.47 + **ESD $1.13** + 4.7 µF $0.11 + **C1 10 µF $0.16**).
+  The two TE terminals (~$3.26) + the DK-in-stock D3/C10 dominate. `targetCost` null (F3). Owner-accept
+  the overage or value-engineer (cheaper-but-DK-stocked ESD / electrolytic) at freeze.
+- **New parts to create BEFORE import (strict `(mfr, mpn)` match — exact strings):**
   1. Texas Instruments **SN74AHCT125DR** (SOIC-14)
   2. XINGLIGHT **XL-5050RGBC-WS2812B** (5050) — ✅ string confirmed + datasheet obtained
   3. TE Connectivity **282837-3** (J4)
   4. TE Connectivity **282837-2** (J5)
-  5. Panasonic **EEU-FR1C102** (C10)
+  5. Panasonic **EEU-FM1C102** (C10 — Pass-16 DK-stock sub for EEU-FR1C102)
   6. Littelfuse **SMAJ5.0A** (D2 TVS)
-  7. Nexperia **PESD5V0S1BA** (D3 ESD)
+  7. Bourns **CDSOD323-T05C** (D3 ESD — Pass-16 DK-stock sub for PESD5V0S1BA)
   8. Samsung Electro-Mechanics **CL21A475KAQNNNE** (C11 4.7 µF — new per F10-1)
-- **Already in library (reused):** WROOM core lines incl. 470 Ω (R7/R8), 0.1 µF
-  (C8/C9), **10 µF CL21A106KOQNNNE (C1 only — C11 is now a NEW 4.7 µF part)**.
-- **Second sources:** shifter SN74AHCT125N (PDIP-14); pixel SK6812 (LCSC-only,
-  noted not relied on); TVS/ESD have many drop-ins.
+  9. Murata Electronics **GRM21BR61E106KA73L** (C1 10 µF — Pass-16 DK-stock sub; l1-03's C1 now diverges from L1.01's reused Samsung)
+- **Already in library (reused):** WROOM core lines incl. 470 Ω (R5–R8), 0.1 µF
+  (C2/C3/C7/C8/C9), 1 µF (C5/C6). *(C1 is now the Murata sub above, not the reused Samsung.)*
+- **Second sources (alts in bom.csv):** shifter SN74AHCT125N (PDIP-14); pixel SK6812 (LCSC-only);
+  **D3 ← Nexperia PESD5V0S1BA**, **C10 ← Panasonic EEU-FR1C102**, **C1 ← Samsung CL21A106KOQNNNE**
+  (the originals, Active but DK-OOS on 2026-06-20); TVS/ESD have many drop-ins.
 - **BOM frozen:** **not yet** — and freeze is **gated on the design passing the
   validation protocol** (`../_protocol.md`).
 

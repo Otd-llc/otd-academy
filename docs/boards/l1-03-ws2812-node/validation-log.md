@@ -8,8 +8,8 @@
 | --- | --- |
 | **Slug** | `l1-03-ws2812-node` |
 | **Status** | `Pass 15 — design-stage DRY (re-achieved); gate MET`. Pass 13 (independent fresh eyes) re-opened the gate with 1 HIGH + 4 MED + 2 LOW; **all are now resolved**: part-truth corrections folded (P13-1/2/3/6, verified from the C2843785 PDF), **U3 `SN74AHCT125D`→`SN74AHCT125DR`** (obsolete fix) + **D1 UMW→STMicroelectronics** (shared — l1-01 BOM repointed too) applied to the library + bom.csv. Pass 14 (math/net) clean; **Pass 15** full consistency dry-sweep = **zero new findings**. **Design-stage `[D]` audits all clean — the gate is (re-)met.** Still owed by phase-staging (F7, NOT design-stage blockers): footprint↔pinout `[S]` at schematic, fab-DRU + VBUS⟂5V_EXT ERC `[L]` at layout, F10-4 DOUT-VOH at bring-up. **`DESIGN_VALIDATION` ticks (esp. #5 in-stock buy-confirm) + the BOM freeze remain Josh's.** |
-| **Passes run** | 15 |
-| **Last dry pass** | **Pass 15** (design-stage — zero new material findings, after the Pass-13 fold + sourcing swap). |
+| **Passes run** | 16 |
+| **Last dry pass** | **Pass 16** (sourcing — 3 DK-stock subs re-validated, BOM 25/25 DK-in-stock; zero new findings). |
 
 ### Pass 10 — DRY-SWEEP of the folded design (2 fresh reviewers: electrical + consistency)
 
@@ -199,6 +199,30 @@ dry pass re-achieved after the fold+swap, **every `[D]` audit is clean — the g
 parts/BOM are sound as-built. `[S]`/`[L]` audits + the DOUT-VOH bring-up residual stay owed at their
 phases (F7), and the `DESIGN_VALIDATION` attestations (#5 in-stock buy-confirm via `bom-stock-verification.md`)
 + the BOM freeze are Josh's honest sign-off.
+
+### Pass 16 — DK-in-stock sourcing subs, re-validated (2026-06-20)
+
+A live DigiKey screen (`scripts/digikey-stock.ts`) of the 25-line BOM found **3 lines
+DK-out-of-stock** (C1/C10/D3 — all Active, sourceable elsewhere). Owner chose to **sub
+DK-in-stock equivalents** so the whole BOM buys from one DigiKey cart (matches the FastAdd
+UX). The 3 subs were spec-validated (part-truth + sourcing audits) and confirmed live in stock.
+
+| Line | Original (DK-OOS) | Sub (DK-in-stock) | Spec verdict |
+| --- | --- | --- | --- |
+| **C1** | Samsung CL21A106KOQNNNE (10 µF/16 V) | **Murata GRM21BR61E106KA73L** (3874) | 10 µF, **25 V** X5R 0805 — equal-or-better; commodity. (Note: l1-03's C1 now diverges from L1.01's reused Samsung — intentional, for DK stock.) |
+| **C10** | Panasonic EEU-FR1C102 (1000 µF/16 V) | **Panasonic EEU-FM1C102** (2827) | Same FM/FR radial family, 1000 µF/16 V, Ø10×20 mm — **drop-in** (same footprint + L9-1 Z-height keep-out). |
+| **D3** | Nexperia PESD5V0S1BA (45 pF, SOD-323) | **Bourns CDSOD323-T05C** (4083) | SOD-323 (**same footprint**), bidir, VRWM 5 V, **~3 pF → R8·C ≈ 1.4 ns** (was 21 ns — *better* SI, F10-2 re-passes trivially). **Trade:** clamp ~18.3 V@17 A vs the Nexperia's ~14 V@12 A — higher, but adequate for *transient* ESD of 5 V CMOS (the WS2812's own 2 kV-HBM rating + the diverted current handle the residual; abs-max is a DC spec, not an ESD-transient limit). Chose SOD-323 + best-in-class capacitance over a marginally-lower clamp, per the L1 beginner-solderability priority. |
+
+**Parts created** (idempotent seed `scripts/seed-l103-subs.ts`, prod), categorized to mirror the
+originals (MLCC / ALU_ELECTROLYTIC / ESD_DIODE); **originals kept as the documented 2nd-source alts**.
+BOM strict-match re-verified **25/25, 0 unmatched**; BOM lines rewritten (UNFROZEN). Live re-screen:
+**all 25 lines now Active + DK-in-stock** (C1 3874 / C10 2827 / D3 4083; nothing OOS).
+
+**Verdict: DRY (sourcing), zero new material findings.** Audit 10 (sourcing) is now clean —
+DV#5 "BOM availability confirmed (in stock)" is **earned**. No electrical-concept change; the only
+design.md edits are the D3 part identity + its §3 RC row (45 pF→3 pF) + §8 cost (subs added ~$1.9 →
+~$18–19 total, further over the $14–15 target — F10-6 already accepted the overage). Design-stage gate
+**stays met**; `[S]`/`[L]` + DOUT-VOH residual still owed at their phases.
 
 ## Gate (Definition of done — all must hold before any part/BOM/revision)
 

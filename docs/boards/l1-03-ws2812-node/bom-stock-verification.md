@@ -78,3 +78,13 @@ All 25 lines **Active**. Fixes confirmed live: **U3 = `SN74AHCT125DR`** (2005 in
 so #5 is honestly attestable as *available*, with the note that **C1/C10/D3 currently buy from
 an alternate distributor (DigiKey out), not DigiKey**. No BOM change required unless you want
 DK-single-cart sourcing, in which case sub an in-stock-at-DK equivalent for C1/C10/D3.
+
+## RESOLVED — DK-stock subs applied 2026-06-20 (Pass 16)
+
+Owner chose to sub the 3 DK-OOS lines for DK-in-stock equivalents (one-cart sourcing):
+- **C1** → Murata `GRM21BR61E106KA73L` (3874 in stock) — originals kept as alt.
+- **C10** → Panasonic `EEU-FM1C102` (2827) — same FM/FR family, drop-in.
+- **D3** → Bourns `CDSOD323-T05C` (4083) — SOD-323, ~3 pF (better SI), clamp ~18.3 V (transient-ESD OK).
+
+Parts created (`seed-l103-subs.ts`), bom.csv + design.md updated, BOM lines rewritten, strict-match
+25/25 clean. **Live re-screen: all 25 lines Active + DK-in-stock — DV#5 "BOM availability (in stock)" earned.**
