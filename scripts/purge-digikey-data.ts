@@ -23,7 +23,7 @@ async function main() {
       db.partAvailabilityEvent.count(),
     ]);
     console.log(`Target DB host: ${host}`);
-    console.log(`Would clear ${parts} checked part(s) + delete ${events} availability event(s).`);
+    console.log(`Would clear DigiKey snapshot data library-wide (${parts} part(s) currently carry a snapshot) + delete ${events} availability event(s).`);
 
     if (!confirm) {
       console.log("\nDRY RUN — no changes. Re-run with --confirm to execute.");
@@ -31,6 +31,8 @@ async function main() {
     }
 
     const result = await purgeDigikeyData(db);
+    // partsCleared counts every row touched by the library-wide updateMany, not just
+    // the snapshot-carrying subset previewed above.
     console.log(`\nPurged: ${result.partsCleared} parts cleared, ${result.eventsDeleted} events deleted.`);
     console.log("Now redeploy so the public BOM re-renders without snapshot data.");
   } finally {
