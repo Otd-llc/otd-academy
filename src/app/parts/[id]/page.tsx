@@ -34,6 +34,11 @@ import { DatasheetUpload } from "@/components/parts/DatasheetUpload";
 import { DatasheetUrlEditor } from "@/components/parts/DatasheetUrlEditor";
 import { GROUP_ORDER } from "@/components/parts/fact-group-meta";
 import type { DatasheetOption } from "@/components/parts/ProvenanceFields";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { productJsonLd, breadcrumbJsonLd, siteUrl } from "@/lib/seo/jsonld";
+import { getPartUsageRows } from "@/lib/part-usage-load";
+import { summarizePartUsage } from "@/lib/part-usage";
+import { PartUsage } from "@/components/parts/PartUsage";
 
 // SEO. Title/description from the part's mpn + manufacturer + description
 // (tight select, re-resolved independently of the component).
@@ -87,6 +92,24 @@ export default async function PartDetailPage({
   });
 
   if (!part) notFound();
+
+  // Public "where-used" cross-reference (PUBLIC/PREMIUM published projects only).
+  const usage = summarizePartUsage(await getPartUsageRows(part.id));
+
+  // SEO structured data — schema.org Product + breadcrumb (Parts › mpn).
+  const base = siteUrl();
+  const productLd = productJsonLd({
+    mpn: part.mpn,
+    manufacturer: part.manufacturer,
+    description: part.description,
+    category: categoryLabel(part),
+    url: `${base}/parts/${part.id}`,
+    datasheetUrl: part.datasheetUrl,
+  });
+  const breadcrumbLd = breadcrumbJsonLd([
+    { name: "Parts", url: `${base}/parts` },
+    { name: part.mpn, url: `${base}/parts/${part.id}` },
+  ]);
 
   const session = await auth();
   // Curation (edit/verify/flag/upload/delete) and the cached datasheet/CAD
@@ -164,6 +187,8 @@ export default async function PartDetailPage({
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-10">
+      <JsonLd data={productLd} />
+      <JsonLd data={breadcrumbLd} />
       <PageHeader
         backHref="/parts"
         backLabel="Parts library"
@@ -215,6 +240,9 @@ export default async function PartDetailPage({
           <DatasheetUpload partId={part.id} hasDatasheet={!!part.datasheet} />
         ) : null}
       </section>
+
+      {/* ─── used-in cross-reference (public projects) ─── */}
+      <PartUsage entries={usage} />
 
       {/* ─── CAD assets (symbol / footprint / 3D model) ─── */}
       <section className="mb-10 space-y-4">
