@@ -583,6 +583,7 @@ model Part {
   dkInStock         Boolean?
   dkLifecycle       String?   // DigiKey ProductStatus.Status (Active/Obsolete/NRND/…)
   dkProductUrl      String?
+  dkPartNumber      String?   // DigiKey part number (lowest-MOQ variation) for FastAdd cart URLs
   dkCheckedAt       DateTime?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt

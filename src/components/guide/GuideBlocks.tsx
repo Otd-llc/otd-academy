@@ -27,6 +27,7 @@ import { DIAGRAM_COMPONENTS } from "@/components/guide/diagram-registry";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
 import { CaptureLauncher } from "@/components/guide/CaptureLauncher";
 import { PartMpnLink } from "@/components/guide/PartMpnLink";
+import { buildFastAddUrl } from "@/lib/digikey-cart";
 import {
   affiliateLink,
   amazonProductLink,
@@ -35,6 +36,9 @@ import {
 import { ExternalLinkIcon, PhotoIcon, VideoIcon } from "@/components/icons";
 import { parseInlineTerms } from "@/lib/inline-terms";
 import { assessPartAvailability, availabilityBadge } from "@/lib/part-availability";
+import { bomTableHasDkData, liveBomCost } from "@/lib/live-bom-cost";
+import { relativeAge } from "@/lib/relative-time";
+import { formatUsd } from "@/lib/format-money";
 import type { RenderBounds } from "@/lib/schemas/part-asset";
 
 // A partModel block's resolved 3D render, keyed by MPN. The card route presigns
@@ -63,6 +67,12 @@ export type BomRow = {
   dkInStock: boolean | null;
   dkLifecycle: string | null;
   dkCheckedAt: Date | null;
+  // DigiKey unit price snapshot (cents). Null when never checked / unpriced →
+  // the Unit/Ext cells show "—" and the line is excluded from the design total.
+  dkUnitPriceCents: number | null;
+  // DigiKey part number (lowest-MOQ variation) for the FastAdd cart URL. Null
+  // when unmatched → the line is omitted from the cart link.
+  dkPartNumber: string | null;
 };
 
 // Lifecycle chip — shown only for non-ACTIVE parts (NRND = caution/gold,
@@ -257,6 +267,20 @@ function BomTableBlock({
     nrndCount ? `${nrndCount} NRND` : null,
     noDatasheetCount ? `${noDatasheetCount} missing datasheet` : null,
   ].filter(Boolean);
+  const cost = liveBomCost(
+    rows.map((r) => ({ quantity: r.qty, dkUnitPriceCents: r.dkUnitPriceCents })),
+  );
+  const tableHasDk = bomTableHasDkData(rows);
+  const checkedDates = rows
+    .map((r) => r.dkCheckedAt)
+    .filter((d): d is Date => d != null);
+  const oldestChecked = checkedDates.length
+    ? checkedDates.reduce((a, b) => (a < b ? a : b))
+    : null;
+  const fastAddUrl = buildFastAddUrl(
+    rows.map((r) => ({ dkPartNumber: r.dkPartNumber, quantity: r.qty, refDes: r.refDes })),
+  );
+  const cartMissing = rows.filter((r) => r.dkPartNumber == null).length;
   return (
     <figure className="space-y-2">
       <table className="table-tech">
@@ -266,6 +290,12 @@ function BomTableBlock({
             <th>Qty</th>
             <th>Part</th>
             <th>Description</th>
+            {tableHasDk ? (
+              <>
+                <th>Unit $</th>
+                <th>Ext. $</th>
+              </>
+            ) : null}
             <th>Datasheet</th>
           </tr>
         </thead>
@@ -297,6 +327,18 @@ function BomTableBlock({
                 ) : null}
               </td>
               <td data-label="Description">{r.description ?? ""}</td>
+              {tableHasDk ? (
+                <>
+                  <td data-label="Unit $" className="text-muted">
+                    {r.dkUnitPriceCents != null ? formatUsd(r.dkUnitPriceCents) : "—"}
+                  </td>
+                  <td data-label="Ext. $" className="text-muted">
+                    {r.dkUnitPriceCents != null
+                      ? formatUsd(r.qty * r.dkUnitPriceCents)
+                      : "—"}
+                  </td>
+                </>
+              ) : null}
               <td data-label="Datasheet">
                 {r.datasheetUrl ? (
                   <a
@@ -322,6 +364,38 @@ function BomTableBlock({
           ))}
         </tbody>
       </table>
+      {/* Compliance (load-bearing): the freshness "prices as of" line + this
+          DigiKey attribution keep the cached snapshot display inside the API
+          User Agreement's "present DigiKey Data on Your Site" grant. Do not
+          remove. See docs/plans/2026-06-19-digikey-compliance-design.md. */}
+      {cost.anyPriced ? (
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-panel-border pt-2 font-mono text-xs">
+          <span className="text-link-muted">
+            Design BOM cost ≈{" "}
+            <span className="text-command-gold">{formatUsd(cost.totalCents)}</span>
+            <span className="ml-1 text-muted normal-case">
+              parts only — excludes MOQ/reels &amp; shipping
+              {cost.unpricedCount > 0
+                ? ` · ${cost.unpricedCount} line${cost.unpricedCount === 1 ? "" : "s"} unpriced`
+                : ""}
+            </span>
+          </span>
+          {oldestChecked ? (
+            <span className="text-muted">
+              DigiKey prices as of {relativeAge(oldestChecked, new Date())}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+      {/* Attribution renders whenever ANY DigiKey data is shown (stock chips +
+          price columns), not just when something is priced — so a
+          checked-but-unpriced BOM is still attributed. Rendered as a footnote
+          sibling right after the cost total. */}
+      {tableHasDk ? (
+        <span className="block font-mono text-xs text-muted normal-case">
+          Pricing &amp; stock data via DigiKey.
+        </span>
+      ) : null}
       <figcaption className="font-mono text-xs uppercase tracking-wider text-muted">
         {caption ??
           `${rows.length} line ${rows.length === 1 ? "item" : "items"} · ${totalParts} parts`}
@@ -329,6 +403,24 @@ function BomTableBlock({
           <span className="ml-2 text-alert-red">· {health.join(" · ")}</span>
         ) : null}
       </figcaption>
+      {tableHasDk && fastAddUrl ? (
+        <div className="mt-2">
+          <a
+            href={fastAddUrl}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            className="glass-button inline-flex items-center gap-2 px-4 py-2 font-mono text-xs uppercase tracking-[0.14em]"
+          >
+            Add whole BOM to DigiKey cart
+            <span className="text-[10px] text-gold-dim">DigiKey</span>
+          </a>
+          {cartMissing > 0 ? (
+            <p className="mt-1 font-mono text-[11px] normal-case text-muted">
+              {cartMissing} line{cartMissing === 1 ? "" : "s"} not yet linked to DigiKey — add {cartMissing === 1 ? "it" : "them"} by MPN.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </figure>
   );
 }

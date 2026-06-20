@@ -9,6 +9,27 @@ export interface DkSnapshot {
   inStock: boolean | null;
   lifecycle: string | null;
   productUrl: string | null;
+  // DigiKey part number of the lowest-MOQ variation (typically Cut Tape, MOQ 1),
+  // the right one for learners buying singles. Used to build FastAdd cart URLs
+  // (which key on DigiKey part numbers, not MPNs). Null when no variation present.
+  partNumber: string | null;
+}
+
+// Pick the variation a learner should buy: lowest MinimumOrderQuantity (Cut Tape
+// over reels), falling back to the first variation. Returns its DigiKey part
+// number, or null when the product carries no variations.
+function pickDkPartNumber(variations: unknown): string | null {
+  if (!Array.isArray(variations) || variations.length === 0) return null;
+  const withMoq = variations.filter(
+    (v) => v && typeof v.DigiKeyProductNumber === "string",
+  );
+  if (withMoq.length === 0) return null;
+  const best = withMoq.reduce((a, b) => {
+    const am = typeof a.MinimumOrderQuantity === "number" ? a.MinimumOrderQuantity : Infinity;
+    const bm = typeof b.MinimumOrderQuantity === "number" ? b.MinimumOrderQuantity : Infinity;
+    return bm < am ? b : a;
+  });
+  return best.DigiKeyProductNumber as string;
 }
 
 export function digikeyConfigured(): boolean {
@@ -24,6 +45,7 @@ export function normalizeDkProduct(p: any, _mpn: string): DkSnapshot {
       inStock: null,
       lifecycle: null,
       productUrl: null,
+      partNumber: null,
     };
   }
   const qty = typeof p.QuantityAvailable === "number" ? p.QuantityAvailable : null;
@@ -37,6 +59,19 @@ export function normalizeDkProduct(p: any, _mpn: string): DkSnapshot {
       p.ProductStatus?.Status ??
       (typeof p.ProductStatus === "string" ? p.ProductStatus : null),
     productUrl: p.ProductUrl ?? null,
+    partNumber: pickDkPartNumber(p.ProductVariations),
+  };
+}
+
+function dkHeaders(token: string): Record<string, string> {
+  return {
+    "X-DIGIKEY-Client-Id": env.DIGIKEY_CLIENT_ID!,
+    authorization: `Bearer ${token}`,
+    "content-type": "application/json",
+    accept: "application/json",
+    "X-DIGIKEY-Locale-Site": "US",
+    "X-DIGIKEY-Locale-Language": "en",
+    "X-DIGIKEY-Locale-Currency": "USD",
   };
 }
 
@@ -65,15 +100,7 @@ export async function makeDigikeyClient(): Promise<DkClient> {
     async searchByMpn(mpn: string): Promise<DkSnapshot> {
       const res = await fetch(`${BASE}/products/v4/search/keyword`, {
         method: "POST",
-        headers: {
-          "X-DIGIKEY-Client-Id": env.DIGIKEY_CLIENT_ID!,
-          authorization: `Bearer ${token}`,
-          "content-type": "application/json",
-          accept: "application/json",
-          "X-DIGIKEY-Locale-Site": "US",
-          "X-DIGIKEY-Locale-Language": "en",
-          "X-DIGIKEY-Locale-Currency": "USD",
-        },
+        headers: dkHeaders(token),
         body: JSON.stringify({ Keywords: mpn, RecordCount: 5 }),
       });
       if (!res.ok) throw new Error(`DigiKey search ${res.status}`);
@@ -82,7 +109,29 @@ export async function makeDigikeyClient(): Promise<DkClient> {
       const match =
         products.find((p) => norm(p?.ManufacturerProductNumber ?? "") === norm(mpn)) ??
         products[0];
-      return normalizeDkProduct(match, mpn);
+      const keywordSnap = normalizeDkProduct(match, mpn);
+
+      // Keyword data may be up to 24h stale; ProductDetails is real-time. Resolve
+      // the DK part number from the keyword hit, then refresh price/stock from
+      // ProductDetails. Any failure → keep the keyword snapshot (no regression).
+      if (!keywordSnap.partNumber) return keywordSnap;
+      try {
+        const dres = await fetch(
+          `${BASE}/products/v4/search/${encodeURIComponent(keywordSnap.partNumber)}/productdetails`,
+          { method: "GET", headers: dkHeaders(token) },
+        );
+        if (!dres.ok) return keywordSnap;
+        const djson = (await dres.json()) as { Product?: any };
+        const detailed = normalizeDkProduct(djson.Product, mpn);
+        // Prefer ProductDetails' fresh price/stock, but keep the keyword-resolved
+        // DigiKey part number if ProductDetails didn't yield one (it can omit /
+        // reshape ProductVariations) — losing it breaks the FastAdd cart link.
+        return detailed.matched
+          ? { ...detailed, partNumber: detailed.partNumber ?? keywordSnap.partNumber }
+          : keywordSnap;
+      } catch {
+        return keywordSnap;
+      }
     },
   };
 }

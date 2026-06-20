@@ -89,6 +89,7 @@ function makePart(overrides: Partial<Part> = {}): Part {
     dkInStock: null,
     dkLifecycle: null,
     dkProductUrl: null,
+    dkPartNumber: null,
     dkCheckedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
