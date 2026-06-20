@@ -36,7 +36,7 @@ import {
 import { ExternalLinkIcon, PhotoIcon, VideoIcon } from "@/components/icons";
 import { parseInlineTerms } from "@/lib/inline-terms";
 import { assessPartAvailability, availabilityBadge } from "@/lib/part-availability";
-import { liveBomCost } from "@/lib/live-bom-cost";
+import { bomTableHasDkData, liveBomCost } from "@/lib/live-bom-cost";
 import { relativeAge } from "@/lib/relative-time";
 import { formatUsd } from "@/lib/format-money";
 import type { RenderBounds } from "@/lib/schemas/part-asset";
@@ -270,6 +270,7 @@ function BomTableBlock({
   const cost = liveBomCost(
     rows.map((r) => ({ quantity: r.qty, dkUnitPriceCents: r.dkUnitPriceCents })),
   );
+  const tableHasDk = bomTableHasDkData(rows);
   const checkedDates = rows
     .map((r) => r.dkCheckedAt)
     .filter((d): d is Date => d != null);
@@ -289,8 +290,12 @@ function BomTableBlock({
             <th>Qty</th>
             <th>Part</th>
             <th>Description</th>
-            <th>Unit $</th>
-            <th>Ext. $</th>
+            {tableHasDk ? (
+              <>
+                <th>Unit $</th>
+                <th>Ext. $</th>
+              </>
+            ) : null}
             <th>Datasheet</th>
           </tr>
         </thead>
@@ -322,14 +327,18 @@ function BomTableBlock({
                 ) : null}
               </td>
               <td data-label="Description">{r.description ?? ""}</td>
-              <td data-label="Unit $" className="text-muted">
-                {r.dkUnitPriceCents != null ? formatUsd(r.dkUnitPriceCents) : "—"}
-              </td>
-              <td data-label="Ext. $" className="text-muted">
-                {r.dkUnitPriceCents != null
-                  ? formatUsd(r.qty * r.dkUnitPriceCents)
-                  : "—"}
-              </td>
+              {tableHasDk ? (
+                <>
+                  <td data-label="Unit $" className="text-muted">
+                    {r.dkUnitPriceCents != null ? formatUsd(r.dkUnitPriceCents) : "—"}
+                  </td>
+                  <td data-label="Ext. $" className="text-muted">
+                    {r.dkUnitPriceCents != null
+                      ? formatUsd(r.qty * r.dkUnitPriceCents)
+                      : "—"}
+                  </td>
+                </>
+              ) : null}
               <td data-label="Datasheet">
                 {r.datasheetUrl ? (
                   <a
@@ -381,7 +390,7 @@ function BomTableBlock({
           <span className="ml-2 text-alert-red">· {health.join(" · ")}</span>
         ) : null}
       </figcaption>
-      {fastAddUrl ? (
+      {tableHasDk && fastAddUrl ? (
         <div className="mt-2">
           <a
             href={fastAddUrl}

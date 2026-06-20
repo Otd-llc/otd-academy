@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { liveBomCost } from "@/lib/live-bom-cost";
+import { bomTableHasDkData, liveBomCost } from "@/lib/live-bom-cost";
 
 describe("liveBomCost", () => {
   test("sums qty × dkUnitPriceCents over priced lines", () => {
@@ -24,5 +24,17 @@ describe("liveBomCost", () => {
     const r = liveBomCost([{ quantity: 1, dkUnitPriceCents: null }]);
     expect(r.anyPriced).toBe(false);
     expect(r.totalCents).toBe(0);
+  });
+});
+
+describe("bomTableHasDkData", () => {
+  test("true when any row has a dkCheckedAt snapshot", () => {
+    expect(bomTableHasDkData([{ dkCheckedAt: null }, { dkCheckedAt: new Date() }])).toBe(true);
+  });
+  test("false when no row was ever checked (post-purge / creds absent)", () => {
+    expect(bomTableHasDkData([{ dkCheckedAt: null }, { dkCheckedAt: null }])).toBe(false);
+  });
+  test("false on an empty table", () => {
+    expect(bomTableHasDkData([])).toBe(false);
   });
 });

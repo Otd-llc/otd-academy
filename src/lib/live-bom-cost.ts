@@ -28,3 +28,10 @@ export function liveBomCost(lines: LiveCostLine[]): LiveBomCost {
   }
   return { totalCents, pricedCount, unpricedCount, anyPriced: pricedCount > 0 };
 }
+
+// True when at least one BOM row carries a DigiKey snapshot (dkCheckedAt set).
+// Drives whether the public BOM shows the price columns / cart button — so a
+// purged or never-checked library renders the bare parts list. ([[digikey-availability-watchdog]])
+export function bomTableHasDkData(rows: { dkCheckedAt: Date | null }[]): boolean {
+  return rows.some((r) => r.dkCheckedAt != null);
+}
