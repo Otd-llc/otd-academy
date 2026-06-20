@@ -117,4 +117,60 @@ describe("searchByMpn", () => {
     const client = await makeDigikeyClient();
     await expect(client.searchByMpn("X")).rejects.toThrow(/DigiKey search 500/);
   });
+
+  test("uses ProductDetails (real-time) for price/stock when a DK part number resolves", async () => {
+    const keywordBody = {
+      Products: [
+        {
+          ManufacturerProductNumber: "SN74AHCT125DR",
+          QuantityAvailable: 1, // stale keyword value
+          UnitPrice: 9.99,
+          ProductStatus: { Status: "Active" },
+          ProductVariations: [{ DigiKeyProductNumber: "296-XYZ-ND", MinimumOrderQuantity: 1 }],
+        },
+      ],
+    };
+    const detailsBody = {
+      Product: {
+        ManufacturerProductNumber: "SN74AHCT125DR",
+        QuantityAvailable: 4242, // fresh ProductDetails value
+        UnitPrice: 1.23,
+        ProductStatus: { Status: "Active" },
+        ProductUrl: "https://www.digikey.com/fresh",
+        ProductVariations: [{ DigiKeyProductNumber: "296-XYZ-ND", MinimumOrderQuantity: 1 }],
+      },
+    };
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(tokenResponse())
+      .mockResolvedValueOnce(new Response(JSON.stringify(keywordBody), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(detailsBody), { status: 200, headers: { "content-type": "application/json" } }));
+
+    const client = await makeDigikeyClient();
+    const snap = await client.searchByMpn("SN74AHCT125DR");
+    expect(snap.stockQty).toBe(4242);
+    expect(snap.unitPriceCents).toBe(123);
+    expect(snap.productUrl).toBe("https://www.digikey.com/fresh");
+  });
+
+  test("falls back to the keyword snapshot when ProductDetails is unavailable", async () => {
+    const keywordBody = {
+      Products: [
+        {
+          ManufacturerProductNumber: "X",
+          QuantityAvailable: 7,
+          UnitPrice: 2,
+          ProductStatus: { Status: "Active" },
+          ProductVariations: [{ DigiKeyProductNumber: "296-XYZ-ND", MinimumOrderQuantity: 1 }],
+        },
+      ],
+    };
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(tokenResponse())
+      .mockResolvedValueOnce(new Response(JSON.stringify(keywordBody), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response("err", { status: 500 }));
+
+    const client = await makeDigikeyClient();
+    const snap = await client.searchByMpn("X");
+    expect(snap.stockQty).toBe(7); // keyword fallback, no throw
+  });
 });

@@ -63,6 +63,18 @@ export function normalizeDkProduct(p: any, _mpn: string): DkSnapshot {
   };
 }
 
+function dkHeaders(token: string): Record<string, string> {
+  return {
+    "X-DIGIKEY-Client-Id": env.DIGIKEY_CLIENT_ID!,
+    authorization: `Bearer ${token}`,
+    "content-type": "application/json",
+    accept: "application/json",
+    "X-DIGIKEY-Locale-Site": "US",
+    "X-DIGIKEY-Locale-Language": "en",
+    "X-DIGIKEY-Locale-Currency": "USD",
+  };
+}
+
 async function getToken(): Promise<string> {
   const res = await fetch(`${BASE}/v1/oauth2/token`, {
     method: "POST",
@@ -88,15 +100,7 @@ export async function makeDigikeyClient(): Promise<DkClient> {
     async searchByMpn(mpn: string): Promise<DkSnapshot> {
       const res = await fetch(`${BASE}/products/v4/search/keyword`, {
         method: "POST",
-        headers: {
-          "X-DIGIKEY-Client-Id": env.DIGIKEY_CLIENT_ID!,
-          authorization: `Bearer ${token}`,
-          "content-type": "application/json",
-          accept: "application/json",
-          "X-DIGIKEY-Locale-Site": "US",
-          "X-DIGIKEY-Locale-Language": "en",
-          "X-DIGIKEY-Locale-Currency": "USD",
-        },
+        headers: dkHeaders(token),
         body: JSON.stringify({ Keywords: mpn, RecordCount: 5 }),
       });
       if (!res.ok) throw new Error(`DigiKey search ${res.status}`);
@@ -105,7 +109,24 @@ export async function makeDigikeyClient(): Promise<DkClient> {
       const match =
         products.find((p) => norm(p?.ManufacturerProductNumber ?? "") === norm(mpn)) ??
         products[0];
-      return normalizeDkProduct(match, mpn);
+      const keywordSnap = normalizeDkProduct(match, mpn);
+
+      // Keyword data may be up to 24h stale; ProductDetails is real-time. Resolve
+      // the DK part number from the keyword hit, then refresh price/stock from
+      // ProductDetails. Any failure → keep the keyword snapshot (no regression).
+      if (!keywordSnap.partNumber) return keywordSnap;
+      try {
+        const dres = await fetch(
+          `${BASE}/products/v4/search/${encodeURIComponent(keywordSnap.partNumber)}/productdetails`,
+          { method: "GET", headers: dkHeaders(token) },
+        );
+        if (!dres.ok) return keywordSnap;
+        const djson = (await dres.json()) as { Product?: any };
+        const detailed = normalizeDkProduct(djson.Product, mpn);
+        return detailed.matched ? detailed : keywordSnap;
+      } catch {
+        return keywordSnap;
+      }
     },
   };
 }
