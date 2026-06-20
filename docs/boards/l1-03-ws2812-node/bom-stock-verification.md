@@ -63,3 +63,18 @@
 - Resolve the 4 action items (apply any MPN changes via the parts library + bom.csv).
 - Tick every line above.
 - Re-check **DESIGN_VALIDATION #5** (the honest attestation, now earned).
+
+## Live DigiKey screen — 2026-06-20 (`scripts/digikey-stock.ts`, read-only)
+
+All 25 lines **Active**. Fixes confirmed live: **U3 = `SN74AHCT125DR`** (2005 in stock),
+**D1 = `STMicroelectronics USBLC6-2SC6`** (3661). **22/25 lines DK-in-stock.**
+
+**3 lines DK-OUT-OF-STOCK (Active + sourceable elsewhere — not blockers):**
+- **C1** Samsung `CL21A106KOQNNNE` (10 µF MLCC) — DK 0. Commodity; deep stock at Mouser/Newark/Arrow (F12 noted DK's long *factory* lead — buy distributor stock).
+- **C10** Panasonic `EEU-FR1C102` (1000 µF elec) — DK 0 (was ~4.5k last week). Commodity electrolytic; alt distributors / drop-in equivalents.
+- **D3** Nexperia `PESD5V0S1BA,115` — DK backorder (known, F12 item 3); in stock at Farnell/Arrow.
+
+**DV#5 disposition (owner):** the BOM is buildable — every line Active + Western-sourceable —
+so #5 is honestly attestable as *available*, with the note that **C1/C10/D3 currently buy from
+an alternate distributor (DigiKey out), not DigiKey**. No BOM change required unless you want
+DK-single-cart sourcing, in which case sub an in-stock-at-DK equivalent for C1/C10/D3.
