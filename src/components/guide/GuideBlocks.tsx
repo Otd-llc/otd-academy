@@ -385,12 +385,16 @@ function BomTableBlock({
               DigiKey prices as of {relativeAge(oldestChecked, new Date())}
             </span>
           ) : null}
-          {tableHasDk ? (
-            <span className="w-full text-muted normal-case">
-              Pricing &amp; stock data via DigiKey.
-            </span>
-          ) : null}
         </div>
+      ) : null}
+      {/* Attribution renders whenever ANY DigiKey data is shown (stock chips +
+          price columns), not just when something is priced — so a
+          checked-but-unpriced BOM is still attributed. Rendered as a footnote
+          sibling right after the cost total. */}
+      {tableHasDk ? (
+        <span className="block font-mono text-xs text-muted normal-case">
+          Pricing &amp; stock data via DigiKey.
+        </span>
       ) : null}
       <figcaption className="font-mono text-xs uppercase tracking-wider text-muted">
         {caption ??

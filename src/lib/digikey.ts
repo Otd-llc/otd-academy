@@ -123,7 +123,12 @@ export async function makeDigikeyClient(): Promise<DkClient> {
         if (!dres.ok) return keywordSnap;
         const djson = (await dres.json()) as { Product?: any };
         const detailed = normalizeDkProduct(djson.Product, mpn);
-        return detailed.matched ? detailed : keywordSnap;
+        // Prefer ProductDetails' fresh price/stock, but keep the keyword-resolved
+        // DigiKey part number if ProductDetails didn't yield one (it can omit /
+        // reshape ProductVariations) — losing it breaks the FastAdd cart link.
+        return detailed.matched
+          ? { ...detailed, partNumber: detailed.partNumber ?? keywordSnap.partNumber }
+          : keywordSnap;
       } catch {
         return keywordSnap;
       }

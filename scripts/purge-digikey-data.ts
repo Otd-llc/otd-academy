@@ -3,15 +3,22 @@
 // (server actions can't be scripted — [[foundry-headless-scripting]]).
 //
 // ⚠️ `.env.local` DATABASE_URL is PROD. This script wipes production dk* data.
-// Dry-run by default; pass --confirm to execute.
+// Dry-run by default; pass --confirm to execute. Executing additionally requires
+// a typed project name as a second factor (--project=otd-academy) so a library-
+// wide prod purge can't fire from --confirm alone.
 //
 //   Dry run:  pnpm exec tsx scripts/purge-digikey-data.ts
-//   Execute:  pnpm exec tsx scripts/purge-digikey-data.ts --confirm
+//   Execute:  pnpm exec tsx scripts/purge-digikey-data.ts --confirm --project=otd-academy
 import { config as loadEnv } from "dotenv";
 loadEnv({ path: ".env.local" });
 
+// Second-factor confirmation for the destructive (library-wide) path: --confirm
+// alone is not enough; the invocation must also name the target project.
+const PROJECT_CONFIRM = "otd-academy";
+
 async function main() {
   const confirm = process.argv.includes("--confirm");
+  const projectConfirmed = process.argv.includes(`--project=${PROJECT_CONFIRM}`);
   // Use the shared Neon-adapter-backed client (Prisma 7.8 needs the adapter;
   // import AFTER loadEnv so DATABASE_URL is populated). [[prisma-migrate-prod]]
   const { db } = await import("@/lib/db");
@@ -26,8 +33,15 @@ async function main() {
     console.log(`Would clear DigiKey snapshot data library-wide (${parts} part(s) currently carry a snapshot) + delete ${events} availability event(s).`);
 
     if (!confirm) {
-      console.log("\nDRY RUN — no changes. Re-run with --confirm to execute.");
+      console.log("\nDRY RUN — no changes. Re-run with --confirm --project=otd-academy to execute.");
       return;
+    }
+
+    if (!projectConfirmed) {
+      console.error(
+        `\nrefusing library-wide purge: pass --project=${PROJECT_CONFIRM} to confirm the target.`,
+      );
+      process.exit(1);
     }
 
     const result = await purgeDigikeyData(db);
