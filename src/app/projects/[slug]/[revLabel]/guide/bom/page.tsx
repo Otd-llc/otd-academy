@@ -18,8 +18,9 @@ import { PrintButton } from "@/components/guide/PrintButton";
 import { ExternalLinkIcon } from "@/components/icons";
 
 // Print views are a utility surface, not a landing page — keep them out of the
-// index so they don't compete with / duplicate the lesson itself.
-export const metadata: Metadata = { robots: { index: false, follow: true } };
+// index. A local const folded into generateMetadata below (Next forbids
+// exporting both a `metadata` const and `generateMetadata` from one route).
+const META: Metadata = { robots: { index: false, follow: true } };
 
 type Params = Promise<{ slug: string; revLabel: string }>;
 
@@ -51,9 +52,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug, revLabel } = await params;
   const r = await resolve(slug, revLabel);
-  if (!r) return metadata;
+  if (!r) return META;
   const title = `BOM — ${r.project.publicTitle ?? r.project.name} (${r.revision.label})`;
-  return { ...metadata, title };
+  return { ...META, title };
 }
 
 export default async function PrintableBomPage({ params }: { params: Params }) {
