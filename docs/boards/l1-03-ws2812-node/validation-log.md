@@ -7,9 +7,9 @@
 | | |
 | --- | --- |
 | **Slug** | `l1-03-ws2812-node` |
-| **Status** | `Pass 13 — NOT dry; part-truth corrections FOLDED (2026-06-19), sourcing owed`. The fresh-eyes pass found **1 HIGH sourcing + 4 MED + 2 LOW**; no electrical-concept change. **FOLDED + consistency-checked:** the 4 part-truth corrections (P13-1 tpd/SCLS264R, P13-2 VDD 3.5–7.5 V, P13-3 V1 abs-max −0.5…+5.5 V, P13-6 RES note) — verified direct from the C2843785 PDF. **STILL OWED (audit 10, owner approval):** U3 `SN74AHCT125D`→`DR` (obsolete) + D1 UMW→STMicro (shared, ripples to l1-01) — teed up in `scripts/_fix-l103-sourcing.ts` (dry-run-verified: U3 = l1-03-only, D1 repoints l1-01+l1-03). A fresh design-stage **dry sweep (Pass 14)** is owed once those execute, before the BOM is frozen. |
-| **Passes run** | 13 |
-| **Last dry pass** | **Pass 12** (superseded — Pass 13 found material findings; a new design-stage dry pass is owed) |
+| **Status** | `Pass 13 — NOT dry; part-truth corrections FOLDED (2026-06-19), sourcing owed`. The fresh-eyes pass found **1 HIGH sourcing + 4 MED + 2 LOW**; no electrical-concept change. **FOLDED + consistency-checked:** the 4 part-truth corrections (P13-1 tpd/SCLS264R, P13-2 VDD 3.5–7.5 V, P13-3 V1 abs-max −0.5…+5.5 V, P13-6 RES note) — verified direct from the C2843785 PDF. **STILL OWED (audit 10, owner approval):** U3 `SN74AHCT125D`→`DR` (obsolete) + D1 UMW→STMicro (shared, ripples to l1-01) — teed up in `scripts/_fix-l103-sourcing.ts` (dry-run-verified: U3 = l1-03-only, D1 repoints l1-01+l1-03). **Pass 14** (independent math/arithmetic/net re-derivation) = **CLEAN** — every margin re-derived positive, C5 confirmed 1 µF, no electrical findings open. The **only** thing keeping the gate open is the sourcing execution; once U3/D1 swap + bom.csv patch land, a single full-sweep dry pass closes it. |
+| **Passes run** | 14 |
+| **Last dry pass** | Pass 12 superseded by Pass 13 (material findings). **Pass 14 clean for math/physics/net**; the closing full design-stage dry sweep is owed after the sourcing swap. |
 
 ### Pass 10 — DRY-SWEEP of the folded design (2 fresh reviewers: electrical + consistency)
 
@@ -155,6 +155,29 @@ Consistency re-checked: no stale `9–22 ns` / `VDD+5.5` / `3.5–5.5 V` / `≥1
 `scripts/_fix-l103-sourcing.ts` dry-run confirmed: **U3** referenced only by `l1-03/v1:U3` (safe);
 **D1** referenced by `l1-01-wroom-breakout/v1:D1` **and** `l1-03/v1:D1` (shared — swap repoints both).
 A full design-stage **dry sweep (Pass 14)** is owed after the sourcing swap + bom.csv patch.
+
+### Pass 14 — Independent re-derivation: math / arithmetic / net-integrity (fresh eyes, 2026-06-19)
+
+The lenses Pass 13 didn't personally re-attack, re-derived from first principles + the
+Pass-13-verified datasheet numbers (not trusting the prior passes' results). **CLEAN — zero
+new material findings (dry for these lenses).**
+
+| Check | Independent re-derivation | Result |
+| --- | --- | --- |
+| **VBUS bulk total** | **C5 `885012207103` confirmed = 1 µF** (Würth WCAP-CSGP 0805 50 V X7R — closes the one un-verified term). C5 1 + C8 0.1 + C9 0.1 + C11 4.7 = **5.9 µF < 10 µF** USB ceiling. | ✓ holds |
+| **Onboard-hop margin (RK1)** | VOH & VIH both ref VBUS. @VBUS 4.5 V: VOH ≥ 3.8 V (−8 mA, over-temp) vs VIH 0.7·4.5 = 3.15 V → **+0.65 V**. @VBUS 5 V: VOH ≥ 3.8 vs VIH 3.5 → **≥ +0.3 V**. The +0.30 V floor is conservative (corner mis-stack); true single-corner ≈ +0.65 V. | ✓ positive |
+| **Cross-domain margin (F10-4)** | driver = pixel DOUT on VBUS_local ~4.2 V − *unspecified* DOUT drop; VIH = 0.7·5.25 = 3.68 V → ~+0.1…+0.5 V. R8 drop negligible (DIN high-Z). | ✓ = the known bring-up residual |
+| **VBUS budget** | cont. 160 + 60 = **220 mA** ≪ 0.5 A hold; peak 500 (WiFi-TX; linear LDO 1:1) + 60 = **560 mA** < 1 A trip. | ✓ |
+| **Parasitic / RC** | (5 − 0.7)/470 = **9.1 mA** (RK8); R8·C_D3 470·45 pF = **21 ns** ≪ pulse. | ✓ |
+| **Net integrity (spot)** | U3 all 14 pins accounted (gate 1 used; 2–4 parked nOE→VCC/nA→GND/nY-open; 7=GND/14=VCC); pixel VDD/DOUT/VSS/DIN netted; VBUS⟂5V_EXT isolation invariant intact (ERC owed `[L]`). | ✓ |
+
+**One LOW re-confirm (not new):** secondary sources list `885012207103` "discontinued" — F12 already
+ruled this a **Rapid-only** listing, not Würth EOL; re-confirm mfr-active at buy time (shared L1.01 core part).
+
+**Verdict: Pass 14 CLEAN (math/physics/net lenses dry).** The board's numbers survive independent
+re-derivation. **Gate still NOT closed** — only because the **sourcing fixes (P13-4 U3, P13-5 D1) are
+not yet executed**. Once they run + bom.csv is patched, a single full-sweep dry pass closes the
+design-stage gate. No electrical findings remain open (the F10-4 DOUT-VOH residual is bring-up `[L]`, by design).
 
 ## Gate (Definition of done — all must hold before any part/BOM/revision)
 
