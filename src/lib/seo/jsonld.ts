@@ -57,6 +57,40 @@ export function courseJsonLd(input: {
   };
 }
 
+// Product — a parts-catalog entry as schema.org Product (rendered on the public
+// `/parts/[id]` detail page). `name`/`mpn` are the manufacturer part number;
+// `brand` is the manufacturer; `category` is the human label; `datasheetUrl`,
+// when present, is attached as a `subjectOf` CreativeWork. Optional fields are
+// omitted (never advertised empty). PURE — takes already-resolved scalars.
+export function productJsonLd(input: {
+  mpn: string;
+  manufacturer: string;
+  description: string | null;
+  category: string | null;
+  url: string;
+  datasheetUrl: string | null;
+}): object {
+  return {
+    "@context": SCHEMA_CONTEXT,
+    "@type": "Product",
+    name: input.mpn,
+    mpn: input.mpn,
+    brand: { "@type": "Brand", name: input.manufacturer },
+    url: input.url,
+    ...(input.description ? { description: input.description } : {}),
+    ...(input.category ? { category: input.category } : {}),
+    ...(input.datasheetUrl
+      ? {
+          subjectOf: {
+            "@type": "CreativeWork",
+            name: "Datasheet",
+            url: input.datasheetUrl,
+          },
+        }
+      : {}),
+  };
+}
+
 // BreadcrumbList — the navigational trail (Home › Courses › Project › Stage).
 // `items` are pre-built {name, absolute-url}; positions are 1-indexed per spec.
 export function breadcrumbJsonLd(

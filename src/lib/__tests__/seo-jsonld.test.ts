@@ -1,10 +1,53 @@
 import { describe, it, expect } from "vitest";
 import {
   courseJsonLd,
+  productJsonLd,
   breadcrumbJsonLd,
   guideCardToHowTo,
   serializeJsonLd,
 } from "@/lib/seo/jsonld";
+
+describe("productJsonLd", () => {
+  it("emits a schema.org Product with brand, mpn, category, url, datasheet", () => {
+    const obj = productJsonLd({
+      mpn: "RC0805FR-0710KL",
+      manufacturer: "YAGEO",
+      description: "10 kΩ 0805 resistor",
+      category: "Passive / resistor",
+      url: "https://x.test/parts/abc",
+      datasheetUrl: "https://x.test/ds.pdf",
+    }) as Record<string, unknown>;
+
+    expect(obj["@context"]).toBe("https://schema.org");
+    expect(obj["@type"]).toBe("Product");
+    expect(obj.name).toBe("RC0805FR-0710KL");
+    expect(obj.mpn).toBe("RC0805FR-0710KL");
+    expect(obj.description).toBe("10 kΩ 0805 resistor");
+    expect(obj.brand).toEqual({ "@type": "Brand", name: "YAGEO" });
+    expect(obj.category).toBe("Passive / resistor");
+    expect(obj.url).toBe("https://x.test/parts/abc");
+    expect(obj.subjectOf).toEqual({
+      "@type": "CreativeWork",
+      name: "Datasheet",
+      url: "https://x.test/ds.pdf",
+    });
+  });
+
+  it("omits optional fields (description/category/url/datasheet) when absent", () => {
+    const obj = productJsonLd({
+      mpn: "X",
+      manufacturer: "ACME",
+      description: null,
+      category: null,
+      url: "https://x.test/parts/x",
+      datasheetUrl: null,
+    }) as Record<string, unknown>;
+    expect("description" in obj).toBe(false);
+    expect("category" in obj).toBe(false);
+    expect("subjectOf" in obj).toBe(false);
+    expect(obj.brand).toEqual({ "@type": "Brand", name: "ACME" });
+  });
+});
 
 describe("courseJsonLd", () => {
   it("emits a schema.org Course with the One Thousand Drones provider", () => {
