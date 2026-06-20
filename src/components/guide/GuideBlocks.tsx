@@ -364,6 +364,10 @@ function BomTableBlock({
           ))}
         </tbody>
       </table>
+      {/* Compliance (load-bearing): the freshness "prices as of" line + this
+          DigiKey attribution keep the cached snapshot display inside the API
+          User Agreement's "present DigiKey Data on Your Site" grant. Do not
+          remove. See docs/plans/2026-06-19-digikey-compliance-design.md. */}
       {cost.anyPriced ? (
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-panel-border pt-2 font-mono text-xs">
           <span className="text-link-muted">
@@ -379,6 +383,11 @@ function BomTableBlock({
           {oldestChecked ? (
             <span className="text-muted">
               DigiKey prices as of {relativeAge(oldestChecked, new Date())}
+            </span>
+          ) : null}
+          {tableHasDk ? (
+            <span className="w-full text-muted normal-case">
+              Pricing &amp; stock data via DigiKey.
             </span>
           ) : null}
         </div>
