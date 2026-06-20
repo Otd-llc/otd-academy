@@ -19,12 +19,13 @@
 > the load-bearing datasheets from primary sources confirmed every electrical *margin* but
 > found **1 HIGH sourcing + 4 MED part-truth/sourcing + 2 LOW** (see `validation-log.md`
 > Pass 13). Not an electrical redesign — **documentation corrections + one MPN swap**.
-> **(c) Part-truth corrections — FOLDED 2026-06-19** (verified direct from the C2843785 PDF):
-> XINGLIGHT V1 abs-max `−0.5…+5.5 V absolute` (not VDD+5.5), VDD `3.5–7.5 V`, 74AHCT125 tpd
-> `≤10 ns` + SCLS264R, RES "≥100 µs" note dropped. **STILL OWED (sourcing — owner approval):**
-> **(a)** U3 `SN74AHCT125D` is **obsolete** → `SN74AHCT125DR`; **(b)** D1 UMW→STMicro (ripples
-> to l1-01) — both teed up in `scripts/_fix-l103-sourcing.ts` (dry-run; not yet executed).
-> Then a fresh design-stage **dry sweep (Pass 14)** earns the gate.
+> **ALL Pass-13 findings now RESOLVED 2026-06-19:** **(c)** part-truth corrected + folded
+> (XINGLIGHT V1 abs-max `−0.5…+5.5 V absolute`, VDD `3.5–7.5 V`, 74AHCT125 tpd `≤10 ns` + SCLS264R,
+> RES "≥100 µs" note dropped) — verified direct from the C2843785 PDF; **(a)** U3 →
+> **`SN74AHCT125DR`** (library Part + bom.csv); **(b)** D1 → **STMicroelectronics** (shared Part —
+> also updated l1-01's BOM + reference BOM.csv; UMW kept as alt). **Pass 14** (math/net) clean;
+> **Pass 15** dry sweep confirms the design-stage gate. `[S]`/`[L]` audits (footprint↔pinout,
+> fab-DRU/ERC) + the F10-4 DOUT-VOH bring-up residual remain owed at their phases, by design.
 
 | | |
 | --- | --- |
@@ -206,8 +207,8 @@ Worst-case (min/max/temperature), not typical.
 | --- | --- | --- | --- |
 | U1 | Espressif **ESP32-S3-WROOM-1-N16R2** | Reused from L1.01 (validated). | (verified in L1.01) |
 | U2 | Richtek **RT9080-33GJ5** | Reused; **linear** LDO (P-MOSFET pass → Iin≈Iout). | (verified; P5 confirmed) |
-| D1 | UMW **USBLC6-2SC6** | Reused — USB ESD. | (verified in L1.01) |
-| U3 | TI **SN74AHCT125D** (SOIC-14) | NEW. HCT/TTL inputs accept 3.3 V, drive ~5 V; canonical NeoPixel shifter. Pinout: **7=GND, 14=VCC**; gate 1 used. | pinout, VIH/VIL/VOH(over-temp)/tpd, abs-max **(verified Pass 5)** |
+| D1 | STMicroelectronics **USBLC6-2SC6** | Reused — USB ESD (P13-5: STMicro primary/multi-distributor; UMW clone = alt). | (verified in L1.01) |
+| U3 | TI **SN74AHCT125DR** (SOIC-14) | NEW. HCT/TTL inputs accept 3.3 V, drive ~5 V; canonical NeoPixel shifter. Pinout: **7=GND, 14=VCC**; gate 1 used. (DR = T&R/active; bare D obsolete — P13-4.) | pinout, VIH/VIL/VOH(over-temp)/tpd, abs-max **(verified Pass 5; tpd Pass 13)** |
 | LED3 | XINGLIGHT **XL-5050RGBC-WS2812B** (5050) | NEW. Digikey-orderable WS2812B-compatible pixel. **Datasheet OBTAINED** (LCSC C2843785, rev 2024-ish): pinout **1=VDD / 2=DO / 3=GND / 4=DI**; **VDD 3.5–7.5 V** (P13-2); VIH 0.7·VDD, VIL 0.3·VDD; **logic-input abs-max V1 = −0.5…+5.5 V (absolute)** (P13-3); VOUT(port) 7 V; IOL1 12 mA; ESD 2 kV HBM; RES ≥80 µs. **DOUT VOH NOT specified** (→ F10-4 residual). | ✅ Pass 11; **VDD range + V1 abs-max corrected Pass 13** (read direct from the C2843785 PDF) — exact string `XINGLIGHT` / `XL-5050RGBC-WS2812B` |
 | D2 | Littelfuse **SMAJ5.0A** (SMA) | NEW. Uni TVS across 5V_EXT — clamps 12 V over-injection (RK10) + reverse (forward-conducts, protects C10, RK9) + caps the DATA back-feed (RK11). **VRWM 5.0 V / VBR 6.4 V min / VC ~9.2 V**; **I_R ≈ 800 µA @5 V (budgeted, F10-3)**; recommend regulated 5V_EXT ≤5.25 V. | VRWM/VBR/VC, SMA solderable |
 | D3 | Nexperia **PESD5V0S1BA** (SOD-323) | NEW. 5 V bidirectional ESD diode on J4.DATA→GND — protects the exposed data pin (RK13) + absorbs coupled transients (RK15). **NOT low-cap: 35 pF typ / 45 pF max** — but R8·C ≈ 21 ns ≪ the ~200–300 ns WS2812 high time, so the edge survives; chosen for **SOD-323 solderability + clamp**, not low-C (F10-2). | VRWM 5 V, C 35/45 pF, VC ~14 V |
@@ -288,7 +289,7 @@ Core — **6 items only** (no flags):
   ($2.30) dominate the overage. `targetCost` null (F3). Owner-accept the overage or
   value-engineer the terminals at freeze.
 - **New parts to create BEFORE import (strict `(mfr, mpn)` match — exact strings) — 8:**
-  1. Texas Instruments **SN74AHCT125D** (SOIC-14)
+  1. Texas Instruments **SN74AHCT125DR** (SOIC-14)
   2. XINGLIGHT **XL-5050RGBC-WS2812B** (5050) — ✅ string confirmed + datasheet obtained
   3. TE Connectivity **282837-3** (J4)
   4. TE Connectivity **282837-2** (J5)

@@ -31,7 +31,7 @@ Lifecycle = ACTIVE for all. Datasheet URL optional (links provided where confide
 
 | # | Manufacturer | MPN | Description (suggested) | Datasheet | Category (pick closest leaf) |
 | --- | --- | --- | --- | --- | --- |
-| 1 | `Texas Instruments` | `SN74AHCT125D` | Quad bus buffer, 3-state, HCT/TTL inputs — 3.3→5 V level shifter, SOIC-14 | ti.com/lit/ds/symlink/sn74ahct125.pdf | Logic / buffer-line-driver |
+| 1 | `Texas Instruments` | `SN74AHCT125DR` | Quad bus buffer, 3-state, HCT/TTL inputs — 3.3→5 V level shifter, SOIC-14 (DR = T&R/active; bare D obsolete — P13-4) | ti.com/lit/ds/symlink/sn74ahct125.pdf | Logic / buffer-line-driver |
 | 2 | `XINGLIGHT` | `XL-5050RGBC-WS2812B` | Addressable RGB LED, WS2812B-compatible, integrated IC, 5050 | LCSC C2843785 (see validation-log) | LED / addressable RGB |
 | 3 | `TE Connectivity` | `282837-3` | 3-pos 5.08 mm PCB screw terminal block (strip out), THT | te.com (282837 series) | Connector / terminal block |
 | 4 | `TE Connectivity` | `282837-2` | 2-pos 5.08 mm PCB screw terminal block (5 V injection), THT | te.com (282837 series) | Connector / terminal block |

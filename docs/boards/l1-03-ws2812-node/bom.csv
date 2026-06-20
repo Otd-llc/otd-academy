@@ -4,7 +4,7 @@ C11,Samsung Electro-Mechanics,CL21A475KAQNNNE,1,0.10,,,4.7uF VBUS bulk (NEW, PI-
 "C2,C3,C7,C8,C9",Samsung Electro-Mechanics,CL21B104KBCNNNC,5,,,,0.1uF decoupling: C2/C3 module + C7 EN (core) + C8 shifter VCC + C9 pixel VDD
 "C5,C6",Würth Elektronik,885012207103,2,,,,1uF LDO in/out (core)
 C10,Panasonic,EEU-FR1C102,1,0.30,,,1000uF/16V radial - strip inrush bulk at injection terminal; ~10x20mm tall keep-out (NEW)
-D1,UMW,USBLC6-2SC6,1,,,,USB ESD array (core)
+D1,STMicroelectronics,USBLC6-2SC6,1,,USBLC6-2SC6,UMW,USB ESD array (core); STMicro primary (multi-distributor) + UMW clone alt — P13-5
 D2,Littelfuse,SMAJ5.0A,1,0.30,,,uni TVS across 5V_EXT at J5 - over-voltage/reverse clamp + bounds DATA back-feed (NEW, RK10/RK11/RK9)
 D3,Nexperia,PESD5V0S1BA,1,0.15,,,5V bidirectional ESD diode on J4 DATA->GND - exposed data-pin protection (NEW, RK13/RK15); 35-45pF (NOT low-cap) but R8*C~21ns << WS2812 pulse; chosen for SOD-323 solderability
 F1,Littelfuse,1206L050YR,1,0.64,0ZCJ0050FF2G,Bel Fuse,PTC polyfuse 0.5A hold (core)
@@ -23,4 +23,4 @@ TP1,Keystone Electronics,5010,1,,,,3V3 test point red (core)
 TP2,Keystone Electronics,5011,1,,,,GND test point black (core)
 U1,Espressif Systems,ESP32-S3-WROOM-1-N16R2,1,6.32,,,ESP32-S3 module (core, reused)
 U2,Richtek,RT9080-33GJ5,1,0.28,,,3.3V/600mA linear LDO (core, reused)
-U3,Texas Instruments,SN74AHCT125D,1,0.40,SN74AHCT125N,Texas Instruments,quad bus buffer level shifter SOIC-14; alt = PDIP-14 (NEW)
+U3,Texas Instruments,SN74AHCT125DR,1,0.40,SN74AHCT125N,Texas Instruments,quad bus buffer level shifter SOIC-14; DR (T&R, active) — bare D was obsolete/Marketplace P13-4; alt = PDIP-14 (NEW)

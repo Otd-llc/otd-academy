@@ -14,16 +14,13 @@
 
 ## Action items (decisions, before re-attesting #5)
 
-1. **U3 `SN74AHCT125D` → consider `SN74AHCT125DR`.** The bare `D` (tube) MPN resolves on
-   DigiKey to a **Marketplace/Rochester listing flagged "no longer manufactured"**; the
-   active, deeply-stocked SOIC-14 part is the **`DR`** (tape-reel) suffix. *If changed:* new
-   `(mfr, mpn)` → create the part + update bom.csv + re-categorize (strict-match).
-2. **D1 `UMW USBLC6-2SC6` → consider STMicro `USBLC6-2SC6` as primary.** UMW = Youtai
-   (Chinese house-brand clone); DigiKey *does* stock the UMW part, but it's **DigiKey-sole-
-   source** in the West (Mouser/Newark carry the **STMicro** original). Speccing canonical
-   **STMicroelectronics USBLC6-2SC6** as primary (Active, ~$0.08, deep multi-distributor
-   stock) + UMW as alt removes both the clone and single-distributor risk. **Reused L1.01
-   core part — this also applies to l1-01-wroom-breakout.**
+1. ✅ **DONE (2026-06-19) — U3 `SN74AHCT125D` → `SN74AHCT125DR`.** Confirmed obsolete (TI's own
+   page: "no longer in production"; P13-4). Library Part MPN updated D→DR + bom.csv patched
+   (`SN74AHCT125N` PDIP kept as 2nd source). Strict-match now resolves to the active T&R part.
+2. ✅ **DONE (2026-06-19) — D1 `UMW USBLC6-2SC6` → `STMicroelectronics USBLC6-2SC6`.** UMW = Youtai
+   (Chinese house-brand clone), DigiKey-sole-source; ST is multi-distributor (P13-5). Shared
+   library Part swapped UMW→ST (UMW kept as alt); **also repointed l1-01-wroom-breakout's BOM +
+   reference BOM.csv** (Josh's "swap everywhere"). ⚠ ST 17 V/5 A ≠ some UMW 15 V/6 A — confirm at buy.
 3. **D3 `PESD5V0S1BA,115`** — DigiKey currently **backorder**; in stock at Farnell/Arrow.
    Order the **`,115`** variant (NOT `-QF` factory-not-accepting / `-Q` automotive).
 4. **LED3 XINGLIGHT** — only Western path is DigiKey **Marketplace** (3rd-party from XINGLIGHT);
@@ -37,8 +34,8 @@
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | ☐ | U1 | Espressif Systems | ESP32-S3-WROOM-1-N16R2 | Active | DK, Mouser | in stock | ~$6.13–6.32 | — |
 | ☐ | U2 | Richtek | RT9080-33GJ5 | Active | DK, Mouser, Newark | in stock (verify) | ~$0.30–0.50 (est) | verify live stock/price; can run thin |
-| ☐ | U3 | Texas Instruments | SN74AHCT125D | Active (`DR`); **`D` tube = Marketplace/"no longer mfd"** | DK, Mouser, Newark | in stock (`DR` deep) | ~$0.46 | **switch to `SN74AHCT125DR`?** (item 1) |
-| ☐ | D1 | UMW | USBLC6-2SC6 | Active | **DigiKey only (UMW)**; ST elsewhere | DK in stock | ~$0.10–0.15 | **house-brand clone, DK-sole-source — spec STMicro?** (item 2) |
+| ☐ | U3 | Texas Instruments | SN74AHCT125DR | Active (T&R, deep) | DK, Mouser, Newark | in stock (deep) | ~$0.46 | ✅ fixed D→DR (item 1) |
+| ☐ | D1 | STMicroelectronics | USBLC6-2SC6 | Active | DK, Mouser, Newark | multi-distributor | ~$0.08–0.15 | ✅ swapped UMW→ST (item 2); UMW = alt |
 | ☐ | D2 | Littelfuse | SMAJ5.0A | Active | DK, Mouser, Newark | deep | ~$0.25–0.50 | — (widely 2nd-sourced) |
 | ☐ | D3 | Nexperia | PESD5V0S1BA | Active | DK, Mouser, Newark, Arrow | **DK backorder**; Farnell/Arrow in stock | ~$0.30–0.45 | **DK backorder; use `,115`** (item 3) |
 | ☐ | F1 | Littelfuse | 1206L050YR | Active | DK, Mouser, Newark | in stock | ~$0.40–0.48 | — |

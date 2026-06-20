@@ -7,9 +7,9 @@
 | | |
 | --- | --- |
 | **Slug** | `l1-03-ws2812-node` |
-| **Status** | `Pass 13 — NOT dry; part-truth corrections FOLDED (2026-06-19), sourcing owed`. The fresh-eyes pass found **1 HIGH sourcing + 4 MED + 2 LOW**; no electrical-concept change. **FOLDED + consistency-checked:** the 4 part-truth corrections (P13-1 tpd/SCLS264R, P13-2 VDD 3.5–7.5 V, P13-3 V1 abs-max −0.5…+5.5 V, P13-6 RES note) — verified direct from the C2843785 PDF. **STILL OWED (audit 10, owner approval):** U3 `SN74AHCT125D`→`DR` (obsolete) + D1 UMW→STMicro (shared, ripples to l1-01) — teed up in `scripts/_fix-l103-sourcing.ts` (dry-run-verified: U3 = l1-03-only, D1 repoints l1-01+l1-03). **Pass 14** (independent math/arithmetic/net re-derivation) = **CLEAN** — every margin re-derived positive, C5 confirmed 1 µF, no electrical findings open. The **only** thing keeping the gate open is the sourcing execution; once U3/D1 swap + bom.csv patch land, a single full-sweep dry pass closes it. |
-| **Passes run** | 14 |
-| **Last dry pass** | Pass 12 superseded by Pass 13 (material findings). **Pass 14 clean for math/physics/net**; the closing full design-stage dry sweep is owed after the sourcing swap. |
+| **Status** | `Pass 15 — design-stage DRY (re-achieved); gate MET`. Pass 13 (independent fresh eyes) re-opened the gate with 1 HIGH + 4 MED + 2 LOW; **all are now resolved**: part-truth corrections folded (P13-1/2/3/6, verified from the C2843785 PDF), **U3 `SN74AHCT125D`→`SN74AHCT125DR`** (obsolete fix) + **D1 UMW→STMicroelectronics** (shared — l1-01 BOM repointed too) applied to the library + bom.csv. Pass 14 (math/net) clean; **Pass 15** full consistency dry-sweep = **zero new findings**. **Design-stage `[D]` audits all clean — the gate is (re-)met.** Still owed by phase-staging (F7, NOT design-stage blockers): footprint↔pinout `[S]` at schematic, fab-DRU + VBUS⟂5V_EXT ERC `[L]` at layout, F10-4 DOUT-VOH at bring-up. **`DESIGN_VALIDATION` ticks (esp. #5 in-stock buy-confirm) + the BOM freeze remain Josh's.** |
+| **Passes run** | 15 |
+| **Last dry pass** | **Pass 15** (design-stage — zero new material findings, after the Pass-13 fold + sourcing swap). |
 
 ### Pass 10 — DRY-SWEEP of the folded design (2 fresh reviewers: electrical + consistency)
 
@@ -179,15 +179,36 @@ re-derivation. **Gate still NOT closed** — only because the **sourcing fixes (
 not yet executed**. Once they run + bom.csv is patched, a single full-sweep dry pass closes the
 design-stage gate. No electrical findings remain open (the F10-4 DOUT-VOH residual is bring-up `[L]`, by design).
 
+### Pass 15 — design-stage DRY sweep after the Pass-13 fold + sourcing swap (2026-06-19)
+
+All Pass-13 findings resolved; full consistency sweep over design.md + bom.csv + the worklist docs.
+
+- **Part-truth (P13-1/2/3/6):** folded (Pass 13 fold) — grep-clean of stale `9–22 ns` / `VDD+5.5` /
+  `3.5–5.5 V` / `≥100 µs` assertions; only the citations that document each correction remain.
+- **Sourcing (P13-4/P13-5):** **EXECUTED** — `scripts/_fix-l103-sourcing.ts --confirm --include-d1`
+  updated the library: U3 → **`SN74AHCT125DR`** (TI), D1 → **`STMicroelectronics` USBLC6-2SC6**
+  (shared part; l1-01's BomLine repointed too — Josh's "swap everywhere"). Confirmed via the parts
+  library (U3 = SN74AHCT125DR/TI, D1 = USBLC6-2SC6/STMicroelectronics). **bom.csv patched** (l1-03
+  U3+D1; l1-01 reference BOM.csv D1) + the parts-creation checklist + the F12 stock worklist synced.
+- **Consistency:** no bare `SN74AHCT125D` and no UMW-primary remain in the import-source bom.csv
+  files (the bare-D hits left are the historical Pass-13/Pass-2.5 records + the now-✅ worklist).
+  refDes/qty unchanged (8 NEW rows; import-valid); the §7 6-item checklist intact.
+
+**Verdict: DRY (design-stage), zero new material findings.** With 15 passes run and the design-stage
+dry pass re-achieved after the fold+swap, **every `[D]` audit is clean — the gate is met.** The board's
+parts/BOM are sound as-built. `[S]`/`[L]` audits + the DOUT-VOH bring-up residual stay owed at their
+phases (F7), and the `DESIGN_VALIDATION` attestations (#5 in-stock buy-confirm via `bom-stock-verification.md`)
++ the BOM freeze are Josh's honest sign-off.
+
 ## Gate (Definition of done — all must hold before any part/BOM/revision)
 
 - [x] Requirements traced · pins accounted + sequencing proven (Pass 4)
-- [~] Every number worst-case-proven (Pass 3/5/7/11) · parts datasheet-verified (Pass 5/11) — **but Pass 13 found 3 mis-stated part-truth numbers** (XINGLIGHT DIN abs-max +5.5 V *absolute* not VDD+5.5; XINGLIGHT VDD 3.5–7.5 V not 5.5; 74AHCT125 tpd) → **corrections owed (audit 5)**; **footprint cross-check `[S]`-staged** (Pass 6, schematic)
+- [x] Every number worst-case-proven (Pass 3/5/7/11/**14**) · parts datasheet-verified (Pass 5/11/**13**) — the 3 Pass-13 part-truth corrections (XINGLIGHT V1 abs-max −0.5…+5.5 V absolute; VDD 3.5–7.5 V; 74AHCT125 tpd/SCLS264R) **folded + verified from the C2843785 PDF**; **footprint cross-check `[S]`-staged** (Pass 6, schematic)
 - [x] Power integrity proven (Pass 7) · every failure mode mitigated-or-accepted (Pass 8, RK10–RK17)
-- [~] Every part hand-buildable (Pass 2/9) + sourceable, exact import strings (Pass 2/11) — **but Pass 13 (audit 10) found U3 `SN74AHCT125D` OBSOLETE (→ `DR`) + D1 UMW→STMicro** → **MPN fixes owed; DV#5 stays un-attested (F12)**
+- [x] Every part hand-buildable (Pass 2/9) + sourceable, exact import strings (Pass 2/11/**13**) — Pass-13 sourcing fixes **applied**: U3 → `SN74AHCT125DR`, D1 → STMicroelectronics (library + bom.csv). *(DV#5 in-stock buy-confirm via `bom-stock-verification.md` is Josh's honest attestation — separate from this engineering proof.)*
 - [x] Layout constraints captured (Pass 9) · teachable (Pass 9) · consistent (Pass 11/12) · pipeline-conformant (Pass 3)
 - [x] Every applicable conditional audit run (none fire — no flags) · every risk de-risked or scheduled
-- [~] **≥ 10 passes run (13)** — but **Pass 13 (independent fresh eyes) was NOT dry** (1 HIGH sourcing + 4 MED + 2 LOW). The Pass-12 dry is **superseded**; a fresh design-stage dry sweep (**Pass 14**) is owed after the Pass-13 fold + U3 MPN fix.
+- [x] **≥ 10 passes run (15)** AND a **design-stage dry pass re-achieved at Pass 15** (zero new findings, after the independent Pass-13 re-pass found + drove resolution of 1 HIGH + 4 MED + 2 LOW).
 - [ ] *Owed at schematic/layout (F7 phase-staging):* footprint↔symbol↔pinout `[S]` (Pass 6) · fab-DRU / VBUS⟂5V_EXT ERC `[L]` · the F10-4 **DOUT-VOH cross-domain residual** confirmed at bring-up
 
 ---

@@ -2,7 +2,7 @@
 "C1","1","10 µF ±10% 16 V X5R MLCC (3V3 bulk)","Samsung Electro-Mechanics","CL21A106KOQNNNE","0805","https://media.digikey.com/pdf/Data%20Sheets/Samsung%20PDFs/CL_Series_MLCC_ds.pdf","ACTIVE"
 "C2,C3,C7","3","0.1 µF ±10% 50 V X7R MLCC (decoupling)","Samsung Electro-Mechanics","CL21B104KBCNNNC","0805","https://media.digikey.com/pdf/Data%20Sheets/Samsung%20PDFs/CL_Series_MLCC_ds.pdf","ACTIVE"
 "C5,C6","2","1 µF ±10% 50 V X7R MLCC (LDO in/out)","Würth Elektronik","885012207103","0805","https://www.we-online.com/components/products/datasheet/885012207103.pdf","ACTIVE"
-"D1","1","USBLC6-2 low-cap ESD array (USB data + VBUS clamp)","UMW","USBLC6-2SC6","SOT-23-6","https://www.st.com/resource/en/datasheet/usblc6-2.pdf","ACTIVE"
+"D1","1","USBLC6-2 low-cap ESD array (USB data + VBUS clamp)","STMicroelectronics","USBLC6-2SC6","SOT-23-6","https://www.st.com/resource/en/datasheet/usblc6-2.pdf","ACTIVE"
 "F1","1","PTC resettable fuse 0.5 A hold / 1 A trip, 6 V (VBUS)","Littelfuse","1206L050YR","1206","https://m.littelfuse.com/~/media/electronics/datasheets/resettable_ptcs/littelfuse_ptc_1206l_datasheet.pdf.pdf","ACTIVE"
 "J1","1","USB Type-C 2.0 receptacle, 24P SMD R/A (sink)","GCT","USB4110-GF-A","USB-C 24P SMT R/A","https://gct.co/files/drawings/usb4110.pdf","ACTIVE"
 "J2,J3","2","1×40 breakaway header 2.54 mm (snap to 1×22 GPIO breakout)","Sullins Connector Solutions","PRPC040SAAN-RC","THT 1x22 2.54 mm","https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/386/xRxCzzzSxxN-RC_ST_11635-B.pdf","ACTIVE"
