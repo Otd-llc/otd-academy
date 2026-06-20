@@ -41,6 +41,7 @@ describe("refreshAvailability", () => {
       inStock: false,
       lifecycle: "Active",
       productUrl: "https://www.digikey.com/x",
+      partNumber: "311-10.0KCRCT-ND",
     });
 
     // Scope to the throwaway part ONLY — never touch real library rows on the

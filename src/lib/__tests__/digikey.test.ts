@@ -22,7 +22,34 @@ describe("normalizeDkProduct", () => {
       inStock: true,
       lifecycle: "Active",
       productUrl: "https://www.digikey.com/x",
+      partNumber: null,
     });
+  });
+
+  test("picks the lowest-MOQ variation's DigiKey part number (Cut Tape for learners)", () => {
+    const snap = normalizeDkProduct(
+      {
+        ManufacturerProductNumber: "RC0805FR-0710KL",
+        QuantityAvailable: 50000,
+        UnitPrice: 0.1,
+        ProductStatus: { Status: "Active" },
+        ProductVariations: [
+          { DigiKeyProductNumber: "311-10.0KCRTR-ND", MinimumOrderQuantity: 5000, PackageType: { Name: "Tape & Reel (TR)" } },
+          { DigiKeyProductNumber: "311-10.0KCRCT-ND", MinimumOrderQuantity: 1, PackageType: { Name: "Cut Tape (CT)" } },
+          { DigiKeyProductNumber: "311-10.0KCRDKR-ND", MinimumOrderQuantity: 1, PackageType: { Name: "Digi-Reel®" } },
+        ],
+      },
+      "RC0805FR-0710KL",
+    );
+    expect(snap.partNumber).toBe("311-10.0KCRCT-ND");
+  });
+
+  test("no variations → partNumber null", () => {
+    const snap = normalizeDkProduct(
+      { ManufacturerProductNumber: "X", QuantityAvailable: 1, UnitPrice: 1 },
+      "X",
+    );
+    expect(snap.partNumber).toBeNull();
   });
 
   test("zero stock → inStock false", () => {

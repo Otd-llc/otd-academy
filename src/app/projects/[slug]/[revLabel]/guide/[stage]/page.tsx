@@ -430,6 +430,8 @@ export default async function GuideCardPage({
             dkInStock: true,
             dkLifecycle: true,
             dkCheckedAt: true,
+            dkUnitPriceCents: true,
+            dkPartNumber: true,
           },
         },
       },
@@ -449,6 +451,8 @@ export default async function GuideCardPage({
       dkInStock: l.part.dkInStock,
       dkLifecycle: l.part.dkLifecycle,
       dkCheckedAt: l.part.dkCheckedAt,
+      dkUnitPriceCents: l.part.dkUnitPriceCents,
+      dkPartNumber: l.part.dkPartNumber,
     }));
   }
 

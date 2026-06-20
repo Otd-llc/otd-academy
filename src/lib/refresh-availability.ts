@@ -111,6 +111,7 @@ export async function refreshAvailability(args: RefreshArgs): Promise<RefreshRes
             dkInStock: snap.inStock,
             dkLifecycle: snap.lifecycle,
             dkProductUrl: snap.productUrl,
+            dkPartNumber: snap.partNumber,
             dkCheckedAt: now,
           },
         });

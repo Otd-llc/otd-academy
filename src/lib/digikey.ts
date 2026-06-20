@@ -9,6 +9,27 @@ export interface DkSnapshot {
   inStock: boolean | null;
   lifecycle: string | null;
   productUrl: string | null;
+  // DigiKey part number of the lowest-MOQ variation (typically Cut Tape, MOQ 1),
+  // the right one for learners buying singles. Used to build FastAdd cart URLs
+  // (which key on DigiKey part numbers, not MPNs). Null when no variation present.
+  partNumber: string | null;
+}
+
+// Pick the variation a learner should buy: lowest MinimumOrderQuantity (Cut Tape
+// over reels), falling back to the first variation. Returns its DigiKey part
+// number, or null when the product carries no variations.
+function pickDkPartNumber(variations: unknown): string | null {
+  if (!Array.isArray(variations) || variations.length === 0) return null;
+  const withMoq = variations.filter(
+    (v) => v && typeof v.DigiKeyProductNumber === "string",
+  );
+  if (withMoq.length === 0) return null;
+  const best = withMoq.reduce((a, b) => {
+    const am = typeof a.MinimumOrderQuantity === "number" ? a.MinimumOrderQuantity : Infinity;
+    const bm = typeof b.MinimumOrderQuantity === "number" ? b.MinimumOrderQuantity : Infinity;
+    return bm < am ? b : a;
+  });
+  return best.DigiKeyProductNumber as string;
 }
 
 export function digikeyConfigured(): boolean {
@@ -24,6 +45,7 @@ export function normalizeDkProduct(p: any, _mpn: string): DkSnapshot {
       inStock: null,
       lifecycle: null,
       productUrl: null,
+      partNumber: null,
     };
   }
   const qty = typeof p.QuantityAvailable === "number" ? p.QuantityAvailable : null;
@@ -37,6 +59,7 @@ export function normalizeDkProduct(p: any, _mpn: string): DkSnapshot {
       p.ProductStatus?.Status ??
       (typeof p.ProductStatus === "string" ? p.ProductStatus : null),
     productUrl: p.ProductUrl ?? null,
+    partNumber: pickDkPartNumber(p.ProductVariations),
   };
 }
 
