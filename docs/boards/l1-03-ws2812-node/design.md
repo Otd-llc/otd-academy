@@ -14,6 +14,16 @@
 > VBUS⟂5V_EXT ERC `[L]` at layout, and the F10-4 DOUT-VOH residual at bring-up. The
 > `DESIGN_VALIDATION` ticks remain **Josh's honest human attestations** — the log earns
 > them, but he signs them.
+>
+> ⚠️ **Pass 13 (independent fresh-eyes re-pass, 2026-06-19) RE-OPENED the gate.** Re-reading
+> the load-bearing datasheets from primary sources confirmed every electrical *margin* but
+> found **1 HIGH sourcing + 4 MED part-truth/sourcing + 2 LOW** (see `validation-log.md`
+> Pass 13). Not an electrical redesign — **documentation corrections + one MPN swap** — but
+> the parts/BOM are **not final** until folded: **(a)** U3 `SN74AHCT125D` is **obsolete** →
+> `SN74AHCT125DR`; **(b)** D1 UMW→STMicro (ripples to l1-01); **(c)** correct the XINGLIGHT
+> DIN abs-max (`+5.5 V absolute`, not VDD+5.5), the XINGLIGHT VDD range (3.5–7.5 V — owner-
+> verify the OCR), the 74AHCT125 tpd row + SCLS264R citation, and drop the unproven RES
+> "≥100 µs" inconsistency note. Then a fresh design-stage **dry sweep (Pass 14)** earns the gate.
 
 | | |
 | --- | --- |

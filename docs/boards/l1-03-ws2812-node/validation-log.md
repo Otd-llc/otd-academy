@@ -7,9 +7,9 @@
 | | |
 | --- | --- |
 | **Slug** | `l1-03-ws2812-node` |
-| **Status** | `Pass 12 DRY (design-stage)` — ≥10 passes + dry achieved; **8 new parts may now be created**. Footprint↔pinout `[S]` + fab-DRU `[L]` owed at schematic/layout (F7). |
-| **Passes run** | 12 |
-| **Last dry pass** | **Pass 12** (design-stage — zero new material findings) |
+| **Status** | `Pass 13 — NOT dry (independent re-pass)`. A fresh-eyes pass (datasheets re-read from primary sources) found **1 HIGH sourcing (U3 obsolete MPN) + 4 MED part-truth/sourcing + 2 LOW**. No electrical-concept change — every load-bearing *margin* re-verified correct — but **audit 5 (part-truth) needs corrections and audit 10 (sourcing) is not clean**. **Design-stage gate QUALIFIED / re-opened** pending the fold + U3 MPN fix → a fresh dry sweep (Pass 14) is owed before parts are treated as final / the BOM is frozen. |
+| **Passes run** | 13 |
+| **Last dry pass** | **Pass 12** (superseded — Pass 13 found material findings; a new design-stage dry pass is owed) |
 
 ### Pass 10 — DRY-SWEEP of the folded design (2 fresh reviewers: electrical + consistency)
 
@@ -89,15 +89,63 @@ staging, legitimately): footprint↔symbol↔pinout `[S]` (Pass 6, at schematic)
 the VBUS⟂5V_EXT ERC `[L]` (at layout), and the **DOUT-VOH cross-domain residual** (F10-4)
 confirmed by measurement at bring-up.
 
+### Pass 13 — Independent fresh-eyes re-pass: part-truth + sourcing, datasheets re-read from PRIMARY sources (2026-06-19)
+
+A reviewer who did **not** run Passes 1–12 re-attacked the two highest-leverage
+audits — **part-truth (audit 5)** and **sourcing/lifecycle (audit 10)** — and
+re-verified every load-bearing number against the **primary** datasheet (TI
+SCLS264R; Littelfuse/AOS SMAJ table; Nexperia PESD5V0S1BA; USB-2.0 §7.2.4.1; the
+XINGLIGHT LCSC C2843785 PDF read via `pdftotext`, not a model summary). The
+protocol's "verify every load-bearing finding against the actual datasheet before
+folding it" rule was applied to the *reviewer's own* findings too.
+
+**Independently CONFIRMED correct (no change — strengthens the record):**
+74AHCT125 **VOH 3.8 V over-temp @ I_OH −8 mA, VCC 4.5 V** (and 3.94 V @ 25 °C) ✓,
+VIH 2.0 / VIL 0.8 V flat over VCC ✓, OE active-low ✓, SOIC-14 pin 7 = GND / 14 = VCC ✓,
+abs-max VCC/VI −0.5…7 V. · SMAJ5.0A **VRWM 5.0 ✓, VBR 6.4 V min @ 10 mA ✓, VC 9.2 V @ 43.5 A ✓,
+I_R 800 µA @ VRWM ✓** (nuance: this is the SMAJ family's *worst* leakage and a hard
+max at the 5.0 V stand-off — only ~1.4 V min-VBR margin above a 5 V rail; **independently
+supports the ≤5.25 V supply rule**). · PESD5V0S1BA **35 pF typ / 45 pF max ✓** (genuinely
+NOT low-cap), VRWM 5 V ✓, bidirectional ✓, VC 10 V@1A / 14 V@12A ✓. · USB-2.0 **10 µF
+VBUS-cap ceiling ✓** (nuance: the normative limit is inrush *charge* ~50 µC; 10 µF is the
+equivalent-capacitance proxy — the design's "keep total bulk < 10 µF" is conservative &
+spec-aligned). · XINGLIGHT **VIH 0.7·VDD / VIL 0.3·VDD ✓, RES ≥ 80 µs ✓, 4-pin pinout
+1=VDD/2=DO/3=GND/4=DI ✓, and DOUT VOH genuinely UNSPECIFIED ✓** (the F10-4 cross-domain
+residual correctly stays open to bring-up).
+
+**NEW / material findings:**
+
+| # | Lens (audit) | Sev | Finding (verified vs primary datasheet) | Recommended disposition |
+| --- | --- | --- | --- | --- |
+| **P13-4** | Sourcing (10) | **HIGH** | **U3 `SN74AHCT125D` is OBSOLETE.** TI's own part page: *"SN74AHCT125D is no longer in production."* The bare-`D` (tube) is retired; the active, deep-stock SOIC-14 is **`SN74AHCT125DR`** (T&R). `bom.csv` L26 **and the already-created library part** carry the dead `D` → strict import + a real buyer route to a DigiKey *Marketplace* listing for a part TI no longer makes. Sharpens F12 item 1 (from "consider" → **obsolete, must-fix**). | **OWNER ACTION (parts + BOM):** change U3 → **`SN74AHCT125DR`** in the library part *and* bom.csv (strict-match re-create); keep `SN74AHCT125N` (PDIP-14, still Active) as the 2nd source. **Audit 10 is NOT clean** until done. |
+| **P13-3** | Part-truth (5) | **MED** | **XINGLIGHT DIN logic-input abs-max is `−0.5 … +5.5 V` ABSOLUTE**, not the `−0.5 … VDD+5.5 V` that Pass 11 folded as "verified" + called *looser than Worldsemi*. The reviewer's own skepticism (logged Pass 11) was right: the "+VDD" was a misread. At VDD 5 V → only +0.5 V headroom (same as Worldsemi). **Re-proof:** the onboard pixel's DIN is driven ≤ 5 V by the shifter → within −0.5…5.5 V (no functional violation); RK8's external-strip bound was always conservative and did NOT rely on this number → unchanged. Only the *record* was wrong. | **FOLD:** correct §4 / F8 / the Pass-11 note to `−0.5…+5.5 V absolute`; delete the "clone is looser" reasoning. (OCR-messy clone DS — owner sanity-check against the PDF when folding.) |
+| **P13-2** | Part-truth (5) | **MED** | **XINGLIGHT VDD range reads `3.5–7.5 V`** (abs-max Vin 3.0–7.5 V) in the LCSC C2843785 PDF, not the `3.5–5.5 V` in §3/§4 (the 5.5 V looks borrowed from Worldsemi WS2812B). No functional change (onboard VDD = VBUS = 5 V), but the stated range is wrong. | **FOLD:** correct the VDD range. **Owner verify against the PDF** — the clone datasheet OCR is noisy (5.5 vs 7.5 is exactly the kind of digit OCR flips); confirm before folding. |
+| **P13-1** | Part-truth (5) | **MED** | **74AHCT125 tpd "≈ 9–22 ns typ, ≤ 30 ns max" is not traceable to the TI SN74AHCT125.** Actual: typ ≈ 3.6–6.1 ns, **max 8.5 ns in-phase / 10 ns worst-case** (CL 50 pF, VCC 5 V±0.5, full temp). The *conclusion* (tpd ≪ the 1.25 µs bit → negligible skew) is unaffected — the part is faster than stated. Also the cited doc **"SCLS266" → actual "SCLS264R"**. | **FOLD:** correct the §3 tpd row (typ ~5 ns / max ~10 ns) + the citation. |
+| **P13-5** | Sourcing (10) | MED | **D1 `UMW USBLC6-2SC6`** is a Chinese house-brand clone, **DigiKey-sole-source** in the West; canonical **STMicro USBLC6-2SC6** is multi-distributor (Mouser/Newark) — and **not spec-identical** (ST 17 V/5 A vs some UMW listings 15 V/6 A). **Reused L1.01 core part → this also applies to `l1-01-wroom-breakout`.** Sharpens F12 item 2. | **OWNER ACTION:** spec **STMicroelectronics** as primary, UMW as alt (ripples to l1-01's BOM + the shared library part). |
+| **P13-6** | Part-truth (5) | LOW | The §3 note that the XINGLIGHT RES is "**internally inconsistent** (≥ 80 µs table / ≥ 100 µs note b)" could **not** be reproduced — the independent read found **only 80 µs** (no ≥ 100 µs note). The ≥ 300 µs firmware latch is safe regardless. | **FOLD:** drop the "≥ 100 µs note b / internally inconsistent" clause; keep RES ≥ 80 µs + the 300 µs latch. |
+| **P13-7** | Footprint↔pinout (6, `[S]`) | LOW/note | XINGLIGHT publishes **two variants with different pinouts** (a 4-pin = design's 1=VDD/2=DO/3=GND/4=DI, and a 6-pin = 1=DIN/2=GND/3=NC/4=VDD/5=NC/6=DO). Design matches the 4-pin (C2843785). | **`[S]` note:** confirm the footprinted/ordered variant is the **4-pin C2843785** (ties F12 item 4's `-S`/`RGBWC` variant-collision caution). |
+
+**Verdict: NOT DRY (design-stage).** The board's electrical *concept* survives the
+independent attack intact — every load-bearing margin (VOH floor, TVS clamp & leakage,
+ESD cap & RC, USB ceiling, VIH/VIL, the open DOUT-VOH residual) re-verified correct
+against primary datasheets. But two audits are not closed: **audit 10 (sourcing)** —
+U3 carries an **obsolete** MPN (must → `DR`) and D1 should move to ST (both already
+implied by F12, now confirmed/sharpened against the manufacturers' own pages); and
+**audit 5 (part-truth)** — three XINGLIGHT/74AHCT125 numbers were mis-stated as
+"verified." These are **documentation corrections + one MPN swap, not an electrical
+redesign**. After the fold + the U3 fix, run a fresh design-stage dry sweep (**Pass 14**)
+before the parts/BOM are treated as final. (Consistent with the board's own state: F12
+had already un-attested DV#5; Pass 13 confirms why and adds the part-truth corrections.)
+
 ## Gate (Definition of done — all must hold before any part/BOM/revision)
 
 - [x] Requirements traced · pins accounted + sequencing proven (Pass 4)
-- [x] Every number worst-case-proven (Pass 3/5/7/11) · parts datasheet-verified (Pass 5/11 — incl. LED3 XINGLIGHT); **footprint cross-check `[S]`-staged** (Pass 6, schematic)
+- [~] Every number worst-case-proven (Pass 3/5/7/11) · parts datasheet-verified (Pass 5/11) — **but Pass 13 found 3 mis-stated part-truth numbers** (XINGLIGHT DIN abs-max +5.5 V *absolute* not VDD+5.5; XINGLIGHT VDD 3.5–7.5 V not 5.5; 74AHCT125 tpd) → **corrections owed (audit 5)**; **footprint cross-check `[S]`-staged** (Pass 6, schematic)
 - [x] Power integrity proven (Pass 7) · every failure mode mitigated-or-accepted (Pass 8, RK10–RK17)
-- [x] Every part hand-buildable (Pass 2/9) + sourceable, exact import strings (Pass 2/11 — 8 new + reused)
+- [~] Every part hand-buildable (Pass 2/9) + sourceable, exact import strings (Pass 2/11) — **but Pass 13 (audit 10) found U3 `SN74AHCT125D` OBSOLETE (→ `DR`) + D1 UMW→STMicro** → **MPN fixes owed; DV#5 stays un-attested (F12)**
 - [x] Layout constraints captured (Pass 9) · teachable (Pass 9) · consistent (Pass 11/12) · pipeline-conformant (Pass 3)
 - [x] Every applicable conditional audit run (none fire — no flags) · every risk de-risked or scheduled
-- [x] **≥ 10 passes AND a dry pass achieved** — 12 passes, **Pass 12 design-stage DRY**
+- [~] **≥ 10 passes run (13)** — but **Pass 13 (independent fresh eyes) was NOT dry** (1 HIGH sourcing + 4 MED + 2 LOW). The Pass-12 dry is **superseded**; a fresh design-stage dry sweep (**Pass 14**) is owed after the Pass-13 fold + U3 MPN fix.
 - [ ] *Owed at schematic/layout (F7 phase-staging):* footprint↔symbol↔pinout `[S]` (Pass 6) · fab-DRU / VBUS⟂5V_EXT ERC `[L]` · the F10-4 **DOUT-VOH cross-domain residual** confirmed at bring-up
 
 ---
