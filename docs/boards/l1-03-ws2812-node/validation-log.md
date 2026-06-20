@@ -7,7 +7,7 @@
 | | |
 | --- | --- |
 | **Slug** | `l1-03-ws2812-node` |
-| **Status** | `Pass 13 — NOT dry (independent re-pass)`. A fresh-eyes pass (datasheets re-read from primary sources) found **1 HIGH sourcing (U3 obsolete MPN) + 4 MED part-truth/sourcing + 2 LOW**. No electrical-concept change — every load-bearing *margin* re-verified correct — but **audit 5 (part-truth) needs corrections and audit 10 (sourcing) is not clean**. **Design-stage gate QUALIFIED / re-opened** pending the fold + U3 MPN fix → a fresh dry sweep (Pass 14) is owed before parts are treated as final / the BOM is frozen. |
+| **Status** | `Pass 13 — NOT dry; part-truth corrections FOLDED (2026-06-19), sourcing owed`. The fresh-eyes pass found **1 HIGH sourcing + 4 MED + 2 LOW**; no electrical-concept change. **FOLDED + consistency-checked:** the 4 part-truth corrections (P13-1 tpd/SCLS264R, P13-2 VDD 3.5–7.5 V, P13-3 V1 abs-max −0.5…+5.5 V, P13-6 RES note) — verified direct from the C2843785 PDF. **STILL OWED (audit 10, owner approval):** U3 `SN74AHCT125D`→`DR` (obsolete) + D1 UMW→STMicro (shared, ripples to l1-01) — teed up in `scripts/_fix-l103-sourcing.ts` (dry-run-verified: U3 = l1-03-only, D1 repoints l1-01+l1-03). A fresh design-stage **dry sweep (Pass 14)** is owed once those execute, before the BOM is frozen. |
 | **Passes run** | 13 |
 | **Last dry pass** | **Pass 12** (superseded — Pass 13 found material findings; a new design-stage dry pass is owed) |
 
@@ -136,6 +136,25 @@ implied by F12, now confirmed/sharpened against the manufacturers' own pages); a
 redesign**. After the fold + the U3 fix, run a fresh design-stage dry sweep (**Pass 14**)
 before the parts/BOM are treated as final. (Consistent with the board's own state: F12
 had already un-attested DV#5; Pass 13 confirms why and adds the part-truth corrections.)
+
+### Pass 13 — part-truth corrections FOLDED (2026-06-19)
+
+The 4 part-truth findings were re-verified **direct from the XINGLIGHT C2843785 PDF**
+(`pdftotext`, not OCR-guess) and folded into `design.md`:
+- **P13-1** §3 tpd row → `≈ 3.6–6.1 ns typ, ≤10 ns max` + cite **SCLS264R** (was "9–22 ns/≤30 ns").
+- **P13-2** §4 LED3 row → **VDD 3.5–7.5 V** (datasheet "Power input voltage: 3.5-7.5V", line 114).
+- **P13-3** §4 LED3 + RK8 + F8 → **V1 abs-max −0.5…+5.5 V absolute** (datasheet line 196), and the
+  Pass-11 "looser than Worldsemi" reasoning corrected (it's the *same* +0.5 V headroom).
+- **P13-6** §3 reset row → dropped the unfound "≥100 µs note b / internally inconsistent" claim;
+  RES ≥80 µs only (datasheet TRST line 288).
+
+Consistency re-checked: no stale `9–22 ns` / `VDD+5.5` / `3.5–5.5 V` / `≥100 µs` assertions remain
+(remaining hits are the citations that document each correction). **No new findings from the fold.**
+
+**Sourcing (P13-4 U3, P13-5 D1) NOT yet executed** — owner approval (D1 ripples to l1-01). Script
+`scripts/_fix-l103-sourcing.ts` dry-run confirmed: **U3** referenced only by `l1-03/v1:U3` (safe);
+**D1** referenced by `l1-01-wroom-breakout/v1:D1` **and** `l1-03/v1:D1` (shared — swap repoints both).
+A full design-stage **dry sweep (Pass 14)** is owed after the sourcing swap + bom.csv patch.
 
 ## Gate (Definition of done — all must hold before any part/BOM/revision)
 
