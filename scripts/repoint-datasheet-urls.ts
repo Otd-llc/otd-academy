@@ -7,8 +7,10 @@
 // DATABASE_URL ([[prisma-migrate-prod]]).
 //
 // ⚠️ `.env.local` DATABASE_URL is PROD. This script rewrites production part data.
+// Dry-run by default; pass --confirm to execute.
 //
-//   Run: pnpm exec tsx scripts/repoint-datasheet-urls.ts
+//   Dry run:  pnpm exec tsx scripts/repoint-datasheet-urls.ts
+//   Execute:  pnpm exec tsx scripts/repoint-datasheet-urls.ts --confirm
 import { config as loadEnv } from "dotenv";
 loadEnv({ path: ".env.local" });
 
@@ -37,11 +39,27 @@ const REPOINTS: Record<string, string> = {
 };
 
 async function main() {
+  const confirm = process.argv.includes("--confirm");
   const { db } = await import("@/lib/db");
   try {
     const host = (process.env.DATABASE_URL ?? "").replace(/.*@/, "").replace(/\/.*/, "");
     console.log(`Target DB host: ${host}`);
+
+    if (!confirm) {
+      for (const [mpn, datasheetUrl] of Object.entries(REPOINTS)) {
+        const n = await db.part.count({ where: { mpn } });
+        if (n === 0) console.warn(`no part with mpn=${mpn}`);
+        else console.log(`would repoint ${mpn} (${n} part(s)) → ${datasheetUrl}`);
+      }
+      console.log("\nDRY RUN — no changes. Re-run with --confirm to execute.");
+      return;
+    }
+
     for (const [mpn, datasheetUrl] of Object.entries(REPOINTS)) {
+      // Rollback record: log the prior value(s) before overwriting so the run log
+      // captures what to revert to.
+      const before = await db.part.findMany({ where: { mpn }, select: { id: true, datasheetUrl: true } });
+      for (const p of before) console.log(`rollback ${mpn} part=${p.id} old=${p.datasheetUrl ?? "(null)"}`);
       const res = await db.part.updateMany({ where: { mpn }, data: { datasheetUrl } });
       if (res.count === 0) console.warn(`No part with mpn=${mpn} — skipped.`);
       else console.log(`Repointed ${mpn} → ${datasheetUrl}`);
