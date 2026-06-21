@@ -15,6 +15,7 @@ export interface RefreshArgs {
 export interface RefreshResult {
   checked: number;
   changed: number;
+  failed: number;
 }
 
 interface PriorPart {
@@ -96,41 +97,53 @@ export async function refreshAvailability(args: RefreshArgs): Promise<RefreshRes
 
   let checked = 0;
   let changed = 0;
+  let failed = 0;
 
   for (const group of chunk(parts, BATCH)) {
     await Promise.all(
+      // Each part is isolated: a single DigiKey error (429/500/timeout) or a bad
+      // row must NOT reject Promise.all and abort the rest of the nightly sweep.
+      // Catch per part, count it, and continue — the part keeps its prior snapshot.
       group.map(async (part) => {
-        const snap = await client.searchByMpn(part.mpn);
-        const event = classifyChange(part, snap, now);
+        try {
+          const snap = await client.searchByMpn(part.mpn);
+          const event = classifyChange(part, snap, now);
 
-        await db.part.update({
-          where: { id: part.id },
-          data: {
-            dkStockQty: snap.stockQty,
-            dkUnitPriceCents: snap.unitPriceCents,
-            dkInStock: snap.inStock,
-            dkLifecycle: snap.lifecycle,
-            dkProductUrl: snap.productUrl,
-            dkPartNumber: snap.partNumber,
-            dkCheckedAt: now,
-          },
-        });
-        checked++;
-
-        if (event) {
-          await db.partAvailabilityEvent.create({
+          await db.part.update({
+            where: { id: part.id },
             data: {
-              partId: part.id,
-              kind: event.kind,
-              fromValue: event.fromValue,
-              toValue: event.toValue,
+              dkStockQty: snap.stockQty,
+              dkUnitPriceCents: snap.unitPriceCents,
+              dkInStock: snap.inStock,
+              dkLifecycle: snap.lifecycle,
+              dkProductUrl: snap.productUrl,
+              dkPartNumber: snap.partNumber,
+              dkCheckedAt: now,
             },
           });
-          changed++;
+          checked++;
+
+          if (event) {
+            await db.partAvailabilityEvent.create({
+              data: {
+                partId: part.id,
+                kind: event.kind,
+                fromValue: event.fromValue,
+                toValue: event.toValue,
+              },
+            });
+            changed++;
+          }
+        } catch (e) {
+          failed++;
+          console.error(
+            `refreshAvailability: ${part.mpn} failed —`,
+            e instanceof Error ? e.message : e,
+          );
         }
       }),
     );
   }
 
-  return { checked, changed };
+  return { checked, changed, failed };
 }

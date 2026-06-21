@@ -64,4 +64,31 @@ describe("refreshAvailability", () => {
     const events = await db.partAvailabilityEvent.findMany({ where: { partId: part.id } });
     expect(events.some((e) => e.kind === "WENT_OOS")).toBe(true);
   });
+
+  test("isolates a per-part failure — one DigiKey error doesn't abort the rest of the sweep", async () => {
+    const seedUser = await db.user.findFirstOrThrow();
+    const goodMpn = `WD-OK-${Date.now()}`;
+    const badMpn = `WD-ERR-${Date.now()}`;
+    const good = await db.part.create({ data: { manufacturer: TEST_MFR, mpn: goodMpn, description: "ok", createdById: seedUser.id } });
+    const bad = await db.part.create({ data: { manufacturer: TEST_MFR, mpn: badMpn, description: "err", createdById: seedUser.id } });
+    createdPartIds.push(good.id, bad.id);
+
+    // Client throws for the bad MPN (a 429/500 in the wild), succeeds for the good one.
+    const client: DkClient = {
+      searchByMpn: async (mpn: string) => {
+        if (mpn === badMpn) throw new Error("DigiKey search 500");
+        return { matched: true, stockQty: 42, unitPriceCents: 100, inStock: true, lifecycle: "Active", productUrl: null, partNumber: "Z-ND" };
+      },
+    };
+
+    // Must NOT throw, and must still process the good part.
+    const result = await refreshAvailability({ db, client, limit: 500, now: new Date(), partIds: [good.id, bad.id] });
+    expect(result.checked).toBe(1);
+    expect(result.failed).toBe(1);
+
+    const g = await db.part.findUniqueOrThrow({ where: { id: good.id } });
+    expect(g.dkStockQty).toBe(42); // good part written
+    const b = await db.part.findUniqueOrThrow({ where: { id: bad.id } });
+    expect(b.dkCheckedAt).toBeNull(); // failed part untouched (keeps prior state)
+  });
 });

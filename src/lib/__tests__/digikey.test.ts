@@ -211,4 +211,40 @@ describe("searchByMpn", () => {
     const snap = await client.searchByMpn("X");
     expect(snap.stockQty).toBe(7); // keyword fallback, no throw
   });
+
+  test("does NOT wipe keyword price/stock when ProductDetails 200s but omits those fields", async () => {
+    // Regression: a sparse-but-OK ProductDetails (price nested under variations,
+    // QuantityAvailable absent) must not overwrite good keyword stock/price with
+    // null on the nightly run. Per-field fallback keeps the keyword values.
+    const keywordBody = {
+      Products: [
+        {
+          ManufacturerProductNumber: "X",
+          QuantityAvailable: 7, // good keyword stock
+          UnitPrice: 2, // good keyword price ($2 → 200c)
+          ProductStatus: { Status: "Active" },
+          ProductVariations: [{ DigiKeyProductNumber: "296-XYZ-ND", MinimumOrderQuantity: 1 }],
+        },
+      ],
+    };
+    const detailsBody = {
+      Product: {
+        ManufacturerProductNumber: "X",
+        // NO QuantityAvailable, NO UnitPrice, NO ProductStatus — sparse response
+        ProductUrl: "https://www.digikey.com/fresh",
+      },
+    };
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(tokenResponse())
+      .mockResolvedValueOnce(new Response(JSON.stringify(keywordBody), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(detailsBody), { status: 200, headers: { "content-type": "application/json" } }));
+
+    const client = await makeDigikeyClient();
+    const snap = await client.searchByMpn("X");
+    expect(snap.stockQty).toBe(7); // kept, NOT wiped to null
+    expect(snap.unitPriceCents).toBe(200); // kept, NOT wiped to null
+    expect(snap.lifecycle).toBe("Active"); // kept from keyword
+    expect(snap.partNumber).toBe("296-XYZ-ND"); // kept
+    expect(snap.productUrl).toBe("https://www.digikey.com/fresh"); // adopted from ProductDetails (it had this)
+  });
 });

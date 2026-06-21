@@ -9,6 +9,7 @@
 import * as Popover from "@radix-ui/react-popover";
 import Link from "next/link";
 import { EyeIcon, ExternalLinkIcon } from "@/components/icons";
+import { httpUrlOrNull } from "@/lib/safe-url";
 
 export function PartMpnLink({
   partId,
@@ -66,9 +67,9 @@ export function PartMpnLink({
               </p>
             ) : null}
             <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-xs uppercase tracking-wider">
-              {datasheetUrl ? (
+              {httpUrlOrNull(datasheetUrl) ? (
                 <a
-                  href={datasheetUrl}
+                  href={httpUrlOrNull(datasheetUrl)!}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
                   className="inline-flex items-center gap-1 text-signal-blue hover:text-command-gold"
