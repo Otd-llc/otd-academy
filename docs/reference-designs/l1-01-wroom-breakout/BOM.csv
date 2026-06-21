@@ -1,5 +1,5 @@
 "RefDes","Qty","Value / Description","Manufacturer","MPN","Footprint","Datasheet","Lifecycle"
-"C1","1","10 µF ±10% 16 V X5R MLCC (3V3 bulk)","Samsung Electro-Mechanics","CL21A106KOQNNNE","0805","https://media.digikey.com/pdf/Data%20Sheets/Samsung%20PDFs/CL_Series_MLCC_ds.pdf","ACTIVE"
+"C1","1","10 µF ±10% 25 V X5R MLCC (3V3 bulk; DK-in-stock sub for Samsung CL21A106KOQNNNE, DK-OOS 2026-06-21; same 0805 footprint)","Murata Electronics","GRM21BR61E106KA73L","0805","https://www.murata.com/en-us/products/productdetail?partno=GRM21BR61E106KA73L","ACTIVE"
 "C2,C3,C7","3","0.1 µF ±10% 50 V X7R MLCC (decoupling)","Samsung Electro-Mechanics","CL21B104KBCNNNC","0805","https://media.digikey.com/pdf/Data%20Sheets/Samsung%20PDFs/CL_Series_MLCC_ds.pdf","ACTIVE"
 "C5,C6","2","1 µF ±10% 50 V X7R MLCC (LDO in/out)","Würth Elektronik","885012207103","0805","https://www.we-online.com/components/products/datasheet/885012207103.pdf","ACTIVE"
 "D1","1","USBLC6-2 low-cap ESD array (USB data + VBUS clamp)","STMicroelectronics","USBLC6-2SC6","SOT-23-6","https://www.st.com/resource/en/datasheet/usblc6-2.pdf","ACTIVE"
