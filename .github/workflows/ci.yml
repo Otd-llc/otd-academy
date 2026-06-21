@@ -53,9 +53,12 @@ jobs:
       # Reset the seeded fixtures to a KNOWN state before tests. The ci-test
       # branch is shared + persistent, so earlier runs that advance demo data
       # (boards ASSEMBLED -> BROUGHT_UP, etc.) leave drift behind and break the
-      # DB-backed smoke tests (m9a-checkpoint, load-gate-context). The seed is
+      # DB-backed smoke tests (load-gate-context, m8c-checkpoint). The seed is
       # idempotent (upserts; resets board status) and does NOT touch the branch's
       # KiCad lib data, so this restores the fixtures without regenerating them.
+      # NOTE: the suite now isolates DB tests onto per-file branches when
+      # TEST_DATABASE_POOL is set (vitest.env.ts); CI leaves it unset, so tests run
+      # serially against this single ci-test branch — correct, just not parallel.
       - run: pnpm db:seed
         env:
           DATABASE_URL: ${{ secrets.NEON_TEST_DATABASE_URL }}
