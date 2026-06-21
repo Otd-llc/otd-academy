@@ -123,12 +123,23 @@ export async function makeDigikeyClient(): Promise<DkClient> {
         if (!dres.ok) return keywordSnap;
         const djson = (await dres.json()) as { Product?: any };
         const detailed = normalizeDkProduct(djson.Product, mpn);
-        // Prefer ProductDetails' fresh price/stock, but keep the keyword-resolved
-        // DigiKey part number if ProductDetails didn't yield one (it can omit /
-        // reshape ProductVariations) — losing it breaks the FastAdd cart link.
-        return detailed.matched
-          ? { ...detailed, partNumber: detailed.partNumber ?? keywordSnap.partNumber }
-          : keywordSnap;
+        if (!detailed.matched) return keywordSnap;
+        // Prefer ProductDetails' fresh value PER FIELD, but fall back to the
+        // keyword snapshot for any field ProductDetails didn't yield. A 200-OK
+        // ProductDetails response can be sparse (e.g. price nested under
+        // ProductVariations[].StandardPricing, QuantityAvailable absent), which
+        // would make `detailed` "matched" with null stock/price — adopting that
+        // wholesale would WIPE good keyword price/stock on the nightly run.
+        // Per-field `??` is never worse than the keyword snapshot.
+        return {
+          matched: true,
+          stockQty: detailed.stockQty ?? keywordSnap.stockQty,
+          unitPriceCents: detailed.unitPriceCents ?? keywordSnap.unitPriceCents,
+          inStock: detailed.inStock ?? keywordSnap.inStock,
+          lifecycle: detailed.lifecycle ?? keywordSnap.lifecycle,
+          productUrl: detailed.productUrl ?? keywordSnap.productUrl,
+          partNumber: detailed.partNumber ?? keywordSnap.partNumber,
+        };
       } catch {
         return keywordSnap;
       }

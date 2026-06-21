@@ -40,4 +40,43 @@ describe("buildFastAddUrl", () => {
       buildFastAddUrl([{ dkPartNumber: null, quantity: 1, refDes: "X1" }]),
     ).toBeNull();
   });
+
+  test("skips qty <= 0 and non-integer qty lines (cart + cost safety)", () => {
+    const url = buildFastAddUrl([
+      { dkPartNumber: "A-ND", quantity: 0, refDes: "C1" },
+      { dkPartNumber: "B-ND", quantity: -1, refDes: "C2" },
+      { dkPartNumber: "C-ND", quantity: 1.5, refDes: "C3" },
+      { dkPartNumber: "D-ND", quantity: 2, refDes: "C4" },
+    ]);
+    const u = new URL(url!);
+    expect(u.searchParams.get("part1")).toBe("D-ND"); // only the valid line, renumbered to 1
+    expect(u.searchParams.has("part2")).toBe(false);
+  });
+
+  test("large BOM stays under the URL ceiling by dropping WHOLE lines (never truncating a param)", () => {
+    const lines = Array.from({ length: 80 }, (_, i) => ({
+      dkPartNumber: `2345-PARTNUMBER-${String(i).padStart(4, "0")}-ND`,
+      quantity: i + 1,
+      refDes: `U${i},V${i},W${i}`,
+    }));
+    const url = buildFastAddUrl(lines)!;
+    expect(url).not.toBeNull();
+    expect(url.length).toBeLessThanOrEqual(1700);
+
+    // Parses cleanly (no value cut mid-%-escape) and every partN has a matching
+    // qtyN — i.e. no line was split; whole lines were dropped instead.
+    const u = new URL(url);
+    const nums = [...u.searchParams.keys()]
+      .filter((k) => k.startsWith("part"))
+      .map((k) => Number(k.slice(4)));
+    expect(nums.length).toBeGreaterThan(0);
+    for (const n of nums) {
+      expect(u.searchParams.get(`part${n}`)).toMatch(/^2345-PARTNUMBER-\d{4}-ND$/); // value intact, not truncated
+      expect(u.searchParams.get(`qty${n}`)).not.toBeNull();
+    }
+    // Contiguous part1..partN, and fewer than all 80 fit (so lines were dropped).
+    const max = Math.max(...nums);
+    expect(max).toBeLessThan(80);
+    expect(new Set(nums).size).toBe(max); // 1..max with no gaps
+  });
 });

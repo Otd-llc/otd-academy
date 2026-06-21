@@ -28,18 +28,35 @@ export function buildFastAddUrl(
 ): string | null {
   const usable = lines.filter(
     (l): l is FastAddLine & { dkPartNumber: string } =>
-      typeof l.dkPartNumber === "string" && l.dkPartNumber.length > 0,
+      typeof l.dkPartNumber === "string" &&
+      l.dkPartNumber.length > 0 &&
+      Number.isInteger(l.quantity) &&
+      l.quantity > 0,
   );
   if (usable.length === 0) return null;
 
+  // Add lines one at a time, keeping the FULL URL under MAX_URL_LEN. A naive
+  // `.slice(MAX_URL_LEN)` would cut mid-parameter (e.g. `&qty12=10` → `&qty1`, or
+  // mid-`%2C`), silently producing a malformed / partial cart. Instead, drop WHOLE
+  // lines once the next one wouldn't fit — a short, correct cart beats a broken one.
+  // utm_source is set first so it's always present and counted in the budget.
   const params = new URLSearchParams();
-  usable.forEach((l, i) => {
-    const n = i + 1;
-    params.set(`part${n}`, l.dkPartNumber);
-    params.set(`qty${n}`, String(l.quantity));
-    if (l.refDes) params.set(`cref${n}`, l.refDes);
-  });
   params.set("utm_source", opts.utmSource ?? "otd-academy");
+  let n = 0;
+  for (const l of usable) {
+    const k = n + 1;
+    params.set(`part${k}`, l.dkPartNumber);
+    params.set(`qty${k}`, String(l.quantity));
+    if (l.refDes) params.set(`cref${k}`, l.refDes);
+    if (`${FASTADD_URL}?${params.toString()}`.length > MAX_URL_LEN) {
+      params.delete(`part${k}`);
+      params.delete(`qty${k}`);
+      params.delete(`cref${k}`);
+      break;
+    }
+    n = k;
+  }
+  if (n === 0) return null; // not even one line fits the budget
 
-  return `${FASTADD_URL}?${params.toString()}`.slice(0, MAX_URL_LEN);
+  return `${FASTADD_URL}?${params.toString()}`;
 }

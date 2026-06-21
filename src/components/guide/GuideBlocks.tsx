@@ -39,6 +39,7 @@ import { assessPartAvailability, availabilityBadge } from "@/lib/part-availabili
 import { bomTableHasDkData, liveBomCost } from "@/lib/live-bom-cost";
 import { relativeAge } from "@/lib/relative-time";
 import { formatUsd } from "@/lib/format-money";
+import { httpUrlOrNull } from "@/lib/safe-url";
 import type { RenderBounds } from "@/lib/schemas/part-asset";
 
 // A partModel block's resolved 3D render, keyed by MPN. The card route presigns
@@ -340,9 +341,9 @@ function BomTableBlock({
                 </>
               ) : null}
               <td data-label="Datasheet">
-                {r.datasheetUrl ? (
+                {httpUrlOrNull(r.datasheetUrl) ? (
                   <a
-                    href={r.datasheetUrl}
+                    href={httpUrlOrNull(r.datasheetUrl)!}
                     target="_blank"
                     rel="noopener noreferrer nofollow"
                     className="inline-flex items-center gap-1 text-signal-blue underline decoration-dotted underline-offset-2 hover:text-command-gold"
