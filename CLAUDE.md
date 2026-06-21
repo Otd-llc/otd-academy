@@ -24,10 +24,15 @@ lines, or revisions before then. New boards start from `docs/boards/_template/`
 
 ## A few load-bearing facts (verify before relying on them)
 
-- **`.env.local` `DATABASE_URL` is PROD.** Seed scripts, `pnpm db:seed`, and the
-  vitest suite all mutate the production Neon DB. **Never run two vitest processes at
-  once** (it corrupts the shared `esp32-sensor-breakout` fixture; `pnpm db:seed`
-  restores). New DB-backed tests must use throwaway rows.
+- **`.env.local` `DATABASE_URL` is PROD.** Seed scripts and `pnpm db:seed` mutate the
+  production Neon DB — be careful with those.
+- **Tests run against an isolated Neon branch pool, NOT prod** (since 2026-06-21).
+  `.env.test.local` (gitignored) supplies `TEST_DATABASE_POOL`; `pnpm test` parallelizes
+  by leasing a branch per DB-test file (`vitest.env.ts`), so concurrent runs are safe and
+  the suite is ~80s (was ~13 min). **If `.env.test.local` is absent, tests fall back to
+  PROD** — so keep it present. Refresh the pool branches from prod after schema migrations.
+  New DB-backed tests can use throwaway rows or freely mutate the seed fixture (each file
+  has its own branch clone).
 - **`pnpm` runs via PowerShell, not the Bash tool.** Migrations are hand-authored;
   apply with `pnpm exec prisma migrate deploy` (never `migrate dev`). Restart
   `next dev` after `prisma generate`.
