@@ -1,6 +1,6 @@
-// Vitest global setup — loads .env.local so DB-touching tests get real
-// DATABASE_URL / DIRECT_URL. .env.local is the authoritative env file
-// (no root .env), matching prisma.config.ts.
-import { config as loadEnv } from "dotenv";
+// Vitest worker setup — loads .env.local for service creds and swaps in the
+// isolated test database (TEST_DATABASE_URL) when configured, so DB-touching
+// tests never mutate prod. See vitest.env.ts for precedence.
+import { loadTestEnv } from "./vitest.env";
 
-loadEnv({ path: ".env.local" });
+loadTestEnv();

@@ -1,10 +1,11 @@
 import { defineConfig, configDefaults } from "vitest/config";
-import { config as loadEnv } from "dotenv";
+import { loadTestEnv } from "./vitest.env";
 
-// Load .env.local so this config sees the same env the tests do (vitest.setup.ts
-// also loads it for the workers). In CI there is no .env.local; the workflow sets
-// the env directly (R2_ENABLED=false, no R2_BUCKET / PARTS_MCP_DATABASE_URL).
-loadEnv({ path: ".env.local" });
+// Load .env.local (+ swap in the isolated test DB when configured) so this config
+// sees the same env the tests do; vitest.setup.ts does the same for the workers.
+// In CI there is no .env.local; the workflow sets the env directly (R2_ENABLED=
+// false, no R2_BUCKET / PARTS_MCP_DATABASE_URL, and TEST_DATABASE_URL = ci branch).
+loadTestEnv();
 
 // Gate the live-integration tests on their service env. These exercise REAL R2
 // (PUT/HEAD/presign round-trips) or the read-only MCP role, so they can't run
