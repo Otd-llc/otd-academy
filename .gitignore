@@ -89,3 +89,7 @@ next-env.d.ts
 /docs/plans/2026-06-15-shareable-certificate-card-design.md
 
 /docs/plans/2026-06-15-certificate-design-philosophy.md
+
+# vitest per-worker branch lease locks
+.vitest-branch-locks/
+_worker-map.log

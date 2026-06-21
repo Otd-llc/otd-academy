@@ -1,6 +1,10 @@
-// Vitest worker setup — loads .env.local for service creds and swaps in the
-// isolated test database (TEST_DATABASE_URL) when configured, so DB-touching
-// tests never mutate prod. See vitest.env.ts for precedence.
-import { loadTestEnv } from "./vitest.env";
+// Vitest worker setup (runs per test file, before its imports). Loads service
+// creds, then leases an ISOLATED test-database branch for THIS file and releases
+// it when the file finishes — so DB tests never touch prod and parallel files
+// never share a database. See vitest.env.ts.
+import { afterAll } from "vitest";
+import { loadBaseEnv, leaseTestBranch } from "./vitest.env";
 
-loadTestEnv();
+loadBaseEnv();
+const releaseBranch = leaseTestBranch();
+afterAll(() => releaseBranch());
