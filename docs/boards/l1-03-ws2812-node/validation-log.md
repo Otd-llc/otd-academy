@@ -8,8 +8,8 @@
 | --- | --- |
 | **Slug** | `l1-03-ws2812-node` |
 | **Status** | `Pass 15 — design-stage DRY (re-achieved); gate MET`. Pass 13 (independent fresh eyes) re-opened the gate with 1 HIGH + 4 MED + 2 LOW; **all are now resolved**: part-truth corrections folded (P13-1/2/3/6, verified from the C2843785 PDF), **U3 `SN74AHCT125D`→`SN74AHCT125DR`** (obsolete fix) + **D1 UMW→STMicroelectronics** (shared — l1-01 BOM repointed too) applied to the library + bom.csv. Pass 14 (math/net) clean; **Pass 15** full consistency dry-sweep = **zero new findings**. **Design-stage `[D]` audits all clean — the gate is (re-)met.** Still owed by phase-staging (F7, NOT design-stage blockers): footprint↔pinout `[S]` at schematic, fab-DRU + VBUS⟂5V_EXT ERC `[L]` at layout, F10-4 DOUT-VOH at bring-up. **`DESIGN_VALIDATION` ticks (esp. #5 in-stock buy-confirm) + the BOM freeze remain Josh's.** |
-| **Passes run** | 16 |
-| **Last dry pass** | **Pass 16** (sourcing — 3 DK-stock subs re-validated, BOM 25/25 DK-in-stock; zero new findings). |
+| **Passes run** | 17 |
+| **Last dry pass** | **Pass 16** (sourcing). **Pass 17** = the `[S]` footprint↔symbol↔pinout audit (audit 6) **VERIFIED** for the 9 new parts — DV#3 now evidenced (awaiting Josh's tick). |
 
 ### Pass 10 — DRY-SWEEP of the folded design (2 fresh reviewers: electrical + consistency)
 
@@ -224,6 +224,34 @@ design.md edits are the D3 part identity + its §3 RC row (45 pF→3 pF) + §8 c
 ~$18–19 total, further over the $14–15 target — F10-6 already accepted the overage). Design-stage gate
 **stays met**; `[S]`/`[L]` + DOUT-VOH residual still owed at their phases.
 
+### Pass 17 — Audit 6: footprint ↔ symbol ↔ pinout, `[S]`-VERIFIED (2026-06-21)
+
+The schematic-stage audit that was captured at design and owed at `[S]` (F7). Each of the
+**9 new parts** got a KiCad-10 **standard-library** symbol + footprint (no vendor downloads —
+assigned from the in-DB indexed lib of 22,730 symbols / 15,433 footprints; `scripts/assign-l103-kicad.ts`),
+then verified pad-by-pad (`scripts/_l103-pass6.ts`): **footprint `padCount` = part pin count**, and
+the two ICs' symbol pin maps cross-checked against the datasheet.
+
+| Ref | Symbol | Footprint | pads | pinout check |
+| --- | --- | --- | --- | --- |
+| U3 | `74xx:74AHCT125` | `Package_SO:SOIC-14_3.9x8.7mm_P1.27mm` | 14 ✓ | symbol **7=GND / 14=VCC** = TI datasheet (std 74×125; Pass 5) |
+| LED3 | `LED:WS2812B` | `LED_SMD:LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm` | 4 ✓ | symbol **1=VDD / 2=DOUT / 3=VSS / 4=DIN** = XINGLIGHT datasheet **exactly** (Pass 11) |
+| J4 | `Connector:Screw_Terminal_01x03` | `TerminalBlock_CUI:…TB007-508-03_1x03_P5.08mm_Horizontal` | 3 ✓ | positional (5V/DATA/GND assigned in-schematic) |
+| J5 | `Connector:Screw_Terminal_01x02` | `TerminalBlock_CUI:…TB007-508-02_1x02_P5.08mm_Horizontal` | 2 ✓ | positional |
+| C10 | `Device:C_Polarized` | `Capacitor_THT:CP_Radial_D10.0mm_P5.00mm` | 2 ✓ | polarized (pad1 = +; std convention) |
+| D2 | `Device:D_TVS` | `Diode_SMD:D_SMA` | 2 ✓ | uni-TVS (pad1 = cathode/band; std) |
+| D3 | `Device:D_TVS` | `Diode_SMD:D_SOD-323` | 2 ✓ | bidir part, symmetric (orientation-agnostic) |
+| C11 | `Device:C` | `Capacitor_SMD:C_0805_2012Metric` | 2 ✓ | non-polar |
+| C1 | `Device:C` | `Capacitor_SMD:C_0805_2012Metric` | 2 ✓ | non-polar |
+
+**Verdict: PASS — audit 6 verified at `[S]`.** Two documented `[L]`-residuals (neither blocks): (a) **D3**
+uses the generic `Device:D_TVS` symbol for a *bidirectional* part — electrically fine (symmetric,
+GND-referenced ESD clamp); swap to a bidirectional-TVS symbol only if preferred. (b) **J4/J5** use a
+**generic CUI 5.08 mm** terminal footprint — pitch + pad count correct; the standard lib has no
+TE-282837-specific footprint, so confirm/swap the exact TE body/courtyard at layout. **DV#3
+(footprint↔pinout) is now evidenced** — Josh's honest tick. Still owed: **DV#4 fab-DRU `[L]`** (at layout)
++ the F10-4 DOUT-VOH bring-up residual.
+
 ## Gate (Definition of done — all must hold before any part/BOM/revision)
 
 - [x] Requirements traced · pins accounted + sequencing proven (Pass 4)
@@ -233,7 +261,7 @@ design.md edits are the D3 part identity + its §3 RC row (45 pF→3 pF) + §8 c
 - [x] Layout constraints captured (Pass 9) · teachable (Pass 9) · consistent (Pass 11/12) · pipeline-conformant (Pass 3)
 - [x] Every applicable conditional audit run (none fire — no flags) · every risk de-risked or scheduled
 - [x] **≥ 10 passes run (15)** AND a **design-stage dry pass re-achieved at Pass 15** (zero new findings, after the independent Pass-13 re-pass found + drove resolution of 1 HIGH + 4 MED + 2 LOW).
-- [ ] *Owed at schematic/layout (F7 phase-staging):* footprint↔symbol↔pinout `[S]` (Pass 6) · fab-DRU / VBUS⟂5V_EXT ERC `[L]` · the F10-4 **DOUT-VOH cross-domain residual** confirmed at bring-up
+- [~] *Phase-staged (F7):* footprint↔symbol↔pinout `[S]` **VERIFIED Pass 17** (9 new parts, std-lib symbols/footprints, pad-by-pad) → DV#3 evidenced. **Still owed:** fab-DRU / VBUS⟂5V_EXT ERC `[L]` (at layout) · the F10-4 **DOUT-VOH** residual at bring-up.
 
 ---
 

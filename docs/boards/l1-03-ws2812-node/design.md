@@ -275,7 +275,7 @@ Core — **6 items only** (no flags):
 
 - [ ] **Calc trail recorded** — every value (margins both hops, timing, reset, parasitic, budgets, TVS clamp, decoupling) traces to a source (§3).
 - [ ] **Each IC datasheet-verified** — 74AHCT125 ✓ (Pass 5); RT9080 ✓; **D2 SMAJ5.0A ✓** (Pass 11); **D3 Bourns CDSOD323-T05C ✓** (Pass-16 sub: ~3 pF / SOD-323 / VRWM 5 V / bidir, spec-verified); **LED3 XINGLIGHT ✓ — datasheet obtained** (LCSC C2843785, Pass 11), with the **DOUT-VOH residual** (F10-4) owed to bring-up.
-- [ ] **Footprint ↔ pinout cross-checked** — *schematic-stage* (Pass 6): U3 SOIC-14, LED3 5050, TE terminals, D2 SMA, D3 SOD-323.
+- [ ] **Footprint ↔ pinout cross-checked** — **[S]-VERIFIED Pass 17** (2026-06-21): all 9 new parts assigned KiCad-10 std-lib symbols + footprints, pad-by-pad (padCount=pins; LED3 WS2812 1=VDD/2=DOUT/3=VSS/4=DIN = XINGLIGHT; U3 74AHCT125 7=GND/14=VCC = TI). `[L]`-residuals: D3 generic D_TVS symbol (bidir part, fine); J4/J5 generic CUI 5.08mm footprint (confirm TE body at layout). *Josh's tick.*
 - [ ] **Fab-DRU DRC accounted for** — incl. an **ERC/DRC check that VBUS and 5V_EXT are never joined** (E3 isolation invariant). *Schematic/layout-stage.*
 - [ ] **BOM availability confirmed** — the 8 new parts + reused lines, exact `(mfr, mpn)` strings (§8).
 - [ ] **All top (design-stage) risks de-risked** — RK1–RK4, RK6, RK8–RK11, RK13, RK15 de-risked; RK5/RK7 at build/layout; RK12/RK14/RK16/RK17 accept+document.
