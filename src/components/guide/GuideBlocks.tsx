@@ -27,6 +27,7 @@ import { DIAGRAM_COMPONENTS } from "@/components/guide/diagram-registry";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
 import { CaptureLauncher } from "@/components/guide/CaptureLauncher";
 import { PartMpnLink } from "@/components/guide/PartMpnLink";
+import { YouTubeEmbed } from "@/components/guide/YouTubeEmbed";
 import { buildFastAddUrl } from "@/lib/digikey-cart";
 import {
   affiliateLink,
@@ -1242,6 +1243,22 @@ function GuideBlock({
           blockIndex={index}
           isAdmin={isAdmin}
         />
+      );
+
+    case "youtube":
+      return (
+        <figure className="my-6">
+          <YouTubeEmbed
+            videoId={block.videoId}
+            title={block.title}
+            start={block.start}
+          />
+          {block.caption || block.title ? (
+            <figcaption className="mt-2 text-center font-mono text-xs uppercase tracking-wider text-muted">
+              {block.caption ?? block.title}
+            </figcaption>
+          ) : null}
+        </figure>
       );
 
     case "quiz":
