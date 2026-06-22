@@ -22,12 +22,12 @@ describe("youtube content block", () => {
     expect(r.success).toBe(true);
   });
 
-  it("rejects an empty videoId", () => {
-    const r = contentBlockSchema.safeParse({ type: "youtube", videoId: "", title: "x" });
-    expect(r.success).toBe(false);
+  it("accepts an empty videoId as a 'to be added' placeholder (mirrors image/video)", () => {
+    const r = contentBlockSchema.safeParse({ type: "youtube", videoId: "", title: "" });
+    expect(r.success).toBe(true);
   });
 
-  it("rejects a videoId with URL/path characters (must be a bare id)", () => {
+  it("rejects a NON-empty videoId with URL/path characters (must be a bare id)", () => {
     const r = contentBlockSchema.safeParse({
       type: "youtube",
       videoId: "https://youtu.be/abc",

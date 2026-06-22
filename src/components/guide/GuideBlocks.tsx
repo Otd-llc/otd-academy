@@ -1246,6 +1246,10 @@ function GuideBlock({
       );
 
     case "youtube":
+      // An unfilled embed (empty videoId) renders nothing — mirrors the video
+      // block's empty-src placeholder rule (the Library page has no admin capture
+      // affordance, so there's nothing to show for a not-yet-filled slot).
+      if (!block.videoId) return null;
       return (
         <figure className="my-6">
           <YouTubeEmbed
