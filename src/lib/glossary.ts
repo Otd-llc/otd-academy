@@ -76,6 +76,10 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
     term: "ENIG",
     def: "Electroless Nickel / Immersion Gold — a PCB surface finish: a nickel barrier under a thin gold flash. Flat, solderable, long shelf life, and good for fine-pitch and press-fit; pricier than HASL.",
   },
+  "embodied motor imagery": {
+    term: "Embodied Motor Imagery",
+    def: "The mental rehearsal of deeply-grooved, overtrained procedural movements — the kind forged through thousands of hours of bilateral physical skill — used as a high-signal, low-variance input for brain-computer control.",
+  },
 
   // ── Basic electronics (beginner) ─────────────────────
   refdes: {
@@ -301,6 +305,7 @@ const ALIASES: Record<string, string> = {
   "right-leg-drive": "rld",
   "right leg drive": "rld",
   "wlcsp": "wl-csp",
+  emi: "embodied motor imagery",
   espnow: "esp-now",
   "drc": "drc / gerber",
   "drc/gerber": "drc / gerber",
