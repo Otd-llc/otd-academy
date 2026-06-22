@@ -95,6 +95,24 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     // for clips if absent.
     aspect: z.enum(["16:10", "16:9", "4:3", "1:1", "free"]).optional(),
   }),
+  // youtube — a privacy-enhanced (youtube-nocookie), lazy-loaded embed for the
+  // public Library / marketing surface (the in-build mp4 `video` block stays for
+  // captured footage). Stores ONLY the bare video id (not a URL) — the renderer
+  // builds the youtube-nocookie embed src — so there is no URL-parsing / SSRF
+  // surface and the id can't smuggle query params. `title` is required (iframe
+  // a11y title + default caption). `start` is an optional seconds offset.
+  z.object({
+    type: z.literal("youtube"),
+    videoId: z
+      .string()
+      .trim()
+      .min(1)
+      .max(20)
+      .regex(/^[A-Za-z0-9_-]+$/, "videoId must be a bare YouTube id"),
+    title: z.string().trim().min(1).max(200),
+    caption: z.string().max(200).optional(),
+    start: z.int().nonnegative().optional(),
+  }),
   // quiz — an interactive multiple-choice comprehension check. Client-scored
   // (immediate feedback), and ADDITIVE to the stage work-gate, not a replacement.
   // Each question's `answer` indexes a real option (guarded below); `explain` is
