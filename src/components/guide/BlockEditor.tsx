@@ -655,6 +655,7 @@ function YouTubeBlockEditor({
           id={`${baseId}-start`}
           type="number"
           min={0}
+          step={1}
           value={block.start ?? ""}
           onChange={(e) =>
             onChange({

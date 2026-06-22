@@ -27,6 +27,7 @@ export function YouTubeEmbed({
           src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0${startParam}`}
           title={title}
           loading="lazy"
+          referrerPolicy="strict-origin-when-cross-origin"
           allow="accelerometer; autoplay; encrypted-media; picture-in-picture"
           allowFullScreen
         />
