@@ -1324,23 +1324,29 @@ function GuideBlock({
       // `rel="noopener noreferrer"` for safety) and mark them with an
       // external-link icon; internal root-relative links stay in the same tab.
       const external = /^https?:\/\//.test(block.href);
+      // Wrap in a block element: the link itself is inline-flex, so without a
+      // block wrapper two consecutive sourceRef blocks flow onto the same line
+      // and touch (the parent's space-y-* can't separate inline-level boxes).
+      // The wrapper puts each link on its own line and lets the stack space them.
       return (
-        <a
-          href={block.href}
-          {...(external
-            ? {
-                target: "_blank",
-                rel: "noopener noreferrer",
-                "aria-label": `${block.label} (opens in a new tab)`,
-              }
-            : {})}
-          className="inline-flex items-center gap-1 text-link-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-signal-blue"
-        >
-          {block.label}
-          {external ? (
-            <ExternalLinkIcon className="h-3.5 w-3.5 shrink-0" />
-          ) : null}
-        </a>
+        <div>
+          <a
+            href={block.href}
+            {...(external
+              ? {
+                  target: "_blank",
+                  rel: "noopener noreferrer",
+                  "aria-label": `${block.label} (opens in a new tab)`,
+                }
+              : {})}
+            className="inline-flex items-center gap-1 text-link-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-signal-blue"
+          >
+            {block.label}
+            {external ? (
+              <ExternalLinkIcon className="h-3.5 w-3.5 shrink-0" />
+            ) : null}
+          </a>
+        </div>
       );
     }
 
