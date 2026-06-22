@@ -52,5 +52,8 @@ export function isPublicPath(pathname: string): boolean {
   // authoring surface lives under /admin/library (held back by isAdminOnlyPath's
   // top==="admin" rule), so the whole /library prefix is safe to expose.
   if (top === "library") return true;
+  // The public glossary index — a crawlable reference page (also the resolve
+  // target for DefinedTerm.inDefinedTermSet.url).
+  if (top === "glossary") return true;
   return false;
 }
