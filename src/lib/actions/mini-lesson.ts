@@ -75,8 +75,10 @@ async function replaceRelatedProjects(
 // Creates a DRAFT (published defaults false). The `slug @unique` constraint
 // makes the slug one-per-lesson; we catch P2002 for a friendly duplicate error.
 export async function createMiniLesson(input: unknown) {
-  const data = strictMiniLessonInputSchema.parse(input);
+  // Authorize before touching the input — fail closed on auth (don't even surface
+  // a schema-shape ZodError to an unauthenticated caller).
   const user = await requireAdmin();
+  const data = strictMiniLessonInputSchema.parse(input);
 
   const lesson = await withTxRetry(() =>
     db.$transaction(
@@ -123,12 +125,13 @@ export async function createMiniLesson(input: unknown) {
 // (publish state is owned by publishMiniLesson). Revalidates BOTH the new and
 // the prior slug so a slug rename clears the old URL's cache too.
 export async function saveMiniLesson(input: unknown) {
+  // Authorize first — fail closed on auth before validating/handling input.
+  await requireAdmin();
   const { id, ...rest } = (input ?? {}) as { id?: unknown };
   if (typeof id !== "string" || id === "") {
     throw new Error("saveMiniLesson requires a mini-lesson id.");
   }
   const data = strictMiniLessonInputSchema.parse(rest);
-  await requireAdmin();
 
   const result = await withTxRetry(() =>
     db.$transaction(
