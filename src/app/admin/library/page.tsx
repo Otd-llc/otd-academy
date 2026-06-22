@@ -1,0 +1,95 @@
+// Admin: Library mini-lesson authoring index. Lists every mini-lesson (published
+// + draft) with an edit link each, plus a "New" affordance.
+//
+// Admin-gated two ways: middleware bounces a non-admin off /admin/* (top ===
+// "admin" in isAdminOnlyPath), and `requireAdmin()` here is the authoritative
+// server gate — same pattern as /admin/waitlist.
+import Link from "next/link";
+import { requireAdmin } from "@/lib/auth-helpers";
+import { db } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
+
+function fmtDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+export default async function LibraryAdminPage() {
+  await requireAdmin();
+
+  const lessons = await db.miniLesson.findMany({
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      published: true,
+      updatedAt: true,
+      _count: { select: { relatedProjects: true } },
+    },
+    orderBy: [{ published: "asc" }, { updatedAt: "desc" }],
+  });
+
+  return (
+    <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-4">
+        <h1 className="font-display text-4xl tracking-wider text-white">
+          LIBRARY <span className="text-command-gold">AUTHORING</span>
+        </h1>
+        <span className="font-mono text-xs uppercase tracking-wider text-muted">
+          {lessons.length} {lessons.length === 1 ? "lesson" : "lessons"}
+        </span>
+      </div>
+
+      <p className="mt-3 max-w-2xl font-serif text-sm italic text-muted">
+        Public, gate-less Library mini-lessons — the SEO content moat. Create,
+        edit, and publish here.
+      </p>
+
+      <Link
+        href="/admin/library/new"
+        className="mt-5 inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+      >
+        <span aria-hidden="true">+</span> New mini-lesson
+      </Link>
+
+      {lessons.length === 0 ? (
+        <p className="mt-8 font-mono text-sm uppercase tracking-wider text-muted">
+          No mini-lessons yet.
+        </p>
+      ) : (
+        <ul className="mt-8 space-y-3">
+          {lessons.map((l) => (
+            <li key={l.id} className="glass-card p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <Link
+                  href={`/admin/library/${l.id}`}
+                  className="font-display text-2xl tracking-wide text-white hover:text-command-gold"
+                >
+                  {l.title}
+                </Link>
+                <span
+                  className={
+                    l.published
+                      ? "inline-flex items-center rounded-full border border-command-gold/40 bg-command-gold/10 px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider text-command-gold"
+                      : "inline-flex items-center rounded-full border border-panel-border bg-deep-space px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider text-muted"
+                  }
+                >
+                  {l.published ? "Published" : "Draft"}
+                </span>
+              </div>
+              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+                /library/{l.slug}
+                <span className="text-gray-3">
+                  {" "}
+                  · {l._count.relatedProjects}{" "}
+                  {l._count.relatedProjects === 1 ? "link" : "links"} · updated{" "}
+                  {fmtDate(l.updatedAt)}
+                </span>
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </main>
+  );
+}
