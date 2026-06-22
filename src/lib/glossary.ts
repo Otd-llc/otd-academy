@@ -305,6 +305,10 @@ const ALIASES: Record<string, string> = {
   "right-leg-drive": "rld",
   "right leg drive": "rld",
   "wlcsp": "wl-csp",
+  // NOTE: "EMI" here resolves to "Embodied Motor Imagery" (the BCI moat term),
+  // NOT electromagnetic interference. In EEG-noise / shielding content, write the
+  // term out ("electromagnetic interference") rather than [[EMI]] to avoid the
+  // wrong popover.
   emi: "embodied motor imagery",
   espnow: "esp-now",
   "drc": "drc / gerber",
