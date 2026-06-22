@@ -26,6 +26,7 @@ import { courseJsonLd, breadcrumbJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { ChevronLeftIcon } from "@/components/icons";
 import { STAGE_ORDER, STAGE_LABELS, type StageName } from "@/lib/stages";
 import { SKILL_PATHS, prereqClosure } from "@/lib/skill-paths";
+import { loadProjectMiniLessons } from "@/lib/library/load";
 
 export const dynamic = "force-dynamic";
 
@@ -155,6 +156,11 @@ export default async function CoursePreviewPage({
 
   const trackBlurb = project.track ? TRACK_BLURB[project.track] : null;
   const levelBlurb = project.level ? LEVEL_BLURB[project.level] : null;
+
+  // Inbound spine: free Library explainers tied to this build. Gives a
+  // not-yet-open course page real, indexable value AND passes internal link
+  // equity into the Library cluster.
+  const reading = await loadProjectMiniLessons(project.id);
 
   // Reading access by tier — accurate per course. PUBLIC reads free, FREE needs
   // a (free) account, PREMIUM is a one-time purchase (overview previews free).
@@ -315,6 +321,44 @@ export default async function CoursePreviewPage({
               </p>
             ) : null}
           </section>
+
+          {reading.length > 0 ? (
+            <section>
+              <SectionHead>Learn the concepts now — free</SectionHead>
+              <p className="mt-4 max-w-2xl font-serif text-base leading-relaxed text-muted">
+                The course isn&apos;t open yet — but the ideas behind it are.
+                These free explainers cover the concepts this build puts into
+                practice. No account needed.
+              </p>
+              <ul className="mt-5 grid gap-2 sm:grid-cols-2">
+                {reading.map((l) => (
+                  <li key={l.slug}>
+                    <Link
+                      href={`/library/${l.slug}`}
+                      className="group flex h-full flex-col gap-1 rounded border border-panel-border bg-deep-space/40 px-4 py-3 transition-colors hover:border-command-gold/50"
+                    >
+                      <span className="font-mono text-sm text-gray-1 group-hover:text-command-gold">
+                        {l.title} →
+                      </span>
+                      {l.summary ? (
+                        <span className="font-serif text-xs leading-snug text-muted">
+                          {l.summary}
+                        </span>
+                      ) : null}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 font-mono text-xs uppercase tracking-wider">
+                <Link
+                  href="/library"
+                  className="text-command-gold underline-offset-4 hover:underline"
+                >
+                  Browse the full Library →
+                </Link>
+              </p>
+            </section>
+          ) : null}
 
           <section>
             <SectionHead>The build pipeline</SectionHead>

@@ -1,7 +1,7 @@
 "use client";
 
-// Primary app navigation — Projects / Curriculum (admin) + Courses / Parts (all)
-// + Learn (signed-in only).
+// Primary app navigation — Projects / Curriculum (admin) + Courses / Library /
+// Parts (all) + Learn (signed-in only).
 //
 // A tiny `"use client"` island so it can read `usePathname()` and highlight the
 // active route in `text-command-gold` (the rest stay muted with a gold hover).
@@ -26,6 +26,7 @@ const LINKS = [
   { href: "/", label: "Projects", adminOnly: true },
   { href: "/curriculum", label: "Curriculum", adminOnly: true },
   { href: "/courses", label: "Courses", adminOnly: false },
+  { href: "/library", label: "Library", adminOnly: false },
   { href: "/learn", label: "Learn", adminOnly: false },
   { href: "/parts", label: "Parts", adminOnly: false },
 ] as const;
