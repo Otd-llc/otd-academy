@@ -383,6 +383,28 @@ function runFfmpeg(bin, args) {
   });
 }
 
+// Is NVIDIA NVENC actually usable (GPU present + driver loaded)? The encoder being
+// compiled in doesn't guarantee runtime support, so probe once with a tiny real
+// encode and cache the answer. On a machine without an NVENC-capable GPU this
+// fails cleanly and we stay on the CPU encoder.
+let nvencCache = null;
+async function nvencAvailable(ffmpeg) {
+  if (nvencCache !== null) return nvencCache;
+  try {
+    await runFfmpeg(ffmpeg, [
+      "-hide_banner", "-f", "lavfi",
+      "-i", "color=c=black:s=256x256:r=10:d=0.1",
+      "-c:v", "h264_nvenc", "-f", "null", "-",
+    ]);
+    nvencCache = true;
+    logLine("nvenc: available — GPU (NVENC) encode for export");
+  } catch (e) {
+    nvencCache = false;
+    logLine("nvenc: unavailable, using CPU libx264 — " + (e && e.message ? e.message.slice(0, 140) : ""));
+  }
+  return nvencCache;
+}
+
 // Stitch the ordered clips into one MP4 and hand back the bytes (for review +
 // upload). clips = [{ path, w, h }]. Heterogeneous sizes are scaled+padded onto a
 // common canvas = the largest width/height across clips, so nothing is cropped.
@@ -413,18 +435,33 @@ ipcMain.handle("export-clips", async (_e, { clips, fps }) => {
     }
     const labels = clips.map((_c, i) => `[v${i}]`).join("");
     const filter = `${parts.join(";")};${labels}concat=n=${clips.length}:v=1:a=0[out]`;
-    args.push(
-      "-filter_complex", filter,
-      "-map", "[out]",
-      "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-      "-pix_fmt", "yuv420p", "-movflags", "+faststart",
-      out,
-    );
+    const baseArgs = [...args, "-filter_complex", filter, "-map", "[out]"];
+    const tail = ["-pix_fmt", "yuv420p", "-movflags", "+faststart", out];
+    const nvencArgs = ["-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr", "-cq", "23", "-b:v", "0"];
+    const x264Args = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"];
 
-    logLine(`export-clips: ${clips.length} clips → ${W}x${H} @ ${r}fps → ${out}`);
-    await runFfmpeg(ffmpeg, args);
+    // GPU encode (NVENC) when the GTX is usable; CPU x264 otherwise, and as a
+    // runtime safety net if a GPU export errors out mid-encode.
+    let encoder = (await nvencAvailable(ffmpeg)) ? "h264_nvenc" : "libx264";
+    logLine(`export-clips: ${clips.length} clips → ${W}x${H} @ ${r}fps via ${encoder} → ${out}`);
+    try {
+      await runFfmpeg(ffmpeg, [
+        ...baseArgs,
+        ...(encoder === "h264_nvenc" ? nvencArgs : x264Args),
+        ...tail,
+      ]);
+    } catch (e) {
+      if (encoder === "h264_nvenc") {
+        logLine(`nvenc export failed → retrying on CPU (libx264): ${(e && e.message ? e.message : "").slice(-200)}`);
+        nvencCache = false; // don't keep trying the GPU this run
+        encoder = "libx264";
+        await runFfmpeg(ffmpeg, [...baseArgs, ...x264Args, ...tail]);
+      } else {
+        throw e;
+      }
+    }
     const bytes = fs.readFileSync(out);
-    logLine(`export-clips done: ${bytes.length} bytes`);
+    logLine(`export-clips done (${encoder}): ${bytes.length} bytes`);
     return { ok: true, bytes };
   } catch (e) {
     logLine(`export-clips FAILED: ${e && e.message}`);
