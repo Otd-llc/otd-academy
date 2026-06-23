@@ -27,6 +27,7 @@ import { DIAGRAM_COMPONENTS } from "@/components/guide/diagram-registry";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
 import { CaptureLauncher } from "@/components/guide/CaptureLauncher";
 import { PartMpnLink } from "@/components/guide/PartMpnLink";
+import { YouTubeEmbed } from "@/components/guide/YouTubeEmbed";
 import { buildFastAddUrl } from "@/lib/digikey-cart";
 import {
   affiliateLink,
@@ -1244,6 +1245,26 @@ function GuideBlock({
         />
       );
 
+    case "youtube":
+      // An unfilled embed (empty videoId) renders nothing — mirrors the video
+      // block's empty-src placeholder rule (the Library page has no admin capture
+      // affordance, so there's nothing to show for a not-yet-filled slot).
+      if (!block.videoId) return null;
+      return (
+        <figure className="my-6">
+          <YouTubeEmbed
+            videoId={block.videoId}
+            title={block.title}
+            start={block.start}
+          />
+          {block.caption || block.title ? (
+            <figcaption className="mt-2 text-center font-mono text-xs uppercase tracking-wider text-muted">
+              {block.caption ?? block.title}
+            </figcaption>
+          ) : null}
+        </figure>
+      );
+
     case "quiz":
       // Frame the comprehension check as a distinct CHECKPOINT — a hairline +
       // gold eyebrow break the flat block stream into learn → check rhythm.
@@ -1303,23 +1324,29 @@ function GuideBlock({
       // `rel="noopener noreferrer"` for safety) and mark them with an
       // external-link icon; internal root-relative links stay in the same tab.
       const external = /^https?:\/\//.test(block.href);
+      // Wrap in a block element: the link itself is inline-flex, so without a
+      // block wrapper two consecutive sourceRef blocks flow onto the same line
+      // and touch (the parent's space-y-* can't separate inline-level boxes).
+      // The wrapper puts each link on its own line and lets the stack space them.
       return (
-        <a
-          href={block.href}
-          {...(external
-            ? {
-                target: "_blank",
-                rel: "noopener noreferrer",
-                "aria-label": `${block.label} (opens in a new tab)`,
-              }
-            : {})}
-          className="inline-flex items-center gap-1 text-link-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-signal-blue"
-        >
-          {block.label}
-          {external ? (
-            <ExternalLinkIcon className="h-3.5 w-3.5 shrink-0" />
-          ) : null}
-        </a>
+        <div>
+          <a
+            href={block.href}
+            {...(external
+              ? {
+                  target: "_blank",
+                  rel: "noopener noreferrer",
+                  "aria-label": `${block.label} (opens in a new tab)`,
+                }
+              : {})}
+            className="inline-flex items-center gap-1 text-link-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-signal-blue"
+          >
+            {block.label}
+            {external ? (
+              <ExternalLinkIcon className="h-3.5 w-3.5 shrink-0" />
+            ) : null}
+          </a>
+        </div>
       );
     }
 

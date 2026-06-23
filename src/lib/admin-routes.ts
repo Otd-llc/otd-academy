@@ -47,6 +47,11 @@ export function isPublicPath(pathname: string): boolean {
   // The signed token in the path is the gate (verified in the route), so this is
   // safe to expose. Everything else under /learn stays auth-gated.
   if (top === "learn" && segments[2] === "certificate") return true;
+  // The public Library (mini-lessons): index (/library) + every article
+  // (/library/[slug]) are crawlable, anonymous-readable SEO pages. The admin
+  // authoring surface lives under /admin/library (held back by isAdminOnlyPath's
+  // top==="admin" rule), so the whole /library prefix is safe to expose.
+  if (top === "library") return true;
   // Dev/CI-only diagram render surface (the diagram exporter screenshots these
   // via a headless browser with no session). The page itself 404s in production
   // unless DIAGRAM_EXPORT is set, so exposing the prefix is safe.

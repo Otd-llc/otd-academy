@@ -5,6 +5,8 @@
 // publicly crawlable URLs:
 //   - the static public indexes `/courses` and `/parts`
 //   - every part detail `/parts/{id}`
+//   - the Library index `/library` plus every published PUBLIC mini-lesson
+//     `/library/{slug}`
 //   - for each PUBLIC, published, non-archived project: the guide hub
 //     `/projects/{slug}/{label}/guide` plus one URL per guide stage
 //     `/projects/{slug}/{label}/guide/{STAGE}` (the 8 GUIDE_STAGES).
@@ -32,7 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
   const lastModified = new Date();
 
-  const [projects, parts] = await Promise.all([
+  const [projects, parts, miniLessons] = await Promise.all([
     db.project.findMany({
       where: {
         accessTier: { in: ["PUBLIC", "PREMIUM"] },
@@ -46,6 +48,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
     }),
     db.part.findMany({ select: { id: true } }),
+    db.miniLesson.findMany({
+      where: { published: true, accessTier: "PUBLIC" },
+      select: { slug: true, updatedAt: true },
+    }),
   ]);
 
   const entries: MetadataRoute.Sitemap = [
@@ -55,6 +61,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   for (const part of parts) {
     entries.push({ url: `${base}/parts/${part.id}`, lastModified });
+  }
+
+  // Public Library mini-lessons: the index + every published PUBLIC article.
+  entries.push({ url: `${base}/library`, lastModified });
+  for (const ml of miniLessons) {
+    entries.push({ url: `${base}/library/${ml.slug}`, lastModified: ml.updatedAt });
   }
 
   for (const project of projects) {

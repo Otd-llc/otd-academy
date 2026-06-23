@@ -153,3 +153,74 @@ export function courseListJsonLd(
     })),
   };
 }
+
+// TechArticle — a public Library mini-lesson as a technical article. Schema is
+// SEO hygiene (no rich-result / ranking lift per the 2026-06 validation) — keep
+// it minimal + accurate. PURE: takes resolved scalars, not a Prisma row.
+export function techArticleJsonLd(input: {
+  headline: string;
+  description: string | null;
+  url: string;
+  datePublished?: string;
+  dateModified?: string;
+  authorName?: string;
+}): object {
+  return {
+    "@context": SCHEMA_CONTEXT,
+    "@type": "TechArticle",
+    headline: input.headline,
+    mainEntityOfPage: input.url,
+    publisher: PROVIDER,
+    ...(input.description ? { description: input.description } : {}),
+    ...(input.datePublished ? { datePublished: input.datePublished } : {}),
+    ...(input.dateModified ? { dateModified: input.dateModified } : {}),
+    ...(input.authorName
+      ? { author: { "@type": "Organization", name: input.authorName } }
+      : {}),
+  };
+}
+
+// LearningResource — the same page as an educational resource (pairs with the
+// TechArticle; both are hygiene-level). `educationalLevel` omitted when absent.
+export function learningResourceJsonLd(input: {
+  name: string;
+  description: string | null;
+  url: string;
+  educationalLevel?: string | null;
+}): object {
+  return {
+    "@context": SCHEMA_CONTEXT,
+    "@type": "LearningResource",
+    name: input.name,
+    url: input.url,
+    provider: PROVIDER,
+    ...(input.description ? { description: input.description } : {}),
+    ...(input.educationalLevel ? { educationalLevel: input.educationalLevel } : {}),
+  };
+}
+
+// DefinedTerm — claims authorship of a coined term (e.g. "Embodied Motor
+// Imagery"). Emitted on ONE canonical page only; every other mention links to
+// that url, none re-declare the schema (EMI doc §5).
+export function definedTermJsonLd(input: {
+  name: string;
+  alternateName?: string;
+  description: string;
+  url: string;
+  termSetName: string;
+  termSetUrl: string;
+}): object {
+  return {
+    "@context": SCHEMA_CONTEXT,
+    "@type": "DefinedTerm",
+    name: input.name,
+    description: input.description,
+    url: input.url,
+    ...(input.alternateName ? { alternateName: input.alternateName } : {}),
+    inDefinedTermSet: {
+      "@type": "DefinedTermSet",
+      name: input.termSetName,
+      url: input.termSetUrl,
+    },
+  };
+}

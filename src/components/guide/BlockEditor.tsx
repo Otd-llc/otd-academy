@@ -91,6 +91,8 @@ export function BlockEditor({
           {...err}
         />
       );
+    case "youtube":
+      return <YouTubeBlockEditor block={block} onChange={onChange} {...err} />;
     case "quiz":
       return <QuizEditor block={block} onChange={onChange} {...err} />;
     case "deepDive":
@@ -573,6 +575,96 @@ function MediaEditor({
             </option>
           ))}
         </select>
+      </div>
+    </div>
+  );
+}
+
+// ─── youtube ──────────────────────────────────────────────────────────────
+// A privacy-enhanced YouTube embed for the public Library surface. Stores the
+// bare video id (not a URL); the renderer builds the youtube-nocookie embed.
+// `videoId` + `title` are required; `caption` + `start` (seconds offset) are
+// optional. Mirrors the MediaEditor field/onChange pattern.
+function YouTubeBlockEditor({
+  block,
+  onChange,
+  hasError,
+  errorId,
+}: {
+  block: Extract<ContentBlock, { type: "youtube" }>;
+  onChange: (next: ContentBlock) => void;
+} & BlockErrorProps) {
+  const baseId = useId();
+  return (
+    <div className="space-y-2">
+      <div>
+        <label htmlFor={`${baseId}-vid`} className={labelClass}>
+          YouTube video id
+        </label>
+        <input
+          id={`${baseId}-vid`}
+          type="text"
+          maxLength={20}
+          value={block.videoId}
+          onChange={(e) => onChange({ ...block, videoId: e.target.value })}
+          className={`mt-1 ${inputClass}`}
+          aria-invalid={hasError || undefined}
+          aria-describedby={
+            hasError && errorId
+              ? `${errorId} ${baseId}-vid-help`
+              : `${baseId}-vid-help`
+          }
+        />
+        <p id={`${baseId}-vid-help`} className={helpClass}>
+          The bare id from the watch URL (e.g. dQw4w9WgXcQ), not the full link.
+        </p>
+      </div>
+      <div>
+        <label htmlFor={`${baseId}-title`} className={labelClass}>
+          Title
+        </label>
+        <input
+          id={`${baseId}-title`}
+          type="text"
+          maxLength={200}
+          value={block.title}
+          onChange={(e) => onChange({ ...block, title: e.target.value })}
+          className={`mt-1 ${inputClass}`}
+        />
+      </div>
+      <div>
+        <label htmlFor={`${baseId}-cap`} className={labelClass}>
+          Caption (optional)
+        </label>
+        <input
+          id={`${baseId}-cap`}
+          type="text"
+          maxLength={200}
+          value={block.caption ?? ""}
+          onChange={(e) =>
+            onChange({ ...block, caption: e.target.value || undefined })
+          }
+          className={`mt-1 ${inputClass}`}
+        />
+      </div>
+      <div>
+        <label htmlFor={`${baseId}-start`} className={labelClass}>
+          Start offset (seconds, optional)
+        </label>
+        <input
+          id={`${baseId}-start`}
+          type="number"
+          min={0}
+          step={1}
+          value={block.start ?? ""}
+          onChange={(e) =>
+            onChange({
+              ...block,
+              start: e.target.value === "" ? undefined : Number(e.target.value),
+            })
+          }
+          className={`mt-1 ${inputClass}`}
+        />
       </div>
     </div>
   );

@@ -20,7 +20,7 @@ import {
 } from "@/components/icons";
 
 export const BLOCK_TYPES = [
-  "prose", "callout", "steps", "table", "bomTable", "termRef", "sourceRef", "partModel", "image", "video", "quiz", "deepDive", "action", "vendorCta", "kit",
+  "prose", "callout", "steps", "table", "bomTable", "termRef", "sourceRef", "partModel", "image", "video", "youtube", "quiz", "deepDive", "action", "vendorCta", "kit",
 ] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
 
@@ -35,6 +35,7 @@ export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   partModel: "3D part",
   image: "Image",
   video: "Video",
+  youtube: "YouTube embed",
   quiz: "Quiz",
   deepDive: "Deep dive",
   action: "Action button",
@@ -59,6 +60,7 @@ export const BLOCK_TYPE_ICON: Record<
   partModel: EyeIcon,
   image: PhotoIcon,
   video: VideoIcon,
+  youtube: VideoIcon,
   quiz: QuizIcon,
   deepDive: ChevronDownIcon,
   action: LinkIcon,
@@ -91,6 +93,8 @@ export function defaultBlock(type: BlockType): ContentBlock {
       return { type: "image", src: "", alt: "" };
     case "video":
       return { type: "video", src: "", alt: "" };
+    case "youtube":
+      return { type: "youtube", videoId: "", title: "" };
     case "quiz":
       return {
         type: "quiz",

@@ -48,6 +48,7 @@ model User {
   entitlements            Entitlement[]
   tips                    Tip[]
   certificates            Certificate[]
+  miniLessons             MiniLesson[]
 }
 
 model Account {
@@ -125,6 +126,7 @@ model Project {
   dependsOnEdges   ProjectDependency[] @relation("DependsOnProject")
   entitlements     Entitlement[]
   waitlist         WaitlistSignup[]
+  miniLessons      ProjectMiniLesson[]
 
   @@index([archivedAt])
 }
@@ -812,6 +814,14 @@ enum EntitlementSource {
   PURCHASE
 }
 
+// How a Library mini-lesson links to a Quest/Catalog Project.
+//   SUPPORTING  = the article supports / explains this project (renders an up-link).
+//   DOWN_FUNNEL = the article's end-of-page CTA into this gated build.
+enum MiniLessonLinkRole {
+  SUPPORTING
+  DOWN_FUNNEL
+}
+
 enum ProjectDepKind {
   DE_RISK
   FOUNDATION
@@ -868,6 +878,49 @@ model GuideCard {
   @@unique([guideId, ordinal])
   @@unique([guideId, stage])
   @@index([guideId])
+}
+
+// A public, gate-less Library mini-lesson (content-model §2.1/§3). Reuses the
+// guide content-block schema (`contentBlocks` Json, validated by
+// guideContentBlocksSchema + the Library allowlist) and the GuideBlocks renderer
+// — it just has no stages / gates / builds / enrollment. accessTier defaults
+// PUBLIC (a gated SEO page earns nothing); the URL is gated by middleware, not
+// the Entitlement paywall.
+model MiniLesson {
+  id             String              @id @default(cuid())
+  slug           String              @unique
+  title          String
+  summary        String?
+  contentBlocks  Json
+  published      Boolean             @default(false)
+  accessTier     AccessTier          @default(PUBLIC)
+  seoTitle       String?
+  seoDescription String?
+  byline         String? // "last verified vs vX.Y on <date>" + author — first-hand-value signal
+  lastVerifiedAt DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  createdById    String
+  createdBy      User                @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  relatedProjects ProjectMiniLesson[]
+
+  @@index([published])
+}
+
+// The MiniLesson ↔ Project (Quest node) link — the internal-linking spine.
+model ProjectMiniLesson {
+  id           String             @id @default(cuid())
+  projectId    String
+  project      Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  miniLessonId String
+  miniLesson   MiniLesson         @relation(fields: [miniLessonId], references: [id], onDelete: Cascade)
+  role         MiniLessonLinkRole @default(SUPPORTING)
+  ordinal      Int                @default(0)
+  createdAt    DateTime           @default(now())
+
+  @@unique([projectId, miniLessonId, role])
+  @@index([miniLessonId])
+  @@index([projectId])
 }
 
 // A learner's recorded pass of a stage card's comprehension quiz. Soft-gating:
