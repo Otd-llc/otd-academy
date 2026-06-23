@@ -17,6 +17,18 @@ import { SchematicConventions } from "./diagrams/SchematicConventions";
 import { BringupLadder } from "./diagrams/BringupLadder";
 import { BringupProbePoints } from "./diagrams/BringupProbePoints";
 import { WroomPowerFlow } from "./diagrams/WroomPowerFlow";
+import { MuRhythmErd } from "./diagrams/MuRhythmErd";
+import { EegBciPipeline } from "./diagrams/EegBciPipeline";
+import { Ads1299Channel } from "./diagrams/Ads1299Channel";
+import { DroneSharedAutonomy } from "./diagrams/DroneSharedAutonomy";
+import { IsolationBarrier } from "./diagrams/IsolationBarrier";
+import { RightLegDrive } from "./diagrams/RightLegDrive";
+import { InstrumentationAmp } from "./diagrams/InstrumentationAmp";
+import { TenTwentyMidline } from "./diagrams/TenTwentyMidline";
+import { FrequencyBands } from "./diagrams/FrequencyBands";
+import { ClassificationPipeline } from "./diagrams/ClassificationPipeline";
+import { SourceToScalp } from "./diagrams/SourceToScalp";
+import { BciLoop } from "./diagrams/BciLoop";
 
 export type DiagramComponent = FC<{ caption?: string }>;
 
@@ -35,4 +47,16 @@ export const DIAGRAM_COMPONENTS: Record<string, DiagramComponent> = {
   "/guide-diagrams/bringup-ladder.svg": BringupLadder,
   "/guide-diagrams/bringup-probe-points.svg": BringupProbePoints,
   "/guide-diagrams/wroom-power-flow.svg": WroomPowerFlow,
+  "/guide-diagrams/mu-rhythm-erd.svg": MuRhythmErd,
+  "/guide-diagrams/eeg-bci-pipeline.svg": EegBciPipeline,
+  "/guide-diagrams/ads1299-channel.svg": Ads1299Channel,
+  "/guide-diagrams/drone-shared-autonomy.svg": DroneSharedAutonomy,
+  "/guide-diagrams/isolation-barrier.svg": IsolationBarrier,
+  "/guide-diagrams/right-leg-drive.svg": RightLegDrive,
+  "/guide-diagrams/instrumentation-amp.svg": InstrumentationAmp,
+  "/guide-diagrams/ten-twenty-midline.svg": TenTwentyMidline,
+  "/guide-diagrams/frequency-bands.svg": FrequencyBands,
+  "/guide-diagrams/classification-pipeline.svg": ClassificationPipeline,
+  "/guide-diagrams/source-to-scalp.svg": SourceToScalp,
+  "/guide-diagrams/bci-loop.svg": BciLoop,
 };

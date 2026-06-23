@@ -83,7 +83,14 @@ These are the only things that actually move ranking + AI citation. They are
 
 - **[STRONG] Visible outbound citations to primary sources** (datasheets, papers,
   standards). Highest-ROI move: converts invisible diligence into a Trust +
-  AI-citability signal. Cite the real source, linked.
+  AI-citability signal. Cite the real source, linked. **Cite per claim, not per
+  page:** every *specific empirical or comparative* claim ("X produces stronger Y
+  than Z", "15-30% of users...", a named effect/phenomenon) needs its own
+  attributed primary source, not one token citation for the whole page. Verify
+  each citation (author, year, venue, working link) by web search before
+  publishing; never cite from memory. If a claim can't be sourced, soften it to
+  what the evidence supports or cut it. Use inline author-year at the claim plus a
+  linked References list.
 - **[STRONG] First-hand Experience** — "we tested this", own measurements, scope
   captures, original photos, "gotchas we hit". The one thing AI-rehashers can't
   copy; the "E" in E-E-A-T that's genuinely yours.
@@ -154,7 +161,9 @@ Create a TodoWrite item for this and verify each line against the actual draft:
 - [ ] No "It's not X, it's Y", forced rule-of-three, or participial padding.
 - [ ] No listicle bloat; sentence-case headers; no formatting tells.
 - [ ] Sentence rhythm varies (not uniform length).
-- [ ] **≥1 primary-source outbound citation** (datasheet / paper / standard).
+- [ ] **Every specific empirical/comparative claim is cited** to an attributed,
+      web-verified primary source (not one token citation for the page); inline
+      author-year + a linked References list. Unsourceable claims softened or cut.
 - [ ] **≥1 first-hand Experience element** (measurement / capture / gotcha) where
       the topic allows.
 - [ ] Opens **answer-first** (direct claim, not scene-setting).
