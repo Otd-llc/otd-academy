@@ -335,10 +335,11 @@ ipcMain.handle("save-capture", async (_e, { base64, ext, caption }) => {
 
 ipcMain.on("renderer-log", (_e, msg) => logLine(`[renderer] ${msg}`));
 
-// High-rate cursor feed for the auto-follow pan: poll the OS cursor (~125 Hz) and
-// push window-local coords to the renderer. screen.getCursorScreenPoint() is a clean,
+// Cursor feed for the auto-follow pan: poll the OS cursor (~60 Hz) and push
+// window-local coords to the renderer. screen.getCursorScreenPoint() is a clean,
 // steady signal — unlike forwarded mousemove, which Windows throttles while the
-// overlay is click-through. Runs only while recording (renderer toggles it).
+// overlay is click-through. 60 Hz matches the render and avoids flooding the
+// (recording-busy) renderer with IPC. Runs only while recording.
 let cursorTimer = null;
 ipcMain.on("cursor-track", (_e, on) => {
   if (cursorTimer) {
@@ -355,7 +356,7 @@ ipcMain.on("cursor-track", (_e, on) => {
     }
     const p = screen.getCursorScreenPoint();
     overlay.webContents.send("cursor:pos", { x: p.x - b.x, y: p.y - b.y });
-  }, 8);
+  }, 16);
 });
 
 ipcMain.on("quit", () => app.quit());

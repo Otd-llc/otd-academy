@@ -213,7 +213,7 @@
       if (!codec) throw new Error("No supported recording codec in this browser.");
       this.mp4 = codec.mp4;
       this.chunks = [];
-      const bitrate = 12000000;
+      const bitrate = 8000000; // 8 Mbps — plenty for a cropped 30fps clip; 12 made the encoder work too hard
       this.rec = new MediaRecorder(this.stream, {
         mimeType: codec.mime,
         videoBitsPerSecond: bitrate,

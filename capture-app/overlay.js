@@ -72,8 +72,9 @@
   let follow = false;
   const cursor = { x: 0, y: 0 };
   const cam = { x: 0, y: 0 };
-  const REC_FPS = 60; // capture + pan frame rate (smoother; one constant to dial back)
-  const FOLLOW_TAU = 0.1; // seconds — follow easing time constant (frame-rate independent)
+  const REC_FPS = 30; // capture + pan frame rate (30 is plenty for a tutorial; was 60)
+  const FOLLOW_TAU = 0.12; // seconds — follow easing time constant (frame-rate independent)
+  const DEADZONE = 0.45; // follow: cursor roams this fraction of the half-frame before it pans
 
   window.otd.onDisplayInfo((info) => {
     scaleFactor = info.scaleFactor || 1;
@@ -304,13 +305,25 @@
     framingStatus.textContent = "Starting screen capture…";
     window.otd.log("startFraming: requesting getDisplayMedia");
     try {
-      stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      // Cap the SOURCE at 30fps. Uncapped, Chromium captures the whole screen at up
+      // to 60fps; with the per-frame canvas crop + H.264 encode on top, that
+      // saturated the CPU and made clips stutter. 30fps is plenty for a tutorial.
+      stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: { ideal: 30, max: 30 } },
+        audio: false,
+      });
     } catch (e) {
       window.otd.log("getDisplayMedia FAILED: " + (e && e.message));
       framingStatus.textContent = "Couldn't start screen capture: " + (e && e.message);
       return;
     }
     window.otd.log("getDisplayMedia OK");
+    // Belt-and-suspenders: some capturers ignore the initial constraint, so pin it.
+    try {
+      await stream.getVideoTracks()[0].applyConstraints({ frameRate: { max: 30 } });
+    } catch {
+      // not fatal — REC_FPS still bounds the encode rate
+    }
     screenVideo.srcObject = stream;
     await screenVideo
       .play()
@@ -380,10 +393,22 @@
         lastFrameMs = now;
         const W = window.innerWidth;
         const H = window.innerHeight;
+        // DEADZONE follow: keep the frame STILL while the cursor roams a central
+        // zone, and only pan once it pushes past the zone edge. Centring the cursor
+        // every frame (the old behaviour) made the whole frame swim with every tiny
+        // mouse move — this tracks the way a real camera operator would.
+        const dzx = halfW * DEADZONE;
+        const dzy = halfH * DEADZONE;
+        let tx = cam.x;
+        let ty = cam.y;
+        if (cursor.x > cam.x + dzx) tx = cursor.x - dzx;
+        else if (cursor.x < cam.x - dzx) tx = cursor.x + dzx;
+        if (cursor.y > cam.y + dzy) ty = cursor.y - dzy;
+        else if (cursor.y < cam.y - dzy) ty = cursor.y + dzy;
         // Clamp the target so the fixed-size frame never runs off-screen.
-        const tx = Math.max(halfW, Math.min(cursor.x, W - halfW));
-        const ty = Math.max(halfH, Math.min(cursor.y, H - halfH));
-        // Frame-rate-INDEPENDENT easing: same feel whether the timer hits 60 or 45 fps,
+        tx = Math.max(halfW, Math.min(tx, W - halfW));
+        ty = Math.max(halfH, Math.min(ty, H - halfH));
+        // Frame-rate-INDEPENDENT easing: same feel whether the timer hits 30 or 20 fps,
         // so timer jitter no longer makes the pan jerk.
         const k = 1 - Math.exp(-dt / FOLLOW_TAU);
         cam.x += (tx - cam.x) * k;
