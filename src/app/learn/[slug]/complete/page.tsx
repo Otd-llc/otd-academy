@@ -222,7 +222,7 @@ export default async function LessonCompletePage({
           {mastered ? (
             <div className="glass-card border-command-gold/40 p-6">
               <p className="font-mono text-xs uppercase tracking-[0.2em] text-command-gold">
-                ★ Verified Certificate of Achievement — earned
+                ★ Verified Certificate of Achievement, earned
               </p>
               <Link
                 href={`/learn/${slug}/exam`}
@@ -242,7 +242,7 @@ export default async function LessonCompletePage({
               </p>
               <p className="mx-auto mt-3 max-w-md font-serif text-sm italic text-gray-2">
                 Take the final exam to prove you&rsquo;ve got the whole build
-                down — every stage, start to finish. Pass and the certificate is
+                down: every stage, start to finish. Pass and the certificate is
                 yours.
               </p>
               <Link
@@ -275,7 +275,7 @@ export default async function LessonCompletePage({
           // Proven board kit
         </span>
         <p className="font-serif text-sm italic text-muted">
-          The exact files behind the board we built and brought up — download them
+          The exact files behind the board we built and brought up. Download them
           to order or check your own.
         </p>
 
@@ -289,7 +289,7 @@ export default async function LessonCompletePage({
           />
         ) : (
           <p className="font-mono text-xs uppercase tracking-wider text-muted">
-            KiCad starter — coming soon.
+            KiCad starter: coming soon.
           </p>
         )}
 
@@ -303,7 +303,7 @@ export default async function LessonCompletePage({
           />
         ) : (
           <p className="font-mono text-xs uppercase tracking-wider text-muted">
-            Verified reference gerbers — coming soon.
+            Verified reference gerbers: coming soon.
           </p>
         )}
 
@@ -317,7 +317,7 @@ export default async function LessonCompletePage({
           />
         ) : (
           <p className="font-mono text-xs uppercase tracking-wider text-muted">
-            Bring-up measurements — coming soon.
+            Bring-up measurements: coming soon.
           </p>
         )}
       </div>

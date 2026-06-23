@@ -15,7 +15,7 @@ export function SupportBlock() {
         Build it for <span className="text-command-gold">real</span>
       </h2>
       <p className="mt-2 font-serif text-sm italic text-gray-2">
-        Order through our links — same price, and it supports the Academy at no
+        Order through our links. Same price, and it supports the Academy at no
         extra cost to you.
       </p>
       <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -37,7 +37,7 @@ export function SupportBlock() {
       </div>
       {/* FTC + Amazon disclosures — adjacent to the links, never footer-only. */}
       <p className="mt-4 font-mono text-[10px] leading-relaxed tracking-wide text-muted">
-        Affiliate links — buying through them supports the academy at no extra
+        Affiliate links: buying through them supports the academy at no extra
         cost to you. As an Amazon Associate, the academy earns from qualifying
         purchases.
       </p>

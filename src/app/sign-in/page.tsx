@@ -80,7 +80,7 @@ export default async function SignInPage({
             </>
           ) : (
             <InlineBanner variant="error">
-              SIGN-IN NEEDS A VERIFIED ACCOUNT — try again.
+              SIGN-IN NEEDS A VERIFIED ACCOUNT. TRY AGAIN.
             </InlineBanner>
           )}
         </div>

@@ -385,7 +385,7 @@ export default async function HomePage({
 
       {sorted.length === 0 ? (
         <p className="mt-10 font-mono text-sm uppercase tracking-wider text-muted">
-          NO PROJECTS — CREATE ONE TO BEGIN.
+          NO PROJECTS YET. CREATE ONE TO BEGIN.
         </p>
       ) : (
         <ul className="mt-8 flex flex-col gap-3 font-mono text-sm sm:mt-10">

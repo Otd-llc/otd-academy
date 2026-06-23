@@ -30,7 +30,7 @@ export const SKILL_PATHS: PathDef[] = [
     kind: "primary",
     label: "The 8-Channel EEG",
     blurb:
-      "The flagship — the analog board that reads real brainwaves. The brain-computer interface, and the shortest path to it.",
+      "The flagship: the analog board that reads real brainwaves. The brain-computer interface, and the shortest path to it.",
     goalSlug: "l3-01-eeg-front-end",
   },
   {
@@ -38,7 +38,7 @@ export const SKILL_PATHS: PathDef[] = [
     kind: "mastery",
     label: "Command the Swarm",
     blurb:
-      "The wireless fleet hub — many devices, one command link. The other half of the brain-to-swarm build.",
+      "The wireless fleet hub: many devices, one command link. The other half of the brain-to-swarm build.",
     goalSlug: "l3-05-wireless-hub",
   },
   {
@@ -46,7 +46,7 @@ export const SKILL_PATHS: PathDef[] = [
     kind: "mastery",
     label: "Motion & Actuation",
     blurb:
-      "Make things move — up to a brushless motor driven with back-EMF commutation.",
+      "Make things move: up to a brushless motor driven with back-EMF commutation.",
     goalSlug: "l3-02-brushless-motor",
   },
   {
@@ -54,7 +54,7 @@ export const SKILL_PATHS: PathDef[] = [
     kind: "mastery",
     label: "Power Systems",
     blurb:
-      "Portable power done right — up to a multi-cell battery management system.",
+      "Portable power done right: up to a multi-cell battery management system.",
     goalSlug: "l3-04-bms",
   },
   {
@@ -62,7 +62,7 @@ export const SKILL_PATHS: PathDef[] = [
     kind: "bench",
     label: "Bench Tools",
     blurb:
-      "Your bench — standalone instruments to measure, drive, and test your work.",
+      "Your bench: standalone instruments to measure, drive, and test your work.",
   },
 ];
 

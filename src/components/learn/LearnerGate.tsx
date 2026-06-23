@@ -186,8 +186,8 @@ export function LearnerGate({
                             Confirm before you upload
                           </legend>
                           <p className="font-serif text-xs text-muted">
-                            The rules checker can&apos;t see these — tick each only
-                            if it&apos;s true of your board.
+                            The rules checker can&apos;t see these, so tick each
+                            only if it&apos;s true of your board.
                           </p>
                           {confirmItems.map((item, i) => (
                             <label
@@ -240,7 +240,7 @@ export function LearnerGate({
           </p>
           <p className="mt-1 font-serif text-sm leading-relaxed text-gray-1">
             Finishing this stage completes the board. Then there&rsquo;s an
-            optional <span className="text-command-gold">final exam</span> — pass
+            optional <span className="text-command-gold">final exam</span>. Pass
             it to earn your Verified Certificate of Achievement.
           </p>
         </div>

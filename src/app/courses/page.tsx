@@ -28,7 +28,7 @@ import { JsonLd } from "@/components/seo/JsonLd";
 // SEO. The courses index is a stable funnel landing page.
 const title = "Courses — One Thousand Drones Academy";
 const description =
-  "A skill tree from your first board to an EEG brain-computer interface that commands a swarm of IoT devices. Build each subsystem start to finish — schematic, layout, fabrication, and bring-up.";
+  "A skill tree from your first board to an EEG brain-computer interface that commands a swarm of IoT devices. Build each subsystem start to finish: schematic, layout, fabrication, and bring-up.";
 
 export const metadata: Metadata = {
   title,
@@ -133,7 +133,7 @@ export default async function CoursesPage({
         eyebrow="SKILL TREE"
         title="Build it for real"
         accentWord="real"
-        lead="One destination, one subsystem at a time — schematic, layout, fabrication, and bring-up. Follow the path from your first board to a brain-computer interface."
+        lead="One destination, one subsystem at a time: schematic, layout, fabrication, and bring-up. Follow the path from your first board to a brain-computer interface."
       />
 
       {total === 0 ? (
@@ -213,7 +213,7 @@ export default async function CoursesPage({
                 Go further
               </p>
               <p className="mb-5 font-serif text-sm italic text-muted">
-                Other paths you can take on — each shows only the courses it
+                Other paths you can take on. Each shows only the courses it
                 needs.
               </p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
