@@ -59,6 +59,8 @@ export function BlockEditor({
   switch (block.type) {
     case "prose":
       return <ProseEditor block={block} onChange={onChange} {...err} />;
+    case "heading":
+      return <HeadingEditor block={block} onChange={onChange} {...err} />;
     case "callout":
       return <CalloutEditor block={block} onChange={onChange} {...err} />;
     case "steps":
@@ -173,6 +175,50 @@ function ProseEditor({
         className={`mt-1 ${textareaClass}`}
         {...ariaErrorProps({ hasError, errorId })}
       />
+    </div>
+  );
+}
+
+// ─── heading ────────────────────────────────────────────────────────────
+function HeadingEditor({
+  block,
+  onChange,
+  hasError,
+  errorId,
+}: {
+  block: Extract<ContentBlock, { type: "heading" }>;
+  onChange: (next: ContentBlock) => void;
+} & BlockErrorProps) {
+  const id = useId();
+  return (
+    <div className="flex gap-2">
+      <div className="flex-1">
+        <label htmlFor={id} className={labelClass}>
+          Heading text
+        </label>
+        <input
+          id={id}
+          type="text"
+          maxLength={120}
+          value={block.text}
+          onChange={(e) => onChange({ ...block, text: e.target.value })}
+          className={`mt-1 ${inputClass}`}
+          {...ariaErrorProps({ hasError, errorId })}
+        />
+      </div>
+      <div>
+        <label className={labelClass}>Level</label>
+        <select
+          value={block.level ?? 2}
+          onChange={(e) =>
+            onChange({ ...block, level: Number(e.target.value) === 3 ? 3 : 2 })
+          }
+          className={`mt-1 ${selectClass}`}
+        >
+          <option value={2}>H2</option>
+          <option value={3}>H3</option>
+        </select>
+      </div>
     </div>
   );
 }

@@ -21,6 +21,7 @@ import {
   siteUrl,
 } from "@/lib/seo/jsonld";
 import { guideContentBlocksSchema } from "@/lib/schemas/guide";
+import { basenamesInBlocks } from "@/lib/diagram-usage";
 import { filterLibraryBlocks } from "@/lib/library/block-allowlist";
 import { LIBRARY_DEFINED_TERMS } from "@/lib/library/defined-terms";
 import { loadPublicMiniLesson } from "@/lib/library/load";
@@ -38,15 +39,26 @@ export async function generateMetadata({
   const { slug } = await params;
   const lesson = await loadPublicMiniLesson(slug);
   if (!lesson) return {};
-  const url = `${siteUrl()}/library/${lesson.slug}`;
+  const base = siteUrl();
+  const url = `${base}/library/${lesson.slug}`;
   const title = lesson.seoTitle ?? lesson.title;
   const description = lesson.seoDescription ?? lesson.summary ?? undefined;
+
+  // Per-page social-share image: the lesson's first registry diagram, whose
+  // exported .webp is a real crawlable image (the on-page diagram is DOM-only).
+  // Falls back to the site default when a lesson has no diagram.
+  const parsedForOg = guideContentBlocksSchema.safeParse(lesson.contentBlocks);
+  const firstDiagram = parsedForOg.success ? basenamesInBlocks(parsedForOg.data)[0] : undefined;
+  const images = firstDiagram
+    ? [{ url: `${base}/guide-diagrams/${firstDiagram}.webp`, alt: title }]
+    : undefined;
+
   return {
     title,
     description,
     alternates: { canonical: url },
-    openGraph: { title, description, type: "article", url },
-    twitter: { card: "summary_large_image", title, description },
+    openGraph: { title, description, type: "article", url, ...(images ? { images } : {}) },
+    twitter: { card: "summary_large_image", title, description, ...(images ? { images } : {}) },
   };
 }
 

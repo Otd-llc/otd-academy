@@ -20,12 +20,13 @@ import {
 } from "@/components/icons";
 
 export const BLOCK_TYPES = [
-  "prose", "callout", "steps", "table", "bomTable", "termRef", "sourceRef", "partModel", "image", "video", "youtube", "quiz", "deepDive", "action", "vendorCta", "kit",
+  "prose", "heading", "callout", "steps", "table", "bomTable", "termRef", "sourceRef", "partModel", "image", "video", "youtube", "quiz", "deepDive", "action", "vendorCta", "kit",
 ] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
 
 export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   prose: "Prose",
+  heading: "Heading",
   callout: "Callout",
   steps: "Steps",
   table: "Table",
@@ -51,6 +52,7 @@ export const BLOCK_TYPE_ICON: Record<
   (props: { className?: string }) => JSX.Element
 > = {
   prose: DocumentIcon,
+  heading: TagIcon,
   callout: AlertTriangleIcon,
   steps: ListIcon,
   table: TableIcon,
@@ -75,6 +77,8 @@ export function defaultBlock(type: BlockType): ContentBlock {
   switch (type) {
     case "prose":
       return { type: "prose", md: "" };
+    case "heading":
+      return { type: "heading", text: "New section" };
     case "callout":
       return { type: "callout", severity: "info", label: "Note", body: "" };
     case "steps":
