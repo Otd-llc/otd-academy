@@ -12,4 +12,7 @@ describe("library path gating", () => {
     expect(isPublicPath("/admin/library")).toBe(false);
     expect(isAdminOnlyPath("/admin/library")).toBe(true); // already covered by the top==="admin" rule
   });
+  it("the glossary index is public", () => {
+    expect(isPublicPath("/glossary")).toBe(true);
+  });
 });

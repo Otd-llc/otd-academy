@@ -6,7 +6,7 @@
 //   - the static public indexes `/courses` and `/parts`
 //   - every part detail `/parts/{id}`
 //   - the Library index `/library` plus every published PUBLIC mini-lesson
-//     `/library/{slug}`
+//     `/library/{slug}`, and the static `/glossary` reference index
 //   - for each PUBLIC, published, non-archived project: the guide hub
 //     `/projects/{slug}/{label}/guide` plus one URL per guide stage
 //     `/projects/{slug}/{label}/guide/{STAGE}` (the 8 GUIDE_STAGES).
@@ -68,6 +68,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const ml of miniLessons) {
     entries.push({ url: `${base}/library/${ml.slug}`, lastModified: ml.updatedAt });
   }
+
+  // The public glossary index (static reference page).
+  entries.push({ url: `${base}/glossary`, lastModified });
 
   for (const project of projects) {
     // PUBLIC/PREMIUM projects are always published (the query filters on
