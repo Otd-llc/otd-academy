@@ -5,7 +5,10 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "@/env";
 
-const TTL_MS = 10 * 60 * 1000; // 10 minutes
+// 4 hours — a multi-clip recording/editing session can run long (record, retake,
+// reorder, stitch) and the token only authorizes writing ONE guide block, so a
+// generous-but-bounded TTL is the right trade.
+const TTL_MS = 4 * 60 * 60 * 1000;
 
 export interface CaptureClaims {
   cardId: string;

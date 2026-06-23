@@ -669,6 +669,7 @@
       window.otd.log(`stopped: ext=${result.ext} bytes=${buf.byteLength}`);
       captured = { base64: abToBase64(buf), ext: result.ext };
       lastClipDurMs = Date.now() - recStart;
+      await queueCurrentClip(); // append to the timeline so it shows immediately
       finishToReview(URL.createObjectURL(result.blob), true);
     } catch (e) {
       window.otd.log(`recording FAILED: ${e && e.message}`);
@@ -704,8 +705,10 @@
     const s = Math.max(0, Math.round((ms || 0) / 1000));
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   }
-  // Persist the clip currently in review and queue it for stitching.
-  async function addCurrentClip() {
+  // Persist the just-recorded clip to disk and append it to the timeline. Called
+  // right after a recording finishes, so the timeline always shows every clip
+  // (including the first one you're reviewing), not just previously-added ones.
+  async function queueCurrentClip() {
     if (!captured) return false;
     const res = await window.otd.saveClip({
       base64: captured.base64,
@@ -713,18 +716,19 @@
       index: clips.length,
     });
     if (!res || !res.ok) {
-      showReviewError("Couldn't save clip: " + ((res && res.error) || "unknown"));
+      window.otd.log("save-clip failed: " + ((res && res.error) || "unknown"));
       return false;
     }
     clips.push({ path: res.path, w: lastClipDims.w, h: lastClipDims.h, durMs: lastClipDurMs });
     return true;
   }
-  async function addAndRecordAnother() {
-    if (!(await addCurrentClip())) return;
+  function recordAnother() {
+    // The current clip is already on the timeline (queued at record time); just
+    // re-frame and record the next one.
     captured = null;
     if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     previewUrl = null;
-    startFraming(); // re-frame + record the next clip; the queued tray persists
+    startFraming();
   }
   function moveClip(i, dir) {
     const j = i + dir;
@@ -761,9 +765,9 @@
       )
       .join("");
     clipTrayEl.innerHTML =
-      `<div class="tray-head">${clips.length} clip${clips.length === 1 ? "" : "s"} queued · stitched top → bottom, then this one</div>` +
+      `<div class="tray-head">Timeline · ${clips.length} clip${clips.length === 1 ? "" : "s"} · stitched top → bottom</div>` +
       rows;
-    approveBtnEl.textContent = `Stitch ${clips.length + 1} & finish`;
+    approveBtnEl.textContent = `Finish & upload (${clips.length})`;
   }
   function showReviewError(msg) {
     reviewStatusEl.textContent = msg;
@@ -784,16 +788,14 @@
     // Multi-clip: fold the reviewed clip into the queue, then stitch the whole set
     // into one MP4 before the normal upload/save runs on the stitched result.
     if (mode === "video" && clips.length > 0) {
-      if (!(await addCurrentClip())) return;
       phase = "done";
       showSection("done");
-      doneMsg.textContent = `Stitching ${clips.length} clips…`;
+      doneMsg.textContent = `Stitching ${clips.length} clip${clips.length === 1 ? "" : "s"}…`;
       const res = await window.otd.exportClips({
         clips: clips.map((c) => ({ path: c.path, w: c.w, h: c.h })),
         fps: 30,
       });
       if (!res || !res.ok) {
-        clips.pop(); // undo the add so a retry doesn't double-queue this clip
         phase = "review";
         showSection("review");
         showReviewError("Stitch failed: " + ((res && res.error) || "unknown error"));
@@ -880,9 +882,11 @@
   });
   $("cancelFrameBtn").addEventListener("click", reset);
   $("approveBtn").addEventListener("click", approve);
-  $("addClipBtn").addEventListener("click", addAndRecordAnother);
+  $("addClipBtn").addEventListener("click", recordAnother);
   $("redoBtn").addEventListener("click", () => {
-    // Re-record the CURRENT clip; keep any clips already queued in the tray.
+    // Re-record the CURRENT clip: drop the one just queued (the last on the
+    // timeline), keep any earlier clips, and re-frame.
+    clips.pop();
     captured = null;
     if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     previewUrl = null;
