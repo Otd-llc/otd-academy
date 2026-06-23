@@ -18,6 +18,9 @@ contextBridge.exposeInMainWorld("otd", {
     ipcRenderer.on("capture:session", (_e, s) => cb(s)),
   upload: (payload) => ipcRenderer.invoke("upload-capture", payload),
   save: (payload) => ipcRenderer.invoke("save-capture", payload),
+  // Multi-clip: persist a recorded clip to a temp file, and stitch the ordered set.
+  saveClip: (payload) => ipcRenderer.invoke("save-clip", payload),
+  exportClips: (payload) => ipcRenderer.invoke("export-clips", payload),
   quit: () => ipcRenderer.send("quit"),
   // Diagnostic: write a line into the main-process log (otd-capture.log) from the
   // renderer, so we can see exactly when the recording pump stalls.

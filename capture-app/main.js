@@ -26,6 +26,7 @@ const {
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
+const { spawn } = require("child_process");
 
 const PROTOCOL = "otd-capture";
 let overlay = null;
@@ -338,6 +339,99 @@ ipcMain.handle("save-capture", async (_e, { base64, ext, caption }) => {
   return file;
 });
 
+// ── multi-clip session ──────────────────────────────────────────────────────
+// Recorded clips are written to a per-run temp dir; on export they're stitched
+// into ONE MP4 with ffmpeg (each scaled+padded onto a common canvas, then
+// concatenated). The lesson upload still receives a single video, so nothing
+// downstream changes.
+let sessionDir = null;
+function getSessionDir() {
+  if (!sessionDir) {
+    sessionDir = path.join(os.tmpdir(), `otd-capture-${process.pid}-${Date.now()}`);
+    fs.mkdirSync(sessionDir, { recursive: true });
+  }
+  return sessionDir;
+}
+
+// Persist one recorded clip's bytes; return its on-disk path for the timeline.
+ipcMain.handle("save-clip", async (_e, { base64, ext, index }) => {
+  try {
+    const dir = getSessionDir();
+    const file = path.join(dir, `clip-${String(index).padStart(3, "0")}.${ext || "mp4"}`);
+    fs.writeFileSync(file, Buffer.from(base64, "base64"));
+    logLine(`save-clip [${index}] → ${file} (${fs.statSync(file).size} bytes)`);
+    return { ok: true, path: file };
+  } catch (e) {
+    logLine(`save-clip FAILED: ${e && e.message}`);
+    return { ok: false, error: e && e.message ? e.message : "Couldn't save clip." };
+  }
+});
+
+function runFfmpeg(bin, args) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(bin, args, { windowsHide: true });
+    let err = "";
+    proc.stderr.on("data", (d) => {
+      err += d.toString();
+      if (err.length > 8000) err = err.slice(-8000); // keep the tail only
+    });
+    proc.on("error", reject);
+    proc.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`ffmpeg exit ${code}: ${err.slice(-600)}`));
+    });
+  });
+}
+
+// Stitch the ordered clips into one MP4 and hand back the bytes (for review +
+// upload). clips = [{ path, w, h }]. Heterogeneous sizes are scaled+padded onto a
+// common canvas = the largest width/height across clips, so nothing is cropped.
+ipcMain.handle("export-clips", async (_e, { clips, fps }) => {
+  try {
+    if (!clips || !clips.length) return { ok: false, error: "No clips to export." };
+    const r = fps && fps > 0 ? Math.round(fps) : 30;
+
+    // One clip: nothing to stitch — return it as-is.
+    if (clips.length === 1) {
+      return { ok: true, bytes: fs.readFileSync(clips[0].path) };
+    }
+
+    const ffmpeg = require("ffmpeg-static");
+    const out = path.join(getSessionDir(), `export-${Date.now()}.mp4`);
+    const even = (n) => Math.max(2, Math.floor(n / 2) * 2);
+    const W = even(Math.max(...clips.map((c) => c.w || 1280)));
+    const H = even(Math.max(...clips.map((c) => c.h || 720)));
+
+    const args = ["-y"];
+    for (const c of clips) args.push("-i", c.path);
+    const parts = [];
+    for (let i = 0; i < clips.length; i++) {
+      parts.push(
+        `[${i}:v]scale=${W}:${H}:force_original_aspect_ratio=decrease,` +
+          `pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=${r},format=yuv420p[v${i}]`,
+      );
+    }
+    const labels = clips.map((_c, i) => `[v${i}]`).join("");
+    const filter = `${parts.join(";")};${labels}concat=n=${clips.length}:v=1:a=0[out]`;
+    args.push(
+      "-filter_complex", filter,
+      "-map", "[out]",
+      "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+      "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+      out,
+    );
+
+    logLine(`export-clips: ${clips.length} clips → ${W}x${H} @ ${r}fps → ${out}`);
+    await runFfmpeg(ffmpeg, args);
+    const bytes = fs.readFileSync(out);
+    logLine(`export-clips done: ${bytes.length} bytes`);
+    return { ok: true, bytes };
+  } catch (e) {
+    logLine(`export-clips FAILED: ${e && e.message}`);
+    return { ok: false, error: e && e.message ? e.message : "Export failed." };
+  }
+});
+
 ipcMain.on("renderer-log", (_e, msg) => logLine(`[renderer] ${msg}`));
 
 // Cursor feed for the auto-follow pan: poll the OS cursor (~60 Hz) and push
@@ -366,5 +460,15 @@ ipcMain.on("cursor-track", (_e, on) => {
 
 ipcMain.on("quit", () => app.quit());
 
-app.on("will-quit", () => globalShortcut.unregisterAll());
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+  // Best-effort: drop the per-run temp clip dir (the export was already uploaded).
+  if (sessionDir) {
+    try {
+      fs.rmSync(sessionDir, { recursive: true, force: true });
+    } catch {
+      // leave it for the OS temp cleaner
+    }
+  }
+});
 app.on("window-all-closed", () => app.quit());

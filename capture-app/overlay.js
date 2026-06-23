@@ -38,6 +38,9 @@
   const followRowEl = $("followRow");
   const followOffEl = $("followOff");
   const followOnEl = $("followOn");
+  const clipTrayEl = $("clipTray");
+  const addClipBtnEl = $("addClipBtn");
+  const approveBtnEl = $("approveBtn");
 
   // Aspect token (from the placeholder) → ratio. 0 = free (standalone only).
   const ASPECTS = {
@@ -70,6 +73,10 @@
   const PREFER_WEBCODECS = true; // set false to force the legacy canvas/MediaRecorder path
   let captured = null; // { base64, ext }
   let previewUrl = null;
+  // Multi-clip session: clips queued for stitching, in timeline order.
+  const clips = []; // [{ path, w, h, durMs }]
+  let lastClipDims = { w: 0, h: 0 }; // output dims of the just-recorded clip
+  let lastClipDurMs = 0; // wall-clock length of the just-recorded clip
   let dragging = false;
   const dragRef = { mode: null, x: 0, y: 0, box: null };
 
@@ -147,6 +154,7 @@
     ]) {
       el.classList.toggle("hidden", n !== name);
     }
+    if (name === "review") renderClipTray(); // tray + Add button + Approve label
     // The full-screen overlay is click-through OUTSIDE its own panel in EVERY phase,
     // so the rest of the screen (KiCad, other apps) stays usable the whole time OTD
     // Capture is open. The mousemove hit-test below re-enables the window only while
@@ -529,6 +537,7 @@
     }
 
     recMode = "webcodecs";
+    lastClipDims = { w: cropW, h: cropH };
     wcRunning = true;
     let fc = 0;
     const encodeOne = (frame) => {
@@ -617,6 +626,7 @@
       return;
     }
     recMode = "canvas";
+    lastClipDims = { w: r.outW, h: r.outH };
     pushFrame(); // seed a frame at t=0
     recDraw = setInterval(pushFrame, Math.round(1000 / REC_FPS));
     window.otd.log(`recording started (canvas): codec=${recorder.codec} out=${r.outW}x${r.outH} mp4=${recorder.mp4}`);
@@ -658,6 +668,7 @@
       const buf = await result.blob.arrayBuffer();
       window.otd.log(`stopped: ext=${result.ext} bytes=${buf.byteLength}`);
       captured = { base64: abToBase64(buf), ext: result.ext };
+      lastClipDurMs = Date.now() - recStart;
       finishToReview(URL.createObjectURL(result.blob), true);
     } catch (e) {
       window.otd.log(`recording FAILED: ${e && e.message}`);
@@ -688,9 +699,109 @@
     showSection("review");
   }
 
+  // ── multi-clip tray ──
+  function fmtDur(ms) {
+    const s = Math.max(0, Math.round((ms || 0) / 1000));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  }
+  // Persist the clip currently in review and queue it for stitching.
+  async function addCurrentClip() {
+    if (!captured) return false;
+    const res = await window.otd.saveClip({
+      base64: captured.base64,
+      ext: captured.ext,
+      index: clips.length,
+    });
+    if (!res || !res.ok) {
+      showReviewError("Couldn't save clip: " + ((res && res.error) || "unknown"));
+      return false;
+    }
+    clips.push({ path: res.path, w: lastClipDims.w, h: lastClipDims.h, durMs: lastClipDurMs });
+    return true;
+  }
+  async function addAndRecordAnother() {
+    if (!(await addCurrentClip())) return;
+    captured = null;
+    if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+    previewUrl = null;
+    startFraming(); // re-frame + record the next clip; the queued tray persists
+  }
+  function moveClip(i, dir) {
+    const j = i + dir;
+    if (j < 0 || j >= clips.length) return;
+    const t = clips[i];
+    clips[i] = clips[j];
+    clips[j] = t;
+    renderClipTray();
+  }
+  function removeClip(i) {
+    clips.splice(i, 1);
+    renderClipTray();
+  }
+  function renderClipTray() {
+    const isVideo = mode === "video";
+    addClipBtnEl.classList.toggle("hidden", !isVideo);
+    if (!isVideo || clips.length === 0) {
+      clipTrayEl.classList.add("hidden");
+      clipTrayEl.innerHTML = "";
+      approveBtnEl.textContent = "Approve";
+      return;
+    }
+    clipTrayEl.classList.remove("hidden");
+    const rows = clips
+      .map(
+        (c, i) =>
+          `<div class="clip-row">` +
+          `<span class="clip-name">Clip ${i + 1}</span>` +
+          `<span class="clip-dur">${fmtDur(c.durMs)}</span>` +
+          `<button class="clip-btn" data-act="up" data-i="${i}"${i === 0 ? " disabled" : ""} title="Move up">▲</button>` +
+          `<button class="clip-btn" data-act="down" data-i="${i}"${i === clips.length - 1 ? " disabled" : ""} title="Move down">▼</button>` +
+          `<button class="clip-btn clip-x" data-act="remove" data-i="${i}" title="Remove">✕</button>` +
+          `</div>`,
+      )
+      .join("");
+    clipTrayEl.innerHTML =
+      `<div class="tray-head">${clips.length} clip${clips.length === 1 ? "" : "s"} queued · stitched top → bottom, then this one</div>` +
+      rows;
+    approveBtnEl.textContent = `Stitch ${clips.length + 1} & finish`;
+  }
+  function showReviewError(msg) {
+    reviewStatusEl.textContent = msg;
+    reviewStatusEl.classList.remove("hidden");
+  }
+  clipTrayEl.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-act]");
+    if (!btn) return;
+    const i = parseInt(btn.dataset.i, 10);
+    if (btn.dataset.act === "up") moveClip(i, -1);
+    else if (btn.dataset.act === "down") moveClip(i, 1);
+    else if (btn.dataset.act === "remove") removeClip(i);
+  });
+
   async function approve() {
     if (!captured) return;
     const caption = captionEl.value.trim();
+    // Multi-clip: fold the reviewed clip into the queue, then stitch the whole set
+    // into one MP4 before the normal upload/save runs on the stitched result.
+    if (mode === "video" && clips.length > 0) {
+      if (!(await addCurrentClip())) return;
+      phase = "done";
+      showSection("done");
+      doneMsg.textContent = `Stitching ${clips.length} clips…`;
+      const res = await window.otd.exportClips({
+        clips: clips.map((c) => ({ path: c.path, w: c.w, h: c.h })),
+        fps: 30,
+      });
+      if (!res || !res.ok) {
+        clips.pop(); // undo the add so a retry doesn't double-queue this clip
+        phase = "review";
+        showSection("review");
+        showReviewError("Stitch failed: " + ((res && res.error) || "unknown error"));
+        return;
+      }
+      captured = { base64: abToBase64(res.bytes), ext: "mp4" };
+      clips.length = 0; // consumed into the stitched output
+    }
     if (session) {
       doneMsg.textContent = "Uploading…";
       phase = "done";
@@ -737,6 +848,7 @@
     stopStream();
     recorder = null;
     captured = null;
+    clips.length = 0; // cancelling discards the whole queued session
     box = null;
     boxEl.classList.add("hidden");
     boxEl.classList.remove("following");
@@ -768,8 +880,12 @@
   });
   $("cancelFrameBtn").addEventListener("click", reset);
   $("approveBtn").addEventListener("click", approve);
+  $("addClipBtn").addEventListener("click", addAndRecordAnother);
   $("redoBtn").addEventListener("click", () => {
-    reset();
+    // Re-record the CURRENT clip; keep any clips already queued in the tray.
+    captured = null;
+    if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+    previewUrl = null;
     startFraming();
   });
   $("discardBtn").addEventListener("click", reset);
