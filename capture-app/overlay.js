@@ -71,10 +71,14 @@
   // centre that eases toward it each frame.
   let follow = false;
   const cursor = { x: 0, y: 0 };
-  const cam = { x: 0, y: 0 };
+  const prevCursor = { x: 0, y: 0 };
+  const cursorVel = { x: 0, y: 0 }; // low-pass-smoothed pointer velocity (drives lookahead)
+  const cam = { x: 0, y: 0, vx: 0, vy: 0 }; // frame centre + its velocity (spring state)
   const REC_FPS = 30; // capture + pan frame rate (30 is plenty for a tutorial; was 60)
-  const FOLLOW_TAU = 0.12; // seconds — follow easing time constant (frame-rate independent)
-  const DEADZONE = 0.45; // follow: cursor roams this fraction of the half-frame before it pans
+  const FOLLOW_OMEGA = 14; // critically-damped spring stiffness (higher = snappier); ~10-15
+  const DEADZONE = 0.42; // cursor roams this fraction of the half-frame before the frame pans
+  const LOOKAHEAD = 0.18; // seconds of pointer-velocity lead, so the frame anticipates the cursor
+  const VEL_SMOOTH = 0.2; // low-pass on pointer velocity (raw mouse velocity is too noisy to lead on)
 
   window.otd.onDisplayInfo((info) => {
     scaleFactor = info.scaleFactor || 1;
@@ -281,8 +285,12 @@
     const sy = box.y * scaleFactor;
     const sw = box.w * scaleFactor;
     const sh = box.h * scaleFactor;
-    const outW = Math.max(1, Math.min(Math.round(sw), 1600));
-    const outH = Math.max(1, Math.round(sh * (outW / sw)));
+    // Output MUST be even on both axes — hardware H.264 encoders reject odd
+    // dimensions and silently fall back to (slow) software encode.
+    let outW = Math.min(Math.round(sw), 1600);
+    outW = Math.max(2, outW - (outW % 2));
+    let outH = Math.round(sh * (outW / sw));
+    outH = Math.max(2, outH - (outH % 2));
     return { sx, sy, sw, sh, outW, outH };
   }
 
@@ -384,35 +392,54 @@
     cam.y = box.y + halfH;
     cursor.x = cam.x; // no jump until the pointer actually moves
     cursor.y = cam.y;
+    prevCursor.x = cam.x;
+    prevCursor.y = cam.y;
+    cam.vx = 0;
+    cam.vy = 0;
+    cursorVel.x = 0;
+    cursorVel.y = 0;
     let lastFrameMs = performance.now();
     const pushFrame = () => {
       if (!screenVideo.videoWidth) return;
       if (follow) {
         const now = performance.now();
-        const dt = Math.min(0.1, (now - lastFrameMs) / 1000);
+        const dt = Math.min(0.1, Math.max(0.001, (now - lastFrameMs) / 1000));
         lastFrameMs = now;
         const W = window.innerWidth;
         const H = window.innerHeight;
-        // DEADZONE follow: keep the frame STILL while the cursor roams a central
-        // zone, and only pan once it pushes past the zone edge. Centring the cursor
-        // every frame (the old behaviour) made the whole frame swim with every tiny
-        // mouse move — this tracks the way a real camera operator would.
+        // Lead the cursor by its (low-pass-smoothed) velocity, so the frame
+        // ANTICIPATES motion instead of dragging behind it. Raw pointer velocity is
+        // far too noisy to lead on, hence the smoothing.
+        const rawVx = (cursor.x - prevCursor.x) / dt;
+        const rawVy = (cursor.y - prevCursor.y) / dt;
+        prevCursor.x = cursor.x;
+        prevCursor.y = cursor.y;
+        cursorVel.x += (rawVx - cursorVel.x) * VEL_SMOOTH;
+        cursorVel.y += (rawVy - cursorVel.y) * VEL_SMOOTH;
+        const aimX = cursor.x + cursorVel.x * LOOKAHEAD;
+        const aimY = cursor.y + cursorVel.y * LOOKAHEAD;
+        // DEADZONE: hold the frame still while the aim point roams a central zone;
+        // only retarget once it pushes past the edge (no swimming on micro-moves).
         const dzx = halfW * DEADZONE;
         const dzy = halfH * DEADZONE;
         let tx = cam.x;
         let ty = cam.y;
-        if (cursor.x > cam.x + dzx) tx = cursor.x - dzx;
-        else if (cursor.x < cam.x - dzx) tx = cursor.x + dzx;
-        if (cursor.y > cam.y + dzy) ty = cursor.y - dzy;
-        else if (cursor.y < cam.y - dzy) ty = cursor.y + dzy;
-        // Clamp the target so the fixed-size frame never runs off-screen.
+        if (aimX > cam.x + dzx) tx = aimX - dzx;
+        else if (aimX < cam.x - dzx) tx = aimX + dzx;
+        if (aimY > cam.y + dzy) ty = aimY - dzy;
+        else if (aimY < cam.y - dzy) ty = aimY + dzy;
+        // Clamp the target so the fixed-size frame never reads outside the screen.
         tx = Math.max(halfW, Math.min(tx, W - halfW));
         ty = Math.max(halfH, Math.min(ty, H - halfH));
-        // Frame-rate-INDEPENDENT easing: same feel whether the timer hits 30 or 20 fps,
-        // so timer jitter no longer makes the pan jerk.
-        const k = 1 - Math.exp(-dt / FOLLOW_TAU);
-        cam.x += (tx - cam.x) * k;
-        cam.y += (ty - cam.y) * k;
+        // Critically-damped spring toward the target — settles smoothly, no overshoot,
+        // and none of the floaty infinite tail of exponential easing. (Implicit form,
+        // unconditionally stable at our dt.)
+        const f = 1 + FOLLOW_OMEGA * dt;
+        const oo = FOLLOW_OMEGA * FOLLOW_OMEGA * dt;
+        cam.x = (cam.x + cam.vx * dt + tx * FOLLOW_OMEGA * dt) / f;
+        cam.vx = (cam.vx + (tx - cam.x) * oo) / f;
+        cam.y = (cam.y + cam.vy * dt + ty * FOLLOW_OMEGA * dt) / f;
+        cam.vy = (cam.vy + (ty - cam.y) * oo) / f;
         // Move the box by TRANSFORM (GPU-composited) — with the screen-sized dim
         // dropped via `.following`, there's no per-frame full-screen repaint. The box
         // is excluded from the capture either way; box.x/box.y stay the framed origin.
@@ -447,7 +474,7 @@
     window.otd.trackCursor(true); // high-rate cursor for a smooth follow pan
     // ── diagnostics → otd-capture.log: pinpoint exactly when the pump stalls ──
     const srcTrack = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
-    window.otd.log(`recording started: mp4=${recorder.mp4} srcTrack=${srcTrack ? srcTrack.readyState : "?"}`);
+    window.otd.log(`recording started: codec=${recorder.codec} out=${r.outW}x${r.outH} mp4=${recorder.mp4} srcTrack=${srcTrack ? srcTrack.readyState : "?"}`);
     if (recTrack) recTrack.addEventListener("ended", () => window.otd.log("recTrack ENDED"));
     if (srcTrack) srcTrack.addEventListener("ended", () => window.otd.log("SCREEN track ENDED"));
     recTimer = setInterval(() => {

@@ -44,6 +44,11 @@ app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
 // always-on-top, unfocused window "occluded" a few seconds in and freeze its
 // renderer — which would stop the recording pump mid-clip. Disable that calc.
 app.commandLine.appendSwitch("disable-features", "CalculateNativeWinOcclusion");
+// Capture/encode perf on Windows 11: use the modern Windows Graphics Capture path
+// (faster full-screen capture than DXGI duplication), and keep textures on the GPU.
+app.commandLine.appendSwitch("enable-features", "WebRTC-AllowWgcDesktopCapturer");
+app.commandLine.appendSwitch("enable-gpu-rasterization");
+app.commandLine.appendSwitch("enable-zero-copy");
 
 // Debug log → ~/Downloads/otd-captures/otd-capture.log. The ground truth for "the
 // capture didn't show up": shows the launch argv, whether a deep link was parsed,
