@@ -20,6 +20,11 @@ export const metadata: Metadata = {
   ),
   title: "One Thousand Drones Academy",
   description: "Hardware design lifecycle tracker",
+  // Google Search Console site verification (URL-prefix property). Emits
+  // <meta name="google-site-verification" …> into <head>. Public token, safe to
+  // commit; used instead of a DNS TXT record because academy.* already has a
+  // CNAME → Vercel that a TXT cannot coexist with.
+  verification: { google: "x_gLJh5sMNZPNLRweQ3vZ7A9kbm77IFOcQgmWbA92RU" },
 };
 
 export default async function RootLayout({
