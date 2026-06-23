@@ -690,6 +690,24 @@ function ProseBlock({ md }: { md: string }) {
   );
 }
 
+// A prose block that is NOTHING but a short bold phrase ("**References**") is a
+// section label, not a sentence — render it as a Space-Mono eyebrow with a gold
+// tick and a hairline rule that closes the row (the same section-header language
+// as the diagram eyebrow), instead of a bold paragraph. Guarded tight (letters /
+// spaces / & only, ≤ 24 chars) so ordinary emphatic lines — "**Important.**",
+// "**Note:**" — stay prose.
+const SECTION_LABEL_RE = /^\*\*([A-Za-z][A-Za-z &]{0,23})\*\*$/;
+
+function SectionEyebrow({ label }: { label: string }) {
+  return (
+    <p className="flex items-center gap-3 pt-1 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-command-gold">
+      <span aria-hidden="true">▸</span>
+      <span className="shrink-0">{label}</span>
+      <span aria-hidden="true" className="h-px flex-1 bg-panel-border" />
+    </p>
+  );
+}
+
 // Optional "go deeper" disclosure — the surface stays plain; the math/why is one
 // click away. Native <details> (no JS needed, keyboard/screen-reader accessible),
 // COLLAPSED by default. The body renders like prose (sanitized + inline terms).
@@ -1149,8 +1167,11 @@ function GuideBlock({
   isAdmin?: boolean;
 }) {
   switch (block.type) {
-    case "prose":
+    case "prose": {
+      const m = block.md.trim().match(SECTION_LABEL_RE);
+      if (m) return <SectionEyebrow label={m[1]} />;
       return <ProseBlock md={block.md} />;
+    }
 
     case "callout": {
       // Dispatch by the label's ROLE so teaching / do-this / self-check / exit
@@ -1324,27 +1345,48 @@ function GuideBlock({
       // `rel="noopener noreferrer"` for safety) and mark them with an
       // external-link icon; internal root-relative links stay in the same tab.
       const external = /^https?:\/\//.test(block.href);
-      // Wrap in a block element: the link itself is inline-flex, so without a
-      // block wrapper two consecutive sourceRef blocks flow onto the same line
-      // and touch (the parent's space-y-* can't separate inline-level boxes).
-      // The wrapper puts each link on its own line and lets the stack space them.
+      // Structure = information: the two hrefs serve two purposes, so they get
+      // two looks. An EXTERNAL link is a supporting CITATION — quiet, serif, a
+      // gold tick marker with a hanging indent so wrapped lines align like a
+      // reference list, the external icon hugging the end. An INTERNAL link is
+      // forward NAVIGATION — brighter (gray-1), a gold arrow that nudges right on
+      // hover, reading as "next". Each stays a block so the parent stack spaces
+      // them; consecutive refs no longer run together.
+      if (external) {
+        return (
+          <div className="group">
+            <a
+              href={block.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`${block.label} (opens in a new tab)`}
+              className="block pl-5 -indent-5 text-sm leading-relaxed text-muted transition-colors hover:text-gray-1"
+            >
+              <span
+                aria-hidden="true"
+                className="mr-2 font-mono text-xs text-command-gold/70 transition-colors group-hover:text-command-gold"
+              >
+                ▸
+              </span>
+              <span className="font-serif">{block.label}</span>
+              <ExternalLinkIcon className="ml-1 inline-block h-3 w-3 shrink-0 align-[-0.15em] text-muted/50 transition-colors group-hover:text-command-gold" />
+            </a>
+          </div>
+        );
+      }
       return (
-        <div>
+        <div className="group">
           <a
             href={block.href}
-            {...(external
-              ? {
-                  target: "_blank",
-                  rel: "noopener noreferrer",
-                  "aria-label": `${block.label} (opens in a new tab)`,
-                }
-              : {})}
-            className="inline-flex items-center gap-1 text-link-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-signal-blue"
+            className="inline-flex items-baseline gap-2 font-serif text-base text-gray-1 transition-colors hover:text-command-gold"
           >
-            {block.label}
-            {external ? (
-              <ExternalLinkIcon className="h-3.5 w-3.5 shrink-0" />
-            ) : null}
+            <span
+              aria-hidden="true"
+              className="text-command-gold transition-transform group-hover:translate-x-0.5"
+            >
+              →
+            </span>
+            <span>{block.label}</span>
           </a>
         </div>
       );
