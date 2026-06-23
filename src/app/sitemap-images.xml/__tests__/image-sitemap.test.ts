@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildImageSitemapXml } from "../build";
-import { mapDiagramsToPages } from "@/lib/diagram-usage";
+import { mapDiagramsToPages, mapLessonDiagramsToPages } from "@/lib/diagram-usage";
 
 describe("buildImageSitemapXml", () => {
   it("emits an image entry per diagram bound to its page url", () => {
@@ -73,5 +73,27 @@ describe("mapDiagramsToPages", () => {
       "https://x",
     );
     expect(out).toEqual({});
+  });
+});
+
+describe("mapLessonDiagramsToPages", () => {
+  it("maps a library lesson's diagram to its /library/<slug> url", () => {
+    const out = mapLessonDiagramsToPages(
+      [{ slug: "motor-imagery-bci", blocks: [{ type: "prose", md: "x" }, { type: "image", src: "/guide-diagrams/mu-rhythm-erd.svg" }] }],
+      "https://x",
+    );
+    expect(out["mu-rhythm-erd"]).toEqual(["https://x/library/motor-imagery-bci"]);
+  });
+
+  it("collects the same diagram from multiple lessons and ignores non-diagram srcs", () => {
+    const out = mapLessonDiagramsToPages(
+      [
+        { slug: "a", blocks: [{ type: "image", src: "/guide-diagrams/eeg-bci-pipeline.svg" }] },
+        { slug: "b", blocks: [{ type: "image", src: "/guide-diagrams/eeg-bci-pipeline.svg" }, { src: "/api/shot/z.webp" }] },
+      ],
+      "https://x",
+    );
+    expect(out["eeg-bci-pipeline"].sort()).toEqual(["https://x/library/a", "https://x/library/b"]);
+    expect(Object.keys(out)).toEqual(["eeg-bci-pipeline"]);
   });
 });
