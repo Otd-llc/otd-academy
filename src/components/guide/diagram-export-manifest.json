@@ -130,5 +130,29 @@
     "image": "/guide-diagrams/ten-twenty-midline.webp",
     "alt": "The 10-20 system's midline spacing. Measuring from the nasion at the front of the head to the inion at the back, the midline electrodes are placed at 10 percent (Fpz), then 20 percent (Fz), 20 percent (Cz, the vertex), 20 percent (Pz), 20 percent (Oz), then 10 percent to the inion. Those 10 and 20 percent steps give the system its name, and because they are proportional, the same electrode name lands on the same brain region across different head sizes.",
     "hash": "c500e05ccba5"
+  },
+  {
+    "basename": "frequency-bands",
+    "image": "/guide-diagrams/frequency-bands.webp",
+    "alt": "The classic EEG frequency bands, slow to fast: delta (about 0.5 to 4 Hz, deep slow-wave sleep); theta (about 4 to 8 Hz, drowsiness, deep relaxation, memory tasks); alpha (about 8 to 12 Hz, relaxed wakefulness with eyes closed); beta (about 13 to 30 Hz, alert active concentration); and gamma (about 30 Hz and up, high-level integrative processing). The sensorimotor mu rhythm shares the alpha range but lives over the motor cortex, so where a rhythm appears matters as much as its frequency.",
+    "hash": "58916d741828"
+  },
+  {
+    "basename": "classification-pipeline",
+    "image": "/guide-diagrams/classification-pipeline.webp",
+    "alt": "The EEG classification pipeline: cut the signal into an epoch (window), bandpass-filter to the task's frequencies, extract features or spatially filter, then a classifier outputs a class, which becomes one of a few commands. Two approaches share the feature-and-classifier stage: the classic hand-engineered Common Spatial Patterns plus a linear LDA classifier, and the end-to-end learned EEGNet convolutional network.",
+    "hash": "f7b6ceb60226"
+  },
+  {
+    "basename": "source-to-scalp",
+    "image": "/guide-diagrams/source-to-scalp.webp",
+    "alt": "What EEG measures, from source to scalp: when large populations of neurons fire together in sync, their tiny voltages sum into a single field; that field is blurred and attenuated as it crosses the skull and scalp; and it reaches a scalp electrode as a signal of just a few microvolts varying over time. The result is excellent timing (millisecond by millisecond) but poor spatial resolution, because the signal is smeared on the way out.",
+    "hash": "39e96c0a264c"
+  },
+  {
+    "basename": "bci-loop",
+    "image": "/guide-diagrams/bci-loop.webp",
+    "alt": "Every brain-computer interface is the same loop: measure the brain signal, decode it into an intent, issue a command, and a device acts on it. Then feedback closes the loop: the user sees the result and adapts, getting better at producing clean, classifiable brain states. That feedback return is why a BCI is as much a learned skill as it is hardware.",
+    "hash": "4bcaabd5863b"
   }
 ]

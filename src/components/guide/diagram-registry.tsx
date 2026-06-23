@@ -25,6 +25,10 @@ import { IsolationBarrier } from "./diagrams/IsolationBarrier";
 import { RightLegDrive } from "./diagrams/RightLegDrive";
 import { InstrumentationAmp } from "./diagrams/InstrumentationAmp";
 import { TenTwentyMidline } from "./diagrams/TenTwentyMidline";
+import { FrequencyBands } from "./diagrams/FrequencyBands";
+import { ClassificationPipeline } from "./diagrams/ClassificationPipeline";
+import { SourceToScalp } from "./diagrams/SourceToScalp";
+import { BciLoop } from "./diagrams/BciLoop";
 
 export type DiagramComponent = FC<{ caption?: string }>;
 
@@ -51,4 +55,8 @@ export const DIAGRAM_COMPONENTS: Record<string, DiagramComponent> = {
   "/guide-diagrams/right-leg-drive.svg": RightLegDrive,
   "/guide-diagrams/instrumentation-amp.svg": InstrumentationAmp,
   "/guide-diagrams/ten-twenty-midline.svg": TenTwentyMidline,
+  "/guide-diagrams/frequency-bands.svg": FrequencyBands,
+  "/guide-diagrams/classification-pipeline.svg": ClassificationPipeline,
+  "/guide-diagrams/source-to-scalp.svg": SourceToScalp,
+  "/guide-diagrams/bci-loop.svg": BciLoop,
 };
