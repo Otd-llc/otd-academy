@@ -17,6 +17,7 @@ import { SchematicConventions } from "./diagrams/SchematicConventions";
 import { BringupLadder } from "./diagrams/BringupLadder";
 import { BringupProbePoints } from "./diagrams/BringupProbePoints";
 import { WroomPowerFlow } from "./diagrams/WroomPowerFlow";
+import { MuRhythmErd } from "./diagrams/MuRhythmErd";
 
 export type DiagramComponent = FC<{ caption?: string }>;
 
@@ -35,4 +36,5 @@ export const DIAGRAM_COMPONENTS: Record<string, DiagramComponent> = {
   "/guide-diagrams/bringup-ladder.svg": BringupLadder,
   "/guide-diagrams/bringup-probe-points.svg": BringupProbePoints,
   "/guide-diagrams/wroom-power-flow.svg": WroomPowerFlow,
+  "/guide-diagrams/mu-rhythm-erd.svg": MuRhythmErd,
 };

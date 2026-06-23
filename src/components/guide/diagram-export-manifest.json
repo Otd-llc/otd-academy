@@ -82,5 +82,11 @@
     "image": "/guide-diagrams/wroom-power-flow.webp",
     "alt": "Power flow from USB-C to the ESP32-S3-WROOM-1. The power chain is one vertical spine: J1 USB-C in sends 5 volts to F1, a resettable polyfuse; 5 volts continues to U2, the RT9080 3.3 volt LDO; the LDO outputs 3.3 volts to U1, the ESP32-S3-WROOM-1. Supporting parts beside each stage: J1 has CC resistors R3 and R4, 5.1k Rd pulldowns; U2 has input caps C1 10 microfarad bulk and C5 1 microfarad, plus output cap C6 1 microfarad; U1 is decoupled by C2, C3 and C7. A separate USB data path in blue: J1 USB-C data carries D plus and D minus to D1, an ESD array, which passes clean USB to U1 and shunts surges to ground before they reach U1.",
     "hash": "63568b5bea60"
+  },
+  {
+    "basename": "mu-rhythm-erd",
+    "image": "/guide-diagrams/mu-rhythm-erd.webp",
+    "alt": "Contralateral mu-rhythm desynchronization: when a person imagines moving their left hand, the mu rhythm over the right sensorimotor cortex (electrode C4) drops in amplitude in an event-related desynchronization, while the left-hemisphere rhythm at electrode C3 keeps idling at full amplitude. Detecting which side quieted reveals which hand was imagined.",
+    "hash": "d59a0a47d208"
   }
 ]
