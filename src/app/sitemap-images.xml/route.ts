@@ -7,7 +7,12 @@
 import { db } from "@/lib/db";
 import { siteUrl } from "@/lib/seo/jsonld";
 import { buildImageSitemapXml } from "./build";
-import { mapDiagramsToPages, type UsageProject, type UsageCard } from "@/lib/diagram-usage";
+import {
+  mapDiagramsToPages,
+  mapLessonDiagramsToPages,
+  type UsageProject,
+  type UsageCard,
+} from "@/lib/diagram-usage";
 import manifest from "@/components/guide/diagram-export-manifest.json";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +57,20 @@ export async function GET() {
       blocks: c.contentBlocks,
     }));
     usage = mapDiagramsToPages(ups, ucards, base);
+  }
+
+  // Public Library mini-lessons embed the same registry diagrams; surface their
+  // images too (the on-page diagram is a DOM component with no <img>).
+  const lessons = await db.miniLesson.findMany({
+    where: { published: true, accessTier: "PUBLIC" },
+    select: { slug: true, contentBlocks: true },
+  });
+  const lessonUsage = mapLessonDiagramsToPages(
+    lessons.map((l) => ({ slug: l.slug, blocks: l.contentBlocks })),
+    base,
+  );
+  for (const [basename, urls] of Object.entries(lessonUsage)) {
+    usage[basename] = [...(usage[basename] ?? []), ...urls];
   }
 
   const byBasename = new Map((manifest as ManifestEntry[]).map((m) => [m.basename, m]));

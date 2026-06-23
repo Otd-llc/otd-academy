@@ -54,3 +54,29 @@ export function mapDiagramsToPages(
   for (const [n, set] of map) out[n] = [...set];
   return out;
 }
+
+export type UsageLesson = { slug: string; blocks: unknown };
+
+// Same mapping for public Library mini-lessons: each published+PUBLIC lesson is a
+// `/library/<slug>` page, and a diagram is an `image` block with a registry-key
+// src. Returned shape matches mapDiagramsToPages (basename → page urls) so the
+// route can merge the two before emitting the image sitemap.
+export function mapLessonDiagramsToPages(
+  lessons: UsageLesson[],
+  base: string,
+): Record<string, string[]> {
+  const map = new Map<string, Set<string>>();
+  for (const l of lessons) {
+    const names = basenamesInBlocks(l.blocks);
+    if (!names.length) continue;
+    const url = `${base}/library/${l.slug}`;
+    for (const n of names) {
+      const set = map.get(n) ?? new Set<string>();
+      set.add(url);
+      map.set(n, set);
+    }
+  }
+  const out: Record<string, string[]> = {};
+  for (const [n, set] of map) out[n] = [...set];
+  return out;
+}
