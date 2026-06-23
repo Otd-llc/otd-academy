@@ -72,7 +72,7 @@ export function ReferenceAssetAdmin({
           headers: { "Content-Type": presign.mime },
           body: file,
         });
-        if (!put.ok) throw new Error("Upload to storage failed — try again.");
+        if (!put.ok) throw new Error("Upload to storage failed. Try again.");
         await recordReferenceAsset({
           kind,
           projectId,
@@ -97,10 +97,10 @@ export function ReferenceAssetAdmin({
       </p>
       <p className="mt-2 font-mono text-xs uppercase tracking-wider text-muted">
         {!published
-          ? "No published revision — publish this board first."
+          ? "No published revision. Publish this board first."
           : hasAsset
             ? `Verified ${copy.noun} attached. Upload a new file to replace.`
-            : `No verified ${copy.noun} yet — learners see a placeholder until you attach them.`}
+            : `No verified ${copy.noun} yet. Learners see a placeholder until you attach them.`}
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <input
@@ -121,7 +121,7 @@ export function ReferenceAssetAdmin({
       </div>
       {done && (
         <p className="mt-2 font-mono text-xs uppercase tracking-wider text-status-green">
-          ✓ Saved — learners can download it now.
+          ✓ Saved. Learners can download it now.
         </p>
       )}
       {error && (

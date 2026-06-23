@@ -56,8 +56,8 @@ export function Paywall({
         </h1>
         <p className="mt-3 font-serif text-sm text-gray-2">
           {purchasable
-            ? "The first lesson is free. Unlock the rest of the build — design through bring-up — with a one-time purchase. Lifetime access."
-            : "The first lesson is free. The rest of the build unlocks with access — join the waitlist and we'll let you know the moment it opens."}
+            ? "The first lesson is free. Unlock the rest of the build, design through bring-up, with a one-time purchase. Lifetime access."
+            : "The first lesson is free. The rest of the build unlocks with access. Join the waitlist and we'll let you know the moment it opens."}
         </p>
 
         <div className="mt-6">
@@ -80,8 +80,8 @@ export function Paywall({
             </ul>
           ) : (
             <p className="mt-3 font-serif text-sm text-gray-2">
-              A complete, hands-on build walked end to end — from requirements
-              through bring-up — with comprehension checks and proof artifacts at
+              A complete, hands-on build walked end to end, from requirements
+              through bring-up, with comprehension checks and proof artifacts at
               every stage.
             </p>
           )}

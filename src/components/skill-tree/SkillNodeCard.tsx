@@ -91,7 +91,7 @@ function Affordance({ node }: { node: SkillNode }) {
       if (node.missingPrereqs.length === 0) return trigger;
       return (
         <Tooltip
-          label="Locked — finish first"
+          label="Locked: finish first"
           content={
             <ul className="space-y-0.5">
               {node.missingPrereqs.map((p) => (
@@ -107,7 +107,7 @@ function Affordance({ node }: { node: SkillNode }) {
     case "locked-account":
       return (
         <span className="mt-auto inline-flex items-center gap-1 font-mono text-xs font-bold uppercase tracking-wider text-command-gold">
-          <span aria-hidden="true">🔒</span> Sign in — free
+          <span aria-hidden="true">🔒</span> Sign in (free)
         </span>
       );
     case "locked-paywall": {

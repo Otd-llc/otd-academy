@@ -103,7 +103,7 @@ export function ExamForm({
             {result.score} / {result.total}
           </p>
           <p className="mt-1 font-mono text-xs uppercase tracking-wider text-alert-red">
-            Not passed — {passThreshold}% required. Review and try again.
+            Not passed. {passThreshold}% required. Review and try again.
           </p>
           <button
             type="button"

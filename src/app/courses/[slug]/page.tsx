@@ -33,15 +33,15 @@ export const dynamic = "force-dynamic";
 // Plain-language framing per track / level — adds genuine, course-specific copy
 // (and the keywords learners search) instead of boilerplate.
 const TRACK_BLURB: Record<string, string> = {
-  SENSE: "reading real-world signals — turning voltages, currents and biopotentials into clean digital data",
-  ACT: "driving the physical world — motors, servos, and high-power lighting under precise control",
-  COMMS: "wireless links and meshes — getting boards to talk to each other and to a hub",
-  POWER: "power delivery — batteries, charging, protection, and clean rails everything else depends on",
+  SENSE: "reading real-world signals and turning voltages, currents, and biopotentials into clean digital data",
+  ACT: "driving the physical world with motors, servos, and high-power lighting under precise control",
+  COMMS: "wireless links and meshes that get boards talking to each other and to a hub",
+  POWER: "power delivery, including batteries, charging, protection, and the clean rails everything else depends on",
 };
 const LEVEL_BLURB: Record<string, string> = {
-  L1: "a foundational L1 board — approachable if you can read a schematic",
-  L2: "an intermediate L2 subsystem — it builds on the foundations",
-  L3: "an advanced L3 capstone — the deep end, where the subsystems come together",
+  L1: "a foundational L1 board, approachable if you can read a schematic",
+  L2: "an intermediate L2 subsystem that builds on the foundations",
+  L3: "an advanced L3 capstone, the deep end where the subsystems come together",
 };
 
 async function loadCourse(slug: string) {
@@ -88,7 +88,7 @@ export async function generateMetadata({
   const title = `${name} — One Thousand Drones Academy`;
   const description =
     project.tagline ??
-    `${name}: a hands-on ESP32 hardware course — schematic, layout, fabrication, and bring-up.`;
+    `${name}: a hands-on ESP32 hardware course covering schematic, layout, fabrication, and bring-up.`;
   return {
     title,
     description,
@@ -176,21 +176,21 @@ export default async function CoursePreviewPage({
   const faqs: { q: string; a: string }[] = [
     {
       q: "When does this course open?",
-      a: "It's in active production. Join the waitlist and we'll email you the moment it goes live — and the demand signal helps us decide what to build next.",
+      a: "It's in active production. Join the waitlist and we'll email you the moment it goes live, and the demand signal helps us decide what to build next.",
     },
     {
       q: "Is it beginner-friendly?",
       a: levelBlurb
         ? `This is ${levelBlurb}. Every stage is explained from first principles, so you can follow along as long as you're comfortable reading a schematic.`
-        : "Every stage is explained from first principles — if you can read a schematic, you can follow along.",
+        : "Every stage is explained from first principles. If you can read a schematic, you can follow along.",
     },
     {
       q: "What will I need to build it?",
-      a: `${accessSentence} Building the board for real also needs its bill of materials (listed in the course) and a small PCB order from a fab house — the course walks you through both.`,
+      a: `${accessSentence} Building the board for real also needs its bill of materials (listed in the course) and a small PCB order from a fab house. The course walks you through both.`,
     },
     {
       q: "What will I actually learn?",
-      a: `You'll learn ${trackBlurb ?? "the subsystem this board covers"} — plus the full board workflow: schematic capture, layout, DRC, gerber export, ordering, assembly, and bring-up.`,
+      a: `You'll learn ${trackBlurb ?? "the subsystem this board covers"}, plus the full board workflow: schematic capture, layout, DRC, gerber export, ordering, assembly, and bring-up.`,
     },
   ];
 
@@ -298,7 +298,7 @@ export default async function CoursePreviewPage({
           </p>
           <p className="mt-2 max-w-2xl font-serif text-base text-gray-1">
             This board is on the bench. Leave your email and you&apos;ll be first
-            in when it ships — and your interest helps decide what we build next.
+            in when it ships, and your interest helps decide what we build next.
           </p>
           <div className="mt-5">
             <WaitlistForm projectId={project.id} defaultEmail={sessionEmail} />
@@ -311,22 +311,22 @@ export default async function CoursePreviewPage({
             <SectionHead>What you&apos;ll build</SectionHead>
             <p className="mt-4 max-w-2xl font-serif text-lg leading-relaxed text-gray-1">
               {project.description ??
-                `${name} is a hands-on ESP32 hardware course. You design and build a real, manufacturable board — not a breadboard mock-up — and carry it from a blank schematic all the way to a working assembly you can hold in your hand.`}
+                `${name} is a hands-on ESP32 hardware course. You design and build a real, manufacturable board, not a breadboard mock-up, and carry it from a blank schematic all the way to a working assembly you can hold in your hand.`}
             </p>
             {trackBlurb ? (
               <p className="mt-3 max-w-2xl font-serif text-base leading-relaxed text-muted">
                 It sits on the{" "}
-                <span className="text-command-gold">{project.track}</span> track
-                — {trackBlurb}.
+                <span className="text-command-gold">{project.track}</span> track:{" "}
+                {trackBlurb}.
               </p>
             ) : null}
           </section>
 
           {reading.length > 0 ? (
             <section>
-              <SectionHead>Learn the concepts now — free</SectionHead>
+              <SectionHead>Learn the concepts now, free</SectionHead>
               <p className="mt-4 max-w-2xl font-serif text-base leading-relaxed text-muted">
-                The course isn&apos;t open yet — but the ideas behind it are.
+                The course isn&apos;t open yet, but the ideas behind it are.
                 These free explainers cover the concepts this build puts into
                 practice. No account needed.
               </p>
@@ -364,8 +364,8 @@ export default async function CoursePreviewPage({
             <SectionHead>The build pipeline</SectionHead>
             <p className="mt-4 max-w-2xl font-serif text-base leading-relaxed text-muted">
               No steps skipped, no black boxes. Each stage is gated on real proof
-              of work — a clean ERC, valid gerbers, a passing bring-up — so you
-              finish having actually done the engineering, not just watched it.
+              of work: a clean ERC, valid gerbers, a passing bring-up. You finish
+              having actually done the engineering, not just watched it.
             </p>
             <ol className="mt-5 flex flex-wrap gap-2">
               {STAGE_ORDER.map((s: StageName, i) => (

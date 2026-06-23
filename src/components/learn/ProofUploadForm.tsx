@@ -66,7 +66,7 @@ export function ProofUploadForm({
           headers: { "Content-Type": presign.mime },
           body: file,
         });
-        if (!put.ok) throw new Error("Upload to storage failed — try again.");
+        if (!put.ok) throw new Error("Upload to storage failed. Try again.");
         const res = await recordEnrollmentProof({
           projectId,
           stage,
@@ -79,7 +79,7 @@ export function ProofUploadForm({
           // Recorded, but it didn't pass its check — keep the modal open and tell
           // them exactly why; the gate stays red until they upload a clean one.
           setError(
-            `Not clean yet — ${res.detail}. Fix them, re-export, and upload again.`,
+            `Not clean yet: ${res.detail}. Fix them, re-export, and upload again.`,
           );
           router.refresh();
           return;
