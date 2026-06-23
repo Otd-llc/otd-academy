@@ -102,20 +102,47 @@ scope bucket.
 
 ---
 
-## Recommended path
-**A1 + B1 + D**, with C deferred to Josh: do the academy UI/marketing copy first
-(home → courses → lesson-complete → sign-in → rest), add the skill's apex/academy
-clause now, and decide the apex repo (C) before any cross-repo work. Then phase
-the apex (C-dependent) and, optionally, the guide content (A3) as separate efforts.
+## Decisions (LOCKED 2026-06-23 by Josh)
+1. **Scope = ALL of it** (A1 + A2 + A3): academy UI/marketing copy, the apex site,
+   AND the academy guide content. Rationale: don't build on an inconsistent voice.
+2. **Apex repo = the LIVE site**: `c:\zzz\otd\otd-site-deploy` on **`main`** (both
+   apex worktrees clone `Otd-llc/otd-site`; `otd-site-v4-port` is the in-progress
+   `feat/apex-v4-port` branch — ignore it; touch `main`).
+3. **Skill location = USER-LEVEL.** All custom skills live in
+   `C:\Users\raven\.claude\skills\` (Josh: "all of our custom skills should be
+   user level"). This is what makes the apex (cross-repo) work possible.
+4. **HARD CONSTRAINT — preserve technical content (no hallucinations).** This is a
+   VOICE pass over existing copy: strip em-dashes / AI tells, fix cadence, but
+   never alter a number, spec, mechanism, or claim. A voice edit must read as a
+   punctuation/phrasing diff, never a factual one. (Baked into the skill as an
+   ABSOLUTE.)
 
-## Open decisions (need Josh)
-1. **Scope:** A1 only, or include apex (A2) and/or guide content (A3)?
-2. **Apex repo:** is the v4 rewrite (`otd-site-v4-port`) shipping (→ C2), or polish
-   the live `otd-site-deploy` (→ C1)?
-3. **Where the skill lives for cross-repo use:** copy into each repo, or promote to
-   a user-level skill?
+## Foundation status (done 2026-06-23)
+- All 6 custom skills **copied to user-level** (`~/.claude/skills/`).
+- `otd-content-writing` skill updated there: scope broadened to academy + apex,
+  the **preserve-facts ABSOLUTE** added, the **boundary made surface-specific**
+  (academy refuses the moat; apex owns it), and the dead corpus link removed
+  (self-contained).
+- **DATA LOSS flagged:** the gitignored AI-tell corpus + RED/GREEN baseline
+  (`docs/research/2026-06-22-*`) were local-only and were lost in the earlier
+  branch churn. The skill's inline rules are self-sufficient; regenerate the full
+  4-model corpus via Gemini only if the exhaustive citation taxonomy is needed.
+- **Still pending:** remove the now-duplicate project copies under
+  `project-foundry/.claude/skills/` (they shadow + are now stale vs the user-level
+  ones). NUANCE to confirm: the repo-specific `adding-parts` /
+  `board-design-validation` skills will surface in *every* repo at user level, and
+  the board gate (CLAUDE.md) would then rely on a user-level skill not in the repo.
 
-## Done-when (once a scope is chosen)
-Every targeted surface: zero em-dashes in copy, no AI tells, answer-first, honest
-SEO; the apex keeps its moat, the academy stays generic; verified by loading the
-real pages, not just grepping.
+## Execution phases (turn into a task list via writing-plans)
+1. **Academy UI/marketing** (this repo): home → `/courses` → course detail →
+   lesson-complete → sign-in → curriculum → remaining `learn/**`, `verify`,
+   `license` + `src/components/**`. Voice-only edits; verify by loading pages.
+2. **Apex** (`otd-site-deploy`/main): home → about → contact → header/footer/forms.
+   Moat ALLOWED here. Needs nothing extra now that the skill is user-level.
+3. **Academy guide content** (L1.01 etc., prod DB via gitignored seeds): largest;
+   schedule last. Same preserve-facts discipline.
+
+## Done-when
+Every targeted surface across all three phases: zero em-dashes in copy, no AI
+tells, answer-first, honest SEO; the apex keeps its moat, the academy stays
+generic; **no technical fact changed**; verified by loading the real pages.
