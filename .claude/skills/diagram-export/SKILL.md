@@ -7,8 +7,8 @@ description: >-
   exporter, fixing a failing `diagrams:check` CI gate, or when the user asks to
   "add a diagram", "export diagrams", "diagram SEO", "image sitemap", or "the
   diagram image is stale". Follows docs/diagrams/diagram-standards.md (the visual
-  rules) — read that for the frame/palette/type system. Pairs with the OTD
-  content-writing skill (the prose side), once that exists.
+  rules) — read that for the frame/palette/type system. Pairs with the
+  otd-content-writing skill (the prose side).
 ---
 
 # Diagram export
@@ -21,6 +21,10 @@ multimodal surfaces. This skill is the workflow that gives every diagram an
 
 The visual standard lives in `docs/diagrams/diagram-standards.md`. This skill is
 the **executable export workflow** — don't duplicate the standard, follow it.
+
+**Writing the surrounding lesson prose?** That's the other half — use the
+**otd-content-writing** skill (house voice + honest SEO). This skill owns the
+image; that one owns the words.
 
 ## The one rule
 
