@@ -18,6 +18,9 @@ import { BringupLadder } from "./diagrams/BringupLadder";
 import { BringupProbePoints } from "./diagrams/BringupProbePoints";
 import { WroomPowerFlow } from "./diagrams/WroomPowerFlow";
 import { MuRhythmErd } from "./diagrams/MuRhythmErd";
+import { EegBciPipeline } from "./diagrams/EegBciPipeline";
+import { Ads1299Channel } from "./diagrams/Ads1299Channel";
+import { DroneSharedAutonomy } from "./diagrams/DroneSharedAutonomy";
 
 export type DiagramComponent = FC<{ caption?: string }>;
 
@@ -37,4 +40,7 @@ export const DIAGRAM_COMPONENTS: Record<string, DiagramComponent> = {
   "/guide-diagrams/bringup-probe-points.svg": BringupProbePoints,
   "/guide-diagrams/wroom-power-flow.svg": WroomPowerFlow,
   "/guide-diagrams/mu-rhythm-erd.svg": MuRhythmErd,
+  "/guide-diagrams/eeg-bci-pipeline.svg": EegBciPipeline,
+  "/guide-diagrams/ads1299-channel.svg": Ads1299Channel,
+  "/guide-diagrams/drone-shared-autonomy.svg": DroneSharedAutonomy,
 };

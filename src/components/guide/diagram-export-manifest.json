@@ -88,5 +88,23 @@
     "image": "/guide-diagrams/mu-rhythm-erd.webp",
     "alt": "Contralateral mu-rhythm desynchronization: when a person imagines moving their left hand, the mu rhythm over the right sensorimotor cortex (electrode C4) drops in amplitude in an event-related desynchronization, while the left-hemisphere rhythm at electrode C3 keeps idling at full amplitude. Detecting which side quieted reveals which hand was imagined.",
     "hash": "d59a0a47d208"
+  },
+  {
+    "basename": "eeg-bci-pipeline",
+    "image": "/guide-diagrams/eeg-bci-pipeline.webp",
+    "alt": "The five-stage EEG brain-computer interface signal chain. The brain's activity flows through: 1, electrodes that pick up microvolt scalp voltages (hard part: contact impedance and placement); 2, an analog front-end that amplifies the signal and rejects common-mode noise (noise floor and mains rejection); 3, an analog-to-digital converter that digitizes every channel simultaneously (resolution and simultaneous sampling); 4, signal processing that filters the data and extracts features (separating signal from artifact); 5, a classifier that maps features to an intent (low, noisy bandwidth). The intent becomes a command.",
+    "hash": "7bdb020229df"
+  },
+  {
+    "basename": "ads1299-channel",
+    "image": "/guide-diagrams/ads1299-channel.webp",
+    "alt": "The signal path of one ADS1299 channel: a microvolt electrode input feeds a programmable-gain amplifier (gain 1 to 24 times), which feeds that channel's own dedicated 24-bit delta-sigma ADC, whose output goes out over SPI to the host. All eight channels are identical and sample at the same instant. Separately, an on-chip bias-drive amplifier senses the body's common-mode voltage and drives a correction back through a bias electrode, cancelling 50/60 Hz mains hum before it reaches the converters.",
+    "hash": "14b79b972d68"
+  },
+  {
+    "basename": "drone-shared-autonomy",
+    "image": "/guide-diagrams/drone-shared-autonomy.webp",
+    "alt": "Shared-autonomy brain-drone control. The human supplies sparse, high-level intent at roughly one command every second or two: imagine a movement, the EEG is classified, and it becomes a command like go left or hover. The drone's own flight controller handles the fast, continuous work at hundreds of hertz: holding altitude, staying stable, and avoiding obstacles. The human's intent sets the goal; the drone executes it continuously, and visual feedback from the drone closes the loop so the human can adjust.",
+    "hash": "09bc6caa5a9a"
   }
 ]
