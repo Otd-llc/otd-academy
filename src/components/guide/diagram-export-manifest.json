@@ -106,5 +106,29 @@
     "image": "/guide-diagrams/drone-shared-autonomy.webp",
     "alt": "Shared-autonomy brain-drone control. The human supplies sparse, high-level intent at roughly one command every second or two: imagine a movement, the EEG is classified, and it becomes a command like go left or hover. The drone's own flight controller handles the fast, continuous work at hundreds of hertz: holding altitude, staying stable, and avoiding obstacles. The human's intent sets the goal; the drone executes it continuously, and visual feedback from the drone closes the loop so the human can adjust.",
     "hash": "09bc6caa5a9a"
+  },
+  {
+    "basename": "isolation-barrier",
+    "image": "/guide-diagrams/isolation-barrier.webp",
+    "alt": "EEG electrical isolation. Top row, the safe case: a battery powers the front-end and the electrodes on the person, with no conductive path to mains, so a fault has nowhere to drive current. Bottom row, the danger: a mains-powered device connected to the electrodes without a rated isolation barrier lets line voltage reach the electrodes and drive fault current through the person's head to ground. A rated galvanic isolation barrier, or simply battery power, removes that path.",
+    "hash": "e8881939d4f0"
+  },
+  {
+    "basename": "right-leg-drive",
+    "image": "/guide-diagrams/right-leg-drive.webp",
+    "alt": "The driven-right-leg or bias loop is active negative feedback against mains hum. It senses the body's common-mode voltage (the average of the amplifier inputs), inverts and amplifies it, and drives that opposing signal back into the body through a bias electrode, nulling the hum where it enters. A large series resistor in the drive path limits the current to a safe level, so noise rejection and patient safety are designed together.",
+    "hash": "6738f4f47cbf"
+  },
+  {
+    "basename": "instrumentation-amp",
+    "image": "/guide-diagrams/instrumentation-amp.webp",
+    "alt": "An instrumentation amplifier measures the difference between two electrodes. Each input carries the tiny microvolt brain signal plus a large common-mode interference (mains hum). The amplifier outputs the gain times the difference of the two inputs, so the common-mode part that is the same on both inputs subtracts away and the difference (the brain signal) survives and is amplified. The common-mode rejection ratio, around 100 to 110 decibels in good EEG amplifiers, measures how well the common part is cancelled.",
+    "hash": "e481c15c4b71"
+  },
+  {
+    "basename": "ten-twenty-midline",
+    "image": "/guide-diagrams/ten-twenty-midline.webp",
+    "alt": "The 10-20 system's midline spacing. Measuring from the nasion at the front of the head to the inion at the back, the midline electrodes are placed at 10 percent (Fpz), then 20 percent (Fz), 20 percent (Cz, the vertex), 20 percent (Pz), 20 percent (Oz), then 10 percent to the inion. Those 10 and 20 percent steps give the system its name, and because they are proportional, the same electrode name lands on the same brain region across different head sizes.",
+    "hash": "c500e05ccba5"
   }
 ]

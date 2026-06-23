@@ -21,6 +21,10 @@ import { MuRhythmErd } from "./diagrams/MuRhythmErd";
 import { EegBciPipeline } from "./diagrams/EegBciPipeline";
 import { Ads1299Channel } from "./diagrams/Ads1299Channel";
 import { DroneSharedAutonomy } from "./diagrams/DroneSharedAutonomy";
+import { IsolationBarrier } from "./diagrams/IsolationBarrier";
+import { RightLegDrive } from "./diagrams/RightLegDrive";
+import { InstrumentationAmp } from "./diagrams/InstrumentationAmp";
+import { TenTwentyMidline } from "./diagrams/TenTwentyMidline";
 
 export type DiagramComponent = FC<{ caption?: string }>;
 
@@ -43,4 +47,8 @@ export const DIAGRAM_COMPONENTS: Record<string, DiagramComponent> = {
   "/guide-diagrams/eeg-bci-pipeline.svg": EegBciPipeline,
   "/guide-diagrams/ads1299-channel.svg": Ads1299Channel,
   "/guide-diagrams/drone-shared-autonomy.svg": DroneSharedAutonomy,
+  "/guide-diagrams/isolation-barrier.svg": IsolationBarrier,
+  "/guide-diagrams/right-leg-drive.svg": RightLegDrive,
+  "/guide-diagrams/instrumentation-amp.svg": InstrumentationAmp,
+  "/guide-diagrams/ten-twenty-midline.svg": TenTwentyMidline,
 };
