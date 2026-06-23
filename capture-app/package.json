@@ -10,5 +10,8 @@
   },
   "devDependencies": {
     "electron": "^42.4.0"
+  },
+  "dependencies": {
+    "mp4-muxer": "^5.2.2"
   }
 }
