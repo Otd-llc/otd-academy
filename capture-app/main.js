@@ -252,19 +252,26 @@ ipcMain.on("set-interactive", (_e, interactive) => {
   overlay?.setIgnoreMouseEvents(!interactive, { forward: true });
 });
 
-// Arm/disarm the GLOBAL spacebar (only while framing/recording, so it doesn't
-// clobber Space everywhere else). The renderer drives the timing.
+// Arm/disarm the GLOBAL capture keys (only while framing/recording).
+// Ctrl+Shift+Enter = capture / start-stop, Ctrl+Shift+Backspace = cancel.
+// Modifier chords on NORMAL keys on purpose: bare Space/Esc clobber KiCad, and
+// bare F-keys are unreliable on laptops (the F-row defaults to media/Fn). These
+// need no Fn and collide with neither KiCad nor Windows.
 ipcMain.on("arm-space", () => {
-  globalShortcut.register("Space", () => overlay?.webContents.send("trigger"));
-  globalShortcut.register("Escape", () => overlay?.webContents.send("cancel"));
+  globalShortcut.register("CommandOrControl+Shift+Return", () =>
+    overlay?.webContents.send("trigger"),
+  );
+  globalShortcut.register("CommandOrControl+Shift+Backspace", () =>
+    overlay?.webContents.send("cancel"),
+  );
   // Auto-follow toggle — a combo unlikely to clash with KiCad's shortcuts.
   globalShortcut.register("CommandOrControl+Shift+F", () =>
     overlay?.webContents.send("toggle-follow"),
   );
 });
 ipcMain.on("disarm-space", () => {
-  globalShortcut.unregister("Space");
-  globalShortcut.unregister("Escape");
+  globalShortcut.unregister("CommandOrControl+Shift+Return");
+  globalShortcut.unregister("CommandOrControl+Shift+Backspace");
   globalShortcut.unregister("CommandOrControl+Shift+F");
 });
 

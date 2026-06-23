@@ -2,10 +2,10 @@
 
 A small **Electron** app that does what a web page can't: float a marching-ants
 crop box over **any** app (KiCad), grab/record just that region with a **global
-spacebar**, and stay **invisible to its own capture** (no infinite mirror).
+hotkey** (Ctrl+Shift+Enter), and stay **invisible to its own capture** (no infinite mirror).
 
 It drives the lesson flow end-to-end: click the gold **+** on a placeholder in the
-lesson → this app pops up **showing what to capture** → frame → **Space** → review
+lesson → this app pops up **showing what to capture** → frame → **Ctrl+Shift+Enter** → review
 → **Approve** uploads straight into that exact slot. (Run standalone with no deep
 link and it falls back to saving to `~/Downloads/otd-captures/`.)
 
@@ -29,10 +29,11 @@ writes it to HKCU). After that the lesson **+** can launch it even when it's clo
    **Start capture**.
 3. A gold **marching-ants box** appears over your screen, dimming everything else.
    Drag / resize it; arrange KiCad *behind* it on the real desktop.
-4. Press **Space** (works even while KiCad is focused) → grabs the boxed region.
-   For a clip: **Space** starts recording — the box then turns **click-through**, so
-   you can drive KiCad inside it (click, select, type, press Insert…) *while it
-   records*. **Space** again or the on-panel **Stop** button finishes. **Esc** cancels.
+4. Press **Ctrl+Shift+Enter** (works even while KiCad is focused) → grabs the boxed
+   region. For a clip: **Ctrl+Shift+Enter** starts recording — the box then turns
+   **click-through**, so you can drive KiCad inside it (click, select, type, press
+   Insert…) *while it records*. **Ctrl+Shift+Enter** again or the on-panel **Stop**
+   button finishes. **Ctrl+Shift+Backspace** cancels.
 5. **Review** → **Approve** / **Redo**.
 6. Approve → the cropped capture is encoded (WebP still · WebM/MP4 clip with the
    duration fixes) and **uploaded into that placeholder**. The app then **closes
@@ -84,9 +85,11 @@ branding. Keep them in sync; later they could share one module.
   `set-interactive` hover hit-test (it drops the box from the live set once
   `phase === "recording"`) is the knob.
 - **Content protection:** confirm the box/dim are NOT in the uploaded shot.
-- **Global Space / Esc:** grabbed while framing/recording — they're the trigger /
-  cancel, so they're blocked in other apps during that window (by design). If a clip
-  needs Space or Esc *inside* KiCad, use the on-panel **Stop** / **Cancel** instead.
+- **Global Ctrl+Shift+Enter / Ctrl+Shift+Backspace:** grabbed while framing/recording
+  — they're the trigger / cancel. Modifier chords on normal keys on purpose: Space/Esc
+  clobber KiCad (pan / cancel) and bare F-keys are unreliable on laptops (the F-row
+  defaults to media/Fn), whereas these need no Fn and collide with neither KiCad nor
+  Windows. The on-panel **Stop** / **Cancel** buttons do the same if you prefer the mouse.
 
 ## Troubleshooting — "the capture never shows up on the site"
 

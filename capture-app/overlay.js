@@ -319,8 +319,8 @@
     boxEl.classList.remove("hidden");
     framingStatus.innerHTML =
       mode === "video"
-        ? 'Frame the box over KiCad, then <kbd>Space</kbd> to start. While recording the box goes <b>click-through</b> — work in KiCad normally; <kbd>Space</kbd> or Stop to finish.'
-        : 'Frame it, then press <kbd>Space</kbd> to capture. <kbd>Esc</kbd> cancels.';
+        ? 'Frame the box over KiCad, then <kbd>Ctrl+Shift+Enter</kbd> to start. While recording the box goes <b>click-through</b> — work in KiCad normally; <kbd>Ctrl+Shift+Enter</kbd> or Stop to finish.'
+        : 'Frame it, then press <kbd>Ctrl+Shift+Enter</kbd> to capture. <kbd>Ctrl+Shift+Backspace</kbd> cancels.';
     window.otd.armSpace();
   }
 
@@ -427,7 +427,7 @@
     if (srcTrack) srcTrack.addEventListener("ended", () => window.otd.log("SCREEN track ENDED"));
     recTimer = setInterval(() => {
       const s = Math.floor((Date.now() - recStart) / 1000);
-      framingStatus.innerHTML = `<span class="rec">● Recording ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}</span> — ${follow ? "following cursor" : "fixed frame"} (<kbd>Ctrl+Shift+F</kbd> toggles). <kbd>Space</kbd> or Stop to finish.`;
+      framingStatus.innerHTML = `<span class="rec">● Recording ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}</span> — ${follow ? "following cursor" : "fixed frame"} (<kbd>Ctrl+Shift+F</kbd> toggles). <kbd>Ctrl+Shift+Enter</kbd> or Stop to finish.`;
       window.otd.log(
         `rec t=${((Date.now() - recStart) / 1000).toFixed(1)}s ticks=${pumpTicks}` +
           ` recState=${recorder && recorder.rec ? recorder.rec.state : "?"}` +
