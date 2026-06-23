@@ -9,6 +9,8 @@
     "db:seed": "prisma db seed",
     "test": "vitest run",
     "test:watch": "vitest",
+    "diagrams:export": "tsx scripts/export-diagrams.ts",
+    "diagrams:check": "tsx scripts/export-diagrams.ts --check",
     "postinstall": "prisma generate && node scripts/copy-occt-wasm.cjs"
   },
   "dependencies": {

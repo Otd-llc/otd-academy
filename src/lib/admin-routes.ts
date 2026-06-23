@@ -55,5 +55,9 @@ export function isPublicPath(pathname: string): boolean {
   // The public glossary index — a crawlable reference page (also the resolve
   // target for DefinedTerm.inDefinedTermSet.url).
   if (top === "glossary") return true;
+  // Dev/CI-only diagram render surface (the diagram exporter screenshots these
+  // via a headless browser with no session). The page itself 404s in production
+  // unless DIAGRAM_EXPORT is set, so exposing the prefix is safe.
+  if (top === "diagram-render") return true;
   return false;
 }
