@@ -19,6 +19,15 @@ const cellSchema = z.object({
 
 export const contentBlockSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("prose"), md: z.string().max(4000) }),
+  // A section heading (semantic <h2>/<h3>) that breaks a long lesson into
+  // scannable, snippet-eligible sections. `text` is plain (no markdown); `level`
+  // defaults to 2, use 3 for a sub-heading. SEO: question-style h2s help
+  // featured snippets / People-Also-Ask.
+  z.object({
+    type: z.literal("heading"),
+    text: z.string().trim().min(1).max(120),
+    level: z.union([z.literal(2), z.literal(3)]).optional(),
+  }),
   z.object({ type: z.literal("callout"), severity: z.enum(["critical", "warn", "info"]), label: z.string().trim().min(1).max(120), body: z.string().max(2000) }),
   z.object({ type: z.literal("steps"), ordered: z.boolean().default(true), items: z.array(z.string().max(500)).min(1) }),
   z.object({ type: z.literal("table"), columns: z.array(z.string()).min(1), rows: z.array(z.array(cellSchema)) }),

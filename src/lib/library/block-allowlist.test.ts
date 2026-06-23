@@ -9,7 +9,7 @@ import type { ContentBlock } from "@/lib/schemas/guide";
 
 describe("library block allowlist", () => {
   it("allows the public-safe block types", () => {
-    for (const t of ["prose", "callout", "steps", "table", "image", "quiz", "sourceRef", "deepDive", "termRef", "vendorCta", "youtube"]) {
+    for (const t of ["prose", "heading", "callout", "steps", "table", "image", "quiz", "sourceRef", "deepDive", "termRef", "vendorCta", "youtube"]) {
       expect(LIBRARY_BLOCK_TYPES.has(t)).toBe(true);
     }
   });

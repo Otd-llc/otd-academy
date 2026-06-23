@@ -10,6 +10,7 @@ import type { ContentBlock } from "@/lib/schemas/guide";
 
 export const LIBRARY_BLOCK_TYPES: ReadonlySet<string> = new Set([
   "prose",
+  "heading",
   "callout",
   "steps",
   "table",

@@ -1,6 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { contentBlockSchema } from "@/lib/schemas/guide";
 
+describe("heading content block", () => {
+  it("accepts a heading with default level", () => {
+    expect(contentBlockSchema.safeParse({ type: "heading", text: "What is motor imagery?" }).success).toBe(true);
+  });
+  it("accepts an explicit level 2 or 3", () => {
+    expect(contentBlockSchema.safeParse({ type: "heading", text: "Sub", level: 3 }).success).toBe(true);
+    expect(contentBlockSchema.safeParse({ type: "heading", text: "Sec", level: 2 }).success).toBe(true);
+  });
+  it("rejects empty text and out-of-range levels", () => {
+    expect(contentBlockSchema.safeParse({ type: "heading", text: "" }).success).toBe(false);
+    expect(contentBlockSchema.safeParse({ type: "heading", text: "x", level: 1 }).success).toBe(false);
+    expect(contentBlockSchema.safeParse({ type: "heading", text: "x", level: 4 }).success).toBe(false);
+  });
+});
+
 describe("youtube content block", () => {
   it("accepts a minimal valid youtube block", () => {
     const r = contentBlockSchema.safeParse({

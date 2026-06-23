@@ -1173,6 +1173,22 @@ function GuideBlock({
       return <ProseBlock md={block.md} />;
     }
 
+    case "heading": {
+      // A real semantic section heading (h2/h3) for long lessons: scannable for
+      // readers, snippet-eligible for search. Bebas display, subordinate to the
+      // page H1, with a top margin that opens a new section.
+      const Tag = block.level === 3 ? "h3" : "h2";
+      return (
+        <Tag
+          className={`mb-1 mt-9 font-display font-normal leading-tight tracking-wide text-white first:mt-0 ${
+            block.level === 3 ? "text-xl" : "text-2xl"
+          }`}
+        >
+          {block.text}
+        </Tag>
+      );
+    }
+
     case "callout": {
       // Dispatch by the label's ROLE so teaching / do-this / self-check / exit
       // each read distinctly (see the role-styled callout components above).
