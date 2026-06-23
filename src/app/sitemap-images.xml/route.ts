@@ -1,0 +1,75 @@
+// Image sitemap: associates each exported guide-diagram image with the public
+// guide page(s) that embed it, so Google Images / multimodal surfaces can
+// discover them (the on-page diagram is a DOM component with no <img>, invisible
+// to image crawlers otherwise). Reachable signed-out: the proxy.ts matcher
+// excludes any path with a file extension (".*\\..*"), so /sitemap-images.xml is
+// never auth-gated — same as /sitemap.xml.
+import { db } from "@/lib/db";
+import { siteUrl } from "@/lib/seo/jsonld";
+import { buildImageSitemapXml } from "./build";
+import { mapDiagramsToPages, type UsageProject, type UsageCard } from "@/lib/diagram-usage";
+import manifest from "@/components/guide/diagram-export-manifest.json";
+
+export const dynamic = "force-dynamic";
+
+type ManifestEntry = { basename: string; image: string; alt: string; hash: string };
+
+export async function GET() {
+  const base = siteUrl();
+
+  const projects = await db.project.findMany({
+    where: {
+      accessTier: { in: ["PUBLIC", "PREMIUM"] },
+      publishedRevisionId: { not: null },
+      archivedAt: null,
+    },
+    select: {
+      slug: true,
+      accessTier: true,
+      publishedRevisionId: true,
+      publishedRevision: { select: { label: true } },
+    },
+  });
+
+  const ups: UsageProject[] = projects
+    .filter((p) => p.publishedRevisionId && p.publishedRevision?.label)
+    .map((p) => ({
+      slug: p.slug,
+      accessTier: String(p.accessTier),
+      label: p.publishedRevision!.label,
+      publishedRevisionId: p.publishedRevisionId!,
+    }));
+
+  let usage: Record<string, string[]> = {};
+  if (ups.length) {
+    const cards = await db.guideCard.findMany({
+      where: { guide: { revisionId: { in: ups.map((p) => p.publishedRevisionId) } } },
+      select: { stage: true, contentBlocks: true, guide: { select: { revisionId: true } } },
+    });
+    const ucards: UsageCard[] = cards.map((c) => ({
+      revisionId: c.guide.revisionId,
+      stage: String(c.stage),
+      blocks: c.contentBlocks,
+    }));
+    usage = mapDiagramsToPages(ups, ucards, base);
+  }
+
+  const byBasename = new Map((manifest as ManifestEntry[]).map((m) => [m.basename, m]));
+  const byPage = new Map<string, { loc: string; caption: string }[]>();
+  for (const [basename, urls] of Object.entries(usage)) {
+    const entry = byBasename.get(basename);
+    if (!entry) continue;
+    for (const pageUrl of urls) {
+      const arr = byPage.get(pageUrl) ?? [];
+      arr.push({ loc: base + entry.image, caption: entry.alt });
+      byPage.set(pageUrl, arr);
+    }
+  }
+
+  const xml = buildImageSitemapXml(
+    [...byPage].map(([pageUrl, images]) => ({ pageUrl, images })),
+  );
+  return new Response(xml, {
+    headers: { "Content-Type": "application/xml; charset=utf-8" },
+  });
+}

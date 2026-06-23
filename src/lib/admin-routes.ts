@@ -47,5 +47,9 @@ export function isPublicPath(pathname: string): boolean {
   // The signed token in the path is the gate (verified in the route), so this is
   // safe to expose. Everything else under /learn stays auth-gated.
   if (top === "learn" && segments[2] === "certificate") return true;
+  // Dev/CI-only diagram render surface (the diagram exporter screenshots these
+  // via a headless browser with no session). The page itself 404s in production
+  // unless DIAGRAM_EXPORT is set, so exposing the prefix is safe.
+  if (top === "diagram-render") return true;
   return false;
 }

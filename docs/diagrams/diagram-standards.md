@@ -118,6 +118,30 @@ type roles).
   semantic color.
 - ≥ 16 px clearance between unrelated strokes/symbols.
 
+## Indexable image export (SEO — automated)
+
+Every diagram registered in `DIAGRAM_COMPONENTS`
+([`diagram-registry.tsx`](../../src/components/guide/diagram-registry.tsx)) is
+auto-exported to an indexable raster (`public/guide-diagrams/<basename>.webp`)
+with `alt` taken from the component's `aria-label`, and listed (against the guide
+pages that embed it) in the [`/sitemap-images.xml`](../../src/app/sitemap-images.xml/route.ts)
+image sitemap. The on-page component is untouched — the image is purely additive
+(image search + AI multimodal + sharing).
+
+- **Registration is the trigger.** Add a diagram to the registry → run
+  `pnpm diagrams:export` (needs the dev server up) → commit the new `.webp` +
+  the updated `src/components/guide/diagram-export-manifest.json`.
+- **CI enforces it.** `pnpm diagrams:check` (GitHub CI) renders every registered
+  diagram in headless Chromium and fails the build if one is missing its image or
+  its alt text drifted from the manifest. It does NOT compare pixels (WebP bytes
+  differ across OS), so a purely visual edit won't fail CI — re-export locally.
+- **Format policy:** standalone SVG for genuinely-vector diagrams; WebP (raster
+  screenshot) for the HTML/CSS-component diagrams (all current ones).
+- **Never hand-write** the image or its alt; both are generated. Don't triple-label
+  (figcaption + figure `aria-label` + `<img alt>` all identical).
+- See the **diagram-export** skill (`.claude/skills/diagram-export/`) for the
+  end-to-end authoring workflow.
+
 ## Pre-ship checklist
 
 - [ ] Renders at **360 px**: all text ≥ ~14 px, nothing clipped or overlapping.
@@ -127,6 +151,8 @@ type roles).
 - [ ] Gold dominant; blue secondary; red only for critical states.
 - [ ] No "to scale" claim; ratio claims OK.
 - [ ] Label-bearing → it's a component (not a scaled SVG).
+- [ ] Registered in `DIAGRAM_COMPONENTS` + `pnpm diagrams:export` run, with the
+      `.webp` and manifest committed (CI's `diagrams:check` will fail otherwise).
 
 ## Verification
 
