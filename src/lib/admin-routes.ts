@@ -52,5 +52,9 @@ export function isPublicPath(pathname: string): boolean {
   // authoring surface lives under /admin/library (held back by isAdminOnlyPath's
   // top==="admin" rule), so the whole /library prefix is safe to expose.
   if (top === "library") return true;
+  // Dev/CI-only diagram render surface (the diagram exporter screenshots these
+  // via a headless browser with no session). The page itself 404s in production
+  // unless DIAGRAM_EXPORT is set, so exposing the prefix is safe.
+  if (top === "diagram-render") return true;
   return false;
 }

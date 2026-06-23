@@ -1,0 +1,86 @@
+[
+  {
+    "basename": "mpn-anatomy",
+    "image": "/guide-diagrams/mpn-anatomy.webp",
+    "alt": "Decoding the part number RC0805FR-075K1L. RC is the Yageo thick-film resistor family; 0805 is the package size 2.0 by 1.25 mm; F is the tolerance plus or minus 1 percent; 5K1 is the value 5.1 kilohm, an E24 step not a round 5.0. R-07 and the trailing L are packaging and ordering codes you can ignore.",
+    "hash": "f22cf03a6a61"
+  },
+  {
+    "basename": "0805-vs-0402",
+    "image": "/guide-diagrams/0805-vs-0402.webp",
+    "alt": "An 0805 passive (2.0 by 1.25 mm) is about five times the area of an 0402 (1.0 by 0.5 mm). The larger 0805 solders with a plain iron and tweezers; the tiny 0402 wants solder paste and hot air. This board uses 0805.",
+    "hash": "b84f52ad9d10"
+  },
+  {
+    "basename": "current-budget",
+    "image": "/guide-diagrams/current-budget.webp",
+    "alt": "Current budget: the board draws about 550 mA (a 500 mA Wi-Fi transmit peak plus 50 mA for the rest) against the RT9080 LDO's 600 mA ceiling, leaving roughly 50 mA of headroom.",
+    "hash": "a91753942545"
+  },
+  {
+    "basename": "hasl-vs-enig",
+    "image": "/guide-diagrams/hasl-vs-enig.webp",
+    "alt": "Two cross-sections under the WROOM module's fine-pitch pads. With HASL the solder is domed at uneven heights, so the module tilts and one pad never makes contact, leaving a gap where no joint forms. With ENIG the finish is flat, so the module sits level and every pad meets it.",
+    "hash": "c175933f3da2"
+  },
+  {
+    "basename": "two-layer-cross-section",
+    "image": "/guide-diagrams/two-layer-cross-section.webp",
+    "alt": "Edge-on cross-section of a two-layer board. The part sits on the top copper, which carries the signal traces and the parts. Below it is the FR4 core, the insulator. Below that is the bottom copper, one continuous ground plane that is the return path. Plated vias tie the top and bottom layers together through the core.",
+    "hash": "08f16d4376cd"
+  },
+  {
+    "basename": "gerber-layer-stack",
+    "image": "/guide-diagrams/gerber-layer-stack.webp",
+    "alt": "A Gerber set: one flat file per layer. Front to back — F_Silkscreen.gbr (the white labels), F_Mask.gbr (mask, gaps at the pads), F_Cu.gbr (front copper, your traces), B_Cu.gbr (back copper, ground plane), B_Mask.gbr (mask, gaps at the pads), B_Silkscreen.gbr (the white labels), and Edge_Cuts.gbr (where the fab cuts the board). A separate drill file, .drl, pierces the copper layers. Zip every one into a single archive — that zip is the board the fab builds.",
+    "hash": "3701d9e9c69c"
+  },
+  {
+    "basename": "continuity-vbus-gnd",
+    "image": "/guide-diagrams/continuity-vbus-gnd.webp",
+    "alt": "Before any power: with the board unplugged and the meter in continuity mode, touch one probe to the VBUS pad and the other to the GND pad on the top of the board. The meter must read OL with no beep. A beep means a dead short — stop and fix it before plugging in.",
+    "hash": "5d8f2bb8e311"
+  },
+  {
+    "basename": "adc1-pin-map",
+    "image": "/guide-diagrams/adc1-pin-map.webp",
+    "alt": "ADC pin map. GPIO 1 to 10 are ADC1 and stay usable for analog input. GPIO 11 to 20 are ADC2 and are claimed by the radio, so they read garbage while Wi-Fi is on. For analog reads, stick to ADC1, GPIO 1 to 10.",
+    "hash": "75c1aa32e08e"
+  },
+  {
+    "basename": "antenna-keepout",
+    "image": "/guide-diagrams/antenna-keepout.webp",
+    "alt": "Top view of the carrier board: the ESP32-S3-WROOM-1 module (U1) sits at the board edge with its PCB antenna overhanging the top edge inside a dashed no-copper keep-out; the module's pads sit below the keep-out on the ground pour, which fills the rest of the board.",
+    "hash": "b839a0e88fcf"
+  },
+  {
+    "basename": "decoupling-placement",
+    "image": "/guide-diagrams/decoupling-placement.webp",
+    "alt": "Decoupling capacitor placement decides whether it works. Case one, the cap right at the IC pin, makes a small current loop: a short path with low inductance, so the cap dumps current fast. Case two, the same cap placed far from the pin, makes a big loop: a long path whose trace inductance chokes the fast current. Same cap and same schematic — placement is everything.",
+    "hash": "66df175b1b1b"
+  },
+  {
+    "basename": "schematic-conventions",
+    "image": "/guide-diagrams/schematic-conventions.webp",
+    "alt": "Schematic-drawing conventions: signal flows left to right, supply symbols (3V3) point up and grounds (GND) point down, parts are grouped by sub-circuit, and a decoupling capacitor sits right at the IC power pin. The worked example shows the 3V3 supply entering the top of an IC, signal in from the left and out to the right, ground leaving the bottom, and the decoupling cap branching off the supply at the pin.",
+    "hash": "97b87db6b6b4"
+  },
+  {
+    "basename": "bringup-ladder",
+    "image": "/guide-diagrams/bringup-ladder.webp",
+    "alt": "Bring-up is a ladder of five rungs in order: one, no shorts, the meter stays silent; two, the 3.3 V rail, TP1 reads about 3.3 V; three, LED1 lit, the power LED is on; four, the board enumerates, the host sees the S3; five, LED2 blinks, your code blinks it and the board is alive. If any rung fails, stop and fix it before the next. All five rungs clear means log the board BROUGHT_UP.",
+    "hash": "8dd31426d394"
+  },
+  {
+    "basename": "bringup-probe-points",
+    "image": "/guide-diagrams/bringup-probe-points.webp",
+    "alt": "Bring-up: with the board powered, probe 3.3 V at TP1 with the red lead and ground at TP2 with the black lead; the multimeter in DC volts reads 3.30 V.",
+    "hash": "ba7bd6ebc2ac"
+  },
+  {
+    "basename": "wroom-power-flow",
+    "image": "/guide-diagrams/wroom-power-flow.webp",
+    "alt": "Power flow from USB-C to the ESP32-S3-WROOM-1. The power chain is one vertical spine: J1 USB-C in sends 5 volts to F1, a resettable polyfuse; 5 volts continues to U2, the RT9080 3.3 volt LDO; the LDO outputs 3.3 volts to U1, the ESP32-S3-WROOM-1. Supporting parts beside each stage: J1 has CC resistors R3 and R4, 5.1k Rd pulldowns; U2 has input caps C1 10 microfarad bulk and C5 1 microfarad, plus output cap C6 1 microfarad; U1 is decoupled by C2, C3 and C7. A separate USB data path in blue: J1 USB-C data carries D plus and D minus to D1, an ESD array, which passes clean USB to U1 and shunts surges to ground before they reach U1.",
+    "hash": "63568b5bea60"
+  }
+]

@@ -33,6 +33,38 @@ jobs:
           AUTH_RESEND_KEY: stub
           ALLOWED_EMAILS: "stub@stub"
           R2_ENABLED: "false"
+      # Diagram export freshness gate: boot the production build, render every
+      # registered guide diagram in headless Chromium, and fail if any is missing
+      # its exported image or its alt text drifted from the committed manifest.
+      # No DB needed (the render route is pure components) — runs on the stub env.
+      # DIAGRAM_EXPORT=1 un-gates the prod-mode /diagram-render route. The check is
+      # presence + alt only (pixel bytes differ across OS, so they're never compared).
+      - name: Install Chromium for the diagram check
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Diagram export freshness check
+        run: |
+          pnpm next start &
+          APP_PID=$!
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000/diagram-render/adc1-pin-map >/dev/null && break
+            echo "waiting for app ($i)…"; sleep 2
+          done
+          pnpm diagrams:check; STATUS=$?
+          kill "$APP_PID" 2>/dev/null || true
+          exit $STATUS
+        env:
+          DATABASE_URL: postgresql://stub:stub@stub/stub
+          DIRECT_URL: postgresql://stub:stub@stub/stub
+          AUTH_SECRET: "stub-secret-32-chars-long-padding-x"
+          AUTH_GOOGLE_ID: stub
+          AUTH_GOOGLE_SECRET: stub
+          AUTH_GITHUB_ID: stub
+          AUTH_GITHUB_SECRET: stub
+          AUTH_RESEND_KEY: stub
+          ALLOWED_EMAILS: "stub@stub"
+          R2_ENABLED: "false"
+          DIAGRAM_EXPORT: "1"
+          DIAGRAM_BASE_URL: http://localhost:3000
       # Keep the test branch's schema current as migrations are added (the branch
       # carries the seed + KiCad data, which CI can't regenerate). No-op when the
       # branch is already up to date.

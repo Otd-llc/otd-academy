@@ -98,4 +98,8 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/learn/l1-01/exam")).toBe(false);
     expect(isPublicPath("/learn/l1-01/complete")).toBe(false);
   });
+
+  it("admits the dev/CI diagram-render surface (so the headless exporter isn't bounced to /sign-in)", () => {
+    expect(isPublicPath("/diagram-render/adc1-pin-map")).toBe(true);
+  });
 });
