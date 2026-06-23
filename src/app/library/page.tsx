@@ -13,9 +13,9 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { courseListJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { listPublishedMiniLessons } from "@/lib/library/load";
 
-const title = "Library — One Thousand Drones Academy";
+const title = "Library · One Thousand Drones Academy";
 const description =
-  "Reference explainers and concept guides — EEG, BCIs, and the electronics behind the build. Free, no account needed.";
+  "Reference explainers and concept guides: EEG, BCIs, and the electronics behind the build. Free, no account needed.";
 
 export const metadata: Metadata = {
   title,
@@ -40,9 +40,9 @@ export default async function LibraryIndexPage() {
       <JsonLd data={listLd} />
       <PageHeader
         eyebrow="LIBRARY"
-        title="Reference Library"
-        accentWord="Library"
-        lead="Concept explainers and reference guides — the ideas behind the builds. Free to read, no account needed."
+        title="Reference Guides"
+        accentWord="Reference"
+        lead="Concept explainers and reference guides: the ideas behind the builds. Free to read, no account needed."
       />
 
       {lessons.length === 0 ? (

@@ -10,7 +10,7 @@ import type { Metadata } from "next";
 import { PageHeader } from "@/components/PageHeader";
 import { GLOSSARY } from "@/lib/glossary";
 
-const title = "Glossary — One Thousand Drones Academy";
+const title = "Glossary · One Thousand Drones Academy";
 const description =
   "Plain-language definitions for the electronics, EEG, and BCI terms used across the One Thousand Drones Academy curriculum.";
 
@@ -32,7 +32,7 @@ export default function GlossaryPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <PageHeader
-        eyebrow="GLOSSARY"
+        eyebrow="LIBRARY"
         title="Glossary"
         lead="Plain-language definitions for the terms used across the curriculum."
       />
