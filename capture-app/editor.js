@@ -75,6 +75,9 @@
 
   // ── state ──
   let clips = []; // [{ path, w, h, durMs, speed, inSec, outSec, name }]
+  // Annotations are TIMELINE objects (like title clips on an upper track): positioned in
+  // master-timeline effective seconds, on stacking lanes, independent of the video clips.
+  let annotations = []; // [{ id, type, tIn, tOut, lane, color, lw, ...geom }]
   let session = null; // { api, token, caption } | null (standalone)
   let sel = -1;
   let busy = false;
@@ -105,8 +108,9 @@
   let annId = 1; // monotonic annotation id
   let annColor = "#c8963e"; // active annotation color
   let annW = 4; // active annotation line width
-  let selAnn = null; // { ci, id } selected annotation, or null
-  let annBarDrag = null; // dragging an Overlay-track annotation bar (timing edit)
+  let selAnn = null; // selected annotation id, or null
+  let annBarDrag = null; // dragging an Overlay-track annotation block
+  const LANE_H = 22; // height of one annotation lane
   let showCursor = true; // draw the cursor spotlight over the composite
   let loopPlay = false; // loop the sequence (handy for tuning the spotlight timing)
   // Spotlight look + timing (timing nudges telemetry vs video to sit on the pointer).
@@ -179,14 +183,13 @@
   // ── undo / redo ──
   // Deep-copy a clip incl. its zoom keyframes (so snapshots/splits don't alias arrays).
   function cloneClip(c) {
-    return {
-      ...c,
-      zoom: c.zoom ? c.zoom.map((k) => ({ ...k })) : undefined,
-      anns: c.anns ? c.anns.map((a) => ({ ...a })) : undefined,
-    };
+    return { ...c, zoom: c.zoom ? c.zoom.map((k) => ({ ...k })) : undefined };
+  }
+  function cloneAnn(a) {
+    return { ...a, points: a.points ? a.points.map((p) => ({ ...p })) : undefined };
   }
   function snapshot() {
-    return clips.map(cloneClip);
+    return { clips: clips.map(cloneClip), anns: annotations.map(cloneAnn) };
   }
   function pushUndo() {
     undoStack.push(snapshot());
@@ -199,7 +202,8 @@
     redoBtn.disabled = redoStack.length === 0;
   }
   function restoreState(state) {
-    clips = state.map(cloneClip);
+    clips = state.clips.map(cloneClip);
+    annotations = state.anns.map(cloneAnn);
     curSegIdx = -1;
     curPath = null;
     if (clips.length === 0) {
@@ -302,106 +306,104 @@
     if (a.type === "counter") return ic + (a.n || 1);
     return ic;
   }
-  // Annotation bars on the Overlay track, positioned by their [tIn,tOut] within each clip,
-  // with edge grips (retime) + an × (delete). Coloured to the annotation's own color.
+  const findAnn = (id) => annotations.find((a) => a.id === id) || null;
+  function laneCount() {
+    let m = 0;
+    for (const a of annotations) if ((a.lane || 0) + 1 > m) m = (a.lane || 0) + 1;
+    return Math.max(2, m + 1); // always leave one empty lane to drop into
+  }
+  // First lane where [tIn,tOut] doesn't overlap an existing annotation.
+  function firstFreeLane(tIn, tOut) {
+    for (let lane = 0; lane < 32; lane++) {
+      const clash = annotations.some(
+        (a) => (a.lane || 0) === lane && tIn < a.tOut && tOut > a.tIn,
+      );
+      if (!clash) return lane;
+    }
+    return 0;
+  }
+  // The Overlay track is a real multi-lane timeline: each annotation is a block placed by
+  // master-timeline [tIn,tOut] (like clips), draggable in time + across lanes, edge-resizable.
   function renderAnnotations() {
     overlayTrackEl.querySelectorAll(".annbar").forEach((n) => n.remove());
-    let acc = 0;
-    clips.forEach((c, i) => {
-      const segStartPx = acc * pxPerSec;
-      acc += effSec(c);
-      if (!c.anns) return;
-      for (const a of c.anns) {
-        const tin = Math.max(inOf(c), Math.min(outOf(c), a.tIn));
-        const tout = Math.max(tin, Math.min(outOf(c), a.tOut));
-        const x0 = segStartPx + ((tin - inOf(c)) / (c.speed || 1)) * pxPerSec;
-        const w = Math.max(14, ((tout - tin) / (c.speed || 1)) * pxPerSec);
-        const bar = document.createElement("div");
-        const isSel = selAnn && selAnn.ci === i && selAnn.id === a.id;
-        bar.className = "annbar" + (isSel ? " sel" : "");
-        bar.style.left = x0 + "px";
-        bar.style.width = w + "px";
-        bar.style.borderColor = a.color || "var(--gold)";
-        bar.dataset.ci = String(i);
-        bar.dataset.id = String(a.id);
-        bar.innerHTML =
-          `<span class="grip l"></span><span class="lbl">${escapeHtml(annLabel(a))}</span>` +
-          `<span class="x" data-ci="${i}" data-id="${a.id}">×</span><span class="grip r"></span>`;
-        overlayTrackEl.appendChild(bar);
-      }
-    });
+    const lanes = laneCount();
+    overlayTrackEl.style.height = lanes * LANE_H + "px";
+    for (const a of annotations) {
+      const x0 = a.tIn * pxPerSec;
+      const w = Math.max(16, (a.tOut - a.tIn) * pxPerSec);
+      const bar = document.createElement("div");
+      bar.className = "annbar" + (selAnn === a.id ? " sel" : "");
+      bar.style.left = x0 + "px";
+      bar.style.width = w + "px";
+      bar.style.top = (a.lane || 0) * LANE_H + 2 + "px";
+      bar.style.height = LANE_H - 4 + "px";
+      bar.style.borderColor = a.color || "var(--gold)";
+      bar.dataset.id = String(a.id);
+      bar.innerHTML =
+        `<span class="grip l"></span><span class="lbl">${escapeHtml(annLabel(a))}</span>` +
+        `<span class="x" data-id="${a.id}">×</span><span class="grip r"></span>`;
+      overlayTrackEl.appendChild(bar);
+    }
   }
-  function findAnn(ci, id) {
-    const c = clips[ci];
-    return c && c.anns ? c.anns.find((a) => a.id === id) : null;
-  }
-  function deleteAnn(ci, id) {
-    const c = clips[ci];
-    if (!c || !c.anns) return;
+  function deleteAnn(id) {
     pushUndo();
-    c.anns = c.anns.filter((a) => a.id !== id);
-    if (selAnn && selAnn.ci === ci && selAnn.id === id) selAnn = null;
+    annotations = annotations.filter((a) => a.id !== id);
+    if (selAnn === id) selAnn = null;
     renderTimeline();
     setStatus("Annotation deleted.", "");
   }
-  // Map a clientX over the timeline → source seconds within clip ci.
-  function srcTimeAt(ci, clientX) {
-    const c = clips[ci];
-    const tlT = tlTimeFromClientX(clientX);
-    const local = tlT - startOf(ci);
-    return Math.max(inOf(c), Math.min(outOf(c), inOf(c) + local * (c.speed || 1)));
-  }
-  // Overlay-track interaction: × delete, edge-grip retime (tIn/tOut), body-drag move, click select.
+  // Overlay-track interaction: × delete, edge grips (resize), body drag (move in time + lane).
   overlayTrackEl.addEventListener("pointerdown", (e) => {
     const bar = e.target.closest && e.target.closest(".annbar");
     if (!bar) {
-      selAnn = null;
-      renderAnnotations();
+      if (selAnn !== null) {
+        selAnn = null;
+        renderAnnotations();
+      }
       return;
     }
-    e.stopPropagation(); // a bar interaction — don't let tlInner also scrub the playhead
-    const ci = +bar.dataset.ci;
+    e.stopPropagation(); // a block interaction — don't let tlInner also scrub the playhead
     const id = +bar.dataset.id;
     if (e.target.classList.contains("x")) {
-      deleteAnn(ci, id);
+      deleteAnn(id);
       return;
     }
-    const a = findAnn(ci, id);
+    const a = findAnn(id);
     if (!a) return;
-    selAnn = { ci, id };
+    selAnn = id;
     const mode = e.target.classList.contains("grip")
       ? e.target.classList.contains("l")
         ? "in"
         : "out"
       : "move";
-    annBarDrag = { ci, id, mode, startX: e.clientX, tIn0: a.tIn, tOut0: a.tOut, moved: false };
+    annBarDrag = { id, mode, startX: e.clientX, startY: e.clientY, tIn0: a.tIn, tOut0: a.tOut, lane0: a.lane || 0, moved: false };
     overlayTrackEl.setPointerCapture(e.pointerId);
     renderAnnotations();
   });
   overlayTrackEl.addEventListener("pointermove", (e) => {
     if (!annBarDrag) return;
-    const a = findAnn(annBarDrag.ci, annBarDrag.id);
+    const a = findAnn(annBarDrag.id);
     if (!a) return;
     if (!annBarDrag.moved) {
-      if (Math.abs(e.clientX - annBarDrag.startX) < 2) return;
+      if (Math.abs(e.clientX - annBarDrag.startX) < 2 && Math.abs(e.clientY - annBarDrag.startY) < 2) return;
       annBarDrag.moved = true;
       pushUndo();
     }
-    const c = clips[annBarDrag.ci];
-    const tNow = srcTimeAt(annBarDrag.ci, e.clientX);
+    const total = totalSec();
+    const tNow = Math.max(0, Math.min(total, tlTimeFromClientX(e.clientX)));
     const MIN = 0.05;
     if (annBarDrag.mode === "in") {
-      a.tIn = Math.min(tNow, a.tOut - MIN);
+      a.tIn = Math.max(0, Math.min(tNow, a.tOut - MIN));
     } else if (annBarDrag.mode === "out") {
-      a.tOut = Math.max(tNow, a.tIn + MIN);
+      a.tOut = Math.min(total, Math.max(tNow, a.tIn + MIN));
     } else {
-      const dSrc = (tNow - srcTimeAt(annBarDrag.ci, annBarDrag.startX));
-      let nIn = annBarDrag.tIn0 + dSrc;
-      let nOut = annBarDrag.tOut0 + dSrc;
-      const span = nOut - nIn;
-      nIn = Math.max(inOf(c), Math.min(nIn, outOf(c) - span));
+      const dT = tlTimeFromClientX(e.clientX) - tlTimeFromClientX(annBarDrag.startX);
+      const span = annBarDrag.tOut0 - annBarDrag.tIn0;
+      let nIn = Math.max(0, Math.min(annBarDrag.tIn0 + dT, total - span));
       a.tIn = nIn;
       a.tOut = nIn + span;
+      const dLane = Math.round((e.clientY - annBarDrag.startY) / LANE_H);
+      a.lane = Math.max(0, annBarDrag.lane0 + dLane);
     }
     renderAnnotations();
   });
@@ -410,8 +412,8 @@
       overlayTrackEl.releasePointerCapture(e.pointerId);
     } catch (_) {}
     if (annBarDrag && annBarDrag.moved) {
-      const a = findAnn(annBarDrag.ci, annBarDrag.id);
-      if (a) setStatus(`Timing: ${fmtTC(a.tIn)} → ${fmtTC(a.tOut)} (source).`, "ok");
+      const a = findAnn(annBarDrag.id);
+      if (a) setStatus(`${a.type} · ${fmtTC(a.tIn)} → ${fmtTC(a.tOut)}`, "ok");
     }
     annBarDrag = null;
   });
@@ -674,14 +676,15 @@
       ctx.fillText(a.text || "", bx, by);
     }
   }
-  function annsAt(clip, t) {
-    return clip && clip.anns ? clip.anns.filter((a) => t >= a.tIn && t <= a.tOut) : [];
+  // Annotations active at a master-timeline time T (effective seconds).
+  function annsAtTimeline(T) {
+    return annotations.filter((a) => T >= a.tIn && T <= a.tOut);
   }
   function drawFrame() {
     if (canvasEl.style.display === "none") return;
     const c = clips[curSegIdx];
     const cur = showCursor && c ? cursorAt(c, videoEl.currentTime) : null;
-    composite(previewCtx, canvasEl.width, canvasEl.height, videoEl, currentZoom(), cur, c ? annsAt(c, videoEl.currentTime) : []);
+    composite(previewCtx, canvasEl.width, canvasEl.height, videoEl, currentZoom(), cur, annsAtTimeline(playT));
     // live preview of an in-progress pen stroke
     if (annDrag && annTool === "pen" && annDrag.points && annDrag.points.length > 1) {
       drawAnnotation(previewCtx, canvasEl.width, canvasEl.height, {
@@ -884,12 +887,11 @@
       createAnnotation(a, b, points);
     }
   });
-  // Create an annotation from the drag (a→b, or freehand `points`) with the active tool.
-  // New marks default to lasting from the playhead to the END of the clip — trim on the bar.
+  // Create a timeline annotation from the drag (a→b, or freehand `points`). It spans from
+  // the playhead to the end of the active clip's timeline slot by default, on a free lane;
+  // drag the block on the Overlay timeline to move/resize/restack it afterward.
   function createAnnotation(a, b, points) {
-    if (curSegIdx < 0 || !annTool) return;
-    const c = clips[curSegIdx];
-    const t = videoEl.currentTime;
+    if (!annTool || !clips.length) return;
     let geom;
     if (ANN_LINE[annTool]) {
       if (Math.abs(b.x - a.x) < 0.01 && Math.abs(b.y - a.y) < 0.01) return;
@@ -898,7 +900,7 @@
       if (!points || points.length < 2) return;
       geom = { points };
     } else if (annTool === "counter") {
-      geom = { x: a.x, y: a.y, n: nextCounter(c) };
+      geom = { x: a.x, y: a.y, n: nextCounter() };
     } else if (annTool === "text") {
       const text = (annTextEl.value || "").trim();
       if (!text) {
@@ -913,20 +915,24 @@
       geom = { x, y, w, h };
       if (annTool === "blur") geom.strength = 16;
     }
+    const total = totalSec();
+    const tIn = Math.min(playT, total - 0.1);
+    const clipEnd = curSegIdx >= 0 ? startOf(curSegIdx) + effSec(clips[curSegIdx]) : total;
+    const tOut = Math.min(total, Math.max(tIn + 0.5, clipEnd));
     pushUndo();
-    if (!c.anns) c.anns = [];
     const id = annId++;
-    c.anns.push({ id, type: annTool, tIn: t, tOut: outOf(c), color: annColor, lw: annW, ...geom });
-    selAnn = { ci: curSegIdx, id };
-    setSel(curSegIdx);
-    setStatus(`${annTool} added at ${fmtTC(t)} → end of clip. Drag its bar edges to set timing.`, "ok");
+    annotations.push({
+      id, type: annTool, tIn, tOut, lane: firstFreeLane(tIn, tOut), color: annColor, lw: annW, ...geom,
+    });
+    selAnn = id;
+    renderTimeline();
+    setStatus(`${annTool} added · ${fmtTC(tIn)} → ${fmtTC(tOut)}. Drag the block on the Overlay timeline.`, "ok");
   }
-  // Next step number on a clip = (max existing counter) + 1.
-  function nextCounter(c) {
+  const nextCounter = () => {
     let n = 0;
-    if (c.anns) for (const a of c.anns) if (a.type === "counter" && a.n > n) n = a.n;
+    for (const a of annotations) if (a.type === "counter" && a.n > n) n = a.n;
     return n + 1;
-  }
+  };
   // Add/replace a zoom keyframe at the playhead's source time on the active clip.
   function addZoomKeyframe(scale, x, y) {
     if (curSegIdx < 0) return;
@@ -1455,10 +1461,6 @@
     right.name = nameOf(c, a.i) + " (b)";
     if (left.zoom) left.zoom = left.zoom.filter((k) => k.t <= t);
     if (right.zoom) right.zoom = right.zoom.filter((k) => k.t >= t);
-    if (left.anns)
-      left.anns = left.anns.filter((an) => an.tIn < t).map((an) => ({ ...an, tOut: Math.min(an.tOut, t) }));
-    if (right.anns)
-      right.anns = right.anns.filter((an) => an.tOut > t).map((an) => ({ ...an, tIn: Math.max(an.tIn, t) }));
     clips.splice(a.i, 1, left, right);
     curSegIdx = -1;
     curPath = null;
@@ -1694,8 +1696,8 @@
   });
   // color swatches + width — apply to new marks AND the selected one
   function applyAnnStyle(patch) {
-    if (selAnn) {
-      const a = findAnn(selAnn.ci, selAnn.id);
+    if (selAnn !== null) {
+      const a = findAnn(selAnn);
       if (a) {
         pushUndo();
         Object.assign(a, patch);
@@ -1877,7 +1879,7 @@
       case "Delete":
       case "Backspace":
         e.preventDefault();
-        if (selAnn) deleteAnn(selAnn.ci, selAnn.id);
+        if (selAnn !== null) deleteAnn(selAnn);
         else rippleDelete();
         break;
       case "Home":
@@ -1975,7 +1977,7 @@
       }
       await seekExport(a.srcTime);
       const cur = showCursor ? cursorAt(c, a.srcTime) : null;
-      composite(octx, W, H, exportVideoEl, interpZoom(c.zoom, a.srcTime), cur, annsAt(c, a.srcTime));
+      composite(octx, W, H, exportVideoEl, interpZoom(c.zoom, a.srcTime), cur, annsAtTimeline(t));
       const frame = new VideoFrame(oc, {
         timestamp: Math.round(f * frameDurUs),
         duration: Math.round(frameDurUs),
@@ -2110,6 +2112,8 @@
     curPath = null;
     undoStack = [];
     redoStack = [];
+    annotations = [];
+    selAnn = null;
     // reset the ping-pong pair to a known state
     videoEl = $("video");
     altEl = $("video2");

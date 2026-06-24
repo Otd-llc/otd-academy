@@ -118,8 +118,9 @@
         background: var(--gold-light); clip-path: polygon(0 0, 100% 0, 50% 100%);
       }
       #playheadHit { position: absolute; top: 0; bottom: 0; width: 12px; margin-left: -6px; z-index: 6; cursor: ew-resize; }
+      /* top + height are set inline per lane (multi-lane overlay timeline) */
       .annbar {
-        position: absolute; top: 4px; bottom: 4px; border-radius: 4px; z-index: 2;
+        position: absolute; border-radius: 4px; z-index: 2;
         background: rgba(200, 150, 62, 0.28); border: 1px solid var(--gold);
         display: flex; align-items: center; gap: 3px; padding: 0 8px; overflow: hidden; cursor: grab;
         font-family: var(--mono); font-size: 9px; color: #fff; white-space: nowrap;
