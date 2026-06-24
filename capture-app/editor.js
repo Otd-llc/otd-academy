@@ -991,9 +991,9 @@
   // ── selection ──
   function selInfoText(i) {
     const c = clips[i];
-    return c
-      ? `${nameOf(c, i)} · ${fmt(c.durMs)} src · ${c.speed || 1}× · ${fmt(effSec(c) * 1000)} on timeline`
-      : "—";
+    if (!c) return "—";
+    const cur = c.cursor && c.cursor.length ? `cursor ${c.cursor.length}pts` : "NO cursor data";
+    return `${nameOf(c, i)} · ${fmt(c.durMs)} src · ${c.speed || 1}× · ${fmt(effSec(c) * 1000)} on timeline · ${cur}`;
   }
   // Full structural re-render + select — use after any edit that changes clip count/sizes.
   function setSel(i) {
@@ -1482,6 +1482,13 @@
     altEl._path = null;
     altEl.style.opacity = "0";
     setupCanvas();
+    if (window.otd.log) {
+      window.otd.log(
+        "editor init — cursor telemetry pts per clip: [" +
+          clips.map((c) => (c.cursor ? c.cursor.length : 0)).join(", ") +
+          "]",
+      );
+    }
     sel = clips.length ? 0 : -1;
     renderTimeline();
     if (sel >= 0) selectClip(0);
