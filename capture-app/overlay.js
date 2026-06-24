@@ -84,6 +84,10 @@
   const clips = []; // [{ path, w, h, durMs }]
   let lastClipDims = { w: 0, h: 0 }; // output dims of the just-recorded clip
   let lastClipDurMs = 0; // wall-clock length of the just-recorded clip
+  // Cursor telemetry for the editor's smooth-cursor overlay: per recorded frame,
+  // the pointer's position normalised to the recorded crop = (cursor-cam+box/2)/box.
+  let cursorTrack = []; // [{ t (sec from rec start), nx, ny }]
+  let telemStart = 0;
   let dragging = false;
   const dragRef = { mode: null, x: 0, y: 0, box: null };
 
@@ -340,7 +344,10 @@
       // to 60fps; with the per-frame canvas crop + H.264 encode on top, that
       // saturated the CPU and made clips stutter. 30fps is plenty for a tutorial.
       stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: 60, max: 60 } },
+        // cursor:"never" asks Chromium to omit the OS cursor from captured frames, so
+        // the editor can draw a smooth HD cursor instead. Best-effort — some capturers
+        // ignore it; the editor's synthetic cursor is a toggle for exactly that case.
+        video: { frameRate: { ideal: 60, max: 60 }, cursor: "never" },
         audio: false,
       });
     } catch (e) {
@@ -429,6 +436,18 @@
     boxEl.style.transform = `translate3d(${cam.x - halfW - box.x}px, ${cam.y - halfH - box.y}px, 0)`;
   }
 
+  // Record the pointer's position within the recorded crop, for the editor's smooth
+  // cursor. cam follows the cursor, so nx/ny hover near 0.5 while following; with follow
+  // off, cam is fixed and the pointer ranges the whole frame. Called once per output frame.
+  function recordCursorSample() {
+    if (!box) return;
+    cursorTrack.push({
+      t: (performance.now() - telemStart) / 1000,
+      nx: (cursor.x - cam.x + box.w / 2) / box.w,
+      ny: (cursor.y - cam.y + box.h / 2) / box.h,
+    });
+  }
+
   function evenClamp(v, max) {
     v = Math.max(2, v - (v % 2)); // even, >= 2
     return Math.min(v, max - (max % 2));
@@ -504,6 +523,8 @@
     cursorVel.y = 0;
     camLastMs = performance.now();
     pumpTicks = 0;
+    cursorTrack = [];
+    telemStart = performance.now();
 
     // Shared "recording now" UI/state.
     recStart = Date.now();
@@ -647,6 +668,7 @@
     // the worker, which samples the latest when cropping each frame.
     camTimer = setInterval(() => {
       updateCamera(halfW, halfH, 1 / REC_FPS);
+      recordCursorSample();
       try {
         worker.postMessage({ type: "cam", x: cam.x, y: cam.y });
       } catch {
@@ -703,6 +725,7 @@
 
     const cropAndEncode = (srcFrame, tsUs) => {
       updateCamera(halfW, halfH, fixedDt);
+      recordCursorSample();
       let ox = Math.round((cam.x - halfW) * sxScale);
       let oy = Math.round((cam.y - halfH) * syScale);
       ox -= ox % 2; // even origin keeps chroma aligned for the HW encoder
@@ -963,7 +986,14 @@
       window.otd.log("save-clip failed: " + ((res && res.error) || "unknown"));
       return false;
     }
-    clips.push({ path: res.path, w: lastClipDims.w, h: lastClipDims.h, durMs: lastClipDurMs, speed: 1 });
+    clips.push({
+      path: res.path,
+      w: lastClipDims.w,
+      h: lastClipDims.h,
+      durMs: lastClipDurMs,
+      speed: 1,
+      cursor: cursorTrack.slice(),
+    });
     return true;
   }
   function recordAnother() {
@@ -1140,7 +1170,7 @@
   $("editBtn").addEventListener("click", () => {
     if (!clips.length) return;
     window.otd.openEditor({
-      clips: clips.map((c) => ({ path: c.path, w: c.w, h: c.h, durMs: c.durMs, speed: c.speed })),
+      clips: clips.map((c) => ({ path: c.path, w: c.w, h: c.h, durMs: c.durMs, speed: c.speed, cursor: c.cursor })),
       session,
     });
   });
