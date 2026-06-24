@@ -559,68 +559,50 @@
     recMode = "webcodecs";
     lastClipDims = { w: cropW, h: cropH };
     wcRunning = true;
-    const frameIntervalMs = 1000 / REC_FPS;
     const frameIntervalUs = Math.round(1000000 / REC_FPS);
     const fixedDt = 1 / REC_FPS;
-    let frameIndex = 0;
-    const startMs = performance.now();
+    let frameIndex = 0; // output frame counter (CFR)
+    let expectedTs = null; // next CFR-grid output timestamp (µs), aligned to frame 0
+    let lastCropped = null; // last cropped frame, re-emitted to fill static gaps
 
-    // Crop the LATEST source frame and encode it with a constant-rate timestamp.
-    const encodeFrame = () => {
+    const cropAndEncode = (srcFrame, tsUs) => {
       updateCamera(halfW, halfH, fixedDt);
-      if (!wcLatest) return;
       let ox = Math.round((cam.x - halfW) * sxScale);
       let oy = Math.round((cam.y - halfH) * syScale);
       ox -= ox % 2; // even origin keeps chroma aligned for the HW encoder
       oy -= oy % 2;
       ox = Math.max(0, Math.min(ox, codedW - cropW));
       oy = Math.max(0, Math.min(oy, codedH - cropH));
-      try {
-        const cropped = new VideoFrame(wcLatest, {
-          visibleRect: { x: ox, y: oy, width: cropW, height: cropH },
-          timestamp: frameIndex * frameIntervalUs,
-        });
-        wcSink.encode(cropped, frameIndex % (REC_FPS * 2) === 0); // keyframe ~2s
-        cropped.close();
-      } catch (e) {
-        window.otd.log("crop/encode err: " + (e && e.message));
+      const cropped = new VideoFrame(srcFrame, {
+        visibleRect: { x: ox, y: oy, width: cropW, height: cropH },
+        timestamp: tsUs,
+      });
+      wcSink.encode(cropped, frameIndex % (REC_FPS * 2) === 0); // keyframe ~2s
+      if (lastCropped) {
+        try {
+          lastCropped.close();
+        } catch {
+          // ignore
+        }
       }
+      lastCropped = cropped.clone(); // keep a copy to fill any following static gap
+      cropped.close();
       frameIndex++;
       pumpTicks++;
     };
 
-    window.otd.log(`recording started (webcodecs CFR ${REC_FPS}): codec=${wcSink.codec} crop=${cropW}x${cropH} coded=${codedW}x${codedH}`);
-    wcLatest = first; // seed; the reader replaces it as new frames arrive
+    window.otd.log(`recording started (webcodecs CFR ${REC_FPS}, event-driven): codec=${wcSink.codec} crop=${cropW}x${cropH} coded=${codedW}x${codedH}`);
 
-    // CFR pump: each tick, emit frames to CATCH UP to wall-clock, duplicating the
-    // latest captured frame when the screen was static. Steady 30fps out (no gaps),
-    // duration tracks wall-clock no matter how irregularly the OS delivers frames —
-    // which is what fixes the choppy/stuttery playback (desktop capture is
-    // change-driven, so encoding only on arrival produced uneven cadence).
-    wcTimer = setInterval(() => {
-      if (!wcRunning || !wcSink || wcSink.error) return;
-      const target = Math.round((performance.now() - startMs) / frameIntervalMs);
-      let guard = 0;
-      while (frameIndex < target && guard < 5) {
-        encodeFrame();
-        guard++;
-      }
-    }, Math.round(frameIntervalMs));
-
-    // Reader: keep ONLY the most-recent frame; the CFR pump consumes it. Closing the
-    // previous frame as each new one arrives bounds memory to a single frame.
-    (async () => {
-      while (wcRunning) {
-        let res;
-        try {
-          res = await wcReader.read();
-        } catch {
-          break;
-        }
-        if (res.done) break;
-        const frame = res.value;
-        if (!frame) continue;
-        if (!wcRunning) {
+    // EVENT-DRIVEN encode: paced by the capture stream's OWN frame delivery (the WGC
+    // capture clock), NOT a setInterval — which phase-beats against WGC + vsync and
+    // bakes judder into the file. Each arriving frame is quantised onto a constant
+    // 1/fps grid; when WGC skips frames (static screen) we fill the gap by re-emitting
+    // the last cropped frame, so the output stays CFR and the duration tracks the
+    // hardware capture clock.
+    const drive = async (firstFrame) => {
+      let frame = firstFrame;
+      while (wcRunning && frame) {
+        if (!wcSink || wcSink.error) {
           try {
             frame.close();
           } catch {
@@ -628,17 +610,53 @@
           }
           break;
         }
-        const prev = wcLatest;
-        wcLatest = frame;
-        if (prev) {
+        if (expectedTs === null) expectedTs = frame.timestamp; // align grid to hw clock
+        // Fill CFR slots that elapsed before this frame (cap a burst at ~4s of dupes).
+        let fill = 0;
+        while (lastCropped && expectedTs < frame.timestamp - frameIntervalUs * 0.5 && fill < REC_FPS * 4) {
           try {
-            prev.close();
-          } catch {
-            // ignore
+            const dup = new VideoFrame(lastCropped, { timestamp: Math.round(expectedTs) });
+            wcSink.encode(dup, frameIndex % (REC_FPS * 2) === 0);
+            dup.close();
+          } catch (e) {
+            window.otd.log("dup err: " + (e && e.message));
           }
+          frameIndex++;
+          pumpTicks++;
+          expectedTs += frameIntervalUs;
+          fill++;
         }
+        try {
+          cropAndEncode(frame, Math.round(expectedTs));
+        } catch (e) {
+          window.otd.log("crop/encode err: " + (e && e.message));
+        }
+        expectedTs += frameIntervalUs;
+        try {
+          frame.close();
+        } catch {
+          // ignore
+        }
+        if (!wcRunning) break;
+        let res;
+        try {
+          res = await wcReader.read();
+        } catch {
+          break;
+        }
+        if (res.done) break;
+        frame = res.value;
       }
-    })();
+      if (lastCropped) {
+        try {
+          lastCropped.close();
+        } catch {
+          // ignore
+        }
+        lastCropped = null;
+      }
+    };
+    drive(first);
     return true;
   }
 

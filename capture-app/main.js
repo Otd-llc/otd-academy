@@ -50,6 +50,9 @@ app.commandLine.appendSwitch("disable-features", "CalculateNativeWinOcclusion");
 app.commandLine.appendSwitch("enable-features", "WebRTC-AllowWgcDesktopCapturer");
 app.commandLine.appendSwitch("enable-gpu-rasterization");
 app.commandLine.appendSwitch("enable-zero-copy");
+// Force the modern Direct3D11 ANGLE backend (skips the GL translation layer) — less
+// present judder for a real-time capture+composite app on Windows.
+app.commandLine.appendSwitch("use-angle", "d3d11");
 
 // Debug log → ~/Downloads/otd-captures/otd-capture.log. The ground truth for "the
 // capture didn't show up": shows the launch argv, whether a deep link was parsed,
