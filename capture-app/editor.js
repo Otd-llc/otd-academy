@@ -472,8 +472,8 @@
     const segEl = e.target.closest && e.target.closest(".seg");
     if (segEl) {
       const i = +segEl.dataset.i;
-      const r = segEl.getBoundingClientRect(); // capture before setSel re-renders/detaches segEl
-      setSel(i);
+      const r = segEl.getBoundingClientRect();
+      highlightSel(i); // lightweight: keeps the node alive so dblclick-to-rename works
       const cls = e.target.classList;
       const onGripL = cls && cls.contains("grip") && cls.contains("l");
       const onGripR = cls && cls.contains("grip") && cls.contains("r");
@@ -498,7 +498,7 @@
       segAction = { type: "scrub" };
       const t = tlTimeFromClientX(e.clientX);
       const a = activeAt(t);
-      if (a.i >= 0) setSel(a.i);
+      if (a.i >= 0) highlightSel(a.i);
       seekTo(t, false);
     }
   });
@@ -655,13 +655,27 @@
   }
 
   // ── selection ──
-  function setSel(i) {
-    sel = i;
+  function selInfoText(i) {
     const c = clips[i];
-    selInfoEl.textContent = c
+    return c
       ? `${nameOf(c, i)} · ${fmt(c.durMs)} src · ${c.speed || 1}× · ${fmt(effSec(c) * 1000)} on timeline`
       : "—";
+  }
+  // Full structural re-render + select — use after any edit that changes clip count/sizes.
+  function setSel(i) {
+    sel = i;
+    selInfoEl.textContent = selInfoText(i);
     renderTimeline();
+  }
+  // Lightweight select: toggle the highlight in place WITHOUT recreating nodes, so a
+  // double-click (rename) isn't broken by the node being replaced between clicks.
+  function highlightSel(i) {
+    sel = i;
+    selInfoEl.textContent = selInfoText(i);
+    videoTrackEl.querySelectorAll(".seg").forEach((el) => {
+      el.classList.toggle("sel", +el.dataset.i === i);
+    });
+    renderControls();
   }
   function selectClip(i) {
     setSel(i);
@@ -757,17 +771,34 @@
   }
 
   // ── zoom ──
+  // Keep the playhead in view (used by the +/- buttons).
   function zoomBy(factor) {
     pxPerSec = Math.max(PX_MIN, Math.min(PX_MAX, pxPerSec * factor));
     renderTimeline();
     followPlayhead(playT * pxPerSec);
   }
+  // Zoom centered on a viewport X (keeps the time under the cursor under the cursor).
+  function zoomAt(clientX, factor) {
+    const next = Math.max(PX_MIN, Math.min(PX_MAX, pxPerSec * factor));
+    if (next === pxPerSec) return;
+    const sr = tlScrollEl.getBoundingClientRect();
+    const cursorOffset = clientX - sr.left;
+    const timeUnder = (tlScrollEl.scrollLeft + cursorOffset) / pxPerSec;
+    pxPerSec = next;
+    renderTimeline();
+    tlScrollEl.scrollLeft = Math.max(0, timeUnder * pxPerSec - cursorOffset);
+  }
+  // Wheel over the timeline zooms (cursor-centered). Shift+wheel scrolls horizontally.
+  // preventDefault stops Electron's page-zoom from eating Ctrl+wheel.
   tlScrollEl.addEventListener(
     "wheel",
     (e) => {
-      if (!e.ctrlKey) return;
       e.preventDefault();
-      zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15);
+      if (e.shiftKey) {
+        tlScrollEl.scrollLeft += e.deltaY || e.deltaX;
+        return;
+      }
+      zoomAt(e.clientX, e.deltaY < 0 ? 1.15 : 1 / 1.15);
     },
     { passive: false },
   );
