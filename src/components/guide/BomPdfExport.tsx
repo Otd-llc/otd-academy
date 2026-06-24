@@ -18,12 +18,15 @@ export interface BomPdfRow {
   lifecycle?: string | null;
 }
 
-// Print only the portal sheet, on white paper, with its accent colors intact, and
-// never split a table row across a page break (the header repeats per page instead).
+// On screen the sheet is shifted off-screen (NOT display:none — Chromium won't
+// paint an inline SVG that was display:none when print fires, so the logo would
+// vanish). In print it returns to flow as the only visible content, on white
+// paper, accent colors forced through, and table rows kept whole across pages.
 const PRINT_CSS =
+  "@media screen{#bom-pdf-portal{position:fixed;top:0;left:0;width:760px;transform:translateX(-200vw)}}" +
   "@media print{@page{margin:14mm}html,body{background:#fff!important}" +
   "body>*:not(#bom-pdf-portal){display:none!important}" +
-  "#bom-pdf-portal{display:block!important}" +
+  "#bom-pdf-portal{position:static!important;transform:none!important;width:auto!important}" +
   "#bom-pdf-portal *{-webkit-print-color-adjust:exact;print-color-adjust:exact}" +
   "#bom-pdf-portal thead{display:table-header-group}" +
   "#bom-pdf-portal tr{break-inside:avoid;page-break-inside:avoid}}";
@@ -43,12 +46,12 @@ export function BomPdfExport({
   const totalParts = rows.reduce((n, r) => n + (r.qty || 0), 0);
 
   const sheet = (
-    <div id="bom-pdf-portal" className="hidden bg-white text-[#111] print:block">
+    <div id="bom-pdf-portal" className="bg-white text-[#111]">
       <div className="font-mono">
         <div className="mb-4 border-b-2 border-[#c8963e] pb-3">
-          <div className="flex items-center gap-2">
-            <BrandMark className="h-6 w-6 text-[#c8963e]" />
-            <span className="font-display text-[13px] tracking-[0.22em] text-[#555]">
+          <div className="flex items-center gap-2.5">
+            <BrandMark className="h-10 w-10 shrink-0 text-command-gold" />
+            <span className="font-display text-[15px] tracking-[0.22em] text-[#444]">
               OTD ACADEMY
             </span>
           </div>
