@@ -1036,15 +1036,9 @@
     reviewStatusEl.classList.add("hidden");
     if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     previewUrl = url;
-    // Play the just-recorded mic narration alongside the (muted) preview so you can
-    // immediately hear it captured. The clip was queued just before this call.
-    const lastClip = clips[clips.length - 1];
-    const audioTag =
-      isVideo && lastClip && lastClip.audioPath
-        ? `<audio src="file:///${encodeURI(lastClip.audioPath.replace(/\\/g, "/"))}" autoplay loop></audio>`
-        : "";
+    // Review is a silent video-framing check; narration is heard in the editor (Phase 5B).
     reviewMediaEl.innerHTML = isVideo
-      ? `<video src="${url}" controls loop autoplay muted></video>${audioTag}`
+      ? `<video src="${url}" controls loop autoplay muted></video>`
       : `<img src="${url}" alt="capture preview" />`;
     phase = "review";
     showSection("review");
