@@ -128,6 +128,7 @@
       <div id="preview">
         <video id="video" preload="auto"></video>
         <video id="video2" preload="auto"></video>
+        <video id="exportVideo" preload="auto" muted></video>
         <canvas id="previewCanvas"></canvas>
         <div id="zoomBox"></div>
         <div id="noClip">Record clips, then scrub the whole sequence here</div>
@@ -172,6 +173,8 @@
       </div>
       <div id="status"></div>
     </div>
+    <script src="node_modules/mp4-muxer/build/mp4-muxer.js"></script>
+    <script src="webcodecs-encode.js"></script>
     <script src="editor.js"></script>
   </body>
 </html>

@@ -21,6 +21,7 @@
   // `altEl` preloads the next clip so cuts between different source files don't flash.
   let videoEl = $("video");
   let altEl = $("video2");
+  const exportVideoEl = $("exportVideo"); // dedicated frame source for WYSIWYG export
   const noClipEl = $("noClip");
   const canvasEl = $("previewCanvas");
   const previewCtx = canvasEl.getContext("2d");
@@ -1206,34 +1207,128 @@
   });
 
   // ── export (Phase 1: unchanged ffmpeg stitch) ──
+  // ── WYSIWYG export (the same compositor, stepped at CFR into a WebCodecs encoder) ──
+  function loadExportSource(path) {
+    return new Promise((resolve, reject) => {
+      const el = exportVideoEl;
+      const ok = () => {
+        cleanup();
+        resolve();
+      };
+      const bad = () => {
+        cleanup();
+        reject(new Error("could not load " + path));
+      };
+      const cleanup = () => {
+        el.removeEventListener("loadeddata", ok);
+        el.removeEventListener("error", bad);
+      };
+      el.addEventListener("loadeddata", ok);
+      el.addEventListener("error", bad);
+      el.src = fileUrl(path);
+    });
+  }
+  function seekExport(t) {
+    return new Promise((resolve) => {
+      const el = exportVideoEl;
+      t = Math.max(0, t);
+      if (Math.abs(el.currentTime - t) < 1e-3 && el.readyState >= 2) return resolve();
+      let to = null;
+      const done = () => {
+        if (to) clearTimeout(to);
+        el.removeEventListener("seeked", done);
+        resolve();
+      };
+      el.addEventListener("seeked", done);
+      to = setTimeout(done, 2000); // safety: never hang the whole export on one frame
+      try {
+        el.currentTime = t;
+      } catch (e) {
+        done();
+      }
+    });
+  }
+  // Step a virtual playhead at `fps` over the whole timeline; composite each frame
+  // (trim + speed + zoom/pan, identical to the preview) and encode to MP4. Returns the
+  // MP4 bytes (ArrayBuffer). Video-only — clips carry no audio yet (audio is Phase 5).
+  async function exportWysiwyg(fps) {
+    const total = totalSec();
+    if (total <= 0) throw new Error("nothing to export");
+    const W = projW;
+    const H = projH;
+    const nFrames = Math.max(1, Math.round(total * fps));
+    const frameDurUs = 1e6 / fps;
+    const oc = new OffscreenCanvas(W, H);
+    const octx = oc.getContext("2d", { alpha: false });
+    const enc = await createMp4Encoder({ width: W, height: H, fps });
+    if (window.otd.log) {
+      window.otd.log(`wysiwyg export: ${nFrames} frames @ ${fps}fps ${W}x${H} via ${enc.codec}`);
+    }
+    let loadedPath = null;
+    for (let f = 0; f < nFrames; f++) {
+      const t = Math.min(f / fps, total - 1e-4);
+      const a = activeAt(t);
+      if (a.i < 0) continue;
+      const c = clips[a.i];
+      if (c.path !== loadedPath) {
+        await loadExportSource(c.path);
+        loadedPath = c.path;
+      }
+      await seekExport(a.srcTime);
+      composite(octx, W, H, exportVideoEl, interpZoom(c.zoom, a.srcTime));
+      const frame = new VideoFrame(oc, {
+        timestamp: Math.round(f * frameDurUs),
+        duration: Math.round(frameDurUs),
+      });
+      await enc.encode(frame, f % (fps * 2) === 0);
+      frame.close();
+      if (f % 5 === 0 || f === nFrames - 1) {
+        setStatus(`Rendering ${f + 1}/${nFrames} (${Math.round((100 * (f + 1)) / nFrames)}%)…`, "");
+        await new Promise((r) => setTimeout(r, 0)); // let the UI repaint
+      }
+    }
+    return enc.finalize();
+  }
+
   exportBtn.addEventListener("click", async () => {
     if (busy || clips.length === 0) return;
     busy = true;
     stopAll();
     renderControls();
-    setStatus(`Stitching ${clips.length} clip${clips.length === 1 ? "" : "s"}…`, "");
+    setStatus("Rendering timeline…", "");
     try {
-      const res = await window.otd.exportClips({
-        clips: clips.map((c) => {
-          const dur = durSec(c);
-          const trimmed = inOf(c) > 0 || outOf(c) < dur - 0.01;
-          return {
-            path: c.path,
-            w: c.w,
-            h: c.h,
-            speed: c.speed,
-            ...(trimmed ? { inSec: inOf(c), outSec: outOf(c) } : {}),
-          };
-        }),
-        fps: 60,
-      });
-      if (!res || !res.ok) {
-        setStatus("Stitch failed: " + ((res && res.error) || "unknown error"), "err");
-        busy = false;
-        renderControls();
-        return;
+      let bytes;
+      try {
+        bytes = await exportWysiwyg(60);
+      } catch (err) {
+        const msg = err && err.message ? err.message : String(err);
+        if (window.otd.log) window.otd.log("wysiwyg export failed → ffmpeg fallback: " + msg);
+        const hasZoom = clips.some((c) => c.zoom && c.zoom.length);
+        setStatus(
+          "WYSIWYG encode failed (" +
+            msg +
+            ")" +
+            (hasZoom ? " — ffmpeg fallback, ZOOM WILL BE LOST." : " — using ffmpeg fallback…"),
+          hasZoom ? "err" : "",
+        );
+        const res = await window.otd.exportClips({
+          clips: clips.map((c) => {
+            const dur = durSec(c);
+            const trimmed = inOf(c) > 0 || outOf(c) < dur - 0.01;
+            return {
+              path: c.path,
+              w: c.w,
+              h: c.h,
+              speed: c.speed,
+              ...(trimmed ? { inSec: inOf(c), outSec: outOf(c) } : {}),
+            };
+          }),
+          fps: 60,
+        });
+        if (!res || !res.ok) throw new Error((res && res.error) || "ffmpeg export failed");
+        bytes = res.bytes;
       }
-      const base64 = abToBase64(res.bytes);
+      const base64 = abToBase64(bytes);
       if (session && session.token) {
         setStatus("Uploading…", "");
         const up = await window.otd.upload({
