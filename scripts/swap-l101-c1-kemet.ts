@@ -72,6 +72,14 @@ async function main() {
     `C1 line on ${project.slug}@${rev.label} (frozen=${rev.bomFrozenAt ? "yes" : "no"}), currently partId=${line.partId}`,
   );
 
+  // Link the Category TREE leaf too, not just the legacy enum — else the part renders
+  // the raw "MLCC_CAPACITOR" token instead of "MLCC Capacitors" (categoryLabel bridges
+  // categoryRef?.name ?? category). The 6 migrated leaves carry slug = the enum token.
+  const leaf = await db.category.findUnique({
+    where: { slug: KEMET.category },
+    select: { id: true, name: true },
+  });
+
   // ── Upsert the KEMET part (idempotent; never clobber curated fields on re-run) ──
   const kemet = await db.part.upsert({
     where: { manufacturer_mpn: { manufacturer: KEMET.manufacturer, mpn: KEMET.mpn } },
@@ -81,6 +89,7 @@ async function main() {
       mpn: KEMET.mpn,
       description: KEMET.description,
       category: KEMET.category,
+      categoryId: leaf?.id ?? null,
       footprint: murata.footprint ?? KEMET.footprint,
       kicadSymbol: murata.kicadSymbol ?? KEMET.kicadSymbol,
       kicadFootprint: murata.kicadFootprint ?? KEMET.kicadFootprint,
@@ -96,11 +105,18 @@ async function main() {
       footprint: true,
       kicadSymbol: true,
       kicadFootprint: true,
+      categoryId: true,
       lifecycle: true,
       dkPartNumber: true,
       dkCheckedAt: true,
     },
   });
+  // Self-heal: if a prior run created the part without the tree link, backfill it.
+  if (!kemet.categoryId && leaf) {
+    await db.part.update({ where: { id: kemet.id }, data: { categoryId: leaf.id } });
+    kemet.categoryId = leaf.id;
+    console.log(`Linked category tree leaf: ${leaf.name} (${leaf.id})`);
+  }
   console.log("KEMET part:", kemet);
 
   // ── Repoint C1 → KEMET (keep BOM frozen; idempotent) ──
