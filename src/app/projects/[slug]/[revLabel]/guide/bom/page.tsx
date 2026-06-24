@@ -16,6 +16,7 @@ import { db } from "@/lib/db";
 import { summarizePrintableBom } from "@/lib/printable-bom";
 import { PrintButton } from "@/components/guide/PrintButton";
 import { ExternalLinkIcon } from "@/components/icons";
+import { BrandMark } from "@/components/BrandMark";
 
 // Print views are a utility surface, not a landing page — keep them out of the
 // index. A local const folded into generateMetadata below (Next forbids
@@ -112,12 +113,24 @@ export default async function PrintableBomPage({ params }: { params: Params }) {
   // the site nav/footer drop out via `print:hidden` in the root layout.
   return (
     <main className="bg-deep-space px-4 py-8 print:bg-white print:p-0">
-      <article className="mx-auto max-w-4xl overflow-hidden rounded-xl bg-white text-[#14141e] shadow-[0_20px_60px_rgba(0,0,0,0.5)] print:max-w-none print:rounded-none print:shadow-none">
+      {/* Print page setup — margins + force the branded fills through the print
+          pipeline (browsers strip background colors by default). */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html:
+            "@media print{@page{margin:14mm}html,body{background:#fff!important}" +
+            "*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}",
+        }}
+      />
+      <article className="mx-auto max-w-4xl overflow-hidden rounded-xl bg-white text-[#14141e] shadow-[0_20px_60px_rgba(0,0,0,0.5)] [print-color-adjust:exact] print:max-w-none print:rounded-none print:border-[1.5px] print:border-[#14141e] print:shadow-none">
         {/* ── title-block band: brand · meta · actions ── */}
-        <header className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 bg-navy-dark px-7 py-5 print:px-6">
+        <header className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 bg-navy-dark px-7 py-5 [print-color-adjust:exact] print:px-6">
           <div className="min-w-0">
-            <div className="font-display text-2xl leading-none tracking-[0.12em] text-white">
-              <span className="text-command-gold">OTD</span> ACADEMY
+            <div className="flex items-center gap-3">
+              <BrandMark className="h-9 w-9 shrink-0 text-command-gold" />
+              <div className="font-display text-2xl leading-none tracking-[0.12em] text-white">
+                <span className="text-command-gold">OTD</span> ACADEMY
+              </div>
             </div>
             <dl className="mt-3 grid grid-cols-2 gap-x-7 gap-y-1.5 sm:grid-cols-4">
               <Meta label="Revision" value={revision.label} />
