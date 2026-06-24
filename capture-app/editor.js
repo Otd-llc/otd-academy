@@ -21,8 +21,15 @@
   const cancelBtn = $("cancelBtn");
   const exportBtn = $("exportBtn");
   const statusEl = $("status");
+  const trackEl = $("track");
+  const trimRegionEl = $("trimRegion");
+  const playheadEl = $("playhead");
+  const inHandleEl = $("inHandle");
+  const outHandleEl = $("outHandle");
+  const trimInfoEl = $("trimInfo");
 
-  let clips = []; // [{ path, w, h, durMs, speed }]
+  let drag = null; // "in" | "out" while dragging a trim handle
+  let clips = []; // [{ path, w, h, durMs, speed, inSec, outSec }]
   let session = null; // { api, token, caption } | null (standalone)
   let sel = -1;
   let busy = false;
@@ -33,7 +40,10 @@
     const s = Math.max(0, Math.round((ms || 0) / 1000));
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   };
-  const effMs = (c) => (c.durMs || 0) / (c.speed || 1);
+  const durSec = (c) => (c.durMs || 0) / 1000;
+  const inOf = (c) => Math.max(0, c.inSec || 0);
+  const outOf = (c) => (typeof c.outSec === "number" ? c.outSec : durSec(c));
+  const effMs = (c) => (Math.max(0, outOf(c) - inOf(c)) * 1000) / (c.speed || 1);
   const fileUrl = (p) => "file:///" + encodeURI(String(p).replace(/\\/g, "/"));
 
   function setStatus(msg, cls) {
@@ -77,8 +87,85 @@
       selInfoEl.textContent =
         `Clip ${i + 1} · ${fmt(c.durMs)} recorded · ${c.speed || 1}× · ${fmt(effMs(c))} on the timeline`;
     }
+    renderScrubber();
     render();
   }
+
+  // ── trim scrubber ──
+  function timeFromX(clientX, c) {
+    const r = trackEl.getBoundingClientRect();
+    const frac = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+    return frac * (durSec(c) || 1);
+  }
+  function renderScrubber() {
+    const c = sel >= 0 ? clips[sel] : null;
+    const show = c ? "block" : "none";
+    trimRegionEl.style.display = show;
+    inHandleEl.style.display = show;
+    outHandleEl.style.display = show;
+    if (!c) {
+      trimInfoEl.textContent = "Select a clip to trim its start / end";
+      return;
+    }
+    const dur = durSec(c) || 1;
+    const inP = (inOf(c) / dur) * 100;
+    const outP = (Math.min(dur, outOf(c)) / dur) * 100;
+    inHandleEl.style.left = inP + "%";
+    outHandleEl.style.left = outP + "%";
+    trimRegionEl.style.left = inP + "%";
+    trimRegionEl.style.width = Math.max(0, outP - inP) + "%";
+    const keepSec = Math.max(0, outOf(c) - inOf(c));
+    const speedNote =
+      (c.speed || 1) !== 1 ? ` → ${fmt((keepSec / c.speed) * 1000)} at ${c.speed}×` : "";
+    trimInfoEl.textContent =
+      `Trim · in ${fmt(inOf(c) * 1000)} · out ${fmt(outOf(c) * 1000)} · keep ${fmt(keepSec * 1000)}${speedNote}` +
+      `  (drag the gold handles; click the bar to seek)`;
+  }
+  function startDrag(which, e) {
+    if (sel < 0) return;
+    drag = which;
+    e.target.setPointerCapture(e.pointerId);
+    e.stopPropagation();
+  }
+  inHandleEl.addEventListener("pointerdown", (e) => startDrag("in", e));
+  outHandleEl.addEventListener("pointerdown", (e) => startDrag("out", e));
+  window.addEventListener("pointermove", (e) => {
+    if (!drag || sel < 0) return;
+    const c = clips[sel];
+    const dur = durSec(c) || 1;
+    const t = timeFromX(e.clientX, c);
+    const minGap = 0.1;
+    if (drag === "in") c.inSec = Math.max(0, Math.min(t, outOf(c) - minGap));
+    else c.outSec = Math.min(dur, Math.max(t, inOf(c) + minGap));
+    if (videoEl.readyState >= 1) videoEl.currentTime = drag === "in" ? inOf(c) : outOf(c);
+    renderScrubber();
+    render();
+  });
+  window.addEventListener("pointerup", () => {
+    drag = null;
+  });
+  trackEl.addEventListener("pointerdown", (e) => {
+    if (drag || sel < 0) return; // handle drags are captured separately
+    if (videoEl.readyState >= 1) videoEl.currentTime = timeFromX(e.clientX, clips[sel]);
+  });
+  videoEl.addEventListener("loadedmetadata", () => {
+    if (sel < 0) return;
+    const c = clips[sel];
+    if (typeof c.outSec !== "number" || c.outSec <= 0) c.outSec = videoEl.duration || durSec(c);
+    videoEl.currentTime = inOf(c);
+    renderScrubber();
+    render();
+  });
+  videoEl.addEventListener("timeupdate", () => {
+    if (sel < 0) return;
+    const c = clips[sel];
+    const dur = durSec(c) || videoEl.duration || 1;
+    playheadEl.style.left = Math.max(0, Math.min(1, videoEl.currentTime / dur)) * 100 + "%";
+    // While playing, loop within the kept region so you preview exactly the trim.
+    if (!videoEl.paused && videoEl.currentTime >= outOf(c) - 0.02) {
+      videoEl.currentTime = inOf(c);
+    }
+  });
 
   function move(dir) {
     const j = sel + dir;
@@ -108,6 +195,7 @@
       videoEl.style.display = "none";
       noClipEl.style.display = "block";
       selInfoEl.textContent = "—";
+      renderScrubber();
       render();
     } else {
       selectClip(Math.min(sel, clips.length - 1));
@@ -122,7 +210,17 @@
     setStatus(`Stitching ${clips.length} clip${clips.length === 1 ? "" : "s"}…`, "");
     try {
       const res = await window.otd.exportClips({
-        clips: clips.map((c) => ({ path: c.path, w: c.w, h: c.h, speed: c.speed })),
+        clips: clips.map((c) => {
+          const dur = durSec(c);
+          const trimmed = inOf(c) > 0 || outOf(c) < dur - 0.01;
+          return {
+            path: c.path,
+            w: c.w,
+            h: c.h,
+            speed: c.speed,
+            ...(trimmed ? { inSec: inOf(c), outSec: outOf(c) } : {}),
+          };
+        }),
         fps: 60,
       });
       if (!res || !res.ok) {
@@ -174,7 +272,12 @@
 
   window.otd.onEditorInit((payload) => {
     clips = Array.isArray(payload && payload.clips)
-      ? payload.clips.map((c) => ({ ...c, speed: c.speed || 1 }))
+      ? payload.clips.map((c) => ({
+          ...c,
+          speed: c.speed || 1,
+          inSec: typeof c.inSec === "number" ? c.inSec : 0,
+          outSec: typeof c.outSec === "number" ? c.outSec : (c.durMs || 0) / 1000,
+        }))
       : [];
     session = (payload && payload.session) || null;
     sel = clips.length ? 0 : -1;

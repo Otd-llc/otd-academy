@@ -34,6 +34,12 @@
       #noClip { color: var(--muted); font-size: 12px; }
       #transport { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 11px; min-height: 16px; }
       #selInfo { color: var(--ink); }
+      #scrubber { margin: 2px 0 0; }
+      #track { position: relative; height: 28px; background: #11141d; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; user-select: none; }
+      #trimRegion { position: absolute; top: 0; bottom: 0; background: rgba(200, 150, 62, 0.16); border-left: 2px solid var(--gold); border-right: 2px solid var(--gold); pointer-events: none; }
+      #playhead { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--ink); pointer-events: none; }
+      .handle { position: absolute; top: -3px; bottom: -3px; width: 11px; margin-left: -6px; background: var(--gold); border-radius: 3px; cursor: ew-resize; box-shadow: 0 0 0 1px rgba(0,0,0,0.4); }
+      #trimInfo { margin-top: 5px; font-size: 11px; color: var(--muted); }
       #timelineHead { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 6px; }
       #timeline {
         display: flex; gap: 4px; height: 64px; align-items: stretch;
@@ -70,13 +76,22 @@
     <div id="app">
       <header>
         <div id="title">OTD Editor</div>
-        <div id="hint">Click a clip to preview. Reorder, set speed, then export. (Trim + per-segment speed coming next.)</div>
+        <div id="hint">Click a clip to preview. Drag the gold handles to trim, set speed, reorder, then export. (Split + per-segment speed coming next.)</div>
       </header>
       <div id="preview">
         <video id="video" preload="metadata"></video>
         <div id="noClip">Select a clip below</div>
       </div>
       <div id="transport"><span id="selInfo">—</span></div>
+      <div id="scrubber">
+        <div id="track">
+          <div id="trimRegion"></div>
+          <div id="playhead"></div>
+          <div id="inHandle" class="handle" title="Trim start"></div>
+          <div id="outHandle" class="handle" title="Trim end"></div>
+        </div>
+        <div id="trimInfo">Select a clip to trim its start / end</div>
+      </div>
       <div>
         <div id="timelineHead">Timeline · stitched left → right · <span id="totalDur">0:00</span> total</div>
         <div id="timeline"></div>

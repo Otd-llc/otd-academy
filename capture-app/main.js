@@ -464,9 +464,13 @@ ipcMain.handle("export-clips", async (_e, { clips, fps }) => {
     if (!clips || !clips.length) return { ok: false, error: "No clips to export." };
     const r = fps && fps > 0 ? Math.round(fps) : 30;
 
-    // One clip at normal speed: nothing to do — return it as-is. (A speed change
-    // still needs the encoder, so only short-circuit at 1×.)
-    if (clips.length === 1 && (clips[0].speed || 1) === 1) {
+    // One untouched clip (1×, no trim): nothing to do — return it as-is. A speed
+    // or trim change still needs the encoder.
+    const untouched = (c) =>
+      (c.speed || 1) === 1 &&
+      !(typeof c.inSec === "number" && c.inSec > 0) &&
+      !(typeof c.outSec === "number" && c.outSec > 0);
+    if (clips.length === 1 && untouched(clips[0])) {
       return { ok: true, bytes: fs.readFileSync(clips[0].path) };
     }
 
@@ -480,11 +484,20 @@ ipcMain.handle("export-clips", async (_e, { clips, fps }) => {
     for (const c of clips) args.push("-i", c.path);
     const parts = [];
     for (let i = 0; i < clips.length; i++) {
-      const sp = clips[i].speed && clips[i].speed > 0 ? clips[i].speed : 1;
-      const speedFilter = sp !== 1 ? `setpts=PTS/${sp},` : ""; // >1 faster, <1 slower
+      const c = clips[i];
+      const sp = c.speed && c.speed > 0 ? c.speed : 1;
+      const inSec = typeof c.inSec === "number" && c.inSec > 0 ? c.inSec : 0;
+      const hasOut = typeof c.outSec === "number" && c.outSec > 0;
+      const trimmed = inSec > 0 || hasOut;
+      // trim (select source range) → reset PTS to 0 → speed (setpts) → fit canvas.
+      let pre = "";
+      if (trimmed) {
+        pre += `trim=start=${inSec}${hasOut ? `:end=${c.outSec}` : ""},setpts=PTS-STARTPTS,`;
+      }
+      if (sp !== 1) pre += `setpts=PTS/${sp},`; // >1 faster, <1 slower
       parts.push(
-        `[${i}:v]scale=${W}:${H}:force_original_aspect_ratio=decrease,` +
-          `pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,${speedFilter}fps=${r},format=yuv420p[v${i}]`,
+        `[${i}:v]${pre}scale=${W}:${H}:force_original_aspect_ratio=decrease,` +
+          `pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=${r},format=yuv420p[v${i}]`,
       );
     }
     const labels = clips.map((_c, i) => `[v${i}]`).join("");
