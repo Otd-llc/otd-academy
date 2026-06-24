@@ -68,6 +68,8 @@
         font-size: 8px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); opacity: .7;
       }
       #videoTrack { height: 70px; }
+      #audioTrack { height: 46px; }
+      #audioWave { position: absolute; left: 0; top: 0; height: 46px; z-index: 1; pointer-events: none; }
       .seg {
         position: absolute; top: 4px; bottom: 4px; border-radius: 4px; cursor: pointer; overflow: hidden;
         background: var(--navy); border: 1px solid var(--border);
@@ -140,6 +142,7 @@
         <video id="video" preload="auto"></video>
         <video id="video2" preload="auto"></video>
         <video id="exportVideo" preload="auto" muted></video>
+        <audio id="narration" preload="auto"></audio>
         <canvas id="previewCanvas"></canvas>
         <div id="zoomBox"></div>
         <div id="noClip">Record clips, then scrub the whole sequence here</div>
@@ -160,8 +163,8 @@
           <div id="tlInner">
             <div id="ruler"></div>
             <div id="videoTrack" class="lane"><span class="lane-label">Video</span></div>
-            <div id="audioTrack" class="lane placeholder"><span class="lane-label">Audio · Phase 5</span></div>
-            <div id="overlayTrack" class="lane placeholder"><span class="lane-label">Overlay · Phases 3–4</span></div>
+            <div id="audioTrack" class="lane"><span class="lane-label">Audio</span><canvas id="audioWave"></canvas></div>
+            <div id="overlayTrack" class="lane placeholder"><span class="lane-label">Overlay · Phase 4</span></div>
             <div id="dropMarker"></div>
             <div id="tlPlayhead"></div>
             <div id="playheadHit"></div>

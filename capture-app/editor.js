@@ -22,10 +22,14 @@
   let videoEl = $("video");
   let altEl = $("video2");
   const exportVideoEl = $("exportVideo"); // dedicated frame source for WYSIWYG export
+  const narrationEl = $("narration"); // mic narration playback, synced to the playhead
   const noClipEl = $("noClip");
   const canvasEl = $("previewCanvas");
   const previewCtx = canvasEl.getContext("2d");
   const zoomBoxEl = $("zoomBox");
+  const audioWaveEl = $("audioWave");
+  const audioWaveCtx = audioWaveEl.getContext("2d");
+  let narrationPath = null; // path currently loaded in narrationEl
 
   // transport
   const playBtn = $("playBtn");
@@ -267,6 +271,7 @@
       acc += e;
     });
 
+    renderWaveform();
     updatePlayheadUI();
     renderControls();
   }
@@ -442,6 +447,109 @@
   function renderLoop() {
     drawFrame();
     requestAnimationFrame(renderLoop);
+  }
+
+  // ── narration audio (per-clip mic), synced to the playhead during normal playback ──
+  function pauseNarration() {
+    if (!narrationEl.paused) narrationEl.pause();
+  }
+  function narrationSync() {
+    const c = clips[curSegIdx];
+    // Only during forward 1× playback — scrubbing/shuttle/reverse stay silent.
+    if (!playing || fwdMul !== 1 || !c || !c.audioPath) {
+      pauseNarration();
+      return;
+    }
+    if (narrationPath !== c.audioPath) {
+      narrationPath = c.audioPath;
+      narrationEl.src = fileUrl(c.audioPath);
+    }
+    // audio time = video source time + how far the mic led video frame 0
+    const want = videoEl.currentTime + (c.audioOffsetMs || 0) / 1000;
+    narrationEl.playbackRate = c.speed || 1;
+    if (Math.abs(narrationEl.currentTime - want) > 0.12) {
+      try {
+        narrationEl.currentTime = Math.max(0, want);
+      } catch (e) {
+        /* not ready yet */
+      }
+    }
+    if (narrationEl.paused) narrationEl.play().catch(() => {});
+  }
+
+  // ── audio waveform on the Audio track ──
+  let audioCtx = null;
+  // Decode each clip's narration to amplitude peaks (over the full audio), once.
+  async function decodeAllAudio() {
+    if (!audioCtx) {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (e) {
+        return;
+      }
+    }
+    let any = false;
+    for (const c of clips) {
+      if (!c.audioPath || c._peaks || c._peaksFailed) continue;
+      try {
+        const resp = await fetch(fileUrl(c.audioPath));
+        const buf = await resp.arrayBuffer();
+        const audio = await audioCtx.decodeAudioData(buf);
+        c._audioDur = audio.duration;
+        c._peaks = computePeaks(audio.getChannelData(0), 2000);
+        any = true;
+      } catch (e) {
+        c._peaksFailed = true;
+        if (window.otd.log) window.otd.log("waveform decode failed: " + (e && e.message));
+      }
+    }
+    if (any) renderWaveform();
+  }
+  function computePeaks(data, buckets) {
+    const block = Math.max(1, Math.floor(data.length / buckets));
+    const peaks = new Float32Array(buckets);
+    for (let i = 0; i < buckets; i++) {
+      let max = 0;
+      const start = i * block;
+      const end = Math.min(data.length, start + block);
+      for (let j = start; j < end; j++) {
+        const v = data[j] < 0 ? -data[j] : data[j];
+        if (v > max) max = v;
+      }
+      peaks[i] = max;
+    }
+    return peaks;
+  }
+  // Draw each clip's waveform slice across its timeline placement (honouring trim+speed).
+  function renderWaveform() {
+    const innerW = tlInnerEl.clientWidth || 0;
+    const h = audioWaveEl.clientHeight || 46;
+    if (audioWaveEl.width !== innerW) audioWaveEl.width = innerW;
+    if (audioWaveEl.height !== h) audioWaveEl.height = h;
+    const ctx = audioWaveCtx;
+    ctx.clearRect(0, 0, audioWaveEl.width, h);
+    const mid = h / 2;
+    let acc = 0;
+    for (const c of clips) {
+      const e = effSec(c);
+      const x0 = acc * pxPerSec;
+      const w = e * pxPerSec;
+      acc += e;
+      if (!c._peaks || !c._audioDur) continue;
+      const off = (c.audioOffsetMs || 0) / 1000;
+      const aStart = inOf(c) + off; // audio time at the clip's left edge
+      const aEnd = outOf(c) + off; // audio time at the clip's right edge
+      const buckets = c._peaks.length;
+      ctx.fillStyle = "rgba(200,150,62,0.55)";
+      const cols = Math.max(1, Math.floor(w));
+      for (let px = 0; px < cols; px++) {
+        const at = aStart + ((aEnd - aStart) * px) / cols; // audio time at this column
+        const bi = Math.max(0, Math.min(buckets - 1, Math.floor((at / c._audioDur) * buckets)));
+        const amp = c._peaks[bi];
+        const barH = Math.max(0.5, amp * (h - 4));
+        ctx.fillRect(x0 + px, mid - barH / 2, 1, barH);
+      }
+    }
   }
 
   // ── zoom keyframes (drag a focus box on the canvas → keyframe at the playhead) ──
@@ -665,6 +773,7 @@
     if (rafId) cancelAnimationFrame(rafId);
     rafId = null;
     videoEl.pause();
+    pauseNarration();
   }
   function stopReverse() {
     if (revRaf) cancelAnimationFrame(revRaf);
@@ -756,6 +865,7 @@
       const local = (videoEl.currentTime - inOf(c)) / (c.speed || 1);
       playT = startOf(curSegIdx) + Math.max(0, local);
     }
+    narrationSync();
     updatePlayheadUI();
     rafId = requestAnimationFrame(tick);
   }
@@ -1537,10 +1647,12 @@
           "]",
       );
     }
+    narrationPath = null;
     sel = clips.length ? 0 : -1;
     renderTimeline();
     if (sel >= 0) selectClip(0);
     measureDurations();
+    decodeAllAudio();
   });
 
   // Canvas compositor runs continuously (preview); export reuses composite().
