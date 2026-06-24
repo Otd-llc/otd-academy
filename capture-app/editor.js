@@ -58,6 +58,7 @@
   const trimInBtn = $("trimInBtn");
   const trimOutBtn = $("trimOutBtn");
   const removeBtn = $("removeBtn");
+  const hushBtn = $("hushBtn");
   const zoomKfBtn = $("zoomKfBtn");
   const resetZoomBtn = $("resetZoomBtn");
   const clearZoomBtn = $("clearZoomBtn");
@@ -291,6 +292,7 @@
     trimInBtn.disabled = clips.length === 0;
     trimOutBtn.disabled = clips.length === 0;
     removeBtn.disabled = !has;
+    hushBtn.disabled = !clips.some((c) => c.audioPath);
     exportBtn.disabled = busy || clips.length === 0;
     playBtn.disabled = clips.length === 0;
     homeBtn.disabled = clips.length === 0;
@@ -1213,6 +1215,78 @@
     selectClip(sel);
   }
 
+  // A sub-range of a clip's source (keeps the shared audio/cursor/zoom telemetry).
+  function subClip(c, inS, outS) {
+    const n = cloneClip(c);
+    n.inSec = inS;
+    n.outSec = outS;
+    n._explicitOut = true;
+    return n;
+  }
+  // Cut dead-air: for each clip, find runs of near-silence (> MIN_GAP) in its narration
+  // peaks and drop them, keeping a little padding around speech.
+  function removeSilences() {
+    const THRESH = 0.03; // peak amplitude (0..1) below this = silent
+    const MIN_GAP = 1.2; // seconds of continuous silence to cut
+    const PAD = 0.15; // keep this much speech around each gap
+    if (!clips.some((c) => c._peaks)) {
+      setStatus("Waveforms still decoding (or no narration) — try again in a moment.", "");
+      return;
+    }
+    let cutSec = 0;
+    const next = [];
+    for (const c of clips) {
+      if (!c._peaks || !c._audioDur) {
+        next.push(c);
+        continue;
+      }
+      const off = (c.audioOffsetMs || 0) / 1000;
+      const buckets = c._peaks.length;
+      const step = c._audioDur / buckets;
+      const aStart = inOf(c) + off;
+      const aEnd = outOf(c) + off;
+      const gaps = [];
+      let runStart = null;
+      for (let at = aStart; at <= aEnd; at += step) {
+        const bi = Math.max(0, Math.min(buckets - 1, Math.floor((at / c._audioDur) * buckets)));
+        const silent = c._peaks[bi] < THRESH;
+        if (silent && runStart === null) runStart = at;
+        else if (!silent && runStart !== null) {
+          if (at - runStart >= MIN_GAP) gaps.push([runStart, at]);
+          runStart = null;
+        }
+      }
+      if (runStart !== null && aEnd - runStart >= MIN_GAP) gaps.push([runStart, aEnd]);
+      if (!gaps.length) {
+        next.push(c);
+        continue;
+      }
+      // keep the complement of the (padded) gaps, in source time
+      let cursor = inOf(c);
+      for (const [gs, ge] of gaps) {
+        const gapStart = Math.max(inOf(c), gs - off + PAD);
+        const gapEnd = Math.min(outOf(c), ge - off - PAD);
+        if (gapEnd - gapStart <= 0.1) continue;
+        if (gapStart - cursor > 0.1) next.push(subClip(c, cursor, gapStart));
+        cursor = gapEnd;
+        cutSec += gapEnd - gapStart;
+      }
+      if (outOf(c) - cursor > 0.1) next.push(subClip(c, cursor, outOf(c)));
+    }
+    if (cutSec < 0.05 || !next.length) {
+      setStatus("No dead air over the threshold found.", "");
+      return;
+    }
+    pushUndo();
+    clips = next;
+    curSegIdx = -1;
+    curPath = null;
+    sel = clips.length ? Math.min(Math.max(0, sel), clips.length - 1) : -1;
+    renderTimeline();
+    if (sel >= 0) selectClip(sel);
+    setStatus(`Trimmed ~${cutSec.toFixed(1)}s of dead air → ${clips.length} segments.`, "ok");
+  }
+
   // ── zoom ──
   // Keep the playhead in view (used by the +/- buttons).
   function zoomBy(factor) {
@@ -1254,6 +1328,7 @@
   trimInBtn.addEventListener("click", trimStartToPlayhead);
   trimOutBtn.addEventListener("click", trimEndToPlayhead);
   removeBtn.addEventListener("click", rippleDelete);
+  hushBtn.addEventListener("click", removeSilences);
   zoomKfBtn.addEventListener("click", armZoom);
   resetZoomBtn.addEventListener("click", resetZoomAtPlayhead);
   clearZoomBtn.addEventListener("click", clearZooms);
