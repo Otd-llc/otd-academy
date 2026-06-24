@@ -110,7 +110,45 @@ and let #2 fall out of it (a replacement WAV = one audio segment spanning the ti
 
 ---
 
+## 4. Break the capture app into its own repo
+
+**Verdict: yes, break it out** (`Otd-llc/otd-capture`, or under `c:\zzz\otd` with the other
+siblings). It's already *de facto* separate — only its folder location is shared:
+- **Not a pnpm-workspace member** (the academy `pnpm-workspace.yaml` doesn't list it); own
+  `package.json` (`otd-capture`), own deps (electron, ffmpeg-static, mp4-muxer).
+- **Zero academy-code imports** — no `@/`, no `../src`. No shared TypeScript, no shared build.
+- The only ties are two **runtime contracts**, both repo-independent: the `otd-capture://`
+  deep-link (academy → app, the `onSession` payload `{kind,hint,caption,aspect,api,token}`,
+  +`script` per §1) and the "upload into the lesson slot" API (app → academy).
+
+**Why:** the toolchains don't overlap (Vercel/Next/Prisma web app vs Electron desktop — no
+shared build, deploy, or release path), so the academy CI (tsc/build/migrate/vitest) is noise
+for the app and vice-versa; the app ships as packaged installers / GitHub Releases, not a web
+deploy; `electron` + `ffmpeg-static` are heavy/native/security-relevant and don't belong in the
+product repo; and it fits the existing sibling-repo pattern. The captions/STT pipeline (below)
+lands cleanly on this seam — production tooling in the capture repo, serving in the academy.
+
+**How (none are blockers):**
+1. **Extract WITH history** — `git filter-repo` (or `git subtree split`) on `capture-app/`, not a
+   fresh `git init`.
+2. **Write down the two contracts** in both repos (a short `INTEGRATION.md`): the deep-link
+   `onSession` payload and the upload API (auth + metadata — and the future transcript/VTT
+   sidecar). No shared types package needed given there's zero shared code today; a documented
+   contract suffices.
+3. **Add packaging** while at it — it currently only has `electron .`; add electron-builder + a
+   Releases flow.
+
+**Sequencing:** do the extraction at a clean point with no in-flight capture-app work — **now is
+ideal** (editor v2 shipped; features §1–§3 not started), so that work lands in the new repo and
+history isn't split mid-feature. Not blocking, but cheaper before §1–§3 than after.
+
+> Only *don't* split if §1–§3 end up tightly coupling the two (shared runtime schemas, frequent
+> coordinated changes). They don't — the integration is a stable thin contract — so the split holds.
+
+---
+
 ## Suggested order
+0. **Break out the repo (§4)** — do first; it's a clean moment and everything below lands in the new repo.
 1. **#1 teleprompter** (smallest code; content-heavy) — unblocks recording good narration.
 2. **#2 export/replace narration WAV** (studio audio) — biggest quality win, small code.
 3. **#3 editable audio timeline** (largest; subsumes #2's replace).
