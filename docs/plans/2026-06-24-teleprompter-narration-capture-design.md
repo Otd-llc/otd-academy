@@ -51,10 +51,16 @@ script: z.string().max(8000).optional(),
 - `max(8000)` holds a 3–4 min read with headroom; `caption` stays `max(200)`.
 - Optional ⇒ no migration (content blocks are JSON) and every existing
   `guideContentBlocksSchema.parse` call site keeps validating unchanged.
-- Authoring: add a multiline `<textarea>` for `script` to the video block's editor in
-  `src/components/guide/BlockEditor.tsx`, next to `captureHint`/`aspect`. Label it clearly as
-  "what the teacher reads aloud," distinct from `caption` (on-page text) and `captureHint` (shot
-  instruction). Same save path as other block fields — no new server action.
+- Authoring: add a multiline `<textarea>` (`maxLength={8000}`) for `script` to the **video block's
+  editor** in `src/components/guide/BlockEditor.tsx` — the block that today renders Description
+  (`alt`) / Caption / Capture aspect (around lines 572–624). Place it after Caption. Label it
+  clearly as "what the teacher reads aloud," distinct from `caption` (on-page text). Same
+  `onChange`/save path as the other inputs — no new server action.
+  - **Note (validation finding):** `captureHint` is **not** edited in this UI today (only `alt`,
+    `caption`, `aspect` are) — it's set via stage-skeleton templates / raw JSON. So the design's
+    earlier "next to captureHint" was inaccurate; `script` is the first long author-facing field
+    in this editor and sits with Caption/Aspect. (Surfacing `captureHint` here too is optional and
+    out of scope.)
 
 ### 2. Transport endpoint (academy)
 
@@ -83,13 +89,28 @@ process** (Node `fetch`, `upload-capture` IPC) precisely to avoid browser CORS �
 `capture-app/README.md` ("from the main process — no browser CORS") and `main.js` `upload-capture`.
 So the overlay **renderer must NOT** `fetch` the academy directly; the script fetch goes in main.
 
-In `capture-app/main.js`, the session is built by `parseDeepLink` and pushed to the renderer via
-`deliverSession` → `webContents.send("capture:session", s)`. Enrich there: when `s.token` is
-present, `fetch(`${s.api}/api/capture/session?token=…`)` (Node fetch, no CORS), merge `script`
-(and optionally refresh hint/caption/aspect) into `s`, **then** deliver. Make
-`deliverSession`/`handleDeepLink` async; the `pendingSession` (overlay-not-ready) path stores the
-already-enriched session, so the existing `did-finish-load` flush is unchanged. No new IPC channel,
-no renderer fetch.
+In `capture-app/main.js`, a session is produced from a deep link by `parseDeepLink`. Add an async
+`enrichSession(s)`: when `s.token` is present, `fetch(`${s.api}/api/capture/session?token=…`)`
+(Node fetch, no CORS), merge `script` (and optionally refresh hint/caption/aspect) into `s`,
+return it.
+
+**It must cover ALL THREE deep-link entry points — they are NOT uniform (validation finding):**
+- `second-instance` (app already running) → `handleDeepLink`
+- `open-url` (macOS) → `handleDeepLink`
+- **first-launch argv (cold launch from the lesson "+", the MOST COMMON flow)** → currently
+  `pendingSession = parseDeepLink(link)` **directly**, bypassing `handleDeepLink`/`deliverSession`.
+
+So route every path through one async chokepoint, e.g. `async function sessionFromLink(link)
+{ const s = parseDeepLink(link); return s ? await enrichSession(s) : s; }`, and then
+**`deliverSession(await sessionFromLink(link))`** in all three — including replacing the bare
+`pendingSession = parseDeepLink(link)` at first launch with the deliver call. If the enrich fetch
+were added only to `handleDeepLink`, the primary cold-launch flow would silently get no script.
+
+**Cold-launch ordering trap:** don't `await` into `pendingSession` and rely on the `did-finish-load`
+flush — the flush can fire while the fetch is still pending and read a null `pendingSession`,
+losing the session. Always go through `deliverSession` *after* the await: it sends if the overlay
+is ready, else stores the already-enriched session for the flush. `deliverSession` stays sync;
+only the link-handling wrappers become async. No new IPC channel, no renderer fetch.
 
 **Best-effort:** wrap the enrich fetch in try/catch — a network failure or non-200 must never
 block capture. On failure, deliver `s` without `script` (degrades to a silent screencast; the
@@ -100,9 +121,13 @@ Net effect: `overlay.js` `onSession(s)` just reads `s.script` — exactly like `
 
 ### 3b. Overlay teleprompter UI (capture)
 
-- `s.script` non-empty ⇒ render the teleprompter panel + default the mic toggle ON (still
-  operator-overridable). Empty ⇒ behave exactly as today. This is the single enforcement point
-  of the "implied needsNarration" rule.
+- `s.script` non-empty ⇒ render the teleprompter panel. Empty ⇒ behave exactly as today (no
+  panel). This is the single enforcement point of the "implied needsNarration" rule.
+- **Mic (validation finding):** `overlay.js` already defaults `micEnabled = true`, so "turn the
+  mic on for narrated clips" is a no-op — the mic is already on for every clip. Do **not** couple
+  script-presence to the mic default; leave the existing behavior alone (changing it would flip
+  mic *off* for today's silent screencasts, an unrelated behavior change). Script presence drives
+  the *teleprompter only*, not the mic.
 - Panel (`overlay.html` + `overlay.js`): large, high-contrast, scrollable text shown in the
   **framing and recording** phases.
 - **Manual advance:** scroll wheel while hovering the panel + global hotkeys to page down/up that
@@ -145,9 +170,9 @@ fetch · `+1` overlay panel (manual scroll) · `+1` manual out-of-frame check ·
 **No migration, no new auth, no new IPC channel, no renderer-side network, no change to
 `createCaptureSession`/upload.**
 
-## Validation pass (2026-06-24) — findings folded in
+## Validation pass (2026-06-24)
 
-Checked the design against the real code; three material corrections were made:
+### Pass 1 — three material corrections folded in:
 
 1. **CORS.** Original draft had the overlay *renderer* `fetch` the academy. The app deliberately
    does academy HTTP from the **main process** (`README.md`: "from the main process — no browser
@@ -164,6 +189,28 @@ Checked the design against the real code; three material corrections were made:
 Also confirmed safe-as-drafted: the slot token already carries `cardId`/`blockIndex`/`kind`
 (`/api/capture` + `/api/capture/status` both use them), so the new GET route adds no auth surface;
 and `script` being optional means no Prisma migration (content blocks are JSON).
+
+### Pass 2 — three more, deeper in the call graph:
+
+4. **Enrich must cover the first-launch argv path (highest-severity).** The three deep-link entry
+   points aren't uniform: `second-instance` + `open-url` go through `handleDeepLink`, but the
+   **cold-launch** path (the most common: app not running, user clicks "+") does
+   `pendingSession = parseDeepLink(link)` **directly** (`main.js` ~line 297). Adding the fetch only
+   to `handleDeepLink` would silently skip the script on the primary flow. Fix: one async
+   `sessionFromLink` chokepoint used by all three, `deliverSession` after the await — plus a noted
+   cold-launch ordering trap (don't leave an un-flushed `pendingSession` while the fetch is pending)
+   (§3).
+5. **Mic default is already `true`.** "Default the mic ON for narrated clips" was a no-op; coupling
+   script→mic would have flipped mic *off* for existing silent screencasts. Decoupled — script
+   drives the teleprompter only (§3b).
+6. **`captureHint` isn't in the BlockEditor UI.** The video editor exposes only `alt`/`caption`/
+   `aspect`, so "add the textarea next to captureHint" was inaccurate; `script` sits with
+   Caption/Aspect (§1).
+
+Confirmed safe in pass 2: content protection covers the whole overlay window (so §4's frame-safety
+holds); the GET route is a pure read so calling it on every cold launch is harmless; `script`
+travels only via the token-fetched bundle, never the URL/`.log`, so the Windows arg-length concern
+is fully retired.
 
 ## Out of scope (deferred to sibling handoff items)
 
