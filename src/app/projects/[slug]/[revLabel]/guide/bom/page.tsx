@@ -9,14 +9,13 @@
 // segment (a static override of `guide/[stage]`), which the middleware already
 // treats as public.
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { summarizePrintableBom } from "@/lib/printable-bom";
 import { PrintButton } from "@/components/guide/PrintButton";
+import { PageHeader } from "@/components/PageHeader";
 import { ExternalLinkIcon } from "@/components/icons";
-import { BrandMark } from "@/components/BrandMark";
 
 // Print views are a utility surface, not a landing page — keep them out of the
 // index. A local const folded into generateMetadata below (Next forbids
@@ -105,155 +104,96 @@ export default async function PrintableBomPage({ params }: { params: Params }) {
 
   const title = project.publicTitle ?? project.name;
   const hubHref = `/projects/${slug}/${encodeURIComponent(revision.label)}/guide`;
-  const date = new Date().toISOString().slice(0, 10);
+  const accentWord = title.trim().split(/\s+/).pop();
 
-  // A branded "paper" build sheet, modeled on the bioscale-viz hex PDF export
-  // (dark title-block band · Bebas titles · gold meta labels · zebra table ·
-  // legal footer) rendered in the academy palette. Print-friendly: white paper,
-  // the site nav/footer drop out via `print:hidden` in the root layout.
+  // The academy's own page language: the bench-hero PageHeader + the table-tech
+  // data table on the deep-space field. Print keeps the dark theme (forced through
+  // the print pipeline) so the saved PDF reads as the same branded sheet.
   return (
-    <main className="bg-deep-space px-4 py-8 print:bg-white print:p-0">
-      {/* Print page setup — margins + force the branded fills through the print
-          pipeline (browsers strip background colors by default). */}
+    <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
       <style
         dangerouslySetInnerHTML={{
           __html:
-            "@media print{@page{margin:14mm}html,body{background:#fff!important}" +
+            "@media print{@page{margin:10mm}html,body{background:#08090d!important}" +
             "*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}",
         }}
       />
-      <article className="mx-auto max-w-4xl overflow-hidden rounded-xl bg-white text-[#14141e] shadow-[0_20px_60px_rgba(0,0,0,0.5)] [print-color-adjust:exact] print:max-w-none print:rounded-none print:border-[1.5px] print:border-[#14141e] print:shadow-none">
-        {/* ── title-block band: brand · meta · actions ── */}
-        <header className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 bg-navy-dark px-7 py-5 [print-color-adjust:exact] print:px-6">
-          <div className="min-w-0">
-            <div className="flex items-center gap-3">
-              <BrandMark className="h-9 w-9 shrink-0 text-command-gold" />
-              <div className="font-display text-2xl leading-none tracking-[0.12em] text-white">
-                <span className="text-command-gold">OTD</span> ACADEMY
-              </div>
-            </div>
-            <dl className="mt-3 grid grid-cols-2 gap-x-7 gap-y-1.5 sm:grid-cols-4">
-              <Meta label="Revision" value={revision.label} />
-              <Meta label="Lines" value={String(bom.lineCount)} />
-              <Meta label="Parts" value={String(bom.totalParts)} />
-              <Meta label="Date" value={date} />
-            </dl>
-          </div>
-          <div className="flex items-center gap-3 print:hidden">
-            <Link
-              href={hubHref}
-              className="font-mono text-[11px] uppercase tracking-[0.14em] text-gray-2 transition-colors hover:text-command-gold"
-            >
-              ← Back
-            </Link>
-            <PrintButton />
-          </div>
-        </header>
+      <PageHeader
+        backHref={hubHref}
+        backLabel="Build guide"
+        eyebrow="BILL OF MATERIALS"
+        title={title}
+        accentWord={accentWord}
+        lead="The bench shopping sheet — print it or save a PDF for your parts run."
+        meta={[
+          { label: "Revision", value: revision.label },
+          { label: "Lines", value: bom.lineCount },
+          { label: "Parts", value: bom.totalParts },
+        ]}
+      />
 
-        {/* ── paper body ── */}
-        <div className="px-7 py-7 print:px-6 print:py-5">
-          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.28em] text-gold-dim">
-            Bill of Materials
-          </p>
-          <h1 className="mt-1.5 font-display text-[34px] leading-[1.04] tracking-[0.04em] text-[#14141e]">
-            {title}
-          </h1>
+      <div className="mb-6 flex items-center gap-3 print:hidden">
+        <PrintButton />
+      </div>
 
-          {bom.lineCount === 0 ? (
-            <p className="mt-8 font-serif italic text-[#555]">
-              This lesson&apos;s BOM isn&apos;t locked yet.
-            </p>
-          ) : (
-            <table className="mt-7 w-full border-collapse text-[11.5px]">
-              <thead>
-                <tr>
-                  {["Ref", "Qty", "Manufacturer Part No.", "Manufacturer", "Description", "Datasheet"].map(
-                    (h) => (
-                      <th
-                        key={h}
-                        className="border-b-[1.5px] border-[#14141e] px-2.5 py-2 text-left font-display text-[12px] font-normal uppercase tracking-[0.16em] text-gold-dim first:pl-0"
+      {bom.lineCount === 0 ? (
+        <p className="font-mono text-sm uppercase tracking-wider text-muted">
+          This lesson&apos;s BOM isn&apos;t locked yet.
+        </p>
+      ) : (
+        <div className="glass-card overflow-x-auto px-3 py-2 sm:px-5 sm:py-3">
+          <table className="table-tech min-w-full">
+            <thead>
+              <tr>
+                <th>Ref</th>
+                <th>Qty</th>
+                <th>Manufacturer Part No.</th>
+                <th>Manufacturer</th>
+                <th>Description</th>
+                <th>Datasheet</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bom.lines.map((l, i) => (
+                <tr key={i}>
+                  <td data-label="Ref">
+                    <span className="ref">{l.refDes}</span>
+                  </td>
+                  <td data-label="Qty">{l.qty}×</td>
+                  <td data-label="Mfr Part No.">
+                    <span className="mpn">{l.mpn ?? "—"}</span>
+                    {l.lifecycle !== "ACTIVE" ? (
+                      <span className="badge critical ml-2 align-middle">{l.lifecycle}</span>
+                    ) : null}
+                  </td>
+                  <td data-label="Manufacturer">{l.manufacturer ?? "—"}</td>
+                  <td data-label="Description">{l.description ?? ""}</td>
+                  <td data-label="Datasheet">
+                    {l.datasheetUrl ? (
+                      <a
+                        href={l.datasheetUrl}
+                        target="_blank"
+                        rel="noopener noreferrer nofollow"
+                        className="inline-flex items-center gap-1 text-signal-blue hover:underline"
                       >
-                        {h}
-                      </th>
-                    ),
-                  )}
+                        PDF
+                        <ExternalLinkIcon className="h-3 w-3 shrink-0 print:hidden" />
+                      </a>
+                    ) : (
+                      <span className="text-gray-3">—</span>
+                    )}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {bom.lines.map((l, i) => (
-                  <tr key={i} className="align-top even:bg-[#ecedf2]">
-                    <td className="border-b border-[#d8d8d8] px-2.5 py-2 pl-0 font-mono font-bold text-[#14141e]">
-                      {l.refDes}
-                    </td>
-                    <td className="border-b border-[#d8d8d8] px-2.5 py-2 font-bold">{l.qty}×</td>
-                    <td className="border-b border-[#d8d8d8] px-2.5 py-2 font-mono text-[#14141e]">
-                      {l.mpn ?? "—"}
-                      {l.lifecycle !== "ACTIVE" ? (
-                        <span className="ml-1.5 font-mono text-[9px] font-bold uppercase tracking-wider text-[#c0392b]">
-                          {l.lifecycle}
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="border-b border-[#d8d8d8] px-2.5 py-2 text-[#14141e]">
-                      {l.manufacturer ?? "—"}
-                    </td>
-                    <td className="border-b border-[#d8d8d8] px-2.5 py-2 text-[#444]">
-                      {l.description ?? ""}
-                    </td>
-                    <td className="border-b border-[#d8d8d8] px-2.5 py-2">
-                      {l.datasheetUrl ? (
-                        <a
-                          href={l.datasheetUrl}
-                          target="_blank"
-                          rel="noopener noreferrer nofollow"
-                          className="inline-flex items-center gap-1 font-mono text-[10.5px] text-[#2a5fcc] hover:underline"
-                        >
-                          PDF
-                          <ExternalLinkIcon className="h-3 w-3 shrink-0 print:hidden" />
-                        </a>
-                      ) : (
-                        <span className="text-[#999]">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-
-          {/* ── title-block footer: legal colophon ── */}
-          <footer className="mt-9 flex flex-wrap items-baseline gap-x-5 gap-y-1 border-t-2 border-[#14141e] pt-3">
-            <span className="font-display text-[14px] tracking-[0.18em] text-[#14141e]">
-              ONE THOUSAND DRONES, LLC
-            </span>
-            <a
-              href="https://academy.onethousanddrones.com"
-              className="font-mono text-[10.5px] tracking-wider text-gold-dim no-underline"
-            >
-              academy.onethousanddrones.com
-            </a>
-            <p className="mt-1 w-full font-serif text-[10.5px] italic leading-relaxed text-[#555]">
-              Auto-generated bench shopping sheet · verify availability, pricing, and specs against
-              the datasheet before ordering.
-            </p>
-            <p className="mt-0.5 w-full font-mono text-[8.5px] leading-relaxed tracking-wide text-[#888]">
-              © {new Date().getFullYear()} One Thousand Drones, LLC. All rights reserved.
-            </p>
-          </footer>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </article>
-    </main>
-  );
-}
+      )}
 
-// A gold-label / light-value meta cell for the dark title-block band.
-function Meta({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-0.5 font-mono">
-      <dt className="text-[9px] font-bold uppercase tracking-[0.18em] text-command-gold">
-        {label}
-      </dt>
-      <dd className="truncate text-[12px] tracking-wide text-gray-1">{value}</dd>
-    </div>
+      <p className="mt-8 font-mono text-[10px] uppercase leading-relaxed tracking-[0.2em] text-gray-3">
+        One Thousand Drones, LLC · academy.onethousanddrones.com · verify availability &amp; specs
+        against the datasheet before ordering.
+      </p>
+    </main>
   );
 }
