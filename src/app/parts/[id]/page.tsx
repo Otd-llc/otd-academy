@@ -32,6 +32,7 @@ import {
 import { AssetRow, type SerializedAsset } from "@/components/parts/AssetRow";
 import { DatasheetUpload } from "@/components/parts/DatasheetUpload";
 import { DatasheetUrlEditor } from "@/components/parts/DatasheetUrlEditor";
+import { RecheckAvailabilityButton } from "@/components/parts/RecheckAvailabilityButton";
 import { GROUP_ORDER } from "@/components/parts/fact-group-meta";
 import type { DatasheetOption } from "@/components/parts/ProvenanceFields";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -239,6 +240,9 @@ export default async function PartDetailPage({
         {r2Enabled && canEdit ? (
           <DatasheetUpload partId={part.id} hasDatasheet={!!part.datasheet} />
         ) : null}
+        {/* Admin: re-resolve DigiKey now — unsticks a swapped part still showing the
+            old part's stale stock / FastAdd cart link. */}
+        {canEdit ? <RecheckAvailabilityButton partId={part.id} /> : null}
       </section>
 
       {/* ─── used-in cross-reference (public projects) ─── */}
