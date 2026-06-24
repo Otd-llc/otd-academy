@@ -1573,6 +1573,28 @@
         if (!res || !res.ok) throw new Error((res && res.error) || "ffmpeg export failed");
         bytes = res.bytes;
       }
+      // Mux mic narration (loudnorm) over the video, if any clip has audio.
+      if (clips.some((c) => c.audioPath)) {
+        setStatus("Adding narration…", "");
+        try {
+          const segs = clips.map((c) => ({
+            audioPath: c.audioPath || null,
+            inSec: inOf(c),
+            outSec: outOf(c),
+            speed: c.speed || 1,
+            offset: (c.audioOffsetMs || 0) / 1000,
+            effDur: effSec(c),
+          }));
+          const mux = await window.otd.muxAudio({ video: new Uint8Array(bytes), segments: segs });
+          if (mux && mux.ok) bytes = mux.bytes;
+          else {
+            if (window.otd.log) window.otd.log("mux-audio failed: " + ((mux && mux.error) || "?"));
+            setStatus("Narration mux failed — exporting without audio.", "err");
+          }
+        } catch (e) {
+          if (window.otd.log) window.otd.log("mux-audio threw: " + (e && e.message));
+        }
+      }
       const base64 = abToBase64(bytes);
       if (session && session.token) {
         setStatus("Uploading…", "");

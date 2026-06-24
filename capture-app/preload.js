@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld("otd", {
   // Multi-clip: persist a recorded clip to a temp file, and stitch the ordered set.
   saveClip: (payload) => ipcRenderer.invoke("save-clip", payload),
   saveAudio: (payload) => ipcRenderer.invoke("save-audio", payload),
+  muxAudio: (payload) => ipcRenderer.invoke("mux-audio", payload),
   exportClips: (payload) => ipcRenderer.invoke("export-clips", payload),
   // Timeline editor window.
   openEditor: (payload) => ipcRenderer.send("open-editor", payload),

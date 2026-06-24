@@ -555,6 +555,84 @@ ipcMain.handle("export-clips", async (_e, { clips, fps }) => {
   }
 });
 
+// atempo only spans 0.5–2.0 per filter; chain to reach 4× / 0.25× etc.
+function atempoChain(speed) {
+  let s = speed || 1;
+  const out = [];
+  if (Math.abs(s - 1) < 1e-3) return out;
+  while (s > 2) {
+    out.push(2);
+    s /= 2;
+  }
+  while (s < 0.5) {
+    out.push(0.5);
+    s /= 0.5;
+  }
+  out.push(+s.toFixed(4));
+  return out;
+}
+
+// Mux the WYSIWYG video with per-segment mic narration: trim each segment's audio to its
+// kept range (offset by how far the mic led video frame 0), tempo-shift for clip speed,
+// concat (silent segments → anullsrc), loudnorm, and mux over the copied video.
+ipcMain.handle("mux-audio", async (_e, { video, segments }) => {
+  try {
+    if (!video || !segments || !segments.length) return { ok: false, error: "Nothing to mux." };
+    const ffmpeg = require("ffmpeg-static");
+    const dir = getSessionDir();
+    const vpath = path.join(dir, `export-v-${Date.now()}.mp4`);
+    fs.writeFileSync(vpath, Buffer.from(video));
+    const out = path.join(dir, `export-av-${Date.now()}.mp4`);
+
+    const args = ["-y", "-i", vpath];
+    const parts = [];
+    const labels = [];
+    let inputIdx = 1;
+    segments.forEach((s, i) => {
+      const eff = Math.max(0.02, s.effDur || 0.02);
+      if (s.audioPath) {
+        args.push("-i", s.audioPath);
+        const start = Math.max(0, (s.inSec || 0) + (s.offset || 0));
+        const end = Math.max(start + 0.02, (s.outSec || 0) + (s.offset || 0));
+        let f = `[${inputIdx}:a]atrim=start=${start}:end=${end},asetpts=PTS-STARTPTS`;
+        for (const at of atempoChain(s.speed)) f += `,atempo=${at}`;
+        f += `,aresample=48000[a${i}]`;
+        parts.push(f);
+        inputIdx++;
+      } else {
+        parts.push(
+          `anullsrc=channel_layout=stereo:sample_rate=48000,atrim=duration=${eff},asetpts=PTS-STARTPTS[a${i}]`,
+        );
+      }
+      labels.push(`[a${i}]`);
+    });
+    const filter =
+      `${parts.join(";")};${labels.join("")}concat=n=${segments.length}:v=0:a=1[ac];` +
+      `[ac]loudnorm=I=-16:TP=-1.5:LRA=11[aout]`;
+    const fargs = [
+      ...args,
+      "-filter_complex",
+      filter,
+      "-map", "0:v",
+      "-map", "[aout]",
+      "-c:v", "copy",
+      "-c:a", "aac",
+      "-b:a", "192k",
+      "-ar", "48000",
+      "-movflags", "+faststart",
+      out,
+    ];
+    logLine(`mux-audio: ${segments.length} segs, ${inputIdx - 1} audio inputs → ${out}`);
+    await runFfmpeg(ffmpeg, fargs);
+    const bytes = fs.readFileSync(out);
+    logLine(`mux-audio done: ${bytes.length} bytes`);
+    return { ok: true, bytes };
+  } catch (e) {
+    logLine(`mux-audio FAILED: ${e && e.message}`);
+    return { ok: false, error: e && e.message ? e.message : "Audio mux failed." };
+  }
+});
+
 ipcMain.on("renderer-log", (_e, msg) => logLine(`[renderer] ${msg}`));
 
 // Cursor feed for the auto-follow pan: poll the OS cursor (~60 Hz) and push
