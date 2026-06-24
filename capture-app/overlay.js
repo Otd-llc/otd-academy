@@ -41,6 +41,7 @@
   const clipTrayEl = $("clipTray");
   const addClipBtnEl = $("addClipBtn");
   const approveBtnEl = $("approveBtn");
+  const editBtnEl = $("editBtn");
 
   // Aspect token (from the placeholder) → ratio. 0 = free (standalone only).
   const ASPECTS = {
@@ -70,9 +71,13 @@
   let wcRunning = false;
   let wcTimer = null; // fixed-rate (CFR) encode pump
   let wcLatest = null; // most-recent source VideoFrame (held for the CFR pump)
+  let wcWorker = null; // recording worker (worker mode)
+  let camTimer = null; // renderer-side follow-camera loop feeding the worker
+  let wcDone = null; // { resolve, reject } awaiting the worker's finished MP4 on stop
   let pumpTicks = 0; // frames pushed/encoded this recording (diagnostics)
   let camLastMs = 0; // timestamp for the follow-spring dt, shared by both pipelines
   const PREFER_WEBCODECS = true; // set false to force the legacy canvas/MediaRecorder path
+  const USE_WORKER = true; // run the WebCodecs pipeline in a Worker (per-frame GC off the UI thread)
   let captured = null; // { base64, ext }
   let previewUrl = null;
   // Multi-clip session: clips queued for stitching, in timeline order.
@@ -437,6 +442,19 @@
   }
   function teardownWebCodecs() {
     wcRunning = false;
+    if (camTimer) {
+      clearInterval(camTimer);
+      camTimer = null;
+    }
+    if (wcWorker) {
+      try {
+        wcWorker.terminate();
+      } catch {
+        // ignore
+      }
+      wcWorker = null;
+    }
+    wcDone = null;
     if (wcTimer) {
       clearInterval(wcTimer);
       wcTimer = null;
@@ -521,7 +539,126 @@
   }
 
   // ── WebCodecs pipeline (primary) ──
+  // Dispatcher: try the Worker pipeline first (per-frame GC off the UI thread), then
+  // the main-thread WebCodecs path. The caller falls back to canvas if both fail.
   async function startWebCodecs(track, halfW, halfH) {
+    if (USE_WORKER && typeof Worker !== "undefined" && typeof MediaStreamTrackProcessor !== "undefined") {
+      try {
+        if (await tryWorker(track, halfW, halfH)) return true;
+      } catch (e) {
+        window.otd.log("worker path threw, falling back: " + (e && e.message));
+        teardownWebCodecs();
+      }
+    }
+    return await startWebCodecsMain(track, halfW, halfH);
+  }
+
+  function workerWaitFor(worker, types, ms) {
+    return new Promise((resolve) => {
+      const onMsg = (e) => {
+        const m = e.data || {};
+        if (types.indexOf(m.type) !== -1) {
+          worker.removeEventListener("message", onMsg);
+          resolve(m);
+        }
+      };
+      worker.addEventListener("message", onMsg);
+      setTimeout(() => {
+        worker.removeEventListener("message", onMsg);
+        resolve(null);
+      }, ms);
+    });
+  }
+  // The Worker runs capture-read + crop + encode + mux off the UI thread. We keep the
+  // original `track` for the main-thread fallback and hand the worker a CLONE, so a
+  // worker that can't start costs us nothing.
+  async function tryWorker(track, halfW, halfH) {
+    let worker;
+    try {
+      worker = new Worker("record-worker.js");
+    } catch (e) {
+      window.otd.log("worker create failed: " + (e && e.message));
+      return false;
+    }
+    const ready = await workerWaitFor(worker, ["ready", "fallback"], 2500);
+    if (!ready || ready.type !== "ready") {
+      worker.terminate();
+      window.otd.log("worker not ready → main-thread WebCodecs");
+      return false;
+    }
+    const wTrack = track.clone();
+    const processor = new MediaStreamTrackProcessor({ track: wTrack });
+    const startedP = workerWaitFor(worker, ["started", "fallback", "error"], 4000);
+    worker.postMessage(
+      {
+        type: "start",
+        readable: processor.readable,
+        innerW: window.innerWidth,
+        innerH: window.innerHeight,
+        boxW: box.w,
+        boxH: box.h,
+        fps: REC_FPS,
+        bitrate: 8000000,
+        camX: cam.x,
+        camY: cam.y,
+      },
+      [processor.readable],
+    );
+    const started = await startedP;
+    if (!started || started.type !== "started") {
+      try {
+        wTrack.stop();
+      } catch {
+        // ignore
+      }
+      worker.terminate();
+      window.otd.log("worker start failed → main-thread WebCodecs");
+      return false;
+    }
+    worker.addEventListener("message", (e) => {
+      const m = e.data || {};
+      if (m.type === "done" && wcDone) {
+        wcDone.resolve(m.buffer);
+        wcDone = null;
+      } else if (m.type === "error") {
+        if (wcDone) {
+          wcDone.reject(new Error(m.message || "worker error"));
+          wcDone = null;
+        } else {
+          window.otd.log("worker error mid-record: " + m.message);
+        }
+      }
+    });
+    wcWorker = worker;
+    wcProcTrack = wTrack;
+    recMode = "worker";
+    lastClipDims = { w: started.cropW, h: started.cropH };
+    window.otd.log(`recording started (worker): codec=${started.codec} crop=${started.cropW}x${started.cropH} coded=${started.codedW}x${started.codedH}`);
+    // The worker reads its own cloned track, so the renderer's full-screen <video>
+    // is dead weight while recording — pause it so we stop decoding the whole screen
+    // on the UI thread (frees GPU/CPU for the live overlay + the worker's encode).
+    // It's re-acquired + replayed by startFraming on the next clip.
+    try {
+      screenVideo.pause();
+    } catch {
+      // ignore
+    }
+    // The renderer drives the follow camera + visible box and streams the position to
+    // the worker, which samples the latest when cropping each frame.
+    camTimer = setInterval(() => {
+      updateCamera(halfW, halfH, 1 / REC_FPS);
+      try {
+        worker.postMessage({ type: "cam", x: cam.x, y: cam.y });
+      } catch {
+        // ignore
+      }
+      pumpTicks++;
+    }, Math.round(1000 / REC_FPS));
+    return true;
+  }
+
+  // ── main-thread WebCodecs pipeline (fallback) ──
+  async function startWebCodecsMain(track, halfW, halfH) {
     // Read from a CLONE so the original track keeps feeding screenVideo (no contention).
     wcProcTrack = track.clone();
     const processor = new MediaStreamTrackProcessor({ track: wcProcTrack });
@@ -558,68 +695,50 @@
     recMode = "webcodecs";
     lastClipDims = { w: cropW, h: cropH };
     wcRunning = true;
-    const frameIntervalMs = 1000 / REC_FPS;
     const frameIntervalUs = Math.round(1000000 / REC_FPS);
     const fixedDt = 1 / REC_FPS;
-    let frameIndex = 0;
-    const startMs = performance.now();
+    let frameIndex = 0; // output frame counter (CFR)
+    let expectedTs = null; // next CFR-grid output timestamp (µs), aligned to frame 0
+    let lastCropped = null; // last cropped frame, re-emitted to fill static gaps
 
-    // Crop the LATEST source frame and encode it with a constant-rate timestamp.
-    const encodeFrame = () => {
+    const cropAndEncode = (srcFrame, tsUs) => {
       updateCamera(halfW, halfH, fixedDt);
-      if (!wcLatest) return;
       let ox = Math.round((cam.x - halfW) * sxScale);
       let oy = Math.round((cam.y - halfH) * syScale);
       ox -= ox % 2; // even origin keeps chroma aligned for the HW encoder
       oy -= oy % 2;
       ox = Math.max(0, Math.min(ox, codedW - cropW));
       oy = Math.max(0, Math.min(oy, codedH - cropH));
-      try {
-        const cropped = new VideoFrame(wcLatest, {
-          visibleRect: { x: ox, y: oy, width: cropW, height: cropH },
-          timestamp: frameIndex * frameIntervalUs,
-        });
-        wcSink.encode(cropped, frameIndex % (REC_FPS * 2) === 0); // keyframe ~2s
-        cropped.close();
-      } catch (e) {
-        window.otd.log("crop/encode err: " + (e && e.message));
+      const cropped = new VideoFrame(srcFrame, {
+        visibleRect: { x: ox, y: oy, width: cropW, height: cropH },
+        timestamp: tsUs,
+      });
+      wcSink.encode(cropped, frameIndex % (REC_FPS * 2) === 0); // keyframe ~2s
+      if (lastCropped) {
+        try {
+          lastCropped.close();
+        } catch {
+          // ignore
+        }
       }
+      lastCropped = cropped.clone(); // keep a copy to fill any following static gap
+      cropped.close();
       frameIndex++;
       pumpTicks++;
     };
 
-    window.otd.log(`recording started (webcodecs CFR ${REC_FPS}): codec=${wcSink.codec} crop=${cropW}x${cropH} coded=${codedW}x${codedH}`);
-    wcLatest = first; // seed; the reader replaces it as new frames arrive
+    window.otd.log(`recording started (webcodecs CFR ${REC_FPS}, event-driven): codec=${wcSink.codec} crop=${cropW}x${cropH} coded=${codedW}x${codedH}`);
 
-    // CFR pump: each tick, emit frames to CATCH UP to wall-clock, duplicating the
-    // latest captured frame when the screen was static. Steady 30fps out (no gaps),
-    // duration tracks wall-clock no matter how irregularly the OS delivers frames —
-    // which is what fixes the choppy/stuttery playback (desktop capture is
-    // change-driven, so encoding only on arrival produced uneven cadence).
-    wcTimer = setInterval(() => {
-      if (!wcRunning || !wcSink || wcSink.error) return;
-      const target = Math.round((performance.now() - startMs) / frameIntervalMs);
-      let guard = 0;
-      while (frameIndex < target && guard < 5) {
-        encodeFrame();
-        guard++;
-      }
-    }, Math.round(frameIntervalMs));
-
-    // Reader: keep ONLY the most-recent frame; the CFR pump consumes it. Closing the
-    // previous frame as each new one arrives bounds memory to a single frame.
-    (async () => {
-      while (wcRunning) {
-        let res;
-        try {
-          res = await wcReader.read();
-        } catch {
-          break;
-        }
-        if (res.done) break;
-        const frame = res.value;
-        if (!frame) continue;
-        if (!wcRunning) {
+    // EVENT-DRIVEN encode: paced by the capture stream's OWN frame delivery (the WGC
+    // capture clock), NOT a setInterval — which phase-beats against WGC + vsync and
+    // bakes judder into the file. Each arriving frame is quantised onto a constant
+    // 1/fps grid; when WGC skips frames (static screen) we fill the gap by re-emitting
+    // the last cropped frame, so the output stays CFR and the duration tracks the
+    // hardware capture clock.
+    const drive = async (firstFrame) => {
+      let frame = firstFrame;
+      while (wcRunning && frame) {
+        if (!wcSink || wcSink.error) {
           try {
             frame.close();
           } catch {
@@ -627,17 +746,53 @@
           }
           break;
         }
-        const prev = wcLatest;
-        wcLatest = frame;
-        if (prev) {
+        if (expectedTs === null) expectedTs = frame.timestamp; // align grid to hw clock
+        // Fill CFR slots that elapsed before this frame (cap a burst at ~4s of dupes).
+        let fill = 0;
+        while (lastCropped && expectedTs < frame.timestamp - frameIntervalUs * 0.5 && fill < REC_FPS * 4) {
           try {
-            prev.close();
-          } catch {
-            // ignore
+            const dup = new VideoFrame(lastCropped, { timestamp: Math.round(expectedTs) });
+            wcSink.encode(dup, frameIndex % (REC_FPS * 2) === 0);
+            dup.close();
+          } catch (e) {
+            window.otd.log("dup err: " + (e && e.message));
           }
+          frameIndex++;
+          pumpTicks++;
+          expectedTs += frameIntervalUs;
+          fill++;
         }
+        try {
+          cropAndEncode(frame, Math.round(expectedTs));
+        } catch (e) {
+          window.otd.log("crop/encode err: " + (e && e.message));
+        }
+        expectedTs += frameIntervalUs;
+        try {
+          frame.close();
+        } catch {
+          // ignore
+        }
+        if (!wcRunning) break;
+        let res;
+        try {
+          res = await wcReader.read();
+        } catch {
+          break;
+        }
+        if (res.done) break;
+        frame = res.value;
       }
-    })();
+      if (lastCropped) {
+        try {
+          lastCropped.close();
+        } catch {
+          // ignore
+        }
+        lastCropped = null;
+      }
+    };
+    drive(first);
     return true;
   }
 
@@ -696,7 +851,37 @@
     window.otd.log(`stopRecording: mode=${recMode} wallclock=${((Date.now() - recStart) / 1000).toFixed(1)}s frames=${pumpTicks}`);
     try {
       let result;
-      if (recMode === "webcodecs") {
+      if (recMode === "worker") {
+        if (camTimer) {
+          clearInterval(camTimer);
+          camTimer = null;
+        }
+        const bufferP = new Promise((resolve, reject) => {
+          wcDone = { resolve, reject };
+        });
+        const to = setTimeout(() => {
+          if (wcDone) {
+            wcDone.reject(new Error("worker stop timed out"));
+            wcDone = null;
+          }
+        }, 15000);
+        try {
+          wcWorker.postMessage({ type: "stop" });
+        } catch {
+          // ignore
+        }
+        const arrbuf = await bufferP;
+        clearTimeout(to);
+        result = { blob: new Blob([arrbuf], { type: "video/mp4" }), ext: "mp4" };
+        try {
+          wcWorker.terminate();
+        } catch {
+          // ignore
+        }
+        wcWorker = null;
+        stopTrack(wcProcTrack);
+        wcProcTrack = null;
+      } else if (recMode === "webcodecs") {
         wcRunning = false;
         if (wcTimer) {
           clearInterval(wcTimer); // stop the CFR pump before flushing
@@ -811,6 +996,7 @@
   function renderClipTray() {
     const isVideo = mode === "video";
     addClipBtnEl.classList.toggle("hidden", !isVideo);
+    editBtnEl.classList.toggle("hidden", !isVideo || clips.length === 0);
     if (!isVideo || clips.length === 0) {
       clipTrayEl.classList.add("hidden");
       clipTrayEl.innerHTML = "";
@@ -951,6 +1137,13 @@
   $("cancelFrameBtn").addEventListener("click", reset);
   $("approveBtn").addEventListener("click", approve);
   $("addClipBtn").addEventListener("click", recordAnother);
+  $("editBtn").addEventListener("click", () => {
+    if (!clips.length) return;
+    window.otd.openEditor({
+      clips: clips.map((c) => ({ path: c.path, w: c.w, h: c.h, durMs: c.durMs, speed: c.speed })),
+      session,
+    });
+  });
   $("redoBtn").addEventListener("click", () => {
     // Re-record the CURRENT clip: drop the one just queued (the last on the
     // timeline), keep any earlier clips, and re-frame.

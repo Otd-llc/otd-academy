@@ -50,6 +50,9 @@ app.commandLine.appendSwitch("disable-features", "CalculateNativeWinOcclusion");
 app.commandLine.appendSwitch("enable-features", "WebRTC-AllowWgcDesktopCapturer");
 app.commandLine.appendSwitch("enable-gpu-rasterization");
 app.commandLine.appendSwitch("enable-zero-copy");
+// Force the modern Direct3D11 ANGLE backend (skips the GL translation layer) — less
+// present judder for a real-time capture+composite app on Windows.
+app.commandLine.appendSwitch("use-angle", "d3d11");
 
 // Debug log → ~/Downloads/otd-captures/otd-capture.log. The ground truth for "the
 // capture didn't show up": shows the launch argv, whether a deep link was parsed,
@@ -135,8 +138,10 @@ function createOverlay() {
       contextIsolation: true,
       nodeIntegration: false,
       // Keep rAF + timers running while the window is unfocused (it is, during
-      // recording) so the canvas draw loop feeding the clip never throttles.
+      // recording) so the camera loop feeding the recording never throttles.
       backgroundThrottling: false,
+      // Local tool: lets the recording worker importScripts() the bundled mp4-muxer.
+      webSecurity: false,
     },
   });
 
@@ -172,6 +177,57 @@ function createOverlay() {
     overlay = null;
   });
 }
+
+// ── timeline editor window ──────────────────────────────────────────────────
+// A normal, resizable window (NOT the transparent overlay) that hosts the
+// scrubbing timeline: clips on disk are handed in, the user trims / reorders /
+// speed-ramps, and Export & Upload runs the same ffmpeg stitch + upload. Opened
+// from the overlay's review screen; the overlay hides while it's up.
+let editorWin = null;
+function createEditorWindow(payload) {
+  if (editorWin && !editorWin.isDestroyed()) {
+    editorWin.webContents.send("editor:init", payload);
+    editorWin.focus();
+    return;
+  }
+  if (overlay) overlay.hide();
+  const area = screen.getPrimaryDisplay().workAreaSize;
+  editorWin = new BrowserWindow({
+    width: Math.min(1200, Math.round(area.width * 0.86)),
+    height: Math.min(820, Math.round(area.height * 0.86)),
+    minWidth: 760,
+    minHeight: 520,
+    title: "OTD Editor",
+    backgroundColor: "#08090d",
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      // Local tool: let the timeline preview load the clip files via file://.
+      webSecurity: false,
+    },
+  });
+  editorWin.setMenuBarVisibility(false);
+  editorWin.loadFile(path.join(__dirname, "editor.html"));
+  editorWin.webContents.on("did-finish-load", () => {
+    editorWin.webContents.send("editor:init", payload);
+    editorWin.show();
+    editorWin.focus();
+  });
+  editorWin.on("closed", () => {
+    editorWin = null;
+    // Back to the capture overlay's review screen if we didn't upload + quit.
+    if (overlay && !overlay.isDestroyed()) {
+      overlay.show();
+      overlay.focus();
+    }
+  });
+}
+ipcMain.on("open-editor", (_e, payload) => createEditorWindow(payload || {}));
+ipcMain.on("close-editor", () => {
+  if (editorWin && !editorWin.isDestroyed()) editorWin.close();
+});
 
 // ── single instance + protocol ─────────────────────────────────────────────
 // Register otd-capture:// so the lesson "+" can launch us. In dev (running under
@@ -413,9 +469,13 @@ ipcMain.handle("export-clips", async (_e, { clips, fps }) => {
     if (!clips || !clips.length) return { ok: false, error: "No clips to export." };
     const r = fps && fps > 0 ? Math.round(fps) : 30;
 
-    // One clip at normal speed: nothing to do — return it as-is. (A speed change
-    // still needs the encoder, so only short-circuit at 1×.)
-    if (clips.length === 1 && (clips[0].speed || 1) === 1) {
+    // One untouched clip (1×, no trim): nothing to do — return it as-is. A speed
+    // or trim change still needs the encoder.
+    const untouched = (c) =>
+      (c.speed || 1) === 1 &&
+      !(typeof c.inSec === "number" && c.inSec > 0) &&
+      !(typeof c.outSec === "number" && c.outSec > 0);
+    if (clips.length === 1 && untouched(clips[0])) {
       return { ok: true, bytes: fs.readFileSync(clips[0].path) };
     }
 
@@ -429,11 +489,20 @@ ipcMain.handle("export-clips", async (_e, { clips, fps }) => {
     for (const c of clips) args.push("-i", c.path);
     const parts = [];
     for (let i = 0; i < clips.length; i++) {
-      const sp = clips[i].speed && clips[i].speed > 0 ? clips[i].speed : 1;
-      const speedFilter = sp !== 1 ? `setpts=PTS/${sp},` : ""; // >1 faster, <1 slower
+      const c = clips[i];
+      const sp = c.speed && c.speed > 0 ? c.speed : 1;
+      const inSec = typeof c.inSec === "number" && c.inSec > 0 ? c.inSec : 0;
+      const hasOut = typeof c.outSec === "number" && c.outSec > 0;
+      const trimmed = inSec > 0 || hasOut;
+      // trim (select source range) → reset PTS to 0 → speed (setpts) → fit canvas.
+      let pre = "";
+      if (trimmed) {
+        pre += `trim=start=${inSec}${hasOut ? `:end=${c.outSec}` : ""},setpts=PTS-STARTPTS,`;
+      }
+      if (sp !== 1) pre += `setpts=PTS/${sp},`; // >1 faster, <1 slower
       parts.push(
-        `[${i}:v]scale=${W}:${H}:force_original_aspect_ratio=decrease,` +
-          `pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,${speedFilter}fps=${r},format=yuv420p[v${i}]`,
+        `[${i}:v]${pre}scale=${W}:${H}:force_original_aspect_ratio=decrease,` +
+          `pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=${r},format=yuv420p[v${i}]`,
       );
     }
     const labels = clips.map((_c, i) => `[v${i}]`).join("");
