@@ -68,6 +68,8 @@
   let wcReader = null; // MediaStreamTrackProcessor reader (webcodecs mode)
   let wcProcTrack = null; // cloned capture track feeding the processor
   let wcRunning = false;
+  let wcTimer = null; // fixed-rate (CFR) encode pump
+  let wcLatest = null; // most-recent source VideoFrame (held for the CFR pump)
   let pumpTicks = 0; // frames pushed/encoded this recording (diagnostics)
   let camLastMs = 0; // timestamp for the follow-spring dt, shared by both pipelines
   const PREFER_WEBCODECS = true; // set false to force the legacy canvas/MediaRecorder path
@@ -383,11 +385,16 @@
   // Shared follow-camera update (velocity lookahead + deadzone + critically-damped
   // spring + box transform). Runs once per OUTPUT frame in either pipeline; dt comes
   // from camLastMs so it's correct regardless of the pipeline's frame cadence.
-  function updateCamera(halfW, halfH) {
+  function updateCamera(halfW, halfH, fixedDt) {
     if (!follow) return;
-    const now = performance.now();
-    const dt = Math.min(0.1, Math.max(0.001, (now - camLastMs) / 1000));
-    camLastMs = now;
+    let dt;
+    if (fixedDt != null) {
+      dt = fixedDt; // CFR pump: deterministic per-frame step
+    } else {
+      const now = performance.now();
+      dt = Math.min(0.1, Math.max(0.001, (now - camLastMs) / 1000));
+      camLastMs = now;
+    }
     const W = window.innerWidth;
     const H = window.innerHeight;
     const rawVx = (cursor.x - prevCursor.x) / dt;
@@ -430,6 +437,10 @@
   }
   function teardownWebCodecs() {
     wcRunning = false;
+    if (wcTimer) {
+      clearInterval(wcTimer);
+      wcTimer = null;
+    }
     if (wcReader) {
       try {
         wcReader.cancel();
@@ -437,6 +448,14 @@
         // ignore
       }
       wcReader = null;
+    }
+    if (wcLatest) {
+      try {
+        wcLatest.close();
+      } catch {
+        // ignore
+      }
+      wcLatest = null;
     }
     stopTrack(wcProcTrack);
     wcProcTrack = null;
@@ -539,9 +558,16 @@
     recMode = "webcodecs";
     lastClipDims = { w: cropW, h: cropH };
     wcRunning = true;
-    let fc = 0;
-    const encodeOne = (frame) => {
-      updateCamera(halfW, halfH);
+    const frameIntervalMs = 1000 / REC_FPS;
+    const frameIntervalUs = Math.round(1000000 / REC_FPS);
+    const fixedDt = 1 / REC_FPS;
+    let frameIndex = 0;
+    const startMs = performance.now();
+
+    // Crop the LATEST source frame and encode it with a constant-rate timestamp.
+    const encodeFrame = () => {
+      updateCamera(halfW, halfH, fixedDt);
+      if (!wcLatest) return;
       let ox = Math.round((cam.x - halfW) * sxScale);
       let oy = Math.round((cam.y - halfH) * syScale);
       ox -= ox % 2; // even origin keeps chroma aligned for the HW encoder
@@ -549,29 +575,39 @@
       ox = Math.max(0, Math.min(ox, codedW - cropW));
       oy = Math.max(0, Math.min(oy, codedH - cropH));
       try {
-        const cropped = new VideoFrame(frame, {
+        const cropped = new VideoFrame(wcLatest, {
           visibleRect: { x: ox, y: oy, width: cropW, height: cropH },
-          timestamp: frame.timestamp,
+          timestamp: frameIndex * frameIntervalUs,
         });
-        wcSink.encode(cropped, fc % (REC_FPS * 2) === 0); // keyframe every ~2s
+        wcSink.encode(cropped, frameIndex % (REC_FPS * 2) === 0); // keyframe ~2s
         cropped.close();
-        fc++;
-        pumpTicks++;
       } catch (e) {
         window.otd.log("crop/encode err: " + (e && e.message));
       }
+      frameIndex++;
+      pumpTicks++;
     };
 
-    window.otd.log(`recording started (webcodecs): codec=${wcSink.codec} crop=${cropW}x${cropH} coded=${codedW}x${codedH}`);
-    encodeOne(first);
-    try {
-      first.close();
-    } catch {
-      // ignore
-    }
+    window.otd.log(`recording started (webcodecs CFR ${REC_FPS}): codec=${wcSink.codec} crop=${cropW}x${cropH} coded=${codedW}x${codedH}`);
+    wcLatest = first; // seed; the reader replaces it as new frames arrive
 
-    // Drain the track until stopped. Frames arrive at the OS capture rate — no DOM
-    // compositor in the loop, so no unfocused-window throttling / sped-up clip.
+    // CFR pump: each tick, emit frames to CATCH UP to wall-clock, duplicating the
+    // latest captured frame when the screen was static. Steady 30fps out (no gaps),
+    // duration tracks wall-clock no matter how irregularly the OS delivers frames —
+    // which is what fixes the choppy/stuttery playback (desktop capture is
+    // change-driven, so encoding only on arrival produced uneven cadence).
+    wcTimer = setInterval(() => {
+      if (!wcRunning || !wcSink || wcSink.error) return;
+      const target = Math.round((performance.now() - startMs) / frameIntervalMs);
+      let guard = 0;
+      while (frameIndex < target && guard < 5) {
+        encodeFrame();
+        guard++;
+      }
+    }, Math.round(frameIntervalMs));
+
+    // Reader: keep ONLY the most-recent frame; the CFR pump consumes it. Closing the
+    // previous frame as each new one arrives bounds memory to a single frame.
     (async () => {
       while (wcRunning) {
         let res;
@@ -583,11 +619,22 @@
         if (res.done) break;
         const frame = res.value;
         if (!frame) continue;
-        if (wcRunning && wcSink && !wcSink.error) encodeOne(frame);
-        try {
-          frame.close();
-        } catch {
-          // ignore
+        if (!wcRunning) {
+          try {
+            frame.close();
+          } catch {
+            // ignore
+          }
+          break;
+        }
+        const prev = wcLatest;
+        wcLatest = frame;
+        if (prev) {
+          try {
+            prev.close();
+          } catch {
+            // ignore
+          }
         }
       }
     })();
@@ -651,12 +698,24 @@
       let result;
       if (recMode === "webcodecs") {
         wcRunning = false;
+        if (wcTimer) {
+          clearInterval(wcTimer); // stop the CFR pump before flushing
+          wcTimer = null;
+        }
         try {
           await wcReader.cancel();
         } catch {
           // ignore
         }
         result = await wcSink.finish();
+        if (wcLatest) {
+          try {
+            wcLatest.close();
+          } catch {
+            // ignore
+          }
+          wcLatest = null;
+        }
         stopTrack(wcProcTrack);
         wcProcTrack = null;
         wcReader = null;
