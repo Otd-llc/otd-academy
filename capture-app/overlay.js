@@ -441,8 +441,13 @@
   // off, cam is fixed and the pointer ranges the whole frame. Called once per output frame.
   function recordCursorSample() {
     if (!box) return;
+    const now = performance.now();
+    // Stamp t=0 at the first sample, which fires in the first frame-producing tick — so
+    // telemetry time aligns with video time 0 instead of trailing it by the capture
+    // warm-up delay (that delay is what made the spotlight lag the real cursor).
+    if (!telemStart) telemStart = now;
     cursorTrack.push({
-      t: (performance.now() - telemStart) / 1000,
+      t: (now - telemStart) / 1000,
       nx: (cursor.x - cam.x + box.w / 2) / box.w,
       ny: (cursor.y - cam.y + box.h / 2) / box.h,
     });
@@ -524,7 +529,7 @@
     camLastMs = performance.now();
     pumpTicks = 0;
     cursorTrack = [];
-    telemStart = performance.now();
+    telemStart = 0; // stamped at the FIRST sample (≈ first encoded frame), not here
 
     // Shared "recording now" UI/state.
     recStart = Date.now();

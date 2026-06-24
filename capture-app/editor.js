@@ -373,6 +373,11 @@
   function cursorAt(clip, ts) {
     const c = clip && clip.cursor;
     if (!c || !c.length) return null;
+    // Telemetry is wall-clock; the video is CFR. Map video source time → telemetry time
+    // by stretching the telemetry span onto the clip's real duration, so they don't drift.
+    const span = c[c.length - 1].t;
+    const dur = durSec(clip);
+    if (span > 0 && dur > 0) ts = (ts * span) / dur;
     if (ts <= c[0].t) return { nx: c[0].nx, ny: c[0].ny };
     const last = c[c.length - 1];
     if (ts >= last.t) return { nx: last.nx, ny: last.ny };
