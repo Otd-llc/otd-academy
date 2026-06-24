@@ -3,21 +3,22 @@
 // Receives the recorded clips (already on disk) + the lesson session over
 // `editor:init`. The timeline is one magnetic sequence of segments laid out on a
 // time ruler (pxPerSec, zoomable); a master playhead scrubs/plays the WHOLE sequence,
-// switching the <video> source as it crosses segment boundaries. Export still runs the
-// ffmpeg stitch (Phase 1 — the WYSIWYG canvas/WebCodecs export lands in Phase 2).
+// switching the <video> source as it crosses segment boundaries. Trimming is direct on
+// the timeline (drag a clip's gold edge grip, or I/O at the playhead); clips reorder by
+// dragging the body. Undo/redo (Ctrl+Z/Y) wraps every edit. Export still runs the ffmpeg
+// stitch (Phase 1 — the WYSIWYG canvas/WebCodecs export lands in Phase 2).
 //
-// Data model (unchanged + extensible): clips = ordered list of segments
-//   { path, w, h, durMs, speed, inSec, outSec }
-// A segment's effective on-timeline duration = (outSec - inSec) / speed. Its timeline
-// start is DERIVED as the cumulative sum of prior effective durations (magnetic — no
-// stored positions, so reorder/trim reflow for free).
+// Data model: clips = ordered list of segments
+//   { path, w, h, durMs, speed, inSec, outSec, name }
+// Effective on-timeline duration = (outSec - inSec) / speed. A segment's timeline start
+// is DERIVED as the cumulative sum of prior effective durations (magnetic — no stored
+// positions, so reorder/trim reflow for free). `name` is stable across reorder.
 (function () {
   "use strict";
 
   const $ = (id) => document.getElementById(id);
   const videoEl = $("video");
   const noClipEl = $("noClip");
-  const previewEl = $("preview");
 
   // transport
   const playBtn = $("playBtn");
@@ -35,27 +36,22 @@
   const videoTrackEl = $("videoTrack");
   const playheadEl = $("tlPlayhead");
   const playheadHitEl = $("playheadHit");
-
-  // trim scrubber (selected clip)
-  const trackEl = $("track");
-  const trimRegionEl = $("trimRegion");
-  const scrubPlayheadEl = $("scrubPlayhead");
-  const inHandleEl = $("inHandle");
-  const outHandleEl = $("outHandle");
-  const trimInfoEl = $("trimInfo");
+  const dropMarkerEl = $("dropMarker");
 
   // controls
+  const undoBtn = $("undoBtn");
+  const redoBtn = $("redoBtn");
   const speedBtn = $("speedBtn");
   const splitBtn = $("splitBtn");
-  const leftBtn = $("leftBtn");
-  const rightBtn = $("rightBtn");
+  const trimInBtn = $("trimInBtn");
+  const trimOutBtn = $("trimOutBtn");
   const removeBtn = $("removeBtn");
   const cancelBtn = $("cancelBtn");
   const exportBtn = $("exportBtn");
   const statusEl = $("status");
 
   // ── state ──
-  let clips = []; // [{ path, w, h, durMs, speed, inSec, outSec }]
+  let clips = []; // [{ path, w, h, durMs, speed, inSec, outSec, name }]
   let session = null; // { api, token, caption } | null (standalone)
   let sel = -1;
   let busy = false;
@@ -68,12 +64,16 @@
   let pendingSeek = null; // { srcTime, resumePlay } applied on loadedmetadata
   let rafId = null;
   let scrubbing = false; // dragging the master playhead
-  let trimDrag = null; // "in" | "out" while dragging a trim handle (scrubber)
-  let segAction = null; // direct-on-timeline drag: { type, i, edge, startClientX, moved, origIn, origOut }
+  let segAction = null; // timeline drag: { type:'edge'|'body'|'scrub', i, edge, ... }
+  let renaming = false;
+
   let fwdMul = 1; // forward shuttle multiplier (L / double-L)
   let revRaf = null; // reverse-shuttle rAF id
-  let revMul = 1; // reverse shuttle multiplier (J / double-J)
+  let revMul = 1;
   let revLast = 0;
+
+  let undoStack = [];
+  let redoStack = [];
 
   const SPEEDS = [0.5, 1, 1.5, 2, 4];
   const FPS = 60;
@@ -89,6 +89,7 @@
   const inOf = (c) => Math.max(0, c.inSec || 0);
   const outOf = (c) => (typeof c.outSec === "number" ? c.outSec : durSec(c));
   const effSec = (c) => Math.max(0, outOf(c) - inOf(c)) / (c.speed || 1);
+  const nameOf = (c, i) => c.name || `Clip ${i + 1}`;
   const fileUrl = (p) => "file:///" + encodeURI(String(p).replace(/\\/g, "/"));
 
   function totalSec() {
@@ -100,6 +101,9 @@
     let a = 0;
     for (let k = 0; k < i && k < clips.length; k++) a += effSec(clips[k]);
     return a;
+  }
+  function startPx(i) {
+    return startOf(i) * pxPerSec;
   }
   // Active segment at timeline time T → { i, segStart, srcTime, eff }.
   function activeAt(T) {
@@ -132,6 +136,54 @@
   function setStatus(msg, cls) {
     statusEl.textContent = msg || "";
     statusEl.className = cls || "";
+  }
+
+  // ── undo / redo ──
+  function snapshot() {
+    return clips.map((c) => ({ ...c }));
+  }
+  function pushUndo() {
+    undoStack.push(snapshot());
+    if (undoStack.length > 100) undoStack.shift();
+    redoStack = [];
+    refreshUndoButtons();
+  }
+  function refreshUndoButtons() {
+    undoBtn.disabled = undoStack.length === 0;
+    redoBtn.disabled = redoStack.length === 0;
+  }
+  function restoreState(state) {
+    clips = state.map((c) => ({ ...c }));
+    curSegIdx = -1;
+    curPath = null;
+    if (clips.length === 0) {
+      sel = -1;
+      playT = 0;
+      videoEl.removeAttribute("src");
+      videoEl.style.display = "none";
+      noClipEl.style.display = "block";
+      renderTimeline();
+      return;
+    }
+    sel = Math.max(0, Math.min(sel, clips.length - 1));
+    setSel(sel);
+    seekTo(Math.min(playT, totalSec()), false);
+  }
+  function undo() {
+    if (!undoStack.length) return;
+    stopAll();
+    redoStack.push(snapshot());
+    restoreState(undoStack.pop());
+    refreshUndoButtons();
+    setStatus("Undo", "ok");
+  }
+  function redo() {
+    if (!redoStack.length) return;
+    stopAll();
+    undoStack.push(snapshot());
+    restoreState(redoStack.pop());
+    refreshUndoButtons();
+    setStatus("Redo", "ok");
   }
 
   // ── timeline render (structure) ──
@@ -173,7 +225,9 @@
       seg.style.width = Math.max(2, e * pxPerSec) + "px";
       seg.dataset.i = String(i);
       const sp = (c.speed || 1) !== 1 ? `<span class="sp">${c.speed}×</span>` : "";
-      seg.innerHTML = `${sp}<span class="n">Clip ${i + 1}</span><span class="d">${fmt(e * 1000)}</span>`;
+      seg.innerHTML =
+        `<span class="grip l"></span><span class="grip r"></span>` +
+        `${sp}<span class="n">${escapeHtml(nameOf(c, i))}</span><span class="d">${fmt(e * 1000)}</span>`;
       videoTrackEl.appendChild(seg);
       acc += e;
     });
@@ -181,19 +235,28 @@
     updatePlayheadUI();
     renderControls();
   }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"]/g, (ch) =>
+      ch === "&" ? "&amp;" : ch === "<" ? "&lt;" : ch === ">" ? "&gt;" : "&quot;",
+    );
+  }
+  function segElByIndex(i) {
+    return videoTrackEl.querySelector('.seg[data-i="' + i + '"]');
+  }
 
   function renderControls() {
     const has = sel >= 0 && sel < clips.length;
     speedBtn.disabled = !has;
-    splitBtn.disabled = !has;
-    leftBtn.disabled = !has || sel === 0;
-    rightBtn.disabled = !has || sel === clips.length - 1;
+    splitBtn.disabled = clips.length === 0;
+    trimInBtn.disabled = clips.length === 0;
+    trimOutBtn.disabled = clips.length === 0;
     removeBtn.disabled = !has;
     exportBtn.disabled = busy || clips.length === 0;
     playBtn.disabled = clips.length === 0;
     homeBtn.disabled = clips.length === 0;
     endBtn.disabled = clips.length === 0;
     speedBtn.textContent = has ? `Speed ${clips[sel].speed || 1}×` : "Speed 1×";
+    refreshUndoButtons();
   }
 
   // ── playhead (cheap, called every rAF frame) ──
@@ -242,11 +305,10 @@
     try {
       videoEl.currentTime = Math.max(0, srcTime);
     } catch (e) {
-      /* not ready yet — onloadedmetadata will retry via re-seek */
+      /* not ready yet — onloadedmetadata will retry */
     }
     if (resumePlay) videoEl.play().catch(() => {});
   }
-
   // Seek the master playhead to timeline time T (paused unless resumePlay).
   function seekTo(T, resumePlay) {
     T = Math.max(0, Math.min(totalSec(), T));
@@ -260,7 +322,7 @@
     updatePlayheadUI();
   }
 
-  // ── transport ──
+  // ── transport / shuttle ──
   function startPlayback() {
     if (!clips.length) return;
     if (playT >= totalSec() - 0.001) playT = 0;
@@ -283,7 +345,6 @@
     rafId = null;
     videoEl.pause();
   }
-  // ── J/K/L shuttle: forward via native playback rate, reverse via a seek loop ──
   function stopReverse() {
     if (revRaf) cancelAnimationFrame(revRaf);
     revRaf = null;
@@ -374,14 +435,20 @@
     applyPendingSeek();
   });
 
-  // ── timeline pointer interaction (scrub + select) ──
+  // ── timeline pointer interaction ──
   function tlTimeFromClientX(clientX) {
     const r = tlInnerEl.getBoundingClientRect();
     return Math.max(0, (clientX - r.left) / pxPerSec);
   }
+  function tlPxFromClientX(clientX) {
+    const r = tlInnerEl.getBoundingClientRect();
+    return Math.max(0, clientX - r.left);
+  }
+
+  // master playhead drag
   playheadHitEl.addEventListener("pointerdown", (e) => {
     scrubbing = true;
-    if (playing) pausePlayback();
+    stopAll();
     playheadHitEl.setPointerCapture(e.pointerId);
     e.stopPropagation();
   });
@@ -395,27 +462,37 @@
       playheadHitEl.releasePointerCapture(e.pointerId);
     } catch (_) {}
   });
-  // A pointerdown on the timeline either grabs a segment (edge = trim, body = reorder)
-  // or, on empty track / ruler, scrubs the master playhead.
+
+  // segment grab (edge = trim, body = reorder) or empty-track scrub
   tlInnerEl.addEventListener("pointerdown", (e) => {
-    if (e.target === playheadHitEl) return;
+    if (e.target === playheadHitEl || renaming) return;
+    if (e.target.tagName === "INPUT") return;
     stopAll();
     tlInnerEl.setPointerCapture(e.pointerId);
     const segEl = e.target.closest && e.target.closest(".seg");
     if (segEl) {
       const i = +segEl.dataset.i;
+      const r = segEl.getBoundingClientRect(); // capture before setSel re-renders/detaches segEl
       setSel(i);
-      const r = segEl.getBoundingClientRect();
-      const edge =
-        e.clientX - r.left < EDGE ? "left" : r.right - e.clientX < EDGE ? "right" : "body";
+      const cls = e.target.classList;
+      const onGripL = cls && cls.contains("grip") && cls.contains("l");
+      const onGripR = cls && cls.contains("grip") && cls.contains("r");
+      let edge;
+      if (onGripL) edge = "left";
+      else if (onGripR) edge = "right";
+      else if (e.clientX - r.left < EDGE) edge = "left";
+      else if (r.right - e.clientX < EDGE) edge = "right";
+      else edge = "body";
       segAction = {
         type: edge === "body" ? "body" : "edge",
         i,
         edge,
         startClientX: e.clientX,
         moved: false,
+        undoPushed: false,
         origIn: inOf(clips[i]),
         origOut: outOf(clips[i]),
+        dropIndex: i,
       };
     } else {
       segAction = { type: "scrub" };
@@ -432,42 +509,40 @@
     }
     if (!segAction.moved && Math.abs(e.clientX - segAction.startClientX) < 3) return;
     segAction.moved = true;
-    if (segAction.type === "scrub") {
-      seekTo(tlTimeFromClientX(e.clientX), false);
-    } else if (segAction.type === "edge") {
-      dragEdge(e);
-    } else if (segAction.type === "body") {
-      dragReorder(e);
-    }
+    if (segAction.type === "scrub") seekTo(tlTimeFromClientX(e.clientX), false);
+    else if (segAction.type === "edge") dragEdge(e);
+    else if (segAction.type === "body") dragReorder(e);
   });
   tlInnerEl.addEventListener("pointerup", (e) => {
     try {
       tlInnerEl.releasePointerCapture(e.pointerId);
     } catch (_) {}
-    if (segAction && segAction.type === "edge" && segAction.moved) {
+    if (!segAction) return;
+    if (segAction.type === "edge" && segAction.moved) {
       seekTo(startOf(segAction.i), false);
-    } else if (segAction && segAction.type === "body" && segAction.moved) {
-      selectClip(segAction.i);
-    } else if (segAction && (segAction.type === "edge" || segAction.type === "body")) {
-      // a click, not a drag → seek to the clicked time within the segment
+    } else if (segAction.type === "body" && segAction.moved) {
+      finishReorder();
+    } else if (segAction.type === "edge" || segAction.type === "body") {
+      // a click, not a drag → seek to the clicked time
       seekTo(tlTimeFromClientX(segAction.startClientX), false);
     }
     segAction = null;
   });
 
-  // Live edge-trim: convert the timeline drag delta to a source delta, snap the moving
-  // edge to the playhead, and reflow the magnetic timeline.
+  // Live edge-trim: timeline drag delta → source delta; snap right edge to playhead; reflow.
   function dragEdge(e) {
     const c = clips[segAction.i];
     if (!c) return;
+    if (!segAction.undoPushed) {
+      pushUndo();
+      segAction.undoPushed = true;
+    }
     const sp = c.speed || 1;
     const dxSrc = ((e.clientX - segAction.startClientX) / pxPerSec) * sp;
     if (segAction.edge === "left") {
-      let nIn = Math.max(0, Math.min(segAction.origIn + dxSrc, segAction.origOut - MIN_SRC));
-      c.inSec = nIn;
+      c.inSec = Math.max(0, Math.min(segAction.origIn + dxSrc, segAction.origOut - MIN_SRC));
     } else {
       let nOut = Math.min(durSec(c), Math.max(segAction.origOut + dxSrc, segAction.origIn + MIN_SRC));
-      // snap the right edge to the playhead time
       const edgeTime = startOf(segAction.i) + (nOut - inOf(c)) / sp;
       if (Math.abs(edgeTime - playT) * pxPerSec < SNAP_PX) {
         const snapped = inOf(c) + (playT - startOf(segAction.i)) * sp;
@@ -475,25 +550,58 @@
       }
       c.outSec = nOut;
     }
-    renderScrubber();
     renderTimeline();
   }
 
-  // Live reorder: as the pointer crosses into another segment's slot, splice this
-  // segment to that index and re-render (index-based, no floating ghost — v1).
+  // Live reorder with a floating ghost + a gold drop marker. The dragged clip's element
+  // follows the cursor; the insertion index is computed from the OTHER clips' centers
+  // (so you don't have to drag across the dragged clip's full width — the old bug).
   function dragReorder(e) {
-    const t = tlTimeFromClientX(e.clientX);
-    const a = activeAt(t);
-    let target = a.i < 0 ? clips.length - 1 : a.i;
-    if (target !== segAction.i) {
-      const [moved] = clips.splice(segAction.i, 1);
-      clips.splice(target, 0, moved);
-      segAction.i = target;
-      sel = target;
-      curSegIdx = -1;
-      curPath = null;
-      renderTimeline();
+    const seg = segElByIndex(segAction.i);
+    if (seg) {
+      seg.classList.add("dragging");
+      const dx = e.clientX - segAction.startClientX;
+      seg.style.transform = `translateX(${dx}px)`;
     }
+    const pointerPx = tlPxFromClientX(e.clientX);
+    let acc = 0;
+    let ins = 0;
+    for (let k = 0; k < clips.length; k++) {
+      if (k === segAction.i) continue;
+      const w = effSec(clips[k]) * pxPerSec;
+      if (acc + w / 2 < pointerPx) ins++;
+      else break;
+      acc += w;
+    }
+    segAction.dropIndex = ins;
+    // drop marker x = cumulative width of the first `ins` non-dragged clips
+    let mx = 0;
+    let cnt = 0;
+    for (let k = 0; k < clips.length; k++) {
+      if (k === segAction.i) continue;
+      if (cnt === ins) break;
+      mx += effSec(clips[k]) * pxPerSec;
+      cnt++;
+    }
+    dropMarkerEl.style.left = mx + "px";
+    dropMarkerEl.style.display = "block";
+  }
+  function finishReorder() {
+    dropMarkerEl.style.display = "none";
+    const from = segAction.i;
+    const to = segAction.dropIndex;
+    if (to === from) {
+      renderTimeline();
+      return;
+    }
+    pushUndo();
+    const [moved] = clips.splice(from, 1);
+    clips.splice(to, 0, moved);
+    curSegIdx = -1;
+    curPath = null;
+    setSel(to);
+    seekTo(startOf(to), false);
+    setStatus(`Moved “${nameOf(moved, to)}” to position ${to + 1}.`, "ok");
   }
 
   function updateEdgeCursor(e) {
@@ -503,136 +611,64 @@
     segEl.style.cursor =
       e.clientX - r.left < EDGE || r.right - e.clientX < EDGE ? "ew-resize" : "grab";
   }
-  // Ctrl+wheel zoom, centered on the playhead.
-  tlScrollEl.addEventListener(
-    "wheel",
-    (e) => {
-      if (!e.ctrlKey) return;
-      e.preventDefault();
-      zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15);
-    },
-    { passive: false },
-  );
 
-  function zoomBy(factor) {
-    pxPerSec = Math.max(PX_MIN, Math.min(PX_MAX, pxPerSec * factor));
-    renderTimeline();
-    // keep the playhead in view after a zoom
-    followPlayhead(playT * pxPerSec);
+  // ── rename (double-click the clip name) ──
+  videoTrackEl.addEventListener("dblclick", (e) => {
+    const nameEl = e.target.closest && e.target.closest(".n");
+    if (!nameEl) return;
+    const segEl = nameEl.closest(".seg");
+    if (!segEl) return;
+    beginRename(+segEl.dataset.i);
+  });
+  function beginRename(i) {
+    const segEl = segElByIndex(i);
+    const nameEl = segEl && segEl.querySelector(".n");
+    if (!nameEl) return;
+    renaming = true;
+    const input = document.createElement("input");
+    input.className = "rename";
+    input.value = nameOf(clips[i], i);
+    nameEl.replaceWith(input);
+    input.focus();
+    input.select();
+    let done = false;
+    const finish = (commit) => {
+      if (done) return;
+      done = true;
+      renaming = false;
+      if (commit) {
+        const v = input.value.trim();
+        if (v && v !== clips[i].name) {
+          pushUndo();
+          clips[i].name = v;
+        }
+      }
+      renderTimeline();
+    };
+    input.addEventListener("pointerdown", (ev) => ev.stopPropagation());
+    input.addEventListener("keydown", (ev) => {
+      ev.stopPropagation();
+      if (ev.key === "Enter") finish(true);
+      else if (ev.key === "Escape") finish(false);
+    });
+    input.addEventListener("blur", () => finish(true));
   }
 
-  // ── selection + trim scrubber (selected clip) ──
+  // ── selection ──
   function setSel(i) {
     sel = i;
     const c = clips[i];
-    if (c) {
-      selInfoEl.textContent =
-        `Clip ${i + 1} · ${fmt(c.durMs)} src · ${c.speed || 1}× · ${fmt(effSec(c) * 1000)} on timeline`;
-    } else {
-      selInfoEl.textContent = "—";
-    }
-    renderScrubber();
+    selInfoEl.textContent = c
+      ? `${nameOf(c, i)} · ${fmt(c.durMs)} src · ${c.speed || 1}× · ${fmt(effSec(c) * 1000)} on timeline`
+      : "—";
     renderTimeline();
   }
   function selectClip(i) {
     setSel(i);
-    seekTo(startOf(i), false); // park the playhead at this clip's start
+    seekTo(startOf(i), false);
   }
 
-  function timeFromX(clientX, c) {
-    const r = trackEl.getBoundingClientRect();
-    const frac = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
-    return frac * (durSec(c) || 1);
-  }
-  function renderScrubber() {
-    const c = sel >= 0 ? clips[sel] : null;
-    const show = c ? "block" : "none";
-    trimRegionEl.style.display = show;
-    inHandleEl.style.display = show;
-    outHandleEl.style.display = show;
-    scrubPlayheadEl.style.display = show;
-    if (!c) {
-      trimInfoEl.textContent = "Select a clip to trim its start / end";
-      return;
-    }
-    const dur = durSec(c) || 1;
-    const inP = (inOf(c) / dur) * 100;
-    const outP = (Math.min(dur, outOf(c)) / dur) * 100;
-    inHandleEl.style.left = inP + "%";
-    outHandleEl.style.left = outP + "%";
-    trimRegionEl.style.left = inP + "%";
-    trimRegionEl.style.width = Math.max(0, outP - inP) + "%";
-    const keepSec = Math.max(0, outOf(c) - inOf(c));
-    const speedNote =
-      (c.speed || 1) !== 1 ? ` → ${fmt((keepSec / c.speed) * 1000)} at ${c.speed}×` : "";
-    trimInfoEl.textContent =
-      `Trim · in ${fmt(inOf(c) * 1000)} · out ${fmt(outOf(c) * 1000)} · keep ${fmt(keepSec * 1000)}${speedNote}` +
-      `  (drag the gold handles)`;
-  }
-  function startTrimDrag(which, e) {
-    if (sel < 0) return;
-    trimDrag = which;
-    e.target.setPointerCapture(e.pointerId);
-    e.stopPropagation();
-  }
-  inHandleEl.addEventListener("pointerdown", (e) => startTrimDrag("in", e));
-  outHandleEl.addEventListener("pointerdown", (e) => startTrimDrag("out", e));
-  window.addEventListener("pointermove", (e) => {
-    if (!trimDrag || sel < 0) return;
-    const c = clips[sel];
-    const dur = durSec(c) || 1;
-    const t = timeFromX(e.clientX, c);
-    const minGap = 0.1;
-    if (trimDrag === "in") c.inSec = Math.max(0, Math.min(t, outOf(c) - minGap));
-    else c.outSec = Math.min(dur, Math.max(t, inOf(c) + minGap));
-    // preview the trimmed frame on the scrubber, and reflow the magnetic timeline
-    if (curSegIdx === sel && videoEl.readyState >= 1) {
-      videoEl.currentTime = trimDrag === "in" ? inOf(c) : outOf(c);
-    }
-    updateScrubPlayhead(trimDrag === "in" ? inOf(c) : outOf(c));
-    renderScrubber();
-    renderTimeline();
-  });
-  window.addEventListener("pointerup", () => {
-    if (trimDrag) {
-      trimDrag = null;
-      // re-park the master playhead at the (reflowed) selected clip start
-      seekTo(startOf(sel), false);
-    }
-  });
-  trackEl.addEventListener("pointerdown", (e) => {
-    if (trimDrag || sel < 0) return;
-    const c = clips[sel];
-    const t = timeFromX(e.clientX, c);
-    if (curSegIdx === sel && videoEl.readyState >= 1) videoEl.currentTime = t;
-    updateScrubPlayhead(t);
-  });
-  function updateScrubPlayhead(srcT) {
-    const c = sel >= 0 ? clips[sel] : null;
-    if (!c) return;
-    const dur = durSec(c) || 1;
-    scrubPlayheadEl.style.left = Math.max(0, Math.min(1, srcT / dur)) * 100 + "%";
-  }
-
-  // ── edit ops (full ripple/split set lands in Task 4) ──
-  function move(dir) {
-    const j = sel + dir;
-    if (sel < 0 || j < 0 || j >= clips.length) return;
-    const t = clips[sel];
-    clips[sel] = clips[j];
-    clips[j] = t;
-    curSegIdx = -1;
-    curPath = null;
-    selectClip(j);
-  }
-  speedBtn.addEventListener("click", () => {
-    if (sel < 0) return;
-    const cur = clips[sel].speed || 1;
-    clips[sel].speed = SPEEDS[(SPEEDS.indexOf(cur) + 1) % SPEEDS.length];
-    selectClip(sel);
-  });
-  // Split the active segment at the master playhead into two segments of the SAME
-  // source clip (two ffmpeg inputs of one file), each independently trim/speed-able.
+  // ── edit ops (each snapshots for undo) ──
   function splitAtPlayhead() {
     if (!clips.length) return;
     const a = activeAt(playT);
@@ -643,8 +679,9 @@
       setStatus("Move the playhead inside a clip (away from the ends), then Split.", "err");
       return;
     }
+    pushUndo();
     const left = { ...c, inSec: inOf(c), outSec: t };
-    const right = { ...c, inSec: t, outSec: outOf(c) };
+    const right = { ...c, inSec: t, outSec: outOf(c), name: nameOf(c, a.i) + " (b)" };
     clips.splice(a.i, 1, left, right);
     curSegIdx = -1;
     curPath = null;
@@ -652,11 +689,9 @@
     seekTo(playT, false);
     setStatus(`Split at ${fmtTC(playT)} — now 2 segments.`, "ok");
   }
-
-  // Ripple-delete the selected segment: remove it and let the magnetic timeline pull
-  // downstream segments left to close the gap.
   function rippleDelete() {
     if (sel < 0) return;
+    pushUndo();
     const at = startOf(sel);
     clips.splice(sel, 1);
     curSegIdx = -1;
@@ -667,7 +702,6 @@
       videoEl.removeAttribute("src");
       videoEl.style.display = "none";
       noClipEl.style.display = "block";
-      renderScrubber();
       renderTimeline();
       return;
     }
@@ -675,10 +709,8 @@
     setSel(sel);
     seekTo(Math.min(at, totalSec()), false);
   }
-
-  // Q — trim the active clip's start up to the playhead (the formerly-at-playhead
-  // frame becomes the clip's new start); downstream reflows.
-  function rippleTrimStart() {
+  // I / Q — trim the active clip's start up to the playhead.
+  function trimStartToPlayhead() {
     if (!clips.length) return;
     const a = activeAt(playT);
     const c = clips[a.i];
@@ -688,16 +720,16 @@
       setStatus("Playhead is at/before this clip’s start — nothing to trim.", "err");
       return;
     }
+    pushUndo();
     c.inSec = Math.max(0, nIn);
     curSegIdx = -1;
     curPath = null;
     setSel(a.i);
     seekTo(startOf(a.i), false);
-    setStatus("Ripple-trimmed start to the playhead.", "ok");
+    setStatus("Trimmed start to the playhead.", "ok");
   }
-
-  // W — trim the active clip's end back to the playhead; downstream reflows.
-  function rippleTrimEnd() {
+  // O / W — trim the active clip's end back to the playhead.
+  function trimEndToPlayhead() {
     if (!clips.length) return;
     const a = activeAt(playT);
     const c = clips[a.i];
@@ -707,23 +739,56 @@
       setStatus("Playhead is at/after this clip’s end — nothing to trim.", "err");
       return;
     }
+    pushUndo();
     c.outSec = nOut;
     curSegIdx = -1;
     curPath = null;
     const keepT = startOf(a.i) + effSec(c);
     setSel(a.i);
     seekTo(keepT, false);
-    setStatus("Ripple-trimmed end to the playhead.", "ok");
+    setStatus("Trimmed end to the playhead.", "ok");
+  }
+  function cycleSpeed() {
+    if (sel < 0) return;
+    pushUndo();
+    const cur = clips[sel].speed || 1;
+    clips[sel].speed = SPEEDS[(SPEEDS.indexOf(cur) + 1) % SPEEDS.length];
+    selectClip(sel);
   }
 
-  splitBtn.addEventListener("click", splitAtPlayhead);
-  leftBtn.addEventListener("click", () => move(-1));
-  rightBtn.addEventListener("click", () => move(1));
-  removeBtn.addEventListener("click", rippleDelete);
+  // ── zoom ──
+  function zoomBy(factor) {
+    pxPerSec = Math.max(PX_MIN, Math.min(PX_MAX, pxPerSec * factor));
+    renderTimeline();
+    followPlayhead(playT * pxPerSec);
+  }
+  tlScrollEl.addEventListener(
+    "wheel",
+    (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15);
+    },
+    { passive: false },
+  );
 
+  // ── wiring ──
+  undoBtn.addEventListener("click", undo);
+  redoBtn.addEventListener("click", redo);
+  speedBtn.addEventListener("click", cycleSpeed);
+  splitBtn.addEventListener("click", splitAtPlayhead);
+  trimInBtn.addEventListener("click", trimStartToPlayhead);
+  trimOutBtn.addEventListener("click", trimEndToPlayhead);
+  removeBtn.addEventListener("click", rippleDelete);
   playBtn.addEventListener("click", togglePlay);
-  homeBtn.addEventListener("click", () => seekTo(0, false));
-  endBtn.addEventListener("click", () => seekTo(totalSec(), false));
+  homeBtn.addEventListener("click", () => {
+    stopAll();
+    seekTo(0, false);
+  });
+  endBtn.addEventListener("click", () => {
+    stopAll();
+    seekTo(totalSec(), false);
+  });
   zoomInBtn.addEventListener("click", () => zoomBy(1.25));
   zoomOutBtn.addEventListener("click", () => zoomBy(1 / 1.25));
   cancelBtn.addEventListener("click", () => window.otd.closeEditor());
@@ -731,15 +796,24 @@
   // ── keyboard shortcuts (Premiere / Resolve conventions) ──
   document.addEventListener("keydown", (e) => {
     const tag = (e.target && e.target.tagName) || "";
-    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (tag === "INPUT" || tag === "TEXTAREA" || renaming) return;
     const k = e.key;
-    // Ctrl combos first (Ctrl+K split would otherwise hit the K shuttle).
-    if (e.ctrlKey && (k === "k" || k === "K")) {
-      e.preventDefault();
-      splitAtPlayhead();
+    // Ctrl/Cmd combos first.
+    if (e.ctrlKey || e.metaKey) {
+      if (k === "z" || k === "Z") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      } else if (k === "y" || k === "Y") {
+        e.preventDefault();
+        redo();
+      } else if (k === "k" || k === "K") {
+        e.preventDefault();
+        splitAtPlayhead();
+      }
       return;
     }
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.altKey) return;
     switch (k) {
       case " ":
         e.preventDefault();
@@ -774,15 +848,19 @@
         e.preventDefault();
         splitAtPlayhead();
         break;
+      case "i":
+      case "I":
       case "q":
       case "Q":
         e.preventDefault();
-        rippleTrimStart();
+        trimStartToPlayhead();
         break;
+      case "o":
+      case "O":
       case "w":
       case "W":
         e.preventDefault();
-        rippleTrimEnd();
+        trimEndToPlayhead();
         break;
       case "Delete":
       case "Backspace":
@@ -818,7 +896,7 @@
   exportBtn.addEventListener("click", async () => {
     if (busy || clips.length === 0) return;
     busy = true;
-    if (playing) pausePlayback();
+    stopAll();
     renderControls();
     setStatus(`Stitching ${clips.length} clip${clips.length === 1 ? "" : "s"}…`, "");
     try {
@@ -887,20 +965,22 @@
 
   window.otd.onEditorInit((payload) => {
     clips = Array.isArray(payload && payload.clips)
-      ? payload.clips.map((c) => ({
+      ? payload.clips.map((c, i) => ({
           ...c,
           speed: c.speed || 1,
           inSec: typeof c.inSec === "number" ? c.inSec : 0,
           outSec: typeof c.outSec === "number" ? c.outSec : (c.durMs || 0) / 1000,
+          name: c.name || `Clip ${i + 1}`, // stable across reorder
         }))
       : [];
     session = (payload && payload.session) || null;
     playT = 0;
     curSegIdx = -1;
     curPath = null;
+    undoStack = [];
+    redoStack = [];
     sel = clips.length ? 0 : -1;
     renderTimeline();
-    renderScrubber();
     if (sel >= 0) selectClip(0);
   });
 })();

@@ -71,9 +71,16 @@
       }
       .seg:hover { border-color: var(--muted); }
       .seg.sel { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
-      .seg .n { font-size: 11px; font-weight: bold; white-space: nowrap; }
+      .seg .n { font-size: 11px; font-weight: bold; white-space: nowrap; position: relative; z-index: 2; cursor: text; }
       .seg .d { font-size: 9px; color: var(--muted); white-space: nowrap; }
-      .seg .sp { position: absolute; top: 3px; right: 5px; font-size: 9px; font-weight: bold; color: var(--gold); }
+      .seg .sp { position: absolute; top: 3px; right: 9px; font-size: 9px; font-weight: bold; color: var(--gold); z-index: 2; }
+      .seg .grip { position: absolute; top: 0; bottom: 0; width: 7px; background: var(--gold); opacity: 0; cursor: ew-resize; z-index: 3; transition: opacity .1s; }
+      .seg .grip.l { left: 0; border-radius: 4px 0 0 4px; }
+      .seg .grip.r { right: 0; border-radius: 0 4px 4px 0; }
+      .seg.sel .grip, .seg:hover .grip { opacity: .8; }
+      .seg.dragging { opacity: .72; z-index: 20; box-shadow: 0 5px 16px rgba(0, 0, 0, .55); border-color: var(--gold); }
+      .seg input.rename { width: 86%; font-family: inherit; font-size: 11px; font-weight: bold; background: #0d1019; color: var(--ink); border: 1px solid var(--gold); border-radius: 3px; padding: 0 3px; outline: none; }
+      #dropMarker { position: absolute; top: 22px; bottom: 0; width: 2px; margin-left: -1px; background: var(--gold); display: none; z-index: 15; pointer-events: none; box-shadow: 0 0 7px var(--gold); }
       .lane.placeholder { height: 30px; background: repeating-linear-gradient(45deg, transparent, transparent 7px, #11141d 7px, #11141d 14px); }
 
       #tlPlayhead { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink); z-index: 5; pointer-events: none; }
@@ -111,7 +118,7 @@
     <div id="app">
       <header>
         <div id="title">OTD Editor</div>
-        <div id="hint">Space play/pause · J/K/L shuttle · ←/→ frame-step · S split · Q/W ripple-trim · Shift+Del ripple-delete · Ctrl+wheel zoom · Home/End jump</div>
+        <div id="hint">Space play/pause · J/K/L shuttle · ←/→ frame-step · S split · I/O trim in/out at playhead · drag clip edges to trim · drag clip body to reorder · double-click name to rename · Del ripple-delete · Ctrl+Z/Y undo/redo · Ctrl+wheel zoom</div>
       </header>
       <div id="preview">
         <video id="video" preload="metadata"></video>
@@ -134,25 +141,19 @@
             <div id="videoTrack" class="lane"><span class="lane-label">Video</span></div>
             <div id="audioTrack" class="lane placeholder"><span class="lane-label">Audio · Phase 5</span></div>
             <div id="overlayTrack" class="lane placeholder"><span class="lane-label">Overlay · Phases 3–4</span></div>
+            <div id="dropMarker"></div>
             <div id="tlPlayhead"></div>
             <div id="playheadHit"></div>
           </div>
         </div>
       </div>
-      <div id="scrubber">
-        <div id="track">
-          <div id="trimRegion"></div>
-          <div id="scrubPlayhead"></div>
-          <div id="inHandle" class="handle" title="Trim start"></div>
-          <div id="outHandle" class="handle" title="Trim end"></div>
-        </div>
-        <div id="trimInfo">Select a clip to trim its start / end</div>
-      </div>
       <div id="controls">
+        <button id="undoBtn" class="btn" disabled title="Undo (Ctrl+Z)">↶ Undo</button>
+        <button id="redoBtn" class="btn" disabled title="Redo (Ctrl+Y)">↷ Redo</button>
         <button id="speedBtn" class="btn" disabled>Speed 1×</button>
-        <button id="splitBtn" class="btn" disabled>✂ Split here</button>
-        <button id="leftBtn" class="btn" disabled>◀ Move</button>
-        <button id="rightBtn" class="btn" disabled>Move ▶</button>
+        <button id="splitBtn" class="btn" disabled>✂ Split</button>
+        <button id="trimInBtn" class="btn" disabled title="Trim start to playhead (I)">⇥ In</button>
+        <button id="trimOutBtn" class="btn" disabled title="Trim end to playhead (O)">Out ⇤</button>
         <button id="removeBtn" class="btn ghost" disabled>Remove</button>
         <div class="spacer"></div>
         <button id="cancelBtn" class="btn ghost">Cancel</button>
