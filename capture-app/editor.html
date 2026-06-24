@@ -123,7 +123,7 @@
     <div id="app">
       <header>
         <div id="title">OTD Editor</div>
-        <div id="hint">Space play/pause · J/K/L shuttle · ←/→ frame-step · S split · I/O trim in/out at playhead · drag clip edges to trim · drag clip body to reorder · R rename · ⊕ Zoom drag-box on preview · Z reset-zoom · Del ripple-delete · Ctrl+Z/Y undo/redo · wheel zooms timeline · Shift+wheel scroll</div>
+        <div id="hint">Space play/pause · J/K/L shuttle · ←/→ frame-step · S split · I/O trim in/out at playhead · drag clip edges to trim · drag clip body to reorder · R rename · ⊕ Zoom drag-box on preview · Z reset-zoom · C toggle cursor · Del ripple-delete · Ctrl+Z/Y undo/redo · wheel zooms timeline · Shift+wheel scroll</div>
       </header>
       <div id="preview">
         <video id="video" preload="auto"></video>
@@ -167,6 +167,7 @@
         <button id="zoomKfBtn" class="btn" disabled title="Drag a box on the preview to zoom into it at the playhead">⊕ Zoom</button>
         <button id="resetZoomBtn" class="btn" disabled title="Add a zoom-out (1×) keyframe at the playhead (Z)">⊝ Reset</button>
         <button id="clearZoomBtn" class="btn ghost" disabled title="Remove all zoom keyframes on the selected clip">Clear zooms</button>
+        <button id="cursorBtn" class="btn" title="Toggle the smooth synthetic cursor (C)">◐ Cursor: on</button>
         <div class="spacer"></div>
         <button id="cancelBtn" class="btn ghost">Cancel</button>
         <button id="exportBtn" class="btn primary" disabled>Export &amp; Upload</button>

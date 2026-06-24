@@ -56,6 +56,7 @@
   const zoomKfBtn = $("zoomKfBtn");
   const resetZoomBtn = $("resetZoomBtn");
   const clearZoomBtn = $("clearZoomBtn");
+  const cursorBtn = $("cursorBtn");
   const cancelBtn = $("cancelBtn");
   const exportBtn = $("exportBtn");
   const statusEl = $("status");
@@ -87,6 +88,7 @@
   let projW = 1280; // output / canvas resolution (max clip dims, even)
   let projH = 720;
   let zoomDrag = null; // { x0, y0 } while dragging a focus box on the canvas
+  let showCursor = true; // draw the smooth synthetic cursor over the composite
 
   const SPEEDS = [0.5, 1, 1.5, 2, 4];
   const MAX_ZOOM = 6;
@@ -355,9 +357,75 @@
     if (!c || !c.zoom || !c.zoom.length) return { scale: 1, x: 0.5, y: 0.5 };
     return interpZoom(c.zoom, videoEl.currentTime);
   }
-  // Draw `srcVideo`'s current frame onto `ctx` (size cw×ch) with a zoom/pan transform.
-  // This is the single composite step; export will call it per output frame.
-  function composite(ctx, cw, ch, srcVideo, zoom) {
+  // Catmull-Rom interpolation (smooth path through the cursor samples).
+  function catmullRom(p0, p1, p2, p3, t) {
+    const t2 = t * t;
+    const t3 = t2 * t;
+    return (
+      0.5 *
+      (2 * p1 +
+        (-p0 + p2) * t +
+        (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+        (-p0 + 3 * p1 - 3 * p2 + p3) * t3)
+    );
+  }
+  // The cursor's normalised position within the recorded frame at source time `ts`.
+  function cursorAt(clip, ts) {
+    const c = clip && clip.cursor;
+    if (!c || !c.length) return null;
+    if (ts <= c[0].t) return { nx: c[0].nx, ny: c[0].ny };
+    const last = c[c.length - 1];
+    if (ts >= last.t) return { nx: last.nx, ny: last.ny };
+    let lo = 0;
+    let hi = c.length - 1;
+    while (lo + 1 < hi) {
+      const mid = (lo + hi) >> 1;
+      if (c[mid].t <= ts) lo = mid;
+      else hi = mid;
+    }
+    const p1 = c[lo];
+    const p2 = c[lo + 1];
+    const p0 = c[lo - 1] || p1;
+    const p3 = c[lo + 2] || p2;
+    const f = (ts - p1.t) / (p2.t - p1.t || 1);
+    return {
+      nx: catmullRom(p0.nx, p1.nx, p2.nx, p3.nx, f),
+      ny: catmullRom(p0.ny, p1.ny, p2.ny, p3.ny, f),
+    };
+  }
+  // A crisp vector arrow cursor; hotspot (tip) at (x, y), `size` px tall.
+  function drawCursorSprite(ctx, x, y, size) {
+    const s = size / 24;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(s, s);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, 17);
+    ctx.lineTo(4.2, 13);
+    ctx.lineTo(7, 19.5);
+    ctx.lineTo(9.4, 18.4);
+    ctx.lineTo(6.7, 12.1);
+    ctx.lineTo(12, 12);
+    ctx.closePath();
+    ctx.fillStyle = "#fff";
+    ctx.strokeStyle = "rgba(0,0,0,0.88)";
+    ctx.lineWidth = 1.4;
+    ctx.lineJoin = "round";
+    ctx.shadowColor = "rgba(0,0,0,0.45)";
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetY = 1;
+    ctx.fill();
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.stroke();
+    ctx.restore();
+  }
+  // Draw `srcVideo`'s current frame onto `ctx` (size cw×ch) with a zoom/pan transform,
+  // then (if `cursor` given) a smooth HD cursor on top, positioned THROUGH the same
+  // transform but drawn at constant size. The single composite step shared by the
+  // preview render loop AND the WYSIWYG export — guaranteeing they match.
+  function composite(ctx, cw, ch, srcVideo, zoom, cursor) {
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, cw, ch);
     if (!srcVideo || !srcVideo.videoWidth || srcVideo.readyState < 2) return;
@@ -373,10 +441,18 @@
     ctx.translate(-z.x * fw, -z.y * fh);
     ctx.drawImage(srcVideo, 0, 0, fw, fh);
     ctx.restore();
+    if (cursor) {
+      // map the cursor's image-space point through the zoom transform to screen px
+      const sx = cw / 2 + z.scale * (cursor.nx - z.x) * fw;
+      const sy = ch / 2 + z.scale * (cursor.ny - z.y) * fh;
+      drawCursorSprite(ctx, sx, sy, Math.max(18, ch * 0.045));
+    }
   }
   function drawFrame() {
     if (canvasEl.style.display === "none") return;
-    composite(previewCtx, canvasEl.width, canvasEl.height, videoEl, currentZoom());
+    const c = clips[curSegIdx];
+    const cur = showCursor && c ? cursorAt(c, videoEl.currentTime) : null;
+    composite(previewCtx, canvasEl.width, canvasEl.height, videoEl, currentZoom(), cur);
   }
   function renderLoop() {
     drawFrame();
@@ -1077,6 +1153,11 @@
   zoomKfBtn.addEventListener("click", armZoom);
   resetZoomBtn.addEventListener("click", resetZoomAtPlayhead);
   clearZoomBtn.addEventListener("click", clearZooms);
+  function toggleCursor() {
+    showCursor = !showCursor;
+    cursorBtn.textContent = `◐ Cursor: ${showCursor ? "on" : "off"}`;
+  }
+  cursorBtn.addEventListener("click", toggleCursor);
   playBtn.addEventListener("click", togglePlay);
   homeBtn.addEventListener("click", () => {
     stopAll();
@@ -1168,6 +1249,11 @@
       case "Z":
         e.preventDefault();
         resetZoomAtPlayhead();
+        break;
+      case "c":
+      case "C":
+        e.preventDefault();
+        toggleCursor();
         break;
       case "Escape":
         if (armingZoom) {
@@ -1275,7 +1361,8 @@
         loadedPath = c.path;
       }
       await seekExport(a.srcTime);
-      composite(octx, W, H, exportVideoEl, interpZoom(c.zoom, a.srcTime));
+      const cur = showCursor ? cursorAt(c, a.srcTime) : null;
+      composite(octx, W, H, exportVideoEl, interpZoom(c.zoom, a.srcTime), cur);
       const frame = new VideoFrame(oc, {
         timestamp: Math.round(f * frameDurUs),
         duration: Math.round(frameDurUs),
