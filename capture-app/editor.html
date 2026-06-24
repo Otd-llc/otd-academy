@@ -4,110 +4,292 @@
     <meta charset="utf-8" />
     <title>OTD Editor</title>
     <style>
+      /* Academy branding — design tokens + component recipes from src/app/globals.css
+         (deep-space + command-gold + signal-blue · Bebas Neue / Space Mono / Lora). */
+      @import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Lora:ital@0;1&display=swap");
       :root {
         --gold: #c8963e;
+        --gold-light: #e8b865;
+        --gold-dim: #8b6428;
         --space: #08090d;
+        --bg2: #0f1018;
+        --bg3: #1a1a2e;
         --navy: #1f2438;
         --border: #3a3f50;
         --ink: #e8e8e8;
-        --muted: #8a8f9c;
+        --muted: #aaaaaa;
+        --gray3: #555555;
+        --blue: #4a8fff;
         --red: #ef5350;
+        --coral: #d97a6a;
+        --green: #66bb6a;
+        --mono: "Space Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        --display: "Bebas Neue", sans-serif;
+        --serif: "Lora", Georgia, serif;
       }
       * { box-sizing: border-box; }
       html, body {
-        margin: 0;
-        height: 100%;
-        background: var(--space);
-        color: var(--ink);
-        font-family: "Space Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 13px;
+        margin: 0; height: 100%;
+        background: var(--space); color: var(--ink);
+        font-family: var(--mono); font-size: 13px;
       }
-      #app { display: flex; flex-direction: column; height: 100vh; padding: 14px 16px; gap: 12px; }
-      header { display: flex; align-items: baseline; gap: 12px; }
-      #title { font-size: 14px; font-weight: bold; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
-      #hint { color: var(--muted); font-size: 11px; }
+      #app { display: flex; flex-direction: column; height: 100vh; padding: 14px 18px; gap: 10px; }
+
+      /* ── header ── */
+      header {
+        display: flex; align-items: baseline; gap: 16px;
+        margin: -2px -18px 0; padding: 0 18px 10px;
+        border-bottom: 1px solid rgba(200, 150, 62, 0.18);
+        background: linear-gradient(90deg, rgba(200, 150, 62, 0.06) 0%, transparent 60%);
+      }
+      #title { font-family: var(--display); font-size: 30px; letter-spacing: .08em; color: #fff; line-height: 1; }
+      #title .o { color: var(--gold); }
+      #hint { font-family: var(--mono); color: var(--muted); font-size: 10px; letter-spacing: .03em; opacity: .8; line-height: 1.55; }
+
+      /* ── preview ── */
       #preview {
         flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
-        background: #000; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; position: relative;
+        background: #000; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; position: relative;
+        box-shadow: 0 1px 0 rgba(232, 184, 101, 0.06) inset;
       }
-      #video { max-width: 100%; max-height: 100%; display: none; }
-      #noClip { color: var(--muted); font-size: 12px; }
-      #transport { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 11px; min-height: 16px; }
-      #selInfo { color: var(--ink); }
-      #scrubber { margin: 2px 0 0; }
-      #track { position: relative; height: 28px; background: #11141d; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; user-select: none; }
-      #trimRegion { position: absolute; top: 0; bottom: 0; background: rgba(200, 150, 62, 0.16); border-left: 2px solid var(--gold); border-right: 2px solid var(--gold); pointer-events: none; }
-      #playhead { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--ink); pointer-events: none; }
-      .handle { position: absolute; top: -3px; bottom: -3px; width: 11px; margin-left: -6px; background: var(--gold); border-radius: 3px; cursor: ew-resize; box-shadow: 0 0 0 1px rgba(0,0,0,0.4); }
-      #trimInfo { margin-top: 5px; font-size: 11px; color: var(--muted); }
-      #timelineHead { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 6px; }
-      #timeline {
-        display: flex; gap: 4px; height: 64px; align-items: stretch;
-        background: #0d1019; border: 1px solid var(--border); border-radius: 6px; padding: 4px;
+      #preview video { position: absolute; max-width: 100%; max-height: 100%; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0; pointer-events: none; }
+      #previewCanvas { position: relative; max-width: 100%; max-height: 100%; display: none; z-index: 2; }
+      #previewCanvas.zoomable, #previewCanvas.annotating { cursor: crosshair; }
+      #zoomBox { position: absolute; border: 1.5px solid var(--gold); background: rgba(200, 150, 62, 0.12); display: none; z-index: 3; pointer-events: none; }
+      #noClip { color: var(--muted); font-family: var(--serif); font-style: italic; font-size: 14px; }
+
+      /* ── transport ── */
+      #transport { display: flex; align-items: center; gap: 10px; min-height: 30px; }
+      #transport .tbtn {
+        font-family: var(--mono); font-size: 13px; cursor: pointer; color: var(--gold);
+        background: var(--navy); border: 1px solid var(--gold); border-radius: 6px; padding: 4px 10px; min-width: 36px;
+        transition: background .14s, color .14s, border-color .14s, transform .06s;
       }
+      #transport .tbtn:hover:not(:disabled) { background: var(--gold); color: var(--space); }
+      #transport .tbtn:active:not(:disabled) { transform: translateY(1px); }
+      #transport .tbtn:disabled { opacity: .32; cursor: default; }
+      #transport .tbtn.on { background: linear-gradient(180deg, rgba(200,150,62,.3), rgba(200,150,62,.1)); color: var(--gold-light); box-shadow: 0 0 14px rgba(200,150,62,.25); }
+      #timecode { font-family: var(--mono); font-variant-numeric: tabular-nums; color: #fff; font-size: 13px; letter-spacing: .06em; }
+      #timecode .tot { color: var(--muted); }
+      .tspace { flex: 1; }
+      #selInfo { font-family: var(--mono); color: var(--muted); font-size: 11px; letter-spacing: .04em; }
+
+      /* ── timeline ── */
+      #tlWrap { display: flex; flex-direction: column; }
+      #tlScroll {
+        position: relative; overflow-x: auto; overflow-y: hidden;
+        background: linear-gradient(180deg, #0f1018, #0b0c12); border: 1px solid var(--border); border-radius: 8px;
+      }
+      #tlInner { position: relative; min-width: 100%; }
+      #ruler { position: relative; height: 22px; border-bottom: 1px solid rgba(200, 150, 62, 0.14); user-select: none; }
+      #ruler .tick { position: absolute; top: 0; bottom: 0; width: 1px; background: #262b3a; }
+      #ruler .tlabel { position: absolute; top: 4px; font-family: var(--mono); font-size: 9px; color: var(--muted); transform: translateX(3px); white-space: nowrap; }
+      .lane { position: relative; border-bottom: 1px solid rgba(58, 63, 80, 0.4); }
+      .lane:last-child { border-bottom: none; }
+      .lane-label {
+        position: absolute; left: 6px; top: 4px; z-index: 3; pointer-events: none;
+        font-family: var(--mono); font-size: 8px; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); opacity: .6;
+      }
+      #videoTrack { height: 70px; }
+      #audioTrack { height: 46px; }
+      #audioWave { position: absolute; left: 0; top: 0; height: 46px; z-index: 1; pointer-events: none; }
       .seg {
-        position: relative; min-width: 44px; border-radius: 4px; cursor: pointer;
-        background: var(--navy); border: 1px solid var(--border); overflow: hidden;
-        display: flex; flex-direction: column; justify-content: space-between; padding: 5px 6px;
-        transition: border-color .12s;
+        position: absolute; top: 4px; bottom: 4px; border-radius: 6px; cursor: pointer; overflow: hidden;
+        background: linear-gradient(180deg, #232942, #1b2032); border: 1px solid var(--border);
+        display: flex; flex-direction: column; justify-content: space-between; padding: 5px 7px;
+        transition: border-color .12s, box-shadow .12s;
       }
       .seg:hover { border-color: var(--muted); }
-      .seg.sel { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
-      .seg .n { font-size: 11px; font-weight: bold; }
-      .seg .d { font-size: 10px; color: var(--muted); }
-      .seg .sp { position: absolute; top: 4px; right: 5px; font-size: 10px; font-weight: bold; color: var(--gold); }
-      #controls { display: flex; align-items: center; gap: 8px; }
-      .spacer { flex: 1; }
-      .btn {
-        font-family: inherit; font-size: 12px; cursor: pointer; color: var(--ink);
-        background: #161b29; border: 1px solid var(--border); border-radius: 5px; padding: 7px 12px;
+      .seg.sel { border-color: var(--gold); box-shadow: 0 0 14px rgba(200, 150, 62, 0.25), inset 0 0 0 1px var(--gold); }
+      .seg .n { font-family: var(--mono); font-size: 11px; font-weight: 700; white-space: nowrap; position: relative; z-index: 2; color: #fff; }
+      .seg .d { font-family: var(--mono); font-size: 9px; color: var(--muted); white-space: nowrap; }
+      .seg .sp { position: absolute; top: 4px; right: 9px; font-family: var(--mono); font-size: 9px; font-weight: 700; color: var(--gold); z-index: 2; }
+      .seg .grip { position: absolute; top: 0; bottom: 0; width: 7px; background: var(--gold); opacity: 0; cursor: ew-resize; z-index: 3; transition: opacity .1s; }
+      .seg .grip.l { left: 0; border-radius: 6px 0 0 6px; }
+      .seg .grip.r { right: 0; border-radius: 0 6px 6px 0; }
+      .seg.sel .grip, .seg:hover .grip { opacity: .85; }
+      .seg.dragging { opacity: .72; z-index: 20; box-shadow: 0 6px 18px rgba(0, 0, 0, .55); border-color: var(--gold); }
+      .seg input.rename { width: 86%; font-family: var(--mono); font-size: 11px; font-weight: 700; background: #0d1019; color: var(--ink); border: 1px solid var(--gold); border-radius: 4px; padding: 0 4px; outline: none; }
+      .seg .kf { position: absolute; top: -1px; width: 7px; height: 7px; margin-left: -3.5px; background: var(--gold-light); border: 1px solid #1a1205; border-radius: 50%; z-index: 4; pointer-events: none; box-shadow: 0 0 5px rgba(200, 150, 62, .5); }
+      #dropMarker { position: absolute; top: 22px; bottom: 0; width: 2px; margin-left: -1px; background: var(--gold); display: none; z-index: 15; pointer-events: none; box-shadow: 0 0 8px var(--gold); }
+      #tlPlayhead { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--gold-light); z-index: 5; pointer-events: none; box-shadow: 0 0 6px rgba(232, 184, 101, .5); }
+      #tlPlayhead::before {
+        content: ""; position: absolute; top: -1px; left: -4px; width: 10px; height: 8px;
+        background: var(--gold-light); clip-path: polygon(0 0, 100% 0, 50% 100%);
       }
-      .btn:hover { border-color: var(--muted); }
-      .btn:disabled { opacity: .35; cursor: default; }
-      .btn.ghost { background: transparent; color: var(--muted); }
-      .btn.primary { background: var(--gold); color: #1a1205; border-color: var(--gold); font-weight: bold; }
-      .btn.primary:hover { filter: brightness(1.08); }
-      #status { min-height: 16px; font-size: 12px; color: var(--muted); }
-      #status.err { color: var(--red); }
-      #status.ok { color: var(--gold); }
+      #playheadHit { position: absolute; top: 0; bottom: 0; width: 12px; margin-left: -6px; z-index: 6; cursor: ew-resize; }
+      /* top + height are set inline per lane (multi-lane overlay timeline) */
+      .annbar {
+        position: absolute; border-radius: 4px; z-index: 2;
+        background: rgba(200, 150, 62, 0.28); border: 1px solid var(--gold);
+        display: flex; align-items: center; gap: 3px; padding: 0 8px; overflow: hidden; cursor: grab;
+        font-family: var(--mono); font-size: 9px; color: #fff; white-space: nowrap;
+      }
+      .annbar .lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; padding: 0 2px; }
+      .annbar .x { cursor: pointer; color: #fff; opacity: .8; font-weight: 700; padding: 0 2px; }
+      .annbar .x:hover { color: var(--red); opacity: 1; }
+
+      /* ── controls (glass-button recipes) ── */
+      #controls { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+      .spacer { flex: 1; }
+      .sep { width: 1px; align-self: stretch; margin: 2px 4px; background: linear-gradient(180deg, transparent, rgba(200, 150, 62, 0.35), transparent); }
+      .btn {
+        font-family: var(--mono); font-size: 12px; cursor: pointer; color: var(--gold);
+        background: var(--navy); border: 1px solid var(--gold); border-radius: 6px; padding: 7px 12px;
+        transition: background .14s, color .14s, border-color .14s, transform .06s;
+      }
+      .btn:hover:not(:disabled) { background: var(--gold); color: var(--space); }
+      .btn:active:not(:disabled) { transform: translateY(1px); }
+      .btn:disabled { opacity: .32; cursor: not-allowed; }
+      .btn.on { background: linear-gradient(180deg, rgba(200,150,62,.3), rgba(200,150,62,.1)); color: var(--gold-light); box-shadow: 0 0 14px rgba(200,150,62,.25), inset 0 1px 0 rgba(232,184,101,.2); }
+      .btn.ghost { background: transparent; color: var(--muted); border-color: rgba(170, 170, 170, 0.3); }
+      .btn.ghost:hover:not(:disabled) { background: rgba(170, 170, 170, 0.08); color: var(--ink); border-color: var(--muted); }
+      .btn.danger { background: transparent; color: var(--coral); border-color: rgba(217, 122, 106, 0.4); }
+      .btn.danger:hover:not(:disabled) { background: rgba(217, 122, 106, 0.16); color: #ffb0a0; border-color: rgba(217, 122, 106, 0.7); }
+      .btn.primary { background: var(--gold); color: var(--space); border-color: var(--gold); font-weight: 700; }
+      .btn.primary:hover:not(:disabled) { background: var(--gold-light); border-color: var(--gold-light); }
+
+      /* ── floating panels (glass-card) ── */
+      .panel {
+        position: fixed; right: 18px; bottom: 60px; z-index: 30;
+        background: linear-gradient(180deg, #13131f, #0d0e14);
+        border: 1px solid rgba(200, 150, 62, 0.35); border-radius: 14px; padding: 14px 16px;
+        box-shadow: 0 12px 44px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(232, 184, 101, 0.12) inset;
+      }
+      .panel.hidden { display: none; }
+      .sp-title { font-family: var(--mono); font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--gold); margin-bottom: 10px; }
+      .sp-row { display: grid; grid-template-columns: 64px 150px 48px; align-items: center; gap: 8px; margin: 7px 0; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+      .sp-row b { color: var(--ink); text-align: right; font-weight: 400; font-variant-numeric: tabular-nums; }
+      .panel input[type="range"] { width: 150px; accent-color: var(--gold); }
+      .sp-hint { margin-top: 8px; font-family: var(--serif); font-style: italic; font-size: 11px; color: var(--muted); max-width: 280px; line-height: 1.5; }
+      #annTools { display: flex; flex-wrap: wrap; gap: 6px; }
+      .annTool {
+        font-family: var(--mono); font-size: 12px; cursor: pointer; color: var(--gold);
+        background: var(--navy); border: 1px solid var(--gold); border-radius: 6px; padding: 6px 10px;
+        transition: background .14s, color .14s;
+      }
+      .annTool:hover { background: var(--gold); color: var(--space); }
+      .annTool.on { background: var(--gold); color: var(--space); font-weight: 700; box-shadow: 0 0 14px rgba(200, 150, 62, 0.3); }
+      #annText { margin-top: 10px; width: 100%; font-family: var(--mono); font-size: 12px; background: #0d1019; color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 6px 9px; outline: none; }
+      #annText:focus { border-color: var(--gold); }
+      #annStyle { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+      .ann-swatches { display: flex; gap: 5px; }
+      .sw { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.25); cursor: pointer; padding: 0; }
+      .sw.on { border-color: #fff; box-shadow: 0 0 0 2px var(--space), 0 0 0 3px #fff; }
+      .ann-width { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+      .ann-width input[type="range"] { width: 90px; accent-color: var(--gold); }
+      .annbar.sel { box-shadow: 0 0 12px rgba(200, 150, 62, 0.55), inset 0 0 0 1px #fff; z-index: 6; }
+      .annbar .grip { position: absolute; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+      .annbar .grip.l { left: 0; } .annbar .grip.r { right: 0; }
+      .annbar.dragging { opacity: .85; }
+
+      /* ── status ── */
+      #status { min-height: 18px; font-family: var(--serif); font-style: italic; font-size: 13px; color: var(--muted); }
+      #status.err { color: var(--coral); font-style: normal; font-family: var(--mono); font-size: 12px; }
+      #status.ok { color: var(--gold); font-style: normal; font-family: var(--mono); font-size: 12px; }
     </style>
   </head>
   <body>
     <div id="app">
       <header>
-        <div id="title">OTD Editor</div>
-        <div id="hint">Click a clip to preview. Drag the gold handles to trim, set speed, reorder, then export. (Split + per-segment speed coming next.)</div>
+        <div id="title"><span class="o">OTD</span> EDITOR</div>
+        <div id="hint">Space play/pause · J/K/L shuttle · ←/→ frame-step · S split · I/O trim in/out at playhead · drag clip edges to trim · drag clip body to reorder · R rename · ⊕ Zoom drag-box on preview · ✎ Annotate (box/arrow/text/blur/redact) · Z reset-zoom · C toggle spotlight · [ / ] nudge spotlight timing · ⟳ loop · Del ripple-delete · Ctrl+Z/Y undo/redo · wheel zooms timeline · Shift+wheel scroll</div>
       </header>
       <div id="preview">
-        <video id="video" preload="metadata"></video>
-        <div id="noClip">Select a clip below</div>
+        <video id="video" preload="auto"></video>
+        <video id="video2" preload="auto"></video>
+        <video id="exportVideo" preload="auto" muted></video>
+        <audio id="narration" preload="auto"></audio>
+        <canvas id="previewCanvas"></canvas>
+        <div id="zoomBox"></div>
+        <div id="noClip">Record clips, then scrub the whole sequence here</div>
       </div>
-      <div id="transport"><span id="selInfo">—</span></div>
-      <div id="scrubber">
-        <div id="track">
-          <div id="trimRegion"></div>
-          <div id="playhead"></div>
-          <div id="inHandle" class="handle" title="Trim start"></div>
-          <div id="outHandle" class="handle" title="Trim end"></div>
+      <div id="transport">
+        <button id="homeBtn" class="tbtn" title="Jump to start (Home)">⏮</button>
+        <button id="playBtn" class="tbtn" title="Play / pause (Space)">▶</button>
+        <button id="endBtn" class="tbtn" title="Jump to end (End)">⏭</button>
+        <button id="loopBtn" class="tbtn" title="Loop playback (good for tuning the spotlight)">⟳</button>
+        <span id="timecode">0:00:00 <span class="tot">/ 0:00:00</span></span>
+        <span id="selInfo">—</span>
+        <div class="tspace"></div>
+        <button id="zoomOutBtn" class="tbtn" title="Zoom out (-)">－</button>
+        <button id="zoomInBtn" class="tbtn" title="Zoom in (+)">＋</button>
+      </div>
+      <div id="tlWrap">
+        <div id="tlScroll">
+          <div id="tlInner">
+            <div id="ruler"></div>
+            <div id="videoTrack" class="lane"><span class="lane-label">Video</span></div>
+            <div id="audioTrack" class="lane"><span class="lane-label">Audio</span><canvas id="audioWave"></canvas></div>
+            <div id="overlayTrack" class="lane"><span class="lane-label">Overlay</span></div>
+            <div id="dropMarker"></div>
+            <div id="tlPlayhead"></div>
+            <div id="playheadHit"></div>
+          </div>
         </div>
-        <div id="trimInfo">Select a clip to trim its start / end</div>
-      </div>
-      <div>
-        <div id="timelineHead">Timeline · stitched left → right · <span id="totalDur">0:00</span> total</div>
-        <div id="timeline"></div>
       </div>
       <div id="controls">
+        <button id="undoBtn" class="btn" disabled title="Undo (Ctrl+Z)">↶ Undo</button>
+        <button id="redoBtn" class="btn" disabled title="Redo (Ctrl+Y)">↷ Redo</button>
+        <span class="sep"></span>
         <button id="speedBtn" class="btn" disabled>Speed 1×</button>
-        <button id="splitBtn" class="btn" disabled>✂ Split here</button>
-        <button id="leftBtn" class="btn" disabled>◀ Move</button>
-        <button id="rightBtn" class="btn" disabled>Move ▶</button>
-        <button id="removeBtn" class="btn ghost" disabled>Remove</button>
+        <button id="splitBtn" class="btn" disabled>✂ Split</button>
+        <button id="trimInBtn" class="btn" disabled title="Trim start to playhead (I)">⇥ In</button>
+        <button id="trimOutBtn" class="btn" disabled title="Trim end to playhead (O)">Out ⇤</button>
+        <button id="removeBtn" class="btn danger" disabled>Remove</button>
+        <span class="sep"></span>
+        <button id="hushBtn" class="btn" title="Cut dead-air gaps (>1.2s of near-silence) from the timeline">✂ Trim silences</button>
+        <span class="sep"></span>
+        <button id="zoomKfBtn" class="btn" disabled title="Drag a box on the preview to zoom into it at the playhead">⊕ Zoom</button>
+        <button id="resetZoomBtn" class="btn" disabled title="Add a zoom-out (1×) keyframe at the playhead (Z)">⊝ Reset</button>
+        <button id="clearZoomBtn" class="btn danger" disabled title="Remove all zoom keyframes on the selected clip">Clear zooms</button>
+        <span class="sep"></span>
+        <button id="cursorBtn" class="btn" title="Toggle the cursor spotlight (C)">◐ Spotlight: on</button>
+        <button id="spotCfgBtn" class="btn" title="Spotlight settings">⚙</button>
+        <button id="annBtn" class="btn" title="Annotate (box / arrow / text / blur / redact)">✎ Annotate</button>
         <div class="spacer"></div>
         <button id="cancelBtn" class="btn ghost">Cancel</button>
         <button id="exportBtn" class="btn primary" disabled>Export &amp; Upload</button>
       </div>
       <div id="status"></div>
+      <div id="spotPanel" class="panel hidden">
+        <div class="sp-title">Spotlight</div>
+        <div class="sp-row"><span>Dim</span><input type="range" id="spotDim" min="0" max="70" value="32" /><b id="spotDimV">32%</b></div>
+        <div class="sp-row"><span>Diameter</span><input type="range" id="spotDiam" min="8" max="70" value="20" /><b id="spotDiamV">20%</b></div>
+        <div class="sp-row"><span>Softness</span><input type="range" id="spotSoft" min="0" max="45" value="24" /><b id="spotSoftV">24%</b></div>
+        <div class="sp-row"><span>Timing</span><input type="range" id="spotTime" min="-1000" max="1000" value="0" /><b id="spotTimeV">0ms</b></div>
+        <div class="sp-hint">Exponential: fine near 0, reaches ±5s at the ends. Loop ⟳ a moving-cursor clip and nudge with [ / ] (±5ms). Note: in follow-mode clips the cursor stays centered, so timing moves the spotlight little.</div>
+      </div>
+      <div id="annPanel" class="panel hidden">
+        <div class="sp-title">Annotate</div>
+        <div id="annTools">
+          <button class="annTool" data-tool="box" title="Box highlight">▭ Box</button>
+          <button class="annTool" data-tool="ellipse" title="Circle a pin / component">◯ Circle</button>
+          <button class="annTool" data-tool="arrow" title="Arrow — point at it">➹ Arrow</button>
+          <button class="annTool" data-tool="line" title="Plain connector line">／ Line</button>
+          <button class="annTool" data-tool="pen" title="Freehand — scribble like a whiteboard">✎ Pen</button>
+          <button class="annTool" data-tool="highlight" title="Translucent marker over a region">▰ Mark</button>
+          <button class="annTool" data-tool="text" title="Text label / callout">T Text</button>
+          <button class="annTool" data-tool="counter" title="Numbered step badge (auto-increments)"># Step</button>
+          <button class="annTool" data-tool="blur" title="Blur a region">░ Blur</button>
+          <button class="annTool" data-tool="redact" title="Solid redact (hide a key / serial)">▮ Redact</button>
+        </div>
+        <input id="annText" type="text" placeholder="Text for the Text tool…" />
+        <div id="annStyle">
+          <span class="ann-swatches">
+            <button class="sw" data-color="#c8963e" style="background:#c8963e" title="Gold — focus"></button>
+            <button class="sw" data-color="#ef5350" style="background:#ef5350" title="Red — wrong / danger"></button>
+            <button class="sw" data-color="#66bb6a" style="background:#66bb6a" title="Green — correct"></button>
+            <button class="sw" data-color="#4a8fff" style="background:#4a8fff" title="Blue — signal"></button>
+            <button class="sw" data-color="#ffffff" style="background:#ffffff" title="White"></button>
+          </span>
+          <label class="ann-width">Width <input type="range" id="annW" min="1" max="14" value="4" /></label>
+        </div>
+        <div class="sp-hint">Pick a tool, draw on the preview. New marks last to the end of the clip — on the Overlay track, drag a bar's <b>edges</b> to set exactly when it shows/hides, or drag its <b>body</b> to move it in time. Click a bar to select; Del or × removes it.</div>
+      </div>
     </div>
+    <script src="node_modules/mp4-muxer/build/mp4-muxer.js"></script>
+    <script src="webcodecs-encode.js"></script>
     <script src="editor.js"></script>
   </body>
 </html>
