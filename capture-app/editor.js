@@ -31,6 +31,7 @@
   const playBtn = $("playBtn");
   const homeBtn = $("homeBtn");
   const endBtn = $("endBtn");
+  const loopBtn = $("loopBtn");
   const zoomInBtn = $("zoomInBtn");
   const zoomOutBtn = $("zoomOutBtn");
   const timecodeEl = $("timecode");
@@ -91,6 +92,7 @@
   let projH = 720;
   let zoomDrag = null; // { x0, y0 } while dragging a focus box on the canvas
   let showCursor = true; // draw the cursor spotlight over the composite
+  let loopPlay = false; // loop the sequence (handy for tuning the spotlight timing)
   // Spotlight look + timing (timing nudges telemetry vs video to sit on the pointer).
   const spot = { dim: 0.32, diam: 20, soft: 24, offsetMs: 0 };
 
@@ -743,6 +745,14 @@
     if (videoEl.ended || videoEl.currentTime >= segEnd - 0.012) {
       if (curSegIdx < clips.length - 1) {
         advanceToNext();
+      } else if (loopPlay && clips.length) {
+        // restart from the top without stopping — live spotlight-timing tuning
+        playT = 0;
+        const a0 = activeAt(0);
+        loadSegment(a0.i, a0.srcTime, true);
+        updatePlayheadUI();
+        rafId = requestAnimationFrame(tick);
+        return;
       } else {
         playT = totalSec();
         pausePlayback();
@@ -1165,6 +1175,22 @@
   bindSpot("spotDiam", "diam", (v) => `${v}%`);
   bindSpot("spotSoft", "soft", (v) => `${v}%`);
   bindSpot("spotTime", "offsetMs", (v) => `${v}ms`);
+  // Live spotlight-timing nudge ( [ / ] ), so it can be dialled in during looped playback.
+  function nudgeTiming(d) {
+    spot.offsetMs = Math.max(-800, Math.min(800, spot.offsetMs + d));
+    const inp = $("spotTime");
+    const out = $("spotTimeV");
+    if (inp) inp.value = String(spot.offsetMs);
+    if (out) out.textContent = `${spot.offsetMs}ms`;
+    if (!showCursor) toggleCursor(); // make sure the spotlight is visible while tuning
+    setStatus(`Spotlight timing ${spot.offsetMs >= 0 ? "+" : ""}${spot.offsetMs}ms`, "ok");
+  }
+  function toggleLoop() {
+    loopPlay = !loopPlay;
+    loopBtn.style.color = loopPlay ? "var(--gold)" : "";
+    setStatus(loopPlay ? "Loop on" : "Loop off", "");
+  }
+  loopBtn.addEventListener("click", toggleLoop);
   playBtn.addEventListener("click", togglePlay);
   homeBtn.addEventListener("click", () => {
     stopAll();
@@ -1261,6 +1287,14 @@
       case "C":
         e.preventDefault();
         toggleCursor();
+        break;
+      case "[":
+        e.preventDefault();
+        nudgeTiming(e.shiftKey ? -25 : -5);
+        break;
+      case "]":
+        e.preventDefault();
+        nudgeTiming(e.shiftKey ? 25 : 5);
         break;
       case "Escape":
         if (armingZoom) {

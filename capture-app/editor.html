@@ -134,7 +134,7 @@
     <div id="app">
       <header>
         <div id="title">OTD Editor</div>
-        <div id="hint">Space play/pause · J/K/L shuttle · ←/→ frame-step · S split · I/O trim in/out at playhead · drag clip edges to trim · drag clip body to reorder · R rename · ⊕ Zoom drag-box on preview · Z reset-zoom · C toggle spotlight · Del ripple-delete · Ctrl+Z/Y undo/redo · wheel zooms timeline · Shift+wheel scroll</div>
+        <div id="hint">Space play/pause · J/K/L shuttle · ←/→ frame-step · S split · I/O trim in/out at playhead · drag clip edges to trim · drag clip body to reorder · R rename · ⊕ Zoom drag-box on preview · Z reset-zoom · C toggle spotlight · [ / ] nudge spotlight timing · ⟳ loop · Del ripple-delete · Ctrl+Z/Y undo/redo · wheel zooms timeline · Shift+wheel scroll</div>
       </header>
       <div id="preview">
         <video id="video" preload="auto"></video>
@@ -148,6 +148,7 @@
         <button id="homeBtn" class="tbtn" title="Jump to start (Home)">⏮</button>
         <button id="playBtn" class="tbtn" title="Play / pause (Space)">▶</button>
         <button id="endBtn" class="tbtn" title="Jump to end (End)">⏭</button>
+        <button id="loopBtn" class="tbtn" title="Loop playback (good for tuning the spotlight)">⟳</button>
         <span id="timecode">0:00:00 <span class="tot">/ 0:00:00</span></span>
         <span id="selInfo">—</span>
         <div class="tspace"></div>
@@ -190,8 +191,8 @@
         <div class="sp-row"><span>Dim</span><input type="range" id="spotDim" min="0" max="70" value="32" /><b id="spotDimV">32%</b></div>
         <div class="sp-row"><span>Diameter</span><input type="range" id="spotDiam" min="8" max="70" value="20" /><b id="spotDiamV">20%</b></div>
         <div class="sp-row"><span>Softness</span><input type="range" id="spotSoft" min="0" max="45" value="24" /><b id="spotSoftV">24%</b></div>
-        <div class="sp-row"><span>Timing</span><input type="range" id="spotTime" min="-400" max="400" value="0" /><b id="spotTimeV">0ms</b></div>
-        <div class="sp-hint">Timing nudges the spotlight earlier/later to sit on the pointer.</div>
+        <div class="sp-row"><span>Timing</span><input type="range" id="spotTime" min="-800" max="800" value="0" /><b id="spotTimeV">0ms</b></div>
+        <div class="sp-hint">Loop ⟳ a clip with mouse motion, then nudge Timing with [ and ] until the spotlight rides the pointer.</div>
       </div>
     </div>
     <script src="node_modules/mp4-muxer/build/mp4-muxer.js"></script>
