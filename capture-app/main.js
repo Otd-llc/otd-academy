@@ -563,7 +563,9 @@ ipcMain.on("cursor-track", (_e, on) => {
       return;
     }
     const p = screen.getCursorScreenPoint();
-    overlay.webContents.send("cursor:pos", { x: p.x - b.x, y: p.y - b.y });
+    // Stamp with wall-clock time AT THE POLL, so the editor can interpolate the cursor to
+    // each video frame's time and cancel the IPC jitter between this poll and the renderer.
+    overlay.webContents.send("cursor:pos", { x: p.x - b.x, y: p.y - b.y, t: Date.now() });
   }, 16);
 });
 

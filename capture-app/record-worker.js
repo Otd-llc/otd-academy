@@ -31,10 +31,6 @@ let expectedTs = null;
 let lastCropped = null;
 let camX = 0;
 let camY = 0;
-let cursorX = 0; // latest pointer position (CSS px), streamed with the cam updates
-let cursorY = 0;
-let cursorTrack = []; // [{ t (sec from frame 0), nx, ny }] — frame-accurate cursor telemetry
-let firstTs = null;
 let boxW = 0;
 let boxH = 0;
 let fps = 60;
@@ -86,16 +82,6 @@ function cropEncode(srcFrame, tsUs) {
     timestamp: tsUs,
   });
   encoder.encode(cropped, frameIndex % (fps * 2) === 0);
-  // Frame-accurate cursor telemetry: the pointer's position within THIS frame's crop,
-  // stamped with the frame's own timestamp (offset to 0). No renderer/worker phase drift.
-  if (firstTs === null) firstTs = tsUs;
-  if (boxW > 0 && boxH > 0) {
-    cursorTrack.push({
-      t: (tsUs - firstTs) / 1e6,
-      nx: (cursorX - camX + boxW / 2) / boxW,
-      ny: (cursorY - camY + boxH / 2) / boxH,
-    });
-  }
   if (lastCropped) {
     try {
       lastCropped.close();
@@ -170,10 +156,6 @@ async function start(m) {
   fps = m.fps || 60;
   camX = m.camX;
   camY = m.camY;
-  cursorX = m.camX;
-  cursorY = m.camY;
-  cursorTrack = [];
-  firstTs = null;
   const bitrate = m.bitrate || 8000000;
   const reader = m.readable.getReader();
   const firstRead = await reader.read();
@@ -249,7 +231,7 @@ async function stop() {
     encoder.close();
     muxer.finalize();
     const buf = muxer.target.buffer;
-    self.postMessage({ type: "done", buffer: buf, cursor: cursorTrack }, [buf]);
+    self.postMessage({ type: "done", buffer: buf }, [buf]);
   } catch (e) {
     self.postMessage({ type: "error", message: e && e.message ? e.message : String(e) });
   }
@@ -264,8 +246,6 @@ self.onmessage = (e) => {
   } else if (m.type === "cam") {
     camX = m.x;
     camY = m.y;
-    if (typeof m.cx === "number") cursorX = m.cx;
-    if (typeof m.cy === "number") cursorY = m.cy;
   } else if (m.type === "stop") {
     stop();
   }

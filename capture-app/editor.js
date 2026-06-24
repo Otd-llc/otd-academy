@@ -363,45 +363,38 @@
     if (!c || !c.zoom || !c.zoom.length) return { scale: 1, x: 0.5, y: 0.5 };
     return interpZoom(c.zoom, videoEl.currentTime);
   }
-  // Catmull-Rom interpolation (smooth path through the cursor samples).
-  function catmullRom(p0, p1, p2, p3, t) {
-    const t2 = t * t;
-    const t3 = t2 * t;
-    return (
-      0.5 *
-      (2 * p1 +
-        (-p0 + p2) * t +
-        (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
-        (-p0 + 3 * p1 - 3 * p2 + p3) * t3)
-    );
-  }
-  // The cursor's normalised position within the recorded frame at source time `ts`.
-  function cursorAt(clip, ts) {
-    const c = clip && clip.cursor;
-    if (!c || !c.length) return null;
-    // Telemetry is wall-clock; the video is CFR. Map video source time → telemetry time
-    // by stretching the telemetry span onto the clip's real duration, so they don't drift.
-    const span = c[c.length - 1].t;
-    const dur = durSec(clip);
-    if (span > 0 && dur > 0) ts = (ts * span) / dur;
-    if (ts <= c[0].t) return { nx: c[0].nx, ny: c[0].ny };
-    const last = c[c.length - 1];
-    if (ts >= last.t) return { nx: last.nx, ny: last.ny };
+  // Linear interpolation of a wall-clock-timestamped {t,x,y} track at time `wall`.
+  function lerpXY(arr, wall) {
+    if (!arr || !arr.length) return null;
+    if (wall <= arr[0].t) return { x: arr[0].x, y: arr[0].y };
+    const last = arr[arr.length - 1];
+    if (wall >= last.t) return { x: last.x, y: last.y };
     let lo = 0;
-    let hi = c.length - 1;
+    let hi = arr.length - 1;
     while (lo + 1 < hi) {
       const mid = (lo + hi) >> 1;
-      if (c[mid].t <= ts) lo = mid;
+      if (arr[mid].t <= wall) lo = mid;
       else hi = mid;
     }
-    const p1 = c[lo];
-    const p2 = c[lo + 1];
-    const p0 = c[lo - 1] || p1;
-    const p3 = c[lo + 2] || p2;
-    const f = (ts - p1.t) / (p2.t - p1.t || 1);
+    const a = arr[lo];
+    const b = arr[lo + 1];
+    const p = (wall - a.t) / (b.t - a.t || 1);
+    return { x: a.x + (b.x - a.x) * p, y: a.y + (b.y - a.y) * p };
+  }
+  // The cursor's normalised position within the recorded frame at video source time `ts`.
+  // Both the pointer and cam tracks are interpolated to the SAME wall time (video time
+  // mapped via t0), so IPC jitter cancels — the spotlight tracks the baked-in cursor 1:1.
+  // spot.offsetMs is a hardware-sync trim only (should be ~0 with this approach).
+  function cursorAt(clip, ts) {
+    const cur = clip && clip.cur;
+    if (!cur || !cur.box || !cur.ptr || !cur.ptr.length || !cur.cam || !cur.cam.length) return null;
+    const wall = cur.t0 + ts * 1000 + spot.offsetMs;
+    const p = lerpXY(cur.ptr, wall);
+    const c = lerpXY(cur.cam, wall);
+    if (!p || !c) return null;
     return {
-      nx: catmullRom(p0.nx, p1.nx, p2.nx, p3.nx, f),
-      ny: catmullRom(p0.ny, p1.ny, p2.ny, p3.ny, f),
+      nx: (p.x - c.x + cur.box.w / 2) / cur.box.w,
+      ny: (p.y - c.y + cur.box.h / 2) / cur.box.h,
     };
   }
   // Draw `srcVideo`'s current frame onto `ctx` (size cw×ch) with a zoom/pan transform,
@@ -443,7 +436,7 @@
   function drawFrame() {
     if (canvasEl.style.display === "none") return;
     const c = clips[curSegIdx];
-    const cur = showCursor && c ? cursorAt(c, videoEl.currentTime + spot.offsetMs / 1000) : null;
+    const cur = showCursor && c ? cursorAt(c, videoEl.currentTime) : null;
     composite(previewCtx, canvasEl.width, canvasEl.height, videoEl, currentZoom(), cur);
   }
   function renderLoop() {
@@ -992,7 +985,8 @@
   function selInfoText(i) {
     const c = clips[i];
     if (!c) return "—";
-    const cur = c.cursor && c.cursor.length ? `cursor ${c.cursor.length}pts` : "NO cursor data";
+    const cur =
+      c.cur && c.cur.ptr && c.cur.ptr.length ? `cursor ${c.cur.ptr.length}/${c.cur.cam.length}pts` : "NO cursor data";
     return `${nameOf(c, i)} · ${fmt(c.durMs)} src · ${c.speed || 1}× · ${fmt(effSec(c) * 1000)} on timeline · ${cur}`;
   }
   // Full structural re-render + select — use after any edit that changes clip count/sizes.
@@ -1402,7 +1396,7 @@
         loadedPath = c.path;
       }
       await seekExport(a.srcTime);
-      const cur = showCursor ? cursorAt(c, a.srcTime + spot.offsetMs / 1000) : null;
+      const cur = showCursor ? cursorAt(c, a.srcTime) : null;
       composite(octx, W, H, exportVideoEl, interpZoom(c.zoom, a.srcTime), cur);
       const frame = new VideoFrame(oc, {
         timestamp: Math.round(f * frameDurUs),
@@ -1525,8 +1519,8 @@
     setupCanvas();
     if (window.otd.log) {
       window.otd.log(
-        "editor init — cursor telemetry pts per clip: [" +
-          clips.map((c) => (c.cursor ? c.cursor.length : 0)).join(", ") +
+        "editor init — cursor ptr pts per clip: [" +
+          clips.map((c) => (c.cur && c.cur.ptr ? c.cur.ptr.length : 0)).join(", ") +
           "]",
       );
     }

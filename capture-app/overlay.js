@@ -84,10 +84,14 @@
   const clips = []; // [{ path, w, h, durMs }]
   let lastClipDims = { w: 0, h: 0 }; // output dims of the just-recorded clip
   let lastClipDurMs = 0; // wall-clock length of the just-recorded clip
-  // Cursor telemetry for the editor's smooth-cursor overlay: per recorded frame,
-  // the pointer's position normalised to the recorded crop = (cursor-cam+box/2)/box.
-  let cursorTrack = []; // [{ t (sec from rec start), nx, ny }]
-  let telemStart = 0;
+  // Cursor telemetry for the editor's spotlight. Two raw wall-clock-timestamped tracks the
+  // editor interpolates per video frame (cancels IPC jitter): the pointer (stamped in main
+  // at poll time) and the crop centre / cam (stamped here per frame). The editor combines
+  // them as (ptr - cam + box/2)/box at each frame's wall time.
+  let ptrSamples = []; // [{ t (wall ms, from main), x, y }]
+  let camSamples = []; // [{ t (wall ms), x, y }]
+  let telemT0 = 0; // wall ms of the first recorded frame (video time 0)
+  let recordingTelem = false;
   let dragging = false;
   const dragRef = { mode: null, x: 0, y: 0, box: null };
 
@@ -116,6 +120,8 @@
   window.otd.onCursorPos((p) => {
     cursor.x = p.x;
     cursor.y = p.y;
+    // raw, main-timestamped pointer track for the editor's per-frame interpolation
+    if (recordingTelem && typeof p.t === "number") ptrSamples.push({ t: p.t, x: p.x, y: p.y });
   });
 
   // Deep-link from the lesson "+": fix the mode, show the description (what to
@@ -436,21 +442,14 @@
     boxEl.style.transform = `translate3d(${cam.x - halfW - box.x}px, ${cam.y - halfH - box.y}px, 0)`;
   }
 
-  // Record the pointer's position within the recorded crop, for the editor's smooth
-  // cursor. cam follows the cursor, so nx/ny hover near 0.5 while following; with follow
-  // off, cam is fixed and the pointer ranges the whole frame. Called once per output frame.
-  function recordCursorSample() {
+  // Record the crop centre (cam) for this output frame, wall-clock-stamped. telemT0 marks
+  // the first frame = video time 0, so the editor can map video time → wall time and LERP
+  // both this cam track and main's pointer track to each frame. Called once per output frame.
+  function recordCamSample() {
     if (!box) return;
-    const now = performance.now();
-    // Stamp t=0 at the first sample, which fires in the first frame-producing tick — so
-    // telemetry time aligns with video time 0 instead of trailing it by the capture
-    // warm-up delay (that delay is what made the spotlight lag the real cursor).
-    if (!telemStart) telemStart = now;
-    cursorTrack.push({
-      t: (now - telemStart) / 1000,
-      nx: (cursor.x - cam.x + box.w / 2) / box.w,
-      ny: (cursor.y - cam.y + box.h / 2) / box.h,
-    });
+    const now = Date.now();
+    if (!telemT0) telemT0 = now;
+    camSamples.push({ t: now, x: cam.x, y: cam.y });
   }
 
   function evenClamp(v, max) {
@@ -528,8 +527,10 @@
     cursorVel.y = 0;
     camLastMs = performance.now();
     pumpTicks = 0;
-    cursorTrack = [];
-    telemStart = 0; // stamped at the FIRST sample (≈ first encoded frame), not here
+    ptrSamples = [];
+    camSamples = [];
+    telemT0 = 0;
+    recordingTelem = true;
 
     // Shared "recording now" UI/state.
     recStart = Date.now();
@@ -644,7 +645,6 @@
     worker.addEventListener("message", (e) => {
       const m = e.data || {};
       if (m.type === "done" && wcDone) {
-        if (Array.isArray(m.cursor)) cursorTrack = m.cursor; // frame-accurate, from the worker
         wcDone.resolve(m.buffer);
         wcDone = null;
       } else if (m.type === "error") {
@@ -674,9 +674,9 @@
     // the worker, which samples the latest when cropping each frame.
     camTimer = setInterval(() => {
       updateCamera(halfW, halfH, 1 / REC_FPS);
+      recordCamSample();
       try {
-        // stream the pointer too — the worker records frame-accurate cursor telemetry
-        worker.postMessage({ type: "cam", x: cam.x, y: cam.y, cx: cursor.x, cy: cursor.y });
+        worker.postMessage({ type: "cam", x: cam.x, y: cam.y });
       } catch {
         // ignore
       }
@@ -731,7 +731,7 @@
 
     const cropAndEncode = (srcFrame, tsUs) => {
       updateCamera(halfW, halfH, fixedDt);
-      recordCursorSample();
+      recordCamSample();
       let ox = Math.round((cam.x - halfW) * sxScale);
       let oy = Math.round((cam.y - halfH) * syScale);
       ox -= ox % 2; // even origin keeps chroma aligned for the HW encoder
@@ -840,7 +840,7 @@
     const pushFrame = () => {
       if (!screenVideo.videoWidth) return;
       updateCamera(halfW, halfH);
-      recordCursorSample();
+      recordCamSample();
       const maxSx = Math.max(0, screenVideo.videoWidth - r.sw);
       const maxSy = Math.max(0, screenVideo.videoHeight - r.sh);
       const sx = Math.max(0, Math.min(Math.round((cam.x - halfW) * scaleFactor), maxSx));
@@ -993,15 +993,20 @@
       window.otd.log("save-clip failed: " + ((res && res.error) || "unknown"));
       return false;
     }
+    recordingTelem = false;
     clips.push({
       path: res.path,
       w: lastClipDims.w,
       h: lastClipDims.h,
       durMs: lastClipDurMs,
       speed: 1,
-      cursor: cursorTrack.slice(),
+      cur: box
+        ? { box: { w: box.w, h: box.h }, t0: telemT0, ptr: ptrSamples.slice(), cam: camSamples.slice() }
+        : null,
     });
-    window.otd.log(`clip ${clips.length - 1} saved: ${cursorTrack.length} cursor pts (mode=${recMode})`);
+    window.otd.log(
+      `clip ${clips.length - 1} saved: ${ptrSamples.length} ptr / ${camSamples.length} cam pts (mode=${recMode})`,
+    );
     return true;
   }
   function recordAnother() {
@@ -1178,7 +1183,7 @@
   $("editBtn").addEventListener("click", () => {
     if (!clips.length) return;
     window.otd.openEditor({
-      clips: clips.map((c) => ({ path: c.path, w: c.w, h: c.h, durMs: c.durMs, speed: c.speed, cursor: c.cursor })),
+      clips: clips.map((c) => ({ path: c.path, w: c.w, h: c.h, durMs: c.durMs, speed: c.speed, cur: c.cur })),
       session,
     });
   });
