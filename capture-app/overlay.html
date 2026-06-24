@@ -125,8 +125,8 @@
       .btn:hover { background: var(--gold); color: var(--space); }
       .btn.ghost { border-color: var(--border); color: var(--muted); }
       .btn.ghost:hover { border-color: var(--gold); color: var(--gold); background: var(--navy); }
-      .btns { display: flex; gap: 8px; }
-      .btns .btn { flex: 1; }
+      .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+      .btns .btn { flex: 1 1 auto; min-width: 0; white-space: nowrap; }
       #status { margin-top: 10px; font-size: 11px; color: var(--muted); line-height: 1.5; }
       #status .rec { color: var(--red); }
       #reviewStatus { margin: 8px 0 0; font-size: 11px; color: var(--red); line-height: 1.5; }
