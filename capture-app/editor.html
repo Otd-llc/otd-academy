@@ -127,6 +127,32 @@
       #spotPanel .sp-row b { color: var(--ink); text-align: right; font-weight: normal; font-variant-numeric: tabular-nums; }
       #spotPanel input[type="range"] { width: 150px; accent-color: var(--gold); }
       #spotPanel .sp-hint { margin-top: 6px; font-size: 10px; color: var(--muted); max-width: 270px; }
+      #annPanel {
+        position: fixed; right: 18px; bottom: 58px; z-index: 30;
+        background: #11141d; border: 1px solid var(--border); border-radius: 8px;
+        padding: 10px 12px; box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55); max-width: 300px;
+      }
+      #annPanel.hidden { display: none; }
+      #annPanel .sp-title { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+      #annPanel .sp-hint { margin-top: 8px; font-size: 10px; color: var(--muted); }
+      #annTools { display: flex; flex-wrap: wrap; gap: 6px; }
+      .annTool {
+        font-family: inherit; font-size: 12px; cursor: pointer; color: var(--ink);
+        background: #161b29; border: 1px solid var(--border); border-radius: 5px; padding: 5px 9px;
+      }
+      .annTool:hover { border-color: var(--muted); }
+      .annTool.on { background: var(--gold); color: #1a1205; border-color: var(--gold); font-weight: bold; }
+      #annText { margin-top: 8px; width: 100%; font-family: inherit; font-size: 12px; background: #0d1019; color: var(--ink); border: 1px solid var(--border); border-radius: 5px; padding: 5px 8px; outline: none; }
+      #annText:focus { border-color: var(--gold); }
+      #previewCanvas.annotating { cursor: crosshair; }
+      .annbar {
+        position: absolute; top: 4px; bottom: 4px; border-radius: 3px; z-index: 2;
+        background: rgba(200, 150, 62, 0.30); border: 1px solid var(--gold);
+        display: flex; align-items: center; gap: 4px; padding: 0 4px; overflow: hidden; cursor: default;
+        font-size: 9px; color: var(--ink); white-space: nowrap;
+      }
+      .annbar .x { cursor: pointer; color: var(--ink); opacity: .8; font-weight: bold; }
+      .annbar .x:hover { color: var(--red); opacity: 1; }
       #status { min-height: 16px; font-size: 12px; color: var(--muted); }
       #status.err { color: var(--red); }
       #status.ok { color: var(--gold); }
@@ -136,7 +162,7 @@
     <div id="app">
       <header>
         <div id="title">OTD Editor</div>
-        <div id="hint">Space play/pause · J/K/L shuttle · ←/→ frame-step · S split · I/O trim in/out at playhead · drag clip edges to trim · drag clip body to reorder · R rename · ⊕ Zoom drag-box on preview · Z reset-zoom · C toggle spotlight · [ / ] nudge spotlight timing · ⟳ loop · Del ripple-delete · Ctrl+Z/Y undo/redo · wheel zooms timeline · Shift+wheel scroll</div>
+        <div id="hint">Space play/pause · J/K/L shuttle · ←/→ frame-step · S split · I/O trim in/out at playhead · drag clip edges to trim · drag clip body to reorder · R rename · ⊕ Zoom drag-box on preview · ✎ Annotate (box/arrow/text/blur/redact) · Z reset-zoom · C toggle spotlight · [ / ] nudge spotlight timing · ⟳ loop · Del ripple-delete · Ctrl+Z/Y undo/redo · wheel zooms timeline · Shift+wheel scroll</div>
       </header>
       <div id="preview">
         <video id="video" preload="auto"></video>
@@ -164,7 +190,7 @@
             <div id="ruler"></div>
             <div id="videoTrack" class="lane"><span class="lane-label">Video</span></div>
             <div id="audioTrack" class="lane"><span class="lane-label">Audio</span><canvas id="audioWave"></canvas></div>
-            <div id="overlayTrack" class="lane placeholder"><span class="lane-label">Overlay · Phase 4</span></div>
+            <div id="overlayTrack" class="lane"><span class="lane-label">Overlay</span></div>
             <div id="dropMarker"></div>
             <div id="tlPlayhead"></div>
             <div id="playheadHit"></div>
@@ -185,6 +211,7 @@
         <button id="clearZoomBtn" class="btn ghost" disabled title="Remove all zoom keyframes on the selected clip">Clear zooms</button>
         <button id="cursorBtn" class="btn" title="Toggle the cursor spotlight (C)">◐ Spotlight: on</button>
         <button id="spotCfgBtn" class="btn" title="Spotlight settings">⚙</button>
+        <button id="annBtn" class="btn" title="Annotate (box / arrow / text / blur / redact)">✎ Annotate</button>
         <div class="spacer"></div>
         <button id="cancelBtn" class="btn ghost">Cancel</button>
         <button id="exportBtn" class="btn primary" disabled>Export &amp; Upload</button>
@@ -197,6 +224,18 @@
         <div class="sp-row"><span>Softness</span><input type="range" id="spotSoft" min="0" max="45" value="24" /><b id="spotSoftV">24%</b></div>
         <div class="sp-row"><span>Timing</span><input type="range" id="spotTime" min="-1000" max="1000" value="0" /><b id="spotTimeV">0ms</b></div>
         <div class="sp-hint">Exponential: fine near 0, reaches ±5s at the ends. Loop ⟳ a moving-cursor clip and nudge with [ / ] (±5ms). Note: in follow-mode clips the cursor stays centered, so timing moves the spotlight little.</div>
+      </div>
+      <div id="annPanel" class="hidden">
+        <div class="sp-title">Annotate · at the playhead for ~3s</div>
+        <div id="annTools">
+          <button class="annTool" data-tool="box">▭ Box</button>
+          <button class="annTool" data-tool="arrow">➹ Arrow</button>
+          <button class="annTool" data-tool="text">T Text</button>
+          <button class="annTool" data-tool="blur">░ Blur</button>
+          <button class="annTool" data-tool="redact">▮ Redact</button>
+        </div>
+        <input id="annText" type="text" placeholder="Text for the Text tool…" />
+        <div class="sp-hint">Pick a tool, then drag on the preview (box/arrow/blur/redact) or click (text). Each shows as a bar on the Overlay track — click its × to delete.</div>
       </div>
     </div>
     <script src="node_modules/mp4-muxer/build/mp4-muxer.js"></script>

@@ -46,6 +46,7 @@
   const tlInnerEl = $("tlInner");
   const rulerEl = $("ruler");
   const videoTrackEl = $("videoTrack");
+  const overlayTrackEl = $("overlayTrack");
   const playheadEl = $("tlPlayhead");
   const playheadHitEl = $("playheadHit");
   const dropMarkerEl = $("dropMarker");
@@ -65,6 +66,9 @@
   const cursorBtn = $("cursorBtn");
   const spotCfgBtn = $("spotCfgBtn");
   const spotPanel = $("spotPanel");
+  const annBtn = $("annBtn");
+  const annPanel = $("annPanel");
+  const annTextEl = $("annText");
   const cancelBtn = $("cancelBtn");
   const exportBtn = $("exportBtn");
   const statusEl = $("status");
@@ -96,6 +100,9 @@
   let projW = 1280; // output / canvas resolution (max clip dims, even)
   let projH = 720;
   let zoomDrag = null; // { x0, y0 } while dragging a focus box on the canvas
+  let annTool = null; // active annotation tool: box|arrow|text|blur|redact|null
+  let annDrag = null; // { x0, y0 } while drawing an annotation on the canvas
+  let annId = 1; // monotonic annotation id
   let showCursor = true; // draw the cursor spotlight over the composite
   let loopPlay = false; // loop the sequence (handy for tuning the spotlight timing)
   // Spotlight look + timing (timing nudges telemetry vs video to sit on the pointer).
@@ -168,7 +175,11 @@
   // ── undo / redo ──
   // Deep-copy a clip incl. its zoom keyframes (so snapshots/splits don't alias arrays).
   function cloneClip(c) {
-    return { ...c, zoom: c.zoom ? c.zoom.map((k) => ({ ...k })) : undefined };
+    return {
+      ...c,
+      zoom: c.zoom ? c.zoom.map((k) => ({ ...k })) : undefined,
+      anns: c.anns ? c.anns.map((a) => ({ ...a })) : undefined,
+    };
   }
   function snapshot() {
     return clips.map(cloneClip);
@@ -273,9 +284,48 @@
     });
 
     renderWaveform();
+    renderAnnotations();
     updatePlayheadUI();
     renderControls();
   }
+  function annLabel(a) {
+    if (a.type === "text") return "T " + String(a.text || "").slice(0, 12);
+    return { box: "▭ box", arrow: "➹ arrow", blur: "░ blur", redact: "▮ redact" }[a.type] || a.type;
+  }
+  // Annotation bars on the Overlay track, positioned by their [tIn,tOut] within each clip.
+  function renderAnnotations() {
+    overlayTrackEl.querySelectorAll(".annbar").forEach((n) => n.remove());
+    let acc = 0;
+    clips.forEach((c, i) => {
+      const segStartPx = acc * pxPerSec;
+      acc += effSec(c);
+      if (!c.anns) return;
+      for (const a of c.anns) {
+        const tin = Math.max(inOf(c), Math.min(outOf(c), a.tIn));
+        const tout = Math.max(tin, Math.min(outOf(c), a.tOut));
+        const x0 = segStartPx + ((tin - inOf(c)) / (c.speed || 1)) * pxPerSec;
+        const w = Math.max(10, ((tout - tin) / (c.speed || 1)) * pxPerSec);
+        const bar = document.createElement("div");
+        bar.className = "annbar";
+        bar.style.left = x0 + "px";
+        bar.style.width = w + "px";
+        bar.innerHTML = `<span>${escapeHtml(annLabel(a))}</span><span class="x" data-ci="${i}" data-id="${a.id}">×</span>`;
+        overlayTrackEl.appendChild(bar);
+      }
+    });
+  }
+  overlayTrackEl.addEventListener("click", (e) => {
+    const x = e.target.closest && e.target.closest(".x");
+    if (!x) return;
+    const ci = +x.dataset.ci;
+    const id = +x.dataset.id;
+    const c = clips[ci];
+    if (!c || !c.anns) return;
+    pushUndo();
+    c.anns = c.anns.filter((a) => a.id !== id);
+    renderTimeline();
+    setStatus("Annotation deleted.", "");
+  });
   function escapeHtml(s) {
     return String(s).replace(/[&<>"]/g, (ch) =>
       ch === "&" ? "&amp;" : ch === "<" ? "&lt;" : ch === ">" ? "&gt;" : "&quot;",
@@ -408,7 +458,7 @@
   // then (if `cursor` given) a smooth HD cursor on top, positioned THROUGH the same
   // transform but drawn at constant size. The single composite step shared by the
   // preview render loop AND the WYSIWYG export — guaranteeing they match.
-  function composite(ctx, cw, ch, srcVideo, zoom, cursor) {
+  function composite(ctx, cw, ch, srcVideo, zoom, cursor, anns) {
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, cw, ch);
     if (!srcVideo || !srcVideo.videoWidth || srcVideo.readyState < 2) return;
@@ -439,12 +489,74 @@
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, cw, ch);
     }
+    if (anns && anns.length) for (const a of anns) drawAnnotation(ctx, cw, ch, a);
+  }
+  // Annotations are drawn in OUTPUT (canvas) space — an overlay on the final image, not
+  // tracking content under zoom. Geometry is normalised 0..1 of the output frame.
+  function drawAnnotation(ctx, cw, ch, a) {
+    const col = a.color || "#c8963e";
+    const lw = Math.max(2, ch * 0.004);
+    if (a.type === "redact") {
+      ctx.fillStyle = "#000";
+      ctx.fillRect(a.x * cw, a.y * ch, a.w * cw, a.h * ch);
+    } else if (a.type === "blur") {
+      const rx = a.x * cw;
+      const ry = a.y * ch;
+      const rw = a.w * cw;
+      const rh = a.h * ch;
+      if (rw > 1 && rh > 1) {
+        ctx.save();
+        ctx.filter = `blur(${Math.max(2, a.strength || 14)}px)`;
+        ctx.drawImage(ctx.canvas, rx, ry, rw, rh, rx, ry, rw, rh);
+        ctx.restore();
+      }
+    } else if (a.type === "box") {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = lw;
+      ctx.strokeRect(a.x * cw, a.y * ch, a.w * cw, a.h * ch);
+    } else if (a.type === "arrow") {
+      const x1 = a.x1 * cw;
+      const y1 = a.y1 * ch;
+      const x2 = a.x2 * cw;
+      const y2 = a.y2 * ch;
+      const ang = Math.atan2(y2 - y1, x2 - x1);
+      const head = Math.max(10, ch * 0.03);
+      ctx.strokeStyle = col;
+      ctx.fillStyle = col;
+      ctx.lineWidth = lw;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - head * Math.cos(ang - 0.4), y2 - head * Math.sin(ang - 0.4));
+      ctx.lineTo(x2 - head * Math.cos(ang + 0.4), y2 - head * Math.sin(ang + 0.4));
+      ctx.closePath();
+      ctx.fill();
+    } else if (a.type === "text") {
+      const size = Math.max(12, ch * 0.045);
+      ctx.font = `bold ${size}px "Space Mono", ui-monospace, monospace`;
+      ctx.textBaseline = "top";
+      const pad = size * 0.35;
+      const tw = ctx.measureText(a.text || "").width;
+      const bx = a.x * cw;
+      const by = a.y * ch;
+      ctx.fillStyle = "rgba(8,9,13,0.82)";
+      ctx.fillRect(bx - pad, by - pad, tw + pad * 2, size + pad * 2);
+      ctx.fillStyle = col;
+      ctx.fillText(a.text || "", bx, by);
+    }
+  }
+  function annsAt(clip, t) {
+    return clip && clip.anns ? clip.anns.filter((a) => t >= a.tIn && t <= a.tOut) : [];
   }
   function drawFrame() {
     if (canvasEl.style.display === "none") return;
     const c = clips[curSegIdx];
     const cur = showCursor && c ? cursorAt(c, videoEl.currentTime) : null;
-    composite(previewCtx, canvasEl.width, canvasEl.height, videoEl, currentZoom(), cur);
+    composite(previewCtx, canvasEl.width, canvasEl.height, videoEl, currentZoom(), cur, c ? annsAt(c, videoEl.currentTime) : []);
   }
   function renderLoop() {
     drawFrame();
@@ -585,36 +697,90 @@
       y: Math.max(0, Math.min(1, (py - (ch - fh) / 2) / fh)),
     };
   }
+  // client point → normalized 0..1 of the OUTPUT canvas (annotation space)
+  function clientToCanvasNorm(clientX, clientY) {
+    const r = canvasEl.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(1, (clientX - r.left) / r.width)),
+      y: Math.max(0, Math.min(1, (clientY - r.top) / r.height)),
+    };
+  }
+  function showDragBox(x0, y0, clientX, clientY) {
+    const pr = $("preview").getBoundingClientRect();
+    zoomBoxEl.style.left = Math.min(x0, clientX) - pr.left + "px";
+    zoomBoxEl.style.top = Math.min(y0, clientY) - pr.top + "px";
+    zoomBoxEl.style.width = Math.abs(clientX - x0) + "px";
+    zoomBoxEl.style.height = Math.abs(clientY - y0) + "px";
+    zoomBoxEl.style.display = "block";
+  }
   canvasEl.addEventListener("pointerdown", (e) => {
-    if (!armingZoom || sel < 0) return;
-    canvasEl.setPointerCapture(e.pointerId);
-    zoomDrag = { x0: e.clientX, y0: e.clientY };
+    if (sel < 0) return;
+    if (armingZoom) {
+      canvasEl.setPointerCapture(e.pointerId);
+      zoomDrag = { x0: e.clientX, y0: e.clientY };
+    } else if (annTool) {
+      canvasEl.setPointerCapture(e.pointerId);
+      annDrag = { x0: e.clientX, y0: e.clientY };
+    }
   });
   canvasEl.addEventListener("pointermove", (e) => {
-    if (!zoomDrag) return;
-    const pr = $("preview").getBoundingClientRect();
-    const left = Math.min(zoomDrag.x0, e.clientX) - pr.left;
-    const top = Math.min(zoomDrag.y0, e.clientY) - pr.top;
-    zoomBoxEl.style.left = left + "px";
-    zoomBoxEl.style.top = top + "px";
-    zoomBoxEl.style.width = Math.abs(e.clientX - zoomDrag.x0) + "px";
-    zoomBoxEl.style.height = Math.abs(e.clientY - zoomDrag.y0) + "px";
-    zoomBoxEl.style.display = "block";
+    if (zoomDrag) showDragBox(zoomDrag.x0, zoomDrag.y0, e.clientX, e.clientY);
+    else if (annDrag && annTool !== "text" && annTool !== "arrow")
+      showDragBox(annDrag.x0, annDrag.y0, e.clientX, e.clientY);
   });
   canvasEl.addEventListener("pointerup", (e) => {
-    if (!zoomDrag) return;
-    const a = clientToImageNorm(zoomDrag.x0, zoomDrag.y0);
-    const b = clientToImageNorm(e.clientX, e.clientY);
-    const bw = Math.abs(b.x - a.x);
-    const bh = Math.abs(b.y - a.y);
-    disarmZoom();
-    if (bw < 0.02 && bh < 0.02) {
-      setStatus("Zoom cancelled (drag a box next time).", "");
-      return;
+    if (zoomDrag) {
+      const a = clientToImageNorm(zoomDrag.x0, zoomDrag.y0);
+      const b = clientToImageNorm(e.clientX, e.clientY);
+      const bw = Math.abs(b.x - a.x);
+      const bh = Math.abs(b.y - a.y);
+      disarmZoom();
+      if (bw < 0.02 && bh < 0.02) {
+        setStatus("Zoom cancelled (drag a box next time).", "");
+        return;
+      }
+      const scale = Math.max(1, Math.min(MAX_ZOOM, 1 / Math.max(bw, bh, 0.02)));
+      addZoomKeyframe(scale, (a.x + b.x) / 2, (a.y + b.y) / 2);
+    } else if (annDrag) {
+      const a = clientToCanvasNorm(annDrag.x0, annDrag.y0);
+      const b = clientToCanvasNorm(e.clientX, e.clientY);
+      annDrag = null;
+      zoomBoxEl.style.display = "none";
+      createAnnotation(a, b);
     }
-    const scale = Math.max(1, Math.min(MAX_ZOOM, 1 / Math.max(bw, bh, 0.02)));
-    addZoomKeyframe(scale, (a.x + b.x) / 2, (a.y + b.y) / 2);
   });
+  // Create an annotation from the drag (a→b) with the active tool, at the playhead.
+  function createAnnotation(a, b) {
+    if (curSegIdx < 0 || !annTool) return;
+    const c = clips[curSegIdx];
+    const t = videoEl.currentTime;
+    let geom;
+    if (annTool === "arrow") {
+      if (Math.abs(b.x - a.x) < 0.01 && Math.abs(b.y - a.y) < 0.01) return;
+      geom = { x1: a.x, y1: a.y, x2: b.x, y2: b.y };
+    } else if (annTool === "text") {
+      const text = (annTextEl.value || "").trim();
+      if (!text) {
+        setStatus("Type the text in the Annotate panel first, then click the preview.", "err");
+        return;
+      }
+      geom = { x: a.x, y: a.y, text };
+    } else {
+      // box / blur / redact → normalized rect
+      const x = Math.min(a.x, b.x);
+      const y = Math.min(a.y, b.y);
+      const w = Math.abs(b.x - a.x);
+      const h = Math.abs(b.y - a.y);
+      if (w < 0.01 || h < 0.01) return;
+      geom = { x, y, w, h };
+      if (annTool === "blur") geom.strength = 16;
+    }
+    pushUndo();
+    if (!c.anns) c.anns = [];
+    c.anns.push({ id: annId++, type: annTool, tIn: t, tOut: Math.min(outOf(c), t + 3), color: "#c8963e", ...geom });
+    setSel(curSegIdx);
+    setStatus(`${annTool} added (${fmtTC(t)}–${fmtTC(Math.min(outOf(c), t + 3))}). Drag its bar edges later or × to delete.`, "ok");
+  }
   // Add/replace a zoom keyframe at the playhead's source time on the active clip.
   function addZoomKeyframe(scale, x, y) {
     if (curSegIdx < 0) return;
@@ -1143,6 +1309,10 @@
     right.name = nameOf(c, a.i) + " (b)";
     if (left.zoom) left.zoom = left.zoom.filter((k) => k.t <= t);
     if (right.zoom) right.zoom = right.zoom.filter((k) => k.t >= t);
+    if (left.anns)
+      left.anns = left.anns.filter((an) => an.tIn < t).map((an) => ({ ...an, tOut: Math.min(an.tOut, t) }));
+    if (right.anns)
+      right.anns = right.anns.filter((an) => an.tOut > t).map((an) => ({ ...an, tIn: Math.max(an.tIn, t) }));
     clips.splice(a.i, 1, left, right);
     curSegIdx = -1;
     curPath = null;
@@ -1338,7 +1508,36 @@
   }
   cursorBtn.addEventListener("click", toggleCursor);
   // Spotlight settings popover
-  spotCfgBtn.addEventListener("click", () => spotPanel.classList.toggle("hidden"));
+  spotCfgBtn.addEventListener("click", () => {
+    const hidden = spotPanel.classList.toggle("hidden");
+    if (!hidden) {
+      annPanel.classList.add("hidden");
+      setAnnTool(null);
+    }
+  });
+  // ── annotation tool panel ──
+  function setAnnTool(tool) {
+    annTool = tool;
+    annPanel.querySelectorAll(".annTool").forEach((b) => b.classList.toggle("on", b.dataset.tool === tool));
+    canvasEl.classList.toggle("annotating", !!tool);
+    if (tool) {
+      disarmZoom();
+      setStatus(
+        tool === "text"
+          ? "Type text in the panel, then click the preview to place it."
+          : `Drag on the preview to place a ${tool}.`,
+        "ok",
+      );
+    }
+  }
+  annBtn.addEventListener("click", () => {
+    const hide = annPanel.classList.toggle("hidden");
+    if (hide) setAnnTool(null);
+    else spotPanel.classList.add("hidden");
+  });
+  annPanel.querySelectorAll(".annTool").forEach((b) => {
+    b.addEventListener("click", () => setAnnTool(annTool === b.dataset.tool ? null : b.dataset.tool));
+  });
   function bindSpot(id, key, fmt) {
     const input = $(id);
     const out = $(id + "V");
@@ -1595,7 +1794,7 @@
       }
       await seekExport(a.srcTime);
       const cur = showCursor ? cursorAt(c, a.srcTime) : null;
-      composite(octx, W, H, exportVideoEl, interpZoom(c.zoom, a.srcTime), cur);
+      composite(octx, W, H, exportVideoEl, interpZoom(c.zoom, a.srcTime), cur, annsAt(c, a.srcTime));
       const frame = new VideoFrame(oc, {
         timestamp: Math.round(f * frameDurUs),
         duration: Math.round(frameDurUs),
