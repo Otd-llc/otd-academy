@@ -1168,14 +1168,27 @@
   bindSpot("spotDim", "dim", (v) => `${v}%`);
   bindSpot("spotDiam", "diam", (v) => `${v}%`);
   bindSpot("spotSoft", "soft", (v) => `${v}%`);
-  bindSpot("spotTime", "offsetMs", (v) => `${v}ms`);
-  // Live spotlight-timing nudge ( [ / ] ), so it can be dialled in during looped playback.
-  function nudgeTiming(d) {
-    spot.offsetMs = Math.max(-800, Math.min(800, spot.offsetMs + d));
-    const inp = $("spotTime");
+  // Timing is an EXPONENTIAL control: slider position ∈ [-1000,1000] → ±SPOT_MAX_MS, so
+  // there's fine resolution near 0 and a large reach at the extremes.
+  const SPOT_MAX_MS = 5000;
+  const SPOT_EXP = 2.4;
+  const sliderToMs = (pos) =>
+    Math.round(Math.sign(pos) * Math.pow(Math.abs(pos) / 1000, SPOT_EXP) * SPOT_MAX_MS);
+  const msToSlider = (ms) =>
+    Math.round(Math.sign(ms) * Math.pow(Math.min(1, Math.abs(ms) / SPOT_MAX_MS), 1 / SPOT_EXP) * 1000);
+  function setTimingMs(ms, syncSlider) {
+    spot.offsetMs = Math.max(-SPOT_MAX_MS, Math.min(SPOT_MAX_MS, Math.round(ms)));
     const out = $("spotTimeV");
-    if (inp) inp.value = String(spot.offsetMs);
     if (out) out.textContent = `${spot.offsetMs}ms`;
+    if (syncSlider) {
+      const inp = $("spotTime");
+      if (inp) inp.value = String(msToSlider(spot.offsetMs));
+    }
+  }
+  $("spotTime").addEventListener("input", (e) => setTimingMs(sliderToMs(+e.target.value), false));
+  // Live spotlight-timing nudge ( [ / ] ) — fine ms steps, dialled in during looped playback.
+  function nudgeTiming(d) {
+    setTimingMs(spot.offsetMs + d, true);
     if (!showCursor) toggleCursor(); // make sure the spotlight is visible while tuning
     setStatus(`Spotlight timing ${spot.offsetMs >= 0 ? "+" : ""}${spot.offsetMs}ms`, "ok");
   }

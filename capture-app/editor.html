@@ -191,8 +191,8 @@
         <div class="sp-row"><span>Dim</span><input type="range" id="spotDim" min="0" max="70" value="32" /><b id="spotDimV">32%</b></div>
         <div class="sp-row"><span>Diameter</span><input type="range" id="spotDiam" min="8" max="70" value="20" /><b id="spotDiamV">20%</b></div>
         <div class="sp-row"><span>Softness</span><input type="range" id="spotSoft" min="0" max="45" value="24" /><b id="spotSoftV">24%</b></div>
-        <div class="sp-row"><span>Timing</span><input type="range" id="spotTime" min="-800" max="800" value="0" /><b id="spotTimeV">0ms</b></div>
-        <div class="sp-hint">Loop ⟳ a clip with mouse motion, then nudge Timing with [ and ] until the spotlight rides the pointer.</div>
+        <div class="sp-row"><span>Timing</span><input type="range" id="spotTime" min="-1000" max="1000" value="0" /><b id="spotTimeV">0ms</b></div>
+        <div class="sp-hint">Exponential: fine near 0, reaches ±5s at the ends. Loop ⟳ a moving-cursor clip and nudge with [ / ] (±5ms). Note: in follow-mode clips the cursor stays centered, so timing moves the spotlight little.</div>
       </div>
     </div>
     <script src="node_modules/mp4-muxer/build/mp4-muxer.js"></script>
