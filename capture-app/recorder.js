@@ -5,6 +5,9 @@
   "use strict";
 
   const CODECS = [
+    // Main profile FIRST: iGPU hardware encoders accept it more readily than High
+    // (avc1.640028), which can force a slow software fallback at odd dimensions.
+    { mime: "video/mp4;codecs=avc1.4D4028", mp4: true },
     { mime: "video/mp4;codecs=avc1.640028", mp4: true },
     { mime: "video/mp4;codecs=avc1.42E01E", mp4: true },
     { mime: "video/mp4;codecs=avc1", mp4: true },
@@ -212,8 +215,9 @@
       const codec = pickCodec();
       if (!codec) throw new Error("No supported recording codec in this browser.");
       this.mp4 = codec.mp4;
+      this.codec = codec.mime; // surfaced in the record-start log to confirm the profile picked
       this.chunks = [];
-      const bitrate = 12000000;
+      const bitrate = 8000000; // 8 Mbps — plenty for a cropped 30fps clip; 12 made the encoder work too hard
       this.rec = new MediaRecorder(this.stream, {
         mimeType: codec.mime,
         videoBitsPerSecond: bitrate,

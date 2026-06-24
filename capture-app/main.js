@@ -26,6 +26,7 @@ const {
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
+const { spawn } = require("child_process");
 
 const PROTOCOL = "otd-capture";
 let overlay = null;
@@ -44,6 +45,11 @@ app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
 // always-on-top, unfocused window "occluded" a few seconds in and freeze its
 // renderer — which would stop the recording pump mid-clip. Disable that calc.
 app.commandLine.appendSwitch("disable-features", "CalculateNativeWinOcclusion");
+// Capture/encode perf on Windows 11: use the modern Windows Graphics Capture path
+// (faster full-screen capture than DXGI duplication), and keep textures on the GPU.
+app.commandLine.appendSwitch("enable-features", "WebRTC-AllowWgcDesktopCapturer");
+app.commandLine.appendSwitch("enable-gpu-rasterization");
+app.commandLine.appendSwitch("enable-zero-copy");
 
 // Debug log → ~/Downloads/otd-captures/otd-capture.log. The ground truth for "the
 // capture didn't show up": shows the launch argv, whether a deep link was parsed,
@@ -252,19 +258,26 @@ ipcMain.on("set-interactive", (_e, interactive) => {
   overlay?.setIgnoreMouseEvents(!interactive, { forward: true });
 });
 
-// Arm/disarm the GLOBAL spacebar (only while framing/recording, so it doesn't
-// clobber Space everywhere else). The renderer drives the timing.
+// Arm/disarm the GLOBAL capture keys (only while framing/recording).
+// Ctrl+Shift+Enter = capture / start-stop, Ctrl+Shift+Backspace = cancel.
+// Modifier chords on NORMAL keys on purpose: bare Space/Esc clobber KiCad, and
+// bare F-keys are unreliable on laptops (the F-row defaults to media/Fn). These
+// need no Fn and collide with neither KiCad nor Windows.
 ipcMain.on("arm-space", () => {
-  globalShortcut.register("Space", () => overlay?.webContents.send("trigger"));
-  globalShortcut.register("Escape", () => overlay?.webContents.send("cancel"));
+  globalShortcut.register("CommandOrControl+Shift+Return", () =>
+    overlay?.webContents.send("trigger"),
+  );
+  globalShortcut.register("CommandOrControl+Shift+Backspace", () =>
+    overlay?.webContents.send("cancel"),
+  );
   // Auto-follow toggle — a combo unlikely to clash with KiCad's shortcuts.
   globalShortcut.register("CommandOrControl+Shift+F", () =>
     overlay?.webContents.send("toggle-follow"),
   );
 });
 ipcMain.on("disarm-space", () => {
-  globalShortcut.unregister("Space");
-  globalShortcut.unregister("Escape");
+  globalShortcut.unregister("CommandOrControl+Shift+Return");
+  globalShortcut.unregister("CommandOrControl+Shift+Backspace");
   globalShortcut.unregister("CommandOrControl+Shift+F");
 });
 
@@ -326,12 +339,146 @@ ipcMain.handle("save-capture", async (_e, { base64, ext, caption }) => {
   return file;
 });
 
+// ── multi-clip session ──────────────────────────────────────────────────────
+// Recorded clips are written to a per-run temp dir; on export they're stitched
+// into ONE MP4 with ffmpeg (each scaled+padded onto a common canvas, then
+// concatenated). The lesson upload still receives a single video, so nothing
+// downstream changes.
+let sessionDir = null;
+function getSessionDir() {
+  if (!sessionDir) {
+    sessionDir = path.join(os.tmpdir(), `otd-capture-${process.pid}-${Date.now()}`);
+    fs.mkdirSync(sessionDir, { recursive: true });
+  }
+  return sessionDir;
+}
+
+// Persist one recorded clip's bytes; return its on-disk path for the timeline.
+ipcMain.handle("save-clip", async (_e, { base64, ext, index }) => {
+  try {
+    const dir = getSessionDir();
+    const file = path.join(dir, `clip-${String(index).padStart(3, "0")}.${ext || "mp4"}`);
+    fs.writeFileSync(file, Buffer.from(base64, "base64"));
+    logLine(`save-clip [${index}] → ${file} (${fs.statSync(file).size} bytes)`);
+    return { ok: true, path: file };
+  } catch (e) {
+    logLine(`save-clip FAILED: ${e && e.message}`);
+    return { ok: false, error: e && e.message ? e.message : "Couldn't save clip." };
+  }
+});
+
+function runFfmpeg(bin, args) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(bin, args, { windowsHide: true });
+    let err = "";
+    proc.stderr.on("data", (d) => {
+      err += d.toString();
+      if (err.length > 8000) err = err.slice(-8000); // keep the tail only
+    });
+    proc.on("error", reject);
+    proc.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`ffmpeg exit ${code}: ${err.slice(-600)}`));
+    });
+  });
+}
+
+// Is NVIDIA NVENC actually usable (GPU present + driver loaded)? The encoder being
+// compiled in doesn't guarantee runtime support, so probe once with a tiny real
+// encode and cache the answer. On a machine without an NVENC-capable GPU this
+// fails cleanly and we stay on the CPU encoder.
+let nvencCache = null;
+async function nvencAvailable(ffmpeg) {
+  if (nvencCache !== null) return nvencCache;
+  try {
+    await runFfmpeg(ffmpeg, [
+      "-hide_banner", "-f", "lavfi",
+      "-i", "color=c=black:s=256x256:r=10:d=0.1",
+      "-c:v", "h264_nvenc", "-f", "null", "-",
+    ]);
+    nvencCache = true;
+    logLine("nvenc: available — GPU (NVENC) encode for export");
+  } catch (e) {
+    nvencCache = false;
+    logLine("nvenc: unavailable, using CPU libx264 — " + (e && e.message ? e.message.slice(0, 140) : ""));
+  }
+  return nvencCache;
+}
+
+// Stitch the ordered clips into one MP4 and hand back the bytes (for review +
+// upload). clips = [{ path, w, h }]. Heterogeneous sizes are scaled+padded onto a
+// common canvas = the largest width/height across clips, so nothing is cropped.
+ipcMain.handle("export-clips", async (_e, { clips, fps }) => {
+  try {
+    if (!clips || !clips.length) return { ok: false, error: "No clips to export." };
+    const r = fps && fps > 0 ? Math.round(fps) : 30;
+
+    // One clip at normal speed: nothing to do — return it as-is. (A speed change
+    // still needs the encoder, so only short-circuit at 1×.)
+    if (clips.length === 1 && (clips[0].speed || 1) === 1) {
+      return { ok: true, bytes: fs.readFileSync(clips[0].path) };
+    }
+
+    const ffmpeg = require("ffmpeg-static");
+    const out = path.join(getSessionDir(), `export-${Date.now()}.mp4`);
+    const even = (n) => Math.max(2, Math.floor(n / 2) * 2);
+    const W = even(Math.max(...clips.map((c) => c.w || 1280)));
+    const H = even(Math.max(...clips.map((c) => c.h || 720)));
+
+    const args = ["-y"];
+    for (const c of clips) args.push("-i", c.path);
+    const parts = [];
+    for (let i = 0; i < clips.length; i++) {
+      const sp = clips[i].speed && clips[i].speed > 0 ? clips[i].speed : 1;
+      const speedFilter = sp !== 1 ? `setpts=PTS/${sp},` : ""; // >1 faster, <1 slower
+      parts.push(
+        `[${i}:v]scale=${W}:${H}:force_original_aspect_ratio=decrease,` +
+          `pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,${speedFilter}fps=${r},format=yuv420p[v${i}]`,
+      );
+    }
+    const labels = clips.map((_c, i) => `[v${i}]`).join("");
+    const filter = `${parts.join(";")};${labels}concat=n=${clips.length}:v=1:a=0[out]`;
+    const baseArgs = [...args, "-filter_complex", filter, "-map", "[out]"];
+    const tail = ["-pix_fmt", "yuv420p", "-movflags", "+faststart", out];
+    const nvencArgs = ["-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr", "-cq", "23", "-b:v", "0"];
+    const x264Args = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"];
+
+    // GPU encode (NVENC) when the GTX is usable; CPU x264 otherwise, and as a
+    // runtime safety net if a GPU export errors out mid-encode.
+    let encoder = (await nvencAvailable(ffmpeg)) ? "h264_nvenc" : "libx264";
+    logLine(`export-clips: ${clips.length} clips → ${W}x${H} @ ${r}fps via ${encoder} → ${out}`);
+    try {
+      await runFfmpeg(ffmpeg, [
+        ...baseArgs,
+        ...(encoder === "h264_nvenc" ? nvencArgs : x264Args),
+        ...tail,
+      ]);
+    } catch (e) {
+      if (encoder === "h264_nvenc") {
+        logLine(`nvenc export failed → retrying on CPU (libx264): ${(e && e.message ? e.message : "").slice(-200)}`);
+        nvencCache = false; // don't keep trying the GPU this run
+        encoder = "libx264";
+        await runFfmpeg(ffmpeg, [...baseArgs, ...x264Args, ...tail]);
+      } else {
+        throw e;
+      }
+    }
+    const bytes = fs.readFileSync(out);
+    logLine(`export-clips done (${encoder}): ${bytes.length} bytes`);
+    return { ok: true, bytes };
+  } catch (e) {
+    logLine(`export-clips FAILED: ${e && e.message}`);
+    return { ok: false, error: e && e.message ? e.message : "Export failed." };
+  }
+});
+
 ipcMain.on("renderer-log", (_e, msg) => logLine(`[renderer] ${msg}`));
 
-// High-rate cursor feed for the auto-follow pan: poll the OS cursor (~125 Hz) and
-// push window-local coords to the renderer. screen.getCursorScreenPoint() is a clean,
+// Cursor feed for the auto-follow pan: poll the OS cursor (~60 Hz) and push
+// window-local coords to the renderer. screen.getCursorScreenPoint() is a clean,
 // steady signal — unlike forwarded mousemove, which Windows throttles while the
-// overlay is click-through. Runs only while recording (renderer toggles it).
+// overlay is click-through. 60 Hz matches the render and avoids flooding the
+// (recording-busy) renderer with IPC. Runs only while recording.
 let cursorTimer = null;
 ipcMain.on("cursor-track", (_e, on) => {
   if (cursorTimer) {
@@ -348,10 +495,20 @@ ipcMain.on("cursor-track", (_e, on) => {
     }
     const p = screen.getCursorScreenPoint();
     overlay.webContents.send("cursor:pos", { x: p.x - b.x, y: p.y - b.y });
-  }, 8);
+  }, 16);
 });
 
 ipcMain.on("quit", () => app.quit());
 
-app.on("will-quit", () => globalShortcut.unregisterAll());
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+  // Best-effort: drop the per-run temp clip dir (the export was already uploaded).
+  if (sessionDir) {
+    try {
+      fs.rmSync(sessionDir, { recursive: true, force: true });
+    } catch {
+      // leave it for the OS temp cleaner
+    }
+  }
+});
 app.on("window-all-closed", () => app.quit());

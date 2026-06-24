@@ -169,6 +169,16 @@
         color: var(--ink);
       }
       #review img, #review video { width: 100%; border: 1px solid var(--border); border-radius: 6px; background: #000; margin-top: 8px; }
+      #clipTray { margin: 10px 0 0; }
+      #clipTray .tray-head { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+      .clip-row { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 5px; margin-bottom: 5px; font-size: 12px; }
+      .clip-row .clip-name { flex: 1; color: var(--ink); }
+      .clip-row .clip-dur { color: var(--muted); font-size: 11px; }
+      .clip-row .clip-btn { cursor: pointer; border: none; background: transparent; color: var(--muted); font-size: 13px; line-height: 1; padding: 3px 6px; border-radius: 4px; }
+      .clip-row .clip-btn:hover { color: var(--ink); background: rgba(255,255,255,0.07); }
+      .clip-row .clip-btn:disabled { opacity: .3; cursor: default; background: transparent; }
+      .clip-row .clip-x:hover { color: var(--red); }
+      .clip-row .clip-speed { color: var(--gold); font-weight: bold; min-width: 30px; text-align: center; }
       kbd { border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; color: var(--ink); }
       .hidden { display: none !important; }
 
@@ -267,7 +277,7 @@
       <div id="framing" class="hidden">
         <p id="status">
           Drag the gold box over what you want, arrange the window behind it, then
-          press <kbd>Space</kbd> to capture. <kbd>Esc</kbd> cancels.
+          press <kbd>Ctrl+Shift+Enter</kbd> to capture. <kbd>Ctrl+Shift+Backspace</kbd> cancels.
         </p>
         <button class="btn hidden" id="stopBtn">■ Stop recording</button>
         <button class="btn ghost" id="cancelFrameBtn">Cancel</button>
@@ -276,8 +286,10 @@
       <div id="review" class="hidden">
         <div id="reviewMedia"></div>
         <p id="reviewStatus" class="hidden"></p>
+        <div id="clipTray" class="hidden"></div>
         <div class="btns">
           <button class="btn" id="approveBtn">Approve</button>
+          <button class="btn ghost" id="addClipBtn">+ Record another clip</button>
           <button class="btn ghost" id="redoBtn">Redo</button>
         </div>
         <button class="btn ghost" id="discardBtn">Cancel</button>
@@ -291,6 +303,8 @@
     </div>
 
     <script src="recorder.js"></script>
+    <script src="node_modules/mp4-muxer/build/mp4-muxer.js"></script>
+    <script src="webcodecs-recorder.js"></script>
     <script src="overlay.js"></script>
   </body>
 </html>

@@ -38,6 +38,9 @@
   const followRowEl = $("followRow");
   const followOffEl = $("followOff");
   const followOnEl = $("followOn");
+  const clipTrayEl = $("clipTray");
+  const addClipBtnEl = $("addClipBtn");
+  const approveBtnEl = $("approveBtn");
 
   // Aspect token (from the placeholder) → ratio. 0 = free (standalone only).
   const ASPECTS = {
@@ -57,11 +60,25 @@
   let stream = null;
   let recorder = null;
   let recCanvas = null;
-  let recDraw = null; // setInterval id for the recording draw/requestFrame loop
+  let recDraw = null; // setInterval id for the recording draw/requestFrame loop (canvas mode)
   let recTimer = null;
   let recStart = 0;
+  let recMode = null; // "webcodecs" | "canvas" — which pipeline this recording uses
+  let wcSink = null; // WebCodecsSink (webcodecs mode)
+  let wcReader = null; // MediaStreamTrackProcessor reader (webcodecs mode)
+  let wcProcTrack = null; // cloned capture track feeding the processor
+  let wcRunning = false;
+  let wcTimer = null; // fixed-rate (CFR) encode pump
+  let wcLatest = null; // most-recent source VideoFrame (held for the CFR pump)
+  let pumpTicks = 0; // frames pushed/encoded this recording (diagnostics)
+  let camLastMs = 0; // timestamp for the follow-spring dt, shared by both pipelines
+  const PREFER_WEBCODECS = true; // set false to force the legacy canvas/MediaRecorder path
   let captured = null; // { base64, ext }
   let previewUrl = null;
+  // Multi-clip session: clips queued for stitching, in timeline order.
+  const clips = []; // [{ path, w, h, durMs }]
+  let lastClipDims = { w: 0, h: 0 }; // output dims of the just-recorded clip
+  let lastClipDurMs = 0; // wall-clock length of the just-recorded clip
   let dragging = false;
   const dragRef = { mode: null, x: 0, y: 0, box: null };
 
@@ -71,9 +88,14 @@
   // centre that eases toward it each frame.
   let follow = false;
   const cursor = { x: 0, y: 0 };
-  const cam = { x: 0, y: 0 };
-  const REC_FPS = 60; // capture + pan frame rate (smoother; one constant to dial back)
-  const FOLLOW_TAU = 0.1; // seconds — follow easing time constant (frame-rate independent)
+  const prevCursor = { x: 0, y: 0 };
+  const cursorVel = { x: 0, y: 0 }; // low-pass-smoothed pointer velocity (drives lookahead)
+  const cam = { x: 0, y: 0, vx: 0, vy: 0 }; // frame centre + its velocity (spring state)
+  const REC_FPS = 60; // capture + encode + pan frame rate (60 for smoother motion)
+  const FOLLOW_OMEGA = 14; // critically-damped spring stiffness (higher = snappier); ~10-15
+  const DEADZONE = 0.42; // cursor roams this fraction of the half-frame before the frame pans
+  const LOOKAHEAD = 0.18; // seconds of pointer-velocity lead, so the frame anticipates the cursor
+  const VEL_SMOOTH = 0.2; // low-pass on pointer velocity (raw mouse velocity is too noisy to lead on)
 
   window.otd.onDisplayInfo((info) => {
     scaleFactor = info.scaleFactor || 1;
@@ -134,6 +156,7 @@
     ]) {
       el.classList.toggle("hidden", n !== name);
     }
+    if (name === "review") renderClipTray(); // tray + Add button + Approve label
     // The full-screen overlay is click-through OUTSIDE its own panel in EVERY phase,
     // so the rest of the screen (KiCad, other apps) stays usable the whole time OTD
     // Capture is open. The mousemove hit-test below re-enables the window only while
@@ -280,8 +303,12 @@
     const sy = box.y * scaleFactor;
     const sw = box.w * scaleFactor;
     const sh = box.h * scaleFactor;
-    const outW = Math.max(1, Math.min(Math.round(sw), 1600));
-    const outH = Math.max(1, Math.round(sh * (outW / sw)));
+    // Output MUST be even on both axes — hardware H.264 encoders reject odd
+    // dimensions and silently fall back to (slow) software encode.
+    let outW = Math.min(Math.round(sw), 1600);
+    outW = Math.max(2, outW - (outW % 2));
+    let outH = Math.round(sh * (outW / sw));
+    outH = Math.max(2, outH - (outH % 2));
     return { sx, sy, sw, sh, outW, outH };
   }
 
@@ -304,13 +331,25 @@
     framingStatus.textContent = "Starting screen capture…";
     window.otd.log("startFraming: requesting getDisplayMedia");
     try {
-      stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      // Cap the SOURCE at 30fps. Uncapped, Chromium captures the whole screen at up
+      // to 60fps; with the per-frame canvas crop + H.264 encode on top, that
+      // saturated the CPU and made clips stutter. 30fps is plenty for a tutorial.
+      stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: { ideal: 60, max: 60 } },
+        audio: false,
+      });
     } catch (e) {
       window.otd.log("getDisplayMedia FAILED: " + (e && e.message));
       framingStatus.textContent = "Couldn't start screen capture: " + (e && e.message);
       return;
     }
     window.otd.log("getDisplayMedia OK");
+    // Belt-and-suspenders: some capturers ignore the initial constraint, so pin it.
+    try {
+      await stream.getVideoTracks()[0].applyConstraints({ frameRate: { max: 60 } });
+    } catch {
+      // not fatal — REC_FPS still bounds the encode rate
+    }
     screenVideo.srcObject = stream;
     await screenVideo
       .play()
@@ -319,8 +358,8 @@
     boxEl.classList.remove("hidden");
     framingStatus.innerHTML =
       mode === "video"
-        ? 'Frame the box over KiCad, then <kbd>Space</kbd> to start. While recording the box goes <b>click-through</b> — work in KiCad normally; <kbd>Space</kbd> or Stop to finish.'
-        : 'Frame it, then press <kbd>Space</kbd> to capture. <kbd>Esc</kbd> cancels.';
+        ? 'Frame the box over KiCad, then <kbd>Ctrl+Shift+Enter</kbd> to start. While recording the box goes <b>click-through</b> — work in KiCad normally; <kbd>Ctrl+Shift+Enter</kbd> or Stop to finish.'
+        : 'Frame it, then press <kbd>Ctrl+Shift+Enter</kbd> to capture. <kbd>Ctrl+Shift+Backspace</kbd> cancels.';
     window.otd.armSpace();
   }
 
@@ -343,56 +382,280 @@
     finishToReview(dataUrl, false);
   }
 
-  function startRecording() {
+  // Shared follow-camera update (velocity lookahead + deadzone + critically-damped
+  // spring + box transform). Runs once per OUTPUT frame in either pipeline; dt comes
+  // from camLastMs so it's correct regardless of the pipeline's frame cadence.
+  function updateCamera(halfW, halfH, fixedDt) {
+    if (!follow) return;
+    let dt;
+    if (fixedDt != null) {
+      dt = fixedDt; // CFR pump: deterministic per-frame step
+    } else {
+      const now = performance.now();
+      dt = Math.min(0.1, Math.max(0.001, (now - camLastMs) / 1000));
+      camLastMs = now;
+    }
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const rawVx = (cursor.x - prevCursor.x) / dt;
+    const rawVy = (cursor.y - prevCursor.y) / dt;
+    prevCursor.x = cursor.x;
+    prevCursor.y = cursor.y;
+    cursorVel.x += (rawVx - cursorVel.x) * VEL_SMOOTH;
+    cursorVel.y += (rawVy - cursorVel.y) * VEL_SMOOTH;
+    const aimX = cursor.x + cursorVel.x * LOOKAHEAD;
+    const aimY = cursor.y + cursorVel.y * LOOKAHEAD;
+    const dzx = halfW * DEADZONE;
+    const dzy = halfH * DEADZONE;
+    let tx = cam.x;
+    let ty = cam.y;
+    if (aimX > cam.x + dzx) tx = aimX - dzx;
+    else if (aimX < cam.x - dzx) tx = aimX + dzx;
+    if (aimY > cam.y + dzy) ty = aimY - dzy;
+    else if (aimY < cam.y - dzy) ty = aimY + dzy;
+    tx = Math.max(halfW, Math.min(tx, W - halfW));
+    ty = Math.max(halfH, Math.min(ty, H - halfH));
+    const f = 1 + FOLLOW_OMEGA * dt;
+    const oo = FOLLOW_OMEGA * FOLLOW_OMEGA * dt;
+    cam.x = (cam.x + cam.vx * dt + tx * FOLLOW_OMEGA * dt) / f;
+    cam.vx = (cam.vx + (tx - cam.x) * oo) / f;
+    cam.y = (cam.y + cam.vy * dt + ty * FOLLOW_OMEGA * dt) / f;
+    cam.vy = (cam.vy + (ty - cam.y) * oo) / f;
+    boxEl.style.transform = `translate3d(${cam.x - halfW - box.x}px, ${cam.y - halfH - box.y}px, 0)`;
+  }
+
+  function evenClamp(v, max) {
+    v = Math.max(2, v - (v % 2)); // even, >= 2
+    return Math.min(v, max - (max % 2));
+  }
+  function stopTrack(t) {
+    try {
+      if (t && t.stop) t.stop();
+    } catch {
+      // already stopped
+    }
+  }
+  function teardownWebCodecs() {
+    wcRunning = false;
+    if (wcTimer) {
+      clearInterval(wcTimer);
+      wcTimer = null;
+    }
+    if (wcReader) {
+      try {
+        wcReader.cancel();
+      } catch {
+        // ignore
+      }
+      wcReader = null;
+    }
+    if (wcLatest) {
+      try {
+        wcLatest.close();
+      } catch {
+        // ignore
+      }
+      wcLatest = null;
+    }
+    stopTrack(wcProcTrack);
+    wcProcTrack = null;
+    if (wcSink && wcSink.encoder) {
+      try {
+        wcSink.encoder.close();
+      } catch {
+        // ignore
+      }
+    }
+    wcSink = null;
+  }
+
+  async function startRecording() {
     if (!box || !screenVideo.videoWidth) return;
+    const halfW = box.w / 2;
+    const halfH = box.h / 2;
+    // Seed the follow camera at the box centre (CSS px); no jump until the pointer moves.
+    cam.x = box.x + halfW;
+    cam.y = box.y + halfH;
+    cursor.x = cam.x;
+    cursor.y = cam.y;
+    prevCursor.x = cam.x;
+    prevCursor.y = cam.y;
+    cam.vx = 0;
+    cam.vy = 0;
+    cursorVel.x = 0;
+    cursorVel.y = 0;
+    camLastMs = performance.now();
+    pumpTicks = 0;
+
+    // Shared "recording now" UI/state.
+    recStart = Date.now();
+    phase = "recording";
+    stopBtnEl.classList.remove("hidden");
+    boxEl.classList.toggle("following", follow); // drop the dim while panning
+    window.otd.setInteractive(false);
+    window.otd.trackCursor(true); // high-rate cursor for a smooth follow pan
+
+    const track = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+    if (!track) {
+      framingStatus.textContent = "Couldn't start recording: no screen track.";
+      return;
+    }
+
+    // PRIMARY: zero-copy WebCodecs pipeline (keeps frames on the GPU). Falls back to
+    // the canvas/MediaRecorder pipeline if WebCodecs or an H.264 config isn't available.
+    let started = false;
+    if (PREFER_WEBCODECS && window.WebCodecsSink && window.WebCodecsSink.supported()) {
+      try {
+        started = await startWebCodecs(track, halfW, halfH);
+      } catch (e) {
+        window.otd.log("webcodecs start threw: " + (e && e.message));
+        teardownWebCodecs();
+        started = false;
+      }
+    }
+    if (!started) {
+      window.otd.log("using canvas/MediaRecorder pipeline" + (PREFER_WEBCODECS ? " (webcodecs unavailable)" : ""));
+      startCanvas(halfW, halfH);
+    }
+    startStatusTimer();
+  }
+
+  // ── WebCodecs pipeline (primary) ──
+  async function startWebCodecs(track, halfW, halfH) {
+    // Read from a CLONE so the original track keeps feeding screenVideo (no contention).
+    wcProcTrack = track.clone();
+    const processor = new MediaStreamTrackProcessor({ track: wcProcTrack });
+    wcReader = processor.readable.getReader();
+
+    // Pull one frame to learn the real coded size, then size the (fixed) crop from it.
+    const firstRead = await wcReader.read();
+    if (firstRead.done || !firstRead.value) {
+      teardownWebCodecs();
+      return false;
+    }
+    const first = firstRead.value;
+    const codedW = first.codedWidth;
+    const codedH = first.codedHeight;
+    // Map window CSS px → source px from the ACTUAL coded size (robust even if the
+    // capturer negotiated a resolution that doesn't equal CSS px × scaleFactor).
+    const sxScale = codedW / window.innerWidth;
+    const syScale = codedH / window.innerHeight;
+    const cropW = evenClamp(Math.round(box.w * sxScale), codedW);
+    const cropH = evenClamp(Math.round(box.h * syScale), codedH);
+
+    wcSink = new window.WebCodecsSink();
+    const ok = await wcSink.init(cropW, cropH, 8000000, REC_FPS);
+    if (!ok) {
+      try {
+        first.close();
+      } catch {
+        // ignore
+      }
+      teardownWebCodecs();
+      return false;
+    }
+
+    recMode = "webcodecs";
+    lastClipDims = { w: cropW, h: cropH };
+    wcRunning = true;
+    const frameIntervalMs = 1000 / REC_FPS;
+    const frameIntervalUs = Math.round(1000000 / REC_FPS);
+    const fixedDt = 1 / REC_FPS;
+    let frameIndex = 0;
+    const startMs = performance.now();
+
+    // Crop the LATEST source frame and encode it with a constant-rate timestamp.
+    const encodeFrame = () => {
+      updateCamera(halfW, halfH, fixedDt);
+      if (!wcLatest) return;
+      let ox = Math.round((cam.x - halfW) * sxScale);
+      let oy = Math.round((cam.y - halfH) * syScale);
+      ox -= ox % 2; // even origin keeps chroma aligned for the HW encoder
+      oy -= oy % 2;
+      ox = Math.max(0, Math.min(ox, codedW - cropW));
+      oy = Math.max(0, Math.min(oy, codedH - cropH));
+      try {
+        const cropped = new VideoFrame(wcLatest, {
+          visibleRect: { x: ox, y: oy, width: cropW, height: cropH },
+          timestamp: frameIndex * frameIntervalUs,
+        });
+        wcSink.encode(cropped, frameIndex % (REC_FPS * 2) === 0); // keyframe ~2s
+        cropped.close();
+      } catch (e) {
+        window.otd.log("crop/encode err: " + (e && e.message));
+      }
+      frameIndex++;
+      pumpTicks++;
+    };
+
+    window.otd.log(`recording started (webcodecs CFR ${REC_FPS}): codec=${wcSink.codec} crop=${cropW}x${cropH} coded=${codedW}x${codedH}`);
+    wcLatest = first; // seed; the reader replaces it as new frames arrive
+
+    // CFR pump: each tick, emit frames to CATCH UP to wall-clock, duplicating the
+    // latest captured frame when the screen was static. Steady 30fps out (no gaps),
+    // duration tracks wall-clock no matter how irregularly the OS delivers frames —
+    // which is what fixes the choppy/stuttery playback (desktop capture is
+    // change-driven, so encoding only on arrival produced uneven cadence).
+    wcTimer = setInterval(() => {
+      if (!wcRunning || !wcSink || wcSink.error) return;
+      const target = Math.round((performance.now() - startMs) / frameIntervalMs);
+      let guard = 0;
+      while (frameIndex < target && guard < 5) {
+        encodeFrame();
+        guard++;
+      }
+    }, Math.round(frameIntervalMs));
+
+    // Reader: keep ONLY the most-recent frame; the CFR pump consumes it. Closing the
+    // previous frame as each new one arrives bounds memory to a single frame.
+    (async () => {
+      while (wcRunning) {
+        let res;
+        try {
+          res = await wcReader.read();
+        } catch {
+          break;
+        }
+        if (res.done) break;
+        const frame = res.value;
+        if (!frame) continue;
+        if (!wcRunning) {
+          try {
+            frame.close();
+          } catch {
+            // ignore
+          }
+          break;
+        }
+        const prev = wcLatest;
+        wcLatest = frame;
+        if (prev) {
+          try {
+            prev.close();
+          } catch {
+            // ignore
+          }
+        }
+      }
+    })();
+    return true;
+  }
+
+  // ── canvas / MediaRecorder pipeline (fallback) ──
+  function startCanvas(halfW, halfH) {
     const r = cropRect();
     recCanvas = document.createElement("canvas");
     recCanvas.width = r.outW;
     recCanvas.height = r.outH;
     const ctx = recCanvas.getContext("2d");
-    // Manual-frame capture: captureStream(0) emits a frame ONLY when we call
-    // requestFrame(), and we drive that from a wall-clock setInterval (kept
-    // real-time by the main-process anti-throttling switches). The default
-    // captureStream(30) ties frame cadence to the WINDOW COMPOSITOR, which runs slow
-    // while this overlay is unfocused (you're working in KiCad) — so it accumulated
-    // only ~6s of media time over a 20s recording and the clip came out sped-up.
-    // requestFrame() stamps each frame with the real clock, so the timeline matches
-    // wall-clock no matter the window's focus state.
+    // Manual-frame capture: captureStream(0) emits a frame ONLY on requestFrame(), so
+    // the clock stays wall-clock real even while this window is unfocused (the default
+    // captureStream(30) tied cadence to the throttled compositor and sped clips up).
     const recStream = recCanvas.captureStream(0);
     const recTrack = recStream.getVideoTracks()[0];
-    let pumpTicks = 0;
-    // Frame SIZE is fixed (r.sw × r.sh native → r.outW × r.outH canvas); only the
-    // source-rect ORIGIN moves. `cam` is the frame centre in CSS px, seeded at the
-    // box centre. In follow mode it eases toward the cursor each frame and the
-    // visible box moves with it; otherwise it stays put (identical to a fixed crop).
-    const halfW = box.w / 2;
-    const halfH = box.h / 2;
-    cam.x = box.x + halfW;
-    cam.y = box.y + halfH;
-    cursor.x = cam.x; // no jump until the pointer actually moves
-    cursor.y = cam.y;
-    let lastFrameMs = performance.now();
     const pushFrame = () => {
       if (!screenVideo.videoWidth) return;
-      if (follow) {
-        const now = performance.now();
-        const dt = Math.min(0.1, (now - lastFrameMs) / 1000);
-        lastFrameMs = now;
-        const W = window.innerWidth;
-        const H = window.innerHeight;
-        // Clamp the target so the fixed-size frame never runs off-screen.
-        const tx = Math.max(halfW, Math.min(cursor.x, W - halfW));
-        const ty = Math.max(halfH, Math.min(cursor.y, H - halfH));
-        // Frame-rate-INDEPENDENT easing: same feel whether the timer hits 60 or 45 fps,
-        // so timer jitter no longer makes the pan jerk.
-        const k = 1 - Math.exp(-dt / FOLLOW_TAU);
-        cam.x += (tx - cam.x) * k;
-        cam.y += (ty - cam.y) * k;
-        // Move the box by TRANSFORM (GPU-composited) — with the screen-sized dim
-        // dropped via `.following`, there's no per-frame full-screen repaint. The box
-        // is excluded from the capture either way; box.x/box.y stay the framed origin.
-        boxEl.style.transform = `translate3d(${cam.x - halfW - box.x}px, ${cam.y - halfH - box.y}px, 0)`;
-      }
+      updateCamera(halfW, halfH);
       const maxSx = Math.max(0, screenVideo.videoWidth - r.sw);
       const maxSy = Math.max(0, screenVideo.videoHeight - r.sh);
       const sx = Math.max(0, Math.min(Math.round((cam.x - halfW) * scaleFactor), maxSx));
@@ -409,53 +672,72 @@
       framingStatus.textContent = "Couldn't start recording: " + (e && e.message);
       return;
     }
+    recMode = "canvas";
+    lastClipDims = { w: r.outW, h: r.outH };
     pushFrame(); // seed a frame at t=0
-    recDraw = setInterval(pushFrame, Math.round(1000 / REC_FPS)); // wall-clock capture
-    recStart = Date.now();
-    phase = "recording";
-    // Drop the overlay to click-through immediately, so the box (now over KiCad) is
-    // live without waiting for the first mouse move; the panel re-arms on hover via
-    // the mousemove hit-test. This is what lets you drive KiCad while recording.
-    stopBtnEl.classList.remove("hidden");
-    boxEl.classList.toggle("following", follow); // drop the dim while panning
-    window.otd.setInteractive(false);
-    window.otd.trackCursor(true); // high-rate cursor for a smooth follow pan
-    // ── diagnostics → otd-capture.log: pinpoint exactly when the pump stalls ──
+    recDraw = setInterval(pushFrame, Math.round(1000 / REC_FPS));
+    window.otd.log(`recording started (canvas): codec=${recorder.codec} out=${r.outW}x${r.outH} mp4=${recorder.mp4}`);
+  }
+
+  function startStatusTimer() {
     const srcTrack = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
-    window.otd.log(`recording started: mp4=${recorder.mp4} srcTrack=${srcTrack ? srcTrack.readyState : "?"}`);
-    if (recTrack) recTrack.addEventListener("ended", () => window.otd.log("recTrack ENDED"));
     if (srcTrack) srcTrack.addEventListener("ended", () => window.otd.log("SCREEN track ENDED"));
     recTimer = setInterval(() => {
       const s = Math.floor((Date.now() - recStart) / 1000);
-      framingStatus.innerHTML = `<span class="rec">● Recording ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}</span> — ${follow ? "following cursor" : "fixed frame"} (<kbd>Ctrl+Shift+F</kbd> toggles). <kbd>Space</kbd> or Stop to finish.`;
-      window.otd.log(
-        `rec t=${((Date.now() - recStart) / 1000).toFixed(1)}s ticks=${pumpTicks}` +
-          ` recState=${recorder && recorder.rec ? recorder.rec.state : "?"}` +
-          ` recTrack=${recTrack ? recTrack.readyState : "?"}` +
-          ` srcTrack=${srcTrack ? srcTrack.readyState : "?"}` +
-          ` vPaused=${screenVideo.paused} vW=${screenVideo.videoWidth}` +
-          ` chunks=${recorder ? recorder.chunks.length : "?"}`,
-      );
+      framingStatus.innerHTML = `<span class="rec">● Recording ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}</span> — ${follow ? "following cursor" : "fixed frame"} (<kbd>Ctrl+Shift+F</kbd> toggles). <kbd>Ctrl+Shift+Enter</kbd> or Stop to finish.`;
+      const q = wcSink && wcSink.encoder ? wcSink.encoder.encodeQueueSize : "-";
+      window.otd.log(`rec t=${((Date.now() - recStart) / 1000).toFixed(1)}s mode=${recMode} frames=${pumpTicks} encQ=${q} srcTrack=${srcTrack ? srcTrack.readyState : "?"}`);
     }, 500);
   }
 
   async function stopRecording() {
-    if (recDraw) clearInterval(recDraw);
-    recDraw = null;
     clearInterval(recTimer);
-    window.otd.log(`stopRecording: wallclock=${((Date.now() - recStart) / 1000).toFixed(1)}s`);
+    recTimer = null;
+    window.otd.log(`stopRecording: mode=${recMode} wallclock=${((Date.now() - recStart) / 1000).toFixed(1)}s frames=${pumpTicks}`);
     try {
-      const result = await recorder.stop();
+      let result;
+      if (recMode === "webcodecs") {
+        wcRunning = false;
+        if (wcTimer) {
+          clearInterval(wcTimer); // stop the CFR pump before flushing
+          wcTimer = null;
+        }
+        try {
+          await wcReader.cancel();
+        } catch {
+          // ignore
+        }
+        result = await wcSink.finish();
+        if (wcLatest) {
+          try {
+            wcLatest.close();
+          } catch {
+            // ignore
+          }
+          wcLatest = null;
+        }
+        stopTrack(wcProcTrack);
+        wcProcTrack = null;
+        wcReader = null;
+      } else {
+        if (recDraw) clearInterval(recDraw);
+        recDraw = null;
+        result = await recorder.stop();
+      }
       const buf = await result.blob.arrayBuffer();
       window.otd.log(`stopped: ext=${result.ext} bytes=${buf.byteLength}`);
       captured = { base64: abToBase64(buf), ext: result.ext };
+      lastClipDurMs = Date.now() - recStart;
+      await queueCurrentClip(); // append to the timeline so it shows immediately
       finishToReview(URL.createObjectURL(result.blob), true);
     } catch (e) {
       window.otd.log(`recording FAILED: ${e && e.message}`);
       framingStatus.textContent = "Recording failed: " + (e && e.message);
       reset();
     } finally {
+      teardownWebCodecs();
       recorder = null;
+      recMode = null;
     }
   }
 
@@ -477,9 +759,119 @@
     showSection("review");
   }
 
+  // ── multi-clip tray ──
+  function fmtDur(ms) {
+    const s = Math.max(0, Math.round((ms || 0) / 1000));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  }
+  // Persist the just-recorded clip to disk and append it to the timeline. Called
+  // right after a recording finishes, so the timeline always shows every clip
+  // (including the first one you're reviewing), not just previously-added ones.
+  async function queueCurrentClip() {
+    if (!captured) return false;
+    const res = await window.otd.saveClip({
+      base64: captured.base64,
+      ext: captured.ext,
+      index: clips.length,
+    });
+    if (!res || !res.ok) {
+      window.otd.log("save-clip failed: " + ((res && res.error) || "unknown"));
+      return false;
+    }
+    clips.push({ path: res.path, w: lastClipDims.w, h: lastClipDims.h, durMs: lastClipDurMs, speed: 1 });
+    return true;
+  }
+  function recordAnother() {
+    // The current clip is already on the timeline (queued at record time); just
+    // re-frame and record the next one.
+    captured = null;
+    if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+    previewUrl = null;
+    startFraming();
+  }
+  function moveClip(i, dir) {
+    const j = i + dir;
+    if (j < 0 || j >= clips.length) return;
+    const t = clips[i];
+    clips[i] = clips[j];
+    clips[j] = t;
+    renderClipTray();
+  }
+  function removeClip(i) {
+    clips.splice(i, 1);
+    renderClipTray();
+  }
+  function cycleSpeed(i) {
+    const steps = [0.5, 1, 1.5, 2, 4];
+    const cur = clips[i].speed || 1;
+    const at = steps.indexOf(cur);
+    clips[i].speed = steps[(at + 1) % steps.length];
+    renderClipTray();
+  }
+  function renderClipTray() {
+    const isVideo = mode === "video";
+    addClipBtnEl.classList.toggle("hidden", !isVideo);
+    if (!isVideo || clips.length === 0) {
+      clipTrayEl.classList.add("hidden");
+      clipTrayEl.innerHTML = "";
+      approveBtnEl.textContent = "Approve";
+      return;
+    }
+    clipTrayEl.classList.remove("hidden");
+    const rows = clips
+      .map(
+        (c, i) =>
+          `<div class="clip-row">` +
+          `<span class="clip-name">Clip ${i + 1}</span>` +
+          `<span class="clip-dur">${fmtDur(c.durMs / (c.speed || 1))}</span>` +
+          `<button class="clip-btn clip-speed" data-act="speed" data-i="${i}" title="Playback speed (click to change)">${c.speed || 1}×</button>` +
+          `<button class="clip-btn" data-act="up" data-i="${i}"${i === 0 ? " disabled" : ""} title="Move up">▲</button>` +
+          `<button class="clip-btn" data-act="down" data-i="${i}"${i === clips.length - 1 ? " disabled" : ""} title="Move down">▼</button>` +
+          `<button class="clip-btn clip-x" data-act="remove" data-i="${i}" title="Remove">✕</button>` +
+          `</div>`,
+      )
+      .join("");
+    clipTrayEl.innerHTML =
+      `<div class="tray-head">Timeline · ${clips.length} clip${clips.length === 1 ? "" : "s"} · stitched top → bottom</div>` +
+      rows;
+    approveBtnEl.textContent = `Finish & upload (${clips.length})`;
+  }
+  function showReviewError(msg) {
+    reviewStatusEl.textContent = msg;
+    reviewStatusEl.classList.remove("hidden");
+  }
+  clipTrayEl.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-act]");
+    if (!btn) return;
+    const i = parseInt(btn.dataset.i, 10);
+    if (btn.dataset.act === "up") moveClip(i, -1);
+    else if (btn.dataset.act === "down") moveClip(i, 1);
+    else if (btn.dataset.act === "remove") removeClip(i);
+    else if (btn.dataset.act === "speed") cycleSpeed(i);
+  });
+
   async function approve() {
     if (!captured) return;
     const caption = captionEl.value.trim();
+    // Multi-clip: fold the reviewed clip into the queue, then stitch the whole set
+    // into one MP4 before the normal upload/save runs on the stitched result.
+    if (mode === "video" && clips.length > 0) {
+      phase = "done";
+      showSection("done");
+      doneMsg.textContent = `Stitching ${clips.length} clip${clips.length === 1 ? "" : "s"}…`;
+      const res = await window.otd.exportClips({
+        clips: clips.map((c) => ({ path: c.path, w: c.w, h: c.h, speed: c.speed })),
+        fps: REC_FPS,
+      });
+      if (!res || !res.ok) {
+        phase = "review";
+        showSection("review");
+        showReviewError("Stitch failed: " + ((res && res.error) || "unknown error"));
+        return;
+      }
+      captured = { base64: abToBase64(res.bytes), ext: "mp4" };
+      clips.length = 0; // consumed into the stitched output
+    }
     if (session) {
       doneMsg.textContent = "Uploading…";
       phase = "done";
@@ -519,11 +911,14 @@
     if (recDraw) clearInterval(recDraw);
     recDraw = null;
     clearInterval(recTimer);
+    teardownWebCodecs(); // stop the webcodecs loop/encoder if a recording was live
+    recMode = null;
     window.otd.disarmSpace();
     window.otd.trackCursor(false);
     stopStream();
     recorder = null;
     captured = null;
+    clips.length = 0; // cancelling discards the whole queued session
     box = null;
     boxEl.classList.add("hidden");
     boxEl.classList.remove("following");
@@ -555,8 +950,14 @@
   });
   $("cancelFrameBtn").addEventListener("click", reset);
   $("approveBtn").addEventListener("click", approve);
+  $("addClipBtn").addEventListener("click", recordAnother);
   $("redoBtn").addEventListener("click", () => {
-    reset();
+    // Re-record the CURRENT clip: drop the one just queued (the last on the
+    // timeline), keep any earlier clips, and re-frame.
+    clips.pop();
+    captured = null;
+    if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+    previewUrl = null;
     startFraming();
   });
   $("discardBtn").addEventListener("click", reset);
