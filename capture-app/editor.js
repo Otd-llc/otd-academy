@@ -1505,13 +1505,17 @@
   function toggleCursor() {
     showCursor = !showCursor;
     cursorBtn.textContent = `◐ Spotlight: ${showCursor ? "on" : "off"}`;
+    cursorBtn.classList.toggle("on", showCursor);
   }
   cursorBtn.addEventListener("click", toggleCursor);
+  cursorBtn.classList.toggle("on", showCursor); // reflect the default-on state
   // Spotlight settings popover
   spotCfgBtn.addEventListener("click", () => {
     const hidden = spotPanel.classList.toggle("hidden");
+    spotCfgBtn.classList.toggle("on", !hidden);
     if (!hidden) {
       annPanel.classList.add("hidden");
+      annBtn.classList.remove("on");
       setAnnTool(null);
     }
   });
@@ -1532,8 +1536,12 @@
   }
   annBtn.addEventListener("click", () => {
     const hide = annPanel.classList.toggle("hidden");
+    annBtn.classList.toggle("on", !hide);
     if (hide) setAnnTool(null);
-    else spotPanel.classList.add("hidden");
+    else {
+      spotPanel.classList.add("hidden");
+      spotCfgBtn.classList.remove("on");
+    }
   });
   annPanel.querySelectorAll(".annTool").forEach((b) => {
     b.addEventListener("click", () => setAnnTool(annTool === b.dataset.tool ? null : b.dataset.tool));
@@ -1578,7 +1586,7 @@
   }
   function toggleLoop() {
     loopPlay = !loopPlay;
-    loopBtn.style.color = loopPlay ? "var(--gold)" : "";
+    loopBtn.classList.toggle("on", loopPlay);
     setStatus(loopPlay ? "Loop on" : "Loop off", "");
   }
   loopBtn.addEventListener("click", toggleLoop);
