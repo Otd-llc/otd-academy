@@ -57,6 +57,8 @@
   const resetZoomBtn = $("resetZoomBtn");
   const clearZoomBtn = $("clearZoomBtn");
   const cursorBtn = $("cursorBtn");
+  const spotCfgBtn = $("spotCfgBtn");
+  const spotPanel = $("spotPanel");
   const cancelBtn = $("cancelBtn");
   const exportBtn = $("exportBtn");
   const statusEl = $("status");
@@ -88,7 +90,9 @@
   let projW = 1280; // output / canvas resolution (max clip dims, even)
   let projH = 720;
   let zoomDrag = null; // { x0, y0 } while dragging a focus box on the canvas
-  let showCursor = true; // draw the smooth synthetic cursor over the composite
+  let showCursor = true; // draw the cursor spotlight over the composite
+  // Spotlight look + timing (timing nudges telemetry vs video to sit on the pointer).
+  const spot = { dim: 0.32, diam: 20, soft: 24, offsetMs: 0 };
 
   const SPEEDS = [0.5, 1, 1.5, 2, 4];
   const MAX_ZOOM = 6;
@@ -425,11 +429,11 @@
       // mapped through the same zoom transform; radius is constant screen px.
       const sx = cw / 2 + z.scale * (cursor.nx - z.x) * fw;
       const sy = ch / 2 + z.scale * (cursor.ny - z.y) * fh;
-      const inner = ch * 0.1;
-      const outer = ch * 0.34;
-      const g = ctx.createRadialGradient(sx, sy, inner, sx, sy, outer);
+      const inner = ((spot.diam / 100) * ch) / 2; // clear radius
+      const outer = inner + (spot.soft / 100) * ch; // fade-out radius
+      const g = ctx.createRadialGradient(sx, sy, inner, sx, sy, Math.max(inner + 1, outer));
       g.addColorStop(0, "rgba(0,0,0,0)");
-      g.addColorStop(1, "rgba(0,0,0,0.32)");
+      g.addColorStop(1, `rgba(0,0,0,${spot.dim})`);
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, cw, ch);
     }
@@ -437,7 +441,7 @@
   function drawFrame() {
     if (canvasEl.style.display === "none") return;
     const c = clips[curSegIdx];
-    const cur = showCursor && c ? cursorAt(c, videoEl.currentTime) : null;
+    const cur = showCursor && c ? cursorAt(c, videoEl.currentTime + spot.offsetMs / 1000) : null;
     composite(previewCtx, canvasEl.width, canvasEl.height, videoEl, currentZoom(), cur);
   }
   function renderLoop() {
@@ -1144,6 +1148,23 @@
     cursorBtn.textContent = `◐ Spotlight: ${showCursor ? "on" : "off"}`;
   }
   cursorBtn.addEventListener("click", toggleCursor);
+  // Spotlight settings popover
+  spotCfgBtn.addEventListener("click", () => spotPanel.classList.toggle("hidden"));
+  function bindSpot(id, key, fmt) {
+    const input = $(id);
+    const out = $(id + "V");
+    const apply = () => {
+      const v = +input.value;
+      spot[key] = key === "dim" ? v / 100 : v;
+      out.textContent = fmt(v);
+    };
+    input.addEventListener("input", apply);
+    apply();
+  }
+  bindSpot("spotDim", "dim", (v) => `${v}%`);
+  bindSpot("spotDiam", "diam", (v) => `${v}%`);
+  bindSpot("spotSoft", "soft", (v) => `${v}%`);
+  bindSpot("spotTime", "offsetMs", (v) => `${v}ms`);
   playBtn.addEventListener("click", togglePlay);
   homeBtn.addEventListener("click", () => {
     stopAll();
@@ -1347,7 +1368,7 @@
         loadedPath = c.path;
       }
       await seekExport(a.srcTime);
-      const cur = showCursor ? cursorAt(c, a.srcTime) : null;
+      const cur = showCursor ? cursorAt(c, a.srcTime + spot.offsetMs / 1000) : null;
       composite(octx, W, H, exportVideoEl, interpZoom(c.zoom, a.srcTime), cur);
       const frame = new VideoFrame(oc, {
         timestamp: Math.round(f * frameDurUs),

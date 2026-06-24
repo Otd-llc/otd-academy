@@ -114,6 +114,17 @@
       .btn.ghost { background: transparent; color: var(--muted); }
       .btn.primary { background: var(--gold); color: #1a1205; border-color: var(--gold); font-weight: bold; }
       .btn.primary:hover { filter: brightness(1.08); }
+      #spotPanel {
+        position: fixed; right: 18px; bottom: 58px; z-index: 30;
+        background: #11141d; border: 1px solid var(--border); border-radius: 8px;
+        padding: 10px 12px; box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55);
+      }
+      #spotPanel.hidden { display: none; }
+      #spotPanel .sp-title { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+      #spotPanel .sp-row { display: grid; grid-template-columns: 62px 150px 46px; align-items: center; gap: 8px; margin: 6px 0; font-size: 11px; color: var(--muted); }
+      #spotPanel .sp-row b { color: var(--ink); text-align: right; font-weight: normal; font-variant-numeric: tabular-nums; }
+      #spotPanel input[type="range"] { width: 150px; accent-color: var(--gold); }
+      #spotPanel .sp-hint { margin-top: 6px; font-size: 10px; color: var(--muted); max-width: 270px; }
       #status { min-height: 16px; font-size: 12px; color: var(--muted); }
       #status.err { color: var(--red); }
       #status.ok { color: var(--gold); }
@@ -168,11 +179,20 @@
         <button id="resetZoomBtn" class="btn" disabled title="Add a zoom-out (1×) keyframe at the playhead (Z)">⊝ Reset</button>
         <button id="clearZoomBtn" class="btn ghost" disabled title="Remove all zoom keyframes on the selected clip">Clear zooms</button>
         <button id="cursorBtn" class="btn" title="Toggle the cursor spotlight (C)">◐ Spotlight: on</button>
+        <button id="spotCfgBtn" class="btn" title="Spotlight settings">⚙</button>
         <div class="spacer"></div>
         <button id="cancelBtn" class="btn ghost">Cancel</button>
         <button id="exportBtn" class="btn primary" disabled>Export &amp; Upload</button>
       </div>
       <div id="status"></div>
+      <div id="spotPanel" class="hidden">
+        <div class="sp-title">Spotlight</div>
+        <div class="sp-row"><span>Dim</span><input type="range" id="spotDim" min="0" max="70" value="32" /><b id="spotDimV">32%</b></div>
+        <div class="sp-row"><span>Diameter</span><input type="range" id="spotDiam" min="8" max="70" value="20" /><b id="spotDiamV">20%</b></div>
+        <div class="sp-row"><span>Softness</span><input type="range" id="spotSoft" min="0" max="45" value="24" /><b id="spotSoftV">24%</b></div>
+        <div class="sp-row"><span>Timing</span><input type="range" id="spotTime" min="-400" max="400" value="0" /><b id="spotTimeV">0ms</b></div>
+        <div class="sp-hint">Timing nudges the spotlight earlier/later to sit on the pointer.</div>
+      </div>
     </div>
     <script src="node_modules/mp4-muxer/build/mp4-muxer.js"></script>
     <script src="webcodecs-encode.js"></script>
