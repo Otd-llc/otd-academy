@@ -24,6 +24,18 @@ can only be eyeballed by Josh. Key files:
 
 ---
 
+## Constraints (locked this session — do not re-litigate)
+
+- **Human narration only — no AI/TTS voice.** Don't re-propose AI-generated narration for §1/§2.
+  Consequence: the caption pipeline can't assume script ≡ audio; it must STT the *real* recording
+  (see §5).
+- **$0 tooling — free / local / open-source only.** No paid or per-use services for this pipeline
+  (e.g. STT runs locally via whisper.cpp/WhisperX, never the hosted Whisper API). The existing paid
+  *infra* (Vercel/Neon/R2/domains) is the standing exception; this rule is about not adding NEW
+  per-use or subscription costs for tooling.
+
+---
+
 ## 1. Teleprompter script during narrated capture
 
 **Goal.** When a clip is recorded WITH the mic on, show the teacher a script to read/enact
@@ -147,11 +159,57 @@ history isn't split mid-feature. Not blocking, but cheaper before §1–§3 than
 
 ---
 
+## 5. Captions & transcript pipeline (SEO + accessibility)
+
+**Goal.** Every narrated lesson video gets time-synced captions + a readable transcript, at **$0**,
+with **no caption-vs-audio drift**. A clean authored script is a *better* transcript than raw STT —
+this just adds timing and audio-truth. Spans the §4 seam: produced in the **capture repo**, consumed
+by the **academy**.
+
+**Pipeline:**
+1. **Record** the human narration (the §1 teleprompter gives a faithful read).
+2. **STT the recorded audio** (NOT the script) → timestamped segments. Because it's derived from the
+   waveform, captions match what was actually said *by construction* — the script-vs-audio drift is
+   gone (audio is the source of truth, not the page).
+3. **Reconcile (recommended): STT for the TIMING, the §1 script for the TEXT.** Token-align the two so
+   the words come from the clean script and the timing from the audio. This matters because ASR mangles
+   exactly our content — part numbers / acronyms (`GRM21BR61E106KA73L`, `USBLC6`, `X5R`, `ERC/DRC`,
+   `KiCad`). *Alternative:* raw STT text + a ~2-min human proof pass per video (simpler, slower).
+   **Decision for Josh:** text-of-record = script-aligned-to-STT-timing (recommended for jargon density)
+   vs raw-STT + proof pass.
+4. **Emit, one pass → both deliverables:** WebVTT (timed) → academy serves as `<track kind="captions">`
+   (WCAG 1.2.2); strip timestamps → on-page transcript (WCAG 1.2.8) + `VideoObject` JSON-LD `transcript`
+   (SEO + AI-answer ingestion).
+
+**Why it matters:**
+- **Accessibility:** 1.2.2 captions + 1.2.8 transcript; and because good teaching narration is inherently
+  descriptive ("now I click Board Setup → Constraints…"), it also covers the 1.2.5 audio-description gap a
+  silent screencast normally fails.
+- **SEO / answer-engine:** a video is opaque to crawlers; the transcript turns each lesson into crawlable
+  long-tail text (the content-moat play) and feeds AI answer engines. `VideoObject` makes the videos
+  eligible for Google video rich results — fits the academy's existing JSON-LD infra.
+
+**Tooling (per the $0 constraint):** **whisper.cpp** (single C++ binary, CPU, `--dtw` word timings) or
+**WhisperX** (word-level via forced alignment) — both open-source, run **locally**, $0, emit VTT/SRT
+directly. **NOT** the hosted OpenAI Whisper API (paid per-minute). STT/ASR here is *post-production* on
+recorded audio — it does **not** violate the "no AI in the narration pipeline" rule (no generated voice).
+
+**Code touchpoints:** *capture repo* — a post-export step that STTs the narration WAV (from §2) and writes
+`<video>.vtt` + a transcript sidecar. *academy* — accept the sidecar on upload (extend the §4 upload
+contract), serve the `<track>`, render the transcript block + `VideoObject` JSON-LD on the lesson page.
+
+**Sequencing:** comes AFTER narration audio is recorded + edited (needs §1's script + final audio; STT the
+§2 narration WAV). Late in the order.
+
+---
+
 ## Suggested order
 0. **Break out the repo (§4)** — do first; it's a clean moment and everything below lands in the new repo.
 1. **#1 teleprompter** (smallest code; content-heavy) — unblocks recording good narration.
 2. **#2 export/replace narration WAV** (studio audio) — biggest quality win, small code.
 3. **#3 editable audio timeline** (largest; subsumes #2's replace).
+4. **#5 captions & transcript** (after audio is final — STT the §2 narration WAV → VTT + transcript +
+   `VideoObject`). The SEO/accessibility payoff; consumed on the academy side.
 
 Brainstorm each with Josh (use the brainstorming skill) before building — the data model for
 #1's script storage and the alignment model for #2 are the decisions that matter.
