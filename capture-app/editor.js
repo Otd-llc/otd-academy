@@ -15,6 +15,7 @@
   const totalDurEl = $("totalDur");
   const selInfoEl = $("selInfo");
   const speedBtn = $("speedBtn");
+  const splitBtn = $("splitBtn");
   const leftBtn = $("leftBtn");
   const rightBtn = $("rightBtn");
   const removeBtn = $("removeBtn");
@@ -68,6 +69,7 @@
 
     const has = sel >= 0 && sel < clips.length;
     speedBtn.disabled = !has;
+    splitBtn.disabled = !has;
     leftBtn.disabled = !has || sel === 0;
     rightBtn.disabled = !has || sel === clips.length - 1;
     removeBtn.disabled = !has;
@@ -183,6 +185,25 @@
     clips[sel].speed = SPEEDS[(SPEEDS.indexOf(cur) + 1) % SPEEDS.length];
     videoEl.playbackRate = clips[sel].speed;
     selectClip(sel);
+  });
+  // Split the selected segment at the playhead into two segments of the SAME source
+  // clip, each independently trimmable + speed-able. (Two ffmpeg inputs of one file.)
+  splitBtn.addEventListener("click", () => {
+    if (sel < 0) return;
+    const c = clips[sel];
+    const inS = inOf(c);
+    const outS = outOf(c);
+    const t = videoEl.currentTime;
+    const minGap = 0.1;
+    if (!(t > inS + minGap && t < outS - minGap)) {
+      setStatus("Move the playhead inside the clip (away from the ends), then Split.", "err");
+      return;
+    }
+    const left = { ...c, inSec: inS, outSec: t };
+    const right = { ...c, inSec: t, outSec: outS };
+    clips.splice(sel, 1, left, right);
+    selectClip(sel); // keep the left half selected
+    setStatus(`Split at ${fmt(t * 1000)} — now 2 segments, each with its own speed.`, "ok");
   });
   leftBtn.addEventListener("click", () => move(-1));
   rightBtn.addEventListener("click", () => move(1));
