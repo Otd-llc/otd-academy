@@ -453,6 +453,21 @@
     const c = clips[curSegIdx];
     const cur = showCursor && c ? cursorAt(c, videoEl.currentTime) : null;
     composite(previewCtx, canvasEl.width, canvasEl.height, videoEl, currentZoom(), cur);
+    // DEBUG render-vs-data probe: cursor ON + clip has NO telemetry → draw a magenta
+    // ring at centre. If toggling C shows/hides this ring, the overlay path works and
+    // only the captured DATA is missing (capture not restarted / mode gap).
+    if (showCursor && c && (!c.cursor || !c.cursor.length)) {
+      const ctx = previewCtx;
+      const w = canvasEl.width;
+      const h = canvasEl.height;
+      ctx.save();
+      ctx.strokeStyle = "#ff3bd0";
+      ctx.lineWidth = Math.max(2, h * 0.005);
+      ctx.beginPath();
+      ctx.arc(w / 2, h / 2, h * 0.06, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
   function renderLoop() {
     drawFrame();
