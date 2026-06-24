@@ -668,7 +668,6 @@ export default async function GuideCardPage({
               mpn: r.mpn,
               manufacturer: r.manufacturer,
               description: r.description,
-              datasheetUrl: r.datasheetUrl,
               lifecycle: r.lifecycle,
             }))}
           />

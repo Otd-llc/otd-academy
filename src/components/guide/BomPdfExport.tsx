@@ -14,7 +14,6 @@ export interface BomPdfRow {
   mpn: string | null;
   manufacturer: string | null;
   description: string | null;
-  datasheetUrl: string | null;
   lifecycle?: string | null;
 }
 
@@ -24,14 +23,6 @@ const PRINT_CSS =
   "body>*:not(#bom-pdf-portal){display:none!important}" +
   "#bom-pdf-portal{display:block!important}" +
   "#bom-pdf-portal *{-webkit-print-color-adjust:exact;print-color-adjust:exact}}";
-
-function host(url: string): string {
-  try {
-    return new URL(url).host;
-  } catch {
-    return url.replace(/^https?:\/\//, "").split("/")[0];
-  }
-}
 
 export function BomPdfExport({
   title,
@@ -62,7 +53,7 @@ export function BomPdfExport({
         <table className="w-full border-collapse text-[11px]">
           <thead>
             <tr>
-              {["Ref", "Qty", "Mfr Part No.", "Manufacturer", "Description", "Datasheet"].map((h) => (
+              {["Ref", "Qty", "Mfr Part No.", "Manufacturer", "Description"].map((h) => (
                 <th
                   key={h}
                   className="border-b-[1.5px] border-[#111] px-2 py-1.5 text-left font-display text-[11px] font-normal uppercase tracking-[0.14em] text-[#8b6428]"
@@ -86,9 +77,6 @@ export function BomPdfExport({
                 <td className="border-b border-[#ddd] px-2 py-1.5">{r.manufacturer ?? "—"}</td>
                 <td className="border-b border-[#ddd] px-2 py-1.5 text-[#333]">
                   {r.description ?? ""}
-                </td>
-                <td className="border-b border-[#ddd] px-2 py-1.5 text-[#2a5fcc]">
-                  {r.datasheetUrl ? host(r.datasheetUrl) : "—"}
                 </td>
               </tr>
             ))}
