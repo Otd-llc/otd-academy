@@ -834,6 +834,7 @@
     const pushFrame = () => {
       if (!screenVideo.videoWidth) return;
       updateCamera(halfW, halfH);
+      recordCursorSample();
       const maxSx = Math.max(0, screenVideo.videoWidth - r.sw);
       const maxSy = Math.max(0, screenVideo.videoHeight - r.sh);
       const sx = Math.max(0, Math.min(Math.round((cam.x - halfW) * scaleFactor), maxSx));
@@ -994,6 +995,7 @@
       speed: 1,
       cursor: cursorTrack.slice(),
     });
+    window.otd.log(`clip ${clips.length - 1} saved: ${cursorTrack.length} cursor pts (mode=${recMode})`);
     return true;
   }
   function recordAnother() {
