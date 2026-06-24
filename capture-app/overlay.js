@@ -91,7 +91,7 @@
   const prevCursor = { x: 0, y: 0 };
   const cursorVel = { x: 0, y: 0 }; // low-pass-smoothed pointer velocity (drives lookahead)
   const cam = { x: 0, y: 0, vx: 0, vy: 0 }; // frame centre + its velocity (spring state)
-  const REC_FPS = 30; // capture + pan frame rate (30 is plenty for a tutorial; was 60)
+  const REC_FPS = 60; // capture + encode + pan frame rate (60 for smoother motion)
   const FOLLOW_OMEGA = 14; // critically-damped spring stiffness (higher = snappier); ~10-15
   const DEADZONE = 0.42; // cursor roams this fraction of the half-frame before the frame pans
   const LOOKAHEAD = 0.18; // seconds of pointer-velocity lead, so the frame anticipates the cursor
@@ -335,7 +335,7 @@
       // to 60fps; with the per-frame canvas crop + H.264 encode on top, that
       // saturated the CPU and made clips stutter. 30fps is plenty for a tutorial.
       stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: 30, max: 30 } },
+        video: { frameRate: { ideal: 60, max: 60 } },
         audio: false,
       });
     } catch (e) {
@@ -346,7 +346,7 @@
     window.otd.log("getDisplayMedia OK");
     // Belt-and-suspenders: some capturers ignore the initial constraint, so pin it.
     try {
-      await stream.getVideoTracks()[0].applyConstraints({ frameRate: { max: 30 } });
+      await stream.getVideoTracks()[0].applyConstraints({ frameRate: { max: 60 } });
     } catch {
       // not fatal — REC_FPS still bounds the encode rate
     }
@@ -852,7 +852,7 @@
       doneMsg.textContent = `Stitching ${clips.length} clip${clips.length === 1 ? "" : "s"}…`;
       const res = await window.otd.exportClips({
         clips: clips.map((c) => ({ path: c.path, w: c.w, h: c.h })),
-        fps: 30,
+        fps: REC_FPS,
       });
       if (!res || !res.ok) {
         phase = "review";
