@@ -634,6 +634,15 @@
     recMode = "worker";
     lastClipDims = { w: started.cropW, h: started.cropH };
     window.otd.log(`recording started (worker): codec=${started.codec} crop=${started.cropW}x${started.cropH} coded=${started.codedW}x${started.codedH}`);
+    // The worker reads its own cloned track, so the renderer's full-screen <video>
+    // is dead weight while recording — pause it so we stop decoding the whole screen
+    // on the UI thread (frees GPU/CPU for the live overlay + the worker's encode).
+    // It's re-acquired + replayed by startFraming on the next clip.
+    try {
+      screenVideo.pause();
+    } catch {
+      // ignore
+    }
     // The renderer drives the follow camera + visible box and streams the position to
     // the worker, which samples the latest when cropping each frame.
     camTimer = setInterval(() => {
