@@ -468,7 +468,9 @@
     if (e.target === playheadHitEl || renaming) return;
     if (e.target.tagName === "INPUT") return;
     stopAll();
-    tlInnerEl.setPointerCapture(e.pointerId);
+    // NOTE: do NOT setPointerCapture here — capturing on the parent retargets the
+    // subsequent click/dblclick to tlInner, which kills double-click-to-rename. We
+    // capture lazily on the first real drag move instead (see pointermove).
     const segEl = e.target.closest && e.target.closest(".seg");
     if (segEl) {
       const i = +segEl.dataset.i;
@@ -507,8 +509,15 @@
       updateEdgeCursor(e);
       return;
     }
-    if (!segAction.moved && Math.abs(e.clientX - segAction.startClientX) < 3) return;
-    segAction.moved = true;
+    if (!segAction.moved) {
+      if (Math.abs(e.clientX - segAction.startClientX) < 3) return;
+      segAction.moved = true;
+      // now that it's a genuine drag, capture the pointer so moves keep flowing even
+      // if the cursor leaves the timeline.
+      try {
+        tlInnerEl.setPointerCapture(e.pointerId);
+      } catch (_) {}
+    }
     if (segAction.type === "scrub") seekTo(tlTimeFromClientX(e.clientX), false);
     else if (segAction.type === "edge") dragEdge(e);
     else if (segAction.type === "body") dragReorder(e);
