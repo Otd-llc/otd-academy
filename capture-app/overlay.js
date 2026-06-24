@@ -644,6 +644,7 @@
     worker.addEventListener("message", (e) => {
       const m = e.data || {};
       if (m.type === "done" && wcDone) {
+        if (Array.isArray(m.cursor)) cursorTrack = m.cursor; // frame-accurate, from the worker
         wcDone.resolve(m.buffer);
         wcDone = null;
       } else if (m.type === "error") {
@@ -673,9 +674,9 @@
     // the worker, which samples the latest when cropping each frame.
     camTimer = setInterval(() => {
       updateCamera(halfW, halfH, 1 / REC_FPS);
-      recordCursorSample();
       try {
-        worker.postMessage({ type: "cam", x: cam.x, y: cam.y });
+        // stream the pointer too — the worker records frame-accurate cursor telemetry
+        worker.postMessage({ type: "cam", x: cam.x, y: cam.y, cx: cursor.x, cy: cursor.y });
       } catch {
         // ignore
       }
