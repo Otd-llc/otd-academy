@@ -121,10 +121,11 @@
       .annbar {
         position: absolute; top: 4px; bottom: 4px; border-radius: 4px; z-index: 2;
         background: rgba(200, 150, 62, 0.28); border: 1px solid var(--gold);
-        display: flex; align-items: center; gap: 4px; padding: 0 5px; overflow: hidden; cursor: default;
+        display: flex; align-items: center; gap: 3px; padding: 0 8px; overflow: hidden; cursor: grab;
         font-family: var(--mono); font-size: 9px; color: #fff; white-space: nowrap;
       }
-      .annbar .x { cursor: pointer; color: #fff; opacity: .8; font-weight: 700; }
+      .annbar .lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; padding: 0 2px; }
+      .annbar .x { cursor: pointer; color: #fff; opacity: .8; font-weight: 700; padding: 0 2px; }
       .annbar .x:hover { color: var(--red); opacity: 1; }
 
       /* ── controls (glass-button recipes) ── */
@@ -170,6 +171,16 @@
       .annTool.on { background: var(--gold); color: var(--space); font-weight: 700; box-shadow: 0 0 14px rgba(200, 150, 62, 0.3); }
       #annText { margin-top: 10px; width: 100%; font-family: var(--mono); font-size: 12px; background: #0d1019; color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 6px 9px; outline: none; }
       #annText:focus { border-color: var(--gold); }
+      #annStyle { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+      .ann-swatches { display: flex; gap: 5px; }
+      .sw { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.25); cursor: pointer; padding: 0; }
+      .sw.on { border-color: #fff; box-shadow: 0 0 0 2px var(--space), 0 0 0 3px #fff; }
+      .ann-width { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+      .ann-width input[type="range"] { width: 90px; accent-color: var(--gold); }
+      .annbar.sel { box-shadow: 0 0 12px rgba(200, 150, 62, 0.55), inset 0 0 0 1px #fff; z-index: 6; }
+      .annbar .grip { position: absolute; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+      .annbar .grip.l { left: 0; } .annbar .grip.r { right: 0; }
+      .annbar.dragging { opacity: .85; }
 
       /* ── status ── */
       #status { min-height: 18px; font-family: var(--serif); font-style: italic; font-size: 13px; color: var(--muted); }
@@ -249,16 +260,31 @@
         <div class="sp-hint">Exponential: fine near 0, reaches ±5s at the ends. Loop ⟳ a moving-cursor clip and nudge with [ / ] (±5ms). Note: in follow-mode clips the cursor stays centered, so timing moves the spotlight little.</div>
       </div>
       <div id="annPanel" class="panel hidden">
-        <div class="sp-title">Annotate · at the playhead for ~3s</div>
+        <div class="sp-title">Annotate</div>
         <div id="annTools">
-          <button class="annTool" data-tool="box">▭ Box</button>
-          <button class="annTool" data-tool="arrow">➹ Arrow</button>
-          <button class="annTool" data-tool="text">T Text</button>
-          <button class="annTool" data-tool="blur">░ Blur</button>
-          <button class="annTool" data-tool="redact">▮ Redact</button>
+          <button class="annTool" data-tool="box" title="Box highlight">▭ Box</button>
+          <button class="annTool" data-tool="ellipse" title="Circle a pin / component">◯ Circle</button>
+          <button class="annTool" data-tool="arrow" title="Arrow — point at it">➹ Arrow</button>
+          <button class="annTool" data-tool="line" title="Plain connector line">／ Line</button>
+          <button class="annTool" data-tool="pen" title="Freehand — scribble like a whiteboard">✎ Pen</button>
+          <button class="annTool" data-tool="highlight" title="Translucent marker over a region">▰ Mark</button>
+          <button class="annTool" data-tool="text" title="Text label / callout">T Text</button>
+          <button class="annTool" data-tool="counter" title="Numbered step badge (auto-increments)"># Step</button>
+          <button class="annTool" data-tool="blur" title="Blur a region">░ Blur</button>
+          <button class="annTool" data-tool="redact" title="Solid redact (hide a key / serial)">▮ Redact</button>
         </div>
         <input id="annText" type="text" placeholder="Text for the Text tool…" />
-        <div class="sp-hint">Pick a tool, then drag on the preview (box/arrow/blur/redact) or click (text). Each shows as a bar on the Overlay track — click its × to delete.</div>
+        <div id="annStyle">
+          <span class="ann-swatches">
+            <button class="sw" data-color="#c8963e" style="background:#c8963e" title="Gold — focus"></button>
+            <button class="sw" data-color="#ef5350" style="background:#ef5350" title="Red — wrong / danger"></button>
+            <button class="sw" data-color="#66bb6a" style="background:#66bb6a" title="Green — correct"></button>
+            <button class="sw" data-color="#4a8fff" style="background:#4a8fff" title="Blue — signal"></button>
+            <button class="sw" data-color="#ffffff" style="background:#ffffff" title="White"></button>
+          </span>
+          <label class="ann-width">Width <input type="range" id="annW" min="1" max="14" value="4" /></label>
+        </div>
+        <div class="sp-hint">Pick a tool, draw on the preview. New marks last to the end of the clip — on the Overlay track, drag a bar's <b>edges</b> to set exactly when it shows/hides, or drag its <b>body</b> to move it in time. Click a bar to select; Del or × removes it.</div>
       </div>
     </div>
     <script src="node_modules/mp4-muxer/build/mp4-muxer.js"></script>

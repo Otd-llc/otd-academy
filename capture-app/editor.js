@@ -100,9 +100,13 @@
   let projW = 1280; // output / canvas resolution (max clip dims, even)
   let projH = 720;
   let zoomDrag = null; // { x0, y0 } while dragging a focus box on the canvas
-  let annTool = null; // active annotation tool: box|arrow|text|blur|redact|null
-  let annDrag = null; // { x0, y0 } while drawing an annotation on the canvas
+  let annTool = null; // active annotation tool
+  let annDrag = null; // { x0, y0, points? } while drawing an annotation on the canvas
   let annId = 1; // monotonic annotation id
+  let annColor = "#c8963e"; // active annotation color
+  let annW = 4; // active annotation line width
+  let selAnn = null; // { ci, id } selected annotation, or null
+  let annBarDrag = null; // dragging an Overlay-track annotation bar (timing edit)
   let showCursor = true; // draw the cursor spotlight over the composite
   let loopPlay = false; // loop the sequence (handy for tuning the spotlight timing)
   // Spotlight look + timing (timing nudges telemetry vs video to sit on the pointer).
@@ -288,11 +292,18 @@
     updatePlayheadUI();
     renderControls();
   }
+  const ANN_ICON = {
+    box: "▭", ellipse: "◯", arrow: "➹", line: "／", pen: "✎",
+    highlight: "▰", text: "T", counter: "#", blur: "░", redact: "▮",
+  };
   function annLabel(a) {
-    if (a.type === "text") return "T " + String(a.text || "").slice(0, 12);
-    return { box: "▭ box", arrow: "➹ arrow", blur: "░ blur", redact: "▮ redact" }[a.type] || a.type;
+    const ic = ANN_ICON[a.type] || a.type;
+    if (a.type === "text") return ic + " " + String(a.text || "").slice(0, 12);
+    if (a.type === "counter") return ic + (a.n || 1);
+    return ic;
   }
-  // Annotation bars on the Overlay track, positioned by their [tIn,tOut] within each clip.
+  // Annotation bars on the Overlay track, positioned by their [tIn,tOut] within each clip,
+  // with edge grips (retime) + an × (delete). Coloured to the annotation's own color.
   function renderAnnotations() {
     overlayTrackEl.querySelectorAll(".annbar").forEach((n) => n.remove());
     let acc = 0;
@@ -304,27 +315,105 @@
         const tin = Math.max(inOf(c), Math.min(outOf(c), a.tIn));
         const tout = Math.max(tin, Math.min(outOf(c), a.tOut));
         const x0 = segStartPx + ((tin - inOf(c)) / (c.speed || 1)) * pxPerSec;
-        const w = Math.max(10, ((tout - tin) / (c.speed || 1)) * pxPerSec);
+        const w = Math.max(14, ((tout - tin) / (c.speed || 1)) * pxPerSec);
         const bar = document.createElement("div");
-        bar.className = "annbar";
+        const isSel = selAnn && selAnn.ci === i && selAnn.id === a.id;
+        bar.className = "annbar" + (isSel ? " sel" : "");
         bar.style.left = x0 + "px";
         bar.style.width = w + "px";
-        bar.innerHTML = `<span>${escapeHtml(annLabel(a))}</span><span class="x" data-ci="${i}" data-id="${a.id}">×</span>`;
+        bar.style.borderColor = a.color || "var(--gold)";
+        bar.dataset.ci = String(i);
+        bar.dataset.id = String(a.id);
+        bar.innerHTML =
+          `<span class="grip l"></span><span class="lbl">${escapeHtml(annLabel(a))}</span>` +
+          `<span class="x" data-ci="${i}" data-id="${a.id}">×</span><span class="grip r"></span>`;
         overlayTrackEl.appendChild(bar);
       }
     });
   }
-  overlayTrackEl.addEventListener("click", (e) => {
-    const x = e.target.closest && e.target.closest(".x");
-    if (!x) return;
-    const ci = +x.dataset.ci;
-    const id = +x.dataset.id;
+  function findAnn(ci, id) {
+    const c = clips[ci];
+    return c && c.anns ? c.anns.find((a) => a.id === id) : null;
+  }
+  function deleteAnn(ci, id) {
     const c = clips[ci];
     if (!c || !c.anns) return;
     pushUndo();
     c.anns = c.anns.filter((a) => a.id !== id);
+    if (selAnn && selAnn.ci === ci && selAnn.id === id) selAnn = null;
     renderTimeline();
     setStatus("Annotation deleted.", "");
+  }
+  // Map a clientX over the timeline → source seconds within clip ci.
+  function srcTimeAt(ci, clientX) {
+    const c = clips[ci];
+    const tlT = tlTimeFromClientX(clientX);
+    const local = tlT - startOf(ci);
+    return Math.max(inOf(c), Math.min(outOf(c), inOf(c) + local * (c.speed || 1)));
+  }
+  // Overlay-track interaction: × delete, edge-grip retime (tIn/tOut), body-drag move, click select.
+  overlayTrackEl.addEventListener("pointerdown", (e) => {
+    const bar = e.target.closest && e.target.closest(".annbar");
+    if (!bar) {
+      selAnn = null;
+      renderAnnotations();
+      return;
+    }
+    e.stopPropagation(); // a bar interaction — don't let tlInner also scrub the playhead
+    const ci = +bar.dataset.ci;
+    const id = +bar.dataset.id;
+    if (e.target.classList.contains("x")) {
+      deleteAnn(ci, id);
+      return;
+    }
+    const a = findAnn(ci, id);
+    if (!a) return;
+    selAnn = { ci, id };
+    const mode = e.target.classList.contains("grip")
+      ? e.target.classList.contains("l")
+        ? "in"
+        : "out"
+      : "move";
+    annBarDrag = { ci, id, mode, startX: e.clientX, tIn0: a.tIn, tOut0: a.tOut, moved: false };
+    overlayTrackEl.setPointerCapture(e.pointerId);
+    renderAnnotations();
+  });
+  overlayTrackEl.addEventListener("pointermove", (e) => {
+    if (!annBarDrag) return;
+    const a = findAnn(annBarDrag.ci, annBarDrag.id);
+    if (!a) return;
+    if (!annBarDrag.moved) {
+      if (Math.abs(e.clientX - annBarDrag.startX) < 2) return;
+      annBarDrag.moved = true;
+      pushUndo();
+    }
+    const c = clips[annBarDrag.ci];
+    const tNow = srcTimeAt(annBarDrag.ci, e.clientX);
+    const MIN = 0.05;
+    if (annBarDrag.mode === "in") {
+      a.tIn = Math.min(tNow, a.tOut - MIN);
+    } else if (annBarDrag.mode === "out") {
+      a.tOut = Math.max(tNow, a.tIn + MIN);
+    } else {
+      const dSrc = (tNow - srcTimeAt(annBarDrag.ci, annBarDrag.startX));
+      let nIn = annBarDrag.tIn0 + dSrc;
+      let nOut = annBarDrag.tOut0 + dSrc;
+      const span = nOut - nIn;
+      nIn = Math.max(inOf(c), Math.min(nIn, outOf(c) - span));
+      a.tIn = nIn;
+      a.tOut = nIn + span;
+    }
+    renderAnnotations();
+  });
+  overlayTrackEl.addEventListener("pointerup", (e) => {
+    try {
+      overlayTrackEl.releasePointerCapture(e.pointerId);
+    } catch (_) {}
+    if (annBarDrag && annBarDrag.moved) {
+      const a = findAnn(annBarDrag.ci, annBarDrag.id);
+      if (a) setStatus(`Timing: ${fmtTC(a.tIn)} → ${fmtTC(a.tOut)} (source).`, "ok");
+    }
+    annBarDrag = null;
   });
   function escapeHtml(s) {
     return String(s).replace(/[&<>"]/g, (ch) =>
@@ -495,54 +584,90 @@
   // tracking content under zoom. Geometry is normalised 0..1 of the output frame.
   function drawAnnotation(ctx, cw, ch, a) {
     const col = a.color || "#c8963e";
-    const lw = Math.max(2, ch * 0.004);
+    const lw = Math.max(1, (a.lw || 4) * (ch / 720)); // scale width to the output height
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     if (a.type === "redact") {
       ctx.fillStyle = "#000";
       ctx.fillRect(a.x * cw, a.y * ch, a.w * cw, a.h * ch);
     } else if (a.type === "blur") {
-      const rx = a.x * cw;
-      const ry = a.y * ch;
-      const rw = a.w * cw;
-      const rh = a.h * ch;
+      const rx = a.x * cw, ry = a.y * ch, rw = a.w * cw, rh = a.h * ch;
       if (rw > 1 && rh > 1) {
         ctx.save();
         ctx.filter = `blur(${Math.max(2, a.strength || 14)}px)`;
         ctx.drawImage(ctx.canvas, rx, ry, rw, rh, rx, ry, rw, rh);
         ctx.restore();
       }
+    } else if (a.type === "highlight") {
+      ctx.save();
+      ctx.globalAlpha = 0.28;
+      ctx.fillStyle = col;
+      ctx.fillRect(a.x * cw, a.y * ch, a.w * cw, a.h * ch);
+      ctx.restore();
     } else if (a.type === "box") {
       ctx.strokeStyle = col;
       ctx.lineWidth = lw;
       ctx.strokeRect(a.x * cw, a.y * ch, a.w * cw, a.h * ch);
-    } else if (a.type === "arrow") {
-      const x1 = a.x1 * cw;
-      const y1 = a.y1 * ch;
-      const x2 = a.x2 * cw;
-      const y2 = a.y2 * ch;
-      const ang = Math.atan2(y2 - y1, x2 - x1);
-      const head = Math.max(10, ch * 0.03);
+    } else if (a.type === "ellipse") {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = lw;
+      ctx.beginPath();
+      ctx.ellipse(
+        (a.x + a.w / 2) * cw,
+        (a.y + a.h / 2) * ch,
+        Math.abs(a.w / 2) * cw,
+        Math.abs(a.h / 2) * ch,
+        0, 0, Math.PI * 2,
+      );
+      ctx.stroke();
+    } else if (a.type === "line" || a.type === "arrow") {
+      const x1 = a.x1 * cw, y1 = a.y1 * ch, x2 = a.x2 * cw, y2 = a.y2 * ch;
       ctx.strokeStyle = col;
       ctx.fillStyle = col;
       ctx.lineWidth = lw;
-      ctx.lineCap = "round";
       ctx.beginPath();
       ctx.moveTo(x1, y1);
       ctx.lineTo(x2, y2);
       ctx.stroke();
+      if (a.type === "arrow") {
+        const ang = Math.atan2(y2 - y1, x2 - x1);
+        const head = Math.max(10, lw * 3.5);
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - head * Math.cos(ang - 0.4), y2 - head * Math.sin(ang - 0.4));
+        ctx.lineTo(x2 - head * Math.cos(ang + 0.4), y2 - head * Math.sin(ang + 0.4));
+        ctx.closePath();
+        ctx.fill();
+      }
+    } else if (a.type === "pen") {
+      if (a.points && a.points.length > 1) {
+        ctx.strokeStyle = col;
+        ctx.lineWidth = lw;
+        ctx.beginPath();
+        ctx.moveTo(a.points[0].x * cw, a.points[0].y * ch);
+        for (let i = 1; i < a.points.length; i++) ctx.lineTo(a.points[i].x * cw, a.points[i].y * ch);
+        ctx.stroke();
+      }
+    } else if (a.type === "counter") {
+      const r = Math.max(14, ch * 0.028);
+      const cx = a.x * cw, cy = a.y * ch;
+      ctx.fillStyle = col;
       ctx.beginPath();
-      ctx.moveTo(x2, y2);
-      ctx.lineTo(x2 - head * Math.cos(ang - 0.4), y2 - head * Math.sin(ang - 0.4));
-      ctx.lineTo(x2 - head * Math.cos(ang + 0.4), y2 - head * Math.sin(ang + 0.4));
-      ctx.closePath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillStyle = "#08090d";
+      ctx.font = `bold ${r * 1.1}px "Space Mono", ui-monospace, monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(String(a.n || 1), cx, cy + r * 0.04);
+      ctx.textAlign = "left";
     } else if (a.type === "text") {
       const size = Math.max(12, ch * 0.045);
       ctx.font = `bold ${size}px "Space Mono", ui-monospace, monospace`;
       ctx.textBaseline = "top";
       const pad = size * 0.35;
       const tw = ctx.measureText(a.text || "").width;
-      const bx = a.x * cw;
-      const by = a.y * ch;
+      const bx = a.x * cw, by = a.y * ch;
       ctx.fillStyle = "rgba(8,9,13,0.82)";
       ctx.fillRect(bx - pad, by - pad, tw + pad * 2, size + pad * 2);
       ctx.fillStyle = col;
@@ -557,6 +682,12 @@
     const c = clips[curSegIdx];
     const cur = showCursor && c ? cursorAt(c, videoEl.currentTime) : null;
     composite(previewCtx, canvasEl.width, canvasEl.height, videoEl, currentZoom(), cur, c ? annsAt(c, videoEl.currentTime) : []);
+    // live preview of an in-progress pen stroke
+    if (annDrag && annTool === "pen" && annDrag.points && annDrag.points.length > 1) {
+      drawAnnotation(previewCtx, canvasEl.width, canvasEl.height, {
+        type: "pen", points: annDrag.points, color: annColor, lw: annW,
+      });
+    }
   }
   function renderLoop() {
     drawFrame();
@@ -713,6 +844,8 @@
     zoomBoxEl.style.height = Math.abs(clientY - y0) + "px";
     zoomBoxEl.style.display = "block";
   }
+  const ANN_RECT = { box: 1, ellipse: 1, highlight: 1, blur: 1, redact: 1 };
+  const ANN_LINE = { arrow: 1, line: 1 };
   canvasEl.addEventListener("pointerdown", (e) => {
     if (sel < 0) return;
     if (armingZoom) {
@@ -721,12 +854,13 @@
     } else if (annTool) {
       canvasEl.setPointerCapture(e.pointerId);
       annDrag = { x0: e.clientX, y0: e.clientY };
+      if (annTool === "pen") annDrag.points = [clientToCanvasNorm(e.clientX, e.clientY)];
     }
   });
   canvasEl.addEventListener("pointermove", (e) => {
     if (zoomDrag) showDragBox(zoomDrag.x0, zoomDrag.y0, e.clientX, e.clientY);
-    else if (annDrag && annTool !== "text" && annTool !== "arrow")
-      showDragBox(annDrag.x0, annDrag.y0, e.clientX, e.clientY);
+    else if (annDrag && annTool === "pen") annDrag.points.push(clientToCanvasNorm(e.clientX, e.clientY));
+    else if (annDrag && ANN_RECT[annTool]) showDragBox(annDrag.x0, annDrag.y0, e.clientX, e.clientY);
   });
   canvasEl.addEventListener("pointerup", (e) => {
     if (zoomDrag) {
@@ -744,20 +878,27 @@
     } else if (annDrag) {
       const a = clientToCanvasNorm(annDrag.x0, annDrag.y0);
       const b = clientToCanvasNorm(e.clientX, e.clientY);
+      const points = annDrag.points;
       annDrag = null;
       zoomBoxEl.style.display = "none";
-      createAnnotation(a, b);
+      createAnnotation(a, b, points);
     }
   });
-  // Create an annotation from the drag (a→b) with the active tool, at the playhead.
-  function createAnnotation(a, b) {
+  // Create an annotation from the drag (a→b, or freehand `points`) with the active tool.
+  // New marks default to lasting from the playhead to the END of the clip — trim on the bar.
+  function createAnnotation(a, b, points) {
     if (curSegIdx < 0 || !annTool) return;
     const c = clips[curSegIdx];
     const t = videoEl.currentTime;
     let geom;
-    if (annTool === "arrow") {
+    if (ANN_LINE[annTool]) {
       if (Math.abs(b.x - a.x) < 0.01 && Math.abs(b.y - a.y) < 0.01) return;
       geom = { x1: a.x, y1: a.y, x2: b.x, y2: b.y };
+    } else if (annTool === "pen") {
+      if (!points || points.length < 2) return;
+      geom = { points };
+    } else if (annTool === "counter") {
+      geom = { x: a.x, y: a.y, n: nextCounter(c) };
     } else if (annTool === "text") {
       const text = (annTextEl.value || "").trim();
       if (!text) {
@@ -766,20 +907,25 @@
       }
       geom = { x: a.x, y: a.y, text };
     } else {
-      // box / blur / redact → normalized rect
-      const x = Math.min(a.x, b.x);
-      const y = Math.min(a.y, b.y);
-      const w = Math.abs(b.x - a.x);
-      const h = Math.abs(b.y - a.y);
+      const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+      const w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
       if (w < 0.01 || h < 0.01) return;
       geom = { x, y, w, h };
       if (annTool === "blur") geom.strength = 16;
     }
     pushUndo();
     if (!c.anns) c.anns = [];
-    c.anns.push({ id: annId++, type: annTool, tIn: t, tOut: Math.min(outOf(c), t + 3), color: "#c8963e", ...geom });
+    const id = annId++;
+    c.anns.push({ id, type: annTool, tIn: t, tOut: outOf(c), color: annColor, lw: annW, ...geom });
+    selAnn = { ci: curSegIdx, id };
     setSel(curSegIdx);
-    setStatus(`${annTool} added (${fmtTC(t)}–${fmtTC(Math.min(outOf(c), t + 3))}). Drag its bar edges later or × to delete.`, "ok");
+    setStatus(`${annTool} added at ${fmtTC(t)} → end of clip. Drag its bar edges to set timing.`, "ok");
+  }
+  // Next step number on a clip = (max existing counter) + 1.
+  function nextCounter(c) {
+    let n = 0;
+    if (c.anns) for (const a of c.anns) if (a.type === "counter" && a.n > n) n = a.n;
+    return n + 1;
   }
   // Add/replace a zoom keyframe at the playhead's source time on the active clip.
   function addZoomKeyframe(scale, x, y) {
@@ -1546,6 +1692,32 @@
   annPanel.querySelectorAll(".annTool").forEach((b) => {
     b.addEventListener("click", () => setAnnTool(annTool === b.dataset.tool ? null : b.dataset.tool));
   });
+  // color swatches + width — apply to new marks AND the selected one
+  function applyAnnStyle(patch) {
+    if (selAnn) {
+      const a = findAnn(selAnn.ci, selAnn.id);
+      if (a) {
+        pushUndo();
+        Object.assign(a, patch);
+        renderTimeline();
+      }
+    }
+  }
+  annPanel.querySelectorAll(".sw").forEach((b) => {
+    b.addEventListener("click", () => {
+      annColor = b.dataset.color;
+      annPanel.querySelectorAll(".sw").forEach((s) => s.classList.toggle("on", s === b));
+      applyAnnStyle({ color: annColor });
+    });
+  });
+  const firstSw = annPanel.querySelector('.sw[data-color="#c8963e"]');
+  if (firstSw) firstSw.classList.add("on");
+  const annWEl = $("annW");
+  if (annWEl)
+    annWEl.addEventListener("input", () => {
+      annW = +annWEl.value;
+      applyAnnStyle({ lw: annW });
+    });
   function bindSpot(id, key, fmt) {
     const input = $(id);
     const out = $(id + "V");
@@ -1705,7 +1877,8 @@
       case "Delete":
       case "Backspace":
         e.preventDefault();
-        rippleDelete();
+        if (selAnn) deleteAnn(selAnn.ci, selAnn.id);
+        else rippleDelete();
         break;
       case "Home":
         e.preventDefault();
