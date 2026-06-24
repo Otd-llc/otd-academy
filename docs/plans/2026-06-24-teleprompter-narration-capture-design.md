@@ -67,11 +67,18 @@ script: z.string().max(8000).optional(),
 New `GET /api/capture/session?token=…`, mirroring `/api/capture/status`:
 
 ```
+export const dynamic = "force-dynamic";   // REQUIRED — token-dependent, must not be cached
 verifyCaptureToken(token)              // same signed, slot-scoped token
 → load card.contentBlocks, pick block[blockIndex]
 → 200 { kind, hint, caption, aspect, script }   // script: "" when none
 → 401 on bad/expired token
 ```
+
+- **`force-dynamic` is not optional (validation finding):** the response varies by token; the
+  status route already sets it. Omitting it risks Next.js static-optimizing/caching the route.
+- `script` is read off the parsed block. `guideContentBlocksSchema` is a `discriminatedUnion` that
+  **strips unknown keys**, so `block.script` only exists once §1 adds it to the schema — the two
+  changes ship together.
 
 - Reuses `verifyCaptureToken` + the same block lookup `createCaptureSession` already does — it is
   effectively the **read half** of that action, exposed for the app to pull after hand-off.
@@ -128,8 +135,12 @@ Net effect: `overlay.js` `onSession(s)` just reads `s.script` — exactly like `
   script-presence to the mic default; leave the existing behavior alone (changing it would flip
   mic *off* for today's silent screencasts, an unrelated behavior change). Script presence drives
   the *teleprompter only*, not the mic.
-- Panel (`overlay.html` + `overlay.js`): large, high-contrast, scrollable text shown in the
-  **framing and recording** phases.
+- Panel (`overlay.html` + `overlay.js`): large, high-contrast, scrollable text. **Render it in the
+  framing section's DOM (validation finding):** there is no `showSection("recording")` — recording
+  reuses the framing section (phase flips at ~line 600 with no section swap), so a panel placed in
+  the framing section is automatically visible through framing *and* recording, then hidden at the
+  `showSection("review")` transition. Don't look for a separate "recording" section; it doesn't
+  exist. Hide it during setup/review/done by virtue of the section switch.
 - **Manual advance:** scroll wheel while hovering the panel + global hotkeys to page down/up that
   work without focusing the panel (hands are in KiCad), plus a hide/show toggle. **The hotkeys
   MUST be `Ctrl+Shift+` chords** — the existing globals are `Ctrl+Shift+Enter`/`Ctrl+Shift+Backspace`
@@ -211,6 +222,65 @@ Confirmed safe in pass 2: content protection covers the whole overlay window (so
 holds); the GET route is a pure read so calling it on every cold launch is harmless; `script`
 travels only via the token-fetched bundle, never the URL/`.log`, so the Windows arg-length concern
 is fully retired.
+
+### Pass 3 — academy write path + route semantics:
+
+7. **New GET route needs `export const dynamic = "force-dynamic"`** (the status route has it) — the
+   response is token-dependent and must not be static-optimized/cached (§2).
+   Confirmed safe: `contentBlockSchema` is a `discriminatedUnion` with no `.strict()`, so it
+   **strips unknown keys** — adding `script` to the schema is both mandatory (else the editor's
+   value is dropped on parse) and sufficient. The editor save path round-trips blocks through
+   `guideContentBlocksSchema.safeParse` → `saveGuideCard`, so the field persists with no new action.
+
+### Pass 4 — overlay phase/section model:
+
+8. **No `showSection("recording")` exists.** Recording reuses the framing section (phase flips at
+   ~line 600 without a section swap). The teleprompter DOM belongs in the **framing section** — it
+   then shows through framing + recording and hides at the review transition. Corrected the §3b
+   "framing and recording phases" wording, which implied a non-existent recording section.
+
+### Pass 5 — in-browser fallback:
+
+9. **Scope:** the teleprompter is desktop-overlay-only; the "or capture in browser" fallback
+   (`MediaCapture`) shows none in v1. Documented as a deliberate boundary (see Scope boundary
+   section) rather than an unstated gap.
+
+### Pass 6 — token contract, tests, cross-repo integration:
+
+10. **Deploy ordering:** the new GET route is a contract the (soon-separate, §4) capture app
+    depends on — ship the academy route first; the best-effort fetch makes a premature call
+    degrade gracefully (see Deploy / integration ordering section).
+    Confirmed safe: token TTL is 4 h with `cardId`/`blockIndex`/`kind` claims (launch-time fetch is
+    well within it); existing guide-schema tests assert only `src`/`alt`/`caption`, so an optional
+    `script` field breaks none; token exposure of generic script content matches the existing
+    upload/status trust level.
+
+### Pass 7 — DRY
+
+Re-examined every touchpoint (schema, route, save path, deep-link entry points, overlay phase
+model, mic, content protection, fallback, token, tests, deploy ordering); **no new material
+findings**. Remaining unknowns are GUI-only (panel layout, scroll feel, auto-scroll-vs-manual feel)
+that only a human can eyeball — not statically verifiable. Validation is dry; design is
+implementation-ready.
+
+## Deploy / integration ordering (validation finding)
+
+The new `GET /api/capture/session` is a **contract the capture app depends on**, and §4 splits the
+capture app into its own repo that deploys independently. Ship the **academy route first**; if the
+capture app calls it before it exists, the best-effort fetch (§3) catches the 404 and degrades to a
+silent screencast — graceful, no crash, just no teleprompter until the academy deploys. This
+endpoint + its response shape (`{kind,hint,caption,aspect,script}`) belongs in §4's `INTEGRATION.md`
+alongside the deep-link and upload contracts. Token exposure is acceptable: the script is generic
+educational content (academy disclosure boundary), gated by the same admin-minted, slot-scoped, 4 h
+token that already authorizes the upload/status routes — no new trust level.
+
+## Scope boundary — desktop app only (validation finding)
+
+The teleprompter is a desktop-overlay feature. `CaptureLauncher`'s "or capture in browser" fallback
+(`MediaCapture`) has no overlay, so it shows **no teleprompter in v1** — a narrated clip should be
+recorded via the desktop app. `MediaCapture` already receives the slot's `captureHint`/`caption`,
+so surfacing `script` there later is a small, optional follow-up — but it's deliberately **out of
+scope for v1**, recorded here so it's a conscious decision, not a gap.
 
 ## Out of scope (deferred to sibling handoff items)
 
