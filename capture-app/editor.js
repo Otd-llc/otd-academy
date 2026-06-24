@@ -22,6 +22,9 @@
   let videoEl = $("video");
   let altEl = $("video2");
   const noClipEl = $("noClip");
+  const canvasEl = $("previewCanvas");
+  const previewCtx = canvasEl.getContext("2d");
+  const zoomBoxEl = $("zoomBox");
 
   // transport
   const playBtn = $("playBtn");
@@ -49,6 +52,9 @@
   const trimInBtn = $("trimInBtn");
   const trimOutBtn = $("trimOutBtn");
   const removeBtn = $("removeBtn");
+  const zoomKfBtn = $("zoomKfBtn");
+  const resetZoomBtn = $("resetZoomBtn");
+  const clearZoomBtn = $("clearZoomBtn");
   const cancelBtn = $("cancelBtn");
   const exportBtn = $("exportBtn");
   const statusEl = $("status");
@@ -77,7 +83,12 @@
   let undoStack = [];
   let redoStack = [];
 
+  let projW = 1280; // output / canvas resolution (max clip dims, even)
+  let projH = 720;
+  let zoomDrag = null; // { x0, y0 } while dragging a focus box on the canvas
+
   const SPEEDS = [0.5, 1, 1.5, 2, 4];
+  const MAX_ZOOM = 6;
   const FPS = 60;
   const PX_MIN = 20;
   const PX_MAX = 400;
@@ -141,8 +152,12 @@
   }
 
   // ── undo / redo ──
+  // Deep-copy a clip incl. its zoom keyframes (so snapshots/splits don't alias arrays).
+  function cloneClip(c) {
+    return { ...c, zoom: c.zoom ? c.zoom.map((k) => ({ ...k })) : undefined };
+  }
   function snapshot() {
-    return clips.map((c) => ({ ...c }));
+    return clips.map(cloneClip);
   }
   function pushUndo() {
     undoStack.push(snapshot());
@@ -155,7 +170,7 @@
     redoBtn.disabled = redoStack.length === 0;
   }
   function restoreState(state) {
-    clips = state.map((c) => ({ ...c }));
+    clips = state.map(cloneClip);
     curSegIdx = -1;
     curPath = null;
     if (clips.length === 0) {
@@ -228,6 +243,17 @@
       seg.innerHTML =
         `<span class="grip l"></span><span class="grip r"></span>` +
         `${sp}<span class="n">${escapeHtml(nameOf(c, i))}</span><span class="d">${fmt(e * 1000)}</span>`;
+      // zoom keyframe markers (positioned by source time → timeline-local px)
+      if (c.zoom && c.zoom.length) {
+        for (const k of c.zoom) {
+          if (k.t < inOf(c) - 0.001 || k.t > outOf(c) + 0.001) continue;
+          const dot = document.createElement("div");
+          dot.className = "kf";
+          dot.style.left = ((k.t - inOf(c)) / (c.speed || 1)) * pxPerSec + "px";
+          dot.title = `Zoom ${(+k.scale).toFixed(1)}×`;
+          seg.appendChild(dot);
+        }
+      }
       videoTrackEl.appendChild(seg);
       acc += e;
     });
@@ -255,6 +281,10 @@
     playBtn.disabled = clips.length === 0;
     homeBtn.disabled = clips.length === 0;
     endBtn.disabled = clips.length === 0;
+    zoomKfBtn.disabled = clips.length === 0;
+    resetZoomBtn.disabled = clips.length === 0;
+    const az = curSegIdx >= 0 ? clips[curSegIdx] : null;
+    clearZoomBtn.disabled = !(az && az.zoom && az.zoom.length);
     speedBtn.textContent = has ? `Speed ${clips[sel].speed || 1}×` : "Speed 1×";
     refreshUndoButtons();
   }
@@ -275,23 +305,173 @@
     else if (x > right - pad) tlScrollEl.scrollLeft = x - tlScrollEl.clientWidth + pad;
   }
 
-  // ── video source management (double-buffered) ──
+  // ── video source management (double-buffered; canvas is the visible composite) ──
   function showVideo() {
-    videoEl.style.opacity = "1";
-    altEl.style.opacity = "0";
+    canvasEl.style.display = "block";
     noClipEl.style.display = "none";
   }
   function hideVideos() {
     videoEl.pause();
     altEl.pause();
-    videoEl.style.opacity = "0";
-    altEl.style.opacity = "0";
     videoEl.removeAttribute("src");
     altEl.removeAttribute("src");
     videoEl._path = null;
     altEl._path = null;
     curPath = null;
+    canvasEl.style.display = "none";
     noClipEl.style.display = "block";
+    previewCtx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+  }
+
+  // ── canvas compositor (preview AND export share this one render path) ──
+  function setupCanvas() {
+    const even = (n) => Math.max(2, Math.floor(n / 2) * 2);
+    projW = even(Math.max(1280, ...clips.map((c) => c.w || 0)));
+    projH = even(Math.max(720, ...clips.map((c) => c.h || 0)));
+    canvasEl.width = projW;
+    canvasEl.height = projH;
+  }
+  const lerp = (a, b, f) => a + (b - a) * f;
+  const easeInOut = (f) => (f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2);
+  // Interpolate a clip's zoom keyframes (sorted by source-time t) at source time `t`.
+  function interpZoom(kfs, t) {
+    if (!kfs || !kfs.length) return { scale: 1, x: 0.5, y: 0.5 };
+    if (t <= kfs[0].t) return kfs[0];
+    const last = kfs[kfs.length - 1];
+    if (t >= last.t) return last;
+    for (let i = 0; i < kfs.length - 1; i++) {
+      const a = kfs[i];
+      const b = kfs[i + 1];
+      if (t >= a.t && t <= b.t) {
+        const f = easeInOut((t - a.t) / (b.t - a.t || 1));
+        return { scale: lerp(a.scale, b.scale, f), x: lerp(a.x, b.x, f), y: lerp(a.y, b.y, f) };
+      }
+    }
+    return last;
+  }
+  function currentZoom() {
+    const c = clips[curSegIdx];
+    if (!c || !c.zoom || !c.zoom.length) return { scale: 1, x: 0.5, y: 0.5 };
+    return interpZoom(c.zoom, videoEl.currentTime);
+  }
+  // Draw `srcVideo`'s current frame onto `ctx` (size cw×ch) with a zoom/pan transform.
+  // This is the single composite step; export will call it per output frame.
+  function composite(ctx, cw, ch, srcVideo, zoom) {
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, cw, ch);
+    if (!srcVideo || !srcVideo.videoWidth || srcVideo.readyState < 2) return;
+    const vw = srcVideo.videoWidth;
+    const vh = srcVideo.videoHeight;
+    const fit = Math.min(cw / vw, ch / vh);
+    const fw = vw * fit;
+    const fh = vh * fit;
+    const z = zoom || { scale: 1, x: 0.5, y: 0.5 };
+    ctx.save();
+    ctx.translate(cw / 2, ch / 2);
+    ctx.scale(z.scale, z.scale);
+    ctx.translate(-z.x * fw, -z.y * fh);
+    ctx.drawImage(srcVideo, 0, 0, fw, fh);
+    ctx.restore();
+  }
+  function drawFrame() {
+    if (canvasEl.style.display === "none") return;
+    composite(previewCtx, canvasEl.width, canvasEl.height, videoEl, currentZoom());
+  }
+  function renderLoop() {
+    drawFrame();
+    requestAnimationFrame(renderLoop);
+  }
+
+  // ── zoom keyframes (drag a focus box on the canvas → keyframe at the playhead) ──
+  let armingZoom = false;
+  function armZoom() {
+    if (sel < 0) return;
+    armingZoom = true;
+    canvasEl.classList.add("zoomable");
+    setStatus("Drag a box on the preview around what to zoom into.", "ok");
+  }
+  function disarmZoom() {
+    armingZoom = false;
+    zoomDrag = null;
+    canvasEl.classList.remove("zoomable");
+    zoomBoxEl.style.display = "none";
+  }
+  // client point → focus normalized over the FITTED image (the z.x/z.y domain).
+  function clientToImageNorm(clientX, clientY) {
+    const r = canvasEl.getBoundingClientRect();
+    const cw = canvasEl.width;
+    const ch = canvasEl.height;
+    const vw = videoEl.videoWidth || cw;
+    const vh = videoEl.videoHeight || ch;
+    const fit = Math.min(cw / vw, ch / vh);
+    const fw = vw * fit;
+    const fh = vh * fit;
+    const px = ((clientX - r.left) / r.width) * cw;
+    const py = ((clientY - r.top) / r.height) * ch;
+    return {
+      x: Math.max(0, Math.min(1, (px - (cw - fw) / 2) / fw)),
+      y: Math.max(0, Math.min(1, (py - (ch - fh) / 2) / fh)),
+    };
+  }
+  canvasEl.addEventListener("pointerdown", (e) => {
+    if (!armingZoom || sel < 0) return;
+    canvasEl.setPointerCapture(e.pointerId);
+    zoomDrag = { x0: e.clientX, y0: e.clientY };
+  });
+  canvasEl.addEventListener("pointermove", (e) => {
+    if (!zoomDrag) return;
+    const pr = $("preview").getBoundingClientRect();
+    const left = Math.min(zoomDrag.x0, e.clientX) - pr.left;
+    const top = Math.min(zoomDrag.y0, e.clientY) - pr.top;
+    zoomBoxEl.style.left = left + "px";
+    zoomBoxEl.style.top = top + "px";
+    zoomBoxEl.style.width = Math.abs(e.clientX - zoomDrag.x0) + "px";
+    zoomBoxEl.style.height = Math.abs(e.clientY - zoomDrag.y0) + "px";
+    zoomBoxEl.style.display = "block";
+  });
+  canvasEl.addEventListener("pointerup", (e) => {
+    if (!zoomDrag) return;
+    const a = clientToImageNorm(zoomDrag.x0, zoomDrag.y0);
+    const b = clientToImageNorm(e.clientX, e.clientY);
+    const bw = Math.abs(b.x - a.x);
+    const bh = Math.abs(b.y - a.y);
+    disarmZoom();
+    if (bw < 0.02 && bh < 0.02) {
+      setStatus("Zoom cancelled (drag a box next time).", "");
+      return;
+    }
+    const scale = Math.max(1, Math.min(MAX_ZOOM, 1 / Math.max(bw, bh, 0.02)));
+    addZoomKeyframe(scale, (a.x + b.x) / 2, (a.y + b.y) / 2);
+  });
+  // Add/replace a zoom keyframe at the playhead's source time on the active clip.
+  function addZoomKeyframe(scale, x, y) {
+    if (curSegIdx < 0) return;
+    const c = clips[curSegIdx];
+    pushUndo();
+    if (!c.zoom) c.zoom = [];
+    const t = videoEl.currentTime;
+    const i = c.zoom.findIndex((k) => Math.abs(k.t - t) < 0.03);
+    const kf = { t, scale, x, y };
+    if (i >= 0) c.zoom[i] = kf;
+    else {
+      c.zoom.push(kf);
+      c.zoom.sort((p, q) => p.t - q.t);
+    }
+    setSel(curSegIdx);
+    setStatus(`Zoom ${scale.toFixed(1)}× keyframe @ ${fmtTC(playT)}.`, "ok");
+  }
+  function resetZoomAtPlayhead() {
+    if (curSegIdx < 0) return;
+    addZoomKeyframe(1, 0.5, 0.5);
+  }
+  function clearZooms() {
+    if (curSegIdx < 0) return;
+    const c = clips[curSegIdx];
+    if (!c.zoom || !c.zoom.length) return;
+    pushUndo();
+    c.zoom = [];
+    setSel(curSegIdx);
+    setStatus("Cleared zoom keyframes on this clip.", "ok");
   }
   function applyRate() {
     const c = clips[curSegIdx];
@@ -372,14 +552,12 @@
   function swapToAlt(idx) {
     const old = videoEl;
     old.pause();
-    old.style.opacity = "0";
-    // promote the standby to active
+    // promote the standby (already decoded to the next clip's first frame) to active;
+    // the canvas compositor draws whichever element `videoEl` points at.
     videoEl = altEl;
     altEl = old;
     curSegIdx = idx;
     curPath = clips[idx].path;
-    videoEl.style.opacity = "1";
-    noClipEl.style.display = "none";
     videoEl.playbackRate = (clips[idx].speed || 1) * fwdMul;
     try {
       videoEl.currentTime = inOf(clips[idx]);
@@ -773,8 +951,15 @@
       return;
     }
     pushUndo();
-    const left = { ...c, inSec: inOf(c), outSec: t };
-    const right = { ...c, inSec: t, outSec: outOf(c), name: nameOf(c, a.i) + " (b)" };
+    const left = cloneClip(c);
+    left.inSec = inOf(c);
+    left.outSec = t;
+    const right = cloneClip(c);
+    right.inSec = t;
+    right.outSec = outOf(c);
+    right.name = nameOf(c, a.i) + " (b)";
+    if (left.zoom) left.zoom = left.zoom.filter((k) => k.t <= t);
+    if (right.zoom) right.zoom = right.zoom.filter((k) => k.t >= t);
     clips.splice(a.i, 1, left, right);
     curSegIdx = -1;
     curPath = null;
@@ -888,6 +1073,9 @@
   trimInBtn.addEventListener("click", trimStartToPlayhead);
   trimOutBtn.addEventListener("click", trimEndToPlayhead);
   removeBtn.addEventListener("click", rippleDelete);
+  zoomKfBtn.addEventListener("click", armZoom);
+  resetZoomBtn.addEventListener("click", resetZoomAtPlayhead);
+  clearZoomBtn.addEventListener("click", clearZooms);
   playBtn.addEventListener("click", togglePlay);
   homeBtn.addEventListener("click", () => {
     stopAll();
@@ -974,6 +1162,18 @@
       case "R":
         e.preventDefault();
         if (sel >= 0) beginRename(sel);
+        break;
+      case "z":
+      case "Z":
+        e.preventDefault();
+        resetZoomAtPlayhead();
+        break;
+      case "Escape":
+        if (armingZoom) {
+          e.preventDefault();
+          disarmZoom();
+          setStatus("", "");
+        }
         break;
       case "Delete":
       case "Backspace":
@@ -1099,11 +1299,15 @@
     videoEl._path = null;
     altEl._path = null;
     altEl.style.opacity = "0";
+    setupCanvas();
     sel = clips.length ? 0 : -1;
     renderTimeline();
     if (sel >= 0) selectClip(0);
     measureDurations();
   });
+
+  // Canvas compositor runs continuously (preview); export reuses composite().
+  requestAnimationFrame(renderLoop);
 
   // The recorded durMs can differ from the clip's true decodable duration, which leaves
   // a dead zone at the end of each timeline slot and makes the playhead snap across it at
