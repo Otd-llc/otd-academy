@@ -21,6 +21,10 @@ contextBridge.exposeInMainWorld("otd", {
   // Multi-clip: persist a recorded clip to a temp file, and stitch the ordered set.
   saveClip: (payload) => ipcRenderer.invoke("save-clip", payload),
   exportClips: (payload) => ipcRenderer.invoke("export-clips", payload),
+  // Timeline editor window.
+  openEditor: (payload) => ipcRenderer.send("open-editor", payload),
+  closeEditor: () => ipcRenderer.send("close-editor"),
+  onEditorInit: (cb) => ipcRenderer.on("editor:init", (_e, d) => cb(d)),
   quit: () => ipcRenderer.send("quit"),
   // Diagnostic: write a line into the main-process log (otd-capture.log) from the
   // renderer, so we can see exactly when the recording pump stalls.

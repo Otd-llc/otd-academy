@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>OTD Editor</title>
+    <style>
+      :root {
+        --gold: #c8963e;
+        --space: #08090d;
+        --navy: #1f2438;
+        --border: #3a3f50;
+        --ink: #e8e8e8;
+        --muted: #8a8f9c;
+        --red: #ef5350;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: var(--space);
+        color: var(--ink);
+        font-family: "Space Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 13px;
+      }
+      #app { display: flex; flex-direction: column; height: 100vh; padding: 14px 16px; gap: 12px; }
+      header { display: flex; align-items: baseline; gap: 12px; }
+      #title { font-size: 14px; font-weight: bold; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+      #hint { color: var(--muted); font-size: 11px; }
+      #preview {
+        flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
+        background: #000; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; position: relative;
+      }
+      #video { max-width: 100%; max-height: 100%; display: none; }
+      #noClip { color: var(--muted); font-size: 12px; }
+      #transport { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 11px; min-height: 16px; }
+      #selInfo { color: var(--ink); }
+      #timelineHead { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 6px; }
+      #timeline {
+        display: flex; gap: 4px; height: 64px; align-items: stretch;
+        background: #0d1019; border: 1px solid var(--border); border-radius: 6px; padding: 4px;
+      }
+      .seg {
+        position: relative; min-width: 44px; border-radius: 4px; cursor: pointer;
+        background: var(--navy); border: 1px solid var(--border); overflow: hidden;
+        display: flex; flex-direction: column; justify-content: space-between; padding: 5px 6px;
+        transition: border-color .12s;
+      }
+      .seg:hover { border-color: var(--muted); }
+      .seg.sel { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+      .seg .n { font-size: 11px; font-weight: bold; }
+      .seg .d { font-size: 10px; color: var(--muted); }
+      .seg .sp { position: absolute; top: 4px; right: 5px; font-size: 10px; font-weight: bold; color: var(--gold); }
+      #controls { display: flex; align-items: center; gap: 8px; }
+      .spacer { flex: 1; }
+      .btn {
+        font-family: inherit; font-size: 12px; cursor: pointer; color: var(--ink);
+        background: #161b29; border: 1px solid var(--border); border-radius: 5px; padding: 7px 12px;
+      }
+      .btn:hover { border-color: var(--muted); }
+      .btn:disabled { opacity: .35; cursor: default; }
+      .btn.ghost { background: transparent; color: var(--muted); }
+      .btn.primary { background: var(--gold); color: #1a1205; border-color: var(--gold); font-weight: bold; }
+      .btn.primary:hover { filter: brightness(1.08); }
+      #status { min-height: 16px; font-size: 12px; color: var(--muted); }
+      #status.err { color: var(--red); }
+      #status.ok { color: var(--gold); }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <div id="title">OTD Editor</div>
+        <div id="hint">Click a clip to preview. Reorder, set speed, then export. (Trim + per-segment speed coming next.)</div>
+      </header>
+      <div id="preview">
+        <video id="video" preload="metadata"></video>
+        <div id="noClip">Select a clip below</div>
+      </div>
+      <div id="transport"><span id="selInfo">—</span></div>
+      <div>
+        <div id="timelineHead">Timeline · stitched left → right · <span id="totalDur">0:00</span> total</div>
+        <div id="timeline"></div>
+      </div>
+      <div id="controls">
+        <button id="speedBtn" class="btn" disabled>Speed 1×</button>
+        <button id="leftBtn" class="btn" disabled>◀ Move</button>
+        <button id="rightBtn" class="btn" disabled>Move ▶</button>
+        <button id="removeBtn" class="btn ghost" disabled>Remove</button>
+        <div class="spacer"></div>
+        <button id="cancelBtn" class="btn ghost">Cancel</button>
+        <button id="exportBtn" class="btn primary" disabled>Export &amp; Upload</button>
+      </div>
+      <div id="status"></div>
+    </div>
+    <script src="editor.js"></script>
+  </body>
+</html>

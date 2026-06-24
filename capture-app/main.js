@@ -173,6 +173,57 @@ function createOverlay() {
   });
 }
 
+// ── timeline editor window ──────────────────────────────────────────────────
+// A normal, resizable window (NOT the transparent overlay) that hosts the
+// scrubbing timeline: clips on disk are handed in, the user trims / reorders /
+// speed-ramps, and Export & Upload runs the same ffmpeg stitch + upload. Opened
+// from the overlay's review screen; the overlay hides while it's up.
+let editorWin = null;
+function createEditorWindow(payload) {
+  if (editorWin && !editorWin.isDestroyed()) {
+    editorWin.webContents.send("editor:init", payload);
+    editorWin.focus();
+    return;
+  }
+  if (overlay) overlay.hide();
+  const area = screen.getPrimaryDisplay().workAreaSize;
+  editorWin = new BrowserWindow({
+    width: Math.min(1200, Math.round(area.width * 0.86)),
+    height: Math.min(820, Math.round(area.height * 0.86)),
+    minWidth: 760,
+    minHeight: 520,
+    title: "OTD Editor",
+    backgroundColor: "#08090d",
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      // Local tool: let the timeline preview load the clip files via file://.
+      webSecurity: false,
+    },
+  });
+  editorWin.setMenuBarVisibility(false);
+  editorWin.loadFile(path.join(__dirname, "editor.html"));
+  editorWin.webContents.on("did-finish-load", () => {
+    editorWin.webContents.send("editor:init", payload);
+    editorWin.show();
+    editorWin.focus();
+  });
+  editorWin.on("closed", () => {
+    editorWin = null;
+    // Back to the capture overlay's review screen if we didn't upload + quit.
+    if (overlay && !overlay.isDestroyed()) {
+      overlay.show();
+      overlay.focus();
+    }
+  });
+}
+ipcMain.on("open-editor", (_e, payload) => createEditorWindow(payload || {}));
+ipcMain.on("close-editor", () => {
+  if (editorWin && !editorWin.isDestroyed()) editorWin.close();
+});
+
 // ── single instance + protocol ─────────────────────────────────────────────
 // Register otd-capture:// so the lesson "+" can launch us. In dev (running under
 // the electron binary) the registration needs execPath + the app path.

@@ -41,6 +41,7 @@
   const clipTrayEl = $("clipTray");
   const addClipBtnEl = $("addClipBtn");
   const approveBtnEl = $("approveBtn");
+  const editBtnEl = $("editBtn");
 
   // Aspect token (from the placeholder) → ratio. 0 = free (standalone only).
   const ASPECTS = {
@@ -811,6 +812,7 @@
   function renderClipTray() {
     const isVideo = mode === "video";
     addClipBtnEl.classList.toggle("hidden", !isVideo);
+    editBtnEl.classList.toggle("hidden", !isVideo || clips.length === 0);
     if (!isVideo || clips.length === 0) {
       clipTrayEl.classList.add("hidden");
       clipTrayEl.innerHTML = "";
@@ -951,6 +953,13 @@
   $("cancelFrameBtn").addEventListener("click", reset);
   $("approveBtn").addEventListener("click", approve);
   $("addClipBtn").addEventListener("click", recordAnother);
+  $("editBtn").addEventListener("click", () => {
+    if (!clips.length) return;
+    window.otd.openEditor({
+      clips: clips.map((c) => ({ path: c.path, w: c.w, h: c.h, durMs: c.durMs, speed: c.speed })),
+      session,
+    });
+  });
   $("redoBtn").addEventListener("click", () => {
     // Re-record the CURRENT clip: drop the one just queued (the last on the
     // timeline), keep any earlier clips, and re-frame.
