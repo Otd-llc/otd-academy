@@ -641,14 +641,6 @@ export default async function GuideHubPage({
           revLabel={revision.label}
           stages={guideProgress}
         />
-        <div className="mt-3">
-          <Link
-            href={`${revPath}/guide/bom`}
-            className="font-mono text-xs uppercase tracking-[0.14em] text-link-muted underline decoration-dotted underline-offset-4 hover:text-command-gold"
-          >
-            Print / export BOM →
-          </Link>
-        </div>
       </div>
 
       {/* Admin readiness panel — two-tier definition of done. */}

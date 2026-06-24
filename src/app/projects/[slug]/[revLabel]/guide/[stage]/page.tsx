@@ -38,6 +38,7 @@ import {
 import { resolveInlineDiagrams } from "@/lib/inline-diagrams";
 import { GuideCardEditor } from "@/components/guide/GuideCardEditor";
 import { GuideStepper } from "@/components/guide/GuideStepper";
+import { BomExportLink } from "@/components/guide/BomExportLink";
 import { getPartAssetRenderUrl } from "@/lib/actions/part-assets";
 import { renderBoundsSchema } from "@/lib/schemas/part-asset";
 import { StageGate } from "@/components/guide/StageGate";
@@ -654,6 +655,14 @@ export default async function GuideCardPage({
           isAdmin={isAdmin}
         />
       </GuideCardEditor>
+
+      {/* The bench shopping sheet belongs with BOM SOURCING — print/export the
+          parts list right where you're sourcing it. */}
+      {stage === "BOM_SOURCING" ? (
+        <div className="mt-8">
+          <BomExportLink href={`${hubHref}/bom`} />
+        </div>
+      ) : null}
 
       {/* Per-board scope selector (ASSEMBLY / BRINGUP) — author tooling, drives
           the Stage Gate's per-board widget; hidden in the learner view. */}
