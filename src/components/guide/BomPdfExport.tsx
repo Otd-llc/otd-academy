@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { BrandMark } from "@/components/BrandMark";
 
 export interface BomPdfRow {
   refDes: string;
@@ -17,12 +18,15 @@ export interface BomPdfRow {
   lifecycle?: string | null;
 }
 
-// Print only the portal sheet, on white paper, with its accent colors intact.
+// Print only the portal sheet, on white paper, with its accent colors intact, and
+// never split a table row across a page break (the header repeats per page instead).
 const PRINT_CSS =
   "@media print{@page{margin:14mm}html,body{background:#fff!important}" +
   "body>*:not(#bom-pdf-portal){display:none!important}" +
   "#bom-pdf-portal{display:block!important}" +
-  "#bom-pdf-portal *{-webkit-print-color-adjust:exact;print-color-adjust:exact}}";
+  "#bom-pdf-portal *{-webkit-print-color-adjust:exact;print-color-adjust:exact}" +
+  "#bom-pdf-portal thead{display:table-header-group}" +
+  "#bom-pdf-portal tr{break-inside:avoid;page-break-inside:avoid}}";
 
 export function BomPdfExport({
   title,
@@ -41,8 +45,14 @@ export function BomPdfExport({
   const sheet = (
     <div id="bom-pdf-portal" className="hidden bg-white text-[#111] print:block">
       <div className="font-mono">
-        <div className="mb-4 border-b-2 border-[#c8963e] pb-2.5">
-          <div className="font-display text-[26px] leading-none tracking-[0.06em] text-[#111]">
+        <div className="mb-4 border-b-2 border-[#c8963e] pb-3">
+          <div className="flex items-center gap-2">
+            <BrandMark className="h-6 w-6 text-[#c8963e]" />
+            <span className="font-display text-[13px] tracking-[0.22em] text-[#555]">
+              OTD ACADEMY
+            </span>
+          </div>
+          <div className="mt-2.5 font-display text-[26px] leading-none tracking-[0.06em] text-[#111]">
             {title}
           </div>
           <div className="mt-1 text-[11px] text-[#555]">
