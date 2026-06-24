@@ -393,34 +393,6 @@
       ny: catmullRom(p0.ny, p1.ny, p2.ny, p3.ny, f),
     };
   }
-  // A crisp vector arrow cursor; hotspot (tip) at (x, y), `size` px tall.
-  function drawCursorSprite(ctx, x, y, size) {
-    const s = size / 24;
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(s, s);
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(0, 17);
-    ctx.lineTo(4.2, 13);
-    ctx.lineTo(7, 19.5);
-    ctx.lineTo(9.4, 18.4);
-    ctx.lineTo(6.7, 12.1);
-    ctx.lineTo(12, 12);
-    ctx.closePath();
-    ctx.fillStyle = "#fff";
-    ctx.strokeStyle = "rgba(0,0,0,0.88)";
-    ctx.lineWidth = 1.4;
-    ctx.lineJoin = "round";
-    ctx.shadowColor = "rgba(0,0,0,0.45)";
-    ctx.shadowBlur = 4;
-    ctx.shadowOffsetY = 1;
-    ctx.fill();
-    ctx.shadowColor = "transparent";
-    ctx.shadowBlur = 0;
-    ctx.stroke();
-    ctx.restore();
-  }
   // Draw `srcVideo`'s current frame onto `ctx` (size cw×ch) with a zoom/pan transform,
   // then (if `cursor` given) a smooth HD cursor on top, positioned THROUGH the same
   // transform but drawn at constant size. The single composite step shared by the
@@ -442,10 +414,19 @@
     ctx.drawImage(srcVideo, 0, 0, fw, fh);
     ctx.restore();
     if (cursor) {
-      // map the cursor's image-space point through the zoom transform to screen px
+      // Spotlight: keep the real cursor, dim the surroundings, and clear a soft circle
+      // around the pointer so the eye goes to the action. (cursor:"never" can't hide the
+      // OS cursor on Windows, so we emphasise it rather than replace it.) Position is
+      // mapped through the same zoom transform; radius is constant screen px.
       const sx = cw / 2 + z.scale * (cursor.nx - z.x) * fw;
       const sy = ch / 2 + z.scale * (cursor.ny - z.y) * fh;
-      drawCursorSprite(ctx, sx, sy, Math.max(18, ch * 0.045));
+      const inner = ch * 0.1;
+      const outer = ch * 0.34;
+      const g = ctx.createRadialGradient(sx, sy, inner, sx, sy, outer);
+      g.addColorStop(0, "rgba(0,0,0,0)");
+      g.addColorStop(1, "rgba(0,0,0,0.32)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, cw, ch);
     }
   }
   function drawFrame() {
@@ -453,21 +434,6 @@
     const c = clips[curSegIdx];
     const cur = showCursor && c ? cursorAt(c, videoEl.currentTime) : null;
     composite(previewCtx, canvasEl.width, canvasEl.height, videoEl, currentZoom(), cur);
-    // DEBUG render-vs-data probe: cursor ON + clip has NO telemetry → draw a magenta
-    // ring at centre. If toggling C shows/hides this ring, the overlay path works and
-    // only the captured DATA is missing (capture not restarted / mode gap).
-    if (showCursor && c && (!c.cursor || !c.cursor.length)) {
-      const ctx = previewCtx;
-      const w = canvasEl.width;
-      const h = canvasEl.height;
-      ctx.save();
-      ctx.strokeStyle = "#ff3bd0";
-      ctx.lineWidth = Math.max(2, h * 0.005);
-      ctx.beginPath();
-      ctx.arc(w / 2, h / 2, h * 0.06, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    }
   }
   function renderLoop() {
     drawFrame();
@@ -1170,7 +1136,7 @@
   clearZoomBtn.addEventListener("click", clearZooms);
   function toggleCursor() {
     showCursor = !showCursor;
-    cursorBtn.textContent = `◐ Cursor: ${showCursor ? "on" : "off"}`;
+    cursorBtn.textContent = `◐ Spotlight: ${showCursor ? "on" : "off"}`;
   }
   cursorBtn.addEventListener("click", toggleCursor);
   playBtn.addEventListener("click", togglePlay);
