@@ -38,6 +38,7 @@ import {
 import { resolveInlineDiagrams } from "@/lib/inline-diagrams";
 import { GuideCardEditor } from "@/components/guide/GuideCardEditor";
 import { GuideStepper } from "@/components/guide/GuideStepper";
+import { BomPdfExport } from "@/components/guide/BomPdfExport";
 import { getPartAssetRenderUrl } from "@/lib/actions/part-assets";
 import { renderBoundsSchema } from "@/lib/schemas/part-asset";
 import { StageGate } from "@/components/guide/StageGate";
@@ -654,6 +655,24 @@ export default async function GuideCardPage({
           isAdmin={isAdmin}
         />
       </GuideCardEditor>
+
+      {/* Export the BOM that's already shown above as a clean white PDF, in place. */}
+      {stage === "BOM_SOURCING" && bomRows && bomRows.length > 0 ? (
+        <div className="mt-8">
+          <BomPdfExport
+            title={project.name}
+            revision={revision.label}
+            rows={bomRows.map((r) => ({
+              refDes: r.refDes,
+              qty: r.qty,
+              mpn: r.mpn,
+              manufacturer: r.manufacturer,
+              description: r.description,
+              lifecycle: r.lifecycle,
+            }))}
+          />
+        </div>
+      ) : null}
 
       {/* Per-board scope selector (ASSEMBLY / BRINGUP) — author tooling, drives
           the Stage Gate's per-board widget; hidden in the learner view. */}
