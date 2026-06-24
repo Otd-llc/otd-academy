@@ -423,6 +423,20 @@ ipcMain.handle("save-clip", async (_e, { base64, ext, index }) => {
   }
 });
 
+// Persist a clip's mic narration next to it; return its on-disk path.
+ipcMain.handle("save-audio", async (_e, { base64, ext, index }) => {
+  try {
+    const dir = getSessionDir();
+    const file = path.join(dir, `clip-${String(index).padStart(3, "0")}.audio.${ext || "webm"}`);
+    fs.writeFileSync(file, Buffer.from(base64, "base64"));
+    logLine(`save-audio [${index}] → ${file} (${fs.statSync(file).size} bytes)`);
+    return { ok: true, path: file };
+  } catch (e) {
+    logLine(`save-audio FAILED: ${e && e.message}`);
+    return { ok: false, error: e && e.message ? e.message : "Couldn't save audio." };
+  }
+});
+
 function runFfmpeg(bin, args) {
   return new Promise((resolve, reject) => {
     const proc = spawn(bin, args, { windowsHide: true });

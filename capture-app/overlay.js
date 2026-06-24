@@ -38,6 +38,8 @@
   const followRowEl = $("followRow");
   const followOffEl = $("followOff");
   const followOnEl = $("followOn");
+  const micOnEl = $("micOn");
+  const micOffEl = $("micOff");
   const clipTrayEl = $("clipTray");
   const addClipBtnEl = $("addClipBtn");
   const approveBtnEl = $("approveBtn");
@@ -92,6 +94,15 @@
   let camSamples = []; // [{ t (wall ms), x, y }]
   let telemT0 = 0; // wall ms of the first recorded frame (video time 0)
   let recordingTelem = false;
+
+  // Mic narration: recorded per clip via getUserMedia + MediaRecorder (opus/webm),
+  // saved as a sidecar next to the clip and muxed in at export.
+  let micEnabled = true;
+  let micStream = null;
+  let micRecorder = null;
+  let micChunks = [];
+  let micStartWall = 0; // Date.now() when the mic recorder started (to align with video frame 0)
+  let capturedAudio = null; // { base64, ext } of the just-recorded clip's mic, or null
   let dragging = false;
   const dragRef = { mode: null, x: 0, y: 0, box: null };
 
@@ -510,6 +521,58 @@
     wcSink = null;
   }
 
+  // Start mic capture (opus/webm) alongside the screen recording. Best-effort: a missing
+  // or denied mic just yields a silent clip.
+  async function startMic() {
+    capturedAudio = null;
+    if (!micEnabled) return;
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
+      micChunks = [];
+      const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm";
+      micRecorder = new MediaRecorder(micStream, { mimeType: mime });
+      micRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size) micChunks.push(e.data);
+      };
+      micRecorder.start();
+      micStartWall = Date.now();
+      window.otd.log(`mic recording started (${mime})`);
+    } catch (e) {
+      window.otd.log("mic start failed (silent clip): " + (e && e.message));
+      micRecorder = null;
+      micStream = null;
+    }
+  }
+  // Stop mic capture and stash the encoded bytes for queueCurrentClip.
+  async function stopMic() {
+    if (!micRecorder) return;
+    await new Promise((resolve) => {
+      micRecorder.onstop = async () => {
+        try {
+          const blob = new Blob(micChunks, { type: "audio/webm" });
+          if (blob.size) capturedAudio = { base64: abToBase64(await blob.arrayBuffer()), ext: "webm" };
+          window.otd.log(`mic stopped: ${blob.size} bytes`);
+        } catch (e) {
+          window.otd.log("mic finalize failed: " + (e && e.message));
+        }
+        resolve();
+      };
+      try {
+        micRecorder.stop();
+      } catch {
+        resolve();
+      }
+    });
+    if (micStream) micStream.getTracks().forEach((t) => t.stop());
+    micRecorder = null;
+    micStream = null;
+    micChunks = [];
+  }
+
   async function startRecording() {
     if (!box || !screenVideo.videoWidth) return;
     const halfW = box.w / 2;
@@ -539,6 +602,7 @@
     boxEl.classList.toggle("following", follow); // drop the dim while panning
     window.otd.setInteractive(false);
     window.otd.trackCursor(true); // high-rate cursor for a smooth follow pan
+    await startMic(); // narration, recorded alongside the screen
 
     const track = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
     if (!track) {
@@ -943,11 +1007,16 @@
       window.otd.log(`stopped: ext=${result.ext} bytes=${buf.byteLength}`);
       captured = { base64: abToBase64(buf), ext: result.ext };
       lastClipDurMs = Date.now() - recStart;
+      await stopMic(); // finalize narration before the clip is queued
       await queueCurrentClip(); // append to the timeline so it shows immediately
       finishToReview(URL.createObjectURL(result.blob), true);
     } catch (e) {
       window.otd.log(`recording FAILED: ${e && e.message}`);
       framingStatus.textContent = "Recording failed: " + (e && e.message);
+      // release the mic even if the video pipeline threw
+      if (micStream) micStream.getTracks().forEach((t) => t.stop());
+      micRecorder = null;
+      micStream = null;
       reset();
     } finally {
       teardownWebCodecs();
@@ -967,8 +1036,15 @@
     reviewStatusEl.classList.add("hidden");
     if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     previewUrl = url;
+    // Play the just-recorded mic narration alongside the (muted) preview so you can
+    // immediately hear it captured. The clip was queued just before this call.
+    const lastClip = clips[clips.length - 1];
+    const audioTag =
+      isVideo && lastClip && lastClip.audioPath
+        ? `<audio src="file:///${encodeURI(lastClip.audioPath.replace(/\\/g, "/"))}" autoplay loop></audio>`
+        : "";
     reviewMediaEl.innerHTML = isVideo
-      ? `<video src="${url}" controls loop autoplay muted></video>`
+      ? `<video src="${url}" controls loop autoplay muted></video>${audioTag}`
       : `<img src="${url}" alt="capture preview" />`;
     phase = "review";
     showSection("review");
@@ -994,12 +1070,27 @@
       return false;
     }
     recordingTelem = false;
+    let audioPath = null;
+    if (capturedAudio) {
+      const ares = await window.otd.saveAudio({
+        base64: capturedAudio.base64,
+        ext: capturedAudio.ext,
+        index: clips.length,
+      });
+      if (ares && ares.ok) audioPath = ares.path;
+      else window.otd.log("save-audio failed: " + ((ares && ares.error) || "unknown"));
+      capturedAudio = null;
+    }
+    // How far the mic leads video frame 0 (mic starts before the worker handshake finishes).
+    const audioOffsetMs = telemT0 && micStartWall ? Math.max(0, telemT0 - micStartWall) : 0;
     clips.push({
       path: res.path,
       w: lastClipDims.w,
       h: lastClipDims.h,
       durMs: lastClipDurMs,
       speed: 1,
+      audioPath,
+      audioOffsetMs,
       cur: box
         ? { box: { w: box.w, h: box.h }, t0: telemT0, ptr: ptrSamples.slice(), cam: camSamples.slice() }
         : null,
@@ -1183,7 +1274,7 @@
   $("editBtn").addEventListener("click", () => {
     if (!clips.length) return;
     window.otd.openEditor({
-      clips: clips.map((c) => ({ path: c.path, w: c.w, h: c.h, durMs: c.durMs, speed: c.speed, cur: c.cur })),
+      clips: clips.map((c) => ({ path: c.path, w: c.w, h: c.h, durMs: c.durMs, speed: c.speed, audioPath: c.audioPath, audioOffsetMs: c.audioOffsetMs, cur: c.cur })),
       session,
     });
   });
@@ -1211,6 +1302,13 @@
   }
   followOffEl.addEventListener("click", () => setFollow(false));
   followOnEl.addEventListener("click", () => setFollow(true));
+  function setMic(on) {
+    micEnabled = on;
+    micOnEl.classList.toggle("on", on);
+    micOffEl.classList.toggle("on", !on);
+  }
+  micOnEl.addEventListener("click", () => setMic(true));
+  micOffEl.addEventListener("click", () => setMic(false));
   // Global Ctrl+Shift+F (armed with Space, only while framing/recording) flips it
   // hands-free — chosen to not clash with KiCad's own shortcuts.
   window.otd.onToggleFollow(() => setFollow(!follow));
