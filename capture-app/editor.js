@@ -408,7 +408,13 @@
       pausePlayback();
       return;
     }
-    if (videoEl.currentTime >= outOf(c) - 0.012) {
+    // The real end of this segment is min(trim-out, the clip's actual decodable
+    // duration). durMs (→ default outSec) can run slightly past videoEl.duration, in
+    // which case currentTime can never reach outSec and the <video> just ends — so we
+    // also treat `ended` as the boundary, otherwise playback stalls before the cut and
+    // never advances to the next clip.
+    const segEnd = isFinite(videoEl.duration) ? Math.min(outOf(c), videoEl.duration) : outOf(c);
+    if (videoEl.ended || videoEl.currentTime >= segEnd - 0.012) {
       if (curSegIdx < clips.length - 1) {
         const next = curSegIdx + 1;
         playT = startOf(next);
@@ -468,14 +474,13 @@
     if (e.target === playheadHitEl || renaming) return;
     if (e.target.tagName === "INPUT") return;
     stopAll();
-    // NOTE: do NOT setPointerCapture here — capturing on the parent retargets the
-    // subsequent click/dblclick to tlInner, which kills double-click-to-rename. We
-    // capture lazily on the first real drag move instead (see pointermove).
+    // Capture lazily on the first real drag move (see pointermove), not here — capturing
+    // on the parent would retarget the click to tlInner and muddy click-vs-drag.
     const segEl = e.target.closest && e.target.closest(".seg");
     if (segEl) {
       const i = +segEl.dataset.i;
       const r = segEl.getBoundingClientRect();
-      highlightSel(i); // lightweight: keeps the node alive so dblclick-to-rename works
+      highlightSel(i); // lightweight select; no node recreation
       const cls = e.target.classList;
       const onGripL = cls && cls.contains("grip") && cls.contains("l");
       const onGripR = cls && cls.contains("grip") && cls.contains("r");
@@ -621,15 +626,9 @@
       e.clientX - r.left < EDGE || r.right - e.clientX < EDGE ? "ew-resize" : "grab";
   }
 
-  // ── rename (double-click the clip name) ──
-  videoTrackEl.addEventListener("dblclick", (e) => {
-    const nameEl = e.target.closest && e.target.closest(".n");
-    if (!nameEl) return;
-    const segEl = nameEl.closest(".seg");
-    if (!segEl) return;
-    beginRename(+segEl.dataset.i);
-  });
+  // ── rename (select a clip, press R) ──
   function beginRename(i) {
+    if (i < 0 || i >= clips.length) return;
     const segEl = segElByIndex(i);
     const nameEl = segEl && segEl.querySelector(".n");
     if (!nameEl) return;
@@ -901,6 +900,11 @@
       case "W":
         e.preventDefault();
         trimEndToPlayhead();
+        break;
+      case "r":
+      case "R":
+        e.preventDefault();
+        if (sel >= 0) beginRename(sel);
         break;
       case "Delete":
       case "Backspace":
