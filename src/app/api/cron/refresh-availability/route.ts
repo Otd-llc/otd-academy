@@ -8,6 +8,8 @@ import { env } from "@/env";
 import { db } from "@/lib/db";
 import { digikeyConfigured, makeDigikeyClient } from "@/lib/digikey";
 import { refreshAvailability } from "@/lib/refresh-availability";
+import { activeBomUnorderable, newlyUnorderableCount } from "@/lib/active-bom-sourcing";
+import { sendSourcingDigest } from "@/lib/sourcing-digest-email";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,6 +26,21 @@ export async function GET(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const limit = Math.min(Number(url.searchParams.get("limit") ?? 200), 500);
   const client = await makeDigikeyClient();
-  const result = await refreshAvailability({ db, client, limit, now: new Date() });
-  return Response.json({ ok: true, ...result });
+  const now = new Date();
+  const result = await refreshAvailability({ db, client, limit, now });
+
+  // Active-BOM sourcing watch: email admins when a part on a board's frozen BOM newly
+  // goes unorderable. Best-effort — a digest failure must not fail the refresh cron.
+  let notified = false;
+  try {
+    const issues = await activeBomUnorderable(db, now);
+    const partIds = issues.flatMap((b) => b.lines.map((l) => l.partId));
+    if ((await newlyUnorderableCount(db, now, partIds)) > 0) {
+      notified = await sendSourcingDigest(db, issues, url.origin);
+    }
+  } catch (e) {
+    console.error("sourcing digest failed:", e instanceof Error ? e.message : e);
+  }
+
+  return Response.json({ ok: true, ...result, notified });
 }
