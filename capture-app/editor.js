@@ -17,7 +17,10 @@
   "use strict";
 
   const $ = (id) => document.getElementById(id);
-  const videoEl = $("video");
+  // Two <video> elements ping-pong: `videoEl` is the active (visible, playing) one,
+  // `altEl` preloads the next clip so cuts between different source files don't flash.
+  let videoEl = $("video");
+  let altEl = $("video2");
   const noClipEl = $("noClip");
 
   // transport
@@ -61,7 +64,6 @@
   let playing = false;
   let curSegIdx = -1; // segment currently loaded into <video>
   let curPath = null; // <video>.src path (avoid reloading same file)
-  let pendingSeek = null; // { srcTime, resumePlay } applied on loadedmetadata
   let rafId = null;
   let scrubbing = false; // dragging the master playhead
   let segAction = null; // timeline drag: { type:'edge'|'body'|'scrub', i, edge, ... }
@@ -159,9 +161,7 @@
     if (clips.length === 0) {
       sel = -1;
       playT = 0;
-      videoEl.removeAttribute("src");
-      videoEl.style.display = "none";
-      noClipEl.style.display = "block";
+      hideVideos();
       renderTimeline();
       return;
     }
@@ -275,40 +275,120 @@
     else if (x > right - pad) tlScrollEl.scrollLeft = x - tlScrollEl.clientWidth + pad;
   }
 
-  // ── video source management ──
+  // ── video source management (double-buffered) ──
   function showVideo() {
-    videoEl.style.display = "block";
+    videoEl.style.opacity = "1";
+    altEl.style.opacity = "0";
     noClipEl.style.display = "none";
+  }
+  function hideVideos() {
+    videoEl.pause();
+    altEl.pause();
+    videoEl.style.opacity = "0";
+    altEl.style.opacity = "0";
+    videoEl.removeAttribute("src");
+    altEl.removeAttribute("src");
+    videoEl._path = null;
+    altEl._path = null;
+    curPath = null;
+    noClipEl.style.display = "block";
   }
   function applyRate() {
     const c = clips[curSegIdx];
     if (c) videoEl.playbackRate = (c.speed || 1) * fwdMul;
   }
+  // Load clip `path` seeked to `srcTime` into a SPECIFIC element (active or standby).
+  // The seek is applied on the element's own loadedmetadata when the file changes.
+  function loadElement(el, path, srcTime, play) {
+    el._pendingSeek = { srcTime, play };
+    if (el._path !== path) {
+      el._path = path;
+      el.src = fileUrl(path);
+    } else {
+      applyElementSeek(el);
+    }
+  }
+  function applyElementSeek(el) {
+    const ps = el._pendingSeek;
+    if (!ps) return;
+    el._pendingSeek = null;
+    try {
+      el.currentTime = Math.max(0, ps.srcTime);
+    } catch (e) {
+      /* not ready — its loadedmetadata will retry */
+    }
+    if (ps.play) el.play().catch(() => {});
+  }
+  // Load a segment into the ACTIVE element (used by seek/scrub and play-start).
   function loadSegment(i, srcTime, resumePlay) {
     const c = clips[i];
     if (!c) return;
     curSegIdx = i;
+    curPath = c.path;
     videoEl.playbackRate = (c.speed || 1) * fwdMul;
     showVideo();
-    pendingSeek = { srcTime, resumePlay };
-    if (curPath !== c.path) {
-      curPath = c.path;
-      videoEl.src = fileUrl(c.path); // currentTime applied on loadedmetadata
+    loadElement(videoEl, c.path, srcTime, resumePlay);
+  }
+  // Warm the standby element with the next clip's first frame (only when the next clip
+  // is a DIFFERENT file — same-file neighbours are handled by a plain seek, no flash).
+  function preloadNext() {
+    const next = curSegIdx + 1;
+    const cur = clips[curSegIdx];
+    const nx = clips[next];
+    if (!cur || !nx || nx.path === cur.path) return;
+    if (altEl._path === nx.path) {
+      altEl._pendingSeek = { srcTime: inOf(nx), play: false };
+      applyElementSeek(altEl);
+      return;
+    }
+    altEl.pause();
+    altEl.style.opacity = "0";
+    loadElement(altEl, nx.path, inOf(nx), false);
+  }
+  // Advance playback to the next segment at a cut.
+  function advanceToNext() {
+    const next = curSegIdx + 1;
+    const cur = clips[curSegIdx];
+    const nx = clips[next];
+    playT = startOf(next);
+    if (nx.path === cur.path) {
+      // same source file → seamless seek on the active element, no swap, no flash
+      curSegIdx = next;
+      curPath = nx.path;
+      videoEl.playbackRate = (nx.speed || 1) * fwdMul;
+      loadElement(videoEl, nx.path, inOf(nx), true);
+    } else if (altEl._path === nx.path && altEl.readyState >= 2) {
+      // standby already shows this clip's first frame → hard-swap (no flash)
+      swapToAlt(next);
     } else {
-      applyPendingSeek();
+      // standby wasn't ready in time (rare) → direct load; may flash briefly
+      curSegIdx = next;
+      curPath = nx.path;
+      videoEl.playbackRate = (nx.speed || 1) * fwdMul;
+      loadElement(videoEl, nx.path, inOf(nx), true);
     }
+    preloadNext();
   }
-  function applyPendingSeek() {
-    if (!pendingSeek) return;
-    const { srcTime, resumePlay } = pendingSeek;
-    pendingSeek = null;
+  function swapToAlt(idx) {
+    const old = videoEl;
+    old.pause();
+    old.style.opacity = "0";
+    // promote the standby to active
+    videoEl = altEl;
+    altEl = old;
+    curSegIdx = idx;
+    curPath = clips[idx].path;
+    videoEl.style.opacity = "1";
+    noClipEl.style.display = "none";
+    videoEl.playbackRate = (clips[idx].speed || 1) * fwdMul;
     try {
-      videoEl.currentTime = Math.max(0, srcTime);
-    } catch (e) {
-      /* not ready yet — onloadedmetadata will retry */
-    }
-    if (resumePlay) videoEl.play().catch(() => {});
+      videoEl.currentTime = inOf(clips[idx]);
+    } catch (e) {}
+    videoEl.play().catch(() => {});
   }
+  // The seek is applied on each element's own loadedmetadata.
+  $("video").addEventListener("loadedmetadata", () => applyElementSeek($("video")));
+  $("video2").addEventListener("loadedmetadata", () => applyElementSeek($("video2")));
   // Seek the master playhead to timeline time T (paused unless resumePlay).
   function seekTo(T, resumePlay) {
     T = Math.max(0, Math.min(totalSec(), T));
@@ -335,6 +415,7 @@
     } else {
       loadSegment(a.i, a.srcTime, true);
     }
+    preloadNext(); // warm the standby with the next clip so the cut doesn't flash
     if (rafId) cancelAnimationFrame(rafId);
     rafId = requestAnimationFrame(tick);
   }
@@ -416,9 +497,7 @@
     const segEnd = isFinite(videoEl.duration) ? Math.min(outOf(c), videoEl.duration) : outOf(c);
     if (videoEl.ended || videoEl.currentTime >= segEnd - 0.012) {
       if (curSegIdx < clips.length - 1) {
-        const next = curSegIdx + 1;
-        playT = startOf(next);
-        loadSegment(next, inOf(clips[next]), true);
+        advanceToNext();
       } else {
         playT = totalSec();
         pausePlayback();
@@ -432,14 +511,6 @@
     updatePlayheadUI();
     rafId = requestAnimationFrame(tick);
   }
-
-  videoEl.addEventListener("loadedmetadata", () => {
-    const c = clips[curSegIdx];
-    if (c && (typeof c.outSec !== "number" || c.outSec <= 0)) {
-      c.outSec = videoEl.duration || durSec(c);
-    }
-    applyPendingSeek();
-  });
 
   // ── timeline pointer interaction ──
   function tlTimeFromClientX(clientX) {
@@ -721,9 +792,7 @@
     if (clips.length === 0) {
       sel = -1;
       playT = 0;
-      videoEl.removeAttribute("src");
-      videoEl.style.display = "none";
-      noClipEl.style.display = "block";
+      hideVideos();
       renderTimeline();
       return;
     }
@@ -1024,6 +1093,12 @@
     curPath = null;
     undoStack = [];
     redoStack = [];
+    // reset the ping-pong pair to a known state
+    videoEl = $("video");
+    altEl = $("video2");
+    videoEl._path = null;
+    altEl._path = null;
+    altEl.style.opacity = "0";
     sel = clips.length ? 0 : -1;
     renderTimeline();
     if (sel >= 0) selectClip(0);

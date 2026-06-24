@@ -30,7 +30,7 @@
         flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
         background: #000; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; position: relative;
       }
-      #video { max-width: 100%; max-height: 100%; display: none; }
+      #preview video { position: absolute; max-width: 100%; max-height: 100%; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0; pointer-events: none; }
       #noClip { color: var(--muted); font-size: 12px; }
 
       /* ── transport ── */
@@ -121,7 +121,8 @@
         <div id="hint">Space play/pause · J/K/L shuttle · ←/→ frame-step · S split · I/O trim in/out at playhead · drag clip edges to trim · drag clip body to reorder · R rename selected clip · Del ripple-delete · Ctrl+Z/Y undo/redo · wheel zoom · Shift+wheel scroll</div>
       </header>
       <div id="preview">
-        <video id="video" preload="metadata"></video>
+        <video id="video" preload="auto"></video>
+        <video id="video2" preload="auto"></video>
         <div id="noClip">Record clips, then scrub the whole sequence here</div>
       </div>
       <div id="transport">
