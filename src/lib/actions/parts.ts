@@ -18,6 +18,8 @@ import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth-helpers";
+import { digikeyConfigured, makeDigikeyClient } from "@/lib/digikey";
+import { refreshAvailability } from "@/lib/refresh-availability";
 import {
   createPartSchema,
   listPartsBySearchSchema,
@@ -153,6 +155,32 @@ export async function updatePartDatasheetUrl(input: {
   revalidatePath(`/parts/${input.partId}`);
   revalidatePath("/parts");
   return { ok: true as const, datasheetUrl: next };
+}
+
+// Admin: re-resolve ONE part's DigiKey snapshot now. refreshAvailability matches
+// by the part's CURRENT mpn and rewrites every dk* field (incl. dkPartNumber), so a
+// part swapped to a new MPN stops showing the OLD part's stale stock + FastAdd cart
+// link. The nightly cron does this library-wide oldest-first; this is the on-demand
+// path so a fresh swap doesn't linger on stale data until the sweep reaches it.
+export async function recheckPartAvailability(partId: string) {
+  await requireAdmin();
+  if (typeof partId !== "string" || partId.length === 0) {
+    throw new Error("partId is required.");
+  }
+  if (!digikeyConfigured()) {
+    return { ok: false as const, reason: "DigiKey is not configured." };
+  }
+  const client = await makeDigikeyClient();
+  const result = await refreshAvailability({
+    db,
+    client,
+    limit: 1,
+    now: new Date(),
+    partIds: [partId],
+  });
+  revalidatePath(`/parts/${partId}`);
+  revalidatePath("/parts");
+  return { ok: true as const, ...result };
 }
 
 export async function listPartsBySearch(input: unknown) {
