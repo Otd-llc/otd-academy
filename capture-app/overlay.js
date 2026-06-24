@@ -778,7 +778,7 @@
       window.otd.log("save-clip failed: " + ((res && res.error) || "unknown"));
       return false;
     }
-    clips.push({ path: res.path, w: lastClipDims.w, h: lastClipDims.h, durMs: lastClipDurMs });
+    clips.push({ path: res.path, w: lastClipDims.w, h: lastClipDims.h, durMs: lastClipDurMs, speed: 1 });
     return true;
   }
   function recordAnother() {
@@ -801,6 +801,13 @@
     clips.splice(i, 1);
     renderClipTray();
   }
+  function cycleSpeed(i) {
+    const steps = [0.5, 1, 1.5, 2, 4];
+    const cur = clips[i].speed || 1;
+    const at = steps.indexOf(cur);
+    clips[i].speed = steps[(at + 1) % steps.length];
+    renderClipTray();
+  }
   function renderClipTray() {
     const isVideo = mode === "video";
     addClipBtnEl.classList.toggle("hidden", !isVideo);
@@ -816,7 +823,8 @@
         (c, i) =>
           `<div class="clip-row">` +
           `<span class="clip-name">Clip ${i + 1}</span>` +
-          `<span class="clip-dur">${fmtDur(c.durMs)}</span>` +
+          `<span class="clip-dur">${fmtDur(c.durMs / (c.speed || 1))}</span>` +
+          `<button class="clip-btn clip-speed" data-act="speed" data-i="${i}" title="Playback speed (click to change)">${c.speed || 1}×</button>` +
           `<button class="clip-btn" data-act="up" data-i="${i}"${i === 0 ? " disabled" : ""} title="Move up">▲</button>` +
           `<button class="clip-btn" data-act="down" data-i="${i}"${i === clips.length - 1 ? " disabled" : ""} title="Move down">▼</button>` +
           `<button class="clip-btn clip-x" data-act="remove" data-i="${i}" title="Remove">✕</button>` +
@@ -839,6 +847,7 @@
     if (btn.dataset.act === "up") moveClip(i, -1);
     else if (btn.dataset.act === "down") moveClip(i, 1);
     else if (btn.dataset.act === "remove") removeClip(i);
+    else if (btn.dataset.act === "speed") cycleSpeed(i);
   });
 
   async function approve() {
@@ -851,7 +860,7 @@
       showSection("done");
       doneMsg.textContent = `Stitching ${clips.length} clip${clips.length === 1 ? "" : "s"}…`;
       const res = await window.otd.exportClips({
-        clips: clips.map((c) => ({ path: c.path, w: c.w, h: c.h })),
+        clips: clips.map((c) => ({ path: c.path, w: c.w, h: c.h, speed: c.speed })),
         fps: REC_FPS,
       });
       if (!res || !res.ok) {

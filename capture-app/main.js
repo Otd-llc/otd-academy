@@ -413,8 +413,9 @@ ipcMain.handle("export-clips", async (_e, { clips, fps }) => {
     if (!clips || !clips.length) return { ok: false, error: "No clips to export." };
     const r = fps && fps > 0 ? Math.round(fps) : 30;
 
-    // One clip: nothing to stitch — return it as-is.
-    if (clips.length === 1) {
+    // One clip at normal speed: nothing to do — return it as-is. (A speed change
+    // still needs the encoder, so only short-circuit at 1×.)
+    if (clips.length === 1 && (clips[0].speed || 1) === 1) {
       return { ok: true, bytes: fs.readFileSync(clips[0].path) };
     }
 
@@ -428,9 +429,11 @@ ipcMain.handle("export-clips", async (_e, { clips, fps }) => {
     for (const c of clips) args.push("-i", c.path);
     const parts = [];
     for (let i = 0; i < clips.length; i++) {
+      const sp = clips[i].speed && clips[i].speed > 0 ? clips[i].speed : 1;
+      const speedFilter = sp !== 1 ? `setpts=PTS/${sp},` : ""; // >1 faster, <1 slower
       parts.push(
         `[${i}:v]scale=${W}:${H}:force_original_aspect_ratio=decrease,` +
-          `pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=${r},format=yuv420p[v${i}]`,
+          `pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,${speedFilter}fps=${r},format=yuv420p[v${i}]`,
       );
     }
     const labels = clips.map((_c, i) => `[v${i}]`).join("");
