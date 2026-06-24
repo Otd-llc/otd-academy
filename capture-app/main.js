@@ -138,8 +138,10 @@ function createOverlay() {
       contextIsolation: true,
       nodeIntegration: false,
       // Keep rAF + timers running while the window is unfocused (it is, during
-      // recording) so the canvas draw loop feeding the clip never throttles.
+      // recording) so the camera loop feeding the recording never throttles.
       backgroundThrottling: false,
+      // Local tool: lets the recording worker importScripts() the bundled mp4-muxer.
+      webSecurity: false,
     },
   });
 

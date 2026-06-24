@@ -71,9 +71,13 @@
   let wcRunning = false;
   let wcTimer = null; // fixed-rate (CFR) encode pump
   let wcLatest = null; // most-recent source VideoFrame (held for the CFR pump)
+  let wcWorker = null; // recording worker (worker mode)
+  let camTimer = null; // renderer-side follow-camera loop feeding the worker
+  let wcDone = null; // { resolve, reject } awaiting the worker's finished MP4 on stop
   let pumpTicks = 0; // frames pushed/encoded this recording (diagnostics)
   let camLastMs = 0; // timestamp for the follow-spring dt, shared by both pipelines
   const PREFER_WEBCODECS = true; // set false to force the legacy canvas/MediaRecorder path
+  const USE_WORKER = true; // run the WebCodecs pipeline in a Worker (per-frame GC off the UI thread)
   let captured = null; // { base64, ext }
   let previewUrl = null;
   // Multi-clip session: clips queued for stitching, in timeline order.
@@ -438,6 +442,19 @@
   }
   function teardownWebCodecs() {
     wcRunning = false;
+    if (camTimer) {
+      clearInterval(camTimer);
+      camTimer = null;
+    }
+    if (wcWorker) {
+      try {
+        wcWorker.terminate();
+      } catch {
+        // ignore
+      }
+      wcWorker = null;
+    }
+    wcDone = null;
     if (wcTimer) {
       clearInterval(wcTimer);
       wcTimer = null;
@@ -522,7 +539,117 @@
   }
 
   // ── WebCodecs pipeline (primary) ──
+  // Dispatcher: try the Worker pipeline first (per-frame GC off the UI thread), then
+  // the main-thread WebCodecs path. The caller falls back to canvas if both fail.
   async function startWebCodecs(track, halfW, halfH) {
+    if (USE_WORKER && typeof Worker !== "undefined" && typeof MediaStreamTrackProcessor !== "undefined") {
+      try {
+        if (await tryWorker(track, halfW, halfH)) return true;
+      } catch (e) {
+        window.otd.log("worker path threw, falling back: " + (e && e.message));
+        teardownWebCodecs();
+      }
+    }
+    return await startWebCodecsMain(track, halfW, halfH);
+  }
+
+  function workerWaitFor(worker, types, ms) {
+    return new Promise((resolve) => {
+      const onMsg = (e) => {
+        const m = e.data || {};
+        if (types.indexOf(m.type) !== -1) {
+          worker.removeEventListener("message", onMsg);
+          resolve(m);
+        }
+      };
+      worker.addEventListener("message", onMsg);
+      setTimeout(() => {
+        worker.removeEventListener("message", onMsg);
+        resolve(null);
+      }, ms);
+    });
+  }
+  // The Worker runs capture-read + crop + encode + mux off the UI thread. We keep the
+  // original `track` for the main-thread fallback and hand the worker a CLONE, so a
+  // worker that can't start costs us nothing.
+  async function tryWorker(track, halfW, halfH) {
+    let worker;
+    try {
+      worker = new Worker("record-worker.js");
+    } catch (e) {
+      window.otd.log("worker create failed: " + (e && e.message));
+      return false;
+    }
+    const ready = await workerWaitFor(worker, ["ready", "fallback"], 2500);
+    if (!ready || ready.type !== "ready") {
+      worker.terminate();
+      window.otd.log("worker not ready → main-thread WebCodecs");
+      return false;
+    }
+    const wTrack = track.clone();
+    const processor = new MediaStreamTrackProcessor({ track: wTrack });
+    const startedP = workerWaitFor(worker, ["started", "fallback", "error"], 4000);
+    worker.postMessage(
+      {
+        type: "start",
+        readable: processor.readable,
+        innerW: window.innerWidth,
+        innerH: window.innerHeight,
+        boxW: box.w,
+        boxH: box.h,
+        fps: REC_FPS,
+        bitrate: 8000000,
+        camX: cam.x,
+        camY: cam.y,
+      },
+      [processor.readable],
+    );
+    const started = await startedP;
+    if (!started || started.type !== "started") {
+      try {
+        wTrack.stop();
+      } catch {
+        // ignore
+      }
+      worker.terminate();
+      window.otd.log("worker start failed → main-thread WebCodecs");
+      return false;
+    }
+    worker.addEventListener("message", (e) => {
+      const m = e.data || {};
+      if (m.type === "done" && wcDone) {
+        wcDone.resolve(m.buffer);
+        wcDone = null;
+      } else if (m.type === "error") {
+        if (wcDone) {
+          wcDone.reject(new Error(m.message || "worker error"));
+          wcDone = null;
+        } else {
+          window.otd.log("worker error mid-record: " + m.message);
+        }
+      }
+    });
+    wcWorker = worker;
+    wcProcTrack = wTrack;
+    recMode = "worker";
+    lastClipDims = { w: started.cropW, h: started.cropH };
+    window.otd.log(`recording started (worker): codec=${started.codec} crop=${started.cropW}x${started.cropH} coded=${started.codedW}x${started.codedH}`);
+    // The renderer drives the follow camera + visible box and streams the position to
+    // the worker, which samples the latest when cropping each frame.
+    camTimer = setInterval(() => {
+      updateCamera(halfW, halfH, 1 / REC_FPS);
+      try {
+        worker.postMessage({ type: "cam", x: cam.x, y: cam.y });
+      } catch {
+        // ignore
+      }
+      pumpTicks++;
+    }, Math.round(1000 / REC_FPS));
+    return true;
+  }
+
+  // ── main-thread WebCodecs pipeline (fallback) ──
+  async function startWebCodecsMain(track, halfW, halfH) {
     // Read from a CLONE so the original track keeps feeding screenVideo (no contention).
     wcProcTrack = track.clone();
     const processor = new MediaStreamTrackProcessor({ track: wcProcTrack });
@@ -715,7 +842,37 @@
     window.otd.log(`stopRecording: mode=${recMode} wallclock=${((Date.now() - recStart) / 1000).toFixed(1)}s frames=${pumpTicks}`);
     try {
       let result;
-      if (recMode === "webcodecs") {
+      if (recMode === "worker") {
+        if (camTimer) {
+          clearInterval(camTimer);
+          camTimer = null;
+        }
+        const bufferP = new Promise((resolve, reject) => {
+          wcDone = { resolve, reject };
+        });
+        const to = setTimeout(() => {
+          if (wcDone) {
+            wcDone.reject(new Error("worker stop timed out"));
+            wcDone = null;
+          }
+        }, 15000);
+        try {
+          wcWorker.postMessage({ type: "stop" });
+        } catch {
+          // ignore
+        }
+        const arrbuf = await bufferP;
+        clearTimeout(to);
+        result = { blob: new Blob([arrbuf], { type: "video/mp4" }), ext: "mp4" };
+        try {
+          wcWorker.terminate();
+        } catch {
+          // ignore
+        }
+        wcWorker = null;
+        stopTrack(wcProcTrack);
+        wcProcTrack = null;
+      } else if (recMode === "webcodecs") {
         wcRunning = false;
         if (wcTimer) {
           clearInterval(wcTimer); // stop the CFR pump before flushing
