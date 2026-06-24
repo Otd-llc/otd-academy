@@ -1015,6 +1015,7 @@
           inSec: typeof c.inSec === "number" ? c.inSec : 0,
           outSec: typeof c.outSec === "number" ? c.outSec : (c.durMs || 0) / 1000,
           name: c.name || `Clip ${i + 1}`, // stable across reorder
+          _explicitOut: typeof c.outSec === "number", // a real trim/split, not the default
         }))
       : [];
     session = (payload && payload.session) || null;
@@ -1026,5 +1027,54 @@
     sel = clips.length ? 0 : -1;
     renderTimeline();
     if (sel >= 0) selectClip(0);
+    measureDurations();
   });
+
+  // The recorded durMs can differ from the clip's true decodable duration, which leaves
+  // a dead zone at the end of each timeline slot and makes the playhead snap across it at
+  // cut points. Probe each distinct source once and pin the geometry to the real duration
+  // so the playhead is 1:1. Only auto-fits full clips (never overrides an explicit trim).
+  async function measureDurations() {
+    const probe = document.createElement("video");
+    probe.preload = "metadata";
+    probe.muted = true;
+    const cache = {};
+    const realDur = (path) =>
+      new Promise((resolve) => {
+        if (cache[path] !== undefined) return resolve(cache[path]);
+        const done = (d) => {
+          cache[path] = d;
+          resolve(d);
+        };
+        probe.onloadedmetadata = () => done(probe.duration);
+        probe.onerror = () => done(NaN);
+        probe.src = fileUrl(path);
+      });
+
+    let changed = false;
+    for (const c of clips) {
+      const d = await realDur(c.path);
+      if (!isFinite(d) || d <= 0) continue;
+      if (c.durMs == null || Math.abs(c.durMs - d * 1000) > 1) {
+        c.durMs = Math.round(d * 1000);
+        changed = true;
+      }
+      if (!c._explicitOut && Math.abs(outOf(c) - d) > 0.001) {
+        c.outSec = d; // pin full-clip slots to the real duration
+        changed = true;
+      } else if (c._explicitOut && c.outSec > d) {
+        c.outSec = d; // a trim that ran past the real end
+        changed = true;
+      }
+    }
+    if (changed) {
+      const keepPlay = playT;
+      const keepSel = sel;
+      curSegIdx = -1;
+      curPath = null;
+      renderTimeline();
+      if (keepSel >= 0 && keepSel < clips.length) setSel(keepSel);
+      seekTo(Math.min(keepPlay, totalSec()), false);
+    }
+  }
 })();
