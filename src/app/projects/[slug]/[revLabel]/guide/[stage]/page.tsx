@@ -38,7 +38,7 @@ import {
 import { resolveInlineDiagrams } from "@/lib/inline-diagrams";
 import { GuideCardEditor } from "@/components/guide/GuideCardEditor";
 import { GuideStepper } from "@/components/guide/GuideStepper";
-import { BomExportLink } from "@/components/guide/BomExportLink";
+import { BomPdfExport } from "@/components/guide/BomPdfExport";
 import { getPartAssetRenderUrl } from "@/lib/actions/part-assets";
 import { renderBoundsSchema } from "@/lib/schemas/part-asset";
 import { StageGate } from "@/components/guide/StageGate";
@@ -656,11 +656,22 @@ export default async function GuideCardPage({
         />
       </GuideCardEditor>
 
-      {/* The bench shopping sheet belongs with BOM SOURCING — print/export the
-          parts list right where you're sourcing it. */}
-      {stage === "BOM_SOURCING" ? (
+      {/* Export the BOM that's already shown above as a clean white PDF, in place. */}
+      {stage === "BOM_SOURCING" && bomRows && bomRows.length > 0 ? (
         <div className="mt-8">
-          <BomExportLink href={`${hubHref}/bom`} />
+          <BomPdfExport
+            title={project.name}
+            revision={revision.label}
+            rows={bomRows.map((r) => ({
+              refDes: r.refDes,
+              qty: r.qty,
+              mpn: r.mpn,
+              manufacturer: r.manufacturer,
+              description: r.description,
+              datasheetUrl: r.datasheetUrl,
+              lifecycle: r.lifecycle,
+            }))}
+          />
         </div>
       ) : null}
 
