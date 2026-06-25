@@ -15,6 +15,7 @@ import { notFound } from "next/navigation";
 
 import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/PageHeader";
+import { DrawingFrame } from "@/components/marketing/DrawingFrame";
 import { breadcrumbJsonLd, techArticleJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import {
   BRIEF_KEYS,
@@ -76,7 +77,16 @@ function SectionHead({ children }: { children: React.ReactNode }) {
 // a connector rule), not a PCB graphic.
 function SystemMap() {
   return (
-    <figure className="glass-card mt-5 p-5 sm:p-6" aria-label="Curriculum system map">
+    <DrawingFrame
+      title={[
+        ["Diagram", "Curriculum"],
+        ["Boards", "22"],
+        ["Tracks", "4"],
+        ["Capstones", "2"],
+      ]}
+      className="mt-5"
+    >
+      <figure className="p-5 sm:p-7" aria-label="Curriculum system map">
       {/* Root node */}
       <div className="flex flex-col items-center text-center">
         <div className="rounded-md border border-command-gold/50 bg-command-gold/10 px-4 py-2">
@@ -131,7 +141,8 @@ function SystemMap() {
           </li>
         ))}
       </ul>
-    </figure>
+      </figure>
+    </DrawingFrame>
   );
 }
 
