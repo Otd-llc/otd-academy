@@ -44,20 +44,35 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-// The lowest premium project price ($49 on L2) is the representative "one
-// project" number in the good-better-best comparison. Resolved from the catalog
-// so it stays honest if a price changes.
-async function representativeProjectPriceCents(): Promise<number | null> {
-  const cheapest = await db.project.findFirst({
-    where: {
-      accessTier: "PREMIUM",
-      priceCents: { not: null, gt: 0 },
-      archivedAt: null,
-    },
-    orderBy: { priceCents: "asc" },
-    select: { priceCents: true },
-  });
-  return cheapest?.priceCents ?? null;
+// The premium project price RANGE (lowest to highest), for the "one project"
+// card in the good-better-best comparison. A range, not a single number, so it
+// never reads as "every board is $49". Resolved from the catalog so it stays
+// honest if a price changes.
+async function premiumPriceRange(): Promise<{
+  minCents: number | null;
+  maxCents: number | null;
+}> {
+  const where = {
+    accessTier: "PREMIUM" as const,
+    priceCents: { not: null, gt: 0 },
+    archivedAt: null,
+  };
+  const [cheapest, dearest] = await Promise.all([
+    db.project.findFirst({
+      where,
+      orderBy: { priceCents: "asc" },
+      select: { priceCents: true },
+    }),
+    db.project.findFirst({
+      where,
+      orderBy: { priceCents: "desc" },
+      select: { priceCents: true },
+    }),
+  ]);
+  return {
+    minCents: cheapest?.priceCents ?? null,
+    maxCents: dearest?.priceCents ?? null,
+  };
 }
 
 export default async function PricingPage() {
@@ -66,10 +81,12 @@ export default async function PricingPage() {
   const session = await auth();
   const email = session?.user?.email ?? null;
 
-  const [bundle, singleProjectCents] = await Promise.all([
+  const [bundle, priceRange] = await Promise.all([
     db.bundle.findUnique({ where: { key: "all-access" } }),
-    representativeProjectPriceCents(),
+    premiumPriceRange(),
   ]);
+  const singleProjectCents = priceRange.minCents;
+  const maxProjectCents = priceRange.maxCents;
 
   // The Pass price active right now (launch while the window is open, else
   // standard). Null when the Pass isn't provisioned yet (set-pass-price.ts not
@@ -165,15 +182,18 @@ export default async function PricingPage() {
           {singleProjectCents !== null ? (
             <p className="font-mono text-3xl text-white">
               {formatUsd(singleProjectCents)}
-              <span className="ml-2 text-sm uppercase tracking-wider text-muted">
-                and up
-              </span>
+              {maxProjectCents !== null && maxProjectCents > singleProjectCents ? (
+                <span> to {formatUsd(maxProjectCents)}</span>
+              ) : null}
             </p>
           ) : (
             <p className="font-mono text-sm uppercase tracking-wider text-muted">
               Price shown on each course
             </p>
           )}
+          <p className="font-mono text-xs uppercase tracking-wider text-muted">
+            Price depends on the build. See the full price list below.
+          </p>
           <p className="font-serif text-sm italic text-muted">
             Buy just the build you want. You get its full guide: schematic,
             layout, fabrication, and bring-up, plus lifetime access.
