@@ -21,7 +21,13 @@
 //     the menu is open so the open state gets the same gold-glow ring as
 //     the rest of the gold-active vocabulary.
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+
+// Admin-only tools that live in the user menu. Add new admin destinations here.
+const ADMIN_LINKS: { href: string; label: string }[] = [
+  { href: "/admin/sourcing", label: "Sourcing health" },
+];
 
 export function UserMenu({
   email,
@@ -91,6 +97,23 @@ export function UserMenu({
             </span>
           )}
         </div>
+        {role === "ADMIN" ? (
+          <nav className="border-t border-panel-border p-2" aria-label="Admin tools">
+            {ADMIN_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => {
+                  if (ref.current) ref.current.open = false;
+                  setOpen(false);
+                }}
+                className="block rounded px-3 py-2 font-mono text-xs uppercase tracking-wider text-link-muted transition-colors hover:bg-command-gold/[0.06] hover:text-command-gold"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        ) : null}
         <form action={signOutAction} className="p-2">
           <button
             type="submit"
