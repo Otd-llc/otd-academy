@@ -35,7 +35,7 @@ function Body({ text, emphasis }: { text: string; emphasis: string }) {
 export function BriefDocument({ brief }: { brief: BriefData }) {
   return (
     <article
-      className="brief-doc relative w-full px-10 py-6 text-white"
+      className="brief-doc relative w-full px-10 py-5 text-white"
       style={{
         backgroundColor: "var(--color-deep-space)",
         backgroundImage: HONEYCOMB,
@@ -67,15 +67,17 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
         />
       </div>
 
-      {/* Hero: big headline + system spec */}
-      <div className="mt-5 flex items-start justify-between gap-6">
+      {/* Hero: the two-line headline beside the system spec (top-right), matching
+          the original one-pager. The spec box's row height tracks the headline so
+          its bottom lands near the headline's, leaving no dead space. */}
+      <div className="mt-5 flex items-start justify-between gap-7">
         <h1
-          className="font-display text-[82px] leading-[0.78] tracking-tight"
+          className="font-display text-[84px] leading-[0.8] tracking-tight"
           style={{
             color: IVORY,
             // Bebas Neue ships a single weight, so font-weight can't bolden it.
             // Thicken the glyph strokes directly (each part strokes its own color).
-            WebkitTextStrokeWidth: "1.3px",
+            WebkitTextStrokeWidth: "1.4px",
             WebkitTextStrokeColor: "currentColor",
           }}
         >
@@ -84,17 +86,17 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
           Many <span className="text-command-gold">machines</span>.
         </h1>
 
-        <dl className="w-[268px] shrink-0 overflow-hidden rounded-sm border border-command-gold/25">
-          <div className="border-b border-panel-border px-4 py-2 font-mono text-[11px] uppercase tracking-[0.25em] text-command-gold">
+        <dl className="w-[252px] shrink-0 overflow-hidden rounded-sm border border-command-gold/25">
+          <div className="border-b border-panel-border px-4 py-2 font-mono text-[11px] uppercase tracking-[0.22em] text-command-gold">
             System spec
           </div>
           <div className="divide-y divide-panel-border">
             {SYSTEM_SPEC.map((s) => (
               <div
                 key={s.label}
-                className="flex items-center justify-between gap-3 px-4 py-2"
+                className="flex items-center justify-between gap-3 px-4 py-1.5"
               >
-                <dt className="font-mono text-[12px] uppercase tracking-[0.08em] text-muted">
+                <dt className="font-mono text-[12px] uppercase tracking-[0.06em] text-muted">
                   {s.label}
                 </dt>
                 <dd
@@ -115,20 +117,22 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
       </p>
 
       {/* Body */}
-      <p className="mt-3 max-w-[78%] font-serif text-[14px] leading-relaxed text-gray-1">
+      <p className="mt-3 max-w-[88%] font-serif text-[14px] leading-relaxed text-gray-1">
         <Body text={brief.docBody} emphasis={brief.docEmphasis} />
       </p>
 
       {/* System map */}
-      <figure className="mt-4 overflow-hidden rounded-md border border-panel-border bg-bg-2/30">
-        <div className="flex items-center justify-between border-b border-panel-border px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">
+      <figure className="mt-3 overflow-hidden rounded-md border border-panel-border bg-bg-2/30">
+        <div className="flex items-center justify-between border-b border-panel-border px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">
           <span>System map · the Brain-to-Swarm curriculum</span>
           <span>22 boards / 4 tracks / 2 capstones</span>
         </div>
-        <div className="px-7 py-3">
-          <BriefSystemMap />
+        <div className="px-7 py-2">
+          <div className="mx-auto max-w-[600px]">
+            <BriefSystemMap />
+          </div>
         </div>
-        <div className="flex items-center justify-center gap-10 border-t border-panel-border px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+        <div className="flex items-center justify-center gap-10 border-t border-panel-border px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
           <span>Live DigiKey pricing</span>
           <span>Fab-ready gerbers</span>
           <span>Sealed certificate at /verify</span>
@@ -136,7 +140,7 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
       </figure>
 
       {/* Stats */}
-      <dl className="mt-4 grid grid-cols-4 gap-6 border-t border-panel-border pt-5">
+      <dl className="mt-3 grid grid-cols-4 gap-6 border-t border-panel-border pt-4">
         {brief.stats.map((s) => (
           <div key={s.value}>
             <dt className="font-display text-[38px] leading-none tracking-wide text-command-gold">
@@ -153,7 +157,7 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
       </dl>
 
       {/* CTA + registration footer */}
-      <div className="mt-4 flex items-end justify-between gap-8 border-t border-panel-border pt-5">
+      <div className="mt-3 flex items-end justify-between gap-8 border-t border-panel-border pt-4">
         <div>
           <Link
             href={DOC_CTA.href}
