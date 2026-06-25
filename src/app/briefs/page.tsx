@@ -5,6 +5,7 @@
 // crawlable. No database. Copy is verbatim from the academy sales kit.
 
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -56,59 +57,50 @@ export default function BriefsIndexPage() {
       <section>
         <h2 className="flex items-center gap-3 font-mono text-xs uppercase tracking-[0.25em] text-command-gold">
           <span className="h-px w-6 bg-command-gold/50" />
-          Read a brief
+          The briefs
         </h2>
-        <ul className="mt-5 grid gap-4 sm:grid-cols-2">
+        <ul className="mt-6 grid gap-6 sm:grid-cols-2">
           {BRIEF_KEYS.map((key, i) => {
             const brief = BRIEFS[key];
-            const code = `B-${String(i + 1).padStart(2, "0")}`;
+            const file = BRIEF_PDFS[i].file.replace(/\.pdf$/, "");
             return (
-              <li key={key}>
+              <li key={key} className="flex flex-col">
                 <Link
                   href={`/briefs/${key}`}
-                  className="group flex h-full flex-col gap-2 rounded-2xl border border-panel-border bg-bg-2/30 p-6 transition-colors hover:border-command-gold/50"
+                  className="group block overflow-hidden rounded-2xl border border-panel-border transition-colors hover:border-command-gold/60"
                 >
-                  <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted">
-                    {code} / {brief.eyebrow}
-                  </span>
-                  <span className="font-display text-2xl leading-tight tracking-wide text-white group-hover:text-command-gold">
-                    {brief.title}
-                  </span>
-                  <span className="font-serif text-sm leading-snug text-muted">
-                    {brief.seoDescription}
-                  </span>
-                  <span className="mt-auto pt-2 font-mono text-xs uppercase tracking-wider text-command-gold">
-                    Read →
-                  </span>
+                  <Image
+                    src={`/briefs/${file}.png`}
+                    alt={brief.seoDescription}
+                    width={1700}
+                    height={2200}
+                    className="h-auto w-full"
+                  />
                 </Link>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <Link
+                    href={`/briefs/${key}`}
+                    className="font-mono text-xs uppercase tracking-wider text-command-gold underline-offset-4 hover:underline"
+                  >
+                    {brief.eyebrow} →
+                  </Link>
+                  <a
+                    href={`/briefs/${file}.pdf`}
+                    download
+                    className="font-mono text-xs uppercase tracking-wider text-muted underline-offset-4 hover:text-command-gold hover:underline"
+                  >
+                    PDF ↓
+                  </a>
+                </div>
               </li>
             );
           })}
         </ul>
-      </section>
-
-      <section className="mt-12">
-        <h2 className="flex items-center gap-3 font-mono text-xs uppercase tracking-[0.25em] text-command-gold">
-          <span className="h-px w-6 bg-command-gold/50" />
-          Download the one-pagers
-        </h2>
-        <p className="mt-4 max-w-2xl font-serif text-base leading-relaxed text-muted">
-          The same briefs are available as one-page PDFs. The full set spans
-          overview, learners, educators, vendors, investors, defense, sponsors,
-          press, talent, and pipeline; the two public cuts are linked here.
+        <p className="mt-8 max-w-2xl font-serif text-sm italic text-muted">
+          These two cuts are public. The full set spans overview, learners,
+          educators, vendors, investors, defense, sponsors, press, talent, and
+          pipeline.
         </p>
-        <ul className="mt-5 space-y-2">
-          {BRIEF_PDFS.map((pdf) => (
-            <li key={pdf.file}>
-              <a
-                href={`/briefs/${pdf.file}`}
-                className="inline-flex items-center gap-2 font-mono text-sm text-command-gold underline-offset-4 hover:underline"
-              >
-                {pdf.label} (PDF) ↓
-              </a>
-            </li>
-          ))}
-        </ul>
       </section>
 
       <p className="mt-10 font-serif text-sm italic text-muted">
