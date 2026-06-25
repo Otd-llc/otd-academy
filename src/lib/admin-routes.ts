@@ -38,6 +38,10 @@ export function isPublicPath(pathname: string): boolean {
   // The public /pricing page (the storefront landing) is crawlable + must render
   // signed-out (the top of the purchase funnel).
   if (top === "pricing") return true;
+  // The public briefs (marketing one-pagers): index (/briefs) + each brief
+  // (/briefs/overview, /briefs/learner). Static, gate-less, crawlable. The
+  // downloadable PDFs are served from /public, outside the middleware matcher.
+  if (top === "briefs") return true;
   // Certificate verification is for third parties (employers) who have no
   // account — must be reachable signed-out.
   if (top === "verify") return true;
