@@ -2,13 +2,11 @@
 //
 // /pricing — the top of the purchase funnel. Anonymous-readable (admitted by
 // `isPublicPath`, listed in the sitemap). Good-better-best: one build on its own
-// vs the All-Access Pass (the hero). The Pass price shows its launch number only
-// while the launch window is open.
+// vs the All-Access Pass (the hero), then the full catalog price list.
 //
-// Design: an engineering-drawing treatment (DrawingFrame + title block) and a
-// bill-of-materials ledger, so the page speaks the audience's vernacular instead
-// of generic pricing cards. Signal-blue marks identifiers/data, command-gold
-// marks money.
+// Design: quiet precision. Stark deep-space, hairline structure, oversized
+// confident display type, mono for every number, generous whitespace, a single
+// gold accent to guide the eye. No decorative chrome.
 //
 // Server component (RSC): the session is resolved once via `auth()` WITHOUT a
 // redirect (this route must render for anonymous visitors). The Pass + a
@@ -25,7 +23,6 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { DrawingFrame } from "@/components/marketing/DrawingFrame";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { SignUpCta } from "@/components/SignUpCta";
 import { BuyPassButton, UpgradePassButton } from "@/components/learn/PassButtons";
@@ -49,10 +46,9 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-// The premium project price RANGE (lowest to highest), for the "one build" card
-// in the good-better-best comparison. A range, not a single number, so it never
-// reads as "every board is $49". Resolved from the catalog so it stays honest if
-// a price changes.
+// The premium project price RANGE (lowest to highest), for the "one build" card.
+// A range, not a single number, so it never reads as "every board is $49".
+// Resolved from the catalog so it stays honest if a price changes.
 async function premiumPriceRange(): Promise<{
   minCents: number | null;
   maxCents: number | null;
@@ -80,6 +76,22 @@ async function premiumPriceRange(): Promise<{
   };
 }
 
+// A quiet metadata dot-separated row (the hero's spec line).
+function SpecLine({ items }: { items: string[] }) {
+  return (
+    <p className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] uppercase tracking-[0.22em] text-muted">
+      {items.map((it, i) => (
+        <span key={it} className="flex items-center gap-x-3">
+          {i > 0 ? (
+            <span aria-hidden="true" className="h-3 w-px bg-panel-border" />
+          ) : null}
+          {it}
+        </span>
+      ))}
+    </p>
+  );
+}
+
 export default async function PricingPage() {
   const now = new Date();
 
@@ -104,8 +116,7 @@ export default async function PricingPage() {
   // Pass renders as a waitlist, not a buy button that would error.
   const passOnSale = bundle?.stripePriceId != null && passCents !== null;
 
-  // Resolve the signed-in viewer's state for the CTA: do they already hold the
-  // Pass, and what is their pay-the-difference quote.
+  // Resolve the signed-in viewer's state for the CTA.
   let signedIn = false;
   let hasPass = false;
   let upgradeChargeCents: number | null = null;
@@ -162,81 +173,77 @@ export default async function PricingPage() {
         })
       : null;
 
-  // The Pass unit cell for the bill of materials.
   const passUnit =
     passCents !== null
       ? launchOpen && standardCents !== null && standardCents > passCents
-        ? `${formatUsd(passCents)} launch / ${formatUsd(standardCents)}`
+        ? `${formatUsd(passCents)} / ${formatUsd(standardCents)}`
         : formatUsd(passCents)
-      : "Coming soon";
+      : "Soon";
 
-  // Bill-of-materials rows. The item code is the real curriculum level, so the
-  // left column carries information, not decoration.
-  const bom: { code: string; desc: string; price: string; hero?: boolean }[] = [
-    {
-      code: "L1",
-      desc: "Level 1, full track (includes the L2.01 battery module)",
-      price: "Free",
-    },
-    { code: "L2", desc: "Level 2 builds (L2.02 to L2.05)", price: "$49 / build" },
-    { code: "L3", desc: "Level 3 builds", price: "$89 / build" },
-    {
-      code: "CAP",
-      desc: "Capstone builds (EEG front-end, fleet hub)",
-      price: "$149 / build",
-    },
-    { code: "BN", desc: "Bench-tool builds", price: "$89 / build" },
-    {
-      code: "PASS",
-      desc: "All-Access Pass, every premium build and bench tool",
-      price: passUnit,
-      hero: true,
-    },
-  ];
+  // Catalog price rows. The level code is the real curriculum level, a quiet
+  // structural label.
+  const catalog: { code: string; desc: string; price: string; hero?: boolean }[] =
+    [
+      {
+        code: "L1",
+        desc: "Level 1, full track (includes the L2.01 battery module)",
+        price: "Free",
+      },
+      { code: "L2", desc: "Level 2 builds (L2.02 to L2.05)", price: "$49" },
+      { code: "L3", desc: "Level 3 builds", price: "$89" },
+      {
+        code: "CAP",
+        desc: "Capstone builds (EEG front-end, fleet hub)",
+        price: "$149",
+      },
+      { code: "BN", desc: "Bench-tool builds", price: "$89" },
+      {
+        code: "PASS",
+        desc: "All-Access Pass, every premium build and bench tool",
+        price: passUnit,
+        hero: true,
+      },
+    ];
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+    <main className="mx-auto max-w-5xl px-5 py-12 sm:px-6 sm:py-16">
       {passOfferLd ? <JsonLd data={passOfferLd} /> : null}
       {singleOfferLd ? <JsonLd data={singleOfferLd} /> : null}
 
-      {/* Hero: the page opens as an engineering drawing. */}
-      <DrawingFrame
-        title={[
-          ["Doc", "Academy catalog"],
-          ["Rev", "2026.06"],
-          ["Status", launchOpen ? "Launch window" : "Pre-launch"],
-          ["Currency", "USD"],
-        ]}
-      >
-        <div className="px-6 py-9 sm:px-10 sm:py-11">
-          <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-command-gold">
-            Pricing
-          </p>
-          <h1 className="mt-3 font-display text-4xl leading-[0.92] tracking-tight text-white sm:text-6xl">
-            Pay once per board.
-            <br />
-            <span className="text-command-gold">Or take the whole bench.</span>
-          </h1>
-          <p className="mt-5 max-w-2xl font-serif text-base italic text-gray-2">
-            All of Level 1 is free. Buy a single premium build, or get the
-            All-Access Pass for every premium board and bench tool. One-time
-            purchase, no subscription.
-          </p>
-        </div>
-      </DrawingFrame>
+      {/* Hero */}
+      <header className="border-b border-panel-border pb-14 sm:pb-20">
+        <p className="font-mono text-[11px] uppercase tracking-[0.35em] text-command-gold">
+          Pricing
+        </p>
+        <h1 className="mt-6 font-display text-5xl leading-[0.88] tracking-tight text-white sm:text-7xl">
+          Pay once per board.
+          <br />
+          <span className="text-command-gold">Or take the whole bench.</span>
+        </h1>
+        <p className="mt-7 max-w-2xl font-serif text-lg leading-relaxed text-gray-2">
+          All of Level 1 is free. Buy a single premium build, or take the
+          All-Access Pass for every premium board and bench tool. One-time
+          purchase, no subscription.
+        </p>
+        <SpecLine
+          items={["One-time purchase", "No subscription", "14-day refund"]}
+        />
+      </header>
 
       {/* Good-better-best: one build (quiet) vs the Pass (hero). */}
-      <section className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-5">
+      <section className="mt-12 grid grid-cols-1 gap-5 lg:grid-cols-5">
         {/* Single build */}
-        <div className="glass-card flex flex-col gap-3 p-6 lg:col-span-2">
-          <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-signal-blue">
-            One build
-          </p>
-          <p className="font-display text-2xl tracking-wide text-white">
-            A single premium board
-          </p>
+        <div className="flex flex-col gap-6 rounded-2xl border border-panel-border bg-bg-2/30 p-7 sm:p-8 lg:col-span-2">
+          <div>
+            <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-muted">
+              One build
+            </p>
+            <p className="mt-2 font-display text-2xl tracking-wide text-white">
+              A single premium board
+            </p>
+          </div>
           {singleProjectCents !== null ? (
-            <p className="font-mono text-4xl text-white">
+            <p className="font-mono text-4xl tabular-nums text-white">
               {formatUsd(singleProjectCents)}
               {maxProjectCents !== null &&
               maxProjectCents > singleProjectCents ? (
@@ -251,21 +258,14 @@ export default async function PricingPage() {
               Price shown on each course
             </p>
           )}
-          <p className="font-mono text-[11px] uppercase tracking-wider text-muted">
-            Price depends on the build. See the bill of materials below.
-          </p>
-          <p className="font-serif text-sm italic text-gray-2">
-            Buy just the build you want. You get its full guide: schematic,
-            layout, fabrication, and bring-up, plus lifetime access.
-          </p>
-          <ul className="space-y-1.5 font-mono text-xs uppercase tracking-wider text-muted">
-            <li>One board, start to finish</li>
-            <li>Lifetime access to that build</li>
+          <ul className="space-y-2.5 text-sm leading-relaxed text-gray-2">
+            <li>The full guide: schematic, layout, DRC, and fab-ready gerbers</li>
+            <li>Lifetime access to that build, no subscription</li>
             <li>Your purchase counts toward the Pass later</li>
           </ul>
           <Link
             href="/courses"
-            className="mt-auto inline-flex w-fit items-center gap-1.5 rounded border border-panel-border bg-navy-dark px-5 py-2.5 font-mono text-sm uppercase tracking-wider text-gray-1 transition-colors hover:border-command-gold hover:text-command-gold"
+            className="mt-auto inline-flex w-fit items-center gap-1.5 font-mono text-sm uppercase tracking-wider text-command-gold transition-colors hover:text-gold-light"
           >
             Browse the builds
             <span aria-hidden="true">→</span>
@@ -273,31 +273,33 @@ export default async function PricingPage() {
         </div>
 
         {/* All-Access Pass (the hero) */}
-        <div className="relative flex flex-col gap-3 overflow-hidden rounded-xl border border-command-gold bg-gradient-to-b from-bg-2 to-deep-space p-6 shadow-[0_0_44px_-12px_rgba(200,150,62,0.6)] lg:col-span-3">
+        <div className="relative flex flex-col gap-6 overflow-hidden rounded-2xl border border-command-gold/70 bg-bg-2/50 p-7 shadow-[0_0_60px_-20px_rgba(200,150,62,0.7)] sm:p-9 lg:col-span-3">
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-command-gold/10 blur-3xl"
+            className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-command-gold/10 blur-3xl"
           />
-          <div className="flex items-center justify-between">
-            <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-command-gold">
-              All-Access Pass
-            </p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-command-gold">
+                All-Access Pass
+              </p>
+              <p className="mt-2 font-display text-3xl tracking-wide text-white">
+                Every premium build and bench tool
+              </p>
+            </div>
             {launchOpen ? (
-              <span className="rounded border border-command-gold/40 bg-command-gold/15 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">
+              <span className="shrink-0 rounded-full border border-command-gold/40 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">
                 Launch price
               </span>
             ) : null}
           </div>
-          <p className="font-display text-3xl tracking-wide text-white">
-            Every premium build and bench tool
-          </p>
           {passCents !== null ? (
-            <p className="font-mono text-5xl text-command-gold">
+            <p className="font-mono text-6xl tabular-nums leading-none text-command-gold">
               {formatUsd(passCents)}
               {launchOpen &&
               standardCents !== null &&
               standardCents > passCents ? (
-                <span className="ml-3 align-middle font-mono text-xl text-muted line-through">
+                <span className="ml-3 align-middle font-mono text-2xl text-muted line-through">
                   {formatUsd(standardCents)}
                 </span>
               ) : null}
@@ -307,19 +309,13 @@ export default async function PricingPage() {
               Coming soon
             </p>
           )}
-          <p className="font-serif text-sm italic text-gray-2">
-            One purchase unlocks every premium board across the curriculum and all
-            six bench tools. The same depth as professional and enterprise
-            hardware training, without the seat license or the subscription.
-          </p>
-          <ul className="grid grid-cols-1 gap-1.5 font-mono text-xs uppercase tracking-wider text-gray-2 sm:grid-cols-2">
-            <li>Every premium board and bench tool</li>
+          <ul className="grid grid-cols-1 gap-2.5 text-sm leading-relaxed text-gray-2 sm:grid-cols-2">
+            <li>Every premium board and all six bench tools</li>
             <li>Lifetime access, no subscription</li>
-            <li>Pay the difference to upgrade</li>
-            <li>New builds included as they ship</li>
+            <li>Pay only the difference to upgrade</li>
+            <li>New premium builds included as they ship</li>
           </ul>
-          {/* CTA by viewer state. */}
-          <div className="mt-auto pt-2">
+          <div className="mt-auto border-t border-panel-border pt-6">
             {hasPass ? (
               <p className="font-mono text-sm uppercase tracking-wider text-status-green">
                 You have the All-Access Pass.
@@ -347,52 +343,51 @@ export default async function PricingPage() {
         </div>
       </section>
 
-      {/* Bill of materials: the full price list as the engineering artifact it
-          is. The signature device. */}
-      <DrawingFrame
-        title={[
-          ["Sheet", "Bill of materials"],
-          ["Lines", String(bom.length)],
-          ["Terms", "One-time"],
-        ]}
-        className="mt-5"
-      >
-        <div className="px-6 py-7 sm:px-10 sm:py-8">
-          <p className="font-serif text-sm italic text-gray-2">
-            Every line is a one-time purchase, lifetime access. Paid tracks open
-            with the Level 1 launch. Join the Pass waitlist above and we&apos;ll
-            tell you first.
-          </p>
-          <div className="mt-6 grid grid-cols-[3rem_1fr_auto] gap-x-3 border-b border-panel-border pb-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted sm:grid-cols-[4rem_1fr_auto] sm:gap-x-5">
-            <span>Item</span>
-            <span>Description</span>
-            <span className="text-right">Unit price</span>
+      {/* Full catalog price list. */}
+      <section className="mt-20 border-t border-panel-border pt-12">
+        <p className="font-mono text-[11px] uppercase tracking-[0.35em] text-command-gold">
+          Full catalog
+        </p>
+        <h2 className="mt-3 font-display text-3xl tracking-wide text-white">
+          What everything costs
+        </h2>
+        <p className="mt-3 max-w-2xl font-serif text-base leading-relaxed text-gray-2">
+          Every line is a one-time purchase with lifetime access. Paid tracks
+          open with the Level 1 launch. Join the Pass waitlist above and we&apos;ll
+          tell you first.
+        </p>
+
+        <div className="mt-9">
+          <div className="grid grid-cols-[2.75rem_1fr_auto] gap-x-4 border-b border-panel-border pb-3 font-mono text-[10px] uppercase tracking-[0.22em] text-muted sm:grid-cols-[4rem_1fr_auto] sm:gap-x-8">
+            <span>Tier</span>
+            <span>Includes</span>
+            <span className="text-right">Price</span>
           </div>
           <div className="divide-y divide-panel-border">
-            {bom.map((r) => (
+            {catalog.map((r) => (
               <div
                 key={r.code}
-                className={`grid grid-cols-[3rem_1fr_auto] items-baseline gap-x-3 px-1 py-3.5 sm:grid-cols-[4rem_1fr_auto] sm:gap-x-5 ${
-                  r.hero ? "-mx-1 bg-command-gold/[0.07] px-2" : ""
-                }`}
+                className="grid grid-cols-[2.75rem_1fr_auto] items-baseline gap-x-4 py-4 sm:grid-cols-[4rem_1fr_auto] sm:gap-x-8"
               >
                 <span
                   className={`font-mono text-xs tracking-wider ${
-                    r.hero ? "text-command-gold" : "text-signal-blue"
+                    r.hero ? "text-command-gold" : "text-muted"
                   }`}
                 >
                   {r.code}
                 </span>
                 <span
-                  className={`font-serif text-sm ${
-                    r.hero ? "text-white" : "text-gray-1"
+                  className={`text-sm leading-snug ${
+                    r.hero ? "font-medium text-white" : "text-gray-1"
                   }`}
                 >
                   {r.desc}
                 </span>
                 <span
-                  className={`whitespace-nowrap text-right font-mono text-sm ${
-                    r.hero ? "text-command-gold" : "text-gray-1"
+                  className={`whitespace-nowrap text-right font-mono tabular-nums ${
+                    r.hero
+                      ? "text-base text-command-gold"
+                      : "text-base text-gray-1"
                   }`}
                 >
                   {r.price}
@@ -400,68 +395,50 @@ export default async function PricingPage() {
               </div>
             ))}
           </div>
-          <p className="mt-5 border-t border-panel-border pt-4 font-mono text-[11px] uppercase tracking-wider text-muted">
-            14-day money-back guarantee. Parts are separate: every build gives a
-            one-click DigiKey cart, or an optional pre-pulled kit when offered.
+          <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
+            14-day money-back guarantee. Parts are separate: one-click DigiKey
+            cart, or an optional pre-pulled kit when offered.
           </p>
         </div>
-      </DrawingFrame>
+      </section>
 
-      {/* FAQ — answer-first, concrete. */}
-      <section className="mt-12">
-        <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-signal-blue">
-          Notes
+      {/* FAQ. */}
+      <section className="mt-20 border-t border-panel-border pt-12">
+        <p className="font-mono text-[11px] uppercase tracking-[0.35em] text-command-gold">
+          Questions
         </p>
-        <h2 className="mt-2 font-display text-2xl tracking-wide text-white">
-          Common questions
-        </h2>
-        <dl className="mt-5 grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
-          <div>
-            <dt className="font-mono text-sm uppercase tracking-wider text-command-gold">
-              Is this a subscription?
-            </dt>
-            <dd className="mt-1 font-serif text-sm text-gray-2">
-              No. Every purchase is one-time. A build you buy, and the All-Access
-              Pass, stay yours with no recurring charge.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-mono text-sm uppercase tracking-wider text-command-gold">
-              What is free?
-            </dt>
-            <dd className="mt-1 font-serif text-sm text-gray-2">
-              All of Level 1 is free, including the L2.01 battery power module. You
-              can build those start to finish with a free account, no payment.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-mono text-sm uppercase tracking-wider text-command-gold">
-              Can I get a refund?
-            </dt>
-            <dd className="mt-1 font-serif text-sm text-gray-2">
-              Yes. Email us within 14 days of your purchase for a full refund.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-mono text-sm uppercase tracking-wider text-command-gold">
-              I already bought some builds. Do I pay full price for the Pass?
-            </dt>
-            <dd className="mt-1 font-serif text-sm text-gray-2">
-              No. We credit what you already paid for individual builds toward the
-              Pass, so you pay only the difference. If your purchases already cover
-              it, the Pass is added to your account at no extra charge.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-mono text-sm uppercase tracking-wider text-command-gold">
-              Do I need to buy parts from you?
-            </dt>
-            <dd className="mt-1 font-serif text-sm text-gray-2">
-              No. Each build lists its parts and gives you a one-click DigiKey cart
-              so you can order them yourself. An optional kit is offered beside
-              that cart when one is available.
-            </dd>
-          </div>
+        <dl className="mt-7 grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
+          {[
+            [
+              "Is this a subscription?",
+              "No. Every purchase is one-time. A build you buy, and the All-Access Pass, stay yours with no recurring charge.",
+            ],
+            [
+              "What is free?",
+              "All of Level 1 is free, including the L2.01 battery power module. You can build those start to finish with a free account, no payment.",
+            ],
+            [
+              "Can I get a refund?",
+              "Yes. Email us within 14 days of your purchase for a full refund.",
+            ],
+            [
+              "I already bought builds. Do I pay full price for the Pass?",
+              "No. We credit what you already paid for individual builds toward the Pass, so you pay only the difference. If your purchases already cover it, the Pass is added at no extra charge.",
+            ],
+            [
+              "Do I have to buy parts from you?",
+              "No. Each build lists its parts and gives you a one-click DigiKey cart so you can order them yourself. An optional kit is offered beside that cart when one is available.",
+            ],
+          ].map(([q, a]) => (
+            <div key={q}>
+              <dt className="font-display text-xl tracking-wide text-white">
+                {q}
+              </dt>
+              <dd className="mt-2 font-serif text-sm leading-relaxed text-gray-2">
+                {a}
+              </dd>
+            </div>
+          ))}
         </dl>
       </section>
     </main>

@@ -9,7 +9,6 @@ import Link from "next/link";
 
 import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/PageHeader";
-import { DrawingFrame } from "@/components/marketing/DrawingFrame";
 import { breadcrumbJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { BRIEFS, BRIEF_KEYS, BRIEF_PDFS } from "@/lib/brief-pages";
 
@@ -54,43 +53,39 @@ export default function BriefsIndexPage() {
         lead="Short reads on what the academy is, who it is for, and why it is built the way it is. You design real boards on the ESP32-S3 in KiCad 10 and advance only by passing a clean design-rule check."
       />
 
-      <DrawingFrame
-        title={[
-          ["Register", "Briefs"],
-          ["Public", String(BRIEF_KEYS.length)],
-        ]}
-      >
-        <div className="p-5 sm:p-6">
-          <ul className="grid gap-3 sm:grid-cols-2">
-            {BRIEF_KEYS.map((key, i) => {
-              const brief = BRIEFS[key];
-              const code = `B-${String(i + 1).padStart(2, "0")}`;
-              return (
-                <li key={key}>
-                  <Link
-                    href={`/briefs/${key}`}
-                    className="group flex h-full flex-col gap-2 rounded-lg border border-panel-border bg-deep-space/40 p-5 transition-colors hover:border-command-gold/50"
-                  >
-                    <span className="font-mono text-[10px] uppercase tracking-[0.25em]">
-                      <span className="text-signal-blue">{code}</span>{" "}
-                      <span className="text-muted">{brief.eyebrow}</span>
-                    </span>
-                    <span className="font-display text-2xl leading-tight tracking-wide text-white group-hover:text-command-gold">
-                      {brief.title}
-                    </span>
-                    <span className="font-serif text-sm leading-snug text-muted">
-                      {brief.seoDescription}
-                    </span>
-                    <span className="mt-auto pt-2 font-mono text-xs uppercase tracking-wider text-command-gold">
-                      Read →
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </DrawingFrame>
+      <section>
+        <h2 className="flex items-center gap-3 font-mono text-xs uppercase tracking-[0.25em] text-command-gold">
+          <span className="h-px w-6 bg-command-gold/50" />
+          Read a brief
+        </h2>
+        <ul className="mt-5 grid gap-4 sm:grid-cols-2">
+          {BRIEF_KEYS.map((key, i) => {
+            const brief = BRIEFS[key];
+            const code = `B-${String(i + 1).padStart(2, "0")}`;
+            return (
+              <li key={key}>
+                <Link
+                  href={`/briefs/${key}`}
+                  className="group flex h-full flex-col gap-2 rounded-2xl border border-panel-border bg-bg-2/30 p-6 transition-colors hover:border-command-gold/50"
+                >
+                  <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted">
+                    {code} / {brief.eyebrow}
+                  </span>
+                  <span className="font-display text-2xl leading-tight tracking-wide text-white group-hover:text-command-gold">
+                    {brief.title}
+                  </span>
+                  <span className="font-serif text-sm leading-snug text-muted">
+                    {brief.seoDescription}
+                  </span>
+                  <span className="mt-auto pt-2 font-mono text-xs uppercase tracking-wider text-command-gold">
+                    Read →
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
 
       <section className="mt-12">
         <h2 className="flex items-center gap-3 font-mono text-xs uppercase tracking-[0.25em] text-command-gold">
