@@ -117,7 +117,7 @@ the query scopes the write to one guide block; the body is the raw blob. There a
    "Upload a finished video to this slot" button (`#uploadFileBtn` in
    [`overlay.html`](./overlay.html)), shown only in a deep-link session (there is no slot
    to target in standalone mode). The handler opens a native file picker
-   (`dialog.showOpenDialog`, filtered to `mp4`/`webm`/`mov`), derives `ext` from the
+   (`dialog.showOpenDialog`, filtered to `mp4`/`webm`), derives `ext` from the
    chosen file, and uploads.
 
 Contract for both:
@@ -128,11 +128,10 @@ Contract for both:
 - Success: `200` `{ ok: true, src }`; the academy stored the blob in R2 and pointed the
   block at `/api/shot/‹id›.‹ext›`.
 
-**Accepted `ext`, and a caveat for `upload-file`:** the route's `MIME` map accepts only
-`webp`, `webm`, and `mp4`, and `ALLOWED` further restricts a **video** token to `webm` or
-`mp4` (an **image** token to `webp`). The file picker offers `mov`, but the route returns
-`400` for a `.mov` upload (`mov` is not in `MIME`). **Export mp4 from Kdenlive** (the
-recommended default) and this is moot.
+**Accepted `ext`:** the route's `MIME` map accepts only `webp`, `webm`, and `mp4`, and
+`ALLOWED` further restricts a **video** token to `webm` or `mp4` (an **image** token to
+`webp`). The `upload-file` picker is filtered to `mp4`/`webm` to match; **export mp4 from
+Kdenlive** (the recommended default).
 
 ## The end-to-end workflow
 
