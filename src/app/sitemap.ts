@@ -24,6 +24,7 @@ import type { MetadataRoute } from "next";
 import { db } from "@/lib/db";
 import { siteUrl } from "@/lib/seo/jsonld";
 import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
+import { BRIEF_KEYS } from "@/lib/brief-pages";
 
 // DB-backed: render at REQUEST time, never statically prerendered at build. The
 // CI build runs with a stub DATABASE_URL the query can't reach (and a build-time
@@ -58,6 +59,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/courses`, lastModified },
     { url: `${base}/parts`, lastModified },
   ];
+
+  // The static public briefs: the index + each brief key (overview, learner).
+  entries.push({ url: `${base}/briefs`, lastModified });
+  for (const key of BRIEF_KEYS) {
+    entries.push({ url: `${base}/briefs/${key}`, lastModified });
+  }
 
   for (const part of parts) {
     entries.push({ url: `${base}/parts/${part.id}`, lastModified });

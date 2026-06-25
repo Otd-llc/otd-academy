@@ -146,6 +146,7 @@ export default async function RootLayout({
                   <Link href="/courses">Courses</Link>
                   <Link href="/library">Library</Link>
                   <Link href="/parts">Parts</Link>
+                  <Link href="/briefs">Briefs</Link>
                   <Link href="/license">License</Link>
                 </nav>
 
