@@ -243,11 +243,11 @@ export default async function PricingPage() {
             </p>
           </div>
           {singleProjectCents !== null ? (
-            <p className="font-mono text-4xl tabular-nums text-white">
+            <p className="font-display text-5xl leading-none tracking-wide text-white">
               {formatUsdShort(singleProjectCents)}
               {maxProjectCents !== null &&
               maxProjectCents > singleProjectCents ? (
-                <span className="text-2xl text-muted">
+                <span className="text-3xl text-muted">
                   {" "}
                   to {formatUsdShort(maxProjectCents)}
                 </span>
@@ -294,12 +294,12 @@ export default async function PricingPage() {
             ) : null}
           </div>
           {passCents !== null ? (
-            <p className="font-mono text-6xl tabular-nums leading-none text-command-gold">
+            <p className="font-display text-7xl leading-none tracking-wide text-command-gold">
               {formatUsdShort(passCents)}
               {launchOpen &&
               standardCents !== null &&
               standardCents > passCents ? (
-                <span className="ml-3 align-middle font-mono text-2xl text-muted line-through">
+                <span className="ml-3 align-baseline text-3xl text-muted line-through">
                   {formatUsdShort(standardCents)}
                 </span>
               ) : null}
