@@ -71,7 +71,13 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
       <div className="mt-5 flex items-start justify-between gap-6">
         <h1
           className="font-display text-[82px] leading-[0.78] tracking-tight"
-          style={{ color: IVORY }}
+          style={{
+            color: IVORY,
+            // Bebas Neue ships a single weight, so font-weight can't bolden it.
+            // Thicken the glyph strokes directly (each part strokes its own color).
+            WebkitTextStrokeWidth: "1.3px",
+            WebkitTextStrokeColor: "currentColor",
+          }}
         >
           One <span className="text-command-gold">mind</span>.
           <br />
