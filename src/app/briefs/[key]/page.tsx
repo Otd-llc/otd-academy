@@ -16,12 +16,8 @@ import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/PageHeader";
 import { breadcrumbJsonLd, techArticleJsonLd, siteUrl } from "@/lib/seo/jsonld";
-import {
-  BRIEF_KEYS,
-  PROOF_STATS,
-  SYSTEM_MAP,
-  getBrief,
-} from "@/lib/brief-pages";
+import { BriefSystemMap } from "@/components/marketing/BriefSystemMap";
+import { BRIEF_KEYS, PROOF_STATS, getBrief } from "@/lib/brief-pages";
 
 // Pure static data, no DB. Pre-render both keys at build time.
 export const dynamic = "force-static";
@@ -71,91 +67,28 @@ function SectionHead({ children }: { children: React.ReactNode }) {
   );
 }
 
-// A thin connector between diagram tiers, optionally carrying a label.
-function Flow({ label }: { label?: string }) {
-  return (
-    <div className="my-5 flex flex-col items-center" aria-hidden="true">
-      <span className="h-6 w-px bg-gradient-to-b from-command-gold/60 to-panel-border" />
-      {label ? (
-        <>
-          <span className="my-1.5 font-mono text-[9px] uppercase tracking-[0.3em] text-muted">
-            {label}
-          </span>
-          <span className="h-6 w-px bg-gradient-to-b from-panel-border to-command-gold/60" />
-        </>
-      ) : null}
-    </div>
-  );
-}
-
-// The curriculum system map: the ESP32-S3 platform fans into four tracks that
-// converge on the two capstones (the "many machines, one mind" shape). A
-// restrained diagram with hairline connectors; the meaningful nodes (platform,
-// capstones) carry the single gold accent, the tracks stay neutral.
-function SystemMap() {
+// The Brain-to-Swarm curriculum, the brief's signature panel: the bordered
+// "system map" frame from the capability brief, wrapping the hex map (the bee
+// seal core, a backplane bus into the four track hexes, converging on the two
+// capstones).
+function CurriculumMap() {
   return (
     <figure
-      className="mt-6 rounded-2xl border border-panel-border bg-bg-2/30 p-6 sm:p-9"
-      aria-label="The ESP32-S3 platform fans into four tracks that converge on two capstones"
+      className="mt-6 overflow-hidden rounded-2xl border border-panel-border bg-bg-2/30"
+      aria-label="The Brain-to-Swarm curriculum"
     >
-      {/* Platform */}
-      <div className="flex flex-col items-center text-center">
-        <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-muted">
-          Platform
-        </span>
-        <div className="mt-2.5 rounded-lg border border-command-gold/50 bg-command-gold/[0.06] px-7 py-3">
-          <p className="font-display text-2xl tracking-wide text-white">
-            {SYSTEM_MAP.root.label}
-          </p>
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
-            {SYSTEM_MAP.root.sub}
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-panel-border px-5 py-3 font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">
+        <span>System map · the Brain-to-Swarm curriculum</span>
+        <span className="text-muted">22 boards / 4 tracks / 2 capstones</span>
       </div>
-
-      <Flow />
-
-      {/* Four tracks */}
-      <p className="text-center font-mono text-[10px] uppercase tracking-[0.3em] text-muted">
-        Four tracks
-      </p>
-      <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {SYSTEM_MAP.tracks.map((t) => (
-          <li
-            key={t.code}
-            className="rounded-lg border border-panel-border bg-deep-space/50 p-4"
-          >
-            <p className="font-mono text-sm uppercase tracking-[0.15em] text-command-gold">
-              {t.code}
-            </p>
-            <p className="mt-1.5 font-serif text-xs leading-snug text-gray-2">
-              {t.blurb}
-            </p>
-          </li>
-        ))}
-      </ul>
-
-      <Flow label="Converge on" />
-
-      {/* Two capstones */}
-      <p className="text-center font-mono text-[10px] uppercase tracking-[0.3em] text-muted">
-        Two capstones
-      </p>
-      <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {SYSTEM_MAP.capstones.map((c) => (
-          <li
-            key={c.code}
-            className="rounded-lg border border-command-gold/40 bg-command-gold/[0.05] p-4"
-          >
-            <p className="font-mono text-sm uppercase tracking-[0.15em] text-command-gold">
-              {c.code}
-            </p>
-            <p className="mt-1.5 font-serif text-xs leading-snug text-gray-2">
-              {c.blurb}
-            </p>
-          </li>
-        ))}
-      </ul>
+      <div className="px-4 py-7 sm:px-8 sm:py-9">
+        <BriefSystemMap />
+      </div>
+      <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 border-t border-panel-border px-5 py-3 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+        <span>Live DigiKey pricing</span>
+        <span>Fab-ready gerbers</span>
+        <span>Sealed certificate at /verify</span>
+      </div>
     </figure>
   );
 }
@@ -216,8 +149,7 @@ export default async function BriefPage({
 
       {/* System map */}
       <section className="mt-12">
-        <SectionHead>The curriculum, at a glance</SectionHead>
-        <SystemMap />
+        <CurriculumMap />
       </section>
 
       {/* Proof stats */}
