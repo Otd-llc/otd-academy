@@ -143,10 +143,14 @@ Net effect: `overlay.js` `onSession(s)` just reads `s.script` — exactly like `
   exist. Hide it during setup/review/done by virtue of the section switch.
 - **Manual advance:** scroll wheel while hovering the panel + global hotkeys to page down/up that
   work without focusing the panel (hands are in KiCad), plus a hide/show toggle. **The hotkeys
-  MUST be `Ctrl+Shift+` chords** — the existing globals are `Ctrl+Shift+Enter`/`Ctrl+Shift+Backspace`
-  precisely because bare Space/Esc/arrow/F keys clobber KiCad (Space = pan) or are Fn-unreliable
-  (`README.md`). Do NOT use `↓`/`↑`/`Space`. E.g. `Ctrl+Shift+Down`/`Ctrl+Shift+Up` to page,
-  `Ctrl+Shift+H` to hide.
+  MUST be `Ctrl+Shift+` chords registered as Electron `globalShortcut`s in `main.js` and forwarded
+  to the overlay via IPC** — NOT a renderer `keydown` listener (the overlay is unfocused during
+  recording, so a renderer keydown never fires). The existing
+  `trigger`/`cancel`/`toggle-follow` chords already work exactly this way (`globalShortcut.register`
+  in the `arm-space` handler → `webContents.send`); piggy-back on that arm/disarm lifecycle. Bare
+  `↓`/`↑`/`Space`/F keys are out (Space pans KiCad, F-keys Fn-unreliable). Use
+  `Ctrl+Shift+Down`/`Up` to page, `Ctrl+Shift+H` to hide. This adds small IPC events for the
+  hotkeys (the *session fetch* still needs none — see §3).
 - Reuses the overlay interactivity model — the panel is part of the on-top overlay window,
   hit-tested via `setInteractive` like the other panels.
 
@@ -177,9 +181,10 @@ with or after the code.
 ## Surface summary
 
 `+1` schema field · `+1` GET route · `+1` BlockEditor input · `+1` main-process session-enrich
-fetch · `+1` overlay panel (manual scroll) · `+1` manual out-of-frame check · `+` the content task.
-**No migration, no new auth, no new IPC channel, no renderer-side network, no change to
-`createCaptureSession`/upload.**
+fetch · `+1` overlay panel + scroll global-shortcuts (forwarded via IPC, like the existing chords) ·
+`+1` manual out-of-frame check · `+` the content task. **No migration, no new auth, no renderer-side
+network, no change to `createCaptureSession`/upload.** (The session fetch needs no IPC; the
+teleprompter hotkeys add small forwarded IPC events, mirroring `trigger`/`cancel`.)
 
 ## Validation pass (2026-06-24)
 

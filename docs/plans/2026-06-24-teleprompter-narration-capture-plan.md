@@ -283,11 +283,15 @@ it; the gate is `tsc` + `pnpm build` + **Josh eyeballing the field**. (This is c
 the codebase treats guide-editor UI.)
 
 **Files:**
-- Modify: `src/components/guide/BlockEditor.tsx` (the video/image block branch, ~lines 585–624)
+- Modify: `src/components/guide/BlockEditor.tsx` — the `MediaEditor` function (`block` is
+  `Extract<ContentBlock, { type: "image" | "video" }>`; `onChange: (next: ContentBlock) => void`;
+  `labelClass`/`inputClass`/`helpClass` are module-scoped, `baseId = useId()`). Caption input is
+  ~lines 585–598, Capture-aspect ~600–624.
 
-**Step 1 — Implement.** In the video block's editor JSX, **after** the Caption `<div>` (the block
-ending ~line 598) and **before** the Capture-aspect `<div>` (~line 600), insert a script textarea.
-It must only render for video blocks (image blocks have no script):
+**Step 1 — Implement.** In `MediaEditor`'s JSX, **after** the Caption `<div>` (~line 598) and
+**before** the Capture-aspect `<div>` (~line 600), insert a script textarea. It renders only for
+video blocks (image blocks have no `script`); the `block.type === "video"` check narrows `block` so
+`block.script` and the spread typecheck, and `onChange` accepts the full `ContentBlock` union:
 
 ```tsx
       {block.type === "video" ? (
@@ -409,12 +413,25 @@ async function handleDeepLink(link) {
 (`deliverSession` stays synchronous and unchanged — it sends if the overlay is ready, else stores
 the already-enriched session for the `did-finish-load` flush.)
 
-**Step 3 — Fix the first-launch argv path (the bypass).** In `app.whenReady().then(...)`, replace:
+**Step 3 — Fix the first-launch argv path (the bypass) WITHOUT reintroducing the race.**
+
+`createOverlay()` runs at ~line 300, AFTER this argv block (~297), and the existing code relies on
+`pendingSession` being set **synchronously before** `createOverlay` so the `did-finish-load` flush
+(~line 167) always sees it. If you instead kick off an async enrich and assign `pendingSession`
+when it resolves, `did-finish-load` can fire first, read a null `pendingSession`, and **lose the
+session** (the exact cold-launch ordering trap). Fix: make the `whenReady` callback `async` and
+**`await` the enrich before `createOverlay()`**, preserving the set-before-create invariant (costs
+~one fetch of startup latency on cold launch — acceptable).
+
+Change the callback signature `app.whenReady().then(() => {` → `app.whenReady().then(async () => {`,
+then replace:
 
 ```js
     const link = process.argv.find((a) => a.startsWith(`${PROTOCOL}://`));
     if (link) pendingSession = parseDeepLink(link);
     else logLine("no deep link in launch argv (standalone launch)");
+
+    createOverlay();
 ```
 
 with:
@@ -422,18 +439,20 @@ with:
 ```js
     const link = process.argv.find((a) => a.startsWith(`${PROTOCOL}://`));
     if (link) {
-      // Enrich BEFORE delivering. Do NOT assign pendingSession from a pending
-      // fetch — the did-finish-load flush could read a null pendingSession and
-      // lose the session (cold-launch ordering trap). deliverSession handles the
-      // ready-vs-queue branch itself.
-      sessionFromLink(link).then(deliverSession);
+      // Enrich (fetch the script) BEFORE createOverlay so pendingSession is set
+      // when did-finish-load flushes it — preserving the existing "queue before
+      // the window loads" invariant. Awaiting here avoids the race where the
+      // flush reads a null pendingSession mid-fetch and loses the session.
+      pendingSession = await sessionFromLink(link);
     } else logLine("no deep link in launch argv (standalone launch)");
+
+    createOverlay();
 ```
 
-> Verify `createOverlay()` is called in `whenReady` BEFORE this block (so `overlay` exists for the
-> `deliverSession` readiness check; if not ready yet, the enriched session is queued and flushed on
-> `did-finish-load`). The two `app.on("second-instance"/"open-url", … handleDeepLink)` callers don't
-> need `await` — fire-and-forget is fine.
+> The two `app.on("second-instance"/"open-url", … handleDeepLink)` callers (Step 2) are the
+> app-already-running paths: the overlay already exists and is loaded, so `deliverSession` sends
+> directly — no race, no `await` needed at the call site (`handleDeepLink` is `async` but
+> fire-and-forget is fine there).
 
 **Step 4 — Syntax gate.**
 Run (PowerShell): `node --check capture-app/main.js`
@@ -452,9 +471,11 @@ git commit -m "feat(capture): fetch the narration script in main and enrich ever
 
 **Files:**
 - Modify: `capture-app/overlay.html` (add the panel markup inside the **framing** section)
-- Modify: `capture-app/overlay.js` (show/populate the panel from `s.script`; global scroll/hide
-  hotkeys; constants near the other `$()` element refs ~lines 16–62)
-- Modify: `capture-app/preload.js` (comment only — line 16 lists the payload fields; add `script`)
+- Modify: `capture-app/main.js` (`arm-space`/`disarm-space` handlers, ~lines 322–338 — register the
+  scroll/hide global shortcuts there)
+- Modify: `capture-app/preload.js` (add the teleprompter IPC bridges + update the payload comment)
+- Modify: `capture-app/overlay.js` (show/populate the panel from `s.script`; subscribe to the
+  forwarded hotkey events; element refs near the other `$()` refs ~lines 16–62; hide on `reset()`)
 
 **Key constraints baked in from the design (do not deviate):**
 - Render the panel **inside the framing section's DOM**. There is **no** `showSection("recording")`
@@ -463,10 +484,16 @@ git commit -m "feat(capture): fetch the narration script in main and enrich ever
 - Frame-safety is automatic: the whole overlay window is `setContentProtection(true)`, so the panel
   is excluded from the recording **anywhere** — same mechanism that hides the framing box. Position
   is a *usability* choice (keep it off the KiCad work area), not a frame-safety one. (Finding §4.)
-- **Global hotkeys MUST be `Ctrl+Shift+` chords** — bare Space/Esc/arrows clobber KiCad (Space =
-  pan) and bare F-keys are Fn-unreliable, which is exactly why the existing globals are
-  `Ctrl+Shift+Enter`/`Ctrl+Shift+Backspace`. Suggested: `Ctrl+Shift+ArrowDown`/`ArrowUp` to page,
-  `Ctrl+Shift+H` to hide/show. (Validation finding §3b.)
+- **Hotkeys MUST be `globalShortcut`s registered in MAIN and forwarded via IPC** — NOT a renderer
+  `keydown` listener. The overlay is UNFOCUSED while recording (hands in KiCad), so a renderer
+  keydown never fires; the existing `trigger`/`cancel`/`toggle-follow` chords are
+  `globalShortcut.register(...)` in `main.js`'s `arm-space` handler that `webContents.send(...)` to
+  the overlay. Piggy-back the teleprompter chords on that exact arm/disarm lifecycle so they're
+  live for framing + recording and torn down otherwise. (Plan validation finding — a renderer
+  keydown would be dead during recording.)
+- **Chords MUST be `Ctrl+Shift+`** — bare Space/Esc/arrows clobber KiCad (Space = pan) and bare
+  F-keys are Fn-unreliable. Use `CommandOrControl+Shift+Down`/`Up` to page, `CommandOrControl+Shift+H`
+  to hide/show. (Validation finding §3b.)
 - **Do NOT touch the mic.** `micEnabled` already defaults `true`; script presence drives the
   teleprompter only. (Validation finding #5.)
 
@@ -483,7 +510,49 @@ Style it (in the same file's `<style>`): large, high-contrast, fixed to an edge 
 or right rail), `overflow-y: auto`, a high `z-index`, generous line-height. It does not need to be
 in the crop region — content protection keeps it out of the recording regardless.
 
-**Step 2 — Wire it in `capture-app/overlay.js`.** Add element refs near the others
+**Step 2 — Register the scroll/hide global shortcuts in `capture-app/main.js`.** Inside the existing
+`ipcMain.on("arm-space", …)` handler (~line 322), add three registrations alongside the existing
+ones; inside `ipcMain.on("disarm-space", …)` (~line 334), add the matching unregisters:
+
+```js
+// in arm-space (after the toggle-follow register):
+  globalShortcut.register("CommandOrControl+Shift+Down", () =>
+    overlay?.webContents.send("teleprompter:scroll", 1),
+  );
+  globalShortcut.register("CommandOrControl+Shift+Up", () =>
+    overlay?.webContents.send("teleprompter:scroll", -1),
+  );
+  globalShortcut.register("CommandOrControl+Shift+H", () =>
+    overlay?.webContents.send("teleprompter:toggle"),
+  );
+
+// in disarm-space (alongside the existing unregisters):
+  globalShortcut.unregister("CommandOrControl+Shift+Down");
+  globalShortcut.unregister("CommandOrControl+Shift+Up");
+  globalShortcut.unregister("CommandOrControl+Shift+H");
+```
+
+(`globalShortcut.unregisterAll()` on quit ~line 667 already covers final cleanup.)
+
+**Step 3 — Add the IPC bridges + update the payload comment in `capture-app/preload.js`.** Mirror
+`onTrigger`/`onCancel`:
+
+```js
+  // Teleprompter controls forwarded from main's global shortcuts (live only while
+  // framing/recording). dir: +1 = page down, -1 = page up.
+  onTeleprompterScroll: (cb) =>
+    ipcRenderer.on("teleprompter:scroll", (_e, dir) => cb(dir)),
+  onTeleprompterToggle: (cb) =>
+    ipcRenderer.on("teleprompter:toggle", () => cb()),
+```
+
+And update the line ~16 comment to list the new field:
+
+```js
+  // Deep-link session from the lesson "+" (api/token/kind/hint/caption/script).
+```
+
+**Step 4 — Wire it in `capture-app/overlay.js`.** Add element refs near the others
 (`const teleprompterEl = $("teleprompter"); const teleprompterTextEl = $("teleprompterText");`).
 In the `onSession` callback, after the existing session setup, populate from `s.script`:
 
@@ -499,45 +568,33 @@ In the `onSession` callback, after the existing session setup, populate from `s.
     }
 ```
 
-Add global hotkeys (mirror how the existing global chords are handled — likely a `keydown`
-listener; match the existing pattern in this file):
+Subscribe to the forwarded hotkeys (NOT a `keydown` listener — see constraints):
 
 ```js
-  window.addEventListener("keydown", (e) => {
-    if (!e.ctrlKey || !e.shiftKey) return;
-    if (teleprompterEl.classList.contains("hidden")) return;
-    if (e.key === "ArrowDown") { teleprompterEl.scrollTop += 80; e.preventDefault(); }
-    else if (e.key === "ArrowUp") { teleprompterEl.scrollTop -= 80; e.preventDefault(); }
-    else if (e.key.toLowerCase() === "h") {
-      const hidden = teleprompterEl.classList.toggle("hidden");
-      teleprompterEl.setAttribute("aria-hidden", String(hidden));
-      e.preventDefault();
-    }
+  window.otd.onTeleprompterScroll((dir) => {
+    teleprompterEl.scrollTop += dir * 80;
+  });
+  window.otd.onTeleprompterToggle(() => {
+    const hidden = teleprompterEl.classList.toggle("hidden");
+    teleprompterEl.setAttribute("aria-hidden", String(hidden));
   });
 ```
 
-> Also allow scroll-wheel over the panel (a native `wheel`/overflow scroll works once the panel is
-> interactive; the overlay's `setInteractive` hit-test already re-enables the window over panels —
-> confirm the teleprompter is treated as a panel for the hit-test, or it can scroll by hotkey only).
-> Keep the panel hidden again on `reset()` (where `phase` returns to `setup`) so a subsequent
-> standalone/session run starts clean.
+> Optional nicety: native scroll-wheel over the panel works once the panel is hovered + interactive
+> (the `setInteractive` hit-test re-enables the window over panels — treat the teleprompter like the
+> other panels in that hit-test, or rely on the hotkeys). In `reset()` (phase → `setup`, ~line
+> 1243) add `teleprompterEl.classList.add("hidden")` so a later run starts clean.
 
-**Step 3 — preload comment.** In `capture-app/preload.js` line ~16, update the payload comment to
-include `script`:
+**Step 5 — Syntax gate.**
+Run (PowerShell): `node --check capture-app/main.js`, `node --check capture-app/overlay.js`,
+`node --check capture-app/preload.js`
+Expected: no output (exit 0) for each. (`overlay.html` has no JS gate — verified visually.)
 
-```js
-  // Deep-link session from the lesson "+" (api/token/kind/hint/caption/script).
-```
-
-**Step 4 — Syntax gate.**
-Run (PowerShell): `node --check capture-app/overlay.js` then `node --check capture-app/preload.js`
-Expected: no output (exit 0) for each. (`overlay.html` has no JS gate — it's verified visually.)
-
-**Step 5 — Commit.**
+**Step 6 — Commit.**
 
 ```bash
-git add capture-app/overlay.html capture-app/overlay.js capture-app/preload.js
-git commit -m "feat(capture): teleprompter panel with Ctrl+Shift scroll, shown for scripted clips"
+git add capture-app/main.js capture-app/preload.js capture-app/overlay.html capture-app/overlay.js
+git commit -m "feat(capture): teleprompter panel + Ctrl+Shift global-shortcut scroll for scripted clips"
 ```
 
 ---
