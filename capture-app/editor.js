@@ -22,14 +22,10 @@
   let videoEl = $("video");
   let altEl = $("video2");
   const exportVideoEl = $("exportVideo"); // dedicated frame source for WYSIWYG export
-  const narrationEl = $("narration"); // mic narration playback, synced to the playhead
   const noClipEl = $("noClip");
   const canvasEl = $("previewCanvas");
   const previewCtx = canvasEl.getContext("2d");
   const zoomBoxEl = $("zoomBox");
-  const audioWaveEl = $("audioWave");
-  const audioWaveCtx = audioWaveEl.getContext("2d");
-  let narrationPath = null; // path currently loaded in narrationEl
 
   // transport
   const playBtn = $("playBtn");
@@ -59,7 +55,6 @@
   const trimInBtn = $("trimInBtn");
   const trimOutBtn = $("trimOutBtn");
   const removeBtn = $("removeBtn");
-  const hushBtn = $("hushBtn");
   const zoomKfBtn = $("zoomKfBtn");
   const resetZoomBtn = $("resetZoomBtn");
   const clearZoomBtn = $("clearZoomBtn");
@@ -291,7 +286,6 @@
       acc += e;
     });
 
-    renderWaveform();
     renderAnnotations();
     updatePlayheadUI();
     renderControls();
@@ -433,7 +427,6 @@
     trimInBtn.disabled = clips.length === 0;
     trimOutBtn.disabled = clips.length === 0;
     removeBtn.disabled = !has;
-    hushBtn.disabled = !clips.some((c) => c.audioPath);
     exportBtn.disabled = busy || clips.length === 0;
     playBtn.disabled = clips.length === 0;
     homeBtn.disabled = clips.length === 0;
@@ -695,109 +688,6 @@
   function renderLoop() {
     drawFrame();
     requestAnimationFrame(renderLoop);
-  }
-
-  // ── narration audio (per-clip mic), synced to the playhead during normal playback ──
-  function pauseNarration() {
-    if (!narrationEl.paused) narrationEl.pause();
-  }
-  function narrationSync() {
-    const c = clips[curSegIdx];
-    // Only during forward 1× playback — scrubbing/shuttle/reverse stay silent.
-    if (!playing || fwdMul !== 1 || !c || !c.audioPath) {
-      pauseNarration();
-      return;
-    }
-    if (narrationPath !== c.audioPath) {
-      narrationPath = c.audioPath;
-      narrationEl.src = fileUrl(c.audioPath);
-    }
-    // audio time = video source time + how far the mic led video frame 0
-    const want = videoEl.currentTime + (c.audioOffsetMs || 0) / 1000;
-    narrationEl.playbackRate = c.speed || 1;
-    if (Math.abs(narrationEl.currentTime - want) > 0.12) {
-      try {
-        narrationEl.currentTime = Math.max(0, want);
-      } catch (e) {
-        /* not ready yet */
-      }
-    }
-    if (narrationEl.paused) narrationEl.play().catch(() => {});
-  }
-
-  // ── audio waveform on the Audio track ──
-  let audioCtx = null;
-  // Decode each clip's narration to amplitude peaks (over the full audio), once.
-  async function decodeAllAudio() {
-    if (!audioCtx) {
-      try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      } catch (e) {
-        return;
-      }
-    }
-    let any = false;
-    for (const c of clips) {
-      if (!c.audioPath || c._peaks || c._peaksFailed) continue;
-      try {
-        const resp = await fetch(fileUrl(c.audioPath));
-        const buf = await resp.arrayBuffer();
-        const audio = await audioCtx.decodeAudioData(buf);
-        c._audioDur = audio.duration;
-        c._peaks = computePeaks(audio.getChannelData(0), 2000);
-        any = true;
-      } catch (e) {
-        c._peaksFailed = true;
-        if (window.otd.log) window.otd.log("waveform decode failed: " + (e && e.message));
-      }
-    }
-    if (any) renderWaveform();
-  }
-  function computePeaks(data, buckets) {
-    const block = Math.max(1, Math.floor(data.length / buckets));
-    const peaks = new Float32Array(buckets);
-    for (let i = 0; i < buckets; i++) {
-      let max = 0;
-      const start = i * block;
-      const end = Math.min(data.length, start + block);
-      for (let j = start; j < end; j++) {
-        const v = data[j] < 0 ? -data[j] : data[j];
-        if (v > max) max = v;
-      }
-      peaks[i] = max;
-    }
-    return peaks;
-  }
-  // Draw each clip's waveform slice across its timeline placement (honouring trim+speed).
-  function renderWaveform() {
-    const innerW = tlInnerEl.clientWidth || 0;
-    const h = audioWaveEl.clientHeight || 46;
-    if (audioWaveEl.width !== innerW) audioWaveEl.width = innerW;
-    if (audioWaveEl.height !== h) audioWaveEl.height = h;
-    const ctx = audioWaveCtx;
-    ctx.clearRect(0, 0, audioWaveEl.width, h);
-    const mid = h / 2;
-    let acc = 0;
-    for (const c of clips) {
-      const e = effSec(c);
-      const x0 = acc * pxPerSec;
-      const w = e * pxPerSec;
-      acc += e;
-      if (!c._peaks || !c._audioDur) continue;
-      const off = (c.audioOffsetMs || 0) / 1000;
-      const aStart = inOf(c) + off; // audio time at the clip's left edge
-      const aEnd = outOf(c) + off; // audio time at the clip's right edge
-      const buckets = c._peaks.length;
-      ctx.fillStyle = "rgba(200,150,62,0.55)";
-      const cols = Math.max(1, Math.floor(w));
-      for (let px = 0; px < cols; px++) {
-        const at = aStart + ((aEnd - aStart) * px) / cols; // audio time at this column
-        const bi = Math.max(0, Math.min(buckets - 1, Math.floor((at / c._audioDur) * buckets)));
-        const amp = c._peaks[bi];
-        const barH = Math.max(0.5, amp * (h - 4));
-        ctx.fillRect(x0 + px, mid - barH / 2, 1, barH);
-      }
-    }
   }
 
   // ── zoom keyframes (drag a focus box on the canvas → keyframe at the playhead) ──
@@ -1093,7 +983,6 @@
     if (rafId) cancelAnimationFrame(rafId);
     rafId = null;
     videoEl.pause();
-    pauseNarration();
   }
   function stopReverse() {
     if (revRaf) cancelAnimationFrame(revRaf);
@@ -1185,7 +1074,6 @@
       const local = (videoEl.currentTime - inOf(c)) / (c.speed || 1);
       playT = startOf(curSegIdx) + Math.max(0, local);
     }
-    narrationSync();
     updatePlayheadUI();
     rafId = requestAnimationFrame(tick);
   }
@@ -1533,78 +1421,6 @@
     selectClip(sel);
   }
 
-  // A sub-range of a clip's source (keeps the shared audio/cursor/zoom telemetry).
-  function subClip(c, inS, outS) {
-    const n = cloneClip(c);
-    n.inSec = inS;
-    n.outSec = outS;
-    n._explicitOut = true;
-    return n;
-  }
-  // Cut dead-air: for each clip, find runs of near-silence (> MIN_GAP) in its narration
-  // peaks and drop them, keeping a little padding around speech.
-  function removeSilences() {
-    const THRESH = 0.03; // peak amplitude (0..1) below this = silent
-    const MIN_GAP = 1.2; // seconds of continuous silence to cut
-    const PAD = 0.15; // keep this much speech around each gap
-    if (!clips.some((c) => c._peaks)) {
-      setStatus("Waveforms still decoding (or no narration) — try again in a moment.", "");
-      return;
-    }
-    let cutSec = 0;
-    const next = [];
-    for (const c of clips) {
-      if (!c._peaks || !c._audioDur) {
-        next.push(c);
-        continue;
-      }
-      const off = (c.audioOffsetMs || 0) / 1000;
-      const buckets = c._peaks.length;
-      const step = c._audioDur / buckets;
-      const aStart = inOf(c) + off;
-      const aEnd = outOf(c) + off;
-      const gaps = [];
-      let runStart = null;
-      for (let at = aStart; at <= aEnd; at += step) {
-        const bi = Math.max(0, Math.min(buckets - 1, Math.floor((at / c._audioDur) * buckets)));
-        const silent = c._peaks[bi] < THRESH;
-        if (silent && runStart === null) runStart = at;
-        else if (!silent && runStart !== null) {
-          if (at - runStart >= MIN_GAP) gaps.push([runStart, at]);
-          runStart = null;
-        }
-      }
-      if (runStart !== null && aEnd - runStart >= MIN_GAP) gaps.push([runStart, aEnd]);
-      if (!gaps.length) {
-        next.push(c);
-        continue;
-      }
-      // keep the complement of the (padded) gaps, in source time
-      let cursor = inOf(c);
-      for (const [gs, ge] of gaps) {
-        const gapStart = Math.max(inOf(c), gs - off + PAD);
-        const gapEnd = Math.min(outOf(c), ge - off - PAD);
-        if (gapEnd - gapStart <= 0.1) continue;
-        if (gapStart - cursor > 0.1) next.push(subClip(c, cursor, gapStart));
-        cursor = gapEnd;
-        cutSec += gapEnd - gapStart;
-      }
-      if (outOf(c) - cursor > 0.1) next.push(subClip(c, cursor, outOf(c)));
-    }
-    if (cutSec < 0.05 || !next.length) {
-      setStatus("No dead air over the threshold found.", "");
-      return;
-    }
-    pushUndo();
-    clips = next;
-    curSegIdx = -1;
-    curPath = null;
-    sel = clips.length ? Math.min(Math.max(0, sel), clips.length - 1) : -1;
-    renderTimeline();
-    if (sel >= 0) selectClip(sel);
-    setStatus(`Trimmed ~${cutSec.toFixed(1)}s of dead air → ${clips.length} segments.`, "ok");
-  }
-
   // ── zoom ──
   // Keep the playhead in view (used by the +/- buttons).
   function zoomBy(factor) {
@@ -1646,7 +1462,6 @@
   trimInBtn.addEventListener("click", trimStartToPlayhead);
   trimOutBtn.addEventListener("click", trimEndToPlayhead);
   removeBtn.addEventListener("click", rippleDelete);
-  hushBtn.addEventListener("click", removeSilences);
   zoomKfBtn.addEventListener("click", armZoom);
   resetZoomBtn.addEventListener("click", resetZoomAtPlayhead);
   clearZoomBtn.addEventListener("click", clearZooms);
@@ -1951,7 +1766,7 @@
   }
   // Step a virtual playhead at `fps` over the whole timeline; composite each frame
   // (trim + speed + zoom/pan, identical to the preview) and encode to MP4. Returns the
-  // MP4 bytes (ArrayBuffer). Video-only — clips carry no audio yet (audio is Phase 5).
+  // MP4 bytes (ArrayBuffer). Video-only — narration is added later in Kdenlive.
   async function exportWysiwyg(fps) {
     const total = totalSec();
     if (total <= 0) throw new Error("nothing to export");
@@ -2030,28 +1845,7 @@
         if (!res || !res.ok) throw new Error((res && res.error) || "ffmpeg export failed");
         bytes = res.bytes;
       }
-      // Mux mic narration (loudnorm) over the video, if any clip has audio.
-      if (clips.some((c) => c.audioPath)) {
-        setStatus("Adding narration…", "");
-        try {
-          const segs = clips.map((c) => ({
-            audioPath: c.audioPath || null,
-            inSec: inOf(c),
-            outSec: outOf(c),
-            speed: c.speed || 1,
-            offset: (c.audioOffsetMs || 0) / 1000,
-            effDur: effSec(c),
-          }));
-          const mux = await window.otd.muxAudio({ video: new Uint8Array(bytes), segments: segs });
-          if (mux && mux.ok) bytes = mux.bytes;
-          else {
-            if (window.otd.log) window.otd.log("mux-audio failed: " + ((mux && mux.error) || "?"));
-            setStatus("Narration mux failed — exporting without audio.", "err");
-          }
-        } catch (e) {
-          if (window.otd.log) window.otd.log("mux-audio threw: " + (e && e.message));
-        }
-      }
+      // Silent video — narration now happens after the fact in Kdenlive, not in-app.
       const base64 = abToBase64(bytes);
       if (session && session.token) {
         setStatus("Uploading…", "");
@@ -2128,12 +1922,10 @@
           "]",
       );
     }
-    narrationPath = null;
     sel = clips.length ? 0 : -1;
     renderTimeline();
     if (sel >= 0) selectClip(0);
     measureDurations();
-    decodeAllAudio();
   });
 
   // Canvas compositor runs continuously (preview); export reuses composite().

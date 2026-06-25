@@ -91,8 +91,6 @@
         font-family: var(--mono); font-size: 8px; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); opacity: .6;
       }
       #videoTrack { height: 70px; }
-      #audioTrack { height: 46px; }
-      #audioWave { position: absolute; left: 0; top: 0; height: 46px; z-index: 1; pointer-events: none; }
       .seg {
         position: absolute; top: 4px; bottom: 4px; border-radius: 6px; cursor: pointer; overflow: hidden;
         background: linear-gradient(180deg, #232942, #1b2032); border: 1px solid var(--border);
@@ -199,7 +197,6 @@
         <video id="video" preload="auto"></video>
         <video id="video2" preload="auto"></video>
         <video id="exportVideo" preload="auto" muted></video>
-        <audio id="narration" preload="auto"></audio>
         <canvas id="previewCanvas"></canvas>
         <div id="zoomBox"></div>
         <div id="noClip">Record clips, then scrub the whole sequence here</div>
@@ -220,7 +217,6 @@
           <div id="tlInner">
             <div id="ruler"></div>
             <div id="videoTrack" class="lane"><span class="lane-label">Video</span></div>
-            <div id="audioTrack" class="lane"><span class="lane-label">Audio</span><canvas id="audioWave"></canvas></div>
             <div id="overlayTrack" class="lane"><span class="lane-label">Overlay</span></div>
             <div id="dropMarker"></div>
             <div id="tlPlayhead"></div>
@@ -237,8 +233,6 @@
         <button id="trimInBtn" class="btn" disabled title="Trim start to playhead (I)">⇥ In</button>
         <button id="trimOutBtn" class="btn" disabled title="Trim end to playhead (O)">Out ⇤</button>
         <button id="removeBtn" class="btn danger" disabled>Remove</button>
-        <span class="sep"></span>
-        <button id="hushBtn" class="btn" title="Cut dead-air gaps (>1.2s of near-silence) from the timeline">✂ Trim silences</button>
         <span class="sep"></span>
         <button id="zoomKfBtn" class="btn" disabled title="Drag a box on the preview to zoom into it at the playhead">⊕ Zoom</button>
         <button id="resetZoomBtn" class="btn" disabled title="Add a zoom-out (1×) keyframe at the playhead (Z)">⊝ Reset</button>
