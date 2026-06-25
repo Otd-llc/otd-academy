@@ -28,7 +28,7 @@ function page({ ok, message }: { ok: boolean; message: string }): Response {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <title>${heading} — OTD Academy</title>
+    <title>${heading} · OTD Academy</title>
   </head>
   <body style="margin:0;padding:0;background-color:${DEEP_SPACE};">
     <div style="max-width:480px;margin:0 auto;padding:64px 20px;font-family:${SANS};">

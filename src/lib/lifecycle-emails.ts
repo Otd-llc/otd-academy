@@ -134,10 +134,9 @@ function wrap({
     "",
     signOff,
     "",
-    "—",
     "You're receiving this because you have an account at OTD Academy.",
     `Unsubscribe: ${unsubscribeUrl}`,
-    `One Thousand Drones Academy — ${host}`,
+    `One Thousand Drones Academy · ${host}`,
   ].join("\n");
 
   return { subject, html, text };
