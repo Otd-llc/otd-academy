@@ -24,6 +24,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { SignUpCta } from "@/components/SignUpCta";
 import { BuyPassButton, UpgradePassButton } from "@/components/learn/PassButtons";
+import { PassWaitlistForm } from "@/components/learn/PassWaitlistForm";
 import { formatUsd } from "@/lib/format-money";
 import { productOfferJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { currentPassPriceId, isLaunchActive } from "@/lib/pass-pricing";
@@ -51,7 +52,6 @@ async function representativeProjectPriceCents(): Promise<number | null> {
     where: {
       accessTier: "PREMIUM",
       priceCents: { not: null, gt: 0 },
-      stripePriceId: { not: null },
       archivedAt: null,
     },
     orderBy: { priceCents: "asc" },
@@ -198,7 +198,7 @@ export default async function PricingPage() {
             <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">
               All-Access Pass
             </p>
-            {launchOpen && passOnSale ? (
+            {launchOpen ? (
               <span className="rounded bg-command-gold/15 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">
                 Launch price
               </span>
@@ -208,7 +208,7 @@ export default async function PricingPage() {
             Every premium build and bench tool
           </p>
 
-          {passOnSale && passCents !== null ? (
+          {passCents !== null ? (
             <p className="font-mono text-3xl text-white">
               {formatUsd(passCents)}
               {launchOpen && standardCents !== null && standardCents > passCents ? (
@@ -242,11 +242,9 @@ export default async function PricingPage() {
               </p>
             ) : !passOnSale ? (
               <div className="space-y-2">
-                {!signedIn ? <SignUpCta /> : null}
+                <PassWaitlistForm defaultEmail={email ?? undefined} />
                 <p className="font-mono text-[11px] uppercase tracking-wider text-muted">
-                  {signedIn
-                    ? "The Pass opens with the Level 1 launch. We'll email you when it goes live."
-                    : "The Pass opens with the Level 1 launch. Create a free account and we'll email you the moment it opens."}
+                  The Pass opens with the Level 1 launch.
                 </p>
               </div>
             ) : !signedIn ? (
@@ -263,6 +261,45 @@ export default async function PricingPage() {
             ) : null}
           </div>
         </div>
+      </section>
+
+      {/* Full price list: every tier, even though paid tracks open at launch. */}
+      <section className="glass-card mt-8 p-6">
+        <p className="font-display text-xl tracking-wide text-white">
+          Full price list
+        </p>
+        <p className="mt-1 font-serif text-sm italic text-muted">
+          Every paid build is a one-time purchase. Paid tracks open with the Level
+          1 launch. Join the Pass waitlist above and we&apos;ll tell you first.
+        </p>
+        <dl className="mt-4 divide-y divide-panel-border">
+          {(
+            [
+              [
+                "Level 1, full track (includes the L2.01 battery module)",
+                "Free",
+              ],
+              ["Level 2 builds (L2.02 to L2.05)", "$49 each"],
+              ["Level 3 builds", "$89 each"],
+              ["Capstone builds (EEG front-end, fleet hub)", "$149 each"],
+              ["Bench-tool builds", "$89 each"],
+              [
+                "All-Access Pass (every premium build and bench tool)",
+                launchOpen ? "$299 launch, then $399" : "$399",
+              ],
+            ] as const
+          ).map(([label, price]) => (
+            <div
+              key={label}
+              className="flex items-baseline justify-between gap-4 py-2.5"
+            >
+              <dt className="font-serif text-sm text-gray-1">{label}</dt>
+              <dd className="whitespace-nowrap font-mono text-sm uppercase tracking-wider text-command-gold">
+                {price}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </section>
 
       {/* Guarantee. */}
