@@ -7,13 +7,19 @@ contextBridge.exposeInMainWorld("otd", {
   onTrigger: (cb) => ipcRenderer.on("trigger", () => cb()),
   onCancel: (cb) => ipcRenderer.on("cancel", () => cb()),
   onToggleFollow: (cb) => ipcRenderer.on("toggle-follow", () => cb()),
+  // Teleprompter controls forwarded from main's global shortcuts (live only while
+  // framing/recording). dir: +1 = page down, -1 = page up.
+  onTeleprompterScroll: (cb) =>
+    ipcRenderer.on("teleprompter:scroll", (_e, dir) => cb(dir)),
+  onTeleprompterToggle: (cb) =>
+    ipcRenderer.on("teleprompter:toggle", () => cb()),
   trackCursor: (on) => ipcRenderer.send("cursor-track", on),
   onCursorPos: (cb) => ipcRenderer.on("cursor:pos", (_e, p) => cb(p)),
   setInteractive: (interactive) =>
     ipcRenderer.send("set-interactive", interactive),
   armSpace: () => ipcRenderer.send("arm-space"),
   disarmSpace: () => ipcRenderer.send("disarm-space"),
-  // Deep-link session from the lesson "+" (api/token/kind/hint/caption).
+  // Deep-link session from the lesson "+" (api/token/kind/hint/caption/script).
   onSession: (cb) =>
     ipcRenderer.on("capture:session", (_e, s) => cb(s)),
   upload: (payload) => ipcRenderer.invoke("upload-capture", payload),

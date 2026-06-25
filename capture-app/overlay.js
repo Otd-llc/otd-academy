@@ -44,6 +44,8 @@
   const addClipBtnEl = $("addClipBtn");
   const approveBtnEl = $("approveBtn");
   const editBtnEl = $("editBtn");
+  const teleprompterEl = $("teleprompter");
+  const teleprompterTextEl = $("teleprompterText");
 
   // Aspect token (from the placeholder) → ratio. 0 = free (standalone only).
   const ASPECTS = {
@@ -168,6 +170,16 @@
     startBtnEl.textContent = "Start capture";
     // One-shot: the site initiated this capture, so there's no "capture another".
     againBtnEl.classList.add("hidden");
+    // Teleprompter: present only when the slot carries a script (implied
+    // needsNarration). Empty/absent ⇒ no panel, behave exactly as today.
+    if (s.script && s.script.trim()) {
+      teleprompterTextEl.textContent = s.script;
+      teleprompterEl.classList.remove("hidden");
+      teleprompterEl.setAttribute("aria-hidden", "false");
+    } else {
+      teleprompterEl.classList.add("hidden");
+      teleprompterEl.setAttribute("aria-hidden", "true");
+    }
     phase = "setup";
     showSection("setup");
   });
@@ -1240,6 +1252,8 @@
     stopBtnEl.classList.add("hidden");
     if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     previewUrl = null;
+    teleprompterEl.classList.add("hidden");
+    teleprompterEl.setAttribute("aria-hidden", "true");
     phase = "setup";
     showSection("setup");
   }
@@ -1306,6 +1320,18 @@
   // Global Ctrl+Shift+F (armed with Space, only while framing/recording) flips it
   // hands-free — chosen to not clash with KiCad's own shortcuts.
   window.otd.onToggleFollow(() => setFollow(!follow));
+
+  // ── teleprompter controls ──
+  // Forwarded from main's global shortcuts (NOT a renderer keydown — the overlay is
+  // unfocused during recording, so a keydown here would never fire). The panel is
+  // pointer-events:none / click-through, so scroll is hotkey-only by design.
+  window.otd.onTeleprompterScroll((dir) => {
+    teleprompterEl.scrollTop += dir * 80;
+  });
+  window.otd.onTeleprompterToggle(() => {
+    const hidden = teleprompterEl.classList.toggle("hidden");
+    teleprompterEl.setAttribute("aria-hidden", String(hidden));
+  });
 
   // Initial state: setup is shown — make sure the window is interactive so the
   // panel is clickable immediately (standalone launch has no onSession).
