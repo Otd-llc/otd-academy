@@ -3,8 +3,15 @@
 The wire contract between the **OTD Capture** desktop app (`capture-app/`) and the
 **academy** (`src/`). Pinned here so the eventual repo split (design §4) carries the
 boundary with it. Three surfaces: the deep link in, the session read, and the upload
-out. All three are **token-gated** by the same slot-scoped HMAC token — no cookie,
-no session.
+out. All three are **token-gated** by the same slot-scoped HMAC token (no cookie,
+no session).
+
+The app now records the screen **silent** and narration happens **after the fact in
+Kdenlive**. The teleprompter is no longer painted into the recording: it is a separate
+always-on-top window you read from while you narrate in Kdenlive. The finished
+Kdenlive export is uploaded into the slot through the same upload contract. See
+[`../docs/plans/2026-06-24-capture-postnarration-pivot-design.md`](../docs/plans/2026-06-24-capture-postnarration-pivot-design.md)
+for the why.
 
 ## The token
 
@@ -14,8 +21,8 @@ by [`src/lib/capture-token.ts`](../src/lib/capture-token.ts).
 
 - HMAC-SHA256 over a tiny JSON payload with the academy's `AUTH_SECRET`.
 - Claims: `{ cardId, blockIndex, kind: "image" | "video", exp }`.
-- TTL **4 hours** (a multi-clip record/retake/stitch session runs long; the token
-  only authorizes writing one block).
+- TTL **4 hours** (long enough to record the silent clip, narrate it in Kdenlive, and
+  upload the export; the token only authorizes writing one block).
 - Format: `base64url(payload).base64url(sig)`.
 
 ## 1. Deep link IN — `otd-capture://`
@@ -28,21 +35,24 @@ otd-capture://capture?api=‹academyOrigin›&token=‹token›&kind=‹image|vi
 
 Parsed by `parseDeepLink` in [`main.js`](./main.js). The short metadata
 (`hint`/`caption`/`aspect`) rides the URL for an instant first paint. The narration
-**`script` does NOT ride the URL** — it's too long and would leak into OS/shell logs;
-it's fetched in step 2.
+**`script` does NOT ride the URL**: it is too long and would leak into OS/shell logs.
+It is fetched in step 2.
 
 Three entry points, all funneled through `sessionFromLink` → `enrichSession`:
-- **cold launch** (app not running) — Windows passes the URL in `process.argv`; the
-  `whenReady` handler `await`s the enrich and sets `pendingSession` **before**
-  `createOverlay()` (preserves the "queue before the window loads" invariant).
-- **second-instance** (app running, Windows) and **open-url** (macOS) — both call the
+- **cold launch** (app not running): Windows passes the URL in `process.argv`; the
+  `whenReady` handler `await`s the enrich, sets `pendingSession` **before**
+  `createOverlay()` (preserves the "queue before the window loads" invariant), and
+  calls `setTeleprompterScript(...)` so a freshly-launched lesson "+" loads its script
+  into the teleprompter window.
+- **second-instance** (app running, Windows) and **open-url** (macOS): both call the
   async `handleDeepLink`, which enriches then `deliverSession`s to the live overlay.
+  `deliverSession` also calls `setTeleprompterScript(s.script || "")`.
 
 ## 2. Session read — `GET ‹api›/api/capture/session?token=‹token›`
 
 Served by [`src/app/api/capture/session/route.ts`](../src/app/api/capture/session/route.ts).
 Called by `enrichSession` in [`main.js`](./main.js) from the **main process** (Node
-fetch — no renderer/CORS) right after the deep-link hand-off, to pull the slot's
+fetch, no renderer/CORS) right after the deep-link hand-off, to pull the slot's
 authoritative metadata, crucially the narration `script`.
 
 **Request:** `GET` with the slot token in the `token` query param. No body, no cookie.
@@ -56,45 +66,94 @@ authoritative metadata, crucially the narration `script`.
 | `200` | valid token | `{ kind, hint, caption, aspect, script }` |
 
 On `200`, every field is always present:
-- `kind` — `"image" | "video"` (from the token claims).
-- `hint`, `caption` — strings, `""` if unset on the block.
-- `aspect` — the block's aspect, else the kind default (`16:9` video / `16:10` image).
-- `script` — the narration script, **`""` when absent** or for an `image` block.
+- `kind`: `"image" | "video"` (from the token claims).
+- `hint`, `caption`: strings, `""` if unset on the block.
+- `aspect`: the block's aspect, else the kind default (`16:9` video / `16:10` image).
+- `script`: the narration script, **`""` when absent** or for an `image` block.
 
 Best-effort on the app side: any non-200, network error, or missing field leaves the
-session as-is and capture proceeds as a **silent clip** (no teleprompter). The app
-logs `session enrich ok: hasScript=‹bool›` and **never logs the script body**.
+session as-is and capture proceeds with an empty teleprompter (a silent clip with no
+script). The app logs `session enrich ok: hasScript=‹bool›` and **never logs the script
+body**.
 
-### Teleprompter (the `script` payoff)
+### The teleprompter window (the `script` payoff)
 
-A non-empty `script` marks the clip as needing narration. The overlay shows it as a
-bottom-band **teleprompter** in the framing section (visible through framing AND
-recording, hidden at review). It's excluded from the recording automatically by the
-overlay window's `setContentProtection(true)` — same mechanism that hides the crop
-box. The panel is `pointer-events: none` (click-through, never steals a click from
-KiCad); scroll/hide is **hotkey-only**:
+The `script` no longer paints into the recording. It loads into a **separate, standalone
+window** in the same Electron app, created by `createTeleprompter()` in
+[`main.js`](./main.js) and rendered by [`teleprompter.html`](./teleprompter.html). It is
+deliberately the opposite of the recorder overlay:
 
-- `Ctrl+Shift+Down` / `Ctrl+Shift+Up` — page the script down/up.
-- `Ctrl+Shift+H` — hide/show the panel.
+- **Not content-protected and not click-through.** It never overlaps the recording: it
+  floats over **Kdenlive** while you narrate in post. So it behaves like any window: you
+  drag it (the body is `-webkit-app-region: drag`), resize it, push it to a second
+  monitor.
+- **Natively scrollable.** The body is `overflow-y: auto`, so the wheel, the arrow keys,
+  and PageUp/PageDown all scroll it. No hotkey paging, no IPC-forwarded scroll.
+- **Always-on-top**, `setAlwaysOnTop(true, "screen-saver")` + `setVisibleOnAllWorkspaces`,
+  so it stays above Kdenlive.
+- **Toggle on/off** with the global hotkey **`Ctrl+Shift+H`** (registered once in
+  `app.whenReady`, not in the arm/disarm lifecycle). Hidden by default; created lazily.
+- **Pre-loaded with the slot's script.** `setTeleprompterScript(text)` remembers the
+  latest script in `lastScript` and sends it over the `teleprompter:script` IPC channel;
+  the renderer subscribes via the `onTeleprompterScript` preload bridge in
+  [`preload.js`](./preload.js). A late-opened window also picks up `lastScript` on its
+  `did-finish-load`. If there is no script the window shows a short empty-state note.
 
-These are `globalShortcut`s registered in `main.js` (in the `arm-space`/`disarm-space`
-lifecycle, alongside the trigger/cancel/follow chords) and forwarded to the overlay
-over IPC — **not** renderer keydowns, because the overlay is unfocused (hands in
-KiCad) while recording. The mic is unaffected (`micEnabled` already defaults on).
+There is no longer any in-overlay teleprompter panel and no `Ctrl+Shift+Down`/`Up`
+scroll chord. The mic, the `save-audio`/`mux-audio` IPC handlers, and the editor's audio
+lane have all been removed (design "Removed"): the recorder produces a **silent** clip.
 
 ## 3. Upload OUT — `POST ‹api›/api/capture?token=‹token›&ext=‹ext›`
 
-Served by [`src/app/api/capture/route.ts`](../src/app/api/capture/route.ts), called by
-the `upload-capture` IPC handler in [`main.js`](./main.js) (main process, Node fetch).
+Served by [`src/app/api/capture/route.ts`](../src/app/api/capture/route.ts). The token in
+the query scopes the write to one guide block; the body is the raw blob. There are now
+**two callers**, both in the main process (Node fetch, no browser CORS):
 
-- Body: raw bytes. `Content-Type`: `image/webp` / `video/mp4` / `video/webm` by `ext`.
-- Optional `x-caption` header (URL-encoded).
-- `redirect: "manual"` — a 3xx (auth/middleware) is treated as failure, never success.
-- Success: `200` `{ src }`; the academy stored the blob in R2 and pointed the block at
-  `/api/shot/‹id›.‹ext›`.
+1. `upload-capture`: uploads the in-app capture. For a video slot this is the
+   **silent** screen clip (after any trim/reorder/speed edit). For an image slot it is
+   the screenshot.
+2. `upload-file`: the **post-narration** verb. After you narrate + export in Kdenlive,
+   you pick that finished file and it is POSTed to the same endpoint. It is wired to the
+   "Upload a finished video to this slot" button (`#uploadFileBtn` in
+   [`overlay.html`](./overlay.html)), shown only in a deep-link session (there is no slot
+   to target in standalone mode). The handler opens a native file picker
+   (`dialog.showOpenDialog`, filtered to `mp4`/`webm`/`mov`), derives `ext` from the
+   chosen file, and uploads.
+
+Contract for both:
+
+- Body: raw bytes. `Content-Type`: `image/webp` / `video/webm` / `video/mp4` by `ext`.
+- Optional `x-caption` header (URL-encoded), set by the `upload-capture` path.
+- `redirect: "manual"`: a 3xx (auth/middleware) is treated as failure, never success.
+- Success: `200` `{ ok: true, src }`; the academy stored the blob in R2 and pointed the
+  block at `/api/shot/‹id›.‹ext›`.
+
+**Accepted `ext`, and a caveat for `upload-file`:** the route's `MIME` map accepts only
+`webp`, `webm`, and `mp4`, and `ALLOWED` further restricts a **video** token to `webm` or
+`mp4` (an **image** token to `webp`). The file picker offers `mov`, but the route returns
+`400` for a `.mov` upload (`mov` is not in `MIME`). **Export mp4 from Kdenlive** (the
+recommended default) and this is moot.
+
+## The end-to-end workflow
+
+1. Click the lesson **+**. The recorder window opens. The teleprompter window is created
+   with the slot's script loaded; press **`Ctrl+Shift+H`** to show it (and again to hide
+   it).
+2. **Record the silent clip.** The app records the screen (no audio) and produces the
+   video; in-app trim/reorder/speed editing is still available. The clip is silent: there
+   is no mic UI and no audio track.
+3. **Open that clip in Kdenlive.** Toggle the teleprompter on (`Ctrl+Shift+H`), read the
+   script onto Kdenlive's timeline as a voiceover, adjust levels/retakes, and **export an
+   mp4**. The teleprompter floats over Kdenlive and scrolls with the wheel/arrows.
+4. **Back in the Electron app, click "Upload a finished video to this slot."** Pick the
+   Kdenlive export; it POSTs to the same token-scoped `/api/capture`. The narrated export
+   lands in the exact placeholder.
+
+The slot binding stays intact end to end (the 4-hour capture token easily covers a few
+minutes of narration in Kdenlive). No new academy upload UI, no browser round-trip.
 
 ## Ordering note
 
 The app depends on **2** existing. Deploy/run the academy with
 `GET /api/capture/session` **before** pointing the app at it; a premature call
-degrades to no-teleprompter (silent clip), never a crash.
+degrades to an empty teleprompter (silent clip with no script), never a crash.
