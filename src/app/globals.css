@@ -817,7 +817,7 @@ body {
 @media print {
   /* Size the page to the sheet so the brief prints as one page, not several. */
   @page {
-    size: 8.5in 14in;
+    size: 8.5in 12in;
     margin: 0;
   }
   body:has(.briefs-print) {

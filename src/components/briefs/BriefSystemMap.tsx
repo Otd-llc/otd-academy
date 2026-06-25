@@ -35,17 +35,17 @@ const CAPS = [
   { code: "HUB", x: 510, sub: "COMMAND THE SWARM" },
 ] as const;
 
-const TRACK_CY = 205;
+const TRACK_CY = 170;
 const TRACK_S = 0.82;
-const TRACK_TOP = TRACK_CY - 48 * TRACK_S; // 166
-const TRACK_BOT = TRACK_CY + 48 * TRACK_S; // 244
-const TOP_BUS = 126;
-const BOT_RAIL = 292;
-const CAP_CY = 362;
+const TRACK_TOP = TRACK_CY - 48 * TRACK_S; // 131
+const TRACK_BOT = TRACK_CY + 48 * TRACK_S; // 209
+const TOP_BUS = 104;
+const BOT_RAIL = 246;
+const CAP_CY = 312;
 const CAP_S = 1.0;
-const CAP_TOP = CAP_CY - 48 * CAP_S; // 314
+const CAP_TOP = CAP_CY - 48 * CAP_S; // 264
 const SEAL_CX = 380;
-const SEAL_CY = 60;
+const SEAL_CY = 50;
 const SEAL_R = 36;
 const C = 14; // chamfer
 
@@ -59,7 +59,7 @@ const wire = {
 export function BriefSystemMap() {
   return (
     <svg
-      viewBox="0 0 760 460"
+      viewBox="0 0 760 392"
       className="h-auto w-full"
       role="img"
       aria-label="The L1.01 core feeds a backplane bus that fans into four tracks, SENSE, POWER, COMMS and ACT, which converge on two capstones, the EEG brain-computer-interface front-end and the ESP-NOW fleet hub."
