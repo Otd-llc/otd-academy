@@ -31,6 +31,8 @@ const { spawn } = require("child_process");
 const PROTOCOL = "otd-capture";
 let overlay = null;
 let pendingSession = null; // a deep link that arrived before the overlay loaded
+let teleprompter = null; // standalone always-on-top script window (post-narration)
+let lastScript = "";     // remember the latest slot script so a late-opened window can load it
 
 // The overlay is UNFOCUSED on purpose while recording (you're driving KiCad), and
 // Chromium throttles a backgrounded renderer's requestAnimationFrame + timers — which
@@ -131,6 +133,7 @@ function deliverSession(s) {
     logLine("deliverSession: no session/token — ignored");
     return;
   }
+  setTeleprompterScript(s.script || "");
   if (overlay && !overlay.webContents.isLoading()) {
     overlay.webContents.send("capture:session", s);
     overlay.show();
@@ -208,6 +211,48 @@ function createOverlay() {
   overlay.on("closed", () => {
     overlay = null;
   });
+}
+
+// A plain, always-on-top, scrollable window that shows the slot's narration script
+// to read aloud over the clip in Kdenlive. NOT content-protected and NOT click-through
+// (it floats over Kdenlive, never over the recording), so it scrolls and moves like any
+// window. Hidden until toggled; created lazily.
+function createTeleprompter() {
+  if (teleprompter && !teleprompter.isDestroyed()) return teleprompter;
+  const area = screen.getPrimaryDisplay().workAreaSize;
+  teleprompter = new BrowserWindow({
+    width: 560,
+    height: 320,
+    x: Math.round(area.width * 0.5) - 280,
+    y: 24,
+    frame: false,
+    resizable: true,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    backgroundColor: "#08090d",
+    title: "OTD Teleprompter",
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  teleprompter.setAlwaysOnTop(true, "screen-saver");
+  teleprompter.setVisibleOnAllWorkspaces(true);
+  teleprompter.loadFile(path.join(__dirname, "teleprompter.html"));
+  teleprompter.webContents.on("did-finish-load", () => {
+    teleprompter.webContents.send("teleprompter:script", lastScript);
+  });
+  teleprompter.on("closed", () => { teleprompter = null; });
+  return teleprompter;
+}
+
+// Push a script to the teleprompter (creating it hidden if needed). Does not force-show.
+function setTeleprompterScript(text) {
+  lastScript = typeof text === "string" ? text : "";
+  const w = createTeleprompter();
+  if (!w.webContents.isLoading()) w.webContents.send("teleprompter:script", lastScript);
 }
 
 // ── timeline editor window ──────────────────────────────────────────────────
@@ -338,6 +383,12 @@ if (!gotLock) {
 
     // Always-available safety hatch to quit, even if the renderer wedges.
     globalShortcut.register("CommandOrControl+Shift+Q", () => app.quit());
+
+    globalShortcut.register("CommandOrControl+Shift+H", () => {
+      const w = createTeleprompter();
+      if (w.isVisible()) w.hide();
+      else { w.show(); }
+    });
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createOverlay();

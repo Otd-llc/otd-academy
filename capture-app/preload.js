@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld("otd", {
     ipcRenderer.on("teleprompter:scroll", (_e, dir) => cb(dir)),
   onTeleprompterToggle: (cb) =>
     ipcRenderer.on("teleprompter:toggle", () => cb()),
+  // Script text for the standalone teleprompter window.
+  onTeleprompterScript: (cb) =>
+    ipcRenderer.on("teleprompter:script", (_e, text) => cb(text)),
   trackCursor: (on) => ipcRenderer.send("cursor-track", on),
   onCursorPos: (cb) => ipcRenderer.on("cursor:pos", (_e, p) => cb(p)),
   setInteractive: (interactive) =>

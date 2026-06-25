@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body {
+        background: rgba(8, 9, 13, 0.92);
+        color: #e8e8e8;
+        font-family: Georgia, "Times New Roman", serif;
+        overflow-y: auto;          /* native wheel + arrow/PageUp/PageDown scroll */
+        cursor: default;
+        -webkit-app-region: drag;  /* drag the frameless window by its body */
+      }
+      #script {
+        padding: 28px 32px 60px;
+        font-size: 30px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        max-width: 1100px;
+        margin: 0 auto;
+        -webkit-user-select: text;
+        user-select: text;
+      }
+      #empty { color: #8a8f9c; font-size: 18px; padding: 28px 32px; }
+    </style>
+  </head>
+  <body>
+    <div id="empty">No script for this slot. (Ctrl+Shift+H hides this window.)</div>
+    <div id="script"></div>
+    <script>
+      const scriptEl = document.getElementById("script");
+      const emptyEl = document.getElementById("empty");
+      window.otd.onTeleprompterScript((text) => {
+        const t = (text || "").trim();
+        scriptEl.textContent = t;
+        emptyEl.style.display = t ? "none" : "block";
+        window.scrollTo(0, 0);
+      });
+    </script>
+  </body>
+</html>
