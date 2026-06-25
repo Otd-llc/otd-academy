@@ -6,15 +6,42 @@
       * { box-sizing: border-box; }
       html, body { margin: 0; height: 100%; }
       body {
+        display: flex;
+        flex-direction: column;
         background: rgba(8, 9, 13, 0.92);
         color: #e8e8e8;
         font-family: Georgia, "Times New Roman", serif;
-        overflow-y: auto;          /* native wheel + arrow/PageUp/PageDown scroll */
         cursor: default;
-        -webkit-app-region: drag;  /* drag the frameless window by its body */
+      }
+      /* Drag handle: the one reliable grab surface. The script area below is
+         no-drag so the wheel + text selection work, which means the body itself
+         can't be the move target — this bar is. */
+      #bar {
+        flex: 0 0 auto;
+        -webkit-app-region: drag;
+        cursor: move;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 12px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #8a8f9c;
+        background: rgba(0, 0, 0, 0.35);
+        border-bottom: 1px solid #2a2f3e;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      #bar .dot { color: #c8963e; }
+      #doc {
+        flex: 1 1 auto;
+        overflow-y: auto;          /* wheel + arrow/PageUp/PageDown scroll here */
+        -webkit-app-region: no-drag;
       }
       #script {
-        padding: 28px 32px 60px;
+        padding: 24px 32px 64px;
         font-size: 30px;
         line-height: 1.6;
         white-space: pre-wrap;
@@ -23,20 +50,24 @@
         -webkit-user-select: text;
         user-select: text;
       }
-      #empty { color: #8a8f9c; font-size: 18px; padding: 28px 32px; }
+      #empty { color: #8a8f9c; font-size: 18px; padding: 24px 32px; }
     </style>
   </head>
   <body>
-    <div id="empty">No script for this slot. (Ctrl+Shift+H hides this window.)</div>
-    <div id="script"></div>
+    <div id="bar"><span class="dot">&#9679;</span> OTD Teleprompter &middot; drag to move &middot; Ctrl+Shift+H to hide</div>
+    <div id="doc">
+      <div id="empty">No script for this slot.</div>
+      <div id="script"></div>
+    </div>
     <script>
       const scriptEl = document.getElementById("script");
       const emptyEl = document.getElementById("empty");
+      const docEl = document.getElementById("doc");
       window.otd.onTeleprompterScript((text) => {
         const t = (text || "").trim();
         scriptEl.textContent = t;
         emptyEl.style.display = t ? "none" : "block";
-        window.scrollTo(0, 0);
+        docEl.scrollTop = 0;
       });
     </script>
   </body>
