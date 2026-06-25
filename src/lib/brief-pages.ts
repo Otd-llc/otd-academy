@@ -66,6 +66,10 @@ export interface BriefData {
   briefLabel: string;
   /** Mono gold sub-headline under the hero. */
   subhead: string;
+  /** The document body paragraph (verbatim from the one-pager). */
+  docBody: string;
+  /** A substring of docBody rendered in italic (the closing emphasis). */
+  docEmphasis: string;
   /** The four headline stats: big figure, short caps label, one-line gloss. */
   stats: { value: string; label: string; desc: string }[];
 }
@@ -78,6 +82,12 @@ export const SYSTEM_SPEC: { label: string; value: string }[] = [
   { label: "Structure", value: "4 tracks / 3 levels" },
   { label: "Access", value: "Public → Premium" },
 ];
+
+// The document's primary CTA (the gold button), shared by both briefs.
+export const DOC_CTA = {
+  label: "Start free at L1.01",
+  href: "/projects/l1-01-wroom-breakout/v1/guide",
+};
 
 // The four headline proof stats, shared across both briefs (fact-sheet "by the
 // numbers" + "what makes a completion real"). Rendered as the stat strip.
@@ -153,6 +163,9 @@ export const BRIEFS: Record<BriefKey, BriefData> = {
     ],
     briefLabel: "Capability brief · 00 / Overview",
     subhead: "ESP32 hardware engineering · breakout to brain-computer interface",
+    docBody:
+      "Every project ends in a board you designed, fabricated, and brought up yourself, with the design files and a verifiable certificate to keep. Twenty-two builds carry you from a USB-C breakout to a brain-computer interface that reads a mind and commands a fleet.",
+    docEmphasis: "reads a mind and commands a fleet",
     stats: [
       {
         value: "22",
@@ -224,6 +237,9 @@ export const BRIEFS: Record<BriefKey, BriefData> = {
     ],
     briefLabel: "Learner brief · 01 / The build",
     subhead: "Learn to design real circuit boards · no prior PCB experience needed",
+    docBody:
+      "Start with a USB-C breakout and a real parts list. Each project takes you from a checklist to a finished board: schematic, layout, checks, gerbers, build. The path runs to a brain-computer interface that reads a mind and commands a fleet.",
+    docEmphasis: "reads a mind and commands a fleet",
     stats: [
       {
         value: "22",

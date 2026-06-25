@@ -12,6 +12,7 @@ import { notFound } from "next/navigation";
 
 import { JsonLd } from "@/components/seo/JsonLd";
 import { BriefDocument } from "@/components/briefs/BriefDocument";
+import { SheetScaler } from "@/components/briefs/SheetScaler";
 import { PrintButton } from "@/components/briefs/PrintButton";
 import { breadcrumbJsonLd, techArticleJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { BRIEF_KEYS, getBrief } from "@/lib/brief-pages";
@@ -79,12 +80,12 @@ export default async function BriefPage({
   ]);
 
   return (
-    <main className="briefs-print mx-auto max-w-5xl px-4 py-10 sm:px-6">
+    <main className="briefs-print mx-auto max-w-[860px] px-4 py-8 sm:px-6">
       <JsonLd data={articleLd} />
       <JsonLd data={crumbLd} />
 
       {/* Page chrome (hidden from print). */}
-      <div className="brief-chrome mb-7 flex flex-wrap items-center justify-between gap-3">
+      <div className="brief-chrome mx-auto mb-6 flex max-w-[816px] items-center justify-between gap-3">
         <Link
           href="/briefs"
           className="font-mono text-xs uppercase tracking-wider text-muted transition-colors hover:text-command-gold"
@@ -94,8 +95,13 @@ export default async function BriefPage({
         <PrintButton className="glass-button glass-button-cta inline-flex items-center px-4 py-2 font-mono text-xs uppercase tracking-wider" />
       </div>
 
-      {/* The brief itself (the single source for both web and PDF). */}
-      <BriefDocument brief={brief} />
+      {/* The brief itself: a fixed letter-width sheet (the single source for web
+          and PDF), scaled to fit on smaller screens. */}
+      <div className="mx-auto max-w-[816px]">
+        <SheetScaler width={816}>
+          <BriefDocument brief={brief} />
+        </SheetScaler>
+      </div>
     </main>
   );
 }

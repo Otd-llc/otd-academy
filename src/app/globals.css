@@ -816,7 +816,7 @@ body {
    wrapper so it never affects printing elsewhere. */
 @media print {
   @page {
-    margin: 12mm;
+    margin: 0;
   }
   body:has(.briefs-print) {
     background: var(--color-deep-space) !important;
@@ -830,9 +830,18 @@ body {
   body:has(.briefs-print) .brief-chrome {
     display: none !important;
   }
-  .briefs-print {
+  body:has(.briefs-print) .briefs-print {
     max-width: none !important;
     margin: 0 !important;
     padding: 0 !important;
+  }
+  /* Print the sheet at its native width (undo the responsive scaler). */
+  body:has(.briefs-print) .sheet-scaler-outer {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  body:has(.briefs-print) .sheet-scaler-inner {
+    transform: none !important;
+    width: 816px !important;
   }
 }
