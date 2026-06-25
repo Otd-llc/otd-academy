@@ -422,25 +422,11 @@ ipcMain.on("arm-space", () => {
   globalShortcut.register("CommandOrControl+Shift+F", () =>
     overlay?.webContents.send("toggle-follow"),
   );
-  // Teleprompter scroll/hide — global so they fire while KiCad is focused (the
-  // overlay is unfocused during recording, so a renderer keydown would be dead).
-  globalShortcut.register("CommandOrControl+Shift+Down", () =>
-    overlay?.webContents.send("teleprompter:scroll", 1),
-  );
-  globalShortcut.register("CommandOrControl+Shift+Up", () =>
-    overlay?.webContents.send("teleprompter:scroll", -1),
-  );
-  globalShortcut.register("CommandOrControl+Shift+H", () =>
-    overlay?.webContents.send("teleprompter:toggle"),
-  );
 });
 ipcMain.on("disarm-space", () => {
   globalShortcut.unregister("CommandOrControl+Shift+Return");
   globalShortcut.unregister("CommandOrControl+Shift+Backspace");
   globalShortcut.unregister("CommandOrControl+Shift+F");
-  globalShortcut.unregister("CommandOrControl+Shift+Down");
-  globalShortcut.unregister("CommandOrControl+Shift+Up");
-  globalShortcut.unregister("CommandOrControl+Shift+H");
 });
 
 // Deep-link flow: upload the approved capture to the academy. Done in the main

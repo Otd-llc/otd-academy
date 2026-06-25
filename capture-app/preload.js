@@ -7,12 +7,6 @@ contextBridge.exposeInMainWorld("otd", {
   onTrigger: (cb) => ipcRenderer.on("trigger", () => cb()),
   onCancel: (cb) => ipcRenderer.on("cancel", () => cb()),
   onToggleFollow: (cb) => ipcRenderer.on("toggle-follow", () => cb()),
-  // Teleprompter controls forwarded from main's global shortcuts (live only while
-  // framing/recording). dir: +1 = page down, -1 = page up.
-  onTeleprompterScroll: (cb) =>
-    ipcRenderer.on("teleprompter:scroll", (_e, dir) => cb(dir)),
-  onTeleprompterToggle: (cb) =>
-    ipcRenderer.on("teleprompter:toggle", () => cb()),
   // Script text for the standalone teleprompter window.
   onTeleprompterScript: (cb) =>
     ipcRenderer.on("teleprompter:script", (_e, text) => cb(text)),
