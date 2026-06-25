@@ -1,3 +1,6 @@
 {
-  "crons": [{ "path": "/api/cron/refresh-availability", "schedule": "0 7 * * *" }]
+  "crons": [
+    { "path": "/api/cron/refresh-availability", "schedule": "0 7 * * *" },
+    { "path": "/api/cron/lifecycle", "schedule": "0 15 * * *" }
+  ]
 }
