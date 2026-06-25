@@ -497,8 +497,9 @@ git commit -m "feat(capture): fetch the narration script in main and enrich ever
 - **Do NOT touch the mic.** `micEnabled` already defaults `true`; script presence drives the
   teleprompter only. (Validation finding #5.)
 
-**Step 1 — Markup.** In `capture-app/overlay.html`, inside the framing section, add a hidden panel
-positioned at a screen edge clear of the crop box, e.g.:
+**Step 1 — Markup.** In `capture-app/overlay.html`, inside the framing section
+(`<div id="framing" class="hidden">`, ~line 283), add a hidden panel positioned at a screen edge
+clear of the crop box, e.g.:
 
 ```html
 <div id="teleprompter" class="teleprompter hidden" aria-hidden="true">
@@ -507,8 +508,13 @@ positioned at a screen edge clear of the crop box, e.g.:
 ```
 
 Style it (in the same file's `<style>`): large, high-contrast, fixed to an edge (e.g. bottom band
-or right rail), `overflow-y: auto`, a high `z-index`, generous line-height. It does not need to be
-in the crop region — content protection keeps it out of the recording regardless.
+or right rail), `overflow-y: auto`, a high `z-index`, generous line-height, and **`pointer-events:
+none`**. Two reasons for click-through: (1) it must never steal a click from KiCad during recording;
+(2) the interactivity hit-test (`overlay.js` ~line 288) only makes the window catch the mouse over
+`panelEl`/the box — the teleprompter is deliberately NOT added there, so it stays click-through and
+is scrolled **only** by the forwarded global hotkeys (Step 4). Do not add wheel-scroll — it would
+fight the click-through. Frame-safety is automatic regardless of position: content protection keeps
+the whole overlay window out of the recording.
 
 **Step 2 — Register the scroll/hide global shortcuts in `capture-app/main.js`.** Inside the existing
 `ipcMain.on("arm-space", …)` handler (~line 322), add three registrations alongside the existing
@@ -580,10 +586,9 @@ Subscribe to the forwarded hotkeys (NOT a `keydown` listener — see constraints
   });
 ```
 
-> Optional nicety: native scroll-wheel over the panel works once the panel is hovered + interactive
-> (the `setInteractive` hit-test re-enables the window over panels — treat the teleprompter like the
-> other panels in that hit-test, or rely on the hotkeys). In `reset()` (phase → `setup`, ~line
-> 1243) add `teleprompterEl.classList.add("hidden")` so a later run starts clean.
+> Scroll is hotkey-only by design (the panel is `pointer-events: none` / click-through — Step 1).
+> In `reset()` (phase → `setup`, ~line 1243) add `teleprompterEl.classList.add("hidden")` so a later
+> run starts clean.
 
 **Step 5 — Syntax gate.**
 Run (PowerShell): `node --check capture-app/main.js`, `node --check capture-app/overlay.js`,
@@ -648,6 +653,33 @@ git commit -m "docs(capture): record the /api/capture/session integration contra
 - [ ] Josh confirms (Task 6): cold-launch teleprompter shows the script; it's absent from the
       recording; Ctrl+Shift controls work; no-script slots unchanged.
 - [ ] No migration ran; no new auth; no new IPC channel; mic behavior unchanged.
+
+## Plan validation (2026-06-24) — passes until dry
+
+The plan's exact code was checked against the real files. Four corrections, two of them bugs the
+plan itself introduced:
+
+1. **Editor is `MediaEditor`** (`block: Extract<ContentBlock,{type:"image"|"video"}>`,
+   `onChange: (next: ContentBlock)=>void`, module-scoped class vars, `baseId = useId()`) — named it
+   precisely so the narrowing + spread are unambiguous (Task 3).
+2. **Hotkeys must be `globalShortcut`s in main, forwarded via IPC — NOT a renderer `keydown`**
+   (high): the overlay is unfocused during recording, so a renderer keydown is dead. Rewrote Task 5
+   across `main.js`/`preload.js`/`overlay.js` to piggy-back the existing `arm-space`/`disarm-space`
+   chord lifecycle.
+3. **First-launch cold-start race** (high): `createOverlay()` runs after the argv block and the
+   `did-finish-load` flush relies on `pendingSession` being set synchronously first. The draft's
+   `sessionFromLink(link).then(deliverSession)` reintroduced the race; fixed by `await`-ing the
+   enrich BEFORE `createOverlay()` (Task 4 Step 3).
+4. **Teleprompter panel is `pointer-events: none` / click-through** (medium): the interactivity
+   hit-test only catches the mouse over `panelEl`/the box, so the panel is click-through by default
+   — keep it that way so it never steals a click from KiCad; scroll is hotkey-only (Task 5 Step 1).
+
+Confirmed safe: `"test": "vitest run"` (commands run once, no hang); the mocked-db session-route test
+is prod-safe regardless of `.env.test.local` (never connects); the schema test imports
+`contentBlockSchema` into `describe("guide schemas")`; `guideContentBlocksSchema` is the array
+schema the route parses; `reset()` (~1245) and the `onTrigger`/`onCancel` registration site
+(~1248) are exactly where the new hide-on-reset + hotkey subscriptions go. Passes 5–6 found nothing
+new → dry.
 
 ## Out of scope (do NOT build here)
 
