@@ -481,14 +481,14 @@ ipcMain.handle("upload-file", async (_e, { api, token }) => {
   const pick = await dialog.showOpenDialog({
     title: "Choose the finished video to upload",
     properties: ["openFile"],
-    filters: [{ name: "Video", extensions: ["mp4", "webm", "mov"] }],
+    filters: [{ name: "Video", extensions: ["mp4", "webm"] }],
   });
   if (pick.canceled || !pick.filePaths[0]) return { ok: false, error: "Cancelled." };
   const file = pick.filePaths[0];
   const ext = path.extname(file).slice(1).toLowerCase() || "mp4";
   try {
     const body = fs.readFileSync(file);
-    const ctype = ext === "webm" ? "video/webm" : ext === "mov" ? "video/quicktime" : "video/mp4";
+    const ctype = ext === "webm" ? "video/webm" : "video/mp4";
     const qs = new URLSearchParams({ token, ext }).toString();
     logLine(`upload-file → ${api}/api/capture ext=${ext} bytes=${body.length}`);
     const res = await fetch(`${api}/api/capture?${qs}`, {

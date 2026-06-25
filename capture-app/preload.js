@@ -16,7 +16,8 @@ contextBridge.exposeInMainWorld("otd", {
     ipcRenderer.send("set-interactive", interactive),
   armSpace: () => ipcRenderer.send("arm-space"),
   disarmSpace: () => ipcRenderer.send("disarm-space"),
-  // Deep-link session from the lesson "+" (api/token/kind/hint/caption/script).
+  // Deep-link session from the lesson "+" (api/token/kind/hint/caption/aspect);
+  // the narration script is NOT on the URL — it's fetched via /api/capture/session.
   onSession: (cb) =>
     ipcRenderer.on("capture:session", (_e, s) => cb(s)),
   upload: (payload) => ipcRenderer.invoke("upload-capture", payload),
