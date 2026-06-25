@@ -12,6 +12,7 @@ import { notFound } from "next/navigation";
 
 import { JsonLd } from "@/components/seo/JsonLd";
 import { BriefDocument } from "@/components/briefs/BriefDocument";
+import { BriefDocumentMobile } from "@/components/briefs/BriefDocumentMobile";
 import { SheetScaler } from "@/components/briefs/SheetScaler";
 import { PrintButton } from "@/components/briefs/PrintButton";
 import { breadcrumbJsonLd, techArticleJsonLd, siteUrl } from "@/lib/seo/jsonld";
@@ -95,12 +96,17 @@ export default async function BriefPage({
         <PrintButton className="glass-button glass-button-cta inline-flex items-center px-4 py-2 font-mono text-xs uppercase tracking-wider" />
       </div>
 
-      {/* The brief itself: a fixed letter-width sheet (the single source for web
-          and PDF), scaled to fit on smaller screens. */}
-      <div className="mx-auto max-w-[816px]">
+      {/* Desktop + print: the fixed letter sheet (the single source for the PDF),
+          scaled to fit the column. Hidden on phones, where it would be unreadable. */}
+      <div className="brief-sheet-desktop mx-auto hidden max-w-[816px] md:block">
         <SheetScaler width={816}>
           <BriefDocument brief={brief} />
         </SheetScaler>
+      </div>
+
+      {/* Phones: a reflowed, readable version of the same brief (same data). */}
+      <div className="brief-mobile md:hidden">
+        <BriefDocumentMobile brief={brief} />
       </div>
     </main>
   );

@@ -846,4 +846,12 @@ body {
     transform: none !important;
     width: 816px !important;
   }
+  /* Always print the letter sheet, never the mobile reflow, regardless of the
+     viewport width the user prints from. */
+  body:has(.briefs-print) .brief-sheet-desktop {
+    display: block !important;
+  }
+  body:has(.briefs-print) .brief-mobile {
+    display: none !important;
+  }
 }
