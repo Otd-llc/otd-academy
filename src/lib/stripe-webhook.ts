@@ -23,6 +23,25 @@ export function entitlementFromCheckoutSession(
   return { userId, projectId };
 }
 
+/**
+ * Extract the All-Access Pass (bundle) grant from a completed Checkout Session.
+ *
+ * The Pass / upgrade checkout sets `metadata: { kind: "bundle", userId,
+ * bundleKey }`. Returns `{ userId, bundleKey }` ONLY when `kind === "bundle"` and
+ * both fields are present non-empty strings; otherwise `null`. Pure: no db, no
+ * Stripe. (The webhook resolves `bundleKey` → the Bundle row id before granting.)
+ */
+export function bundleFromCheckoutSession(
+  session: Stripe.Checkout.Session,
+): { userId: string; bundleKey: string } | null {
+  if (session.metadata?.kind !== "bundle") return null;
+  const userId = session.metadata?.userId;
+  const bundleKey = session.metadata?.bundleKey;
+  if (typeof userId !== "string" || userId.length === 0) return null;
+  if (typeof bundleKey !== "string" || bundleKey.length === 0) return null;
+  return { userId, bundleKey };
+}
+
 export type TipRecord = {
   stripeSessionId: string;
   userId: string | null;

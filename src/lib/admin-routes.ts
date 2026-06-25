@@ -35,6 +35,9 @@ export function isPublicPath(pathname: string): boolean {
   if (top === "parts") return segments[1] !== "new";
   // The public /courses index (+ any subpaths) is crawlable.
   if (top === "courses") return true;
+  // The public /pricing page (the storefront landing) is crawlable + must render
+  // signed-out (the top of the purchase funnel).
+  if (top === "pricing") return true;
   // Certificate verification is for third parties (employers) who have no
   // account — must be reachable signed-out.
   if (top === "verify") return true;

@@ -14,6 +14,7 @@
 // doesn't prerender the DB query.
 
 import type { Metadata } from "next";
+import Link from "next/link";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { isAdminEmail } from "@/lib/admin-allowlist";
@@ -194,6 +195,19 @@ export default async function CoursesPage({
                 Jump to your next step
                 <span aria-hidden="true">→</span>
               </a>
+            ) : null}
+
+            {/* Premium pointer: when this path includes premium builds, point at
+                the All-Access Pass (every premium board + bench tool, one
+                purchase). Minimal + consistent with the node UI's gold accents. */}
+            {selected.nodes.some((n) => n.accessTier === "PREMIUM") ? (
+              <Link
+                href="/pricing"
+                className="mt-1 inline-flex w-fit items-center gap-1 font-mono text-xs uppercase tracking-wider text-command-gold/85 underline-offset-2 hover:underline"
+              >
+                View the All-Access Pass
+                <span aria-hidden="true">→</span>
+              </Link>
             ) : null}
           </section>
 

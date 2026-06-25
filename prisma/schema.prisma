@@ -148,6 +148,26 @@ model Entitlement {
   @@index([userId])
 }
 
+// All-Access Pass / bundle (GTM monetization). A bundle is a single Stripe
+// Product whose purchase grants an Entitlement carrying a non-null `bundleId`
+// (the owner-XOR alternative to projectId) — which `hasProjectEntitlement` reads
+// as access to EVERY project. `key` is the stable lookup ("all-access"); the
+// Stripe product carries up to two prices (standard + a time-boxed launch price),
+// so we store both cents amounts plus the active Stripe price id. The launch
+// window closes at `launchEndsAt`; after it, `currentPassPriceId` falls back to
+// the standard price (see src/lib/actions/pass.ts).
+model Bundle {
+  id               String    @id @default(cuid())
+  key              String    @unique
+  name             String
+  stripePriceId    String?
+  priceCents       Int?
+  launchPriceCents Int?
+  launchEndsAt     DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
 // Anonymous email capture for a PREMIUM project's waitlist (pre-Stripe lead-gen).
 model WaitlistSignup {
   id        String   @id @default(cuid())

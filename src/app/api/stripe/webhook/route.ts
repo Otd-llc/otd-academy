@@ -20,6 +20,7 @@ import { env } from "@/env";
 import { db } from "@/lib/db";
 import { getStripe } from "@/lib/stripe";
 import {
+  bundleFromCheckoutSession,
   entitlementFromCheckoutSession,
   tipFromCheckoutSession,
 } from "@/lib/stripe-webhook";
@@ -109,6 +110,40 @@ export async function POST(req: Request): Promise<Response> {
         },
         update: {},
       });
+      return new Response(null, { status: 200 });
+    }
+
+    // 5a-bundle. An All-Access Pass purchase (metadata.kind === "bundle") grants
+    //     a bundle Entitlement — access to EVERY project. Resolve the bundleKey →
+    //     the Bundle row, then upsert-by-guard (the [userId, projectId] unique
+    //     can't key a bundle row, so findFirst + create is the second idempotency
+    //     layer; the ProcessedStripeEvent claim above is the first). Ack on a
+    //     missing/unknown bundle (nothing to retry).
+    const bundleGrant = bundleFromCheckoutSession(session);
+    if (bundleGrant) {
+      const bundle = await db.bundle.findUnique({
+        where: { key: bundleGrant.bundleKey },
+        select: { id: true },
+      });
+      if (!bundle) {
+        console.warn(
+          `[stripe-webhook] bundle checkout ${event.id} references unknown bundleKey ${bundleGrant.bundleKey}; skipping grant`,
+        );
+        return new Response(null, { status: 200 });
+      }
+      const existing = await db.entitlement.findFirst({
+        where: { userId: bundleGrant.userId, bundleId: bundle.id },
+        select: { id: true },
+      });
+      if (!existing) {
+        await db.entitlement.create({
+          data: {
+            userId: bundleGrant.userId,
+            bundleId: bundle.id,
+            source: "PURCHASE",
+          },
+        });
+      }
       return new Response(null, { status: 200 });
     }
 

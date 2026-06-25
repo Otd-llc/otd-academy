@@ -26,6 +26,7 @@ const LINKS = [
   { href: "/", label: "Projects", adminOnly: true },
   { href: "/curriculum", label: "Curriculum", adminOnly: true },
   { href: "/courses", label: "Courses", adminOnly: false },
+  { href: "/pricing", label: "Pricing", adminOnly: false },
   { href: "/library", label: "Library", adminOnly: false },
   { href: "/learn", label: "Learn", adminOnly: false },
   { href: "/parts", label: "Parts", adminOnly: false },

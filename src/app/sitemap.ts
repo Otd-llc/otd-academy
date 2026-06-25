@@ -56,6 +56,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const entries: MetadataRoute.Sitemap = [
     { url: `${base}/courses`, lastModified },
+    { url: `${base}/pricing`, lastModified },
     { url: `${base}/parts`, lastModified },
   ];
 

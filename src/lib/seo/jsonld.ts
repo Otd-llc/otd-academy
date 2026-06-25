@@ -91,6 +91,34 @@ export function productJsonLd(input: {
   };
 }
 
+// Product + Offer — a sellable item on the /pricing storefront (the All-Access
+// Pass, or a representative single project). `priceCents` is the price actually
+// offered right now (launch price while the window is open). Emits a schema.org
+// Offer with `priceCurrency: "USD"` and the decimal price; `availability` is
+// InStock (a digital product is always available). PURE — takes resolved scalars.
+export function productOfferJsonLd(input: {
+  name: string;
+  description: string | null;
+  url: string;
+  priceCents: number;
+}): object {
+  return {
+    "@context": SCHEMA_CONTEXT,
+    "@type": "Product",
+    name: input.name,
+    url: input.url,
+    brand: { "@type": "Brand", name: "One Thousand Drones" },
+    ...(input.description ? { description: input.description } : {}),
+    offers: {
+      "@type": "Offer",
+      price: (input.priceCents / 100).toFixed(2),
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+      url: input.url,
+    },
+  };
+}
+
 // BreadcrumbList — the navigational trail (Home › Courses › Project › Stage).
 // `items` are pre-built {name, absolute-url}; positions are 1-indexed per spec.
 export function breadcrumbJsonLd(

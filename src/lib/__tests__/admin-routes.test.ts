@@ -68,6 +68,10 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/courses/anything")).toBe(true);
   });
 
+  it("admits the public /pricing storefront", () => {
+    expect(isPublicPath("/pricing")).toBe(true);
+  });
+
   it("still does not admit non-guide project routes", () => {
     expect(isPublicPath("/projects/wroom/v1")).toBe(false);
     expect(isPublicPath("/projects/new")).toBe(false);
