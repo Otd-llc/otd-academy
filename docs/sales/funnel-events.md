@@ -29,7 +29,7 @@ fire **after** the state mutation they describe.
 | Lead captured (email)   | `email_captured`      | `src/auth.ts` · `events.createUser` **and** `src/lib/actions/waitlist.ts` · `joinWaitlist` | user / anon | Sign-up path tags `source: "signup"`; waitlist path tags `source: "waitlist"` (anonymous, no user id). Both fire once (first time only). |
 | Sign-up                 | `signed_up`           | `src/auth.ts` · `events.createUser`                                                | user              | Auth.js `createUser` fires exactly once when the Prisma adapter creates the User row — the authoritative first sign-in. |
 | Lesson started          | `lesson_started`      | `src/lib/actions/enrollment.ts` · `enroll`                                          | user              | Fires only on **first** enrollment (existence checked inside the same Serializable tx), not on idempotent re-enroll. |
-| **Board activated**     | `board_activated`     | `src/lib/actions/stages.ts` · `advanceStage` (after a successful advance OUT of `DRC_GERBER`) | user | **The leverage metric.** Hooked on the single authoritative stage state-machine advance so the activation definition cannot drift from the gate the platform enforces (passing the DRC/gerber gate). |
+| **Board activated**     | `board_activated`     | `src/lib/actions/enrollment.ts` · `advanceEnrollment` (after a learner's successful advance OUT of `DRC_GERBER`) | user | **The leverage metric.** Hooked on the learner's own gated advance through `learnerExitGate`, so it counts a real per-learner activation (clean DRC + valid gerbers submitted), not a curriculum-authoring event. Carries `{ board_slug, level }`. |
 | Checkout started        | `checkout_started`    | `src/lib/actions/checkout.ts` · `createCheckoutSession`                             | user              | After the Stripe Checkout session is created, before redirect. |
 | Purchase completed      | `purchase_completed`  | `src/app/api/stripe/webhook/route.ts` · `POST` (after the entitlement upsert)       | user              | Fired on the **source-of-truth grant path** (verified `checkout.session.completed`), never on the client redirect. |
 | Certificate shared      | `certificate_shared`  | `src/lib/actions/certificate.ts` · `createCertificateShareToken`                   | user              | Fires when a learner mints a shareable certificate/completion card (advocacy signal). Carries `{ slug, variant }`. |
@@ -39,9 +39,10 @@ fire **after** the state mutation they describe.
 - **Add new events through `capture()`** (`src/lib/analytics.ts`) on the server,
   or the `analytics-client.ts` helpers on the client — never call the SDK
   directly, so the no-op-when-disabled guarantee holds everywhere.
-- **`board_activated` is deliberately single-sourced** in `advanceStage`. If the
-  activation definition ever needs to change, change it there; do not add a
-  parallel emitter.
+- **`board_activated` is deliberately single-sourced** in `advanceEnrollment`
+  (the learner gate). It must count a learner passing the DRC/gerber gate, not the
+  admin `advanceStage` curriculum-authoring transition. If the activation
+  definition ever needs to change, change it there; do not add a parallel emitter.
 - The exam-pass / `MASTERED` transition (`src/lib/actions/exam.ts` · `submitExam`)
   is **not** currently a scorecard funnel stage — certificate minting is the
   tracked advocacy signal. Add an event there if mastery becomes a scorecard row.

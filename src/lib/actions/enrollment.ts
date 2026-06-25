@@ -186,7 +186,7 @@ export async function advanceEnrollment(
   const { projectId } = advanceEnrollmentSchema.parse(input);
   const user = await requireUser();
 
-  return withTxRetry(() =>
+  const outcome = await withTxRetry(() =>
     db.$transaction(
       async (tx) => {
         const e = await tx.enrollment.findUniqueOrThrow({
@@ -219,11 +219,39 @@ export async function advanceEnrollment(
         if (rows === 0) throw new Error("Stale state — refresh and try again.");
 
         revalidatePath(`/learn/${e.project.slug}`);
-        return { ok: true as const, toStage: to };
+        return {
+          ok: true as const,
+          toStage: to,
+          fromStage: stage,
+          slug: e.project.slug,
+        };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     ),
   );
+
+  // Funnel: `board_activated` — the leverage metric. Fires when the LEARNER
+  // passes the authoritative DRC/gerber gate, i.e. a successful advance OUT of
+  // DRC_GERBER on their own enrollment (clean DRC + valid gerbers submitted).
+  // After commit, best-effort (try/catch) so telemetry can never block the
+  // advance; a no-op when PostHog is unconfigured.
+  if (outcome.ok && outcome.fromStage === "DRC_GERBER") {
+    try {
+      capture(
+        "board_activated",
+        {
+          board_slug: outcome.slug,
+          level: outcome.slug.startsWith("l1-") ? "L1" : undefined,
+        },
+        user.id,
+      );
+    } catch {
+      // never block the advance on telemetry
+    }
+  }
+
+  if (outcome.ok) return { ok: true, toStage: outcome.toStage };
+  return outcome;
 }
 
 // Learner proof artifact for a design stage (REQUIREMENTS / SCHEMATIC / LAYOUT).
