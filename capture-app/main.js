@@ -377,6 +377,10 @@ if (!gotLock) {
       // the window loads" invariant. Awaiting here avoids the race where the
       // flush reads a null pendingSession mid-fetch and loses the session.
       pendingSession = await sessionFromLink(link);
+      // Cold-launch bypasses deliverSession (it assigns pendingSession directly and
+      // flushes to the overlay in did-finish-load), so load the teleprompter script
+      // here too — otherwise a freshly-launched lesson "+" shows an empty prompter.
+      setTeleprompterScript(pendingSession?.script || "");
     } else logLine("no deep link in launch argv (standalone launch)");
 
     createOverlay();
