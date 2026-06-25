@@ -29,6 +29,7 @@
   const aspectRowEl = $("aspectRow");
   const aspectLabelEl = $("aspectLabel");
   const startBtnEl = $("startBtn");
+  const uploadFileBtnEl = $("uploadFileBtn");
   const headerEl = $("header");
   const closeBtnEl = $("closeBtn");
   const reviewStatusEl = $("reviewStatus");
@@ -141,6 +142,9 @@
         : "Capture the screenshot described in the lesson.");
     sessionInfoEl.classList.remove("hidden");
     standaloneNoteEl.classList.add("hidden");
+    // Post-narration upload targets the slot, so it only makes sense with a session
+    // token — revealed here the same way the session info is (hidden until a deep link).
+    uploadFileBtnEl.classList.remove("hidden");
     captionEl.value = s.caption || "";
     // Aspect is LOCKED by the placeholder — never the operator's to change. Hide
     // the chooser and use the ratio the lesson specified.
@@ -1179,6 +1183,31 @@
   });
 
   $("startBtn").addEventListener("click", startFraming);
+  // Post-narration: pick a finished (Kdenlive-exported) video and upload it straight
+  // into this slot. Only meaningful in a deep-link session (the button is hidden in
+  // standalone mode, where there's no slot to upload to).
+  $("uploadFileBtn").addEventListener("click", async () => {
+    if (!session || !session.token) {
+      window.otd.log("upload-file: no session");
+      return;
+    }
+    // Surface progress + result with the same status UI the approve/upload path uses.
+    doneMsg.textContent = "Uploading…";
+    phase = "done";
+    showSection("done");
+    const r = await window.otd.uploadFile({ api: session.api, token: session.token });
+    window.otd.log(`upload-file result: ${JSON.stringify(r)}`);
+    if (r && r.ok) {
+      // One-shot, like the approve path: the lesson page picks it up. Close.
+      doneMsg.textContent = "Uploaded ✓";
+      setTimeout(() => window.otd.quit(), 800);
+    } else {
+      // Stay on the done screen (its Quit button is always shown) with the failure
+      // text — same status element (#status / doneMsg) the approve upload writes to.
+      doneMsg.textContent =
+        "Upload failed: " + ((r && r.error) || "unknown error") + " — try again.";
+    }
+  });
   stopBtnEl.addEventListener("click", () => {
     if (phase === "recording") void stopRecording();
   });

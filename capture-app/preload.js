@@ -20,6 +20,8 @@ contextBridge.exposeInMainWorld("otd", {
   onSession: (cb) =>
     ipcRenderer.on("capture:session", (_e, s) => cb(s)),
   upload: (payload) => ipcRenderer.invoke("upload-capture", payload),
+  // Post-narration: pick a finished (Kdenlive-exported) video and upload it to the slot.
+  uploadFile: (payload) => ipcRenderer.invoke("upload-file", payload),
   save: (payload) => ipcRenderer.invoke("save-capture", payload),
   // Multi-clip: persist a recorded clip to a temp file, and stitch the ordered set.
   saveClip: (payload) => ipcRenderer.invoke("save-clip", payload),

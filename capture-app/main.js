@@ -20,6 +20,7 @@ const {
   globalShortcut,
   ipcMain,
   desktopCapturer,
+  dialog,
   session,
   screen,
 } = require("electron");
@@ -470,6 +471,44 @@ ipcMain.handle(
     }
   },
 );
+
+// Post-narration flow: after recording silent → narrating in Kdenlive → exporting,
+// the operator picks that finished file and uploads it straight into the lesson slot
+// via the same token-scoped POST /api/capture the deep-link upload uses. Needs the
+// current session's api+token (passed from the renderer, which holds `session`).
+ipcMain.handle("upload-file", async (_e, { api, token }) => {
+  if (!api || !token) return { ok: false, error: "No lesson slot — open this from a lesson +." };
+  const pick = await dialog.showOpenDialog({
+    title: "Choose the finished video to upload",
+    properties: ["openFile"],
+    filters: [{ name: "Video", extensions: ["mp4", "webm", "mov"] }],
+  });
+  if (pick.canceled || !pick.filePaths[0]) return { ok: false, error: "Cancelled." };
+  const file = pick.filePaths[0];
+  const ext = path.extname(file).slice(1).toLowerCase() || "mp4";
+  try {
+    const body = fs.readFileSync(file);
+    const ctype = ext === "webm" ? "video/webm" : ext === "mov" ? "video/quicktime" : "video/mp4";
+    const qs = new URLSearchParams({ token, ext }).toString();
+    logLine(`upload-file → ${api}/api/capture ext=${ext} bytes=${body.length}`);
+    const res = await fetch(`${api}/api/capture?${qs}`, {
+      method: "POST",
+      headers: { "Content-Type": ctype },
+      body,
+      redirect: "manual",
+    });
+    if (res.status >= 300 && res.status < 400) {
+      return { ok: false, error: `Redirected (${res.status}) — upload didn't reach the server.` };
+    }
+    const json = await res.json().catch(() => ({}));
+    logLine(`upload-file response: ${res.status} ${JSON.stringify(json)}`);
+    if (!res.ok || !json.src) return { ok: false, error: json.error || `HTTP ${res.status}` };
+    return { ok: true, src: json.src };
+  } catch (e) {
+    logLine(`upload-file THREW: ${e && e.message}`);
+    return { ok: false, error: e && e.message ? e.message : "Upload failed." };
+  }
+});
 
 // Standalone (no deep link): save the approved capture to ~/Downloads/otd-captures/.
 ipcMain.handle("save-capture", async (_e, { base64, ext, caption }) => {
