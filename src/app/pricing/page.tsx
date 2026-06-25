@@ -77,6 +77,10 @@ export default async function PricingPage() {
   const passCents = bundle ? currentPassPriceId(bundle, now) : null;
   const launchOpen = bundle ? isLaunchActive(bundle, now) : false;
   const standardCents = bundle?.priceCents ?? null;
+  // The Pass is sellable only once set-pass-price.ts has provisioned a Stripe
+  // price id (loadSellablePass enforces the same server-side). Until then the
+  // Pass renders as a waitlist, not a buy button that would error.
+  const passOnSale = bundle?.stripePriceId != null && passCents !== null;
 
   // Resolve the signed-in viewer's state for the CTA: do they already hold the
   // Pass, and what is their pay-the-difference quote.
@@ -194,7 +198,7 @@ export default async function PricingPage() {
             <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">
               All-Access Pass
             </p>
-            {launchOpen ? (
+            {launchOpen && passOnSale ? (
               <span className="rounded bg-command-gold/15 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">
                 Launch price
               </span>
@@ -204,7 +208,7 @@ export default async function PricingPage() {
             Every premium build and bench tool
           </p>
 
-          {passCents !== null ? (
+          {passOnSale && passCents !== null ? (
             <p className="font-mono text-3xl text-white">
               {formatUsd(passCents)}
               {launchOpen && standardCents !== null && standardCents > passCents ? (
@@ -232,26 +236,31 @@ export default async function PricingPage() {
 
           {/* CTA by viewer state. */}
           <div className="mt-auto">
-            {!signedIn ? (
+            {hasPass ? (
+              <p className="font-mono text-sm uppercase tracking-wider text-status-green">
+                You have the All-Access Pass.
+              </p>
+            ) : !passOnSale ? (
+              <div className="space-y-2">
+                {!signedIn ? <SignUpCta /> : null}
+                <p className="font-mono text-[11px] uppercase tracking-wider text-muted">
+                  {signedIn
+                    ? "The Pass opens with the Level 1 launch. We'll email you when it goes live."
+                    : "The Pass opens with the Level 1 launch. Create a free account and we'll email you the moment it opens."}
+                </p>
+              </div>
+            ) : !signedIn ? (
               <div className="space-y-2">
                 <SignUpCta />
                 <p className="font-mono text-[11px] uppercase tracking-wider text-muted">
                   Sign in to buy. Free to create an account.
                 </p>
               </div>
-            ) : hasPass ? (
-              <p className="font-mono text-sm uppercase tracking-wider text-status-green">
-                You have the All-Access Pass.
-              </p>
-            ) : passCents === null ? (
-              <p className="font-mono text-xs uppercase tracking-wider text-muted">
-                The Pass is not on sale yet.
-              </p>
             ) : upgradeChargeCents !== null ? (
               <UpgradePassButton chargeCents={upgradeChargeCents} />
-            ) : (
+            ) : passCents !== null ? (
               <BuyPassButton priceCents={passCents} />
-            )}
+            ) : null}
           </div>
         </div>
       </section>
