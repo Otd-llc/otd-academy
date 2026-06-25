@@ -85,10 +85,11 @@ deliberately the opposite of the recorder overlay:
 
 - **Not content-protected and not click-through.** It never overlaps the recording: it
   floats over **Kdenlive** while you narrate in post. So it behaves like any window: you
-  drag it (the body is `-webkit-app-region: drag`), resize it, push it to a second
-  monitor.
-- **Natively scrollable.** The body is `overflow-y: auto`, so the wheel, the arrow keys,
-  and PageUp/PageDown all scroll it. No hotkey paging, no IPC-forwarded scroll.
+  move it with the **drag bar** across the top (`#bar`, `-webkit-app-region: drag`), resize
+  it, push it to a second monitor.
+- **Natively scrollable.** The script sits in a no-drag `#doc` region with `overflow-y:
+  auto`, so the wheel, the arrow keys, and PageUp/PageDown all scroll it. No hotkey paging,
+  no IPC-forwarded scroll.
 - **Always-on-top**, `setAlwaysOnTop(true, "screen-saver")` + `setVisibleOnAllWorkspaces`,
   so it stays above Kdenlive.
 - **Toggle on/off** with the global hotkey **`Ctrl+Shift+H`** (registered once in
@@ -98,6 +99,14 @@ deliberately the opposite of the recorder overlay:
   the renderer subscribes via the `onTeleprompterScript` preload bridge in
   [`preload.js`](./preload.js). A late-opened window also picks up `lastScript` on its
   `did-finish-load`. If there is no script the window shows a short empty-state note.
+- **Pronunciation / format markup.** The script may contain `{TERM|pronunciation}` tokens;
+  the window renders `TERM` (bright) followed by a small gold pronunciation cue (e.g.
+  `{VOUT|vee-out}` shows "VOUT (vee-out)"), so the reader says it right and never reads the
+  cue aloud. Newlines in the script become line breaks (`white-space: pre-wrap`), so scripts
+  are written one short phrase per line for read-aloud cadence. The cue is parsed with DOM
+  nodes (not `innerHTML`), so the script text is never interpreted as markup beyond the
+  `{…|…}` form. The authoring textarea (`MediaEditor`) shows the raw markup; only the
+  teleprompter renders it.
 
 There is no longer any in-overlay teleprompter panel and no `Ctrl+Shift+Down`/`Up`
 scroll chord. The mic, the `save-audio`/`mux-audio` IPC handlers, and the editor's audio

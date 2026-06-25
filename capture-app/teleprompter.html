@@ -43,13 +43,28 @@
       #script {
         padding: 24px 32px 64px;
         font-size: 30px;
-        line-height: 1.6;
-        white-space: pre-wrap;
+        line-height: 1.7;
+        white-space: pre-wrap;     /* newlines in the script become line breaks */
         max-width: 1100px;
         margin: 0 auto;
         -webkit-user-select: text;
         user-select: text;
       }
+      /* A marked term {TERM|pron} renders as the term (bright) + a small gold
+         pronunciation cue beside it, so you say it right and never read the cue
+         aloud. */
+      #script .term { color: #ffffff; }
+      #script .pron {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.46em;
+        color: #c8963e;
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+        vertical-align: 0.18em;
+        margin: 0 0.08em 0 0.18em;
+      }
+      #script .pron::before { content: "("; }
+      #script .pron::after { content: ")"; }
       #empty { color: #8a8f9c; font-size: 18px; padding: 24px 32px; }
     </style>
   </head>
@@ -63,9 +78,38 @@
       const scriptEl = document.getElementById("script");
       const emptyEl = document.getElementById("empty");
       const docEl = document.getElementById("doc");
+
+      // Render the script, expanding {TERM|pron} into a bright term + a small gold
+      // pronunciation cue. Built with DOM nodes (not innerHTML) so the script text
+      // is never interpreted as markup; createTextNode keeps the newlines that
+      // white-space: pre-wrap turns into the script's line breaks.
+      function renderScript(text) {
+        scriptEl.textContent = "";
+        const re = /\{([^|{}]+)\|([^{}]+)\}/g;
+        let last = 0;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+          if (m.index > last) {
+            scriptEl.appendChild(document.createTextNode(text.slice(last, m.index)));
+          }
+          const term = document.createElement("span");
+          term.className = "term";
+          term.textContent = m[1];
+          scriptEl.appendChild(term);
+          const pron = document.createElement("span");
+          pron.className = "pron";
+          pron.textContent = m[2];
+          scriptEl.appendChild(pron);
+          last = re.lastIndex;
+        }
+        if (last < text.length) {
+          scriptEl.appendChild(document.createTextNode(text.slice(last)));
+        }
+      }
+
       window.otd.onTeleprompterScript((text) => {
         const t = (text || "").trim();
-        scriptEl.textContent = t;
+        renderScript(t);
         emptyEl.style.display = t ? "none" : "block";
         docEl.scrollTop = 0;
       });
