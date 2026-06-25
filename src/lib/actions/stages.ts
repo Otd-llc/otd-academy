@@ -292,6 +292,7 @@ export async function advanceStage(
   );
 
   revalidatePath(`/projects/${projectSlug}/${revLabel}`);
+
   return result;
 }
 

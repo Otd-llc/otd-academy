@@ -7,6 +7,7 @@ import { env } from "@/env";
 import { shouldRenderChrome } from "@/lib/chrome";
 import { BrandMark } from "@/components/BrandMark";
 import { MainNav } from "@/components/MainNav";
+import { PostHogProvider } from "@/components/PostHogProvider";
 import { SignUpCta } from "@/components/SignUpCta";
 import { TooltipProvider } from "@/components/TooltipProvider";
 import { UserMenu } from "@/components/UserMenu";
@@ -65,6 +66,11 @@ export default async function RootLayout({
             see TooltipProvider / Tooltip). The provider is a client island; its
             server-rendered children pass straight through, and it adds no DOM
             wrapper so the body's flex column is preserved. */}
+        {/* PostHog bootstrap + SPA pageview capture. A "use client" island
+            sibling to TooltipProvider; a hard no-op when NEXT_PUBLIC_POSTHOG_KEY
+            is unset (no init, no network), so unconfigured builds are unaffected.
+            Adds no DOM wrapper, so the body's flex column is preserved. */}
+        <PostHogProvider>
         <TooltipProvider>
           {renderChrome ? (
             // App-shell chrome renders for signed-in users plus anonymous
@@ -182,6 +188,7 @@ export default async function RootLayout({
             </footer>
           ) : null}
         </TooltipProvider>
+        </PostHogProvider>
       </body>
     </html>
   );

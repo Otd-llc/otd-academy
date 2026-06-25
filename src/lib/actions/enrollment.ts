@@ -29,6 +29,7 @@ import { hasProjectEntitlement } from "@/lib/entitlements";
 import { loadLearnerGateContext } from "@/lib/load-learner-gate-context";
 import { STAGE_VALUES } from "@/lib/schemas/project-dependency";
 import { MAX_UPLOAD_BYTES } from "@/lib/schemas/upload";
+import { capture } from "@/lib/analytics";
 
 const PROOF_PUT_TTL_SECONDS = 900; // 15 min, mirrors uploads.ts
 // ERC reports are kilobytes; refuse to slurp a huge file into memory as text.
@@ -124,9 +125,17 @@ export async function enroll(
           }
         }
 
+        // Detect first-time enrollment so the funnel `lesson_started` event
+        // fires once, not on every idempotent re-enroll. Read inside the same
+        // Serializable tx so the flag is consistent with the upsert.
+        const prior = await tx.enrollment.findUnique({
+          where: { userId_projectId: { userId: user.id, projectId } },
+          select: { id: true },
+        });
+
         // Idempotent: one Enrollment per (user, project). `update: {}` leaves an
         // existing enrollment (and its progress) untouched.
-        return tx.enrollment.upsert({
+        const row = await tx.enrollment.upsert({
           where: { userId_projectId: { userId: user.id, projectId } },
           update: {},
           create: {
@@ -134,15 +143,37 @@ export async function enroll(
             projectId,
             revisionId: project.publishedRevisionId,
           },
-          select: { id: true, status: true, project: { select: { slug: true } } },
+          select: {
+            id: true,
+            status: true,
+            project: { select: { slug: true } },
+          },
         });
+        return { row, created: !prior };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     ),
   );
 
-  revalidatePath(`/learn/${enrollment.project.slug}`);
-  return { id: enrollment.id, status: enrollment.status };
+  const { row: enrollmentRow, created } = enrollment;
+
+  // Funnel: a learner started a lesson. Fire only on first enrollment, after the
+  // commit, wrapped so a telemetry failure never blocks the request. No-op when
+  // PostHog is unconfigured.
+  if (created) {
+    try {
+      capture(
+        "lesson_started",
+        { projectSlug: enrollmentRow.project.slug, projectId },
+        user.id,
+      );
+    } catch {
+      // best-effort
+    }
+  }
+
+  revalidatePath(`/learn/${enrollmentRow.project.slug}`);
+  return { id: enrollmentRow.id, status: enrollmentRow.status };
 }
 
 // Advance the learner's OWN currentStage past `learnerExitGate`. Mirrors the
@@ -155,7 +186,7 @@ export async function advanceEnrollment(
   const { projectId } = advanceEnrollmentSchema.parse(input);
   const user = await requireUser();
 
-  return withTxRetry(() =>
+  const outcome = await withTxRetry(() =>
     db.$transaction(
       async (tx) => {
         const e = await tx.enrollment.findUniqueOrThrow({
@@ -188,11 +219,39 @@ export async function advanceEnrollment(
         if (rows === 0) throw new Error("Stale state — refresh and try again.");
 
         revalidatePath(`/learn/${e.project.slug}`);
-        return { ok: true as const, toStage: to };
+        return {
+          ok: true as const,
+          toStage: to,
+          fromStage: stage,
+          slug: e.project.slug,
+        };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     ),
   );
+
+  // Funnel: `board_activated` — the leverage metric. Fires when the LEARNER
+  // passes the authoritative DRC/gerber gate, i.e. a successful advance OUT of
+  // DRC_GERBER on their own enrollment (clean DRC + valid gerbers submitted).
+  // After commit, best-effort (try/catch) so telemetry can never block the
+  // advance; a no-op when PostHog is unconfigured.
+  if (outcome.ok && outcome.fromStage === "DRC_GERBER") {
+    try {
+      capture(
+        "board_activated",
+        {
+          board_slug: outcome.slug,
+          level: outcome.slug.startsWith("l1-") ? "L1" : undefined,
+        },
+        user.id,
+      );
+    } catch {
+      // never block the advance on telemetry
+    }
+  }
+
+  if (outcome.ok) return { ok: true, toStage: outcome.toStage };
+  return outcome;
 }
 
 // Learner proof artifact for a design stage (REQUIREMENTS / SCHEMATIC / LAYOUT).

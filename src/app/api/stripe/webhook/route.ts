@@ -24,6 +24,7 @@ import {
   entitlementFromCheckoutSession,
   tipFromCheckoutSession,
 } from "@/lib/stripe-webhook";
+import { capture } from "@/lib/analytics";
 
 // Node runtime (raw body + crypto), and never statically prerender this route —
 // it depends on the request body, headers, and a runtime secret.
@@ -170,6 +171,21 @@ export async function POST(req: Request): Promise<Response> {
       },
       update: {},
     });
+
+    // Funnel: `purchase_completed` — fired on the source-of-truth grant path.
+    // Best-effort (try/catch) so telemetry can never break the webhook 2xx Stripe
+    // needs; no-op when PostHog is unconfigured. NOTE: feat/academy-monetization
+    // also edits this handler (bundle grants) — keep this one call minimal to ease
+    // the rebase.
+    try {
+      capture(
+        "purchase_completed",
+        { projectId: grant.projectId },
+        grant.userId,
+      );
+    } catch {
+      // never break the webhook ack on telemetry
+    }
   }
 
   // 6. Stripe only needs a 2xx to consider the event delivered — for handled AND

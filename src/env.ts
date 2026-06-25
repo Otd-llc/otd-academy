@@ -66,9 +66,19 @@ export const env = createEnv({
     // (canonical / OG / sitemap). OPTIONAL: layout.tsx falls back to the prod
     // origin when unset, so an unconfigured local/CI build never breaks.
     NEXT_PUBLIC_SITE_URL: z.url().optional(),
+    // PostHog funnel instrumentation. OPTIONAL by design: when
+    // NEXT_PUBLIC_POSTHOG_KEY is unset, both the client provider and the
+    // server-side `capture()` helper become NO-OPS — so CI, tests, and any
+    // unconfigured build run with analytics simply disabled (no init, no
+    // network calls). The same public key is used by posthog-js (browser) and
+    // posthog-node (server). HOST defaults to PostHog US cloud.
+    NEXT_PUBLIC_POSTHOG_KEY: z.string().min(1).optional(),
+    NEXT_PUBLIC_POSTHOG_HOST: z.url().default("https://us.i.posthog.com"),
   },
   runtimeEnv: {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+    NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+    NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
     DATABASE_URL: process.env.DATABASE_URL,
     DIRECT_URL: process.env.DIRECT_URL,
     PARTS_MCP_DATABASE_URL: process.env.PARTS_MCP_DATABASE_URL,

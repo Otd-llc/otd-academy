@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { signCardToken } from "@/lib/certificate-token";
 import { recordCertificate } from "@/lib/certificate-record";
+import { capture } from "@/lib/analytics";
 
 const schema = z.object({
   slug: z.string().trim().min(1).max(200),
@@ -54,5 +55,14 @@ export async function createCertificateShareToken(input: {
   const claims = { slug, name, variant, score, total, date } as const;
   const token = signCardToken(claims);
   await recordCertificate(token, claims, user.id); // make the printed code checkable
+
+  // Funnel: the learner minted a shareable certificate/completion card — the
+  // viral/advocacy signal. Best-effort (try/catch); no-op when unconfigured.
+  try {
+    capture("certificate_shared", { slug, variant }, user.id);
+  } catch {
+    // best-effort
+  }
+
   return { token };
 }
