@@ -85,7 +85,7 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
                   {s.label}
                 </dt>
                 <dd
-                  className="whitespace-nowrap font-mono text-[10px] font-bold uppercase tracking-[0.02em]"
+                  className="whitespace-nowrap font-mono text-[11px] font-bold tracking-[0.02em]"
                   style={{ color: IVORY }}
                 >
                   {s.value}
@@ -144,12 +144,12 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
         <div>
           <Link
             href={DOC_CTA.href}
-            className="inline-flex items-center gap-2 rounded-sm bg-command-gold px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.12em] text-deep-space transition-colors hover:bg-gold-light"
+            className="inline-flex items-center gap-2 rounded-sm bg-command-gold px-5 py-2.5 font-mono text-[13px] font-bold tracking-[0.06em] text-deep-space transition-colors hover:bg-gold-light"
           >
             {DOC_CTA.label}
             <span aria-hidden="true">→</span>
           </Link>
-          <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-command-gold">
+          <p className="mt-3 font-mono text-[10px] tracking-[0.12em] text-command-gold">
             academy.onethousanddrones.com
           </p>
           <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-muted">
