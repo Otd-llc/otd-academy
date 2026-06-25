@@ -24,6 +24,12 @@ model User {
   role          UserRole  @default(LEARNER)
   createdAt     DateTime  @default(now())
   stripeCustomerId String? @unique
+  // Lifecycle-email consent (CAN-SPAM / GDPR). Default true: existing learners are
+  // opted in (they created an account to learn here); the unsubscribe route flips
+  // this to false and every lifecycle send is guarded by `emailConsent === true`.
+  // Transactional mail (magic-link sign-in) is NOT gated by this.
+  emailConsent          Boolean   @default(true)
+  emailConsentUpdatedAt DateTime?
 
   accounts Account[]
   sessions Session[]
@@ -49,6 +55,7 @@ model User {
   tips                    Tip[]
   certificates            Certificate[]
   miniLessons             MiniLesson[]
+  lifecycleSends          LifecycleSend[]
 }
 
 model Account {
@@ -206,6 +213,23 @@ model Certificate {
 
   @@index([userId])
   @@index([slug])
+}
+
+// One row per (user, lifecycle sequence) the cron has sent — the idempotency
+// ledger that makes every sequence fire AT MOST ONCE per learner. The cron
+// selects audience users WITHOUT a row for the sequence, sends, then writes the
+// row; the @@unique makes a double-send a constraint violation, not a duplicate.
+// `sequence` is the email id from docs/sales/lifecycle-emails.md (e.g. "1.1",
+// "2.1", "5.3").
+model LifecycleSend {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sequence String
+  sentAt   DateTime @default(now())
+
+  @@unique([userId, sequence])
+  @@index([userId])
 }
 
 model Revision {
