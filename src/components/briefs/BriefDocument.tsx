@@ -8,10 +8,9 @@
 // the Brain-to-Swarm map, four stats, and the CTA + registration footer. Uses
 // <div> (not <header>/<footer>) so the print stylesheet can hide the SITE chrome.
 
-import Link from "next/link";
-
 import { BriefSystemMap } from "@/components/briefs/BriefSystemMap";
 import { DOC_CTA, SYSTEM_SPEC, type BriefData } from "@/lib/brief-pages";
+import { siteUrl } from "@/lib/seo/jsonld";
 
 const HONEYCOMB =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c8963e' fill-opacity='0.04'%3E%3Cpath d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9zM0 15l12.98-7.5V0h-2v6.35L0 12.69v2.3zm0 18.5L12.98 41v8h-2v-6.85L0 35.81v-2.3zM15 0v7.5L27.99 15H28v-2.31h-.01L17 6.35V0h-2zm0 49v-8l12.99-7.5H28v2.31h-.01L17 42.15V49h-2z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")";
@@ -33,6 +32,8 @@ function Body({ text, emphasis }: { text: string; emphasis: string }) {
 }
 
 export function BriefDocument({ brief }: { brief: BriefData }) {
+  // Absolute URLs so links stay clickable and resolvable in the downloaded PDF.
+  const base = siteUrl();
   return (
     <article
       className="brief-doc relative w-full px-10 py-5 text-white"
@@ -135,7 +136,12 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
         <div className="flex items-center justify-center gap-10 border-t border-panel-border px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
           <span>Live DigiKey pricing</span>
           <span>Fab-ready gerbers</span>
-          <span>Sealed certificate at /verify</span>
+          <span>
+            Sealed certificate at{" "}
+            <a href={`${base}/verify`} className="text-command-gold underline-offset-2 hover:underline">
+              /verify
+            </a>
+          </span>
         </div>
       </figure>
 
@@ -159,15 +165,17 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
       {/* CTA + registration footer */}
       <div className="mt-3 flex items-end justify-between gap-8 border-t border-panel-border pt-4">
         <div>
-          <Link
-            href={DOC_CTA.href}
+          <a
+            href={`${base}${DOC_CTA.href}`}
             className="inline-flex items-center gap-2 rounded-sm bg-command-gold px-5 py-2.5 font-mono text-[13px] font-bold tracking-[0.06em] text-deep-space transition-colors hover:bg-gold-light"
           >
             {DOC_CTA.label}
             <span aria-hidden="true">→</span>
-          </Link>
+          </a>
           <p className="mt-3 font-mono text-[10px] tracking-[0.12em] text-command-gold">
-            academy.onethousanddrones.com
+            <a href={base} className="underline-offset-2 hover:underline">
+              academy.onethousanddrones.com
+            </a>
           </p>
           <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-muted">
             Free · No subscription · Lifetime access

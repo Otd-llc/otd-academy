@@ -146,7 +146,9 @@ export function BriefDocumentMobile({ brief }: { brief: BriefData }) {
           <span aria-hidden="true">→</span>
         </Link>
         <p className="mt-3 text-center font-mono text-[10px] tracking-[0.12em] text-command-gold">
-          academy.onethousanddrones.com
+          <Link href="/" className="underline-offset-2 hover:underline">
+            academy.onethousanddrones.com
+          </Link>
         </p>
         <p className="mt-1 text-center font-mono text-[10px] uppercase tracking-[0.12em] text-muted">
           Free · No subscription · Lifetime access
