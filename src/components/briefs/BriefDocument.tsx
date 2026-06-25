@@ -56,8 +56,8 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
       </div>
 
       {/* Hero: big headline + system spec */}
-      <div className="mt-4 flex items-start justify-between gap-6">
-        <h1 className="font-display text-[74px] leading-[0.8] tracking-tight text-white">
+      <div className="mt-5 flex items-start justify-between gap-6">
+        <h1 className="font-display text-[82px] leading-[0.78] tracking-tight text-white">
           One <span className="text-command-gold">mind.</span>
           <br />
           Many <span className="text-command-gold">machines.</span>
@@ -71,7 +71,7 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
             {SYSTEM_SPEC.map((s) => (
               <div
                 key={s.label}
-                className="flex items-center justify-between gap-3 px-3 py-[6px]"
+                className="flex items-center justify-between gap-3 px-3 py-2"
               >
                 <dt className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
                   {s.label}
