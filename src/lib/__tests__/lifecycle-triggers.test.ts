@@ -53,7 +53,7 @@ const daysBefore = (d: number) => new Date(NOW.getTime() - d * 86_400_000);
 
 async function makeUser(
   key: string,
-  data: { emailConsent?: boolean; name?: string | null } = {},
+  data: { emailConsent?: boolean; name?: string | null; createdAt?: Date } = {},
 ) {
   const u = await db.user.create({
     data: {
@@ -61,6 +61,11 @@ async function makeUser(
       name: data.name ?? `User ${key}`,
       role: "LEARNER",
       emailConsent: data.emailConsent ?? true,
+      // Pin the account age relative to NOW so the welcome audience
+      // (createdAt <= now) is deterministic regardless of the wall-clock time
+      // the suite runs at (it was created at real `now`, which is after the
+      // fixed NOW past noon UTC, so it was being excluded).
+      createdAt: data.createdAt ?? daysBefore(1),
     },
   });
   userIds.push(u.id);
