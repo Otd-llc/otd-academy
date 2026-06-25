@@ -19,6 +19,15 @@ export function formatUsd(priceCents: number): string {
 }
 
 /**
+ * Like `formatUsd` but drops a trailing `.00` so whole-dollar prices read clean
+ * for display headlines (`4900 → "$49"`, `4950 → "$49.50"`). Use on the
+ * storefront's big price numbers; keep `formatUsd` where exact cents matter.
+ */
+export function formatUsdShort(priceCents: number): string {
+  return formatUsd(priceCents).replace(/\.00$/, "");
+}
+
+/**
  * Resolve a project's buy price in cents, or `null` when it isn't purchasable.
  *
  * A course is purchasable only when it carries BOTH a non-empty `stripePriceId`

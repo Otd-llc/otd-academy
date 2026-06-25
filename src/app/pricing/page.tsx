@@ -27,7 +27,7 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { SignUpCta } from "@/components/SignUpCta";
 import { BuyPassButton, UpgradePassButton } from "@/components/learn/PassButtons";
 import { PassWaitlistForm } from "@/components/learn/PassWaitlistForm";
-import { formatUsd } from "@/lib/format-money";
+import { formatUsdShort } from "@/lib/format-money";
 import { productOfferJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { currentPassPriceId, isLaunchActive } from "@/lib/pass-pricing";
 import { quoteUpgrade } from "@/lib/pass-upgrade";
@@ -176,8 +176,8 @@ export default async function PricingPage() {
   const passUnit =
     passCents !== null
       ? launchOpen && standardCents !== null && standardCents > passCents
-        ? `${formatUsd(passCents)} / ${formatUsd(standardCents)}`
-        : formatUsd(passCents)
+        ? `${formatUsdShort(passCents)} / ${formatUsdShort(standardCents)}`
+        : formatUsdShort(passCents)
       : "Soon";
 
   // Catalog price rows. The level code is the real curriculum level, a quiet
@@ -244,12 +244,12 @@ export default async function PricingPage() {
           </div>
           {singleProjectCents !== null ? (
             <p className="font-mono text-4xl tabular-nums text-white">
-              {formatUsd(singleProjectCents)}
+              {formatUsdShort(singleProjectCents)}
               {maxProjectCents !== null &&
               maxProjectCents > singleProjectCents ? (
                 <span className="text-2xl text-muted">
                   {" "}
-                  to {formatUsd(maxProjectCents)}
+                  to {formatUsdShort(maxProjectCents)}
                 </span>
               ) : null}
             </p>
@@ -295,12 +295,12 @@ export default async function PricingPage() {
           </div>
           {passCents !== null ? (
             <p className="font-mono text-6xl tabular-nums leading-none text-command-gold">
-              {formatUsd(passCents)}
+              {formatUsdShort(passCents)}
               {launchOpen &&
               standardCents !== null &&
               standardCents > passCents ? (
                 <span className="ml-3 align-middle font-mono text-2xl text-muted line-through">
-                  {formatUsd(standardCents)}
+                  {formatUsdShort(standardCents)}
                 </span>
               ) : null}
             </p>

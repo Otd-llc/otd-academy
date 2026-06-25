@@ -71,18 +71,39 @@ function SectionHead({ children }: { children: React.ReactNode }) {
   );
 }
 
-// The curriculum system map: a root ESP32-S3 node fanning to the four tracks
-// and the two capstones. A clean, responsive inline representation (CSS grid +
-// a connector rule), not a PCB graphic.
+// A thin connector between diagram tiers, optionally carrying a label.
+function Flow({ label }: { label?: string }) {
+  return (
+    <div className="my-5 flex flex-col items-center" aria-hidden="true">
+      <span className="h-6 w-px bg-gradient-to-b from-command-gold/60 to-panel-border" />
+      {label ? (
+        <>
+          <span className="my-1.5 font-mono text-[9px] uppercase tracking-[0.3em] text-muted">
+            {label}
+          </span>
+          <span className="h-6 w-px bg-gradient-to-b from-panel-border to-command-gold/60" />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+// The curriculum system map: the ESP32-S3 platform fans into four tracks that
+// converge on the two capstones (the "many machines, one mind" shape). A
+// restrained diagram with hairline connectors; the meaningful nodes (platform,
+// capstones) carry the single gold accent, the tracks stay neutral.
 function SystemMap() {
   return (
     <figure
-      className="mt-5 rounded-2xl border border-panel-border bg-bg-2/30 p-5 sm:p-7"
-      aria-label="Curriculum system map"
+      className="mt-6 rounded-2xl border border-panel-border bg-bg-2/30 p-6 sm:p-9"
+      aria-label="The ESP32-S3 platform fans into four tracks that converge on two capstones"
     >
-      {/* Root node */}
+      {/* Platform */}
       <div className="flex flex-col items-center text-center">
-        <div className="rounded-md border border-command-gold/50 bg-command-gold/10 px-4 py-2">
+        <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-muted">
+          Platform
+        </span>
+        <div className="mt-2.5 rounded-lg border border-command-gold/50 bg-command-gold/[0.06] px-7 py-3">
           <p className="font-display text-2xl tracking-wide text-white">
             {SYSTEM_MAP.root.label}
           </p>
@@ -90,47 +111,48 @@ function SystemMap() {
             {SYSTEM_MAP.root.sub}
           </p>
         </div>
-        <div aria-hidden="true" className="h-5 w-px bg-command-gold/40" />
       </div>
 
+      <Flow />
+
       {/* Four tracks */}
-      <p className="mb-2 text-center font-mono text-[10px] uppercase tracking-[0.25em] text-muted">
+      <p className="text-center font-mono text-[10px] uppercase tracking-[0.3em] text-muted">
         Four tracks
       </p>
-      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {SYSTEM_MAP.tracks.map((t) => (
           <li
             key={t.code}
-            className="flex flex-col gap-1 rounded border border-panel-border bg-deep-space/60 px-3 py-2.5"
+            className="rounded-lg border border-panel-border bg-deep-space/50 p-4"
           >
-            <span className="font-mono text-sm font-bold uppercase tracking-wider text-command-gold">
+            <p className="font-mono text-sm uppercase tracking-[0.15em] text-command-gold">
               {t.code}
-            </span>
-            <span className="font-serif text-xs leading-snug text-muted">
+            </p>
+            <p className="mt-1.5 font-serif text-xs leading-snug text-gray-2">
               {t.blurb}
-            </span>
+            </p>
           </li>
         ))}
       </ul>
 
-      <div aria-hidden="true" className="mx-auto my-4 h-5 w-px bg-signal-blue/40" />
+      <Flow label="Converge on" />
 
       {/* Two capstones */}
-      <p className="mb-2 text-center font-mono text-[10px] uppercase tracking-[0.25em] text-muted">
-        Converging on two capstones
+      <p className="text-center font-mono text-[10px] uppercase tracking-[0.3em] text-muted">
+        Two capstones
       </p>
-      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {SYSTEM_MAP.capstones.map((c) => (
           <li
             key={c.code}
-            className="flex flex-col gap-1 rounded border border-signal-blue/40 bg-signal-blue/5 px-3 py-2.5"
+            className="rounded-lg border border-command-gold/40 bg-command-gold/[0.05] p-4"
           >
-            <span className="font-mono text-sm font-bold uppercase tracking-wider text-signal-blue">
+            <p className="font-mono text-sm uppercase tracking-[0.15em] text-command-gold">
               {c.code}
-            </span>
-            <span className="font-serif text-xs leading-snug text-muted">
+            </p>
+            <p className="mt-1.5 font-serif text-xs leading-snug text-gray-2">
               {c.blurb}
-            </span>
+            </p>
           </li>
         ))}
       </ul>
