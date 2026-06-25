@@ -57,7 +57,14 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
         <span className="text-muted">{brief.briefLabel}</span>
       </div>
       <div className="relative mt-2 h-px w-full bg-panel-border">
-        <span className="absolute -top-px left-0 h-[3px] w-[210px] bg-command-gold" />
+        <div
+          aria-hidden="true"
+          className="absolute -top-px left-0 h-[2px] w-3/5"
+          style={{
+            background:
+              "linear-gradient(to right, #c8963e 0%, #c8963e 38%, rgba(200,150,62,0) 100%)",
+          }}
+        />
       </div>
 
       {/* Hero: big headline + system spec */}
@@ -71,21 +78,21 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
           Many <span className="text-command-gold">machines</span>.
         </h1>
 
-        <dl className="w-[244px] shrink-0 overflow-hidden rounded-sm border border-command-gold/25">
-          <div className="border-b border-panel-border px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.25em] text-command-gold">
+        <dl className="w-[268px] shrink-0 overflow-hidden rounded-sm border border-command-gold/25">
+          <div className="border-b border-panel-border px-4 py-2 font-mono text-[11px] uppercase tracking-[0.25em] text-command-gold">
             System spec
           </div>
           <div className="divide-y divide-panel-border">
             {SYSTEM_SPEC.map((s) => (
               <div
                 key={s.label}
-                className="flex items-center justify-between gap-3 px-3 py-2"
+                className="flex items-center justify-between gap-3 px-4 py-2"
               >
-                <dt className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
+                <dt className="font-mono text-[12px] uppercase tracking-[0.08em] text-muted">
                   {s.label}
                 </dt>
                 <dd
-                  className="whitespace-nowrap font-mono text-[11px] font-bold tracking-[0.02em]"
+                  className="whitespace-nowrap font-mono text-[12px] font-bold tracking-[0.02em]"
                   style={{ color: IVORY }}
                 >
                   {s.value}
