@@ -94,6 +94,38 @@ function parseDeepLink(link) {
   }
 }
 
+// Pull the slot's narration script (and refresh the short metadata) from the
+// academy using the slot token. Done HERE in the main process — Node fetch, no
+// browser CORS (the renderer must never fetch the academy; see upload-capture).
+// Best-effort: any failure leaves `s` as-is and capture proceeds (silent clip).
+async function enrichSession(s) {
+  if (!s || !s.token || !s.api) return s;
+  try {
+    const res = await fetch(
+      `${s.api}/api/capture/session?token=${encodeURIComponent(s.token)}`,
+    );
+    if (!res.ok) {
+      logLine(`session enrich: ${res.status} — proceeding without script`);
+      return s;
+    }
+    const d = await res.json();
+    // Authoritative server values win; never log the script body.
+    s.script = typeof d.script === "string" ? d.script : "";
+    if (d.hint) s.hint = d.hint;
+    if (d.caption) s.caption = d.caption;
+    if (d.aspect) s.aspect = d.aspect;
+    logLine(`session enrich ok: hasScript=${!!s.script}`);
+  } catch (e) {
+    logLine(`session enrich threw: ${e && e.message} — proceeding without script`);
+  }
+  return s;
+}
+
+async function sessionFromLink(link) {
+  const s = parseDeepLink(link);
+  return s ? await enrichSession(s) : s;
+}
+
 function deliverSession(s) {
   if (!s || !s.token) {
     logLine("deliverSession: no session/token — ignored");
@@ -110,8 +142,8 @@ function deliverSession(s) {
   }
 }
 
-function handleDeepLink(link) {
-  deliverSession(parseDeepLink(link));
+async function handleDeepLink(link) {
+  deliverSession(await sessionFromLink(link));
 }
 
 function createOverlay() {
@@ -258,7 +290,7 @@ if (!gotLock) {
   // macOS delivers it here.
   app.on("open-url", (_e, url) => handleDeepLink(url));
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     // Grant capture permission outright — this is a local tool the user explicitly
     // launched; there's no third-party web content to guard against. Covers the case
     // where getDisplayMedia is denied before the display-media handler is even hit.
@@ -294,8 +326,13 @@ if (!gotLock) {
     logLine(`app ready. argv: ${JSON.stringify(process.argv)}`);
     // First-launch deep link (Windows passes it in argv).
     const link = process.argv.find((a) => a.startsWith(`${PROTOCOL}://`));
-    if (link) pendingSession = parseDeepLink(link);
-    else logLine("no deep link in launch argv (standalone launch)");
+    if (link) {
+      // Enrich (fetch the script) BEFORE createOverlay so pendingSession is set
+      // when did-finish-load flushes it — preserving the existing "queue before
+      // the window loads" invariant. Awaiting here avoids the race where the
+      // flush reads a null pendingSession mid-fetch and loses the session.
+      pendingSession = await sessionFromLink(link);
+    } else logLine("no deep link in launch argv (standalone launch)");
 
     createOverlay();
 
