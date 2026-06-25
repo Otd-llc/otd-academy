@@ -33,13 +33,19 @@ function Body({ text, emphasis }: { text: string; emphasis: string }) {
 export function BriefDocument({ brief }: { brief: BriefData }) {
   return (
     <article
-      className="brief-doc w-full px-11 py-10 text-white"
+      className="brief-doc relative w-full px-11 py-9 text-white"
       style={{
         backgroundColor: "var(--color-deep-space)",
         backgroundImage: HONEYCOMB,
         backgroundSize: "46px auto",
       }}
     >
+      {/* Corner-bracket accents (the four sheet corners). */}
+      <span aria-hidden="true" className="pointer-events-none absolute left-3 top-3 h-5 w-5 border-l-2 border-t-2 border-command-gold/55" />
+      <span aria-hidden="true" className="pointer-events-none absolute right-3 top-3 h-5 w-5 border-r-2 border-t-2 border-command-gold/55" />
+      <span aria-hidden="true" className="pointer-events-none absolute bottom-3 left-3 h-5 w-5 border-b-2 border-l-2 border-command-gold/55" />
+      <span aria-hidden="true" className="pointer-events-none absolute bottom-3 right-3 h-5 w-5 border-b-2 border-r-2 border-command-gold/55" />
+
       {/* Header bar */}
       <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.28em]">
         <span className="text-gray-2">

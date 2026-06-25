@@ -1,13 +1,12 @@
-// The Brain-to-Swarm curriculum system map (the document's centrepiece).
-//
-// A faithful web render of the capability-brief map: the gold bee seal as the
-// L1.01 core, a backplane bus fanning to the four track hexes (SENSE / POWER /
-// COMMS / ACT, each in its track colour), converging on the two capstone hexes
-// (EEG, HUB). One self-contained SVG so it scales as a unit and prints to the
-// PDF identically. Hex geometry + track colours match HexMedallion; the bee path
-// is the certificate brandmark.
-
-import { BRANDMARK_PATH, BRANDMARK_VIEWBOX } from "@/lib/pdf/certificate-content";
+// The Brain-to-Swarm curriculum system map (the document's centrepiece), a
+// faithful render of the capability-brief PDF:
+//   - the embossed gold seal (seal.png) as the L1.01 core,
+//   - a backplane bus with 45-degree PCB-routed (chamfered) corners fanning to
+//     the four track hexes (SENSE green / POWER red / COMMS blue / ACT gold),
+//   - converging on the two capstone hexes (EEG, HUB), navy-filled with a gold
+//     double ring and a star.
+// One self-contained SVG, symmetric about the centre, so it scales as a unit and
+// prints to the PDF identically.
 
 const GOLD = "var(--color-command-gold)";
 
@@ -36,61 +35,57 @@ const CAPS = [
   { code: "HUB", x: 510, sub: "COMMAND THE SWARM" },
 ] as const;
 
-const TRACK_CY = 210;
-const TOP_BUS = 150;
-const BOT_RAIL = 312;
-const CAP_CY = 382;
+const TRACK_CY = 205;
 const TRACK_S = 0.82;
+const TRACK_TOP = TRACK_CY - 48 * TRACK_S; // 166
+const TRACK_BOT = TRACK_CY + 48 * TRACK_S; // 244
+const TOP_BUS = 126;
+const BOT_RAIL = 292;
+const CAP_CY = 362;
 const CAP_S = 1.0;
+const CAP_TOP = CAP_CY - 48 * CAP_S; // 314
+const SEAL_CX = 380;
+const SEAL_CY = 60;
+const SEAL_R = 36;
+const C = 14; // chamfer
+
 const wire = {
   stroke: GOLD,
   strokeWidth: 1.4,
-  strokeOpacity: 0.55,
+  strokeOpacity: 0.6,
   fill: "none",
 } as const;
 
 export function BriefSystemMap() {
   return (
     <svg
-      viewBox="0 0 760 470"
+      viewBox="0 0 760 460"
       className="h-auto w-full"
       role="img"
       aria-label="The L1.01 core feeds a backplane bus that fans into four tracks, SENSE, POWER, COMMS and ACT, which converge on two capstones, the EEG brain-computer-interface front-end and the ESP-NOW fleet hub."
     >
-      {/* Connectors: the backplane bus. */}
-      <line x1={340} y1={104} x2={340} y2={TOP_BUS} {...wire} />
-      <line x1={110} y1={TOP_BUS} x2={650} y2={TOP_BUS} {...wire} />
-      {TRACKS.map((t) => (
-        <line
-          key={`td-${t.code}`}
-          x1={t.x}
-          y1={TOP_BUS}
-          x2={t.x}
-          y2={TRACK_CY - 48 * TRACK_S}
-          {...wire}
-        />
-      ))}
-      {TRACKS.map((t) => (
-        <line
-          key={`tb-${t.code}`}
-          x1={t.x}
-          y1={TRACK_CY + 48 * TRACK_S}
-          x2={t.x}
-          y2={BOT_RAIL}
-          {...wire}
-        />
-      ))}
-      <line x1={110} y1={BOT_RAIL} x2={650} y2={BOT_RAIL} {...wire} />
-      {CAPS.map((c) => (
-        <line
-          key={`cd-${c.code}`}
-          x1={c.x}
-          y1={BOT_RAIL}
-          x2={c.x}
-          y2={CAP_CY - 48 * CAP_S}
-          {...wire}
-        />
-      ))}
+      {/* Connectors: the chamfered backplane bus. */}
+      {/* Seal drop into the top bus. */}
+      <path d={`M${SEAL_CX} ${SEAL_CY + SEAL_R} L${SEAL_CX} ${TOP_BUS}`} {...wire} />
+      {/* Top staple: SENSE up, across (chamfered ends), down into ACT. */}
+      <path
+        d={`M110 ${TRACK_TOP} L110 ${TOP_BUS + C} L${110 + C} ${TOP_BUS} L${650 - C} ${TOP_BUS} L650 ${TOP_BUS + C} L650 ${TRACK_TOP}`}
+        {...wire}
+      />
+      {/* Inner track drops from the top bus. */}
+      <path d={`M290 ${TOP_BUS} L290 ${TRACK_TOP}`} {...wire} />
+      <path d={`M470 ${TOP_BUS} L470 ${TRACK_TOP}`} {...wire} />
+      {/* Bottom staple: SENSE down, across (chamfered), up into ACT. */}
+      <path
+        d={`M110 ${TRACK_BOT} L110 ${BOT_RAIL - C} L${110 + C} ${BOT_RAIL} L${650 - C} ${BOT_RAIL} L650 ${BOT_RAIL - C} L650 ${TRACK_BOT}`}
+        {...wire}
+      />
+      {/* Inner track drops into the bottom rail. */}
+      <path d={`M290 ${TRACK_BOT} L290 ${BOT_RAIL}`} {...wire} />
+      <path d={`M470 ${TRACK_BOT} L470 ${BOT_RAIL}`} {...wire} />
+      {/* Rail drops to the two capstones. */}
+      <path d={`M250 ${BOT_RAIL} L250 ${CAP_TOP}`} {...wire} />
+      <path d={`M510 ${BOT_RAIL} L510 ${CAP_TOP}`} {...wire} />
 
       {/* Track hexes. */}
       {TRACKS.map((t) => (
@@ -118,20 +113,20 @@ export function BriefSystemMap() {
         </g>
       ))}
 
-      {/* Capstone hexes (double gold ring + star). */}
+      {/* Capstone hexes (navy fill, gold double ring, star). */}
       {CAPS.map((c) => (
         <g key={c.code}>
           <polygon
-            points={hexPoints(c.x, CAP_CY, CAP_S * 1.13)}
+            points={hexPoints(c.x, CAP_CY, CAP_S * 1.14)}
             fill="none"
             stroke={GOLD}
-            strokeOpacity={0.4}
+            strokeOpacity={0.45}
             strokeWidth={2}
             strokeLinejoin="round"
           />
           <polygon
             points={hexPoints(c.x, CAP_CY, CAP_S)}
-            fill="color-mix(in srgb, var(--color-command-gold) 8%, var(--color-deep-space))"
+            fill="var(--color-navy-dark)"
             stroke={GOLD}
             strokeWidth={3}
             strokeLinejoin="round"
@@ -165,15 +160,17 @@ export function BriefSystemMap() {
         </g>
       ))}
 
-      {/* Seal core (gold rings + bee). */}
-      <circle cx={340} cy={66} r={36} fill="var(--color-deep-space)" stroke={GOLD} strokeWidth={2} />
-      <circle cx={340} cy={66} r={29} fill="none" stroke={GOLD} strokeWidth={1} strokeOpacity={0.6} />
-      <svg x={340 - 24} y={66 - 24} width={48} height={48} viewBox={BRANDMARK_VIEWBOX}>
-        <path d={BRANDMARK_PATH} fill={GOLD} />
-      </svg>
+      {/* Seal core (embossed medallion) + label to the right. */}
+      <image
+        href="/brand/seal.png"
+        x={SEAL_CX - SEAL_R - 2}
+        y={SEAL_CY - SEAL_R - 2}
+        width={(SEAL_R + 2) * 2}
+        height={(SEAL_R + 2) * 2}
+      />
       <text
-        x={392}
-        y={60}
+        x={SEAL_CX + SEAL_R + 14}
+        y={SEAL_CY - 6}
         fontSize={13}
         fontWeight={700}
         letterSpacing={1.5}
@@ -183,8 +180,8 @@ export function BriefSystemMap() {
         L1.01 · THE CORE
       </text>
       <text
-        x={392}
-        y={78}
+        x={SEAL_CX + SEAL_R + 14}
+        y={SEAL_CY + 12}
         fontSize={11}
         fill="var(--color-muted)"
         style={{ fontFamily: "var(--font-mono, monospace)" }}

@@ -815,7 +815,9 @@ body {
    and drop the site/page chrome. Scoped to brief pages via the .briefs-print
    wrapper so it never affects printing elsewhere. */
 @media print {
+  /* Size the page to the sheet so the brief prints as one page, not several. */
   @page {
+    size: 8.5in 14in;
     margin: 0;
   }
   body:has(.briefs-print) {
