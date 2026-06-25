@@ -597,6 +597,27 @@ function MediaEditor({
           className={`mt-1 ${inputClass}`}
         />
       </div>
+      {block.type === "video" ? (
+        <div>
+          <label htmlFor={`${baseId}-script`} className={labelClass}>
+            Narration script (optional — what the teacher reads aloud)
+          </label>
+          <textarea
+            id={`${baseId}-script`}
+            rows={6}
+            maxLength={8000}
+            value={block.script ?? ""}
+            onChange={(e) =>
+              onChange({ ...block, script: e.target.value || undefined })
+            }
+            className={`mt-1 ${inputClass}`}
+          />
+          <p className={helpClass}>
+            Shown as a teleprompter in OTD Capture while recording this clip. A
+            non-empty script marks the clip as needing narration.
+          </p>
+        </div>
+      ) : null}
       <div>
         <label htmlFor={`${baseId}-aspect`} className={labelClass}>
           Capture aspect (locks the capture tool&rsquo;s crop)
