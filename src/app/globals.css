@@ -808,3 +808,31 @@ body {
   }
 }
 
+
+/* ── Brief print ─────────────────────────────────────────────────────────────
+   "Download PDF" on a brief page prints the page itself. Isolate the brief
+   document, keep the dark theme + gold (browsers drop backgrounds otherwise),
+   and drop the site/page chrome. Scoped to brief pages via the .briefs-print
+   wrapper so it never affects printing elsewhere. */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  body:has(.briefs-print) {
+    background: var(--color-deep-space) !important;
+  }
+  body:has(.briefs-print) * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  body:has(.briefs-print) header,
+  body:has(.briefs-print) footer,
+  body:has(.briefs-print) .brief-chrome {
+    display: none !important;
+  }
+  .briefs-print {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}

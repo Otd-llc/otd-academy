@@ -60,7 +60,24 @@ export interface BriefData {
   proofPoints: BriefProofPoint[];
   /** Down-funnel CTAs. */
   ctas: BriefCta[];
+
+  // ── Capability-brief document fields (the one-pager layout) ──
+  /** Top-right brief label, e.g. "Capability brief · 00 / Overview". */
+  briefLabel: string;
+  /** Mono gold sub-headline under the hero. */
+  subhead: string;
+  /** The four headline stats: big figure, short caps label, one-line gloss. */
+  stats: { value: string; label: string; desc: string }[];
 }
+
+// The system-spec block (top-right of the document hero). Shared by both briefs.
+export const SYSTEM_SPEC: { label: string; value: string }[] = [
+  { label: "Platform", value: "ESP32-S3" },
+  { label: "Toolchain", value: "KiCad 10" },
+  { label: "Program", value: "Brain-to-Swarm" },
+  { label: "Structure", value: "4 tracks / 3 levels" },
+  { label: "Access", value: "Public → Premium" },
+];
 
 // The four headline proof stats, shared across both briefs (fact-sheet "by the
 // numbers" + "what makes a completion real"). Rendered as the stat strip.
@@ -134,6 +151,30 @@ export const BRIEFS: Record<BriefKey, BriefData> = {
       { label: "See the courses", href: "/courses", primary: true },
       { label: "View pricing", href: "/pricing", primary: false },
     ],
+    briefLabel: "Capability brief · 00 / Overview",
+    subhead: "ESP32 hardware engineering · breakout to brain-computer interface",
+    stats: [
+      {
+        value: "22",
+        label: "Boards",
+        desc: "Sense, Act, Comms, and Power, wired as one skill tree of 33 dependencies.",
+      },
+      {
+        value: "8",
+        label: "Stages each",
+        desc: "Requirements, BOM, schematic, ERC, layout, DRC, gerbers, bring-up in KiCad.",
+      },
+      {
+        value: "DRC = 0",
+        label: "The real gate",
+        desc: "You advance only on a clean check and fab-ready gerbers. Not points, not streaks.",
+      },
+      {
+        value: "1×",
+        label: "No subscription",
+        desc: "Buy a project once and keep it. Level 1 starts free.",
+      },
+    ],
   },
   learner: {
     key: "learner",
@@ -181,6 +222,30 @@ export const BRIEFS: Record<BriefKey, BriefData> = {
       },
       { label: "Create a free account", href: "/sign-in", primary: false },
     ],
+    briefLabel: "Learner brief · 01 / The build",
+    subhead: "Learn to design real circuit boards · no prior PCB experience needed",
+    stats: [
+      {
+        value: "22",
+        label: "Boards you build",
+        desc: "Real PCBs across sense, act, comms, and power. Not breadboards.",
+      },
+      {
+        value: "8",
+        label: "Stages each",
+        desc: "Requirements, BOM, schematic, ERC, layout, DRC, gerbers, bring-up in KiCad.",
+      },
+      {
+        value: "L1",
+        label: "Starts free",
+        desc: "The flagship board is public and free. Buy later projects once.",
+      },
+      {
+        value: "1×",
+        label: "Yours to keep",
+        desc: "Every design file and a verifiable certificate, checkable at /verify.",
+      },
+    ],
   },
 };
 
@@ -191,10 +256,3 @@ export function getBrief(key: string): BriefData | null {
 }
 
 export const BRIEF_KEYS: BriefKey[] = ["overview", "learner"];
-
-// The downloadable one-pager set (PDFs in public/briefs/). The first two are
-// the public web briefs above; the rest are the audience cuts available as PDF.
-export const BRIEF_PDFS: { file: string; label: string }[] = [
-  { file: "00-master-overview.pdf", label: "Overview (master one-pager)" },
-  { file: "01-learners.pdf", label: "For learners" },
-];
