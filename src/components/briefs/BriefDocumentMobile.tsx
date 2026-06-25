@@ -6,7 +6,7 @@
 
 import Link from "next/link";
 
-import { BriefSystemMap } from "@/components/briefs/BriefSystemMap";
+import { BriefSystemMapMobile } from "@/components/briefs/BriefSystemMapMobile";
 import { DOC_CTA, SYSTEM_SPEC, type BriefData } from "@/lib/brief-pages";
 
 const HONEYCOMB =
@@ -112,7 +112,7 @@ export function BriefDocumentMobile({ brief }: { brief: BriefData }) {
           System map · the Brain-to-Swarm curriculum
         </div>
         <div className="px-4 py-4">
-          <BriefSystemMap />
+          <BriefSystemMapMobile />
         </div>
         <div className="border-t border-panel-border px-4 py-2 text-center font-mono text-[9px] uppercase tracking-[0.18em] text-muted">
           22 boards / 4 tracks / 2 capstones
