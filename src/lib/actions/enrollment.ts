@@ -29,6 +29,7 @@ import { hasProjectEntitlement } from "@/lib/entitlements";
 import { loadLearnerGateContext } from "@/lib/load-learner-gate-context";
 import { STAGE_VALUES } from "@/lib/schemas/project-dependency";
 import { MAX_UPLOAD_BYTES } from "@/lib/schemas/upload";
+import { capture } from "@/lib/analytics";
 
 const PROOF_PUT_TTL_SECONDS = 900; // 15 min, mirrors uploads.ts
 // ERC reports are kilobytes; refuse to slurp a huge file into memory as text.
@@ -124,9 +125,17 @@ export async function enroll(
           }
         }
 
+        // Detect first-time enrollment so the funnel `lesson_started` event
+        // fires once, not on every idempotent re-enroll. Read inside the same
+        // Serializable tx so the flag is consistent with the upsert.
+        const prior = await tx.enrollment.findUnique({
+          where: { userId_projectId: { userId: user.id, projectId } },
+          select: { id: true },
+        });
+
         // Idempotent: one Enrollment per (user, project). `update: {}` leaves an
         // existing enrollment (and its progress) untouched.
-        return tx.enrollment.upsert({
+        const row = await tx.enrollment.upsert({
           where: { userId_projectId: { userId: user.id, projectId } },
           update: {},
           create: {
@@ -134,15 +143,37 @@ export async function enroll(
             projectId,
             revisionId: project.publishedRevisionId,
           },
-          select: { id: true, status: true, project: { select: { slug: true } } },
+          select: {
+            id: true,
+            status: true,
+            project: { select: { slug: true } },
+          },
         });
+        return { row, created: !prior };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     ),
   );
 
-  revalidatePath(`/learn/${enrollment.project.slug}`);
-  return { id: enrollment.id, status: enrollment.status };
+  const { row: enrollmentRow, created } = enrollment;
+
+  // Funnel: a learner started a lesson. Fire only on first enrollment, after the
+  // commit, wrapped so a telemetry failure never blocks the request. No-op when
+  // PostHog is unconfigured.
+  if (created) {
+    try {
+      capture(
+        "lesson_started",
+        { projectSlug: enrollmentRow.project.slug, projectId },
+        user.id,
+      );
+    } catch {
+      // best-effort
+    }
+  }
+
+  revalidatePath(`/learn/${enrollmentRow.project.slug}`);
+  return { id: enrollmentRow.id, status: enrollmentRow.status };
 }
 
 // Advance the learner's OWN currentStage past `learnerExitGate`. Mirrors the

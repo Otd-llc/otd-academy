@@ -11,6 +11,7 @@
 // [email, projectId] unique, so a repeat submit is a no-op.
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { capture } from "@/lib/analytics";
 
 const joinWaitlistSchema = z.object({
   email: z.email(),
@@ -31,6 +32,13 @@ export async function joinWaitlist(input: unknown): Promise<{ ok: true }> {
     );
   }
 
+  // Detect first-time signup so the funnel `email_captured` event fires once,
+  // not on every idempotent re-submit.
+  const prior = await db.waitlistSignup.findUnique({
+    where: { email_projectId: { email, projectId } },
+    select: { id: true },
+  });
+
   // Idempotent: `update: {}` leaves an existing signup (and its createdAt)
   // untouched, so re-submitting the same email neither throws nor duplicates.
   await db.waitlistSignup.upsert({
@@ -38,6 +46,17 @@ export async function joinWaitlist(input: unknown): Promise<{ ok: true }> {
     update: {},
     create: { email, projectId },
   });
+
+  // Funnel: `email_captured` — anonymous demand signal at the top of the funnel.
+  // No user id here (capture falls back to an anonymous distinctId). Fire only
+  // on a new signup; best-effort; no-op when PostHog is unconfigured.
+  if (!prior) {
+    try {
+      capture("email_captured", { source: "waitlist", projectId, email });
+    } catch {
+      // best-effort
+    }
+  }
 
   return { ok: true };
 }

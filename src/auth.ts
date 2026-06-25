@@ -10,6 +10,7 @@ import { isAdminEmail } from "@/lib/admin-allowlist";
 import { resolveSignIn } from "@/lib/auth-link-guard";
 import { pickVerifiedGithubEmail, type GitHubEmail } from "@/lib/github-verified-email";
 import { magicLinkEmail } from "@/lib/auth-magic-link-email";
+import { capture } from "@/lib/analytics";
 
 // GitHub's OAuth profile carries no "email verified" flag, and the default
 // provider will use a public (possibly unverified) email. We only ever link
@@ -178,6 +179,23 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         session.user.role = (token.role as UserRole | undefined) ?? "LEARNER";
       }
       return session;
+    },
+  },
+  // Funnel instrumentation. `createUser` fires EXACTLY ONCE — the first time the
+  // Prisma adapter creates a User row for a verified identity — so it is the
+  // authoritative "signed_up" signal (and, since the row always carries the
+  // address, the "email_captured" signal too). Best-effort: wrapped so a
+  // telemetry failure can never break sign-in, and a no-op when PostHog is
+  // unconfigured (see capture()).
+  events: {
+    async createUser({ user }) {
+      try {
+        const props = user.email ? { email: user.email } : undefined;
+        capture("signed_up", props, user.id);
+        if (user.email) capture("email_captured", { source: "signup", email: user.email }, user.id);
+      } catch {
+        // never block account creation on telemetry
+      }
     },
   },
   // verifyRequest renders our branded "check your inbox" state after a magic

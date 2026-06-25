@@ -28,6 +28,7 @@ import {
   type GateResult,
   type StageName,
 } from "@/lib/stages";
+import { capture } from "@/lib/analytics";
 
 // ─── Result shape ──────────────────────────────────────
 //
@@ -292,6 +293,25 @@ export async function advanceStage(
   );
 
   revalidatePath(`/projects/${projectSlug}/${revLabel}`);
+
+  // Funnel: `board_activated` — the leverage metric. Fires when a revision
+  // passes the single authoritative DRC/gerber gate, i.e. a SUCCESSFUL advance
+  // OUT of DRC_GERBER. Hooked HERE, on the one stage state-machine advance, so
+  // the activation definition cannot drift from the gate the platform actually
+  // enforces. After the commit + best-effort (try/catch) so telemetry can never
+  // block the transition; no-op when PostHog is unconfigured.
+  if (result.ok && result.transition.fromStage === "DRC_GERBER") {
+    try {
+      capture(
+        "board_activated",
+        { projectSlug, revisionId: data.revisionId },
+        user.id,
+      );
+    } catch {
+      // never block the advance on telemetry
+    }
+  }
+
   return result;
 }
 
