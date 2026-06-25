@@ -19,7 +19,7 @@
 import { WaitlistForm } from "@/components/learn/WaitlistForm";
 import { BuyButton } from "@/components/learn/BuyButton";
 import { SignInToUnlock } from "@/components/learn/SignInToUnlock";
-import { resolveBuyPriceCents } from "@/lib/format-money";
+import { resolveBuyPriceCents, formatUsd } from "@/lib/format-money";
 
 export function Paywall({
   projectId,
@@ -95,7 +95,17 @@ export function Paywall({
               <SignInToUnlock priceCents={buyPriceCents} />
             )
           ) : (
-            <WaitlistForm projectId={projectId} />
+            <div className="space-y-3">
+              {priceCents != null ? (
+                <p className="font-mono text-2xl text-white">
+                  {formatUsd(priceCents)}
+                  <span className="ml-2 text-xs uppercase tracking-wider text-muted">
+                    at launch
+                  </span>
+                </p>
+              ) : null}
+              <WaitlistForm projectId={projectId} />
+            </div>
           )}
         </div>
       </div>

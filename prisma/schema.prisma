@@ -24,6 +24,12 @@ model User {
   role          UserRole  @default(LEARNER)
   createdAt     DateTime  @default(now())
   stripeCustomerId String? @unique
+  // Lifecycle-email consent (CAN-SPAM / GDPR). Default true: existing learners are
+  // opted in (they created an account to learn here); the unsubscribe route flips
+  // this to false and every lifecycle send is guarded by `emailConsent === true`.
+  // Transactional mail (magic-link sign-in) is NOT gated by this.
+  emailConsent          Boolean   @default(true)
+  emailConsentUpdatedAt DateTime?
 
   accounts Account[]
   sessions Session[]
@@ -49,6 +55,7 @@ model User {
   tips                    Tip[]
   certificates            Certificate[]
   miniLessons             MiniLesson[]
+  lifecycleSends          LifecycleSend[]
 }
 
 model Account {
@@ -148,6 +155,26 @@ model Entitlement {
   @@index([userId])
 }
 
+// All-Access Pass / bundle (GTM monetization). A bundle is a single Stripe
+// Product whose purchase grants an Entitlement carrying a non-null `bundleId`
+// (the owner-XOR alternative to projectId) — which `hasProjectEntitlement` reads
+// as access to EVERY project. `key` is the stable lookup ("all-access"); the
+// Stripe product carries up to two prices (standard + a time-boxed launch price),
+// so we store both cents amounts plus the active Stripe price id. The launch
+// window closes at `launchEndsAt`; after it, `currentPassPriceId` falls back to
+// the standard price (see src/lib/actions/pass.ts).
+model Bundle {
+  id               String    @id @default(cuid())
+  key              String    @unique
+  name             String
+  stripePriceId    String?
+  priceCents       Int?
+  launchPriceCents Int?
+  launchEndsAt     DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
 // Anonymous email capture for a PREMIUM project's waitlist (pre-Stripe lead-gen).
 model WaitlistSignup {
   id        String   @id @default(cuid())
@@ -157,6 +184,16 @@ model WaitlistSignup {
   createdAt DateTime @default(now())
 
   @@unique([email, projectId])
+}
+
+// Anonymous email capture for the All-Access Pass (it isn't on sale yet, so a
+// waitlist is the only action). Keyed by email; userId is stamped when a
+// signed-in learner joins. Idempotent on the unique email.
+model PassWaitlist {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  userId    String?
+  createdAt DateTime @default(now())
 }
 
 // Stripe webhook idempotency (GTM Phase 3): record each processed event id so a
@@ -206,6 +243,23 @@ model Certificate {
 
   @@index([userId])
   @@index([slug])
+}
+
+// One row per (user, lifecycle sequence) the cron has sent — the idempotency
+// ledger that makes every sequence fire AT MOST ONCE per learner. The cron
+// selects audience users WITHOUT a row for the sequence, sends, then writes the
+// row; the @@unique makes a double-send a constraint violation, not a duplicate.
+// `sequence` is the email id from docs/sales/lifecycle-emails.md (e.g. "1.1",
+// "2.1", "5.3").
+model LifecycleSend {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sequence String
+  sentAt   DateTime @default(now())
+
+  @@unique([userId, sequence])
+  @@index([userId])
 }
 
 model Revision {

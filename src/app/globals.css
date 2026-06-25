@@ -808,3 +808,50 @@ body {
   }
 }
 
+
+/* ── Brief print ─────────────────────────────────────────────────────────────
+   "Download PDF" on a brief page prints the page itself. Isolate the brief
+   document, keep the dark theme + gold (browsers drop backgrounds otherwise),
+   and drop the site/page chrome. Scoped to brief pages via the .briefs-print
+   wrapper so it never affects printing elsewhere. */
+@media print {
+  /* Size the page to the sheet so the brief prints as one page, not several. */
+  @page {
+    size: 8.5in 11in;
+    margin: 0;
+  }
+  body:has(.briefs-print) {
+    background: var(--color-deep-space) !important;
+  }
+  body:has(.briefs-print) * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  body:has(.briefs-print) header,
+  body:has(.briefs-print) footer,
+  body:has(.briefs-print) .brief-chrome {
+    display: none !important;
+  }
+  body:has(.briefs-print) .briefs-print {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  /* Print the sheet at its native width (undo the responsive scaler). */
+  body:has(.briefs-print) .sheet-scaler-outer {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  body:has(.briefs-print) .sheet-scaler-inner {
+    transform: none !important;
+    width: 816px !important;
+  }
+  /* Always print the letter sheet, never the mobile reflow, regardless of the
+     viewport width the user prints from. */
+  body:has(.briefs-print) .brief-sheet-desktop {
+    display: block !important;
+  }
+  body:has(.briefs-print) .brief-mobile {
+    display: none !important;
+  }
+}

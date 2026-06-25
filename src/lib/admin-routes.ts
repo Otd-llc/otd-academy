@@ -35,6 +35,13 @@ export function isPublicPath(pathname: string): boolean {
   if (top === "parts") return segments[1] !== "new";
   // The public /courses index (+ any subpaths) is crawlable.
   if (top === "courses") return true;
+  // The public /pricing page (the storefront landing) is crawlable + must render
+  // signed-out (the top of the purchase funnel).
+  if (top === "pricing") return true;
+  // The public briefs (marketing one-pagers): index (/briefs) + each brief
+  // (/briefs/overview, /briefs/learner). Static, gate-less, crawlable. The
+  // downloadable PDFs are served from /public, outside the middleware matcher.
+  if (top === "briefs") return true;
   // Certificate verification is for third parties (employers) who have no
   // account — must be reachable signed-out.
   if (top === "verify") return true;
@@ -55,6 +62,13 @@ export function isPublicPath(pathname: string): boolean {
   // The public glossary index — a crawlable reference page (also the resolve
   // target for DefinedTerm.inDefinedTermSet.url).
   if (top === "glossary") return true;
+  // The legal/license page is a public static page (linked from the footer); it
+  // must render for signed-out visitors.
+  if (top === "license") return true;
+  // One-click lifecycle-email unsubscribe (/email/unsubscribe/[token]). The signed
+  // token in the path is the gate (verified in the route), so it must be reachable
+  // signed-out — a recipient clicking from their inbox has no session. noindex.
+  if (top === "email" && segments[1] === "unsubscribe") return true;
   // Dev/CI-only diagram render surface (the diagram exporter screenshots these
   // via a headless browser with no session). The page itself 404s in production
   // unless DIAGRAM_EXPORT is set, so exposing the prefix is safe.

@@ -11,6 +11,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { ensureStripeCustomer, getStripe } from "@/lib/stripe";
 import { siteUrl } from "@/lib/seo/jsonld";
+import { capture } from "@/lib/analytics";
 
 const createCheckoutSessionSchema = z.object({ projectId: z.cuid() });
 
@@ -58,5 +59,20 @@ export async function createCheckoutSession(input: {
   if (!session.url) {
     throw new Error("Stripe did not return a checkout URL.");
   }
+
+  // Funnel: a learner started checkout for a premium course. After the session
+  // is created, best-effort (try/catch) so telemetry never blocks the redirect;
+  // no-op when PostHog is unconfigured. `purchase_completed` is fired later from
+  // the Stripe webhook (the source of truth for an actual grant).
+  try {
+    capture(
+      "checkout_started",
+      { projectSlug: project.slug, projectId: project.id },
+      user.id,
+    );
+  } catch {
+    // best-effort
+  }
+
   return { url: session.url };
 }

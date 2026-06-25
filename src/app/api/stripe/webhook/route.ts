@@ -20,9 +20,11 @@ import { env } from "@/env";
 import { db } from "@/lib/db";
 import { getStripe } from "@/lib/stripe";
 import {
+  bundleFromCheckoutSession,
   entitlementFromCheckoutSession,
   tipFromCheckoutSession,
 } from "@/lib/stripe-webhook";
+import { capture } from "@/lib/analytics";
 
 // Node runtime (raw body + crypto), and never statically prerender this route —
 // it depends on the request body, headers, and a runtime secret.
@@ -112,6 +114,40 @@ export async function POST(req: Request): Promise<Response> {
       return new Response(null, { status: 200 });
     }
 
+    // 5a-bundle. An All-Access Pass purchase (metadata.kind === "bundle") grants
+    //     a bundle Entitlement — access to EVERY project. Resolve the bundleKey →
+    //     the Bundle row, then upsert-by-guard (the [userId, projectId] unique
+    //     can't key a bundle row, so findFirst + create is the second idempotency
+    //     layer; the ProcessedStripeEvent claim above is the first). Ack on a
+    //     missing/unknown bundle (nothing to retry).
+    const bundleGrant = bundleFromCheckoutSession(session);
+    if (bundleGrant) {
+      const bundle = await db.bundle.findUnique({
+        where: { key: bundleGrant.bundleKey },
+        select: { id: true },
+      });
+      if (!bundle) {
+        console.warn(
+          `[stripe-webhook] bundle checkout ${event.id} references unknown bundleKey ${bundleGrant.bundleKey}; skipping grant`,
+        );
+        return new Response(null, { status: 200 });
+      }
+      const existing = await db.entitlement.findFirst({
+        where: { userId: bundleGrant.userId, bundleId: bundle.id },
+        select: { id: true },
+      });
+      if (!existing) {
+        await db.entitlement.create({
+          data: {
+            userId: bundleGrant.userId,
+            bundleId: bundle.id,
+            source: "PURCHASE",
+          },
+        });
+      }
+      return new Response(null, { status: 200 });
+    }
+
     // 5b. Pull the grant target from the session metadata. Without it we cannot
     //     grant — log and ack (nothing to retry; a redelivery wouldn't help).
     const grant = entitlementFromCheckoutSession(session);
@@ -135,6 +171,21 @@ export async function POST(req: Request): Promise<Response> {
       },
       update: {},
     });
+
+    // Funnel: `purchase_completed` — fired on the source-of-truth grant path.
+    // Best-effort (try/catch) so telemetry can never break the webhook 2xx Stripe
+    // needs; no-op when PostHog is unconfigured. NOTE: feat/academy-monetization
+    // also edits this handler (bundle grants) — keep this one call minimal to ease
+    // the rebase.
+    try {
+      capture(
+        "purchase_completed",
+        { projectId: grant.projectId },
+        grant.userId,
+      );
+    } catch {
+      // never break the webhook ack on telemetry
+    }
   }
 
   // 6. Stripe only needs a 2xx to consider the event delivered — for handled AND

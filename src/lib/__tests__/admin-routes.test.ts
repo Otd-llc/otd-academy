@@ -68,6 +68,10 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/courses/anything")).toBe(true);
   });
 
+  it("admits the public /pricing storefront", () => {
+    expect(isPublicPath("/pricing")).toBe(true);
+  });
+
   it("still does not admit non-guide project routes", () => {
     expect(isPublicPath("/projects/wroom/v1")).toBe(false);
     expect(isPublicPath("/projects/new")).toBe(false);
@@ -86,6 +90,12 @@ describe("isPublicPath", () => {
   it("admits the public shareable certificate (page + image), token gates it", () => {
     expect(isPublicPath("/learn/l1-01/certificate/sometoken")).toBe(true);
     expect(isPublicPath("/learn/l1-01/certificate/sometoken/image")).toBe(true);
+  });
+
+  it("admits the public briefs (index + each brief key)", () => {
+    expect(isPublicPath("/briefs")).toBe(true);
+    expect(isPublicPath("/briefs/overview")).toBe(true);
+    expect(isPublicPath("/briefs/learner")).toBe(true);
   });
 
   it("admits the public /verify route (third-party certificate checks)", () => {

@@ -60,15 +60,36 @@ export const env = createEnv({
     DIGIKEY_API_BASE: z.url().optional(), // default api.digikey.com; set to sandbox to test
     // Shared secret the Vercel cron sends as `Authorization: Bearer` to the refresh route.
     CRON_SECRET: z.string().optional(),
+    // Lifecycle email automation (Resend). OPTIONAL so a keyless build/CI passes.
+    //   LAUNCH_WINDOW_END — ISO timestamp the 14-day All-Access Pass launch window
+    //     closes. The launch-window sequence (5.x) only fires while now < this; if
+    //     unset the launch-window sends are skipped (no fabricated urgency).
+    //   REACTIVATION_DAYS — the "no progress for N days" threshold the build-along
+    //     nudge + win-back triggers use. Default 7.
+    //   LIFECYCLE_EMAIL_ENABLED — master kill-switch for the lifecycle cron. Default
+    //     true; set to false to pause all lifecycle sends without un-scheduling the cron.
+    LAUNCH_WINDOW_END: z.string().datetime().optional(),
+    REACTIVATION_DAYS: z.coerce.number().int().positive().default(7),
+    LIFECYCLE_EMAIL_ENABLED: z.coerce.boolean().default(true),
   },
   client: {
     // Public site origin used as the metadataBase for absolute SEO URLs
     // (canonical / OG / sitemap). OPTIONAL: layout.tsx falls back to the prod
     // origin when unset, so an unconfigured local/CI build never breaks.
     NEXT_PUBLIC_SITE_URL: z.url().optional(),
+    // PostHog funnel instrumentation. OPTIONAL by design: when
+    // NEXT_PUBLIC_POSTHOG_KEY is unset, both the client provider and the
+    // server-side `capture()` helper become NO-OPS — so CI, tests, and any
+    // unconfigured build run with analytics simply disabled (no init, no
+    // network calls). The same public key is used by posthog-js (browser) and
+    // posthog-node (server). HOST defaults to PostHog US cloud.
+    NEXT_PUBLIC_POSTHOG_KEY: z.string().min(1).optional(),
+    NEXT_PUBLIC_POSTHOG_HOST: z.url().default("https://us.i.posthog.com"),
   },
   runtimeEnv: {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+    NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+    NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
     DATABASE_URL: process.env.DATABASE_URL,
     DIRECT_URL: process.env.DIRECT_URL,
     PARTS_MCP_DATABASE_URL: process.env.PARTS_MCP_DATABASE_URL,
@@ -97,5 +118,8 @@ export const env = createEnv({
     DIGIKEY_CLIENT_SECRET: process.env.DIGIKEY_CLIENT_SECRET,
     DIGIKEY_API_BASE: process.env.DIGIKEY_API_BASE,
     CRON_SECRET: process.env.CRON_SECRET,
+    LAUNCH_WINDOW_END: process.env.LAUNCH_WINDOW_END,
+    REACTIVATION_DAYS: process.env.REACTIVATION_DAYS,
+    LIFECYCLE_EMAIL_ENABLED: process.env.LIFECYCLE_EMAIL_ENABLED,
   },
 });
