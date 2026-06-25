@@ -20,6 +20,7 @@ const {
   globalShortcut,
   ipcMain,
   desktopCapturer,
+  dialog,
   session,
   screen,
 } = require("electron");
@@ -31,6 +32,8 @@ const { spawn } = require("child_process");
 const PROTOCOL = "otd-capture";
 let overlay = null;
 let pendingSession = null; // a deep link that arrived before the overlay loaded
+let teleprompter = null; // standalone always-on-top script window (post-narration)
+let lastScript = "";     // remember the latest slot script so a late-opened window can load it
 
 // The overlay is UNFOCUSED on purpose while recording (you're driving KiCad), and
 // Chromium throttles a backgrounded renderer's requestAnimationFrame + timers — which
@@ -94,11 +97,44 @@ function parseDeepLink(link) {
   }
 }
 
+// Pull the slot's narration script (and refresh the short metadata) from the
+// academy using the slot token. Done HERE in the main process — Node fetch, no
+// browser CORS (the renderer must never fetch the academy; see upload-capture).
+// Best-effort: any failure leaves `s` as-is and capture proceeds (silent clip).
+async function enrichSession(s) {
+  if (!s || !s.token || !s.api) return s;
+  try {
+    const res = await fetch(
+      `${s.api}/api/capture/session?token=${encodeURIComponent(s.token)}`,
+    );
+    if (!res.ok) {
+      logLine(`session enrich: ${res.status} — proceeding without script`);
+      return s;
+    }
+    const d = await res.json();
+    // Authoritative server values win; never log the script body.
+    s.script = typeof d.script === "string" ? d.script : "";
+    if (d.hint) s.hint = d.hint;
+    if (d.caption) s.caption = d.caption;
+    if (d.aspect) s.aspect = d.aspect;
+    logLine(`session enrich ok: hasScript=${!!s.script}`);
+  } catch (e) {
+    logLine(`session enrich threw: ${e && e.message} — proceeding without script`);
+  }
+  return s;
+}
+
+async function sessionFromLink(link) {
+  const s = parseDeepLink(link);
+  return s ? await enrichSession(s) : s;
+}
+
 function deliverSession(s) {
   if (!s || !s.token) {
     logLine("deliverSession: no session/token — ignored");
     return;
   }
+  setTeleprompterScript(s.script || "");
   if (overlay && !overlay.webContents.isLoading()) {
     overlay.webContents.send("capture:session", s);
     overlay.show();
@@ -110,8 +146,8 @@ function deliverSession(s) {
   }
 }
 
-function handleDeepLink(link) {
-  deliverSession(parseDeepLink(link));
+async function handleDeepLink(link) {
+  deliverSession(await sessionFromLink(link));
 }
 
 function createOverlay() {
@@ -176,6 +212,48 @@ function createOverlay() {
   overlay.on("closed", () => {
     overlay = null;
   });
+}
+
+// A plain, always-on-top, scrollable window that shows the slot's narration script
+// to read aloud over the clip in Kdenlive. NOT content-protected and NOT click-through
+// (it floats over Kdenlive, never over the recording), so it scrolls and moves like any
+// window. Hidden until toggled; created lazily.
+function createTeleprompter() {
+  if (teleprompter && !teleprompter.isDestroyed()) return teleprompter;
+  const area = screen.getPrimaryDisplay().workAreaSize;
+  teleprompter = new BrowserWindow({
+    width: 560,
+    height: 320,
+    x: Math.round(area.width * 0.5) - 280,
+    y: 24,
+    frame: false,
+    resizable: true,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    backgroundColor: "#08090d",
+    title: "OTD Teleprompter",
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  teleprompter.setAlwaysOnTop(true, "screen-saver");
+  teleprompter.setVisibleOnAllWorkspaces(true);
+  teleprompter.loadFile(path.join(__dirname, "teleprompter.html"));
+  teleprompter.webContents.on("did-finish-load", () => {
+    teleprompter.webContents.send("teleprompter:script", lastScript);
+  });
+  teleprompter.on("closed", () => { teleprompter = null; });
+  return teleprompter;
+}
+
+// Push a script to the teleprompter (creating it hidden if needed). Does not force-show.
+function setTeleprompterScript(text) {
+  lastScript = typeof text === "string" ? text : "";
+  const w = createTeleprompter();
+  if (!w.webContents.isLoading()) w.webContents.send("teleprompter:script", lastScript);
 }
 
 // ── timeline editor window ──────────────────────────────────────────────────
@@ -258,7 +336,7 @@ if (!gotLock) {
   // macOS delivers it here.
   app.on("open-url", (_e, url) => handleDeepLink(url));
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     // Grant capture permission outright — this is a local tool the user explicitly
     // launched; there's no third-party web content to guard against. Covers the case
     // where getDisplayMedia is denied before the display-media handler is even hit.
@@ -294,13 +372,28 @@ if (!gotLock) {
     logLine(`app ready. argv: ${JSON.stringify(process.argv)}`);
     // First-launch deep link (Windows passes it in argv).
     const link = process.argv.find((a) => a.startsWith(`${PROTOCOL}://`));
-    if (link) pendingSession = parseDeepLink(link);
-    else logLine("no deep link in launch argv (standalone launch)");
+    if (link) {
+      // Enrich (fetch the script) BEFORE createOverlay so pendingSession is set
+      // when did-finish-load flushes it — preserving the existing "queue before
+      // the window loads" invariant. Awaiting here avoids the race where the
+      // flush reads a null pendingSession mid-fetch and loses the session.
+      pendingSession = await sessionFromLink(link);
+      // Cold-launch bypasses deliverSession (it assigns pendingSession directly and
+      // flushes to the overlay in did-finish-load), so load the teleprompter script
+      // here too — otherwise a freshly-launched lesson "+" shows an empty prompter.
+      setTeleprompterScript(pendingSession?.script || "");
+    } else logLine("no deep link in launch argv (standalone launch)");
 
     createOverlay();
 
     // Always-available safety hatch to quit, even if the renderer wedges.
     globalShortcut.register("CommandOrControl+Shift+Q", () => app.quit());
+
+    globalShortcut.register("CommandOrControl+Shift+H", () => {
+      const w = createTeleprompter();
+      if (w.isVisible()) w.hide();
+      else { w.show(); }
+    });
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createOverlay();
@@ -379,6 +472,44 @@ ipcMain.handle(
   },
 );
 
+// Post-narration flow: after recording silent → narrating in Kdenlive → exporting,
+// the operator picks that finished file and uploads it straight into the lesson slot
+// via the same token-scoped POST /api/capture the deep-link upload uses. Needs the
+// current session's api+token (passed from the renderer, which holds `session`).
+ipcMain.handle("upload-file", async (_e, { api, token }) => {
+  if (!api || !token) return { ok: false, error: "No lesson slot — open this from a lesson +." };
+  const pick = await dialog.showOpenDialog({
+    title: "Choose the finished video to upload",
+    properties: ["openFile"],
+    filters: [{ name: "Video", extensions: ["mp4", "webm"] }],
+  });
+  if (pick.canceled || !pick.filePaths[0]) return { ok: false, error: "Cancelled." };
+  const file = pick.filePaths[0];
+  const ext = path.extname(file).slice(1).toLowerCase() || "mp4";
+  try {
+    const body = fs.readFileSync(file);
+    const ctype = ext === "webm" ? "video/webm" : "video/mp4";
+    const qs = new URLSearchParams({ token, ext }).toString();
+    logLine(`upload-file → ${api}/api/capture ext=${ext} bytes=${body.length}`);
+    const res = await fetch(`${api}/api/capture?${qs}`, {
+      method: "POST",
+      headers: { "Content-Type": ctype },
+      body,
+      redirect: "manual",
+    });
+    if (res.status >= 300 && res.status < 400) {
+      return { ok: false, error: `Redirected (${res.status}) — upload didn't reach the server.` };
+    }
+    const json = await res.json().catch(() => ({}));
+    logLine(`upload-file response: ${res.status} ${JSON.stringify(json)}`);
+    if (!res.ok || !json.src) return { ok: false, error: json.error || `HTTP ${res.status}` };
+    return { ok: true, src: json.src };
+  } catch (e) {
+    logLine(`upload-file THREW: ${e && e.message}`);
+    return { ok: false, error: e && e.message ? e.message : "Upload failed." };
+  }
+});
+
 // Standalone (no deep link): save the approved capture to ~/Downloads/otd-captures/.
 ipcMain.handle("save-capture", async (_e, { base64, ext, caption }) => {
   const dir = path.join(os.homedir(), "Downloads", "otd-captures");
@@ -420,20 +551,6 @@ ipcMain.handle("save-clip", async (_e, { base64, ext, index }) => {
   } catch (e) {
     logLine(`save-clip FAILED: ${e && e.message}`);
     return { ok: false, error: e && e.message ? e.message : "Couldn't save clip." };
-  }
-});
-
-// Persist a clip's mic narration next to it; return its on-disk path.
-ipcMain.handle("save-audio", async (_e, { base64, ext, index }) => {
-  try {
-    const dir = getSessionDir();
-    const file = path.join(dir, `clip-${String(index).padStart(3, "0")}.audio.${ext || "webm"}`);
-    fs.writeFileSync(file, Buffer.from(base64, "base64"));
-    logLine(`save-audio [${index}] → ${file} (${fs.statSync(file).size} bytes)`);
-    return { ok: true, path: file };
-  } catch (e) {
-    logLine(`save-audio FAILED: ${e && e.message}`);
-    return { ok: false, error: e && e.message ? e.message : "Couldn't save audio." };
   }
 });
 
@@ -552,84 +669,6 @@ ipcMain.handle("export-clips", async (_e, { clips, fps }) => {
   } catch (e) {
     logLine(`export-clips FAILED: ${e && e.message}`);
     return { ok: false, error: e && e.message ? e.message : "Export failed." };
-  }
-});
-
-// atempo only spans 0.5–2.0 per filter; chain to reach 4× / 0.25× etc.
-function atempoChain(speed) {
-  let s = speed || 1;
-  const out = [];
-  if (Math.abs(s - 1) < 1e-3) return out;
-  while (s > 2) {
-    out.push(2);
-    s /= 2;
-  }
-  while (s < 0.5) {
-    out.push(0.5);
-    s /= 0.5;
-  }
-  out.push(+s.toFixed(4));
-  return out;
-}
-
-// Mux the WYSIWYG video with per-segment mic narration: trim each segment's audio to its
-// kept range (offset by how far the mic led video frame 0), tempo-shift for clip speed,
-// concat (silent segments → anullsrc), loudnorm, and mux over the copied video.
-ipcMain.handle("mux-audio", async (_e, { video, segments }) => {
-  try {
-    if (!video || !segments || !segments.length) return { ok: false, error: "Nothing to mux." };
-    const ffmpeg = require("ffmpeg-static");
-    const dir = getSessionDir();
-    const vpath = path.join(dir, `export-v-${Date.now()}.mp4`);
-    fs.writeFileSync(vpath, Buffer.from(video));
-    const out = path.join(dir, `export-av-${Date.now()}.mp4`);
-
-    const args = ["-y", "-i", vpath];
-    const parts = [];
-    const labels = [];
-    let inputIdx = 1;
-    segments.forEach((s, i) => {
-      const eff = Math.max(0.02, s.effDur || 0.02);
-      if (s.audioPath) {
-        args.push("-i", s.audioPath);
-        const start = Math.max(0, (s.inSec || 0) + (s.offset || 0));
-        const end = Math.max(start + 0.02, (s.outSec || 0) + (s.offset || 0));
-        let f = `[${inputIdx}:a]atrim=start=${start}:end=${end},asetpts=PTS-STARTPTS`;
-        for (const at of atempoChain(s.speed)) f += `,atempo=${at}`;
-        f += `,aresample=48000[a${i}]`;
-        parts.push(f);
-        inputIdx++;
-      } else {
-        parts.push(
-          `anullsrc=channel_layout=stereo:sample_rate=48000,atrim=duration=${eff},asetpts=PTS-STARTPTS[a${i}]`,
-        );
-      }
-      labels.push(`[a${i}]`);
-    });
-    const filter =
-      `${parts.join(";")};${labels.join("")}concat=n=${segments.length}:v=0:a=1[ac];` +
-      `[ac]loudnorm=I=-16:TP=-1.5:LRA=11[aout]`;
-    const fargs = [
-      ...args,
-      "-filter_complex",
-      filter,
-      "-map", "0:v",
-      "-map", "[aout]",
-      "-c:v", "copy",
-      "-c:a", "aac",
-      "-b:a", "192k",
-      "-ar", "48000",
-      "-movflags", "+faststart",
-      out,
-    ];
-    logLine(`mux-audio: ${segments.length} segs, ${inputIdx - 1} audio inputs → ${out}`);
-    await runFfmpeg(ffmpeg, fargs);
-    const bytes = fs.readFileSync(out);
-    logLine(`mux-audio done: ${bytes.length} bytes`);
-    return { ok: true, bytes };
-  } catch (e) {
-    logLine(`mux-audio FAILED: ${e && e.message}`);
-    return { ok: false, error: e && e.message ? e.message : "Audio mux failed." };
   }
 });
 

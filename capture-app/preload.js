@@ -7,21 +7,25 @@ contextBridge.exposeInMainWorld("otd", {
   onTrigger: (cb) => ipcRenderer.on("trigger", () => cb()),
   onCancel: (cb) => ipcRenderer.on("cancel", () => cb()),
   onToggleFollow: (cb) => ipcRenderer.on("toggle-follow", () => cb()),
+  // Script text for the standalone teleprompter window.
+  onTeleprompterScript: (cb) =>
+    ipcRenderer.on("teleprompter:script", (_e, text) => cb(text)),
   trackCursor: (on) => ipcRenderer.send("cursor-track", on),
   onCursorPos: (cb) => ipcRenderer.on("cursor:pos", (_e, p) => cb(p)),
   setInteractive: (interactive) =>
     ipcRenderer.send("set-interactive", interactive),
   armSpace: () => ipcRenderer.send("arm-space"),
   disarmSpace: () => ipcRenderer.send("disarm-space"),
-  // Deep-link session from the lesson "+" (api/token/kind/hint/caption).
+  // Deep-link session from the lesson "+" (api/token/kind/hint/caption/aspect);
+  // the narration script is NOT on the URL — it's fetched via /api/capture/session.
   onSession: (cb) =>
     ipcRenderer.on("capture:session", (_e, s) => cb(s)),
   upload: (payload) => ipcRenderer.invoke("upload-capture", payload),
+  // Post-narration: pick a finished (Kdenlive-exported) video and upload it to the slot.
+  uploadFile: (payload) => ipcRenderer.invoke("upload-file", payload),
   save: (payload) => ipcRenderer.invoke("save-capture", payload),
   // Multi-clip: persist a recorded clip to a temp file, and stitch the ordered set.
   saveClip: (payload) => ipcRenderer.invoke("save-clip", payload),
-  saveAudio: (payload) => ipcRenderer.invoke("save-audio", payload),
-  muxAudio: (payload) => ipcRenderer.invoke("mux-audio", payload),
   exportClips: (payload) => ipcRenderer.invoke("export-clips", payload),
   // Timeline editor window.
   openEditor: (payload) => ipcRenderer.send("open-editor", payload),

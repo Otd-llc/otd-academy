@@ -1,0 +1,118 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body {
+        display: flex;
+        flex-direction: column;
+        background: rgba(8, 9, 13, 0.92);
+        color: #e8e8e8;
+        font-family: Georgia, "Times New Roman", serif;
+        cursor: default;
+      }
+      /* Drag handle: the one reliable grab surface. The script area below is
+         no-drag so the wheel + text selection work, which means the body itself
+         can't be the move target — this bar is. */
+      #bar {
+        flex: 0 0 auto;
+        -webkit-app-region: drag;
+        cursor: move;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 12px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #8a8f9c;
+        background: rgba(0, 0, 0, 0.35);
+        border-bottom: 1px solid #2a2f3e;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      #bar .dot { color: #c8963e; }
+      #doc {
+        flex: 1 1 auto;
+        overflow-y: auto;          /* wheel + arrow/PageUp/PageDown scroll here */
+        -webkit-app-region: no-drag;
+      }
+      #script {
+        padding: 24px 32px 64px;
+        font-size: 30px;
+        line-height: 1.7;
+        white-space: pre-wrap;     /* newlines in the script become line breaks */
+        max-width: 1100px;
+        margin: 0 auto;
+        -webkit-user-select: text;
+        user-select: text;
+      }
+      /* A marked term {TERM|pron} renders as the term (bright) + a small gold
+         pronunciation cue beside it, so you say it right and never read the cue
+         aloud. */
+      #script .term { color: #ffffff; }
+      #script .pron {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.46em;
+        color: #c8963e;
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+        vertical-align: 0.18em;
+        margin: 0 0.08em 0 0.18em;
+      }
+      #script .pron::before { content: "("; }
+      #script .pron::after { content: ")"; }
+      #empty { color: #8a8f9c; font-size: 18px; padding: 24px 32px; }
+    </style>
+  </head>
+  <body>
+    <div id="bar"><span class="dot">&#9679;</span> OTD Teleprompter &middot; drag to move &middot; Ctrl+Shift+H to hide</div>
+    <div id="doc">
+      <div id="empty">No script for this slot.</div>
+      <div id="script"></div>
+    </div>
+    <script>
+      const scriptEl = document.getElementById("script");
+      const emptyEl = document.getElementById("empty");
+      const docEl = document.getElementById("doc");
+
+      // Render the script, expanding {TERM|pron} into a bright term + a small gold
+      // pronunciation cue. Built with DOM nodes (not innerHTML) so the script text
+      // is never interpreted as markup; createTextNode keeps the newlines that
+      // white-space: pre-wrap turns into the script's line breaks.
+      function renderScript(text) {
+        scriptEl.textContent = "";
+        const re = /\{([^|{}]+)\|([^{}]+)\}/g;
+        let last = 0;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+          if (m.index > last) {
+            scriptEl.appendChild(document.createTextNode(text.slice(last, m.index)));
+          }
+          const term = document.createElement("span");
+          term.className = "term";
+          term.textContent = m[1];
+          scriptEl.appendChild(term);
+          const pron = document.createElement("span");
+          pron.className = "pron";
+          pron.textContent = m[2];
+          scriptEl.appendChild(pron);
+          last = re.lastIndex;
+        }
+        if (last < text.length) {
+          scriptEl.appendChild(document.createTextNode(text.slice(last)));
+        }
+      }
+
+      window.otd.onTeleprompterScript((text) => {
+        const t = (text || "").trim();
+        renderScript(t);
+        emptyEl.style.display = t ? "none" : "block";
+        docEl.scrollTop = 0;
+      });
+    </script>
+  </body>
+</html>
