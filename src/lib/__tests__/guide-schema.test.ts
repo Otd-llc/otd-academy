@@ -118,4 +118,38 @@ describe("guide schemas", () => {
   it("rejects a deepDive with an empty summary", () => {
     expect(contentBlockSchema.safeParse({ type: "deepDive", summary: "", body: "x" }).success).toBe(false);
   });
+  it("accepts a video block with a narration script", () => {
+    expect(
+      contentBlockSchema.safeParse({
+        type: "video",
+        src: "",
+        alt: "solder a row",
+        script: "Today we solder the first row. Take the iron…",
+      }).success,
+    ).toBe(true);
+  });
+  it("preserves script through parse (not stripped)", () => {
+    const parsed = contentBlockSchema.safeParse({
+      type: "video",
+      src: "",
+      alt: "a",
+      script: "read me aloud",
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      // discriminatedUnion strips unknown keys, so this only holds once `script`
+      // is part of the schema — the whole point of this task.
+      expect((parsed.data as { script?: string }).script).toBe("read me aloud");
+    }
+  });
+  it("rejects a script over the 8000-char cap", () => {
+    expect(
+      contentBlockSchema.safeParse({
+        type: "video",
+        src: "",
+        alt: "a",
+        script: "x".repeat(8001),
+      }).success,
+    ).toBe(false);
+  });
 });

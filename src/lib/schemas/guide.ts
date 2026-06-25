@@ -103,6 +103,11 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     // Crop aspect the capture tool LOCKS to for this placeholder. Defaults to 16:9
     // for clips if absent.
     aspect: z.enum(["16:10", "16:9", "4:3", "1:1", "free"]).optional(),
+    // Narration script for this clip. Non-empty ⇒ this video needs human
+    // narration: the capture overlay shows it as a teleprompter (mic already
+    // defaults on). Empty/absent ⇒ silent screencast (today's behavior). This is
+    // the ONE long field on a content block; everything else is short metadata.
+    script: z.string().max(8000).optional(),
   }),
   // youtube — a privacy-enhanced (youtube-nocookie), lazy-loaded embed for the
   // public Library / marketing surface (the in-build mp4 `video` block stays for
