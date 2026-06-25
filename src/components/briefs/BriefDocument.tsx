@@ -14,7 +14,10 @@ import { BriefSystemMap } from "@/components/briefs/BriefSystemMap";
 import { DOC_CTA, SYSTEM_SPEC, type BriefData } from "@/lib/brief-pages";
 
 const HONEYCOMB =
-  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c8963e' fill-opacity='0.05'%3E%3Cpath d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9zM0 15l12.98-7.5V0h-2v6.35L0 12.69v2.3zm0 18.5L12.98 41v8h-2v-6.85L0 35.81v-2.3zM15 0v7.5L27.99 15H28v-2.31h-.01L17 6.35V0h-2zm0 49v-8l12.99-7.5H28v2.31h-.01L17 42.15V49h-2z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")";
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c8963e' fill-opacity='0.04'%3E%3Cpath d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9zM0 15l12.98-7.5V0h-2v6.35L0 12.69v2.3zm0 18.5L12.98 41v8h-2v-6.85L0 35.81v-2.3zM15 0v7.5L27.99 15H28v-2.31h-.01L17 6.35V0h-2zm0 49v-8l12.99-7.5H28v2.31h-.01L17 42.15V49h-2z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")";
+
+// Warm ivory the headline + spec values use (the original is not cold white).
+const IVORY = "#f2ede1";
 
 function Body({ text, emphasis }: { text: string; emphasis: string }) {
   const i = text.indexOf(emphasis);
@@ -35,7 +38,7 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
       style={{
         backgroundColor: "var(--color-deep-space)",
         backgroundImage: HONEYCOMB,
-        backgroundSize: "46px auto",
+        backgroundSize: "104px auto",
       }}
     >
       {/* Corner-bracket accents (the four sheet corners). */}
@@ -46,7 +49,7 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
 
       {/* Header bar */}
       <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.28em]">
-        <span className="text-gray-2">
+        <span style={{ color: IVORY }}>
           One Thousand Drones <span className="text-command-gold">// Academy</span>
         </span>
         <span className="text-muted">{brief.briefLabel}</span>
@@ -57,14 +60,17 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
 
       {/* Hero: big headline + system spec */}
       <div className="mt-5 flex items-start justify-between gap-6">
-        <h1 className="font-display text-[82px] leading-[0.78] tracking-tight text-white">
+        <h1
+          className="font-display text-[82px] leading-[0.78] tracking-tight"
+          style={{ color: IVORY }}
+        >
           One <span className="text-command-gold">mind.</span>
           <br />
           Many <span className="text-command-gold">machines.</span>
         </h1>
 
-        <dl className="w-[244px] shrink-0 overflow-hidden rounded-sm border border-command-gold/40">
-          <div className="border-b border-command-gold/40 bg-command-gold/[0.07] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.25em] text-command-gold">
+        <dl className="w-[244px] shrink-0 overflow-hidden rounded-sm border border-command-gold/25">
+          <div className="border-b border-panel-border px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.25em] text-command-gold">
             System spec
           </div>
           <div className="divide-y divide-panel-border">
@@ -76,7 +82,10 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
                 <dt className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
                   {s.label}
                 </dt>
-                <dd className="whitespace-nowrap font-mono text-[10px] font-bold uppercase tracking-[0.02em] text-gold-light">
+                <dd
+                  className="whitespace-nowrap font-mono text-[10px] font-bold uppercase tracking-[0.02em]"
+                  style={{ color: IVORY }}
+                >
                   {s.value}
                 </dd>
               </div>
