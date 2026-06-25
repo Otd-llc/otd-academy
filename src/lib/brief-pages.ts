@@ -99,7 +99,7 @@ export const BRIEFS: Record<BriefKey, BriefData> = {
       { label: "Tool", value: "KiCad 10" },
       { label: "Curriculum", value: "22 boards" },
     ],
-    seoTitle: "Overview brief — One Thousand Drones Academy",
+    seoTitle: "Overview brief · One Thousand Drones Academy",
     seoDescription:
       "One Thousand Drones Academy teaches PCB engineering through real boards on the ESP32-S3 in KiCad 10. You advance only by passing a clean design-rule check, and each completed board earns a verifiable certificate.",
     valueHeading: "What it is",
@@ -146,7 +146,7 @@ export const BRIEFS: Record<BriefKey, BriefData> = {
       { label: "Platform", value: "ESP32-S3" },
       { label: "Tool", value: "KiCad 10" },
     ],
-    seoTitle: "Learner brief — One Thousand Drones Academy",
+    seoTitle: "Learner brief · One Thousand Drones Academy",
     seoDescription:
       "Design a real PCB on the ESP32-S3 in KiCad 10, from requirements to fab-ready gerbers. You advance only by passing a clean design-rule check, and each board earns a verifiable certificate. Level 1 is free.",
     valueHeading: "Who it is for",

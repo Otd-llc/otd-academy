@@ -17,7 +17,7 @@ export const dynamic = "force-static";
 export function generateMetadata(): Metadata {
   const base = siteUrl();
   const url = `${base}/briefs`;
-  const title = "Briefs — One Thousand Drones Academy";
+  const title = "Briefs · One Thousand Drones Academy";
   const description =
     "Short briefs on One Thousand Drones Academy: a project-based PCB engineering school where you design real boards on the ESP32-S3 in KiCad 10 and advance only by passing a clean design-rule check.";
   return {
