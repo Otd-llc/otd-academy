@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex" />
-<title>Background sandbox v2 · isometric graph paper</title>
+<title>Background sandbox v3 · responsive isometric graph paper</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Lora:ital@0;1&display=swap" rel="stylesheet" />
 <style>
@@ -14,14 +14,46 @@
   body{background:var(--deep);color:var(--muted);font-family:"Lora",serif}
   .topbar{position:sticky;top:0;z-index:10;background:rgba(8,9,13,.85);backdrop-filter:blur(8px);
     border-bottom:1px solid rgba(200,150,62,.4);padding:14px 24px;font-family:"Space Mono",monospace;
-    font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);display:flex;flex-wrap:wrap;gap:10px 18px;align-items:baseline}
+    font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 18px;align-items:baseline}
   .topbar b{color:var(--gold)}.topbar a{color:var(--muted);text-decoration:none}.topbar a:hover{color:var(--gold)}
+
+  /* ── The responsive recipe ──────────────────────────────────────────────
+     Isometric (3 line families at 60deg) graph paper, two-tier (fine minor +
+     bold major). Cell size is FLUID: clamp() + vmin, so the grid scales with
+     the viewport. Pure CSS, vector, zero assets. */
+  .eng-paper{
+    --cell: clamp(15px, 3.4vmin, 30px);          /* minor cell — scales with viewport */
+    --major: calc(var(--cell) * 3);              /* bold every 3rd line = A4 two-tier */
+    --minor: rgba(150,170,205,.06);
+    --bold:  rgba(150,170,205,.11);
+    background-color: var(--deep);
+    background-image:
+      repeating-linear-gradient(90deg,  transparent 0 calc(var(--major) - 1px), var(--bold) 0 var(--major)),
+      repeating-linear-gradient(30deg,  transparent 0 calc(var(--major) - 1px), var(--bold) 0 var(--major)),
+      repeating-linear-gradient(150deg, transparent 0 calc(var(--major) - 1px), var(--bold) 0 var(--major)),
+      repeating-linear-gradient(90deg,  transparent 0 calc(var(--cell) - 1px),  var(--minor) 0 var(--cell)),
+      repeating-linear-gradient(30deg,  transparent 0 calc(var(--cell) - 1px),  var(--minor) 0 var(--cell)),
+      repeating-linear-gradient(150deg, transparent 0 calc(var(--cell) - 1px),  var(--minor) 0 var(--cell));
+  }
+  .gold { --minor:rgba(200,150,62,.06); --bold:rgba(200,150,62,.13) }
+  .blue { --minor:rgba(74,143,255,.06); --bold:rgba(74,143,255,.12) }
+  .dense{ --cell: clamp(11px, 2.4vmin, 20px) }
+  .airy { --cell: clamp(20px, 4.6vmin, 42px) }
+
   .panel{position:relative;min-height:94vh;padding:64px 6vw;display:flex;flex-direction:column;justify-content:center;
-    background-color:var(--deep);border-bottom:1px solid rgba(58,63,80,.5)}
-  .label{position:absolute;top:20px;left:6vw;font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+    border-bottom:1px solid rgba(58,63,80,.5);overflow:hidden}
+  /* optional atmosphere overlays */
+  .glow::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 80% at 50% 0%, rgba(200,150,62,.10), transparent 60%)}
+  .fade::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(to bottom, rgba(8,9,13,0), rgba(8,9,13,.6))}
+  .vignette::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(85% 80% at 50% 42%, transparent 24%, #08090d 100%)}
+
+  .label{position:absolute;top:20px;left:6vw;z-index:2;font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
   .label .num{color:var(--gold);font-weight:700;margin-right:10px;border:1px solid rgba(200,150,62,.5);border-radius:4px;padding:2px 7px}
   .label .spec{display:block;margin-top:6px;color:#7a7f8e;font-size:10px;letter-spacing:.16em}
-  .content{max-width:760px;position:relative}
+  .content{max-width:760px;position:relative;z-index:2}
   .eyebrow{font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
   .rule{position:relative;height:1px;width:100%;max-width:760px;background:var(--panel);margin-bottom:22px}
   .rule::before{content:"";position:absolute;top:-1px;left:0;height:2px;width:60%;background:linear-gradient(to right,var(--gold) 0%,var(--gold) 38%,rgba(200,150,62,0) 100%)}
@@ -36,139 +68,57 @@
 </head>
 <body>
   <div class="topbar">
-    <span><b>Background sandbox v2</b> — isometric graph paper (line grids, not dots)</span>
-    <span>Scroll all 8 · tell me the <b>number</b> (or mix)</span>
-    <span><a href="#p1">01</a> <a href="#p2">02</a> <a href="#p3">03</a> <a href="#p4">04</a> <a href="#p5">05</a> <a href="#p6">06</a> <a href="#p7">07</a> <a href="#p8">08</a></span>
+    <span><b>Sandbox v3</b> — responsive isometric graph paper (fluid clamp/vmin cell)</span>
+    <span><b>Resize the window</b> to watch the grid breathe · tell me the <b>number</b> + colour</span>
+    <span><a href="#p1">01</a> <a href="#p2">02</a> <a href="#p3">03</a> <a href="#p4">04</a> <a href="#p5">05</a> <a href="#p6">06</a></span>
   </div>
 
-  <!-- 01 fine iso only, cool -->
-  <section class="panel" id="p1" style="
-    background-image:
-      repeating-linear-gradient(90deg, transparent 0 21px, rgba(150,170,205,.07) 21px 22px),
-      repeating-linear-gradient(30deg, transparent 0 21px, rgba(150,170,205,.07) 21px 22px),
-      repeating-linear-gradient(150deg, transparent 0 21px, rgba(150,170,205,.07) 21px 22px);">
-    <div class="label"><span class="num">01</span> Isometric · fine only · cool<span class="spec">22px triangular grid · single tier · steel-blue lines</span></div>
+  <section class="panel eng-paper" id="p1">
+    <div class="label"><span class="num">01</span> Fluid iso · cool<span class="spec">cell clamp(15px,3.4vmin,30px) · minor + major · steel lines</span></div>
     <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
       <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card. Does the iso grid read as engineering paper?</p></div></div>
+      <p class="lead">Resize the browser — the cells grow on wide screens, tighten on phones.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Pure CSS, vector, no image assets. Scales to any resolution.</p></div></div>
   </section>
 
-  <!-- 02 fine + major, cool (classic two-tier) -->
-  <section class="panel" id="p2" style="
-    background-image:
-      repeating-linear-gradient(90deg, transparent 0 65px, rgba(150,170,205,.12) 65px 66px),
-      repeating-linear-gradient(30deg, transparent 0 65px, rgba(150,170,205,.12) 65px 66px),
-      repeating-linear-gradient(150deg, transparent 0 65px, rgba(150,170,205,.12) 65px 66px),
-      repeating-linear-gradient(90deg, transparent 0 21px, rgba(150,170,205,.06) 21px 22px),
-      repeating-linear-gradient(30deg, transparent 0 21px, rgba(150,170,205,.06) 21px 22px),
-      repeating-linear-gradient(150deg, transparent 0 21px, rgba(150,170,205,.06) 21px 22px);">
-    <div class="label"><span class="num">02</span> Isometric · fine + bold · cool<span class="spec">22px minor + 66px major · the A4 two-tier look</span></div>
+  <section class="panel eng-paper glow" id="p2">
+    <div class="label"><span class="num">02</span> Fluid iso · cool + top gold glow<span class="spec">same grid, warm bloom from the top edge</span></div>
     <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
       <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card. Does the iso grid read as engineering paper?</p></div></div>
+      <p class="lead">Resize the browser — the cells grow on wide screens, tighten on phones.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Pure CSS, vector, no image assets. Scales to any resolution.</p></div></div>
   </section>
 
-  <!-- 03 fine + major, gold -->
-  <section class="panel" id="p3" style="
-    background-image:
-      repeating-linear-gradient(90deg, transparent 0 65px, rgba(200,150,62,.13) 65px 66px),
-      repeating-linear-gradient(30deg, transparent 0 65px, rgba(200,150,62,.13) 65px 66px),
-      repeating-linear-gradient(150deg, transparent 0 65px, rgba(200,150,62,.13) 65px 66px),
-      repeating-linear-gradient(90deg, transparent 0 21px, rgba(200,150,62,.06) 21px 22px),
-      repeating-linear-gradient(30deg, transparent 0 21px, rgba(200,150,62,.06) 21px 22px),
-      repeating-linear-gradient(150deg, transparent 0 21px, rgba(200,150,62,.06) 21px 22px);">
-    <div class="label"><span class="num">03</span> Isometric · fine + bold · gold<span class="spec">22px + 66px · command-gold lines</span></div>
+  <section class="panel eng-paper gold fade" id="p3">
+    <div class="label"><span class="num">03</span> Fluid iso · gold + fade down<span class="spec">command-gold lines, settling to deep space</span></div>
     <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
       <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card. Does the iso grid read as engineering paper?</p></div></div>
+      <p class="lead">Resize the browser — the cells grow on wide screens, tighten on phones.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Pure CSS, vector, no image assets. Scales to any resolution.</p></div></div>
   </section>
 
-  <!-- 04 fine + major cool + top gold glow -->
-  <section class="panel" id="p4" style="
-    background-image:
-      radial-gradient(120% 80% at 50% 0%, rgba(200,150,62,.10), transparent 60%),
-      repeating-linear-gradient(90deg, transparent 0 65px, rgba(150,170,205,.12) 65px 66px),
-      repeating-linear-gradient(30deg, transparent 0 65px, rgba(150,170,205,.12) 65px 66px),
-      repeating-linear-gradient(150deg, transparent 0 65px, rgba(150,170,205,.12) 65px 66px),
-      repeating-linear-gradient(90deg, transparent 0 21px, rgba(150,170,205,.055) 21px 22px),
-      repeating-linear-gradient(30deg, transparent 0 21px, rgba(150,170,205,.055) 21px 22px),
-      repeating-linear-gradient(150deg, transparent 0 21px, rgba(150,170,205,.055) 21px 22px);">
-    <div class="label"><span class="num">04</span> Isometric · fine + bold · cool + top gold glow<span class="spec">two-tier grid · warm bloom from the top edge</span></div>
+  <section class="panel eng-paper blue glow" id="p4">
+    <div class="label"><span class="num">04</span> Fluid iso · blueprint blue<span class="spec">signal-blue lines + blue glow</span></div>
     <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
       <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card. Does the iso grid read as engineering paper?</p></div></div>
+      <p class="lead">Resize the browser — the cells grow on wide screens, tighten on phones.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Pure CSS, vector, no image assets. Scales to any resolution.</p></div></div>
   </section>
 
-  <!-- 05 fine + major cool + center-bright vignette -->
-  <section class="panel" id="p5" style="
-    background-image:
-      radial-gradient(85% 80% at 50% 42%, transparent 24%, #08090d 100%),
-      repeating-linear-gradient(90deg, transparent 0 65px, rgba(150,170,205,.13) 65px 66px),
-      repeating-linear-gradient(30deg, transparent 0 65px, rgba(150,170,205,.13) 65px 66px),
-      repeating-linear-gradient(150deg, transparent 0 65px, rgba(150,170,205,.13) 65px 66px),
-      repeating-linear-gradient(90deg, transparent 0 21px, rgba(150,170,205,.06) 21px 22px),
-      repeating-linear-gradient(30deg, transparent 0 21px, rgba(150,170,205,.06) 21px 22px),
-      repeating-linear-gradient(150deg, transparent 0 21px, rgba(150,170,205,.06) 21px 22px);">
-    <div class="label"><span class="num">05</span> Isometric · fine + bold · center-bright vignette<span class="spec">grid fades toward the edges, focus to the middle</span></div>
+  <section class="panel eng-paper dense vignette" id="p5">
+    <div class="label"><span class="num">05</span> Fluid iso · dense + center vignette<span class="spec">tighter cell clamp(11px,2.4vmin,20px) · edges fade</span></div>
     <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
       <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card. Does the iso grid read as engineering paper?</p></div></div>
+      <p class="lead">Resize the browser — the cells grow on wide screens, tighten on phones.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Pure CSS, vector, no image assets. Scales to any resolution.</p></div></div>
   </section>
 
-  <!-- 06 fine + major, blueprint blue -->
-  <section class="panel" id="p6" style="
-    background-image:
-      radial-gradient(120% 80% at 50% 0%, rgba(74,143,255,.06), transparent 60%),
-      repeating-linear-gradient(90deg, transparent 0 65px, rgba(74,143,255,.13) 65px 66px),
-      repeating-linear-gradient(30deg, transparent 0 65px, rgba(74,143,255,.13) 65px 66px),
-      repeating-linear-gradient(150deg, transparent 0 65px, rgba(74,143,255,.13) 65px 66px),
-      repeating-linear-gradient(90deg, transparent 0 21px, rgba(74,143,255,.06) 21px 22px),
-      repeating-linear-gradient(30deg, transparent 0 21px, rgba(74,143,255,.06) 21px 22px),
-      repeating-linear-gradient(150deg, transparent 0 21px, rgba(74,143,255,.06) 21px 22px);">
-    <div class="label"><span class="num">06</span> Isometric · fine + bold · blueprint blue<span class="spec">two-tier grid · signal-blue lines + glow</span></div>
+  <section class="panel eng-paper airy glow" id="p6">
+    <div class="label"><span class="num">06</span> Fluid iso · airy + top glow<span class="spec">larger cell clamp(20px,4.6vmin,42px) · roomier grid</span></div>
     <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
       <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card. Does the iso grid read as engineering paper?</p></div></div>
-  </section>
-
-  <!-- 07 fine gray + major gold (two-tone) -->
-  <section class="panel" id="p7" style="
-    background-image:
-      repeating-linear-gradient(90deg, transparent 0 65px, rgba(200,150,62,.12) 65px 66px),
-      repeating-linear-gradient(30deg, transparent 0 65px, rgba(200,150,62,.12) 65px 66px),
-      repeating-linear-gradient(150deg, transparent 0 65px, rgba(200,150,62,.12) 65px 66px),
-      repeating-linear-gradient(90deg, transparent 0 21px, rgba(150,170,205,.06) 21px 22px),
-      repeating-linear-gradient(30deg, transparent 0 21px, rgba(150,170,205,.06) 21px 22px),
-      repeating-linear-gradient(150deg, transparent 0 21px, rgba(150,170,205,.06) 21px 22px);">
-    <div class="label"><span class="num">07</span> Isometric · gray minor + gold major<span class="spec">steel fine grid, gold bold grid over it</span></div>
-    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
-      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card. Does the iso grid read as engineering paper?</p></div></div>
-  </section>
-
-  <!-- 08 fine + major cool + bottom fade + faint gold top wash -->
-  <section class="panel" id="p8" style="
-    background-image:
-      linear-gradient(to bottom, rgba(8,9,13,0), rgba(8,9,13,.62) 100%),
-      radial-gradient(85% 100% at 50% 0%, rgba(200,150,62,.05), transparent 55%),
-      repeating-linear-gradient(90deg, transparent 0 65px, rgba(150,170,205,.11) 65px 66px),
-      repeating-linear-gradient(30deg, transparent 0 65px, rgba(150,170,205,.11) 65px 66px),
-      repeating-linear-gradient(150deg, transparent 0 65px, rgba(150,170,205,.11) 65px 66px),
-      repeating-linear-gradient(90deg, transparent 0 21px, rgba(150,170,205,.055) 21px 22px),
-      repeating-linear-gradient(30deg, transparent 0 21px, rgba(150,170,205,.055) 21px 22px),
-      repeating-linear-gradient(150deg, transparent 0 21px, rgba(150,170,205,.055) 21px 22px);">
-    <div class="label"><span class="num">08</span> Isometric · fine + bold · settles to deep space<span class="spec">grid strong up top, faint gold wash, fades down</span></div>
-    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
-      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card. Does the iso grid read as engineering paper?</p></div></div>
+      <p class="lead">Resize the browser — the cells grow on wide screens, tighten on phones.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Pure CSS, vector, no image assets. Scales to any resolution.</p></div></div>
   </section>
 </body>
 </html>
