@@ -4,92 +4,121 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex" />
-<title>Background sandbox v7 · B6 locked to title ratio</title>
+<title>Title treatment sandbox · premium hero</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Lora:ital@0;1&display=swap" rel="stylesheet" />
 <style>
-  /* --hero-size is the ONE title scale; the grid cell is derived from it, so the
-     grid is locked in ratio to the headline. A clamp floor stops the cell going
-     tiny on small screens (where the title itself is pinned to its 54px min). */
-  :root{--deep:#08090d;--gold:#c8963e;--ivory:#f1ece0;--muted:#aaaaaa;--panel:#3a3f50;
-    --hero-size:clamp(54px, 9vw, 108px)}
+  :root{--deep:#08090d;--gold:#c8963e;--gold-l:#e8b865;--gold-d:#8b6428;--ivory:#f1ece0;--muted:#aaaaaa;--panel:#3a3f50}
   *{box-sizing:border-box;margin:0;padding:0}
-  html{scroll-behavior:smooth}
-  body{background:var(--deep);color:var(--muted);font-family:"Lora",serif}
-  .topbar{position:sticky;top:0;z-index:10;background:rgba(8,9,13,.85);backdrop-filter:blur(8px);
+  body{background:var(--deep);color:var(--muted);font-family:"Lora",serif;
+    /* faint B6 grid so we judge titles over the real backdrop */
+    --cell:18px;--major:54px;
+    background-image:
+      radial-gradient(96% 88% at 50% 26%, transparent 18%, var(--deep) 100%),
+      repeating-linear-gradient(90deg,transparent 0 53px,rgba(150,170,205,.058) 0 54px),
+      repeating-linear-gradient(30deg,transparent 0 53px,rgba(150,170,205,.058) 0 54px),
+      repeating-linear-gradient(150deg,transparent 0 53px,rgba(150,170,205,.058) 0 54px),
+      repeating-linear-gradient(90deg,transparent 0 17px,rgba(150,170,205,.03) 0 18px),
+      repeating-linear-gradient(30deg,transparent 0 17px,rgba(150,170,205,.03) 0 18px),
+      repeating-linear-gradient(150deg,transparent 0 17px,rgba(150,170,205,.03) 0 18px);
+    background-attachment:fixed;}
+  .topbar{position:sticky;top:0;z-index:10;background:rgba(8,9,13,.9);backdrop-filter:blur(8px);
     border-bottom:1px solid rgba(200,150,62,.4);padding:14px 24px;font-family:"Space Mono",monospace;
-    font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline}
+    font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
   .topbar b{color:var(--gold)}
 
-  .eng-paper{
-    /* cell = title / 6.5, but never below --floor (set per panel) and never above 18 */
-    --cell: clamp(var(--floor, 13px), calc(var(--hero-size) / 6.5), 18px);
-    --major: calc(var(--cell) * 3);
-    --minor: rgba(150,170,205,.045);
-    --bold:  rgba(150,170,205,.085);
-    background-color: var(--deep);
-    background-image:
-      repeating-linear-gradient(90deg,  transparent 0 calc(var(--major) - 1px), var(--bold) 0 var(--major)),
-      repeating-linear-gradient(30deg,  transparent 0 calc(var(--major) - 1px), var(--bold) 0 var(--major)),
-      repeating-linear-gradient(150deg, transparent 0 calc(var(--major) - 1px), var(--bold) 0 var(--major)),
-      repeating-linear-gradient(90deg,  transparent 0 calc(var(--cell) - 1px),  var(--minor) 0 var(--cell)),
-      repeating-linear-gradient(30deg,  transparent 0 calc(var(--cell) - 1px),  var(--minor) 0 var(--cell)),
-      repeating-linear-gradient(150deg, transparent 0 calc(var(--cell) - 1px),  var(--minor) 0 var(--cell));
-  }
-  .panel{position:relative;min-height:94vh;padding:64px 6vw;display:flex;flex-direction:column;justify-content:center;
-    border-bottom:1px solid rgba(58,63,80,.5);overflow:hidden}
-  .atmo{position:absolute;inset:0;pointer-events:none;z-index:1;
-    background:radial-gradient(96% 88% at 50% 26%, transparent 18%, #08090d 100%)}
-  .label{position:absolute;top:20px;left:6vw;z-index:3;font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
-  .label .num{color:var(--gold);font-weight:700;margin-right:10px;border:1px solid rgba(200,150,62,.5);border-radius:4px;padding:2px 7px}
-  .label .spec{display:block;margin-top:6px;color:#7a7f8e;font-size:10px;letter-spacing:.14em}
-  .content{max-width:760px;position:relative;z-index:2}
+  .grid{display:grid;grid-template-columns:1fr;gap:0}
+  .panel{position:relative;min-height:78vh;padding:48px 6vw;display:flex;flex-direction:column;justify-content:center;
+    border-bottom:1px solid rgba(58,63,80,.5)}
+  /* constrain to ~the apex hero column so the line-fit matches reality */
+  .stage{max-width:600px}
+  .num{position:absolute;top:18px;left:6vw;font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+  .num b{color:var(--gold);border:1px solid rgba(200,150,62,.5);border-radius:4px;padding:2px 7px;margin-right:10px}
+  .cap{margin-top:18px;font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.12em;color:#7a7f8e;max-width:560px;line-height:1.6}
+
   .eyebrow{font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
-  .rule{position:relative;height:1px;width:100%;max-width:760px;background:var(--panel);margin-bottom:22px}
+  .rule{position:relative;height:1px;width:100%;max-width:600px;background:var(--panel);margin-bottom:20px}
   .rule::before{content:"";position:absolute;top:-1px;left:0;height:2px;width:60%;background:linear-gradient(to right,var(--gold) 0%,var(--gold) 38%,rgba(200,150,62,0) 100%)}
-  .hero{font-family:"Bebas Neue",sans-serif;color:var(--ivory);font-size:var(--hero-size);line-height:.85;letter-spacing:0;-webkit-text-stroke:.017em currentColor}
-  .hero .g{color:var(--gold)}
-  .lead{font-style:italic;font-size:17px;color:var(--muted);margin-top:18px;max-width:620px}
-  .card{margin-top:30px;max-width:440px;padding:22px 24px;border-radius:14px;background:linear-gradient(180deg,#13131f 0%,#0d0e14 100%);
-    border:1px solid rgba(200,150,62,.35);box-shadow:0 12px 44px rgba(0,0,0,.55),0 1px 0 rgba(232,184,101,.12) inset}
-  .card-title{font-family:"Bebas Neue",sans-serif;color:var(--ivory);font-size:24px;letter-spacing:.03em;-webkit-text-stroke:.012em currentColor}
-  .card-body{font-size:14px;line-height:1.6;margin-top:8px;color:var(--muted)}
+
+  /* base chonky title — One Mind. / Many Machines., each line nowrap */
+  .ht{font-family:"Bebas Neue",sans-serif;font-size:92px;line-height:.82;letter-spacing:0;
+    color:var(--ivory);-webkit-text-stroke:.03em currentColor;paint-order:stroke fill;white-space:nowrap}
+  .ht .g{color:var(--gold)}
+
+  /* B — metallic gold fill on accent words */
+  .metal .g{color:var(--gold-d);
+    background:linear-gradient(180deg,#f6d79b 0%,#d8a44e 44%,#996a28 100%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+
+  /* C — metallic gold + engrave on whole title */
+  .engrave .g{color:var(--gold-d);
+    background:linear-gradient(180deg,#f6d79b 0%,#d8a44e 44%,#996a28 100%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .engrave .ht{filter:drop-shadow(0 2px 0 rgba(0,0,0,.55)) drop-shadow(0 -1px 0 rgba(255,255,255,.08))}
+
+  /* D — grid-cut letters: ivory words filled with the iso grid; gold stays gold */
+  .gridcut .ht{
+    background-image:
+      repeating-linear-gradient(90deg,transparent 0 7px,rgba(241,236,224,.85) 0 8px),
+      repeating-linear-gradient(30deg,transparent 0 7px,rgba(241,236,224,.55) 0 8px),
+      repeating-linear-gradient(150deg,transparent 0 7px,rgba(241,236,224,.55) 0 8px);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .gridcut .ht .g{-webkit-text-fill-color:var(--gold);background:none}
+
+  /* E — dimension annotation: a gold measure bracket left of the title */
+  .dim .row{display:flex;align-items:stretch;gap:18px}
+  .dim .measure{position:relative;width:26px;flex:none}
+  .dim .measure::before{content:"";position:absolute;left:50%;top:6px;bottom:6px;width:1px;background:var(--gold);opacity:.55}
+  .dim .measure::after{content:"108";position:absolute;left:-2px;top:50%;transform:translateY(-50%) rotate(-90deg);
+    transform-origin:center;font-family:"Space Mono",monospace;font-size:9px;letter-spacing:.18em;color:var(--gold);background:var(--deep);padding:2px 0}
+  .dim .tick{position:absolute;left:30%;right:30%;height:1px;background:var(--gold);opacity:.55}
+  .dim .tick.t{top:6px}.dim .tick.b{bottom:6px}
+  .dim .metal .g,.dim .g{color:var(--gold-d);background:linear-gradient(180deg,#f6d79b 0%,#d8a44e 44%,#996a28 100%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+
+  /* F — one-shot gold shimmer on accent words */
+  .shimmer .g{color:var(--gold-d);
+    background:linear-gradient(100deg,#bb8836 28%,#fbeec2 50%,#bb8836 72%);background-size:260% 100%;
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    animation:shine 2.4s cubic-bezier(.2,.7,.2,1) .3s 1 both}
+  @keyframes shine{from{background-position:210% 0}to{background-position:-40% 0}}
 </style>
 </head>
 <body>
-  <div class="topbar">
-    <span><b>Sandbox v7</b> — B6 locked to title ratio (cell = title / 6.5)</span>
-    <span><b>Resize narrow</b> to test mobile · the only knob is the mobile floor</span>
+  <div class="topbar"><b>Title sandbox</b> — premium hero treatments · constrained to the apex column width · tell me the <b>number</b> (or a combo)</div>
+  <div class="grid">
+
+    <section class="panel"><div class="num"><b>A1</b> Baseline · chonky ivory + flat gold</div>
+      <div class="stage"><p class="eyebrow">Neuro-Robotic Command</p><div class="rule"></div>
+        <h1 class="ht">One <span class="g">Mind</span>.<br>Many <span class="g">Machines</span>.</h1>
+        <p class="cap">Where we are now: flat command-gold accent words, ivory base, 0.03em stroke.</p></div></section>
+
+    <section class="panel metal"><div class="num"><b>A2</b> Metallic gold fill</div>
+      <div class="stage"><p class="eyebrow">Neuro-Robotic Command</p><div class="rule"></div>
+        <h1 class="ht">One <span class="g">Mind</span>.<br>Many <span class="g">Machines</span>.</h1>
+        <p class="cap">Gold words get a vertical gradient (light → gold → dark) — reads as machined brass, not flat paint.</p></div></section>
+
+    <section class="panel engrave"><div class="num"><b>A3</b> Metallic + engrave</div>
+      <div class="stage"><p class="eyebrow">Neuro-Robotic Command</p><div class="rule"></div>
+        <h1 class="ht">One <span class="g">Mind</span>.<br>Many <span class="g">Machines</span>.</h1>
+        <p class="cap">Metallic gold plus a subtle stamped/engraved shadow on the whole title — tactile nameplate.</p></div></section>
+
+    <section class="panel gridcut"><div class="num"><b>A4</b> Grid-cut letters (bold)</div>
+      <div class="stage"><p class="eyebrow">Neuro-Robotic Command</p><div class="rule"></div>
+        <h1 class="ht">One <span class="g">Mind</span>.<br>Many <span class="g">Machines</span>.</h1>
+        <p class="cap">Ivory letters filled with the engineering grid — built from graph paper. Gold words stay solid gold.</p></div></section>
+
+    <section class="panel dim"><div class="num"><b>A5</b> Dimension annotation (signature)</div>
+      <div class="stage"><p class="eyebrow">Neuro-Robotic Command</p><div class="rule"></div>
+        <div class="row"><div class="measure"><span class="tick t"></span><span class="tick b"></span></div>
+          <h1 class="ht">One <span class="g">Mind</span>.<br>Many <span class="g">Machines</span>.</h1></div>
+        <p class="cap">Metallic gold + a drawing-style dimension tick measuring the title (engineering callout).</p></div></section>
+
+    <section class="panel shimmer"><div class="num"><b>A6</b> One-shot shimmer</div>
+      <div class="stage"><p class="eyebrow">Neuro-Robotic Command</p><div class="rule"></div>
+        <h1 class="ht">One <span class="g">Mind</span>.<br>Many <span class="g">Machines</span>.</h1>
+        <p class="cap">A single gold light-sweep across the gold words on load, then it rests. (Reload to see it.)</p></div></section>
+
   </div>
-
-  <!-- D1 floor 12 -->
-  <section class="panel eng-paper" id="d1" style="--floor:12px">
-    <div class="atmo"></div>
-    <div class="label"><span class="num">D1</span> mobile floor 12px<span class="spec">desktop ~16.6px · mobile clamps to 12px</span></div>
-    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
-      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Grid is locked to the headline scale, floored so it never gets tiny.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
-  </section>
-
-  <!-- D2 floor 15 -->
-  <section class="panel eng-paper" id="d2" style="--floor:15px">
-    <div class="atmo"></div>
-    <div class="label"><span class="num">D2</span> mobile floor 15px<span class="spec">desktop ~16.6px · mobile clamps to 15px</span></div>
-    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
-      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Grid is locked to the headline scale, floored so it never gets tiny.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
-  </section>
-
-  <!-- D3 floor 18 -->
-  <section class="panel eng-paper" id="d3" style="--floor:18px">
-    <div class="atmo"></div>
-    <div class="label"><span class="num">D3</span> mobile floor 18px<span class="spec">desktop and mobile both ~18px (near-constant)</span></div>
-    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
-      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Grid is locked to the headline scale, floored so it never gets tiny.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
-  </section>
 </body>
 </html>
