@@ -262,11 +262,11 @@ export default async function CoursePreviewPage({
             ) : null}
           </div>
 
-          <h1 className="mt-5 font-display text-5xl leading-[0.95] tracking-wide text-white sm:text-7xl">
+          <h1 className="mt-5 title-hero">
             {name}
           </h1>
           {project.tagline ? (
-            <p className="mt-5 max-w-2xl font-serif text-xl italic leading-snug text-gray-1 sm:text-2xl">
+            <p className="mt-5 max-w-2xl font-serif text-xl italic leading-snug text-text sm:text-2xl">
               {project.tagline}
             </p>
           ) : null}
@@ -296,7 +296,7 @@ export default async function CoursePreviewPage({
           <p className="font-mono text-xs uppercase tracking-[0.25em] text-command-gold">
             ▸ Register interest
           </p>
-          <p className="mt-2 max-w-2xl font-serif text-base text-gray-1">
+          <p className="mt-2 max-w-2xl font-serif text-base text-text">
             This board is on the bench. Leave your email and you&apos;ll be first
             in when it ships, and your interest helps decide what we build next.
           </p>
@@ -309,7 +309,7 @@ export default async function CoursePreviewPage({
         <div className="mt-14 space-y-12">
           <section>
             <SectionHead>What you&apos;ll build</SectionHead>
-            <p className="mt-4 max-w-2xl font-serif text-lg leading-relaxed text-gray-1">
+            <p className="mt-4 max-w-2xl font-serif text-lg leading-relaxed text-text">
               {project.description ??
                 `${name} is a hands-on ESP32 hardware course. You design and build a real, manufacturable board, not a breadboard mock-up, and carry it from a blank schematic all the way to a working assembly you can hold in your hand.`}
             </p>
@@ -337,7 +337,7 @@ export default async function CoursePreviewPage({
                       href={`/library/${l.slug}`}
                       className="group flex h-full flex-col gap-1 rounded border border-panel-border bg-deep-space/40 px-4 py-3 transition-colors hover:border-command-gold/50"
                     >
-                      <span className="font-mono text-sm text-gray-1 group-hover:text-command-gold">
+                      <span className="font-mono text-sm text-text group-hover:text-command-gold">
                         {l.title} →
                       </span>
                       {l.summary ? (
@@ -376,7 +376,7 @@ export default async function CoursePreviewPage({
                   <span className="font-mono text-[11px] font-bold text-command-gold">
                     {String(i + 1).padStart(2, "0")}
                   </span>
-                  <span className="font-mono text-[11px] uppercase tracking-wider text-gray-1">
+                  <span className="font-mono text-[11px] uppercase tracking-wider text-text">
                     {STAGE_LABELS[s]}
                   </span>
                 </li>
@@ -394,7 +394,7 @@ export default async function CoursePreviewPage({
                       href={`/courses/${p.slug}`}
                       className="group flex items-center justify-between gap-2 rounded border border-panel-border bg-deep-space/40 px-4 py-3 transition-colors hover:border-command-gold/50"
                     >
-                      <span className="font-mono text-sm text-gray-1 group-hover:text-command-gold">
+                      <span className="font-mono text-sm text-text group-hover:text-command-gold">
                         {p.publicTitle ?? p.name}
                       </span>
                       <span aria-hidden="true" className="text-command-gold">

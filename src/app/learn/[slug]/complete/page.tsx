@@ -169,7 +169,7 @@ export default async function LessonCompletePage({
         <span className="font-mono text-[11px] uppercase tracking-[0.4em] text-gold-dim">
           {mastered ? "// Mastered" : "// Lesson complete"}
         </span>
-        <h1 className="mt-3 font-display text-4xl leading-none tracking-[0.12em] text-gray-1 sm:text-5xl">
+        <h1 className="mt-3 title-hero">
           {project.name}
         </h1>
         <p className="mt-4 font-serif text-base italic text-gold-dim">
@@ -226,7 +226,7 @@ export default async function LessonCompletePage({
               </p>
               <Link
                 href={`/learn/${slug}/exam`}
-                className="mt-3 inline-block font-mono text-xs uppercase tracking-[0.2em] text-gray-2 underline hover:text-command-gold"
+                className="mt-3 inline-block font-mono text-xs uppercase tracking-[0.2em] text-text underline hover:text-command-gold"
               >
                 Review exam
               </Link>
@@ -236,11 +236,11 @@ export default async function LessonCompletePage({
               <span className="font-mono text-[11px] uppercase tracking-[0.4em] text-gold-dim">
                 ★ Optional final
               </span>
-              <p className="mt-3 font-display text-2xl leading-tight tracking-wider text-gray-1 sm:text-3xl">
+              <p className="mt-3 title-section">
                 Earn your Verified Certificate
                 <br className="hidden sm:block" /> of Achievement
               </p>
-              <p className="mx-auto mt-3 max-w-md font-serif text-sm italic text-gray-2">
+              <p className="mx-auto mt-3 max-w-md font-serif text-sm italic text-text">
                 Take the final exam to prove you&rsquo;ve got the whole build
                 down: every stage, start to finish. Pass and the certificate is
                 yours.

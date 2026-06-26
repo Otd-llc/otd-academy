@@ -57,7 +57,7 @@ export default async function LibraryIndexPage() {
                 href={`/library/${l.slug}`}
                 className="glass-card group block p-5 transition-colors hover:border-command-gold/50"
               >
-                <p className="font-display text-2xl tracking-wide text-white transition-colors group-hover:text-command-gold">
+                <p className="title-card transition-colors group-hover:text-command-gold">
                   {l.title}
                 </p>
                 {l.summary ? (

@@ -65,7 +65,7 @@ export default function BriefsIndexPage() {
                 <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted">
                   {brief.eyebrow}
                 </span>
-                <span className="font-display text-2xl leading-tight tracking-wide text-white group-hover:text-command-gold">
+                <span className="title-card group-hover:text-command-gold">
                   {brief.title}
                 </span>
                 <span className="font-serif text-sm leading-snug text-muted">

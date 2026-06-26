@@ -76,7 +76,7 @@ export default async function CurriculumPage() {
       </nav>
 
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-display text-4xl tracking-wider text-white sm:text-5xl">
+        <h1 className="title-hero">
           CURRICULUM
         </h1>
         <p className="font-mono text-xs uppercase tracking-wider text-muted">

@@ -114,7 +114,7 @@ function Shell({
       >
         ← Library authoring
       </Link>
-      <h1 className="mt-3 font-display text-4xl tracking-wider text-white">
+      <h1 className="mt-3 title-hero">
         MINI-LESSON <span className="text-command-gold">{heading}</span>
       </h1>
       <div className="mt-8 rounded border-t-2 border-command-gold bg-navy-dark/20 p-4">

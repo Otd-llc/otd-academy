@@ -215,12 +215,12 @@ export default async function PricingPage() {
         <p className="font-mono text-[11px] uppercase tracking-[0.35em] text-command-gold">
           Pricing
         </p>
-        <h1 className="mt-6 font-display text-5xl leading-[0.88] tracking-tight text-white sm:text-7xl">
+        <h1 className="mt-6 title-hero">
           Pay once per board.
           <br />
           <span className="text-command-gold">Or take the whole bench.</span>
         </h1>
-        <p className="mt-7 max-w-2xl font-serif text-lg leading-relaxed text-gray-2">
+        <p className="mt-7 max-w-2xl font-serif text-lg leading-relaxed text-text">
           All of Level 1 is free. Buy a single premium build, or take the
           All-Access Pass for every premium board and bench tool. One-time
           purchase, no subscription.
@@ -238,7 +238,7 @@ export default async function PricingPage() {
             <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-muted">
               One build
             </p>
-            <p className="mt-2 font-display text-2xl tracking-wide text-white">
+            <p className="mt-2 title-card">
               A single premium board
             </p>
           </div>
@@ -258,7 +258,7 @@ export default async function PricingPage() {
               Price shown on each course
             </p>
           )}
-          <ul className="space-y-2.5 text-sm leading-relaxed text-gray-2">
+          <ul className="space-y-2.5 text-sm leading-relaxed text-text">
             <li>The full guide: schematic, layout, DRC, and fab-ready gerbers</li>
             <li>Lifetime access to that build, no subscription</li>
             <li>Your purchase counts toward the Pass later</li>
@@ -283,7 +283,7 @@ export default async function PricingPage() {
               <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-command-gold">
                 All-Access Pass
               </p>
-              <p className="mt-2 font-display text-3xl tracking-wide text-white">
+              <p className="mt-2 title-section">
                 Every premium build and bench tool
               </p>
             </div>
@@ -309,7 +309,7 @@ export default async function PricingPage() {
               Coming soon
             </p>
           )}
-          <ul className="grid grid-cols-1 gap-2.5 text-sm leading-relaxed text-gray-2 sm:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-2.5 text-sm leading-relaxed text-text sm:grid-cols-2">
             <li>Every premium board and all six bench tools</li>
             <li>Lifetime access, no subscription</li>
             <li>Pay only the difference to upgrade</li>
@@ -348,10 +348,10 @@ export default async function PricingPage() {
         <p className="font-mono text-[11px] uppercase tracking-[0.35em] text-command-gold">
           Full catalog
         </p>
-        <h2 className="mt-3 font-display text-3xl tracking-wide text-white">
+        <h2 className="mt-3 title-section">
           What everything costs
         </h2>
-        <p className="mt-3 max-w-2xl font-serif text-base leading-relaxed text-gray-2">
+        <p className="mt-3 max-w-2xl font-serif text-base leading-relaxed text-text">
           Every line is a one-time purchase with lifetime access. Paid tracks
           open with the Level 1 launch. Join the Pass waitlist above and we&apos;ll
           tell you first.
@@ -378,7 +378,7 @@ export default async function PricingPage() {
                 </span>
                 <span
                   className={`text-sm leading-snug ${
-                    r.hero ? "font-medium text-white" : "text-gray-1"
+                    r.hero ? "font-medium text-white" : "text-text"
                   }`}
                 >
                   {r.desc}
@@ -387,7 +387,7 @@ export default async function PricingPage() {
                   className={`whitespace-nowrap text-right font-mono tabular-nums ${
                     r.hero
                       ? "text-base text-command-gold"
-                      : "text-base text-gray-1"
+                      : "text-base text-text"
                   }`}
                 >
                   {r.price}
@@ -431,10 +431,10 @@ export default async function PricingPage() {
             ],
           ].map(([q, a]) => (
             <div key={q}>
-              <dt className="font-display text-xl tracking-wide text-white">
+              <dt className="title-card">
                 {q}
               </dt>
-              <dd className="mt-2 font-serif text-sm leading-relaxed text-gray-2">
+              <dd className="mt-2 font-serif text-sm leading-relaxed text-text">
                 {a}
               </dd>
             </div>

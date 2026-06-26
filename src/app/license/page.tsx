@@ -35,7 +35,7 @@ export default function LicensePage() {
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-command-gold">
           {LICENSE_COPYRIGHT}
         </p>
-        <div className="mt-6 space-y-5 font-serif text-base leading-relaxed text-gray-1">
+        <div className="mt-6 space-y-5 font-serif text-base leading-relaxed text-text">
           {LICENSE_BODY.map((paragraph, i) => (
             <p key={i}>{paragraph}</p>
           ))}

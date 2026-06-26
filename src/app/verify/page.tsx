@@ -108,10 +108,10 @@ export default async function VerifyPage({
           <span className="mt-5 font-mono text-[11px] uppercase tracking-[0.4em] text-gold-dim">
             // Certificate verification
           </span>
-          <h1 className="mt-3 font-display text-5xl tracking-wide text-gray-1">
+          <h1 className="mt-3 title-hero">
             Verify a certificate
           </h1>
-          <p className="mt-3 max-w-md font-serif text-[15px] leading-relaxed text-gray-2">
+          <p className="mt-3 max-w-md font-serif text-[15px] leading-relaxed text-text">
             Every certificate is recorded the moment it is issued. Enter the code
             from one to confirm who earned it, the board they built, and when.
           </p>
@@ -126,7 +126,7 @@ export default async function VerifyPage({
             <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-command-gold">
               What a code confirms
             </p>
-            <ul className="mt-4 space-y-3 font-serif text-[15px] leading-snug text-gray-2">
+            <ul className="mt-4 space-y-3 font-serif text-[15px] leading-snug text-text">
               <li className="flex gap-3">
                 <span className="text-command-gold">→</span>
                 The name of the person who earned it.
@@ -153,9 +153,9 @@ export default async function VerifyPage({
             <p className="font-mono text-xs uppercase tracking-[0.2em] text-alert-red">
               ✕ No certificate found
             </p>
-            <p className="mt-2 font-serif text-sm text-gray-2">
+            <p className="mt-2 font-serif text-sm text-text">
               We couldn&rsquo;t find a certificate with the code{" "}
-              <span className="font-mono text-gray-1">{code}</span>. Check it and try
+              <span className="font-mono text-text">{code}</span>. Check it and try
               again.
             </p>
           </div>
@@ -186,10 +186,10 @@ export default async function VerifyPage({
                   ? "Verified Certificate of Achievement"
                   : "Lesson Complete"}
               </p>
-              <p className="mt-2 font-display text-4xl tracking-wide text-gray-1">
+              <p className="mt-2 title-section">
                 {cert.name}
               </p>
-              <p className="mt-2 font-serif text-[15px] italic text-gray-2">
+              <p className="mt-2 font-serif text-[15px] italic text-text">
                 {cert.variant === "cert"
                   ? "earned this certificate for building"
                   : "built"}{" "}
