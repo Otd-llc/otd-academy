@@ -1,0 +1,18 @@
+refDes,manufacturer,mpn,quantity,unitPrice,altMpn,altManufacturer,notes
+U1,Espressif Systems,ESP32-S3-WROOM-1-N16R2,1,6.32,,,MCU module; on-module PCB antenna carries the 2.4GHz ESP-NOW link
+U2,Richtek,RT9080-33GJ5,1,0.28,,,3.3V/600mA LDO with EN
+D1,STMicroelectronics,USBLC6-2SC6,1,0.03,USBLC6-2SC6,UMW,VBUS + D+/D- ESD array; UMW is a pin/spec second source
+F1,Littelfuse,1206L050YR,1,0.64,0ZCJ0050FF2G,Bel Fuse,PTC polyfuse 0.5A hold / 1A trip 6V
+J1,GCT,USB4110-GF-A,1,1.27,,,USB-C receptacle; right-angle SMT contacts with THT solder-retention posts
+C1,KEMET,C0805C106K3PACTU,1,0.23,,,10uF 3V3 bulk
+"C5,C6",Würth Elektronik,885012207103,2,0.30,,,1uF LDO in/out
+"C2,C3,C4",Samsung Electro-Mechanics,CL21B104KBCNNNC,3,0.10,,,0.1uF module decoupling x2 + EN cap x1
+"R1,R2",Yageo,RC0805FR-0710KL,2,0.10,,,10k EN + BOOT pull-ups
+"R3,R4",Yageo,RC0805FR-075K1L,2,0.10,,,5.1k USB-C CC sink pull-downs
+"R5,R6",Yageo,RC0805FR-07470RL,2,0.10,,,470R LED series (power + LINK)
+LED1,Würth Elektronik,150080RS75000,1,0.19,,,Red power LED (always-on 3V3)
+LED2,Würth Elektronik,150080YS75000,1,0.19,,,Yellow LINK/RX LED on GPIO47
+"SW1,SW2,SW3",Omron,B3F-1000,3,0.35,,,EN(reset) / BOOT / USER(send) tactile
+J2,Sullins Connector Solutions,PRPC040SAAN-RC,1,1.23,,,Expansion header (breakaway; snap to size)
+TP1,Keystone Electronics,5010,1,0.30,,,3V3 test point (red)
+TP2,Keystone Electronics,5011,1,0.27,,,GND test point (black)
