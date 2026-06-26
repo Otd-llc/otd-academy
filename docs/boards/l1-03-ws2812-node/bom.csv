@@ -1,0 +1,26 @@
+refDes,manufacturer,mpn,quantity,unitPrice,altMpn,altManufacturer,notes
+C1,Yageo,CC0805KKX5R7BB106,1,0.31,GRM21BR61E106KA73L,Murata Electronics,10uF 3V3 bulk; 0805 16V X5R; DK-in-stock re-sub 2026-06-25 (169k stock) after the Murata GRM21BR61E106KA73L sub also went DK-OOS; alts = Murata GRM21BR61E106KA73L (25V) + Samsung CL21A106KOQNNNE (orig, both DK-OOS)
+C11,Samsung Electro-Mechanics,CL21A475KAQNNNE,1,0.10,,,4.7uF VBUS bulk (NEW, PI-2/F10-1) - 0805 25V X5R; keeps total VBUS cap (C5+C8+C9+C11=5.9uF) under the USB-2.0 10uF inrush ceiling
+"C2,C3,C7,C8,C9",Samsung Electro-Mechanics,CL21B104KBCNNNC,5,,,,0.1uF decoupling: C2/C3 module + C7 EN (core) + C8 shifter VCC + C9 pixel VDD
+"C5,C6",Würth Elektronik,885012207103,2,,,,1uF LDO in/out (core)
+C10,Panasonic,EEU-FM1C102,1,1.07,EEU-FR1C102,Panasonic,1000uF/16V radial - strip inrush bulk at injection terminal; ~10x20mm tall keep-out (NEW); DK-in-stock sub (same Panasonic FM/FR family, drop-in); alt = EEU-FR1C102
+D1,STMicroelectronics,USBLC6-2SC6,1,,USBLC6-2SC6,UMW,USB ESD array (core); STMicro primary (multi-distributor) + UMW clone alt — P13-5
+D2,Littelfuse,SMAJ5.0A,1,0.30,,,uni TVS across 5V_EXT at J5 - over-voltage/reverse clamp + bounds DATA back-feed (NEW, RK10/RK11/RK9)
+D3,Bourns,CDSOD323-T05C,1,1.13,PESD5V0S1BA,Nexperia,5V bidir ESD on J4 DATA->GND (NEW, RK13/RK15); SOD-323; ~3pF -> R8*C~1.4ns << pulse; clamp ~18.3V@17A (transient-ESD OK for 5V CMOS); DK-in-stock sub for the backordered Nexperia; alt = PESD5V0S1BA
+F1,Littelfuse,1206L050YR,1,0.64,0ZCJ0050FF2G,Bel Fuse,PTC polyfuse 0.5A hold (core)
+J1,GCT,USB4110-GF-A,1,1.27,,,USB-C connector (core)
+"J2,J3",Sullins Connector Solutions,PRPC040SAAN-RC,2,,,,GPIO breakaway headers (core)
+J4,TE Connectivity,282837-3,1,1.30,,,3-pos 5.08mm screw terminal - strip out 5V/DATA/GND; reused from TB-1-POWER family (NEW)
+J5,TE Connectivity,282837-2,1,1.00,,,2-pos 5.08mm screw terminal - 5V injection; reused from TB-1-POWER family (NEW)
+LED1,Würth Elektronik,150080RS75000,1,,,,red power LED (core)
+LED2,Würth Elektronik,150080YS75000,1,,,,yellow user LED (core)
+LED3,XINGLIGHT,XL-5050RGBC-WS2812B,1,0.40,SK6812,Opsco Optoelectronics,onboard "first pixel" 5050 WS2812B-compatible Digikey-orderable (NEW); exact string CONFIRMED + datasheet OBTAINED (LCSC C2843785, Pass 11); DOUT VOH unspecified (F10-4 residual); alt SK6812 LCSC-only
+"R1,R2",Yageo,RC0805FR-0710KL,2,,,,10k EN/GPIO0 pull-ups (core)
+"R3,R4",Yageo,RC0805FR-075K1L,2,,,,5.1k CC sink pull-downs (core)
+"R5,R6,R7,R8",Yageo,RC0805FR-07470RL,4,,,,470R: R5/R6 LED series (core) + R7 shifter-data series + R8 pixel-DOUT->strip series & parasitic limit (NEW uses of existing part)
+"SW1,SW2",Omron,B3F-1000,2,,,,EN/BOOT buttons (core)
+TP1,Keystone Electronics,5010,1,,,,3V3 test point red (core)
+TP2,Keystone Electronics,5011,1,,,,GND test point black (core)
+U1,Espressif Systems,ESP32-S3-WROOM-1-N16R2,1,6.32,,,ESP32-S3 module (core, reused)
+U2,Richtek,RT9080-33GJ5,1,0.28,,,3.3V/600mA linear LDO (core, reused)
+U3,Texas Instruments,SN74AHCT125DR,1,0.40,SN74AHCT125N,Texas Instruments,quad bus buffer level shifter SOIC-14; DR (T&R, active) — bare D was obsolete/Marketplace P13-4; alt = PDIP-14 (NEW)

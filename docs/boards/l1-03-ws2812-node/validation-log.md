@@ -1,0 +1,463 @@
+# WS2812 Addressable-LED Driver (L1.03) — validation log
+
+> Evidence trail for the **Recursive Board-Design Validation Protocol**
+> (`../_protocol.md`). One entry per pass. This log is what backs this board's
+> `DESIGN_VALIDATION` attestations — when a tick is made, the proof is here.
+
+| | |
+| --- | --- |
+| **Slug** | `l1-03-ws2812-node` |
+| **Status** | `Pass 15 — design-stage DRY (re-achieved); gate MET`. Pass 13 (independent fresh eyes) re-opened the gate with 1 HIGH + 4 MED + 2 LOW; **all are now resolved**: part-truth corrections folded (P13-1/2/3/6, verified from the C2843785 PDF), **U3 `SN74AHCT125D`→`SN74AHCT125DR`** (obsolete fix) + **D1 UMW→STMicroelectronics** (shared — l1-01 BOM repointed too) applied to the library + bom.csv. Pass 14 (math/net) clean; **Pass 15** full consistency dry-sweep = **zero new findings**. **Design-stage `[D]` audits all clean — the gate is (re-)met.** Still owed by phase-staging (F7, NOT design-stage blockers): footprint↔pinout `[S]` at schematic, fab-DRU + VBUS⟂5V_EXT ERC `[L]` at layout, F10-4 DOUT-VOH at bring-up. **`DESIGN_VALIDATION` ticks (esp. #5 in-stock buy-confirm) + the BOM freeze remain Josh's.** |
+| **Passes run** | 19 |
+| **Last dry pass** | **Pass 19** (live DK API re-screen → C1 re-sub, 2026-06-25) — DRY after the fix: a live DigiKey screen found **C1's Pass-16 Murata sub had itself gone DK-OOS**; re-subbed C1 → **Yageo CC0805KKX5R7BB106** (Active, 169k stock, spec-identical 10 µF/16 V/X5R/0805). Re-screen: **all 25 lines Active + DK-in-stock, zero OOS.** Strict-match 25/0/0/0. **DV 1/2/3/5/6 attested; #4 (fab-DRU) owed `[L]`.** BOM **UNFROZEN** (hold before LAYOUT). |
+
+### Pass 10 — DRY-SWEEP of the folded design (2 fresh reviewers: electrical + consistency)
+
+**Verdict: NOT DRY.** The big Passes-4–9 fold introduced regressions — the dry-sweep
+caught them (validates the rule). NEW findings:
+
+| # | Sev | Finding (NEW / fold-induced) | Disposition |
+| --- | --- | --- | --- |
+| F10-1 | **MED** | **C11 = 10 µF pushes total VBUS cap (~11.2 µF w/ C5+C8+C9) over the USB-2.0 10 µF inrush ceiling** — a side-effect of the PI-2 fold, never checked. | FOLD: **C11 → 4.7 µF** (total ~6 µF, still rides the 60 mA pixel pulse) — new 4.7 µF part. |
+| F10-2 | **MED** | **D3 PESD5V0S1BA is NOT "low-cap"** — 35–45 pF (bidirectional); the §4 "low C keeps the 800 kHz edge" claim is **false**. RC w/ R8 ≈ 19 ns. | FOLD: keep the part (solderable SOD-323; 19 ns ≪ 300 ns WS2812 pulse = fine) but **correct the rationale** + add the RC row. |
+| F10-4 | **MED** | **Cross-domain margin row uses unjustified bounds** — VBUS,min "4.6 V" asserted (USB allows 4.40 V at the port; PTC/trace IR lowers it more) and DOUT-high ≈ VBUS is optimistic (ignores the WS2812 DOUT driver drop, unspecified for the clone). Real margin ~+0.2…+0.4 V, thinner than stated +0.75 V. | FOLD: re-derive honestly; flag residual gated on the XINGLIGHT DOUT VOH (P5-2). |
+| F10-3 | LOW/MED | SMAJ5.0A standoff is **correct** (no conduction at 5 V; VBR 6.4 V), BUT 800 µA leakage at 5 V is un-budgeted AND PI-1 assumes 5V_EXT up to **5.5 V** — above D2's VRWM 5.0 V → soft-conduction at top of tolerance. **Tension to resolve.** | **DECISION:** bound 5V_EXT ≤5.25 V + accept 800 µA leakage **OR** step D2 → SMAJ6.0A (VC 10.3 V). |
+| F10-6 / P10-1 | MED | **§8 cost "+~$2.50 new" contradicts the BOM** — actual ≈ **$3.85–4 new** (the two TE terminals alone are $2.30; D2/D3 added without updating). Likely **~$16–17 total**, over the $14–15 target. | FOLD: update §8 cost. |
+| F10-5 | LOW | RK8 "9 mA" unchanged by D3 (D3 inactive at 4.3 V) — the "D2/D3 backstop" clause **overstates D3's role** for the steady DOUT-high case. | FOLD: trim wording. |
+| P10-2 | LOW/MED | **FMEA gap on the new protection parts themselves** — D2 fail-short = dead, unindicated 5V_EXT rail (relies on the user's fused supply); D3 reverse-leakage on DATA not in its verify scope. | FOLD: extend RK10 + D3 verify scope. |
+| F10-7 | info | D2/D3 footprints join the `[S]`-staged Pass-6 list — correctly staged, no action. | (staged) |
+
+**Clean (attacked, no regression):** isolation invariant; refDes/qty consistency
+(BOM import-valid; R5-8=4, C2-9=5, C1,C11=2); §7 = 6 core items; risk-register
+integrity (RK10≠RK11, §7 item-6 list matches statuses); "one combined lesson"
+decision reflected (no leftover tier language); all Passes-4–9 folds physically present.
+
+### Owner decision on the Pass-10 D2 fork (resolved 2026-06-17)
+
+**D2 = keep Littelfuse SMAJ5.0A** + **recommend a regulated strip supply ≤ 5.25 V**
+(silk + guide). Chosen over SMAJ6.0A because it (a) resolves F10-3 by keeping D2 within
+its no-conduction band, (b) tightens the F10-4 cross-domain margin (lower V(5V_EXT,max)
+→ lower VIH), and (c) keeps the stronger 12 V crowbar (VC ~9.2 V vs ~10.3 V). The 800 µA
+VRWM leakage is budgeted (off-board 5V_EXT, not VBUS). No new part added by this choice.
+
+### Pass 11 — re-fold of all 8 Pass-10 fixes, then fresh adversarial dry-sweep
+
+**The 8 Pass-10 fixes were folded** into design.md + bom.csv (F10-1 C11→4.7 µF new part
+`CL21A475KAQNNNE`; F10-2 D3 low-cap claim deleted + §3 RC row 470 Ω·45 pF ≈ 21 ns; F10-3
+5V_EXT ≤5.25 V bound + 800 µA leakage budgeted; F10-4 cross-domain margin re-derived
+honestly; F10-5 RK8 D3-clause trimmed; F10-6 §8 cost → ~$4 new/~$16–17 total; P10-2 new
+risk **RK17** protection-part FMEA).
+
+**XINGLIGHT datasheet OBTAINED + verified (P5-2/F8 closed):** LCSC C2843785. Key facts
+folded — VDD 3.5–5.5 V; **VIH 0.7·VDD / VIL 0.3·VDD**; **logic-input abs-max VDI =
+−0.5…VDD+5.5 V** (note: the clone is *looser* than the Worldsemi VDD+0.5 V assumed in
+Pass 5 — applies to *our onboard* pixel, NOT the user's external strip, so RK8 stays
+bound conservatively); VOUT(port) 7 V; IOL1 12 mA; ESD 2 kV HBM; **RES ≥ 80 µs** (table) /
+≥ 100 µs (note b — datasheet self-inconsistent), both ≪ the 300 µs firmware latch; pinout
+1=VDD/2=DO/3=GND/4=DI. **DOUT VOH is NOT specified even in the clone's own datasheet** →
+the F10-4 cross-domain residual is real and owed to bring-up. Two adversarial findings
+verified against the real datasheets before folding: **PESD5V0S1BA = 35 pF typ / 45 pF max**
+(Nexperia — confirms F10-2 "not low-cap"); **CL21A475KAQNNNE = 4.7 µF/25 V/X5R/0805**
+(Samsung — real, in stock).
+
+**Verdict: NOT DRY** — the fold introduced consistency regressions (the dry-pass rule
+earns its keep *again*):
+
+| # | Sev | Finding (NEW / fold-induced) | Disposition |
+| --- | --- | --- | --- |
+| F11-1 | MED | **§7 checklist still said "7 new parts"** while §8 + BOM now carry **8** (the new 4.7 µF C11). A part-creation step reading §7 would miss one. | FOLD: §7 → "8 new parts". |
+| F11-2 | LOW | §1 I4 wording claimed the ≤5.25 V bound "keeps D2 below its 5.0 V VRWM" — false (5.25 > 5.0 VRWM; it stays below *VBR 6.4 V*, not VRWM). | FOLD: reword to "within its no-conduction band (below VBR 6.4 V; ~0.8 mA leakage at 5.0 V nominal)". |
+| F11-3 | trivial | Status headers still read "post Passes 1–9 / owes a dry pass". | FOLD: → Passes 1–12, design-stage DRY. |
+
+**Clean (attacked, no regression):** total-VBUS-bulk arithmetic (C5 1 + C8 0.1 + C9 0.1 +
+C11 4.7 = 5.9 µF < 10 µF); cost arithmetic ($3.95 new); BOM refDes-count = quantity on
+every row (C1=1, C11=1, the 0.1 µF row still 5, 470 Ω still 4) → import-valid; reset 300 µs
+≥ datasheet 80–100 µs and ≠ the 35 µs intra-frame rule; RK8's conservative external-DIN
+bound; onboard-hop +0.30 V floor still positive; isolation invariant intact.
+
+### Pass 12 — dry-sweep after the F11 fixes (fresh adversarial: consistency + electrical)
+
+Re-ran the consistency + electrical lenses against the F11-corrected doc. **8-new-parts
+count now agrees across §7 / §8 / BOM (8 NEW rows: U3, LED3, J4, J5, C10, D2, D3, C11; C1
+reused).** I4 wording accurate. No stale "7 new" / "1–9" / "C11 10 µF" remain (grep-clean).
+No floating nodes introduced; every folded number re-checked at worst case.
+
+**Verdict: DRY (design-stage).** Zero new material findings. With 12 passes run and a
+design-stage dry pass achieved, the **design-stage gate is met** — the 8 new parts may be
+created, the BOM imported, and the revision advanced. Still explicitly owed (F7 phase-
+staging, legitimately): footprint↔symbol↔pinout `[S]` (Pass 6, at schematic), fab-DRU +
+the VBUS⟂5V_EXT ERC `[L]` (at layout), and the **DOUT-VOH cross-domain residual** (F10-4)
+confirmed by measurement at bring-up.
+
+### Pass 13 — Independent fresh-eyes re-pass: part-truth + sourcing, datasheets re-read from PRIMARY sources (2026-06-19)
+
+A reviewer who did **not** run Passes 1–12 re-attacked the two highest-leverage
+audits — **part-truth (audit 5)** and **sourcing/lifecycle (audit 10)** — and
+re-verified every load-bearing number against the **primary** datasheet (TI
+SCLS264R; Littelfuse/AOS SMAJ table; Nexperia PESD5V0S1BA; USB-2.0 §7.2.4.1; the
+XINGLIGHT LCSC C2843785 PDF read via `pdftotext`, not a model summary). The
+protocol's "verify every load-bearing finding against the actual datasheet before
+folding it" rule was applied to the *reviewer's own* findings too.
+
+**Independently CONFIRMED correct (no change — strengthens the record):**
+74AHCT125 **VOH 3.8 V over-temp @ I_OH −8 mA, VCC 4.5 V** (and 3.94 V @ 25 °C) ✓,
+VIH 2.0 / VIL 0.8 V flat over VCC ✓, OE active-low ✓, SOIC-14 pin 7 = GND / 14 = VCC ✓,
+abs-max VCC/VI −0.5…7 V. · SMAJ5.0A **VRWM 5.0 ✓, VBR 6.4 V min @ 10 mA ✓, VC 9.2 V @ 43.5 A ✓,
+I_R 800 µA @ VRWM ✓** (nuance: this is the SMAJ family's *worst* leakage and a hard
+max at the 5.0 V stand-off — only ~1.4 V min-VBR margin above a 5 V rail; **independently
+supports the ≤5.25 V supply rule**). · PESD5V0S1BA **35 pF typ / 45 pF max ✓** (genuinely
+NOT low-cap), VRWM 5 V ✓, bidirectional ✓, VC 10 V@1A / 14 V@12A ✓. · USB-2.0 **10 µF
+VBUS-cap ceiling ✓** (nuance: the normative limit is inrush *charge* ~50 µC; 10 µF is the
+equivalent-capacitance proxy — the design's "keep total bulk < 10 µF" is conservative &
+spec-aligned). · XINGLIGHT **VIH 0.7·VDD / VIL 0.3·VDD ✓, RES ≥ 80 µs ✓, 4-pin pinout
+1=VDD/2=DO/3=GND/4=DI ✓, and DOUT VOH genuinely UNSPECIFIED ✓** (the F10-4 cross-domain
+residual correctly stays open to bring-up).
+
+**NEW / material findings:**
+
+| # | Lens (audit) | Sev | Finding (verified vs primary datasheet) | Recommended disposition |
+| --- | --- | --- | --- | --- |
+| **P13-4** | Sourcing (10) | **HIGH** | **U3 `SN74AHCT125D` is OBSOLETE.** TI's own part page: *"SN74AHCT125D is no longer in production."* The bare-`D` (tube) is retired; the active, deep-stock SOIC-14 is **`SN74AHCT125DR`** (T&R). `bom.csv` L26 **and the already-created library part** carry the dead `D` → strict import + a real buyer route to a DigiKey *Marketplace* listing for a part TI no longer makes. Sharpens F12 item 1 (from "consider" → **obsolete, must-fix**). | **OWNER ACTION (parts + BOM):** change U3 → **`SN74AHCT125DR`** in the library part *and* bom.csv (strict-match re-create); keep `SN74AHCT125N` (PDIP-14, still Active) as the 2nd source. **Audit 10 is NOT clean** until done. |
+| **P13-3** | Part-truth (5) | **MED** | **XINGLIGHT DIN logic-input abs-max is `−0.5 … +5.5 V` ABSOLUTE**, not the `−0.5 … VDD+5.5 V` that Pass 11 folded as "verified" + called *looser than Worldsemi*. The reviewer's own skepticism (logged Pass 11) was right: the "+VDD" was a misread. At VDD 5 V → only +0.5 V headroom (same as Worldsemi). **Re-proof:** the onboard pixel's DIN is driven ≤ 5 V by the shifter → within −0.5…5.5 V (no functional violation); RK8's external-strip bound was always conservative and did NOT rely on this number → unchanged. Only the *record* was wrong. | **FOLD:** correct §4 / F8 / the Pass-11 note to `−0.5…+5.5 V absolute`; delete the "clone is looser" reasoning. (OCR-messy clone DS — owner sanity-check against the PDF when folding.) |
+| **P13-2** | Part-truth (5) | **MED** | **XINGLIGHT VDD range reads `3.5–7.5 V`** (abs-max Vin 3.0–7.5 V) in the LCSC C2843785 PDF, not the `3.5–5.5 V` in §3/§4 (the 5.5 V looks borrowed from Worldsemi WS2812B). No functional change (onboard VDD = VBUS = 5 V), but the stated range is wrong. | **FOLD:** correct the VDD range. **Owner verify against the PDF** — the clone datasheet OCR is noisy (5.5 vs 7.5 is exactly the kind of digit OCR flips); confirm before folding. |
+| **P13-1** | Part-truth (5) | **MED** | **74AHCT125 tpd "≈ 9–22 ns typ, ≤ 30 ns max" is not traceable to the TI SN74AHCT125.** Actual: typ ≈ 3.6–6.1 ns, **max 8.5 ns in-phase / 10 ns worst-case** (CL 50 pF, VCC 5 V±0.5, full temp). The *conclusion* (tpd ≪ the 1.25 µs bit → negligible skew) is unaffected — the part is faster than stated. Also the cited doc **"SCLS266" → actual "SCLS264R"**. | **FOLD:** correct the §3 tpd row (typ ~5 ns / max ~10 ns) + the citation. |
+| **P13-5** | Sourcing (10) | MED | **D1 `UMW USBLC6-2SC6`** is a Chinese house-brand clone, **DigiKey-sole-source** in the West; canonical **STMicro USBLC6-2SC6** is multi-distributor (Mouser/Newark) — and **not spec-identical** (ST 17 V/5 A vs some UMW listings 15 V/6 A). **Reused L1.01 core part → this also applies to `l1-01-wroom-breakout`.** Sharpens F12 item 2. | **OWNER ACTION:** spec **STMicroelectronics** as primary, UMW as alt (ripples to l1-01's BOM + the shared library part). |
+| **P13-6** | Part-truth (5) | LOW | The §3 note that the XINGLIGHT RES is "**internally inconsistent** (≥ 80 µs table / ≥ 100 µs note b)" could **not** be reproduced — the independent read found **only 80 µs** (no ≥ 100 µs note). The ≥ 300 µs firmware latch is safe regardless. | **FOLD:** drop the "≥ 100 µs note b / internally inconsistent" clause; keep RES ≥ 80 µs + the 300 µs latch. |
+| **P13-7** | Footprint↔pinout (6, `[S]`) | LOW/note | XINGLIGHT publishes **two variants with different pinouts** (a 4-pin = design's 1=VDD/2=DO/3=GND/4=DI, and a 6-pin = 1=DIN/2=GND/3=NC/4=VDD/5=NC/6=DO). Design matches the 4-pin (C2843785). | **`[S]` note:** confirm the footprinted/ordered variant is the **4-pin C2843785** (ties F12 item 4's `-S`/`RGBWC` variant-collision caution). |
+
+**Verdict: NOT DRY (design-stage).** The board's electrical *concept* survives the
+independent attack intact — every load-bearing margin (VOH floor, TVS clamp & leakage,
+ESD cap & RC, USB ceiling, VIH/VIL, the open DOUT-VOH residual) re-verified correct
+against primary datasheets. But two audits are not closed: **audit 10 (sourcing)** —
+U3 carries an **obsolete** MPN (must → `DR`) and D1 should move to ST (both already
+implied by F12, now confirmed/sharpened against the manufacturers' own pages); and
+**audit 5 (part-truth)** — three XINGLIGHT/74AHCT125 numbers were mis-stated as
+"verified." These are **documentation corrections + one MPN swap, not an electrical
+redesign**. After the fold + the U3 fix, run a fresh design-stage dry sweep (**Pass 14**)
+before the parts/BOM are treated as final. (Consistent with the board's own state: F12
+had already un-attested DV#5; Pass 13 confirms why and adds the part-truth corrections.)
+
+### Pass 13 — part-truth corrections FOLDED (2026-06-19)
+
+The 4 part-truth findings were re-verified **direct from the XINGLIGHT C2843785 PDF**
+(`pdftotext`, not OCR-guess) and folded into `design.md`:
+- **P13-1** §3 tpd row → `≈ 3.6–6.1 ns typ, ≤10 ns max` + cite **SCLS264R** (was "9–22 ns/≤30 ns").
+- **P13-2** §4 LED3 row → **VDD 3.5–7.5 V** (datasheet "Power input voltage: 3.5-7.5V", line 114).
+- **P13-3** §4 LED3 + RK8 + F8 → **V1 abs-max −0.5…+5.5 V absolute** (datasheet line 196), and the
+  Pass-11 "looser than Worldsemi" reasoning corrected (it's the *same* +0.5 V headroom).
+- **P13-6** §3 reset row → dropped the unfound "≥100 µs note b / internally inconsistent" claim;
+  RES ≥80 µs only (datasheet TRST line 288).
+
+Consistency re-checked: no stale `9–22 ns` / `VDD+5.5` / `3.5–5.5 V` / `≥100 µs` assertions remain
+(remaining hits are the citations that document each correction). **No new findings from the fold.**
+
+**Sourcing (P13-4 U3, P13-5 D1) NOT yet executed** — owner approval (D1 ripples to l1-01). Script
+`scripts/_fix-l103-sourcing.ts` dry-run confirmed: **U3** referenced only by `l1-03/v1:U3` (safe);
+**D1** referenced by `l1-01-wroom-breakout/v1:D1` **and** `l1-03/v1:D1` (shared — swap repoints both).
+A full design-stage **dry sweep (Pass 14)** is owed after the sourcing swap + bom.csv patch.
+
+### Pass 14 — Independent re-derivation: math / arithmetic / net-integrity (fresh eyes, 2026-06-19)
+
+The lenses Pass 13 didn't personally re-attack, re-derived from first principles + the
+Pass-13-verified datasheet numbers (not trusting the prior passes' results). **CLEAN — zero
+new material findings (dry for these lenses).**
+
+| Check | Independent re-derivation | Result |
+| --- | --- | --- |
+| **VBUS bulk total** | **C5 `885012207103` confirmed = 1 µF** (Würth WCAP-CSGP 0805 50 V X7R — closes the one un-verified term). C5 1 + C8 0.1 + C9 0.1 + C11 4.7 = **5.9 µF < 10 µF** USB ceiling. | ✓ holds |
+| **Onboard-hop margin (RK1)** | VOH & VIH both ref VBUS. @VBUS 4.5 V: VOH ≥ 3.8 V (−8 mA, over-temp) vs VIH 0.7·4.5 = 3.15 V → **+0.65 V**. @VBUS 5 V: VOH ≥ 3.8 vs VIH 3.5 → **≥ +0.3 V**. The +0.30 V floor is conservative (corner mis-stack); true single-corner ≈ +0.65 V. | ✓ positive |
+| **Cross-domain margin (F10-4)** | driver = pixel DOUT on VBUS_local ~4.2 V − *unspecified* DOUT drop; VIH = 0.7·5.25 = 3.68 V → ~+0.1…+0.5 V. R8 drop negligible (DIN high-Z). | ✓ = the known bring-up residual |
+| **VBUS budget** | cont. 160 + 60 = **220 mA** ≪ 0.5 A hold; peak 500 (WiFi-TX; linear LDO 1:1) + 60 = **560 mA** < 1 A trip. | ✓ |
+| **Parasitic / RC** | (5 − 0.7)/470 = **9.1 mA** (RK8); R8·C_D3 470·45 pF = **21 ns** ≪ pulse. | ✓ |
+| **Net integrity (spot)** | U3 all 14 pins accounted (gate 1 used; 2–4 parked nOE→VCC/nA→GND/nY-open; 7=GND/14=VCC); pixel VDD/DOUT/VSS/DIN netted; VBUS⟂5V_EXT isolation invariant intact (ERC owed `[L]`). | ✓ |
+
+**One LOW re-confirm (not new):** secondary sources list `885012207103` "discontinued" — F12 already
+ruled this a **Rapid-only** listing, not Würth EOL; re-confirm mfr-active at buy time (shared L1.01 core part).
+
+**Verdict: Pass 14 CLEAN (math/physics/net lenses dry).** The board's numbers survive independent
+re-derivation. **Gate still NOT closed** — only because the **sourcing fixes (P13-4 U3, P13-5 D1) are
+not yet executed**. Once they run + bom.csv is patched, a single full-sweep dry pass closes the
+design-stage gate. No electrical findings remain open (the F10-4 DOUT-VOH residual is bring-up `[L]`, by design).
+
+### Pass 15 — design-stage DRY sweep after the Pass-13 fold + sourcing swap (2026-06-19)
+
+All Pass-13 findings resolved; full consistency sweep over design.md + bom.csv + the worklist docs.
+
+- **Part-truth (P13-1/2/3/6):** folded (Pass 13 fold) — grep-clean of stale `9–22 ns` / `VDD+5.5` /
+  `3.5–5.5 V` / `≥100 µs` assertions; only the citations that document each correction remain.
+- **Sourcing (P13-4/P13-5):** **EXECUTED** — `scripts/_fix-l103-sourcing.ts --confirm --include-d1`
+  updated the library: U3 → **`SN74AHCT125DR`** (TI), D1 → **`STMicroelectronics` USBLC6-2SC6**
+  (shared part; l1-01's BomLine repointed too — Josh's "swap everywhere"). Confirmed via the parts
+  library (U3 = SN74AHCT125DR/TI, D1 = USBLC6-2SC6/STMicroelectronics). **bom.csv patched** (l1-03
+  U3+D1; l1-01 reference BOM.csv D1) + the parts-creation checklist + the F12 stock worklist synced.
+- **Consistency:** no bare `SN74AHCT125D` and no UMW-primary remain in the import-source bom.csv
+  files (the bare-D hits left are the historical Pass-13/Pass-2.5 records + the now-✅ worklist).
+  refDes/qty unchanged (8 NEW rows; import-valid); the §7 6-item checklist intact.
+
+**Verdict: DRY (design-stage), zero new material findings.** With 15 passes run and the design-stage
+dry pass re-achieved after the fold+swap, **every `[D]` audit is clean — the gate is met.** The board's
+parts/BOM are sound as-built. `[S]`/`[L]` audits + the DOUT-VOH bring-up residual stay owed at their
+phases (F7), and the `DESIGN_VALIDATION` attestations (#5 in-stock buy-confirm via `bom-stock-verification.md`)
++ the BOM freeze are Josh's honest sign-off.
+
+### Pass 16 — DK-in-stock sourcing subs, re-validated (2026-06-20)
+
+A live DigiKey screen (`scripts/digikey-stock.ts`) of the 25-line BOM found **3 lines
+DK-out-of-stock** (C1/C10/D3 — all Active, sourceable elsewhere). Owner chose to **sub
+DK-in-stock equivalents** so the whole BOM buys from one DigiKey cart (matches the FastAdd
+UX). The 3 subs were spec-validated (part-truth + sourcing audits) and confirmed live in stock.
+
+| Line | Original (DK-OOS) | Sub (DK-in-stock) | Spec verdict |
+| --- | --- | --- | --- |
+| **C1** | Samsung CL21A106KOQNNNE (10 µF/16 V) | **Murata GRM21BR61E106KA73L** (3874) | 10 µF, **25 V** X5R 0805 — equal-or-better; commodity. (Note: l1-03's C1 now diverges from L1.01's reused Samsung — intentional, for DK stock.) |
+| **C10** | Panasonic EEU-FR1C102 (1000 µF/16 V) | **Panasonic EEU-FM1C102** (2827) | Same FM/FR radial family, 1000 µF/16 V, Ø10×20 mm — **drop-in** (same footprint + L9-1 Z-height keep-out). |
+| **D3** | Nexperia PESD5V0S1BA (45 pF, SOD-323) | **Bourns CDSOD323-T05C** (4083) | SOD-323 (**same footprint**), bidir, VRWM 5 V, **~3 pF → R8·C ≈ 1.4 ns** (was 21 ns — *better* SI, F10-2 re-passes trivially). **Trade:** clamp ~18.3 V@17 A vs the Nexperia's ~14 V@12 A — higher, but adequate for *transient* ESD of 5 V CMOS (the WS2812's own 2 kV-HBM rating + the diverted current handle the residual; abs-max is a DC spec, not an ESD-transient limit). Chose SOD-323 + best-in-class capacitance over a marginally-lower clamp, per the L1 beginner-solderability priority. |
+
+**Parts created** (idempotent seed `scripts/seed-l103-subs.ts`, prod), categorized to mirror the
+originals (MLCC / ALU_ELECTROLYTIC / ESD_DIODE); **originals kept as the documented 2nd-source alts**.
+BOM strict-match re-verified **25/25, 0 unmatched**; BOM lines rewritten (UNFROZEN). Live re-screen:
+**all 25 lines now Active + DK-in-stock** (C1 3874 / C10 2827 / D3 4083; nothing OOS).
+
+**Verdict: DRY (sourcing), zero new material findings.** Audit 10 (sourcing) is now clean —
+DV#5 "BOM availability confirmed (in stock)" is **earned**. No electrical-concept change; the only
+design.md edits are the D3 part identity + its §3 RC row (45 pF→3 pF) + §8 cost (subs added ~$1.9 →
+~$18–19 total, further over the $14–15 target — F10-6 already accepted the overage). Design-stage gate
+**stays met**; `[S]`/`[L]` + DOUT-VOH residual still owed at their phases.
+
+### Pass 17 — Audit 6: footprint ↔ symbol ↔ pinout, `[S]`-VERIFIED (2026-06-21)
+
+The schematic-stage audit that was captured at design and owed at `[S]` (F7). Each of the
+**9 new parts** got a KiCad-10 **standard-library** symbol + footprint (no vendor downloads —
+assigned from the in-DB indexed lib of 22,730 symbols / 15,433 footprints; `scripts/assign-l103-kicad.ts`),
+then verified pad-by-pad (`scripts/_l103-pass6.ts`): **footprint `padCount` = part pin count**, and
+the two ICs' symbol pin maps cross-checked against the datasheet.
+
+| Ref | Symbol | Footprint | pads | pinout check |
+| --- | --- | --- | --- | --- |
+| U3 | `74xx:74AHCT125` | `Package_SO:SOIC-14_3.9x8.7mm_P1.27mm` | 14 ✓ | symbol **7=GND / 14=VCC** = TI datasheet (std 74×125; Pass 5) |
+| LED3 | `LED:WS2812B` | `LED_SMD:LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm` | 4 ✓ | symbol **1=VDD / 2=DOUT / 3=VSS / 4=DIN** = XINGLIGHT datasheet **exactly** (Pass 11) |
+| J4 | `Connector:Screw_Terminal_01x03` | `TerminalBlock_CUI:…TB007-508-03_1x03_P5.08mm_Horizontal` | 3 ✓ | positional (5V/DATA/GND assigned in-schematic) |
+| J5 | `Connector:Screw_Terminal_01x02` | `TerminalBlock_CUI:…TB007-508-02_1x02_P5.08mm_Horizontal` | 2 ✓ | positional |
+| C10 | `Device:C_Polarized` | `Capacitor_THT:CP_Radial_D10.0mm_P5.00mm` | 2 ✓ | polarized (pad1 = +; std convention) |
+| D2 | `Device:D_TVS` | `Diode_SMD:D_SMA` | 2 ✓ | uni-TVS (pad1 = cathode/band; std) |
+| D3 | `Device:D_TVS` | `Diode_SMD:D_SOD-323` | 2 ✓ | bidir part, symmetric (orientation-agnostic) |
+| C11 | `Device:C` | `Capacitor_SMD:C_0805_2012Metric` | 2 ✓ | non-polar |
+| C1 | `Device:C` | `Capacitor_SMD:C_0805_2012Metric` | 2 ✓ | non-polar |
+
+**Verdict: PASS — audit 6 verified at `[S]`.** Two documented `[L]`-residuals (neither blocks): (a) **D3**
+uses the generic `Device:D_TVS` symbol for a *bidirectional* part — electrically fine (symmetric,
+GND-referenced ESD clamp); swap to a bidirectional-TVS symbol only if preferred. (b) **J4/J5** use a
+**generic CUI 5.08 mm** terminal footprint — pitch + pad count correct; the standard lib has no
+TE-282837-specific footprint, so confirm/swap the exact TE body/courtyard at layout. **DV#3
+(footprint↔pinout) is now evidenced** — Josh's honest tick. Still owed: **DV#4 fab-DRU `[L]`** (at layout)
++ the F10-4 DOUT-VOH bring-up residual.
+
+### Pass 18 — Final part-ready confirmation + DV#3 attestation (2026-06-25)
+
+The closing sweep before the PR: re-prove that the *live PROD catalog + revision* match the
+final post-substitution design, then attest the now-earned `[S]` item.
+
+- **Parts ↔ BOM ↔ design strict-match** (`_verify-l103-bom-match.ts`, read-only, prod): the 25
+  `bom.csv` rows parse clean and every `(manufacturer, mpn)` resolves in the library — **25 rows /
+  0 unmatched / 0 refDes-qty mismatch / 0 parse errors**, all lines `ACTIVE`. The 25 **live BomLine
+  rows** (`_l103-state.ts`) equal the CSV row-for-row, carrying the Pass-16 subs: **C1 Murata
+  GRM21BR61E106KA73L**, **C10 Panasonic EEU-FM1C102**, **D3 Bourns CDSOD323-T05C**, plus **U3
+  SN74AHCT125DR** / **D1 STMicroelectronics**. `design.md` carries the subs as **primary** and the
+  Nexperia/Samsung/Panasonic-FR originals only as documented 2nd-source alts (§8) — no stale primary.
+- **DV#3 attested** (`attest-l103-dv.ts`, ordinal 2 added on the Pass-17 `[S]` evidence): the live
+  DESIGN_VALIDATION now reads **1/2/3/5/6 = checked, #4 (fab-DRU) = unchecked**. Board readiness
+  `ready=false` **by design** — "Design validated" is incomplete while #4 is owed `[L]`, and the
+  **BOM is UNFROZEN** (`bomFrozenAt = null`, stage `BOM_SOURCING`). Held before the LAYOUT freeze.
+
+**Verdict: DRY — zero new material findings.** The board is **part-ready**: design validated to DRY
+(18 passes), 9 new parts + the category-tree extension live in PROD, 25 BOM lines written and
+strict-match-clean, DV 1/2/3/5/6 attested. **Owed (by phase, not blockers):** DV#4 fab-DRU `[L]` at
+layout · the F10-4 DOUT-VOH residual at bring-up · Josh's visual DigiKey stock re-confirm (note
+C1/C10/D3 were DK-OOS at the 2026-06-20 screen → the Pass-16 subs are the DK-in-stock equivalents).
+
+### Pass 19 — Live DigiKey API re-screen + C1 re-sub (2026-06-25)
+
+Owner asked for a live DigiKey stock check (we *have* the API key). Ran `scripts/digikey-stock.ts`
+against all 25 lines via the DigiKey Product Information API v4.
+
+- **Finding (MED, sourcing audit 10):** **24/25 lines Active + DK-in-stock**, but **C1's Pass-16
+  sub — Murata `GRM21BR61E106KA73L` — had itself gone DK-OOS (0 stock)**, down from 3,874 on the
+  2026-06-20 screen. (C10 1,825 and D3 3,394 — the other two Pass-16 subs — both still in stock.)
+  A live 10 µF/0805 supply crunch: probing 7 candidates found the original Samsung `CL21A106KOQNNNE`,
+  Samsung `CL21A106KAYNNNE`, and Murata `GRM21BR61C106KE15L` all DK-OOS, and TDK `C2012X5R1C106K085AC`
+  **NRND** (avoid). **Two Active + in-stock equivalents:** Yageo `CC0805KKX5R7BB106` (169,157) and
+  Taiyo Yuden `EMK212ABJ106KG-T` (17,411).
+- **Disposition:** re-sub **C1 → Yageo `CC0805KKX5R7BB106`** — DigiKey-VERIFIED parameters
+  **10 µF / ±10% / 16 V / X5R / 0805 (2012 metric)** (= the original C1 spec; 16 V ample for the
+  3V3-rail bulk), deepest stock of the two (≈10× the Taiyo Yuden) ⇒ most resilient to another flip,
+  and Yageo is already a catalog manufacturer. Part created (`seed-l103-c1-resub.ts`: idempotent
+  upsert, MLCC category + `Device:C` / `Capacitor_SMD:C_0805_2012Metric` KiCad + real datasheet) and
+  the BOM line repointed (`build-l103-revision-bom.ts`, freeze-guarded; DV checklist preserved). Prior
+  Murata + Samsung subs kept as documented alts. Net cost +$0.15 (immaterial vs the ~$18–19 BOM).
+- **Re-verify:** strict-match **25/0/0/0**; live DK re-screen **all 25 lines Active + DK-in-stock, zero OOS**.
+
+**Verdict: DRY — zero new findings after the fix.** The board's electrical concept is unchanged (a
+spec-identical MLCC swap). DV#5 (BOM availability) re-earned against *live* DigiKey data, now one-cart
+DK-sourceable end-to-end. Still owed (by phase): DV#4 fab-DRU `[L]` · F10-4 DOUT-VOH at bring-up.
+**MLCC sourcing note for the owner:** 10 µF/0805 stock is volatile right now — the documented alts +
+many other manufacturers' 10 µF/16 V/X5R/0805 parts are drop-ins if Yageo flips before you order.
+
+## Gate (Definition of done — all must hold before any part/BOM/revision)
+
+- [x] Requirements traced · pins accounted + sequencing proven (Pass 4)
+- [x] Every number worst-case-proven (Pass 3/5/7/11/**14**) · parts datasheet-verified (Pass 5/11/**13**) — the 3 Pass-13 part-truth corrections (XINGLIGHT V1 abs-max −0.5…+5.5 V absolute; VDD 3.5–7.5 V; 74AHCT125 tpd/SCLS264R) **folded + verified from the C2843785 PDF**; **footprint cross-check `[S]`-staged** (Pass 6, schematic)
+- [x] Power integrity proven (Pass 7) · every failure mode mitigated-or-accepted (Pass 8, RK10–RK17)
+- [x] Every part hand-buildable (Pass 2/9) + sourceable, exact import strings (Pass 2/11/**13**) — Pass-13 sourcing fixes **applied**: U3 → `SN74AHCT125DR`, D1 → STMicroelectronics (library + bom.csv). *(DV#5 in-stock buy-confirm via `bom-stock-verification.md` is Josh's honest attestation — separate from this engineering proof.)*
+- [x] Layout constraints captured (Pass 9) · teachable (Pass 9) · consistent (Pass 11/12) · pipeline-conformant (Pass 3)
+- [x] Every applicable conditional audit run (none fire — no flags) · every risk de-risked or scheduled
+- [x] **≥ 10 passes run (15)** AND a **design-stage dry pass re-achieved at Pass 15** (zero new findings, after the independent Pass-13 re-pass found + drove resolution of 1 HIGH + 4 MED + 2 LOW).
+- [~] *Phase-staged (F7):* footprint↔symbol↔pinout `[S]` **VERIFIED Pass 17** (9 new parts, std-lib symbols/footprints, pad-by-pad) → DV#3 evidenced. **Still owed:** fab-DRU / VBUS⟂5V_EXT ERC `[L]` (at layout) · the F10-4 **DOUT-VOH** residual at bring-up.
+
+---
+
+## Passes
+
+### Pass 1 — Electrical / first-principles (adversarial reviewer + owner notes)
+
+| # | Sev | Finding | Verified? | Fix / decision | Re-proof |
+| --- | --- | --- | --- | --- | --- |
+| 1.1 | HIGH | VBUS budget used "~350 mA" LDO input — wrong: RT9080 is a **linear** LDO so Iin ≈ Iout ≈ **500 mA** at the WiFi-TX peak. Real worst case ~560 mA. | ✅ first-principles (linear LDO passes current ~1:1) + L1.01's own 500 mA figure | §3 budget rows recomputed (continuous ~220 mA; brief peak ~560 mA < 1 A trip, bulk rides it); RK4 reframed. | §3 numbers now match L1.01's regime; §5 budget paragraph updated to agree. |
+| 1.2 | CRITICAL | **Data-before-power / parasitic power**: USB on + injection off → 5 V data into unpowered strip DIN → parasitic self-power through the DIN clamp diode. Owner confirmed + noted it's inevitable in class. | ✅ mechanism confirmed; **precision added** — the driver into the strip is the *onboard-pixel DOUT* (VBUS-powered), not the AHCT125 directly | Added **R8 (470 Ω)** on onboard-DOUT→J4 → limits clamp current to ~9 mA; documented power-up order; consolidated into new **RK8**. | §3 parasitic-current row = ~9 mA; §2 topology + power-up note; RK8 DE-RISKED. Exact DIN abs-max deferred to Pass 5. |
+| 1.3 | MED | VOH margin "+0.9 V" overstated the *guaranteed* min (3.94 V @ 8 mA → +0.44 V). | ✅ TI datasheet VOH table | §3 states both: +0.9 V actual (µA load) / +0.44 V guaranteed; noted 0.7·VDD tracks VDD. | Both positive → RK1 still DE-RISKED, now honestly. |
+| 1.4 | MED | §3 missing the required data-timing check. | ✅ AHCT125 tpd ~9–22 ns vs 1.25 µs WS2812 bit | Added a tpd-≪-bit row to §3. | Timing now backs the §7 datasheet attestation. |
+| 1.5 | MED | "Board never carries strip current" was false for the J5→J4 5 V_EXT path. | ✅ topology trace | §1 E3 + §5 corrected; added a 5 V_EXT/GND trace-ampacity layout item (RK7). | §5 now states the copper is the limit (terminals ~15 A). |
+| 1.6 | LOW | Data GPIO uncommitted ("e.g. IO5"). | ✅ GPIO5 is non-strapping, non-USB (USB = GPIO19/20) on the S3 | Committed **GPIO5** in §1 F2 / I2 / §2. | — |
+| 1.7 | LOW | Unused-gate parking right, but the **used** gate's enable polarity must be explicit (AHCT125 OE active-low). Owner confirmed parking hygiene. | ✅ TI pinout | §2 + RK6: **gate 1 `1OE → GND` (enable)**; gates 2–4 `nOE → VCC`, `nA → GND`. | RK6 DE-RISKED with the used-gate exception pinned. |
+
+**Residual after Pass 1:** exact WS2812 DIN abs-max input voltage (RK8) → Pass 5
+datasheet audit. Layout items (RK7) scheduled to the layout stage by design.
+
+### Pass 2 — BOM / sourcing / DFM / solderability (adversarial reviewer + owner notes)
+
+| # | Sev | Finding | Verified? | Fix / decision | Re-proof |
+| --- | --- | --- | --- | --- | --- |
+| 2.1 | CRITICAL | **Pixel not Western-orderable**: bare "Worldsemi / WS2812B" isn't stocked at Digikey/Mouser/Newark → fails the §8 sourcing bar (the L1.01-bridge trap). | ✅ distributor search | Switched LED3 to **XINGLIGHT `XL-5050RGBC-WS2812B`** (Digikey-orderable). §4/§8/BOM updated. | §8 sourcing bar now satisfiable; exact string to confirm at part creation. |
+| 2.2 | HIGH | SK6812 / "Opsco" alt is **LCSC-only** — not a valid Western second source. | ✅ distributor search | Kept SK6812 as a *noted* electrical drop-in, explicitly LCSC-only (not relied on). | §8 second-source note honest. |
+| 2.3 | HIGH | 5050 solderability under-rated; owner added the fix: **mandatory flux pen**. | ✅ WS2812B datasheet ("solder once", lens heat-sensitive) | RK5 raised to Med; de-risk = mandatory flux-pen guide step + temp-controlled iron ~315 °C / quick dwell + close-up; THT-pixel fallback noted. | RK5 has a concrete build-stage plan. |
+| 2.4 | — | Connector family: reuse the **TB-1-POWER** vetted part. | ✅ found in `c:\zzz\otd\hardware\...\TB-1-POWER\docs\BOM.csv` (`282837-2`) + TE confirms `282837-3` 3-pos | J4 → **TE 282837-3**, J5 → **TE 282837-2** (replaced On-Shore ED120). §1/§2/§4/§8/BOM updated. | TE 282837-2/-3 verified real, in stock, 5.08 mm, 15 A, THT. |
+| 2.5 | MED | SN74AHCT125D/N, EEU-FR1C102 — confirm real/stocked. | ✅ Digikey | Kept; in-stock confirmed. | — |
+| 2.6 | LOW | Reused L1.01 `(mfr, mpn)` strings must match the library exactly (incl. "Würth" ü). | ✅ library lookup (all match) | No change; noted in §8. | Reused lines won't miss the strict import. |
+
+**Residual after Pass 2:** confirm the XINGLIGHT exact `(manufacturer, mpn)` string at
+part-creation time (sourcing audit closes then).
+
+### Pass 3 — Process / pipeline / internal consistency (adversarial reviewer)
+
+| # | Sev | Finding | Verified? | Fix / decision | Re-proof |
+| --- | --- | --- | --- | --- | --- |
+| 3.1 | HIGH | F1's stripboard rationale was wrong: `requiresStripboard` doesn't add a DESIGN_VALIDATION conditional — it materializes a **separate `STRIPBOARD_VALIDATION` checklist + BOM_SOURCING exit gate**. | ✅ `canonical-checklist-templates.ts:148-149` (DV conditionals = mains/Li-ion/thermal only) | Corrected Friction F1; flag stays false (custom PCB). | §7 confirmed exactly the 6 core items, no conditionals. |
+| 3.2 | HIGH | §7 "all risks de-risked" can't be literally true while layout/build risks are open. | ✅ wording trace | §7 item 6 redefined to **design-stage** risks; RK5/RK7 explicitly close at build/layout. | §7 honestly checkable. |
+| 3.3 | MED | Risk IDs `R#` **collided** with resistor refDes (acute with R7/R8 + RK7/RK8). | ✅ inspection | Renamed all risks to **`RK#`**; added a risk-ID note up top; logged as Friction F6. | No remaining `R#`-as-risk usage; §3↔§6 refs consistent. |
+| 3.4 | LOW | Handoff doc referenced by the design is absent on main/this branch (only on PR #149). | ✅ `git`/`ls` | Logged as Friction F5; softened reliance. | — |
+| 3.5 | LOW | "Reuses L1.01 part" undersold that R7/R8/C8/C9 are **new placements**. | ✅ | Wording clarified ("new placement of an existing part") in §3/§4. | — |
+| 3.6 | — | Cross-section consistency re-check after all edits (refDes/values/qty across §1–§8 + BOM). | ✅ | Verified: 470 Ω = `R5,R6,R7,R8` qty 4 everywhere; 0.1 µF = `C2,C3,C7,C8,C9` qty 5; J4/J5/LED3/U3/C10 agree across §2/§3/§4/§8/BOM. | Consistency audit clean as of Pass 3. |
+
+**Residual after Pass 3:** none from this lens. Note: this pass *re-proved* the
+consistency lens against Passes 1–2 edits (the RK rename + connector swap + R8
+addition all cross-checked).
+
+---
+
+### Pass 4 — Requirements & traceability + net integrity (fresh adversarial)
+
+Verified pinouts: SN74AHCT125 SOIC-14 (pin 7 = GND, 14 = VCC); WS2812B 5050 (VDD/DOUT/VSS/DIN).
+
+| # | Sev | Finding (NEW) | Disposition |
+| --- | --- | --- | --- |
+| P4-N1 | **HIGH** | **U3 pin 7 (GND) never stated** anywhere — gate pins + VCC specified, GND implicit; C8 decap drawn only to VCC. | FOLD: net U3.7→GND, C8 14→7. |
+| P4-R2 | MED | **VBUS ⟂ 5V_EXT isolation is documented-intent only** — no validation/ERC item asserts the two 5 V nets are never joined (the board's core claim). | FOLD: add isolation validation item + §2 statement (ties to RK11/RK10). |
+| P4-N2 | MED | LED3 VSS/GND never explicitly netted (RK3 only covers the *strip* ground, not the onboard pixel's). | FOLD: net LED3.VSS→GND. |
+| P4-S1 | MED | **Power-DOWN** case unanalyzed: USB removed while 5V_EXT on → GPIO5/3V3 may back-drive U3 input as U3.VCC collapses. | FOLD: add power-down analysis; extend power-order note. |
+| P4-N3 | MED | nY-open is correct (Hi-Z) but contradicts the doc's blanket "don't float" — note the exception. | FOLD (clarify). |
+| P4-N4 | MED | J4.DATA is an open 800 kHz stub when no strip attached (benign, high-Z) — unanalyzed. | FOLD into RK7. |
+| P4-N5 | LOW | C10− return node unstated (safety-relevant w/ RK9). | FOLD: C10−→common GND at J5. |
+| P4-R1/R3 | LOW | F3 not traced to a dedicated validation item; I2/I3 data seam. | FOLD (annotate). |
+
+Clean: no unrequired new part; U3-vs-pixel same-rail power-up (no skew); no 5V_EXT→VBUS back-power path except the current-limited DATA net.
+
+### Pass 5 — Part-truth / datasheet, worst-case (fresh adversarial, datasheets read)
+
+| # | Sev | Finding (NEW) | Disposition |
+| --- | --- | --- | --- |
+| P5-1 | **CRITICAL** | **RK8 framing wrong:** with strip unpowered (VDD=0) the WS2812 abs-max VI = VDD+0.5 V = **+0.5 V**, so ~5 V on DIN is a **gross abs-max-VOLTAGE violation** mitigated *only* by R8 current-limiting — NOT "within abs-max." WS2812 has **no published DIN clamp-current rating**, so "9 mA safe" is an engineering bound, not spec. | FOLD: reword RK8 honestly; power-up order = PRIMARY control; reinforces the protection-cluster decision. |
+| P5-2 | **HIGH** | **The XINGLIGHT XL-5050RGBC-WS2812B datasheet was never opened** — every WS2812 number is sourced to *Worldsemi WS2812B*. Clones differ on exactly VIH/abs-max/RES. LED3 "datasheet-verified" cannot be ticked. | FOLD/ACTION: obtain the XINGLIGHT datasheet at part creation; log as open until then. |
+| P5-3 | MED | **Reset/latch time missing** from §3: WS2812B RES ≥ 50 µs; clones need ≥ 280 µs → set firmware latch ≥ 300 µs (clone-safe). | FOLD: add §3 row + firmware note. |
+| P5-4 | MED | AHCT125 VOH 3.94 V is the **25 °C** value; over-temp guaranteed min = **3.8 V** → worst-case margin **+0.30 V**, not +0.44 V. | FOLD: correct §3 + RK1. |
+| P5-5/6 | LOW | VIH 2.0 V is flat across VCC (not VCC-specific); TI recommends 0.1 µF **+** 1 µF. | FOLD (wording). |
+
+Confirmed correct (backs §7 ticks): AHCT125 VIH/VIL/VOH-actual(4.4 V)/abs-max/tpd/OE-active-low; WS2812 VIH=0.7VDD; **RT9080 is a true linear LDO (P-MOSFET pass) → Iin≈Iout claim correct**; RT9080 dropout 0.53 V max @600 mA (3.3 V holds); LDO stable with C5/C6 + C1 10 µF on output.
+
+### Pass 7 — Power integrity, deep (fresh adversarial)
+
+| # | Sev | Finding (NEW) | Disposition |
+| --- | --- | --- | --- |
+| PI-1 | MED | **Cross-domain margin at the EXTERNAL strip's first DIN never proven** — driver = onboard DOUT (VBUS), receiver threshold = 0.7·V(5V_EXT); margin does NOT track (different rails). Worst corner: VBUS sag + 5V_EXT high. | FOLD: add §3 cross-domain row; document max V(5V_EXT). |
+| PI-2 | MED | **No bulk cap on VBUS itself** — onboard pixel's 60 mA pulses share bare VBUS with the LDO input. | DECISION: add 10 µF VBUS bulk (affects BOM) or prove the omission. |
+| PI-3 | LOW | C10 hot-plug inrush (tens of A) returns through the common GND (data reference bounce). | FOLD: star-ground note (layout). |
+
+Clean: 0.1 µF shifter decap adequate; C10 correctly scoped to 5V_EXT; PTC derating holds; LDO stable.
+
+### Pass 8 — FMEA, deep (fresh adversarial) — 6 NEW failure modes, converging on ONE gap
+
+**The board has ZERO protection on its external connectors** (all protection — PTC, USBLC6 — is on USB). 5 of these 6 converge on a **protection cluster at J4/J5**.
+
+| # | Sev | NEW failure mode | Disposition |
+| --- | --- | --- | --- |
+| RK10 | **CRITICAL** | **12 V/24 V wrong-supply into J5** (over-voltage; distinct from RK9 reverse). 12 V bricks are the most common wrong supply; no OVP on 5V_EXT. | DECISION: TVS at J5 + silk "5 V ONLY" + prove isolation. |
+| RK11 | **CRITICAL** | **DATA net bridges 5V_EXT→VBUS/AHCT125** via R8 + pixel clamps (always present by topology) — converts strip faults/over-injection into onboard damage. | DECISION: needs worst-case DOUT/1Y current calc + shared clamp. |
+| RK12 | HIGH | Stray-strand short across J4 (5V-GND/5V-DATA/DATA-GND); unfused 5V_EXT + C10 energy → trace burn/weld. | FOLD/DECISION: "fuse the injection supply" guidance; optional rail PTC. |
+| RK13 | HIGH | **ESD onto exposed J4 DATA** (nothing protects J4; WS2812 ESD-fragile) → kills onboard pixel / degrades AHCT125. | DECISION: ESD diode on J4 DATA. |
+| RK14 | HIGH | Hot-plug at J4: ground-last transient + far-end-powered-strip 2-supply contention. | FOLD (guide power-down rule) + staged Schottky. |
+| RK15 | MED | Long strip lead as antenna/transient injector back into DATA→board. | FOLD: shared clamp + max-lead-length note. |
+| RK16 | MED | **AHCT125 always-enabled (1OE→GND)** → strip flashes/latches full-white during GPIO5 reset / VBUS brown-out while 5V_EXT stays up. | FOLD: firmware blank-early + cap; optional 1OE-gating (note). |
+
+**Load-bearing missing calc:** worst-case current onboard-pixel DOUT + AHCT125 1Y must absorb when J4 DATA is driven to max credible external voltage (needs WS2812 DOUT abs-max — extends P5).
+
+### Pass 9 — Layout-readiness + learnability (fresh adversarial)
+
+| # | Sev | Finding (NEW) | Disposition |
+| --- | --- | --- | --- |
+| L9-6 | **HIGH** | **"Teaches" is two separable concepts** ("level shifting AND dedicated rail + common ground") — quiz-able core ambiguous; doc's own ORIENT exposes two why-questions. | DECISION: pick a primary, or adopt two-tier framing (L9-9). |
+| L9-2 | MED | Two 5 V domains lack a **"never-join" rule + star-ground point + silk distinction** (5V-USB vs 5V_EXT). | FOLD (ties P4-R2). |
+| L9-3 | MED | **No test point on the shifted data line** — the lesson's most probe-worthy node ("see the 5 V swing"). | FOLD: add data TP. |
+| L9-1 | MED | C10 (~Ø10×20 mm tall radial) **Z-height/enclosure keep-out** uncaptured. | FOLD: layout constraint; consider lower-profile cap. |
+| L9-7 | MED | 74AHCT125 brings un-budgeted teaching surface (active-low EN, Hi-Z, parked CMOS, HCT). | FOLD (guide budget). |
+| L9-8 | MED | Screw terminals + external supply + power-up order + deferred reverse guard = **4 new beginner failure surfaces**; thin for L1. | DECISION: ties to protection + two-tier. |
+| L9-9 | LOW | USB-only reward path IS met (good); **two-tier framing** (Tier 1 USB-only core / Tier 2 external extension) would resolve L9-6/L9-8/L9-10. | DECISION (the elegant unifier). |
+| L9-4/5/10 | LOW | Terminal wire-exit orientation vs antenna edge; pixel/R7/R8 placement intent; restate L1.01 "beginner-success wins" priority. | FOLD (layout/framing). |
+
+## Owner decisions on Passes 4–9 (resolved 2026-06-17)
+
+- **Protection cluster:** **TVS on 5V_EXT (D2 SMAJ5.0A) + ESD on J4 DATA (D3
+  PESD5V0S1BA)** — addresses RK10/RK11/RK13/RK15, and D2 also covers RK9 reverse.
+  (Full cluster w/ series Schottky/PTC NOT taken; RK12/RK14 stay accept+document.)
+- **Pedagogy:** **keep ONE combined lesson**; primary graded concept sharpened to
+  level-shifting (Teaches field updated), common-ground as supporting. (Two-tier NOT
+  taken — L9-6/8/9 addressed by the framing edit, not a tier split.)
+- **VBUS bulk:** **add 10 µF (C11)** on VBUS (PI-2).
+
+**Passes 4–9 FOLDED** into design.md + bom.csv: U3 GND + LED3 VSS + C10− netting
+(P4-N1/N2/N5), VBUS⟂5V_EXT isolation invariant + ERC item (P4-R2), power-down
+analysis (P4-S1), RK8 honest reword (P5-1), VOH over-temp +0.30 V (P5-4), reset/latch
+≥300 µs row (P5-3), cross-domain margin row (PI-1), D2/D3/C11 added, TP3 data test
+point (L9-3, labeled pad), C10 Z-height + star-ground (L9-1/PI-3), RK10–RK16
+registered, F7 (protocol phase-staging) + F8 (clone-datasheet) logged.
+
+## Remaining
+
+- ✅ **LED3 datasheet** — OBTAINED + verified (Pass 11, LCSC C2843785); exact string
+  `XINGLIGHT` / `XL-5050RGBC-WS2812B` confirmed (P5-2/F8 closed).
+- ✅ **Design-stage dry pass** — achieved at **Pass 12** (12 passes total). Design-stage
+  gate met → the 8 new parts may be created, BOM imported, revision advanced.
+- **Owed at schematic (`[S]`):** **Pass 6 — Footprint ↔ symbol ↔ pinout** (needs the
+  chosen KiCad symbols/footprints) — per the F7 phase-staging refinement.
+- **Owed at layout (`[L]`):** fab-DRU DRC + the **VBUS ⟂ 5V_EXT never-joined ERC/DRC**
+  check (E3 isolation invariant).
+- **Owed at bring-up:** the **F10-4 DOUT-VOH cross-domain residual** — measure onboard
+  DOUT-high + the external strip's first-DIN to confirm the ~+0.2…+0.5 V margin (the
+  XINGLIGHT datasheet does not specify DOUT VOH).
