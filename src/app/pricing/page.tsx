@@ -212,15 +212,21 @@ export default async function PricingPage() {
 
       {/* Hero */}
       <header className="border-b border-panel-border pb-14 sm:pb-20">
-        <p className="font-mono text-[11px] uppercase tracking-[0.35em] text-command-gold">
-          Pricing
-        </p>
-        <h1 className="mt-6 title-hero">
-          Pay once per board.
-          <br />
-          <span className="text-command-gold">Or take the whole bench.</span>
+        <div className="title-rule" aria-hidden="true" />
+        <h1 className="bench-hero">
+          <span className="ord">Pricing</span>
+          <span className="hero-line">
+            <span>
+              Pay <span className="accent">once</span>.
+            </span>
+          </span>
+          <span className="hero-line hero-line-2">
+            <span>
+              Yours <span className="accent">forever</span>.
+            </span>
+          </span>
         </h1>
-        <p className="mt-7 max-w-2xl font-serif text-lg leading-relaxed text-text">
+        <p className="subhead">
           All of Level 1 is free. Buy a single premium build, or take the
           All-Access Pass for every premium board and bench tool. One-time
           purchase, no subscription.
