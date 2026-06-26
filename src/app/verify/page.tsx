@@ -8,16 +8,13 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { signCardToken } from "@/lib/certificate-token";
 import { BrandMark } from "@/components/BrandMark";
+import { CommandFrame } from "@/components/CommandFrame";
 import { VerifyForm } from "@/components/verify/VerifyForm";
 
 export const metadata: Metadata = {
   title: "Verify a certificate · One Thousand Drones Academy",
   description: "Confirm a One Thousand Drones Academy certificate by its code.",
 };
-
-// Honeycomb field (matches the capability briefs and the certificate itself).
-const HONEYCOMB =
-  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c8963e' fill-opacity='0.04'%3E%3Cpath d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9zM0 15l12.98-7.5V0h-2v6.35L0 12.69v2.3zm0 18.5L12.98 41v8h-2v-6.85L0 35.81v-2.3zM15 0v7.5L27.99 15H28v-2.31h-.01L17 6.35V0h-2zm0 49v-8l12.99-7.5H28v2.31h-.01L17 42.15V49h-2z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")";
 
 export default async function VerifyPage({
   searchParams,
@@ -90,16 +87,8 @@ export default async function VerifyPage({
 
   return (
     <main className="relative isolate min-h-[88svh] overflow-hidden bg-deep-space">
-      {/* Honeycomb field + corner brackets, to match the briefs and certificate. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{ backgroundImage: HONEYCOMB, backgroundSize: "104px auto" }}
-      />
-      <span aria-hidden="true" className="pointer-events-none absolute left-4 top-4 h-6 w-6 border-l border-t border-command-gold/40" />
-      <span aria-hidden="true" className="pointer-events-none absolute right-4 top-4 h-6 w-6 border-r border-t border-command-gold/40" />
-      <span aria-hidden="true" className="pointer-events-none absolute bottom-4 left-4 h-6 w-6 border-b border-l border-command-gold/40" />
-      <span aria-hidden="true" className="pointer-events-none absolute bottom-4 right-4 h-6 w-6 border-b border-r border-command-gold/40" />
+      {/* Honeycomb field + corner brackets — shared with the briefs + certificate. */}
+      <CommandFrame />
 
       <div className="relative mx-auto max-w-2xl px-5 py-16 sm:px-6">
         {/* Hero */}

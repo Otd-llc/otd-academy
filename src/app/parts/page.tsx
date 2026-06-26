@@ -83,10 +83,19 @@ export default async function PartsListPage({
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
-      <div className="flex items-baseline justify-between gap-4">
-        <h1 className="title-hero">
-          PARTS LIBRARY
-        </h1>
+      {/* Masthead — component-catalog framing: what this is, in one line. */}
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+        <div className="max-w-2xl">
+          <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-command-gold">
+            Component catalog
+          </p>
+          <h1 className="mt-2 title-hero">PARTS LIBRARY</h1>
+          <p className="mt-3 font-serif text-base leading-relaxed text-muted">
+            Every component behind the curriculum boards: real manufacturer part
+            numbers, datasheets, lifecycle status, and KiCad symbols and
+            footprints, priced against live DigiKey stock.
+          </p>
+        </div>
         {isAdmin && (
           <div className="flex items-center gap-4 font-mono text-xs uppercase">
             <Link
@@ -98,63 +107,74 @@ export default async function PartsListPage({
             </Link>
             <Link
               href="/parts/new"
-              className="inline-flex items-center gap-1.5 rounded border border-panel-border bg-navy-dark px-4 py-2 text-command-gold transition-colors hover:border-command-gold"
+              className="inline-flex items-center gap-1.5 rounded-md border border-panel-border bg-navy-dark px-4 py-2 text-command-gold transition-colors hover:border-command-gold"
             >
               <PlusIcon className="h-4 w-4" />
               New part
             </Link>
           </div>
         )}
-      </div>
+      </header>
 
-      <PartsSearch initialQ={params.q ?? ""} current={current} />
+      {/* Control bar — search, facets, and sort as one instrument panel, with
+          the live catalog count as the readout. */}
+      <section className="mt-8 rounded-2xl border border-panel-border bg-bg-2/30 p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-3 pb-3">
+          <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-command-gold">
+            Search the catalog
+          </span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+            <span className="text-title">{total}</span>{" "}
+            {total === 1 ? "part" : "parts"}
+          </span>
+        </div>
 
-      {/* Filter chips: ALL / MAINS + per-lifecycle. Each chip toggles its own
-          facet off when active (links back through partsHref, which resets the
-          page param on any filter change). */}
-      <div className="mt-6 flex flex-wrap items-center gap-2">
-        <FilterChip
-          label="ALL PARTS"
-          active={!params.mains && !params.lifecycle}
-          href={partsHref(current, { mains: undefined, lifecycle: undefined })}
-        />
-        <FilterChip
-          label="MAINS PARTS"
-          active={params.mains}
-          href={partsHref(current, {
-            mains: params.mains ? undefined : "1",
-          })}
-        />
-        <span className="mx-1 hidden text-muted sm:inline">·</span>
-        {Object.values(PartLifecycle).map((lc) => (
+        <PartsSearch initialQ={params.q ?? ""} current={current} />
+
+        {/* Filter chips: ALL / MAINS + per-lifecycle. Each chip toggles its own
+            facet off when active (links back through partsHref, which resets the
+            page param on any filter change). */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <FilterChip
-            key={lc}
-            label={lc}
-            active={params.lifecycle === lc}
+            label="ALL PARTS"
+            active={!params.mains && !params.lifecycle}
+            href={partsHref(current, { mains: undefined, lifecycle: undefined })}
+          />
+          <FilterChip
+            label="MAINS PARTS"
+            active={params.mains}
             href={partsHref(current, {
-              lifecycle: params.lifecycle === lc ? undefined : lc,
+              mains: params.mains ? undefined : "1",
             })}
           />
-        ))}
-      </div>
+          <span className="mx-1 hidden text-muted sm:inline">·</span>
+          {Object.values(PartLifecycle).map((lc) => (
+            <FilterChip
+              key={lc}
+              label={lc}
+              active={params.lifecycle === lc}
+              href={partsHref(current, {
+                lifecycle: params.lifecycle === lc ? undefined : lc,
+              })}
+            />
+          ))}
+        </div>
 
-      {/* Sort control: chips mirroring the filter pattern; right-aligned count. */}
-      <div className="mt-4 flex flex-wrap items-center gap-2 font-mono text-xs uppercase text-muted">
-        <span>Sort</span>
-        {PART_SORTS.map((s) => (
-          <FilterChip
-            key={s}
-            label={s}
-            active={params.sort === s}
-            href={partsHref(current, {
-              sort: s === "manufacturer" ? undefined : s,
-            })}
-          />
-        ))}
-        <span className="ml-auto normal-case">
-          {total} part{total === 1 ? "" : "s"}
-        </span>
-      </div>
+        {/* Sort control: chips mirroring the filter pattern. */}
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-panel-border/60 pt-3 font-mono text-xs uppercase text-muted">
+          <span>Sort</span>
+          {PART_SORTS.map((s) => (
+            <FilterChip
+              key={s}
+              label={s}
+              active={params.sort === s}
+              href={partsHref(current, {
+                sort: s === "manufacturer" ? undefined : s,
+              })}
+            />
+          ))}
+        </div>
+      </section>
 
       {/* Category subtree navigation (Phase B): tree of links setting ?cat=, an
           active-node breadcrumb, and per-node subtree counts. */}
@@ -174,7 +194,7 @@ export default async function PartsListPage({
           <div className="mt-10 hidden overflow-x-auto md:block">
             <table className="w-full border-collapse font-mono text-sm">
               <thead>
-                <tr className="border-b border-panel-border text-left text-xs uppercase tracking-wider text-muted">
+                <tr className="border-b-2 border-command-gold/60 text-left font-mono text-[10px] uppercase tracking-[0.16em] text-command-gold">
                   <th className="py-3 pr-4 font-normal">Manufacturer</th>
                   <th className="py-3 pr-4 font-normal">MPN</th>
                   <th className="py-3 pr-4 font-normal">Description</th>
