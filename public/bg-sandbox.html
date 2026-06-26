@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Background sandbox · OTD Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Lora:ital@0;1&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --deep:#08090d; --gold:#c8963e; --gold-l:#e8b865; --blue:#4a8fff;
+    --ivory:#f1ece0; --muted:#aaaaaa; --panel:#3a3f50;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--deep);color:var(--muted);font-family:"Lora",serif}
+  .topbar{
+    position:sticky;top:0;z-index:10;background:rgba(8,9,13,.85);
+    backdrop-filter:blur(8px);border-bottom:1px solid rgba(200,150,62,.4);
+    padding:14px 24px;font-family:"Space Mono",monospace;font-size:12px;
+    letter-spacing:.18em;text-transform:uppercase;color:var(--muted);
+    display:flex;flex-wrap:wrap;gap:10px 18px;align-items:baseline;
+  }
+  .topbar b{color:var(--gold)}
+  .topbar a{color:var(--muted);text-decoration:none}
+  .topbar a:hover{color:var(--gold)}
+
+  .panel{
+    position:relative;min-height:96vh;padding:64px 6vw;
+    display:flex;flex-direction:column;justify-content:center;
+    background-color:var(--deep);background-repeat:repeat;
+    border-bottom:1px solid rgba(58,63,80,.5);
+  }
+  .label{
+    position:absolute;top:22px;left:6vw;font-family:"Space Mono",monospace;
+    font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);
+  }
+  .label .num{
+    color:var(--gold);font-weight:700;margin-right:10px;
+    border:1px solid rgba(200,150,62,.5);border-radius:4px;padding:2px 7px;
+  }
+  .label .spec{display:block;margin-top:6px;color:#7a7f8e;font-size:10px;letter-spacing:.18em}
+
+  .content{max-width:760px}
+  .eyebrow{
+    font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.3em;
+    text-transform:uppercase;color:var(--gold);margin-bottom:10px;
+  }
+  .rule{position:relative;height:1px;width:100%;max-width:760px;background:var(--panel);margin-bottom:22px}
+  .rule::before{content:"";position:absolute;top:-1px;left:0;height:2px;width:60%;
+    background:linear-gradient(to right,var(--gold) 0%,var(--gold) 38%,rgba(200,150,62,0) 100%)}
+  .hero{
+    font-family:"Bebas Neue",sans-serif;color:var(--ivory);
+    font-size:clamp(54px,8vw,104px);line-height:.85;letter-spacing:0;
+    -webkit-text-stroke:.017em currentColor;
+  }
+  .hero .g{color:var(--gold)}
+  .lead{font-style:italic;font-size:17px;color:var(--muted);margin-top:18px;max-width:620px}
+  .card{
+    margin-top:30px;max-width:440px;padding:22px 24px;border-radius:14px;
+    background:linear-gradient(180deg,#13131f 0%,#0d0e14 100%);
+    border:1px solid rgba(200,150,62,.35);
+    box-shadow:0 12px 44px rgba(0,0,0,.55),0 1px 0 rgba(232,184,101,.12) inset;
+  }
+  .card-title{font-family:"Bebas Neue",sans-serif;color:var(--ivory);font-size:24px;
+    letter-spacing:.03em;-webkit-text-stroke:.012em currentColor}
+  .card-body{font-size:14px;line-height:1.6;margin-top:8px;color:var(--muted)}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <span><b>Background sandbox</b> — dotted hex / engineering paper</span>
+    <span>Scroll all 10 · tell me the <b>number</b> you want (or mix elements from a few)</span>
+    <span><a href="#p1">01</a> <a href="#p2">02</a> <a href="#p3">03</a> <a href="#p4">04</a> <a href="#p5">05</a> <a href="#p6">06</a> <a href="#p7">07</a> <a href="#p8">08</a> <a href="#p9">09</a> <a href="#p10">10</a></span>
+  </div>
+
+  <!-- 01 cool dots, flat -->
+  <section class="panel" id="p1" style="
+    background-image:
+      radial-gradient(rgba(150,170,205,.11) 1px, transparent 1.6px),
+      radial-gradient(rgba(150,170,205,.11) 1px, transparent 1.6px);
+    background-size:24px 42px,24px 42px;
+    background-position:0 0,12px 21px;">
+    <div class="label"><span class="num">01</span> Hex dots · cool · flat<span class="spec">24px lattice · no gradient · steel-blue dots</span></div>
+    <div class="content">
+      <p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead, set in Lora italic, to judge legibility over the field.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy over a glass card. Does the dotted grid read as engineering paper, or fight the text?</p></div>
+    </div>
+  </section>
+
+  <!-- 02 cool dots + top gold glow -->
+  <section class="panel" id="p2" style="
+    background-image:
+      radial-gradient(rgba(150,170,205,.11) 1px, transparent 1.6px),
+      radial-gradient(rgba(150,170,205,.11) 1px, transparent 1.6px),
+      radial-gradient(120% 80% at 50% 0%, rgba(200,150,62,.10), transparent 60%);
+    background-size:26px 45px,26px 45px,100% 100%;
+    background-position:0 0,13px 22.5px,0 0;">
+    <div class="label"><span class="num">02</span> Hex dots · cool · top gold glow<span class="spec">26px lattice · gold radial bloom from the top edge</span></div>
+    <div class="content">
+      <p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead, set in Lora italic, to judge legibility over the field.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy over a glass card. Does the dotted grid read as engineering paper, or fight the text?</p></div>
+    </div>
+  </section>
+
+  <!-- 03 gold dots + vertical fade out toward bottom -->
+  <section class="panel" id="p3" style="
+    background-image:
+      linear-gradient(to bottom, rgba(8,9,13,0) 35%, #08090d 100%),
+      radial-gradient(rgba(200,150,62,.13) 1px, transparent 1.7px),
+      radial-gradient(rgba(200,150,62,.13) 1px, transparent 1.7px);
+    background-size:100% 100%,28px 48px,28px 48px;
+    background-position:0 0,0 0,14px 24px;">
+    <div class="label"><span class="num">03</span> Hex dots · gold · fades down<span class="spec">28px gold lattice · opacity gradient, solid top to clear bottom</span></div>
+    <div class="content">
+      <p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead, set in Lora italic, to judge legibility over the field.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy over a glass card. Does the dotted grid read as engineering paper, or fight the text?</p></div>
+    </div>
+  </section>
+
+  <!-- 04 cool dots + center-bright vignette -->
+  <section class="panel" id="p4" style="
+    background-image:
+      radial-gradient(85% 80% at 50% 42%, transparent 28%, #08090d 100%),
+      radial-gradient(rgba(160,178,210,.12) 1px, transparent 1.7px),
+      radial-gradient(rgba(160,178,210,.12) 1px, transparent 1.7px);
+    background-size:100% 100%,24px 42px,24px 42px;
+    background-position:0 0,0 0,12px 21px;">
+    <div class="label"><span class="num">04</span> Hex dots · cool · center-bright vignette<span class="spec">24px lattice · dots fade toward the edges</span></div>
+    <div class="content">
+      <p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead, set in Lora italic, to judge legibility over the field.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy over a glass card. Does the dotted grid read as engineering paper, or fight the text?</p></div>
+    </div>
+  </section>
+
+  <!-- 05 gold dots + edge vignette (dark edges) -->
+  <section class="panel" id="p5" style="
+    background-image:
+      radial-gradient(75% 75% at 50% 45%, rgba(8,9,13,0) 40%, #08090d 100%),
+      radial-gradient(rgba(200,150,62,.12) 1px, transparent 1.7px),
+      radial-gradient(rgba(200,150,62,.12) 1px, transparent 1.7px);
+    background-size:100% 100%,26px 45px,26px 45px;
+    background-position:0 0,0 0,13px 22.5px;">
+    <div class="label"><span class="num">05</span> Hex dots · gold · edge vignette<span class="spec">26px gold lattice · darkened edges, focus to center</span></div>
+    <div class="content">
+      <p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead, set in Lora italic, to judge legibility over the field.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy over a glass card. Does the dotted grid read as engineering paper, or fight the text?</p></div>
+    </div>
+  </section>
+
+  <!-- 06 large sparse cool dots + diagonal gold gradient -->
+  <section class="panel" id="p6" style="
+    background-image:
+      linear-gradient(135deg, rgba(200,150,62,.07), transparent 55%),
+      radial-gradient(rgba(150,170,205,.10) 1.2px, transparent 1.9px),
+      radial-gradient(rgba(150,170,205,.10) 1.2px, transparent 1.9px);
+    background-size:100% 100%,40px 69px,40px 69px;
+    background-position:0 0,0 0,20px 34.5px;">
+    <div class="label"><span class="num">06</span> Hex dots · large sparse · diagonal gold<span class="spec">40px airy lattice · gold wash from one corner</span></div>
+    <div class="content">
+      <p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead, set in Lora italic, to judge legibility over the field.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy over a glass card. Does the dotted grid read as engineering paper, or fight the text?</p></div>
+    </div>
+  </section>
+
+  <!-- 07 blueprint: blue dots + faint square grid + top glow -->
+  <section class="panel" id="p7" style="
+    background-image:
+      radial-gradient(rgba(74,143,255,.12) 1px, transparent 1.6px),
+      radial-gradient(rgba(74,143,255,.12) 1px, transparent 1.6px),
+      linear-gradient(rgba(74,143,255,.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(74,143,255,.045) 1px, transparent 1px),
+      radial-gradient(120% 80% at 50% 0%, rgba(74,143,255,.06), transparent 60%);
+    background-size:26px 45px,26px 45px,78px 78px,78px 78px,100% 100%;
+    background-position:0 0,13px 22.5px,0 0,0 0,0 0;">
+    <div class="label"><span class="num">07</span> Blueprint · blue dots + faint square grid<span class="spec">hex dots over a square graticule · blue glow</span></div>
+    <div class="content">
+      <p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead, set in Lora italic, to judge legibility over the field.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy over a glass card. Does the dotted grid read as engineering paper, or fight the text?</p></div>
+    </div>
+  </section>
+
+  <!-- 08 fine cool dots + corner gold glow -->
+  <section class="panel" id="p8" style="
+    background-image:
+      radial-gradient(rgba(150,170,205,.11) .9px, transparent 1.5px),
+      radial-gradient(rgba(150,170,205,.11) .9px, transparent 1.5px),
+      radial-gradient(85% 75% at 0% 0%, rgba(200,150,62,.13), transparent 55%);
+    background-size:20px 35px,20px 35px,100% 100%;
+    background-position:0 0,10px 17.5px,0 0;">
+    <div class="label"><span class="num">08</span> Hex dots · fine · corner gold glow<span class="spec">20px tight lattice · gold light raking from a corner</span></div>
+    <div class="content">
+      <p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead, set in Lora italic, to judge legibility over the field.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy over a glass card. Does the dotted grid read as engineering paper, or fight the text?</p></div>
+    </div>
+  </section>
+
+  <!-- 09 two-tone gold+cool dots + top glow -->
+  <section class="panel" id="p9" style="
+    background-image:
+      radial-gradient(rgba(200,150,62,.13) 1px, transparent 1.7px),
+      radial-gradient(rgba(150,170,205,.10) 1px, transparent 1.6px),
+      radial-gradient(120% 80% at 50% 0%, rgba(200,150,62,.07), transparent 62%);
+    background-size:26px 45px,26px 45px,100% 100%;
+    background-position:0 0,13px 22.5px,0 0;">
+    <div class="label"><span class="num">09</span> Hex dots · two-tone (gold + steel)<span class="spec">alternating gold and cool rows · soft top glow</span></div>
+    <div class="content">
+      <p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead, set in Lora italic, to judge legibility over the field.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy over a glass card. Does the dotted grid read as engineering paper, or fight the text?</p></div>
+    </div>
+  </section>
+
+  <!-- 10 dense fine cool dots + bottom fade + faint gold wash -->
+  <section class="panel" id="p10" style="
+    background-image:
+      linear-gradient(to bottom, rgba(8,9,13,0), rgba(8,9,13,.6) 100%),
+      radial-gradient(80% 100% at 50% 0%, rgba(200,150,62,.05), transparent 55%),
+      radial-gradient(rgba(160,178,210,.12) .9px, transparent 1.5px),
+      radial-gradient(rgba(160,178,210,.12) .9px, transparent 1.5px);
+    background-size:100% 100%,100% 100%,18px 31px,18px 31px;
+    background-position:0 0,0 0,0 0,9px 15.5px;">
+    <div class="label"><span class="num">10</span> Hex dots · dense fine · clean paper<span class="spec">18px tight lattice · faint gold top wash, settles to deep space</span></div>
+    <div class="content">
+      <p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead, set in Lora italic, to judge legibility over the field.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy over a glass card. Does the dotted grid read as engineering paper, or fight the text?</p></div>
+    </div>
+  </section>
+</body>
+</html>

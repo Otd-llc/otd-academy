@@ -8,7 +8,6 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { signCardToken } from "@/lib/certificate-token";
 import { BrandMark } from "@/components/BrandMark";
-import { CommandFrame } from "@/components/CommandFrame";
 import { VerifyForm } from "@/components/verify/VerifyForm";
 
 export const metadata: Metadata = {
@@ -87,8 +86,6 @@ export default async function VerifyPage({
 
   return (
     <main className="relative isolate min-h-[88svh] overflow-hidden bg-deep-space">
-      {/* Honeycomb field + corner brackets — shared with the briefs + certificate. */}
-      <CommandFrame />
 
       <div className="relative mx-auto max-w-2xl px-5 py-16 sm:px-6">
         {/* Hero */}

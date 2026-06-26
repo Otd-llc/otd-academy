@@ -11,7 +11,6 @@ import Link from "next/link";
 
 import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/PageHeader";
-import { CommandFrame } from "@/components/CommandFrame";
 import { breadcrumbJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { BRIEFS, BRIEF_KEYS } from "@/lib/brief-pages";
 
@@ -53,8 +52,7 @@ export default function BriefsIndexPage() {
   ]);
 
   return (
-    <main className="relative isolate overflow-hidden">
-      <CommandFrame />
+    <main>
       <JsonLd data={crumbLd} />
 
       <div className="mx-auto max-w-3xl px-5 py-12 sm:px-6 sm:py-16">

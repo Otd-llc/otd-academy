@@ -11,7 +11,6 @@
 // as numbered § clauses (citable, the way terms are referenced).
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/PageHeader";
-import { CommandFrame } from "@/components/CommandFrame";
 import {
   LICENSE_BODY,
   LICENSE_COPYRIGHT,
@@ -33,8 +32,7 @@ const REGISTRATION: { label: string; value: string }[] = [
 
 export default function LicensePage() {
   return (
-    <main className="relative isolate overflow-hidden">
-      <CommandFrame />
+    <main>
       <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
         <PageHeader
           backHref="/"
