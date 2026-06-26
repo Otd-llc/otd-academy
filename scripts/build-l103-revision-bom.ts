@@ -18,7 +18,6 @@ async function main() {
   const { db } = await import("@/lib/db");
   const { CANONICAL_TEMPLATES } = await import("@/lib/canonical-checklist-templates");
   const { parseBomCsv } = await import("@/lib/bom-csv");
-  const { boardReadinessFromRows } = await import("@/lib/board-readiness-load");
 
   const project = await db.project.findUnique({
     where: { slug: SLUG },
@@ -112,17 +111,19 @@ async function main() {
       checklists: { select: { subkind: true, items: { select: { checked: true, notApplicable: true } } } },
     },
   });
-  const readiness = boardReadinessFromRows({
-    bomFrozenAt: after.bomFrozenAt,
-    bomLines: after.bomLines.map((b) => ({ quantity: b.quantity, unitPriceCents: b.unitPriceCents, part: { lifecycle: b.part.lifecycle } })),
-    checklists: after.checklists.map((c) => ({ subkind: c.subkind, items: c.items.map((i) => ({ checked: i.checked, notApplicable: i.notApplicable })) })),
-    projectSlug: SLUG,
-    targetCost: project.targetCost as unknown as string | null,
-  });
-  console.log(`\nBOARD READINESS: ready=${readiness.ready}`);
-  for (const c of readiness.checks) {
-    console.log(`   ${c.ok ? "PASS" : "----"}  [${c.tier}] ${c.label}`);
-  }
+  // Readiness derived inline — decoupled from board-readiness-load (whose input
+  // type now requires DigiKey availability fields the seed scripts don't carry).
+  const dvCl = after.checklists.find((c) => c.subkind === "DESIGN_VALIDATION");
+  const dvItems = dvCl?.items ?? [];
+  const dvDone = dvItems.filter((i) => i.checked || i.notApplicable).length;
+  const dvComplete = dvItems.length > 0 && dvDone === dvItems.length;
+  const noEol = after.bomLines.every((b) => b.part.lifecycle === "ACTIVE");
+  const ready = !!after.bomFrozenAt && after.bomLines.length > 0 && noEol && dvComplete;
+  console.log(`\nBOARD READINESS: ready=${ready}`);
+  console.log(`   ${after.bomLines.length > 0 ? "PASS" : "----"}  [required] BOM has parts (${after.bomLines.length})`);
+  console.log(`   ${noEol ? "PASS" : "----"}  [required] No EOL/NRND parts`);
+  console.log(`   ${after.bomFrozenAt ? "PASS" : "----"}  [required] BOM frozen`);
+  console.log(`   ${dvComplete ? "PASS" : "----"}  [required] Design validated (DV ${dvDone}/${dvItems.length})`);
   console.log(`\nHELD before freeze. Remaining (Josh): attest the ${"6"} DESIGN_VALIDATION items, advance REQUIREMENTS→BOM_SOURCING, then freeze (advance into LAYOUT).`);
   await db.$disconnect();
 }

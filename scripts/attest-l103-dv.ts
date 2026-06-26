@@ -17,7 +17,6 @@ const CHECK_ORDINALS = [0, 1, 2, 4, 5];
 
 async function main() {
   const { db } = await import("@/lib/db");
-  const { boardReadinessFromRows } = await import("@/lib/board-readiness-load");
 
   const rev = await db.revision.findFirst({
     where: { label: "v1", project: { slug: SLUG } },
@@ -61,15 +60,19 @@ async function main() {
       checklists: { select: { subkind: true, items: { select: { checked: true, notApplicable: true } } } },
     },
   });
-  const readiness = boardReadinessFromRows({
-    bomFrozenAt: r.bomFrozenAt,
-    bomLines: r.bomLines.map((b) => ({ quantity: b.quantity, unitPriceCents: b.unitPriceCents, part: { lifecycle: b.part.lifecycle } })),
-    checklists: r.checklists.map((c) => ({ subkind: c.subkind, items: c.items.map((i) => ({ checked: i.checked, notApplicable: i.notApplicable })) })),
-    projectSlug: SLUG,
-    targetCost: rev.project.targetCost as unknown as string | null,
-  });
-  console.log(`\nBOARD READINESS: ready=${readiness.ready}`);
-  for (const c of readiness.checks) console.log(`   ${c.ok ? "PASS" : "----"}  [${c.tier}] ${c.label}`);
+  // Readiness derived inline — decoupled from board-readiness-load (whose input
+  // type now requires DigiKey availability fields the seed scripts don't carry).
+  const dvCl = r.checklists.find((c) => c.subkind === "DESIGN_VALIDATION");
+  const dvItems = dvCl?.items ?? [];
+  const dvDone = dvItems.filter((i) => i.checked || i.notApplicable).length;
+  const dvComplete = dvItems.length > 0 && dvDone === dvItems.length;
+  const noEol = r.bomLines.every((b) => b.part.lifecycle === "ACTIVE");
+  const ready = !!r.bomFrozenAt && r.bomLines.length > 0 && noEol && dvComplete;
+  console.log(`\nBOARD READINESS: ready=${ready}`);
+  console.log(`   ${r.bomLines.length > 0 ? "PASS" : "----"}  [required] BOM has parts (${r.bomLines.length})`);
+  console.log(`   ${noEol ? "PASS" : "----"}  [required] No EOL/NRND parts`);
+  console.log(`   ${r.bomFrozenAt ? "PASS" : "----"}  [required] BOM frozen`);
+  console.log(`   ${dvComplete ? "PASS" : "----"}  [required] Design validated (DV ${dvDone}/${dvItems.length})`);
   console.log("\nDesign validated stays INCOMPLETE by design (item 4 fab-DRU owed to [L]). UNFROZEN, BOM_SOURCING.");
   await db.$disconnect();
 }
