@@ -61,6 +61,10 @@ export default async function RootLayout({
       className="h-full antialiased"
     >
       <body className="min-h-full flex flex-col">
+        {/* Global engineering-paper backdrop — a fixed isometric graph-paper
+            field behind every page (CSS in globals.css, .app-backdrop). Purely
+            decorative; pointer-events-none, hidden in print. */}
+        <div className="app-backdrop" aria-hidden="true" />
         {/* One app-wide tooltip provider — hoisted here so every `<Tooltip>`
             renders only a `<Root>` beneath this shared context (hydration fix;
             see TooltipProvider / Tooltip). The provider is a client island; its
