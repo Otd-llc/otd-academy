@@ -8,8 +8,8 @@
 | --- | --- |
 | **Slug** | `l1-03-ws2812-node` |
 | **Status** | `Pass 15 — design-stage DRY (re-achieved); gate MET`. Pass 13 (independent fresh eyes) re-opened the gate with 1 HIGH + 4 MED + 2 LOW; **all are now resolved**: part-truth corrections folded (P13-1/2/3/6, verified from the C2843785 PDF), **U3 `SN74AHCT125D`→`SN74AHCT125DR`** (obsolete fix) + **D1 UMW→STMicroelectronics** (shared — l1-01 BOM repointed too) applied to the library + bom.csv. Pass 14 (math/net) clean; **Pass 15** full consistency dry-sweep = **zero new findings**. **Design-stage `[D]` audits all clean — the gate is (re-)met.** Still owed by phase-staging (F7, NOT design-stage blockers): footprint↔pinout `[S]` at schematic, fab-DRU + VBUS⟂5V_EXT ERC `[L]` at layout, F10-4 DOUT-VOH at bring-up. **`DESIGN_VALIDATION` ticks (esp. #5 in-stock buy-confirm) + the BOM freeze remain Josh's.** |
-| **Passes run** | 18 |
-| **Last dry pass** | **Pass 18** (final part-ready confirmation, 2026-06-25) — DRY, zero new findings: PROD parts + 25 BOM lines re-verified strict-match-clean against the post-sub design (C1/C10/D3); DV#3 (footprint↔pinout) **attested** in the DB on the Pass-17 `[S]` evidence. **DV 1/2/3/5/6 attested; #4 (fab-DRU) owed `[L]`.** BOM **UNFROZEN** (hold before LAYOUT). Pass 17 = the `[S]` footprint↔symbol↔pinout audit (audit 6) VERIFIED for the 9 new parts. |
+| **Passes run** | 19 |
+| **Last dry pass** | **Pass 19** (live DK API re-screen → C1 re-sub, 2026-06-25) — DRY after the fix: a live DigiKey screen found **C1's Pass-16 Murata sub had itself gone DK-OOS**; re-subbed C1 → **Yageo CC0805KKX5R7BB106** (Active, 169k stock, spec-identical 10 µF/16 V/X5R/0805). Re-screen: **all 25 lines Active + DK-in-stock, zero OOS.** Strict-match 25/0/0/0. **DV 1/2/3/5/6 attested; #4 (fab-DRU) owed `[L]`.** BOM **UNFROZEN** (hold before LAYOUT). |
 
 ### Pass 10 — DRY-SWEEP of the folded design (2 fresh reviewers: electrical + consistency)
 
@@ -274,6 +274,33 @@ final post-substitution design, then attest the now-earned `[S]` item.
 strict-match-clean, DV 1/2/3/5/6 attested. **Owed (by phase, not blockers):** DV#4 fab-DRU `[L]` at
 layout · the F10-4 DOUT-VOH residual at bring-up · Josh's visual DigiKey stock re-confirm (note
 C1/C10/D3 were DK-OOS at the 2026-06-20 screen → the Pass-16 subs are the DK-in-stock equivalents).
+
+### Pass 19 — Live DigiKey API re-screen + C1 re-sub (2026-06-25)
+
+Owner asked for a live DigiKey stock check (we *have* the API key). Ran `scripts/digikey-stock.ts`
+against all 25 lines via the DigiKey Product Information API v4.
+
+- **Finding (MED, sourcing audit 10):** **24/25 lines Active + DK-in-stock**, but **C1's Pass-16
+  sub — Murata `GRM21BR61E106KA73L` — had itself gone DK-OOS (0 stock)**, down from 3,874 on the
+  2026-06-20 screen. (C10 1,825 and D3 3,394 — the other two Pass-16 subs — both still in stock.)
+  A live 10 µF/0805 supply crunch: probing 7 candidates found the original Samsung `CL21A106KOQNNNE`,
+  Samsung `CL21A106KAYNNNE`, and Murata `GRM21BR61C106KE15L` all DK-OOS, and TDK `C2012X5R1C106K085AC`
+  **NRND** (avoid). **Two Active + in-stock equivalents:** Yageo `CC0805KKX5R7BB106` (169,157) and
+  Taiyo Yuden `EMK212ABJ106KG-T` (17,411).
+- **Disposition:** re-sub **C1 → Yageo `CC0805KKX5R7BB106`** — DigiKey-VERIFIED parameters
+  **10 µF / ±10% / 16 V / X5R / 0805 (2012 metric)** (= the original C1 spec; 16 V ample for the
+  3V3-rail bulk), deepest stock of the two (≈10× the Taiyo Yuden) ⇒ most resilient to another flip,
+  and Yageo is already a catalog manufacturer. Part created (`seed-l103-c1-resub.ts`: idempotent
+  upsert, MLCC category + `Device:C` / `Capacitor_SMD:C_0805_2012Metric` KiCad + real datasheet) and
+  the BOM line repointed (`build-l103-revision-bom.ts`, freeze-guarded; DV checklist preserved). Prior
+  Murata + Samsung subs kept as documented alts. Net cost +$0.15 (immaterial vs the ~$18–19 BOM).
+- **Re-verify:** strict-match **25/0/0/0**; live DK re-screen **all 25 lines Active + DK-in-stock, zero OOS**.
+
+**Verdict: DRY — zero new findings after the fix.** The board's electrical concept is unchanged (a
+spec-identical MLCC swap). DV#5 (BOM availability) re-earned against *live* DigiKey data, now one-cart
+DK-sourceable end-to-end. Still owed (by phase): DV#4 fab-DRU `[L]` · F10-4 DOUT-VOH at bring-up.
+**MLCC sourcing note for the owner:** 10 µF/0805 stock is volatile right now — the documented alts +
+many other manufacturers' 10 µF/16 V/X5R/0805 parts are drop-ins if Yageo flips before you order.
 
 ## Gate (Definition of done — all must hold before any part/BOM/revision)
 

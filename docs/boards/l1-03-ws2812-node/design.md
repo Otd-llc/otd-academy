@@ -286,7 +286,7 @@ Core — **6 items only** (no flags):
 
 - **Design-to-cost target:** ~**$14–15**. **Actual ≈ $18–19 — over target** (F10-6; rose ~$1.9
   at the Pass-16 DK-stock subs): L1.01 core (~$12–13) + **~$6 new** (shifter $0.40 + pixel $0.40
-  + J4 $2.04 + J5 $1.22 + **1000 µF $1.07** + TVS $0.47 + **ESD $1.13** + 4.7 µF $0.11 + **C1 10 µF $0.16**).
+  + J4 $2.04 + J5 $1.22 + **1000 µF $1.07** + TVS $0.47 + **ESD $1.13** + 4.7 µF $0.11 + **C1 10 µF $0.31**).
   The two TE terminals (~$3.26) + the DK-in-stock D3/C10 dominate. `targetCost` null (F3). Owner-accept
   the overage or value-engineer (cheaper-but-DK-stocked ESD / electrolytic) at freeze.
 - **New parts to create BEFORE import (strict `(mfr, mpn)` match — exact strings):**
@@ -298,12 +298,12 @@ Core — **6 items only** (no flags):
   6. Littelfuse **SMAJ5.0A** (D2 TVS)
   7. Bourns **CDSOD323-T05C** (D3 ESD — Pass-16 DK-stock sub for PESD5V0S1BA)
   8. Samsung Electro-Mechanics **CL21A475KAQNNNE** (C11 4.7 µF — new per F10-1)
-  9. Murata Electronics **GRM21BR61E106KA73L** (C1 10 µF — Pass-16 DK-stock sub; l1-03's C1 now diverges from L1.01's reused Samsung)
+  9. Yageo **CC0805KKX5R7BB106** (C1 10 µF/16 V — Pass-19 DK-stock re-sub, 169k in stock; l1-03's C1 diverges from L1.01's reused Samsung)
 - **Already in library (reused):** WROOM core lines incl. 470 Ω (R5–R8), 0.1 µF
-  (C2/C3/C7/C8/C9), 1 µF (C5/C6). *(C1 is now the Murata sub above, not the reused Samsung.)*
+  (C2/C3/C7/C8/C9), 1 µF (C5/C6). *(C1 is now the Yageo re-sub above, not the reused Samsung.)*
 - **Second sources (alts in bom.csv):** shifter SN74AHCT125N (PDIP-14); pixel SK6812 (LCSC-only);
-  **D3 ← Nexperia PESD5V0S1BA**, **C10 ← Panasonic EEU-FR1C102**, **C1 ← Samsung CL21A106KOQNNNE**
-  (the originals, Active but DK-OOS on 2026-06-20); TVS/ESD have many drop-ins.
+  **D3 ← Nexperia PESD5V0S1BA**, **C10 ← Panasonic EEU-FR1C102**, **C1 ← Murata GRM21BR61E106KA73L (25 V) + Samsung CL21A106KOQNNNE**
+  (the prior C1 subs + original, all Active but DK-OOS on the 2026-06-25 re-screen); TVS/ESD/MLCC have many drop-ins.
 - **BOM frozen:** **not yet** — and freeze is **gated on the design passing the
   validation protocol** (`../_protocol.md`).
 

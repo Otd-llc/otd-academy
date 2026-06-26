@@ -1,5 +1,5 @@
 refDes,manufacturer,mpn,quantity,unitPrice,altMpn,altManufacturer,notes
-C1,Murata Electronics,GRM21BR61E106KA73L,1,0.16,CL21A106KOQNNNE,Samsung Electro-Mechanics,10uF 3V3 bulk; 0805 25V X5R; DK-in-stock sub for the L1.01 Samsung core part (DK-OOS 2026-06-20); alt = Samsung CL21A106KOQNNNE
+C1,Yageo,CC0805KKX5R7BB106,1,0.31,GRM21BR61E106KA73L,Murata Electronics,10uF 3V3 bulk; 0805 16V X5R; DK-in-stock re-sub 2026-06-25 (169k stock) after the Murata GRM21BR61E106KA73L sub also went DK-OOS; alts = Murata GRM21BR61E106KA73L (25V) + Samsung CL21A106KOQNNNE (orig, both DK-OOS)
 C11,Samsung Electro-Mechanics,CL21A475KAQNNNE,1,0.10,,,4.7uF VBUS bulk (NEW, PI-2/F10-1) - 0805 25V X5R; keeps total VBUS cap (C5+C8+C9+C11=5.9uF) under the USB-2.0 10uF inrush ceiling
 "C2,C3,C7,C8,C9",Samsung Electro-Mechanics,CL21B104KBCNNNC,5,,,,0.1uF decoupling: C2/C3 module + C7 EN (core) + C8 shifter VCC + C9 pixel VDD
 "C5,C6",Würth Elektronik,885012207103,2,,,,1uF LDO in/out (core)
