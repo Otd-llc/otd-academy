@@ -12,6 +12,7 @@ import { PartLifecycle } from "@prisma/client";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { ChevronLeftIcon, PlusIcon } from "@/components/icons";
+import { PageHeader } from "@/components/PageHeader";
 import { PartCard } from "@/components/parts/PartCard";
 import { PartGlanceTrigger } from "@/components/parts/PartGlanceTrigger";
 import { DkAvailabilityCell } from "@/components/parts/DkAvailabilityCell";
@@ -83,38 +84,30 @@ export default async function PartsListPage({
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
-      {/* Masthead — component-catalog framing: what this is, in one line. */}
-      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
-        <div className="max-w-2xl">
-          <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-command-gold">
-            Component catalog
-          </p>
-          <h1 className="mt-2 title-hero">PARTS LIBRARY</h1>
-          <p className="mt-3 font-serif text-base leading-relaxed text-muted">
-            Every component behind the curriculum boards: real manufacturer part
-            numbers, datasheets, lifecycle status, and KiCad symbols and
-            footprints, priced against live DigiKey stock.
-          </p>
+      {isAdmin && (
+        <div className="mb-5 flex items-center justify-end gap-4 font-mono text-xs uppercase">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-signal-blue underline"
+          >
+            <ChevronLeftIcon className="h-4 w-4" />
+            Projects
+          </Link>
+          <Link
+            href="/parts/new"
+            className="inline-flex items-center gap-1.5 rounded-md border border-panel-border bg-navy-dark px-4 py-2 text-command-gold transition-colors hover:border-command-gold"
+          >
+            <PlusIcon className="h-4 w-4" />
+            New part
+          </Link>
         </div>
-        {isAdmin && (
-          <div className="flex items-center gap-4 font-mono text-xs uppercase">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 text-signal-blue underline"
-            >
-              <ChevronLeftIcon className="h-4 w-4" />
-              Projects
-            </Link>
-            <Link
-              href="/parts/new"
-              className="inline-flex items-center gap-1.5 rounded-md border border-panel-border bg-navy-dark px-4 py-2 text-command-gold transition-colors hover:border-command-gold"
-            >
-              <PlusIcon className="h-4 w-4" />
-              New part
-            </Link>
-          </div>
-        )}
-      </header>
+      )}
+      <PageHeader
+        eyebrow="COMPONENT CATALOG"
+        title="Parts library"
+        accentWord="library"
+        lead="Every component behind the curriculum boards: real manufacturer part numbers, datasheets, lifecycle status, and KiCad symbols and footprints, priced against live DigiKey stock."
+      />
 
       {/* Control bar — search, facets, and sort as one instrument panel, with
           the live catalog count as the readout. */}

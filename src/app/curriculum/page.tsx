@@ -10,6 +10,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { CurriculumDag, type ProjectCard } from "@/components/CurriculumDag";
 import { ChevronLeftIcon } from "@/components/icons";
+import { PageHeader } from "@/components/PageHeader";
 
 export default async function CurriculumPage() {
   // One query — pull each non-archived project with both edge sides and its
@@ -75,19 +76,12 @@ export default async function CurriculumPage() {
         </Link>
       </nav>
 
-      <div className="flex items-baseline justify-between gap-4">
-        <h1 className="title-hero">
-          CURRICULUM
-        </h1>
-        <p className="font-mono text-xs uppercase tracking-wider text-muted">
-          {cards.length} {cards.length === 1 ? "PROJECT" : "PROJECTS"}
-        </p>
-      </div>
-
-      <p className="mt-4 max-w-3xl font-mono text-xs uppercase tracking-wider text-muted">
-        TRACK × LEVEL MAP. EACH CARD SHOWS LATEST STAGE AND TERSE INBOUND /
-        OUTBOUND DEPENDENCIES. BENCH TOOLS ARE DIMMED.
-      </p>
+      <PageHeader
+        eyebrow="OPERATOR"
+        title="Curriculum"
+        meta={[{ label: "PROJECTS", value: cards.length }]}
+        lead="Track × level map. Each card shows latest stage and terse inbound / outbound dependencies. Bench tools are dimmed."
+      />
 
       <div className="mt-8">
         <CurriculumDag projects={cards} />
