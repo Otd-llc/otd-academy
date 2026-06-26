@@ -1,20 +1,19 @@
-// l1-03-ws2812-node — record the DESIGN_VALIDATION attestations Josh authorized
-// (2026-06-18): check the 4 design-stage items the validation-log evidences, and
-// LEAVE items 3 (footprint↔pinout) + 4 (fab-DRU) unchecked — they are [S]/[L]-stage
-// by nature (F7). Idempotent. completedById = the project owner (the attester).
+// l1-03-ws2812-node — record the DESIGN_VALIDATION attestations Josh authorized:
+// check the 5 items the validation-log now evidences, and LEAVE item 4 (fab-DRU)
+// unchecked — it is [L]-stage by nature (F7). Idempotent. completedById = the owner.
 // Item order (materialized ordinals 0..5):
-//   0 Calc trail            -> CHECK   (Passes 3/5/11, design §3)
-//   1 IC datasheet-verified -> CHECK   (Pass 5/11: AHCT125, RT9080, D2, D3, LED3)
-//   2 Footprint↔pinout      -> leave   ([S], Pass 6, schematic)
+//   0 Calc trail            -> CHECK   (Passes 3/5/11/14, design §3)
+//   1 IC datasheet-verified -> CHECK   (Pass 5/11/13: AHCT125, RT9080, D2, D3, LED3)
+//   2 Footprint↔pinout      -> CHECK   ([S]-VERIFIED Pass 17: 9 new parts, pad-by-pad)
 //   3 Fab-DRU DRC           -> leave   ([L], layout)
-//   4 BOM availability       -> CHECK   (Pass 2/11: 25/25 resolve, all ACTIVE)
+//   4 BOM availability       -> CHECK   (Pass 16: 25/25 resolve, all ACTIVE + DK-in-stock)
 //   5 All top risks de-risked-> CHECK   (design §6/§7)
 // Run: pnpm exec tsx scripts/attest-l103-dv.ts
 import { config as loadEnv } from "dotenv";
 loadEnv({ path: ".env.local" });
 
 const SLUG = "l1-03-ws2812-node";
-const CHECK_ORDINALS = [0, 1, 4, 5];
+const CHECK_ORDINALS = [0, 1, 2, 4, 5];
 
 async function main() {
   const { db } = await import("@/lib/db");
@@ -71,7 +70,7 @@ async function main() {
   });
   console.log(`\nBOARD READINESS: ready=${readiness.ready}`);
   for (const c of readiness.checks) console.log(`   ${c.ok ? "PASS" : "----"}  [${c.tier}] ${c.label}`);
-  console.log("\nDesign validated stays INCOMPLETE by design (items 3/4 owed to [S]/[L]). UNFROZEN, stage REQUIREMENTS.");
+  console.log("\nDesign validated stays INCOMPLETE by design (item 4 fab-DRU owed to [L]). UNFROZEN, BOM_SOURCING.");
   await db.$disconnect();
 }
 

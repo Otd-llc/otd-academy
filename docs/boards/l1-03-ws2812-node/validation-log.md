@@ -8,8 +8,8 @@
 | --- | --- |
 | **Slug** | `l1-03-ws2812-node` |
 | **Status** | `Pass 15 — design-stage DRY (re-achieved); gate MET`. Pass 13 (independent fresh eyes) re-opened the gate with 1 HIGH + 4 MED + 2 LOW; **all are now resolved**: part-truth corrections folded (P13-1/2/3/6, verified from the C2843785 PDF), **U3 `SN74AHCT125D`→`SN74AHCT125DR`** (obsolete fix) + **D1 UMW→STMicroelectronics** (shared — l1-01 BOM repointed too) applied to the library + bom.csv. Pass 14 (math/net) clean; **Pass 15** full consistency dry-sweep = **zero new findings**. **Design-stage `[D]` audits all clean — the gate is (re-)met.** Still owed by phase-staging (F7, NOT design-stage blockers): footprint↔pinout `[S]` at schematic, fab-DRU + VBUS⟂5V_EXT ERC `[L]` at layout, F10-4 DOUT-VOH at bring-up. **`DESIGN_VALIDATION` ticks (esp. #5 in-stock buy-confirm) + the BOM freeze remain Josh's.** |
-| **Passes run** | 17 |
-| **Last dry pass** | **Pass 16** (sourcing). **Pass 17** = the `[S]` footprint↔symbol↔pinout audit (audit 6) **VERIFIED** for the 9 new parts — DV#3 now evidenced (awaiting Josh's tick). |
+| **Passes run** | 18 |
+| **Last dry pass** | **Pass 18** (final part-ready confirmation, 2026-06-25) — DRY, zero new findings: PROD parts + 25 BOM lines re-verified strict-match-clean against the post-sub design (C1/C10/D3); DV#3 (footprint↔pinout) **attested** in the DB on the Pass-17 `[S]` evidence. **DV 1/2/3/5/6 attested; #4 (fab-DRU) owed `[L]`.** BOM **UNFROZEN** (hold before LAYOUT). Pass 17 = the `[S]` footprint↔symbol↔pinout audit (audit 6) VERIFIED for the 9 new parts. |
 
 ### Pass 10 — DRY-SWEEP of the folded design (2 fresh reviewers: electrical + consistency)
 
@@ -251,6 +251,29 @@ GND-referenced ESD clamp); swap to a bidirectional-TVS symbol only if preferred.
 TE-282837-specific footprint, so confirm/swap the exact TE body/courtyard at layout. **DV#3
 (footprint↔pinout) is now evidenced** — Josh's honest tick. Still owed: **DV#4 fab-DRU `[L]`** (at layout)
 + the F10-4 DOUT-VOH bring-up residual.
+
+### Pass 18 — Final part-ready confirmation + DV#3 attestation (2026-06-25)
+
+The closing sweep before the PR: re-prove that the *live PROD catalog + revision* match the
+final post-substitution design, then attest the now-earned `[S]` item.
+
+- **Parts ↔ BOM ↔ design strict-match** (`_verify-l103-bom-match.ts`, read-only, prod): the 25
+  `bom.csv` rows parse clean and every `(manufacturer, mpn)` resolves in the library — **25 rows /
+  0 unmatched / 0 refDes-qty mismatch / 0 parse errors**, all lines `ACTIVE`. The 25 **live BomLine
+  rows** (`_l103-state.ts`) equal the CSV row-for-row, carrying the Pass-16 subs: **C1 Murata
+  GRM21BR61E106KA73L**, **C10 Panasonic EEU-FM1C102**, **D3 Bourns CDSOD323-T05C**, plus **U3
+  SN74AHCT125DR** / **D1 STMicroelectronics**. `design.md` carries the subs as **primary** and the
+  Nexperia/Samsung/Panasonic-FR originals only as documented 2nd-source alts (§8) — no stale primary.
+- **DV#3 attested** (`attest-l103-dv.ts`, ordinal 2 added on the Pass-17 `[S]` evidence): the live
+  DESIGN_VALIDATION now reads **1/2/3/5/6 = checked, #4 (fab-DRU) = unchecked**. Board readiness
+  `ready=false` **by design** — "Design validated" is incomplete while #4 is owed `[L]`, and the
+  **BOM is UNFROZEN** (`bomFrozenAt = null`, stage `BOM_SOURCING`). Held before the LAYOUT freeze.
+
+**Verdict: DRY — zero new material findings.** The board is **part-ready**: design validated to DRY
+(18 passes), 9 new parts + the category-tree extension live in PROD, 25 BOM lines written and
+strict-match-clean, DV 1/2/3/5/6 attested. **Owed (by phase, not blockers):** DV#4 fab-DRU `[L]` at
+layout · the F10-4 DOUT-VOH residual at bring-up · Josh's visual DigiKey stock re-confirm (note
+C1/C10/D3 were DK-OOS at the 2026-06-20 screen → the Pass-16 subs are the DK-in-stock equivalents).
 
 ## Gate (Definition of done — all must hold before any part/BOM/revision)
 
