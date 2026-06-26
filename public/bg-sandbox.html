@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex" />
-<title>Background sandbox v4 · dense iso + vignette (05 family)</title>
+<title>Background sandbox v5 · dim lines + top-biased focus (A8+A5)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Lora:ital@0;1&display=swap" rel="stylesheet" />
 <style>
@@ -17,13 +17,13 @@
     font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline}
   .topbar b{color:var(--gold)}.topbar a{color:var(--muted);text-decoration:none}.topbar a:hover{color:var(--gold)}
 
-  /* Responsive isometric two-tier grid. Cell + colours come from inline vars
-     per panel; --major defaults to cell*3 (override inline to change rhythm). */
+  /* Responsive isometric two-tier grid. Defaults are the A8+A5 combo:
+     dim steel lines + top-biased focus vignette. Per-panel overrides via vars. */
   .eng-paper{
     --cell: clamp(11px, 2.4vmin, 20px);
     --major: calc(var(--cell) * 3);
-    --minor: rgba(150,170,205,.06);
-    --bold:  rgba(150,170,205,.11);
+    --minor: rgba(150,170,205,.045);
+    --bold:  rgba(150,170,205,.085);
     background-color: var(--deep);
     background-image:
       repeating-linear-gradient(90deg,  transparent 0 calc(var(--major) - 1px), var(--bold) 0 var(--major)),
@@ -54,105 +54,105 @@
 </head>
 <body>
   <div class="topbar">
-    <span><b>Sandbox v4</b> — 10 takes on <b>05</b> (dense iso grid + vignette)</span>
+    <span><b>Sandbox v5</b> — 10 takes on <b>A8 + A5</b> (dim lines + top-biased focus)</span>
     <span>Resize to see it breathe · tell me the <b>number</b></span>
-    <span><a href="#a1">A1</a> <a href="#a2">A2</a> <a href="#a3">A3</a> <a href="#a4">A4</a> <a href="#a5">A5</a> <a href="#a6">A6</a> <a href="#a7">A7</a> <a href="#a8">A8</a> <a href="#a9">A9</a> <a href="#a10">A10</a></span>
+    <span><a href="#b1">B1</a> <a href="#b2">B2</a> <a href="#b3">B3</a> <a href="#b4">B4</a> <a href="#b5">B5</a> <a href="#b6">B6</a> <a href="#b7">B7</a> <a href="#b8">B8</a> <a href="#b9">B9</a> <a href="#b10">B10</a></span>
   </div>
 
-  <!-- A1 — 05 classic (reference) -->
-  <section class="panel eng-paper" id="a1">
-    <div class="atmo" style="background:radial-gradient(85% 80% at 50% 42%, transparent 24%, #08090d 100%)"></div>
-    <div class="label"><span class="num">A1</span> 05 classic · dense cool + soft vignette<span class="spec">cell 11-20px · minor .06 / bold .11</span></div>
-    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
-      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
-  </section>
-
-  <!-- A2 — finer cell -->
-  <section class="panel eng-paper" id="a2" style="--cell:clamp(9px,2vmin,16px)">
-    <div class="atmo" style="background:radial-gradient(85% 80% at 50% 42%, transparent 24%, #08090d 100%)"></div>
-    <div class="label"><span class="num">A2</span> finer · tighter cell<span class="spec">cell 9-16px · same colours + vignette</span></div>
-    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
-      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
-  </section>
-
-  <!-- A3 — tighter, darker vignette -->
-  <section class="panel eng-paper" id="a3">
-    <div class="atmo" style="background:radial-gradient(68% 70% at 50% 42%, transparent 14%, #08090d 100%)"></div>
-    <div class="label"><span class="num">A3</span> tighter vignette · darker edges<span class="spec">smaller clear center, grid recedes faster</span></div>
-    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
-      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
-  </section>
-
-  <!-- A4 — softer, wider vignette -->
-  <section class="panel eng-paper" id="a4">
-    <div class="atmo" style="background:radial-gradient(102% 98% at 50% 46%, transparent 42%, #08090d 100%)"></div>
-    <div class="label"><span class="num">A4</span> softer vignette · more grid shows<span class="spec">only the far corners fade</span></div>
-    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
-      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
-  </section>
-
-  <!-- A5 — dimmer lines -->
-  <section class="panel eng-paper" id="a5" style="--minor:rgba(150,170,205,.045);--bold:rgba(150,170,205,.085)">
-    <div class="atmo" style="background:radial-gradient(85% 80% at 50% 42%, transparent 24%, #08090d 100%)"></div>
-    <div class="label"><span class="num">A5</span> dimmer lines · whisper grid<span class="spec">minor .045 / bold .085</span></div>
-    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
-      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
-  </section>
-
-  <!-- A6 — brighter lines -->
-  <section class="panel eng-paper" id="a6" style="--minor:rgba(150,170,205,.08);--bold:rgba(150,170,205,.15)">
-    <div class="atmo" style="background:radial-gradient(85% 80% at 50% 42%, transparent 24%, #08090d 100%)"></div>
-    <div class="label"><span class="num">A6</span> brighter lines · more present<span class="spec">minor .08 / bold .15</span></div>
-    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
-      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
-  </section>
-
-  <!-- A7 — warm gold core + vignette -->
-  <section class="panel eng-paper" id="a7">
-    <div class="atmo" style="background:radial-gradient(58% 52% at 50% 40%, rgba(200,150,62,.07), transparent 62%), radial-gradient(86% 82% at 50% 42%, transparent 26%, #08090d 100%)"></div>
-    <div class="label"><span class="num">A7</span> warm gold core + vignette<span class="spec">faint gold light behind the headline</span></div>
-    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
-      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
-  </section>
-
-  <!-- A8 — top-biased focus -->
-  <section class="panel eng-paper" id="a8">
+  <!-- B1 — base combo (A8 focus + A5 dim) -->
+  <section class="panel eng-paper" id="b1">
     <div class="atmo" style="background:radial-gradient(96% 88% at 50% 26%, transparent 18%, #08090d 100%)"></div>
-    <div class="label"><span class="num">A8</span> top-biased focus<span class="spec">clear up top where content sits, fades below</span></div>
+    <div class="label"><span class="num">B1</span> base combo · dim + top focus<span class="spec">cell 11-20 · lines .045/.085 · focus 50% 26%</span></div>
     <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
       <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
       <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
       <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
   </section>
 
-  <!-- A9 — bold every 2 (denser lattice) -->
-  <section class="panel eng-paper" id="a9" style="--major:calc(var(--cell)*2)">
-    <div class="atmo" style="background:radial-gradient(85% 80% at 50% 42%, transparent 24%, #08090d 100%)"></div>
-    <div class="label"><span class="num">A9</span> bold every 2 · heavier lattice<span class="spec">major lines twice as often</span></div>
+  <!-- B2 — focus higher / tighter -->
+  <section class="panel eng-paper" id="b2">
+    <div class="atmo" style="background:radial-gradient(98% 92% at 50% 19%, transparent 14%, #08090d 100%)"></div>
+    <div class="label"><span class="num">B2</span> focus higher · tighter<span class="spec">focus 50% 19% · clear 14%</span></div>
     <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
       <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
       <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
       <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
   </section>
 
-  <!-- A10 — blueprint blue, dense + vignette -->
-  <section class="panel eng-paper" id="a10" style="--minor:rgba(74,143,255,.055);--bold:rgba(74,143,255,.11)">
-    <div class="atmo" style="background:radial-gradient(58% 52% at 50% 40%, rgba(74,143,255,.05), transparent 64%), radial-gradient(86% 82% at 50% 42%, transparent 26%, #08090d 100%)"></div>
-    <div class="label"><span class="num">A10</span> blueprint blue · dense + vignette<span class="spec">signal-blue lines, cool focus</span></div>
+  <!-- B3 — focus a bit lower / more centered -->
+  <section class="panel eng-paper" id="b3">
+    <div class="atmo" style="background:radial-gradient(96% 86% at 50% 33%, transparent 20%, #08090d 100%)"></div>
+    <div class="label"><span class="num">B3</span> focus lower · more centered<span class="spec">focus 50% 33%</span></div>
+    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
+  </section>
+
+  <!-- B4 — even fainter lines -->
+  <section class="panel eng-paper" id="b4" style="--minor:rgba(150,170,205,.034);--bold:rgba(150,170,205,.066)">
+    <div class="atmo" style="background:radial-gradient(96% 88% at 50% 26%, transparent 18%, #08090d 100%)"></div>
+    <div class="label"><span class="num">B4</span> even fainter lines<span class="spec">lines .034/.066 · ghost grid</span></div>
+    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
+  </section>
+
+  <!-- B5 — slightly more present lines -->
+  <section class="panel eng-paper" id="b5" style="--minor:rgba(150,170,205,.055);--bold:rgba(150,170,205,.10)">
+    <div class="atmo" style="background:radial-gradient(96% 88% at 50% 26%, transparent 18%, #08090d 100%)"></div>
+    <div class="label"><span class="num">B5</span> a touch more present<span class="spec">lines .055/.10</span></div>
+    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
+  </section>
+
+  <!-- B6 — finer cell -->
+  <section class="panel eng-paper" id="b6" style="--cell:clamp(9px,2vmin,16px)">
+    <div class="atmo" style="background:radial-gradient(96% 88% at 50% 26%, transparent 18%, #08090d 100%)"></div>
+    <div class="label"><span class="num">B6</span> finer cell<span class="spec">cell 9-16 · same dim + top focus</span></div>
+    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
+  </section>
+
+  <!-- B7 — airier cell -->
+  <section class="panel eng-paper" id="b7" style="--cell:clamp(14px,3vmin,26px)">
+    <div class="atmo" style="background:radial-gradient(96% 88% at 50% 26%, transparent 18%, #08090d 100%)"></div>
+    <div class="label"><span class="num">B7</span> airier cell<span class="spec">cell 14-26 · roomier grid</span></div>
+    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
+  </section>
+
+  <!-- B8 — + faint gold top wash -->
+  <section class="panel eng-paper" id="b8">
+    <div class="atmo" style="background:radial-gradient(90% 55% at 50% 0%, rgba(200,150,62,.06), transparent 55%), radial-gradient(96% 88% at 50% 26%, transparent 18%, #08090d 100%)"></div>
+    <div class="label"><span class="num">B8</span> + faint gold top wash<span class="spec">warm light along the top edge</span></div>
+    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
+  </section>
+
+  <!-- B9 — softer falloff (more grid up top) -->
+  <section class="panel eng-paper" id="b9">
+    <div class="atmo" style="background:radial-gradient(108% 98% at 50% 24%, transparent 30%, #08090d 100%)"></div>
+    <div class="label"><span class="num">B9</span> softer falloff · more grid up top<span class="spec">gentler fade, only corners go dark</span></div>
+    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
+  </section>
+
+  <!-- B10 — + extra bottom fade (settles into footer) -->
+  <section class="panel eng-paper" id="b10">
+    <div class="atmo" style="background:linear-gradient(to bottom, transparent 55%, rgba(8,9,13,.55) 100%), radial-gradient(96% 88% at 50% 24%, transparent 18%, #08090d 100%)"></div>
+    <div class="label"><span class="num">B10</span> + bottom fade · settles to footer<span class="spec">top focus, grid melts away toward the bottom</span></div>
     <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
       <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
       <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
