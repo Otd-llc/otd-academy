@@ -1,0 +1,23 @@
+refDes,manufacturer,mpn,quantity,unitPrice,notes
+C1,KEMET,C0805C106K3PACTU,1,,10uF 0805 bulk on 3V3 (L1.01 core)
+"C2,C3,C7,C9",Samsung Electro-Mechanics,CL21B104KBCNNNC,4,,100nF 0805 decoupling — C2/C3/C7 core + C9 servo HF
+"C5,C6",Würth Elektronik,885012207103,2,,LDO in/out 0805 (L1.01 core)
+C8,Panasonic,EEU-FM1C102,1,1.07,1000uF 16V FM electrolytic — servo bulk (reuse L1.03)
+D1,STMicroelectronics,USBLC6-2SC6,1,,USB ESD/TVS array (L1.01 core)
+D2,Vishay General Semiconductor,SS34-E3/57T,1,1.02,40V/3A SMC/DO-214AB Schottky — shunt reverse-polarity crowbar (NEW)
+D3,Littelfuse,SMAJ6.0A,1,0.47,6.0V SMA TVS — servo-rail back-EMF clamp (NEW)
+F1,Littelfuse,1206L050YR,1,,0.5A PTC on VBUS (L1.01 core)
+F2,Littelfuse,miniSMDC150F-2,1,0.61,1.5A 1812 PTC — servo-rail overcurrent (NEW)
+J1,GCT,USB4110-GF-A,1,,USB-C receptacle (L1.01 core)
+"J2,J3,J5",Sullins Connector Solutions,PRPC040SAAN-RC,3,1.23,Breakaway 0.1in header — J2/J3 GPIO breakout + J5 1x3 servo connector
+J4,TE Connectivity,282837-2,1,1.22,2-pos 5.08mm screw terminal — external servo 5V input (reuse L1.03)
+LED1,Würth Elektronik,150080RS75000,1,,Red power LED 0805 (L1.01 core)
+LED2,Würth Elektronik,150080YS75000,1,,Yellow user/status LED 0805 (L1.01 core)
+"R1,R2",Yageo,RC0805FR-0710KL,2,,10k 0805 EN/GPIO0 pull-ups (L1.01 core)
+"R3,R4",Yageo,RC0805FR-075K1L,2,,5.1k 0805 CC sink pull-downs (L1.01 core)
+"R5,R6,R7",Yageo,RC0805FR-07470RL,3,0.10,470R 0805 — R5/R6 LED series + R7 PWM signal series
+"SW1,SW2",Omron,B3F-1000,2,,EN/BOOT tactile buttons THT (L1.01 core)
+TP1,Keystone Electronics,5010,1,,Red 3V3 test point (L1.01 core)
+TP2,Keystone Electronics,5011,1,,Black GND test point (L1.01 core)
+U1,Espressif Systems,ESP32-S3-WROOM-1-N16R2,1,6.32,ESP32-S3 module (L1.01 core)
+U2,Richtek,RT9080-33GJ5,1,0.28,3.3V/600mA LDO (L1.01 core)
