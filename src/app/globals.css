@@ -293,7 +293,8 @@ body {
     letter-spacing: 0;
     color: var(--color-title);
     font-weight: 400;
-    -webkit-text-stroke: 0.017em currentColor;
+    -webkit-text-stroke: 0.03em currentColor;
+    paint-order: stroke fill;
   }
   .title-section {
     font-family: var(--font-display);
@@ -385,7 +386,8 @@ body {
     line-height: 0.85;
     margin: 0;
     font-weight: 400;
-    -webkit-text-stroke: 0.017em currentColor;
+    -webkit-text-stroke: 0.03em currentColor;
+    paint-order: stroke fill;
   }
   .bench-hero .accent {
     color: var(--color-command-gold);
