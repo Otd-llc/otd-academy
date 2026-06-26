@@ -1,15 +1,18 @@
 // Bench-styled page header (design §8 / plan Task 8.2).
 //
 // Pure presentational; safe as a server component (no client hooks, no state).
-// Renders the bench-console header stack:
+// Renders the capability-brief title stack:
+//   - a `.title-rule` gold-gradient hairline (the "document top")
 //   - optional `.nav-back` breadcrumb (ChevronLeftIcon + {backLabel})
 //   - `.meta-strip` of mono key/value pairs with "/" `.sep` separators
-//   - `.bench-hero` Bebas title with a gold `.ord` eyebrow and an optional
-//     trailing gold `.accent` word
+//   - `.bench-hero` Bebas title — warm ivory, thick-stroked "fat" glyphs, with a
+//     gold `.ord` eyebrow and gold `.accent` WORDS (punctuation stays ivory, so
+//     a headline reads white → gold → white, matching BriefDocument)
 //   - optional `.subhead` Lora-italic lead
 //
 // The CSS recipes live in `src/app/globals.css` (@layer components, Task 8.1).
 
+import { Fragment } from "react";
 import { ChevronLeftIcon } from "@/components/icons";
 
 export interface PageHeaderMeta {
@@ -26,25 +29,27 @@ export interface PageHeaderProps {
   meta?: PageHeaderMeta[];
   /** Small gold `.ord` eyebrow above the title (e.g. "PHASE 04"). */
   eyebrow: string;
-  /** The hero title. Its trailing `accentWord` (if any) renders gold. */
+  /** The hero title. */
   title: string;
-  /** A trailing word/phrase of `title` to render in gold `.accent`. */
+  /**
+   * A single trailing word/phrase of `title` to render gold. Kept for
+   * back-compat; prefer `accentWords` for headlines with internal gold words.
+   */
   accentWord?: string;
+  /**
+   * Words in `title` to render in gold, wherever they appear. Punctuation around
+   * a matched word stays ivory, so "One mind. Many machines." with
+   * `["mind","machines"]` reads ivory→gold→ivory→ivory→gold→ivory.
+   */
+  accentWords?: string[];
   /** Optional Lora-italic `.subhead` lead beneath the title. */
   lead?: string;
 }
 
 /**
  * Split a hero `title` into a plain `head` and an optional trailing `accent`
- * word/phrase (rendered gold). The match is on a trailing word boundary and is
- * case-insensitive, but the returned `accent` preserves the title's original
- * casing.
- *
- * Examples:
- *   splitTitle("INVENTORY CHECK", "CHECK") → { head: "INVENTORY", accent: "CHECK" }
- *   splitTitle("REQUIREMENTS")             → { head: "REQUIREMENTS", accent: null }
- *   splitTitle("INVENTORY CHECK", "FOO")   → { head: "INVENTORY CHECK", accent: null }
- *   splitTitle("BRINGUP", "BRINGUP")       → { head: "BRINGUP", accent: null }  (whole-title accent → white)
+ * word/phrase. Retained for back-compat and unit-tested directly;
+ * `highlightTitle` (below) is what the component renders with.
  */
 export function splitTitle(
   title: string,
@@ -53,35 +58,69 @@ export function splitTitle(
   const trimmedTitle = title.trim();
   const trimmedAccent = accentWord?.trim();
 
-  // No accent requested → whole title is the head.
   if (!trimmedAccent) {
     return { head: trimmedTitle, accent: null };
   }
 
-  // The accent must be a trailing suffix on a word boundary, matched
-  // case-insensitively.
   const lowerTitle = trimmedTitle.toLowerCase();
   const lowerAccent = trimmedAccent.toLowerCase();
 
   if (lowerTitle === lowerAccent) {
-    // The accent would be the ENTIRE title → an all-gold hero with no white
-    // anchor (and the gold `.ord` eyebrow already supplies the gold). Render the
-    // whole title white instead; the eyebrow is the accent. This is what keeps
-    // single-word stage titles (LAYOUT, BRINGUP, …) from becoming a wall of gold.
     return { head: trimmedTitle, accent: null };
   }
 
   const suffix = " " + lowerAccent;
   if (!lowerTitle.endsWith(suffix)) {
-    // Not a trailing suffix → degrade gracefully to a plain title.
     return { head: trimmedTitle, accent: null };
   }
 
   const headLength = trimmedTitle.length - trimmedAccent.length;
-  // Slice off the original-cased accent and trim the boundary space.
   const head = trimmedTitle.slice(0, headLength).trimEnd();
   const accent = trimmedTitle.slice(headLength).trim();
   return { head, accent };
+}
+
+/**
+ * Render `title` as nodes, wrapping each whole-word occurrence of an `accents`
+ * word in a gold `<span class="accent">`. Leading/trailing punctuation on a
+ * matched token stays OUTSIDE the span (ivory), which is what produces the
+ * white → gold → white headline (the period after a gold word is not gold).
+ */
+export function highlightTitle(
+  title: string,
+  accents: string[],
+): React.ReactNode[] {
+  const trimmed = title.trim();
+  const wanted = new Set(
+    accents
+      .map((a) => a.trim().toLowerCase().replace(/[^\p{L}\p{N}]/gu, ""))
+      .filter(Boolean),
+  );
+  if (wanted.size === 0) return [trimmed];
+
+  // Keep the whitespace runs as their own tokens so spacing is preserved.
+  return trimmed.split(/(\s+)/).map((tok, i) => {
+    if (tok === "" || /^\s+$/.test(tok)) {
+      return <Fragment key={i}>{tok}</Fragment>;
+    }
+    // Peel leading + trailing punctuation off the alphanumeric core.
+    const m = tok.match(
+      /^([^\p{L}\p{N}]*)([\p{L}\p{N}](?:.*[\p{L}\p{N}])?)?([^\p{L}\p{N}]*)$/u,
+    );
+    const pre = m?.[1] ?? "";
+    const core = m?.[2] ?? "";
+    const post = m?.[3] ?? "";
+    if (core && wanted.has(core.toLowerCase())) {
+      return (
+        <Fragment key={i}>
+          {pre}
+          <span className="accent">{core}</span>
+          {post}
+        </Fragment>
+      );
+    }
+    return <Fragment key={i}>{tok}</Fragment>;
+  });
 }
 
 export function PageHeader({
@@ -91,9 +130,11 @@ export function PageHeader({
   eyebrow,
   title,
   accentWord,
+  accentWords,
   lead,
 }: PageHeaderProps) {
-  const { head, accent } = splitTitle(title, accentWord);
+  const accents = accentWords ?? (accentWord ? [accentWord] : []);
+  const titleNodes = highlightTitle(title, accents);
 
   return (
     <header className="mb-10">
@@ -106,8 +147,10 @@ export function PageHeader({
         </a>
       ) : null}
 
+      <div className={`title-rule ${backHref ? "mt-5" : ""}`} aria-hidden="true" />
+
       {meta.length > 0 ? (
-        <p className="meta-strip mt-6">
+        <p className="meta-strip">
           {meta.map((item, i) => (
             <span key={`${item.label}-${i}`} className="inline-flex gap-2">
               {i > 0 ? (
@@ -122,15 +165,9 @@ export function PageHeader({
         </p>
       ) : null}
 
-      <h1 className="bench-hero mt-6">
+      <h1 className={`bench-hero ${meta.length > 0 ? "mt-6" : ""}`}>
         <span className="ord">{eyebrow}</span>
-        {head}
-        {accent ? (
-          <>
-            {head ? " " : null}
-            <span className="accent">{accent}</span>
-          </>
-        ) : null}
+        {titleNodes}
       </h1>
 
       {lead ? <p className="subhead">{lead}</p> : null}

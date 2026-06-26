@@ -61,7 +61,7 @@ export default function BriefsIndexPage() {
         <PageHeader
           eyebrow="CAPABILITY BRIEFS"
           title="One mind. Many machines."
-          accentWord="machines."
+          accentWords={["mind", "machines"]}
           lead="Short reads on what the academy is, who it is for, and why it is built the way it is. Pick a cut."
         />
 

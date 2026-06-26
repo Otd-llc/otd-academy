@@ -48,7 +48,7 @@
    *   muted  #aaaaaa →  secondary copy, captions, labels
    *   gray-3 #555555 →  faint meta, timestamps, disabled
    */
-  --color-title: #ffffff;
+  --color-title: #f1ece0;
   --color-text: #e8e8e8;
 
   /*
@@ -238,33 +238,40 @@ body {
    *   .title-hero    page <h1>     fluid 44 → 80px
    *   .title-section section <h2>  28px
    *   .title-card    card heading  22px
-   * All render in `--color-title` (#fff). A `group-hover:text-command-gold`
-   * utility still wins (Tailwind utilities layer after components), so
-   * link-card titles keep their gold hover.
+   * All render in warm ivory `--color-title` (#f1ece0), and all carry the
+   * capability-brief "fatness": Bebas Neue ships a single weight, so we thicken
+   * the glyph strokes with `-webkit-text-stroke` (color `currentColor`, so a
+   * gold accent word strokes gold and an ivory word strokes ivory) — the same
+   * trick BriefDocument uses, scaled per tier. A `group-hover:text-command-gold`
+   * utility still wins (Tailwind utilities layer after components), so link-card
+   * titles keep their gold hover.
    */
   .title-hero {
     font-family: var(--font-display);
     font-size: clamp(2.75rem, 7vw, 5rem);
-    line-height: 0.95;
-    letter-spacing: 0.04em;
+    line-height: 0.88;
+    letter-spacing: 0;
     color: var(--color-title);
     font-weight: 400;
+    -webkit-text-stroke: 0.017em currentColor;
   }
   .title-section {
     font-family: var(--font-display);
     font-size: 1.75rem;
     line-height: 1.05;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.03em;
     color: var(--color-title);
     font-weight: 400;
+    -webkit-text-stroke: 0.014em currentColor;
   }
   .title-card {
     font-family: var(--font-display);
     font-size: 1.375rem;
     line-height: 1.1;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.03em;
     color: var(--color-title);
     font-weight: 400;
+    -webkit-text-stroke: 0.012em currentColor;
   }
 
   /*
@@ -325,15 +332,20 @@ body {
     }
   }
 
-  /* bench-hero — oversized Bebas title with a gold .ord eyebrow + .accent word. */
+  /* bench-hero — oversized Bebas title with a gold .ord eyebrow + .accent word.
+     Carries the capability-brief "fatness": warm ivory fill + a thickened glyph
+     stroke (currentColor, so the gold accent word strokes gold), tight leading
+     and packing — the BriefDocument headline treatment, promoted to the standard
+     page hero. */
   .bench-hero {
     font-family: var(--font-display);
     font-size: clamp(54px, 9vw, 108px);
-    letter-spacing: 0.04em;
-    color: #fff;
-    line-height: 0.95;
+    letter-spacing: 0;
+    color: var(--color-title);
+    line-height: 0.85;
     margin: 0;
     font-weight: 400;
+    -webkit-text-stroke: 0.017em currentColor;
   }
   .bench-hero .accent {
     color: var(--color-command-gold);
@@ -343,7 +355,34 @@ body {
     font-size: 0.3em;
     letter-spacing: 0.3em;
     color: var(--color-command-gold);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+    /* Don't thicken the small mono eyebrow — the stroke is for the big title. */
+    -webkit-text-stroke-width: 0;
+  }
+
+  /* title-rule — the capability-brief top divider: a hairline with a gold
+     gradient drawn across its left ~60%, fading to transparent. Sits at the top
+     of every PageHeader so each page opens with the same "document top". */
+  .title-rule {
+    position: relative;
+    height: 1px;
+    width: 100%;
+    background: var(--color-panel-border);
+    margin-bottom: 1.6rem;
+  }
+  .title-rule::before {
+    content: "";
+    position: absolute;
+    top: -1px;
+    left: 0;
+    height: 2px;
+    width: 60%;
+    background: linear-gradient(
+      to right,
+      var(--color-command-gold) 0%,
+      var(--color-command-gold) 38%,
+      rgba(200, 150, 62, 0) 100%
+    );
   }
 
   /* subhead — Lora italic lead beneath the hero. */
