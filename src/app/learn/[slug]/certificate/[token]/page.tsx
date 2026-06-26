@@ -6,8 +6,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { verifyCardToken } from "@/lib/certificate-token";
+import { certificateId } from "@/lib/certificate-id";
 import { siteUrl } from "@/lib/seo/jsonld";
 import { ShareCard } from "@/components/learn/ShareCard";
+import { VerifyLinkShare } from "@/components/learn/VerifyLinkShare";
 
 type Params = { slug: string; token: string };
 
@@ -81,6 +83,10 @@ export default async function CertificateSharePage({
         downloadUrl={pdfPath(slug, token)}
         shareUrl={`${siteUrl()}/learn/${slug}/certificate/${token}`}
         title={heading}
+      />
+      <VerifyLinkShare
+        code={certificateId(token)}
+        verifyUrl={`${siteUrl()}/verify?code=${certificateId(token)}`}
       />
       <Link
         href="/courses"
