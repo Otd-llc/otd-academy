@@ -255,7 +255,8 @@ Conditional (flags: `hasLiIon`, `hasThermalConcern`) — **clean, not waived** (
 | C9 | Panasonic, EEU-FM1C102 (1000µF 16V) | radial THT | (catalog) | — | Active | ✅ | Device:C_Polarized / CP_Radial |
 | TP1,TP2 | Keystone, 5010 / 5011 | THT loop | (catalog) | — | Active | ✅ | Connector:TestPoint / TestPoint |
 
-- **Second sources noted for:** Q1 FS8205A (thin 459 stock) → two discrete N-FETs or
-  an 8205-equivalent (LSP8205S/AO8810-class); U2 DW01A → any 1S protector
-  (TI BQ29700 leadless alt); the rest are well-stocked jellybeans.
+- **Second sources noted for:** Q1 FS8205A (thin 459 stock) → **generic `8205A`
+  (DK 4518-8205ACT-ND, 7,690 stock, Active, $0.40)** — same dual-N-FET silicon/pinout,
+  drop-in; fallback = two discrete N-FETs. U2 DW01A → any 1S protector (TI BQ29700
+  leadless alt). The rest are well-stocked jellybeans.
 - **BOM frozen:** not yet (HOLD before LAYOUT freeze).

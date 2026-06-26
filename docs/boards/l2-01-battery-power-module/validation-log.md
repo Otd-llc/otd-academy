@@ -135,8 +135,9 @@ D1/D2/D3, C9, LED1/2 (silk `[L]`). Assembly order: SMD reflow/drag → THT hand.
 
 All 25 lines **Active**, live-stock-screened 2026-06-25 (§8 table). New parts: TLV61048DBVR
 13 180 · SRN6045TA-4R7M 24 578 · DW01A 20 950 · DMG3415U-7 57 534 · S2B-PH-K-S 737 474 ·
-EG1218 34 061 · 52.3k 2 836 · 1M 264 611. **FS8205A = 459 (thin)** → flagged 2nd source (two
-discrete N-FETs / LSP8205S / BQ29700-class). Reused parts in the live catalog (byte-exact
+EG1218 34 061 · 52.3k 2 836 · 1M 264 611. **FS8205A = 459 (thin)** → 2nd source **generic
+`8205A` 7 690 stock Active** (same silicon/pinout, drop-in); fallback two discrete N-FETs.
+Reused parts in the live catalog (byte-exact
 `(manufacturer,mpn)` per the dump). **Residual:** FS8205A stock to re-screen at build (watchdog
 PR #156 covers it) — non-blocking.
 
@@ -174,9 +175,12 @@ PR #156 covers it) — non-blocking.
 - **Pipeline conformance:** flags `hasLiIon=true`+`hasThermalConcern=true` (set in PROD) → the
   two conditional DV items will materialize; `hasMainsNet`/`requiresStripboard` false. `[S]`/`[L]`
   items honestly owed; freeze = entering LAYOUT (HOLD). ✓
-- Note for owner: the seeded REQUIREMENTS_REVIEW checklist is generic boilerplate (WS2812/servo/
-  ADC1/antenna) — N/A for this board; tick/N-A at the REQUIREMENTS gate. DAG self-edges are seed
-  noise (non-blocking). ✓
+- The seeded REQUIREMENTS_REVIEW checklist was generic boilerplate (WS2812/servo/ADC1/antenna) →
+  **rewritten to the power-module's real requirements** (`scripts/fix-l201-requirements.ts`,
+  2026-06-26). DAG edges **verified correct** (full re-query): `l2-01@REQUIREMENTS ⇐
+  l1-01@BRINGUP` (FOUNDATION) + l2-03/l3-01/l3-02/l3-05 `@LAYOUT ⇐ l2-01@BRINGUP` (SHARED_BLOCK) +
+  l3-04-bms@REQUIREMENTS (DE_RISK) — the power module is a foundation 5 boards reuse; **no
+  self-loops** (an earlier read-script display bug mislabelled them). ✓
 
 **Residual:** none material.
 
