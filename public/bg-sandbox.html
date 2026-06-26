@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex" />
-<title>Background sandbox v3 · responsive isometric graph paper</title>
+<title>Background sandbox v4 · dense iso + vignette (05 family)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Lora:ital@0;1&display=swap" rel="stylesheet" />
 <style>
@@ -14,16 +14,14 @@
   body{background:var(--deep);color:var(--muted);font-family:"Lora",serif}
   .topbar{position:sticky;top:0;z-index:10;background:rgba(8,9,13,.85);backdrop-filter:blur(8px);
     border-bottom:1px solid rgba(200,150,62,.4);padding:14px 24px;font-family:"Space Mono",monospace;
-    font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 18px;align-items:baseline}
+    font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline}
   .topbar b{color:var(--gold)}.topbar a{color:var(--muted);text-decoration:none}.topbar a:hover{color:var(--gold)}
 
-  /* ── The responsive recipe ──────────────────────────────────────────────
-     Isometric (3 line families at 60deg) graph paper, two-tier (fine minor +
-     bold major). Cell size is FLUID: clamp() + vmin, so the grid scales with
-     the viewport. Pure CSS, vector, zero assets. */
+  /* Responsive isometric two-tier grid. Cell + colours come from inline vars
+     per panel; --major defaults to cell*3 (override inline to change rhythm). */
   .eng-paper{
-    --cell: clamp(15px, 3.4vmin, 30px);          /* minor cell — scales with viewport */
-    --major: calc(var(--cell) * 3);              /* bold every 3rd line = A4 two-tier */
+    --cell: clamp(11px, 2.4vmin, 20px);
+    --major: calc(var(--cell) * 3);
     --minor: rgba(150,170,205,.06);
     --bold:  rgba(150,170,205,.11);
     background-color: var(--deep);
@@ -35,22 +33,10 @@
       repeating-linear-gradient(30deg,  transparent 0 calc(var(--cell) - 1px),  var(--minor) 0 var(--cell)),
       repeating-linear-gradient(150deg, transparent 0 calc(var(--cell) - 1px),  var(--minor) 0 var(--cell));
   }
-  .gold { --minor:rgba(200,150,62,.06); --bold:rgba(200,150,62,.13) }
-  .blue { --minor:rgba(74,143,255,.06); --bold:rgba(74,143,255,.12) }
-  .dense{ --cell: clamp(11px, 2.4vmin, 20px) }
-  .airy { --cell: clamp(20px, 4.6vmin, 42px) }
-
   .panel{position:relative;min-height:94vh;padding:64px 6vw;display:flex;flex-direction:column;justify-content:center;
     border-bottom:1px solid rgba(58,63,80,.5);overflow:hidden}
-  /* optional atmosphere overlays */
-  .glow::before{content:"";position:absolute;inset:0;pointer-events:none;
-    background:radial-gradient(120% 80% at 50% 0%, rgba(200,150,62,.10), transparent 60%)}
-  .fade::before{content:"";position:absolute;inset:0;pointer-events:none;
-    background:linear-gradient(to bottom, rgba(8,9,13,0), rgba(8,9,13,.6))}
-  .vignette::before{content:"";position:absolute;inset:0;pointer-events:none;
-    background:radial-gradient(85% 80% at 50% 42%, transparent 24%, #08090d 100%)}
-
-  .label{position:absolute;top:20px;left:6vw;z-index:2;font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+  .atmo{position:absolute;inset:0;pointer-events:none;z-index:1}
+  .label{position:absolute;top:20px;left:6vw;z-index:3;font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
   .label .num{color:var(--gold);font-weight:700;margin-right:10px;border:1px solid rgba(200,150,62,.5);border-radius:4px;padding:2px 7px}
   .label .spec{display:block;margin-top:6px;color:#7a7f8e;font-size:10px;letter-spacing:.16em}
   .content{max-width:760px;position:relative;z-index:2}
@@ -68,57 +54,109 @@
 </head>
 <body>
   <div class="topbar">
-    <span><b>Sandbox v3</b> — responsive isometric graph paper (fluid clamp/vmin cell)</span>
-    <span><b>Resize the window</b> to watch the grid breathe · tell me the <b>number</b> + colour</span>
-    <span><a href="#p1">01</a> <a href="#p2">02</a> <a href="#p3">03</a> <a href="#p4">04</a> <a href="#p5">05</a> <a href="#p6">06</a></span>
+    <span><b>Sandbox v4</b> — 10 takes on <b>05</b> (dense iso grid + vignette)</span>
+    <span>Resize to see it breathe · tell me the <b>number</b></span>
+    <span><a href="#a1">A1</a> <a href="#a2">A2</a> <a href="#a3">A3</a> <a href="#a4">A4</a> <a href="#a5">A5</a> <a href="#a6">A6</a> <a href="#a7">A7</a> <a href="#a8">A8</a> <a href="#a9">A9</a> <a href="#a10">A10</a></span>
   </div>
 
-  <section class="panel eng-paper" id="p1">
-    <div class="label"><span class="num">01</span> Fluid iso · cool<span class="spec">cell clamp(15px,3.4vmin,30px) · minor + major · steel lines</span></div>
+  <!-- A1 — 05 classic (reference) -->
+  <section class="panel eng-paper" id="a1">
+    <div class="atmo" style="background:radial-gradient(85% 80% at 50% 42%, transparent 24%, #08090d 100%)"></div>
+    <div class="label"><span class="num">A1</span> 05 classic · dense cool + soft vignette<span class="spec">cell 11-20px · minor .06 / bold .11</span></div>
     <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
       <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Resize the browser — the cells grow on wide screens, tighten on phones.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Pure CSS, vector, no image assets. Scales to any resolution.</p></div></div>
+      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
   </section>
 
-  <section class="panel eng-paper glow" id="p2">
-    <div class="label"><span class="num">02</span> Fluid iso · cool + top gold glow<span class="spec">same grid, warm bloom from the top edge</span></div>
+  <!-- A2 — finer cell -->
+  <section class="panel eng-paper" id="a2" style="--cell:clamp(9px,2vmin,16px)">
+    <div class="atmo" style="background:radial-gradient(85% 80% at 50% 42%, transparent 24%, #08090d 100%)"></div>
+    <div class="label"><span class="num">A2</span> finer · tighter cell<span class="spec">cell 9-16px · same colours + vignette</span></div>
     <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
       <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Resize the browser — the cells grow on wide screens, tighten on phones.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Pure CSS, vector, no image assets. Scales to any resolution.</p></div></div>
+      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
   </section>
 
-  <section class="panel eng-paper gold fade" id="p3">
-    <div class="label"><span class="num">03</span> Fluid iso · gold + fade down<span class="spec">command-gold lines, settling to deep space</span></div>
+  <!-- A3 — tighter, darker vignette -->
+  <section class="panel eng-paper" id="a3">
+    <div class="atmo" style="background:radial-gradient(68% 70% at 50% 42%, transparent 14%, #08090d 100%)"></div>
+    <div class="label"><span class="num">A3</span> tighter vignette · darker edges<span class="spec">smaller clear center, grid recedes faster</span></div>
     <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
       <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Resize the browser — the cells grow on wide screens, tighten on phones.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Pure CSS, vector, no image assets. Scales to any resolution.</p></div></div>
+      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
   </section>
 
-  <section class="panel eng-paper blue glow" id="p4">
-    <div class="label"><span class="num">04</span> Fluid iso · blueprint blue<span class="spec">signal-blue lines + blue glow</span></div>
+  <!-- A4 — softer, wider vignette -->
+  <section class="panel eng-paper" id="a4">
+    <div class="atmo" style="background:radial-gradient(102% 98% at 50% 46%, transparent 42%, #08090d 100%)"></div>
+    <div class="label"><span class="num">A4</span> softer vignette · more grid shows<span class="spec">only the far corners fade</span></div>
     <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
       <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Resize the browser — the cells grow on wide screens, tighten on phones.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Pure CSS, vector, no image assets. Scales to any resolution.</p></div></div>
+      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
   </section>
 
-  <section class="panel eng-paper dense vignette" id="p5">
-    <div class="label"><span class="num">05</span> Fluid iso · dense + center vignette<span class="spec">tighter cell clamp(11px,2.4vmin,20px) · edges fade</span></div>
+  <!-- A5 — dimmer lines -->
+  <section class="panel eng-paper" id="a5" style="--minor:rgba(150,170,205,.045);--bold:rgba(150,170,205,.085)">
+    <div class="atmo" style="background:radial-gradient(85% 80% at 50% 42%, transparent 24%, #08090d 100%)"></div>
+    <div class="label"><span class="num">A5</span> dimmer lines · whisper grid<span class="spec">minor .045 / bold .085</span></div>
     <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
       <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Resize the browser — the cells grow on wide screens, tighten on phones.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Pure CSS, vector, no image assets. Scales to any resolution.</p></div></div>
+      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
   </section>
 
-  <section class="panel eng-paper airy glow" id="p6">
-    <div class="label"><span class="num">06</span> Fluid iso · airy + top glow<span class="spec">larger cell clamp(20px,4.6vmin,42px) · roomier grid</span></div>
+  <!-- A6 — brighter lines -->
+  <section class="panel eng-paper" id="a6" style="--minor:rgba(150,170,205,.08);--bold:rgba(150,170,205,.15)">
+    <div class="atmo" style="background:radial-gradient(85% 80% at 50% 42%, transparent 24%, #08090d 100%)"></div>
+    <div class="label"><span class="num">A6</span> brighter lines · more present<span class="spec">minor .08 / bold .15</span></div>
     <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
       <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
-      <p class="lead">Resize the browser — the cells grow on wide screens, tighten on phones.</p>
-      <div class="card"><p class="card-title">The overview</p><p class="card-body">Pure CSS, vector, no image assets. Scales to any resolution.</p></div></div>
+      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
+  </section>
+
+  <!-- A7 — warm gold core + vignette -->
+  <section class="panel eng-paper" id="a7">
+    <div class="atmo" style="background:radial-gradient(58% 52% at 50% 40%, rgba(200,150,62,.07), transparent 62%), radial-gradient(86% 82% at 50% 42%, transparent 26%, #08090d 100%)"></div>
+    <div class="label"><span class="num">A7</span> warm gold core + vignette<span class="spec">faint gold light behind the headline</span></div>
+    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
+  </section>
+
+  <!-- A8 — top-biased focus -->
+  <section class="panel eng-paper" id="a8">
+    <div class="atmo" style="background:radial-gradient(96% 88% at 50% 26%, transparent 18%, #08090d 100%)"></div>
+    <div class="label"><span class="num">A8</span> top-biased focus<span class="spec">clear up top where content sits, fades below</span></div>
+    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
+  </section>
+
+  <!-- A9 — bold every 2 (denser lattice) -->
+  <section class="panel eng-paper" id="a9" style="--major:calc(var(--cell)*2)">
+    <div class="atmo" style="background:radial-gradient(85% 80% at 50% 42%, transparent 24%, #08090d 100%)"></div>
+    <div class="label"><span class="num">A9</span> bold every 2 · heavier lattice<span class="spec">major lines twice as often</span></div>
+    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
+  </section>
+
+  <!-- A10 — blueprint blue, dense + vignette -->
+  <section class="panel eng-paper" id="a10" style="--minor:rgba(74,143,255,.055);--bold:rgba(74,143,255,.11)">
+    <div class="atmo" style="background:radial-gradient(58% 52% at 50% 40%, rgba(74,143,255,.05), transparent 64%), radial-gradient(86% 82% at 50% 42%, transparent 26%, #08090d 100%)"></div>
+    <div class="label"><span class="num">A10</span> blueprint blue · dense + vignette<span class="spec">signal-blue lines, cool focus</span></div>
+    <div class="content"><p class="eyebrow">Capability briefs</p><div class="rule"></div>
+      <h1 class="hero">One <span class="g">mind</span>.<br>Many <span class="g">machines</span>.</h1>
+      <p class="lead">Sample lead in Lora italic, judging legibility over the grid.</p>
+      <div class="card"><p class="card-title">The overview</p><p class="card-body">Body copy on a glass card over the engineering field.</p></div></div>
   </section>
 </body>
 </html>
