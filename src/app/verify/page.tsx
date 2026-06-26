@@ -8,6 +8,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { signCardToken } from "@/lib/certificate-token";
 import { BrandMark } from "@/components/BrandMark";
+import { VerifyForm } from "@/components/verify/VerifyForm";
 
 export const metadata: Metadata = {
   title: "Verify a certificate · One Thousand Drones Academy",
@@ -116,27 +117,8 @@ export default async function VerifyPage({
           </p>
         </div>
 
-        {/* Lookup */}
-        <form
-          method="get"
-          className="mx-auto mt-8 flex w-full max-w-md flex-wrap items-center justify-center gap-3"
-        >
-          <input
-            type="text"
-            name="code"
-            defaultValue={code ?? ""}
-            placeholder="OTD-XXXX-XXXX"
-            autoCapitalize="characters"
-            aria-label="Certificate code"
-            className="min-w-0 flex-1 rounded border border-panel-border bg-navy-dark/80 px-4 py-3 text-center font-mono text-sm uppercase tracking-[0.22em] text-gray-1 outline-none placeholder:text-muted focus:border-command-gold"
-          />
-          <button
-            type="submit"
-            className="glass-button glass-button-cta px-7 py-3 font-mono text-xs uppercase tracking-[0.18em]"
-          >
-            Verify
-          </button>
-        </form>
+        {/* Lookup — type just the 8 characters; OTD- and the dash are added. */}
+        <VerifyForm initialCode={code} />
 
         {/* Default: what a code confirms (the selling point, stated plainly). */}
         {!code && (

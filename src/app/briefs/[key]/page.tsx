@@ -14,7 +14,6 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { BriefDocument } from "@/components/briefs/BriefDocument";
 import { BriefDocumentMobile } from "@/components/briefs/BriefDocumentMobile";
 import { SheetScaler } from "@/components/briefs/SheetScaler";
-import { PrintButton } from "@/components/briefs/PrintButton";
 import { breadcrumbJsonLd, techArticleJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { BRIEF_KEYS, getBrief } from "@/lib/brief-pages";
 
@@ -93,7 +92,16 @@ export default async function BriefPage({
         >
           ← Briefs
         </Link>
-        <PrintButton className="glass-button glass-button-cta inline-flex items-center px-4 py-2 font-mono text-xs uppercase tracking-wider" />
+        {/* Direct download of the pre-generated PDF (Chromium-made, links intact).
+            Avoids window.print(), whose links the Windows "Print to PDF" driver
+            strips. Regenerate with scripts/generate-brief-pdfs.mjs. */}
+        <a
+          href={`/briefs/${brief.key}.pdf`}
+          download={`otd-${brief.key}-brief.pdf`}
+          className="glass-button glass-button-cta inline-flex items-center gap-1.5 px-4 py-2 font-mono text-xs uppercase tracking-wider"
+        >
+          Download PDF <span aria-hidden="true">↓</span>
+        </a>
       </div>
 
       {/* Desktop + print: the fixed letter sheet (the single source for the PDF),
