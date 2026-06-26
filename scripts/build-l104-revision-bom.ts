@@ -48,7 +48,12 @@ async function main() {
 
   // ── 1 · Materialize DESIGN_VALIDATION (revision-scoped, flag-driven) ──
   const template = CANONICAL_TEMPLATES.DESIGN_VALIDATION;
-  const flags = project as Record<string, boolean>;
+  const flags: Record<"hasMainsNet" | "requiresStripboard" | "hasLiIon" | "hasThermalConcern", boolean> = {
+    hasMainsNet: project.hasMainsNet,
+    requiresStripboard: project.requiresStripboard,
+    hasLiIon: project.hasLiIon,
+    hasThermalConcern: project.hasThermalConcern,
+  };
   const items = [
     ...template.items,
     ...(template.conditionalItems ?? [])
