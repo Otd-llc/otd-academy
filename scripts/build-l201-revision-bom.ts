@@ -32,7 +32,12 @@ async function main() {
   const createdById = seed!.createdById;
 
   // ── 1. Materialize DESIGN_VALIDATION (idempotent) ──
-  const flags = proj as Record<string, boolean>;
+  const flags: Record<"hasMainsNet" | "requiresStripboard" | "hasLiIon" | "hasThermalConcern", boolean> = {
+    hasMainsNet: proj.hasMainsNet,
+    requiresStripboard: proj.requiresStripboard,
+    hasLiIon: proj.hasLiIon,
+    hasThermalConcern: proj.hasThermalConcern,
+  };
   const tmpl = CANONICAL_TEMPLATES.DESIGN_VALIDATION;
   const dvItems = [
     ...tmpl.items,
