@@ -167,7 +167,9 @@ export function PageHeader({
 
       <h1 className={`bench-hero ${meta.length > 0 ? "mt-6" : ""}`}>
         <span className="ord">{eyebrow}</span>
-        {titleNodes}
+        <span className="hero-line">
+          <span>{titleNodes}</span>
+        </span>
       </h1>
 
       {lead ? <p className="subhead">{lead}</p> : null}

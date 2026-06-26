@@ -402,6 +402,32 @@ body {
     -webkit-text-stroke-width: 0;
   }
 
+  /* Kinetic hero reveal — the page title wipes up from a mask on load (one
+     beat), shared with the apex hero. Respects reduced-motion. */
+  .hero-line {
+    display: block;
+    overflow: hidden;
+    padding: 0.08em 0;
+    margin: -0.08em 0;
+  }
+  .hero-line > span {
+    display: inline-block;
+    animation: hero-rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  @keyframes hero-rise {
+    from {
+      transform: translateY(110%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-line > span {
+      animation: none;
+    }
+  }
+
   /* title-rule — the capability-brief top divider: a hairline with a gold
      gradient drawn across its left ~60%, fading to transparent. Sits at the top
      of every PageHeader so each page opens with the same "document top". */
