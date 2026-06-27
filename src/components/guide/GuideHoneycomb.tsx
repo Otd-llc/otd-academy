@@ -18,8 +18,10 @@ import type { GuideStage } from "@/lib/guide-templates/stage-skeletons";
 const useIsoLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-const MINW = 270; // minimum hex width — it grows to fill, never below this
 const MAXW = 360;
+const PER_ROW = 3; // up to three across on wide screens
+const MIN_ROW = 2; // never fewer than two — the comb never becomes a vertical strip
+const MINW = 165; // drop 3→2 columns once cells would shrink below this
 const RATIO = 1.1547; // regular pointy-top: height / width
 
 export type HoneycombStage = {
@@ -36,10 +38,11 @@ type Box = { left: number; top: number; w: number; h: number };
 
 function computeLayout(cw: number, count: number): { boxes: Box[]; height: number } {
   if (cw <= 0 || count === 0) return { boxes: [], height: 0 };
-  let perRow = Math.max(1, Math.min(Math.floor(cw / MINW), count));
+  let perRow = Math.min(count, PER_ROW);
   let off = perRow > 1 ? 0.5 : 0;
   let w = cw / (perRow + off);
-  while (w < MINW && perRow > 1) {
+  // drop a column when cells would get too small, but never below two-across
+  while (w < MINW && perRow > MIN_ROW) {
     perRow--;
     off = perRow > 1 ? 0.5 : 0;
     w = cw / (perRow + off);
@@ -121,7 +124,13 @@ export function GuideHoneycomb({
             >
               <polygon points="50,0 100,28.87 100,86.6 50,115.47 0,86.6 0,28.87" />
             </svg>
-            <span className="gh-num" aria-hidden style={{ fontSize: Math.round(b.w * 0.43) }}>
+            <span
+              className="gh-num"
+              aria-hidden
+              // hero size on big cells; eased down on small ones so it stops
+              // swallowing the room the title + chip need on a phone.
+              style={{ fontSize: Math.round(b.w * (b.w <= 200 ? 0.36 : 0.43)) }}
+            >
               {s.num}
             </span>
             <span className="gh-m">

@@ -131,7 +131,7 @@ body {
 
 /* GuideHoneycomb — big tessellating info-hex stepper for the build-guide hub.
    Nodes are absolutely positioned by the component (it measures + fills width). */
-.gh-node { position: absolute; display: block; text-decoration: none; text-align: center; }
+.gh-node { position: absolute; display: block; text-decoration: none; text-align: center; container-type: inline-size; }
 .gh-hex { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .gh-hex polygon { fill: var(--color-deep-space); stroke: var(--color-panel-border); stroke-width: 2; vector-effect: non-scaling-stroke; transition: stroke 0.15s; }
 .gh-node:hover .gh-hex polygon { stroke: var(--color-gold-light); }
@@ -141,12 +141,29 @@ body {
 .gh-num { position: absolute; left: 0; right: 0; top: 12%; z-index: 0; pointer-events: none; font-family: var(--font-display), sans-serif; letter-spacing: 0.05em; line-height: 1; color: transparent; -webkit-text-stroke: 1.75px rgba(232, 184, 101, 0.34); }
 /* title + lead, centred in the lower two-thirds */
 .gh-m { position: absolute; left: 0; right: 0; top: 64%; transform: translateY(-50%); z-index: 1; padding: 0 7%; }
-.gh-m > span { display: block; }
-.gh-title { font-family: var(--font-display), sans-serif; font-size: 32px; letter-spacing: 0.04em; line-height: 0.9; color: var(--color-gray-1); margin-bottom: 8px; }
-.gh-lead { font-family: var(--font-serif), serif; font-size: 15px; line-height: 1.5; color: #d8d8d8; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.gh-m > .gh-title { display: block; }
+/* type scales with the hex (cqw = 1% of the cell width) so cells stay legible all
+   the way down to the two-up phone size, bounded by a px floor + ceiling. */
+.gh-title { font-family: var(--font-display), sans-serif; font-size: clamp(14px, 11cqw, 32px); letter-spacing: 0.04em; line-height: 0.9; color: var(--color-gray-1); margin-bottom: 8px; }
+.gh-lead { font-family: var(--font-serif), serif; font-size: clamp(11px, 4.8cqw, 15px); line-height: 1.5; color: #d8d8d8; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* small cells can't fit a 2-line description at a legible size without truncating
+   it — drop it (full text is on the stage page), re-centre the title, and lift the
+   chip off the narrow bottom point. The lead only returns once a cell is wide
+   enough to hold the longest one untruncated. */
+@container (max-width: 200px) {
+  /* no lead — reorganise so the three elements read as a deliberate compact card:
+     number anchored in the upper third, then title + chip as a tight centred pair,
+     instead of leaving the title + chip at their full-layout spots with a hole in
+     between where the lead used to be. */
+  .gh-lead { display: none; }
+  .gh-num { top: 17%; }
+  .gh-title { font-size: clamp(15px, 13cqw, 25px); margin-bottom: 0; }
+  .gh-m { top: 57%; }
+  .gh-status { bottom: 22%; }
+}
 /* status as a chip pinned to the lower point */
 .gh-status { position: absolute; left: 0; right: 0; bottom: 13%; display: flex; justify-content: center; z-index: 1; }
-.gh-chip { font-family: var(--font-mono), monospace; font-weight: 700; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; padding: 4px 13px; border-radius: 999px; white-space: nowrap; }
+.gh-chip { font-family: var(--font-mono), monospace; font-weight: 700; font-size: clamp(8px, 3.2cqw, 10px); letter-spacing: 0.16em; text-transform: uppercase; padding: clamp(2px, 1.3cqw, 4px) clamp(7px, 4cqw, 13px); border-radius: 999px; white-space: nowrap; }
 .gh-node.pending .gh-chip { border: 1px solid rgba(200, 150, 62, 0.45); color: var(--color-command-gold); }
 .gh-node.done .gh-hex polygon { fill: url(#gh-honey); stroke: #eab94d; }
 .gh-node.done .gh-num { -webkit-text-stroke-color: rgba(20, 13, 2, 0.44); }
