@@ -253,6 +253,11 @@ export function GuideStepper({
                         : undefined
                     }
                   >
+                    {/* opaque backdrop so the connector routed behind the cell
+                        stays hidden — only the between-cell run shows. The
+                        translucent honey-soft (partial/current) fill would
+                        otherwise reveal the line straight through the cell. */}
+                    <polygon points={HEX} fill="var(--color-deep-space)" />
                     <polygon
                       points={HEX}
                       fill={fillRef(s.state)}
