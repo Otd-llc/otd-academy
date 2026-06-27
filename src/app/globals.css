@@ -139,7 +139,11 @@ body {
 .gh-txt > span { display: block; }
 .gh-kick { font-family: var(--font-mono), monospace; font-weight: 700; font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--color-command-gold); }
 .gh-title { margin: 5px 0; font-family: var(--font-display), sans-serif; font-size: 25px; letter-spacing: 0.04em; line-height: 0.92; color: var(--color-gray-1); }
-.gh-lead { font-family: var(--font-serif), serif; font-size: 13px; line-height: 1.45; color: #e6e6e6; }
+/* clamp the lead to a uniform line count so every hex carries the same amount of
+   text (the full description lives on the stage page). `.gh-txt .gh-lead` outranks
+   the generic `.gh-txt > span { display: block }`, and as a block child (not a
+   flex item) the -webkit-box still wraps at the real width. */
+.gh-txt .gh-lead { font-family: var(--font-serif), serif; font-size: 13px; line-height: 1.45; color: #e6e6e6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .gh-status { margin-top: 7px; font-family: var(--font-mono), monospace; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-muted); }
 .gh-node.done .gh-hex polygon { fill: url(#gh-honey); stroke: #eab94d; }
 .gh-node.done .gh-kick { color: #6b531c; }
