@@ -96,7 +96,25 @@ export function highlightTitle(
       .map((a) => a.trim().toLowerCase().replace(/[^\p{L}\p{N}]/gu, ""))
       .filter(Boolean),
   );
-  if (wanted.size === 0) return [trimmed];
+
+  // Render a run of plain text, wrapping every period in a hollow `.tdot` span
+  // (the title period's hollow/outline look). Other characters pass through.
+  const text = (s: string, key: string): React.ReactNode => {
+    if (!s.includes(".")) return s;
+    return s.split(/(\.)/g).map((part, i) =>
+      part === "." ? (
+        <span key={`${key}-${i}`} className="tdot">
+          .
+        </span>
+      ) : (
+        <Fragment key={`${key}-${i}`}>{part}</Fragment>
+      ),
+    );
+  };
+
+  if (wanted.size === 0) {
+    return [<Fragment key="t">{text(trimmed, "t")}</Fragment>];
+  }
 
   // Keep the whitespace runs as their own tokens so spacing is preserved.
   return trimmed.split(/(\s+)/).map((tok, i) => {
@@ -113,13 +131,13 @@ export function highlightTitle(
     if (core && wanted.has(core.toLowerCase())) {
       return (
         <Fragment key={i}>
-          {pre}
+          {text(pre, `${i}p`)}
           <span className="accent">{core}</span>
-          {post}
+          {text(post, `${i}o`)}
         </Fragment>
       );
     }
-    return <Fragment key={i}>{tok}</Fragment>;
+    return <Fragment key={i}>{text(tok, `${i}w`)}</Fragment>;
   });
 }
 
@@ -175,7 +193,7 @@ export function PageHeader({
         <span className="hero-line">
           <span>
             {titleNodes}
-            {needsPeriod ? "." : null}
+            {needsPeriod ? <span className="tdot">.</span> : null}
           </span>
         </span>
       </h1>

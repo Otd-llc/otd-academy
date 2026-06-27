@@ -217,12 +217,14 @@ export default async function PricingPage() {
           <span className="ord">Pricing</span>
           <span className="hero-line">
             <span>
-              Pay <span className="accent">once</span>.
+              Pay <span className="accent">once</span>
+              <span className="tdot">.</span>
             </span>
           </span>
           <span className="hero-line hero-line-2">
             <span>
-              Yours <span className="accent">forever</span>.
+              Yours <span className="accent">forever</span>
+              <span className="tdot">.</span>
             </span>
           </span>
         </h1>
