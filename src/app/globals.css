@@ -938,8 +938,8 @@ body {
    reflows; on mobile it drops to two columns. Gold rationed to the bee. */
 .foot-cols {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
-  gap: 1.9rem 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 1.7rem 1.3rem;
   margin-top: 2.1rem;
 }
 .foot-group {
@@ -961,6 +961,7 @@ body {
   color: var(--color-link-muted);
   text-decoration: none;
   padding: 0.18rem 0;
+  overflow-wrap: anywhere;
   transition: color 0.15s;
 }
 .foot-group a:hover {
@@ -975,6 +976,7 @@ body {
   line-height: 1.85;
   letter-spacing: 0.04em;
   color: var(--color-gray-3);
+  overflow-wrap: anywhere;
 }
 .foot-end {
   display: flex;
