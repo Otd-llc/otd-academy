@@ -135,6 +135,11 @@ export function PageHeader({
 }: PageHeaderProps) {
   const accents = accentWords ?? (accentWord ? [accentWord] : []);
   const titleNodes = highlightTitle(title, accents);
+  // House rule: every page title ends with a period. If the title doesn't
+  // already end in terminal punctuation, append one. It renders OUTSIDE any
+  // gold accent span, so it's always the ivory title colour — the white period
+  // of the "One Mind. Many Machines." treatment, on every page title.
+  const needsPeriod = !/[.!?…]$/.test(title.trim());
 
   return (
     <header className="mb-10">
@@ -168,7 +173,10 @@ export function PageHeader({
       <h1 className={`bench-hero ${meta.length > 0 ? "mt-6" : ""}`}>
         <span className="ord">{eyebrow}</span>
         <span className="hero-line">
-          <span>{titleNodes}</span>
+          <span>
+            {titleNodes}
+            {needsPeriod ? "." : null}
+          </span>
         </span>
       </h1>
 

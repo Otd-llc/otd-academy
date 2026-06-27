@@ -95,7 +95,7 @@ export default async function VerifyPage({
             // Certificate verification
           </span>
           <h1 className="mt-3 title-hero">
-            Verify a certificate
+            Verify a certificate.
           </h1>
           <p className="mt-3 max-w-md font-serif text-[15px] leading-relaxed text-text">
             Every certificate is recorded the moment it is issued. Enter the code
