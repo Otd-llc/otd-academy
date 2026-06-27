@@ -2,7 +2,8 @@
 
 // GuideHoneycomb — the build-guide hub as a page of big SYMMETRIC info-hexes that
 // TESSELLATE (shared edges, offset rows) and slink through in order. Each hex is
-// the full stage button: Stage 0X · title · lead · status, and is the link.
+// the full stage button: a big outline stage NUMBER owning the top third, then
+// title · lead · a status chip; the whole hex is the link.
 // Honey-filled when done, the current stage pulses, ahead stays dim. No connector
 // line — the shared edges are the link; progress shows by fill.
 //
@@ -120,11 +121,15 @@ export function GuideHoneycomb({
             >
               <polygon points="50,0 100,28.87 100,86.6 50,115.47 0,86.6 0,28.87" />
             </svg>
-            <span className="gh-txt">
-              <span className="gh-kick">Stage {s.num}</span>
+            <span className="gh-num" aria-hidden style={{ fontSize: Math.round(b.w * 0.43) }}>
+              {s.num}
+            </span>
+            <span className="gh-m">
               <span className="gh-title">{s.title}</span>
               {s.lead ? <span className="gh-lead">{s.lead}</span> : null}
-              <span className="gh-status">{s.statusText}</span>
+            </span>
+            <span className="gh-status">
+              <span className="gh-chip">{s.statusText}</span>
             </span>
           </Link>
         );
