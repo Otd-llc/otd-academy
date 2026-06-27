@@ -151,10 +151,15 @@ body {
    chip off the narrow bottom point. The lead only returns once a cell is wide
    enough to hold the longest one untruncated. */
 @container (max-width: 200px) {
+  /* no lead — reorganise so the three elements read as a deliberate compact card:
+     number anchored in the upper third, then title + chip as a tight centred pair,
+     instead of leaving the title + chip at their full-layout spots with a hole in
+     between where the lead used to be. */
   .gh-lead { display: none; }
-  .gh-title { font-size: clamp(15px, 13cqw, 25px); } /* fills the middle with no lead */
-  .gh-m { top: 50%; }
-  .gh-status { bottom: 23%; }
+  .gh-num { top: 17%; }
+  .gh-title { font-size: clamp(15px, 13cqw, 25px); margin-bottom: 0; }
+  .gh-m { top: 57%; }
+  .gh-status { bottom: 22%; }
 }
 /* status as a chip pinned to the lower point */
 .gh-status { position: absolute; left: 0; right: 0; bottom: 13%; display: flex; justify-content: center; z-index: 1; }
