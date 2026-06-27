@@ -563,7 +563,7 @@ export default async function GuideHubPage({
           ? "Blocked"
           : kind === "current"
             ? "In progress"
-            : "Upcoming";
+            : "Next";
     hcStages.push({
       stage: cell.stage,
       num: String(i + 1).padStart(2, "0"),
