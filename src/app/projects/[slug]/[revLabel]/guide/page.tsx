@@ -555,13 +555,14 @@ export default async function GuideHubPage({
   designCells.forEach((cell, i) => {
     if (!cell) return;
     const kind = stageKind(cell.state, cell.stage === beaconStage);
+    // one standardised status vocabulary across every hex
     const statusText =
       kind === "done"
-        ? "✓ Done"
+        ? "Done"
         : kind === "blocked"
           ? "Blocked"
           : kind === "current"
-            ? cell.label || "In progress"
+            ? "In progress"
             : "Upcoming";
     hcStages.push({
       stage: cell.stage,

@@ -146,9 +146,10 @@ body {
 .gh-node.done .gh-title { color: #160f04; }
 .gh-node.done .gh-lead { color: #2a2008; }
 .gh-node.done .gh-status { color: #5a4413; }
-/* the current cell sits above its neighbours so its glow isn't covered by the
-   later-drawn adjacent hex on the shared edges. */
+/* a cell sits above its neighbours when current or hovered, so its glow / brighter
+   border isn't covered by the later-drawn adjacent hex on the shared edges. */
 .gh-node.current { z-index: 5; }
+.gh-node:hover { z-index: 6; }
 .gh-node.current .gh-hex polygon { stroke: var(--color-command-gold); filter: drop-shadow(0 0 8px rgba(200, 150, 62, 0.6)); animation: gh-pulse 1.8s ease-in-out infinite; }
 .gh-node.current .gh-kick, .gh-node.current .gh-title, .gh-node.current .gh-status { color: var(--color-command-gold); }
 .gh-node.blocked .gh-hex polygon { stroke: var(--color-alert-red); }
