@@ -129,7 +129,7 @@ export function GuideHoneycomb({
               aria-hidden
               // hero size on big cells; eased down on small ones so it stops
               // swallowing the room the title + chip need on a phone.
-              style={{ fontSize: Math.round(b.w * (b.w < 160 ? 0.36 : 0.43)) }}
+              style={{ fontSize: Math.round(b.w * (b.w <= 200 ? 0.36 : 0.43)) }}
             >
               {s.num}
             </span>

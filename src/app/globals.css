@@ -146,13 +146,15 @@ body {
    the way down to the two-up phone size, bounded by a px floor + ceiling. */
 .gh-title { font-family: var(--font-display), sans-serif; font-size: clamp(14px, 11cqw, 32px); letter-spacing: 0.04em; line-height: 0.9; color: var(--color-gray-1); margin-bottom: 8px; }
 .gh-lead { font-family: var(--font-serif), serif; font-size: clamp(11px, 4.8cqw, 15px); line-height: 1.5; color: #d8d8d8; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-/* phone-sized cells (3-across scaled down) can't fit a 2-line description at a
-   legible size — drop it (full text is on the stage page), re-centre the title,
-   and lift the chip off the narrow bottom point into the wide body. */
-@container (max-width: 158px) {
+/* small cells can't fit a 2-line description at a legible size without truncating
+   it — drop it (full text is on the stage page), re-centre the title, and lift the
+   chip off the narrow bottom point. The lead only returns once a cell is wide
+   enough to hold the longest one untruncated. */
+@container (max-width: 200px) {
   .gh-lead { display: none; }
+  .gh-title { font-size: clamp(15px, 13cqw, 25px); } /* fills the middle with no lead */
   .gh-m { top: 50%; }
-  .gh-status { bottom: 20%; }
+  .gh-status { bottom: 23%; }
 }
 /* status as a chip pinned to the lower point */
 .gh-status { position: absolute; left: 0; right: 0; bottom: 13%; display: flex; justify-content: center; z-index: 1; }
