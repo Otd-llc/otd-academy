@@ -129,6 +129,30 @@ body {
   box-shadow: var(--elev-raise);
 }
 
+/* GuideHoneycomb — big tessellating info-hex stepper for the build-guide hub.
+   Nodes are absolutely positioned by the component (it measures + fills width). */
+.gh-node { position: absolute; display: grid; place-items: center; text-decoration: none; text-align: center; }
+.gh-hex { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.gh-hex polygon { fill: var(--color-deep-space); stroke: var(--color-panel-border); stroke-width: 2; vector-effect: non-scaling-stroke; transition: stroke 0.15s; }
+.gh-node:hover .gh-hex polygon { stroke: var(--color-gold-light); }
+.gh-txt { position: relative; z-index: 1; width: 78%; }
+.gh-txt > span { display: block; }
+.gh-kick { font-family: var(--font-mono), monospace; font-weight: 700; font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--color-command-gold); }
+.gh-title { margin: 5px 0; font-family: var(--font-display), sans-serif; font-size: 25px; letter-spacing: 0.04em; line-height: 0.92; color: var(--color-gray-1); }
+.gh-lead { font-family: var(--font-serif), serif; font-size: 13px; line-height: 1.45; color: #e6e6e6; }
+.gh-status { margin-top: 7px; font-family: var(--font-mono), monospace; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-muted); }
+.gh-node.done .gh-hex polygon { fill: url(#gh-honey); stroke: #eab94d; }
+.gh-node.done .gh-kick { color: #6b531c; }
+.gh-node.done .gh-title { color: #160f04; }
+.gh-node.done .gh-lead { color: #2a2008; }
+.gh-node.done .gh-status { color: #5a4413; }
+.gh-node.current .gh-hex polygon { stroke: var(--color-command-gold); filter: drop-shadow(0 0 8px rgba(200, 150, 62, 0.6)); animation: gh-pulse 1.8s ease-in-out infinite; }
+.gh-node.current .gh-kick, .gh-node.current .gh-title, .gh-node.current .gh-status { color: var(--color-command-gold); }
+.gh-node.blocked .gh-hex polygon { stroke: var(--color-alert-red); }
+.gh-node.blocked .gh-kick, .gh-node.blocked .gh-title, .gh-node.blocked .gh-status { color: var(--color-alert-red); }
+@keyframes gh-pulse { 0%, 100% { filter: drop-shadow(0 0 0 rgba(200, 150, 62, 0)); } 50% { filter: drop-shadow(0 0 11px rgba(200, 150, 62, 0.7)); } }
+@media (prefers-reduced-motion: reduce) { .gh-node.current .gh-hex polygon { animation: none; } }
+
 /* Scroll reveal — sections tagged `data-reveal` fade + rise once as they enter
    the viewport, driven by a CSS scroll timeline (no JS). Guarded by @supports so
    unsupported browsers — and reduced-motion — simply show the content, never

@@ -22,6 +22,10 @@ import { PageHeader } from "@/components/PageHeader";
 import { GenerateGuideButton } from "@/components/guide/GenerateGuideButton";
 import { GuideStepper } from "@/components/guide/GuideStepper";
 import {
+  GuideHoneycomb,
+  type HoneycombStage,
+} from "@/components/guide/GuideHoneycomb";
+import {
   resolveGuideProgress,
   resolveLearnerGuideProgress,
 } from "@/lib/guide-progress";
@@ -547,6 +551,29 @@ export default async function GuideHubPage({
   const beaconStage =
     designCells.find((c) => c && c.state !== "complete")?.stage ?? null;
 
+  // Honeycomb data for the hub — the design-stage buttons as big info-hexes.
+  const hcStages: HoneycombStage[] = [];
+  designCells.forEach((cell, i) => {
+    if (!cell) return;
+    const kind = stageKind(cell.state, cell.stage === beaconStage);
+    const statusText =
+      kind === "done"
+        ? "✓ Done"
+        : kind === "blocked"
+          ? "Blocked"
+          : kind === "current"
+            ? cell.label || "In progress"
+            : "Upcoming";
+    hcStages.push({
+      stage: cell.stage,
+      num: String(i + 1).padStart(2, "0"),
+      title: cell.card.title,
+      lead: cell.card.lead ?? "",
+      kind: kind === "upcoming" ? "pending" : kind,
+      statusText,
+    });
+  });
+
   // ─── Tier 2: per-board build matrix (author/operator only) ──────
   const boards = activeBuild?.boards ?? [];
   // matrix[boardIndex][buildStageIndex] = completion. Builds/boards are operator
@@ -664,98 +691,12 @@ export default async function GuideHubPage({
             {designCells.filter(Boolean).length} complete
           </span>
         </div>
-        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {designCells.map((cell, i) => {
-            if (!cell) return null;
-            const isCurrent = cell.stage === beaconStage;
-            const kind = stageKind(cell.state, isCurrent);
-            const statusText =
-              kind === "done"
-                ? "✓ Done"
-                : kind === "blocked"
-                  ? "Blocked"
-                  : kind === "current"
-                    ? cell.label || "In progress"
-                    : "Upcoming";
-            const kickerClass =
-              kind === "done"
-                ? "text-gold-dim"
-                : kind === "current"
-                  ? "text-command-gold"
-                  : kind === "blocked"
-                    ? "text-alert-red"
-                    : "text-gray-3";
-            const statusClass =
-              kind === "done"
-                ? "text-gold-dim"
-                : kind === "current"
-                  ? "text-gold-light"
-                  : kind === "blocked"
-                    ? "text-alert-red"
-                    : "text-gray-3";
-            const ruleClass =
-              kind === "upcoming"
-                ? "from-panel-border"
-                : kind === "blocked"
-                  ? "from-alert-red/40"
-                  : "from-command-gold/40";
-            return (
-              <Link
-                key={cell.stage}
-                href={cardHref(cell.stage)}
-                className={`group relative flex flex-col gap-3 rounded-xl border p-5 transition-colors [background:linear-gradient(180deg,#13131f_0%,#0d0e14_100%)] hover:bg-command-gold/[0.03] ${stageCardClasses(
-                  kind,
-                )}`}
-              >
-                {/* "Do this next" beacon — the glowing radar-ping +, on the
-                    current (earliest non-complete) stage, so it rides progress.
-                    It stands in for the status text on this card. */}
-                {kind === "current" ? (
-                  <span className="start-beacon" aria-hidden="true">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2.4}
-                      strokeLinecap="round"
-                    >
-                      <path d="M12 4v16M4 12h16" />
-                    </svg>
-                  </span>
-                ) : null}
-
-                {/* kicker row: STAGE 0X · gold hairline · status */}
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.25em] ${kickerClass}`}
-                  >
-                    Stage {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <span
-                    aria-hidden
-                    className={`h-px flex-1 bg-gradient-to-r to-transparent ${ruleClass}`}
-                  />
-                  {/* The current card's status is carried by the + beacon, so the
-                      text is suppressed there to leave the corner clear. */}
-                  {kind !== "current" ? (
-                    <span
-                      className={`shrink-0 font-mono text-[10px] font-bold uppercase tracking-[0.16em] ${statusClass}`}
-                    >
-                      {statusText}
-                    </span>
-                  ) : null}
-                </div>
-                <span className="title-card">
-                  {cell.card.title}
-                </span>
-                {cell.card.lead ? (
-                  <span className="font-serif text-sm italic leading-relaxed text-text">
-                    {cell.card.lead}
-                  </span>
-                ) : null}
-              </Link>
-            );
-          })}
+        <div className="mt-6">
+          <GuideHoneycomb
+            slug={project.slug}
+            revLabel={revision.label}
+            stages={hcStages}
+          />
         </div>
       </section>
 
