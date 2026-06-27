@@ -18,8 +18,9 @@ import type { GuideStage } from "@/lib/guide-templates/stage-skeletons";
 const useIsoLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-const MINW = 270; // minimum hex width — it grows to fill, never below this
+const MINW = 110; // minimum hex width — small enough that phones fit two per row
 const MAXW = 360;
+const PER_ROW = 3; // cap columns so wide screens stay a tidy 3-across, never a strip
 const RATIO = 1.1547; // regular pointy-top: height / width
 
 export type HoneycombStage = {
@@ -36,7 +37,7 @@ type Box = { left: number; top: number; w: number; h: number };
 
 function computeLayout(cw: number, count: number): { boxes: Box[]; height: number } {
   if (cw <= 0 || count === 0) return { boxes: [], height: 0 };
-  let perRow = Math.max(1, Math.min(Math.floor(cw / MINW), count));
+  let perRow = Math.max(1, Math.min(Math.floor(cw / MINW), count, PER_ROW));
   let off = perRow > 1 ? 0.5 : 0;
   let w = cw / (perRow + off);
   while (w < MINW && perRow > 1) {
