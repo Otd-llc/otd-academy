@@ -20,7 +20,6 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
 import { GenerateGuideButton } from "@/components/guide/GenerateGuideButton";
-import { GuideStepper } from "@/components/guide/GuideStepper";
 import {
   GuideHoneycomb,
   type HoneycombStage,
@@ -657,14 +656,6 @@ export default async function GuideHubPage({
           { label: "Stage", value: revision.currentStage },
         ]}
       />
-
-      <div className="mb-8">
-        <GuideStepper
-          slug={project.slug}
-          revLabel={revision.label}
-          stages={guideProgress}
-        />
-      </div>
 
       {/* Admin readiness panel — two-tier definition of done. */}
       {view.isAuthorView && readiness ? (
