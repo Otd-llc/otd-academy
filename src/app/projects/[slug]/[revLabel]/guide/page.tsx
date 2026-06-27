@@ -371,8 +371,6 @@ export default async function GuideHubPage({
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <JsonLd data={courseLd} />
         <PageHeader
-          backHref={revPath}
-          backLabel={revision.label}
           eyebrow="BUILD GUIDE"
           title={project.name}
           accentWord={project.name.trim().split(/\s+/).pop()}
@@ -619,8 +617,6 @@ export default async function GuideHubPage({
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <JsonLd data={courseLd} />
       <PageHeader
-        backHref={revPath}
-        backLabel={revision.label}
         eyebrow="BUILD GUIDE"
         title={project.name}
         accentWord={project.name.trim().split(/\s+/).pop()}
