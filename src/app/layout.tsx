@@ -148,7 +148,6 @@ export default async function RootLayout({
                     <span className="foot-wm">ONE THOUSAND DRONES</span>
                   </Link>
                   <p className="foot-tag">One mind, many machines.</p>
-                  <p className="foot-loc">Broken Arrow, Oklahoma · USA</p>
                 </div>
 
                 <nav className="foot-col" aria-label="Academy">
@@ -175,21 +174,33 @@ export default async function RootLayout({
                 </nav>
               </div>
 
-              <div className="foot-strip">
-                <p className="foot-reg">
-                  <span>
-                    <span className="lbl">SAM.gov</span> Registered
-                  </span>
-                  <span className="dot">·</span>
-                  <span>
-                    <span className="lbl">CAGE</span> 1ZYS4
-                  </span>
-                  <span className="dot">·</span>
-                  <span>
-                    <span className="lbl">UEI</span> WDQXD9L9UFH3
-                  </span>
-                </p>
-                <p className="foot-copy">© 2026 One Thousand Drones, LLC</p>
+              <div className="foot-plate">
+                <div className="title-block">
+                  <div className="tb-cell">
+                    <span className="tb-label">Entity</span>
+                    <span className="tb-value">One Thousand Drones, LLC</span>
+                  </div>
+                  <div className="tb-cell">
+                    <span className="tb-label">CAGE</span>
+                    <span className="tb-value">1ZYS4</span>
+                  </div>
+                  <div className="tb-cell">
+                    <span className="tb-label">UEI</span>
+                    <span className="tb-value">WDQXD9L9UFH3</span>
+                  </div>
+                  <div className="tb-cell">
+                    <span className="tb-label">SAM.gov</span>
+                    <span className="tb-value">Registered</span>
+                  </div>
+                  <div className="tb-cell">
+                    <span className="tb-label">Origin</span>
+                    <span className="tb-value">Broken Arrow, OK · USA</span>
+                  </div>
+                  <div className="tb-cell">
+                    <span className="tb-label">Copyright</span>
+                    <span className="tb-value">© 2026</span>
+                  </div>
+                </div>
               </div>
             </footer>
           ) : null}
