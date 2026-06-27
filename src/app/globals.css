@@ -117,6 +117,33 @@ body {
   }
 }
 
+/* Scroll reveal — sections tagged `data-reveal` fade + rise once as they enter
+   the viewport, driven by a CSS scroll timeline (no JS). Guarded by @supports so
+   unsupported browsers — and reduced-motion — simply show the content, never
+   leave it hidden. One quiet beat, same easing family as the hero. */
+@keyframes reveal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@supports (animation-timeline: view()) {
+  [data-reveal] {
+    animation: reveal-rise linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 32%;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-reveal] {
+      animation: none;
+    }
+  }
+}
+
 /*
  * Component layer — reusable recipes from the bioscale-viz vocabulary.
  *

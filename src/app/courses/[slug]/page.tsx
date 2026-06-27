@@ -292,7 +292,7 @@ export default async function CoursePreviewPage({
         </header>
 
         {/* ── REGISTER INTEREST (terminal panel) ───────────────── */}
-        <section className="glass-card mt-10 border-command-gold/30 p-6 shadow-[0_0_40px_-12px_rgba(200,150,62,0.5)] sm:p-7">
+        <section data-reveal className="glass-card mt-10 border-command-gold/30 p-6 shadow-[0_0_40px_-12px_rgba(200,150,62,0.5)] sm:p-7">
           <p className="font-mono text-xs uppercase tracking-[0.25em] text-command-gold">
             ▸ Register interest
           </p>
@@ -307,7 +307,7 @@ export default async function CoursePreviewPage({
 
         {/* ── BODY ─────────────────────────────────────────────── */}
         <div className="mt-14 space-y-12">
-          <section>
+          <section data-reveal>
             <SectionHead>What you&apos;ll build</SectionHead>
             <p className="mt-4 max-w-2xl font-serif text-lg leading-relaxed text-text">
               {project.description ??
@@ -323,7 +323,7 @@ export default async function CoursePreviewPage({
           </section>
 
           {reading.length > 0 ? (
-            <section>
+            <section data-reveal>
               <SectionHead>Learn the concepts now, free</SectionHead>
               <p className="mt-4 max-w-2xl font-serif text-base leading-relaxed text-muted">
                 The course isn&apos;t open yet, but the ideas behind it are.
@@ -360,7 +360,7 @@ export default async function CoursePreviewPage({
             </section>
           ) : null}
 
-          <section>
+          <section data-reveal>
             <SectionHead>The build pipeline</SectionHead>
             <p className="mt-4 max-w-2xl font-serif text-base leading-relaxed text-muted">
               No steps skipped, no black boxes. Each stage is gated on real proof
@@ -385,7 +385,7 @@ export default async function CoursePreviewPage({
           </section>
 
           {prereqs.length > 0 ? (
-            <section>
+            <section data-reveal>
               <SectionHead>Builds on</SectionHead>
               <ul className="mt-4 grid gap-2 sm:grid-cols-2">
                 {prereqs.map((p) => (
@@ -408,7 +408,7 @@ export default async function CoursePreviewPage({
           ) : null}
 
           {inPaths.length > 0 ? (
-            <section>
+            <section data-reveal>
               <SectionHead>Part of these builds</SectionHead>
               <div className="mt-4 flex flex-wrap gap-2">
                 {inPaths.map((p) => (
@@ -425,7 +425,7 @@ export default async function CoursePreviewPage({
             </section>
           ) : null}
 
-          <section>
+          <section data-reveal>
             <SectionHead>Questions</SectionHead>
             <dl className="mt-4 divide-y divide-panel-border border-y border-panel-border">
               {faqs.map((f) => (
@@ -442,7 +442,7 @@ export default async function CoursePreviewPage({
           </section>
         </div>
 
-        <section className="mt-14 border-t border-panel-border pt-6">
+        <section data-reveal className="mt-14 border-t border-panel-border pt-6">
           <p className="font-serif text-sm italic text-muted">
             Part of the path from your first board to a brain-computer
             interface.{" "}
