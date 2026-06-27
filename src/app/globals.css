@@ -23,6 +23,12 @@
   --color-navy-dark: #1f2438;
   --color-panel-border: #3a3f50;
 
+  /* elevation scale — S1 deep drop for cards/panels, a smaller raise for buttons +
+     the sticky header; rim = the lit top edge that pairs with a drop. */
+  --elev-card: 0 26px 50px -12px rgba(0, 0, 0, 0.95), 0 10px 18px -8px rgba(0, 0, 0, 0.85);
+  --elev-raise: 0 8px 20px -6px rgba(0, 0, 0, 0.85);
+  --rim-hi: inset 0 1px 0 rgba(232, 184, 101, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+
   --color-command-gold: #c8963e;
   --color-gold-light: #e8b865;
   --color-gold-dim: #8b6428;
@@ -117,6 +123,12 @@ body {
   }
 }
 
+/* sticky app-shell header — a faint downward drop so it separates from content
+   on scroll (unlayered so it wins over Tailwind's shadow utilities). */
+.app-shell-header {
+  box-shadow: var(--elev-raise);
+}
+
 /* Scroll reveal — sections tagged `data-reveal` fade + rise once as they enter
    the viewport, driven by a CSS scroll timeline (no JS). Guarded by @supports so
    unsupported browsers — and reduced-motion — simply show the content, never
@@ -172,13 +184,10 @@ body {
      translucent fill resolved to over deep-space, so the look is unchanged — with
      no backdrop-filter. The genuinely-floating `.glass-popover` keeps its blur. */
   .glass-card {
-    background: linear-gradient(180deg, #13131f 0%, #0d0e14 100%);
+    background: var(--color-navy-dark);
     border: 1px solid rgba(200, 150, 62, 0.35);
     border-radius: 14px;
-    box-shadow:
-      0 12px 44px rgba(0, 0, 0, 0.55),
-      0 1px 0 rgba(232, 184, 101, 0.12) inset,
-      0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    box-shadow: var(--elev-card), var(--rim-hi);
   }
 
   /* `.glass-popover` — a MORE OPAQUE glass for the little floating info panes
@@ -196,10 +205,7 @@ body {
     -webkit-backdrop-filter: blur(22px) saturate(1.1);
     border: 1px solid rgba(200, 150, 62, 0.4);
     border-radius: 14px;
-    box-shadow:
-      0 14px 48px rgba(0, 0, 0, 0.62),
-      0 1px 0 rgba(232, 184, 101, 0.12) inset,
-      0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    box-shadow: var(--elev-card), var(--rim-hi);
   }
 
   /* Secondary button — gold hairline outline on a dark surface, fills solid gold
@@ -210,6 +216,7 @@ body {
     color: var(--color-command-gold);
     border: 1px solid var(--color-command-gold);
     border-radius: 6px;
+    box-shadow: var(--elev-raise);
     transition:
       background 0.14s,
       color 0.14s,
@@ -250,7 +257,7 @@ body {
     color: var(--color-deep-space);
     border-color: var(--color-command-gold);
     font-weight: 700;
-    box-shadow: none;
+    box-shadow: var(--elev-raise);
   }
   .glass-button-cta:hover:not(:disabled) {
     background: var(--color-gold-light);

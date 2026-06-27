@@ -82,7 +82,7 @@ export default async function RootLayout({
             // clean full-bleed boot screen (shouldRenderChrome returns false).
             // Header is `z-20` so the sticky bar stays below the `z-50` tooltips
             // that portal above it.
-            <header className="sticky top-0 z-20 flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-panel-border bg-deep-space px-4 py-2 print:hidden sm:px-6">
+            <header className="app-shell-header sticky top-0 z-20 flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-panel-border bg-deep-space px-4 py-2 print:hidden sm:px-6">
               <Link
                 href="/"
                 aria-label="One Thousand Drones Academy home"
