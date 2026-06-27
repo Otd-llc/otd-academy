@@ -23,6 +23,12 @@
   --color-navy-dark: #1f2438;
   --color-panel-border: #3a3f50;
 
+  /* elevation scale — S1 deep drop for cards/panels, a smaller raise for buttons +
+     the sticky header; rim = the lit top edge that pairs with a drop. */
+  --elev-card: 0 26px 50px -12px rgba(0, 0, 0, 0.95), 0 10px 18px -8px rgba(0, 0, 0, 0.85);
+  --elev-raise: 0 8px 20px -6px rgba(0, 0, 0, 0.85);
+  --rim-hi: inset 0 1px 0 rgba(232, 184, 101, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+
   --color-command-gold: #c8963e;
   --color-gold-light: #e8b865;
   --color-gold-dim: #8b6428;
@@ -117,6 +123,44 @@ body {
   }
 }
 
+/* sticky app-shell header — a faint downward drop so it separates from content
+   on scroll (unlayered so it wins over Tailwind's shadow utilities). */
+.app-shell-header {
+  box-shadow: var(--elev-raise);
+}
+
+/* GuideHoneycomb — big tessellating info-hex stepper for the build-guide hub.
+   Nodes are absolutely positioned by the component (it measures + fills width). */
+.gh-node { position: absolute; display: grid; place-items: center; text-decoration: none; text-align: center; }
+.gh-hex { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.gh-hex polygon { fill: var(--color-deep-space); stroke: var(--color-panel-border); stroke-width: 2; vector-effect: non-scaling-stroke; transition: stroke 0.15s; }
+.gh-node:hover .gh-hex polygon { stroke: var(--color-gold-light); }
+.gh-txt { position: relative; z-index: 1; width: 78%; }
+.gh-txt > span { display: block; }
+.gh-kick { font-family: var(--font-mono), monospace; font-weight: 700; font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--color-command-gold); }
+.gh-title { margin: 5px 0; font-family: var(--font-display), sans-serif; font-size: 25px; letter-spacing: 0.04em; line-height: 0.92; color: var(--color-gray-1); }
+/* clamp the lead to a uniform line count so every hex carries the same amount of
+   text (the full description lives on the stage page). `.gh-txt .gh-lead` outranks
+   the generic `.gh-txt > span { display: block }`, and as a block child (not a
+   flex item) the -webkit-box still wraps at the real width. */
+.gh-txt .gh-lead { font-family: var(--font-serif), serif; font-size: 13px; line-height: 1.45; color: #e6e6e6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.gh-status { margin-top: 7px; font-family: var(--font-mono), monospace; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-muted); }
+.gh-node.done .gh-hex polygon { fill: url(#gh-honey); stroke: #eab94d; }
+.gh-node.done .gh-kick { color: #6b531c; }
+.gh-node.done .gh-title { color: #160f04; }
+.gh-node.done .gh-lead { color: #2a2008; }
+.gh-node.done .gh-status { color: #5a4413; }
+/* a cell sits above its neighbours when current or hovered, so its glow / brighter
+   border isn't covered by the later-drawn adjacent hex on the shared edges. */
+.gh-node.current { z-index: 5; }
+.gh-node:hover { z-index: 6; }
+.gh-node.current .gh-hex polygon { stroke: var(--color-command-gold); filter: drop-shadow(0 0 8px rgba(200, 150, 62, 0.6)); animation: gh-pulse 1.8s ease-in-out infinite; }
+.gh-node.current .gh-kick, .gh-node.current .gh-title, .gh-node.current .gh-status { color: var(--color-command-gold); }
+.gh-node.blocked .gh-hex polygon { stroke: var(--color-alert-red); }
+.gh-node.blocked .gh-kick, .gh-node.blocked .gh-title, .gh-node.blocked .gh-status { color: var(--color-alert-red); }
+@keyframes gh-pulse { 0%, 100% { filter: drop-shadow(0 0 0 rgba(200, 150, 62, 0)); } 50% { filter: drop-shadow(0 0 11px rgba(200, 150, 62, 0.7)); } }
+@media (prefers-reduced-motion: reduce) { .gh-node.current .gh-hex polygon { animation: none; } }
+
 /* Scroll reveal — sections tagged `data-reveal` fade + rise once as they enter
    the viewport, driven by a CSS scroll timeline (no JS). Guarded by @supports so
    unsupported browsers — and reduced-motion — simply show the content, never
@@ -172,13 +216,10 @@ body {
      translucent fill resolved to over deep-space, so the look is unchanged — with
      no backdrop-filter. The genuinely-floating `.glass-popover` keeps its blur. */
   .glass-card {
-    background: linear-gradient(180deg, #13131f 0%, #0d0e14 100%);
+    background: var(--color-navy-dark);
     border: 1px solid rgba(200, 150, 62, 0.35);
     border-radius: 14px;
-    box-shadow:
-      0 12px 44px rgba(0, 0, 0, 0.55),
-      0 1px 0 rgba(232, 184, 101, 0.12) inset,
-      0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    box-shadow: var(--elev-card), var(--rim-hi);
   }
 
   /* `.glass-popover` — a MORE OPAQUE glass for the little floating info panes
@@ -196,10 +237,7 @@ body {
     -webkit-backdrop-filter: blur(22px) saturate(1.1);
     border: 1px solid rgba(200, 150, 62, 0.4);
     border-radius: 14px;
-    box-shadow:
-      0 14px 48px rgba(0, 0, 0, 0.62),
-      0 1px 0 rgba(232, 184, 101, 0.12) inset,
-      0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    box-shadow: var(--elev-card), var(--rim-hi);
   }
 
   /* Secondary button — gold hairline outline on a dark surface, fills solid gold
@@ -210,6 +248,7 @@ body {
     color: var(--color-command-gold);
     border: 1px solid var(--color-command-gold);
     border-radius: 6px;
+    box-shadow: var(--elev-raise);
     transition:
       background 0.14s,
       color 0.14s,
@@ -250,7 +289,7 @@ body {
     color: var(--color-deep-space);
     border-color: var(--color-command-gold);
     font-weight: 700;
-    box-shadow: none;
+    box-shadow: var(--elev-raise);
   }
   .glass-button-cta:hover:not(:disabled) {
     background: var(--color-gold-light);
@@ -931,8 +970,8 @@ body {
    reflows; on mobile it drops to two columns. Gold rationed to the bee. */
 .foot-cols {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
-  gap: 1.9rem 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 1.7rem 1.3rem;
   margin-top: 2.1rem;
 }
 .foot-group {
@@ -954,6 +993,7 @@ body {
   color: var(--color-link-muted);
   text-decoration: none;
   padding: 0.18rem 0;
+  overflow-wrap: anywhere;
   transition: color 0.15s;
 }
 .foot-group a:hover {
@@ -968,6 +1008,7 @@ body {
   line-height: 1.85;
   letter-spacing: 0.04em;
   color: var(--color-gray-3);
+  overflow-wrap: anywhere;
 }
 .foot-end {
   display: flex;
