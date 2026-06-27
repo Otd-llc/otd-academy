@@ -55,13 +55,15 @@ export function BriefDocumentMobile({ brief }: { brief: BriefData }) {
         className="mt-6 font-display text-[clamp(44px,13vw,62px)] leading-[0.82] tracking-tight"
         style={{
           color: IVORY,
-          WebkitTextStrokeWidth: "1px",
-          WebkitTextStrokeColor: "currentColor",
+          WebkitTextStroke: "0.04em currentColor",
+          paintOrder: "stroke fill",
         }}
       >
-        One <span className="text-command-gold">mind</span>.
+        One <span className="text-command-gold">mind</span>
+        <span className="tdot">.</span>
         <br />
-        Many <span className="text-command-gold">machines</span>.
+        Many <span className="text-command-gold">machines</span>
+        <span className="tdot">.</span>
       </h1>
 
       {/* Sub-headline */}

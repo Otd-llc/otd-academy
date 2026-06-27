@@ -69,15 +69,17 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
           className="font-display text-[84px] leading-[0.8] tracking-tight"
           style={{
             color: IVORY,
-            // Bebas Neue ships a single weight, so font-weight can't bolden it.
-            // Thicken the glyph strokes directly (each part strokes its own color).
-            WebkitTextStrokeWidth: "1.4px",
-            WebkitTextStrokeColor: "currentColor",
+            // Bebas is single-weight; thicken the glyphs with a stroke to match
+            // the site title rules. paint-order keeps the fill crisp.
+            WebkitTextStroke: "0.04em currentColor",
+            paintOrder: "stroke fill",
           }}
         >
-          One <span className="text-command-gold">mind</span>.
+          One <span className="text-command-gold">mind</span>
+          <span className="tdot">.</span>
           <br />
-          Many <span className="text-command-gold">machines</span>.
+          Many <span className="text-command-gold">machines</span>
+          <span className="tdot">.</span>
         </h1>
 
         <dl className="w-[252px] shrink-0 overflow-hidden rounded-sm border border-command-gold/25">
