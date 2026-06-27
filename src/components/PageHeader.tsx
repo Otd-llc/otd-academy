@@ -151,7 +151,13 @@ export function PageHeader({
   accentWords,
   lead,
 }: PageHeaderProps) {
-  const accents = accentWords ?? (accentWord ? [accentWord] : []);
+  const rawAccents = accentWords ?? (accentWord ? [accentWord] : []);
+  // A single-word title can't show the white → gold → white contrast on the
+  // words (golding the only word makes the whole title gold). So for one-word
+  // titles the WORD stays white and the gold moves to the period instead.
+  const singleWord =
+    title.trim().split(/\s+/).filter(Boolean).length === 1;
+  const accents = singleWord ? [] : rawAccents;
   const titleNodes = highlightTitle(title, accents);
   // House rule: every page title ends with a period. If the title doesn't
   // already end in terminal punctuation, append one. It renders OUTSIDE any
@@ -193,7 +199,9 @@ export function PageHeader({
         <span className="hero-line">
           <span>
             {titleNodes}
-            {needsPeriod ? <span className="tdot">.</span> : null}
+            {needsPeriod ? (
+              <span className={singleWord ? "tdot accent" : "tdot"}>.</span>
+            ) : null}
           </span>
         </span>
       </h1>
