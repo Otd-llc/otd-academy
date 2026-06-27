@@ -14,6 +14,7 @@ import {
   MiniLessonEditor,
   type RelatedProjectLink,
 } from "@/components/library/MiniLessonEditor";
+import { PageHeader } from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -108,15 +109,12 @@ function Shell({
 }) {
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-      <Link
-        href="/admin/library"
-        className="font-mono text-xs uppercase tracking-wider text-signal-blue hover:text-command-gold"
-      >
-        ← Library authoring
-      </Link>
-      <h1 className="mt-3 font-display text-4xl tracking-wider text-white">
-        MINI-LESSON <span className="text-command-gold">{heading}</span>
-      </h1>
+      <PageHeader
+        backHref="/admin/library"
+        backLabel="Library authoring"
+        eyebrow="MINI-LESSON"
+        title={heading}
+      />
       <div className="mt-8 rounded border-t-2 border-command-gold bg-navy-dark/20 p-4">
         {children}
       </div>

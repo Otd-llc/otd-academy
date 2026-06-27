@@ -3,6 +3,7 @@
 // boards available to start (and locked ones with their prerequisites).
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { PageHeader } from "@/components/PageHeader";
 import { currentUserOrRedirect } from "@/lib/learner";
 import { learnerBoardAvailability } from "@/lib/learner-board-availability";
 import {
@@ -73,9 +74,12 @@ export default async function LearnerHomePage({
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-      <h1 className="font-display text-4xl tracking-wider text-white">
-        MY <span className="text-command-gold">LEARNING</span>
-      </h1>
+      <PageHeader
+        eyebrow="YOUR PROGRESS"
+        title="My learning"
+        accentWord="learning"
+        lead="Your enrolled boards and where each one stands."
+      />
 
       {/* Purchase confirmation (Task B2). Shown on the `?purchased=<slug>`
           redirect from Stripe Checkout. The entitlement is granted by the webhook
@@ -86,7 +90,7 @@ export default async function LearnerHomePage({
           <p className="font-mono text-xs uppercase tracking-wider text-status-green">
             ✓ You&apos;re in — your course is unlocked
           </p>
-          <p className="mt-2 font-serif text-sm text-gray-1">
+          <p className="mt-2 font-serif text-sm text-text">
             {purchasedProject
               ? `Payment received for ${purchasedProject.name}. It now appears in your boards below; open it to pick up where the free lesson left off.`
               : "Payment received. Your course is unlocking now — it will appear in your boards below shortly."}
@@ -119,7 +123,7 @@ export default async function LearnerHomePage({
                     </Link>
                     <span
                       className={`font-mono text-xs uppercase tracking-wider ${
-                        STATUS_COLOR[e.status] ?? "text-gray-1"
+                        STATUS_COLOR[e.status] ?? "text-text"
                       }`}
                     >
                       {ENROLLMENT_STATUS_LABEL[e.status as EnrollmentStatus] ?? e.status}

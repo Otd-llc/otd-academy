@@ -43,7 +43,7 @@ export default function GlossaryPage() {
             <dt className="font-mono text-sm font-bold uppercase tracking-wider text-command-gold">
               {e.term}
             </dt>
-            <dd className="mt-1.5 font-serif text-base leading-relaxed text-gray-2">
+            <dd className="mt-1.5 font-serif text-base leading-relaxed text-text">
               {e.def}
             </dd>
           </div>

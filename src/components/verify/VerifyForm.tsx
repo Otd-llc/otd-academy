@@ -1,11 +1,11 @@
 "use client";
 
-// Certificate-code entry for /verify. Codes are always OTD-XXXX-XXXX (8 hex
-// chars), so the "OTD-" and the dash are fixed scaffolding the visitor should
-// never have to type: they enter the 8 characters and we format as they go.
-// Pasting a full code (OTD-A1B2-C3D4), the bare 8 chars, or even a whole
-// /verify?code=... link all normalize to the same thing. Submitting navigates to
-// ?code=..., which the server page verifies.
+// Certificate-code entry for /verify, styled as the registry query terminal.
+// Codes are always OTD-XXXX-XXXX (8 hex chars), so the "OTD-" and the dash are
+// fixed scaffolding the visitor never types: they enter the 8 characters and we
+// format as they go. Pasting a full code (OTD-A1B2-C3D4), the bare 8 chars, or a
+// whole /verify?code=... link all normalize to the same thing. Submitting
+// navigates to ?code=..., which the server page verifies.
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -38,12 +38,12 @@ export function VerifyForm({ initialCode }: { initialCode?: string }) {
   }
 
   return (
-    <form
-      onSubmit={submit}
-      className="mx-auto mt-8 flex w-full max-w-md flex-wrap items-center justify-center gap-3"
-    >
-      <div className="flex min-w-0 flex-1 items-stretch overflow-hidden rounded border border-panel-border bg-navy-dark/80 focus-within:border-command-gold">
-        <span className="flex select-none items-center pl-4 pr-0.5 font-mono text-sm tracking-[0.22em] text-muted">
+    <form onSubmit={submit} className="mt-10">
+      <div className="flex items-stretch overflow-hidden rounded-md border border-command-gold/30 bg-deep-space/70 transition-[border-color,box-shadow] focus-within:border-command-gold/70 focus-within:shadow-[0_0_28px_-10px_rgba(200,150,62,0.6)]">
+        <span
+          aria-hidden="true"
+          className="flex select-none items-center pl-4 pr-1 font-mono text-base tracking-[0.18em] text-command-gold sm:pl-5"
+        >
           OTD-
         </span>
         <input
@@ -52,20 +52,23 @@ export function VerifyForm({ initialCode }: { initialCode?: string }) {
           autoCapitalize="characters"
           autoComplete="off"
           spellCheck={false}
-          aria-label="Certificate code (8 characters)"
+          aria-label="Certificate code, the 8 characters after OTD-"
           value={dashed(chars)}
           onChange={(e) => setChars(extractChars(e.target.value))}
           placeholder="XXXX-XXXX"
-          className="w-full min-w-0 flex-1 bg-transparent py-3 pr-4 font-mono text-sm uppercase tracking-[0.22em] text-gray-1 outline-none placeholder:text-muted"
+          className="min-w-0 flex-1 bg-transparent py-4 pl-1 pr-2 font-mono text-base uppercase tracking-[0.3em] text-[#f1ece0] outline-none placeholder:text-gray-3 sm:text-lg"
         />
+        <button
+          type="submit"
+          disabled={!ready}
+          className="m-1.5 shrink-0 rounded bg-command-gold px-5 font-mono text-xs font-bold uppercase tracking-[0.18em] text-deep-space transition-colors hover:bg-gold-light disabled:cursor-not-allowed disabled:opacity-35 sm:px-7"
+        >
+          Verify
+        </button>
       </div>
-      <button
-        type="submit"
-        disabled={!ready}
-        className="glass-button glass-button-cta px-7 py-3 font-mono text-xs uppercase tracking-[0.18em] disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        Verify
-      </button>
+      <p className="mt-2.5 text-center font-mono text-[10px] uppercase tracking-[0.22em] text-gray-3">
+        8 characters · dashes added for you
+      </p>
     </form>
   );
 }

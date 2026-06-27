@@ -101,7 +101,7 @@ export default async function LearnerExamPage({
         <p className="font-mono text-xs uppercase tracking-wider text-muted">
           Final exam · pass ≥ {exam.passThreshold}%
         </p>
-        <h1 className="mt-2 font-display text-3xl tracking-wider text-white">
+        <h1 className="mt-2 title-section">
           {exam.title}
         </h1>
         {enrollment.status === "MASTERED" && (

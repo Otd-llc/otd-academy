@@ -8,6 +8,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
+import { PageHeader } from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -52,20 +53,16 @@ export default async function WaitlistAdminPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-4">
-        <h1 className="font-display text-4xl tracking-wider text-white">
-          WAITLIST <span className="text-command-gold">DEMAND</span>
-        </h1>
-        <span className="font-mono text-xs uppercase tracking-wider text-muted">
-          {total} {total === 1 ? "signup" : "signups"} ·{" "}
-          {courses.length} {courses.length === 1 ? "course" : "courses"}
-        </span>
-      </div>
-
-      <p className="mt-3 max-w-2xl font-serif text-sm italic text-muted">
-        Who&apos;s waiting on which unbuilt course — most-wanted first. The signal
-        for which board to design next.
-      </p>
+      <PageHeader
+        eyebrow="OPERATOR"
+        title="Waitlist demand"
+        accentWord="demand"
+        meta={[
+          { label: "SIGNUPS", value: total },
+          { label: "COURSES", value: courses.length },
+        ]}
+        lead="Who's waiting on which unbuilt course, most-wanted first. The signal for which board to design next."
+      />
 
       {total > 0 ? (
         <a
@@ -87,7 +84,7 @@ export default async function WaitlistAdminPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <Link
                   href={`/courses/${c.slug}`}
-                  className="font-display text-2xl tracking-wide text-white hover:text-command-gold"
+                  className="title-card hover:text-command-gold"
                 >
                   {c.title}
                 </Link>
@@ -110,7 +107,7 @@ export default async function WaitlistAdminPage() {
                   <textarea
                     readOnly
                     rows={Math.min(c.emails.length, 8)}
-                    className="w-full rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-xs text-gray-1"
+                    className="w-full rounded-md border border-panel-border bg-deep-space px-3 py-2 font-mono text-xs text-text"
                     value={c.emails.map((e) => e.email).join("\n")}
                   />
                   <ul className="font-mono text-[11px] text-muted">

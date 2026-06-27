@@ -61,6 +61,10 @@ export default async function RootLayout({
       className="h-full antialiased"
     >
       <body className="min-h-full flex flex-col">
+        {/* Global engineering-paper backdrop — a fixed isometric graph-paper
+            field behind every page (CSS in globals.css, .app-backdrop). Purely
+            decorative; pointer-events-none, hidden in print. */}
+        <div className="app-backdrop" aria-hidden="true" />
         {/* One app-wide tooltip provider — hoisted here so every `<Tooltip>`
             renders only a `<Root>` beneath this shared context (hydration fix;
             see TooltipProvider / Tooltip). The provider is a client island; its
@@ -134,58 +138,62 @@ export default async function RootLayout({
           {renderChrome ? (
             <footer className="app-footer print:hidden">
               <div className="foot-inner">
-                <div className="foot-brand">
-                  <Link
-                    href="/"
-                    aria-label="One Thousand Drones home"
-                    className="foot-mark"
-                  >
-                    <BrandMark className="foot-bee" />
-                    <span className="foot-wm">ONE THOUSAND DRONES</span>
-                  </Link>
-                  <p className="foot-tag">One mind, many machines.</p>
-                  <p className="foot-loc">Broken Arrow, Oklahoma · USA</p>
+                <Link
+                  href="/"
+                  aria-label="One Thousand Drones home"
+                  className="foot-brand"
+                >
+                  <BrandMark className="foot-bee" />
+                  <span className="foot-wm">ONE THOUSAND DRONES</span>
+                </Link>
+                <p className="foot-tag">One mind, many machines.</p>
+
+                <div className="foot-cols">
+                  <nav className="foot-group" aria-label="Learn">
+                    <span className="foot-gh">Learn</span>
+                    <Link href="/courses">Courses</Link>
+                    <Link href="/library">Library</Link>
+                    <Link href="/glossary">Glossary</Link>
+                  </nav>
+                  <nav className="foot-group" aria-label="Catalog">
+                    <span className="foot-gh">Catalog</span>
+                    <Link href="/parts">Parts</Link>
+                    <Link href="/briefs">Briefs</Link>
+                  </nav>
+                  <nav className="foot-group" aria-label="Account">
+                    <span className="foot-gh">Account</span>
+                    <Link href="/sign-in">Sign in</Link>
+                    <Link href="/pricing">Pricing</Link>
+                    <Link href="/verify">Verify</Link>
+                    <Link href="/license">License</Link>
+                  </nav>
+                  <nav className="foot-group" aria-label="One Thousand Drones">
+                    <span className="foot-gh">Company</span>
+                    <a href="https://onethousanddrones.com" rel="noopener">
+                      Main site <span className="ext">↗</span>
+                    </a>
+                    <a href="https://onethousanddrones.com/about" rel="noopener">
+                      About <span className="ext">↗</span>
+                    </a>
+                    <a href="https://onethousanddrones.com/contact" rel="noopener">
+                      Contact <span className="ext">↗</span>
+                    </a>
+                  </nav>
+                  <div className="foot-group">
+                    <span className="foot-gh">Registry</span>
+                    <p className="foot-reg">
+                      Broken Arrow, OK · USA
+                      <br />
+                      SAM.gov Registered · CAGE 1ZYS4
+                      <br />
+                      UEI WDQXD9L9UFH3
+                    </p>
+                  </div>
                 </div>
 
-                <nav className="foot-col" aria-label="Academy">
-                  <span className="foot-h">Academy</span>
-                  <Link href="/courses">Courses</Link>
-                  <Link href="/library">Library</Link>
-                  <Link href="/parts">Parts</Link>
-                  <Link href="/briefs">Briefs</Link>
-                  <Link href="/verify">Verify a certificate</Link>
-                  <Link href="/license">License</Link>
-                </nav>
-
-                <nav className="foot-col" aria-label="One Thousand Drones">
-                  <span className="foot-h">One Thousand Drones</span>
-                  <a href="https://onethousanddrones.com" rel="noopener">
-                    Main site <span className="ext">↗</span>
-                  </a>
-                  <a href="https://onethousanddrones.com/about" rel="noopener">
-                    About <span className="ext">↗</span>
-                  </a>
-                  <a href="https://onethousanddrones.com/contact" rel="noopener">
-                    Contact <span className="ext">↗</span>
-                  </a>
-                </nav>
-              </div>
-
-              <div className="foot-strip">
-                <p className="foot-reg">
-                  <span>
-                    <span className="lbl">SAM.gov</span> Registered
-                  </span>
-                  <span className="dot">·</span>
-                  <span>
-                    <span className="lbl">CAGE</span> 1ZYS4
-                  </span>
-                  <span className="dot">·</span>
-                  <span>
-                    <span className="lbl">UEI</span> WDQXD9L9UFH3
-                  </span>
-                </p>
-                <p className="foot-copy">© 2026 One Thousand Drones, LLC</p>
+                <div className="foot-end">
+                  <p className="foot-copy">© 2026 One Thousand Drones, LLC</p>
+                </div>
               </div>
             </footer>
           ) : null}

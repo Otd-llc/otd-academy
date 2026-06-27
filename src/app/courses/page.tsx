@@ -152,7 +152,7 @@ export default async function CoursesPage({
                   ? "Flagship path"
                   : "Mastery path"}
             </p>
-            <p className="font-display text-3xl tracking-wide text-white">
+            <p className="title-section">
               {selected.def.label}
             </p>
             <p className="font-serif text-sm italic text-muted">

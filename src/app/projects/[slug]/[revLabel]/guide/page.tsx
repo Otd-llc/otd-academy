@@ -371,8 +371,6 @@ export default async function GuideHubPage({
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <JsonLd data={courseLd} />
         <PageHeader
-          backHref={revPath}
-          backLabel={revision.label}
           eyebrow="BUILD GUIDE"
           title={project.name}
           accentWord={project.name.trim().split(/\s+/).pop()}
@@ -419,15 +417,15 @@ export default async function GuideHubPage({
           <p className="font-mono text-xs uppercase tracking-wider text-command-gold">
             🔒 Premium course
           </p>
-          <h1 className="mt-3 font-display text-3xl tracking-wider text-white">
+          <h1 className="mt-3 title-section">
             {project.name}
           </h1>
           {project.description ? (
-            <p className="mt-3 font-serif text-base text-gray-1">
+            <p className="mt-3 font-serif text-base text-text">
               {project.description}
             </p>
           ) : null}
-          <p className="mt-3 font-serif text-sm text-gray-2">
+          <p className="mt-3 font-serif text-sm text-text">
             The first lesson is free. The rest of the build — design through
             bring-up, with comprehension checks and proof artifacts at every
             stage —{" "}
@@ -450,7 +448,7 @@ export default async function GuideHubPage({
 
         {/* Lesson list — card 0 open, cards 1+ locked */}
         <section className="mt-10">
-          <h2 className="font-display text-2xl tracking-wider text-white">
+          <h2 className="title-section">
             WHAT YOU&apos;LL BUILD
           </h2>
           <ul className="mt-4 space-y-3">
@@ -619,8 +617,6 @@ export default async function GuideHubPage({
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <JsonLd data={courseLd} />
       <PageHeader
-        backHref={revPath}
-        backLabel={revision.label}
         eyebrow="BUILD GUIDE"
         title={project.name}
         accentWord={project.name.trim().split(/\s+/).pop()}
@@ -660,7 +656,7 @@ export default async function GuideHubPage({
       {/* ─── Tier 1: design-stage cluster ─── */}
       <section>
         <div className="flex items-baseline justify-between gap-4">
-          <h2 className="font-display text-2xl tracking-wider text-white">
+          <h2 className="title-section">
             DESIGN STAGES
           </h2>
           <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold-dim">
@@ -749,11 +745,11 @@ export default async function GuideHubPage({
                     </span>
                   ) : null}
                 </div>
-                <span className="font-display text-2xl tracking-wider text-white">
+                <span className="title-card">
                   {cell.card.title}
                 </span>
                 {cell.card.lead ? (
-                  <span className="font-serif text-sm italic leading-relaxed text-gray-2">
+                  <span className="font-serif text-sm italic leading-relaxed text-text">
                     {cell.card.lead}
                   </span>
                 ) : null}

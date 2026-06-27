@@ -181,7 +181,7 @@ function SourcingAdvisory({ warnings }: { warnings: BomWarning[] }) {
         Sourcing advisory
       </h3>
       {warnings.length === 0 ? (
-        <p className="mt-2 font-mono text-xs text-green-400">
+        <p className="mt-2 font-mono text-xs text-status-green">
           No sourcing warnings.
         </p>
       ) : (

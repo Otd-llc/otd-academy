@@ -36,6 +36,32 @@
   --color-muted: #aaaaaa;
   --color-gray-3: #555555;
 
+  /*
+   * Semantic text ladder — ONE role per rung, so page copy stops choosing
+   * between five near-identical greys. Titles use `--color-title` (#fff, the
+   * value `.bench-hero` already renders); bright body/values use `--color-text`
+   * (= the old gray-1). `--color-muted` (secondary/labels) and `--color-gray-3`
+   * (faint/meta) are unchanged. New page work uses THESE four; the raw
+   * gray-1/gray-2/link-muted tokens remain only for un-migrated internal screens.
+   *   title  #fff   →  page/section/card headings
+   *   text   #e8e8e8 →  bright body + emphasised values
+   *   muted  #aaaaaa →  secondary copy, captions, labels
+   *   gray-3 #555555 →  faint meta, timestamps, disabled
+   */
+  --color-title: #f1ece0;
+  --color-text: #e8e8e8;
+
+  /*
+   * Radius scale — corner language was drifting (cards 14px, callouts 8px,
+   * `.glass-button` 6px, but bare `rounded` chips/inputs 4px). One standard for
+   * small interactive chrome (buttons, inputs, chips): 6px. Enforced at the
+   * token — Tailwind's default `--radius` (bare `rounded`) is bumped from 4px to
+   * 6px so every existing `rounded` chrome snaps to the `.glass-button` radius
+   * with no per-file churn. Cards/panels = 14px (inside `.glass-card`);
+   * callouts = 8px; `.badge` stays square on purpose (mono registration-tag look).
+   */
+  --radius: 0.375rem;
+
   --color-alert-red: #ef5350;
   --color-danger-coral: #d97a6a;
   --color-status-green: #66bb6a;
@@ -45,10 +71,77 @@
   --font-serif: "Lora", serif;
 }
 
+:root {
+  /* The single title scale. The page hero (.bench-hero) and the global grid
+     backdrop (.app-backdrop) both derive from this, so the engineering-paper
+     grid stays locked in ratio to the headline instead of shrinking to tiny
+     cells on small screens. */
+  --hero-size: clamp(54px, 9vw, 108px);
+}
+
 body {
   background-color: var(--color-deep-space);
   color: var(--color-muted);
   font-family: var(--font-serif);
+}
+
+/* ── Global engineering-paper backdrop ───────────────────────────────────────
+   A fixed, full-viewport isometric graph-paper field behind every page: a
+   two-tier triangular line grid (fine + bold) in dim steel, with a top-biased
+   vignette that keeps the content band clear and fades the grid into deep space
+   at the edges. Cell size is LOCKED to the title scale (--hero-size / 6.5) and
+   floored at 15px so it never goes tiny on phones. `position: fixed` so it holds
+   per-viewport as the page scrolls. */
+.app-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  pointer-events: none;
+  --cell: clamp(15px, calc(var(--hero-size) / 6.5), 18px);
+  --major: calc(var(--cell) * 3);
+  --grid-minor: rgba(150, 170, 205, 0.03);
+  --grid-bold: rgba(150, 170, 205, 0.058);
+  background-color: var(--color-deep-space);
+  background-image:
+    radial-gradient(96% 88% at 50% 26%, transparent 18%, var(--color-deep-space) 100%),
+    repeating-linear-gradient(90deg, transparent 0 calc(var(--major) - 1px), var(--grid-bold) 0 var(--major)),
+    repeating-linear-gradient(30deg, transparent 0 calc(var(--major) - 1px), var(--grid-bold) 0 var(--major)),
+    repeating-linear-gradient(150deg, transparent 0 calc(var(--major) - 1px), var(--grid-bold) 0 var(--major)),
+    repeating-linear-gradient(90deg, transparent 0 calc(var(--cell) - 1px), var(--grid-minor) 0 var(--cell)),
+    repeating-linear-gradient(30deg, transparent 0 calc(var(--cell) - 1px), var(--grid-minor) 0 var(--cell)),
+    repeating-linear-gradient(150deg, transparent 0 calc(var(--cell) - 1px), var(--grid-minor) 0 var(--cell));
+}
+@media print {
+  .app-backdrop {
+    display: none;
+  }
+}
+
+/* Scroll reveal — sections tagged `data-reveal` fade + rise once as they enter
+   the viewport, driven by a CSS scroll timeline (no JS). Guarded by @supports so
+   unsupported browsers — and reduced-motion — simply show the content, never
+   leave it hidden. One quiet beat, same easing family as the hero. */
+@keyframes reveal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@supports (animation-timeline: view()) {
+  [data-reveal] {
+    animation: reveal-rise linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 32%;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-reveal] {
+      animation: none;
+    }
+  }
 }
 
 /*
@@ -204,6 +297,52 @@ body {
   }
 
   /*
+   * Title scale — ONE source of truth for Bebas display headings outside the
+   * immersive bench hero (`.bench-hero`, the guide-page H1). These replace the
+   * per-page `font-display text-Nxl tracking-X text-white/gray-1` strings that
+   * had drifted to six different looks, so every standard page title, section
+   * head, and card title now share scale, tracking, and colour.
+   *   .title-hero    page <h1>     fluid 44 → 80px
+   *   .title-section section <h2>  28px
+   *   .title-card    card heading  22px
+   * All render in warm ivory `--color-title` (#f1ece0), and all carry the
+   * capability-brief "fatness": Bebas Neue ships a single weight, so we thicken
+   * the glyph strokes with `-webkit-text-stroke` (color `currentColor`, so a
+   * gold accent word strokes gold and an ivory word strokes ivory) — the same
+   * trick BriefDocument uses, scaled per tier. A `group-hover:text-command-gold`
+   * utility still wins (Tailwind utilities layer after components), so link-card
+   * titles keep their gold hover.
+   */
+  .title-hero {
+    font-family: var(--font-display);
+    font-size: clamp(2.75rem, 7vw, 5rem);
+    line-height: 0.84;
+    letter-spacing: -0.01em;
+    color: var(--color-title);
+    font-weight: 400;
+    -webkit-text-stroke: 0.04em currentColor;
+    paint-order: stroke fill;
+  }
+  .title-section {
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    line-height: 1.05;
+    letter-spacing: 0.03em;
+    color: var(--color-title);
+    font-weight: 400;
+    -webkit-text-stroke: 0.014em currentColor;
+  }
+  .title-card {
+    font-family: var(--font-display);
+    font-size: 1.375rem;
+    line-height: 1.1;
+    letter-spacing: 0.03em;
+    color: var(--color-title);
+    font-weight: 400;
+    -webkit-text-stroke: 0.012em currentColor;
+  }
+
+  /*
    * Bench-console recipes — ported from the TB-1-POWER bench stylesheet
    * (otd/.../docs/bench/_bench.css) for the learner-guide PageHeader +
    * content-block renderer. The bench used a parallel set of raw color vars
@@ -261,17 +400,36 @@ body {
     }
   }
 
-  /* bench-hero — oversized Bebas title with a gold .ord eyebrow + .accent word. */
+  /* bench-hero — oversized Bebas title with a gold .ord eyebrow + .accent word.
+     Carries the capability-brief "fatness": warm ivory fill + a thickened glyph
+     stroke (currentColor, so the gold accent word strokes gold), tight leading
+     and packing — the BriefDocument headline treatment, promoted to the standard
+     page hero. */
   .bench-hero {
     font-family: var(--font-display);
-    font-size: clamp(54px, 9vw, 108px);
-    letter-spacing: 0.04em;
-    color: #fff;
-    line-height: 0.95;
+    font-size: var(--hero-size);
+    letter-spacing: -0.01em;
+    color: var(--color-title);
+    line-height: 0.82;
     margin: 0;
     font-weight: 400;
+    -webkit-text-stroke: 0.04em currentColor;
+    paint-order: stroke fill;
   }
   .bench-hero .accent {
+    color: var(--color-command-gold);
+  }
+  /* tdot — the title period, rendered hollow (outline only) per the C4 look:
+     transparent fill over the inherited glyph stroke = a hollow ivory box. */
+  .tdot {
+    -webkit-text-fill-color: transparent;
+    -webkit-text-stroke-width: 0.035em;
+  }
+  /* `.accent` also golds inside the standalone title tiers — hand-built heroes
+     (e.g. /verify) use `.title-hero` rather than the PageHeader bench-hero. */
+  .title-hero .accent,
+  .title-section .accent,
+  .title-card .accent {
     color: var(--color-command-gold);
   }
   .bench-hero .ord {
@@ -279,7 +437,60 @@ body {
     font-size: 0.3em;
     letter-spacing: 0.3em;
     color: var(--color-command-gold);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+    /* Don't thicken the small mono eyebrow — the stroke is for the big title. */
+    -webkit-text-stroke-width: 0;
+  }
+
+  /* Kinetic hero reveal — the page title wipes up from a mask on load (one
+     beat), shared with the apex hero. Respects reduced-motion. */
+  .hero-line {
+    display: block;
+    overflow: hidden;
+    padding: 0.08em 0;
+    margin: -0.08em 0;
+  }
+  .hero-line > span {
+    display: inline-block;
+    animation: hero-rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  @keyframes hero-rise {
+    from {
+      transform: translateY(110%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-line > span {
+      animation: none;
+    }
+  }
+
+  /* title-rule — the capability-brief top divider: a hairline with a gold
+     gradient drawn across its left ~60%, fading to transparent. Sits at the top
+     of every PageHeader so each page opens with the same "document top". */
+  .title-rule {
+    position: relative;
+    height: 1px;
+    width: 100%;
+    background: var(--color-panel-border);
+    margin-bottom: 1.6rem;
+  }
+  .title-rule::before {
+    content: "";
+    position: absolute;
+    top: -1px;
+    left: 0;
+    height: 2px;
+    width: 60%;
+    background: linear-gradient(
+      to right,
+      var(--color-command-gold) 0%,
+      var(--color-command-gold) 38%,
+      rgba(200, 150, 62, 0) 100%
+    );
   }
 
   /* subhead — Lora italic lead beneath the hero. */
@@ -683,21 +894,18 @@ body {
 .foot-inner {
   max-width: 72rem;
   margin: 0 auto;
-  padding: 3.2rem 1.5rem 2rem;
-  display: grid;
-  grid-template-columns: 1.7fr 1fr 1fr;
-  gap: 2.5rem;
+  padding: 3.2rem 1.5rem 2.4rem;
 }
-.foot-mark {
+.foot-brand {
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
   text-decoration: none;
 }
-.foot-mark svg,
-.foot-mark img {
-  height: 1.85rem;
-  width: 1.85rem;
+.foot-brand svg,
+.foot-brand img {
+  height: 1.7rem;
+  width: 1.7rem;
   flex-shrink: 0;
 }
 .foot-bee {
@@ -706,84 +914,67 @@ body {
 .foot-wm {
   font-family: var(--font-display), sans-serif;
   font-size: 1.3rem;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   color: var(--color-gray-1);
   transition: color 0.15s;
 }
-.foot-mark:hover .foot-wm {
+.foot-brand:hover .foot-wm {
   color: #fff;
 }
 .foot-tag {
-  font-family: var(--font-serif), serif;
-  font-style: italic;
-  font-size: 15px;
-  color: var(--color-command-gold);
-  margin-top: 0.9rem;
-}
-.foot-loc {
-  font-size: 10px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.03em;
   color: var(--color-gray-3);
-  margin-top: 0.55rem;
+  margin-top: 0.7rem;
 }
-.foot-col {
+/* Scalable colophon: short themed groups in an auto-fit grid. Add a group, it
+   reflows; on mobile it drops to two columns. Gold rationed to the bee. */
+.foot-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+  gap: 1.9rem 1.5rem;
+  margin-top: 2.1rem;
+}
+.foot-group {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.65rem;
 }
-.foot-h {
+.foot-gh {
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.26em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--color-command-gold);
-  margin-bottom: 0.35rem;
+  color: var(--color-gray-1);
+  margin-bottom: 0.85rem;
 }
-.foot-col a {
-  font-size: 12px;
-  letter-spacing: 0.05em;
+.foot-group a {
+  font-size: 13px;
+  letter-spacing: 0.04em;
   color: var(--color-link-muted);
   text-decoration: none;
-  transition:
-    color 0.15s,
-    transform 0.15s;
+  padding: 0.18rem 0;
+  transition: color 0.15s;
 }
-.foot-col a:hover {
-  color: var(--color-command-gold);
-  transform: translateX(2px);
+.foot-group a:hover {
+  color: #fff;
 }
-.foot-col a .ext {
+.foot-group a .ext {
   color: var(--color-signal-blue);
   font-size: 11px;
 }
-.foot-strip {
-  max-width: 72rem;
-  margin: 0 auto;
-  padding: 1.1rem 1.5rem 1.7rem;
-  border-top: 1px solid rgba(58, 63, 80, 0.45);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem 1.4rem;
-}
 .foot-reg {
+  font-size: 10.5px;
+  line-height: 1.85;
+  letter-spacing: 0.04em;
+  color: var(--color-gray-3);
+}
+.foot-end {
   display: flex;
+  align-items: center;
+  gap: 1rem;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.55rem;
-  font-size: 10px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-.foot-reg .lbl {
-  color: var(--color-command-gold);
-}
-.foot-reg .dot {
-  color: rgba(200, 150, 62, 0.4);
+  margin-top: 2rem;
 }
 .foot-copy {
   font-size: 10px;
@@ -793,18 +984,7 @@ body {
 }
 @media (max-width: 720px) {
   .foot-inner {
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem 1.2rem;
-    padding: 2.6rem 1.25rem 1.6rem;
-  }
-  .foot-brand {
-    grid-column: 1 / -1;
-  }
-  .foot-strip {
-    flex-direction: column;
-    align-items: flex-start;
-    padding-left: 1.25rem;
-    padding-right: 1.25rem;
+    padding: 2.6rem 1.25rem 1.8rem;
   }
 }
 

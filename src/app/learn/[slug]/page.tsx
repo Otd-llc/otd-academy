@@ -113,11 +113,11 @@ export default async function LearnerBoardPage({
           {project.level ? ` · ${project.level}` : ""}
           {project.track ? ` · ${project.track}` : ""}
         </p>
-        <h1 className="mt-2 font-display text-3xl tracking-wider text-white">
+        <h1 className="mt-2 title-section">
           {project.name}
         </h1>
         {project.description && (
-          <p className="mt-3 font-serif text-base leading-relaxed text-gray-1">
+          <p className="mt-3 font-serif text-base leading-relaxed text-text">
             {project.description}
           </p>
         )}
@@ -155,7 +155,7 @@ export default async function LearnerBoardPage({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="font-mono text-xs uppercase tracking-wider text-muted">
                 Status ·{" "}
-                <span className={STATUS_COLOR[enrollment.status] ?? "text-gray-1"}>
+                <span className={STATUS_COLOR[enrollment.status] ?? "text-text"}>
                   {ENROLLMENT_STATUS_LABEL[enrollment.status as EnrollmentStatus] ??
                     enrollment.status}
                 </span>
