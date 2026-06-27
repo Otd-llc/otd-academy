@@ -7,6 +7,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
+import { PageHeader } from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -31,19 +32,13 @@ export default async function LibraryAdminPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-4">
-        <h1 className="title-hero">
-          LIBRARY <span className="text-command-gold">AUTHORING</span>
-        </h1>
-        <span className="font-mono text-xs uppercase tracking-wider text-muted">
-          {lessons.length} {lessons.length === 1 ? "lesson" : "lessons"}
-        </span>
-      </div>
-
-      <p className="mt-3 max-w-2xl font-serif text-sm italic text-muted">
-        Public, gate-less Library mini-lessons — the SEO content moat. Create,
-        edit, and publish here.
-      </p>
+      <PageHeader
+        eyebrow="OPERATOR"
+        title="Library authoring"
+        accentWord="authoring"
+        meta={[{ label: "LESSONS", value: lessons.length }]}
+        lead="Public, gate-less Library mini-lessons — the SEO content moat. Create, edit, and publish here."
+      />
 
       <Link
         href="/admin/library/new"

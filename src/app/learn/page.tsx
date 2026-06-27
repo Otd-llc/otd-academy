@@ -3,6 +3,7 @@
 // boards available to start (and locked ones with their prerequisites).
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { PageHeader } from "@/components/PageHeader";
 import { currentUserOrRedirect } from "@/lib/learner";
 import { learnerBoardAvailability } from "@/lib/learner-board-availability";
 import {
@@ -73,9 +74,12 @@ export default async function LearnerHomePage({
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-      <h1 className="title-hero">
-        MY <span className="text-command-gold">LEARNING</span>
-      </h1>
+      <PageHeader
+        eyebrow="YOUR PROGRESS"
+        title="My learning"
+        accentWord="learning"
+        lead="Your enrolled boards and where each one stands."
+      />
 
       {/* Purchase confirmation (Task B2). Shown on the `?purchased=<slug>`
           redirect from Stripe Checkout. The entitlement is granted by the webhook

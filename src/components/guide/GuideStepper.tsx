@@ -107,7 +107,7 @@ export function GuideStepper({
   const total = String(stages.length).padStart(2, "0");
 
   return (
-    <nav aria-label="Build guide progress" className="glass-card px-5 py-4 sm:px-6">
+    <nav aria-label="Build guide progress" className="py-4">
       {/* honey gradients — defined once, referenced by every cell */}
       <svg width="0" height="0" aria-hidden className="absolute">
         <defs>

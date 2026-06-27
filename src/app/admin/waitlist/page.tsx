@@ -8,6 +8,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
+import { PageHeader } from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -52,20 +53,16 @@ export default async function WaitlistAdminPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-4">
-        <h1 className="title-hero">
-          WAITLIST <span className="text-command-gold">DEMAND</span>
-        </h1>
-        <span className="font-mono text-xs uppercase tracking-wider text-muted">
-          {total} {total === 1 ? "signup" : "signups"} ·{" "}
-          {courses.length} {courses.length === 1 ? "course" : "courses"}
-        </span>
-      </div>
-
-      <p className="mt-3 max-w-2xl font-serif text-sm italic text-muted">
-        Who&apos;s waiting on which unbuilt course — most-wanted first. The signal
-        for which board to design next.
-      </p>
+      <PageHeader
+        eyebrow="OPERATOR"
+        title="Waitlist demand"
+        accentWord="demand"
+        meta={[
+          { label: "SIGNUPS", value: total },
+          { label: "COURSES", value: courses.length },
+        ]}
+        lead="Who's waiting on which unbuilt course, most-wanted first. The signal for which board to design next."
+      />
 
       {total > 0 ? (
         <a
