@@ -58,9 +58,8 @@ export default function BriefsIndexPage() {
       <div className="mx-auto max-w-3xl px-5 py-12 sm:px-6 sm:py-16">
         <PageHeader
           eyebrow="CAPABILITY BRIEFS"
-          title="One mind. Many machines."
-          accentWords={["mind", "machines"]}
-          lead="Short reads on what the academy is, who it is for, and why it is built the way it is. Pick a cut."
+          title="Built to pass"
+          lead="What the academy is, who it is for, and why it is built the way it is. Pick a cut."
         />
 
         <ul className="grid gap-4 sm:grid-cols-2">
