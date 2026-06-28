@@ -133,7 +133,7 @@ body {
    Nodes are absolutely positioned by the component (it measures + fills width). */
 .gh-node { position: absolute; display: block; text-decoration: none; text-align: center; container-type: inline-size; }
 .gh-hex { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.gh-hex polygon { fill: var(--color-deep-space); stroke: var(--color-panel-border); stroke-width: 2; vector-effect: non-scaling-stroke; transition: stroke 0.15s; }
+.gh-hex polygon { fill: var(--color-deep-space); stroke: var(--color-panel-border); stroke-width: 3; vector-effect: non-scaling-stroke; transition: stroke 0.15s; }
 .gh-node:hover .gh-hex polygon { stroke: var(--color-gold-light); }
 /* the stage number is a big OUTLINE figure that owns the top third (font-size set
    inline per-hex by the component so it scales with the measured width). Decorative
@@ -793,6 +793,18 @@ body {
 
 .animate-pulse-brand {
   animation: pulse 6s ease-in-out infinite;
+}
+
+/* Stepper current-cell glow — pulses the drop-shadow ONLY, never opacity, so the
+   cell's opaque backdrop never fades and never reveals the connector behind it
+   (the generic `pulse` keyframe dims opacity, which let the line show through). */
+@keyframes gs-pulse {
+  0%, 100% { filter: drop-shadow(0 0 2px rgba(200, 150, 62, 0.4)); }
+  50% { filter: drop-shadow(0 0 8px rgba(200, 150, 62, 0.75)); }
+}
+.gs-pulse { animation: gs-pulse 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .gs-pulse { animation: none; filter: drop-shadow(0 0 5px rgba(200, 150, 62, 0.55)); }
 }
 
 /* Sign-in entrance — one orchestrated page-load reveal. Each cluster group

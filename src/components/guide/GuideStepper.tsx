@@ -28,9 +28,24 @@ type State = GuideStageStatus["state"];
 
 // Flat-top hexagon (points on the left/right), inset for the 2px stroke. 44×38.
 const HEX = "2,19 13,2 31,2 42,19 31,36 13,36";
-const NODE = 46; // px — the cell width; this is the maintained minimum size.
-const GAP = 20;
-const ROWGAP = 16;
+const TARGET_NODE = 82; // preferred cell width — wrap to keep cells near this, not shrink
+const MIN_NODE = 48; // hard floor, only reached on a very narrow rail
+const MAX_NODE = 104; // compact — don't let cells balloon
+const GAP = 14;
+const ROWGAP = 12;
+
+// Three-letter stage codes shown under the step number in each rail cell.
+const STAGE_ABBR: Record<string, string> = {
+  REQUIREMENTS: "REQ",
+  BOM_SOURCING: "BOM",
+  SCHEMATIC: "SCH",
+  LAYOUT: "LAY",
+  DRC_GERBER: "DRC",
+  ORDERING: "ORD",
+  ASSEMBLY: "ASM",
+  BRINGUP: "BUP",
+};
+const abbr = (s: GuideStage) => STAGE_ABBR[s] ?? s.slice(0, 3);
 
 // Stroke colour of the cell.
 function strokeClass(state: State, isViewing: boolean): string {
@@ -105,6 +120,7 @@ export function GuideStepper({
   const wrapRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef<(HTMLAnchorElement | null)[]>([]);
   const [perRow, setPerRow] = useState(stages.length);
+  const [node, setNode] = useState(MIN_NODE);
   const [paths, setPaths] = useState<{ done: string; todo: string }>({
     done: "",
     todo: "",
@@ -115,9 +131,15 @@ export function GuideStepper({
     const el = wrapRef.current;
     if (!el) return;
     const avail = el.clientWidth;
-    let pr = Math.floor((avail + GAP) / (NODE + GAP));
+    // serpentine BEFORE shrinking: fit as many target-sized cells as the row holds
+    // (wrapping the rest), then fill that row — so cells stay big enough for labels
+    // instead of cramming all of them small into one line.
+    let pr = Math.floor((avail + GAP) / (TARGET_NODE + GAP));
     pr = Math.max(2, Math.min(pr, stages.length));
+    let n = (avail - (pr - 1) * GAP) / pr;
+    n = Math.max(MIN_NODE, Math.min(n, MAX_NODE));
     setPerRow((prev) => (prev === pr ? prev : pr));
+    setNode((prev) => (Math.abs(prev - n) < 0.5 ? prev : n));
   }, [stages.length]);
 
   useIsoLayoutEffect(() => {
@@ -147,7 +169,13 @@ export function GuideStepper({
     const b = Math.max(0, Math.min(boundary, last));
     setPaths({ done: b > 0 ? seg(0, b) : "", todo: b < last ? seg(b, last) : "" });
     setDims({ w: rect.width, h: rect.height });
-  }, [perRow, boundary, stages]);
+  }, [perRow, node, boundary, stages]);
+
+  // number, a short divider rule, and a 3-letter code — all scale with the cell.
+  const glyphPx = Math.round(Math.min(Math.max(node * 0.3, 13), 32));
+  const codePx = Math.round(Math.min(Math.max(node * 0.145, 8), 12));
+  const ruleW = Math.round(node * 0.34);
+  const ruleM = Math.round(node * 0.06);
 
   return (
     <nav aria-label="Build guide progress" className="py-4">
@@ -211,7 +239,7 @@ export function GuideStepper({
         <ol
           className="relative z-10 grid list-none p-0"
           style={{
-            gridTemplateColumns: `repeat(${perRow}, ${NODE}px)`,
+            gridTemplateColumns: `repeat(${perRow}, ${node}px)`,
             columnGap: GAP,
             rowGap: ROWGAP,
             justifyContent: "start",
@@ -236,22 +264,17 @@ export function GuideStepper({
                   style={{
                     gridRow: row + 1,
                     gridColumn: col + 1,
-                    width: NODE,
+                    width: node,
                     aspectRatio: "44 / 38",
                   }}
-                  className="group relative flex items-center justify-center"
+                  className="group relative flex flex-col items-center justify-center"
                 >
                   <svg
                     viewBox="0 0 44 38"
                     className={`absolute inset-0 h-full w-full transition-[filter] ${strokeClass(
                       s.state,
                       isViewing,
-                    )} ${isViewing ? "animate-pulse-brand" : ""}`}
-                    style={
-                      isViewing
-                        ? { filter: "drop-shadow(0 0 6px rgba(200,150,62,0.6))" }
-                        : undefined
-                    }
+                    )} ${isViewing ? "gs-pulse" : ""}`}
                   >
                     {/* opaque backdrop so the connector routed behind the cell
                         stays hidden — only the between-cell run shows. The
@@ -262,18 +285,39 @@ export function GuideStepper({
                       points={HEX}
                       fill={fillRef(s.state)}
                       stroke="currentColor"
-                      strokeWidth="2"
+                      strokeWidth="1.5"
                       strokeLinejoin="round"
                       className="transition-colors group-hover:stroke-gold-light"
                     />
                   </svg>
                   <span
-                    className={`relative z-10 font-mono text-[11px] font-bold leading-none ${glyphClass(
+                    className={`relative z-10 font-mono font-bold leading-none ${glyphClass(
                       s.state,
                       isViewing,
                     )}`}
+                    style={{ fontSize: glyphPx }}
                   >
                     {s.state === "complete" ? "✓" : num}
+                  </span>
+                  <span
+                    aria-hidden
+                    className={`relative z-10 rounded-full ${glyphClass(s.state, isViewing)}`}
+                    style={{
+                      width: ruleW,
+                      height: 2,
+                      background: "currentColor",
+                      opacity: 0.7,
+                      margin: `${ruleM}px 0`,
+                    }}
+                  />
+                  <span
+                    className={`relative z-10 font-mono font-bold uppercase leading-none tracking-[0.05em] ${glyphClass(
+                      s.state,
+                      isViewing,
+                    )}`}
+                    style={{ fontSize: codePx }}
+                  >
+                    {abbr(s.stage)}
                   </span>
                 </Link>
               </li>
