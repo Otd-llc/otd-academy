@@ -285,7 +285,7 @@ export function GuideStepper({
                       points={HEX}
                       fill={fillRef(s.state)}
                       stroke="currentColor"
-                      strokeWidth="2"
+                      strokeWidth="1.5"
                       strokeLinejoin="round"
                       className="transition-colors group-hover:stroke-gold-light"
                     />
