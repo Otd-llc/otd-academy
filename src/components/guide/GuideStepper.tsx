@@ -28,7 +28,9 @@ type State = GuideStageStatus["state"];
 
 // Flat-top hexagon (points on the left/right), inset for the 2px stroke. 44×38.
 const HEX = "2,19 13,2 31,2 42,19 31,36 13,36";
-const NODE = 46; // px — the cell width; this is the maintained minimum size.
+const MIN_NODE = 50; // px — smallest cell; at this size a cell shows only its number
+const MAX_NODE = 150; // don't let cells balloon on a very wide rail
+const DETAIL_NODE = 76; // at/above this cell width, a cell also shows its stage label
 const GAP = 20;
 const ROWGAP = 16;
 
@@ -105,6 +107,7 @@ export function GuideStepper({
   const wrapRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef<(HTMLAnchorElement | null)[]>([]);
   const [perRow, setPerRow] = useState(stages.length);
+  const [node, setNode] = useState(MIN_NODE);
   const [paths, setPaths] = useState<{ done: string; todo: string }>({
     done: "",
     todo: "",
@@ -115,9 +118,13 @@ export function GuideStepper({
     const el = wrapRef.current;
     if (!el) return;
     const avail = el.clientWidth;
-    let pr = Math.floor((avail + GAP) / (NODE + GAP));
+    // pack as many minimum-size cells as fit, then grow them to fill the row
+    let pr = Math.floor((avail + GAP) / (MIN_NODE + GAP));
     pr = Math.max(2, Math.min(pr, stages.length));
+    let n = (avail - (pr - 1) * GAP) / pr;
+    n = Math.max(MIN_NODE, Math.min(n, MAX_NODE));
     setPerRow((prev) => (prev === pr ? prev : pr));
+    setNode((prev) => (Math.abs(prev - n) < 0.5 ? prev : n));
   }, [stages.length]);
 
   useIsoLayoutEffect(() => {
@@ -147,7 +154,13 @@ export function GuideStepper({
     const b = Math.max(0, Math.min(boundary, last));
     setPaths({ done: b > 0 ? seg(0, b) : "", todo: b < last ? seg(b, last) : "" });
     setDims({ w: rect.width, h: rect.height });
-  }, [perRow, boundary, stages]);
+  }, [perRow, node, boundary, stages]);
+
+  // cell text scales with the measured cell; the stage label only appears once a
+  // cell is wide enough to hold it.
+  const glyphPx = Math.round(Math.min(Math.max(node * 0.2, 11), 26));
+  const labelPx = Math.round(Math.min(Math.max(node * 0.072, 8), 11));
+  const detail = node >= DETAIL_NODE;
 
   return (
     <nav aria-label="Build guide progress" className="py-4">
@@ -211,7 +224,7 @@ export function GuideStepper({
         <ol
           className="relative z-10 grid list-none p-0"
           style={{
-            gridTemplateColumns: `repeat(${perRow}, ${NODE}px)`,
+            gridTemplateColumns: `repeat(${perRow}, ${node}px)`,
             columnGap: GAP,
             rowGap: ROWGAP,
             justifyContent: "start",
@@ -236,10 +249,10 @@ export function GuideStepper({
                   style={{
                     gridRow: row + 1,
                     gridColumn: col + 1,
-                    width: NODE,
+                    width: node,
                     aspectRatio: "44 / 38",
                   }}
-                  className="group relative flex items-center justify-center"
+                  className="group relative flex flex-col items-center justify-center"
                 >
                   <svg
                     viewBox="0 0 44 38"
@@ -268,13 +281,25 @@ export function GuideStepper({
                     />
                   </svg>
                   <span
-                    className={`relative z-10 font-mono text-[11px] font-bold leading-none ${glyphClass(
+                    className={`relative z-10 font-mono font-bold leading-none ${glyphClass(
                       s.state,
                       isViewing,
                     )}`}
+                    style={{ fontSize: glyphPx }}
                   >
                     {s.state === "complete" ? "✓" : num}
                   </span>
+                  {detail ? (
+                    <span
+                      className={`relative z-10 mt-1 max-w-[88%] truncate font-mono font-bold uppercase leading-none tracking-[0.1em] ${glyphClass(
+                        s.state,
+                        isViewing,
+                      )}`}
+                      style={{ fontSize: labelPx, opacity: 0.82 }}
+                    >
+                      {STAGE_LABELS[s.stage]}
+                    </span>
+                  ) : null}
                 </Link>
               </li>
             );
