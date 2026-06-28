@@ -274,12 +274,7 @@ export function GuideStepper({
                     className={`absolute inset-0 h-full w-full transition-[filter] ${strokeClass(
                       s.state,
                       isViewing,
-                    )} ${isViewing ? "animate-pulse-brand" : ""}`}
-                    style={
-                      isViewing
-                        ? { filter: "drop-shadow(0 0 6px rgba(200,150,62,0.6))" }
-                        : undefined
-                    }
+                    )} ${isViewing ? "gs-pulse" : ""}`}
                   >
                     {/* opaque backdrop so the connector routed behind the cell
                         stays hidden — only the between-cell run shows. The
