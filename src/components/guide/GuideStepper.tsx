@@ -28,9 +28,10 @@ type State = GuideStageStatus["state"];
 
 // Flat-top hexagon (points on the left/right), inset for the 2px stroke. 44×38.
 const HEX = "2,19 13,2 31,2 42,19 31,36 13,36";
-const MIN_NODE = 50; // px — smallest cell; at this size a cell shows only its number
-const MAX_NODE = 150; // don't let cells balloon on a very wide rail
-const DETAIL_NODE = 76; // at/above this cell width, a cell also shows its stage label
+const TARGET_NODE = 150; // preferred cell width — wrap to keep cells near this, don't shrink
+const MIN_NODE = 50; // hard floor, only reached on a very narrow rail (then: numbers only)
+const MAX_NODE = 162; // don't balloon past this when a row has room to spare
+const DETAIL_NODE = 96; // at/above this cell width, a cell also shows its stage label
 const GAP = 20;
 const ROWGAP = 16;
 
@@ -118,8 +119,10 @@ export function GuideStepper({
     const el = wrapRef.current;
     if (!el) return;
     const avail = el.clientWidth;
-    // pack as many minimum-size cells as fit, then grow them to fill the row
-    let pr = Math.floor((avail + GAP) / (MIN_NODE + GAP));
+    // serpentine BEFORE shrinking: fit as many target-sized cells as the row holds
+    // (wrapping the rest), then fill that row — so cells stay big enough for labels
+    // instead of cramming all of them small into one line.
+    let pr = Math.floor((avail + GAP) / (TARGET_NODE + GAP));
     pr = Math.max(2, Math.min(pr, stages.length));
     let n = (avail - (pr - 1) * GAP) / pr;
     n = Math.max(MIN_NODE, Math.min(n, MAX_NODE));
@@ -158,8 +161,8 @@ export function GuideStepper({
 
   // cell text scales with the measured cell; the stage label only appears once a
   // cell is wide enough to hold it.
-  const glyphPx = Math.round(Math.min(Math.max(node * 0.2, 11), 26));
-  const labelPx = Math.round(Math.min(Math.max(node * 0.072, 8), 11));
+  const glyphPx = Math.round(Math.min(Math.max(node * 0.19, 13), 30));
+  const labelPx = Math.round(Math.min(Math.max(node * 0.092, 9), 14));
   const detail = node >= DETAIL_NODE;
 
   return (
@@ -291,7 +294,7 @@ export function GuideStepper({
                   </span>
                   {detail ? (
                     <span
-                      className={`relative z-10 mt-1 max-w-[88%] truncate font-mono font-bold uppercase leading-none tracking-[0.1em] ${glyphClass(
+                      className={`relative z-10 mt-1 max-w-[90%] truncate font-mono font-bold uppercase leading-none tracking-[0.04em] ${glyphClass(
                         s.state,
                         isViewing,
                       )}`}
