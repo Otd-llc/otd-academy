@@ -31,7 +31,7 @@ const HEX = "2,19 13,2 31,2 42,19 31,36 13,36";
 const TARGET_NODE = 150; // preferred cell width — wrap to keep cells near this, don't shrink
 const MIN_NODE = 50; // hard floor, only reached on a very narrow rail (then: numbers only)
 const MAX_NODE = 162; // don't balloon past this when a row has room to spare
-const DETAIL_NODE = 96; // at/above this cell width, a cell also shows its stage label
+const DETAIL_NODE = 108; // at/above this cell width a 12px label fits, so show it
 const GAP = 20;
 const ROWGAP = 16;
 
@@ -162,7 +162,7 @@ export function GuideStepper({
   // cell text scales with the measured cell; the stage label only appears once a
   // cell is wide enough to hold it.
   const glyphPx = Math.round(Math.min(Math.max(node * 0.19, 13), 30));
-  const labelPx = Math.round(Math.min(Math.max(node * 0.092, 9), 14));
+  const labelPx = 12; // smallest comfortably-accessible label size, fixed
   const detail = node >= DETAIL_NODE;
 
   return (
