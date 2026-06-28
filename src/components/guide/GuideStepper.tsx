@@ -28,12 +28,24 @@ type State = GuideStageStatus["state"];
 
 // Flat-top hexagon (points on the left/right), inset for the 2px stroke. 44×38.
 const HEX = "2,19 13,2 31,2 42,19 31,36 13,36";
-const TARGET_NODE = 150; // preferred cell width — wrap to keep cells near this, don't shrink
-const MIN_NODE = 50; // hard floor, only reached on a very narrow rail (then: numbers only)
-const MAX_NODE = 162; // don't balloon past this when a row has room to spare
-const DETAIL_NODE = 108; // at/above this cell width a 12px label fits, so show it
-const GAP = 20;
-const ROWGAP = 16;
+const TARGET_NODE = 82; // preferred cell width — wrap to keep cells near this, not shrink
+const MIN_NODE = 48; // hard floor, only reached on a very narrow rail
+const MAX_NODE = 104; // compact — don't let cells balloon
+const GAP = 14;
+const ROWGAP = 12;
+
+// Three-letter stage codes shown under the step number in each rail cell.
+const STAGE_ABBR: Record<string, string> = {
+  REQUIREMENTS: "REQ",
+  BOM_SOURCING: "BOM",
+  SCHEMATIC: "SCH",
+  LAYOUT: "LAY",
+  DRC_GERBER: "DRC",
+  ORDERING: "ORD",
+  ASSEMBLY: "ASM",
+  BRINGUP: "BUP",
+};
+const abbr = (s: GuideStage) => STAGE_ABBR[s] ?? s.slice(0, 3);
 
 // Stroke colour of the cell.
 function strokeClass(state: State, isViewing: boolean): string {
@@ -159,11 +171,11 @@ export function GuideStepper({
     setDims({ w: rect.width, h: rect.height });
   }, [perRow, node, boundary, stages]);
 
-  // cell text scales with the measured cell; the stage label only appears once a
-  // cell is wide enough to hold it.
-  const glyphPx = Math.round(Math.min(Math.max(node * 0.19, 13), 30));
-  const labelPx = 12; // smallest comfortably-accessible label size, fixed
-  const detail = node >= DETAIL_NODE;
+  // number, a short divider rule, and a 3-letter code — all scale with the cell.
+  const glyphPx = Math.round(Math.min(Math.max(node * 0.3, 13), 32));
+  const codePx = Math.round(Math.min(Math.max(node * 0.145, 8), 12));
+  const ruleW = Math.round(node * 0.34);
+  const ruleM = Math.round(node * 0.06);
 
   return (
     <nav aria-label="Build guide progress" className="py-4">
@@ -292,17 +304,26 @@ export function GuideStepper({
                   >
                     {s.state === "complete" ? "✓" : num}
                   </span>
-                  {detail ? (
-                    <span
-                      className={`relative z-10 mt-1 max-w-[90%] truncate font-mono font-bold uppercase leading-none tracking-[0.04em] ${glyphClass(
-                        s.state,
-                        isViewing,
-                      )}`}
-                      style={{ fontSize: labelPx, opacity: 0.82 }}
-                    >
-                      {STAGE_LABELS[s.stage]}
-                    </span>
-                  ) : null}
+                  <span
+                    aria-hidden
+                    className={`relative z-10 rounded-full ${glyphClass(s.state, isViewing)}`}
+                    style={{
+                      width: ruleW,
+                      height: 2,
+                      background: "currentColor",
+                      opacity: 0.7,
+                      margin: `${ruleM}px 0`,
+                    }}
+                  />
+                  <span
+                    className={`relative z-10 font-mono font-bold uppercase leading-none tracking-[0.05em] ${glyphClass(
+                      s.state,
+                      isViewing,
+                    )}`}
+                    style={{ fontSize: codePx }}
+                  >
+                    {abbr(s.stage)}
+                  </span>
                 </Link>
               </li>
             );
