@@ -107,6 +107,7 @@ export function CreatePartDialog({
       <PartFields
         state={state}
         action={action}
+        // eslint-disable-next-line react-hooks/refs -- dialog is open before any hover, so ref.current is populated (see note above)
         tooltipContainer={ref.current}
       />
     </dialog>
