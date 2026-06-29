@@ -94,10 +94,27 @@ Status: `open` · `in progress` · `accept/monitor` · `needs maintainer` (infra
 
 ## Cross-cutting
 
-- **C1 · Duplicated design system (`open`).** `PageHeader` + the bench-hero alternation engine,
-  footer, elevation tokens, and `BrandMark` are hand-ported between the two repos → they drift
-  every time one is touched (re-synced manually more than once already). → Extract a shared
-  package, or accept manual sync with a written parity checklist.
+- **C1 · Duplicated / diverged design system (`decision needed`).** The shared design language is
+  reimplemented in parallel and has already **diverged** (not identical copies): `PageHeader`
+  (academy 207 LOC vs apex 103 — apex uses ASCII regexes for its pre-ES6 tsconfig, academy unicode),
+  `BrandMark` (29 vs 17), the title-alternation engine (`FUNCTION_WORDS` / `highlightTitle`),
+  elevation tokens, and a large slice of `globals.css` (`.glass-*` / `.bench-hero` / footer).
+  Truly-shareable surface is small (~150 LOC of logic + token CSS) but not identical.
+
+  **Mechanisms (the decision):**
+  - **(A) Manage the duplication** — reconcile the few divergences, keep parallel copies, add a
+    parity checklist (optionally a CI diff-test on the shared files). Cheapest; fits the small surface.
+  - **(B) Published `@otd/brand` package** (private, GitHub Packages) — both repos `pnpm add` it.
+    Correct long-term *iff* the design language spreads across more OTD surfaces (apex, academy,
+    bioscale-viz, future). Cost: publish/version CI + reconciling the divergences (incl. the
+    ASCII/unicode regex split) + both repos consuming & rebuilding on every change.
+  - **(C) Monorepo** — rejected: the apps deploy on different stacks (academy Vercel+Neon, apex
+    CF Pages) and the migration cost dwarfs the ~150-LOC benefit.
+
+  **Recommendation:** **(A) now** — the surface is too small + diverged to justify (B)'s overhead.
+  Move to (B) only when ≥3 OTD surfaces must share components, or the shared set grows materially.
+  **Maintainer decision:** how far will the OTD design system spread? Small/stable → (A); growing
+  across the ecosystem → start (B).
 
 ---
 
