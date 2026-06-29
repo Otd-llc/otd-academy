@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { lipoRuntimeHours, formatRuntime } from "@/lib/tools/calculators";
-import { CalcShell, NumberField, ResultCard } from "./calc-ui";
+import { CalcShell, NumberField, Readout } from "./calc-ui";
 
 // Interactive island for the LiPo runtime page. All math goes through the
 // unit-tested lipoRuntimeHours/formatRuntime so the widget can't disagree with
@@ -20,42 +20,48 @@ export function LipoRuntimeCalculator() {
     : null;
 
   return (
-    <CalcShell>
-      <NumberField
-        label="Battery capacity"
-        value={capacityMah}
-        onChange={setCapacityMah}
-        min={1}
-        step={50}
-        suffix="mAh"
-      />
-      <NumberField
-        label="Average current draw"
-        value={averageCurrentMa}
-        onChange={setAverageCurrentMa}
-        min={1}
-        step={10}
-        suffix="mA"
-        hint="Average draw over a full duty cycle. A duty-cycled Wi-Fi node averages far below its transmit peak."
-      />
-      <NumberField
-        label="Usable capacity"
-        value={usablePct}
-        onChange={setUsablePct}
-        min={1}
-        step={5}
-        suffix="%"
-        hint="Derating for cutoff voltage + converter loss. 70 to 85% is typical."
-      />
-      <ResultCard
-        label="Estimated runtime"
-        value={hours !== null ? formatRuntime(hours) : "—"}
-        note={
-          hours !== null
-            ? `${hours.toFixed(1)} hours at ${averageCurrentMa} mA average`
-            : "Enter values above 0."
-        }
-      />
-    </CalcShell>
+    <CalcShell
+      fields={
+        <>
+          <NumberField
+            label="Battery capacity"
+            value={capacityMah}
+            onChange={setCapacityMah}
+            min={1}
+            step={50}
+            suffix="mAh"
+          />
+          <NumberField
+            label="Average current draw"
+            value={averageCurrentMa}
+            onChange={setAverageCurrentMa}
+            min={1}
+            step={10}
+            suffix="mA"
+            hint="Average draw over a full duty cycle. A duty-cycled Wi-Fi node averages far below its transmit peak."
+          />
+          <NumberField
+            label="Usable capacity"
+            value={usablePct}
+            onChange={setUsablePct}
+            min={1}
+            step={5}
+            suffix="%"
+            hint="Derating for cutoff voltage + converter loss. 70 to 85% is typical."
+          />
+        </>
+      }
+      readout={
+        <Readout
+          value={hours !== null ? formatRuntime(hours) : "—"}
+          unit="estimated runtime"
+          note={
+            hours !== null
+              ? `${hours.toFixed(1)} hours at ${averageCurrentMa} mA average`
+              : "Enter values above 0."
+          }
+        />
+      }
+    />
   );
 }

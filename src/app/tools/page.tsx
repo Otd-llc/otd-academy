@@ -9,18 +9,21 @@ import { PageHeader } from "@/components/PageHeader";
 import { courseListJsonLd, breadcrumbJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { TOOLS } from "@/lib/tools/registry";
 
+// HERO is the on-page H1 (short, so the Bebas hero doesn't balloon). TITLE is the
+// longer, keyworded <title>/SERP string; LEAD is the Lora subhead differentiator.
+const HERO = "Electronics calculators";
 const TITLE = "Electronics calculators, worked from real boards";
-const SUMMARY =
-  "Free electronics calculators from One Thousand Drones, each worked from a real board: battery runtime, LED-strip power, and more.";
+const LEAD =
+  "Free calculators for hardware builders. Each one is worked from a real OTD board, with the formula and a cited source.";
 
 export function generateMetadata(): Metadata {
   const url = `${siteUrl()}/tools`;
   return {
     title: TITLE,
-    description: SUMMARY,
+    description: LEAD,
     alternates: { canonical: url },
-    openGraph: { title: TITLE, description: SUMMARY, type: "website", url },
-    twitter: { card: "summary", title: TITLE, description: SUMMARY },
+    openGraph: { title: TITLE, description: LEAD, type: "website", url },
+    twitter: { card: "summary", title: TITLE, description: LEAD },
   };
 }
 
@@ -39,17 +42,22 @@ export default function ToolsHubPage() {
       <JsonLd data={listLd} />
       <JsonLd data={crumbLd} />
 
-      <PageHeader eyebrow="TOOLS" title={TITLE} lead={SUMMARY} />
+      <PageHeader eyebrow="TOOLS" title={HERO} lead={LEAD} />
 
-      <ul className="grid gap-4">
+      <ul className="border-t border-panel-border/60">
         {TOOLS.map((t) => (
           <li key={t.slug}>
             <Link
               href={`/tools/${t.slug}`}
-              className="block rounded-lg border border-panel-border bg-navy-dark/40 p-5 transition-colors hover:border-command-gold/50"
+              className="group flex flex-col gap-1.5 border-b border-panel-border/60 py-6 transition-colors hover:bg-command-gold/[0.04]"
             >
-              <p className="text-lg font-semibold text-command-gold">{t.title}</p>
-              <p className="mt-1 text-sm text-gray-2">{t.summary}</p>
+              <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+                <span aria-hidden="true">▸ </span>Calculator
+              </span>
+              <span className="font-display text-2xl tracking-wide text-text transition-colors group-hover:text-gold-light">
+                {t.title}
+              </span>
+              <span className="text-sm leading-snug text-muted">{t.summary}</span>
             </Link>
           </li>
         ))}

@@ -1,8 +1,10 @@
 "use client";
 
-// Shared input + result chrome for the /tools calculator islands. Kept token-
-// driven (command-gold / navy-dark / panel-border / muted) so the calculators
-// match the guide diagrams and the rest of the academy surface.
+// Bench-instrument chrome for the /tools calculator islands. The aesthetic is
+// the academy capability-brief language: deep-space surfaces (no filled navy
+// cards), gold hairline rules, Space-Mono uppercase labels, and the result as a
+// large Saira display-numeral readout (the same numeral face as the honeycomb
+// hex-heroes). Inputs read like labelled bench fields, not form boxes.
 import { type ReactNode } from "react";
 
 export function NumberField({
@@ -23,9 +25,9 @@ export function NumberField({
   hint?: string;
 }) {
   return (
-    <label className="flex flex-col gap-1">
-      <span className="font-mono text-xs uppercase tracking-wider text-muted">{label}</span>
-      <span className="flex items-center gap-2">
+    <label className="flex flex-col gap-1.5 border-b border-panel-border/50 py-3.5">
+      <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">{label}</span>
+      <span className="flex items-baseline gap-2">
         <input
           type="number"
           inputMode="decimal"
@@ -33,29 +35,71 @@ export function NumberField({
           step={step}
           value={Number.isFinite(value) ? value : ""}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="w-full rounded-md border border-panel-border bg-navy-dark px-3 py-2 text-gray-1 focus:border-command-gold focus:outline-none"
+          className="w-full border-0 border-b border-transparent bg-transparent px-0 py-1 font-numeral text-2xl tabular-nums text-text tracking-wide focus:border-command-gold focus:outline-none"
         />
-        {suffix ? <span className="font-mono text-sm text-muted">{suffix}</span> : null}
+        {suffix ? (
+          <span className="shrink-0 font-mono text-sm text-muted">{suffix}</span>
+        ) : null}
       </span>
-      {hint ? <span className="text-xs text-gray-3">{hint}</span> : null}
+      {hint ? <span className="text-xs leading-snug text-gray-3">{hint}</span> : null}
     </label>
   );
 }
 
-export function ResultCard({ label, value, note }: { label: string; value: ReactNode; note?: ReactNode }) {
+// The signature element: a large gold Saira numeral. Letters in `value` (h, m,
+// A, %) fall back to Bebas per the --font-numeral stack, so "13 h 20 m" reads as
+// Saira digits with Bebas units, like an instrument display.
+export function Readout({
+  value,
+  unit,
+  note,
+}: {
+  value: ReactNode;
+  unit?: string;
+  note?: ReactNode;
+}) {
   return (
-    <div className="rounded-md border border-command-gold/40 bg-command-gold/5 p-5">
-      <p className="font-mono text-xs uppercase tracking-wider text-muted">{label}</p>
-      <p className="mt-1 text-3xl font-semibold text-command-gold">{value}</p>
-      {note ? <p className="mt-2 text-sm text-muted">{note}</p> : null}
+    <div>
+      <p className="font-numeral text-5xl leading-none tracking-wide text-command-gold tabular-nums sm:text-6xl">
+        {value}
+      </p>
+      {unit ? (
+        <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">{unit}</p>
+      ) : null}
+      {note ? <p className="mt-3 text-sm leading-snug text-muted">{note}</p> : null}
     </div>
   );
 }
 
-export function CalcShell({ children }: { children: ReactNode }) {
+// A quieter secondary readout (mono number, not a hero numeral) for a second
+// figure on a page that has one.
+export function SubReadout({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <section className="my-8 grid gap-5 rounded-lg border border-panel-border bg-navy-dark/40 p-5 sm:grid-cols-2">
-      {children}
+    <div className="border-t border-panel-border/50 pt-4">
+      <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">{label}</p>
+      <p className="mt-1 font-mono text-lg text-text tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+// Two-column instrument: inputs on the left, the readout on the right under a
+// gold hairline. Stacks on mobile. Surfaces stay deep-space; the only fills are
+// hairlines and the gold rule.
+export function CalcShell({ fields, readout }: { fields: ReactNode; readout: ReactNode }) {
+  return (
+    <section className="my-9 grid gap-8 border-t border-command-gold/35 pt-7 sm:grid-cols-[1.1fr_0.9fr] sm:gap-10">
+      <div>
+        <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+          <span aria-hidden="true">▸ </span>Inputs
+        </p>
+        <div className="flex flex-col">{fields}</div>
+      </div>
+      <div className="sm:border-l sm:border-panel-border/50 sm:pl-9">
+        <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+          <span aria-hidden="true">▸ </span>Result
+        </p>
+        {readout}
+      </div>
     </section>
   );
 }
