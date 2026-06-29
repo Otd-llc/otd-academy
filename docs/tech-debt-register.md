@@ -17,12 +17,16 @@ Status: `open` · `in progress` · `accept/monitor` · `needs maintainer` (infra
   no config, no `eslint` dep — 648 files unlinted. **Now: ESLint 9 + `eslint-config-next` 16 +
   a flat `eslint.config.mjs` + a `pnpm lint` script** (and `unrs-resolver: true` in
   `pnpm-workspace.yaml` so the build-gate doesn't block `pnpm lint`). `scripts/` ignored for
-  the app baseline. **Baseline: 33 errors / 6 warnings**, mostly opinionated/new rules:
-  `react-hooks/set-state-in-effect` (11), `react/jsx-no-comment-textnodes` (11),
-  `react/no-unescaped-entities` (6), `@next/next/no-img-element` (~4, some intentional for
-  dynamic PNGs), plus a few a11y/exhaustive-deps warnings. None auto-fixable.
-  → **Triage the 33** (fix, or downgrade specific rules to `warn`) before adding lint to the
-  CI required checks. CI currently runs tsc/build/vitest only, so this doesn't turn CI red yet.
+  the app baseline. Initial baseline was 33 errors / 6 warnings; **triaged to 0 errors /
+  15 warnings — `pnpm lint` now exits 0:**
+  - `react-hooks/set-state-in-effect` -> `warn` (prop->state sync; advisory perf, not a bug).
+  - `react/no-unescaped-entities` -> `off` (literal apostrophes/quotes render fine).
+  - `react/jsx-no-comment-textnodes` -> `off` (the `// LINK SENT` / `// {heading}` code-comment
+    eyebrow motif is rendered text, not a forgotten comment).
+  - Fixed 2 malformed `--`-vs-em-dash `eslint-disable` comments, and 1 intentional `ref.current`
+    read (inline-disabled with its existing justification).
+  Remaining 15 are warnings (mostly `set-state-in-effect` + a few a11y/`no-img-element`).
+  → **Ready to add to the CI required checks** (lint exits 0); chip away at the warnings over time.
 
 - **A2 · `main` is completely unprotected (`needs maintainer`).** `GET …/branches/main/protection`
   → 404 "Branch not protected." No required checks, no required review, direct pushes allowed.

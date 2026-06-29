@@ -71,7 +71,7 @@ export default async function CertificateSharePage({
       </span>
       {/* Display the certificate as an image (renders reliably everywhere); the
           Download button pulls the print-quality PDF. */}
-      {/* eslint-disable-next-line @next/next/no-img-element — dynamic certificate PNG, not a static asset */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- dynamic certificate PNG, not a static asset */}
       <img
         src={imagePath(slug, token)}
         alt={`${heading} — ${claims.name}`}

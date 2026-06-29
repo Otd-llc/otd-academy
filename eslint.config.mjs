@@ -18,6 +18,19 @@ const eslintConfig = [
     ],
   },
   ...next,
+  {
+    rules: {
+      // `// text` is a deliberate code-comment-style eyebrow motif across the UI
+      // ("// LINK SENT", "// {heading}"); it's rendered text, not a forgotten
+      // comment, and the rule can't tell them apart.
+      "react/jsx-no-comment-textnodes": "off",
+      // literal apostrophes / quotes in copy render fine; escaping them is noise.
+      "react/no-unescaped-entities": "off",
+      // advisory perf rule (cascading renders from prop->state sync), not a
+      // correctness bug — surface as a warning to track, don't block.
+      "react-hooks/set-state-in-effect": "warn",
+    },
+  },
 ];
 
 export default eslintConfig;

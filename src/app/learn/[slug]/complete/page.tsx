@@ -193,7 +193,7 @@ export default async function LessonCompletePage({
           <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-gold-dim">
             // {mastered ? "Your certificate" : "Your completion"}
           </span>
-          {/* eslint-disable-next-line @next/next/no-img-element — dynamic certificate PNG, not a static asset */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- dynamic certificate PNG, not a static asset */}
           <img
             src={`/learn/${project.slug}/certificate/${shareToken}/image`}
             alt={
