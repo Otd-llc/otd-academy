@@ -10,6 +10,14 @@ An online hardware-engineering academy. Learners design real PCBs and electronic
 
 The same engine that tracks a real hardware project's lifecycle backs the learning experience: every guide card's "done" verdict is computed from the *real* engineering stage-gate, so a learner can never mark a step complete while the underlying gate is still closed.
 
+## Screenshots
+
+| Learning paths (`/courses`) | Build-guide hub (a course's stage map) |
+| :---: | :---: |
+| [![Learning paths](docs/screenshots/courses.png)](docs/screenshots/courses.png) | [![Build-guide hub](docs/screenshots/build-guide.png)](docs/screenshots/build-guide.png) |
+| **A build-guide stage** — progress rail + live buyable BOM | **Parts library** (`/parts`) |
+| [![Build-guide stage](docs/screenshots/guide-stage.png)](docs/screenshots/guide-stage.png) | [![Parts library](docs/screenshots/parts.png)](docs/screenshots/parts.png) |
+
 ## What it does
 
 Each course is a hardware project moved through nine workflow stages, with first-class state, server-enforced gates, and an append-only audit trail:
