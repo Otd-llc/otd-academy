@@ -144,6 +144,21 @@ export function highlightTitle(title: string): React.ReactNode[] {
   });
 }
 
+// Render an eyebrow with any digit run set in the display-numeral face (Saira),
+// so the "01" in "PHASE 01" matches the honeycomb/stepper hero numerals. A no-op
+// for digit-less eyebrows ("BUILD GUIDE", "SKILL TREE").
+function renderEyebrow(eyebrow: string): React.ReactNode[] {
+  return eyebrow.split(/(\d+)/).map((part, i) =>
+    /^\d+$/.test(part) ? (
+      <span key={i} className="font-numeral">
+        {part}
+      </span>
+    ) : (
+      <Fragment key={i}>{part}</Fragment>
+    ),
+  );
+}
+
 export function PageHeader({
   backHref,
   backLabel = "Back",
@@ -190,7 +205,7 @@ export function PageHeader({
       ) : null}
 
       <h1 className={`bench-hero ${meta.length > 0 ? "mt-6" : ""}`}>
-        <span className="ord">{eyebrow}</span>
+        <span className="ord">{renderEyebrow(eyebrow)}</span>
         <span className="hero-line">
           <span>
             {titleNodes}

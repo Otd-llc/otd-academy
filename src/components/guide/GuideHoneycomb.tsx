@@ -22,7 +22,7 @@ const MAXW = 360;
 const PER_ROW = 3; // up to three across on wide screens
 const MIN_ROW = 2; // never fewer than two — the comb never becomes a vertical strip
 const MINW = 165; // drop 3→2 columns once cells would shrink below this
-const RATIO = 1.1547; // regular pointy-top: height / width
+export const RATIO = 1.1547; // regular pointy-top: height / width
 
 export type HoneycombStage = {
   stage: GuideStage;
@@ -34,20 +34,33 @@ export type HoneycombStage = {
   statusText: string;
 };
 
-type Box = { left: number; top: number; w: number; h: number };
+export type Box = { left: number; top: number; w: number; h: number };
 
-function computeLayout(cw: number, count: number): { boxes: Box[]; height: number } {
+// Measure-and-fill honeycomb layout: given a container width + node count, place
+// `count` pointy-top hexes in offset, snaking rows that grow to fill the width
+// (3-up desktop → 2-up phone, never a 1-wide strip). Shared with SkillHoneycomb
+// + PathHoneycomb so the build-guide hub, /courses skill tree, and the /courses
+// "go further" destinations all tessellate identically. `opts` lets a caller
+// widen the row (e.g. 4-up) or cap the cell size; the defaults are the hub's.
+export function computeLayout(
+  cw: number,
+  count: number,
+  opts?: { perRow?: number; minW?: number; maxW?: number },
+): { boxes: Box[]; height: number } {
+  const perRowMax = opts?.perRow ?? PER_ROW;
+  const minW = opts?.minW ?? MINW;
+  const maxW = opts?.maxW ?? MAXW;
   if (cw <= 0 || count === 0) return { boxes: [], height: 0 };
-  let perRow = Math.min(count, PER_ROW);
+  let perRow = Math.min(count, perRowMax);
   let off = perRow > 1 ? 0.5 : 0;
   let w = cw / (perRow + off);
   // drop a column when cells would get too small, but never below two-across
-  while (w < MINW && perRow > MIN_ROW) {
+  while (w < minW && perRow > MIN_ROW) {
     perRow--;
     off = perRow > 1 ? 0.5 : 0;
     w = cw / (perRow + off);
   }
-  if (w > MAXW) w = MAXW;
+  if (w > maxW) w = maxW;
   const h = w * RATIO;
   const vstep = h * 0.75; // rows overlap by 1/4 so they nestle
   const rows = Math.ceil(count / perRow);
@@ -84,7 +97,9 @@ export function GuideHoneycomb({
   const measure = useCallback(() => {
     const el = ref.current;
     if (!el) return;
-    setLayout(computeLayout(el.clientWidth, stages.length));
+    // Lower minW than the default so phones pack 3-up (smaller, more compact
+    // hexes) instead of two big ones — the build guide now has 8 stages to show.
+    setLayout(computeLayout(el.clientWidth, stages.length, { minW: 100 }));
   }, [stages.length]);
 
   useIsoLayoutEffect(() => {
@@ -129,7 +144,10 @@ export function GuideHoneycomb({
               aria-hidden
               // hero size on big cells; eased down on small ones so it stops
               // swallowing the room the title + chip need on a phone.
-              style={{ fontSize: Math.round(b.w * (b.w <= 200 ? 0.36 : 0.43)) }}
+              // Saira Condensed (the numeral face) renders taller/heavier than
+              // Bebas at the same size, so the multiplier is eased down vs the old
+              // Bebas tuning to keep the number clear of the title below it.
+              style={{ fontSize: Math.round(b.w * (b.w <= 200 ? 0.32 : 0.38)) }}
             >
               {s.num}
             </span>

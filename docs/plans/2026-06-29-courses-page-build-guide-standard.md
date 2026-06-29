@@ -53,7 +53,16 @@ priceCents, stripePriceId, missingPrereqs, publishedLabel, isNext`.
   current cell pulses via `gs-pulse` (glow only, never opacity). **Already rendered on all
   build-guide stage pages** via the single `src/app/projects/[slug]/[revLabel]/guide/[stage]/page.tsx`.
 
-## Open question (resolve in Task 1 — owner decision)
+## Open question — RESOLVED 2026-06-29: **honeycomb-only** (no `/courses` serpentine rail)
+
+Owner chose reading 1. Decisive finding: the build-guide HUB (`guide/page.tsx:687`) renders
+`GuideHoneycomb` **only**; the serpentine `GuideStepper` appears **only** on stage DETAIL pages
+(`guide/[stage]/page.tsx:604`) — the build guide never shows both on one page. `/courses` is the
+hub analog, so the truest match is honeycomb-only; a rail would duplicate the same path nodes the
+honeycomb already shows. **→ Task 3 is dropped.**
+
+<details><summary>Original framing (kept for the record)</summary>
+
 
 "…and small serpentine nav on all stages" — two readings:
 1. The serpentine rail is **already on all build-guide stage pages** (one `[stage]` file renders it)
@@ -65,12 +74,12 @@ priceCents, stripePriceId, missingPrereqs, publishedLabel, isNext`.
 **Recommended:** do both — the `/courses` honeycomb (core) AND a path-nav serpentine rail on
 `/courses` (reading 2 is the richer, more-consistent result). Confirm with the owner before building
 the rail; the honeycomb is unambiguous and can start immediately.
+</details>
 
 ## Tasks
 
-### T1 — Confirm scope (owner)
-Confirm the Open question (honeycomb only, or honeycomb + a `/courses` serpentine path rail). Default
-to both. No code.
+### T1 — Confirm scope (owner) ✅ DONE — honeycomb-only
+Resolved above: honeycomb-only, no `/courses` serpentine rail. Task 3 dropped.
 
 ### T2 — `SkillHoneycomb` (the path body, number-hero honeycomb)
 Generalize `GuideHoneycomb` into a shared honeycomb the skill tree can use, OR add a sibling
@@ -89,7 +98,8 @@ ordered `SkillNode` → a hex:
 Verify: every state renders legibly, the honeycomb fills width + wraps to 2-up on phones, the
 prereq tooltip still works, `#node-<slug>` anchors resolve.
 
-### T3 — `/courses` serpentine path-nav rail (if Task 1 says yes)
+### T3 — `/courses` serpentine path-nav rail — ❌ DROPPED (Task 1 → honeycomb-only)
+~~(if Task 1 says yes)~~
 Add a `GuideStepper`-style compact rail at the top of `/courses` showing the **selected path's**
 course sequence (number + short code/abbr per course), current = the path-local `nextNode`, done =
 completed. Reuse the stepper's measure-and-wrap + connector + `gs-pulse`. It's a nav overview; the

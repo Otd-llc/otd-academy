@@ -131,13 +131,18 @@ export function GuideStepper({
     const el = wrapRef.current;
     if (!el) return;
     const avail = el.clientWidth;
+    // Phones get a much smaller, denser ribbon: a smaller target/ceiling so more
+    // cells pack per row instead of a few big hexes wrapping over many rows.
+    const compact = avail < 480;
+    const target = compact ? 46 : TARGET_NODE;
+    const ceil = compact ? 58 : MAX_NODE;
     // serpentine BEFORE shrinking: fit as many target-sized cells as the row holds
     // (wrapping the rest), then fill that row — so cells stay big enough for labels
     // instead of cramming all of them small into one line.
-    let pr = Math.floor((avail + GAP) / (TARGET_NODE + GAP));
+    let pr = Math.floor((avail + GAP) / (target + GAP));
     pr = Math.max(2, Math.min(pr, stages.length));
     let n = (avail - (pr - 1) * GAP) / pr;
-    n = Math.max(MIN_NODE, Math.min(n, MAX_NODE));
+    n = Math.max(MIN_NODE, Math.min(n, ceil));
     setPerRow((prev) => (prev === pr ? prev : pr));
     setNode((prev) => (Math.abs(prev - n) < 0.5 ? prev : n));
   }, [stages.length]);
@@ -291,7 +296,7 @@ export function GuideStepper({
                     />
                   </svg>
                   <span
-                    className={`relative z-10 font-mono font-bold leading-none ${glyphClass(
+                    className={`relative z-10 font-numeral font-bold leading-none ${glyphClass(
                       s.state,
                       isViewing,
                     )}`}

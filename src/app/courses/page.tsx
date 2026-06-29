@@ -14,13 +14,13 @@
 // doesn't prerender the DB query.
 
 import type { Metadata } from "next";
-import Link from "next/link";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { isAdminEmail } from "@/lib/admin-allowlist";
 import { buildSkillTree } from "@/lib/skill-tree";
-import { SkillTreePath } from "@/components/skill-tree/SkillTreePath";
-import { PathCard } from "@/components/skill-tree/PathCard";
+import { SkillHoneycomb } from "@/components/skill-tree/SkillHoneycomb";
+import { PathBanner } from "@/components/skill-tree/PathBanner";
+import { PathHoneycomb } from "@/components/skill-tree/PathHoneycomb";
 import { resolvePath, SKILL_PATHS } from "@/lib/skill-paths";
 import { PageHeader } from "@/components/PageHeader";
 import { courseListJsonLd, siteUrl } from "@/lib/seo/jsonld";
@@ -94,12 +94,18 @@ export default async function CoursesPage({
   const total = selected.total;
   const done = selected.done;
   const percent = total > 0 ? Math.round((done / total) * 100) : 0;
-  const showProgress = viewer.signedIn && done > 0;
 
   // Path-local "next" — the first still-available step in this path's order —
-  // for the no-JS "jump to your next step" anchor. SkillNodeCard sets
-  // `id="node-${slug}"` on its outer element.
+  // for the no-JS "jump to your next step" anchor. SkillHoneycomb sets
+  // `id="node-${slug}"` on each hex wrapper (in BOTH the measured + pre-measure
+  // fallback layouts, so the anchor resolves without JS).
   const nextNode = selected.nodes.find((n) => n.state === "available");
+
+  // The build this path leads to (its capstone) — for the banner readout +
+  // destination line. Absent for the bench category (no goalSlug).
+  const goalNode = selected.goalSlug
+    ? selected.nodes.find((n) => n.slug === selected.goalSlug) ?? null
+    : null;
 
   // ItemList JSON-LD — sourced from ALL published, non-archived projects (Task
   // 10 broadened this from PUBLIC-only). Built from `tree.nodes` to avoid a
@@ -143,104 +149,65 @@ export default async function CoursesPage({
         </p>
       ) : (
         <>
-          {/* Per-path banner — frames the selected build + progress along IT. */}
-          <section className="glass-card mb-6 flex flex-col gap-3 p-5">
-            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">
-              {selected.def.kind === "bench"
-                ? "Bench tools"
-                : selected.def.kind === "primary"
-                  ? "Flagship path"
-                  : "Mastery path"}
-            </p>
-            <p className="title-section">
-              {selected.def.label}
-            </p>
-            <p className="font-serif text-sm italic text-muted">
-              {selected.def.blurb}
-            </p>
-            <p className="font-mono text-xs uppercase tracking-wider text-muted">
-              {showProgress
-                ? `${done} of ${total} courses complete`
-                : `${total} courses${selected.def.kind === "bench" ? "" : ", start to finish"}`}
-            </p>
+          {/* Per-path banner — frames the selected build as a mission dossier:
+              status tag, destination, spec readout, segmented progress gauge. */}
+          <PathBanner
+            kind={selected.def.kind}
+            label={selected.def.label}
+            blurb={selected.def.blurb}
+            total={total}
+            done={done}
+            percent={percent}
+            signedIn={viewer.signedIn}
+            goal={
+              goalNode
+                ? {
+                    title: goalNode.title,
+                    track: goalNode.track,
+                    level: goalNode.level,
+                  }
+                : null
+            }
+            nextSlug={nextNode?.slug ?? null}
+            hasPremium={selected.nodes.some((n) => n.accessTier === "PREMIUM")}
+          />
 
-            {/* Endowed-progress bar — signed-in AND ≥1 done, along this path. */}
-            {showProgress ? (
-              <div className="mt-1">
-                <div
-                  className="h-2 w-full overflow-hidden rounded-full border border-panel-border bg-deep-space/60"
-                  role="progressbar"
-                  aria-valuenow={percent}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={`Progress: ${selected.def.label}`}
-                >
-                  <div
-                    className="h-full rounded-full bg-command-gold"
-                    style={{ width: `${percent}%` }}
-                  />
-                </div>
-                <p className="mt-1.5 font-mono text-xs font-bold uppercase tracking-wider text-command-gold">
-                  ~{percent}% there
-                </p>
-              </div>
-            ) : null}
-
-            {/* No-JS anchor to the path-local next step (signed-in only). */}
-            {viewer.signedIn && nextNode ? (
-              <a
-                href={`#node-${nextNode.slug}`}
-                className="mt-1 inline-flex items-center gap-1 font-mono text-xs font-bold uppercase tracking-wider text-command-gold"
-              >
-                Jump to your next step
-                <span aria-hidden="true">→</span>
-              </a>
-            ) : null}
-
-            {/* Premium pointer: when this path includes premium builds, point at
-                the All-Access Pass (every premium board + bench tool, one
-                purchase). Minimal + consistent with the node UI's gold accents. */}
-            {selected.nodes.some((n) => n.accessTier === "PREMIUM") ? (
-              <Link
-                href="/pricing"
-                className="mt-1 inline-flex w-fit items-center gap-1 font-mono text-xs uppercase tracking-wider text-command-gold/85 underline-offset-2 hover:underline"
-              >
-                View the All-Access Pass
-                <span aria-hidden="true">→</span>
-              </Link>
-            ) : null}
-          </section>
-
-          {/* The selected path: its goal + prerequisite chain, topo-ordered. */}
-          <SkillTreePath
+          {/* The selected path: its goal + prerequisite chain, topo-ordered,
+              rendered to the build-guide number-hero honeycomb standard. */}
+          <SkillHoneycomb
             nodes={selected.nodes}
             goalSlug={selected.goalSlug}
             viewer={viewer}
           />
 
-          {/* Go further — the other builds as self-explanatory cards. The
-              featured path above is the page; these are the opt-in alternatives
-              (incl. a card back to the ★ primary build). */}
+          {/* Go further — the other builds as their destination hexes, in the
+              same honeycomb language as the body (the flagship reads ★ gold). */}
           {otherPaths.length > 0 ? (
-            <section className="mt-14 border-t border-panel-border pt-8">
+            <section className="mt-16">
               <p className="mb-1 font-mono text-xs uppercase tracking-[0.2em] text-command-gold">
                 Go further
               </p>
-              <p className="mb-5 font-serif text-sm italic text-muted">
-                Other paths you can take on. Each shows only the courses it
-                needs.
+              <p className="mb-6 font-serif text-sm italic text-muted">
+                Other builds, each its own destination. Pick one to chart its
+                path.
               </p>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {otherPaths.map((o) => (
-                  <PathCard
-                    key={o.def.key}
-                    def={o.def}
-                    total={o.total}
-                    done={o.done}
-                    signedIn={viewer.signedIn}
-                  />
-                ))}
-              </div>
+              <PathHoneycomb
+                signedIn={viewer.signedIn}
+                paths={otherPaths.map((o) => {
+                  const g = o.goalSlug
+                    ? o.nodes.find((n) => n.slug === o.goalSlug) ?? null
+                    : null;
+                  return {
+                    key: o.def.key,
+                    label: o.def.label,
+                    total: o.total,
+                    done: o.done,
+                    goalTrack: g?.track ?? null,
+                    isPrimary: o.def.kind === "primary",
+                    isBench: o.def.kind === "bench",
+                  };
+                })}
+              />
             </section>
           ) : null}
         </>

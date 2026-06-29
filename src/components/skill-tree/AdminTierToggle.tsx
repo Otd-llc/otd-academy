@@ -1,8 +1,8 @@
 "use client";
 
 // Admin-only inline access-tier toggle (skill-tree Task 10). A tiny <select>
-// rendered in the SkillNodeCard footer ONLY when the viewer is an admin (the
-// server card decides that via `viewer.isAdmin`; the action re-checks
+// tucked into each SkillHoneycomb hex's corner ONLY when the viewer is an admin
+// (the page decides that via `viewer.isAdmin`; the action re-checks
 // `requireAdmin` — defense in depth). Picking a tier calls
 // `setProjectAccessTier`, then `router.refresh()` so the revalidated tree
 // (revalidatePath("/courses")) re-renders with the new tier.
