@@ -112,4 +112,15 @@ describe("isPublicPath", () => {
   it("admits the dev/CI diagram-render surface (so the headless exporter isn't bounced to /sign-in)", () => {
     expect(isPublicPath("/diagram-render/adc1-pin-map")).toBe(true);
   });
+
+  it("admits the public EE-tools hub + each calculator", () => {
+    expect(isPublicPath("/tools")).toBe(true);
+    expect(isPublicPath("/tools/lipo-battery-runtime")).toBe(true);
+    expect(isPublicPath("/tools/ws2812-power-supply")).toBe(true);
+  });
+
+  it("does NOT mark /tools as admin-only", () => {
+    expect(isAdminOnlyPath("/tools")).toBe(false);
+    expect(isAdminOnlyPath("/tools/lipo-battery-runtime")).toBe(false);
+  });
 });
