@@ -102,19 +102,33 @@ export function QuizBlock({
   }
 
   return (
-    <section className="glass-card space-y-5 p-5">
+    <section className="space-y-7">
+      {/* honey gradient for the correct hex fill (styled by .qzh-* in globals.css) */}
+      <svg width="0" height="0" aria-hidden className="absolute">
+        <defs>
+          <linearGradient id="quiz-honey" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#eab94d" />
+            <stop offset="1" stopColor="#b07f31" />
+          </linearGradient>
+        </defs>
+      </svg>
+
+      {/* Open the check as a section on the field — a gold hairline + eyebrow,
+          no boxed card (this is the build-guide console language, not a form). */}
+      <div className="title-rule" aria-hidden="true" />
+
       <div className="flex items-center justify-between gap-3">
         <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-command-gold">
           {prompt ?? "Quick check"}
         </p>
         {context ? (
           passed ? (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded border border-status-green/50 bg-status-green/10 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-status-green">
-              ✓ passed · gate
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded border border-status-green/50 bg-status-green/10 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-status-green">
+              ✓ Powered · gate
             </span>
           ) : (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded border border-panel-border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-muted">
-              required to advance
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded border border-panel-border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-muted">
+              ⬡ Gate · pass to advance
             </span>
           )
         ) : null}
@@ -125,56 +139,68 @@ export function QuizBlock({
         const ruledOut = wrong[qi];
         const missed = ruledOut.length > 0 && !solved;
         return (
-          <fieldset key={qi} className="space-y-2">
+          <fieldset key={qi} className="relative pl-14">
+            {/* legend first (the accessible caption); the gold Saira question
+                numeral floats in the left gutter (decorative). */}
             <legend className="font-serif text-base leading-relaxed text-gray-1">
-              {qi + 1}. {q.q}
+              {q.q}
             </legend>
-            <div className="space-y-1.5">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute left-0 top-0 font-numeral text-[2.5rem] font-extrabold leading-none text-command-gold"
+            >
+              {String(qi + 1).padStart(2, "0")}
+            </span>
+
+            <div className="qzh-opts mt-3">
               {q.options.map((opt, oi) => {
                 const isAnswer = oi === q.answer;
                 const isRuledOut = ruledOut.includes(oi);
-                let cls =
-                  "flex w-full items-center gap-2.5 rounded border px-3 py-2 text-left font-serif text-sm transition-colors ";
-                let marker: string;
-                if (solved && isAnswer) {
-                  cls +=
-                    "border-status-green bg-status-green/10 text-status-green";
-                  marker = "✓";
-                } else if (isRuledOut) {
-                  cls +=
-                    "border-alert-red/60 bg-alert-red/5 text-alert-red/70 line-through";
-                  marker = "✗";
-                } else if (solved) {
-                  cls += "border-panel-border text-muted opacity-50";
-                  marker = String.fromCharCode(65 + oi);
-                } else {
-                  cls +=
-                    "border-panel-border text-muted hover:border-command-gold/50";
-                  marker = String.fromCharCode(65 + oi);
-                }
+                // ok = locked correct · bad = ruled out · dim = a non-answer once
+                // the question is solved · undefined = still pickable.
+                const st =
+                  solved && isAnswer
+                    ? "ok"
+                    : isRuledOut
+                      ? "bad"
+                      : solved
+                        ? "dim"
+                        : undefined;
                 return (
                   <button
                     key={oi}
                     type="button"
                     onClick={() => pick(qi, oi)}
                     disabled={solved || isRuledOut}
-                    className={cls}
+                    data-st={st}
+                    className="qzh-opt"
                   >
-                    <span className="w-4 shrink-0 text-center font-mono text-xs font-bold">
-                      {marker}
+                    <span className="qzh-hex" aria-hidden="true">
+                      <svg viewBox="0 0 28 32" preserveAspectRatio="none">
+                        <polygon points="14,1 27,8 27,24 14,31 1,24 1,8" />
+                      </svg>
+                      <b>{String.fromCharCode(65 + oi)}</b>
                     </span>
                     <span>{opt}</span>
                   </button>
                 );
               })}
             </div>
-            {solved && q.explain ? (
-              <p className="mt-1 font-serif text-sm italic text-muted">
-                {q.explain}
-              </p>
+
+            {solved ? (
+              <div className="mt-3 space-y-1">
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-command-gold">
+                  ⬡ Powered — locked in.
+                </p>
+                {q.explain ? (
+                  <p className="font-serif text-sm italic text-muted">
+                    {q.explain}
+                  </p>
+                ) : null}
+              </div>
             ) : missed ? (
-              <p className="mt-1 font-mono text-xs uppercase tracking-wider text-alert-red">
-                Not quite — try another.
+              <p className="mt-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-alert-red">
+                Not quite — ruled out, pick again.
               </p>
             ) : null}
           </fieldset>
@@ -203,7 +229,7 @@ export function QuizBlock({
           <button
             type="button"
             onClick={reset}
-            className="rounded border border-panel-border px-3 py-2 font-mono text-xs uppercase tracking-wider text-link-muted transition-colors hover:border-command-gold"
+            className="font-mono text-xs uppercase tracking-wider text-muted underline-offset-4 transition-colors hover:text-command-gold hover:underline"
           >
             Start over
           </button>
