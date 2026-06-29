@@ -7,7 +7,7 @@ import { Ws2812PowerCalculator } from "./Ws2812PowerCalculator";
 
 export function Ws2812PowerBody() {
   return (
-    <article className="text-[15px] leading-7 text-gray-2">
+    <article className="text-[15px] leading-7 text-text">
       <p>
         Size the supply for the worst case: every pixel at full white. A WS2812
         pixel draws about 60 mA there, so 30 pixels plus a 220 mA controller
@@ -17,7 +17,7 @@ export function Ws2812PowerBody() {
 
       <Ws2812PowerCalculator />
 
-      <h2 className="mt-10 font-display text-2xl tracking-wide text-title">
+      <h2 className="title-section mt-10">
         Where the 60 mA per pixel comes from
       </h2>
       <p className="mt-3">
@@ -32,7 +32,7 @@ export function Ws2812PowerBody() {
         browned-out strip flickers and resets.
       </p>
 
-      <h2 className="mt-10 font-display text-2xl tracking-wide text-title">The formula</h2>
+      <h2 className="title-section mt-10">The formula</h2>
       <p className="mt-3">
         supply current (A) = (pixel count &times; per-pixel mA + controller mA)
         &times; (1 + headroom) &divide; 1000. The per-pixel term dominates once
@@ -41,7 +41,7 @@ export function Ws2812PowerBody() {
         actually run.
       </p>
 
-      <h2 className="mt-10 font-display text-2xl tracking-wide text-title">
+      <h2 className="title-section mt-10">
         Long strings: inject power, watch the copper
       </h2>
       <p className="mt-3">
@@ -55,7 +55,7 @@ export function Ws2812PowerBody() {
         or the data signal loses its reference.
       </p>
 
-      <h2 className="mt-10 font-display text-2xl tracking-wide text-title">Worked example</h2>
+      <h2 className="title-section mt-10">Worked example</h2>
       <p className="mt-3">
         Drive 30 pixels from an ESP32 node that itself draws 220 mA: 30 &times;
         60 + 220 = 2020 mA worst case. Add 20% headroom and you want a 5 V
@@ -64,7 +64,7 @@ export function Ws2812PowerBody() {
         brick and power injection rather than USB.
       </p>
 
-      <h2 className="mt-10 font-display text-2xl tracking-wide text-title">References</h2>
+      <h2 className="title-section mt-10">References</h2>
       <ul className="mt-3 space-y-1 text-sm text-muted">
         <li>
           Adafruit.{" "}

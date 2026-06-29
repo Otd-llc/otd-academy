@@ -49,7 +49,7 @@ export default function ToolsHubPage() {
           <li key={t.slug}>
             <Link
               href={`/tools/${t.slug}`}
-              className="group flex flex-col gap-1.5 border-b border-panel-border/60 py-6 transition-colors hover:bg-command-gold/[0.04]"
+              className="group flex flex-col gap-1.5 border-b border-panel-border/60 py-6 transition-colors hover:bg-command-gold/[0.04] focus-visible:bg-command-gold/[0.06] focus-visible:outline-none"
             >
               <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
                 <span aria-hidden="true">▸ </span>Calculator

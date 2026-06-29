@@ -7,7 +7,7 @@ import { LipoRuntimeCalculator } from "./LipoRuntimeCalculator";
 
 export function LipoRuntimeBody() {
   return (
-    <article className="text-[15px] leading-7 text-gray-2">
+    <article className="text-[15px] leading-7 text-text">
       <p>
         Runtime is usable battery capacity divided by average current draw. A
         2000 mAh pack feeding a board that averages 120 mA, at 80% usable
@@ -17,7 +17,7 @@ export function LipoRuntimeBody() {
 
       <LipoRuntimeCalculator />
 
-      <h2 className="mt-10 font-display text-2xl tracking-wide text-title">The formula</h2>
+      <h2 className="title-section mt-10">The formula</h2>
       <p className="mt-3">
         runtime (hours) = capacity (mAh) &times; usable fraction &divide; average
         draw (mA). Capacity and draw share the same mA unit, so they cancel to
@@ -26,7 +26,7 @@ export function LipoRuntimeBody() {
         get.
       </p>
 
-      <h2 className="mt-10 font-display text-2xl tracking-wide text-title">
+      <h2 className="title-section mt-10">
         Use the average current, measured over a full duty cycle
       </h2>
       <p className="mt-3">
@@ -42,7 +42,7 @@ export function LipoRuntimeBody() {
         peak.
       </p>
 
-      <h2 className="mt-10 font-display text-2xl tracking-wide text-title">
+      <h2 className="title-section mt-10">
         Usable capacity is never 100%
       </h2>
       <p className="mt-3">
@@ -53,7 +53,7 @@ export function LipoRuntimeBody() {
         better. The calculator defaults to 80%.
       </p>
 
-      <h2 className="mt-10 font-display text-2xl tracking-wide text-title">Worked example</h2>
+      <h2 className="title-section mt-10">Worked example</h2>
       <p className="mt-3">
         Take a 2000 mAh single-cell LiPo on the L1.01 board, firmware that
         duty-cycles Wi-Fi down to a 120 mA average, and 80% usable capacity:
@@ -62,7 +62,7 @@ export function LipoRuntimeBody() {
         runtime per dollar than a bigger cell.
       </p>
 
-      <h2 className="mt-10 font-display text-2xl tracking-wide text-title">References</h2>
+      <h2 className="title-section mt-10">References</h2>
       <ul className="mt-3 space-y-1 text-sm text-muted">
         <li>
           Espressif Systems.{" "}

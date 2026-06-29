@@ -87,7 +87,7 @@ export default async function ToolPage({ params }: { params: Promise<Params> }) 
         backHref="/tools"
         backLabel="Tools"
         eyebrow="TOOLS"
-        title={tool.h1}
+        title={tool.hero}
         lead={tool.summary}
       />
 
