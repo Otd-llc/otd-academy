@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { courseListJsonLd, breadcrumbJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { TOOLS } from "@/lib/tools/registry";
 
-const TITLE = "EE calculators and tools";
+const TITLE = "Electronics calculators, worked from real boards";
 const SUMMARY =
   "Free electronics calculators from One Thousand Drones, each worked from a real board: battery runtime, LED-strip power, and more.";
 
