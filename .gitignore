@@ -53,6 +53,7 @@ next-env.d.ts
 # Internal strategy / business docs — kept OUT of the public repo
 /docs/internal-state.md
 /docs/plans/2026-06-21-seo-content-moat-handoff.md
+/docs/plans/2026-06-21-seo-content-moat-library-implementation.md
 /docs/plans/2026-06-16-eeg-seo-cluster-brief.md
 /docs/plans/2026-06-16-emi-vocabulary-moat.md
 /docs/plans/2026-06-08-foundry-gtm-roadmap.md
