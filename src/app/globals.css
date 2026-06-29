@@ -220,6 +220,34 @@ body {
 .phex-chip { font-family: var(--font-mono), monospace; font-weight: 700; font-size: clamp(8px, 3.1cqw, 10px); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: clamp(2px, 1.2cqw, 4px) clamp(8px, 4cqw, 13px); }
 @media (prefers-reduced-motion: reduce) { .phex-hex polygon { transition: none; } }
 
+/* QuizBlock — the in-guide comprehension check, "hex node" design: each option is
+   a small hexagon wired on a vertical net; the right pick fills honey-gold, a wrong
+   pick is red-stroked + struck + ruled out. State rides on `data-st`
+   (ok | bad | dim) — colour is always paired with the hex fill + strike (never
+   colour alone). The question numeral (Saira) sits in the fieldset's left gutter. */
+.qzh-opts { position: relative; display: flex; flex-direction: column; }
+.qzh-opts::before { content: ""; position: absolute; left: 13px; top: 18px; bottom: 18px; width: 2px; background: rgba(58, 63, 80, 0.55); }
+.qzh-opt { position: relative; z-index: 1; display: flex; align-items: center; gap: 14px; width: 100%; padding: 9px 4px; text-align: left; background: none; border: 0; cursor: pointer; color: var(--color-muted); font-family: var(--font-serif), serif; font-size: 0.875rem; line-height: 1.4; transition: color 0.15s ease; }
+.qzh-opt:disabled { cursor: default; }
+.qzh-hex { position: relative; width: 28px; height: 32px; flex: none; display: grid; place-items: center; }
+.qzh-hex svg { position: absolute; inset: 0; height: 100%; width: 100%; }
+.qzh-hex polygon { fill: var(--color-deep-space); stroke: var(--color-panel-border); stroke-width: 2; transition: stroke 0.2s ease, fill 0.2s ease; }
+.qzh-hex b { position: relative; font-family: var(--font-display), sans-serif; font-weight: 400; font-size: 0.8rem; color: var(--color-gold-dim); transition: color 0.2s ease; }
+.qzh-opt:not(:disabled):hover { color: var(--color-gray-1); }
+.qzh-opt:not(:disabled):hover .qzh-hex polygon { stroke: var(--color-gold-light); }
+.qzh-opt[data-st="ok"] .qzh-hex polygon { fill: url(#quiz-honey); stroke: var(--color-command-gold); }
+.qzh-opt[data-st="ok"] .qzh-hex b { color: #140d02; }
+.qzh-opt[data-st="ok"] { color: var(--color-gold-light); }
+.qzh-opt[data-st="bad"] .qzh-hex polygon { stroke: var(--color-alert-red); }
+.qzh-opt[data-st="bad"] .qzh-hex b { color: var(--color-alert-red); }
+.qzh-opt[data-st="bad"] { color: #7a4a48; text-decoration: line-through; }
+.qzh-opt[data-st="dim"] { opacity: 0.45; }
+@keyframes qzh-pop { 0% { transform: scale(1); } 45% { transform: scale(1.07); } 100% { transform: scale(1); } }
+@keyframes qzh-nudge { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+.qzh-opt[data-st="ok"] .qzh-hex { animation: qzh-pop 0.3s ease; }
+.qzh-opt[data-st="bad"] .qzh-hex { animation: qzh-nudge 0.26s ease; }
+@media (prefers-reduced-motion: reduce) { .qzh-opt, .qzh-hex, .qzh-hex polygon, .qzh-hex b { transition: none; animation: none !important; } }
+
 /* Scroll reveal — sections tagged `data-reveal` fade + rise once as they enter
    the viewport, driven by a CSS scroll timeline (no JS). Guarded by @supports so
    unsupported browsers — and reduced-motion — simply show the content, never
