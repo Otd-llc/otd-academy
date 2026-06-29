@@ -33,13 +33,15 @@ Status: `open` · `in progress` · `accept/monitor` · `needs maintainer` (infra
   → **Enable branch protection** on `main`: require PR + the CI checks (tsc / build / vitest)
   to pass. (Note: CI `build` currently can merge red — this is the root cause.)
 
-- **A3 · Dependency CVEs: 2 high / 7 moderate / 1 low (`open`).**
-  - `vite` high (server.fs.deny bypass, Windows) — **dev-only** (via vitest). Low real risk.
-  - `hono` high (CORS reflects any Origin) — via `@modelcontextprotocol/sdk` → `@hono/node-server`.
-    Real if the parts MCP server is network-exposed. Patched ≥ 4.12.25.
-  - `esbuild` low (dev-only, via vitest), + 7 moderate (mostly transitive/dev).
-  → Add `pnpm.overrides` (`hono ≥4.12.25`, `vite ≥8.0.16`, `esbuild ≥0.28.1`), reinstall,
-  re-run `tsc`/`build`/`vitest`. Most are dev/transitive; the hono one is the priority.
+- **A3 · Dependency CVEs (`mostly fixed`).** Was 2 high / 7 moderate / 1 low. Added overrides in
+  `pnpm-workspace.yaml` (`hono ≥4.12.25`, `@hono/node-server ≥1.19.13`, `esbuild ≥0.28.1`,
+  `postcss ≥8.5.10`) and regenerated the lockfile (pnpm 11 only applies workspace overrides on a
+  full re-resolve, not an incremental install). **Now down to 1 high / 1 moderate — both `vite`
+  (dev-only, the vitest transform server).** The `hono` **high** (CORS reflect via the MCP path)
+  is resolved. tsc + lint green; frozen-install consistent.
+  - Remaining vite: a `vite ≥8.0.16` override won't take — vitest 4.1.7 pins vite's resolution to
+    8.0.14, so pnpm can't upgrade it without breaking the runner. Dev-only (no vite server runs in
+    prod). → Accept; revisit on the next vitest upgrade.
 
 - **A4 · `next-auth@5.0.0-beta.31` (`accept/monitor`).** Security-critical auth on a beta.
   Auth.js v5 is still beta upstream, so this is "pin + watch," not a quick fix. Version is
