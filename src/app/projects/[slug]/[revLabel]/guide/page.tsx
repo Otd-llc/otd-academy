@@ -542,17 +542,30 @@ export default async function GuideHubPage({
     }),
   );
 
-  // The "do this next" beacon marks the earliest design stage that ISN'T yet
-  // complete — Requirements when nothing's started, advancing to the current
-  // in-progress stage as earlier ones are checked off. `null` once every design
-  // stage is complete (no beacon). Works for both views: learners read it off
-  // their own enrollment journey, authors off the reference revision's completion.
-  const beaconStage =
-    designCells.find((c) => c && c.state !== "complete")?.stage ?? null;
+  // The hub honeycomb shows the FULL 8-stage pipeline (6 design + 2 build).
+  // Build stages (assembly, bring-up) take their hex state from the guide journey
+  // (guideProgress) — the same source the order-of-operations rail uses — so the
+  // comb and the rail agree on all eight. Per-board operator detail still lives in
+  // the author-only matrix below.
+  const buildCells = BUILD_STAGES.map((stage) => {
+    const card = cardByStage.get(stage);
+    if (!card) return null;
+    const state = learnerStateByStage.get(stage) ?? "untouched";
+    return { stage, card, state };
+  });
+  const allCells = [...designCells, ...buildCells];
 
-  // Honeycomb data for the hub — the design-stage buttons as big info-hexes.
+  // The "do this next" beacon marks the earliest stage that ISN'T yet complete —
+  // Requirements when nothing's started, advancing as earlier stages are checked
+  // off. `null` once every stage is complete (no beacon). Works for both views:
+  // learners read it off their own enrollment journey, authors off the reference
+  // revision's completion.
+  const beaconStage =
+    allCells.find((c) => c && c.state !== "complete")?.stage ?? null;
+
+  // Honeycomb data for the hub — every stage as a big info-hex.
   const hcStages: HoneycombStage[] = [];
-  designCells.forEach((cell, i) => {
+  allCells.forEach((cell, i) => {
     if (!cell) return;
     const kind = stageKind(cell.state, cell.stage === beaconStage);
     // one standardised status vocabulary across every hex
@@ -672,15 +685,15 @@ export default async function GuideHubPage({
         />
       ) : null}
 
-      {/* ─── Tier 1: design-stage cluster ─── */}
+      {/* ─── Tier 1: the full 8-stage pipeline as info-hexes ─── */}
       <section>
         <div className="flex items-baseline justify-between gap-4">
           <h2 className="title-section">
-            DESIGN STAGES
+            STAGES
           </h2>
           <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold-dim">
-            {designCells.filter((c) => c?.state === "complete").length} /{" "}
-            {designCells.filter(Boolean).length} complete
+            {allCells.filter((c) => c?.state === "complete").length} /{" "}
+            {allCells.filter(Boolean).length} complete
           </span>
         </div>
         <div className="mt-6">

@@ -1,4 +1,8 @@
 @import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Lora:wght@400;500&display=swap");
+/* Saira Condensed = the dedicated DISPLAY NUMERAL face (the big hex number-heroes).
+   Loaded digit-subset (&text=0123456789) so the 4th family is only a few KB — it
+   carries no letters, by design. Text/titles stay Bebas; codes stay Space Mono. */
+@import url("https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@800&text=0123456789%24.%2C&display=swap");
 @import "tailwindcss";
 
 /*
@@ -75,6 +79,8 @@
   --font-display: "Bebas Neue", sans-serif;
   --font-mono: "Space Mono", monospace;
   --font-serif: "Lora", serif;
+  /* Display numerals ONLY (hex number-heroes) — see the digit-subset @import. */
+  --font-numeral: "Saira Condensed", "Bebas Neue", sans-serif;
 }
 
 :root {
@@ -138,7 +144,7 @@ body {
 /* the stage number is a big OUTLINE figure that owns the top third (font-size set
    inline per-hex by the component so it scales with the measured width). Decorative
    — the link's aria-label already names the stage. */
-.gh-num { position: absolute; left: 0; right: 0; top: 12%; z-index: 0; pointer-events: none; font-family: var(--font-display), sans-serif; letter-spacing: 0.05em; line-height: 1; color: transparent; -webkit-text-stroke: 1.75px rgba(232, 184, 101, 0.34); }
+.gh-num { position: absolute; left: 0; right: 0; top: 12%; z-index: 0; pointer-events: none; font-family: var(--font-numeral); font-weight: 800; letter-spacing: 0.02em; line-height: 1; color: transparent; -webkit-text-stroke: 1.75px rgba(232, 184, 101, 0.34); }
 /* title + lead, centred in the lower two-thirds */
 .gh-m { position: absolute; left: 0; right: 0; top: 64%; transform: translateY(-50%); z-index: 1; padding: 0 7%; }
 .gh-m > .gh-title { display: block; }
@@ -184,6 +190,35 @@ body {
 .gh-node.blocked .gh-chip { border: 1px solid rgba(239, 83, 80, 0.5); color: var(--color-alert-red); }
 @keyframes gh-pulse { 0%, 100% { filter: drop-shadow(0 0 0 rgba(200, 150, 62, 0)); } 50% { filter: drop-shadow(0 0 11px rgba(200, 150, 62, 0.7)); } }
 @media (prefers-reduced-motion: reduce) { .gh-node.current .gh-hex polygon { animation: none; } }
+/* SkillHoneycomb (/courses) extends the build-guide honeycomb with two additive
+   modifiers (the skill tree has 8 node states to the hub's 4 — see SkillHoneycomb).
+   sk-dim: recede the not-yet-reachable states (sign-in / premium / coming-soon).
+   sk-goal: the path's destination build (or a capstone) gets a gold halo. */
+.gh-node.sk-dim { opacity: 0.6; }
+.gh-node.sk-dim:hover { opacity: 1; }
+.gh-node.sk-goal .gh-hex polygon { filter: drop-shadow(0 0 10px rgba(200, 150, 62, 0.45)); }
+
+/* PathHoneycomb — the /courses "Go further" destinations: track-stroked hexes
+   (one per other build) in the honeycomb language, laid out by the shared
+   measured `computeLayout` so the rows tessellate. The track colour rides in on
+   the inline `--accent` custom property; the stroke is dim at rest, lit on hover. */
+.phex { position: relative; display: flex; align-items: center; justify-content: center; aspect-ratio: 1 / 1.1547; container-type: inline-size; text-decoration: none; }
+/* small inset so tessellated neighbours read as distinct hexes (a thin seam),
+   not one merged comb. */
+.phex-hex { position: absolute; inset: 3px; overflow: visible; }
+/* the stroke is DIM at rest (so no single track colour — esp. blue — shouts) and
+   lights to full + a soft glow on hover/focus. */
+.phex-hex polygon { fill: var(--color-deep-space); stroke: var(--accent); stroke-opacity: 0.5; stroke-width: 2; vector-effect: non-scaling-stroke; transition: stroke-opacity 0.18s ease, filter 0.18s ease; }
+.phex:hover .phex-hex polygon, .phex:focus-visible .phex-hex polygon { stroke-opacity: 1; filter: drop-shadow(0 0 11px var(--accent)); }
+.phex.flag .phex-hex polygon { stroke-opacity: 0.72; filter: drop-shadow(0 0 6px rgba(200, 150, 62, 0.32)); }
+.phex.flag:hover .phex-hex polygon, .phex.flag:focus-visible .phex-hex polygon { stroke-opacity: 1; filter: drop-shadow(0 0 14px rgba(200, 150, 62, 0.6)); }
+.phex:focus-visible { outline: none; }
+.phex-inner { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: clamp(6px, 4cqw, 13px); padding: 0 15%; text-align: center; }
+.phex-eyebrow { font-family: var(--font-mono), monospace; font-size: clamp(8px, 3.4cqw, 11px); letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); }
+.phex-title { font-family: var(--font-display), sans-serif; font-size: clamp(16px, 11.5cqw, 30px); line-height: 0.92; letter-spacing: 0.03em; color: var(--color-gray-1); transition: color 0.18s ease; }
+.phex:hover .phex-title { color: #fff; }
+.phex-chip { font-family: var(--font-mono), monospace; font-weight: 700; font-size: clamp(8px, 3.1cqw, 10px); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: clamp(2px, 1.2cqw, 4px) clamp(8px, 4cqw, 13px); }
+@media (prefers-reduced-motion: reduce) { .phex-hex polygon { transition: none; } }
 
 /* Scroll reveal — sections tagged `data-reveal` fade + rise once as they enter
    the viewport, driven by a CSS scroll timeline (no JS). Guarded by @supports so

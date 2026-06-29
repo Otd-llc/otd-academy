@@ -19,6 +19,7 @@
 // DATABASE_URL) doesn't prerender the DB query.
 
 import type { Metadata } from "next";
+import { Fragment } from "react";
 import Link from "next/link";
 
 import { auth } from "@/auth";
@@ -31,6 +32,20 @@ import { formatUsdShort } from "@/lib/format-money";
 import { productOfferJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { currentPassPriceId, isLaunchActive } from "@/lib/pass-pricing";
 import { quoteUpgrade } from "@/lib/pass-upgrade";
+
+// Render a price string with its currency+digit run in the display-numeral face
+// (Saira), leaving words like "to" / "Free" in the surrounding font.
+function priceNumerals(text: string): React.ReactNode {
+  return text.split(/(\$?[\d.,]+)/).map((part, i) =>
+    /\d/.test(part) ? (
+      <span key={i} className="font-numeral">
+        {part}
+      </span>
+    ) : (
+      <Fragment key={i}>{part}</Fragment>
+    ),
+  );
+}
 
 const title = "Pricing | One Thousand Drones Academy";
 const description =
@@ -252,12 +267,12 @@ export default async function PricingPage() {
           </div>
           {singleProjectCents !== null ? (
             <p className="font-display text-5xl leading-none tracking-wide text-white">
-              {formatUsdShort(singleProjectCents)}
+              {priceNumerals(formatUsdShort(singleProjectCents))}
               {maxProjectCents !== null &&
               maxProjectCents > singleProjectCents ? (
                 <span className="text-3xl text-muted">
                   {" "}
-                  to {formatUsdShort(maxProjectCents)}
+                  to {priceNumerals(formatUsdShort(maxProjectCents))}
                 </span>
               ) : null}
             </p>
@@ -303,12 +318,12 @@ export default async function PricingPage() {
           </div>
           {passCents !== null ? (
             <p className="font-display text-7xl leading-none tracking-wide text-command-gold">
-              {formatUsdShort(passCents)}
+              {priceNumerals(formatUsdShort(passCents))}
               {launchOpen &&
               standardCents !== null &&
               standardCents > passCents ? (
                 <span className="ml-3 align-baseline text-3xl text-muted line-through">
-                  {formatUsdShort(standardCents)}
+                  {priceNumerals(formatUsdShort(standardCents))}
                 </span>
               ) : null}
             </p>
@@ -398,7 +413,7 @@ export default async function PricingPage() {
                       : "text-base text-text"
                   }`}
                 >
-                  {r.price}
+                  {priceNumerals(r.price)}
                 </span>
               </div>
             ))}
