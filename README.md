@@ -61,7 +61,7 @@ The academy **does not** hold KiCad project files. Each hardware project lives i
 ## Tech stack
 
 - **Next.js 16** (App Router, RSC + client islands) · **TypeScript 5** · **React 19**
-- **Prisma 7 + Neon Postgres** via `@prisma/adapter-neon` (pooled `DATABASE_URL` at runtime, direct `DIRECT_URL` for migrations)
+- **Prisma 7 + Neon Postgres** via `@prisma/adapter-neon` (a pooled connection at runtime, a direct one for migrations)
 - **Auth.js v5** + Google OIDC + JWT sessions; open self-serve registration with role-based authorization (`ADMIN` / `LEARNER`)
 - **Stripe** for one-time premium-course purchases (Checkout + idempotent webhook)
 - **Tailwind v4** (CSS-first `@theme`, no JS config) — hand-rolled components, no component framework; Radix UI primitives for the accessible tooltip/glossary. Dark + command-gold brand, Bebas Neue / Space Mono / Lora type stack, inline SVG icon set
@@ -88,7 +88,7 @@ Open http://localhost:3000.
 
 `pnpm db:seed` produces a demoable fixture: `esp32-sensor-breakout` at v1 / BRINGUP, BUILD-001 with 5 ASSEMBLED boards, sample measurements, and the artifacts needed to drive the `BRINGUP → REVISION` advance end-to-end. The two `scripts/*.ts` populators are idempotent one-offs that add the curriculum projects/edges and their guides; they write via Prisma directly because the server-action layer can't be driven headlessly (it needs an Auth.js request context).
 
-Env vars (see [`.env.local.example`](.env.local.example)): `DATABASE_URL` / `DIRECT_URL` (Neon), `AUTH_SECRET` + `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`, `ALLOWED_EMAILS` (admin allowlist), optional `R2_*` (file artifacts), optional `STRIPE_*` (payments), optional `NEXT_PUBLIC_SITE_URL` (absolute SEO URLs), and optional `PARTS_MCP_DATABASE_URL` (the read-only role used only by the parts MCP server).
+Env vars: copy [`.env.local.example`](.env.local.example) to `.env.local` and fill in the values — that file is the authoritative list. It covers the Neon database, Auth.js + Google OAuth, the admin allowlist, and the optional file-storage / payments / parts-MCP groups. Values are never committed.
 
 ## Tests
 
