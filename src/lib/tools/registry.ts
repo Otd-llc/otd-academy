@@ -172,6 +172,48 @@ export const TOOLS: ToolMeta[] = [
     published: "2026-06-30",
     modified: "2026-06-30",
   },
+  {
+    slug: "resistor-power",
+    title: "Resistor power dissipation calculator (wattage rating)",
+    hero: "Resistor power",
+    h1: "What wattage resistor do I need?",
+    summary:
+      "Find the power a resistor dissipates (P = I²R) and the smallest standard wattage rating with a 2x margin, from its current and resistance.",
+    keywords: [
+      "resistor power calculator",
+      "resistor wattage calculator",
+      "what wattage resistor do i need",
+      "resistor power dissipation",
+    ],
+    relatedCourses: [
+      "l2-04-power-led-driver",
+      "l2-03-motor-driver",
+      "bn-02-dc-electronic-load",
+    ],
+    published: "2026-06-30",
+    modified: "2026-06-30",
+  },
+  {
+    slug: "battery-watt-hours",
+    title: "Battery watt-hours calculator (mAh to Wh, pack sizing)",
+    hero: "Battery watt-hours",
+    h1: "How many watt-hours is my battery pack?",
+    summary:
+      "Convert cell capacity and voltage to watt-hours and size a series/parallel pack's energy, voltage, and capacity. mAh to Wh done right.",
+    keywords: [
+      "battery watt hours calculator",
+      "mah to wh calculator",
+      "battery pack capacity calculator",
+      "battery energy calculator",
+    ],
+    relatedCourses: [
+      "l3-04-bms",
+      "l2-01-battery-power-module",
+      "bn-05-spot-welder-controller",
+    ],
+    published: "2026-06-30",
+    modified: "2026-06-30",
+  },
 ];
 
 export function getTool(slug: string): ToolMeta | undefined {

@@ -16,6 +16,12 @@ import {
   rcCutoffHz,
   ipc2221TraceWidthMil,
   milToMm,
+  resistorPowerW,
+  recommendResistorWattage,
+  cellWh,
+  packWh,
+  packVoltage,
+  packCapacityMah,
 } from "@/lib/tools/calculators";
 
 describe("lipoRuntimeHours", () => {
@@ -188,5 +194,34 @@ describe("milToMm", () => {
   it("converts thousandths of an inch to mm", () => {
     expect(milToMm(100)).toBeCloseTo(2.54, 5);
     expect(milToMm(11.8)).toBeCloseTo(0.2997, 3);
+  });
+});
+
+describe("resistorPowerW", () => {
+  it("is I^2 * R", () => {
+    expect(resistorPowerW({ currentMa: 1000, rOhms: 0.1 })).toBeCloseTo(0.1, 6); // 1 A, 0.1 Ω
+    expect(resistorPowerW({ currentMa: 20, rOhms: 150 })).toBeCloseTo(0.06, 6); // 20 mA, 150 Ω
+  });
+});
+
+describe("recommendResistorWattage", () => {
+  it("picks the smallest standard rating at 2x the power", () => {
+    expect(recommendResistorWattage(0.1)).toBe(0.25); // 0.2 -> 0.25
+    expect(recommendResistorWattage(0.06)).toBe(0.125); // 0.12 -> 0.125
+    expect(recommendResistorWattage(0.5)).toBe(1); // 1.0 -> 1
+  });
+});
+
+describe("battery pack energy", () => {
+  it("cell Wh = Ah * V", () => {
+    expect(cellWh({ capacityMah: 3000, nominalV: 3.7 })).toBeCloseTo(11.1, 6);
+  });
+  it("pack Wh scales by series * parallel", () => {
+    // 3S2P of 3000 mAh / 3.7 V cells = 11.1 * 6 = 66.6 Wh
+    expect(packWh({ capacityMah: 3000, nominalV: 3.7, series: 3, parallel: 2 })).toBeCloseTo(66.6, 4);
+  });
+  it("pack voltage = nominal * series; capacity = mAh * parallel", () => {
+    expect(packVoltage({ nominalV: 3.7, series: 3 })).toBeCloseTo(11.1, 6);
+    expect(packCapacityMah({ capacityMah: 3000, parallel: 2 })).toBe(6000);
   });
 });
