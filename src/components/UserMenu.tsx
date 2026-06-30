@@ -3,8 +3,8 @@
 // Top-right user menu (design polish §15.3).
 //
 // A small dropdown anchored to the right of the header on every signed-in
-// page. The trigger is a gold rail + outline avatar disk + the user's
-// email (collapsed to the rail + avatar below md). When open the menu
+// page. The trigger is a compact pill: a filled-gold avatar disk + a
+// chevron (no email — it shows only in the menu). When open the menu
 // renders as an opaque deep-space popover with a gold rail and hairline
 // key/value rows: signed-in/email, role, the admin links, and a coral
 // "Sign out".
@@ -18,8 +18,8 @@
 //     listens for `pointerdown` outside the host.
 //   • The sign-out action is a tiny server action passed in by the layout
 //     so the client component itself never imports `@/auth`.
-//   • The trigger is a gold rail + outline avatar + email (no button fill); the
-//     rail continues into the open panel so the cluster reads as one unit.
+//   • The trigger is a compact avatar + chevron pill (no email; it shows only
+//     in the menu, never twice). The chevron flips when the menu is open.
 //     Sign-out lives ONLY in the menu — the header has no standalone sign-out.
 
 import Link from "next/link";
@@ -63,36 +63,42 @@ export function UserMenu({
       onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
     >
       <summary
-        // list-none + ::marker hide kill the default disclosure arrow. The gold
-        // rail on the left is the head of the thread that continues down the open
-        // panel — pill, menu and sign-out read as one rail-anchored unit.
-        className="group inline-flex cursor-pointer list-none items-center gap-2.5 rounded-sm py-1 pr-1 font-mono text-xs uppercase tracking-wider outline-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-gold-light/70"
+        // list-none + ::marker hide kill the default disclosure arrow. A compact
+        // pill: filled-gold avatar + a chevron, no email (the email lives in the
+        // menu, so it's never shown twice). Chevron flips when open.
+        className={`group inline-flex cursor-pointer list-none items-center gap-1.5 rounded-full border py-1 pl-1 pr-2.5 outline-none transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-gold-light/70 ${
+          open
+            ? "border-command-gold bg-command-gold/[0.06]"
+            : "border-panel-border bg-deep-space/40 hover:border-command-gold/60"
+        }`}
         style={{ listStyleType: "none" }}
       >
+        <span className="sr-only">Signed in as {email}. Open account menu</span>
         <span
           aria-hidden="true"
-          className="h-7 w-0.5 shrink-0 self-stretch bg-gradient-to-b from-command-gold to-command-gold/40"
-        />
-        <span
-          aria-hidden="true"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-command-gold/60 bg-deep-space/40 font-numeral text-sm font-bold text-command-gold transition-colors group-hover:border-gold-light"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gold-light font-numeral text-sm font-bold text-deep-space"
         >
           {initial}
         </span>
-        <span className="hidden text-gold-dim transition-colors group-hover:text-gold-light md:inline">
-          {email}
+        <span
+          aria-hidden="true"
+          className={`font-mono text-[10px] leading-none transition-transform ${
+            open ? "rotate-180 text-command-gold" : "text-muted group-hover:text-command-gold"
+          }`}
+        >
+          ▾
         </span>
       </summary>
 
-      {/* Popover (chrome) styled as the "rail + rows" direction: an opaque
-          deep-space panel with a gold rail and hairline key/value rows. */}
-      <div className="absolute right-0 z-10 mt-2 min-w-[17rem] overflow-hidden rounded-md border border-panel-border bg-bg-2 shadow-[0_26px_50px_-12px_rgba(0,0,0,0.95)]">
-        <div className="flex gap-3.5 p-4">
+      {/* Popover (chrome): a deep-space panel with a flush gold rail + hairline
+          key/value rows. Right-anchored under the compact avatar pill. */}
+      <div className="absolute right-0 z-10 mt-2 min-w-[17rem] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-md border border-panel-border bg-bg-2 shadow-[0_26px_50px_-12px_rgba(0,0,0,0.95)]">
+        <div className="flex">
           <div
             aria-hidden="true"
             className="w-0.5 shrink-0 self-stretch bg-gradient-to-b from-command-gold to-command-gold/10"
           />
-          <div className="min-w-0 flex-1 font-mono">
+          <div className="min-w-0 flex-1 px-4 py-3.5 font-mono">
             <div className="border-b border-command-gold/15 pb-2.5">
               <p className="text-[10px] uppercase tracking-[0.2em] text-gold-dim">
                 Signed in
