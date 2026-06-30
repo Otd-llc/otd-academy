@@ -16,7 +16,12 @@ export function TraceWidthCalculator() {
 
   const valid = currentA > 0 && tempRiseC > 0 && copperOz > 0;
   const mil = valid
-    ? ipc2221TraceWidthMil({ currentA, tempRiseC, copperOz, external })
+    ? ipc2221TraceWidthMil({
+        currentA,
+        tempRiseC,
+        copperOz,
+        layer: external ? "external" : "internal",
+      })
     : null;
   const mm = mil !== null ? milToMm(mil) : null;
 

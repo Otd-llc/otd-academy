@@ -1,11 +1,13 @@
 // Pure, unit-testable math behind the public /tools EE calculators.
 //
-// Each function takes already-validated scalars and returns a number, with a
-// guard that throws on physically meaningless input (zero/negative current or
-// capacity) so the divide-by-zero never reaches the UI as `Infinity`/`NaN`. The
-// client islands (src/components/tools/*) clamp their inputs and call these; the
-// worked examples on the pages are computed from these same functions so the
-// prose can never drift from the math.
+// Each function takes scalars and returns a number, throwing on physically
+// meaningless input (a non-positive current/resistance/capacity, an out-of-range
+// percentage, a supply below the LED forward voltage, an input below the LDO
+// output) so a bad value never reaches the UI as `Infinity`/`NaN` or a negative
+// quantity. The one informative exception is ldoHeadroomV, whose negative result
+// ("short by X volts") is the answer. The client islands (src/components/tools/*)
+// clamp their inputs and call these; the worked examples on the pages are
+// computed from these same functions so the prose can never drift from the math.
 
 // WS2812/NeoPixel full-white draw, per pixel, at 5 V. One pixel = three ~20 mA
 // channels driven together, so ~60 mA is the datasheet worst case. Sourced from
@@ -24,6 +26,9 @@ export function lipoRuntimeHours(input: {
   }
   if (input.capacityMah <= 0) {
     throw new Error("capacityMah must be greater than 0");
+  }
+  if (input.usablePct < 0 || input.usablePct > 100) {
+    throw new Error("usablePct must be between 0 and 100");
   }
   const usableMah = input.capacityMah * (input.usablePct / 100);
   return usableMah / input.averageCurrentMa;
@@ -53,6 +58,9 @@ export function ws2812RecommendedSupplyAmps(
 // Render a duration in hours as "H h M m" (minutes floored). Used by the LiPo
 // runtime island so the result reads in human units, not a raw decimal.
 export function formatRuntime(hours: number): string {
+  if (!Number.isFinite(hours) || hours < 0) {
+    throw new Error("hours must be a finite, non-negative number");
+  }
   const whole = Math.floor(hours);
   const minutes = Math.floor((hours - whole) * 60);
   return `${whole} h ${minutes} m`;
@@ -84,6 +92,12 @@ export function ledResistorPowerMw(input: {
   ledVf: number;
   currentMa: number;
 }): number {
+  if (input.supplyV <= input.ledVf) {
+    throw new Error("supplyV must exceed the LED forward voltage (ledVf)");
+  }
+  if (input.currentMa <= 0) {
+    throw new Error("currentMa must be greater than 0");
+  }
   return (input.supplyV - input.ledVf) * input.currentMa;
 }
 
@@ -117,6 +131,9 @@ export function voltageDividerOut(input: {
   r1Ohms: number;
   r2Ohms: number;
 }): number {
+  if (input.r1Ohms < 0 || input.r2Ohms < 0) {
+    throw new Error("R1 and R2 must each be 0 or greater");
+  }
   const total = input.r1Ohms + input.r2Ohms;
   if (total <= 0) {
     throw new Error("R1 + R2 must be greater than 0");
@@ -129,6 +146,9 @@ export function voltageDividerCurrentMa(input: {
   r1Ohms: number;
   r2Ohms: number;
 }): number {
+  if (input.r1Ohms < 0 || input.r2Ohms < 0) {
+    throw new Error("R1 and R2 must each be 0 or greater");
+  }
   const total = input.r1Ohms + input.r2Ohms;
   if (total <= 0) {
     throw new Error("R1 + R2 must be greater than 0");
@@ -150,7 +170,8 @@ export function ldoHolds(input: {
   voutV: number;
   dropoutV: number;
 }): boolean {
-  return input.vinV - input.voutV >= input.dropoutV;
+  // Epsilon so the exact-dropout edge isn't decided by floating-point dust.
+  return input.vinV - input.voutV - input.dropoutV >= -1e-9;
 }
 
 export function ldoDissipationW(input: {
@@ -158,6 +179,12 @@ export function ldoDissipationW(input: {
   voutV: number;
   currentMa: number;
 }): number {
+  if (input.vinV < input.voutV) {
+    throw new Error("vinV must be at least voutV (a linear LDO can't boost)");
+  }
+  if (input.currentMa < 0) {
+    throw new Error("currentMa must be 0 or greater");
+  }
   return (input.vinV - input.voutV) * (input.currentMa / 1000);
 }
 
@@ -183,12 +210,14 @@ export function ipc2221TraceWidthMil(input: {
   currentA: number;
   tempRiseC: number;
   copperOz: number;
-  external: boolean;
+  layer?: "external" | "internal";
 }): number {
   if (input.currentA <= 0 || input.tempRiseC <= 0 || input.copperOz <= 0) {
     throw new Error("current, temperature rise, and copper weight must be > 0");
   }
-  const k = input.external ? 0.048 : 0.024;
+  // External (outer, air-cooled) traces carry more current than internal
+  // (buried) ones, so k is larger. Default to the conservative external case.
+  const k = (input.layer ?? "external") === "external" ? 0.048 : 0.024;
   const areaMil2 = Math.pow(
     input.currentA / (k * Math.pow(input.tempRiseC, 0.44)),
     1 / 0.725,
@@ -223,6 +252,9 @@ const RESISTOR_WATTAGES = [0.0625, 0.1, 0.125, 0.25, 0.5, 1, 2, 3, 5, 10];
 // Smallest standard rating at least `derating`× the dissipation (default 2x — a
 // resistor run at its rating sits near its maximum temperature).
 export function recommendResistorWattage(powerW: number, derating = 2): number {
+  if (powerW < 0) {
+    throw new Error("powerW must be 0 or greater");
+  }
   const need = powerW * derating;
   for (const w of RESISTOR_WATTAGES) {
     if (w >= need - 1e-12) return w;
