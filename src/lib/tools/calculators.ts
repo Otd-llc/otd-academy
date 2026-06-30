@@ -170,3 +170,34 @@ export function rcCutoffHz(input: { rOhms: number; cFarads: number }): number {
   }
   return 1 / (2 * Math.PI * input.rOhms * input.cFarads);
 }
+
+// ── IPC-2221 trace width ──────────────────────────────────────────────────────
+// Minimum trace width for a current at a chosen temperature rise, from the
+// IPC-2221 curve fit: I = k · ΔT^0.44 · A^0.725, A = width × thickness in mil².
+// k = 0.048 external (cooled by air) / 0.024 internal (buried, no convection).
+// Solve for the cross-section, then divide by the copper thickness for a width.
+// 1 oz/ft² of copper ≈ 1.378 mil thick. (Sources: IPC-2221; DigiKey calculator.)
+const OZ_TO_MIL = 1.378;
+
+export function ipc2221TraceWidthMil(input: {
+  currentA: number;
+  tempRiseC: number;
+  copperOz: number;
+  external: boolean;
+}): number {
+  if (input.currentA <= 0 || input.tempRiseC <= 0 || input.copperOz <= 0) {
+    throw new Error("current, temperature rise, and copper weight must be > 0");
+  }
+  const k = input.external ? 0.048 : 0.024;
+  const areaMil2 = Math.pow(
+    input.currentA / (k * Math.pow(input.tempRiseC, 0.44)),
+    1 / 0.725,
+  );
+  const thicknessMil = input.copperOz * OZ_TO_MIL;
+  return areaMil2 / thicknessMil;
+}
+
+// Thousandths of an inch (mil) to millimetres.
+export function milToMm(mil: number): number {
+  return mil * 0.0254;
+}

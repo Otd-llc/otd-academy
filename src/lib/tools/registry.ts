@@ -150,6 +150,28 @@ export const TOOLS: ToolMeta[] = [
     published: "2026-06-30",
     modified: "2026-06-30",
   },
+  {
+    slug: "pcb-trace-width",
+    title: "PCB trace width calculator (IPC-2221)",
+    hero: "PCB trace width",
+    h1: "How wide does my PCB trace need to be?",
+    summary:
+      "Find the minimum trace width for a current at a chosen temperature rise (IPC-2221), for external or internal copper. Grounded in a real high-current board.",
+    keywords: [
+      "pcb trace width calculator",
+      "ipc-2221 trace width",
+      "trace width for current",
+      "pcb trace current capacity",
+    ],
+    relatedCourses: [
+      "l1-03-ws2812-node",
+      "l2-01-battery-power-module",
+      "l2-03-motor-driver",
+      "l2-04-power-led-driver",
+    ],
+    published: "2026-06-30",
+    modified: "2026-06-30",
+  },
 ];
 
 export function getTool(slug: string): ToolMeta | undefined {
