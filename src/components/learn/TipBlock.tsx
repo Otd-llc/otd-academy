@@ -41,11 +41,14 @@ export function TipBlock({ slug }: { slug: string }) {
   }
 
   return (
-    <section className="glass-card w-full max-w-2xl p-6 text-left sm:p-7">
-      <h2 className="font-display text-xl tracking-wider text-gray-1">
+    <section className="w-full max-w-2xl border-t border-panel-border/60 pt-6 text-left">
+      <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+        ▸ Support the Academy
+      </span>
+      <h2 className="title-section mt-2">
         Support the <span className="text-command-gold">Academy</span>
       </h2>
-      <p className="mt-2 font-serif text-sm italic text-gray-2">
+      <p className="mt-2 font-serif text-sm italic text-muted">
         These lessons are free. If this one helped, a one-time tip keeps the next
         board coming.
       </p>
@@ -56,10 +59,10 @@ export function TipBlock({ slug }: { slug: string }) {
             type="button"
             onClick={() => setPreset(cents)}
             aria-pressed={preset === cents}
-            className={`rounded border px-4 py-2 font-mono text-sm uppercase tracking-[0.14em] transition-colors ${
+            className={`rounded border px-4 py-2 font-numeral text-sm tabular-nums uppercase tracking-[0.14em] transition-colors focus-visible:border-command-gold focus-visible:outline-none ${
               preset === cents
                 ? "border-command-gold bg-command-gold text-deep-space"
-                : "border-panel-border bg-navy-dark text-command-gold hover:border-command-gold"
+                : "border-panel-border bg-transparent text-command-gold hover:border-command-gold"
             }`}
           >
             {presetLabel(cents)}
@@ -70,7 +73,7 @@ export function TipBlock({ slug }: { slug: string }) {
             preset === "custom" ? "border-command-gold" : "border-panel-border"
           }`}
         >
-          <span className="font-mono text-sm text-gray-2">$</span>
+          <span className="font-numeral text-sm text-muted">$</span>
           <input
             type="number"
             inputMode="decimal"
@@ -84,7 +87,7 @@ export function TipBlock({ slug }: { slug: string }) {
               setPreset("custom");
               setCustomDollars(e.target.value);
             }}
-            className="w-20 bg-transparent font-mono text-sm text-gray-1 outline-none placeholder:text-muted"
+            className="w-20 bg-transparent font-numeral text-sm tabular-nums text-text outline-none focus-visible:outline-none placeholder:font-mono placeholder:text-muted"
           />
         </div>
       </div>

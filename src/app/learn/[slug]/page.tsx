@@ -24,7 +24,7 @@ function guideHref(slug: string, revLabel: string, stage: string): string {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  IN_PROGRESS: "text-signal-blue",
+  IN_PROGRESS: "text-command-gold",
   COMPLETED: "text-status-green",
   MASTERED: "text-command-gold",
 };
@@ -100,20 +100,20 @@ export default async function LearnerBoardPage({
       <nav className="mb-6 font-mono text-xs uppercase tracking-wider">
         <Link
           href="/learn"
-          className="inline-flex items-center gap-1.5 text-signal-blue underline"
+          className="group inline-flex items-center gap-1.5 text-muted group-hover:text-gold-light hover:text-gold-light focus-visible:outline-none focus-visible:text-gold-light"
         >
           <ChevronLeftIcon className="h-4 w-4" />
           My learning
         </Link>
       </nav>
 
-      <div className="glass-card p-6">
-        <p className="font-mono text-xs uppercase tracking-wider text-muted">
-          Board · {project.slug}
+      <div className="border-b border-command-gold/30 pb-6">
+        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+          ▸ Board · {project.slug}
           {project.level ? ` · ${project.level}` : ""}
           {project.track ? ` · ${project.track}` : ""}
         </p>
-        <h1 className="mt-2 title-section">
+        <h1 className="mt-2 title-hero">
           {project.name}
         </h1>
         {project.description && (
@@ -121,31 +121,32 @@ export default async function LearnerBoardPage({
             {project.description}
           </p>
         )}
-        {/* Provisioning reassurance — set expectations out of the gate. */}
-        <p className="mt-3 font-mono text-xs uppercase tracking-wider text-status-green">
-          ✓ All parts, symbols &amp; footprints provided — download-ready
-        </p>
-        {/* Completed-board 3D: the hero render once it exists; an admin-only
-            placeholder until then (learners/public see nothing). */}
-        {boardModel ? (
-          <div className="mt-4">
-            <ModelViewerLazy src={boardModel.src} bounds={boardModel.bounds} />
-          </div>
-        ) : isAdmin ? (
-          <div className="mt-4 flex flex-col items-center justify-center gap-2 rounded border border-dashed border-panel-border bg-deep-space/40 px-6 py-8 text-center">
-            <span className="font-mono text-xs uppercase tracking-wider text-muted">
-              3D model — to be added
-            </span>
-            <span className="max-w-md font-serif text-sm text-muted">
-              Upload a MODEL_3D artifact on the published revision to show the
-              finished board here. Admins only — hidden from learners until it
-              exists.
-            </span>
-          </div>
-        ) : null}
       </div>
 
-      <section className="glass-card mt-6 p-6">
+      {/* Provisioning reassurance — set expectations out of the gate. */}
+      <p className="mt-4 font-mono text-xs uppercase tracking-wider text-status-green">
+        ✓ All parts, symbols &amp; footprints provided · download-ready
+      </p>
+      {/* Completed-board 3D: the hero render once it exists; an admin-only
+          placeholder until then (learners/public see nothing). */}
+      {boardModel ? (
+        <div className="mt-4">
+          <ModelViewerLazy src={boardModel.src} bounds={boardModel.bounds} />
+        </div>
+      ) : isAdmin ? (
+        <div className="mt-4 flex flex-col items-center justify-center gap-2 rounded border border-dashed border-panel-border bg-deep-space/40 px-6 py-8 text-center">
+          <span className="font-mono text-xs uppercase tracking-wider text-muted">
+            3D model · to be added
+          </span>
+          <span className="max-w-md font-serif text-sm text-muted">
+            Upload a MODEL_3D artifact on the published revision to show the
+            finished board here. Admins only · hidden from learners until it
+            exists.
+          </span>
+        </div>
+      ) : null}
+
+      <section className="mt-8 border-t border-panel-border/60 pt-6">
         {!project.publishedRevisionId || !revLabel ? (
           <p className="font-mono text-sm uppercase tracking-wider text-muted">
             This board isn’t open for enrollment yet.
@@ -161,8 +162,12 @@ export default async function LearnerBoardPage({
                 </span>
               </p>
               <p className="font-mono text-xs uppercase tracking-wider text-muted">
-                Stage {stageIndex} / {STAGE_ORDER.length} ·{" "}
-                {STAGE_LABELS[enrollment.currentStage as StageName]}
+                Stage{" "}
+                <span className="font-numeral tabular-nums">{stageIndex}</span> /{" "}
+                <span className="font-numeral tabular-nums">
+                  {STAGE_ORDER.length}
+                </span>{" "}
+                · {STAGE_LABELS[enrollment.currentStage as StageName]}
               </p>
             </div>
             <Link
@@ -175,7 +180,7 @@ export default async function LearnerBoardPage({
               <div className="border-t border-panel-border pt-4">
                 <Link
                   href={`/learn/${project.slug}/complete`}
-                  className="font-mono text-xs uppercase tracking-[0.18em] text-command-gold underline"
+                  className="font-mono text-xs uppercase tracking-[0.18em] text-command-gold hover:text-gold-light focus-visible:outline-none focus-visible:text-gold-light"
                 >
                   View completion
                 </Link>
@@ -185,7 +190,7 @@ export default async function LearnerBoardPage({
               <div className="border-t border-panel-border pt-4">
                 <Link
                   href={`/learn/${project.slug}/exam`}
-                  className="inline-flex items-center gap-1.5 rounded border border-panel-border bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-signal-blue transition-colors hover:border-signal-blue"
+                  className="glass-button inline-flex items-center gap-1.5 px-4 py-2 font-mono text-xs uppercase tracking-wider"
                 >
                   {enrollment.status === "MASTERED"
                     ? "Review exam"
@@ -197,14 +202,14 @@ export default async function LearnerBoardPage({
         ) : locked ? (
           <div className="space-y-3">
             <p className="font-mono text-sm uppercase tracking-wider text-alert-red">
-              Locked — finish these boards first:
+              Locked · finish these boards first:
             </p>
             <ul className="space-y-1">
               {entry?.missingPrereqs.map((p) => (
-                <li key={p.id} className="font-mono text-sm">
+                <li key={p.id} className="group font-mono text-sm">
                   <Link
                     href={`/learn/${p.slug}`}
-                    className="text-signal-blue underline"
+                    className="text-title group-hover:text-gold-light focus-visible:outline-none focus-visible:text-gold-light"
                   >
                     {p.name}
                   </Link>

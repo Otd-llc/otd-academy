@@ -43,21 +43,21 @@ export function ShareCard({
   }
 
   const btn =
-    "inline-flex items-center justify-center gap-1.5 rounded border px-5 py-2.5 font-mono text-xs uppercase tracking-[0.16em] transition-colors";
+    "glass-button inline-flex items-center justify-center gap-1.5 px-5 py-2.5 font-mono text-xs uppercase tracking-[0.16em]";
 
   return (
     <div className={compact ? "flex flex-wrap items-center justify-center gap-2" : "flex flex-wrap items-center justify-center gap-3"}>
       <a
         href={downloadUrl}
         download="otd-certificate.pdf"
-        className={`${btn} border-command-gold bg-command-gold text-deep-space hover:bg-gold-light`}
+        className={`${btn} glass-button-cta`}
       >
         ↓ Download PDF
       </a>
       <button
         type="button"
         onClick={share}
-        className={`${btn} border-command-gold bg-navy-dark text-command-gold hover:bg-command-gold hover:text-deep-space`}
+        className={btn}
       >
         {copied ? "✓ Link copied" : "⇗ Share"}
       </button>

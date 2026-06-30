@@ -86,38 +86,41 @@ export default async function LearnerHomePage({
           — if it has already landed the course shows unlocked below; either way
           this banner confirms the payment succeeded. */}
       {purchased && (
-        <div className="mt-6 glass-card border-status-green/40 p-5">
+        <div className="mt-6 border-l-2 border-status-green/60 pl-4">
           <p className="font-mono text-xs uppercase tracking-wider text-status-green">
-            ✓ You&apos;re in — your course is unlocked
+            ✓ You&apos;re in. Your course is unlocked
           </p>
           <p className="mt-2 font-serif text-sm text-text">
             {purchasedProject
               ? `Payment received for ${purchasedProject.name}. It now appears in your boards below; open it to pick up where the free lesson left off.`
-              : "Payment received. Your course is unlocking now — it will appear in your boards below shortly."}
+              : "Payment received. Your course is unlocking now. It will appear in your boards below shortly."}
           </p>
         </div>
       )}
 
       <section className="mt-8">
-        <h2 className="font-mono text-sm uppercase tracking-wider text-gold-dim">
-          Enrolled boards
+        <h2 className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+          ▸ Enrolled boards
         </h2>
         {enrollments.length === 0 ? (
           <p className="mt-4 font-mono text-sm uppercase tracking-wider text-muted">
-            Not enrolled in any board yet — pick one below.
+            Not enrolled in any board yet. Pick one below.
           </p>
         ) : (
-          <ul className="mt-4 space-y-3">
+          <ul className="mt-4 border-t border-panel-border/60">
             {enrollments.map((e) => {
               const stageIndex =
                 STAGE_ORDER.indexOf(e.currentStage as StageName) + 1;
               const exam = e.examResults[0];
               return (
-                <li key={e.project.slug} className="glass-card p-4">
+                <li
+                  key={e.project.slug}
+                  className="group border-b border-panel-border/60 py-6 hover:bg-command-gold/[0.04] focus-within:bg-command-gold/[0.06]"
+                >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <Link
                       href={`/learn/${e.project.slug}`}
-                      className="font-display text-xl tracking-wide text-command-gold underline"
+                      className="title-card group-hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
                     >
                       {e.project.name}
                     </Link>
@@ -131,17 +134,20 @@ export default async function LearnerHomePage({
                   </div>
                   <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 font-mono text-xs uppercase tracking-wider text-muted">
                     <span>
-                      Stage {stageIndex} / {STAGE_ORDER.length} ·{" "}
+                      Stage <span className="font-numeral tabular-nums">{stageIndex}</span> /{" "}
+                      <span className="font-numeral tabular-nums">{STAGE_ORDER.length}</span> ·{" "}
                       {STAGE_LABELS[e.currentStage as StageName]}
                     </span>
-                    <span>{e.quizPasses.length} checks passed</span>
+                    <span>
+                      <span className="font-numeral tabular-nums">{e.quizPasses.length}</span> checks passed
+                    </span>
                     {exam && (
                       <span
                         className={
                           exam.passed ? "text-status-green" : "text-alert-red"
                         }
                       >
-                        Exam {exam.score}/{exam.total}
+                        Exam <span className="font-numeral tabular-nums">{exam.score}/{exam.total}</span>
                       </span>
                     )}
                   </div>
@@ -153,25 +159,25 @@ export default async function LearnerHomePage({
       </section>
 
       <section className="mt-10">
-        <h2 className="font-mono text-sm uppercase tracking-wider text-gold-dim">
-          Available boards
+        <h2 className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+          ▸ Available boards
         </h2>
         {notEnrolled.length === 0 ? (
           <p className="mt-4 font-mono text-sm uppercase tracking-wider text-muted">
             No other boards open right now.
           </p>
         ) : (
-          <ul className="mt-4 space-y-2">
+          <ul className="mt-4 border-t border-panel-border/60">
             {notEnrolled.map((p) => {
               const locked = !(availabilityById.get(p.id)?.available ?? true);
               return (
                 <li
                   key={p.slug}
-                  className="flex items-center justify-between gap-4 border border-panel-border px-4 py-3"
+                  className="group flex items-center justify-between gap-4 border-b border-panel-border/60 py-6 hover:bg-command-gold/[0.04] focus-within:bg-command-gold/[0.06]"
                 >
                   <Link
                     href={`/learn/${p.slug}`}
-                    className="font-mono text-sm text-signal-blue underline"
+                    className="title-card group-hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
                   >
                     {p.name}
                   </Link>

@@ -10,11 +10,14 @@ const ITEMS: { vendor: AffiliateVendor; label: string; sub: string }[] = [
 
 export function SupportBlock() {
   return (
-    <section className="glass-card w-full max-w-2xl p-6 sm:p-7">
-      <h2 className="font-display text-xl tracking-wider text-gray-1">
+    <section className="w-full max-w-2xl border-t border-panel-border/60 pt-6">
+      <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+        ▸ Build it for real
+      </span>
+      <h2 className="title-section mt-2">
         Build it for <span className="text-command-gold">real</span>
       </h2>
-      <p className="mt-2 font-serif text-sm italic text-gray-2">
+      <p className="mt-2 font-serif text-sm italic text-muted">
         Order through our links. Same price, and it supports the Academy at no
         extra cost to you.
       </p>

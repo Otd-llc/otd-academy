@@ -350,6 +350,13 @@ body {
   .glass-button:active:not(:disabled) {
     transform: translateY(1px);
   }
+  /* Visible keyboard focus for EVERY button that uses the shared recipe — a gold
+     ring on the deep-space field, so a keyboard user always sees the active
+     control (hover alone is not a focus affordance). */
+  .glass-button:focus-visible {
+    outline: 2px solid var(--color-gold-light);
+    outline-offset: 2px;
+  }
   .glass-button:disabled {
     opacity: 0.32;
     cursor: not-allowed;

@@ -31,8 +31,8 @@ export function GoldenReferencePanel({
   const verdict = golden.isGolden
     ? "✓ Golden reference"
     : published
-      ? "Not golden yet — needs vetted (real media everywhere + a brought-up board)"
-      : "Not golden yet — not published";
+      ? "Not golden yet. Needs vetted (real media everywhere + a brought-up board)"
+      : "Not golden yet: not published";
   const kitCount = golden.bundle.filter((d) => d.present).length;
 
   return (
@@ -81,7 +81,7 @@ export function GoldenReferencePanel({
                 </span>
                 <span className="text-gray-1">{d.label}</span>
                 <span className="text-muted">
-                  — {d.present ? "attached" : uploadKind ? "attach below" : "generate via the KiCad export flow"}
+                  · {d.present ? "attached" : uploadKind ? "attach below" : "generate via the KiCad export flow"}
                 </span>
               </div>
               {uploadKind ? (

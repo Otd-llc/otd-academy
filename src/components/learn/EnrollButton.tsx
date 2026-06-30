@@ -35,7 +35,7 @@ export function EnrollButton({
             }
           })
         }
-        className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+        className="glass-button inline-flex items-center gap-1.5 px-4 py-2 font-mono text-xs uppercase tracking-wider"
       >
         {pending ? "Enrolling…" : "Enroll"}
       </button>
