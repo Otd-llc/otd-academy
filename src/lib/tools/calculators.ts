@@ -201,3 +201,65 @@ export function ipc2221TraceWidthMil(input: {
 export function milToMm(mil: number): number {
   return mil * 0.0254;
 }
+
+// ── Resistor power + wattage rating ──────────────────────────────────────────
+// What a resistor burns: P = I²R (equivalently V×I or V²/R). Then pick a part
+// rated above it with margin, since a resistor at its rating runs near its max.
+
+export function resistorPowerW(input: {
+  currentMa: number;
+  rOhms: number;
+}): number {
+  if (input.rOhms < 0 || input.currentMa < 0) {
+    throw new Error("current and resistance must be >= 0");
+  }
+  const i = input.currentMa / 1000;
+  return i * i * input.rOhms;
+}
+
+// Standard resistor power ratings (W).
+const RESISTOR_WATTAGES = [0.0625, 0.1, 0.125, 0.25, 0.5, 1, 2, 3, 5, 10];
+
+// Smallest standard rating at least `derating`× the dissipation (default 2x — a
+// resistor run at its rating sits near its maximum temperature).
+export function recommendResistorWattage(powerW: number, derating = 2): number {
+  const need = powerW * derating;
+  for (const w of RESISTOR_WATTAGES) {
+    if (w >= need - 1e-12) return w;
+  }
+  return RESISTOR_WATTAGES[RESISTOR_WATTAGES.length - 1];
+}
+
+// ── Battery pack energy ──────────────────────────────────────────────────────
+// Watt-hours = (capacity in Ah) × nominal voltage. A pack multiplies voltage by
+// the series count and capacity by the parallel count.
+
+export function cellWh(input: {
+  capacityMah: number;
+  nominalV: number;
+}): number {
+  return (input.capacityMah / 1000) * input.nominalV;
+}
+
+export function packWh(input: {
+  capacityMah: number;
+  nominalV: number;
+  series: number;
+  parallel: number;
+}): number {
+  return cellWh(input) * input.series * input.parallel;
+}
+
+export function packVoltage(input: {
+  nominalV: number;
+  series: number;
+}): number {
+  return input.nominalV * input.series;
+}
+
+export function packCapacityMah(input: {
+  capacityMah: number;
+  parallel: number;
+}): number {
+  return input.capacityMah * input.parallel;
+}
