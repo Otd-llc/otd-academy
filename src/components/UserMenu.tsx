@@ -3,8 +3,8 @@
 // Top-right user menu (design polish §15.3).
 //
 // A small dropdown anchored to the right of the header on every signed-in
-// page. The trigger is a pill with a gold-rimmed avatar disk + the user's
-// email (collapsed to just the avatar below md). When open the menu
+// page. The trigger is a gold rail + outline avatar disk + the user's
+// email (collapsed to the rail + avatar below md). When open the menu
 // renders as an opaque deep-space popover with a gold rail and hairline
 // key/value rows: signed-in/email, role, the admin links, and a coral
 // "Sign out".
@@ -18,9 +18,9 @@
 //     listens for `pointerdown` outside the host.
 //   • The sign-out action is a tiny server action passed in by the layout
 //     so the client component itself never imports `@/auth`.
-//   • The trigger uses .glass-button at rest and .glass-button-active when
-//     the menu is open so the open state gets the same gold-glow ring as
-//     the rest of the gold-active vocabulary.
+//   • The trigger is a gold rail + outline avatar + email (no button fill); the
+//     rail continues into the open panel so the cluster reads as one unit.
+//     Sign-out lives ONLY in the menu — the header has no standalone sign-out.
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -63,19 +63,25 @@ export function UserMenu({
       onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
     >
       <summary
-        // list-none + ::marker hide kill the default disclosure arrow.
-        className={`glass-button inline-flex cursor-pointer list-none items-center gap-2 rounded-full py-1 pl-1 pr-1 font-mono text-xs uppercase tracking-wider md:pr-3 ${
-          open ? "glass-button-active" : ""
-        }`}
+        // list-none + ::marker hide kill the default disclosure arrow. The gold
+        // rail on the left is the head of the thread that continues down the open
+        // panel — pill, menu and sign-out read as one rail-anchored unit.
+        className="group inline-flex cursor-pointer list-none items-center gap-2.5 rounded-sm py-1 pr-1 font-mono text-xs uppercase tracking-wider outline-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-gold-light/70"
         style={{ listStyleType: "none" }}
       >
         <span
           aria-hidden="true"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-command-gold/50 bg-deep-space/70 font-display text-sm tracking-wider text-command-gold"
+          className="h-7 w-0.5 shrink-0 self-stretch bg-gradient-to-b from-command-gold to-command-gold/40"
+        />
+        <span
+          aria-hidden="true"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-command-gold/60 bg-deep-space/40 font-numeral text-sm font-bold text-command-gold transition-colors group-hover:border-gold-light"
         >
           {initial}
         </span>
-        <span className="hidden text-gold-dim md:inline">{email}</span>
+        <span className="hidden text-gold-dim transition-colors group-hover:text-gold-light md:inline">
+          {email}
+        </span>
       </summary>
 
       {/* Popover (chrome) styled as the "rail + rows" direction: an opaque
