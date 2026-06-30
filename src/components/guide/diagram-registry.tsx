@@ -23,6 +23,7 @@ import { Ads1299Channel } from "./diagrams/Ads1299Channel";
 import { DroneSharedAutonomy } from "./diagrams/DroneSharedAutonomy";
 import { IsolationBarrier } from "./diagrams/IsolationBarrier";
 import { RightLegDrive } from "./diagrams/RightLegDrive";
+import { LeadShielding } from "./diagrams/LeadShielding";
 import { InstrumentationAmp } from "./diagrams/InstrumentationAmp";
 import { TenTwentyMidline } from "./diagrams/TenTwentyMidline";
 import { FrequencyBands } from "./diagrams/FrequencyBands";
@@ -53,6 +54,7 @@ export const DIAGRAM_COMPONENTS: Record<string, DiagramComponent> = {
   "/guide-diagrams/drone-shared-autonomy.svg": DroneSharedAutonomy,
   "/guide-diagrams/isolation-barrier.svg": IsolationBarrier,
   "/guide-diagrams/right-leg-drive.svg": RightLegDrive,
+  "/guide-diagrams/lead-shielding.svg": LeadShielding,
   "/guide-diagrams/instrumentation-amp.svg": InstrumentationAmp,
   "/guide-diagrams/ten-twenty-midline.svg": TenTwentyMidline,
   "/guide-diagrams/frequency-bands.svg": FrequencyBands,
