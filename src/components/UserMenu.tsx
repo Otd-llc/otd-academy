@@ -27,6 +27,7 @@ import { useEffect, useRef, useState } from "react";
 
 // Admin-only tools that live in the user menu. Add new admin destinations here.
 const ADMIN_LINKS: { href: string; label: string }[] = [
+  { href: "/admin/goals", label: "Goals" },
   { href: "/admin/sourcing", label: "Sourcing health" },
 ];
 
