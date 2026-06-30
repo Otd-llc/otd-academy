@@ -1,8 +1,11 @@
 @import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Lora:wght@400;500&display=swap");
-/* Saira Condensed = the dedicated DISPLAY NUMERAL face (the big hex number-heroes).
-   Loaded digit-subset (&text=0123456789) so the 4th family is only a few KB — it
-   carries no letters, by design. Text/titles stay Bebas; codes stay Space Mono. */
-@import url("https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@800&text=0123456789%24.%2C&display=swap");
+/* Saira Condensed = the dedicated DISPLAY NUMERAL face (big hex/stat number-heroes
+   + instrument readouts). Loaded FULL at weight 800 (NOT a digit subset) so unit
+   letters inside a readout — mA, h, m, A, V — render in Saira too. A digit-only
+   subset made those letters fall back to caps-only Bebas, giving a fat-number /
+   skinny-letter weight clash in the same readout (e.g. "13 H 20 M"). Text/titles
+   still use Bebas; codes/labels still Space Mono. */
+@import url("https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@800&display=swap");
 @import "tailwindcss";
 
 /*
