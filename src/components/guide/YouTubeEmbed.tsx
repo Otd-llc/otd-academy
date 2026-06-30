@@ -44,7 +44,7 @@ export function YouTubeEmbed({
             alt=""
             className="absolute inset-0 h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100"
           />
-          <span className="relative grid h-16 w-16 place-items-center rounded-full bg-command-gold/90 text-black shadow-lg transition-transform group-hover:scale-105">
+          <span className="relative grid h-16 w-16 place-items-center rounded-full bg-command-gold/90 text-deep-space shadow-lg transition-transform group-hover:scale-105">
             <svg viewBox="0 0 24 24" className="h-7 w-7 translate-x-0.5 fill-current">
               <path d="M8 5v14l11-7z" />
             </svg>

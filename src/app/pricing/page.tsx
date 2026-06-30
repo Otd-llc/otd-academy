@@ -266,7 +266,7 @@ export default async function PricingPage() {
             </p>
           </div>
           {singleProjectCents !== null ? (
-            <p className="font-display text-5xl leading-none tracking-wide text-white">
+            <p className="font-display text-5xl leading-none tracking-wide text-title">
               {priceNumerals(formatUsdShort(singleProjectCents))}
               {maxProjectCents !== null &&
               maxProjectCents > singleProjectCents ? (
@@ -401,7 +401,7 @@ export default async function PricingPage() {
                 </span>
                 <span
                   className={`text-sm leading-snug ${
-                    r.hero ? "font-medium text-white" : "text-text"
+                    r.hero ? "font-medium text-title" : "text-text"
                   }`}
                 >
                   {r.desc}

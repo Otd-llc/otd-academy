@@ -83,7 +83,7 @@ export function BoardChecklistsPane({
               <li key={c.id} className="space-y-3 py-4 font-mono text-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-base text-white">{c.title}</p>
+                    <p className="text-base text-title">{c.title}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-2">
                       <span className={checklistSubkindPillClasses(c.subkind)}>
                         {c.subkind}

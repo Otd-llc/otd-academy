@@ -1180,7 +1180,7 @@ function GuideBlock({
       const Tag = block.level === 3 ? "h3" : "h2";
       return (
         <Tag
-          className={`mb-1 mt-9 font-display font-normal leading-tight tracking-wide text-white first:mt-0 ${
+          className={`mb-1 mt-9 font-display font-normal leading-tight tracking-wide text-title first:mt-0 ${
             block.level === 3 ? "text-xl" : "text-2xl"
           }`}
         >

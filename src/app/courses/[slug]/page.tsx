@@ -462,7 +462,7 @@ export default async function CoursePreviewPage({
             <dl className="mt-4 divide-y divide-panel-border border-y border-panel-border">
               {faqs.map((f) => (
                 <div key={f.q} className="py-4">
-                  <dt className="font-mono text-sm uppercase tracking-wider text-white">
+                  <dt className="font-mono text-sm uppercase tracking-wider text-title">
                     {f.q}
                   </dt>
                   <dd className="mt-2 max-w-2xl font-serif text-base leading-relaxed text-muted">

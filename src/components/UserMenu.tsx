@@ -93,7 +93,7 @@ export function UserMenu({
 
       {/* Popover (chrome): a deep-space panel with a flush gold rail + hairline
           key/value rows. Right-anchored under the compact avatar pill. */}
-      <div className="absolute right-0 z-10 mt-2 min-w-[17rem] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-md border border-panel-border bg-bg-2 shadow-[0_26px_50px_-12px_rgba(0,0,0,0.95)]">
+      <div className="absolute right-0 z-10 mt-2 min-w-[17rem] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-md border border-panel-border bg-bg-2 shadow-[var(--elev-card)]">
         <div className="flex">
           <div
             aria-hidden="true"
@@ -142,7 +142,7 @@ export function UserMenu({
             <form action={signOutAction} className="pt-3">
               <button
                 type="submit"
-                className="font-mono text-[11px] uppercase tracking-[0.16em] text-danger-coral transition-colors hover:text-[#ffb0a0] focus-visible:text-[#ffb0a0] focus-visible:outline-none"
+                className="font-mono text-[11px] uppercase tracking-[0.16em] text-danger-coral transition-colors hover:text-danger-hover focus-visible:text-danger-hover focus-visible:outline-none"
               >
                 ↩ Sign out
               </button>

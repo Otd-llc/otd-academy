@@ -250,7 +250,7 @@ export default async function PartDetailPage({
 
       {/* ─── CAD assets (symbol / footprint / 3D model) ─── */}
       <section className="mb-10 space-y-4">
-        <h2 className="font-display text-2xl tracking-wider text-white">
+        <h2 className="font-display text-2xl tracking-wider text-title">
           Assets
         </h2>
         <div className="space-y-4">

@@ -77,6 +77,9 @@
 
   --color-alert-red: #ef5350;
   --color-danger-coral: #d97a6a;
+  /* the brightened danger hover (sign-out, danger button); INVERTS to a deeper
+     coral on light — see the light block. */
+  --color-danger-hover: #ffb0a0;
   --color-status-green: #66bb6a;
 
   --font-display: "Bebas Neue", sans-serif;
@@ -141,6 +144,7 @@
 
   --color-alert-red: #c5362f; /* deepen for AA; critical-only */
   --color-danger-coral: #b25440;
+  --color-danger-hover: #8a3a2a; /* INVERTS: dark brightens to #ffb0a0, light deepens */
   --color-status-green: #2f8a4d; /* deepen for AA; success-only */
 
   /* elevation — heavy black drops read as dirt on ivory; soft warm-gray instead.
@@ -460,9 +464,9 @@ body {
     background: linear-gradient(
       180deg,
       color-mix(in srgb, var(--color-danger-coral) 18%, transparent) 0%,
-      rgba(15, 16, 24, 0.35) 100%
+      color-mix(in srgb, var(--color-bg-2) 35%, transparent) 100%
     );
-    color: #ffb0a0;
+    color: var(--color-danger-hover);
     border-color: color-mix(in srgb, var(--color-danger-coral) 65%, transparent);
   }
 
@@ -1223,10 +1227,6 @@ body {
 :root[data-theme="light"] .table-tech tr:nth-child(even) td {
   /* a barely-there warm lift instead of the white-on-dark zebra */
   background: rgba(40, 34, 22, 0.035);
-}
-:root[data-theme="light"] .glass-button-danger:hover:not(:disabled) {
-  /* the dark-mode lift to #ffb0a0 inverts to a deeper coral on ivory */
-  color: #8a3a2a;
 }
 
 /* ── Brief print ─────────────────────────────────────────────────────────────

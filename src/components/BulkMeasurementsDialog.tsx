@@ -90,7 +90,7 @@ export function BulkMeasurementsDialog({
           <input type="hidden" name="boardId" value={boardId} />
 
           <div className="flex items-baseline justify-between gap-4">
-            <h2 className="font-display text-2xl tracking-wider text-white">
+            <h2 className="font-display text-2xl tracking-wider text-title">
               BULK ADD MEASUREMENTS
             </h2>
             <button

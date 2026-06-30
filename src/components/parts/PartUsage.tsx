@@ -10,7 +10,7 @@ export function PartUsage({ entries }: { entries: PartUsageEntry[] }) {
   if (entries.length === 0) return null;
   return (
     <section className="mb-10 space-y-3">
-      <h2 className="font-display text-2xl tracking-wider text-white">Used in</h2>
+      <h2 className="font-display text-2xl tracking-wider text-title">Used in</h2>
       <ul className="space-y-2">
         {entries.map((e) => (
           <li

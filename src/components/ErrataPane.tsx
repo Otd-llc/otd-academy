@@ -51,7 +51,7 @@ export function ErrataPane({
   return (
     <section className="border border-panel-border bg-navy-dark p-6">
       <div className="flex items-baseline justify-between gap-4">
-        <h2 className="font-display text-2xl tracking-wider text-white">
+        <h2 className="font-display text-2xl tracking-wider text-title">
           ERRATA
         </h2>
         <Link

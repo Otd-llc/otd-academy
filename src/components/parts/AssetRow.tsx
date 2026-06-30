@@ -377,7 +377,7 @@ export function AssetRow({
     <section className="space-y-4 rounded border border-panel-border bg-navy-dark/30 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <h3 className="font-display text-xl tracking-wider text-white">
+          <h3 className="font-display text-xl tracking-wider text-title">
             {label}
           </h3>
           <VerifyBadge

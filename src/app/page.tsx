@@ -316,7 +316,7 @@ export default async function HomePage({
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-baseline sm:justify-between">
         <h1
-          className="font-display tracking-wider text-white"
+          className="font-display tracking-wider text-title"
           style={{ fontSize: "clamp(1.75rem, 5vw, 2.75rem)" }}
         >
           OTD <span className="text-command-gold">Academy</span>

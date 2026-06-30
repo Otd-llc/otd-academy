@@ -51,7 +51,7 @@ export function Paywall({
         <p className="font-mono text-xs uppercase tracking-wider text-command-gold">
           🔒 Premium course
         </p>
-        <h1 className="mt-3 font-display text-2xl tracking-wider text-white">
+        <h1 className="mt-3 font-display text-2xl tracking-wider text-title">
           {projectName}
         </h1>
         <p className="mt-3 font-serif text-sm text-gray-2">
@@ -97,7 +97,7 @@ export function Paywall({
           ) : (
             <div className="space-y-3">
               {priceCents != null ? (
-                <p className="font-mono text-2xl text-white">
+                <p className="font-mono text-2xl text-title">
                   {formatUsd(priceCents)}
                   <span className="ml-2 text-xs uppercase tracking-wider text-muted">
                     at launch

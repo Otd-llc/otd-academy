@@ -465,7 +465,7 @@ export default async function GuideHubPage({
                     {number}
                   </span>
                   <span className="flex-1">
-                    <span className="block font-display text-lg tracking-wider text-white">
+                    <span className="block font-display text-lg tracking-wider text-title">
                       {card.title}
                     </span>
                     {card.lead ? (
@@ -712,7 +712,7 @@ export default async function GuideHubPage({
       {/* ─── Tier 2: per-board build matrix (author/operator only) ─── */}
       {view.isAuthorView && (
       <section className="mt-10">
-        <h2 className="font-display text-2xl tracking-wider text-white">
+        <h2 className="font-display text-2xl tracking-wider text-title">
           BUILD STAGES{" "}
           <span className="font-mono text-xs uppercase tracking-wider text-muted">
             (per board)

@@ -54,7 +54,7 @@ export function ProjectDependenciesPane({
   return (
     <section className="mt-10">
       <div className="flex items-baseline justify-between gap-4">
-        <h2 className="font-display text-3xl tracking-wider text-white">
+        <h2 className="font-display text-3xl tracking-wider text-title">
           DEPENDENCIES
         </h2>
         <Link

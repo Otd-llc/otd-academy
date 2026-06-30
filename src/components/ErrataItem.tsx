@@ -140,7 +140,7 @@ export function ErrataItem({
               {erratum.status}
             </span>
           </div>
-          <p className="mt-1 font-serif text-base text-white">
+          <p className="mt-1 font-serif text-base text-title">
             {erratum.title}
           </p>
           {erratum.addressedByLabel && erratum.addressedByHref ? (
