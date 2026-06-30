@@ -40,7 +40,7 @@ const ACTIONS: Record<
 };
 
 const BUTTON_CLASS =
-  "inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space";
+  "glass-button inline-flex items-center gap-1.5 px-4 py-2 font-mono text-xs uppercase tracking-wider";
 
 export function GuideActionButton({
   action,
@@ -68,7 +68,7 @@ export function GuideActionButton({
           ↓ Sign up to download
         </Link>
         <p className="font-mono text-[11px] uppercase tracking-wider text-muted">
-          Free account — download the files + track your progress
+          Free account · download the files + track your progress
         </p>
       </div>
     );
@@ -89,7 +89,7 @@ export function GuideActionButton({
           setError(config.notReady);
         }
       } catch {
-        setError("Couldn't fetch the download — try again.");
+        setError("Couldn't fetch the download. Try again.");
       }
     });
   }

@@ -159,8 +159,8 @@ export default async function LessonCompletePage({
     <main className="relative mx-auto flex min-h-[80svh] max-w-3xl flex-col items-center gap-8 px-4 py-16 text-center sm:px-6">
       {/* Thank-you banner after a successful tip checkout (?tipped=1). */}
       {tipped && (
-        <p className="signin-rise w-full max-w-2xl rounded border border-command-gold/40 bg-navy-dark px-4 py-3 font-mono text-xs uppercase tracking-[0.18em] text-command-gold">
-          Thanks for supporting the Academy 💛
+        <p className="signin-rise w-full max-w-2xl border-l-2 border-status-green/60 pl-4 py-2 text-left font-mono text-xs uppercase tracking-[0.18em] text-status-green">
+          ▸ Thanks for supporting the Academy 💛
         </p>
       )}
       {/* Hero — the viz "mission complete" reveal */}
@@ -172,7 +172,7 @@ export default async function LessonCompletePage({
         <h1 className="mt-3 title-hero">
           {project.name}
         </h1>
-        <p className="mt-4 font-serif text-base italic text-gold-dim">
+        <p className="mt-4 font-serif text-base italic text-muted">
           You built a real board, start to finish.
         </p>
       </div>
@@ -193,6 +193,17 @@ export default async function LessonCompletePage({
           <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-gold-dim">
             // {mastered ? "Your certificate" : "Your completion"}
           </span>
+          {/* Live on-page Saira readout of the exam score (also baked into the cert PNG). */}
+          {mastered && latestPass && (
+            <div className="flex flex-col items-center gap-1">
+              <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-gold-dim">
+                ▸ exam score
+              </span>
+              <p className="font-numeral text-5xl tabular-nums text-command-gold">
+                {latestPass.score} / {latestPass.total}
+              </p>
+            </div>
+          )}
           {/* eslint-disable-next-line @next/next/no-img-element -- dynamic certificate PNG, not a static asset */}
           <img
             src={`/learn/${project.slug}/certificate/${shareToken}/image`}
@@ -220,9 +231,9 @@ export default async function LessonCompletePage({
           style={{ animationDelay: "210ms" }}
         >
           {mastered ? (
-            <div className="glass-card border-command-gold/40 p-6">
-              <p className="font-mono text-xs uppercase tracking-[0.2em] text-command-gold">
-                ★ Verified Certificate of Achievement, earned
+            <div className="border-t border-panel-border/60 pt-6">
+              <p className="font-mono text-xs uppercase tracking-[0.2em] text-status-green">
+                ▸ Verified Certificate of Achievement, earned
               </p>
               <Link
                 href={`/learn/${slug}/exam`}
@@ -232,9 +243,9 @@ export default async function LessonCompletePage({
               </Link>
             </div>
           ) : (
-            <div className="glass-card border-command-gold/40 p-8 text-center">
+            <div className="border-t border-panel-border/60 pt-8 text-center">
               <span className="font-mono text-[11px] uppercase tracking-[0.4em] text-gold-dim">
-                ★ Optional final
+                ▸ Optional final
               </span>
               <p className="mt-3 title-section">
                 Earn your Verified Certificate
