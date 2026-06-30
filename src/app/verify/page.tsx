@@ -169,7 +169,7 @@ export default async function VerifyPage({
             </div>
             <p className="px-5 py-5 font-serif text-sm leading-relaxed text-text">
               No certificate is registered under that code. Check the characters
-              and try again — a real code looks like{" "}
+              and try again. A real code looks like{" "}
               <span className="font-mono text-text">OTD-A1B2-C3D4</span>.
             </p>
           </section>
