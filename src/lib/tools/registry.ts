@@ -108,6 +108,48 @@ export const TOOLS: ToolMeta[] = [
     published: "2026-06-30",
     modified: "2026-06-30",
   },
+  {
+    slug: "ldo-headroom",
+    title: "LDO headroom + dissipation calculator (linear regulator)",
+    hero: "LDO headroom",
+    h1: "Will my LDO regulate, and how hot will it get?",
+    summary:
+      "Check a linear regulator's headroom against its dropout and find the power it dissipates as heat, from Vin, Vout, dropout, and load current.",
+    keywords: [
+      "ldo dropout calculator",
+      "ldo power dissipation calculator",
+      "linear regulator heat calculator",
+      "ldo headroom",
+    ],
+    relatedCourses: [
+      "l1-01-wroom-breakout",
+      "l1-04-single-servo",
+      "l2-01-battery-power-module",
+    ],
+    published: "2026-06-30",
+    modified: "2026-06-30",
+  },
+  {
+    slug: "rc-filter-cutoff",
+    title: "RC filter cutoff frequency calculator (first-order)",
+    hero: "RC filter cutoff",
+    h1: "What's my RC filter's cutoff frequency?",
+    summary:
+      "Find a first-order RC filter's −3 dB cutoff (fc = 1 / 2πRC) and time constant from R and C. For ADC anti-alias and noise filtering.",
+    keywords: [
+      "rc filter calculator",
+      "rc cutoff frequency calculator",
+      "low pass filter calculator",
+      "rc time constant calculator",
+    ],
+    relatedCourses: [
+      "l1-05-internal-adc",
+      "l2-02-ads1220-sense",
+      "l3-de-ads1292r",
+    ],
+    published: "2026-06-30",
+    modified: "2026-06-30",
+  },
 ];
 
 export function getTool(slug: string): ToolMeta | undefined {
