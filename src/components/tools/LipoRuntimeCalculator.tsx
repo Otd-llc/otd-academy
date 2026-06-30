@@ -53,7 +53,7 @@ export function LipoRuntimeCalculator() {
       }
       readout={
         <Readout
-          value={hours !== null ? formatRuntime(hours) : "—"}
+          value={hours !== null ? formatRuntime(hours) : "·"}
           unit="estimated runtime"
           note={
             hours !== null

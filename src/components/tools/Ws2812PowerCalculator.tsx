@@ -70,14 +70,14 @@ export function Ws2812PowerCalculator() {
       readout={
         <>
           <Readout
-            value={recommendedA !== null ? `${recommendedA.toFixed(2)} A` : "—"}
+            value={recommendedA !== null ? `${recommendedA.toFixed(2)} A` : "·"}
             unit={`recommended supply (+${headroomPct}%) at 5 V`}
             note="Inject power at both ends for long strings."
           />
           <div className="mt-5">
             <SubReadout
               label="Worst-case draw, full white"
-              value={totalMa !== null ? `${totalMa} mA · ${(totalMa / 1000).toFixed(2)} A` : "—"}
+              value={totalMa !== null ? `${totalMa} mA · ${(totalMa / 1000).toFixed(2)} A` : "·"}
             />
           </div>
         </>
