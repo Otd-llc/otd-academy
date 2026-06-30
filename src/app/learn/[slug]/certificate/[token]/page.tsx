@@ -31,8 +31,8 @@ export async function generateMetadata({
 
   const isCert = claims.variant === "cert";
   const title = isCert
-    ? `${claims.name} — Verified Certificate of Achievement`
-    : `${claims.name} — Lesson Complete`;
+    ? `${claims.name} · Verified Certificate of Achievement`
+    : `${claims.name} · Lesson Complete`;
   const description = isCert
     ? `${claims.name} earned a Verified Certificate of Achievement at One Thousand Drones Academy.`
     : `${claims.name} built a real board at One Thousand Drones Academy.`;
@@ -74,7 +74,7 @@ export default async function CertificateSharePage({
       {/* eslint-disable-next-line @next/next/no-img-element -- dynamic certificate PNG, not a static asset */}
       <img
         src={imagePath(slug, token)}
-        alt={`${heading} — ${claims.name}`}
+        alt={`${heading} · ${claims.name}`}
         width={1200}
         height={848}
         className="w-full max-w-3xl rounded-lg border border-panel-border shadow-lg"

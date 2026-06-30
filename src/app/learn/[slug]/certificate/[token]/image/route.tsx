@@ -143,7 +143,7 @@ function Card({ claims, board, certId }: { claims: CardClaims; board: string; ce
           </div>
         ) : null}
         <div style={{ display: "flex", marginTop: 22, fontSize: 9, letterSpacing: 2, color: FAINT, textTransform: "uppercase" }}>
-          — covered in this build —
+          Covered in this build
         </div>
         <div style={{ display: "flex", marginTop: 6, fontFamily: "Serif", fontSize: 13, color: MUTED }}>
           {CERT_SKILLS.join("   ·   ")}
