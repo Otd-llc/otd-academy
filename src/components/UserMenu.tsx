@@ -3,10 +3,11 @@
 // Top-right user menu (design polish §15.3).
 //
 // A small dropdown anchored to the right of the header on every signed-in
-// page. The trigger is a pill with a gold-rimmed avatar disk + the user's
-// email (collapsed to just the avatar below md). When open the menu
-// renders as a glass card with a "Signed in as" header, the full email,
-// and a coral "Sign out" button.
+// page. The trigger is a compact pill: a filled-gold avatar disk + a
+// chevron (no email — it shows only in the menu). When open the menu
+// renders as an opaque deep-space popover with a gold rail and hairline
+// key/value rows: signed-in/email, role, the admin links, and a coral
+// "Sign out".
 //
 // Implementation notes:
 //   • Native dropdown via a `<details>` element — no portal, no library,
@@ -17,9 +18,9 @@
 //     listens for `pointerdown` outside the host.
 //   • The sign-out action is a tiny server action passed in by the layout
 //     so the client component itself never imports `@/auth`.
-//   • The trigger uses .glass-button at rest and .glass-button-active when
-//     the menu is open so the open state gets the same gold-glow ring as
-//     the rest of the gold-active vocabulary.
+//   • The trigger is a compact avatar + chevron pill (no email; it shows only
+//     in the menu, never twice). The chevron flips when the menu is open.
+//     Sign-out lives ONLY in the menu — the header has no standalone sign-out.
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -62,66 +63,91 @@ export function UserMenu({
       onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
     >
       <summary
-        // list-none + ::marker hide kill the default disclosure arrow.
-        className={`glass-button inline-flex cursor-pointer list-none items-center gap-2 rounded-full py-1 pl-1 pr-1 font-mono text-xs uppercase tracking-wider md:pr-3 ${
-          open ? "glass-button-active" : ""
+        // list-none + ::marker hide kill the default disclosure arrow. A compact
+        // pill: filled-gold avatar + a chevron, no email (the email lives in the
+        // menu, so it's never shown twice). Chevron flips when open.
+        className={`group inline-flex cursor-pointer list-none items-center gap-1.5 rounded-full border py-1 pl-1 pr-2.5 outline-none transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-gold-light/70 ${
+          open
+            ? "border-command-gold bg-command-gold/[0.06]"
+            : "border-panel-border bg-deep-space/40 hover:border-command-gold/60"
         }`}
         style={{ listStyleType: "none" }}
       >
+        <span className="sr-only">Signed in as {email}. Open account menu</span>
         <span
           aria-hidden="true"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-command-gold/50 bg-deep-space/70 font-display text-sm tracking-wider text-command-gold"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gold-light font-numeral text-sm font-bold text-deep-space"
         >
           {initial}
         </span>
-        <span className="hidden text-gold-dim md:inline">{email}</span>
+        <span
+          aria-hidden="true"
+          className={`font-mono text-[10px] leading-none transition-transform ${
+            open ? "rotate-180 text-command-gold" : "text-muted group-hover:text-command-gold"
+          }`}
+        >
+          ▾
+        </span>
       </summary>
 
-      <div className="glass-card absolute right-0 z-10 mt-2 min-w-[16rem] overflow-hidden p-0">
-        <div className="section-band px-4 py-3">
-          <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-gold-dim">
-            Signed in as
-          </p>
-          <p className="mt-1 truncate font-mono text-xs text-link-muted">
-            {email}
-          </p>
-          {role && (
-            <span
-              className={`mt-2 inline-flex items-center rounded border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${
-                role === "ADMIN"
-                  ? "border-command-gold/50 text-command-gold"
-                  : "border-signal-blue/50 text-signal-blue"
-              }`}
-            >
-              {role === "ADMIN" ? "★ Admin" : "Learner"}
-            </span>
-          )}
-        </div>
-        {role === "ADMIN" ? (
-          <nav className="border-t border-panel-border p-2" aria-label="Admin tools">
-            {ADMIN_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => {
-                  if (ref.current) ref.current.open = false;
-                  setOpen(false);
-                }}
-                className="block rounded px-3 py-2 font-mono text-xs uppercase tracking-wider text-link-muted transition-colors hover:bg-command-gold/[0.06] hover:text-command-gold"
+      {/* Popover (chrome): a deep-space panel with a flush gold rail + hairline
+          key/value rows. Right-anchored under the compact avatar pill. */}
+      <div className="absolute right-0 z-10 mt-2 min-w-[17rem] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-md border border-panel-border bg-bg-2 shadow-[0_26px_50px_-12px_rgba(0,0,0,0.95)]">
+        <div className="flex">
+          <div
+            aria-hidden="true"
+            className="w-0.5 shrink-0 self-stretch bg-gradient-to-b from-command-gold to-command-gold/10"
+          />
+          <div className="min-w-0 flex-1 px-4 py-3.5 font-mono">
+            <div className="border-b border-command-gold/15 pb-2.5">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-gold-dim">
+                Signed in
+              </p>
+              <p className="mt-1 truncate text-xs text-text">{email}</p>
+            </div>
+
+            {role && (
+              <div className="flex items-center justify-between gap-3 border-b border-command-gold/15 py-2.5">
+                <span className="text-[10px] uppercase tracking-[0.18em] text-gold-dim">
+                  Role
+                </span>
+                <span
+                  className={`text-[11px] uppercase tracking-[0.16em] ${
+                    role === "ADMIN" ? "text-command-gold" : "text-signal-blue"
+                  }`}
+                >
+                  {role === "ADMIN" ? "★ Admin" : "Learner"}
+                </span>
+              </div>
+            )}
+
+            {role === "ADMIN"
+              ? ADMIN_LINKS.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => {
+                      if (ref.current) ref.current.open = false;
+                      setOpen(false);
+                    }}
+                    className="flex items-center justify-between gap-3 border-b border-command-gold/15 py-2.5 text-[11px] uppercase tracking-[0.14em] text-muted transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
+                  >
+                    <span>{link.label}</span>
+                    <span aria-hidden="true">→</span>
+                  </Link>
+                ))
+              : null}
+
+            <form action={signOutAction} className="pt-3">
+              <button
+                type="submit"
+                className="font-mono text-[11px] uppercase tracking-[0.16em] text-danger-coral transition-colors hover:text-[#ffb0a0] focus-visible:text-[#ffb0a0] focus-visible:outline-none"
               >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-        ) : null}
-        <form action={signOutAction} className="p-2">
-          <button
-            type="submit"
-            className="glass-button glass-button-danger block w-full rounded px-3 py-2 text-left font-mono text-xs uppercase tracking-wider"
-          >
-            Sign out
-          </button>
-        </form>
+                ↩ Sign out
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
     </details>
   );

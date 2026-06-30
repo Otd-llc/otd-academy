@@ -104,27 +104,16 @@ export default async function RootLayout({
                 className="order-last w-full sm:order-none sm:w-auto"
               />
 
-              {/* Right cluster. Signed in: the explicit header sign-out (hidden
-                  on mobile to declutter — the same action stays reachable inside
-                  the UserMenu dropdown) + the email menu. Anonymous (public
-                  routes): a sign-up CTA in place of the menu, and no sign-out. */}
+              {/* Right cluster. Signed in: the email menu (sign-out lives inside
+                  it now — no redundant standalone header sign-out). Anonymous
+                  (public routes): a sign-up CTA in place of the menu. */}
               <div className="ml-auto flex items-center gap-3">
                 {email ? (
-                  <>
-                    <form action={signOutAction} className="hidden sm:block">
-                      <button
-                        type="submit"
-                        className="font-mono text-xs uppercase tracking-wider text-muted transition-colors hover:text-command-gold"
-                      >
-                        Sign out
-                      </button>
-                    </form>
-                    <UserMenu
-                      email={email}
-                      role={role}
-                      signOutAction={signOutAction}
-                    />
-                  </>
+                  <UserMenu
+                    email={email}
+                    role={role}
+                    signOutAction={signOutAction}
+                  />
                 ) : (
                   <SignUpCta />
                 )}
