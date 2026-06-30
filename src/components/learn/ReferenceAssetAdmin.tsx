@@ -91,9 +91,9 @@ export function ReferenceAssetAdmin({
   }
 
   return (
-    <section className="glass-card w-full border-signal-blue/30 p-5 text-left">
-      <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-signal-blue">
-        Admin · {copy.noun}
+    <section className="w-full border-t border-panel-border/60 pt-4 text-left">
+      <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
+        ▸ Admin · {copy.noun}
       </p>
       <p className="mt-2 font-mono text-xs uppercase tracking-wider text-muted">
         {!published
@@ -108,13 +108,13 @@ export function ReferenceAssetAdmin({
           type="file"
           accept={copy.accept}
           disabled={!published || pending}
-          className="font-mono text-xs text-gray-2 file:mr-3 file:rounded file:border file:border-panel-border file:bg-navy-dark file:px-3 file:py-1.5 file:font-mono file:text-xs file:uppercase file:tracking-wider file:text-command-gold disabled:opacity-50"
+          className="font-mono text-xs text-muted file:mr-3 file:rounded file:border file:border-panel-border file:bg-navy-dark file:px-3 file:py-1.5 file:font-mono file:text-xs file:uppercase file:tracking-wider file:text-command-gold disabled:opacity-50"
         />
         <button
           type="button"
           onClick={upload}
           disabled={!published || pending}
-          className="inline-flex items-center gap-1.5 rounded border border-signal-blue bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-signal-blue transition-colors hover:bg-signal-blue hover:text-deep-space disabled:opacity-50"
+          className="glass-button inline-flex items-center gap-1.5 px-4 py-2 font-mono text-xs uppercase tracking-wider"
         >
           {pending ? "Uploading…" : hasAsset ? `↑ Replace ${copy.noun}` : `↑ Attach ${copy.noun}`}
         </button>

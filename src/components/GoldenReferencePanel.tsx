@@ -36,10 +36,10 @@ export function GoldenReferencePanel({
   const kitCount = golden.bundle.filter((d) => d.present).length;
 
   return (
-    <section className="w-full max-w-2xl rounded-xl border border-panel-border p-5 text-left [background:linear-gradient(180deg,#13131f_0%,#0d0e14_100%)]">
+    <section className="w-full max-w-2xl border-t border-panel-border/60 pt-5 text-left">
       <div className="flex items-baseline justify-between gap-4">
-        <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-gold-dim">
-          Golden reference
+        <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-command-gold">
+          ▸ Golden reference
         </h2>
         <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
           admin · proven-kit handoff
@@ -47,15 +47,13 @@ export function GoldenReferencePanel({
       </div>
 
       <div
-        className={`mt-4 rounded-lg border px-4 py-3 ${
-          golden.isGolden
-            ? "border-status-green/50 bg-status-green/5"
-            : "border-panel-border bg-panel-border/5"
+        className={`mt-4 border-l-2 pl-4 ${
+          golden.isGolden ? "border-status-green/60" : "border-panel-border"
         }`}
       >
         <span
           className={`font-mono text-xs font-bold uppercase tracking-[0.18em] ${
-            golden.isGolden ? "text-status-green" : "text-gray-2"
+            golden.isGolden ? "text-status-green" : "text-muted"
           }`}
         >
           {verdict}
@@ -79,7 +77,7 @@ export function GoldenReferencePanel({
                 >
                   {d.present ? "✓" : "○"}
                 </span>
-                <span className="text-gray-1">{d.label}</span>
+                <span className="text-text">{d.label}</span>
                 <span className="text-muted">
                   · {d.present ? "attached" : uploadKind ? "attach below" : "generate via the KiCad export flow"}
                 </span>
