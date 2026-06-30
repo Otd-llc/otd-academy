@@ -94,6 +94,63 @@
   --hero-size: clamp(54px, 9vw, 108px);
 }
 
+/*
+ * Light theme — the SAME instrument on warm ivory paper (see the otd-light-mode
+ * skill + docs in the cert / Library PDFs). Dark (`@theme` above) stays the
+ * primary source of truth and the default; light is an ADDITIVE token override.
+ *
+ * Mechanism (proven 2026-06-30 against the compiled CSS): every utility +
+ * component resolves through `var(--color-*)`, and `@theme` emits plain (NOT
+ * `@theme inline`) custom properties to `:root`. So re-declaring every token
+ * under `:root[data-theme="light"]` (specificity 0,1,1 > Tailwind's `:root`
+ * 0,1,0) flips the whole site at once. `<html data-theme>` is set server-side
+ * from a `theme` cookie + a no-flash inline script (see layout.tsx + ThemeToggle).
+ *
+ * Values anchor on the certificate / Library PDF light palette and are tuned
+ * for AA contrast on the `#faf7f0` paper. Three relationships INVERT vs dark:
+ * gold emphasis DEEPENS (gold-light goes darker, not brighter), bright ink
+ * becomes dark ink, and "faint" inverts its lightness rank (gray-3 lighter than
+ * muted). This is Phase 0 (foundation): the per-component decontamination of
+ * hardcoded non-token colors (glows, black shadows, `text-white`, baked SVG
+ * fills) is Phase 1 — those will NOT flip via this block alone.
+ */
+:root[data-theme="light"] {
+  --color-deep-space: #faf7f0; /* the ivory paper field; everything sits on it */
+  --color-bg-2: #f3ecdd; /* slightly deeper warm for raised sections */
+  --color-bg-3: #ebe3d2; /* next step up */
+  --color-navy-dark: #ffffff; /* CHROME fill (.glass-card) → white panel + hairline */
+  --color-panel-border: #d9d2c2; /* warm hairline (the PDF HAIR) */
+
+  /* gold — DEEPENS on ivory for AA; emphasis INVERTS (gold-light goes deeper,
+     gold-dim goes lighter). Verify each with a contrast checker in QA. */
+  --color-command-gold: #9c7016; /* small gold text needs ~4.5:1 on ivory */
+  --color-gold-light: #7e5610; /* INVERTS: emphasis is DEEPER on light */
+  --color-gold-dim: #c3a566; /* INVERTS: faint gold is LIGHTER on light */
+
+  --color-signal-blue: #2563c4; /* deepen for AA; still secondary to gold */
+  --color-blue-dim: #1c47a0;
+
+  --color-link-muted: #586073; /* legacy, un-migrated screens */
+  --color-gray-1: #262b33; /* legacy */
+  --color-gray-2: #3d434d; /* legacy */
+  --color-muted: #6b7280; /* secondary copy / labels (PDF MUTED) */
+  --color-gray-3: #9aa0ad; /* faint/meta — INVERTS lightness vs muted */
+
+  --color-title: #15191f; /* headings → ink */
+  --color-text: #20252d; /* body → dark ink */
+
+  --color-alert-red: #c5362f; /* deepen for AA; critical-only */
+  --color-danger-coral: #b25440;
+  --color-status-green: #2f8a4d; /* deepen for AA; success-only */
+
+  /* elevation — heavy black drops read as dirt on ivory; soft warm-gray instead.
+     The lit rim is invisible on white, so it's dropped to a transparent no-op
+     (keeps the `var(--elev-card), var(--rim-hi)` shorthand list valid). */
+  --elev-card: 0 18px 40px -16px rgba(40, 34, 22, 0.18), 0 6px 14px -8px rgba(40, 34, 22, 0.12);
+  --elev-raise: 0 6px 16px -8px rgba(40, 34, 22, 0.14);
+  --rim-hi: 0 0 transparent;
+}
+
 body {
   background-color: var(--color-deep-space);
   color: var(--color-muted);
