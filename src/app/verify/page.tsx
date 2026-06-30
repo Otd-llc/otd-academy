@@ -137,7 +137,7 @@ export default async function VerifyPage({
 
         {/* Default: a specimen of the record a code returns. */}
         {!code && (
-          <section className="mx-auto mt-12 max-w-md glass-card p-6">
+          <section className="mx-auto mt-12 max-w-md border-t border-command-gold/30 pt-6">
             <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-command-gold">
               What a verified code returns
             </p>
@@ -158,8 +158,8 @@ export default async function VerifyPage({
 
         {/* No match. */}
         {cert === "notfound" && (
-          <section className="glass-card mx-auto mt-10 max-w-md overflow-hidden">
-            <div className="flex items-center justify-between border-b border-alert-red/30 px-5 py-3">
+          <section className="mx-auto mt-10 max-w-md border-t border-alert-red/40 pt-4">
+            <div className="flex items-center justify-between">
               <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-alert-red">
                 ✕ No match
               </span>
@@ -167,7 +167,7 @@ export default async function VerifyPage({
                 {code}
               </span>
             </div>
-            <p className="px-5 py-5 font-serif text-sm leading-relaxed text-text">
+            <p className="mt-4 font-serif text-sm leading-relaxed text-text">
               No certificate is registered under that code. Check the characters
               and try again. A real code looks like{" "}
               <span className="font-mono text-text">OTD-A1B2-C3D4</span>.
@@ -177,8 +177,8 @@ export default async function VerifyPage({
 
         {/* A hit: the sealed record. */}
         {cert && cert !== "notfound" && (
-          <section className="glass-card gold-glow mx-auto mt-10 max-w-md overflow-hidden">
-            <div className="flex items-center justify-between border-b border-command-gold/25 px-5 py-3">
+          <section className="mx-auto mt-10 max-w-md border-t border-command-gold/40 pt-4">
+            <div className="flex items-center justify-between">
               <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-status-green">
                 ✓ Authentic
               </span>
@@ -187,7 +187,7 @@ export default async function VerifyPage({
               </span>
             </div>
 
-            <div className="flex flex-col items-center px-6 pb-6 pt-7 text-center">
+            <div className="mt-7 flex flex-col items-center text-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/brand/seal.png"
@@ -204,7 +204,7 @@ export default async function VerifyPage({
               <p className="title-section mt-2">{cert.name}</p>
             </div>
 
-            <dl className="px-6 pb-2">
+            <dl className="mt-7">
               <Row label="Board">{cert.board}</Row>
               <Row label="Issued">{fmtDate(cert.date)}</Row>
               {hasScore ? (
@@ -216,7 +216,7 @@ export default async function VerifyPage({
               ) : null}
             </dl>
 
-            <div className="px-6 pb-6 pt-4">
+            <div className="mt-6">
               <Link
                 href={`/learn/${cert.slug}/certificate/${cert.token}`}
                 className="glass-button glass-button-cta block px-6 py-2.5 text-center font-mono text-xs uppercase tracking-[0.18em]"
