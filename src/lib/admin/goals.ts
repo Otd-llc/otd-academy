@@ -1,20 +1,17 @@
-// Admin goals dashboard — live DB counts against hand-set targets, plus the
-// "what is what" detail rows each stat expands to (so a number is never a
-// mystery). Pure server data; the board UI lives in components/admin/GoalsBoard.
+// Admin goals dashboard — live DB counts, plus the "what is what" detail rows
+// each stat expands to (so a number is never a mystery). Pure server data; the
+// board UI lives in components/admin/GoalsBoard.
 //
 // Two kinds of stat:
 //   • a GOAL has a target → renders a progress rule (gold, green when met).
 //   • a COUNTER has target: null → just a live number (blue, "no target").
+//
+// The only real goal is "courses published", whose target is dynamic (the full
+// curriculum count). Everything else grows organically (library pages, glossary)
+// or has no ceiling (waitlist, learners, certs), so they are counters.
 import { db } from "@/lib/db";
 import { GLOSSARY } from "@/lib/glossary";
 import { TOOLS } from "@/lib/tools/registry";
-
-// Hand-set targets. Live counts come from the DB / registries below; only these
-// ceilings are editorial. Courses target is dynamic (the full curriculum count);
-// glossary is a counter (it grows organically, no fixed ceiling).
-const TARGETS = {
-  libraryPages: 20,
-} as const;
 
 export type GoalRow = {
   primary: string;
@@ -42,9 +39,12 @@ function fmtDate(d: Date): string {
 }
 
 export async function loadGoals(): Promise<GoalStat[]> {
-  const [courses, lessons, waitlist, enrollments, certs] = await Promise.all([
+  const [courses, lessons, waitlist, enrollments, certs, allProjects] =
+    await Promise.all([
+    // Every non-archived curriculum board, ALL tiers (FREE/PUBLIC/PREMIUM), so
+    // the denominator is the full curriculum (22), not just the paid ones.
     db.project.findMany({
-      where: { accessTier: { in: ["PUBLIC", "PREMIUM"] }, archivedAt: null },
+      where: { archivedAt: null },
       select: {
         id: true,
         slug: true,
@@ -67,14 +67,23 @@ export async function loadGoals(): Promise<GoalStat[]> {
       },
       orderBy: { createdAt: "desc" },
     }),
-    db.enrollment.findMany({ select: { userId: true, projectId: true } }),
+    db.enrollment.findMany({
+      select: {
+        userId: true,
+        projectId: true,
+        user: { select: { email: true } },
+      },
+    }),
     db.certificate.findMany({
       select: { name: true, slug: true, issuedAt: true },
       orderBy: { issuedAt: "desc" },
     }),
+    // ALL projects incl. archived — name lookup for enrollments that point at a
+    // since-archived course (the non-archived `courses` query would miss those).
+    db.project.findMany({ select: { id: true, name: true, publicTitle: true } }),
   ]);
 
-  // ── Courses: published vs the full curriculum ──
+  // ── Courses: published vs the full curriculum (all tiers) ──
   const published = courses.filter((c) => c.publishedRevisionId);
   const courseRows: GoalRow[] = courses
     .map((c) => ({
@@ -106,23 +115,26 @@ export async function loadGoals(): Promise<GoalStat[]> {
     secondary: `${s.project.publicTitle ?? s.project.name} · ${fmtDate(s.createdAt)}`,
   }));
 
-  // ── Learners: distinct enrolled users, broken out per course ──
-  const courseById = new Map(courses.map((c) => [c.id, c]));
-  const learnerIds = new Set(enrollments.map((e) => e.userId));
-  const perCourse = new Map<string, number>();
+  // ── Learners: one row per distinct learner, listing the course(s) they are
+  // enrolled in (admin-only, so the email is fine to surface, like the waitlist).
+  const courseById = new Map(allProjects.map((p) => [p.id, p]));
+  const byUser = new Map<string, { email: string; courses: string[] }>();
   for (const e of enrollments) {
-    perCourse.set(e.projectId, (perCourse.get(e.projectId) ?? 0) + 1);
+    const c = courseById.get(e.projectId);
+    const courseName = c ? (c.publicTitle ?? c.name) : e.projectId;
+    const entry = byUser.get(e.userId);
+    if (entry) {
+      entry.courses.push(courseName);
+    } else {
+      byUser.set(e.userId, {
+        email: e.user?.email ?? "(unknown)",
+        courses: [courseName],
+      });
+    }
   }
-  const learnerRows: GoalRow[] = [...perCourse.entries()]
-    .map(([pid, n]) => {
-      const c = courseById.get(pid);
-      return {
-        primary: c ? (c.publicTitle ?? c.name) : pid,
-        secondary: `${n} enrolled`,
-        href: c ? `/courses/${c.slug}` : undefined,
-      };
-    })
-    .sort((a, b) => parseInt(b.secondary ?? "0", 10) - parseInt(a.secondary ?? "0", 10));
+  const learnerRows: GoalRow[] = [...byUser.values()]
+    .sort((a, b) => b.courses.length - a.courses.length)
+    .map((u) => ({ primary: u.email, secondary: u.courses.join(", ") }));
 
   // ── Certificates issued ──
   const certRows: GoalRow[] = certs.slice(0, 100).map((c) => ({
@@ -142,7 +154,7 @@ export async function loadGoals(): Promise<GoalStat[]> {
       key: "library",
       label: "Library pages",
       live: lessons.length,
-      target: TARGETS.libraryPages,
+      target: null,
       rows: libRows,
     },
     {
@@ -172,7 +184,7 @@ export async function loadGoals(): Promise<GoalStat[]> {
     {
       key: "learners",
       label: "Learners",
-      live: learnerIds.size,
+      live: byUser.size,
       target: null,
       rows: learnerRows,
     },
