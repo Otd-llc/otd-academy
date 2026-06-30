@@ -158,7 +158,7 @@ export default async function VerifyPage({
 
         {/* No match. */}
         {cert === "notfound" && (
-          <section className="mx-auto mt-10 max-w-md overflow-hidden rounded-md border border-alert-red/45 bg-deep-space/60">
+          <section className="glass-card mx-auto mt-10 max-w-md overflow-hidden">
             <div className="flex items-center justify-between border-b border-alert-red/30 px-5 py-3">
               <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-alert-red">
                 ✕ No match
@@ -177,7 +177,7 @@ export default async function VerifyPage({
 
         {/* A hit: the sealed record. */}
         {cert && cert !== "notfound" && (
-          <section className="mx-auto mt-10 max-w-md overflow-hidden rounded-md border border-command-gold/40 bg-deep-space/60 shadow-[0_0_60px_-22px_rgba(200,150,62,0.5)]">
+          <section className="glass-card gold-glow mx-auto mt-10 max-w-md overflow-hidden">
             <div className="flex items-center justify-between border-b border-command-gold/25 px-5 py-3">
               <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-status-green">
                 ✓ Authentic
@@ -209,7 +209,9 @@ export default async function VerifyPage({
               <Row label="Issued">{fmtDate(cert.date)}</Row>
               {hasScore ? (
                 <Row label="Exam score">
-                  {cert.score}/{cert.total}
+                  <span className="font-numeral text-base tabular-nums tracking-wide text-command-gold">
+                    {cert.score}/{cert.total}
+                  </span>
                 </Row>
               ) : null}
             </dl>
