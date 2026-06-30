@@ -39,7 +39,7 @@ export function VerifyForm({ initialCode }: { initialCode?: string }) {
 
   return (
     <form onSubmit={submit} className="mt-10">
-      <div className="flex items-stretch overflow-hidden rounded-md border border-command-gold/30 bg-deep-space/70 transition-[border-color,box-shadow] focus-within:border-command-gold/70 focus-within:shadow-[0_0_28px_-10px_rgba(200,150,62,0.6)]">
+      <div className="flex items-stretch overflow-hidden rounded-md border border-command-gold/30 bg-deep-space/70 transition-colors focus-within:border-command-gold/70">
         <span
           aria-hidden="true"
           className="flex select-none items-center pl-4 pr-1 font-mono text-base tracking-[0.18em] text-command-gold sm:pl-5"
@@ -56,12 +56,12 @@ export function VerifyForm({ initialCode }: { initialCode?: string }) {
           value={dashed(chars)}
           onChange={(e) => setChars(extractChars(e.target.value))}
           placeholder="XXXX-XXXX"
-          className="min-w-0 flex-1 bg-transparent py-4 pl-1 pr-2 font-mono text-base uppercase tracking-[0.3em] text-[#f1ece0] outline-none placeholder:text-gray-3 sm:text-lg"
+          className="min-w-0 flex-1 bg-transparent py-4 pl-1 pr-2 font-mono text-base uppercase tracking-[0.3em] text-title outline-none placeholder:text-gray-3 sm:text-lg"
         />
         <button
           type="submit"
           disabled={!ready}
-          className="m-1.5 shrink-0 rounded bg-command-gold px-5 font-mono text-xs font-bold uppercase tracking-[0.18em] text-deep-space transition-colors hover:bg-gold-light disabled:cursor-not-allowed disabled:opacity-35 sm:px-7"
+          className="glass-button glass-button-cta m-1.5 shrink-0 px-5 font-mono text-xs uppercase tracking-[0.18em] sm:px-7"
         >
           Verify
         </button>

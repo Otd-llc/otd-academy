@@ -27,12 +27,12 @@ function Row({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-5 border-b border-panel-border/55 py-2.5 last:border-b-0">
-      <dt className="shrink-0 font-mono text-[10px] uppercase tracking-[0.22em] text-gold-dim">
+    <div className="flex items-baseline justify-between gap-5 border-b border-command-gold/20 py-3 last:border-b-0">
+      <dt className="shrink-0 font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
         {label}
       </dt>
       <dd className="text-right font-mono text-[13px] leading-snug text-text">
-        {children ?? <span className="text-gray-3">—</span>}
+        {children ?? <span className="text-muted">·</span>}
       </dd>
     </div>
   );
@@ -137,7 +137,7 @@ export default async function VerifyPage({
 
         {/* Default: a specimen of the record a code returns. */}
         {!code && (
-          <section className="mx-auto mt-12 max-w-md glass-card p-6">
+          <section className="mx-auto mt-12 max-w-md border-t border-command-gold/30 pt-6">
             <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-command-gold">
               What a verified code returns
             </p>
@@ -158,8 +158,8 @@ export default async function VerifyPage({
 
         {/* No match. */}
         {cert === "notfound" && (
-          <section className="mx-auto mt-10 max-w-md overflow-hidden rounded-md border border-alert-red/45 bg-deep-space/60">
-            <div className="flex items-center justify-between border-b border-alert-red/30 px-5 py-3">
+          <section className="mx-auto mt-10 max-w-md border-t border-alert-red/40 pt-4">
+            <div className="flex items-center justify-between">
               <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-alert-red">
                 ✕ No match
               </span>
@@ -167,9 +167,9 @@ export default async function VerifyPage({
                 {code}
               </span>
             </div>
-            <p className="px-5 py-5 font-serif text-sm leading-relaxed text-text">
+            <p className="mt-4 font-serif text-sm leading-relaxed text-text">
               No certificate is registered under that code. Check the characters
-              and try again — a real code looks like{" "}
+              and try again. A real code looks like{" "}
               <span className="font-mono text-text">OTD-A1B2-C3D4</span>.
             </p>
           </section>
@@ -177,8 +177,8 @@ export default async function VerifyPage({
 
         {/* A hit: the sealed record. */}
         {cert && cert !== "notfound" && (
-          <section className="mx-auto mt-10 max-w-md overflow-hidden rounded-md border border-command-gold/40 bg-deep-space/60 shadow-[0_0_60px_-22px_rgba(200,150,62,0.5)]">
-            <div className="flex items-center justify-between border-b border-command-gold/25 px-5 py-3">
+          <section className="mx-auto mt-10 max-w-md border-t border-command-gold/40 pt-4">
+            <div className="flex items-center justify-between">
               <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-status-green">
                 ✓ Authentic
               </span>
@@ -187,7 +187,7 @@ export default async function VerifyPage({
               </span>
             </div>
 
-            <div className="flex flex-col items-center px-6 pb-6 pt-7 text-center">
+            <div className="mt-7 flex flex-col items-center text-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/brand/seal.png"
@@ -204,17 +204,19 @@ export default async function VerifyPage({
               <p className="title-section mt-2">{cert.name}</p>
             </div>
 
-            <dl className="px-6 pb-2">
+            <dl className="mt-7">
               <Row label="Board">{cert.board}</Row>
               <Row label="Issued">{fmtDate(cert.date)}</Row>
               {hasScore ? (
                 <Row label="Exam score">
-                  {cert.score}/{cert.total}
+                  <span className="font-numeral text-base tabular-nums tracking-wide text-command-gold">
+                    {cert.score}/{cert.total}
+                  </span>
                 </Row>
               ) : null}
             </dl>
 
-            <div className="px-6 pb-6 pt-4">
+            <div className="mt-6">
               <Link
                 href={`/learn/${cert.slug}/certificate/${cert.token}`}
                 className="glass-button glass-button-cta block px-6 py-2.5 text-center font-mono text-xs uppercase tracking-[0.18em]"
