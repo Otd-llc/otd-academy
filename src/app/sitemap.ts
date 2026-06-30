@@ -36,7 +36,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
   const lastModified = new Date();
 
-  const [projects, parts, miniLessons] = await Promise.all([
+  const [projects, parts, miniLessons, comingSoonCourses] = await Promise.all([
     db.project.findMany({
       where: {
         accessTier: { in: ["PUBLIC", "PREMIUM"] },
@@ -52,6 +52,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     db.part.findMany({ select: { id: true } }),
     db.miniLesson.findMany({
       where: { published: true, accessTier: "PUBLIC" },
+      select: { slug: true, updatedAt: true },
+    }),
+    // Unbuilt PUBLIC/PREMIUM courses render an indexable preview/waitlist page at
+    // `/courses/{slug}` (unique per-course content + the demand-capture form). A
+    // BUILT course's `/courses/{slug}` 307-redirects to its guide, which is listed
+    // via the `projects` query above, so only the unbuilt ones are emitted as
+    // standalone course URLs here.
+    db.project.findMany({
+      where: {
+        accessTier: { in: ["PUBLIC", "PREMIUM"] },
+        publishedRevisionId: null,
+        archivedAt: null,
+      },
       select: { slug: true, updatedAt: true },
     }),
   ]);
@@ -85,6 +98,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   entries.push({ url: `${base}/tools`, lastModified });
   for (const tool of TOOLS) {
     entries.push({ url: `${base}/tools/${tool.slug}`, lastModified });
+  }
+
+  // Coming-soon course landings: each unbuilt PUBLIC/PREMIUM course's indexable
+  // preview/waitlist page (the per-course SEO surface + the "Tools for this build"
+  // cluster links). Built courses 307-redirect `/courses/{slug}` to their guide
+  // (already listed), so they are intentionally not emitted here.
+  for (const course of comingSoonCourses) {
+    entries.push({
+      url: `${base}/courses/${course.slug}`,
+      lastModified: course.updatedAt,
+    });
   }
 
   for (const project of projects) {
