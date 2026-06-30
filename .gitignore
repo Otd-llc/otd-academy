@@ -52,6 +52,10 @@ next-env.d.ts
 
 # Internal strategy / business docs — kept OUT of the public repo
 /docs/internal-state.md
+# Partner-facing ecosystem progress reports + GTM/IP strategy (cross-program; NOT public)
+/docs/partner-progress-report*.md
+/docs/hex-cluster-commercial-strategy.md
+/docs/research/
 /docs/plans/2026-06-21-seo-content-moat-handoff.md
 /docs/plans/2026-06-21-seo-content-moat-library-implementation.md
 /docs/plans/2026-06-16-eeg-seo-cluster-brief.md
