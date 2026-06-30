@@ -25,6 +25,7 @@ import { db } from "@/lib/db";
 import { siteUrl } from "@/lib/seo/jsonld";
 import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
 import { BRIEF_KEYS } from "@/lib/brief-pages";
+import { TOOLS } from "@/lib/tools/registry";
 
 // DB-backed: render at REQUEST time, never statically prerendered at build. The
 // CI build runs with a stub DATABASE_URL the query can't reach (and a build-time
@@ -79,6 +80,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // The public glossary index (static reference page).
   entries.push({ url: `${base}/glossary`, lastModified });
+
+  // The public EE-tools hub + each calculator (static, from the TOOLS registry).
+  entries.push({ url: `${base}/tools`, lastModified });
+  for (const tool of TOOLS) {
+    entries.push({ url: `${base}/tools/${tool.slug}`, lastModified });
+  }
 
   for (const project of projects) {
     // PUBLIC/PREMIUM projects are always published (the query filters on

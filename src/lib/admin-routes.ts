@@ -62,6 +62,9 @@ export function isPublicPath(pathname: string): boolean {
   // The public glossary index — a crawlable reference page (also the resolve
   // target for DefinedTerm.inDefinedTermSet.url).
   if (top === "glossary") return true;
+  // The public EE-tools hub (/tools) + each calculator (/tools/[slug]) — static,
+  // gate-less, crawlable SEO pages with no authoring surface under the prefix.
+  if (top === "tools") return true;
   // The legal/license page is a public static page (linked from the footer); it
   // must render for signed-out visitors.
   if (top === "license") return true;
