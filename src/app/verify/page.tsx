@@ -32,7 +32,7 @@ function Row({
         {label}
       </dt>
       <dd className="text-right font-mono text-[13px] leading-snug text-text">
-        {children ?? <span className="text-gray-3">—</span>}
+        {children ?? <span className="text-gray-3">·</span>}
       </dd>
     </div>
   );
