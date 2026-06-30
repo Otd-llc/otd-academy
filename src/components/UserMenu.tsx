@@ -5,8 +5,9 @@
 // A small dropdown anchored to the right of the header on every signed-in
 // page. The trigger is a pill with a gold-rimmed avatar disk + the user's
 // email (collapsed to just the avatar below md). When open the menu
-// renders as a glass card with a "Signed in as" header, the full email,
-// and a coral "Sign out" button.
+// renders as an opaque deep-space popover with a gold rail and hairline
+// key/value rows: signed-in/email, role, the admin links, and a coral
+// "Sign out".
 //
 // Implementation notes:
 //   • Native dropdown via a `<details>` element — no portal, no library,
@@ -77,51 +78,64 @@ export function UserMenu({
         <span className="hidden text-gold-dim md:inline">{email}</span>
       </summary>
 
-      <div className="glass-card absolute right-0 z-10 mt-2 min-w-[16rem] overflow-hidden p-0">
-        <div className="section-band px-4 py-3">
-          <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-gold-dim">
-            Signed in as
-          </p>
-          <p className="mt-1 truncate font-mono text-xs text-link-muted">
-            {email}
-          </p>
-          {role && (
-            <span
-              className={`mt-2 inline-flex items-center rounded border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${
-                role === "ADMIN"
-                  ? "border-command-gold/50 text-command-gold"
-                  : "border-signal-blue/50 text-signal-blue"
-              }`}
-            >
-              {role === "ADMIN" ? "★ Admin" : "Learner"}
-            </span>
-          )}
-        </div>
-        {role === "ADMIN" ? (
-          <nav className="border-t border-panel-border p-2" aria-label="Admin tools">
-            {ADMIN_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => {
-                  if (ref.current) ref.current.open = false;
-                  setOpen(false);
-                }}
-                className="block rounded px-3 py-2 font-mono text-xs uppercase tracking-wider text-link-muted transition-colors hover:bg-command-gold/[0.06] hover:text-command-gold"
+      {/* Popover (chrome) styled as the "rail + rows" direction: an opaque
+          deep-space panel with a gold rail and hairline key/value rows. */}
+      <div className="absolute right-0 z-10 mt-2 min-w-[17rem] overflow-hidden rounded-md border border-panel-border bg-bg-2 shadow-[0_26px_50px_-12px_rgba(0,0,0,0.95)]">
+        <div className="flex gap-3.5 p-4">
+          <div
+            aria-hidden="true"
+            className="w-0.5 shrink-0 self-stretch bg-gradient-to-b from-command-gold to-command-gold/10"
+          />
+          <div className="min-w-0 flex-1 font-mono">
+            <div className="border-b border-command-gold/15 pb-2.5">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-gold-dim">
+                Signed in
+              </p>
+              <p className="mt-1 truncate text-xs text-text">{email}</p>
+            </div>
+
+            {role && (
+              <div className="flex items-center justify-between gap-3 border-b border-command-gold/15 py-2.5">
+                <span className="text-[10px] uppercase tracking-[0.18em] text-gold-dim">
+                  Role
+                </span>
+                <span
+                  className={`text-[11px] uppercase tracking-[0.16em] ${
+                    role === "ADMIN" ? "text-command-gold" : "text-signal-blue"
+                  }`}
+                >
+                  {role === "ADMIN" ? "★ Admin" : "Learner"}
+                </span>
+              </div>
+            )}
+
+            {role === "ADMIN"
+              ? ADMIN_LINKS.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => {
+                      if (ref.current) ref.current.open = false;
+                      setOpen(false);
+                    }}
+                    className="flex items-center justify-between gap-3 border-b border-command-gold/15 py-2.5 text-[11px] uppercase tracking-[0.14em] text-muted transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
+                  >
+                    <span>{link.label}</span>
+                    <span aria-hidden="true">→</span>
+                  </Link>
+                ))
+              : null}
+
+            <form action={signOutAction} className="pt-3">
+              <button
+                type="submit"
+                className="font-mono text-[11px] uppercase tracking-[0.16em] text-danger-coral transition-colors hover:text-[#ffb0a0] focus-visible:text-[#ffb0a0] focus-visible:outline-none"
               >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-        ) : null}
-        <form action={signOutAction} className="p-2">
-          <button
-            type="submit"
-            className="glass-button glass-button-danger block w-full rounded px-3 py-2 text-left font-mono text-xs uppercase tracking-wider"
-          >
-            Sign out
-          </button>
-        </form>
+                ↩ Sign out
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
     </details>
   );
