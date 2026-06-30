@@ -15,4 +15,9 @@ describe("library path gating", () => {
   it("the glossary index is public", () => {
     expect(isPublicPath("/glossary")).toBe(true);
   });
+  it("the tools hub and an embed widget are public", () => {
+    expect(isPublicPath("/tools")).toBe(true);
+    expect(isPublicPath("/tools/resistor-power")).toBe(true);
+    expect(isPublicPath("/embed/resistor-power")).toBe(true);
+  });
 });

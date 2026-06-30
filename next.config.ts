@@ -15,6 +15,18 @@ const nextConfig: NextConfig = {
         : ["localhost:3000"],
     },
   },
+  async headers() {
+    return [
+      {
+        // The calculator embed widgets are meant to be dropped into other sites
+        // via <iframe>, so explicitly allow any origin to frame them. Nothing
+        // else in the app sets X-Frame-Options, so every other route keeps the
+        // browser default (frameable same-origin only is not enforced anywhere).
+        source: "/embed/:path*",
+        headers: [{ key: "Content-Security-Policy", value: "frame-ancestors *" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

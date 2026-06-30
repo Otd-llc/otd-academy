@@ -15,5 +15,8 @@ export function shouldRenderChrome(input: {
   signedIn: boolean;
 }): boolean {
   if (input.pathname === "/sign-in") return false;
+  // Embed widgets (/embed/[slug]) render bare inside other sites' iframes — no
+  // header/footer, just the calculator and its attribution.
+  if (input.pathname.startsWith("/embed")) return false;
   return input.signedIn || isPublicPath(input.pathname);
 }
