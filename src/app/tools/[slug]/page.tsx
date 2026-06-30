@@ -10,6 +10,8 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/PageHeader";
 import { LipoRuntimeBody } from "@/components/tools/LipoRuntimeBody";
 import { Ws2812PowerBody } from "@/components/tools/Ws2812PowerBody";
+import { LedResistorBody } from "@/components/tools/LedResistorBody";
+import { VoltageDividerBody } from "@/components/tools/VoltageDividerBody";
 import {
   techArticleJsonLd,
   learningResourceJsonLd,
@@ -24,6 +26,8 @@ type Params = { slug: string };
 const BODIES: Record<string, () => ReactNode> = {
   "lipo-battery-runtime": LipoRuntimeBody,
   "ws2812-power-supply": Ws2812PowerBody,
+  "led-series-resistor": LedResistorBody,
+  "voltage-divider": VoltageDividerBody,
 };
 
 export function generateStaticParams(): Params[] {

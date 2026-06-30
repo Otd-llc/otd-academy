@@ -70,6 +70,44 @@ export const TOOLS: ToolMeta[] = [
     published: "2026-06-29",
     modified: "2026-06-29",
   },
+  {
+    slug: "led-series-resistor",
+    title: "LED series resistor calculator (Ω from supply, Vf, current)",
+    hero: "LED series resistor",
+    h1: "What resistor does my LED need?",
+    summary:
+      "Size an LED's current-limiting resistor from supply voltage, forward voltage, and target current. Gives the nearest E24 standard value and the power it burns.",
+    keywords: [
+      "led resistor calculator",
+      "led series resistor",
+      "current limiting resistor led",
+      "led resistor value",
+    ],
+    relatedCourses: ["l1-01-wroom-breakout", "l2-04-power-led-driver"],
+    published: "2026-06-30",
+    modified: "2026-06-30",
+  },
+  {
+    slug: "voltage-divider",
+    title: "Voltage divider calculator (Vout, R1, R2)",
+    hero: "Voltage divider",
+    h1: "What does my voltage divider output?",
+    summary:
+      "Compute a resistive divider's output voltage and quiescent current from Vin, R1, and R2. Sized for fitting a higher voltage into an ESP32's 3.3 V ADC.",
+    keywords: [
+      "voltage divider calculator",
+      "resistor divider calculator",
+      "voltage divider output voltage",
+      "adc voltage divider esp32",
+    ],
+    relatedCourses: [
+      "l1-05-internal-adc",
+      "l2-02-ads1220-sense",
+      "bn-01-usb-c-power-meter",
+    ],
+    published: "2026-06-30",
+    modified: "2026-06-30",
+  },
 ];
 
 export function getTool(slug: string): ToolMeta | undefined {

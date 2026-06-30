@@ -64,6 +64,7 @@ import {
   failingRequiredCount,
 } from "@/lib/board-readiness-load";
 import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
+import { toolsForCourse } from "@/lib/tools/registry";
 
 type Params = { slug: string; revLabel: string };
 
@@ -653,6 +654,9 @@ export default async function GuideHubPage({
     });
   }
 
+  // Cluster link: free calculators whose math this board needs (registry-driven).
+  const tools = toolsForCourse(project.slug);
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <JsonLd data={courseLd} />
@@ -786,6 +790,33 @@ export default async function GuideHubPage({
         )}
       </section>
       )}
+
+      {tools.length > 0 ? (
+        <section className="mt-10">
+          <h2 className="title-section">Tools for this build</h2>
+          <p className="mt-3 max-w-2xl font-serif text-base leading-relaxed text-muted">
+            Free calculators that do the math this board needs — each worked from
+            a real OTD board, with the formula and a cited source.
+          </p>
+          <ul className="mt-5 grid gap-2 sm:grid-cols-2">
+            {tools.map((t) => (
+              <li key={t.slug}>
+                <Link
+                  href={`/tools/${t.slug}`}
+                  className="group flex h-full flex-col gap-1 rounded border border-panel-border bg-deep-space/40 px-4 py-3 transition-colors hover:border-command-gold/50"
+                >
+                  <span className="font-mono text-sm text-text group-hover:text-command-gold">
+                    {t.title} →
+                  </span>
+                  <span className="font-serif text-xs leading-snug text-muted">
+                    {t.summary}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </main>
   );
 }

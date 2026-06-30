@@ -57,3 +57,81 @@ export function formatRuntime(hours: number): string {
   const minutes = Math.floor((hours - whole) * 60);
   return `${whole} h ${minutes} m`;
 }
+
+// ── LED series resistor ──────────────────────────────────────────────────────
+// The resistor that sets an LED's current from a supply rail: R = (Vsupply − Vf)
+// / I, the LED's forward drop subtracted first. Vf is a datasheet value (varies
+// by colour + part), so it's an input, never a constant.
+
+export function ledSeriesResistorOhms(input: {
+  supplyV: number;
+  ledVf: number;
+  currentMa: number;
+}): number {
+  if (input.supplyV <= input.ledVf) {
+    throw new Error("supplyV must exceed the LED forward voltage (ledVf)");
+  }
+  if (input.currentMa <= 0) {
+    throw new Error("currentMa must be greater than 0");
+  }
+  return (input.supplyV - input.ledVf) / (input.currentMa / 1000);
+}
+
+// Power burned in the series resistor (mW) = voltage across it × current. Pick a
+// resistor rated for at least ~2x this.
+export function ledResistorPowerMw(input: {
+  supplyV: number;
+  ledVf: number;
+  currentMa: number;
+}): number {
+  return (input.supplyV - input.ledVf) * input.currentMa;
+}
+
+// E24 (IEC 60063) significands — the standard 5% resistor values per decade.
+const E24 = [
+  1.0, 1.1, 1.2, 1.3, 1.5, 1.6, 1.8, 2.0, 2.2, 2.4, 2.7, 3.0, 3.3, 3.6, 3.9, 4.3,
+  4.7, 5.1, 5.6, 6.2, 6.8, 7.5, 8.2, 9.1,
+];
+
+// Smallest E24 standard value >= the target. Rounding UP gives a touch LESS
+// current than asked — the safe direction for an LED.
+export function nextE24Up(ohms: number): number {
+  if (ohms <= 0) return E24[0];
+  const decade = Math.floor(Math.log10(ohms));
+  for (let d = decade; d <= decade + 1; d++) {
+    const scale = Math.pow(10, d);
+    for (const v of E24) {
+      const candidate = v * scale;
+      if (candidate >= ohms - 1e-9) return Number(candidate.toPrecision(2));
+    }
+  }
+  return ohms;
+}
+
+// ── Voltage divider ──────────────────────────────────────────────────────────
+// Vout = Vin × R2 / (R1 + R2), with R2 to ground and the tap between the two. The
+// divider also draws a quiescent current Vin / (R1 + R2) — bigger legs waste less.
+
+export function voltageDividerOut(input: {
+  vinV: number;
+  r1Ohms: number;
+  r2Ohms: number;
+}): number {
+  const total = input.r1Ohms + input.r2Ohms;
+  if (total <= 0) {
+    throw new Error("R1 + R2 must be greater than 0");
+  }
+  return (input.vinV * input.r2Ohms) / total;
+}
+
+export function voltageDividerCurrentMa(input: {
+  vinV: number;
+  r1Ohms: number;
+  r2Ohms: number;
+}): number {
+  const total = input.r1Ohms + input.r2Ohms;
+  if (total <= 0) {
+    throw new Error("R1 + R2 must be greater than 0");
+  }
+  return (input.vinV / total) * 1000;
+}

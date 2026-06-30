@@ -5,6 +5,11 @@ import {
   ws2812RecommendedSupplyAmps,
   formatRuntime,
   WS2812_FULL_WHITE_MA,
+  ledSeriesResistorOhms,
+  ledResistorPowerMw,
+  nextE24Up,
+  voltageDividerOut,
+  voltageDividerCurrentMa,
 } from "@/lib/tools/calculators";
 
 describe("lipoRuntimeHours", () => {
@@ -64,5 +69,60 @@ describe("formatRuntime", () => {
     expect(formatRuntime(20)).toBe("20 h 0 m");
     expect(formatRuntime(16.5)).toBe("16 h 30 m");
     expect(formatRuntime(0.25)).toBe("0 h 15 m");
+  });
+});
+
+describe("ledSeriesResistorOhms", () => {
+  it("is (Vsupply - Vf) / I — Ohm's law over the resistor", () => {
+    // 3.3 V rail, red LED Vf 1.8 V, 5 mA → (3.3-1.8)/0.005 = 300 Ω
+    expect(ledSeriesResistorOhms({ supplyV: 3.3, ledVf: 1.8, currentMa: 5 })).toBeCloseTo(300, 6);
+    // 5 V, Vf 2.0, 20 mA → 3/0.02 = 150 Ω
+    expect(ledSeriesResistorOhms({ supplyV: 5, ledVf: 2, currentMa: 20 })).toBeCloseTo(150, 6);
+  });
+  it("throws when the supply can't exceed the LED forward voltage", () => {
+    expect(() => ledSeriesResistorOhms({ supplyV: 1.8, ledVf: 2.0, currentMa: 5 })).toThrow();
+    expect(() => ledSeriesResistorOhms({ supplyV: 3.3, ledVf: 3.3, currentMa: 5 })).toThrow();
+  });
+  it("throws on non-positive current", () => {
+    expect(() => ledSeriesResistorOhms({ supplyV: 5, ledVf: 2, currentMa: 0 })).toThrow();
+  });
+});
+
+describe("ledResistorPowerMw", () => {
+  it("is the voltage across the resistor times the current, in mW", () => {
+    // (3.3-1.8) V × 5 mA = 7.5 mW
+    expect(ledResistorPowerMw({ supplyV: 3.3, ledVf: 1.8, currentMa: 5 })).toBeCloseTo(7.5, 6);
+    // (5-2) × 20 = 60 mW
+    expect(ledResistorPowerMw({ supplyV: 5, ledVf: 2, currentMa: 20 })).toBeCloseTo(60, 6);
+  });
+});
+
+describe("nextE24Up", () => {
+  it("rounds up to the next E24 standard value (safe: a bit less current)", () => {
+    expect(nextE24Up(300)).toBe(300); // exact E24
+    expect(nextE24Up(290)).toBe(300);
+    expect(nextE24Up(301)).toBe(330); // next E24 above 300 is 330
+    expect(nextE24Up(150)).toBe(150);
+    expect(nextE24Up(1234)).toBe(1300);
+    expect(nextE24Up(47)).toBe(47);
+  });
+});
+
+describe("voltageDividerOut", () => {
+  it("is Vin * R2 / (R1 + R2)", () => {
+    // 5 V, R1 10k, R2 20k → 5*20/30 = 3.333 V
+    expect(voltageDividerOut({ vinV: 5, r1Ohms: 10000, r2Ohms: 20000 })).toBeCloseTo(3.3333, 4);
+    // equal legs halve it
+    expect(voltageDividerOut({ vinV: 3.3, r1Ohms: 1000, r2Ohms: 1000 })).toBeCloseTo(1.65, 6);
+  });
+  it("throws when both resistors are zero", () => {
+    expect(() => voltageDividerOut({ vinV: 5, r1Ohms: 0, r2Ohms: 0 })).toThrow();
+  });
+});
+
+describe("voltageDividerCurrentMa", () => {
+  it("is Vin / (R1 + R2), in mA", () => {
+    // 5 V / 30k = 0.1667 mA
+    expect(voltageDividerCurrentMa({ vinV: 5, r1Ohms: 10000, r2Ohms: 20000 })).toBeCloseTo(0.16667, 4);
   });
 });
