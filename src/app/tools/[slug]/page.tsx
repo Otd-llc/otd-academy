@@ -17,6 +17,7 @@ import { RcFilterBody } from "@/components/tools/RcFilterBody";
 import { TraceWidthBody } from "@/components/tools/TraceWidthBody";
 import { ResistorPowerBody } from "@/components/tools/ResistorPowerBody";
 import { BatteryEnergyBody } from "@/components/tools/BatteryEnergyBody";
+import { EmbedSnippet } from "@/components/tools/EmbedSnippet";
 import {
   techArticleJsonLd,
   learningResourceJsonLd,
@@ -106,6 +107,8 @@ export default async function ToolPage({ params }: { params: Promise<Params> }) 
       />
 
       <Body />
+
+      <EmbedSnippet slug={tool.slug} title={tool.title} base={base} />
     </main>
   );
 }

@@ -18,6 +18,10 @@ describe("shouldRenderChrome", () => {
   it("never renders on /sign-in", () => {
     expect(shouldRenderChrome({ pathname: "/sign-in", signedIn: false })).toBe(false);
   });
+  it("never renders on /embed (bare iframe widget), even for signed-in", () => {
+    expect(shouldRenderChrome({ pathname: "/embed/resistor-power", signedIn: false })).toBe(false);
+    expect(shouldRenderChrome({ pathname: "/embed/resistor-power", signedIn: true })).toBe(false);
+  });
   it("does not render for anonymous on non-public routes", () => {
     expect(shouldRenderChrome({ pathname: "/learn", signedIn: false })).toBe(false);
   });
