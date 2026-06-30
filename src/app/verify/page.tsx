@@ -27,12 +27,12 @@ function Row({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-5 border-b border-panel-border/55 py-2.5 last:border-b-0">
-      <dt className="shrink-0 font-mono text-[10px] uppercase tracking-[0.22em] text-gold-dim">
+    <div className="flex items-baseline justify-between gap-5 border-b border-command-gold/20 py-3 last:border-b-0">
+      <dt className="shrink-0 font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
         {label}
       </dt>
       <dd className="text-right font-mono text-[13px] leading-snug text-text">
-        {children ?? <span className="text-gray-3">·</span>}
+        {children ?? <span className="text-muted">·</span>}
       </dd>
     </div>
   );
