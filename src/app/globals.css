@@ -204,7 +204,7 @@ body {
 /* the stage number is a big OUTLINE figure that owns the top third (font-size set
    inline per-hex by the component so it scales with the measured width). Decorative
    — the link's aria-label already names the stage. */
-.gh-num { position: absolute; left: 0; right: 0; top: 12%; z-index: 0; pointer-events: none; font-family: var(--font-numeral); font-weight: 800; letter-spacing: 0.02em; line-height: 1; color: transparent; -webkit-text-stroke: 1.75px rgba(232, 184, 101, 0.34); }
+.gh-num { position: absolute; left: 0; right: 0; top: 12%; z-index: 0; pointer-events: none; font-family: var(--font-numeral); font-weight: 800; letter-spacing: 0.02em; line-height: 1; color: transparent; -webkit-text-stroke: 1.75px color-mix(in srgb, var(--color-gold-light) 34%, transparent); }
 /* title + lead, centred in the lower two-thirds */
 .gh-m { position: absolute; left: 0; right: 0; top: 64%; transform: translateY(-50%); z-index: 1; padding: 0 7%; }
 .gh-m > .gh-title { display: block; }
@@ -230,7 +230,7 @@ body {
 /* status as a chip pinned to the lower point */
 .gh-status { position: absolute; left: 0; right: 0; bottom: 13%; display: flex; justify-content: center; z-index: 1; }
 .gh-chip { font-family: var(--font-mono), monospace; font-weight: 700; font-size: clamp(8px, 3.2cqw, 10px); letter-spacing: 0.16em; text-transform: uppercase; padding: clamp(2px, 1.3cqw, 4px) clamp(7px, 4cqw, 13px); border-radius: 999px; white-space: nowrap; }
-.gh-node.pending .gh-chip { border: 1px solid rgba(200, 150, 62, 0.45); color: var(--color-command-gold); }
+.gh-node.pending .gh-chip { border: 1px solid color-mix(in srgb, var(--color-command-gold) 45%, transparent); color: var(--color-command-gold); }
 .gh-node.done .gh-hex polygon { fill: url(#gh-honey); stroke: #eab94d; }
 .gh-node.done .gh-num { -webkit-text-stroke-color: rgba(20, 13, 2, 0.44); }
 .gh-node.done .gh-title { color: #140d02; }
@@ -240,15 +240,15 @@ body {
    border isn't covered by the later-drawn adjacent hex on the shared edges. */
 .gh-node.current { z-index: 5; }
 .gh-node:hover { z-index: 6; }
-.gh-node.current .gh-hex polygon { stroke: var(--color-command-gold); filter: drop-shadow(0 0 8px rgba(200, 150, 62, 0.6)); animation: gh-pulse 1.8s ease-in-out infinite; }
-.gh-node.current .gh-num { -webkit-text-stroke-color: rgba(200, 150, 62, 0.52); }
+.gh-node.current .gh-hex polygon { stroke: var(--color-command-gold); filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-command-gold) 60%, transparent)); animation: gh-pulse 1.8s ease-in-out infinite; }
+.gh-node.current .gh-num { -webkit-text-stroke-color: color-mix(in srgb, var(--color-command-gold) 52%, transparent); }
 .gh-node.current .gh-title { color: var(--color-command-gold); }
 .gh-node.current .gh-chip { background: var(--color-command-gold); color: var(--color-deep-space); }
 .gh-node.blocked .gh-hex polygon { stroke: var(--color-alert-red); }
-.gh-node.blocked .gh-num { -webkit-text-stroke-color: rgba(239, 83, 80, 0.4); }
+.gh-node.blocked .gh-num { -webkit-text-stroke-color: color-mix(in srgb, var(--color-alert-red) 40%, transparent); }
 .gh-node.blocked .gh-title { color: var(--color-alert-red); }
-.gh-node.blocked .gh-chip { border: 1px solid rgba(239, 83, 80, 0.5); color: var(--color-alert-red); }
-@keyframes gh-pulse { 0%, 100% { filter: drop-shadow(0 0 0 rgba(200, 150, 62, 0)); } 50% { filter: drop-shadow(0 0 11px rgba(200, 150, 62, 0.7)); } }
+.gh-node.blocked .gh-chip { border: 1px solid color-mix(in srgb, var(--color-alert-red) 50%, transparent); color: var(--color-alert-red); }
+@keyframes gh-pulse { 0%, 100% { filter: drop-shadow(0 0 0 color-mix(in srgb, var(--color-command-gold) 0%, transparent)); } 50% { filter: drop-shadow(0 0 11px color-mix(in srgb, var(--color-command-gold) 70%, transparent)); } }
 @media (prefers-reduced-motion: reduce) { .gh-node.current .gh-hex polygon { animation: none; } }
 /* SkillHoneycomb (/courses) extends the build-guide honeycomb with two additive
    modifiers (the skill tree has 8 node states to the hub's 4 — see SkillHoneycomb).
@@ -256,7 +256,7 @@ body {
    sk-goal: the path's destination build (or a capstone) gets a gold halo. */
 .gh-node.sk-dim { opacity: 0.6; }
 .gh-node.sk-dim:hover { opacity: 1; }
-.gh-node.sk-goal .gh-hex polygon { filter: drop-shadow(0 0 10px rgba(200, 150, 62, 0.45)); }
+.gh-node.sk-goal .gh-hex polygon { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--color-command-gold) 45%, transparent)); }
 
 /* PathHoneycomb — the /courses "Go further" destinations: track-stroked hexes
    (one per other build) in the honeycomb language, laid out by the shared
@@ -270,8 +270,8 @@ body {
    lights to full + a soft glow on hover/focus. */
 .phex-hex polygon { fill: var(--color-deep-space); stroke: var(--accent); stroke-opacity: 0.5; stroke-width: 2; vector-effect: non-scaling-stroke; transition: stroke-opacity 0.18s ease, filter 0.18s ease; }
 .phex:hover .phex-hex polygon, .phex:focus-visible .phex-hex polygon { stroke-opacity: 1; filter: drop-shadow(0 0 11px var(--accent)); }
-.phex.flag .phex-hex polygon { stroke-opacity: 0.72; filter: drop-shadow(0 0 6px rgba(200, 150, 62, 0.32)); }
-.phex.flag:hover .phex-hex polygon, .phex.flag:focus-visible .phex-hex polygon { stroke-opacity: 1; filter: drop-shadow(0 0 14px rgba(200, 150, 62, 0.6)); }
+.phex.flag .phex-hex polygon { stroke-opacity: 0.72; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-command-gold) 32%, transparent)); }
+.phex.flag:hover .phex-hex polygon, .phex.flag:focus-visible .phex-hex polygon { stroke-opacity: 1; filter: drop-shadow(0 0 14px color-mix(in srgb, var(--color-command-gold) 60%, transparent)); }
 .phex:focus-visible { outline: none; }
 .phex-inner { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: clamp(6px, 4cqw, 13px); padding: 0 15%; text-align: center; }
 .phex-eyebrow { font-family: var(--font-mono), monospace; font-size: clamp(8px, 3.4cqw, 11px); letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); }
@@ -286,7 +286,7 @@ body {
    (ok | bad | dim) — colour is always paired with the hex fill + strike (never
    colour alone). The question numeral (Saira) sits in the fieldset's left gutter. */
 .qzh-opts { position: relative; display: flex; flex-direction: column; }
-.qzh-opts::before { content: ""; position: absolute; left: 13px; top: 18px; bottom: 18px; width: 2px; background: rgba(58, 63, 80, 0.55); }
+.qzh-opts::before { content: ""; position: absolute; left: 13px; top: 18px; bottom: 18px; width: 2px; background: color-mix(in srgb, var(--color-panel-border) 55%, transparent); }
 .qzh-opt { position: relative; z-index: 1; display: flex; align-items: center; gap: 14px; width: 100%; padding: 9px 4px; text-align: left; background: none; border: 0; cursor: pointer; color: var(--color-muted); font-family: var(--font-serif), serif; font-size: 0.875rem; line-height: 1.4; transition: color 0.15s ease; }
 .qzh-opt:disabled { cursor: default; }
 .qzh-hex { position: relative; width: 28px; height: 32px; flex: none; display: grid; place-items: center; }
@@ -364,7 +364,7 @@ body {
      no backdrop-filter. The genuinely-floating `.glass-popover` keeps its blur. */
   .glass-card {
     background: var(--color-navy-dark);
-    border: 1px solid rgba(200, 150, 62, 0.35);
+    border: 1px solid color-mix(in srgb, var(--color-command-gold) 35%, transparent);
     border-radius: 14px;
     box-shadow: var(--elev-card), var(--rim-hi);
   }
@@ -382,7 +382,7 @@ body {
     );
     backdrop-filter: blur(22px) saturate(1.1);
     -webkit-backdrop-filter: blur(22px) saturate(1.1);
-    border: 1px solid rgba(200, 150, 62, 0.4);
+    border: 1px solid color-mix(in srgb, var(--color-command-gold) 40%, transparent);
     border-radius: 14px;
     box-shadow: var(--elev-card), var(--rim-hi);
   }
@@ -425,14 +425,14 @@ body {
   .glass-button-active {
     background: linear-gradient(
       180deg,
-      rgba(200, 150, 62, 0.3) 0%,
-      rgba(200, 150, 62, 0.1) 100%
+      color-mix(in srgb, var(--color-command-gold) 30%, transparent) 0%,
+      color-mix(in srgb, var(--color-command-gold) 10%, transparent) 100%
     );
     color: var(--color-gold-light);
     border-color: var(--color-command-gold);
     box-shadow:
-      0 0 14px rgba(200, 150, 62, 0.25),
-      0 1px 0 rgba(232, 184, 101, 0.2) inset;
+      0 0 14px color-mix(in srgb, var(--color-command-gold) 25%, transparent),
+      0 1px 0 color-mix(in srgb, var(--color-gold-light) 20%, transparent) inset;
   }
 
   /* Primary CTA — solid flat command-gold. No gradient, no outer glow, no inset
@@ -454,32 +454,32 @@ body {
 
   .glass-button-danger {
     color: var(--color-danger-coral);
-    border-color: rgba(217, 122, 106, 0.35);
+    border-color: color-mix(in srgb, var(--color-danger-coral) 35%, transparent);
   }
   .glass-button-danger:hover:not(:disabled) {
     background: linear-gradient(
       180deg,
-      rgba(217, 122, 106, 0.18) 0%,
+      color-mix(in srgb, var(--color-danger-coral) 18%, transparent) 0%,
       rgba(15, 16, 24, 0.35) 100%
     );
     color: #ffb0a0;
-    border-color: rgba(217, 122, 106, 0.65);
+    border-color: color-mix(in srgb, var(--color-danger-coral) 65%, transparent);
   }
 
   .section-band {
     background: linear-gradient(
       90deg,
-      rgba(200, 150, 62, 0.1) 0%,
-      rgba(200, 150, 62, 0.02) 60%,
+      color-mix(in srgb, var(--color-command-gold) 10%, transparent) 0%,
+      color-mix(in srgb, var(--color-command-gold) 2%, transparent) 60%,
       transparent 100%
     );
-    border-bottom: 1px solid rgba(200, 150, 62, 0.18);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-command-gold) 18%, transparent);
   }
 
   .gold-glow {
     box-shadow:
-      0 0 14px rgba(200, 150, 62, 0.25),
-      0 1px 0 rgba(232, 184, 101, 0.2) inset;
+      0 0 14px color-mix(in srgb, var(--color-command-gold) 25%, transparent),
+      0 1px 0 color-mix(in srgb, var(--color-gold-light) 20%, transparent) inset;
   }
 
   .note-italic {
@@ -550,8 +550,8 @@ body {
    *   --signal-blue  → --color-signal-blue       --navy-dark   → --color-navy-dark
    *   --alert-red    → --color-alert-red         --white       → #fff (no token)
    *   --gold-dim-line / --gold-dim-bg → rgba(200,150,62, .15 / .06)
-   *   --blue-dim-bg  → rgba(74,143,255,.06)       --red-dim-bg → rgba(239,83,80,.08)
-   *   --row-divider  → rgba(170,170,170,.1)
+   *   --blue-dim-bg  → color-mix(in srgb, var(--color-signal-blue) 6%, transparent)       --red-dim-bg → color-mix(in srgb, var(--color-alert-red) 8%, transparent)
+   *   --row-divider  → color-mix(in srgb, var(--color-muted) 10%, transparent)
    */
 
   /* meta-strip — mono, caps, gold labels. Mobile: a clean vertical stack with a
@@ -576,7 +576,7 @@ body {
   .meta-strip .sep {
     /* Mobile: hidden — a leading "/" would strand at the start of each line. */
     display: none;
-    color: rgba(200, 150, 62, 0.4);
+    color: color-mix(in srgb, var(--color-command-gold) 40%, transparent);
   }
   @media (min-width: 640px) {
     .meta-strip {
@@ -682,7 +682,7 @@ body {
       to right,
       var(--color-command-gold) 0%,
       var(--color-command-gold) 38%,
-      rgba(200, 150, 62, 0) 100%
+      color-mix(in srgb, var(--color-command-gold) 0%, transparent) 100%
     );
   }
 
@@ -717,9 +717,9 @@ body {
 
   /* callout — full-border advisory tile with severity tints + mono label. */
   .callout {
-    border: 1px solid rgba(200, 150, 62, 0.3);
+    border: 1px solid color-mix(in srgb, var(--color-command-gold) 30%, transparent);
     border-radius: 8px;
-    background: rgba(200, 150, 62, 0.06);
+    background: color-mix(in srgb, var(--color-command-gold) 6%, transparent);
     padding: 1.1rem 1.4rem;
     margin: 1.5rem 0;
     font-size: 15px;
@@ -735,22 +735,22 @@ body {
     font-weight: 700;
   }
   .callout.critical {
-    border-color: rgba(239, 83, 80, 0.4);
-    background: rgba(239, 83, 80, 0.08);
+    border-color: color-mix(in srgb, var(--color-alert-red) 40%, transparent);
+    background: color-mix(in srgb, var(--color-alert-red) 8%, transparent);
   }
   .callout.critical .callout-label {
     color: var(--color-alert-red);
   }
   .callout.warn {
-    border-color: rgba(200, 150, 62, 0.3);
-    background: rgba(200, 150, 62, 0.06);
+    border-color: color-mix(in srgb, var(--color-command-gold) 30%, transparent);
+    background: color-mix(in srgb, var(--color-command-gold) 6%, transparent);
   }
   .callout.warn .callout-label {
     color: var(--color-command-gold);
   }
   .callout.info {
-    border-color: rgba(74, 143, 255, 0.35);
-    background: rgba(74, 143, 255, 0.06);
+    border-color: color-mix(in srgb, var(--color-signal-blue) 35%, transparent);
+    background: color-mix(in srgb, var(--color-signal-blue) 6%, transparent);
   }
   .callout.info .callout-label {
     color: var(--color-signal-blue);
@@ -808,7 +808,7 @@ body {
   }
   .table-tech td {
     padding: 0.6rem 0.85rem;
-    border-bottom: 1px solid rgba(170, 170, 170, 0.1);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-muted) 10%, transparent);
     vertical-align: middle;
     color: var(--color-muted);
   }
@@ -849,7 +849,7 @@ body {
     background: rgba(255, 255, 255, 0.05);
   }
   .table-tech tr:hover td {
-    background: rgba(200, 150, 62, 0.03);
+    background: color-mix(in srgb, var(--color-command-gold) 3%, transparent);
   }
 
   /* Below the `sm` breakpoint a 2-column table crushes long-text cells into a
@@ -929,12 +929,12 @@ body {
    cell's opaque backdrop never fades and never reveals the connector behind it
    (the generic `pulse` keyframe dims opacity, which let the line show through). */
 @keyframes gs-pulse {
-  0%, 100% { filter: drop-shadow(0 0 2px rgba(200, 150, 62, 0.4)); }
-  50% { filter: drop-shadow(0 0 8px rgba(200, 150, 62, 0.75)); }
+  0%, 100% { filter: drop-shadow(0 0 2px color-mix(in srgb, var(--color-command-gold) 40%, transparent)); }
+  50% { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-command-gold) 75%, transparent)); }
 }
 .gs-pulse { animation: gs-pulse 1.8s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .gs-pulse { animation: none; filter: drop-shadow(0 0 5px rgba(200, 150, 62, 0.55)); }
+  .gs-pulse { animation: none; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--color-command-gold) 55%, transparent)); }
 }
 
 /* Sign-in entrance — one orchestrated page-load reveal. Each cluster group
@@ -1084,14 +1084,14 @@ body {
   border-image: linear-gradient(
       90deg,
       transparent,
-      rgba(200, 150, 62, 0.55),
+      color-mix(in srgb, var(--color-command-gold) 55%, transparent),
       transparent
     )
     1;
   background:
     radial-gradient(
       120% 90% at 50% 0%,
-      rgba(200, 150, 62, 0.05),
+      color-mix(in srgb, var(--color-command-gold) 5%, transparent),
       transparent 60%
     ),
     var(--color-deep-space);
@@ -1195,6 +1195,39 @@ body {
   }
 }
 
+/* ── Light-theme decontamination overrides (Phase 1) ─────────────────────────
+   Non-token literals the `:root[data-theme="light"]` token block can't reach:
+   hardcoded bright-white ink (#fff), a pale-gray lead, white washes, the
+   blue-steel engineering grid, and a pale coral hover. The gold/red/blue/coral
+   rgba TINTS already auto-theme (converted to color-mix(var(--token))). Dark
+   keeps every original value untouched. Unlayered, so these beat the
+   `@layer components` rules without reordering. */
+:root[data-theme="light"] .app-backdrop {
+  /* warm graphite grid on paper, not blue-steel on deep-space */
+  --grid-minor: rgba(40, 34, 22, 0.04);
+  --grid-bold: rgba(40, 34, 22, 0.07);
+}
+:root[data-theme="light"] .gh-lead {
+  /* #d8d8d8 bright-on-dark → dark ink on paper */
+  color: var(--color-text);
+}
+:root[data-theme="light"] .phex:hover .phex-title,
+:root[data-theme="light"] .foot-brand:hover .foot-wm,
+:root[data-theme="light"] .foot-group a:hover {
+  /* #fff brightest-on-dark → the darkest ink on light */
+  color: var(--color-title);
+}
+:root[data-theme="light"] .table-tech td .ref {
+  color: var(--color-title);
+}
+:root[data-theme="light"] .table-tech tr:nth-child(even) td {
+  /* a barely-there warm lift instead of the white-on-dark zebra */
+  background: rgba(40, 34, 22, 0.035);
+}
+:root[data-theme="light"] .glass-button-danger:hover:not(:disabled) {
+  /* the dark-mode lift to #ffb0a0 inverts to a deeper coral on ivory */
+  color: #8a3a2a;
+}
 
 /* ── Brief print ─────────────────────────────────────────────────────────────
    "Download PDF" on a brief page prints the page itself. Isolate the brief
