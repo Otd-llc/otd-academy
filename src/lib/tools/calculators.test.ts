@@ -10,6 +10,10 @@ import {
   nextE24Up,
   voltageDividerOut,
   voltageDividerCurrentMa,
+  ldoHeadroomV,
+  ldoHolds,
+  ldoDissipationW,
+  rcCutoffHz,
 } from "@/lib/tools/calculators";
 
 describe("lipoRuntimeHours", () => {
@@ -124,5 +128,38 @@ describe("voltageDividerCurrentMa", () => {
   it("is Vin / (R1 + R2), in mA", () => {
     // 5 V / 30k = 0.1667 mA
     expect(voltageDividerCurrentMa({ vinV: 5, r1Ohms: 10000, r2Ohms: 20000 })).toBeCloseTo(0.16667, 4);
+  });
+});
+
+describe("ldoHeadroomV", () => {
+  it("is Vin - Vout", () => {
+    expect(ldoHeadroomV({ vinV: 5, voutV: 3.3 })).toBeCloseTo(1.7, 6);
+  });
+});
+
+describe("ldoHolds", () => {
+  it("holds only when headroom is at least the dropout", () => {
+    expect(ldoHolds({ vinV: 5, voutV: 3.3, dropoutV: 0.3 })).toBe(true);
+    expect(ldoHolds({ vinV: 3.4, voutV: 3.3, dropoutV: 0.3 })).toBe(false);
+    expect(ldoHolds({ vinV: 3.6, voutV: 3.3, dropoutV: 0.3 })).toBe(true); // exactly at the edge
+  });
+});
+
+describe("ldoDissipationW", () => {
+  it("is (Vin - Vout) * Iload", () => {
+    // (5-3.3) V * 0.55 A = 0.935 W
+    expect(ldoDissipationW({ vinV: 5, voutV: 3.3, currentMa: 550 })).toBeCloseTo(0.935, 6);
+    expect(ldoDissipationW({ vinV: 5, voutV: 3.3, currentMa: 0 })).toBe(0);
+  });
+});
+
+describe("rcCutoffHz", () => {
+  it("is 1 / (2*pi*R*C)", () => {
+    expect(rcCutoffHz({ rOhms: 10000, cFarads: 100e-9 })).toBeCloseTo(159.15, 1);
+    expect(rcCutoffHz({ rOhms: 1000, cFarads: 10e-9 })).toBeCloseTo(15915, 0);
+  });
+  it("throws on non-positive R or C", () => {
+    expect(() => rcCutoffHz({ rOhms: 0, cFarads: 1e-9 })).toThrow();
+    expect(() => rcCutoffHz({ rOhms: 1000, cFarads: 0 })).toThrow();
   });
 });

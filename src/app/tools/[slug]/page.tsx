@@ -12,6 +12,8 @@ import { LipoRuntimeBody } from "@/components/tools/LipoRuntimeBody";
 import { Ws2812PowerBody } from "@/components/tools/Ws2812PowerBody";
 import { LedResistorBody } from "@/components/tools/LedResistorBody";
 import { VoltageDividerBody } from "@/components/tools/VoltageDividerBody";
+import { LdoHeadroomBody } from "@/components/tools/LdoHeadroomBody";
+import { RcFilterBody } from "@/components/tools/RcFilterBody";
 import {
   techArticleJsonLd,
   learningResourceJsonLd,
@@ -28,6 +30,8 @@ const BODIES: Record<string, () => ReactNode> = {
   "ws2812-power-supply": Ws2812PowerBody,
   "led-series-resistor": LedResistorBody,
   "voltage-divider": VoltageDividerBody,
+  "ldo-headroom": LdoHeadroomBody,
+  "rc-filter-cutoff": RcFilterBody,
 };
 
 export function generateStaticParams(): Params[] {

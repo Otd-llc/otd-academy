@@ -135,3 +135,38 @@ export function voltageDividerCurrentMa(input: {
   }
   return (input.vinV / total) * 1000;
 }
+
+// ── Linear LDO headroom + dissipation ────────────────────────────────────────
+// A linear regulator holds Vout only while its input stays at least a dropout
+// voltage above Vout. The voltage it drops (Vin − Vout) becomes heat at the load
+// current (Iin ≈ Iout for a linear LDO) — the real thermal limit.
+
+export function ldoHeadroomV(input: { vinV: number; voutV: number }): number {
+  return input.vinV - input.voutV;
+}
+
+export function ldoHolds(input: {
+  vinV: number;
+  voutV: number;
+  dropoutV: number;
+}): boolean {
+  return input.vinV - input.voutV >= input.dropoutV;
+}
+
+export function ldoDissipationW(input: {
+  vinV: number;
+  voutV: number;
+  currentMa: number;
+}): number {
+  return (input.vinV - input.voutV) * (input.currentMa / 1000);
+}
+
+// ── First-order RC cutoff ────────────────────────────────────────────────────
+// The −3 dB corner of an RC low/high-pass: fc = 1 / (2π R C). C is in farads.
+
+export function rcCutoffHz(input: { rOhms: number; cFarads: number }): number {
+  if (input.rOhms <= 0 || input.cFarads <= 0) {
+    throw new Error("R and C must both be greater than 0");
+  }
+  return 1 / (2 * Math.PI * input.rOhms * input.cFarads);
+}
