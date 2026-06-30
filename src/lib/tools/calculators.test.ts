@@ -151,6 +151,10 @@ describe("ldoHolds", () => {
     expect(ldoHolds({ vinV: 3.4, voutV: 3.3, dropoutV: 0.3 })).toBe(false);
     expect(ldoHolds({ vinV: 3.6, voutV: 3.3, dropoutV: 0.3 })).toBe(true); // exactly at the edge
   });
+  it("holds at the exact dropout edge despite float dust (epsilon)", () => {
+    // 5.0 - 4.7 = 0.2999999999999998 < 0.3 in raw float; the epsilon keeps it holding
+    expect(ldoHolds({ vinV: 5.0, voutV: 4.7, dropoutV: 0.3 })).toBe(true);
+  });
 });
 
 describe("ldoDissipationW", () => {
@@ -158,6 +162,10 @@ describe("ldoDissipationW", () => {
     // (5-3.3) V * 0.55 A = 0.935 W
     expect(ldoDissipationW({ vinV: 5, voutV: 3.3, currentMa: 550 })).toBeCloseTo(0.935, 6);
     expect(ldoDissipationW({ vinV: 5, voutV: 3.3, currentMa: 0 })).toBe(0);
+  });
+  it("throws when Vin is below Vout or current is negative", () => {
+    expect(() => ldoDissipationW({ vinV: 3.3, voutV: 5, currentMa: 100 })).toThrow();
+    expect(() => ldoDissipationW({ vinV: 5, voutV: 3.3, currentMa: -1 })).toThrow();
   });
 });
 
@@ -176,17 +184,21 @@ describe("ipc2221TraceWidthMil", () => {
   it("matches the IPC-2221 external curve for a known case", () => {
     // 1 A, 10 °C rise, 1 oz, external ≈ 11.8 mil (per the IPC-2221 curve fit)
     expect(
-      ipc2221TraceWidthMil({ currentA: 1, tempRiseC: 10, copperOz: 1, external: true }),
+      ipc2221TraceWidthMil({ currentA: 1, tempRiseC: 10, copperOz: 1, layer: "external" }),
     ).toBeCloseTo(11.8, 0);
   });
+  it("defaults to the external (conservative) layer", () => {
+    expect(ipc2221TraceWidthMil({ currentA: 1, tempRiseC: 10, copperOz: 1 })).toBeCloseTo(11.8, 0);
+  });
   it("needs a wider trace on an internal layer (k halved)", () => {
-    const ext = ipc2221TraceWidthMil({ currentA: 2, tempRiseC: 10, copperOz: 1, external: true });
-    const int = ipc2221TraceWidthMil({ currentA: 2, tempRiseC: 10, copperOz: 1, external: false });
+    const ext = ipc2221TraceWidthMil({ currentA: 2, tempRiseC: 10, copperOz: 1, layer: "external" });
+    const int = ipc2221TraceWidthMil({ currentA: 2, tempRiseC: 10, copperOz: 1, layer: "internal" });
     expect(int).toBeGreaterThan(ext);
   });
-  it("throws on non-positive inputs", () => {
-    expect(() => ipc2221TraceWidthMil({ currentA: 0, tempRiseC: 10, copperOz: 1, external: true })).toThrow();
-    expect(() => ipc2221TraceWidthMil({ currentA: 1, tempRiseC: 0, copperOz: 1, external: true })).toThrow();
+  it("throws on non-positive inputs (including copper weight)", () => {
+    expect(() => ipc2221TraceWidthMil({ currentA: 0, tempRiseC: 10, copperOz: 1, layer: "external" })).toThrow();
+    expect(() => ipc2221TraceWidthMil({ currentA: 1, tempRiseC: 0, copperOz: 1, layer: "external" })).toThrow();
+    expect(() => ipc2221TraceWidthMil({ currentA: 1, tempRiseC: 10, copperOz: 0, layer: "external" })).toThrow();
   });
 });
 
@@ -223,5 +235,57 @@ describe("battery pack energy", () => {
   it("pack voltage = nominal * series; capacity = mAh * parallel", () => {
     expect(packVoltage({ nominalV: 3.7, series: 3 })).toBeCloseTo(11.1, 6);
     expect(packCapacityMah({ capacityMah: 3000, parallel: 2 })).toBe(6000);
+  });
+});
+
+// Consistent guard policy: every function rejects physically meaningless input.
+describe("input guards (consistency)", () => {
+  it("lipoRuntimeHours rejects an out-of-range usable percentage", () => {
+    expect(() => lipoRuntimeHours({ capacityMah: 2000, averageCurrentMa: 100, usablePct: -1 })).toThrow();
+    expect(() => lipoRuntimeHours({ capacityMah: 2000, averageCurrentMa: 100, usablePct: 101 })).toThrow();
+  });
+  it("ledResistorPowerMw rejects a supply at/below Vf or non-positive current (matches its sibling)", () => {
+    expect(() => ledResistorPowerMw({ supplyV: 1.8, ledVf: 2.0, currentMa: 5 })).toThrow();
+    expect(() => ledResistorPowerMw({ supplyV: 5, ledVf: 2, currentMa: 0 })).toThrow();
+  });
+  it("both voltage-divider functions reject a negative resistor leg", () => {
+    expect(() => voltageDividerOut({ vinV: 5, r1Ohms: -1000, r2Ohms: 2000 })).toThrow();
+    expect(() => voltageDividerCurrentMa({ vinV: 5, r1Ohms: 1000, r2Ohms: -1 })).toThrow();
+  });
+  it("voltageDividerCurrentMa still rejects a zero sum", () => {
+    expect(() => voltageDividerCurrentMa({ vinV: 5, r1Ohms: 0, r2Ohms: 0 })).toThrow();
+  });
+  it("recommendResistorWattage rejects negative power", () => {
+    expect(() => recommendResistorWattage(-1)).toThrow();
+  });
+  it("formatRuntime rejects negative or non-finite input", () => {
+    expect(() => formatRuntime(-0.5)).toThrow();
+    expect(() => formatRuntime(NaN)).toThrow();
+  });
+  it("resistorPowerW rejects negatives but allows zero (guard is < 0)", () => {
+    expect(() => resistorPowerW({ currentMa: -1, rOhms: 10 })).toThrow();
+    expect(resistorPowerW({ currentMa: 0, rOhms: 0 })).toBe(0);
+  });
+});
+
+// Edge branches and defaults previously unexercised.
+describe("edge branches", () => {
+  it("nextE24Up returns the smallest E24 value for non-positive input", () => {
+    expect(nextE24Up(0)).toBe(1);
+    expect(nextE24Up(-5)).toBe(1);
+  });
+  it("recommendResistorWattage honours a custom derating and clamps to the max", () => {
+    expect(recommendResistorWattage(0.1, 3)).toBe(0.5); // need 0.3 -> 0.5
+    expect(recommendResistorWattage(6)).toBe(10); // need 12 -> clamp to the 10 W max
+  });
+  it("ws2812RecommendedSupplyAmps applies a non-default headroom", () => {
+    // 30 px * 60 mA = 1800 mA, +50% = 2700 mA = 2.7 A
+    expect(ws2812RecommendedSupplyAmps({ pixelCount: 30 }, 50)).toBeCloseTo(2.7, 5);
+  });
+  it("ws2812SupplyMilliamps returns just the controller overhead at zero pixels", () => {
+    expect(ws2812SupplyMilliamps({ pixelCount: 0, controllerMa: 220 })).toBe(220);
+  });
+  it("formatRuntime renders zero", () => {
+    expect(formatRuntime(0)).toBe("0 h 0 m");
   });
 });
