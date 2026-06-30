@@ -154,6 +154,7 @@ export default async function RootLayout({
                     <Link href="/courses">Courses</Link>
                     <Link href="/library">Library</Link>
                     <Link href="/glossary">Glossary</Link>
+                    <Link href="/tools">Tools</Link>
                   </nav>
                   <nav className="foot-group" aria-label="Catalog">
                     <span className="foot-gh">Catalog</span>
