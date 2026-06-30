@@ -14,6 +14,7 @@ import { LedResistorBody } from "@/components/tools/LedResistorBody";
 import { VoltageDividerBody } from "@/components/tools/VoltageDividerBody";
 import { LdoHeadroomBody } from "@/components/tools/LdoHeadroomBody";
 import { RcFilterBody } from "@/components/tools/RcFilterBody";
+import { TraceWidthBody } from "@/components/tools/TraceWidthBody";
 import {
   techArticleJsonLd,
   learningResourceJsonLd,
@@ -32,6 +33,7 @@ const BODIES: Record<string, () => ReactNode> = {
   "voltage-divider": VoltageDividerBody,
   "ldo-headroom": LdoHeadroomBody,
   "rc-filter-cutoff": RcFilterBody,
+  "pcb-trace-width": TraceWidthBody,
 };
 
 export function generateStaticParams(): Params[] {

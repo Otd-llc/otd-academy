@@ -14,6 +14,8 @@ import {
   ldoHolds,
   ldoDissipationW,
   rcCutoffHz,
+  ipc2221TraceWidthMil,
+  milToMm,
 } from "@/lib/tools/calculators";
 
 describe("lipoRuntimeHours", () => {
@@ -161,5 +163,30 @@ describe("rcCutoffHz", () => {
   it("throws on non-positive R or C", () => {
     expect(() => rcCutoffHz({ rOhms: 0, cFarads: 1e-9 })).toThrow();
     expect(() => rcCutoffHz({ rOhms: 1000, cFarads: 0 })).toThrow();
+  });
+});
+
+describe("ipc2221TraceWidthMil", () => {
+  it("matches the IPC-2221 external curve for a known case", () => {
+    // 1 A, 10 °C rise, 1 oz, external ≈ 11.8 mil (per the IPC-2221 curve fit)
+    expect(
+      ipc2221TraceWidthMil({ currentA: 1, tempRiseC: 10, copperOz: 1, external: true }),
+    ).toBeCloseTo(11.8, 0);
+  });
+  it("needs a wider trace on an internal layer (k halved)", () => {
+    const ext = ipc2221TraceWidthMil({ currentA: 2, tempRiseC: 10, copperOz: 1, external: true });
+    const int = ipc2221TraceWidthMil({ currentA: 2, tempRiseC: 10, copperOz: 1, external: false });
+    expect(int).toBeGreaterThan(ext);
+  });
+  it("throws on non-positive inputs", () => {
+    expect(() => ipc2221TraceWidthMil({ currentA: 0, tempRiseC: 10, copperOz: 1, external: true })).toThrow();
+    expect(() => ipc2221TraceWidthMil({ currentA: 1, tempRiseC: 0, copperOz: 1, external: true })).toThrow();
+  });
+});
+
+describe("milToMm", () => {
+  it("converts thousandths of an inch to mm", () => {
+    expect(milToMm(100)).toBeCloseTo(2.54, 5);
+    expect(milToMm(11.8)).toBeCloseTo(0.2997, 3);
   });
 });
