@@ -19,6 +19,14 @@ export type ToolMeta = {
   /** Meta description + hub blurb (~150 chars). */
   summary: string;
   keywords: string[];
+  /**
+   * Course slugs this tool is load-bearing for. Rendered as a "Tools for this
+   * build" link on `/courses/[slug]` (cluster-wiring: the tool earns inbound
+   * internal-link equity, the course gains a useful resource). Reuse a tool
+   * across EVERY course where it genuinely applies; never force an irrelevant
+   * link — relevance is the SEO signal, not link count.
+   */
+  relatedCourses: string[];
   published: string;
   modified: string;
 };
@@ -37,6 +45,11 @@ export const TOOLS: ToolMeta[] = [
       "battery life calculator mah",
       "microcontroller runtime",
     ],
+    relatedCourses: [
+      "l1-01-wroom-breakout",
+      "l2-01-battery-power-module",
+      "l3-04-bms",
+    ],
     published: "2026-06-29",
     modified: "2026-06-29",
   },
@@ -53,7 +66,7 @@ export const TOOLS: ToolMeta[] = [
       "led strip current calculator",
       "ws2812b power",
     ],
-
+    relatedCourses: ["l1-03-ws2812-node", "l3-03-lighting-array"],
     published: "2026-06-29",
     modified: "2026-06-29",
   },
@@ -61,4 +74,12 @@ export const TOOLS: ToolMeta[] = [
 
 export function getTool(slug: string): ToolMeta | undefined {
   return TOOLS.find((t) => t.slug === slug);
+}
+
+/**
+ * Tools that are load-bearing for a given course — the course-page cluster link.
+ * Empty for a course with no genuinely-relevant tool (that's fine; don't force).
+ */
+export function toolsForCourse(slug: string): ToolMeta[] {
+  return TOOLS.filter((t) => t.relatedCourses.includes(slug));
 }

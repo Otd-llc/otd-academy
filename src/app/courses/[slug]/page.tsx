@@ -27,6 +27,7 @@ import { ChevronLeftIcon } from "@/components/icons";
 import { STAGE_ORDER, STAGE_LABELS, type StageName } from "@/lib/stages";
 import { SKILL_PATHS, prereqClosure } from "@/lib/skill-paths";
 import { loadProjectMiniLessons } from "@/lib/library/load";
+import { toolsForCourse } from "@/lib/tools/registry";
 
 export const dynamic = "force-dynamic";
 
@@ -161,6 +162,10 @@ export default async function CoursePreviewPage({
   // not-yet-open course page real, indexable value AND passes internal link
   // equity into the Library cluster.
   const reading = await loadProjectMiniLessons(project.id);
+
+  // Cluster link: free calculators whose math this board needs. Registry-driven
+  // (src/lib/tools/registry.ts relatedCourses); empty for courses with no fit.
+  const tools = toolsForCourse(slug);
 
   // Reading access by tier — accurate per course. PUBLIC reads free, FREE needs
   // a (free) account, PREMIUM is a one-time purchase (overview previews free).
@@ -357,6 +362,33 @@ export default async function CoursePreviewPage({
                   Browse the full Library →
                 </Link>
               </p>
+            </section>
+          ) : null}
+
+          {tools.length > 0 ? (
+            <section data-reveal>
+              <SectionHead>Tools for this build</SectionHead>
+              <p className="mt-4 max-w-2xl font-serif text-base leading-relaxed text-muted">
+                Free calculators that do the math this board needs. Each is worked
+                from a real OTD board, with the formula and a cited source.
+              </p>
+              <ul className="mt-5 grid gap-2 sm:grid-cols-2">
+                {tools.map((t) => (
+                  <li key={t.slug}>
+                    <Link
+                      href={`/tools/${t.slug}`}
+                      className="group flex h-full flex-col gap-1 rounded border border-panel-border bg-deep-space/40 px-4 py-3 transition-colors hover:border-command-gold/50"
+                    >
+                      <span className="font-mono text-sm text-text group-hover:text-command-gold">
+                        {t.title} →
+                      </span>
+                      <span className="font-serif text-xs leading-snug text-muted">
+                        {t.summary}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </section>
           ) : null}
 
