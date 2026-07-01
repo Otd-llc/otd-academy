@@ -32,8 +32,8 @@
   {
     "basename": "gerber-layer-stack",
     "image": "/guide-diagrams/gerber-layer-stack.webp",
-    "alt": "A Gerber set: one flat file per layer. Front to back — F_Silkscreen.gbr (the white labels), F_Mask.gbr (mask, gaps at the pads), F_Cu.gbr (front copper, your traces), B_Cu.gbr (back copper, ground plane), B_Mask.gbr (mask, gaps at the pads), B_Silkscreen.gbr (the white labels), and Edge_Cuts.gbr (where the fab cuts the board). A separate drill file, .drl, pierces the copper layers. Zip every one into a single archive — that zip is the board the fab builds.",
-    "hash": "f2b3ce0cd651"
+    "alt": "A Gerber set is one flat file per layer, spread front to back: F_Silk (the white labels), F_Mask (solder mask, open at the pads), F_Cu (front copper, your traces), B_Cu (back copper, ground plane), B_Mask, and B_Silk. A separate drill file, .drl, pierces the two copper layers. Zip every file into a single archive; that zip is the board the fab builds.",
+    "hash": "a5ab4412ff46"
   },
   {
     "basename": "continuity-vbus-gnd",
