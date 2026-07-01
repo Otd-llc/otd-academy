@@ -128,8 +128,8 @@
   {
     "basename": "instrumentation-amp",
     "image": "/guide-diagrams/instrumentation-amp.webp",
-    "alt": "An instrumentation amplifier measures the difference between two electrodes. Each input carries the tiny microvolt brain signal plus a large common-mode interference (mains hum). The amplifier outputs the gain times the difference of the two inputs, so the common-mode part that is the same on both inputs subtracts away and the difference (the brain signal) survives and is amplified. The common-mode rejection ratio, around 100 to 110 decibels in good EEG amplifiers, measures how well the common part is cancelled.",
-    "hash": "fd3d0661b9dc"
+    "alt": "An instrumentation amplifier measuring the difference between two electrodes. Each input carries the tiny microvolt brain signal riding on a large common-mode interference, the mains hum, drawn as a slow wobble that is the same on both inputs. Because the amplifier outputs the gained difference of its two inputs, that shared common-mode subtracts away and only the signal difference survives, amplified and clean. How completely the common part is rejected is the common-mode rejection ratio, around 100 to 110 decibels in good EEG amplifiers; unequal electrode impedance, not the chip, is what usually defeats it.",
+    "hash": "323750374833"
   },
   {
     "basename": "ten-twenty-midline",
