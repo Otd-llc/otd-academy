@@ -1,34 +1,17 @@
 // Resolve a Library lesson's diagram image blocks into embeddable PNG data URIs
-// for the PDF renderer. NO @react-pdf import here (pure node: fs + sharp), so the
-// data prep stays out of the renderer bundle (mirrors cert-font-files.ts).
+// for the PDF renderer. Pure node (fs only) — NO runtime image codec.
 //
 // A Library `image` block's `src` is the diagram REGISTRY KEY
-// (`/guide-diagrams/<name>.svg`) — the on-page diagram is a DOM-only React
-// component, but the diagram-export pipeline commits an indexable raster at
-// `public/guide-diagrams/<name>.webp`. react-pdf can't embed WebP, so we read
-// that file and transcode it to PNG with sharp (already a dependency). The
-// result is cached per src so the combined Field Guide doesn't re-decode a
-// diagram shared across lessons.
+// (`/guide-diagrams/<name>.svg`). The diagram-export pipeline commits an
+// indexable `<name>.webp` for the web AND a `<name>.png` sibling for print
+// (react-pdf can't embed WebP, and a native transcoder like sharp won't load its
+// libvips .so on Vercel's serverless target — ERR_DLOPEN_FAILED). So the PDF
+// reads the committed .png directly: no transcode, no native/wasm dependency.
+// Dimensions come from the PNG IHDR header. Cached per src so the combined Field
+// Guide doesn't re-read a diagram shared across lessons.
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { ContentBlock } from "@/lib/schemas/guide";
-
-// Lazy, guarded sharp load. sharp is a NATIVE module; if its platform binary
-// can't load on a runtime (e.g. a serverless target missing the libvips .so), we
-// degrade diagrams to caption-only rather than 500 the whole PDF. A top-level
-// `import sharp` would throw at module load, before the per-image try/catch below
-// could contain it. Resolved once and cached (including a null failure).
-type SharpFn = Awaited<typeof import("sharp")>["default"];
-let sharpFn: SharpFn | null | undefined;
-async function loadSharp(): Promise<SharpFn | null> {
-  if (sharpFn !== undefined) return sharpFn;
-  try {
-    sharpFn = (await import("sharp")).default;
-  } catch {
-    sharpFn = null;
-  }
-  return sharpFn;
-}
 
 export type ResolvedImage = {
   /** A `data:image/png;base64,...` URI react-pdf's <Image src> accepts. */
@@ -39,16 +22,24 @@ export type ResolvedImage = {
 
 const cache = new Map<string, ResolvedImage | null>();
 
-// Map an image-block src to the on-disk raster, or null if it isn't one we embed.
-//   /guide-diagrams/<name>.svg → public/guide-diagrams/<name>.webp (the export)
+// Map an image-block src to the on-disk PNG raster, or null if it isn't one we
+// embed. http(s) and empty srcs are skipped (the Library uses neither).
+//   /guide-diagrams/<name>.svg → public/guide-diagrams/<name>.png (the export)
 //   /<other root-relative>     → public/<other> (a real committed asset)
-// http(s) and empty srcs are skipped (the Library uses neither for diagrams).
 function diskPathFor(src: string): string | null {
   if (!src.startsWith("/")) return null; // http(s) or empty → skip
   const rel = src.startsWith("/guide-diagrams/")
-    ? src.replace(/\.svg$/, ".webp").replace(/^\//, "")
+    ? src.replace(/\.svg$/, ".png").replace(/^\//, "")
     : src.replace(/^\//, "");
   return path.join(process.cwd(), "public", rel);
+}
+
+// PNG header: 8-byte signature (0x89 'PNG'...), then the IHDR chunk with width as
+// a big-endian uint32 at byte 16 and height at byte 20. Returns null if the file
+// isn't a PNG (the caller falls back to a default aspect ratio).
+function pngSize(buf: Buffer): { w: number; h: number } | null {
+  if (buf.length < 24 || buf.readUInt32BE(0) !== 0x89504e47) return null;
+  return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
 }
 
 async function resolveOne(src: string): Promise<ResolvedImage | null> {
@@ -56,14 +47,12 @@ async function resolveOne(src: string): Promise<ResolvedImage | null> {
   let resolved: ResolvedImage | null = null;
   try {
     const file = diskPathFor(src);
-    const sharp = await loadSharp();
-    if (file && sharp) {
-      const input = await readFile(file);
-      const png = sharp(input).png();
-      const { data, info } = await png.toBuffer({ resolveWithObject: true });
+    if (file) {
+      const buf = await readFile(file);
+      const dim = pngSize(buf);
       resolved = {
-        dataUri: `data:image/png;base64,${data.toString("base64")}`,
-        ratio: info.height > 0 ? info.width / info.height : 1.6,
+        dataUri: `data:image/png;base64,${buf.toString("base64")}`,
+        ratio: dim && dim.h > 0 ? dim.w / dim.h : 1.6,
       };
     }
   } catch {
@@ -77,7 +66,7 @@ async function resolveOne(src: string): Promise<ResolvedImage | null> {
 
 /**
  * Resolve every diagram image referenced by `blocks` into a src→PNG map. Pass
- * the same accumulator across many lessons (the Field Guide) to share decodes.
+ * the same accumulator across many lessons (the Field Guide) to share reads.
  */
 export async function resolveLibraryImages(
   blocks: ContentBlock[],

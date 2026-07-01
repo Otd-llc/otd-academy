@@ -1,30 +1,24 @@
 import type { NextConfig } from "next";
 
-// Files a Library PDF route's serverless function must carry: the bundled fonts
-// and the exported diagram rasters (public/ isn't traced by default). The `sharp`
-// native binary is handled via serverExternalPackages below — do NOT glob it in
-// from node_modules/.pnpm here: those are symlinked dirs and Vercel rejects the
-// function package ("invalid deployment package ... symlinked directories").
+// Files a Library PDF route's serverless function must carry: the bundled OTD
+// fonts and the exported diagram rasters (public/ isn't traced by default). The
+// PDF reads the committed `<name>.png` diagram directly (no runtime image codec),
+// so there is no native binary to trace — sharp is gone from these routes.
 const LIBRARY_PDF_TRACE = [
   "./src/lib/pdf/fonts/**",
   "./public/guide-diagrams/**",
 ];
 
 const nextConfig: NextConfig = {
-  // `sharp` is a NATIVE module (the Library PDF routes use it to transcode the
-  // diagram WebP rasters to PNG for react-pdf). Keep it external so Node loads the
-  // platform binary via require() at runtime instead of bundling it.
-  serverExternalPackages: ["sharp"],
   // Bundle the certificate fonts into the cert routes' serverless functions —
   // they're read from disk at render (react-pdf + satori), so Vercel's tracer
   // must include them or the routes 500 in prod.
   outputFileTracingIncludes: {
     "/learn/[slug]/certificate/[token]/pdf": ["./src/lib/pdf/fonts/**", "./src/lib/pdf/seal.png"],
     "/learn/[slug]/certificate/[token]/image": ["./src/lib/pdf/fonts/**", "./src/lib/pdf/seal.png"],
-    // The Library PDFs read the bundled fonts + the exported diagram rasters
-    // (public/ is NOT bundled into serverless functions by default). sharp (the
-    // WebP->PNG transcode) is external + lazily loaded, so a runtime load
-    // failure degrades diagrams to caption-only instead of 500ing the route.
+    // The Library PDFs read the bundled fonts + the exported diagram PNGs
+    // (public/ is NOT bundled into serverless functions by default). Trace both
+    // or these routes render text-only / 500 on a missing font.
     "/library/[slug]/pdf": LIBRARY_PDF_TRACE,
     "/library/field-guide/pdf": LIBRARY_PDF_TRACE,
   },

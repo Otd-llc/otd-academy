@@ -8,12 +8,15 @@
 // in the PDF with zero manual export (the whole point — no doc drift).
 //
 // Design: a warm-ivory PRINT document (not the dark web theme — dark wastes ink
-// and reads poorly on paper), reusing the certificate's bundled Crimson Text
-// serif + the cert print palette so the PDF family stays coherent. Labels and
-// captions are built-in Helvetica (the mono-substitute, as on the certificate);
-// no Bebas/Saira/Space Mono are bundled for PDF, and a serif reading document is
-// the right call for a field guide anyway. House rule holds: no em-dashes in any
-// rendered string; `·` is the separator.
+// and reads poorly on paper) styled to the OTD house system (otd-frontend-design)
+// with the four faces bundled for print (see library-fonts.ts):
+//   Bebas   — display: cover title, lesson titles, section headings (CAPS)
+//   Mono    — Space Mono labels: eyebrows, captions, footer, table heads
+//   Numeral — Saira Condensed for the contents numbers
+//   Serif   — Crimson Text body reading voice (the cert serif; the family stays
+//             coherent with the certificate). Gold accent + warm hairlines + the
+//             gold brandmark, on the cert print palette.
+// House rule holds: no em-dashes in any rendered string; `·` is the separator.
 import {
   Document,
   Page,
@@ -74,7 +77,7 @@ const s = StyleSheet.create({
     right: 54,
     flexDirection: "row",
     justifyContent: "space-between",
-    fontFamily: "Helvetica",
+    fontFamily: "Mono",
     fontSize: 7.5,
     letterSpacing: 1,
     color: FAINT,
@@ -82,27 +85,27 @@ const s = StyleSheet.create({
   },
   // ── lesson header ──
   eyebrow: {
-    fontFamily: "Helvetica",
+    fontFamily: "Mono",
     fontSize: 8,
     letterSpacing: 2.5,
     color: GOLD,
     textTransform: "uppercase",
     marginBottom: 8,
   },
-  title: { fontFamily: "Serif", fontSize: 25, fontWeight: 600, color: INK, lineHeight: 1.15 },
+  title: { fontFamily: "Bebas", fontSize: 33, color: INK, lineHeight: 0.95, letterSpacing: 0.4, textTransform: "uppercase" },
   summary: { fontFamily: "Serif", fontSize: 12, fontStyle: "italic", color: MUTED, marginTop: 8, lineHeight: 1.45 },
   headRule: { height: 1.4, backgroundColor: GOLD, marginTop: 14, marginBottom: 4 },
-  byline: { fontFamily: "Helvetica", fontSize: 7.5, letterSpacing: 1.2, color: FAINT, textTransform: "uppercase", marginTop: 8 },
+  byline: { fontFamily: "Mono", fontSize: 7.5, letterSpacing: 1.2, color: FAINT, textTransform: "uppercase", marginTop: 8 },
 
   // ── blocks ──
   prose: { fontFamily: "Serif", fontSize: 11, color: INK, marginTop: 9, lineHeight: 1.55 },
   bold: { fontWeight: 600 },
   italic: { fontStyle: "italic" },
   term: { color: GOLD },
-  h2: { fontFamily: "Serif", fontSize: 16, fontWeight: 600, color: INK, marginTop: 20, marginBottom: 2 },
-  h3: { fontFamily: "Serif", fontSize: 13, fontWeight: 600, color: INK, marginTop: 16, marginBottom: 2 },
+  h2: { fontFamily: "Bebas", fontSize: 19, color: INK, marginTop: 22, marginBottom: 4, letterSpacing: 0.5, textTransform: "uppercase" },
+  h3: { fontFamily: "Bebas", fontSize: 14.5, color: INK, marginTop: 16, marginBottom: 3, letterSpacing: 0.6, textTransform: "uppercase" },
   sectionEyebrow: {
-    fontFamily: "Helvetica",
+    fontFamily: "Mono",
     fontSize: 8.5,
     fontWeight: 700,
     letterSpacing: 2,
@@ -116,60 +119,60 @@ const s = StyleSheet.create({
   },
 
   callout: { marginTop: 12, paddingVertical: 9, paddingHorizontal: 12, borderLeftWidth: 2.5, backgroundColor: GOLD_TINT },
-  calloutLabel: { fontFamily: "Helvetica", fontSize: 8, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 4 },
+  calloutLabel: { fontFamily: "Mono", fontSize: 8, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 4 },
   calloutBody: { fontFamily: "Serif", fontSize: 10.5, color: INK, lineHeight: 1.5 },
 
   steps: { marginTop: 9, marginBottom: 2 },
   stepRow: { flexDirection: "row", marginBottom: 4 },
-  stepMark: { fontFamily: "Helvetica", fontSize: 10, color: GOLD, width: 20 },
+  stepMark: { fontFamily: "Mono", fontSize: 10, color: GOLD, width: 20 },
   stepText: { flex: 1, fontFamily: "Serif", fontSize: 11, color: INK, lineHeight: 1.5 },
 
   // tables
   table: { marginTop: 12, borderTopWidth: 1, borderTopColor: GOLD },
   thRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: GOLD, backgroundColor: GOLD_TINT },
-  th: { flex: 1, fontFamily: "Helvetica", fontSize: 7.5, fontWeight: 700, letterSpacing: 0.8, color: INK, textTransform: "uppercase", padding: 5 },
+  th: { flex: 1, fontFamily: "Mono", fontSize: 7.5, fontWeight: 700, letterSpacing: 0.8, color: INK, textTransform: "uppercase", padding: 5 },
   tr: { flexDirection: "row", borderBottomWidth: 0.6, borderBottomColor: HAIR },
   td: { flex: 1, fontFamily: "Serif", fontSize: 9.5, color: INK, padding: 5, lineHeight: 1.4 },
-  tdMono: { flex: 1, fontFamily: "Helvetica", fontSize: 8.5, color: INK, padding: 5 },
+  tdMono: { flex: 1, fontFamily: "Mono", fontSize: 8.5, color: INK, padding: 5 },
 
   // figures
   figure: { marginTop: 14, marginBottom: 4, alignItems: "center" },
   figFrame: { borderWidth: 0.8, borderColor: HAIR, backgroundColor: INK_FIG, padding: 6, borderRadius: 2 },
-  caption: { fontFamily: "Helvetica", fontSize: 7.5, letterSpacing: 1, color: MUTED, textTransform: "uppercase", marginTop: 6, textAlign: "center" },
+  caption: { fontFamily: "Mono", fontSize: 7.5, letterSpacing: 1, color: MUTED, textTransform: "uppercase", marginTop: 6, textAlign: "center" },
 
   // quiz
   quizWrap: { marginTop: 16, borderTopWidth: 0.8, borderTopColor: HAIR, paddingTop: 10 },
-  quizKicker: { fontFamily: "Helvetica", fontSize: 8, fontWeight: 700, letterSpacing: 2, color: GOLD, textTransform: "uppercase", marginBottom: 8 },
+  quizKicker: { fontFamily: "Mono", fontSize: 8, fontWeight: 700, letterSpacing: 2, color: GOLD, textTransform: "uppercase", marginBottom: 8 },
   quizQ: { fontFamily: "Serif", fontSize: 11, fontWeight: 600, color: INK, marginTop: 8, lineHeight: 1.4 },
   quizOpt: { fontFamily: "Serif", fontSize: 10, color: INK, marginTop: 2, marginLeft: 12, lineHeight: 1.4 },
   quizOptRight: { color: GOLD, fontWeight: 600 },
-  quizAns: { fontFamily: "Helvetica", fontSize: 8, letterSpacing: 0.5, color: GOLD, textTransform: "uppercase", marginTop: 4, marginLeft: 12 },
+  quizAns: { fontFamily: "Mono", fontSize: 8, letterSpacing: 0.5, color: GOLD, textTransform: "uppercase", marginTop: 4, marginLeft: 12 },
   quizExplain: { fontFamily: "Serif", fontSize: 9.5, fontStyle: "italic", color: MUTED, marginTop: 2, marginLeft: 12, lineHeight: 1.4 },
 
   // deep dive
   deep: { marginTop: 12, borderWidth: 0.8, borderColor: HAIR, borderRadius: 2, padding: 11 },
-  deepKicker: { fontFamily: "Helvetica", fontSize: 8, fontWeight: 700, letterSpacing: 1.2, color: GOLD, textTransform: "uppercase", marginBottom: 5 },
+  deepKicker: { fontFamily: "Mono", fontSize: 8, fontWeight: 700, letterSpacing: 1.2, color: GOLD, textTransform: "uppercase", marginBottom: 5 },
 
   // source refs — a small gold square marks each (a registration tick); the
   // on-page ▸/→ glyphs aren't in the bundled fonts, so a drawn View is used.
   ref: { flexDirection: "row", marginTop: 4, paddingLeft: 2 },
   refDot: { width: 3, height: 3, backgroundColor: GOLD, marginTop: 5.5, marginRight: 8 },
   refBody: { flex: 1, fontFamily: "Serif", fontSize: 9.5, color: INK, lineHeight: 1.4 },
-  refHost: { fontFamily: "Helvetica", fontSize: 7.5, color: FAINT, textTransform: "lowercase" },
+  refHost: { fontFamily: "Mono", fontSize: 7.5, color: FAINT, textTransform: "lowercase" },
   link: { color: BLUE, textDecoration: "none" },
 
   // field-guide cover + contents
   cover: { flexGrow: 1, justifyContent: "center", alignItems: "center" },
-  coverEyebrow: { fontFamily: "Helvetica", fontSize: 10, letterSpacing: 5, color: MUTED, textTransform: "uppercase" },
-  coverTitle: { fontFamily: "Serif", fontSize: 52, fontWeight: 600, color: INK, marginTop: 18, marginBottom: 4, letterSpacing: 1, lineHeight: 1.1 },
+  coverEyebrow: { fontFamily: "Mono", fontSize: 10, letterSpacing: 5, color: MUTED, textTransform: "uppercase" },
+  coverTitle: { fontFamily: "Bebas", fontSize: 72, color: INK, marginTop: 12, marginBottom: 2, letterSpacing: 1, lineHeight: 0.9, textTransform: "uppercase" },
   coverSub: { fontFamily: "Serif", fontSize: 14, fontStyle: "italic", color: MUTED, marginTop: 12, textAlign: "center", lineHeight: 1.45, maxWidth: 360 },
   coverRule: { width: 150, height: 1.4, backgroundColor: GOLD, marginVertical: 24 },
-  coverMeta: { fontFamily: "Helvetica", fontSize: 8.5, letterSpacing: 2, color: FAINT, textTransform: "uppercase", textAlign: "center", lineHeight: 1.8 },
+  coverMeta: { fontFamily: "Mono", fontSize: 8.5, letterSpacing: 2, color: FAINT, textTransform: "uppercase", textAlign: "center", lineHeight: 1.8 },
   wmWrap: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
 
-  tocTitle: { fontFamily: "Serif", fontSize: 22, fontWeight: 600, color: INK, marginBottom: 6 },
+  tocTitle: { fontFamily: "Bebas", fontSize: 30, color: INK, marginBottom: 6, letterSpacing: 0.4, textTransform: "uppercase" },
   tocRow: { borderBottomWidth: 0.6, borderBottomColor: HAIR, paddingVertical: 9 },
-  tocNum: { fontFamily: "Helvetica", fontSize: 9, fontWeight: 700, color: GOLD },
+  tocNum: { fontFamily: "Numeral", fontSize: 12, color: GOLD },
   tocText: { fontFamily: "Serif", fontSize: 12, color: INK, lineHeight: 1.35 },
   tocSub: { fontFamily: "Serif", fontSize: 9.5, fontStyle: "italic", color: MUTED, marginTop: 3, lineHeight: 1.4 },
 });

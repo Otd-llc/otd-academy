@@ -10,7 +10,7 @@ import { loadPublicLibraryForBook } from "@/lib/library/load";
 import { guideContentBlocksSchema } from "@/lib/schemas/guide";
 import { filterLibraryBlocks } from "@/lib/library/block-allowlist";
 import { resolveLibraryImages, type ResolvedImage } from "@/lib/pdf/library-images";
-import { registerCertFonts } from "@/lib/pdf/cert-fonts";
+import { registerLibraryFonts } from "@/lib/pdf/library-fonts";
 import { FieldGuidePdf, type LibraryPdfLesson } from "@/lib/pdf/library-pdf";
 
 export const runtime = "nodejs";
@@ -43,7 +43,7 @@ export async function GET() {
     year: "numeric",
   });
 
-  registerCertFonts();
+  registerLibraryFonts();
   const buffer = await renderToBuffer(
     <FieldGuidePdf lessons={lessons} images={images} reviewed={reviewed} />,
   );
