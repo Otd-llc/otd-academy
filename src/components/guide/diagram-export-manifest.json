@@ -92,8 +92,8 @@
   {
     "basename": "eeg-bci-pipeline",
     "image": "/guide-diagrams/eeg-bci-pipeline.webp",
-    "alt": "The five-stage EEG brain-computer interface signal chain. The brain's activity flows through: 1, electrodes that pick up microvolt scalp voltages (hard part: contact impedance and placement); 2, an analog front-end that amplifies the signal and rejects common-mode noise (noise floor and mains rejection); 3, an analog-to-digital converter that digitizes every channel simultaneously (resolution and simultaneous sampling); 4, signal processing that filters the data and extracts features (separating signal from artifact); 5, a classifier that maps features to an intent (low, noisy bandwidth). The intent becomes a command.",
-    "hash": "fc916385f96f"
+    "alt": "The five-stage EEG brain-computer interface signal chain, read left to right on a single wire from brain activity to a command. Stage 1, electrodes, pick up microvolt scalp voltages. Stage 2, an analog front-end amplifies the signal and rejects common-mode noise. Stage 3, an analog-to-digital converter digitizes every channel at once. Stage 4, signal processing filters the data and extracts features. Stage 5, a classifier maps those features to an intent, which becomes the command.",
+    "hash": "fff525b1a9f1"
   },
   {
     "basename": "ads1299-channel",
