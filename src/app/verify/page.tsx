@@ -194,7 +194,7 @@ export default async function VerifyPage({
                 alt=""
                 width={84}
                 height={84}
-                className="h-[84px] w-[84px] drop-shadow-[0_0_20px_rgba(200,150,62,0.35)]"
+                className="h-[84px] w-[84px] drop-shadow-[0_0_20px_color-mix(in_srgb,var(--color-command-gold)_35%,transparent)]"
               />
               <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.3em] text-gold-dim">
                 {cert.variant === "cert"

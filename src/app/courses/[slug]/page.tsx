@@ -297,7 +297,7 @@ export default async function CoursePreviewPage({
         </header>
 
         {/* ── REGISTER INTEREST (terminal panel) ───────────────── */}
-        <section data-reveal className="glass-card mt-10 border-command-gold/30 p-6 shadow-[0_0_40px_-12px_rgba(200,150,62,0.5)] sm:p-7">
+        <section data-reveal className="glass-card mt-10 border-command-gold/30 p-6 shadow-[0_0_40px_-12px_color-mix(in_srgb,var(--color-command-gold)_50%,transparent)] sm:p-7">
           <p className="font-mono text-xs uppercase tracking-[0.25em] text-command-gold">
             ▸ Register interest
           </p>

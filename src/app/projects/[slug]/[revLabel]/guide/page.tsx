@@ -148,15 +148,18 @@ function stageKind(state: CompletionState, isCurrent: boolean): StageKind {
 // Per-state tile chrome: a glass-card surface with a state-driven border + the
 // gold-glow on the current tile (the viz's active-selection treatment).
 function stageCardClasses(kind: StageKind): string {
+  // The drop uses var(--elev-card) so it themes: heavy black on dark, soft
+  // warm-gray on light (a raw black rgba drop reads as dirt on ivory). The
+  // gold glow on the current tile deepens via color-mix on the gold token.
   switch (kind) {
     case "current":
-      return "border-command-gold shadow-[0_0_26px_rgba(200,150,62,0.16),0_12px_40px_rgba(0,0,0,0.5)]";
+      return "border-command-gold shadow-[0_0_26px_color-mix(in_srgb,var(--color-command-gold)_16%,transparent),var(--elev-card)]";
     case "done":
-      return "border-command-gold/25 shadow-[0_12px_40px_rgba(0,0,0,0.45)]";
+      return "border-command-gold/25 shadow-[var(--elev-card)]";
     case "blocked":
-      return "border-alert-red/55 shadow-[0_12px_40px_rgba(0,0,0,0.45)]";
+      return "border-alert-red/55 shadow-[var(--elev-card)]";
     default:
-      return "border-panel-border shadow-[0_12px_40px_rgba(0,0,0,0.4)] hover:border-command-gold/50";
+      return "border-panel-border shadow-[var(--elev-card)] hover:border-command-gold/50";
   }
 }
 
