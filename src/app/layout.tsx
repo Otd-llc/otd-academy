@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import "./globals.css";
 import { auth, signOut } from "@/auth";
+import { db } from "@/lib/db";
 import { env } from "@/env";
 import { shouldRenderChrome } from "@/lib/chrome";
 import { BrandMark } from "@/components/BrandMark";
@@ -60,16 +61,42 @@ export default async function RootLayout({
   const pathname = (await headers()).get("x-pathname") ?? "";
   const renderChrome = shouldRenderChrome({ pathname, signedIn: !!email });
 
-  // Resolve the theme server-side from the `theme` cookie so the SSR HTML
-  // matches the client and there's no hydration mismatch. Dark is the default
-  // when no cookie is set; the no-flash inline script (below) then applies
-  // `prefers-color-scheme` for a brand-new visitor before first paint.
-  const theme =
-    (await cookies()).get("theme")?.value === "light" ? "light" : "dark";
+  // Resolve the theme server-side so the SSR HTML matches the client (no
+  // hydration mismatch). The device `theme` cookie wins (most recent choice on
+  // THIS device, and it keeps the no-flash script in sync). For a signed-in
+  // visitor with no cookie yet (a new device / after a cookie reset) fall back
+  // to their stored account preference, so the choice follows the account. Dark
+  // is the final default; the no-flash inline script then applies
+  // `prefers-color-scheme` for a brand-new anonymous visitor before first paint.
+  const cookieTheme = (await cookies()).get("theme")?.value;
+  let theme: "light" | "dark" =
+    cookieTheme === "light" ? "light" : cookieTheme === "dark" ? "dark" : "dark";
+  if (!cookieTheme && email) {
+    const stored = await db.user
+      .findUnique({ where: { email }, select: { theme: true } })
+      .catch(() => null);
+    if (stored?.theme === "light" || stored?.theme === "dark") {
+      theme = stored.theme;
+    }
+  }
 
   async function signOutAction() {
     "use server";
     await signOut({ redirectTo: "/sign-in" });
+  }
+
+  // Persist the theme choice to the signed-in user's account (a no-op for
+  // anonymous visitors — the cookie/localStorage already carry the device
+  // choice). Passed to ThemeToggle only when signed in.
+  async function saveThemeAction(next: "light" | "dark") {
+    "use server";
+    if (next !== "light" && next !== "dark") return;
+    const session = await auth();
+    const userEmail = session?.user?.email;
+    if (!userEmail) return;
+    await db.user
+      .update({ where: { email: userEmail }, data: { theme: next } })
+      .catch(() => {});
   }
 
   return (
@@ -135,8 +162,9 @@ export default async function RootLayout({
               <div className="ml-auto flex items-center gap-3">
                 {/* Theme toggle lives in the right cluster — always visible at
                     every breakpoint (the cluster never collapses), so it's the
-                    one always-reachable home on mobile too. */}
-                <ThemeToggle />
+                    one always-reachable home on mobile too. Signed-in visitors
+                    persist the choice to their account. */}
+                <ThemeToggle onPersist={email ? saveThemeAction : undefined} />
                 {email ? (
                   <UserMenu
                     email={email}

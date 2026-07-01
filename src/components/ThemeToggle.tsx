@@ -50,17 +50,30 @@ function applyTheme(theme: "light" | "dark") {
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 
-export function ThemeToggle() {
+export function ThemeToggle({
+  onPersist,
+}: {
+  // Server action passed by the layout for signed-in users: persists the choice
+  // to the account so it follows them to a new device / after a cookie reset.
+  // Omitted for anonymous visitors (device cookie + localStorage only).
+  onPersist?: (theme: "light" | "dark") => void;
+}) {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const isLight = theme === "light";
   // Affordance names the destination so the icon + label agree.
   const label = isLight ? "Switch to dark theme" : "Switch to light theme";
 
+  function toggle() {
+    const next = isLight ? "dark" : "light";
+    applyTheme(next);
+    onPersist?.(next); // fire-and-forget; the cookie already updated the device
+  }
+
   return (
     <button
       type="button"
-      onClick={() => applyTheme(isLight ? "dark" : "light")}
+      onClick={toggle}
       aria-label={label}
       title={label}
       className="inline-flex h-8 w-8 items-center justify-center rounded border border-panel-border text-muted transition-colors hover:border-command-gold/60 hover:text-command-gold focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-gold-light/70"
