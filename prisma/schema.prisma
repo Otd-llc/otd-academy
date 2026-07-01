@@ -31,6 +31,11 @@ model User {
   emailConsent          Boolean   @default(true)
   emailConsentUpdatedAt DateTime?
 
+  // UI theme preference for a signed-in user ("light" | "dark"). Null = no stored
+  // choice: the device decides (theme cookie / prefers-color-scheme). Persisted on
+  // toggle so the choice follows the account to a new device / after a cookie reset.
+  theme                 String?
+
   accounts Account[]
   sessions Session[]
 

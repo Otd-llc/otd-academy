@@ -107,7 +107,7 @@ const CSS = `
 .hve-good{border-top:3px solid var(--color-command-gold,#c8963e);}
 
 .hve-ptop{display:flex;align-items:baseline;gap:.55rem;flex-wrap:wrap;margin:0 0 .15rem;}
-.hve-glyph{color:#fff;font-weight:700;font-size:clamp(1.05rem,3vw,1.3rem);letter-spacing:.04em;}
+.hve-glyph{color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(1.05rem,3vw,1.3rem);letter-spacing:.04em;}
 .hve-tag{font-size:.62rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;}
 .hve-tag-bad{color:var(--color-alert-red,#c62828);}
 .hve-tag-good{color:var(--color-command-gold,#c8963e);}

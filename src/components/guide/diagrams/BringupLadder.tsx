@@ -83,7 +83,7 @@ const CSS = `
   border-radius:50%;border:2px solid var(--color-command-gold,#c8963e);color:var(--color-command-gold,#c8963e);
   font-weight:700;font-size:clamp(1.05rem,3vw,1.3rem);}
 .brl-body{min-width:0;}
-.brl-name{color:#fff;font-weight:700;font-size:clamp(1.05rem,3vw,1.3rem);letter-spacing:.03em;line-height:1.2;}
+.brl-name{color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(1.05rem,3vw,1.3rem);letter-spacing:.03em;line-height:1.2;}
 .brl-detail{margin-top:.18rem;color:var(--color-muted,#aaa);font-size:clamp(.95rem,2.5vw,1.05rem);line-height:1.35;}
 .brl-rung.last .brl-detail{color:var(--color-signal-blue,#4a8fff);}
 

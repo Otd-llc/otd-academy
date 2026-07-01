@@ -99,7 +99,7 @@ export function ExamForm({
 
       {result && !result.passed && (
         <div className="glass-card border-alert-red/45 p-5">
-          <p className="font-display text-2xl tracking-wider text-white">
+          <p className="font-display text-2xl tracking-wider text-title">
             {result.score} / {result.total}
           </p>
           <p className="mt-1 font-mono text-xs uppercase tracking-wider text-alert-red">

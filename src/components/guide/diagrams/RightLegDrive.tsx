@@ -57,7 +57,7 @@ const CSS = `
 .rld-node{display:flex;flex-direction:column;justify-content:center;min-width:clamp(3.9rem,14vw,4.7rem);
   padding:clamp(.45rem,1.6vw,.62rem) clamp(.35rem,1.3vw,.5rem);text-align:center;border-radius:6px;
   background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-command-gold,#c8963e);}
-.rld-name{margin:0;color:#fff;font-weight:700;font-size:clamp(.74rem,1.95vw,.86rem);line-height:1.12;}
+.rld-name{margin:0;color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(.74rem,1.95vw,.86rem);line-height:1.12;}
 .rld-sub{margin:.15rem 0 0;color:var(--color-muted,#aaa);
   font-family:var(--font-mono,"Space Mono",monospace);font-size:clamp(.58rem,1.55vw,.66rem);line-height:1.2;}
 .rld-arrow{color:var(--color-command-gold,#c8963e);font-size:clamp(.82rem,2.1vw,1rem);font-weight:700;}

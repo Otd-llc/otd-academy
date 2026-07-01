@@ -80,7 +80,7 @@ const CSS = `
 .glstk-swatch{flex:0 0 auto;width:10px;align-self:stretch;border-radius:2px;
   background:var(--color-muted,#aaa);}
 .glstk-body{display:flex;flex-direction:column;gap:.18rem;min-width:0;}
-.glstk-name{color:#fff;font-weight:700;font-size:clamp(1.05rem,3vw,1.3rem);letter-spacing:.01em;}
+.glstk-name{color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(1.05rem,3vw,1.3rem);letter-spacing:.01em;}
 .glstk-desc{color:var(--color-muted,#aaa);font-size:clamp(.95rem,2.5vw,1.05rem);line-height:1.35;}
 
 /* layer-type swatches */

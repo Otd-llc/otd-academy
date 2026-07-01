@@ -54,7 +54,7 @@ const CSS = `
 .bci-node{display:flex;flex-direction:column;justify-content:center;min-width:clamp(4.2rem,16vw,5rem);
   padding:clamp(.5rem,1.8vw,.7rem) clamp(.4rem,1.5vw,.55rem);text-align:center;border-radius:6px;
   background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-command-gold,#c8963e);}
-.bci-name{margin:0;color:#fff;font-weight:700;font-size:clamp(.82rem,2.2vw,.95rem);line-height:1.12;}
+.bci-name{margin:0;color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(.82rem,2.2vw,.95rem);line-height:1.12;}
 .bci-sub{margin:.12rem 0 0;color:var(--color-muted,#aaa);
   font-family:var(--font-mono,"Space Mono",monospace);font-size:clamp(.62rem,1.7vw,.7rem);line-height:1.2;}
 .bci-arrow{color:var(--color-command-gold,#c8963e);font-size:clamp(.85rem,2.2vw,1.05rem);font-weight:700;}

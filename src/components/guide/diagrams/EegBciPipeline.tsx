@@ -82,7 +82,7 @@ const CSS = `
   color:var(--color-command-gold,#c8963e);}
 
 .eegp-body{padding-top:.05rem;}
-.eegp-name{margin:0;color:#fff;font-weight:700;font-size:clamp(1.02rem,3vw,1.2rem);letter-spacing:.01em;}
+.eegp-name{margin:0;color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(1.02rem,3vw,1.2rem);letter-spacing:.01em;}
 .eegp-what{margin:.15rem 0 0;color:var(--color-gray-1,#e8e8e8);font-size:clamp(.9rem,2.4vw,1rem);line-height:1.4;}
 .eegp-hard{margin:.2rem 0 0;color:var(--color-muted,#aaa);
   font-family:var(--font-mono,"Space Mono",monospace);font-size:clamp(.72rem,2vw,.8rem);letter-spacing:.02em;}

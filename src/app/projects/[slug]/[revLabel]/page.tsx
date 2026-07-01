@@ -322,7 +322,7 @@ export default async function RevisionDetailPage({
           {/* Builds pane — design §9.1 */}
           <section className="glass-card p-4 sm:p-6">
             <div className="flex items-baseline justify-between gap-4">
-              <h2 className="font-display text-2xl tracking-wider text-white">
+              <h2 className="font-display text-2xl tracking-wider text-title">
                 BUILDS
               </h2>
               {/*
@@ -372,7 +372,7 @@ export default async function RevisionDetailPage({
               the per-stage subkind picker is mounted below the list. */}
           <section className="glass-card p-4 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <h2 className="font-display text-2xl tracking-wider text-white">
+              <h2 className="font-display text-2xl tracking-wider text-title">
                 ARTIFACTS
               </h2>
               <span className="font-mono text-xs uppercase tracking-wider text-muted">
@@ -532,7 +532,7 @@ export default async function RevisionDetailPage({
         {/* RIGHT 1/3 — Transitions + Errata */}
         <div className="space-y-6">
           <section className="glass-card p-4 sm:p-6">
-            <h2 className="font-display text-2xl tracking-wider text-white">
+            <h2 className="font-display text-2xl tracking-wider text-title">
               TRANSITIONS
             </h2>
             <div className="mt-4">

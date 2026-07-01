@@ -38,7 +38,29 @@ export default function ModelViewer({
         const height = mount.clientHeight || 256;
         const scene = new THREE.Scene();
         let loadedRoot: { traverse: (cb: (o: unknown) => void) => void } | null = null;
-        scene.background = new THREE.Color(0x0b0f1a);
+
+        // Scene bg + floor grid follow the site theme (dark deep-space vs warm
+        // light paper), read from <html data-theme> and re-applied live when the
+        // ThemeToggle fires its `otd-theme-change` event.
+        const themedPalette = () =>
+          document.documentElement.dataset.theme === "light"
+            ? { bg: 0xe8e2d4, grid1: 0xcbc3b0, grid2: 0xd8d1c0 }
+            : { bg: 0x0b0f1a, grid1: 0x334, grid2: 0x223 };
+        let grid: InstanceType<typeof THREE.GridHelper> | null = null;
+        const applyTheme = () => {
+          const p = themedPalette();
+          scene.background = new THREE.Color(p.bg);
+          if (grid) {
+            scene.remove(grid);
+            grid.geometry.dispose();
+            (grid.material as { dispose?: () => void }).dispose?.();
+          }
+          grid = new THREE.GridHelper(10, 10, p.grid1, p.grid2);
+          scene.add(grid);
+        };
+        applyTheme();
+        const onThemeChange = () => applyTheme();
+        window.addEventListener("otd-theme-change", onThemeChange);
         const camera = new THREE.PerspectiveCamera(45, width / height, 0.01, 10000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -49,7 +71,6 @@ export default function ModelViewer({
         const dir = new THREE.DirectionalLight(0xffffff, 1.0);
         dir.position.set(1, 1, 1);
         scene.add(dir);
-        scene.add(new THREE.GridHelper(10, 10, 0x334, 0x223));
 
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
@@ -80,6 +101,11 @@ export default function ModelViewer({
         cleanup = () => {
           cancelAnimationFrame(raf);
           window.removeEventListener("resize", onResize);
+          window.removeEventListener("otd-theme-change", onThemeChange);
+          if (grid) {
+            grid.geometry.dispose();
+            (grid.material as { dispose?: () => void }).dispose?.();
+          }
           loadedRoot?.traverse((o) => {
             const mesh = o as Partial<{ geometry: { dispose?: () => void }; material: unknown }>;
             mesh.geometry?.dispose?.();

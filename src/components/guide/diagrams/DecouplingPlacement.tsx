@@ -85,7 +85,7 @@ const CSS = `
 /* IC body */
 .dcpl-ic{flex:0 0 auto;width:46px;height:96px;display:flex;align-items:center;justify-content:center;
   background:var(--color-navy-dark,#1f2438);border:2.5px solid var(--color-command-gold,#c8963e);
-  border-radius:3px;color:#fff;font-weight:700;font-size:clamp(1.05rem,3vw,1.3rem);z-index:2;}
+  border-radius:3px;color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(1.05rem,3vw,1.3rem);z-index:2;}
 
 /* the current loop: power rail top, ground rail bottom, cap closing on the right */
 .dcpl-loop{position:relative;height:96px;}

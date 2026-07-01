@@ -103,7 +103,7 @@ const CSS = `
   display:flex;align-items:center;justify-content:center;
   background:var(--color-navy-dark,#1f2438);border:2.5px solid var(--color-command-gold,#c8963e);
   border-bottom:none;border-radius:4px 4px 0 0;
-  color:#fff;font-weight:700;font-size:clamp(.95rem,2.5vw,1.05rem);}
+  color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(.95rem,2.5vw,1.05rem);}
 .xsec-layer{position:relative;display:flex;align-items:center;justify-content:center;box-sizing:border-box;}
 .xsec-cu{height:30px;background:var(--color-command-gold,#c8963e);}
 .xsec-core{height:84px;background:var(--color-navy-dark,#1f2438);
@@ -127,7 +127,7 @@ const CSS = `
 .xsec-sw-core{background:var(--color-navy-dark,#1f2438);border:1px solid var(--color-panel-border,#3a3f50);}
 .xsec-sw-via{background:var(--color-command-gold,#c8963e);border-radius:2px;width:7px;margin-left:3.5px;margin-right:3.5px;}
 .xsec-rowtext{min-width:0;}
-.xsec-rowname{margin:0;color:#fff;font-weight:700;font-size:clamp(1.05rem,3vw,1.2rem);line-height:1.2;}
+.xsec-rowname{margin:0;color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(1.05rem,3vw,1.2rem);line-height:1.2;}
 .xsec-rowname.xsec-muted{color:var(--color-muted,#aaa);}
 .xsec-rowbody{margin:.2rem 0 0;color:var(--color-muted,#aaa);
   font-family:var(--font-serif,"Lora",serif);font-size:clamp(.95rem,2.5vw,1.05rem);line-height:1.45;}

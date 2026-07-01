@@ -46,7 +46,7 @@ export default async function SourcingDashboardPage() {
           {issues.map((b) => (
             <section key={b.projectSlug} className="glass-card p-5">
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-panel-border pb-3">
-                <h2 className="font-display text-xl tracking-wider text-white">
+                <h2 className="font-display text-xl tracking-wider text-title">
                   {b.projectName}{" "}
                   <span className="font-mono text-xs uppercase tracking-wider text-gold-dim">
                     rev {b.revisionLabel}
@@ -67,7 +67,7 @@ export default async function SourcingDashboardPage() {
                       key={l.partId + l.refDes}
                       className="flex flex-wrap items-center gap-x-4 gap-y-2"
                     >
-                      <span className="font-mono text-sm font-bold text-white">{l.refDes}</span>
+                      <span className="font-mono text-sm font-bold text-title">{l.refDes}</span>
                       <span className="min-w-0 font-mono text-xs text-link-muted">
                         {l.mpn} <span className="text-muted">· {l.manufacturer}</span>
                       </span>

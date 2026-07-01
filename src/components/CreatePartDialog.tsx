@@ -85,7 +85,7 @@ export function CreatePartDialog({
       className="w-full max-w-xl rounded border border-panel-border bg-navy-dark p-6 text-link-muted backdrop:bg-deep-space/80"
     >
       <div className="flex items-baseline justify-between gap-4">
-        <h2 className="font-display text-2xl tracking-wider text-white">
+        <h2 className="font-display text-2xl tracking-wider text-title">
           NEW PART
         </h2>
         <form method="dialog">

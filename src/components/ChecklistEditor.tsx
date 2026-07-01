@@ -220,7 +220,7 @@ function ItemRow({
   // NEUTRAL light wash (not navy, which vanished against the pane's blue) so the
   // alternation actually reads, like the bench reference table. Light hover.
   // Resolved rows dim a touch. Dividers come from `divide-y` on the <ul>.
-  const zebra = rowIndex % 2 === 1 ? "bg-white/[0.04]" : "";
+  const zebra = rowIndex % 2 === 1 ? "bg-text/[0.04]" : "";
   const resolved = item.checked || item.notApplicable;
   // The label area is a second large toggle target. We render it as a tiny
   // form so the click posts the same toggle action as the explicit checkbox.
@@ -230,7 +230,7 @@ function ItemRow({
 
   return (
     <li
-      className={`transition-colors hover:bg-white/[0.06] ${zebra} ${
+      className={`transition-colors hover:bg-text/[0.06] ${zebra} ${
         resolved ? "opacity-70" : ""
       }`}
     >

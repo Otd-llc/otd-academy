@@ -1,16 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import "./globals.css";
 import { auth, signOut } from "@/auth";
+import { db } from "@/lib/db";
 import { env } from "@/env";
 import { shouldRenderChrome } from "@/lib/chrome";
 import { BrandMark } from "@/components/BrandMark";
 import { MainNav } from "@/components/MainNav";
 import { PostHogProvider } from "@/components/PostHogProvider";
 import { SignUpCta } from "@/components/SignUpCta";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { TooltipProvider } from "@/components/TooltipProvider";
 import { UserMenu } from "@/components/UserMenu";
+
+// No-flash theme bootstrap — a parser-blocking inline <head> script that runs
+// before first paint so the token override is applied immediately (no dark
+// flash for a light visitor). Precedence: explicit choice (the `theme` cookie,
+// which SSR already read; then localStorage) → `prefers-color-scheme`. SSR
+// defaults <html data-theme> to "dark" when no cookie is set; this flips it
+// pre-paint for a no-cookie visitor who prefers light, and `suppressHydration
+// Warning` on <html> absorbs that one-attribute difference. See ThemeToggle.
+const THEME_BOOTSTRAP = `(function(){try{var m=document.cookie.match(/(?:^|; )theme=(light|dark)/);var s=m?m[1]:localStorage.getItem('otd-theme');var t=s||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.dataset.theme=t;}catch(e){}})();`;
 
 export const metadata: Metadata = {
   // Absolute base for canonical / OG / Twitter URLs. OPTIONAL env var with a
@@ -50,16 +61,57 @@ export default async function RootLayout({
   const pathname = (await headers()).get("x-pathname") ?? "";
   const renderChrome = shouldRenderChrome({ pathname, signedIn: !!email });
 
+  // Resolve the theme server-side so the SSR HTML matches the client (no
+  // hydration mismatch). The device `theme` cookie wins (most recent choice on
+  // THIS device, and it keeps the no-flash script in sync). For a signed-in
+  // visitor with no cookie yet (a new device / after a cookie reset) fall back
+  // to their stored account preference, so the choice follows the account. Dark
+  // is the final default; the no-flash inline script then applies
+  // `prefers-color-scheme` for a brand-new anonymous visitor before first paint.
+  const cookieTheme = (await cookies()).get("theme")?.value;
+  let theme: "light" | "dark" =
+    cookieTheme === "light" ? "light" : cookieTheme === "dark" ? "dark" : "dark";
+  if (!cookieTheme && email) {
+    const stored = await db.user
+      .findUnique({ where: { email }, select: { theme: true } })
+      .catch(() => null);
+    if (stored?.theme === "light" || stored?.theme === "dark") {
+      theme = stored.theme;
+    }
+  }
+
   async function signOutAction() {
     "use server";
     await signOut({ redirectTo: "/sign-in" });
   }
 
+  // Persist the theme choice to the signed-in user's account (a no-op for
+  // anonymous visitors — the cookie/localStorage already carry the device
+  // choice). Passed to ThemeToggle only when signed in.
+  async function saveThemeAction(next: "light" | "dark") {
+    "use server";
+    if (next !== "light" && next !== "dark") return;
+    const session = await auth();
+    const userEmail = session?.user?.email;
+    if (!userEmail) return;
+    await db.user
+      .update({ where: { email: userEmail }, data: { theme: next } })
+      .catch(() => {});
+  }
+
   return (
     <html
       lang="en"
+      data-theme={theme}
+      suppressHydrationWarning
       className="h-full antialiased"
     >
+      <head>
+        {/* Runs before the stylesheet applies — reconciles the resolved theme
+            onto <html data-theme> so the light token override is in place
+            before first paint. Inline + parser-blocking on purpose. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+      </head>
       <body className="min-h-full flex flex-col">
         {/* Global engineering-paper backdrop — a fixed isometric graph-paper
             field behind every page (CSS in globals.css, .app-backdrop). Purely
@@ -108,6 +160,11 @@ export default async function RootLayout({
                   it now — no redundant standalone header sign-out). Anonymous
                   (public routes): a sign-up CTA in place of the menu. */}
               <div className="ml-auto flex items-center gap-3">
+                {/* Theme toggle lives in the right cluster — always visible at
+                    every breakpoint (the cluster never collapses), so it's the
+                    one always-reachable home on mobile too. Signed-in visitors
+                    persist the choice to their account. */}
+                <ThemeToggle onPersist={email ? saveThemeAction : undefined} />
                 {email ? (
                   <UserMenu
                     email={email}

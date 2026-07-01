@@ -273,7 +273,7 @@ export default async function BuildDetailPage({
         <div className="space-y-6">
           <section className="glass-card p-4 sm:p-6">
             <div className="flex items-center justify-between gap-4">
-              <h2 className="font-display text-2xl tracking-wider text-white">
+              <h2 className="font-display text-2xl tracking-wider text-title">
                 BUILD ARTIFACTS
               </h2>
               <span className="font-mono text-xs uppercase tracking-wider text-muted">

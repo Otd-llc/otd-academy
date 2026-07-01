@@ -261,7 +261,7 @@ export function StageGate({
   return (
     <section className="mt-10 border-t border-panel-border pt-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-xl tracking-wider text-white">
+        <h2 className="font-display text-xl tracking-wider text-title">
           STAGE GATE
         </h2>
         <StatusLine completion={completion} />

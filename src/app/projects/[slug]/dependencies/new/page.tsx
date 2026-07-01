@@ -41,7 +41,7 @@ export default async function NewDependencyPage({
         </Link>
       </nav>
 
-      <h1 className="font-display text-5xl tracking-wider text-white">
+      <h1 className="font-display text-5xl tracking-wider text-title">
         NEW DEPENDENCY
       </h1>
       <p className="mt-2 font-mono text-xs uppercase tracking-wider text-muted">

@@ -275,7 +275,7 @@ export default async function ProjectDetailPage({
       {/* Revisions */}
       <section className="mt-10">
         <div className="flex items-baseline justify-between gap-4">
-          <h2 className="font-display text-3xl tracking-wider text-white">
+          <h2 className="font-display text-3xl tracking-wider text-title">
             REVISIONS
           </h2>
           <Link

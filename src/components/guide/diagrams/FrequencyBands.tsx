@@ -64,7 +64,7 @@ const CSS = `
 .fb-row-hi{box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
 .fb-wave{width:100%;height:clamp(1.5rem,5vw,1.8rem);}
 .fb-wave path{stroke:var(--color-command-gold,#c8963e);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
-.fb-name{margin:0;color:#fff;font-weight:700;font-size:clamp(.92rem,2.5vw,1.05rem);}
+.fb-name{margin:0;color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(.92rem,2.5vw,1.05rem);}
 .fb-hz{color:var(--color-command-gold,#c8963e);font-family:var(--font-mono,"Space Mono",monospace);
   font-size:clamp(.7rem,1.9vw,.78rem);font-weight:400;}
 .fb-with{margin:.1rem 0 0;color:var(--color-muted,#aaa);font-size:clamp(.8rem,2.1vw,.88rem);line-height:1.35;}

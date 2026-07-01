@@ -137,7 +137,7 @@ export function PartGlanceModal({
             <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-gold-dim">
               Quick glance · verified facts
             </p>
-            <h2 className="mt-1 font-display text-2xl tracking-wider text-white">
+            <h2 className="mt-1 font-display text-2xl tracking-wider text-title">
               {mpn}
             </h2>
           </div>

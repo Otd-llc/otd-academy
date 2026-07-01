@@ -205,7 +205,7 @@ const CSS = `
 .cvg-good{border-left:3px solid var(--color-command-gold,#c8963e);}
 .cvg-good .cvg-vtag{color:var(--color-command-gold,#c8963e);border:1px solid var(--color-command-gold,#c8963e);}
 .cvg-bad{border-left:3px solid var(--color-alert-red,#c62828);}
-.cvg-bad .cvg-vtag{color:#fff;background:var(--color-alert-red,#c62828);}
+.cvg-bad .cvg-vtag{color:var(--color-title,#f1ece0);background:var(--color-alert-red,#c62828);}
 .cvg-vtext{color:var(--color-gray-1,#e8e8e8);font-size:clamp(.95rem,2.5vw,1.05rem);line-height:1.45;
   font-family:var(--font-serif,"Lora",serif);}
 

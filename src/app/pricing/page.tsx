@@ -266,7 +266,7 @@ export default async function PricingPage() {
             </p>
           </div>
           {singleProjectCents !== null ? (
-            <p className="font-display text-5xl leading-none tracking-wide text-white">
+            <p className="font-display text-5xl leading-none tracking-wide text-title">
               {priceNumerals(formatUsdShort(singleProjectCents))}
               {maxProjectCents !== null &&
               maxProjectCents > singleProjectCents ? (
@@ -296,7 +296,7 @@ export default async function PricingPage() {
         </div>
 
         {/* All-Access Pass (the hero) */}
-        <div className="relative flex flex-col gap-6 overflow-hidden rounded-2xl border border-command-gold/70 bg-bg-2/50 p-7 shadow-[0_0_60px_-20px_rgba(200,150,62,0.7)] sm:p-9 lg:col-span-3">
+        <div className="relative flex flex-col gap-6 overflow-hidden rounded-2xl border border-command-gold/70 bg-bg-2/50 p-7 shadow-[0_0_60px_-20px_color-mix(in_srgb,var(--color-command-gold)_70%,transparent)] sm:p-9 lg:col-span-3">
           <div
             aria-hidden="true"
             className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-command-gold/10 blur-3xl"
@@ -401,7 +401,7 @@ export default async function PricingPage() {
                 </span>
                 <span
                   className={`text-sm leading-snug ${
-                    r.hero ? "font-medium text-white" : "text-text"
+                    r.hero ? "font-medium text-title" : "text-text"
                   }`}
                 >
                   {r.desc}

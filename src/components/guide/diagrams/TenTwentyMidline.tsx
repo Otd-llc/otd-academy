@@ -80,7 +80,7 @@ const CSS = `
 .tt-dot{width:clamp(.7rem,2.4vw,.85rem);height:clamp(.7rem,2.4vw,.85rem);border-radius:999px;flex:none;
   background:var(--color-deep-space,#08090d);box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
 .tt-node-hi .tt-dot{background:var(--color-command-gold,#c8963e);}
-.tt-name{color:#fff;font-weight:700;font-size:clamp(.95rem,2.6vw,1.1rem);}
+.tt-name{color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(.95rem,2.6vw,1.1rem);}
 .tt-node-hi .tt-name{color:var(--color-command-gold,#c8963e);}
 .tt-note{color:var(--color-muted,#aaa);font-family:var(--font-mono,"Space Mono",monospace);
   font-size:clamp(.66rem,1.8vw,.74rem);letter-spacing:.02em;}

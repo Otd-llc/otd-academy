@@ -266,7 +266,7 @@ export function FactGroupCard({
     return (
       <section className="space-y-5 rounded border-t-2 border-command-gold bg-navy-dark/20 p-4">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="font-display text-xl tracking-wider text-white">
+          <h3 className="font-display text-xl tracking-wider text-title">
             {label}
           </h3>
           <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-gold-dim">
@@ -326,7 +326,7 @@ export function FactGroupCard({
       <section className="rounded border border-panel-border bg-navy-dark/30 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <h3 className="font-display text-xl tracking-wider text-white">
+            <h3 className="font-display text-xl tracking-wider text-title">
               {label}
             </h3>
             <VerifyBadge

@@ -225,17 +225,9 @@ export default async function CoursePreviewPage({
       <JsonLd data={breadcrumbLd} />
       <JsonLd data={faqLd} />
 
-      {/* Atmosphere: blueprint grid field + a gold glow bleeding from the top —
-          the "board on the bench under the lamp" feel. Decorative, behind all. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{
-          backgroundImage:
-            "radial-gradient(900px 380px at 50% -8%, rgba(200,150,62,0.10), transparent 62%), linear-gradient(rgba(58,63,80,0.16) 1px, transparent 1px), linear-gradient(90deg, rgba(58,63,80,0.16) 1px, transparent 1px)",
-          backgroundSize: "100% 100%, 32px 32px, 32px 32px",
-        }}
-      />
+      {/* One background only: the global engineering-paper field (.app-backdrop)
+          behind every page. No per-page atmosphere layer — a second grid here
+          double-stacked over the global one. */}
 
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
         <nav className="font-mono text-xs uppercase tracking-wider">
@@ -297,7 +289,7 @@ export default async function CoursePreviewPage({
         </header>
 
         {/* ── REGISTER INTEREST (terminal panel) ───────────────── */}
-        <section data-reveal className="glass-card mt-10 border-command-gold/30 p-6 shadow-[0_0_40px_-12px_rgba(200,150,62,0.5)] sm:p-7">
+        <section data-reveal className="glass-card mt-10 border-command-gold/30 p-6 shadow-[0_0_40px_-12px_color-mix(in_srgb,var(--color-command-gold)_50%,transparent)] sm:p-7">
           <p className="font-mono text-xs uppercase tracking-[0.25em] text-command-gold">
             ▸ Register interest
           </p>
@@ -462,7 +454,7 @@ export default async function CoursePreviewPage({
             <dl className="mt-4 divide-y divide-panel-border border-y border-panel-border">
               {faqs.map((f) => (
                 <div key={f.q} className="py-4">
-                  <dt className="font-mono text-sm uppercase tracking-wider text-white">
+                  <dt className="font-mono text-sm uppercase tracking-wider text-title">
                     {f.q}
                   </dt>
                   <dd className="mt-2 max-w-2xl font-serif text-base leading-relaxed text-muted">

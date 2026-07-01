@@ -93,12 +93,12 @@ const CSS = `
 .bpp-dot--red{background:var(--color-alert-red,#c62828);}
 .bpp-dot--gnd{background:var(--color-muted,#aaa);}
 .bpp-rowtext{min-width:0;}
-.bpp-rowtp{margin:0;color:#fff;font-weight:700;font-size:clamp(1.05rem,3vw,1.3rem);letter-spacing:.02em;}
+.bpp-rowtp{margin:0;color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(1.05rem,3vw,1.3rem);letter-spacing:.02em;}
 .bpp-rowdesc{margin:.18rem 0 0;color:var(--color-muted,#aaa);font-family:var(--font-serif,"Lora",serif);font-size:clamp(.85rem,2.3vw,.95rem);line-height:1.35;}
 
 .bpp-meter{margin:clamp(1.1rem,3.5vw,1.5rem) 0 0;background:var(--color-navy-dark,#1f2438);border:1px solid var(--color-panel-border,#3a3f50);border-radius:6px;padding:.9rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:.8rem 1rem;flex-wrap:wrap;}
 .bpp-readout{background:var(--color-deep-space,#08090d);border:1px solid var(--color-panel-border,#3a3f50);border-radius:4px;padding:.3rem .9rem;display:flex;align-items:baseline;gap:.3rem;}
-.bpp-value{color:#fff;font-weight:700;font-size:clamp(1.8rem,7vw,2.6rem);line-height:1;letter-spacing:.02em;}
+.bpp-value{color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(1.8rem,7vw,2.6rem);line-height:1;letter-spacing:.02em;}
 .bpp-unit{color:var(--color-gray-1,#e8e8e8);font-size:clamp(1rem,3vw,1.3rem);font-weight:700;}
 .bpp-mode{margin:0;color:var(--color-muted,#aaa);font-size:clamp(.85rem,2.3vw,.95rem);letter-spacing:.06em;}
 

@@ -52,7 +52,7 @@ const CSS = `
   width:14%;background:var(--color-muted,#aaa);opacity:.6;}
 .pkgcmp-chip::before{left:0;}
 .pkgcmp-chip::after{right:0;}
-.pkgcmp-glyph{margin:.7rem 0 0;color:#fff;font-weight:700;font-size:clamp(1.1rem,3vw,1.4rem);}
+.pkgcmp-glyph{margin:.7rem 0 0;color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(1.1rem,3vw,1.4rem);}
 .pkgcmp-dim{margin:.35rem 0 0;color:var(--color-gray-1,#e8e8e8);font-size:clamp(.95rem,2.5vw,1.05rem);}
 .pkgcmp-method{margin:.3rem 0 0;color:var(--color-muted,#aaa);font-size:clamp(.9rem,2.3vw,1rem);}
 .pkgcmp-callout{margin:0 0 .6rem;color:var(--color-signal-blue,#4a8fff);font-weight:700;font-size:clamp(.95rem,2.5vw,1.05rem);}
