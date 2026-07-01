@@ -152,8 +152,8 @@
   {
     "basename": "source-to-scalp",
     "image": "/guide-diagrams/source-to-scalp.webp",
-    "alt": "What EEG measures, from source to scalp: when large populations of neurons fire together in sync, their tiny voltages sum into a single field; that field is blurred and attenuated as it crosses the skull and scalp; and it reaches a scalp electrode as a signal of just a few microvolts varying over time. The result is excellent timing (millisecond by millisecond) but poor spatial resolution, because the signal is smeared on the way out.",
-    "hash": "3855325e57fa"
+    "alt": "What EEG measures, from source to scalp, drawn as a cross-section of the head. When large populations of neurons fire together in sync, their tiny voltages sum into a single field; that field spreads and is attenuated as it radiates up through the skull and scalp; and it reaches a scalp electrode as a wide, blurred footprint of just a few microvolts varying over time. The result is excellent timing (millisecond by millisecond) but poor spatial resolution, because the signal is smeared on the way out.",
+    "hash": "8c12c7fb6f4d"
   },
   {
     "basename": "bci-loop",
