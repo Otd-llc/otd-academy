@@ -1,15 +1,13 @@
 import type { NextConfig } from "next";
 
-// Files a Library PDF route's serverless function must carry: the bundled fonts,
-// the exported diagram rasters (public/ isn't traced by default), and the `sharp`
-// native binary + libvips shared lib from the pnpm store (globbed across versions
-// so a sharp bump doesn't silently drop the .so and 500 the route on Vercel).
-const SHARP_TRACE = [
+// Files a Library PDF route's serverless function must carry: the bundled fonts
+// and the exported diagram rasters (public/ isn't traced by default). The `sharp`
+// native binary is handled via serverExternalPackages below — do NOT glob it in
+// from node_modules/.pnpm here: those are symlinked dirs and Vercel rejects the
+// function package ("invalid deployment package ... symlinked directories").
+const LIBRARY_PDF_TRACE = [
   "./src/lib/pdf/fonts/**",
   "./public/guide-diagrams/**",
-  "./node_modules/.pnpm/sharp@**/**",
-  "./node_modules/.pnpm/@img+sharp-linux-x64@**/**",
-  "./node_modules/.pnpm/@img+sharp-libvips-linux-x64@**/**",
 ];
 
 const nextConfig: NextConfig = {
@@ -23,13 +21,12 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/learn/[slug]/certificate/[token]/pdf": ["./src/lib/pdf/fonts/**", "./src/lib/pdf/seal.png"],
     "/learn/[slug]/certificate/[token]/image": ["./src/lib/pdf/fonts/**", "./src/lib/pdf/seal.png"],
-    // The Library PDFs read the bundled fonts, the exported diagram rasters
-    // (public/ is NOT bundled into serverless functions by default), AND the
-    // `sharp` native binary + its libvips shared lib (the tracer misses the
-    // platform `.so`, so the route 500s with ERR_DLOPEN_FAILED on Vercel's
-    // linux-x64 runtime). Trace all three or these routes 500 in prod.
-    "/library/[slug]/pdf": SHARP_TRACE,
-    "/library/field-guide/pdf": SHARP_TRACE,
+    // The Library PDFs read the bundled fonts + the exported diagram rasters
+    // (public/ is NOT bundled into serverless functions by default). sharp (the
+    // WebP->PNG transcode) is external + lazily loaded, so a runtime load
+    // failure degrades diagrams to caption-only instead of 500ing the route.
+    "/library/[slug]/pdf": LIBRARY_PDF_TRACE,
+    "/library/field-guide/pdf": LIBRARY_PDF_TRACE,
   },
   experimental: {
     serverActions: {
