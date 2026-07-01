@@ -15,7 +15,7 @@ export const WROOM_BODY_TOP = 30; // local y where the square body / board edge 
 export function WroomU1({ x = 0, y = 0, scale = 1 }: { x?: number; y?: number; scale?: number }) {
   // Token-only color (via inline vars so it re-themes inside any diagram, with no
   // dependence on a diagram-local CSS class): navy body, gold stroke, ink glyph.
-  const navy = "var(--color-navy-dark, #1f2438)";
+  const navy = "var(--color-diagram-surface, #1f2438)";
   const gold = "var(--color-command-gold, #c8963e)";
   const ink = "var(--color-title, #f1ece0)";
   return (

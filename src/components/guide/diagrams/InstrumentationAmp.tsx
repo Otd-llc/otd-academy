@@ -84,7 +84,7 @@ export function InstrumentationAmp({ caption }: { caption?: string }) {
           <div className="iamp-card iamp-card-out">
             <p className="iamp-ck">The amp's output</p>
             <svg className="iamp-svg-s" viewBox="0 0 260 68" preserveAspectRatio="xMidYMid meet"><path className="iamp-out" d={P_OUT} /></svg>
-            <p className="iamp-ct">It amplifies the difference, so the shared hum cancels and only your signal is left. CMRR ~100–110 dB says how well.</p>
+            <p className="iamp-ct">It amplifies the difference, so the shared hum cancels and only your signal is left. CMRR ~100 to 110 dB says how well.</p>
           </div>
         </div>
       </div>

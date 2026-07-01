@@ -85,7 +85,7 @@ const CSS = `
 .scon-arrow{fill:var(--color-command-gold,#c8963e);}
 .scon-capp{stroke:var(--color-title,#f1ece0);stroke-width:3;fill:none;stroke-linecap:round;}
 .scon-gnd{stroke:var(--color-muted,#aaa);stroke-width:3;fill:none;stroke-linecap:round;}
-.scon-ic{fill:var(--color-navy-dark,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:3;}
+.scon-ic{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:3;}
 .scon-iclbl{fill:var(--color-title,#f1ece0);font-family:var(--font-mono,"Space Mono",monospace);font-size:20px;font-weight:700;}
 .scon-anno{font-family:var(--font-mono,"Space Mono",monospace);font-size:12px;font-weight:700;}
 .scon-anno-g{fill:var(--color-command-gold,#c8963e);}

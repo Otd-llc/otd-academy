@@ -9,7 +9,7 @@
     "basename": "0805-vs-0402",
     "image": "/guide-diagrams/0805-vs-0402.webp",
     "alt": "An 0805 passive (2.0 by 1.25 mm) is about five times the area of an 0402 (1.0 by 0.5 mm). The larger 0805 solders with a plain iron and tweezers; the tiny 0402 wants solder paste and hot air. This board uses 0805.",
-    "hash": "13f59f4f64f0"
+    "hash": "45047f2112a1"
   },
   {
     "basename": "current-budget",
@@ -56,8 +56,8 @@
   {
     "basename": "decoupling-placement",
     "image": "/guide-diagrams/decoupling-placement.webp",
-    "alt": "Decoupling capacitor placement decides whether it works. Case one, the cap right at the IC pin, makes a small current loop: a short path with low inductance, so the cap dumps current fast. Case two, the same cap placed far from the pin, makes a big loop: a long path whose trace inductance chokes the fast current. Same cap and same schematic — placement is everything.",
-    "hash": "5c50b352778b"
+    "alt": "Decoupling capacitor placement decides whether it works. Case one, the cap right at the IC pin, makes a small current loop: a short path with low inductance, so the cap dumps current fast. Case two, the same cap placed far from the pin, makes a big loop: a long path whose trace inductance chokes the fast current. Same cap and same schematic; placement is everything.",
+    "hash": "e958394ed52a"
   },
   {
     "basename": "schematic-conventions",
