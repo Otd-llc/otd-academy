@@ -110,8 +110,8 @@
   {
     "basename": "isolation-barrier",
     "image": "/guide-diagrams/isolation-barrier.webp",
-    "alt": "EEG electrical isolation. Top row, the safe case: a battery powers the front-end and the electrodes on the person, with no conductive path to mains, so a fault has nowhere to drive current. Bottom row, the danger: a mains-powered device connected to the electrodes without a rated isolation barrier lets line voltage reach the electrodes and drive fault current through the person's head to ground. A rated galvanic isolation barrier, or simply battery power, removes that path.",
-    "hash": "e903663c5ba3"
+    "alt": "EEG electrical isolation, drawn as a broken circuit. On the left, a mains-powered device; its wire runs toward the subject but STOPS at a rated isolation barrier, so the conductor is broken. On the right, the subject side floats, isolated, marked with a safety badge. Because there is no complete conductive path from mains through the person to ground, a fault has nowhere to drive current. Battery-powering the subject side removes the path entirely; a rated isolator is what makes it safe to bridge to plugged-in gear.",
+    "hash": "bfdcfcc55dd7"
   },
   {
     "basename": "right-leg-drive",
