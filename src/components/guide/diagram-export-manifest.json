@@ -116,8 +116,8 @@
   {
     "basename": "right-leg-drive",
     "image": "/guide-diagrams/right-leg-drive.webp",
-    "alt": "The driven-right-leg or bias loop is active negative feedback against mains hum. It senses the body's common-mode voltage (the average of the amplifier inputs), inverts and amplifies it, and drives that opposing signal back into the body through a bias electrode, nulling the hum where it enters. A large series resistor in the drive path limits the current to a safe level, so noise rejection and patient safety are designed together.",
-    "hash": "2c50bb6fce49"
+    "alt": "The effect of the right-leg-drive loop, shown as one EEG trace over time. On the left, before the loop is active, a slow microvolt EEG rhythm is buried under a large 50/60 Hz mains ripple. When the right-leg drive switches on, the loop senses the body's common-mode voltage, inverts it, and drives an opposing signal back into the body through a bias electrode, so the ripple vanishes and the clean rhythm remains. A large series resistor in the drive path keeps the current safe.",
+    "hash": "1a8ca6308041"
   },
   {
     "basename": "lead-shielding",
