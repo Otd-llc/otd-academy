@@ -140,8 +140,8 @@
   {
     "basename": "frequency-bands",
     "image": "/guide-diagrams/frequency-bands.webp",
-    "alt": "The classic EEG frequency bands, slow to fast: delta (about 0.5 to 4 Hz, deep slow-wave sleep); theta (about 4 to 8 Hz, drowsiness, deep relaxation, memory tasks); alpha (about 8 to 12 Hz, relaxed wakefulness with eyes closed); beta (about 13 to 30 Hz, alert active concentration); and gamma (about 30 Hz and up, high-level integrative processing). The sensorimotor mu rhythm shares the alpha range but lives over the motor cortex, so where a rhythm appears matters as much as its frequency.",
-    "hash": "8027706c4405"
+    "alt": "The classic EEG frequency bands, drawn as one continuous signal that speeds up from slow to fast: delta (about 0.5 to 4 Hz, deep slow-wave sleep); theta (about 4 to 8 Hz, drowsiness, deep relaxation, memory tasks); alpha (about 8 to 12 Hz, relaxed wakefulness with eyes closed); beta (about 13 to 30 Hz, alert active concentration); and gamma (about 30 Hz and up, high-level integrative processing). The sensorimotor mu rhythm shares the alpha range but lives over the motor cortex, so where a rhythm appears matters as much as its frequency.",
+    "hash": "27c989876183"
   },
   {
     "basename": "classification-pipeline",
