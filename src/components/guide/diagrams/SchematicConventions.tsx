@@ -1,27 +1,21 @@
-// Schematic-drawing conventions as a responsive HTML component. Header / frame /
-// caption come from the shared DiagramFrame (site-standard Bebas title); this
-// file supplies only the graphic body (and its own scoped <style>).
+// Schematic-drawing conventions as a responsive diagram (v2).
 //
-// Why not the source /guide-diagrams SVG: a fixed-viewBox SVG scales to its
-// container, so on a ~360px phone a 780-wide canvas renders at ~0.46x and ANY
-// text shrinks below an accessible size. Rendered as real HTML/CSS, every label
-// (3V3, IC, in/out, GND, the rules) is actual CSS px (clamped, never below
-// ~14px) that does NOT scale with the viewport. Only the wiring graphic — the
-// supply rail, IC body, signal arrows, decoupling cap, and ground symbol — is a
-// small contained inline <svg>; all text lives in HTML around it. On a phone the
-// two columns stack: rules on top, worked example below.
+// Teaching point: a schematic reads like a sentence — signal flows left to right,
+// supplies (3V3) point up and grounds (GND) point down, parts group by sub-circuit,
+// and the decoupling cap sits right at the IC power pin. One worked example carries
+// all four, each labelled where it appears.
 //
-// BRAND (onethousanddrones.com/brand): gold-dominant on Deep Space, Navy Dark
-// bodies, Signal Blue only as the secondary in/out data callout. All colours via
-// @theme tokens with literal fallbacks. Muted text uses --color-muted (#aaa),
-// never a dimmer gray, so it stays legible on the dark ground.
+// v2: a single annotated schematic on desktop/print (~1.5 landscape), token-only so
+// it re-themes (the old version used presentation-attribute hex and stayed dark). On
+// a narrow phone the in-figure annotations hide and a readable HTML conventions list
+// takes over, so no label ever scales below the ~14px floor (directive 1 / 3).
 import { DiagramFrame } from "./DiagramFrame";
 
-const RULES = [
-  "signal flows left → right",
-  "supplies up, grounds down",
-  "group by sub-circuit",
-  "decoupling cap at the pin",
+const CONVENTIONS = [
+  "Signal flows left to right: in on the left, out on the right.",
+  "Supplies point up (3V3), grounds point down (GND).",
+  "Group parts by sub-circuit.",
+  "Put the decoupling cap right at the IC power pin.",
 ];
 
 export function SchematicConventions({ caption }: { caption?: string }) {
@@ -36,108 +30,83 @@ export function SchematicConventions({ caption }: { caption?: string }) {
     >
       <style>{CSS}</style>
 
-      <div className="scon-body">
-        <div className="scon-rules">
-          <p className="scon-rules-h">THE RULES</p>
-          {RULES.map((r) => (
-            <div key={r} className="scon-rule">
-              <b aria-hidden="true">&rsaquo;</b>
-              <span>{r}</span>
-            </div>
-          ))}
+      <div className="scon">
+        <div className="scon-fig">
+          <svg className="scon-svg" viewBox="0 0 560 236" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+            {/* supply rail down from 3V3 into the IC top */}
+            <line className="scon-rail" x1="270" y1="56" x2="270" y2="114" />
+            <line className="scon-rail" x1="244" y1="56" x2="296" y2="56" />
+            {/* decoupling cap branch, taken right at the pin */}
+            <line className="scon-wire" x1="270" y1="80" x2="336" y2="80" />
+            <line className="scon-wire" x1="336" y1="80" x2="336" y2="93" />
+            <line className="scon-capp" x1="321" y1="93" x2="351" y2="93" />
+            <line className="scon-capp" x1="321" y1="100" x2="351" y2="100" />
+            <line className="scon-gnd" x1="336" y1="100" x2="336" y2="110" />
+            <line className="scon-gnd" x1="325" y1="110" x2="347" y2="110" />
+            <line className="scon-gnd" x1="330" y1="115" x2="342" y2="115" />
+            {/* IC body (one sub-circuit) */}
+            <rect className="scon-ic" x="220" y="114" width="100" height="64" rx="4" />
+            <text className="scon-iclbl" x="270" y="153" textAnchor="middle">IC</text>
+            {/* signal in / out */}
+            <line className="scon-wire" x1="162" y1="146" x2="220" y2="146" />
+            <path className="scon-arrow" d="M220,146 L210,141 L210,151 Z" />
+            <line className="scon-wire" x1="320" y1="146" x2="378" y2="146" />
+            <path className="scon-arrow" d="M378,146 L368,141 L368,151 Z" />
+            {/* ground rail down from the IC */}
+            <line className="scon-gnd" x1="270" y1="178" x2="270" y2="198" />
+            <line className="scon-gnd" x1="256" y1="198" x2="284" y2="198" />
+            <line className="scon-gnd" x1="261" y1="203" x2="279" y2="203" />
+            <line className="scon-gnd" x1="266" y1="208" x2="274" y2="208" />
+
+            {/* annotations (hidden on phone → replaced by the list below) */}
+            <text className="scon-anno scon-anno-g" x="270" y="44" textAnchor="middle">3V3 · supplies point up</text>
+            <text className="scon-anno scon-anno-g" x="358" y="88">decoupling cap</text>
+            <text className="scon-anno scon-anno-m" x="358" y="104">right at the pin</text>
+            <text className="scon-anno scon-anno-b" x="154" y="150" textAnchor="end">in →</text>
+            <text className="scon-anno scon-anno-b" x="386" y="150">→ out</text>
+            <text className="scon-anno scon-anno-m" x="270" y="224" textAnchor="middle">GND · grounds point down</text>
+          </svg>
         </div>
 
-        <div className="scon-ex">
-          <div className="scon-stack">
-            <div className="scon-supply">
-              <b>3V3</b>
-            </div>
-            <svg className="scon-svg" viewBox="0 0 300 220" aria-hidden="true">
-              {/* supply rail down from 3V3 */}
-              <line x1="150" y1="6" x2="150" y2="70" stroke="#c8963e" strokeWidth="3" />
-              <line x1="120" y1="6" x2="180" y2="6" stroke="#c8963e" strokeWidth="3" />
-              {/* branch to decoupling cap, taken right at the pin */}
-              <line x1="150" y1="34" x2="240" y2="34" stroke="#c8963e" strokeWidth="3" />
-              <line x1="240" y1="34" x2="240" y2="50" stroke="#c8963e" strokeWidth="3" />
-              {/* cap plates */}
-              <line x1="222" y1="50" x2="258" y2="50" stroke="#e8e8e8" strokeWidth="3" />
-              <line x1="222" y1="60" x2="258" y2="60" stroke="#e8e8e8" strokeWidth="3" />
-              <line x1="240" y1="60" x2="240" y2="76" stroke="#aaaaaa" strokeWidth="3" />
-              {/* cap-to-ground symbol — kept well above the output line (y=105) */}
-              <line x1="226" y1="76" x2="254" y2="76" stroke="#aaaaaa" strokeWidth="3" />
-              <line x1="231" y1="82" x2="249" y2="82" stroke="#aaaaaa" strokeWidth="3" />
-              <line x1="236" y1="88" x2="244" y2="88" stroke="#aaaaaa" strokeWidth="3" />
-              {/* IC body (a sub-circuit block) */}
-              <rect x="100" y="70" width="100" height="70" rx="4" fill="#1f2438" stroke="#c8963e" strokeWidth="3" />
-              <text
-                x="150"
-                y="113"
-                textAnchor="middle"
-                fill="#ffffff"
-                fontFamily='var(--font-mono,"Space Mono",monospace)'
-                fontSize="20"
-                fontWeight="700"
-              >
-                IC
-              </text>
-              {/* signal in (from the left) */}
-              <line x1="30" y1="105" x2="96" y2="105" stroke="#c8963e" strokeWidth="3" />
-              <path d="M96,105 L86,100 L86,110 Z" fill="#c8963e" />
-              {/* signal out (to the right) */}
-              <line x1="200" y1="105" x2="266" y2="105" stroke="#c8963e" strokeWidth="3" />
-              <path d="M266,105 L256,100 L256,110 Z" fill="#c8963e" />
-              {/* ground rail down from IC */}
-              <line x1="150" y1="140" x2="150" y2="178" stroke="#aaaaaa" strokeWidth="3" />
-              <line x1="122" y1="178" x2="178" y2="178" stroke="#aaaaaa" strokeWidth="3" />
-              <line x1="131" y1="186" x2="169" y2="186" stroke="#aaaaaa" strokeWidth="3" />
-              <line x1="140" y1="194" x2="160" y2="194" stroke="#aaaaaa" strokeWidth="3" />
-            </svg>
-            <div className="scon-iorow">
-              <span className="scon-io">in &rarr;</span>
-              <span className="scon-io">&rarr; out</span>
-            </div>
-            <p className="scon-cap-note">
-              <b>GND</b> below &middot; <b>C</b> decoupling cap, right at the pin
-            </p>
-          </div>
-        </div>
+        {/* phone: readable conventions list (replaces the in-figure annotations) */}
+        <ul className="scon-list" aria-hidden="true">
+          {CONVENTIONS.map((c) => (
+            <li className="scon-li" key={c}><b aria-hidden="true">›</b><span>{c}</span></li>
+          ))}
+        </ul>
       </div>
     </DiagramFrame>
   );
 }
 
 const CSS = `
-.scon-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-  gap:clamp(1.1rem,3.5vw,1.8rem);align-items:start;text-align:left;}
+.scon-svg{display:block;width:100%;height:auto;overflow:visible;}
+.scon-rail,.scon-wire{stroke:var(--color-command-gold,#c8963e);stroke-width:3;fill:none;stroke-linecap:round;}
+.scon-arrow{fill:var(--color-command-gold,#c8963e);}
+.scon-capp{stroke:var(--color-title,#f1ece0);stroke-width:3;fill:none;stroke-linecap:round;}
+.scon-gnd{stroke:var(--color-muted,#aaa);stroke-width:3;fill:none;stroke-linecap:round;}
+.scon-ic{fill:var(--color-navy-dark,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:3;}
+.scon-iclbl{fill:var(--color-title,#f1ece0);font-family:var(--font-mono,"Space Mono",monospace);font-size:20px;font-weight:700;}
+.scon-anno{font-family:var(--font-mono,"Space Mono",monospace);font-size:12px;font-weight:700;}
+.scon-anno-g{fill:var(--color-command-gold,#c8963e);}
+.scon-anno-b{fill:var(--color-signal-blue,#4a8fff);}
+.scon-anno-m{fill:var(--color-muted,#aaa);font-weight:400;font-size:11px;}
 
-/* THE RULES — full readable lines, gold ›, muted body */
-.scon-rules{display:flex;flex-direction:column;gap:.7rem;}
-.scon-rules-h{margin:0 0 .2rem;color:var(--color-command-gold,#c8963e);font-weight:700;
-  font-size:.62rem;letter-spacing:.22em;}
-.scon-rule{display:grid;grid-template-columns:auto 1fr;gap:.55rem;align-items:baseline;}
-.scon-rule b{color:var(--color-command-gold,#c8963e);font-weight:700;
-  font-size:clamp(1.05rem,3vw,1.3rem);line-height:1;}
-.scon-rule span{color:var(--color-muted,#aaaaaa);font-size:clamp(.95rem,2.5vw,1.05rem);line-height:1.35;}
-
-/* WORKED EXAMPLE — wiring graphic in a navy body, HTML labels around it */
-.scon-ex{background:var(--color-navy-dark,#1f2438);border:1px solid var(--color-panel-border,#3a3f50);
-  border-radius:6px;padding:clamp(.8rem,2.5vw,1.1rem);min-width:0;
-  display:flex;flex-direction:column;align-items:center;gap:.45rem;}
-.scon-stack{display:flex;flex-direction:column;align-items:center;gap:.45rem;
-  width:100%;max-width:300px;}
-.scon-supply{display:flex;flex-direction:column;align-items:center;}
-.scon-supply b{color:var(--color-command-gold,#c8963e);font-weight:700;
-  font-size:clamp(1.05rem,3vw,1.25rem);}
-.scon-svg{display:block;width:100%;max-width:min(300px,100%);height:auto;}
-.scon-iorow{display:flex;justify-content:space-between;width:100%;}
-.scon-io{color:var(--color-signal-blue,#4a8fff);font-weight:700;
-  font-size:clamp(.95rem,2.5vw,1.05rem);}
-.scon-cap-note{margin:0;color:var(--color-muted,#aaaaaa);text-align:center;line-height:1.3;
-  font-size:clamp(.85rem,2.3vw,.95rem);}
-.scon-cap-note b{color:var(--color-gray-1,#e8e8e8);font-weight:700;}
-
-/* Phone: stack rules above the worked example, both full readable width. */
+.scon-list{display:none;list-style:none;margin:0;padding:0;flex-direction:column;gap:.6rem;text-align:left;}
 @media (max-width:520px){
-  .scon-body{grid-template-columns:minmax(0,1fr);gap:1.4rem;}
+  .scon-anno{display:none;}
+  .scon-list{display:flex;}
 }
+.scon-li{display:grid;grid-template-columns:auto 1fr;gap:.55rem;align-items:baseline;
+  font-family:var(--font-serif,"Lora",serif);font-size:.92rem;line-height:1.4;color:var(--color-text,#e8e8e8);}
+.scon-li b{color:var(--color-command-gold,#c8963e);font-family:var(--font-mono,"Space Mono",monospace);
+  font-weight:700;font-size:1.15rem;line-height:1;}
+
+/* Tier-B reveal off the frame's armed/in contract. */
+.dgfrm.armed .scon-fig,.dgfrm.armed .scon-li{opacity:0;transform:translateY(5px);}
+.dgfrm.armed.in .scon-fig,.dgfrm.armed.in .scon-li{opacity:1;transform:none;transition:opacity .5s ease,transform .5s cubic-bezier(.2,.7,.2,1);}
+.dgfrm.armed.in .scon-li:nth-child(2){transition-delay:.06s;}
+.dgfrm.armed.in .scon-li:nth-child(3){transition-delay:.12s;}
+.dgfrm.armed.in .scon-li:nth-child(4){transition-delay:.18s;}
+@media (prefers-reduced-motion:reduce){.dgfrm .scon-fig,.dgfrm .scon-li{opacity:1!important;transform:none!important;}}
 `;
