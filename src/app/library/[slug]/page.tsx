@@ -13,6 +13,7 @@ import Link from "next/link";
 import { GuideBlocks } from "@/components/guide/GuideBlocks";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/PageHeader";
+import { DownloadPdfLink } from "@/components/library/DownloadPdfLink";
 import {
   techArticleJsonLd,
   learningResourceJsonLd,
@@ -129,6 +130,10 @@ export default async function LibraryArticlePage({
         title={lesson.title}
         lead={lesson.summary ?? undefined}
       />
+
+      <div className="mb-8 flex justify-end">
+        <DownloadPdfLink href={`/library/${lesson.slug}/pdf`} label="Download PDF" />
+      </div>
 
       <GuideBlocks blocks={blocks} isSignedIn={false} />
 

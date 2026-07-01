@@ -66,3 +66,21 @@ export async function listPublishedMiniLessons() {
     select: { slug: true, title: true, summary: true, updatedAt: true },
   });
 }
+
+// Every published, PUBLIC lesson WITH its content blocks, in authoring order
+// (createdAt asc → foundational pages first), for the combined "Field Guide"
+// PDF. Distinct from the index loader (which omits content + sorts by freshness).
+export async function loadPublicLibraryForBook() {
+  return db.miniLesson.findMany({
+    where: { published: true, accessTier: "PUBLIC" },
+    orderBy: { createdAt: "asc" },
+    select: {
+      slug: true,
+      title: true,
+      summary: true,
+      byline: true,
+      updatedAt: true,
+      contentBlocks: true,
+    },
+  });
+}

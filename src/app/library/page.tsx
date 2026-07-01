@@ -16,6 +16,7 @@ import Link from "next/link";
 
 import { PageHeader } from "@/components/PageHeader";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { DownloadPdfLink } from "@/components/library/DownloadPdfLink";
 import { courseListJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { listPublishedMiniLessons } from "@/lib/library/load";
 
@@ -72,6 +73,13 @@ export default async function LibraryIndexPage() {
               {lessons.length === 1 ? "entry" : "entries"}
             </span>
             {lastUpdated ? <span>Updated {monthYear(lastUpdated)}</span> : null}
+          </div>
+
+          <div className="mt-4 flex justify-end">
+            <DownloadPdfLink
+              href="/library/field-guide/pdf"
+              label="Download field guide (PDF)"
+            />
           </div>
 
           <ul>

@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/learn/[slug]/certificate/[token]/pdf": ["./src/lib/pdf/fonts/**", "./src/lib/pdf/seal.png"],
     "/learn/[slug]/certificate/[token]/image": ["./src/lib/pdf/fonts/**", "./src/lib/pdf/seal.png"],
+    // The Library PDFs read the bundled fonts AND the exported diagram rasters
+    // (public/ is NOT bundled into serverless functions by default), so trace
+    // both into these routes or they 500 in prod.
+    "/library/[slug]/pdf": ["./src/lib/pdf/fonts/**", "./public/guide-diagrams/**"],
+    "/library/field-guide/pdf": ["./src/lib/pdf/fonts/**", "./public/guide-diagrams/**"],
   },
   experimental: {
     serverActions: {
