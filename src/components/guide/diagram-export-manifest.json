@@ -159,6 +159,6 @@
     "basename": "bci-loop",
     "image": "/guide-diagrams/bci-loop.webp",
     "alt": "Every brain-computer interface is the same loop: measure the brain signal, decode it into an intent, issue a command, and a device acts on it. Then feedback closes the loop: the user sees the result and adapts, getting better at producing clean, classifiable brain states. That feedback return is why a BCI is as much a learned skill as it is hardware.",
-    "hash": "1b82cc494f6f"
+    "hash": "a38e88be1d66"
   }
 ]
