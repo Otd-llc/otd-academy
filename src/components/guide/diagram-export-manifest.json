@@ -15,7 +15,7 @@
     "basename": "current-budget",
     "image": "/guide-diagrams/current-budget.webp",
     "alt": "Current budget: the board draws about 550 mA (a 500 mA Wi-Fi transmit peak plus 50 mA for the rest) against the RT9080 LDO's 600 mA ceiling, leaving roughly 50 mA of headroom.",
-    "hash": "984a145e0994"
+    "hash": "b7f7629ea47d"
   },
   {
     "basename": "hasl-vs-enig",
