@@ -134,8 +134,8 @@
   {
     "basename": "ten-twenty-midline",
     "image": "/guide-diagrams/ten-twenty-midline.webp",
-    "alt": "The 10-20 system's midline spacing. Measuring from the nasion at the front of the head to the inion at the back, the midline electrodes are placed at 10 percent (Fpz), then 20 percent (Fz), 20 percent (Cz, the vertex), 20 percent (Pz), 20 percent (Oz), then 10 percent to the inion. Those 10 and 20 percent steps give the system its name, and because they are proportional, the same electrode name lands on the same brain region across different head sizes.",
-    "hash": "bcfe1802141d"
+    "alt": "The 10-20 system's midline spacing, drawn over a head-profile dome from the nasion at the front to the inion at the back. Measuring along that midline, the electrodes are placed at 10 percent (Fpz), then 20 percent (Fz), 20 percent (Cz, the vertex at the top of the head), 20 percent (Pz), 20 percent (Oz), then 10 percent to the inion. Those 10 and 20 percent steps give the system its name, and because they are proportional, the same electrode name lands on the same brain region across different head sizes.",
+    "hash": "ee95c349b12a"
   },
   {
     "basename": "frequency-bands",
