@@ -67,6 +67,7 @@ export function SourceToScalp({ caption }: { caption?: string }) {
             <text className="sts-slab" x="548" y="37" textAnchor="end">SCALP</text>
             <text className="sts-slab" x="548" y="65" textAnchor="end">SKULL</text>
             <text className="sts-slab" x="548" y="112" textAnchor="end">CORTEX</text>
+            <text className="sts-foot" x="12" y="37" textAnchor="start">wide, blurred footprint</text>
             <text className="sts-foot sts-foot-gold" x="12" y="140" textAnchor="start">source: focal, strong</text>
           </svg>
           <div className="sts-cap4">
