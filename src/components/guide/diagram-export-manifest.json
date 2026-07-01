@@ -147,7 +147,7 @@
     "basename": "classification-pipeline",
     "image": "/guide-diagrams/classification-pipeline.webp",
     "alt": "The EEG classification pipeline: cut the signal into an epoch (window), bandpass-filter to the task's frequencies, extract features or spatially filter, then a classifier outputs a class, which becomes one of a few commands. Two approaches share the feature-and-classifier stage: the classic hand-engineered Common Spatial Patterns plus a linear LDA classifier, and the end-to-end learned EEGNet convolutional network.",
-    "hash": "f729a1c8f920"
+    "hash": "89875c9ebbc8"
   },
   {
     "basename": "source-to-scalp",
