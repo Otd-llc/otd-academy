@@ -32,7 +32,7 @@ const LIGHT = argv.includes("--light");
 // in a presentation attribute) do NOT re-theme under data-theme="light" yet, so
 // their light raster would be broken. Skip them until they're tokenized. None are
 // used by the EEG/BCI Library / Field Guide, so the PDF is unaffected.
-const LIGHT_SKIP = new Set(["hasl-vs-enig", "schematic-conventions", "wroom-u1", "gerber-layer-stack"]);
+const LIGHT_SKIP = new Set(["schematic-conventions", "wroom-u1", "gerber-layer-stack"]);
 
 function registryBasenames(): string[] {
   const reg = readFileSync(path.join(ROOT, "src/components/guide/diagram-registry.tsx"), "utf8");
