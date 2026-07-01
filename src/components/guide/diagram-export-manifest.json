@@ -122,8 +122,8 @@
   {
     "basename": "lead-shielding",
     "image": "/guide-diagrams/lead-shielding.webp",
-    "alt": "Shielding and guarding an EEG lead. The 50/60 Hz mains electric field couples capacitively to a high-impedance electrode lead. A shield around the wire intercepts the field, and a unity-gain buffer drives that shield at the lead's own common-mode voltage. With no voltage across the wire-to-shield capacitance, no pickup current flows through it, so the field is blocked while the signal stays unloaded. This driven shield is the same active-feedback trick as the right-leg drive, applied to the cable instead of the body.",
-    "hash": "00c1bebe4fb2"
+    "alt": "Shielding and guarding an EEG lead, shown as two coaxial cross-sections. On the left, a plain grounded shield: the shield is tied to ground, so the wire-to-shield capacitance loads the high-impedance lead and the microvolt signal droops. On the right, a driven shield: a unity-gain buffer holds the shield at the lead's own common-mode voltage, so no voltage sits across the wire-to-shield gap, no pickup current flows, and no load is placed on the lead, so the signal stays clean. A driven shield is the same active-feedback trick as the right-leg drive, applied to the cable instead of the body.",
+    "hash": "0f4619664c5d"
   },
   {
     "basename": "instrumentation-amp",
