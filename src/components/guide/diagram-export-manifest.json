@@ -3,7 +3,7 @@
     "basename": "mpn-anatomy",
     "image": "/guide-diagrams/mpn-anatomy.webp",
     "alt": "Decoding the part number RC0805FR-075K1L. RC is the Yageo thick-film resistor family; 0805 is the package size 2.0 by 1.25 mm; F is the tolerance plus or minus 1 percent; 5K1 is the value 5.1 kilohm, an E24 step not a round 5.0. R-07 and the trailing L are packaging and ordering codes you can ignore.",
-    "hash": "68eb8eba306b"
+    "hash": "5bc0c5f057fd"
   },
   {
     "basename": "0805-vs-0402",
