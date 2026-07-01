@@ -225,17 +225,9 @@ export default async function CoursePreviewPage({
       <JsonLd data={breadcrumbLd} />
       <JsonLd data={faqLd} />
 
-      {/* Atmosphere: blueprint grid field + a gold glow bleeding from the top —
-          the "board on the bench under the lamp" feel. Decorative, behind all. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{
-          backgroundImage:
-            "radial-gradient(900px 380px at 50% -8%, rgba(200,150,62,0.10), transparent 62%), linear-gradient(rgba(58,63,80,0.16) 1px, transparent 1px), linear-gradient(90deg, rgba(58,63,80,0.16) 1px, transparent 1px)",
-          backgroundSize: "100% 100%, 32px 32px, 32px 32px",
-        }}
-      />
+      {/* One background only: the global engineering-paper field (.app-backdrop)
+          behind every page. No per-page atmosphere layer — a second grid here
+          double-stacked over the global one. */}
 
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
         <nav className="font-mono text-xs uppercase tracking-wider">
