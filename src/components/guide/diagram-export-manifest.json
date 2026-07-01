@@ -104,8 +104,8 @@
   {
     "basename": "drone-shared-autonomy",
     "image": "/guide-diagrams/drone-shared-autonomy.webp",
-    "alt": "Shared-autonomy brain-drone control. The human supplies sparse, high-level intent at roughly one command every second or two: imagine a movement, the EEG is classified, and it becomes a command like go left or hover. The drone's own flight controller handles the fast, continuous work at hundreds of hertz: holding altitude, staying stable, and avoiding obstacles. The human's intent sets the goal; the drone executes it continuously, and visual feedback from the drone closes the loop so the human can adjust.",
-    "hash": "c81587897d59"
+    "alt": "Shared-autonomy brain-drone control, drawn as a loop. The pilot, wearing a video headset, supplies sparse high-level intent at roughly one command every second or two: imagine a movement, the EEG is classified, and it becomes a command like go left or hover. The drone's own flight controller handles the fast, continuous work at hundreds of hertz, holding altitude, staying stable, and avoiding obstacles on its own. A live video feed streams back from the drone's camera to the pilot's screen, closing the loop so the human can watch and adjust. The human sets the goal; the drone executes it continuously.",
+    "hash": "55eba17e7ebd"
   },
   {
     "basename": "isolation-barrier",
