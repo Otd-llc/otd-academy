@@ -70,7 +70,7 @@ const CSS = `
 .iamp-amp{display:flex;flex-direction:column;justify-content:center;align-items:center;
   width:clamp(3.4rem,13vw,4.2rem);height:clamp(3.4rem,13vw,4.2rem);border-radius:8px;
   background:var(--color-deep-space,#08090d);box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
-.iamp-amp-t{margin:0;color:#fff;font-weight:700;font-size:clamp(.78rem,2vw,.9rem);}
+.iamp-amp-t{margin:0;color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(.78rem,2vw,.9rem);}
 .iamp-amp-s{margin:.1rem 0 0;color:var(--color-command-gold,#c8963e);
   font-family:var(--font-mono,"Space Mono",monospace);font-size:clamp(.64rem,1.7vw,.72rem);}
 .iamp-arrow{color:var(--color-command-gold,#c8963e);font-size:clamp(1rem,2.6vw,1.25rem);font-weight:700;}

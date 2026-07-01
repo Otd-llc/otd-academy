@@ -89,7 +89,7 @@ const CSS = `
 .apm-tag{flex:none;font-size:.62rem;font-weight:700;letter-spacing:.16em;
   padding:.28rem .5rem;border-radius:3px;line-height:1;}
 .apm-tag-good{color:var(--color-deep-space,#08090d);background:var(--color-command-gold,#c8963e);}
-.apm-tag-bad{color:#fff;background:var(--color-alert-red,#c62828);}
+.apm-tag-bad{color:var(--color-title,#f1ece0);background:var(--color-alert-red,#c62828);}
 .apm-headtext{display:flex;align-items:baseline;gap:.55rem;flex-wrap:wrap;}
 .apm-bank-name{color:var(--color-command-gold,#c8963e);font-weight:700;
   font-size:clamp(1.05rem,3vw,1.3rem);letter-spacing:.02em;}
@@ -101,7 +101,7 @@ const CSS = `
   aspect-ratio:5/3;border-radius:5px;font-weight:700;
   font-size:clamp(1.05rem,3vw,1.3rem);
   background:var(--color-navy-dark,#1f2438);}
-.apm-pin-good{color:#fff;border:2px solid var(--color-command-gold,#c8963e);}
+.apm-pin-good{color:var(--color-title,#f1ece0);border:2px solid var(--color-command-gold,#c8963e);}
 .apm-pin-bad{color:var(--color-muted,#aaa);border:1.5px solid rgba(198,40,40,.55);}
 
 .apm-note{margin:clamp(.7rem,3vw,1rem) 0 0;color:var(--color-muted,#aaa);

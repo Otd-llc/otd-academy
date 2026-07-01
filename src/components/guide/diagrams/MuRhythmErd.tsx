@@ -103,7 +103,7 @@ const CSS = `
 .muerd-chan-active{box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
 
 .muerd-meta{display:flex;align-items:baseline;gap:.5rem;}
-.muerd-site{margin:0;color:#fff;font-weight:700;font-size:clamp(1.1rem,3.2vw,1.35rem);letter-spacing:.02em;}
+.muerd-site{margin:0;color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(1.1rem,3.2vw,1.35rem);letter-spacing:.02em;}
 .muerd-where{margin:0;color:var(--color-muted,#aaa);font-size:clamp(.78rem,2.1vw,.88rem);}
 
 .muerd-trace{display:block;width:100%;height:clamp(2.4rem,9vw,3rem);}

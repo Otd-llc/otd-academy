@@ -154,7 +154,7 @@ const CSS = `
 .wpf-ref{color:var(--color-gold-light,#e8b865);font-weight:700;
   font-size:clamp(1.05rem,3vw,1.3rem);line-height:1;}
 .wpf-node.data .wpf-ref{color:var(--color-signal-blue,#4a8fff);}
-.wpf-name{display:block;color:#fff;font-weight:700;margin-top:.28rem;
+.wpf-name{display:block;color:var(--color-title,#f1ece0);font-weight:700;margin-top:.28rem;
   font-size:clamp(.95rem,2.5vw,1.05rem);line-height:1.2;}
 .wpf-role{display:block;color:var(--color-muted,#aaa);margin-top:.2rem;
   font-size:clamp(.85rem,2.3vw,.95rem);line-height:1.25;}

@@ -60,7 +60,7 @@ const CSS = `
 .sts-dot{position:relative;z-index:1;align-self:start;margin-top:.2rem;
   width:clamp(.9rem,3vw,1.05rem);height:clamp(.9rem,3vw,1.05rem);border-radius:999px;
   background:var(--color-deep-space,#08090d);box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
-.sts-name{margin:0;color:#fff;font-weight:700;font-size:clamp(1rem,2.8vw,1.15rem);}
+.sts-name{margin:0;color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(1rem,2.8vw,1.15rem);}
 .sts-sub{margin:.12rem 0 0;color:var(--color-muted,#aaa);font-size:clamp(.85rem,2.3vw,.95rem);line-height:1.35;}
 
 .sts-tags{margin:clamp(.9rem,3vw,1.2rem) 0 0;display:flex;flex-wrap:wrap;justify-content:center;gap:.5rem .9rem;}

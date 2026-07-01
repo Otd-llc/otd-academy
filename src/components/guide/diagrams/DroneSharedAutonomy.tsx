@@ -61,7 +61,7 @@ const CSS = `
 .dsa-panel{padding:clamp(.75rem,2.6vw,1rem);border-radius:6px;text-align:left;
   background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
 .dsa-panel-drone{box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
-.dsa-who{margin:0;color:#fff;font-weight:700;font-size:clamp(1.02rem,3vw,1.2rem);}
+.dsa-who{margin:0;color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(1.02rem,3vw,1.2rem);}
 .dsa-rate{margin:.1rem 0 .55rem;font-family:var(--font-mono,"Space Mono",monospace);
   font-size:clamp(.72rem,2vw,.8rem);letter-spacing:.03em;color:var(--color-command-gold,#c8963e);}
 .dsa-list{margin:0;padding-left:1.05rem;color:var(--color-gray-1,#e8e8e8);

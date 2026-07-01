@@ -71,7 +71,7 @@ const CSS = `
 .iso-box{padding:.4rem .6rem;border-radius:5px;background:var(--color-deep-space,#08090d);
   box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);
   color:var(--color-gray-1,#e8e8e8);font-size:clamp(.82rem,2.2vw,.92rem);font-weight:700;white-space:nowrap;}
-.iso-box-body{box-shadow:inset 0 0 0 1.5px var(--color-command-gold,#c8963e);color:#fff;}
+.iso-box-body{box-shadow:inset 0 0 0 1.5px var(--color-command-gold,#c8963e);color:var(--color-title,#f1ece0);}
 .iso-mains{box-shadow:inset 0 0 0 1.5px var(--color-alert-red,#c62828);}
 .iso-arrow{color:var(--color-command-gold,#c8963e);font-size:clamp(1rem,2.6vw,1.2rem);font-weight:700;}
 .iso-arrow-bad{color:var(--color-alert-red,#c62828);}

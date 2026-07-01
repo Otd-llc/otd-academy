@@ -82,7 +82,7 @@ const CSS = `
 .crtbgt-rest{background:rgba(74,143,255,.18);box-shadow:inset 0 0 0 2px var(--color-signal-blue,#4a8fff);}
 .crtbgt-used{background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-command-gold,#c8963e);}
 .crtbgt-headroom{background:var(--color-command-gold,#c8963e);box-shadow:inset 0 0 0 1.5px var(--color-gold-light,#e8b865);}
-.crtbgt-segtext{color:#fff;font-weight:700;font-size:clamp(.95rem,2.6vw,1.1rem);white-space:nowrap;padding:0 .3rem;}
+.crtbgt-segtext{color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(.95rem,2.6vw,1.1rem);white-space:nowrap;padding:0 .3rem;}
 .crtbgt-segtext-muted{color:var(--color-muted,#aaa);font-weight:400;font-size:clamp(.85rem,2.3vw,.95rem);}
 .crtbgt-ceiling{position:absolute;top:-4px;bottom:-4px;right:0;width:3px;background:var(--color-alert-red,#c62828);}
 .crtbgt-sum{margin:0;align-self:flex-end;color:var(--color-gray-1,#e8e8e8);font-size:clamp(.85rem,2.3vw,.95rem);letter-spacing:.03em;}

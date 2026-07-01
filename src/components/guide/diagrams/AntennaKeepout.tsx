@@ -85,12 +85,12 @@ const CSS = `
 .akz-notes{list-style:none;margin:0;padding:0;width:100%;
   display:flex;flex-direction:column;gap:clamp(.7rem,2.2vw,.95rem);}
 .akz-note{position:relative;padding-left:.85rem;border-left:2px solid var(--color-panel-border,#3a3f50);}
-.akz-white{border-left-color:#fff;}
+.akz-white{border-left-color:var(--color-title,#f1ece0);}
 .akz-gold{border-left-color:var(--color-command-gold,#c8963e);}
 .akz-muted{border-left-color:var(--color-muted,#aaa);}
 .akz-key{display:block;font-weight:700;letter-spacing:.02em;
   font-size:clamp(1.05rem,3vw,1.25rem);line-height:1.2;}
-.akz-white .akz-key{color:#fff;}
+.akz-white .akz-key{color:var(--color-title,#f1ece0);}
 .akz-gold .akz-key{color:var(--color-command-gold,#c8963e);}
 .akz-muted .akz-key{color:var(--color-gray-1,#e8e8e8);}
 .akz-val{display:block;margin-top:.2rem;color:var(--color-muted,#aaa);

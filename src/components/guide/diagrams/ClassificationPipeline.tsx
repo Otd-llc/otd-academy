@@ -58,7 +58,7 @@ const CSS = `
   padding:clamp(.45rem,1.6vw,.62rem) clamp(.35rem,1.3vw,.5rem);text-align:center;border-radius:6px;
   background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
 .clp-node-hi{box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
-.clp-name{margin:0;color:#fff;font-weight:700;font-size:clamp(.76rem,2vw,.88rem);line-height:1.12;}
+.clp-name{margin:0;color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(.76rem,2vw,.88rem);line-height:1.12;}
 .clp-sub{margin:.12rem 0 0;color:var(--color-muted,#aaa);
   font-family:var(--font-mono,"Space Mono",monospace);font-size:clamp(.6rem,1.6vw,.68rem);line-height:1.2;}
 .clp-arrow{color:var(--color-command-gold,#c8963e);font-size:clamp(.82rem,2.1vw,1rem);font-weight:700;}

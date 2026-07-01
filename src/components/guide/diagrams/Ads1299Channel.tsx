@@ -67,7 +67,7 @@ const CSS = `
   padding:clamp(.5rem,1.8vw,.7rem) clamp(.4rem,1.6vw,.6rem);text-align:center;border-radius:6px;
   background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
 .a99-node-pga,.a99-node-adc{box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
-.a99-name{margin:0;color:#fff;font-weight:700;font-size:clamp(.82rem,2.2vw,.95rem);line-height:1.1;}
+.a99-name{margin:0;color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(.82rem,2.2vw,.95rem);line-height:1.1;}
 .a99-sub{margin:.15rem 0 0;color:var(--color-muted,#aaa);
   font-family:var(--font-mono,"Space Mono",monospace);font-size:clamp(.64rem,1.7vw,.72rem);}
 .a99-arrow{color:var(--color-command-gold,#c8963e);font-size:clamp(.9rem,2.4vw,1.1rem);font-weight:700;}

@@ -70,7 +70,7 @@ const CSS = `
   padding:clamp(.5rem,1.9vw,.7rem) clamp(.6rem,2.4vw,.9rem);
   background:var(--color-navy-dark,#1f2438);
   box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
-.ls-shieldname{margin:0;color:#fff;font-weight:700;
+.ls-shieldname{margin:0;color:var(--color-title,#f1ece0);font-weight:700;
   font-size:clamp(.95rem,2.7vw,1.15rem);line-height:1.12;}
 .ls-shieldsub{margin:.18rem 0 0;color:var(--color-gold-light,#e8b865);
   font-family:var(--font-mono,"Space Mono",monospace);
