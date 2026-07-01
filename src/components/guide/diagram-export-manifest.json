@@ -98,8 +98,8 @@
   {
     "basename": "ads1299-channel",
     "image": "/guide-diagrams/ads1299-channel.webp",
-    "alt": "The signal path of one ADS1299 channel: a microvolt electrode input feeds a programmable-gain amplifier (gain 1 to 24 times), which feeds that channel's own dedicated 24-bit delta-sigma ADC, whose output goes out over SPI to the host. All eight channels are identical and sample at the same instant. Separately, an on-chip bias-drive amplifier senses the body's common-mode voltage and drives a correction back through a bias electrode, cancelling 50/60 Hz mains hum before it reaches the converters.",
-    "hash": "f6947252bb59"
+    "alt": "Why the ADS1299 samples all channels at the same instant, shown as two plots of the same waveform. On the left, a shared multiplexed ADC visits each channel in turn, so its samples are taken at skewed times and fall off the true waveform, giving a sheared, distorted snapshot. On the right, the ADS1299 gives every channel its own 24-bit converter, so all eight samples are taken at the same instant and land faithfully on the waveform.",
+    "hash": "59d0a20c5795"
   },
   {
     "basename": "drone-shared-autonomy",
