@@ -1,5 +1,14 @@
 import type { NextConfig } from "next";
 
+// Files a Library PDF route's serverless function must carry: the bundled OTD
+// fonts and the exported diagram rasters (public/ isn't traced by default). The
+// PDF reads the committed `<name>.png` diagram directly (no runtime image codec),
+// so there is no native binary to trace — sharp is gone from these routes.
+const LIBRARY_PDF_TRACE = [
+  "./src/lib/pdf/fonts/**",
+  "./public/guide-diagrams/**",
+];
+
 const nextConfig: NextConfig = {
   // Bundle the certificate fonts into the cert routes' serverless functions —
   // they're read from disk at render (react-pdf + satori), so Vercel's tracer
@@ -7,11 +16,11 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/learn/[slug]/certificate/[token]/pdf": ["./src/lib/pdf/fonts/**", "./src/lib/pdf/seal.png"],
     "/learn/[slug]/certificate/[token]/image": ["./src/lib/pdf/fonts/**", "./src/lib/pdf/seal.png"],
-    // The Library PDFs read the bundled fonts AND the exported diagram rasters
-    // (public/ is NOT bundled into serverless functions by default), so trace
-    // both into these routes or they 500 in prod.
-    "/library/[slug]/pdf": ["./src/lib/pdf/fonts/**", "./public/guide-diagrams/**"],
-    "/library/field-guide/pdf": ["./src/lib/pdf/fonts/**", "./public/guide-diagrams/**"],
+    // The Library PDFs read the bundled fonts + the exported diagram PNGs
+    // (public/ is NOT bundled into serverless functions by default). Trace both
+    // or these routes render text-only / 500 on a missing font.
+    "/library/[slug]/pdf": LIBRARY_PDF_TRACE,
+    "/library/field-guide/pdf": LIBRARY_PDF_TRACE,
   },
   experimental: {
     serverActions: {

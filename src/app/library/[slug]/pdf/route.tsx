@@ -10,7 +10,7 @@ import { loadPublicMiniLesson } from "@/lib/library/load";
 import { guideContentBlocksSchema } from "@/lib/schemas/guide";
 import { filterLibraryBlocks } from "@/lib/library/block-allowlist";
 import { resolveLibraryImages } from "@/lib/pdf/library-images";
-import { registerCertFonts } from "@/lib/pdf/cert-fonts";
+import { registerLibraryFonts } from "@/lib/pdf/library-fonts";
 import { LibraryPdf } from "@/lib/pdf/library-pdf";
 
 export const runtime = "nodejs";
@@ -28,7 +28,7 @@ export async function GET(
   const blocks = filterLibraryBlocks(parsed.success ? parsed.data : []);
   const images = await resolveLibraryImages(blocks);
 
-  registerCertFonts();
+  registerLibraryFonts();
   const buffer = await renderToBuffer(
     <LibraryPdf
       lesson={{
