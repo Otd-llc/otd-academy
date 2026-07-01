@@ -1,18 +1,21 @@
-// WROOM antenna keep-out as a responsive HTML component.
+// WROOM antenna keep-out as a responsive diagram (v2).
 //
-// Why not the /guide-diagrams SVG: a fixed-viewBox SVG scales to its container,
-// so on a ~360px phone a 780-wide canvas renders at ~0.46x and ANY text shrinks
-// below an accessible size. Here every label is real CSS px (clamped, never
-// below ~14px); only the small board graphic (a contained inline SVG with NO
-// text) carries the picture. Header / frame / caption come from the shared
-// DiagramFrame; the U1 module is the shared WroomU1 (square body + antenna tab)
-// so it looks identical to U1 in every other diagram, with the antenna tab
-// overhanging the board's top edge inside the dashed keep-out zone.
+// Teaching point: the ESP32-S3-WROOM-1 (U1) sits at the board edge with its PCB
+// antenna overhanging the top edge. The area under and around that antenna is a
+// KEEP-OUT: no copper, no ground pour, no parts, no traces — copper there detunes
+// the antenna and kills range. The ground pour fills the rest of the board, under
+// the module body and pads.
 //
-// BRAND (onethousanddrones.com/brand): gold-dominant on Deep Space, Navy Dark
-// module/board fills, white glyph, muted body. No off-palette hues.
+// v2: a top-down board figure (visible copper-pour hatch, a cleared dashed
+// keep-out around the antenna, the shared WroomU1 module on the pour) beside a
+// forbidden-list, landscape on desktop/print and stacking on a narrow phone
+// (directive 1). Token-only color — the pour hatch line, the board, the keep-out,
+// and the WroomU1 module all resolve via `var(--color-*)`, so the whole figure
+// re-themes in light mode (the old presentation-attribute hex did not).
 import { DiagramFrame } from "./DiagramFrame";
 import { WroomU1 } from "./WroomU1";
+
+const NO = ["no copper", "no ground pour", "no parts", "no traces"];
 
 export function AntennaKeepout({ caption }: { caption?: string }) {
   return (
@@ -25,76 +28,70 @@ export function AntennaKeepout({ caption }: { caption?: string }) {
       defaultCaption="Clear copper and parts beneath the antenna."
     >
       <style>{CSS}</style>
-      <div className="akz-body">
+
+      <div className="akz">
+        {/* board figure */}
         <div className="akz-figwrap">
-          <svg
-            className="akz-svg"
-            viewBox="0 0 220 250"
-            preserveAspectRatio="xMidYMid meet"
-            aria-hidden="true"
-          >
+          <svg className="akz-svg" viewBox="0 0 240 180" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
             <defs>
-              <pattern id="akzpour" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
-                <line x1="0" y1="0" x2="0" y2="8" stroke="#aaaaaa" strokeWidth="1" strokeOpacity="0.32" />
+              <pattern id="akzpour" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+                <line className="akz-pourline" x1="0" y1="0" x2="0" y2="7" />
               </pattern>
             </defs>
-            {/* board flooded with ground pour; its TOP EDGE is at the U1 body top */}
-            <rect x="20" y="58" width="180" height="182" rx="8" fill="url(#akzpour)" stroke="#c8963e" strokeWidth="2.5" />
-            {/* keep-out: the ground pour is CLEARED (no hatch) in this band at the edge */}
-            <rect x="38" y="60" width="144" height="16" fill="#08090d" />
-            {/* the WROOM: square body on the board, antenna tab overhanging the top edge */}
-            <WroomU1 x={55} y={27} scale={1.1} />
-            {/* keep-out boundary: dashed no-copper zone around the antenna + cleared band */}
-            <rect x="38" y="18" width="144" height="58" fill="none" stroke="#c8963e" strokeWidth="2" strokeDasharray="6 4" />
+            {/* copper ground pour (hatch) fills the board */}
+            <rect className="akz-board" x="15" y="82" width="210" height="86" rx="8" />
+            {/* keep-out: pour CLEARED under the antenna */}
+            <rect className="akz-clear" x="70" y="82" width="100" height="9" />
+            {/* the WROOM: body on the pour, antenna overhanging the top edge */}
+            <WroomU1 x={85} y={61} scale={0.7} />
+            {/* dashed no-copper keep-out around the antenna */}
+            <rect className="akz-ko" x="70" y="55" width="100" height="36" />
+            <text className="akz-kolab" x="120" y="50" textAnchor="middle">keep-out</text>
           </svg>
         </div>
 
-        <ul className="akz-notes">
-          <li className="akz-note akz-white">
-            <span className="akz-key">PCB antenna</span>
-            <span className="akz-val">overhangs the board edge (or sits over a board cut-out).</span>
-          </li>
-          <li className="akz-note akz-gold">
-            <span className="akz-key">Keep-out</span>
-            <span className="akz-val">
-              no copper and no ground pour in this band &mdash; the dashed zone around the antenna.
-            </span>
-          </li>
-          <li className="akz-note akz-white">
-            <span className="akz-key">ESP32-S3-WROOM-1</span>
-            <span className="akz-val">
-              the module, placed as <strong>U1</strong> with its pads below the keep-out.
-            </span>
-          </li>
-          <li className="akz-note akz-muted">
-            <span className="akz-key">Ground pour</span>
-            <span className="akz-val">copper fills everywhere except the keep-out (the hatched fill).</span>
-          </li>
-        </ul>
+        {/* forbidden-list */}
+        <div className="akz-list">
+          <p className="akz-h">UNDER THE ANTENNA</p>
+          <ul className="akz-nos">
+            {NO.map((n) => (
+              <li className="akz-no" key={n}><span className="akz-x" aria-hidden="true">✗</span>{n}</li>
+            ))}
+          </ul>
+          <p className="akz-sub">The ground pour (hatch) fills the rest, under the U1 body and pads.</p>
+        </div>
       </div>
     </DiagramFrame>
   );
 }
 
 const CSS = `
-.akz-body{display:flex;flex-direction:column;align-items:center;
-  gap:clamp(1.25rem,4vw,1.75rem);text-align:left;}
-.akz-figwrap{width:100%;max-width:235px;}
-.akz-svg{display:block;width:100%;height:auto;}
+.akz{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);align-items:center;
+  gap:clamp(1rem,4vw,2rem);text-align:left;}
+@media (max-width:520px){.akz{grid-template-columns:1fr;gap:1.1rem;}}
+.akz-figwrap{width:100%;}
+.akz-svg{display:block;width:100%;height:auto;overflow:visible;}
 
-.akz-notes{list-style:none;margin:0;padding:0;width:100%;
-  display:flex;flex-direction:column;gap:clamp(.7rem,2.2vw,.95rem);}
-.akz-note{position:relative;padding-left:.85rem;border-left:2px solid var(--color-panel-border,#3a3f50);}
-.akz-white{border-left-color:var(--color-title,#f1ece0);}
-.akz-gold{border-left-color:var(--color-command-gold,#c8963e);}
-.akz-muted{border-left-color:var(--color-muted,#aaa);}
-.akz-key{display:block;font-weight:700;letter-spacing:.02em;
-  font-size:clamp(1.05rem,3vw,1.25rem);line-height:1.2;}
-.akz-white .akz-key{color:var(--color-title,#f1ece0);}
-.akz-gold .akz-key{color:var(--color-command-gold,#c8963e);}
-.akz-muted .akz-key{color:var(--color-gray-1,#e8e8e8);}
-.akz-val{display:block;margin-top:.2rem;color:var(--color-muted,#aaa);
-  font-family:var(--font-serif,"Lora",serif);
-  font-size:clamp(.95rem,2.5vw,1.05rem);line-height:1.45;}
-.akz-val strong{color:var(--color-gray-1,#e8e8e8);font-weight:700;}
+.akz-pourline{stroke:var(--color-command-gold,#c8963e);stroke-width:1.2;opacity:.42;}
+.akz-board{fill:url(#akzpour);stroke:var(--color-command-gold,#c8963e);stroke-width:2.5;}
+.akz-clear{fill:var(--color-deep-space,#08090d);}
+.akz-ko{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2;stroke-dasharray:6 4;}
+.akz-kolab{fill:var(--color-command-gold,#c8963e);font-family:var(--font-mono,"Space Mono",monospace);font-size:11px;font-weight:700;letter-spacing:.04em;}
+
+.akz-h{margin:0 0 .75rem;font-family:var(--font-display,"Bebas Neue",sans-serif);
+  font-size:clamp(1.5rem,5vw,1.9rem);letter-spacing:.03em;line-height:1;color:var(--color-command-gold,#c8963e);}
+.akz-nos{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.5rem;}
+.akz-no{display:flex;align-items:baseline;gap:.55rem;font-family:var(--font-mono,"Space Mono",monospace);
+  font-weight:700;font-size:clamp(.95rem,2.6vw,1.15rem);color:var(--color-title,#f1ece0);}
+.akz-x{color:var(--color-alert-red,#ef5350);font-weight:700;}
+.akz-sub{margin:.9rem 0 0;font-family:var(--font-serif,"Lora",serif);
+  font-size:clamp(.85rem,2.2vw,.95rem);line-height:1.45;color:var(--color-muted,#aaa);}
+
+/* Tier-B reveal off the frame's armed/in contract. */
+.dgfrm.armed .akz-no,.dgfrm.armed .akz-figwrap{opacity:0;transform:translateY(5px);}
+.dgfrm.armed.in .akz-no,.dgfrm.armed.in .akz-figwrap{opacity:1;transform:none;transition:opacity .5s ease,transform .5s cubic-bezier(.2,.7,.2,1);}
+.dgfrm.armed.in .akz-no:nth-child(2){transition-delay:.06s;}
+.dgfrm.armed.in .akz-no:nth-child(3){transition-delay:.12s;}
+.dgfrm.armed.in .akz-no:nth-child(4){transition-delay:.18s;}
+@media (prefers-reduced-motion:reduce){.dgfrm .akz-no,.dgfrm .akz-figwrap{opacity:1!important;transform:none!important;}}
 `;
