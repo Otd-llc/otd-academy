@@ -11,8 +11,24 @@
 // diagram shared across lessons.
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import sharp from "sharp";
 import type { ContentBlock } from "@/lib/schemas/guide";
+
+// Lazy, guarded sharp load. sharp is a NATIVE module; if its platform binary
+// can't load on a runtime (e.g. a serverless target missing the libvips .so), we
+// degrade diagrams to caption-only rather than 500 the whole PDF. A top-level
+// `import sharp` would throw at module load, before the per-image try/catch below
+// could contain it. Resolved once and cached (including a null failure).
+type SharpFn = Awaited<typeof import("sharp")>["default"];
+let sharpFn: SharpFn | null | undefined;
+async function loadSharp(): Promise<SharpFn | null> {
+  if (sharpFn !== undefined) return sharpFn;
+  try {
+    sharpFn = (await import("sharp")).default;
+  } catch {
+    sharpFn = null;
+  }
+  return sharpFn;
+}
 
 export type ResolvedImage = {
   /** A `data:image/png;base64,...` URI react-pdf's <Image src> accepts. */
@@ -40,7 +56,8 @@ async function resolveOne(src: string): Promise<ResolvedImage | null> {
   let resolved: ResolvedImage | null = null;
   try {
     const file = diskPathFor(src);
-    if (file) {
+    const sharp = await loadSharp();
+    if (file && sharp) {
       const input = await readFile(file);
       const png = sharp(input).png();
       const { data, info } = await png.toBuffer({ resolveWithObject: true });
