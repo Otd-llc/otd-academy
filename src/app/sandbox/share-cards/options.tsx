@@ -5,7 +5,7 @@
 // SairaReadout / HexBadge) into distinct shells so Josh compares whole families,
 // not one shell with tweaks. Restyled in place once he picks — the atoms stay put.
 
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import {
   CardShell,
   Wordmark,
@@ -14,73 +14,11 @@ import {
   SairaReadout,
   HexBadge,
   DefaultFooter,
+  Field,
+  Center,
 } from "@/lib/og/card";
 import { OG } from "@/lib/og/tokens";
 import { TITLES, type OptionId, type TitleLen } from "./meta";
-
-export const WASH = `radial-gradient(1200px 620px at 82% -12%, ${OG.NAVY_DARK} 0%, ${OG.DEEP_SPACE} 58%)`;
-
-// The bare field every non-default option sits on. `wash` toggles the radial
-// glow; `frame` toggles the hairline border (drawn absolute, last).
-export function Field({
-  wash,
-  frame,
-  children,
-}: {
-  wash: boolean;
-  frame: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        backgroundColor: OG.DEEP_SPACE,
-        // Omit the key entirely when off — Satori's background parser calls
-        // .trim() on the value and throws on `undefined`.
-        ...(wash ? { backgroundImage: WASH } : {}),
-        padding: "64px 80px",
-        fontFamily: "Space Mono",
-        color: OG.TEXT,
-      }}
-    >
-      {children}
-      {frame ? (
-        <div
-          style={{
-            position: "absolute",
-            top: 22,
-            left: 22,
-            right: 22,
-            bottom: 22,
-            border: `1px solid ${OG.PANEL_BORDER}`,
-            borderRadius: 18,
-          }}
-        />
-      ) : null}
-    </div>
-  );
-}
-
-// Body area that vertically centers its children in the free space between the
-// wordmark row and the footer.
-export function Center({ children }: { children: ReactNode }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        flexGrow: 1,
-        justifyContent: "center",
-      }}
-    >
-      {children}
-    </div>
-  );
-}
 
 // ── A · Framed masthead (the kit default) ─────────────────────────────────────
 function OptionA(title: string, len: TitleLen): ReactElement {

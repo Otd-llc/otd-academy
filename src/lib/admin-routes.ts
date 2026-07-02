@@ -30,6 +30,12 @@ export function isPublicPath(pathname: string): boolean {
   // itself sends anonymous visitors on to the public /courses catalog; only an
   // ADMIN sees the operator dashboard there.
   if (segments.length === 0) return true;
+  // Root-level metadata image routes (the default share card at /opengraph-image,
+  // and any /twitter-image). Every bare public route inherits the site-default
+  // og:image, so a crawler fetches this for all of them — it must never 307 to
+  // /sign-in. Nested OG routes (e.g. /courses/[slug]/opengraph-image) already
+  // inherit their public prefix; only these root-level ones need naming here.
+  if (top === "opengraph-image" || top === "twitter-image") return true;
   // Parts catalog list (/parts) + detail (/parts/[id]) are public; the create
   // form (/parts/new) is not.
   if (top === "parts") return segments[1] !== "new";

@@ -92,6 +92,11 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/learn/l1-01/certificate/sometoken/image")).toBe(true);
   });
 
+  it("admits the root-level default share card (crawlers fetch it for every bare route)", () => {
+    expect(isPublicPath("/opengraph-image")).toBe(true);
+    expect(isPublicPath("/twitter-image")).toBe(true);
+  });
+
   it("admits the public briefs (index + each brief key)", () => {
     expect(isPublicPath("/briefs")).toBe(true);
     expect(isPublicPath("/briefs/overview")).toBe(true);

@@ -1,10 +1,11 @@
-// Share-card primitives (Task 1).
+// Share-card primitives + the locked card template.
 //
-// The shared vocabulary every `opengraph-image` route composes from. These build
-// the CONTRACT now (shell + eyebrow + title + numeral readout + hex badge +
-// renderCard); the final visual language is fixed by the Task 2 sandbox pick and
-// then restyled in place — callers keep working because the component surface
-// stays put.
+// The shared vocabulary every `opengraph-image` route composes from. The visual
+// language is now FIXED: Josh picked FW7 (the "ivory ghost" — a large, faint
+// warm-ivory brand mark bleeding off the right, over an open deep-space field
+// with the radial wash, no hairline frame). `ShareCard` bakes that look; surfaces
+// that need a right-side asset or a numeral hero compose `Field` + primitives
+// directly.
 //
 // Satori rules obeyed throughout:
 //   • Every element with >1 child sets `display: flex` explicitly (Satori throws
@@ -343,6 +344,128 @@ export function BrandGlyph({
     >
       <path d={BRANDMARK_PATH} fill={fill} fillRule="evenodd" />
     </svg>
+  );
+}
+
+// ── Field (the locked shell) ──────────────────────────────────────────────────
+// The deep-space field the winning look sits on. `wash` toggles the radial glow
+// (on for the FW7 look); `frame` toggles the hairline border (off for FW7).
+// Padding + fonts match the kit. Absolute children (watermark, frame) anchor to
+// the card because Satori resolves absolute against the root.
+export const WASH = `radial-gradient(1200px 620px at 82% -12%, ${OG.NAVY_DARK} 0%, ${OG.DEEP_SPACE} 58%)`;
+
+export function Field({
+  wash = true,
+  frame = false,
+  children,
+}: {
+  wash?: boolean;
+  frame?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        backgroundColor: OG.DEEP_SPACE,
+        // Omit the key when off — Satori's background parser throws on undefined.
+        ...(wash ? { backgroundImage: WASH } : {}),
+        padding: "64px 80px",
+        fontFamily: "Space Mono",
+        color: OG.TEXT,
+      }}
+    >
+      {children}
+      {frame ? (
+        <div
+          style={{
+            position: "absolute",
+            top: 22,
+            left: 22,
+            right: 22,
+            bottom: 22,
+            border: `1px solid ${OG.PANEL_BORDER}`,
+            borderRadius: 18,
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+// Body area that vertically centers its children in the free space between the
+// wordmark row and the footer.
+export function Center({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        flexGrow: 1,
+        justifyContent: "center",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ── IvoryGhost (the FW7 watermark) ────────────────────────────────────────────
+// The locked watermark: the brand mark in warm ivory, faint, bleeding off the
+// right edge. Absolute so it never disturbs the content column.
+export function IvoryGhost({
+  width = 620,
+  opacity = 0.07,
+}: {
+  width?: number;
+  opacity?: number;
+}) {
+  return (
+    <BrandGlyph
+      width={width}
+      opacity={opacity}
+      fill={OG.TITLE}
+      style={{ position: "absolute", right: -60, top: 24 }}
+    />
+  );
+}
+
+// ── ShareCard (the locked template) ───────────────────────────────────────────
+// The FW7 look as one call: ivory-ghost watermark, wordmark masthead, an eyebrow
+// (house ▸ by default) over a Bebas title, and the gold-rule footer. This is the
+// default for every text-only surface (course, guide, root fallback). Surfaces
+// with a right-side asset (library diagram, part render) or a numeral hero
+// compose Field + primitives directly instead.
+export function ShareCard({
+  eyebrow,
+  title,
+  titleSize = 74,
+  titleMaxWidth = 760,
+  tri = true,
+  footer,
+}: {
+  eyebrow: ReactNode;
+  title: ReactNode;
+  titleSize?: number;
+  titleMaxWidth?: number;
+  tri?: boolean;
+  footer?: ReactNode;
+}) {
+  return (
+    <Field wash frame={false}>
+      <IvoryGhost />
+      <Wordmark />
+      <Center>
+        <Eyebrow tri={tri}>{eyebrow}</Eyebrow>
+        <CardTitle size={titleSize} maxWidth={titleMaxWidth}>
+          {title}
+        </CardTitle>
+      </Center>
+      {footer ?? <DefaultFooter />}
+    </Field>
   );
 }
 

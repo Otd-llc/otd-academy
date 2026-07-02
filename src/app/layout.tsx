@@ -33,7 +33,18 @@ export const metadata: Metadata = {
     env.NEXT_PUBLIC_SITE_URL ?? "https://academy.onethousanddrones.com",
   ),
   title: "One Thousand Drones Academy",
-  description: "Hardware design lifecycle tracker",
+  description:
+    "Learn electronics by designing and building real circuit boards, from schematic to first blink. Hands-on guides for KiCad, PCB layout, soldering, and bring-up.",
+  // OG/Twitter defaults every page inherits. The root opengraph-image.tsx is
+  // auto-wired as the default og:image (Next merges the file convention into
+  // openGraph.images), so these just add the shared siteName + card type; a
+  // route with its own opengraph-image overrides only the image.
+  openGraph: {
+    siteName: "One Thousand Drones Academy",
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: { card: "summary_large_image" },
   // Google Search Console site verification (URL-prefix property). Emits
   // <meta name="google-site-verification" …> into <head>. Public token, safe to
   // commit; used instead of a DNS TXT record because academy.* already has a

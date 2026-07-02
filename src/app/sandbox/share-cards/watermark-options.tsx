@@ -16,9 +16,9 @@ import {
   HexBadge,
   BrandGlyph,
   DefaultFooter,
+  Field,
 } from "@/lib/og/card";
 import { OG } from "@/lib/og/tokens";
-import { Field } from "./options";
 import { TITLES, type TitleLen } from "./meta";
 
 export type WatermarkId =
