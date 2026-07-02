@@ -75,7 +75,7 @@
     "basename": "bringup-probe-points",
     "image": "/guide-diagrams/bringup-probe-points.webp",
     "alt": "Bring-up: with the board powered, probe 3.3 V at TP1 with the red lead and ground at TP2 with the black lead; the multimeter in DC volts reads 3.30 V.",
-    "hash": "bf1ca99d4293"
+    "hash": "fae1a1f46149"
   },
   {
     "basename": "wroom-power-flow",
