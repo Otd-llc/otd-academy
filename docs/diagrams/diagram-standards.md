@@ -1,182 +1,238 @@
-# Guide-diagram standards
+# Guide-diagram standards (v2)
 
-> Motion is a separate concern — see [`animation-standards.md`](./animation-standards.md)
-> for when and how a diagram may animate.
+> Motion is a separate concern — see [`animation-standards.md`](./animation-standards.md).
+> The end-to-end authoring + export workflow is the **diagram-export** skill.
 
-Diagrams render inside guide cards on the dark app background (`#08090D`). The
-overriding rule, learned the hard way:
+Diagrams are OTD's teaching instruments. **One diagram, authored once, must read
+perfectly on three surfaces:**
 
-> **Diagram text must render at an accessible size (~16 px body, never below
-> ~14 px) on every viewport — including a ~360 px phone. A diagram whose text is
-> too small to read should never ship.**
+1. the **web in DARK** (deep-space ground),
+2. the **web in LIGHT** (ivory ground), and
+3. the **print field-guide PDF** (a rasterized embed on ivory paper).
 
-## Frame & size (the standard)
+A diagram is a **figure on the engineering-paper field**, part of the same
+console system as the rest of the product — read the **otd-frontend-design**
+skill first; this doc is diagram-specific and assumes it. The old v1 of this doc
+was dark-only and told you to fall back to literal hex; that is exactly what
+broke light mode and print. This v2 supersedes it.
 
-A diagram is never full-bleed and never tiny — it lives in a fixed frame:
+---
 
-| | value | why |
+## The four prime directives (non-negotiable)
+
+**1. A labelled diagram is a responsive COMPONENT, never a scaled SVG.**
+An SVG scales its text with its width: a 780-wide graphic on a 360px phone
+renders at ~0.46×, so 24-unit text becomes ~11px and 14-unit text ~6px. There is
+no font size that stays accessible once an SVG scales down. So anything carrying
+labels is HTML/CSS with real `px` text that **reflows/stacks** instead of
+shrinking. (Pure-vector graphics with no/large text, and generated CAD exports,
+are the only SVG exceptions.)
+
+**2. Token-only color. Light + dark parity is MANDATORY.**
+Every color is a `var(--color-*)` token so the whole diagram flips when
+`:root[data-theme="light"]` overrides the tokens (see `globals.css`). Rules:
+- **No literal hex anywhere** — not in CSS, and **not in SVG presentation
+  attributes.** `fill="#c8963e"` / `stroke="#…"` CANNOT read a CSS variable, so a
+  diagram using them will NOT re-theme (this is why 5 hardware diagrams are still
+  dark). In SVG use `style={{ fill: "var(--color-command-gold)" }}` or a CSS
+  class (`.x{fill:var(--color-command-gold)}`), never the presentation attribute.
+- **Never white-on-ivory.** A headline is `--color-title` (ink on light, ivory on
+  dark), never `#fff`. Any standalone `#fff`/`#ffffff` is a light-mode bug.
+- A token fallback (`var(--color-x, #hex)`) is allowed ONLY as a belt-and-braces
+  default; the token must be the real source, and the fallback must be the DARK
+  value (the light value comes from the token override).
+- **Verify BOTH themes every time** (see Verify, below). "Looks right on dark" is
+  half the job.
+
+**3. Print-ready aspect — landscape, never tall.**
+The diagram is screenshotted and embedded in the field-guide PDF at text-column
+width. A TALL diagram (portrait) is forced to its own page (gapping the page
+before it) and, if height-capped, shrinks its own baked text below the legible
+floor. So:
+- **Target a landscape aspect ratio, ~3:2 (1.5) to 16:9 (1.78). Floor ~1.2.
+  Portrait (ratio < 1.0) is BANNED.**
+- Reflow information that *wants* to be a tall vertical list into a **horizontal
+  flow, a 2-column grid, or side-by-side panels.** A 5-step pipeline is a
+  left-to-right rail, not a top-to-bottom stack.
+- This is the single biggest change from v1 and the thing that makes the field
+  guide read cleanly.
+
+**4. Legible at EVERY scale, including print.**
+Real `px` text with a clamp floor of **~14px**. Because directive 3 keeps the
+diagram landscape, the print embed renders at ~full column width (~0.9pt per css
+px), so a 14px web label lands at ~12pt in print — comfortably above the ~9pt
+print floor. Tallness is the only thing that breaks this; keep it landscape and
+the floor takes care of itself.
+
+---
+
+## Palette — tokens only, both themes
+
+Pull EVERY color from a token. The same token name resolves to a dark value and a
+light value; you never write the light value. (Values are informative — the code
+in `globals.css` is source of truth.)
+
+| Token | Dark | Light | Job in a diagram |
+|---|---|---|---|
+| `--color-deep-space` | `#08090d` | `#faf7f0` | the ground; the DiagramFrame background |
+| `--color-navy-dark` | `#1a1a2e` | `#ffffff` | a filled sub-panel INSIDE the figure (channel card, part body) |
+| `--color-panel-border` | `#3a3f50` | `#d9d2c2` | hairlines, baselines, sub-panel borders |
+| `--color-command-gold` | `#c8963e` | `#9c7016` | primary accent — outlines, key emphasis, takeaway. **Dominant.** |
+| `--color-gold-light` | `#e8b865` | `#7e5610` | hover / stronger emphasis |
+| `--color-signal-blue` | `#4a8fff` | `#2563c4` | data / "at rest" / secondary. **Never dominant.** |
+| `--color-title` | `#f1ece0` | `#15191f` | headline + key glyph text |
+| `--color-text` | `#e8e8e8` | `#20252d` | a value above label weight |
+| `--color-muted` | `#aaaaaa` | `#6b7280` | labels, captions, dims |
+| `--color-status-green` | `#66bb6a` | `#2f8a4d` | success / verified state ONLY |
+| `--color-alert-red` | `#ef5350` | `#c5362f` | critical / "must-not" state ONLY |
+
+**Gold leads. Blue is always secondary. Red is critical-only. Green is
+success-only. No other hues** — no teal, purple, orange, off-palette gray.
+
+A diagram's FRAME groups by a hairline on the bare ground (deep-space/ivory), not
+a filled card — but the figure's internal elements (a channel box, a chip body, a
+region) MAY be filled `--color-navy-dark` panels; they're graphic content, not a
+"record surface". No gradients-as-accent, no glassmorphism, no drop-shadow glows
+(all light-mode dirt), restrained radius (6px chrome / square badges).
+
+## The four faces (one job each)
+
+Same type system as the rest of the product. Never substitute a system font.
+
+| Face | Token | Use in a diagram |
 |---|---|---|
-| **Max / standard width** | **`36rem` (576px), centered** | On any screen ≥ 576px the diagram renders at exactly this width — the *standard size*. Caps the "balloon on a wide monitor" failure. Applied via `.guide-diagram` (SVGs) and each component root. |
-| **Min width** | shrinks to the column on phones (~320–360px) | reflow/stack territory |
+| **Bebas Neue** | `--font-display` | the diagram TITLE (via DiagramFrame), section headers inside a figure |
+| **Saira Condensed** | `--font-numeral` | **any number that is data** — a stat, a count, a stage number, an axis value, a measured quantity. Weight 800, `tabular-nums`. |
+| **Space Mono** | `--font-mono` | labels, eyebrows, units, chip text, axis ticks, data readouts |
+| **Lora** (web) / Crimson (print) | `--font-serif` | a full-sentence statement or the caption |
 
-**Text scale — bounded between a floor and a cap (`clamp(min, preferred, max)`),
-so it is never illegibly small and never huge:**
+The current diagrams under-use Saira — big numerals/stats should be the Saira
+instrument readout, not mono.
 
-| Role | clamp | renders |
-|---|---|---|
-| Title | `clamp(1.2rem, 3.4vw, 1.5rem)` | 19–24 px |
-| Glyph / primary label | `clamp(1.05rem, 3vw, 1.3rem)` | 17–21 px |
-| Body / value | `clamp(0.95rem, 2.5vw, 1.05rem)` | 15–17 px |
-| Secondary caption | `clamp(0.85rem, 2.3vw, 0.95rem)` | 14–15 px |
-| Micro mono label (tracked caps, e.g. `REF`) | `0.62rem` fixed | ~10 px (a label, not body) |
+## The frame — `DiagramFrame`
 
-Floor = the accessible minimum; cap = the standard maximum; in between it scales.
-Because the frame is capped at 576px, the `vw` preferred term effectively tops out
-at the cap on wide screens — text stays put. (A scaled SVG cannot do this: its
-text has no floor or cap, so it goes huge on desktop and sub-8px on mobile —
-which is the other reason label-bearing diagrams are components.)
+Every diagram uses the shared `DiagramFrame` (never a one-off header): a
+gold/blue/green Space-Mono eyebrow (`▸ TOPIC`) over a Bebas title in
+`--color-title`, on the deep-space/ivory ground with a `--color-panel-border`
+hairline, a Lora caption footer, and an accurate `ariaLabel` (**it becomes the
+image's `alt`** — write it as real teaching prose). In PRINT the diagram is
+**frameless** — the PDF adds no box; the DiagramFrame's own hairline is the only
+frame. Supply ONLY the graphic body + its scoped `<style>`.
 
-## Why most teaching diagrams are components, not SVGs
+## Aspect & size
 
-An SVG scales to its container width. A `780`-wide house SVG on a ~360 px phone
-renders at **~0.46×**, so *any* text shrinks to ~0.46 of its unit size: 14-unit
-text → ~6 px, even 24-unit text → ~11 px. **There is no font size that keeps an
-SVG's text accessible once it scales down to mobile.** This is the trap the old
-standard fell into (it prescribed 10–17 px type) and why early L1.01 diagrams
-were unreadable on phones.
+- **Web:** max `36rem` (576px) centered; reflow/stack on a ~360px phone (test at
+  360 and 700).
+- **Print (the budget):** author the DESKTOP layout to a **landscape aspect
+  1.4–1.8** (see directive 3). If the content is inherently a long list, reflow it
+  horizontally; do not ship a portrait diagram. The exporter screenshots the
+  desktop (576px) render, so the desktop aspect IS the print aspect.
 
-**So: any diagram that carries labels/text is a responsive HTML component**, with
-real CSS-`px` text (`clamp()`), that **reflows/stacks on mobile** instead of
-shrinking. Text is `px`, independent of viewport, so it stays accessible.
+## Type scale (real px, clamped)
 
-References (copy these):
-- `src/components/guide/MpnAnatomyDiagram.tsx` — callout/anatomy layout, scroll-
-  triggered reveal (IntersectionObserver, reduced-motion safe).
-- `src/components/guide/PackageSizeDiagram.tsx` — comparison layout, stacks on
-  narrow screens.
+| Role | clamp | renders | face |
+|---|---|---|---|
+| Title | `clamp(1.15rem, 3.6vw, 1.6rem)` | ~18–26px | Bebas |
+| Primary label / glyph | `clamp(1.1rem, 3vw, 1.4rem)` | ~18–22px | Mono or Bebas |
+| Data numeral / stat | `clamp(1.1rem, 3.2vw, 1.5rem)` | ~18–24px | **Saira** |
+| Body statement | `clamp(0.95rem, 2.5vw, 1.05rem)` | ~15–17px | Lora |
+| Label / caption | `clamp(0.9rem, 2.3vw, 1rem)` | ~14–16px | Mono |
 
-Wiring: a component is rendered from `ImageBlock` (`GuideBlocks.tsx`) by matching
-the content block's `src` (the DB stays a plain `image` block). See the
-`src === "/guide-diagrams/…"` branches.
+**Never below ~14px rendered.** A micro tracked-caps tag (`REF`) may be `0.7rem`
+fixed — it's a label, not body, and still lands ≥ ~10pt in print at landscape
+width.
 
-### When an SVG is still fine
+## Math — KaTeX (first-class)
 
-- **Generated CAD exports** (KiCad Eeschema `l1-01-*.svg`) — kept as `<img>`,
-  their own typography; a separate pinch-zoom concern.
-- **Pure graphics** with little/no text, where any label is large and few.
-  If you author SVG text anyway, it must be **≥ 28 units** (≈ 13 px at 0.46×) —
-  but prefer a component.
+Real math is set with **KaTeX**, not hand-drawn glyphs or unicode. KaTeX renders
+to HTML/CSS, so it bakes into the raster (web + light + print) with no special
+handling — just ensure the KaTeX fonts load in the `/diagram-render` route.
 
-## Palette (1KD brand — onethousanddrones.com/brand)
+- A shared `<Math>{"\\tau = RC"}</Math>` helper (inline) and `<MathBlock>` (display).
+- Style onto the console palette: the **key variable/result in
+  `--color-command-gold`**, the rest in `--color-title`; never KaTeX's default
+  black-on-white.
+- Keep equations readable at the landscape floor (KaTeX scriptstyle subscripts
+  are the smallest glyphs — size the base so subscripts stay ≥ ~14px web).
+- **Prose math (in a lesson, not a diagram)** rides the SAME raster pipeline for
+  print: a `math` content block renders KaTeX on the web and a pre-rendered PNG in
+  the PDF (react-pdf can't run KaTeX). Treat a standalone equation like a small
+  diagram.
 
-Use ONLY these. Pull from the `@theme` tokens (`var(--color-*)`); the literal hex
-is the fallback.
+## Motion
 
-| Role | Token / hex | Use |
-|---|---|---|
-| Background | `--color-deep-space` `#08090d` | page ground; don't paint a full bg rect |
-| Panel / body | `--color-navy-dark` `#1f2438` | cards, component bodies, part fills |
-| Primary accent | `--color-command-gold` `#c8963e` | outlines, key emphasis, takeaways — **dominant** |
-| Accent highlight | `--color-gold-light` `#e8b865` | hover / emphasis |
-| Secondary / data | `--color-signal-blue` `#4a8fff` | data callouts, links — **secondary only, never dominant** |
-| Headline / glyph | `#ffffff` | titles, key glyphs |
-| Body / labels | `--color-muted` `#aaaaaa` | labels, captions, dims — **never a darker gray** |
-| Brighter value | `--color-gray-1` `#e8e8e8` | a value you want above label weight |
-| Hairline | `--color-panel-border` `#3a3f50` | dividers, baselines |
-| Critical | `--color-alert-red` `#c62828` | error / "must-not" states **only** |
-
-**No greens, teals, purples, oranges, or any hue outside this list.** Gold leads;
-blue is always secondary.
-
-## Type (components — real px)
-
-| Role | size | weight |
-|---|---|---|
-| Title | `clamp(1.15rem, 3.6vw, 1.6rem)` (~18–26 px) | 700 |
-| Glyph / primary label | `clamp(1.1rem, 3vw, 1.4rem)` (~18–22 px) | 700 |
-| Body / dimension | `clamp(0.95rem, 2.5vw, 1.05rem)` (~15–17 px) | 400 |
-| Secondary caption | `clamp(0.9rem, 2.3vw, 1rem)` (~14–16 px) | 400 |
-
-Never below ~14 px rendered. Fonts: `--font-mono` (Space Mono) for labels/data,
-`--font-serif` (Lora) for body statements, white for headlines (matches brand
-type roles).
+The frame owns the Tier-A entrance reveal; a diagram may drive its own Tier-B
+internal motion off the shared `.armed`/`.in` state — see
+[`animation-standards.md`](./animation-standards.md). The exporter forces
+reduced-motion, so **the raster is always the final, settled state** — design the
+static state to be complete on its own.
 
 ## Content rules
 
-- Preserve the teaching data exactly; never invent or drop values.
+- Preserve the teaching data exactly; never invent or drop a value.
 - **Never claim "to scale"** (DPI/devices make it impossible). Ratio claims
   ("≈ 1/5 the area") are fine and encouraged.
-- Keep an accurate `aria-label` / `role="img"`.
-- Reflow on mobile: stack columns, don't cram. Test at **360 px and 700 px**.
+- One accurate `aria-label`; don't triple-label (figcaption + aria-label +
+  `<img alt>` all identical).
+- No em-dashes in any rendered glyph (shared house rule); `·` is the separator.
 
-## Layout discipline (applies to SVG graphics too)
+## Layout discipline
 
-- Annotations in the gutters, not on the subject (exception: a centered ref
-  inside a body, or a region label inside its own filled region).
-- Leaders at **0° / 45° / 90°** only; gap at the label end; stop short of the
-  target; never cross another leader, the subject, or text; color = the label's
-  semantic color.
-- ≥ 16 px clearance between unrelated strokes/symbols.
+- Annotations in the gutters, not on the subject (exception: a centered ref, or a
+  region label inside its own filled region).
+- Leaders at 0° / 45° / 90° only; gap at the label end; stop short of the target;
+  never cross another leader, the subject, or text; color = the label's semantic
+  token.
+- ≥ 16px clearance between unrelated strokes/symbols.
 
-## Indexable image export (SEO — automated)
+## Verify — all THREE surfaces, every time
 
-Every diagram registered in `DIAGRAM_COMPONENTS`
-([`diagram-registry.tsx`](../../src/components/guide/diagram-registry.tsx)) is
-auto-exported to an indexable raster (`public/guide-diagrams/<basename>.webp`)
-with `alt` taken from the component's `aria-label`, and listed (against the guide
-pages that embed it) in the [`/sitemap-images.xml`](../../src/app/sitemap-images.xml/route.ts)
-image sitemap. The on-page component is untouched — the image is purely additive
-(image search + AI multimodal + sharing).
+A diagram isn't done until it's been read on all three:
 
-- **Registration is the trigger.** Add a diagram to the registry → run
-  `pnpm diagrams:export` (needs the dev server up) → commit the new `.webp` +
-  the updated `src/components/guide/diagram-export-manifest.json`.
-- **CI enforces it.** `pnpm diagrams:check` (GitHub CI) renders every registered
-  diagram in headless Chromium and fails the build if one is missing its image or
-  its alt text drifted from the manifest. It does NOT compare pixels (WebP bytes
-  differ across OS), so a purely visual edit won't fail CI — re-export locally.
-- **Format policy:** standalone SVG for genuinely-vector diagrams; WebP (raster
-  screenshot) for the HTML/CSS-component diagrams (all current ones).
-- **Never hand-write** the image or its alt; both are generated. Don't triple-label
-  (figcaption + figure `aria-label` + `<img alt>` all identical).
-- See the **diagram-export** skill (`.claude/skills/diagram-export/`) for the
-  end-to-end authoring workflow.
+1. **Dark web** — `/diagram-render/<key>` at 360px AND 700px.
+2. **Light web** — same route with `document.documentElement.dataset.theme =
+   "light"`. No white-on-ivory, no dark box that didn't flip, gold deepened.
+3. **Print** — embed the exported `-light.png` at column width (or render the
+   field guide) and read the smallest label. Landscape? Text ≥ ~9pt? No page gap?
+
+## Export pipeline (SEO + light + print)
+
+Registration is the trigger: a diagram in `DIAGRAM_COMPONENTS` MUST have committed
+rasters + a manifest entry (CI's `diagrams:check` enforces presence + alt).
+
+- `pnpm diagrams:export` → dark **`<name>.webp`** (indexable, web) + manifest.
+- `pnpm diagrams:export --light` → **`<name>-light.png`** rendered under
+  `data-theme="light"` (used by the field-guide PDF, which prefers `-light.png`
+  and falls back to the dark `.png`). A diagram with literal hex is skipped by
+  `--light` — which is the tell that it violates directive 2.
+- Commit the component, registry, `.webp`, `-light.png`, and manifest together.
+
+## The design process — sandbox rounds, one diagram at a time
+
+Diagrams are redesigned **slowly, one at a time, best-possible-outcome:**
+
+1. **Sandbox rounds.** Mock the diagram as standalone HTML (both themes),
+   screenshot it, iterate options with the owner until ONE is approved — exactly
+   like the PDF-cover rounds. Design to this v2 (landscape, tokens, four faces,
+   math if needed).
+2. **Implement** the approved design as the real responsive component to this doc.
+3. **Verify all three surfaces** (above).
+4. **Export** (`diagrams:export` + `--light`), eyeball both rasters, commit.
+5. **Next diagram.** Do not batch; one approval at a time.
 
 ## Pre-ship checklist
 
-- [ ] Renders at **360 px**: all text ≥ ~14 px, nothing clipped or overlapping.
-- [ ] Reflows/stacks on mobile (no cramped multi-column text).
-- [ ] Renders at **700 px**: clean, balanced.
-- [ ] Palette is brand-only (no gray darker than `#aaaaaa`; no off-palette hue).
-- [ ] Gold dominant; blue secondary; red only for critical states.
-- [ ] No "to scale" claim; ratio claims OK.
-- [ ] Label-bearing → it's a component (not a scaled SVG).
-- [ ] Registered in `DIAGRAM_COMPONENTS` + `pnpm diagrams:export` run, with the
-      `.webp` and manifest committed (CI's `diagrams:check` will fail otherwise).
-
-## Verification
-
-Render on the real `#08090D` ground at 360 px AND 700 px and read both. For a
-component, extract its SSR'd markup from the live page and render standalone; for
-an SVG, render the file inside a `.guide-diagram` wrapper. (Headless Chrome:
-`--headless=new --screenshot --window-size=<w>,<h>`.)
-
-## Inventory
-
-| File / component | Subject | Status |
-|---|---|---|
-| `MpnAnatomyDiagram.tsx` | MPN anatomy decode | ✅ component (accessible) |
-| `PackageSizeDiagram.tsx` | 0805 vs 0402 size (≈ 5:1 area) | ✅ component (accessible) |
-| `current-budget.svg` | ~550 mA draw vs 600 mA LDO ceiling | ⚠️ SVG — brand+sized pass done; **pending component conversion** (mobile text ~0.46×) |
-| `adc1-pin-map.svg` | ADC1 usable vs ADC2 radio-claimed | ⚠️ SVG — same |
-| `antenna-keepout.svg` | WROOM antenna keep-out | ⚠️ SVG — same |
-| `decoupling-placement.svg` | decoupling loop area | ⚠️ SVG — same |
-| `continuity-vbus-gnd.svg` | VBUS↔GND short check | ⚠️ SVG — same |
-| `two-layer-cross-section.svg` | 2-layer stackup edge-on | ⚠️ SVG — same |
-| `gerber-layer-stack.svg` | Gerber file set | ⚠️ SVG — same |
-| `hasl-vs-enig.svg` | surface-finish comparison | ⚠️ SVG — same |
-| `schematic-conventions.svg` | schematic drawing conventions | ⚠️ SVG — same |
-| `bringup-ladder.svg` | bring-up sequence | ⚠️ SVG — same |
-| `bringup-probe-points.svg` | rail probe points | ⚠️ SVG — same |
-| `wroom-power-flow.svg` | USB → 3.3 V power flow | ⚠️ SVG — same |
-| `l1-01-*.svg`, `l1-01-schematic-reference.svg` | KiCad exports | CAD `<img>` — separate concern |
+- [ ] Component (not a scaled SVG) for anything labelled.
+- [ ] Token-only color; NO literal hex (incl. SVG — `style`/class, not `fill="#…"`);
+      no white-on-ivory. Re-themes cleanly under `data-theme="light"`.
+- [ ] **Landscape aspect (~1.4–1.8, never portrait);** reflowed if the content
+      wanted to be tall.
+- [ ] All text ≥ ~14px web → ≥ ~9pt print; big data numbers are Saira.
+- [ ] Gold dominant, blue secondary, red critical-only, green success-only; no
+      off-palette hue; no gradient/glass/glow; restrained radius.
+- [ ] Math (if any) is KaTeX, palette-styled, subscripts legible.
+- [ ] Reflows/stacks at 360px; clean at 700px; final settled state (reduced motion).
+- [ ] Accurate single `aria-label`; no em-dashes anywhere.
+- [ ] Read on DARK web, LIGHT web, and PRINT.
+- [ ] Registered + `diagrams:export` (+ `--light`) run; `.webp` + `-light.png` +
+      manifest committed.

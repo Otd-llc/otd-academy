@@ -14,7 +14,7 @@ export function PackageSizeDiagram({ caption }: { caption?: string }) {
       title="Same value, very different to solder"
       ariaLabel="An 0805 passive (2.0 by 1.25 mm) is about five times the area of an 0402 (1.0 by 0.5 mm). The larger 0805 solders with a plain iron and tweezers; the tiny 0402 wants solder paste and hot air. This board uses 0805."
       caption={caption}
-      defaultCaption="Your board uses 0805 — a plain iron handles it."
+      defaultCaption="Your board uses 0805; a plain iron handles it."
     >
       <style>{CSS}</style>
       <div className="pkgcmp-stage">
@@ -47,7 +47,7 @@ const CSS = `
 /* fixed-height rail so the two chips bottom-align on a shared baseline */
 .pkgcmp-rail{height:105px;display:flex;align-items:flex-end;border-bottom:1px solid rgba(170,170,170,.3);}
 .pkgcmp-chip{position:relative;width:var(--w);height:var(--h);
-  background:var(--color-navy-dark,#1f2438);border:2.5px solid var(--color-command-gold,#c8963e);}
+  background:var(--color-diagram-surface,#1f2438);border:2.5px solid var(--color-command-gold,#c8963e);}
 .pkgcmp-chip::before,.pkgcmp-chip::after{content:"";position:absolute;top:0;bottom:0;
   width:14%;background:var(--color-muted,#aaa);opacity:.6;}
 .pkgcmp-chip::before{left:0;}

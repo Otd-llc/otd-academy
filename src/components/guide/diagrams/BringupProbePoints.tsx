@@ -1,109 +1,85 @@
-// Bring-up "rail probe points" as a responsive HTML component.
+// Bring-up "rail probe points" as a responsive v2 diagram: a multimeter reading
+// 3.30 V beside the two probe points.
 //
-// Why not the source /guide-diagrams SVG: a fixed-viewBox 780-wide SVG scales to
-// its container, so on a ~360px phone its text renders at ~0.46x — well below an
-// accessible size, with no font size that survives. Rendered as real HTML/CSS the
-// labels are actual CSS px (clamped, never below ~14px) that do NOT shrink with
-// the viewport; only the small board graphic is an inline <svg> (no text inside
-// it). On a phone the two-column stage stacks: graphic on top, the TP1/TP2 rows
-// and the meter readout below as full-width readable blocks. Header / frame /
-// caption come from the shared DiagramFrame (site-standard Bebas title); this
-// file supplies only the graphic body.
+// Teaching point: with the board powered, probe 3.3 V at TP1 with the red lead
+// and ground at TP2 with the black lead; a steady 3.30 V in DC-volts mode means
+// the rail is good.
 //
-// BRAND (onethousanddrones.com/brand): gold-dominant on Deep Space, Navy Dark
-// bodies, white headline/glyphs, muted (#aaa) labels. Alert Red is reserved for
-// the 3V3 rail / red lead (the one "live" thing you must not mis-probe); GND uses
-// muted gray for the black lead. All colours via @theme tokens with hex
-// fallbacks so a standalone render still resolves.
+// v2: landscape — the meter (hero, reading 3.30 V) on the left, the two probe
+// points on the right; stacks on a phone. Token-only color; alert red marks the
+// live 3V3 rail / red lead, muted gray the GND / black lead.
 import { DiagramFrame } from "./DiagramFrame";
-import { WroomU1 } from "./WroomU1";
 
 export function BringupProbePoints({ caption }: { caption?: string }) {
   return (
     <DiagramFrame
       eyebrow="BRING-UP · RAILS FIRST"
       tone="gold"
-      title="Probe the 3.3 V rail before trusting anything downstream"
+      title="Probe the 3.3 V rail first"
       ariaLabel="Bring-up: with the board powered, probe 3.3 V at TP1 with the red lead and ground at TP2 with the black lead; the multimeter in DC volts reads 3.30 V."
       caption={caption}
-      defaultCaption="A steady 3.30 V means the rail is good — now you can trust everything it feeds."
+      defaultCaption="A steady 3.30 V means the rail is good; now you can trust everything it feeds."
     >
       <style>{CSS}</style>
-
-      <div className="bpp-stage">
-        <div className="bpp-board">
-          <svg className="bpp-svg" viewBox="0 0 320 150" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-            <rect x="2" y="28" width="316" height="118" rx="8" fill="var(--color-navy-dark,#1f2438)" stroke="var(--color-command-gold,#c8963e)" strokeWidth="2" />
-            {/* U1 — square WROOM body, antenna tab overhanging the board's top edge */}
-            <WroomU1 x={26} y={6} scale={0.78} />
-            <circle cx="170" cy="75" r="11" fill="var(--color-deep-space,#08090d)" stroke="var(--color-alert-red,#c62828)" strokeWidth="3" />
-            <circle cx="170" cy="75" r="3.5" fill="none" stroke="var(--color-alert-red,#c62828)" strokeWidth="1.4" />
-            <circle cx="262" cy="75" r="11" fill="var(--color-deep-space,#08090d)" stroke="var(--color-muted,#aaa)" strokeWidth="3" />
-            <circle cx="262" cy="75" r="3.5" fill="none" stroke="var(--color-muted,#aaa)" strokeWidth="1.4" />
-          </svg>
-          <span className="bpp-pin bpp-pin1">TP1</span>
-          <span className="bpp-pin bpp-pin2">TP2</span>
+      <div className="bpp">
+        <div className="bpp-meter">
+          <div className="bpp-lcd">
+            <span className="bpp-value">3.30</span>
+            <span className="bpp-unit">V</span>
+          </div>
+          <div className="bpp-mode">DMM · DC volts</div>
         </div>
 
         <div className="bpp-rows">
           <div className="bpp-row bpp-row--red">
-            <span className="bpp-dot bpp-dot--red" />
-            <div className="bpp-rowtext">
-              <p className="bpp-rowtp">TP1 {"·"} 3V3</p>
-              <p className="bpp-rowdesc">red lead {"—"} the 3.3 V rail</p>
-            </div>
+            <span className="bpp-dot bpp-dot--red" aria-hidden="true" />
+            <span className="bpp-tp">TP1 · 3V3</span>
+            <span className="bpp-lead">red lead</span>
           </div>
           <div className="bpp-row bpp-row--gnd">
-            <span className="bpp-dot bpp-dot--gnd" />
-            <div className="bpp-rowtext">
-              <p className="bpp-rowtp">TP2 {"·"} GND</p>
-              <p className="bpp-rowdesc">black lead {"—"} ground reference</p>
-            </div>
+            <span className="bpp-dot bpp-dot--gnd" aria-hidden="true" />
+            <span className="bpp-tp">TP2 · GND</span>
+            <span className="bpp-lead">black lead</span>
           </div>
+          <p className="bpp-verdict">✓ steady 3.30 V, the rail is good</p>
         </div>
-      </div>
-
-      <div className="bpp-meter">
-        <div className="bpp-readout">
-          <span className="bpp-value">3.30</span>
-          <span className="bpp-unit">V</span>
-        </div>
-        <p className="bpp-mode">DMM {"·"} DC volts</p>
       </div>
     </DiagramFrame>
   );
 }
 
-// Token-driven (var(--color-*) / var(--font-*) from @theme) with literal
-// fallbacks. Unique .bpp- prefix so styles never collide with other diagrams.
 const CSS = `
-.bpp-stage{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:clamp(1rem,3vw,1.6rem);align-items:center;text-align:left;}
+.bpp{display:flex;align-items:center;gap:clamp(1rem,4vw,1.9rem);text-align:left;font-family:var(--font-mono,"Space Mono",monospace);}
+@media (max-width:520px){.bpp{flex-direction:column;}}
 
-.bpp-board{position:relative;min-width:0;}
-.bpp-svg{display:block;width:100%;height:auto;}
-.bpp-pin{position:absolute;top:18%;transform:translateX(-50%);font-size:.62rem;font-weight:700;letter-spacing:.12em;padding:1px 5px;border-radius:3px;}
-.bpp-pin1{left:53%;color:var(--color-alert-red,#c62828);border:1px solid var(--color-alert-red,#c62828);}
-.bpp-pin2{left:82%;color:var(--color-muted,#aaa);border:1px solid var(--color-panel-border,#3a3f50);}
+.bpp-meter{flex:0 0 auto;display:flex;flex-direction:column;gap:.55rem;align-items:center;
+  background:var(--color-diagram-surface,#1f2438);border:1.5px solid var(--color-command-gold,#c8963e);
+  border-radius:10px;padding:clamp(.85rem,3vw,1.15rem);}
+@media (max-width:520px){.bpp-meter{align-self:stretch;}}
+.bpp-lcd{background:var(--color-deep-space,#08090d);border:1px solid var(--color-panel-border,#3a3f50);
+  border-radius:5px;padding:.3rem 1.1rem;display:flex;align-items:baseline;gap:.3rem;min-width:8rem;justify-content:flex-end;}
+.bpp-value{color:var(--color-title,#f1ece0);font-family:var(--font-numeral,"Saira Condensed",sans-serif);
+  font-weight:700;font-size:clamp(2.2rem,8vw,3rem);line-height:1;letter-spacing:.02em;}
+.bpp-unit{color:var(--color-text,#e8e8e8);font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:700;font-size:clamp(1.1rem,3.5vw,1.4rem);}
+.bpp-mode{color:var(--color-muted,#aaa);font-size:clamp(.78rem,2.1vw,.88rem);letter-spacing:.06em;}
 
-.bpp-rows{display:flex;flex-direction:column;gap:.7rem;min-width:0;}
-.bpp-row{display:flex;align-items:center;gap:.7rem;background:var(--color-navy-dark,#1f2438);border:1px solid var(--color-panel-border,#3a3f50);border-left-width:3px;border-radius:5px;padding:.65rem .8rem;}
-.bpp-row--red{border-left-color:var(--color-alert-red,#c62828);}
-.bpp-row--gnd{border-left-color:var(--color-muted,#aaa);}
+.bpp-rows{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:.6rem;}
+.bpp-row{display:flex;align-items:center;gap:.65rem;border-radius:6px;padding:.6rem .8rem;
+  background:var(--color-diagram-surface,#1f2438);}
+.bpp-row--red{box-shadow:inset 0 0 0 1px var(--color-panel-border,#3a3f50),inset 3px 0 0 var(--color-alert-red,#ef5350);}
+.bpp-row--gnd{box-shadow:inset 0 0 0 1px var(--color-panel-border,#3a3f50),inset 3px 0 0 var(--color-muted,#aaa);}
 .bpp-dot{flex:none;width:14px;height:14px;border-radius:50%;}
-.bpp-dot--red{background:var(--color-alert-red,#c62828);}
+.bpp-dot--red{background:var(--color-alert-red,#ef5350);}
 .bpp-dot--gnd{background:var(--color-muted,#aaa);}
-.bpp-rowtext{min-width:0;}
-.bpp-rowtp{margin:0;color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(1.05rem,3vw,1.3rem);letter-spacing:.02em;}
-.bpp-rowdesc{margin:.18rem 0 0;color:var(--color-muted,#aaa);font-family:var(--font-serif,"Lora",serif);font-size:clamp(.85rem,2.3vw,.95rem);line-height:1.35;}
+.bpp-tp{font-weight:700;font-size:clamp(1.05rem,2.9vw,1.25rem);color:var(--color-title,#f1ece0);letter-spacing:.02em;}
+.bpp-lead{margin-left:auto;color:var(--color-muted,#aaa);font-size:clamp(.82rem,2.2vw,.92rem);}
+.bpp-verdict{margin:.15rem 0 0;color:var(--color-command-gold,#c8963e);font-weight:700;font-size:clamp(.85rem,2.3vw,.95rem);}
 
-.bpp-meter{margin:clamp(1.1rem,3.5vw,1.5rem) 0 0;background:var(--color-navy-dark,#1f2438);border:1px solid var(--color-panel-border,#3a3f50);border-radius:6px;padding:.9rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:.8rem 1rem;flex-wrap:wrap;}
-.bpp-readout{background:var(--color-deep-space,#08090d);border:1px solid var(--color-panel-border,#3a3f50);border-radius:4px;padding:.3rem .9rem;display:flex;align-items:baseline;gap:.3rem;}
-.bpp-value{color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(1.8rem,7vw,2.6rem);line-height:1;letter-spacing:.02em;}
-.bpp-unit{color:var(--color-gray-1,#e8e8e8);font-size:clamp(1rem,3vw,1.3rem);font-weight:700;}
-.bpp-mode{margin:0;color:var(--color-muted,#aaa);font-size:clamp(.85rem,2.3vw,.95rem);letter-spacing:.06em;}
-
-@media (max-width:520px){
-  .bpp-stage{grid-template-columns:1fr;gap:1.1rem;}
-  .bpp-board{max-width:300px;margin-inline:auto;width:100%;}
-}
+/* Tier-B reveal off the frame's armed/in contract (final state under reduced-motion). */
+.dgfrm.armed .bpp-meter,.dgfrm.armed .bpp-row,.dgfrm.armed .bpp-verdict{opacity:0;transform:translateY(6px);}
+.dgfrm.armed.in .bpp-meter{opacity:1;transform:none;transition:opacity .55s ease,transform .55s cubic-bezier(.2,.7,.2,1);}
+.dgfrm.armed.in .bpp-row,.dgfrm.armed.in .bpp-verdict{opacity:1;transform:none;transition:opacity .5s ease,transform .5s ease;}
+.dgfrm.armed.in .bpp-row--gnd{transition-delay:.1s;}
+.dgfrm.armed.in .bpp-verdict{transition-delay:.2s;}
+@media (prefers-reduced-motion:reduce){.dgfrm .bpp-meter,.dgfrm .bpp-row,.dgfrm .bpp-verdict{opacity:1!important;transform:none!important;transition:none!important;}}
 `;

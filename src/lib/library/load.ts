@@ -3,6 +3,7 @@
 // and the index can't drift on the gating. Returns null when missing/unpublished
 // so the route 404s.
 import { db } from "@/lib/db";
+import { byNarrativeOrder } from "@/lib/library/narrative-order";
 
 export async function loadPublicMiniLesson(slug: string) {
   return db.miniLesson.findFirst({
@@ -60,18 +61,24 @@ export async function loadProjectMiniLessons(projectId: string) {
 }
 
 export async function listPublishedMiniLessons() {
-  return db.miniLesson.findMany({
+  // Query newest-first so any lesson not yet placed in the narrative arc falls to
+  // the end freshest-first; byNarrativeOrder then lifts the curated arc to the top.
+  const rows = await db.miniLesson.findMany({
     where: { published: true, accessTier: "PUBLIC" },
     orderBy: { updatedAt: "desc" },
     select: { slug: true, title: true, summary: true, updatedAt: true },
   });
+  return byNarrativeOrder(rows);
 }
 
-// Every published, PUBLIC lesson WITH its content blocks, in authoring order
-// (createdAt asc → foundational pages first), for the combined "Field Guide"
-// PDF. Distinct from the index loader (which omits content + sorts by freshness).
+// Every published, PUBLIC lesson WITH its content blocks, in curated narrative
+// order (see narrative-order.ts), for the combined "Field Guide" PDF. Distinct
+// from the index loader (which omits content) — both share the same arc order.
 export async function loadPublicLibraryForBook() {
-  return db.miniLesson.findMany({
+  // createdAt asc is the fallback for any lesson not yet placed in the narrative
+  // arc (authoring order at the back of the book); byNarrativeOrder lifts the
+  // curated arc to the front so the field guide reads as one coherent progression.
+  const rows = await db.miniLesson.findMany({
     where: { published: true, accessTier: "PUBLIC" },
     orderBy: { createdAt: "asc" },
     select: {
@@ -83,4 +90,5 @@ export async function loadPublicLibraryForBook() {
       contentBlocks: true,
     },
   });
+  return byNarrativeOrder(rows);
 }

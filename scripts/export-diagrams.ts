@@ -24,6 +24,15 @@ const MANIFEST = path.join(ROOT, "src", "components", "guide", "diagram-export-m
 const argv = process.argv.slice(2);
 const CHECK = argv.includes("--check");
 const ONLY = (argv.find((a) => a.startsWith("--only=")) ?? "").split("=")[1] || null;
+// `--light`: also emit a `<name>-light.png` rendered under data-theme="light",
+// for print/light surfaces (the Library PDF prefers it). PNG only (react-pdf
+// can't embed WebP; the light web webp is the broader light-mode track's job).
+const LIGHT = argv.includes("--light");
+// Diagrams that still carry literal dark hex in SVG attributes (var() isn't valid
+// in a presentation attribute) do NOT re-theme under data-theme="light" yet, so
+// their light raster would be broken. Skip them until they're tokenized. None are
+// used by the EEG/BCI Library / Field Guide, so the PDF is unaffected.
+const LIGHT_SKIP = new Set<string>([]);
 
 function registryBasenames(): string[] {
   const reg = readFileSync(path.join(ROOT, "src/components/guide/diagram-registry.tsx"), "utf8");
@@ -46,6 +55,32 @@ async function main() {
   const browser = await chromium.launch();
   const page = await browser.newPage({ deviceScaleFactor: 2 });
   await page.emulateMedia({ reducedMotion: "reduce" });
+
+  // ── light-variant export ────────────────────────────────────────────────
+  // Render each diagram under data-theme="light" (the tokens flip via
+  // globals.css) and screenshot to `<name>-light.png`. Skips the not-yet-
+  // tokenized literal-hex diagrams and never touches the dark webp/png/manifest.
+  if (LIGHT) {
+    let n = 0;
+    for (const basename of names) {
+      if (LIGHT_SKIP.has(basename)) {
+        console.log(`  ${basename}: skipped (literal hex, not light-ready)`);
+        continue;
+      }
+      await page.goto(`${BASE}/diagram-render/${basename}`, { waitUntil: "networkidle", timeout: 60_000 });
+      const figure = page.locator('figure[role="img"]').first();
+      await figure.waitFor({ state: "visible", timeout: 30_000 });
+      await page.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));
+      await page.waitForTimeout(250); // let the token flip settle
+      const out = path.join(OUT, `${basename}-light.png`);
+      await figure.screenshot({ path: out, type: "png" });
+      n++;
+      console.log(`  ${basename}-light.png`);
+    }
+    await browser.close();
+    console.log(`\nExported ${n} light diagram rasters.`);
+    return;
+  }
 
   const manifest: Entry[] = [];
   const stale: string[] = [];

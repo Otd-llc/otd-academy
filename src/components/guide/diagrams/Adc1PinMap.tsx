@@ -1,22 +1,18 @@
-// ADC1-vs-ADC2 pin map as a responsive HTML component.
+// ADC1-vs-ADC2 pin map as a responsive v2 diagram.
 //
-// Why not the source SVG: a fixed-viewBox SVG scales to its container, so on a
-// ~360px phone its 24-unit pin numbers render at ~11px and the takeaway text at
-// ~9px — unreadable. Rendered as real HTML/CSS the labels are actual CSS px
-// (clamped, never below ~14px) and the two 5x2 pin banks reflow without the text
-// ever shrinking. It is a pure list/grid diagram, so no inline SVG is needed.
+// Teaching point: ADC1 = GPIO 1-10, usable for analog input; ADC2 = GPIO 11-20,
+// claimed by the radio so those pins read garbage while Wi-Fi is on. For analog,
+// stick to ADC1.
 //
-// TEACHING DATA (preserved exactly): ADC1 = GPIO 1-10, usable for analog input;
-// ADC2 = GPIO 11-20, claimed by the radio so those pins read garbage while Wi-Fi
-// is on. Takeaway: for analog reads, stick to ADC1.
-//
-// Header / frame / caption come from the shared DiagramFrame (site-standard
-// Bebas title); this file supplies only the graphic body.
-//
-// BRAND (onethousanddrones.com/brand): gold-dominant on Deep Space, Navy Dark
-// pin bodies, alert red ONLY on the radio-claimed ADC2 bank (a genuine "don't
-// use this" state). No other accent hues. All colours via @theme tokens.
+// v2: two labelled pin banks side by side (was a portrait stack) — ADC1 usable
+// (gold), ADC2 radio-claimed (red) — reflowing to a stacked column on a phone so
+// the pin numbers never shrink. Token-only color; pin chips ride
+// --color-diagram-surface so they re-theme on the ivory light field (the old
+// navy chips went white-on-ivory).
 import { DiagramFrame } from "./DiagramFrame";
+
+const ADC1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const ADC2 = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 
 export function Adc1PinMap({ caption }: { caption?: string }) {
   return (
@@ -26,45 +22,32 @@ export function Adc1PinMap({ caption }: { caption?: string }) {
       title="Analog input? Use an ADC1 pin."
       ariaLabel="ADC pin map. GPIO 1 to 10 are ADC1 and stay usable for analog input. GPIO 11 to 20 are ADC2 and are claimed by the radio, so they read garbage while Wi-Fi is on. For analog reads, stick to ADC1, GPIO 1 to 10."
       caption={caption}
-      defaultCaption="For analog reads, stick to ADC1 (GPIO 1–10)."
+      defaultCaption="For analog reads, stick to ADC1 (GPIO 1 to 10). ADC2 shares its converter with the radio."
     >
       <style>{CSS}</style>
       <div className="apm">
         <div className="apm-bank apm-good">
-          <div className="apm-head">
-            <span className="apm-tag apm-tag-good">USABLE</span>
-            <div className="apm-headtext">
-              <span className="apm-bank-name">ADC1</span>
-              <span className="apm-bank-range">GPIO 1&ndash;10</span>
-            </div>
-          </div>
+          <p className="apm-head">
+            <span className="apm-mark">✓</span> ADC1 <span className="apm-range">GPIO 1-10</span>
+          </p>
           <div className="apm-grid">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-              <span key={n} className="apm-pin apm-pin-good">
-                {n}
-              </span>
+            {ADC1.map((n) => (
+              <span key={n} className="apm-pin apm-pin-good">{n}</span>
             ))}
           </div>
         </div>
 
         <div className="apm-bank apm-bad">
-          <div className="apm-head">
-            <span className="apm-tag apm-tag-bad">RADIO-CLAIMED</span>
-            <div className="apm-headtext">
-              <span className="apm-bank-name apm-bank-name-bad">ADC2</span>
-              <span className="apm-bank-range">GPIO 11&ndash;20</span>
-            </div>
-          </div>
+          <p className="apm-head apm-head-bad">
+            <span className="apm-mark">✗</span> ADC2 <span className="apm-range">GPIO 11-20</span>
+          </p>
           <div className="apm-grid">
-            {[11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((n) => (
-              <span key={n} className="apm-pin apm-pin-bad">
-                {n}
-              </span>
+            {ADC2.map((n) => (
+              <span key={n} className="apm-pin apm-pin-bad">{n}</span>
             ))}
           </div>
           <p className="apm-note">
-            Wi-Fi borrows ADC2&rsquo;s converter &mdash; these pins read garbage
-            while the radio is on.
+            Wi-Fi borrows ADC2's converter, so these read garbage while the radio is on.
           </p>
         </div>
       </div>
@@ -72,38 +55,30 @@ export function Adc1PinMap({ caption }: { caption?: string }) {
   );
 }
 
-// Token-driven (var(--color-*) / var(--font-*) from @theme) with literal
-// fallbacks so a standalone render still resolves. Gold-dominant per brand;
-// alert red is reserved for the radio-claimed bank only. Unique `.apm-` prefix
-// so styles never collide with other diagrams on the same page.
 const CSS = `
-.apm{font-family:var(--font-mono,"Space Mono",monospace);}
-.apm *{box-sizing:border-box;}
+.apm{display:flex;gap:clamp(1rem,4vw,1.6rem);text-align:left;font-family:var(--font-mono,"Space Mono",monospace);}
+@media (max-width:520px){.apm{flex-direction:column;}}
+.apm-bank{flex:1 1 0;min-width:0;}
 
-.apm-bank{border:1px solid var(--color-panel-border,#3a3f50);border-radius:.5rem;
-  padding:clamp(.85rem,3vw,1.1rem);text-align:left;}
-.apm-good{border-left:3px solid var(--color-command-gold,#c8963e);}
-.apm-bad{border-left:3px solid var(--color-alert-red,#c62828);margin-top:clamp(1rem,3.5vw,1.4rem);}
+.apm-head{margin:0 0 clamp(.6rem,2.5vw,.85rem);display:flex;align-items:baseline;gap:.45rem;flex-wrap:wrap;
+  color:var(--color-command-gold,#c8963e);font-weight:700;font-size:clamp(1.05rem,3vw,1.25rem);letter-spacing:.02em;}
+.apm-head-bad{color:var(--color-alert-red,#ef5350);}
+.apm-mark{font-size:1.05em;}
+.apm-range{color:var(--color-muted,#aaa);font-weight:400;font-size:clamp(.9rem,2.4vw,1rem);}
 
-.apm-head{display:flex;align-items:center;gap:.7rem;margin-bottom:clamp(.7rem,3vw,1rem);}
-.apm-tag{flex:none;font-size:.62rem;font-weight:700;letter-spacing:.16em;
-  padding:.28rem .5rem;border-radius:3px;line-height:1;}
-.apm-tag-good{color:var(--color-deep-space,#08090d);background:var(--color-command-gold,#c8963e);}
-.apm-tag-bad{color:var(--color-title,#f1ece0);background:var(--color-alert-red,#c62828);}
-.apm-headtext{display:flex;align-items:baseline;gap:.55rem;flex-wrap:wrap;}
-.apm-bank-name{color:var(--color-command-gold,#c8963e);font-weight:700;
-  font-size:clamp(1.05rem,3vw,1.3rem);letter-spacing:.02em;}
-.apm-bank-name-bad{color:var(--color-gray-1,#e8e8e8);}
-.apm-bank-range{color:var(--color-muted,#aaa);font-size:clamp(.95rem,2.5vw,1.05rem);}
-
-.apm-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(.4rem,1.6vw,.6rem);}
-.apm-pin{display:flex;align-items:center;justify-content:center;
-  aspect-ratio:5/3;border-radius:5px;font-weight:700;
-  font-size:clamp(1.05rem,3vw,1.3rem);
-  background:var(--color-navy-dark,#1f2438);}
+.apm-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(.4rem,1.6vw,.55rem);}
+.apm-pin{display:flex;align-items:center;justify-content:center;aspect-ratio:5/3;border-radius:5px;
+  background:var(--color-diagram-surface,#1f2438);font-family:var(--font-numeral,"Saira Condensed",sans-serif);
+  font-weight:700;font-size:clamp(1rem,3vw,1.25rem);}
 .apm-pin-good{color:var(--color-title,#f1ece0);border:2px solid var(--color-command-gold,#c8963e);}
-.apm-pin-bad{color:var(--color-muted,#aaa);border:1.5px solid rgba(198,40,40,.55);}
+.apm-pin-bad{color:var(--color-muted,#aaa);border:1.6px solid var(--color-alert-red,#ef5350);}
 
-.apm-note{margin:clamp(.7rem,3vw,1rem) 0 0;color:var(--color-muted,#aaa);
-  font-family:var(--font-serif,"Lora",serif);font-size:clamp(.85rem,2.3vw,.95rem);line-height:1.5;}
+.apm-note{margin:clamp(.7rem,2.6vw,.95rem) 0 0;color:var(--color-muted,#aaa);
+  font-family:var(--font-serif,"Lora",serif);font-size:clamp(.85rem,2.3vw,.95rem);line-height:1.45;}
+
+/* Tier-B reveal off the frame's armed/in contract (final state under reduced-motion). */
+.dgfrm.armed .apm-bank{opacity:0;transform:translateY(6px);}
+.dgfrm.armed.in .apm-bank{opacity:1;transform:none;transition:opacity .55s ease,transform .55s cubic-bezier(.2,.7,.2,1);}
+.dgfrm.armed.in .apm-bad{transition-delay:.12s;}
+@media (prefers-reduced-motion:reduce){.dgfrm .apm-bank{opacity:1!important;transform:none!important;transition:none!important;}}
 `;

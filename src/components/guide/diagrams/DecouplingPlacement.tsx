@@ -23,9 +23,9 @@ export function DecouplingPlacement({ caption }: { caption?: string }) {
       eyebrow="LAYOUT · DECOUPLING"
       tone="gold"
       title="Placement decides whether it works"
-      ariaLabel="Decoupling capacitor placement decides whether it works. Case one, the cap right at the IC pin, makes a small current loop: a short path with low inductance, so the cap dumps current fast. Case two, the same cap placed far from the pin, makes a big loop: a long path whose trace inductance chokes the fast current. Same cap and same schematic — placement is everything."
+      ariaLabel="Decoupling capacitor placement decides whether it works. Case one, the cap right at the IC pin, makes a small current loop: a short path with low inductance, so the cap dumps current fast. Case two, the same cap placed far from the pin, makes a big loop: a long path whose trace inductance chokes the fast current. Same cap and same schematic; placement is everything."
       caption={caption}
-      defaultCaption="Same cap, same schematic — placement is everything."
+      defaultCaption="Same cap, same schematic; placement is everything."
     >
       <style>{CSS}</style>
       <div className="dcpl">
@@ -45,7 +45,7 @@ export function DecouplingPlacement({ caption }: { caption?: string }) {
               <span className="dcpl-mark">✓</span> cap right at the pin
             </p>
             <p className="dcpl-body">
-              Short path, low inductance &mdash; the cap dumps current fast.
+              Short path, low inductance; the cap dumps current fast.
             </p>
           </div>
         </div>
@@ -68,7 +68,7 @@ export function DecouplingPlacement({ caption }: { caption?: string }) {
               <span className="dcpl-mark">✗</span> cap far from the pin
             </p>
             <p className="dcpl-body">
-              Long path, trace inductance &mdash; chokes the fast current.
+              Long path, trace inductance; chokes the fast current.
             </p>
           </div>
         </div>
@@ -84,7 +84,7 @@ const CSS = `
 
 /* IC body */
 .dcpl-ic{flex:0 0 auto;width:46px;height:96px;display:flex;align-items:center;justify-content:center;
-  background:var(--color-navy-dark,#1f2438);border:2.5px solid var(--color-command-gold,#c8963e);
+  background:var(--color-diagram-surface,#1f2438);border:2.5px solid var(--color-command-gold,#c8963e);
   border-radius:3px;color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(1.05rem,3vw,1.3rem);z-index:2;}
 
 /* the current loop: power rail top, ground rail bottom, cap closing on the right */

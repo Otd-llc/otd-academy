@@ -1,23 +1,57 @@
-// USB-C → 3.3 V power-flow as a responsive HTML component.
+// USB-C 5 V → 3.3 V power drop, drawn as two reservoirs split by the regulator (v2).
 //
-// Why not the /guide-diagrams SVG: a fixed-viewBox 780×1390 SVG scales to its
-// container, so on a ~360px phone every label shrinks to ~6px (unreadable), and
-// the original crammed each stage's annotations into one- or two-word ribbons.
-// Rendered as real HTML/CSS, the labels are actual CSS px (clamped, never below
-// ~14px) that do NOT scale with the viewport; the "graphic" is plain CSS node
-// boxes (gold = power rail, blue = USB data).
+// Teaching point: the LDO takes the 5 V rail down to a clean 3.3 V. That is drawn
+// literally as two water reservoirs at different levels — a FULL 5 V pool on the
+// left, a LOWER 3.3 V pool on the right — with U2, the RT9080 in its real 5-lead
+// TSOT-23-5 package, standing between them as the thing that sets the drop. The
+// package is drawn flow-aligned: VIN / GND / EN face the 5 V pool, VOUT / NC face
+// the 3.3 V pool, pin-1 dot on VIN.
 //
-// The power chain reads as ONE clean vertical spine — J1 → F1 → U2 → U1 — with
-// the rail voltage on each connecting arrow. The supporting parts (CC resistors,
-// caps, decoupling) sit as small muted notes tucked BESIDE each stage so they
-// never interrupt the J1→U1 flow. The USB-data path is kept visually separate
-// and in Signal Blue.
-//
-// BRAND (onethousanddrones.com/brand): gold-dominant on Deep Space, Navy Dark
-// node bodies, Signal Blue only as the secondary data-path accent, muted (#aaa)
-// for body — never a darker gray. The frame/header/caption come from the shared
-// DiagramFrame; this file supplies only the graphic body and its scoped <style>.
+// v2: landscape (was a tall vertical HTML spine). Token-only colour via scoped CSS
+// classes (never a fill="#…" presentation attr, which can't read a var and would
+// go white-on-ivory in light). On a phone the labelled SVG would shrink its text
+// under the ~14px floor, so it reflows to a stacked in → U2 → out card column.
 import { DiagramFrame } from "./DiagramFrame";
+
+// Static, module-constant SVG markup (no props / no user input) — safe to inject.
+// Rotated (flow-aligned) RT9080 TSOT-23-5: body 30×48, 3 leads LEFT (VIN/GND/EN,
+// facing the 5 V pool), 2 leads RIGHT (VOUT/NC, facing 3.3 V), pin-1 dot on VIN.
+function buildMarkup() {
+  const lead = (x1: number, y1: number, x2: number, y2: number) =>
+    `<line class="wpf-lead" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+
+  // U2 chip, drawn in its own translate+scale group so the reveal never fights it.
+  const chip =
+    `<g class="wpf-chip" transform="translate(272,70) scale(1.75)">` +
+    lead(0, 8, -9, 8) + lead(0, 24, -9, 24) + lead(0, 40, -9, 40) + // VIN / GND / EN
+    lead(30, 14, 39, 14) + lead(30, 34, 39, 34) +                    // VOUT / NC
+    `<rect class="wpf-body" x="0" y="0" width="30" height="48" rx="3.5"/>` +
+    `<circle class="wpf-pin1" cx="7" cy="8" r="2.4"/>` +
+    `<text class="wpf-u2" x="15" y="29" text-anchor="middle">U2</text>` +
+    `</g>`;
+
+  const inPool =
+    `<g class="wpf-g-in">` +
+    `<rect class="wpf-water" x="30" y="80" width="205" height="115"/>` +
+    `<line class="wpf-waterline" x1="30" y1="80" x2="235" y2="80"/>` +
+    `<text class="wpf-vlabel" x="70" y="71">5 V</text>` +
+    `</g>`;
+
+  const outPool =
+    `<g class="wpf-g-out">` +
+    `<rect class="wpf-water" x="362" y="130" width="168" height="65"/>` +
+    `<line class="wpf-waterline" x1="362" y1="130" x2="530" y2="130"/>` +
+    `<text class="wpf-vlabel" x="452" y="121">3.3 V</text>` +
+    `</g>`;
+
+  return (
+    inPool +
+    `<g class="wpf-g-chip">` + chip +
+    `<text class="wpf-part" x="298" y="213" text-anchor="middle">RT9080</text></g>` +
+    outPool
+  );
+}
+const MARKUP = buildMarkup();
 
 export function WroomPowerFlow({ caption }: { caption?: string }) {
   return (
@@ -25,104 +59,33 @@ export function WroomPowerFlow({ caption }: { caption?: string }) {
       eyebrow="SCHEMATIC · POWER FLOW"
       tone="gold"
       title="Power flow: USB-C to the WROOM"
-      ariaLabel="Power flow from USB-C to the ESP32-S3-WROOM-1. The power chain is one vertical spine: J1 USB-C in sends 5 volts to F1, a resettable polyfuse; 5 volts continues to U2, the RT9080 3.3 volt LDO; the LDO outputs 3.3 volts to U1, the ESP32-S3-WROOM-1. Supporting parts beside each stage: J1 has CC resistors R3 and R4, 5.1k Rd pulldowns; U2 has input caps C1 10 microfarad bulk and C5 1 microfarad, plus output cap C6 1 microfarad; U1 is decoupled by C2, C3 and C7. A separate USB data path in blue: J1 USB-C data carries D plus and D minus to D1, an ESD array, which passes clean USB to U1 and shunts surges to ground before they reach U1."
+      ariaLabel="The board's power drop, drawn as two reservoirs. On the left, a full 5 volt pool that comes in from USB-C. In the middle stands U2, the RT9080 low-dropout regulator, in its real 5-lead package: VIN, ground and enable face the 5 volt pool; VOUT and the unused pin face the right. On the right, a lower 3.3 volt pool. The lower water level is the voltage the regulator gives up, dropping the 5 volt rail down to a clean 3.3 volts for the WROOM."
       caption={caption}
       defaultCaption="5 V comes in; the LDO drops it to a clean 3.3 V for the WROOM."
     >
       <style>{CSS}</style>
 
-      <p className="wpf-key">
-        <span className="g">Gold = power rails</span> &middot; <span className="b">Blue = USB data</span>
-      </p>
+      <div className="wpf-fig">
+        <svg className="wpf-svg" viewBox="0 0 560 230" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+          <g dangerouslySetInnerHTML={{ __html: MARKUP }} />
+        </svg>
 
-      <p className="wpf-sectlabel g">&#9656; Power chain</p>
-      <div className="wpf-spine">
-        <div className="wpf-stage">
+        {/* Phone reflow: the labelled SVG would shrink its text under the floor, so
+            below 520px it stacks as an in → U2 → out card column. */}
+        <div className="wpf-stack" aria-hidden="true">
+          <div className="wpf-row wpf-in">
+            <span className="wpf-rv">5 V</span>
+            <span className="wpf-rt">in, from USB-C</span>
+          </div>
+          <span className="wpf-down">▼</span>
           <div className="wpf-node">
-            <span className="wpf-ref">J1</span>
-            <span className="wpf-name">USB-C</span>
-            <span className="wpf-role">power in</span>
+            <span className="wpf-nref">U2</span>
+            <span className="wpf-nname">RT9080 LDO</span>
           </div>
-          <p className="wpf-aside">+ R3 &middot; R4 CC pulldowns (5.1k Rd) request power.</p>
-        </div>
-
-        <div className="wpf-link">
-          <span className="arrow">&#9660;</span>
-          <span className="rail">5 V</span>
-        </div>
-
-        <div className="wpf-stage">
-          <div className="wpf-node">
-            <span className="wpf-ref">F1</span>
-            <span className="wpf-name">Polyfuse</span>
-            <span className="wpf-role">resettable</span>
-          </div>
-          <p className="wpf-aside">Trips on an over-current fault, then resets when it cools.</p>
-        </div>
-
-        <div className="wpf-link">
-          <span className="arrow">&#9660;</span>
-          <span className="rail">5 V</span>
-        </div>
-
-        <div className="wpf-stage">
-          <div className="wpf-node">
-            <span className="wpf-ref">U2</span>
-            <span className="wpf-name">RT9080</span>
-            <span className="wpf-role">3.3 V LDO</span>
-          </div>
-          <p className="wpf-aside">+ C1 10&micro;F &middot; C5 1&micro;F in, C6 1&micro;F out steady the LDO.</p>
-        </div>
-
-        <div className="wpf-link">
-          <span className="arrow">&#9660;</span>
-          <span className="rail">3.3 V</span>
-        </div>
-
-        <div className="wpf-stage">
-          <div className="wpf-node">
-            <span className="wpf-ref">U1</span>
-            <span className="wpf-name">ESP32-S3</span>
-            <span className="wpf-role">WROOM-1</span>
-          </div>
-          <p className="wpf-aside">+ C2 &middot; C3 &middot; C7 decoupling steady the rail at the module.</p>
-        </div>
-      </div>
-
-      <p className="wpf-sectlabel b">&#9656; USB data path</p>
-      <div className="wpf-spine">
-        <div className="wpf-stage">
-          <div className="wpf-node data">
-            <span className="wpf-ref">J1</span>
-            <span className="wpf-name">USB-C</span>
-            <span className="wpf-role">data</span>
-          </div>
-        </div>
-
-        <div className="wpf-link data">
-          <span className="arrow">&#9660;</span>
-          <span className="rail">D+ / D&minus;</span>
-        </div>
-
-        <div className="wpf-stage">
-          <div className="wpf-node data">
-            <span className="wpf-ref">D1</span>
-            <span className="wpf-name">ESD array</span>
-            <span className="wpf-role">protection</span>
-          </div>
-          <p className="wpf-aside b">Clamps static spikes; shunts surges to ground before they reach U1.</p>
-        </div>
-
-        <div className="wpf-link data">
-          <span className="arrow">&#9660;</span>
-          <span className="rail">clean USB</span>
-        </div>
-
-        <div className="wpf-stage">
-          <div className="wpf-node data">
-            <span className="wpf-ref">U1</span>
-            <span className="wpf-name">ESP32-S3</span>
-            <span className="wpf-role">WROOM-1</span>
+          <span className="wpf-down">▼</span>
+          <div className="wpf-row wpf-out">
+            <span className="wpf-rv">3.3 V</span>
+            <span className="wpf-rt">clean, to the WROOM</span>
           </div>
         </div>
       </div>
@@ -130,67 +93,46 @@ export function WroomPowerFlow({ caption }: { caption?: string }) {
   );
 }
 
-// Token-driven (var(--color-*) / var(--font-*) from @theme) with literal
-// fallbacks so a standalone render still resolves. Gold-dominant per brand;
-// unique .wpf- prefix so styles never collide with other diagrams on the page.
+// Token-driven (var(--color-*) / var(--font-*)) with literal fallbacks so a
+// standalone render still resolves. Gold-dominant per brand; unique .wpf- prefix.
 const CSS = `
-.wpf-key{margin:0;text-align:center;color:var(--color-muted,#aaa);
-  font-size:clamp(.85rem,2.3vw,.95rem);line-height:1.4;}
-.wpf-key .g{color:var(--color-command-gold,#c8963e);font-weight:700;}
-.wpf-key .b{color:var(--color-signal-blue,#4a8fff);font-weight:700;}
+.wpf-fig{width:100%;}
+.wpf-svg{display:block;width:100%;height:auto;overflow:visible;}
+.wpf-stack{display:none;}
 
-.wpf-sectlabel{margin:clamp(1.4rem,5vw,1.9rem) 0 .9rem;text-align:center;
-  font-size:.62rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;}
-.wpf-sectlabel.g{color:var(--color-command-gold,#c8963e);}
-.wpf-sectlabel.b{color:var(--color-signal-blue,#4a8fff);}
+/* ── SVG paint: token-only, via classes (no fill="#…" presentation attrs) ── */
+.wpf-water{fill:var(--color-command-gold,#c8963e);fill-opacity:.22;}
+.wpf-waterline{stroke:var(--color-command-gold,#c8963e);stroke-width:2.5;}
+.wpf-lead{stroke:var(--color-command-gold,#c8963e);stroke-width:2.6;stroke-linecap:round;}
+.wpf-body{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2.2;}
+.wpf-pin1{fill:var(--color-gold-light,#e8b865);}
+.wpf-u2{fill:var(--color-title,#f1ece0);font-family:var(--font-mono,"Space Mono",monospace);font-size:13px;font-weight:700;}
+.wpf-vlabel{fill:var(--color-command-gold,#c8963e);font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-size:16px;font-weight:700;}
+.wpf-part{fill:var(--color-muted,#aaa);font-family:var(--font-mono,"Space Mono",monospace);font-size:9px;}
 
-/* The chain is one centered vertical spine; nodes + arrows align on it. */
-.wpf-spine{display:flex;flex-direction:column;align-items:center;}
-.wpf-stage{display:flex;flex-direction:column;align-items:center;width:100%;max-width:24rem;}
-.wpf-node{width:100%;box-sizing:border-box;
-  background:var(--color-navy-dark,#1f2438);border:2px solid var(--color-command-gold,#c8963e);
-  border-radius:8px;padding:.7rem .6rem;text-align:center;}
-.wpf-node.data{border-color:var(--color-signal-blue,#4a8fff);}
-.wpf-ref{color:var(--color-gold-light,#e8b865);font-weight:700;
-  font-size:clamp(1.05rem,3vw,1.3rem);line-height:1;}
-.wpf-node.data .wpf-ref{color:var(--color-signal-blue,#4a8fff);}
-.wpf-name{display:block;color:var(--color-title,#f1ece0);font-weight:700;margin-top:.28rem;
-  font-size:clamp(.95rem,2.5vw,1.05rem);line-height:1.2;}
-.wpf-role{display:block;color:var(--color-muted,#aaa);margin-top:.2rem;
-  font-size:clamp(.85rem,2.3vw,.95rem);line-height:1.25;}
-
-/* Supporting parts: muted, secondary, tucked under the node — never on the spine. */
-.wpf-aside{margin:.4rem 0 0;text-align:center;color:var(--color-muted,#aaa);
-  font-size:clamp(.8rem,2.2vw,.9rem);line-height:1.4;}
-.wpf-aside.b{color:var(--color-signal-blue,#4a8fff);}
-
-/* Vertical connector: a centered arrow with the rail voltage as its label. */
-.wpf-link{display:flex;flex-direction:column;align-items:center;gap:.1rem;
-  margin:clamp(.7rem,3vw,1rem) 0;}
-.wpf-link .arrow{color:var(--color-command-gold,#c8963e);font-size:1.3rem;line-height:1;}
-.wpf-link.data .arrow{color:var(--color-signal-blue,#4a8fff);}
-.wpf-link .rail{color:var(--color-command-gold,#c8963e);font-weight:700;
-  font-size:clamp(.95rem,2.5vw,1.05rem);line-height:1.2;}
-.wpf-link.data .rail{color:var(--color-signal-blue,#4a8fff);}
-
-/* Tier-B (docs/diagrams/animation-standards.md): a pulse runs DOWN each spine —
-   J1→F1→U2→U1 (gold power) then the data path (blue) — each arrow giving a
-   one-shot downward push as the pulse reaches it. Single-play; the arrow keeps
-   its own semantic colour. Gated behind .armed so a reduced-motion / no-JS
-   render keeps the static arrows. */
-.dgfrm.armed.in .wpf-spine > .wpf-link .arrow{animation:wpf-arrow .55s ease-out both;}
-.dgfrm.armed.in .wpf-spine > .wpf-link:nth-child(2) .arrow{animation-delay:.45s;}
-.dgfrm.armed.in .wpf-spine > .wpf-link:nth-child(4) .arrow{animation-delay:.6s;}
-.dgfrm.armed.in .wpf-spine > .wpf-link:nth-child(6) .arrow{animation-delay:.75s;}
-/* the blue data pulse follows the gold power pulse */
-.dgfrm.armed.in .wpf-link.data:nth-child(2) .arrow{animation-delay:1s;}
-.dgfrm.armed.in .wpf-link.data:nth-child(4) .arrow{animation-delay:1.15s;}
-@keyframes wpf-arrow{
-  0%{opacity:.25;transform:translateY(-4px);}
-  45%{opacity:1;transform:translateY(3px);}
-  100%{opacity:1;transform:translateY(0);}
+/* ── phone stack (< 520px) ── */
+@media (max-width:520px){
+  .wpf-svg{display:none;}
+  .wpf-stack{display:flex;flex-direction:column;align-items:center;gap:.55rem;}
 }
+.wpf-row{width:100%;max-width:20rem;box-sizing:border-box;display:flex;align-items:baseline;justify-content:center;gap:.5rem;
+  border-radius:8px;padding:.7rem .8rem;border:1.5px solid var(--color-command-gold,#c8963e);
+  background:color-mix(in srgb,var(--color-command-gold,#c8963e) 18%,transparent);}
+.wpf-rv{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:700;font-size:1.5rem;line-height:1;color:var(--color-command-gold,#c8963e);}
+.wpf-rt{font-family:var(--font-serif,"Lora",serif);font-size:.9rem;color:var(--color-muted,#aaa);}
+.wpf-node{width:100%;max-width:20rem;box-sizing:border-box;text-align:center;border-radius:8px;padding:.7rem .8rem;
+  background:var(--color-diagram-surface,#1f2438);border:2px solid var(--color-command-gold,#c8963e);}
+.wpf-nref{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:1.25rem;color:var(--color-title,#f1ece0);}
+.wpf-nname{display:block;margin-top:.15rem;font-family:var(--font-mono,"Space Mono",monospace);font-size:.85rem;color:var(--color-muted,#aaa);letter-spacing:.05em;}
+.wpf-down{color:var(--color-command-gold,#c8963e);font-size:1.1rem;line-height:1;}
+
+/* Tier-B reveal: power flows in → chip → out (opacity only, so the chip's own
+   transform is never clobbered). Final state under reduced-motion. */
+.dgfrm.armed .wpf-g-in,.dgfrm.armed .wpf-g-chip,.dgfrm.armed .wpf-g-out{opacity:0;}
+.dgfrm.armed.in .wpf-g-in{opacity:1;transition:opacity .5s ease;}
+.dgfrm.armed.in .wpf-g-chip{opacity:1;transition:opacity .5s ease .16s;}
+.dgfrm.armed.in .wpf-g-out{opacity:1;transition:opacity .5s ease .32s;}
 @media (prefers-reduced-motion:reduce){
-  .dgfrm .wpf-link .arrow{animation:none!important;opacity:1;transform:none;}
+  .dgfrm .wpf-g-in,.dgfrm .wpf-g-chip,.dgfrm .wpf-g-out{opacity:1!important;transition:none!important;}
 }
 `;

@@ -22,16 +22,22 @@ export type ResolvedImage = {
 
 const cache = new Map<string, ResolvedImage | null>();
 
-// Map an image-block src to the on-disk PNG raster, or null if it isn't one we
-// embed. http(s) and empty srcs are skipped (the Library uses neither).
-//   /guide-diagrams/<name>.svg → public/guide-diagrams/<name>.png (the export)
-//   /<other root-relative>     → public/<other> (a real committed asset)
-function diskPathFor(src: string): string | null {
-  if (!src.startsWith("/")) return null; // http(s) or empty → skip
-  const rel = src.startsWith("/guide-diagrams/")
-    ? src.replace(/\.svg$/, ".png").replace(/^\//, "")
-    : src.replace(/^\//, "");
-  return path.join(process.cwd(), "public", rel);
+// Map an image-block src to the on-disk PNG raster candidates, in preference
+// order. http(s) and empty srcs are skipped (the Library uses neither). The PDF
+// is a LIGHT document, so a diagram's `<name>-light.png` (rendered under
+// data-theme="light") is preferred, falling back to the dark `<name>.png` for any
+// diagram without a light variant yet.
+//   /guide-diagrams/<name>.svg → [<name>-light.png, <name>.png]
+//   /<other root-relative>     → [<other>] (a real committed asset)
+function diskCandidates(src: string): string[] {
+  if (!src.startsWith("/")) return []; // http(s) or empty → skip
+  const pub = (rel: string) => path.join(process.cwd(), "public", rel.replace(/^\//, ""));
+  if (src.startsWith("/guide-diagrams/")) {
+    const dark = src.replace(/\.svg$/, ".png");
+    const light = src.replace(/\.svg$/, "-light.png");
+    return [pub(light), pub(dark)];
+  }
+  return [pub(src)];
 }
 
 // PNG header: 8-byte signature (0x89 'PNG'...), then the IHDR chunk with width as
@@ -45,20 +51,21 @@ function pngSize(buf: Buffer): { w: number; h: number } | null {
 async function resolveOne(src: string): Promise<ResolvedImage | null> {
   if (cache.has(src)) return cache.get(src)!;
   let resolved: ResolvedImage | null = null;
-  try {
-    const file = diskPathFor(src);
-    if (file) {
+  // Try each candidate (light preferred) until one reads; a missing/unreadable
+  // raster degrades to caption-only in the renderer — never crash the whole PDF
+  // over one diagram.
+  for (const file of diskCandidates(src)) {
+    try {
       const buf = await readFile(file);
       const dim = pngSize(buf);
       resolved = {
         dataUri: `data:image/png;base64,${buf.toString("base64")}`,
         ratio: dim && dim.h > 0 ? dim.w / dim.h : 1.6,
       };
+      break;
+    } catch {
+      // fall through to the next candidate
     }
-  } catch {
-    // A missing/unreadable raster degrades to caption-only in the renderer —
-    // never crash the whole PDF over one diagram.
-    resolved = null;
   }
   cache.set(src, resolved);
   return resolved;

@@ -1,19 +1,24 @@
-// Bring-up sequence as a responsive HTML component (a five-rung ladder).
+// Bring-up sequence as a responsive v2 diagram: a boot-log terminal beside the
+// board whose LED2 is blinking (the board is alive).
 //
-// Why not an SVG: a fixed-viewBox SVG scales to its container, so on a ~360px
-// phone a 780-wide canvas renders at ~0.46x and ANY text shrinks below an
-// accessible size. This is a list-like diagram, so it is pure HTML/CSS rows:
-// the text is real CSS px (clamped, never below ~14px) that does NOT scale down
-// with the viewport, and the rungs stack cleanly on a phone.
+// Teaching point: bring-up is five checks proven in order (no shorts, 3.3 V rail,
+// LED1 lit, enumerates, LED2 blinks). Each must pass before the next; a fail
+// means stop and fix. All five clear = BROUGHT_UP.
 //
-// Header / frame / caption come from the shared DiagramFrame (site-standard
-// Bebas title); this file supplies only the graphic body.
-//
-// BRAND (onethousanddrones.com/brand): gold-dominant on Deep Space, Navy Dark
-// bodies, Signal Blue only as the secondary "it's alive" callout on rung 5, and
-// Alert Red reserved for the stop rule. All colours via @theme tokens.
+// v2: landscape — a console-style log (on-brand Space Mono) on the left, the
+// board with a live blinking LED2 on the right; stacks on a phone. Token-only
+// color. Was a portrait rung-list. The LED blink is the one sanctioned ambient
+// loop (reduced-motion / the exporter renders it steady-on).
 import { type CSSProperties } from "react";
 import { DiagramFrame } from "./DiagramFrame";
+
+const CHECKS: { n: number; name: string; alive?: boolean }[] = [
+  { n: 1, name: "no shorts" },
+  { n: 2, name: "3.3 V rail" },
+  { n: 3, name: "LED1 lit" },
+  { n: 4, name: "enumerates" },
+  { n: 5, name: "LED2 blinks", alive: true },
+];
 
 export function BringupLadder({ caption }: { caption?: string }) {
   return (
@@ -26,84 +31,73 @@ export function BringupLadder({ caption }: { caption?: string }) {
       defaultCaption="All five rungs clear → log the board BROUGHT_UP."
     >
       <style>{CSS}</style>
-
-      <p className="brl-sub">Prove each rung before you trust the next.</p>
-
-      <div className="brl-stop">
-        <span className="brl-stop-k">IF ANY RUNG FAILS:</span>
-        <span className="brl-stop-v">STOP &amp; fix it before the next.</span>
-      </div>
-
-      <div className="brl-rungs">
-        {RUNGS.map((r, i) => (
-          <div
-            key={r.n}
-            className={`brl-rung${r.alive ? " last" : ""}`}
-            style={{ "--d": `${0.35 + i * 0.1}s` } as CSSProperties}
-          >
-            <span className="brl-num">{r.n}</span>
-            <div className="brl-body">
-              <div className="brl-name">{r.name}</div>
-              <div className="brl-detail">{r.detail}</div>
+      <div className="bul">
+        <div className="bul-term">
+          <div className="bul-line bul-cmd" style={rd(0)}>$ bringup ./board</div>
+          {CHECKS.map((c, i) => (
+            <div key={c.n} className={`bul-line${c.alive ? " bul-alive" : ""}`} style={rd(0.25 + i * 0.18)}>
+              <span className="bul-tag">{c.alive ? "[ALIVE]" : "[ OK ]"}</span>
+              <span className="bul-n">{c.n}</span>
+              <span className="bul-name">{c.name}</span>
             </div>
-            {r.alive ? <span className="brl-led" aria-hidden="true" /> : null}
+          ))}
+          <div className="bul-line bul-fail" style={rd(0.25 + CHECKS.length * 0.18)}># fail: stop and fix before the next</div>
+        </div>
+
+        <div className="bul-board" style={rd(0.25 + (CHECKS.length + 1) * 0.18)}>
+          <div className="bul-pcb">
+            <span className="bul-chip" aria-hidden="true" />
+            <span className="bul-led" aria-hidden="true" />
           </div>
-        ))}
+          <p className="bul-boardlab">LED2 · <b>ALIVE</b></p>
+        </div>
       </div>
     </DiagramFrame>
   );
 }
 
-const RUNGS: { n: number; name: string; detail: string; alive?: boolean }[] = [
-  { n: 1, name: "NO SHORTS", detail: "meter stays silent" },
-  { n: 2, name: "3.3 V RAIL", detail: "TP1 reads ≈ 3.3 V" },
-  { n: 3, name: "LED1 LIT", detail: "the power LED is on" },
-  { n: 4, name: "ENUMERATES", detail: "the host sees the S3" },
-  { n: 5, name: "LED2 BLINKS", detail: "your code blinks it — alive", alive: true },
-];
+const rd = (s: number): CSSProperties => ({ "--d": `${s}s` } as CSSProperties);
 
-// Token-driven (var(--color-*) / var(--font-*) from @theme) with literal
-// fallbacks so a standalone render still resolves. Gold-dominant per brand.
 const CSS = `
-.brl-sub{margin:0 0 clamp(1.1rem,4vw,1.5rem);text-align:center;color:var(--color-muted,#aaa);
-  font-family:var(--font-serif,"Lora",serif);font-size:clamp(.85rem,2.3vw,.95rem);line-height:1.4;}
+.bul{display:flex;align-items:stretch;gap:clamp(.9rem,3.5vw,1.5rem);text-align:left;}
+@media (max-width:520px){.bul{flex-direction:column;}}
 
-.brl-stop{display:flex;align-items:baseline;gap:.55rem;flex-wrap:wrap;
-  margin:clamp(1.1rem,4vw,1.5rem) 0;padding:.7rem .85rem;border-radius:6px;text-align:left;
-  background:var(--color-navy-dark,#1f2438);border:1px solid var(--color-alert-red,#c62828);}
-.brl-stop-k{color:var(--color-alert-red,#c62828);font-weight:700;font-size:clamp(.95rem,2.5vw,1.05rem);letter-spacing:.04em;}
-.brl-stop-v{color:var(--color-muted,#aaa);font-size:clamp(.85rem,2.3vw,.95rem);}
+.bul-term{flex:1.5 1 0;min-width:0;background:var(--color-diagram-surface,#1f2438);
+  border:1px solid var(--color-panel-border,#3a3f50);border-radius:8px;
+  padding:clamp(.8rem,2.6vw,1.05rem) clamp(.9rem,3vw,1.2rem);
+  font-family:var(--font-mono,"Space Mono",monospace);font-size:clamp(.82rem,2.2vw,.95rem);line-height:1.55;}
+.bul-line{display:flex;gap:.55rem;align-items:baseline;white-space:nowrap;}
+.bul-cmd{color:var(--color-command-gold,#c8963e);margin-bottom:.2rem;}
+.bul-tag{color:var(--color-command-gold,#c8963e);font-weight:700;}
+.bul-alive .bul-tag{color:var(--color-signal-blue,#4a8fff);}
+.bul-n{color:var(--color-muted,#aaa);}
+.bul-name{color:var(--color-title,#f1ece0);}
+.bul-alive .bul-name{color:var(--color-signal-blue,#4a8fff);font-weight:700;}
+.bul-fail{color:var(--color-alert-red,#ef5350);opacity:.9;margin-top:.25rem;white-space:normal;}
 
-.brl-rungs{display:flex;flex-direction:column;gap:.55rem;text-align:left;}
-.brl-rung{position:relative;display:grid;grid-template-columns:auto 1fr;gap:.85rem;align-items:center;
-  padding:.7rem 1.7rem .7rem .85rem;border-radius:6px;
-  background:var(--color-navy-dark,#1f2438);
-  border:1px solid var(--color-panel-border,#3a3f50);border-left:3px solid var(--color-command-gold,#c8963e);}
-.brl-num{display:flex;align-items:center;justify-content:center;width:2rem;height:2rem;flex:none;
-  border-radius:50%;border:2px solid var(--color-command-gold,#c8963e);color:var(--color-command-gold,#c8963e);
-  font-weight:700;font-size:clamp(1.05rem,3vw,1.3rem);}
-.brl-body{min-width:0;}
-.brl-name{color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(1.05rem,3vw,1.3rem);letter-spacing:.03em;line-height:1.2;}
-.brl-detail{margin-top:.18rem;color:var(--color-muted,#aaa);font-size:clamp(.95rem,2.5vw,1.05rem);line-height:1.35;}
-.brl-rung.last .brl-detail{color:var(--color-signal-blue,#4a8fff);}
+.bul-board{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:.6rem;background:var(--color-diagram-surface,#1f2438);border:1px solid var(--color-panel-border,#3a3f50);border-radius:8px;
+  padding:clamp(1rem,3vw,1.3rem);}
+.bul-pcb{position:relative;width:clamp(96px,40%,128px);aspect-ratio:7/5;border-radius:6px;
+  background:var(--color-deep-space,#08090d);box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
+.bul-chip{position:absolute;left:16%;top:26%;width:34%;height:44%;border-radius:3px;
+  background:var(--color-panel-border,#3a3f50);box-shadow:inset 0 0 0 1px var(--color-muted,#aaa);}
+.bul-led{position:absolute;right:16%;top:50%;width:13px;height:13px;margin-top:-6.5px;border-radius:50%;
+  background:var(--color-signal-blue,#4a8fff);box-shadow:0 0 10px 2px rgba(74,143,255,.7);}
+.bul-boardlab{margin:0;font-family:var(--font-mono,"Space Mono",monospace);font-size:clamp(.8rem,2.2vw,.9rem);color:var(--color-muted,#aaa);}
+.bul-boardlab b{color:var(--color-signal-blue,#4a8fff);font-family:var(--font-display,"Bebas Neue",sans-serif);font-weight:400;letter-spacing:.05em;font-size:1.25em;}
 
-/* Tier-B (docs/diagrams/animation-standards.md): prove each rung before the next
-   — the rungs reveal 1→5 in order. Gated behind .armed so a reduced-motion /
-   no-JS render shows all five, static. */
-.dgfrm.armed .brl-rung{opacity:0;transform:translateX(-10px);}
-.dgfrm.armed.in .brl-rung{opacity:1;transform:none;
-  transition:opacity .5s cubic-bezier(.2,.7,.2,1),transform .5s cubic-bezier(.2,.7,.2,1);
-  transition-delay:var(--d,0s);}
-
-/* The one sanctioned ambient loop: LED2 on the final rung blinks — the board is
-   alive. Slow (1.8s), hard on/off like a real indicator, reduced-motion-gated. */
-.brl-led{position:absolute;right:.85rem;top:50%;width:.7rem;height:.7rem;margin-top:-.35rem;
-  border-radius:50%;background:var(--color-signal-blue,#4a8fff);
-  box-shadow:0 0 7px 1px rgba(74,143,255,.7);}
-.dgfrm.armed.in .brl-led{animation:brl-blink 1.8s steps(1,end) infinite;animation-delay:1s;}
-@keyframes brl-blink{0%,50%{opacity:1;}50.01%,100%{opacity:.18;}}
+/* Tier-B reveal (docs/diagrams/animation-standards.md): the log prints line by
+   line, then the board fades in and LED2 starts to blink. Gated behind .armed so
+   reduced-motion / the exporter renders the full, static, LED-on state. */
+.dgfrm.armed .bul-line,.dgfrm.armed .bul-board{opacity:0;transform:translateY(4px);}
+.dgfrm.armed.in .bul-line,.dgfrm.armed.in .bul-board{opacity:1;transform:none;
+  transition:opacity .4s ease,transform .4s ease;transition-delay:var(--d,0s);}
+/* LED2 blink — the one sanctioned ambient loop; hard on/off like a real indicator. */
+.dgfrm.armed.in .bul-led{animation:bul-blink 1.6s steps(1,end) infinite;animation-delay:1.9s;}
+@keyframes bul-blink{0%,55%{opacity:1;}55.01%,100%{opacity:.2;}}
 @media (prefers-reduced-motion:reduce){
-  .dgfrm .brl-rung{opacity:1!important;transform:none!important;transition:none!important;}
-  .dgfrm .brl-led{animation:none!important;opacity:1;}
+  .dgfrm .bul-line,.dgfrm .bul-board{opacity:1!important;transform:none!important;transition:none!important;}
+  .dgfrm .bul-led{animation:none!important;opacity:1;}
 }
 `;

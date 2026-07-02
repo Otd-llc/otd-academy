@@ -1,21 +1,84 @@
-// 2-layer board stackup (edge-on) as a responsive HTML component.
+// 2-layer board stackup, drawn as an isometric block (v2).
 //
-// Why not an SVG: a fixed-viewBox SVG scales to its container, so on a ~360px
-// phone a 780-wide canvas renders at ~0.46x and ANY text shrinks below an
-// accessible size. Rendered as real HTML/CSS, every label is actual CSS px
-// (clamped, never below ~14px, body ≥15px) that do NOT scale with the viewport;
-// only the layer slabs (the graphic) are CSS boxes. On wide screens the graphic
-// sits beside the layer key; on phones (≤520px) it stacks — graphic on top, the
-// key in full-width readable blocks below.
+// Teaching point: a 2-layer board is top copper (signals + the parts) / FR4 core
+// (the fiberglass insulator) / bottom copper (one continuous ground plane). A
+// plated via is a copper-walled hole drilled through the core that ties the two
+// copper layers together; the parts (an IC, a chip resistor) ride on top.
 //
-// Header / frame / caption come from the shared DiagramFrame (site-standard
-// Bebas title); this file supplies only the graphic body.
-//
-// BRAND (onethousanddrones.com/brand): gold-dominant on Deep Space, Navy Dark
-// bodies, Signal Blue only as the secondary accent (the one signal trace). All
-// colours via @theme tokens with literal fallbacks so a standalone render still
-// resolves.
+// v2: a landscape isometric block (was a tall vertical stack). The BOARD is a
+// physical object, so it keeps ONE fixed palette in BOTH themes — a real PCB
+// looks the same on a dark or light page. The board/component colours are
+// literal + intentional (NOT tokens); only the chrome around it (frame, title,
+// the layer key) re-themes. On a phone the block scales and the key reflows to a
+// stacked list so its text stays real px.
 import { DiagramFrame } from "./DiagramFrame";
+
+// ── fixed board + component palette (identical in dark and light) ──────────────
+const CU = "#c8963e", CULIT = "#e8b865", CUSIDE = "#a5772c";
+const FR4 = "#8a7d42", FR4SIDE = "#5f552b", HOLE = "#0a0b10";
+const PKG = "#23283a", PKGLIT = "#343b52", PKGSIDE = "#191d2b", PIN = "#b9bfca";
+const BLK = "#181b22", BLKLIT = "#242833", BLKSIDE = "#0f1117";
+
+// ── isometric geometry ────────────────────────────────────────────────────────
+const X = 20, Y = 84, W = 300, TC = 16, FR = 56, BC = 16, DX = 60, DY = 30;
+const H = TC + FR + BC;
+const topP = (x: number, y: number, w: number, dx: number, dy: number) => `M${x},${y} l${dx},-${dy} h${w} l-${dx},${dy} Z`;
+const sideP = (x: number, y: number, w: number, h: number, dx: number, dy: number) => `M${x + w},${y} l${dx},-${dy} v${h} l-${dx},${dy} Z`;
+
+// an iso box with a subtle lit-edge highlight along the top-front lip
+function boxSvg(x: number, y: number, w: number, h: number, dx: number, dy: number, front: string, lit: string, sd: string) {
+  return (
+    `<path d="${sideP(x, y, w, h, dx, dy)}" fill="${sd}"/>` +
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${front}"/>` +
+    `<path d="${topP(x, y, w, dx, dy)}" fill="${lit}"/>` +
+    `<path d="M${x},${y} l${dx},-${dy} h${w}" fill="none" stroke="#ffffff" stroke-opacity="0.22" stroke-width="1.2"/>`
+  );
+}
+
+// a faint fiberglass weave over the FR4 front face
+function weave(x: number, y: number, w: number, h: number) {
+  let g = `<g opacity="0.10">`;
+  const st = 9;
+  for (let i = -h; i < w; i += st) g += `<line x1="${x + Math.max(0, i)}" y1="${y + Math.max(0, -i)}" x2="${x + Math.min(w, i + h)}" y2="${y + Math.min(h, w - i)}" stroke="#ffffff" stroke-width="1"/>`;
+  for (let i = 0; i < w + h; i += st) g += `<line x1="${x + Math.min(w, i)}" y1="${y + Math.max(0, i - w)}" x2="${x + Math.max(0, i - h)}" y2="${y + Math.min(h, i)}" stroke="#000000" stroke-width="1"/>`;
+  return g + `</g>`;
+}
+
+function buildMarkup() {
+  let g = "";
+  // tight contact shadow tracing the board's parallelogram footprint
+  g += `<path d="M${X + 2},${Y + H + 3} L${X + W + 2},${Y + H + 3} L${X + W + DX + 2},${Y + H - DY + 3} L${X + DX + 2},${Y + H - DY + 3} Z" fill="#000000" opacity="0.34" filter="url(#xsecBlur)"/>`;
+
+  // board block: copper / FR4 (woven) / copper, lit top copper
+  g += `<path d="${sideP(X, Y, W, TC, DX, DY)}" fill="${CUSIDE}"/><path d="${sideP(X, Y + TC, W, FR, DX, DY)}" fill="${FR4SIDE}"/><path d="${sideP(X, Y + TC + FR, W, BC, DX, DY)}" fill="${CUSIDE}"/>`;
+  g += `<rect x="${X}" y="${Y}" width="${W}" height="${TC}" fill="${CU}"/>`;
+  g += `<rect x="${X}" y="${Y + TC}" width="${W}" height="${FR}" fill="${FR4}"/>`;
+  g += weave(X, Y + TC, W, FR);
+  g += `<rect x="${X}" y="${Y + TC + FR}" width="${W}" height="${BC}" fill="${CU}"/>`;
+  g += `<path d="${topP(X, Y, W, DX, DY)}" fill="${CULIT}"/>`;
+
+  // SOIC IC on the top copper, left
+  const ibx = X + W * 0.10 + DX * 0.30, iby = Y - DY * 0.30, iw = 60, ih = 20, icdx = DX * 0.42, icdy = DY * 0.42;
+  g += boxSvg(ibx, iby - ih, iw, ih, icdx, icdy, PKG, PKGLIT, PKGSIDE);
+  for (let i = 0; i < 4; i++) g += `<rect x="${ibx + 6 + i * 16}" y="${iby - 2}" width="3" height="6" fill="${PIN}"/>`;
+  g += `<circle cx="${ibx + 8}" cy="${iby - ih + 8}" r="2" fill="${PKGSIDE}"/>`;
+
+  // chip resistor on the top copper, right of centre
+  const rbx = X + W * 0.52 + DX * 0.5, rby = Y - DY * 0.5, rw = 28, rh = 12, rcdx = DX * 0.30, rcdy = DY * 0.30;
+  g += boxSvg(rbx, rby - rh, rw, rh, rcdx, rcdy, BLK, BLKLIT, BLKSIDE);
+  g += `<rect x="${rbx}" y="${rby - rh}" width="5" height="${rh}" fill="${CU}"/><rect x="${rbx + rw - 5}" y="${rby - rh}" width="5" height="${rh}" fill="${CU}"/>`;
+
+  // plated via: copper walls + drilled hole through the core; a bare dark oval on
+  // top (a cut through the via's centre shows only the hole, no copper rim).
+  const vx = X + W * 0.80, vw = 18, wall = 4, y0 = Y, y1 = Y + H;
+  g += `<rect x="${vx + wall}" y="${y0}" width="${vw - 2 * wall}" height="${y1 - y0}" fill="${HOLE}"/>`;
+  g += `<rect x="${vx}" y="${y0}" width="${wall}" height="${y1 - y0}" fill="${CU}"/><rect x="${vx + vw - wall}" y="${y0}" width="${wall}" height="${y1 - y0}" fill="${CU}"/>`;
+  g += `<ellipse cx="${vx + vw / 2}" cy="${y0}" rx="${(vw - 2 * wall) / 2 + 1}" ry="3" fill="${HOLE}"/>`;
+
+  return g;
+}
+// Static, module-constant markup (no props / no user input) — safe to inject.
+const MARKUP = buildMarkup();
 
 export function TwoLayerCrossSection({ caption }: { caption?: string }) {
   return (
@@ -23,119 +86,60 @@ export function TwoLayerCrossSection({ caption }: { caption?: string }) {
       eyebrow="STACKUP · EDGE-ON"
       tone="gold"
       title="A 2-layer board, edge-on"
-      ariaLabel="Edge-on cross-section of a two-layer board. The part sits on the top copper, which carries the signal traces and the parts. Below it is the FR4 core, the insulator. Below that is the bottom copper, one continuous ground plane that is the return path. Plated vias tie the top and bottom layers together through the core."
+      ariaLabel="Isometric view of a two-layer board. The top copper carries the signals and the parts, shown as an IC and a chip resistor. Below it is the FR4 core, the fiberglass insulator. Below that is the bottom copper, one continuous ground plane, the return path every signal flows back through. A plated via, a copper-walled hole drilled through the core, ties the top and bottom copper together."
       caption={caption}
-      defaultCaption="Top: signals + parts. Bottom: one solid ground plane every signal returns through."
+      defaultCaption="Top: signals and parts. Bottom: one solid ground plane every signal returns through."
     >
       <style>{CSS}</style>
-      <div className="xsec-stage">
-        {/* the cross-section graphic */}
-        <div className="xsec-graphic">
-          <div className="xsec-stack" aria-hidden="true">
-            <div className="xsec-part">part</div>
-            <div className="xsec-layer xsec-cu xsec-top">
-              <span className="xsec-trace" />
-            </div>
-            <div className="xsec-layer xsec-core">
-              <span className="xsec-core-tag">FR4</span>
-            </div>
-            <div className="xsec-layer xsec-cu xsec-bot" />
-            <span className="xsec-via" />
-          </div>
-          <p className="xsec-legend" aria-hidden="true">
-            <span className="xsec-dot xsec-dot-blue" />signal trace&nbsp;&nbsp;
-            <span className="xsec-dot xsec-dot-gold" />via
-          </p>
-        </div>
+      <div className="xsec-wrap">
+        <svg className="xsec-svg" viewBox="0 0 400 188" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+          <defs>
+            <filter id="xsecBlur" x="-30%" y="-120%" width="160%" height="360%">
+              <feGaussianBlur stdDeviation="3" />
+            </filter>
+          </defs>
+          <g dangerouslySetInnerHTML={{ __html: MARKUP }} />
+        </svg>
 
-        {/* layer key, beside the stack on wide screens, stacked below on phones */}
-        <div className="xsec-key">
-          <div className="xsec-row">
-            <span className="xsec-swatch xsec-sw-cu" />
-            <div className="xsec-rowtext">
-              <p className="xsec-rowname">Top copper</p>
-              <p className="xsec-rowbody">Signal traces and the parts ride up here.</p>
-            </div>
-          </div>
-          <div className="xsec-row">
-            <span className="xsec-swatch xsec-sw-core" />
-            <div className="xsec-rowtext">
-              <p className="xsec-rowname xsec-muted">FR4 core</p>
-              <p className="xsec-rowbody">The insulator that separates the two copper layers.</p>
-            </div>
-          </div>
-          <div className="xsec-row">
-            <span className="xsec-swatch xsec-sw-cu" />
-            <div className="xsec-rowtext">
-              <p className="xsec-rowname">Bottom copper</p>
-              <p className="xsec-rowbody">One continuous ground plane — the return path every signal flows back through.</p>
-            </div>
-          </div>
-          <div className="xsec-row">
-            <span className="xsec-swatch xsec-sw-via" />
-            <div className="xsec-rowtext">
-              <p className="xsec-rowname">Via</p>
-              <p className="xsec-rowbody">A plated hole that ties the top and bottom layers together through the core.</p>
-            </div>
-          </div>
-        </div>
+        <ul className="xsec-key">
+          <li>
+            <span className="xsec-sw" style={{ background: CU }} aria-hidden="true" />
+            <span className="xsec-txt"><b>Top copper</b>signals + the parts</span>
+          </li>
+          <li>
+            <span className="xsec-sw" style={{ background: FR4 }} aria-hidden="true" />
+            <span className="xsec-txt"><b>FR4 core</b>the fiberglass insulator</span>
+          </li>
+          <li>
+            <span className="xsec-sw" style={{ background: CU }} aria-hidden="true" />
+            <span className="xsec-txt"><b>Bottom copper</b>one solid ground plane</span>
+          </li>
+        </ul>
       </div>
     </DiagramFrame>
   );
 }
 
-// Token-driven (var(--color-*) / var(--font-*) from @theme) with literal
-// fallbacks so a standalone render still resolves. Gold-dominant per brand.
 const CSS = `
-.xsec-stage{display:flex;align-items:center;gap:clamp(1.25rem,4vw,2rem);text-align:left;}
+.xsec-wrap{display:flex;align-items:center;justify-content:center;gap:clamp(1rem,4vw,1.8rem);}
+@media (max-width:520px){.xsec-wrap{flex-direction:column;gap:1rem;}}
+.xsec-svg{display:block;width:100%;height:auto;overflow:visible;flex:1 1 56%;min-width:0;max-width:360px;}
 
-/* ---- graphic ---- */
-.xsec-graphic{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;
-  width:clamp(170px,36%,220px);}
-.xsec-stack{position:relative;width:100%;}
-.xsec-legend{margin:.7rem 0 0;display:flex;align-items:center;justify-content:center;
-  color:var(--color-muted,#aaa);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;}
-.xsec-dot{display:inline-block;width:14px;height:6px;border-radius:3px;margin-right:.35rem;vertical-align:middle;}
-.xsec-dot-blue{background:var(--color-signal-blue,#4a8fff);}
-.xsec-dot-gold{box-sizing:border-box;background:var(--color-deep-space,#08090d);
-  border:2px solid var(--color-command-gold,#c8963e);}
-.xsec-part{width:46%;margin:0 auto;box-sizing:border-box;height:42px;
-  display:flex;align-items:center;justify-content:center;
-  background:var(--color-navy-dark,#1f2438);border:2.5px solid var(--color-command-gold,#c8963e);
-  border-bottom:none;border-radius:4px 4px 0 0;
-  color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(.95rem,2.5vw,1.05rem);}
-.xsec-layer{position:relative;display:flex;align-items:center;justify-content:center;box-sizing:border-box;}
-.xsec-cu{height:30px;background:var(--color-command-gold,#c8963e);}
-.xsec-core{height:84px;background:var(--color-navy-dark,#1f2438);
-  border-top:1px solid var(--color-panel-border,#3a3f50);
-  border-bottom:1px solid var(--color-panel-border,#3a3f50);}
-.xsec-core-tag{color:var(--color-muted,#aaa);font-size:.62rem;font-weight:700;letter-spacing:.18em;}
-.xsec-trace{position:absolute;top:-7px;left:50%;transform:translateX(-50%);width:38px;height:5px;border-radius:3px;
-  background:var(--color-signal-blue,#4a8fff);}
-/* a plated via: a drilled hole (deep-space centre) with copper-plated walls
-   (gold ring) tying top copper -> bottom copper. The gold ring sets it apart
-   from the solid-gold copper layers; the dark centre, from the navy FR4 core. */
-.xsec-via{position:absolute;box-sizing:border-box;width:18px;left:60%;border-radius:4px;
-  background:var(--color-deep-space,#08090d);
-  border:3px solid var(--color-command-gold,#c8963e);top:42px;bottom:0;}
+.xsec-key{margin:0;padding:0;list-style:none;flex:1 1 42%;min-width:0;display:flex;flex-direction:column;gap:clamp(.7rem,2.4vw,.95rem);text-align:left;}
+@media (max-width:520px){.xsec-key{flex-basis:auto;align-self:stretch;}}
+.xsec-key li{display:flex;align-items:flex-start;gap:.65rem;}
+.xsec-sw{flex:0 0 auto;width:15px;height:15px;margin-top:3px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.35);}
+.xsec-sw-via{background:radial-gradient(circle at 50% 50%, #0a0b10 0 3.4px, #c8963e 3.4px)!important;}
+.xsec-txt{min-width:0;font-family:var(--font-serif,"Lora",serif);font-size:clamp(.9rem,2.4vw,1rem);line-height:1.4;color:var(--color-muted,#aaa);}
+.xsec-txt b{display:block;font-family:var(--font-mono,"Space Mono",monospace);font-size:clamp(1rem,2.7vw,1.15rem);font-weight:700;color:var(--color-title,#f1ece0);letter-spacing:.01em;margin-bottom:.1rem;}
 
-/* ---- key ---- */
-.xsec-key{flex:1 1 auto;display:flex;flex-direction:column;gap:clamp(.75rem,2.5vw,1rem);}
-.xsec-row{display:flex;align-items:flex-start;gap:.7rem;}
-.xsec-swatch{flex:0 0 auto;width:14px;height:14px;margin-top:3px;border-radius:3px;}
-.xsec-sw-cu{background:var(--color-command-gold,#c8963e);}
-.xsec-sw-core{background:var(--color-navy-dark,#1f2438);border:1px solid var(--color-panel-border,#3a3f50);}
-.xsec-sw-via{background:var(--color-command-gold,#c8963e);border-radius:2px;width:7px;margin-left:3.5px;margin-right:3.5px;}
-.xsec-rowtext{min-width:0;}
-.xsec-rowname{margin:0;color:var(--color-title,#f1ece0);font-weight:700;font-size:clamp(1.05rem,3vw,1.2rem);line-height:1.2;}
-.xsec-rowname.xsec-muted{color:var(--color-muted,#aaa);}
-.xsec-rowbody{margin:.2rem 0 0;color:var(--color-muted,#aaa);
-  font-family:var(--font-serif,"Lora",serif);font-size:clamp(.95rem,2.5vw,1.05rem);line-height:1.45;}
-
-/* stack on phones */
-@media (max-width:520px){
-  .xsec-stage{flex-direction:column;gap:clamp(1.25rem,5vw,1.6rem);}
-  .xsec-graphic{width:min(230px,72%);}
-  .xsec-key{width:100%;}
+/* Tier-B reveal off the frame's armed/in contract (final state under reduced-motion). */
+.dgfrm.armed .xsec-svg,.dgfrm.armed .xsec-key li{opacity:0;transform:translateY(6px);}
+.dgfrm.armed.in .xsec-svg{opacity:1;transform:none;transition:opacity .55s ease,transform .55s cubic-bezier(.2,.7,.2,1);}
+.dgfrm.armed.in .xsec-key li{opacity:1;transform:none;transition:opacity .5s ease,transform .5s ease;}
+.dgfrm.armed.in .xsec-key li:nth-child(2){transition-delay:.1s;}
+.dgfrm.armed.in .xsec-key li:nth-child(3){transition-delay:.2s;}
+@media (prefers-reduced-motion:reduce){
+  .dgfrm .xsec-svg,.dgfrm .xsec-key li{opacity:1!important;transform:none!important;transition:none!important;}
 }
 `;

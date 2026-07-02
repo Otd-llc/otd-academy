@@ -3,19 +3,19 @@
     "basename": "mpn-anatomy",
     "image": "/guide-diagrams/mpn-anatomy.webp",
     "alt": "Decoding the part number RC0805FR-075K1L. RC is the Yageo thick-film resistor family; 0805 is the package size 2.0 by 1.25 mm; F is the tolerance plus or minus 1 percent; 5K1 is the value 5.1 kilohm, an E24 step not a round 5.0. R-07 and the trailing L are packaging and ordering codes you can ignore.",
-    "hash": "68eb8eba306b"
+    "hash": "5bc0c5f057fd"
   },
   {
     "basename": "0805-vs-0402",
     "image": "/guide-diagrams/0805-vs-0402.webp",
     "alt": "An 0805 passive (2.0 by 1.25 mm) is about five times the area of an 0402 (1.0 by 0.5 mm). The larger 0805 solders with a plain iron and tweezers; the tiny 0402 wants solder paste and hot air. This board uses 0805.",
-    "hash": "13f59f4f64f0"
+    "hash": "45047f2112a1"
   },
   {
     "basename": "current-budget",
     "image": "/guide-diagrams/current-budget.webp",
     "alt": "Current budget: the board draws about 550 mA (a 500 mA Wi-Fi transmit peak plus 50 mA for the rest) against the RT9080 LDO's 600 mA ceiling, leaving roughly 50 mA of headroom.",
-    "hash": "984a145e0994"
+    "hash": "b7f7629ea47d"
   },
   {
     "basename": "hasl-vs-enig",
@@ -26,26 +26,26 @@
   {
     "basename": "two-layer-cross-section",
     "image": "/guide-diagrams/two-layer-cross-section.webp",
-    "alt": "Edge-on cross-section of a two-layer board. The part sits on the top copper, which carries the signal traces and the parts. Below it is the FR4 core, the insulator. Below that is the bottom copper, one continuous ground plane that is the return path. Plated vias tie the top and bottom layers together through the core.",
-    "hash": "c5f35356e7a3"
+    "alt": "Isometric view of a two-layer board. The top copper carries the signals and the parts, shown as an IC and a chip resistor. Below it is the FR4 core, the fiberglass insulator. Below that is the bottom copper, one continuous ground plane, the return path every signal flows back through. A plated via, a copper-walled hole drilled through the core, ties the top and bottom copper together.",
+    "hash": "9d9f26a1c30a"
   },
   {
     "basename": "gerber-layer-stack",
     "image": "/guide-diagrams/gerber-layer-stack.webp",
-    "alt": "A Gerber set: one flat file per layer. Front to back — F_Silkscreen.gbr (the white labels), F_Mask.gbr (mask, gaps at the pads), F_Cu.gbr (front copper, your traces), B_Cu.gbr (back copper, ground plane), B_Mask.gbr (mask, gaps at the pads), B_Silkscreen.gbr (the white labels), and Edge_Cuts.gbr (where the fab cuts the board). A separate drill file, .drl, pierces the copper layers. Zip every one into a single archive — that zip is the board the fab builds.",
-    "hash": "f2b3ce0cd651"
+    "alt": "A Gerber set is one flat file per layer, spread front to back: F_Silk (the white labels), F_Mask (solder mask, open at the pads), F_Cu (front copper, your traces), B_Cu (back copper, ground plane), B_Mask, and B_Silk. A separate drill file, .drl, pierces the two copper layers. Zip every file into a single archive; that zip is the board the fab builds.",
+    "hash": "a5ab4412ff46"
   },
   {
     "basename": "continuity-vbus-gnd",
     "image": "/guide-diagrams/continuity-vbus-gnd.webp",
-    "alt": "Before any power: with the board unplugged and the meter in continuity mode, touch one probe to the VBUS pad and the other to the GND pad on the top of the board. The meter must read OL with no beep. A beep means a dead short — stop and fix it before plugging in.",
-    "hash": "90e36ddeec16"
+    "alt": "Before any power: with the board unplugged and the meter in continuity mode, touch one probe to the VBUS pad and the other to the GND pad. The meter must read OL with no beep, meaning open. A beep means a dead short; stop and fix it before plugging in.",
+    "hash": "b8f37e214da3"
   },
   {
     "basename": "adc1-pin-map",
     "image": "/guide-diagrams/adc1-pin-map.webp",
     "alt": "ADC pin map. GPIO 1 to 10 are ADC1 and stay usable for analog input. GPIO 11 to 20 are ADC2 and are claimed by the radio, so they read garbage while Wi-Fi is on. For analog reads, stick to ADC1, GPIO 1 to 10.",
-    "hash": "be750b48c9cf"
+    "hash": "12d93eecbf92"
   },
   {
     "basename": "antenna-keepout",
@@ -56,8 +56,8 @@
   {
     "basename": "decoupling-placement",
     "image": "/guide-diagrams/decoupling-placement.webp",
-    "alt": "Decoupling capacitor placement decides whether it works. Case one, the cap right at the IC pin, makes a small current loop: a short path with low inductance, so the cap dumps current fast. Case two, the same cap placed far from the pin, makes a big loop: a long path whose trace inductance chokes the fast current. Same cap and same schematic — placement is everything.",
-    "hash": "5c50b352778b"
+    "alt": "Decoupling capacitor placement decides whether it works. Case one, the cap right at the IC pin, makes a small current loop: a short path with low inductance, so the cap dumps current fast. Case two, the same cap placed far from the pin, makes a big loop: a long path whose trace inductance chokes the fast current. Same cap and same schematic; placement is everything.",
+    "hash": "e958394ed52a"
   },
   {
     "basename": "schematic-conventions",
@@ -69,19 +69,19 @@
     "basename": "bringup-ladder",
     "image": "/guide-diagrams/bringup-ladder.webp",
     "alt": "Bring-up is a ladder of five rungs in order: one, no shorts, the meter stays silent; two, the 3.3 V rail, TP1 reads about 3.3 V; three, LED1 lit, the power LED is on; four, the board enumerates, the host sees the S3; five, LED2 blinks, your code blinks it and the board is alive. If any rung fails, stop and fix it before the next. All five rungs clear means log the board BROUGHT_UP.",
-    "hash": "65528121e542"
+    "hash": "9f0d54dc0c96"
   },
   {
     "basename": "bringup-probe-points",
     "image": "/guide-diagrams/bringup-probe-points.webp",
     "alt": "Bring-up: with the board powered, probe 3.3 V at TP1 with the red lead and ground at TP2 with the black lead; the multimeter in DC volts reads 3.30 V.",
-    "hash": "bf1ca99d4293"
+    "hash": "fae1a1f46149"
   },
   {
     "basename": "wroom-power-flow",
     "image": "/guide-diagrams/wroom-power-flow.webp",
-    "alt": "Power flow from USB-C to the ESP32-S3-WROOM-1. The power chain is one vertical spine: J1 USB-C in sends 5 volts to F1, a resettable polyfuse; 5 volts continues to U2, the RT9080 3.3 volt LDO; the LDO outputs 3.3 volts to U1, the ESP32-S3-WROOM-1. Supporting parts beside each stage: J1 has CC resistors R3 and R4, 5.1k Rd pulldowns; U2 has input caps C1 10 microfarad bulk and C5 1 microfarad, plus output cap C6 1 microfarad; U1 is decoupled by C2, C3 and C7. A separate USB data path in blue: J1 USB-C data carries D plus and D minus to D1, an ESD array, which passes clean USB to U1 and shunts surges to ground before they reach U1.",
-    "hash": "9ba83914a552"
+    "alt": "The board's power drop, drawn as two reservoirs. On the left, a full 5 volt pool that comes in from USB-C. In the middle stands U2, the RT9080 low-dropout regulator, in its real 5-lead package: VIN, ground and enable face the 5 volt pool; VOUT and the unused pin face the right. On the right, a lower 3.3 volt pool. The lower water level is the voltage the regulator gives up, dropping the 5 volt rail down to a clean 3.3 volts for the WROOM.",
+    "hash": "703bcabbcba3"
   },
   {
     "basename": "mu-rhythm-erd",
@@ -92,73 +92,73 @@
   {
     "basename": "eeg-bci-pipeline",
     "image": "/guide-diagrams/eeg-bci-pipeline.webp",
-    "alt": "The five-stage EEG brain-computer interface signal chain. The brain's activity flows through: 1, electrodes that pick up microvolt scalp voltages (hard part: contact impedance and placement); 2, an analog front-end that amplifies the signal and rejects common-mode noise (noise floor and mains rejection); 3, an analog-to-digital converter that digitizes every channel simultaneously (resolution and simultaneous sampling); 4, signal processing that filters the data and extracts features (separating signal from artifact); 5, a classifier that maps features to an intent (low, noisy bandwidth). The intent becomes a command.",
-    "hash": "fc916385f96f"
+    "alt": "The five-stage EEG brain-computer interface signal chain, read left to right on a single wire from brain activity to a command. Stage 1, electrodes, pick up microvolt scalp voltages. Stage 2, an analog front-end amplifies the signal and rejects common-mode noise. Stage 3, an analog-to-digital converter digitizes every channel at once. Stage 4, signal processing filters the data and extracts features. Stage 5, a classifier maps those features to an intent, which becomes the command.",
+    "hash": "fff525b1a9f1"
   },
   {
     "basename": "ads1299-channel",
     "image": "/guide-diagrams/ads1299-channel.webp",
-    "alt": "The signal path of one ADS1299 channel: a microvolt electrode input feeds a programmable-gain amplifier (gain 1 to 24 times), which feeds that channel's own dedicated 24-bit delta-sigma ADC, whose output goes out over SPI to the host. All eight channels are identical and sample at the same instant. Separately, an on-chip bias-drive amplifier senses the body's common-mode voltage and drives a correction back through a bias electrode, cancelling 50/60 Hz mains hum before it reaches the converters.",
-    "hash": "f6947252bb59"
+    "alt": "Why the ADS1299 samples all channels at the same instant, shown as two plots of the same waveform. On the left, a shared multiplexed ADC visits each channel in turn, so its samples are taken at skewed times and fall off the true waveform, giving a sheared, distorted snapshot. On the right, the ADS1299 gives every channel its own 24-bit converter, so all eight samples are taken at the same instant and land faithfully on the waveform.",
+    "hash": "59d0a20c5795"
   },
   {
     "basename": "drone-shared-autonomy",
     "image": "/guide-diagrams/drone-shared-autonomy.webp",
-    "alt": "Shared-autonomy brain-drone control. The human supplies sparse, high-level intent at roughly one command every second or two: imagine a movement, the EEG is classified, and it becomes a command like go left or hover. The drone's own flight controller handles the fast, continuous work at hundreds of hertz: holding altitude, staying stable, and avoiding obstacles. The human's intent sets the goal; the drone executes it continuously, and visual feedback from the drone closes the loop so the human can adjust.",
-    "hash": "c81587897d59"
+    "alt": "Shared-autonomy brain-drone control, drawn as a loop. The pilot, wearing a video headset, supplies sparse high-level intent at roughly one command every second or two: imagine a movement, the EEG is classified, and it becomes a command like go left or hover. The drone's own flight controller handles the fast, continuous work at hundreds of hertz, holding altitude, staying stable, and avoiding obstacles on its own. A live video feed streams back from the drone's camera to the pilot's screen, closing the loop so the human can watch and adjust. The human sets the goal; the drone executes it continuously.",
+    "hash": "55eba17e7ebd"
   },
   {
     "basename": "isolation-barrier",
     "image": "/guide-diagrams/isolation-barrier.webp",
-    "alt": "EEG electrical isolation. Top row, the safe case: a battery powers the front-end and the electrodes on the person, with no conductive path to mains, so a fault has nowhere to drive current. Bottom row, the danger: a mains-powered device connected to the electrodes without a rated isolation barrier lets line voltage reach the electrodes and drive fault current through the person's head to ground. A rated galvanic isolation barrier, or simply battery power, removes that path.",
-    "hash": "e903663c5ba3"
+    "alt": "EEG electrical isolation, drawn as a broken circuit. On the left, a mains-powered device; its wire runs toward the subject but STOPS at a rated isolation barrier, so the conductor is broken. On the right, the subject side floats, isolated, marked with a safety badge. Because there is no complete conductive path from mains through the person to ground, a fault has nowhere to drive current. Battery-powering the subject side removes the path entirely; a rated isolator is what makes it safe to bridge to plugged-in gear.",
+    "hash": "bfdcfcc55dd7"
   },
   {
     "basename": "right-leg-drive",
     "image": "/guide-diagrams/right-leg-drive.webp",
-    "alt": "The driven-right-leg or bias loop is active negative feedback against mains hum. It senses the body's common-mode voltage (the average of the amplifier inputs), inverts and amplifies it, and drives that opposing signal back into the body through a bias electrode, nulling the hum where it enters. A large series resistor in the drive path limits the current to a safe level, so noise rejection and patient safety are designed together.",
-    "hash": "2c50bb6fce49"
+    "alt": "The effect of the right-leg-drive loop, shown as one EEG trace over time. On the left, before the loop is active, a slow microvolt EEG rhythm is buried under a large 50/60 Hz mains ripple. When the right-leg drive switches on, the loop senses the body's common-mode voltage, inverts it, and drives an opposing signal back into the body through a bias electrode, so the ripple vanishes and the clean rhythm remains. A large series resistor in the drive path keeps the current safe.",
+    "hash": "1a8ca6308041"
   },
   {
     "basename": "lead-shielding",
     "image": "/guide-diagrams/lead-shielding.webp",
-    "alt": "Shielding and guarding an EEG lead. The 50/60 Hz mains electric field couples capacitively to a high-impedance electrode lead. A shield around the wire intercepts the field, and a unity-gain buffer drives that shield at the lead's own common-mode voltage. With no voltage across the wire-to-shield capacitance, no pickup current flows through it, so the field is blocked while the signal stays unloaded. This driven shield is the same active-feedback trick as the right-leg drive, applied to the cable instead of the body.",
-    "hash": "00c1bebe4fb2"
+    "alt": "Shielding and guarding an EEG lead, shown as two coaxial cross-sections. On the left, a plain grounded shield: the shield is tied to ground, so the wire-to-shield capacitance loads the high-impedance lead and the microvolt signal droops. On the right, a driven shield: a unity-gain buffer holds the shield at the lead's own common-mode voltage, so no voltage sits across the wire-to-shield gap, no pickup current flows, and no load is placed on the lead, so the signal stays clean. A driven shield is the same active-feedback trick as the right-leg drive, applied to the cable instead of the body.",
+    "hash": "0f4619664c5d"
   },
   {
     "basename": "instrumentation-amp",
     "image": "/guide-diagrams/instrumentation-amp.webp",
-    "alt": "An instrumentation amplifier measures the difference between two electrodes. Each input carries the tiny microvolt brain signal plus a large common-mode interference (mains hum). The amplifier outputs the gain times the difference of the two inputs, so the common-mode part that is the same on both inputs subtracts away and the difference (the brain signal) survives and is amplified. The common-mode rejection ratio, around 100 to 110 decibels in good EEG amplifiers, measures how well the common part is cancelled.",
-    "hash": "fd3d0661b9dc"
+    "alt": "An instrumentation amplifier measuring the difference between two electrodes. Each input carries the tiny microvolt brain signal riding on a large common-mode interference, the mains hum, drawn as a slow wobble that is the same on both inputs. Because the amplifier outputs the gained difference of its two inputs, that shared common-mode subtracts away and only the signal difference survives, amplified and clean. How completely the common part is rejected is the common-mode rejection ratio, around 100 to 110 decibels in good EEG amplifiers; unequal electrode impedance, not the chip, is what usually defeats it.",
+    "hash": "323750374833"
   },
   {
     "basename": "ten-twenty-midline",
     "image": "/guide-diagrams/ten-twenty-midline.webp",
-    "alt": "The 10-20 system's midline spacing. Measuring from the nasion at the front of the head to the inion at the back, the midline electrodes are placed at 10 percent (Fpz), then 20 percent (Fz), 20 percent (Cz, the vertex), 20 percent (Pz), 20 percent (Oz), then 10 percent to the inion. Those 10 and 20 percent steps give the system its name, and because they are proportional, the same electrode name lands on the same brain region across different head sizes.",
-    "hash": "bcfe1802141d"
+    "alt": "The 10-20 system's midline spacing, drawn over a head-profile dome from the nasion at the front to the inion at the back. Measuring along that midline, the electrodes are placed at 10 percent (Fpz), then 20 percent (Fz), 20 percent (Cz, the vertex at the top of the head), 20 percent (Pz), 20 percent (Oz), then 10 percent to the inion. Those 10 and 20 percent steps give the system its name, and because they are proportional, the same electrode name lands on the same brain region across different head sizes.",
+    "hash": "ee95c349b12a"
   },
   {
     "basename": "frequency-bands",
     "image": "/guide-diagrams/frequency-bands.webp",
-    "alt": "The classic EEG frequency bands, slow to fast: delta (about 0.5 to 4 Hz, deep slow-wave sleep); theta (about 4 to 8 Hz, drowsiness, deep relaxation, memory tasks); alpha (about 8 to 12 Hz, relaxed wakefulness with eyes closed); beta (about 13 to 30 Hz, alert active concentration); and gamma (about 30 Hz and up, high-level integrative processing). The sensorimotor mu rhythm shares the alpha range but lives over the motor cortex, so where a rhythm appears matters as much as its frequency.",
-    "hash": "8027706c4405"
+    "alt": "The classic EEG frequency bands, drawn as one continuous signal that speeds up from slow to fast: delta (about 0.5 to 4 Hz, deep slow-wave sleep); theta (about 4 to 8 Hz, drowsiness, deep relaxation, memory tasks); alpha (about 8 to 12 Hz, relaxed wakefulness with eyes closed); beta (about 13 to 30 Hz, alert active concentration); and gamma (about 30 Hz and up, high-level integrative processing). The sensorimotor mu rhythm shares the alpha range but lives over the motor cortex, so where a rhythm appears matters as much as its frequency.",
+    "hash": "27c989876183"
   },
   {
     "basename": "classification-pipeline",
     "image": "/guide-diagrams/classification-pipeline.webp",
     "alt": "The EEG classification pipeline: cut the signal into an epoch (window), bandpass-filter to the task's frequencies, extract features or spatially filter, then a classifier outputs a class, which becomes one of a few commands. Two approaches share the feature-and-classifier stage: the classic hand-engineered Common Spatial Patterns plus a linear LDA classifier, and the end-to-end learned EEGNet convolutional network.",
-    "hash": "f729a1c8f920"
+    "hash": "89875c9ebbc8"
   },
   {
     "basename": "source-to-scalp",
     "image": "/guide-diagrams/source-to-scalp.webp",
-    "alt": "What EEG measures, from source to scalp: when large populations of neurons fire together in sync, their tiny voltages sum into a single field; that field is blurred and attenuated as it crosses the skull and scalp; and it reaches a scalp electrode as a signal of just a few microvolts varying over time. The result is excellent timing (millisecond by millisecond) but poor spatial resolution, because the signal is smeared on the way out.",
-    "hash": "3855325e57fa"
+    "alt": "What EEG measures, from source to scalp, drawn as a cross-section of the head. When large populations of neurons fire together in sync, their tiny voltages sum into a single field; that field spreads and is attenuated as it radiates up through the skull and scalp; and it reaches a scalp electrode as a wide, blurred footprint of just a few microvolts varying over time. The result is excellent timing (millisecond by millisecond) but poor spatial resolution, because the signal is smeared on the way out.",
+    "hash": "7321794faa56"
   },
   {
     "basename": "bci-loop",
     "image": "/guide-diagrams/bci-loop.webp",
     "alt": "Every brain-computer interface is the same loop: measure the brain signal, decode it into an intent, issue a command, and a device acts on it. Then feedback closes the loop: the user sees the result and adapts, getting better at producing clean, classifiable brain states. That feedback return is why a BCI is as much a learned skill as it is hardware.",
-    "hash": "1b82cc494f6f"
+    "hash": "a38e88be1d66"
   }
 ]

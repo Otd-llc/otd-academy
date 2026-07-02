@@ -1,14 +1,17 @@
-// EEG electrical isolation as a responsive HTML component.
+// EEG electrical isolation as a responsive diagram (v2).
 //
-// Teaching point: a fault needs a conductive PATH. Battery-power the
-// subject-connected electronics and there is no galvanic path to mains, so a
-// fault has nowhere to drive current. Bridge to mains-powered gear without a
-// rated barrier and line voltage can reach the electrodes and take the path to
-// ground through the person. Two rows make the contrast; the danger row is the
-// only place red is used (brand: red = critical only).
+// Teaching point: a fault needs a conductive PATH. If the subject-connected
+// electronics are isolated from mains (battery, or a rated isolation barrier),
+// the conductor is broken and a fault has no complete circuit to drive current
+// through the person. This draws that break literally: a mains wire that STOPS
+// at the barrier, with the subject side floating and isolated.
 //
-// Header/frame/caption from DiagramFrame. Brand palette: gold-dominant on Deep
-// Space, Navy Dark bodies, Alert Red strictly for the hazard path. @theme tokens.
+// v2: SVG schematic on desktop/print (the surface the exporter screenshots,
+// ~1.6 landscape) that REFLOWS to a vertical MAINS -> barrier -> you stack on a
+// narrow phone (real px, no shrinking SVG text) per directive 1. Token-only
+// color via CSS classes (never fill/stroke="#.."), so it re-themes under
+// data-theme="light"; red is used ONLY for the mains/fault side (brand: red =
+// critical only). In-SVG labels are sized to clear the ~9pt print floor.
 import { DiagramFrame } from "./DiagramFrame";
 
 export function IsolationBarrier({ caption }: { caption?: string }) {
@@ -17,73 +20,87 @@ export function IsolationBarrier({ caption }: { caption?: string }) {
       eyebrow="EEG SAFETY · ISOLATION"
       tone="gold"
       title="A fault needs a path. Don't give it one."
-      ariaLabel="EEG electrical isolation. Top row, the safe case: a battery powers the front-end and the electrodes on the person, with no conductive path to mains, so a fault has nowhere to drive current. Bottom row, the danger: a mains-powered device connected to the electrodes without a rated isolation barrier lets line voltage reach the electrodes and drive fault current through the person's head to ground. A rated galvanic isolation barrier, or simply battery power, removes that path."
+      ariaLabel="EEG electrical isolation, drawn as a broken circuit. On the left, a mains-powered device; its wire runs toward the subject but STOPS at a rated isolation barrier, so the conductor is broken. On the right, the subject side floats, isolated, marked with a safety badge. Because there is no complete conductive path from mains through the person to ground, a fault has nowhere to drive current. Battery-powering the subject side removes the path entirely; a rated isolator is what makes it safe to bridge to plugged-in gear."
       caption={caption}
       defaultCaption="Battery-power the subject side. Add a rated isolator only if you must bridge to plugged-in gear. Never wire anyone up while charging."
     >
       <style>{CSS}</style>
 
-      <div className="iso-row iso-safe">
-        <span className="iso-tag iso-tag-safe">SAFE</span>
-        <div className="iso-flow">
-          <span className="iso-box">Battery</span>
-          <span className="iso-arrow">→</span>
-          <span className="iso-box">Front-end</span>
-          <span className="iso-arrow">→</span>
-          <span className="iso-box iso-box-body">You</span>
+      <div className="iso">
+        {/* desktop / print: the broken-circuit schematic */}
+        <div className="iso-diagram">
+          <svg className="iso-svg" viewBox="0 0 560 176" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+            {/* mains (left) */}
+            <rect className="iso-mains" x="26" y="66" width="116" height="46" rx="5" />
+            <text className="iso-nlab" x="84" y="94">MAINS</text>
+            {/* mains-side wire, ending short of the barrier */}
+            <path className="iso-wire-bad" d="M142,89 H250" />
+            <circle className="iso-dot-bad" cx="250" cy="89" r="4.5" />
+            {/* the barrier */}
+            <line className="iso-barrier" x1="284" y1="30" x2="284" y2="148" />
+            <text className="iso-glab" x="284" y="20">BARRIER</text>
+            {/* subject-side wire stub, disconnected */}
+            <path className="iso-wire-ok" d="M318,89 H360" />
+            <circle className="iso-dot-ok" cx="318" cy="89" r="4.5" />
+            <text className="iso-broken" x="284" y="166">the path is broken here</text>
+            {/* S4 bust + safety badge (subject) */}
+            <g transform="translate(386,30) scale(1.12)">
+              <ellipse className="iso-fig" cx="50" cy="30" rx="21" ry="24" />
+              <path className="iso-fig" d="M41,52 C40,59 17.8,58 4,98 L96,98 C82.2,58 60,59 59,52 Z" />
+              <path className="iso-badge" d="M42,72 L58,72 L58,83 C58,90 51,93 50,94 C49,93 42,90 42,83 Z" />
+              <path className="iso-check" d="M46,82 l3.5,3.5 l6,-7" />
+            </g>
+          </svg>
         </div>
-        <p className="iso-note">Floating. No path to mains for a fault to use.</p>
-      </div>
 
-      <div className="iso-row iso-danger">
-        <span className="iso-tag iso-tag-danger">DANGER</span>
-        <div className="iso-flow">
-          <span className="iso-box iso-mains">Mains gear</span>
-          <span className="iso-arrow iso-arrow-bad">↯</span>
-          <span className="iso-barrier" aria-hidden="true">
-            <span className="iso-barrier-lbl">isolation barrier</span>
-          </span>
-          <span className="iso-arrow iso-arrow-bad">↯</span>
-          <span className="iso-box iso-box-body">You</span>
+        {/* phone: vertical mains -> barrier -> you */}
+        <div className="iso-stack" aria-hidden="true">
+          <div className="iso-node iso-node-mains">Mains gear<span>plugged in</span></div>
+          <div className="iso-break"><span>BARRIER · the path breaks here</span></div>
+          <div className="iso-node iso-node-you">You<span>✓ isolated · floating</span></div>
         </div>
-        <p className="iso-note iso-note-bad">
-          No barrier? Line voltage reaches the electrodes and fault current flows
-          to ground through your head.
-        </p>
       </div>
     </DiagramFrame>
   );
 }
 
 const CSS = `
-.iso-row{padding:clamp(.8rem,2.8vw,1.05rem);border-radius:6px;text-align:left;
-  background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
-.iso-row + .iso-row{margin-top:clamp(.7rem,2.5vw,1rem);}
-.iso-safe{box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
-.iso-danger{box-shadow:inset 0 0 0 2px var(--color-alert-red,#c62828);}
+.iso-svg{overflow:visible;width:100%;height:auto;display:block;}
+.iso-mains{fill:var(--color-deep-space,#08090d);stroke:var(--color-alert-red,#ef5350);stroke-width:2;}
+.iso-nlab{fill:var(--color-title,#f1ece0);font-family:var(--font-mono,"Space Mono",monospace);font-size:13px;font-weight:700;text-anchor:middle;}
+.iso-glab{fill:var(--color-command-gold,#c8963e);font-family:var(--font-mono,"Space Mono",monospace);font-size:12px;font-weight:700;text-anchor:middle;letter-spacing:.06em;}
+.iso-broken{fill:var(--color-muted,#aaa);font-family:var(--font-mono,"Space Mono",monospace);font-size:12px;text-anchor:middle;}
+.iso-wire-bad{stroke:var(--color-alert-red,#ef5350);stroke-width:2.6;fill:none;}
+.iso-dot-bad{fill:var(--color-alert-red,#ef5350);}
+.iso-wire-ok{stroke:var(--color-command-gold,#c8963e);stroke-width:2.6;fill:none;}
+.iso-dot-ok{fill:var(--color-command-gold,#c8963e);}
+.iso-barrier{stroke:var(--color-command-gold,#c8963e);stroke-width:3;stroke-dasharray:9 8;}
+.iso-fig{fill:var(--color-muted,#aaa);}
+.iso-badge{fill:var(--color-command-gold,#c8963e);}
+.iso-check{fill:none;stroke:var(--color-deep-space,#08090d);stroke-width:2.4;}
 
-.iso-tag{display:inline-block;margin-bottom:.55rem;font-family:var(--font-mono,"Space Mono",monospace);
-  font-size:clamp(.66rem,1.9vw,.74rem);font-weight:700;text-transform:uppercase;letter-spacing:.16em;}
-.iso-tag-safe{color:var(--color-command-gold,#c8963e);}
-.iso-tag-danger{color:var(--color-alert-red,#c62828);}
+/* phone reflow: vertical mains -> barrier -> you */
+.iso-stack{display:none;flex-direction:column;align-items:stretch;gap:0;max-width:20rem;margin:0 auto;}
+@media (max-width:520px){
+  .iso-diagram{display:none;}
+  .iso-stack{display:flex;}
+}
+.iso-node{border-radius:6px;padding:.7rem .85rem;text-align:left;background:var(--color-navy-dark,#1f2438);
+  font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:1.3rem;letter-spacing:.02em;color:var(--color-title,#f1ece0);
+  display:flex;align-items:baseline;justify-content:space-between;gap:.5rem;}
+.iso-node span{font-family:var(--font-mono,"Space Mono",monospace);font-size:.8rem;font-weight:700;letter-spacing:.04em;}
+.iso-node-mains{box-shadow:inset 0 0 0 2px var(--color-alert-red,#ef5350);}
+.iso-node-mains span{color:var(--color-alert-red,#ef5350);}
+.iso-node-you{box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
+.iso-node-you span{color:var(--color-command-gold,#c8963e);}
+.iso-break{text-align:center;padding:.55rem 0;position:relative;}
+.iso-break::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:0;border-left:3px dashed var(--color-command-gold,#c8963e);transform:translateX(-50%);}
+.iso-break span{position:relative;display:inline-block;background:var(--color-deep-space,#08090d);padding:.15rem .5rem;
+  font-family:var(--font-mono,"Space Mono",monospace);font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--color-command-gold,#c8963e);}
 
-.iso-flow{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;}
-.iso-box{padding:.4rem .6rem;border-radius:5px;background:var(--color-deep-space,#08090d);
-  box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);
-  color:var(--color-gray-1,#e8e8e8);font-size:clamp(.82rem,2.2vw,.92rem);font-weight:700;white-space:nowrap;}
-.iso-box-body{box-shadow:inset 0 0 0 1.5px var(--color-command-gold,#c8963e);color:var(--color-title,#f1ece0);}
-.iso-mains{box-shadow:inset 0 0 0 1.5px var(--color-alert-red,#c62828);}
-.iso-arrow{color:var(--color-command-gold,#c8963e);font-size:clamp(1rem,2.6vw,1.2rem);font-weight:700;}
-.iso-arrow-bad{color:var(--color-alert-red,#c62828);}
-.iso-barrier{display:inline-flex;align-items:center;justify-content:center;min-height:1.8rem;padding:0 .55rem;
-  border-left:3px dashed var(--color-alert-red,#c62828);border-right:3px dashed var(--color-alert-red,#c62828);}
-.iso-barrier-lbl{font-family:var(--font-mono,"Space Mono",monospace);font-size:clamp(.64rem,1.7vw,.72rem);
-  text-transform:uppercase;letter-spacing:.1em;color:var(--color-muted,#aaa);}
-.iso-note{margin:.6rem 0 0;color:var(--color-muted,#aaa);font-size:clamp(.82rem,2.2vw,.92rem);line-height:1.45;}
-.iso-note-bad{color:var(--color-gray-1,#e8e8e8);}
-
-.dgfrm.armed .iso-row{opacity:0;transform:translateY(6px);}
-.dgfrm.armed.in .iso-row{opacity:1;transform:none;transition:opacity .5s ease,transform .5s cubic-bezier(.2,.7,.2,1);}
-.dgfrm.armed.in .iso-danger{transition-delay:.12s;}
-@media (prefers-reduced-motion:reduce){.dgfrm .iso-row{opacity:1!important;transform:none!important;}}
+/* Tier-B reveal off the frame's armed/in contract; gated so reduced-motion /
+   no-JS / exporter shows the final state. */
+.dgfrm.armed .iso-node,.dgfrm.armed .iso-break{opacity:0;transform:translateY(5px);}
+.dgfrm.armed.in .iso-node,.dgfrm.armed.in .iso-break{opacity:1;transform:none;transition:opacity .5s ease,transform .5s cubic-bezier(.2,.7,.2,1);}
+@media (prefers-reduced-motion:reduce){.dgfrm .iso-node,.dgfrm .iso-break{opacity:1!important;transform:none!important;}}
 `;
