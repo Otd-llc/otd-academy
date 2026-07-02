@@ -128,22 +128,42 @@ export function CardShell({
 }
 
 // ── Eyebrow ───────────────────────────────────────────────────────────────────
-// Space Mono, uppercase, wide-tracked, gold. The kicker above a title.
-export function Eyebrow({ children }: { children: ReactNode }) {
+// Space Mono, uppercase, wide-tracked, gold. The kicker above a title. The house
+// ▸ lead is drawn as a real SVG triangle (`tri`) — the glyph U+25B8 is not in
+// Space Mono and Satori has no fallback font, so a glyph would render as tofu.
+// The // lead is just literal slashes in the text.
+export function Eyebrow({
+  children,
+  tri = false,
+}: {
+  children: ReactNode;
+  tri?: boolean;
+}) {
   return (
-    <div
-      style={{
-        display: "flex",
-        fontFamily: "Space Mono",
-        fontWeight: 700,
-        fontSize: 26,
-        letterSpacing: 6,
-        textTransform: "uppercase",
-        color: OG.GOLD_LIGHT,
-        marginBottom: 22,
-      }}
-    >
-      {children}
+    <div style={{ display: "flex", alignItems: "center", marginBottom: 22 }}>
+      {tri ? (
+        <svg
+          width={16}
+          height={18}
+          viewBox="0 0 16 18"
+          style={{ marginRight: 16 }}
+        >
+          <polygon points="1,0 16,9 1,18" fill={OG.GOLD_LIGHT} />
+        </svg>
+      ) : null}
+      <div
+        style={{
+          display: "flex",
+          fontFamily: "Space Mono",
+          fontWeight: 700,
+          fontSize: 26,
+          letterSpacing: 6,
+          textTransform: "uppercase",
+          color: OG.GOLD_LIGHT,
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -154,9 +174,11 @@ export function Eyebrow({ children }: { children: ReactNode }) {
 export function CardTitle({
   children,
   size = 92,
+  maxWidth = 1000,
 }: {
   children: ReactNode;
   size?: number;
+  maxWidth?: number;
 }) {
   return (
     <div
@@ -167,7 +189,7 @@ export function CardTitle({
         lineHeight: 1.0,
         letterSpacing: 1,
         color: OG.TITLE,
-        maxWidth: 1000,
+        maxWidth,
       }}
     >
       {children}
