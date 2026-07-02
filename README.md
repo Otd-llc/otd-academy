@@ -6,7 +6,7 @@
 
 **Repo:** https://github.com/otd-llc/otd-academy (package name `otd-academy`).
 
-An online hardware-engineering academy. Learners design real PCBs and electronics — schematic, BOM, layout, fabrication, and bring-up — by following interactive, stage-by-stage build-guide courses. The flagship curriculum is a deliberate ESP32-WROOM teaching ladder that climbs from a USB-C breakout to an 8-channel biopotential front-end.
+An online hardware-engineering academy. Learners design real PCBs and electronics — requirements, BOM sourcing, schematic, layout, fabrication, and bring-up — by following interactive, stage-by-stage build-guide courses. The flagship curriculum is a deliberate ESP32-WROOM teaching ladder that climbs from a USB-C breakout to an 8-channel biopotential front-end.
 
 The same engine that tracks a real hardware project's lifecycle backs the learning experience: every guide card's "done" verdict is computed from the *real* engineering stage-gate, so a learner can never mark a step complete while the underlying gate is still closed.
 
@@ -15,7 +15,7 @@ The same engine that tracks a real hardware project's lifecycle backs the learni
 | Learning paths (`/courses`) | Build-guide hub (a course's stage map) |
 | :---: | :---: |
 | [![Learning paths](docs/screenshots/courses.png)](docs/screenshots/courses.png) | [![Build-guide hub](docs/screenshots/build-guide.png)](docs/screenshots/build-guide.png) |
-| **A build-guide stage** — progress rail + live buyable BOM | **Parts library** (`/parts`) |
+| **A build-guide stage** — phase-comb rail + live buyable BOM | **Parts library** (`/parts`) |
 | [![Build-guide stage](docs/screenshots/guide-stage.png)](docs/screenshots/guide-stage.png) | [![Parts library](docs/screenshots/parts.png)](docs/screenshots/parts.png) |
 
 ## What it does
@@ -23,7 +23,7 @@ The same engine that tracks a real hardware project's lifecycle backs the learni
 Each course is a hardware project moved through nine workflow stages, with first-class state, server-enforced gates, and an append-only audit trail:
 
 ```
-REQUIREMENTS → SCHEMATIC → BOM_SOURCING → LAYOUT → DRC_GERBER → ORDERING → ASSEMBLY → BRINGUP → REVISION
+REQUIREMENTS → BOM_SOURCING → SCHEMATIC → LAYOUT → DRC_GERBER → ORDERING → ASSEMBLY → BRINGUP → REVISION
 ```
 
 Some gates are strict invariants (you cannot enter `LAYOUT` before the BOM is frozen; advancing into `REVISION` freezes the revision and its active Build atomically). Others are existence checks that tighten as KiCad-parsing and distributor-API integration land.
@@ -32,7 +32,8 @@ On top of the workflow engine sit the learner-facing layers:
 
 - **Courses & curriculum DAG.** Projects carry curriculum metadata (`track`, `level`, `criticalPath`, `disciplineTaught`, `requiresStripboard`, `hasMainsNet`) and are wired into a dependency graph via `ProjectDependency` edges (`DE_RISK` / `FOUNDATION` / `SHARED_BLOCK`). A per-advance dependency gate blocks a project from advancing while its prerequisites haven't reached the required stage; an advisory-locked cycle-check keeps the graph acyclic on edge insert. The seeded ESP32 curriculum is 22 projects / 33 edges (16 boards across SENSE/ACT/POWER/COMMS tracks + 6 bench tools), visualized at `/curriculum` and indexed for the public at `/courses`.
 - **Learner guides.** Each revision can carry a `Guide` of per-stage `GuideCard`s that walk a learner through *building* that board: teaching content as typed JSON blocks (prose, callouts, steps, tables, diagrams, 3D part models, glossary terms) plus a uniform stage-gate footer. Guides are composed from templates (per-stage skeletons + per-track overlays + per-project safety gotchas) and materialized per revision. Served at `/projects/[slug]/[revLabel]/guide`.
-- **Per-user progress.** Open registration via Google sign-in. A learner enrolls in the shared curriculum, progresses on their *own* track gated by per-user quizzes and proof artifacts, earns recorded grades, and can take an optional server-scored board exam that confers mastery. Completion (not the exam) unlocks dependent boards through the DAG.
+- **Per-user progress.** Open registration via **Google or GitHub OAuth, or an email magic-link** (Resend); accounts auto-link by verified email. A learner enrolls in the shared curriculum, progresses on their *own* track gated by per-user quizzes and proof artifacts, earns recorded grades, and can take an optional server-scored board exam that confers mastery. Completion (not the exam) unlocks dependent boards through the DAG. Signed-in learners get an account avatar (seeded from the OAuth provider, or a custom cropped upload) and a light/dark theme that follows the account.
+- **Reference surfaces, buying & credentials.** Beyond courses, the public SEO surface includes a `/library` of mini-lessons, a `/glossary`, and `/tools` electronics calculators (with embeddable widgets). A stage's BOM is **live-buyable** — per-line DigiKey price + stock with one-click cart add. Finishing a lesson issues a **certificate**: a shareable PDF (embossed seal) recorded in a public `/verify` registry; guides and a combined "field guide" also export to print-ready PDFs.
 - **Parts knowledge base.** A curated, citation-backed parts library (pinouts, parametrics, power, derating, mechanical) with verified-vs-unverified trust levels. Browsable at `/parts` (public for SEO), and exposed read-only to AI sessions over a standalone MCP server (see [`mcp/parts-server/`](mcp/parts-server/)).
 - **KiCad export.** A revision's BOM exports to a KiCad 10 project zip — merged symbol library, footprints, pre-wired symbol↔footprint associations, and a per-part asset-coverage report. Parts without curated CAD assets get loudly-marked placeholder stubs so the project still opens.
 
@@ -62,11 +63,13 @@ The academy **does not** hold KiCad project files. Each hardware project lives i
 
 - **Next.js 16** (App Router, RSC + client islands) · **TypeScript 5** · **React 19**
 - **Prisma 7 + Neon Postgres** via `@prisma/adapter-neon` (a pooled connection at runtime, a direct one for migrations)
-- **Auth.js v5** + Google OIDC + JWT sessions; open self-serve registration with role-based authorization (`ADMIN` / `LEARNER`)
+- **Auth.js v5** — Google + GitHub OAuth and a Resend email magic-link (accounts auto-link by verified email), JWT sessions; open self-serve registration with role-based authorization (`ADMIN` / `LEARNER`)
 - **Stripe** for one-time premium-course purchases (Checkout + idempotent webhook)
-- **Tailwind v4** (CSS-first `@theme`, no JS config) — hand-rolled components, no component framework; Radix UI primitives for the accessible tooltip/glossary. Dark + command-gold brand, Bebas Neue / Space Mono / Lora type stack, inline SVG icon set
-- **Cloudflare R2** for file artifacts + CAD assets (presigned PUT/GET, server `HEAD`-after-PUT verification)
+- **Tailwind v4** (CSS-first `@theme`, no JS config) — hand-rolled components, no component framework; Radix UI primitives for the accessible tooltip/glossary. Dark and light themes (toggle, persisted per account), command-gold brand, a four-face type stack (Bebas Neue / Saira Condensed / Space Mono / Lora), inline SVG icon set
+- **Cloudflare R2** for file artifacts, CAD assets, and user avatars (presigned PUT/GET, server `HEAD`-after-PUT verification; avatars cropped client-side with react-easy-crop)
 - **three.js** for the in-app 3D CAD viewer
+- **Resend** for transactional (magic-link sign-in) + lifecycle email
+- **PostHog** for product analytics (a hard no-op when unconfigured — no init, no network)
 - `sanitize-html` for note-body / guide-prose sanitization
 - **Vitest** for the test suite; CI runs `tsc` + `build` + `migrate` + tests against a Neon CI branch (live-R2 / MCP tests are env-gated out of CI)
 
@@ -96,14 +99,14 @@ Env vars: copy [`.env.local.example`](.env.local.example) to `.env.local` and fi
 pnpm exec vitest run
 ```
 
-Tests hit a real Postgres (the Neon DB referenced by `.env.local` in dev, a dedicated branch in CI) and run files sequentially — Serializable-transaction contention in the action layer collides under parallel workers. Negative-insert tests cover the raw-migration CHECK constraints and unique indexes: if `prisma migrate deploy` drops a constraint, the corresponding test fails.
+Most tests hit a real Postgres. DB-backed test files run **in parallel**, each leasing its own Neon branch from a pre-provisioned pool (`.env.test.local` → `TEST_DATABASE_POOL`), so the action layer's Serializable-transaction contention never collides across workers and the suite finishes in ~80s (pure-logic files run poolless). Without `.env.test.local` the suite falls back to the `.env.local` database. Negative-insert tests cover the raw-migration CHECK constraints and unique indexes: if `prisma migrate deploy` drops a constraint, the corresponding test fails. CI runs `tsc` + `build` + `migrate` + tests against a dedicated Neon CI branch.
 
 ## Production deployment
 
 - **Host:** Vercel (auto-deploys on push to `main`).
 - **DB:** Neon Postgres (one branch is prod; PR previews can spin per-branch databases).
 - **Domain:** `academy.onethousanddrones.com` is the primary host (CNAME → Vercel at Porkbun). The legacy `foundry.onethousanddrones.com` host redirects to `academy.` at the Vercel domain level, and old `/projects/foundry-<slug>` URLs 308-redirect to their prefix-free form (`src/lib/legacy-slug-redirect.ts`) so indexed/bookmarked links keep resolving.
-- **Auth:** Google OAuth client (web type); redirect URIs registered for localhost and the prod host.
+- **Auth:** Google + GitHub OAuth apps + a Resend sender; redirect URIs / callbacks registered for localhost and the prod host.
 - **Build:** `prisma generate && next build` — the `prisma generate` step is load-bearing (Vercel's clean install needs it to populate `@prisma/client` types before the TypeScript pass).
 
 ## For collaborators (including AI agents)
