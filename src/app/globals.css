@@ -304,10 +304,15 @@ body {
 .pc-node:hover polygon { stroke: var(--color-gold-light); }
 .pc-node:focus-visible { outline: none; }
 .pc-node:focus-visible polygon { stroke: var(--color-gold-light); stroke-width: 2.5; }
-/* the viewed card reads as "current" — gold outline regardless of its fill */
+/* Lit + hovered hexes rise above their tessellated neighbours, so the shared
+   edge facing the next hex isn't overdrawn (and darkened) by that neighbour's
+   fainter stroke, which otherwise sits on top in DOM order. */
+.pc-node.complete, .pc-node.current, .pc-node.viewing { z-index: 1; }
+.pc-node:hover, .pc-node:focus-visible { z-index: 2; }
+/* the viewed card reads as "current" — a bold gold outline (+ gold numeral)
+   regardless of its fill. No outer emphasis ring: the hexes tessellate, so any
+   ring drawn outside the face bleeds onto the neighbours as stray gold nubs. */
 .pc-node.viewing polygon { stroke: var(--color-command-gold); stroke-width: 2; }
-/* "you are viewing this card" ring, drawn just outside the hex face */
-.pc-node.viewing::after { content: ""; position: absolute; inset: -10%; border: 1.5px solid color-mix(in srgb, var(--color-command-gold) 55%, transparent); clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); pointer-events: none; }
 
 /* header variant: just the comb, centered. It orients by the ringed current
    hex; the stage name + phase already live in the PageHeader right below, so a
@@ -1288,9 +1293,10 @@ body {
    keeps every original value untouched. Unlayered, so these beat the
    `@layer components` rules without reordering. */
 :root[data-theme="light"] .app-backdrop {
-  /* warm graphite grid on paper (not blue-steel on deep-space), kept quiet */
-  --grid-minor: rgba(40, 34, 22, 0.03);
-  --grid-bold: rgba(40, 34, 22, 0.05);
+  /* warm graphite grid on paper (not blue-steel on deep-space). Paper shows
+     every line, so keep it fainter than the dark values — a whisper of texture. */
+  --grid-minor: rgba(40, 34, 22, 0.018);
+  --grid-bold: rgba(40, 34, 22, 0.032);
 }
 :root[data-theme="light"] .gh-lead {
   /* #d8d8d8 bright-on-dark → dark ink on paper */

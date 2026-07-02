@@ -36,6 +36,12 @@ model User {
   // toggle so the choice follows the account to a new device / after a cookie reset.
   theme                 String?
 
+  // Custom uploaded avatar marker. Presence = the user set their own avatar (stored
+  // at the deterministic R2 key avatars/{id}.webp, served via /api/avatar/{id}); the
+  // timestamp doubles as a cache-bust version. Null = fall back to the sign-in
+  // provider image, else the initial. Additive, nullable.
+  avatarUpdatedAt       DateTime?
+
   accounts Account[]
   sessions Session[]
 
