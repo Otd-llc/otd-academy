@@ -45,7 +45,7 @@
     "basename": "adc1-pin-map",
     "image": "/guide-diagrams/adc1-pin-map.webp",
     "alt": "ADC pin map. GPIO 1 to 10 are ADC1 and stay usable for analog input. GPIO 11 to 20 are ADC2 and are claimed by the radio, so they read garbage while Wi-Fi is on. For analog reads, stick to ADC1, GPIO 1 to 10.",
-    "hash": "be750b48c9cf"
+    "hash": "12d93eecbf92"
   },
   {
     "basename": "antenna-keepout",
