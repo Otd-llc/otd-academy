@@ -18,11 +18,11 @@ import {
 import { OG } from "@/lib/og/tokens";
 import { TITLES, type OptionId, type TitleLen } from "./meta";
 
-const WASH = `radial-gradient(1200px 620px at 82% -12%, ${OG.NAVY_DARK} 0%, ${OG.DEEP_SPACE} 58%)`;
+export const WASH = `radial-gradient(1200px 620px at 82% -12%, ${OG.NAVY_DARK} 0%, ${OG.DEEP_SPACE} 58%)`;
 
 // The bare field every non-default option sits on. `wash` toggles the radial
 // glow; `frame` toggles the hairline border (drawn absolute, last).
-function Field({
+export function Field({
   wash,
   frame,
   children,
@@ -67,7 +67,7 @@ function Field({
 
 // Body area that vertically centers its children in the free space between the
 // wordmark row and the footer.
-function Center({ children }: { children: ReactNode }) {
+export function Center({ children }: { children: ReactNode }) {
   return (
     <div
       style={{

@@ -10,6 +10,7 @@
 
 import { renderCard } from "@/lib/og/card";
 import { renderOption } from "../../options";
+import { renderWatermark } from "../../watermark-options";
 
 export const runtime = "nodejs";
 
@@ -22,5 +23,9 @@ export async function GET(
   }
   const { variant } = await ctx.params;
   const [id, len] = variant.split("-");
-  return renderCard(renderOption(id ?? "A", len ?? "short"));
+  // FW* ids are the F-family watermark round; everything else is a base family.
+  const node = id?.startsWith("FW")
+    ? renderWatermark(id, len ?? "short")
+    : renderOption(id ?? "A", len ?? "short");
+  return renderCard(node);
 }

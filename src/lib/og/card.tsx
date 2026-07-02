@@ -13,8 +13,9 @@
 //   • SVG is inline with literal fill/stroke attributes.
 //   • Fonts are matched by (family, weight); Saira MUST request weight 800.
 
-import type { ReactElement, ReactNode } from "react";
+import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { ImageResponse } from "next/og";
+import { BRANDMARK_PATH, BRANDMARK_VIEWBOX } from "@/lib/pdf/certificate-content";
 import { ogFonts } from "./fonts";
 import { OG, SIZE } from "./tokens";
 
@@ -312,6 +313,36 @@ export function HexBadge({
         {n}
       </div>
     </div>
+  );
+}
+
+// ── Brand glyph ───────────────────────────────────────────────────────────────
+// The One Thousand Drones drone-bee mark, drawn from the canonical shared path
+// (same constant the certificate PNG + Field Guide PDF use, so they never drift).
+// This is the field-guide watermark treatment: a large, low-opacity gold mark
+// behind the content. `width` drives size (aspect locked 418:400); `opacity`
+// dims the whole glyph; `style` positions it (usually absolute). Pass a brighter
+// `fill` + high opacity for a crisp lockup instead of a watermark.
+export function BrandGlyph({
+  width = 420,
+  fill = OG.COMMAND_GOLD,
+  opacity = 0.08,
+  style,
+}: {
+  width?: number;
+  fill?: string;
+  opacity?: number;
+  style?: CSSProperties;
+}) {
+  return (
+    <svg
+      width={width}
+      height={width * (400 / 418)}
+      viewBox={BRANDMARK_VIEWBOX}
+      style={{ opacity, ...style }}
+    >
+      <path d={BRANDMARK_PATH} fill={fill} fillRule="evenodd" />
+    </svg>
   );
 }
 
