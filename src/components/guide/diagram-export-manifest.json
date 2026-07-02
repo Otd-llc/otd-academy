@@ -26,8 +26,8 @@
   {
     "basename": "two-layer-cross-section",
     "image": "/guide-diagrams/two-layer-cross-section.webp",
-    "alt": "Edge-on cross-section of a two-layer board. The part sits on the top copper, which carries the signal traces and the parts. Below it is the FR4 core, the insulator. Below that is the bottom copper, one continuous ground plane that is the return path. Plated vias tie the top and bottom layers together through the core.",
-    "hash": "c5f35356e7a3"
+    "alt": "Isometric view of a two-layer board. The top copper carries the signals and the parts, shown as an IC and a chip resistor. Below it is the FR4 core, the fiberglass insulator. Below that is the bottom copper, one continuous ground plane, the return path every signal flows back through. A plated via, a copper-walled hole drilled through the core, ties the top and bottom copper together.",
+    "hash": "9d9f26a1c30a"
   },
   {
     "basename": "gerber-layer-stack",
