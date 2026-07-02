@@ -1,42 +1,58 @@
 "use client";
 
-// Top-right user menu (design polish §15.3).
+// Top-right user menu (design D5 — hairline panel).
 //
-// A small dropdown anchored to the right of the header on every signed-in
-// page. The trigger is a compact pill: a filled-gold avatar disk + a
-// chevron (no email — it shows only in the menu). When open the menu
-// renders as an opaque deep-space popover with a gold rail and hairline
-// key/value rows: signed-in/email, role, the admin links, and a coral
-// "Sign out".
+// A dropdown anchored to the right of the header on every signed-in page. The
+// trigger is a compact pill: a gold-outline avatar disk + the first name + a
+// chevron. Open, it's a deep-space popover grouped by GOLD HAIRLINES (not a navy
+// fill) — a name/email header, real learner destinations, admin tools when the
+// role warrants, and a gold "Sign out". Theme lives in the header toggle, so it
+// is intentionally not duplicated here.
 //
-// Implementation notes:
-//   • Native dropdown via a `<details>` element — no portal, no library,
-//     no focus-trap state. ESC closes via the element's default behavior
-//     on focused summaries. The summary doubles as both trigger and
-//     focusable anchor.
-//   • Body-level click-outside closes the menu via a small effect that
-//     listens for `pointerdown` outside the host.
-//   • The sign-out action is a tiny server action passed in by the layout
-//     so the client component itself never imports `@/auth`.
-//   • The trigger is a compact avatar + chevron pill (no email; it shows only
-//     in the menu, never twice). The chevron flips when the menu is open.
-//     Sign-out lives ONLY in the menu — the header has no standalone sign-out.
+// Native dropdown via <details> (no portal/library); a pointerdown-outside
+// effect closes it. The sign-out action is a server action passed by the layout
+// so this client component never imports @/auth.
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-// Admin-only tools that live in the user menu. Add new admin destinations here.
+const BOOK = (
+  <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
+    <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H19v14H5.5A1.5 1.5 0 0 0 4 19.5zM8 8h7M8 11h7" />
+  </svg>
+);
+const HEX = (
+  <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
+    <path d="M12 3l7.5 4.3v8.6L12 21l-7.5-4.3V7.3z" />
+  </svg>
+);
+const SHIELD = (
+  <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
+    <path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6zM9.5 12l1.8 1.8L15 10" />
+  </svg>
+);
+const OUT = (
+  <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
+    <path d="M14 7V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-2M10 12h10M17 9l3 3-3 3" />
+  </svg>
+);
+
 const ADMIN_LINKS: { href: string; label: string }[] = [
   { href: "/admin/goals", label: "Goals" },
   { href: "/admin/sourcing", label: "Sourcing health" },
 ];
 
+const ROW =
+  "flex items-center gap-2.5 border-b border-panel-border/40 px-3.5 py-2.5 font-mono text-[10px] uppercase tracking-[0.12em] text-text transition-colors hover:bg-command-gold/[0.06] hover:text-gold-light focus-visible:bg-command-gold/[0.08] focus-visible:text-gold-light focus-visible:outline-none";
+
 export function UserMenu({
   email,
+  name,
   role,
   signOutAction,
 }: {
   email: string;
+  name?: string | null;
   role?: "ADMIN" | "LEARNER" | null;
   signOutAction: () => Promise<void>;
 }) {
@@ -55,7 +71,12 @@ export function UserMenu({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, []);
 
-  const initial = email.charAt(0).toUpperCase();
+  const close = () => {
+    if (ref.current) ref.current.open = false;
+    setOpen(false);
+  };
+  const initial = (name?.trim()?.[0] ?? email[0] ?? "?").toUpperCase();
+  const firstName = name?.trim().split(/\s+/)[0] ?? email.split("@")[0];
 
   return (
     <details
@@ -64,10 +85,7 @@ export function UserMenu({
       onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
     >
       <summary
-        // list-none + ::marker hide kill the default disclosure arrow. A compact
-        // pill: filled-gold avatar + a chevron, no email (the email lives in the
-        // menu, so it's never shown twice). Chevron flips when open.
-        className={`group inline-flex cursor-pointer list-none items-center gap-1.5 rounded-full border py-1 pl-1 pr-2.5 outline-none transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-gold-light/70 ${
+        className={`group inline-flex cursor-pointer list-none items-center gap-2 rounded-md border py-1 pl-1 pr-2.5 outline-none transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-gold-light/70 ${
           open
             ? "border-command-gold bg-command-gold/[0.06]"
             : "border-panel-border bg-deep-space/40 hover:border-command-gold/60"
@@ -76,13 +94,19 @@ export function UserMenu({
       >
         <span className="sr-only">Signed in as {email}. Open account menu</span>
         <span
-          aria-hidden="true"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gold-light font-numeral text-sm font-bold text-deep-space"
+          aria-hidden
+          className="grid h-7 w-7 place-items-center rounded-full border border-command-gold bg-command-gold/10 font-numeral text-sm font-bold text-command-gold"
         >
           {initial}
         </span>
         <span
-          aria-hidden="true"
+          aria-hidden
+          className="max-w-[8rem] truncate font-mono text-[10px] uppercase tracking-[0.1em] text-text"
+        >
+          {firstName}
+        </span>
+        <span
+          aria-hidden
           className={`font-mono text-[10px] leading-none transition-transform ${
             open ? "rotate-180 text-command-gold" : "text-muted group-hover:text-command-gold"
           }`}
@@ -91,64 +115,61 @@ export function UserMenu({
         </span>
       </summary>
 
-      {/* Popover (chrome): a deep-space panel with a flush gold rail + hairline
-          key/value rows. Right-anchored under the compact avatar pill. */}
-      <div className="absolute right-0 z-10 mt-2 min-w-[17rem] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-md border border-panel-border bg-bg-2 shadow-[var(--elev-card)]">
-        <div className="flex">
-          <div
-            aria-hidden="true"
-            className="w-0.5 shrink-0 self-stretch bg-gradient-to-b from-command-gold to-command-gold/10"
-          />
-          <div className="min-w-0 flex-1 px-4 py-3.5 font-mono">
-            <div className="border-b border-command-gold/15 pb-2.5">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-gold-dim">
-                Signed in
-              </p>
-              <p className="mt-1 truncate text-xs text-text">{email}</p>
-            </div>
-
-            {role && (
-              <div className="flex items-center justify-between gap-3 border-b border-command-gold/15 py-2.5">
-                <span className="text-[10px] uppercase tracking-[0.18em] text-gold-dim">
-                  Role
-                </span>
-                <span
-                  className={`text-[11px] uppercase tracking-[0.16em] ${
-                    role === "ADMIN" ? "text-command-gold" : "text-signal-blue"
-                  }`}
-                >
-                  {role === "ADMIN" ? "★ Admin" : "Learner"}
-                </span>
-              </div>
-            )}
-
-            {role === "ADMIN"
-              ? ADMIN_LINKS.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => {
-                      if (ref.current) ref.current.open = false;
-                      setOpen(false);
-                    }}
-                    className="flex items-center justify-between gap-3 border-b border-command-gold/15 py-2.5 text-[11px] uppercase tracking-[0.14em] text-muted transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
-                  >
-                    <span>{link.label}</span>
-                    <span aria-hidden="true">→</span>
-                  </Link>
-                ))
-              : null}
-
-            <form action={signOutAction} className="pt-3">
-              <button
-                type="submit"
-                className="font-mono text-[11px] uppercase tracking-[0.16em] text-danger-coral transition-colors hover:text-danger-hover focus-visible:text-danger-hover focus-visible:outline-none"
-              >
-                ↩ Sign out
-              </button>
-            </form>
+      {/* D5 — hairline panel on deep space (chrome popover, but grouped by gold
+          hairlines rather than a navy fill). */}
+      <div className="absolute right-0 z-10 mt-2 w-60 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-md border border-panel-border bg-deep-space shadow-[var(--elev-card)]">
+        <div className="flex items-center gap-3 border-b border-panel-border/70 p-3.5">
+          <span
+            aria-hidden
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-command-gold bg-command-gold/10 font-numeral text-base font-bold text-command-gold"
+          >
+            {initial}
+          </span>
+          <div className="min-w-0">
+            {name ? (
+              <p className="truncate font-display text-base leading-none text-title">{name}</p>
+            ) : null}
+            <p className="mt-1 truncate font-mono text-[9px] tracking-[0.04em] text-muted">
+              {email}
+            </p>
           </div>
         </div>
+
+        <Link href="/learn" onClick={close} className={ROW}>
+          <span className="text-muted group-hover:text-gold-light">{BOOK}</span>
+          <span>My learning</span>
+          <span aria-hidden className="ml-auto text-gray-3">›</span>
+        </Link>
+        <Link href="/courses" onClick={close} className={ROW}>
+          <span className="text-muted">{HEX}</span>
+          <span>Courses</span>
+          <span aria-hidden className="ml-auto text-gray-3">›</span>
+        </Link>
+
+        {role === "ADMIN"
+          ? ADMIN_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={close}
+                className={`${ROW} text-command-gold`}
+              >
+                <span className="text-gold-dim">{SHIELD}</span>
+                <span>{link.label}</span>
+                <span aria-hidden className="ml-auto text-gray-3">›</span>
+              </Link>
+            ))
+          : null}
+
+        <form action={signOutAction}>
+          <button
+            type="submit"
+            className="flex w-full items-center gap-2.5 px-3.5 py-2.5 font-mono text-[10px] uppercase tracking-[0.14em] text-command-gold transition-colors hover:bg-command-gold/[0.06] hover:text-gold-light focus-visible:outline-none"
+          >
+            <span className="text-gold-dim">{OUT}</span>
+            <span>Sign out</span>
+          </button>
+        </form>
       </div>
     </details>
   );
