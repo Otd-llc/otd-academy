@@ -45,14 +45,49 @@ const ADMIN_LINKS: { href: string; label: string }[] = [
 const ROW =
   "flex items-center gap-2.5 border-b border-panel-border/40 px-3.5 py-2.5 font-mono text-[10px] uppercase tracking-[0.12em] text-text transition-colors hover:bg-command-gold/[0.06] hover:text-gold-light focus-visible:bg-command-gold/[0.08] focus-visible:text-gold-light focus-visible:outline-none";
 
+// Avatar — the account image seeded by the sign-in provider (Google/GitHub), or
+// the first initial when there's none (e.g. an email magic-link account). A
+// custom uploaded avatar overrides the provider image upstream (User.avatarUrl),
+// so this component just renders whatever `image` it's handed.
+function Avatar({
+  image,
+  initial,
+  className,
+  text,
+}: {
+  image?: string | null;
+  initial: string;
+  className: string;
+  text: string;
+}) {
+  return image ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={image}
+      alt=""
+      referrerPolicy="no-referrer"
+      className={`${className} rounded-full border border-command-gold object-cover`}
+    />
+  ) : (
+    <span
+      aria-hidden
+      className={`${className} grid place-items-center rounded-full border border-command-gold bg-command-gold/10 font-numeral ${text} font-bold text-command-gold`}
+    >
+      {initial}
+    </span>
+  );
+}
+
 export function UserMenu({
   email,
   name,
+  image,
   role,
   signOutAction,
 }: {
   email: string;
   name?: string | null;
+  image?: string | null;
   role?: "ADMIN" | "LEARNER" | null;
   signOutAction: () => Promise<void>;
 }) {
@@ -93,12 +128,7 @@ export function UserMenu({
         style={{ listStyleType: "none" }}
       >
         <span className="sr-only">Signed in as {email}. Open account menu</span>
-        <span
-          aria-hidden
-          className="grid h-7 w-7 place-items-center rounded-full border border-command-gold bg-command-gold/10 font-numeral text-sm font-bold text-command-gold"
-        >
-          {initial}
-        </span>
+        <Avatar image={image} initial={initial} className="h-7 w-7" text="text-sm" />
         <span
           aria-hidden
           className="max-w-[8rem] truncate font-mono text-[10px] uppercase tracking-[0.1em] text-text"
@@ -119,12 +149,12 @@ export function UserMenu({
           hairlines rather than a navy fill). */}
       <div className="absolute right-0 z-10 mt-2 w-60 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-md border border-panel-border bg-deep-space shadow-[var(--elev-card)]">
         <div className="flex items-center gap-3 border-b border-panel-border/70 p-3.5">
-          <span
-            aria-hidden
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-command-gold bg-command-gold/10 font-numeral text-base font-bold text-command-gold"
-          >
-            {initial}
-          </span>
+          <Avatar
+            image={image}
+            initial={initial}
+            className="h-9 w-9 shrink-0"
+            text="text-base"
+          />
           <div className="min-w-0">
             {name ? (
               <p className="truncate font-display text-base leading-none text-title">{name}</p>

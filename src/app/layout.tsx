@@ -177,6 +177,7 @@ export default async function RootLayout({
                   <UserMenu
                     email={email}
                     name={name}
+                    image={image}
                     role={role}
                     signOutAction={signOutAction}
                   />
