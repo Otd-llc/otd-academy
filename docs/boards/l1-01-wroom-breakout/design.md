@@ -10,7 +10,7 @@
 | --- | --- |
 | **Slug** | `l1-01-wroom-breakout` |
 | **Owner** | Josh Tollette |
-| **Status** | `draft` → `validated` → `bom-frozen` (currently: draft, Pass 2 — for review, not frozen, not sourced) |
+| **Status** | `draft` → `validated` → `bom-frozen` (currently: **bom-frozen** — 17 parts created + BOM written, revision v1 `bomFrozenAt` set; lesson published; revision at LAYOUT stage, physical build pending) |
 | **Track / Level** | COMMS (general dev core) / L1 |
 | **Teaches** | Hand-soldering your first board — every joint achievable with a basic iron |
 
@@ -195,19 +195,27 @@ that forced the S3 pivot).
 Core — **mandatory on every board** (this board has no mains/Li-ion/thermal
 flags, so there are **no conditional items**):
 
-- [ ] **Calc trail recorded** — every derived value (rails, currents,
+> Ticked retroactively 2026-07-02 against the shipped v1 design (parts created,
+> BOM frozen, lesson published). L1.01's validation predates `_protocol.md` —
+> provenance in `validation-log.md`.
+
+- [x] **Calc trail recorded** — every derived value (rails, currents,
   divider/timing) traces to a source (§3).
-- [ ] **Each IC datasheet-verified** — the chosen part's datasheet matches the
-  schematic symbol and intended use (§4).
-- [ ] **Footprint ↔ pinout cross-checked** — each part's footprint pad map
+- [x] **Each IC datasheet-verified** — the chosen part's datasheet matches the
+  schematic symbol and intended use (§4; re-confirmed for C1 in the 2026-06-24
+  ECN).
+- [x] **Footprint ↔ pinout cross-checked** — each part's footprint pad map
   matches the datasheet pinout (esp. RT9080's own pinout, the USBLC6 channel
-  map, and the S3-WROOM-1 castellated pads).
-- [ ] **Fab-DRU DRC accounted for** — the fab's design rules (`.kicad_dru`) will
-  be applied before gerber export.
-- [ ] **BOM availability confirmed** — every part is in stock and not EOL/NRND at
-  a real distributor (see §8).
-- [ ] **All top risks de-risked** — every risk in §6 has a completed de-risk pass
-  (R1–R3, R6 de-risked; R4/R5/R7 close in KiCad layout).
+  map, and the S3-WROOM-1 castellated pads; KiCad symbol/footprint refs
+  populated on all 17 parts).
+- [x] **Fab-DRU DRC accounted for** — the fab's design rules (`.kicad_dru`,
+  PCBWay) are applied in the lesson's Board Setup and DRC = 0 errors gates the
+  LAYOUT stage.
+- [x] **BOM availability confirmed** — every part in stock (nightly DigiKey
+  watchdog; C1 Murata→KEMET ECN 2026-06-24 proves the loop).
+- [ ] **All top risks de-risked** — R1–R3, R6 de-risked; **R4/R5/R7 close at
+  layout review** (the in-app LAYOUT_REVIEW checklist — antenna keep-out item —
+  is still unchecked; tick this after that sign-off).
 
 > These are *attestations* (a human checked), not machine proofs — except BOM
 > availability (parts MCP) and DRU presence, which are verifiable.
@@ -228,7 +236,8 @@ flags, so there are **no conditional items**):
 - **Stock verification:** all locked parts stock-verified at Digikey/Amazon on
   06-04 (U1/U2/J1/D1/F1). Commodity 0805 R/C, buttons (B3F-1000), LEDs, headers,
   and test points are low-risk — any in-stock equivalent works.
-- **BOM frozen:** **not yet.** Only the physical outline / header row spacing
-  remains open (R7), to be closed in KiCad layout; all part choices (U1/U2/D1/F1,
-  LEDs, resistors, headers, test points) are LOCKED. Freeze (`bomFrozenAt`)
-  happens after design freeze — the handoff that says guide authoring may begin.
+- **BOM frozen: YES.** All 17 parts created in the library, BOM lines written,
+  revision v1 `bomFrozenAt` set; the guide was authored and published against it.
+  One post-freeze sourcing ECN: **C1** bulk cap Murata `GRM21BR61E106KA73L` (OOS)
+  → KEMET `C0805C106K3PACTU`, 2026-06-24 — drop-in, scoped audit clean (see
+  `validation-log.md`).
