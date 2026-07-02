@@ -329,6 +329,12 @@ body {
 @keyframes pc-nextbtn { 0%, 100% { box-shadow: 0 0 0 0 rgba(232, 184, 101, 0); border-color: var(--color-command-gold); } 50% { box-shadow: 0 0 14px -3px rgba(232, 184, 101, 0.7); border-color: var(--color-gold-light); } }
 @keyframes pc-arwdrift { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
 @media (prefers-reduced-motion: reduce) { .pc-btn-next, .pc-btn-next .pc-arw { animation: none; } }
+
+/* sign-in "check your email" pulse — a soft ring off the mail glyph (B1). */
+.pc-pulse { position: relative; width: 54px; height: 54px; display: grid; place-items: center; }
+.pc-pulse::after { content: ""; position: absolute; inset: 0; border: 1.5px solid var(--color-gold-light); border-radius: 50%; animation: pc-ring 1.9s ease-out infinite; }
+@keyframes pc-ring { 0% { transform: scale(0.7); opacity: 0.75; } 100% { transform: scale(1.7); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .pc-pulse::after { animation: none; } }
 /* SkillHoneycomb (/courses) extends the build-guide honeycomb with two additive
    modifiers (the skill tree has 8 node states to the hub's 4 — see SkillHoneycomb).
    sk-dim: recede the not-yet-reachable states (sign-in / premium / coming-soon).

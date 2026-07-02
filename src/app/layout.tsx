@@ -9,6 +9,7 @@ import { shouldRenderChrome } from "@/lib/chrome";
 import { BrandMark } from "@/components/BrandMark";
 import { MainNav } from "@/components/MainNav";
 import { PostHogProvider } from "@/components/PostHogProvider";
+import { RememberLastUser } from "@/components/auth/RememberLastUser";
 import { SignUpCta } from "@/components/SignUpCta";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { TooltipProvider } from "@/components/TooltipProvider";
@@ -52,6 +53,8 @@ export default async function RootLayout({
   const session = await auth();
   const email = session?.user?.email ?? null;
   const role = session?.user?.role ?? null;
+  const name = session?.user?.name ?? null;
+  const image = session?.user?.image ?? null;
 
   // The middleware forwards the request path as `x-pathname` (src/proxy.ts) so
   // this Server Component can decide whether to render the app-shell chrome:
@@ -128,6 +131,11 @@ export default async function RootLayout({
             Adds no DOM wrapper, so the body's flex column is preserved. */}
         <PostHogProvider>
         <TooltipProvider>
+          {/* Remember the signed-in identity on-device so a later signed-OUT
+              visit can offer the C1 "welcome back" fast-path. Renders nothing. */}
+          {email ? (
+            <RememberLastUser email={email} name={name} image={image} />
+          ) : null}
           {renderChrome ? (
             // App-shell chrome renders for signed-in users plus anonymous
             // visitors on PUBLIC routes (the SEO funnel); `/sign-in` stays a
@@ -168,6 +176,7 @@ export default async function RootLayout({
                 {email ? (
                   <UserMenu
                     email={email}
+                    name={name}
                     role={role}
                     signOutAction={signOutAction}
                   />
