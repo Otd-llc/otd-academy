@@ -6,6 +6,7 @@ import { auth, signOut } from "@/auth";
 import { db } from "@/lib/db";
 import { env } from "@/env";
 import { shouldRenderChrome } from "@/lib/chrome";
+import { avatarSrc } from "@/lib/effective-avatar";
 import { BrandMark } from "@/components/BrandMark";
 import { MainNav } from "@/components/MainNav";
 import { PostHogProvider } from "@/components/PostHogProvider";
@@ -54,7 +55,7 @@ export default async function RootLayout({
   const email = session?.user?.email ?? null;
   const role = session?.user?.role ?? null;
   const name = session?.user?.name ?? null;
-  const image = session?.user?.image ?? null;
+  const providerImage = session?.user?.image ?? null;
 
   // The middleware forwards the request path as `x-pathname` (src/proxy.ts) so
   // this Server Component can decide whether to render the app-shell chrome:
@@ -72,16 +73,25 @@ export default async function RootLayout({
   // is the final default; the no-flash inline script then applies
   // `prefers-color-scheme` for a brand-new anonymous visitor before first paint.
   const cookieTheme = (await cookies()).get("theme")?.value;
+  // One lookup for a signed-in visitor: the theme fallback + the avatar (user id +
+  // custom-avatar flag). The effective avatar is the custom upload when set, else
+  // the sign-in provider image, else null (the menu then shows the initial).
+  const account = email
+    ? await db.user
+        .findUnique({
+          where: { email },
+          select: { id: true, theme: true, avatarUpdatedAt: true },
+        })
+        .catch(() => null)
+    : null;
   let theme: "light" | "dark" =
     cookieTheme === "light" ? "light" : cookieTheme === "dark" ? "dark" : "dark";
-  if (!cookieTheme && email) {
-    const stored = await db.user
-      .findUnique({ where: { email }, select: { theme: true } })
-      .catch(() => null);
-    if (stored?.theme === "light" || stored?.theme === "dark") {
-      theme = stored.theme;
-    }
+  if (!cookieTheme && (account?.theme === "light" || account?.theme === "dark")) {
+    theme = account.theme;
   }
+  const image = account
+    ? avatarSrc(account.id, account.avatarUpdatedAt, providerImage)
+    : providerImage;
 
   async function signOutAction() {
     "use server";

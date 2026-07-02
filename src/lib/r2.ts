@@ -102,6 +102,15 @@ export function partRenderKey(partId: string, cuid: string): string {
   return `parts/${partId}/model_3d_render-${cuid}.glb`;
 }
 
+// User avatar key — deterministic (one per user). Served PUBLICLY via
+// /api/avatar/{userId} (like guide shots, NOT presigned) so a signed-out returning
+// visitor's C1 "welcome back" avatar loads too. Re-upload overwrites the same
+// object; the User.avatarUpdatedAt timestamp busts client caches (?v=…).
+//   avatars/{userId}.webp
+export function userAvatarKey(userId: string): string {
+  return `avatars/${userId}.webp`;
+}
+
 // Guide screenshot/clip key (admin in-app capture). A flat, content-addressed
 // tree keyed only by a per-capture cuid — these are public lesson media, served
 // (with long-cache headers) through `/api/shot/{cuid}`, NOT presigned. `.webp`
