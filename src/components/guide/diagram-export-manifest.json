@@ -69,7 +69,7 @@
     "basename": "bringup-ladder",
     "image": "/guide-diagrams/bringup-ladder.webp",
     "alt": "Bring-up is a ladder of five rungs in order: one, no shorts, the meter stays silent; two, the 3.3 V rail, TP1 reads about 3.3 V; three, LED1 lit, the power LED is on; four, the board enumerates, the host sees the S3; five, LED2 blinks, your code blinks it and the board is alive. If any rung fails, stop and fix it before the next. All five rungs clear means log the board BROUGHT_UP.",
-    "hash": "65528121e542"
+    "hash": "9f0d54dc0c96"
   },
   {
     "basename": "bringup-probe-points",
