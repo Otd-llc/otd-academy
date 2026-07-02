@@ -313,6 +313,9 @@ body {
    hex; the stage name + phase already live in the PageHeader right below, so a
    name/step tag here would be redundant. No buttons (those are the footer). */
 .pc-header { display: flex; justify-content: center; }
+/* header comb expands well past the compact footer to fill the desktop space,
+   capped so the tessellated chain doesn't grow too tall; scales down below it. */
+.pc-header .pc-comb { max-width: 700px; }
 
 /* prev / next control row under the comb. The forward cue lives here (not on a
    hex): the Next button subtly breathes a gold box-glow and drifts its arrow, so
