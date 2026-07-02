@@ -33,6 +33,12 @@ import type { ContentBlock } from "@/lib/schemas/guide";
 import { parseInlineTerms } from "@/lib/inline-terms";
 import { BRANDMARK_PATH, BRANDMARK_VIEWBOX } from "@/lib/pdf/certificate-content";
 import type { ResolvedImage } from "@/lib/pdf/library-images";
+import {
+  FIELD_GUIDE_INTRO,
+  FIELD_GUIDE_OUTRO,
+  FIELD_GUIDE_PARTS,
+  type FieldGuidePart,
+} from "@/lib/pdf/field-guide-chrome";
 
 export type LibraryPdfLesson = {
   slug: string;
@@ -47,6 +53,7 @@ const IVORY = "#faf7f0";
 const PAPER = "#ffffff";
 const INK = "#14181f";
 const GOLD = "#b5882e";
+const GOLD_DEEP = "#8a6212"; // deeper gold for the big Saira numerals (cover / openers)
 const GOLD_TINT = "#f6efe0";
 const MUTED = "#6b7280";
 const FAINT = "#9aa0ad";
@@ -54,7 +61,6 @@ const HAIR = "#d8d2c4";
 const RED = "#b4453f";
 const RED_TINT = "#f8ecea";
 const BLUE = "#3a6ea5";
-const INK_FIG = "#0f1622"; // dark figure frame (diagrams are dark-on-gold by design)
 
 const CONTENT_W = 595.28 - 54 * 2; // A4 width minus the page's horizontal padding
 
@@ -67,21 +73,61 @@ const s = StyleSheet.create({
     paddingHorizontal: 54,
     fontFamily: "Serif",
     fontSize: 11,
-    lineHeight: 1.5,
+    // NOTE: do NOT set `lineHeight` on the Page. A page-level lineHeight combined
+    // with the big Saira cover numeral (its own lineHeight 0.78) corrupts
+    // react-pdf 4.5.1's layout pass and silently kills the fixed `render` page
+    // numbers document-wide. Body copy sets its own lineHeight per block instead.
   },
-  // ── footer (fixed) ──
-  footer: {
+  // ── running header (fixed, A1) — section · doc, on a hairline ──
+  runHeader: {
     position: "absolute",
-    bottom: 28,
+    top: 30,
     left: 54,
     right: 54,
     flexDirection: "row",
     justifyContent: "space-between",
+    borderBottomWidth: 0.6,
+    borderBottomColor: HAIR,
+    paddingBottom: 5,
+    fontFamily: "Mono",
+    fontSize: 7.5,
+    letterSpacing: 1.4,
+    color: MUTED,
+    textTransform: "uppercase",
+  },
+  runHeaderSection: { flex: 1 },
+  runHeaderDoc: { color: FAINT, marginLeft: 10 },
+  // ── running footer (fixed, A1) — url left, on a hairline. The page number is
+  // a SEPARATE absolutely-positioned fixed element (below) so react-pdf evaluates
+  // its dynamic page callback reliably; nesting the render Text inside this flex
+  // row did not render. ──
+  footer: {
+    position: "absolute",
+    bottom: 26,
+    left: 54,
+    right: 54,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    borderTopWidth: 0.6,
+    borderTopColor: HAIR,
+    paddingTop: 5,
     fontFamily: "Mono",
     fontSize: 7.5,
     letterSpacing: 1,
     color: FAINT,
     textTransform: "uppercase",
+  },
+  pageNum: {
+    position: "absolute",
+    bottom: 24,
+    left: 54,
+    right: 54,
+    textAlign: "right",
+    fontFamily: "Numeral",
+    fontSize: 11,
+    letterSpacing: 0,
+    color: GOLD,
   },
   // ── lesson header ──
   eyebrow: {
@@ -96,6 +142,17 @@ const s = StyleSheet.create({
   summary: { fontFamily: "Serif", fontSize: 12, fontStyle: "italic", color: MUTED, marginTop: 8, lineHeight: 1.45 },
   headRule: { height: 1.4, backgroundColor: GOLD, marginTop: 14, marginBottom: 4 },
   byline: { fontFamily: "Mono", fontSize: 7.5, letterSpacing: 1.2, color: FAINT, textTransform: "uppercase", marginTop: 8 },
+  // ── lesson opener — big Saira guide numeral beside the title block ──
+  lhRow: { flexDirection: "row", alignItems: "flex-start" },
+  // NOTE: letterSpacing must stay >= 0 here. A negative letterSpacing on a large
+  // Saira numeral corrupts react-pdf's layout pass and silently kills the fixed
+  // `render` page numbers on every later page (verified with @react-pdf 4.5.1).
+  lhNum: { fontFamily: "Numeral", fontSize: 52, color: GOLD_DEEP, lineHeight: 0.8, letterSpacing: 0, marginRight: 16, marginTop: 0 },
+  lhBody: { flex: 1 },
+  // vertical separation when one guide's opener lands mid-page, right after the
+  // previous guide's tail (the continuous-flow field guide). No effect worth
+  // worrying about at the top of a freshly broken page.
+  lessonFollow: { marginTop: 24 },
 
   // ── blocks ──
   prose: { fontFamily: "Serif", fontSize: 11, color: INK, marginTop: 9, lineHeight: 1.55 },
@@ -135,9 +192,9 @@ const s = StyleSheet.create({
   td: { flex: 1, fontFamily: "Serif", fontSize: 9.5, color: INK, padding: 5, lineHeight: 1.4 },
   tdMono: { flex: 1, fontFamily: "Mono", fontSize: 8.5, color: INK, padding: 5 },
 
-  // figures
-  figure: { marginTop: 14, marginBottom: 4, alignItems: "center" },
-  figFrame: { borderWidth: 0.8, borderColor: HAIR, backgroundColor: INK_FIG, padding: 6, borderRadius: 2 },
+  // figures — frameless (Diagram C). The exported light raster already carries the
+  // diagram's own ivory frame + warm hairline, so the PDF adds no box around it.
+  figure: { marginTop: 10, marginBottom: 4, alignItems: "center" },
   caption: { fontFamily: "Mono", fontSize: 7.5, letterSpacing: 1, color: MUTED, textTransform: "uppercase", marginTop: 6, textAlign: "center" },
 
   // quiz
@@ -161,20 +218,42 @@ const s = StyleSheet.create({
   refHost: { fontFamily: "Mono", fontSize: 7.5, color: FAINT, textTransform: "lowercase" },
   link: { color: BLUE, textDecoration: "none" },
 
-  // field-guide cover + contents
-  cover: { flexGrow: 1, justifyContent: "center", alignItems: "center" },
-  coverEyebrow: { fontFamily: "Mono", fontSize: 10, letterSpacing: 5, color: MUTED, textTransform: "uppercase" },
-  coverTitle: { fontFamily: "Bebas", fontSize: 72, color: INK, marginTop: 12, marginBottom: 2, letterSpacing: 1, lineHeight: 0.9, textTransform: "uppercase" },
-  coverSub: { fontFamily: "Serif", fontSize: 14, fontStyle: "italic", color: MUTED, marginTop: 12, textAlign: "center", lineHeight: 1.45, maxWidth: 360 },
-  coverRule: { width: 150, height: 1.4, backgroundColor: GOLD, marginVertical: 24 },
-  coverMeta: { fontFamily: "Mono", fontSize: 8.5, letterSpacing: 2, color: FAINT, textTransform: "uppercase", textAlign: "center", lineHeight: 1.8 },
-  wmWrap: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
+  // field-guide cover (F1 split) + contents
+  coverSplit: { flexGrow: 1, flexDirection: "row", alignItems: "center", justifyContent: "center" },
+  // lineHeight 1 (never <1) keeps the line-box symmetric — see the page-number
+  // layout note above. marginBottom raises the numeral's optical centre to sit
+  // level with the FIELD GUIDE title: the right column's tall rule+2-line meta
+  // below the title otherwise drag the alignItems:center anchor below it. Tuned
+  // by eye against the rendered cover.
+  coverBig: { fontFamily: "Numeral", fontSize: 168, color: GOLD_DEEP, lineHeight: 1, letterSpacing: 0, marginBottom: 150 },
+  coverRight: { marginLeft: 24 },
+  coverVolEyebrow: { fontFamily: "Mono", fontSize: 9, letterSpacing: 3, color: MUTED, textTransform: "uppercase" },
+  coverTitle: { fontFamily: "Bebas", fontSize: 56, color: INK, letterSpacing: 1, lineHeight: 0.86, textTransform: "uppercase", marginTop: 6 },
+  coverRule: { width: 70, height: 1.6, backgroundColor: GOLD, marginTop: 14, marginBottom: 12 },
+  coverMeta: { fontFamily: "Mono", fontSize: 8.5, letterSpacing: 2, color: FAINT, textTransform: "uppercase", lineHeight: 1.8 },
+  wmCorner: { position: "absolute", right: 0, bottom: 0 },
 
   tocTitle: { fontFamily: "Bebas", fontSize: 30, color: INK, marginBottom: 6, letterSpacing: 0.4, textTransform: "uppercase" },
-  tocRow: { borderBottomWidth: 0.6, borderBottomColor: HAIR, paddingVertical: 9 },
+
+  // ── field-guide chrome (book-only: part dividers + intro/outro + CTA) ──
+  // Part divider: a gold-topped band before each part's first guide.
+  partBand: { marginTop: 2, marginBottom: 8, borderTopWidth: 1.4, borderTopColor: GOLD, paddingTop: 10 },
+  partEyebrow: { fontFamily: "Mono", fontSize: 8, letterSpacing: 2.5, color: GOLD, textTransform: "uppercase" },
+  partTitle: { fontFamily: "Bebas", fontSize: 27, color: INK, letterSpacing: 0.6, textTransform: "uppercase", marginTop: 3 },
+  partBlurb: { fontFamily: "Serif", fontSize: 11, fontStyle: "italic", color: MUTED, marginTop: 4, lineHeight: 1.45 },
+  // Intro / outro reading matter — a touch larger than body prose.
+  matterBody: { marginTop: 12 },
+  matterPara: { fontFamily: "Serif", fontSize: 12, color: INK, marginTop: 10, lineHeight: 1.6 },
+  // Closing CTA panel.
+  cta: { marginTop: 20, borderWidth: 1, borderColor: GOLD, backgroundColor: GOLD_TINT, padding: 15 },
+  ctaLabel: { fontFamily: "Mono", fontSize: 8.5, fontWeight: 700, letterSpacing: 2, color: GOLD, textTransform: "uppercase", marginBottom: 6 },
+  ctaBody: { fontFamily: "Serif", fontSize: 12.5, color: INK, lineHeight: 1.5 },
+  ctaLink: { fontFamily: "Mono", fontSize: 8.5, letterSpacing: 0.8, color: GOLD, marginTop: 9 },
+  ctaSecondary: { fontFamily: "Serif", fontSize: 10.5, color: MUTED, marginTop: 12 },
+  tocRow: { borderBottomWidth: 0.6, borderBottomColor: HAIR, paddingVertical: 7 },
   tocNum: { fontFamily: "Numeral", fontSize: 12, color: GOLD },
   tocText: { fontFamily: "Serif", fontSize: 12, color: INK, lineHeight: 1.35 },
-  tocSub: { fontFamily: "Serif", fontSize: 9.5, fontStyle: "italic", color: MUTED, marginTop: 3, lineHeight: 1.4 },
+  tocSub: { fontFamily: "Serif", fontSize: 9.5, fontStyle: "italic", color: MUTED, marginTop: 3, lineHeight: 1.4, maxLines: 1, textOverflow: "ellipsis" },
 });
 
 // ── inline markup → react-pdf <Text> spans ──────────────────────────────────
@@ -238,16 +317,42 @@ function hostOf(href: string): string | null {
   }
 }
 
+type QuizBlock = Extract<ContentBlock, { type: "quiz" }>;
+
+// One checkpoint question — its options, answer, and explanation kept together
+// (wrap={false}) so a question never splits across a page break.
+function QuizItem({ q, qi }: { q: QuizBlock["questions"][number]; qi: number }) {
+  return (
+    <View wrap={false}>
+      <Text style={s.quizQ}>
+        {qi + 1}. {q.q}
+      </Text>
+      {q.options.map((opt, oi) => (
+        <Text key={oi} style={{ ...s.quizOpt, ...(oi === q.answer ? s.quizOptRight : {}) }}>
+          {String.fromCharCode(97 + oi)}. {opt}
+        </Text>
+      ))}
+      <Text style={s.quizAns}>Answer · {String.fromCharCode(97 + q.answer)}</Text>
+      {q.explain ? <Text style={s.quizExplain}>{q.explain}</Text> : null}
+    </View>
+  );
+}
+
 function Block({ block, images }: { block: ContentBlock; images: Map<string, ResolvedImage> }) {
   switch (block.type) {
     case "prose": {
       const m = block.md.trim().match(SECTION_LABEL_RE);
-      if (m) return <Text style={s.sectionEyebrow}>{m[1]}</Text>;
+      // minPresenceAhead keeps a section label from stranding alone at a page
+      // bottom with its list/content pushed to the next page. Sized to pull the
+      // label AND its first few following rows (a "References"/"Keep going"
+      // eyebrow + its links) onto the next page together, not leave the links
+      // orphaned on a near-empty page.
+      if (m) return <Text style={s.sectionEyebrow} minPresenceAhead={140}>{m[1]}</Text>;
       return <Text style={s.prose}>{inlineSpans(block.md)}</Text>;
     }
 
     case "heading":
-      return <Text style={block.level === 3 ? s.h3 : s.h2}>{block.text}</Text>;
+      return <Text style={block.level === 3 ? s.h3 : s.h2} minPresenceAhead={56}>{block.text}</Text>;
 
     case "callout": {
       const a = CALLOUT_ACCENT[block.severity];
@@ -303,22 +408,32 @@ function Block({ block, images }: { block: ContentBlock; images: Map<string, Res
       if (!img) {
         return block.caption ? <Text style={s.caption}>{block.caption}</Text> : null;
       }
-      const maxW = CONTENT_W;
-      const maxH = 320;
-      let w = maxW;
+      // A diagram is a RASTER: shrinking the figure shrinks its baked text, so
+      // size for legibility, not just fit. Fill the text column; cap height
+      // generously (a tall diagram + caption still fits the ~728pt column); and
+      // FLOOR the width so a tall, height-capped diagram never gets so narrow its
+      // labels fall below ~9pt. Every diagram exports ~1088px wide, so
+      // displaying at >= MIN_W keeps even the smallest baked label legible. A
+      // very tall diagram then takes its own page (wrap={false}) rather than
+      // rendering with unreadable text.
+      const MIN_W = 445;
+      const maxH = 500;
+      let w = CONTENT_W;
       let h = w / img.ratio;
       if (h > maxH) {
         h = maxH;
         w = h * img.ratio;
       }
+      if (w < MIN_W) {
+        w = MIN_W;
+        h = w / img.ratio;
+      }
       return (
         <View style={s.figure} wrap={false}>
-          <View style={s.figFrame}>
-            {/* react-pdf <Image> is not a DOM img and takes no alt; the caption
-                carries the description. */}
-            {/* eslint-disable-next-line jsx-a11y/alt-text */}
-            <Image src={img.dataUri} style={{ width: w, height: h }} />
-          </View>
+          {/* react-pdf <Image> is not a DOM img and takes no alt; the diagram's
+              own baked caption (or block.caption) carries the description. */}
+          {/* eslint-disable-next-line jsx-a11y/alt-text */}
+          <Image src={img.dataUri} style={{ width: w, height: h }} />
           {block.caption ? <Text style={s.caption}>{block.caption}</Text> : null}
         </View>
       );
@@ -327,28 +442,24 @@ function Block({ block, images }: { block: ContentBlock; images: Map<string, Res
     case "quiz":
       return (
         <View style={s.quizWrap}>
-          <Text style={s.quizKicker}>Checkpoint</Text>
-          {block.prompt ? <Text style={s.prose}>{inlineSpans(block.prompt, "qp")}</Text> : null}
-          {block.questions.map((q, qi) => (
-            <View key={qi} wrap={false}>
-              <Text style={s.quizQ}>
-                {qi + 1}. {q.q}
-              </Text>
-              {q.options.map((opt, oi) => (
-                <Text key={oi} style={{ ...s.quizOpt, ...(oi === q.answer ? s.quizOptRight : {}) }}>
-                  {String.fromCharCode(97 + oi)}. {opt}
-                </Text>
-              ))}
-              <Text style={s.quizAns}>Answer · {String.fromCharCode(97 + q.answer)}</Text>
-              {q.explain ? <Text style={s.quizExplain}>{q.explain}</Text> : null}
-            </View>
+          {/* Keep the Checkpoint header + prompt + FIRST question together as one
+              wrap={false} unit, so the section never opens with an orphaned
+              "Checkpoint" header stranded at a page bottom. Remaining questions
+              flow individually (each still wrap={false} inside QuizItem). */}
+          <View wrap={false}>
+            <Text style={s.quizKicker}>Checkpoint</Text>
+            {block.prompt ? <Text style={s.prose}>{inlineSpans(block.prompt, "qp")}</Text> : null}
+            {block.questions.length > 0 ? <QuizItem q={block.questions[0]} qi={0} /> : null}
+          </View>
+          {block.questions.slice(1).map((q, k) => (
+            <QuizItem key={k + 1} q={q} qi={k + 1} />
           ))}
         </View>
       );
 
     case "deepDive":
       return (
-        <View style={s.deep}>
+        <View style={s.deep} wrap={false}>
           <Text style={s.deepKicker}>Deep dive · {block.summary}</Text>
           <Text style={s.calloutBody}>{inlineSpans(block.body, "dd")}</Text>
         </View>
@@ -408,27 +519,115 @@ function Blocks({ blocks, images }: { blocks: ContentBlock[]; images: Map<string
   );
 }
 
+// A1 running header — section on the left, document on the right, on a hairline.
+// Fixed, so it repeats on every page of a multi-page lesson.
+function RunningHeader({ section, doc = "Field Guide" }: { section: string; doc?: string }) {
+  return (
+    <View style={s.runHeader} fixed>
+      <Text style={s.runHeaderSection}>{section}</Text>
+      <Text style={s.runHeaderDoc}>{doc}</Text>
+    </View>
+  );
+}
+
+// A1 running footer — url on the left, page number (gold Saira) on the right.
 function PageFooter({ slug }: { slug?: string }) {
   return (
     <View style={s.footer} fixed>
-      <Text>One Thousand Drones Academy</Text>
-      <Text
-        render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
-      />
       <Text>{slug ? `academy.onethousanddrones.com/library/${slug}` : "academy.onethousanddrones.com/library"}</Text>
     </View>
   );
 }
 
-function LessonHeader({ lesson }: { lesson: LibraryPdfLesson }) {
+// The dynamic page number. A lone `fixed` Text placed LAST in each Page (the
+// canonical react-pdf pattern); it must not be nested with other fixed siblings.
+function PageNumber() {
   return (
-    <View>
-      <Text style={s.eyebrow}>Library · Reference Guide</Text>
-      <Text style={s.title}>{lesson.title}</Text>
-      {lesson.summary ? <Text style={s.summary}>{lesson.summary}</Text> : null}
-      <View style={s.headRule} />
-      {lesson.byline ? <Text style={s.byline}>{lesson.byline}</Text> : null}
+    <Text style={s.pageNum} fixed render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
+  );
+}
+
+// Lesson opener — a big Saira guide numeral (field guide only) beside the title
+// block. `index` present → the numeral shows and the eyebrow carries the number.
+function LessonHeader({ lesson, index }: { lesson: LibraryPdfLesson; index?: number }) {
+  const nn = index != null ? String(index).padStart(2, "0") : null;
+  return (
+    <View style={s.lhRow}>
+      {nn ? <Text style={s.lhNum}>{nn}</Text> : null}
+      <View style={s.lhBody}>
+        <Text style={s.eyebrow}>{nn ? `Reference Guide ${nn}` : "Library · Reference Guide"}</Text>
+        <Text style={s.title}>{lesson.title}</Text>
+        {lesson.summary ? <Text style={s.summary}>{lesson.summary}</Text> : null}
+        <View style={s.headRule} />
+        {lesson.byline ? <Text style={s.byline}>{lesson.byline}</Text> : null}
+      </View>
     </View>
+  );
+}
+
+// ── field-guide chrome components (book-only) ───────────────────────────────
+// slug → the part it opens, so the divider renders before that guide.
+const partByStartSlug = new Map(FIELD_GUIDE_PARTS.map((p) => [p.startsAtSlug, p]));
+
+// Inline part divider, rendered inside the following guide's wrap={false} opener
+// so the band never separates from the guide it introduces.
+function PartDivider({ part }: { part: FieldGuidePart }) {
+  return (
+    <View style={s.partBand}>
+      <Text style={s.partEyebrow}>{`Part ${part.n} of ${FIELD_GUIDE_PARTS.length}`}</Text>
+      <Text style={s.partTitle}>{part.title}</Text>
+      <Text style={s.partBlurb}>{part.blurb}</Text>
+    </View>
+  );
+}
+
+// Front matter — "how to read this volume", set up before the guides begin.
+function FieldGuideIntro() {
+  return (
+    <Page size="A4" style={s.page}>
+      <RunningHeader section="Start Here" />
+      <PageFooter />
+      <View style={{ marginTop: 8 }}>
+        <Text style={s.eyebrow}>{FIELD_GUIDE_INTRO.eyebrow}</Text>
+        <Text style={s.tocTitle}>{FIELD_GUIDE_INTRO.title}</Text>
+      </View>
+      <View style={s.matterBody}>
+        {FIELD_GUIDE_INTRO.paras.map((p, i) => (
+          <Text key={i} style={s.matterPara}>{inlineSpans(p, `in${i}`)}</Text>
+        ))}
+      </View>
+      <PageNumber />
+    </Page>
+  );
+}
+
+// Back matter — recap + the one build CTA (course waitlist; generic-safe).
+function FieldGuideOutro() {
+  const { cta } = FIELD_GUIDE_OUTRO;
+  return (
+    <Page size="A4" style={s.page}>
+      <RunningHeader section="Where This Goes" />
+      <PageFooter />
+      <View style={{ marginTop: 8 }}>
+        <Text style={s.eyebrow}>{FIELD_GUIDE_OUTRO.eyebrow}</Text>
+        <Text style={s.tocTitle}>{FIELD_GUIDE_OUTRO.title}</Text>
+      </View>
+      <View style={s.matterBody}>
+        {FIELD_GUIDE_OUTRO.paras.map((p, i) => (
+          <Text key={i} style={s.matterPara}>{inlineSpans(p, `out${i}`)}</Text>
+        ))}
+      </View>
+      <View style={s.cta} wrap={false}>
+        <Text style={s.ctaLabel}>{cta.label}</Text>
+        <Text style={s.ctaBody}>{cta.body}</Text>
+        <Link src={cta.href} style={s.ctaLink}>{cta.hrefLabel}</Link>
+        <Text style={s.ctaSecondary}>
+          {`${cta.secondaryLabel}  ·  `}
+          <Link src={cta.secondaryHref} style={s.link}>{cta.secondaryHrefLabel}</Link>
+        </Text>
+      </View>
+      <PageNumber />
+    </Page>
   );
 }
 
@@ -443,11 +642,13 @@ export function LibraryPdf({
   return (
     <Document title={`${lesson.title} · OTD Academy Library`} author="One Thousand Drones Academy">
       <Page size="A4" style={s.page}>
+        <RunningHeader section={lesson.title} doc="Library" />
         <PageFooter slug={lesson.slug} />
         <LessonHeader lesson={lesson} />
         <View style={{ marginTop: 4 }}>
           <Blocks blocks={lesson.blocks} images={images} />
         </View>
+        <PageNumber />
       </Page>
     </Document>
   );
@@ -474,32 +675,35 @@ export function FieldGuidePdf({
 }) {
   return (
     <Document title="OTD Academy Field Guide · The EEG & BCI Reference Library" author="One Thousand Drones Academy">
-      {/* cover */}
+      {/* cover — F1 split: big Saira volume numeral · title block · faint
+          corner brandmark watermark (no header/footer on the cover) */}
       <Page size="A4" style={s.page}>
-        <View style={s.wmWrap}>
-          <Brandmark size={420} opacity={0.05} />
+        <View style={s.wmCorner}>
+          <Brandmark size={230} opacity={0.08} />
         </View>
-        <View style={s.cover}>
-          <Brandmark size={64} opacity={0.9} />
-          <Text style={{ ...s.coverEyebrow, marginTop: 18 }}>One Thousand Drones Academy</Text>
-          <Text style={s.coverTitle}>Field Guide</Text>
-          <Text style={s.coverSub}>The EEG and BCI reference library: the ideas behind the builds.</Text>
-          <View style={s.coverRule} />
-          <Text style={s.coverMeta}>
-            {`${lessons.length} reference guides`}
-            {"\n"}
-            {`Reviewed ${reviewed}`}
-            {"\n"}
-            academy.onethousanddrones.com/library
-          </Text>
+        <View style={s.coverSplit}>
+          <Text style={s.coverBig}>01</Text>
+          <View style={s.coverRight}>
+            <Text style={s.coverVolEyebrow}>Reference Vol.</Text>
+            <Text style={s.coverTitle}>{`Field\nGuide`}</Text>
+            <View style={s.coverRule} />
+            <Text style={s.coverMeta}>
+              {`EEG & BCI · ${lessons.length} Guides`}
+              {"\n"}
+              {`Reviewed ${reviewed}`}
+            </Text>
+          </View>
         </View>
       </Page>
 
-      {/* contents */}
+      {/* contents — dotted-leader entries with a gold Saira number */}
       <Page size="A4" style={s.page}>
+        <RunningHeader section="Contents" />
         <PageFooter />
-        <Text style={s.eyebrow}>Library</Text>
-        <Text style={s.tocTitle}>Contents</Text>
+        <View style={{ marginTop: 8 }}>
+          <Text style={s.eyebrow}>Reference Library</Text>
+          <Text style={s.tocTitle}>Contents</Text>
+        </View>
         <View style={{ marginTop: 10 }}>
           {lessons.map((l, i) => (
             <View key={l.slug} style={s.tocRow} wrap={false}>
@@ -507,22 +711,50 @@ export function FieldGuidePdf({
                 <Text style={s.tocNum}>{`${String(i + 1).padStart(2, "0")}    `}</Text>
                 {l.title}
               </Text>
+              {/* one-line clamp (see s.tocSub maxLines): the full summary lives on
+                  the lesson opener; on the contents page it must not spill 12
+                  entries onto a 2nd page */}
               {l.summary ? <Text style={s.tocSub}>{l.summary}</Text> : null}
             </View>
           ))}
         </View>
+        <PageNumber />
       </Page>
 
-      {/* one page-break-started section per guide */}
-      {lessons.map((lesson) => (
-        <Page key={lesson.slug} size="A4" style={s.page}>
-          <PageFooter slug={lesson.slug} />
-          <LessonHeader lesson={lesson} />
-          <View style={{ marginTop: 4 }}>
-            <Blocks blocks={lesson.blocks} images={images} />
-          </View>
-        </Page>
-      ))}
+      {/* front matter — how to read this volume, before the guides begin */}
+      <FieldGuideIntro />
+
+      {/* All guides flow continuously in one page stream. Each opens with a soft
+          break: the wrap={false} opener carries minPresenceAhead, so a new guide
+          starts on a fresh page only when little room remains, otherwise it fills
+          the tail the previous guide left. This replaces a hard page-per-guide
+          that stranded 30-50% of every closing page. The header/footer are the
+          book's (a fixed element is per-Page, not per-guide); per-guide identity
+          lives in the opener numeral + title + gold rule. A part divider (when the
+          guide opens a new part) rides INSIDE the opener group so the two never
+          separate. */}
+      <Page size="A4" style={s.page}>
+        <RunningHeader section="EEG & BCI Reference Library" />
+        <PageFooter />
+        {lessons.map((lesson, i) => {
+          const part = partByStartSlug.get(lesson.slug);
+          return (
+            <View key={lesson.slug} style={i > 0 ? s.lessonFollow : undefined}>
+              <View wrap={false} minPresenceAhead={part ? 340 : 260}>
+                {part ? <PartDivider part={part} /> : null}
+                <LessonHeader lesson={lesson} index={i + 1} />
+              </View>
+              <View style={{ marginTop: 4 }}>
+                <Blocks blocks={lesson.blocks} images={images} />
+              </View>
+            </View>
+          );
+        })}
+        <PageNumber />
+      </Page>
+
+      {/* back matter — recap + the one build CTA */}
+      <FieldGuideOutro />
     </Document>
   );
 }
