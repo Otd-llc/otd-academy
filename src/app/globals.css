@@ -283,6 +283,49 @@ body {
 .gh-node.blocked .gh-chip { border: 1px solid color-mix(in srgb, var(--color-alert-red) 50%, transparent); color: var(--color-alert-red); }
 @keyframes gh-pulse { 0%, 100% { filter: drop-shadow(0 0 0 color-mix(in srgb, var(--color-command-gold) 0%, transparent)); } 50% { filter: drop-shadow(0 0 11px color-mix(in srgb, var(--color-command-gold) 70%, transparent)); } }
 @media (prefers-reduced-motion: reduce) { .gh-node.current .gh-hex polygon { animation: none; } }
+
+/* PhaseComb — connected zig-zag phase breadcrumb at the foot of a lesson
+   (components/guide/PhaseComb.tsx; sandbox variant "c1"). Flat-top hexes laced
+   edge-to-edge; the container holds a fixed aspect ratio and each hex is
+   positioned in percent, so the ribbon scales with its width (no JS). The number
+   face rides container-query units off `container-type: inline-size`. */
+.pc-comb { position: relative; width: 100%; max-width: 340px; margin: 0 auto; aspect-ratio: 300 / 62.354; list-style: none; padding: 0; container-type: inline-size; }
+.pc-node { position: absolute; width: 16%; aspect-ratio: 48 / 41.57; display: flex; align-items: center; justify-content: center; text-decoration: none; }
+.pc-node svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.pc-node polygon { fill: transparent; stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 1.5; stroke-linejoin: round; transition: stroke 0.4s, fill 0.4s; }
+.pc-num { position: relative; z-index: 2; font-family: var(--font-numeral); font-weight: 800; font-size: 5cqw; line-height: 1; color: var(--color-gray-3); transition: color 0.4s; }
+.pc-node.complete polygon { fill: url(#pc-honey); stroke: var(--color-command-gold); }
+.pc-node.complete .pc-num { color: var(--color-deep-space); }
+.pc-node.current polygon { stroke: var(--color-command-gold); stroke-width: 2; }
+.pc-node.current .pc-num { color: var(--color-gold-light); }
+.pc-node.pending polygon { stroke: color-mix(in srgb, var(--color-panel-border) 55%, transparent); }
+.pc-node.blocked polygon { stroke: var(--color-alert-red); }
+.pc-node.blocked .pc-num { color: var(--color-alert-red); }
+.pc-node:hover polygon { stroke: var(--color-gold-light); }
+.pc-node:focus-visible { outline: none; }
+.pc-node:focus-visible polygon { stroke: var(--color-gold-light); stroke-width: 2.5; }
+/* the viewed card reads as "current" — gold outline regardless of its fill */
+.pc-node.viewing polygon { stroke: var(--color-command-gold); stroke-width: 2; }
+/* "you are viewing this card" ring, drawn just outside the hex face */
+.pc-node.viewing::after { content: ""; position: absolute; inset: -10%; border: 1.5px solid color-mix(in srgb, var(--color-command-gold) 55%, transparent); clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); pointer-events: none; }
+
+/* header variant: just the comb, centered. It orients by the ringed current
+   hex; the stage name + phase already live in the PageHeader right below, so a
+   name/step tag here would be redundant. No buttons (those are the footer). */
+.pc-header { display: flex; justify-content: center; }
+
+/* prev / next control row under the comb. The forward cue lives here (not on a
+   hex): the Next button subtly breathes a gold box-glow and drifts its arrow, so
+   it's unmistakable where to go. Prev is a quiet sibling. */
+.pc-nav { display: flex; align-items: center; gap: 14px; width: 100%; max-width: 520px; margin: 1.5rem auto 0; }
+.pc-btn { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.14em; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; border: 1px solid var(--color-panel-border); border-radius: var(--radius); padding: 9px 14px; color: var(--color-muted); transition: color 0.2s, border-color 0.2s, box-shadow 0.2s; }
+.pc-btn-prev:hover, .pc-btn-prev:focus-visible { outline: none; border-color: var(--color-command-gold); color: var(--color-gold-light); }
+.pc-btn-next { margin-left: auto; border-color: var(--color-command-gold); color: var(--color-command-gold); background: color-mix(in srgb, var(--color-command-gold) 8%, transparent); animation: pc-nextbtn 2.6s ease-in-out infinite; }
+.pc-btn-next:hover, .pc-btn-next:focus-visible { outline: none; color: var(--color-gold-light); border-color: var(--color-gold-light); }
+.pc-btn-next .pc-arw { display: inline-block; animation: pc-arwdrift 2.2s ease-in-out infinite; }
+@keyframes pc-nextbtn { 0%, 100% { box-shadow: 0 0 0 0 rgba(232, 184, 101, 0); border-color: var(--color-command-gold); } 50% { box-shadow: 0 0 14px -3px rgba(232, 184, 101, 0.7); border-color: var(--color-gold-light); } }
+@keyframes pc-arwdrift { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
+@media (prefers-reduced-motion: reduce) { .pc-btn-next, .pc-btn-next .pc-arw { animation: none; } }
 /* SkillHoneycomb (/courses) extends the build-guide honeycomb with two additive
    modifiers (the skill tree has 8 node states to the hub's 4 — see SkillHoneycomb).
    sk-dim: recede the not-yet-reachable states (sign-in / premium / coming-soon).

@@ -19,7 +19,6 @@
 
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
 import { db } from "@/lib/db";
 import { canonicalLessonPath } from "@/lib/seo/canonical";
 import {
@@ -29,7 +28,6 @@ import {
 } from "@/lib/seo/jsonld";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/PageHeader";
-import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import {
   GuideBlocks,
   type ResolvedModel,
@@ -37,7 +35,7 @@ import {
 } from "@/components/guide/GuideBlocks";
 import { resolveInlineDiagrams } from "@/lib/inline-diagrams";
 import { GuideCardEditor } from "@/components/guide/GuideCardEditor";
-import { GuideStepper } from "@/components/guide/GuideStepper";
+import { PhaseComb } from "@/components/guide/PhaseComb";
 import { BomPdfExport } from "@/components/guide/BomPdfExport";
 import { getPartAssetRenderUrl } from "@/lib/actions/part-assets";
 import { renderBoundsSchema } from "@/lib/schemas/part-asset";
@@ -502,11 +500,6 @@ export default async function GuideCardPage({
   // has no enrollment, so it renders the quiz cards without a recording context;
   // the enrollment-aware learner guide (Task 4.2) supplies the live quizContext.
 
-  // prev / next across GUIDE_STAGES.
-  const idx = GUIDE_STAGES.indexOf(stage);
-  const prevStage = idx > 0 ? GUIDE_STAGES[idx - 1] : null;
-  const nextStage =
-    idx < GUIDE_STAGES.length - 1 ? GUIDE_STAGES[idx + 1] : null;
   const cardHref = (s: string) =>
     `/projects/${project.slug}/${encodeURIComponent(revision.label)}/guide/${s}`;
 
@@ -579,6 +572,14 @@ export default async function GuideCardPage({
     ? await resolveGuideProgress(revision.id, revision.guide.id, selectedBoardId)
     : resolveLearnerGuideProgress(learnerCurrentStage);
 
+  // prev / next cards for the comb's control row, relative to the viewed stage.
+  // The Next button is the (animated) continue cue; the gated advance of a
+  // learner's OWN progress stays in the YOUR TRACK panel.
+  const viewedIdx = GUIDE_STAGES.indexOf(stage);
+  const prevStage = viewedIdx > 0 ? GUIDE_STAGES[viewedIdx - 1] : null;
+  const nextStage =
+    viewedIdx < GUIDE_STAGES.length - 1 ? GUIDE_STAGES[viewedIdx + 1] : null;
+
   // ─── Structured data (JSON-LD) — public SEO surface ───
   // HowTo from the resolved card (reusing the already-parsed `blocks` — no
   // re-query); Breadcrumb trail Home › Courses › Project › Stage with absolute
@@ -600,14 +601,18 @@ export default async function GuideCardPage({
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <JsonLd data={howToJsonLd} />
       <JsonLd data={lessonBreadcrumbJsonLd} />
-      <div className="mb-6">
-        <GuideStepper
+      {/* Top phase rail — the comb as an ORIENT header: the ringed current hex
+          says where you are (the stage name + phase are in the PageHeader below).
+          No buttons. Shares its hex language with the footer control. */}
+      <nav aria-label="Build guide progress" className="mb-6">
+        <PhaseComb
+          variant="header"
           slug={project.slug}
           revLabel={revision.label}
           stages={guideProgress}
           viewingStage={stage}
         />
-      </div>
+      </nav>
       {/* Inline edit-in-place island: view mode renders the server-rendered
           PageHeader + GuideBlocks below as `children`; edit mode swaps in the
           authoring forms. StageGate + nav stay OUTSIDE (gate-wiring locked). */}
@@ -726,49 +731,32 @@ export default async function GuideCardPage({
         <StageGate completion={completion} widget={widget} />
       )}
 
-      {/* Stage browser — FREE navigation across the guide, distinct from the
-          gated YOUR TRACK advance above. The "Browse stages" caption + friendly
-          labels keep it from reading as the progress button. */}
-      <nav className="mt-12 border-t border-panel-border pt-6">
-        <p className="mb-3 text-center font-mono text-[10px] uppercase tracking-[0.22em] text-gray-3">
-          Browse stages
-        </p>
-        <div className="flex items-center justify-between font-mono text-xs uppercase tracking-wider">
-          {prevStage ? (
-            <Link
-              href={cardHref(prevStage)}
-              className="inline-flex items-center gap-1.5 text-link-muted transition-colors hover:text-command-gold"
-            >
-              <ChevronLeftIcon className="h-3.5 w-3.5" />
-              {STAGE_LABELS[prevStage]}
-            </Link>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 text-muted opacity-40">
-              <ChevronLeftIcon className="h-3.5 w-3.5" />
-              {STAGE_LABELS[stage]}
-            </span>
-          )}
-          <Link
-            href={hubHref}
-            className="text-command-gold transition-colors hover:underline"
-          >
-            Build guide
-          </Link>
-          {nextStage ? (
-            <Link
-              href={cardHref(nextStage)}
-              className="inline-flex items-center gap-1.5 text-link-muted transition-colors hover:text-command-gold"
-            >
-              {STAGE_LABELS[nextStage]}
-              <ChevronRightIcon className="h-3.5 w-3.5" />
-            </Link>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 text-muted opacity-40">
-              {STAGE_LABELS[stage]}
-              <ChevronRightIcon className="h-3.5 w-3.5" />
-            </span>
-          )}
-        </div>
+      {/* Phase breadcrumb — the connected zig-zag comb (each hex links to its
+          stage card) + a prev/next control row. The Next button subtly breathes
+          to make the path forward unmistakable, for everyone incl. the signed-out
+          public view. The gated advance of a learner's OWN progress lives in the
+          YOUR TRACK panel above. */}
+      <nav
+        aria-label="Build stages"
+        className="mt-12 border-t border-panel-border pt-8"
+      >
+        <PhaseComb
+          variant="footer"
+          slug={project.slug}
+          revLabel={revision.label}
+          stages={guideProgress}
+          viewingStage={stage}
+          prev={
+            prevStage
+              ? { stage: prevStage, label: STAGE_LABELS[prevStage] }
+              : null
+          }
+          next={
+            nextStage
+              ? { stage: nextStage, label: STAGE_LABELS[nextStage] }
+              : null
+          }
+        />
       </nav>
     </main>
   );
