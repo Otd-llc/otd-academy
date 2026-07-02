@@ -38,8 +38,8 @@
   {
     "basename": "continuity-vbus-gnd",
     "image": "/guide-diagrams/continuity-vbus-gnd.webp",
-    "alt": "Before any power: with the board unplugged and the meter in continuity mode, touch one probe to the VBUS pad and the other to the GND pad on the top of the board. The meter must read OL with no beep. A beep means a dead short — stop and fix it before plugging in.",
-    "hash": "90e36ddeec16"
+    "alt": "Before any power: with the board unplugged and the meter in continuity mode, touch one probe to the VBUS pad and the other to the GND pad. The meter must read OL with no beep, meaning open. A beep means a dead short; stop and fix it before plugging in.",
+    "hash": "b8f37e214da3"
   },
   {
     "basename": "adc1-pin-map",

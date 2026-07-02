@@ -1,19 +1,14 @@
-// VBUS-to-GND continuity (short) check as a responsive HTML component. Header /
-// frame / caption come from the shared DiagramFrame (site-standard Bebas title);
-// this file supplies only the graphic body (and its own scoped <style>).
+// VBUS-to-GND continuity (short) check as a responsive v2 diagram: a multimeter
+// reading OL beside the two verdicts.
 //
-// Why not a single SVG for everything: a fixed-viewBox SVG scales to its
-// container, so on a ~360px phone a wide canvas renders small and ANY text
-// shrinks below an accessible size. The board itself is a label-free inline SVG
-// (the graphic); every reader-facing label is real, clamped CSS px (never below
-// ~14px) in HTML around it.
+// Teaching point: before any power, with the board unplugged and the meter in
+// continuity mode, probe VBUS to GND. It must read OL with no beep (open). A
+// beep means a dead short: stop and fix it before plugging in.
 //
-// Pure presentational server component (no hooks / animation). BRAND
-// (onethousanddrones.com/brand): gold-dominant on Deep Space, Navy Dark bodies,
-// white/gray-1 for the GND lead + the OL readout, Alert Red ONLY for the BEEP
-// (dead-short) failure state. All colours via @theme tokens.
+// v2: landscape — the meter (hero, reading OL, no-beep icon) on the left, the
+// two outcomes on the right; stacks on a phone. Token-only color; alert red is
+// reserved for the BEEP (dead-short) failure.
 import { DiagramFrame } from "./DiagramFrame";
-import { WroomU1 } from "./WroomU1";
 
 export function ContinuityVbusGnd({ caption }: { caption?: string }) {
   return (
@@ -21,198 +16,71 @@ export function ContinuityVbusGnd({ caption }: { caption?: string }) {
       eyebrow="BEFORE POWER · UNPLUGGED · CONTINUITY MODE"
       tone="green"
       title="VBUS-to-GND must not beep"
-      ariaLabel="Before any power: with the board unplugged and the meter in continuity mode, touch one probe to the VBUS pad and the other to the GND pad on the top of the board. The meter must read OL with no beep. A beep means a dead short — stop and fix it before plugging in."
+      ariaLabel="Before any power: with the board unplugged and the meter in continuity mode, touch one probe to the VBUS pad and the other to the GND pad. The meter must read OL with no beep, meaning open. A beep means a dead short; stop and fix it before plugging in."
       caption={caption}
       defaultCaption="Probe VBUS to GND before any power: it must read OL, not beep."
     >
       <style>{CSS}</style>
-      <div className="cvg-stage">
-        <div className="cvg-board">
-          {/* Top-view board: U1 module on the left, two clearly separated and
-              labelled probe pads (VBUS gold / GND white) on the right, each with
-              a DMM probe tip resting on it. */}
-          <svg
-            className="cvg-svg"
-            viewBox="0 0 320 200"
-            preserveAspectRatio="xMidYMid meet"
-            aria-hidden="true"
-          >
-            {/* board outline */}
-            <rect
-              x="4"
-              y="40"
-              width="312"
-              height="152"
-              rx="7"
-              fill="var(--color-navy-dark,#1f2438)"
-              stroke="var(--color-command-gold,#c8963e)"
-              strokeWidth="1.6"
-            />
-
-            {/* U1 — square WROOM body with the antenna tab overhanging the board's top edge */}
-            <WroomU1 x={28} y={16} scale={0.85} />
-
-            {/* ── VBUS pad (gold) ── */}
-            <circle
-              cx="186"
-              cy="120"
-              r="11"
-              fill="var(--color-deep-space,#08090d)"
-              stroke="var(--color-command-gold,#c8963e)"
-              strokeWidth="3"
-            />
-            <circle
-              cx="186"
-              cy="120"
-              r="3.4"
-              fill="var(--color-command-gold,#c8963e)"
-            />
-            {/* DMM probe tip resting on the VBUS pad (gold lead) */}
-            <line
-              x1="186"
-              y1="120"
-              x2="158"
-              y2="62"
-              stroke="var(--color-command-gold,#c8963e)"
-              strokeWidth="3.4"
-              strokeLinecap="round"
-            />
-            <circle cx="186" cy="120" r="3.4" fill="var(--color-command-gold,#c8963e)" />
-
-            {/* ── GND pad (white) ── */}
-            <circle
-              cx="270"
-              cy="120"
-              r="11"
-              fill="var(--color-deep-space,#08090d)"
-              stroke="var(--color-gray-1,#e8e8e8)"
-              strokeWidth="3"
-            />
-            <circle
-              cx="270"
-              cy="120"
-              r="3.4"
-              fill="var(--color-gray-1,#e8e8e8)"
-            />
-            {/* DMM probe tip resting on the GND pad (white lead) */}
-            <line
-              x1="270"
-              y1="120"
-              x2="298"
-              y2="62"
-              stroke="var(--color-gray-1,#e8e8e8)"
-              strokeWidth="3.4"
-              strokeLinecap="round"
-            />
-            <circle cx="270" cy="120" r="3.4" fill="var(--color-gray-1,#e8e8e8)" />
-          </svg>
-
-          {/* On-graphic pad legend so each pad is unambiguous at any width. */}
-          <div className="cvg-pads">
-            <span className="cvg-pad cvg-pad-vbus">VBUS pad</span>
-            <span className="cvg-pad cvg-pad-gnd">GND pad</span>
-          </div>
-        </div>
-
-        <div className="cvg-probes">
-          <div className="cvg-probe cvg-vbus">
-            <span className="cvg-dot" />
-            <span className="cvg-pname">VBUS</span>
-            <span className="cvg-ploc">red probe → VBUS pad</span>
-          </div>
-          <div className="cvg-probe cvg-gnd">
-            <span className="cvg-dot" />
-            <span className="cvg-pname">GND</span>
-            <span className="cvg-ploc">black probe → GND pad</span>
-          </div>
-        </div>
-
+      <div className="cvg">
         <div className="cvg-meter">
-          <div className="cvg-meter-read">
-            <span className="cvg-ol">OL</span>
+          <div className="cvg-lcd"><span className="cvg-ol">OL</span></div>
+          <div className="cvg-mode">
+            <svg className="cvg-spk" viewBox="0 0 40 32" aria-hidden="true">
+              <path d="M4,12 h6 l8,-7 v22 l-8,-7 h-6 Z" />
+              <line x1="22" y1="8" x2="36" y2="24" />
+            </svg>
+            continuity mode · no beep
           </div>
-          <div className="cvg-meter-mode">DMM · continuity (beep) mode · no beep</div>
         </div>
-      </div>
 
-      <div className="cvg-verdicts">
-        <div className="cvg-verdict cvg-good">
-          <span className="cvg-vtag">OL · NO BEEP</span>
-          <span className="cvg-vtext">
-            Open circuit. VBUS and GND aren&apos;t connected — exactly what you
-            want.
-          </span>
-        </div>
-        <div className="cvg-verdict cvg-bad">
-          <span className="cvg-vtag">BEEP</span>
-          <span className="cvg-vtext">
-            Dead short. Stop — don&apos;t plug in. Find and fix it first.
-          </span>
+        <div className="cvg-verdicts">
+          <div className="cvg-v cvg-ok">
+            <span className="cvg-tag">OL · NO BEEP</span>
+            <span className="cvg-vtext">Open circuit. VBUS and GND aren&apos;t connected, exactly what you want.</span>
+          </div>
+          <div className="cvg-v cvg-bad">
+            <span className="cvg-tag">BEEP</span>
+            <span className="cvg-vtext">Dead short. Stop, don&apos;t plug in. Find and fix it first.</span>
+          </div>
         </div>
       </div>
     </DiagramFrame>
   );
 }
 
-// Token-driven (var(--color-*) / var(--font-*) from @theme) with literal
-// fallbacks so a standalone render still resolves. Gold-dominant per brand.
 const CSS = `
-.cvg-stage,.cvg-stage *{box-sizing:border-box;}
-.cvg-stage{
-  display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);
-  grid-template-areas:"board probes" "meter meter";
-  gap:clamp(.9rem,3vw,1.3rem);align-items:center;
-  font-family:var(--font-mono,"Space Mono",monospace);color:var(--color-muted,#aaaaaa);
-  text-align:left;}
-.cvg-board{grid-area:board;}
-.cvg-svg{display:block;width:100%;height:auto;}
-.cvg-pads{margin-top:.55rem;display:flex;justify-content:space-around;gap:.5rem;}
-.cvg-pad{font-weight:700;font-size:clamp(.8rem,2.3vw,.92rem);letter-spacing:.03em;}
-.cvg-pad-vbus{color:var(--color-command-gold,#c8963e);}
-.cvg-pad-gnd{color:var(--color-gray-1,#e8e8e8);}
+.cvg{display:flex;align-items:center;gap:clamp(1rem,4vw,1.8rem);text-align:left;font-family:var(--font-mono,"Space Mono",monospace);}
+@media (max-width:520px){.cvg{flex-direction:column;}}
 
-.cvg-probes{grid-area:probes;display:flex;flex-direction:column;gap:.7rem;}
-.cvg-probe{display:grid;grid-template-columns:auto 1fr;column-gap:.55rem;row-gap:.05rem;
-  align-items:center;background:var(--color-navy-dark,#1f2438);
-  border:1px solid var(--color-panel-border,#3a3f50);border-radius:6px;padding:.55rem .7rem;}
-.cvg-dot{grid-row:1 / span 2;width:14px;height:14px;border-radius:50%;
-  background:var(--color-deep-space,#08090d);}
-.cvg-vbus .cvg-dot{border:3px solid var(--color-command-gold,#c8963e);}
-.cvg-gnd .cvg-dot{border:3px solid var(--color-gray-1,#e8e8e8);}
-.cvg-pname{font-weight:700;font-size:clamp(1.05rem,3vw,1.3rem);letter-spacing:.04em;}
-.cvg-vbus .cvg-pname{color:var(--color-command-gold,#c8963e);}
-.cvg-gnd .cvg-pname{color:var(--color-gray-1,#e8e8e8);}
-.cvg-ploc{grid-column:2;color:var(--color-muted,#aaaaaa);font-size:clamp(.85rem,2.3vw,.95rem);}
+.cvg-meter{flex:0 0 auto;display:flex;flex-direction:column;gap:.55rem;align-items:center;
+  background:var(--color-diagram-surface,#1f2438);border:1.5px solid var(--color-command-gold,#c8963e);
+  border-radius:10px;padding:clamp(.85rem,3vw,1.1rem);}
+@media (max-width:520px){.cvg-meter{align-self:stretch;}}
+.cvg-lcd{background:var(--color-deep-space,#08090d);border:1px solid var(--color-panel-border,#3a3f50);
+  border-radius:5px;padding:.3rem 1.4rem;text-align:right;min-width:9rem;}
+.cvg-ol{color:var(--color-text,#e8e8e8);font-family:var(--font-numeral,"Saira Condensed",sans-serif);
+  font-weight:700;font-size:clamp(2.2rem,8vw,3rem);letter-spacing:.06em;}
+.cvg-mode{display:flex;align-items:center;gap:.45rem;color:var(--color-muted,#aaa);font-size:clamp(.78rem,2.1vw,.88rem);}
+.cvg-spk{width:26px;height:auto;flex:none;}
+.cvg-spk path{fill:var(--color-command-gold,#c8963e);}
+.cvg-spk line{stroke:var(--color-command-gold,#c8963e);stroke-width:2.4;}
 
-.cvg-meter{grid-area:meter;display:flex;flex-direction:column;align-items:center;
-  background:var(--color-navy-dark,#1f2438);border:1px solid var(--color-command-gold,#c8963e);
-  border-radius:8px;padding:.7rem 1rem .8rem;}
-.cvg-meter-read{width:100%;max-width:15rem;text-align:right;
-  background:var(--color-deep-space,#08090d);border:1px solid var(--color-panel-border,#3a3f50);
-  border-radius:4px;padding:.35rem .9rem;}
-.cvg-ol{color:var(--color-gray-1,#e8e8e8);font-weight:700;font-size:clamp(1.8rem,7vw,2.4rem);
-  letter-spacing:.06em;}
-.cvg-meter-mode{margin-top:.5rem;color:var(--color-muted,#aaaaaa);text-align:center;
-  font-size:clamp(.85rem,2.3vw,.95rem);}
+.cvg-verdicts{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:.65rem;}
+.cvg-v{display:flex;flex-direction:column;align-items:flex-start;gap:.35rem;border-radius:6px;padding:.65rem .85rem;
+  background:var(--color-diagram-surface,#1f2438);}
+.cvg-ok{box-shadow:inset 0 0 0 1px var(--color-panel-border,#3a3f50),inset 3px 0 0 var(--color-command-gold,#c8963e);}
+.cvg-bad{box-shadow:inset 0 0 0 1px var(--color-panel-border,#3a3f50),inset 3px 0 0 var(--color-alert-red,#ef5350);}
+.cvg-tag{flex:none;font-weight:700;font-size:.66rem;letter-spacing:.08em;padding:.2rem .5rem;border-radius:4px;white-space:nowrap;}
+.cvg-ok .cvg-tag{color:var(--color-command-gold,#c8963e);box-shadow:inset 0 0 0 1px var(--color-command-gold,#c8963e);}
+.cvg-bad .cvg-tag{color:var(--color-title,#f1ece0);background:var(--color-alert-red,#ef5350);}
+.cvg-vtext{min-width:0;color:var(--color-text,#e8e8e8);font-family:var(--font-serif,"Lora",serif);
+  font-size:clamp(.9rem,2.4vw,1rem);line-height:1.4;}
 
-.cvg-verdicts{margin-top:clamp(1rem,3.5vw,1.4rem);display:grid;gap:.7rem;text-align:left;}
-.cvg-verdict{display:grid;grid-template-columns:auto 1fr;column-gap:.75rem;align-items:start;
-  border:1px solid var(--color-panel-border,#3a3f50);border-radius:6px;padding:.6rem .75rem;
-  background:var(--color-navy-dark,#1f2438);}
-.cvg-vtag{font-weight:700;font-size:clamp(.85rem,2.3vw,.95rem);letter-spacing:.04em;
-  white-space:nowrap;padding:.18rem .5rem;border-radius:4px;align-self:start;
-  font-family:var(--font-mono,"Space Mono",monospace);}
-.cvg-good{border-left:3px solid var(--color-command-gold,#c8963e);}
-.cvg-good .cvg-vtag{color:var(--color-command-gold,#c8963e);border:1px solid var(--color-command-gold,#c8963e);}
-.cvg-bad{border-left:3px solid var(--color-alert-red,#c62828);}
-.cvg-bad .cvg-vtag{color:var(--color-title,#f1ece0);background:var(--color-alert-red,#c62828);}
-.cvg-vtext{color:var(--color-gray-1,#e8e8e8);font-size:clamp(.95rem,2.5vw,1.05rem);line-height:1.45;
-  font-family:var(--font-serif,"Lora",serif);}
-
-@media (max-width:520px){
-  .cvg-stage{grid-template-columns:1fr;grid-template-areas:"board" "probes" "meter";
-    gap:1rem;}
-  .cvg-board{max-width:20rem;margin-inline:auto;width:100%;}
-  .cvg-meter-read{max-width:none;}
-}
+/* Tier-B reveal off the frame's armed/in contract (final state under reduced-motion). */
+.dgfrm.armed .cvg-meter,.dgfrm.armed .cvg-v{opacity:0;transform:translateY(6px);}
+.dgfrm.armed.in .cvg-meter{opacity:1;transform:none;transition:opacity .55s ease,transform .55s cubic-bezier(.2,.7,.2,1);}
+.dgfrm.armed.in .cvg-v{opacity:1;transform:none;transition:opacity .5s ease,transform .5s ease;}
+.dgfrm.armed.in .cvg-ok{transition-delay:.12s;}
+.dgfrm.armed.in .cvg-bad{transition-delay:.22s;}
+@media (prefers-reduced-motion:reduce){.dgfrm .cvg-meter,.dgfrm .cvg-v{opacity:1!important;transform:none!important;transition:none!important;}}
 `;
