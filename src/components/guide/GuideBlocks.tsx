@@ -22,6 +22,7 @@ import sanitizeHtml from "sanitize-html";
 import type { ContentBlock } from "@/lib/schemas/guide";
 import { scanIslands, RAIL_MIN_ISLANDS, deriveSetupRanges } from "@/lib/guide-islands";
 import { IslandRail } from "@/components/guide/IslandRail";
+import { ResumePill } from "@/components/guide/ResumePill";
 import { SetupBand } from "@/components/guide/SetupBand";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
@@ -1510,6 +1511,7 @@ export function GuideBlocks({
     <div className="space-y-5">
       {showRail ? <IslandRail islands={islands} storageKey={railKey} /> : null}
       {out}
+      {showRail ? <ResumePill islands={islands} storageKey={railKey} /> : null}
     </div>
   );
 }

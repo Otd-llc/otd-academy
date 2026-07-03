@@ -17,12 +17,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Island } from "@/lib/guide-islands";
-
-interface StoredResume {
-  anchorId: string;
-  visited: string[];
-  ts: number;
-}
+import { readResume, writeResume } from "@/lib/resume-position";
 
 type NodeState = "active" | "visited" | "unvisited";
 
@@ -44,15 +39,8 @@ export function IslandRail({ islands, storageKey }: { islands: Island[]; storage
 
   // Restore persisted visited ticks + note reduced-motion (client only).
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) {
-        const rec = JSON.parse(raw) as StoredResume;
-        if (Array.isArray(rec?.visited)) setVisited(new Set(rec.visited));
-      }
-    } catch {
-      /* private mode / bad JSON — start clean */
-    }
+    const rec = readResume(storageKey);
+    if (rec) setVisited(new Set(rec.visited));
     reduceRef.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }, [storageKey]);
 
@@ -106,17 +94,14 @@ export function IslandRail({ islands, storageKey }: { islands: Island[]; storage
     };
   }, [islands]);
 
-  // Persist the resume record whenever active/visited actually change.
+  // Persist whenever active/visited actually change — but NOT the top-of-page
+  // state on load (activeIdx < 1), so a fresh visit doesn't clobber the saved
+  // resume position before the ResumePill can offer it.
   useEffect(() => {
-    if (activeIdx < 0) return;
+    if (activeIdx < 1) return;
     const anchorId = islands[activeIdx]?.anchorId;
     if (!anchorId) return;
-    try {
-      const rec: StoredResume = { anchorId, visited: [...visited], ts: Date.now() };
-      localStorage.setItem(storageKey, JSON.stringify(rec));
-    } catch {
-      /* ignore quota / private mode */
-    }
+    writeResume(storageKey, { anchorId, visited: [...visited], ts: Date.now() });
   }, [activeIdx, visited, islands, storageKey]);
 
   const go = useCallback((anchorId: string) => {
