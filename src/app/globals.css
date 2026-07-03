@@ -1194,9 +1194,32 @@ body {
     var(--color-deep-space);
 }
 .foot-inner {
+  position: relative;
+  z-index: 0; /* stacking context so the bee watermark sits behind the colophon */
+  overflow: hidden; /* clips the right-edge-bleed bee */
   max-width: 72rem;
   margin: 0 auto;
   padding: 3.2rem 1.5rem 2.4rem;
+}
+/* Brand-icon watermark. Desktop: bleeds off the right edge, columns kept clear
+   on the left. Opacity is W02 — deeper on dark (near-black needs it), lighter on
+   the ivory paper (see the light override below). */
+.foot-wm-bee {
+  position: absolute;
+  z-index: -1;
+  top: 50%;
+  right: -8%;
+  transform: translateY(-50%);
+  width: 46%;
+  max-width: 620px;
+  color: var(--color-command-gold);
+  opacity: 0.1;
+  pointer-events: none;
+}
+.foot-wm-bee svg {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 .foot-brand {
   display: inline-flex;
@@ -1286,9 +1309,32 @@ body {
   text-transform: uppercase;
   color: var(--color-gray-3);
 }
+/* Desktop (F02): keep the columns on the left ~70% so the bee reads on the
+   right. Mobile is untouched — the grid stays full-width and reflows to 2 cols. */
+@media (min-width: 721px) {
+  .foot-cols {
+    max-width: 70%;
+  }
+}
 @media (max-width: 720px) {
   .foot-inner {
     padding: 2.6rem 1.25rem 1.8rem;
+  }
+  /* M01 mobile: the bee tucks into the bottom-right corner instead of bleeding
+     off the side. */
+  .foot-wm-bee {
+    top: auto;
+    bottom: -6%;
+    right: -12%;
+    transform: none;
+    width: 52%;
+  }
+  /* Registry spans both columns under a hairline, below the 2-col link grid. */
+  .foot-group-reg {
+    grid-column: 1 / -1;
+    border-top: 1px solid color-mix(in srgb, var(--color-panel-border) 55%, transparent);
+    padding-top: 1.2rem;
+    margin-top: 0.3rem;
   }
 }
 
@@ -1314,6 +1360,11 @@ body {
 :root[data-theme="light"] .foot-group a:hover {
   /* #fff brightest-on-dark → the darkest ink on light */
   color: var(--color-title);
+}
+/* W02 watermark: lighter on the ivory paper (the deep-space dark value would be
+   heavy on light). */
+:root[data-theme="light"] .foot-wm-bee {
+  opacity: 0.06;
 }
 :root[data-theme="light"] .table-tech td .ref {
   color: var(--color-title);

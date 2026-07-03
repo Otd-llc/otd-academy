@@ -215,6 +215,12 @@ export default async function RootLayout({
           {renderChrome ? (
             <footer className="app-footer print:hidden">
               <div className="foot-inner">
+                {/* Large brand-icon watermark (the field-guide idea): bleeds off
+                    the right edge on desktop, tucks bottom-right on mobile. Sits
+                    behind the content (z-index below the colophon). */}
+                <div className="foot-wm-bee" aria-hidden="true">
+                  <BrandMark />
+                </div>
                 <Link
                   href="/"
                   aria-label="One Thousand Drones home"
@@ -257,7 +263,7 @@ export default async function RootLayout({
                       Contact <span className="ext">↗</span>
                     </a>
                   </nav>
-                  <div className="foot-group">
+                  <div className="foot-group foot-group-reg">
                     <span className="foot-gh">Registry</span>
                     <p className="foot-reg">
                       Broken Arrow, OK · USA
