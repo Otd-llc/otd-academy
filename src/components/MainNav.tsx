@@ -15,12 +15,16 @@
 //
 // Active matching: the projects dashboard ("/") is the home for the whole
 // `/projects/*` tree as well, so it stays active on any project detail route;
-// "/curriculum" and "/parts" match their own prefixes. The header keeps this
-// visible at every breakpoint (it wraps rather than collapsing) so navigation
-// is always reachable on small screens.
+// "/curriculum" and "/parts" match their own prefixes.
+//
+// Mobile shape: the row is clipped to ONE line (a right fade hints at more) and a
+// hamburger reveals the full nav in a dropdown card; from `sm` up the whole nav
+// sits inline with no toggle. Keeps the mobile header a single tidy line instead
+// of an unpredictable multi-row wrap.
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 const LINKS = [
   { href: "/", label: "Projects", adminOnly: true },
@@ -51,6 +55,8 @@ export function MainNav({
   signedIn?: boolean;
 }) {
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   const isAdmin = role === "ADMIN";
   const links = LINKS.filter((link) => {
     // Admin-only links (Projects / Curriculum) show only for ADMINs.
@@ -60,27 +66,73 @@ export function MainNav({
     return true;
   });
 
+  // Close the mobile dropdown on Escape or an outside click.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const onDown = (e: PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onDown);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onDown);
+    };
+  }, [open]);
+
+  const tone = (active: boolean) => (active ? "text-command-gold" : "text-muted");
+
   return (
-    <nav
-      className={`flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-xs uppercase tracking-wider${
-        className ? ` ${className}` : ""
-      }`}
-    >
-      {links.map((link) => {
-        const active = isActive(pathname, link.href);
-        return (
-          <Link
-            key={link.href}
-            href={link.href}
-            aria-current={active ? "page" : undefined}
-            className={`transition-colors hover:text-command-gold ${
-              active ? "text-command-gold" : "text-muted"
-            }`}
-          >
-            {link.label}
-          </Link>
-        );
-      })}
-    </nav>
+    <div ref={ref} className={`relative${className ? ` ${className}` : ""}`}>
+      <nav
+        aria-label="Primary"
+        className="flex max-h-5 flex-wrap items-center gap-x-5 gap-y-1 overflow-hidden pr-9 font-mono text-xs uppercase tracking-wider [mask-image:linear-gradient(90deg,#000_84%,transparent)] sm:max-h-none sm:overflow-visible sm:pr-0 sm:[mask-image:none]"
+      >
+        {links.map((link) => {
+          const active = isActive(pathname, link.href);
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              aria-current={active ? "page" : undefined}
+              className={`transition-colors hover:text-command-gold ${tone(active)}`}
+            >
+              {link.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Mobile-only toggle. Hidden from sm up, where the nav sits inline. */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-label={open ? "Close navigation" : "More navigation"}
+        className="absolute right-0 top-1/2 -translate-y-1/2 px-1 text-lg leading-none text-command-gold hover:text-gold-light focus-visible:outline-none sm:hidden"
+      >
+        {open ? "✕" : "≡"}
+      </button>
+
+      {open ? (
+        <div className="absolute right-0 top-full z-30 mt-2 min-w-44 overflow-hidden rounded-lg border border-panel-border bg-navy-dark shadow-[var(--elev-raise)] sm:hidden">
+          {links.map((link, i) => {
+            const active = isActive(pathname, link.href);
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={active ? "page" : undefined}
+                onClick={() => setOpen(false)}
+                className={`block px-4 py-2.5 font-mono text-xs uppercase tracking-wider transition-colors hover:bg-command-gold/[0.06] ${i === 0 ? "" : "border-t border-panel-border"} ${tone(active)}`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
   );
 }
