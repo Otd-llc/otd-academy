@@ -20,6 +20,7 @@
 import { Fragment, type CSSProperties, type ReactNode } from "react";
 import sanitizeHtml from "sanitize-html";
 import type { ContentBlock } from "@/lib/schemas/guide";
+import { scanIslands } from "@/lib/guide-islands";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
@@ -1441,23 +1442,42 @@ export function GuideBlocks({
   // ANY card — mislabelled the browser/bench cards (it told ORDERING and
   // ASSEMBLY learners to open KiCad) and double-announced the mode shift on the
   // ribboned cards, so it's been removed.
+  // Island jump-nav (guide-pacing plan). Anchors let the rail's scroll-spy and
+  // #island-NN deep-links target numbered sections. Anchored blocks get a
+  // scroll-mt wrapper; everything else renders unchanged so the space-y-5
+  // rhythm and PDF/readiness linear rendering are untouched.
+  const islands = scanIslands(blocks);
+  const anchorByIndex = new Map(islands.map((is) => [is.blockIndex, is.anchorId]));
+  // Task 4 mounts the rail here once the sandbox variant is chosen (add
+  // `RAIL_MIN_ISLANDS` to the import then):
+  //   const railKey = `${projectId ?? "anon"}:${cardId ?? "card"}`;
+  //   {islands.length >= RAIL_MIN_ISLANDS && <IslandRail islands={islands} storageKey={railKey} />}
   return (
     <div className="space-y-5">
-      {blocks.map((block, i) => (
-        <GuideBlock
-          key={i}
-          block={block}
-          index={i}
-          models={models}
-          bomRows={bomRows}
-          diagrams={diagrams}
-          quizContext={quizContext}
-          projectId={projectId}
-          isSignedIn={isSignedIn}
-          cardId={cardId}
-          isAdmin={isAdmin}
-        />
-      ))}
+      {blocks.map((block, i) => {
+        const anchorId = anchorByIndex.get(i);
+        const gb = (
+          <GuideBlock
+            block={block}
+            index={i}
+            models={models}
+            bomRows={bomRows}
+            diagrams={diagrams}
+            quizContext={quizContext}
+            projectId={projectId}
+            isSignedIn={isSignedIn}
+            cardId={cardId}
+            isAdmin={isAdmin}
+          />
+        );
+        return anchorId ? (
+          <div key={i} id={anchorId} className="scroll-mt-24">
+            {gb}
+          </div>
+        ) : (
+          <Fragment key={i}>{gb}</Fragment>
+        );
+      })}
     </div>
   );
 }
