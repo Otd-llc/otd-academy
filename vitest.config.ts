@@ -75,6 +75,10 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: false,
+    // Fast-fail if the test-branch pool is behind the schema (stale-pool drift)
+    // with one clear message instead of hundreds of "column (not available)".
+    // No-op when no pool is configured (CI). See vitest.global-setup.ts.
+    globalSetup: ["./vitest.global-setup.ts"],
     testTimeout: 30_000,
     // Backstop for rare transient flakes (lease handoff, Neon cold-start): a real
     // failure still fails all attempts; an infra blip recovers. The action layer
