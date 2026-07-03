@@ -161,9 +161,12 @@ export default async function RootLayout({
             // App-shell chrome renders for signed-in users plus anonymous
             // visitors on PUBLIC routes (the SEO funnel); `/sign-in` stays a
             // clean full-bleed boot screen (shouldRenderChrome returns false).
-            // Header is `z-20` so the sticky bar stays below the `z-50` tooltips
-            // that portal above it.
-            <header className="app-shell-header sticky top-0 z-20 flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-panel-border bg-deep-space px-4 py-2 print:hidden sm:px-6">
+            // Header is `z-40` so it (and its account / hamburger dropdowns) sits
+            // ABOVE the guide layer (rail / meter / resume pill at `z-30`), while
+            // staying below the `z-50` tooltips that portal above it. The two
+            // dropdowns order among themselves inside this context (account >
+            // hamburger).
+            <header className="app-shell-header sticky top-0 z-40 flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-panel-border bg-deep-space px-4 py-2 print:hidden sm:px-6">
               <Link
                 href="/"
                 aria-label="One Thousand Drones Academy home"

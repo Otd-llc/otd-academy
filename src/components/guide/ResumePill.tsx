@@ -38,7 +38,7 @@ export function ResumePill({ islands, storageKey, serverResume = null }: { islan
   };
 
   return (
-    <div className="fixed bottom-5 left-1/2 z-40 -translate-x-1/2">
+    <div className="fixed bottom-5 left-1/2 z-30 -translate-x-1/2">
       <div
         style={{
           display: "flex",
