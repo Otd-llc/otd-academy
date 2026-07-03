@@ -20,6 +20,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { coerceResume, type ResumeRecord } from "@/lib/resume-position";
 import { canonicalLessonPath } from "@/lib/seo/canonical";
 import {
   breadcrumbJsonLd,
@@ -526,12 +527,14 @@ export default async function GuideCardPage({
   let learnerHasProof = false; // has a PASSING proof on file
   let learnerProofInvalidDetail: string | null = null;
   let learnerCurrentStage: string | null = null;
+  let serverResume: ResumeRecord | null = null;
   if (learnerEmail && view.isLearnerView) {
     const enrollment = await db.enrollment.findFirst({
       where: { projectId: project.id, user: { email: learnerEmail } },
       select: {
         id: true,
         currentStage: true,
+        resumeState: true,
         quizPasses: { where: { stage }, select: { stage: true } },
         artifacts: {
           where: proofArtifact ? { subkind: proofArtifact.subkind } : undefined,
@@ -542,6 +545,10 @@ export default async function GuideCardPage({
     });
     if (enrollment) {
       learnerCurrentStage = enrollment.currentStage;
+      const rs = enrollment.resumeState;
+      if (rs && typeof rs === "object" && !Array.isArray(rs)) {
+        serverResume = coerceResume((rs as Record<string, unknown>)[stage]);
+      }
       learnerQuizPassed = enrollment.quizPasses.length > 0;
       learnerQuizContext = {
         enrollmentId: enrollment.id,
@@ -658,6 +665,8 @@ export default async function GuideCardPage({
           isSignedIn={!!sessionEmail}
           cardId={card.id}
           isAdmin={isAdmin}
+          stage={stage}
+          serverResume={serverResume}
         />
       </GuideCardEditor>
 

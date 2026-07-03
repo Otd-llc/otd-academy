@@ -17,7 +17,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Island } from "@/lib/guide-islands";
-import { readResume, writeResume } from "@/lib/resume-position";
+import { mergeResume, readResume, writeResume, type ResumeRecord } from "@/lib/resume-position";
 
 type NodeState = "active" | "visited" | "unvisited";
 
@@ -32,17 +32,78 @@ function SairaNum({ children, st, size }: { children: React.ReactNode; st: NodeS
   );
 }
 
-export function IslandRail({ islands, storageKey }: { islands: Island[]; storageKey: string }) {
+export function IslandRail({
+  islands,
+  storageKey,
+  serverResume = null,
+  syncProjectId,
+  syncStage,
+}: {
+  islands: Island[];
+  storageKey: string;
+  // Signed-in cross-device layer (Task 7). serverResume seeds local on mount;
+  // syncProjectId/syncStage enable the debounced saveResume() push.
+  serverResume?: ResumeRecord | null;
+  syncProjectId?: string;
+  syncStage?: string;
+}) {
   const [activeIdx, setActiveIdx] = useState(-1);
   const [visited, setVisited] = useState<Set<string>>(() => new Set());
   const reduceRef = useRef(false);
+  const saveTimer = useRef(0);
+  const pendingRec = useRef<ResumeRecord | null>(null);
 
-  // Restore persisted visited ticks + note reduced-motion (client only).
+  // Merge the server record into local on mount (union visited, newer position
+  // wins) and seed local so the ResumePill offers the cross-device position.
   useEffect(() => {
-    const rec = readResume(storageKey);
-    if (rec) setVisited(new Set(rec.visited));
+    const merged = mergeResume(readResume(storageKey), serverResume);
+    if (merged) {
+      setVisited(new Set(merged.visited));
+      writeResume(storageKey, merged);
+    }
     reduceRef.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  }, [storageKey]);
+  }, [storageKey, serverResume]);
+
+  // The saveResume server action is imported DYNAMICALLY (inside the callback),
+  // not statically — a static import pulls @/auth → next-auth → next/server into
+  // this client component's module graph, which the jsdom unit-test env can't
+  // resolve. Deferring it keeps the load graph client-only.
+  const pushToServer = useCallback(
+    (rec: ResumeRecord) => {
+      if (!syncProjectId || !syncStage) return;
+      void import("@/lib/actions/resume").then((m) => m.saveResume(syncProjectId, syncStage, rec));
+    },
+    [syncProjectId, syncStage],
+  );
+
+  // Debounced cross-device push: at most one saveResume / 30s, carrying the
+  // latest record (leading schedule, trailing value). Flushed on unmount.
+  const scheduleServerSave = useCallback(
+    (rec: ResumeRecord) => {
+      if (!syncProjectId || !syncStage) return;
+      pendingRec.current = rec;
+      if (saveTimer.current) return;
+      saveTimer.current = window.setTimeout(() => {
+        saveTimer.current = 0;
+        const r = pendingRec.current;
+        pendingRec.current = null;
+        if (r) pushToServer(r);
+      }, 30000);
+    },
+    [syncProjectId, syncStage, pushToServer],
+  );
+
+  useEffect(
+    () => () => {
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = 0;
+        const r = pendingRec.current;
+        if (r) pushToServer(r);
+      }
+    },
+    [pushToServer],
+  );
 
   // Scroll-spy: recompute active + visited from live rects, throttled by rAF.
   useEffect(() => {
@@ -101,8 +162,10 @@ export function IslandRail({ islands, storageKey }: { islands: Island[]; storage
     if (activeIdx < 1) return;
     const anchorId = islands[activeIdx]?.anchorId;
     if (!anchorId) return;
-    writeResume(storageKey, { anchorId, visited: [...visited], ts: Date.now() });
-  }, [activeIdx, visited, islands, storageKey]);
+    const rec: ResumeRecord = { anchorId, visited: [...visited], ts: Date.now() };
+    writeResume(storageKey, rec);
+    scheduleServerSave(rec);
+  }, [activeIdx, visited, islands, storageKey, scheduleServerSave]);
 
   const go = useCallback((anchorId: string) => {
     const el = document.getElementById(anchorId);

@@ -9,9 +9,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Island } from "@/lib/guide-islands";
-import { readResume } from "@/lib/resume-position";
+import { mergeResume, readResume, type ResumeRecord } from "@/lib/resume-position";
 
-export function ResumePill({ islands, storageKey }: { islands: Island[]; storageKey: string }) {
+export function ResumePill({ islands, storageKey, serverResume = null }: { islands: Island[]; storageKey: string; serverResume?: ResumeRecord | null }) {
   const [target, setTarget] = useState<Island | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const reduceRef = useRef(false);
@@ -19,12 +19,12 @@ export function ResumePill({ islands, storageKey }: { islands: Island[]; storage
   useEffect(() => {
     reduceRef.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (window.location.hash) return; // deep-linked in — respect their target
-    const rec = readResume(storageKey);
+    const rec = mergeResume(readResume(storageKey), serverResume); // cross-device: newer position wins
     if (!rec) return;
     if (!rec.anchorId || rec.anchorId === islands[0]?.anchorId) return; // nothing to resume
     const island = islands.find((i) => i.anchorId === rec.anchorId);
     if (island) setTarget(island);
-  }, [islands, storageKey]);
+  }, [islands, storageKey, serverResume]);
 
   if (!target || dismissed) return null;
 

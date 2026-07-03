@@ -13,16 +13,24 @@ export function resumeKey(projectId: string | undefined, cardId: string | undefi
   return `otd:resume:${projectId ?? "anon"}:${cardId ?? "card"}`;
 }
 
+// Validate an untrusted value (localStorage JSON, or a DB Json column) into a
+// ResumeRecord, or null. Shared by the client read and the server-side read.
+export function coerceResume(value: unknown): ResumeRecord | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const r = value as Record<string, unknown>;
+  if (typeof r.anchorId === "string" && Array.isArray(r.visited) && r.visited.every((v) => typeof v === "string") && typeof r.ts === "number") {
+    return { anchorId: r.anchorId, visited: r.visited as string[], ts: r.ts };
+  }
+  return null;
+}
+
 export function readResume(key: string): ResumeRecord | null {
   try {
     const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const rec = JSON.parse(raw) as ResumeRecord;
-    if (typeof rec?.anchorId === "string" && Array.isArray(rec.visited) && typeof rec.ts === "number") return rec;
+    return raw ? coerceResume(JSON.parse(raw)) : null;
   } catch {
-    /* private mode / bad JSON */
+    return null; // private mode / bad JSON
   }
-  return null;
 }
 
 export function writeResume(key: string, rec: ResumeRecord): void {

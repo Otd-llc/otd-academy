@@ -24,6 +24,7 @@ import { scanIslands, RAIL_MIN_ISLANDS, deriveSetupRanges } from "@/lib/guide-is
 import { IslandRail } from "@/components/guide/IslandRail";
 import { ResumePill } from "@/components/guide/ResumePill";
 import { SetupBand } from "@/components/guide/SetupBand";
+import type { ResumeRecord } from "@/lib/resume-position";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
@@ -1428,6 +1429,8 @@ export function GuideBlocks({
   isSignedIn,
   cardId,
   isAdmin,
+  stage,
+  serverResume = null,
 }: {
   blocks: ContentBlock[];
   models?: Record<string, ResolvedModel>;
@@ -1438,6 +1441,10 @@ export function GuideBlocks({
   isSignedIn?: boolean;
   cardId?: string;
   isAdmin?: boolean;
+  // Resume-position sync (Task 7): the current stage + the signed-in learner's
+  // server record for it, merged with localStorage by the rail/pill.
+  stage?: string;
+  serverResume?: ResumeRecord | null;
 }) {
   // Phase signposting is now carried by the per-card "Mode · …" ribbons
   // (ModeBandBlock) and the gold "Do ·" action blocks. The old hard-coded
@@ -1509,9 +1516,17 @@ export function GuideBlocks({
 
   return (
     <div className="space-y-5">
-      {showRail ? <IslandRail islands={islands} storageKey={railKey} /> : null}
+      {showRail ? (
+        <IslandRail
+          islands={islands}
+          storageKey={railKey}
+          serverResume={serverResume}
+          syncProjectId={isSignedIn ? projectId : undefined}
+          syncStage={isSignedIn ? stage : undefined}
+        />
+      ) : null}
       {out}
-      {showRail ? <ResumePill islands={islands} storageKey={railKey} /> : null}
+      {showRail ? <ResumePill islands={islands} storageKey={railKey} serverResume={serverResume} /> : null}
     </div>
   );
 }
