@@ -136,9 +136,10 @@ export function scanIslands(blocks: ContentBlock[]): Island[] {
    - D: A with v2 ticks shown (visited = filled hex, current = ringed)
    - E: mobile chip strip (sticky under header, horizontal scroll) — render in a phone-width frame
    - F: E variant with mode-colour accents (orient/do/check tint per island)
-3. Each variant labelled, with active/visited/unvisited states visible. Dev-only guard: `if (process.env.NODE_ENV === "production") notFound()`.
-4. Josh reviews at `localhost:3000/sandbox/island-rail`, picks desktop + mobile winners. **Do not proceed to Task 4 without the pick.**
-5. Commit the sandbox (it rides the branch; removed in Task 9).
+3. **LIGHT + DARK toggle (amended 2026-07-02).** The page carries a theme switch that flips a scoped `[data-theme="light"]` wrapper around the whole variant grid, using the token values from the `otd-light-mode` skill's `references/light-tokens.md`. Every variant must be rendered token-only so it flips cleanly — this doubles as the var-override architecture proof (a hardcoded colour will visibly fail to flip, exposing the bug in the sandbox). Josh picks winners seeing BOTH themes. Read `otd-light-mode` for the token block.
+4. Each variant labelled, with active/visited/unvisited states visible. Dev-only guard: `if (process.env.NODE_ENV === "production") notFound()`.
+5. Josh reviews at `localhost:3000/sandbox/island-rail`, picks desktop + mobile winners in BOTH themes. **Do not proceed to Task 4 without the pick.**
+6. Commit the sandbox (it rides the branch; removed in Task 9).
 
 ---
 
