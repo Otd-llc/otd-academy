@@ -1,13 +1,12 @@
 "use client";
 
 // TEMP sandbox (guide-pacing Task 3) — deleted before the PR (Task 9).
-// ROUND 2: variations of variant B (dot + gold hairline spine), Josh's lean,
-// plus the fixed mobile chip strips (E/F). Josh picks one desktop B* + one
-// mobile in the browser, in BOTH themes.
+// ROUND 3: variations of B3 (the numbered dot rail), Josh's lean, plus the
+// mobile chip strips (E/F). Axes explored: number POSITION (right of dot / on
+// the spine / left gutter) and FACE (mono vs the house Saira numeral).
 //
-// Everything is TOKEN-ONLY (var(--color-*) / token utilities). The theme flip
-// drives the REAL shipped :root[data-theme="light"] override in globals.css, so
-// any accidental hardcoded colour visibly fails to flip.
+// Token-only; the theme flip drives the REAL shipped :root[data-theme="light"]
+// override, so any hardcoded colour visibly fails to flip.
 
 import { useEffect, useState } from "react";
 
@@ -26,7 +25,6 @@ type IState = "visited" | "active" | "unvisited";
 const stateOf = (i1: number, active: number): IState =>
   i1 < active ? "visited" : i1 === active ? "active" : "unvisited";
 
-// Demo mode mapping for variant F, matching the guide ModeBandBlock palette.
 const modeOf = (i1: number): "orient" | "do" | "check" =>
   i1 <= 2 ? "orient" : i1 >= 7 ? "check" : "do";
 const MODE_TOKEN: Record<string, string> = {
@@ -35,69 +33,109 @@ const MODE_TOKEN: Record<string, string> = {
   check: "var(--color-status-green)",
 };
 
-type DotMode = "baseline" | "progress" | "numbered" | "labelled";
+/* ── B3 family — numbered rail ──────────────────────────────────── */
+type NumStyle = "num-right" | "num-node" | "num-node-saira" | "num-left";
 
-/* ── VARIANT B family — dot + gold hairline spine ───────────────── */
-function DotRail({ active, onPick, mode }: { active: number; onPick: (n: number) => void; mode: DotMode }) {
+function NumRail({ active, onPick, styleId }: { active: number; onPick: (n: number) => void; styleId: NumStyle }) {
   const n = ISLANDS.length;
-  const rowH = 22;
+  const rowH = 24;
   const gap = 14;
   const pad = 6;
   const center = (i0: number) => pad + i0 * (rowH + gap) + rowH / 2;
   const first = center(0);
   const last = center(n - 1);
-  const act = center(active - 1);
-  const progress = mode === "progress";
-  return (
-    <div style={{ position: "relative", paddingBlock: pad, minWidth: 168 }}>
-      {/* faint full spine */}
-      <div
+  const node = styleId === "num-node" || styleId === "num-node-saira";
+  const saira = styleId === "num-node-saira";
+  const spineX = styleId === "num-left" ? 37 : node ? (saira ? 17 : 15) : 11;
+  const cols = styleId === "num-left" ? "26px 22px 1fr" : node ? `${saira ? 34 : 30}px 1fr` : "22px 1fr";
+  const minW = styleId === "num-left" ? 182 : 156;
+
+  const dot = (st: IState) => (
+    <span style={{ display: "flex", justifyContent: "center" }}>
+      <span
         style={{
-          position: "absolute",
-          left: 11,
-          top: first,
-          height: last - first,
-          width: 1,
-          background: progress
-            ? "color-mix(in srgb, var(--color-panel-border) 85%, transparent)"
-            : "color-mix(in srgb, var(--color-command-gold) 40%, transparent)",
+          width: st === "active" ? 13 : 9,
+          height: st === "active" ? 13 : 9,
+          borderRadius: 999,
+          background: st === "active" ? "var(--color-command-gold)" : st === "visited" ? "var(--color-gold-dim)" : "var(--color-deep-space)",
+          border: st === "unvisited" ? "1px solid color-mix(in srgb, var(--color-panel-border) 85%, transparent)" : undefined,
+          boxShadow: st === "active" ? "0 0 0 3px color-mix(in srgb, var(--color-command-gold) 28%, transparent)" : undefined,
+          transition: "all .3s",
         }}
       />
-      {/* progress gold spine (B2 only): line fills up to the active node */}
-      {progress ? (
-        <div style={{ position: "absolute", left: 11, top: first, height: Math.max(0, act - first), width: 1, background: "var(--color-command-gold)", transition: "height .3s" }} />
-      ) : null}
+    </span>
+  );
+
+  const numColor = (st: IState) => (st === "active" ? "var(--color-gold-light)" : st === "visited" ? "var(--color-command-gold)" : "var(--color-gray-3)");
+
+  const num = (is: (typeof ISLANDS)[number], st: IState) => (
+    <span
+      className={saira ? "font-numeral" : "font-mono"}
+      style={{
+        display: "inline-block",
+        fontSize: saira ? 18 : 11,
+        fontWeight: saira ? 800 : 700,
+        letterSpacing: saira ? "0.02em" : "0.16em",
+        color: numColor(st),
+        lineHeight: 1,
+        transition: "color .3s",
+        fontVariantNumeric: "tabular-nums",
+        ...(node
+          ? {
+              justifySelf: "center",
+              background: "var(--color-deep-space)",
+              padding: st === "active" ? "2px 5px" : "1px 5px",
+              border: st === "active" ? "1px solid var(--color-command-gold)" : "1px solid transparent",
+              borderRadius: 3,
+            }
+          : {}),
+        ...(styleId === "num-left" ? { justifySelf: "end", textAlign: "right" } : {}),
+      }}
+    >
+      {is.num}
+    </span>
+  );
+
+  const activeTitle = (is: (typeof ISLANDS)[number], st: IState) =>
+    st === "active" ? (
+      <span className="font-mono" style={{ fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--color-gold-light)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", paddingLeft: 8 }}>
+        {is.title}
+      </span>
+    ) : (
+      <span />
+    );
+
+  return (
+    <div style={{ position: "relative", paddingBlock: pad, minWidth: minW }}>
+      <div style={{ position: "absolute", left: spineX, top: first, height: last - first, width: 1, background: "color-mix(in srgb, var(--color-command-gold) 40%, transparent)" }} />
       <div style={{ display: "flex", flexDirection: "column", gap }}>
         {ISLANDS.map((is, i) => {
           const st = stateOf(i + 1, active);
-          const dotW = st === "active" ? 13 : 9;
-          const dotBg = st === "active" ? "var(--color-command-gold)" : st === "visited" ? "var(--color-gold-dim)" : "var(--color-deep-space)";
-          const txtColor = st === "active" ? "var(--color-gold-light)" : st === "visited" ? "var(--color-command-gold)" : "var(--color-muted)";
-          const label = mode === "numbered" ? is.num : mode === "labelled" ? `${is.num} · ${is.title}` : st === "active" ? is.title : "";
           return (
             <button
               key={is.num}
               onClick={() => onPick(i + 1)}
               title={`${is.num} · ${is.title}`}
               className="focus-visible:outline-none"
-              style={{ height: rowH, display: "grid", gridTemplateColumns: "22px 1fr", alignItems: "center", background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left" }}
+              style={{ height: rowH, display: "grid", gridTemplateColumns: cols, alignItems: "center", background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left" }}
             >
-              <span style={{ display: "flex", justifyContent: "center" }}>
-                <span
-                  style={{
-                    width: dotW,
-                    height: dotW,
-                    borderRadius: 999,
-                    background: dotBg,
-                    transition: "all .3s",
-                    border: st === "unvisited" ? "1px solid color-mix(in srgb, var(--color-panel-border) 85%, transparent)" : undefined,
-                    boxShadow: st === "active" ? "0 0 0 3px color-mix(in srgb, var(--color-command-gold) 28%, transparent)" : undefined,
-                  }}
-                />
-              </span>
-              <span className="font-mono" style={{ fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: txtColor, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", transition: "color .3s" }}>
-                {label}
-              </span>
+              {styleId === "num-left" ? (
+                <>
+                  {num(is, st)}
+                  {dot(st)}
+                  {activeTitle(is, st)}
+                </>
+              ) : node ? (
+                <>
+                  {num(is, st)}
+                  {activeTitle(is, st)}
+                </>
+              ) : (
+                <>
+                  {dot(st)}
+                  {num(is, st)}
+                </>
+              )}
             </button>
           );
         })}
@@ -146,7 +184,6 @@ function ChipStrip({ active, onPick, modeTint }: { active: number; onPick: (n: n
   );
 }
 
-/* ── mock block column the rail rides beside ────────────────────── */
 function MockBlocks() {
   return (
     <div className="space-y-5">
@@ -174,7 +211,6 @@ function Caption({ id, text }: { id: string; text: string }) {
   );
 }
 
-/* desktop variant cell: mock column (scrolls) with the rail stuck to the right */
 function DesktopCell({ id, text, rail }: { id: string; text: string; rail: React.ReactNode }) {
   return (
     <div>
@@ -191,9 +227,6 @@ function DesktopCell({ id, text, rail }: { id: string; text: string; rail: React
   );
 }
 
-/* mobile variant cell: phone-width frame, chip strip under a fake header.
-   Frame is a fixed-height flex column: header + strip are fixed, only the
-   block region scrolls (flex:1 + minHeight:0 — the piece that was missing). */
 function MobileCell({ id, text, modeTint }: { id: string; text: string; modeTint: boolean }) {
   const [active, setActive] = useState(4);
   return (
@@ -215,7 +248,7 @@ function MobileCell({ id, text, modeTint }: { id: string; text: string; modeTint
 
 export default function IslandRailSandbox() {
   const [theme, setTheme] = useState<string>("dark");
-  const [active, setActive] = useState(4); // shared across B1–B4 for like-for-like
+  const [active, setActive] = useState(4); // shared across B3a–B3d for like-for-like
 
   useEffect(() => {
     const original = document.documentElement.dataset.theme ?? "dark";
@@ -235,10 +268,10 @@ export default function IslandRailSandbox() {
     <main style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 24px 80px", color: "var(--color-text)" }}>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, borderBottom: "1px solid color-mix(in srgb, var(--color-command-gold) 40%, transparent)", paddingBottom: 16 }}>
         <div>
-          <div className="font-mono" style={{ fontSize: 10, letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--color-command-gold)" }}>▸ SANDBOX · GUIDE PACING · ROUND 2</div>
-          <h1 className="font-display" style={{ fontSize: 44, letterSpacing: "0.02em", color: "var(--color-title)", lineHeight: 1, marginTop: 6, WebkitTextStroke: "0.4px var(--color-title)" }}>Island rail — B variations</h1>
-          <p className="font-serif" style={{ fontSize: 14, color: "var(--color-muted)", marginTop: 8, maxWidth: 660 }}>
-            Four takes on the dot + gold-hairline spine (B). Click any node to move the active state (shared across all four). Mobile chip strips fixed below. Flip the theme to judge BOTH — pick one desktop B* + one mobile.
+          <div className="font-mono" style={{ fontSize: 10, letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--color-command-gold)" }}>▸ SANDBOX · GUIDE PACING · ROUND 3</div>
+          <h1 className="font-display" style={{ fontSize: 44, letterSpacing: "0.02em", color: "var(--color-title)", lineHeight: 1, marginTop: 6, WebkitTextStroke: "0.4px var(--color-title)" }}>Island rail — B3 variations</h1>
+          <p className="font-serif" style={{ fontSize: 14, color: "var(--color-muted)", marginTop: 8, maxWidth: 680 }}>
+            Four takes on the numbered rail: number right of the dot, number sitting on the spine (mono + Saira), and an outboard left-gutter index. Click any node to move the active state (shared). Mobile chip strips below. Flip the theme to judge BOTH — pick one desktop B3* + one mobile.
           </p>
         </div>
         <button
@@ -251,12 +284,12 @@ export default function IslandRailSandbox() {
       </div>
 
       <section style={{ marginTop: 32 }}>
-        <div className="font-mono" style={{ fontSize: 11, letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--color-muted)", marginBottom: 18 }}>Desktop · dot + hairline spine (hidden below xl in the real build)</div>
+        <div className="font-mono" style={{ fontSize: 11, letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--color-muted)", marginBottom: 18 }}>Desktop · numbered rail (hidden below xl in the real build)</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 28 }}>
-          <DesktopCell id="B1" text="baseline · icon-only, title on active" rail={<DotRail active={active} onPick={setActive} mode="baseline" />} />
-          <DesktopCell id="B2" text="progress spine · gold line fills to active" rail={<DotRail active={active} onPick={setActive} mode="progress" />} />
-          <DesktopCell id="B3" text="numbered · mono 01–08 always shown" rail={<DotRail active={active} onPick={setActive} mode="numbered" />} />
-          <DesktopCell id="B4" text="labelled · every island titled (mini-nav)" rail={<DotRail active={active} onPick={setActive} mode="labelled" />} />
+          <DesktopCell id="B3a" text="dot + mono number (right of dot)" rail={<NumRail active={active} onPick={setActive} styleId="num-right" />} />
+          <DesktopCell id="B3b" text="number-as-node · mono, sits on the spine" rail={<NumRail active={active} onPick={setActive} styleId="num-node" />} />
+          <DesktopCell id="B3c" text="number-as-node · Saira numeral (house face)" rail={<NumRail active={active} onPick={setActive} styleId="num-node-saira" />} />
+          <DesktopCell id="B3d" text="outboard index · number in a left gutter + dot" rail={<NumRail active={active} onPick={setActive} styleId="num-left" />} />
         </div>
       </section>
 
