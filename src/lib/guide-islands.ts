@@ -23,3 +23,38 @@ export function scanIslands(blocks: ContentBlock[]): Island[] {
   });
   return out;
 }
+
+// A "Setup · <title>" callout opens a collapsible "set up once" region that
+// swallows every following block until the next structural break — a "Mode · …"
+// band, a "NN · …" section header, another "Setup · …" callout, or the end of
+// the list. `end` is exclusive; the Setup callout itself is the range start
+// (the renderer uses its title for the band summary, not as body).
+const SETUP_LABEL_RE = /^setup\s*·\s*(.*)$/i;
+const MODE_LABEL_RE = /^mode\b/i;
+
+export interface SetupRange {
+  start: number;
+  end: number;
+  title: string;
+}
+
+function isStructuralBreak(b: ContentBlock): boolean {
+  if (b.type !== "callout") return false;
+  const label = b.label ?? "";
+  return MODE_LABEL_RE.test(label) || SECTION_LABEL_RE.test(label) || SETUP_LABEL_RE.test(label);
+}
+
+export function deriveSetupRanges(blocks: ContentBlock[]): SetupRange[] {
+  const out: SetupRange[] = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    if (b.type !== "callout") continue;
+    const m = (b.label ?? "").match(SETUP_LABEL_RE);
+    if (!m) continue;
+    let end = i + 1;
+    while (end < blocks.length && !isStructuralBreak(blocks[end]!)) end++;
+    out.push({ start: i, end, title: m[1].trim() });
+    i = end - 1; // resume scanning at the terminator (may be another Setup)
+  }
+  return out;
+}

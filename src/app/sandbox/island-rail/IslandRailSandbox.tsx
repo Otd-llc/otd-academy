@@ -8,6 +8,7 @@
 // override, so any hardcoded colour visibly fails to flip.
 
 import { useEffect, useState } from "react";
+import { SetupBand } from "@/components/guide/SetupBand";
 
 const ISLANDS = [
   { num: "01", title: "The regulator" },
@@ -310,6 +311,21 @@ export default function IslandRailSandbox() {
           <M3 />
           <M4 />
           <M5 />
+        </div>
+      </section>
+
+      <section style={{ marginTop: 44 }}>
+        <div className="font-mono" style={{ fontSize: 11, letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--color-muted)", marginBottom: 18 }}>Setup band (Task 5) · collapses the &quot;set up once&quot; preamble</div>
+        <div style={{ maxWidth: 620 }}>
+          <SetupBand title="Get KiCad + the starter open" count={3} storageKey="otd:resume:sandbox:demo">
+            <p className="font-serif" style={{ fontSize: 14, lineHeight: 1.6, color: "var(--color-text)" }}>Install KiCad 10 and open the starter project. This preamble is what collapses on a return visit so island 01 sits near the top.</p>
+            <p className="font-serif" style={{ fontSize: 14, lineHeight: 1.6, color: "var(--color-muted)" }}>A second placeholder line of setup guidance.</p>
+            <p className="font-serif" style={{ fontSize: 14, lineHeight: 1.6, color: "var(--color-muted)" }}>A third — three collapsed steps total.</p>
+          </SetupBand>
+          <div style={{ marginTop: 16 }}>
+            <div className="font-mono" style={{ fontSize: 10, letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--color-command-gold)" }}>▸ 01</div>
+            <div className="font-display" style={{ fontSize: 20, color: "var(--color-title)" }}>The regulator</div>
+          </div>
         </div>
       </section>
     </main>

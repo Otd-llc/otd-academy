@@ -20,8 +20,9 @@
 import { Fragment, type CSSProperties, type ReactNode } from "react";
 import sanitizeHtml from "sanitize-html";
 import type { ContentBlock } from "@/lib/schemas/guide";
-import { scanIslands, RAIL_MIN_ISLANDS } from "@/lib/guide-islands";
+import { scanIslands, RAIL_MIN_ISLANDS, deriveSetupRanges } from "@/lib/guide-islands";
 import { IslandRail } from "@/components/guide/IslandRail";
+import { SetupBand } from "@/components/guide/SetupBand";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
@@ -1454,33 +1455,61 @@ export function GuideBlocks({
   // Task 6's resume layer.
   const showRail = islands.length >= RAIL_MIN_ISLANDS;
   const railKey = `otd:resume:${projectId ?? "anon"}:${cardId ?? "card"}`;
+
+  // "Setup · …" ranges collapse into a SetupBand. Islands terminate a range, so
+  // no anchored block ever falls inside one — the two derivations don't collide.
+  const setupRanges = deriveSetupRanges(blocks);
+  const setupStart = new Map(setupRanges.map((r) => [r.start, r]));
+
+  // One block → its anchor-wrapped (or plain) element. Reused inside the band.
+  const renderBlock = (block: ContentBlock, i: number) => {
+    const anchorId = anchorByIndex.get(i);
+    const gb = (
+      <GuideBlock
+        block={block}
+        index={i}
+        models={models}
+        bomRows={bomRows}
+        diagrams={diagrams}
+        quizContext={quizContext}
+        projectId={projectId}
+        isSignedIn={isSignedIn}
+        cardId={cardId}
+        isAdmin={isAdmin}
+      />
+    );
+    return anchorId ? (
+      <div key={i} id={anchorId} className="scroll-mt-24">
+        {gb}
+      </div>
+    ) : (
+      <Fragment key={i}>{gb}</Fragment>
+    );
+  };
+
+  const out: ReactNode[] = [];
+  for (let i = 0; i < blocks.length; ) {
+    const range = setupStart.get(i);
+    if (range) {
+      // The Setup callout (range.start) becomes the band summary, not body.
+      const children: ReactNode[] = [];
+      for (let j = range.start + 1; j < range.end; j++) children.push(renderBlock(blocks[j]!, j));
+      out.push(
+        <SetupBand key={`setup-${i}`} title={range.title} count={range.end - range.start - 1} storageKey={railKey}>
+          {children}
+        </SetupBand>,
+      );
+      i = range.end;
+    } else {
+      out.push(renderBlock(blocks[i]!, i));
+      i++;
+    }
+  }
+
   return (
     <div className="space-y-5">
       {showRail ? <IslandRail islands={islands} storageKey={railKey} /> : null}
-      {blocks.map((block, i) => {
-        const anchorId = anchorByIndex.get(i);
-        const gb = (
-          <GuideBlock
-            block={block}
-            index={i}
-            models={models}
-            bomRows={bomRows}
-            diagrams={diagrams}
-            quizContext={quizContext}
-            projectId={projectId}
-            isSignedIn={isSignedIn}
-            cardId={cardId}
-            isAdmin={isAdmin}
-          />
-        );
-        return anchorId ? (
-          <div key={i} id={anchorId} className="scroll-mt-24">
-            {gb}
-          </div>
-        ) : (
-          <Fragment key={i}>{gb}</Fragment>
-        );
-      })}
+      {out}
     </div>
   );
 }
