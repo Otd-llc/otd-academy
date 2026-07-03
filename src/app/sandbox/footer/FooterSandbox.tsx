@@ -1,10 +1,10 @@
 "use client";
 
-// TEMP sandbox — footer redesign, 20 options (deleted before the PR). Every
-// variant carries a large brand-icon (bee) watermark, the field-guide idea
-// (the certificate/Library PDFs render a faint gold BrandMark as paper texture).
-// Token-only so the theme flip proves the var-override; a desktop/mobile toggle
-// constrains the preview width so each variant's reflow is visible.
+// TEMP sandbox — footer redesign CONVERGE round (deleted before the PR). Josh
+// picked F02 (bee bleeding off the right edge, columns left); LIGHT is right as-
+// is, but the DARK watermark is too faint (0.06 gold on near-black barely
+// reads). All 10 keep the F02 layout and vary ONLY the watermark, tuned per
+// theme via [data-theme] so LIGHT holds ~0.06 and DARK boosts independently.
 
 import { useEffect, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
@@ -15,28 +15,29 @@ const GROUPS: { h: string; links: [string, boolean][] }[] = [
   { h: "Account", links: [["Sign in", false], ["Pricing", false], ["Verify", false], ["License", false]] },
   { h: "Company", links: [["Main site", true], ["About", true], ["Contact", true]] },
 ];
-const ALL_LINKS: [string, boolean][] = GROUPS.flatMap((g) => g.links);
 const REGISTRY = ["Broken Arrow, OK · USA", "SAM.gov Registered · CAGE 1ZYS4", "UEI WDQXD9L9UFH3"];
 
-/* ── shared pieces ─────────────────────────────────────────────── */
-function Bee({ w, opacity, style }: { w: string; opacity: number; style: React.CSSProperties }) {
+/* theme-aware bee watermark: --od/--ol drive dark/light opacity, --cd/--cl the
+   tint; `.glow` adds a dark-only soft gold halo for edge definition. */
+function Bee({ w, od, ol, cd = "var(--color-command-gold)", cl = "var(--color-command-gold)", right, glow = false }: { w: string; od: number; ol: number; cd?: string; cl?: string; right: string; glow?: boolean }) {
+  const style = { position: "absolute", pointerEvents: "none", width: w, top: "50%", right, transform: "translateY(-50%)", "--od": String(od), "--ol": String(ol), "--cd": cd, "--cl": cl } as React.CSSProperties;
   return (
-    <div aria-hidden style={{ position: "absolute", pointerEvents: "none", color: "var(--color-command-gold)", width: w, opacity, ...style }}>
+    <div aria-hidden className={`beewm${glow ? " glow" : ""}`} style={style}>
       <BrandMark className="block h-auto w-full" />
     </div>
   );
 }
 
-function Wordmark({ center = false, tag = true, wm = "1.5rem", bee = "1.7rem" }: { center?: boolean; tag?: boolean; wm?: string; bee?: string }) {
+function Wordmark() {
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: center ? "center" : "flex-start" }}>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
       <span style={{ display: "inline-flex", alignItems: "center", gap: "0.6rem" }}>
-        <span style={{ width: bee, height: bee, color: "var(--color-command-gold)", display: "block", flexShrink: 0 }}>
+        <span style={{ width: "1.7rem", height: "1.7rem", color: "var(--color-command-gold)", display: "block", flexShrink: 0 }}>
           <BrandMark className="block h-full w-full" />
         </span>
-        <span className="font-display" style={{ fontSize: wm, letterSpacing: "0.1em", color: "var(--color-title)", lineHeight: 1 }}>ONE THOUSAND DRONES</span>
+        <span className="font-display" style={{ fontSize: "1.5rem", letterSpacing: "0.1em", color: "var(--color-title)", lineHeight: 1 }}>ONE THOUSAND DRONES</span>
       </span>
-      {tag ? <p className="font-mono" style={{ fontSize: 12, letterSpacing: "0.03em", color: "var(--color-gray-3)", marginTop: "0.7rem" }}>One mind, many machines.</p> : null}
+      <p className="font-mono" style={{ fontSize: 12, letterSpacing: "0.03em", color: "var(--color-gray-3)", marginTop: "0.7rem" }}>One mind, many machines.</p>
     </div>
   );
 }
@@ -53,34 +54,26 @@ function GroupHead({ children }: { children: React.ReactNode }) {
   return <span className="font-mono" style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--color-title)", marginBottom: "0.85rem" }}>{children}</span>;
 }
 
-function Groups({ style, withRegistry = true }: { style?: React.CSSProperties; withRegistry?: boolean }) {
+function Groups() {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "1.7rem 1.3rem", ...style }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "1.7rem 1.3rem", marginTop: "1.8rem", maxWidth: "70%" }}>
       {GROUPS.map((g) => (
         <div key={g.h} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
           <GroupHead>{g.h}</GroupHead>
           {g.links.map(([label, ext]) => <Link key={label} label={label} ext={ext} />)}
         </div>
       ))}
-      {withRegistry ? (
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <GroupHead>Registry</GroupHead>
-          <p className="font-mono" style={{ fontSize: 10.5, lineHeight: 1.85, letterSpacing: "0.04em", color: "var(--color-gray-3)" }}>
-            {REGISTRY.map((r, i) => (<span key={i}>{r}<br /></span>))}
-          </p>
-        </div>
-      ) : null}
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        <GroupHead>Registry</GroupHead>
+        <p className="font-mono" style={{ fontSize: 10.5, lineHeight: 1.85, letterSpacing: "0.04em", color: "var(--color-gray-3)" }}>
+          {REGISTRY.map((r, i) => (<span key={i}>{r}<br /></span>))}
+        </p>
+      </div>
     </div>
   );
 }
 
-function Copy({ center = false }: { center?: boolean }) {
-  return <p className="font-mono" style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-gray-3)", marginTop: "2rem", textAlign: center ? "center" : "left" }}>© 2026 One Thousand Drones, LLC</p>;
-}
-
-const HAIR = "1px solid color-mix(in srgb, var(--color-panel-border) 60%, transparent)";
-
-function Shell({ bee, children, raised = false }: { bee: React.ReactNode; children: React.ReactNode; raised?: boolean }) {
+function FooterF02({ bee }: { bee: React.ReactNode }) {
   return (
     <div
       style={{
@@ -88,301 +81,34 @@ function Shell({ bee, children, raised = false }: { bee: React.ReactNode; childr
         overflow: "hidden",
         borderTop: "1px solid transparent",
         borderImage: "linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-command-gold) 55%, transparent), transparent) 1",
-        background: raised
-          ? "var(--color-bg-2)"
-          : "radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--color-command-gold) 5%, transparent), transparent 60%), var(--color-deep-space)",
+        background: "radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--color-command-gold) 5%, transparent), transparent 60%), var(--color-deep-space)",
       }}
     >
       {bee}
-      <div style={{ position: "relative", maxWidth: "72rem", margin: "0 auto", padding: "3rem 1.5rem 2rem" }}>{children}</div>
+      <div style={{ position: "relative", maxWidth: "72rem", margin: "0 auto", padding: "3rem 1.5rem 2rem" }}>
+        <Wordmark />
+        <Groups />
+        <p className="font-mono" style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-gray-3)", marginTop: "2rem" }}>© 2026 One Thousand Drones, LLC</p>
+      </div>
     </div>
   );
 }
 
-/* ── 20 variants ───────────────────────────────────────────────── */
-type Variant = { id: string; desc: string; render: () => React.ReactNode };
-
-const inlineNav = (
-  <nav style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem 1.2rem" }}>
-    {ALL_LINKS.map(([label, ext]) => <Link key={label} label={label} ext={ext} />)}
-  </nav>
-);
+type Variant = { id: string; desc: string; bee: React.ReactNode };
+const GOLD = "var(--color-command-gold)";
+const GOLDL = "var(--color-gold-light)";
 
 const VARIANTS: Variant[] = [
-  {
-    id: "F01",
-    desc: "giant bee centered behind · brand left, columns right",
-    render: () => (
-      <Shell bee={<Bee w="62%" opacity={0.05} style={{ top: "50%", left: "50%", transform: "translate(-50%,-50%)" }} />}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "2.5rem", justifyContent: "space-between" }}>
-          <div style={{ maxWidth: 260 }}><Wordmark /></div>
-          <Groups style={{ flex: 1, minWidth: 300 }} />
-        </div>
-        <Copy />
-      </Shell>
-    ),
-  },
-  {
-    id: "F02",
-    desc: "bee bleeding off the RIGHT edge · columns left",
-    render: () => (
-      <Shell bee={<Bee w="46%" opacity={0.06} style={{ top: "50%", right: "-10%", transform: "translateY(-50%)" }} />}>
-        <Wordmark />
-        <Groups style={{ marginTop: "1.8rem", maxWidth: "70%" }} />
-        <Copy />
-      </Shell>
-    ),
-  },
-  {
-    id: "F03",
-    desc: "bee bleeding off the LEFT edge · columns right-aligned",
-    render: () => (
-      <Shell bee={<Bee w="46%" opacity={0.06} style={{ top: "50%", left: "-10%", transform: "translateY(-50%)" }} />}>
-        <div style={{ display: "flex", justifyContent: "flex-end" }}><Wordmark /></div>
-        <Groups style={{ marginTop: "1.8rem", marginLeft: "auto", maxWidth: "72%" }} />
-        <Copy center />
-      </Shell>
-    ),
-  },
-  {
-    id: "F04",
-    desc: "bee rising from the bottom-center (top of the bee shows)",
-    render: () => (
-      <Shell bee={<Bee w="52%" opacity={0.07} style={{ bottom: "-26%", left: "50%", transform: "translateX(-50%)" }} />}>
-        <div style={{ textAlign: "center" }}><Wordmark center /></div>
-        <Groups style={{ marginTop: "1.8rem" }} />
-        <Copy center />
-      </Shell>
-    ),
-  },
-  {
-    id: "F05",
-    desc: "oversized bee cropped bottom-right corner · minimal",
-    render: () => (
-      <Shell bee={<Bee w="38%" opacity={0.08} style={{ bottom: "-14%", right: "-6%" }} />}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "2rem", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <Wordmark />
-          {inlineNav}
-        </div>
-        <Copy />
-      </Shell>
-    ),
-  },
-  {
-    id: "F06",
-    desc: "bee backing the WORDMARK (large behind the brand block)",
-    render: () => (
-      <Shell bee={<Bee w="24%" opacity={0.11} style={{ top: "1.2rem", left: "0.6rem" }} />}>
-        <Wordmark wm="1.7rem" />
-        <Groups style={{ marginTop: "2rem" }} />
-        <Copy />
-      </Shell>
-    ),
-  },
-  {
-    id: "F07",
-    desc: "bee as a full-width faint band across the footer",
-    render: () => (
-      <Shell bee={<Bee w="120%" opacity={0.03} style={{ top: "50%", left: "50%", transform: "translate(-50%,-50%)" }} />}>
-        <Wordmark />
-        <Groups style={{ marginTop: "1.8rem" }} />
-        <Copy />
-      </Shell>
-    ),
-  },
-  {
-    id: "F08",
-    desc: "brand centered TOP over a hairline · columns below · bee behind",
-    render: () => (
-      <Shell bee={<Bee w="58%" opacity={0.05} style={{ top: "60%", left: "50%", transform: "translate(-50%,-50%)" }} />}>
-        <div style={{ textAlign: "center" }}><Wordmark center /></div>
-        <div style={{ borderTop: HAIR, margin: "1.6rem 0" }} />
-        <Groups />
-        <Copy center />
-      </Shell>
-    ),
-  },
-  {
-    id: "F09",
-    desc: "big Bebas wordmark dominant (brandTop) · slim column row",
-    render: () => (
-      <Shell bee={<Bee w="40%" opacity={0.06} style={{ top: "50%", right: "-6%", transform: "translateY(-50%)" }} />}>
-        <span className="font-display" style={{ fontSize: "clamp(2rem, 6vw, 3.4rem)", letterSpacing: "0.06em", color: "var(--color-title)", lineHeight: 0.95, display: "flex", alignItems: "center", gap: "1rem" }}>
-          <span style={{ width: "2.6rem", height: "2.6rem", color: "var(--color-command-gold)", flexShrink: 0 }}><BrandMark className="block h-full w-full" /></span>
-          ONE THOUSAND DRONES
-        </span>
-        <div style={{ borderTop: HAIR, margin: "1.6rem 0" }} />
-        <Groups />
-        <Copy />
-      </Shell>
-    ),
-  },
-  {
-    id: "F10",
-    desc: "inline single-row links · bee bottom-left corner",
-    render: () => (
-      <Shell bee={<Bee w="34%" opacity={0.08} style={{ bottom: "-12%", left: "-5%" }} />}>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "1.5rem" }}>
-          <Wordmark tag={false} />
-          {inlineNav}
-        </div>
-        <div style={{ borderTop: HAIR, margin: "1.4rem 0 0" }} />
-        <Copy />
-      </Shell>
-    ),
-  },
-  {
-    id: "F11",
-    desc: "GIANT bee (85%) barely-there · columns centered",
-    render: () => (
-      <Shell bee={<Bee w="85%" opacity={0.035} style={{ top: "50%", left: "50%", transform: "translate(-50%,-50%)" }} />}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <Wordmark center />
-          <Groups style={{ marginTop: "1.8rem", maxWidth: 720 }} />
-        </div>
-        <Copy center />
-      </Shell>
-    ),
-  },
-  {
-    id: "F12",
-    desc: "bee right-bleed · gold hairlines BETWEEN the link groups",
-    render: () => (
-      <Shell bee={<Bee w="44%" opacity={0.06} style={{ top: "50%", right: "-9%", transform: "translateY(-50%)" }} />}>
-        <Wordmark />
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", marginTop: "1.8rem" }}>
-          {GROUPS.map((g, i) => (
-            <div key={g.h} style={{ display: "flex", flexDirection: "column", padding: "0 1.2rem", borderLeft: i === 0 ? undefined : HAIR }}>
-              <GroupHead>{g.h}</GroupHead>
-              {g.links.map(([label, ext]) => <Link key={label} label={label} ext={ext} />)}
-            </div>
-          ))}
-        </div>
-        <Copy />
-      </Shell>
-    ),
-  },
-  {
-    id: "F13",
-    desc: "raised bg-2 band · bee centered · brand left",
-    render: () => (
-      <Shell raised bee={<Bee w="56%" opacity={0.05} style={{ top: "50%", left: "50%", transform: "translate(-50%,-50%)" }} />}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "2.5rem", justifyContent: "space-between" }}>
-          <div style={{ maxWidth: 260 }}><Wordmark /></div>
-          <Groups style={{ flex: 1, minWidth: 300 }} />
-        </div>
-        <Copy />
-      </Shell>
-    ),
-  },
-  {
-    id: "F14",
-    desc: "mono eyebrow ▸ COLOPHON + gold rule · bee behind",
-    render: () => (
-      <Shell bee={<Bee w="50%" opacity={0.05} style={{ top: "55%", right: "2%", transform: "translateY(-50%)" }} />}>
-        <div className="font-mono" style={{ fontSize: 10, letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--color-command-gold)", marginBottom: "1rem" }}>▸ Colophon</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "2.5rem", justifyContent: "space-between" }}>
-          <div style={{ maxWidth: 260 }}><Wordmark /></div>
-          <Groups style={{ flex: 1, minWidth: 300 }} />
-        </div>
-        <Copy />
-      </Shell>
-    ),
-  },
-  {
-    id: "F15",
-    desc: "defense-forward · registry featured · bee bottom-left",
-    render: () => (
-      <Shell bee={<Bee w="40%" opacity={0.07} style={{ bottom: "-16%", left: "-6%" }} />}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "2.5rem", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div style={{ maxWidth: 300 }}>
-            <Wordmark />
-            <p className="font-mono" style={{ fontSize: 10.5, lineHeight: 1.85, letterSpacing: "0.04em", color: "var(--color-gray-3)", marginTop: "1.2rem" }}>
-              {REGISTRY.map((r, i) => (<span key={i}>{r}<br /></span>))}
-            </p>
-          </div>
-          <Groups withRegistry={false} style={{ flex: 1, minWidth: 280 }} />
-        </div>
-        <Copy />
-      </Shell>
-    ),
-  },
-  {
-    id: "F16",
-    desc: "tagline set LARGE over the watermark · links below",
-    render: () => (
-      <Shell bee={<Bee w="60%" opacity={0.05} style={{ top: "42%", left: "50%", transform: "translate(-50%,-50%)" }} />}>
-        <Wordmark tag={false} />
-        <p className="font-display" style={{ fontSize: "clamp(1.4rem, 4vw, 2.2rem)", letterSpacing: "0.04em", color: "var(--color-command-gold)", margin: "1rem 0 1.8rem", lineHeight: 1 }}>ONE MIND, MANY MACHINES.</p>
-        <Groups />
-        <Copy />
-      </Shell>
-    ),
-  },
-  {
-    id: "F17",
-    desc: "brand centered · columns in a tight 4-up row · giant bee",
-    render: () => (
-      <Shell bee={<Bee w="78%" opacity={0.04} style={{ top: "55%", left: "50%", transform: "translate(-50%,-50%)" }} />}>
-        <div style={{ textAlign: "center", marginBottom: "1.8rem" }}><Wordmark center /></div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "1.4rem", justifyItems: "center" }}>
-          {GROUPS.map((g) => (
-            <div key={g.h} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <GroupHead>{g.h}</GroupHead>
-              {g.links.map(([label, ext]) => <Link key={label} label={label} ext={ext} />)}
-            </div>
-          ))}
-        </div>
-        <Copy center />
-      </Shell>
-    ),
-  },
-  {
-    id: "F18",
-    desc: "bee as a vertical sliver on the right · content fills left",
-    render: () => (
-      <Shell bee={<Bee w="64%" opacity={0.06} style={{ top: "50%", right: "-30%", transform: "translateY(-50%)" }} />}>
-        <div style={{ maxWidth: "78%" }}>
-          <Wordmark />
-          <Groups style={{ marginTop: "1.8rem" }} />
-        </div>
-        <Copy />
-      </Shell>
-    ),
-  },
-  {
-    id: "F19",
-    desc: "compact · brand + inline links one line · bee top-bleed",
-    render: () => (
-      <Shell bee={<Bee w="48%" opacity={0.05} style={{ top: "-30%", left: "50%", transform: "translateX(-50%)" }} />}>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "1.2rem" }}>
-          <Wordmark tag={false} wm="1.2rem" bee="1.4rem" />
-          {inlineNav}
-          <span className="font-mono" style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-gray-3)" }}>© 2026 OTD, LLC</span>
-        </div>
-      </Shell>
-    ),
-  },
-  {
-    id: "F20",
-    desc: "two-band · wordmark band (bg-2) over a columns band · bee split",
-    render: () => (
-      <div>
-        <div style={{ position: "relative", overflow: "hidden", background: "var(--color-bg-2)", borderTop: "1px solid transparent", borderImage: "linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-command-gold) 55%, transparent), transparent) 1" }}>
-          <Bee w="30%" opacity={0.09} style={{ top: "50%", right: "3%", transform: "translateY(-50%)" }} />
-          <div style={{ position: "relative", maxWidth: "72rem", margin: "0 auto", padding: "2rem 1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
-            <Wordmark />
-          </div>
-        </div>
-        <div style={{ position: "relative", overflow: "hidden", background: "var(--color-deep-space)" }}>
-          <div style={{ position: "relative", maxWidth: "72rem", margin: "0 auto", padding: "2.2rem 1.5rem 2rem" }}>
-            <Groups />
-            <Copy />
-          </div>
-        </div>
-      </div>
-    ),
-  },
+  { id: "W01", desc: "baseline F02 · dark .06 / light .06 (the too-faint dark reference)", bee: <Bee w="46%" od={0.06} ol={0.06} right="-10%" /> },
+  { id: "W02", desc: "dark .10 / light .06", bee: <Bee w="46%" od={0.1} ol={0.06} right="-10%" /> },
+  { id: "W03", desc: "dark .14 / light .06", bee: <Bee w="46%" od={0.14} ol={0.06} right="-10%" /> },
+  { id: "W04", desc: "dark .18 / light .05 (strongest)", bee: <Bee w="46%" od={0.18} ol={0.05} right="-10%" /> },
+  { id: "W05", desc: "dark .14 in gold-LIGHT tint (brighter gold) / light .06 command-gold", bee: <Bee w="46%" od={0.14} ol={0.06} cd={GOLDL} cl={GOLD} right="-10%" /> },
+  { id: "W06", desc: "bigger bee 58% · dark .10 / light .05", bee: <Bee w="58%" od={0.1} ol={0.05} right="-12%" /> },
+  { id: "W07", desc: "more bleed (56%, right -22%, only the front shows) · dark .13 / light .06", bee: <Bee w="56%" od={0.13} ol={0.06} right="-22%" /> },
+  { id: "W08", desc: "dark .12 + soft gold GLOW (edge pop, dark only) / light .06", bee: <Bee w="46%" od={0.12} ol={0.06} right="-10%" glow /> },
+  { id: "W09", desc: "shifted in-frame (right -4%, more of the bee) · dark .16 / light .07", bee: <Bee w="46%" od={0.16} ol={0.07} right="-4%" /> },
+  { id: "W10", desc: "two-tone brightness · dark gold-LIGHT .15 / light command-gold .07 · 50%", bee: <Bee w="50%" od={0.15} ol={0.07} cd={GOLDL} cl={GOLD} right="-10%" /> },
 ];
 
 export default function FooterSandbox() {
@@ -407,12 +133,19 @@ export default function FooterSandbox() {
 
   return (
     <main style={{ margin: "0 auto", padding: "40px 24px 80px", color: "var(--color-text)", maxWidth: 1240 }}>
+      <style>{`
+        .beewm { color: var(--color-command-gold); opacity: .06; }
+        [data-theme="dark"] .beewm { opacity: var(--od, .06); color: var(--cd, var(--color-command-gold)); }
+        [data-theme="light"] .beewm { opacity: var(--ol, .06); color: var(--cl, var(--color-command-gold)); }
+        [data-theme="dark"] .beewm.glow { filter: drop-shadow(0 0 26px color-mix(in srgb, var(--color-command-gold) 45%, transparent)); }
+      `}</style>
+
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, borderBottom: "1px solid color-mix(in srgb, var(--color-command-gold) 40%, transparent)", paddingBottom: 16 }}>
         <div>
-          <div className="font-mono" style={{ fontSize: 10, letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--color-command-gold)" }}>▸ SANDBOX · FOOTER REDESIGN</div>
-          <h1 className="font-display" style={{ fontSize: 44, letterSpacing: "0.02em", color: "var(--color-title)", lineHeight: 1, marginTop: 6 }}>Footer — 20 options</h1>
-          <p className="font-serif" style={{ fontSize: 14, color: "var(--color-muted)", marginTop: 8, maxWidth: 680 }}>
-            Every variant carries a large bee watermark (the field-guide idea). Flip the theme to judge BOTH; toggle Mobile to see each variant reflow at phone width. Pick a favourite (or a favourite + tweaks).
+          <div className="font-mono" style={{ fontSize: 10, letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--color-command-gold)" }}>▸ SANDBOX · FOOTER · F02 WATERMARK CONVERGE</div>
+          <h1 className="font-display" style={{ fontSize: 44, letterSpacing: "0.02em", color: "var(--color-title)", lineHeight: 1, marginTop: 6 }}>F02 · 10 watermark takes</h1>
+          <p className="font-serif" style={{ fontSize: 14, color: "var(--color-muted)", marginTop: 8, maxWidth: 700 }}>
+            Same F02 layout, watermark tuned for DARK visibility while LIGHT holds where you approved it (~.06). Flip the theme to compare — the dark values differ per variant, light barely moves. Toggle Mobile for the reflow.
           </p>
         </div>
         <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
@@ -427,8 +160,8 @@ export default function FooterSandbox() {
             <div className="font-mono" style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--color-command-gold)", marginBottom: 10 }}>
               ▸ {v.id} · <span style={{ color: "var(--color-muted)" }}>{v.desc}</span>
             </div>
-            <div style={{ width: mobile ? 390 : "100%", maxWidth: "100%", margin: mobile ? "0 auto" : undefined, border: HAIR, borderRadius: 14, overflow: "hidden" }}>
-              {v.render()}
+            <div style={{ width: mobile ? 390 : "100%", maxWidth: "100%", margin: mobile ? "0 auto" : undefined, border: "1px solid color-mix(in srgb, var(--color-panel-border) 60%, transparent)", borderRadius: 14, overflow: "hidden" }}>
+              <FooterF02 bee={v.bee} />
             </div>
           </div>
         ))}
