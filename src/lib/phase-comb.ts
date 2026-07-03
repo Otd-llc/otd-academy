@@ -68,3 +68,21 @@ export function combGlyph(state: CombState, ordinal: number): string {
     ? "✓"
     : String(ordinal + 1).padStart(2, "0");
 }
+
+// Three-letter stage abbreviations for the hex faces (top comb only), mirroring
+// StageTracker's STAGE_SHORT. Unknown stages fall back to their first 3 letters.
+const STAGE_ABBR: Record<string, string> = {
+  REQUIREMENTS: "REQ",
+  BOM_SOURCING: "BOM",
+  SCHEMATIC: "SCH",
+  LAYOUT: "LAY",
+  DRC_GERBER: "DRC",
+  ORDERING: "ORD",
+  ASSEMBLY: "ASM",
+  BRINGUP: "BRG",
+  REVISION: "REV",
+};
+
+export function combAbbr(stage: string): string {
+  return STAGE_ABBR[stage] ?? stage.slice(0, 3).toUpperCase();
+}
