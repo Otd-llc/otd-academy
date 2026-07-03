@@ -17,8 +17,8 @@ describe("scanIslands", () => {
     const blocks = [co("Check yourself"), co("Mode · do · Build it"), prose()];
     expect(scanIslands(blocks)).toEqual([]);
   });
-  it("RAIL_MIN_ISLANDS gates 2-section cards", () => {
-    expect(RAIL_MIN_ISLANDS).toBe(3);
+  it("RAIL_MIN_ISLANDS shows the rail from 2 sections up (only 0/1 skip it)", () => {
+    expect(RAIL_MIN_ISLANDS).toBe(2);
   });
 });
 

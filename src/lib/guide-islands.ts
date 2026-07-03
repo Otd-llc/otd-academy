@@ -4,7 +4,10 @@
 import type { ContentBlock } from "@/lib/schemas/guide";
 
 export const SECTION_LABEL_RE = /^(\d+)\s*·\s*(.*)$/;
-export const RAIL_MIN_ISLANDS = 3;
+// The rail shows on every card with >= 2 numbered sections (all stages should
+// have pacing; DRC_GERBER + ORDERING have exactly 2). Only a 0/1-section card
+// skips it.
+export const RAIL_MIN_ISLANDS = 2;
 
 export interface Island {
   num: string;

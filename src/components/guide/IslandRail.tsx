@@ -49,6 +49,7 @@ export function IslandRail({
 }) {
   const [activeIdx, setActiveIdx] = useState(-1);
   const [visited, setVisited] = useState<Set<string>>(() => new Set());
+  const [headerH, setHeaderH] = useState(0); // sticky offset for the mobile meter
   const reduceRef = useRef(false);
   const saveTimer = useRef(0);
   const pendingRec = useRef<ResumeRecord | null>(null);
@@ -63,6 +64,26 @@ export function IslandRail({
     }
     reduceRef.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }, [storageKey, serverResume]);
+
+  // The mobile meter is sticky; offset it below the app header (which is sticky
+  // + flex-wrap, so its height GROWS when the menu wraps on narrow screens). A
+  // ResizeObserver keeps the offset correct as the header reflows.
+  useEffect(() => {
+    const header = document.querySelector<HTMLElement>(".app-shell-header") ?? document.querySelector<HTMLElement>("header");
+    if (!header) return;
+    const measure = () => {
+      const pos = getComputedStyle(header).position;
+      setHeaderH(pos === "sticky" || pos === "fixed" ? Math.round(header.getBoundingClientRect().height) : 0);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(header);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
 
   // The saveResume server action is imported DYNAMICALLY (inside the callback),
   // not statically — a static import pulls @/auth → next-auth → next/server into
@@ -226,8 +247,8 @@ export function IslandRail({
           the `xl:hidden` class (inline style beats a Tailwind class). */}
       <nav
         aria-label="Section progress"
-        className="xl:hidden sticky top-0 z-30"
-        style={{ background: "var(--color-deep-space)", borderBottom: "1px solid color-mix(in srgb, var(--color-panel-border) 60%, transparent)", padding: "9px 2px" }}
+        className="xl:hidden sticky z-30"
+        style={{ top: headerH, background: "var(--color-deep-space)", borderBottom: "1px solid color-mix(in srgb, var(--color-panel-border) 60%, transparent)", padding: "9px 2px" }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
