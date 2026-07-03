@@ -290,10 +290,17 @@ body {
    positioned in percent, so the ribbon scales with its width (no JS). The number
    face rides container-query units off `container-type: inline-size`. */
 .pc-comb { position: relative; width: 100%; max-width: 340px; margin: 0 auto; aspect-ratio: 300 / 62.354; list-style: none; padding: 0; container-type: inline-size; }
-.pc-node { position: absolute; width: 16%; aspect-ratio: 48 / 41.57; display: flex; align-items: center; justify-content: center; text-decoration: none; }
+.pc-node { position: absolute; width: 16%; aspect-ratio: 48 / 41.57; display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; }
 .pc-node svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .pc-node polygon { fill: transparent; stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 1.5; stroke-linejoin: round; transition: stroke 0.4s, fill 0.4s; }
 .pc-num { position: relative; z-index: 2; font-family: var(--font-numeral); font-weight: 800; font-size: 5cqw; line-height: 1; color: var(--color-gray-3); transition: color 0.4s; }
+/* three-letter stage label under the numeral, TOP comb only (mono, quieter than
+   the numeral). Tones track the numeral so it reads on every hex fill. */
+.pc-abbr { position: relative; z-index: 2; font-family: var(--font-mono); font-weight: 700; font-size: 2.2cqw; letter-spacing: 0.12em; line-height: 1; margin-top: 0.7cqw; color: var(--color-gray-3); transition: color 0.4s; }
+.pc-node.complete .pc-abbr { color: var(--color-deep-space); }
+.pc-node.current .pc-abbr { color: var(--color-gold-light); }
+.pc-node.viewing .pc-abbr { color: var(--color-gold-light); }
+.pc-node.blocked .pc-abbr { color: var(--color-alert-red); }
 .pc-node.complete polygon { fill: url(#pc-honey); stroke: var(--color-command-gold); }
 .pc-node.complete .pc-num { color: var(--color-deep-space); }
 .pc-node.current polygon { stroke: var(--color-command-gold); stroke-width: 2; }
@@ -1170,6 +1177,9 @@ body {
 .app-footer {
   font-family: var(--font-mono), monospace;
   color: var(--color-muted);
+  /* Clip the bee watermark at the VIEWPORT edge (not the 72rem content column),
+     so it bleeds off-screen instead of cutting off mid-page on wide desktops. */
+  overflow: hidden;
   border-top: 1px solid transparent;
   border-image: linear-gradient(
       90deg,
@@ -1187,9 +1197,31 @@ body {
     var(--color-deep-space);
 }
 .foot-inner {
+  position: relative;
+  z-index: 0; /* stacking context so the bee watermark sits behind the colophon */
   max-width: 72rem;
   margin: 0 auto;
   padding: 3.2rem 1.5rem 2.4rem;
+}
+/* Brand-icon watermark. Desktop: bleeds off the right edge, columns kept clear
+   on the left. Opacity is W02 — deeper on dark (near-black needs it), lighter on
+   the ivory paper (see the light override below). */
+.foot-wm-bee {
+  position: absolute;
+  z-index: -1;
+  top: 50%;
+  right: -8%;
+  transform: translateY(-50%);
+  width: 46%;
+  max-width: 620px;
+  color: var(--color-command-gold);
+  opacity: 0.1;
+  pointer-events: none;
+}
+.foot-wm-bee svg {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 .foot-brand {
   display: inline-flex;
@@ -1279,9 +1311,32 @@ body {
   text-transform: uppercase;
   color: var(--color-gray-3);
 }
+/* Desktop (F02): keep the columns on the left ~70% so the bee reads on the
+   right. Mobile is untouched — the grid stays full-width and reflows to 2 cols. */
+@media (min-width: 721px) {
+  .foot-cols {
+    max-width: 70%;
+  }
+}
 @media (max-width: 720px) {
   .foot-inner {
     padding: 2.6rem 1.25rem 1.8rem;
+  }
+  /* M01 mobile: the bee tucks into the bottom-right corner instead of bleeding
+     off the side. */
+  .foot-wm-bee {
+    top: auto;
+    bottom: -6%;
+    right: -12%;
+    transform: none;
+    width: 52%;
+  }
+  /* Registry spans both columns under a hairline, below the 2-col link grid. */
+  .foot-group-reg {
+    grid-column: 1 / -1;
+    border-top: 1px solid color-mix(in srgb, var(--color-panel-border) 55%, transparent);
+    padding-top: 1.2rem;
+    margin-top: 0.3rem;
   }
 }
 
@@ -1307,6 +1362,11 @@ body {
 :root[data-theme="light"] .foot-group a:hover {
   /* #fff brightest-on-dark → the darkest ink on light */
   color: var(--color-title);
+}
+/* W02 watermark: lighter on the ivory paper (the deep-space dark value would be
+   heavy on light). */
+:root[data-theme="light"] .foot-wm-bee {
+  opacity: 0.06;
 }
 :root[data-theme="light"] .table-tech td .ref {
   color: var(--color-title);

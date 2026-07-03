@@ -17,6 +17,7 @@
 
 import Link from "next/link";
 import {
+  combAbbr,
   combGlyph,
   combNodeState,
   combPositions,
@@ -81,6 +82,9 @@ export function PhaseComb({
                 <polygon points={HEX} />
               </svg>
               <span className="pc-num">{combGlyph(base, s.ordinal)}</span>
+              {/* Three-letter stage label on the TOP comb only (the footer stays
+                  compact; the stage name lives in its prev/next buttons). */}
+              {variant === "header" ? <span className="pc-abbr">{combAbbr(s.stage)}</span> : null}
             </Link>
           </li>
         );

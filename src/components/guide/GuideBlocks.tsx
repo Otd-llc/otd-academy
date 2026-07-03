@@ -20,6 +20,11 @@
 import { Fragment, type CSSProperties, type ReactNode } from "react";
 import sanitizeHtml from "sanitize-html";
 import type { ContentBlock } from "@/lib/schemas/guide";
+import { scanIslands, RAIL_MIN_ISLANDS, deriveSetupRanges } from "@/lib/guide-islands";
+import { IslandRail } from "@/components/guide/IslandRail";
+import { ResumePill } from "@/components/guide/ResumePill";
+import { SetupBand } from "@/components/guide/SetupBand";
+import type { ResumeRecord } from "@/lib/resume-position";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
@@ -1424,6 +1429,8 @@ export function GuideBlocks({
   isSignedIn,
   cardId,
   isAdmin,
+  stage,
+  serverResume = null,
 }: {
   blocks: ContentBlock[];
   models?: Record<string, ResolvedModel>;
@@ -1434,6 +1441,10 @@ export function GuideBlocks({
   isSignedIn?: boolean;
   cardId?: string;
   isAdmin?: boolean;
+  // Resume-position sync (Task 7): the current stage + the signed-in learner's
+  // server record for it, merged with localStorage by the rail/pill.
+  stage?: string;
+  serverResume?: ResumeRecord | null;
 }) {
   // Phase signposting is now carried by the per-card "Mode · …" ribbons
   // (ModeBandBlock) and the gold "Do ·" action blocks. The old hard-coded
@@ -1441,23 +1452,81 @@ export function GuideBlocks({
   // ANY card — mislabelled the browser/bench cards (it told ORDERING and
   // ASSEMBLY learners to open KiCad) and double-announced the mode shift on the
   // ribboned cards, so it's been removed.
+  // Island jump-nav (guide-pacing plan). Anchors let the rail's scroll-spy and
+  // #island-NN deep-links target numbered sections. Anchored blocks get a
+  // scroll-mt wrapper; everything else renders unchanged so the space-y-5
+  // rhythm and PDF/readiness linear rendering are untouched.
+  const islands = scanIslands(blocks);
+  const anchorByIndex = new Map(islands.map((is) => [is.blockIndex, is.anchorId]));
+  // The rail auto-rolls out wherever the numbered convention yields >= 3
+  // islands (2-section cards skip it). storageKey is per-card and shared with
+  // Task 6's resume layer.
+  const showRail = islands.length >= RAIL_MIN_ISLANDS;
+  const railKey = `otd:resume:${projectId ?? "anon"}:${cardId ?? "card"}`;
+
+  // "Setup · …" ranges collapse into a SetupBand. Islands terminate a range, so
+  // no anchored block ever falls inside one — the two derivations don't collide.
+  const setupRanges = deriveSetupRanges(blocks);
+  const setupStart = new Map(setupRanges.map((r) => [r.start, r]));
+
+  // One block → its anchor-wrapped (or plain) element. Reused inside the band.
+  const renderBlock = (block: ContentBlock, i: number) => {
+    const anchorId = anchorByIndex.get(i);
+    const gb = (
+      <GuideBlock
+        block={block}
+        index={i}
+        models={models}
+        bomRows={bomRows}
+        diagrams={diagrams}
+        quizContext={quizContext}
+        projectId={projectId}
+        isSignedIn={isSignedIn}
+        cardId={cardId}
+        isAdmin={isAdmin}
+      />
+    );
+    return anchorId ? (
+      <div key={i} id={anchorId} className="scroll-mt-24">
+        {gb}
+      </div>
+    ) : (
+      <Fragment key={i}>{gb}</Fragment>
+    );
+  };
+
+  const out: ReactNode[] = [];
+  for (let i = 0; i < blocks.length; ) {
+    const range = setupStart.get(i);
+    if (range) {
+      // The Setup callout (range.start) becomes the band summary, not body.
+      const children: ReactNode[] = [];
+      for (let j = range.start + 1; j < range.end; j++) children.push(renderBlock(blocks[j]!, j));
+      out.push(
+        <SetupBand key={`setup-${i}`} title={range.title} count={range.end - range.start - 1} storageKey={railKey}>
+          {children}
+        </SetupBand>,
+      );
+      i = range.end;
+    } else {
+      out.push(renderBlock(blocks[i]!, i));
+      i++;
+    }
+  }
+
   return (
     <div className="space-y-5">
-      {blocks.map((block, i) => (
-        <GuideBlock
-          key={i}
-          block={block}
-          index={i}
-          models={models}
-          bomRows={bomRows}
-          diagrams={diagrams}
-          quizContext={quizContext}
-          projectId={projectId}
-          isSignedIn={isSignedIn}
-          cardId={cardId}
-          isAdmin={isAdmin}
+      {showRail ? (
+        <IslandRail
+          islands={islands}
+          storageKey={railKey}
+          serverResume={serverResume}
+          syncProjectId={isSignedIn ? projectId : undefined}
+          syncStage={isSignedIn ? stage : undefined}
         />
-      ))}
+      ) : null}
+      {out}
+      {showRail ? <ResumePill islands={islands} storageKey={railKey} serverResume={serverResume} /> : null}
     </div>
   );
 }

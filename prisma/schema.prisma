@@ -1036,6 +1036,11 @@ model Enrollment {
   artifacts   Artifact[]   @relation("EnrollmentArtifacts")
   examResults ExamResult[]
 
+  // Cross-device resume position, keyed by stage:
+  // { [stage]: { anchorId, visited: string[], ts } }. Written by the guide's
+  // IslandRail via saveResume(); merged with the learner's localStorage.
+  resumeState Json?
+
   @@unique([userId, projectId])
   @@index([userId])
 }
