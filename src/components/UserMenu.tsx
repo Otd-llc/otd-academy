@@ -153,7 +153,7 @@ export function UserMenu({
 
       {/* D5 — hairline panel on deep space (chrome popover, but grouped by gold
           hairlines rather than a navy fill). */}
-      <div className="absolute right-0 z-10 mt-2 w-60 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-md border border-panel-border bg-deep-space shadow-[var(--elev-card)]">
+      <div className="absolute right-0 z-40 mt-2 w-60 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-md border border-panel-border bg-deep-space shadow-[var(--elev-card)]">
         <div className="flex items-center gap-3 border-b border-panel-border/70 p-3.5">
           <Avatar
             image={image}
