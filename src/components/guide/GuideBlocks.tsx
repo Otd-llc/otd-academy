@@ -20,7 +20,8 @@
 import { Fragment, type CSSProperties, type ReactNode } from "react";
 import sanitizeHtml from "sanitize-html";
 import type { ContentBlock } from "@/lib/schemas/guide";
-import { scanIslands } from "@/lib/guide-islands";
+import { scanIslands, RAIL_MIN_ISLANDS } from "@/lib/guide-islands";
+import { IslandRail } from "@/components/guide/IslandRail";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
@@ -1448,12 +1449,14 @@ export function GuideBlocks({
   // rhythm and PDF/readiness linear rendering are untouched.
   const islands = scanIslands(blocks);
   const anchorByIndex = new Map(islands.map((is) => [is.blockIndex, is.anchorId]));
-  // Task 4 mounts the rail here once the sandbox variant is chosen (add
-  // `RAIL_MIN_ISLANDS` to the import then):
-  //   const railKey = `${projectId ?? "anon"}:${cardId ?? "card"}`;
-  //   {islands.length >= RAIL_MIN_ISLANDS && <IslandRail islands={islands} storageKey={railKey} />}
+  // The rail auto-rolls out wherever the numbered convention yields >= 3
+  // islands (2-section cards skip it). storageKey is per-card and shared with
+  // Task 6's resume layer.
+  const showRail = islands.length >= RAIL_MIN_ISLANDS;
+  const railKey = `otd:resume:${projectId ?? "anon"}:${cardId ?? "card"}`;
   return (
     <div className="space-y-5">
+      {showRail ? <IslandRail islands={islands} storageKey={railKey} /> : null}
       {blocks.map((block, i) => {
         const anchorId = anchorByIndex.get(i);
         const gb = (
