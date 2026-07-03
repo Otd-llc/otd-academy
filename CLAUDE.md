@@ -30,12 +30,16 @@ lines, or revisions before then. New boards start from `docs/boards/_template/`
   `.env.test.local` (gitignored) supplies `TEST_DATABASE_POOL`; `pnpm test` parallelizes
   by leasing a branch per DB-test file (`vitest.env.ts`), so concurrent runs are safe and
   the suite is ~80s (was ~13 min). **If `.env.test.local` is absent, tests fall back to
-  PROD** — so keep it present. Refresh the pool branches from prod after schema migrations.
-  New DB-backed tests can use throwaway rows or freely mutate the seed fixture (each file
-  has its own branch clone).
-- **`pnpm` runs via PowerShell, not the Bash tool.** Migrations are hand-authored;
-  apply with `pnpm exec prisma migrate deploy` (never `migrate dev`). Restart
-  `next dev` after `prisma generate`.
+  PROD** — so keep it present. The pool branches are persistent clones and drift behind
+  prod after a migration; `pnpm test:pool:refresh` re-applies migrations to each (and
+  `pnpm db:migrate` does it for you). A vitest guardrail (`vitest.global-setup.ts`)
+  fast-fails with one clear message if the pool is behind, instead of hundreds of
+  cryptic "column (not available)" errors. New DB-backed tests can use throwaway rows or
+  freely mutate the seed fixture (each file has its own branch clone).
+- **`pnpm` runs via PowerShell, not the Bash tool.** Migrations are hand-authored; apply
+  with **`pnpm db:migrate`** — it runs `prisma migrate deploy` (never `migrate dev`)
+  against prod, then refreshes the test pool so it can't drift. Restart `next dev` after
+  `prisma generate`.
 - **BOM CSV import is strict-match** on `(manufacturer, mpn)` against the curated
   parts library — unmatched rows are reported, never auto-created. Create new parts
   *before* importing. One CSV row per part (merge shared refDes; `refDes` count must
