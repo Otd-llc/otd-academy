@@ -84,10 +84,53 @@ describe("glossary", () => {
     expect(lookupTerm("no connect")).toEqual(lookupTerm("no-connect"));
   });
 
+  it("seeds the provisioning / bench terms surfaced on REQUIREMENTS", () => {
+    for (const t of ["KiCad starter", "exact BOM", "SMD rework"]) {
+      expect(lookupTerm(t), `expected glossary to define "${t}"`).not.toBeNull();
+    }
+  });
+
+  it("resolves the provisioning-term alias spellings used in guide content", () => {
+    expect(lookupTerm("kicad starter project")).toEqual(lookupTerm("KiCad starter"));
+    expect(lookupTerm("surface-mount rework")).toEqual(lookupTerm("SMD rework"));
+    expect(lookupTerm("smd-rework setup")).toEqual(lookupTerm("SMD rework"));
+  });
+
+  it("carries a 'where it lives' stage pointer on the artifact terms", () => {
+    const starter = lookupTerm("KiCad starter");
+    expect(starter?.where?.stage).toBe("SCHEMATIC");
+    expect(starter?.where?.label.length).toBeGreaterThan(0);
+
+    const bom = lookupTerm("exact BOM");
+    expect(bom?.where?.stage).toBe("BOM_SOURCING");
+    expect(bom?.where?.label.length).toBeGreaterThan(0);
+
+    // A general concept has no stage pointer.
+    expect(lookupTerm("SMD rework")?.where).toBeUndefined();
+  });
+
   it("every entry has a non-empty term and definition", () => {
     for (const entry of Object.values(GLOSSARY)) {
       expect(entry.term.length).toBeGreaterThan(0);
       expect(entry.def.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("every 'where' pointer names a real guide stage", () => {
+    const STAGES = new Set([
+      "REQUIREMENTS",
+      "SCHEMATIC",
+      "BOM_SOURCING",
+      "LAYOUT",
+      "DRC_GERBER",
+      "ORDERING",
+      "ASSEMBLY",
+      "BRINGUP",
+    ]);
+    for (const entry of Object.values(GLOSSARY)) {
+      if (entry.where) {
+        expect(STAGES.has(entry.where.stage), `bad stage ${entry.where.stage}`).toBe(true);
+      }
     }
   });
 });

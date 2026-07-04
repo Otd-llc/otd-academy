@@ -24,7 +24,9 @@
 // render inside the top layer instead of behind the backdrop (design §6).
 
 import * as Popover from "@radix-ui/react-popover";
+import Link from "next/link";
 import { lookupTerm } from "@/lib/glossary";
+import { useLessonBase } from "@/components/guide/LessonContext";
 
 export interface GlossaryTermProps {
   /** The jargon term to look up + display (e.g. "ADC1", "SAC305"). */
@@ -43,6 +45,7 @@ export interface GlossaryTermProps {
 
 export function GlossaryTerm({ term, children, container }: GlossaryTermProps) {
   const entry = lookupTerm(term);
+  const lessonBase = useLessonBase();
 
   // Unknown term → inert plain text (graceful degradation for authoring typos).
   if (!entry) {
@@ -50,6 +53,14 @@ export function GlossaryTerm({ term, children, container }: GlossaryTermProps) {
   }
 
   const label = children ?? entry.term;
+
+  // "Where it lives" — a term naming a concrete per-lesson artifact links to the
+  // stage that hands it over, but ONLY inside a lesson (where lessonBase is set).
+  // Outside one (dialogs, /glossary) it's omitted rather than a dangling href.
+  const whereHref =
+    entry.where && lessonBase
+      ? `${lessonBase}/${entry.where.stage}`
+      : null;
 
   return (
     <Popover.Root>
@@ -75,7 +86,16 @@ export function GlossaryTerm({ term, children, container }: GlossaryTermProps) {
           <p className="font-serif text-sm leading-relaxed text-gray-1">
             {entry.def}
           </p>
-          <Popover.Arrow className="fill-[rgba(200,150,62,0.35)]" />
+          {whereHref && entry.where ? (
+            <Link
+              href={whereHref}
+              className="mt-2.5 inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-command-gold transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
+            >
+              {entry.where.label}
+              <span aria-hidden="true">→</span>
+            </Link>
+          ) : null}
+          <Popover.Arrow className="fill-command-gold/40" />
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

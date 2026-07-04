@@ -22,6 +22,16 @@ export interface GlossaryEntry {
   term: string;
   /** Plain-text definition. Brief — one or two sentences. */
   def: string;
+  /**
+   * Optional "where it lives" pointer for a term that names a concrete
+   * per-lesson artifact (the KiCad starter, the exact BOM). `stage` is the
+   * guide stage that produces / hands over the thing — a stable pipeline
+   * token (REQUIREMENTS…BRINGUP), so it's board-agnostic. The popover turns
+   * this into an in-lesson link when a lesson base URL is in scope (see
+   * `GlossaryTerm` + `LessonProvider`); otherwise it's silently omitted.
+   * `label` is the link's copy ("Download it at the Schematic stage").
+   */
+  where?: { stage: string; label: string };
 }
 
 /** Normalize a term to its lookup key: trimmed + lower-cased. */
@@ -75,6 +85,22 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
   enig: {
     term: "ENIG",
     def: "Electroless Nickel / Immersion Gold — a PCB surface finish: a nickel barrier under a thin gold flash. Flat, solderable, long shelf life, and good for fine-pitch and press-fit; pricier than HASL.",
+  },
+
+  // ── Provisioning / bench (what the academy hands you) ─
+  "kicad starter": {
+    term: "KiCad starter",
+    def: "A ready-made KiCad project the academy hands you: every part's schematic symbol, PCB footprint, and 3D model is already drawn and placed. You never create a part or draw a symbol from scratch. You download it, then wire and lay out the board from there.",
+    where: { stage: "SCHEMATIC", label: "Download it at the Schematic stage" },
+  },
+  "exact bom": {
+    term: "exact BOM",
+    def: "The board's Bill of Materials, fully specified for you: every part pinned to a real manufacturer part number (MPN) you can actually buy, not a generic value. Nothing to choose or guess: the list is the buy list.",
+    where: { stage: "BOM_SOURCING", label: "See the full BOM at the BOM Sourcing stage" },
+  },
+  "smd rework": {
+    term: "SMD rework",
+    def: "Working surface-mount parts by hand: placing, soldering, and fixing components that sit flat on the board with no through-hole legs. It leans on flux, fine tips, tweezers, and magnification (and sometimes hot air), rather than a plain iron alone.",
   },
 
   // ── Basic electronics (beginner) ─────────────────────
@@ -298,6 +324,16 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
 // glossary key (also normalized).
 
 const ALIASES: Record<string, string> = {
+  // Provisioning / bench long-forms + variants.
+  "kicad starter project": "kicad starter",
+  "starter project": "kicad starter",
+  "kicad starter kit": "kicad starter",
+  "the exact bom": "exact bom",
+  "smd-rework": "smd rework",
+  "smd rework setup": "smd rework",
+  "smd-rework setup": "smd rework",
+  "surface-mount rework": "smd rework",
+  "surface mount rework": "smd rework",
   "right-leg-drive": "rld",
   "right leg drive": "rld",
   "wlcsp": "wl-csp",

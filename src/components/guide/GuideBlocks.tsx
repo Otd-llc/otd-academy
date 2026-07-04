@@ -26,7 +26,12 @@ import { ResumePill } from "@/components/guide/ResumePill";
 import { SetupBand } from "@/components/guide/SetupBand";
 import type { ResumeRecord } from "@/lib/resume-position";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
+import { LessonProvider } from "@/components/guide/LessonContext";
+import { Inline } from "@/components/guide/InlineText";
+import { KitBlock, type KitItem } from "@/components/guide/KitBlock";
+import { SelfCheckBlock } from "@/components/guide/SelfCheckBlock";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
+import { WindowedPartModel } from "@/components/guide/WindowedPartModel";
 import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
 import { DIAGRAM_COMPONENTS } from "@/components/guide/diagram-registry";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
@@ -39,8 +44,7 @@ import {
   amazonProductLink,
   type AffiliateVendor,
 } from "@/lib/affiliates";
-import { ExternalLinkIcon, PhotoIcon, VideoIcon } from "@/components/icons";
-import { parseInlineTerms } from "@/lib/inline-terms";
+import { ExternalLinkIcon, PhotoIcon, VideoIcon, RotateIcon } from "@/components/icons";
 import { assessPartAvailability, availabilityBadge } from "@/lib/part-availability";
 import { bomTableHasDkData, liveBomCost } from "@/lib/live-bom-cost";
 import { relativeAge } from "@/lib/relative-time";
@@ -80,6 +84,10 @@ export type BomRow = {
   // DigiKey part number (lowest-MOQ variation) for the FastAdd cart URL. Null
   // when unmatched → the line is omitted from the cart link.
   dkPartNumber: string | null;
+  // Presigned MODEL_3D render (.glb) + camera bounds for the row's floating 3D
+  // preview. Null when the part has no 3D / R2 is off → the row shows no model.
+  modelSrc: string | null;
+  modelBounds: RenderBounds | null;
 };
 
 // Lifecycle chip — shown only for non-ACTIVE parts (NRND = caution/gold,
@@ -168,53 +176,9 @@ const BADGE_TONE_CLASS: Record<"gold" | "blue" | "critical" | "dim", string> = {
   dim: "dim",
 };
 
-// Resolve `[[term]]` / `[[term|label]]` markers in a run of text into click-to-read
-// <GlossaryTerm> popovers (plain text otherwise). Pure split lives in
-// `@/lib/inline-terms`; an unknown term degrades to plain text in GlossaryTerm.
-function withTerms(text: string, keyPrefix: string): ReactNode[] {
-  return parseInlineTerms(text).map((seg, i) =>
-    seg.kind === "term" ? (
-      <GlossaryTerm key={`${keyPrefix}-${i}`} term={seg.term}>
-        {seg.label}
-      </GlossaryTerm>
-    ) : (
-      <Fragment key={`${keyPrefix}-${i}`}>{seg.value}</Fragment>
-    ),
-  );
-}
-
-// Inline guide-text renderer. Emphasis (**bold**/*italic*) is the OUTER layer — a
-// bold/italic run can wrap a [[term]] (e.g. "**a filled [[ground pour]]**") — so we
-// split emphasis FIRST, then resolve glossary terms inside each run (and inside the
-// plain text between). Splitting terms first would orphan the `**` across segments.
-// Bold is a restrained medium weight + a slightly brighter ink (gray-1 over gray-2
-// body), kept distinct from the gold terms; italic is true italic. XSS-safe: only
-// **/* and [[term]] are parsed; all other text is escaped — no HTML injected, no
-// dangerouslySetInnerHTML (the established convention).
-function Inline({ text }: { text: string }) {
-  const out: ReactNode[] = [];
-  let last = 0;
-  let n = 0;
-  for (const m of text.matchAll(/\*\*([^*]+)\*\*|\*([^*\s][^*]*)\*/g)) {
-    const idx = m.index ?? 0;
-    if (idx > last) out.push(...withTerms(text.slice(last, idx), `p${n}`));
-    out.push(
-      m[1] !== undefined ? (
-        <strong key={`b${n}`} className="font-medium text-gray-1">
-          {withTerms(m[1], `b${n}`)}
-        </strong>
-      ) : (
-        <em key={`i${n}`} className="italic">
-          {withTerms(m[2], `i${n}`)}
-        </em>
-      ),
-    );
-    last = idx + m[0].length;
-    n++;
-  }
-  if (last < text.length) out.push(...withTerms(text.slice(last), `p${n}`));
-  return <>{out}</>;
-}
+// `Inline` (emphasis + [[term]] glossary popovers) moved to ./InlineText so the
+// interactive client KitBlock island can render note/intro text the same way;
+// it's imported at the top of this file.
 
 // 3D part viewer block. `model` is the route-resolved render (presigned R2 URL +
 // camera bounds). Absent (no MODEL_3D asset, R2 off, or empty MPN) → caption
@@ -233,11 +197,21 @@ function PartModelBlock({
       </p>
     ) : null;
   }
+  // Frameless floating preview, LOCKED narrow + centered (max-w-sm) so the part
+  // reads clearly but the interactive canvas is a small target that can't hijack
+  // scroll flow. The viewer is rotate-only (wheel scroll passes through). The
+  // "drag to rotate" hint sits BELOW the model (showHint=false suppresses the
+  // built-in centered pill) so nothing ever covers the part.
   return (
-    <figure className="space-y-2">
-      <ModelViewerLazy src={model.src} bounds={model.bounds} />
+    <figure className="space-y-1.5">
+      <div className="mx-auto w-full max-w-sm">
+        <ModelViewerLazy src={model.src} bounds={model.bounds} float showHint={false} heightClass="h-64" />
+      </div>
+      <p className="flex items-center justify-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] text-command-gold">
+        <RotateIcon className="h-2.5 w-2.5" /> drag to rotate
+      </p>
       {caption ? (
-        <figcaption className="font-mono text-xs uppercase tracking-wider text-muted">
+        <figcaption className="text-center font-mono text-xs uppercase tracking-wider text-muted">
           {caption}
         </figcaption>
       ) : null}
@@ -252,9 +226,11 @@ function PartModelBlock({
 function BomTableBlock({
   caption,
   rows,
+  collapsed,
 }: {
   caption?: string;
   rows?: BomRow[];
+  collapsed?: boolean;
 }) {
   if (!rows || rows.length === 0) {
     return (
@@ -288,32 +264,24 @@ function BomTableBlock({
     rows.map((r) => ({ dkPartNumber: r.dkPartNumber, quantity: r.qty, refDes: r.refDes })),
   );
   const cartMissing = rows.filter((r) => r.dkPartNumber == null).length;
-  return (
+  const body = (
     <figure className="space-y-2">
-      <table className="table-tech">
-        <thead>
-          <tr>
-            <th>Ref</th>
-            <th>Qty</th>
-            <th>Part</th>
-            <th>Description</th>
-            {tableHasDk ? (
-              <>
-                <th>Unit $</th>
-                <th>Ext. $</th>
-              </>
+      {/* Each part is introduced with its half-size floating 3D (windowed, so a
+          long BOM never exceeds the WebGL context limit): 3D left, spec right.
+          The "drag to rotate" cue lives in the spec column (off the model). */}
+      <ul className="border-t border-panel-border/50">
+        {rows.map((r, i) => (
+          <li key={i} className="flex items-start gap-4 border-b border-panel-border/40 py-4">
+            {r.modelSrc ? (
+              <div className="w-24 shrink-0 sm:w-28">
+                <WindowedPartModel src={r.modelSrc} bounds={r.modelBounds} />
+              </div>
             ) : null}
-            <th>Datasheet</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={i}>
-              <td data-label="Ref">
-                <span className="ref">{r.refDes}</span>
-              </td>
-              <td data-label="Qty">{r.qty}</td>
-              <td data-label="Part">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                <span className="font-mono text-xs font-bold uppercase tracking-wider text-title">
+                  {r.refDes}
+                </span>
                 <PartMpnLink
                   partId={r.partId}
                   mpn={r.mpn}
@@ -328,49 +296,55 @@ function BomTableBlock({
                   checkedAt={r.dkCheckedAt}
                 />
                 {r.manufacturer ? (
-                  <span className="mt-0.5 block font-mono text-[11px] normal-case text-muted">
-                    {r.manufacturer}
+                  <span className="font-mono text-[11px] normal-case text-muted">{r.manufacturer}</span>
+                ) : null}
+              </div>
+              {r.description ? (
+                <p className="mt-1 font-serif text-sm leading-snug text-muted">{r.description}</p>
+              ) : null}
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px] text-muted">
+                <span>
+                  qty <span className="tabular-nums text-text">{r.qty}</span>
+                </span>
+                {tableHasDk ? (
+                  <span>
+                    unit{" "}
+                    <span className="tabular-nums">
+                      {r.dkUnitPriceCents != null ? formatUsd(r.dkUnitPriceCents) : "—"}
+                    </span>{" "}
+                    · ext{" "}
+                    <span className="tabular-nums">
+                      {r.dkUnitPriceCents != null ? formatUsd(r.qty * r.dkUnitPriceCents) : "—"}
+                    </span>
                   </span>
                 ) : null}
-              </td>
-              <td data-label="Description">{r.description ?? ""}</td>
-              {tableHasDk ? (
-                <>
-                  <td data-label="Unit $" className="text-muted">
-                    {r.dkUnitPriceCents != null ? formatUsd(r.dkUnitPriceCents) : "—"}
-                  </td>
-                  <td data-label="Ext. $" className="text-muted">
-                    {r.dkUnitPriceCents != null
-                      ? formatUsd(r.qty * r.dkUnitPriceCents)
-                      : "—"}
-                  </td>
-                </>
+                <span className="ml-auto">
+                  {httpUrlOrNull(r.datasheetUrl) ? (
+                    <a
+                      href={httpUrlOrNull(r.datasheetUrl)!}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      className="inline-flex items-center gap-1 text-signal-blue underline decoration-dotted underline-offset-2 hover:text-command-gold"
+                    >
+                      datasheet
+                      <ExternalLinkIcon className="h-3 w-3 shrink-0" />
+                    </a>
+                  ) : r.hasDatasheet ? (
+                    <span title="Datasheet on file in the parts library">datasheet on file</span>
+                  ) : (
+                    <span className="uppercase tracking-wider text-alert-red">datasheet missing</span>
+                  )}
+                </span>
+              </div>
+              {r.modelSrc ? (
+                <p className="mt-1.5 flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] text-command-gold">
+                  <RotateIcon className="h-2.5 w-2.5" /> drag to rotate
+                </p>
               ) : null}
-              <td data-label="Datasheet">
-                {httpUrlOrNull(r.datasheetUrl) ? (
-                  <a
-                    href={httpUrlOrNull(r.datasheetUrl)!}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow"
-                    className="inline-flex items-center gap-1 text-signal-blue underline decoration-dotted underline-offset-2 hover:text-command-gold"
-                  >
-                    PDF
-                    <ExternalLinkIcon className="h-3 w-3 shrink-0" />
-                  </a>
-                ) : r.hasDatasheet ? (
-                  <span className="text-muted" title="Datasheet on file in the parts library">
-                    on file
-                  </span>
-                ) : (
-                  <span className="font-mono text-[11px] uppercase tracking-wider text-alert-red">
-                    missing
-                  </span>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+            </div>
+          </li>
+        ))}
+      </ul>
       {/* Compliance (load-bearing): the freshness "prices as of" line + this
           DigiKey attribution keep the cached snapshot display inside the API
           User Agreement's "present DigiKey Data on Your Site" grant. Do not
@@ -429,6 +403,29 @@ function BomTableBlock({
         </div>
       ) : null}
     </figure>
+  );
+
+  // Always a native <details> (no client JS) with the summary header; `collapsed`
+  // only controls the DEFAULT open state. Expanded by default (collapsed=false)
+  // so the parts + 3D show on load; still collapsible via the summary.
+  return (
+    <details open={!collapsed} className="group border-t border-panel-border/60 pt-4">
+      <summary className="flex cursor-pointer list-none items-center gap-2.5 py-1 [&::-webkit-details-marker]:hidden">
+        <span
+          aria-hidden
+          className="font-mono text-command-gold transition-transform group-open:rotate-90"
+        >
+          ▸
+        </span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
+          Full bill of materials
+        </span>
+        <span className="font-mono text-[11px] tabular-nums text-muted">
+          {rows.length} {rows.length === 1 ? "line" : "lines"} · {totalParts} parts
+        </span>
+      </summary>
+      <div className="mt-4">{body}</div>
+    </details>
   );
 }
 
@@ -798,47 +795,10 @@ function AdvanceBlock({ body }: { body: string }) {
   );
 }
 
-// "Check yourself" → an interactive self-test: the question shows, the answer is
-// one tap away (native <details>, no JS). Body is "…question?  answer." — split
-// at the last "?" so the prompt is the summary and the rest is the reveal.
-function SelfCheckBlock({
-  body,
-  severity,
-}: {
-  body: string;
-  severity: "critical" | "warn" | "info";
-}) {
-  const cut = body.lastIndexOf("?");
-  const question = cut >= 0 ? body.slice(0, cut + 1).trim() : body.trim();
-  const answer = cut >= 0 ? body.slice(cut + 1).trim() : "";
-  const accent = severity === "critical" ? "text-alert-red" : "text-signal-blue";
-  return (
-    <details className="group rounded border border-panel-border bg-deep-space/40">
-      <summary className="flex cursor-pointer list-none items-start gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
-        <span
-          className={`mt-1 shrink-0 font-mono text-[10px] font-bold uppercase tracking-[0.18em] ${accent}`}
-        >
-          Check
-        </span>
-        <span className="flex-1 font-serif text-base leading-relaxed text-gray-1">
-          <Inline text={question} />
-        </span>
-        {answer ? (
-          <span className="mt-0.5 shrink-0 font-mono text-[10px] uppercase tracking-wider text-gold-dim group-open:hidden">
-            Show
-          </span>
-        ) : null}
-      </summary>
-      {answer ? (
-        <div className="border-t border-panel-border py-3 pl-[4.25rem] pr-4">
-          <p className="whitespace-pre-wrap font-serif text-base leading-relaxed text-gray-2">
-            <Inline text={answer} />
-          </p>
-        </div>
-      ) : null}
-    </details>
-  );
-}
+// "Check yourself" → the write-then-compare self-test (client island
+// ./SelfCheckBlock): the learner writes an attempt, which unlocks the authored
+// answer to compare. Body is "…question?  answer." — split at the last "?"
+// inside the component. Imported at the top of this file.
 
 // "Draw it · X" → a DO-THIS step: a gold mono kicker + hairline (the Design-
 // Stages kicker motif), distinct from the boxed teaching callouts. The phase
@@ -1047,107 +1007,10 @@ function VendorCtaBlock({
   );
 }
 
-// kit — the unified "bench" list. Each tool shows its Need badge, a
-// what-to-look-for note, and tagged Amazon picks (a single "Shop" link, or
-// Budget/Hobby/Pro chips for the big-ticket items). Picks resolve ASIN → tagged
-// link via amazonProductLink; an item with no picks renders as plain text so the
-// list stages cleanly. The Amazon agreement REQUIRES the "As an Amazon Associate…"
-// disclosure, so it renders unconditionally beneath the list.
-const KIT_NEED: Record<
-  "required" | "recommended" | "helpful",
-  { tone: string; label: string }
-> = {
-  required: { tone: "gold", label: "Required" },
-  recommended: { tone: "blue", label: "Recommended" },
-  helpful: { tone: "dim", label: "Helpful" },
-};
-function KitBlock({
-  intro,
-  items,
-}: {
-  intro?: string;
-  items: {
-    label: string;
-    need?: "required" | "recommended" | "helpful";
-    note?: string;
-    picks?: { label?: string; asin: string }[];
-  }[];
-}) {
-  // Group by Need so the badge appears ONCE per tier (not on every row) — the
-  // main declutter. Items with no need fall through into a trailing group.
-  const groups = (["required", "recommended", "helpful"] as const).map(
-    (need) => ({ need, meta: KIT_NEED[need], gi: items.filter((it) => it.need === need) }),
-  );
-  const ungrouped = items.filter((it) => !it.need);
-
-  const renderItem = (
-    it: (typeof items)[number],
-    i: number,
-  ) => (
-    <li key={i}>
-      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-        <span className="font-serif text-base font-medium text-gray-1">
-          {it.label}
-        </span>
-        {it.picks && it.picks.length > 0 ? (
-          <span className="flex flex-wrap gap-1.5">
-            {it.picks.map((p, j) => (
-              <a
-                key={j}
-                href={amazonProductLink(p.asin).href}
-                target="_blank"
-                rel="noopener noreferrer nofollow sponsored"
-                className="inline-flex items-center gap-1 rounded border border-command-gold/55 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
-              >
-                {p.label || "Shop"}
-                <ExternalLinkIcon className="h-2.5 w-2.5 shrink-0" />
-              </a>
-            ))}
-          </span>
-        ) : null}
-      </div>
-      {it.note ? (
-        <p className="mt-0.5 font-serif text-sm leading-snug text-muted">
-          <Inline text={it.note} />
-        </p>
-      ) : null}
-    </li>
-  );
-
-  return (
-    <section className="border-t border-panel-border/60 pt-6">
-      <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
-        The bench
-      </p>
-      {intro ? (
-        <p className="mb-5 whitespace-pre-wrap font-serif text-base leading-relaxed text-gray-2">
-          <Inline text={intro} />
-        </p>
-      ) : null}
-      <div className="space-y-5">
-        {groups.map(({ need, meta, gi }) =>
-          gi.length ? (
-            <div key={need}>
-              <div className="mb-2.5 flex items-center gap-3">
-                <span className={`badge ${meta.tone}`}>{meta.label}</span>
-                <span className="h-px flex-1 bg-panel-border/40" />
-              </div>
-              <ul className="space-y-3">{gi.map(renderItem)}</ul>
-            </div>
-          ) : null,
-        )}
-        {ungrouped.length ? (
-          <ul className="space-y-3">{ungrouped.map(renderItem)}</ul>
-        ) : null}
-      </div>
-      <p className="mt-5 font-mono text-[11px] uppercase tracking-wider text-muted">
-        As an Amazon Associate, the academy earns from qualifying purchases — at
-        no extra cost to you.
-      </p>
-    </section>
-  );
-}
-
+// kit — "The Bench" per-lesson tools list. Now the 9C-5 "tick what you own"
+// checklist, extracted to the client ./KitBlock island (interactive owned-state
+// + localStorage). Picks are resolved to tagged Amazon hrefs HERE (server-side:
+// the associate tag is server-only) and passed in already-tagged.
 function GuideBlock({
   block,
   index,
@@ -1256,7 +1119,7 @@ function GuideBlock({
       );
 
     case "bomTable":
-      return <BomTableBlock caption={block.caption} rows={bomRows} />;
+      return <BomTableBlock caption={block.caption} rows={bomRows} collapsed={block.collapsed} />;
 
     case "image":
       return (
@@ -1357,8 +1220,27 @@ function GuideBlock({
         </section>
       );
 
-    case "kit":
-      return <KitBlock intro={block.intro} items={block.items} />;
+    case "kit": {
+      // Resolve each pick's ASIN → tagged Amazon href HERE (server-side; the
+      // associate tag is server-only), then hand the client checklist island
+      // already-tagged hrefs. The owned-state checklist persists per lesson.
+      const kitItems: KitItem[] = block.items.map((it) => ({
+        label: it.label,
+        need: it.need,
+        note: it.note,
+        picks: it.picks?.map((p) => ({
+          label: p.label,
+          href: amazonProductLink(p.asin).href,
+        })),
+      }));
+      return (
+        <KitBlock
+          intro={block.intro}
+          items={kitItems}
+          storageKey={`otd:bench:${projectId ?? "anon"}`}
+        />
+      );
+    }
 
     case "sourceRef": {
       // href is scheme-validated by the schema (http(s):// or root-relative).
@@ -1431,6 +1313,7 @@ export function GuideBlocks({
   isAdmin,
   stage,
   serverResume = null,
+  lessonBase = null,
 }: {
   blocks: ContentBlock[];
   models?: Record<string, ResolvedModel>;
@@ -1445,6 +1328,10 @@ export function GuideBlocks({
   // server record for it, merged with localStorage by the rail/pill.
   stage?: string;
   serverResume?: ResumeRecord | null;
+  /** This lesson's guide base URL (`/projects/<slug>/<revLabel>/guide`) so a
+   *  glossary term with a `where.stage` pointer can link to the stage that
+   *  hands over the thing it names. Null outside a lesson. */
+  lessonBase?: string | null;
 }) {
   // Phase signposting is now carried by the per-card "Mode · …" ribbons
   // (ModeBandBlock) and the gold "Do ·" action blocks. The old hard-coded
@@ -1515,18 +1402,20 @@ export function GuideBlocks({
   }
 
   return (
-    <div className="space-y-5">
-      {showRail ? (
-        <IslandRail
-          islands={islands}
-          storageKey={railKey}
-          serverResume={serverResume}
-          syncProjectId={isSignedIn ? projectId : undefined}
-          syncStage={isSignedIn ? stage : undefined}
-        />
-      ) : null}
-      {out}
-      {showRail ? <ResumePill islands={islands} storageKey={railKey} serverResume={serverResume} /> : null}
-    </div>
+    <LessonProvider lessonBase={lessonBase}>
+      <div className="space-y-5">
+        {showRail ? (
+          <IslandRail
+            islands={islands}
+            storageKey={railKey}
+            serverResume={serverResume}
+            syncProjectId={isSignedIn ? projectId : undefined}
+            syncStage={isSignedIn ? stage : undefined}
+          />
+        ) : null}
+        {out}
+        {showRail ? <ResumePill islands={islands} storageKey={railKey} serverResume={serverResume} /> : null}
+      </div>
+    </LessonProvider>
   );
 }

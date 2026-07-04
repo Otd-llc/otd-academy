@@ -35,7 +35,10 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // (refDes, qty, MPN, manufacturer, description, datasheet) at render time. Like
   // partModel it stores NO data itself — drop it in the BOM_SOURCING card and it
   // stays in sync with the actual BOM. `caption` overrides the default summary.
-  z.object({ type: z.literal("bomTable"), caption: z.string().max(160).optional() }),
+  // `collapsed` renders the (heavy, jargon-dense) live BOM inside a closed
+  // <details> disclosure — reference the learner opens when ready, not a wall
+  // of part numbers greeting them on load.
+  z.object({ type: z.literal("bomTable"), caption: z.string().max(160).optional(), collapsed: z.boolean().optional() }),
   z.object({ type: z.literal("termRef"), term: z.string().max(80) }),
   z.object({
     type: z.literal("sourceRef"),
