@@ -39,6 +39,29 @@ const PROVIDER = {
   name: "One Thousand Drones",
 } as const;
 
+// The brand's official profiles. Emitted as `sameAs` on the site-wide
+// Organization node so search engines bind the website, the social accounts,
+// and the entity into one Knowledge-Graph identity (entity SEO / E-E-A-T).
+export const SOCIAL_LINKS = [
+  "https://x.com/1KDrones",
+  "https://www.youtube.com/@1kDrones",
+  "https://github.com/Otd-llc",
+  "https://www.linkedin.com/company/one-thousand-drones",
+] as const;
+
+// Site-wide Organization node (rendered once in the root layout). Carries the
+// canonical name + url + `sameAs` so every page reinforces the same entity.
+export function organizationJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": `${siteUrl()}/#organization`,
+    name: "One Thousand Drones",
+    url: siteUrl(),
+    sameAs: [...SOCIAL_LINKS],
+  };
+}
+
 // Course — the project-as-course summary (rendered on the guide hub). Maps the
 // curriculum `level` to schema.org `educationalLevel` when present; omits it
 // otherwise so we never advertise an empty value.
