@@ -8,6 +8,9 @@ import { env } from "@/env";
 import { shouldRenderChrome } from "@/lib/chrome";
 import { avatarSrc } from "@/lib/effective-avatar";
 import { BrandMark } from "@/components/BrandMark";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { organizationJsonLd, SOCIAL_LINKS } from "@/lib/seo/jsonld";
+import { XIcon, YouTubeIcon, GitHubIcon, LinkedInIcon } from "@/components/icons";
 import { MainNav } from "@/components/MainNav";
 import { PostHogProvider } from "@/components/PostHogProvider";
 import { RememberLastUser } from "@/components/auth/RememberLastUser";
@@ -157,6 +160,10 @@ export default async function RootLayout({
           {email ? (
             <RememberLastUser email={email} name={name} image={image} />
           ) : null}
+          {/* Site-wide Organization node (name + url + sameAs social profiles).
+              Unconditional (every page, chrome or not) so the entity signal is
+              consistent across the whole site. */}
+          <JsonLd data={organizationJsonLd()} />
           {renderChrome ? (
             // App-shell chrome renders for signed-in users plus anonymous
             // visitors on PUBLIC routes (the SEO funnel); `/sign-in` stays a
@@ -279,6 +286,25 @@ export default async function RootLayout({
                 </div>
 
                 <div className="foot-end">
+                  <ul className="foot-social" aria-label="One Thousand Drones on social media">
+                    {[
+                      { href: SOCIAL_LINKS[0], label: "X", Icon: XIcon },
+                      { href: SOCIAL_LINKS[1], label: "YouTube", Icon: YouTubeIcon },
+                      { href: SOCIAL_LINKS[2], label: "GitHub", Icon: GitHubIcon },
+                      { href: SOCIAL_LINKS[3], label: "LinkedIn", Icon: LinkedInIcon },
+                    ].map(({ href, label, Icon }) => (
+                      <li key={label}>
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={`One Thousand Drones on ${label}`}
+                        >
+                          <Icon className="h-[18px] w-[18px]" />
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
                   <p className="foot-copy">© 2026 One Thousand Drones, LLC</p>
                 </div>
               </div>
