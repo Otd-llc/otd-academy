@@ -39,6 +39,8 @@ import { GuideCardEditor } from "@/components/guide/GuideCardEditor";
 import { PhaseComb } from "@/components/guide/PhaseComb";
 import { BomPdfExport } from "@/components/guide/BomPdfExport";
 import { getPartAssetRenderUrl } from "@/lib/actions/part-assets";
+import { presignGetInline } from "@/lib/part-r2";
+import { env } from "@/env";
 import { renderBoundsSchema } from "@/lib/schemas/part-asset";
 import { StageGate } from "@/components/guide/StageGate";
 import { BoardSelector } from "@/components/guide/BoardSelector";
@@ -437,23 +439,53 @@ export default async function GuideCardPage({
       },
       orderBy: { refDes: "asc" },
     });
-    bomRows = lines.map((l) => ({
-      partId: l.part.id,
-      refDes: l.refDes,
-      qty: l.quantity,
-      mpn: l.part.mpn,
-      manufacturer: l.part.manufacturer,
-      description: l.part.description,
-      datasheetUrl: l.part.datasheetUrl,
-      lifecycle: l.part.lifecycle,
-      // A datasheet via either the external URL or an uploaded PartDatasheet.
-      hasDatasheet: !!l.part.datasheetUrl || l.part.datasheet !== null,
-      dkInStock: l.part.dkInStock,
-      dkLifecycle: l.part.dkLifecycle,
-      dkCheckedAt: l.part.dkCheckedAt,
-      dkUnitPriceCents: l.part.dkUnitPriceCents,
-      dkPartNumber: l.part.dkPartNumber,
-    }));
+    // Batch-fetch each part's MODEL_3D render in ONE query, then presign inline
+    // (a local HMAC, no R2 round-trip) so every BOM row can float its part in 3D
+    // without N per-part queries. R2 off → no models (rows degrade to spec only).
+    const partIds = lines.map((l) => l.part.id);
+    const assets =
+      env.R2_ENABLED && env.R2_BUCKET
+        ? await db.partAsset.findMany({
+            where: { partId: { in: partIds }, kind: "MODEL_3D", renderKey: { not: null } },
+            select: { partId: true, renderKey: true, renderBounds: true },
+          })
+        : [];
+    const modelByPart = new Map(
+      await Promise.all(
+        assets.map(
+          async (a) =>
+            [
+              a.partId,
+              {
+                src: await presignGetInline(a.renderKey!),
+                bounds: renderBoundsSchema.safeParse(a.renderBounds).data ?? null,
+              },
+            ] as const,
+        ),
+      ),
+    );
+    bomRows = lines.map((l) => {
+      const m = modelByPart.get(l.part.id);
+      return {
+        partId: l.part.id,
+        refDes: l.refDes,
+        qty: l.quantity,
+        mpn: l.part.mpn,
+        manufacturer: l.part.manufacturer,
+        description: l.part.description,
+        datasheetUrl: l.part.datasheetUrl,
+        lifecycle: l.part.lifecycle,
+        // A datasheet via either the external URL or an uploaded PartDatasheet.
+        hasDatasheet: !!l.part.datasheetUrl || l.part.datasheet !== null,
+        dkInStock: l.part.dkInStock,
+        dkLifecycle: l.part.dkLifecycle,
+        dkCheckedAt: l.part.dkCheckedAt,
+        dkUnitPriceCents: l.part.dkUnitPriceCents,
+        dkPartNumber: l.part.dkPartNumber,
+        modelSrc: m?.src ?? null,
+        modelBounds: m?.bounds ?? null,
+      };
+    });
   }
 
   // Inline our house-style diagram SVGs so they render in the site's Space Mono
@@ -667,6 +699,7 @@ export default async function GuideCardPage({
           isAdmin={isAdmin}
           stage={stage}
           serverResume={serverResume}
+          lessonBase={hubHref}
         />
       </GuideCardEditor>
 

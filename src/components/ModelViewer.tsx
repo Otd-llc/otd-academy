@@ -1,9 +1,17 @@
 "use client";
 
 // three.js GLB viewer. Loaded ONLY via ModelViewerLazy (next/dynamic, ssr:false)
-// so three is never in the server bundle or the initial client entry. Orbit
-// controls; camera framed from `bounds`. On load error, it is self-contained:
-// local `error` state renders an inline download fallback (no onError prop).
+// so three is never in the server bundle or the initial client entry.
+//
+// Two modes:
+//  - DEFAULT (board renders, parts-catalog asset): a FRAMED pane on a themed
+//    scene bg + floor grid, full orbit controls (rotate/zoom/pan). Unchanged.
+//  - FLOAT (lesson part previews): a FRAMELESS, transparent canvas so the part
+//    floats on the page field; a slow turntable spin says "interactive" until
+//    first grab (M3a) with a centered hint that fades; ROTATE-ONLY controls so
+//    the wheel never captures page scroll and a mobile one-finger swipe still
+//    scrolls the page (two-finger rotates). Kept narrow + short by the caller so
+//    it can't hijack scroll flow.
 import { useEffect, useRef, useState } from "react";
 import type { RenderBounds } from "@/lib/schemas/part-asset";
 import { RotateIcon } from "@/components/icons";
@@ -12,15 +20,29 @@ export default function ModelViewer({
   src,
   bounds,
   heightClass = "h-64",
+  float = false,
+  showHint = true,
+  onFirstInteract,
 }: {
   src: string;
   bounds?: RenderBounds | null;
-  /** Tailwind height class for the canvas box. Compact (h-64 ≈ 256px) by
-   *  default; callers can pass a taller class (e.g. a full-board view). */
+  /** Tailwind height class for the canvas box. */
   heightClass?: string;
+  /** Frameless floating preview (lesson parts): transparent, spinning,
+   *  rotate-only. Off by default (framed board/catalog viewer). */
+  float?: boolean;
+  /** Float mode: render the built-in centered "drag to explore" pill. Set false
+   *  to place your own hint off-model (e.g. a corner chip on a small BOM row). */
+  showHint?: boolean;
+  /** Float mode: fires once, the first time the learner grabs the model — so a
+   *  caller-owned hint can fade in sync with the built-in one. */
+  onFirstInteract?: () => void;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState(false);
+  const [hintGone, setHintGone] = useState(false);
+  const interactRef = useRef(onFirstInteract);
+  interactRef.current = onFirstInteract;
   const boundsKey = JSON.stringify(bounds);
 
   useEffect(() => {
@@ -37,16 +59,17 @@ export default function ModelViewer({
         const width = mount.clientWidth || 600;
         const height = mount.clientHeight || 256;
         const scene = new THREE.Scene();
-        let loadedRoot: { traverse: (cb: (o: unknown) => void) => void } | null = null;
+        let loadedRoot:
+          | { rotation: { y: number }; traverse: (cb: (o: unknown) => void) => void }
+          | null = null;
 
-        // Scene bg + floor grid follow the site theme (dark deep-space vs warm
-        // light paper), read from <html data-theme> and re-applied live when the
-        // ThemeToggle fires its `otd-theme-change` event.
+        // Scene bg + floor grid — FRAMED mode only. Float mode stays transparent
+        // (canvas alpha) so the model sits on the page field in either theme.
+        let grid: InstanceType<typeof THREE.GridHelper> | null = null;
         const themedPalette = () =>
           document.documentElement.dataset.theme === "light"
             ? { bg: 0xe8e2d4, grid1: 0xcbc3b0, grid2: 0xd8d1c0 }
             : { bg: 0x0b0f1a, grid1: 0x334, grid2: 0x223 };
-        let grid: InstanceType<typeof THREE.GridHelper> | null = null;
         const applyTheme = () => {
           const p = themedPalette();
           scene.background = new THREE.Color(p.bg);
@@ -58,28 +81,60 @@ export default function ModelViewer({
           grid = new THREE.GridHelper(10, 10, p.grid1, p.grid2);
           scene.add(grid);
         };
-        applyTheme();
         const onThemeChange = () => applyTheme();
-        window.addEventListener("otd-theme-change", onThemeChange);
+        if (!float) {
+          applyTheme();
+          window.addEventListener("otd-theme-change", onThemeChange);
+        }
+
         const camera = new THREE.PerspectiveCamera(45, width / height, 0.01, 10000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: float });
+        if (float) renderer.setClearColor(0x000000, 0);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.setSize(width, height);
+        if (float) {
+          renderer.domElement.style.cursor = "grab";
+          // Let a vertical touch swipe SCROLL THE PAGE; the browser keeps pan-y,
+          // so OrbitControls only sees horizontal drags (turntable rotate). No
+          // mobile scroll trap.
+          renderer.domElement.style.touchAction = "pan-y";
+        }
         mount.appendChild(renderer.domElement);
 
-        scene.add(new THREE.HemisphereLight(0xffffff, 0x333344, 1.1));
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x333344, float ? 1.15 : 1.1));
         const dir = new THREE.DirectionalLight(0xffffff, 1.0);
         dir.position.set(1, 1, 1);
         scene.add(dir);
 
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
+        if (float) {
+          // Rotate-only: no wheel-zoom (page scroll passes through) and no pan.
+          // (Mobile scroll is protected by touch-action: pan-y on the canvas.)
+          controls.enableZoom = false;
+          controls.enablePan = false;
+        }
 
         const radius = bounds?.radius ?? 5;
         const center = bounds?.center ?? [0, 0, 0];
         camera.position.set(center[0] + radius * 2, center[1] + radius * 1.5, center[2] + radius * 2);
         controls.target.set(center[0], center[1], center[2]);
         controls.update();
+
+        let interacted = false;
+        controls.addEventListener("start", () => {
+          if (float) renderer.domElement.style.cursor = "grabbing";
+          if (!interacted) {
+            interacted = true;
+            if (float) {
+              setHintGone(true);
+              interactRef.current?.();
+            }
+          }
+        });
+        controls.addEventListener("end", () => {
+          if (float) renderer.domElement.style.cursor = "grab";
+        });
 
         new GLTFLoader().load(
           src,
@@ -89,7 +144,12 @@ export default function ModelViewer({
         );
 
         let raf = 0;
-        const tick = () => { controls.update(); renderer.render(scene, camera); raf = requestAnimationFrame(tick); };
+        const tick = () => {
+          if (float && !interacted && loadedRoot) loadedRoot.rotation.y += 0.006;
+          controls.update();
+          renderer.render(scene, camera);
+          raf = requestAnimationFrame(tick);
+        };
         tick();
 
         const onResize = () => {
@@ -101,12 +161,12 @@ export default function ModelViewer({
         cleanup = () => {
           cancelAnimationFrame(raf);
           window.removeEventListener("resize", onResize);
-          window.removeEventListener("otd-theme-change", onThemeChange);
+          if (!float) window.removeEventListener("otd-theme-change", onThemeChange);
           if (grid) {
             grid.geometry.dispose();
             (grid.material as { dispose?: () => void }).dispose?.();
           }
-          loadedRoot?.traverse((o) => {
+          loadedRoot?.traverse((o: unknown) => {
             const mesh = o as Partial<{ geometry: { dispose?: () => void }; material: unknown }>;
             mesh.geometry?.dispose?.();
             const mat = mesh.material;
@@ -126,7 +186,7 @@ export default function ModelViewer({
       }
     })();
     return () => { disposed = true; cleanup(); };
-  }, [src, boundsKey]);
+  }, [src, boundsKey, float]);
 
   if (error) {
     return (
@@ -135,14 +195,36 @@ export default function ModelViewer({
       </p>
     );
   }
+
+  // FLOAT: frameless, transparent; a centered "drag to explore" hint that fades
+  // on first grab (the spin already signals it's live).
+  if (float) {
+    return (
+      <div className={`relative ${heightClass} w-full`}>
+        <div ref={mountRef} className="h-full w-full" />
+        {showHint ? (
+          <div
+            className={`pointer-events-none absolute inset-0 flex items-center justify-center transition-opacity duration-500 ${
+              hintGone ? "opacity-0" : "opacity-100"
+            }`}
+          >
+            <span className="flex items-center gap-1.5 rounded-full border border-command-gold/40 bg-deep-space/50 px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-command-gold backdrop-blur-sm">
+              <RotateIcon className="h-3 w-3" />
+              Drag to explore
+            </span>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  // DEFAULT: framed pane + persistent rotate affordance chip.
   return (
     <div className={`relative ${heightClass} w-full`}>
       <div
         ref={mountRef}
         className="h-full w-full overflow-hidden rounded border border-panel-border bg-deep-space"
       />
-      {/* Affordance watermark: signals the pane is an interactive 3D model.
-          pointer-events-none so it never intercepts the orbit-drag below. */}
       <div className="pointer-events-none absolute left-2 top-2 flex select-none items-center gap-1.5 rounded-md border border-panel-border/60 bg-deep-space/70 px-2 py-1 backdrop-blur-sm">
         <RotateIcon className="h-3 w-3 text-command-gold" />
         <span className="font-mono text-[10px] uppercase tracking-wider text-muted">

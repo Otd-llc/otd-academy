@@ -1381,6 +1381,14 @@ body {
   background: #6e4f12;
   color: #faf7f0;
 }
+:root[data-theme="light"] .glass-popover {
+  /* The floating info pane (glossary term popover): a warm white/ivory sheet on
+     paper (the dark-navy fill would be a hole in the page), and the dark glow
+     becomes a soft warm shadow. Text tokens inside already flip to dark ink. */
+  background: linear-gradient(180deg, #ffffff 0%, #faf7f0 100%);
+  border-color: color-mix(in srgb, var(--color-command-gold) 45%, transparent);
+  box-shadow: 0 10px 30px rgba(40, 34, 22, 0.14);
+}
 
 /* ── Brief print ─────────────────────────────────────────────────────────────
    "Download PDF" on a brief page prints the page itself. Isolate the brief

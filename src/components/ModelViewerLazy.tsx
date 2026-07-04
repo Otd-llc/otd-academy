@@ -23,12 +23,19 @@ export function ModelViewerLazy({
   src,
   bounds,
   heightClass = "h-64",
+  float = false,
+  showHint = true,
 }: {
   src: string;
   bounds?: RenderBounds | null;
   /** Tailwind height for the viewer + its placeholder (kept identical so the
    *  in-view swap causes no layout shift). Compact by default. */
   heightClass?: string;
+  /** Frameless floating preview (lesson parts). Off by default. */
+  float?: boolean;
+  /** Float mode: render the built-in centered pill. Set false to place your own
+   *  hint off-model (never over the model). */
+  showHint?: boolean;
 }) {
   const [show, setShow] = useState(false);
   const placeholderRef = useRef<HTMLDivElement>(null);
@@ -57,13 +64,17 @@ export function ModelViewerLazy({
   }, [show]);
 
   if (show) {
-    return <ModelViewer src={src} bounds={bounds} heightClass={heightClass} />;
+    return <ModelViewer src={src} bounds={bounds} heightClass={heightClass} float={float} showHint={showHint} />;
   }
 
+  // Float placeholder is frameless (no border/bg) so nothing flashes a box
+  // before the transparent viewer swaps in; framed placeholder keeps its pane.
   return (
     <div
       ref={placeholderRef}
-      className={`flex ${heightClass} w-full items-center justify-center rounded border border-panel-border bg-deep-space font-mono text-xs text-muted`}
+      className={`flex ${heightClass} w-full items-center justify-center font-mono text-xs text-muted ${
+        float ? "" : "rounded border border-panel-border bg-deep-space"
+      }`}
     >
       Loading 3D model…
     </div>
