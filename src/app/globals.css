@@ -1341,6 +1341,19 @@ body {
   .foot-cols {
     max-width: 70%;
   }
+  /* Desktop: pin the social row to the left edge and CENTER the copyright
+     between it and the bee watermark (which bleeds off the right). Mobile keeps
+     the simple left-icons / right-copy row. */
+  .foot-end {
+    position: relative;
+    justify-content: center;
+  }
+  .foot-social {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
 }
 @media (max-width: 720px) {
   .foot-inner {
