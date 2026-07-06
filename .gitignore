@@ -75,6 +75,9 @@ next-env.d.ts
 # Local one-off / scratch scripts — operational snapshots already applied to the
 # DB, kept locally for reference but not part of the app or build. Safe to delete.
 /scripts/_*
+# Root-level screenshot/verify helpers (_shoot/_sweep/_verify.mjs, the diagram
+# audit tools referenced by the otd-frontend-design skill) + any root scratch .mjs.
+/_*.mjs
 /scripts/backfill-datasheets-from-symbols.ts
 /scripts/delete-fixture-project.ts
 /scripts/drop-nets.ts
