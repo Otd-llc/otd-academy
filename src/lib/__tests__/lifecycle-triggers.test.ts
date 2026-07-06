@@ -210,8 +210,9 @@ describe("pay-the-difference (4.1) audience", () => {
 });
 
 describe("launch-window (5.x) audience", () => {
-  test("empty when no window / window closed; selects Pass-less users when open", async () => {
+  test("empty when no window / window closed; selects engaged Pass-less users when open", async () => {
     const noPass = await makeUser("lw-nopass");
+    await enroll(noPass.id, { stage: "REQUIREMENTS", idleDays: 0 }); // engaged
     const open = new Date(NOW.getTime() + 86_400_000); // window ends tomorrow
 
     expect(await launchWindowAudience(db, NOW, "5.1", null)).toEqual([]);
@@ -219,6 +220,23 @@ describe("launch-window (5.x) audience", () => {
 
     const ids = (await launchWindowAudience(db, NOW, "5.1", open)).map((u) => u.id);
     expect(ids).toContain(noPass.id);
+  });
+
+  test("beats are paced off the window end, and zero-intent accounts are excluded", async () => {
+    const engaged = await makeUser("lw-engaged");
+    await enroll(engaged.id, { stage: "REQUIREMENTS", idleDays: 0 });
+    const noEnroll = await makeUser("lw-noenroll"); // consented, never started a board
+    const end = new Date(NOW.getTime() + 10 * 86_400_000); // 14-day window still open
+
+    // 5.1 (launch day) is live now, and only reaches engaged users.
+    const s1 = (await launchWindowAudience(db, NOW, "5.1", end, 14)).map((u) => u.id);
+    expect(s1).toContain(engaged.id);
+    expect(s1).not.toContain(noEnroll.id);
+
+    // 5.2 (mid) and 5.3 (48h left) are not due yet → the selector short-circuits
+    // to empty, so all four beats can never fire on the same tick.
+    expect(await launchWindowAudience(db, NOW, "5.2", end, 14)).toEqual([]);
+    expect(await launchWindowAudience(db, NOW, "5.3", end, 14)).toEqual([]);
   });
 });
 
@@ -250,12 +268,13 @@ describe("once-only send + consent guard (lifecycle-send)", () => {
       founderFirstName: "Josh",
       unsubscribeUrl: "https://x/u",
       host: "x",
+      postalAddress: "One Thousand Drones, LLC, Broken Arrow, OK",
       l101Url: "https://x/l101",
     });
 
     const first = await sendLifecycleEmail(
       db,
-      { userId: u.id, to: u.email!, sequence: "1.1", email: built },
+      { userId: u.id, to: u.email!, sequence: "1.1", email: built, unsubscribeUrl: "https://x/u" },
       okFetch,
     );
     expect(first).toBe("sent");
@@ -270,7 +289,7 @@ describe("once-only send + consent guard (lifecycle-send)", () => {
     // Second attempt: already-sent, no new Resend call.
     const second = await sendLifecycleEmail(
       db,
-      { userId: u.id, to: u.email!, sequence: "1.1", email: built },
+      { userId: u.id, to: u.email!, sequence: "1.1", email: built, unsubscribeUrl: "https://x/u" },
       okFetch,
     );
     expect(second).toBe("already-sent");
@@ -291,12 +310,13 @@ describe("once-only send + consent guard (lifecycle-send)", () => {
       founderFirstName: "Josh",
       unsubscribeUrl: "https://x/u",
       host: "x",
+      postalAddress: "One Thousand Drones, LLC, Broken Arrow, OK",
       l101Url: "https://x/l101",
     });
 
     const outcome = await sendLifecycleEmail(
       db,
-      { userId: u.id, to: u.email!, sequence: "1.1", email: built },
+      { userId: u.id, to: u.email!, sequence: "1.1", email: built, unsubscribeUrl: "https://x/u" },
       okFetch,
     );
     expect(outcome).toBe("skipped-consent");

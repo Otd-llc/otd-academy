@@ -176,23 +176,55 @@ export function payTheDifferenceAudience(db: PrismaClient, _now: Date) {
   });
 }
 
-// ─── 5.x Launch window — in the window, NOT yet holding the Pass ─────────────
+// ─── 5.x Launch window — in the window, NOT yet holding the Pass, ENGAGED ─────
 // "Holding the Pass" = an Entitlement on the reserved bundle slot (bundleId set).
-// All four launch emails share the same base audience (window-open + Pass-less +
-// consent); the CRON decides WHICH of 5.1–5.4 to send from the window timing. We
-// gate each on its own sequence id so a learner gets each window beat at most once.
+// Each of the four beats fires on its OWN schedule so they never pile up on one
+// tick: 5.1 at window open, 5.2 near the middle, 5.3 with 48h left, 5.4 in the
+// final hours. Timing is derived from the window END minus fixed offsets (window
+// length = `windowDays`), so a beat only becomes eligible once `now` has reached
+// its trigger; the once-only ledger + the cron's per-user daily cap keep a late
+// entrant from getting several beats at once. The audience is also narrowed to
+// ENGAGED users (at least one enrollment) so signed-up-never-started accounts
+// don't get a four-email sales sequence they never asked for.
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The earliest time each launch beat may send, given the window end + length. */
+export function launchBeatTrigger(
+  sequence: "5.1" | "5.2" | "5.3" | "5.4",
+  launchWindowEnd: Date,
+  windowDays: number,
+): Date {
+  const end = launchWindowEnd.getTime();
+  switch (sequence) {
+    case "5.1":
+      return new Date(end - windowDays * DAY_MS); // window open (launch day)
+    case "5.2":
+      return new Date(end - Math.min(8, Math.max(1, windowDays - 1)) * DAY_MS); // near the middle
+    case "5.3":
+      return new Date(end - 48 * 60 * 60 * 1000); // 48 hours left
+    case "5.4":
+      return new Date(end - 12 * 60 * 60 * 1000); // final hours
+  }
+}
+
 export function launchWindowAudience(
   db: PrismaClient,
   now: Date,
   sequence: "5.1" | "5.2" | "5.3" | "5.4",
   launchWindowEnd: Date | null,
+  windowDays: number = 14,
 ) {
-  // No window configured, or it has closed → no audience (never fabricate urgency).
+  // No window, closed, or this beat's trigger not reached yet → no audience
+  // (never fabricate urgency, never fire all four beats at once).
   if (!launchWindowEnd || now >= launchWindowEnd) return Promise.resolve([] as AudienceUser[]);
+  if (now < launchBeatTrigger(sequence, launchWindowEnd, windowDays)) {
+    return Promise.resolve([] as AudienceUser[]);
+  }
   return db.user.findMany({
     where: {
       ...eligible(sequence),
       entitlements: { none: { bundleId: { not: null } } },
+      enrollments: { some: {} },
     },
     select: SELECT,
   });

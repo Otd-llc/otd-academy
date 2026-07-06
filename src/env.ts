@@ -71,6 +71,22 @@ export const env = createEnv({
     LAUNCH_WINDOW_END: z.string().datetime().optional(),
     REACTIVATION_DAYS: z.coerce.number().int().positive().default(7),
     LIFECYCLE_EMAIL_ENABLED: z.coerce.boolean().default(true),
+    //   LAUNCH_WINDOW_DAYS — length of the launch window in days, used to pace the
+    //     four launch beats (5.1 open, 5.2 mid, 5.3 48h-left, 5.4 last call) off the
+    //     window END so they never all fire on one tick. Default 14.
+    LAUNCH_WINDOW_DAYS: z.coerce.number().int().positive().default(14),
+    //   LIFECYCLE_RESEND_FROM — dedicated marketing sender, kept separate from the
+    //     transactional AUTH_RESEND_FROM (login@) so a marketing complaint can't hurt
+    //     sign-in deliverability. Verify this identity in Resend. Falls back to
+    //     AUTH_RESEND_FROM when unset.
+    LIFECYCLE_RESEND_FROM: z.string().min(1).optional(),
+    //   LIFECYCLE_POSTAL_ADDRESS — physical mailing address in every lifecycle email
+    //     footer (CAN-SPAM requires a valid postal address). Set the real registered
+    //     address here.
+    LIFECYCLE_POSTAL_ADDRESS: z
+      .string()
+      .min(1)
+      .default("One Thousand Drones, LLC, Broken Arrow, OK 74012, USA"),
   },
   client: {
     // Public site origin used as the metadataBase for absolute SEO URLs
@@ -121,5 +137,8 @@ export const env = createEnv({
     LAUNCH_WINDOW_END: process.env.LAUNCH_WINDOW_END,
     REACTIVATION_DAYS: process.env.REACTIVATION_DAYS,
     LIFECYCLE_EMAIL_ENABLED: process.env.LIFECYCLE_EMAIL_ENABLED,
+    LAUNCH_WINDOW_DAYS: process.env.LAUNCH_WINDOW_DAYS,
+    LIFECYCLE_RESEND_FROM: process.env.LIFECYCLE_RESEND_FROM,
+    LIFECYCLE_POSTAL_ADDRESS: process.env.LIFECYCLE_POSTAL_ADDRESS,
   },
 });
