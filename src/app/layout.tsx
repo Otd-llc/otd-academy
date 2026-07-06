@@ -6,6 +6,7 @@ import { auth, signOut } from "@/auth";
 import { db } from "@/lib/db";
 import { env } from "@/env";
 import { shouldRenderChrome } from "@/lib/chrome";
+import { shouldAskEmailConsent } from "@/lib/consent-prompt";
 import { avatarSrc } from "@/lib/effective-avatar";
 import { BrandMark } from "@/components/BrandMark";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -14,6 +15,7 @@ import { XIcon, YouTubeIcon, GitHubIcon, LinkedInIcon } from "@/components/icons
 import { MainNav } from "@/components/MainNav";
 import { PostHogProvider } from "@/components/PostHogProvider";
 import { RememberLastUser } from "@/components/auth/RememberLastUser";
+import { ConsentPrompt } from "@/components/ConsentPrompt";
 import { SignUpCta } from "@/components/SignUpCta";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { TooltipProvider } from "@/components/TooltipProvider";
@@ -94,7 +96,12 @@ export default async function RootLayout({
     ? await db.user
         .findUnique({
           where: { email },
-          select: { id: true, theme: true, avatarUpdatedAt: true },
+          select: {
+            id: true,
+            theme: true,
+            avatarUpdatedAt: true,
+            emailConsentUpdatedAt: true,
+          },
         })
         .catch(() => null)
     : null;
@@ -106,6 +113,15 @@ export default async function RootLayout({
   const image = account
     ? avatarSrc(account.id, account.avatarUpdatedAt, providerImage)
     : providerImage;
+
+  // Ask a signed-in user for lifecycle-email consent exactly once (GDPR opt-in):
+  // only when their row loaded and they have never chosen. Non-blocking corner
+  // prompt, never a gate on using the site.
+  const askEmailConsent = shouldAskEmailConsent({
+    signedIn: !!email,
+    account,
+    pathname,
+  });
 
   async function signOutAction() {
     "use server";
@@ -160,6 +176,9 @@ export default async function RootLayout({
           {email ? (
             <RememberLastUser email={email} name={name} image={image} />
           ) : null}
+          {/* Post-signup email-consent prompt (GDPR opt-in). Shows once, only for a
+              signed-in user who has never chosen; non-blocking corner card. */}
+          {askEmailConsent ? <ConsentPrompt /> : null}
           {/* Site-wide Organization node (name + url + sameAs social profiles).
               Unconditional (every page, chrome or not) so the entity signal is
               consistent across the whole site. */}
