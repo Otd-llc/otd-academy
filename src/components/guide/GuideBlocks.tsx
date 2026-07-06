@@ -1151,10 +1151,28 @@ function GuideBlock({
       );
 
     case "youtube":
-      // An unfilled embed (empty videoId) renders nothing — mirrors the video
-      // block's empty-src placeholder rule (the Library page has no admin capture
-      // affordance, so there's nothing to show for a not-yet-filled slot).
-      if (!block.videoId) return null;
+      // An unfilled embed (empty videoId) is an ADMIN-ONLY affordance, mirroring
+      // the image/video empty slot: a student sees NOTHING (no half-built slot),
+      // but an admin gets a "to be added" placeholder naming the video, so a
+      // not-yet-filled section-hero / island slot is visible + fillable in the
+      // editor instead of a silent gap. YouTube isn't captured in-app, so there's
+      // no capture "+" — the author sets the id via the block editor.
+      if (!block.videoId) {
+        if (!isAdmin) return null;
+        return (
+          <div className="my-6 flex flex-col items-center justify-center gap-2 rounded border border-dashed border-panel-border bg-deep-space/40 px-6 py-10 text-center">
+            <VideoIcon className="h-7 w-7 text-muted" />
+            <span className="font-mono text-xs uppercase tracking-wider text-muted">
+              YouTube — add id
+            </span>
+            {block.title || block.caption ? (
+              <span className="max-w-md font-serif text-sm text-muted">
+                {block.title || block.caption}
+              </span>
+            ) : null}
+          </div>
+        );
+      }
       return (
         <figure className="my-6">
           <YouTubeEmbed
