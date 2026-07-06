@@ -117,6 +117,7 @@ export default function ModelViewer({
 
         const radius = bounds?.radius ?? 5;
         const center = bounds?.center ?? [0, 0, 0];
+        const centerVec = new THREE.Vector3(center[0], center[1], center[2]);
         camera.position.set(center[0] + radius * 2, center[1] + radius * 1.5, center[2] + radius * 2);
         controls.target.set(center[0], center[1], center[2]);
         controls.update();
@@ -138,7 +139,20 @@ export default function ModelViewer({
 
         new GLTFLoader().load(
           src,
-          (gltf) => { if (!disposed) { loadedRoot = gltf.scene; scene.add(gltf.scene); } },
+          (gltf) => {
+            if (disposed) return;
+            // Spin about the model's true center, not its GLB local origin. A
+            // part whose exported origin sits at a pin/corner (bounds.center ≠ 0)
+            // otherwise swings on an eccentric axis under the float turntable.
+            // Reparent under a pivot AT center, offsetting the model by -center
+            // so it still renders in place (no visual jump, grid unaffected).
+            const pivot = new THREE.Group();
+            pivot.position.copy(centerVec);
+            gltf.scene.position.sub(centerVec);
+            pivot.add(gltf.scene);
+            loadedRoot = pivot;
+            scene.add(pivot);
+          },
           undefined,
           () => { if (!disposed) setError(true); },
         );
