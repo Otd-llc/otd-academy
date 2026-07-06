@@ -1,5 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { techArticleJsonLd, learningResourceJsonLd, definedTermJsonLd } from "@/lib/seo/jsonld";
+import { techArticleJsonLd, learningResourceJsonLd, definedTermJsonLd, videoObjectJsonLd } from "@/lib/seo/jsonld";
+
+describe("videoObjectJsonLd", () => {
+  it("derives thumbnail, nocookie embed, and canonical watch url from the bare id", () => {
+    const v = videoObjectJsonLd({
+      name: "Wire the regulator",
+      description: "Placing and wiring U2 (the 3.3 V LDO).",
+      videoId: "dQw4w9WgXcQ",
+      uploadDate: "2026-07-06",
+    }) as Record<string, unknown>;
+    expect(v["@type"]).toBe("VideoObject");
+    expect(v.name).toBe("Wire the regulator");
+    expect(v.description).toBe("Placing and wiring U2 (the 3.3 V LDO).");
+    expect(v.thumbnailUrl).toBe("https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg");
+    expect(v.embedUrl).toBe("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
+    expect(v.contentUrl).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+    expect(v.uploadDate).toBe("2026-07-06");
+  });
+  it("falls back to the name when no description, and omits uploadDate when absent", () => {
+    const v = videoObjectJsonLd({
+      name: "Course intro",
+      description: null,
+      videoId: "abc123",
+    }) as Record<string, unknown>;
+    expect(v.description).toBe("Course intro");
+    expect("uploadDate" in v).toBe(false);
+  });
+});
 
 describe("techArticleJsonLd", () => {
   it("emits an absolute url + headline and omits empty optionals", () => {

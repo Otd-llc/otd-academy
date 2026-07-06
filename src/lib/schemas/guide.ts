@@ -133,6 +133,11 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     title: z.string().trim().max(200),
     caption: z.string().max(200).optional(),
     start: z.int().nonnegative().optional(),
+    // Optional ISO-8601 date (YYYY-MM-DD) the video was published on YouTube.
+    // Not derivable from the id; supplied by the author. Feeds VideoObject
+    // JSON-LD `uploadDate`, which Google requires for video rich-result
+    // eligibility. Absent ⇒ the VideoObject node stays valid but hygiene-level.
+    uploadDate: z.string().trim().max(40).optional(),
   }),
   // quiz — an interactive multiple-choice comprehension check. Client-scored
   // (immediate feedback), and ADDITIVE to the stage work-gate, not a replacement.

@@ -250,6 +250,33 @@ export function learningResourceJsonLd(input: {
   };
 }
 
+// VideoObject — a `youtube` content block as schema.org VideoObject, so an
+// embedded lesson video is eligible for video rich results and is bound to the
+// page as its own entity (not just YouTube's). Takes the bare, schema-validated
+// videoId and derives the three URLs: the YouTube-CDN thumbnail, the
+// youtube-nocookie embed (matches the renderer), and the canonical watch URL.
+// `description` falls back to `name` so the node is never description-less
+// (Google recommends one). `uploadDate` is required for rich-result eligibility
+// but not derivable from the id, so it is optional here and omitted when the
+// author has not supplied it (the node stays valid, just hygiene-level). PURE.
+export function videoObjectJsonLd(input: {
+  name: string;
+  description: string | null;
+  videoId: string;
+  uploadDate?: string | null;
+}): object {
+  return {
+    "@context": SCHEMA_CONTEXT,
+    "@type": "VideoObject",
+    name: input.name,
+    description: input.description ?? input.name,
+    thumbnailUrl: `https://i.ytimg.com/vi/${input.videoId}/hqdefault.jpg`,
+    embedUrl: `https://www.youtube-nocookie.com/embed/${input.videoId}`,
+    contentUrl: `https://www.youtube.com/watch?v=${input.videoId}`,
+    ...(input.uploadDate ? { uploadDate: input.uploadDate } : {}),
+  };
+}
+
 // DefinedTerm — claims authorship of a coined term (e.g. "Embodied Motor
 // Imagery"). Emitted on ONE canonical page only; every other mention links to
 // that url, none re-declare the schema (EMI doc §5).
