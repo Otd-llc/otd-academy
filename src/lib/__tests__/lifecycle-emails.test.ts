@@ -26,6 +26,7 @@ const ctx = {
   founderFirstName: "Josh",
   unsubscribeUrl: "https://academy.onethousanddrones.com/email/unsubscribe/TOKEN123",
   host: "academy.onethousanddrones.com",
+  postalAddress: "One Thousand Drones, LLC, Broken Arrow, OK 74012, USA",
   l101Url: "https://academy.onethousanddrones.com/projects/l1-01-wroom-breakout/v1/guide",
   certUrl: "https://academy.onethousanddrones.com/verify",
   l2Url: "https://academy.onethousanddrones.com/courses",
@@ -75,6 +76,14 @@ describe("lifecycle email builders", () => {
       const email = build(ctx);
       expect(email.html).toContain(ctx.unsubscribeUrl);
       expect(email.text).toContain(ctx.unsubscribeUrl);
+    }
+  });
+
+  test("every email footer carries the physical postal address (CAN-SPAM)", () => {
+    for (const build of Object.values(LIFECYCLE_BUILDERS)) {
+      const email = build(ctx);
+      expect(email.html).toContain(ctx.postalAddress);
+      expect(email.text).toContain(ctx.postalAddress);
     }
   });
 

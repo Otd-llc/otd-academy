@@ -26,6 +26,8 @@ export async function sendLifecycleEmail(
     to: string;
     sequence: string;
     email: LifecycleEmail;
+    /** Signed one-click opt-out URL, mirrored into the List-Unsubscribe header. */
+    unsubscribeUrl: string;
   },
   resendFetch: typeof fetch = fetch,
 ): Promise<SendOutcome> {
@@ -56,11 +58,18 @@ export async function sendLifecycleEmail(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: env.AUTH_RESEND_FROM,
+      // Dedicated marketing sender, kept off the transactional login@ identity.
+      from: env.LIFECYCLE_RESEND_FROM ?? env.AUTH_RESEND_FROM,
       to: args.to,
       subject,
       html,
       text,
+      // RFC 8058 one-click unsubscribe: required by Gmail/Yahoo bulk-sender rules,
+      // and it lets the mail client show a native Unsubscribe control.
+      headers: {
+        "List-Unsubscribe": `<${args.unsubscribeUrl}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
     }),
   });
   if (!res.ok) {

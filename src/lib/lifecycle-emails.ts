@@ -43,6 +43,8 @@ interface WrapArgs {
   unsubscribeUrl: string;
   /** Public host shown in the footer (e.g. academy.onethousanddrones.com). */
   host: string;
+  /** Physical mailing address shown in the footer (CAN-SPAM requirement). */
+  postalAddress: string;
 }
 
 // Build the branded HTML + a text/plain alternative around the supplied copy.
@@ -53,6 +55,7 @@ function wrap({
   signOff,
   unsubscribeUrl,
   host,
+  postalAddress,
 }: WrapArgs): LifecycleEmail {
   const safeUnsub = esc(unsubscribeUrl);
   const safeCtaUrl = esc(cta.url);
@@ -118,8 +121,9 @@ function wrap({
             </tr>
           </table>
 
-          <div style="max-width:480px;margin:16px auto 0;font-family:${SANS};font-size:11px;color:#5a6070;text-align:center;">
-            One Thousand Drones Academy &middot; ${esc(host)}
+          <div style="max-width:480px;margin:16px auto 0;font-family:${SANS};font-size:11px;line-height:1.7;color:#5a6070;text-align:center;">
+            One Thousand Drones Academy &middot; ${esc(host)}<br />
+            ${esc(postalAddress)}
           </div>
         </td>
       </tr>
@@ -137,6 +141,7 @@ function wrap({
     "You're receiving this because you have an account at OTD Academy.",
     `Unsubscribe: ${unsubscribeUrl}`,
     `One Thousand Drones Academy · ${host}`,
+    postalAddress,
   ].join("\n");
 
   return { subject, html, text };
@@ -149,6 +154,7 @@ export interface LifecycleContext {
   founderFirstName: string; // [FOUNDER_FIRST_NAME]
   unsubscribeUrl: string; // signed one-click opt-out
   host: string; // footer host
+  postalAddress: string; // CAN-SPAM physical address (footer)
   l101Url: string; // [L101_URL]
   certUrl?: string; // [CERT_URL]
   l2Url?: string; // [L2_URL]
@@ -163,6 +169,7 @@ function base(ctx: LifecycleContext) {
     signOff: ctx.founderFirstName,
     unsubscribeUrl: ctx.unsubscribeUrl,
     host: ctx.host,
+    postalAddress: ctx.postalAddress,
   };
 }
 

@@ -58,37 +58,54 @@ function page({ ok, message }: { ok: boolean; message: string }): Response {
   });
 }
 
+// Flip emailConsent → false for the token's user. Shared by GET (a human clicks
+// the footer link) and POST (RFC 8058 one-click, fired by the mail client from the
+// List-Unsubscribe-Post header). updateMany so a token for a deleted user is a
+// clean no-op (count 0) rather than a thrown "record not found".
+async function unsubscribe(token: string): Promise<{ ok: boolean; message: string }> {
+  const claims = verifyUnsubscribeToken(token);
+  if (!claims) {
+    return {
+      ok: false,
+      message:
+        "This unsubscribe link is invalid or has been tampered with. If you keep getting emails you don't want, reply to one and we'll remove you.",
+    };
+  }
+  const result = await db.user.updateMany({
+    where: { id: claims.userId },
+    data: { emailConsent: false, emailConsentUpdatedAt: new Date() },
+  });
+  if (result.count === 0) {
+    return {
+      ok: false,
+      message:
+        "We couldn't find this account. It may have already been removed. If you keep getting emails you don't want, reply to one and we'll remove you.",
+    };
+  }
+  return {
+    ok: true,
+    message: "You won't receive any more lifecycle or product emails from OTD Academy.",
+  };
+}
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ token: string }> },
 ): Promise<Response> {
   const { token } = await params;
-  const claims = verifyUnsubscribeToken(token);
-  if (!claims) {
-    return page({
-      ok: false,
-      message:
-        "This unsubscribe link is invalid or has been tampered with. If you keep getting emails you don't want, reply to one and we'll remove you.",
-    });
-  }
+  return page(await unsubscribe(token));
+}
 
-  // Flip consent. Use updateMany so a token whose user was deleted is a clean no-op
-  // (count 0) rather than a thrown "record not found".
-  const result = await db.user.updateMany({
-    where: { id: claims.userId },
-    data: { emailConsent: false, emailConsentUpdatedAt: new Date() },
-  });
-
-  if (result.count === 0) {
-    return page({
-      ok: false,
-      message:
-        "We couldn't find this account. It may have already been removed. If you keep getting emails you don't want, reply to one and we'll remove you.",
-    });
-  }
-
-  return page({
-    ok: true,
-    message: "You won't receive any more lifecycle or product emails from OTD Academy.",
+// One-click (RFC 8058): the mail client POSTs here from List-Unsubscribe-Post. It
+// does not render a page, so a 2xx with a tiny body is all it needs.
+export async function POST(
+  _req: Request,
+  { params }: { params: Promise<{ token: string }> },
+): Promise<Response> {
+  const { token } = await params;
+  const { ok } = await unsubscribe(token);
+  return new Response(ok ? "Unsubscribed" : "Invalid unsubscribe link", {
+    status: ok ? 200 : 400,
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
   });
 }

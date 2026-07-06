@@ -52,6 +52,7 @@ function contextFor(user: AudienceUser): LifecycleContext {
     founderFirstName: FOUNDER_FIRST_NAME,
     unsubscribeUrl: `${base}/email/unsubscribe/${signUnsubscribeToken(user.id)}`,
     host: host(),
+    postalAddress: env.LIFECYCLE_POSTAL_ADDRESS,
     l101Url: `${base}/projects/l1-01-wroom-breakout/v1/guide`,
     certUrl: `${base}/verify`,
     l2Url: `${base}/courses`,
@@ -72,6 +73,7 @@ interface SequencePlan {
 async function plan(now: Date): Promise<SequencePlan[]> {
   const days = env.REACTIVATION_DAYS;
   const windowEnd = env.LAUNCH_WINDOW_END ? new Date(env.LAUNCH_WINDOW_END) : null;
+  const windowDays = env.LAUNCH_WINDOW_DAYS;
 
   const [
     welcome,
@@ -92,10 +94,10 @@ async function plan(now: Date): Promise<SequencePlan[]> {
     drcNudgeAudience(db, now, days),
     activationUpsellAudience(db, now),
     payTheDifferenceAudience(db, now),
-    launchWindowAudience(db, now, "5.1", windowEnd),
-    launchWindowAudience(db, now, "5.2", windowEnd),
-    launchWindowAudience(db, now, "5.3", windowEnd),
-    launchWindowAudience(db, now, "5.4", windowEnd),
+    launchWindowAudience(db, now, "5.1", windowEnd, windowDays),
+    launchWindowAudience(db, now, "5.2", windowEnd, windowDays),
+    launchWindowAudience(db, now, "5.3", windowEnd, windowDays),
+    launchWindowAudience(db, now, "5.4", windowEnd, windowDays),
     winBackAudience(db, now, days),
   ]);
 
@@ -132,6 +134,12 @@ export async function GET(req: Request): Promise<Response> {
   let skipped = 0;
   const errors: string[] = [];
   const perSequence: Record<string, number> = {};
+  // Per-user daily cap: at most one lifecycle email per user per tick. Sequences
+  // run in priority order (welcome → nudges → activation → purchase → launch →
+  // win-back); a user matching several gets the highest-priority one now and the
+  // rest on later ticks. We skip capped users BEFORE claiming the ledger row, so
+  // their other sequences stay eligible tomorrow.
+  const emailedThisTick = new Set<string>();
 
   for (const { sequence, audience } of plans) {
     const build = LIFECYCLE_BUILDERS[sequence];
@@ -141,17 +149,24 @@ export async function GET(req: Request): Promise<Response> {
         skipped++;
         continue;
       }
+      if (emailedThisTick.has(user.id)) {
+        skipped++;
+        continue;
+      }
       try {
-        const email = build(contextFor(user));
+        const ctx = contextFor(user);
+        const email = build(ctx);
         const outcome = await sendLifecycleEmail(db, {
           userId: user.id,
           to: user.email,
           sequence,
           email,
+          unsubscribeUrl: ctx.unsubscribeUrl,
         });
         if (outcome === "sent") {
           sent++;
           perSequence[sequence] = (perSequence[sequence] ?? 0) + 1;
+          emailedThisTick.add(user.id);
         } else {
           skipped++;
         }
