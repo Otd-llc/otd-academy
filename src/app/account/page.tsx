@@ -4,11 +4,13 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
 import { AvatarUploader } from "@/components/account/AvatarUploader";
+import { EmailPreferences } from "@/components/account/EmailPreferences";
 import { avatarSrc } from "@/lib/effective-avatar";
 
-// Signed-in account settings. Currently: your avatar (seeded from the sign-in
-// provider, overridable with an upload) + a read-only identity summary. Auth-gated
-// by middleware; the redirect here is a defense-in-depth backstop.
+// Signed-in account settings: your avatar (seeded from the sign-in provider,
+// overridable with an upload), a read-only identity summary, and your email
+// opt-in. Auth-gated by middleware; the redirect here is a defense-in-depth
+// backstop.
 export const metadata: Metadata = {
   title: "Your account",
   robots: { index: false, follow: false },
@@ -27,6 +29,7 @@ export default async function AccountPage() {
       email: true,
       image: true,
       avatarUpdatedAt: true,
+      emailConsent: true,
     },
   });
   if (!user) redirect("/sign-in");
@@ -54,6 +57,17 @@ export default async function AccountPage() {
           initial={initial}
           hasCustom={!!user.avatarUpdatedAt}
         />
+      </section>
+
+      <section className="mt-10 border-t border-panel-border/60 pt-6">
+        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+          ▸ Email
+        </p>
+        <p className="mt-1 font-serif text-sm text-muted">
+          Occasional build tips, new lessons, and launch news. Sign-in links come
+          through no matter what.
+        </p>
+        <EmailPreferences initialConsent={user.emailConsent} />
       </section>
 
       <section className="mt-10 border-t border-panel-border/60 pt-6">

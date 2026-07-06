@@ -24,11 +24,13 @@ model User {
   role          UserRole  @default(LEARNER)
   createdAt     DateTime  @default(now())
   stripeCustomerId String? @unique
-  // Lifecycle-email consent (CAN-SPAM / GDPR). Default true: existing learners are
-  // opted in (they created an account to learn here); the unsubscribe route flips
-  // this to false and every lifecycle send is guarded by `emailConsent === true`.
-  // Transactional mail (magic-link sign-in) is NOT gated by this.
-  emailConsent          Boolean   @default(true)
+  // Lifecycle-email consent (GDPR opt-in). Default FALSE: no marketing/lifecycle
+  // mail until the user affirmatively opts in (the account "Email" toggle stamps
+  // emailConsentUpdatedAt at that moment). Every lifecycle send is guarded by
+  // `emailConsent === true`; the unsubscribe route flips it back to false. A null
+  // emailConsentUpdatedAt means the user has never made a choice. Transactional mail
+  // (magic-link sign-in) is NOT gated by this.
+  emailConsent          Boolean   @default(false)
   emailConsentUpdatedAt DateTime?
 
   // UI theme preference for a signed-in user ("light" | "dark"). Null = no stored
