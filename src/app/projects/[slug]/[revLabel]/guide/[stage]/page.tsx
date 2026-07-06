@@ -26,6 +26,7 @@ import {
   breadcrumbJsonLd,
   guideCardToHowTo,
   siteUrl,
+  videoObjectJsonLd,
 } from "@/lib/seo/jsonld";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/PageHeader";
@@ -72,6 +73,7 @@ import {
   completionRefSchema,
   guideContentBlocksSchema,
   type CompletionRef,
+  type ContentBlock,
 } from "@/lib/schemas/guide";
 
 type Params = { slug: string; revLabel: string; stage: string };
@@ -635,11 +637,31 @@ export default async function GuideCardPage({
     { name: project.name, url: `${base}${hubHref}` },
     { name: card.title, url: `${base}${cardHref(stage)}` },
   ]);
+  // One VideoObject per embedded `youtube` block (section hero, per-island
+  // walkthrough) — binds each lesson video to the page as its own entity and
+  // makes it eligible for video rich results. Unfilled placeholder embeds
+  // (empty videoId) are skipped so we never emit a node for a blank slot.
+  const videoJsonLd = blocks
+    .filter(
+      (b): b is Extract<ContentBlock, { type: "youtube" }> =>
+        b.type === "youtube" && b.videoId.trim() !== "",
+    )
+    .map((b) =>
+      videoObjectJsonLd({
+        name: b.title,
+        description: b.caption ?? null,
+        videoId: b.videoId,
+        uploadDate: b.uploadDate ?? null,
+      }),
+    );
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <JsonLd data={howToJsonLd} />
       <JsonLd data={lessonBreadcrumbJsonLd} />
+      {videoJsonLd.map((data, i) => (
+        <JsonLd key={i} data={data} />
+      ))}
       {/* Top phase rail — the comb as an ORIENT header: the ringed current hex
           says where you are (the stage name + phase are in the PageHeader below).
           No buttons. Shares its hex language with the footer control. */}
