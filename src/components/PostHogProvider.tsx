@@ -46,13 +46,6 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
       capture_pageview: false,
       // $pageleave is still useful for bounce/dwell and needs no router hook.
       capture_pageleave: true,
-      // Suppress PostHog's client-rendered surveys entirely. We capture the email
-      // opt-in in-product on /start (StartConsent); a dashboard survey asking the
-      // same thing would be a double-ask. This is app-wide (posthog-js has no
-      // per-survey code toggle — targeting individual surveys is a dashboard
-      // setting). Flip to false + configure targeting in PostHog if we ever want
-      // an unrelated in-app survey.
-      disable_surveys: true,
     });
   }, []);
 
