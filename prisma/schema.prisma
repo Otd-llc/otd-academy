@@ -44,6 +44,13 @@ model User {
   // provider image, else the initial. Additive, nullable.
   avatarUpdatedAt       DateTime?
 
+  // First-run onboarding goal (the motivation picked on the /start survey, or the
+  // skip sentinel) + when it was answered. Both null = never answered. Feeds
+  // personalization + lifecycle email segmentation. Stored as a string (not an
+  // enum) to avoid enum-mirror maintenance for a soft survey value.
+  onboardingGoal        String?
+  onboardingGoalAt      DateTime?
+
   accounts Account[]
   sessions Session[]
 
