@@ -133,37 +133,37 @@ describe("advanceEnrollment", () => {
 });
 
 describe("submitEnrollmentProof", () => {
-  test("rejects a pasted link on LAYOUT (DRC needs the file itself)", async () => {
-    const projectId = await enrollmentAt("LAYOUT");
+  test("rejects a pasted link on DRC_GERBER (DRC needs the file itself)", async () => {
+    const projectId = await enrollmentAt("DRC_GERBER");
     await expect(
       submitEnrollmentProof({
         projectId,
-        stage: "LAYOUT",
-        linkUrl: "https://example.com/my-layout.pdf",
+        stage: "DRC_GERBER",
+        linkUrl: "https://example.com/my-drc.pdf",
       }),
     ).rejects.toThrow(/file's contents|isn't accepted|file itself/i);
   });
 
-  test("a PASSING DRC proof + quiz together unblock advanceEnrollment at LAYOUT", async () => {
-    const projectId = await enrollmentAt("LAYOUT");
+  test("a PASSING DRC proof + quiz together unblock advanceEnrollment at DRC_GERBER", async () => {
+    const projectId = await enrollmentAt("DRC_GERBER");
     const e = await enrollmentRow(projectId);
-    // LAYOUT is content-validated (like SCHEMATIC): clears only on a PASSING DRC
-    // report (valid === true) — a dirty DRC or a pasted link never satisfies it.
+    // DRC_GERBER is content-validated (like SCHEMATIC): clears only on a PASSING
+    // DRC report (valid === true) — a dirty DRC or a pasted link never satisfies it.
     await db.artifact.create({
       data: {
         enrollmentId: e.id,
-        stage: "LAYOUT",
+        stage: "DRC_GERBER",
         kind: "FILE",
         subkind: "DRC_REPORT",
         title: "clean drc",
-        fileKey: `enrollments/${e.id}/LAYOUT/drc.rpt`,
+        fileKey: `enrollments/${e.id}/DRC_GERBER/drc.rpt`,
         valid: true,
         createdBy: userId,
       },
     });
-    await addQuizPass(projectId, "LAYOUT");
+    await addQuizPass(projectId, "DRC_GERBER");
     const r = await advanceEnrollment({ projectId });
-    expect(r).toEqual({ ok: true, toStage: "DRC_GERBER" });
+    expect(r).toEqual({ ok: true, toStage: "ORDERING" });
   });
 
   test("rejects a pasted link on a content-validated stage (ERC needs the file itself)", async () => {

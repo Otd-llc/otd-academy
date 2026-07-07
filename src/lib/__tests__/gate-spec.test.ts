@@ -6,11 +6,11 @@ import { describe, expect, test } from "vitest";
 import type { Stage } from "@prisma/client";
 import { gateSpec, gateArtifactHelp } from "@/lib/gate-spec";
 
-const ARTIFACT_STAGES: Stage[] = ["SCHEMATIC", "LAYOUT"];
+const ARTIFACT_STAGES: Stage[] = ["SCHEMATIC", "DRC_GERBER"];
 const QUIZ_ONLY_STAGES: Stage[] = [
   "REQUIREMENTS",
   "BOM_SOURCING",
-  "DRC_GERBER",
+  "LAYOUT",
   "ORDERING",
   "ASSEMBLY",
   "BRINGUP",
@@ -27,8 +27,8 @@ describe("gateSpec", () => {
     expect(s.artifact?.validate).toBe("erc");
   });
 
-  test("LAYOUT: quiz + clean DRC report, .rpt accept, drc validator", () => {
-    const s = gateSpec("LAYOUT");
+  test("DRC_GERBER: quiz + clean DRC report, .rpt accept, drc validator", () => {
+    const s = gateSpec("DRC_GERBER");
     expect(s.quiz).toBe(true);
     expect(s.artifact?.subkind).toBe("DRC_REPORT");
     expect(s.artifact?.label).toBe("clean DRC report");
