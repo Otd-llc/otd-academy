@@ -33,7 +33,9 @@ const HEX = "12,0 36,0 48,20.785 36,41.57 12,41.57 0,20.785";
 // color (a solid occluding slab), plus a fine inset rim line on the face. The
 // cast draws OUTSIDE the 48 × 41.57 viewBox (svg overflow is visible); the comb
 // container carries +CAST of layout room so the bottom row's cast isn't cramped.
-const CAST = 5;
+// Slimmer than the /courses cells (owner note 2026-07-07): the lesson serpentine
+// is small and laced tight, so a shallower cast keeps the ribbon reading clean.
+const CAST = 3.5;
 // corner ring of HEX: c0 TL, c1 TR, c2 R, c3 BR, c4 BL, c5 L
 const C: [number, number][] = [
   [12, 0], [36, 0], [48, 20.785], [36, 41.57], [12, 41.57], [0, 20.785],

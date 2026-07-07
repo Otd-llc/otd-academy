@@ -4,8 +4,9 @@
 // TESSELLATE (shared edges, offset rows) and slink through in order. Each hex is
 // the full stage button: a big outline stage NUMBER owning the top third, then
 // title · lead · a status chip; the whole hex is the link.
-// Honey-filled when done, the current stage pulses, ahead stays dim. No connector
-// line — the shared edges are the link; progress shows by fill.
+// Honey-filled when done, the current stage pulses, ahead stays dim. Each hex is
+// a thin ortho-3D prism (the shared /courses shell), and a small path arrow on
+// each seam shows the order: gold once the source stage is done, dim ahead.
 //
 // Layout is measured on the client: the hexes GROW to fill the available width
 // (3-ish per row on desktop, collapsing to a single full-width column on mobile),
@@ -39,12 +40,11 @@ export type Box = { left: number; top: number; w: number; h: number };
 // Ortho-3D hex prism shell — the /courses sandbox winner ("H4" + "K10" rounds,
 // 2026-07-07): the pointy-top face plus a down-right oblique cast (6.5% of the
 // face) whose side faces fill with the field color (a solid occluding slab).
-// Rendered by SkillHoneycomb + PathHoneycomb; the part classes
-// (gh-top / gh-cast / gh-side) are styled per-state in globals.css under the
-// `.gh-3d` scope. The hub's own hexes (below) still render the flat shell.
-// Cast occlusion relies on stacking order: callers give each absolutely
-// positioned cell a zIndex that grows with `left`, so every cell's cast is
-// covered by its right/lower neighbour's opaque face.
+// Rendered by the build-guide hub (below), SkillHoneycomb + PathHoneycomb; the
+// part classes (gh-top / gh-cast / gh-side) are styled per-state in globals.css
+// under the `.gh-3d` scope. Cast occlusion relies on stacking order: callers
+// give each absolutely positioned cell a zIndex that grows with `left`, so every
+// cell's cast is covered by its right/lower neighbour's opaque face.
 export const HEX_POINTS = "50,0 100,28.87 100,86.6 50,115.47 0,86.6 0,28.87";
 const PRISM_CAST = 6.5;
 // visible cast silhouette for a down-right offset: TR → BR → B → BL
@@ -148,12 +148,17 @@ export function GuideHoneycomb({
     boxes: [],
     height: 0,
   });
+  // cw feeds the arrow overlay's viewBox; hot is the hex whose OUTGOING arrow
+  // lights (hover/focus) — same path-arrow model as SkillHoneycomb.
+  const [cw, setCw] = useState(0);
+  const [hot, setHot] = useState<number | null>(null);
 
   const measure = useCallback(() => {
     const el = ref.current;
     if (!el) return;
     // Lower minW than the default so phones pack 3-up (smaller, more compact
     // hexes) instead of two big ones — the build guide now has 8 stages to show.
+    setCw(el.clientWidth);
     setLayout(computeLayout(el.clientWidth, stages.length, { minW: 100 }));
   }, [stages.length]);
 
@@ -184,16 +189,15 @@ export function GuideHoneycomb({
             aria-current={s.kind === "current" ? "step" : undefined}
             aria-label={`Stage ${s.num} — ${s.title} (${s.statusText})`}
             className={`gh-node ${s.kind}`}
-            style={{ left: b.left, top: b.top, width: b.w, height: b.h }}
+            // zIndex grows with `left` so each hex's down-right cast is covered by
+            // its right/lower neighbour's opaque face (the prism occlusion model).
+            style={{ left: b.left, top: b.top, width: b.w, height: b.h, zIndex: Math.round(b.left) + 1 }}
+            onMouseEnter={() => setHot(i)}
+            onMouseLeave={() => setHot((h) => (h === i ? null : h))}
+            onFocus={() => setHot(i)}
+            onBlur={() => setHot((h) => (h === i ? null : h))}
           >
-            <svg
-              className="gh-hex"
-              viewBox="0 0 100 115.47"
-              preserveAspectRatio="none"
-              aria-hidden
-            >
-              <polygon points="50,0 100,28.87 100,86.6 50,115.47 0,86.6 0,28.87" />
-            </svg>
+            <HexPrism className="gh-hex" />
             <span
               className="gh-num"
               aria-hidden
@@ -216,6 +220,48 @@ export function GuideHoneycomb({
           </Link>
         );
       })}
+
+      {/* Path-direction arrows (K10) — identical to SkillHoneycomb: a 12 × 10
+          solid triangle on each consecutive pair's seam (midpoint of the two
+          cell centers, base 7px scaled off the line on the destination face,
+          rotated along the flow). Gold when the source stage is done, dim ahead;
+          a hovered/focused hex lights its outgoing arrow, and they drift. */}
+      {layout.boxes.length === stages.length && layout.height > 0 && cw > 0
+        ? (() => {
+            const arrows = stages.slice(0, -1).map((s, i) => {
+              const a = layout.boxes[i]!;
+              const b = layout.boxes[i + 1]!;
+              const ax = a.left + a.w / 2;
+              const ay = a.top + a.h / 2;
+              const bx = b.left + b.w / 2;
+              const by = b.top + b.h / 2;
+              const ang = (Math.atan2(by - ay, bx - ax) * 180) / Math.PI;
+              const sc = a.w / 200; // K10 sizes were tuned on 200px cells
+              const cls = [s.kind === "done" ? "on" : "off", hot === i ? "hot" : ""]
+                .filter(Boolean)
+                .join(" ");
+              return (
+                <g
+                  key={s.stage}
+                  className={cls}
+                  transform={`translate(${(ax + bx) / 2} ${(ay + by) / 2}) rotate(${ang}) translate(${7 * sc} 0) scale(${sc})`}
+                >
+                  <path d="M -6 -5 L 6 0 L -6 5 Z" style={{ animationDelay: `${i * 0.25}s` }} />
+                </g>
+              );
+            });
+            return (
+              <svg
+                className="sk-arw"
+                viewBox={`0 0 ${cw} ${layout.height}`}
+                preserveAspectRatio="none"
+                aria-hidden
+              >
+                {arrows}
+              </svg>
+            );
+          })()
+        : null}
     </div>
   );
 }
