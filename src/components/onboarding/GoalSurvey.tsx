@@ -13,7 +13,9 @@ import { ONBOARDING_GOAL_OPTIONS } from "@/lib/onboarding-goals";
 export function GoalSurvey() {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [chosen, setChosen] = useState<number | null>(null);
+  // Highlight the first option by default (matches the A-Q3 pick); a real click
+  // moves the highlight and saves. -1 = the skip path (nothing lit).
+  const [chosen, setChosen] = useState<number | null>(0);
   const router = useRouter();
 
   function choose(goal: string, index: number) {
