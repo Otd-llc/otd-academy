@@ -30,10 +30,12 @@ export interface GateSpec {
   artifact: GateArtifactSpec | null;
 }
 
-// A proof artifact is required only where a learner produces real CAD: a clean
-// ERC report at SCHEMATIC, a clean DRC report at LAYOUT — each verified to zero
-// errors/violations. Everything before is comprehension (quiz-only); the deep fab
-// chain after stays the shared reference.
+// A proof artifact is required only where a learner produces a checkable output:
+// a clean ERC report at SCHEMATIC, a clean DRC report at DRC_GERBER — each
+// verified to zero errors/violations. The DRC upload lives on the DRC / GERBER
+// card (the one named for it), matching the author gate; LAYOUT is quiz-only.
+// Everything else is comprehension (quiz-only); the deep fab chain after stays
+// the shared reference.
 const ARTIFACT: Partial<Record<Stage, GateArtifactSpec>> = {
   SCHEMATIC: {
     subkind: "ERC_REPORT",
@@ -41,7 +43,7 @@ const ARTIFACT: Partial<Record<Stage, GateArtifactSpec>> = {
     accept: ".rpt,.txt",
     validate: "erc",
   },
-  LAYOUT: {
+  DRC_GERBER: {
     subkind: "DRC_REPORT",
     label: "clean DRC report",
     accept: ".rpt,.txt",
