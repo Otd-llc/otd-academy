@@ -307,8 +307,9 @@ body {
 .pc-num { position: relative; z-index: 2; font-family: var(--font-numeral); font-weight: 800; font-size: 5.1cqw; line-height: 1; color: var(--color-gray-3); transition: color 0.4s; }
 /* three-letter stage label under the numeral, TOP comb only (mono, quieter than
    the numeral — G6 tucks it well under the big number). Tones track the numeral
-   so it reads on every hex fill. */
-.pc-abbr { position: relative; z-index: 2; font-family: var(--font-mono); font-weight: 700; font-size: 1.4cqw; letter-spacing: 0.12em; line-height: 1; margin-top: 0.7cqw; color: var(--color-gray-3); transition: color 0.4s; }
+   so it reads on every hex fill. The 9px floor keeps it legible on phone-width
+   combs, where 1.4cqw alone shrinks to ~5px. */
+.pc-abbr { position: relative; z-index: 2; font-family: var(--font-mono); font-weight: 700; font-size: max(1.4cqw, 9px); letter-spacing: 0.12em; line-height: 1; margin-top: 0.7cqw; color: var(--color-gray-3); transition: color 0.4s; }
 .pc-node.complete .pc-abbr { color: var(--color-deep-space); }
 .pc-node.current .pc-abbr { color: var(--color-gold-light); }
 .pc-node.viewing .pc-abbr { color: var(--color-gold-light); }
