@@ -370,7 +370,14 @@ export async function createEnrollmentProofUploadUrl(
 
 export async function recordEnrollmentProof(
   input: unknown,
-): Promise<{ ok: true; valid: boolean | null; detail: string | null }> {
+): Promise<{
+  ok: true;
+  valid: boolean | null;
+  detail: string | null;
+  /** True when this upload is the FIRST passing proof of its validated subkind
+   *  for the enrollment (drives the learner celebration + the erc_clean event). */
+  firstClean: boolean;
+}> {
   const data = recordProofSchema.parse(input);
   const user = await requireUser();
   const subkind = learnerProofSubkind(data.stage);
@@ -435,17 +442,19 @@ export async function recordEnrollmentProof(
     }
   }
 
-  // Funnel: the first CLEAN ERC is the onboarding "micro-aha" (§ onboarding
-  // procedure) — the first real, gated success on the way to activation. Detect
-  // it BEFORE writing this artifact (and before the stale-cleanup below): a
-  // passing ERC with no prior passing ERC on this enrollment.
-  let firstCleanErc = false;
-  if (validator === "erc" && valid === true) {
+  // The first CLEAN pass of a validated check (ERC/DRC) is a celebration moment
+  // for the learner AND, for ERC, the onboarding "micro-aha" funnel event (§
+  // onboarding procedure) — the first real, gated success on the way to
+  // activation. Detect it BEFORE writing this artifact (and before the
+  // stale-cleanup below): a passing validated proof with no prior passing proof
+  // of this subkind on this enrollment.
+  let firstClean = false;
+  if ((validator === "erc" || validator === "drc") && valid === true) {
     const priorClean = await db.artifact.findFirst({
       where: { enrollmentId: enrollment.id, subkind, valid: true },
       select: { id: true },
     });
-    firstCleanErc = !priorClean;
+    firstClean = !priorClean;
   }
 
   const created = await db.artifact.create({
@@ -464,7 +473,7 @@ export async function recordEnrollmentProof(
     },
   });
 
-  if (firstCleanErc) {
+  if (validator === "erc" && firstClean) {
     try {
       capture(
         "erc_clean",
@@ -499,5 +508,5 @@ export async function recordEnrollmentProof(
   }
 
   revalidatePath(`/projects/${enrollment.project.slug}`);
-  return { ok: true, valid, detail: validationDetail };
+  return { ok: true, valid, detail: validationDetail, firstClean };
 }
