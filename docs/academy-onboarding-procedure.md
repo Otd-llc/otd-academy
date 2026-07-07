@@ -24,11 +24,12 @@ Most of the procedure is **built and committed on the branch** (not merged). See
 
 - ✅ Phase 0: L2 upsell email suppressed until L2.01 publishes.
 - ✅ Phase 1: `callbackUrl` preserved through all three signup triggers (open-redirect-safe); post-signin default → `/start`; `erc_clean` event.
-- ✅ Phase 2: goal micro-survey (motivation set) + `/start` router + `onboarding_goal_selected`; ERC micro-win celebration.
+- ✅ Phase 2: goal micro-survey + `/start` router + `onboarding_goal_selected`; ERC micro-win celebration.
 - ✅ Phase 3: first-board progress checklist; first-run coach overlay. (`returned_d7` = a PostHog retention report, no code.)
-- ⛔ **Blocked on owner action:** the additive `User.onboardingGoal` migration is written + committed but **not yet deployed to PROD** (the classifier requires explicit authorization for a prod DB write). Until it deploys, `/start` and the survey will error at runtime against prod. Owner: approve `prisma migrate deploy`, then the flow is live-testable.
-- ⚠️ Decisions locked: motivation survey · all L1 PUBLIC on publish (L2.01 FREE) · dedicated `/start`. The "all L1 PUBLIC" tier change is applied at publish time by the owner (not in code).
-- ⚠️ A visual sandbox round for `/start` + the coach overlay is recommended (owner picks look in-browser, both themes) but was not run — surfaces were built to the existing console recipes.
+- ✅ Migration deployed to PROD (`User.onboardingGoal`); full vitest green against the refreshed pool.
+- ✅ Sandbox rounds run (dev-only `/sandbox/onboarding`, since deleted). Owner picks, applied: survey = honeycomb quiz-hex options (A-Q3) with V3 copy ("Why are you here?"); `/start` CTA = outcome checklist (B2) + inline email opt-in; coach = orient/do/check ribbon (C3-1).
+- ✅ Email opt-in moved into the first-run flow (`/start`), unchecked + unbundled. It was previously only a buried `/account` toggle, so almost nobody opted in. **Owner action:** if a PostHog dashboard survey also asks for email, disable it so the ask isn't duplicated.
+- ⚠️ Decisions locked: all L1 PUBLIC on publish (L2.01 FREE) — applied at publish time by the owner (not in code).
 
 ---
 
