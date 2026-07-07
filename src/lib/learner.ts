@@ -5,10 +5,20 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { safeCallbackPath } from "@/lib/safe-callback";
 
-export async function currentUserOrRedirect() {
+// `callbackPath` (a same-origin relative path, e.g. `/learn/l1-01-wroom-breakout`)
+// carries the learner back to where they were after signing in, instead of the
+// generic first-run page. Sanitized so it can never become an open redirect.
+export async function currentUserOrRedirect(callbackPath?: string) {
   const session = await auth();
-  if (!session?.user?.email) redirect("/sign-in");
+  if (!session?.user?.email) {
+    if (callbackPath) {
+      const dest = safeCallbackPath(callbackPath);
+      redirect(`/sign-in?callbackUrl=${encodeURIComponent(dest)}`);
+    }
+    redirect("/sign-in");
+  }
   return db.user.findUniqueOrThrow({
     where: { email: session.user.email },
   });

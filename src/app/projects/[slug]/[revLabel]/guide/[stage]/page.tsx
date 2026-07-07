@@ -52,6 +52,7 @@ import {
 } from "@/lib/board-readiness-load";
 import { auth } from "@/auth";
 import { LearnerGate } from "@/components/learn/LearnerGate";
+import { FirstRunCoach } from "@/components/guide/FirstRunCoach";
 import { Paywall } from "@/components/learn/Paywall";
 import { gateSpec } from "@/lib/gate-spec";
 import { proofHelp } from "@/lib/learner-proof-help";
@@ -265,7 +266,11 @@ export default async function GuideCardPage({
     hasEntitlement,
     isAdmin,
   });
-  if (decision === "redirectSignIn") redirect("/sign-in");
+  if (decision === "redirectSignIn") {
+    // Return the learner to this exact lesson card after they sign in.
+    const here = `/projects/${slug}/${revLabel}/guide/${stageParam}`;
+    redirect(`/sign-in?callbackUrl=${encodeURIComponent(here)}`);
+  }
   if (decision === "paywall") {
     return (
       <Paywall
@@ -662,6 +667,11 @@ export default async function GuideCardPage({
       {videoJsonLd.map((data, i) => (
         <JsonLd key={i} data={data} />
       ))}
+      {/* First-run orientation: once per board, only for a learner sitting on
+          their first (REQUIREMENTS) stage. Shown/dismissed client-side. */}
+      {view.isLearnerView && stage === "REQUIREMENTS" && showLearnerAdvance && (
+        <FirstRunCoach storageKey={`otd:firstrun:${project.slug}`} />
+      )}
       {/* Top phase rail — the comb as an ORIENT header: the ringed current hex
           says where you are (the stage name + phase are in the PageHeader below).
           No buttons. Shares its hex language with the footer control. */}

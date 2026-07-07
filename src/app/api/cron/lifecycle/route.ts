@@ -32,6 +32,9 @@ export const maxDuration = 60;
 const FOUNDER_FIRST_NAME = "Josh";
 const BATCH = 20; // sends per batch
 const BATCH_PAUSE_MS = 1100; // throttle between batches (Resend default ~10 req/s)
+// The board 3.1 upsells into ("start L2"). 3.1 stays suppressed until this board
+// is published (see plan()).
+const UPSELL_TARGET_SLUG = "l2-01-battery-power-module";
 
 /** First name from a User.name ("Ada Lovelace" → "Ada"); falls back to "there". */
 function firstName(name: string | null): string {
@@ -75,6 +78,21 @@ async function plan(now: Date): Promise<SequencePlan[]> {
   const windowEnd = env.LAUNCH_WINDOW_END ? new Date(env.LAUNCH_WINDOW_END) : null;
   const windowDays = env.LAUNCH_WINDOW_DAYS;
 
+  // 3.1 (activation → upsell) tells a just-activated learner to go start L2.01.
+  // Until that board is actually published there is nothing to start, so sending
+  // it would push a board that returns "not open for enrollment yet." Suppress
+  // the sequence until L2.01 is live rather than paraphrase the founder copy
+  // (which is verbatim by contract). Self-healing: once L2.01 publishes, the copy
+  // is accurate and already-activated learners pick it up on the next tick (the
+  // once-only ledger only records emails actually sent).
+  const upsellTargetLive = await db.project.findFirst({
+    where: {
+      slug: UPSELL_TARGET_SLUG,
+      publishedRevisionId: { not: null },
+    },
+    select: { id: true },
+  });
+
   const [
     welcome,
     schematic,
@@ -92,7 +110,9 @@ async function plan(now: Date): Promise<SequencePlan[]> {
     schematicNudgeAudience(db, now, days),
     layoutNudgeAudience(db, now, days),
     drcNudgeAudience(db, now, days),
-    activationUpsellAudience(db, now),
+    upsellTargetLive
+      ? activationUpsellAudience(db, now)
+      : Promise.resolve<AudienceUser[]>([]),
     payTheDifferenceAudience(db, now),
     launchWindowAudience(db, now, "5.1", windowEnd, windowDays),
     launchWindowAudience(db, now, "5.2", windowEnd, windowDays),

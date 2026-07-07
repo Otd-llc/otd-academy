@@ -42,7 +42,16 @@ export function ProofUploadForm({
   const [pending, start] = useTransition();
   const [showLink, setShowLink] = useState(false);
   const [url, setUrl] = useState("");
+  // A validated check just passed: hold a brief celebration before closing.
+  const [cleared, setCleared] = useState<{ firstClean: boolean } | null>(null);
   const router = useRouter();
+
+  // Close the celebration, close the enclosing modal, and refresh the gate.
+  function finishCelebration() {
+    setCleared(null);
+    onUploaded?.();
+    router.refresh();
+  }
 
   function uploadSelected() {
     const file = fileRef.current?.files?.[0];
@@ -84,6 +93,12 @@ export function ProofUploadForm({
           router.refresh();
           return;
         }
+        if (res.valid === true) {
+          // A validated check passed — the micro-win. Celebrate before closing.
+          setCleared({ firstClean: res.firstClean });
+          return;
+        }
+        // Presence-only proof (no validator) — nothing to celebrate; just close.
         onUploaded?.();
         router.refresh();
       } catch (e) {
@@ -103,6 +118,34 @@ export function ProofUploadForm({
         setError(e instanceof Error ? e.message : "Could not submit link.");
       }
     });
+  }
+
+  if (cleared) {
+    // Content surface inside the modal chrome: hairline + a Saira "0" readout,
+    // status-green label, no filled box, no glow (house rules for a reward panel).
+    return (
+      <div className="space-y-4">
+        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-status-green">
+          ▸ Checks pass
+        </p>
+        <p className="font-numeral text-6xl tabular-nums text-status-green">0</p>
+        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+          errors · {label}
+        </p>
+        <p className="font-serif text-base leading-relaxed text-text">
+          {cleared.firstClean
+            ? "That is a real, verified step, not a checkbox. Your work passed the same rules a fab house runs. Keep going."
+            : "Clean again. Your latest export passed. Keep going."}
+        </p>
+        <button
+          type="button"
+          onClick={finishCelebration}
+          className="glass-button-cta inline-flex items-center gap-1.5 px-4 py-2 font-mono text-xs uppercase tracking-wider"
+        >
+          Continue →
+        </button>
+      </div>
+    );
   }
 
   return (

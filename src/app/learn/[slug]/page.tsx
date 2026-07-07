@@ -14,6 +14,7 @@ import {
 } from "@/lib/stages";
 import type { EnrollmentStatus } from "@prisma/client";
 import { EnrollButton } from "@/components/learn/EnrollButton";
+import { FirstBoardChecklist } from "@/components/learn/FirstBoardChecklist";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { getArtifactRenderUrl } from "@/lib/actions/uploads";
 import { renderBoundsSchema, type RenderBounds } from "@/lib/schemas/part-asset";
@@ -35,7 +36,7 @@ export default async function LearnerBoardPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const user = await currentUserOrRedirect();
+  const user = await currentUserOrRedirect(`/learn/${slug}`);
 
   const project = await db.project.findUnique({
     where: { slug },
@@ -176,6 +177,11 @@ export default async function LearnerBoardPage({
             >
               Continue
             </Link>
+            <FirstBoardChecklist
+              slug={project.slug}
+              revLabel={revLabel}
+              currentStage={enrollment.currentStage}
+            />
             {enrollment.status !== "IN_PROGRESS" && (
               <div className="border-t border-panel-border pt-4">
                 <Link

@@ -10,9 +10,18 @@ import { enroll } from "@/lib/actions/enrollment";
 export function EnrollButton({
   projectId,
   continueHref,
+  label = "Enroll",
+  busyLabel = "Enrolling…",
+  cta = false,
 }: {
   projectId: string;
   continueHref: string;
+  /** Button label (e.g. "Start L1.01" for the first-run CTA). */
+  label?: string;
+  /** Label shown while the enroll request is in flight. */
+  busyLabel?: string;
+  /** Render as the solid-gold primary CTA instead of the gold-outline secondary. */
+  cta?: boolean;
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -35,9 +44,9 @@ export function EnrollButton({
             }
           })
         }
-        className="glass-button inline-flex items-center gap-1.5 px-4 py-2 font-mono text-xs uppercase tracking-wider"
+        className={`${cta ? "glass-button-cta" : "glass-button"} inline-flex items-center gap-1.5 px-4 py-2 font-mono text-xs uppercase tracking-wider`}
       >
-        {pending ? "Enrolling…" : "Enroll"}
+        {pending ? busyLabel : label}
       </button>
       {error && (
         <p className="font-mono text-xs uppercase tracking-wider text-alert-red">
