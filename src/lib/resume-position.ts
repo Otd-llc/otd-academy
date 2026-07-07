@@ -1,7 +1,13 @@
 // Resume-position store (guide-pacing plan, Task 6). The record written by the
 // IslandRail — { anchorId, visited, ts } — lives at
-// localStorage["otd:resume:<projectId>:<cardId>"]. This module owns the shared
-// read/write plus the pure hybrid-merge used by the Task 7 enrollment sync.
+// localStorage["otd:resume:<userId>:<projectId>:<cardId>"]. This module owns the
+// shared read/write plus the pure hybrid-merge used by the Task 7 enrollment sync.
+//
+// The key is SCOPED BY USER (the leading <userId>, "anon" when signed out) so a
+// resume record can never leak across accounts sharing a browser: a brand-new
+// account gets a fresh key, and an anon record never carries into an account.
+// (Before this, the device-global key made a fresh account "resume" a lesson it
+// had never seen.)
 
 export interface ResumeRecord {
   anchorId: string;
@@ -9,8 +15,29 @@ export interface ResumeRecord {
   ts: number;
 }
 
-export function resumeKey(projectId: string | undefined, cardId: string | undefined): string {
-  return `otd:resume:${projectId ?? "anon"}:${cardId ?? "card"}`;
+export function resumeKey(
+  userId: string | undefined,
+  projectId: string | undefined,
+  cardId: string | undefined,
+): string {
+  return `otd:resume:${userId ?? "anon"}:${projectId ?? "anon"}:${cardId ?? "card"}`;
+}
+
+// Invalidate a record against the CURRENT island set: if its anchor no longer
+// exists (the card was re-authored), the record is stale → null. Otherwise keep
+// it, dropping any `visited` anchors that are no longer present. Prevents a
+// resume from pointing at content that has moved or been removed.
+export function pruneResume(
+  rec: ResumeRecord | null,
+  validAnchorIds: readonly string[],
+): ResumeRecord | null {
+  if (!rec) return null;
+  const valid = new Set(validAnchorIds);
+  if (!valid.has(rec.anchorId)) return null;
+  const visited = rec.visited.filter((v) => valid.has(v));
+  return visited.length === rec.visited.length
+    ? rec
+    : { ...rec, visited };
 }
 
 // Validate an untrusted value (localStorage JSON, or a DB Json column) into a

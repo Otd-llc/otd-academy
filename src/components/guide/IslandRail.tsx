@@ -17,7 +17,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Island } from "@/lib/guide-islands";
-import { mergeResume, readResume, writeResume, type ResumeRecord } from "@/lib/resume-position";
+import {
+  mergeResume,
+  pruneResume,
+  readResume,
+  writeResume,
+  type ResumeRecord,
+} from "@/lib/resume-position";
 
 type NodeState = "active" | "visited" | "unvisited";
 
@@ -52,18 +58,34 @@ export function IslandRail({
   const [headerH, setHeaderH] = useState(0); // sticky offset for the mobile meter
   const reduceRef = useRef(false);
   const saveTimer = useRef(0);
+  const writeTimer = useRef(0);
   const pendingRec = useRef<ResumeRecord | null>(null);
 
   // Merge the server record into local on mount (union visited, newer position
-  // wins) and seed local so the ResumePill offers the cross-device position.
+  // wins), PRUNE it against the current islands (a re-authored card can leave a
+  // stale anchor), and seed local so the ResumePill offers the cross-device
+  // position. A record that no longer matches any island is stale → clear it.
   useEffect(() => {
-    const merged = mergeResume(readResume(storageKey), serverResume);
+    const validAnchors = islands.map((i) => i.anchorId);
+    const merged = pruneResume(
+      mergeResume(readResume(storageKey), serverResume),
+      validAnchors,
+    );
     if (merged) {
+      // Seeding state from client-only persisted data (localStorage + the server
+      // record) on mount / key change — a legitimate external-sync effect.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVisited(new Set(merged.visited));
       writeResume(storageKey, merged);
+    } else {
+      try {
+        localStorage.removeItem(storageKey);
+      } catch {
+        /* private mode — nothing to clear */
+      }
     }
     reduceRef.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  }, [storageKey, serverResume]);
+  }, [storageKey, serverResume, islands]);
 
   // The mobile meter is sticky; offset it below the app header (which is sticky
   // + flex-wrap, so its height GROWS when the menu wraps on narrow screens). A
@@ -178,14 +200,26 @@ export function IslandRail({
 
   // Persist whenever active/visited actually change — but NOT the top-of-page
   // state on load (activeIdx < 1), so a fresh visit doesn't clobber the saved
-  // resume position before the ResumePill can offer it.
+  // resume position before the ResumePill can offer it. DWELL-GATED: the write
+  // fires ~0.9s after motion settles, so a fast scroll-through doesn't save a
+  // deep anchor the learner blew past (each scroll resets the timer).
   useEffect(() => {
     if (activeIdx < 1) return;
     const anchorId = islands[activeIdx]?.anchorId;
     if (!anchorId) return;
-    const rec: ResumeRecord = { anchorId, visited: [...visited], ts: Date.now() };
-    writeResume(storageKey, rec);
-    scheduleServerSave(rec);
+    if (writeTimer.current) clearTimeout(writeTimer.current);
+    writeTimer.current = window.setTimeout(() => {
+      writeTimer.current = 0;
+      const rec: ResumeRecord = { anchorId, visited: [...visited], ts: Date.now() };
+      writeResume(storageKey, rec);
+      scheduleServerSave(rec);
+    }, 900);
+    return () => {
+      if (writeTimer.current) {
+        clearTimeout(writeTimer.current);
+        writeTimer.current = 0;
+      }
+    };
   }, [activeIdx, visited, islands, storageKey, scheduleServerSave]);
 
   const go = useCallback((anchorId: string) => {

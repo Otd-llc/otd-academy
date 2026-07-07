@@ -726,6 +726,8 @@ export default async function GuideCardPage({
           quizContext={learnerQuizContext}
           projectId={project.id}
           isSignedIn={!!sessionEmail}
+          userId={viewerUserId ?? undefined}
+          isEnrolled={learnerCurrentStage !== null}
           cardId={card.id}
           isAdmin={isAdmin}
           stage={stage}
