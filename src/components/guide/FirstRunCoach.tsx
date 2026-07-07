@@ -5,21 +5,25 @@
 // rhythm, and where to advance, then gets out of the way. Shown once per board
 // (localStorage), so it never nags on return visits. A floating modal is app
 // chrome, so .glass-card is the right surface here.
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 
-export function FirstRunCoach({ storageKey }: { storageKey: string }) {
-  const [open, setOpen] = useState(false);
+// Whether the coach should open: only when not previously dismissed. Guarded for
+// SSR (localStorage is client-only) — returns false on the server so the initial
+// client render matches. Dialog.Root renders no inline DOM (content is portaled),
+// so opening on the client's first render causes no hydration mismatch.
+function shouldOpen(storageKey: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return !localStorage.getItem(storageKey);
+  } catch {
+    // localStorage unavailable (private mode) — just don't show the coach.
+    return false;
+  }
+}
 
-  // Read the dismissed flag only after mount (localStorage is client-only), so
-  // the server render and first client render agree (open=false → no mismatch).
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(storageKey)) setOpen(true);
-    } catch {
-      // localStorage unavailable (private mode) — just don't show the coach.
-    }
-  }, [storageKey]);
+export function FirstRunCoach({ storageKey }: { storageKey: string }) {
+  const [open, setOpen] = useState<boolean>(() => shouldOpen(storageKey));
 
   function dismiss() {
     try {

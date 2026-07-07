@@ -18,6 +18,18 @@ The academy's **activation event is already well-defined and unusually strong**:
 
 This report sets out the industry standards (with sources), audits current state, and proposes a concrete onboarding procedure with a phased build order and an instrumentation plan.
 
+### Build status (2026-07-06, branch `fix/lifecycle-upsell-suppress-until-l2`)
+
+Most of the procedure is **built and committed on the branch** (not merged). See `docs/plans/2026-07-06-academy-onboarding-build.md` for the batch breakdown.
+
+- ✅ Phase 0: L2 upsell email suppressed until L2.01 publishes.
+- ✅ Phase 1: `callbackUrl` preserved through all three signup triggers (open-redirect-safe); post-signin default → `/start`; `erc_clean` event.
+- ✅ Phase 2: goal micro-survey (motivation set) + `/start` router + `onboarding_goal_selected`; ERC micro-win celebration.
+- ✅ Phase 3: first-board progress checklist; first-run coach overlay. (`returned_d7` = a PostHog retention report, no code.)
+- ⛔ **Blocked on owner action:** the additive `User.onboardingGoal` migration is written + committed but **not yet deployed to PROD** (the classifier requires explicit authorization for a prod DB write). Until it deploys, `/start` and the survey will error at runtime against prod. Owner: approve `prisma migrate deploy`, then the flow is live-testable.
+- ⚠️ Decisions locked: motivation survey · all L1 PUBLIC on publish (L2.01 FREE) · dedicated `/start`. The "all L1 PUBLIC" tier change is applied at publish time by the owner (not in code).
+- ⚠️ A visual sandbox round for `/start` + the coach overlay is recommended (owner picks look in-browser, both themes) but was not run — surfaces were built to the existing console recipes.
+
 ---
 
 ## 2. Industry standards (research findings)
@@ -196,9 +208,9 @@ Most of the funnel is already instrumented. Add only the two missing events:
 | `lesson_started` | **exists** (`enrollment.ts`) | first enrollment | T0→T1 entry |
 | `board_activated` | **exists** (`enrollment.ts`) | advance OUT of `DRC_GERBER` (clean DRC + gerbers) | **T2 activation** |
 | `purchase_completed` | **exists** (stripe webhook) | paid board | conversion |
-| `onboarding_goal_selected` | **new** | goal micro-survey answered | personalization / segment |
-| `erc_clean` | **new** | first clean ERC recorded (`recordEnrollmentProof`, `valid===true`) | **T1 micro-aha** |
-| `returned_d1` / `returned_d7` | **new** | session on day 1 / within 7 days | **T3 habit** (the predictive metric) |
+| `onboarding_goal_selected` | **shipped** (branch) | goal micro-survey answered | personalization / segment |
+| `erc_clean` | **shipped** (branch) | first clean ERC recorded (`recordEnrollmentProof`, first passing ERC) | **T1 micro-aha** |
+| `returned_d1` / `returned_d7` | **no code needed** | — | **T3 habit** — derive as a PostHog *retention report* off existing `$pageview` + user identity; do not add a custom event |
 
 Target metrics: signup→enroll rate, enroll→ERC (micro-aha) rate + time, ERC→activation rate + time, and D7 return rate. The signup/enroll/activate/purchase legs can be charted **today** from existing events — worth doing before building anything, to see where L1.01 actually leaks.
 
