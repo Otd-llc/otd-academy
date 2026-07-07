@@ -12,6 +12,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { GoalSurvey } from "@/components/onboarding/GoalSurvey";
+import { StartConsent } from "@/components/onboarding/StartConsent";
 import { EnrollButton } from "@/components/learn/EnrollButton";
 
 const ENTRY_SLUG = "l1-01-wroom-breakout";
@@ -27,7 +28,7 @@ export default async function StartPage() {
 
   const user = await db.user.findUniqueOrThrow({
     where: { email: session.user.email },
-    select: { id: true, onboardingGoal: true },
+    select: { id: true, onboardingGoal: true, emailConsent: true },
   });
 
   // The entry board + its published revision, plus this learner's enrollment (if
@@ -71,6 +72,13 @@ export default async function StartPage() {
       ? `/projects/${project.slug}/${encodeURIComponent(revLabel)}/guide/REQUIREMENTS`
       : null;
 
+  // What the learner walks away with — the B2 "outcome checklist" framing.
+  const outcomes = [
+    "Fab-ready gerbers a shop can build",
+    "A verifiable certificate",
+    "The real KiCad files, yours to keep",
+  ];
+
   return (
     <main className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
       <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
@@ -82,11 +90,22 @@ export default async function StartPage() {
         end to end in KiCad 10: requirements, BOM, schematic, ERC, layout, DRC,
         gerbers. No PCB experience needed.
       </p>
-      <p className="mt-3 font-serif text-base text-muted">
-        Finish with fab-ready gerbers and a verifiable certificate.
-      </p>
 
-      <div className="mt-8 border-t border-panel-border/60 pt-8">
+      <ul className="mt-6 border-t border-panel-border/60">
+        {outcomes.map((o) => (
+          <li
+            key={o}
+            className="flex items-center gap-3 border-b border-panel-border/60 py-3"
+          >
+            <span aria-hidden className="font-mono text-sm text-status-green">
+              ✓
+            </span>
+            <span className="font-serif text-base text-text">{o}</span>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-4">
         {project && revLabel && continueHref ? (
           <EnrollButton
             projectId={project.id}
@@ -100,6 +119,7 @@ export default async function StartPage() {
             The entry board is not open yet.
           </p>
         )}
+        <StartConsent initialConsent={user.emailConsent} />
       </div>
     </main>
   );

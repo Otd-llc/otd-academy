@@ -47,42 +47,25 @@ export function FirstRunCoach({ storageKey }: { storageKey: string }) {
           <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
             ▸ First run
           </p>
-          <Dialog.Title className="title-card mt-2">
-            You are about to design a real board
-          </Dialog.Title>
-          <Dialog.Description className="mt-3 font-serif text-sm leading-relaxed text-text">
-            Three things before you start.
-          </Dialog.Description>
+          <Dialog.Title className="title-card mt-2">How this works</Dialog.Title>
 
-          <ul className="mt-4 space-y-3">
-            <li className="border-t border-panel-border/60 pt-3">
-              <p className="font-mono text-[11px] uppercase tracking-wider text-command-gold">
-                The rail
-              </p>
-              <p className="mt-1 font-serif text-sm text-text">
-                The hexes up top are the stages, in order. You are on the first
-                one.
-              </p>
-            </li>
-            <li className="border-t border-panel-border/60 pt-3">
-              <p className="font-mono text-[11px] uppercase tracking-wider text-command-gold">
-                Orient · do · check
-              </p>
-              <p className="mt-1 font-serif text-sm text-text">
-                Each card orients you, has you do the work, then checks it. Read
-                it top to bottom.
-              </p>
-            </li>
-            <li className="border-t border-panel-border/60 pt-3">
-              <p className="font-mono text-[11px] uppercase tracking-wider text-command-gold">
-                Your track
-              </p>
-              <p className="mt-1 font-serif text-sm text-text">
-                When a stage is done, the your track panel lets you advance.
-                Clear its checks to move on.
-              </p>
-            </li>
-          </ul>
+          {/* The orient / do / check ribbon — mono tags on a gold hairline. */}
+          <div className="mt-4 flex items-center gap-3 border-y border-panel-border/60 py-3 font-mono text-xs uppercase tracking-[0.18em]">
+            <span className="text-command-gold">Orient</span>
+            <span aria-hidden className="text-gray-3">
+              ·
+            </span>
+            <span className="text-command-gold">Do</span>
+            <span aria-hidden className="text-gray-3">
+              ·
+            </span>
+            <span className="text-command-gold">Check</span>
+          </div>
+
+          <Dialog.Description className="mt-4 font-serif text-sm leading-relaxed text-text">
+            Every card follows that rhythm. The hexes up top are your stages, in
+            order. Clear a stage and the your track panel advances you.
+          </Dialog.Description>
 
           <div className="mt-6">
             <button
