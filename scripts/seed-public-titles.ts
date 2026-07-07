@@ -77,7 +77,7 @@ const PUBLIC_COPY: Record<string, PublicCopy> = {
     // §5's ★ is a capstone flourish rendered as a presentational glow
     // (slug-keyed) — it is NOT part of the stored title.
     publicTitle: "8-Channel EEG Front-End on ESP32",
-    tagline: "Design the analog board that reads real brainwaves — the BCI.",
+    tagline: "Design the analog board that reads real brainwaves: the BCI.",
   },
   "l3-02-brushless-motor": {
     publicTitle: "Brushless (BLDC) Motor Driver (ESP32)",
