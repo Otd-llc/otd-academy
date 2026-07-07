@@ -285,41 +285,50 @@ body {
 @media (prefers-reduced-motion: reduce) { .gh-node.current .gh-hex polygon { animation: none; } }
 
 /* PhaseComb — connected zig-zag phase breadcrumb at the foot of a lesson
-   (components/guide/PhaseComb.tsx; sandbox variant "c1"). Flat-top hexes laced
-   edge-to-edge; the container holds a fixed aspect ratio and each hex is
-   positioned in percent, so the ribbon scales with its width (no JS). The number
-   face rides container-query units off `container-type: inline-size`. */
-.pc-comb { position: relative; width: 100%; max-width: 340px; margin: 0 auto; aspect-ratio: 300 / 62.354; list-style: none; padding: 0; container-type: inline-size; }
-.pc-node { position: absolute; width: 16%; aspect-ratio: 48 / 41.57; display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; }
+   (components/guide/PhaseComb.tsx; sandbox winner "G6" of the ortho-3D rounds,
+   2026-07-07). Flat-top hexes laced edge-to-edge, each drawn as a thin PRISM: a
+   down-right oblique cast whose faces fill with the field color (solid slab), a
+   2px face line, and a fine inset rim. The container holds a fixed aspect ratio
+   (the 8-stage ribbon + cast room) and each hex is positioned in percent, so
+   the ribbon scales with its width (no JS). The number face rides
+   container-query units off `container-type: inline-size`.
+   Draw/stacking order is DOM order on purpose: each hex's opaque face occludes
+   the previous hex's cast where the ribbon laces, exactly like the one-SVG
+   sandbox render the owner approved — no per-state z-index. */
+.pc-comb { position: relative; width: 100%; max-width: 340px; margin: 0 auto; aspect-ratio: 305 / 67.354; list-style: none; padding: 0; container-type: inline-size; }
+.pc-node { position: absolute; width: 15.74%; aspect-ratio: 48 / 41.57; display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; }
 .pc-node svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.pc-node polygon { fill: transparent; stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 1.5; stroke-linejoin: round; transition: stroke 0.4s, fill 0.4s; }
-.pc-num { position: relative; z-index: 2; font-family: var(--font-numeral); font-weight: 800; font-size: 5cqw; line-height: 1; color: var(--color-gray-3); transition: color 0.4s; }
+/* prism parts: face (pc-top), cast edge lines (pc-cast), cast faces (pc-side,
+   field-filled = the solid slab), inset rim (pc-rim). Default stroke = pending. */
+.pc-node .pc-top { fill: var(--color-deep-space); stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 2; stroke-linejoin: round; transition: stroke 0.4s, fill 0.4s; }
+.pc-node .pc-cast { fill: none; stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 0.9; stroke-linejoin: round; stroke-linecap: round; transition: stroke 0.4s; }
+.pc-node .pc-side { fill: var(--color-deep-space); stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 0.9; stroke-linejoin: round; transition: stroke 0.4s; }
+.pc-node .pc-rim { fill: none; stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 0.7; opacity: 0.75; transition: stroke 0.4s; }
+.pc-num { position: relative; z-index: 2; font-family: var(--font-numeral); font-weight: 800; font-size: 5.1cqw; line-height: 1; color: var(--color-gray-3); transition: color 0.4s; }
 /* three-letter stage label under the numeral, TOP comb only (mono, quieter than
-   the numeral). Tones track the numeral so it reads on every hex fill. */
-.pc-abbr { position: relative; z-index: 2; font-family: var(--font-mono); font-weight: 700; font-size: 2.2cqw; letter-spacing: 0.12em; line-height: 1; margin-top: 0.7cqw; color: var(--color-gray-3); transition: color 0.4s; }
+   the numeral — G6 tucks it well under the big number). Tones track the numeral
+   so it reads on every hex fill. */
+.pc-abbr { position: relative; z-index: 2; font-family: var(--font-mono); font-weight: 700; font-size: 1.4cqw; letter-spacing: 0.12em; line-height: 1; margin-top: 0.7cqw; color: var(--color-gray-3); transition: color 0.4s; }
 .pc-node.complete .pc-abbr { color: var(--color-deep-space); }
 .pc-node.current .pc-abbr { color: var(--color-gold-light); }
 .pc-node.viewing .pc-abbr { color: var(--color-gold-light); }
 .pc-node.blocked .pc-abbr { color: var(--color-alert-red); }
-.pc-node.complete polygon { fill: url(#pc-honey); stroke: var(--color-command-gold); }
+.pc-node.complete .pc-top { fill: url(#pc-honey); }
+.pc-node.complete :is(.pc-top, .pc-cast, .pc-side, .pc-rim) { stroke: var(--color-command-gold); }
 .pc-node.complete .pc-num { color: var(--color-deep-space); }
-.pc-node.current polygon { stroke: var(--color-command-gold); stroke-width: 2; }
+.pc-node.current :is(.pc-top, .pc-cast, .pc-side, .pc-rim) { stroke: var(--color-command-gold); }
 .pc-node.current .pc-num { color: var(--color-gold-light); }
-.pc-node.pending polygon { stroke: color-mix(in srgb, var(--color-panel-border) 55%, transparent); }
-.pc-node.blocked polygon { stroke: var(--color-alert-red); }
+.pc-node.blocked :is(.pc-top, .pc-cast, .pc-side, .pc-rim) { stroke: var(--color-alert-red); }
 .pc-node.blocked .pc-num { color: var(--color-alert-red); }
-.pc-node:hover polygon { stroke: var(--color-gold-light); }
+.pc-node:hover :is(.pc-top, .pc-cast, .pc-side, .pc-rim) { stroke: var(--color-gold-light); }
 .pc-node:focus-visible { outline: none; }
-.pc-node:focus-visible polygon { stroke: var(--color-gold-light); stroke-width: 2.5; }
-/* Lit + hovered hexes rise above their tessellated neighbours, so the shared
-   edge facing the next hex isn't overdrawn (and darkened) by that neighbour's
-   fainter stroke, which otherwise sits on top in DOM order. */
-.pc-node.complete, .pc-node.current, .pc-node.viewing { z-index: 1; }
-.pc-node:hover, .pc-node:focus-visible { z-index: 2; }
-/* the viewed card reads as "current" — a bold gold outline (+ gold numeral)
+.pc-node:focus-visible :is(.pc-top, .pc-cast, .pc-side, .pc-rim) { stroke: var(--color-gold-light); }
+.pc-node:focus-visible .pc-top { stroke-width: 2.6; }
+/* the viewed card reads as "current" — a bolder gold face line (+ gold numeral)
    regardless of its fill. No outer emphasis ring: the hexes tessellate, so any
    ring drawn outside the face bleeds onto the neighbours as stray gold nubs. */
-.pc-node.viewing polygon { stroke: var(--color-command-gold); stroke-width: 2; }
+.pc-node.viewing :is(.pc-top, .pc-cast, .pc-side, .pc-rim) { stroke: var(--color-command-gold); }
+.pc-node.viewing .pc-top { stroke-width: 2.6; }
 
 /* header variant: just the comb, centered. It orients by the ringed current
    hex; the stage name + phase already live in the PageHeader right below, so a
@@ -355,6 +364,55 @@ body {
 .gh-node.sk-dim:hover { opacity: 1; }
 .gh-node.sk-goal .gh-hex polygon { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--color-command-gold) 45%, transparent)); }
 
+/* Ortho-3D prism shell (`HexPrism`, sandbox winner H4+K10, 2026-07-07) — the
+   /courses combs render each hex as a thin prism: opaque face (gh-top), a
+   down-right cast (gh-cast lines) whose faces fill with the field color
+   (gh-side, the solid slab). Scoped under .gh-3d so the hub's flat
+   `.gh-hex polygon` rules stay untouched. Occlusion rides per-cell zIndex
+   (grows with `left`, set inline by the components) — no hover/current z bumps,
+   exactly the approved sandbox render. */
+.gh-3d .gh-top { fill: var(--color-deep-space); stroke: var(--color-panel-border); stroke-width: 3; vector-effect: non-scaling-stroke; transition: stroke 0.15s; }
+.gh-3d .gh-cast { fill: none; stroke: var(--color-panel-border); stroke-width: 1.25; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; transition: stroke 0.15s; }
+.gh-3d .gh-side { fill: var(--color-deep-space); stroke: var(--color-panel-border); stroke-width: 1.25; stroke-linejoin: round; vector-effect: non-scaling-stroke; transition: stroke 0.15s; }
+.gh-node.done .gh-3d .gh-top { fill: url(#gh-honey); stroke: #eab94d; }
+.gh-node.done .gh-3d :is(.gh-cast, .gh-side) { stroke: #eab94d; }
+.gh-node.current .gh-3d :is(.gh-top, .gh-cast, .gh-side) { stroke: var(--color-command-gold); }
+.gh-node.current .gh-3d .gh-top { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-command-gold) 60%, transparent)); animation: gh-pulse 1.8s ease-in-out infinite; }
+.gh-node.blocked .gh-3d :is(.gh-top, .gh-cast, .gh-side) { stroke: var(--color-alert-red); }
+.gh-node:hover .gh-3d :is(.gh-top, .gh-cast, .gh-side) { stroke: var(--color-gold-light); }
+.gh-node.sk-goal .gh-3d .gh-top { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--color-command-gold) 45%, transparent)); }
+@media (prefers-reduced-motion: reduce) { .gh-node.current .gh-3d .gh-top { animation: none; } }
+
+/* path-direction arrows (K10: 12 × 10 triangle, base 7 off the seam, on the
+   destination face). Gold = traversed (source done); dim = ahead. Hovering or
+   focusing a hex lights ITS outgoing arrow (the .hot class, set by the
+   component) so the next step reads off the hover. Overlay sits above every
+   prism cell and never intercepts the pointer. */
+.sk-arw { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 10000; }
+/* z-index note: cell wrappers carry zIndex ≈ their `left` (occlusion order), so
+   on wide layouts right-column cells reach 700+. The overlay must beat EVERY
+   cell or the arrows on those faces disappear under them — hence the big value
+   (it stays local to the comb's stacking scope). */
+.sk-arw path { transition: fill 0.15s, filter 0.15s; animation: sk-arwdrift 2.6s ease-in-out infinite; }
+.sk-arw g.on path { fill: var(--color-command-gold); }
+.sk-arw g.off path { fill: color-mix(in srgb, var(--color-panel-border) 90%, transparent); }
+.sk-arw g.hot path { fill: var(--color-gold-light); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-gold-light) 70%, transparent)); }
+/* the subtle forward drift (the footer Next-arrow motif, quieter): each arrow
+   breathes ~3px along its own flow direction (the parent g carries the
+   rotation, so translateX IS the path direction). Staggered per-arrow via an
+   inline animation-delay so the path reads as a slow wave. */
+@keyframes sk-arwdrift { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(3px); } }
+@media (prefers-reduced-motion: reduce) { .sk-arw path { animation: none; } }
+
+/* sk-lean — the /courses comb drops the tagline (long technical titles + a
+   chip already fill the face; the lead made the lower point crowd the pill —
+   owner note 2026-07-07). Number anchors higher, title + chip re-center. */
+.sk-lean .gh-num { top: 17%; }
+.sk-lean .gh-m { top: 55%; }
+.sk-lean .gh-title { margin-bottom: 0; font-size: clamp(15px, 10.5cqw, 30px); }
+.sk-lean .gh-lead { display: none; }
+.sk-lean .gh-status { bottom: 20%; }
+
 /* PathHoneycomb — the /courses "Go further" destinations: track-stroked hexes
    (one per other build) in the honeycomb language, laid out by the shared
    measured `computeLayout` so the rows tessellate. The track colour rides in on
@@ -374,8 +432,18 @@ body {
 .phex-eyebrow { font-family: var(--font-mono), monospace; font-size: clamp(8px, 3.4cqw, 11px); letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); }
 .phex-title { font-family: var(--font-display), sans-serif; font-size: clamp(16px, 11.5cqw, 30px); line-height: 0.92; letter-spacing: 0.03em; color: var(--color-gray-1); transition: color 0.18s ease; }
 .phex:hover .phex-title { color: #fff; }
-.phex-chip { font-family: var(--font-mono), monospace; font-weight: 700; font-size: clamp(8px, 3.1cqw, 10px); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: clamp(2px, 1.2cqw, 4px) clamp(8px, 4cqw, 13px); }
+.phex-chip { font-family: var(--font-mono), monospace; font-weight: 700; font-size: clamp(9px, 3.7cqw, 12px); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: clamp(3px, 1.7cqw, 6px) clamp(11px, 5.2cqw, 18px); }
 @media (prefers-reduced-motion: reduce) { .phex-hex polygon { transition: none; } }
+/* prism parts inside a path hex ride the track accent, dim at rest, lit on
+   hover/focus — mirroring the flat .phex-hex polygon rules above. Flag rules
+   MUST follow the plain hover rules (equal specificity, order decides). */
+.phex .gh-3d :is(.gh-top, .gh-cast, .gh-side) { stroke: var(--accent); stroke-opacity: 0.5; transition: stroke-opacity 0.18s ease, filter 0.18s ease; }
+.phex:hover .gh-3d :is(.gh-top, .gh-cast, .gh-side), .phex:focus-visible .gh-3d :is(.gh-top, .gh-cast, .gh-side) { stroke-opacity: 1; }
+.phex:hover .gh-3d .gh-top, .phex:focus-visible .gh-3d .gh-top { filter: drop-shadow(0 0 11px var(--accent)); }
+.phex.flag .gh-3d :is(.gh-top, .gh-cast, .gh-side) { stroke-opacity: 0.72; }
+.phex.flag .gh-3d .gh-top { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-command-gold) 32%, transparent)); }
+.phex.flag:hover .gh-3d :is(.gh-top, .gh-cast, .gh-side), .phex.flag:focus-visible .gh-3d :is(.gh-top, .gh-cast, .gh-side) { stroke-opacity: 1; }
+.phex.flag:hover .gh-3d .gh-top, .phex.flag:focus-visible .gh-3d .gh-top { filter: drop-shadow(0 0 14px color-mix(in srgb, var(--color-command-gold) 60%, transparent)); }
 
 /* QuizBlock — the in-guide comprehension check, "hex node" design: each option is
    a small hexagon wired on a vertical net; the right pick fills honey-gold, a wrong
