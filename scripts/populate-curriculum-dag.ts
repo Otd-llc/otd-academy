@@ -182,7 +182,7 @@ const PROJECTS: ProjectSpec[] = [
     disciplineTaught:
       "Sense capstone: 8-ch ADS1299 biopotential AFE, galvanic isolation, Cyton-protocol firmware compatibility",
     description:
-      "Sense capstone: 8-channel ADS1299 biopotential AFE with galvanic isolation. Don't clone the Cyton — fork the open Cyton schematic as reference for the hard analog front-end, replace the PIC32 + RFduino half with a single ESP32-WROOM, and speak the Cyton serial protocol to inherit the OpenBCI GUI / BrainFlow ecosystem. Buy one real Cyton as known-good reference + software target.",
+      "Sense capstone: 8-channel ADS1299 biopotential AFE with galvanic isolation, streamed by a single ESP32-WROOM. Speaks the Cyton serial protocol to inherit the OpenBCI GUI / BrainFlow ecosystem. Buy one real Cyton as a known-good software target for protocol testing.",
   },
   {
     slug: "l3-02-brushless-motor",

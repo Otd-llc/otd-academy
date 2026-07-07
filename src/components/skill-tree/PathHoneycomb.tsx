@@ -13,6 +13,7 @@ import type { CSSProperties } from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   computeLayout,
+  HexPrism,
   RATIO,
   type Box,
 } from "@/components/guide/GuideHoneycomb";
@@ -99,7 +100,15 @@ export function PathHoneycomb({
               : `${p.total} courses`;
 
         const wrapStyle: CSSProperties = b
-          ? { position: "absolute", left: b.left, top: b.top, width: b.w, height: b.h }
+          ? {
+              position: "absolute",
+              left: b.left,
+              top: b.top,
+              width: b.w,
+              height: b.h,
+              // prism occlusion: paint left column first (see HexPrism)
+              zIndex: Math.round(b.left) + 1,
+            }
           : {
               position: "relative",
               width: "100%",
@@ -116,14 +125,7 @@ export function PathHoneycomb({
             className={`phex group${p.isPrimary ? " flag" : ""}`}
             style={{ "--accent": accent, ...wrapStyle } as CSSProperties}
           >
-            <svg
-              className="phex-hex"
-              viewBox="0 0 100 115.47"
-              preserveAspectRatio="none"
-              aria-hidden="true"
-            >
-              <polygon points="50,0 100,28.87 100,86.6 50,115.47 0,86.6 0,28.87" />
-            </svg>
+            <HexPrism className="phex-hex" />
             <span className="phex-inner">
               <span className="phex-eyebrow">{eyebrow}</span>
               <span className="phex-title">{p.label}</span>

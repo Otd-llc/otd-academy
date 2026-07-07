@@ -22,6 +22,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   computeLayout,
+  HexPrism,
   RATIO,
   type Box,
 } from "@/components/guide/GuideHoneycomb";
@@ -124,14 +125,7 @@ function HexInner({
   const trackColor = node.track ? TRACK_COLOR[node.track] : undefined;
   return (
     <>
-      <svg
-        className="gh-hex"
-        viewBox="0 0 100 115.47"
-        preserveAspectRatio="none"
-        aria-hidden
-      >
-        <polygon points="50,0 100,28.87 100,86.6 50,115.47 0,86.6 0,28.87" />
-      </svg>
+      <HexPrism className="gh-hex" />
       <span className="gh-num" aria-hidden style={{ fontSize: numFontSize }}>
         {num}
       </span>
@@ -172,10 +166,15 @@ export function SkillHoneycomb({ nodes, goalSlug, viewer }: SkillHoneycombProps)
     boxes: [],
     height: 0,
   });
+  // container width, kept for the arrow overlay's coordinate space
+  const [cw, setCw] = useState(0);
+  // index of the hovered/focused node — lights its OUTGOING path arrow
+  const [hot, setHot] = useState<number | null>(null);
 
   const measure = useCallback(() => {
     const el = ref.current;
     if (!el) return;
+    setCw(el.clientWidth);
     setLayout(computeLayout(el.clientWidth, nodes.length));
   }, [nodes.length]);
 
@@ -193,7 +192,7 @@ export function SkillHoneycomb({ nodes, goalSlug, viewer }: SkillHoneycombProps)
   return (
     <div
       ref={ref}
-      className="gh"
+      className="gh sk-lean"
       style={{ position: "relative", height: measured ? layout.height : undefined }}
     >
       <svg width="0" height="0" aria-hidden className="absolute">
@@ -217,7 +216,17 @@ export function SkillHoneycomb({ nodes, goalSlug, viewer }: SkillHoneycombProps)
         // (the no-JS / pre-hydration fallback). The `#node-<slug>` anchor lives
         // here so it resolves in both modes.
         const wrapStyle: React.CSSProperties = b
-          ? { position: "absolute", left: b.left, top: b.top, width: b.w, height: b.h }
+          ? {
+              position: "absolute",
+              left: b.left,
+              top: b.top,
+              width: b.w,
+              height: b.h,
+              // paint order for prism occlusion: zIndex grows with `left`, so a
+              // hex's down-right cast is always covered by its right/lower
+              // neighbour's opaque face — DOM (tab) order stays the path order.
+              zIndex: Math.round(b.left) + 1,
+            }
           : {
               position: "relative",
               width: "100%",
@@ -290,7 +299,15 @@ export function SkillHoneycomb({ nodes, goalSlug, viewer }: SkillHoneycombProps)
           );
 
         return (
-          <div key={node.slug} id={`node-${node.slug}`} style={wrapStyle}>
+          <div
+            key={node.slug}
+            id={`node-${node.slug}`}
+            style={wrapStyle}
+            onMouseEnter={() => setHot(i)}
+            onMouseLeave={() => setHot((h) => (h === i ? null : h))}
+            onFocus={() => setHot(i)}
+            onBlur={() => setHot((h) => (h === i ? null : h))}
+          >
             {withTooltip}
             {/* Admin-only inline tier toggle, tucked into the hex's empty top
                 corner. The action re-checks requireAdmin (defense in depth). */}
@@ -302,6 +319,56 @@ export function SkillHoneycomb({ nodes, goalSlug, viewer }: SkillHoneycombProps)
           </div>
         );
       })}
+
+      {/* Path-direction arrows (K10): a 12 × 10 solid triangle on each
+          consecutive pair's seam, base 7px (scaled) off the line on the
+          destination face, rotated along the flow. The seam midpoint is the
+          midpoint of the two cell centers (true for tessellated hexes). Gold =
+          traversed (source done); dim = ahead; a hovered/focused hex lights its
+          outgoing arrow. Decorative — the chips carry the affordance. */}
+      {measured && cw > 0
+        ? (() => {
+            const arrows = nodes.slice(0, -1).map((node, i) => {
+              const a = layout.boxes[i]!;
+              const b = layout.boxes[i + 1]!;
+              const ax = a.left + a.w / 2;
+              const ay = a.top + a.h / 2;
+              const bx = b.left + b.w / 2;
+              const by = b.top + b.h / 2;
+              const ang = (Math.atan2(by - ay, bx - ax) * 180) / Math.PI;
+              const s = a.w / 200; // K10 sizes were tuned on 200px cells
+              const cls = [
+                hexKind(node) === "done" ? "on" : "off",
+                hot === i ? "hot" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+              return (
+                <g
+                  key={node.slug}
+                  className={cls}
+                  transform={`translate(${(ax + bx) / 2} ${(ay + by) / 2}) rotate(${ang}) translate(${7 * s} 0) scale(${s})`}
+                >
+                  {/* staggered delay: the drift reads as a slow wave down the path */}
+                  <path
+                    d="M -6 -5 L 6 0 L -6 5 Z"
+                    style={{ animationDelay: `${i * 0.25}s` }}
+                  />
+                </g>
+              );
+            });
+            return (
+              <svg
+                className="sk-arw"
+                viewBox={`0 0 ${cw} ${layout.height}`}
+                preserveAspectRatio="none"
+                aria-hidden
+              >
+                {arrows}
+              </svg>
+            );
+          })()
+        : null}
     </div>
   );
 }

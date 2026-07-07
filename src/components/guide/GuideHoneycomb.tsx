@@ -36,6 +36,61 @@ export type HoneycombStage = {
 
 export type Box = { left: number; top: number; w: number; h: number };
 
+// Ortho-3D hex prism shell — the /courses sandbox winner ("H4" + "K10" rounds,
+// 2026-07-07): the pointy-top face plus a down-right oblique cast (6.5% of the
+// face) whose side faces fill with the field color (a solid occluding slab).
+// Rendered by SkillHoneycomb + PathHoneycomb; the part classes
+// (gh-top / gh-cast / gh-side) are styled per-state in globals.css under the
+// `.gh-3d` scope. The hub's own hexes (below) still render the flat shell.
+// Cast occlusion relies on stacking order: callers give each absolutely
+// positioned cell a zIndex that grows with `left`, so every cell's cast is
+// covered by its right/lower neighbour's opaque face.
+export const HEX_POINTS = "50,0 100,28.87 100,86.6 50,115.47 0,86.6 0,28.87";
+const PRISM_CAST = 6.5;
+// visible cast silhouette for a down-right offset: TR → BR → B → BL
+const PRISM_RUN: [number, number][] = [
+  [100, 28.87], [100, 86.6], [50, 115.47], [0, 86.6],
+];
+const prismPts = (list: [number, number][]) =>
+  list.map(([x, y]) => `${x},${y}`).join(" ");
+const prismOff = ([x, y]: [number, number]): [number, number] => [
+  x + PRISM_CAST,
+  y + PRISM_CAST,
+];
+
+export function HexPrism({ className }: { className: string }) {
+  return (
+    <svg
+      className={`${className} gh-3d`}
+      viewBox="0 0 100 115.47"
+      preserveAspectRatio="none"
+      aria-hidden
+    >
+      {PRISM_RUN.slice(0, -1).map((a, i) => (
+        <polygon
+          key={i}
+          className="gh-side"
+          points={prismPts([
+            a,
+            PRISM_RUN[i + 1]!,
+            prismOff(PRISM_RUN[i + 1]!),
+            prismOff(a),
+          ])}
+        />
+      ))}
+      {PRISM_RUN.map((p, i) => (
+        <polyline
+          key={`v${i}`}
+          className="gh-cast"
+          points={prismPts([p, prismOff(p)])}
+        />
+      ))}
+      <polyline className="gh-cast" points={prismPts(PRISM_RUN.map(prismOff))} />
+      <polygon className="gh-top" points={HEX_POINTS} />
+    </svg>
+  );
+}
+
 // Measure-and-fill honeycomb layout: given a container width + node count, place
 // `count` pointy-top hexes in offset, snaking rows that grow to fill the width
 // (3-up desktop → 2-up phone, never a 1-wide strip). Shared with SkillHoneycomb

@@ -28,6 +28,33 @@ import {
 // Flat-top hex path in the intrinsic 48 × 41.57 cell (matches phase-comb.ts).
 const HEX = "12,0 36,0 48,20.785 36,41.57 12,41.57 0,20.785";
 
+// Ortho-3D face treatment (sandbox winner "G6", 2026-07-07): each hex is a thin
+// prism with a down-right oblique cast, its cast faces filled with the field
+// color (a solid occluding slab), plus a fine inset rim line on the face. The
+// cast draws OUTSIDE the 48 × 41.57 viewBox (svg overflow is visible); the comb
+// container carries +CAST of layout room so the bottom row's cast isn't cramped.
+const CAST = 5;
+// corner ring of HEX: c0 TL, c1 TR, c2 R, c3 BR, c4 BL, c5 L
+const C: [number, number][] = [
+  [12, 0], [36, 0], [48, 20.785], [36, 41.57], [12, 41.57], [0, 20.785],
+];
+const pts = (list: [number, number][]) =>
+  list.map(([x, y]) => `${x},${y}`).join(" ");
+// visible cast silhouette run for a down-right offset: BL → BR → R → TR
+const RUN: [number, number][] = [C[4]!, C[3]!, C[2]!, C[1]!];
+const off = ([x, y]: [number, number]): [number, number] => [x + CAST, y + CAST];
+const CAST_SIDES = RUN.slice(0, -1).map((a, i) =>
+  pts([a, RUN[i + 1]!, off(RUN[i + 1]!), off(a)]),
+);
+const CAST_EDGES = RUN.map((p) => pts([p, off(p)])).concat([pts(RUN.map(off))]);
+// fine rim: the face outline inset toward the centroid (24, 20.785) by 0.86
+const RIM = pts(
+  C.map(([x, y]) => [
+    Math.round((24 + (x - 24) * 0.86) * 100) / 100,
+    Math.round((20.785 + (y - 20.785) * 0.86) * 100) / 100,
+  ]),
+);
+
 export interface PhaseStep {
   stage: string;
   label: string;
@@ -53,7 +80,11 @@ export function PhaseComb({
   next?: PhaseStep | null;
 }) {
   const positions = combPositions(stages.length);
-  const { w, h } = combViewBox(stages.length);
+  // pad the layout box by the cast offset so percent positions account for the
+  // prism depth hanging off the bottom-right of the ribbon
+  const { w: vw, h: vh } = combViewBox(stages.length);
+  const w = vw + CAST;
+  const h = vh + CAST;
   const href = (s: string) =>
     `/projects/${slug}/${encodeURIComponent(revLabel)}/guide/${s}`;
 
@@ -79,7 +110,14 @@ export function PhaseComb({
               }}
             >
               <svg viewBox="0 0 48 41.57" preserveAspectRatio="none">
-                <polygon points={HEX} />
+                {CAST_SIDES.map((q) => (
+                  <polygon key={q} className="pc-side" points={q} />
+                ))}
+                {CAST_EDGES.map((l) => (
+                  <polyline key={l} className="pc-cast" points={l} />
+                ))}
+                <polygon className="pc-top" points={HEX} />
+                <polygon className="pc-rim" points={RIM} />
               </svg>
               <span className="pc-num">{combGlyph(base, s.ordinal)}</span>
               {/* Three-letter stage label on the TOP comb only (the footer stays
