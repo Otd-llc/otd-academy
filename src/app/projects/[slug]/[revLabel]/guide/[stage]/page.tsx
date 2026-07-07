@@ -669,7 +669,9 @@ export default async function GuideCardPage({
       {/* First-run orientation: once per board, only for a learner sitting on
           their first (REQUIREMENTS) stage. Shown/dismissed client-side. */}
       {view.isLearnerView && stage === "REQUIREMENTS" && showLearnerAdvance && (
-        <FirstRunCoach storageKey={`otd:firstrun:${project.slug}`} />
+        <FirstRunCoach
+          storageKey={`otd:firstrun:${viewerUserId ?? "anon"}:${project.slug}`}
+        />
       )}
       {/* Top phase rail — the comb as an ORIENT header: the ringed current hex
           says where you are (the stage name + phase are in the PageHeader below).
@@ -726,6 +728,8 @@ export default async function GuideCardPage({
           quizContext={learnerQuizContext}
           projectId={project.id}
           isSignedIn={!!sessionEmail}
+          userId={viewerUserId ?? undefined}
+          isEnrolled={learnerCurrentStage !== null}
           cardId={card.id}
           isAdmin={isAdmin}
           stage={stage}

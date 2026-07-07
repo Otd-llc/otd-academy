@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { mergeResume, type ResumeRecord } from "@/lib/resume-position";
+import {
+  mergeResume,
+  pruneResume,
+  resumeKey,
+  type ResumeRecord,
+} from "@/lib/resume-position";
 
 const rec = (anchorId: string, visited: string[], ts: number): ResumeRecord => ({ anchorId, visited, ts });
 
@@ -28,5 +33,37 @@ describe("mergeResume", () => {
   });
   it("returns null when both are absent", () => {
     expect(mergeResume(null, null)).toBeNull();
+  });
+});
+
+describe("resumeKey", () => {
+  it("scopes by user so two accounts on one browser never share a key", () => {
+    expect(resumeKey("u1", "p1", "c1")).toBe("otd:resume:u1:p1:c1");
+    expect(resumeKey("u2", "p1", "c1")).not.toBe(resumeKey("u1", "p1", "c1"));
+  });
+  it("uses 'anon' for a signed-out viewer (never carries into an account)", () => {
+    expect(resumeKey(undefined, "p1", "c1")).toBe("otd:resume:anon:p1:c1");
+    expect(resumeKey("u1", "p1", "c1")).not.toBe(
+      resumeKey(undefined, "p1", "c1"),
+    );
+  });
+});
+
+describe("pruneResume", () => {
+  const islands = ["island-01", "island-02", "island-03"];
+  it("returns null when the anchor no longer exists (card re-authored)", () => {
+    expect(pruneResume(rec("island-99", ["island-01"], 1), islands)).toBeNull();
+  });
+  it("drops visited anchors that are gone", () => {
+    expect(
+      pruneResume(rec("island-02", ["island-01", "island-99"], 1), islands),
+    ).toEqual({ anchorId: "island-02", visited: ["island-01"], ts: 1 });
+  });
+  it("returns the record unchanged when everything is still valid", () => {
+    const r = rec("island-02", ["island-01", "island-02"], 1);
+    expect(pruneResume(r, islands)).toBe(r);
+  });
+  it("returns null for a null record", () => {
+    expect(pruneResume(null, islands)).toBeNull();
   });
 });

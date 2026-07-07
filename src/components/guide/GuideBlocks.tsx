@@ -24,7 +24,7 @@ import { scanIslands, RAIL_MIN_ISLANDS, deriveSetupRanges } from "@/lib/guide-is
 import { IslandRail } from "@/components/guide/IslandRail";
 import { ResumePill } from "@/components/guide/ResumePill";
 import { SetupBand } from "@/components/guide/SetupBand";
-import type { ResumeRecord } from "@/lib/resume-position";
+import { resumeKey, type ResumeRecord } from "@/lib/resume-position";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
 import { LessonProvider } from "@/components/guide/LessonContext";
 import { Inline } from "@/components/guide/InlineText";
@@ -1019,6 +1019,7 @@ function GuideBlock({
   diagrams,
   quizContext,
   projectId,
+  userId,
   isSignedIn,
   cardId,
   isAdmin,
@@ -1030,6 +1031,7 @@ function GuideBlock({
   diagrams?: Record<string, string>;
   quizContext?: QuizContext;
   projectId?: string;
+  userId?: string;
   isSignedIn?: boolean;
   cardId?: string;
   isAdmin?: boolean;
@@ -1255,7 +1257,7 @@ function GuideBlock({
         <KitBlock
           intro={block.intro}
           items={kitItems}
-          storageKey={`otd:bench:${projectId ?? "anon"}`}
+          storageKey={`otd:bench:${userId ?? "anon"}:${projectId ?? "anon"}`}
         />
       );
     }
@@ -1327,6 +1329,8 @@ export function GuideBlocks({
   quizContext,
   projectId,
   isSignedIn,
+  userId,
+  isEnrolled = false,
   cardId,
   isAdmin,
   stage,
@@ -1340,6 +1344,14 @@ export function GuideBlocks({
   quizContext?: QuizContext;
   projectId?: string;
   isSignedIn?: boolean;
+  // The viewer's user id — scopes the resume localStorage key so a record can
+  // never leak across accounts on a shared browser. Undefined = anonymous.
+  userId?: string;
+  // Whether the viewer is an enrolled learner in this board. Resume is only
+  // offered to an enrolled learner (or an anon reading a public lesson); it is
+  // never offered to a signed-in non-enrollee (e.g. an admin preview, or a brand
+  // new account that has not started this lesson).
+  isEnrolled?: boolean;
   cardId?: string;
   isAdmin?: boolean;
   // Resume-position sync (Task 7): the current stage + the signed-in learner's
@@ -1367,7 +1379,11 @@ export function GuideBlocks({
   // islands (2-section cards skip it). storageKey is per-card and shared with
   // Task 6's resume layer.
   const showRail = islands.length >= RAIL_MIN_ISLANDS;
-  const railKey = `otd:resume:${projectId ?? "anon"}:${cardId ?? "card"}`;
+  // User-scoped resume key (no cross-account leak). Resume is only OFFERED to an
+  // enrolled learner or an anonymous reader (someone who has actually seen the
+  // content), never to a signed-in non-enrollee.
+  const railKey = resumeKey(userId, projectId, cardId);
+  const resumeEnabled = !isSignedIn || isEnrolled;
 
   // "Setup · …" ranges collapse into a SetupBand. Islands terminate a range, so
   // no anchored block ever falls inside one — the two derivations don't collide.
@@ -1386,6 +1402,7 @@ export function GuideBlocks({
         diagrams={diagrams}
         quizContext={quizContext}
         projectId={projectId}
+        userId={userId}
         isSignedIn={isSignedIn}
         cardId={cardId}
         isAdmin={isAdmin}
@@ -1426,13 +1443,21 @@ export function GuideBlocks({
           <IslandRail
             islands={islands}
             storageKey={railKey}
-            serverResume={serverResume}
-            syncProjectId={isSignedIn ? projectId : undefined}
-            syncStage={isSignedIn ? stage : undefined}
+            serverResume={resumeEnabled ? serverResume : null}
+            // Server-sync (writes Enrollment.resumeState) only for an enrolled
+            // learner — a non-enrollee has no enrollment row to write to.
+            syncProjectId={isEnrolled ? projectId : undefined}
+            syncStage={isEnrolled ? stage : undefined}
           />
         ) : null}
         {out}
-        {showRail ? <ResumePill islands={islands} storageKey={railKey} serverResume={serverResume} /> : null}
+        {showRail && resumeEnabled ? (
+          <ResumePill
+            islands={islands}
+            storageKey={railKey}
+            serverResume={serverResume}
+          />
+        ) : null}
       </div>
     </LessonProvider>
   );
