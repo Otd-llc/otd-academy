@@ -1019,6 +1019,7 @@ function GuideBlock({
   diagrams,
   quizContext,
   projectId,
+  userId,
   isSignedIn,
   cardId,
   isAdmin,
@@ -1030,6 +1031,7 @@ function GuideBlock({
   diagrams?: Record<string, string>;
   quizContext?: QuizContext;
   projectId?: string;
+  userId?: string;
   isSignedIn?: boolean;
   cardId?: string;
   isAdmin?: boolean;
@@ -1255,7 +1257,7 @@ function GuideBlock({
         <KitBlock
           intro={block.intro}
           items={kitItems}
-          storageKey={`otd:bench:${projectId ?? "anon"}`}
+          storageKey={`otd:bench:${userId ?? "anon"}:${projectId ?? "anon"}`}
         />
       );
     }
@@ -1400,6 +1402,7 @@ export function GuideBlocks({
         diagrams={diagrams}
         quizContext={quizContext}
         projectId={projectId}
+        userId={userId}
         isSignedIn={isSignedIn}
         cardId={cardId}
         isAdmin={isAdmin}
