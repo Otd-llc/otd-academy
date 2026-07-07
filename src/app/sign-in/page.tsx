@@ -1,6 +1,7 @@
 import { signIn, signOut } from "@/auth";
 import { InlineBanner } from "@/components/InlineBanner";
 import { SignInForms } from "@/components/auth/SignInForms";
+import { safeCallbackPath } from "@/lib/safe-callback";
 
 // Sign-in screen (design R11 + C1 + B1). A clean deep-space full-bleed field
 // with a soft gold bloom; the centered card is the client `SignInForms`, which
@@ -16,26 +17,29 @@ import { SignInForms } from "@/components/auth/SignInForms";
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; type?: string }>;
+  searchParams: Promise<{ error?: string; type?: string; callbackUrl?: string }>;
 }) {
   const params = await searchParams;
   const denied = params.error === "AccessDenied";
   const conflict = params.error === "session_conflict";
   const checkEmail = params.type === "email";
+  // Where to land after auth. Sanitized to a same-origin relative path so a
+  // crafted ?callbackUrl can't open-redirect; defaults to the first-run router.
+  const dest = safeCallbackPath(params.callbackUrl, "/start");
 
   async function googleAction() {
     "use server";
-    await signIn("google", { redirectTo: "/" });
+    await signIn("google", { redirectTo: dest });
   }
   async function githubAction() {
     "use server";
-    await signIn("github", { redirectTo: "/" });
+    await signIn("github", { redirectTo: dest });
   }
   async function resendAction(formData: FormData) {
     "use server";
     const email = formData.get("email");
     if (typeof email === "string" && email.length > 0) {
-      await signIn("resend", { email, redirectTo: "/" });
+      await signIn("resend", { email, redirectTo: dest });
     }
   }
 

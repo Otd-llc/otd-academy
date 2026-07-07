@@ -265,7 +265,11 @@ export default async function GuideCardPage({
     hasEntitlement,
     isAdmin,
   });
-  if (decision === "redirectSignIn") redirect("/sign-in");
+  if (decision === "redirectSignIn") {
+    // Return the learner to this exact lesson card after they sign in.
+    const here = `/projects/${slug}/${revLabel}/guide/${stageParam}`;
+    redirect(`/sign-in?callbackUrl=${encodeURIComponent(here)}`);
+  }
   if (decision === "paywall") {
     return (
       <Paywall

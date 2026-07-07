@@ -35,7 +35,7 @@ export default async function LearnerBoardPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const user = await currentUserOrRedirect();
+  const user = await currentUserOrRedirect(`/learn/${slug}`);
 
   const project = await db.project.findUnique({
     where: { slug },

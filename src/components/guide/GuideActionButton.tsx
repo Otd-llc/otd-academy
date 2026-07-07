@@ -11,6 +11,7 @@
 // rather than dead-ending at requireUser() — the download is a free-account
 // conversion moment. Apply this same rule to any future public resource download.
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   getBringupMeasurementsUrl,
@@ -55,6 +56,8 @@ export function GuideActionButton({
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Return the learner to THIS lesson after they sign up (not the home page).
+  const pathname = usePathname();
 
   const config = ACTIONS[action];
   if (!config) return null;
@@ -62,9 +65,10 @@ export function GuideActionButton({
   // Funnel anonymous visitors to sign-up instead of attempting a download that
   // would only fail at requireUser(). A free account unlocks the files + progress.
   if (!isSignedIn) {
+    const signInHref = `/sign-in?callbackUrl=${encodeURIComponent(pathname || "/start")}`;
     return (
       <div className="my-2 space-y-2">
-        <Link href="/sign-in" className={BUTTON_CLASS}>
+        <Link href={signInHref} className={BUTTON_CLASS}>
           ↓ Sign up to download
         </Link>
         <p className="font-mono text-[11px] uppercase tracking-wider text-muted">

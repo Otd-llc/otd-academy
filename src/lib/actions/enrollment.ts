@@ -435,6 +435,19 @@ export async function recordEnrollmentProof(
     }
   }
 
+  // Funnel: the first CLEAN ERC is the onboarding "micro-aha" (§ onboarding
+  // procedure) — the first real, gated success on the way to activation. Detect
+  // it BEFORE writing this artifact (and before the stale-cleanup below): a
+  // passing ERC with no prior passing ERC on this enrollment.
+  let firstCleanErc = false;
+  if (validator === "erc" && valid === true) {
+    const priorClean = await db.artifact.findFirst({
+      where: { enrollmentId: enrollment.id, subkind, valid: true },
+      select: { id: true },
+    });
+    firstCleanErc = !priorClean;
+  }
+
   const created = await db.artifact.create({
     data: {
       enrollmentId: enrollment.id,
@@ -450,6 +463,18 @@ export async function recordEnrollmentProof(
       createdBy: user.id,
     },
   });
+
+  if (firstCleanErc) {
+    try {
+      capture(
+        "erc_clean",
+        { board_slug: enrollment.project.slug, stage: data.stage },
+        user.id,
+      );
+    } catch {
+      // never block the upload on telemetry
+    }
+  }
 
   // Replace any earlier proof of the same subkind for this enrollment so the gate
   // reflects the LATEST upload (and we don't accumulate dead files in R2).
