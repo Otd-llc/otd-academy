@@ -47,9 +47,9 @@ import {
   ensureR2Enabled,
   headVerifySize,
   presignGet,
-  presignGetInline,
   presignPut,
 } from "@/lib/part-r2";
+import { partModelSrc } from "@/lib/part-model-url";
 import {
   editPartAssetSchema,
   shouldDemoteAsset,
@@ -526,16 +526,17 @@ export async function getPartAssetDownloadUrl(
 
 // ─── getPartAssetRenderUrl ──────────────────────────────
 /**
- * Inline presigned GET for a part's MODEL_3D render `.glb`, or null when R2 is
+ * Stable, cacheable URL for a part's MODEL_3D render `.glb`, or null when R2 is
  * off / no render exists. NOT `requireUser`-gated and NOT trust-gated: viewing
- * is how a curator verifies, and the part page is the auth boundary. Uses
- * `presignGetInline` (no attachment disposition) so the browser can fetch it.
+ * is how a curator verifies, and the part page is the auth boundary. Returns the
+ * `/api/part-model/[id]` proxy URL (immutable-cached, `?v` busts on replace)
+ * instead of a per-render presigned URL that never cache-hits.
  */
 export async function getPartAssetRenderUrl(partId: string): Promise<string | null> {
   if (!env.R2_ENABLED || !env.R2_BUCKET) return null;
   const asset = await db.partAsset.findUnique({
     where: { partId_kind: { partId, kind: "MODEL_3D" } },
-    select: { renderKey: true },
+    select: { id: true, renderKey: true, updatedAt: true },
   });
-  return asset?.renderKey ? presignGetInline(asset.renderKey) : null;
+  return asset?.renderKey ? partModelSrc(asset.id, asset.updatedAt) : null;
 }

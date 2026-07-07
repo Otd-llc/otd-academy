@@ -40,7 +40,7 @@ import { GuideCardEditor } from "@/components/guide/GuideCardEditor";
 import { PhaseComb } from "@/components/guide/PhaseComb";
 import { BomPdfExport } from "@/components/guide/BomPdfExport";
 import { getPartAssetRenderUrl } from "@/lib/actions/part-assets";
-import { presignGetInline } from "@/lib/part-r2";
+import { partModelSrc } from "@/lib/part-model-url";
 import { env } from "@/env";
 import { renderBoundsSchema } from "@/lib/schemas/part-asset";
 import { StageGate } from "@/components/guide/StageGate";
@@ -446,29 +446,28 @@ export default async function GuideCardPage({
       },
       orderBy: { refDes: "asc" },
     });
-    // Batch-fetch each part's MODEL_3D render in ONE query, then presign inline
-    // (a local HMAC, no R2 round-trip) so every BOM row can float its part in 3D
-    // without N per-part queries. R2 off → no models (rows degrade to spec only).
+    // Batch-fetch each part's MODEL_3D render in ONE query, then point each BOM
+    // row at the stable /api/part-model proxy URL (immutable-cached, no per-render
+    // presign) so every row can float its part in 3D without N presigns and the
+    // .glb caches across pages. R2 off → no models (rows degrade to spec only).
     const partIds = lines.map((l) => l.part.id);
     const assets =
       env.R2_ENABLED && env.R2_BUCKET
         ? await db.partAsset.findMany({
             where: { partId: { in: partIds }, kind: "MODEL_3D", renderKey: { not: null } },
-            select: { partId: true, renderKey: true, renderBounds: true },
+            select: { id: true, partId: true, updatedAt: true, renderBounds: true },
           })
         : [];
     const modelByPart = new Map(
-      await Promise.all(
-        assets.map(
-          async (a) =>
-            [
-              a.partId,
-              {
-                src: await presignGetInline(a.renderKey!),
-                bounds: renderBoundsSchema.safeParse(a.renderBounds).data ?? null,
-              },
-            ] as const,
-        ),
+      assets.map(
+        (a) =>
+          [
+            a.partId,
+            {
+              src: partModelSrc(a.id, a.updatedAt),
+              bounds: renderBoundsSchema.safeParse(a.renderBounds).data ?? null,
+            },
+          ] as const,
       ),
     );
     bomRows = lines.map((l) => {

@@ -37,6 +37,10 @@ describe("middleware matcher", () => {
     // the guide-diagram SVGs (and any public asset) break for signed-out users.
     expect(runsMiddleware("/guide-diagrams/wroom-power-flow.svg")).toBe(false);
     expect(runsMiddleware("/brand/1kd-icon.svg")).toBe(false);
+    // Public R2 asset proxies — must load for signed-out visitors (avatars on the
+    // welcome-back fast-path; 3D part models on public lessons).
+    expect(runsMiddleware("/api/avatar/abc123")).toBe(false);
+    expect(runsMiddleware("/api/part-model/abc123")).toBe(false);
   });
 
   it("DOES run on app pages so auth/role gating + chrome still apply", () => {

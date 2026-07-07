@@ -654,8 +654,8 @@ describe("unverifyPartAsset", () => {
 // ─── recordPartAsset render columns (derived .glb) ──────────────────────────
 // The `@/lib/part-r2` mock stubs the HEAD (echoes declared bytes), the presigns,
 // and DeleteObject — so `recordPartAsset` persists the render trio and the stale-
-// render cleanup is a no-op delete. `getPartAssetRenderUrl` returns the stubbed
-// inline URL when a renderKey is present.
+// render cleanup is a no-op delete. `getPartAssetRenderUrl` returns the stable
+// /api/part-model proxy URL (id + a ?v version) when a renderKey is present.
 describe("recordPartAsset render columns", () => {
   test("records the render trio on a fresh MODEL_3D upload", async () => {
     const r = await recordPartAsset({
@@ -671,7 +671,9 @@ describe("recordPartAsset render columns", () => {
     try {
       expect(r.renderKey).toContain("model_3d_render");
       expect(r.renderMime).toBe("model/gltf-binary");
-      expect(await getPartAssetRenderUrl(throwawayPartId)).toBe("https://r2.example/inline");
+      expect(await getPartAssetRenderUrl(throwawayPartId)).toMatch(
+        /^\/api\/part-model\/[^/]+\?v=\d+$/,
+      );
     } finally {
       await deleteAsset(r.id);
     }
