@@ -38,7 +38,6 @@ import { GuideActionButton } from "@/components/guide/GuideActionButton";
 import { CaptureLauncher } from "@/components/guide/CaptureLauncher";
 import { PartMpnLink } from "@/components/guide/PartMpnLink";
 import { YouTubeEmbed } from "@/components/guide/YouTubeEmbed";
-import { buildFastAddUrl } from "@/lib/digikey-cart";
 import {
   affiliateLink,
   amazonProductLink,
@@ -260,10 +259,6 @@ function BomTableBlock({
   const oldestChecked = checkedDates.length
     ? checkedDates.reduce((a, b) => (a < b ? a : b))
     : null;
-  const fastAddUrl = buildFastAddUrl(
-    rows.map((r) => ({ dkPartNumber: r.dkPartNumber, quantity: r.qty, refDes: r.refDes })),
-  );
-  const cartMissing = rows.filter((r) => r.dkPartNumber == null).length;
   const body = (
     <figure className="space-y-2">
       {/* Each part is introduced with its half-size floating 3D (windowed, so a
@@ -384,24 +379,9 @@ function BomTableBlock({
           <span className="ml-2 text-alert-red">· {health.join(" · ")}</span>
         ) : null}
       </figcaption>
-      {tableHasDk && fastAddUrl ? (
-        <div className="mt-2">
-          <a
-            href={fastAddUrl}
-            target="_blank"
-            rel="noopener noreferrer nofollow"
-            className="glass-button inline-flex items-center gap-2 px-4 py-2 font-mono text-xs uppercase tracking-[0.14em]"
-          >
-            Add whole BOM to DigiKey cart
-            <span className="text-[10px] text-gold-dim">DigiKey</span>
-          </a>
-          {cartMissing > 0 ? (
-            <p className="mt-1 font-mono text-[11px] normal-case text-muted">
-              {cartMissing} line{cartMissing === 1 ? "" : "s"} not yet linked to DigiKey — add {cartMissing === 1 ? "it" : "them"} by MPN.
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+      {/* No "add to cart" here on purpose: the BOM section is for reviewing the
+          bill of materials + live cost. Buying the parts lives in the ORDERING
+          stage, not here. */}
     </figure>
   );
 
