@@ -36,6 +36,7 @@ import {
   entitlementFromCheckoutSession,
   invoiceFromEvent,
   purchaseFromCheckoutSession,
+  refundFromEvent,
   refundInfoFromCharge,
   subscriptionFromEvent,
   tipFromCheckoutSession,
@@ -458,6 +459,27 @@ export async function POST(req: Request): Promise<Response> {
           where: { id: purchase.entitlementId },
         });
       }
+    });
+    if (early) return early;
+  } else if (event.type === "refund.created") {
+    // The itemized Refund ledger, guaranteed: this event IS the Refund object (vs
+    // charge.refunded's possibly-unexpanded list). Records/updates the Refund row and
+    // correlates the Purchase by payment_intent. It carries only THIS refund's amount,
+    // NOT the cumulative — so charge.refunded still owns Purchase.refundedCents + the
+    // full-refund revoke; both upsert the same stripeRefundId idempotently.
+    const { fields, paymentIntentId } = refundFromEvent(event.data.object);
+    const early = await claimAndWrite(event.id, event.type, async (tx) => {
+      const purchase = paymentIntentId
+        ? await tx.purchase.findFirst({
+            where: { stripePaymentIntentId: paymentIntentId },
+            select: { id: true },
+          })
+        : null;
+      await tx.refund.upsert({
+        where: { stripeRefundId: fields.stripeRefundId },
+        create: { ...fields, purchaseId: purchase?.id ?? null },
+        update: { purchaseId: purchase?.id ?? null, status: fields.status },
+      });
     });
     if (early) return early;
   }

@@ -12,6 +12,7 @@ import {
   subscriptionFromEvent,
   invoiceFromEvent,
   refundInfoFromCharge,
+  refundFromEvent,
 } from "@/lib/stripe-webhook";
 
 const S = <T>(o: unknown) => o as T;
@@ -139,6 +140,29 @@ describe("refundInfoFromCharge (pure)", () => {
     );
     expect(info.fullyRefunded).toBe(false);
     expect(info.refunds[0]?.reason).toBeNull();
+  });
+});
+
+describe("refundFromEvent (pure)", () => {
+  test("extracts the single refund + the payment_intent correlation key", () => {
+    const r = refundFromEvent(
+      S<import("stripe").Stripe.Refund>({
+        id: "re_1",
+        charge: "ch_1",
+        payment_intent: "pi_1",
+        amount: 4900,
+        reason: "requested_by_customer",
+        status: "succeeded",
+      }),
+    );
+    expect(r.paymentIntentId).toBe("pi_1");
+    expect(r.fields).toEqual({
+      stripeRefundId: "re_1",
+      stripeChargeId: "ch_1",
+      amountCents: 4900,
+      reason: "requested_by_customer",
+      status: "succeeded",
+    });
   });
 });
 
@@ -394,6 +418,39 @@ describe("POST webhook — charge.refunded", () => {
       create: expect.objectContaining({ purchaseId: null }),
       update: { purchaseId: null, status: "succeeded" },
     });
+    expect(purchaseUpdate).not.toHaveBeenCalled();
+    expect(entitlementDeleteMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST webhook — refund.created", () => {
+  test("records the itemized Refund correlated to the Purchase; does NOT touch refundedCents or access", async () => {
+    constructEvent.mockReturnValue({
+      id: "evt_refcreated",
+      type: "refund.created",
+      data: {
+        object: {
+          id: "re_9",
+          charge: "ch_9",
+          payment_intent: "pi_1",
+          amount: 4900,
+          reason: null,
+          status: "succeeded",
+        },
+      },
+    });
+    const res = await POST(req());
+    expect(res.status).toBe(200);
+    expect(refundUpsert).toHaveBeenCalledWith({
+      where: { stripeRefundId: "re_9" },
+      create: expect.objectContaining({
+        stripeChargeId: "ch_9",
+        amountCents: 4900,
+        purchaseId: "pur_1",
+      }),
+      update: { purchaseId: "pur_1", status: "succeeded" },
+    });
+    // charge.refunded owns refundedCents + the revoke; refund.created only the ledger.
     expect(purchaseUpdate).not.toHaveBeenCalled();
     expect(entitlementDeleteMany).not.toHaveBeenCalled();
   });

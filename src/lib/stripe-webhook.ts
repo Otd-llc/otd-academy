@@ -304,3 +304,30 @@ export function refundInfoFromCharge(charge: Stripe.Charge): ChargeRefundInfo {
     refunds,
   };
 }
+
+// One Stripe Refund from a refund.created event, with its Purchase-correlation key.
+export interface SingleRefund {
+  fields: RefundFields;
+  paymentIntentId: string | null;
+}
+
+/**
+ * Extract a single Refund from a refund.created event. Pure. Unlike
+ * charge.refunded (whose `refunds` list may not be expanded on the payload), this
+ * event IS the Refund object, so the itemized ledger row is guaranteed. It carries
+ * only THIS refund's amount, not the cumulative — so charge.refunded still owns
+ * Purchase.refundedCents + the full-refund revoke; refund.created only writes the
+ * ledger row (both upsert the same stripeRefundId, idempotently).
+ */
+export function refundFromEvent(refund: Stripe.Refund): SingleRefund {
+  return {
+    fields: {
+      stripeRefundId: refund.id,
+      stripeChargeId: stripeId(refund.charge ?? null) ?? "",
+      amountCents: refund.amount,
+      reason: refund.reason ?? null,
+      status: refund.status ?? "unknown",
+    },
+    paymentIntentId: stripeId(refund.payment_intent ?? null),
+  };
+}
