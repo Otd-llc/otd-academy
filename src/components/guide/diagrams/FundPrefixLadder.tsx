@@ -106,10 +106,11 @@ const CSS = `
 .pl-ticks{position:relative;display:grid;grid-template-columns:repeat(7,1fr);height:100%;z-index:1;}
 .pl-ticks i{justify-self:center;align-self:center;width:2px;height:15px;background:var(--color-command-gold,#c8963e);}
 .pl-ticks i.h{opacity:0;}
-.pl-syms span{font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:clamp(1.3rem,3.4vw,1.7rem);
-  line-height:1;color:var(--color-title,#f1ece0);padding-top:.4rem;}
-.pl-syms .pl-unit{color:var(--color-command-gold,#c8963e);font-family:var(--font-mono,"Space Mono",monospace);
-  font-size:clamp(.9rem,2.4vw,1.05rem);}
+/* Mono, NOT Bebas: prefix-symbol case is load-bearing (m=milli vs M=mega, a
+   factor of 10^9). An all-caps display face renders both as "M". */
+.pl-syms span{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;
+  font-size:clamp(1.05rem,2.8vw,1.35rem);line-height:1;color:var(--color-title,#f1ece0);padding-top:.5rem;}
+.pl-syms .pl-unit{color:var(--color-command-gold,#c8963e);}
 .pl-facs span{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;
   font-size:clamp(.85rem,2.2vw,.98rem);color:var(--color-muted,#aaa);font-variant-numeric:tabular-nums;padding-top:.2rem;}
 .pl-exs span{font-family:var(--font-mono,"Space Mono",monospace);font-size:clamp(.8rem,2.1vw,.92rem);
@@ -124,7 +125,7 @@ const CSS = `
   padding:.5rem .8rem;border-radius:6px;text-align:left;
   background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
 .pl-list li.pl-li-unit{box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
-.pl-li-sym{font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:1.5rem;line-height:1;color:var(--color-title,#f1ece0);}
+.pl-li-sym{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:1.25rem;line-height:1;color:var(--color-title,#f1ece0);}
 .pl-li-unit .pl-li-sym{color:var(--color-command-gold,#c8963e);}
 .pl-li-name{font-family:var(--font-mono,"Space Mono",monospace);font-size:.9rem;text-transform:uppercase;
   letter-spacing:.06em;color:var(--color-text,#e8e8e8);}

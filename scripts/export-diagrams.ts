@@ -89,6 +89,13 @@ async function main() {
     await page.goto(`${BASE}/diagram-render/${basename}`, { waitUntil: "networkidle", timeout: 60_000 });
     const figure = page.locator('figure[role="img"]').first();
     await figure.waitFor({ state: "visible", timeout: 30_000 });
+    // Force the DARK theme explicitly: the diagram-render bootstrap otherwise
+    // resolves from prefers-color-scheme, so an exporter run under a light OS /
+    // default Playwright colorScheme would silently bake a LIGHT raster into the
+    // dark .webp/.png (OG card + web-dark surface). data-theme wins over the media
+    // query, making the raster theme deterministic regardless of host.
+    await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+    await page.waitForTimeout(150);
     const alt = (await figure.getAttribute("aria-label")) ?? "";
     if (!alt.trim()) throw new Error(`Diagram "${basename}" has no aria-label — alt text is required`);
 
