@@ -44,6 +44,13 @@ export function isPublicPath(pathname: string): boolean {
   // The public /pricing page (the storefront landing) is crawlable + must render
   // signed-out (the top of the purchase funnel).
   if (top === "pricing") return true;
+  // Post-checkout confirmation (/checkout/success?session_id=...) — the BOTTOM of
+  // the funnel. Must render without a session: a buyer's cookie can be absent/
+  // expired at the Stripe redirect, and bouncing them to /sign-in right after they
+  // paid is the exact drop this page exists to prevent. The unguessable Stripe
+  // session id in the query is the "gate"; the page reads it display-only (the
+  // access grant stays webhook-sourced) and shows no PII. noindex.
+  if (top === "checkout" && segments[1] === "success") return true;
   // The public briefs (marketing one-pagers): index (/briefs) + each brief
   // (/briefs/overview, /briefs/learner). Static, gate-less, crawlable. The
   // downloadable PDFs are served from /public, outside the middleware matcher.

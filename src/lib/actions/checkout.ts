@@ -48,9 +48,9 @@ export async function createCheckoutSession(input: {
     mode: "payment",
     line_items: [{ price: project.stripePriceId, quantity: 1 }],
     customer,
-    // Success lands on the learner home, which shows the purchase-confirmation
-    // banner for `?purchased=<slug>`. Escape the slug as a query value.
-    success_url: `${base}/learn?purchased=${encodeURIComponent(project.slug)}`,
+    // Success lands on the post-checkout confirmation page. Stripe fills in
+    // {CHECKOUT_SESSION_ID}; the page reads the session to show the receipt.
+    success_url: `${base}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
     // Cancel returns to the project's guide hub.
     cancel_url: `${base}/learn/${project.slug}`,
     // `stripePriceId` is stamped so the webhook can record it on the Purchase row
