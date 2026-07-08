@@ -103,6 +103,7 @@ const LESSONS: Lesson[] = [
     clusterOrdinal: 2,
     contentBlocks: [
       { type: "prose", md: "Ohm's law relates voltage, current, and resistance in one equation. Rearranged, it gives you current or resistance, and the power follows. Know any two and you have the rest. Georg Ohm published the relationship in 1827, and it holds for the resistive parts on every board here." },
+      { type: "image", src: "/guide-diagrams/fund-ohms-wheel.svg", alt: "Two mnemonic triangles: V over I and R for Ohm's law, and P over V and I for power. Cover the quantity you want and the triangle shows its formula.", caption: "Cover the quantity you want: the triangle gives its formula." },
       { type: "math", tex: "V = I \\cdot R", plain: "V = I x R" },
       { type: "calculator", slug: "ohms-law", caption: "Solve for voltage, current, or resistance, and read the power." },
       { type: "heading", text: "The three forms" },
