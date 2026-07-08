@@ -19,6 +19,7 @@
 //   npx tsx scripts/seed-fundamentals-cluster.ts           (seed PROD)
 import { config as loadEnv } from "dotenv";
 loadEnv({ path: ".env.local" });
+import katex from "katex";
 import { guideContentBlocksSchema, type ContentBlock } from "@/lib/schemas/guide";
 import { LIBRARY_BLOCK_TYPES } from "@/lib/library/block-allowlist";
 
@@ -101,10 +102,12 @@ const LESSONS: Lesson[] = [
       "What Ohm's law is, how to rearrange V = I x R for voltage, current, or resistance, and the power it sets. With a live calculator and a worked board example.",
     clusterOrdinal: 2,
     contentBlocks: [
-      { type: "prose", md: "Ohm's law is V = I x R: voltage equals current times resistance. Rearranged, it gives you current (I = V / R) or resistance (R = V / I), and the power follows as P = V x I. Know any two and you have the rest. Georg Ohm published the relationship in 1827, and it holds for the resistive parts on every board here." },
+      { type: "prose", md: "Ohm's law relates voltage, current, and resistance in one equation. Rearranged, it gives you current or resistance, and the power follows. Know any two and you have the rest. Georg Ohm published the relationship in 1827, and it holds for the resistive parts on every board here." },
+      { type: "math", tex: "V = I \\cdot R", plain: "V = I x R" },
       { type: "calculator", slug: "ohms-law", caption: "Solve for voltage, current, or resistance, and read the power." },
       { type: "heading", text: "The three forms" },
-      { type: "prose", md: "They are one equation, written for whatever you are missing. Know the current and the resistance and you want the voltage: V = I x R. Know the voltage and the resistance and you want the current: I = V / R. Know the voltage and the current and you want the resistance: R = V / I. Keep the units honest, volts and amps and ohms, and the arithmetic is exact." },
+      { type: "prose", md: "They are one equation, written for whatever you are missing. Know the current and the resistance and you want the voltage. Know the voltage and the resistance and you want the current. Know the voltage and the current and you want the resistance. Keep the units honest, volts and amps and ohms, and the arithmetic is exact." },
+      { type: "math", tex: "I = \\frac{V}{R} \\qquad R = \\frac{V}{I} \\qquad P = V \\cdot I", plain: "I = V / R,   R = V / I,   P = V x I" },
       { type: "heading", text: "Why it matters" },
       { type: "prose", md: "Almost every small design decision is an Ohm's-law step. Sizing a pull-up resistor on a One Thousand Drones L1.01 board is one: the resistor sits between the `3.3 V` rail and a signal pin, and its value sets how much current flows when the pin pulls low. Pick the resistance and Ohm's law tells you the current; pick a target current and it tells you the resistance." },
       { type: "quiz", questions: [
@@ -127,7 +130,8 @@ const LESSONS: Lesson[] = [
       "How much power a part dissipates (P = V x I = I squared R), why it leaves as heat, and how to pick a part rated for it. Worked from a real regulator.",
     clusterOrdinal: 3,
     contentBlocks: [
-      { type: "prose", md: "Power is the rate a part uses energy, P = V x I, measured in watts. For a resistor that also equals I squared times R, or V squared divided by R. Whatever form you use, the power a resistive part uses leaves as heat, and that heat is what sets the part you buy." },
+      { type: "prose", md: "Power is the rate a part uses energy, measured in watts. For a resistor it takes three equivalent forms, shown below. Whatever form you use, the power a resistive part burns leaves as heat, and that heat is what sets the part you buy." },
+      { type: "math", tex: "P = V \\cdot I = I^2 R = \\frac{V^2}{R}", plain: "P = V x I = I^2 R = V^2 / R" },
       { type: "calculator", slug: "resistor-power", caption: "Find a resistor's dissipation and the wattage rating to buy." },
       { type: "heading", text: "Where the power goes" },
       { type: "prose", md: "A part carrying current at a voltage is turning electrical energy into heat at a rate of V x I watts. A voltage regulator is the clearest case. On a One Thousand Drones L1.01 board the AP2112K regulator takes the USB `5 V` input down to `3.3 V`; the `1.7 V` it drops, times the current the board draws, becomes heat in the regulator. Draw more current and it runs hotter." },
@@ -164,6 +168,14 @@ function validate(): void {
         console.error(`[${l.slug}] non-library block type: ${b.type}`);
       }
       if (b.type === "quiz") for (const q of b.questions) answerPositions.push(q.answer);
+      if (b.type === "math") {
+        try {
+          katex.renderToString(b.tex, { throwOnError: true });
+        } catch (e) {
+          ok = false;
+          console.error(`[${l.slug}] BAD LaTeX \`${b.tex}\`: ${(e as Error).message}`);
+        }
+      }
     }
     if (JSON.stringify(l).includes(EM_DASH)) {
       ok = false;
