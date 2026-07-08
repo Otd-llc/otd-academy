@@ -26,6 +26,22 @@ Every lesson clears the same gate. A lesson is not "done" until:
   claim gets its own inline author-year + a linked References entry, **web-verified
   at authoring time** (never from memory). Unsourceable → soften or cut.
 - **[STRONG] ≥1 first-hand element** (an OTD board measurement / capture / gotcha).
+  Where the topic is pure definition (lesson 1 units; parts of 11 reading-a-schematic)
+  a capture/photo of real part markings or a real schematic snippet counts; note why
+  if a measurement genuinely does not fit rather than faking one.
+- **[STRONG] credentialed byline** — set a real reviewer byline (Trust E-E-A-T), not
+  a placeholder string.
+- **Intra-cluster arc:** each lesson cross-links its prerequisite fundamentals
+  lesson(s) (a `sourceRef` internal link or a resolvable `termRef`), the way the EEG
+  cluster was link-graph validated, so the arc is crawlable front to back and no
+  lesson references a later one as a prerequisite.
+- **Hero diagram first:** the per-lesson OG social card reads the FIRST image
+  block's committed DARK `<name>.png` (parent §9), so place the lesson's primary
+  diagram as an early block and confirm its `.png` sibling is committed, or the card
+  degrades to text-only.
+- **Audience bar on 9 / 11 / 12:** reactance, schematic-reading, and datasheet-reading
+  may go a little deeper in PROSE, but keep the QUIZ stems plain recall (no math,
+  no worst-case edge-cases) so the assessment stays at the L1 beginner bar.
 - **Assessment (quiz):** 3-option check, distractors are real same-register
   misconceptions (no jokes), **answer key spread** across positions (count before
   seed), **L1 true-beginner bar** (plain core ideas, no math/edge-cases in stems),
@@ -45,19 +61,45 @@ prose, cited `sourceRef`s, ≥1 first-hand hook, the diagram(s) below (registry-
 |---|------|----------------------|---------------------------|-----------------|------|
 | 1 | `units-and-prefixes` | The SI units of electronics (V, A, Ω, F, W) and the metric prefix ladder (p n µ m · k M) you read off every part. | BIPM SI brochure / NIST SP 811 (unit defs + prefixes) | Reading a real OTD BOM value: 5.1 kΩ, 4.7 µF, 100 nF | — |
 | 2 | `voltage-current-resistance` | Voltage is the push, current is the flow, resistance is the opposition. What each physically is and how they relate. | textbook (Ohm relation intro); NIST for unit defs | Probing the 3.3 V rail on the L1.01 board | — |
-| 3 | `ohms-law` | V = I × R, its rearrangements, and P = V × I. | textbook (Ohm's law) | L1.01 indicator-LED resistor (matches the calc page) | `ohms-law` |
-| 4 | `power-and-heat` | Power is V × I (= I²R = V²/R) and it leaves as heat, which sets the part rating. | textbook; resistor datasheet derating curve | bn-02 DC electronic load (heat is the whole constraint) | `resistor-power` |
+| 3 | `ohms-law` | V = I × R, its rearrangements, and P = V × I. | textbook (Ohm's law) | sizing a GPIO/I2C pull-up on L1.01 (DISTINCT from the /tools LED example; verify on board) | `ohms-law` |
+| 4 | `power-and-heat` | Power is V × I (= I²R = V²/R) and it leaves as heat, which sets the part rating. | textbook; resistor datasheet derating curve | the AP2112K LDO's own heat on L1.01: (Vin − 3.3 V) × load current (DISTINCT from /tools bn-02) | `resistor-power` |
 | 5 | `resistors` | What a resistor does, the E-series standard values, tolerance, and reading SMD codes. | IEC 60063 (E-series); a real resistor datasheet | OTD 0402/0603 BOM parts | — |
-| 6 | `voltage-dividers` | Vout = Vin × R2 / (R1 + R2), why it sags under load, and scaling a voltage into an ADC. | textbook (divider); ESP32 ADC input range (datasheet) | L1.05 internal-ADC divider | `voltage-divider` |
+| 6 | `voltage-dividers` | Vout = Vin × R2 / (R1 + R2), why it sags under load, and scaling a voltage into an ADC. | textbook (divider); ESP32 ADC input range (datasheet) | a battery-sense divider scaling a LiPo into the 3.3 V ADC (l2-01) (DISTINCT from /tools L1.05) | `voltage-divider` |
 | 7 | `capacitors` | A capacitor stores charge and steadies a rail; the decoupling cap beside every chip. | ceramic vs electrolytic (a real MLCC datasheet) | L1.01 100 nF decoupling caps at the power pins | — |
-| 8 | `diodes-and-leds` | A diode passes current one way; an LED drops a forward voltage and needs a current-limiting resistor. | LED datasheet (Vf); diode textbook | L1.01 status LED (Vf ~1.8 V) | `led-series-resistor` |
-| 9 | `reactive-and-filtering` | Caps and inductors react to changing signals; an RC filter's cutoff fc = 1 / 2πRC. | textbook (reactance, RC); ADC anti-alias context | L1.05 / L2.02 ADC anti-alias filter | `rc-filter-cutoff` |
+| 8 | `diodes-and-leds` | A diode passes current one way; an LED drops a forward voltage and needs a current-limiting resistor. | LED datasheet (Vf); diode textbook | reverse-polarity protection diode on the power input (DISTINCT from /tools LED) | `led-series-resistor` |
+| 9 | `reactive-and-filtering` | Caps and inductors react to changing signals; an RC filter's cutoff fc = 1 / 2πRC. | textbook (reactance, RC); ADC anti-alias context | RC debounce/settle on a reset or button line (DISTINCT from /tools anti-alias) | `rc-filter-cutoff` |
 | 10 | `grounds-and-power-rails` | Ground is the shared reference; power rails feed the board; why a plane beats a thin trace. | textbook (grounding); IPC (plane/return context) | L1.01 ground pour / rail (LAYOUT stage) | — |
 | 11 | `reading-a-schematic` | Symbols, nets, and refdes: how to read a schematic from symbol to net. | KiCad symbol conventions; textbook | L1.01 schematic snippet | — |
 | 12 | `reading-a-datasheet` | Absolute-max vs typical, the pinout, and the package: how to read a datasheet before you buy. | AP2112K LDO datasheet (the real L1.01 part) | AP2112K on the L1.01 BOM | — |
 
 Course bridges (§7 SUPPORTING seeds): 7 → L1.01 SCHEMATIC; 8 → L1.01; 10 → L1.01
-LAYOUT; 11 → L1.01 SCHEMATIC; 12 → L1.01 BOM_SOURCING.
+LAYOUT; 11 → L1.01 SCHEMATIC; 12 → L1.01 BOM_SOURCING. (Stage names verified against
+`STAGE_VALUES`: REQUIREMENTS, SCHEMATIC, BOM_SOURCING, LAYOUT, … BRINGUP.)
+
+## 1a. /tools ↔ /library differentiation (cannibalization guard) — MAJOR
+
+Five lessons embed a calculator that ALSO has its own `/tools` page targeting
+overlapping keywords: 3 `ohms-law` ↔ `/tools/ohms-law`, 4 `power-and-heat` ↔
+`/tools/resistor-power`, 6 `voltage-dividers` ↔ `/tools/voltage-divider`, 8
+`diodes-and-leds` ↔ `/tools/led-series-resistor`, 9 `reactive-and-filtering` ↔
+`/tools/rc-filter-cutoff`. Both surfaces are free and self-canonical, so left
+unmanaged they compete for the same query and read as near-duplicates.
+Differentiate by INTENT (per otd-content-writing's cannibalization rule):
+
+- **Library lesson = understanding.** Answer-first "what is / how / why" for the
+  concept; the embedded calc is a try-it, not the point. Title/H1 read as the
+  concept ("Voltage dividers"), never "calculator".
+- **/tools page = doing.** The transactional "calculate / calculator" query; the
+  island is the point. (These pages already exist.)
+- **Cross-link both ways:** the lesson links its `/tools` twin ("compute it"), and
+  the tools page links back to the concept lesson.
+- **NO reused worked example.** Every `/tools` Body already ships a first-hand
+  example (ohms-law → L1.01 LED; resistor-power → bn-02 load; voltage-divider →
+  L1.05 ADC; led-series-resistor → L1.01 LED; rc-filter → ADC anti-alias). The
+  library lesson MUST use a DIFFERENT measured example or framing, or the pages are
+  near-duplicates. **Lesson 3 especially: the L1.01-LED resistor hook is already
+  shipped verbatim in `OhmsLawBody` (911c808) — pick a different hook** (e.g. a
+  measured rail current, or sizing a different resistor on the board).
 
 ## 2. Diagrams (§9) — one committed artifact set per figure
 
@@ -121,7 +163,8 @@ runs. **Budget it and checkpoint.**
 
 Proposed sub-batches (author + diagram + seed-script + self-check, then checkpoint):
 - **Batch A** — lessons 1-4 (units, V/I/R, ohms-law, power). The core; 3 and 4 reuse
-  the calculators + first-hand hooks already written.
+  the calculator EMBEDS already built, but each needs a first-hand hook DISTINCT from
+  its /tools twin (§1a).
 - **Batch B** — lessons 5-8 (resistors, dividers, capacitors, diodes/LEDs). The
   passives; carries the L1.01 bridges for 7-8.
 - **Batch C** — lessons 9-12 (reactive/filtering, grounds/rails, reading-a-schematic,
@@ -135,10 +178,11 @@ combined-book divider fix land naturally once all 12 exist.
 1. **[GATE] Deploy the migration** (`pnpm db:migrate`, PROD write, owner go + other
    window clear).
 2. Batch A: author + diagrams + seed + verify → checkpoint.
-3. Batch B → checkpoint. 4. Batch C → checkpoint.
-4. §7 seeds (ProjectMiniLesson SUPPORTING + GLOSSARY).
-5. §4.2 chrome polish (otd-content-writing pass on the fundamentals + combined
+3. Batch B → checkpoint.
+4. Batch C → checkpoint.
+5. §7 seeds (ProjectMiniLesson SUPPORTING + GLOSSARY).
+6. §4.2 chrome polish (otd-content-writing pass on the fundamentals + combined
    intro/outro drafts, now that lesson language is fixed).
-6. §10.5 full verify on a Vercel PREVIEW: landing grouping, both PDFs (correct
+7. §10.5 full verify on a Vercel PREVIEW: landing grouping, both PDFs (correct
    cluster chrome, light diagram rasters), calc web + PDF fallback, OG cards, image
    sitemap, full tsc + full vitest. Then push + PR (owner merge).
