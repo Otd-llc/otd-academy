@@ -214,5 +214,11 @@
     "image": "/guide-diagrams/fund-rc-filter.webp",
     "alt": "A low-pass filter passing low frequencies and blocking high ones. In the top row a slow, low-frequency wave goes in and comes out at nearly full amplitude: it passes. In the bottom row a fast, high-frequency wave of the same size goes in and comes out much smaller: it is attenuated. A capacitor reacts to how fast a signal changes, so an RC filter keeps the lows and rejects the highs, with the changeover at the cutoff frequency fc equals one over two-pi R C.",
     "hash": "6e212afd41f2"
+  },
+  {
+    "basename": "fund-grounds-rails",
+    "image": "/guide-diagrams/fund-grounds-rails.webp",
+    "alt": "Two ways the return current gets back to the supply. On the left, over a ground plane, the current fans out from the chip across the copper along many short parallel paths, so the plane's impedance stays tiny. On the right, over a single thin trace, the same current is forced single-file down one narrow path, adding resistance and inductance and letting parts disagree on ground. A plane is a sheet and a trace is a straw, which is why a poured ground plane beats a thin trace.",
+    "hash": "8a6a35c48da2"
   }
 ]
