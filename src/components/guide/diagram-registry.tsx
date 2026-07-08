@@ -33,6 +33,7 @@ import { BciLoop } from "./diagrams/BciLoop";
 import { FundPrefixLadder } from "./diagrams/FundPrefixLadder";
 import { FundVirRelationship } from "./diagrams/FundVirRelationship";
 import { FundOhmsWheel } from "./diagrams/FundOhmsWheel";
+import { FundPowerHeat } from "./diagrams/FundPowerHeat";
 
 export type DiagramComponent = FC<{ caption?: string }>;
 
@@ -68,4 +69,5 @@ export const DIAGRAM_COMPONENTS: Record<string, DiagramComponent> = {
   "/guide-diagrams/fund-prefix-ladder.svg": FundPrefixLadder,
   "/guide-diagrams/fund-vir-relationship.svg": FundVirRelationship,
   "/guide-diagrams/fund-ohms-wheel.svg": FundOhmsWheel,
+  "/guide-diagrams/fund-power-heat.svg": FundPowerHeat,
 };

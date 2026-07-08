@@ -178,5 +178,11 @@
     "image": "/guide-diagrams/fund-ohms-wheel.webp",
     "alt": "Ohm's law and electrical power drawn as two mnemonic triangles. In the left triangle, V sits on top with I and R below it: cover the quantity you want and read the rest, so V equals I times R, I equals V divided by R, and R equals V divided by I. The right triangle puts P on top with V and I below, giving power P equals V times I. A letter on top is a product; a letter on the bottom is a division.",
     "hash": "b6f217234e35"
+  },
+  {
+    "basename": "fund-power-heat",
+    "image": "/guide-diagrams/fund-power-heat.webp",
+    "alt": "A resistor turning power into heat. Current flows through a resistor; the power it dissipates, P equals I squared times R, leaves as heat, drawn as wavy plumes rising off the resistor, and a thermometer beside it reads warm. That heat is what a part's power rating limits: stay under the rating and it runs cool, exceed it and the part overheats.",
+    "hash": "4acd28c42f56"
   }
 ]
