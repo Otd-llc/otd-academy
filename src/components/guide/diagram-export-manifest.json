@@ -172,5 +172,11 @@
     "image": "/guide-diagrams/fund-vir-relationship.webp",
     "alt": "Voltage, current, and resistance drawn as a crowd at a doorway. On the left, a crowd of charge is pushed forward: that push is the voltage. In the middle, a gold doorway sets how many can pass at once: the width of that doorway is the resistance. On the right, the people who get through per second stream away as the current. A wider door (less resistance) lets more current flow for the same push; a narrower door throttles it.",
     "hash": "2a8323508ab6"
+  },
+  {
+    "basename": "fund-ohms-wheel",
+    "image": "/guide-diagrams/fund-ohms-wheel.webp",
+    "alt": "Ohm's law and electrical power drawn as two mnemonic triangles. In the left triangle, V sits on top with I and R below it: cover the quantity you want and read the rest, so V equals I times R, I equals V divided by R, and R equals V divided by I. The right triangle puts P on top with V and I below, giving power P equals V times I. A letter on top is a product; a letter on the bottom is a division.",
+    "hash": "b6f217234e35"
   }
 ]

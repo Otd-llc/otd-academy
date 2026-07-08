@@ -32,6 +32,7 @@ import { SourceToScalp } from "./diagrams/SourceToScalp";
 import { BciLoop } from "./diagrams/BciLoop";
 import { FundPrefixLadder } from "./diagrams/FundPrefixLadder";
 import { FundVirRelationship } from "./diagrams/FundVirRelationship";
+import { FundOhmsWheel } from "./diagrams/FundOhmsWheel";
 
 export type DiagramComponent = FC<{ caption?: string }>;
 
@@ -66,4 +67,5 @@ export const DIAGRAM_COMPONENTS: Record<string, DiagramComponent> = {
   // Fundamentals cluster
   "/guide-diagrams/fund-prefix-ladder.svg": FundPrefixLadder,
   "/guide-diagrams/fund-vir-relationship.svg": FundVirRelationship,
+  "/guide-diagrams/fund-ohms-wheel.svg": FundOhmsWheel,
 };
