@@ -118,14 +118,22 @@ describe("createCheckoutSession — success", () => {
       customer: string;
       success_url: string;
       cancel_url: string;
-      metadata: { userId: string; projectId: string };
+      metadata: { userId: string; projectId: string; stripePriceId: string };
     };
     expect(arg.mode).toBe("payment");
     expect(arg.line_items).toEqual([{ price: "price_xyz", quantity: 1 }]);
     expect(arg.customer).toBe("cus_123");
-    expect(arg.metadata).toEqual({ userId: "user_1", projectId: PROJECT_ID });
-    // URLs are absolute and reference the project slug (built off siteUrl()).
-    expect(arg.success_url).toMatch(/\/learn\?purchased=premium-course$/);
+    // stripePriceId is stamped so the webhook can record it on the Purchase row.
+    expect(arg.metadata).toEqual({
+      userId: "user_1",
+      projectId: PROJECT_ID,
+      stripePriceId: "price_xyz",
+    });
+    // Success goes to the post-checkout confirmation page (Stripe fills in the id);
+    // cancel returns to the project's guide hub. Both absolute (built off siteUrl()).
+    expect(arg.success_url).toMatch(
+      /\/checkout\/success\?session_id=\{CHECKOUT_SESSION_ID\}$/,
+    );
     expect(arg.cancel_url).toMatch(/\/learn\/premium-course$/);
     expect(arg.success_url).toMatch(/^https?:\/\//);
   });
