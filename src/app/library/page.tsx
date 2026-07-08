@@ -6,11 +6,12 @@
 // published set. force-dynamic so the CI build (stub DATABASE_URL) doesn't
 // prerender the DB query.
 //
-// Presented as a reference index, not a blog roll: a hairline-ruled catalog of
-// entries, each carrying its own "updated" stamp (freshness is real signal for a
-// reference work, and honest E-E-A-T for search). No honeycomb here — that motif
-// marks the official-document surfaces (verify / briefs / license); the Library
-// stays a clean index.
+// Presented as a reference index, not a blog roll: a dense two-column,
+// titles-only catalog grouped by cluster (each cluster its own Field Guide). A
+// Library-level "updated" stamp sits in the catalog bar for E-E-A-T freshness;
+// per-row summaries/stamps are dropped for a clean scan and live on each lesson's
+// page. No honeycomb here: that motif marks the official-document surfaces
+// (verify / briefs / license); the Library stays a clean index.
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -47,31 +48,26 @@ type LessonRow = {
   updatedAt: Date;
 };
 
+// A titles-only index row: the guide title with a gold arrow, hairline-ruled.
+// The whole row is the link; the per-row summary and updated stamp are dropped
+// for a clean two-column scan (both still live on each lesson's own page, and
+// the catalog bar keeps a Library-level "updated" stamp).
 function LibraryRow({ lesson }: { lesson: LessonRow }) {
   return (
     <li>
       <Link
         href={`/library/${lesson.slug}`}
-        className="group grid gap-x-8 gap-y-2 border-b border-panel-border py-5 transition-colors hover:bg-command-gold/[0.03] sm:grid-cols-[1fr_auto]"
+        className="group flex items-baseline justify-between gap-4 border-t border-panel-border py-3.5 transition-colors hover:text-command-gold"
       >
-        <div className="min-w-0">
-          <p className="title-card transition-colors group-hover:text-command-gold">
-            {lesson.title}
-          </p>
-          {lesson.summary ? (
-            <p className="mt-1.5 max-w-2xl font-serif text-sm leading-snug text-muted">
-              {lesson.summary}
-            </p>
-          ) : null}
-        </div>
-        <div className="flex items-baseline justify-between gap-4 sm:flex-col sm:items-end sm:justify-start sm:gap-2">
-          <span className="whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.18em] text-gray-3">
-            Updated {monthYear(lesson.updatedAt)}
-          </span>
-          <span className="whitespace-nowrap font-mono text-xs uppercase tracking-wider text-command-gold">
-            Read →
-          </span>
-        </div>
+        <span className="title-card transition-colors group-hover:text-command-gold">
+          {lesson.title}
+        </span>
+        <span
+          aria-hidden
+          className="shrink-0 font-mono text-command-gold transition-transform group-hover:translate-x-0.5"
+        >
+          →
+        </span>
       </Link>
     </li>
   );
@@ -158,7 +154,7 @@ export default async function LibraryIndexPage() {
                     />
                   ) : null}
                 </div>
-                <ul>
+                <ul className="mt-4 grid grid-cols-1 gap-x-10 sm:grid-cols-2">
                   {list.map((l) => (
                     <LibraryRow key={l.slug} lesson={l} />
                   ))}
