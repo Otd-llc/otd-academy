@@ -190,5 +190,11 @@
     "image": "/guide-diagrams/fund-resistor-eseries.webp",
     "alt": "Resistor tolerance shown as two number lines. Both resistors are marked 4.7 kilohms, but one is a ±5% part and the other a ±1% part. The ±5% part is only guaranteed to fall in a wide band, roughly 4.47 to 4.94 kilohms; the ±1% part is held to a much narrower band, 4.65 to 4.75 kilohms. The marked value is the centre of the band, and the tolerance is how wide that band is: a tighter tolerance costs more and buys a narrower guaranteed range.",
     "hash": "22f2000c2e36"
+  },
+  {
+    "basename": "fund-voltage-divider",
+    "image": "/guide-diagrams/fund-voltage-divider.webp",
+    "alt": "A voltage divider worked with real numbers. A 5 volt input feeds two resistors in series, R1 of 10 kilohms on top and R2 of 10 kilohms on the bottom, with the tap between them going to ground. The output at the tap is Vout equals Vin times R2 divided by R1 plus R2, which is 5 times 10k over 20k, equal to one half of 5 volts, or 2.5 volts. Equal resistors halve the input.",
+    "hash": "623fe57e8b79"
   }
 ]
