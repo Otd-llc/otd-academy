@@ -21,6 +21,15 @@ const nextConfig: NextConfig = {
     // or these routes render text-only / 500 on a missing font.
     "/library/[slug]/pdf": LIBRARY_PDF_TRACE,
     "/library/field-guide/pdf": LIBRARY_PDF_TRACE,
+    // Per-cluster Field Guide book — same fonts + diagram rasters as the combined
+    // book, but a distinct dynamic path, so it needs its own tracing entry or it
+    // 500s on a missing font in prod (dev masks it with on-disk files).
+    "/library/field-guide/[cluster]/pdf": LIBRARY_PDF_TRACE,
+    // The per-lesson OG social card reads the lesson's first diagram PNG from
+    // public/guide-diagrams at render (@vercel/og, not react-pdf, so no fonts
+    // needed). A dynamic (variable-name) fs read can't be nft-traced, so without
+    // this the card silently drops its diagram to a text-only card in prod.
+    "/library/[slug]/opengraph-image": ["./public/guide-diagrams/**"],
   },
   experimental: {
     serverActions: {
