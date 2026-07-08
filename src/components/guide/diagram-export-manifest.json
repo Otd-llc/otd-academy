@@ -166,5 +166,11 @@
     "image": "/guide-diagrams/fund-prefix-ladder.webp",
     "alt": "The metric prefix ladder shown as a slider, each stop a factor of a thousand from the last: pico (p, ten to the minus twelve); nano (n, ten to the minus nine, as in a 100 nF capacitor); micro (the Greek mu, ten to the minus six, as in a 4.7 microfarad capacitor); milli (m, ten to the minus three); the base unit (ten to the zero); kilo (k, ten to the third, as in a 5.1 kilohm resistor); and mega (M, ten to the sixth). Reading the prefix on a part value places it on this scale.",
     "hash": "ed52b9aada27"
+  },
+  {
+    "basename": "fund-vir-relationship",
+    "image": "/guide-diagrams/fund-vir-relationship.webp",
+    "alt": "Voltage, current, and resistance drawn as a crowd at a doorway. On the left, a crowd of charge is pushed forward: that push is the voltage. In the middle, a gold doorway sets how many can pass at once: the width of that doorway is the resistance. On the right, the people who get through per second stream away as the current. A wider door (less resistance) lets more current flow for the same push; a narrower door throttles it.",
+    "hash": "2a8323508ab6"
   }
 ]
