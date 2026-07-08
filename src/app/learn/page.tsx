@@ -23,15 +23,16 @@ const STATUS_COLOR: Record<string, string> = {
 export default async function LearnerHomePage({
   searchParams,
 }: {
-  // `?purchased=<slug>` lands here after a successful Stripe Checkout (the
-  // `success_url` in createCheckoutSession). The webhook grants the PURCHASE
-  // entitlement out of band; this page just shows a confirmation and re-reads
-  // the learner's enrollments/access normally (no special-casing).
-  searchParams: Promise<{ purchased?: string }>;
+  // `?purchased=<slug>` (a single course) or `?pass=1` (the All-Access Pass) land
+  // here after a successful Stripe Checkout (the `success_url` in
+  // createCheckoutSession / the Pass checkout). The webhook grants the PURCHASE
+  // entitlement out of band; this page just shows a confirmation and re-reads the
+  // learner's enrollments/access normally (no special-casing).
+  searchParams: Promise<{ purchased?: string; pass?: string }>;
 }) {
   const user = await currentUserOrRedirect();
 
-  const { purchased } = await searchParams;
+  const { purchased, pass } = await searchParams;
   const purchasedProject = purchased
     ? await db.project.findUnique({
         where: { slug: purchased },
@@ -94,6 +95,22 @@ export default async function LearnerHomePage({
             {purchasedProject
               ? `Payment received for ${purchasedProject.name}. It now appears in your boards below; open it to pick up where the free lesson left off.`
               : "Payment received. Your course is unlocking now. It will appear in your boards below shortly."}
+          </p>
+        </div>
+      )}
+
+      {/* All-Access Pass confirmation. Shown on the `?pass=1` redirect from the
+          Pass / upgrade checkout. The bundle entitlement is granted by the webhook
+          out of band; this banner confirms the payment regardless of whether it
+          has landed yet. */}
+      {pass && (
+        <div className="mt-6 border-l-2 border-command-gold/60 pl-4">
+          <p className="font-mono text-xs uppercase tracking-wider text-command-gold">
+            ✓ All-Access Pass active
+          </p>
+          <p className="mt-2 font-serif text-sm text-text">
+            Payment received. Every course is unlocked. Browse the full catalog
+            below and start any board.
           </p>
         </div>
       )}
