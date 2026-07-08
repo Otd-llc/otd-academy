@@ -286,6 +286,17 @@ describe("POST webhook — customer.subscription.*", () => {
     expect(entitlementUpsert).not.toHaveBeenCalled();
   });
 
+  test("a PAUSED subscription revokes access (status-driven, not only 'canceled')", async () => {
+    constructEvent.mockReturnValue(SUB_EVENT("paused", "customer.subscription.paused"));
+    const res = await POST(req());
+    expect(res.status).toBe(200);
+    expect(subscriptionUpsert).toHaveBeenCalledTimes(1);
+    expect(entitlementDeleteMany).toHaveBeenCalledWith({
+      where: { userId: "user_1", bundleId: "bundle_1", source: "SUBSCRIPTION" },
+    });
+    expect(entitlementUpsert).not.toHaveBeenCalled();
+  });
+
   test("a REDELIVERED subscription event (claim P2002) is a 200 no-op, no writes", async () => {
     constructEvent.mockReturnValue(SUB_EVENT("active", "customer.subscription.created"));
     processedCreate.mockRejectedValue(

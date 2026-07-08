@@ -297,11 +297,20 @@ export async function POST(req: Request): Promise<Response> {
   } else if (
     event.type === "customer.subscription.created" ||
     event.type === "customer.subscription.updated" ||
-    event.type === "customer.subscription.deleted"
+    event.type === "customer.subscription.deleted" ||
+    event.type === "customer.subscription.paused" ||
+    event.type === "customer.subscription.resumed" ||
+    event.type === "customer.subscription.pending_update_applied" ||
+    event.type === "customer.subscription.pending_update_expired" ||
+    event.type === "customer.subscription.trial_will_end"
   ) {
-    // Subscription lifecycle. Upsert the mirror + drive the ACCESS consequence: an
-    // active/trialing sub mints the all-access Entitlement (source SUBSCRIPTION); any
-    // other status revokes it. A purchased Pass (source PURCHASE) is never touched.
+    // ANY subscription lifecycle event (create/update/delete/pause/resume/pending-
+    // update/trial-will-end) — they all carry the Subscription object, and the logic
+    // is STATUS-DRIVEN, so one branch reconciles them all. Upsert the mirror + drive
+    // the ACCESS consequence: an active/trialing sub mints the all-access Entitlement
+    // (source SUBSCRIPTION); ANY other status (canceled, past_due, paused, unpaid, …)
+    // revokes it. A purchased Pass (source PURCHASE) is never touched. `trial_will_end`
+    // fires while still trialing, so it correctly leaves access in place.
     const f = subscriptionFromEvent(event.data.object);
     const early = await claimAndWrite(event.id, event.type, async (tx) => {
       // Resolve the user: the metadata stamped at checkout, else the Stripe customer.
