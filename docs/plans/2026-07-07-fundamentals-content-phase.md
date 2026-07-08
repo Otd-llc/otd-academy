@@ -4,7 +4,7 @@
 **Depends on:** the plumbing/surfaces already built on `feat/fundamentals-library-cluster`
 (commits `1222ec3`, `dfd387a`, `911c808`) + the parent plan
 `2026-07-07-fundamentals-library-clusters.md`.
-**Hard gate:** the migration `20260707120000_minilesson_cluster` MUST be deployed to
+**Hard gate:** the migration `20260708170000_minilesson_cluster` MUST be deployed to
 PROD **before** any lesson seeds — the seed sets `cluster="fundamentals"` +
 `clusterOrdinal`, columns that do not exist in PROD until `pnpm db:migrate` runs.
 
