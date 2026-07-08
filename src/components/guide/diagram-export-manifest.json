@@ -196,5 +196,11 @@
     "image": "/guide-diagrams/fund-voltage-divider.webp",
     "alt": "A voltage divider worked with real numbers. A 5 volt input feeds two resistors in series, R1 of 10 kilohms on top and R2 of 10 kilohms on the bottom, with the tap between them going to ground. The output at the tap is Vout equals Vin times R2 divided by R1 plus R2, which is 5 times 10k over 20k, equal to one half of 5 volts, or 2.5 volts. Equal resistors halve the input.",
     "hash": "623fe57e8b79"
+  },
+  {
+    "basename": "fund-decoupling-cap",
+    "image": "/guide-diagrams/fund-decoupling-cap.webp",
+    "alt": "Two supply-rail traces showing what a decoupling capacitor does. The top trace, labelled no cap, is a supply rail that dips sharply every time the chip draws a burst of current. The bottom trace, labelled with cap, stays nearly flat through the same current spikes, because the capacitor stores charge and hands it over locally the instant the chip needs it. A capacitor steadies a rail, which is why a decoupling cap sits beside every chip's power pin.",
+    "hash": "7e76afdd4191"
   }
 ]
