@@ -20,7 +20,7 @@ import {
 } from "@/components/icons";
 
 export const BLOCK_TYPES = [
-  "prose", "heading", "callout", "steps", "table", "bomTable", "termRef", "sourceRef", "partModel", "image", "video", "youtube", "quiz", "deepDive", "action", "vendorCta", "kit",
+  "prose", "heading", "callout", "steps", "table", "bomTable", "termRef", "sourceRef", "partModel", "image", "video", "youtube", "quiz", "deepDive", "action", "vendorCta", "kit", "calculator",
 ] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
 
@@ -42,6 +42,7 @@ export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   action: "Action button",
   vendorCta: "Affiliate CTA",
   kit: "Bench kit",
+  calculator: "Calculator",
 };
 
 // Type glyph for each block, paired with BLOCK_TYPE_LABELS to give blocks a
@@ -68,6 +69,7 @@ export const BLOCK_TYPE_ICON: Record<
   action: LinkIcon,
   vendorCta: LinkIcon,
   kit: ListIcon,
+  calculator: TableIcon,
 };
 
 // A valid, schema-passing starting block for each type. Where the schema
@@ -125,5 +127,10 @@ export function defaultBlock(type: BlockType): ContentBlock {
         type: "kit",
         items: [{ label: "New item", note: "what to look for" }],
       };
+    case "calculator":
+      // slug is schema-required non-empty, so seed a real embeddable tool the
+      // author then swaps via the dropdown (an empty default would fail the
+      // "defaultBlock passes contentBlockSchema" invariant).
+      return { type: "calculator", slug: "voltage-divider" };
   }
 }

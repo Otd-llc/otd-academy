@@ -33,6 +33,7 @@ import type { ContentBlock } from "@/lib/schemas/guide";
 import { parseInlineTerms } from "@/lib/inline-terms";
 import { BRANDMARK_PATH, BRANDMARK_VIEWBOX } from "@/lib/pdf/certificate-content";
 import type { ResolvedImage } from "@/lib/pdf/library-images";
+import { getTool } from "@/lib/tools/registry";
 import {
   FIELD_GUIDE_INTRO,
   FIELD_GUIDE_OUTRO,
@@ -503,6 +504,26 @@ function Block({ block, images }: { block: ContentBlock; images: Map<string, Res
           </Link>
         </Text>
       );
+
+    case "calculator": {
+      // react-pdf can't run an interactive calculator, so degrade to a static
+      // reference: the tool title, its one-line summary, and the live URL.
+      // getTool returns undefined for an unknown slug → fall back to the slug.
+      const tool = getTool(block.slug);
+      const title = tool?.title ?? block.slug;
+      return (
+        <View style={s.deep} wrap={false}>
+          <Text style={s.deepKicker}>Calculator · {title}</Text>
+          {tool?.summary ? <Text style={s.calloutBody}>{tool.summary}</Text> : null}
+          <Text style={s.calloutBody}>
+            <Link src={`https://academy.onethousanddrones.com/tools/${block.slug}`} style={s.link}>
+              {`Interactive calculator: academy.onethousanddrones.com/tools/${block.slug}`}
+            </Link>
+          </Text>
+          {block.caption ? <Text style={s.caption}>{block.caption}</Text> : null}
+        </View>
+      );
+    }
 
     default:
       return null;

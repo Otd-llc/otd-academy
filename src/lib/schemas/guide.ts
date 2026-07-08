@@ -226,6 +226,18 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
       .min(1)
       .max(40),
   }),
+  // calculator — embeds a LIVE /tools EE calculator inline in a lesson: the exact
+  // interactive island from EMBED_ISLANDS, keyed by the tool `slug`. On the web
+  // the widget renders; in the PDF (react-pdf can't run an interactive calc) it
+  // degrades to a static title + summary + link fallback. `slug` is validated
+  // non-empty; its existence against the tools registry is checked at RENDER
+  // (unknown slug → skipped on web, slug text in the PDF fallback), mirroring the
+  // image/partModel resilience rule. `caption` overrides the default tool title.
+  z.object({
+    type: z.literal("calculator"),
+    slug: z.string().trim().min(1).max(60),
+    caption: z.string().max(200).optional(),
+  }),
 ]);
 export type ContentBlock = z.infer<typeof contentBlockSchema>;
 

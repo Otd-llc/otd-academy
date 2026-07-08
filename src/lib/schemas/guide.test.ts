@@ -51,3 +51,17 @@ describe("youtube content block", () => {
     expect(r.success).toBe(false);
   });
 });
+
+describe("calculator content block", () => {
+  it("accepts a valid calculator block (slug only)", () => {
+    expect(contentBlockSchema.safeParse({ type: "calculator", slug: "voltage-divider" }).success).toBe(true);
+  });
+  it("accepts an optional caption", () => {
+    const r = contentBlockSchema.safeParse({ type: "calculator", slug: "ohms-law", caption: "Try it" });
+    expect(r.success).toBe(true);
+  });
+  it("rejects an empty slug (must reference a tool)", () => {
+    expect(contentBlockSchema.safeParse({ type: "calculator", slug: "" }).success).toBe(false);
+    expect(contentBlockSchema.safeParse({ type: "calculator", slug: "   " }).success).toBe(false);
+  });
+});
