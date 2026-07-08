@@ -226,5 +226,11 @@
     "image": "/guide-diagrams/fund-schematic-anatomy.webp",
     "alt": "A key of common schematic symbols with their reference-designator letters and names. A resistor's zigzag is designated R. A capacitor's two plates are C. A diode's triangle and bar are D. An inductor's series of humps is L. A rectangular integrated circuit is U. The symbol tells you what the part is, and the reference-designator letter names its family so you can match the drawing to the same part on the board.",
     "hash": "a6c878a1ceac"
+  },
+  {
+    "basename": "fund-datasheet-anatomy",
+    "image": "/guide-diagrams/fund-datasheet-anatomy.webp",
+    "alt": "A datasheet specification table for an LDO regulator, with columns for parameter, minimum, typical, maximum, and unit. Input voltage runs from a 2.5 volt minimum to a 6.0 volt absolute maximum. The output is 3.3 volts typical. Output current is 600 milliamps maximum. Dropout is 250 millivolts typical and 400 millivolts maximum. Junction temperature runs from minus 40 to 125 degrees Celsius. Read across each row: the typical column is the value you design around, and the maximum column is the absolute limit you never cross.",
+    "hash": "5ec081d71db4"
   }
 ]

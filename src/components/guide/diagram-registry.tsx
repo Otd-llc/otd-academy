@@ -41,6 +41,7 @@ import { FundDiodeLed } from "./diagrams/FundDiodeLed";
 import { FundRcFilter } from "./diagrams/FundRcFilter";
 import { FundGroundsRails } from "./diagrams/FundGroundsRails";
 import { FundSchematicAnatomy } from "./diagrams/FundSchematicAnatomy";
+import { FundDatasheetAnatomy } from "./diagrams/FundDatasheetAnatomy";
 
 export type DiagramComponent = FC<{ caption?: string }>;
 
@@ -84,4 +85,5 @@ export const DIAGRAM_COMPONENTS: Record<string, DiagramComponent> = {
   "/guide-diagrams/fund-rc-filter.svg": FundRcFilter,
   "/guide-diagrams/fund-grounds-rails.svg": FundGroundsRails,
   "/guide-diagrams/fund-schematic-anatomy.svg": FundSchematicAnatomy,
+  "/guide-diagrams/fund-datasheet-anatomy.svg": FundDatasheetAnatomy,
 };
