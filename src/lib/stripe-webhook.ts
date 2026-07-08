@@ -331,3 +331,29 @@ export function refundFromEvent(refund: Stripe.Refund): SingleRefund {
     paymentIntentId: stripeId(refund.payment_intent ?? null),
   };
 }
+
+// A Stripe Dispute (chargeback), flattened for a Dispute row + its Purchase key.
+export interface DisputeFields {
+  stripeDisputeId: string;
+  stripeChargeId: string;
+  amountCents: number;
+  reason: string | null;
+  status: string;
+  paymentIntentId: string | null;
+}
+
+/**
+ * Extract the Dispute fields from a Stripe Dispute (charge.dispute.*). Pure. The
+ * Purchase is correlated by `payment_intent` (same key as refunds); `status` is
+ * Stripe's verbatim lifecycle string (needs_response → under_review → won / lost).
+ */
+export function disputeFromEvent(dispute: Stripe.Dispute): DisputeFields {
+  return {
+    stripeDisputeId: dispute.id,
+    stripeChargeId: stripeId(dispute.charge ?? null) ?? "",
+    amountCents: dispute.amount,
+    reason: dispute.reason ?? null,
+    status: dispute.status,
+    paymentIntentId: stripeId(dispute.payment_intent ?? null),
+  };
+}

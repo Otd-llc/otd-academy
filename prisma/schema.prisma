@@ -380,6 +380,27 @@ model Refund {
   @@index([purchaseId])
 }
 
+// Chargeback / dispute audit (written on charge.dispute.*). One row per Stripe
+// Dispute, tracking its full lifecycle status (needs_response → under_review → won
+// / lost). Correlated to the Purchase via the charge's payment_intent. RECORD-ONLY:
+// access is NOT auto-revoked on a dispute (an education chargeback is often won, and
+// pull-then-restore is worse than an admin decision) — the revoke is a one-line add
+// in the webhook if that policy changes.
+model Dispute {
+  id              String   @id @default(cuid())
+  stripeDisputeId String   @unique
+  stripeChargeId  String
+  purchaseId      String?
+  amountCents     Int
+  reason          String?
+  status          String   // needs_response | under_review | won | lost | ...
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([stripeChargeId])
+  @@index([purchaseId])
+}
+
 // An ISSUED completion/certificate — the record that makes the printed verify
 // code checkable. Written (idempotent on `code`) whenever a learner's share token
 // is minted (complete screen / share action). `code` is the human-readable cert

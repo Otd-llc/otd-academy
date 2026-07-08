@@ -13,6 +13,7 @@ import {
   invoiceFromEvent,
   refundInfoFromCharge,
   refundFromEvent,
+  disputeFromEvent,
 } from "@/lib/stripe-webhook";
 
 const S = <T>(o: unknown) => o as T;
@@ -166,6 +167,29 @@ describe("refundFromEvent (pure)", () => {
   });
 });
 
+describe("disputeFromEvent (pure)", () => {
+  test("extracts the dispute fields + payment_intent correlation key", () => {
+    const f = disputeFromEvent(
+      S<import("stripe").Stripe.Dispute>({
+        id: "dp_1",
+        charge: "ch_1",
+        payment_intent: "pi_1",
+        amount: 4900,
+        reason: "fraudulent",
+        status: "needs_response",
+      }),
+    );
+    expect(f).toEqual({
+      stripeDisputeId: "dp_1",
+      stripeChargeId: "ch_1",
+      amountCents: 4900,
+      reason: "fraudulent",
+      status: "needs_response",
+      paymentIntentId: "pi_1",
+    });
+  });
+});
+
 // ─── Route handler ───────────────────────────────────────────────────────────
 
 const {
@@ -182,6 +206,7 @@ const {
   purchaseUpdate,
   entitlementUpsert,
   entitlementDeleteMany,
+  disputeUpsert,
   fakeEnv,
 } = vi.hoisted(() => ({
   constructEvent: vi.fn(),
@@ -197,6 +222,7 @@ const {
   purchaseUpdate: vi.fn(),
   entitlementUpsert: vi.fn(),
   entitlementDeleteMany: vi.fn(),
+  disputeUpsert: vi.fn(),
   fakeEnv: {} as { STRIPE_WEBHOOK_SECRET?: string },
 }));
 
@@ -226,6 +252,7 @@ vi.mock("@/lib/db", () => {
       upsert: (...a: unknown[]) => entitlementUpsert(...a),
       deleteMany: (...a: unknown[]) => entitlementDeleteMany(...a),
     },
+    dispute: { upsert: (...a: unknown[]) => disputeUpsert(...a) },
   };
   return {
     db: { $transaction: <T>(cb: (client: typeof tx) => Promise<T>) => cb(tx) },
@@ -264,6 +291,7 @@ beforeEach(() => {
   purchaseUpdate.mockResolvedValue({});
   entitlementUpsert.mockResolvedValue({ id: "ent_1" });
   entitlementDeleteMany.mockResolvedValue({ count: 1 });
+  disputeUpsert.mockResolvedValue({});
 });
 
 const SUB_EVENT = (status: string, type = "customer.subscription.updated") => ({
@@ -453,5 +481,76 @@ describe("POST webhook — refund.created", () => {
     // charge.refunded owns refundedCents + the revoke; refund.created only the ledger.
     expect(purchaseUpdate).not.toHaveBeenCalled();
     expect(entitlementDeleteMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST webhook — charge.dispute.*", () => {
+  test("records a Dispute correlated to the Purchase; access is NOT auto-revoked", async () => {
+    constructEvent.mockReturnValue({
+      id: "evt_dispute",
+      type: "charge.dispute.created",
+      data: {
+        object: {
+          id: "dp_9",
+          charge: "ch_9",
+          payment_intent: "pi_1",
+          amount: 4900,
+          reason: "fraudulent",
+          status: "needs_response",
+        },
+      },
+    });
+    const res = await POST(req());
+    expect(res.status).toBe(200);
+    expect(disputeUpsert).toHaveBeenCalledWith({
+      where: { stripeDisputeId: "dp_9" },
+      create: expect.objectContaining({
+        stripeChargeId: "ch_9",
+        amountCents: 4900,
+        purchaseId: "pur_1",
+        status: "needs_response",
+      }),
+      update: { status: "needs_response", purchaseId: "pur_1" },
+    });
+    // Record-only — access is never auto-revoked on a dispute.
+    expect(entitlementDeleteMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST webhook — invoice payment states", () => {
+  test("invoice.payment_succeeded records the Invoice (alias of invoice.paid)", async () => {
+    constructEvent.mockReturnValue({
+      id: "evt_invsucc",
+      type: "invoice.payment_succeeded",
+      data: {
+        object: {
+          id: "in_9",
+          customer: "cus_1",
+          amount_paid: 2900,
+          currency: "usd",
+          created: 1770000000,
+          status_transitions: { paid_at: 1770000100 },
+          parent: { subscription_details: { subscription: "sub_1" } },
+        },
+      },
+    });
+    const res = await POST(req());
+    expect(res.status).toBe(200);
+    expect(invoiceUpsert).toHaveBeenCalledTimes(1);
+  });
+
+  test("invoice.payment_failed is logged only — no claim, no DB write, still 200", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    constructEvent.mockReturnValue({
+      id: "evt_invfail",
+      type: "invoice.payment_failed",
+      data: { object: { id: "in_fail", customer: "cus_1" } },
+    });
+    const res = await POST(req());
+    expect(res.status).toBe(200);
+    expect(processedCreate).not.toHaveBeenCalled();
+    expect(invoiceUpsert).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 });

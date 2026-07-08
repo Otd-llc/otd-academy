@@ -33,6 +33,7 @@ import { db } from "@/lib/db";
 import { getStripe } from "@/lib/stripe";
 import {
   bundleFromCheckoutSession,
+  disputeFromEvent,
   entitlementFromCheckoutSession,
   invoiceFromEvent,
   purchaseFromCheckoutSession,
@@ -371,10 +372,14 @@ export async function POST(req: Request): Promise<Response> {
       }
     });
     if (early) return early;
-  } else if (event.type === "invoice.paid") {
-    // A paid subscription invoice. Write-once (one-time payments never hit this —
-    // Purchase covers those). Resolve the Subscription FK if its row exists yet;
-    // the subscription upsert backfills the link for an invoice that landed first.
+  } else if (
+    event.type === "invoice.paid" ||
+    event.type === "invoice.payment_succeeded"
+  ) {
+    // A paid subscription invoice. Both events fire on a successful renewal; the
+    // write-once upsert makes recording on either idempotent. One-time payments never
+    // hit this — Purchase covers those. Resolve the Subscription FK if its row exists
+    // yet; the subscription upsert backfills the link for an invoice that landed first.
     const f = invoiceFromEvent(event.data.object);
     const early = await claimAndWrite(event.id, event.type, async (tx) => {
       let userId = f.userId;
@@ -479,6 +484,56 @@ export async function POST(req: Request): Promise<Response> {
         where: { stripeRefundId: fields.stripeRefundId },
         create: { ...fields, purchaseId: purchase?.id ?? null },
         update: { purchaseId: purchase?.id ?? null, status: fields.status },
+      });
+    });
+    if (early) return early;
+  } else if (
+    event.type === "invoice.payment_failed" ||
+    event.type === "invoice.payment_action_required" ||
+    event.type === "invoice.payment_attempt_required"
+  ) {
+    // A subscription renewal payment failed / needs action. ACCESS is already handled
+    // by customer.subscription.updated (status → past_due/incomplete → revoke), and
+    // the failing sub is queryable via Subscription.status — so there is no new DB
+    // state to record here. Log for ops visibility; a dunning email is a future
+    // feature (this is the hook for it).
+    const inv = event.data.object;
+    const cust =
+      typeof inv.customer === "string" ? inv.customer : inv.customer?.id ?? "?";
+    console.warn(
+      `[stripe-webhook] ${event.type} for invoice ${inv.id} (customer ${cust}) — access follows the subscription status`,
+    );
+  } else if (
+    event.type === "charge.dispute.created" ||
+    event.type === "charge.dispute.updated" ||
+    event.type === "charge.dispute.closed" ||
+    event.type === "charge.dispute.funds_withdrawn" ||
+    event.type === "charge.dispute.funds_reinstated"
+  ) {
+    // Chargeback lifecycle. Record the Dispute (upsert by stripeDisputeId, tracking
+    // its status), correlated to the Purchase by payment_intent. RECORD-ONLY: access
+    // is NOT auto-revoked (an education chargeback is often won; pull-then-restore is
+    // worse than an admin decision). To auto-revoke on `created`, delete the
+    // purchase's entitlement here the same way charge.refunded does.
+    const f = disputeFromEvent(event.data.object);
+    const early = await claimAndWrite(event.id, event.type, async (tx) => {
+      const purchase = f.paymentIntentId
+        ? await tx.purchase.findFirst({
+            where: { stripePaymentIntentId: f.paymentIntentId },
+            select: { id: true },
+          })
+        : null;
+      await tx.dispute.upsert({
+        where: { stripeDisputeId: f.stripeDisputeId },
+        create: {
+          stripeDisputeId: f.stripeDisputeId,
+          stripeChargeId: f.stripeChargeId,
+          purchaseId: purchase?.id ?? null,
+          amountCents: f.amountCents,
+          reason: f.reason,
+          status: f.status,
+        },
+        update: { status: f.status, purchaseId: purchase?.id ?? null },
       });
     });
     if (early) return early;
