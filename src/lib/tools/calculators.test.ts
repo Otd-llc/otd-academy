@@ -8,6 +8,10 @@ import {
   ledSeriesResistorOhms,
   ledResistorPowerMw,
   nextE24Up,
+  ohmsLawVoltageV,
+  ohmsLawCurrentMa,
+  ohmsLawResistanceOhms,
+  ohmsLawPowerMw,
   voltageDividerOut,
   voltageDividerCurrentMa,
   ldoHeadroomV,
@@ -287,5 +291,28 @@ describe("edge branches", () => {
   });
   it("formatRuntime renders zero", () => {
     expect(formatRuntime(0)).toBe("0 h 0 m");
+  });
+});
+
+describe("ohms law", () => {
+  it("V = I·R (mA in, volts out)", () => {
+    // 10 mA through 330 Ω = 3.3 V
+    expect(ohmsLawVoltageV({ currentMa: 10, rOhms: 330 })).toBeCloseTo(3.3, 6);
+  });
+  it("I = V/R (volts + Ω in, mA out)", () => {
+    // 3.3 V across 330 Ω = 10 mA
+    expect(ohmsLawCurrentMa({ voltageV: 3.3, rOhms: 330 })).toBeCloseTo(10, 6);
+  });
+  it("R = V/I (volts + mA in, Ω out)", () => {
+    // 3.3 V at 10 mA = 330 Ω
+    expect(ohmsLawResistanceOhms({ voltageV: 3.3, currentMa: 10 })).toBeCloseTo(330, 6);
+  });
+  it("P = V·I in mW (volts × mA)", () => {
+    // 3.3 V × 10 mA = 33 mW
+    expect(ohmsLawPowerMw({ voltageV: 3.3, currentMa: 10 })).toBeCloseTo(33, 6);
+  });
+  it("throws on divide-by-zero (R=0 for current, I=0 for resistance)", () => {
+    expect(() => ohmsLawCurrentMa({ voltageV: 5, rOhms: 0 })).toThrow();
+    expect(() => ohmsLawResistanceOhms({ voltageV: 5, currentMa: 0 })).toThrow();
   });
 });

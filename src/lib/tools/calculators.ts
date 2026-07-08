@@ -66,6 +66,41 @@ export function formatRuntime(hours: number): string {
   return `${whole} h ${minutes} m`;
 }
 
+// ── Ohm's law ────────────────────────────────────────────────────────────────
+// V = I·R, its three rearrangements, and power P = V·I. Current is carried in mA
+// (matching the other calculators); the helpers convert to amps internally, so
+// returned values are in V / mA / Ω / mW. Guards keep a divide-by-zero from
+// reaching the UI as Infinity.
+
+export function ohmsLawVoltageV(input: { currentMa: number; rOhms: number }): number {
+  if (input.currentMa < 0 || input.rOhms < 0) {
+    throw new Error("current and resistance must be >= 0");
+  }
+  return (input.currentMa / 1000) * input.rOhms;
+}
+
+export function ohmsLawCurrentMa(input: { voltageV: number; rOhms: number }): number {
+  if (input.rOhms <= 0) {
+    throw new Error("resistance must be greater than 0");
+  }
+  return (input.voltageV / input.rOhms) * 1000;
+}
+
+export function ohmsLawResistanceOhms(input: { voltageV: number; currentMa: number }): number {
+  if (input.currentMa <= 0) {
+    throw new Error("current must be greater than 0");
+  }
+  return input.voltageV / (input.currentMa / 1000);
+}
+
+// Power dissipated, in mW: P = V·I. V in volts times I in mA gives mW directly.
+export function ohmsLawPowerMw(input: { voltageV: number; currentMa: number }): number {
+  if (input.currentMa < 0) {
+    throw new Error("current must be >= 0");
+  }
+  return input.voltageV * input.currentMa;
+}
+
 // ── LED series resistor ──────────────────────────────────────────────────────
 // The resistor that sets an LED's current from a supply rail: R = (Vsupply − Vf)
 // / I, the LED's forward drop subtracted first. Vf is a datasheet value (varies
