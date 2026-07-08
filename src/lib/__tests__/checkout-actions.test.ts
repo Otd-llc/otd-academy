@@ -129,8 +129,11 @@ describe("createCheckoutSession — success", () => {
       projectId: PROJECT_ID,
       stripePriceId: "price_xyz",
     });
-    // URLs are absolute and reference the project slug (built off siteUrl()).
-    expect(arg.success_url).toMatch(/\/learn\?purchased=premium-course$/);
+    // Success goes to the post-checkout confirmation page (Stripe fills in the id);
+    // cancel returns to the project's guide hub. Both absolute (built off siteUrl()).
+    expect(arg.success_url).toMatch(
+      /\/checkout\/success\?session_id=\{CHECKOUT_SESSION_ID\}$/,
+    );
     expect(arg.cancel_url).toMatch(/\/learn\/premium-course$/);
     expect(arg.success_url).toMatch(/^https?:\/\//);
   });

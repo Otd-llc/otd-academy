@@ -34,7 +34,10 @@ import { getStripe } from "@/lib/stripe";
 import {
   bundleFromCheckoutSession,
   entitlementFromCheckoutSession,
+  invoiceFromEvent,
   purchaseFromCheckoutSession,
+  refundInfoFromCharge,
+  subscriptionFromEvent,
   tipFromCheckoutSession,
 } from "@/lib/stripe-webhook";
 import { capture } from "@/lib/analytics";
@@ -43,6 +46,39 @@ import { capture } from "@/lib/analytics";
 // it depends on the request body, headers, and a runtime secret.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// The all-access bundle key: both the one-time Pass and an active subscription
+// grant an Entitlement on THIS bundle (the access is identical; the source column
+// distinguishes them — PURCHASE vs SUBSCRIPTION — so a sub cancel never revokes a
+// purchased Pass).
+const ALL_ACCESS_KEY = "all-access";
+
+// Claim the event id + run its writes in ONE transaction (the day-1 atomicity
+// pattern, shared by the phase-2 branches). A redelivery violates the claim's @id
+// unique (P2002) → the txn rolls back and this returns a 200 no-op Response; any
+// other error propagates (Stripe retries). Returns null on success (the caller
+// proceeds to the final 200).
+async function claimAndWrite(
+  eventId: string,
+  type: string,
+  work: (tx: Prisma.TransactionClient) => Promise<void>,
+): Promise<Response | null> {
+  try {
+    await db.$transaction(async (tx) => {
+      await tx.processedStripeEvent.create({ data: { eventId, type } });
+      await work(tx);
+    });
+  } catch (e) {
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
+      return new Response(null, { status: 200 });
+    }
+    throw e;
+  }
+  return null;
+}
 
 export async function POST(req: Request): Promise<Response> {
   // 1. Read the RAW body. Do NOT JSON.parse first — Stripe verifies the HMAC over
@@ -79,13 +115,17 @@ export async function POST(req: Request): Promise<Response> {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
 
-    // 5a. Guard against granting on an UNPAID session. With `mode: "payment"` +
-    //     card checkout this is normally `"paid"`, but asynchronous payment
-    //     methods can deliver `checkout.session.completed` as `"unpaid"` and
-    //     settle later via `checkout.session.async_payment_succeeded` (not
-    //     handled — card-only for now). Ack (200) BEFORE the transaction, so
-    //     nothing is claimed, granted, or recorded.
-    if (session.payment_status !== "paid") {
+    // 5a. Guard against granting on an UNPAID session. Card checkout is normally
+    //     `"paid"`; a 100%-off promo code completes with NO PaymentIntent and
+    //     `payment_status: "no_payment_required"` (Stripe's no-cost-order path) —
+    //     that IS a completed purchase and must grant, so we accept both. Async
+    //     payment methods can deliver `"unpaid"` and settle later via
+    //     `async_payment_succeeded` (not handled — card-only). Ack (200) BEFORE the
+    //     transaction, so an unpaid session is never claimed, granted, or recorded.
+    if (
+      session.payment_status !== "paid" &&
+      session.payment_status !== "no_payment_required"
+    ) {
       return new Response(null, { status: 200 });
     }
 
@@ -254,6 +294,163 @@ export async function POST(req: Request): Promise<Response> {
         // never break the webhook ack on telemetry
       }
     }
+  } else if (
+    event.type === "customer.subscription.created" ||
+    event.type === "customer.subscription.updated" ||
+    event.type === "customer.subscription.deleted"
+  ) {
+    // Subscription lifecycle. Upsert the mirror + drive the ACCESS consequence: an
+    // active/trialing sub mints the all-access Entitlement (source SUBSCRIPTION); any
+    // other status revokes it. A purchased Pass (source PURCHASE) is never touched.
+    const f = subscriptionFromEvent(event.data.object);
+    const early = await claimAndWrite(event.id, event.type, async (tx) => {
+      // Resolve the user: the metadata stamped at checkout, else the Stripe customer.
+      let userId = f.metadataUserId;
+      if (!userId && f.stripeCustomerId) {
+        const u = await tx.user.findUnique({
+          where: { stripeCustomerId: f.stripeCustomerId },
+          select: { id: true },
+        });
+        userId = u?.id ?? null;
+      }
+
+      const subData = {
+        userId,
+        stripeCustomerId: f.stripeCustomerId,
+        stripePriceId: f.stripePriceId,
+        stripeProductId: f.stripeProductId,
+        status: f.status,
+        currentPeriodEnd: f.currentPeriodEnd,
+        cancelAtPeriodEnd: f.cancelAtPeriodEnd,
+        ...(f.metadata ? { metadata: f.metadata } : {}),
+      };
+      const subRow = await tx.subscription.upsert({
+        where: { stripeSubscriptionId: f.stripeSubscriptionId },
+        create: { stripeSubscriptionId: f.stripeSubscriptionId, ...subData },
+        update: subData,
+      });
+
+      // Backfill any Invoice that landed before this Subscription row existed.
+      await tx.invoice.updateMany({
+        where: {
+          stripeSubscriptionId: f.stripeSubscriptionId,
+          subscriptionId: null,
+        },
+        data: { subscriptionId: subRow.id },
+      });
+
+      if (!userId) return; // recorded the sub; no user to grant/revoke access for
+      const bundle = await tx.bundle.findUnique({
+        where: { key: ALL_ACCESS_KEY },
+        select: { id: true },
+      });
+      if (!bundle) return;
+
+      const active = f.status === "active" || f.status === "trialing";
+      if (active) {
+        await tx.entitlement.upsert({
+          where: { userId_bundleId: { userId, bundleId: bundle.id } },
+          create: { userId, bundleId: bundle.id, source: "SUBSCRIPTION" },
+          update: {}, // never downgrade a purchased Pass (source PURCHASE)
+        });
+      } else {
+        // Only revoke SUBSCRIPTION-granted access, never a purchased Pass.
+        await tx.entitlement.deleteMany({
+          where: { userId, bundleId: bundle.id, source: "SUBSCRIPTION" },
+        });
+      }
+    });
+    if (early) return early;
+  } else if (event.type === "invoice.paid") {
+    // A paid subscription invoice. Write-once (one-time payments never hit this —
+    // Purchase covers those). Resolve the Subscription FK if its row exists yet;
+    // the subscription upsert backfills the link for an invoice that landed first.
+    const f = invoiceFromEvent(event.data.object);
+    const early = await claimAndWrite(event.id, event.type, async (tx) => {
+      let userId = f.userId;
+      let subscriptionId: string | null = null;
+      if (f.stripeSubscriptionId) {
+        const sub = await tx.subscription.findUnique({
+          where: { stripeSubscriptionId: f.stripeSubscriptionId },
+          select: { id: true, userId: true },
+        });
+        if (sub) {
+          subscriptionId = sub.id;
+          if (!userId) userId = sub.userId;
+        }
+      }
+      if (!userId && f.stripeCustomerId) {
+        const u = await tx.user.findUnique({
+          where: { stripeCustomerId: f.stripeCustomerId },
+          select: { id: true },
+        });
+        userId = u?.id ?? null;
+      }
+
+      await tx.invoice.upsert({
+        where: { stripeInvoiceId: f.stripeInvoiceId },
+        create: {
+          stripeInvoiceId: f.stripeInvoiceId,
+          stripeSubscriptionId: f.stripeSubscriptionId,
+          subscriptionId,
+          userId,
+          stripeCustomerId: f.stripeCustomerId,
+          amountPaidCents: f.amountPaidCents,
+          currency: f.currency,
+          periodStart: f.periodStart,
+          periodEnd: f.periodEnd,
+          paidAt: f.paidAt,
+          ...(f.metadata ? { metadata: f.metadata } : {}),
+        },
+        update: {}, // write-once
+      });
+    });
+    if (early) return early;
+  } else if (event.type === "charge.refunded") {
+    // Refund audit + access consequence. Correlate the Purchase by payment_intent,
+    // record each Stripe Refund, SET refundedCents to the cumulative amount, and on
+    // a FULL refund revoke the granted entitlement. A refunded tip matches no
+    // Purchase — record nothing further and DO NOT throw (a 500 loops Stripe's retry).
+    const info = refundInfoFromCharge(event.data.object);
+    const early = await claimAndWrite(event.id, event.type, async (tx) => {
+      const purchase = info.paymentIntentId
+        ? await tx.purchase.findFirst({
+            where: { stripePaymentIntentId: info.paymentIntentId },
+            select: { id: true, entitlementId: true, amountTotalCents: true },
+          })
+        : null;
+
+      for (const r of info.refunds) {
+        await tx.refund.upsert({
+          where: { stripeRefundId: r.stripeRefundId },
+          create: { ...r, purchaseId: purchase?.id ?? null },
+          update: { purchaseId: purchase?.id ?? null, status: r.status },
+        });
+      }
+
+      if (!purchase) return; // e.g. a refunded tip — nothing more to reconcile
+
+      // SET (never increment) to Stripe's cumulative total; clamp to the charge so
+      // the purchase_amount_nonneg CHECK (refundedCents <= amountTotalCents) holds.
+      await tx.purchase.update({
+        where: { id: purchase.id },
+        data: {
+          refundedCents: Math.min(
+            info.amountRefunded,
+            purchase.amountTotalCents,
+          ),
+        },
+      });
+
+      // Full refund → revoke the granted entitlement (the Purchase audit row and its
+      // now-dangling entitlementId survive). Partial refund keeps access.
+      if (info.fullyRefunded && purchase.entitlementId) {
+        await tx.entitlement.deleteMany({
+          where: { id: purchase.entitlementId },
+        });
+      }
+    });
+    if (early) return early;
   }
 
   // 6. Stripe only needs a 2xx to consider the event delivered — for handled AND

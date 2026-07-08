@@ -148,3 +148,159 @@ export function purchaseFromCheckoutSession(
     ...(session.metadata ? { metadata: session.metadata } : {}),
   };
 }
+
+// ─── Phase 2: subscription / invoice / refund extraction ────────────────────
+// All pure (no db, no Stripe calls), so the Basil+ field access can be unit-tested.
+
+// The fields for a Subscription upsert, extracted from a Stripe Subscription.
+export interface SubscriptionFields {
+  stripeSubscriptionId: string;
+  stripeCustomerId: string;
+  stripePriceId: string | null;
+  stripeProductId: string | null;
+  status: string;
+  currentPeriodEnd: Date | null;
+  cancelAtPeriodEnd: boolean;
+  // The userId stamped at checkout (subscription_data.metadata.userId), if present.
+  metadataUserId: string | null;
+  metadata?: Record<string, string>;
+}
+
+/**
+ * Extract the Subscription-mirror fields from a Stripe Subscription. Pure.
+ *
+ * Basil+ API note (we pin 2026-05-27.dahlia, which postdates basil): the period
+ * bounds moved off the Subscription onto each `items.data[i]`, so we read
+ * `current_period_end` from the items and take the MAX (single-price subs have one
+ * item; mixed-interval subs, Stripe 2025-07-30+, can carry several). The price /
+ * product id come from `items.data[0].price`.
+ */
+export function subscriptionFromEvent(
+  sub: Stripe.Subscription,
+): SubscriptionFields {
+  const items = sub.items?.data ?? [];
+  const periodEnds = items
+    .map((i) => (i as { current_period_end?: number }).current_period_end)
+    .filter((n): n is number => typeof n === "number");
+  const maxEnd = periodEnds.length > 0 ? Math.max(...periodEnds) : null;
+
+  const price = items[0]?.price;
+  const productId =
+    price && typeof price.product === "string"
+      ? price.product
+      : stripeId(price?.product ?? null);
+
+  const metaUserId = sub.metadata?.userId;
+  return {
+    stripeSubscriptionId: sub.id,
+    stripeCustomerId: stripeId(sub.customer) ?? "",
+    stripePriceId: price?.id ?? null,
+    stripeProductId: productId,
+    status: sub.status,
+    currentPeriodEnd: maxEnd != null ? new Date(maxEnd * 1000) : null,
+    cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
+    metadataUserId:
+      typeof metaUserId === "string" && metaUserId.length > 0 ? metaUserId : null,
+    ...(sub.metadata ? { metadata: sub.metadata } : {}),
+  };
+}
+
+// The fields for an Invoice write, extracted from a Stripe Invoice.
+export interface InvoiceFields {
+  stripeInvoiceId: string;
+  stripeSubscriptionId: string | null;
+  userId: string | null;
+  stripeCustomerId: string | null;
+  amountPaidCents: number;
+  currency: string;
+  periodStart: Date | null;
+  periodEnd: Date | null;
+  paidAt: Date;
+  metadata?: Record<string, string>;
+}
+
+/**
+ * Extract the Invoice fields from a Stripe Invoice (invoice.paid). Pure.
+ *
+ * Basil+ API note: the subscription id moved to
+ * `invoice.parent.subscription_details.subscription` (from the old top-level
+ * `invoice.subscription`). `paidAt` comes from
+ * `status_transitions.paid_at`, falling back to `created` (both are unix seconds).
+ */
+export function invoiceFromEvent(inv: Stripe.Invoice): InvoiceFields {
+  const parent = (
+    inv as {
+      parent?: {
+        subscription_details?: { subscription?: string | { id: string } | null };
+      };
+    }
+  ).parent;
+  const stripeSubscriptionId = stripeId(
+    parent?.subscription_details?.subscription ?? null,
+  );
+
+  const paidAtUnix = inv.status_transitions?.paid_at ?? inv.created;
+  const metaUserId = inv.metadata?.userId;
+  return {
+    stripeInvoiceId: inv.id ?? "",
+    stripeSubscriptionId,
+    userId:
+      typeof metaUserId === "string" && metaUserId.length > 0 ? metaUserId : null,
+    stripeCustomerId: stripeId(inv.customer ?? null),
+    amountPaidCents: inv.amount_paid ?? 0,
+    currency: inv.currency ?? "usd",
+    periodStart:
+      typeof inv.period_start === "number"
+        ? new Date(inv.period_start * 1000)
+        : null,
+    periodEnd:
+      typeof inv.period_end === "number" ? new Date(inv.period_end * 1000) : null,
+    paidAt: new Date(paidAtUnix * 1000),
+    ...(inv.metadata ? { metadata: inv.metadata } : {}),
+  };
+}
+
+// One Stripe Refund object, flattened for a Refund row.
+export interface RefundFields {
+  stripeRefundId: string;
+  stripeChargeId: string;
+  amountCents: number;
+  reason: string | null;
+  status: string;
+}
+
+// The refund picture for a charge.refunded event.
+export interface ChargeRefundInfo {
+  // PRIMARY Purchase-correlation key (always present on the refund event's charge).
+  paymentIntentId: string | null;
+  // Stripe's CUMULATIVE refunded total (smallest unit) — SET onto refundedCents.
+  amountRefunded: number;
+  amountTotal: number;
+  fullyRefunded: boolean;
+  refunds: RefundFields[];
+}
+
+/**
+ * Extract the refund picture from a Stripe Charge (charge.refunded). Pure. The
+ * cumulative `amount_refunded` is authoritative (SET, never incremented); a full
+ * refund is `amount_refunded >= amount` (with a non-zero amount).
+ */
+export function refundInfoFromCharge(charge: Stripe.Charge): ChargeRefundInfo {
+  const chargeId = charge.id;
+  const refunds: RefundFields[] = (charge.refunds?.data ?? []).map((r) => ({
+    stripeRefundId: r.id,
+    stripeChargeId: chargeId,
+    amountCents: r.amount,
+    reason: r.reason ?? null,
+    status: r.status ?? "unknown",
+  }));
+  const amountRefunded = charge.amount_refunded ?? 0;
+  const amountTotal = charge.amount ?? 0;
+  return {
+    paymentIntentId: stripeId(charge.payment_intent ?? null),
+    amountRefunded,
+    amountTotal,
+    fullyRefunded: amountTotal > 0 && amountRefunded >= amountTotal,
+    refunds,
+  };
+}

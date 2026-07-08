@@ -59,9 +59,13 @@ vi.mock("@/lib/db", () => {
   };
 });
 
-import { createUpgradeCheckoutSession } from "@/lib/actions/pass";
+import {
+  createUpgradeCheckoutSession,
+  createSubscriptionCheckoutSession,
+} from "@/lib/actions/pass";
 
-// A sellable Pass at $399.00, no launch window (currentPassPriceId → priceCents).
+// A sellable Pass at $399.00, no launch window (currentPassPriceId → priceCents),
+// plus a recurring subscription price.
 const SELLABLE_BUNDLE = {
   id: "bundle_1",
   key: "all-access",
@@ -69,6 +73,8 @@ const SELLABLE_BUNDLE = {
   priceCents: 39900,
   launchPriceCents: null,
   launchEndsAt: null,
+  subscriptionPriceId: "price_sub",
+  subscriptionPriceCents: 2900,
 };
 
 beforeEach(() => {
@@ -188,5 +194,34 @@ describe("createUpgradeCheckoutSession — grandfathering credit", () => {
     // Entitlement upsert still runs (idempotent), but NO second $0 Purchase.
     expect(entitlementUpsert).toHaveBeenCalledTimes(1);
     expect(purchaseCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe("createSubscriptionCheckoutSession", () => {
+  test("starts a mode:subscription checkout with the recurring price + userId metadata", async () => {
+    const result = await createSubscriptionCheckoutSession();
+    expect(result).toEqual({ url: "https://stripe.test/checkout" });
+    expect(sessionsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "subscription",
+        line_items: [{ price: "price_sub", quantity: 1 }],
+        subscription_data: { metadata: { userId: "user_1" } },
+        metadata: {
+          kind: "subscription",
+          userId: "user_1",
+          bundleKey: "all-access",
+        },
+      }),
+    );
+  });
+
+  test("refuses when no recurring price is provisioned", async () => {
+    bundleFindUnique.mockResolvedValue({
+      ...SELLABLE_BUNDLE,
+      subscriptionPriceId: null,
+    });
+    await expect(createSubscriptionCheckoutSession()).rejects.toThrow(
+      /isn't available/i,
+    );
   });
 });

@@ -74,6 +74,8 @@ model User {
   entitlements            Entitlement[]
   tips                    Tip[]
   purchases               Purchase[]
+  subscriptions           Subscription[]
+  invoices                Invoice[]
   certificates            Certificate[]
   miniLessons             MiniLesson[]
   lifecycleSends          LifecycleSend[]
@@ -199,6 +201,11 @@ model Bundle {
   priceCents       Int?
   launchPriceCents Int?
   launchEndsAt     DateTime?
+  // Recurring all-access via a SUBSCRIPTION (mode "subscription" checkout). The
+  // same bundle grants the same access as the one-time Pass; this just holds the
+  // recurring Stripe price + its cents. Null until set-subscription-price.ts runs.
+  subscriptionPriceId    String?
+  subscriptionPriceCents Int?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 }
@@ -296,6 +303,81 @@ model Purchase {
 
   @@index([userId])
   @@index([entitlementId])
+}
+
+// Mirror of a Stripe Subscription (recurring all-access / platform access).
+// Upserted by customer.subscription.created|updated|deleted. `status` is Stripe's
+// status string VERBATIM (no Prisma enum mirror — those drift when Stripe adds
+// states). userId nullable + SetNull so the audit row survives a hard user delete.
+// An active/trialing subscription mints an all-access bundle Entitlement (source
+// SUBSCRIPTION); a non-active status revokes it (see the webhook). Basil+ API note:
+// current_period_end lives on subscription.items.data[0], not the Subscription.
+model Subscription {
+  id                   String    @id @default(cuid())
+  userId               String?
+  user                 User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  stripeSubscriptionId String    @unique
+  stripeCustomerId     String
+  stripePriceId        String?
+  stripeProductId      String?
+  status               String    // active | trialing | past_due | canceled | ...
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean   @default(false)
+  metadata             Json?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  invoices             Invoice[]
+
+  @@index([userId])
+}
+
+// A paid Stripe Invoice (subscription billing). Written ONLY on invoice.paid —
+// one-time payments do NOT create invoices (Purchase covers those). Write-once
+// (upsert on stripeInvoiceId, update {}). May arrive BEFORE the
+// customer.subscription.created upsert, so we always store the raw
+// stripeSubscriptionId and resolve the `subscriptionId` FK when the row exists;
+// the subscription upsert backfills the FK for any invoice that landed first.
+// Basil+ API note: the subscription id lives at
+// invoice.parent.subscription_details.subscription, not invoice.subscription.
+model Invoice {
+  id                   String        @id @default(cuid())
+  stripeInvoiceId      String        @unique
+  stripeSubscriptionId String?
+  subscriptionId       String?
+  subscription         Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  userId               String?
+  user                 User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  stripeCustomerId     String?
+  amountPaidCents      Int
+  currency             String        @default("usd")
+  periodStart          DateTime?
+  periodEnd            DateTime?
+  metadata             Json?
+  paidAt               DateTime      // from invoice.status_transitions.paid_at
+  createdAt            DateTime      @default(now())
+
+  @@index([userId])
+  @@index([stripeSubscriptionId])
+}
+
+// Refund audit (written on charge.refunded). One row per Stripe Refund object, so
+// "which refund reduced this Purchase, when, why" is answerable from our DB.
+// Purchase.refundedCents carries the cumulative fast read (SET to
+// charge.amount_refunded, never incremented); this is the itemized ledger behind
+// it. `purchaseId` is a bare scalar soft-link (no FK): the Purchase is found via
+// stripePaymentIntentId, and the audit row must outlive a cascaded/absent Purchase.
+model Refund {
+  id             String   @id @default(cuid())
+  stripeRefundId String   @unique
+  stripeChargeId String
+  purchaseId     String?
+  amountCents    Int
+  reason         String?
+  status         String   // succeeded | pending | failed | canceled
+  createdAt      DateTime @default(now())
+
+  @@index([stripeChargeId])
+  @@index([purchaseId])
 }
 
 // An ISSUED completion/certificate — the record that makes the printed verify
@@ -937,10 +1019,13 @@ enum AccessTier {
   PREMIUM
 }
 
-// How an Entitlement was acquired. GRANT = admin comp/test; PURCHASE = Stripe (P3).
+// How an Entitlement was acquired. GRANT = admin comp/test; PURCHASE = one-time
+// Stripe payment (course or Pass); SUBSCRIPTION = an active recurring subscription
+// (minted/revoked by the subscription webhook on status transitions).
 enum EntitlementSource {
   GRANT
   PURCHASE
+  SUBSCRIPTION
 }
 
 // How a Library mini-lesson links to a Quest/Catalog Project.

@@ -53,6 +53,7 @@ export async function createCheckoutSession(input: {
     success_url: `${base}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
     // Cancel returns to the project's guide hub.
     cancel_url: `${base}/learn/${project.slug}`,
+    allow_promotion_codes: true,
     // `stripePriceId` is stamped so the webhook can record it on the Purchase row
     // (the session's price id is otherwise only on the expanded line_items). Pass
     // / upgrade checkouts use inline price_data and have no price id to stamp.
