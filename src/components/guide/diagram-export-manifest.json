@@ -184,5 +184,11 @@
     "image": "/guide-diagrams/fund-power-heat.webp",
     "alt": "A resistor turning power into heat. Current flows through a resistor; the power it dissipates, P equals I squared times R, leaves as heat, drawn as wavy plumes rising off the resistor, and a thermometer beside it reads warm. That heat is what a part's power rating limits: stay under the rating and it runs cool, exceed it and the part overheats.",
     "hash": "4acd28c42f56"
+  },
+  {
+    "basename": "fund-resistor-eseries",
+    "image": "/guide-diagrams/fund-resistor-eseries.webp",
+    "alt": "Resistor tolerance shown as two number lines. Both resistors are marked 4.7 kilohms, but one is a ±5% part and the other a ±1% part. The ±5% part is only guaranteed to fall in a wide band, roughly 4.47 to 4.94 kilohms; the ±1% part is held to a much narrower band, 4.65 to 4.75 kilohms. The marked value is the centre of the band, and the tolerance is how wide that band is: a tighter tolerance costs more and buys a narrower guaranteed range.",
+    "hash": "22f2000c2e36"
   }
 ]

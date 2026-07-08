@@ -34,6 +34,7 @@ import { FundPrefixLadder } from "./diagrams/FundPrefixLadder";
 import { FundVirRelationship } from "./diagrams/FundVirRelationship";
 import { FundOhmsWheel } from "./diagrams/FundOhmsWheel";
 import { FundPowerHeat } from "./diagrams/FundPowerHeat";
+import { FundResistorEseries } from "./diagrams/FundResistorEseries";
 
 export type DiagramComponent = FC<{ caption?: string }>;
 
@@ -70,4 +71,5 @@ export const DIAGRAM_COMPONENTS: Record<string, DiagramComponent> = {
   "/guide-diagrams/fund-vir-relationship.svg": FundVirRelationship,
   "/guide-diagrams/fund-ohms-wheel.svg": FundOhmsWheel,
   "/guide-diagrams/fund-power-heat.svg": FundPowerHeat,
+  "/guide-diagrams/fund-resistor-eseries.svg": FundResistorEseries,
 };
