@@ -173,13 +173,25 @@ Proposed sub-batches (author + diagram + seed-script + self-check, then checkpoi
 Seed each batch only after the migration is deployed. Chrome polish (§4.2) + the
 combined-book divider fix land naturally once all 12 exist.
 
-## 6. Build order (this phase)
+## 6. Build order (this phase) — RESEQUENCED 2026-07-08
 
-1. **[GATE] Deploy the migration** (`pnpm db:migrate`, PROD write, owner go + other
-   window clear).
-2. Batch A: author + diagrams + seed + verify → checkpoint.
-3. Batch B → checkpoint.
-4. Batch C → checkpoint.
+Owner call: write ALL content first, THEN all diagrams in the sandbox (each diagram
+is its own owner-picked sandbox round, both themes — that convention can't be
+interleaved cheaply per lesson). Lessons reserve their diagram slots with
+`image` blocks whose `src` is the PLANNED `/guide-diagrams/<name>.svg` registry key;
+the diagrams light up when the sandbox phase builds those components + rasters (same
+key, so no content re-seed for the figures). No PROD content write lands until
+content + diagrams are both ready + published together (avoids thin caption-only
+pages going public).
+
+1. **[DONE] Migration deployed + backfill verified** (2026-07-08).
+2. **Author all 12 lessons' contentBlocks** (prose, cited sourceRefs, quizzes,
+   termRefs, calc embeds, cross-links, diagram-slot image blocks). Sub-batch for
+   review: A (1-4), B (5-8), C (9-12) → checkpoint each. NO PROD write yet.
+3. **All diagrams in the sandbox** — ~12 figures, owner picks options (both themes)
+   per the diagram-export skill; then BOTH export passes + manifest.
+4. **Seed to PROD + publish** all 12 (with diagrams live), render-verify each page +
+   PDF + OG card + sitemap.
 5. §7 seeds (ProjectMiniLesson SUPPORTING + GLOSSARY).
 6. §4.2 chrome polish (otd-content-writing pass on the fundamentals + combined
    intro/outro drafts, now that lesson language is fixed).
