@@ -9,11 +9,23 @@
 //   1. `ProcessedStripeEvent.create({ eventId })` — the event id is the table's
 //      @id, so a REDELIVERED event (Stripe retries until it sees a 2xx) hits a
 //      P2002 unique violation → we treat it as already-processed and 200 no-op.
-//   2. `entitlement.upsert` keyed on the `[userId, projectId]` unique — even if
-//      the same purchase somehow reached the grant twice, it can't double-grant.
+//   2. The grant is an `upsert` keyed on a unique ([userId, projectId] for a
+//      course, [userId, bundleId] for the Pass) — even if the same purchase
+//      somehow reached the grant twice, it can't double-grant.
+//
+// The claim (layer 1) and the grant + Purchase writes run in ONE
+// `db.$transaction`, so a crash between them rolls BOTH back and Stripe's retry
+// re-runs the whole event — instead of the old failure where the claim committed,
+// the grant didn't, and the redelivery no-oped on the claim's P2002, losing the
+// purchase forever. The P2002 redelivery catch stays OUTSIDE the transaction (a
+// duplicate event aborts the txn; the outer catch maps P2002 → 200). Telemetry
+// (`capture`) fires AFTER commit, outside the txn — a network call must never hold
+// the transaction connection (5s timeout) or roll back a real grant.
 //
 // runtime = "nodejs": we need the RAW request bytes (constructEvent verifies the
 // HMAC over the exact body) and node crypto; the edge runtime would mangle both.
+// It also gives us the @neondatabase/serverless WebSocket Pool, which supports
+// interactive `$transaction(async tx => …)` (the HTTP driver would not).
 import { Prisma } from "@prisma/client";
 
 import { env } from "@/env";
@@ -22,6 +34,7 @@ import { getStripe } from "@/lib/stripe";
 import {
   bundleFromCheckoutSession,
   entitlementFromCheckoutSession,
+  purchaseFromCheckoutSession,
   tipFromCheckoutSession,
 } from "@/lib/stripe-webhook";
 import { capture } from "@/lib/analytics";
@@ -66,24 +79,158 @@ export async function POST(req: Request): Promise<Response> {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
 
-    // 5a0. Guard against granting on an UNPAID session. With `mode: "payment"` +
-    //      card checkout this is normally `"paid"`, but asynchronous payment
-    //      methods can deliver `checkout.session.completed` as `"unpaid"` and
-    //      settle later via `checkout.session.async_payment_succeeded` (not
-    //      handled — card-only for now). Ack (200) WITHOUT recording a
-    //      ProcessedStripeEvent or granting an Entitlement.
+    // 5a. Guard against granting on an UNPAID session. With `mode: "payment"` +
+    //     card checkout this is normally `"paid"`, but asynchronous payment
+    //     methods can deliver `checkout.session.completed` as `"unpaid"` and
+    //     settle later via `checkout.session.async_payment_succeeded` (not
+    //     handled — card-only for now). Ack (200) BEFORE the transaction, so
+    //     nothing is claimed, granted, or recorded.
     if (session.payment_status !== "paid") {
       return new Response(null, { status: 200 });
     }
 
-    // 5a. First idempotency layer: claim this event id. If it's already claimed
-    //     (P2002), the event was processed before (a Stripe redelivery) — return
-    //     200 and do NOTHING else, so we never grant twice.
+    // 5b. Pure branch extraction (no db, no Stripe calls): tip, else bundle Pass,
+    //     else per-project course.
+    const tip = tipFromCheckoutSession(session);
+    const bundleGrant = tip ? null : bundleFromCheckoutSession(session);
+    const grant =
+      tip || bundleGrant ? null : entitlementFromCheckoutSession(session);
+
+    // 5c. Purchase audit fields (course/bundle purchases only, never tips). We
+    //     record a Purchase ONLY for one-time payment-mode sessions: a
+    //     subscription-mode checkout fires this same event but its money belongs
+    //     in an Invoice (phase 2). `purchaseFields` is null when amount_total is
+    //     missing (anomalous on a paid session — see purchaseFromCheckoutSession).
+    const isPayment = session.mode === "payment";
+    const purchaseFields = purchaseFromCheckoutSession(session);
+
+    // Returned from the transaction (a captured `let` mutated inside the async
+    // callback narrows to `never` at the read site); the `purchase_completed`
+    // funnel event fires AFTER the transaction commits (never inside — see header).
+    let purchaseCompleted: { userId: string; projectId: string } | null = null;
+
+    // 5d. Claim + grant + Purchase in ONE transaction (atomicity — see header).
     try {
-      await db.processedStripeEvent.create({
-        data: { eventId: event.id, type: event.type },
+      purchaseCompleted = await db.$transaction(async (tx) => {
+        // First idempotency layer: claim this event id. A redelivery violates the
+        // @id unique (P2002) → the txn rolls back and the OUTER catch 200-no-ops.
+        await tx.processedStripeEvent.create({
+          data: { eventId: event.id, type: event.type },
+        });
+
+        // A one-time "Support the Academy" tip grants NO entitlement — record it
+        // for accounting (amount from Stripe, not the client) and ack. Idempotent
+        // on the unique stripeSessionId. A tip is never a Purchase.
+        if (tip) {
+          await tx.tip.upsert({
+            where: { stripeSessionId: tip.stripeSessionId },
+            create: {
+              stripeSessionId: tip.stripeSessionId,
+              userId: tip.userId,
+              email: tip.email,
+              amountCents: tip.amountCents,
+              currency: tip.currency,
+            },
+            update: {},
+          });
+          return null;
+        }
+
+        // An All-Access Pass purchase grants a bundle Entitlement (access to every
+        // project). Idempotent via the [userId, bundleId] unique (added in this
+        // migration): a concurrent double-grant collapses to one row, while a real
+        // double-charge (two distinct sessions) records two Purchases — the
+        // duplicate Purchase is the refund evidence, not noise.
+        if (bundleGrant) {
+          const bundle = await tx.bundle.findUnique({
+            where: { key: bundleGrant.bundleKey },
+            select: { id: true },
+          });
+          if (!bundle) {
+            console.warn(
+              `[stripe-webhook] bundle checkout ${event.id} references unknown bundleKey ${bundleGrant.bundleKey}; skipping grant`,
+            );
+            return null;
+          }
+          const entitlement = await tx.entitlement.upsert({
+            where: {
+              userId_bundleId: {
+                userId: bundleGrant.userId,
+                bundleId: bundle.id,
+              },
+            },
+            create: {
+              userId: bundleGrant.userId,
+              bundleId: bundle.id,
+              source: "PURCHASE",
+            },
+            update: {},
+          });
+          if (isPayment && purchaseFields) {
+            await tx.purchase.create({
+              data: {
+                ...purchaseFields,
+                userId: bundleGrant.userId,
+                bundleId: bundle.id,
+                entitlementId: entitlement.id,
+              },
+            });
+          } else if (isPayment) {
+            console.error(
+              `[stripe-webhook] paid payment-mode bundle session ${session.id} has null amount_total; entitlement granted, Purchase NOT recorded`,
+            );
+          }
+          return null;
+        }
+
+        // A per-project premium purchase. Second idempotency layer: upsert on the
+        // [userId, projectId] unique. Records the Purchase in the same transaction,
+        // back-linked to the entitlement it grants.
+        if (grant) {
+          const entitlement = await tx.entitlement.upsert({
+            where: {
+              userId_projectId: {
+                userId: grant.userId,
+                projectId: grant.projectId,
+              },
+            },
+            create: {
+              userId: grant.userId,
+              projectId: grant.projectId,
+              source: "PURCHASE",
+            },
+            update: {},
+          });
+          if (isPayment && purchaseFields) {
+            await tx.purchase.create({
+              data: {
+                ...purchaseFields,
+                userId: grant.userId,
+                projectId: grant.projectId,
+                entitlementId: entitlement.id,
+              },
+            });
+          } else if (isPayment) {
+            console.error(
+              `[stripe-webhook] paid payment-mode session ${session.id} has null amount_total; entitlement granted, Purchase NOT recorded`,
+            );
+          }
+          return {
+            userId: grant.userId,
+            projectId: grant.projectId,
+          };
+        }
+
+        // No tip/bundle/project metadata — nothing to grant. The event is claimed
+        // (so a redelivery no-ops) and acked; a retry wouldn't help.
+        console.warn(
+          `[stripe-webhook] checkout.session.completed ${event.id} has no tip/bundle/project metadata; skipping grant`,
+        );
+        return null;
       });
     } catch (e) {
+      // A redelivered event rolls back on the claim's P2002 → already processed,
+      // 200 no-op. Any other error → rethrow so Stripe retries the whole event.
       if (
         e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === "P2002"
@@ -93,98 +240,19 @@ export async function POST(req: Request): Promise<Response> {
       throw e;
     }
 
-    // 5a-tip. A one-time "Support the Academy" tip (metadata.kind === "tip")
-    //     grants NO entitlement — record it for accounting and ack. Idempotent on
-    //     the unique stripeSessionId, so a redelivery (past the event-id layer or
-    //     not) can never double-record. The amount comes from Stripe, not the
-    //     client (see tipFromCheckoutSession).
-    const tip = tipFromCheckoutSession(session);
-    if (tip) {
-      await db.tip.upsert({
-        where: { stripeSessionId: tip.stripeSessionId },
-        create: {
-          stripeSessionId: tip.stripeSessionId,
-          userId: tip.userId,
-          email: tip.email,
-          amountCents: tip.amountCents,
-          currency: tip.currency,
-        },
-        update: {},
-      });
-      return new Response(null, { status: 200 });
-    }
-
-    // 5a-bundle. An All-Access Pass purchase (metadata.kind === "bundle") grants
-    //     a bundle Entitlement — access to EVERY project. Resolve the bundleKey →
-    //     the Bundle row, then upsert-by-guard (the [userId, projectId] unique
-    //     can't key a bundle row, so findFirst + create is the second idempotency
-    //     layer; the ProcessedStripeEvent claim above is the first). Ack on a
-    //     missing/unknown bundle (nothing to retry).
-    const bundleGrant = bundleFromCheckoutSession(session);
-    if (bundleGrant) {
-      const bundle = await db.bundle.findUnique({
-        where: { key: bundleGrant.bundleKey },
-        select: { id: true },
-      });
-      if (!bundle) {
-        console.warn(
-          `[stripe-webhook] bundle checkout ${event.id} references unknown bundleKey ${bundleGrant.bundleKey}; skipping grant`,
+    // Funnel: `purchase_completed` — fired on the per-project grant path, AFTER the
+    // transaction commits and OUTSIDE it. Best-effort (try/catch) so telemetry can
+    // never break the webhook 2xx Stripe needs; no-op when PostHog is unconfigured.
+    if (purchaseCompleted) {
+      try {
+        capture(
+          "purchase_completed",
+          { projectId: purchaseCompleted.projectId },
+          purchaseCompleted.userId,
         );
-        return new Response(null, { status: 200 });
+      } catch {
+        // never break the webhook ack on telemetry
       }
-      const existing = await db.entitlement.findFirst({
-        where: { userId: bundleGrant.userId, bundleId: bundle.id },
-        select: { id: true },
-      });
-      if (!existing) {
-        await db.entitlement.create({
-          data: {
-            userId: bundleGrant.userId,
-            bundleId: bundle.id,
-            source: "PURCHASE",
-          },
-        });
-      }
-      return new Response(null, { status: 200 });
-    }
-
-    // 5b. Pull the grant target from the session metadata. Without it we cannot
-    //     grant — log and ack (nothing to retry; a redelivery wouldn't help).
-    const grant = entitlementFromCheckoutSession(session);
-    if (!grant) {
-      console.warn(
-        `[stripe-webhook] checkout.session.completed ${event.id} has no userId/projectId metadata; skipping grant`,
-      );
-      return new Response(null, { status: 200 });
-    }
-
-    // 5c. Second idempotency layer: upsert keyed on the [userId, projectId]
-    //     unique, so this can never produce a duplicate entitlement.
-    await db.entitlement.upsert({
-      where: {
-        userId_projectId: { userId: grant.userId, projectId: grant.projectId },
-      },
-      create: {
-        userId: grant.userId,
-        projectId: grant.projectId,
-        source: "PURCHASE",
-      },
-      update: {},
-    });
-
-    // Funnel: `purchase_completed` — fired on the source-of-truth grant path.
-    // Best-effort (try/catch) so telemetry can never break the webhook 2xx Stripe
-    // needs; no-op when PostHog is unconfigured. NOTE: feat/academy-monetization
-    // also edits this handler (bundle grants) — keep this one call minimal to ease
-    // the rebase.
-    try {
-      capture(
-        "purchase_completed",
-        { projectId: grant.projectId },
-        grant.userId,
-      );
-    } catch {
-      // never break the webhook ack on telemetry
     }
   }
 

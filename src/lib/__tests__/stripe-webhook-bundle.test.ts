@@ -53,15 +53,15 @@ const {
   constructEvent,
   processedCreate,
   bundleFindUnique,
-  entitlementFindFirst,
-  entitlementCreate,
+  entitlementUpsert,
+  purchaseCreate,
   fakeEnv,
 } = vi.hoisted(() => ({
   constructEvent: vi.fn(),
   processedCreate: vi.fn(),
   bundleFindUnique: vi.fn(),
-  entitlementFindFirst: vi.fn(),
-  entitlementCreate: vi.fn(),
+  entitlementUpsert: vi.fn(),
+  purchaseCreate: vi.fn(),
   fakeEnv: {} as { STRIPE_WEBHOOK_SECRET?: string },
 }));
 
@@ -69,19 +69,21 @@ vi.mock("@/lib/stripe", () => ({
   getStripe: () => ({ webhooks: { constructEvent } }),
 }));
 
-vi.mock("@/lib/db", () => ({
-  db: {
+// The route claims + grants inside db.$transaction(cb); the mock invokes the
+// callback with a `tx` exposing the same spies. The bundle grant is now an
+// idempotent upsert on the [userId, bundleId] unique (no findFirst-then-create).
+vi.mock("@/lib/db", () => {
+  const tx = {
     processedStripeEvent: { create: (...a: unknown[]) => processedCreate(...a) },
     bundle: { findUnique: (...a: unknown[]) => bundleFindUnique(...a) },
-    entitlement: {
-      findFirst: (...a: unknown[]) => entitlementFindFirst(...a),
-      create: (...a: unknown[]) => entitlementCreate(...a),
-      // Unused on the bundle path, but the route imports the same db object.
-      upsert: vi.fn(),
-    },
+    entitlement: { upsert: (...a: unknown[]) => entitlementUpsert(...a) },
+    purchase: { create: (...a: unknown[]) => purchaseCreate(...a) },
     tip: { upsert: vi.fn() },
-  },
-}));
+  };
+  return {
+    db: { $transaction: <T>(cb: (client: typeof tx) => Promise<T>) => cb(tx) },
+  };
+});
 
 vi.mock("@/env", () => ({ env: fakeEnv }));
 
@@ -112,17 +114,17 @@ beforeEach(() => {
   constructEvent.mockReset();
   processedCreate.mockReset();
   bundleFindUnique.mockReset();
-  entitlementFindFirst.mockReset();
-  entitlementCreate.mockReset();
+  entitlementUpsert.mockReset();
+  purchaseCreate.mockReset();
   fakeEnv.STRIPE_WEBHOOK_SECRET = "whsec_test";
   processedCreate.mockResolvedValue({ eventId: "evt_bundle" });
   bundleFindUnique.mockResolvedValue({ id: "bundle_1" });
-  entitlementFindFirst.mockResolvedValue(null);
-  entitlementCreate.mockResolvedValue({});
+  entitlementUpsert.mockResolvedValue({ id: "ent_1" });
+  purchaseCreate.mockResolvedValue({});
 });
 
 describe("POST /api/stripe/webhook — bundle (All-Access Pass) grant", () => {
-  test("a paid bundle checkout records the event and creates the bundle entitlement once", async () => {
+  test("a paid bundle checkout claims the event and grants the bundle entitlement via the [userId,bundleId] upsert", async () => {
     constructEvent.mockReturnValue(BUNDLE_EVENT);
 
     const res = await POST(makeRequest("rawbody", SIG_HEADER));
@@ -133,9 +135,13 @@ describe("POST /api/stripe/webhook — bundle (All-Access Pass) grant", () => {
       where: { key: "all-access" },
       select: { id: true },
     });
-    expect(entitlementCreate).toHaveBeenCalledTimes(1);
-    expect(entitlementCreate).toHaveBeenCalledWith({
-      data: { userId: "user_1", bundleId: "bundle_1", source: "PURCHASE" },
+    // Idempotent grant via the [userId, bundleId] unique — no findFirst, so a
+    // concurrent double-grant can't race two rows in.
+    expect(entitlementUpsert).toHaveBeenCalledTimes(1);
+    expect(entitlementUpsert).toHaveBeenCalledWith({
+      where: { userId_bundleId: { userId: "user_1", bundleId: "bundle_1" } },
+      create: { userId: "user_1", bundleId: "bundle_1", source: "PURCHASE" },
+      update: {},
     });
   });
 
@@ -151,19 +157,7 @@ describe("POST /api/stripe/webhook — bundle (All-Access Pass) grant", () => {
     const res = await POST(makeRequest("rawbody", SIG_HEADER));
 
     expect(res.status).toBe(200);
-    expect(entitlementCreate).not.toHaveBeenCalled();
-  });
-
-  test("an already-held bundle entitlement is NOT re-created (findFirst guard)", async () => {
-    constructEvent.mockReturnValue(BUNDLE_EVENT);
-    entitlementFindFirst.mockResolvedValue({ id: "ent_existing" });
-
-    const res = await POST(makeRequest("rawbody", SIG_HEADER));
-
-    expect(res.status).toBe(200);
-    // Layer 1 still claimed the (new) event, but no duplicate grant is written.
-    expect(processedCreate).toHaveBeenCalledTimes(1);
-    expect(entitlementCreate).not.toHaveBeenCalled();
+    expect(entitlementUpsert).not.toHaveBeenCalled();
   });
 
   test("an unknown bundleKey is acked (200) without granting", async () => {
@@ -173,6 +167,6 @@ describe("POST /api/stripe/webhook — bundle (All-Access Pass) grant", () => {
     const res = await POST(makeRequest("rawbody", SIG_HEADER));
 
     expect(res.status).toBe(200);
-    expect(entitlementCreate).not.toHaveBeenCalled();
+    expect(entitlementUpsert).not.toHaveBeenCalled();
   });
 });
