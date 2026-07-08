@@ -65,3 +65,22 @@ describe("calculator content block", () => {
     expect(contentBlockSchema.safeParse({ type: "calculator", slug: "   " }).success).toBe(false);
   });
 });
+
+describe("math content block", () => {
+  it("accepts a minimal tex block", () => {
+    expect(contentBlockSchema.safeParse({ type: "math", tex: "V = IR" }).success).toBe(true);
+  });
+  it("accepts display + plain fallback", () => {
+    const r = contentBlockSchema.safeParse({
+      type: "math",
+      tex: "P = I^2 R",
+      display: true,
+      plain: "P = I squared times R",
+    });
+    expect(r.success).toBe(true);
+  });
+  it("rejects an empty tex", () => {
+    expect(contentBlockSchema.safeParse({ type: "math", tex: "" }).success).toBe(false);
+    expect(contentBlockSchema.safeParse({ type: "math", tex: "   " }).success).toBe(false);
+  });
+});

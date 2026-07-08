@@ -238,6 +238,19 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     slug: z.string().trim().min(1).max(60),
     caption: z.string().max(200).optional(),
   }),
+  // math — a KaTeX-rendered formula. `tex` is the LaTeX source, rendered
+  // server-side (katex.renderToString, no client JS). `display` true (default) =
+  // a centered block equation; false = inline-sized. `plain` is a readable ASCII
+  // fallback for the PDF (react-pdf can't run KaTeX) and degrades to `tex` if
+  // absent, so supply it for anything with fractions/subscripts the raw LaTeX
+  // wouldn't read cleanly as. Author-controlled (admin) content, so the rendered
+  // HTML is trusted.
+  z.object({
+    type: z.literal("math"),
+    tex: z.string().trim().min(1).max(500),
+    display: z.boolean().optional(),
+    plain: z.string().max(500).optional(),
+  }),
 ]);
 export type ContentBlock = z.infer<typeof contentBlockSchema>;
 

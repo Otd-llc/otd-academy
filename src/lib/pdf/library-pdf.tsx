@@ -525,6 +525,15 @@ function Block({ block, images }: { block: ContentBlock; images: Map<string, Res
       );
     }
 
+    case "math":
+      // react-pdf can't run KaTeX, so render the plain-ASCII fallback (or the raw
+      // tex if none). Centered for a display equation, inline-left otherwise.
+      return (
+        <Text style={{ ...s.prose, textAlign: block.display === false ? "left" : "center" }}>
+          {block.plain ?? block.tex}
+        </Text>
+      );
+
     default:
       return null;
   }

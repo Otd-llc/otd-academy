@@ -22,6 +22,7 @@ export const LIBRARY_BLOCK_TYPES: ReadonlySet<string> = new Set([
   "vendorCta",
   "youtube",
   "calculator",
+  "math",
 ]);
 
 export function isLibraryBlock(block: ContentBlock): boolean {

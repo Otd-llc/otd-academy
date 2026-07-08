@@ -34,6 +34,7 @@ import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { WindowedPartModel } from "@/components/guide/WindowedPartModel";
 import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
 import { DIAGRAM_COMPONENTS } from "@/components/guide/diagram-registry";
+import katex from "katex";
 import { EMBED_ISLANDS } from "@/components/tools/embed-islands";
 import { getTool } from "@/lib/tools/registry";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
@@ -1325,6 +1326,25 @@ function GuideBlock({
             </figcaption>
           ) : null}
         </figure>
+      );
+    }
+
+    case "math": {
+      // KaTeX rendered server-side to static HTML (no client JS). The tex is
+      // admin-authored, so the markup is trusted. Display math centers and scrolls
+      // if it overflows a narrow column; inline math flows in the line.
+      const display = block.display ?? true;
+      const html = katex.renderToString(block.tex, {
+        displayMode: display,
+        throwOnError: false,
+      });
+      return display ? (
+        <div
+          className="my-5 overflow-x-auto text-center text-text"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      ) : (
+        <span className="text-text" dangerouslySetInnerHTML={{ __html: html }} />
       );
     }
 
