@@ -40,6 +40,7 @@ import { FundDecouplingCap } from "./diagrams/FundDecouplingCap";
 import { FundDiodeLed } from "./diagrams/FundDiodeLed";
 import { FundRcFilter } from "./diagrams/FundRcFilter";
 import { FundGroundsRails } from "./diagrams/FundGroundsRails";
+import { FundSchematicAnatomy } from "./diagrams/FundSchematicAnatomy";
 
 export type DiagramComponent = FC<{ caption?: string }>;
 
@@ -82,4 +83,5 @@ export const DIAGRAM_COMPONENTS: Record<string, DiagramComponent> = {
   "/guide-diagrams/fund-diode-led.svg": FundDiodeLed,
   "/guide-diagrams/fund-rc-filter.svg": FundRcFilter,
   "/guide-diagrams/fund-grounds-rails.svg": FundGroundsRails,
+  "/guide-diagrams/fund-schematic-anatomy.svg": FundSchematicAnatomy,
 };

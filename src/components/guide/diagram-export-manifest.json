@@ -220,5 +220,11 @@
     "image": "/guide-diagrams/fund-grounds-rails.webp",
     "alt": "Two ways the return current gets back to the supply. On the left, over a ground plane, the current fans out from the chip across the copper along many short parallel paths, so the plane's impedance stays tiny. On the right, over a single thin trace, the same current is forced single-file down one narrow path, adding resistance and inductance and letting parts disagree on ground. A plane is a sheet and a trace is a straw, which is why a poured ground plane beats a thin trace.",
     "hash": "8a6a35c48da2"
+  },
+  {
+    "basename": "fund-schematic-anatomy",
+    "image": "/guide-diagrams/fund-schematic-anatomy.webp",
+    "alt": "A key of common schematic symbols with their reference-designator letters and names. A resistor's zigzag is designated R. A capacitor's two plates are C. A diode's triangle and bar are D. An inductor's series of humps is L. A rectangular integrated circuit is U. The symbol tells you what the part is, and the reference-designator letter names its family so you can match the drawing to the same part on the board.",
+    "hash": "a6c878a1ceac"
   }
 ]
