@@ -208,5 +208,11 @@
     "image": "/guide-diagrams/fund-diode-led.webp",
     "alt": "Reverse-polarity protection with a series diode. In the top case the supply is connected the correct way round, positive in: the diode is forward-biased, current flows through it, and the load is powered. In the bottom case the supply is reversed, negative in: the same diode is now reverse-biased and blocks, shown by a red cross, so no current reaches the load. A diode passes current one way only, so a series diode on the power input protects the board from a backwards connection.",
     "hash": "bbfbdb0e1112"
+  },
+  {
+    "basename": "fund-rc-filter",
+    "image": "/guide-diagrams/fund-rc-filter.webp",
+    "alt": "A low-pass filter passing low frequencies and blocking high ones. In the top row a slow, low-frequency wave goes in and comes out at nearly full amplitude: it passes. In the bottom row a fast, high-frequency wave of the same size goes in and comes out much smaller: it is attenuated. A capacitor reacts to how fast a signal changes, so an RC filter keeps the lows and rejects the highs, with the changeover at the cutoff frequency fc equals one over two-pi R C.",
+    "hash": "6e212afd41f2"
   }
 ]
