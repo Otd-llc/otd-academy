@@ -154,11 +154,20 @@ export async function resetEnrollment(input: unknown): Promise<{ ok: true }> {
 
 // ─── deleteStudent ──────────────────────────────────────
 // Permanently delete a learner account. The User delete cascades accounts,
-// sessions, enrollments (+ their artifacts / attempts), and lifecycle sends; tips
-// and certificates SetNull (kept, de-linked). GUARDS: an admin cannot delete
-// their OWN account (footgun), and a delete that hits a Restrict FK (the account
-// authored curriculum content) is surfaced as a clean error instead of a raw
-// Prisma throw.
+// sessions, enrollments (+ their artifacts / attempts), and lifecycle sends; tips,
+// certificates, and PURCHASES SetNull (kept, de-linked). GUARDS: an admin cannot
+// delete their OWN account (footgun), and a delete that hits a Restrict FK (the
+// account authored curriculum content) is surfaced as a clean error instead of a
+// raw Prisma throw.
+//
+// GDPR / retention (deliberate): Purchase rows are financial records and SURVIVE a
+// hard delete with userId → NULL — retaining payment-linked identifiers past a
+// deletion request is lawful as a financial-record legal obligation, so "permanently
+// delete" is not literal for the money trail. The retained Purchase.metadata snapshot
+// holds only our own ids (userId/projectId/kind), never customer PII. When
+// subscriptions ship (phase 2), this action must ALSO cancel the user's active Stripe
+// subscriptions BEFORE the row delete, or an orphaned subscription keeps charging a
+// vanished account — see docs/plans/2026-07-07-billing-audit-schema.md (finding 22).
 const deleteSchema = z.object({ userId: z.cuid() }).strict();
 
 export async function deleteStudent(input: unknown): Promise<{ ok: true }> {

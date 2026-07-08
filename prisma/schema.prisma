@@ -73,6 +73,7 @@ model User {
   enrollments             Enrollment[]
   entitlements            Entitlement[]
   tips                    Tip[]
+  purchases               Purchase[]
   certificates            Certificate[]
   miniLessons             MiniLesson[]
   lifecycleSends          LifecycleSend[]
@@ -172,6 +173,13 @@ model Entitlement {
   createdAt DateTime          @default(now())
 
   @@unique([userId, projectId])
+  // Bundle idempotency: one bundle Entitlement per (user, bundle). A FULL unique
+  // index — bundleId is null for project entitlements, and Postgres treats NULLs
+  // as distinct, so it does NOT constrain per-project rows (it only bites when
+  // bundleId is non-null). This closes the pre-existing hole where two concurrent
+  // bundle grants could double-grant, and lets the webhook / pass.ts $0-grant use
+  // an idempotent `upsert` on `userId_bundleId` instead of findFirst-then-create.
+  @@unique([userId, bundleId])
   @@index([userId])
 }
 
@@ -241,6 +249,53 @@ model Tip {
   createdAt       DateTime @default(now())
 
   @@index([userId])
+}
+
+// One row per completed Stripe payment that grants access (course, Pass,
+// pay-the-difference upgrade). Written ONLY by the webhook on a paid
+// checkout.session.completed (mode "payment"), in the SAME transaction as the
+// grant. The audit bridge from Entitlement → Stripe, and the frozen record of
+// what was actually paid (grandfathering credit reads amountTotalCents, never the
+// current catalog price). The zero-charge "already covered" upgrade grant writes a
+// $0 Purchase itself (null stripeSessionId) so every PURCHASE entitlement traces
+// to a Purchase row. userId is nullable + SetNull so the audit row survives a hard
+// user delete (financial-record retention). Phase-2 columns (refundedCents,
+// stripePromotionCodeId, stripeChargeId) exist from day 1 so enabling refunds /
+// promo codes is code-only.
+model Purchase {
+  id                    String   @id @default(cuid())
+  userId                String?
+  user                  User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  projectId             String?  // XOR bundleId (purchase_owner_xor CHECK), like Entitlement
+  bundleId              String?
+  // Soft reference (indexed, NOT unique, no FK): two completed sessions CAN
+  // legitimately point at one entitlement (double-tab checkout = double charge;
+  // both payments recorded — the duplicate is refund evidence, not noise). No FK
+  // because Entitlement cascades on user delete while Purchase must survive it.
+  entitlementId         String?
+  // Nullable: the $0 upgrade grant writes a Purchase with NO Stripe session. Its
+  // idempotency guard is a findFirst on (entitlementId, stripeSessionId: null)
+  // inside the grant transaction; Postgres allows multiple NULLs under a unique,
+  // so webhook idempotency on real sessions is unaffected.
+  stripeSessionId       String?  @unique
+  // PRIMARY refund-correlation key: charge.refunded carries payment_intent, always.
+  stripePaymentIntentId String?
+  // The Charge id — a DISTINCT Stripe id, completeness-only (not the refund key:
+  // it is not on the bare Checkout Session). Filled opportunistically, null-tolerant.
+  stripeChargeId        String?
+  stripeCustomerId      String?
+  stripePriceId         String?  // null for Pass/upgrade (inline price_data, no price id)
+  stripeProductId       String?
+  amountTotalCents      Int      // session.amount_total — never the client; null-guarded at insert
+  amountDiscountCents   Int      @default(0) // session.total_details.amount_discount ?? 0
+  stripePromotionCodeId String?  // coupon/promo audit (phase 2)
+  refundedCents         Int      @default(0) // SET to charge.amount_refunded (phase 2)
+  currency              String   @default("usd")
+  metadata              Json?    // session.metadata snapshot — our own ids only, never PII
+  createdAt             DateTime @default(now())
+
+  @@index([userId])
+  @@index([entitlementId])
 }
 
 // An ISSUED completion/certificate — the record that makes the printed verify

@@ -53,7 +53,14 @@ export async function createCheckoutSession(input: {
     success_url: `${base}/learn?purchased=${encodeURIComponent(project.slug)}`,
     // Cancel returns to the project's guide hub.
     cancel_url: `${base}/learn/${project.slug}`,
-    metadata: { userId: user.id, projectId: project.id },
+    // `stripePriceId` is stamped so the webhook can record it on the Purchase row
+    // (the session's price id is otherwise only on the expanded line_items). Pass
+    // / upgrade checkouts use inline price_data and have no price id to stamp.
+    metadata: {
+      userId: user.id,
+      projectId: project.id,
+      stripePriceId: project.stripePriceId,
+    },
   });
 
   if (!session.url) {

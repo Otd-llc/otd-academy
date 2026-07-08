@@ -96,9 +96,11 @@ export async function createPassCheckoutSession(): Promise<{ url: string }> {
 /**
  * Pay-the-difference upgrade to the All-Access Pass.
  *
- * Credits the learner's prior per-project purchases (source PURCHASE
- * entitlements' `priceCents`) against the active Pass price. When the credit
- * covers the Pass, grants the bundle Entitlement directly and returns
+ * Credits what the learner ACTUALLY PAID for their prior per-course purchases
+ * (`Purchase.amountTotalCents`, net of refunds, frozen at purchase time) against
+ * the active Pass price — never the current catalog price, so a later price change
+ * can't retroactively re-credit past buyers. When the credit covers the Pass,
+ * grants the bundle Entitlement directly (and records a $0 Purchase) and returns
  * `{ granted: true }` (no checkout). Otherwise starts a Hosted Checkout for the
  * difference and returns `{ url }`.
  */
@@ -108,30 +110,55 @@ export async function createUpgradeCheckoutSession(): Promise<
   const user = await requireUser();
   const pass = await loadSellablePass(new Date());
 
-  // The learner's PURCHASE project entitlements → the credit pool. We join to
-  // Project for the price actually on the project (the credit is the catalog
-  // price the learner paid; we never trust a client amount).
-  const purchases = await db.entitlement.findMany({
-    where: { userId: user.id, source: "PURCHASE", projectId: { not: null } },
-    select: { project: { select: { priceCents: true } } },
+  // The learner's per-course Purchases → the credit pool. Credit = what they
+  // actually PAID per course (Purchase.amountTotalCents), net of any refund, frozen
+  // at purchase time. Bundle / $0-upgrade Purchases (projectId null) are excluded.
+  // Historical test-mode entitlements have no Purchase row and so credit 0 —
+  // accepted (test mode only; the old Project.priceCents fallback is intentionally
+  // NOT carried, as it would resurrect the grandfathering bug this fixes).
+  const purchases = await db.purchase.findMany({
+    where: { userId: user.id, projectId: { not: null } },
+    select: { amountTotalCents: true, refundedCents: true },
   });
-  const prices = purchases.map((p) => p.project?.priceCents ?? null);
+  const prices = purchases.map((p) => p.amountTotalCents - p.refundedCents);
 
   const quote = quoteUpgrade(pass.currentCents, prices);
 
-  // Already covered: grant the bundle entitlement directly, idempotently. We
-  // can't use the [userId, projectId] unique (projectId is null for a bundle),
-  // so guard with a findFirst before create.
+  // Already covered: grant the bundle entitlement directly (no Stripe round-trip)
+  // and record a $0 Purchase, so every PURCHASE entitlement still traces to a
+  // Purchase row (the audit invariant this design preserves). ONE transaction:
+  // entitlement + $0 Purchase commit together or not at all — a mid-write crash
+  // must not leave an untraceable entitlement. The entitlement is idempotent via
+  // the [userId, bundleId] unique; the $0 Purchase is idempotent via a findFirst on
+  // (entitlementId, null session) — Postgres allows many NULL stripeSessionIds, so
+  // it never collides with real webhook Purchases (which carry a session id).
   if (quote.alreadyCovered) {
-    const existing = await db.entitlement.findFirst({
-      where: { userId: user.id, bundleId: pass.id },
-      select: { id: true },
-    });
-    if (!existing) {
-      await db.entitlement.create({
-        data: { userId: user.id, bundleId: pass.id, source: "PURCHASE" },
+    await db.$transaction(async (tx) => {
+      const entitlement = await tx.entitlement.upsert({
+        where: { userId_bundleId: { userId: user.id, bundleId: pass.id } },
+        create: { userId: user.id, bundleId: pass.id, source: "PURCHASE" },
+        update: {},
       });
-    }
+      const existingGrant = await tx.purchase.findFirst({
+        where: { entitlementId: entitlement.id, stripeSessionId: null },
+        select: { id: true },
+      });
+      if (!existingGrant) {
+        await tx.purchase.create({
+          data: {
+            userId: user.id,
+            bundleId: pass.id,
+            entitlementId: entitlement.id,
+            amountTotalCents: 0,
+            metadata: {
+              kind: "upgrade-grant",
+              userId: user.id,
+              bundleKey: BUNDLE_KEY,
+            },
+          },
+        });
+      }
+    });
     return { granted: true };
   }
 

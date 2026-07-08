@@ -78,3 +78,73 @@ export function tipFromCheckoutSession(
     currency: session.currency ?? "usd",
   };
 }
+
+// The Stripe-derived audit fields for a Purchase row, extracted from a completed
+// Checkout Session. Owner (projectId/bundleId), userId, and entitlementId are the
+// caller's to add (they come from the grant, not the session).
+export interface PurchaseFields {
+  stripeSessionId: string;
+  stripePaymentIntentId: string | null;
+  stripeChargeId: string | null;
+  stripeCustomerId: string | null;
+  stripePriceId: string | null;
+  stripeProductId: string | null;
+  amountTotalCents: number;
+  amountDiscountCents: number;
+  stripePromotionCodeId: string | null;
+  currency: string;
+  // Session metadata snapshot — our own ids only (userId/projectId/kind/bundleKey/
+  // stripePriceId); never customer PII. Omitted when the session carries none.
+  metadata?: Record<string, string>;
+}
+
+// Normalize a Stripe expandable field (id string, or an object with an `id`, or
+// null) to its id string.
+function stripeId(
+  value: string | { id: string } | null | undefined,
+): string | null {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && typeof value.id === "string") {
+    return value.id;
+  }
+  return null;
+}
+
+/**
+ * Extract the Stripe-derived audit fields for a Purchase row from a completed
+ * Checkout Session, or `null` when the session has no usable `amount_total`
+ * (`number | null` in Stripe's types — a paid payment-mode session with a null
+ * total is anomalous; the caller logs and records NO Purchase rather than a corrupt
+ * $0 row, which would also zero that buyer's grandfathering credit). Pure: no db,
+ * no Stripe calls. The caller owns the `mode === "payment"` guard (a subscription-
+ * mode session's money lands in an Invoice, not a Purchase).
+ *
+ * `stripeChargeId` is null here (not on the bare session; correlation stays on
+ * `payment_intent`) and `stripeProductId`/`stripePromotionCodeId` are null day-1
+ * (columns exist for phase 2). `stripePriceId` comes from the metadata the
+ * course checkout stamps (Pass/upgrade use inline price_data → no price id).
+ */
+export function purchaseFromCheckoutSession(
+  session: Stripe.Checkout.Session,
+): PurchaseFields | null {
+  const amountTotalCents = session.amount_total;
+  if (typeof amountTotalCents !== "number") return null;
+
+  const rawPriceId = session.metadata?.stripePriceId;
+  const stripePriceId =
+    typeof rawPriceId === "string" && rawPriceId.length > 0 ? rawPriceId : null;
+
+  return {
+    stripeSessionId: session.id,
+    stripePaymentIntentId: stripeId(session.payment_intent),
+    stripeChargeId: null,
+    stripeCustomerId: stripeId(session.customer),
+    stripePriceId,
+    stripeProductId: null,
+    amountTotalCents,
+    amountDiscountCents: session.total_details?.amount_discount ?? 0,
+    stripePromotionCodeId: null,
+    currency: session.currency ?? "usd",
+    ...(session.metadata ? { metadata: session.metadata } : {}),
+  };
+}
