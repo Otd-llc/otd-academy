@@ -37,6 +37,7 @@ import { FundPowerHeat } from "./diagrams/FundPowerHeat";
 import { FundResistorEseries } from "./diagrams/FundResistorEseries";
 import { FundVoltageDivider } from "./diagrams/FundVoltageDivider";
 import { FundDecouplingCap } from "./diagrams/FundDecouplingCap";
+import { FundDiodeLed } from "./diagrams/FundDiodeLed";
 
 export type DiagramComponent = FC<{ caption?: string }>;
 
@@ -76,4 +77,5 @@ export const DIAGRAM_COMPONENTS: Record<string, DiagramComponent> = {
   "/guide-diagrams/fund-resistor-eseries.svg": FundResistorEseries,
   "/guide-diagrams/fund-voltage-divider.svg": FundVoltageDivider,
   "/guide-diagrams/fund-decoupling-cap.svg": FundDecouplingCap,
+  "/guide-diagrams/fund-diode-led.svg": FundDiodeLed,
 };
