@@ -34,6 +34,9 @@ import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { WindowedPartModel } from "@/components/guide/WindowedPartModel";
 import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
 import { DIAGRAM_COMPONENTS } from "@/components/guide/diagram-registry";
+import katex from "katex";
+import { EMBED_ISLANDS } from "@/components/tools/embed-islands";
+import { getTool } from "@/lib/tools/registry";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
 import { CaptureLauncher } from "@/components/guide/CaptureLauncher";
 import { PartMpnLink } from "@/components/guide/PartMpnLink";
@@ -1292,6 +1295,56 @@ function GuideBlock({
             <span>{block.label}</span>
           </a>
         </div>
+      );
+    }
+
+    case "calculator": {
+      // Embed the live /tools calculator island inline. An unknown slug (not in
+      // EMBED_ISLANDS) skips silently — same resilience rule as image/partModel.
+      // The tools registry supplies the title + a link to the full calculator.
+      const Island = EMBED_ISLANDS[block.slug];
+      if (!Island) return null;
+      const tool = getTool(block.slug);
+      const label = tool ? (block.caption ?? tool.title) : block.caption;
+      return (
+        <figure className="my-6">
+          <div className="rounded border border-panel-border bg-deep-space/40 p-4">
+            <Island />
+          </div>
+          {label ? (
+            <figcaption className="mt-2 text-center font-mono text-xs uppercase tracking-wider text-muted">
+              {tool ? (
+                <a
+                  href={`/tools/${block.slug}`}
+                  className="transition-colors hover:text-command-gold"
+                >
+                  {label} ↗
+                </a>
+              ) : (
+                label
+              )}
+            </figcaption>
+          ) : null}
+        </figure>
+      );
+    }
+
+    case "math": {
+      // KaTeX rendered server-side to static HTML (no client JS). The tex is
+      // admin-authored, so the markup is trusted. Display math centers and scrolls
+      // if it overflows a narrow column; inline math flows in the line.
+      const display = block.display ?? true;
+      const html = katex.renderToString(block.tex, {
+        displayMode: display,
+        throwOnError: false,
+      });
+      return display ? (
+        <div
+          className="my-5 overflow-x-auto text-center text-text"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      ) : (
+        <span className="text-text" dangerouslySetInnerHTML={{ __html: html }} />
       );
     }
 

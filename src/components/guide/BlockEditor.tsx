@@ -21,6 +21,7 @@ import {
 } from "@/components/icons";
 import { TableBlockEditor } from "@/components/guide/TableBlockEditor";
 import { moveWithin } from "@/lib/guide-table";
+import { TOOLS } from "@/lib/tools/registry";
 import {
   inputClass as fieldInputClass,
   helpClass,
@@ -105,6 +106,10 @@ export function BlockEditor({
       return <VendorCtaEditor block={block} onChange={onChange} {...err} />;
     case "kit":
       return <KitEditor block={block} onChange={onChange} {...err} />;
+    case "calculator":
+      return <CalculatorEditor block={block} onChange={onChange} {...err} />;
+    case "math":
+      return <MathEditor block={block} onChange={onChange} {...err} />;
     default: {
       // Exhaustiveness guard: if a new block.type is added to the schema and
       // not handled above, this line fails to typecheck.
@@ -112,6 +117,113 @@ export function BlockEditor({
       return _exhaustive;
     }
   }
+}
+
+// ─── calculator ───────────────────────────────────────────────────────────
+// Picks which /tools calculator embeds inline. The slug list is the tools
+// registry (pure data, no calculator bundle pulled into the editor); the live
+// island + title/link resolve at render (GuideBlocks guards via EMBED_ISLANDS).
+function CalculatorEditor({
+  block,
+  onChange,
+  hasError,
+  errorId,
+}: {
+  block: Extract<ContentBlock, { type: "calculator" }>;
+  onChange: (next: ContentBlock) => void;
+} & BlockErrorProps) {
+  const id = useId();
+  return (
+    <div className="space-y-2">
+      <div>
+        <label className={labelClass} htmlFor={`${id}-slug`}>
+          Calculator
+        </label>
+        <select
+          id={`${id}-slug`}
+          className={selectClass}
+          value={block.slug}
+          onChange={(e) => onChange({ ...block, slug: e.target.value })}
+          {...ariaErrorProps({ hasError, errorId })}
+        >
+          <option value="">Select a calculator...</option>
+          {TOOLS.map((t) => (
+            <option key={t.slug} value={t.slug}>
+              {t.title}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className={labelClass} htmlFor={`${id}-caption`}>
+          Caption (optional)
+        </label>
+        <input
+          id={`${id}-caption`}
+          className={inputClass}
+          value={block.caption ?? ""}
+          onChange={(e) =>
+            onChange({ ...block, caption: e.target.value || undefined })
+          }
+          placeholder="Optional caption shown under the calculator"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── math ───────────────────────────────────────────────────────────────────
+// A KaTeX formula: the LaTeX source, a display/inline toggle, and an optional
+// plain-ASCII fallback used by the PDF (react-pdf can't run KaTeX).
+function MathEditor({
+  block,
+  onChange,
+  hasError,
+  errorId,
+}: {
+  block: Extract<ContentBlock, { type: "math" }>;
+  onChange: (next: ContentBlock) => void;
+} & BlockErrorProps) {
+  const id = useId();
+  return (
+    <div className="space-y-2">
+      <div>
+        <label className={labelClass} htmlFor={`${id}-tex`}>
+          LaTeX (KaTeX)
+        </label>
+        <input
+          id={`${id}-tex`}
+          className={inputClass}
+          value={block.tex}
+          onChange={(e) => onChange({ ...block, tex: e.target.value })}
+          placeholder="V = IR"
+          {...ariaErrorProps({ hasError, errorId })}
+        />
+      </div>
+      <label className="flex items-center gap-2 text-sm text-muted">
+        <input
+          type="checkbox"
+          checked={block.display ?? true}
+          onChange={(e) => onChange({ ...block, display: e.target.checked })}
+        />
+        Display (centered block equation)
+      </label>
+      <div>
+        <label className={labelClass} htmlFor={`${id}-plain`}>
+          Plain-text fallback (PDF, optional)
+        </label>
+        <input
+          id={`${id}-plain`}
+          className={inputClass}
+          value={block.plain ?? ""}
+          onChange={(e) =>
+            onChange({ ...block, plain: e.target.value || undefined })
+          }
+          placeholder="V = I x R"
+        />
+      </div>
+    </div>
+  );
 }
 
 // ─── bomTable ─────────────────────────────────────────────────────────────

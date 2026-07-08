@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 
+import { OhmsLawCalculator } from "./OhmsLawCalculator";
 import { LipoRuntimeCalculator } from "./LipoRuntimeCalculator";
 import { Ws2812PowerCalculator } from "./Ws2812PowerCalculator";
 import { LedResistorCalculator } from "./LedResistorCalculator";
@@ -14,6 +15,7 @@ import { BatteryEnergyCalculator } from "./BatteryEnergyCalculator";
 // Mirrors the BODIES map in tools/[slug]/page.tsx but island-only, so an
 // embedded widget is just the calculator. A slug in TOOLS missing here 404s.
 export const EMBED_ISLANDS: Record<string, ComponentType> = {
+  "ohms-law": OhmsLawCalculator,
   "lipo-battery-runtime": LipoRuntimeCalculator,
   "ws2812-power-supply": Ws2812PowerCalculator,
   "led-series-resistor": LedResistorCalculator,

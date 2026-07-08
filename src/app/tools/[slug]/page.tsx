@@ -8,6 +8,7 @@ import { notFound } from "next/navigation";
 
 import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/PageHeader";
+import { OhmsLawBody } from "@/components/tools/OhmsLawBody";
 import { LipoRuntimeBody } from "@/components/tools/LipoRuntimeBody";
 import { Ws2812PowerBody } from "@/components/tools/Ws2812PowerBody";
 import { LedResistorBody } from "@/components/tools/LedResistorBody";
@@ -30,6 +31,7 @@ type Params = { slug: string };
 
 // Slug → prose body. A slug in TOOLS without a body here 404s (defensive).
 const BODIES: Record<string, () => ReactNode> = {
+  "ohms-law": OhmsLawBody,
   "lipo-battery-runtime": LipoRuntimeBody,
   "ws2812-power-supply": Ws2812PowerBody,
   "led-series-resistor": LedResistorBody,

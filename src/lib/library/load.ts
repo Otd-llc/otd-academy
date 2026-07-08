@@ -3,7 +3,7 @@
 // and the index can't drift on the gating. Returns null when missing/unpublished
 // so the route 404s.
 import { db } from "@/lib/db";
-import { byNarrativeOrder } from "@/lib/library/narrative-order";
+import { byClusterThenOrdinal, bucketByCluster } from "@/lib/library/cluster-order";
 
 export async function loadPublicMiniLesson(slug: string) {
   return db.miniLesson.findFirst({
@@ -60,27 +60,42 @@ export async function loadProjectMiniLessons(projectId: string) {
   return lessons.sort((a, b) => a.title.localeCompare(b.title));
 }
 
+// The flat list of every published, PUBLIC lesson (feeds the landing's ItemList
+// JSON-LD over ALL lessons). Cluster-MAJOR: registry `order` then `clusterOrdinal`
+// (byClusterThenOrdinal), so the two clusters group instead of interleave. The
+// `updatedAt desc` DB order only sets the tie-break among equal-rank rows (the
+// "other" bucket, all clusterOrdinal 0) — freshest-first there.
 export async function listPublishedMiniLessons() {
-  // Query newest-first so any lesson not yet placed in the narrative arc falls to
-  // the end freshest-first; byNarrativeOrder then lifts the curated arc to the top.
   const rows = await db.miniLesson.findMany({
     where: { published: true, accessTier: "PUBLIC" },
     orderBy: { updatedAt: "desc" },
-    select: { slug: true, title: true, summary: true, updatedAt: true },
+    select: { slug: true, title: true, summary: true, updatedAt: true, cluster: true, clusterOrdinal: true },
   });
-  return byNarrativeOrder(rows);
+  return byClusterThenOrdinal(rows);
 }
 
-// Every published, PUBLIC lesson WITH its content blocks, in curated narrative
-// order (see narrative-order.ts), for the combined "Field Guide" PDF. Distinct
-// from the index loader (which omits content) — both share the same arc order.
-export async function loadPublicLibraryForBook() {
-  // createdAt asc is the fallback for any lesson not yet placed in the narrative
-  // arc (authoring order at the back of the book); byNarrativeOrder lifts the
-  // curated arc to the front so the field guide reads as one coherent progression.
+// Published, PUBLIC lessons grouped into per-cluster buckets (registry order) for
+// the clustered landing, plus a trailing "other" bucket for null/unknown-cluster
+// rows that §4.1 MUST render so a null-cluster lesson never silently disappears.
+export async function listPublishedByCluster() {
   const rows = await db.miniLesson.findMany({
     where: { published: true, accessTier: "PUBLIC" },
-    orderBy: { createdAt: "asc" },
+    orderBy: { updatedAt: "desc" },
+    select: { slug: true, title: true, summary: true, updatedAt: true, cluster: true, clusterOrdinal: true },
+  });
+  return bucketByCluster(rows);
+}
+
+// Published, PUBLIC lessons WITH content blocks for a Field Guide PDF.
+//  • With a `cluster` arg → that cluster's book, DB-sorted by clusterOrdinal asc
+//    (scoped to one cluster, so a bare column sort is correct).
+//  • No arg → the combined book: cluster-MAJOR via byClusterThenOrdinal so the
+//    clusters group (never interleaved). `cluster`/`clusterOrdinal` are always
+//    selected so the combined path has the fields to group + drive part dividers.
+export async function loadPublicLibraryForBook(cluster?: string) {
+  const rows = await db.miniLesson.findMany({
+    where: { published: true, accessTier: "PUBLIC", ...(cluster ? { cluster } : {}) },
+    orderBy: cluster ? { clusterOrdinal: "asc" } : { updatedAt: "desc" },
     select: {
       slug: true,
       title: true,
@@ -88,7 +103,9 @@ export async function loadPublicLibraryForBook() {
       byline: true,
       updatedAt: true,
       contentBlocks: true,
+      cluster: true,
+      clusterOrdinal: true,
     },
   });
-  return byNarrativeOrder(rows);
+  return cluster ? rows : byClusterThenOrdinal(rows);
 }

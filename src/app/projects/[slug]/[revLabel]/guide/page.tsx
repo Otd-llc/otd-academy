@@ -31,6 +31,7 @@ import {
 import { auth } from "@/auth";
 import { guideCardView } from "@/lib/guide-view";
 import { resolveLessonAccess } from "@/lib/public-access";
+import { loadProjectMiniLessons } from "@/lib/library/load";
 import { hasProjectEntitlement } from "@/lib/entitlements";
 import { WaitlistForm } from "@/components/learn/WaitlistForm";
 import { BuyButton } from "@/components/learn/BuyButton";
@@ -192,6 +193,49 @@ export async function generateMetadata({
   };
 }
 
+// The "concepts behind this build" reading list: the published PUBLIC Library
+// mini-lessons linked to this project (the ProjectMiniLesson spine), rendered as
+// crawlable /library links. The inbound half of the internal-linking spine — it
+// gives a build's foundational concepts a home AND passes link equity into the
+// Library. Rendered in the two crawlable surfaces (PUBLIC main hub + PREMIUM
+// sales view); a FREE course's hub redirects anonymous visitors, so it can't
+// surface here. Renders nothing when the project has no linked lessons.
+function ConceptsBehindThisBuild({
+  lessons,
+}: {
+  lessons: { slug: string; title: string; summary: string | null }[];
+}) {
+  if (lessons.length === 0) return null;
+  return (
+    <section className="mt-10">
+      <h2 className="title-section">Concepts behind this build</h2>
+      <p className="mt-3 max-w-2xl font-serif text-base leading-relaxed text-muted">
+        The free reference guides behind this board: the electronics ideas it
+        assumes, each a short read. No account needed.
+      </p>
+      <ul className="mt-5 grid gap-2 sm:grid-cols-2">
+        {lessons.map((l) => (
+          <li key={l.slug}>
+            <Link
+              href={`/library/${l.slug}`}
+              className="group flex h-full flex-col gap-1 rounded border border-panel-border bg-deep-space/40 px-4 py-3 transition-colors hover:border-command-gold/50"
+            >
+              <span className="font-mono text-sm text-text group-hover:text-command-gold">
+                {l.title} →
+              </span>
+              {l.summary ? (
+                <span className="font-serif text-xs leading-snug text-muted">
+                  {l.summary}
+                </span>
+              ) : null}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export default async function GuideHubPage({
   params,
 }: {
@@ -303,6 +347,11 @@ export default async function GuideHubPage({
   ) {
     redirect("/sign-in");
   }
+
+  // Inbound internal-link spine: the published PUBLIC Library lessons linked to
+  // this project. Empty for most courses (renders nothing); populated ones show a
+  // crawlable "concepts behind this build" reading list in the surfaces below.
+  const conceptLessons = await loadProjectMiniLessons(project.id);
 
   // A PREMIUM project's hub, viewed by anyone who isn't an admin or already
   // entitled, is a PUBLIC sales page (not the author/learner roll-up): the
@@ -503,6 +552,11 @@ export default async function GuideHubPage({
             })}
           </ul>
         </section>
+
+        {/* Crawlable inbound spine — the concepts this premium build rests on.
+            Anonymous crawlers get this sales view, so the /library links live
+            here (not the main hub, which this branch replaces for them). */}
+        <ConceptsBehindThisBuild lessons={conceptLessons} />
       </main>
     );
   }
@@ -793,6 +847,11 @@ export default async function GuideHubPage({
         )}
       </section>
       )}
+
+      {/* Crawlable inbound spine — foundational Library concepts for this build.
+          On a PUBLIC course this main hub is anonymous-readable, so these
+          /library links are indexed. */}
+      <ConceptsBehindThisBuild lessons={conceptLessons} />
 
       {tools.length > 0 ? (
         <section className="mt-10">

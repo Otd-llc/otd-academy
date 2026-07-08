@@ -33,11 +33,12 @@ import type { ContentBlock } from "@/lib/schemas/guide";
 import { parseInlineTerms } from "@/lib/inline-terms";
 import { BRANDMARK_PATH, BRANDMARK_VIEWBOX } from "@/lib/pdf/certificate-content";
 import type { ResolvedImage } from "@/lib/pdf/library-images";
-import {
-  FIELD_GUIDE_INTRO,
-  FIELD_GUIDE_OUTRO,
-  FIELD_GUIDE_PARTS,
-  type FieldGuidePart,
+import { getTool } from "@/lib/tools/registry";
+import type {
+  FieldGuidePart,
+  FieldGuideIntro as FieldGuideIntroData,
+  FieldGuideOutro as FieldGuideOutroData,
+  FieldGuideChrome,
 } from "@/lib/pdf/field-guide-chrome";
 
 export type LibraryPdfLesson = {
@@ -504,6 +505,35 @@ function Block({ block, images }: { block: ContentBlock; images: Map<string, Res
         </Text>
       );
 
+    case "calculator": {
+      // react-pdf can't run an interactive calculator, so degrade to a static
+      // reference: the tool title, its one-line summary, and the live URL.
+      // getTool returns undefined for an unknown slug → fall back to the slug.
+      const tool = getTool(block.slug);
+      const title = tool?.title ?? block.slug;
+      return (
+        <View style={s.deep} wrap={false}>
+          <Text style={s.deepKicker}>Calculator · {title}</Text>
+          {tool?.summary ? <Text style={s.calloutBody}>{tool.summary}</Text> : null}
+          <Text style={s.calloutBody}>
+            <Link src={`https://academy.onethousanddrones.com/tools/${block.slug}`} style={s.link}>
+              {`Interactive calculator: academy.onethousanddrones.com/tools/${block.slug}`}
+            </Link>
+          </Text>
+          {block.caption ? <Text style={s.caption}>{block.caption}</Text> : null}
+        </View>
+      );
+    }
+
+    case "math":
+      // react-pdf can't run KaTeX, so render the plain-ASCII fallback (or the raw
+      // tex if none). Centered for a display equation, inline-left otherwise.
+      return (
+        <Text style={{ ...s.prose, textAlign: block.display === false ? "left" : "center" }}>
+          {block.plain ?? block.tex}
+        </Text>
+      );
+
     default:
       return null;
   }
@@ -566,15 +596,13 @@ function LessonHeader({ lesson, index }: { lesson: LibraryPdfLesson; index?: num
 }
 
 // ── field-guide chrome components (book-only) ───────────────────────────────
-// slug → the part it opens, so the divider renders before that guide.
-const partByStartSlug = new Map(FIELD_GUIDE_PARTS.map((p) => [p.startsAtSlug, p]));
-
 // Inline part divider, rendered inside the following guide's wrap={false} opener
-// so the band never separates from the guide it introduces.
-function PartDivider({ part }: { part: FieldGuidePart }) {
+// so the band never separates from the guide it introduces. `total` is the book's
+// part count (per-cluster or the renumbered combined set).
+function PartDivider({ part, total }: { part: FieldGuidePart; total: number }) {
   return (
     <View style={s.partBand}>
-      <Text style={s.partEyebrow}>{`Part ${part.n} of ${FIELD_GUIDE_PARTS.length}`}</Text>
+      <Text style={s.partEyebrow}>{`Part ${part.n} of ${total}`}</Text>
       <Text style={s.partTitle}>{part.title}</Text>
       <Text style={s.partBlurb}>{part.blurb}</Text>
     </View>
@@ -582,17 +610,17 @@ function PartDivider({ part }: { part: FieldGuidePart }) {
 }
 
 // Front matter — "how to read this volume", set up before the guides begin.
-function FieldGuideIntro() {
+function FieldGuideIntro({ intro }: { intro: FieldGuideIntroData }) {
   return (
     <Page size="A4" style={s.page}>
       <RunningHeader section="Start Here" />
       <PageFooter />
       <View style={{ marginTop: 8 }}>
-        <Text style={s.eyebrow}>{FIELD_GUIDE_INTRO.eyebrow}</Text>
-        <Text style={s.tocTitle}>{FIELD_GUIDE_INTRO.title}</Text>
+        <Text style={s.eyebrow}>{intro.eyebrow}</Text>
+        <Text style={s.tocTitle}>{intro.title}</Text>
       </View>
       <View style={s.matterBody}>
-        {FIELD_GUIDE_INTRO.paras.map((p, i) => (
+        {intro.paras.map((p, i) => (
           <Text key={i} style={s.matterPara}>{inlineSpans(p, `in${i}`)}</Text>
         ))}
       </View>
@@ -601,19 +629,19 @@ function FieldGuideIntro() {
   );
 }
 
-// Back matter — recap + the one build CTA (course waitlist; generic-safe).
-function FieldGuideOutro() {
-  const { cta } = FIELD_GUIDE_OUTRO;
+// Back matter — recap + the one build CTA (course path; generic-safe).
+function FieldGuideOutro({ outro }: { outro: FieldGuideOutroData }) {
+  const { cta } = outro;
   return (
     <Page size="A4" style={s.page}>
       <RunningHeader section="Where This Goes" />
       <PageFooter />
       <View style={{ marginTop: 8 }}>
-        <Text style={s.eyebrow}>{FIELD_GUIDE_OUTRO.eyebrow}</Text>
-        <Text style={s.tocTitle}>{FIELD_GUIDE_OUTRO.title}</Text>
+        <Text style={s.eyebrow}>{outro.eyebrow}</Text>
+        <Text style={s.tocTitle}>{outro.title}</Text>
       </View>
       <View style={s.matterBody}>
-        {FIELD_GUIDE_OUTRO.paras.map((p, i) => (
+        {outro.paras.map((p, i) => (
           <Text key={i} style={s.matterPara}>{inlineSpans(p, `out${i}`)}</Text>
         ))}
       </View>
@@ -667,14 +695,19 @@ export function FieldGuidePdf({
   lessons,
   images,
   reviewed,
+  chrome,
 }: {
   lessons: LibraryPdfLesson[];
   images: Map<string, ResolvedImage>;
   /** A pre-formatted "month year" stamp (computed in the route; no Date here). */
   reviewed: string;
+  /** Cluster (or combined) chrome: cover/header identity, intro/outro, parts. */
+  chrome: FieldGuideChrome;
 }) {
+  // slug → the part it opens, so the divider renders before that guide's opener.
+  const partByStartSlug = new Map(chrome.parts.map((p) => [p.startsAtSlug, p]));
   return (
-    <Document title="OTD Academy Field Guide · The EEG & BCI Reference Library" author="One Thousand Drones Academy">
+    <Document title={chrome.documentTitle} author="One Thousand Drones Academy">
       {/* cover — F1 split: big Saira volume numeral · title block · faint
           corner brandmark watermark (no header/footer on the cover) */}
       <Page size="A4" style={s.page}>
@@ -682,13 +715,13 @@ export function FieldGuidePdf({
           <Brandmark size={230} opacity={0.08} />
         </View>
         <View style={s.coverSplit}>
-          <Text style={s.coverBig}>01</Text>
+          <Text style={s.coverBig}>{chrome.coverNumeral}</Text>
           <View style={s.coverRight}>
             <Text style={s.coverVolEyebrow}>Reference Vol.</Text>
             <Text style={s.coverTitle}>{`Field\nGuide`}</Text>
             <View style={s.coverRule} />
             <Text style={s.coverMeta}>
-              {`EEG & BCI · ${lessons.length} Guides`}
+              {`${chrome.coverLabel} · ${lessons.length} Guides`}
               {"\n"}
               {`Reviewed ${reviewed}`}
             </Text>
@@ -722,7 +755,7 @@ export function FieldGuidePdf({
       </Page>
 
       {/* front matter — how to read this volume, before the guides begin */}
-      <FieldGuideIntro />
+      <FieldGuideIntro intro={chrome.intro} />
 
       {/* All guides flow continuously in one page stream. Each opens with a soft
           break: the wrap={false} opener carries minPresenceAhead, so a new guide
@@ -734,14 +767,14 @@ export function FieldGuidePdf({
           guide opens a new part) rides INSIDE the opener group so the two never
           separate. */}
       <Page size="A4" style={s.page}>
-        <RunningHeader section="EEG & BCI Reference Library" />
+        <RunningHeader section={chrome.runningHeader} />
         <PageFooter />
         {lessons.map((lesson, i) => {
           const part = partByStartSlug.get(lesson.slug);
           return (
             <View key={lesson.slug} style={i > 0 ? s.lessonFollow : undefined}>
               <View wrap={false} minPresenceAhead={part ? 340 : 260}>
-                {part ? <PartDivider part={part} /> : null}
+                {part ? <PartDivider part={part} total={chrome.parts.length} /> : null}
                 <LessonHeader lesson={lesson} index={i + 1} />
               </View>
               <View style={{ marginTop: 4 }}>
@@ -754,7 +787,7 @@ export function FieldGuidePdf({
       </Page>
 
       {/* back matter — recap + the one build CTA */}
-      <FieldGuideOutro />
+      <FieldGuideOutro outro={chrome.outro} />
     </Document>
   );
 }

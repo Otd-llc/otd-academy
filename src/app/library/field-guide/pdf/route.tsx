@@ -12,6 +12,7 @@ import { filterLibraryBlocks } from "@/lib/library/block-allowlist";
 import { resolveLibraryImages, type ResolvedImage } from "@/lib/pdf/library-images";
 import { registerLibraryFonts } from "@/lib/pdf/library-fonts";
 import { FieldGuidePdf, type LibraryPdfLesson } from "@/lib/pdf/library-pdf";
+import { COMBINED_FIELD_GUIDE_CHROME } from "@/lib/pdf/field-guide-chrome";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,7 +46,12 @@ export async function GET() {
 
   registerLibraryFonts();
   const buffer = await renderToBuffer(
-    <FieldGuidePdf lessons={lessons} images={images} reviewed={reviewed} />,
+    <FieldGuidePdf
+      lessons={lessons}
+      images={images}
+      reviewed={reviewed}
+      chrome={COMBINED_FIELD_GUIDE_CHROME}
+    />,
   );
 
   return new Response(new Uint8Array(buffer), {

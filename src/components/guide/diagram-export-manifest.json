@@ -160,5 +160,77 @@
     "image": "/guide-diagrams/bci-loop.webp",
     "alt": "Every brain-computer interface is the same loop: measure the brain signal, decode it into an intent, issue a command, and a device acts on it. Then feedback closes the loop: the user sees the result and adapts, getting better at producing clean, classifiable brain states. That feedback return is why a BCI is as much a learned skill as it is hardware.",
     "hash": "a38e88be1d66"
+  },
+  {
+    "basename": "fund-prefix-ladder",
+    "image": "/guide-diagrams/fund-prefix-ladder.webp",
+    "alt": "The metric prefix ladder shown as a slider, each stop a factor of a thousand from the last: pico (p, ten to the minus twelve); nano (n, ten to the minus nine, as in a 100 nF capacitor); micro (the Greek mu, ten to the minus six, as in a 4.7 microfarad capacitor); milli (m, ten to the minus three); the base unit (ten to the zero); kilo (k, ten to the third, as in a 5.1 kilohm resistor); and mega (M, ten to the sixth). Reading the prefix on a part value places it on this scale.",
+    "hash": "ed52b9aada27"
+  },
+  {
+    "basename": "fund-vir-relationship",
+    "image": "/guide-diagrams/fund-vir-relationship.webp",
+    "alt": "Voltage, current, and resistance drawn as a crowd at a doorway. On the left, a crowd of charge is pushed forward: that push is the voltage. In the middle, a gold doorway sets how many can pass at once: the width of that doorway is the resistance. On the right, the people who get through per second stream away as the current. A wider door (less resistance) lets more current flow for the same push; a narrower door throttles it.",
+    "hash": "2a8323508ab6"
+  },
+  {
+    "basename": "fund-ohms-wheel",
+    "image": "/guide-diagrams/fund-ohms-wheel.webp",
+    "alt": "Ohm's law and electrical power drawn as two mnemonic triangles. In the left triangle, V sits on top with I and R below it: cover the quantity you want and read the rest, so V equals I times R, I equals V divided by R, and R equals V divided by I. The right triangle puts P on top with V and I below, giving power P equals V times I. A letter on top is a product; a letter on the bottom is a division.",
+    "hash": "b6f217234e35"
+  },
+  {
+    "basename": "fund-power-heat",
+    "image": "/guide-diagrams/fund-power-heat.webp",
+    "alt": "A resistor turning power into heat. Current flows through a resistor; the power it dissipates, P equals I squared times R, leaves as heat, drawn as wavy plumes rising off the resistor, and a thermometer beside it reads warm. That heat is what a part's power rating limits: stay under the rating and it runs cool, exceed it and the part overheats.",
+    "hash": "4acd28c42f56"
+  },
+  {
+    "basename": "fund-resistor-eseries",
+    "image": "/guide-diagrams/fund-resistor-eseries.webp",
+    "alt": "Resistor tolerance shown as two number lines. Both resistors are marked 4.7 kilohms, but one is a ±5% part and the other a ±1% part. The ±5% part is only guaranteed to fall in a wide band, roughly 4.47 to 4.94 kilohms; the ±1% part is held to a much narrower band, 4.65 to 4.75 kilohms. The marked value is the centre of the band, and the tolerance is how wide that band is: a tighter tolerance costs more and buys a narrower guaranteed range.",
+    "hash": "22f2000c2e36"
+  },
+  {
+    "basename": "fund-voltage-divider",
+    "image": "/guide-diagrams/fund-voltage-divider.webp",
+    "alt": "A voltage divider worked with real numbers. A 5 volt input feeds two resistors in series, R1 of 10 kilohms on top and R2 of 10 kilohms on the bottom, with the tap between them going to ground. The output at the tap is Vout equals Vin times R2 divided by R1 plus R2, which is 5 times 10k over 20k, equal to one half of 5 volts, or 2.5 volts. Equal resistors halve the input.",
+    "hash": "623fe57e8b79"
+  },
+  {
+    "basename": "fund-decoupling-cap",
+    "image": "/guide-diagrams/fund-decoupling-cap.webp",
+    "alt": "Two supply-rail traces showing what a decoupling capacitor does. The top trace, labelled no cap, is a supply rail that dips sharply every time the chip draws a burst of current. The bottom trace, labelled with cap, stays nearly flat through the same current spikes, because the capacitor stores charge and hands it over locally the instant the chip needs it. A capacitor steadies a rail, which is why a decoupling cap sits beside every chip's power pin.",
+    "hash": "7e76afdd4191"
+  },
+  {
+    "basename": "fund-diode-led",
+    "image": "/guide-diagrams/fund-diode-led.webp",
+    "alt": "Reverse-polarity protection with a series diode. In the top case the supply is connected the correct way round, positive in: the diode is forward-biased, current flows through it, and the load is powered. In the bottom case the supply is reversed, negative in: the same diode is now reverse-biased and blocks, shown by a red cross, so no current reaches the load. A diode passes current one way only, so a series diode on the power input protects the board from a backwards connection.",
+    "hash": "bbfbdb0e1112"
+  },
+  {
+    "basename": "fund-rc-filter",
+    "image": "/guide-diagrams/fund-rc-filter.webp",
+    "alt": "A low-pass filter passing low frequencies and blocking high ones. In the top row a slow, low-frequency wave goes in and comes out at nearly full amplitude: it passes. In the bottom row a fast, high-frequency wave of the same size goes in and comes out much smaller: it is attenuated. A capacitor reacts to how fast a signal changes, so an RC filter keeps the lows and rejects the highs, with the changeover at the cutoff frequency fc equals one over two-pi R C.",
+    "hash": "6e212afd41f2"
+  },
+  {
+    "basename": "fund-grounds-rails",
+    "image": "/guide-diagrams/fund-grounds-rails.webp",
+    "alt": "Two ways the return current gets back to the supply. On the left, over a ground plane, the current fans out from the chip across the copper along many short parallel paths, so the plane's impedance stays tiny. On the right, over a single thin trace, the same current is forced single-file down one narrow path, adding resistance and inductance and letting parts disagree on ground. A plane is a sheet and a trace is a straw, which is why a poured ground plane beats a thin trace.",
+    "hash": "8a6a35c48da2"
+  },
+  {
+    "basename": "fund-schematic-anatomy",
+    "image": "/guide-diagrams/fund-schematic-anatomy.webp",
+    "alt": "A key of common schematic symbols with their reference-designator letters and names. A resistor's zigzag is designated R. A capacitor's two plates are C. A diode's triangle and bar are D. An inductor's series of humps is L. A rectangular integrated circuit is U. The symbol tells you what the part is, and the reference-designator letter names its family so you can match the drawing to the same part on the board.",
+    "hash": "a6c878a1ceac"
+  },
+  {
+    "basename": "fund-datasheet-anatomy",
+    "image": "/guide-diagrams/fund-datasheet-anatomy.webp",
+    "alt": "A datasheet specification table for an LDO regulator, with columns for parameter, minimum, typical, maximum, and unit. Input voltage runs from a 2.5 volt minimum to a 6.0 volt absolute maximum. The output is 3.3 volts typical. Output current is 600 milliamps maximum. Dropout is 250 millivolts typical and 400 millivolts maximum. Junction temperature runs from minus 40 to 125 degrees Celsius. Read across each row: the typical column is the value you design around, and the maximum column is the absolute limit you never cross.",
+    "hash": "5ec081d71db4"
   }
 ]

@@ -71,6 +71,23 @@ export const TOOLS: ToolMeta[] = [
     modified: "2026-06-29",
   },
   {
+    slug: "ohms-law",
+    title: "Ohm's law calculator (V, I, R, and power)",
+    hero: "Ohm's law",
+    h1: "How do I use Ohm's law (V = IR)?",
+    summary:
+      "Solve Ohm's law for voltage, current, or resistance, and get the power. Enter any two of V, I, R. Worked from a real ESP32 board's indicator LED.",
+    keywords: [
+      "ohms law calculator",
+      "v = ir calculator",
+      "voltage current resistance calculator",
+      "ohms law power calculator",
+    ],
+    relatedCourses: ["l1-01-wroom-breakout", "l2-04-power-led-driver", "l1-05-internal-adc"],
+    published: "2026-07-07",
+    modified: "2026-07-07",
+  },
+  {
     slug: "led-series-resistor",
     title: "LED series resistor calculator (Ω from supply, Vf, current)",
     hero: "LED series resistor",

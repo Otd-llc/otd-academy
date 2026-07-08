@@ -1133,6 +1133,8 @@ model MiniLesson {
   seoDescription String?
   byline         String? // "last verified vs vX.Y on <date>" + author — first-hand-value signal
   lastVerifiedAt DateTime?
+  cluster        String? // Library cluster / Field Guide key (LIBRARY_CLUSTERS); null = unclustered "other" bucket
+  clusterOrdinal Int                 @default(0) // order WITHIN the cluster — single source of truth for within-cluster order
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
   createdById    String

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import "./globals.css";
+import "katex/dist/katex.min.css";
 import { auth, signOut } from "@/auth";
 import { db } from "@/lib/db";
 import { env } from "@/env";
