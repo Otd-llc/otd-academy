@@ -67,6 +67,17 @@ async function resolve(sessionId: string | undefined): Promise<Confirmation> {
     typeof session.amount_total === "number" ? session.amount_total : null;
   const meta = session.metadata ?? {};
 
+  if (meta.kind === "subscription") {
+    // A subscription session has no amount_total (billed via invoice) — the amount
+    // block simply won't render.
+    return {
+      amountCents,
+      body: "Your subscription is active. Every course is unlocked. Start any board whenever you're ready.",
+      cta: { label: "Start learning", href: "/learn" },
+      boardsLink: false,
+    };
+  }
+
   if (meta.kind === "bundle") {
     return {
       amountCents,

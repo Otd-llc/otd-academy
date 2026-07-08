@@ -84,6 +84,7 @@ export async function createPassCheckoutSession(): Promise<{ url: string }> {
     customer,
     success_url: `${base}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${base}/pricing`,
+    allow_promotion_codes: true,
     metadata: { kind: "bundle", userId: user.id, bundleKey: BUNDLE_KEY },
   });
 
@@ -179,7 +180,47 @@ export async function createUpgradeCheckoutSession(): Promise<
     customer,
     success_url: `${base}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${base}/pricing`,
+    allow_promotion_codes: true,
     metadata: { kind: "bundle", userId: user.id, bundleKey: BUNDLE_KEY },
+  });
+
+  if (!session.url) {
+    throw new Error("Stripe did not return a checkout URL.");
+  }
+  return { url: session.url };
+}
+
+/**
+ * Start a recurring All-Access SUBSCRIPTION (Hosted Checkout, mode "subscription").
+ *
+ * Requires a signed-in user + a provisioned recurring price
+ * (`Bundle.subscriptionPriceId`, set by scripts/set-subscription-price.ts). The same
+ * bundle grants the same access as the one-time Pass; access is minted by the
+ * `customer.subscription.*` webhook (source SUBSCRIPTION), NOT here — this only
+ * starts the sub. We stamp `metadata.userId` on BOTH the session and the
+ * subscription (subscription webhook events carry no session, so the sub itself must
+ * carry the id). Promo codes allowed. Returns the hosted session URL.
+ */
+export async function createSubscriptionCheckoutSession(): Promise<{
+  url: string;
+}> {
+  const user = await requireUser();
+  const bundle = await db.bundle.findUnique({ where: { key: BUNDLE_KEY } });
+  if (!bundle || !bundle.subscriptionPriceId) {
+    throw new Error("The subscription isn't available yet.");
+  }
+  const customer = await ensureStripeCustomer(user);
+  const base = siteUrl();
+
+  const session = await getStripe().checkout.sessions.create({
+    mode: "subscription",
+    line_items: [{ price: bundle.subscriptionPriceId, quantity: 1 }],
+    customer,
+    success_url: `${base}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${base}/pricing`,
+    allow_promotion_codes: true,
+    metadata: { kind: "subscription", userId: user.id, bundleKey: BUNDLE_KEY },
+    subscription_data: { metadata: { userId: user.id } },
   });
 
   if (!session.url) {

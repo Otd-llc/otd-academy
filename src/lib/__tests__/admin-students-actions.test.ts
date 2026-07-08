@@ -9,6 +9,14 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const mockAuth = vi.fn<() => Promise<unknown>>();
 vi.mock("@/auth", () => ({ auth: () => mockAuth() }));
 
+// Intercept Stripe so deleteStudent's subscription-cancel never hits the real API.
+const { stripeCancel } = vi.hoisted(() => ({ stripeCancel: vi.fn() }));
+vi.mock("@/lib/stripe", () => ({
+  getStripe: () => ({
+    subscriptions: { cancel: (...a: unknown[]) => stripeCancel(...a) },
+  }),
+}));
+
 import { db } from "@/lib/db";
 import {
   updateStudentProfile,
@@ -62,6 +70,36 @@ describe("deleteStudent", () => {
     });
     await deleteStudent({ userId: target.id });
     expect(await db.user.findUnique({ where: { id: target.id } })).toBeNull();
+  });
+
+  test("cancels an active Stripe subscription BEFORE deleting the account", async () => {
+    stripeCancel.mockReset();
+    stripeCancel.mockResolvedValue({});
+    const target = await db.user.create({
+      data: { email: `admin-sub-${stamp}@example.com`, role: "LEARNER" },
+    });
+    const subId = `sub_test_${stamp}`;
+    await db.subscription.create({
+      data: {
+        userId: target.id,
+        stripeSubscriptionId: subId,
+        stripeCustomerId: "cus_x",
+        status: "active",
+      },
+    });
+    try {
+      await deleteStudent({ userId: target.id });
+      // The live sub was cancelled in Stripe first.
+      expect(stripeCancel).toHaveBeenCalledWith(subId);
+      // The account is gone; the Subscription audit row survives with userId → NULL.
+      expect(await db.user.findUnique({ where: { id: target.id } })).toBeNull();
+      const sub = await db.subscription.findUnique({
+        where: { stripeSubscriptionId: subId },
+      });
+      expect(sub?.userId).toBeNull();
+    } finally {
+      await db.subscription.deleteMany({ where: { stripeSubscriptionId: subId } });
+    }
   });
 });
 

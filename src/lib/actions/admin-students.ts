@@ -15,6 +15,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth-helpers";
+import { getStripe } from "@/lib/stripe";
 
 const ALL_ACCESS_KEY = "all-access";
 
@@ -164,10 +165,9 @@ export async function resetEnrollment(input: unknown): Promise<{ ok: true }> {
 // hard delete with userId → NULL — retaining payment-linked identifiers past a
 // deletion request is lawful as a financial-record legal obligation, so "permanently
 // delete" is not literal for the money trail. The retained Purchase.metadata snapshot
-// holds only our own ids (userId/projectId/kind), never customer PII. When
-// subscriptions ship (phase 2), this action must ALSO cancel the user's active Stripe
-// subscriptions BEFORE the row delete, or an orphaned subscription keeps charging a
-// vanished account — see docs/plans/2026-07-07-billing-audit-schema.md (finding 22).
+// holds only our own ids (userId/projectId/kind), never customer PII. Active Stripe
+// SUBSCRIPTIONS are cancelled first (below), or an orphaned subscription would keep
+// charging a vanished account (billing-audit design, finding 22).
 const deleteSchema = z.object({ userId: z.cuid() }).strict();
 
 export async function deleteStudent(input: unknown): Promise<{ ok: true }> {
@@ -176,6 +176,29 @@ export async function deleteStudent(input: unknown): Promise<{ ok: true }> {
 
   if (userId === admin.id) {
     throw new Error("You cannot delete your own account here.");
+  }
+
+  // Cancel any live Stripe subscriptions BEFORE the row delete. If a cancel fails we
+  // THROW (rather than delete anyway), so a still-charging subscription can never be
+  // orphaned by a vanished account — the admin resolves it in Stripe and retries.
+  // getStripe() is only reached when there IS a live sub, keeping keyless envs safe.
+  const activeSubs = await db.subscription.findMany({
+    where: { userId, status: { notIn: ["canceled", "incomplete_expired"] } },
+    select: { stripeSubscriptionId: true },
+  });
+  if (activeSubs.length > 0) {
+    const stripe = getStripe();
+    for (const s of activeSubs) {
+      try {
+        await stripe.subscriptions.cancel(s.stripeSubscriptionId);
+      } catch (e) {
+        throw new Error(
+          `Couldn't cancel this learner's Stripe subscription (${s.stripeSubscriptionId}). Resolve it in Stripe, then retry the delete. (${
+            e instanceof Error ? e.message : String(e)
+          })`,
+        );
+      }
+    }
   }
 
   try {
