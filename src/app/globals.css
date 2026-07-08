@@ -230,6 +230,12 @@ body {
 
 /* GuideHoneycomb — big tessellating info-hex stepper for the build-guide hub.
    Nodes are absolutely positioned by the component (it measures + fills width). */
+/* The comb MUST form its own stacking context: cells carry inline z-index up to
+   ~700 (occlusion order) and the arrow overlay is z-index 10000, so without
+   isolation those values escape to the page and paint OVER the sticky header
+   (z-20). `isolation: isolate` traps the whole internal z-range so the comb
+   subducts under the header. Shared by the hub, /courses skill tree + paths. */
+.gh { isolation: isolate; }
 .gh-node { position: absolute; display: block; text-decoration: none; text-align: center; container-type: inline-size; }
 .gh-hex { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .gh-hex polygon { fill: var(--color-deep-space); stroke: var(--color-panel-border); stroke-width: 3; vector-effect: non-scaling-stroke; transition: stroke 0.15s; }
@@ -295,7 +301,7 @@ body {
    Draw/stacking order is DOM order on purpose: each hex's opaque face occludes
    the previous hex's cast where the ribbon laces, exactly like the one-SVG
    sandbox render the owner approved — no per-state z-index. */
-.pc-comb { position: relative; width: 100%; max-width: 340px; margin: 0 auto; aspect-ratio: 305 / 67.354; list-style: none; padding: 0; container-type: inline-size; }
+.pc-comb { position: relative; width: 100%; max-width: 340px; margin: 0 auto; aspect-ratio: 305 / 67.354; list-style: none; padding: 0; container-type: inline-size; isolation: isolate; }
 .pc-node { position: absolute; width: 15.74%; aspect-ratio: 48 / 41.57; display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; }
 .pc-node svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 /* prism parts: face (pc-top), cast edge lines (pc-cast), cast faces (pc-side,
