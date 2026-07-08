@@ -82,7 +82,7 @@ export async function createPassCheckoutSession(): Promise<{ url: string }> {
       },
     ],
     customer,
-    success_url: `${base}/learn?pass=1`,
+    success_url: `${base}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${base}/pricing`,
     metadata: { kind: "bundle", userId: user.id, bundleKey: BUNDLE_KEY },
   });
@@ -177,7 +177,7 @@ export async function createUpgradeCheckoutSession(): Promise<
       },
     ],
     customer,
-    success_url: `${base}/learn?pass=1`,
+    success_url: `${base}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${base}/pricing`,
     metadata: { kind: "bundle", userId: user.id, bundleKey: BUNDLE_KEY },
   });
