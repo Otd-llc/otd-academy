@@ -34,6 +34,13 @@ export const LIBRARY_CLUSTERS: LibraryCluster[] = [
     blurb: "How EEG and brain-computer interfaces actually work.",
     order: 1,
   },
+  {
+    key: "microcontrollers",
+    label: "Microcontrollers & ESP32",
+    blurb:
+      "What a microcontroller is, and how the ESP32 reads pins, sensors, and time.",
+    order: 2,
+  },
 ];
 
 /**
