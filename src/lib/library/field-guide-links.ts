@@ -9,6 +9,11 @@ export function fieldGuidePdfPath(guide: string): string {
   return guide === "combined" ? "/library/field-guide/pdf" : `/library/field-guide/${guide}/pdf`;
 }
 
+/** The committed cover thumbnail (the field-guide book's page-1 render). */
+export function fieldGuideCoverPath(guide: string): string {
+  return `/field-guide-covers/${guide}.png`;
+}
+
 /**
  * If `path` is a field-guide PDF route (a magic-link callbackUrl), return the
  * guide key + a human label; otherwise null (a plain sign-in link). Ignores any

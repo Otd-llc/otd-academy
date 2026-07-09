@@ -20,7 +20,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 
 import { requestFieldGuide } from "@/lib/actions/field-guide-download";
-import { fieldGuidePdfPath } from "@/lib/library/field-guide-links";
+import { fieldGuidePdfPath, fieldGuideCoverPath } from "@/lib/library/field-guide-links";
 
 type Result = Awaited<ReturnType<typeof requestFieldGuide>>;
 
@@ -174,19 +174,33 @@ function LeadMagnetModal({
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >
-      <div className="absolute inset-0 bg-black/60" />
-      <div onClick={(e) => e.stopPropagation()} className="glass-card relative z-10 w-full max-w-sm p-6">
+      <div className="absolute inset-0 bg-deep-space/80" />
+      {/* N1: floats on the field via a gold hairline + elevation, NOT a navy fill */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative z-10 w-full max-w-md rounded-[8px] border border-command-gold/25 bg-deep-space p-6 [box-shadow:var(--elev-card)]"
+      >
         {state === "sent" ? (
           <>
-            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
-              Check your inbox
-            </p>
-            <h2 className="mt-2 font-display text-xl font-normal tracking-wide text-title">
-              Your guide is on the way
-            </h2>
-            <p className="mt-3 font-serif text-sm leading-relaxed text-muted">
-              We emailed a link to <span className="text-gray-1">{email}</span>. Click it to open{" "}
-              {name} — the same click sets up your free account.
+            <div className="flex items-start gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={fieldGuideCoverPath(guide)}
+                alt=""
+                className="w-[80px] shrink-0 rounded-[3px] border border-panel-border/50"
+              />
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
+                  Check your inbox
+                </p>
+                <h2 className="mt-1.5 font-display text-xl font-normal tracking-wide text-title">
+                  Your guide is on the way
+                </h2>
+              </div>
+            </div>
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              We emailed a link to <span className="text-text">{email}</span>. Click it to open{" "}
+              {name}; the same click sets up your free account.
             </p>
             <button
               type="button"
@@ -198,17 +212,27 @@ function LeadMagnetModal({
           </>
         ) : (
           <>
-            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
-              {expired ? "Link expired" : "Free field guide"}
-            </p>
-            <h2 className="mt-2 font-display text-xl font-normal tracking-wide text-title">
-              {expired ? "Get a fresh link" : `Get ${name} free`}
-            </h2>
-            <p className="mt-3 font-serif text-sm leading-relaxed text-muted">
-              {expired ? `Your link for ${name} expired. ` : "Field guides are free. "}
-              Enter your email and we&apos;ll send a link that opens it, and sets up your free
-              account in the same step. The individual lesson PDFs stay open, no account needed.
-            </p>
+            <div className="flex items-start gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={fieldGuideCoverPath(guide)}
+                alt=""
+                className="w-[84px] shrink-0 rounded-[3px] border border-panel-border/50 [box-shadow:var(--elev-card)]"
+              />
+              <div className="flex-1">
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
+                  {expired ? "Link expired" : "▸ Free field guide"}
+                </p>
+                <h2 className="mt-1.5 font-display text-xl font-normal tracking-wide text-title">
+                  {expired ? "Get a fresh link" : `Get ${name}`}
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-muted">
+                  {expired ? `Your link for ${name} expired. ` : "Free with an account. "}
+                  We&apos;ll email a link that opens it, and sets up your account in the same step.
+                  The lesson PDFs stay open.
+                </p>
+              </div>
+            </div>
 
             <form onSubmit={submitEmail} className="mt-4">
               <input
@@ -218,12 +242,12 @@ function LeadMagnetModal({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@email.com"
-                className="w-full rounded border border-panel-border bg-black/30 px-3 py-2 font-mono text-sm text-gray-1 placeholder:text-muted focus:border-command-gold focus:outline-none"
+                className="w-full border-0 border-b border-panel-border/60 bg-transparent px-0 py-2 font-mono text-sm text-text placeholder:text-muted focus:border-command-gold focus:outline-none"
               />
               <button
                 type="submit"
                 disabled={state === "sending"}
-                className="glass-button mt-3 inline-flex w-full items-center justify-center px-4 py-2 font-mono text-[11px] uppercase tracking-[0.14em] disabled:opacity-70"
+                className="glass-button-cta mt-3 w-full py-2 font-mono text-[11px] uppercase tracking-[0.14em] disabled:opacity-70"
               >
                 {state === "sending" ? "Sending…" : "Email me the guide"}
               </button>
@@ -235,23 +259,23 @@ function LeadMagnetModal({
             ) : null}
 
             <div className="my-4 flex items-center gap-3 font-mono text-[9px] uppercase tracking-[0.22em] text-muted">
-              <span className="h-px flex-1 bg-panel-border" />
+              <span className="h-px flex-1 bg-panel-border/60" />
               or
-              <span className="h-px flex-1 bg-panel-border" />
+              <span className="h-px flex-1 bg-panel-border/60" />
             </div>
 
             <div className="flex flex-col gap-2">
               <button
                 type="button"
                 onClick={() => signIn("google", { callbackUrl })}
-                className="inline-flex w-full items-center justify-center rounded border border-panel-border px-4 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-gray-1 hover:border-command-gold/50"
+                className="inline-flex w-full items-center justify-center rounded-[6px] border border-panel-border px-4 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-text hover:border-command-gold/50 focus-visible:border-command-gold focus-visible:outline-none"
               >
                 Continue with Google
               </button>
               <button
                 type="button"
                 onClick={() => signIn("github", { callbackUrl })}
-                className="inline-flex w-full items-center justify-center rounded border border-panel-border px-4 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-gray-1 hover:border-command-gold/50"
+                className="inline-flex w-full items-center justify-center rounded-[6px] border border-panel-border px-4 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-text hover:border-command-gold/50 focus-visible:border-command-gold focus-visible:outline-none"
               >
                 Continue with GitHub
               </button>
@@ -260,7 +284,7 @@ function LeadMagnetModal({
             <button
               type="button"
               onClick={onClose}
-              className="mt-3 block w-full text-center font-mono text-[10px] uppercase tracking-wider text-muted hover:text-gray-1"
+              className="mt-3 block w-full text-center font-mono text-[10px] uppercase tracking-wider text-muted hover:text-text"
             >
               Maybe later
             </button>
