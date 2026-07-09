@@ -64,7 +64,9 @@ export async function GET(req: Request) {
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="otd-academy-field-guide.pdf"`,
+      // `?download=1` (the lead-magnet welcome auto-download) saves the file
+      // instead of opening it inline, so the tab stays free to onboard.
+      "Content-Disposition": `${new URL(req.url).searchParams.get("download") === "1" ? "attachment" : "inline"}; filename="otd-academy-field-guide.pdf"`,
       // Per-user (session/token gated) → never let a shared cache hold it.
       "Cache-Control": "private, no-store",
       "X-Robots-Tag": "noindex",

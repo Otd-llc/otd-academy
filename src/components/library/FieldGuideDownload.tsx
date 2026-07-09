@@ -20,7 +20,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 
 import { requestFieldGuide } from "@/lib/actions/field-guide-download";
-import { fieldGuidePdfPath, fieldGuideCoverPath } from "@/lib/library/field-guide-links";
+import { fieldGuideWelcomePath, fieldGuideCoverPath } from "@/lib/library/field-guide-links";
 
 type Result = Awaited<ReturnType<typeof requestFieldGuide>>;
 
@@ -150,7 +150,7 @@ function LeadMagnetModal({
 }) {
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const callbackUrl = fieldGuidePdfPath(guide); // post-verification target = the guide
+  const callbackUrl = fieldGuideWelcomePath(guide); // post-signin target = the welcome (auto-downloads + funnels to L1.01)
 
   async function submitEmail(e: React.FormEvent) {
     e.preventDefault();
