@@ -59,6 +59,7 @@
     "@vitest/ui": "^4.1.7",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.9",
+    "fontkit": "^2.0.4",
     "playwright": "^1.60.0",
     "sharp": "^0.35.1",
     "tailwindcss": "^4",

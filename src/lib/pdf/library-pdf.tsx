@@ -31,6 +31,7 @@ import {
 import { type ReactNode } from "react";
 import type { ContentBlock } from "@/lib/schemas/guide";
 import { parseInlineTerms } from "@/lib/inline-terms";
+import { PDF_SAIRA_FALLBACK } from "@/lib/pdf/pdf-fallback-set";
 import { BRANDMARK_PATH, BRANDMARK_VIEWBOX } from "@/lib/pdf/certificate-content";
 import type { ResolvedImage } from "@/lib/pdf/library-images";
 import { getTool } from "@/lib/tools/registry";
@@ -265,33 +266,40 @@ const s = StyleSheet.create({
 // (a bold run can wrap a [[term]]), resolved first; glossary [[term]] / [[term|label]]
 // markers inside each run render the label in gold (the on-page term color). Only
 // **/* and [[ ]] are parsed; everything else is literal text.
-// react-pdf font-glyph gap: the body Serif (Crimson Text) AND the code Mono
-// (Space Mono) both LACK U+03A9 (Ω, the ohm sign) — it would render as a
-// .notdef box. Saira ("Numeral") carries it, so split each raw run on the
-// missing set and render just those glyphs in Numeral; size + color inherit
-// from the parent <Text>, so the substituted glyph matches its neighbours. The
-// common no-Ω case returns the string untouched (one node). Extend the class if
-// another authored glyph turns up absent — µ, °, and × are all covered.
+// react-pdf font-glyph gap: the body faces (Serif = Crimson Text, Mono = Space
+// Mono) are missing a set of technical glyphs (ohm, pi, delta, integral, approx,
+// ...) that would each render as a .notdef box. react-pdf has no cross-family
+// fallback, so we substitute ANY codepoint in PDF_SAIRA_FALLBACK with the Saira
+// ("Numeral") face — which carries them — at the emit level; size + color inherit
+// from the parent <Text>, so a rescued glyph matches its neighbours. The set is
+// derived from the fonts (see pdf-fallback-set.ts) and kept complete + safe by
+// pdf-glyphs.test.ts, so a NEW symbol is handled without touching this function.
+// The common no-symbol case returns the string untouched (one node).
 function withSymbols(value: string): ReactNode | ReactNode[] {
-  if (!value.includes("Ω")) return value; // common case: untouched raw string
-  const out: ReactNode[] = [];
-  let last = 0;
-  let n = 0;
-  for (const m of value.matchAll(/[Ω]/g)) {
-    const idx = m.index ?? 0;
-    if (idx > last) out.push(value.slice(last, idx));
-    out.push(
-      // Numeral is registered as a single variant (weight 400, normal). Pin
-      // style + weight so an Ω inside *italic* / **bold** prose doesn't inherit
-      // a variant that isn't registered ("Could not resolve font for Numeral").
-      <Text key={`y${n}`} style={{ fontFamily: "Numeral", fontStyle: "normal", fontWeight: "normal" }}>
-        {m[0]}
-      </Text>,
-    );
-    last = idx + m[0].length;
-    n++;
+  let hit = false;
+  for (const ch of value) {
+    if (PDF_SAIRA_FALLBACK.has(ch.codePointAt(0)!)) { hit = true; break; }
   }
-  if (last < value.length) out.push(value.slice(last));
+  if (!hit) return value;
+  const out: ReactNode[] = [];
+  let buf = "";
+  let n = 0;
+  for (const ch of value) {
+    if (PDF_SAIRA_FALLBACK.has(ch.codePointAt(0)!)) {
+      if (buf) { out.push(buf); buf = ""; }
+      // Numeral is registered as a single variant (weight 400, normal). Pin
+      // style + weight so a rescued glyph inside *italic* / **bold** prose
+      // doesn't inherit an unregistered variant ("Could not resolve font").
+      out.push(
+        <Text key={`y${n++}`} style={{ fontFamily: "Numeral", fontStyle: "normal", fontWeight: "normal" }}>
+          {ch}
+        </Text>,
+      );
+    } else {
+      buf += ch;
+    }
+  }
+  if (buf) out.push(buf);
   return out;
 }
 
@@ -579,8 +587,8 @@ function Block({ block, images }: { block: ContentBlock; images: Map<string, Res
       const title = tool?.title ?? block.slug;
       return (
         <View style={s.deep} wrap={false}>
-          <Text style={s.deepKicker}>Calculator · {title}</Text>
-          {tool?.summary ? <Text style={s.calloutBody}>{tool.summary}</Text> : null}
+          <Text style={s.deepKicker}>Calculator · {withSymbols(title)}</Text>
+          {tool?.summary ? <Text style={s.calloutBody}>{withSymbols(tool.summary)}</Text> : null}
           <Text style={s.calloutBody}>
             <Link src={`https://academy.onethousanddrones.com/tools/${block.slug}`} style={s.link}>
               {`Interactive calculator: academy.onethousanddrones.com/tools/${block.slug}`}
@@ -596,7 +604,7 @@ function Block({ block, images }: { block: ContentBlock; images: Map<string, Res
       // tex if none). Centered for a display equation, inline-left otherwise.
       return (
         <Text style={{ ...s.prose, textAlign: block.display === false ? "left" : "center" }}>
-          {block.plain ?? block.tex}
+          {withSymbols(block.plain ?? block.tex)}
         </Text>
       );
 

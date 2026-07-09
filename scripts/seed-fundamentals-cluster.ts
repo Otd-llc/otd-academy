@@ -22,6 +22,8 @@ loadEnv({ path: ".env.local" });
 import katex from "katex";
 import { guideContentBlocksSchema, type ContentBlock } from "@/lib/schemas/guide";
 import { LIBRARY_BLOCK_TYPES } from "@/lib/library/block-allowlist";
+import { PDF_SAIRA_FALLBACK } from "@/lib/pdf/pdf-fallback-set";
+import { pdfGlyphIssues } from "@/lib/pdf/pdf-glyph-coverage";
 
 const BYLINE = "One Thousand Drones engineering team · verified 2026-07";
 const VERIFIED_AT = new Date("2026-07-08T00:00:00.000Z");
@@ -439,6 +441,14 @@ function validate(): void {
     if (JSON.stringify(l).includes(EM_DASH)) {
       ok = false;
       console.error(`[${l.slug}] CONTAINS EM-DASH`);
+    }
+    // Every glyph in the content must render in the field-guide PDF (a body face
+    // has it, or the render fallback set + Saira do). Catches a symbol that would
+    // .notdef-box in print before it ships. See pdf-glyphs.test.ts for the twin
+    // guard over the tool registry.
+    for (const g of pdfGlyphIssues(JSON.stringify(l.contentBlocks), PDF_SAIRA_FALLBACK)) {
+      ok = false;
+      console.error(`[${l.slug}] PDF-unrenderable glyph "${g.char}" (${g.codepoint}) — ${g.kind}`);
     }
   }
   const spread = answerPositions.reduce<Record<number, number>>((m, a) => ((m[a] = (m[a] ?? 0) + 1), m), {});
