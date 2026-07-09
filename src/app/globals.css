@@ -531,14 +531,16 @@ body {
  *                          text and tooltips.
  */
 @layer components {
-  /* In-flow panels sit on the solid deep-space field, where a backdrop-blur has
-     nothing behind it to blur — it's invisible GPU cost (and the glassmorphism
-     "AI-default" tell). So the fill is OPAQUE — tuned to the colour the old
-     translucent fill resolved to over deep-space, so the look is unchanged — with
-     no backdrop-filter. The genuinely-floating `.glass-popover` keeps its blur. */
+  /* NO navy-dark fill (owner directive 2026-07-09). A navy-filled box reads as a
+     generic SaaS/AI card — the exact tell this system rejects. The panel is now
+     the SAME instrument-on-the-field language everywhere: a deep-space surface, a
+     gold hairline, and elevation. On the dark field the gold hairline + shadow do
+     the framing (no navy); in light it flips to the ivory field-notebook panel.
+     This decontaminates every `.glass-card` usage in one place. The genuinely-
+     floating `.glass-popover` keeps its denser fill for legibility over content. */
   .glass-card {
-    background: var(--color-navy-dark);
-    border: 1px solid color-mix(in srgb, var(--color-command-gold) 35%, transparent);
+    background: var(--color-deep-space);
+    border: 1px solid color-mix(in srgb, var(--color-command-gold) 22%, transparent);
     border-radius: 14px;
     box-shadow: var(--elev-card), var(--rim-hi);
   }

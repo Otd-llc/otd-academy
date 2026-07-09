@@ -10,6 +10,8 @@ import { isAdminEmail } from "@/lib/admin-allowlist";
 import { resolveSignIn } from "@/lib/auth-link-guard";
 import { pickVerifiedGithubEmail, type GitHubEmail } from "@/lib/github-verified-email";
 import { magicLinkEmail } from "@/lib/auth-magic-link-email";
+import { fieldGuideMagicLinkEmail } from "@/lib/field-guide-email";
+import { guideFromWelcomeUrl } from "@/lib/library/field-guide-links";
 import { capture } from "@/lib/analytics";
 
 // GitHub's OAuth profile carries no "email verified" flag, and the default
@@ -89,8 +91,16 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       apiKey: env.AUTH_RESEND_KEY,
       from: env.AUTH_RESEND_FROM,
       async sendVerificationRequest({ identifier: to, provider, url }) {
-        const { host } = new URL(url);
-        const { subject, html, text } = magicLinkEmail({ url, host });
+        const parsed = new URL(url);
+        const host = parsed.host;
+        // Lead-magnet capture: when the magic link's post-verification target is a
+        // field-guide download, brand the email for that guide (one click signs
+        // them in AND opens the guide). Any other target = the plain sign-in email.
+        const cbRaw = parsed.searchParams.get("callbackUrl");
+        const fg = cbRaw ? guideFromWelcomeUrl(cbRaw) : null;
+        const { subject, html, text } = fg
+          ? fieldGuideMagicLinkEmail({ url, guideLabel: fg.label, host })
+          : magicLinkEmail({ url, host });
         const res = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {

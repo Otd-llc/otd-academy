@@ -24,6 +24,31 @@ function esc(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
+// The lead-magnet magic link: ONE email that both signs the reader in / creates
+// their free account AND opens the guide (its `url` is the Auth.js magic link,
+// which after verification redirects straight to the gated PDF). Copy makes the
+// dual purpose clear; single-use + 24h like any magic link. Distinct from
+// `fieldGuideEmail` below, which re-sends a durable link to an already-signed-in
+// reader.
+export function fieldGuideMagicLinkEmail({
+  url,
+  guideLabel,
+  host,
+}: {
+  url: string;
+  guideLabel: string;
+  host: string;
+}): { subject: string; html: string; text: string } {
+  const safeUrl = esc(url);
+  const safeLabel = esc(guideLabel);
+  const subject = `Your download: ${guideLabel}`;
+  const lead =
+    `Click below to open <strong style="color:${GRAY_1};">${safeLabel}</strong>. ` +
+    `The same click sets up your free OTD Academy account. This link works once and expires in 24&nbsp;hours.`;
+  const textLead = `Click below to open ${guideLabel}. The same click sets up your free OTD Academy account. This link works once and expires in 24 hours:`;
+  return buildFieldGuideEmail({ safeUrl, url, subject, lead, textLead, host, cta: "Open the field guide" });
+}
+
 export function fieldGuideEmail({
   url,
   guideLabel,
@@ -36,6 +61,30 @@ export function fieldGuideEmail({
   const safeUrl = esc(url);
   const safeLabel = esc(guideLabel);
   const subject = `Your download: ${guideLabel}`;
+  const lead =
+    `Here is your download for <strong style="color:${GRAY_1};">${safeLabel}</strong>. ` +
+    `The link is tied to your account and expires in 7&nbsp;days.`;
+  const textLead = `Here is your download for ${guideLabel}. The link is tied to your account and expires in 7 days:`;
+  return buildFieldGuideEmail({ safeUrl, url, subject, lead, textLead, host, cta: "Download the PDF" });
+}
+
+function buildFieldGuideEmail({
+  safeUrl,
+  url,
+  subject,
+  lead,
+  textLead,
+  host,
+  cta,
+}: {
+  safeUrl: string;
+  url: string;
+  subject: string;
+  lead: string;
+  textLead: string;
+  host: string;
+  cta: string;
+}): { subject: string; html: string; text: string } {
 
   const html = `<!doctype html>
 <html lang="en">
@@ -61,8 +110,7 @@ export function fieldGuideEmail({
                 </div>
 
                 <p style="margin:26px 0 0;font-size:15px;line-height:1.6;color:#c5cad6;">
-                  Here is your download for <strong style="color:${GRAY_1};">${safeLabel}</strong>.
-                  The link is tied to your account and expires in 7&nbsp;days.
+                  ${lead}
                 </p>
 
                 <div style="margin:24px 0 0;">
@@ -71,7 +119,7 @@ export function fieldGuideEmail({
                       <td bgcolor="${COMMAND_GOLD}" style="border-radius:6px;">
                         <a href="${safeUrl}" target="_blank"
                            style="display:inline-block;padding:12px 30px;font-family:${SANS};font-size:14px;font-weight:700;color:${DEEP_SPACE};text-decoration:none;border-radius:6px;">
-                          Download the PDF &#8594;
+                          ${cta} &#8594;
                         </a>
                       </td>
                     </tr>
@@ -105,7 +153,7 @@ export function fieldGuideEmail({
   const text = [
     subject,
     "",
-    `Here is your download for ${guideLabel}. The link is tied to your account and expires in 7 days:`,
+    textLead,
     "",
     url,
     "",
