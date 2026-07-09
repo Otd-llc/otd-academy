@@ -202,12 +202,79 @@ const EEG_CHROME: FieldGuideChrome = {
   },
 };
 
+// ── PCB Design & Fabrication ────────────────────────────────────────────────
+// The four movements of the reading order (schematic to layout, the copper,
+// checking + outputting, fabrication + bring-up). Dividers at clusterOrdinal
+// 0 / 3 / 6 / 9 over the twelve lessons.
+const PCB_PARTS: FieldGuidePart[] = [
+  {
+    n: 1,
+    title: "From Schematic to Layout",
+    startsAtSlug: "pcb-layout-workflow",
+    blurb:
+      "The path a schematic takes into a physical board: the fixed workflow, the footprint every part needs, and placing them so routing falls out.",
+  },
+  {
+    n: 2,
+    title: "The Copper: Routing and Planes",
+    startsAtSlug: "pcb-routing-traces",
+    blurb:
+      "Laying the copper that carries current and quiets the board: trace width and vias, the ground plane, and the stackup they live in.",
+  },
+  {
+    n: 3,
+    title: "Checking and Outputting",
+    startsAtSlug: "pcb-drc",
+    blurb:
+      "Turning a routed board into files a factory can build: the design-rule check, the silkscreen and mask that label and protect it, and the gerbers.",
+  },
+  {
+    n: 4,
+    title: "Fabrication and Bring-up",
+    startsAtSlug: "pcb-dfm-ordering",
+    blurb:
+      "Getting the board made and alive: designing for manufacture and ordering, soldering the parts on, and the cold-check-then-power sequence for first light.",
+  },
+];
+
+const PCB_CHROME: FieldGuideChrome = {
+  documentTitle: "OTD Academy Field Guide · The PCB Design & Fabrication Reference Library",
+  coverNumeral: "03",
+  coverLabel: "PCB Design & Fabrication",
+  runningHeader: "PCB Design & Fabrication Reference Library",
+  parts: PCB_PARTS,
+  intro: {
+    eyebrow: "How to read this volume",
+    title: "Start Here",
+    paras: [
+      "A schematic tells you what connects to what. A board tells the factory how to build it, and getting from one to the other is a craft with a fixed shape: assign footprints, place the parts, route the copper, check against your fabricator, and export the files. This volume teaches that craft.",
+      "It is twelve short reference guides in the order the work happens: from the layout workflow and footprints, through placement, routing, planes, and stackups, to the checks, the fab files, and bringing a fresh board up on the bench.",
+      "Read them front to back and each guide leans on the one before. Read them out of order and each still stands on its own, with a live trace-width calculator where the math matters and cross-links at its foot to its Fundamentals prerequisite.",
+      "The path runs in four parts: from schematic to layout, the copper itself, checking and outputting, and fabrication and bring-up.",
+    ],
+  },
+  outro: {
+    eyebrow: "Where this goes",
+    title: "Now Make One",
+    paras: [
+      "Twelve guides back, this started at a finished schematic. Now you can assign a footprint, place with intent, size a trace from its current, pour a ground plane, clear a design-rule check, and export the exact files a fab needs. That is the working craft every board here assumes.",
+      "The next step is a real board. The courses take these ideas and turn them into hardware you design, order, and bring up yourself, one board at a time, each a working instrument the day you finish it.",
+      "You do not need to memorize any of this. Keep the guides open beside the bench and the fab tab, and come back to them as the board demands. That is what a field guide is for.",
+    ],
+    cta: {
+      ...FIRST_BOARD_CTA,
+      body: "It opens with the ESP32-S3 USB-C Breakout, the core board every project here is built on, and it walks the same schematic-to-board path these guides map.",
+    },
+  },
+};
+
 // Per-cluster chrome, keyed by LIBRARY_CLUSTERS.key. The per-cluster PDF route
 // looks a cluster up here; an unknown cluster 404s at the route (never renders
 // the wrong book's cover/intro).
 export const FIELD_GUIDE_CHROME: Record<string, FieldGuideChrome> = {
   fundamentals: FUNDAMENTALS_CHROME,
   "eeg-bci": EEG_CHROME,
+  "pcb-design": PCB_CHROME,
 };
 
 // ── Combined all-clusters book ──────────────────────────────────────────────
