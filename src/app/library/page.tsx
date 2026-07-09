@@ -136,22 +136,26 @@ export default async function LibraryIndexPage() {
             const cluster = clusterByKey(key);
             return (
               <section key={key} className="mt-12">
-                <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-command-gold/30 pb-2">
-                  <div className="min-w-0">
-                    <h2 className="font-display text-2xl font-normal tracking-wide text-title">
-                      {cluster ? cluster.label : "More guides"}
-                    </h2>
-                    {cluster ? (
-                      <p className="mt-1 max-w-2xl font-serif text-sm text-muted">
-                        {cluster.blurb}
-                      </p>
-                    ) : null}
-                  </div>
+                {/* Header stacks vertically so the Field Guide button always sits
+                    below the blurb, left-aligned, identically for every cluster
+                    (a justify-between row placed it inconsistently: right when the
+                    blurb was short, wrapped-below when it was long). */}
+                <div className="border-b border-command-gold/30 pb-3">
+                  <h2 className="font-display text-2xl font-normal tracking-wide text-title">
+                    {cluster ? cluster.label : "More guides"}
+                  </h2>
                   {cluster ? (
-                    <DownloadPdfLink
-                      href={`/library/field-guide/${cluster.key}/pdf`}
-                      label={`Download ${cluster.label} Field Guide (PDF)`}
-                    />
+                    <p className="mt-1 max-w-2xl font-serif text-sm text-muted">
+                      {cluster.blurb}
+                    </p>
+                  ) : null}
+                  {cluster ? (
+                    <div className="mt-3">
+                      <DownloadPdfLink
+                        href={`/library/field-guide/${cluster.key}/pdf`}
+                        label={`Download ${cluster.label} Field Guide (PDF)`}
+                      />
+                    </div>
                   ) : null}
                 </div>
                 <ul className="mt-4 grid grid-cols-1 gap-x-10 sm:grid-cols-2">

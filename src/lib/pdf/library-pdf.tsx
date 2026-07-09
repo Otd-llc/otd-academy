@@ -160,6 +160,9 @@ const s = StyleSheet.create({
   bold: { fontWeight: 600 },
   italic: { fontStyle: "italic" },
   term: { color: GOLD },
+  // Inline code (a part value / ref / unit) — deep-gold mono, sized down from
+  // the 11pt Serif body so it reads as a token without towering over the prose.
+  code: { fontFamily: "Mono", fontSize: 9.5, color: GOLD_DEEP, fontStyle: "normal", fontWeight: "normal" },
   h2: { fontFamily: "Bebas", fontSize: 19, color: INK, marginTop: 22, marginBottom: 4, letterSpacing: 0.5, textTransform: "uppercase" },
   h3: { fontFamily: "Bebas", fontSize: 14.5, color: INK, marginTop: 16, marginBottom: 3, letterSpacing: 0.6, textTransform: "uppercase" },
   sectionEyebrow: {
@@ -262,19 +265,59 @@ const s = StyleSheet.create({
 // (a bold run can wrap a [[term]]), resolved first; glossary [[term]] / [[term|label]]
 // markers inside each run render the label in gold (the on-page term color). Only
 // **/* and [[ ]] are parsed; everything else is literal text.
-function termSpans(text: string, key: string): ReactNode[] {
-  return parseInlineTerms(text).map((seg, i) =>
-    seg.kind === "term" ? (
-      <Text key={`${key}t${i}`} style={s.term}>
-        {seg.label}
-      </Text>
-    ) : (
-      seg.value
-    ),
-  );
+// react-pdf font-glyph gap: the body Serif (Crimson Text) AND the code Mono
+// (Space Mono) both LACK U+03A9 (Ω, the ohm sign) — it would render as a
+// .notdef box. Saira ("Numeral") carries it, so split each raw run on the
+// missing set and render just those glyphs in Numeral; size + color inherit
+// from the parent <Text>, so the substituted glyph matches its neighbours. The
+// common no-Ω case returns the string untouched (one node). Extend the class if
+// another authored glyph turns up absent — µ, °, and × are all covered.
+function withSymbols(value: string): ReactNode | ReactNode[] {
+  if (!value.includes("Ω")) return value; // common case: untouched raw string
+  const out: ReactNode[] = [];
+  let last = 0;
+  let n = 0;
+  for (const m of value.matchAll(/[Ω]/g)) {
+    const idx = m.index ?? 0;
+    if (idx > last) out.push(value.slice(last, idx));
+    out.push(
+      // Numeral is registered as a single variant (weight 400, normal). Pin
+      // style + weight so an Ω inside *italic* / **bold** prose doesn't inherit
+      // a variant that isn't registered ("Could not resolve font for Numeral").
+      <Text key={`y${n}`} style={{ fontFamily: "Numeral", fontStyle: "normal", fontWeight: "normal" }}>
+        {m[0]}
+      </Text>,
+    );
+    last = idx + m[0].length;
+    n++;
+  }
+  if (last < value.length) out.push(value.slice(last));
+  return out;
 }
 
-function inlineSpans(text: string, key = "x"): ReactNode[] {
+function termSpans(text: string, key: string): ReactNode[] {
+  return parseInlineTerms(text).map((seg, i) => {
+    if (seg.kind === "term") {
+      return (
+        <Text key={`${key}t${i}`} style={s.term}>
+          {withSymbols(seg.label)}
+        </Text>
+      );
+    }
+    // Plain run: emit the raw string as before (identical layout) unless it
+    // holds an Ω, in which case wrap so the Numeral fallback spans are keyed.
+    const parts = withSymbols(seg.value);
+    return typeof parts === "string" ? (
+      parts
+    ) : (
+      <Text key={`${key}s${i}`}>{parts}</Text>
+    );
+  });
+}
+
+// Emphasis (**bold** / *italic*) + [[term]] resolution over a run with NO code
+// spans. `inlineSpans` peels code off first (below) and feeds the rest here.
+function emphasisSpans(text: string, key: string): ReactNode[] {
   const out: ReactNode[] = [];
   let last = 0;
   let n = 0;
@@ -296,6 +339,29 @@ function inlineSpans(text: string, key = "x"): ReactNode[] {
     n++;
   }
   if (last < text.length) out.push(...termSpans(text.slice(last), `${key}${n}p`));
+  return out;
+}
+
+// `code` is the OUTERMOST layer — literal content (a part value / ref / unit
+// like `5.1 kΩ`), so peel it off FIRST and render it as a deep-gold mono span
+// with no emphasis/term parsing inside. Mirrors the on-page `Inline` code chip
+// so web and print read the same; withSymbols keeps Ω legible inside the mono.
+function inlineSpans(text: string, key = "x"): ReactNode[] {
+  const out: ReactNode[] = [];
+  let last = 0;
+  let n = 0;
+  for (const m of text.matchAll(/`([^`]+)`/g)) {
+    const idx = m.index ?? 0;
+    if (idx > last) out.push(...emphasisSpans(text.slice(last, idx), `${key}c${n}`));
+    out.push(
+      <Text key={`${key}code${n}`} style={s.code}>
+        {withSymbols(m[1])}
+      </Text>,
+    );
+    last = idx + m[0].length;
+    n++;
+  }
+  if (last < text.length) out.push(...emphasisSpans(text.slice(last), `${key}c${n}`));
   return out;
 }
 
@@ -326,15 +392,15 @@ function QuizItem({ q, qi }: { q: QuizBlock["questions"][number]; qi: number }) 
   return (
     <View wrap={false}>
       <Text style={s.quizQ}>
-        {qi + 1}. {q.q}
+        {qi + 1}. {inlineSpans(q.q, `qq${qi}`)}
       </Text>
       {q.options.map((opt, oi) => (
         <Text key={oi} style={{ ...s.quizOpt, ...(oi === q.answer ? s.quizOptRight : {}) }}>
-          {String.fromCharCode(97 + oi)}. {opt}
+          {String.fromCharCode(97 + oi)}. {inlineSpans(opt, `qo${qi}_${oi}`)}
         </Text>
       ))}
       <Text style={s.quizAns}>Answer · {String.fromCharCode(97 + q.answer)}</Text>
-      {q.explain ? <Text style={s.quizExplain}>{q.explain}</Text> : null}
+      {q.explain ? <Text style={s.quizExplain}>{inlineSpans(q.explain, `qe${qi}`)}</Text> : null}
     </View>
   );
 }
@@ -407,7 +473,7 @@ function Block({ block, images }: { block: ContentBlock; images: Map<string, Res
     case "image": {
       const img = images.get(block.src);
       if (!img) {
-        return block.caption ? <Text style={s.caption}>{block.caption}</Text> : null;
+        return block.caption ? <Text style={s.caption}>{withSymbols(block.caption)}</Text> : null;
       }
       // A diagram is a RASTER: shrinking the figure shrinks its baked text, so
       // size for legibility, not just fit. Fill the text column; cap height
@@ -435,7 +501,7 @@ function Block({ block, images }: { block: ContentBlock; images: Map<string, Res
               own baked caption (or block.caption) carries the description. */}
           {/* eslint-disable-next-line jsx-a11y/alt-text */}
           <Image src={img.dataUri} style={{ width: w, height: h }} />
-          {block.caption ? <Text style={s.caption}>{block.caption}</Text> : null}
+          {block.caption ? <Text style={s.caption}>{withSymbols(block.caption)}</Text> : null}
         </View>
       );
     }
@@ -520,7 +586,7 @@ function Block({ block, images }: { block: ContentBlock; images: Map<string, Res
               {`Interactive calculator: academy.onethousanddrones.com/tools/${block.slug}`}
             </Link>
           </Text>
-          {block.caption ? <Text style={s.caption}>{block.caption}</Text> : null}
+          {block.caption ? <Text style={s.caption}>{withSymbols(block.caption)}</Text> : null}
         </View>
       );
     }
