@@ -13,11 +13,18 @@ import { resolveLibraryImages, type ResolvedImage } from "@/lib/pdf/library-imag
 import { registerLibraryFonts } from "@/lib/pdf/library-fonts";
 import { FieldGuidePdf, type LibraryPdfLesson } from "@/lib/pdf/library-pdf";
 import { COMBINED_FIELD_GUIDE_CHROME } from "@/lib/pdf/field-guide-chrome";
+import { isFieldGuideAuthorized, fieldGuideGateRedirect } from "@/lib/library/field-guide-gate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Account-gated (free): a signed-in session, or a valid emailed token for the
+  // combined book. Unauthorized direct hits bounce to the Library signup prompt.
+  if (!(await isFieldGuideAuthorized(req, "combined"))) {
+    return fieldGuideGateRedirect(req, "combined");
+  }
+
   const rows = await loadPublicLibraryForBook();
   if (rows.length === 0) return new Response("Not found", { status: 404 });
 
@@ -58,7 +65,8 @@ export async function GET() {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="otd-academy-field-guide.pdf"`,
-      "Cache-Control": "public, max-age=3600",
+      // Per-user (session/token gated) → never let a shared cache hold it.
+      "Cache-Control": "private, no-store",
       "X-Robots-Tag": "noindex",
     },
   });

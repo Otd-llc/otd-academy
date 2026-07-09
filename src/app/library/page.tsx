@@ -17,7 +17,8 @@ import Link from "next/link";
 
 import { PageHeader } from "@/components/PageHeader";
 import { JsonLd } from "@/components/seo/JsonLd";
-import { DownloadPdfLink } from "@/components/library/DownloadPdfLink";
+import { FieldGuideDownload } from "@/components/library/FieldGuideDownload";
+import { auth } from "@/auth";
 import { courseListJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { listPublishedByCluster } from "@/lib/library/load";
 import { clusterByKey } from "@/lib/library/clusters";
@@ -76,6 +77,9 @@ function LibraryRow({ lesson }: { lesson: LessonRow }) {
 export default async function LibraryIndexPage() {
   const buckets = await listPublishedByCluster();
   const base = siteUrl();
+  // Field-guide downloads are account-gated (the compiled books are the lead
+  // magnet); a signed-in reader gets a one-click email, everyone else a prompt.
+  const signedIn = Boolean((await auth())?.user);
 
   // Flatten cluster-major (registry order, then the trailing "other" bucket) for
   // the ItemList JSON-LD + the catalog stats.
@@ -122,9 +126,11 @@ export default async function LibraryIndexPage() {
           </div>
 
           <div className="mt-4 flex justify-end">
-            <DownloadPdfLink
-              href="/library/field-guide/pdf"
+            <FieldGuideDownload
+              guide="combined"
               label="Download the full Library (PDF)"
+              name="the OTD Reference Library"
+              signedIn={signedIn}
             />
           </div>
 
@@ -151,9 +157,11 @@ export default async function LibraryIndexPage() {
                   ) : null}
                   {cluster ? (
                     <div className="mt-3">
-                      <DownloadPdfLink
-                        href={`/library/field-guide/${cluster.key}/pdf`}
+                      <FieldGuideDownload
+                        guide={cluster.key}
                         label={`Download ${cluster.label} Field Guide (PDF)`}
+                        name={`the ${cluster.label} Field Guide`}
+                        signedIn={signedIn}
                       />
                     </div>
                   ) : null}

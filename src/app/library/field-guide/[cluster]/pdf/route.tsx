@@ -17,12 +17,13 @@ import { registerLibraryFonts } from "@/lib/pdf/library-fonts";
 import { FieldGuidePdf, type LibraryPdfLesson } from "@/lib/pdf/library-pdf";
 import { FIELD_GUIDE_CHROME } from "@/lib/pdf/field-guide-chrome";
 import { clusterByKey } from "@/lib/library/clusters";
+import { isFieldGuideAuthorized, fieldGuideGateRedirect } from "@/lib/library/field-guide-gate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ cluster: string }> },
 ) {
   const { cluster } = await params;
@@ -31,6 +32,12 @@ export async function GET(
   const chrome = FIELD_GUIDE_CHROME[cluster];
   if (!clusterByKey(cluster) || !chrome) {
     return new Response("Not found", { status: 404 });
+  }
+
+  // Account-gated (free): a signed-in session, or a valid emailed token for THIS
+  // cluster. Unauthorized direct hits bounce to the Library signup prompt.
+  if (!(await isFieldGuideAuthorized(req, cluster))) {
+    return fieldGuideGateRedirect(req, cluster);
   }
 
   const rows = await loadPublicLibraryForBook(cluster);
@@ -68,7 +75,8 @@ export async function GET(
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="otd-academy-${cluster}-field-guide.pdf"`,
-      "Cache-Control": "public, max-age=3600",
+      // Per-user (session/token gated) → never let a shared cache hold it.
+      "Cache-Control": "private, no-store",
       "X-Robots-Tag": "noindex",
     },
   });
