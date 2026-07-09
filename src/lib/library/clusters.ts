@@ -34,6 +34,13 @@ export const LIBRARY_CLUSTERS: LibraryCluster[] = [
     blurb: "How EEG and brain-computer interfaces actually work.",
     order: 1,
   },
+  {
+    key: "comms-interfaces",
+    label: "Communication & Interfaces",
+    blurb:
+      "How the chips on a board talk to each other: UART, SPI, I2C, and USB, in plain terms.",
+    order: 2,
+  },
 ];
 
 /**
