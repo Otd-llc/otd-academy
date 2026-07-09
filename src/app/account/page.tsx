@@ -6,6 +6,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { AvatarUploader } from "@/components/account/AvatarUploader";
 import { EmailPreferences } from "@/components/account/EmailPreferences";
 import { ManageBillingButton } from "@/components/account/ManageBillingButton";
+import { DunningBanner } from "@/components/billing/DunningBanner";
+import { pastDueSubscription } from "@/lib/past-due-subscription";
 import { avatarSrc } from "@/lib/effective-avatar";
 
 // Signed-in account settings: your avatar (seeded from the sign-in provider,
@@ -38,9 +40,11 @@ export default async function AccountPage() {
 
   const current = avatarSrc(user.id, user.avatarUpdatedAt, user.image);
   const initial = (user.name?.trim()?.[0] ?? user.email[0] ?? "?").toUpperCase();
+  const pastDue = await pastDueSubscription(user.id);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+      {pastDue ? <DunningBanner /> : null}
       <PageHeader
         eyebrow="ACCOUNT"
         title="Your account"

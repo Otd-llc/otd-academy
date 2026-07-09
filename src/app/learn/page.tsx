@@ -4,6 +4,8 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
+import { DunningBanner } from "@/components/billing/DunningBanner";
+import { pastDueSubscription } from "@/lib/past-due-subscription";
 import { currentUserOrRedirect } from "@/lib/learner";
 import { learnerBoardAvailability } from "@/lib/learner-board-availability";
 import {
@@ -22,6 +24,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default async function LearnerHomePage() {
   const user = await currentUserOrRedirect();
+  const pastDue = await pastDueSubscription(user.id);
 
   const enrollments = await db.enrollment.findMany({
     where: { userId: user.id },
@@ -58,6 +61,7 @@ export default async function LearnerHomePage() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+      {pastDue ? <DunningBanner /> : null}
       <PageHeader
         eyebrow="YOUR PROGRESS"
         title="My learning"
