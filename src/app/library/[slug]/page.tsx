@@ -22,7 +22,6 @@ import {
   siteUrl,
 } from "@/lib/seo/jsonld";
 import { guideContentBlocksSchema } from "@/lib/schemas/guide";
-import { basenamesInBlocks } from "@/lib/diagram-usage";
 import { filterLibraryBlocks } from "@/lib/library/block-allowlist";
 import { LIBRARY_DEFINED_TERMS } from "@/lib/library/defined-terms";
 import { loadPublicMiniLesson } from "@/lib/library/load";
@@ -45,21 +44,16 @@ export async function generateMetadata({
   const title = lesson.seoTitle ?? lesson.title;
   const description = lesson.seoDescription ?? lesson.summary ?? undefined;
 
-  // Per-page social-share image: the lesson's first registry diagram, whose
-  // exported .webp is a real crawlable image (the on-page diagram is DOM-only).
-  // Falls back to the site default when a lesson has no diagram.
-  const parsedForOg = guideContentBlocksSchema.safeParse(lesson.contentBlocks);
-  const firstDiagram = parsedForOg.success ? basenamesInBlocks(parsedForOg.data)[0] : undefined;
-  const images = firstDiagram
-    ? [{ url: `${base}/guide-diagrams/${firstDiagram}.webp`, alt: title }]
-    : undefined;
-
   return {
     title,
     description,
     alternates: { canonical: url },
-    openGraph: { title, description, type: "article", url, ...(images ? { images } : {}) },
-    twitter: { card: "summary_large_image", title, description, ...(images ? { images } : {}) },
+    // og:image comes from the co-located opengraph-image.tsx (the branded FW7
+    // card: lesson title + its diagram composited, as a real 1200x630 PNG). Do
+    // NOT set openGraph.images here: a `.webp` diagram override shadowed that
+    // card, and webp OG images do not render on X / iMessage / LinkedIn.
+    openGraph: { title, description, type: "article", url },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 
