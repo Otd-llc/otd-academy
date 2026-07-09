@@ -34,6 +34,13 @@ export const LIBRARY_CLUSTERS: LibraryCluster[] = [
     blurb: "How EEG and brain-computer interfaces actually work.",
     order: 1,
   },
+  {
+    key: "pcb-design",
+    label: "PCB Design & Fabrication",
+    blurb:
+      "Turn a schematic into a real, fab-ready board: layout, routing, planes, and the files a factory needs.",
+    order: 2,
+  },
 ];
 
 /**
