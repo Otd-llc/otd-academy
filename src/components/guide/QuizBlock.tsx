@@ -17,6 +17,7 @@
 
 import { useEffect, useState } from "react";
 import { recordQuizPass } from "@/lib/actions/quiz";
+import { Inline } from "@/components/guide/InlineText";
 
 export interface QuizQuestion {
   q: string;
@@ -143,7 +144,7 @@ export function QuizBlock({
             {/* legend first (the accessible caption); the gold Saira question
                 numeral floats in the left gutter (decorative). */}
             <legend className="font-serif text-base leading-relaxed text-gray-1">
-              {q.q}
+              <Inline text={q.q} />
             </legend>
             <span
               aria-hidden="true"
@@ -181,7 +182,7 @@ export function QuizBlock({
                       </svg>
                       <b>{String.fromCharCode(65 + oi)}</b>
                     </span>
-                    <span>{opt}</span>
+                    <span><Inline text={opt} /></span>
                   </button>
                 );
               })}
@@ -194,7 +195,7 @@ export function QuizBlock({
                 </p>
                 {q.explain ? (
                   <p className="font-serif text-sm italic text-muted">
-                    {q.explain}
+                    <Inline text={q.explain} />
                   </p>
                 ) : null}
               </div>
