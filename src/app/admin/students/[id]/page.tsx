@@ -11,6 +11,7 @@ import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
 import { STAGE_LABELS, ENROLLMENT_STATUS_LABEL, type StageName } from "@/lib/stages";
 import type { EnrollmentStatus } from "@prisma/client";
+import { formatUsd } from "@/lib/format-money";
 import {
   StudentProfileForm,
   StudentAccess,
@@ -46,6 +47,34 @@ function Field({ label, value }: { label: string; value: string }) {
       <span className="font-mono text-xs text-text">{value}</span>
     </div>
   );
+}
+
+// A titled sub-list inside the Billing section, with a quiet "none" empty state.
+function BillingGroup({
+  title,
+  empty,
+  children,
+}: {
+  title: string;
+  empty: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-gray-3">
+        {title}
+      </p>
+      {empty ? (
+        <p className="mt-2 font-mono text-xs text-muted">none</p>
+      ) : (
+        <div className="mt-1 border-t border-panel-border/60">{children}</div>
+      )}
+    </div>
+  );
+}
+
+function iso(d: Date | null | undefined): string {
+  return d ? d.toISOString().slice(0, 10) : "—";
 }
 
 export default async function StudentDetailPage({
@@ -93,6 +122,69 @@ export default async function StudentDetailPage({
     orderBy: { slug: "asc" },
     select: { id: true, name: true, publicTitle: true },
   });
+
+  // Billing (Stripe Phase 3): the learner's recorded money + subscription lifecycle, all
+  // already captured by the webhook, just surfaced here. Read-only. Refund/Dispute carry
+  // no userId, so correlate via the soft purchaseId (fallback stripeChargeId) — never
+  // paymentIntentId (they do not carry it).
+  const [subscriptions, invoices, purchases] = await Promise.all([
+    db.subscription.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        currentPeriodEnd: true,
+        cancelAtPeriodEnd: true,
+      },
+    }),
+    db.invoice.findMany({
+      where: { userId: user.id },
+      orderBy: { paidAt: "desc" },
+      take: 12,
+      select: { id: true, amountPaidCents: true, paidAt: true },
+    }),
+    db.purchase.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 12,
+      select: {
+        id: true,
+        amountTotalCents: true,
+        refundedCents: true,
+        createdAt: true,
+        projectId: true,
+        bundleId: true,
+        stripeChargeId: true,
+      },
+    }),
+  ]);
+  const purchaseIds = purchases.map((p) => p.id);
+  const chargeIds = purchases
+    .map((p) => p.stripeChargeId)
+    .filter((c): c is string => !!c);
+  const [refunds, disputes] = await Promise.all([
+    db.refund.findMany({
+      where: {
+        OR: [
+          { purchaseId: { in: purchaseIds } },
+          { stripeChargeId: { in: chargeIds } },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, amountCents: true, status: true, createdAt: true },
+    }),
+    db.dispute.findMany({
+      where: {
+        OR: [
+          { purchaseId: { in: purchaseIds } },
+          { stripeChargeId: { in: chargeIds } },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, amountCents: true, status: true, createdAt: true },
+    }),
+  ]);
 
   const entitlements = user.entitlements.map((e) => ({
     id: e.id,
@@ -171,6 +263,60 @@ export default async function StudentDetailPage({
           grantableProjects={grantableProjects}
           hasPass={hasPass}
         />
+      </Section>
+
+      <Section label="Billing">
+        <div className="space-y-6">
+          <BillingGroup title="Subscriptions" empty={subscriptions.length === 0}>
+            {subscriptions.map((s) => (
+              <Field
+                key={s.id}
+                label={s.status}
+                value={`${
+                  s.currentPeriodEnd ? `ends ${iso(s.currentPeriodEnd)}` : "no period"
+                }${s.cancelAtPeriodEnd ? " · cancels at period end" : ""}`}
+              />
+            ))}
+          </BillingGroup>
+
+          <BillingGroup title="Purchases" empty={purchases.length === 0}>
+            {purchases.map((p) => (
+              <Field
+                key={p.id}
+                label={`${iso(p.createdAt)}${p.bundleId ? " · Pass" : ""}`}
+                value={`${formatUsd(p.amountTotalCents)}${
+                  p.refundedCents > 0 ? ` (refunded ${formatUsd(p.refundedCents)})` : ""
+                }`}
+              />
+            ))}
+          </BillingGroup>
+
+          <BillingGroup title="Invoices" empty={invoices.length === 0}>
+            {invoices.map((i) => (
+              <Field key={i.id} label={iso(i.paidAt)} value={formatUsd(i.amountPaidCents)} />
+            ))}
+          </BillingGroup>
+
+          <BillingGroup title="Refunds" empty={refunds.length === 0}>
+            {refunds.map((r) => (
+              <Field
+                key={r.id}
+                label={`${iso(r.createdAt)} · ${r.status}`}
+                value={formatUsd(r.amountCents)}
+              />
+            ))}
+          </BillingGroup>
+
+          <BillingGroup title="Disputes" empty={disputes.length === 0}>
+            {disputes.map((d) => (
+              <Field
+                key={d.id}
+                label={`${iso(d.createdAt)} · ${d.status}`}
+                value={formatUsd(d.amountCents)}
+              />
+            ))}
+          </BillingGroup>
+        </div>
       </Section>
 
       <Section label="Progress">

@@ -43,6 +43,7 @@ import {
   tipFromCheckoutSession,
 } from "@/lib/stripe-webhook";
 import { capture } from "@/lib/analytics";
+import { sendPaymentFailedEmail } from "@/lib/subscription-dunning";
 
 // Node runtime (raw body + crypto), and never statically prerender this route —
 // it depends on the request body, headers, and a runtime secret.
@@ -487,16 +488,40 @@ export async function POST(req: Request): Promise<Response> {
       });
     });
     if (early) return early;
+  } else if (event.type === "invoice.payment_failed") {
+    // A subscription renewal payment FAILED → dunning. ACCESS is already handled by
+    // customer.subscription.updated (status → past_due/incomplete → revoke), and the
+    // failing sub is queryable via Subscription.status — so there is no new DB state to
+    // record. The event CLAIM is the idempotency point: a redelivery hits the claim's
+    // P2002 → 200 no-op → NO duplicate email. Send the email AFTER the claim commits
+    // (post-commit, like capture()); the sender never throws (see subscription-dunning).
+    const inv = event.data.object;
+    const early = await claimAndWrite(event.id, event.type, async () => {
+      // No DB writes; the claim alone guards the single send.
+    });
+    if (early) return early;
+    const customerId =
+      typeof inv.customer === "string" ? inv.customer : inv.customer?.id ?? null;
+    if (customerId) {
+      const user = await db.user.findUnique({
+        where: { stripeCustomerId: customerId },
+        select: { email: true },
+      });
+      if (user?.email) {
+        await sendPaymentFailedEmail({ toEmail: user.email });
+      } else {
+        console.warn(
+          `[stripe-webhook] payment_failed for customer ${customerId}: no user/email to notify`,
+        );
+      }
+    }
   } else if (
-    event.type === "invoice.payment_failed" ||
     event.type === "invoice.payment_action_required" ||
     event.type === "invoice.payment_attempt_required"
   ) {
-    // A subscription renewal payment failed / needs action. ACCESS is already handled
-    // by customer.subscription.updated (status → past_due/incomplete → revoke), and
-    // the failing sub is queryable via Subscription.status — so there is no new DB
-    // state to record here. Log for ops visibility; a dunning email is a future
-    // feature (this is the hook for it).
+    // SCA / retry-needed — a DIFFERENT message than a hard failure (the billing portal
+    // does not resolve an authentication requirement), and rare for our card-only flow.
+    // Log-only for ops visibility; access still follows the subscription status.
     const inv = event.data.object;
     const cust =
       typeof inv.customer === "string" ? inv.customer : inv.customer?.id ?? "?";

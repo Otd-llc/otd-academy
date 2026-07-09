@@ -207,6 +207,8 @@ const {
   entitlementUpsert,
   entitlementDeleteMany,
   disputeUpsert,
+  userFindUniqueTop,
+  sendDunning,
   fakeEnv,
 } = vi.hoisted(() => ({
   constructEvent: vi.fn(),
@@ -223,11 +225,19 @@ const {
   entitlementUpsert: vi.fn(),
   entitlementDeleteMany: vi.fn(),
   disputeUpsert: vi.fn(),
+  // Top-level (non-tx) db.user.findUnique: the dunning branch resolves the recipient
+  // post-commit via the real db, not the transaction client.
+  userFindUniqueTop: vi.fn(),
+  sendDunning: vi.fn(),
   fakeEnv: {} as { STRIPE_WEBHOOK_SECRET?: string },
 }));
 
 vi.mock("@/lib/stripe", () => ({
   getStripe: () => ({ webhooks: { constructEvent } }),
+}));
+
+vi.mock("@/lib/subscription-dunning", () => ({
+  sendPaymentFailedEmail: sendDunning,
 }));
 
 vi.mock("@/lib/db", () => {
@@ -255,7 +265,11 @@ vi.mock("@/lib/db", () => {
     dispute: { upsert: (...a: unknown[]) => disputeUpsert(...a) },
   };
   return {
-    db: { $transaction: <T>(cb: (client: typeof tx) => Promise<T>) => cb(tx) },
+    db: {
+      $transaction: <T>(cb: (client: typeof tx) => Promise<T>) => cb(tx),
+      // Non-tx read used by the dunning branch (post-commit recipient lookup).
+      user: { findUnique: (...a: unknown[]) => userFindUniqueTop(...a) },
+    },
   };
 });
 
@@ -292,6 +306,7 @@ beforeEach(() => {
   entitlementUpsert.mockResolvedValue({ id: "ent_1" });
   entitlementDeleteMany.mockResolvedValue({ count: 1 });
   disputeUpsert.mockResolvedValue({});
+  userFindUniqueTop.mockResolvedValue({ email: "learner@test" });
 });
 
 const SUB_EVENT = (status: string, type = "customer.subscription.updated") => ({
@@ -539,18 +554,63 @@ describe("POST webhook — invoice payment states", () => {
     expect(invoiceUpsert).toHaveBeenCalledTimes(1);
   });
 
-  test("invoice.payment_failed is logged only — no claim, no DB write, still 200", async () => {
+  test("invoice.payment_action_required is logged only — no claim, no DB write, still 200", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     constructEvent.mockReturnValue({
-      id: "evt_invfail",
-      type: "invoice.payment_failed",
-      data: { object: { id: "in_fail", customer: "cus_1" } },
+      id: "evt_invaction",
+      type: "invoice.payment_action_required",
+      data: { object: { id: "in_action", customer: "cus_1" } },
     });
     const res = await POST(req());
     expect(res.status).toBe(200);
     expect(processedCreate).not.toHaveBeenCalled();
     expect(invoiceUpsert).not.toHaveBeenCalled();
+    expect(sendDunning).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+});
+
+describe("POST webhook — invoice.payment_failed (dunning)", () => {
+  const FAIL = (id = "evt_fail") => ({
+    id,
+    type: "invoice.payment_failed",
+    data: { object: { id: "in_fail", customer: "cus_1" } },
+  });
+
+  test("claims the event and sends exactly one dunning email to the customer's user", async () => {
+    constructEvent.mockReturnValue(FAIL());
+    const res = await POST(req());
+    expect(res.status).toBe(200);
+    // Now claimed (idempotency point), unlike the old log-only behavior.
+    expect(processedCreate).toHaveBeenCalledTimes(1);
+    expect(userFindUniqueTop).toHaveBeenCalledWith({
+      where: { stripeCustomerId: "cus_1" },
+      select: { email: true },
+    });
+    expect(sendDunning).toHaveBeenCalledWith({ toEmail: "learner@test" });
+  });
+
+  test("a REDELIVERED payment_failed (claim P2002) sends NO second email", async () => {
+    constructEvent.mockReturnValue(FAIL());
+    processedCreate.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("dup", {
+        code: "P2002",
+        clientVersion: "test",
+      }),
+    );
+    const res = await POST(req());
+    expect(res.status).toBe(200);
+    expect(sendDunning).not.toHaveBeenCalled();
+  });
+
+  test("no user for the customer → no email, still 200", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    userFindUniqueTop.mockResolvedValue(null);
+    constructEvent.mockReturnValue(FAIL("evt_fail2"));
+    const res = await POST(req());
+    expect(res.status).toBe(200);
+    expect(sendDunning).not.toHaveBeenCalled();
     warn.mockRestore();
   });
 });

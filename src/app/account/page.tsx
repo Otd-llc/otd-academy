@@ -5,6 +5,9 @@ import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
 import { AvatarUploader } from "@/components/account/AvatarUploader";
 import { EmailPreferences } from "@/components/account/EmailPreferences";
+import { ManageBillingButton } from "@/components/account/ManageBillingButton";
+import { DunningBanner } from "@/components/billing/DunningBanner";
+import { pastDueSubscription } from "@/lib/past-due-subscription";
 import { avatarSrc } from "@/lib/effective-avatar";
 
 // Signed-in account settings: your avatar (seeded from the sign-in provider,
@@ -30,15 +33,18 @@ export default async function AccountPage() {
       image: true,
       avatarUpdatedAt: true,
       emailConsent: true,
+      stripeCustomerId: true,
     },
   });
   if (!user) redirect("/sign-in");
 
   const current = avatarSrc(user.id, user.avatarUpdatedAt, user.image);
   const initial = (user.name?.trim()?.[0] ?? user.email[0] ?? "?").toUpperCase();
+  const pastDue = await pastDueSubscription(user.id);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+      {pastDue ? <DunningBanner /> : null}
       <PageHeader
         eyebrow="ACCOUNT"
         title="Your account"
@@ -69,6 +75,20 @@ export default async function AccountPage() {
         </p>
         <EmailPreferences initialConsent={user.emailConsent} />
       </section>
+
+      {user.stripeCustomerId ? (
+        <section className="mt-10 border-t border-panel-border/60 pt-6">
+          <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+            ▸ Billing
+          </p>
+          <p className="mt-1 font-serif text-sm text-muted">
+            View your invoices, update your payment method, or cancel a subscription.
+          </p>
+          <div className="mt-4">
+            <ManageBillingButton />
+          </div>
+        </section>
+      ) : null}
 
       <section className="mt-10 border-t border-panel-border/60 pt-6">
         <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
