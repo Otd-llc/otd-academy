@@ -18,7 +18,12 @@ export async function isFieldGuideAuthorized(req: Request, guide: string): Promi
 }
 
 // Where an unauthorized direct hit (pasted URL, expired emailed link) is sent:
-// back to the Library with a marker the page can use to prompt a free account.
+// back to the Library with a marker the page uses to auto-open the free-account
+// prompt for that guide. A present-but-rejected token means an emailed link that
+// EXPIRED (or was tampered) — flag it so the prompt can say "link expired, sign
+// in for a fresh one" instead of the generic first-time copy.
 export function fieldGuideGateRedirect(req: Request, guide: string): Response {
-  return Response.redirect(new URL(`/library?gate=${encodeURIComponent(guide)}`, req.url), 307);
+  const hadToken = new URL(req.url).searchParams.has("t");
+  const query = `gate=${encodeURIComponent(guide)}${hadToken ? "&expired=1" : ""}`;
+  return Response.redirect(new URL(`/library?${query}`, req.url), 307);
 }
