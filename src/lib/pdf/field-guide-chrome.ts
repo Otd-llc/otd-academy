@@ -202,12 +202,79 @@ const EEG_CHROME: FieldGuideChrome = {
   },
 };
 
+// ── Power & Batteries ─────────────────────────────────────────────────────
+// Four parts across the eleven lessons, dividers at clusterOrdinal 0 / 3 / 6 / 9:
+// the sources + their storage, charging + the regulators, choosing + protecting,
+// then bring-up + runtime.
+const POWER_PARTS: FieldGuidePart[] = [
+  {
+    n: 1,
+    title: "Sources and Storage",
+    startsAtSlug: "power-budget",
+    blurb:
+      "What a power budget is, the battery that feeds it, and the safety a lithium cell's chemistry demands before anything else.",
+  },
+  {
+    n: 2,
+    title: "Charging and Regulators",
+    startsAtSlug: "battery-charging",
+    blurb:
+      "Filling a cell back up the safe way, and the two ways to make a fixed voltage: the linear regulator and the switching buck.",
+  },
+  {
+    n: 3,
+    title: "Choosing and Protecting",
+    startsAtSlug: "boost-converters",
+    blurb:
+      "Stepping a voltage up, picking the right regulator for the job, and guarding the input against a reversed battery or an inrush surge.",
+  },
+  {
+    n: 4,
+    title: "Bring-up and Runtime",
+    startsAtSlug: "power-sequencing",
+    blurb:
+      "Bringing a multi-rail board up in the right order, and estimating honestly how long the battery will last.",
+  },
+];
+
+const POWER_CHROME: FieldGuideChrome = {
+  documentTitle: "OTD Academy Field Guide · The Power & Batteries Reference Library",
+  coverNumeral: "05",
+  coverLabel: "Power & Batteries",
+  runningHeader: "Power & Batteries Reference Library",
+  parts: POWER_PARTS,
+  intro: {
+    eyebrow: "How to read this volume",
+    title: "Start Here",
+    paras: [
+      "Every board eventually needs power, and getting it wrong is how boards die. A supply that sags, a regulator that cooks, a lithium cell mistreated: each one is avoidable once you know how power actually works. This volume is that knowledge, one guide at a time.",
+      "It is eleven short reference guides that build the power chain in order: from what a rail is and how to budget one, through the battery that feeds it and the rules its chemistry demands, to the regulators that shape the voltage and the protection that keeps it all alive.",
+      "Read them front to back and each guide leans on the one before. Read them out of order and each still stands on its own, with a live calculator where the math matters and cross-links at its foot.",
+      "The path runs in four parts: the sources and their storage, charging and the regulators, choosing and protecting a supply, and bringing the rails up and estimating how long they last.",
+    ],
+  },
+  outro: {
+    eyebrow: "Where this goes",
+    title: "Now Power Something",
+    paras: [
+      "Eleven guides back, this started at what a power rail is. Now you can budget a board, size a battery, charge it safely, choose between a linear regulator and a switcher, guard the input, and estimate how long a cell will last. That is the working vocabulary every powered build assumes.",
+      "The next step is a real board. The battery power module course takes these ideas and turns them into hardware you design and bring up yourself: a single lithium cell, charged and protected and regulated the right way.",
+      "You do not need to memorize any of this. Keep the guides open beside the bench and come back to them as the build demands. That is what a field guide is for.",
+    ],
+    cta: {
+      ...FIRST_BOARD_CTA,
+      body: "It opens with the ESP32-S3 USB-C Breakout, the core board every project here is built on, with the battery power module that cuts its cord close behind. These power fundamentals are exactly what both assume.",
+    },
+  },
+};
+
 // Per-cluster chrome, keyed by LIBRARY_CLUSTERS.key. The per-cluster PDF route
 // looks a cluster up here; an unknown cluster 404s at the route (never renders
 // the wrong book's cover/intro).
 export const FIELD_GUIDE_CHROME: Record<string, FieldGuideChrome> = {
   fundamentals: FUNDAMENTALS_CHROME,
   "eeg-bci": EEG_CHROME,
+  "power-batteries": POWER_CHROME,
 };
 
 // ── Combined all-clusters book ──────────────────────────────────────────────

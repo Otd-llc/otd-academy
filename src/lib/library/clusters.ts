@@ -34,6 +34,13 @@ export const LIBRARY_CLUSTERS: LibraryCluster[] = [
     blurb: "How EEG and brain-computer interfaces actually work.",
     order: 1,
   },
+  {
+    key: "power-batteries",
+    label: "Power & Batteries",
+    blurb:
+      "Powering a board that runs: batteries, regulators, and how to size a supply.",
+    order: 4,
+  },
 ];
 
 /**
