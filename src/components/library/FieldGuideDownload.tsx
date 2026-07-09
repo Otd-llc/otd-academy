@@ -57,9 +57,11 @@ export function FieldGuideDownload({
     null | { kind: "sent"; email: string } | { kind: "error"; msg: string }
   >(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [gateExpired, setGateExpired] = useState(false);
   const search = useSearchParams();
   const router = useRouter();
   const autoFired = useRef(false);
+  const gateHandled = useRef(false);
 
   function send() {
     startTransition(async () => {
@@ -85,6 +87,23 @@ export function FieldGuideDownload({
       send();
       const params = new URLSearchParams(Array.from(search.entries()));
       params.delete("fg");
+      router.replace(`/library${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedIn, search, guide]);
+
+  // Landed here from the route gate (?gate=<guide>): a direct hit or an expired
+  // emailed link. Auto-open the free-account prompt for THIS guide (a signed-in
+  // visitor never reaches the gate — their session would have served the PDF).
+  useEffect(() => {
+    if (gateHandled.current) return;
+    if (!signedIn && search.get("gate") === guide) {
+      gateHandled.current = true;
+      setGateExpired(search.get("expired") === "1");
+      setModalOpen(true);
+      const params = new URLSearchParams(Array.from(search.entries()));
+      params.delete("gate");
+      params.delete("expired");
       router.replace(`/library${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -130,14 +149,15 @@ export function FieldGuideDownload({
             className="glass-card relative z-10 w-full max-w-sm p-6"
           >
             <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
-              Free field guide
+              {gateExpired ? "Link expired" : "Free field guide"}
             </p>
             <h2 className="mt-2 font-display text-xl font-normal tracking-wide text-title">
-              Create a free account to get {name}
+              {gateExpired ? "Sign in to refresh your download" : `Create a free account to get ${name}`}
             </h2>
             <p className="mt-3 font-serif text-sm leading-relaxed text-muted">
-              Field guides are free with an account. We&apos;ll email you the download link, so it
-              works on any device. The individual lesson PDFs stay open, no account needed.
+              {gateExpired
+                ? `Your download link for ${name} has expired. Sign in and we'll email you a fresh one.`
+                : "Field guides are free with an account. We'll email you the download link, so it works on any device. The individual lesson PDFs stay open, no account needed."}
             </p>
             <button
               type="button"
