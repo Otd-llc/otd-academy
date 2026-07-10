@@ -21,6 +21,7 @@ import { McuAdcQuantize } from "./diagrams/McuAdcQuantize";
 import { McuPwmDuty } from "./diagrams/McuPwmDuty";
 import { McuStrappingBoot } from "./diagrams/McuStrappingBoot";
 import { McuFlashLoop } from "./diagrams/McuFlashLoop";
+import { McuTimerCount } from "./diagrams/McuTimerCount";
 
 export const MICROCONTROLLERS_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/mcu-block-diagram.svg": McuBlockDiagram,
@@ -29,4 +30,5 @@ export const MICROCONTROLLERS_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/mcu-pwm-duty.svg": McuPwmDuty,
   "/guide-diagrams/mcu-strapping-boot.svg": McuStrappingBoot,
   "/guide-diagrams/mcu-flash-loop.svg": McuFlashLoop,
+  "/guide-diagrams/mcu-timer-count.svg": McuTimerCount,
 };

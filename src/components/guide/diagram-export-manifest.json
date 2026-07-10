@@ -268,5 +268,11 @@
     "image": "/guide-diagrams/mcu-flash-loop.webp",
     "alt": "The flashing loop, left to right. Your code compiles to a binary image. The esptool utility sends that binary over USB to the chip's bootloader, which writes it into flash memory. The next reset runs it. Then you edit the code and do it again: a blue return arc closes the loop back to the start.",
     "hash": "8f8855b51387"
+  },
+  {
+    "basename": "mcu-timer-count",
+    "image": "/guide-diagrams/mcu-timer-count.webp",
+    "alt": "A steady clock signal, drawn as a square wave of ticks, drives a timer that counts each tick. The running count is shown under the ticks: 1, 2, 3, 4, then it resets and counts again. Every time the count reaches N (here 4) the timer fires an event, an interrupt, marked below. The time between fires is N ticks, which equals N divided by the clock frequency f-clk. That is how a board keeps an exact rate.",
+    "hash": "d5798e2847ba"
   }
 ]
