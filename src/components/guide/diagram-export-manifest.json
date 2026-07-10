@@ -274,5 +274,11 @@
     "image": "/guide-diagrams/mcu-timer-count.webp",
     "alt": "A steady clock signal, drawn as a square wave of ticks, drives a timer that counts each tick. The running count is shown under the ticks: 1, 2, 3, 4, then it resets and counts again. Every time the count reaches N (here 4) the timer fires an event, an interrupt, marked below. The time between fires is N ticks, which equals N divided by the clock frequency f-clk. That is how a board keeps an exact rate.",
     "hash": "d5798e2847ba"
+  },
+  {
+    "basename": "mcu-poll-vs-interrupt",
+    "image": "/guide-diagrams/mcu-poll-vs-interrupt.webp",
+    "alt": "Two ways to react to an event, side by side. On the left, polling: the CPU loops, checking the pin over and over, asking is it high yet, and only catches the event on a later check, wasting cycles in between. On the right, an interrupt: the event fires and the hardware calls the interrupt service routine directly, the instant it happens, while the CPU was free to do other work. The interrupt path is direct; the polling path goes in circles.",
+    "hash": "e518ed3e6265"
   }
 ]
