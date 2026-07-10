@@ -256,5 +256,11 @@
     "image": "/guide-diagrams/mcu-pwm-duty.webp",
     "alt": "Three pulse-width-modulation waveforms at different duty cycles. Each is a gold square wave switching between the supply voltage and zero, with a blue dashed line showing the average level it produces. At 25 percent duty the pin is on a quarter of each period and the average is 0.25 of the supply. At 50 percent it is on half the time and averages 0.5 of the supply. At 75 percent it is on three quarters of the time and averages 0.75 of the supply. The average tracks the on-fraction.",
     "hash": "c5c95056725b"
+  },
+  {
+    "basename": "mcu-strapping-boot",
+    "image": "/guide-diagrams/mcu-strapping-boot.webp",
+    "alt": "At reset the ESP32 samples its BOOT strapping pin, GPIO0, and branches to one of two outcomes. If the pin is high, its default, the chip runs the firmware already in flash. If the pin is held low, the chip enters the download bootloader and waits for a flashing tool like esptool. The pin is sampled once, at reset. A stray pull on the pin can force the wrong path and stop the board booting.",
+    "hash": "89fd9cf75cf9"
   }
 ]
