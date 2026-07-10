@@ -236,8 +236,8 @@
   {
     "basename": "mcu-block-diagram",
     "image": "/guide-diagrams/mcu-block-diagram.webp",
-    "alt": "What is inside a microcontroller, drawn as a shared internal bus. A single system bus runs across the middle of the chip, and every block hangs off it. Above the bus sit the processor (the CPU) and the memory (RAM, the working memory, and flash, which keeps the firmware), along with the timers. Below the bus sit the peripherals that reach the outside world: GPIO, the ADC, the serial buses, and the radio. Because they all share one bus on one die, the CPU can read and write any of them. That is what makes it one chip instead of a boardful of parts.",
-    "hash": "d49301b3c2e0"
+    "alt": "What is inside a microcontroller, drawn as one die. Inside a single chip package sit the CPU (two cores, which runs your program), the memory (SRAM for the working variables and flash for the firmware), the radio (Wi-Fi and Bluetooth Low Energy), and a row of peripherals (GPIO, ADC, timers, serial, USB) that reach the outside world through the package pins. A desktop computer spreads those across many separate parts; a microcontroller puts them all on one piece of silicon.",
+    "hash": "5f0ba724ba14"
   },
   {
     "basename": "mcu-gpio-in-out",
