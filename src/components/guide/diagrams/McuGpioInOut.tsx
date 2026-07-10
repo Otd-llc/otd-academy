@@ -1,29 +1,24 @@
-// GPIO: one pin, two directions (v2). Microcontrollers & ESP32 cluster.
+// GPIO: one pin, two directions (diagram-standards v2). MCU cluster, diagram 2.
+// Owner-picked G1: two schematic panels.
 //
-// Teaching point: the same GPIO pin is an OUTPUT (drive it high or low to light
-// an LED through a resistor) or an INPUT (read a button, held to a known level by
-// a pull-up). Gold = the driven/forward path; blue = the value read back in.
+// Teaching point (lesson 1): a GPIO pin is set as an output to drive a wire high
+// or low (lighting an LED through a resistor) or as an input to read a level
+// (a pull-up holds it high until a button pulls it low). Left panel = the output
+// circuit; right panel = the input circuit. Gold is the drive path, blue is the
+// read path.
 //
-// Landscape desktop/print: two mini-schematics side by side. REFLOWS on a phone
-// to two stacked summary cards. Token-only color.
+// Two real schematics (resistor, LED, button, ground). Each panel is its own SVG
+// in a flex row, so on a phone they STACK and each fills the width instead of
+// shrinking its labels. Token color, both themes. Header + caption from DiagramFrame.
 import { DiagramFrame } from "./DiagramFrame";
 
-// vertical zigzag resistor from (cx,y0) down height h
-function vRes(cx: number, y0: number, h: number): string {
-  const n = 6;
-  const seg = h / n;
-  const pts: [number, number][] = [[cx, y0]];
-  for (let i = 0; i < n; i++) pts.push([cx + (i % 2 ? 7 : -7), y0 + seg * (i + 0.5)]);
-  pts.push([cx, y0 + h]);
-  return pts.map((p) => p.join(",")).join(" ");
-}
-
-function Ground({ cx, y }: { cx: number; y: number }) {
+function Gnd({ x, y }: { x: number; y: number }) {
   return (
     <>
-      <line className="gio-w" x1={cx - 13} y1={y} x2={cx + 13} y2={y} />
-      <line className="gio-w" x1={cx - 8} y1={y + 5} x2={cx + 8} y2={y + 5} />
-      <line className="gio-w" x1={cx - 3} y1={y + 10} x2={cx + 3} y2={y + 10} />
+      <line x1={x} y1={y} x2={x} y2={y + 8} className="gpw" />
+      <line x1={x - 9} y1={y + 8} x2={x + 9} y2={y + 8} className="gpw" />
+      <line x1={x - 5} y1={y + 12} x2={x + 5} y2={y + 12} className="gpw" />
+      <line x1={x - 2} y1={y + 16} x2={x + 2} y2={y + 16} className="gpw" />
     </>
   );
 }
@@ -34,99 +29,89 @@ export function McuGpioInOut({ caption }: { caption?: string }) {
       eyebrow="MICROCONTROLLERS · GPIO"
       tone="gold"
       title="One pin, two directions"
-      ariaLabel="A GPIO pin shown two ways. On the left, as an output: the pin drives current down through a 330 ohm resistor and an LED to ground, so setting the pin high lights the LED. On the right, as an input: a 10 kilohm pull-up resistor ties the pin to the 3.3 volt rail, and a button connects the pin to ground, so the pin reads high when idle and low when the button is pressed. The value is read back into the chip."
+      ariaLabel="One GPIO pin shown two ways. As an output, the pin drives current through a resistor and an LED to ground, lighting the LED. As an input, a pull-up resistor ties the pin to 3.3 volts so it reads high, until a button to ground pulls it low. You set the direction first, then write the pin or read it."
       caption={caption}
-      defaultCaption="Set a pin an output to drive an LED, or an input to read a button held by a pull-up."
+      defaultCaption="Drive a pin high or low as an output to light an LED through a resistor; read a level as an input, with a pull-up holding it high until a button pulls it low."
     >
       <style>{CSS}</style>
-
-      <div className="gio">
-        {/* desktop / print */}
-        <svg className="gio-scene" viewBox="0 0 660 296" aria-hidden="true">
-          {/* divider */}
-          <line className="gio-div" x1={330} y1={46} x2={330} y2={250} />
-
-          {/* ── OUTPUT ── */}
-          <text className="gio-hd" x={165} y={30} textAnchor="middle">OUTPUT · DRIVE A PIN</text>
-          <rect className="gio-pin" x={100} y={48} width={70} height={34} rx={4} />
-          <text className="gio-pinn" x={135} y={70} textAnchor="middle">GPIO</text>
-          <line className="gio-drv" x1={135} y1={82} x2={135} y2={100} />
-          <polyline className="gio-drv" fill="none" points={vRes(135, 100, 46)} />
-          <text className="gio-val" x={108} y={128} textAnchor="end">330 Ω</text>
-          <line className="gio-drv" x1={135} y1={146} x2={135} y2={158} />
-          {/* LED, pointing down */}
-          <path className="gio-drv-f" d="M123,158 L147,158 L135,178 Z" />
-          <line className="gio-drv" x1={121} y1={180} x2={149} y2={180} />
-          <path className="gio-drv" fill="none" d="M150,160 L158,153 M152,168 L160,161" />
-          <text className="gio-val" x={165} y={172}>LED</text>
-          <line className="gio-drv" x1={135} y1={180} x2={135} y2={200} />
-          <Ground cx={135} y={200} />
-          <text className="gio-note" x={165} y={238} textAnchor="middle">drive HIGH → the LED lights</text>
-
-          {/* ── INPUT ── */}
-          <text className="gio-hd" x={495} y={30} textAnchor="middle">INPUT · READ A PIN</text>
-          <circle className="gio-node" cx={470} cy={56} r={4} />
-          <text className="gio-val" x={470} y={44} textAnchor="middle">3.3 V</text>
-          <line className="gio-w" x1={470} y1={56} x2={470} y2={74} />
-          <polyline className="gio-w" fill="none" points={vRes(470, 74, 46)} />
-          <text className="gio-val" x={443} y={102} textAnchor="end">10 kΩ</text>
-          <line className="gio-w" x1={470} y1={120} x2={470} y2={158} />
-          <circle className="gio-node" cx={470} cy={139} r={4} />
-          {/* tap to the pin (read = blue, into chip) */}
-          <line className="gio-read" x1={470} y1={139} x2={512} y2={139} />
-          <path className="gio-read" fill="none" d="M562,124 L590,124 L590,154 L562,154" />
-          <rect className="gio-pin" x={512} y={123} width={78} height={32} rx={4} />
-          <text className="gio-pinn" x={551} y={144} textAnchor="middle">GPIO</text>
-          <path className="gio-read" fill="none" d="M504,134 L512,139 L504,144" />
-          {/* button to ground */}
-          <line className="gio-w" x1={470} y1={158} x2={470} y2={166} />
-          <line className="gio-w" x1={462} y1={166} x2={478} y2={166} />
-          <line className="gio-w" x1={462} y1={180} x2={478} y2={180} />
-          <line className="gio-w" x1={458} y1={162} x2={472} y2={155} />
-          <text className="gio-val" x={443} y={176} textAnchor="end">BTN</text>
-          <line className="gio-w" x1={470} y1={180} x2={470} y2={200} />
-          <Ground cx={470} y={200} />
-          <text className="gio-note" x={495} y={238} textAnchor="middle">idle HIGH · press pulls it LOW</text>
+      <div className="gp">
+        {/* OUTPUT panel */}
+        <svg className="gp-svg" viewBox="0 0 236 150" aria-hidden="true">
+          <text x="4" y="14" className="gp-po">OUTPUT · DRIVE</text>
+          <circle cx="22" cy="84" r="5" className="gpn" />
+          <text x="22" y="106" textAnchor="middle" className="gp-pin">GPIO</text>
+          <line x1="27" y1="84" x2="54" y2="84" className="gpw" />
+          <path d="M54 84 L61 78 L68 90 L75 78 L82 90 L89 78 L96 84" className="gpw" fill="none" />
+          <text x="75" y="68" textAnchor="middle" className="gp-l">R</text>
+          <line x1="96" y1="84" x2="120" y2="84" className="gpw" />
+          {/* LED */}
+          <path d="M120 75 L120 93 L138 84 Z" className="gpw" fill="none" />
+          <line x1="138" y1="75" x2="138" y2="93" className="gpw" />
+          <line x1="126" y1="71" x2="133" y2="64" className="gpw" />
+          <line x1="131" y1="74" x2="138" y2="67" className="gpw" />
+          <text x="130" y="57" textAnchor="middle" className="gp-l">LED</text>
+          <line x1="138" y1="84" x2="168" y2="84" className="gpw" />
+          <line x1="168" y1="84" x2="168" y2="108" className="gpw" />
+          <Gnd x={168} y={108} />
         </svg>
 
-        {/* phone reflow */}
-        <div className="gio-phone" aria-hidden="true">
-          <div className="gio-card">
-            <span className="gio-ceye gio-gold">Output · drive</span>
-            <span className="gio-cv">Pin → <b>330 Ω</b> → LED → GND. Drive the pin HIGH and the LED lights.</span>
-          </div>
-          <div className="gio-card">
-            <span className="gio-ceye gio-blue">Input · read</span>
-            <span className="gio-cv"><b>3.3 V</b> → 10 kΩ pull-up → pin, with a button to GND. Idle reads HIGH; a press pulls it LOW.</span>
-          </div>
-        </div>
+        <div className="gp-div" aria-hidden="true" />
+
+        {/* INPUT panel */}
+        <svg className="gp-svg" viewBox="0 0 236 220" aria-hidden="true">
+          <text x="4" y="14" className="gp-pi">INPUT · READ</text>
+          <text x="120" y="40" textAnchor="middle" className="gp-v">3.3 V</text>
+          <line x1="120" y1="46" x2="120" y2="58" className="gpw" />
+          <path d="M120 58 L114 65 L126 71 L114 78 L126 85 L114 91 L120 98" className="gpw" fill="none" />
+          <text x="150" y="80" className="gp-l">pull-up</text>
+          <line x1="120" y1="98" x2="120" y2="132" className="gpw" />
+          <circle cx="120" cy="132" r="3" className="gp-dot" />
+          {/* read path — blue */}
+          <line x1="120" y1="132" x2="27" y2="132" className="gpwb" />
+          <circle cx="22" cy="132" r="5" className="gpnb" />
+          <text x="22" y="154" textAnchor="middle" className="gp-pin">GPIO</text>
+          {/* button to ground */}
+          <line x1="120" y1="132" x2="120" y2="150" className="gpw" />
+          <line x1="120" y1="150" x2="120" y2="158" className="gpw" />
+          <line x1="120" y1="172" x2="120" y2="180" className="gpw" />
+          <circle cx="120" cy="158" r="2" className="gp-dotf" />
+          <circle cx="120" cy="172" r="2" className="gp-dotf" />
+          <line x1="118" y1="159" x2="133" y2="152" className="gpw" />
+          <text x="150" y="170" className="gp-l">button</text>
+          <line x1="120" y1="180" x2="120" y2="196" className="gpw" />
+          <Gnd x={120} y={196} />
+        </svg>
       </div>
     </DiagramFrame>
   );
 }
 
 const CSS = `
-.gio{display:block;}
-.gio-scene{display:block;width:100%;height:auto;overflow:visible;}
-.gio-div{stroke:var(--color-panel-border,#3a3f50);stroke-width:1.2;stroke-dasharray:3 5;}
-.gio-w{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round;}
-.gio-drv{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round;}
-.gio-drv-f{fill:var(--color-command-gold,#c8963e);stroke:var(--color-command-gold,#c8963e);stroke-width:1;}
-.gio-read{fill:none;stroke:var(--color-signal-blue,#4a8fff);stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round;}
-.gio-node{fill:var(--color-command-gold,#c8963e);}
-.gio-pin{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:1.8;}
-.gio-pinn{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:14px;letter-spacing:.05em;fill:var(--color-title,#f1ece0);}
-.gio-hd{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:12px;letter-spacing:.13em;fill:var(--color-command-gold,#c8963e);}
-.gio-val{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;font-size:15px;fill:var(--color-text,#e8e8e8);}
-.gio-note{font-family:var(--font-serif,"Lora",serif);font-style:italic;font-size:14px;fill:var(--color-muted,#aaa);}
+.gp{display:flex;gap:.6rem;align-items:flex-start;justify-content:center;max-width:36rem;margin-inline:auto;padding-top:.4rem;}
+.gp-svg{flex:1 1 236px;min-width:0;max-width:266px;height:auto;overflow:visible;}
+.gp-div{flex:0 0 0;align-self:stretch;border-left:1px dashed var(--color-panel-border,#3a3f50);margin:.5rem 0;}
+@media (max-width:520px){
+  .gp{flex-direction:column;gap:.2rem;}
+  .gp-svg{max-width:min(320px,100%);}
+  .gp-div{align-self:stretch;border-left:0;border-top:1px dashed var(--color-panel-border,#3a3f50);margin:0 2rem;width:auto;}
+}
+.gpw{stroke:var(--color-command-gold,#c8963e);stroke-width:1.8;fill:none;stroke-linecap:round;}
+.gpwb{stroke:var(--color-signal-blue,#4a8fff);stroke-width:1.8;fill:none;stroke-linecap:round;}
+.gpn{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:1.8;}
+.gpnb{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-signal-blue,#4a8fff);stroke-width:1.8;}
+.gp-dot{fill:var(--color-command-gold,#c8963e);}
+.gp-dotf{fill:var(--color-command-gold,#c8963e);}
+.gp-po{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:12px;letter-spacing:.12em;fill:var(--color-command-gold,#c8963e);}
+.gp-pi{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:12px;letter-spacing:.12em;fill:var(--color-signal-blue,#4a8fff);}
+.gp-pin{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:12px;fill:var(--color-title,#f1ece0);}
+.gp-l{font-family:var(--font-mono,"Space Mono",monospace);font-size:11px;fill:var(--color-muted,#aaaaaa);}
+.gp-v{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:700;font-size:14px;fill:var(--color-muted,#aaaaaa);}
 
-/* phone reflow */
-.gio-phone{display:none;}
-@media (max-width:520px){ .gio-scene{display:none;} .gio-phone{display:block;text-align:left;} }
-.gio-card{border:1px solid var(--color-panel-border,#3a3f50);background:var(--color-navy-dark,#1a1a2e);border-radius:6px;padding:.6rem .75rem;margin-bottom:.55rem;display:flex;flex-direction:column;gap:.25rem;}
-.gio-ceye{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;}
-.gio-gold{color:var(--color-command-gold,#c8963e);}
-.gio-blue{color:var(--color-signal-blue,#4a8fff);}
-.gio-cv{font-family:var(--font-serif,"Lora",serif);font-size:.94rem;line-height:1.45;color:var(--color-text,#e8e8e8);}
-.gio-cv b{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;color:var(--color-title,#f1ece0);}
+/* Tier-B reveal off the frame's armed/in contract (final state under reduced-motion). */
+.dgfrm.armed .gp-svg{opacity:0;transform:translateY(6px);}
+.dgfrm.armed.in .gp-svg{opacity:1;transform:none;transition:opacity .55s ease,transform .55s cubic-bezier(.2,.7,.2,1);}
+.dgfrm.armed.in .gp-svg:last-of-type{transition-delay:.12s;}
+@media (prefers-reduced-motion:reduce){
+  .dgfrm .gp-svg{opacity:1!important;transform:none!important;transition:none!important;}
+}
 `;

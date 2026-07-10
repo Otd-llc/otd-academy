@@ -242,8 +242,8 @@
   {
     "basename": "mcu-gpio-in-out",
     "image": "/guide-diagrams/mcu-gpio-in-out.webp",
-    "alt": "A GPIO pin shown two ways. On the left, as an output: the pin drives current down through a 330 ohm resistor and an LED to ground, so setting the pin high lights the LED. On the right, as an input: a 10 kilohm pull-up resistor ties the pin to the 3.3 volt rail, and a button connects the pin to ground, so the pin reads high when idle and low when the button is pressed. The value is read back into the chip.",
-    "hash": "90ec6aaf4d5d"
+    "alt": "One GPIO pin shown two ways. As an output, the pin drives current through a resistor and an LED to ground, lighting the LED. As an input, a pull-up resistor ties the pin to 3.3 volts so it reads high, until a button to ground pulls it low. You set the direction first, then write the pin or read it.",
+    "hash": "602e6deefaa2"
   },
   {
     "basename": "mcu-adc-quantize",
