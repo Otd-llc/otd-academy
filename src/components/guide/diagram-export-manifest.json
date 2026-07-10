@@ -274,5 +274,11 @@
     "image": "/guide-diagrams/pcb-drc.webp",
     "alt": "A board layout with three design-rule violations flagged in red. First, a clearance violation: two copper traces run too close together. Second, an unrouted net: two pads are joined only by a dashed ratsnest line, with no copper trace between them yet. Third, silk on a pad: a silkscreen line crosses a pad where solder must wet. The design-rule check flags each of these against the fabricator's limits, and you clear every marker before you leave the layout.",
     "hash": "2ab9055df7db"
+  },
+  {
+    "basename": "pcb-silkscreen",
+    "image": "/guide-diagrams/pcb-silkscreen.webp",
+    "alt": "A board corner with its silkscreen and soldermask called out. A chip labelled U2 has a silkscreen outline, four copper pads, and a pin-1 dot in one corner that fixes its rotation. A diode labelled D1 has a silkscreen polarity band at one end. An electrolytic capacitor labelled C1 has a plus mark for polarity. A copper pad shows its soldermask opening, the bare copper the solder wets, ringed by the mask. Good silkscreen makes a board buildable and debuggable; soldermask keeps solder only on the pads.",
+    "hash": "f9169923a4ee"
   }
 ]
