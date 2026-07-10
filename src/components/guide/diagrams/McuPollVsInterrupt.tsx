@@ -1,106 +1,118 @@
-// Polling versus interrupts (v2). Microcontrollers & ESP32 cluster.
+// Polling versus interrupts (diagram-standards v2). MCU cluster, diagram 8.
+// Owner-picked I4: a circling loop, versus a straight jump.
 //
-// Teaching point: polling is the CPU asking "has it happened yet?" over and over,
-// wasting cycles. An interrupt lets the hardware call your handler the instant the
-// event fires, so the CPU is free until then.
+// Teaching point (lesson 7): polling loops and reads a pin over and over, mostly
+// finding nothing and burning cycles. An interrupt flips it: the hardware watches,
+// and the instant the event fires it jumps the CPU straight into a short handler
+// (the ISR). Left panel draws polling as a loop that circles through checks; right
+// panel draws the interrupt as a straight event-to-ISR path. Gold = the checking
+// loop, blue = the event/interrupt path.
 //
-// Landscape desktop/print: a looping poll circle on the left versus a straight
-// event-to-ISR shot on the right. REFLOWS on a phone to two stacked cards. Tokens.
+// Two SVG panels in a flex row, so they stack full-width on a phone. Token color,
+// both themes. Header + caption from the DiagramFrame.
 import { DiagramFrame } from "./DiagramFrame";
 
+function Bolt({ x, y }: { x: number; y: number }) {
+  return <path d={`M${x} ${y} l -7 12 l 5 0 l -5 12 l 13 -16 l -5 0 l 5 -8 z`} className="pi-bolt" />;
+}
+
+const CHECKS = [
+  { x: 100, y: 54 },
+  { x: 156, y: 110 },
+  { x: 100, y: 166 },
+  { x: 44, y: 110 },
+];
+
 export function McuPollVsInterrupt({ caption }: { caption?: string }) {
-  const cx = 158, cy = 160, r = 50;
   return (
     <DiagramFrame
       eyebrow="MICROCONTROLLERS · INTERRUPTS"
       tone="gold"
-      title="Polling versus interrupts"
-      ariaLabel="Two ways to react to an event, side by side. On the left, polling: the CPU loops, checking the pin over and over, asking is it high yet, and only catches the event on a later check, wasting cycles in between. On the right, an interrupt: the event fires and the hardware calls the interrupt service routine directly, the instant it happens, while the CPU was free to do other work. The interrupt path is direct; the polling path goes in circles."
+      title="Ask over and over, or be told"
+      ariaLabel="Two ways to catch an event, compared. On the left, polling is drawn as a loop: the CPU circles through repeated checks of a pin, asking again and again and mostly finding nothing. On the right, an interrupt is drawn as a straight path: the event fires and jumps the CPU directly into a short interrupt service routine, the ISR, with no checking and a near-instant response."
       caption={caption}
-      defaultCaption="Polling checks over and over and wastes cycles; an interrupt calls the handler the moment the event fires."
+      defaultCaption="Polling circles through checks over and over; an interrupt jumps the CPU straight to the handler the moment the event fires."
     >
       <style>{CSS}</style>
-
       <div className="pi">
-        {/* desktop / print */}
-        <svg className="pi-scene" viewBox="0 0 660 300" aria-hidden="true">
-          <line className="pi-div" x1={330} y1={40} x2={330} y2={264} />
-
-          {/* ── POLLING ── */}
-          <text className="pi-hd" x={168} y={34} textAnchor="middle">POLLING · KEEP ASKING</text>
-          {/* loop circle with tangent arrowheads (clockwise) */}
-          <circle className="pi-loop" cx={cx} cy={cy} r={r} />
-          <path className="pi-loop" fill="none" d={`M${cx + r - 6},${cy - 8} L${cx + r},${cy} L${cx + r + 6},${cy - 8}`} />
-          <path className="pi-loop" fill="none" d={`M${cx - r - 6},${cy + 8} L${cx - r},${cy} L${cx - r + 6},${cy + 8}`} />
-          <text className="pi-cq" x={cx} y={cy - 4} textAnchor="middle">pin</text>
-          <text className="pi-cq" x={cx} y={cy + 18} textAnchor="middle">high?</text>
-          <text className="pi-no" x={cx} y={cy - r - 10} textAnchor="middle">no · again</text>
-          {/* exit: yes → handle */}
-          <line className="pi-w" x1={cx + r} y1={cy} x2={244} y2={cy} />
-          <path className="pi-w" fill="none" d={`M236,${cy - 5} L244,${cy} L236,${cy + 5}`} />
-          <text className="pi-yes" x={228} y={cy - 10} textAnchor="middle">yes</text>
-          <rect className="pi-box" x={246} y={cy - 20} width={72} height={40} rx={5} />
-          <text className="pi-bx" x={282} y={cy + 5} textAnchor="middle">handle</text>
-          <text className="pi-note" x={168} y={252} textAnchor="middle">the CPU spins, checking over and over</text>
-
-          {/* ── INTERRUPT ── */}
-          <text className="pi-hd" x={496} y={34} textAnchor="middle">INTERRUPT · GET TOLD</text>
-          {/* CPU free doing other work */}
-          <rect className="pi-boxd" x={372} y={92} width={116} height={36} rx={5} />
-          <text className="pi-dim" x={430} y={115} textAnchor="middle">CPU: other work</text>
-          {/* event bolt */}
-          <text className="pi-ev" x={430} y={150} textAnchor="middle">EVENT</text>
-          <path className="pi-bolt" d="M430,156 L422,176 L430,176 L424,196 L440,172 L432,172 L438,156 Z" />
-          {/* straight shot to ISR */}
-          <line className="pi-w" x1={452} y1={176} x2={506} y2={176} />
-          <path className="pi-w" fill="none" d="M498,171 L506,176 L498,181" />
-          <rect className="pi-box pi-isr" x={508} y={154} width={120} height={44} rx={6} />
-          <text className="pi-isrt" x={568} y={172} textAnchor="middle">ISR</text>
-          <text className="pi-isrs" x={568} y={188} textAnchor="middle">handle it</text>
-          <text className="pi-note" x={496} y={252} textAnchor="middle">called the instant it happens, no waste</text>
+        {/* POLLING — a loop */}
+        <svg className="pi-svg" viewBox="0 0 210 210" aria-hidden="true">
+          <defs>
+            <marker id="pi-g" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0 0 L6 3 L0 6 Z" className="pi-mk-g" />
+            </marker>
+          </defs>
+          <text x="100" y="16" textAnchor="middle" className="pi-lbl-g">POLLING</text>
+          <circle cx="100" cy="110" r="56" className="pi-ring" />
+          <path d="M100 54 A56 56 0 0 1 152 92" className="pi-ring-arrow" markerEnd="url(#pi-g)" />
+          {CHECKS.map((c, i) => (
+            <g key={i}>
+              <circle cx={c.x} cy={c.y} r="13" className="pi-node" />
+              <text x={c.x} y={c.y + 4} textAnchor="middle" className="pi-q">?</text>
+            </g>
+          ))}
+          <text x="100" y="106" textAnchor="middle" className="pi-mid">check,</text>
+          <text x="100" y="120" textAnchor="middle" className="pi-mid">recheck</text>
+          <text x="100" y="196" textAnchor="middle" className="pi-note">loops, mostly finds nothing</text>
         </svg>
 
-        {/* phone reflow */}
-        <div className="pi-phone" aria-hidden="true">
-          <div className="pi-card pi-cgold">
-            <span className="pi-ceye">Polling</span>
-            <span className="pi-cv">The CPU loops, checking the pin over and over, and catches the event late. Cycles wasted between checks.</span>
-          </div>
-          <div className="pi-card pi-cgold">
-            <span className="pi-ceye">Interrupt</span>
-            <span className="pi-cv">The event fires and the hardware calls the ISR directly, the instant it happens, while the CPU was free.</span>
-          </div>
-        </div>
+        <div className="pi-div" aria-hidden="true" />
+
+        {/* INTERRUPT — a straight jump */}
+        <svg className="pi-svg pi-svg-r" viewBox="0 0 250 210" aria-hidden="true">
+          <defs>
+            <marker id="pi-b" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0 0 L6 3 L0 6 Z" className="pi-mk-b" />
+            </marker>
+          </defs>
+          <text x="125" y="16" textAnchor="middle" className="pi-lbl-b">INTERRUPT</text>
+          <line x1="20" y1="150" x2="230" y2="150" className="pi-work" />
+          <text x="24" y="170" className="pi-note">CPU free for other work</text>
+          <line x1="60" y1="150" x2="60" y2="112" className="pi-jump" />
+          <Bolt x={59} y={112} />
+          <text x="42" y="104" className="pi-evt">event</text>
+          <line x1="72" y1="96" x2="150" y2="96" className="pi-jump" markerEnd="url(#pi-b)" />
+          <rect x="152" y="78" width="76" height="36" rx="7" className="pi-isr" />
+          <text x="190" y="101" textAnchor="middle" className="pi-isr-t">ISR</text>
+          <text x="125" y="196" textAnchor="middle" className="pi-note">jumps the instant it fires</text>
+        </svg>
       </div>
     </DiagramFrame>
   );
 }
 
 const CSS = `
-.pi{display:block;}
-.pi-scene{display:block;width:100%;height:auto;overflow:visible;}
-.pi-div{stroke:var(--color-panel-border,#3a3f50);stroke-width:1.2;stroke-dasharray:3 5;}
-.pi-loop{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
-.pi-w{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round;}
-.pi-box{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:1.7;}
-.pi-isr{stroke-width:2.2;}
-.pi-boxd{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-panel-border,#3a3f50);stroke-width:1.4;}
-.pi-bolt{fill:var(--color-command-gold,#c8963e);stroke:var(--color-command-gold,#c8963e);stroke-width:1;stroke-linejoin:round;}
-.pi-hd{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:12px;letter-spacing:.11em;fill:var(--color-command-gold,#c8963e);}
-.pi-cq{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:14px;fill:var(--color-title,#f1ece0);}
-.pi-no{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:12px;fill:var(--color-muted,#aaa);}
-.pi-yes{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:12px;fill:var(--color-command-gold,#c8963e);}
-.pi-bx{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:13px;fill:var(--color-title,#f1ece0);}
-.pi-dim{font-family:var(--font-mono,"Space Mono",monospace);font-weight:400;font-size:11px;fill:var(--color-muted,#aaa);}
-.pi-ev{font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:16px;letter-spacing:.05em;fill:var(--color-command-gold,#c8963e);}
-.pi-isrt{font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:20px;letter-spacing:.04em;fill:var(--color-command-gold,#c8963e);}
-.pi-isrs{font-family:var(--font-mono,"Space Mono",monospace);font-weight:400;font-size:11px;fill:var(--color-text,#e8e8e8);}
-.pi-note{font-family:var(--font-serif,"Lora",serif);font-style:italic;font-size:13px;fill:var(--color-muted,#aaa);}
+.pi{display:flex;gap:.7rem;align-items:center;justify-content:center;max-width:36rem;margin-inline:auto;}
+.pi-svg{flex:1 1 200px;min-width:0;max-width:220px;height:auto;overflow:visible;}
+.pi-svg-r{max-width:264px;}
+.pi-div{flex:0 0 0;align-self:stretch;border-left:1px dashed var(--color-panel-border,#3a3f50);margin:1rem 0;}
+@media (max-width:520px){
+  .pi{flex-direction:column;gap:.3rem;}
+  .pi-svg{max-width:min(300px,100%);}
+  .pi-div{align-self:stretch;border-left:0;border-top:1px dashed var(--color-panel-border,#3a3f50);margin:0 2rem;width:auto;}
+}
+.pi-ring{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:1.8;stroke-dasharray:4 5;}
+.pi-ring-arrow{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2;}
+.pi-mk-g{fill:var(--color-command-gold,#c8963e);}
+.pi-mk-b{fill:var(--color-signal-blue,#4a8fff);}
+.pi-node{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:1.6;}
+.pi-q{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:12px;fill:var(--color-muted,#aaaaaa);}
+.pi-mid{font-family:var(--font-mono,"Space Mono",monospace);font-size:10px;fill:var(--color-muted,#aaaaaa);}
+.pi-lbl-g{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:11px;letter-spacing:.12em;fill:var(--color-command-gold,#c8963e);}
+.pi-lbl-b{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:11px;letter-spacing:.12em;fill:var(--color-signal-blue,#4a8fff);}
+.pi-work{stroke:var(--color-command-gold,#c8963e);stroke-width:3;stroke-linecap:round;}
+.pi-jump{stroke:var(--color-signal-blue,#4a8fff);stroke-width:2.2;stroke-linecap:round;}
+.pi-bolt{fill:var(--color-signal-blue,#4a8fff);}
+.pi-evt{font-family:var(--font-mono,"Space Mono",monospace);font-size:10px;fill:var(--color-signal-blue,#4a8fff);}
+.pi-isr{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-signal-blue,#4a8fff);stroke-width:1.6;}
+.pi-isr-t{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:12px;fill:var(--color-title,#f1ece0);}
+.pi-note{font-family:var(--font-mono,"Space Mono",monospace);font-size:9.5px;fill:var(--color-muted,#aaaaaa);}
 
-/* phone reflow */
-.pi-phone{display:none;}
-@media (max-width:520px){ .pi-scene{display:none;} .pi-phone{display:block;} }
-.pi-card{border:1px solid var(--color-command-gold,#c8963e);border-radius:6px;background:var(--color-navy-dark,#1a1a2e);padding:.55rem .7rem;margin-bottom:.55rem;display:flex;flex-direction:column;gap:.2rem;}
-.pi-ceye{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--color-command-gold,#c8963e);}
-.pi-cv{font-family:var(--font-serif,"Lora",serif);font-size:.92rem;line-height:1.45;color:var(--color-text,#e8e8e8);}
+/* Tier-B reveal off the frame's armed/in contract (final state under reduced-motion). */
+.dgfrm.armed .pi-svg{opacity:0;transform:translateY(6px);}
+.dgfrm.armed.in .pi-svg{opacity:1;transform:none;transition:opacity .55s ease,transform .55s cubic-bezier(.2,.7,.2,1);}
+.dgfrm.armed.in .pi-svg-r{transition-delay:.12s;}
+@media (prefers-reduced-motion:reduce){
+  .dgfrm .pi-svg{opacity:1!important;transform:none!important;transition:none!important;}
+}
 `;

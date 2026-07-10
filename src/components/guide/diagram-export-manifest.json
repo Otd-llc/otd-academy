@@ -278,8 +278,8 @@
   {
     "basename": "mcu-poll-vs-interrupt",
     "image": "/guide-diagrams/mcu-poll-vs-interrupt.webp",
-    "alt": "Two ways to react to an event, side by side. On the left, polling: the CPU loops, checking the pin over and over, asking is it high yet, and only catches the event on a later check, wasting cycles in between. On the right, an interrupt: the event fires and the hardware calls the interrupt service routine directly, the instant it happens, while the CPU was free to do other work. The interrupt path is direct; the polling path goes in circles.",
-    "hash": "e518ed3e6265"
+    "alt": "Two ways to catch an event, compared. On the left, polling is drawn as a loop: the CPU circles through repeated checks of a pin, asking again and again and mostly finding nothing. On the right, an interrupt is drawn as a straight path: the event fires and jumps the CPU directly into a short interrupt service routine, the ISR, with no checking and a near-instant response.",
+    "hash": "edc6b11a8b09"
   },
   {
     "basename": "mcu-peripheral-mux",
