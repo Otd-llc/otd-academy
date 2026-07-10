@@ -290,8 +290,8 @@
   {
     "basename": "mcu-sleep-current",
     "image": "/guide-diagrams/mcu-sleep-current.webp",
-    "alt": "A current-versus-time trace of a battery board's wake-measure-sleep cycle. The current spikes briefly to the milliamp range each time the board wakes to take a reading and send it, then drops back to a long, flat microamp floor while it deep-sleeps for seconds. The board spends almost all of its time on that low floor, so the sleep current, not the brief spikes, is what sets the battery life.",
-    "hash": "5f2646711629"
+    "alt": "A current-versus-time trace of a wake-measure-sleep cycle: brief tall active spikes reaching about 150 milliamps, each followed by a long flat sleep floor near 10 microamps, repeating. Below, two runtime bars compare a board left always on, which lasts hours, against one that is mostly asleep, which lasts months. The low sleep floor, held almost the whole time, is what sets the battery life.",
+    "hash": "54fd89e05a24"
   },
   {
     "basename": "mcu-pinout-map",
