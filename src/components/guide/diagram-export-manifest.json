@@ -280,5 +280,11 @@
     "image": "/guide-diagrams/power-regulator-choice.webp",
     "alt": "A comparison of three regulators. An LDO is inefficient because it burns the drop, but it is very quiet, and it suits a small drop, low current, or a clean analog rail. A buck is highly efficient, over 90 percent, but carries switching noise, and it suits a big drop or high current. A boost is also efficient with switching noise, and is used when the rail sits above the supply. When you need both efficiency and quiet, chain a buck into an LDO: the buck moves the power efficiently and the LDO scrubs the noise off for a clean rail.",
     "hash": "684657a156eb"
+  },
+  {
+    "basename": "power-input-protection",
+    "image": "/guide-diagrams/power-input-protection.webp",
+    "alt": "Two guards at a board's power input. A P-channel MOSFET blocks a reversed supply, and an inrush-limiting element ramps the turn-on current into the bulk capacitors. Below, a current-versus-time trace shows the sharp spike the capacitors would pull without the limiter, drawn dashed, and the gentle ramp with it, drawn solid.",
+    "hash": "3df3bfceac29"
   }
 ]
