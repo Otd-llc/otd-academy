@@ -12,7 +12,7 @@
 // pulls 14 React client components into Node. See diagram-registry.tsx.
 import { chromium } from "playwright";
 import sharp from "sharp";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 
@@ -35,8 +35,25 @@ const LIGHT = argv.includes("--light");
 const LIGHT_SKIP = new Set<string>([]);
 
 function registryBasenames(): string[] {
-  const reg = readFileSync(path.join(ROOT, "src/components/guide/diagram-registry.tsx"), "utf8");
-  return [...reg.matchAll(/"\/guide-diagrams\/([^"]+)\.svg"\s*:/g)].map((m) => m[1]);
+  // Scan the core registry PLUS every per-cluster registry file
+  // (diagram-registry-<cluster>.tsx, added by the parallel-authoring split) so a
+  // diagram registered only in its cluster's file is still discovered. Regex the
+  // FILES (not an import) to keep React client components out of Node.
+  const dir = path.join(ROOT, "src/components/guide");
+  const files = readdirSync(dir).filter((f) => /^diagram-registry.*\.tsx$/.test(f));
+  const keys = new Set<string>();
+  for (const f of files) {
+    const reg = readFileSync(path.join(dir, f), "utf8");
+    for (const line of reg.split(/\r?\n/)) {
+      // Skip `//` comment lines so a scaffold's EXAMPLE key (shown in a comment,
+      // e.g. `//   "/guide-diagrams/comms-uart-frame.svg": CommsUartFrame,`) is not
+      // mistaken for a real registration. Registry entries are one key per line.
+      if (line.trimStart().startsWith("//")) continue;
+      const m = line.match(/"\/guide-diagrams\/([^"]+)\.svg"\s*:/);
+      if (m) keys.add(m[1]);
+    }
+  }
+  return [...keys];
 }
 
 const sha = (b: Buffer) => createHash("sha256").update(b).digest("hex").slice(0, 12);
