@@ -23,6 +23,7 @@ import { McuStrappingBoot } from "./diagrams/McuStrappingBoot";
 import { McuFlashLoop } from "./diagrams/McuFlashLoop";
 import { McuTimerCount } from "./diagrams/McuTimerCount";
 import { McuPollVsInterrupt } from "./diagrams/McuPollVsInterrupt";
+import { McuPeripheralMux } from "./diagrams/McuPeripheralMux";
 
 export const MICROCONTROLLERS_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/mcu-block-diagram.svg": McuBlockDiagram,
@@ -33,4 +34,5 @@ export const MICROCONTROLLERS_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/mcu-flash-loop.svg": McuFlashLoop,
   "/guide-diagrams/mcu-timer-count.svg": McuTimerCount,
   "/guide-diagrams/mcu-poll-vs-interrupt.svg": McuPollVsInterrupt,
+  "/guide-diagrams/mcu-peripheral-mux.svg": McuPeripheralMux,
 };

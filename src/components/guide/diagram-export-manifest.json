@@ -280,5 +280,11 @@
     "image": "/guide-diagrams/mcu-poll-vs-interrupt.webp",
     "alt": "Two ways to react to an event, side by side. On the left, polling: the CPU loops, checking the pin over and over, asking is it high yet, and only catches the event on a later check, wasting cycles in between. On the right, an interrupt: the event fires and the hardware calls the interrupt service routine directly, the instant it happens, while the CPU was free to do other work. The interrupt path is direct; the polling path goes in circles.",
     "hash": "e518ed3e6265"
+  },
+  {
+    "basename": "mcu-peripheral-mux",
+    "image": "/guide-diagrams/mcu-peripheral-mux.webp",
+    "alt": "An SPI hardware peripheral inside the chip drives four signals: SCLK the clock, MOSI and MISO the data lines, and CS the chip select. All four run into a pin mux, a routing block, which sends each one out to a GPIO pin of your choosing. The wires cross on the way out to show that any signal can go to any free pin: here they land on GPIO11 through GPIO14. The hardware handles the exact timing; you pick the pins.",
+    "hash": "b8f0c4f07e9c"
   }
 ]
