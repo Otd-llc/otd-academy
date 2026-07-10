@@ -25,6 +25,7 @@ import { McuTimerCount } from "./diagrams/McuTimerCount";
 import { McuPollVsInterrupt } from "./diagrams/McuPollVsInterrupt";
 import { McuPeripheralMux } from "./diagrams/McuPeripheralMux";
 import { McuSleepCurrent } from "./diagrams/McuSleepCurrent";
+import { McuPinoutMap } from "./diagrams/McuPinoutMap";
 
 export const MICROCONTROLLERS_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/mcu-block-diagram.svg": McuBlockDiagram,
@@ -37,4 +38,5 @@ export const MICROCONTROLLERS_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/mcu-poll-vs-interrupt.svg": McuPollVsInterrupt,
   "/guide-diagrams/mcu-peripheral-mux.svg": McuPeripheralMux,
   "/guide-diagrams/mcu-sleep-current.svg": McuSleepCurrent,
+  "/guide-diagrams/mcu-pinout-map.svg": McuPinoutMap,
 };
