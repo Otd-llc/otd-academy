@@ -298,5 +298,11 @@
     "image": "/guide-diagrams/pcb-reflow-profile.webp",
     "alt": "A reflow temperature-versus-time curve for lead-free soldering. Temperature ramps up through a preheat stage, holds through a soak, spikes through the reflow stage to a peak near 245 to 255 C, then falls through a controlled cool-down. A dashed line marks the 217 C melting point; the band above it and the reflow window are highlighted as the zone where the solder is molten.",
     "hash": "9ed4876f32d8"
+  },
+  {
+    "basename": "pcb-bringup",
+    "image": "/guide-diagrams/pcb-bringup.webp",
+    "alt": "The board bring-up sequence as an ordered checklist. Step one, inspect the unpowered board under magnification for bridges and missing or lifted parts. Step two, a cold continuity check for shorts between the rails that must never touch: ground to 5V, ground to 3.3V, and 5V to 3.3V. Step three, confirm polarity on the diodes, electrolytic capacitors, and every chip's pin 1 against the silkscreen. Step four, the only powered step, apply first power from a current-limited supply, watch the current, and verify each rail. The three cold checks come before power ever touches the board.",
+    "hash": "de3e70517b04"
   }
 ]
