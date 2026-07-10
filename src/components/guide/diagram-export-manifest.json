@@ -232,5 +232,11 @@
     "image": "/guide-diagrams/fund-datasheet-anatomy.webp",
     "alt": "A datasheet specification table for an LDO regulator, with columns for parameter, minimum, typical, maximum, and unit. Input voltage runs from a 2.5 volt minimum to a 6.0 volt absolute maximum. The output is 3.3 volts typical. Output current is 600 milliamps maximum. Dropout is 250 millivolts typical and 400 millivolts maximum. Junction temperature runs from minus 40 to 125 degrees Celsius. Read across each row: the typical column is the value you design around, and the maximum column is the absolute limit you never cross.",
     "hash": "5ec081d71db4"
+  },
+  {
+    "basename": "pcb-layout-workflow",
+    "image": "/guide-diagrams/pcb-layout-workflow.webp",
+    "alt": "The PCB workflow runs from schematic to board through one shared netlist. In the schematic editor you draw the circuit and give every part a footprint. That produces the netlist, the machine-readable list of which pins connect to which. The PCB editor reads the same netlist to place the parts, route the copper, pass the design-rule check, and export the gerbers. Because the two files share one netlist, they can never silently disagree.",
+    "hash": "52bc6b17c6ca"
   }
 ]

@@ -15,5 +15,8 @@
 //   pcb-drc               pcb-silkscreen        pcb-gerber-package
 //   pcb-dfm               pcb-reflow-profile    pcb-bringup
 import type { DiagramComponent } from "./diagram-registry";
+import { PcbLayoutWorkflow } from "./diagrams/PcbLayoutWorkflow";
 
-export const PCB_DIAGRAMS: Record<string, DiagramComponent> = {};
+export const PCB_DIAGRAMS: Record<string, DiagramComponent> = {
+  "/guide-diagrams/pcb-layout-workflow.svg": PcbLayoutWorkflow,
+};
