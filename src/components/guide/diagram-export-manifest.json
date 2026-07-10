@@ -272,8 +272,8 @@
   {
     "basename": "mcu-timer-count",
     "image": "/guide-diagrams/mcu-timer-count.webp",
-    "alt": "A steady clock signal, drawn as a square wave of ticks, drives a timer that counts each tick. The running count is shown under the ticks: 1, 2, 3, 4, then it resets and counts again. Every time the count reaches N (here 4) the timer fires an event, an interrupt, marked below. The time between fires is N ticks, which equals N divided by the clock frequency f-clk. That is how a board keeps an exact rate.",
-    "hash": "d5798e2847ba"
+    "alt": "A timer drawn as a three-lane scope trace. The top lane is a steady clock of square pulses. The middle lane is the timer's count, a staircase that climbs one step on every clock tick, from zero up to its target N, then drops back to zero. The bottom lane is the event the timer fires at each rollover, aligned to the moment the count reaches N. Because it counts a fixed frequency, the event repeats at an exact rate, such as a 1 Hz blink or a 250 Hz sample.",
+    "hash": "8fd8e504934c"
   },
   {
     "basename": "mcu-poll-vs-interrupt",

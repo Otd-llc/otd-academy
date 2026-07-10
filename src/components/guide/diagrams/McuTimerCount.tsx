@@ -1,119 +1,104 @@
-// Clocks and timers: count ticks, fire every N (v2). Microcontrollers cluster.
+// Clocks and timers: count the ticks, fire on schedule (diagram-standards v2).
+// MCU cluster, diagram 7. Owner-picked T6: a three-lane scope trace.
 //
-// Teaching point: a timer counts the steady clock and fires an event every N
-// ticks, so the time between fires is N divided by the clock frequency. That is
-// how a board holds an exact rate.
+// Teaching point (lesson 6): a clock is a steady stream of pulses; a timer is a
+// hardware counter wired to it that increments on every tick, and when it reaches
+// its target count N it fires an event and reloads. Three aligned lanes: the clock
+// pulses, the count climbing to N and rolling over, and the event fired at each
+// rollover. Because it counts a fixed frequency, the rate is exact.
 //
-// Landscape desktop/print: a clock waveform over the running count, with a fire
-// marker each time the count reaches N, and the period formula. REFLOWS on a
-// phone to a summary. Token-only color.
+// Scope paths computed once at module scope. Color via CSS classes; Saira for the
+// count numbers. Header + caption from the DiagramFrame.
 import { DiagramFrame } from "./DiagramFrame";
 
-const X0 = 118, TW = 64, TICKS = 8, N = 4;
-const Y_HI = 66, Y_LO = 92;
+const X0 = 70, TW = 48, TICKS = 8, N = 4;
+const UNIT = 14, YB = 160;
+const FIRES = [X0 + N * TW, X0 + 2 * N * TW];
 
-function clockPath(): string {
-  let d = `M${X0},${Y_HI}`;
+const CLK = (() => {
+  const yTop = 40, yBot = 64;
+  let d = `M${X0} ${yBot}`;
+  let x = X0;
   for (let i = 0; i < TICKS; i++) {
-    const xh = X0 + i * TW, xm = xh + TW / 2, xe = xh + TW;
-    d += ` L${xm},${Y_HI} L${xm},${Y_LO} L${xe},${Y_LO} L${xe},${Y_HI}`;
+    const h = TW / 2;
+    d += ` L${x} ${yTop} L${x + h} ${yTop} L${x + h} ${yBot} L${x + TW} ${yBot}`;
+    x += TW;
   }
   return d;
-}
+})();
+
+const COUNT = (() => {
+  let d = `M${X0} ${YB}`;
+  let c = 0;
+  for (let i = 1; i <= TICKS; i++) {
+    const x = X0 + i * TW;
+    d += ` L${x} ${(YB - c * UNIT).toFixed(1)}`;
+    c++;
+    if (c >= N) { d += ` L${x} ${(YB - N * UNIT).toFixed(1)} L${x} ${YB}`; c = 0; }
+    else d += ` L${x} ${(YB - c * UNIT).toFixed(1)}`;
+  }
+  return d;
+})();
 
 export function McuTimerCount({ caption }: { caption?: string }) {
-  const fires = [N - 1, 2 * N - 1]; // tick index where the count reaches N
   return (
     <DiagramFrame
-      eyebrow="MICROCONTROLLERS · CLOCKS & TIMERS"
+      eyebrow="MICROCONTROLLERS · TIMERS"
       tone="gold"
-      title="Count the ticks, fire every N"
-      ariaLabel="A steady clock signal, drawn as a square wave of ticks, drives a timer that counts each tick. The running count is shown under the ticks: 1, 2, 3, 4, then it resets and counts again. Every time the count reaches N (here 4) the timer fires an event, an interrupt, marked below. The time between fires is N ticks, which equals N divided by the clock frequency f-clk. That is how a board keeps an exact rate."
+      title="Count the ticks, fire on schedule"
+      ariaLabel="A timer drawn as a three-lane scope trace. The top lane is a steady clock of square pulses. The middle lane is the timer's count, a staircase that climbs one step on every clock tick, from zero up to its target N, then drops back to zero. The bottom lane is the event the timer fires at each rollover, aligned to the moment the count reaches N. Because it counts a fixed frequency, the event repeats at an exact rate, such as a 1 Hz blink or a 250 Hz sample."
       caption={caption}
-      defaultCaption="A timer counts clock ticks and fires an event every N of them. The time between fires is N divided by the clock frequency."
+      defaultCaption="A timer counts clock ticks and fires every N of them, then reloads. Because it counts a fixed frequency, the rate is exact, a 1 Hz blink or a steady 250 Hz sample."
     >
       <style>{CSS}</style>
+      <div className="tm">
+        <svg className="tm-svg" viewBox="0 0 540 226" aria-hidden="true">
+          {FIRES.map((x) => (
+            <line key={x} x1={x} y1="34" x2={x} y2="204" className="tm-guide" />
+          ))}
 
-      <div className="tc">
-        {/* desktop / print */}
-        <svg className="tc-scene" viewBox="0 0 660 300" aria-hidden="true">
-          <text className="tc-lbl" x={20} y={83} textAnchor="start">CLOCK</text>
-          <path className="tc-clk" fill="none" d={clockPath()} />
+          <text x={X0 - 10} y="52" textAnchor="end" className="tm-lbl-clk">CLK</text>
+          <path d={CLK} className="tm-clk" />
 
-          {/* running count under each tick */}
-          <text className="tc-lbl" x={20} y={130} textAnchor="start">COUNT</text>
-          {Array.from({ length: TICKS }, (_, i) => {
-            const v = (i % N) + 1;
-            const cx = X0 + i * TW + TW / 2;
-            const hit = v === N;
-            return (
-              <text key={i} className={hit ? "tc-cnt tc-hit" : "tc-cnt"} x={cx} y={132} textAnchor="middle">{v}</text>
-            );
-          })}
+          <path d={COUNT} className="tm-count" />
+          {Array.from({ length: N + 1 }, (_, k) => (
+            <text key={k} x={X0 - 10} y={YB - k * UNIT + 4} textAnchor="end" className="tm-num">{k}</text>
+          ))}
+          <text x={X0 + 2 * N * TW + 14} y={YB - N * UNIT + 4} className="tm-count-lbl">count</text>
 
-          {/* fire markers each time count hits N */}
-          {fires.map((i) => {
-            const cx = X0 + i * TW + TW / 2;
-            return (
-              <g key={i}>
-                <line className="tc-fire" x1={cx} y1={Y_LO} x2={cx} y2={192} />
-                <path className="tc-fire" fill="none" d={`M${cx - 6},184 L${cx},192 L${cx + 6},184`} />
-                <text className="tc-firel" x={cx} y={210} textAnchor="middle">FIRE</text>
-                <text className="tc-fires" x={cx} y={224} textAnchor="middle">event</text>
-              </g>
-            );
-          })}
+          {FIRES.map((x) => (
+            <g key={x}>
+              <line x1={x} y1="200" x2={x} y2="178" className="tm-fire" />
+              <circle cx={x} cy="178" r="3.5" className="tm-firedot" />
+            </g>
+          ))}
+          <text x={X0 - 10} y="192" textAnchor="end" className="tm-lbl-fire">FIRE</text>
 
-          {/* period span between fires */}
-          {(() => {
-            const xa = X0 + fires[0] * TW + TW / 2, xb = X0 + fires[1] * TW + TW / 2;
-            return (
-              <g>
-                <line className="tc-span" x1={xa} y1={166} x2={xb} y2={166} />
-                <path className="tc-span" fill="none" d={`M${xa + 8},161 L${xa},166 L${xa + 8},171`} />
-                <path className="tc-span" fill="none" d={`M${xb - 8},161 L${xb},166 L${xb - 8},171`} />
-                <text className="tc-spanl" x={(xa + xb) / 2} y={160} textAnchor="middle">N ticks</text>
-              </g>
-            );
-          })()}
-
-          {/* period formula */}
-          <text className="tc-eq" x={330} y={258} textAnchor="middle">
-            t = N / f<tspan className="tc-sub" dy={4}>clk</tspan>
-          </text>
+          <text x="270" y="222" textAnchor="middle" className="tm-note">a steady rate: a 1 Hz blink, or exactly 250 Hz sampling</text>
         </svg>
-
-        {/* phone reflow */}
-        <div className="tc-phone" aria-hidden="true">
-          <p className="tc-psum">The clock ticks steadily; the timer counts the ticks. Every <b>N</b> ticks it fires an event.</p>
-          <p className="tc-peq">t = N / f<sub>clk</sub></p>
-          <p className="tc-pnote">so a bigger N, or a slower clock, means a longer gap between fires.</p>
-        </div>
       </div>
     </DiagramFrame>
   );
 }
 
 const CSS = `
-.tc{display:block;}
-.tc-scene{display:block;width:100%;height:auto;overflow:visible;}
-.tc-clk{stroke:var(--color-command-gold,#c8963e);stroke-width:2.6;stroke-linejoin:round;stroke-linecap:round;}
-.tc-lbl{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:11px;letter-spacing:.12em;fill:var(--color-muted,#aaa);}
-.tc-cnt{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;font-size:20px;fill:var(--color-muted,#aaa);}
-.tc-hit{fill:var(--color-command-gold,#c8963e);font-size:23px;}
-.tc-fire{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
-.tc-firel{font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:16px;letter-spacing:.06em;fill:var(--color-command-gold,#c8963e);}
-.tc-fires{font-family:var(--font-mono,"Space Mono",monospace);font-weight:400;font-size:10px;fill:var(--color-muted,#aaa);}
-.tc-span{fill:none;stroke:var(--color-signal-blue,#4a8fff);stroke-width:1.6;}
-.tc-spanl{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:11px;fill:var(--color-signal-blue,#4a8fff);}
-.tc-eq{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;font-size:22px;fill:var(--color-title,#f1ece0);}
-.tc-sub{font-size:14px;fill:var(--color-muted,#aaa);}
+.tm{max-width:36rem;margin-inline:auto;}
+.tm-svg{display:block;width:100%;height:auto;overflow:visible;}
+.tm-guide{stroke:var(--color-panel-border,#3a3f50);stroke-width:1;stroke-dasharray:2 4;}
+.tm-clk{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2;}
+.tm-count{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2.4;stroke-linejoin:round;}
+.tm-fire{stroke:var(--color-signal-blue,#4a8fff);stroke-width:2.4;}
+.tm-firedot{fill:var(--color-signal-blue,#4a8fff);}
+.tm-num{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:700;font-size:12px;fill:var(--color-muted,#aaaaaa);}
+.tm-count-lbl{font-family:var(--font-mono,"Space Mono",monospace);font-size:9.5px;fill:var(--color-muted,#aaaaaa);}
+.tm-lbl-clk{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:10px;letter-spacing:.08em;fill:var(--color-command-gold,#c8963e);}
+.tm-lbl-fire{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:10px;letter-spacing:.08em;fill:var(--color-signal-blue,#4a8fff);}
+.tm-note{font-family:var(--font-mono,"Space Mono",monospace);font-size:10.5px;fill:var(--color-muted,#aaaaaa);}
 
-/* phone reflow */
-.tc-phone{display:none;}
-@media (max-width:520px){ .tc-scene{display:none;} .tc-phone{display:block;} }
-.tc-psum{margin:0 0 .5rem;font-family:var(--font-serif,"Lora",serif);font-size:.95rem;line-height:1.5;color:var(--color-text,#e8e8e8);}
-.tc-psum b{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;color:var(--color-command-gold,#c8963e);}
-.tc-peq{margin:.2rem 0;font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;font-size:1.5rem;color:var(--color-title,#f1ece0);}
-.tc-pnote{margin:.2rem 0 0;font-family:var(--font-serif,"Lora",serif);font-size:.9rem;color:var(--color-muted,#aaa);}
+/* Tier-B reveal off the frame's armed/in contract (final state under reduced-motion). */
+.dgfrm.armed .tm-svg{opacity:0;transform:translateY(6px);}
+.dgfrm.armed.in .tm-svg{opacity:1;transform:none;transition:opacity .6s ease,transform .6s cubic-bezier(.2,.7,.2,1);}
+@media (prefers-reduced-motion:reduce){
+  .dgfrm .tm-svg{opacity:1!important;transform:none!important;transition:none!important;}
+}
 `;
