@@ -1,123 +1,106 @@
-// ADC quantization: a voltage becomes a number (v2). Microcontrollers cluster.
+// ADC quantization: a voltage becomes a number (diagram-standards v2).
+// MCU cluster, diagram 3. Owner-picked Q1.
 //
-// Teaching point: an ADC samples a smooth analog voltage and snaps it to the
-// nearest of a fixed set of levels, giving a whole number. The reference sets the
-// top of the range (full scale); the bit count sets how many levels, so the step
-// size is Vref divided by 2^N.
+// Teaching point (lesson 2): an ADC splits its input range into steps and reports
+// which step the voltage lands on. A smooth analog input (blue) rises across the
+// range; the gold staircase is the quantized output, climbing one code at a time
+// under the curve. The reference marks the top step (full scale); the bit count
+// sets how many steps, so the ESP32's 12 bits give 4096. Eight shown for clarity.
 //
-// Landscape desktop/print: a plot of the smooth signal (gold) with the quantized
-// staircase (blue) it becomes, plus the reading panel on the right. Levels are
-// drawn simplified (8) with the real 12-bit count called out. REFLOWS on a phone
-// to a stat + summary. Token-only color.
+// Chart paths are computed once at module scope (deterministic). Color via CSS
+// classes so both themes flip; Saira for the code numbers. Caption from the frame.
 import { DiagramFrame } from "./DiagramFrame";
 
-const X0 = 70, X1 = 430, YT = 54, YB = 246;
-const LEVELS = 8; // illustrative; the real ADC is 12-bit (4096)
-const V = (t: number) => 0.5 - 0.42 * Math.cos(Math.PI * t); // smooth rise, fraction of full scale
-const X = (t: number) => X0 + (X1 - X0) * t;
-const Y = (f: number) => YB - (YB - YT) * f;
-const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
+const N = 8;
+const PX0 = 64, PX1 = 430, PY0 = 194, PYT = 34, H = PY0 - PYT;
+const vy = (v: number) => PY0 - v * H;
+const curveY = (t: number) => 0.5 - 0.5 * Math.cos(Math.PI * t);
 
-function analogPath(): string {
-  const pts: string[] = [];
-  for (let t = 0; t <= 1.0001; t += 0.02) pts.push(`${X(t).toFixed(1)},${Y(V(t)).toFixed(1)}`);
-  return "M" + pts.join(" L");
-}
-function stairPath(): string {
-  let d = "";
-  for (let i = 0; i < LEVELS; i++) {
-    const code = clamp(Math.round(V(i / LEVELS) * (LEVELS - 1)), 0, LEVELS - 1);
-    const y = Y(code / (LEVELS - 1));
-    const xa = X(i / LEVELS), xb = X((i + 1) / LEVELS);
-    d += i === 0 ? `M${xa.toFixed(1)},${y.toFixed(1)}` : `L${xa.toFixed(1)},${y.toFixed(1)}`;
-    d += ` L${xb.toFixed(1)},${y.toFixed(1)}`;
+const CURVE = (() => {
+  let d = "M";
+  for (let i = 0; i <= 64; i++) {
+    const t = i / 64, x = PX0 + t * (PX1 - PX0), y = vy(curveY(t));
+    d += `${i ? "L" : ""}${x.toFixed(1)} ${y.toFixed(1)} `;
   }
   return d;
-}
+})();
+
+const STAIR = (() => {
+  const pts: [number, number][] = [];
+  for (let i = 0; i <= 200; i++) {
+    const t = i / 200, x = PX0 + t * (PX1 - PX0);
+    const lvl = Math.max(0, Math.min(N - 1, Math.floor(curveY(t) * N)));
+    pts.push([x, lvl]);
+  }
+  let d = `M${pts[0][0].toFixed(1)} ${vy(pts[0][1] / N).toFixed(1)}`;
+  let cur = pts[0][1];
+  for (let i = 1; i < pts.length; i++) {
+    const [x, lvl] = pts[i];
+    if (lvl !== cur) { d += ` L${x.toFixed(1)} ${vy(cur / N).toFixed(1)} L${x.toFixed(1)} ${vy(lvl / N).toFixed(1)}`; cur = lvl; }
+  }
+  d += ` L${pts[pts.length - 1][0].toFixed(1)} ${vy(cur / N).toFixed(1)}`;
+  return d;
+})();
 
 export function McuAdcQuantize({ caption }: { caption?: string }) {
-  const gridY = Array.from({ length: LEVELS }, (_, k) => Y(k / (LEVELS - 1)));
   return (
     <DiagramFrame
       eyebrow="MICROCONTROLLERS · ADC"
       tone="gold"
       title="A voltage becomes a number"
-      ariaLabel="An analog-to-digital converter turns a smooth voltage into a whole number. A plot shows a smooth rising analog signal in gold and the quantized staircase it becomes in blue, snapped to the nearest level. The reference voltage marks the top of the range, full scale, and zero volts is the bottom. The number of levels is set by the bit count: the ESP32 ADC is 12-bit, giving 4096 steps, so the step size is the reference voltage divided by 4096. Half of full scale reads as the code 2048."
+      ariaLabel="An analog-to-digital converter turning a smooth voltage into a number. A smooth analog input curve rises across the range; the converter reports the discrete step the voltage lands on, drawn as a gold staircase that climbs one code at a time under the curve. The reference voltage marks the top step, full scale, and the codes count up the right side. The ESP32's 12-bit converter has 4096 such steps; eight are shown for clarity."
       caption={caption}
-      defaultCaption="The reference sets full scale; the bits set the steps. A 12-bit ADC gives 4096 levels, so a voltage snaps to the nearest one."
+      defaultCaption="A smooth voltage in, a numbered step out: the reference sets full scale and the bit count sets how many steps, so the ESP32's 12 bits give 4096 of them."
     >
       <style>{CSS}</style>
-
-      <div className="adq">
-        {/* desktop / print */}
-        <svg className="adq-scene" viewBox="0 0 660 300" aria-hidden="true">
-          {/* level gridlines */}
-          {gridY.map((y, i) => (
-            <line key={i} className="adq-grid" x1={X0} y1={y} x2={X1} y2={y} />
+      <div className="adc">
+        <svg className="adc-svg" viewBox="0 0 540 230" aria-hidden="true">
+          {/* level grid */}
+          {Array.from({ length: N + 1 }, (_, k) => (
+            <line key={k} x1={PX0} y1={vy(k / N)} x2={PX1} y2={vy(k / N)} className="adc-grid" />
           ))}
           {/* axes */}
-          <line className="adq-axis" x1={X0} y1={YT - 6} x2={X0} y2={YB} />
-          <line className="adq-axis" x1={X0} y1={YB} x2={X1 + 6} y2={YB} />
-          <text className="adq-ref" x={X0 - 10} y={YT + 2} textAnchor="end">Vref</text>
-          <text className="adq-ax" x={X0 - 10} y={YB} textAnchor="end">0 V</text>
-          <text className="adq-ax" x={(X0 + X1) / 2} y={YB + 20} textAnchor="middle">time →</text>
-
-          {/* quantized staircase (what you get) */}
-          <path className="adq-stair" fill="none" d={stairPath()} />
-          {/* smooth analog (what came in) */}
-          <path className="adq-analog" fill="none" d={analogPath()} />
-
-          {/* sample highlight at half scale → code 2048 */}
-          <line className="adq-samp" x1={X(0.5)} y1={Y(V(0.5))} x2={X(0.5)} y2={YB} />
-          <circle className="adq-dot" cx={X(0.5)} cy={Y(V(0.5))} r={4.5} />
-          <line className="adq-samp" x1={X(0.5)} y1={Y(V(0.5))} x2={452} y2={Y(V(0.5))} />
-          <path className="adq-samp" fill="none" d={`M444,${Y(V(0.5)) - 5} L452,${Y(V(0.5))} L444,${Y(V(0.5)) + 5}`} />
-
-          {/* reading panel */}
-          <text className="adq-hd" x={556} y={70} textAnchor="middle">THE READING</text>
-          <text className="adq-big" x={556} y={112} textAnchor="middle">4096</text>
-          <text className="adq-unit" x={556} y={132} textAnchor="middle">steps (12-bit)</text>
-          <rect className="adq-code" x={505} y={146} width={102} height={34} rx={5} />
-          <text className="adq-codev" x={556} y={169} textAnchor="middle">2048</text>
-          <text className="adq-note" x={556} y={200} textAnchor="middle">half scale → 2048</text>
-          <text className="adq-step" x={556} y={228} textAnchor="middle">step = Vref / 4096</text>
+          <line x1={PX0} y1={PYT} x2={PX0} y2={PY0} className="adc-axis" />
+          <line x1={PX0} y1={PY0} x2={PX1} y2={PY0} className="adc-axis" />
+          {/* Vref full-scale */}
+          <line x1={PX0} y1={PYT} x2={PX1} y2={PYT} className="adc-vref" />
+          <text x={PX1} y={PYT - 6} textAnchor="end" className="adc-vref-lbl">Vref · FULL SCALE</text>
+          {/* signals */}
+          <path d={CURVE} className="adc-curve" />
+          <path d={STAIR} className="adc-stair" />
+          <text x={PX0 + 80} y={PYT + 16} className="adc-analog">analog in</text>
+          {/* codes */}
+          {Array.from({ length: N }, (_, k) => (
+            <text key={k} x={PX1 + 10} y={vy(k / N + 0.5 / N) + 4} className="adc-code">{k}</text>
+          ))}
+          <text x={PX1 + 10} y={PY0 + 2} className="adc-lbl-sm">code</text>
+          <text x={PX0 - 8} y={PY0 + 3} textAnchor="end" className="adc-zero">0</text>
+          <text x="270" y="216" textAnchor="middle" className="adc-axlbl">INPUT VOLTAGE →</text>
         </svg>
-
-        {/* phone reflow */}
-        <div className="adq-phone" aria-hidden="true">
-          <div className="adq-stat"><span className="adq-snum">4096</span><span className="adq-slab">steps · 12-bit</span></div>
-          <p className="adq-sum">A smooth voltage snaps to the nearest step and reads as a whole number. The reference sets full scale; the step size is <b>Vref / 4096</b>. Half of full scale reads <b>2048</b>.</p>
-        </div>
       </div>
     </DiagramFrame>
   );
 }
 
 const CSS = `
-.adq{display:block;}
-.adq-scene{display:block;width:100%;height:auto;overflow:visible;}
-.adq-grid{stroke:var(--color-panel-border,#3a3f50);stroke-width:1;stroke-dasharray:2 4;}
-.adq-axis{stroke:var(--color-panel-border,#3a3f50);stroke-width:1.5;}
-.adq-analog{stroke:var(--color-command-gold,#c8963e);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;}
-.adq-stair{stroke:var(--color-signal-blue,#4a8fff);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
-.adq-samp{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:1.6;stroke-dasharray:3 3;}
-.adq-dot{fill:var(--color-command-gold,#c8963e);}
-.adq-ref{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:13px;fill:var(--color-command-gold,#c8963e);}
-.adq-ax{font-family:var(--font-mono,"Space Mono",monospace);font-weight:400;font-size:12px;fill:var(--color-muted,#aaa);}
-.adq-hd{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:12px;letter-spacing:.13em;fill:var(--color-command-gold,#c8963e);}
-.adq-big{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;font-size:38px;fill:var(--color-title,#f1ece0);}
-.adq-unit{font-family:var(--font-mono,"Space Mono",monospace);font-weight:400;font-size:12px;fill:var(--color-muted,#aaa);}
-.adq-code{fill:none;stroke:var(--color-signal-blue,#4a8fff);stroke-width:1.8;}
-.adq-codev{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;font-size:20px;fill:var(--color-signal-blue,#4a8fff);}
-.adq-note{font-family:var(--font-mono,"Space Mono",monospace);font-weight:400;font-size:11.5px;fill:var(--color-muted,#aaa);}
-.adq-step{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;font-size:15px;fill:var(--color-text,#e8e8e8);}
+.adc{max-width:36rem;margin-inline:auto;}
+.adc-svg{display:block;width:100%;height:auto;overflow:visible;}
+.adc-grid{stroke:var(--color-panel-border,#3a3f50);stroke-width:1;stroke-dasharray:2 4;}
+.adc-axis{stroke:var(--color-panel-border,#3a3f50);stroke-width:1.3;}
+.adc-vref{stroke:var(--color-command-gold,#c8963e);stroke-width:1.3;stroke-dasharray:5 4;}
+.adc-vref-lbl{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:700;font-size:13px;fill:var(--color-command-gold,#c8963e);}
+.adc-curve{fill:none;stroke:var(--color-signal-blue,#4a8fff);stroke-width:2.4;}
+.adc-stair{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2.8;stroke-linejoin:round;}
+.adc-analog{font-family:var(--font-mono,"Space Mono",monospace);font-size:12px;fill:var(--color-signal-blue,#4a8fff);}
+.adc-code{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:700;font-size:13px;fill:var(--color-muted,#aaaaaa);}
+.adc-lbl-sm{font-family:var(--font-mono,"Space Mono",monospace);font-size:10px;fill:var(--color-muted,#aaaaaa);}
+.adc-zero{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:700;font-size:13px;fill:var(--color-muted,#aaaaaa);}
+.adc-axlbl{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:700;font-size:13px;letter-spacing:.04em;fill:var(--color-muted,#aaaaaa);}
 
-/* phone reflow */
-.adq-phone{display:none;}
-@media (max-width:520px){ .adq-scene{display:none;} .adq-phone{display:block;text-align:left;} }
-.adq-stat{display:flex;align-items:baseline;gap:.5rem;margin-bottom:.5rem;}
-.adq-snum{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;font-size:2.4rem;line-height:1;color:var(--color-command-gold,#c8963e);}
-.adq-slab{font-family:var(--font-mono,"Space Mono",monospace);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--color-muted,#aaa);}
-.adq-sum{margin:0;font-family:var(--font-serif,"Lora",serif);font-size:.94rem;line-height:1.5;color:var(--color-text,#e8e8e8);}
-.adq-sum b{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;color:var(--color-title,#f1ece0);}
+/* Tier-B reveal off the frame's armed/in contract (final state under reduced-motion). */
+.dgfrm.armed .adc-svg{opacity:0;transform:translateY(6px);}
+.dgfrm.armed.in .adc-svg{opacity:1;transform:none;transition:opacity .6s ease,transform .6s cubic-bezier(.2,.7,.2,1);}
+@media (prefers-reduced-motion:reduce){
+  .dgfrm .adc-svg{opacity:1!important;transform:none!important;transition:none!important;}
+}
 `;

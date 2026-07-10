@@ -248,8 +248,8 @@
   {
     "basename": "mcu-adc-quantize",
     "image": "/guide-diagrams/mcu-adc-quantize.webp",
-    "alt": "An analog-to-digital converter turns a smooth voltage into a whole number. A plot shows a smooth rising analog signal in gold and the quantized staircase it becomes in blue, snapped to the nearest level. The reference voltage marks the top of the range, full scale, and zero volts is the bottom. The number of levels is set by the bit count: the ESP32 ADC is 12-bit, giving 4096 steps, so the step size is the reference voltage divided by 4096. Half of full scale reads as the code 2048.",
-    "hash": "c00fd9bc240f"
+    "alt": "An analog-to-digital converter turning a smooth voltage into a number. A smooth analog input curve rises across the range; the converter reports the discrete step the voltage lands on, drawn as a gold staircase that climbs one code at a time under the curve. The reference voltage marks the top step, full scale, and the codes count up the right side. The ESP32's 12-bit converter has 4096 such steps; eight are shown for clarity.",
+    "hash": "3c71fb4dd24d"
   },
   {
     "basename": "mcu-pwm-duty",
