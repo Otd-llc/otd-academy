@@ -256,5 +256,11 @@
     "image": "/guide-diagrams/comms-i2c-bus.webp",
     "alt": "The I2C bus needs only two shared wires, SDA for data and SCL for the clock, to carry a whole bus of devices. Three devices hang on the same two lines, each answering to its own 7-bit address: 0x1D, 0x50, and 0x68. The controller reaches any one of them by sending its address, so adding another device costs no new wires.",
     "hash": "d7f700e13646"
+  },
+  {
+    "basename": "comms-bus-compare",
+    "image": "/guide-diagrams/comms-bus-compare.webp",
+    "alt": "The three on-board buses side by side. UART joins two devices point to point over two wires, TX and RX, at low to moderate speed. I2C shares two wires, SDA and SCL, among many devices addressed on the bus, at moderate speed. SPI is the fastest, over three shared lines plus one chip-select per device. Pick UART for a simple stream, I2C when pins are short and speed does not matter, and SPI when you need speed.",
+    "hash": "111ed97d75ff"
   }
 ]
