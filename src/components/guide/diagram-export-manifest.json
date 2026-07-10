@@ -244,5 +244,11 @@
     "image": "/guide-diagrams/pcb-land-pattern.webp",
     "alt": "The SOT-23-5 land pattern: five copper pads, three along the bottom edge numbered one, two, three, and two along the top numbered five and four. A dashed courtyard rectangle rings them, the keep-out that reserves the part's space. The part body sits over the middle so the pads stick out where the leads land. A dot beside pad one marks pin 1, which fixes the part's rotation. Confirm the pattern against the datasheet and the part drops straight onto its copper.",
     "hash": "2639b076207f"
+  },
+  {
+    "basename": "pcb-placement",
+    "image": "/guide-diagrams/pcb-placement.webp",
+    "alt": "Two boards with the same parts placed two ways. On the scattered board the microcontroller, regulator, USB connector, and decoupling caps are spread out, and the ratsnest of connections crosses itself in long tangled lines. On the grouped board the USB connector sits at the edge, the power parts and the microcontroller are each in their own zone, and the decoupling cap sits right at the microcontroller's power pin, so every connection is short. Good placement makes routing almost fall out.",
+    "hash": "5e11c4d0d041"
   }
 ]
