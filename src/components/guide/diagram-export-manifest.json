@@ -250,5 +250,11 @@
     "image": "/guide-diagrams/pcb-placement.webp",
     "alt": "Two boards with the same parts placed two ways. On the scattered board the microcontroller, regulator, USB connector, and decoupling caps are spread out, and the ratsnest of connections crosses itself in long tangled lines. On the grouped board the USB connector sits at the edge, the power parts and the microcontroller are each in their own zone, and the decoupling cap sits right at the microcontroller's power pin, so every connection is short. Good placement makes routing almost fall out.",
     "hash": "5e11c4d0d041"
+  },
+  {
+    "basename": "pcb-routing",
+    "image": "/guide-diagrams/pcb-routing.webp",
+    "alt": "Two panels. On the left, a curve of trace width against current: as the current rises the copper width needed climbs, following the IPC-2221 relationship, with a point marked at one amp. On the right, an edge-on cross-section of a plated via: a drilled hole plated with copper walls runs through the board's core and ties the top copper layer to the bottom, so a trace entering on the top can carry down to the bottom layer. A trace's width sets the current it carries; a via carries a trace to another layer.",
+    "hash": "7c2c79adb54c"
   }
 ]

@@ -18,9 +18,11 @@ import type { DiagramComponent } from "./diagram-registry";
 import { PcbLayoutWorkflow } from "./diagrams/PcbLayoutWorkflow";
 import { PcbLandPattern } from "./diagrams/PcbLandPattern";
 import { PcbPlacement } from "./diagrams/PcbPlacement";
+import { PcbRouting } from "./diagrams/PcbRouting";
 
 export const PCB_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/pcb-layout-workflow.svg": PcbLayoutWorkflow,
   "/guide-diagrams/pcb-land-pattern.svg": PcbLandPattern,
   "/guide-diagrams/pcb-placement.svg": PcbPlacement,
+  "/guide-diagrams/pcb-routing.svg": PcbRouting,
 };
