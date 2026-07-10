@@ -280,5 +280,11 @@
     "image": "/guide-diagrams/comms-level-shift.webp",
     "alt": "Level shifting shown as a signal. On the left, a logic signal in a 5 volt domain swings between 0 and 5 volts. It passes through a level shifter, which keeps the same pattern of ones and zeros but drops the swing. On the right, the same bits come out in a 3.3 volt domain, swinging only 0 to 3.3 volts, a level the 3.3 volt part can accept safely.",
     "hash": "3a14a433d96b"
+  },
+  {
+    "basename": "comms-pull-up-down",
+    "image": "/guide-diagrams/comms-pull-up-down.webp",
+    "alt": "The same input pin, tied three ways. With a pull-up resistor to 3.3 V, the pin idles high and reads a 1. With a pull-down resistor to ground, it idles low and reads a 0. With no resistor at all it floats, picking up noise and reading an unpredictable, undefined level. A pull-up or pull-down gives a line a known default; a floating input has none.",
+    "hash": "31413f7a0583"
   }
 ]
