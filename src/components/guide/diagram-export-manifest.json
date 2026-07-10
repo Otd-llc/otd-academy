@@ -262,5 +262,11 @@
     "image": "/guide-diagrams/comms-bus-compare.webp",
     "alt": "The three on-board buses side by side. UART joins two devices point to point over two wires, TX and RX, at low to moderate speed. I2C shares two wires, SDA and SCL, among many devices addressed on the bus, at moderate speed. SPI is the fastest, over three shared lines plus one chip-select per device. Pick UART for a simple stream, I2C when pins are short and speed does not matter, and SPI when you need speed.",
     "hash": "111ed97d75ff"
+  },
+  {
+    "basename": "comms-usb-enumerate",
+    "image": "/guide-diagrams/comms-usb-enumerate.webp",
+    "alt": "How a USB device enumerates. A host and a device connect over a single differential pair, D-plus and D-minus, whose two wires swing in opposite directions. Before any data crosses, they run a handshake: step 1, the host resets the device; step 2, it asks for the device's descriptor; step 3, the device describes itself, for example a GPS that needs 100 mA; step 4, the host assigns it an address; step 5, the host loads a matching driver. Only after those five enumeration steps does data finally flow.",
+    "hash": "6702357d08d7"
   }
 ]
