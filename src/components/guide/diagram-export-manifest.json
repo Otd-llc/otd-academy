@@ -238,5 +238,11 @@
     "image": "/guide-diagrams/power-power-budget.webp",
     "alt": "A power budget: a 3.3 V rail feeds four loads (MCU 80 mA, Radio TX 120 mA, sensors 30 mA, LEDs 10 mA) that sum to 240 mA. Adding a 30 percent margin gives 312 mA needed, so you round up to a 500 mA source.",
     "hash": "170f440c3d6e"
+  },
+  {
+    "basename": "power-discharge-curve",
+    "image": "/guide-diagrams/power-discharge-curve.webp",
+    "alt": "A lithium-ion discharge curve, cell voltage against state of charge from 100 percent full on the left to 0 percent empty on the right. The voltage starts at 4.2 volts full, holds a long flat plateau near its 3.7 volt nominal for most of the discharge, then drops off a cliff to 3.0 volts empty. A dashed box marks the plateau: nearly all the usable charge sits in that flat band.",
+    "hash": "922b687d972d"
   }
 ]

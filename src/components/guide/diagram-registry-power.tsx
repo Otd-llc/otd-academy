@@ -16,7 +16,9 @@
 //   power-sequencing       power-runtime
 import type { DiagramComponent } from "./diagram-registry";
 import { PowerBudget } from "./diagrams/PowerBudget";
+import { DischargeCurve } from "./diagrams/DischargeCurve";
 
 export const POWER_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/power-power-budget.svg": PowerBudget,
+  "/guide-diagrams/power-discharge-curve.svg": DischargeCurve,
 };
