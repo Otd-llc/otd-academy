@@ -17,6 +17,7 @@ function lesson(over: Partial<LessonMeta> & { slug: string }): LessonMeta {
     clusterOrdinal: 0,
     createdAt: created,
     updatedAt: over.updatedAt ?? created,
+    readingMinutes: 5,
     ...over,
   };
 }

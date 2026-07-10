@@ -18,6 +18,7 @@ export type LessonMeta = {
   clusterOrdinal: number;
   createdAt: Date;
   updatedAt: Date;
+  readingMinutes: number;
 };
 
 // The masthead features, in order (lead first). EDITORIAL — hand-picked flagship

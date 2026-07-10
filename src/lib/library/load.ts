@@ -4,6 +4,7 @@
 // so the route 404s.
 import { db } from "@/lib/db";
 import { byClusterThenOrdinal, bucketByCluster } from "@/lib/library/cluster-order";
+import { readingMinutes } from "@/lib/library/reading-time";
 
 export async function loadPublicMiniLesson(slug: string) {
   return db.miniLesson.findFirst({
@@ -82,19 +83,29 @@ export async function listPublishedByCluster() {
     where: { published: true, accessTier: "PUBLIC" },
     orderBy: { updatedAt: "desc" },
     // `createdAt` rides along for the landing's "new & updated" rail + featured
-    // freshness fallback (pickFeatured / pickFreshRail); bucketByCluster is
-    // generic over the row shape, so the extra field passes through untouched.
+    // freshness fallback (pickFeatured / pickFreshRail). `contentBlocks` is pulled
+    // ONLY to estimate the read-time here, then stripped below so the landing
+    // carries the number, not the (heavy) content. bucketByCluster is generic
+    // over the row shape, so the extra fields pass through untouched.
     select: {
       slug: true,
       title: true,
       summary: true,
+      contentBlocks: true,
       createdAt: true,
       updatedAt: true,
       cluster: true,
       clusterOrdinal: true,
     },
   });
-  return bucketByCluster(rows);
+  // Estimate read-time in one place, then drop contentBlocks. (If the landing
+  // ever gets hot, this compute moves to a stored MiniLesson.readingMinutes
+  // column; today it stays live so a content edit is reflected with no backfill.)
+  const withReadTime = rows.map(({ contentBlocks, ...row }) => ({
+    ...row,
+    readingMinutes: readingMinutes(contentBlocks),
+  }));
+  return bucketByCluster(withReadTime);
 }
 
 // Published, PUBLIC lessons WITH content blocks for a Field Guide PDF.

@@ -50,10 +50,24 @@ const monthYear = (d: Date) =>
 
 const num2 = (n: number) => String(n).padStart(2, "0");
 
+// The read-time readout: an estimate (not a measured metric) that sets the
+// "short read" expectation to lift click-through. Saira numeral + mono "min".
+function ReadMin({ minutes }: { minutes: number }) {
+  return (
+    <span className="shrink-0 whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
+      <span className="font-numeral tabular-nums text-xs text-command-gold">{minutes}</span> min
+    </span>
+  );
+}
+
 // A titles-only index row in the serif reading face, hairline-ruled. The whole
-// row is the link; per-row summary/stamp live on each lesson's own page. A gold
-// arrow gives the affordance and nudges right on hover/focus.
-function LibraryRow({ lesson }: { lesson: { slug: string; title: string } }) {
+// row is the link; per-row summary/stamp live on each lesson's own page. The
+// read-time sits on the right as the row's affordance + merchandising nudge.
+function LibraryRow({
+  lesson,
+}: {
+  lesson: { slug: string; title: string; readingMinutes: number };
+}) {
   return (
     <li>
       <Link
@@ -63,12 +77,7 @@ function LibraryRow({ lesson }: { lesson: { slug: string; title: string } }) {
         <span className="font-serif text-[15px] leading-snug text-text transition-colors group-hover:text-command-gold">
           {lesson.title}
         </span>
-        <span
-          aria-hidden
-          className="shrink-0 font-mono text-command-gold transition-transform group-hover:translate-x-0.5"
-        >
-          →
-        </span>
+        <ReadMin minutes={lesson.readingMinutes} />
       </Link>
     </li>
   );
@@ -98,8 +107,17 @@ function FeaturedLead({ lesson, signedIn }: { lesson: LessonMeta; signedIn: bool
         </p>
       ) : null}
       <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
-        {cluster ? <span>{cluster.label}</span> : null}
-        {cluster ? <span className="text-command-gold">·</span> : null}
+        {cluster ? (
+          <>
+            <span>{cluster.label}</span>
+            <span className="text-command-gold">·</span>
+          </>
+        ) : null}
+        <span>
+          <span className="font-numeral tabular-nums text-command-gold">{lesson.readingMinutes}</span>{" "}
+          min read
+        </span>
+        <span className="text-command-gold">·</span>
         <span>Updated {monthYear(lesson.updatedAt)}</span>
       </p>
       <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -143,8 +161,13 @@ function FeaturedSecondary({ lesson }: { lesson: LessonMeta }) {
       {lesson.summary ? (
         <p className="mt-2 font-serif text-sm leading-relaxed text-muted">{lesson.summary}</p>
       ) : null}
-      <p className="mt-3 font-mono text-[9px] uppercase tracking-[0.18em] text-muted">
-        Updated {monthYear(lesson.updatedAt)}
+      <p className="mt-3 flex flex-wrap items-center gap-x-2 font-mono text-[9px] uppercase tracking-[0.18em] text-muted">
+        <span>
+          <span className="font-numeral tabular-nums text-command-gold">{lesson.readingMinutes}</span>{" "}
+          min
+        </span>
+        <span className="text-command-gold">·</span>
+        <span>Updated {monthYear(lesson.updatedAt)}</span>
       </p>
     </div>
   );
@@ -168,14 +191,22 @@ function FreshRail({ items }: { items: FreshLesson[] }) {
               <span className="font-serif text-[13px] leading-snug text-text transition-colors group-hover:text-command-gold">
                 {l.title}
               </span>
-              <span
-                className={`shrink-0 border px-1 py-px font-mono text-[8px] uppercase tracking-[0.16em] ${
-                  l.freshTag === "NEW"
-                    ? "border-status-green/50 text-status-green"
-                    : "border-command-gold/50 text-command-gold"
-                }`}
-              >
-                {l.freshTag}
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">
+                  <span className="font-numeral tabular-nums text-command-gold">
+                    {l.readingMinutes}
+                  </span>{" "}
+                  min
+                </span>
+                <span
+                  className={`border px-1 py-px font-mono text-[8px] uppercase tracking-[0.16em] ${
+                    l.freshTag === "NEW"
+                      ? "border-status-green/50 text-status-green"
+                      : "border-command-gold/50 text-command-gold"
+                  }`}
+                >
+                  {l.freshTag}
+                </span>
               </span>
             </Link>
           </li>
@@ -196,7 +227,7 @@ function ClusterSection({
 }: {
   ordinal: number | null;
   clusterKey: string;
-  list: { slug: string; title: string }[];
+  list: { slug: string; title: string; readingMinutes: number }[];
   signedIn: boolean;
 }) {
   const cluster = clusterByKey(clusterKey);
