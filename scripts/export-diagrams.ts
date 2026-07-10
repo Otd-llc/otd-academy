@@ -12,7 +12,7 @@
 // pulls 14 React client components into Node. See diagram-registry.tsx.
 import { chromium } from "playwright";
 import sharp from "sharp";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 
@@ -35,8 +35,24 @@ const LIGHT = argv.includes("--light");
 const LIGHT_SKIP = new Set<string>([]);
 
 function registryBasenames(): string[] {
-  const reg = readFileSync(path.join(ROOT, "src/components/guide/diagram-registry.tsx"), "utf8");
-  return [...reg.matchAll(/"\/guide-diagrams\/([^"]+)\.svg"\s*:/g)].map((m) => m[1]);
+  // The registry is split into per-cluster modules (diagram-registry-<cluster>.tsx)
+  // that the index composes by spread, so scan EVERY diagram-registry*.tsx file, not
+  // just the index. Regex the files rather than importing them — importing pulls the
+  // React client components into Node. De-dupe in case a key ever appears twice.
+  const dir = path.join(ROOT, "src/components/guide");
+  const keys = readdirSync(dir)
+    .filter((f) => /^diagram-registry.*\.tsx$/.test(f))
+    .flatMap((f) => {
+      // Drop full-line comments first: the per-cluster modules carry commented-out
+      // EXAMPLE registrations in their headers, and a naive regex would treat those
+      // phantom keys as real (their /diagram-render route 404s → exporter hangs).
+      const src = readFileSync(path.join(dir, f), "utf8")
+        .split("\n")
+        .filter((l) => !/^\s*\/\//.test(l))
+        .join("\n");
+      return [...src.matchAll(/"\/guide-diagrams\/([^"]+)\.svg"\s*:/g)].map((m) => m[1]);
+    });
+  return [...new Set(keys)];
 }
 
 const sha = (b: Buffer) => createHash("sha256").update(b).digest("hex").slice(0, 12);
