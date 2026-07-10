@@ -1,126 +1,89 @@
-// Reading the pinout: not every pin is equal (v2). Microcontrollers cluster.
+// Reading the pinout, grouped by usability (diagram-standards v2).
+// MCU cluster, diagram 11 (final). Owner-picked P2.
 //
-// Teaching point: before you wire, read the pin map. Some pins are strapping
-// (keep them free), some reach the ADC, some are the USB pair or on-module flash
-// (reserved), and the rest are free GPIO. Match each function to a pin that can
-// do it.
+// Teaching point (lesson 10): not every pin can do every job, so read the pin map
+// before you wire. Three groups: the general-purpose pins free to use (gold), the
+// ADC1-capable analog inputs (blue), and the reserved pins to leave alone (red),
+// each tagged with why (strapping, USB, or on-module flash). Assign your signals
+// to the pins that are left. Pin functions are real ESP32-S3 assignments.
 //
-// Landscape desktop/print: the module with a row of pins, each flagged by
-// category colour, plus a legend. REFLOWS on a phone to a category list. Colours
-// stay on-palette: gold free, blue ADC, red strapping (caution), muted reserved.
+// HTML groups, so the text stays crisp and the columns stack on a phone. Token
+// color, both themes. Header + caption from the DiagramFrame.
 import { DiagramFrame } from "./DiagramFrame";
 
-type Cat = "free" | "adc" | "strap" | "rsvd";
-const PINS: { io: string; cat: Cat }[] = [
-  { io: "0", cat: "strap" }, { io: "1", cat: "adc" }, { io: "2", cat: "adc" },
-  { io: "3", cat: "strap" }, { io: "4", cat: "adc" }, { io: "5", cat: "free" },
-  { io: "6", cat: "free" }, { io: "16", cat: "free" }, { io: "17", cat: "free" },
-  { io: "19", cat: "rsvd" }, { io: "20", cat: "rsvd" }, { io: "35", cat: "rsvd" },
-  { io: "36", cat: "rsvd" }, { io: "45", cat: "strap" },
-];
-const CATCLASS: Record<Cat, string> = { free: "pn-free", adc: "pn-adc", strap: "pn-strap", rsvd: "pn-rsvd" };
-const LEGEND: { cat: Cat; label: string }[] = [
-  { cat: "free", label: "free GPIO" },
-  { cat: "adc", label: "ADC input" },
-  { cat: "strap", label: "strapping" },
-  { cat: "rsvd", label: "USB / flash" },
+const GROUPS = [
+  { cls: "use", h: "USE THESE", sub: "free GPIO", pins: [{ n: "GPIO4" }, { n: "GPIO5" }, { n: "GPIO6" }, { n: "GPIO7" }] },
+  { cls: "adc", h: "ANALOG IN", sub: "ADC1 pins", pins: [{ n: "GPIO1" }, { n: "GPIO2" }, { n: "GPIO3" }] },
+  {
+    cls: "res", h: "LEAVE ALONE", sub: "reserved", pins: [
+      { n: "GPIO0", tag: "strap" }, { n: "GPIO19", tag: "USB" }, { n: "GPIO20", tag: "USB" },
+      { n: "GPIO26", tag: "flash" }, { n: "GPIO45", tag: "strap" }, { n: "GPIO46", tag: "strap" },
+    ],
+  },
 ];
 
 export function McuPinoutMap({ caption }: { caption?: string }) {
-  const cx = (i: number) => 62 + i * 40;
   return (
     <DiagramFrame
       eyebrow="MICROCONTROLLERS · PINOUT"
       tone="gold"
-      title="Not every pin is equal"
-      ariaLabel="An annotated ESP32-S3 pin map. A row of pins runs along the module, each flagged by category. Free general-purpose GPIO pins are gold. ADC-capable pins, for analog input, are blue. Strapping pins, which must be kept free at reset or the board will not boot, are red. The USB pair and the on-module flash pins are reserved and shown muted. A legend maps the colours. Read the map and match each function to a pin that can actually do it before you wire."
+      title="Not every pin can do every job"
+      ariaLabel="An ESP32-S3 pin map grouped by how you can use each pin. The first group, in gold, is the general-purpose pins free to use: GPIO4, GPIO5, GPIO6, GPIO7. The second, in blue, is the ADC1-capable analog inputs: GPIO1, GPIO2, GPIO3. The third, in red, is the reserved pins to leave alone, each tagged with why: GPIO0, GPIO45, and GPIO46 are strapping pins, GPIO19 and GPIO20 are the native USB pair, and GPIO26 is wired to the on-module flash. Read the map and wire your signals to the pins that are free."
       caption={caption}
-      defaultCaption="Read the pin map first: strapping, ADC, USB, and flash pins each have their own rules. Match each function to a pin that can do it."
+      defaultCaption="Read the pin map first: gold pins are free to use, blue pins reach ADC1, and the red pins are reserved (strapping, USB, or flash) to leave alone."
     >
       <style>{CSS}</style>
-
-      <div className="pn">
-        {/* desktop / print */}
-        <svg className="pn-scene" viewBox="0 0 660 300" aria-hidden="true">
-          {/* module body */}
-          <rect className="pn-mod" x={44} y={80} width={572} height={44} rx={6} />
-          <text className="pn-modt" x={330} y={108} textAnchor="middle">ESP32-S3</text>
-
-          {/* pins */}
-          {PINS.map((p, i) => {
-            const x = cx(i);
-            return (
-              <g key={p.io} className={CATCLASS[p.cat]}>
-                <line className="pn-stub" x1={x} y1={124} x2={x} y2={142} />
-                <rect className="pn-cell" x={x - 17} y={142} width={34} height={44} rx={4} />
-                <text className="pn-io" x={x} y={166} textAnchor="middle">{p.io}</text>
-                <text className="pn-iolbl" x={x} y={179} textAnchor="middle">IO</text>
-              </g>
-            );
-          })}
-
-          {/* legend */}
-          {LEGEND.map((l, i) => {
-            const lx = 60 + i * 152;
-            return (
-              <g key={l.cat} className={CATCLASS[l.cat]}>
-                <rect className="pn-sw" x={lx} y={228} width={16} height={16} rx={3} />
-                <text className="pn-lgl" x={lx + 24} y={241}>{l.label}</text>
-              </g>
-            );
-          })}
-        </svg>
-
-        {/* phone reflow */}
-        <div className="pn-phone" aria-hidden="true">
-          <p className="pn-plead">Not every pin can do every job. Read the map before you wire:</p>
-          <ul className="pn-plist">
-            <li className="pn-free"><span className="pn-pdot" />free GPIO</li>
-            <li className="pn-adc"><span className="pn-pdot" />ADC input</li>
-            <li className="pn-strap"><span className="pn-pdot" />strapping · keep free at reset</li>
-            <li className="pn-rsvd"><span className="pn-pdot" />USB pair / on-module flash · reserved</li>
-          </ul>
-        </div>
+      <div className="po">
+        {GROUPS.map((g) => (
+          <div key={g.cls} className={`po-col po-${g.cls}`}>
+            <p className="po-h">{g.h}</p>
+            <p className="po-sub">{g.sub}</p>
+            <div className="po-chips">
+              {g.pins.map((p) => (
+                <div key={p.n} className="po-chip">
+                  <span className="po-pin">{p.n}</span>
+                  {"tag" in p && p.tag ? <span className="po-tag">{p.tag}</span> : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </DiagramFrame>
   );
 }
 
 const CSS = `
-.pn{display:block;}
-.pn-scene{display:block;width:100%;height:auto;overflow:visible;}
-.pn-mod{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:1.9;}
-.pn-modt{font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:24px;letter-spacing:.06em;fill:var(--color-title,#f1ece0);}
-.pn-stub{stroke:var(--color-muted,#aaa);stroke-width:1.6;}
-.pn-cell{fill:var(--color-navy-dark,#1a1a2e);stroke-width:2;}
-.pn-io{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;font-size:16px;}
-.pn-iolbl{font-family:var(--font-mono,"Space Mono",monospace);font-weight:400;font-size:8px;letter-spacing:.1em;fill:var(--color-muted,#aaa);}
-.pn-sw{stroke-width:2;}
-.pn-lgl{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:12px;fill:var(--color-text,#e8e8e8);}
+.po{display:flex;gap:clamp(.55rem,3vw,1.3rem);justify-content:center;align-items:flex-start;max-width:36rem;margin-inline:auto;}
+.po-col{flex:1 1 0;min-width:0;}
+.po-res{flex:1.7 1 0;}
+.po-res .po-chips{display:grid;grid-template-columns:1fr 1fr;gap:.32rem;}
+.po-res .po-chip{margin-bottom:0;}
+@media (max-width:520px){ .po{flex-wrap:wrap;} .po-col{flex:1 1 8rem;} .po-res{flex:1 1 100%;} }
+.po-h{margin:0;font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;
+  font-size:clamp(.74rem,2.1vw,.86rem);letter-spacing:.08em;}
+.po-sub{margin:.05rem 0 .4rem;font-family:var(--font-mono,"Space Mono",monospace);
+  font-size:clamp(.66rem,1.7vw,.74rem);color:var(--color-muted,#aaaaaa);}
+.po-chip{display:flex;align-items:center;justify-content:space-between;gap:.4rem;
+  border:1.5px solid var(--color-panel-border,#3a3f50);border-radius:6px;
+  padding:.26rem .5rem;margin-bottom:.32rem;background:var(--color-navy-dark,#1a1a2e);}
+.po-pin{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:700;
+  font-size:clamp(.82rem,2.3vw,.94rem);color:var(--color-title,#f1ece0);}
+.po-tag{font-family:var(--font-mono,"Space Mono",monospace);font-size:clamp(.62rem,1.6vw,.72rem);}
+.po-use .po-h{color:var(--color-command-gold,#c8963e);}
+.po-use .po-chip{border-color:var(--color-command-gold,#c8963e);}
+.po-adc .po-h{color:var(--color-signal-blue,#4a8fff);}
+.po-adc .po-chip{border-color:var(--color-signal-blue,#4a8fff);}
+.po-res .po-h{color:var(--color-alert-red,#ef5350);}
+.po-res .po-chip{border-color:var(--color-alert-red,#ef5350);}
+.po-res .po-tag{color:var(--color-alert-red,#ef5350);}
 
-/* category colours (on-palette) */
-.pn-free .pn-cell,.pn-free .pn-sw{stroke:var(--color-command-gold,#c8963e);}
-.pn-free .pn-io{fill:var(--color-command-gold,#c8963e);}
-.pn-free .pn-sw{fill:var(--color-command-gold,#c8963e);}
-.pn-adc .pn-cell,.pn-adc .pn-sw{stroke:var(--color-signal-blue,#4a8fff);}
-.pn-adc .pn-io{fill:var(--color-signal-blue,#4a8fff);}
-.pn-adc .pn-sw{fill:var(--color-signal-blue,#4a8fff);}
-.pn-strap .pn-cell,.pn-strap .pn-sw{stroke:var(--color-alert-red,#ef5350);}
-.pn-strap .pn-io{fill:var(--color-alert-red,#ef5350);}
-.pn-strap .pn-sw{fill:var(--color-alert-red,#ef5350);}
-.pn-rsvd .pn-cell,.pn-rsvd .pn-sw{stroke:var(--color-panel-border,#3a3f50);}
-.pn-rsvd .pn-io{fill:var(--color-muted,#aaa);}
-.pn-rsvd .pn-sw{fill:var(--color-panel-border,#3a3f50);}
-
-/* phone reflow */
-.pn-phone{display:none;}
-@media (max-width:520px){ .pn-scene{display:none;} .pn-phone{display:block;} }
-.pn-plead{margin:0 0 .5rem;font-family:var(--font-serif,"Lora",serif);font-size:.95rem;line-height:1.5;color:var(--color-text,#e8e8e8);}
-.pn-plist{list-style:none;margin:0;padding:0;}
-.pn-plist li{display:flex;align-items:center;gap:.5rem;font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:.86rem;color:var(--color-text,#e8e8e8);margin-bottom:.45rem;}
-.pn-pdot{width:14px;height:14px;border-radius:3px;flex:none;}
-.pn-free .pn-pdot{background:var(--color-command-gold,#c8963e);}
-.pn-adc .pn-pdot{background:var(--color-signal-blue,#4a8fff);}
-.pn-strap .pn-pdot{background:var(--color-alert-red,#ef5350);}
-.pn-rsvd .pn-pdot{background:var(--color-panel-border,#3a3f50);}
+/* Tier-B reveal off the frame's armed/in contract (final state under reduced-motion). */
+.dgfrm.armed .po-col{opacity:0;transform:translateY(6px);}
+.dgfrm.armed.in .po-col{opacity:1;transform:none;transition:opacity .5s ease,transform .5s cubic-bezier(.2,.7,.2,1);}
+.dgfrm.armed.in .po-col:nth-child(2){transition-delay:.1s;}
+.dgfrm.armed.in .po-col:nth-child(3){transition-delay:.2s;}
+@media (prefers-reduced-motion:reduce){
+  .dgfrm .po-col{opacity:1!important;transform:none!important;transition:none!important;}
+}
 `;

@@ -296,7 +296,7 @@
   {
     "basename": "mcu-pinout-map",
     "image": "/guide-diagrams/mcu-pinout-map.webp",
-    "alt": "An annotated ESP32-S3 pin map. A row of pins runs along the module, each flagged by category. Free general-purpose GPIO pins are gold. ADC-capable pins, for analog input, are blue. Strapping pins, which must be kept free at reset or the board will not boot, are red. The USB pair and the on-module flash pins are reserved and shown muted. A legend maps the colours. Read the map and match each function to a pin that can actually do it before you wire.",
-    "hash": "f18858abc08e"
+    "alt": "An ESP32-S3 pin map grouped by how you can use each pin. The first group, in gold, is the general-purpose pins free to use: GPIO4, GPIO5, GPIO6, GPIO7. The second, in blue, is the ADC1-capable analog inputs: GPIO1, GPIO2, GPIO3. The third, in red, is the reserved pins to leave alone, each tagged with why: GPIO0, GPIO45, and GPIO46 are strapping pins, GPIO19 and GPIO20 are the native USB pair, and GPIO26 is wired to the on-module flash. Read the map and wire your signals to the pins that are free.",
+    "hash": "81538df30dc6"
   }
 ]
