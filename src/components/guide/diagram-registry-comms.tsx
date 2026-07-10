@@ -15,5 +15,28 @@
 //   comms-usb-c-cc             comms-level-shift      comms-pull-up-down
 //   comms-isolation-barrier    comms-bus-trace
 import type { DiagramComponent } from "./diagram-registry";
+import { CommsSerialVsParallel } from "./diagrams/CommsSerialVsParallel";
+import { CommsUartFrame } from "./diagrams/CommsUartFrame";
+import { CommsSpiBus } from "./diagrams/CommsSpiBus";
+import { CommsI2cBus } from "./diagrams/CommsI2cBus";
+import { CommsBusCompare } from "./diagrams/CommsBusCompare";
+import { CommsUsbEnumerate } from "./diagrams/CommsUsbEnumerate";
+import { CommsUsbCCc } from "./diagrams/CommsUsbCCc";
+import { CommsLevelShift } from "./diagrams/CommsLevelShift";
+import { CommsPullUpDown } from "./diagrams/CommsPullUpDown";
+import { CommsIsolationBarrier } from "./diagrams/CommsIsolationBarrier";
+import { CommsBusTrace } from "./diagrams/CommsBusTrace";
 
-export const COMMS_DIAGRAMS: Record<string, DiagramComponent> = {};
+export const COMMS_DIAGRAMS: Record<string, DiagramComponent> = {
+  "/guide-diagrams/comms-serial-vs-parallel.svg": CommsSerialVsParallel,
+  "/guide-diagrams/comms-uart-frame.svg": CommsUartFrame,
+  "/guide-diagrams/comms-spi-bus.svg": CommsSpiBus,
+  "/guide-diagrams/comms-i2c-bus.svg": CommsI2cBus,
+  "/guide-diagrams/comms-bus-compare.svg": CommsBusCompare,
+  "/guide-diagrams/comms-usb-enumerate.svg": CommsUsbEnumerate,
+  "/guide-diagrams/comms-usb-c-cc.svg": CommsUsbCCc,
+  "/guide-diagrams/comms-level-shift.svg": CommsLevelShift,
+  "/guide-diagrams/comms-pull-up-down.svg": CommsPullUpDown,
+  "/guide-diagrams/comms-isolation-barrier.svg": CommsIsolationBarrier,
+  "/guide-diagrams/comms-bus-trace.svg": CommsBusTrace,
+};

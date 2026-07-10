@@ -304,5 +304,203 @@
     "image": "/guide-diagrams/pcb-bringup.webp",
     "alt": "The board bring-up sequence as an ordered checklist. Step one, inspect the unpowered board under magnification for bridges and missing or lifted parts. Step two, a cold continuity check for shorts between the rails that must never touch: ground to 5V, ground to 3.3V, and 5V to 3.3V. Step three, confirm polarity on the diodes, electrolytic capacitors, and every chip's pin 1 against the silkscreen. Step four, the only powered step, apply first power from a current-limited supply, watch the current, and verify each rail. The three cold checks come before power ever touches the board.",
     "hash": "de3e70517b04"
+  },
+  {
+    "basename": "mcu-block-diagram",
+    "image": "/guide-diagrams/mcu-block-diagram.webp",
+    "alt": "What is inside a microcontroller, drawn as one die. Inside a single chip package sit the CPU (two cores, which runs your program), the memory (SRAM for the working variables and flash for the firmware), the radio (Wi-Fi and Bluetooth Low Energy), and a row of peripherals (GPIO, ADC, timers, serial, USB) that reach the outside world through the package pins. A desktop computer spreads those across many separate parts; a microcontroller puts them all on one piece of silicon.",
+    "hash": "5f0ba724ba14"
+  },
+  {
+    "basename": "mcu-gpio-in-out",
+    "image": "/guide-diagrams/mcu-gpio-in-out.webp",
+    "alt": "One GPIO pin shown two ways. As an output, the pin drives current through a resistor and an LED to ground, lighting the LED. As an input, a pull-up resistor ties the pin to 3.3 volts so it reads high, until a button to ground pulls it low. You set the direction first, then write the pin or read it.",
+    "hash": "602e6deefaa2"
+  },
+  {
+    "basename": "mcu-adc-quantize",
+    "image": "/guide-diagrams/mcu-adc-quantize.webp",
+    "alt": "An analog-to-digital converter turning a smooth voltage into a number. A smooth analog input curve rises across the range; the converter reports the discrete step the voltage lands on, drawn as a gold staircase that climbs one code at a time under the curve. The reference voltage marks the top step, full scale, and the codes count up the right side. The ESP32's 12-bit converter has 4096 such steps; eight are shown for clarity.",
+    "hash": "3c71fb4dd24d"
+  },
+  {
+    "basename": "mcu-pwm-duty",
+    "image": "/guide-diagrams/mcu-pwm-duty.webp",
+    "alt": "Three PWM waveforms at 25, 50, and 75 percent duty cycle, side by side. Each is a square wave that spends that fraction of every period high; a blue dashed line marks the average output level it produces, rising from a quarter of the supply at 25 percent duty, to a half at 50 percent, to three-quarters at 75 percent. The on-fraction of each period sets the average.",
+    "hash": "233b3eb3e8fb"
+  },
+  {
+    "basename": "mcu-strapping-boot",
+    "image": "/guide-diagrams/mcu-strapping-boot.webp",
+    "alt": "At reset the ESP32 samples its boot strapping pin to choose how to boot. If the pin is high, its default level, the chip runs the firmware already in flash. If the pin is held low, which is what pressing the BOOT button does, the chip enters the download bootloader and waits to be flashed.",
+    "hash": "9eafeb25e49d"
+  },
+  {
+    "basename": "mcu-flash-loop",
+    "image": "/guide-diagrams/mcu-flash-loop.webp",
+    "alt": "The flashing loop, drawn as a cycle. You write your source code, compile it to a binary image, flash it with esptool over USB into the ESP32's bootloader and on into flash, and the next reset runs it. esptool, at the hub, is the upload tool you run each time. Change the code and the loop repeats, the same every time you hit upload.",
+    "hash": "5e6a8c1c2648"
+  },
+  {
+    "basename": "mcu-timer-count",
+    "image": "/guide-diagrams/mcu-timer-count.webp",
+    "alt": "A timer drawn as a three-lane scope trace. The top lane is a steady clock of square pulses. The middle lane is the timer's count, a staircase that climbs one step on every clock tick, from zero up to its target N, then drops back to zero. The bottom lane is the event the timer fires at each rollover, aligned to the moment the count reaches N. Because it counts a fixed frequency, the event repeats at an exact rate, such as a 1 Hz blink or a 250 Hz sample.",
+    "hash": "8fd8e504934c"
+  },
+  {
+    "basename": "mcu-poll-vs-interrupt",
+    "image": "/guide-diagrams/mcu-poll-vs-interrupt.webp",
+    "alt": "Two ways to catch an event, compared. On the left, polling is drawn as a loop: the CPU circles through repeated checks of a pin, asking again and again and mostly finding nothing. On the right, an interrupt is drawn as a straight path: the event fires and jumps the CPU directly into a short interrupt service routine, the ISR, with no checking and a near-instant response.",
+    "hash": "edc6b11a8b09"
+  },
+  {
+    "basename": "mcu-peripheral-mux",
+    "image": "/guide-diagrams/mcu-peripheral-mux.webp",
+    "alt": "The pin mux drawn as a crossbar. On the left is the SPI hardware bus block. On the right is a grid whose rows are the SPI signals (the clock SCLK, data out MOSI, data in MISO, and chip-select CS) and whose columns are GPIO pins. A gold dot at a row-and-column crossing means that signal is routed to that pin; here SCLK goes to GPIO10, MOSI to GPIO11, MISO to GPIO12, and CS to GPIO13. The faint dots are the other pins each signal could have been routed to instead.",
+    "hash": "bff761698375"
+  },
+  {
+    "basename": "mcu-sleep-current",
+    "image": "/guide-diagrams/mcu-sleep-current.webp",
+    "alt": "A current-versus-time trace of a wake-measure-sleep cycle: brief tall active spikes reaching about 150 milliamps, each followed by a long flat sleep floor near 10 microamps, repeating. Below, two runtime bars compare a board left always on, which lasts hours, against one that is mostly asleep, which lasts months. The low sleep floor, held almost the whole time, is what sets the battery life.",
+    "hash": "54fd89e05a24"
+  },
+  {
+    "basename": "mcu-pinout-map",
+    "image": "/guide-diagrams/mcu-pinout-map.webp",
+    "alt": "An ESP32-S3 pin map grouped by how you can use each pin. The first group, in gold, is the general-purpose pins free to use: GPIO4, GPIO5, GPIO6, GPIO7. The second, in blue, is the ADC1-capable analog inputs: GPIO1, GPIO2, GPIO3. The third, in red, is the reserved pins to leave alone, each tagged with why: GPIO0, GPIO45, and GPIO46 are strapping pins, GPIO19 and GPIO20 are the native USB pair, and GPIO26 is wired to the on-module flash. Read the map and wire your signals to the pins that are free.",
+    "hash": "81538df30dc6"
+  },
+  {
+    "basename": "power-power-budget",
+    "image": "/guide-diagrams/power-power-budget.webp",
+    "alt": "A power budget: a 3.3 V rail feeds four loads (MCU 80 mA, Radio TX 120 mA, sensors 30 mA, LEDs 10 mA) that sum to 240 mA. Adding a 30 percent margin gives 312 mA needed, so you round up to a 500 mA source.",
+    "hash": "170f440c3d6e"
+  },
+  {
+    "basename": "power-discharge-curve",
+    "image": "/guide-diagrams/power-discharge-curve.webp",
+    "alt": "A lithium-ion discharge curve, cell voltage against state of charge from 100 percent full on the left to 0 percent empty on the right. The voltage starts at 4.2 volts full, holds a long flat plateau near its 3.7 volt nominal for most of the discharge, then drops off a cliff to 3.0 volts empty. A dashed box marks the plateau: nearly all the usable charge sits in that flat band.",
+    "hash": "922b687d972d"
+  },
+  {
+    "basename": "power-safe-window",
+    "image": "/guide-diagrams/power-safe-window.webp",
+    "alt": "The safe voltage window of a single lithium cell, on a scale from 2.4 to 4.4 volts. The safe window, in gold, runs from 3.0 volts empty to 4.2 volts full. Just outside it the protection circuit trips, at about 2.5 volts on discharge and about 4.25 volts on charge. Beyond those cutoffs, in red, the cell is over-discharged or over-charged and can be damaged.",
+    "hash": "f3f1e427b1ee"
+  },
+  {
+    "basename": "power-cc-cv",
+    "image": "/guide-diagrams/power-cc-cv.webp",
+    "alt": "A CC/CV lithium charge curve over time. In the constant-current phase the charge current, in blue, is held flat while the cell voltage, in gold, climbs to 4.2 volts. At the knee, marked by a dashed divider, the charger switches to the constant-voltage phase: it holds 4.2 volts while the current tapers off toward zero.",
+    "hash": "f09e62b441ec"
+  },
+  {
+    "basename": "power-ldo-dissipation",
+    "image": "/guide-diagrams/power-ldo-dissipation.webp",
+    "alt": "A linear regulator dropping voltage as heat. A 5 volt input flows through an LDO block that outputs 3.3 volts at the same current, with red plumes of heat rising from it. The 1.7 volt difference it drops, times the 0.2 amp load current, is 0.34 watts, all dissipated as heat.",
+    "hash": "6e0de0aab88d"
+  },
+  {
+    "basename": "power-buck-topology",
+    "image": "/guide-diagrams/power-buck-topology.webp",
+    "alt": "How a buck regulator steps voltage down. A 12 volt input feeds a switch, then an inductor-capacitor filter, then out at 3.3 volts. Beneath, the switch turns the input into a chopped square wave of pulses, and the L-C filter smooths those pulses into a steady lower voltage.",
+    "hash": "28edf150894e"
+  },
+  {
+    "basename": "power-boost-topology",
+    "image": "/guide-diagrams/power-boost-topology.webp",
+    "alt": "How a boost regulator raises voltage. A single 3.7 volt lithium cell, drawn as a battery, is lifted by a boost arrow up to a taller 5 volt rail bar. A boost lets the cell drive a 5 volt rail it could never reach on its own, because the rail is higher than the cell's own voltage.",
+    "hash": "74b948b32b47"
+  },
+  {
+    "basename": "power-regulator-choice",
+    "image": "/guide-diagrams/power-regulator-choice.webp",
+    "alt": "A comparison of three regulators. An LDO is inefficient because it burns the drop, but it is very quiet, and it suits a small drop, low current, or a clean analog rail. A buck is highly efficient, over 90 percent, but carries switching noise, and it suits a big drop or high current. A boost is also efficient with switching noise, and is used when the rail sits above the supply. When you need both efficiency and quiet, chain a buck into an LDO: the buck moves the power efficiently and the LDO scrubs the noise off for a clean rail.",
+    "hash": "684657a156eb"
+  },
+  {
+    "basename": "power-input-protection",
+    "image": "/guide-diagrams/power-input-protection.webp",
+    "alt": "Two guards at a board's power input. A P-channel MOSFET blocks a reversed supply, and an inrush-limiting element ramps the turn-on current into the bulk capacitors. Below, a current-versus-time trace shows the sharp spike the capacitors would pull without the limiter, drawn dashed, and the gentle ramp with it, drawn solid.",
+    "hash": "3df3bfceac29"
+  },
+  {
+    "basename": "power-sequencing",
+    "image": "/guide-diagrams/power-sequencing.webp",
+    "alt": "Power sequencing: two rails coming up in order over time, with voltage on the vertical axis. Rail 1, in gold, ramps up first with a gentle soft-start and holds. When it reaches its good level, marked by a green dot and a dashed line, rail 2, in blue, begins its own soft-start ramp. Each rail comes up gently and in order rather than all at once.",
+    "hash": "fa3bfd4bd19a"
+  },
+  {
+    "basename": "power-runtime",
+    "image": "/guide-diagrams/power-runtime.webp",
+    "alt": "The battery-runtime formula. Runtime t equals the battery capacity Q times the usable fraction, divided by the average current draw I-average. Worked with real numbers: 2000 milliamp-hours times 0.8 usable, divided by 100 milliamps of average draw, equals about 16 hours.",
+    "hash": "b649041749db"
+  },
+  {
+    "basename": "comms-serial-vs-parallel",
+    "image": "/guide-diagrams/comms-serial-vs-parallel.webp",
+    "alt": "Serial versus parallel, seen as signals. On top, a serial bus is one wire whose voltage toggles through eight bits in sequence, 1 0 1 1 0 0 1 0, one bit-time after another, so the byte lives in the shape of the line over time. Below, a parallel bus is eight wires read at a single clock edge, each wire holding one bit of the same byte at the same instant. Serial spends time to save wires; parallel spends wires to save time, which is why small boards, short on pins, use serial.",
+    "hash": "40f7473820a1"
+  },
+  {
+    "basename": "comms-uart-frame",
+    "image": "/guide-diagrams/comms-uart-frame.webp",
+    "alt": "The anatomy of one UART frame on a single wire, carrying the byte 0x41, the letter A, sent least-significant bit first. The line idles high. A start bit pulls it low for one bit-time. Then eight data bits, D0 through D7, carry the byte 1 0 0 0 0 0 1 0. Then a stop bit returns the line high. Ten bit-times in all, and because there is no separate clock line, both ends must be preset to the same baud rate.",
+    "hash": "7a443e31210d"
+  },
+  {
+    "basename": "comms-spi-bus",
+    "image": "/guide-diagrams/comms-spi-bus.webp",
+    "alt": "An SPI bus with one controller and two peripherals. Three lines are shared by both peripherals: SCK, the clock the controller drives; MOSI, data from the controller; and MISO, data back to it. Each peripheral also has its own chip-select line from the controller, CS1 and CS2. The controller talks to one peripheral at a time by pulling that peripheral's chip-select low; the shared bus reaches both, but only the selected one responds, which is why every extra peripheral costs another pin.",
+    "hash": "a3f280611682"
+  },
+  {
+    "basename": "comms-i2c-bus",
+    "image": "/guide-diagrams/comms-i2c-bus.webp",
+    "alt": "The I2C bus needs only two shared wires, SDA for data and SCL for the clock, to carry a whole bus of devices. Three devices hang on the same two lines, each answering to its own 7-bit address: 0x1D, 0x50, and 0x68. The controller reaches any one of them by sending its address, so adding another device costs no new wires.",
+    "hash": "d7f700e13646"
+  },
+  {
+    "basename": "comms-bus-compare",
+    "image": "/guide-diagrams/comms-bus-compare.webp",
+    "alt": "The three on-board buses side by side. UART joins two devices point to point over two wires, TX and RX, at low to moderate speed. I2C shares two wires, SDA and SCL, among many devices addressed on the bus, at moderate speed. SPI is the fastest, over three shared lines plus one chip-select per device. Pick UART for a simple stream, I2C when pins are short and speed does not matter, and SPI when you need speed.",
+    "hash": "111ed97d75ff"
+  },
+  {
+    "basename": "comms-usb-enumerate",
+    "image": "/guide-diagrams/comms-usb-enumerate.webp",
+    "alt": "How a USB device enumerates. A host and a device connect over a single differential pair, D-plus and D-minus, whose two wires swing in opposite directions. Before any data crosses, they run a handshake: step 1, the host resets the device; step 2, it asks for the device's descriptor; step 3, the device describes itself, for example a GPS that needs 100 mA; step 4, the host assigns it an address; step 5, the host loads a matching driver. Only after those five enumeration steps does data finally flow.",
+    "hash": "6702357d08d7"
+  },
+  {
+    "basename": "comms-usb-c-cc",
+    "image": "/guide-diagrams/comms-usb-c-cc.webp",
+    "alt": "The USB-C power input on a simple board. The USB-C receptacle's VBUS pin carries 5 V. Its two configuration-channel pins, CC1 and CC2, each connect through a 5.1 kilohm resistor to ground. Those two pull-downs mark the port as a device, or sink, so a USB-C host recognizes it and switches on 5 V. Leave them off and the port stays dead.",
+    "hash": "f3f70e86bfcb"
+  },
+  {
+    "basename": "comms-level-shift",
+    "image": "/guide-diagrams/comms-level-shift.webp",
+    "alt": "Level shifting shown as a signal. On the left, a logic signal in a 5 volt domain swings between 0 and 5 volts. It passes through a level shifter, which keeps the same pattern of ones and zeros but drops the swing. On the right, the same bits come out in a 3.3 volt domain, swinging only 0 to 3.3 volts, a level the 3.3 volt part can accept safely.",
+    "hash": "3a14a433d96b"
+  },
+  {
+    "basename": "comms-pull-up-down",
+    "image": "/guide-diagrams/comms-pull-up-down.webp",
+    "alt": "The same input pin, tied three ways. With a pull-up resistor to 3.3 V, the pin idles high and reads a 1. With a pull-down resistor to ground, it idles low and reads a 0. With no resistor at all it floats, picking up noise and reading an unpredictable, undefined level. A pull-up or pull-down gives a line a known default; a floating input has none.",
+    "hash": "31413f7a0583"
+  },
+  {
+    "basename": "comms-isolation-barrier",
+    "image": "/guide-diagrams/comms-isolation-barrier.webp",
+    "alt": "A digital bus crossing an isolation barrier. On the left is side A, a computer; on the right, side B, an isolated sensor. A signal crosses the barrier through an isolator, drawn as a small capacitor gap, so the data still gets across. But the two sides keep separate grounds, GND A and GND B, with no wire joining them, so there is no direct electrical path from one side to the other. That is what breaks a ground loop and keeps a fault on one side off the other.",
+    "hash": "8c6e6b4fd711"
+  },
+  {
+    "basename": "comms-bus-trace",
+    "image": "/guide-diagrams/comms-bus-trace.webp",
+    "alt": "Two I2C logic-analyzer captures compared, differing only at the ninth clock, the acknowledgement slot. Both clock out the same address, and after the eighth bit the controller releases SDA so it rises high. On a healthy bus, top, the addressed device then pulls SDA low to answer, an acknowledgement. On a broken bus, bottom, no device is there, so SDA stays high: no acknowledgement. A logic analyzer turns a bus that does nothing into that one visible difference.",
+    "hash": "de0ed6941d02"
   }
 ]
