@@ -256,5 +256,11 @@
     "image": "/guide-diagrams/power-cc-cv.webp",
     "alt": "A CC/CV lithium charge curve over time. In the constant-current phase the charge current, in blue, is held flat while the cell voltage, in gold, climbs to 4.2 volts. At the knee, marked by a dashed divider, the charger switches to the constant-voltage phase: it holds 4.2 volts while the current tapers off toward zero.",
     "hash": "f09e62b441ec"
+  },
+  {
+    "basename": "power-ldo-dissipation",
+    "image": "/guide-diagrams/power-ldo-dissipation.webp",
+    "alt": "A linear regulator dropping voltage as heat. A 5 volt input flows through an LDO block that outputs 3.3 volts at the same current, with red plumes of heat rising from it. The 1.7 volt difference it drops, times the 0.2 amp load current, is 0.34 watts, all dissipated as heat.",
+    "hash": "6e0de0aab88d"
   }
 ]
