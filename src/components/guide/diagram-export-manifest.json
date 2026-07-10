@@ -250,5 +250,11 @@
     "image": "/guide-diagrams/comms-spi-bus.webp",
     "alt": "An SPI bus with one controller and two peripherals. Three lines are shared by both peripherals: SCK, the clock the controller drives; MOSI, data from the controller; and MISO, data back to it. Each peripheral also has its own chip-select line from the controller, CS1 and CS2. The controller talks to one peripheral at a time by pulling that peripheral's chip-select low; the shared bus reaches both, but only the selected one responds, which is why every extra peripheral costs another pin.",
     "hash": "a3f280611682"
+  },
+  {
+    "basename": "comms-i2c-bus",
+    "image": "/guide-diagrams/comms-i2c-bus.webp",
+    "alt": "The I2C bus needs only two shared wires, SDA for data and SCL for the clock, to carry a whole bus of devices. Three devices hang on the same two lines, each answering to its own 7-bit address: 0x1D, 0x50, and 0x68. The controller reaches any one of them by sending its address, so adding another device costs no new wires.",
+    "hash": "d7f700e13646"
   }
 ]
