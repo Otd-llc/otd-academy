@@ -55,6 +55,13 @@ export const LIBRARY_CLUSTERS: LibraryCluster[] = [
       "Powering a board that runs: batteries, regulators, and how to size a supply.",
     order: 4,
   },
+  {
+    key: "microcontrollers",
+    label: "Microcontrollers & ESP32",
+    blurb:
+      "What a microcontroller is, and how the ESP32 reads pins, sensors, and time.",
+    order: 5,
+  },
 ];
 
 /**

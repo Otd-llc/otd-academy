@@ -400,6 +400,72 @@ const COMMS_CHROME: FieldGuideChrome = {
   },
 };
 
+// ── Microcontrollers & ESP32 ────────────────────────────────────────────────
+// Four movements of the reading order (the chip and its pins · output and boot ·
+// timing and events · power and the pin map). The ESP32 is the worked example
+// throughout; the ideas are generic to any microcontroller.
+const MICROCONTROLLERS_PARTS: FieldGuidePart[] = [
+  {
+    n: 1,
+    title: "The Chip and its Pins",
+    startsAtSlug: "what-is-a-microcontroller",
+    blurb:
+      "What a microcontroller is, and the two ways it meets the world: driving and reading pins, and turning a voltage into a number.",
+  },
+  {
+    n: 2,
+    title: "Output, Boot, and Flash",
+    startsAtSlug: "esp32-pwm",
+    blurb:
+      "Faking an analog output with PWM, the strapping pins that decide how the chip boots, and getting your firmware onto it.",
+  },
+  {
+    n: 3,
+    title: "Timing and Events",
+    startsAtSlug: "mcu-clocks-and-timers",
+    blurb:
+      "How the chip keeps time and reacts the instant something happens: clocks, timers, interrupts, and the on-chip buses.",
+  },
+  {
+    n: 4,
+    title: "Power and the Pin Map",
+    startsAtSlug: "esp32-sleep-modes",
+    blurb:
+      "Making a battery last with sleep modes, and reading the pinout so every signal lands on a pin that can do its job.",
+  },
+];
+
+const MICROCONTROLLERS_CHROME: FieldGuideChrome = {
+  documentTitle: "OTD Academy Field Guide · The Microcontrollers Reference Library",
+  coverNumeral: "06",
+  coverLabel: "Microcontrollers",
+  runningHeader: "Microcontrollers Reference Library",
+  parts: MICROCONTROLLERS_PARTS,
+  intro: {
+    eyebrow: "How to read this volume",
+    title: "Start Here",
+    paras: [
+      "Every connected board in this academy is built around one microcontroller, and almost always the ESP32. Learn what a microcontroller actually is, and how it reads pins and sensors and keeps time, and the board stops being a mystery and starts being a tool.",
+      "This volume is eleven short reference guides that take the chip apart in the order you meet it: from what a microcontroller is, through its pins, its converter, and its timing, to how it boots, flashes, sleeps, and lays out its pins.",
+      "Read them front to back and each guide leans on the one before. Read them out of order and each still stands on its own, with a live calculator where it helps and cross-links at its foot.",
+      "The path runs in four parts: the chip and its pins, output and booting, timing and events, and power and the pin map. The ESP32 is the worked example throughout, but the ideas carry to any microcontroller.",
+    ],
+  },
+  outro: {
+    eyebrow: "Where this goes",
+    title: "Now Build Something",
+    paras: [
+      "Eleven guides back, this started at what a microcontroller is. Now you can drive a pin, read a voltage, dim an LED, keep exact time, react on an interrupt, flash new firmware, put the chip to sleep, and pick the right pin for every job. That is the working vocabulary every ESP32 build here assumes.",
+      "The next step is a real board. The courses take these ideas and turn them into firmware and hardware you design and bring up yourself, one board at a time, each a working instrument the day you finish it.",
+      "You do not need to memorize any of this. Keep the guides open beside the bench and come back to them as the build demands. That is what a field guide is for.",
+    ],
+    cta: {
+      ...FIRST_BOARD_CTA,
+      body: "It opens with the ESP32-S3 USB-C Breakout, the board this whole volume describes. Everything here is exactly what it assumes.",
+    },
+  },
+};
+
 // Per-cluster chrome, keyed by LIBRARY_CLUSTERS.key. The per-cluster PDF route
 // looks a cluster up here; an unknown cluster 404s at the route (never renders
 // the wrong book's cover/intro).
@@ -409,6 +475,7 @@ export const FIELD_GUIDE_CHROME: Record<string, FieldGuideChrome> = {
   "pcb-design": PCB_CHROME,
   "power-batteries": POWER_CHROME,
   "comms-interfaces": COMMS_CHROME,
+  "microcontrollers": MICROCONTROLLERS_CHROME,
 };
 
 // ── Combined all-clusters book ──────────────────────────────────────────────
