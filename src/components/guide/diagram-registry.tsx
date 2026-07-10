@@ -42,10 +42,20 @@ import { FundRcFilter } from "./diagrams/FundRcFilter";
 import { FundGroundsRails } from "./diagrams/FundGroundsRails";
 import { FundSchematicAnatomy } from "./diagrams/FundSchematicAnatomy";
 import { FundDatasheetAnatomy } from "./diagrams/FundDatasheetAnatomy";
+// Per-cluster diagram registries. Each is owned by ONE window during the parallel
+// diagram-sandbox phase, so registering a diagram only touches that cluster's own
+// file, never this shared index. Each stays `{}` until its window builds + exports
+// its diagrams. Keys match the image `src` basenames in the cluster's seed script.
+import { PCB_DIAGRAMS } from "./diagram-registry-pcb";
+import { COMMS_DIAGRAMS } from "./diagram-registry-comms";
+import { POWER_DIAGRAMS } from "./diagram-registry-power";
+import { MICROCONTROLLERS_DIAGRAMS } from "./diagram-registry-microcontrollers";
 
 export type DiagramComponent = FC<{ caption?: string }>;
 
-export const DIAGRAM_COMPONENTS: Record<string, DiagramComponent> = {
+// The core, EEG, and Fundamentals diagrams (already built). New clusters live in
+// their own per-cluster module (imported above) and compose in below.
+const CORE_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/mpn-anatomy.svg": MpnAnatomyDiagram,
   "/guide-diagrams/0805-vs-0402.svg": PackageSizeDiagram,
   "/guide-diagrams/current-budget.svg": CurrentBudget,
@@ -86,4 +96,15 @@ export const DIAGRAM_COMPONENTS: Record<string, DiagramComponent> = {
   "/guide-diagrams/fund-grounds-rails.svg": FundGroundsRails,
   "/guide-diagrams/fund-schematic-anatomy.svg": FundSchematicAnatomy,
   "/guide-diagrams/fund-datasheet-anatomy.svg": FundDatasheetAnatomy,
+};
+
+// The full lookup GuideBlocks resolves an image `src` against: the core set above
+// plus each cluster's own registry. Spread-compose so no two windows edit the same
+// object. A cluster with no diagrams yet contributes an empty spread (a no-op).
+export const DIAGRAM_COMPONENTS: Record<string, DiagramComponent> = {
+  ...CORE_DIAGRAMS,
+  ...PCB_DIAGRAMS,
+  ...COMMS_DIAGRAMS,
+  ...POWER_DIAGRAMS,
+  ...MICROCONTROLLERS_DIAGRAMS,
 };
