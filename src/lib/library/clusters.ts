@@ -34,6 +34,34 @@ export const LIBRARY_CLUSTERS: LibraryCluster[] = [
     blurb: "How EEG and brain-computer interfaces actually work.",
     order: 1,
   },
+  {
+    key: "pcb-design",
+    label: "PCB Design & Fabrication",
+    blurb:
+      "Turn a schematic into a real, fab-ready board: layout, routing, planes, and the files a factory needs.",
+    order: 2,
+  },
+  {
+    key: "comms-interfaces",
+    label: "Communication & Interfaces",
+    blurb:
+      "How the chips on a board talk to each other: UART, SPI, I2C, and USB, in plain terms.",
+    order: 3,
+  },
+  {
+    key: "power-batteries",
+    label: "Power & Batteries",
+    blurb:
+      "Powering a board that runs: batteries, regulators, and how to size a supply.",
+    order: 4,
+  },
+  {
+    key: "microcontrollers",
+    label: "Microcontrollers & ESP32",
+    blurb:
+      "What a microcontroller is, and how the ESP32 reads pins, sensors, and time.",
+    order: 5,
+  },
 ];
 
 /**

@@ -202,12 +202,280 @@ const EEG_CHROME: FieldGuideChrome = {
   },
 };
 
+// ── PCB Design & Fabrication ────────────────────────────────────────────────
+// The four movements of the reading order (schematic to layout, the copper,
+// checking + outputting, fabrication + bring-up). Dividers at clusterOrdinal
+// 0 / 3 / 6 / 9 over the twelve lessons.
+const PCB_PARTS: FieldGuidePart[] = [
+  {
+    n: 1,
+    title: "From Schematic to Layout",
+    startsAtSlug: "pcb-layout-workflow",
+    blurb:
+      "The path a schematic takes into a physical board: the fixed workflow, the footprint every part needs, and placing them so routing falls out.",
+  },
+  {
+    n: 2,
+    title: "The Copper: Routing and Planes",
+    startsAtSlug: "pcb-routing-traces",
+    blurb:
+      "Laying the copper that carries current and quiets the board: trace width and vias, the ground plane, and the stackup they live in.",
+  },
+  {
+    n: 3,
+    title: "Checking and Outputting",
+    startsAtSlug: "pcb-drc",
+    blurb:
+      "Turning a routed board into files a factory can build: the design-rule check, the silkscreen and mask that label and protect it, and the gerbers.",
+  },
+  {
+    n: 4,
+    title: "Fabrication and Bring-up",
+    startsAtSlug: "pcb-dfm-ordering",
+    blurb:
+      "Getting the board made and alive: designing for manufacture and ordering, soldering the parts on, and the cold-check-then-power sequence for first light.",
+  },
+];
+
+const PCB_CHROME: FieldGuideChrome = {
+  documentTitle: "OTD Academy Field Guide · The PCB Design & Fabrication Reference Library",
+  coverNumeral: "03",
+  coverLabel: "PCB Design & Fabrication",
+  runningHeader: "PCB Design & Fabrication Reference Library",
+  parts: PCB_PARTS,
+  intro: {
+    eyebrow: "How to read this volume",
+    title: "Start Here",
+    paras: [
+      "A schematic tells you what connects to what. A board tells the factory how to build it, and getting from one to the other is a craft with a fixed shape: assign footprints, place the parts, route the copper, check against your fabricator, and export the files. This volume teaches that craft.",
+      "It is twelve short reference guides in the order the work happens: from the layout workflow and footprints, through placement, routing, planes, and stackups, to the checks, the fab files, and bringing a fresh board up on the bench.",
+      "Read them front to back and each guide leans on the one before. Read them out of order and each still stands on its own, with a live trace-width calculator where the math matters and cross-links at its foot to its Fundamentals prerequisite.",
+      "The path runs in four parts: from schematic to layout, the copper itself, checking and outputting, and fabrication and bring-up.",
+    ],
+  },
+  outro: {
+    eyebrow: "Where this goes",
+    title: "Now Make One",
+    paras: [
+      "Twelve guides back, this started at a finished schematic. Now you can assign a footprint, place with intent, size a trace from its current, pour a ground plane, clear a design-rule check, and export the exact files a fab needs. That is the working craft every board here assumes.",
+      "The next step is a real board. The courses take these ideas and turn them into hardware you design, order, and bring up yourself, one board at a time, each a working instrument the day you finish it.",
+      "You do not need to memorize any of this. Keep the guides open beside the bench and the fab tab, and come back to them as the board demands. That is what a field guide is for.",
+    ],
+    cta: {
+      ...FIRST_BOARD_CTA,
+      body: "It opens with the ESP32-S3 USB-C Breakout, the core board every project here is built on, and it walks the same schematic-to-board path these guides map.",
+    },
+  },
+};
+
+// ── Power & Batteries ─────────────────────────────────────────────────────
+// Four parts across the eleven lessons, dividers at clusterOrdinal 0 / 3 / 6 / 9:
+// the sources + their storage, charging + the regulators, choosing + protecting,
+// then bring-up + runtime.
+const POWER_PARTS: FieldGuidePart[] = [
+  {
+    n: 1,
+    title: "Sources and Storage",
+    startsAtSlug: "power-budget",
+    blurb:
+      "What a power budget is, the battery that feeds it, and the safety a lithium cell's chemistry demands before anything else.",
+  },
+  {
+    n: 2,
+    title: "Charging and Regulators",
+    startsAtSlug: "battery-charging",
+    blurb:
+      "Filling a cell back up the safe way, and the two ways to make a fixed voltage: the linear regulator and the switching buck.",
+  },
+  {
+    n: 3,
+    title: "Choosing and Protecting",
+    startsAtSlug: "boost-converters",
+    blurb:
+      "Stepping a voltage up, picking the right regulator for the job, and guarding the input against a reversed battery or an inrush surge.",
+  },
+  {
+    n: 4,
+    title: "Bring-up and Runtime",
+    startsAtSlug: "power-sequencing",
+    blurb:
+      "Bringing a multi-rail board up in the right order, and estimating honestly how long the battery will last.",
+  },
+];
+
+const POWER_CHROME: FieldGuideChrome = {
+  documentTitle: "OTD Academy Field Guide · The Power & Batteries Reference Library",
+  coverNumeral: "05",
+  coverLabel: "Power & Batteries",
+  runningHeader: "Power & Batteries Reference Library",
+  parts: POWER_PARTS,
+  intro: {
+    eyebrow: "How to read this volume",
+    title: "Start Here",
+    paras: [
+      "Every board eventually needs power, and getting it wrong is how boards die. A supply that sags, a regulator that cooks, a lithium cell mistreated: each one is avoidable once you know how power actually works. This volume is that knowledge, one guide at a time.",
+      "It is eleven short reference guides that build the power chain in order: from what a rail is and how to budget one, through the battery that feeds it and the rules its chemistry demands, to the regulators that shape the voltage and the protection that keeps it all alive.",
+      "Read them front to back and each guide leans on the one before. Read them out of order and each still stands on its own, with a live calculator where the math matters and cross-links at its foot.",
+      "The path runs in four parts: the sources and their storage, charging and the regulators, choosing and protecting a supply, and bringing the rails up and estimating how long they last.",
+    ],
+  },
+  outro: {
+    eyebrow: "Where this goes",
+    title: "Now Power Something",
+    paras: [
+      "Eleven guides back, this started at what a power rail is. Now you can budget a board, size a battery, charge it safely, choose between a linear regulator and a switcher, guard the input, and estimate how long a cell will last. That is the working vocabulary every powered build assumes.",
+      "The next step is a real board. The battery power module course takes these ideas and turns them into hardware you design and bring up yourself: a single lithium cell, charged and protected and regulated the right way.",
+      "You do not need to memorize any of this. Keep the guides open beside the bench and come back to them as the build demands. That is what a field guide is for.",
+    ],
+    cta: {
+      ...FIRST_BOARD_CTA,
+      body: "It opens with the ESP32-S3 USB-C Breakout, the core board every project here is built on, with the battery power module that cuts its cord close behind. These power fundamentals are exactly what both assume.",
+    },
+  },
+};
+
+// ── Communication & Interfaces ──────────────────────────────────────────────
+// The four movements of the reading order (the on-board buses → USB → wiring
+// signals between parts → isolating and debugging a link). Part dividers land at
+// clusterOrdinals 0 / 5 / 7 / 9 across the eleven lessons.
+const COMMS_PARTS: FieldGuidePart[] = [
+  {
+    n: 1,
+    title: "The On-Board Buses",
+    startsAtSlug: "bus-basics",
+    blurb:
+      "What a bus is, and the three that connect chips on a board: UART with no clock, SPI for speed, and I2C for pins, plus how to choose between them.",
+  },
+  {
+    n: 2,
+    title: "USB",
+    startsAtSlug: "usb-basics",
+    blurb:
+      "The bus back to your computer: how a host and device enumerate over a differential pair, and the CC resistors that bring a USB-C port to life.",
+  },
+  {
+    n: 3,
+    title: "Wiring Signals",
+    startsAtSlug: "level-shifting",
+    blurb:
+      "The details that decide whether a link works: matching 3.3 V and 5 V logic levels, and giving every line a known idle with a pull-up or pull-down.",
+  },
+  {
+    n: 4,
+    title: "Isolation and Debug",
+    startsAtSlug: "digital-isolation",
+    blurb:
+      "Crossing a barrier with no shared ground when safety demands it, and finding the fault fast when a bus goes silent.",
+  },
+];
+
+const COMMS_CHROME: FieldGuideChrome = {
+  documentTitle: "OTD Academy Field Guide · The Communication & Interfaces Reference Library",
+  coverNumeral: "04",
+  coverLabel: "Communication & Interfaces",
+  runningHeader: "Communication & Interfaces Reference Library",
+  parts: COMMS_PARTS,
+  intro: {
+    eyebrow: "How to read this volume",
+    title: "Start Here",
+    paras: [
+      "Every board is a set of chips that have to talk to each other, and they do it over a handful of simple buses. Learn those buses and a schematic full of unfamiliar parts turns into a few conversations you can follow.",
+      "This volume is eleven short reference guides that build up the on-board buses one at a time, in the order they make sense: from what a bus even is, through UART, SPI, and I2C, to USB and the wiring details that decide whether a link works at all.",
+      "Read them front to back and each guide leans on the one before. Read them out of order and each still stands on its own, with a diagram where it helps and cross-links at its foot.",
+      "The path runs in four parts: the on-board buses, USB, wiring signals between parts, and isolating and debugging a bus.",
+    ],
+  },
+  outro: {
+    eyebrow: "Where this goes",
+    title: "Now Wire It Up",
+    paras: [
+      "Eleven guides back, this started at what a bus is. Now you can read a datasheet's interface line, put a sensor on the right bus, size a pull-up, and reach for a logic analyzer when a link goes quiet. That is the working vocabulary every multi-chip board assumes.",
+      "The next step is a real board where the parts actually have to talk. The courses take these buses and turn them into hardware you design and bring up yourself, from a USB-C breakout to an isolated bridge.",
+      "Keep the guides open beside the bench and come back to them when a bus does something you did not expect. That is what a field guide is for.",
+    ],
+    cta: {
+      ...FIRST_BOARD_CTA,
+      body: "It opens with the ESP32-S3 USB-C Breakout, where these buses first show up in real copper: the USB-C CC resistors, the serial link to your computer, and the headers a sensor bus will ride.",
+    },
+  },
+};
+
+// ── Microcontrollers & ESP32 ────────────────────────────────────────────────
+// Four movements of the reading order (the chip and its pins · output and boot ·
+// timing and events · power and the pin map). The ESP32 is the worked example
+// throughout; the ideas are generic to any microcontroller.
+const MICROCONTROLLERS_PARTS: FieldGuidePart[] = [
+  {
+    n: 1,
+    title: "The Chip and its Pins",
+    startsAtSlug: "what-is-a-microcontroller",
+    blurb:
+      "What a microcontroller is, and the two ways it meets the world: driving and reading pins, and turning a voltage into a number.",
+  },
+  {
+    n: 2,
+    title: "Output, Boot, and Flash",
+    startsAtSlug: "esp32-pwm",
+    blurb:
+      "Faking an analog output with PWM, the strapping pins that decide how the chip boots, and getting your firmware onto it.",
+  },
+  {
+    n: 3,
+    title: "Timing and Events",
+    startsAtSlug: "mcu-clocks-and-timers",
+    blurb:
+      "How the chip keeps time and reacts the instant something happens: clocks, timers, interrupts, and the on-chip buses.",
+  },
+  {
+    n: 4,
+    title: "Power and the Pin Map",
+    startsAtSlug: "esp32-sleep-modes",
+    blurb:
+      "Making a battery last with sleep modes, and reading the pinout so every signal lands on a pin that can do its job.",
+  },
+];
+
+const MICROCONTROLLERS_CHROME: FieldGuideChrome = {
+  documentTitle: "OTD Academy Field Guide · The Microcontrollers Reference Library",
+  coverNumeral: "06",
+  coverLabel: "Microcontrollers",
+  runningHeader: "Microcontrollers Reference Library",
+  parts: MICROCONTROLLERS_PARTS,
+  intro: {
+    eyebrow: "How to read this volume",
+    title: "Start Here",
+    paras: [
+      "Every connected board in this academy is built around one microcontroller, and almost always the ESP32. Learn what a microcontroller actually is, and how it reads pins and sensors and keeps time, and the board stops being a mystery and starts being a tool.",
+      "This volume is eleven short reference guides that take the chip apart in the order you meet it: from what a microcontroller is, through its pins, its converter, and its timing, to how it boots, flashes, sleeps, and lays out its pins.",
+      "Read them front to back and each guide leans on the one before. Read them out of order and each still stands on its own, with a live calculator where it helps and cross-links at its foot.",
+      "The path runs in four parts: the chip and its pins, output and booting, timing and events, and power and the pin map. The ESP32 is the worked example throughout, but the ideas carry to any microcontroller.",
+    ],
+  },
+  outro: {
+    eyebrow: "Where this goes",
+    title: "Now Build Something",
+    paras: [
+      "Eleven guides back, this started at what a microcontroller is. Now you can drive a pin, read a voltage, dim an LED, keep exact time, react on an interrupt, flash new firmware, put the chip to sleep, and pick the right pin for every job. That is the working vocabulary every ESP32 build here assumes.",
+      "The next step is a real board. The courses take these ideas and turn them into firmware and hardware you design and bring up yourself, one board at a time, each a working instrument the day you finish it.",
+      "You do not need to memorize any of this. Keep the guides open beside the bench and come back to them as the build demands. That is what a field guide is for.",
+    ],
+    cta: {
+      ...FIRST_BOARD_CTA,
+      body: "It opens with the ESP32-S3 USB-C Breakout, the board this whole volume describes. Everything here is exactly what it assumes.",
+    },
+  },
+};
+
 // Per-cluster chrome, keyed by LIBRARY_CLUSTERS.key. The per-cluster PDF route
 // looks a cluster up here; an unknown cluster 404s at the route (never renders
 // the wrong book's cover/intro).
 export const FIELD_GUIDE_CHROME: Record<string, FieldGuideChrome> = {
   fundamentals: FUNDAMENTALS_CHROME,
   "eeg-bci": EEG_CHROME,
+  "pcb-design": PCB_CHROME,
+  "power-batteries": POWER_CHROME,
+  "comms-interfaces": COMMS_CHROME,
+  "microcontrollers": MICROCONTROLLERS_CHROME,
 };
 
 // ── Combined all-clusters book ──────────────────────────────────────────────

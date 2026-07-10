@@ -79,7 +79,7 @@ describe("bucketByCluster", () => {
       row("fund-a", "fundamentals", 0),
     ];
     const buckets = bucketByCluster(rows);
-    expect([...buckets.keys()]).toEqual(["fundamentals", "eeg-bci", OTHER_CLUSTER_KEY]);
+    expect([...buckets.keys()]).toEqual(["fundamentals", "eeg-bci", "pcb-design", "comms-interfaces", "power-batteries", "microcontrollers", OTHER_CLUSTER_KEY]);
     expect(buckets.get("fundamentals")!.map((r) => r.slug)).toEqual(["fund-a", "fund-b"]);
     expect(buckets.get("eeg-bci")!.map((r) => r.slug)).toEqual(["eeg-a", "eeg-b"]);
     expect(buckets.get(OTHER_CLUSTER_KEY)).toEqual([]);
