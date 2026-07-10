@@ -256,5 +256,11 @@
     "image": "/guide-diagrams/pcb-routing.webp",
     "alt": "Two panels. On the left, a curve of trace width against current: as the current rises the copper width needed climbs, following the IPC-2221 relationship, with a point marked at one amp. On the right, an edge-on cross-section of a plated via: a drilled hole plated with copper walls runs through the board's core and ties the top copper layer to the bottom, so a trace entering on the top can carry down to the bottom layer. A trace's width sets the current it carries; a via carries a trace to another layer.",
     "hash": "7c2c79adb54c"
+  },
+  {
+    "basename": "pcb-ground-plane",
+    "image": "/guide-diagrams/pcb-ground-plane.webp",
+    "alt": "An isometric edge-on view of a two-layer board: lit copper on top, a woven FR4 core, and a copper ground plane on the bottom. A gold signal current runs left to right along the top copper, and a blue return current runs right to left in the ground plane directly beneath it, mirroring the signal. Because the return follows the copper right under the signal, the loop between them stays tiny, which keeps the board quiet.",
+    "hash": "8a36c6523d6c"
   }
 ]
