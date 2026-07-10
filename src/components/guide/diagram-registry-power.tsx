@@ -15,5 +15,8 @@
 //   power-boost-topology   power-regulator-choice  power-input-protection
 //   power-sequencing       power-runtime
 import type { DiagramComponent } from "./diagram-registry";
+import { PowerBudget } from "./diagrams/PowerBudget";
 
-export const POWER_DIAGRAMS: Record<string, DiagramComponent> = {};
+export const POWER_DIAGRAMS: Record<string, DiagramComponent> = {
+  "/guide-diagrams/power-power-budget.svg": PowerBudget,
+};

@@ -12,7 +12,7 @@
 // pulls 14 React client components into Node. See diagram-registry.tsx.
 import { chromium } from "playwright";
 import sharp from "sharp";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 
@@ -35,8 +35,21 @@ const LIGHT = argv.includes("--light");
 const LIGHT_SKIP = new Set<string>([]);
 
 function registryBasenames(): string[] {
-  const reg = readFileSync(path.join(ROOT, "src/components/guide/diagram-registry.tsx"), "utf8");
-  return [...reg.matchAll(/"\/guide-diagrams\/([^"]+)\.svg"\s*:/g)].map((m) => m[1]);
+  // Scan the main registry AND every per-cluster registry (diagram-registry-<cluster>.tsx,
+  // split out in #288 for parallel authoring — each holds its own literal keys, composed
+  // into the index via `...CLUSTER_DIAGRAMS` spreads that a regex on the index alone misses).
+  const dir = path.join(ROOT, "src/components/guide");
+  const files = readdirSync(dir).filter((f) => /^diagram-registry(-[a-z0-9]+)?\.tsx$/.test(f));
+  const names = new Set<string>();
+  for (const f of files) {
+    // Strip block + line comments first: the per-cluster registry templates carry
+    // commented-out EXAMPLE keys in their worklist docstring that must not register.
+    const reg = readFileSync(path.join(dir, f), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/.*$/gm, "");
+    for (const m of reg.matchAll(/"\/guide-diagrams\/([^"]+)\.svg"\s*:/g)) names.add(m[1]);
+  }
+  return [...names];
 }
 
 const sha = (b: Buffer) => createHash("sha256").update(b).digest("hex").slice(0, 12);

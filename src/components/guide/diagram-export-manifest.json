@@ -232,5 +232,11 @@
     "image": "/guide-diagrams/fund-datasheet-anatomy.webp",
     "alt": "A datasheet specification table for an LDO regulator, with columns for parameter, minimum, typical, maximum, and unit. Input voltage runs from a 2.5 volt minimum to a 6.0 volt absolute maximum. The output is 3.3 volts typical. Output current is 600 milliamps maximum. Dropout is 250 millivolts typical and 400 millivolts maximum. Junction temperature runs from minus 40 to 125 degrees Celsius. Read across each row: the typical column is the value you design around, and the maximum column is the absolute limit you never cross.",
     "hash": "5ec081d71db4"
+  },
+  {
+    "basename": "power-power-budget",
+    "image": "/guide-diagrams/power-power-budget.webp",
+    "alt": "A power budget: a 3.3 V rail feeds four loads (MCU 80 mA, Radio TX 120 mA, sensors 30 mA, LEDs 10 mA) that sum to 240 mA. Adding a 30 percent margin gives 312 mA needed, so you round up to a 500 mA source.",
+    "hash": "170f440c3d6e"
   }
 ]
