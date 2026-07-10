@@ -16,7 +16,9 @@
 //   comms-isolation-barrier    comms-bus-trace
 import type { DiagramComponent } from "./diagram-registry";
 import { CommsSerialVsParallel } from "./diagrams/CommsSerialVsParallel";
+import { CommsUartFrame } from "./diagrams/CommsUartFrame";
 
 export const COMMS_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/comms-serial-vs-parallel.svg": CommsSerialVsParallel,
+  "/guide-diagrams/comms-uart-frame.svg": CommsUartFrame,
 };
