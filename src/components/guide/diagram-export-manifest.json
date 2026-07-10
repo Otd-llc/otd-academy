@@ -250,5 +250,11 @@
     "image": "/guide-diagrams/mcu-adc-quantize.webp",
     "alt": "An analog-to-digital converter turns a smooth voltage into a whole number. A plot shows a smooth rising analog signal in gold and the quantized staircase it becomes in blue, snapped to the nearest level. The reference voltage marks the top of the range, full scale, and zero volts is the bottom. The number of levels is set by the bit count: the ESP32 ADC is 12-bit, giving 4096 steps, so the step size is the reference voltage divided by 4096. Half of full scale reads as the code 2048.",
     "hash": "c00fd9bc240f"
+  },
+  {
+    "basename": "mcu-pwm-duty",
+    "image": "/guide-diagrams/mcu-pwm-duty.webp",
+    "alt": "Three pulse-width-modulation waveforms at different duty cycles. Each is a gold square wave switching between the supply voltage and zero, with a blue dashed line showing the average level it produces. At 25 percent duty the pin is on a quarter of each period and the average is 0.25 of the supply. At 50 percent it is on half the time and averages 0.5 of the supply. At 75 percent it is on three quarters of the time and averages 0.75 of the supply. The average tracks the on-fraction.",
+    "hash": "c5c95056725b"
   }
 ]

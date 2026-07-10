@@ -18,9 +18,11 @@ import type { DiagramComponent } from "./diagram-registry";
 import { McuBlockDiagram } from "./diagrams/McuBlockDiagram";
 import { McuGpioInOut } from "./diagrams/McuGpioInOut";
 import { McuAdcQuantize } from "./diagrams/McuAdcQuantize";
+import { McuPwmDuty } from "./diagrams/McuPwmDuty";
 
 export const MICROCONTROLLERS_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/mcu-block-diagram.svg": McuBlockDiagram,
   "/guide-diagrams/mcu-gpio-in-out.svg": McuGpioInOut,
   "/guide-diagrams/mcu-adc-quantize.svg": McuAdcQuantize,
+  "/guide-diagrams/mcu-pwm-duty.svg": McuPwmDuty,
 };
