@@ -35,21 +35,25 @@ const LIGHT = argv.includes("--light");
 const LIGHT_SKIP = new Set<string>([]);
 
 function registryBasenames(): string[] {
-  // Scan the main registry AND every per-cluster registry (diagram-registry-<cluster>.tsx,
-  // split out in #288 for parallel authoring — each holds its own literal keys, composed
-  // into the index via `...CLUSTER_DIAGRAMS` spreads that a regex on the index alone misses).
+  // Scan the core registry PLUS every per-cluster registry file
+  // (diagram-registry-<cluster>.tsx, added by the parallel-authoring split) so a
+  // diagram registered only in its cluster's file is still discovered. Regex the
+  // FILES (not an import) to keep React client components out of Node.
   const dir = path.join(ROOT, "src/components/guide");
-  const files = readdirSync(dir).filter((f) => /^diagram-registry(-[a-z0-9]+)?\.tsx$/.test(f));
-  const names = new Set<string>();
+  const files = readdirSync(dir).filter((f) => /^diagram-registry.*\.tsx$/.test(f));
+  const keys = new Set<string>();
   for (const f of files) {
-    // Strip block + line comments first: the per-cluster registry templates carry
-    // commented-out EXAMPLE keys in their worklist docstring that must not register.
-    const reg = readFileSync(path.join(dir, f), "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/\/\/.*$/gm, "");
-    for (const m of reg.matchAll(/"\/guide-diagrams\/([^"]+)\.svg"\s*:/g)) names.add(m[1]);
+    const reg = readFileSync(path.join(dir, f), "utf8");
+    for (const line of reg.split(/\r?\n/)) {
+      // Skip `//` comment lines so a scaffold's EXAMPLE key (shown in a comment,
+      // e.g. `//   "/guide-diagrams/comms-uart-frame.svg": CommsUartFrame,`) is not
+      // mistaken for a real registration. Registry entries are one key per line.
+      if (line.trimStart().startsWith("//")) continue;
+      const m = line.match(/"\/guide-diagrams\/([^"]+)\.svg"\s*:/);
+      if (m) keys.add(m[1]);
+    }
   }
-  return [...names];
+  return [...keys];
 }
 
 const sha = (b: Buffer) => createHash("sha256").update(b).digest("hex").slice(0, 12);
