@@ -232,5 +232,11 @@
     "image": "/guide-diagrams/fund-datasheet-anatomy.webp",
     "alt": "A datasheet specification table for an LDO regulator, with columns for parameter, minimum, typical, maximum, and unit. Input voltage runs from a 2.5 volt minimum to a 6.0 volt absolute maximum. The output is 3.3 volts typical. Output current is 600 milliamps maximum. Dropout is 250 millivolts typical and 400 millivolts maximum. Junction temperature runs from minus 40 to 125 degrees Celsius. Read across each row: the typical column is the value you design around, and the maximum column is the absolute limit you never cross.",
     "hash": "5ec081d71db4"
+  },
+  {
+    "basename": "comms-serial-vs-parallel",
+    "image": "/guide-diagrams/comms-serial-vs-parallel.webp",
+    "alt": "Serial versus parallel, seen as signals. On top, a serial bus is one wire whose voltage toggles through eight bits in sequence, 1 0 1 1 0 0 1 0, one bit-time after another, so the byte lives in the shape of the line over time. Below, a parallel bus is eight wires read at a single clock edge, each wire holding one bit of the same byte at the same instant. Serial spends time to save wires; parallel spends wires to save time, which is why small boards, short on pins, use serial.",
+    "hash": "40f7473820a1"
   }
 ]

@@ -15,5 +15,8 @@
 //   comms-usb-c-cc             comms-level-shift      comms-pull-up-down
 //   comms-isolation-barrier    comms-bus-trace
 import type { DiagramComponent } from "./diagram-registry";
+import { CommsSerialVsParallel } from "./diagrams/CommsSerialVsParallel";
 
-export const COMMS_DIAGRAMS: Record<string, DiagramComponent> = {};
+export const COMMS_DIAGRAMS: Record<string, DiagramComponent> = {
+  "/guide-diagrams/comms-serial-vs-parallel.svg": CommsSerialVsParallel,
+};
