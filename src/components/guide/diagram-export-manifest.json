@@ -286,5 +286,11 @@
     "image": "/guide-diagrams/pcb-gerber-package.webp",
     "alt": "The fab package as one zip archive. Inside it are seven gerber files, one for each copper, soldermask, and silkscreen layer plus the board outline; a drill file for where the holes go; a bill of materials listing the parts; and a placement file for where each part goes. Zip those together and that archive is the complete package a fabricator needs.",
     "hash": "c72c827f935d"
+  },
+  {
+    "basename": "pcb-dfm",
+    "image": "/guide-diagrams/pcb-dfm.webp",
+    "alt": "A cost-driver staircase for PCB fabrication. Three rising steps show that a 2-layer board is the cheap tier ($), a 4-layer board steps up ($$), and a 6-plus layer board climbs fast ($$$), so layer count is the biggest price lever. A note adds that quantity, board size, surface finish, and lead time each trim the rest of the cost.",
+    "hash": "b7c286dedfc7"
   }
 ]
