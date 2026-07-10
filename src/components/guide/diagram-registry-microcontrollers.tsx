@@ -16,7 +16,9 @@
 //   mcu-sleep-current      mcu-pinout-map
 import type { DiagramComponent } from "./diagram-registry";
 import { McuBlockDiagram } from "./diagrams/McuBlockDiagram";
+import { McuGpioInOut } from "./diagrams/McuGpioInOut";
 
 export const MICROCONTROLLERS_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/mcu-block-diagram.svg": McuBlockDiagram,
+  "/guide-diagrams/mcu-gpio-in-out.svg": McuGpioInOut,
 };
