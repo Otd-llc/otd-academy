@@ -292,5 +292,11 @@
     "image": "/guide-diagrams/comms-isolation-barrier.webp",
     "alt": "A digital bus crossing an isolation barrier. On the left is side A, a computer; on the right, side B, an isolated sensor. A signal crosses the barrier through an isolator, drawn as a small capacitor gap, so the data still gets across. But the two sides keep separate grounds, GND A and GND B, with no wire joining them, so there is no direct electrical path from one side to the other. That is what breaks a ground loop and keeps a fault on one side off the other.",
     "hash": "8c6e6b4fd711"
+  },
+  {
+    "basename": "comms-bus-trace",
+    "image": "/guide-diagrams/comms-bus-trace.webp",
+    "alt": "Two I2C logic-analyzer captures compared, differing only at the ninth clock, the acknowledgement slot. Both clock out the same address, and after the eighth bit the controller releases SDA so it rises high. On a healthy bus, top, the addressed device then pulls SDA low to answer, an acknowledgement. On a broken bus, bottom, no device is there, so SDA stays high: no acknowledgement. A logic analyzer turns a bus that does nothing into that one visible difference.",
+    "hash": "de0ed6941d02"
   }
 ]
