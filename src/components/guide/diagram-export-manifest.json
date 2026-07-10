@@ -244,5 +244,11 @@
     "image": "/guide-diagrams/power-discharge-curve.webp",
     "alt": "A lithium-ion discharge curve, cell voltage against state of charge from 100 percent full on the left to 0 percent empty on the right. The voltage starts at 4.2 volts full, holds a long flat plateau near its 3.7 volt nominal for most of the discharge, then drops off a cliff to 3.0 volts empty. A dashed box marks the plateau: nearly all the usable charge sits in that flat band.",
     "hash": "922b687d972d"
+  },
+  {
+    "basename": "power-safe-window",
+    "image": "/guide-diagrams/power-safe-window.webp",
+    "alt": "The safe voltage window of a single lithium cell, on a scale from 2.4 to 4.4 volts. The safe window, in gold, runs from 3.0 volts empty to 4.2 volts full. Just outside it the protection circuit trips, at about 2.5 volts on discharge and about 4.25 volts on charge. Beyond those cutoffs, in red, the cell is over-discharged or over-charged and can be damaged.",
+    "hash": "f3f1e427b1ee"
   }
 ]
