@@ -20,6 +20,7 @@ import { McuGpioInOut } from "./diagrams/McuGpioInOut";
 import { McuAdcQuantize } from "./diagrams/McuAdcQuantize";
 import { McuPwmDuty } from "./diagrams/McuPwmDuty";
 import { McuStrappingBoot } from "./diagrams/McuStrappingBoot";
+import { McuFlashLoop } from "./diagrams/McuFlashLoop";
 
 export const MICROCONTROLLERS_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/mcu-block-diagram.svg": McuBlockDiagram,
@@ -27,4 +28,5 @@ export const MICROCONTROLLERS_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/mcu-adc-quantize.svg": McuAdcQuantize,
   "/guide-diagrams/mcu-pwm-duty.svg": McuPwmDuty,
   "/guide-diagrams/mcu-strapping-boot.svg": McuStrappingBoot,
+  "/guide-diagrams/mcu-flash-loop.svg": McuFlashLoop,
 };
