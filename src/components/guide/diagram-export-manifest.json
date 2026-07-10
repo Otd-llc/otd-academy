@@ -238,5 +238,11 @@
     "image": "/guide-diagrams/pcb-layout-workflow.webp",
     "alt": "The PCB workflow runs from schematic to board through one shared netlist. In the schematic editor you draw the circuit and give every part a footprint. That produces the netlist, the machine-readable list of which pins connect to which. The PCB editor reads the same netlist to place the parts, route the copper, pass the design-rule check, and export the gerbers. Because the two files share one netlist, they can never silently disagree.",
     "hash": "52bc6b17c6ca"
+  },
+  {
+    "basename": "pcb-land-pattern",
+    "image": "/guide-diagrams/pcb-land-pattern.webp",
+    "alt": "The SOT-23-5 land pattern: five copper pads, three along the bottom edge numbered one, two, three, and two along the top numbered five and four. A dashed courtyard rectangle rings them, the keep-out that reserves the part's space. The part body sits over the middle so the pads stick out where the leads land. A dot beside pad one marks pin 1, which fixes the part's rotation. Confirm the pattern against the datasheet and the part drops straight onto its copper.",
+    "hash": "2639b076207f"
   }
 ]
