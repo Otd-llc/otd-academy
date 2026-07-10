@@ -254,8 +254,8 @@
   {
     "basename": "mcu-pwm-duty",
     "image": "/guide-diagrams/mcu-pwm-duty.webp",
-    "alt": "Three pulse-width-modulation waveforms at different duty cycles. Each is a gold square wave switching between the supply voltage and zero, with a blue dashed line showing the average level it produces. At 25 percent duty the pin is on a quarter of each period and the average is 0.25 of the supply. At 50 percent it is on half the time and averages 0.5 of the supply. At 75 percent it is on three quarters of the time and averages 0.75 of the supply. The average tracks the on-fraction.",
-    "hash": "c5c95056725b"
+    "alt": "Three PWM waveforms at 25, 50, and 75 percent duty cycle, side by side. Each is a square wave that spends that fraction of every period high; a blue dashed line marks the average output level it produces, rising from a quarter of the supply at 25 percent duty, to a half at 50 percent, to three-quarters at 75 percent. The on-fraction of each period sets the average.",
+    "hash": "233b3eb3e8fb"
   },
   {
     "basename": "mcu-strapping-boot",
