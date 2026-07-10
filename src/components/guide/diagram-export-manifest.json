@@ -268,5 +268,11 @@
     "image": "/guide-diagrams/power-buck-topology.webp",
     "alt": "How a buck regulator steps voltage down. A 12 volt input feeds a switch, then an inductor-capacitor filter, then out at 3.3 volts. Beneath, the switch turns the input into a chopped square wave of pulses, and the L-C filter smooths those pulses into a steady lower voltage.",
     "hash": "28edf150894e"
+  },
+  {
+    "basename": "power-boost-topology",
+    "image": "/guide-diagrams/power-boost-topology.webp",
+    "alt": "How a boost regulator raises voltage. A single 3.7 volt lithium cell, drawn as a battery, is lifted by a boost arrow up to a taller 5 volt rail bar. A boost lets the cell drive a 5 volt rail it could never reach on its own, because the rail is higher than the cell's own voltage.",
+    "hash": "74b948b32b47"
   }
 ]
