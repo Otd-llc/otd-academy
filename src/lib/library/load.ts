@@ -81,7 +81,18 @@ export async function listPublishedByCluster() {
   const rows = await db.miniLesson.findMany({
     where: { published: true, accessTier: "PUBLIC" },
     orderBy: { updatedAt: "desc" },
-    select: { slug: true, title: true, summary: true, updatedAt: true, cluster: true, clusterOrdinal: true },
+    // `createdAt` rides along for the landing's "new & updated" rail + featured
+    // freshness fallback (pickFeatured / pickFreshRail); bucketByCluster is
+    // generic over the row shape, so the extra field passes through untouched.
+    select: {
+      slug: true,
+      title: true,
+      summary: true,
+      createdAt: true,
+      updatedAt: true,
+      cluster: true,
+      clusterOrdinal: true,
+    },
   });
   return bucketByCluster(rows);
 }
