@@ -17,8 +17,10 @@
 import type { DiagramComponent } from "./diagram-registry";
 import { CommsSerialVsParallel } from "./diagrams/CommsSerialVsParallel";
 import { CommsUartFrame } from "./diagrams/CommsUartFrame";
+import { CommsSpiBus } from "./diagrams/CommsSpiBus";
 
 export const COMMS_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/comms-serial-vs-parallel.svg": CommsSerialVsParallel,
   "/guide-diagrams/comms-uart-frame.svg": CommsUartFrame,
+  "/guide-diagrams/comms-spi-bus.svg": CommsSpiBus,
 };

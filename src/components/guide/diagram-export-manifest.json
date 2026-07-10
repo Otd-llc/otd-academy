@@ -244,5 +244,11 @@
     "image": "/guide-diagrams/comms-uart-frame.webp",
     "alt": "The anatomy of one UART frame on a single wire, carrying the byte 0x41, the letter A, sent least-significant bit first. The line idles high. A start bit pulls it low for one bit-time. Then eight data bits, D0 through D7, carry the byte 1 0 0 0 0 0 1 0. Then a stop bit returns the line high. Ten bit-times in all, and because there is no separate clock line, both ends must be preset to the same baud rate.",
     "hash": "7a443e31210d"
+  },
+  {
+    "basename": "comms-spi-bus",
+    "image": "/guide-diagrams/comms-spi-bus.webp",
+    "alt": "An SPI bus with one controller and two peripherals. Three lines are shared by both peripherals: SCK, the clock the controller drives; MOSI, data from the controller; and MISO, data back to it. Each peripheral also has its own chip-select line from the controller, CS1 and CS2. The controller talks to one peripheral at a time by pulling that peripheral's chip-select low; the shared bus reaches both, but only the selected one responds, which is why every extra peripheral costs another pin.",
+    "hash": "a3f280611682"
   }
 ]
