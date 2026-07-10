@@ -260,8 +260,8 @@
   {
     "basename": "mcu-strapping-boot",
     "image": "/guide-diagrams/mcu-strapping-boot.webp",
-    "alt": "At reset the ESP32 samples its BOOT strapping pin, GPIO0, and branches to one of two outcomes. If the pin is high, its default, the chip runs the firmware already in flash. If the pin is held low, the chip enters the download bootloader and waits for a flashing tool like esptool. The pin is sampled once, at reset. A stray pull on the pin can force the wrong path and stop the board booting.",
-    "hash": "89fd9cf75cf9"
+    "alt": "At reset the ESP32 samples its boot strapping pin to choose how to boot. If the pin is high, its default level, the chip runs the firmware already in flash. If the pin is held low, which is what pressing the BOOT button does, the chip enters the download bootloader and waits to be flashed.",
+    "hash": "9eafeb25e49d"
   },
   {
     "basename": "mcu-flash-loop",
