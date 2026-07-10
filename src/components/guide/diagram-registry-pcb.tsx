@@ -15,5 +15,30 @@
 //   pcb-drc               pcb-silkscreen        pcb-gerber-package
 //   pcb-dfm               pcb-reflow-profile    pcb-bringup
 import type { DiagramComponent } from "./diagram-registry";
+import { PcbLayoutWorkflow } from "./diagrams/PcbLayoutWorkflow";
+import { PcbLandPattern } from "./diagrams/PcbLandPattern";
+import { PcbPlacement } from "./diagrams/PcbPlacement";
+import { PcbRouting } from "./diagrams/PcbRouting";
+import { PcbGroundPlane } from "./diagrams/PcbGroundPlane";
+import { PcbStackup } from "./diagrams/PcbStackup";
+import { PcbDrc } from "./diagrams/PcbDrc";
+import { PcbSilkscreen } from "./diagrams/PcbSilkscreen";
+import { PcbGerberPackage } from "./diagrams/PcbGerberPackage";
+import { PcbDfm } from "./diagrams/PcbDfm";
+import { PcbReflowProfile } from "./diagrams/PcbReflowProfile";
+import { PcbBringup } from "./diagrams/PcbBringup";
 
-export const PCB_DIAGRAMS: Record<string, DiagramComponent> = {};
+export const PCB_DIAGRAMS: Record<string, DiagramComponent> = {
+  "/guide-diagrams/pcb-layout-workflow.svg": PcbLayoutWorkflow,
+  "/guide-diagrams/pcb-land-pattern.svg": PcbLandPattern,
+  "/guide-diagrams/pcb-placement.svg": PcbPlacement,
+  "/guide-diagrams/pcb-routing.svg": PcbRouting,
+  "/guide-diagrams/pcb-ground-plane.svg": PcbGroundPlane,
+  "/guide-diagrams/pcb-stackup.svg": PcbStackup,
+  "/guide-diagrams/pcb-drc.svg": PcbDrc,
+  "/guide-diagrams/pcb-silkscreen.svg": PcbSilkscreen,
+  "/guide-diagrams/pcb-gerber-package.svg": PcbGerberPackage,
+  "/guide-diagrams/pcb-dfm.svg": PcbDfm,
+  "/guide-diagrams/pcb-reflow-profile.svg": PcbReflowProfile,
+  "/guide-diagrams/pcb-bringup.svg": PcbBringup,
+};
