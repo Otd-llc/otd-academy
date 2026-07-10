@@ -22,6 +22,7 @@ import { CommsI2cBus } from "./diagrams/CommsI2cBus";
 import { CommsBusCompare } from "./diagrams/CommsBusCompare";
 import { CommsUsbEnumerate } from "./diagrams/CommsUsbEnumerate";
 import { CommsUsbCCc } from "./diagrams/CommsUsbCCc";
+import { CommsLevelShift } from "./diagrams/CommsLevelShift";
 
 export const COMMS_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/comms-serial-vs-parallel.svg": CommsSerialVsParallel,
@@ -31,4 +32,5 @@ export const COMMS_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/comms-bus-compare.svg": CommsBusCompare,
   "/guide-diagrams/comms-usb-enumerate.svg": CommsUsbEnumerate,
   "/guide-diagrams/comms-usb-c-cc.svg": CommsUsbCCc,
+  "/guide-diagrams/comms-level-shift.svg": CommsLevelShift,
 };
