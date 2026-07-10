@@ -286,5 +286,11 @@
     "image": "/guide-diagrams/mcu-peripheral-mux.webp",
     "alt": "An SPI hardware peripheral inside the chip drives four signals: SCLK the clock, MOSI and MISO the data lines, and CS the chip select. All four run into a pin mux, a routing block, which sends each one out to a GPIO pin of your choosing. The wires cross on the way out to show that any signal can go to any free pin: here they land on GPIO11 through GPIO14. The hardware handles the exact timing; you pick the pins.",
     "hash": "b8f0c4f07e9c"
+  },
+  {
+    "basename": "mcu-sleep-current",
+    "image": "/guide-diagrams/mcu-sleep-current.webp",
+    "alt": "A current-versus-time trace of a battery board's wake-measure-sleep cycle. The current spikes briefly to the milliamp range each time the board wakes to take a reading and send it, then drops back to a long, flat microamp floor while it deep-sleeps for seconds. The board spends almost all of its time on that low floor, so the sleep current, not the brief spikes, is what sets the battery life.",
+    "hash": "5f2646711629"
   }
 ]
