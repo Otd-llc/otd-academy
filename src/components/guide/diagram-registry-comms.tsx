@@ -24,6 +24,7 @@ import { CommsUsbEnumerate } from "./diagrams/CommsUsbEnumerate";
 import { CommsUsbCCc } from "./diagrams/CommsUsbCCc";
 import { CommsLevelShift } from "./diagrams/CommsLevelShift";
 import { CommsPullUpDown } from "./diagrams/CommsPullUpDown";
+import { CommsIsolationBarrier } from "./diagrams/CommsIsolationBarrier";
 
 export const COMMS_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/comms-serial-vs-parallel.svg": CommsSerialVsParallel,
@@ -35,4 +36,5 @@ export const COMMS_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/comms-usb-c-cc.svg": CommsUsbCCc,
   "/guide-diagrams/comms-level-shift.svg": CommsLevelShift,
   "/guide-diagrams/comms-pull-up-down.svg": CommsPullUpDown,
+  "/guide-diagrams/comms-isolation-barrier.svg": CommsIsolationBarrier,
 };

@@ -286,5 +286,11 @@
     "image": "/guide-diagrams/comms-pull-up-down.webp",
     "alt": "The same input pin, tied three ways. With a pull-up resistor to 3.3 V, the pin idles high and reads a 1. With a pull-down resistor to ground, it idles low and reads a 0. With no resistor at all it floats, picking up noise and reading an unpredictable, undefined level. A pull-up or pull-down gives a line a known default; a floating input has none.",
     "hash": "31413f7a0583"
+  },
+  {
+    "basename": "comms-isolation-barrier",
+    "image": "/guide-diagrams/comms-isolation-barrier.webp",
+    "alt": "A digital bus crossing an isolation barrier. On the left is side A, a computer; on the right, side B, an isolated sensor. A signal crosses the barrier through an isolator, drawn as a small capacitor gap, so the data still gets across. But the two sides keep separate grounds, GND A and GND B, with no wire joining them, so there is no direct electrical path from one side to the other. That is what breaks a ground loop and keeps a fault on one side off the other.",
+    "hash": "8c6e6b4fd711"
   }
 ]
