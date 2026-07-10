@@ -266,8 +266,8 @@
   {
     "basename": "mcu-flash-loop",
     "image": "/guide-diagrams/mcu-flash-loop.webp",
-    "alt": "The flashing loop, left to right. Your code compiles to a binary image. The esptool utility sends that binary over USB to the chip's bootloader, which writes it into flash memory. The next reset runs it. Then you edit the code and do it again: a blue return arc closes the loop back to the start.",
-    "hash": "8f8855b51387"
+    "alt": "The flashing loop, drawn as a cycle. You write your source code, compile it to a binary image, flash it with esptool over USB into the ESP32's bootloader and on into flash, and the next reset runs it. esptool, at the hub, is the upload tool you run each time. Change the code and the loop repeats, the same every time you hit upload.",
+    "hash": "5e6a8c1c2648"
   },
   {
     "basename": "mcu-timer-count",
