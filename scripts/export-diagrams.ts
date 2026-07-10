@@ -35,23 +35,23 @@ const LIGHT = argv.includes("--light");
 const LIGHT_SKIP = new Set<string>([]);
 
 function registryBasenames(): string[] {
-  // Scan the main registry index AND every per-cluster registry
-  // (diagram-registry-<cluster>.tsx, added by the #288 split), unioning their
-  // keys. The keys now live in the per-cluster modules, not the index, so reading
-  // only the index would miss every cluster diagram. Regex the FILES (not import)
-  // to keep React client components out of Node.
+  // Scan the core registry PLUS every per-cluster registry file
+  // (diagram-registry-<cluster>.tsx, added by the parallel-authoring split) so a
+  // diagram registered only in its cluster's file is still discovered. Regex the
+  // FILES (not an import) to keep React client components out of Node.
   const dir = path.join(ROOT, "src/components/guide");
   const files = readdirSync(dir).filter((f) => /^diagram-registry.*\.tsx$/.test(f));
   const keys = new Set<string>();
   for (const f of files) {
-    // Drop `//` line comments first: each empty per-cluster stub carries a
-    // worklist example (`"/guide-diagrams/<name>.svg": Comp,`) in a comment that
-    // would otherwise match and enqueue an unregistered, unrenderable basename.
-    const reg = readFileSync(path.join(dir, f), "utf8")
-      .split("\n")
-      .filter((ln) => !ln.trim().startsWith("//"))
-      .join("\n");
-    for (const m of reg.matchAll(/"\/guide-diagrams\/([^"]+)\.svg"\s*:/g)) keys.add(m[1]);
+    const reg = readFileSync(path.join(dir, f), "utf8");
+    for (const line of reg.split(/\r?\n/)) {
+      // Skip `//` comment lines so a scaffold's EXAMPLE key (shown in a comment,
+      // e.g. `//   "/guide-diagrams/comms-uart-frame.svg": CommsUartFrame,`) is not
+      // mistaken for a real registration. Registry entries are one key per line.
+      if (line.trimStart().startsWith("//")) continue;
+      const m = line.match(/"\/guide-diagrams\/([^"]+)\.svg"\s*:/);
+      if (m) keys.add(m[1]);
+    }
   }
   return [...keys];
 }
