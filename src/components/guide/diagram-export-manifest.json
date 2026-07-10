@@ -232,5 +232,71 @@
     "image": "/guide-diagrams/fund-datasheet-anatomy.webp",
     "alt": "A datasheet specification table for an LDO regulator, with columns for parameter, minimum, typical, maximum, and unit. Input voltage runs from a 2.5 volt minimum to a 6.0 volt absolute maximum. The output is 3.3 volts typical. Output current is 600 milliamps maximum. Dropout is 250 millivolts typical and 400 millivolts maximum. Junction temperature runs from minus 40 to 125 degrees Celsius. Read across each row: the typical column is the value you design around, and the maximum column is the absolute limit you never cross.",
     "hash": "5ec081d71db4"
+  },
+  {
+    "basename": "comms-serial-vs-parallel",
+    "image": "/guide-diagrams/comms-serial-vs-parallel.webp",
+    "alt": "Serial versus parallel, seen as signals. On top, a serial bus is one wire whose voltage toggles through eight bits in sequence, 1 0 1 1 0 0 1 0, one bit-time after another, so the byte lives in the shape of the line over time. Below, a parallel bus is eight wires read at a single clock edge, each wire holding one bit of the same byte at the same instant. Serial spends time to save wires; parallel spends wires to save time, which is why small boards, short on pins, use serial.",
+    "hash": "40f7473820a1"
+  },
+  {
+    "basename": "comms-uart-frame",
+    "image": "/guide-diagrams/comms-uart-frame.webp",
+    "alt": "The anatomy of one UART frame on a single wire, carrying the byte 0x41, the letter A, sent least-significant bit first. The line idles high. A start bit pulls it low for one bit-time. Then eight data bits, D0 through D7, carry the byte 1 0 0 0 0 0 1 0. Then a stop bit returns the line high. Ten bit-times in all, and because there is no separate clock line, both ends must be preset to the same baud rate.",
+    "hash": "7a443e31210d"
+  },
+  {
+    "basename": "comms-spi-bus",
+    "image": "/guide-diagrams/comms-spi-bus.webp",
+    "alt": "An SPI bus with one controller and two peripherals. Three lines are shared by both peripherals: SCK, the clock the controller drives; MOSI, data from the controller; and MISO, data back to it. Each peripheral also has its own chip-select line from the controller, CS1 and CS2. The controller talks to one peripheral at a time by pulling that peripheral's chip-select low; the shared bus reaches both, but only the selected one responds, which is why every extra peripheral costs another pin.",
+    "hash": "a3f280611682"
+  },
+  {
+    "basename": "comms-i2c-bus",
+    "image": "/guide-diagrams/comms-i2c-bus.webp",
+    "alt": "The I2C bus needs only two shared wires, SDA for data and SCL for the clock, to carry a whole bus of devices. Three devices hang on the same two lines, each answering to its own 7-bit address: 0x1D, 0x50, and 0x68. The controller reaches any one of them by sending its address, so adding another device costs no new wires.",
+    "hash": "d7f700e13646"
+  },
+  {
+    "basename": "comms-bus-compare",
+    "image": "/guide-diagrams/comms-bus-compare.webp",
+    "alt": "The three on-board buses side by side. UART joins two devices point to point over two wires, TX and RX, at low to moderate speed. I2C shares two wires, SDA and SCL, among many devices addressed on the bus, at moderate speed. SPI is the fastest, over three shared lines plus one chip-select per device. Pick UART for a simple stream, I2C when pins are short and speed does not matter, and SPI when you need speed.",
+    "hash": "111ed97d75ff"
+  },
+  {
+    "basename": "comms-usb-enumerate",
+    "image": "/guide-diagrams/comms-usb-enumerate.webp",
+    "alt": "How a USB device enumerates. A host and a device connect over a single differential pair, D-plus and D-minus, whose two wires swing in opposite directions. Before any data crosses, they run a handshake: step 1, the host resets the device; step 2, it asks for the device's descriptor; step 3, the device describes itself, for example a GPS that needs 100 mA; step 4, the host assigns it an address; step 5, the host loads a matching driver. Only after those five enumeration steps does data finally flow.",
+    "hash": "6702357d08d7"
+  },
+  {
+    "basename": "comms-usb-c-cc",
+    "image": "/guide-diagrams/comms-usb-c-cc.webp",
+    "alt": "The USB-C power input on a simple board. The USB-C receptacle's VBUS pin carries 5 V. Its two configuration-channel pins, CC1 and CC2, each connect through a 5.1 kilohm resistor to ground. Those two pull-downs mark the port as a device, or sink, so a USB-C host recognizes it and switches on 5 V. Leave them off and the port stays dead.",
+    "hash": "f3f70e86bfcb"
+  },
+  {
+    "basename": "comms-level-shift",
+    "image": "/guide-diagrams/comms-level-shift.webp",
+    "alt": "Level shifting shown as a signal. On the left, a logic signal in a 5 volt domain swings between 0 and 5 volts. It passes through a level shifter, which keeps the same pattern of ones and zeros but drops the swing. On the right, the same bits come out in a 3.3 volt domain, swinging only 0 to 3.3 volts, a level the 3.3 volt part can accept safely.",
+    "hash": "3a14a433d96b"
+  },
+  {
+    "basename": "comms-pull-up-down",
+    "image": "/guide-diagrams/comms-pull-up-down.webp",
+    "alt": "The same input pin, tied three ways. With a pull-up resistor to 3.3 V, the pin idles high and reads a 1. With a pull-down resistor to ground, it idles low and reads a 0. With no resistor at all it floats, picking up noise and reading an unpredictable, undefined level. A pull-up or pull-down gives a line a known default; a floating input has none.",
+    "hash": "31413f7a0583"
+  },
+  {
+    "basename": "comms-isolation-barrier",
+    "image": "/guide-diagrams/comms-isolation-barrier.webp",
+    "alt": "A digital bus crossing an isolation barrier. On the left is side A, a computer; on the right, side B, an isolated sensor. A signal crosses the barrier through an isolator, drawn as a small capacitor gap, so the data still gets across. But the two sides keep separate grounds, GND A and GND B, with no wire joining them, so there is no direct electrical path from one side to the other. That is what breaks a ground loop and keeps a fault on one side off the other.",
+    "hash": "8c6e6b4fd711"
+  },
+  {
+    "basename": "comms-bus-trace",
+    "image": "/guide-diagrams/comms-bus-trace.webp",
+    "alt": "Two I2C logic-analyzer captures compared, differing only at the ninth clock, the acknowledgement slot. Both clock out the same address, and after the eighth bit the controller releases SDA so it rises high. On a healthy bus, top, the addressed device then pulls SDA low to answer, an acknowledgement. On a broken bus, bottom, no device is there, so SDA stays high: no acknowledgement. A logic analyzer turns a bus that does nothing into that one visible difference.",
+    "hash": "de0ed6941d02"
   }
 ]
