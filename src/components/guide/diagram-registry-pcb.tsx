@@ -23,6 +23,7 @@ import { PcbGroundPlane } from "./diagrams/PcbGroundPlane";
 import { PcbStackup } from "./diagrams/PcbStackup";
 import { PcbDrc } from "./diagrams/PcbDrc";
 import { PcbSilkscreen } from "./diagrams/PcbSilkscreen";
+import { PcbGerberPackage } from "./diagrams/PcbGerberPackage";
 
 export const PCB_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/pcb-layout-workflow.svg": PcbLayoutWorkflow,
@@ -33,4 +34,5 @@ export const PCB_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/pcb-stackup.svg": PcbStackup,
   "/guide-diagrams/pcb-drc.svg": PcbDrc,
   "/guide-diagrams/pcb-silkscreen.svg": PcbSilkscreen,
+  "/guide-diagrams/pcb-gerber-package.svg": PcbGerberPackage,
 };

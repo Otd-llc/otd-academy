@@ -280,5 +280,11 @@
     "image": "/guide-diagrams/pcb-silkscreen.webp",
     "alt": "A board corner with its silkscreen and soldermask called out. A chip labelled U2 has a silkscreen outline, four copper pads, and a pin-1 dot in one corner that fixes its rotation. A diode labelled D1 has a silkscreen polarity band at one end. An electrolytic capacitor labelled C1 has a plus mark for polarity. A copper pad shows its soldermask opening, the bare copper the solder wets, ringed by the mask. Good silkscreen makes a board buildable and debuggable; soldermask keeps solder only on the pads.",
     "hash": "f9169923a4ee"
+  },
+  {
+    "basename": "pcb-gerber-package",
+    "image": "/guide-diagrams/pcb-gerber-package.webp",
+    "alt": "The fab package as one zip archive. Inside it are seven gerber files, one for each copper, soldermask, and silkscreen layer plus the board outline; a drill file for where the holes go; a bill of materials listing the parts; and a placement file for where each part goes. Zip those together and that archive is the complete package a fabricator needs.",
+    "hash": "c72c827f935d"
   }
 ]
