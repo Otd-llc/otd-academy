@@ -292,5 +292,11 @@
     "image": "/guide-diagrams/power-sequencing.webp",
     "alt": "Power sequencing: two rails coming up in order over time, with voltage on the vertical axis. Rail 1, in gold, ramps up first with a gentle soft-start and holds. When it reaches its good level, marked by a green dot and a dashed line, rail 2, in blue, begins its own soft-start ramp. Each rail comes up gently and in order rather than all at once.",
     "hash": "fa3bfd4bd19a"
+  },
+  {
+    "basename": "power-runtime",
+    "image": "/guide-diagrams/power-runtime.webp",
+    "alt": "The battery-runtime formula. Runtime t equals the battery capacity Q times the usable fraction, divided by the average current draw I-average. Worked with real numbers: 2000 milliamp-hours times 0.8 usable, divided by 100 milliamps of average draw, equals about 16 hours.",
+    "hash": "b649041749db"
   }
 ]

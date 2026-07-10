@@ -25,6 +25,7 @@ import { BoostTopology } from "./diagrams/BoostTopology";
 import { RegulatorChoice } from "./diagrams/RegulatorChoice";
 import { InputProtection } from "./diagrams/InputProtection";
 import { PowerSequencing } from "./diagrams/PowerSequencing";
+import { PowerRuntime } from "./diagrams/PowerRuntime";
 
 export const POWER_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/power-power-budget.svg": PowerBudget,
@@ -37,4 +38,5 @@ export const POWER_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/power-regulator-choice.svg": RegulatorChoice,
   "/guide-diagrams/power-input-protection.svg": InputProtection,
   "/guide-diagrams/power-sequencing.svg": PowerSequencing,
+  "/guide-diagrams/power-runtime.svg": PowerRuntime,
 };
