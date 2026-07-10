@@ -232,5 +232,11 @@
     "image": "/guide-diagrams/fund-datasheet-anatomy.webp",
     "alt": "A datasheet specification table for an LDO regulator, with columns for parameter, minimum, typical, maximum, and unit. Input voltage runs from a 2.5 volt minimum to a 6.0 volt absolute maximum. The output is 3.3 volts typical. Output current is 600 milliamps maximum. Dropout is 250 millivolts typical and 400 millivolts maximum. Junction temperature runs from minus 40 to 125 degrees Celsius. Read across each row: the typical column is the value you design around, and the maximum column is the absolute limit you never cross.",
     "hash": "5ec081d71db4"
+  },
+  {
+    "basename": "mcu-block-diagram",
+    "image": "/guide-diagrams/mcu-block-diagram.webp",
+    "alt": "What is inside a microcontroller, drawn as one chip. The die holds three stacked zones tied by an internal bus. The processor zone is the CPU, with 2 cores on the ESP32-S3. The memory zone holds RAM, the working memory that is volatile, and flash, which keeps the firmware. The peripherals zone holds GPIO, ADC, timers, and serial blocks. The peripherals are the bridge to the outside world: the chip drives an LED, reads a sensor, and talks to another chip.",
+    "hash": "55c6c55d2591"
   }
 ]

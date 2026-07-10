@@ -15,5 +15,8 @@
 //   mcu-timer-count        mcu-poll-vs-interrupt  mcu-peripheral-mux
 //   mcu-sleep-current      mcu-pinout-map
 import type { DiagramComponent } from "./diagram-registry";
+import { McuBlockDiagram } from "./diagrams/McuBlockDiagram";
 
-export const MICROCONTROLLERS_DIAGRAMS: Record<string, DiagramComponent> = {};
+export const MICROCONTROLLERS_DIAGRAMS: Record<string, DiagramComponent> = {
+  "/guide-diagrams/mcu-block-diagram.svg": McuBlockDiagram,
+};
