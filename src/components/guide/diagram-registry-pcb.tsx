@@ -25,6 +25,7 @@ import { PcbDrc } from "./diagrams/PcbDrc";
 import { PcbSilkscreen } from "./diagrams/PcbSilkscreen";
 import { PcbGerberPackage } from "./diagrams/PcbGerberPackage";
 import { PcbDfm } from "./diagrams/PcbDfm";
+import { PcbReflowProfile } from "./diagrams/PcbReflowProfile";
 
 export const PCB_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/pcb-layout-workflow.svg": PcbLayoutWorkflow,
@@ -37,4 +38,5 @@ export const PCB_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/pcb-silkscreen.svg": PcbSilkscreen,
   "/guide-diagrams/pcb-gerber-package.svg": PcbGerberPackage,
   "/guide-diagrams/pcb-dfm.svg": PcbDfm,
+  "/guide-diagrams/pcb-reflow-profile.svg": PcbReflowProfile,
 };

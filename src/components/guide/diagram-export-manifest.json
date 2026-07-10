@@ -292,5 +292,11 @@
     "image": "/guide-diagrams/pcb-dfm.webp",
     "alt": "A cost-driver staircase for PCB fabrication. Three rising steps show that a 2-layer board is the cheap tier ($), a 4-layer board steps up ($$), and a 6-plus layer board climbs fast ($$$), so layer count is the biggest price lever. A note adds that quantity, board size, surface finish, and lead time each trim the rest of the cost.",
     "hash": "b7c286dedfc7"
+  },
+  {
+    "basename": "pcb-reflow-profile",
+    "image": "/guide-diagrams/pcb-reflow-profile.webp",
+    "alt": "A reflow temperature-versus-time curve for lead-free soldering. Temperature ramps up through a preheat stage, holds through a soak, spikes through the reflow stage to a peak near 245 to 255 C, then falls through a controlled cool-down. A dashed line marks the 217 C melting point; the band above it and the reflow window are highlighted as the zone where the solder is molten.",
+    "hash": "9ed4876f32d8"
   }
 ]
