@@ -234,6 +234,72 @@
     "hash": "5ec081d71db4"
   },
   {
+    "basename": "power-power-budget",
+    "image": "/guide-diagrams/power-power-budget.webp",
+    "alt": "A power budget: a 3.3 V rail feeds four loads (MCU 80 mA, Radio TX 120 mA, sensors 30 mA, LEDs 10 mA) that sum to 240 mA. Adding a 30 percent margin gives 312 mA needed, so you round up to a 500 mA source.",
+    "hash": "170f440c3d6e"
+  },
+  {
+    "basename": "power-discharge-curve",
+    "image": "/guide-diagrams/power-discharge-curve.webp",
+    "alt": "A lithium-ion discharge curve, cell voltage against state of charge from 100 percent full on the left to 0 percent empty on the right. The voltage starts at 4.2 volts full, holds a long flat plateau near its 3.7 volt nominal for most of the discharge, then drops off a cliff to 3.0 volts empty. A dashed box marks the plateau: nearly all the usable charge sits in that flat band.",
+    "hash": "922b687d972d"
+  },
+  {
+    "basename": "power-safe-window",
+    "image": "/guide-diagrams/power-safe-window.webp",
+    "alt": "The safe voltage window of a single lithium cell, on a scale from 2.4 to 4.4 volts. The safe window, in gold, runs from 3.0 volts empty to 4.2 volts full. Just outside it the protection circuit trips, at about 2.5 volts on discharge and about 4.25 volts on charge. Beyond those cutoffs, in red, the cell is over-discharged or over-charged and can be damaged.",
+    "hash": "f3f1e427b1ee"
+  },
+  {
+    "basename": "power-cc-cv",
+    "image": "/guide-diagrams/power-cc-cv.webp",
+    "alt": "A CC/CV lithium charge curve over time. In the constant-current phase the charge current, in blue, is held flat while the cell voltage, in gold, climbs to 4.2 volts. At the knee, marked by a dashed divider, the charger switches to the constant-voltage phase: it holds 4.2 volts while the current tapers off toward zero.",
+    "hash": "f09e62b441ec"
+  },
+  {
+    "basename": "power-ldo-dissipation",
+    "image": "/guide-diagrams/power-ldo-dissipation.webp",
+    "alt": "A linear regulator dropping voltage as heat. A 5 volt input flows through an LDO block that outputs 3.3 volts at the same current, with red plumes of heat rising from it. The 1.7 volt difference it drops, times the 0.2 amp load current, is 0.34 watts, all dissipated as heat.",
+    "hash": "6e0de0aab88d"
+  },
+  {
+    "basename": "power-buck-topology",
+    "image": "/guide-diagrams/power-buck-topology.webp",
+    "alt": "How a buck regulator steps voltage down. A 12 volt input feeds a switch, then an inductor-capacitor filter, then out at 3.3 volts. Beneath, the switch turns the input into a chopped square wave of pulses, and the L-C filter smooths those pulses into a steady lower voltage.",
+    "hash": "28edf150894e"
+  },
+  {
+    "basename": "power-boost-topology",
+    "image": "/guide-diagrams/power-boost-topology.webp",
+    "alt": "How a boost regulator raises voltage. A single 3.7 volt lithium cell, drawn as a battery, is lifted by a boost arrow up to a taller 5 volt rail bar. A boost lets the cell drive a 5 volt rail it could never reach on its own, because the rail is higher than the cell's own voltage.",
+    "hash": "74b948b32b47"
+  },
+  {
+    "basename": "power-regulator-choice",
+    "image": "/guide-diagrams/power-regulator-choice.webp",
+    "alt": "A comparison of three regulators. An LDO is inefficient because it burns the drop, but it is very quiet, and it suits a small drop, low current, or a clean analog rail. A buck is highly efficient, over 90 percent, but carries switching noise, and it suits a big drop or high current. A boost is also efficient with switching noise, and is used when the rail sits above the supply. When you need both efficiency and quiet, chain a buck into an LDO: the buck moves the power efficiently and the LDO scrubs the noise off for a clean rail.",
+    "hash": "684657a156eb"
+  },
+  {
+    "basename": "power-input-protection",
+    "image": "/guide-diagrams/power-input-protection.webp",
+    "alt": "Two guards at a board's power input. A P-channel MOSFET blocks a reversed supply, and an inrush-limiting element ramps the turn-on current into the bulk capacitors. Below, a current-versus-time trace shows the sharp spike the capacitors would pull without the limiter, drawn dashed, and the gentle ramp with it, drawn solid.",
+    "hash": "3df3bfceac29"
+  },
+  {
+    "basename": "power-sequencing",
+    "image": "/guide-diagrams/power-sequencing.webp",
+    "alt": "Power sequencing: two rails coming up in order over time, with voltage on the vertical axis. Rail 1, in gold, ramps up first with a gentle soft-start and holds. When it reaches its good level, marked by a green dot and a dashed line, rail 2, in blue, begins its own soft-start ramp. Each rail comes up gently and in order rather than all at once.",
+    "hash": "fa3bfd4bd19a"
+  },
+  {
+    "basename": "power-runtime",
+    "image": "/guide-diagrams/power-runtime.webp",
+    "alt": "The battery-runtime formula. Runtime t equals the battery capacity Q times the usable fraction, divided by the average current draw I-average. Worked with real numbers: 2000 milliamp-hours times 0.8 usable, divided by 100 milliamps of average draw, equals about 16 hours.",
+    "hash": "b649041749db"
+  },
+  {
     "basename": "comms-serial-vs-parallel",
     "image": "/guide-diagrams/comms-serial-vs-parallel.webp",
     "alt": "Serial versus parallel, seen as signals. On top, a serial bus is one wire whose voltage toggles through eight bits in sequence, 1 0 1 1 0 0 1 0, one bit-time after another, so the byte lives in the shape of the line over time. Below, a parallel bus is eight wires read at a single clock edge, each wire holding one bit of the same byte at the same instant. Serial spends time to save wires; parallel spends wires to save time, which is why small boards, short on pins, use serial.",
