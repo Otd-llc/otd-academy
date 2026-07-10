@@ -284,8 +284,8 @@
   {
     "basename": "mcu-peripheral-mux",
     "image": "/guide-diagrams/mcu-peripheral-mux.webp",
-    "alt": "An SPI hardware peripheral inside the chip drives four signals: SCLK the clock, MOSI and MISO the data lines, and CS the chip select. All four run into a pin mux, a routing block, which sends each one out to a GPIO pin of your choosing. The wires cross on the way out to show that any signal can go to any free pin: here they land on GPIO11 through GPIO14. The hardware handles the exact timing; you pick the pins.",
-    "hash": "b8f0c4f07e9c"
+    "alt": "The pin mux drawn as a crossbar. On the left is the SPI hardware bus block. On the right is a grid whose rows are the SPI signals (the clock SCLK, data out MOSI, data in MISO, and chip-select CS) and whose columns are GPIO pins. A gold dot at a row-and-column crossing means that signal is routed to that pin; here SCLK goes to GPIO10, MOSI to GPIO11, MISO to GPIO12, and CS to GPIO13. The faint dots are the other pins each signal could have been routed to instead.",
+    "hash": "bff761698375"
   },
   {
     "basename": "mcu-sleep-current",

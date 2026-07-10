@@ -1,108 +1,87 @@
-// On-chip peripheral + pin mux (v2). Microcontrollers & ESP32 cluster.
+// On-chip peripheral + pin mux, as a crossbar (diagram-standards v2).
+// MCU cluster, diagram 9. Owner-picked M2.
 //
-// Teaching point: a bus like SPI is a hardware block inside the chip. Its signals
-// (SCLK, MOSI, MISO, CS) route through a pin mux out to whichever GPIO pins you
-// choose, so the hardware does the timing and you pick the layout.
+// Teaching point (lesson 8): a bus like SPI is a hardware block inside the chip.
+// The pin mux routes its signals (SCLK, MOSI, MISO, CS) to almost any GPIO you
+// choose. Drawn as a crossbar: rows are the signals, columns are pins, and a gold
+// dot at a crossing means that signal is routed to that pin. The faint dots are
+// the pins each signal could have gone to instead, which is what "any GPIO" means.
 //
-// Landscape desktop/print: SPI block on the left, its four signals through a PIN
-// MUX, cross-routed to chosen GPIO pins on the right. REFLOWS on a phone to a
-// summary. Token-only color.
+// Grid rendered by nested maps. Color via CSS classes; mono for labels. Header +
+// caption from the DiagramFrame.
 import { DiagramFrame } from "./DiagramFrame";
 
-const SIG = [
-  { n: "SCLK", y: 108 },
-  { n: "MOSI", y: 146 },
-  { n: "MISO", y: 184 },
-  { n: "CS", y: 222 },
-];
-// cross-routing: signal index -> GPIO row y (deliberately reordered = "you pick")
-const MAP = [184, 108, 222, 146];
-const GPIO = ["GPIO11", "GPIO12", "GPIO13", "GPIO14"];
-const MUX_L = 250, MUX_R = 344, GP_X = 470;
+const ROWS = ["SCLK", "MOSI", "MISO", "CS"];
+const COLS = ["G10", "G11", "G12", "G13", "G14"];
+const CHOSEN = [0, 1, 2, 3]; // ROWS[i] routed to COLS[CHOSEN[i]]
+const GX0 = 250, GY0 = 64, CW = 54, RH = 30;
+const colX = (j: number) => GX0 + j * CW;
+const rowY = (i: number) => GY0 + i * RH + 10;
 
 export function McuPeripheralMux({ caption }: { caption?: string }) {
   return (
     <DiagramFrame
       eyebrow="MICROCONTROLLERS · PERIPHERALS"
       tone="gold"
-      title="The bus block, muxed to your pins"
-      ariaLabel="An SPI hardware peripheral inside the chip drives four signals: SCLK the clock, MOSI and MISO the data lines, and CS the chip select. All four run into a pin mux, a routing block, which sends each one out to a GPIO pin of your choosing. The wires cross on the way out to show that any signal can go to any free pin: here they land on GPIO11 through GPIO14. The hardware handles the exact timing; you pick the pins."
+      title="Route a bus block to your pins"
+      ariaLabel="The pin mux drawn as a crossbar. On the left is the SPI hardware bus block. On the right is a grid whose rows are the SPI signals (the clock SCLK, data out MOSI, data in MISO, and chip-select CS) and whose columns are GPIO pins. A gold dot at a row-and-column crossing means that signal is routed to that pin; here SCLK goes to GPIO10, MOSI to GPIO11, MISO to GPIO12, and CS to GPIO13. The faint dots are the other pins each signal could have been routed to instead."
       caption={caption}
-      defaultCaption="An SPI block's signals route through the pin mux to whichever GPIO pins you choose. The hardware does the timing; you pick the layout."
+      defaultCaption="The pin mux is a crossbar: each SPI signal can route to almost any GPIO, and a gold dot marks the pin you picked for it."
     >
       <style>{CSS}</style>
+      <div className="mx">
+        <svg className="mx-svg" viewBox="0 0 540 220" aria-hidden="true">
+          {/* SPI block */}
+          <rect x="40" y="72" width="80" height="100" rx="8" className="mx-block" />
+          <text x="80" y="118" textAnchor="middle" className="mx-block-t">SPI</text>
+          <text x="80" y="136" textAnchor="middle" className="mx-block-s">bus block</text>
+          <line x1="120" y1="120" x2={GX0 - 10} y2="120" className="mx-conn" />
 
-      <div className="pm">
-        {/* desktop / print */}
-        <svg className="pm-scene" viewBox="0 0 660 300" aria-hidden="true">
-          {/* SPI peripheral block */}
-          <rect className="pm-blk" x={22} y={92} width={120} height={146} rx={7} />
-          <text className="pm-blkt" x={82} y={128} textAnchor="middle">SPI</text>
-          <text className="pm-blks" x={82} y={146} textAnchor="middle">hardware block</text>
-          {SIG.map((s) => (
-            <g key={s.n}>
-              <line className="pm-w" x1={142} y1={s.y} x2={MUX_L} y2={s.y} />
-              <text className="pm-sig" x={152} y={s.y - 7} textAnchor="start">{s.n}</text>
+          {/* column headers + vertical lines */}
+          {COLS.map((c, j) => (
+            <g key={c}>
+              <text x={colX(j)} y={GY0 - 6} textAnchor="middle" className="mx-col">{c}</text>
+              <line x1={colX(j)} y1={GY0} x2={colX(j)} y2={GY0 + ROWS.length * RH} className="mx-grid" />
             </g>
           ))}
 
-          {/* pin mux */}
-          <rect className="pm-mux" x={MUX_L} y={92} width={MUX_R - MUX_L} height={146} rx={6} />
-          <text className="pm-muxt" x={(MUX_L + MUX_R) / 2} y={160} textAnchor="middle">PIN</text>
-          <text className="pm-muxt" x={(MUX_L + MUX_R) / 2} y={182} textAnchor="middle">MUX</text>
+          {/* rows: label, line, and the dots */}
+          {ROWS.map((r, i) => (
+            <g key={r}>
+              <text x={GX0 - 18} y={rowY(i) + 4} textAnchor="end" className="mx-row">{r}</text>
+              <line x1={GX0 - 10} y1={rowY(i)} x2={colX(COLS.length - 1) + 10} y2={rowY(i)} className="mx-grid" />
+              {COLS.map((_, j) => (
+                <circle key={j} cx={colX(j)} cy={rowY(i)} r={CHOSEN[i] === j ? 5 : 2.5}
+                  className={CHOSEN[i] === j ? "mx-dot" : "mx-dot-faint"} />
+              ))}
+            </g>
+          ))}
 
-          {/* cross-routed wires out to chosen GPIO */}
-          {SIG.map((s, i) => {
-            const gy = MAP[i];
-            return (
-              <g key={s.n}>
-                <path className="pm-w" fill="none" d={`M${MUX_R},${s.y} C${MUX_R + 60},${s.y} ${GP_X - 60},${gy} ${GP_X - 8},${gy}`} />
-                <path className="pm-w" fill="none" d={`M${GP_X - 16},${gy - 5} L${GP_X - 8},${gy} L${GP_X - 16},${gy + 5}`} />
-              </g>
-            );
-          })}
-
-          {/* GPIO pins */}
-          {GPIO.map((g, i) => {
-            const y = SIG[i].y;
-            return (
-              <g key={g}>
-                <rect className="pm-gp" x={GP_X} y={y - 16} width={92} height={32} rx={5} />
-                <text className="pm-gpt" x={GP_X + 46} y={y + 5} textAnchor="middle">{g}</text>
-              </g>
-            );
-          })}
-          <text className="pm-note" x={GP_X + 46} y={262} textAnchor="middle">pins you choose</text>
+          <text x={GX0 + 100} y="200" textAnchor="middle" className="mx-note">a dot = that signal routed to that pin</text>
         </svg>
-
-        {/* phone reflow */}
-        <div className="pm-phone" aria-hidden="true">
-          <p className="pm-psum">The <b>SPI</b> block's signals (SCLK, MOSI, MISO, CS) run through the <b>pin mux</b> out to GPIO pins you choose.</p>
-          <p className="pm-pnote">The hardware clocks the bits with exact timing; you just pick which pins the bus lands on.</p>
-        </div>
       </div>
     </DiagramFrame>
   );
 }
 
 const CSS = `
-.pm{display:block;}
-.pm-scene{display:block;width:100%;height:auto;overflow:visible;}
-.pm-blk{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:1.9;}
-.pm-mux{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:1.7;stroke-dasharray:4 3;}
-.pm-gp{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:1.7;}
-.pm-w{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round;}
-.pm-blkt{font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:30px;letter-spacing:.04em;fill:var(--color-title,#f1ece0);}
-.pm-blks{font-family:var(--font-mono,"Space Mono",monospace);font-weight:400;font-size:11px;fill:var(--color-muted,#aaa);}
-.pm-sig{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:12px;letter-spacing:.03em;fill:var(--color-command-gold,#c8963e);}
-.pm-muxt{font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:19px;letter-spacing:.06em;fill:var(--color-command-gold,#c8963e);}
-.pm-gpt{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:13px;fill:var(--color-title,#f1ece0);}
-.pm-note{font-family:var(--font-serif,"Lora",serif);font-style:italic;font-size:13px;fill:var(--color-muted,#aaa);}
+.mx{max-width:36rem;margin-inline:auto;}
+.mx-svg{display:block;width:100%;height:auto;overflow:visible;}
+.mx-block{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:1.8;}
+.mx-block-t{font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:20px;letter-spacing:.03em;fill:var(--color-title,#f1ece0);}
+.mx-block-s{font-family:var(--font-mono,"Space Mono",monospace);font-size:9px;fill:var(--color-muted,#aaaaaa);}
+.mx-conn{stroke:var(--color-command-gold,#c8963e);stroke-width:1.8;}
+.mx-grid{stroke:var(--color-panel-border,#3a3f50);stroke-width:1;}
+.mx-col{font-family:var(--font-mono,"Space Mono",monospace);font-size:11px;fill:var(--color-muted,#aaaaaa);}
+.mx-row{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:11px;fill:var(--color-command-gold,#c8963e);}
+.mx-dot{fill:var(--color-command-gold,#c8963e);}
+.mx-dot-faint{fill:var(--color-panel-border,#3a3f50);}
+.mx-note{font-family:var(--font-mono,"Space Mono",monospace);font-size:10.5px;fill:var(--color-muted,#aaaaaa);}
 
-/* phone reflow */
-.pm-phone{display:none;}
-@media (max-width:520px){ .pm-scene{display:none;} .pm-phone{display:block;} }
-.pm-psum{margin:0 0 .5rem;font-family:var(--font-serif,"Lora",serif);font-size:.95rem;line-height:1.5;color:var(--color-text,#e8e8e8);}
-.pm-psum b{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;color:var(--color-command-gold,#c8963e);}
-.pm-pnote{margin:0;font-family:var(--font-serif,"Lora",serif);font-size:.9rem;color:var(--color-muted,#aaa);}
+/* Tier-B reveal off the frame's armed/in contract (final state under reduced-motion). */
+.dgfrm.armed .mx-svg{opacity:0;transform:translateY(6px);}
+.dgfrm.armed.in .mx-svg{opacity:1;transform:none;transition:opacity .6s ease,transform .6s cubic-bezier(.2,.7,.2,1);}
+@media (prefers-reduced-motion:reduce){
+  .dgfrm .mx-svg{opacity:1!important;transform:none!important;transition:none!important;}
+}
 `;
