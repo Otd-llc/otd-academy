@@ -334,6 +334,72 @@ const POWER_CHROME: FieldGuideChrome = {
   },
 };
 
+// ── Communication & Interfaces ──────────────────────────────────────────────
+// The four movements of the reading order (the on-board buses → USB → wiring
+// signals between parts → isolating and debugging a link). Part dividers land at
+// clusterOrdinals 0 / 5 / 7 / 9 across the eleven lessons.
+const COMMS_PARTS: FieldGuidePart[] = [
+  {
+    n: 1,
+    title: "The On-Board Buses",
+    startsAtSlug: "bus-basics",
+    blurb:
+      "What a bus is, and the three that connect chips on a board: UART with no clock, SPI for speed, and I2C for pins, plus how to choose between them.",
+  },
+  {
+    n: 2,
+    title: "USB",
+    startsAtSlug: "usb-basics",
+    blurb:
+      "The bus back to your computer: how a host and device enumerate over a differential pair, and the CC resistors that bring a USB-C port to life.",
+  },
+  {
+    n: 3,
+    title: "Wiring Signals",
+    startsAtSlug: "level-shifting",
+    blurb:
+      "The details that decide whether a link works: matching 3.3 V and 5 V logic levels, and giving every line a known idle with a pull-up or pull-down.",
+  },
+  {
+    n: 4,
+    title: "Isolation and Debug",
+    startsAtSlug: "digital-isolation",
+    blurb:
+      "Crossing a barrier with no shared ground when safety demands it, and finding the fault fast when a bus goes silent.",
+  },
+];
+
+const COMMS_CHROME: FieldGuideChrome = {
+  documentTitle: "OTD Academy Field Guide · The Communication & Interfaces Reference Library",
+  coverNumeral: "04",
+  coverLabel: "Communication & Interfaces",
+  runningHeader: "Communication & Interfaces Reference Library",
+  parts: COMMS_PARTS,
+  intro: {
+    eyebrow: "How to read this volume",
+    title: "Start Here",
+    paras: [
+      "Every board is a set of chips that have to talk to each other, and they do it over a handful of simple buses. Learn those buses and a schematic full of unfamiliar parts turns into a few conversations you can follow.",
+      "This volume is eleven short reference guides that build up the on-board buses one at a time, in the order they make sense: from what a bus even is, through UART, SPI, and I2C, to USB and the wiring details that decide whether a link works at all.",
+      "Read them front to back and each guide leans on the one before. Read them out of order and each still stands on its own, with a diagram where it helps and cross-links at its foot.",
+      "The path runs in four parts: the on-board buses, USB, wiring signals between parts, and isolating and debugging a bus.",
+    ],
+  },
+  outro: {
+    eyebrow: "Where this goes",
+    title: "Now Wire It Up",
+    paras: [
+      "Eleven guides back, this started at what a bus is. Now you can read a datasheet's interface line, put a sensor on the right bus, size a pull-up, and reach for a logic analyzer when a link goes quiet. That is the working vocabulary every multi-chip board assumes.",
+      "The next step is a real board where the parts actually have to talk. The courses take these buses and turn them into hardware you design and bring up yourself, from a USB-C breakout to an isolated bridge.",
+      "Keep the guides open beside the bench and come back to them when a bus does something you did not expect. That is what a field guide is for.",
+    ],
+    cta: {
+      ...FIRST_BOARD_CTA,
+      body: "It opens with the ESP32-S3 USB-C Breakout, where these buses first show up in real copper: the USB-C CC resistors, the serial link to your computer, and the headers a sensor bus will ride.",
+    },
+  },
+};
+
 // Per-cluster chrome, keyed by LIBRARY_CLUSTERS.key. The per-cluster PDF route
 // looks a cluster up here; an unknown cluster 404s at the route (never renders
 // the wrong book's cover/intro).
@@ -342,6 +408,7 @@ export const FIELD_GUIDE_CHROME: Record<string, FieldGuideChrome> = {
   "eeg-bci": EEG_CHROME,
   "pcb-design": PCB_CHROME,
   "power-batteries": POWER_CHROME,
+  "comms-interfaces": COMMS_CHROME,
 };
 
 // ── Combined all-clusters book ──────────────────────────────────────────────

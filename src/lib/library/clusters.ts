@@ -42,6 +42,13 @@ export const LIBRARY_CLUSTERS: LibraryCluster[] = [
     order: 2,
   },
   {
+    key: "comms-interfaces",
+    label: "Communication & Interfaces",
+    blurb:
+      "How the chips on a board talk to each other: UART, SPI, I2C, and USB, in plain terms.",
+    order: 3,
+  },
+  {
     key: "power-batteries",
     label: "Power & Batteries",
     blurb:
