@@ -41,6 +41,13 @@ export const LIBRARY_CLUSTERS: LibraryCluster[] = [
       "Turn a schematic into a real, fab-ready board: layout, routing, planes, and the files a factory needs.",
     order: 2,
   },
+  {
+    key: "power-batteries",
+    label: "Power & Batteries",
+    blurb:
+      "Powering a board that runs: batteries, regulators, and how to size a supply.",
+    order: 4,
+  },
 ];
 
 /**
