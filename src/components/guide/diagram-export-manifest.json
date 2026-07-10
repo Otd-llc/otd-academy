@@ -268,5 +268,11 @@
     "image": "/guide-diagrams/pcb-stackup.webp",
     "alt": "Two boards edge-on. On the left a two-layer board: copper on top and bottom with an FR4 core between, so signals and ground share the two outer copper layers. On the right a four-layer board: the same outer signal layers, plus two dedicated inner copper planes, a ground plane and a power plane, sandwiched close against the signals by thin prepreg and a central core. The inner planes give every signal a return plane a fraction of a millimetre away, which is the reason to add layers.",
     "hash": "1e0ccfc6f2a5"
+  },
+  {
+    "basename": "pcb-drc",
+    "image": "/guide-diagrams/pcb-drc.webp",
+    "alt": "A board layout with three design-rule violations flagged in red. First, a clearance violation: two copper traces run too close together. Second, an unrouted net: two pads are joined only by a dashed ratsnest line, with no copper trace between them yet. Third, silk on a pad: a silkscreen line crosses a pad where solder must wet. The design-rule check flags each of these against the fabricator's limits, and you clear every marker before you leave the layout.",
+    "hash": "2ab9055df7db"
   }
 ]
