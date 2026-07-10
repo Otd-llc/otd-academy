@@ -234,6 +234,72 @@
     "hash": "5ec081d71db4"
   },
   {
+    "basename": "mcu-block-diagram",
+    "image": "/guide-diagrams/mcu-block-diagram.webp",
+    "alt": "What is inside a microcontroller, drawn as one die. Inside a single chip package sit the CPU (two cores, which runs your program), the memory (SRAM for the working variables and flash for the firmware), the radio (Wi-Fi and Bluetooth Low Energy), and a row of peripherals (GPIO, ADC, timers, serial, USB) that reach the outside world through the package pins. A desktop computer spreads those across many separate parts; a microcontroller puts them all on one piece of silicon.",
+    "hash": "5f0ba724ba14"
+  },
+  {
+    "basename": "mcu-gpio-in-out",
+    "image": "/guide-diagrams/mcu-gpio-in-out.webp",
+    "alt": "One GPIO pin shown two ways. As an output, the pin drives current through a resistor and an LED to ground, lighting the LED. As an input, a pull-up resistor ties the pin to 3.3 volts so it reads high, until a button to ground pulls it low. You set the direction first, then write the pin or read it.",
+    "hash": "602e6deefaa2"
+  },
+  {
+    "basename": "mcu-adc-quantize",
+    "image": "/guide-diagrams/mcu-adc-quantize.webp",
+    "alt": "An analog-to-digital converter turning a smooth voltage into a number. A smooth analog input curve rises across the range; the converter reports the discrete step the voltage lands on, drawn as a gold staircase that climbs one code at a time under the curve. The reference voltage marks the top step, full scale, and the codes count up the right side. The ESP32's 12-bit converter has 4096 such steps; eight are shown for clarity.",
+    "hash": "3c71fb4dd24d"
+  },
+  {
+    "basename": "mcu-pwm-duty",
+    "image": "/guide-diagrams/mcu-pwm-duty.webp",
+    "alt": "Three PWM waveforms at 25, 50, and 75 percent duty cycle, side by side. Each is a square wave that spends that fraction of every period high; a blue dashed line marks the average output level it produces, rising from a quarter of the supply at 25 percent duty, to a half at 50 percent, to three-quarters at 75 percent. The on-fraction of each period sets the average.",
+    "hash": "233b3eb3e8fb"
+  },
+  {
+    "basename": "mcu-strapping-boot",
+    "image": "/guide-diagrams/mcu-strapping-boot.webp",
+    "alt": "At reset the ESP32 samples its boot strapping pin to choose how to boot. If the pin is high, its default level, the chip runs the firmware already in flash. If the pin is held low, which is what pressing the BOOT button does, the chip enters the download bootloader and waits to be flashed.",
+    "hash": "9eafeb25e49d"
+  },
+  {
+    "basename": "mcu-flash-loop",
+    "image": "/guide-diagrams/mcu-flash-loop.webp",
+    "alt": "The flashing loop, drawn as a cycle. You write your source code, compile it to a binary image, flash it with esptool over USB into the ESP32's bootloader and on into flash, and the next reset runs it. esptool, at the hub, is the upload tool you run each time. Change the code and the loop repeats, the same every time you hit upload.",
+    "hash": "5e6a8c1c2648"
+  },
+  {
+    "basename": "mcu-timer-count",
+    "image": "/guide-diagrams/mcu-timer-count.webp",
+    "alt": "A timer drawn as a three-lane scope trace. The top lane is a steady clock of square pulses. The middle lane is the timer's count, a staircase that climbs one step on every clock tick, from zero up to its target N, then drops back to zero. The bottom lane is the event the timer fires at each rollover, aligned to the moment the count reaches N. Because it counts a fixed frequency, the event repeats at an exact rate, such as a 1 Hz blink or a 250 Hz sample.",
+    "hash": "8fd8e504934c"
+  },
+  {
+    "basename": "mcu-poll-vs-interrupt",
+    "image": "/guide-diagrams/mcu-poll-vs-interrupt.webp",
+    "alt": "Two ways to catch an event, compared. On the left, polling is drawn as a loop: the CPU circles through repeated checks of a pin, asking again and again and mostly finding nothing. On the right, an interrupt is drawn as a straight path: the event fires and jumps the CPU directly into a short interrupt service routine, the ISR, with no checking and a near-instant response.",
+    "hash": "edc6b11a8b09"
+  },
+  {
+    "basename": "mcu-peripheral-mux",
+    "image": "/guide-diagrams/mcu-peripheral-mux.webp",
+    "alt": "The pin mux drawn as a crossbar. On the left is the SPI hardware bus block. On the right is a grid whose rows are the SPI signals (the clock SCLK, data out MOSI, data in MISO, and chip-select CS) and whose columns are GPIO pins. A gold dot at a row-and-column crossing means that signal is routed to that pin; here SCLK goes to GPIO10, MOSI to GPIO11, MISO to GPIO12, and CS to GPIO13. The faint dots are the other pins each signal could have been routed to instead.",
+    "hash": "bff761698375"
+  },
+  {
+    "basename": "mcu-sleep-current",
+    "image": "/guide-diagrams/mcu-sleep-current.webp",
+    "alt": "A current-versus-time trace of a wake-measure-sleep cycle: brief tall active spikes reaching about 150 milliamps, each followed by a long flat sleep floor near 10 microamps, repeating. Below, two runtime bars compare a board left always on, which lasts hours, against one that is mostly asleep, which lasts months. The low sleep floor, held almost the whole time, is what sets the battery life.",
+    "hash": "54fd89e05a24"
+  },
+  {
+    "basename": "mcu-pinout-map",
+    "image": "/guide-diagrams/mcu-pinout-map.webp",
+    "alt": "An ESP32-S3 pin map grouped by how you can use each pin. The first group, in gold, is the general-purpose pins free to use: GPIO4, GPIO5, GPIO6, GPIO7. The second, in blue, is the ADC1-capable analog inputs: GPIO1, GPIO2, GPIO3. The third, in red, is the reserved pins to leave alone, each tagged with why: GPIO0, GPIO45, and GPIO46 are strapping pins, GPIO19 and GPIO20 are the native USB pair, and GPIO26 is wired to the on-module flash. Read the map and wire your signals to the pins that are free.",
+    "hash": "81538df30dc6"
+  },
+  {
     "basename": "power-power-budget",
     "image": "/guide-diagrams/power-power-budget.webp",
     "alt": "A power budget: a 3.3 V rail feeds four loads (MCU 80 mA, Radio TX 120 mA, sensors 30 mA, LEDs 10 mA) that sum to 240 mA. Adding a 30 percent margin gives 312 mA needed, so you round up to a 500 mA source.",

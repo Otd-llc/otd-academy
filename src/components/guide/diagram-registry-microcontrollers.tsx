@@ -15,5 +15,28 @@
 //   mcu-timer-count        mcu-poll-vs-interrupt  mcu-peripheral-mux
 //   mcu-sleep-current      mcu-pinout-map
 import type { DiagramComponent } from "./diagram-registry";
+import { McuBlockDiagram } from "./diagrams/McuBlockDiagram";
+import { McuGpioInOut } from "./diagrams/McuGpioInOut";
+import { McuAdcQuantize } from "./diagrams/McuAdcQuantize";
+import { McuPwmDuty } from "./diagrams/McuPwmDuty";
+import { McuStrappingBoot } from "./diagrams/McuStrappingBoot";
+import { McuFlashLoop } from "./diagrams/McuFlashLoop";
+import { McuTimerCount } from "./diagrams/McuTimerCount";
+import { McuPollVsInterrupt } from "./diagrams/McuPollVsInterrupt";
+import { McuPeripheralMux } from "./diagrams/McuPeripheralMux";
+import { McuSleepCurrent } from "./diagrams/McuSleepCurrent";
+import { McuPinoutMap } from "./diagrams/McuPinoutMap";
 
-export const MICROCONTROLLERS_DIAGRAMS: Record<string, DiagramComponent> = {};
+export const MICROCONTROLLERS_DIAGRAMS: Record<string, DiagramComponent> = {
+  "/guide-diagrams/mcu-block-diagram.svg": McuBlockDiagram,
+  "/guide-diagrams/mcu-gpio-in-out.svg": McuGpioInOut,
+  "/guide-diagrams/mcu-adc-quantize.svg": McuAdcQuantize,
+  "/guide-diagrams/mcu-pwm-duty.svg": McuPwmDuty,
+  "/guide-diagrams/mcu-strapping-boot.svg": McuStrappingBoot,
+  "/guide-diagrams/mcu-flash-loop.svg": McuFlashLoop,
+  "/guide-diagrams/mcu-timer-count.svg": McuTimerCount,
+  "/guide-diagrams/mcu-poll-vs-interrupt.svg": McuPollVsInterrupt,
+  "/guide-diagrams/mcu-peripheral-mux.svg": McuPeripheralMux,
+  "/guide-diagrams/mcu-sleep-current.svg": McuSleepCurrent,
+  "/guide-diagrams/mcu-pinout-map.svg": McuPinoutMap,
+};
