@@ -250,5 +250,11 @@
     "image": "/guide-diagrams/power-safe-window.webp",
     "alt": "The safe voltage window of a single lithium cell, on a scale from 2.4 to 4.4 volts. The safe window, in gold, runs from 3.0 volts empty to 4.2 volts full. Just outside it the protection circuit trips, at about 2.5 volts on discharge and about 4.25 volts on charge. Beyond those cutoffs, in red, the cell is over-discharged or over-charged and can be damaged.",
     "hash": "f3f1e427b1ee"
+  },
+  {
+    "basename": "power-cc-cv",
+    "image": "/guide-diagrams/power-cc-cv.webp",
+    "alt": "A CC/CV lithium charge curve over time. In the constant-current phase the charge current, in blue, is held flat while the cell voltage, in gold, climbs to 4.2 volts. At the knee, marked by a dashed divider, the charger switches to the constant-voltage phase: it holds 4.2 volts while the current tapers off toward zero.",
+    "hash": "f09e62b441ec"
   }
 ]

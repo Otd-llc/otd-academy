@@ -18,9 +18,11 @@ import type { DiagramComponent } from "./diagram-registry";
 import { PowerBudget } from "./diagrams/PowerBudget";
 import { DischargeCurve } from "./diagrams/DischargeCurve";
 import { SafeWindow } from "./diagrams/SafeWindow";
+import { CcCvCurve } from "./diagrams/CcCvCurve";
 
 export const POWER_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/power-power-budget.svg": PowerBudget,
   "/guide-diagrams/power-discharge-curve.svg": DischargeCurve,
   "/guide-diagrams/power-safe-window.svg": SafeWindow,
+  "/guide-diagrams/power-cc-cv.svg": CcCvCurve,
 };
