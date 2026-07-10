@@ -268,5 +268,11 @@
     "image": "/guide-diagrams/comms-usb-enumerate.webp",
     "alt": "How a USB device enumerates. A host and a device connect over a single differential pair, D-plus and D-minus, whose two wires swing in opposite directions. Before any data crosses, they run a handshake: step 1, the host resets the device; step 2, it asks for the device's descriptor; step 3, the device describes itself, for example a GPS that needs 100 mA; step 4, the host assigns it an address; step 5, the host loads a matching driver. Only after those five enumeration steps does data finally flow.",
     "hash": "6702357d08d7"
+  },
+  {
+    "basename": "comms-usb-c-cc",
+    "image": "/guide-diagrams/comms-usb-c-cc.webp",
+    "alt": "The USB-C power input on a simple board. The USB-C receptacle's VBUS pin carries 5 V. Its two configuration-channel pins, CC1 and CC2, each connect through a 5.1 kilohm resistor to ground. Those two pull-downs mark the port as a device, or sink, so a USB-C host recognizes it and switches on 5 V. Leave them off and the port stays dead.",
+    "hash": "f3f70e86bfcb"
   }
 ]
