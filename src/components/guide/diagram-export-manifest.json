@@ -262,5 +262,11 @@
     "image": "/guide-diagrams/power-ldo-dissipation.webp",
     "alt": "A linear regulator dropping voltage as heat. A 5 volt input flows through an LDO block that outputs 3.3 volts at the same current, with red plumes of heat rising from it. The 1.7 volt difference it drops, times the 0.2 amp load current, is 0.34 watts, all dissipated as heat.",
     "hash": "6e0de0aab88d"
+  },
+  {
+    "basename": "power-buck-topology",
+    "image": "/guide-diagrams/power-buck-topology.webp",
+    "alt": "How a buck regulator steps voltage down. A 12 volt input feeds a switch, then an inductor-capacitor filter, then out at 3.3 volts. Beneath, the switch turns the input into a chopped square wave of pulses, and the L-C filter smooths those pulses into a steady lower voltage.",
+    "hash": "28edf150894e"
   }
 ]

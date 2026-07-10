@@ -20,6 +20,7 @@ import { DischargeCurve } from "./diagrams/DischargeCurve";
 import { SafeWindow } from "./diagrams/SafeWindow";
 import { CcCvCurve } from "./diagrams/CcCvCurve";
 import { LdoDissipation } from "./diagrams/LdoDissipation";
+import { BuckTopology } from "./diagrams/BuckTopology";
 
 export const POWER_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/power-power-budget.svg": PowerBudget,
@@ -27,4 +28,5 @@ export const POWER_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/power-safe-window.svg": SafeWindow,
   "/guide-diagrams/power-cc-cv.svg": CcCvCurve,
   "/guide-diagrams/power-ldo-dissipation.svg": LdoDissipation,
+  "/guide-diagrams/power-buck-topology.svg": BuckTopology,
 };
