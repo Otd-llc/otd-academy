@@ -22,6 +22,7 @@ import { CcCvCurve } from "./diagrams/CcCvCurve";
 import { LdoDissipation } from "./diagrams/LdoDissipation";
 import { BuckTopology } from "./diagrams/BuckTopology";
 import { BoostTopology } from "./diagrams/BoostTopology";
+import { RegulatorChoice } from "./diagrams/RegulatorChoice";
 
 export const POWER_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/power-power-budget.svg": PowerBudget,
@@ -31,4 +32,5 @@ export const POWER_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/power-ldo-dissipation.svg": LdoDissipation,
   "/guide-diagrams/power-buck-topology.svg": BuckTopology,
   "/guide-diagrams/power-boost-topology.svg": BoostTopology,
+  "/guide-diagrams/power-regulator-choice.svg": RegulatorChoice,
 };

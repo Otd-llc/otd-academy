@@ -274,5 +274,11 @@
     "image": "/guide-diagrams/power-boost-topology.webp",
     "alt": "How a boost regulator raises voltage. A single 3.7 volt lithium cell, drawn as a battery, is lifted by a boost arrow up to a taller 5 volt rail bar. A boost lets the cell drive a 5 volt rail it could never reach on its own, because the rail is higher than the cell's own voltage.",
     "hash": "74b948b32b47"
+  },
+  {
+    "basename": "power-regulator-choice",
+    "image": "/guide-diagrams/power-regulator-choice.webp",
+    "alt": "A comparison of three regulators. An LDO is inefficient because it burns the drop, but it is very quiet, and it suits a small drop, low current, or a clean analog rail. A buck is highly efficient, over 90 percent, but carries switching noise, and it suits a big drop or high current. A boost is also efficient with switching noise, and is used when the rail sits above the supply. When you need both efficiency and quiet, chain a buck into an LDO: the buck moves the power efficiently and the LDO scrubs the noise off for a clean rail.",
+    "hash": "684657a156eb"
   }
 ]
