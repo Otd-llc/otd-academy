@@ -286,5 +286,11 @@
     "image": "/guide-diagrams/power-input-protection.webp",
     "alt": "Two guards at a board's power input. A P-channel MOSFET blocks a reversed supply, and an inrush-limiting element ramps the turn-on current into the bulk capacitors. Below, a current-versus-time trace shows the sharp spike the capacitors would pull without the limiter, drawn dashed, and the gentle ramp with it, drawn solid.",
     "hash": "3df3bfceac29"
+  },
+  {
+    "basename": "power-sequencing",
+    "image": "/guide-diagrams/power-sequencing.webp",
+    "alt": "Power sequencing: two rails coming up in order over time, with voltage on the vertical axis. Rail 1, in gold, ramps up first with a gentle soft-start and holds. When it reaches its good level, marked by a green dot and a dashed line, rail 2, in blue, begins its own soft-start ramp. Each rail comes up gently and in order rather than all at once.",
+    "hash": "fa3bfd4bd19a"
   }
 ]
