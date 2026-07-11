@@ -8,6 +8,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
+import { ResetLessonControl } from "@/components/admin/ResetLessonControl";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -178,6 +179,7 @@ export default async function LogbookInstrumentationPage() {
                   <span>
                     tried <span className="font-numeral tabular-nums text-text">{r.attempters}</span>
                   </span>
+                  <ResetLessonControl slug={r.slug} />
                 </span>
               </li>
             ))}

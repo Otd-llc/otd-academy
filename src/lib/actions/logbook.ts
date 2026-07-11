@@ -13,6 +13,8 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { capture } from "@/lib/analytics";
+import { requireAdmin } from "@/lib/auth-helpers";
+import { resetLessonXp as resetLessonXpCore } from "@/lib/logbook/reset";
 import { notifyLogbookMilestone } from "@/lib/logbook/notify";
 import {
   recordQuizAnswer as awardQuizAnswer,
@@ -101,6 +103,27 @@ export async function recordLessonComplete(
     });
   }
   return result;
+}
+
+const resetSchema = z.object({
+  slug: z.string().trim().min(1).max(200),
+  userId: z.string().trim().min(1).optional(),
+});
+
+// Admin: reset a lesson's practice XP (design §6/§14). Deletes the lesson's
+// QUIZ_CORRECT + LESSON_COMPLETE events and its QuizLocks (per-user or all-users),
+// decrements each affected user's cached xpTotal by exactly the removed sum, and
+// RECOMPUTES level from the new total in the same transaction (the one place a
+// level may go DOWN — leaving a stale-high level would lie on the cert flair).
+// LessonCompletion rows are NOT deleted: they are the durable milestone and the
+// firstEver guard that stops a reset re-inflating XP at full rate.
+export async function resetLessonXp(
+  input: unknown,
+): Promise<{ ok: boolean; affected: number }> {
+  await requireAdmin();
+  const { slug, userId } = resetSchema.parse(input);
+  const { affected } = await resetLessonXpCore(slug, userId);
+  return { ok: true, affected };
 }
 
 // Stamp the one-time /library Logbook intro as seen (design §9.1). Idempotent:
