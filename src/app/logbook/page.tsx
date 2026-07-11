@@ -87,7 +87,7 @@ export default async function LogbookPage() {
 
       <div className="mt-8 grid gap-10 lg:grid-cols-[300px_1fr]">
         {/* LEFT — sticky standing rail (standing B1 #2: gauge + wing over rank) */}
-        <aside className="self-start lg:sticky lg:top-8">
+        <aside className="self-start lg:sticky lg:top-24">
           <div className="flex items-center gap-5">
             <RingGauge pct={bandPct} xp={lb.xpTotal} />
             <div className="flex flex-col gap-1">
