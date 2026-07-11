@@ -15,6 +15,7 @@ import {
   quizXp,
   dedupe,
   STAGE_CLEAR_XP,
+  COURSE_EXAM_XP,
 } from "@/lib/logbook/economy";
 
 type LevelUp = { level: number; title: string } | null;
@@ -35,6 +36,23 @@ export async function recordStageClear(
     amount: STAGE_CLEAR_XP,
     refId: `${slug}:${stage}`,
     dedupeKey: dedupe.stageClear(userId, slug, stage),
+    now,
+  });
+}
+
+// Course final-exam-pass XP — Phase 2. Once-ever per course (hooked in submitExam
+// on a genuine pass). Idempotent; a re-pass no-ops.
+export async function recordCourseExamPass(
+  userId: string,
+  slug: string,
+  now: Date,
+): Promise<AwardResult> {
+  return awardXp({
+    userId,
+    source: "COURSE_EXAM_PASS",
+    amount: COURSE_EXAM_XP,
+    refId: slug,
+    dedupeKey: dedupe.courseExam(userId, slug),
     now,
   });
 }

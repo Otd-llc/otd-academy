@@ -5,6 +5,7 @@ import { guideQuestionKeys } from "@/lib/logbook/lesson-content";
 import {
   recordStageQuizAnswer,
   recordStageClear,
+  recordCourseExamPass,
 } from "@/lib/logbook/guide-awards";
 
 const stamp = Date.now();
@@ -112,6 +113,15 @@ describe("recordStageClear", () => {
     const first = await recordStageClear(userId, slug, "REQUIREMENTS", DAY);
     expect(first).toMatchObject({ awarded: true });
     const again = await recordStageClear(userId, slug, "REQUIREMENTS", DAY);
+    expect(again).toMatchObject({ awarded: false });
+  });
+});
+
+describe("recordCourseExamPass", () => {
+  it("awards +150 once; a re-pass no-ops (dedupe)", async () => {
+    const first = await recordCourseExamPass(userId, slug, DAY);
+    expect(first).toMatchObject({ awarded: true, xpTotal: expect.any(Number) });
+    const again = await recordCourseExamPass(userId, slug, DAY);
     expect(again).toMatchObject({ awarded: false });
   });
 });
