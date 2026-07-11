@@ -9,10 +9,35 @@ import type { Stage } from "@prisma/client";
 import { db } from "@/lib/db";
 import { quizQuestions } from "@/lib/logbook/lesson-content";
 import { questionKey, guideKey } from "@/lib/logbook/question-key";
-import { awardXp } from "@/lib/logbook/award";
-import { academyDate, quizXp, dedupe } from "@/lib/logbook/economy";
+import { awardXp, type AwardResult } from "@/lib/logbook/award";
+import {
+  academyDate,
+  quizXp,
+  dedupe,
+  STAGE_CLEAR_XP,
+} from "@/lib/logbook/economy";
 
 type LevelUp = { level: number; title: string } | null;
+
+// Course stage-clear XP — Phase 2. Awarded once-ever when a learner passes a
+// stage's exit gate and advances (hooked in advanceEnrollment). Idempotent on the
+// dedupeKey, so a stale re-advance can never double-pay. `stage` is the FROM stage
+// (the one just cleared).
+export async function recordStageClear(
+  userId: string,
+  slug: string,
+  stage: string,
+  now: Date,
+): Promise<AwardResult> {
+  return awardXp({
+    userId,
+    source: "STAGE_CLEAR",
+    amount: STAGE_CLEAR_XP,
+    refId: `${slug}:${stage}`,
+    dedupeKey: dedupe.stageClear(userId, slug, stage),
+    now,
+  });
+}
 
 export type StageQuizResult =
   | { ok: false }

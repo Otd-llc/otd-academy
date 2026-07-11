@@ -2,7 +2,10 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import type { Stage } from "@prisma/client";
 import { db } from "@/lib/db";
 import { guideQuestionKeys } from "@/lib/logbook/lesson-content";
-import { recordStageQuizAnswer } from "@/lib/logbook/guide-awards";
+import {
+  recordStageQuizAnswer,
+  recordStageClear,
+} from "@/lib/logbook/guide-awards";
 
 const stamp = Date.now();
 const slug = `stagequiz-${stamp}`;
@@ -101,5 +104,14 @@ describe("recordStageQuizAnswer", () => {
       DAY,
     );
     expect(r).toMatchObject({ ok: false });
+  });
+});
+
+describe("recordStageClear", () => {
+  it("awards +20 once; a re-clear no-ops (dedupe)", async () => {
+    const first = await recordStageClear(userId, slug, "REQUIREMENTS", DAY);
+    expect(first).toMatchObject({ awarded: true });
+    const again = await recordStageClear(userId, slug, "REQUIREMENTS", DAY);
+    expect(again).toMatchObject({ awarded: false });
   });
 });

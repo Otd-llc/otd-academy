@@ -28,6 +28,9 @@ import { validateDrcReport } from "@/lib/kicad/drc-report";
 import { hasProjectEntitlement } from "@/lib/entitlements";
 import { loadLearnerGateContext } from "@/lib/load-learner-gate-context";
 import { STAGE_VALUES } from "@/lib/schemas/project-dependency";
+import { recordStageClear } from "@/lib/logbook/guide-awards";
+import { afterAward } from "@/lib/logbook/after-award";
+import { STAGE_CLEAR_XP } from "@/lib/logbook/economy";
 import { MAX_UPLOAD_BYTES } from "@/lib/schemas/upload";
 import { capture } from "@/lib/analytics";
 
@@ -247,6 +250,29 @@ export async function advanceEnrollment(
       );
     } catch {
       // never block the advance on telemetry
+    }
+  }
+
+  // Course XP: STAGE_CLEAR for the stage just cleared (design Phase 2). After
+  // commit, best-effort — XP/telemetry never blocks the advance. Idempotent on the
+  // dedupeKey, so a retried advance can't double-pay.
+  if (outcome.ok) {
+    try {
+      const award = await recordStageClear(
+        user.id,
+        outcome.slug,
+        outcome.fromStage,
+        new Date(),
+      );
+      if (award.awarded) {
+        await afterAward(user.id, {
+          source: "STAGE_CLEAR",
+          xp: STAGE_CLEAR_XP,
+          levelUp: award.levelUp,
+        });
+      }
+    } catch {
+      // never block the advance on XP
     }
   }
 

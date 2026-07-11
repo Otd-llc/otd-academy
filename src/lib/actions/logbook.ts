@@ -12,11 +12,10 @@
 import { z } from "zod";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { capture } from "@/lib/analytics";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { STAGE_VALUES } from "@/lib/schemas/project-dependency";
 import { resetLessonXp as resetLessonXpCore } from "@/lib/logbook/reset";
-import { notifyLogbookMilestone } from "@/lib/logbook/notify";
+import { afterAward } from "@/lib/logbook/after-award";
 import {
   recordQuizAnswer as awardQuizAnswer,
   recordLessonComplete as awardLessonComplete,
@@ -27,31 +26,6 @@ import {
   recordStageQuizAnswer as awardStageQuiz,
   type StageQuizResult,
 } from "@/lib/logbook/guide-awards";
-
-// Emit the funnel + milestone side effects of an award (design §10b/§11): server
-// PostHog events, then the once-only milestone email. Both are defensive no-ops
-// when unconfigured / no consent; neither throws into the award path.
-async function afterAward(
-  userId: string,
-  o: {
-    source: string;
-    xp: number;
-    levelUp: { level: number; title: string } | null;
-    newBadges?: string[];
-  },
-): Promise<void> {
-  if (o.xp > 0) capture("xp_earned", { source: o.source, amount: o.xp }, userId);
-  if (o.levelUp) {
-    capture("level_up", { level: o.levelUp.level, title: o.levelUp.title }, userId);
-  }
-  for (const badgeKey of o.newBadges ?? []) {
-    capture("patch_earned", { badgeKey }, userId);
-  }
-  await notifyLogbookMilestone(userId, {
-    levelUp: o.levelUp,
-    newBadges: o.newBadges ?? [],
-  });
-}
 
 type NeedsAuth = { ok: false; needsAuth: true };
 
