@@ -18,6 +18,7 @@ function lesson(over: Partial<LessonMeta> & { slug: string }): LessonMeta {
     createdAt: created,
     updatedAt: over.updatedAt ?? created,
     readingMinutes: 5,
+    diagramSrc: null,
     ...over,
   };
 }

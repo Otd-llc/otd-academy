@@ -19,6 +19,8 @@ export type LessonMeta = {
   createdAt: Date;
   updatedAt: Date;
   readingMinutes: number;
+  /** First guide-diagram src in the lesson (its hero diagram), or null. */
+  diagramSrc: string | null;
 };
 
 // The masthead features, in order (lead first). EDITORIAL — hand-picked flagship

@@ -6,20 +6,24 @@
 // published set. force-dynamic so the CI build (stub DATABASE_URL) doesn't
 // prerender the DB query.
 //
-// V4 "magazine" layout (design sandbox round 2, owner-picked): a two-feature
-// masthead up top, then a split of a sticky "new & updated" + full-library rail
-// beside the deep, cluster-grouped index. The index rows are titles-only in the
-// serif reading face (owner-picked over Bebas): a dense, scannable reference
-// index across the six clusters, each its own Field Guide. Freshness/authority
-// signals live in the header meta-strip + inline NEW/UPD tags (E-E-A-T). The
-// featured picks + rail are merchandised in `@/lib/library/featured` (editorial
-// config + a freshness fallback), so this file stays a thin view.
+// Layout (design sandbox round 4, owner-picked V3): a masthead where the featured
+// guide's TEXT + its own diagram sit side by side (text wider), with "New &
+// updated" up in the right column. Below, a split: a sticky rail leads with the
+// ALSO-featured's diagram in portrait, then its text + ITS cluster Field Guide,
+// beside the deep, cluster-grouped index (titles-only serif rows). Each cluster
+// header carries its Field Guide download — the targeted conversion paths; there
+// is deliberately NO combined "whole Library" CTA (it would siphon clicks off the
+// per-cluster grabs + lose the interest signal). Featured/also-featured diagrams
+// are the lessons' OWN hero diagrams (firstDiagramSrc), rendered from a small
+// static-import map so the landing ships only those, not the whole registry.
 import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/PageHeader";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { FieldGuideDownload } from "@/components/library/FieldGuideDownload";
+import { DroneSharedAutonomy } from "@/components/guide/diagrams/DroneSharedAutonomy";
+import { FundVirRelationship } from "@/components/guide/diagrams/FundVirRelationship";
 import { auth } from "@/auth";
 import { courseListJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { listPublishedByCluster } from "@/lib/library/load";
@@ -44,6 +48,21 @@ export const metadata: Metadata = {
 };
 
 export const dynamic = "force-dynamic";
+
+// The hero-eligible diagrams: the featured + also-featured lessons' own diagrams,
+// keyed by their contentBlocks image src. Static-import ONLY these so the landing
+// ships them, not the whole 60-component diagram registry. KEEP IN SYNC with
+// FEATURED_SLUGS in @/lib/library/featured — featuring a lesson whose diagram
+// should show here means adding its component below (an unmapped src renders no
+// diagram, a clean degrade, never a broken image).
+const HERO_DIAGRAMS: Record<string, React.ComponentType<{ caption?: string }>> = {
+  "/guide-diagrams/drone-shared-autonomy.svg": DroneSharedAutonomy,
+  "/guide-diagrams/fund-vir-relationship.svg": FundVirRelationship,
+};
+function heroDiagram(src: string | null) {
+  const Diagram = src ? HERO_DIAGRAMS[src] : undefined;
+  return Diagram ? <Diagram /> : null;
+}
 
 const monthYear = (d: Date) =>
   d.toLocaleDateString("en-US", { month: "short", year: "numeric" }).toUpperCase();
@@ -83,9 +102,9 @@ function LibraryRow({
   );
 }
 
-// The masthead lead: the flagship guide as a full hero (Bebas title, serif dek,
-// mono meta) with a read CTA + the guide's cluster Field Guide. No filled card;
-// it sits on the bare field.
+// The masthead lead: the flagship guide's TEXT (Bebas title, serif dek, mono
+// meta) with a read CTA + the guide's cluster Field Guide. Its diagram sits
+// BESIDE this in the masthead. No filled card; it sits on the bare field.
 function FeaturedLead({ lesson, signedIn }: { lesson: LessonMeta; signedIn: boolean }) {
   const cluster = clusterByKey(lesson.cluster);
   return (
@@ -96,15 +115,13 @@ function FeaturedLead({ lesson, signedIn }: { lesson: LessonMeta; signedIn: bool
       <h2 className="mt-3">
         <Link
           href={`/library/${lesson.slug}`}
-          className="font-display text-4xl font-normal leading-[0.95] tracking-wide text-title transition-colors hover:text-command-gold focus-visible:text-command-gold focus-visible:outline-none sm:text-5xl"
+          className="font-display text-4xl font-normal leading-[0.95] tracking-wide text-title transition-colors hover:text-command-gold focus-visible:text-command-gold focus-visible:outline-none"
         >
           {lesson.title}
         </Link>
       </h2>
       {lesson.summary ? (
-        <p className="mt-4 max-w-xl font-serif text-[15px] leading-relaxed text-text">
-          {lesson.summary}
-        </p>
+        <p className="mt-4 font-serif text-[15px] leading-relaxed text-text">{lesson.summary}</p>
       ) : null}
       <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
         {cluster ? (
@@ -141,12 +158,13 @@ function FeaturedLead({ lesson, signedIn }: { lesson: LessonMeta; signedIn: bool
   );
 }
 
-// The masthead's second feature: a quieter also-featured on a gold left-rule,
-// from a different cluster than the lead.
-function FeaturedSecondary({ lesson }: { lesson: LessonMeta }) {
+// The also-featured, living in the sticky rail beneath its portrait diagram: a
+// second flagship from a different cluster, carrying ITS cluster Field Guide (a
+// targeted conversion path, mirroring the featured lead).
+function RailAlso({ lesson, signedIn }: { lesson: LessonMeta; signedIn: boolean }) {
   const cluster = clusterByKey(lesson.cluster);
   return (
-    <div className="border-l border-panel-border/60 pl-6">
+    <div>
       <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-gold-dim">
         {cluster ? `${cluster.label} · also featured` : "Also featured"}
       </p>
@@ -161,20 +179,30 @@ function FeaturedSecondary({ lesson }: { lesson: LessonMeta }) {
       {lesson.summary ? (
         <p className="mt-2 font-serif text-sm leading-relaxed text-muted">{lesson.summary}</p>
       ) : null}
-      <p className="mt-3 flex flex-wrap items-center gap-x-2 font-mono text-[9px] uppercase tracking-[0.18em] text-muted">
+      <p className="mt-2 flex flex-wrap items-center gap-x-2 font-mono text-[9px] uppercase tracking-[0.18em] text-muted">
         <span>
-          <span className="font-numeral tabular-nums text-command-gold">{lesson.readingMinutes}</span>{" "}
-          min
+          <span className="font-numeral tabular-nums text-command-gold">{lesson.readingMinutes}</span> min
         </span>
         <span className="text-command-gold">·</span>
         <span>Updated {monthYear(lesson.updatedAt)}</span>
       </p>
+      {cluster ? (
+        <div className="mt-4">
+          <FieldGuideDownload
+            guide={cluster.key}
+            label={`${cluster.label} Field Guide`}
+            name={`the ${cluster.label} Field Guide`}
+            signedIn={signedIn}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
 
-// The sticky-rail "new & updated" list: freshest guides across the clusters,
-// each tagged NEW (never revised since publish) or UPD (edited after publish).
+// The sticky-rail "new & updated" list (moved up into the masthead's right
+// column): freshest guides across the clusters, each tagged NEW (never revised
+// since publish) or UPD (edited after publish).
 function FreshRail({ items }: { items: FreshLesson[] }) {
   return (
     <div>
@@ -193,10 +221,7 @@ function FreshRail({ items }: { items: FreshLesson[] }) {
               </span>
               <span className="flex shrink-0 items-center gap-2">
                 <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">
-                  <span className="font-numeral tabular-nums text-command-gold">
-                    {l.readingMinutes}
-                  </span>{" "}
-                  min
+                  <span className="font-numeral tabular-nums text-command-gold">{l.readingMinutes}</span> min
                 </span>
                 <span
                   className={`border px-1 py-px font-mono text-[8px] uppercase tracking-[0.16em] ${
@@ -300,7 +325,12 @@ export default async function LibraryIndexPage() {
   );
 
   const featured = pickFeatured(allLessons);
+  const lead = featured[0];
+  const also = featured[1];
   const fresh = pickFreshRail(allLessons);
+
+  const leadDiagram = lead ? heroDiagram(lead.diagramSrc) : null;
+  const alsoDiagram = also ? heroDiagram(also.diagramSrc) : null;
 
   // Running ordinal for registry clusters only ("other" gets none).
   let ordinal = 0;
@@ -343,29 +373,31 @@ export default async function LibraryIndexPage() {
         </p>
       ) : (
         <>
-          {/* Two-feature masthead. */}
-          {featured.length > 0 ? (
-            <div className="grid items-start gap-8 lg:grid-cols-[1.5fr_1fr]">
-              <FeaturedLead lesson={featured[0]} signedIn={signedIn} />
-              {featured[1] ? <FeaturedSecondary lesson={featured[1]} /> : null}
+          {/* Masthead: featured (text + its diagram) | New & updated. */}
+          {lead ? (
+            <div className="grid items-start gap-8 lg:grid-cols-[1.6fr_1fr]">
+              {leadDiagram ? (
+                <div className="grid items-start gap-6 sm:grid-cols-[1.3fr_1fr]">
+                  <FeaturedLead lesson={lead} signedIn={signedIn} />
+                  <div>{leadDiagram}</div>
+                </div>
+              ) : (
+                <FeaturedLead lesson={lead} signedIn={signedIn} />
+              )}
+              {fresh.length > 0 ? <FreshRail items={fresh} /> : null}
             </div>
           ) : null}
 
           <div className="title-rule my-10" aria-hidden />
 
-          {/* Split: sticky rail + deep cluster index. */}
+          {/* Split: sticky rail (portrait also-featured) + deep cluster index. */}
           <div className="grid gap-10 lg:grid-cols-[300px_1fr]">
-            <aside className="space-y-6 self-start lg:sticky lg:top-24">
-              {fresh.length > 0 ? <FreshRail items={fresh} /> : null}
-              <div>
-                <FieldGuideDownload
-                  guide="combined"
-                  label="Download the full Library (PDF)"
-                  name="the OTD Reference Library"
-                  signedIn={signedIn}
-                />
-              </div>
-            </aside>
+            {also ? (
+              <aside className="space-y-6 self-start lg:sticky lg:top-24">
+                {alsoDiagram ? <div>{alsoDiagram}</div> : null}
+                <RailAlso lesson={also} signedIn={signedIn} />
+              </aside>
+            ) : null}
 
             <div>
               {sections.map(([key, list]) => {
