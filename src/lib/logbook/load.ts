@@ -178,6 +178,13 @@ export type LogbookView = {
   currentThrough: Date | null;
   isCurrent: boolean;
   clusters: { key: string; label: string; done: number; total: number }[];
+  courses: {
+    slug: string;
+    title: string;
+    status: string;
+    currentStage: string;
+    rating: boolean;
+  }[];
   badges: { badgeKey: string; earnedAt: Date; meta: unknown }[];
   recent: {
     source: string;
@@ -196,7 +203,7 @@ export async function getLogbook(
   lessons: LessonMeta[],
   now: Date,
 ): Promise<LogbookView> {
-  const [user, completions, badges, recent] = await Promise.all([
+  const [user, completions, badges, recent, enrollments] = await Promise.all([
     db.user.findUniqueOrThrow({
       where: { id: userId },
       select: { xpTotal: true, currentThrough: true },
@@ -212,6 +219,15 @@ export async function getLogbook(
       orderBy: { createdAt: "desc" },
       take: 20,
       select: { source: true, amount: true, refId: true, earnedOn: true, createdAt: true },
+    }),
+    db.enrollment.findMany({
+      where: { userId },
+      orderBy: { startedAt: "asc" },
+      select: {
+        status: true,
+        currentStage: true,
+        project: { select: { slug: true, name: true, publicTitle: true } },
+      },
     }),
   ]);
 
@@ -232,6 +248,17 @@ export async function getLogbook(
     total: totals.get(c.key)?.total ?? 0,
   }));
 
+  // Per-course roll-up (design Phase 2): the user's enrollments + whether the
+  // exam-backed course rating (course:<slug>) is earned.
+  const badgeKeys = new Set(badges.map((b) => b.badgeKey));
+  const courses = enrollments.map((e) => ({
+    slug: e.project.slug,
+    title: e.project.publicTitle ?? e.project.name,
+    status: e.status,
+    currentStage: e.currentStage,
+    rating: badgeKeys.has(`course:${e.project.slug}`),
+  }));
+
   const lv = levelFor(user.xpTotal);
   const isCurrent =
     user.currentThrough != null &&
@@ -247,6 +274,7 @@ export async function getLogbook(
     currentThrough: user.currentThrough,
     isCurrent,
     clusters,
+    courses,
     badges,
     recent,
   };

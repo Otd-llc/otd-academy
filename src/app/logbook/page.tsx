@@ -164,6 +164,36 @@ export default async function LogbookPage() {
         </ul>
       </section>
 
+      {/* Courses — the build-guide roll-up + exam-backed ratings (Phase 2) */}
+      {lb.courses.length > 0 ? (
+        <section className="mt-10 border-t border-panel-border/60 pt-6">
+          <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+            ▸ Courses
+          </p>
+          <ul className="mt-2">
+            {lb.courses.map((c) => (
+              <li
+                key={c.slug}
+                className="flex items-baseline justify-between gap-4 border-b border-panel-border/50 py-3.5"
+              >
+                <Link
+                  href={`/courses/${c.slug}`}
+                  className="min-w-0 truncate font-serif text-sm text-text transition-colors hover:text-command-gold"
+                >
+                  {c.title}
+                </Link>
+                <span className="flex shrink-0 items-baseline gap-3 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
+                  {c.rating ? (
+                    <span className="text-command-gold">Rating</span>
+                  ) : null}
+                  <span>{c.status.replace(/_/g, " ")}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       {/* Patches — roadmap teasers always shown; skill patches once earned */}
       <section className="mt-10 border-t border-panel-border/60 pt-6">
         <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">

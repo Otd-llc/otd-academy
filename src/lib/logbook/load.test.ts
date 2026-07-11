@@ -106,6 +106,7 @@ describe("getLogbook", () => {
     expect(lb.next?.level).toBe(4);
     expect(lb.isCurrent).toBe(true);
     expect(lb.clusters.find((c) => c.key === "fundamentals")).toMatchObject({ done: 1, total: 2 });
+    expect(lb.courses).toEqual([]); // no enrollments for this throwaway user
     expect(lb.badges.map((b) => b.badgeKey)).toContain("skill:first-flight");
     expect(lb.recent.length).toBe(1);
   });
