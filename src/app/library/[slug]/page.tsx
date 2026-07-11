@@ -14,6 +14,7 @@ import { GuideBlocks } from "@/components/guide/GuideBlocks";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/PageHeader";
 import { DownloadPdfLink } from "@/components/library/DownloadPdfLink";
+import { FeedbackBox } from "@/components/library/FeedbackBox";
 import {
   techArticleJsonLd,
   learningResourceJsonLd,
@@ -230,6 +231,8 @@ export default async function LibraryArticlePage({
           })}
         </section>
       ) : null}
+
+      <FeedbackBox pageRef={`library/${lesson.slug}`} signedIn={signedIn} />
     </main>
   );
 }
