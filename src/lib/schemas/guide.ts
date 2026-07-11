@@ -150,6 +150,9 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
       .array(
         z
           .object({
+            // Stable identity for the Logbook XP ledger (optional; absent →
+            // key falls back to a hash of `q`, see question-key.ts).
+            id: z.string().trim().min(1).max(60).optional(),
             q: z.string().trim().min(1).max(500),
             options: z.array(z.string().trim().min(1).max(300)).min(2).max(6),
             answer: z.int().nonnegative(),
