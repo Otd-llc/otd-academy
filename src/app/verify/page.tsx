@@ -56,7 +56,12 @@ export default async function VerifyPage({
         date: string;
         token: string;
         slug: string;
-        flair?: { level: number; title: string; patches: number } | null;
+        flair?: {
+          level: number;
+          title: string;
+          patches: number;
+          ratings: number;
+        } | null;
       }
     | null
     | "notfound" = null;
@@ -77,7 +82,9 @@ export default async function VerifyPage({
 
       // Logbook flair (design §13): the recipient's rating + earned patches, shown
       // only when above the defaults (a brand-new account adds nothing to the card).
-      let flair: { level: number; title: string; patches: number } | null = null;
+      let flair:
+        | { level: number; title: string; patches: number; ratings: number }
+        | null = null;
       if (row.userId) {
         const holder = await db.user.findUnique({
           where: { id: row.userId },
@@ -88,8 +95,12 @@ export default async function VerifyPage({
           const patches = holder.badges.filter(
             (b) => b.badgeKey.startsWith("cluster:") || b.badgeKey.startsWith("wings:"),
           ).length;
-          if (lv.level > 1 || patches > 0) {
-            flair = { level: lv.level, title: lv.title, patches };
+          // Exam-backed course ratings (design Phase 2) — the headline flair.
+          const ratings = holder.badges.filter((b) =>
+            b.badgeKey.startsWith("course:"),
+          ).length;
+          if (lv.level > 1 || patches > 0 || ratings > 0) {
+            flair = { level: lv.level, title: lv.title, patches, ratings };
           }
         }
       }
@@ -240,6 +251,9 @@ export default async function VerifyPage({
                 <Row label="Logbook">
                   <span className="font-numeral text-base tabular-nums tracking-wide text-command-gold">
                     FL{cert.flair.level} {cert.flair.title.toUpperCase()}
+                    {cert.flair.ratings > 0
+                      ? ` · ${cert.flair.ratings} ${cert.flair.ratings === 1 ? "RATING" : "RATINGS"}`
+                      : ""}
                     {cert.flair.patches > 0
                       ? ` · ${cert.flair.patches} ${cert.flair.patches === 1 ? "PATCH" : "PATCHES"}`
                       : ""}
