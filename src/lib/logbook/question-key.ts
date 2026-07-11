@@ -12,3 +12,14 @@ export function questionKey(
   const h = createHash("sha256").update(question.q).digest("hex").slice(0, 8);
   return `${lessonSlug}#h${h}`;
 }
+
+// A guide-scoped slug for course (build-guide) quiz keys — Phase 2. Guide quizzes
+// are per (project, revision, stage), so their questionKey base is this instead of
+// a bare lesson slug, keeping every ledger key globally unique + stable.
+export function guideKey(
+  projectSlug: string,
+  revLabel: string,
+  stage: string,
+): string {
+  return `guide:${projectSlug}:${revLabel}:${stage}`;
+}

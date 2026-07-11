@@ -7,7 +7,7 @@
 // yields no questions rather than throwing on the public path (matches
 // reading-time's degrade-don't-crash posture).
 import { guideContentBlocksSchema } from "@/lib/schemas/guide";
-import { questionKey } from "@/lib/logbook/question-key";
+import { questionKey, guideKey } from "@/lib/logbook/question-key";
 
 export type QuizQ = { id?: string; q: string; answer: number };
 
@@ -21,4 +21,17 @@ export function quizQuestions(contentBlocks: unknown): QuizQ[] {
 
 export function lessonQuestionKeys(slug: string, contentBlocks: unknown): string[] {
   return quizQuestions(contentBlocks).map((q) => questionKey(slug, q));
+}
+
+// Course (build-guide) quiz keys — Phase 2. Same as lessonQuestionKeys but keyed
+// under the guide-scoped slug (guide:<project>:<rev>:<stage>) so a guide card's
+// quiz keys never collide with a library lesson's.
+export function guideQuestionKeys(
+  projectSlug: string,
+  revLabel: string,
+  stage: string,
+  contentBlocks: unknown,
+): string[] {
+  const gk = guideKey(projectSlug, revLabel, stage);
+  return quizQuestions(contentBlocks).map((q) => questionKey(gk, q));
 }

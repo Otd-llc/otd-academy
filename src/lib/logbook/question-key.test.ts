@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { questionKey } from "@/lib/logbook/question-key";
+import { questionKey, guideKey } from "@/lib/logbook/question-key";
+
+describe("guideKey", () => {
+  it("builds a stable guide-scoped slug", () => {
+    expect(guideKey("l1-01", "v1", "SCHEMATIC")).toBe("guide:l1-01:v1:SCHEMATIC");
+  });
+});
 
 describe("questionKey", () => {
   it("uses the explicit id when present", () => {
