@@ -12,12 +12,39 @@
 import { z } from "zod";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { capture } from "@/lib/analytics";
+import { notifyLogbookMilestone } from "@/lib/logbook/notify";
 import {
   recordQuizAnswer as awardQuizAnswer,
   recordLessonComplete as awardLessonComplete,
   type QuizAnswerResult,
   type LessonCompleteResult,
 } from "@/lib/logbook/lesson-awards";
+
+// Emit the funnel + milestone side effects of an award (design §10b/§11): server
+// PostHog events, then the once-only milestone email. Both are defensive no-ops
+// when unconfigured / no consent; neither throws into the award path.
+async function afterAward(
+  userId: string,
+  o: {
+    source: string;
+    xp: number;
+    levelUp: { level: number; title: string } | null;
+    newBadges?: string[];
+  },
+): Promise<void> {
+  if (o.xp > 0) capture("xp_earned", { source: o.source, amount: o.xp }, userId);
+  if (o.levelUp) {
+    capture("level_up", { level: o.levelUp.level, title: o.levelUp.title }, userId);
+  }
+  for (const badgeKey of o.newBadges ?? []) {
+    capture("patch_earned", { badgeKey }, userId);
+  }
+  await notifyLogbookMilestone(userId, {
+    levelUp: o.levelUp,
+    newBadges: o.newBadges ?? [],
+  });
+}
 
 type NeedsAuth = { ok: false; needsAuth: true };
 
@@ -43,7 +70,15 @@ export async function recordQuizAnswer(
   const userId = await currentUserId();
   if (!userId) return { ok: false, needsAuth: true };
   const parsed = quizAnswerSchema.parse(input);
-  return awardQuizAnswer(parsed, userId, new Date());
+  const result = await awardQuizAnswer(parsed, userId, new Date());
+  if (result.ok && "correct" in result && result.correct) {
+    await afterAward(userId, {
+      source: "QUIZ_CORRECT",
+      xp: result.xp,
+      levelUp: result.levelUp,
+    });
+  }
+  return result;
 }
 
 const lessonCompleteSchema = z.object({
@@ -56,7 +91,16 @@ export async function recordLessonComplete(
   const userId = await currentUserId();
   if (!userId) return { ok: false, needsAuth: true };
   const parsed = lessonCompleteSchema.parse(input);
-  return awardLessonComplete(parsed, userId, new Date());
+  const result = await awardLessonComplete(parsed, userId, new Date());
+  if (result.ok) {
+    await afterAward(userId, {
+      source: "LESSON_COMPLETE",
+      xp: result.xp,
+      levelUp: result.levelUp,
+      newBadges: result.newBadges,
+    });
+  }
+  return result;
 }
 
 // Stamp the one-time /library Logbook intro as seen (design §9.1). Idempotent:

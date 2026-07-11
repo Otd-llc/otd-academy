@@ -350,6 +350,35 @@ export function winBackEmail(ctx: LifecycleContext): LifecycleEmail {
   });
 }
 
+// ─── Logbook milestones (design §11) ────────────────────────────────────────
+// A warm re-engagement touch when a reader crosses a rating or earns a patch. Not
+// part of the fixed onboarding sequence (each milestone fires once, keyed by a
+// distinct sequence id like `logbook:level:2`), so it takes its milestone copy as
+// an argument rather than living in LIFECYCLE_BUILDERS.
+export function logbookMilestoneEmail(
+  ctx: LifecycleContext,
+  m: { title?: string; patches: string[]; logbookUrl: string },
+): LifecycleEmail {
+  const reached = m.title ? `You reached ${m.title}.` : "";
+  const earned =
+    m.patches.length > 0
+      ? `You earned the ${m.patches.join(", ")} ${m.patches.length === 1 ? "patch" : "patches"}.`
+      : "";
+  const subject = m.title
+    ? `You reached ${m.title}`
+    : `You earned the ${m.patches[0]} patch`;
+  return wrap({
+    ...base(ctx),
+    subject,
+    paragraphs: [
+      `Hi ${ctx.firstName},`,
+      [reached, earned].filter(Boolean).join(" "),
+      "It is logged in your Logbook. Keep reading and the next rating is closer than it looks.",
+    ],
+    cta: { label: "Open your Logbook", url: m.logbookUrl },
+  });
+}
+
 // ─── Sequence registry ──────────────────────────────────────────────────────
 // Maps each LifecycleSend.sequence id to its builder. Keys are the email ids from
 // the docs file; the cron uses these to pick the builder for a selected audience.

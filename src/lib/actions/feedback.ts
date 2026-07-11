@@ -8,6 +8,7 @@
 import { z } from "zod";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { capture } from "@/lib/analytics";
 import { requireAdmin } from "@/lib/auth-helpers";
 import {
   submitFeedback,
@@ -39,7 +40,11 @@ export async function submitLessonFeedback(
   const userId = await currentUserId();
   if (!userId) return { ok: false, needsAuth: true };
   const parsed = submitSchema.parse(input);
-  return submitFeedback(parsed, userId, new Date());
+  const result = await submitFeedback(parsed, userId, new Date());
+  if (result.ok) {
+    capture("feedback_submitted", { pageRef: parsed.pageRef, xp: result.xp }, userId);
+  }
+  return result;
 }
 
 const markSchema = z.object({

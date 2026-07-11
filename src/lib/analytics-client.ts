@@ -39,3 +39,23 @@ export function trackCtaClicked(
     /* telemetry must never break the UI */
   }
 }
+
+/** Fire when the one-time /library Logbook intro is shown (design §10b). */
+export function trackLogbookIntroSeen(): void {
+  if (!enabled()) return;
+  try {
+    posthog.capture("logbook_intro_seen");
+  } catch {
+    /* telemetry must never break the UI */
+  }
+}
+
+/** Fire when a signed-out reader clicks the "sign in to log XP" affordance. */
+export function trackSigninToLogClicked(slug: string): void {
+  if (!enabled()) return;
+  try {
+    posthog.capture("signin_to_log_clicked", { slug });
+  } catch {
+    /* telemetry must never break the UI */
+  }
+}

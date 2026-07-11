@@ -22,6 +22,7 @@ import { recordQuizAnswer, recordLessonComplete } from "@/lib/actions/logbook";
 import { Inline } from "@/components/guide/InlineText";
 import { XpTick } from "@/components/library/XpTick";
 import { patchLabel } from "@/lib/logbook/patches";
+import { trackSigninToLogClicked } from "@/lib/analytics-client";
 
 export interface QuizQuestion {
   q: string;
@@ -345,6 +346,7 @@ export function QuizBlock({
         {lb && !lb.signedIn ? (
           <Link
             href={`/sign-in?callbackUrl=/library/${lb.slug}`}
+            onClick={() => trackSigninToLogClicked(lb.slug)}
             className="font-mono text-xs uppercase tracking-wider text-command-gold underline-offset-4 transition-colors hover:text-gold-light hover:underline"
           >
             Sign in to log XP

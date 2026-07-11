@@ -4,11 +4,15 @@
 // panel (NOT a modal, NOT a game popup): a gold left-accent bar on the bare field,
 // two sentences, a "got it" that stamps logbookIntroSeenAt so it never shows again.
 // Optimistic dismiss (hides immediately; the stamp fires async).
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { dismissLogbookIntro } from "@/lib/actions/logbook";
+import { trackLogbookIntroSeen } from "@/lib/analytics-client";
 
 export function LogbookIntro({ goalPhrase }: { goalPhrase?: string | null }) {
   const [dismissed, setDismissed] = useState(false);
+  useEffect(() => {
+    trackLogbookIntroSeen();
+  }, []);
   if (dismissed) return null;
   return (
     <div className="mb-8 border-l-2 border-l-command-gold py-4 pl-5">
