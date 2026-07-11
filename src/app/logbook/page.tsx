@@ -3,13 +3,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { PageHeader } from "@/components/PageHeader";
 import { loadLessonMeta, getLogbook } from "@/lib/logbook/load";
+import { LEVELS } from "@/lib/logbook/economy";
 import { ROADMAP_PATCHES, SKILL_PATCH_LABELS, patchLabel } from "@/lib/logbook/patches";
+import { RankWing } from "@/components/logbook/RankWing";
+import { Patch, type PatchKind } from "@/components/logbook/Patch";
 
-// The Logbook (design §9.5): a private, hairline-grouped record of your standing,
-// per-cluster completion, patches, and recent XP. Auth-gated by middleware (the
-// redirect here is a defense-in-depth backstop). Per-request (session-scoped).
+// The Logbook (design §9.5; layout locked 2026-07-11 = sticky standing rail +
+// patches-first accordion). Private, auth-gated by middleware (the redirect here
+// is a defense-in-depth backstop). Per-request (session-scoped).
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Logbook",
@@ -17,54 +19,44 @@ export const metadata: Metadata = {
 };
 
 const day = (d: Date) =>
-  new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: "America/Chicago",
-  }).format(d);
-
+  new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "America/Chicago" }).format(d);
 const num = (n: number) => n.toLocaleString("en-US");
 
-// A square hex tile — the v1 patch treatment (full mission-patch art is a later
-// sandbox round). Earned reads gold; locked is a dim silhouette with how-to-earn.
-function Patch({
-  label,
-  earned,
-  howToEarn,
-}: {
-  label: string;
-  earned: boolean;
-  howToEarn?: string;
-}) {
+// The segmented tick gauge with the XP total inside (standing B1 #2). `pct` is the
+// progress through the CURRENT rank band.
+function RingGauge({ pct, xp }: { pct: number; xp: number }) {
   return (
-    <div className="flex flex-col items-center gap-2 py-4 text-center">
-      <svg
-        viewBox="0 0 48 48"
-        className="h-12 w-12"
-        fill="none"
-        stroke={earned ? "var(--color-command-gold)" : "var(--color-gray-3)"}
-        strokeWidth={1.4}
-        aria-hidden
-      >
-        <path d="M24 3l18 10.4v20.8L24 45 6 34.2V13.4z" />
-        <path
-          d="M24 14l9 5.2v10.4L24 35l-9-5.2V19.2z"
-          stroke={earned ? "var(--color-gold-light)" : "var(--color-gray-3)"}
-        />
+    <div className="relative grid place-items-center">
+      <svg viewBox="0 0 80 80" className="h-24 w-24 -rotate-90">
+        {Array.from({ length: 44 }).map((_, i) => {
+          const a = (i / 44) * Math.PI * 2;
+          const on = i / 44 <= pct;
+          return (
+            <line key={i} x1={40 + Math.cos(a) * 30} y1={40 + Math.sin(a) * 30} x2={40 + Math.cos(a) * 36} y2={40 + Math.sin(a) * 36} stroke={on ? "var(--color-command-gold)" : "var(--color-panel-border)"} strokeWidth="1.5" />
+          );
+        })}
       </svg>
-      <span
-        className={`font-mono text-[9px] uppercase tracking-[0.14em] ${
-          earned ? "text-gold-light" : "text-muted"
-        }`}
-      >
-        {label}
-      </span>
-      {!earned && howToEarn ? (
-        <span className="max-w-[8rem] font-serif text-[11px] leading-tight text-gray-3">
-          {howToEarn}
-        </span>
-      ) : null}
+      <div className="absolute text-center">
+        <p className="font-numeral text-2xl leading-none tabular-nums text-command-gold">{num(xp)}</p>
+        <p className="font-mono text-[7px] uppercase tracking-[0.14em] text-muted">XP</p>
+      </div>
     </div>
+  );
+}
+
+// Native accordion section (server component; no client JS). Patches open first.
+function Section({ title, count, defaultOpen, children }: { title: string; count?: string; defaultOpen?: boolean; children: React.ReactNode }) {
+  return (
+    <details open={defaultOpen} className="group border-b border-panel-border/60 py-3">
+      <summary className="flex cursor-pointer list-none items-center justify-between">
+        <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">▸ {title}</span>
+        <span className="flex items-center gap-3">
+          {count ? <span className="font-numeral text-sm tabular-nums text-muted">{count}</span> : null}
+          <span aria-hidden className="font-mono text-[10px] text-gray-3 transition-transform group-open:rotate-90">›</span>
+        </span>
+      </summary>
+      <div className="mt-3">{children}</div>
+    </details>
   );
 }
 
@@ -80,177 +72,119 @@ export default async function LogbookPage() {
   const lb = await getLogbook(user.id, lessons, now);
 
   const earnedKeys = new Set(lb.badges.map((b) => b.badgeKey));
-  const earnedSkills = lb.badges.filter((b) => b.badgeKey in SKILL_PATCH_LABELS);
-  const nextPct = lb.next
-    ? Math.min(100, Math.round((lb.xpTotal / lb.next.minXp) * 100))
-    : 100;
+  const curMin = LEVELS[lb.level - 1]?.minXp ?? 0;
+  const bandPct = lb.next ? Math.min(1, Math.max(0, (lb.xpTotal - curMin) / (lb.next.minXp - curMin))) : 1;
+
+  const skillPatches = lb.badges.filter((b) => b.badgeKey in SKILL_PATCH_LABELS);
+  const ratingPatches = lb.badges.filter((b) => b.badgeKey.startsWith("course:"));
+  const patchCount = ROADMAP_PATCHES.filter((p) => earnedKeys.has(p.key)).length + skillPatches.length + ratingPatches.length;
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
-      <PageHeader
-        eyebrow="ACCOUNT"
-        title="Logbook"
-        lead="Your standing, completion, and patches."
-        meta={[
-          { label: "RATING", value: `FL${lb.level} ${lb.title}` },
-          {
-            label: "CURRENT",
-            value: lb.isCurrent ? (
-              `through ${day(lb.currentThrough!)}`
+    <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+      <div className="title-rule mb-4" aria-hidden />
+      <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">Account</p>
+      <h1 className="mt-1 font-display text-4xl tracking-wide text-title">Logbook</h1>
+
+      <div className="mt-8 grid gap-10 lg:grid-cols-[260px_1fr]">
+        {/* LEFT — sticky standing rail (standing B1 #2) */}
+        <aside className="flex flex-col items-center gap-3 self-start text-center lg:sticky lg:top-8">
+          <RankWing level={lb.level} size={40} />
+          <RingGauge pct={bandPct} xp={lb.xpTotal} />
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-command-gold">
+            FL{lb.level} · {lb.title}
+          </p>
+          {lb.next ? (
+            <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted">
+              <span className="font-numeral tabular-nums text-text">{num(lb.xpTotal)}</span> / {num(lb.next.minXp)} to FL{lb.next.level}
+            </p>
+          ) : (
+            <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-command-gold">Top rank reached</p>
+          )}
+          <p className={`font-mono text-[9px] uppercase tracking-[0.16em] ${lb.isCurrent ? "text-command-gold" : "text-gray-3"}`}>
+            {lb.isCurrent && lb.currentThrough ? `Current through ${day(lb.currentThrough)}` : "Lapsed"}
+          </p>
+        </aside>
+
+        {/* RIGHT — accordion sections; patches first + open */}
+        <div>
+          <Section title="Patches" count={`${patchCount} earned`} defaultOpen>
+            <div className="grid grid-cols-3 gap-1 sm:grid-cols-4">
+              {ROADMAP_PATCHES.map((p) => (
+                <Patch
+                  key={p.key}
+                  kind={p.key.startsWith("wings:") ? "wings" : "cluster"}
+                  label={p.label}
+                  earned={earnedKeys.has(p.key)}
+                  howToEarn={p.howToEarn}
+                />
+              ))}
+              {skillPatches.map((b) => (
+                <Patch key={b.badgeKey} kind="skill" label={patchLabel(b.badgeKey)} earned />
+              ))}
+              {ratingPatches.map((b) => (
+                <Patch key={b.badgeKey} kind="rating" label={patchLabel(b.badgeKey)} earned />
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Clusters" count={`${lb.clusters.reduce((n, c) => n + c.done, 0)} / ${lb.clusters.reduce((n, c) => n + c.total, 0)}`} defaultOpen>
+            <ul>
+              {lb.clusters.map((c) => {
+                const pct = c.total > 0 ? Math.round((c.done / c.total) * 100) : 0;
+                return (
+                  <li key={c.key} className="border-b border-panel-border/50 py-3">
+                    <div className="flex items-baseline justify-between gap-4">
+                      <span className="font-serif text-sm text-text">{c.label}</span>
+                      <span className="font-numeral text-base tabular-nums text-command-gold">{c.done} / {c.total}</span>
+                    </div>
+                    <div className="mt-2 h-px w-full bg-panel-border/50"><div className="h-px bg-command-gold/70" style={{ width: `${pct}%` }} /></div>
+                  </li>
+                );
+              })}
+            </ul>
+          </Section>
+
+          {lb.courses.length > 0 ? (
+            <Section title="Courses" count={`${lb.courses.length}`}>
+              <ul>
+                {lb.courses.map((c) => (
+                  <li key={c.slug} className="flex items-baseline justify-between gap-4 border-b border-panel-border/50 py-3">
+                    <Link href={`/courses/${c.slug}`} className="min-w-0 truncate font-serif text-sm text-text transition-colors hover:text-command-gold">{c.title}</Link>
+                    <span className="flex shrink-0 items-baseline gap-3 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
+                      {c.rating ? <span className="text-command-gold">Rating</span> : null}
+                      <span>{c.status.replace(/_/g, " ")}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          ) : null}
+
+          <Section title="Recent activity">
+            {lb.recent.length === 0 ? (
+              <p className="font-serif text-sm text-muted">
+                No activity yet.{" "}
+                <Link href="/library" className="text-command-gold hover:text-gold-light">Read a lesson</Link> to log your first XP.
+              </p>
             ) : (
-              <span className="text-gray-3">lapsed</span>
-            ),
-          },
-        ]}
-      />
-
-      {/* Standing — the signature Saira readout */}
-      <section className="mt-8 border-t border-panel-border/60 pt-6">
-        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
-          ▸ Standing
-        </p>
-        <p className="mt-3 font-numeral text-5xl tracking-wide tabular-nums text-command-gold sm:text-6xl">
-          {num(lb.xpTotal)}{" "}
-          <span className="text-2xl text-muted sm:text-3xl">XP</span>
-        </p>
-        <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
-          FL{lb.level} · {lb.title}
-        </p>
-
-        {lb.next ? (
-          <div className="mt-5">
-            <div className="flex items-baseline justify-between font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
-              <span>Next rating · FL{lb.next.level} {lb.next.title}</span>
-              <span className="font-numeral text-sm tabular-nums text-text">
-                {num(lb.xpTotal)} / {num(lb.next.minXp)}
-              </span>
-            </div>
-            <div className="mt-2 h-px w-full bg-panel-border/60">
-              <div
-                className="h-px bg-command-gold"
-                style={{ width: `${nextPct}%` }}
-              />
-            </div>
-          </div>
-        ) : (
-          <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.16em] text-command-gold">
-            Top rating reached
-          </p>
-        )}
-      </section>
-
-      {/* Clusters — done / total with a thin gold rule */}
-      <section className="mt-10 border-t border-panel-border/60 pt-6">
-        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
-          ▸ Clusters
-        </p>
-        <ul className="mt-3">
-          {lb.clusters.map((c) => {
-            const pct = c.total > 0 ? Math.round((c.done / c.total) * 100) : 0;
-            return (
-              <li key={c.key} className="border-b border-panel-border/50 py-3.5">
-                <div className="flex items-baseline justify-between gap-4">
-                  <span className="font-serif text-sm text-text">{c.label}</span>
-                  <span className="font-numeral text-base tabular-nums text-command-gold">
-                    {c.done} / {c.total}
-                  </span>
-                </div>
-                <div className="mt-2 h-px w-full bg-panel-border/50">
-                  <div className="h-px bg-command-gold/70" style={{ width: `${pct}%` }} />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-
-      {/* Courses — the build-guide roll-up + exam-backed ratings (Phase 2) */}
-      {lb.courses.length > 0 ? (
-        <section className="mt-10 border-t border-panel-border/60 pt-6">
-          <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
-            ▸ Courses
-          </p>
-          <ul className="mt-2">
-            {lb.courses.map((c) => (
-              <li
-                key={c.slug}
-                className="flex items-baseline justify-between gap-4 border-b border-panel-border/50 py-3.5"
-              >
-                <Link
-                  href={`/courses/${c.slug}`}
-                  className="min-w-0 truncate font-serif text-sm text-text transition-colors hover:text-command-gold"
-                >
-                  {c.title}
-                </Link>
-                <span className="flex shrink-0 items-baseline gap-3 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
-                  {c.rating ? (
-                    <span className="text-command-gold">Rating</span>
-                  ) : null}
-                  <span>{c.status.replace(/_/g, " ")}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {/* Patches — roadmap teasers always shown; skill patches once earned */}
-      <section className="mt-10 border-t border-panel-border/60 pt-6">
-        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
-          ▸ Patches
-        </p>
-        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {ROADMAP_PATCHES.map((p) => (
-            <Patch
-              key={p.key}
-              label={p.label}
-              earned={earnedKeys.has(p.key)}
-              howToEarn={p.howToEarn}
-            />
-          ))}
-          {earnedSkills.map((b) => (
-            <Patch key={b.badgeKey} label={patchLabel(b.badgeKey)} earned />
-          ))}
+              <ul>
+                {lb.recent.map((e, i) => {
+                  const slug = e.source === "QUIZ_CORRECT" || e.source === "STAGE_QUIZ_CORRECT" ? e.refId?.split("#")[0] : e.refId;
+                  const label = (slug ?? "").replace(/[:-]/g, " ").replace(/^guide /, "") || "library";
+                  return (
+                    <li key={i} className="flex items-baseline gap-3 border-b border-panel-border/40 py-2.5 font-mono text-[11px] tracking-[0.04em] text-muted">
+                      <span className="font-numeral text-sm tabular-nums text-command-gold">+{e.amount}</span>
+                      <span className="uppercase tracking-[0.14em] text-text">{e.source.replace(/_/g, " ")}</span>
+                      <span className="truncate text-muted">{label}</span>
+                      <span className="ml-auto shrink-0 text-gray-3">{day(e.createdAt)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Section>
         </div>
-      </section>
-
-      {/* Recent activity — mono ledger rows */}
-      <section className="mt-10 border-t border-panel-border/60 pt-6">
-        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
-          ▸ Recent activity
-        </p>
-        {lb.recent.length === 0 ? (
-          <p className="mt-3 font-serif text-sm text-muted">
-            No activity yet.{" "}
-            <Link href="/library" className="text-command-gold hover:text-gold-light">
-              Read a lesson
-            </Link>{" "}
-            to log your first XP.
-          </p>
-        ) : (
-          <ul className="mt-2">
-            {lb.recent.map((e, i) => {
-              const slug = e.source === "QUIZ_CORRECT" ? e.refId?.split("#")[0] : e.refId;
-              const label = (slug ?? "").replace(/-/g, " ") || "library";
-              return (
-                <li
-                  key={i}
-                  className="flex items-baseline gap-3 border-b border-panel-border/40 py-2.5 font-mono text-[11px] tracking-[0.04em] text-muted"
-                >
-                  <span className="font-numeral text-sm tabular-nums text-command-gold">
-                    +{e.amount}
-                  </span>
-                  <span className="uppercase tracking-[0.14em] text-text">
-                    {e.source.replace(/_/g, " ")}
-                  </span>
-                  <span className="truncate text-muted">{label}</span>
-                  <span className="ml-auto shrink-0 text-gray-3">{day(e.createdAt)}</span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+      </div>
     </main>
   );
 }
