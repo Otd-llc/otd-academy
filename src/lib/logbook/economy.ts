@@ -25,9 +25,9 @@ export const LEVELS = [
 ] as const;
 
 export function levelFor(xpTotal: number) {
-  let cur = LEVELS[0];
+  let cur: (typeof LEVELS)[number] = LEVELS[0];
   for (const l of LEVELS) if (xpTotal >= l.minXp) cur = l;
-  const next = LEVELS[cur.level] ?? null; // index = level (1-based levels)
+  const next = LEVELS.at(cur.level) ?? null; // index = level (1-based levels)
   return { ...cur, next };
 }
 
