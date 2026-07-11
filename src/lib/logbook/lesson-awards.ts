@@ -3,10 +3,10 @@
 // fabricated client POST cannot mint XP. Pure-ish core (takes userId + injected
 // `now`); the "use server" wrappers in actions/logbook.ts resolve the session.
 import { db } from "@/lib/db";
-import { guideContentBlocksSchema } from "@/lib/schemas/guide";
 import { readingMinutes } from "@/lib/library/reading-time";
 import { clusterByKey } from "@/lib/library/clusters";
 import { questionKey } from "@/lib/logbook/question-key";
+import { quizQuestions } from "@/lib/logbook/lesson-content";
 import { awardXp } from "@/lib/logbook/award";
 import { milestonesFor } from "@/lib/logbook/milestones";
 import { earnBadge, isUniqueViolation } from "@/lib/logbook/badge";
@@ -20,18 +20,6 @@ import {
 } from "@/lib/logbook/economy";
 
 type LevelUp = { level: number; title: string } | null;
-type QuizQ = { id?: string; q: string; answer: number };
-
-// Every quiz question across all quiz blocks in the lesson (order preserved).
-// Defensive over the raw JSON: a parse failure yields no questions rather than a
-// throw (matches reading-time's degrade-don't-crash posture on the public path).
-function quizQuestions(contentBlocks: unknown): QuizQ[] {
-  const parsed = guideContentBlocksSchema.safeParse(contentBlocks);
-  if (!parsed.success) return [];
-  return parsed.data
-    .filter((b) => b.type === "quiz")
-    .flatMap((b) => (b.type === "quiz" ? b.questions : []));
-}
 
 export type QuizAnswerResult =
   | { ok: false }
