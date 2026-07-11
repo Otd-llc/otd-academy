@@ -133,6 +133,43 @@ export async function getLessonState(
   return { perQuestion, completed: completion != null };
 }
 
+// The course-quiz analog of getLessonState (design Phase 2): per-question state
+// for TODAY from STAGE_QUIZ_CORRECT events + locks. No completion concept — a
+// guide card has no LessonCompletion; the stage gate is separate.
+export async function getStageQuestionState(
+  userId: string,
+  questionKeys: string[],
+  now: Date,
+): Promise<Record<string, QuestionState>> {
+  const today = academyDate(now);
+  const [earned, locks] = await Promise.all([
+    db.xpEvent.findMany({
+      where: {
+        userId,
+        source: "STAGE_QUIZ_CORRECT",
+        refId: { in: questionKeys },
+        earnedOn: today,
+      },
+      select: { refId: true },
+    }),
+    db.quizLock.findMany({
+      where: { userId, questionKey: { in: questionKeys }, lockedOn: today },
+      select: { questionKey: true },
+    }),
+  ]);
+  const earnedSet = new Set(earned.map((e) => e.refId).filter((v): v is string => !!v));
+  const lockedSet = new Set(locks.map((l) => l.questionKey));
+  const perQuestion: Record<string, QuestionState> = {};
+  for (const key of questionKeys) {
+    perQuestion[key] = earnedSet.has(key)
+      ? "earned"
+      : lockedSet.has(key)
+        ? "locked"
+        : "open";
+  }
+  return perQuestion;
+}
+
 export type LogbookView = {
   xpTotal: number;
   level: number;

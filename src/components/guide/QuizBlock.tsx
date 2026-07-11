@@ -18,7 +18,11 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { recordQuizPass } from "@/lib/actions/quiz";
-import { recordQuizAnswer, recordLessonComplete } from "@/lib/actions/logbook";
+import {
+  recordQuizAnswer,
+  recordLessonComplete,
+  recordStageQuizAnswer,
+} from "@/lib/actions/logbook";
 import { Inline } from "@/components/guide/InlineText";
 import { XpTick } from "@/components/library/XpTick";
 import { patchLabel } from "@/lib/logbook/patches";
@@ -39,15 +43,21 @@ export interface QuizContext {
   passed: boolean;
 }
 
-/** Logbook XP wiring for a Library lesson (design §9.3). `questionKeys` is aligned
- *  index-for-index with `questions` and is computed SERVER-SIDE (questionKey is
- *  node:crypto). `state` is today's per-key state. Absent outside the Library. */
-export interface QuizLogbook {
-  slug: string;
+/** Logbook XP wiring (design §9.3 + Phase 2). `questionKeys` is aligned
+ *  index-for-index with `questions` and computed SERVER-SIDE (questionKey is
+ *  node:crypto). `state` is today's per-key state. `signInHref` is the
+ *  callbackUrl-carrying sign-in link. Discriminated by `mode`: library quizzes
+ *  award per pick + complete the lesson; course (build-guide) quizzes award per
+ *  pick against the guide card (completion is the separate stage gate). */
+export type QuizLogbook = {
   signedIn: boolean;
+  signInHref: string;
   questionKeys: string[];
   state: Record<string, "earned" | "locked" | "open">;
-}
+} & (
+  | { mode: "library"; slug: string }
+  | { mode: "course"; enrollmentId: string; stage: string }
+);
 
 export function QuizBlock({
   prompt,
@@ -150,7 +160,16 @@ export function QuizBlock({
     if (firedAnswer.current[qi] || qEarnedPrior[qi] || qLocked[qi]) return;
     firedAnswer.current[qi] = true;
     answerChain.current[qi] = answerChain.current[qi]
-      .then(() => recordQuizAnswer({ slug: lb.slug, questionKey: key, pick: oi }))
+      .then(() =>
+        lb.mode === "course"
+          ? recordStageQuizAnswer({
+              enrollmentId: lb.enrollmentId,
+              stage: lb.stage,
+              questionKey: key,
+              pick: oi,
+            })
+          : recordQuizAnswer({ slug: lb.slug, questionKey: key, pick: oi }),
+      )
       .then((res) => {
         if (!res || !("ok" in res) || !res.ok) return;
         if ("correct" in res && res.correct) {
@@ -170,7 +189,10 @@ export function QuizBlock({
   // for the per-question writes so the server sees each key "attempted today"
   // (a correct award OR a lock). A quiet "lesson logged" line renders on success.
   useEffect(() => {
-    if (!lb?.signedIn || !allSolved || completeFired.current) return;
+    // Course quizzes have no logbook "completion" — the stage gate (recordQuizPass)
+    // + STAGE_CLEAR handle progress. Only library lessons log a completion here.
+    if (!lb?.signedIn || lb.mode !== "library" || !allSolved || completeFired.current)
+      return;
     completeFired.current = true;
     const slug = lb.slug;
     Promise.allSettled(answerChain.current)
@@ -342,11 +364,13 @@ export function QuizBlock({
           </button>
         ) : null}
 
-        {/* Signed-out Library reader: the tick slot becomes the signup driver. */}
+        {/* Signed-out reader: the tick slot becomes the signup driver. */}
         {lb && !lb.signedIn ? (
           <Link
-            href={`/sign-in?callbackUrl=/library/${lb.slug}`}
-            onClick={() => trackSigninToLogClicked(lb.slug)}
+            href={lb.signInHref}
+            onClick={() =>
+              trackSigninToLogClicked(lb.mode === "library" ? lb.slug : lb.stage)
+            }
             className="font-mono text-xs uppercase tracking-wider text-command-gold underline-offset-4 transition-colors hover:text-gold-light hover:underline"
           >
             Sign in to log XP

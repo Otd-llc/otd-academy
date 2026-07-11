@@ -167,8 +167,10 @@ export default async function LibraryArticlePage({
         blocks={blocks}
         isSignedIn={false}
         logbook={{
+          mode: "library",
           slug: lesson.slug,
           signedIn,
+          signInHref: `/sign-in?callbackUrl=/library/${lesson.slug}`,
           state: lessonState,
           questionKeysByBlock,
         }}

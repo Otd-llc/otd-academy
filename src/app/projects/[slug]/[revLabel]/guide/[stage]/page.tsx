@@ -36,6 +36,8 @@ import {
   type BomRow,
 } from "@/components/guide/GuideBlocks";
 import { resolveInlineDiagrams } from "@/lib/inline-diagrams";
+import { questionKey, guideKey } from "@/lib/logbook/question-key";
+import { getStageQuestionState } from "@/lib/logbook/load";
 import { GuideCardEditor } from "@/components/guide/GuideCardEditor";
 import { PhaseComb } from "@/components/guide/PhaseComb";
 import { BomPdfExport } from "@/components/guide/BomPdfExport";
@@ -625,6 +627,47 @@ export default async function GuideCardPage({
   const nextStage =
     viewedIdx < GUIDE_STAGES.length - 1 ? GUIDE_STAGES[viewedIdx + 1] : null;
 
+  // Course XP wiring (design Phase 2): the same per-pick Logbook prop the library
+  // passes, in COURSE mode. Only an enrolled learner (learnerQuizContext present)
+  // earns; anon / non-enrolled viewers get no XP prop. Keys are computed
+  // server-side (questionKey is node:crypto — never client-side).
+  let courseLogbook:
+    | {
+        mode: "course";
+        enrollmentId: string;
+        stage: string;
+        signedIn: boolean;
+        signInHref: string;
+        state: Record<string, "earned" | "locked" | "open">;
+        questionKeysByBlock: Record<number, string[]>;
+      }
+    | undefined;
+  if (learnerQuizContext) {
+    const gk = guideKey(slug, revision.label, stage);
+    const questionKeysByBlock: Record<number, string[]> = {};
+    const flatKeys: string[] = [];
+    blocks.forEach((b, i) => {
+      if (b.type === "quiz") {
+        const keys = b.questions.map((q) => questionKey(gk, q));
+        questionKeysByBlock[i] = keys;
+        flatKeys.push(...keys);
+      }
+    });
+    const state =
+      viewerUserId && flatKeys.length > 0
+        ? await getStageQuestionState(viewerUserId, flatKeys, new Date())
+        : {};
+    courseLogbook = {
+      mode: "course",
+      enrollmentId: learnerQuizContext.enrollmentId,
+      stage,
+      signedIn: true,
+      signInHref: "/sign-in",
+      state,
+      questionKeysByBlock,
+    };
+  }
+
   // ─── Structured data (JSON-LD) — public SEO surface ───
   // HowTo from the resolved card (reusing the already-parsed `blocks` — no
   // re-query); Breadcrumb trail Home › Courses › Project › Stage with absolute
@@ -735,6 +778,7 @@ export default async function GuideCardPage({
           stage={stage}
           serverResume={serverResume}
           lessonBase={hubHref}
+          logbook={courseLogbook}
         />
       </GuideCardEditor>
 

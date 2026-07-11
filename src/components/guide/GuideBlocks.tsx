@@ -34,15 +34,19 @@ import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { WindowedPartModel } from "@/components/guide/WindowedPartModel";
 import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
 
-// Lesson-wide Logbook XP context (Library only, design §9.3). `state` is today's
+// Lesson-wide Logbook XP context (design §9.3 + Phase 2). `state` is today's
 // per-question-key state; `questionKeysByBlock` maps a quiz block's array index to
-// its questions' server-computed keys (index-aligned to the block's questions).
-export interface LessonLogbook {
-  slug: string;
+// its questions' server-computed keys. Discriminated by `mode`: library lessons vs
+// course (build-guide) stage cards (see QuizLogbook).
+export type LessonLogbook = {
   signedIn: boolean;
+  signInHref: string;
   state: Record<string, "earned" | "locked" | "open">;
   questionKeysByBlock: Record<number, string[]>;
-}
+} & (
+  | { mode: "library"; slug: string }
+  | { mode: "course"; enrollmentId: string; stage: string }
+);
 import { DIAGRAM_COMPONENTS } from "@/components/guide/diagram-registry";
 import katex from "katex";
 import { EMBED_ISLANDS } from "@/components/tools/embed-islands";
@@ -1200,8 +1204,15 @@ function GuideBlock({
             logbook={
               logbook
                 ? {
-                    slug: logbook.slug,
+                    ...(logbook.mode === "course"
+                      ? {
+                          mode: "course" as const,
+                          enrollmentId: logbook.enrollmentId,
+                          stage: logbook.stage,
+                        }
+                      : { mode: "library" as const, slug: logbook.slug }),
                     signedIn: logbook.signedIn,
+                    signInHref: logbook.signInHref,
                     questionKeys: logbook.questionKeysByBlock[index] ?? [],
                     state: logbook.state,
                   }
