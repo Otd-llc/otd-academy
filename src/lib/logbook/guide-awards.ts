@@ -10,12 +10,14 @@ import { db } from "@/lib/db";
 import { quizQuestions } from "@/lib/logbook/lesson-content";
 import { questionKey, guideKey } from "@/lib/logbook/question-key";
 import { awardXp, type AwardResult } from "@/lib/logbook/award";
+import { earnBadge } from "@/lib/logbook/badge";
 import {
   academyDate,
   quizXp,
   dedupe,
   STAGE_CLEAR_XP,
   COURSE_EXAM_XP,
+  COURSE_COMPLETE_XP,
 } from "@/lib/logbook/economy";
 
 type LevelUp = { level: number; title: string } | null;
@@ -55,6 +57,38 @@ export async function recordCourseExamPass(
     dedupeKey: dedupe.courseExam(userId, slug),
     now,
   });
+}
+
+// Course completion — Phase 2. Hooked on issuance of the achievement certificate
+// (variant "cert", which requires MASTERED, i.e. the exam is passed — so the
+// course:<slug> RATING is genuinely exam-backed, design §5). Once-ever XP + the
+// permanent, grandfathered rating badge.
+export async function recordCourseComplete(
+  userId: string,
+  slug: string,
+  now: Date,
+): Promise<{
+  awarded: boolean;
+  xp: number;
+  levelUp: LevelUp;
+  newBadges: string[];
+}> {
+  const award = await awardXp({
+    userId,
+    source: "COURSE_COMPLETE",
+    amount: COURSE_COMPLETE_XP,
+    refId: slug,
+    dedupeKey: dedupe.courseComplete(userId, slug),
+    now,
+  });
+  const newBadges: string[] = [];
+  if (await earnBadge(userId, `course:${slug}`)) newBadges.push(`course:${slug}`);
+  return {
+    awarded: award.awarded,
+    xp: award.awarded ? COURSE_COMPLETE_XP : 0,
+    levelUp: award.awarded ? award.levelUp : null,
+    newBadges,
+  };
 }
 
 export type StageQuizResult =

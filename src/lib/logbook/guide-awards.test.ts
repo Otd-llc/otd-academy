@@ -6,6 +6,7 @@ import {
   recordStageQuizAnswer,
   recordStageClear,
   recordCourseExamPass,
+  recordCourseComplete,
 } from "@/lib/logbook/guide-awards";
 
 const stamp = Date.now();
@@ -123,5 +124,20 @@ describe("recordCourseExamPass", () => {
     expect(first).toMatchObject({ awarded: true, xpTotal: expect.any(Number) });
     const again = await recordCourseExamPass(userId, slug, DAY);
     expect(again).toMatchObject({ awarded: false });
+  });
+});
+
+describe("recordCourseComplete", () => {
+  it("awards +300 + the course rating once; a re-issue no-ops", async () => {
+    const first = await recordCourseComplete(userId, slug, DAY);
+    expect(first).toMatchObject({ awarded: true, xp: 300 });
+    expect(first.newBadges).toContain(`course:${slug}`);
+    const badge = await db.badgeEarned.findUnique({
+      where: { userId_badgeKey: { userId, badgeKey: `course:${slug}` } },
+    });
+    expect(badge).not.toBeNull();
+    const again = await recordCourseComplete(userId, slug, DAY);
+    expect(again).toMatchObject({ awarded: false });
+    expect(again.newBadges).toEqual([]);
   });
 });

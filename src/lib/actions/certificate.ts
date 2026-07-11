@@ -12,6 +12,8 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { signCardToken } from "@/lib/certificate-token";
 import { recordCertificate } from "@/lib/certificate-record";
+import { recordCourseComplete } from "@/lib/logbook/guide-awards";
+import { afterAward } from "@/lib/logbook/after-award";
 import { capture } from "@/lib/analytics";
 
 const schema = z.object({
@@ -62,6 +64,25 @@ export async function createCertificateShareToken(input: {
     capture("certificate_shared", { slug, variant }, user.id);
   } catch {
     // best-effort
+  }
+
+  // Course XP: COURSE_COMPLETE + the exam-backed course:<slug> RATING on the
+  // achievement cert (variant "cert" ⇒ MASTERED, checked above). Best-effort;
+  // idempotent on the dedupeKey + badge PK, so re-minting never double-pays.
+  if (variant === "cert") {
+    try {
+      const c = await recordCourseComplete(user.id, slug, new Date());
+      if (c.awarded || c.newBadges.length > 0) {
+        await afterAward(user.id, {
+          source: "COURSE_COMPLETE",
+          xp: c.xp,
+          levelUp: c.levelUp,
+          newBadges: c.newBadges,
+        });
+      }
+    } catch {
+      // never block the certificate on XP
+    }
   }
 
   return { token };

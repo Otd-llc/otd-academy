@@ -28,5 +28,11 @@ export const SKILL_PATCH_LABELS: Record<string, string> = {
 export function patchLabel(badgeKey: string): string {
   const roadmap = ROADMAP_PATCHES.find((p) => p.key === badgeKey);
   if (roadmap) return roadmap.label;
-  return SKILL_PATCH_LABELS[badgeKey] ?? badgeKey;
+  if (badgeKey in SKILL_PATCH_LABELS) return SKILL_PATCH_LABELS[badgeKey];
+  // Course ratings are per-course (design Phase 2) — the slug can't be enumerated
+  // statically, so derive a readable label from it: "course:l1-01" → "l1 01 rating".
+  if (badgeKey.startsWith("course:")) {
+    return `${badgeKey.slice("course:".length).replace(/-/g, " ")} rating`;
+  }
+  return badgeKey;
 }
