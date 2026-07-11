@@ -9,6 +9,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { submitLessonFeedback } from "@/lib/actions/feedback";
 import { XpTick } from "@/components/library/XpTick";
+import { useFanfare } from "@/components/logbook/Fanfare";
 
 export function FeedbackBox({
   pageRef,
@@ -21,6 +22,7 @@ export function FeedbackBox({
   const [body, setBody] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [xp, setXp] = useState(0);
+  const fanfare = useFanfare();
   const slug = pageRef.replace(/^library\//, "");
 
   if (!signedIn) {
@@ -60,6 +62,9 @@ export function FeedbackBox({
     if (res && "ok" in res && res.ok) {
       setXp("xp" in res ? res.xp : 0);
       setStatus("done");
+      if ("levelUp" in res && res.levelUp) {
+        fanfare({ kind: "level", label: res.levelUp.title, xp: res.xp });
+      }
     } else {
       setStatus("error");
     }

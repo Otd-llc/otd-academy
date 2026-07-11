@@ -26,6 +26,7 @@ import {
 import { Inline } from "@/components/guide/InlineText";
 import { XpTick } from "@/components/library/XpTick";
 import { patchLabel } from "@/lib/logbook/patches";
+import { useFanfare } from "@/components/logbook/Fanfare";
 import { trackSigninToLogClicked } from "@/lib/analytics-client";
 
 export interface QuizQuestion {
@@ -101,6 +102,7 @@ export function QuizBlock({
   );
   const firedAnswer = useRef<boolean[]>(questions.map(() => false));
   const completeFired = useRef(false);
+  const fanfare = useFanfare();
 
   const isSolved = (qi: number) => selected[qi] === questions[qi].answer;
   const solvedCount = questions.reduce(
@@ -178,6 +180,9 @@ export function QuizBlock({
           } else {
             setQLocked((prev) => prev.map((v, i) => (i === qi ? true : v)));
           }
+          if (res.levelUp) {
+            fanfare({ kind: "level", label: res.levelUp.title, xp: res.xp });
+          }
         } else {
           setQLocked((prev) => prev.map((v, i) => (i === qi ? true : v)));
         }
@@ -200,6 +205,12 @@ export function QuizBlock({
       .then((res) => {
         if (res && "ok" in res && res.ok) {
           setCompletion({ xp: res.xp, badges: res.newBadges });
+          if (res.levelUp) {
+            fanfare({ kind: "level", label: res.levelUp.title, xp: res.xp });
+          }
+          for (const b of res.newBadges) {
+            fanfare({ kind: "patch", label: patchLabel(b) });
+          }
         }
       })
       .catch(() => {});

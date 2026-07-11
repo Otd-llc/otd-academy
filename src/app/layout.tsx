@@ -18,6 +18,7 @@ import { RememberLastUser } from "@/components/auth/RememberLastUser";
 import { SignUpCta } from "@/components/SignUpCta";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { TooltipProvider } from "@/components/TooltipProvider";
+import { FanfareProvider } from "@/components/logbook/Fanfare";
 import { UserMenu } from "@/components/UserMenu";
 
 // No-flash theme bootstrap — a parser-blocking inline <head> script that runs
@@ -225,7 +226,9 @@ export default async function RootLayout({
           ) : null}
 
           {/* `flex-1` lets the footer settle at the bottom on short pages. */}
-          <div className="flex-1">{children}</div>
+          <div className="flex-1">
+            <FanfareProvider>{children}</FanfareProvider>
+          </div>
 
           {renderChrome ? (
             <footer className="app-footer print:hidden">
