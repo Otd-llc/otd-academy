@@ -32,9 +32,13 @@ model) is there; this plan implements it. Also read `CLAUDE.md` (repo rules).
   worktree). DB tests use throwaway rows (create + cleanup); never depend on real
   curriculum rows beyond the seed fixture.
 - Run commands from `C:\zzz\pf-logbook` (PowerShell): `pnpm exec vitest run <path>`,
-  `pnpm exec tsc --noEmit`. Dev server: `Start-Process node -ArgumentList
-  "node_modules/next/dist/bin/next","dev","-p","3006" -WindowStyle Hidden`
-  (harness-backgrounded servers die; use localhost, never 127.0.0.1).
+  `pnpm exec tsc --noEmit` (if pnpm balks with a modules-dir purge error, fall back
+  to `node node_modules/vitest/vitest.mjs run <path>` / `node
+  node_modules/typescript/lib/tsc.js --noEmit`). Dev server: `Start-Process node
+  -ArgumentList "node_modules/next/dist/bin/next","dev","-p","3006" -WindowStyle
+  Hidden` (harness-backgrounded servers die; use localhost, never 127.0.0.1).
+- Interactive-transaction precedent: `src/lib/actions/pass.ts` uses
+  `db.$transaction(async (tx) => …)` — mirror that pattern.
 - UI follows the otd-frontend-design skill: token colors only, hairlines not filled
   cards, Saira numerals, mono eyebrows, no em-dashes anywhere rendered.
 
@@ -311,6 +315,12 @@ export function questionKey(
 }
 ```
 
+> **SERVER-ONLY:** `node:crypto` means this module must never be imported by a
+> client component. Keys are computed server-side (the lesson page / GuideBlocks,
+> both server components) and passed DOWN to `QuizBlock` as a `string[]` aligned
+> with the questions array (Task 10). If a client import sneaks in, the build
+> fails on the node built-in — that's the guardrail working.
+
 And in `src/lib/schemas/guide.ts`, add to the quiz question object (next to `q`):
 
 ```ts
@@ -340,7 +350,7 @@ All numbers/curves in one tunable module. Academy day = **America/Chicago**
 ```ts
 import { describe, it, expect } from "vitest";
 import {
-  academyDay, quizXp, lessonXp, levelFor, LEVELS, dedupe, CLUSTER_XP, LIBRARY_XP,
+  academyDay, academyDate, quizXp, lessonXp, levelFor, LEVELS, dedupe,
 } from "@/lib/logbook/economy";
 
 describe("academyDay", () => {
@@ -348,6 +358,11 @@ describe("academyDay", () => {
     // 2026-07-11T03:00Z = 2026-07-10 22:00 in Chicago (CDT)
     expect(academyDay(new Date("2026-07-11T03:00:00Z"))).toBe("2026-07-10");
     expect(academyDay(new Date("2026-07-11T06:00:00Z"))).toBe("2026-07-11");
+  });
+  it("academyDate mirrors academyDay as a 00:00Z Date", () => {
+    expect(academyDate(new Date("2026-07-11T03:00:00Z")).toISOString()).toBe(
+      "2026-07-10T00:00:00.000Z",
+    );
   });
 });
 
@@ -423,6 +438,12 @@ export function academyDay(now: Date): string {
     timeZone: "America/Chicago",
     year: "numeric", month: "2-digit", day: "2-digit",
   }).format(now); // en-CA renders yyyy-mm-dd
+}
+
+/** The same academy day as a Date (00:00Z) — the ONE derivation both
+ * `XpEvent.earnedOn` and `QuizLock.lockedOn` use, so they can never disagree. */
+export function academyDate(now: Date): Date {
+  return new Date(`${academyDay(now)}T00:00:00Z`);
 }
 
 export const quizXp = (o: { firstEver: boolean }) =>
@@ -510,7 +531,7 @@ afterAll(async () => { if (userId) await db.user.delete({ where: { id: userId } 
 // level-ups server-side (design §14 — never client-side).
 import { Prisma, type XpSource } from "@prisma/client";
 import { db } from "@/lib/db";
-import { academyDay, levelFor, CURRENT_WINDOW_DAYS } from "@/lib/logbook/economy";
+import { academyDate, levelFor, CURRENT_WINDOW_DAYS } from "@/lib/logbook/economy";
 
 export type AwardResult =
   | { awarded: true; xpTotal: number; levelUp: { level: number; title: string } | null }
@@ -524,30 +545,36 @@ export async function awardXp(o: {
   dedupeKey: string;
   now: Date;
 }): Promise<AwardResult> {
-  const earnedOn = new Date(`${academyDay(o.now)}T00:00:00Z`);
+  const earnedOn = academyDate(o.now); // shared helper: Date at 00:00Z of academyDay
   const currentThrough = new Date(earnedOn);
   currentThrough.setUTCDate(currentThrough.getUTCDate() + CURRENT_WINDOW_DAYS);
   try {
-    const user = await db.$transaction(async (tx) => {
+    // Level recompute stays INSIDE the transaction so two concurrent awards can't
+    // both observe the crossing and double-report a level-up (double email).
+    const result = await db.$transaction(async (tx) => {
       await tx.xpEvent.create({
         data: {
           userId: o.userId, source: o.source, amount: o.amount,
           refId: o.refId, earnedOn, dedupeKey: o.dedupeKey,
         },
       });
-      return tx.user.update({
+      const bumped = await tx.user.update({
         where: { id: o.userId },
         data: { xpTotal: { increment: o.amount }, currentThrough },
         select: { xpTotal: true, level: true, id: true },
       });
+      const after = levelFor(bumped.xpTotal);
+      let levelUp: { level: number; title: string } | null = null;
+      if (after.level > bumped.level) {
+        await tx.user.update({
+          where: { id: bumped.id },
+          data: { level: after.level },
+        });
+        levelUp = { level: after.level, title: after.title };
+      }
+      return { xpTotal: bumped.xpTotal, levelUp };
     });
-    const after = levelFor(user.xpTotal);
-    let levelUp: AwardResult extends never ? never : { level: number; title: string } | null = null;
-    if (after.level > user.level) {
-      await db.user.update({ where: { id: user.id }, data: { level: after.level } });
-      levelUp = { level: after.level, title: after.title };
-    }
-    return { awarded: true, xpTotal: user.xpTotal, levelUp };
+    return { awarded: true, ...result };
   } catch (e) {
     // Unique violation on dedupeKey = an idempotent replay: a no-op, not an error.
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
@@ -578,24 +605,34 @@ the server re-validates against the lesson's own contentBlocks.
 `recordQuizAnswer({ slug, questionKey, pick }, userId, now)`:
 1. Load the lesson (`published: true, accessTier: "PUBLIC"`) with contentBlocks;
    find the quiz question whose `questionKey(slug, q)` matches. Unknown → `{ ok:false }`.
-2. If `pick !== question.answer` → upsert `QuizLock(userId, questionKey, today)`,
-   return `{ ok: true, correct: false, xp: 0 }`.
+2. If `pick !== question.answer` → upsert `QuizLock(userId, questionKey,
+   academyDate(now))`, return `{ ok: true, correct: false, xp: 0 }`. **The client
+   MUST call this on wrong first picks too** — the lock row is what later satisfies
+   the completion check (Task 10 wires it).
 3. If a `QuizLock` exists for today → `{ ok: true, correct: true, xp: 0, locked: true }`.
 4. Else: `firstEver` = no prior `XpEvent(source: QUIZ_CORRECT, refId: questionKey)`
-   for this user (any day). Award `quizXp({firstEver})` with
-   `dedupe.quizCorrect(...)`. Return the award result (+ `levelUp` passthrough).
+   **AND no `LessonCompletion` row for this lesson** (the completion row survives an
+   admin reset, so a reset re-enables practice at the REPOP rate, never full-rate
+   re-inflation). Award `quizXp({firstEver})` with `dedupe.quizCorrect(...)`.
+   Return the award result (+ `levelUp` passthrough) **including the awarded
+   `xp` amount — the client renders the server's number, never its own guess.**
 
 `recordLessonComplete({ slug }, userId, now)`:
 1. Load the lesson + its questions; compute every questionKey. Zero-question
-   lessons complete on call (their XP is read-time only).
+   lessons complete on call — a dead path in practice (**verified 2026-07-11: all
+   69 published lessons carry ≥1 quiz, 207 questions total**) but keep the guard.
 2. "Attempted today" per key = an `XpEvent(QUIZ_CORRECT, refId=key)` with
    `earnedOn = today` OR a `QuizLock(lockedOn = today)`. If any key is missing →
    `{ ok: false, incomplete: true }` (the server never trusts the client's claim).
-3. Daily XP: `firstEver` = no prior `LESSON_COMPLETE` event for the slug;
-   award `lessonXp(readingMinutes(contentBlocks), {firstEver})` (import the
-   existing `readingMinutes` from `@/lib/library/reading-time`).
-4. Durable milestone (first time only): create `LessonCompletion` (skip if
-   exists). Then the cascade inside the same flow:
+3. Daily XP: `firstEver` = **no `LessonCompletion` row for the slug** (NOT "no
+   prior event" — completion rows survive an admin reset, events don't); award
+   `lessonXp(readingMinutes(contentBlocks), {firstEver})` (import the existing
+   `readingMinutes` from `@/lib/library/reading-time`).
+4. Durable milestone (first time only): create `LessonCompletion` (catch P2002 →
+   already exists → skip the cascade). Every `BadgeEarned.create` in the cascade
+   gets the SAME P2002-catch treatment (composite PK; a concurrent double-fire of
+   a first completion must no-op, never throw — mirror the award engine's
+   pattern). Then the cascade inside the same flow:
    - cluster complete? (`LessonCompletion` count for the cluster's published
      slugs == cluster size) → `awardXp(CLUSTER_COMPLETE)` + `BadgeEarned`
      (`cluster:<key>`, `meta.asOfLessonCount`).
@@ -615,10 +652,13 @@ with 2 quiz questions — never a real curriculum row):**
    completion refuses while a question unattempted · completion awards
    `readMin×3` + creates `LessonCompletion` + First Flight badge · second-day
    completion (inject `now` +1 day) awards reduced without new milestone ·
-   cluster/library cascade fires when the throwaway lesson is the only published
-   lesson in a FAKE cluster key you register via a test seam — **simpler:** assert
-   cascade logic through a unit on a helper `milestonesFor(completedSlugs, allByCluster)`
-   that you extract pure. Keep the DB test to the lesson-level awards.
+   cluster/library cascade: extract the decision as a PURE helper —
+   **Create: `src/lib/logbook/milestones.ts`** exporting
+   `milestonesFor(completedSlugs: Set<string>, publishedByCluster: Map<string, string[]>)`
+   → `{ clusterKeys: string[]; libraryComplete: boolean }` — and unit-test IT
+   exhaustively (`milestones.test.ts`: partial cluster, exact completion, growing
+   library reopening, empty clusters ignored). Keep the DB test to the
+   lesson-level awards; the action just feeds real data into the pure helper.
 2. Run → fail. 3. Implement. 4. Run → pass, then `pnpm exec vitest run src/lib/logbook`.
 5. Commit: `feat(logbook): quiz + lesson award actions (server-validated, repop, locks, milestones)`
 
@@ -633,12 +673,14 @@ with 2 quiz questions — never a real curriculum row):**
 **Behavior (design §5/§9.4):** `submitLessonFeedback({ pageRef, body })` — auth
 required; body 10–2000 chars; award `FEEDBACK_SUBMIT` once per page
 (`dedupe.feedbackSubmit`) AND only if today's submit-award count < `FEEDBACK_DAILY_CAP`
-(count today's `XpEvent(source: FEEDBACK_SUBMIT)`); the feedback row itself always
-saves (the cap limits XP, not notes — but ALSO rate-limit rows to ~10/day/user to
-stop flooding). `markFeedback({ id, status })` — `requireAdmin()`
-(`src/lib/auth-helpers.ts`); on first transition to `USEFUL`: award
-`FEEDBACK_USEFUL` to the author (`dedupe.feedbackUseful(id)`) + `BadgeEarned`
-(`skill:shipped-it`).
+(count today's `XpEvent(source: FEEDBACK_SUBMIT)`); the feedback row itself saves
+independent of the XP cap, but with a HARD row limit: refuse the insert when the
+user already has **10 `LessonFeedback` rows created today** (flood guard —
+`{ ok:false, error:"daily limit" }`). `markFeedback({ id, status })` —
+`requireAdmin()` (`src/lib/auth-helpers.ts`); on first transition to `USEFUL`
+(guard: only from `NEW`): award `FEEDBACK_USEFUL` **to the author** (`dedupe.feedbackUseful(id)`)
++ `BadgeEarned` (`skill:shipped-it`). Feedback `body` is rendered as **plain text**
+everywhere (admin table included) — never HTML.
 
 TDD steps as before (throwaway user; assert cap behavior by injecting 3 prior
 submit events). Commit: `feat(logbook): feedback channel — capped submit XP + useful bonus`
@@ -654,9 +696,16 @@ submit events). Commit: `feat(logbook): feedback channel — capped submit XP + 
 **`getLibraryProgress(userId, buckets, now)`** — ONE batched read (design §14):
 today's `XpEvent` rows (QUIZ_CORRECT + LESSON_COMPLETE) + all `LessonCompletion`
 slugs + all `QuizLock` rows for today, returned as Sets/Maps the page can join
-against `listPublishedByCluster()` output. Per lesson: `earnedToday`, `maxToday`
-(questions×quizXp + readMin×rate, using firstEver-aware rates is overkill — use
-the REPOP rates for the daily meter so it's stable), `completed`.
+against `listPublishedByCluster()` output. Per lesson: `earnedToday`, `maxToday`,
+`completed`. **`maxToday` follows the completion state** (the completions Set is
+already in hand): not-yet-completed lesson → FULL rates (Qs×5 + readMin×3);
+completed → REPOP rates (Qs×2 + readMin×1). This keeps `earned ≤ max` always —
+repop-rate-everywhere would let a first-ever day show `15/6`.
+
+**`getLessonState(userId, slug, questionKeys, now)`** — the lesson-page slice:
+per-question `"earned" | "locked" | "open"` for today + whether the lesson is
+completed (one query over today's events + locks filtered to the keys). This is
+what Task 10 passes into the `logbook` prop.
 
 **`getLogbook(userId)`** — xpTotal/level/title/next threshold, currentThrough +
 `isCurrent(now)`, per-cluster `{done, total}`, badges, latest 20 events.
@@ -671,11 +720,11 @@ TDD with a throwaway user + a few hand-inserted events. Commit:
 **Files:**
 - Create: `src/app/logbook/page.tsx` (auth-gated by default — `/logbook` is NOT in
   `isPublicPath`, so the middleware bounces anon to sign-in; verify, don't add it)
-- Modify: the account menu (grep `"/account"` in `src/components` for the user
-  menu component) — add a LOGBOOK link.
+- Modify: `src/components/UserMenu.tsx` — add a LOGBOOK link (match the existing
+  item pattern; mono caps).
 
-**UI (design §9.5, otd-frontend-design rules):** `PageHeader` eyebrow `LOGBOOK`,
-title "Flight log" style short; meta-strip = XP total (Saira gold) / level +
+**UI (design §9.5, otd-frontend-design rules):** `PageHeader` eyebrow `ACCOUNT`,
+title **"Logbook"** (the locked system name — never "Flight log"); meta-strip = XP total (Saira gold) / level +
 title / "current through <date>" (greyed when lapsed). Sections (hairline-grouped,
 NO filled cards): next-rating progress (Saira `1,240 / 2,400`), per-cluster
 completion rows (`8 / 12` numerals + a thin gold progress rule), the patch wall
@@ -725,19 +774,27 @@ The interaction core (design §3 async-award + §9.3).
   `logbook` prop down to quiz blocks, alongside the existing `quizContext`)
 - Modify: `src/app/library/[slug]/page.tsx` (currently
   `<GuideBlocks blocks={blocks} isSignedIn={false} />` at ~line 132 — resolve the
-  session, compute per-question state via the Task 7 loader, pass the context)
+  session, compute per-question state via `getLessonState` (Task 7), pass the NEW
+  `logbook` prop. **Leave `isSignedIn={false}` exactly as it is**: that prop gates
+  the resume rail (`resumeEnabled = !isSignedIn || isEnrolled`, GuideBlocks ~line
+  1419) and flipping it would silently disable scroll-resume for signed-in library
+  readers. `logbook` is a new, orthogonal prop.)
 - Create: `src/components/library/XpTick.tsx` (the +XP animation)
 
 **Behavior:**
-- New optional prop `logbook?: { slug: string; state: Record<string, "earned" | "locked" | "open">; signedIn: boolean }`
-  keyed by questionKey (computed server-side; pass questionKey per question down —
-  extend the block-render path to attach it).
+- New optional prop `logbook?: { slug: string; questionKeys: string[]; state: Record<string, "earned" | "locked" | "open">; signedIn: boolean }`.
+  `questionKeys` is aligned index-for-index with the questions array and is
+  **computed server-side** (the lesson page / GuideBlocks are server components;
+  `questionKey` is `node:crypto` and must never be imported client-side).
 - QuizBlock: on the FIRST pick of a question (no prior wrong picks locally and
-  state "open"), if correct → fire `recordQuizAnswer` async (never await before
-  showing feedback — the existing instant grade-as-you-go stays untouched) and
-  optimistically render `XpTick` (+5); reconcile: if the server returns
-  `{ xp: 0 }`/error, fade the tick out. Wrong first pick → the question's XP slot
-  greys (locked for today). State "earned"/"locked" render accordingly on load.
+  state "open"), fire `recordQuizAnswer` async **for BOTH outcomes** (never await
+  before showing feedback — the existing instant grade-as-you-go stays untouched):
+  - correct → render `XpTick` in an immediate "pulse" acknowledge state, then show
+    **the `xp` amount from the server response** (+5 full or +2 repop — the client
+    never guesses the number); if the server returns `{ xp: 0 }`/error, fade out.
+  - wrong → the call records the server-side `QuizLock` (the completion check
+    depends on that row existing), and the question's XP slot greys for today.
+  State "earned"/"locked" render accordingly on load.
 - When all questions are answered (the existing `allSolved`-style detection, but
   "all attempted" — wrong-then-corrected counts), fire `recordLessonComplete`
   async → on `{ ok: true, xp }` render a quiet inline line: `lesson logged +N XP`
@@ -745,8 +802,9 @@ The interaction core (design §3 async-award + §9.3).
 - `XpTick`: gold Saira `+5 XP`, small rise-and-fade, `@media (prefers-reduced-motion)`
   → static show/hide, wrapped in an `aria-live="polite"` region, **no audio**.
 - Signed-out (`logbook.signedIn === false` or prop absent on the library page):
-  the tick slot renders a quiet mono link — `sign in to log XP` → `/signin?callbackUrl=<lesson>`
-  (design §3 signup-driver). Emit the PostHog event on click.
+  the tick slot renders a quiet mono link — `sign in to log XP` →
+  `/sign-in?callbackUrl=<lesson>` (the route is `/sign-in`, hyphenated; design §3
+  signup-driver). Emit the PostHog event on click.
 
 **Steps:** implement → tsc → manual E2E on :3006 signed-in (answer right → tick;
 answer wrong → grey; finish → logged line; repeat same day → no double XP;
@@ -766,9 +824,9 @@ answer wrong → grey; finish → logged line; repeat same day → no double XP;
 **Behavior (design §9.4):** collapsed one-line affordance (`▸ Suggest an
 improvement`, mono, hairline-top); expanded = a bench-style underline textarea +
 submit (`glass-button`). Signed-out → "sign in to suggest an improvement" prompt
-(same callbackUrl pattern). On submit: optimistic "logged — thank you" +
-`+2 XP` tick when the server confirms the award (cap may make it 0 XP — still
-thank them). Admin page: table of NEW feedback (page, author, body, date) with
+(same callbackUrl pattern). On submit: optimistic "Logged. Thank you." (NO em
+dash — the ban covers every rendered glyph) + an XP tick with the server's amount
+when it confirms (the cap may make it 0 XP — still thank them). Admin page: table of NEW feedback (page, author, body, date) with
 USEFUL / DISMISS actions (confirm on USEFUL — it pays XP); tabs or filters for
 status. Hairline rows, never a filled table.
 
@@ -798,14 +856,21 @@ commit `feat(logbook): admin instrumentation (fail rates, completion, feedback)`
 ## Task 13: Cert/verify flair + milestone email + PostHog
 
 **Files:**
-- Modify: `src/app/verify/**` (find the certificate render — level + patch count
-  line, e.g. `FL4 INSTRUMENT · 3 RATINGS`, Saira numerals; only when > defaults)
-- Modify: the award flow (`award.ts` or the actions): on `levelUp` or new badge,
-  send a light lifecycle email via the existing pipeline (grep
-  `src/lib/lifecycle*` / `#190` patterns) — **gated on `emailConsent === true`**
-  (it's motivational, not transactional).
-- PostHog (existing client, #189): emit `xp_earned`, `patch_earned`, `level_up`,
-  `logbook_intro_seen`, `feedback_submitted`, `signin_to_log_clicked` (design §10b).
+- Modify: `src/app/verify/page.tsx` — a level + ratings line on the verified
+  record (e.g. `FL4 INSTRUMENT · 3 RATINGS`, Saira numerals; render only when
+  above defaults). **Timebox:** the `/verify` page line is the deliverable; if the
+  certificate PDF/image render is heavy to touch, defer it (a follow-up, not scope
+  creep here).
+- Modify: the actions (`src/lib/actions/logbook.ts`): on `levelUp` or a new badge,
+  send ONE combined milestone template ("you earned <patch> / reached <level>")
+  via the existing pipeline — templates in `src/lib/lifecycle-emails.ts`, send via
+  `src/lib/lifecycle-send.ts` — **gated on `emailConsent === true`** (motivational,
+  not transactional).
+- PostHog: client events via `src/lib/analytics-client.ts` (mirror the
+  `capture("pricing_viewed", …)` pattern), server-side via `src/lib/analytics.ts`
+  where the award actions live. Events: `xp_earned`, `patch_earned`, `level_up`,
+  `logbook_intro_seen`, `feedback_submitted`, `signin_to_log_clicked` (design
+  §10b — exactly these six, no more).
 
 **Steps:** implement → tsc → verify an email renders (dev: log-only or send to
 self) → commit `feat(logbook): cert flair, milestone email, analytics events`.
@@ -817,8 +882,12 @@ self) → commit `feat(logbook): cert flair, milestone email, analytics events`.
 **Files:**
 - Modify: `src/lib/actions/logbook.ts` (add `resetLessonXp({ slug, userId? })`,
   `requireAdmin`, deletes date-scoped QUIZ_CORRECT/LESSON_COMPLETE events + locks
-  for the lesson — decrementing `xpTotal` by the deleted sum in the same
-  transaction; per-user or all-users scope explicit)
+  for the lesson — in ONE transaction: decrement `xpTotal` by the deleted sum AND
+  **recompute `level` from the new total** (the one place level may go DOWN;
+  leaving the cached level above the curve would lie on the cert flair);
+  per-user or all-users scope explicit. `LessonCompletion` rows are NOT deleted —
+  they're the durable milestone + the firstEver guard against full-rate
+  re-inflation after a reset.)
 - Modify: `src/app/admin/logbook/page.tsx` (a reset control per lesson with a
   typed-confirm dialog — destructive, design §14)
 
@@ -835,3 +904,23 @@ self) → commit `feat(logbook): cert flair, milestone email, analytics events`.
 **Then STOP: batch the commits on the branch, hand Josh the local URLs
 (http://localhost:3006/library, /logbook), and wait for his explicit merge
 go-ahead — NO auto-merge, no PR merge without it.**
+
+---
+
+## Validation log (lens passes to dry, 2026-07-11)
+
+Lenses: coherence, feasibility, security, scope-guardian, design, adversarial
+(product-lens skipped: premise settled in the 3-round design brainstorm). Run
+inline, serially; findings fixed in-doc after each round.
+
+| Round | Material | Minor | Highlights |
+|---|---|---|---|
+| 1 | 6 | 6 | wrong-pick must ALSO call the server (lock feeds completion); `questionKey` is server-only (node:crypto); tick renders the SERVER's amount; firstEver keys off `LessonCompletion` so admin reset can't re-inflate; reset recomputes level; em-dash in rendered copy; level-up moved inside the tx; exact module paths pinned |
+| 2 | 1 | 3 | do NOT flip the library page's `isSignedIn` (it gates the resume rail — silent regression); `getLessonState` named; import fix; academyDate test |
+| 3 | 1 | 1 | "Flight log" title violated the locked "Logbook" name; badge creates need the P2002-catch |
+| 4 | 0 | 0 | **DRY** — targeted sweep of fixed classes + edited regions clean |
+
+Verified against reality during passes: all 69 published lessons carry ≥1 quiz
+(207 questions, checked 2026-07-11); `UserMenu.tsx` / `lifecycle-send.ts` /
+`analytics-client.ts` / `actions/pass.ts` paths confirmed; sign-in route is
+`/sign-in`.
