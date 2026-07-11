@@ -85,22 +85,26 @@ export default async function LogbookPage() {
       <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">Account</p>
       <h1 className="mt-1 font-display text-4xl tracking-wide text-title">Logbook</h1>
 
-      <div className="mt-8 grid gap-10 lg:grid-cols-[260px_1fr]">
-        {/* LEFT — sticky standing rail (standing B1 #2) */}
-        <aside className="flex flex-col items-center gap-3 self-start text-center lg:sticky lg:top-8">
-          <RankWing level={lb.level} size={40} />
-          <RingGauge pct={bandPct} xp={lb.xpTotal} />
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-command-gold">
-            FL{lb.level} · {lb.title}
-          </p>
-          {lb.next ? (
-            <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted">
-              <span className="font-numeral tabular-nums text-text">{num(lb.xpTotal)}</span> / {num(lb.next.minXp)} to FL{lb.next.level}
-            </p>
-          ) : (
-            <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-command-gold">Top rank reached</p>
-          )}
-          <p className={`font-mono text-[9px] uppercase tracking-[0.16em] ${lb.isCurrent ? "text-command-gold" : "text-gray-3"}`}>
+      <div className="mt-8 grid gap-10 lg:grid-cols-[300px_1fr]">
+        {/* LEFT — sticky standing rail (standing B1 #2: gauge + wing over rank) */}
+        <aside className="self-start lg:sticky lg:top-8">
+          <div className="flex items-center gap-5">
+            <RingGauge pct={bandPct} xp={lb.xpTotal} />
+            <div className="flex flex-col gap-1">
+              <RankWing level={lb.level} size={40} />
+              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-command-gold">
+                FL{lb.level} · {lb.title}
+              </p>
+              {lb.next ? (
+                <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted">
+                  <span className="font-numeral tabular-nums text-text">{num(lb.xpTotal)}</span> / {num(lb.next.minXp)} to FL{lb.next.level}
+                </p>
+              ) : (
+                <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-command-gold">Top rank reached</p>
+              )}
+            </div>
+          </div>
+          <p className={`mt-4 font-mono text-[9px] uppercase tracking-[0.16em] ${lb.isCurrent ? "text-command-gold" : "text-gray-3"}`}>
             {lb.isCurrent && lb.currentThrough ? `Current through ${day(lb.currentThrough)}` : "Lapsed"}
           </p>
         </aside>
