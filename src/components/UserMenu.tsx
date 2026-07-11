@@ -53,6 +53,7 @@ const ADMIN_LINKS: { href: string; label: string }[] = [
   { href: "/admin/billing", label: "Billing" },
   { href: "/admin/goals", label: "Goals" },
   { href: "/admin/feedback", label: "Feedback" },
+  { href: "/admin/logbook", label: "Instrumentation" },
   { href: "/admin/sourcing", label: "Sourcing health" },
 ];
 
