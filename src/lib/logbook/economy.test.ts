@@ -7,6 +7,7 @@ import {
   levelFor,
   LEVELS,
   dedupe,
+  wingTier,
   STAGE_CLEAR_XP,
   COURSE_EXAM_XP,
   COURSE_COMPLETE_XP,
@@ -41,6 +42,15 @@ describe("levelFor", () => {
     expect(levelFor(0)).toMatchObject({ level: 1 });
     expect(levelFor(LEVELS[1].minXp)).toMatchObject({ level: 2 });
     expect(levelFor(999999).level).toBe(LEVELS.length);
+  });
+  it("has 12 ranks", () => {
+    expect(LEVELS.length).toBe(12);
+  });
+});
+
+describe("wingTier", () => {
+  it("groups two ranks per wing tier (1-6)", () => {
+    expect([1, 2, 3, 4, 11, 12].map(wingTier)).toEqual([1, 1, 2, 2, 6, 6]);
   });
 });
 

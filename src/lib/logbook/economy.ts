@@ -21,14 +21,22 @@ export const STAGE_CLEAR_XP = 20;
 export const COURSE_EXAM_XP = 150;
 export const COURSE_COMPLETE_XP = 300;
 
-// The flight-training ladder (design §8). Front-loaded: fast early levels.
+// The flight-training ladder (design §8; 12 ranks / 6 wing tiers, owner 2026-07-11).
+// Front-loaded: fast early levels, widening toward the top. Top (FL12) ≈ finishing
+// the library plus several build courses (~7k first-time XP). Tunable on-screen.
 export const LEVELS = [
   { level: 1, minXp: 0, title: "Ground School" },
   { level: 2, minXp: 50, title: "First Solo" },
-  { level: 3, minXp: 200, title: "Cross-Country" },
-  { level: 4, minXp: 600, title: "Instrument" },
-  { level: 5, minXp: 1300, title: "Commercial" },
-  { level: 6, minXp: 2400, title: "Flight Instructor" },
+  { level: 3, minXp: 150, title: "Cross-Country" },
+  { level: 4, minXp: 350, title: "Private Pilot" },
+  { level: 5, minXp: 650, title: "Night Rated" },
+  { level: 6, minXp: 1050, title: "Instrument Rated" },
+  { level: 7, minXp: 1600, title: "Commercial" },
+  { level: 8, minXp: 2300, title: "Multi-Engine" },
+  { level: 9, minXp: 3200, title: "Flight Instructor" },
+  { level: 10, minXp: 4300, title: "Instrument Instructor" },
+  { level: 11, minXp: 5600, title: "Airline Transport" },
+  { level: 12, minXp: 7000, title: "Examiner" },
 ] as const;
 
 export function levelFor(xpTotal: number) {
@@ -36,6 +44,13 @@ export function levelFor(xpTotal: number) {
   for (const l of LEVELS) if (xpTotal >= l.minXp) cur = l;
   const next = LEVELS.at(cur.level) ?? null; // index = level (1-based levels)
   return { ...cur, next };
+}
+
+// The rank-emblem wing tier (1-6) for a level — the 6 wing designs each cover 2
+// ranks (design 2026-07-11), so the wings graduate every second level. Drives the
+// rank/wings art. FL1-2 → 1, FL3-4 → 2, ..., FL11-12 → 6.
+export function wingTier(level: number): number {
+  return Math.min(6, Math.max(1, Math.ceil(level / 2)));
 }
 
 /** The academy-local (America/Chicago) calendar day for `now`, as yyyy-mm-dd. */
