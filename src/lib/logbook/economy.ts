@@ -11,7 +11,8 @@ export const XP = {
 } as const;
 export const CLUSTER_XP = 100;
 export const LIBRARY_XP = 500;
-export const FEEDBACK_DAILY_CAP = 3;
+export const FEEDBACK_DAILY_CAP = 3; // max FEEDBACK_SUBMIT XP awards per academy day
+export const FEEDBACK_ROW_DAILY_LIMIT = 10; // hard flood guard on feedback ROWS/day
 export const CURRENT_WINDOW_DAYS = 14;
 
 // The flight-training ladder (design §8). Front-loaded: fast early levels.

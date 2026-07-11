@@ -2,7 +2,6 @@
 // every award re-validates against the lesson's OWN contentBlocks in the DB, so a
 // fabricated client POST cannot mint XP. Pure-ish core (takes userId + injected
 // `now`); the "use server" wrappers in actions/logbook.ts resolve the session.
-import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { guideContentBlocksSchema } from "@/lib/schemas/guide";
 import { readingMinutes } from "@/lib/library/reading-time";
@@ -10,6 +9,7 @@ import { clusterByKey } from "@/lib/library/clusters";
 import { questionKey } from "@/lib/logbook/question-key";
 import { awardXp } from "@/lib/logbook/award";
 import { milestonesFor } from "@/lib/logbook/milestones";
+import { earnBadge, isUniqueViolation } from "@/lib/logbook/badge";
 import {
   academyDate,
   quizXp,
@@ -22,10 +22,6 @@ import {
 type LevelUp = { level: number; title: string } | null;
 type QuizQ = { id?: string; q: string; answer: number };
 
-function isP2002(e: unknown): boolean {
-  return e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
-}
-
 // Every quiz question across all quiz blocks in the lesson (order preserved).
 // Defensive over the raw JSON: a parse failure yields no questions rather than a
 // throw (matches reading-time's degrade-don't-crash posture on the public path).
@@ -35,22 +31,6 @@ function quizQuestions(contentBlocks: unknown): QuizQ[] {
   return parsed.data
     .filter((b) => b.type === "quiz")
     .flatMap((b) => (b.type === "quiz" ? b.questions : []));
-}
-
-// Idempotent badge grant — the composite PK dedupes a concurrent double-fire of a
-// first-completion; a replay is a no-op, never an error (mirrors the award engine).
-async function earnBadge(
-  userId: string,
-  badgeKey: string,
-  meta?: Prisma.InputJsonValue,
-): Promise<boolean> {
-  try {
-    await db.badgeEarned.create({ data: { userId, badgeKey, meta } });
-    return true;
-  } catch (e) {
-    if (isP2002(e)) return false;
-    throw e;
-  }
 }
 
 export type QuizAnswerResult =
@@ -198,7 +178,8 @@ export async function recordLessonComplete(
   try {
     await db.lessonCompletion.create({ data: { userId, lessonSlug: input.slug } });
   } catch (e) {
-    if (isP2002(e)) return { ok: true, xp, levelUp, newBadges }; // concurrent double-fire
+    // concurrent double-fire of a first completion → the other call owns the cascade
+    if (isUniqueViolation(e)) return { ok: true, xp, levelUp, newBadges };
     throw e;
   }
 
