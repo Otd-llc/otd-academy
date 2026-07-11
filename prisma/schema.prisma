@@ -22,6 +22,11 @@ enum XpSource {
   LIBRARY_COMPLETE
   FEEDBACK_SUBMIT
   FEEDBACK_USEFUL
+  // Course (build-guide) XP — Phase 2 (design 2026-07-11)
+  STAGE_QUIZ_CORRECT
+  STAGE_CLEAR
+  COURSE_EXAM_PASS
+  COURSE_COMPLETE
 }
 
 enum FeedbackStatus {
