@@ -7,6 +7,9 @@ import {
   levelFor,
   LEVELS,
   dedupe,
+  STAGE_CLEAR_XP,
+  COURSE_EXAM_XP,
+  COURSE_COMPLETE_XP,
 } from "@/lib/logbook/economy";
 
 describe("academyDay", () => {
@@ -49,6 +52,27 @@ describe("dedupe keys", () => {
     );
     expect(dedupe.clusterComplete("u1", "fundamentals")).toBe(
       "CLUSTER_COMPLETE:u1:fundamentals",
+    );
+  });
+});
+
+describe("course economy (Phase 2)", () => {
+  it("has the course amounts", () => {
+    expect(STAGE_CLEAR_XP).toBe(20);
+    expect(COURSE_EXAM_XP).toBe(150);
+    expect(COURSE_COMPLETE_XP).toBe(300);
+  });
+  it("course dedupe keys: stage-quiz is daily, the rest are once", () => {
+    const d = new Date("2026-07-11T12:00:00Z");
+    expect(dedupe.stageQuiz("u1", "guide:l1-01:v1:SCHEMATIC#q1", d)).toBe(
+      "STAGE_QUIZ_CORRECT:u1:guide:l1-01:v1:SCHEMATIC#q1:2026-07-11",
+    );
+    expect(dedupe.stageClear("u1", "l1-01", "SCHEMATIC")).toBe(
+      "STAGE_CLEAR:u1:l1-01:SCHEMATIC",
+    );
+    expect(dedupe.courseExam("u1", "l1-01")).toBe("COURSE_EXAM_PASS:u1:l1-01");
+    expect(dedupe.courseComplete("u1", "l1-01")).toBe(
+      "COURSE_COMPLETE:u1:l1-01",
     );
   });
 });

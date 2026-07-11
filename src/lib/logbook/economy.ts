@@ -15,6 +15,12 @@ export const FEEDBACK_DAILY_CAP = 3; // max FEEDBACK_SUBMIT XP awards per academ
 export const FEEDBACK_ROW_DAILY_LIMIT = 10; // hard flood guard on feedback ROWS/day
 export const CURRENT_WINDOW_DAYS = 14;
 
+// Course (build-guide) XP — Phase 2 (design 2026-07-11). Stage quizzes reuse the
+// library QUIZ_FULL/QUIZ_REPOP amounts; these are the once-ever milestone awards.
+export const STAGE_CLEAR_XP = 20;
+export const COURSE_EXAM_XP = 150;
+export const COURSE_COMPLETE_XP = 300;
+
 // The flight-training ladder (design §8). Front-loaded: fast early levels.
 export const LEVELS = [
   { level: 1, minXp: 0, title: "Ground School" },
@@ -65,4 +71,14 @@ export const dedupe = {
   feedbackSubmit: (userId: string, pageRef: string) =>
     `FEEDBACK_SUBMIT:${userId}:${pageRef}`,
   feedbackUseful: (feedbackId: string) => `FEEDBACK_USEFUL:${feedbackId}`,
+  // Course (build-guide) sources — Phase 2. Stage-quiz is daily (repop); the rest
+  // are once-ever. `qKey` is a guide questionKey (guide:<slug>:<rev>:<stage>#<id>).
+  stageQuiz: (userId: string, qKey: string, now: Date) =>
+    `STAGE_QUIZ_CORRECT:${userId}:${qKey}:${academyDay(now)}`,
+  stageClear: (userId: string, slug: string, stage: string) =>
+    `STAGE_CLEAR:${userId}:${slug}:${stage}`,
+  courseExam: (userId: string, slug: string) =>
+    `COURSE_EXAM_PASS:${userId}:${slug}`,
+  courseComplete: (userId: string, slug: string) =>
+    `COURSE_COMPLETE:${userId}:${slug}`,
 } as const;
