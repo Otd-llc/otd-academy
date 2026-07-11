@@ -482,11 +482,18 @@ body {
 .qzh-opt[data-st="bad"] .qzh-hex { animation: qzh-nudge 0.26s ease; }
 @media (prefers-reduced-motion: reduce) { .qzh-opt, .qzh-hex, .qzh-hex polygon, .qzh-hex b { transition: none; animation: none !important; } }
 
-/* The +XP tick (design §9.3): a correct-answer award rises in and settles as the
-   earned marker. Reduced-motion shows it statically (no rise). */
-@keyframes xp-tick-rise { 0% { opacity: 0; transform: translateY(6px); } 100% { opacity: 1; transform: translateY(0); } }
-.xp-tick { display: inline-block; animation: xp-tick-rise 0.5s ease-out both; }
-@media (prefers-reduced-motion: reduce) { .xp-tick { animation: none; opacity: 1; } }
+/* The +XP tick (design §9.3): on a correct-answer award a gold "+N XP" pops in,
+   rises, and fades (the floating .xp-pop), while a quiet persistent .xp-mark keeps
+   the earned amount on the row. Reduced-motion hides the float; the mark still
+   shows the award (never sight-only — the value stays legible). */
+@keyframes xp-pop-rise {
+  0%   { opacity: 0; transform: translateY(4px) scale(0.9); }
+  16%  { opacity: 1; transform: translateY(-1px) scale(1.08); }
+  40%  { opacity: 1; transform: translateY(-3px) scale(1); }
+  100% { opacity: 0; transform: translateY(-28px) scale(1); }
+}
+.xp-pop { animation: xp-pop-rise 1.5s cubic-bezier(0.16, 0.84, 0.44, 1) forwards; }
+@media (prefers-reduced-motion: reduce) { .xp-pop { display: none; } }
 
 /* Scroll reveal — sections tagged `data-reveal` fade + rise once as they enter
    the viewport, driven by a CSS scroll timeline (no JS). Guarded by @supports so
