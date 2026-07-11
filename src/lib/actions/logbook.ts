@@ -58,3 +58,15 @@ export async function recordLessonComplete(
   const parsed = lessonCompleteSchema.parse(input);
   return awardLessonComplete(parsed, userId, new Date());
 }
+
+// Stamp the one-time /library Logbook intro as seen (design §9.1). Idempotent:
+// a second call just re-stamps. Signed-out is a silent no-op.
+export async function dismissLogbookIntro(): Promise<{ ok: boolean }> {
+  const userId = await currentUserId();
+  if (!userId) return { ok: false };
+  await db.user.update({
+    where: { id: userId },
+    data: { logbookIntroSeenAt: new Date() },
+  });
+  return { ok: true };
+}

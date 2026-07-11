@@ -25,15 +25,30 @@ import { FieldGuideDownload } from "@/components/library/FieldGuideDownload";
 import { DroneSharedAutonomy } from "@/components/guide/diagrams/DroneSharedAutonomy";
 import { FundVirRelationship } from "@/components/guide/diagrams/FundVirRelationship";
 import { auth } from "@/auth";
+import { db } from "@/lib/db";
 import { courseListJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { listPublishedByCluster } from "@/lib/library/load";
 import { clusterByKey } from "@/lib/library/clusters";
+import { loadLessonMeta, getLibraryProgress } from "@/lib/logbook/load";
+import { levelFor } from "@/lib/logbook/economy";
+import { LogbookIntro } from "@/components/library/LogbookIntro";
 import {
   pickFeatured,
   pickFreshRail,
   type LessonMeta,
   type FreshLesson,
 } from "@/lib/library/featured";
+
+// Resolve a persisted onboarding-goal key to a goal-in-a-sentence phrase for the
+// Logbook intro (design §9.1). "exploring"/"skipped"/unknown → no phrase.
+const GOAL_PHRASE: Record<string, string> = {
+  first_board: "building a board",
+  kicad: "sharpening KiCad",
+  learn: "learning the electronics",
+};
+
+// The signed-in Logbook overlay for a lesson row: today's earned / today's max XP.
+type LessonXp = { earnedToday: number; maxToday: number };
 
 const title = "Library · One Thousand Drones Academy";
 const description =
@@ -84,8 +99,10 @@ function ReadMin({ minutes }: { minutes: number }) {
 // read-time sits on the right as the row's affordance + merchandising nudge.
 function LibraryRow({
   lesson,
+  xp,
 }: {
   lesson: { slug: string; title: string; readingMinutes: number };
+  xp?: LessonXp;
 }) {
   return (
     <li>
@@ -96,7 +113,15 @@ function LibraryRow({
         <span className="font-serif text-[15px] leading-snug text-text transition-colors group-hover:text-command-gold">
           {lesson.title}
         </span>
-        <ReadMin minutes={lesson.readingMinutes} />
+        <span className="flex shrink-0 items-baseline gap-2.5">
+          {xp ? (
+            <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted">
+              <span className="font-numeral tabular-nums text-command-gold">{xp.earnedToday}</span>
+              /{xp.maxToday} XP
+            </span>
+          ) : null}
+          <ReadMin minutes={lesson.readingMinutes} />
+        </span>
       </Link>
     </li>
   );
@@ -249,11 +274,15 @@ function ClusterSection({
   clusterKey,
   list,
   signedIn,
+  xpBySlug,
+  clusterStat,
 }: {
   ordinal: number | null;
   clusterKey: string;
   list: { slug: string; title: string; readingMinutes: number }[];
   signedIn: boolean;
+  xpBySlug?: Map<string, LessonXp>;
+  clusterStat?: { done: number; total: number };
 }) {
   const cluster = clusterByKey(clusterKey);
   return (
@@ -273,6 +302,14 @@ function ClusterSection({
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-3">
+          {clusterStat ? (
+            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
+              <span className="font-numeral tabular-nums text-sm text-command-gold">
+                {clusterStat.done} / {clusterStat.total}
+              </span>{" "}
+              done
+            </span>
+          ) : null}
           <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
             <span className="font-numeral tabular-nums text-sm text-command-gold">
               {list.length}
@@ -291,7 +328,7 @@ function ClusterSection({
       </div>
       <ul className="mt-2 grid grid-cols-1 gap-x-10 sm:grid-cols-2">
         {list.map((l) => (
-          <LibraryRow key={l.slug} lesson={l} />
+          <LibraryRow key={l.slug} lesson={l} xp={xpBySlug?.get(l.slug)} />
         ))}
       </ul>
     </section>
@@ -303,7 +340,37 @@ export default async function LibraryIndexPage() {
   const base = siteUrl();
   // Field-guide downloads are account-gated (the compiled books are the lead
   // magnet); a signed-in reader gets a one-click email, everyone else a prompt.
-  const signedIn = Boolean((await auth())?.user);
+  const session = await auth();
+  const signedIn = Boolean(session?.user);
+
+  // Signed-in Logbook overlay (design §9). STRICTLY ADDITIVE: the anonymous index
+  // stays byte-for-byte the shipped #293 layout. When signed in we load progress
+  // (one batched read) + the header chip + the one-time intro flag.
+  let xpBySlug: Map<string, LessonXp> | null = null;
+  let clusterStats: Map<string, { done: number; total: number }> | null = null;
+  let logbookChip: { level: number; xpTotal: number } | null = null;
+  let showIntro = false;
+  let goalPhrase: string | null = null;
+  if (session?.user?.email) {
+    const user = await db.user.findUnique({
+      where: { email: session.user.email },
+      select: {
+        id: true,
+        xpTotal: true,
+        logbookIntroSeenAt: true,
+        onboardingGoal: true,
+      },
+    });
+    if (user) {
+      const lessons = await loadLessonMeta();
+      const progress = await getLibraryProgress(user.id, lessons, new Date());
+      xpBySlug = progress.byLesson;
+      clusterStats = progress.byCluster;
+      logbookChip = { level: levelFor(user.xpTotal).level, xpTotal: user.xpTotal };
+      showIntro = user.logbookIntroSeenAt == null;
+      goalPhrase = GOAL_PHRASE[user.onboardingGoal ?? ""] ?? null;
+    }
+  }
 
   // Flatten cluster-major (registry order, then the trailing "other" bucket) for
   // the ItemList JSON-LD, the catalog stats, and the merchandising helpers.
@@ -362,10 +429,31 @@ export default async function LibraryIndexPage() {
                   ),
                 },
                 ...(lastUpdated ? [{ label: "Updated", value: monthYear(lastUpdated) }] : []),
+                ...(logbookChip
+                  ? [
+                      {
+                        label: "Logbook",
+                        value: (
+                          <Link
+                            href="/logbook"
+                            className="text-text transition-colors hover:text-command-gold"
+                          >
+                            FL{logbookChip.level} ·{" "}
+                            <span className="font-numeral tabular-nums text-command-gold">
+                              {logbookChip.xpTotal}
+                            </span>{" "}
+                            XP
+                          </Link>
+                        ),
+                      },
+                    ]
+                  : []),
               ]
             : []
         }
       />
+
+      {signedIn && showIntro ? <LogbookIntro goalPhrase={goalPhrase} /> : null}
 
       {allLessons.length === 0 ? (
         <p className="font-mono text-sm uppercase tracking-wider text-muted">
@@ -410,6 +498,8 @@ export default async function LibraryIndexPage() {
                     clusterKey={key}
                     list={list}
                     signedIn={signedIn}
+                    xpBySlug={xpBySlug ?? undefined}
+                    clusterStat={clusterStats?.get(key)}
                   />
                 );
               })}
