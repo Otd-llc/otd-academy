@@ -15,6 +15,21 @@ enum UserRole {
   LEARNER
 }
 
+enum XpSource {
+  QUIZ_CORRECT
+  LESSON_COMPLETE
+  CLUSTER_COMPLETE
+  LIBRARY_COMPLETE
+  FEEDBACK_SUBMIT
+  FEEDBACK_USEFUL
+}
+
+enum FeedbackStatus {
+  NEW
+  USEFUL
+  DISMISSED
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -51,6 +66,15 @@ model User {
   onboardingGoal        String?
   onboardingGoalAt      DateTime?
 
+  // Logbook (XP progression) cached mirrors — recomputable from the XpEvent
+  // ledger; updated transactionally with each award. currentThrough = the
+  // stay-current window end (status only, design §6). logbookIntroSeenAt = the
+  // one-time /library intro panel flag.
+  xpTotal            Int       @default(0)
+  level              Int       @default(1)
+  currentThrough     DateTime? @db.Date
+  logbookIntroSeenAt DateTime?
+
   accounts Account[]
   sessions Session[]
 
@@ -79,6 +103,12 @@ model User {
   certificates            Certificate[]
   miniLessons             MiniLesson[]
   lifecycleSends          LifecycleSend[]
+
+  xpEvents          XpEvent[]
+  lessonCompletions LessonCompletion[]
+  quizLocks         QuizLock[]
+  badges            BadgeEarned[]
+  lessonFeedback    LessonFeedback[]
 }
 
 model Account {
@@ -1244,5 +1274,75 @@ model ExamResult {
   submittedAt  DateTime   @default(now())
 
   @@index([enrollmentId])
+}
+
+// ─── Logbook (XP progression) ──────────────────────────
+// Append-only XP ledger (the Logbook's source of truth). Total XP = sum(amount);
+// User.xpTotal/level are cached mirrors updated in the same transaction as each
+// insert. dedupeKey is the idempotency guard: daily sources embed the academy-day
+// date, once-ever sources don't. NEVER update or delete rows outside the admin
+// reset (design §6).
+model XpEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  source    XpSource
+  amount    Int
+  refId     String? // lesson slug / questionKey / clusterKey / feedbackId
+  earnedOn  DateTime @db.Date
+  dedupeKey String   @unique
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([source, refId])
+}
+
+// Durable once-ever lesson completion (drives progress + cluster/library patches).
+// Distinct from the daily LESSON_COMPLETE practice XP (design §5).
+model LessonCompletion {
+  userId      String
+  lessonSlug  String
+  completedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, lessonSlug])
+}
+
+// A wrong first pick on a question locks its XP until the next academy day
+// (anti guess-farming, design §5).
+model QuizLock {
+  userId      String
+  questionKey String // stable question id (see Task 2)
+  lockedOn    DateTime @db.Date
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, questionKey, lockedOn])
+}
+
+// Patches / ratings / wings. Earned = permanent (grandfathered, design §7);
+// meta records the milestone size (e.g. { asOfLessonCount: 69 }).
+model BadgeEarned {
+  userId   String
+  badgeKey String
+  earnedAt DateTime @default(now())
+  meta     Json?
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, badgeKey])
+}
+
+// Per-page lesson feedback (the no-forum channel, design §9.4). Routes to admin;
+// USEFUL pays the bonus + the Shipped It patch.
+model LessonFeedback {
+  id        String         @id @default(cuid())
+  userId    String
+  pageRef   String // e.g. "library/ohms-law"
+  body      String
+  status    FeedbackStatus @default(NEW)
+  createdAt DateTime       @default(now())
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([userId, pageRef])
 }
 
