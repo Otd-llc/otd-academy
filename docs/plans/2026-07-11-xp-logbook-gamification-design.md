@@ -244,6 +244,26 @@ nag. In-app: the tick/line at earn time.
 
 ## 12. Fast-follow + Phase 2 (explicitly out of v1)
 
+- **CHECKRIDES (Phase 1.5, decided 2026-07-11 — the headline fast-follow).** A
+  per-cluster exam, in the aviation idiom: you don't get a rating for attendance,
+  you get it by passing the checkride. Locked model:
+  - **Two tiers:** completing a cluster's lessons earns the cluster **patch** (you
+    flew the hours) AND unlocks its checkride; **passing the checkride** (~80%,
+    a random ~15 of a ~25-question bank, server-validated like recordQuizAnswer)
+    earns the **RATING** (`rating:<cluster>` badge + a one-time large XP award,
+    new enum value `EXAM_PASS` — a two-line ALTER TYPE migration then).
+  - **WINGS is redefined** at 1.5 to mean ALL SIX RATINGS (not all completions) —
+    the top milestone becomes genuinely earned. Grandfathered per §7: anyone
+    already holding wings keeps them (timestamped as-of).
+  - **Ratings are the public flair** — exam-backed, employer-meaningful; they
+    headline the certificate / `/verify` line over completion patches.
+  - **The field-guide PDF is NOT gated on it** — downloads stay lead magnets; the
+    checkride is progression.
+  - Instrumentation picks up exam-question fail rates for free (same ledger).
+  - **The real cost is authoring, not platform:** 6 banks × ~25 exam-grade
+    questions (~150) under the otd-content-writing assessment rules (distractor
+    design, answer-key spread, beginner bar). Platform work is a thin layer over
+    the v1 primitives.
 - **SRS review queue** — repop resurfaces missed/stale questions (turns the daily
   grind into real spaced-repetition retention). v1.5.
 - **Shareable Logbook page** — opt-in public progress page (organic marketing). v1.5.
