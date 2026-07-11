@@ -4,6 +4,8 @@
 // so the route 404s.
 import { db } from "@/lib/db";
 import { byClusterThenOrdinal, bucketByCluster } from "@/lib/library/cluster-order";
+import { readingMinutes } from "@/lib/library/reading-time";
+import { firstDiagramSrc } from "@/lib/library/hero-diagram";
 
 export async function loadPublicMiniLesson(slug: string) {
   return db.miniLesson.findFirst({
@@ -81,9 +83,32 @@ export async function listPublishedByCluster() {
   const rows = await db.miniLesson.findMany({
     where: { published: true, accessTier: "PUBLIC" },
     orderBy: { updatedAt: "desc" },
-    select: { slug: true, title: true, summary: true, updatedAt: true, cluster: true, clusterOrdinal: true },
+    // `createdAt` rides along for the landing's "new & updated" rail + featured
+    // freshness fallback (pickFeatured / pickFreshRail). `contentBlocks` is pulled
+    // ONLY to derive the read-time + a featured lesson's hero-diagram src here,
+    // then stripped below so the landing carries those, not the (heavy) content.
+    // bucketByCluster is generic over the row shape, so the extra fields pass
+    // through untouched.
+    select: {
+      slug: true,
+      title: true,
+      summary: true,
+      contentBlocks: true,
+      createdAt: true,
+      updatedAt: true,
+      cluster: true,
+      clusterOrdinal: true,
+    },
   });
-  return bucketByCluster(rows);
+  // Derive read-time + hero-diagram src in one place, then drop contentBlocks.
+  // (If the landing ever gets hot, these move to stored columns; today they stay
+  // live so a content edit is reflected with no backfill.)
+  const withMeta = rows.map(({ contentBlocks, ...row }) => ({
+    ...row,
+    readingMinutes: readingMinutes(contentBlocks),
+    diagramSrc: firstDiagramSrc(contentBlocks),
+  }));
+  return bucketByCluster(withMeta);
 }
 
 // Published, PUBLIC lessons WITH content blocks for a Field Guide PDF.
