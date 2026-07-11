@@ -10,19 +10,22 @@
 //                 No sign-in-page hop, no /start onboarding wedge (that runs on a
 //                 later visit). Google / GitHub are offered as secondary, with the
 //                 same callbackUrl, so they land on the guide too.
-//   signed-in   → one click emails the durable download link (requestFieldGuide).
+//   signed-in   → the PDF route authorizes the session (isFieldGuideAuthorized),
+//                 so the button links STRAIGHT to the download — no reason to
+//                 email a link back to a page they are already on.
 //
 // Marketing consent is NOT collected here — new accounts opt in once at /start
 // onboarding + /account ([[onboarding-build]]); a checkbox here would double-ask.
 
-import { useState, useTransition, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 
-import { requestFieldGuide } from "@/lib/actions/field-guide-download";
-import { fieldGuideWelcomePath, fieldGuideCoverPath } from "@/lib/library/field-guide-links";
-
-type Result = Awaited<ReturnType<typeof requestFieldGuide>>;
+import {
+  fieldGuideWelcomePath,
+  fieldGuideCoverPath,
+  fieldGuidePdfDownloadUrl,
+} from "@/lib/library/field-guide-links";
 
 function DownloadGlyph() {
   return (
@@ -57,30 +60,11 @@ export function FieldGuideDownload({
   signedIn: boolean;
   className?: string;
 }) {
-  const [pending, startTransition] = useTransition();
-  const [status, setStatus] = useState<
-    null | { kind: "sent"; email: string } | { kind: "error"; msg: string }
-  >(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [gateExpired, setGateExpired] = useState(false);
   const search = useSearchParams();
   const router = useRouter();
   const gateHandled = useRef(false);
-
-  // Signed-in: email the durable (7-day) download link.
-  function sendToSelf() {
-    startTransition(async () => {
-      const r: Result = await requestFieldGuide(guide);
-      if (r.ok) {
-        setStatus({ kind: "sent", email: r.email });
-        setModalOpen(false);
-      } else if ("needsAuth" in r) {
-        setModalOpen(true);
-      } else {
-        setStatus({ kind: "error", msg: r.error });
-      }
-    });
-  }
 
   // Landed from the route gate (?gate=<guide>): a direct hit or an expired emailed
   // link. Auto-open the capture for THIS guide (a signed-in visitor never reaches
@@ -99,31 +83,28 @@ export function FieldGuideDownload({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn, search, guide]);
 
-  function onClick() {
-    if (status?.kind === "sent" || pending) return;
-    if (signedIn) sendToSelf();
-    else setModalOpen(true);
+  const buttonClass = `glass-button inline-flex items-center gap-2 px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] ${className}`;
+
+  // Signed-in: the session already authorizes the PDF route, so go straight to the
+  // download (`?download=1` → the route serves it as an attachment). No email hop.
+  if (signedIn) {
+    return (
+      <a href={fieldGuidePdfDownloadUrl(guide)} className={buttonClass}>
+        {label}
+        <DownloadGlyph />
+      </a>
+    );
   }
 
+  // Signed-out: the lead-magnet capture — a modal takes an email + sends ONE magic
+  // link whose post-verification target IS the guide (opens it AND creates the
+  // account in one click).
   return (
     <div>
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={pending || status?.kind === "sent"}
-        className={`glass-button inline-flex items-center gap-2 px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] disabled:opacity-70 ${className}`}
-      >
-        {status?.kind === "sent" ? "Sent — check your inbox" : pending ? "Sending…" : label}
+      <button type="button" onClick={() => setModalOpen(true)} className={buttonClass}>
+        {label}
         <DownloadGlyph />
       </button>
-      {status?.kind === "sent" ? (
-        <p className="mt-1.5 font-mono text-[10px] tracking-wide text-muted">
-          Download link emailed to {status.email}.
-        </p>
-      ) : null}
-      {status?.kind === "error" ? (
-        <p className="mt-1.5 font-mono text-[10px] tracking-wide text-alert-red">{status.msg}</p>
-      ) : null}
 
       {modalOpen ? (
         <LeadMagnetModal
