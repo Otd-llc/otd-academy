@@ -482,6 +482,12 @@ body {
 .qzh-opt[data-st="bad"] .qzh-hex { animation: qzh-nudge 0.26s ease; }
 @media (prefers-reduced-motion: reduce) { .qzh-opt, .qzh-hex, .qzh-hex polygon, .qzh-hex b { transition: none; animation: none !important; } }
 
+/* The +XP tick (design §9.3): a correct-answer award rises in and settles as the
+   earned marker. Reduced-motion shows it statically (no rise). */
+@keyframes xp-tick-rise { 0% { opacity: 0; transform: translateY(6px); } 100% { opacity: 1; transform: translateY(0); } }
+.xp-tick { display: inline-block; animation: xp-tick-rise 0.5s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .xp-tick { animation: none; opacity: 1; } }
+
 /* Scroll reveal — sections tagged `data-reveal` fade + rise once as they enter
    the viewport, driven by a CSS scroll timeline (no JS). Guarded by @supports so
    unsupported browsers — and reduced-motion — simply show the content, never

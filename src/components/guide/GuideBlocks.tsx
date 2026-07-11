@@ -33,6 +33,16 @@ import { SelfCheckBlock } from "@/components/guide/SelfCheckBlock";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { WindowedPartModel } from "@/components/guide/WindowedPartModel";
 import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
+
+// Lesson-wide Logbook XP context (Library only, design §9.3). `state` is today's
+// per-question-key state; `questionKeysByBlock` maps a quiz block's array index to
+// its questions' server-computed keys (index-aligned to the block's questions).
+export interface LessonLogbook {
+  slug: string;
+  signedIn: boolean;
+  state: Record<string, "earned" | "locked" | "open">;
+  questionKeysByBlock: Record<number, string[]>;
+}
 import { DIAGRAM_COMPONENTS } from "@/components/guide/diagram-registry";
 import katex from "katex";
 import { EMBED_ISLANDS } from "@/components/tools/embed-islands";
@@ -1006,6 +1016,7 @@ function GuideBlock({
   isSignedIn,
   cardId,
   isAdmin,
+  logbook,
 }: {
   block: ContentBlock;
   index: number;
@@ -1018,6 +1029,7 @@ function GuideBlock({
   isSignedIn?: boolean;
   cardId?: string;
   isAdmin?: boolean;
+  logbook?: LessonLogbook;
 }) {
   switch (block.type) {
     case "prose": {
@@ -1185,6 +1197,16 @@ function GuideBlock({
             prompt={block.prompt}
             questions={block.questions}
             context={quizContext}
+            logbook={
+              logbook
+                ? {
+                    slug: logbook.slug,
+                    signedIn: logbook.signedIn,
+                    questionKeys: logbook.questionKeysByBlock[index] ?? [],
+                    state: logbook.state,
+                  }
+                : undefined
+            }
           />
         </section>
       );
@@ -1369,6 +1391,7 @@ export function GuideBlocks({
   stage,
   serverResume = null,
   lessonBase = null,
+  logbook,
 }: {
   blocks: ContentBlock[];
   models?: Record<string, ResolvedModel>;
@@ -1377,6 +1400,7 @@ export function GuideBlocks({
   quizContext?: QuizContext;
   projectId?: string;
   isSignedIn?: boolean;
+  logbook?: LessonLogbook;
   // The viewer's user id — scopes the resume localStorage key so a record can
   // never leak across accounts on a shared browser. Undefined = anonymous.
   userId?: string;
@@ -1439,6 +1463,7 @@ export function GuideBlocks({
         isSignedIn={isSignedIn}
         cardId={cardId}
         isAdmin={isAdmin}
+        logbook={logbook}
       />
     );
     return anchorId ? (
