@@ -36,6 +36,11 @@ const OUT = (
     <path d="M14 7V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-2M10 12h10M17 9l3 3-3 3" />
   </svg>
 );
+const WINGS = (
+  <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
+    <path d="M12 6v9M9 15l3 3 3-3M12 8L3 6l4 4M12 8l9-2-4 4" />
+  </svg>
+);
 const GEAR = (
   <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden>
     <circle cx="12" cy="12" r="3" />
@@ -47,6 +52,8 @@ const ADMIN_LINKS: { href: string; label: string }[] = [
   { href: "/admin/students", label: "Students" },
   { href: "/admin/billing", label: "Billing" },
   { href: "/admin/goals", label: "Goals" },
+  { href: "/admin/feedback", label: "Feedback" },
+  { href: "/admin/logbook", label: "Instrumentation" },
   { href: "/admin/sourcing", label: "Sourcing health" },
 ];
 
@@ -176,6 +183,11 @@ export function UserMenu({
         <Link href="/learn" onClick={close} className={ROW}>
           <span className="text-muted group-hover:text-gold-light">{BOOK}</span>
           <span>My learning</span>
+          <span aria-hidden className="ml-auto text-gray-3">›</span>
+        </Link>
+        <Link href="/logbook" onClick={close} className={ROW}>
+          <span className="text-muted group-hover:text-gold-light">{WINGS}</span>
+          <span>Logbook</span>
           <span aria-hidden className="ml-auto text-gray-3">›</span>
         </Link>
         <Link href="/courses" onClick={close} className={ROW}>

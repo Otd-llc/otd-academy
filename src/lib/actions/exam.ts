@@ -11,6 +11,9 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { withTxRetry } from "@/lib/tx-retry";
+import { recordCourseExamPass } from "@/lib/logbook/guide-awards";
+import { afterAward } from "@/lib/logbook/after-award";
+import { COURSE_EXAM_XP } from "@/lib/logbook/economy";
 
 // The stored question shape (answer key included). Validated on read so a
 // malformed bank fails loudly rather than leaking an unexpected field.
@@ -121,5 +124,24 @@ export async function submitExam(
   );
 
   revalidatePath(`/learn/${result.slug}`);
+
+  // Course XP: COURSE_EXAM_PASS on a genuine pass (design Phase 2). After commit,
+  // best-effort — XP/telemetry never blocks the result. Idempotent (a re-pass
+  // no-ops on the dedupeKey).
+  if (result.passed) {
+    try {
+      const award = await recordCourseExamPass(user.id, result.slug, new Date());
+      if (award.awarded) {
+        await afterAward(user.id, {
+          source: "COURSE_EXAM_PASS",
+          xp: COURSE_EXAM_XP,
+          levelUp: award.levelUp,
+        });
+      }
+    } catch {
+      // never block the exam result on XP
+    }
+  }
+
   return { score: result.score, total: result.total, passed: result.passed };
 }

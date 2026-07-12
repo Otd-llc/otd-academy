@@ -33,6 +33,20 @@ import { SelfCheckBlock } from "@/components/guide/SelfCheckBlock";
 import { ModelViewerLazy } from "@/components/ModelViewerLazy";
 import { WindowedPartModel } from "@/components/guide/WindowedPartModel";
 import { QuizBlock, type QuizContext } from "@/components/guide/QuizBlock";
+
+// Lesson-wide Logbook XP context (design §9.3 + Phase 2). `state` is today's
+// per-question-key state; `questionKeysByBlock` maps a quiz block's array index to
+// its questions' server-computed keys. Discriminated by `mode`: library lessons vs
+// course (build-guide) stage cards (see QuizLogbook).
+export type LessonLogbook = {
+  signedIn: boolean;
+  signInHref: string;
+  state: Record<string, "earned" | "locked" | "open">;
+  questionKeysByBlock: Record<number, string[]>;
+} & (
+  | { mode: "library"; slug: string }
+  | { mode: "course"; enrollmentId: string; stage: string }
+);
 import { DIAGRAM_COMPONENTS } from "@/components/guide/diagram-registry";
 import katex from "katex";
 import { EMBED_ISLANDS } from "@/components/tools/embed-islands";
@@ -1006,6 +1020,7 @@ function GuideBlock({
   isSignedIn,
   cardId,
   isAdmin,
+  logbook,
 }: {
   block: ContentBlock;
   index: number;
@@ -1018,6 +1033,7 @@ function GuideBlock({
   isSignedIn?: boolean;
   cardId?: string;
   isAdmin?: boolean;
+  logbook?: LessonLogbook;
 }) {
   switch (block.type) {
     case "prose": {
@@ -1185,6 +1201,23 @@ function GuideBlock({
             prompt={block.prompt}
             questions={block.questions}
             context={quizContext}
+            logbook={
+              logbook
+                ? {
+                    ...(logbook.mode === "course"
+                      ? {
+                          mode: "course" as const,
+                          enrollmentId: logbook.enrollmentId,
+                          stage: logbook.stage,
+                        }
+                      : { mode: "library" as const, slug: logbook.slug }),
+                    signedIn: logbook.signedIn,
+                    signInHref: logbook.signInHref,
+                    questionKeys: logbook.questionKeysByBlock[index] ?? [],
+                    state: logbook.state,
+                  }
+                : undefined
+            }
           />
         </section>
       );
@@ -1369,6 +1402,7 @@ export function GuideBlocks({
   stage,
   serverResume = null,
   lessonBase = null,
+  logbook,
 }: {
   blocks: ContentBlock[];
   models?: Record<string, ResolvedModel>;
@@ -1377,6 +1411,7 @@ export function GuideBlocks({
   quizContext?: QuizContext;
   projectId?: string;
   isSignedIn?: boolean;
+  logbook?: LessonLogbook;
   // The viewer's user id — scopes the resume localStorage key so a record can
   // never leak across accounts on a shared browser. Undefined = anonymous.
   userId?: string;
@@ -1439,6 +1474,7 @@ export function GuideBlocks({
         isSignedIn={isSignedIn}
         cardId={cardId}
         isAdmin={isAdmin}
+        logbook={logbook}
       />
     );
     return anchorId ? (

@@ -15,9 +15,19 @@
 // open the gate. Without a context (e.g. the editor preview) the quiz is a pure
 // self-check and records nothing.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { recordQuizPass } from "@/lib/actions/quiz";
+import {
+  recordQuizAnswer,
+  recordLessonComplete,
+  recordStageQuizAnswer,
+} from "@/lib/actions/logbook";
 import { Inline } from "@/components/guide/InlineText";
+import { XpTick } from "@/components/library/XpTick";
+import { patchLabel } from "@/lib/logbook/patches";
+import { useFanfare } from "@/components/logbook/Fanfare";
+import { trackSigninToLogClicked } from "@/lib/analytics-client";
 
 export interface QuizQuestion {
   q: string;
@@ -34,14 +44,32 @@ export interface QuizContext {
   passed: boolean;
 }
 
+/** Logbook XP wiring (design §9.3 + Phase 2). `questionKeys` is aligned
+ *  index-for-index with `questions` and computed SERVER-SIDE (questionKey is
+ *  node:crypto). `state` is today's per-key state. `signInHref` is the
+ *  callbackUrl-carrying sign-in link. Discriminated by `mode`: library quizzes
+ *  award per pick + complete the lesson; course (build-guide) quizzes award per
+ *  pick against the guide card (completion is the separate stage gate). */
+export type QuizLogbook = {
+  signedIn: boolean;
+  signInHref: string;
+  questionKeys: string[];
+  state: Record<string, "earned" | "locked" | "open">;
+} & (
+  | { mode: "library"; slug: string }
+  | { mode: "course"; enrollmentId: string; stage: string }
+);
+
 export function QuizBlock({
   prompt,
   questions,
   context,
+  logbook,
 }: {
   prompt?: string;
   questions: QuizQuestion[];
   context?: QuizContext;
+  logbook?: QuizLogbook;
 }) {
   // `selected[qi]` is the learner's latest pick on question qi; `wrong[qi]` is the
   // set of options they've already ruled out (picked wrong) there.
@@ -51,6 +79,30 @@ export function QuizBlock({
   const [wrong, setWrong] = useState<number[][]>(() => questions.map(() => []));
   const [passed, setPassed] = useState(context?.passed ?? false);
   const [recording, setRecording] = useState(false);
+
+  // Logbook XP overlay (Library only). Async + optimistic (design §3): the award
+  // POST is fired on the FIRST pick and never awaited before the instant grade.
+  // Server owns the amount — the client renders res.xp, never a guess.
+  const lb = logbook;
+  const [xpShown, setXpShown] = useState<(number | null)[]>(() =>
+    questions.map(() => null),
+  );
+  const [qLocked, setQLocked] = useState<boolean[]>(() =>
+    questions.map((_q, i) => lb?.state[lb.questionKeys[i]] === "locked"),
+  );
+  const qEarnedPrior = questions.map(
+    (_q, i) => lb?.state[lb.questionKeys[i]] === "earned",
+  );
+  const [completion, setCompletion] = useState<{
+    xp: number;
+    badges: string[];
+  } | null>(null);
+  const answerChain = useRef<Promise<unknown>[]>(
+    questions.map(() => Promise.resolve() as Promise<unknown>),
+  );
+  const firedAnswer = useRef<boolean[]>(questions.map(() => false));
+  const completeFired = useRef(false);
+  const fanfare = useFanfare();
 
   const isSolved = (qi: number) => selected[qi] === questions[qi].answer;
   const solvedCount = questions.reduce(
@@ -95,7 +147,76 @@ export function QuizBlock({
     if (oi !== questions[qi].answer) {
       setWrong((prev) => prev.map((w, i) => (i === qi ? [...w, oi] : w)));
     }
+    fireAnswer(qi, oi);
   }
+
+  // Record the FIRST pick's outcome to the Logbook (design §9.3). One call per
+  // question: a wrong first pick writes the QuizLock (which the completion check
+  // depends on) and greys the slot; a correct first pick awards, and the tick
+  // shows the SERVER's amount. Chained per question so a lock lands before any
+  // later award for the same key.
+  function fireAnswer(qi: number, oi: number) {
+    if (!lb?.signedIn) return;
+    const key = lb.questionKeys[qi];
+    if (!key) return;
+    if (firedAnswer.current[qi] || qEarnedPrior[qi] || qLocked[qi]) return;
+    firedAnswer.current[qi] = true;
+    answerChain.current[qi] = answerChain.current[qi]
+      .then(() =>
+        lb.mode === "course"
+          ? recordStageQuizAnswer({
+              enrollmentId: lb.enrollmentId,
+              stage: lb.stage,
+              questionKey: key,
+              pick: oi,
+            })
+          : recordQuizAnswer({ slug: lb.slug, questionKey: key, pick: oi }),
+      )
+      .then((res) => {
+        if (!res || !("ok" in res) || !res.ok) return;
+        if ("correct" in res && res.correct) {
+          if (res.xp > 0) {
+            setXpShown((prev) => prev.map((v, i) => (i === qi ? res.xp : v)));
+          } else {
+            setQLocked((prev) => prev.map((v, i) => (i === qi ? true : v)));
+          }
+          if (res.levelUp) {
+            fanfare({ kind: "level", label: res.levelUp.title, xp: res.xp });
+          }
+        } else {
+          setQLocked((prev) => prev.map((v, i) => (i === qi ? true : v)));
+        }
+      })
+      .catch(() => {});
+  }
+
+  // Record the lesson completion once every question is solved (design §5). Wait
+  // for the per-question writes so the server sees each key "attempted today"
+  // (a correct award OR a lock). A quiet "lesson logged" line renders on success.
+  useEffect(() => {
+    // Course quizzes have no logbook "completion" — the stage gate (recordQuizPass)
+    // + STAGE_CLEAR handle progress. Only library lessons log a completion here.
+    if (!lb?.signedIn || lb.mode !== "library" || !allSolved || completeFired.current)
+      return;
+    completeFired.current = true;
+    const slug = lb.slug;
+    Promise.allSettled(answerChain.current)
+      .then(() => recordLessonComplete({ slug }))
+      .then((res) => {
+        if (res && "ok" in res && res.ok) {
+          setCompletion({ xp: res.xp, badges: res.newBadges });
+          if (res.levelUp) {
+            fanfare({ kind: "level", label: res.levelUp.title, xp: res.xp });
+          }
+          for (const b of res.newBadges) {
+            fanfare({ kind: "patch", label: patchLabel(b) });
+          }
+        }
+      })
+      .catch(() => {});
+    // Fire only on the all-solved transition.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allSolved]);
 
   function reset() {
     setSelected(questions.map(() => null));
@@ -204,6 +325,24 @@ export function QuizBlock({
                 Not quite — ruled out, pick again.
               </p>
             ) : null}
+
+            {/* Logbook XP slot (signed-in Library only): the tick on a fresh
+                award, or a muted marker for an already-logged / locked question. */}
+            {lb?.signedIn ? (
+              <div className="mt-2 min-h-[1.1rem]">
+                {xpShown[qi] != null ? (
+                  <XpTick amount={xpShown[qi]!} />
+                ) : qEarnedPrior[qi] ? (
+                  <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
+                    Logged today
+                  </span>
+                ) : qLocked[qi] ? (
+                  <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-gray-3">
+                    Locked today · +0
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
           </fieldset>
         );
       })}
@@ -234,6 +373,28 @@ export function QuizBlock({
           >
             Start over
           </button>
+        ) : null}
+
+        {/* Signed-out reader: the tick slot becomes the signup driver. */}
+        {lb && !lb.signedIn ? (
+          <Link
+            href={lb.signInHref}
+            onClick={() =>
+              trackSigninToLogClicked(lb.mode === "library" ? lb.slug : lb.stage)
+            }
+            className="font-mono text-xs uppercase tracking-wider text-command-gold underline-offset-4 transition-colors hover:text-gold-light hover:underline"
+          >
+            Sign in to log XP
+          </Link>
+        ) : null}
+
+        {completion ? (
+          <span className="font-mono text-xs uppercase tracking-wider text-command-gold">
+            Lesson logged{completion.xp > 0 ? ` +${completion.xp} XP` : ""}
+            {completion.badges.length > 0
+              ? ` · ${completion.badges.map(patchLabel).join(", ")}`
+              : ""}
+          </span>
         ) : null}
       </div>
     </section>

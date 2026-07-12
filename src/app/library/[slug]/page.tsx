@@ -14,6 +14,7 @@ import { GuideBlocks } from "@/components/guide/GuideBlocks";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/PageHeader";
 import { DownloadPdfLink } from "@/components/library/DownloadPdfLink";
+import { FeedbackBox } from "@/components/library/FeedbackBox";
 import {
   techArticleJsonLd,
   learningResourceJsonLd,
@@ -25,6 +26,10 @@ import { guideContentBlocksSchema } from "@/lib/schemas/guide";
 import { filterLibraryBlocks } from "@/lib/library/block-allowlist";
 import { LIBRARY_DEFINED_TERMS } from "@/lib/library/defined-terms";
 import { loadPublicMiniLesson } from "@/lib/library/load";
+import { auth } from "@/auth";
+import { db } from "@/lib/db";
+import { questionKey } from "@/lib/logbook/question-key";
+import { getLessonState } from "@/lib/logbook/load";
 
 // DB-backed: render at request time (the CI build runs with a stub DATABASE_URL).
 export const dynamic = "force-dynamic";
@@ -70,6 +75,33 @@ export default async function LibraryArticlePage({
   // reach the renderer without project context; a bad row safeParses to []).
   const parsed = guideContentBlocksSchema.safeParse(lesson.contentBlocks);
   const blocks = filterLibraryBlocks(parsed.success ? parsed.data : []);
+
+  // Logbook XP wiring (design §9.3). Compute each quiz block's stable question
+  // keys SERVER-SIDE (questionKey is node:crypto), keyed by the block's array
+  // index so GuideBlocks can hand each QuizBlock its own index-aligned keys.
+  const questionKeysByBlock: Record<number, string[]> = {};
+  const flatKeys: string[] = [];
+  blocks.forEach((block, i) => {
+    if (block.type === "quiz") {
+      const keys = block.questions.map((q) => questionKey(lesson.slug, q));
+      questionKeysByBlock[i] = keys;
+      flatKeys.push(...keys);
+    }
+  });
+  const session = await auth();
+  const signedIn = Boolean(session?.user);
+  let lessonState: Record<string, "earned" | "locked" | "open"> = {};
+  if (session?.user?.email && flatKeys.length > 0) {
+    const viewer = await db.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true },
+    });
+    if (viewer) {
+      lessonState = (
+        await getLessonState(viewer.id, lesson.slug, flatKeys, new Date())
+      ).perQuestion;
+    }
+  }
 
   const base = siteUrl();
   const url = `${base}/library/${lesson.slug}`;
@@ -129,7 +161,20 @@ export default async function LibraryArticlePage({
         <DownloadPdfLink href={`/library/${lesson.slug}/pdf`} label="Download PDF" />
       </div>
 
-      <GuideBlocks blocks={blocks} isSignedIn={false} />
+      {/* isSignedIn stays false: it gates the resume rail (design note); the
+          Logbook is a separate, orthogonal prop. */}
+      <GuideBlocks
+        blocks={blocks}
+        isSignedIn={false}
+        logbook={{
+          mode: "library",
+          slug: lesson.slug,
+          signedIn,
+          signInHref: `/sign-in?callbackUrl=/library/${lesson.slug}`,
+          state: lessonState,
+          questionKeysByBlock,
+        }}
+      />
 
       {lesson.byline ? (
         <p className="mt-8 font-mono text-xs uppercase tracking-wider text-muted">
@@ -188,6 +233,8 @@ export default async function LibraryArticlePage({
           })}
         </section>
       ) : null}
+
+      <FeedbackBox pageRef={`library/${lesson.slug}`} signedIn={signedIn} />
     </main>
   );
 }
