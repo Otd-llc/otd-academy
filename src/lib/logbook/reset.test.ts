@@ -15,7 +15,7 @@ describe("resetLessonXp", () => {
     const u = await db.user.create({
       data: {
         email: `logbook-reset-${Date.now()}@test.local`,
-        xpTotal: 210, // level 3 (>= 200)
+        xpTotal: 165, // level 3 (>= 150 on the 12-rank ladder)
         level: 3,
       },
     });
@@ -50,8 +50,8 @@ describe("resetLessonXp", () => {
     expect(res.affected).toBe(1);
 
     const fresh = await db.user.findUniqueOrThrow({ where: { id: u.id } });
-    expect(fresh.xpTotal).toBe(210 - 17); // 193
-    expect(fresh.level).toBe(2); // recomputed DOWN from 3 (193 < 200)
+    expect(fresh.xpTotal).toBe(165 - 17); // 148
+    expect(fresh.level).toBe(2); // recomputed DOWN from 3 (148 < 150)
 
     // lesson XP + lock gone
     expect(await db.xpEvent.count({ where: { userId: u.id, refId: { startsWith: `${slug}#` } } })).toBe(0);

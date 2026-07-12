@@ -5,9 +5,9 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { loadLessonMeta, getLogbook } from "@/lib/logbook/load";
 import { LEVELS } from "@/lib/logbook/economy";
-import { ROADMAP_PATCHES, SKILL_PATCH_LABELS, patchLabel } from "@/lib/logbook/patches";
+import { ROADMAP_PATCHES, SKILL_PATCH_LABELS, patchLabel, artForBadge } from "@/lib/logbook/patches";
 import { RankWing } from "@/components/logbook/RankWing";
-import { Patch, type PatchKind } from "@/components/logbook/Patch";
+import { PatchWall, type PatchEntry } from "@/components/logbook/PatchWall";
 
 // The Logbook (design §9.5; layout locked 2026-07-11 = sticky standing rail +
 // patches-first accordion). Private, auth-gated by middleware (the redirect here
@@ -79,6 +79,16 @@ export default async function LogbookPage() {
   const ratingPatches = lb.badges.filter((b) => b.badgeKey.startsWith("course:"));
   const patchCount = ROADMAP_PATCHES.filter((p) => earnedKeys.has(p.key)).length + skillPatches.length + ratingPatches.length;
 
+  const SKILL_HOWTO: Record<string, string> = {
+    "skill:first-flight": "Complete your first lesson.",
+    "skill:shipped-it": "Have your feedback marked useful.",
+  };
+  const patchEntries: PatchEntry[] = [
+    ...ROADMAP_PATCHES.map((p) => ({ key: p.key, label: p.label, howToEarn: p.howToEarn, earned: earnedKeys.has(p.key), art: artForBadge(p.key) })),
+    ...skillPatches.map((b) => ({ key: b.badgeKey, label: patchLabel(b.badgeKey), howToEarn: SKILL_HOWTO[b.badgeKey] ?? "", earned: true, art: artForBadge(b.badgeKey) })),
+    ...ratingPatches.map((b) => ({ key: b.badgeKey, label: patchLabel(b.badgeKey), howToEarn: "Pass the course exam.", earned: true, art: artForBadge(b.badgeKey) })),
+  ];
+
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <div className="title-rule mb-4" aria-hidden />
@@ -112,23 +122,7 @@ export default async function LogbookPage() {
         {/* RIGHT — accordion sections; patches first + open */}
         <div>
           <Section title="Patches" count={`${patchCount} earned`} defaultOpen>
-            <div className="grid grid-cols-3 gap-1 sm:grid-cols-4">
-              {ROADMAP_PATCHES.map((p) => (
-                <Patch
-                  key={p.key}
-                  kind={p.key.startsWith("wings:") ? "wings" : "cluster"}
-                  label={p.label}
-                  earned={earnedKeys.has(p.key)}
-                  howToEarn={p.howToEarn}
-                />
-              ))}
-              {skillPatches.map((b) => (
-                <Patch key={b.badgeKey} kind="skill" label={patchLabel(b.badgeKey)} earned />
-              ))}
-              {ratingPatches.map((b) => (
-                <Patch key={b.badgeKey} kind="rating" label={patchLabel(b.badgeKey)} earned />
-              ))}
-            </div>
+            <PatchWall entries={patchEntries} />
           </Section>
 
           <Section title="Clusters" count={`${lb.clusters.reduce((n, c) => n + c.done, 0)} / ${lb.clusters.reduce((n, c) => n + c.total, 0)}`} defaultOpen>
