@@ -25,7 +25,7 @@ import {
 } from "@/lib/actions/logbook";
 import { Inline } from "@/components/guide/InlineText";
 import { XpTick } from "@/components/library/XpTick";
-import { patchLabel } from "@/lib/logbook/patches";
+import { patchLabel, artForBadge } from "@/lib/logbook/patches";
 import { useFanfare } from "@/components/logbook/Fanfare";
 import { trackSigninToLogClicked } from "@/lib/analytics-client";
 
@@ -209,7 +209,7 @@ export function QuizBlock({
             fanfare({ kind: "level", label: res.levelUp.title, xp: res.xp });
           }
           for (const b of res.newBadges) {
-            fanfare({ kind: "patch", label: patchLabel(b) });
+            fanfare({ kind: "patch", label: patchLabel(b), art: artForBadge(b) });
           }
         }
       })
