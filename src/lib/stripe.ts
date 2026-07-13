@@ -32,18 +32,38 @@ export function getStripe(): Stripe {
 
 /**
  * Resolve (create-or-reuse) the Stripe Customer for a user and return its id.
- * If the user already has a `stripeCustomerId`, return it untouched; otherwise
- * create a Stripe Customer (carrying `email` + `metadata.userId`), persist the
- * new id on the User row, and return it.
+ *
+ * If the user has a stored `stripeCustomerId`, VERIFY it still resolves under the
+ * current Stripe key before trusting it. A stored id can go stale: it may belong
+ * to the OTHER Stripe mode (a test-mode customer once live keys are in use, or vice
+ * versa), it may have been deleted, or it may belong to a different account. Stripe
+ * rejects any of these with `resource_missing` ("No such customer ... exists in test
+ * mode, but a live mode key was used"), which otherwise surfaces as a hard render
+ * error on /pricing. In every such case we SELF-HEAL: mint a fresh customer for the
+ * current mode and persist the new id. Any other Stripe/network error is re-thrown.
  */
 export async function ensureStripeCustomer(user: {
   id: string;
   email: string | null;
   stripeCustomerId: string | null;
 }): Promise<string> {
-  if (user.stripeCustomerId) return user.stripeCustomerId;
+  const stripe = getStripe();
 
-  const customer = await getStripe().customers.create({
+  if (user.stripeCustomerId) {
+    try {
+      const existing = await stripe.customers.retrieve(user.stripeCustomerId);
+      // A live, non-deleted customer under this key is safe to reuse.
+      if (!("deleted" in existing && existing.deleted)) return user.stripeCustomerId;
+      // Deleted → fall through and recreate.
+    } catch (err) {
+      const missing =
+        err instanceof Stripe.errors.StripeError && err.code === "resource_missing";
+      if (!missing) throw err; // real failure (network, auth, rate limit) — surface it
+      // stale/foreign/wrong-mode id → fall through and recreate.
+    }
+  }
+
+  const customer = await stripe.customers.create({
     email: user.email ?? undefined,
     metadata: { userId: user.id },
   });
