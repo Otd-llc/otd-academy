@@ -167,54 +167,40 @@ body {
   font-family: var(--font-serif);
 }
 
-/* ── Global engineering-paper backdrop ───────────────────────────────────────
-   A fixed, full-viewport isometric graph-paper field behind every page: a
-   two-tier triangular line grid (fine + bold) in dim steel, with a top-biased
-   vignette that keeps the content band clear and fades the grid into deep space
-   at the edges. Cell size is LOCKED to the title scale (--hero-size / 6.5) and
-   floored at 15px so it never goes tiny on phones. `position: fixed` so it holds
-   per-viewport as the page scrolls. */
+/* ── Global paper backdrop ───────────────────────────────────────────────────
+   A fixed, full-viewport paper field behind every page: a fine cold-press speckle
+   over faint horizontal laid lines (vellum; design pick 2026-07-13, replacing the
+   old isometric line grid). It stays put and always visible on scroll — no fade,
+   no vignette darkening — and a vertical mask keeps it a touch stronger at the
+   screen top + bottom, softer through the reading band. The deep-space base is
+   painted on the element itself (unmasked, so nothing shows through); the paper is
+   a masked ::after on top. `--tex-rgb` is an rgb triple the light theme overrides,
+   so the ink flips from blue-steel to warm graphite. */
 .app-backdrop {
   position: fixed;
   inset: 0;
   z-index: -10;
   pointer-events: none;
-  --cell: clamp(15px, calc(var(--hero-size) / 6.5), 18px);
-  --major: calc(var(--cell) * 3);
-  /* Quieter than before — the grid is a texture, not a subject. */
-  --grid-minor: rgba(150, 170, 205, 0.022);
-  --grid-bold: rgba(150, 170, 205, 0.042);
   background-color: var(--color-deep-space);
+}
+.app-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  --tex-rgb: 150 170 205;
   background-image:
-    radial-gradient(96% 88% at 50% 26%, transparent 18%, var(--color-deep-space) 100%),
-    repeating-linear-gradient(90deg, transparent 0 calc(var(--major) - 1px), var(--grid-bold) 0 var(--major)),
-    repeating-linear-gradient(30deg, transparent 0 calc(var(--major) - 1px), var(--grid-bold) 0 var(--major)),
-    repeating-linear-gradient(150deg, transparent 0 calc(var(--major) - 1px), var(--grid-bold) 0 var(--major)),
-    repeating-linear-gradient(90deg, transparent 0 calc(var(--cell) - 1px), var(--grid-minor) 0 var(--cell)),
-    repeating-linear-gradient(30deg, transparent 0 calc(var(--cell) - 1px), var(--grid-minor) 0 var(--cell)),
-    repeating-linear-gradient(150deg, transparent 0 calc(var(--cell) - 1px), var(--grid-minor) 0 var(--cell));
-}
-/* Scroll-driven fade — the grid shows at the very top and the very bottom of a
-   page and clears through the middle, so it never competes with the reading
-   area. Scroll-linked (no JS), guarded by @supports; browsers without
-   scroll-timeline just keep the quiet static grid. Disabled for reduced-motion. */
-@keyframes app-backdrop-fade {
-  0% { opacity: 1; }
-  16% { opacity: 0; }
-  84% { opacity: 0; }
-  100% { opacity: 1; }
-}
-@supports (animation-timeline: scroll()) {
-  .app-backdrop {
-    animation: app-backdrop-fade linear both;
-    animation-timeline: scroll(root);
-    animation-range: 0 100%;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .app-backdrop {
-      animation: none;
-    }
-  }
+    radial-gradient(rgb(var(--tex-rgb) / 0.045) 0.5px, transparent 0.7px),
+    repeating-linear-gradient(0deg, transparent 0 2px, rgb(var(--tex-rgb) / 0.03) 2px 3px);
+  background-size: 7px 7px, auto;
+  --backdrop-mask: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 0.5) 30%,
+    rgba(0, 0, 0, 0.5) 70%,
+    rgba(0, 0, 0, 1) 100%
+  );
+  -webkit-mask-image: var(--backdrop-mask);
+  mask-image: var(--backdrop-mask);
 }
 @media print {
   .app-backdrop {
@@ -488,12 +474,15 @@ body {
    variety (owner call 2026-07-11); every variant is a rise-and-fade so it works
    with the persistent marker. Reduced-motion hides the float; the marker still
    shows the award (never sight-only). */
-/* Milestone fanfare toast (owner-picked: scale-pop + +XP trailing). Top-right,
-   auto-dismiss. Reduced-motion → a plain fade (no scale). */
-@keyframes fanfare-pop { 0%{opacity:0;transform:scale(.85)} 14%{opacity:1;transform:scale(1.05)} 26%{transform:scale(1)} 74%{opacity:1;transform:scale(1)} 100%{opacity:0;transform:scale(1)} }
-@keyframes fanfare-fade { 0%{opacity:0} 10%{opacity:1} 80%{opacity:1} 100%{opacity:0} }
-.fanfare-toast { animation: fanfare-pop 2.9s cubic-bezier(.2,1.1,.3,1) forwards; }
-@media (prefers-reduced-motion: reduce) { .fanfare-toast { animation: fanfare-fade 2.9s ease forwards; } }
+/* Milestone fanfare banner (owner-picked 2026-07-13: full-width top bar, three-dash
+   countdown, auto-dismiss ~4s = the Material/Sonner default, pause on hover, slides
+   in then out). The dwell + removal are JS-driven; these are just the in/out glides.
+   Reduced-motion → no transform glide (the countdown + removal still apply). */
+@keyframes fanfare-drop { from { opacity: 0; transform: translateY(-100%); } to { opacity: 1; transform: none; } }
+@keyframes fanfare-up { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-100%); } }
+.fanfare-drop { animation: fanfare-drop .34s cubic-bezier(.2, .85, .25, 1) both; }
+.fanfare-up { animation: fanfare-up .3s cubic-bezier(.4, 0, 1, 1) both; }
+@media (prefers-reduced-motion: reduce) { .fanfare-drop, .fanfare-up { animation-duration: .01ms; } }
 
 .xp-pop { animation-duration: 1.5s; animation-fill-mode: forwards; }
 @keyframes xp-pop-1 { 0%{opacity:0;transform:translateY(4px) scale(.9)} 16%{opacity:1;transform:translateY(-1px) scale(1.08)} 40%{opacity:1;transform:translateY(-3px) scale(1)} 100%{opacity:0;transform:translateY(-28px) scale(1)} }
@@ -1278,210 +1267,6 @@ body {
   );
 }
 
-/* ---- site footer — technical colophon (matches onethousanddrones.com) ---- */
-.app-footer {
-  font-family: var(--font-mono), monospace;
-  color: var(--color-muted);
-  /* Clip the bee watermark at the VIEWPORT edge (not the 72rem content column),
-     so it bleeds off-screen instead of cutting off mid-page on wide desktops. */
-  overflow: hidden;
-  border-top: 1px solid transparent;
-  border-image: linear-gradient(
-      90deg,
-      transparent,
-      color-mix(in srgb, var(--color-command-gold) 55%, transparent),
-      transparent
-    )
-    1;
-  background:
-    radial-gradient(
-      120% 90% at 50% 0%,
-      color-mix(in srgb, var(--color-command-gold) 5%, transparent),
-      transparent 60%
-    ),
-    var(--color-deep-space);
-}
-.foot-inner {
-  position: relative;
-  z-index: 0; /* stacking context so the bee watermark sits behind the colophon */
-  max-width: 72rem;
-  margin: 0 auto;
-  padding: 3.2rem 1.5rem 2.4rem;
-}
-/* Brand-icon watermark. Desktop: bleeds off the right edge, columns kept clear
-   on the left. Opacity is W02 — deeper on dark (near-black needs it), lighter on
-   the ivory paper (see the light override below). */
-.foot-wm-bee {
-  position: absolute;
-  z-index: -1;
-  top: 50%;
-  right: -8%;
-  transform: translateY(-50%);
-  width: 46%;
-  max-width: 620px;
-  color: var(--color-command-gold);
-  opacity: 0.1;
-  pointer-events: none;
-}
-.foot-wm-bee svg {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-.foot-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  text-decoration: none;
-}
-.foot-brand svg,
-.foot-brand img {
-  height: 1.7rem;
-  width: 1.7rem;
-  flex-shrink: 0;
-}
-.foot-bee {
-  color: var(--color-command-gold);
-}
-.foot-wm {
-  font-family: var(--font-display), sans-serif;
-  font-size: 1.3rem;
-  letter-spacing: 0.1em;
-  color: var(--color-gray-1);
-  transition: color 0.15s;
-}
-.foot-brand:hover .foot-wm {
-  color: #fff;
-}
-.foot-tag {
-  font-size: 12px;
-  letter-spacing: 0.03em;
-  color: var(--color-gray-3);
-  margin-top: 0.7rem;
-}
-/* Scalable colophon: short themed groups in an auto-fit grid. Add a group, it
-   reflows; on mobile it drops to two columns. Gold rationed to the bee. */
-.foot-cols {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
-  gap: 1.7rem 1.3rem;
-  margin-top: 2.1rem;
-}
-.foot-group {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-.foot-gh {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--color-gray-1);
-  margin-bottom: 0.85rem;
-}
-.foot-group a {
-  font-size: 13px;
-  letter-spacing: 0.04em;
-  color: var(--color-link-muted);
-  text-decoration: none;
-  padding: 0.18rem 0;
-  overflow-wrap: anywhere;
-  transition: color 0.15s;
-}
-.foot-group a:hover {
-  color: #fff;
-}
-.foot-group a .ext {
-  color: var(--color-signal-blue);
-  font-size: 11px;
-}
-.foot-reg {
-  font-size: 10.5px;
-  line-height: 1.85;
-  letter-spacing: 0.04em;
-  color: var(--color-gray-3);
-  overflow-wrap: anywhere;
-}
-.foot-end {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem 1.5rem;
-  flex-wrap: wrap;
-  margin-top: 2rem;
-}
-.foot-copy {
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-gray-3);
-}
-/* Social profile icon row (footer). Gold marks that brighten on hover; the
-   accessible name lives on each link's aria-label. */
-.foot-social {
-  display: flex;
-  align-items: center;
-  gap: 1.1rem;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.foot-social a {
-  display: inline-flex;
-  color: var(--color-command-gold);
-  transition: color 0.15s;
-}
-.foot-social a:hover {
-  color: var(--color-gold-light);
-}
-.foot-social a:focus-visible {
-  outline: 2px solid var(--color-gold-light);
-  outline-offset: 3px;
-  border-radius: 2px;
-}
-/* Desktop (F02): keep the columns on the left ~70% so the bee reads on the
-   right. Mobile is untouched — the grid stays full-width and reflows to 2 cols. */
-@media (min-width: 721px) {
-  .foot-cols {
-    max-width: 70%;
-  }
-  /* Desktop: pin the social row to the left edge and CENTER the copyright
-     between it and the bee watermark (which bleeds off the right). Mobile keeps
-     the simple left-icons / right-copy row. */
-  .foot-end {
-    position: relative;
-    justify-content: center;
-  }
-  .foot-social {
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-  }
-}
-@media (max-width: 720px) {
-  .foot-inner {
-    padding: 2.6rem 1.25rem 1.8rem;
-  }
-  /* M01 mobile: the bee tucks into the bottom-right corner instead of bleeding
-     off the side. */
-  .foot-wm-bee {
-    top: auto;
-    bottom: -6%;
-    right: -12%;
-    transform: none;
-    width: 52%;
-  }
-  /* Registry spans both columns under a hairline, below the 2-col link grid. */
-  .foot-group-reg {
-    grid-column: 1 / -1;
-    border-top: 1px solid color-mix(in srgb, var(--color-panel-border) 55%, transparent);
-    padding-top: 1.2rem;
-    margin-top: 0.3rem;
-  }
-}
-
 /* ── Light-theme decontamination overrides (Phase 1) ─────────────────────────
    Non-token literals the `:root[data-theme="light"]` token block can't reach:
    hardcoded bright-white ink (#fff), a pale-gray lead, white washes, the
@@ -1489,26 +1274,17 @@ body {
    rgba TINTS already auto-theme (converted to color-mix(var(--token))). Dark
    keeps every original value untouched. Unlayered, so these beat the
    `@layer components` rules without reordering. */
-:root[data-theme="light"] .app-backdrop {
-  /* warm graphite grid on paper (not blue-steel on deep-space). Paper shows
-     every line, so keep it fainter than the dark values — a whisper of texture. */
-  --grid-minor: rgba(40, 34, 22, 0.018);
-  --grid-bold: rgba(40, 34, 22, 0.032);
+:root[data-theme="light"] .app-backdrop::after {
+  /* warm graphite paper ink instead of blue-steel on deep-space */
+  --tex-rgb: 40 34 22;
 }
 :root[data-theme="light"] .gh-lead {
   /* #d8d8d8 bright-on-dark → dark ink on paper */
   color: var(--color-text);
 }
-:root[data-theme="light"] .phex:hover .phex-title,
-:root[data-theme="light"] .foot-brand:hover .foot-wm,
-:root[data-theme="light"] .foot-group a:hover {
+:root[data-theme="light"] .phex:hover .phex-title {
   /* #fff brightest-on-dark → the darkest ink on light */
   color: var(--color-title);
-}
-/* W02 watermark: lighter on the ivory paper (the deep-space dark value would be
-   heavy on light). */
-:root[data-theme="light"] .foot-wm-bee {
-  opacity: 0.06;
 }
 :root[data-theme="light"] .table-tech td .ref {
   color: var(--color-title);
