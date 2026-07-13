@@ -2,7 +2,7 @@
 // scene inside its own silhouette frame (sky-glow gradient → bespoke scene → 3-line
 // gold merrow), except Wings, which is a clean insignia on deep-space. Earned = full
 // color; locked = dimmed + desaturated. Pure SVG (token colors); server-safe.
-import type { PatchArt } from "@/lib/logbook/patches";
+import type { PatchArt, LogbookArt, HardwareArt } from "@/lib/logbook/patches";
 
 const G = "var(--color-command-gold)";
 const GL = "var(--color-gold-light)";
@@ -54,7 +54,7 @@ const wingsInsignia = () => (
 );
 
 type Framed = { shape: (r: number) => string; r: number; scene: () => React.ReactNode };
-const FRAMED: Record<Exclude<PatchArt, "wings">, Framed> = {
+const FRAMED: Record<Exclude<LogbookArt, "wings">, Framed> = {
   flight: { shape: circle, r: 36, scene: () => <g><circle cx="74" cy="38" r="2" fill={GL} /><path d="M18 54Q46 46 74 38" fill="none" stroke={GL} strokeWidth={1} opacity={0.55} strokeDasharray="2 3" /><path d={R.range} fill={DS} /></g> },
   fund: { shape: pentagon, r: 39, scene: () => <g>{stars([[22, 24, 1], [76, 22, 1], [50, 18, 1.2]])}{omega(50, 50)}<path d={R.range} fill={DS} /></g> },
   eeg: { shape: hexagon, r: 38, scene: () => <g>{stars([[24, 24, 1], [76, 22, 1]])}{humpWave(34, 2.4, 0.6)}{humpWave(41, 1.3, 0.35)}<circle cx="50" cy="38" r="1.6" fill={BLUE} /><path d={R.hills} fill={DS} /><path d="M41 82a9 8 0 0 1 18 0z" fill={DS} stroke={G} strokeWidth={0.9} /><line x1="50" y1="74" x2="50" y2="66" stroke={GD} strokeWidth={1} /><path d={starD(50, 64, 2.4, 1)} fill={GL} /></g> },
@@ -66,12 +66,95 @@ const FRAMED: Record<Exclude<PatchArt, "wings">, Framed> = {
   rating: { shape: star, r: 40, scene: () => <g>{rays(50, 48, 30, 0.22)}<path d={starD(50, 48, 16, 6.7)} fill={GL} />{stars([[24, 26, 1], [76, 24, 1]])}</g> },
 };
 
-export function PatchBadge({ art, earned = true, size = 64 }: { art: PatchArt; earned?: boolean; size?: number }) {
-  const style = { opacity: earned ? 1 : 0.38, filter: earned ? undefined : "saturate(0.35)" } as const;
+// ---- hardware/build family (tiered, design 2026-07-13): real medal metal for the
+// frame + background (bronze / silver / gold); the scene develops per stage, silver
+// adds a metal glow, gold adds a star crown. ----
+const gear = (r: number) => { const n = 24, inner = r * 0.84; let d = ""; for (let i = 0; i < n; i++) { const rr = i % 2 ? inner : r; const a = -Math.PI / 2 + (i * 2 * Math.PI) / n; d += (i ? "L" : "M") + (50 + Math.cos(a) * rr).toFixed(1) + " " + (50 + Math.sin(a) * rr).toFixed(1); } return d + "Z"; };
+const rsq = (r: number) => { const k = r * 0.86, c = r * 0.24; return `M${50 - k + c} ${50 - k}L${50 + k - c} ${50 - k}Q${50 + k} ${50 - k} ${50 + k} ${50 - k + c}L${50 + k} ${50 + k - c}Q${50 + k} ${50 + k} ${50 + k - c} ${50 + k}L${50 - k + c} ${50 + k}Q${50 - k} ${50 + k} ${50 - k} ${50 + k - c}L${50 - k} ${50 - k + c}Q${50 - k} ${50 - k} ${50 - k + c} ${50 - k}Z`; };
+const docTag = (r: number) => { const w = r * 0.8, h = r * 0.98, f = r * 0.3; return `M${50 - w} ${50 - h}L${50 + w - f} ${50 - h}L${50 + w} ${50 - h + f}L${50 + w} ${50 + h}L${50 - w} ${50 + h}Z`; };
+const trapezoid = (r: number) => { const t = r * 0.72, b = r * 1.0, h = r * 0.92, c = r * 0.1; return `M${50 - t + c} ${50 - h}L${50 + t - c} ${50 - h}Q${50 + t} ${50 - h} ${50 + t + c * 0.4} ${50 - h + c}L${50 + b} ${50 + h - c}Q${50 + b} ${50 + h} ${50 + b - c} ${50 + h}L${50 - b + c} ${50 + h}Q${50 - b} ${50 + h} ${50 - b} ${50 + h - c}L${50 - t - c * 0.4} ${50 - h + c}Q${50 - t} ${50 - h} ${50 - t + c} ${50 - h}Z`; };
+const rosette = (r: number) => { const n = 12; let d = ""; for (let i = 0; i <= n; i++) { const a = -Math.PI / 2 + (i * 2 * Math.PI) / n; const px = 50 + Math.cos(a) * r, py = 50 + Math.sin(a) * r; const mid = a - Math.PI / n; const cx = 50 + Math.cos(mid) * r * 1.12, cy = 50 + Math.sin(mid) * r * 1.12; d += i ? `Q${cx.toFixed(1)} ${cy.toFixed(1)} ${px.toFixed(1)} ${py.toFixed(1)}` : `M${px.toFixed(1)} ${py.toFixed(1)}`; } return d + "Z"; };
+// real medal metals (brand has no bronze/silver — Olympic scheme): bronze · silver · gold
+// `edge` = a darkened rim tone per metal so the seal reads on the light-theme ivory
+// (the bright `hi` sheen now sits inside as a bevel, not on the outer edge).
+const METAL = [{ base: "#c67b3a", hi: "#e6a866", sh: "#5c3410", bot: "#c67b3a", edge: "#6b3d16" }, { base: "#7d828b", hi: "#eef1f6", sh: "#565b63", bot: "#c6cad1", edge: "#474c54" }, { base: G, hi: GL, sh: GD, bot: GL, edge: GD }];
+const glowRays = (cx: number, cy: number, r1: number, op: number, c: string) => <g>{Array.from({ length: 11 }).map((_, i) => { const a = -Math.PI / 2 + (i - 5) * 0.16; return <path key={i} d={`M${cx} ${cy}L${cx + Math.cos(a) * r1} ${cy + Math.sin(a) * r1}L${cx + Math.cos(a + 0.05) * r1} ${cy + Math.sin(a + 0.05) * r1}Z`} fill={c} opacity={op} />; })}</g>;
+const iron = (hx: number, hy: number, tx: number, ty: number) => <g><line x1={hx} y1={hy} x2={tx} y2={ty} stroke={G} strokeWidth={2.6} strokeLinecap="round" /><path d={`M${tx} ${ty}l-5 -1 3 5z`} fill={GD} /><path d={`M${hx} ${hy}l5 -3 -1 5z`} fill={GD} /></g>;
+const spark = (x: number, y: number, s = 4) => <g stroke={GL} strokeWidth={1} strokeLinecap="round">{[0, 45, 90, 135].map((deg) => { const a = (deg * Math.PI) / 180; return <line key={deg} x1={x - Math.cos(a) * s} y1={y - Math.sin(a) * s} x2={x + Math.cos(a) * s} y2={y + Math.sin(a) * s} />; })}</g>;
+const bd = (x: number, y: number, w: number, h: number) => <rect x={x} y={y} width={w} height={h} rx="1.5" fill={DS} stroke={G} strokeWidth={1.2} />;
+const comp = (x: number, y: number, w = 7, h = 4) => <rect x={x} y={y} width={w} height={h} rx="0.6" fill="none" stroke={G} strokeWidth={0.8} />;
+const builtBoard = (x: number, y: number, w: number, h: number) => <g>{bd(x, y, w, h)}<path d={`M${x + 6} ${y + 6}h${w * 0.4}v${h * 0.4}h${w * 0.35}`} fill="none" stroke={G} strokeWidth={0.6} opacity={0.6} />{comp(x + 5, y + h - 8)}{comp(x + w - 14, y + 5)}<rect x={x + w * 0.4} y={y + h * 0.4} width="8" height="8" rx="1" fill="none" stroke={G} strokeWidth={0.8} /></g>;
+const pin = (x: number, y: number, c = GREEN) => <g><path d={`M${x} ${y}c-4 0 -6 3 -6 6 0 4 6 10 6 10s6-6 6-10c0-3-2-6-6-6z`} fill={DS} stroke={c} strokeWidth={1.4} /><circle cx={x} cy={y + 6} r="2" fill={c} /></g>;
+const sealMark = (x: number, y: number, r = 9) => { const lobes = Array.from({ length: 16 }, (_, i) => { const a = (i / 16) * Math.PI * 2; const rr = r + (i % 2 ? 1.2 : -0.7); return `${(x + Math.cos(a) * rr).toFixed(1)} ${(y + Math.sin(a) * rr).toFixed(1)}`; }).join("L"); return <g><path d={`M${lobes}Z`} fill={GD} stroke={G} strokeWidth={0.8} /><path d={starD(x, y, r * 0.5, r * 0.2)} fill={GL} /></g>; };
+const hcheck = (x: number, y: number, s = 1) => <path d={`M${x - 4 * s} ${y}l${3 * s} ${3 * s} ${5 * s} ${-6 * s}`} fill="none" stroke={GREEN} strokeWidth={2 * s} strokeLinecap="round" strokeLinejoin="round" />;
+const pw = (cx: number, cy: number, r: number) => <g stroke={GL} strokeWidth={2.6} fill="none"><path d={`M${cx - r * 0.75} ${cy - r * 0.2}a${r} ${r} 0 1 0 ${r * 1.5} 0`} /><line x1={cx} y1={cy - r * 1.4} x2={cx} y2={cy} /></g>;
+const arcp = (cx: number, cy: number, r: number, frac: number) => { if (frac >= 1) return `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0`; const a1 = -Math.PI / 2 + frac * 2 * Math.PI; const large = frac > 0.5 ? 1 : 0; return `M${cx} ${cy - r}A${r} ${r} 0 ${large} 1 ${(cx + Math.cos(a1) * r).toFixed(1)} ${(cy + Math.sin(a1) * r).toFixed(1)}`; };
+const hbox = (x: number, y: number, w = 20, h = 16) => <g><rect x={x} y={y} width={w} height={h} rx="1" fill={DS} stroke={G} strokeWidth={1.2} /><path d={`M${x} ${y}l${w / 2} ${h * 0.32} ${w / 2} ${-h * 0.32}`} fill="none" stroke={GL} strokeWidth={0.6} /></g>;
+
+type Stage = () => React.ReactNode;
+const HW: Record<HardwareArt, { shape: (r: number) => string; r: number; states: [Stage, Stage, Stage] }> = {
+  "hw-solder": { shape: gear, r: 36, states: [
+    () => <g>{bd(28, 52, 44, 24)}<circle cx="48" cy="62" r="3" fill="none" stroke={GD} strokeWidth={1} />{iron(80, 28, 53, 58)}</g>,
+    () => <g>{bd(28, 52, 44, 24)}<circle cx="48" cy="62" r="5" fill={GL} opacity={0.25} /><circle cx="48" cy="62" r="2.8" fill={GL} />{iron(80, 30, 52, 60)}{spark(48, 60)}</g>,
+    () => <g>{bd(28, 56, 44, 22)}<path d="M40 66a8 5 0 0 1 16 0z" fill={GL} /><path d="M43 64q5 -2 10 0" stroke={IV} strokeWidth={0.8} opacity={0.5} fill="none" /></g>,
+  ] },
+  "hw-powered": { shape: rsq, r: 37, states: [
+    () => <g>{pw(50, 62, 9)}<path d={arcp(50, 64, 15, 1 / 3)} fill="none" stroke={GREEN} strokeWidth={2.4} strokeLinecap="round" /></g>,
+    () => <g>{pw(50, 62, 9)}<path d={arcp(50, 64, 15, 2 / 3)} fill="none" stroke={GREEN} strokeWidth={2.4} strokeLinecap="round" /></g>,
+    () => <g>{pw(50, 62, 9)}<path d={arcp(50, 64, 15, 1)} fill="none" stroke={GREEN} strokeWidth={2.4} /><circle cx="50" cy="64" r="12" fill={GREEN} opacity={0.12} /></g>,
+  ] },
+  "hw-tapeout": { shape: docTag, r: 38, states: [
+    () => <g>{bd(28, 58, 44, 16)}{hcheck(50, 44, 1.4)}</g>,
+    () => <g>{bd(28, 58, 44, 16)}{sealMark(50, 46)}</g>,
+    () => <g>{bd(28, 62, 44, 14)}{sealMark(50, 54, 8)}</g>,
+  ] },
+  "hw-shipped": { shape: trapezoid, r: 38, states: [
+    () => <g>{hbox(40, 54, 20, 16)}<path d="M50 54v16M42 62h16" stroke={G} strokeWidth={0.8} opacity={0.6} /></g>,
+    () => <g>{hbox(30, 60, 18, 14)}{pin(64, 36)}<path d="M38 60Q52 44 62 40" fill="none" stroke={GL} strokeWidth={0.8} opacity={0.5} strokeDasharray="2 3" /></g>,
+    () => <g>{hbox(40, 62, 20, 14)}{pin(50, 48, GREEN)}{hcheck(66, 60, 0.8)}</g>,
+  ] },
+  "hw-build": { shape: rosette, r: 34, states: [
+    () => <g>{bd(36, 50, 28, 18)}{comp(42, 58)}{comp(52, 58)}<circle cx="45" cy="55" r="1" fill={GD} /><circle cx="55" cy="55" r="1" fill={GD} /></g>,
+    () => <g>{builtBoard(30, 54, 40, 20)}</g>,
+    () => <g>{builtBoard(30, 54, 40, 20)}</g>,
+  ] },
+};
+
+function renderHardware(art: HardwareArt, tier: number, size: number, style: React.CSSProperties) {
+  const { shape, r, states } = HW[art];
+  const t = Math.max(0, Math.min(2, tier));
+  const m = METAL[t];
+  const uid = `${art}-${t}`;
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden style={style}>
+      <defs>
+        <linearGradient id={`hs-${uid}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={DS} /><stop offset="0.5" stopColor={m.sh} /><stop offset="1" stopColor={m.bot} /></linearGradient>
+        <clipPath id={`hc-${uid}`}><path d={shape(r - 2)} /></clipPath>
+      </defs>
+      <g clipPath={`url(#hc-${uid})`}>
+        <rect x="8" y="8" width="84" height="84" fill={`url(#hs-${uid})`} />
+        {t >= 1 ? <g>{glowRays(50, 56, 28, 0.16, m.hi)}<circle cx="50" cy="58" r="16" fill={m.hi} opacity={0.12} /></g> : null}
+        {states[t]()}
+        {t === 2 ? <g>{[[37, 37], [50, 30], [63, 37]].map((p, i) => <path key={i} d={starD(p[0], p[1], i === 1 ? 4.2 : 3, 1.4)} fill={GL} />)}</g> : null}
+      </g>
+      <path d={shape(r + 2.4)} fill="none" stroke="rgba(18,13,6,0.45)" strokeWidth={1.1} />
+      <path d={shape(r)} fill="none" stroke={m.edge} strokeWidth={4.4} />
+      <path d={shape(r - 2)} fill="none" stroke={m.hi} strokeWidth={0.7} opacity={0.7} />
+      <path d={shape(r - 5)} fill="none" stroke={m.base} strokeWidth={0.9} />
+    </svg>
+  );
+}
+
+export function PatchBadge({ art, earned = true, size = 64, tier = 0 }: { art: PatchArt; earned?: boolean; size?: number; tier?: number }) {
+  // A subtle drop shadow lifts the seal off the light-theme ivory background (it
+  // reads as near-nothing on the dark theme, where the metal edge already pops).
+  const filter = [earned ? null : "saturate(0.35)", "drop-shadow(0 1.5px 2px rgba(22,16,8,0.34))"].filter(Boolean).join(" ");
+  const style: React.CSSProperties = { opacity: earned ? 1 : 0.38, filter };
+  if (art.startsWith("hw-")) return renderHardware(art as HardwareArt, tier, size, style);
   if (art === "wings") {
     return <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden style={style}>{wingsInsignia()}</svg>;
   }
-  const { shape, r, scene } = FRAMED[art];
+  const { shape, r, scene } = FRAMED[art as Exclude<LogbookArt, "wings">];
   const uid = art;
   return (
     <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden style={style}>
@@ -80,8 +163,9 @@ export function PatchBadge({ art, earned = true, size = 64 }: { art: PatchArt; e
         <clipPath id={`hc-${uid}`}><path d={shape(r - 2)} /></clipPath>
       </defs>
       <g clipPath={`url(#hc-${uid})`}><rect x="8" y="8" width="84" height="84" fill={`url(#hs-${uid})`} />{scene()}</g>
-      <path d={shape(r)} fill="none" stroke={G} strokeWidth={4.2} />
-      <path d={shape(r + 1.5)} fill="none" stroke={GL} strokeWidth={0.7} />
+      <path d={shape(r + 2.4)} fill="none" stroke="rgba(18,13,6,0.45)" strokeWidth={1.1} />
+      <path d={shape(r)} fill="none" stroke={GD} strokeWidth={4.4} />
+      <path d={shape(r - 2)} fill="none" stroke={GL} strokeWidth={0.7} opacity={0.7} />
       <path d={shape(r - 5)} fill="none" stroke={G} strokeWidth={0.9} />
     </svg>
   );

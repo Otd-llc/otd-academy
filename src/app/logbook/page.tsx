@@ -5,8 +5,8 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { loadLessonMeta, getLogbook } from "@/lib/logbook/load";
 import { LEVELS } from "@/lib/logbook/economy";
-import { ROADMAP_PATCHES, SKILL_PATCH_LABELS, patchLabel, artForBadge } from "@/lib/logbook/patches";
-import { RankWing } from "@/components/logbook/RankWing";
+import { ROADMAP_PATCHES, SKILL_PATCH_LABELS, patchLabel, artForBadge, HARDWARE_PATCHES } from "@/lib/logbook/patches";
+import { StandingRail } from "@/components/logbook/StandingRail";
 import { PatchWall, type PatchEntry } from "@/components/logbook/PatchWall";
 
 // The Logbook (design §9.5; layout locked 2026-07-11 = sticky standing rail +
@@ -20,29 +20,6 @@ export const metadata: Metadata = {
 
 const day = (d: Date) =>
   new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "America/Chicago" }).format(d);
-const num = (n: number) => n.toLocaleString("en-US");
-
-// The segmented tick gauge with the XP total inside (standing B1 #2). `pct` is the
-// progress through the CURRENT rank band.
-function RingGauge({ pct, xp }: { pct: number; xp: number }) {
-  return (
-    <div className="relative grid place-items-center">
-      <svg viewBox="0 0 80 80" className="h-24 w-24 -rotate-90">
-        {Array.from({ length: 44 }).map((_, i) => {
-          const a = (i / 44) * Math.PI * 2;
-          const on = i / 44 <= pct;
-          return (
-            <line key={i} x1={40 + Math.cos(a) * 30} y1={40 + Math.sin(a) * 30} x2={40 + Math.cos(a) * 36} y2={40 + Math.sin(a) * 36} stroke={on ? "var(--color-command-gold)" : "var(--color-panel-border)"} strokeWidth="1.5" />
-          );
-        })}
-      </svg>
-      <div className="absolute text-center">
-        <p className="font-numeral text-2xl leading-none tabular-nums text-command-gold">{num(xp)}</p>
-        <p className="font-mono text-[7px] uppercase tracking-[0.14em] text-muted">XP</p>
-      </div>
-    </div>
-  );
-}
 
 // Native accordion section (server component; no client JS). Patches open first.
 function Section({ title, count, defaultOpen, children }: { title: string; count?: string; defaultOpen?: boolean; children: React.ReactNode }) {
@@ -77,7 +54,15 @@ export default async function LogbookPage() {
 
   const skillPatches = lb.badges.filter((b) => b.badgeKey in SKILL_PATCH_LABELS);
   const ratingPatches = lb.badges.filter((b) => b.badgeKey.startsWith("course:"));
-  const patchCount = ROADMAP_PATCHES.filter((p) => earnedKeys.has(p.key)).length + skillPatches.length + ratingPatches.length;
+
+  // Hardware/build family: shown as locked teasers (the visible ladder that shows
+  // what's possible), like the cluster roadmap, until earned. Highest earned tier per
+  // family from `hw:<name>:<n>` keys.
+  const hwEntries: PatchEntry[] = HARDWARE_PATCHES.map((h) => {
+    const t = [3, 2, 1].find((n) => earnedKeys.has(`${h.key}:${n}`)) ?? 0;
+    return { key: h.key, label: h.label, howToEarn: h.howToEarn, earned: t > 0, art: h.art, tier: Math.max(0, t - 1), progression: { thresholds: h.thresholds, earnedTier: t - 1, unit: h.unit } };
+  });
+  const patchCount = ROADMAP_PATCHES.filter((p) => earnedKeys.has(p.key)).length + skillPatches.length + ratingPatches.length + hwEntries.filter((e) => e.earned).length;
 
   const SKILL_HOWTO: Record<string, string> = {
     "skill:first-flight": "Complete your first lesson.",
@@ -87,6 +72,7 @@ export default async function LogbookPage() {
     ...ROADMAP_PATCHES.map((p) => ({ key: p.key, label: p.label, howToEarn: p.howToEarn, earned: earnedKeys.has(p.key), art: artForBadge(p.key) })),
     ...skillPatches.map((b) => ({ key: b.badgeKey, label: patchLabel(b.badgeKey), howToEarn: SKILL_HOWTO[b.badgeKey] ?? "", earned: true, art: artForBadge(b.badgeKey) })),
     ...ratingPatches.map((b) => ({ key: b.badgeKey, label: patchLabel(b.badgeKey), howToEarn: "Pass the course exam.", earned: true, art: artForBadge(b.badgeKey) })),
+    ...hwEntries,
   ];
 
   return (
@@ -96,24 +82,16 @@ export default async function LogbookPage() {
       <h1 className="mt-1 font-display text-4xl tracking-wide text-title">Logbook</h1>
 
       <div className="mt-8 grid gap-10 lg:grid-cols-[300px_1fr]">
-        {/* LEFT — sticky standing rail (standing B1 #2: gauge + wing over rank) */}
+        {/* LEFT — sticky standing rail: rank wing in the XP ring; click → rank ladder */}
         <aside className="self-start lg:sticky lg:top-24">
-          <div className="flex items-center gap-5">
-            <RingGauge pct={bandPct} xp={lb.xpTotal} />
-            <div className="flex flex-col gap-1">
-              <RankWing level={lb.level} size={40} />
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-command-gold">
-                FL{lb.level} · {lb.title}
-              </p>
-              {lb.next ? (
-                <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted">
-                  <span className="font-numeral tabular-nums text-text">{num(lb.xpTotal)}</span> / {num(lb.next.minXp)} to FL{lb.next.level}
-                </p>
-              ) : (
-                <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-command-gold">Top rank reached</p>
-              )}
-            </div>
-          </div>
+          <StandingRail
+            level={lb.level}
+            title={lb.title}
+            xp={lb.xpTotal}
+            nextMinXp={lb.next?.minXp ?? null}
+            nextLevel={lb.next?.level ?? null}
+            bandPct={bandPct}
+          />
           <p className={`mt-4 font-mono text-[9px] uppercase tracking-[0.16em] ${lb.isCurrent ? "text-command-gold" : "text-gray-3"}`}>
             {lb.isCurrent && lb.currentThrough ? `Current through ${day(lb.currentThrough)}` : "Lapsed"}
           </p>
