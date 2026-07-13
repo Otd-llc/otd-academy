@@ -27,6 +27,9 @@ enum XpSource {
   STAGE_CLEAR
   COURSE_EXAM_PASS
   COURSE_COMPLETE
+  // Admin manual XP adjustment (2026-07-13) — a signed correction/comp from the
+  // per-learner admin tooling. Distinct source so instrumentation can exclude it.
+  MANUAL_ADJUST
 }
 
 enum FeedbackStatus {
@@ -1322,6 +1325,22 @@ model QuizLock {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, questionKey, lockedOn])
+}
+
+// Admin write audit (2026-07-13): every MANUAL logbook mutation from the per-learner
+// admin tooling — grant/revoke a patch, adjust XP, override level — records who did
+// what to whom, for accountability. Plain string ids (no FK) so the trail survives a
+// learner deletion.
+model AdminAudit {
+  id           String   @id @default(cuid())
+  actorId      String // the admin who performed the action
+  action       String // "grant_patch" | "revoke_patch" | "adjust_xp" | "set_level"
+  targetUserId String // the learner affected
+  detail       Json? // { badgeKey } | { amount, note } | { level, prevLevel } ...
+  createdAt    DateTime @default(now())
+
+  @@index([targetUserId, createdAt])
+  @@index([actorId, createdAt])
 }
 
 // Patches / ratings / wings. Earned = permanent (grandfathered, design §7);

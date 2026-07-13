@@ -9,6 +9,7 @@ import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
 import { ResetLessonControl } from "@/components/admin/ResetLessonControl";
+import { HARDWARE_PATCHES } from "@/lib/logbook/patches";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -22,7 +23,7 @@ const keySuffix = (key: string) => key.split("#")[1] ?? key;
 export default async function LogbookInstrumentationPage() {
   await requireAdmin();
 
-  const [quizEvents, locks, completionGroups, feedbackGroups, lessons] =
+  const [quizEvents, locks, completionGroups, feedbackGroups, lessons, hwBadges] =
     await Promise.all([
       db.xpEvent.findMany({
         where: { source: "QUIZ_CORRECT" },
@@ -37,6 +38,11 @@ export default async function LogbookInstrumentationPage() {
       db.miniLesson.findMany({
         where: { published: true, accessTier: "PUBLIC" },
         select: { slug: true, title: true },
+      }),
+      db.badgeEarned.groupBy({
+        by: ["badgeKey"],
+        where: { badgeKey: { startsWith: "hw:" } },
+        _count: { _all: true },
       }),
     ]);
 
@@ -100,6 +106,21 @@ export default async function LogbookInstrumentationPage() {
   const feedbackRows = [...fbByPage.entries()]
     .map(([pageRef, v]) => ({ pageRef, ...v, total: v.NEW + v.USEFUL + v.DISMISSED }))
     .sort((a, b) => b.NEW - a.NEW || b.total - a.total);
+
+  // Hardware patches: the catalog (tier thresholds/units) with live earn counts per
+  // tier. Not auto-earnable until build courses land, so today these count manual
+  // grants — the plumbing is visible + ready.
+  const hwCountByKey = new Map(hwBadges.map((g) => [g.badgeKey, g._count._all]));
+  const HW_METALS = ["bronze", "silver", "gold"];
+  const hwRows = HARDWARE_PATCHES.map((h) => ({
+    label: h.label,
+    unit: h.unit,
+    tiers: [1, 2, 3].map((t) => ({
+      metal: HW_METALS[t - 1],
+      threshold: h.thresholds[t - 1],
+      count: hwCountByKey.get(`${h.key}:${t}`) ?? 0,
+    })),
+  }));
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
@@ -219,6 +240,35 @@ export default async function LogbookInstrumentationPage() {
             ))}
           </ul>
         )}
+      </section>
+
+      {/* Hardware patches — catalog (tier thresholds) + live earn counts. */}
+      <section className="mt-10">
+        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+          ▸ Hardware patches
+        </p>
+        <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.14em] text-gray-3">
+          Catalog + earn counts. Auto-earn lands with build courses; counts are manual grants for now.
+        </p>
+        <ul className="mt-2">
+          {hwRows.map((h) => (
+            <li
+              key={h.label}
+              className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-panel-border/50 py-2.5"
+            >
+              <span className="min-w-0 truncate font-serif text-sm text-text">{h.label}</span>
+              <span className="flex shrink-0 items-baseline gap-4 font-mono text-[10px] uppercase tracking-[0.12em] text-muted">
+                {h.tiers.map((t) => (
+                  <span key={t.metal}>
+                    {t.metal} <span className="font-numeral tabular-nums text-command-gold">{t.count}</span>{" "}
+                    <span className="text-gray-3">≥{t.threshold}</span>
+                  </span>
+                ))}
+                <span className="text-gray-3">{h.unit}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
       </section>
     </main>
   );
