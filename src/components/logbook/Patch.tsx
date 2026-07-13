@@ -120,13 +120,13 @@ const HW: Record<HardwareArt, { shape: (r: number) => string; r: number; states:
   ] },
 };
 
-function renderHardware(art: HardwareArt, tier: number, size: number, style: React.CSSProperties) {
+function renderHardware(art: HardwareArt, tier: number, size: number, style: React.CSSProperties, className?: string) {
   const { shape, r, states } = HW[art];
   const t = Math.max(0, Math.min(2, tier));
   const m = METAL[t];
   const uid = `${art}-${t}`;
   return (
-    <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden style={style}>
+    <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden style={style} className={className}>
       <defs>
         <linearGradient id={`hs-${uid}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={DS} /><stop offset="0.5" stopColor={m.sh} /><stop offset="1" stopColor={m.bot} /></linearGradient>
         <clipPath id={`hc-${uid}`}><path d={shape(r - 2)} /></clipPath>
@@ -146,18 +146,24 @@ function renderHardware(art: HardwareArt, tier: number, size: number, style: Rea
 }
 
 export function PatchBadge({ art, earned = true, size = 64, tier = 0 }: { art: PatchArt; earned?: boolean; size?: number; tier?: number }) {
-  // A subtle drop shadow lifts the seal off the light-theme ivory background (it
-  // reads as near-nothing on the dark theme, where the metal edge already pops).
-  const filter = [earned ? null : "saturate(0.35)", "drop-shadow(0 1.5px 2px rgba(22,16,8,0.34))"].filter(Boolean).join(" ");
-  const style: React.CSSProperties = { opacity: earned ? 1 : 0.38, filter };
-  if (art.startsWith("hw-")) return renderHardware(art as HardwareArt, tier, size, style);
+  // Earned badges POP (owner-picked 2026-07-13): a subtle breathing glow via the
+  // `.patch-pop` class, tinted per metal by `--patch-glow` — gold-light for the gold
+  // cluster/skill patches, bronze/silver highlights for the hardware tiers. A locked
+  // badge stays dim + desaturated with just a small lift shadow.
+  const hw = art.startsWith("hw-");
+  const glow = hw ? ["#e6a866", "#d8dde4", "var(--color-gold-light)"][Math.max(0, Math.min(2, tier))] : "var(--color-gold-light)";
+  const className = earned ? "patch-pop" : undefined;
+  const style: React.CSSProperties = earned
+    ? ({ ["--patch-glow" as string]: glow } as React.CSSProperties)
+    : { opacity: 0.38, filter: "saturate(0.35) drop-shadow(0 1.5px 2px rgba(22,16,8,0.34))" };
+  if (hw) return renderHardware(art as HardwareArt, tier, size, style, className);
   if (art === "wings") {
-    return <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden style={style}>{wingsInsignia()}</svg>;
+    return <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden style={style} className={className}>{wingsInsignia()}</svg>;
   }
   const { shape, r, scene } = FRAMED[art as Exclude<LogbookArt, "wings">];
   const uid = art;
   return (
-    <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden style={style}>
+    <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden style={style} className={className}>
       <defs>
         <linearGradient id={`hs-${uid}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={DS} /><stop offset="0.52" stopColor={GD} /><stop offset="1" stopColor={GL} /></linearGradient>
         <clipPath id={`hc-${uid}`}><path d={shape(r - 2)} /></clipPath>

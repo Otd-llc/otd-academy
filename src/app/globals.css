@@ -478,6 +478,22 @@ body {
    countdown, auto-dismiss ~4s = the Material/Sonner default, pause on hover, slides
    in then out). The dwell + removal are JS-driven; these are just the in/out glides.
    Reduced-motion → no transform glide (the countdown + removal still apply). */
+/* Earned-patch pop (owner-picked 2026-07-13): a tight rim + brightness/saturate with a
+   slow, subtle breathing glow, tinted by `--patch-glow` (gold-light for gold patches,
+   bronze/silver highlights for the hardware tiers). Keeps the lift shadow so the seal
+   still separates on light-theme ivory. Only EARNED badges get this class. */
+@keyframes patch-pop-breathe {
+  0%, 100% { filter: brightness(1.15) saturate(1.28) drop-shadow(0 1.5px 2px rgba(22, 16, 8, 0.34)) drop-shadow(0 0 1.5px var(--patch-glow)) drop-shadow(0 0 3px color-mix(in srgb, var(--patch-glow) 35%, transparent)); }
+  50%      { filter: brightness(1.19) saturate(1.34) drop-shadow(0 1.5px 2px rgba(22, 16, 8, 0.34)) drop-shadow(0 0 2px var(--patch-glow)) drop-shadow(0 0 6px color-mix(in srgb, var(--patch-glow) 52%, transparent)); }
+}
+.patch-pop { animation: patch-pop-breathe 3.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .patch-pop {
+    animation: none;
+    filter: brightness(1.16) saturate(1.3) drop-shadow(0 1.5px 2px rgba(22, 16, 8, 0.34)) drop-shadow(0 0 1.5px var(--patch-glow)) drop-shadow(0 0 4px color-mix(in srgb, var(--patch-glow) 42%, transparent));
+  }
+}
+
 @keyframes fanfare-drop { from { opacity: 0; transform: translateY(-100%); } to { opacity: 1; transform: none; } }
 @keyframes fanfare-up { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-100%); } }
 .fanfare-drop { animation: fanfare-drop .34s cubic-bezier(.2, .85, .25, 1) both; }
