@@ -20,7 +20,6 @@ import {
 } from "@/components/admin/student-controls";
 import { LogbookAdminControls } from "@/components/admin/LogbookAdminControls";
 import { LEVELS } from "@/lib/logbook/economy";
-import { patchLabel, tierForBadge } from "@/lib/logbook/patches";
 
 export const dynamic = "force-dynamic";
 
@@ -227,13 +226,6 @@ export default async function StudentDetailPage({
       select: { action: true, detail: true, createdAt: true },
     }),
   ]);
-  const HW_METALS = ["bronze", "silver", "gold"];
-  const earnedPatches = badges.map((b) => ({
-    badgeKey: b.badgeKey,
-    label: b.badgeKey.startsWith("hw:")
-      ? `${patchLabel(b.badgeKey)} · ${HW_METALS[tierForBadge(b.badgeKey)]}`
-      : patchLabel(b.badgeKey),
-  }));
   const rankTitle = LEVELS.find((l) => l.level === user.level)?.title ?? "";
 
   return (
@@ -298,14 +290,14 @@ export default async function StudentDetailPage({
         <div className="border-t border-panel-border/60">
           <Field label="XP total" value={user.xpTotal.toLocaleString("en-US")} />
           <Field label="Flight level" value={`FL${user.level} · ${rankTitle}`} />
-          <Field label="Patches" value={String(earnedPatches.length)} />
+          <Field label="Patches" value={String(badges.length)} />
         </div>
         <div className="mt-6">
           <LogbookAdminControls
             userId={user.id}
             xpTotal={user.xpTotal}
             level={user.level}
-            earned={earnedPatches}
+            earnedKeys={badges.map((b) => b.badgeKey)}
           />
         </div>
         {recentAudit.length > 0 ? (
