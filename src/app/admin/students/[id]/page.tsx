@@ -18,6 +18,8 @@ import {
   StudentProgress,
   DeleteStudentButton,
 } from "@/components/admin/student-controls";
+import { LogbookAdminControls } from "@/components/admin/LogbookAdminControls";
+import { LEVELS } from "@/lib/logbook/economy";
 
 export const dynamic = "force-dynamic";
 
@@ -92,6 +94,8 @@ export default async function StudentDetailPage({
       email: true,
       name: true,
       role: true,
+      xpTotal: true,
+      level: true,
       createdAt: true,
       emailVerified: true,
       stripeCustomerId: true,
@@ -207,6 +211,23 @@ export default async function StudentDetailPage({
       ENROLLMENT_STATUS_LABEL[e.status as EnrollmentStatus] ?? e.status,
   }));
 
+  // Logbook: the learner's earned patches (hardware keys get their tier appended) +
+  // the recent admin-audit trail for this learner.
+  const [badges, recentAudit] = await Promise.all([
+    db.badgeEarned.findMany({
+      where: { userId: user.id },
+      orderBy: { earnedAt: "desc" },
+      select: { badgeKey: true },
+    }),
+    db.adminAudit.findMany({
+      where: { targetUserId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+      select: { action: true, detail: true, createdAt: true },
+    }),
+  ]);
+  const rankTitle = LEVELS.find((l) => l.level === user.level)?.title ?? "";
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <nav className="mb-6 font-mono text-xs uppercase tracking-wider">
@@ -263,6 +284,37 @@ export default async function StudentDetailPage({
           grantableProjects={grantableProjects}
           hasPass={hasPass}
         />
+      </Section>
+
+      <Section label="Logbook">
+        <div className="border-t border-panel-border/60">
+          <Field label="XP total" value={user.xpTotal.toLocaleString("en-US")} />
+          <Field label="Flight level" value={`FL${user.level} · ${rankTitle}`} />
+          <Field label="Patches" value={String(badges.length)} />
+        </div>
+        <div className="mt-6">
+          <LogbookAdminControls
+            userId={user.id}
+            xpTotal={user.xpTotal}
+            level={user.level}
+            earnedKeys={badges.map((b) => b.badgeKey)}
+          />
+        </div>
+        {recentAudit.length > 0 ? (
+          <div className="mt-8">
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-gray-3">
+              Recent admin actions
+            </p>
+            <ul className="mt-2 flex flex-col gap-1">
+              {recentAudit.map((a, i) => (
+                <li key={i} className="font-mono text-[10px] leading-relaxed text-muted">
+                  {a.createdAt.toISOString().slice(0, 16).replace("T", " ")} · {a.action} ·{" "}
+                  <span className="text-gray-3">{JSON.stringify(a.detail)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </Section>
 
       <Section label="Billing">
