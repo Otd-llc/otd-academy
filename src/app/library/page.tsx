@@ -30,7 +30,11 @@ import { db } from "@/lib/db";
 import { courseListJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { listPublishedByCluster } from "@/lib/library/load";
 import { clusterByKey } from "@/lib/library/clusters";
-import { loadLessonMeta, getLibraryProgress } from "@/lib/logbook/load";
+import { loadLessonMeta, getLibraryProgress, getLibraryResume, type ResumeMode } from "@/lib/logbook/load";
+import { FollowerCard } from "@/components/library/FollowerCard";
+import type { PatchEntry } from "@/components/logbook/PatchDetailModal";
+import { LEVELS } from "@/lib/logbook/economy";
+import { artForBadge, tierForBadge, patchLabel, HARDWARE_PATCHES, ROADMAP_PATCHES } from "@/lib/logbook/patches";
 import { levelFor } from "@/lib/logbook/economy";
 import { LogbookIntro } from "@/components/library/LogbookIntro";
 import {
@@ -250,6 +254,44 @@ function RailAlso({ lesson, signedIn }: { lesson: LessonMeta; signedIn: boolean 
   );
 }
 
+// The signed-in RESUME card (design 2026-07-14): the rail's also-featured slot becomes
+// a personalized "pick up where you left off" — start / continue / next / restart —
+// pointing at the right lesson. Anonymous visitors get RailAlso instead (unchanged).
+const RESUME_COPY: Record<ResumeMode, { eyebrow: string; note: string; cta: string }> = {
+  start: { eyebrow: "Start here", note: "Begin the Library at the very beginning.", cta: "Start lesson" },
+  continue: { eyebrow: "Continue", note: "Pick up where you left off.", cta: "Resume lesson" },
+  next: { eyebrow: "Up next", note: "Your next lesson in the Library.", cta: "Continue" },
+  restart: { eyebrow: "Library complete", note: "You finished every lesson. Run it again from the top.", cta: "Restart the Library" },
+};
+
+// Build an (earned) PatchEntry for the follower card's badge row + its detail modal:
+// hardware keys carry their tier + progression; cluster/wings/skill carry their how-to.
+function buildEntry(badgeKey: string): PatchEntry {
+  const art = artForBadge(badgeKey);
+  if (badgeKey.startsWith("hw:")) {
+    const tier = tierForBadge(badgeKey);
+    const h = HARDWARE_PATCHES.find((p) => badgeKey.startsWith(p.key));
+    return {
+      key: badgeKey,
+      label: h?.label ?? patchLabel(badgeKey),
+      howToEarn: h?.howToEarn ?? "",
+      earned: true,
+      art,
+      tier,
+      progression: h ? { thresholds: h.thresholds, earnedTier: tier, unit: h.unit } : undefined,
+    };
+  }
+  const roadmap = ROADMAP_PATCHES.find((p) => p.key === badgeKey);
+  return {
+    key: badgeKey,
+    label: patchLabel(badgeKey),
+    howToEarn: roadmap?.howToEarn ?? "Earned in the Library.",
+    earned: true,
+    art,
+    tier: 0,
+  };
+}
+
 // The sticky-rail "new & updated" list (moved up into the masthead's right
 // column): freshest guides across the clusters, each tagged NEW (never revised
 // since publish) or UPD (edited after publish).
@@ -376,6 +418,7 @@ export default async function LibraryIndexPage() {
   let logbookChip: { level: number; xpTotal: number } | null = null;
   let showIntro = false;
   let goalPhrase: string | null = null;
+  let userId: string | null = null;
   if (session?.user?.email) {
     const user = await db.user.findUnique({
       where: { email: session.user.email },
@@ -387,6 +430,7 @@ export default async function LibraryIndexPage() {
       },
     });
     if (user) {
+      userId = user.id;
       const lessons = await loadLessonMeta();
       const progress = await getLibraryProgress(user.id, lessons, new Date());
       xpBySlug = progress.byLesson;
@@ -424,6 +468,44 @@ export default async function LibraryIndexPage() {
   const leadDiagram = lead ? heroDiagram(lead.diagramSrc) : null;
   const alsoDiagram = also ? heroDiagram(also.diagramSrc) : null;
 
+  // Signed-in resume state: the rail's also-featured becomes a "pick up where you left
+  // off" card (start / continue / next / restart). Anonymous keeps the also-featured
+  // exactly as shipped.
+  const resume =
+    userId && allLessons.length > 0
+      ? await getLibraryResume(userId, allLessons.map((l) => l.slug))
+      : null;
+  const resumeLesson = resume ? (allLessons.find((l) => l.slug === resume.slug) ?? null) : null;
+  const railLesson = resumeLesson ?? also;
+  const railDiagram = resumeLesson ? heroDiagram(resumeLesson.diagramSrc) : alsoDiagram;
+
+  // Follower-card data (signed-in resume): the resume copy, a blurb (the lesson's own
+  // summary, or the meta note for start/restart), the learner's earned patches, and the
+  // rank-band fill for the XP ring.
+  const rc = resume ? RESUME_COPY[resume.mode] : null;
+  const followerBlurb =
+    resume && resumeLesson
+      ? resume.mode === "restart"
+        ? rc!.note
+        : resumeLesson.summary || rc!.note
+      : "";
+  const followerEntries: PatchEntry[] =
+    userId && resume
+      ? (
+          await db.badgeEarned.findMany({
+            where: { userId },
+            orderBy: { earnedAt: "desc" },
+            select: { badgeKey: true },
+          })
+        ).map((b) => buildEntry(b.badgeKey))
+      : [];
+  const flLevel = logbookChip?.level ?? 1;
+  const flXp = logbookChip?.xpTotal ?? 0;
+  const flCurMin = LEVELS[flLevel - 1]?.minXp ?? 0;
+  const flNextMin = LEVELS[flLevel]?.minXp ?? null;
+  const bandPct = flNextMin != null ? Math.max(0, Math.min(1, (flXp - flCurMin) / (flNextMin - flCurMin))) : 1;
+  const rankTitle = LEVELS.find((l) => l.level === flLevel)?.title ?? "";
+
   // Running ordinal for registry clusters only ("other" gets none).
   let ordinal = 0;
 
@@ -433,7 +515,11 @@ export default async function LibraryIndexPage() {
       <PageHeader
         eyebrow="LIBRARY"
         title="Reference guides"
-        lead="Concept explainers across six clusters: the ideas behind the builds. Free to read, no account needed."
+        lead={
+          signedIn
+            ? "Concept explainers across six clusters: the ideas behind the builds. Pick up where you left off and earn patches as you go."
+            : "Concept explainers across six clusters: the ideas behind the builds. Free to read, no account needed."
+        }
         meta={
           allLessons.length > 0
             ? [
@@ -486,22 +572,50 @@ export default async function LibraryIndexPage() {
         </p>
       ) : (
         <>
-          {/* Masthead: featured (eyebrow → diagram banner → text) | New & updated. */}
-          {lead ? (
+          {/* Masthead: anonymous visitors get the featured guide (eyebrow → bare diagram
+              banner → text, owner pick V2c) alongside New & updated. A signed-in student
+              skips it entirely — their follower card below is the featured lesson — and
+              just sees the deep index. */}
+          {signedIn ? null : lead ? (
             <div className="grid items-start gap-8 lg:grid-cols-[1.55fr_1fr]">
               <FeaturedLead lesson={lead} signedIn={signedIn} diagram={leadDiagram} />
               {fresh.length > 0 ? <FreshRail items={fresh} /> : null}
             </div>
           ) : null}
 
-          <div className="title-rule my-10" aria-hidden />
+          {!signedIn ? <div className="title-rule my-10" aria-hidden /> : null}
 
-          {/* Split: sticky rail (portrait also-featured) + deep cluster index. */}
-          <div className="grid gap-10 lg:grid-cols-[300px_1fr]">
-            {also ? (
+          {/* Split: sticky rail (student follower card + new & updated, or the anon
+              also-featured) + the deep cluster index. */}
+          <div className={`grid gap-10 lg:grid-cols-[300px_1fr] ${signedIn ? "mt-8" : ""}`}>
+            {railLesson ? (
               <aside className="space-y-6 self-start lg:sticky lg:top-24">
-                {alsoDiagram ? <div>{alsoDiagram}</div> : null}
-                <RailAlso lesson={also} signedIn={signedIn} />
+                {resume && resumeLesson && rc ? (
+                  <>
+                  <FollowerCard
+                    eyebrow={rc.eyebrow}
+                    title={resumeLesson.title}
+                    blurb={followerBlurb}
+                    href={`/library/${resumeLesson.slug}`}
+                    cta={rc.cta}
+                    clusterLabel={clusterByKey(resumeLesson.cluster)?.label ?? null}
+                    readingMinutes={resumeLesson.readingMinutes}
+                    level={flLevel}
+                    rankTitle={rankTitle}
+                    xp={flXp}
+                    bandPct={bandPct}
+                    entries={followerEntries}
+                  >
+                    {railDiagram}
+                  </FollowerCard>
+                  {fresh.length > 0 ? <FreshRail items={fresh} /> : null}
+                  </>
+                ) : (
+                  <>
+                    {railDiagram ? <div>{railDiagram}</div> : null}
+                    <RailAlso lesson={railLesson} signedIn={signedIn} />
+                  </>
+                )}
               </aside>
             ) : null}
 

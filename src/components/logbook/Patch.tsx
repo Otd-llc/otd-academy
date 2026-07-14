@@ -120,7 +120,7 @@ const HW: Record<HardwareArt, { shape: (r: number) => string; r: number; states:
   ] },
 };
 
-function renderHardware(art: HardwareArt, tier: number, size: number, style: React.CSSProperties, className?: string) {
+function renderHardware(art: HardwareArt, tier: number, size: number, style: React.CSSProperties, className?: string, frameW = 1.5, edgeColor?: string) {
   const { shape, r, states } = HW[art];
   const t = Math.max(0, Math.min(2, tier));
   const m = METAL[t];
@@ -138,14 +138,14 @@ function renderHardware(art: HardwareArt, tier: number, size: number, style: Rea
         {t === 2 ? <g>{[[37, 37], [50, 30], [63, 37]].map((p, i) => <path key={i} d={starD(p[0], p[1], i === 1 ? 4.2 : 3, 1.4)} fill={GL} />)}</g> : null}
       </g>
       <path d={shape(r + 2.4)} fill="none" stroke="rgba(18,13,6,0.45)" strokeWidth={1.1} />
-      <path d={shape(r)} fill="none" stroke={m.edge} strokeWidth={4.4} />
+      <path d={shape(r)} fill="none" stroke={edgeColor ?? m.edge} strokeWidth={frameW} />
       <path d={shape(r - 2)} fill="none" stroke={m.hi} strokeWidth={0.7} opacity={0.7} />
       <path d={shape(r - 5)} fill="none" stroke={m.base} strokeWidth={0.9} />
     </svg>
   );
 }
 
-export function PatchBadge({ art, earned = true, size = 64, tier = 0 }: { art: PatchArt; earned?: boolean; size?: number; tier?: number }) {
+export function PatchBadge({ art, earned = true, size = 64, tier = 0, frameW = 1.5, edge }: { art: PatchArt; earned?: boolean; size?: number; tier?: number; frameW?: number; edge?: string }) {
   // Earned badges POP (owner-picked 2026-07-13): a subtle breathing glow via the
   // `.patch-pop` class, tinted per metal by `--patch-glow` — gold-light for the gold
   // cluster/skill patches, bronze/silver highlights for the hardware tiers. A locked
@@ -153,10 +153,13 @@ export function PatchBadge({ art, earned = true, size = 64, tier = 0 }: { art: P
   const hw = art.startsWith("hw-");
   const glow = hw ? ["#e6a866", "#d8dde4", "var(--color-gold-light)"][Math.max(0, Math.min(2, tier))] : "var(--color-gold-light)";
   const className = earned ? "patch-pop" : undefined;
+  // Scale the pop-glow radii with size (1 at the tuned sizes, smaller below 46) so
+  // small badges in dense rows don't blow out.
+  const popR = size >= 46 ? "1" : (size / 46).toFixed(2);
   const style: React.CSSProperties = earned
-    ? ({ ["--patch-glow" as string]: glow } as React.CSSProperties)
+    ? ({ ["--patch-glow" as string]: glow, ["--pop-r" as string]: popR } as React.CSSProperties)
     : { opacity: 0.38, filter: "saturate(0.35) drop-shadow(0 1.5px 2px rgba(22,16,8,0.34))" };
-  if (hw) return renderHardware(art as HardwareArt, tier, size, style, className);
+  if (hw) return renderHardware(art as HardwareArt, tier, size, style, className, frameW, edge);
   if (art === "wings") {
     return <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden style={style} className={className}>{wingsInsignia()}</svg>;
   }
@@ -170,7 +173,7 @@ export function PatchBadge({ art, earned = true, size = 64, tier = 0 }: { art: P
       </defs>
       <g clipPath={`url(#hc-${uid})`}><rect x="8" y="8" width="84" height="84" fill={`url(#hs-${uid})`} />{scene()}</g>
       <path d={shape(r + 2.4)} fill="none" stroke="rgba(18,13,6,0.45)" strokeWidth={1.1} />
-      <path d={shape(r)} fill="none" stroke={GD} strokeWidth={4.4} />
+      <path d={shape(r)} fill="none" stroke={edge ?? G} strokeWidth={frameW} />
       <path d={shape(r - 2)} fill="none" stroke={GL} strokeWidth={0.7} opacity={0.7} />
       <path d={shape(r - 5)} fill="none" stroke={G} strokeWidth={0.9} />
     </svg>

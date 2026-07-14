@@ -279,3 +279,52 @@ export async function getLogbook(
     recent,
   };
 }
+
+// The library resume state for a signed-in learner (design 2026-07-14): where to send
+// them next in the Library, ordered by the page's canonical lesson order.
+//   - "continue" — a lesson they touched (read / answered a quiz question) but never
+//     completed; the most-recently-touched one.
+//   - "next"     — nothing in progress, but they've completed lessons; the first
+//     still-uncompleted lesson in order.
+//   - "start"    — no activity at all; the first lesson (Fundamentals L1).
+//   - "restart"  — every lesson completed; back to the first lesson.
+export type ResumeMode = "start" | "continue" | "next" | "restart";
+
+export async function getLibraryResume(
+  userId: string,
+  orderedSlugs: string[],
+): Promise<{ mode: ResumeMode; slug: string } | null> {
+  if (orderedSlugs.length === 0) return null;
+  const orderedSet = new Set(orderedSlugs);
+
+  const [completions, events] = await Promise.all([
+    db.lessonCompletion.findMany({ where: { userId }, select: { lessonSlug: true } }),
+    db.xpEvent.findMany({
+      where: { userId, source: { in: ["QUIZ_CORRECT", "LESSON_COMPLETE"] } },
+      select: { refId: true, createdAt: true },
+    }),
+  ]);
+  const completed = new Set(completions.map((c) => c.lessonSlug));
+
+  // Last time the learner touched each lesson (QUIZ_CORRECT refId = questionKey
+  // "slug#..."; LESSON_COMPLETE refId = slug). Only library lessons count.
+  const lastTouch = new Map<string, number>();
+  for (const e of events) {
+    if (!e.refId) continue;
+    const slug = e.refId.split("#")[0];
+    if (!orderedSet.has(slug)) continue;
+    const t = e.createdAt.getTime();
+    if (t > (lastTouch.get(slug) ?? 0)) lastTouch.set(slug, t);
+  }
+
+  // In-progress = touched but not completed → continue the most recent.
+  const inProgress = [...lastTouch.entries()]
+    .filter(([slug]) => !completed.has(slug))
+    .sort((a, b) => b[1] - a[1]);
+  if (inProgress.length > 0) return { mode: "continue", slug: inProgress[0][0] };
+
+  const firstUncompleted = orderedSlugs.find((s) => !completed.has(s));
+  if (completed.size === 0) return { mode: "start", slug: orderedSlugs[0] };
+  if (firstUncompleted) return { mode: "next", slug: firstUncompleted };
+  return { mode: "restart", slug: orderedSlugs[0] };
+}
