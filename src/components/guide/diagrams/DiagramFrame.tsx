@@ -15,6 +15,7 @@
 // observer, no client child needed. Reduced motion / no-JS → final state, static.
 import { type CSSProperties, type ReactNode } from "react";
 import { useScrollReveal } from "./useScrollReveal";
+import { useDiagramChrome } from "./DiagramChrome";
 
 const TONE: Record<string, string> = {
   gold: "var(--color-command-gold,#c8963e)",
@@ -44,22 +45,32 @@ export function DiagramFrame({
   children: ReactNode;
 }) {
   const foot = caption || defaultCaption;
+  // In the reading view GuideBlocks provides `bare` + a figure number; the title/
+  // eyebrow/caption echo the prose, so we drop them and show only the graphic + a
+  // "Fig N" corner. The standalone export renders with the default (full) context.
+  const { bare, fig } = useDiagramChrome();
   const { ref, armed, inView } = useScrollReveal<HTMLElement>();
   return (
     <figure
       ref={ref}
-      className={`dgfrm${armed ? " armed" : ""}${inView ? " in" : ""}`}
+      className={`dgfrm${bare ? " dgfrm-bare" : ""}${armed ? " armed" : ""}${inView ? " in" : ""}`}
       role="img"
       aria-label={ariaLabel}
     >
       <style>{FRAME_CSS}</style>
-      <p className="dgfrm-anim dgfrm-eyebrow" style={{ color: TONE[tone], ...d(0) }}>
-        <span aria-hidden="true">▸ </span>
-        {eyebrow}
-      </p>
-      <h3 className="dgfrm-anim dgfrm-title" style={d(0.1)}>{title}</h3>
-      <div className="dgfrm-anim dgfrm-body" style={d(0.2)}>{children}</div>
-      {foot ? (
+      {bare ? null : (
+        <>
+          <p className="dgfrm-anim dgfrm-eyebrow" style={{ color: TONE[tone], ...d(0) }}>
+            <span aria-hidden="true">▸ </span>
+            {eyebrow}
+          </p>
+          <h3 className="dgfrm-anim dgfrm-title" style={d(0.1)}>{title}</h3>
+        </>
+      )}
+      <div className="dgfrm-anim dgfrm-body" style={d(bare ? 0 : 0.2)}>{children}</div>
+      {bare ? (
+        fig != null ? <figcaption className="dgfrm-fig">Fig {fig}</figcaption> : null
+      ) : foot ? (
         <figcaption className="dgfrm-anim dgfrm-foot" style={d(0.3)}>{foot}</figcaption>
       ) : null}
     </figure>
@@ -79,6 +90,14 @@ const FRAME_CSS = `
 .dgfrm-body{margin-top:clamp(1.15rem,4vw,1.7rem);}
 .dgfrm-foot{margin:clamp(1.15rem,3.5vw,1.6rem) 0 0;color:var(--color-muted,#aaa);
   font-family:var(--font-serif,"Lora",serif);font-size:clamp(.8rem,2vw,.9rem);line-height:1.5;}
+
+/* Bare in-lesson mode (owner-picked V3, 2026-07-14): just the graphic in the frame +
+   a "Fig N" corner label; the title/eyebrow/caption are dropped (the prose says it). */
+.dgfrm-bare{position:relative;padding:clamp(1rem,3vw,1.5rem);}
+.dgfrm-bare .dgfrm-body{margin-top:0;}
+.dgfrm-fig{position:absolute;bottom:.55rem;right:.85rem;margin:0;
+  font-family:var(--font-mono,"Space Mono",monospace);font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.18em;color:var(--color-command-gold,#c8963e);}
 
 /* Tier-A entrance reveal. Hidden state is gated behind .armed (set by JS), so an
    SSR / no-JS render shows the diagram fully visible — never blank. */

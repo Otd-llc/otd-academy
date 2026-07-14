@@ -48,6 +48,7 @@ export type LessonLogbook = {
   | { mode: "course"; enrollmentId: string; stage: string }
 );
 import { DIAGRAM_COMPONENTS } from "@/components/guide/diagram-registry";
+import { DiagramChromeProvider } from "@/components/guide/diagrams/DiagramChrome";
 import katex from "katex";
 import { EMBED_ISLANDS } from "@/components/tools/embed-islands";
 import { getTool } from "@/lib/tools/registry";
@@ -468,6 +469,7 @@ function ImageBlock({
   blockIndex,
   isAdmin,
   inlineSvg,
+  fig,
 }: {
   src: string;
   alt: string;
@@ -482,6 +484,8 @@ function ImageBlock({
    *  Space Mono (an <img> SVG can't use the page webfont). When set, the
    *  figure renders the SVG inline instead of <img src>. */
   inlineSvg?: string;
+  /** Figure number for a registry diagram; drives the bare frame's "Fig N". */
+  fig?: number;
 }) {
   if (!src) {
     // An empty media slot is an ADMIN-ONLY affordance: admins get the "to be
@@ -512,7 +516,14 @@ function ImageBlock({
   // MpnAnatomyDiagram for the why. The DB content stays a plain image block.
   const DiagramComponent = DIAGRAM_COMPONENTS[src];
   if (DiagramComponent) {
-    return <DiagramComponent caption={caption} />;
+    // In-lesson: render bare (no title/eyebrow/caption) with a "Fig N" corner — the
+    // prose beside it already carries the words. The standalone /diagram-render export
+    // renders the same component with the default (full) context, titled for SEO.
+    return (
+      <DiagramChromeProvider bare fig={fig ?? null}>
+        <DiagramComponent caption={caption} />
+      </DiagramChromeProvider>
+    );
   }
   // Small, odd-aspect schematic crops render inside a fixed white box with
   // `object-contain` (the vector scales to FIT, no tall-narrow balloon). `reveal`
@@ -1021,6 +1032,7 @@ function GuideBlock({
   cardId,
   isAdmin,
   logbook,
+  fig,
 }: {
   block: ContentBlock;
   index: number;
@@ -1034,6 +1046,9 @@ function GuideBlock({
   cardId?: string;
   isAdmin?: boolean;
   logbook?: LessonLogbook;
+  /** This diagram's figure number in the lesson (image blocks whose src is a
+   *  registry diagram), passed to ImageBlock so the bare frame shows "Fig N". */
+  fig?: number;
 }) {
   switch (block.type) {
     case "prose": {
@@ -1135,6 +1150,7 @@ function GuideBlock({
           blockIndex={index}
           isAdmin={isAdmin}
           inlineSvg={block.src ? diagrams?.[block.src] : undefined}
+          fig={fig}
         />
       );
 
@@ -1458,6 +1474,17 @@ export function GuideBlocks({
   const setupRanges = deriveSetupRanges(blocks);
   const setupStart = new Map(setupRanges.map((r) => [r.start, r]));
 
+  // Figure numbers for in-lesson diagrams: an image block whose src resolves to a
+  // registry diagram gets the next "Fig N" (plain images get none). Drives the bare
+  // frame's corner label; the standalone export stays fully titled.
+  const figByIndex = new Map<number, number>();
+  {
+    let n = 0;
+    blocks.forEach((b, i) => {
+      if (b.type === "image" && b.src && DIAGRAM_COMPONENTS[b.src]) figByIndex.set(i, ++n);
+    });
+  }
+
   // One block → its anchor-wrapped (or plain) element. Reused inside the band.
   const renderBlock = (block: ContentBlock, i: number) => {
     const anchorId = anchorByIndex.get(i);
@@ -1475,6 +1502,7 @@ export function GuideBlocks({
         cardId={cardId}
         isAdmin={isAdmin}
         logbook={logbook}
+        fig={figByIndex.get(i)}
       />
     );
     return anchorId ? (

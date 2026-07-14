@@ -24,6 +24,7 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { FieldGuideDownload } from "@/components/library/FieldGuideDownload";
 import { DroneSharedAutonomy } from "@/components/guide/diagrams/DroneSharedAutonomy";
 import { FundVirRelationship } from "@/components/guide/diagrams/FundVirRelationship";
+import { DiagramChromeProvider } from "@/components/guide/diagrams/DiagramChrome";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { courseListJsonLd, siteUrl } from "@/lib/seo/jsonld";
@@ -76,7 +77,14 @@ const HERO_DIAGRAMS: Record<string, React.ComponentType<{ caption?: string }>> =
 };
 function heroDiagram(src: string | null) {
   const Diagram = src ? HERO_DIAGRAMS[src] : undefined;
-  return Diagram ? <Diagram /> : null;
+  // Bare here too: the featured/hero diagram sits beside its own blurb on the index,
+  // so drop the frame's echoed title/eyebrow/caption. No fig number (a hero is not a
+  // numbered in-lesson figure). The standalone export still renders full/titled.
+  return Diagram ? (
+    <DiagramChromeProvider bare fig={null}>
+      <Diagram />
+    </DiagramChromeProvider>
+  ) : null;
 }
 
 const monthYear = (d: Date) =>
@@ -130,54 +138,71 @@ function LibraryRow({
 // The masthead lead: the flagship guide's TEXT (Bebas title, serif dek, mono
 // meta) with a read CTA + the guide's cluster Field Guide. Its diagram sits
 // BESIDE this in the masthead. No filled card; it sits on the bare field.
-function FeaturedLead({ lesson, signedIn }: { lesson: LessonMeta; signedIn: boolean }) {
+// V2c masthead (2026-07-14): the "▸ Featured guide" eyebrow labels the bare hero
+// diagram (a banner), then the Bebas title / Lora blurb / meta / CTA read beneath
+// it. `diagram` is the bare hero (null when the featured lesson's src is not in
+// HERO_DIAGRAMS — then it's just eyebrow → title, a clean degrade).
+function FeaturedLead({
+  lesson,
+  signedIn,
+  diagram,
+}: {
+  lesson: LessonMeta;
+  signedIn: boolean;
+  diagram?: React.ReactNode;
+}) {
   const cluster = clusterByKey(lesson.cluster);
   return (
-    <div>
+    <div className="space-y-5">
       <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
         ▸ Featured guide
       </p>
-      <h2 className="mt-3">
-        <Link
-          href={`/library/${lesson.slug}`}
-          className="font-display text-4xl font-normal leading-[0.95] tracking-wide text-title transition-colors hover:text-command-gold focus-visible:text-command-gold focus-visible:outline-none"
-        >
-          {lesson.title}
-        </Link>
-      </h2>
-      {lesson.summary ? (
-        <p className="mt-4 font-serif text-[15px] leading-relaxed text-text">{lesson.summary}</p>
-      ) : null}
-      <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
-        {cluster ? (
-          <>
-            <span>{cluster.label}</span>
-            <span className="text-command-gold">·</span>
-          </>
+      {diagram ? <div>{diagram}</div> : null}
+      <div className="space-y-4">
+        <h2>
+          <Link
+            href={`/library/${lesson.slug}`}
+            className="font-display text-4xl font-normal leading-[0.95] tracking-wide text-title transition-colors hover:text-command-gold focus-visible:text-command-gold focus-visible:outline-none"
+          >
+            {lesson.title}
+          </Link>
+        </h2>
+        {lesson.summary ? (
+          <p className="font-serif text-[15px] leading-relaxed text-text">{lesson.summary}</p>
         ) : null}
-        <span>
-          <span className="font-numeral tabular-nums text-command-gold">{lesson.readingMinutes}</span>{" "}
-          min read
-        </span>
-        <span className="text-command-gold">·</span>
-        <span>Updated {monthYear(lesson.updatedAt)}</span>
-      </p>
-      <div className="mt-5 flex flex-wrap items-center gap-3">
-        <Link
-          href={`/library/${lesson.slug}`}
-          className="glass-button-cta inline-flex items-center gap-2 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.14em]"
-        >
-          Read the guide
-          <span aria-hidden>→</span>
-        </Link>
-        {cluster ? (
-          <FieldGuideDownload
-            guide={cluster.key}
-            label={`${cluster.label} Field Guide`}
-            name={`the ${cluster.label} Field Guide`}
-            signedIn={signedIn}
-          />
-        ) : null}
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
+          {cluster ? (
+            <>
+              <span>{cluster.label}</span>
+              <span className="text-command-gold">·</span>
+            </>
+          ) : null}
+          <span>
+            <span className="font-numeral tabular-nums text-command-gold">
+              {lesson.readingMinutes}
+            </span>{" "}
+            min read
+          </span>
+          <span className="text-command-gold">·</span>
+          <span>Updated {monthYear(lesson.updatedAt)}</span>
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href={`/library/${lesson.slug}`}
+            className="glass-button-cta inline-flex items-center gap-2 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.14em]"
+          >
+            Read the guide
+            <span aria-hidden>→</span>
+          </Link>
+          {cluster ? (
+            <FieldGuideDownload
+              guide={cluster.key}
+              label={`${cluster.label} Field Guide`}
+              name={`the ${cluster.label} Field Guide`}
+              signedIn={signedIn}
+            />
+          ) : null}
+        </div>
       </div>
     </div>
   );
@@ -461,17 +486,10 @@ export default async function LibraryIndexPage() {
         </p>
       ) : (
         <>
-          {/* Masthead: featured (text + its diagram) | New & updated. */}
+          {/* Masthead: featured (eyebrow → diagram banner → text) | New & updated. */}
           {lead ? (
-            <div className="grid items-start gap-8 lg:grid-cols-[1.6fr_1fr]">
-              {leadDiagram ? (
-                <div className="grid items-start gap-6 sm:grid-cols-[1.3fr_1fr]">
-                  <FeaturedLead lesson={lead} signedIn={signedIn} />
-                  <div>{leadDiagram}</div>
-                </div>
-              ) : (
-                <FeaturedLead lesson={lead} signedIn={signedIn} />
-              )}
+            <div className="grid items-start gap-8 lg:grid-cols-[1.55fr_1fr]">
+              <FeaturedLead lesson={lead} signedIn={signedIn} diagram={leadDiagram} />
               {fresh.length > 0 ? <FreshRail items={fresh} /> : null}
             </div>
           ) : null}
