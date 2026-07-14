@@ -119,6 +119,27 @@ image's `alt`** — write it as real teaching prose). In PRINT the diagram is
 **frameless** — the PDF adds no box; the DiagramFrame's own hairline is the only
 frame. Supply ONLY the graphic body + its scoped `<style>`.
 
+### Bare mode — in-lesson vs. standalone (2026-07-14)
+
+The eyebrow/title/caption echo the prose beside the diagram, so **in the reading
+view they are redundant.** `DiagramFrame` reads a `DiagramChrome` context
+(`components/guide/diagrams/DiagramChrome.tsx`) with a `bare` flag:
+
+- **In-lesson (bare):** `GuideBlocks` wraps every diagram in
+  `<DiagramChromeProvider bare fig={N}>`, so the frame shows **only the graphic +
+  a "Fig N" corner label** — no eyebrow/title/caption. `fig` is the diagram's
+  1-based position among the lesson's diagrams. The library-index **hero** diagram
+  is bare too, but with `fig={null}` (a hero is not a numbered figure), so it's
+  frame + graphic only.
+- **Standalone (full):** the `/diagram-render` export and any render with **no
+  provider** use the default context (`bare: false`) and keep the full
+  eyebrow/title/caption. This is what the indexable `.webp`, the share card, and
+  the PDF embed — so the exported image keeps its own context.
+
+Author diagrams the same way regardless: the component always declares its real
+`eyebrow`/`title`/`caption`/`ariaLabel`; the context decides what renders. Never
+hardcode a bare variant into a diagram component.
+
 ## Aspect & size
 
 - **Web:** max `36rem` (576px) centered; reflow/stack on a ~360px phone (test at
