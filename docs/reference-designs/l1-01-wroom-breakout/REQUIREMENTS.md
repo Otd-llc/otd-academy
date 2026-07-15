@@ -11,7 +11,8 @@ board builds on: power in, protection, programming, status, and all GPIO broken 
 dev-kit would hide the very subsystems this board exists to teach, so it is **PCB-only**.
 
 **Discipline taught:** module + USB-C + 3.3 V LDO + native-USB programming path + the
-boot/reset control; WROOM antenna keep-out.
+boot/reset control; WROOM antenna keep-out; a 4-layer stackup with a dedicated inner
+ground plane (why layer count follows routability, not signal speed).
 
 ## Functional requirements
 - **F1 — Power & program over one USB-C port.** A host USB-C cable powers the board *and*
@@ -42,11 +43,21 @@ boot/reset control; WROOM antenna keep-out.
 ## Mechanical / DFM requirements
 - **M1 — Antenna keep-out (hard constraint):** no copper, no ground pour, no traces under or
   around the WROOM PCB antenna; ideally the module overhangs the board edge. This is the
-  headline LAYOUT review item and is uncorrectable after fab.
+  headline LAYOUT review item and is uncorrectable after fab. **On the 4-layer board (M5) the
+  keep-out spans all four copper layers — including both inner ground planes.**
 - **M2 — Hand-solderable:** all parts in hand-solder-friendly packages (0805 passives,
   SOT/TSOT, 6 mm tactiles, a USB-C receptacle with solder-retention tabs).
 - **M3 — Test access:** 3V3 and GND test-point loops for bring-up probing.
 - **M4 — Headers:** 2.54 mm breakaway headers for GPIO breakout (breadboard/jumper friendly).
+- **M5 — 4-layer stackup (dedicated inner ground plane):** the native-USB `D+/D-` pair is a
+  forced long diagonal — USB-C at one board edge, the module's fixed `GPIO19/20` at the
+  opposite corner, the module pinned to its antenna-keep-out edge (M1). A 2-layer board can't
+  hold a continuous ground reference under that run while the GPIO fan out to the headers, so
+  the board is 4-layer — signals outside, two ground planes inside: `F.Cu` signal /
+  `In1.Cu` ground plane / `In2.Cu` ground plane / `B.Cu` signal — the pair routed on `F.Cu`
+  over the continuous `In1.Cu` plane, `B.Cu` (GPIO fanout) referenced to `In2.Cu`. At USB
+  full-speed (12 Mbit/s) a broken 2-layer reference still *functions*; the extra layers buy
+  clean routability, not FS signal integrity.
 
 ## Constraints / known gotchas
 - **C1 — Antenna keep-out** (see M1) — the one mistake you cannot fix without a new board.

@@ -2,11 +2,12 @@
 //
 // Teaching point: "export gerbers" produces one flat file per fabrication layer.
 // Desktop/print show them as an exploded isometric stack in physical order, front
-// on top to back on bottom: F_Silk, F_Mask, F_Cu, B_Cu, B_Mask, B_Silk. A separate
-// .drl drill file punches a hole down through every layer. Zip the set and that
-// archive IS the board the fab builds.
+// on top to back on bottom: F_Silk, F_Mask, F_Cu, In1_Cu, In2_Cu, B_Cu, B_Mask,
+// B_Silk (this board is 4-layer: the two inner coppers are ground planes). A
+// separate .drl drill file punches a hole down through every layer. Zip the set and
+// that archive IS the board the fab builds.
 //
-// Layer materials (owner's rule): the two COPPER layers are solid metal, drawn
+// Layer materials (owner's rule): the four COPPER layers are solid metal, drawn
 // fully OPAQUE and a touch thicker; the SILK and MASK layers are thin coatings,
 // drawn as translucent films. Copper's edge is shaded (form), not translucent.
 //
@@ -28,6 +29,8 @@ const T2B: { name: string; kind: Kind }[] = [
   { name: "F_Silk", kind: "silk" },
   { name: "F_Mask", kind: "mask" },
   { name: "F_Cu", kind: "cu" },
+  { name: "In1_Cu", kind: "cu" },
+  { name: "In2_Cu", kind: "cu" },
   { name: "B_Cu", kind: "cu" },
   { name: "B_Mask", kind: "mask" },
   { name: "B_Silk", kind: "silk" },
@@ -37,8 +40,10 @@ const T2B: { name: string; kind: Kind }[] = [
 const ROWS: { name: string; desc: string; kind: Kind }[] = [
   { name: "F_Silkscreen.gbr", desc: "the white labels", kind: "silk" },
   { name: "F_Mask.gbr", desc: "solder mask, open at the pads", kind: "mask" },
-  { name: "F_Cu.gbr", desc: "front copper, your traces", kind: "cu" },
-  { name: "B_Cu.gbr", desc: "back copper, the ground plane", kind: "cu" },
+  { name: "F_Cu.gbr", desc: "front copper, your traces + the USB pair", kind: "cu" },
+  { name: "In1_Cu.gbr", desc: "inner copper, a ground plane", kind: "cu" },
+  { name: "In2_Cu.gbr", desc: "inner copper, a ground plane", kind: "cu" },
+  { name: "B_Cu.gbr", desc: "back copper, your bottom-side traces", kind: "cu" },
   { name: "B_Mask.gbr", desc: "solder mask, open at the pads", kind: "mask" },
   { name: "B_Silkscreen.gbr", desc: "the white labels", kind: "silk" },
 ];
@@ -77,7 +82,7 @@ function buildMarkup(): string {
   for (let j = T2B.length - 1; j >= 0; j--) g += slab(ys[j], T2B[j].kind);
   // drill: one hole punched through every layer, along a single bit path
   const sx = X + W * 0.58;
-  g += `<line class="gls-bit" x1="${sx}" y1="${ys[0] - 6}" x2="${sx}" y2="${ys[5] + TF + 6}"/>`;
+  g += `<line class="gls-bit" x1="${sx}" y1="${ys[0] - 6}" x2="${sx}" y2="${ys[ys.length - 1] + TF + 6}"/>`;
   ys.forEach((y, j) => (g += `<ellipse class="gls-hole" cx="${sx}" cy="${y + tOf(j) / 2}" rx="4" ry="3"/>`));
   // .drl file tag: an outlined gold pill above the stack, on a short leader
   const ty = ys[0] - DY / 2, ry = ty - 16, ph = 18, pw = 42;
@@ -96,14 +101,14 @@ export function GerberLayerStack({ caption }: { caption?: string }) {
       eyebrow="GERBER + DRILL OUTPUT"
       tone="gold"
       title="A Gerber set: one file per layer"
-      ariaLabel="A Gerber set drawn as an exploded isometric stack in physical order, front layer on top to back layer on bottom: F_Silk (the white labels), F_Mask (solder mask, open at the pads), F_Cu (front copper, your traces), B_Cu (back copper, the ground plane), B_Mask, and B_Silk. The two copper layers are solid metal; the silk and mask layers are thin films. A separate drill file, .drl, punches a hole straight down through every layer. Zip all of them into one archive; that zip is the board the fab builds."
+      ariaLabel="A Gerber set drawn as an exploded isometric stack in physical order, front layer on top to back layer on bottom: F_Silk (the white labels), F_Mask (solder mask, open at the pads), F_Cu (front copper, your traces), In1_Cu and In2_Cu (the two inner copper ground planes), B_Cu (back copper, your bottom-side traces), B_Mask, and B_Silk. The four copper layers are solid metal; the silk and mask layers are thin films. A separate drill file, .drl, punches a hole straight down through every layer. Zip all of them into one archive; that zip is the board the fab builds."
       caption={caption}
       defaultCaption="Zip every one into a single archive; that zip is the board the fab builds."
     >
       <style>{CSS}</style>
 
       {/* Desktop / print: exploded isometric stack */}
-      <svg className="gls-svg gls-wide" viewBox="0 0 560 250" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <svg className="gls-svg gls-wide" viewBox="0 0 560 300" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
         <g dangerouslySetInnerHTML={{ __html: MARKUP }} />
       </svg>
 

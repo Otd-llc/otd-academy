@@ -10,7 +10,7 @@
 | --- | --- |
 | **Slug** | `l1-01-wroom-breakout` |
 | **Owner** | Josh Tollette |
-| **Status** | `draft` → `validated` → `bom-frozen` (currently: **bom-frozen** — 17 parts created + BOM written, revision v1 `bomFrozenAt` set; lesson published; revision at LAYOUT stage, physical build pending) |
+| **Status** | `draft` → `validated` → `bom-frozen` (currently: **bom-frozen** — 17 parts created + BOM written, revision v1 `bomFrozenAt` set; lesson published; revision at LAYOUT stage, physical build pending; **stackup revised 2→4 layer 2026-07-14** — R5 de-risk, see `validation-log.md` + §1 stackup M5) |
 | **Track / Level** | COMMS (general dev core) / L1 |
 | **Teaches** | Hand-soldering your first board — every joint achievable with a basic iron |
 
@@ -67,7 +67,22 @@
     and §7 lists **only the 6 core validation items**.
   - **Antenna keep-out (M1):** module on a board **edge** with the PCB antenna
     over a keep-out (no copper/parts under/beside it, per Espressif S3-WROOM-1
-    integration rules).
+    integration rules). **On the 4-layer board (M5) the keep-out rule area must
+    exclude all four copper layers — including both inner ground planes
+    (`In1.Cu` + `In2.Cu`)** — a solid inner plane under the antenna detunes it as
+    surely as a top pour.
+  - **Stackup (M5) — 4-layer:** the native-USB `D+/D-` pair runs a **long
+    diagonal** (USB-C at one board edge → the module's fixed `GPIO19/20` at the
+    opposite corner). A 2-layer board cannot hold a **continuous ground reference**
+    under that whole run while the 40+ GPIO fan out to the headers, so the board is
+    **4-layer** — signals outside, **two ground planes inside** so both signal
+    layers hug a plane: `F.Cu` (signal) · **`In1.Cu` (GND)** · **`In2.Cu` (GND)** ·
+    `B.Cu` (signal). The USB pair rides `F.Cu` over the solid `In1.Cu` plane; `B.Cu`
+    (GPIO fanout) references `In2.Cu`; 3V3 stays a routed trace/pour — one
+    low-current, well-decoupled rail needs no power plane. At USB
+    full-speed (12 Mbit/s) a broken 2-layer reference would still *function*, but it
+    is not cleanly routable — the layer count is set by **routability**, not FS
+    signal integrity. See **R5**.
   - **Solderability (the L1 constraint — first-class):** no leadless packages
     (QFN/BGA/DFN); passives ≥ 0805 (1206 OK); leaded SMD (SOT-23, SOIC) +
     through-hole only; buttons + headers through-hole; USB-C is the hardest joint
@@ -120,6 +135,15 @@ manual fallback** (hold BOOT, tap EN). Power LED on 3V3; user LED on a free GPIO
 for "blink." All usable GPIO + 5 V/3V3/GND go to the two headers (module
 flash/PSRAM pins are internal/not exposed).
 
+**Stackup (4-layer).** Signals outside, planes inside — both signal layers reference
+an adjacent ground plane: `F.Cu` (signal) · **`In1.Cu` (GND plane)** ·
+**`In2.Cu` (GND plane)** · `B.Cu` (signal), on 1.6 mm FR4. The USB `D+/D-` pair
+routes on `F.Cu` over the continuous `In1.Cu` plane the entire run; `B.Cu` (GPIO
+fanout) references `In2.Cu`; the two planes stitch together and to U1's centre pad;
+3V3 stays a routed trace/pour (no power plane needed). The antenna keep-out excludes
+**all four** copper layers. Layer count is driven by routability of the long
+native-USB diagonal, not FS signal integrity — see §1 stackup (M5) and **R5**.
+
 ## 3 · Calc trail (DO — lock the math)
 
 | Value | Formula / source | Result | Notes |
@@ -169,6 +193,10 @@ removed the hardest sub-circuit entirely.
   + ESD) to the headers for *powering* peripherals only — never into a GPIO (E3).
 - **Budget:** ESP32-S3 typical 80–160 mA, WiFi-TX peak ~500 mA (brief). LDO spec
   ≥ 600 mA with a 10 µF bulk cap on 3V3 to ride the TX transient (E2; R2).
+- **Ground return (4-layer):** the inner ground planes (`In1.Cu`/`In2.Cu`) give
+  every return — the WiFi-TX transient, the decoupling loops, the USB pair — a continuous
+  low-impedance path directly under the signal, better than a 2-layer bottom pour.
+  A mild power-integrity gain, no regression (M5; R5).
 - **Thermal:** **not a flagged concern.** Worst case the RT9080 drops ~1.7 V
   (5 V → 3.3 V) at ≤ 600 mA → ~1 W transient / well under that typically; the
   SOT-23-class LDO with board copper handles it, and the OC/OT protection is the
@@ -185,8 +213,8 @@ that forced the S3 pivot).
 | **R1** | **USB-UART bridge un-sourceable** — a WROOM-32E needs an onboard bridge; under the Digikey/Amazon + hand-solderable constraint **every** candidate failed (FT231X out · CH340C out · CH343G not carried by Digikey · FT232RL no stock · PL2303 too expensive · CP2102N/CP2104/CH9102 all QFN, unsolderable for L1). | High × High (blocks the whole board) | **Pivot to native-USB ESP32-S3-WROOM-1 (D9):** the S3's built-in USB Serial/JTAG removes the bridge entirely — and the two auto-program transistors with it. Simpler, more solderable, no driver, still a "WROOM." | **DE-RISKED** |
 | R2 | 600 mA LDO vs ~500 mA WiFi-TX peak — headroom worry (AP2112K vs a 1 A LDO) | Med × Med | RT9080-33GJ5: 0.53 V dropout @ 600 mA from 5 V; 10 µF bulk rides the transient. 600 mA accepted (D17). | **DE-RISKED** |
 | R3 | Curriculum-wide ripple — the native-USB S3 pivot affects all 22 projects | Med × Med | Accepted curriculum-wide (D15); L1.01 is the reference template; migrating the other 21 BOMs/content is a **separate tracked effort** (code mostly ports: ESP-IDF/Arduino). | **DE-RISKED** |
-| R4 | Antenna keep-out — copper/parts under the PCB antenna would detune it and break the module's pre-cert | Low × High | Module on a board **edge** with a keep-out (M1, per Espressif integration rules); resolved in KiCad layout + the LAYOUT_REVIEW antenna-keep-out gate item. | open → close in layout |
-| R5 | USB D+/D- routing — D+/D- run straight to GPIO19/20; poor length-match/impedance can hurt full-speed signaling | Low × Med | Short, length-matched D+/D- pair through the USBLC6; ESD array placed at the connector. Resolved in KiCad layout. | open → close in layout |
+| R4 | Antenna keep-out — copper/parts under the PCB antenna would detune it and break the module's pre-cert | Low × High | Module on a board **edge** with a keep-out (M1, per Espressif integration rules); resolved in KiCad layout + the LAYOUT_REVIEW antenna-keep-out gate item. **On 4-layer (M5) the keep-out rule area must exclude all four copper layers, incl. both inner ground planes (`In1.Cu` + `In2.Cu`)** — a solid inner plane under the antenna detunes it too. | open → close in layout |
+| R5 | USB D+/D- routing — the native-USB pair is a **forced long diagonal** (USB-C edge → GPIO19/20 at the opposite corner); a 2-layer board cannot keep a continuous ground reference under it while the GPIO fan out | Med × Med | **Resolved by the 4-layer stackup (M5):** a dedicated inner ground plane (`In1.Cu`) gives the pair a continuous reference the whole run, independent of GPIO routing. FS (12 Mbit/s) tolerates the length; the extra layers buy clean routability + margin, not FS SI. See `validation-log.md` 2026-07-14. | **DE-RISKED** |
 | R6 | S3 native-USB quirk — firmware that reconfigures GPIO19/20 (or heavy USB use) can drop the CDC port | Low × Low | Documented; recover via **BOOT + EN** (keep the buttons, F4). | **DE-RISKED** |
 | R7 | Board outline / header row spacing (physical) | Low × Low | Finalized in KiCad layout (breadboard-straddle row spacing). | open → close in layout |
 
@@ -210,12 +238,15 @@ flags, so there are **no conditional items**):
   populated on all 17 parts).
 - [x] **Fab-DRU DRC accounted for** — the fab's design rules (`.kicad_dru`,
   PCBWay) are applied in the lesson's Board Setup and DRC = 0 errors gates the
-  LAYOUT stage.
+  LAYOUT stage. **Now a 4-layer PCBWay stackup** (M5): the Board-Setup physical
+  stackup + the all-copper-layer keep-out are *captured* here, *verified* at layout.
 - [x] **BOM availability confirmed** — every part in stock (nightly DigiKey
   watchdog; C1 Murata→KEMET ECN 2026-06-24 proves the loop).
-- [ ] **All top risks de-risked** — R1–R3, R6 de-risked; **R4/R5/R7 close at
-  layout review** (the in-app LAYOUT_REVIEW checklist — antenna keep-out item —
-  is still unchecked; tick this after that sign-off).
+- [ ] **All top risks de-risked** — R1–R3, R6 de-risked; **R5 de-risked via the
+  4-layer stackup** (2026-07-14, `validation-log.md`); **R4** (now incl. the
+  inner-plane keep-out) **and R7 close at layout review** (the in-app LAYOUT_REVIEW
+  checklist — antenna keep-out item — is still unchecked; tick this after that
+  sign-off).
 
 > These are *attestations* (a human checked), not machine proofs — except BOM
 > availability (parts MCP) and DRU presence, which are verifiable.
@@ -240,4 +271,7 @@ flags, so there are **no conditional items**):
   revision v1 `bomFrozenAt` set; the guide was authored and published against it.
   One post-freeze sourcing ECN: **C1** bulk cap Murata `GRM21BR61E106KA73L` (OOS)
   → KEMET `C0805C106K3PACTU`, 2026-06-24 — drop-in, scoped audit clean (see
-  `validation-log.md`).
+  `validation-log.md`). The **2026-07-14 2→4 layer stackup** change (M5; R5) is a
+  layout-domain design change: the **component BOM is unchanged** — only the
+  bare-board fab spec moves to 4-layer (a small per-unit cost delta, not a BOM
+  line). Scoped audit in `validation-log.md`.

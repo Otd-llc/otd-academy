@@ -30,6 +30,15 @@ export default async function DiagramRenderPage({
       id="diagram-export-root"
       style={{ width: "min(36rem, 100%)", marginInline: "auto", padding: 16 }}
     >
+      {/* Export-only: neutralize the frame's query container so the raster always
+          bakes the DESKTOP (wide) layout. In the guide `.dgfrm` keeps
+          `container-type:inline-size` for real mobile/narrow-rail reflow; here the
+          frame's content-box sits right at the diagrams' 520px `@container`
+          breakpoint, which would otherwise tip every raster into its stacked mobile
+          form. With no container context the `@container` rules never match and each
+          diagram falls back to its desktop layout — the canonical raster for OG
+          cards + the field-guide PDF. */}
+      <style dangerouslySetInnerHTML={{ __html: "#diagram-export-root .dgfrm{container-type:normal!important}" }} />
       {bare ? (
         <DiagramChromeProvider bare fig={null}>
           <Comp />

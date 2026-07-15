@@ -35,7 +35,7 @@ import { pinoutSchema, type Pinout } from "@/lib/schemas/part-fact";
 import { buildSymbolLib } from "@/lib/kicad/symbol-lib";
 import { setFootprintModelPath } from "@/lib/kicad/footprint-lib";
 import { buildSymLibTable, buildFpLibTable } from "@/lib/kicad/lib-tables";
-import { buildKicadPro } from "@/lib/kicad/project";
+import { buildKicadPro, BOARD_CONFIG_OVERRIDES } from "@/lib/kicad/project";
 import { gridPlacement } from "@/lib/kicad/placement";
 import { buildBasePcb } from "@/lib/kicad/pcb";
 import { buildStubSymbol, buildStubFootprint } from "@/lib/kicad/stubs";
@@ -158,6 +158,8 @@ export async function buildKicadExportZip(
     },
   });
   const projectName = revision.project.slug;
+  // Per-board stackup/rule override (e.g. l1-01 = 4-layer); undefined = defaults.
+  const boardConfig = BOARD_CONFIG_OVERRIDES[projectName];
   // Title-block fields: the revision label is the schematic `rev`; its
   // `updatedAt` (a DB value, not `Date.now()`) is the deterministic `date`.
   const revLabel = revision.label;
@@ -391,14 +393,14 @@ export async function buildKicadExportZip(
     },
   );
 
-  const kicadPro = buildKicadPro({ projectName });
+  const kicadPro = buildKicadPro({ projectName, config: boardConfig });
   const symLibTable = buildSymLibTable([
     { nick: projectName, file: `${projectName}.kicad_sym`, descr: revision.project.name },
   ]);
   const fpLibTable = buildFpLibTable([
     { nick: projectName, file: `${projectName}.pretty`, descr: revision.project.name },
   ]);
-  const basePcb = buildBasePcb();
+  const basePcb = buildBasePcb({ config: boardConfig });
 
   const schematic = buildSchematic({
     projectName,
