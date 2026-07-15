@@ -266,7 +266,7 @@ export default async function RootLayout({
                     <nav key={g.label} className="flex flex-col items-start gap-2" aria-label={g.label}>
                       <span className="font-display text-sm tracking-[0.1em] text-command-gold">{g.label}</span>
                       {g.links.map(([label, href]) => (
-                        <Link key={label} href={href} className="font-display text-base tracking-[0.06em] text-muted transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none">
+                        <Link key={label} href={href} className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none">
                           {label}
                         </Link>
                       ))}
@@ -279,7 +279,7 @@ export default async function RootLayout({
                       ["About", "https://onethousanddrones.com/about"],
                       ["Contact", "https://onethousanddrones.com/contact"],
                     ].map(([label, href]) => (
-                      <a key={label} href={href} rel="noopener" className="font-display text-base tracking-[0.06em] text-muted transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none">
+                      <a key={label} href={href} rel="noopener" className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none">
                         {label} <span className="text-signal-blue">↗</span>
                       </a>
                     ))}
