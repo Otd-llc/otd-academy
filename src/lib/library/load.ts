@@ -4,8 +4,6 @@
 // so the route 404s.
 import { db } from "@/lib/db";
 import { byClusterThenOrdinal, bucketByCluster } from "@/lib/library/cluster-order";
-import { readingMinutes } from "@/lib/library/reading-time";
-import { firstDiagramSrc } from "@/lib/library/hero-diagram";
 
 export async function loadPublicMiniLesson(slug: string) {
   return db.miniLesson.findFirst({
@@ -84,31 +82,29 @@ export async function listPublishedByCluster() {
     where: { published: true, accessTier: "PUBLIC" },
     orderBy: { updatedAt: "desc" },
     // `createdAt` rides along for the landing's "new & updated" rail + featured
-    // freshness fallback (pickFeatured / pickFreshRail). `contentBlocks` is pulled
-    // ONLY to derive the read-time + a featured lesson's hero-diagram src here,
-    // then stripped below so the landing carries those, not the (heavy) content.
-    // bucketByCluster is generic over the row shape, so the extra fields pass
-    // through untouched.
+    // freshness fallback (pickFeatured / pickFreshRail).
+    //
+    // `readingMinutes` / `diagramSrc` are STORED columns, derived from
+    // contentBlocks on write by the db.ts client extension. They used to be
+    // derived live here, which meant SELECTing all 69 rows' contentBlocks --
+    // ~306 kB of wire per call, twice per /library render -- to keep ~18 kB of
+    // scalars. Do NOT reintroduce contentBlocks here.
+    // See docs/plans/2026-07-15-library-derived-columns.md.
+    //
+    // bucketByCluster is generic over the row shape, so these pass through.
     select: {
       slug: true,
       title: true,
       summary: true,
-      contentBlocks: true,
       createdAt: true,
       updatedAt: true,
       cluster: true,
       clusterOrdinal: true,
+      readingMinutes: true,
+      diagramSrc: true,
     },
   });
-  // Derive read-time + hero-diagram src in one place, then drop contentBlocks.
-  // (If the landing ever gets hot, these move to stored columns; today they stay
-  // live so a content edit is reflected with no backfill.)
-  const withMeta = rows.map(({ contentBlocks, ...row }) => ({
-    ...row,
-    readingMinutes: readingMinutes(contentBlocks),
-    diagramSrc: firstDiagramSrc(contentBlocks),
-  }));
-  return bucketByCluster(withMeta);
+  return bucketByCluster(rows);
 }
 
 // Published, PUBLIC lessons WITH content blocks for a Field Guide PDF.
