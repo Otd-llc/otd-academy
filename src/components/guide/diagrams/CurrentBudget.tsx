@@ -71,7 +71,7 @@ export function CurrentBudget({ caption }: { caption?: string }) {
 
 const CSS = `
 .cbgt-wrap{display:flex;align-items:center;justify-content:center;gap:clamp(.8rem,3vw,1.5rem);}
-@media (max-width:520px){.cbgt-wrap{flex-direction:column;gap:1rem;}}
+@container (max-width:520px){.cbgt-wrap{flex-direction:column;gap:1rem;}}
 .cbgt-svg{display:block;width:100%;height:auto;overflow:visible;flex:1 1 48%;min-width:0;max-width:270px;}
 .cbgt-arc{fill:none;stroke-width:30;stroke-linecap:butt;}
 .cbgt-wifi{stroke:var(--color-command-gold,#c8963e);}
@@ -87,7 +87,7 @@ const CSS = `
 .cbgt-legend{margin:0;padding:clamp(.75rem,2.6vw,1rem) clamp(.85rem,3vw,1.05rem);list-style:none;
   flex:1 1 50%;min-width:0;display:flex;flex-direction:column;gap:.6rem;text-align:left;
   background:var(--color-diagram-surface,#1f2438);border:1px solid var(--color-panel-border,#3a3f50);border-radius:6px;}
-@media (max-width:520px){.cbgt-legend{flex-basis:auto;align-self:stretch;}}
+@container (max-width:520px){.cbgt-legend{flex-basis:auto;align-self:stretch;}}
 .cbgt-legend li{display:flex;align-items:center;gap:.5rem;color:var(--color-muted,#aaa);
   font-family:var(--font-mono,"Space Mono",monospace);font-size:clamp(.8rem,2.2vw,.9rem);line-height:1.35;}
 .cbgt-txt{min-width:0;}

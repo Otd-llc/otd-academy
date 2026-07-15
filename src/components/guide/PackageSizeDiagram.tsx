@@ -58,7 +58,7 @@ const CSS = `
 .pkgcmp-callout{margin:0 0 .6rem;color:var(--color-signal-blue,#4a8fff);font-weight:700;font-size:clamp(.95rem,2.5vw,1.05rem);}
 
 /* Narrow screens: stack the two packages so the big labels never cramp/wrap. */
-@media (max-width:520px){
+@container (max-width:520px){
   .pkgcmp-stage{flex-direction:column;align-items:center;gap:1.6rem;}
   .pkgcmp-rail{height:auto;}
 }

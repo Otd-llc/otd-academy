@@ -67,7 +67,7 @@ export function McuPeripheralMux({ caption }: { caption?: string }) {
 const CSS = `
 .mx{max-width:36rem;margin-inline:auto;}
 .mx-svg{display:block;width:100%;height:auto;overflow:visible;}
-.mx-block{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:1.8;}
+.mx-block{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:1.8;}
 .mx-block-t{font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:20px;letter-spacing:.03em;fill:var(--color-title,#f1ece0);}
 .mx-block-s{font-family:var(--font-mono,"Space Mono",monospace);font-size:9px;fill:var(--color-muted,#aaaaaa);}
 .mx-conn{stroke:var(--color-command-gold,#c8963e);stroke-width:1.8;}

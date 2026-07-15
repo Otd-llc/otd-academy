@@ -26,6 +26,9 @@ import {
   Link,
   Svg,
   Path,
+  Defs,
+  LinearGradient,
+  Stop,
   StyleSheet,
 } from "@react-pdf/renderer";
 import { type ReactNode } from "react";
@@ -34,6 +37,7 @@ import { parseInlineTerms } from "@/lib/inline-terms";
 import { PDF_SAIRA_FALLBACK } from "@/lib/pdf/pdf-fallback-set";
 import { BRANDMARK_PATH, BRANDMARK_VIEWBOX } from "@/lib/pdf/certificate-content";
 import type { ResolvedImage } from "@/lib/pdf/library-images";
+import { mathToPdf } from "@/lib/pdf/math-svg";
 import { getTool } from "@/lib/tools/registry";
 import type {
   FieldGuidePart,
@@ -236,7 +240,7 @@ const s = StyleSheet.create({
   coverTitle: { fontFamily: "Bebas", fontSize: 56, color: INK, letterSpacing: 1, lineHeight: 0.86, textTransform: "uppercase", marginTop: 6 },
   coverRule: { width: 70, height: 1.6, backgroundColor: GOLD, marginTop: 14, marginBottom: 12 },
   coverMeta: { fontFamily: "Mono", fontSize: 8.5, letterSpacing: 2, color: FAINT, textTransform: "uppercase", lineHeight: 1.8 },
-  wmCorner: { position: "absolute", right: 0, bottom: 0 },
+  wmCorner: { position: "absolute", left: 0, top: 0 },
 
   tocTitle: { fontFamily: "Bebas", fontSize: 30, color: INK, marginBottom: 6, letterSpacing: 0.4, textTransform: "uppercase" },
 
@@ -599,14 +603,25 @@ function Block({ block, images }: { block: ContentBlock; images: Map<string, Res
       );
     }
 
-    case "math":
-      // react-pdf can't run KaTeX, so render the plain-ASCII fallback (or the raw
-      // tex if none). Centered for a display equation, inline-left otherwise.
+    case "math": {
+      // Real typeset math: MathJax -> react-pdf <Svg> (see math-svg.tsx). Centered
+      // for a display equation, left for inline. If the render fails, fall back to
+      // the plain-ASCII string (or raw tex) so an equation never crashes the PDF.
+      const display = block.display !== false;
+      const rendered = block.tex ? mathToPdf(block.tex, display, INK) : null;
+      if (rendered) {
+        return (
+          <View style={{ marginTop: 10, marginBottom: 4, alignItems: display ? "center" : "flex-start" }} wrap={false}>
+            {rendered}
+          </View>
+        );
+      }
       return (
-        <Text style={{ ...s.prose, textAlign: block.display === false ? "left" : "center" }}>
+        <Text style={{ ...s.prose, textAlign: display ? "center" : "left" }}>
           {withSymbols(block.plain ?? block.tex)}
         </Text>
       );
+    }
 
     default:
       return null;
@@ -757,10 +772,19 @@ export function LibraryPdf({
 }
 
 // ── whole library, one book ──────────────────────────────────────────────────
-function Brandmark({ size, opacity }: { size: number; opacity: number }) {
+// The cover watermark: a 135deg gradient-alpha brandmark (owner pick) anchored
+// top-left, brightest at the corner and fading toward the page. Matches the site
+// footer's gradient watermark treatment (vs the old flat single-opacity fill).
+function Brandmark({ size }: { size: number }) {
   return (
     <Svg width={size} height={size * (400 / 418)} viewBox={BRANDMARK_VIEWBOX}>
-      <Path d={BRANDMARK_PATH} fill={GOLD} fillOpacity={opacity} />
+      <Defs>
+        <LinearGradient id="wmGrad" x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor={GOLD} stopOpacity={0.16} />
+          <Stop offset="1" stopColor={GOLD} stopOpacity={0.05} />
+        </LinearGradient>
+      </Defs>
+      <Path d={BRANDMARK_PATH} fill="url(#wmGrad)" />
     </Svg>
   );
 }
@@ -786,7 +810,7 @@ export function FieldGuidePdf({
           corner brandmark watermark (no header/footer on the cover) */}
       <Page size="A4" style={s.page}>
         <View style={s.wmCorner}>
-          <Brandmark size={230} opacity={0.08} />
+          <Brandmark size={230} />
         </View>
         <View style={s.coverSplit}>
           <Text style={s.coverBig}>{chrome.coverNumeral}</Text>

@@ -155,7 +155,7 @@ const CSS = `
 .gls-narrow{display:none;}
 .gls-list{list-style:none;margin:0;padding:0;text-align:left;}
 .gls-row{position:relative;display:flex;align-items:center;gap:.85rem;
-  background:var(--color-navy-dark,#1f2438);border:1px solid var(--color-panel-border,#3a3f50);
+  background:var(--color-diagram-surface,#1f2438);border:1px solid var(--color-panel-border,#3a3f50);
   border-radius:5px;padding:.7rem .85rem;overflow:hidden;}
 .gls-swatch{flex:0 0 auto;width:10px;align-self:stretch;border-radius:2px;background:var(--color-muted,#aaa);}
 .gls-rowbody{display:flex;flex-direction:column;gap:.18rem;min-width:0;}
@@ -172,7 +172,7 @@ const CSS = `
 .gls-notetag{color:var(--color-command-gold,#c8963e);font-weight:700;font-size:.62rem;letter-spacing:.12em;
   border:1px solid var(--color-command-gold,#c8963e);border-radius:3px;padding:.18rem .4rem;margin-right:.5rem;white-space:nowrap;}
 
-@media (max-width:520px){
+@container (max-width:520px){
   .gls-wide{display:none;}
   .gls-narrow{display:flex;flex-direction:column;gap:5px;}
 }

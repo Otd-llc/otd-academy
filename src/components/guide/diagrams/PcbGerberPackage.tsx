@@ -43,18 +43,18 @@ export function PcbGerberPackage({ caption }: { caption?: string }) {
 
 const CSS = `
 .gz{display:flex;align-items:center;justify-content:center;gap:clamp(1rem,4vw,1.8rem);}
-@media (max-width:520px){.gz{flex-direction:column;gap:1rem;}}
+@container (max-width:520px){.gz{flex-direction:column;gap:1rem;}}
 .gz-zipcol{flex:0 0 auto;text-align:center;}
 .gz-svg{display:block;width:clamp(76px,20vw,104px);height:auto;overflow:visible;margin:0 auto;}
 .gz-name{margin:.45rem 0 0;font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;
   font-size:clamp(.85rem,2.3vw,1rem);color:var(--color-command-gold,#c8963e);}
-.gz-zip{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:1.8;}
+.gz-zip{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:1.8;}
 .gz-zln{stroke:var(--color-command-gold,#c8963e);stroke-width:2;stroke-dasharray:3 3;}
 .gz-tab{fill:var(--color-command-gold,#c8963e);}
 
 .gz-list{flex:1 1 auto;min-width:0;margin:0;padding:0;list-style:none;display:flex;flex-direction:column;
   gap:clamp(.55rem,2vw,.8rem);text-align:left;}
-@media (max-width:520px){.gz-list{align-self:stretch;}}
+@container (max-width:520px){.gz-list{align-self:stretch;}}
 .gz-list li{font-family:var(--font-serif,"Lora",serif);font-size:clamp(.92rem,2.5vw,1.05rem);
   line-height:1.35;color:var(--color-muted,#aaaaaa);}
 .gz-list b{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;

@@ -101,11 +101,11 @@ const CSS = `
 
 /* phone reflow */
 .dc-list{display:none;flex-direction:column;gap:.7rem;}
-@media (max-width:520px){ .dc-scene{display:none;} .dc-list{display:flex;} }
+@container (max-width:520px){ .dc-scene{display:none;} .dc-list{display:flex;} }
 .dc-mini{display:block;width:100%;height:auto;overflow:visible;}
 .dc-facts{display:flex;justify-content:space-between;gap:.4rem;list-style:none;margin:0;padding:0;}
 .dc-facts li{flex:1 1 0;text-align:center;padding:.45rem .3rem;border-radius:6px;
-  background:var(--color-navy-dark,#1a1a2e);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);
+  
   font-family:var(--font-mono,"Space Mono",monospace);font-size:.8rem;color:var(--color-muted,#aaa);}
 .dc-facts b{display:block;font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;
   font-size:1.25rem;color:var(--color-command-gold,#c8963e);line-height:1.1;}

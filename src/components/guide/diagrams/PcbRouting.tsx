@@ -72,9 +72,9 @@ export function PcbRouting({ caption }: { caption?: string }) {
 
 const CSS = `
 .rt{display:flex;align-items:center;justify-content:center;gap:clamp(.6rem,3vw,1.4rem);}
-@media (max-width:520px){.rt{flex-direction:column;gap:1rem;}}
+@container (max-width:520px){.rt{flex-direction:column;gap:1rem;}}
 .rt-panel{flex:1 1 0;min-width:0;text-align:center;}
-@media (max-width:520px){.rt-panel{align-self:stretch;}}
+@container (max-width:520px){.rt-panel{align-self:stretch;}}
 .rt-svg{display:block;width:100%;height:auto;overflow:visible;}
 .rt-cap{margin:.4rem 0 0;font-family:var(--font-mono,"Space Mono",monospace);font-size:clamp(.8rem,2.2vw,.9rem);color:var(--color-muted,#aaaaaa);}
 
@@ -84,7 +84,7 @@ const CSS = `
 .rt-pt{fill:var(--color-command-gold,#c8963e);}
 .rt-lead{stroke:var(--color-muted,#aaaaaa);stroke-width:1.2;stroke-dasharray:3 3;fill:none;}
 .rt-cu{fill:var(--color-command-gold,#c8963e);}
-.rt-core{fill:var(--color-navy-dark,#1a1a2e);}
+.rt-core{fill:var(--color-diagram-surface,#1f2438);}
 .rt-hole{fill:var(--color-deep-space,#08090d);}
 .rt-trace{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:4;stroke-linecap:round;}
 .rt-flow{fill:none;stroke:var(--color-gold-light,#e8b865);stroke-width:2;stroke-dasharray:2 3;stroke-linecap:round;}

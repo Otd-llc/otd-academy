@@ -84,7 +84,7 @@ const CSS = `
 
 /* phone reflow */
 .sw-list{display:none;flex-direction:column;gap:.7rem;}
-@media (max-width:520px){ .sw-scene{display:none;} .sw-list{display:flex;} }
+@container (max-width:520px){ .sw-scene{display:none;} .sw-list{display:flex;} }
 .sw-mini{display:block;width:100%;height:auto;overflow:visible;}
 .sw-rules{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.4rem;text-align:left;}
 .sw-rules li{font-family:var(--font-mono,"Space Mono",monospace);font-size:.86rem;color:var(--color-muted,#aaa);

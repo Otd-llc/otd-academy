@@ -73,7 +73,7 @@ const CSS = `
 .muerd-scenario b{color:var(--color-title,#f1ece0);font-weight:700;}
 
 .muerd-grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(.8rem,2.6vw,1.15rem);text-align:left;}
-@media (max-width:520px){.muerd-grid{grid-template-columns:1fr;}}
+@container (max-width:520px){.muerd-grid{grid-template-columns:1fr;}}
 
 .muerd-chan{display:flex;flex-direction:column;gap:.5rem;}
 .muerd-site{margin:0;color:var(--color-muted,#aaa);font-family:var(--font-mono,"Space Mono",monospace);
@@ -82,10 +82,10 @@ const CSS = `
 
 /* the oscilloscope screen */
 .muerd-scope{border-radius:7px;padding:.35rem .5rem;
-  background:color-mix(in srgb,var(--color-command-gold,#c8963e) 5%,var(--color-navy-dark,#1f2438));}
+  background:color-mix(in srgb,var(--color-command-gold,#c8963e) 5%,var(--color-diagram-surface,#1f2438));}
 .muerd-scope-c3{box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
 .muerd-scope-c4{box-shadow:inset 0 0 0 2px var(--color-signal-blue,#4a8fff);
-  background:color-mix(in srgb,var(--color-signal-blue,#4a8fff) 6%,var(--color-navy-dark,#1f2438));}
+  background:color-mix(in srgb,var(--color-signal-blue,#4a8fff) 6%,var(--color-diagram-surface,#1f2438));}
 .muerd-scope-svg{display:block;width:100%;height:clamp(3.2rem,12vw,4rem);overflow:hidden;}
 .muerd-base{stroke:var(--color-panel-border,#3a3f50);stroke-width:1;}
 .muerd-trace{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}

@@ -70,7 +70,7 @@ export function PcbSilkscreen({ caption }: { caption?: string }) {
 const CSS = `
 .sk{max-width:35rem;margin-inline:auto;}
 .sk-svg{display:block;width:100%;height:auto;overflow:visible;}
-.sk-brd{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-panel-border,#3a3f50);stroke-width:1.4;}
+.sk-brd{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-panel-border,#3a3f50);stroke-width:1.4;}
 .sk-pad{fill:var(--color-command-gold,#c8963e);}
 .sk-silk{fill:none;stroke:var(--color-title,#f1ece0);stroke-width:1.5;}
 .sk-silkf{fill:var(--color-title,#f1ece0);}

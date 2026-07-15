@@ -65,7 +65,7 @@ export function McuPwmDuty({ caption }: { caption?: string }) {
 const CSS = `
 .pw{display:flex;gap:.5rem;align-items:center;justify-content:center;max-width:36rem;margin-inline:auto;}
 .pw-svg{flex:1 1 150px;min-width:0;max-width:180px;height:auto;overflow:visible;}
-@media (max-width:520px){
+@container (max-width:520px){
   .pw{flex-direction:column;gap:.4rem;}
   .pw-svg{max-width:min(300px,100%);}
 }

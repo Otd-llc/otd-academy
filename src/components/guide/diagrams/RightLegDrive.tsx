@@ -92,11 +92,11 @@ const CSS = `
 
 /* phone reflow: two stacked cards */
 .rld-cards{display:none;flex-direction:column;gap:.7rem;text-align:left;}
-@media (max-width:520px){
+@container (max-width:520px){
   .rld-diagram{display:none;}
   .rld-cards{display:flex;}
 }
-.rld-card{border-radius:6px;padding:.75rem .85rem;background:var(--color-navy-dark,#1f2438);}
+.rld-card{border-radius:6px;padding:.75rem .85rem;}
 .rld-card-bad{box-shadow:inset 0 0 0 1.5px var(--color-alert-red,#ef5350);}
 .rld-card-ok{box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
 .rld-ck{margin:0 0 .3rem;font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:1.2rem;letter-spacing:.02em;}

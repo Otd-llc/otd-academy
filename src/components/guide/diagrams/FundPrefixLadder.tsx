@@ -120,10 +120,10 @@ const CSS = `
 
 /* phone reflow */
 .pl-list{display:none;list-style:none;margin:0;padding:0;flex-direction:column;gap:.35rem;}
-@media (max-width:520px){ .pl-scale{display:none;} .pl-list{display:flex;} }
+@container (max-width:520px){ .pl-scale{display:none;} .pl-list{display:flex;} }
 .pl-list li{display:grid;grid-template-columns:2.2rem auto auto 1fr;align-items:center;gap:.7rem;
   padding:.5rem .8rem;border-radius:6px;text-align:left;
-  background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
+  }
 .pl-list li.pl-li-unit{box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
 .pl-li-sym{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:1.25rem;line-height:1;color:var(--color-title,#f1ece0);}
 .pl-li-unit .pl-li-sym{color:var(--color-command-gold,#c8963e);}

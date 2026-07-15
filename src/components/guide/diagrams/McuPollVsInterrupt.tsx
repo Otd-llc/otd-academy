@@ -86,7 +86,7 @@ const CSS = `
 .pi-svg{flex:1 1 200px;min-width:0;max-width:220px;height:auto;overflow:visible;}
 .pi-svg-r{max-width:264px;}
 .pi-div{flex:0 0 0;align-self:stretch;border-left:1px dashed var(--color-panel-border,#3a3f50);margin:1rem 0;}
-@media (max-width:520px){
+@container (max-width:520px){
   .pi{flex-direction:column;gap:.3rem;}
   .pi-svg{max-width:min(300px,100%);}
   .pi-div{align-self:stretch;border-left:0;border-top:1px dashed var(--color-panel-border,#3a3f50);margin:0 2rem;width:auto;}
@@ -95,7 +95,7 @@ const CSS = `
 .pi-ring-arrow{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2;}
 .pi-mk-g{fill:var(--color-command-gold,#c8963e);}
 .pi-mk-b{fill:var(--color-signal-blue,#4a8fff);}
-.pi-node{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:1.6;}
+.pi-node{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:1.6;}
 .pi-q{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:12px;fill:var(--color-muted,#aaaaaa);}
 .pi-mid{font-family:var(--font-mono,"Space Mono",monospace);font-size:10px;fill:var(--color-muted,#aaaaaa);}
 .pi-lbl-g{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:11px;letter-spacing:.12em;fill:var(--color-command-gold,#c8963e);}
@@ -104,7 +104,7 @@ const CSS = `
 .pi-jump{stroke:var(--color-signal-blue,#4a8fff);stroke-width:2.2;stroke-linecap:round;}
 .pi-bolt{fill:var(--color-signal-blue,#4a8fff);}
 .pi-evt{font-family:var(--font-mono,"Space Mono",monospace);font-size:10px;fill:var(--color-signal-blue,#4a8fff);}
-.pi-isr{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-signal-blue,#4a8fff);stroke-width:1.6;}
+.pi-isr{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-signal-blue,#4a8fff);stroke-width:1.6;}
 .pi-isr-t{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:12px;fill:var(--color-title,#f1ece0);}
 .pi-note{font-family:var(--font-mono,"Space Mono",monospace);font-size:9.5px;fill:var(--color-muted,#aaaaaa);}
 

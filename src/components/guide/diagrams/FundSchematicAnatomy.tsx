@@ -116,7 +116,7 @@ export function FundSchematicAnatomy({ caption }: { caption?: string }) {
 const CSS = `
 .sa-scene{display:block;width:100%;height:auto;overflow:visible;}
 .sa-sym{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;}
-.sa-fill{fill:var(--color-navy-dark,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2;}
+.sa-fill{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2;}
 .sa-head{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:11px;letter-spacing:.1em;fill:var(--color-muted,#aaa);}
 .sa-refdes{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;font-size:20px;fill:var(--color-command-gold,#c8963e);}
 .sa-name{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:13px;fill:var(--color-title,#f1ece0);}
@@ -124,9 +124,9 @@ const CSS = `
 
 /* phone reflow */
 .sa-list{display:none;list-style:none;margin:0;padding:0;flex-direction:column;gap:.5rem;}
-@media (max-width:520px){ .sa-scene{display:none;} .sa-list{display:flex;} }
+@container (max-width:520px){ .sa-scene{display:none;} .sa-list{display:flex;} }
 .sa-list li{display:grid;grid-template-columns:56px 2.2rem 1fr;align-items:center;gap:1rem;padding:.6rem .9rem;border-radius:6px;text-align:left;
-  background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
+  }
 .sa-mini{width:56px;height:34px;overflow:visible;}
 .sa-li-refdes{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;font-size:1.5rem;color:var(--color-command-gold,#c8963e);text-align:center;}
 .sa-li-name{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:.95rem;color:var(--color-title,#f1ece0);}

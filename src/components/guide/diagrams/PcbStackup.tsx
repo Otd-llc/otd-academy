@@ -87,7 +87,7 @@ export function PcbStackup({ caption }: { caption?: string }) {
 
 const CSS = `
 .stk{display:flex;align-items:flex-end;justify-content:center;gap:clamp(.6rem,3vw,1.4rem);}
-@media (max-width:520px){.stk{flex-direction:column;align-items:stretch;gap:1.1rem;}}
+@container (max-width:520px){.stk{flex-direction:column;align-items:stretch;gap:1.1rem;}}
 .stk-col{flex:1 1 0;min-width:0;text-align:center;}
 .stk-svg{display:block;width:100%;height:auto;overflow:visible;}
 .stk-cap{margin:.5rem 0 0;font-family:var(--font-mono,"Space Mono",monospace);font-size:clamp(.82rem,2.2vw,.92rem);letter-spacing:.02em;}

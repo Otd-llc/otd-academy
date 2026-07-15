@@ -123,9 +123,9 @@ export function CommsBusCompare({ caption }: { caption?: string }) {
 
 const CSS = `
 .bc-scene{display:block;width:100%;height:auto;overflow:visible;}
-.bc-card{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-panel-border,#3a3f50);stroke-width:1.5;}
+.bc-card{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-panel-border,#3a3f50);stroke-width:1.5;}
 .bc-hd{font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:26px;letter-spacing:.03em;fill:var(--color-command-gold,#c8963e);}
-.bc-box{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:1.6;}
+.bc-box{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:1.6;}
 .bc-g{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2;stroke-linecap:round;}
 .bc-b{fill:none;stroke:var(--color-signal-blue,#4a8fff);stroke-width:2;stroke-linecap:round;}
 .bc-dot-g{fill:var(--color-command-gold,#c8963e);}
@@ -137,9 +137,9 @@ const CSS = `
 
 /* phone reflow */
 .bc-list{display:none;list-style:none;margin:0;padding:0;flex-direction:column;gap:.7rem;}
-@media (max-width:520px){ .bc-scene{display:none;} .bc-list{display:flex;} }
+@container (max-width:520px){ .bc-scene{display:none;} .bc-list{display:flex;} }
 .bc-li{display:flex;align-items:center;gap:.5rem;padding:.7rem .8rem;border-radius:8px;
-  background:var(--color-navy-dark,#1a1a2e);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
+  }
 .bc-li-hd{font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:1.5rem;letter-spacing:.03em;color:var(--color-command-gold,#c8963e);min-width:44px;}
 .bc-mini{flex:1;max-width:112px;height:auto;overflow:visible;}
 .bc-li-stats{display:flex;flex-direction:column;align-items:flex-end;gap:.35rem;min-width:88px;flex-shrink:0;}

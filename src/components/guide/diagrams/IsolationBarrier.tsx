@@ -81,11 +81,11 @@ const CSS = `
 
 /* phone reflow: vertical mains -> barrier -> you */
 .iso-stack{display:none;flex-direction:column;align-items:stretch;gap:0;max-width:20rem;margin:0 auto;}
-@media (max-width:520px){
+@container (max-width:520px){
   .iso-diagram{display:none;}
   .iso-stack{display:flex;}
 }
-.iso-node{border-radius:6px;padding:.7rem .85rem;text-align:left;background:var(--color-navy-dark,#1f2438);
+.iso-node{border-radius:6px;padding:.7rem .85rem;text-align:left;
   font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:1.3rem;letter-spacing:.02em;color:var(--color-title,#f1ece0);
   display:flex;align-items:baseline;justify-content:space-between;gap:.5rem;}
 .iso-node span{font-family:var(--font-mono,"Space Mono",monospace);font-size:.8rem;font-weight:700;letter-spacing:.04em;}

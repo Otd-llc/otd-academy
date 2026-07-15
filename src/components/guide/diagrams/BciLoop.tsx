@@ -140,19 +140,18 @@ const CSS = `
 .bci-fb{fill:none;stroke:var(--color-signal-blue,#4a8fff);stroke-width:2.4;stroke-linecap:round;}
 .bci-il{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
 .bci-ithin{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
-.bci-if{fill:var(--color-navy-dark,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2;stroke-linejoin:round;}
+.bci-if{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2;stroke-linejoin:round;}
 .bci-go{fill:var(--color-command-gold,#c8963e);font-family:var(--font-mono,"Space Mono",monospace);font-size:12px;font-weight:700;}
 .bci-nm{fill:var(--color-title,#f1ece0);font-family:var(--font-mono,"Space Mono",monospace);font-size:13px;font-weight:700;}
 .bci-fbl{fill:var(--color-signal-blue,#4a8fff);font-family:var(--font-mono,"Space Mono",monospace);font-size:11px;font-weight:700;}
 
 /* phone reflow: vertical stage stack */
 .bci-cards{display:none;list-style:none;margin:0;padding:0;flex-direction:column;gap:.35rem;text-align:left;}
-@media (max-width:520px){
+@container (max-width:520px){
   .bci-ring{display:none;}
   .bci-cards{display:flex;}
 }
-.bci-row{display:flex;align-items:center;gap:.7rem;border-radius:6px;padding:.5rem .75rem;position:relative;
-  background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-command-gold,#c8963e);}
+.bci-row{display:flex;align-items:center;gap:.7rem;padding:.5rem .3rem;position:relative;}
 .bci-thumb{flex:0 0 40px;width:40px;height:40px;}
 .bci-rtext{font-family:var(--font-mono,"Space Mono",monospace);font-size:.9rem;color:var(--color-muted,#aaa);}
 .bci-rtext b{color:var(--color-title,#f1ece0);font-weight:700;}

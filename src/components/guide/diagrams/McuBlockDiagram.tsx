@@ -79,7 +79,7 @@ export function McuBlockDiagram({ caption }: { caption?: string }) {
 const CSS = `
 .mb{display:block;}
 .mb-svg{display:block;width:100%;height:auto;overflow:visible;}
-.mb-pkg{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:2.2;}
+.mb-pkg{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2.2;}
 .mb-pad{fill:var(--color-command-gold,#c8963e);}
 .mb-cpu{fill:var(--color-deep-space,#08090d);stroke:var(--color-command-gold,#c8963e);stroke-width:2;}
 .mb-mem{fill:var(--color-deep-space,#08090d);stroke:var(--color-signal-blue,#4a8fff);stroke-width:1.7;}
@@ -94,10 +94,10 @@ const CSS = `
 
 /* phone reflow */
 .mb-phone{display:none;}
-@media (max-width:520px){ .mb-svg{display:none;} .mb-phone{display:block;text-align:left;} }
+@container (max-width:520px){ .mb-svg{display:none;} .mb-phone{display:block;text-align:left;} }
 .mb-pdie{margin:0 0 .7rem;text-align:center;font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:.86rem;letter-spacing:.14em;color:var(--color-command-gold,#c8963e);border:1px solid var(--color-command-gold,#c8963e);border-radius:5px;padding:.45rem;}
 .mb-pdie span{font-weight:400;letter-spacing:.04em;text-transform:none;color:var(--color-muted,#aaaaaa);}
-.mb-prow{display:flex;flex-direction:column;gap:.15rem;border:1px solid var(--color-gold-light,#e8b865);background:var(--color-navy-dark,#1a1a2e);border-radius:6px;padding:.55rem .7rem;margin-bottom:.5rem;}
+.mb-prow{display:flex;flex-direction:column;gap:.15rem;padding:.55rem .3rem;margin-bottom:.5rem;}
 .mb-prow-b{border-color:var(--color-signal-blue,#4a8fff);}
 .mb-peye{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--color-command-gold,#c8963e);}
 .mb-peye-b{color:var(--color-signal-blue,#4a8fff);}

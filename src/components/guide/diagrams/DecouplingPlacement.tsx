@@ -116,7 +116,7 @@ const CSS = `
 .dcpl-divider{height:1px;background:var(--color-panel-border,#3a3f50);
   margin:clamp(1.1rem,3.5vw,1.6rem) 0;}
 
-@media (max-width:520px){
+@container (max-width:520px){
   .dcpl-case{flex-direction:column;align-items:stretch;gap:clamp(.8rem,4vw,1.1rem);}
   .dcpl-graphic{justify-content:center;}
   .dcpl-notes{text-align:center;}

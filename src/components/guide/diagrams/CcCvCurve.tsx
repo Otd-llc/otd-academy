@@ -91,7 +91,7 @@ const CSS = `
 
 /* phone reflow */
 .cc-list{display:none;flex-direction:column;gap:.7rem;}
-@media (max-width:520px){ .cc-scene{display:none;} .cc-list{display:flex;} }
+@container (max-width:520px){ .cc-scene{display:none;} .cc-list{display:flex;} }
 .cc-mini{display:block;width:100%;height:auto;overflow:visible;}
 .cc-rules{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.45rem;text-align:left;}
 .cc-rules li{font-family:var(--font-mono,"Space Mono",monospace);font-size:.86rem;color:var(--color-muted,#aaa);

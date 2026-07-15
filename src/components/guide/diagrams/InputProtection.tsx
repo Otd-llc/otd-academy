@@ -84,7 +84,7 @@ const CSS = `
 .ip{display:block;}
 .ip-scene{display:block;width:100%;height:auto;overflow:visible;}
 .ip-w{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;}
-.ip-blk{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:2;}
+.ip-blk{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2;}
 .ip-part{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;fill:var(--color-command-gold,#c8963e);font-size:13px;}
 .ip-lbl{font-family:var(--font-mono,"Space Mono",monospace);fill:var(--color-muted,#aaa);font-size:11px;}
 .ip-v{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;fill:var(--color-text,#e8e8e8);font-size:15px;}
@@ -96,7 +96,7 @@ const CSS = `
 
 /* phone reflow */
 .ip-list{display:none;flex-direction:column;gap:.7rem;}
-@media (max-width:520px){ .ip-scene{display:none;} .ip-list{display:flex;} }
+@container (max-width:520px){ .ip-scene{display:none;} .ip-list{display:flex;} }
 .ip-list ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.45rem;text-align:left;}
 .ip-list li{font-family:var(--font-mono,"Space Mono",monospace);font-size:.85rem;color:var(--color-muted,#aaa);display:flex;align-items:baseline;gap:.6rem;}
 .ip-b{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;color:var(--color-command-gold,#c8963e);font-size:1rem;min-width:3.6rem;}

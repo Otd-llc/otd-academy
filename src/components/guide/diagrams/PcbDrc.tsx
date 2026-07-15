@@ -65,7 +65,7 @@ function marker(x: number, y: number) {
 const CSS = `
 .drc{max-width:34rem;margin-inline:auto;}
 .drc-svg{display:block;width:100%;height:auto;overflow:visible;}
-.drc-brd{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-panel-border,#3a3f50);stroke-width:1.4;}
+.drc-brd{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-panel-border,#3a3f50);stroke-width:1.4;}
 .drc-cu{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:3;stroke-linecap:round;}
 .drc-pad{fill:var(--color-command-gold,#c8963e);}
 .drc-silk{fill:none;stroke:var(--color-muted,#aaaaaa);stroke-width:1.6;}

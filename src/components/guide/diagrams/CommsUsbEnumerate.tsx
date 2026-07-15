@@ -130,7 +130,7 @@ export function CommsUsbEnumerate({ caption }: { caption?: string }) {
 
 const CSS = `
 .ue-scene{display:block;width:100%;height:auto;overflow:visible;}
-.ue-box{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:2;}
+.ue-box{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2;}
 .ue-bt{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:13px;fill:var(--color-title,#f1ece0);}
 .ue-bsub{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:9px;fill:var(--color-muted,#aaa);letter-spacing:.03em;}
 .ue-pair-lbl{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:11px;letter-spacing:.04em;fill:var(--color-signal-blue,#4a8fff);}
@@ -148,14 +148,14 @@ const CSS = `
 
 /* phone reflow */
 .ue-list{display:none;}
-@media (max-width:520px){ .ue-scene{display:none;} .ue-list{display:block;} }
+@container (max-width:520px){ .ue-scene{display:none;} .ue-list{display:block;} }
 .ue-linkrow{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-bottom:.8rem;}
 .ue-tag{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:.8rem;padding:.35rem .6rem;border-radius:5px;
   color:var(--color-title,#f1ece0);box-shadow:inset 0 0 0 1.5px var(--color-command-gold,#c8963e);}
 .ue-pair{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:.8rem;color:var(--color-signal-blue,#4a8fff);}
 .ue-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.4rem;}
 .ue-step{display:flex;align-items:center;gap:.6rem;padding:.45rem .7rem;border-radius:6px;
-  background:var(--color-navy-dark,#1a1a2e);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
+  }
 .ue-step-n{display:flex;align-items:center;justify-content:center;width:22px;height:22px;flex-shrink:0;border-radius:50%;
   font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;font-size:.85rem;color:var(--color-deep-space,#08090d);}
 .ue-step-g .ue-step-n{background:var(--color-command-gold,#c8963e);}

@@ -95,9 +95,9 @@ const CSS = `
 
 /* phone reflow */
 .dsa-list{display:none;list-style:none;margin:0;padding:0;flex-direction:column;gap:.5rem;}
-@media (max-width:520px){ .dsa-scene{display:none;} .dsa-list{display:flex;} }
+@container (max-width:520px){ .dsa-scene{display:none;} .dsa-list{display:flex;} }
 .dsa-list li{display:flex;flex-direction:column;gap:.25rem;padding:.6rem .9rem;border-radius:6px;text-align:left;
-  background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
+  }
 .dsa-li-param{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:.9rem;color:var(--color-title,#f1ece0);}
 .dsa-li-vals{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;font-size:1rem;color:var(--color-title,#f1ece0);}
 .dsa-li-k{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:.7rem;color:var(--color-muted,#aaa);}

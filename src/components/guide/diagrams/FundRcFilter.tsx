@@ -102,9 +102,8 @@ const CSS = `
 
 /* phone reflow */
 .rc-list{display:none;list-style:none;margin:0;padding:0;flex-direction:column;gap:.6rem;}
-@media (max-width:520px){ .rc-scene{display:none;} .rc-list{display:flex;} }
-.rc-list li{display:flex;flex-direction:column;gap:.35rem;padding:.7rem .9rem;border-radius:6px;text-align:left;
-  background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
+@container (max-width:520px){ .rc-scene{display:none;} .rc-list{display:flex;} }
+.rc-list li{display:flex;flex-direction:column;gap:.35rem;padding:.6rem .2rem;text-align:left;}
 .rc-mini{display:block;width:100%;height:auto;overflow:visible;}
 .rc-li-lbl{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:.82rem;letter-spacing:.06em;}
 

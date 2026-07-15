@@ -75,9 +75,9 @@ const CSS = `
 
 /* phone reflow */
 .dk-list{display:none;list-style:none;margin:0;padding:0;flex-direction:column;gap:.6rem;}
-@media (max-width:520px){ .dk-scene{display:none;} .dk-list{display:flex;} }
+@container (max-width:520px){ .dk-scene{display:none;} .dk-list{display:flex;} }
 .dk-list li{display:flex;flex-direction:column;gap:.3rem;padding:.7rem .9rem;border-radius:6px;text-align:left;
-  background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
+  }
 .dk-mini{display:block;width:100%;height:auto;overflow:visible;}
 .dk-li-lbl{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:.82rem;letter-spacing:.08em;}
 .dk-li-note{font-family:var(--font-serif,"Lora",serif);font-size:.82rem;color:var(--color-muted,#aaa);}

@@ -81,7 +81,7 @@ const STEPS: { title: string; note: string; glyph: ReactNode; live?: boolean }[]
 const CSS = `
 .bu{max-width:33rem;margin-inline:auto;list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.25rem;text-align:left;}
 .bu-row{display:flex;gap:.7rem;align-items:center;padding:.35rem .65rem;border-radius:7px;border:1px solid transparent;}
-.bu-row.live{background:var(--color-navy-dark,#1a1a2e);border-color:var(--color-command-gold,#c8963e);}
+.bu-row.live{border-color:var(--color-command-gold,#c8963e);}
 .bu-n{flex:0 0 27px;height:27px;border-radius:50%;border:2px solid var(--color-panel-border,#3a3f50);
   display:flex;align-items:center;justify-content:center;
   font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:700;

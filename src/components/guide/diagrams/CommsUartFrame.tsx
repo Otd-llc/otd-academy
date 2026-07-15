@@ -130,11 +130,11 @@ const CSS = `
 
 /* phone reflow */
 .uf-list{display:none;}
-@media (max-width:520px){ .uf-scene{display:none;} .uf-list{display:block;} }
+@container (max-width:520px){ .uf-scene{display:none;} .uf-list{display:block;} }
 .uf-mini{display:block;width:100%;max-width:340px;height:auto;margin:0 auto .9rem;overflow:visible;}
 .uf-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:.45rem;list-style:none;margin:0;padding:0;}
 .uf-chip{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:34px;padding:.3rem .35rem;border-radius:5px;
-  background:var(--color-navy-dark,#1a1a2e);}
+  background:var(--color-diagram-surface,#1f2438);}
 .uf-chip-g{box-shadow:inset 0 0 0 1.5px var(--color-command-gold,#c8963e);}
 .uf-chip-b{box-shadow:inset 0 0 0 1.5px var(--color-signal-blue,#4a8fff);}
 .uf-chip-name{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:.72rem;letter-spacing:.02em;}

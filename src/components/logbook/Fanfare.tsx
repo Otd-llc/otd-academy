@@ -68,15 +68,17 @@ function Banner({ item, onDone }: { item: FanfareItem; onDone: () => void }) {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="mx-auto flex max-w-5xl items-center gap-4 px-6 py-3">
-        {isLevel ? <RankWing level={level} size={38} /> : <PatchBadge art={item.art ?? "wings"} earned size={38} />}
+      <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-4 py-3 sm:gap-4 sm:px-6">
+        <span className="shrink-0">
+          {isLevel ? <RankWing level={level} size={38} /> : <PatchBadge art={item.art ?? "wings"} earned size={38} />}
+        </span>
         <div className="min-w-0 flex-1">
           <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-command-gold">▸ {isLevel ? "Level up" : "Badge earned"}</p>
           <p className="truncate font-display text-xl leading-tight tracking-wide text-title">{item.label}</p>
         </div>
-        <p className="font-numeral text-2xl tabular-nums text-command-gold">{readout}</p>
-        <Link href="/logbook" className="whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.14em] text-command-gold transition-colors hover:text-gold-light">
-          View in Logbook ↗
+        <p className="shrink-0 font-numeral text-2xl tabular-nums text-command-gold">{readout}</p>
+        <Link href="/logbook" className="shrink-0 whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.14em] text-command-gold transition-colors hover:text-gold-light">
+          <span className="hidden sm:inline">View in Logbook </span>↗
         </Link>
         <button type="button" onClick={dismiss} aria-label="Dismiss" className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-base leading-none text-muted transition-colors hover:bg-command-gold/10 hover:text-command-gold">
           ✕

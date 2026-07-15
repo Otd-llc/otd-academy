@@ -60,7 +60,7 @@ const CSS = `
 .sb-dl .sb-arr{color:var(--color-signal-blue,#4a8fff);}
 .sb-out{font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:clamp(1.15rem,3.2vw,1.5rem);
   letter-spacing:.03em;color:var(--color-title,#f1ece0);flex:1 1 auto;text-align:right;}
-@media (max-width:400px){ .sb-arr{margin-left:0;} .sb-out{text-align:left;flex-basis:100%;} }
+@container (max-width:400px){ .sb-arr{margin-left:0;} .sb-out{text-align:left;flex-basis:100%;} }
 
 /* Tier-B reveal off the frame's armed/in contract (final state under reduced-motion). */
 .dgfrm.armed .sb-row{opacity:0;transform:translateY(6px);}

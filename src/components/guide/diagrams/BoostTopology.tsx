@@ -80,7 +80,7 @@ const CSS = `
 
 /* phone reflow */
 .bo-list{display:none;flex-direction:column;gap:.7rem;align-items:center;}
-@media (max-width:520px){ .bo-scene{display:none;} .bo-list{display:flex;} }
+@container (max-width:520px){ .bo-scene{display:none;} .bo-list{display:flex;} }
 .bo-mini{display:block;width:100%;height:auto;overflow:visible;max-width:280px;}
 .bo-pnote{margin:0;font-family:var(--font-mono,"Space Mono",monospace);font-size:.9rem;color:var(--color-muted,#aaa);text-align:center;}
 .bo-pnote b{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;font-size:1.1rem;}

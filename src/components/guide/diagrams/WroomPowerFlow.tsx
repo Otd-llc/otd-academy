@@ -111,7 +111,7 @@ const CSS = `
 .wpf-part{fill:var(--color-muted,#aaa);font-family:var(--font-mono,"Space Mono",monospace);font-size:9px;}
 
 /* ── phone stack (< 520px) ── */
-@media (max-width:520px){
+@container (max-width:520px){
   .wpf-svg{display:none;}
   .wpf-stack{display:flex;flex-direction:column;align-items:center;gap:.55rem;}
 }

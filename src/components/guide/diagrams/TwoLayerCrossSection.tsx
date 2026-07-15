@@ -122,11 +122,11 @@ export function TwoLayerCrossSection({ caption }: { caption?: string }) {
 
 const CSS = `
 .xsec-wrap{display:flex;align-items:center;justify-content:center;gap:clamp(1rem,4vw,1.8rem);}
-@media (max-width:520px){.xsec-wrap{flex-direction:column;gap:1rem;}}
+@container (max-width:520px){.xsec-wrap{flex-direction:column;gap:1rem;}}
 .xsec-svg{display:block;width:100%;height:auto;overflow:visible;flex:1 1 56%;min-width:0;max-width:360px;}
 
 .xsec-key{margin:0;padding:0;list-style:none;flex:1 1 42%;min-width:0;display:flex;flex-direction:column;gap:clamp(.7rem,2.4vw,.95rem);text-align:left;}
-@media (max-width:520px){.xsec-key{flex-basis:auto;align-self:stretch;}}
+@container (max-width:520px){.xsec-key{flex-basis:auto;align-self:stretch;}}
 .xsec-key li{display:flex;align-items:flex-start;gap:.65rem;}
 .xsec-sw{flex:0 0 auto;width:15px;height:15px;margin-top:3px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.35);}
 .xsec-sw-via{background:radial-gradient(circle at 50% 50%, #0a0b10 0 3.4px, #c8963e 3.4px)!important;}

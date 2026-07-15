@@ -73,10 +73,9 @@ export function HaslVsEnig({ caption }: { caption?: string }) {
 
 const CSS = `
 .hve{display:grid;grid-template-columns:1fr 1fr;gap:clamp(.9rem,3vw,1.4rem);text-align:left;}
-@media (max-width:520px){.hve{grid-template-columns:1fr;}}
+@container (max-width:520px){.hve{grid-template-columns:1fr;}}
 
-.hve-card{border-radius:6px;padding:clamp(.75rem,2.6vw,1rem);background:var(--color-navy-dark,#1f2438);
-  box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
+.hve-card{border-radius:6px;padding:clamp(.75rem,2.6vw,1rem);}
 .hve-card-bad{box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50),inset 0 3px 0 var(--color-alert-red,#ef5350);}
 .hve-card-good{box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50),inset 0 3px 0 var(--color-command-gold,#c8963e);}
 
@@ -90,8 +89,8 @@ const CSS = `
   font-size:clamp(.72rem,1.9vw,.8rem);}
 
 .hve-svg{display:block;width:100%;height:auto;overflow:visible;}
-.hve-mod{fill:var(--color-navy-dark,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2.5;stroke-linejoin:round;}
-.hve-fr4{fill:var(--color-navy-dark,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:1.6;}
+.hve-mod{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2.5;stroke-linejoin:round;}
+.hve-fr4{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:1.6;}
 .hve-pad{fill:var(--color-command-gold,#c8963e);}
 .hve-solder{fill:var(--color-muted,#aaa);opacity:.55;}
 .hve-solderG{fill:var(--color-gold-light,#e8b865);opacity:.5;}

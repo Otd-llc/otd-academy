@@ -81,7 +81,11 @@ const FRAME_CSS = `
 .dgfrm{max-width:36rem;margin-inline:auto;border:1px solid var(--color-panel-border,#3a3f50);
   border-radius:.5rem;background:var(--color-deep-space,#08090d);
   font-family:var(--font-mono,"Space Mono",monospace);
-  padding:clamp(1.25rem,4vw,2rem) clamp(1rem,3vw,1.75rem);text-align:center;}
+  padding:clamp(1.25rem,4vw,2rem) clamp(1rem,3vw,1.75rem);text-align:center;
+  /* Query container: diagrams switch scene<->portrait off the FRAME width, not the
+     viewport, so a diagram in the narrow follower-card rail reflows to its portrait
+     (mobile) form and reads large instead of a squeezed landscape. */
+  container-type:inline-size;}
 .dgfrm-eyebrow{margin:0 0 .55rem;font-size:10px;font-weight:700;text-transform:uppercase;
   letter-spacing:.24em;line-height:1.5;}
 .dgfrm-title{margin:0;font-family:var(--font-display,"Bebas Neue",sans-serif);font-weight:400;

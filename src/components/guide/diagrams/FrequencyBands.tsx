@@ -148,13 +148,13 @@ const CSS = `
 
 /* ── phone reflow: the vertical band list ────────────────────────────────── */
 .fb-list{display:none;list-style:none;margin:0;padding:0;flex-direction:column;gap:.4rem;}
-@media (max-width:520px){
+@container (max-width:520px){
   .fb-plot{display:none;}
   .fb-list{display:flex;}
 }
 .fb-row{display:grid;grid-template-columns:clamp(3.4rem,14vw,4.6rem) 1fr;align-items:center;gap:.9rem;
   padding:.6rem .75rem;border-radius:6px;text-align:left;
-  background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
+  }
 .fb-row-hi{box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
 .fb-mwave{width:100%;height:1.7rem;}
 .fb-row .fb-name{margin:0;color:var(--color-title,#f1ece0);font-family:var(--font-display,"Bebas Neue",sans-serif);
