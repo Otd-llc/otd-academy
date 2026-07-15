@@ -118,6 +118,8 @@ export const env = createEnv({
     NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
     DATABASE_URL: process.env.DATABASE_URL,
     DIRECT_URL: process.env.DIRECT_URL,
+    PROD_DATABASE_URL: process.env.PROD_DATABASE_URL,
+    PROD_DIRECT_URL: process.env.PROD_DIRECT_URL,
     PARTS_MCP_DATABASE_URL: process.env.PARTS_MCP_DATABASE_URL,
     AUTH_SECRET: process.env.AUTH_SECRET,
     AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
