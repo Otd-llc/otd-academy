@@ -4,8 +4,6 @@
 // page shares across getLibraryProgress + getLogbook (never 69 lookups).
 import { db } from "@/lib/db";
 import { LIBRARY_CLUSTERS, clusterByKey } from "@/lib/library/clusters";
-import { readingMinutes } from "@/lib/library/reading-time";
-import { quizQuestions } from "@/lib/logbook/lesson-content";
 import { academyDate, levelFor, quizXp, lessonXp } from "@/lib/logbook/economy";
 
 // The static content facts a progress calc needs, derived once from contentBlocks.
@@ -17,18 +15,19 @@ export type LessonMeta = {
 };
 
 /** Every published, PUBLIC lesson's progress-relevant metadata (one DB read). The
- * page loads this once and passes it to both getLibraryProgress and getLogbook. */
+ * page loads this once and passes it to both getLibraryProgress and getLogbook.
+ *
+ * `questionCount` / `readingMinutes` are STORED columns, derived from
+ * contentBlocks on write by the db.ts client extension. They used to be derived
+ * live here, which meant this read pulled all 69 rows' contentBlocks -- a second
+ * ~306 kB of wire on every /library render, on top of listPublishedByCluster's.
+ * Do NOT reintroduce contentBlocks here.
+ * See docs/plans/2026-07-15-library-derived-columns.md. */
 export async function loadLessonMeta(): Promise<LessonMeta[]> {
-  const rows = await db.miniLesson.findMany({
+  return db.miniLesson.findMany({
     where: { published: true, accessTier: "PUBLIC" },
-    select: { slug: true, cluster: true, contentBlocks: true },
+    select: { slug: true, cluster: true, questionCount: true, readingMinutes: true },
   });
-  return rows.map((r) => ({
-    slug: r.slug,
-    cluster: r.cluster,
-    questionCount: quizQuestions(r.contentBlocks).length,
-    readingMinutes: readingMinutes(r.contentBlocks),
-  }));
 }
 
 export type LibraryProgress = {

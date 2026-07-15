@@ -3,9 +3,19 @@ import { z } from "zod";
 
 export const env = createEnv({
   server: {
+    // The DEV database — LOCAL Postgres since 2026-07-15 (was PROD Neon). The
+    // Next app, scripts, and `pnpm db:seed` all resolve prod-vs-local through
+    // these two, so pointing them at localhost is what keeps dev off the Neon
+    // meters. See docs/plans/2026-07-15-dev-off-prod-local-postgres.md.
     DATABASE_URL: z.url(),
     DIRECT_URL: z.url(),
-    // Read-only Neon role for the standalone parts MCP server (Stage B). Optional:
+    // PROD Neon, reached only by the explicit escape hatches (`pnpm db:prod`,
+    // `pnpm db:migrate:prod`, `pnpm db:pull-prod`). Optional: only those local
+    // tooling paths read them — Vercel and CI must not be forced to define them,
+    // and requiring them would break `next build` everywhere they are unset.
+    PROD_DATABASE_URL: z.url().optional(),
+    PROD_DIRECT_URL: z.url().optional(),
+    // Read-only role for the standalone parts MCP server (Stage B). Optional:
     // only that server reads it (asserting its own presence + that it differs from
     // DATABASE_URL at startup); the Next app never uses it, so requiring it would
     // break `next build` anywhere it is unset.
@@ -108,6 +118,8 @@ export const env = createEnv({
     NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
     DATABASE_URL: process.env.DATABASE_URL,
     DIRECT_URL: process.env.DIRECT_URL,
+    PROD_DATABASE_URL: process.env.PROD_DATABASE_URL,
+    PROD_DIRECT_URL: process.env.PROD_DIRECT_URL,
     PARTS_MCP_DATABASE_URL: process.env.PARTS_MCP_DATABASE_URL,
     AUTH_SECRET: process.env.AUTH_SECRET,
     AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
