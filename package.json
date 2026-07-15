@@ -8,6 +8,7 @@
     "start": "next start",
     "db:seed": "prisma db seed",
     "db:migrate": "prisma migrate deploy && pnpm test:pool:refresh",
+    "db:pull-prod": "powershell -ExecutionPolicy Bypass -File scripts/db-pull-prod.ps1",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:pool:refresh": "tsx scripts/refresh-test-pool.ts",
