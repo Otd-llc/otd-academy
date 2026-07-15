@@ -26,6 +26,7 @@ import {
   fieldGuideCoverPath,
   fieldGuidePdfDownloadUrl,
 } from "@/lib/library/field-guide-links";
+import { PdfBuildButton } from "./PdfBuildButton";
 
 function DownloadGlyph() {
   return (
@@ -85,15 +86,11 @@ export function FieldGuideDownload({
 
   const buttonClass = `glass-button inline-flex items-center gap-2 px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] ${className}`;
 
-  // Signed-in: the session already authorizes the PDF route, so go straight to the
-  // download (`?download=1` → the route serves it as an attachment). No email hop.
+  // Signed-in: the session already authorizes the PDF route, so build + serve it
+  // straight away (no email hop). PdfBuildButton shows the fresh-build spinner +
+  // "never stale" toast while the guide renders.
   if (signedIn) {
-    return (
-      <a href={fieldGuidePdfDownloadUrl(guide)} className={buttonClass}>
-        {label}
-        <DownloadGlyph />
-      </a>
-    );
+    return <PdfBuildButton href={fieldGuidePdfDownloadUrl(guide)} label={label} className={className} />;
   }
 
   // Signed-out: the lead-magnet capture — a modal takes an email + sends ONE magic
