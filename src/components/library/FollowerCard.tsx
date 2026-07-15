@@ -85,7 +85,7 @@ export function FollowerCard({
         <span><span className="font-numeral tabular-nums text-command-gold">{readingMinutes}</span> min</span>
       </p>
 
-      {children ? <div className="mx-auto mt-4 w-[180px] max-w-full">{children}</div> : null}
+      {children ? <div className="mx-auto mt-4 w-full">{children}</div> : null}
 
       <div className="mt-4">
         <Link href={href} className="inline-flex items-center gap-1.5 rounded border border-command-gold px-4 py-2 font-mono text-[11px] uppercase tracking-[0.16em] text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space focus-visible:bg-command-gold focus-visible:text-deep-space focus-visible:outline-none">

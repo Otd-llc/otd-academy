@@ -140,7 +140,7 @@ const CSS = `
 
 /* phone reflow: hidden by default, shown ≤520px */
 .tt-list{display:none;list-style:none;margin:0;padding:0;flex-direction:column;align-items:center;}
-@media (max-width:520px){
+@container (max-width:520px){
   .tt-arc{display:none;}
   .tt-list{display:flex;}
 }

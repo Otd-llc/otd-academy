@@ -68,7 +68,7 @@ export function AntennaKeepout({ caption }: { caption?: string }) {
 const CSS = `
 .akz{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);align-items:center;
   gap:clamp(1rem,4vw,2rem);text-align:left;}
-@media (max-width:520px){.akz{grid-template-columns:1fr;gap:1.1rem;}}
+@container (max-width:520px){.akz{grid-template-columns:1fr;gap:1.1rem;}}
 .akz-figwrap{width:100%;}
 .akz-svg{display:block;width:100%;height:auto;overflow:visible;}
 

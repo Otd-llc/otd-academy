@@ -97,7 +97,7 @@ const CSS = `
 /* Narrow phone: stack into a single column threaded by a vertical gold spine;
    each numeral becomes a bead on that spine. (Print/desktop stays landscape;
    this only affects the web on small screens.) */
-@media (max-width:520px){
+@container (max-width:520px){
   .eegp-rail{grid-template-columns:1fr;}
   .eegp-rail::before{left:1.1rem;right:auto;top:.4rem;bottom:.4rem;width:2px;height:auto;}
   .eegp-rail::after{display:none;}

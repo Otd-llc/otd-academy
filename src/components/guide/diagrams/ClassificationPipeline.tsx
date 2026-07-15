@@ -127,15 +127,15 @@ export function ClassificationPipeline({ caption }: { caption?: string }) {
 
 const CSS = `
 .clp-svg{overflow:visible;width:100%;height:auto;display:block;}
-.clp-box{fill:var(--color-navy-dark,#1f2438);stroke:var(--color-panel-border,#3a3f50);stroke-width:1.6;}
-.clp-box-hi{fill:var(--color-navy-dark,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2;}
+.clp-box{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-panel-border,#3a3f50);stroke-width:1.6;}
+.clp-box-hi{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2;}
 .clp-noisy{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;opacity:.92;}
 .clp-clean{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round;}
 .clp-dotA{fill:var(--color-command-gold,#c8963e);}
 .clp-dotB{fill:var(--color-signal-blue,#4a8fff);}
 .clp-bound{stroke:var(--color-title,#f1ece0);stroke-width:1.8;}
 .clp-flow line,.clp-flow path{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2.2;}
-.clp-tok{fill:var(--color-navy-dark,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2.2;}
+.clp-tok{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2.2;}
 .clp-badge{fill:var(--color-command-gold,#c8963e);}
 .clp-badgen{fill:var(--color-deep-space,#08090d);font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-size:13px;font-weight:800;}
 .clp-name{fill:var(--color-title,#f1ece0);font-family:var(--font-mono,"Space Mono",monospace);font-size:12px;font-weight:700;}
@@ -144,12 +144,12 @@ const CSS = `
 
 /* phone reflow: vertical stage stack */
 .clp-cards{display:none;list-style:none;margin:0;padding:0;flex-direction:column;gap:.5rem;text-align:left;}
-@media (max-width:520px){
+@container (max-width:520px){
   .clp-scene{display:none;}
   .clp-cards{display:flex;}
 }
 .clp-row{display:flex;align-items:center;gap:.65rem;border-radius:6px;padding:.5rem .7rem;
-  background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
+  }
 .clp-row-hi{box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
 .clp-rbadge{flex:0 0 auto;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;
   background:var(--color-command-gold,#c8963e);color:var(--color-deep-space,#08090d);

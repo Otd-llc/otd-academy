@@ -93,7 +93,7 @@ const CSS = `
 .scon-anno-m{fill:var(--color-muted,#aaa);font-weight:400;font-size:11px;}
 
 .scon-list{display:none;list-style:none;margin:0;padding:0;flex-direction:column;gap:.6rem;text-align:left;}
-@media (max-width:520px){
+@container (max-width:520px){
   .scon-anno{display:none;}
   .scon-list{display:flex;}
 }

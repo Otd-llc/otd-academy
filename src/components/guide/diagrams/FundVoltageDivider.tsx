@@ -101,7 +101,7 @@ const CSS = `
 
 /* phone reflow */
 .vd-phone{display:none;}
-@media (max-width:520px){ .vd-scene{display:none;} .vd-phone{display:block;} }
+@container (max-width:520px){ .vd-scene{display:none;} .vd-phone{display:block;} }
 .vd-mini{display:block;width:70%;max-width:220px;height:auto;margin:0 auto;overflow:visible;}
 .vd-formula{margin:.4rem 0 0;text-align:center;font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;font-size:1.3rem;color:var(--color-title,#f1ece0);display:flex;align-items:center;justify-content:center;gap:.4rem;}
 .vd-fr{display:inline-flex;flex-direction:column;align-items:center;line-height:1;}

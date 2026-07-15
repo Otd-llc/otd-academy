@@ -179,11 +179,11 @@ const CSS = `
 
 /* phone reflow: two stacked cards */
 .dsa-cards{display:none;flex-direction:column;gap:.7rem;text-align:left;}
-@media (max-width:520px){
+@container (max-width:520px){
   .dsa-scene{display:none;}
   .dsa-cards{display:flex;}
 }
-.dsa-card{border-radius:6px;padding:.7rem .8rem;background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
+.dsa-card{border-radius:6px;padding:.7rem .8rem;}
 .dsa-card-drone{box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
 .dsa-crow{display:flex;align-items:center;gap:.7rem;}
 .dsa-mini{flex:0 0 68px;width:68px;height:68px;}

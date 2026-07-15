@@ -127,7 +127,7 @@ const CSS = `
 
 /* phone reflow: the vertical spine */
 .sts-list{display:none;list-style:none;margin:0;padding:0;}
-@media (max-width:520px){
+@container (max-width:520px){
   .sts-diagram{display:none;}
   .sts-list{display:block;}
 }

@@ -106,11 +106,11 @@ const CSS = `
 
 /* phone reflow: two stacked cards */
 .a99-cards{display:none;flex-direction:column;gap:.7rem;text-align:left;}
-@media (max-width:520px){
+@container (max-width:520px){
   .a99-diagram{display:none;}
   .a99-cards{display:flex;}
 }
-.a99-card{border-radius:6px;padding:.75rem .85rem;background:var(--color-navy-dark,#1f2438);}
+.a99-card{border-radius:6px;padding:.75rem .85rem;}
 .a99-card-bad{box-shadow:inset 0 0 0 1.5px var(--color-alert-red,#ef5350);}
 .a99-card-ok{box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
 .a99-ck{margin:0 0 .35rem;font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:1.2rem;letter-spacing:.02em;}

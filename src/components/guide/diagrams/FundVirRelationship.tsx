@@ -111,7 +111,7 @@ export function FundVirRelationship({ caption }: { caption?: string }) {
 const CSS = `
 .vir{display:block;}
 .vir-scene{display:block;width:100%;height:auto;overflow:visible;}
-.vir-person{fill:var(--color-navy-dark,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2;}
+.vir-person{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2;}
 .vir-wall{fill:var(--color-command-gold,#c8963e);}
 .vir-wire{stroke:var(--color-command-gold,#c8963e);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;fill:none;}
 .vir-flow{stroke:var(--color-signal-blue,#4a8fff);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;fill:none;}
@@ -129,10 +129,10 @@ const CSS = `
 
 /* phone reflow */
 .vir-list{display:none;list-style:none;margin:0;padding:0;flex-direction:column;gap:.5rem;}
-@media (max-width:520px){ .vir-scene{display:none;} .vir-list{display:flex;} }
+@container (max-width:520px){ .vir-scene{display:none;} .vir-list{display:flex;} }
 .vir-list li{display:grid;grid-template-columns:64px 2rem 1fr;grid-template-rows:auto auto;
   align-items:center;gap:.15rem .8rem;padding:.6rem .8rem;border-radius:6px;text-align:left;
-  background:var(--color-navy-dark,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
+  }
 .vir-mini{grid-row:1 / span 2;width:64px;height:40px;overflow:visible;}
 .vir-li-sym{font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:1.5rem;line-height:1;}
 .vir-li-word{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:.82rem;letter-spacing:.08em;align-self:end;}

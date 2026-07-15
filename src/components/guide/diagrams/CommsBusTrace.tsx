@@ -121,8 +121,8 @@ const CSS = `
 
 /* phone reflow */
 .bt-list{display:none;list-style:none;margin:0;padding:0;flex-direction:column;gap:.7rem;}
-@media (max-width:520px){ .bt-scene{display:none;} .bt-list{display:flex;} }
-.bt-li{display:flex;flex-direction:column;gap:.5rem;padding:.8rem 1rem;border-radius:8px;background:var(--color-navy-dark,#1a1a2e);}
+@container (max-width:520px){ .bt-scene{display:none;} .bt-list{display:flex;} }
+.bt-li{display:flex;flex-direction:column;gap:.5rem;padding:.8rem 1rem;border-radius:8px;}
 .bt-li-ok{box-shadow:inset 0 0 0 1.5px var(--color-status-green,#66bb6a);}
 .bt-li-no{box-shadow:inset 0 0 0 1.5px var(--color-alert-red,#ef5350);}
 .bt-li-hd{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:.78rem;letter-spacing:.02em;}

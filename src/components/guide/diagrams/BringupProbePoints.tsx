@@ -50,12 +50,12 @@ export function BringupProbePoints({ caption }: { caption?: string }) {
 
 const CSS = `
 .bpp{display:flex;align-items:center;gap:clamp(1rem,4vw,1.9rem);text-align:left;font-family:var(--font-mono,"Space Mono",monospace);}
-@media (max-width:520px){.bpp{flex-direction:column;}}
+@container (max-width:520px){.bpp{flex-direction:column;}}
 
 .bpp-meter{flex:0 0 auto;display:flex;flex-direction:column;gap:.55rem;align-items:center;
   background:var(--color-diagram-surface,#1f2438);border:1.5px solid var(--color-command-gold,#c8963e);
   border-radius:10px;padding:clamp(.85rem,3vw,1.15rem);}
-@media (max-width:520px){.bpp-meter{align-self:stretch;}}
+@container (max-width:520px){.bpp-meter{align-self:stretch;}}
 .bpp-lcd{background:var(--color-deep-space,#08090d);border:1px solid var(--color-panel-border,#3a3f50);
   border-radius:5px;padding:.3rem 1.1rem;display:flex;align-items:baseline;gap:.3rem;min-width:8rem;justify-content:flex-end;}
 .bpp-value{color:var(--color-title,#f1ece0);font-family:var(--font-numeral,"Saira Condensed",sans-serif);

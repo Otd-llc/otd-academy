@@ -67,7 +67,7 @@ const CSS = `
 .plp-svg{display:block;width:100%;height:auto;overflow:visible;}
 .plp-court{fill:none;stroke:var(--color-panel-border,#3a3f50);stroke-width:1.6;stroke-dasharray:6 5;}
 .plp-pads rect{fill:var(--color-command-gold,#c8963e);}
-.plp-body{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:2;opacity:.62;}
+.plp-body{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2;opacity:.62;}
 .plp-p1{fill:var(--color-command-gold,#c8963e);}
 .plp-lead-m{fill:none;stroke:var(--color-muted,#aaaaaa);stroke-width:1.3;stroke-dasharray:3 3;}
 .plp-lead-g{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:1.6;}

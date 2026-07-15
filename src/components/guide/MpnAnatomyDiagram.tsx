@@ -71,7 +71,7 @@ const CSS = `
   font-size:clamp(.82rem,2.3vw,.95rem);color:var(--color-text,#e8e8e8);}
 
 /* phone: stack the segments into rows (chip left, label + value right) */
-@media (max-width:520px){
+@container (max-width:520px){
   .mpna-row{flex-direction:column;align-items:stretch;gap:.5rem;}
   .mpna-col{flex-direction:row;align-items:center;gap:.85rem;text-align:left;}
   .mpna-chip{flex:0 0 auto;min-width:66px;text-align:center;}

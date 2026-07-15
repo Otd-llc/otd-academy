@@ -112,7 +112,7 @@ const CSS = `
 .pbud-chain{display:flex;align-items:center;justify-content:center;gap:clamp(.3rem,1.6vw,.75rem);}
 .pbud-node{display:flex;flex-direction:column;align-items:center;gap:.15rem;padding:.5rem .75rem;
   border:1px solid var(--color-panel-border,#3a3f50);border-radius:6px;
-  background:var(--color-navy-dark,#1a1a2e);min-width:0;}
+  background:var(--color-diagram-surface,#1f2438);min-width:0;}
 .pbud-node--answer{border-color:var(--color-gold-light,#e8b865);}
 .pbud-nlabel{font-family:var(--font-mono,"Space Mono",monospace);
   font-size:clamp(.72rem,2vw,.8rem);color:var(--color-muted,#aaa);}
@@ -128,7 +128,7 @@ const CSS = `
 .pbud-aico path{fill:none;stroke:var(--color-gold-light,#e8b865);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
 
 /* ── phone reflow: loads -> 2x2 tapped cards, chain -> vertical ── */
-@media (max-width:520px){
+@container (max-width:520px){
   .pbud-railrow{flex-wrap:wrap;gap:.6rem .5rem;padding-top:0;}
   .pbud-railrow::before{display:none;}
   .pbud-load{flex:1 1 42%;padding:.55rem .5rem;border:1px solid var(--color-panel-border,#3a3f50);

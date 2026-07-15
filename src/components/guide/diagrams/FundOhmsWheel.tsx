@@ -60,7 +60,7 @@ const CSS = `
 .ow-sym{font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:38px;fill:var(--color-command-gold,#c8963e);}
 .ow-cap{font-family:var(--font-mono,"Space Mono",monospace);font-size:12px;font-weight:700;letter-spacing:.12em;fill:var(--color-muted,#aaa);}
 
-@media (max-width:520px){
+@container (max-width:520px){
   .ow{flex-direction:column;align-items:center;gap:1.25rem;}
   .ow-tri{max-width:280px;}
 }

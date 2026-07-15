@@ -92,14 +92,14 @@ const CSS = `
 .i2c-sig{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:12px;letter-spacing:.02em;}
 .i2c-sig-g{fill:var(--color-command-gold,#c8963e);}
 .i2c-sig-b{fill:var(--color-signal-blue,#4a8fff);}
-.i2c-box{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:2;}
+.i2c-box{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2;}
 .i2c-addr{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:13px;fill:var(--color-gold-light,#e8b865);}
 .i2c-dot-g{fill:var(--color-command-gold,#c8963e);}
 .i2c-dot-b{fill:var(--color-signal-blue,#4a8fff);}
 
 /* phone reflow */
 .i2c-list{display:none;}
-@media (max-width:520px){ .i2c-scene{display:none;} .i2c-list{display:block;text-align:center;} }
+@container (max-width:520px){ .i2c-scene{display:none;} .i2c-list{display:block;text-align:center;} }
 .i2c-stat{display:flex;flex-direction:column;align-items:center;gap:0;margin-bottom:.9rem;}
 .i2c-statnum{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;font-size:3.4rem;line-height:1;color:var(--color-command-gold,#c8963e);}
 .i2c-statunit{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--color-muted,#aaa);}
@@ -108,7 +108,7 @@ const CSS = `
   color:var(--color-muted,#aaa);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
 .i2c-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:.5rem;list-style:none;margin:0;padding:0;}
 .i2c-chip{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:.95rem;padding:.4rem .7rem;border-radius:5px;
-  color:var(--color-gold-light,#e8b865);background:var(--color-navy-dark,#1a1a2e);box-shadow:inset 0 0 0 1.5px var(--color-command-gold,#c8963e);}
+  color:var(--color-gold-light,#e8b865);background:var(--color-diagram-surface,#1f2438);box-shadow:inset 0 0 0 1.5px var(--color-command-gold,#c8963e);}
 .i2c-note{margin:.9rem 0 0;font-family:var(--font-mono,"Space Mono",monospace);font-size:.74rem;letter-spacing:.03em;
   text-transform:uppercase;color:var(--color-muted,#aaa);}
 

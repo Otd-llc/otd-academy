@@ -100,7 +100,7 @@ export function CommsSpiBus({ caption }: { caption?: string }) {
 
 const CSS = `
 .spi-scene{display:block;width:100%;height:auto;overflow:visible;}
-.spi-box{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:2;}
+.spi-box{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:2;}
 .spi-bt{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:14px;fill:var(--color-title,#f1ece0);}
 .spi-g{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
 .spi-b{fill:none;stroke:var(--color-signal-blue,#4a8fff);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
@@ -116,8 +116,8 @@ const CSS = `
 
 /* phone reflow */
 .spi-list{display:none;}
-@media (max-width:520px){ .spi-scene{display:none;} .spi-list{display:block;} }
-.spi-card{border-radius:6px;background:var(--color-navy-dark,#1a1a2e);
+@container (max-width:520px){ .spi-scene{display:none;} .spi-list{display:block;} }
+.spi-card{border-radius:6px;
   box-shadow:inset 0 0 0 1.5px var(--color-command-gold,#c8963e);
   font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;color:var(--color-title,#f1ece0);}
 .spi-ctrl{padding:.7rem;text-align:center;font-size:.9rem;letter-spacing:.03em;max-width:220px;margin:0 auto;}

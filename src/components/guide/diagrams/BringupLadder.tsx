@@ -60,7 +60,7 @@ const rd = (s: number): CSSProperties => ({ "--d": `${s}s` } as CSSProperties);
 
 const CSS = `
 .bul{display:flex;align-items:stretch;gap:clamp(.9rem,3.5vw,1.5rem);text-align:left;}
-@media (max-width:520px){.bul{flex-direction:column;}}
+@container (max-width:520px){.bul{flex-direction:column;}}
 
 .bul-term{flex:1.5 1 0;min-width:0;background:var(--color-diagram-surface,#1f2438);
   border:1px solid var(--color-panel-border,#3a3f50);border-radius:8px;

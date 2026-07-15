@@ -82,10 +82,10 @@ const CSS = `
 .fl-arc-b{fill:none;stroke:var(--color-signal-blue,#4a8fff);stroke-width:2.2;}
 .fl-mk-g{fill:var(--color-command-gold,#c8963e);}
 .fl-mk-b{fill:var(--color-signal-blue,#4a8fff);}
-.fl-node{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-command-gold,#c8963e);stroke-width:1.8;}
+.fl-node{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-command-gold,#c8963e);stroke-width:1.8;}
 .fl-title{font-family:var(--font-display,"Bebas Neue",sans-serif);font-size:18px;letter-spacing:.03em;fill:var(--color-title,#f1ece0);}
 .fl-sub{font-family:var(--font-mono,"Space Mono",monospace);font-size:9.5px;fill:var(--color-muted,#aaaaaa);}
-.fl-hub{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-signal-blue,#4a8fff);stroke-width:1.7;}
+.fl-hub{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-signal-blue,#4a8fff);stroke-width:1.7;}
 .fl-hub-t{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:11px;fill:var(--color-signal-blue,#4a8fff);}
 .fl-hub-s{font-family:var(--font-mono,"Space Mono",monospace);font-size:8.5px;fill:var(--color-muted,#aaaaaa);}
 

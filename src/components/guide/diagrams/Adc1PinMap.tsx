@@ -57,7 +57,7 @@ export function Adc1PinMap({ caption }: { caption?: string }) {
 
 const CSS = `
 .apm{display:flex;gap:clamp(1rem,4vw,1.6rem);text-align:left;font-family:var(--font-mono,"Space Mono",monospace);}
-@media (max-width:520px){.apm{flex-direction:column;}}
+@container (max-width:520px){.apm{flex-direction:column;}}
 .apm-bank{flex:1 1 0;min-width:0;}
 
 .apm-head{margin:0 0 clamp(.6rem,2.5vw,.85rem);display:flex;align-items:baseline;gap:.45rem;flex-wrap:wrap;

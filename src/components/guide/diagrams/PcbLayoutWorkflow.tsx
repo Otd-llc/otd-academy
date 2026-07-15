@@ -84,7 +84,7 @@ const CSS = `
 /* the netlist hub */
 .plw-hub{flex:0 0 auto;text-align:center;}
 .plw-disc{width:clamp(58px,15vw,74px);height:clamp(58px,15vw,74px);margin:0 auto;border-radius:50%;
-  border:2px solid var(--color-command-gold,#c8963e);background:var(--color-navy-dark,#1a1a2e);
+  border:2px solid var(--color-command-gold,#c8963e);background:var(--color-diagram-surface,#1f2438);
   display:flex;align-items:center;justify-content:center;}
 .plw-disc svg{width:44%;height:44%;overflow:visible;}
 .plw-node{fill:var(--color-command-gold,#c8963e);}
@@ -96,7 +96,7 @@ const CSS = `
   font-size:clamp(.78rem,2vw,.85rem);color:var(--color-muted,#aaaaaa);}
 
 /* phone: stack the three columns; the arrows point down */
-@media (max-width:520px){
+@container (max-width:520px){
   .plw{flex-direction:column;gap:clamp(.5rem,3vw,.9rem);}
   .plw-side{align-items:center;text-align:center;}
   .plw-left,.plw-right{align-items:center;text-align:center;}

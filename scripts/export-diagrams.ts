@@ -84,7 +84,9 @@ async function main() {
         console.log(`  ${basename}: skipped (literal hex, not light-ready)`);
         continue;
       }
-      await page.goto(`${BASE}/diagram-render/${basename}`, { waitUntil: "networkidle", timeout: 60_000 });
+      // `?bare=1`: the light PNG is the Library PDF's raster, and the PDF should
+      // match the in-lesson BARE figure (no echoed title/eyebrow/caption).
+      await page.goto(`${BASE}/diagram-render/${basename}?bare=1`, { waitUntil: "networkidle", timeout: 60_000 });
       const figure = page.locator('figure[role="img"]').first();
       await figure.waitFor({ state: "visible", timeout: 30_000 });
       await page.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));

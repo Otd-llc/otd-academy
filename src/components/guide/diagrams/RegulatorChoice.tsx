@@ -113,13 +113,13 @@ const CSS = `
 .rc-table th{color:var(--color-command-gold,#c8963e);font-size:.66rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;}
 .rc-rn{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;color:var(--color-command-gold,#c8963e);font-size:1.05rem;}
 .rc-when{color:var(--color-text,#e8e8e8);}
-@media (max-width:520px){ .rc-table{display:none;} }
+@container (max-width:520px){ .rc-table{display:none;} }
 
 /* phone cards */
 .rc-cards{display:none;list-style:none;margin:0;padding:0;flex-direction:column;gap:.55rem;}
-@media (max-width:520px){ .rc-cards{display:flex;} }
+@container (max-width:520px){ .rc-cards{display:flex;} }
 .rc-cards li{padding:.6rem .8rem;border-radius:6px;text-align:left;
-  background:var(--color-navy-dark,#1a1a2e);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
+  }
 .rc-crow{display:flex;align-items:center;gap:.7rem;}
 .rc-cn{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;color:var(--color-command-gold,#c8963e);font-size:1.15rem;min-width:3.4rem;}
 .rc-cwhen{margin-top:.35rem;font-family:var(--font-mono,"Space Mono",monospace);font-size:.82rem;color:var(--color-muted,#aaa);line-height:1.4;}

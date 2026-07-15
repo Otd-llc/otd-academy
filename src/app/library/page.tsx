@@ -18,6 +18,7 @@
 // static-import map so the landing ships only those, not the whole registry.
 import type { Metadata } from "next";
 import Link from "next/link";
+import nextDynamic from "next/dynamic";
 
 import { PageHeader } from "@/components/PageHeader";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -32,6 +33,7 @@ import { listPublishedByCluster } from "@/lib/library/load";
 import { clusterByKey } from "@/lib/library/clusters";
 import { loadLessonMeta, getLibraryProgress, getLibraryResume, type ResumeMode } from "@/lib/logbook/load";
 import { FollowerCard } from "@/components/library/FollowerCard";
+import { SectionWire } from "@/components/library/SectionWire";
 import type { PatchEntry } from "@/components/logbook/PatchDetailModal";
 import { LEVELS } from "@/lib/logbook/economy";
 import { artForBadge, tierForBadge, patchLabel, HARDWARE_PATCHES, ROADMAP_PATCHES } from "@/lib/logbook/patches";
@@ -90,6 +92,12 @@ function heroDiagram(src: string | null) {
     </DiagramChromeProvider>
   ) : null;
 }
+
+// The signed-in follower card shows the resume LESSON'S diagram, which can be any
+// of ~60 (not just the 2 HERO_DIAGRAMS). Lazy-load the full registry so it ships
+// as its OWN chunk, fetched only when a student renders the card — the anonymous
+// landing keeps its lean 2-diagram bundle. Renders bare (frame + graphic only).
+const ResumeDiagram = nextDynamic(() => import("@/components/library/ResumeDiagram"));
 
 const monthYear = (d: Date) =>
   d.toLocaleDateString("en-US", { month: "short", year: "numeric" }).toUpperCase();
@@ -352,48 +360,67 @@ function ClusterSection({
   clusterStat?: { done: number; total: number };
 }) {
   const cluster = clusterByKey(clusterKey);
+  // Count + optional progress + Field Guide, the right-hand meta cluster shared by
+  // both the registry-cluster head and the catch-all.
+  const meta = (
+    <div className="flex shrink-0 items-center gap-3">
+      {clusterStat ? (
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
+          <span className="font-numeral tabular-nums text-sm text-command-gold">
+            {clusterStat.done} / {clusterStat.total}
+          </span>{" "}
+          done
+        </span>
+      ) : null}
+      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
+        <span className="font-numeral tabular-nums text-sm text-command-gold">{list.length}</span>{" "}
+        {list.length === 1 ? "guide" : "guides"}
+      </span>
+      {cluster ? (
+        <FieldGuideDownload
+          guide={cluster.key}
+          label="Field Guide"
+          name={`the ${cluster.label} Field Guide`}
+          signedIn={signedIn}
+        />
+      ) : null}
+    </div>
+  );
   return (
-    <section className="mb-11">
-      <div className="flex flex-col gap-3 border-b border-command-gold/30 pb-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          {ordinal !== null ? (
-            <span className="font-mono text-[10px] tracking-[0.18em] text-gold-dim">
-              <span className="font-numeral tabular-nums">{num2(ordinal)}</span>
-            </span>
-          ) : null}
-          <h2 className="mt-0.5 font-display text-2xl font-normal tracking-wide text-title">
-            {cluster ? cluster.label : "More guides"}
-          </h2>
-          {cluster ? (
-            <p className="mt-1 max-w-xl font-serif text-sm text-muted">{cluster.blurb}</p>
-          ) : null}
+    <section className="mb-12">
+      {cluster ? (
+        // Section head (owner pick C7/X1): a mono "what you'll learn" eyebrow over the
+        // cluster's Bebas wordmark, with the schematic wire (its topic motif) doubling
+        // as the header rule; the blurb reads beneath.
+        <>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+            <div className="min-w-0">
+              <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+                {ordinal !== null ? (
+                  <span className="text-gold-dim">
+                    <span className="font-numeral tabular-nums">{num2(ordinal)}</span> ·{" "}
+                  </span>
+                ) : null}
+                What you&apos;ll learn
+              </p>
+              <h2 className="mt-1 font-display text-4xl font-normal leading-none tracking-wide text-title sm:text-5xl lg:text-6xl">
+                {cluster.label}
+              </h2>
+            </div>
+            {meta}
+          </div>
+          <div className="mt-2">
+            <SectionWire motif={clusterKey} />
+          </div>
+          <p className="mt-3 max-w-xl font-serif text-sm text-muted">{cluster.blurb}</p>
+        </>
+      ) : (
+        <div className="flex flex-col gap-3 border-b border-command-gold/30 pb-3 sm:flex-row sm:items-end sm:justify-between">
+          <h2 className="font-display text-2xl font-normal tracking-wide text-title">More guides</h2>
+          {meta}
         </div>
-        <div className="flex shrink-0 items-center gap-3">
-          {clusterStat ? (
-            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
-              <span className="font-numeral tabular-nums text-sm text-command-gold">
-                {clusterStat.done} / {clusterStat.total}
-              </span>{" "}
-              done
-            </span>
-          ) : null}
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
-            <span className="font-numeral tabular-nums text-sm text-command-gold">
-              {list.length}
-            </span>{" "}
-            {list.length === 1 ? "guide" : "guides"}
-          </span>
-          {cluster ? (
-            <FieldGuideDownload
-              guide={cluster.key}
-              label="Field Guide"
-              name={`the ${cluster.label} Field Guide`}
-              signedIn={signedIn}
-            />
-          ) : null}
-        </div>
-      </div>
-      <ul className="mt-2 grid grid-cols-1 gap-x-10 sm:grid-cols-2">
+      )}
+      <ul className="mt-3 grid grid-cols-1 gap-x-10 sm:grid-cols-2">
         {list.map((l) => (
           <LibraryRow key={l.slug} lesson={l} xp={xpBySlug?.get(l.slug)} />
         ))}
@@ -477,7 +504,11 @@ export default async function LibraryIndexPage() {
       : null;
   const resumeLesson = resume ? (allLessons.find((l) => l.slug === resume.slug) ?? null) : null;
   const railLesson = resumeLesson ?? also;
-  const railDiagram = resumeLesson ? heroDiagram(resumeLesson.diagramSrc) : alsoDiagram;
+  const railDiagram = resumeLesson
+    ? resumeLesson.diagramSrc
+      ? <ResumeDiagram src={resumeLesson.diagramSrc} />
+      : null
+    : alsoDiagram;
 
   // Follower-card data (signed-in resume): the resume copy, a blurb (the lesson's own
   // summary, or the meta note for start/restart), the learner's earned patches, and the

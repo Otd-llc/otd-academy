@@ -81,7 +81,7 @@ const CSS = `
 .ls-base{stroke:var(--color-panel-border,#3a3f50);stroke-width:1.4;stroke-dasharray:3 3;}
 .ls-w5{fill:none;stroke:var(--color-command-gold,#c8963e);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;}
 .ls-w3{fill:none;stroke:var(--color-signal-blue,#4a8fff);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;}
-.ls-shifter{fill:var(--color-navy-dark,#1a1a2e);stroke:var(--color-gold-light,#e8b865);stroke-width:2;}
+.ls-shifter{fill:var(--color-diagram-surface,#1f2438);stroke:var(--color-gold-light,#e8b865);stroke-width:2;}
 .ls-bt{font-family:var(--font-mono,"Space Mono",monospace);font-weight:700;font-size:11px;fill:var(--color-title,#f1ece0);}
 .ls-v{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;font-size:22px;}
 .ls-v5{fill:var(--color-command-gold,#c8963e);}
@@ -90,9 +90,9 @@ const CSS = `
 
 /* phone reflow */
 .ls-list{display:none;}
-@media (max-width:520px){ .ls-scene{display:none;} .ls-list{display:block;} }
+@container (max-width:520px){ .ls-scene{display:none;} .ls-list{display:block;} }
 .ls-card{display:flex;flex-direction:column;gap:.5rem;padding:.8rem 1rem;border-radius:8px;
-  background:var(--color-navy-dark,#1a1a2e);box-shadow:inset 0 0 0 1.5px var(--color-panel-border,#3a3f50);}
+  }
 .ls-card-lbl{font-family:var(--font-numeral,"Saira Condensed",sans-serif);font-weight:800;font-size:1.3rem;}
 .ls-lbl5{color:var(--color-command-gold,#c8963e);}
 .ls-lbl3{color:var(--color-signal-blue,#4a8fff);}

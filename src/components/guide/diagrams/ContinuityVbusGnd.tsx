@@ -50,12 +50,12 @@ export function ContinuityVbusGnd({ caption }: { caption?: string }) {
 
 const CSS = `
 .cvg{display:flex;align-items:center;gap:clamp(1rem,4vw,1.8rem);text-align:left;font-family:var(--font-mono,"Space Mono",monospace);}
-@media (max-width:520px){.cvg{flex-direction:column;}}
+@container (max-width:520px){.cvg{flex-direction:column;}}
 
 .cvg-meter{flex:0 0 auto;display:flex;flex-direction:column;gap:.55rem;align-items:center;
   background:var(--color-diagram-surface,#1f2438);border:1.5px solid var(--color-command-gold,#c8963e);
   border-radius:10px;padding:clamp(.85rem,3vw,1.1rem);}
-@media (max-width:520px){.cvg-meter{align-self:stretch;}}
+@container (max-width:520px){.cvg-meter{align-self:stretch;}}
 .cvg-lcd{background:var(--color-deep-space,#08090d);border:1px solid var(--color-panel-border,#3a3f50);
   border-radius:5px;padding:.3rem 1.4rem;text-align:right;min-width:9rem;}
 .cvg-ol{color:var(--color-text,#e8e8e8);font-family:var(--font-numeral,"Saira Condensed",sans-serif);
