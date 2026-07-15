@@ -12,11 +12,13 @@ The same engine that tracks a real hardware project's lifecycle backs the learni
 
 ## Screenshots
 
-| Learning paths (`/courses`) | Build-guide hub (a course's stage map) |
+Dark is primary; every surface also flips to a warm-ivory light theme (shown: the signed-in library).
+
+| The Library (`/library`) — a magazine index of reference guides | Signed in — a resume card, XP ring, and per-section schematic heads (light) |
 | :---: | :---: |
-| [![Learning paths](docs/screenshots/courses.png)](docs/screenshots/courses.png) | [![Build-guide hub](docs/screenshots/build-guide.png)](docs/screenshots/build-guide.png) |
-| **A build-guide stage** — phase-comb rail + live buyable BOM | **Parts library** (`/parts`) |
-| [![Build-guide stage](docs/screenshots/guide-stage.png)](docs/screenshots/guide-stage.png) | [![Parts library](docs/screenshots/parts.png)](docs/screenshots/parts.png) |
+| [![The Library](docs/screenshots/library-public-dark.png)](docs/screenshots/library-public-dark.png) | [![The Library, signed in](docs/screenshots/library-student-light.png)](docs/screenshots/library-student-light.png) |
+| **The Logbook** (`/logbook`) — rank, XP, and mission-patch badges | **A reference lesson** — a live (bare) diagram, typeset math, and a build-fresh PDF |
+| [![The Logbook](docs/screenshots/logbook-dark.png)](docs/screenshots/logbook-dark.png) | [![A reference lesson](docs/screenshots/lesson-dark.png)](docs/screenshots/lesson-dark.png) |
 
 ## What it does
 
@@ -33,9 +35,21 @@ On top of the workflow engine sit the learner-facing layers:
 - **Courses & curriculum DAG.** Projects carry curriculum metadata (`track`, `level`, `criticalPath`, `disciplineTaught`, `requiresStripboard`, `hasMainsNet`) and are wired into a dependency graph via `ProjectDependency` edges (`DE_RISK` / `FOUNDATION` / `SHARED_BLOCK`). A per-advance dependency gate blocks a project from advancing while its prerequisites haven't reached the required stage; an advisory-locked cycle-check keeps the graph acyclic on edge insert. The seeded ESP32 curriculum is 22 projects / 33 edges (16 boards across SENSE/ACT/POWER/COMMS tracks + 6 bench tools), visualized at `/curriculum` and indexed for the public at `/courses`.
 - **Learner guides.** Each revision can carry a `Guide` of per-stage `GuideCard`s that walk a learner through *building* that board: teaching content as typed JSON blocks (prose, callouts, steps, tables, diagrams, 3D part models, glossary terms) plus a uniform stage-gate footer. Guides are composed from templates (per-stage skeletons + per-track overlays + per-project safety gotchas) and materialized per revision. Served at `/projects/[slug]/[revLabel]/guide`.
 - **Per-user progress.** Open registration via **Google or GitHub OAuth, or an email magic-link** (Resend); accounts auto-link by verified email. A learner enrolls in the shared curriculum, progresses on their *own* track gated by per-user quizzes and proof artifacts, earns recorded grades, and can take an optional server-scored board exam that confers mastery. Completion (not the exam) unlocks dependent boards through the DAG. Signed-in learners get an account avatar (seeded from the OAuth provider, or a custom cropped upload) and a light/dark theme that follows the account.
-- **Reference surfaces, buying & credentials.** Beyond courses, the public SEO surface includes a `/library` of mini-lessons, a `/glossary`, and `/tools` electronics calculators (with embeddable widgets). A stage's BOM is **live-buyable** — per-line DigiKey price + stock with one-click cart add. Finishing a lesson issues a **certificate**: a shareable PDF (embossed seal) recorded in a public `/verify` registry; guides and a combined "field guide" also export to print-ready PDFs.
+- **Reference surfaces, buying & credentials.** Beyond courses, the public SEO surface includes a magazine-style `/library` of mini-lessons across six clusters (each cluster a downloadable **Field Guide** PDF lead-magnet), a `/glossary`, and `/tools` electronics calculators (with embeddable widgets). Signed-in learners get a **Logbook**: XP for lessons and quizzes, a 12-rank ladder, and collectible mission-patch badges, surfaced by a milestone fanfare and per-answer "+XP" ticks. A stage's BOM is **live-buyable** — per-line DigiKey price + stock with one-click cart add. Finishing a lesson issues a **certificate**: a shareable PDF (embossed seal) recorded in a public `/verify` registry; lessons, guides, and the combined field guide also export to print-ready PDFs (rendered from the live content — see [Notable engineering](#notable-engineering)).
 - **Parts knowledge base.** A curated, citation-backed parts library (pinouts, parametrics, power, derating, mechanical) with verified-vs-unverified trust levels. Browsable at `/parts` (public for SEO), and exposed read-only to AI sessions over a standalone MCP server (see [`mcp/parts-server/`](mcp/parts-server/)).
 - **KiCad export.** A revision's BOM exports to a KiCad 10 project zip — merged symbol library, footprints, pre-wired symbol↔footprint associations, and a per-part asset-coverage report. Parts without curated CAD assets get loudly-marked placeholder stubs so the project still opens.
+
+## Notable engineering
+
+A few pieces that were more interesting to build than a content site implies:
+
+- **Diagrams are responsive React components with a print pipeline — not bitmaps.** The ~80 guide diagrams are hand-authored SVG React components behind a registry, rendered live in a lesson through a shared `DiagramFrame`. They reflow between a landscape "scene" and a portrait "stack" using **container queries** keyed off the *frame's* own width, not the viewport — so one diagram reads large in a narrow follower-card rail and wide in a lesson body, with no viewport-media guesswork. A **Playwright** exporter (`pnpm diagrams:export`) drives an internal `/diagram-render/[key]` route and screenshots each diagram to an indexable `.webp` (dark; OG cards + SEO) plus a `-light.png` (print). In-lesson and print render a *bare* variant (a `?bare=1` context strips the echoed title/eyebrow/caption); the standalone exported image keeps them.
+
+- **Field Guide PDFs render from the live content, with zero export drift.** The per-lesson and combined "field guide" PDFs are built with **`@react-pdf/renderer` from the same typed `contentBlocks` the web page renders** — no separate authoring or export step, so a content edit appears in the PDF on the next request. It is a warm-ivory print document (bundled print faces, a 135° gradient-alpha brandmark watermark, dynamic `render`-callback page numbers) with each diagram embedded as its bare light raster.
+
+- **Real typeset math in the PDF — no browser, no native rasterizer.** react-pdf can't run KaTeX (it emits HTML), and the serverless target can't `dlopen` a native image codec, so equations are rendered with **MathJax → SVG** (`fontCache: 'none'`, so every glyph is an inline `<path>` and there are no `<use>`/`<defs>` react-pdf won't resolve) and then **translated node-by-node into react-pdf `<Svg>/<G>/<Path>/<Rect>` primitives** ([`src/lib/pdf/math-svg.tsx`](src/lib/pdf/math-svg.tsx)). A plain-ASCII fallback keeps one bad equation from ever crashing a document. (On-page math still uses **KaTeX** directly.)
+
+- **Server-enforced stage gates, not UI hints.** A guide card's "done" verdict is computed from the *real* engineering stage-gate (frozen BOM, DRC-clean Gerbers, a passing checklist), inside Serializable transactions with append-only audit — so the teaching layer can never mark a step complete while the underlying gate is closed, and a curriculum dependency gate holds a board until its prerequisites are reached.
 
 ## Access tiers & monetization
 
@@ -68,6 +82,8 @@ The academy **does not** hold KiCad project files. Each hardware project lives i
 - **Tailwind v4** (CSS-first `@theme`, no JS config) — hand-rolled components, no component framework; Radix UI primitives for the accessible tooltip/glossary. Dark and light themes (toggle, persisted per account), command-gold brand, a four-face type stack (Bebas Neue / Saira Condensed / Space Mono / Lora), inline SVG icon set
 - **Cloudflare R2** for file artifacts, CAD assets, and user avatars (presigned PUT/GET, server `HEAD`-after-PUT verification; avatars cropped client-side with react-easy-crop)
 - **three.js** for the in-app 3D CAD viewer
+- **`@react-pdf/renderer`** for every PDF (certificate, per-lesson, combined field guide), rendered from the live typed content so there is no export step to drift; **MathJax** (`mathjax-full`) renders equations to SVG that is translated into react-pdf primitives for print, while **KaTeX** renders math on the page
+- **Playwright** (headless Chromium) exports each SVG diagram *component* to an indexable `.webp` + a print `.png` via an internal render route (`scripts/export-diagrams.ts`)
 - **Resend** for transactional (magic-link sign-in) + lifecycle email
 - **PostHog** for product analytics (a hard no-op when unconfigured — no init, no network)
 - `sanitize-html` for note-body / guide-prose sanitization

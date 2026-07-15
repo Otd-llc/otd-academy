@@ -32,6 +32,8 @@ import {
   StyleSheet,
 } from "@react-pdf/renderer";
 import { type ReactNode } from "react";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import type { ContentBlock } from "@/lib/schemas/guide";
 import { parseInlineTerms } from "@/lib/inline-terms";
 import { PDF_SAIRA_FALLBACK } from "@/lib/pdf/pdf-fallback-set";
@@ -69,6 +71,21 @@ const RED_TINT = "#f8ecea";
 const BLUE = "#3a6ea5";
 
 const CONTENT_W = 595.28 - 54 * 2; // A4 width minus the page's horizontal padding
+
+// The corner watermark as a pre-rendered PNG (the brandmark + its 135deg gradient-alpha
+// fill, baked by scripts/_gen-wm at build; regen if the mark changes). A PNG because
+// react-pdf's View-render (used to draw it on the LAST page of a per-lesson PDF) paints
+// an <Image> but NOT an <Svg>. Read once, as a data URI.
+const WM_BRANDMARK_PNG: string | null = (() => {
+  try {
+    const buf = readFileSync(path.join(process.cwd(), "public", "otd-wm-brandmark.png"));
+    return `data:image/png;base64,${buf.toString("base64")}`;
+  } catch {
+    return null; // missing asset → skip the watermark, never crash the PDF
+  }
+})();
+const WM_W = 230;
+const WM_H = WM_W * (400 / 418);
 
 const s = StyleSheet.create({
   page: {
@@ -240,7 +257,10 @@ const s = StyleSheet.create({
   coverTitle: { fontFamily: "Bebas", fontSize: 56, color: INK, letterSpacing: 1, lineHeight: 0.86, textTransform: "uppercase", marginTop: 6 },
   coverRule: { width: 70, height: 1.6, backgroundColor: GOLD, marginTop: 14, marginBottom: 12 },
   coverMeta: { fontFamily: "Mono", fontSize: 8.5, letterSpacing: 2, color: FAINT, textTransform: "uppercase", lineHeight: 1.8 },
-  wmCorner: { position: "absolute", left: 0, top: 0 },
+  // The cover watermark anchor sits on the content-margin grid (the text column's
+  // bottom-right corner: right = the 54pt horizontal margin, bottom = the 60pt bottom
+  // margin), not flush to the page edge, so the mark reads as a placed element.
+  wmCorner: { position: "absolute", right: 54, bottom: 60 },
 
   tocTitle: { fontFamily: "Bebas", fontSize: 30, color: INK, marginBottom: 6, letterSpacing: 0.4, textTransform: "uppercase" },
 
@@ -765,6 +785,22 @@ export function LibraryPdf({
         <View style={{ marginTop: 4 }}>
           <Blocks blocks={lesson.blocks} images={images} />
         </View>
+        {/* Corner brandmark watermark — the SAME mark, gradient, size, and bottom-right
+            grid position as the field-guide cover, but on the LAST page only. A fixed
+            slot whose render draws it just when this is the final page; rendered as an
+            <Image> (react-pdf's View-render paints an Image, not an Svg) so it's out of
+            flow and never spills onto an extra page. */}
+        <View
+          style={s.wmCorner}
+          fixed
+          render={(props) => {
+            const p = props as unknown as { pageNumber: number; totalPages: number };
+            return WM_BRANDMARK_PNG && p.pageNumber === p.totalPages ? (
+              // eslint-disable-next-line jsx-a11y/alt-text
+              <Image src={WM_BRANDMARK_PNG} style={{ width: WM_W, height: WM_H }} />
+            ) : null;
+          }}
+        />
         <PageNumber />
       </Page>
     </Document>
@@ -772,16 +808,17 @@ export function LibraryPdf({
 }
 
 // ── whole library, one book ──────────────────────────────────────────────────
-// The cover watermark: a 135deg gradient-alpha brandmark (owner pick) anchored
-// top-left, brightest at the corner and fading toward the page. Matches the site
-// footer's gradient watermark treatment (vs the old flat single-opacity fill).
+// The corner watermark brandmark: anchored bottom-right (where it has always sat),
+// but with a 135deg gradient-alpha fill (owner pick) — brightest at the bottom-right
+// corner, fading toward the top-left — matching the site footer's gradient watermark
+// treatment (vs the old flat single-opacity fill).
 function Brandmark({ size }: { size: number }) {
   return (
     <Svg width={size} height={size * (400 / 418)} viewBox={BRANDMARK_VIEWBOX}>
       <Defs>
         <LinearGradient id="wmGrad" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor={GOLD} stopOpacity={0.16} />
-          <Stop offset="1" stopColor={GOLD} stopOpacity={0.05} />
+          <Stop offset="0" stopColor={GOLD} stopOpacity={0.05} />
+          <Stop offset="1" stopColor={GOLD} stopOpacity={0.16} />
         </LinearGradient>
       </Defs>
       <Path d={BRANDMARK_PATH} fill="url(#wmGrad)" />
