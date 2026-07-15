@@ -1,15 +1,15 @@
 import { PrismaClient } from "@prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
+import { makeAdapter } from "@/lib/db-adapter";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 function makeClient(): PrismaClient {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL not set");
-  // PrismaNeon (7.8) takes a PoolConfig and creates the @neondatabase/serverless
-  // Pool internally on connect(). This is the Neon-recommended adapter for
-  // Prisma 7's `engineType = "client"` default.
-  const adapter = new PrismaNeon({ connectionString: url });
+  // The adapter is chosen by URL: node-postgres for a local dev Postgres, the
+  // Neon serverless adapter for a Neon host (the Neon driver speaks WebSocket to
+  // Neon's proxy and cannot reach a plain local Postgres). See @/lib/db-adapter.
+  const adapter = makeAdapter(url);
   return new PrismaClient({
     adapter,
     log: ["query", "error", "warn"],
