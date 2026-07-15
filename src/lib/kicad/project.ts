@@ -107,6 +107,21 @@ export function resolveBoardConfig(config?: Partial<BoardConfig>): BoardConfig {
   };
 }
 
+/**
+ * Per-board KiCad-export overrides, keyed by project slug. Most boards take
+ * DEFAULT_BOARD_CONFIG (2-layer); a board whose design demands a different
+ * stackup lists its override here. `buildKicadExportZip` looks the slug up and
+ * feeds the override to the `.kicad_pcb` + `.kicad_pro` builders.
+ *
+ * l1-01 is **4-layer** (sig / GND / GND / sig): the native-USB pair is a forced
+ * long diagonal a 2-layer reference cannot hold continuous under, so it needs a
+ * dedicated inner ground plane. See docs/boards/l1-01-wroom-breakout/design.md
+ * (constraint M5 + risk R5).
+ */
+export const BOARD_CONFIG_OVERRIDES: Record<string, Partial<BoardConfig>> = {
+  "l1-01-wroom-breakout": { copperLayers: 4 },
+};
+
 // ── `.kicad_pro` builder ────────────────────────────────────────────────────
 
 export type BuildKicadProOpts = {

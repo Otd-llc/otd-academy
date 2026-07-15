@@ -8,6 +8,7 @@ import { PackageSizeDiagram } from "./PackageSizeDiagram";
 import { CurrentBudget } from "./diagrams/CurrentBudget";
 import { HaslVsEnig } from "./diagrams/HaslVsEnig";
 import { TwoLayerCrossSection } from "./diagrams/TwoLayerCrossSection";
+import { FourLayerCrossSection } from "./diagrams/FourLayerCrossSection";
 import { GerberLayerStack } from "./diagrams/GerberLayerStack";
 import { ContinuityVbusGnd } from "./diagrams/ContinuityVbusGnd";
 import { Adc1PinMap } from "./diagrams/Adc1PinMap";
@@ -61,6 +62,7 @@ const CORE_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/current-budget.svg": CurrentBudget,
   "/guide-diagrams/hasl-vs-enig.svg": HaslVsEnig,
   "/guide-diagrams/two-layer-cross-section.svg": TwoLayerCrossSection,
+  "/guide-diagrams/four-layer-cross-section.svg": FourLayerCrossSection,
   "/guide-diagrams/gerber-layer-stack.svg": GerberLayerStack,
   "/guide-diagrams/continuity-vbus-gnd.svg": ContinuityVbusGnd,
   "/guide-diagrams/adc1-pin-map.svg": Adc1PinMap,

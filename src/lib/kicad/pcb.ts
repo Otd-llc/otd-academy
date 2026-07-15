@@ -36,9 +36,11 @@ const GENERATOR_VERSION = "10.0";
  * (ordinals 0 and 31) followed by the standard non-copper technical layers in
  * KiCad's fixed ordinal order. Each row is `(<ord> "<name>" <type> [ "<userName>" ])`.
  *
- * Only the copper count varies with `copperLayers`; v1 supports the 2-layer
- * default (top F.Cu + bottom B.Cu). A >2 layer override is accepted by the
- * config but emits inner copper layers In1.Cu… here too.
+ * Only the copper count varies with `copperLayers`. The 2-layer default (top
+ * F.Cu + bottom B.Cu) is standard; a >2 override emits inner copper layers
+ * In1.Cu… between them (l1-01 ships 4-layer, sig/GND/GND/sig, via
+ * BOARD_CONFIG_OVERRIDES). Inner layers are typed `signal`; the learner pours
+ * them as GND planes in the LAYOUT lesson's pour step.
  */
 function buildLayers(copperLayers: number): SNode {
   const rows: SNode[] = [];

@@ -22,7 +22,7 @@ Draft for review; finalize current draw against the shipped design (user LED = I
 - VBUS ↔ GND: **NOT** shorted.
 - 3V3 ↔ GND: **NOT** shorted.
 - LDO VIN (VBUS) ↔ LDO VOUT (3V3): correct, not bridged.
-- Module GND pad ↔ GND plane: continuous.
+- Module GND pad ↔ GND planes (In1/In2, via the stitching vias): continuous.
 - USB-C shell ↔ GND: as designed.
 
 ## Bring-up (`BENCH_PROCEDURE`) — power rails first
