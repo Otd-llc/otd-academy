@@ -1173,6 +1173,15 @@ model MiniLesson {
   lastVerifiedAt DateTime?
   cluster        String? // Library cluster / Field Guide key (LIBRARY_CLUSTERS); null = unclustered "other" bucket
   clusterOrdinal Int                 @default(0) // order WITHIN the cluster — single source of truth for within-cluster order
+  // ── DERIVED from contentBlocks. Never hand-set these: the client extension in
+  // src/lib/db.ts recomputes them on every create/update/upsert that carries
+  // contentBlocks. Derived so /library can render every lesson without SELECTing
+  // (heavy) contentBlocks just to get three scalars. Source of truth for the
+  // derivation is src/lib/library/derived.ts; a vitest drift guard proves they
+  // still match. See docs/plans/2026-07-15-library-derived-columns.md.
+  readingMinutes Int                 @default(1)
+  questionCount  Int                 @default(0)
+  diagramSrc     String?
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
   createdById    String
