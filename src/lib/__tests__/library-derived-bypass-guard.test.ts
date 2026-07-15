@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
-import { globSync } from "node:fs";
 
 // MiniLesson.readingMinutes/questionCount/diagramSrc are derived from
 // contentBlocks and kept fresh by the client extension in src/lib/db.ts. That
@@ -29,16 +28,29 @@ const BYPASS_PATTERNS: { name: string; re: RegExp }[] = [
   },
 ];
 
+// readdirSync(recursive) rather than fs.globSync: globSync exists at runtime on
+// Node 24 but is absent from @types/node, so it type-checks red while passing.
+const SKIP_DIRS = ["node_modules", ".next", ".git", "worktrees", "dist", "coverage"];
+
 function sourceFiles(): string[] {
-  return globSync("**/*.{ts,tsx}", {
-    cwd: ROOT,
-    exclude: (p) =>
-      p.includes("node_modules") ||
-      p.includes(".next") ||
-      p.includes("worktrees") ||
-      // this guard names the patterns it forbids
-      p.endsWith("library-derived-bypass-guard.test.ts"),
-  }).map((p) => join(ROOT, p));
+  const roots = ["src", "scripts", "prisma", "mcp"];
+  const out: string[] = [];
+  for (const root of roots) {
+    let entries: string[];
+    try {
+      entries = readdirSync(join(ROOT, root), { recursive: true, encoding: "utf8" });
+    } catch {
+      continue; // a root that does not exist is not a failure
+    }
+    for (const rel of entries) {
+      if (!/\.(ts|tsx)$/.test(rel)) continue;
+      if (SKIP_DIRS.some((d) => rel.split(/[\\/]/).includes(d))) continue;
+      // this guard necessarily names the patterns it forbids
+      if (rel.endsWith("library-derived-bypass-guard.test.ts")) continue;
+      out.push(join(ROOT, root, rel));
+    }
+  }
+  return out;
 }
 
 describe("nothing bypasses the MiniLesson derived-column extension", () => {
