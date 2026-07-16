@@ -1,9 +1,119 @@
 # Cache Components / PPR Migration — Implementation Plan
 
+> ## ⚑ STATUS 2026-07-16: EXECUTED + AUDITED. Branch `feat/cache-components-ppr`, PR #310, NOT MERGED.
+>
+> **Read "Outcome" (immediately below) before anything else — the tasks below are the ORIGINAL
+> plan and several of their premises turned out to be wrong.** They are kept for the reasoning,
+> not as instructions. Do not execute them.
+>
+> **Awaiting the maintainer's explicit go-ahead to merge.** One known open item: the CLS /
+> route-groups fix (measured + confirmed, deliberately deferred to its own PR — see Outcome §4).
+
+---
+
+## Outcome (2026-07-16) — what actually shipped
+
+Seven commits on `feat/cache-components-ppr` (oldest → newest):
+
+| SHA | What |
+| --- | --- |
+| `816de72` | CI build against a real DB |
+| `64d6d49` | flag on, 57 route configs stripped (build red — discovery checkpoint) |
+| `e5ca1f6` | root layout → prerenderable static shell |
+| `4dc328d` | public loaders cached; build green |
+| `a458d29` | four-agent audit fixes |
+| `7b1233d` | parts category tree cached |
+| `2bb83b0` | partModel N+1, default parts view, library OG |
+
+**Gates:** `tsc` clean · `pnpm vitest run` **1649/1649** · `pnpm exec next build` green, 95/95 pages.
+
+### 1. The measured result (production build, Prisma query log, with an uncached control)
+
+| Surface | Before | After |
+| --- | --- | --- |
+| `/library` × 20 | — | **0 queries** |
+| `/parts` × 10 | 50 | **0** |
+| `/pricing` × 10 | 30 | **3** (one cache fill) |
+| library OG × 10 | 10 fat-column reads | **1** |
+| guide `[stage]` | Part 28 / PartAsset 54 | **1 / 1 per render** |
+
+### 2. Where the plan was WRONG (do not re-derive these)
+
+- **`runtime` is ALSO rejected** by `cacheComponents`, not just `dynamic`/`revalidate`. The strip
+  surface was **57 files, not 34**. (`"nodejs"` is the default, so removal is a no-op. An audit
+  agent claimed the docs say otherwise — the compiler is the authority and it refuses to build.)
+- **The "17 vs 5 pages" framing had the wrong denominator.** The real blocker was the ROOT LAYOUT,
+  which awaited `auth()`/`headers()`/`cookies()`/a DB read before any JSX and so blocked all 73
+  routes. Fixing that one file cleared 29; a single `<Suspense>` around `{children}` cleared the
+  remaining 44 → 3. **The per-page restructure never happened and was never needed.**
+- **`revalidateTag(tag, profile)`**: the profile is `CacheLifeConfig = { expire?: number }` — it
+  reads ONLY `expire`, discards `stale`/`revalidate`, and a non-zero `expire` makes the
+  invalidation stale-while-revalidate rather than a purge. Passing `ONE_HOUR` silently asked for a
+  **24-hour** window. The write side now uses **`updateTag`** (immediate, no profile).
+- **The "5 public pages" scope was too narrow.** It missed `/parts`, `/parts/[id]`,
+  `/courses/[slug]`, `/pricing`, and 6 DB-backed OG routes.
+
+### 3. The load-bearing traps (each of these was a real bug found and fixed)
+
+- **Unbounded cache keys.** `use cache` keys on arguments; a `[slug]`/`[id]` route param matches
+  ANY string, so an unbounded cached loader mints an entry + a DB query per garbage URL a crawler
+  tries — the exact traffic-scales-with-reads behaviour this work exists to kill. All three
+  param-taking cached functions are bounded: `cachedMiniLesson` and `cachedCourse` against
+  already-cached row sets, `loadPublicLibraryForBook` by its callers' registry check.
+  **Any new cached function taking a route param MUST be bounded the same way.**
+- **Write-only tags.** A `cacheTag` with no matching invalidator is silent: content just goes
+  stale for an hour with nothing to grep for. `projects` was set by two readers and fired by
+  nothing → publishing a course was invisible for an hour. Invalidators now live in
+  `src/lib/cache-invalidate.ts`; tag constants in `src/lib/cache-profile.ts`.
+- **A prerendered shell cannot read the session or the DB.** `<html data-theme>` therefore ships
+  as a constant, which silently killed the signed-in account-theme fallback. `User.theme` is now
+  stamped onto the device as a cookie by a `signIn` event in `src/auth.ts`.
+- **`next/cache` test stubs.** 43 test files stubbed it with only `revalidatePath`; every new
+  cache export broke another. All are complete now. **Known limitation:** the `use cache`
+  directive is inert under vitest, so the tests exercise an UNCACHED path that does not exist in
+  production and can never catch a serialization violation — only a real `next build` covers that.
+
+### 4. OPEN — the one deliberate deferral
+
+**CLS on every chrome route, measured and confirmed** (not a guess): the header is absent from the
+first flush and swapped in above the content afterwards. Proof, from the served HTML of `/briefs`
+(a page that was `force-static` before this branch):
+
+    <body>  @ 3181
+    <main>  @ 3840   <- page content streams first
+    header  @ 8403   <- swapped in above it afterwards
+    (+ 3 $RC swap scripts, 16 <div hidden> templates)
+
+Cause: `src/app/layout.tsx` wraps `<AppHeader />` in `<Suspense fallback={null}>`, because the
+static shell cannot know whether chrome applies to the route (`/sign-in` and `/embed/*` are
+chrome-free, so a header skeleton would flash onto them).
+
+**Fix = route groups**: move every route except `/sign-in` and `/embed/*` into a `(chrome)/` group
+so chrome becomes structural and static, which also deletes the `x-pathname` middleware sniff in
+`src/lib/chrome.ts`. ~50 directories plus the special-file conventions (`sitemap.ts`, `robots.ts`,
+`opengraph-image.tsx`, the root `page.tsx`). **Deferred to its own PR on purpose** — a move that
+size on top of this diff is how a subtle bug gets in.
+
+### 5. OPEN — smaller, optional
+
+- **Guide `[stage]` is still ~13 queries/render.** No longer the N+1 — it is `generateMetadata`
+  re-querying what the page body already reads (Project ×2, GuideCard ×3, Revision ×2). Cacheable,
+  but the page has PUBLIC/PREMIUM/FREE gating + a paywall, so it needs care. Multiplies ~20× when
+  the board burst lands.
+- **The other 5 DB-backed OG routes** are one thin indexed lookup each. Left uncached on purpose:
+  caching them adds unbounded-key surface to save a single query.
+- **Seeding Library content to PROD takes up to an hour to appear** — seed scripts run outside a
+  request context and cannot invalidate. Documented in CLAUDE.md. Optional fix: a
+  `CRON_SECRET`-guarded `POST /api/revalidate` the seed scripts call.
+
+---
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 >
 > **Load the `vercel:next-cache-components` skill before Task 3.** It carries the current
 > `use cache` / `cacheLife` / `cacheTag` contract. Do not write caching code from memory.
+>
+> **↑ The two notes above applied to the ORIGINAL execution and are now historical. See STATUS.**
 
 **Goal:** Make public-page database reads a function of *time* (24/day at hourly revalidation) instead of *traffic*, by enabling Next 16 Cache Components and caching the user-independent data reads — before real SEO traffic arrives.
 
