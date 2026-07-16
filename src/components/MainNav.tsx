@@ -21,6 +21,23 @@
 // hamburger reveals the full nav in a dropdown card; from `sm` up the whole nav
 // sits inline with no toggle. Keeps the mobile header a single tidy line instead
 // of an unpredictable multi-row wrap.
+//
+// TWO ENTRY POINTS, because of what each one is allowed to read:
+//
+//   • MainNavStatic — no `usePathname()`, so it renders in the PRERENDERED shell.
+//     The header uses it as the Suspense fallback, which means the nav LINKS are
+//     in the first flush of every page (they are internal links; a crawler and a
+//     first paint both want them there). It shows the anonymous link set with
+//     nothing highlighted.
+//   • MainNav — calls `usePathname()` to highlight the active route, and takes the
+//     session-derived `role`/`signedIn`. Both are request data, so it may only
+//     render inside a dynamic island.
+//
+// They share MainNavView, so the two render the same box and the fallback→island
+// swap moves nothing. Do NOT put `usePathname()` back into the fallback path:
+// under cacheComponents the build FAILS with "Uncached data was accessed outside
+// of <Suspense>" — a Suspense fallback is part of the static shell, and the shell
+// has no URL (one prerendered shell is shared across every [slug]).
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -37,12 +54,38 @@ const LINKS = [
   { href: "/parts", label: "Parts", adminOnly: false },
 ] as const;
 
-function isActive(pathname: string, href: string): boolean {
+// `pathname` is null in the static shell, where the URL is not knowable — then
+// nothing is highlighted, which is the correct answer rather than a guess.
+function isActive(pathname: string | null, href: string): boolean {
+  if (pathname === null) return false;
   if (href === "/") {
     // The dashboard owns "/" and the whole project tree.
     return pathname === "/" || pathname.startsWith("/projects");
   }
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function visibleLinks(role?: string | null, signedIn?: boolean) {
+  const isAdmin = role === "ADMIN";
+  return LINKS.filter((link) => {
+    // Admin-only links (Projects / Curriculum) show only for ADMINs.
+    if (link.adminOnly && !isAdmin) return false;
+    // Learn is the personal dashboard — hide it from anonymous visitors.
+    if (link.href === "/learn" && !signedIn) return false;
+    return true;
+  });
+}
+
+// Prerender-safe: no request data, so it is legal in the static shell / a Suspense
+// fallback. Anonymous link set, nothing highlighted.
+export function MainNavStatic({ className }: { className?: string }) {
+  return (
+    <MainNavView
+      className={className}
+      links={visibleLinks(null, false)}
+      pathname={null}
+    />
+  );
 }
 
 export function MainNav({
@@ -54,17 +97,26 @@ export function MainNav({
   role?: string | null;
   signedIn?: boolean;
 }) {
-  const pathname = usePathname();
+  return (
+    <MainNavView
+      className={className}
+      links={visibleLinks(role, signedIn)}
+      pathname={usePathname()}
+    />
+  );
+}
+
+function MainNavView({
+  className,
+  links,
+  pathname,
+}: {
+  className?: string;
+  links: readonly { href: string; label: string }[];
+  pathname: string | null;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const isAdmin = role === "ADMIN";
-  const links = LINKS.filter((link) => {
-    // Admin-only links (Projects / Curriculum) show only for ADMINs.
-    if (link.adminOnly && !isAdmin) return false;
-    // Learn is the personal dashboard — hide it from anonymous visitors.
-    if (link.href === "/learn" && !signedIn) return false;
-    return true;
-  });
 
   // Close the mobile dropdown on Escape or an outside click.
   useEffect(() => {

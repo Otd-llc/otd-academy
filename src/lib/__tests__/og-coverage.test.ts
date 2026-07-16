@@ -18,7 +18,22 @@ import path from "node:path";
 
 const APP = path.join(process.cwd(), "src", "app");
 
-// Public route families → their co-located opengraph-image file (relative to src/app).
+// Route groups are parenthesised directories that add nothing to the URL, so the
+// families below are listed by their URL shape and resolved through the groups
+// here. Keeping the group out of the list is deliberate: which group a route
+// lives in is a chrome/layout concern, and moving one between groups must not
+// turn a SHARE-CARD gate red for a reason that has nothing to do with share cards.
+const GROUPS = ["", "(chrome)", "(bare)"];
+
+function resolveInApp(rel: string): string | null {
+  for (const group of GROUPS) {
+    const file = path.join(APP, group, rel);
+    if (existsSync(file)) return file;
+  }
+  return null;
+}
+
+// Public route families → their co-located opengraph-image file (by URL shape).
 const OG_FILES = [
   "opengraph-image.tsx", // site-default (every bare route inherits it)
   "courses/[slug]/opengraph-image.tsx",
@@ -31,9 +46,9 @@ const OG_FILES = [
 
 describe("og:image coverage", () => {
   it.each(OG_FILES)("%s exports the metadata-image contract", (rel) => {
-    const file = path.join(APP, rel);
-    expect(existsSync(file), `${rel} is missing — a public route family with no share card`).toBe(true);
-    const src = readFileSync(file, "utf8");
+    const file = resolveInApp(rel);
+    expect(file, `${rel} is missing — a public route family with no share card`).not.toBeNull();
+    const src = readFileSync(file!, "utf8");
     for (const token of [
       "export const alt",
       "export const size",
@@ -44,12 +59,9 @@ describe("og:image coverage", () => {
   });
 
   it("the certificate route sets its share image via generateMetadata", () => {
-    const file = path.join(
-      APP,
-      "learn/[slug]/certificate/[token]/page.tsx",
-    );
-    expect(existsSync(file)).toBe(true);
-    const src = readFileSync(file, "utf8");
+    const file = resolveInApp("learn/[slug]/certificate/[token]/page.tsx");
+    expect(file, "the certificate page is missing").not.toBeNull();
+    const src = readFileSync(file!, "utf8");
     expect(src.includes("openGraph"), "cert page lost its openGraph block").toBe(true);
     expect(src.includes("images"), "cert page openGraph has no images").toBe(true);
   });
