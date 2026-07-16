@@ -10,7 +10,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PartLifecycle } from "@prisma/client";
 import { auth } from "@/auth";
+import { cacheLife, cacheTag } from "next/cache";
+
 import { db } from "@/lib/db";
+import { ONE_HOUR, TAG_PARTS } from "@/lib/cache-profile";
 import { ChevronLeftIcon, PlusIcon } from "@/components/icons";
 import { PageHeader } from "@/components/PageHeader";
 import { PartCard } from "@/components/parts/PartCard";
@@ -59,6 +62,25 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title, description },
 };
 
+// The DEFAULT catalog view — no filters, page 1. Cached with a CONSTANT key.
+//
+// Taking no arguments is the whole point. /parts carries user-controlled ?q= and
+// ?cat= (free text, per src/lib/schemas/part.ts), so a cached function keyed on the
+// params would mint an entry per distinct search string — traffic-scaled DB reads and
+// a poisoned LRU, which is what caching here is meant to prevent. Only the unfiltered
+// view is cached, and that is exactly the URL the sitemap emits and crawlers hit; a
+// real user's search falls through to the live query below, where freshness matters
+// more than the read.
+//
+// PartsListRow is plain scalars + Dates (no Decimal — the schema's only one is
+// Project.targetCost, which is not in LIST_SELECT), so it crosses the boundary safely.
+async function cachedDefaultPartsPage() {
+  "use cache";
+  cacheLife(ONE_HOUR);
+  cacheTag(TAG_PARTS);
+  return listParts(db, partsListParamsSchema.parse({}));
+}
+
 export default async function PartsListPage({
   searchParams,
 }: {
@@ -66,7 +88,16 @@ export default async function PartsListPage({
 }) {
   const raw = await searchParams;
   const params = partsListParamsSchema.parse(raw);
-  const { parts, total, page, totalPages } = await listParts(db, params);
+  const isDefaultView =
+    !params.q &&
+    !params.cat &&
+    !params.lifecycle &&
+    !params.mains &&
+    params.sort === "manufacturer" &&
+    params.page === 1;
+  const { parts, total, page, totalPages } = isDefaultView
+    ? await cachedDefaultPartsPage()
+    : await listParts(db, params);
   // The catalog is public (read-only) — the author affordances (New part, the
   // operator dashboard back-link) render for ADMINs only. `auth()` is null for
   // a signed-out visitor, so they simply get the read-only catalog.

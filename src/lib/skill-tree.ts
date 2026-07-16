@@ -31,6 +31,20 @@ export async function buildSkillTree(
   return computeSkillTree(projects, edges, viewer);
 }
 
+/**
+ * Every non-archived project slug, from the cached graph (no query of its own).
+ *
+ * Exists so callers that take a raw `[slug]` route param can bound their cache keys
+ * before hitting a `use cache` function. `use cache` keys on arguments, and a route
+ * param matches ANY string — so an unbounded caller mints one entry (and one DB
+ * query) per distinct garbage URL a crawler or scanner tries, which is exactly the
+ * traffic-scales-with-DB-reads behaviour this caching exists to eliminate.
+ */
+export async function knownProjectSlugs(): Promise<Set<string>> {
+  const { projects } = await cachedProjectGraph();
+  return new Set(projects.map((p) => p.slug));
+}
+
 // The user-independent half: every non-archived project and every dependency edge,
 // mapped to the pure engine's Raw* shapes. Returns plain arrays of scalars, which
 // serialize cleanly across the cache boundary (no Set/Map/Decimal -- keep it so).

@@ -151,6 +151,25 @@ export async function listPublishedByCluster() {
   return bucketByCluster(await cachedPublishedRows());
 }
 
+/**
+ * Thin card metadata for one published PUBLIC lesson — title + hero diagram src.
+ * Null when the slug is unknown or unpublished.
+ *
+ * Costs NO query of its own: it reads the same hourly cached row set the index uses.
+ * That matters because the caller is the per-lesson OG image route, which is hit for
+ * all 69 lessons by crawlers and social unfurlers. That route used to issue its own
+ * `findFirst` selecting `contentBlocks` — the fat column — purely to re-derive the
+ * first diagram's src, which is exactly what the stored `diagramSrc` column already
+ * holds (both come from firstDiagramSrc; see src/lib/library/derived.ts).
+ *
+ * Bounded by construction: the lookup is a find over the cached rows, so an unknown
+ * slug costs nothing and mints no cache entry.
+ */
+export async function loadLessonCardMeta(slug: string) {
+  const rows = await cachedPublishedRows();
+  return rows.find((r) => r.slug === slug) ?? null;
+}
+
 // Published, PUBLIC lessons WITH content blocks for a Field Guide PDF.
 //  • With a `cluster` arg → that cluster's book, DB-sorted by clusterOrdinal asc
 //    (scoped to one cluster, so a bare column sort is correct).

@@ -41,7 +41,6 @@ import { getStageQuestionState } from "@/lib/logbook/load";
 import { GuideCardEditor } from "@/components/guide/GuideCardEditor";
 import { PhaseComb } from "@/components/guide/PhaseComb";
 import { BomPdfExport } from "@/components/guide/BomPdfExport";
-import { getPartAssetRenderUrl } from "@/lib/actions/part-assets";
 import { partModelSrc } from "@/lib/part-model-url";
 import { env } from "@/env";
 import { renderBoundsSchema } from "@/lib/schemas/part-asset";
@@ -404,19 +403,40 @@ export default async function GuideCardPage({
     new Set(blocks.flatMap((b) => (b.type === "partModel" && b.mpn ? [b.mpn] : []))),
   );
   const models: Record<string, ResolvedModel> = {};
-  for (const mpn of modelMpns) {
-    const part = await db.part.findFirst({ where: { mpn }, select: { id: true } });
-    if (!part) continue;
-    const src = await getPartAssetRenderUrl(part.id);
-    if (!src) continue;
-    const asset = await db.partAsset.findUnique({
-      where: { partId_kind: { partId: part.id, kind: "MODEL_3D" } },
-      select: { renderBounds: true },
+  // TWO queries regardless of how many partModel blocks the card carries. This used
+  // to be a loop costing THREE per MPN — a Part lookup, then getPartAssetRenderUrl
+  // (which reads PartAsset), then a second read of the SAME PartAsset row just for
+  // renderBounds. On the public guide pages, which are the crawled SEO surface, that
+  // was the largest per-render DB cost left.
+  //
+  // Same batching shape the bomTable branch below already uses, and the resulting
+  // URL is identical: getPartAssetRenderUrl was itself returning partModelSrc(), so
+  // this is not a presign-vs-proxy change — just the same URL, computed without the
+  // duplicate reads.
+  if (modelMpns.length > 0 && env.R2_ENABLED && env.R2_BUCKET) {
+    const parts = await db.part.findMany({
+      where: { mpn: { in: modelMpns } },
+      select: { id: true, mpn: true },
     });
-    models[mpn] = {
-      src,
-      bounds: renderBoundsSchema.safeParse(asset?.renderBounds).data ?? null,
-    };
+    const assets = await db.partAsset.findMany({
+      where: {
+        partId: { in: parts.map((p) => p.id) },
+        kind: "MODEL_3D",
+        // Mirrors getPartAssetRenderUrl's `asset?.renderKey ? … : null` guard: an
+        // asset row with no derived render has no URL to serve.
+        renderKey: { not: null },
+      },
+      select: { partId: true, id: true, updatedAt: true, renderBounds: true },
+    });
+    const assetByPart = new Map(assets.map((a) => [a.partId, a]));
+    for (const part of parts) {
+      const asset = assetByPart.get(part.id);
+      if (!asset) continue;
+      models[part.mpn] = {
+        src: partModelSrc(asset.id, asset.updatedAt),
+        bounds: renderBoundsSchema.safeParse(asset.renderBounds).data ?? null,
+      };
+    }
   }
 
   // Resolve a bomTable block (if any) → the revision's Bill of Materials rows

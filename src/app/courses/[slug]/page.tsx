@@ -23,6 +23,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { ONE_HOUR, TAG_PROJECTS } from "@/lib/cache-profile";
+import { knownProjectSlugs } from "@/lib/skill-tree";
 import { WaitlistForm } from "@/components/learn/WaitlistForm";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { courseJsonLd, breadcrumbJsonLd, siteUrl } from "@/lib/seo/jsonld";
@@ -71,7 +72,24 @@ async function cachedCourseEdges(): Promise<{ fromSlug: string; toSlug: string }
   }));
 }
 
+/**
+ * A course by slug, or null.
+ *
+ * The membership check BOUNDS THE CACHE and is not redundant with the query. `[slug]`
+ * matches any string and `use cache` keys on arguments, so without it a crawler on
+ * broken links mints an entry + a DB query per distinct garbage slug. knownProjectSlugs
+ * reads the already-cached project graph, so this costs no query of its own.
+ *
+ * An archived project is absent from that graph (it filters archivedAt: null) and so
+ * returns null here — the same 404 the callers' own `project.archivedAt` guard produced.
+ */
 async function loadCourse(slug: string) {
+  const known = await knownProjectSlugs();
+  if (!known.has(slug)) return null;
+  return cachedCourse(slug);
+}
+
+async function cachedCourse(slug: string) {
   "use cache";
   cacheLife(ONE_HOUR);
   cacheTag(TAG_PROJECTS);
