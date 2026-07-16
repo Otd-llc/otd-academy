@@ -23,8 +23,13 @@ jobs:
       - run: pnpm prisma validate
       - run: pnpm next build
         env:
-          DATABASE_URL: postgresql://stub:stub@stub/stub
-          DIRECT_URL: postgresql://stub:stub@stub/stub
+          # A REAL database. With cacheComponents the build prerenders pages and
+          # evaluates `use cache` functions, so it executes Prisma queries. The
+          # stub only ever worked because every DB-backed page was force-dynamic
+          # — which cacheComponents forbids. Same seeded ci-test branch the
+          # vitest job uses (pooled URL for the client, direct for migrations).
+          DATABASE_URL: ${{ secrets.NEON_TEST_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.NEON_TEST_DIRECT_URL }}
           AUTH_SECRET: "stub-secret-32-chars-long-padding-x"
           AUTH_GOOGLE_ID: stub
           AUTH_GOOGLE_SECRET: stub
