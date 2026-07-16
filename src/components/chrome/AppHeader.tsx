@@ -30,10 +30,11 @@ export async function AppHeader() {
   const providerImage = session?.user?.image ?? null;
 
   const pathname = (await headers()).get("x-pathname") ?? "";
-  if (!shouldRenderChrome({ pathname, signedIn: !!email })) return null;
+  const renderChrome = shouldRenderChrome({ pathname, signedIn: !!email });
 
   // The effective avatar is the custom upload when set, else the sign-in provider
-  // image, else null (the menu then shows the initial).
+  // image, else null (the menu then shows the initial). Needed by RememberLastUser
+  // even on chrome-free routes, so it is resolved before the chrome check.
   const account = email
     ? await db.user
         .findUnique({
@@ -45,6 +46,15 @@ export async function AppHeader() {
   const image = account
     ? avatarSrc(account.id, account.avatarUpdatedAt, providerImage)
     : providerImage;
+
+  // RememberLastUser is deliberately OUTSIDE the chrome gate — in the pre-PPR layout
+  // it sat outside the `renderChrome` ternary and refreshed the on-device identity on
+  // EVERY route for any signed-in user, including /sign-in (which the footer links to)
+  // and /embed/*. It renders no DOM; gating it on chrome would have quietly narrowed
+  // the C1 "welcome back" fast-path.
+  if (!renderChrome) {
+    return email ? <RememberLastUser email={email} name={name} image={image} /> : null;
+  }
 
   async function signOutAction() {
     "use server";

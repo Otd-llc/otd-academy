@@ -21,6 +21,51 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm tsc --noEmit
       - run: pnpm prisma validate
+      # ORDER MATTERS: migrate + seed MUST run BEFORE `next build`.
+      # The build now targets a REAL database (below), and under cacheComponents it
+      # prerenders pages and evaluates `use cache` functions -- i.e. it runs Prisma
+      # queries at build time. If the branch's schema were behind, the build would
+      # fail with "column X does not exist" on perfectly correct code, pointing
+      # nowhere near the real cause. This ordering was harmless while the build ran
+      # against a stub URL; it is load-bearing now.
+      # Keep the test branch's schema current as migrations are added (the branch
+      # carries the seed + KiCad data, which CI can't regenerate). No-op when the
+      # branch is already up to date.
+      # The ci-test Neon compute auto-suspends when idle; the first connection
+      # has to wake it, which can outrun a single migrate's connect timeout
+      # (P1001). Retry so a cold branch wakes instead of failing the run.
+      - name: Migrate the test DB (waking it if cold)
+        run: |
+          for i in 1 2 3 4 5 6; do
+            pnpm exec prisma migrate deploy && exit 0
+            echo "test DB not reachable yet (attempt $i) — waiting 10s…"
+            sleep 10
+          done
+          echo "test DB still unreachable after retries" >&2
+          exit 1
+        env:
+          DIRECT_URL: ${{ secrets.NEON_TEST_DIRECT_URL }}
+      # Reset the seeded fixtures to a KNOWN state before tests. The ci-test
+      # branch is shared + persistent, so earlier runs that advance demo data
+      # (boards ASSEMBLED -> BROUGHT_UP, etc.) leave drift behind and break the
+      # DB-backed smoke tests (load-gate-context, m8c-checkpoint). The seed is
+      # idempotent (upserts; resets board status) and does NOT touch the branch's
+      # KiCad lib data, so this restores the fixtures without regenerating them.
+      # NOTE: the suite now isolates DB tests onto per-file branches when
+      # TEST_DATABASE_POOL is set (vitest.env.ts); CI leaves it unset, so tests run
+      # serially against this single ci-test branch — correct, just not parallel.
+      - run: pnpm db:seed
+        env:
+          DATABASE_URL: ${{ secrets.NEON_TEST_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.NEON_TEST_DIRECT_URL }}
+          AUTH_SECRET: "stub-secret-32-chars-long-padding-x"
+          AUTH_GOOGLE_ID: stub
+          AUTH_GOOGLE_SECRET: stub
+          AUTH_GITHUB_ID: stub
+          AUTH_GITHUB_SECRET: stub
+          AUTH_RESEND_KEY: stub
+          ALLOWED_EMAILS: "seed@example.com"
+          R2_ENABLED: "false"
       - run: pnpm next build
         env:
           # A REAL database. With cacheComponents the build prerenders pages and
@@ -70,44 +115,6 @@ jobs:
           R2_ENABLED: "false"
           DIAGRAM_EXPORT: "1"
           DIAGRAM_BASE_URL: http://localhost:3000
-      # Keep the test branch's schema current as migrations are added (the branch
-      # carries the seed + KiCad data, which CI can't regenerate). No-op when the
-      # branch is already up to date.
-      # The ci-test Neon compute auto-suspends when idle; the first connection
-      # has to wake it, which can outrun a single migrate's connect timeout
-      # (P1001). Retry so a cold branch wakes instead of failing the run.
-      - name: Migrate the test DB (waking it if cold)
-        run: |
-          for i in 1 2 3 4 5 6; do
-            pnpm exec prisma migrate deploy && exit 0
-            echo "test DB not reachable yet (attempt $i) — waiting 10s…"
-            sleep 10
-          done
-          echo "test DB still unreachable after retries" >&2
-          exit 1
-        env:
-          DIRECT_URL: ${{ secrets.NEON_TEST_DIRECT_URL }}
-      # Reset the seeded fixtures to a KNOWN state before tests. The ci-test
-      # branch is shared + persistent, so earlier runs that advance demo data
-      # (boards ASSEMBLED -> BROUGHT_UP, etc.) leave drift behind and break the
-      # DB-backed smoke tests (load-gate-context, m8c-checkpoint). The seed is
-      # idempotent (upserts; resets board status) and does NOT touch the branch's
-      # KiCad lib data, so this restores the fixtures without regenerating them.
-      # NOTE: the suite now isolates DB tests onto per-file branches when
-      # TEST_DATABASE_POOL is set (vitest.env.ts); CI leaves it unset, so tests run
-      # serially against this single ci-test branch — correct, just not parallel.
-      - run: pnpm db:seed
-        env:
-          DATABASE_URL: ${{ secrets.NEON_TEST_DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.NEON_TEST_DIRECT_URL }}
-          AUTH_SECRET: "stub-secret-32-chars-long-padding-x"
-          AUTH_GOOGLE_ID: stub
-          AUTH_GOOGLE_SECRET: stub
-          AUTH_GITHUB_ID: stub
-          AUTH_GITHUB_SECRET: stub
-          AUTH_RESEND_KEY: stub
-          ALLOWED_EMAILS: "seed@example.com"
-          R2_ENABLED: "false"
       - run: pnpm vitest run
         env:
           # DB-backed tests need a REAL seeded Postgres — these repo secrets point

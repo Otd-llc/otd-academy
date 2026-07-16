@@ -17,6 +17,7 @@
 // BUILD-SAFETY: `getStripe()` is called only inside the action body (never at
 // import), so importing this module with no Stripe keys is always safe.
 import { revalidatePath } from "next/cache";
+import { invalidateProjectGraph } from "@/lib/cache-invalidate";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth-helpers";
@@ -70,6 +71,8 @@ export async function setProjectPrice(input: {
   });
 
   // Admin page shows the current price; the guide hub's paywall reads it.
+  // priceCents/stripePriceId ride in the cached graph and feed the buy-price guard.
+  invalidateProjectGraph();
   revalidatePath(`/projects/${project.slug}`);
   revalidatePath(`/learn/${project.slug}`);
 

@@ -14,9 +14,16 @@ import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 // so these are no-ops and the loader just runs uncached — which is what these tests
 // want to exercise. Omit them and the import fails with "No X export is defined on
 // the next/cache mock" rather than anything about caching.
+//
+// KNOWN LIMITATION: because the directive is inert here, these tests exercise a code
+// path that does NOT exist in production (uncached). They can never catch a
+// cache-boundary serialization violation — the exact risk the comments in
+// src/lib/library/load.ts and src/lib/skill-tree.ts warn about. Only a real
+// `next build` covers that.
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
   revalidateTag: vi.fn(),
+  updateTag: vi.fn(),
   cacheLife: vi.fn(),
   cacheTag: vi.fn(),
 }));

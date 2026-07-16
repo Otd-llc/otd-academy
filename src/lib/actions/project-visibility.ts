@@ -10,6 +10,7 @@
 // the tier type are module-local — a `export const schema` / `export type {…}`
 // here compiles clean under tsc/build but crashes at runtime (use-server rule).
 import { revalidatePath } from "next/cache";
+import { invalidateProjectGraph } from "@/lib/cache-invalidate";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth-helpers";
@@ -39,6 +40,9 @@ export async function setProjectAccessTier(input: {
   });
 
   // The skill tree reads accessTier; refresh the index after a flip.
+  // This one previously worked only by coincidence -- it happens to name /courses,
+  // whose implicit tag reaches the cached graph. The tag makes it correct by design.
+  invalidateProjectGraph();
   revalidatePath("/courses");
 
   return { ok: true };

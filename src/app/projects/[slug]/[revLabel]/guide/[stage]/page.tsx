@@ -519,23 +519,44 @@ export default async function GuideCardPage({
     selectedBoardId = valid ? boardParam : boards[0]!.id;
   }
 
-  const completion = await resolveCardCompletion({
-    revisionId: revision.id,
-    stage,
-    completionRef,
-    boardId: selectedBoardId,
-  });
+  // Role decides the view (session resolved + access-gated above).
+  const view = guideCardView(session?.user?.role);
 
-  const widget = await buildStageGateWidget({
-    revisionId: revision.id,
-    stage,
-    completionRef,
-    slug: project.slug,
-    revLabel: revision.label,
-    boardId: selectedBoardId,
-    frozen,
-    completion,
-  });
+  // AUTHOR-ONLY, and gated here rather than at the render site on purpose: StageGate
+  // only renders under `view.isAuthorView` (below), but resolving its inputs is
+  // expensive — resolveCardCompletion pulls loadGateContext (6 queries) plus the
+  // active build and a stage-realign artifact reload, and buildStageGateWidget
+  // resolves the active build a SECOND time. That is ~11-12 DB queries, and before
+  // this guard every one of them ran for anonymous visitors and crawlers, whose
+  // result was then thrown away.
+  //
+  // These pages are the public SEO surface (sitemap.ts emits the hub + every stage),
+  // so that discarded work was the single largest per-render DB cost in the app — and
+  // it multiplies by the number of published boards. No cache needed; it is simply
+  // work that should never have run.
+  // Resolved as one unit so the render site narrows both at once (StageGate takes
+  // both non-null, and the widget is derived from the completion).
+  const stageGate = view.isAuthorView
+    ? await (async () => {
+        const completion = await resolveCardCompletion({
+          revisionId: revision.id,
+          stage,
+          completionRef,
+          boardId: selectedBoardId,
+        });
+        const widget = await buildStageGateWidget({
+          revisionId: revision.id,
+          stage,
+          completionRef,
+          slug: project.slug,
+          revLabel: revision.label,
+          boardId: selectedBoardId,
+          frozen,
+          completion,
+        });
+        return { completion, widget };
+      })()
+    : null;
 
   // Quizzes are learner-only now (recorded per Enrollment). The author preview
   // has no enrollment, so it renders the quiz cards without a recording context;
@@ -544,8 +565,6 @@ export default async function GuideCardPage({
   const cardHref = (s: string) =>
     `/projects/${project.slug}/${encodeURIComponent(revision.label)}/guide/${s}`;
 
-  // Role decides the view (session resolved + access-gated above).
-  const view = guideCardView(session?.user?.role);
   const learnerEmail = session?.user?.email ?? null;
 
   // Edit-in-place is author-only, additionally blocked on a frozen revision
@@ -848,8 +867,8 @@ export default async function GuideCardPage({
       {/* STAGE GATE is the author's completion substrate (review checklists,
           commit/board widgets) for the shared reference revision — admin only.
           Learners advance via their own YOUR TRACK panel above. */}
-      {view.isAuthorView && (
-        <StageGate completion={completion} widget={widget} />
+      {stageGate && (
+        <StageGate completion={stageGate.completion} widget={stageGate.widget} />
       )}
 
       {/* Phase breadcrumb — the connected zig-zag comb (each hex links to its

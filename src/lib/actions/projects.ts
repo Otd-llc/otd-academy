@@ -18,6 +18,7 @@ import { guideContentBlocksSchema } from "@/lib/schemas/guide";
 import { assessLessonReadiness } from "@/lib/lesson-readiness";
 import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
 import { revalidatePath } from "next/cache";
+import { invalidateProjectGraph } from "@/lib/cache-invalidate";
 import { redirect } from "next/navigation";
 import { z, ZodError } from "zod";
 
@@ -101,6 +102,10 @@ export async function setPublishedRevision(
     data: { publishedRevisionId: revisionId },
     select: { slug: true, publishedRevisionId: true },
   });
+  // The single most important project write: publishedRevisionId is what the cached
+  // graph maps to `published`, which /courses renders as live-vs-coming-soon and the
+  // sitemap uses to emit the guide + stage URLs. Neither path below reaches either.
+  invalidateProjectGraph();
   revalidatePath(`/projects/${project.slug}`);
   revalidatePath(`/learn/${project.slug}`);
   return { publishedRevisionId: project.publishedRevisionId };
@@ -135,6 +140,7 @@ export async function createProject(input: unknown) {
       createdById: user.id,
     },
   });
+  invalidateProjectGraph();
   revalidatePath("/");
   return project;
 }
@@ -153,6 +159,7 @@ export async function editProject(input: unknown) {
 
   const updated = await db.project.update({ where: { id }, data });
 
+  invalidateProjectGraph();
   revalidatePath("/");
   // Use the post-update slug as the source of truth — covers both the
   // slug-unchanged case and a slug rename (both old and new path are valid
@@ -168,6 +175,9 @@ export async function archiveProject(id: string) {
     where: { id },
     data: { archivedAt: new Date() },
   });
+  // The cached graph filters archivedAt: null, so without this the archived project
+  // stays on the /courses honeycomb for up to an hour.
+  invalidateProjectGraph();
   revalidatePath("/");
 }
 
@@ -177,6 +187,7 @@ export async function unarchiveProject(id: string) {
     where: { id },
     data: { archivedAt: null },
   });
+  invalidateProjectGraph();
   revalidatePath("/");
 }
 

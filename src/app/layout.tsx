@@ -16,11 +16,20 @@ import { FanfareProvider } from "@/components/logbook/Fanfare";
 // flash for a light visitor). Precedence: explicit choice (the `theme` cookie,
 // then localStorage) → `prefers-color-scheme`.
 //
-// Under Cache Components this script is now the ONLY theme resolver. The shell is
-// prerendered, so `<html data-theme>` cannot read a cookie — it ships as the "dark"
-// default and this script flips it pre-paint. That is exactly what the client
-// already assumed: ThemeToggle's `getServerSnapshot()` returns "dark" and
-// `suppressHydrationWarning` on <html> absorbs the one-attribute difference.
+// Under Cache Components this script is the ONLY theme resolver. The shell is
+// prerendered, so `<html data-theme>` cannot read a cookie or the session — it ships
+// as the "dark" default below and this script flips it pre-paint.
+//
+// That covers the device paths (cookie, localStorage, OS preference) but NOT the
+// signed-in ACCOUNT preference, which used to be a server-side DB read here and which
+// no client script can replicate. `User.theme` is therefore stamped onto the device as
+// a `theme` cookie at sign-in (see the signIn event in src/auth.ts) — that is what
+// keeps the preference following the account to a new device.
+//
+// Do not mistake ThemeToggle's `getServerSnapshot()` returning "dark" for a licence to
+// drop that: it exists to avoid a HYDRATION MISMATCH and says nothing about which
+// theme is correct. It returned "dark" before this refactor too, while SSR was
+// shipping data-theme="light" and delivering the right palette.
 const THEME_BOOTSTRAP = `(function(){try{var m=document.cookie.match(/(?:^|; )theme=(light|dark)/);var s=m?m[1]:localStorage.getItem('otd-theme');var t=s||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.dataset.theme=t;}catch(e){}})();`;
 
 export const metadata: Metadata = {

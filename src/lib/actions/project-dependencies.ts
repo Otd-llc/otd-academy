@@ -26,6 +26,7 @@ import {
 } from "@/lib/schemas/project-dependency";
 import { withTxRetry } from "@/lib/tx-retry";
 import { revalidatePath } from "next/cache";
+import { invalidateProjectGraph } from "@/lib/cache-invalidate";
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 
@@ -145,6 +146,9 @@ async function revalidateEdgeRoutes(rowId: string): Promise<void> {
     select: { dependentProject: { select: { slug: true } } },
   });
   if (row) revalidatePath(`/projects/${row.dependentProject.slug}`);
+  // Edges drive the whole missingPrereqs / locked-prereq logic in the cached graph;
+  // no path below reaches /courses or the sitemap.
+  invalidateProjectGraph();
   revalidatePath("/curriculum");
 }
 
@@ -184,6 +188,9 @@ export async function createProjectDependencyAction(
 
   // Outside the try so Next.js's redirect-throw isn't swallowed by the catch.
   if (projectSlug) revalidatePath(`/projects/${projectSlug}`);
+  // Edges drive the whole missingPrereqs / locked-prereq logic in the cached graph;
+  // no path below reaches /courses or the sitemap.
+  invalidateProjectGraph();
   revalidatePath("/curriculum");
   if (projectSlug) redirect(`/projects/${projectSlug}`);
   return { ok: true };
@@ -233,5 +240,8 @@ export async function deleteProjectDependencyAction(
   });
   await deleteProjectDependency(id);
   if (row) revalidatePath(`/projects/${row.dependentProject.slug}`);
+  // Edges drive the whole missingPrereqs / locked-prereq logic in the cached graph;
+  // no path below reaches /courses or the sitemap.
+  invalidateProjectGraph();
   revalidatePath("/curriculum");
 }

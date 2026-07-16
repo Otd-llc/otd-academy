@@ -9,8 +9,17 @@
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 
 // Mock next/cache before importing the action (action layer may use it).
+// next/cache is stubbed WHOLESALE, so this factory must carry every export anything
+// in this module graph touches — a missing one fails the import with "No X export is
+// defined on the next/cache mock", which reads like a mock problem rather than the
+// real cause. cacheLife/cacheTag are no-ops here: without the Next compiler the
+// `use cache` directive is an inert string, so cached loaders simply run uncached.
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
+  updateTag: vi.fn(),
+  cacheLife: vi.fn(),
+  cacheTag: vi.fn(),
 }));
 
 // Mock @/auth — control the session per-test by mutating the mock.

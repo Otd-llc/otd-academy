@@ -207,6 +207,49 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         // never block account creation on telemetry
       }
     },
+    // Stamp the account's stored theme onto THIS device as a cookie.
+    //
+    // This is what makes `User.theme` mean anything under Cache Components. The root
+    // layout is a prerendered static shell, so `<html data-theme>` ships as a constant
+    // and CANNOT read the session or the DB — the only thing that resolves the real
+    // theme before first paint is THEME_BOOTSTRAP (src/app/layout.tsx), which reads
+    // the cookie. So the account preference has to BECOME a cookie, and sign-in is the
+    // one moment we know both the account and the device.
+    //
+    // Precedence matches the pre-PPR layout exactly: an existing device cookie wins
+    // (it is the most recent explicit choice on this machine); the account value only
+    // fills a device that has none. The redirect that follows carries the Set-Cookie,
+    // so the very first page after sign-in already paints the right palette.
+    //
+    // Residual gap vs. the old server-side read: clearing cookies mid-session drops
+    // the preference until the next sign-in (rather than being restored on the next
+    // render). Clearing cookies also drops the session cookie, so in practice the
+    // re-sign-in that restores it happens immediately.
+    //
+    // Dynamic import: src/proxy.ts (middleware) imports this module, and next/headers
+    // has no business in a middleware bundle. Events only ever run inside the auth
+    // route handler, where cookies() is writable.
+    async signIn({ user }) {
+      try {
+        const email = user.email?.toLowerCase();
+        if (!email) return;
+        const { cookies } = await import("next/headers");
+        const jar = await cookies();
+        if (jar.get("theme")) return; // device choice wins
+        const row = await db.user.findUnique({
+          where: { email },
+          select: { theme: true },
+        });
+        if (row?.theme !== "light" && row?.theme !== "dark") return;
+        jar.set("theme", row.theme, {
+          path: "/",
+          maxAge: 60 * 60 * 24 * 365, // one year — mirrors ThemeToggle's applyTheme
+          sameSite: "lax",
+        });
+      } catch {
+        // never block sign-in on a theme preference
+      }
+    },
   },
   // verifyRequest renders our branded "check your inbox" state after a magic
   // link is sent, instead of the default Auth.js page. Auth.js CONCATENATES its
