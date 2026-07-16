@@ -1,13 +1,12 @@
 # Cache Components / PPR Migration — Implementation Plan
 
-> ## ⚑ STATUS 2026-07-16: EXECUTED + AUDITED. Branch `feat/cache-components-ppr`, PR #310, NOT MERGED.
+> ## ⚑ STATUS 2026-07-16: MERGED as `1407887` (PR #310, squashed). The CLS follow-up is on `feat/chrome-route-group`.
 >
 > **Read "Outcome" (immediately below) before anything else — the tasks below are the ORIGINAL
 > plan and several of their premises turned out to be wrong.** They are kept for the reasoning,
 > not as instructions. Do not execute them.
 >
-> **Awaiting the maintainer's explicit go-ahead to merge.** One known open item: the CLS /
-> route-groups fix (measured + confirmed, deliberately deferred to its own PR — see Outcome §4).
+> §4 (the CLS / route-groups deferral) is **DONE** — see the resolution note in that section.
 
 ---
 
@@ -73,7 +72,47 @@ Seven commits on `feat/cache-components-ppr` (oldest → newest):
   directive is inert under vitest, so the tests exercise an UNCACHED path that does not exist in
   production and can never catch a serialization violation — only a real `next build` covers that.
 
-### 4. OPEN — the one deliberate deferral
+### 4. RESOLVED (2026-07-16, branch `feat/chrome-route-group`) — was the one deliberate deferral
+
+> **Done.** Everything below described the problem correctly, and the route-group fix was the right
+> call — but the scope was understated in three ways that only showed up on contact. Recording them
+> here because each one would have silently produced a refactor that changed nothing or broke
+> something:
+>
+> - **The root layout's `<Suspense>` had to move DOWN into the groups.** It wrapped `{children}`,
+>   which is what the group layouts render *into* — so a `(chrome)/layout.tsx` would have sat
+>   INSIDE the boundary and the header would have gone on streaming late. The ~50-directory move
+>   alone would have bought nothing.
+> - **`AppHeader` had to SPLIT, not move.** It was async (session + `headers()` + an avatar read);
+>   dropped into the group layout it would have blocked prerendering for every route in the group —
+>   the root-layout trap, one level down. It is now a static frame + two islands.
+> - **A Suspense fallback may not call `usePathname()`.** `MainNav` did, so the first build failed
+>   with *"Uncached data was accessed outside of `<Suspense>`"*: a fallback is part of the static
+>   shell, and one shell is shared across every `[slug]`. Hence `MainNavStatic` (prerender-safe)
+>   alongside `MainNav`.
+>
+> Also: **`RememberLastUser` had to stay on every route** (it rode inside `AppHeader` precisely so
+> it would fire on the chrome-free routes too), and the session half of `shouldRenderChrome` was
+> **dead weight** — the proxy already redirects anonymous requests for non-public paths, verified
+> `307 → /sign-in` against the prod build. That equivalence is what makes the group gate sound.
+>
+> **Measured after (prod build, :3100, anonymous):** `/briefs` `<body>@3251 → header@3874 →
+> <main>@41233` — header now ~37 KB AHEAD of the content instead of 5 KB behind it; header precedes
+> main on `/library`, `/parts`, `/pricing`, `/tools`, `/`; `/sign-in` + `/embed/*` still carry no
+> chrome; `/library`×20, `/parts`×10, `/pricing`×10, `/briefs`×10 = **0 queries** with
+> `/sitemap-images.xml`×5 = 25 as the control. Gates: tsc clean, vitest **1644/1644** (−5 = the
+> deleted `chrome.test.ts`), `next build` green **95/95**.
+>
+> **Unrelated finding, NOT fixed there — worth its own change.** `proxy.ts` gates on `!req.auth`,
+> but Auth.js returns a truthy **error object** (not `null`) when its config is rejected — so an
+> auth failure makes the route gate **fail OPEN**, not closed. Locally this is why `next start`
+> without `AUTH_TRUST_HOST=1` serves `/account` and `/admin/students` to anonymous requests:
+> untrusted host → error object → `!req.auth` is false → no redirect. Real prod is trusted by
+> Vercel (`VERCEL=1`) and dev trusts localhost, so this is not live today; it is a latent
+> fail-open. The hardening is to gate on `req.auth?.user`. **Set `AUTH_TRUST_HOST=1` for any local
+> `next start` measurement** or the auth gate is silently off.
+
+**The original deferral note follows.**
 
 **CLS on every chrome route, measured and confirmed** (not a guess): the header is absent from the
 first flush and swapped in above the content afterwards. Proof, from the served HTML of `/briefs`
