@@ -14,6 +14,28 @@ function withDerived<T>(data: T): T {
   return { ...d, ...deriveLessonMeta(d.contentBlocks) } as T;
 }
 
+// Per-query logging. ON in dev (where it is the main way you notice an N+1), and
+// OFF in production unless PRISMA_LOG_QUERIES=1 asks for it.
+//
+// It used to be unconditional -- every production query formatted a log line and
+// wrote it to stdout, from the very first Prisma commit. That is invisible at a few
+// requests a day and is a real cost under campaign traffic: CPU per query, Vercel
+// log volume, and genuine errors buried under query spam.
+//
+// The opt-in flag exists because the caching verification workflow depends on this
+// log against a PRODUCTION build (docs/caching.md) -- gating purely on NODE_ENV
+// would have silently broken the only instrument that can measure cache behaviour:
+//
+//   $env:PRISMA_LOG_QUERIES=1; pnpm exec next start -p 3100
+//
+// error/warn are never gated.
+function logLevels(): ("query" | "error" | "warn")[] {
+  const wantQueries =
+    process.env.PRISMA_LOG_QUERIES === "1" ||
+    process.env.NODE_ENV !== "production";
+  return wantQueries ? ["query", "error", "warn"] : ["error", "warn"];
+}
+
 function makeClient(): PrismaClient {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL not set");
@@ -23,7 +45,7 @@ function makeClient(): PrismaClient {
   const adapter = makeAdapter(url);
   const base = new PrismaClient({
     adapter,
-    log: ["query", "error", "warn"],
+    log: logLevels(),
   });
 
   // MiniLesson.readingMinutes/questionCount/diagramSrc are DERIVED from

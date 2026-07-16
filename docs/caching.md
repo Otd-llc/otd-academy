@@ -352,10 +352,15 @@ Not oversights:
 
 ```powershell
 pnpm exec next build
+$env:PRISMA_LOG_QUERIES=1        # per-query logging is OFF in prod by default
 pnpm exec next start -p 3100     # 3100, so :3000 dev stays up
 ```
 
 Then hit a route N times and count `prisma:query` lines in the log.
+
+`PRISMA_LOG_QUERIES=1` is required because production no longer logs every query
+(`src/lib/db.ts`) — it used to, unconditionally, since the first Prisma commit, which is
+a per-query CPU + log-volume cost under real traffic. Dev still logs without the flag.
 
 Non-negotiable: **a query count of 0 means nothing unless you prove the instrument works.**
 Always include an **uncached control route** in the same run and confirm *it* still logs
