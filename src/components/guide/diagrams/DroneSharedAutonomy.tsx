@@ -345,7 +345,7 @@ export function DroneSharedAutonomy({ caption }: { caption?: string }) {
       <div className="dsa" ref={ref}>
         <div className="dsa-scene">
           <div className="dsa-stage">
-            <svg className="dsa-svg" viewBox="0 0 1000 490" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+            <svg className="dsa-svg" viewBox="-164 0 1250 566" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
               <defs>
                 <linearGradient id="dsaSky" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0" className="dsa-sky-a" /><stop offset="1" className="dsa-sky-b" />
@@ -452,7 +452,7 @@ export function DroneSharedAutonomy({ caption }: { caption?: string }) {
             same Tier-B motion as the wide scene — one --p drives both, since useScrollParallax
             writes it on .dsa which wraps both. Only the settled bank differs (--b0). */}
         <div className="dsa-portrait">
-          <svg className="dsa-svg" viewBox="0 0 300 456" preserveAspectRatio="xMidYMid meet" aria-hidden="true"
+          <svg className="dsa-svg" viewBox="-28 -6 350 444" preserveAspectRatio="xMidYMid meet" aria-hidden="true"
                style={{ "--b0": `${PT.bank}deg` } as CSSProperties}>
             <defs>
               <linearGradient id="dsaPSky" x1="0" y1="0" x2="0" y2="1">
@@ -638,7 +638,13 @@ function Drone() {
 }
 
 const CSS = `
-.dsa-svg{overflow:visible;width:100%;height:auto;display:block;}
+.dsa-svg{overflow:hidden;width:100%;height:auto;display:block;}
+/* overflow:hidden is a GUARDRAIL, not a crop: both viewBoxes are sized to contain the
+   art with ~8 units of margin, so nothing is actually clipped. It exists because the
+   exporter screenshots the FIGURE's box — art painted outside the viewBox spills onto
+   the page on the live web (looks fine) and is silently CUT from every raster. That
+   shipped once: the wide scene was authored 1232 units of art inside a 1000-unit
+   viewBox, so the PDF lost 37% of the width. The viewBox IS the figure. */
 .dsa-stage{position:relative;}
 
 /* Scene palette. Token-only: every colour resolves through a --color-* var so the
@@ -704,7 +710,7 @@ const CSS = `
 @keyframes dsaRec{0%,44%{opacity:.22}52%,92%{opacity:.95}100%{opacity:.22}}
 
 /* Label — real px, never scaled with the art. */
-.dsa-lbl{position:absolute;left:36.5%;top:11.2%;margin:0;text-align:left;pointer-events:none;}
+.dsa-lbl{position:absolute;left:42.3%;top:9.7%;margin:0;text-align:left;pointer-events:none;}
 .dsa-eyebrow{display:block;font-family:var(--font-mono,"Space Mono",monospace);font-size:14px;
   font-weight:700;text-transform:uppercase;letter-spacing:.24em;
   color:var(--color-command-gold,#c8963e);white-space:nowrap;}
