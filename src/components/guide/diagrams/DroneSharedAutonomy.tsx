@@ -254,6 +254,81 @@ const GOG_TREES = [
 const cloudW = (s: number) => +(1.4 / s).toFixed(2);
 const firW = (s: number) => +(1.2 / s).toFixed(2);
 
+/* ── PORTRAIT (narrow) ──────────────────────────────────────────────────────
+   Reflow, don't shrink (diagram-standards §1). Below 520px of FRAME width the wide
+   scene is replaced by this: the SAME world re-composed vertically — drone top,
+   goggle bottom, loop between — rather than the old text-only cards, which threw the
+   whole diagram away on a phone.
+
+   Owner-tuned 2026-07-15 (M3-V1). The ridge keeps the shared sharp profile but its
+   height is corrected for the narrower box: desktop draws it 960 wide x 182 tall
+   (ratio 5.3); at 296 wide the SAME peaks read as spikes unless the height comes down
+   with the width. */
+const PT = {
+  ridgeH: 74, ridgeY: 249, cloud: 1.9,
+  t1: { x: 27, y: 316, s: 3.95 }, t2: { x: 279, y: 296, s: 2.85 },
+  g: { x: 105, y: 366, s: 1.36 },
+  d: { x: 191, y: 118, s: 1.78 },
+  bank: -10,
+  intentLift: 82, packet: 1.5, intentEnd: { x: 28, y: 12 },
+  feedBow: -2, feedAmp: 2.4, feedEnd: { x: -23, y: 20 },
+};
+// goggle-local -> portrait scene coords (same -3deg tilt as the wide scene)
+const pgpt = (lx: number, ly: number): [number, number] => {
+  const rx = lx - GC[0];
+  const ry = ly - GC[1];
+  return [PT.g.x + PT.g.s * (rx * HC - ry * HS), PT.g.y + PT.g.s * (rx * HS + ry * HC)];
+};
+// Strand ends ride their OBJECT, not the canvas: goggle end from pgpt, drone end as an
+// offset from the drone's own centre. Move either and the strand stays attached.
+const PI0 = pgpt(160, 40);
+const PI2: [number, number] = [PT.d.x + PT.intentEnd.x, PT.d.y + PT.intentEnd.y];
+const PI1: [number, number] = [
+  (PI0[0] + PI2[0]) / 2 + PT.intentLift,
+  (PI0[1] + PI2[1]) / 2 - Math.abs(PT.intentLift) * 0.35,
+];
+const PF0 = pgpt(62, 40);
+const PF3: [number, number] = [PT.d.x + PT.feedEnd.x, PT.d.y + PT.feedEnd.y];
+const PF1: [number, number] = [PF0[0] + PT.feedBow, PF0[1] - 46];
+const PF2: [number, number] = [(PF0[0] + PF3[0]) / 2 + PT.feedBow * 0.35, PF3[1] + 34];
+
+const pquad = (t: number): [number, number] => {
+  const u = 1 - t;
+  return [
+    u * u * PI0[0] + 2 * u * t * PI1[0] + t * t * PI2[0],
+    u * u * PI0[1] + 2 * u * t * PI1[1] + t * t * PI2[1],
+  ];
+};
+const PT_DOTS = Array.from({ length: 23 }, (_, i) => {
+  const t = i / 22;
+  const [x, y] = pquad(t);
+  return { x: +x.toFixed(1), y: +y.toFixed(1), r: +((2.4 - t * 1.1) * PT.packet).toFixed(2) };
+});
+const PT_PACKETS = ([[0.22, 17], [0.62, 12]] as const).map(([t, k0]) => {
+  const k = k0 * PT.packet;
+  const [x, y] = pquad(t);
+  return { x: +(x - k / 2).toFixed(1), y: +(y - k / 2).toFixed(1), k: +k.toFixed(1), r: +(k * 0.18).toFixed(1) };
+});
+const PT_FEED = (() => {
+  const N = 80;
+  let ph = 0;
+  const pts: string[] = [];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    const u = 1 - t;
+    const bx = u * u * u * PF0[0] + 3 * u * u * t * PF1[0] + 3 * u * t * t * PF2[0] + t * t * t * PF3[0];
+    const by = u * u * u * PF0[1] + 3 * u * u * t * PF1[1] + 3 * u * t * t * PF2[1] + t * t * t * PF3[1];
+    const amp = (1.8 + 4.5 * (1 - t)) * PT.feedAmp * Math.min(1, t / 0.12);
+    ph += 0.62;
+    pts.push(`${(bx - amp * Math.sin(ph)).toFixed(1)},${by.toFixed(1)}`);
+  }
+  return "M" + pts.join(" L");
+})();
+const PT_CONTOUR = "M2,318 Q76,310 150,316 Q224,308 298,314";
+// the goggle's inner ridge tracks the outer one at half height — the profile is shared,
+// so softening one view and not the other would break the "same world" link
+const PT_INNER_RIDGE = ridge(24, 196, 90, PT.ridgeH * 0.5);
+
 export function DroneSharedAutonomy({ caption }: { caption?: string }) {
   const ref = useScrollParallax<HTMLDivElement>();
   return (
@@ -356,82 +431,8 @@ export function DroneSharedAutonomy({ caption }: { caption?: string }) {
               <g className="dsa-lyr" style={{ "--k": -5 } as CSSProperties}>
                 <g transform={`translate(${G.x},${G.y}) scale(${G.s}) translate(-110,-88)`}>
                   <g className="dsa-tilt">
-                    {SHELL.map((f, i) => <polygon key={i} className={f.cls} points={f.pts} />)}
-                    <polygon className="dsa-mid" points={pts2s(BEZEL48)} />
-                    <polygon className="dsa-lo" points={pts2s(inset(BEZEL48, 0.87))} />
-
-                    <g clipPath="url(#dsaScr)">
-                      <rect className="dsa-glass" x="15" y="30" width="195" height="115" />
-                      {/* THE LESSON: this bank and the drone's are the same number. */}
-                      <g className="dsa-bank dsa-feed">
-                        <circle className="dsa-celest" cx="154" cy="70" r="6" />
-                        {[0, 45, 90, 135, 180, 225, 270, 315].map((A) => {
-                          const t = (A * Math.PI) / 180;
-                          return <line key={A} className="dsa-ray"
-                            x1={(154 + Math.cos(t) * 8).toFixed(1)} y1={(70 + Math.sin(t) * 8).toFixed(1)}
-                            x2={(154 + Math.cos(t) * 11).toFixed(1)} y2={(70 + Math.sin(t) * 11).toFixed(1)} />;
-                        })}
-                        <path className="dsa-terr" opacity=".42" strokeWidth="4" transform="translate(52,68) scale(.28)" d={CLOUDS[1]} />
-                        <path className="dsa-terr" opacity=".34" strokeWidth="5" transform="translate(104,58) scale(.22)" d={CLOUDS[2]} />
-                        <path className="dsa-terr" opacity=".3" strokeWidth="5.5" transform="translate(172,80) scale(.2)" d={CLOUDS[0]} />
-                        <g className="dsa-terr dsa-fgrid" strokeWidth=".5">
-                          {FGRID.map((d, i) => <path key={i} d={d} />)}
-                        </g>
-                        {/* opaque, closed to the horizon — a stroke-only ridge let the moon bleed through */}
-                        <path className="dsa-glassfill" d={`${ridge(24, 196, 90, 26)} L198,90 L22,90 Z`} />
-                        <path className="dsa-terr dsa-farrange" fill="none" strokeWidth="1.1" d={ridge(24, 196, 90, 26)} />
-                        <path className="dsa-terr" strokeWidth="1.3" d="M24,90 Q56,85 82,89 Q108,83 134,88 Q162,84 196,89" />
-                        <line className="dsa-terr" strokeWidth="1.9" x1="22" y1="90" x2="198" y2="90" />
-                        {GOG_TREES.map((t, i) => (
-                          <g key={i} strokeOpacity={t.o} transform={`translate(${t.x},${t.y}) scale(${t.sx},${t.sy})`}>
-                            <path className="dsa-gfir" strokeWidth={+(1.1 / Math.sqrt(t.sx * t.sy)).toFixed(2)} d={TRUNK} />
-                            <path className="dsa-gfir" strokeWidth={+(1.1 / Math.sqrt(t.sx * t.sy)).toFixed(2)} d={FIR} />
-                          </g>
-                        ))}
-                        <ellipse className="dsa-pilot" cx="110" cy="114" rx="11" ry="2.4" opacity=".24" />
-                        <circle className="dsa-pilot" cx="110" cy="99" r="3.5" />
-                        <path className="dsa-pilot" d="M110,102 C106.2,102 105.2,106.5 104.4,109.5 C99.6,111.9 97.8,114 101.6,114 L110,112.2 L118.4,114 C122.2,114 120.4,111.9 115.6,109.5 C114.8,106.5 113.8,102 110,102 Z" />
-                        {/* rides the bank so it stays locked on the pilot */}
-                        <rect className="dsa-det" x="96" y="95" width="28" height="24" />
-                        <rect className="dsa-detbar" x="96" y="89.3" width="28" height="5.7" />
-                      </g>
-
-                      {/* HUD — fixed to the goggle, not the video */}
-                      <g className="dsa-h" strokeWidth=".7">
-                        <line x1="34" y1="66" x2="34" y2="112" />
-                        {[0, 1, 2, 3, 4].map((i) => <line key={i} x1="34" y1={68 + i * 11} x2="38" y2={68 + i * 11} />)}
-                      </g>
-                      <g className="dsa-hd" strokeWidth=".5">
-                        {[-24, -12, 12, 24].map((k) => (
-                          <line key={k} x1={102 + Math.abs(k) / 4} y1={88 + k} x2={118 - Math.abs(k) / 4} y2={88 + k} />
-                        ))}
-                      </g>
-                      <g opacity=".55">
-                        <g className="dsa-h" strokeWidth=".7">
-                          <line x1="60" y1="68" x2="160" y2="68" />
-                          {[0, 1, 2, 3, 4, 5].map((i) => <line key={i} x1={64 + i * 18} y1="68" x2={64 + i * 18} y2="72" />)}
-                        </g>
-                        <polygon className="dsa-hf" points="110,68 106,63 114,63" />
-                        <rect className="dsa-h" strokeWidth=".8" x="148" y="101" width="18" height="7.5" rx="1.5" />
-                        <rect className="dsa-hf" x="149.2" y="102.2" width="11.5" height="5.1" />
-                        <rect className="dsa-hf" x="166.6" y="103.4" width="1.5" height="3" />
-                      </g>
-                      <g className="dsa-gld dsa-whisk" strokeWidth="1.4" strokeLinecap="round">
-                        <line x1="110" y1="82.5" x2="110" y2="85.5" /><line x1="110" y1="90.5" x2="110" y2="93.5" />
-                        <line x1="102.5" y1="88" x2="105.5" y2="88" /><line x1="114.5" y1="88" x2="117.5" y2="88" />
-                      </g>
-                    </g>
-
-                    {/* antennae drawn AFTER the shell: the body extrudes up-right and would
-                        swallow the right one. Depth is size + mount, never occlusion. */}
-                    <g className="dsa-antl">
-                      {ANT_L.quads.map((q, i) => <polygon key={i} className={q.cls} points={q.pts} />)}
-                      <circle className="dsa-mid" cx={ANT_L.tip.cx} cy={ANT_L.tip.cy} r={ANT_L.tip.r} />
-                    </g>
-                    <g className="dsa-antr">
-                      {ANT_R.quads.map((q, i) => <polygon key={i} className={q.cls} points={q.pts} />)}
-                      <circle className="dsa-mid" cx={ANT_R.tip.cx} cy={ANT_R.tip.cy} r={ANT_R.tip.r} />
-                    </g>
+                    <Goggle idp="dsa" innerRidge={ridge(24, 196, 90, 26)}
+                            bankCls="dsa-bank dsa-feed" />
                   </g>
                 </g>
               </g>
@@ -447,19 +448,162 @@ export function DroneSharedAutonomy({ caption }: { caption?: string }) {
           </div>
         </div>
 
-        {/* narrow: reflow to stacked cards — never scale the scene down (directive 1) */}
-        <div className="dsa-cards" aria-hidden="true">
-          <div className="dsa-card">
-            <p className="dsa-ck">You send the goal</p>
-            <p className="dsa-ct"><b>~1 command / sec.</b> Sparse, high-level intent: "go left", "hold". Nothing continuous.</p>
-          </div>
-          <div className="dsa-card dsa-card-drone">
-            <p className="dsa-ck">The drone flies, you watch</p>
-            <p className="dsa-ct">It holds altitude, stays stable and dodges obstacles on its own at <b>~100s of Hz</b>. Its camera streams back the only picture you have.</p>
-          </div>
+        {/* Narrow: the SAME world re-composed vertically, not a text summary. Carries the
+            same Tier-B motion as the wide scene — one --p drives both, since useScrollParallax
+            writes it on .dsa which wraps both. Only the settled bank differs (--b0). */}
+        <div className="dsa-portrait">
+          <svg className="dsa-svg" viewBox="0 0 300 456" preserveAspectRatio="xMidYMid meet" aria-hidden="true"
+               style={{ "--b0": `${PT.bank}deg` } as CSSProperties}>
+            <defs>
+              <linearGradient id="dsaPSky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" className="dsa-sky-a" /><stop offset="1" className="dsa-sky-b" />
+              </linearGradient>
+              <linearGradient id="dsaPGnd" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" className="dsa-gnd-a" /><stop offset="1" className="dsa-gnd-b" />
+              </linearGradient>
+              <linearGradient id="dsaPInt" gradientUnits="userSpaceOnUse" x1={PI0[0].toFixed(1)} y1={PI0[1].toFixed(1)} x2={PI2[0]} y2={PI2[1]}>
+                <stop offset="0" className="dsa-int-a" /><stop offset="1" className="dsa-int-b" />
+              </linearGradient>
+              <linearGradient id="dsaPFee" gradientUnits="userSpaceOnUse" x1={PF0[0].toFixed(1)} y1={PF0[1].toFixed(1)} x2={PF3[0]} y2={PF3[1]}>
+                <stop offset="0" className="dsa-fee-a" /><stop offset="1" className="dsa-fee-b" />
+              </linearGradient>
+            </defs>
+            <rect x="2" y="2" width="296" height="452" rx="10" fill="url(#dsaPSky)" />
+            <path d={`${PT_CONTOUR} L298,454 L2,454 Z`} fill="url(#dsaPGnd)" />
+            {/* SKY moves. Factors are sized to the FRAME, not scaled from the wide scene's
+                viewBox proportion: the portrait renders ~1:1 (300 units -> ~296px) where the
+                wide scene renders at ~0.54, so the same NUMBER would read as twice the motion. */}
+            <g className="dsa-lyr" style={{ "--k": 9 } as CSSProperties}>
+              <path className="dsa-blu dsa-l-far" strokeWidth={cloudW(1.2 * PT.cloud)} transform={`translate(56,74) scale(${1.2 * PT.cloud})`} d={CLOUDS[1]} />
+              <path className="dsa-blu dsa-l-far" strokeWidth={cloudW(1.0 * PT.cloud)} transform={`translate(236,58) scale(${1.0 * PT.cloud})`} d={CLOUDS[2]} />
+              <path className="dsa-blu dsa-l-far" strokeWidth={cloudW(0.82 * PT.cloud)} transform={`translate(146,116) scale(${0.82 * PT.cloud})`} d={CLOUDS[0]} />
+              <path className="dsa-gld dsa-l-far" strokeWidth="1.2" d={ridge(2, 298, PT.ridgeY, PT.ridgeH)} />
+            </g>
+            <path className="dsa-gld" strokeWidth="1.6" d={PT_CONTOUR} />
+            {[PT.t1, PT.t2].map((t, i) => (
+              <g key={i} className="dsa-so-mid" transform={`translate(${t.x},${t.y}) scale(${t.s})`}>
+                <path className="dsa-fir" strokeWidth={firW(t.s)} d={TRUNK} />
+                <path className="dsa-fir" strokeWidth={firW(t.s)} d={FIR} />
+              </g>
+            ))}
+            {/* SUBJECT — drone + strands + goggle on ONE factor. Split them and the strands
+                tear off their anchors as the layers separate. Trees and ground stay planted:
+                the ground is the fixed reference, same rule as the wide scene. */}
+            <g className="dsa-lyr" style={{ "--k": -3 } as CSSProperties}>
+              <g transform={`translate(${PT.d.x},${PT.d.y}) scale(${PT.d.s})`}>
+                <g className="dsa-bank">
+                  <Drone />
+                  <circle className="dsa-rec" cx="10" cy="-7" r="1.7" />
+                </g>
+              </g>
+              <g fill="url(#dsaPInt)">
+                {PT_DOTS.map((d, i) => <circle key={i} cx={d.x} cy={d.y} r={d.r} />)}
+              </g>
+              {PT_PACKETS.map((p, i) => (
+                <rect key={i} x={p.x} y={p.y} width={p.k} height={p.k} rx={p.r} fill="none" stroke="url(#dsaPInt)" strokeWidth="1.3" />
+              ))}
+              <path fill="none" stroke="url(#dsaPFee)" strokeWidth="1.9" strokeLinecap="round" d={PT_FEED} />
+              <g transform={`translate(${PT.g.x},${PT.g.y}) scale(${PT.g.s}) translate(-110,-88)`}>
+                <g className="dsa-tilt">
+                  <Goggle idp="dsaP" innerRidge={PT_INNER_RIDGE} bankCls="dsa-bank dsa-feed" />
+                </g>
+              </g>
+            </g>
+          </svg>
+          <p className="dsa-plbl">
+            <span className="dsa-eyebrow"><span aria-hidden="true">▸ </span>Intent</span>
+            <span className="dsa-readout">~1 / SEC</span>
+          </p>
         </div>
       </div>
     </DiagramFrame>
+  );
+}
+
+/* One goggle definition, two scenes. `idp` scopes the clipPath id; `bankCls` lets the
+   wide scene hand the video group over to the parallax (`dsa-bank dsa-feed`) while the
+   portrait pins it with a static transform. `innerRidge` is passed in because the two
+   views frame the world at different heights — the PROFILE stays shared, the height
+   doesn't have to. */
+function Goggle({ idp, innerRidge, bankCls, bankTransform }: {
+  idp: string; innerRidge: string; bankCls?: string; bankTransform?: string;
+}) {
+  return (
+    <>
+      {SHELL.map((f, i) => <polygon key={i} className={f.cls} points={f.pts} />)}
+      <polygon className="dsa-mid" points={pts2s(BEZEL48)} />
+      <polygon className="dsa-lo" points={pts2s(inset(BEZEL48, 0.87))} />
+      <clipPath id={`${idp}Scr`}><polygon points={pts2s(inset(BEZEL48, 0.82))} /></clipPath>
+      <g clipPath={`url(#${idp}Scr)`}>
+        <rect className="dsa-glass" x="15" y="30" width="195" height="115" />
+        <g className={bankCls} transform={bankTransform}>
+          <circle className="dsa-celest" cx="154" cy="70" r="6" />
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((A) => {
+            const t = (A * Math.PI) / 180;
+            return <line key={A} className="dsa-ray"
+              x1={(154 + Math.cos(t) * 8).toFixed(1)} y1={(70 + Math.sin(t) * 8).toFixed(1)}
+              x2={(154 + Math.cos(t) * 11).toFixed(1)} y2={(70 + Math.sin(t) * 11).toFixed(1)} />;
+          })}
+          <path className="dsa-terr" opacity=".42" strokeWidth="4" transform="translate(52,68) scale(.28)" d={CLOUDS[1]} />
+          <path className="dsa-terr" opacity=".34" strokeWidth="5" transform="translate(104,58) scale(.22)" d={CLOUDS[2]} />
+          <path className="dsa-terr" opacity=".3" strokeWidth="5.5" transform="translate(172,80) scale(.2)" d={CLOUDS[0]} />
+          <g className="dsa-terr dsa-fgrid" strokeWidth=".5">
+            {FGRID.map((d, i) => <path key={i} d={d} />)}
+          </g>
+          {/* opaque, closed to the horizon — a stroke-only ridge let the moon bleed through */}
+          <path className="dsa-glassfill" d={`${innerRidge} L198,90 L22,90 Z`} />
+          <path className="dsa-terr dsa-farrange" fill="none" strokeWidth="1.1" d={innerRidge} />
+          <path className="dsa-terr" strokeWidth="1.3" d="M24,90 Q56,85 82,89 Q108,83 134,88 Q162,84 196,89" />
+          <line className="dsa-terr" strokeWidth="1.9" x1="22" y1="90" x2="198" y2="90" />
+          {GOG_TREES.map((t, i) => (
+            <g key={i} strokeOpacity={t.o} transform={`translate(${t.x},${t.y}) scale(${t.sx},${t.sy})`}>
+              <path className="dsa-gfir" strokeWidth={+(1.1 / Math.sqrt(t.sx * t.sy)).toFixed(2)} d={TRUNK} />
+              <path className="dsa-gfir" strokeWidth={+(1.1 / Math.sqrt(t.sx * t.sy)).toFixed(2)} d={FIR} />
+            </g>
+          ))}
+          <ellipse className="dsa-pilot" cx="110" cy="114" rx="11" ry="2.4" opacity=".24" />
+          <circle className="dsa-pilot" cx="110" cy="99" r="3.5" />
+          <path className="dsa-pilot" d="M110,102 C106.2,102 105.2,106.5 104.4,109.5 C99.6,111.9 97.8,114 101.6,114 L110,112.2 L118.4,114 C122.2,114 120.4,111.9 115.6,109.5 C114.8,106.5 113.8,102 110,102 Z" />
+          {/* rides the bank so it stays locked on the pilot */}
+          <rect className="dsa-det" x="96" y="95" width="28" height="24" />
+          <rect className="dsa-detbar" x="96" y="89.3" width="28" height="5.7" />
+        </g>
+        {/* HUD — fixed to the goggle, not the video */}
+        <g className="dsa-h" strokeWidth=".7">
+          <line x1="34" y1="66" x2="34" y2="112" />
+          {[0, 1, 2, 3, 4].map((i) => <line key={i} x1="34" y1={68 + i * 11} x2="38" y2={68 + i * 11} />)}
+        </g>
+        <g className="dsa-hd" strokeWidth=".5">
+          {[-24, -12, 12, 24].map((k) => (
+            <line key={k} x1={102 + Math.abs(k) / 4} y1={88 + k} x2={118 - Math.abs(k) / 4} y2={88 + k} />
+          ))}
+        </g>
+        <g opacity=".55">
+          <g className="dsa-h" strokeWidth=".7">
+            <line x1="60" y1="68" x2="160" y2="68" />
+            {[0, 1, 2, 3, 4, 5].map((i) => <line key={i} x1={64 + i * 18} y1="68" x2={64 + i * 18} y2="72" />)}
+          </g>
+          <polygon className="dsa-hf" points="110,68 106,63 114,63" />
+          <rect className="dsa-h" strokeWidth=".8" x="148" y="101" width="18" height="7.5" rx="1.5" />
+          <rect className="dsa-hf" x="149.2" y="102.2" width="11.5" height="5.1" />
+          <rect className="dsa-hf" x="166.6" y="103.4" width="1.5" height="3" />
+        </g>
+        <g className="dsa-gld dsa-whisk" strokeWidth="1.4" strokeLinecap="round">
+          <line x1="110" y1="82.5" x2="110" y2="85.5" /><line x1="110" y1="90.5" x2="110" y2="93.5" />
+          <line x1="102.5" y1="88" x2="105.5" y2="88" /><line x1="114.5" y1="88" x2="117.5" y2="88" />
+        </g>
+      </g>
+      {/* antennae drawn AFTER the shell: the body extrudes up-right and would swallow the
+          right one. Depth is size + mount, never occlusion. */}
+      <g className="dsa-antl">
+        {ANT_L.quads.map((q, i) => <polygon key={i} className={q.cls} points={q.pts} />)}
+        <circle className="dsa-mid" cx={ANT_L.tip.cx} cy={ANT_L.tip.cy} r={ANT_L.tip.r} />
+      </g>
+      <g className="dsa-antr">
+        {ANT_R.quads.map((q, i) => <polygon key={i} className={q.cls} points={q.pts} />)}
+        <circle className="dsa-mid" cx={ANT_R.tip.cx} cy={ANT_R.tip.cy} r={ANT_R.tip.r} />
+      </g>
+    </>
   );
 }
 
@@ -547,8 +691,10 @@ const CSS = `
    reduced-motion) resolves to 0 = the settled frame. */
 .dsa-lyr{transform:translateX(calc(var(--p,0) * var(--k,0) * 1px));}
 /* THE LESSON: the drone's bank and the goggle video's bank are the same expression,
-   so they cannot drift apart in a later edit. */
-.dsa-bank{transform:rotate(calc(-4deg + var(--p,0) * 6deg));}
+   so they cannot drift apart in a later edit. --b0 is the settled bank, set per scene
+   (the wide scene sits at -4deg, the portrait at -10deg) — the COUPLING is shared, only
+   the rest angle differs. */
+.dsa-bank{transform:rotate(calc(var(--b0,-4deg) + var(--p,0) * 6deg));}
 .dsa-feed{transform-box:view-box;transform-origin:110px 90px;}
 .dsa-antl{transform:translate(calc(var(--p,0) * -1.35px),calc(var(--p,0) * -1.73px));}
 .dsa-antr{transform:translate(calc(var(--p,0) * 1.35px),calc(var(--p,0) * -1.73px));}
@@ -566,32 +712,29 @@ const CSS = `
   font-weight:800;font-size:24px;font-variant-numeric:tabular-nums;letter-spacing:.02em;
   color:var(--color-text,#e8e8e8);white-space:nowrap;}
 
-/* Reflow, don't shrink: below 520px of FRAME width the scene is dropped for stacked
-   cards, so the label never scales under the ~14px floor. Container query, not a media
-   query — a diagram in the narrow follower rail must reflow off the frame, not the
-   viewport. */
-.dsa-cards{display:none;flex-direction:column;gap:.7rem;text-align:left;}
+/* Reflow, don't shrink: below 520px of FRAME width the wide scene is swapped for the
+   PORTRAIT scene — the same world re-composed vertically, not a text summary. Container
+   query, not a media query: a diagram in the narrow follower rail must reflow off the
+   frame width, not the viewport. */
+.dsa-portrait{display:none;}
 @container (max-width:520px){
   .dsa-scene{display:none;}
-  .dsa-cards{display:flex;}
+  .dsa-portrait{display:block;}
 }
-.dsa-card{border-radius:6px;padding:.7rem .8rem;}
-.dsa-card-drone{box-shadow:inset 0 0 0 2px var(--color-command-gold,#c8963e);}
-.dsa-ck{margin:0 0 .25rem;font-family:var(--font-display,"Bebas Neue",sans-serif);
-  font-size:1.2rem;letter-spacing:.02em;color:var(--color-title,#f1ece0);}
-.dsa-card-drone .dsa-ck{color:var(--color-command-gold,#c8963e);}
-.dsa-ct{margin:0;font-family:var(--font-serif,"Lora",serif);font-size:.88rem;line-height:1.4;
-  color:var(--color-text,#e8e8e8);}
-.dsa-ct b{color:var(--color-title,#f1ece0);font-weight:700;}
+.dsa-plbl{display:flex;justify-content:space-between;align-items:baseline;margin:.6rem 0 0;}
+.dsa-portrait .dsa-eyebrow{font-size:15px;letter-spacing:.2em;}
+.dsa-portrait .dsa-readout{font-size:20px;}
 
-.dgfrm.armed .dsa-card{opacity:0;transform:translateY(5px);}
-.dgfrm.armed.in .dsa-card{opacity:1;transform:none;
+/* The portrait scene is static: the wide scene carries the parallax, and the bank
+   coupling still reads here because the drone and the video share one number. Reveal
+   comes free from the frame's armed/in contract. */
+.dgfrm.armed .dsa-portrait{opacity:0;transform:translateY(5px);}
+.dgfrm.armed.in .dsa-portrait{opacity:1;transform:none;
   transition:opacity .5s ease,transform .5s cubic-bezier(.2,.7,.2,1);}
-.dgfrm.armed.in .dsa-card-drone{transition-delay:.12s;}
 
 /* HARD rule: reduced motion is the settled frame, no parallax, no blink. */
 @media (prefers-reduced-motion:reduce){
-  .dgfrm .dsa-card{opacity:1!important;transform:none!important;}
+  .dgfrm .dsa-portrait{opacity:1!important;transform:none!important;}
   .dsa-rec{animation:none;opacity:.85;}
 }
 `;
