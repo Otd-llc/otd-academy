@@ -5,7 +5,7 @@ works, what's live, and what's next. Keep this current — update it in the same
 whenever you change a webhook branch, a table, a checkout action, or an activation
 step.
 
-- **Last reconciled:** 2026-07-09 (phase 3 built on `feat/stripe-phase-3`)
+- **Last reconciled:** 2026-07-09 (phase 3 MERGED to `main` @ `0577e11`, LIVE on prod)
 - **Design doc (validated, detailed rationale):** `docs/plans/2026-07-07-billing-audit-schema.md`
 - **Phase 3 design + plan:** `docs/plans/2026-07-09-stripe-phase-3-ops-layer-design.md`,
   `docs/plans/2026-07-09-stripe-phase-3-implementation.md`
@@ -17,9 +17,11 @@ step.
 
 The **recording + access + lifecycle layer is complete and on PROD.** Every dollar
 (one-time, subscription, refund, chargeback, promo) is captured, and access is
-granted/revoked correctly. The **human + ops layer (phase 3) is now BUILT** on
-`feat/stripe-phase-3` (portal, dunning, admin views, reporting, subscribe test
-harness) — pending Josh's review + merge, plus two manual **activation** steps.
+granted/revoked correctly. The **human + ops layer (phase 3) is MERGED to `main`
+(#280) and LIVE on prod** (portal, dunning, admin views, reporting, subscribe test
+harness). The **Stripe Customer Portal is configured (live mode).** The only deferred
+items are the optional test-mode subscribe→dunning E2E and live subscription-price
+provisioning, both waiting on the future academy-projects program.
 
 **Key framing (2026-07-09):** the recurring **subscription is NOT for courses / the
 Pass.** It is for a *future* academy-system program (learners tracking their own
@@ -35,9 +37,9 @@ billing *machinery* so it is ready when that program ships.
 | Price provisioning (course + Pass) | ✅ live |
 | Subscription price provisioning | 🔜 script ready, not run (test mode for harness) |
 | Course/Pass **buyable** (content published) | ⬜ blocked on content |
-| Customer portal | ✅ built (needs 1-time Stripe Portal dashboard config) |
-| Dunning (email + banner) | ✅ built |
-| Admin billing views + revenue reporting | ✅ built (`/admin/billing`) |
+| Customer portal | ✅ LIVE (portal configured in live mode 2026-07-09) |
+| Dunning (email + banner) | ✅ live (dormant until a real sub fails) |
+| Admin billing views + revenue reporting | ✅ live (`/admin/billing`) |
 | Public subscribe UI | ⛔ intentionally none (sub = future program, not courses) |
 
 ---
@@ -159,13 +161,15 @@ All set `allow_promotion_codes` and `success_url → /checkout/success?session_i
 ## Roadmap — phase 3 (the human + ops layer)
 
 Phases 1–2 recorded every dollar and act on access. Phase 3 makes it a *product* people
-can see and manage. **BUILT on `feat/stripe-phase-3` (2026-07-09)** — pending review + merge.
+can see and manage. **MERGED to `main` (#280, `0577e11`) and LIVE on prod (2026-07-09).**
 
 **Subscriber-facing:**
 - ✅ **Customer billing portal** — Stripe Customer Portal (`createBillingPortalSession`
   in `lib/actions/billing.ts`) + a "Manage billing" button on `/account` (shown only
-  when the user has a `stripeCustomerId`). Needs a **one-time Stripe Dashboard → Customer
-  Portal config** (see runbook) before it opens.
+  when the user has a `stripeCustomerId`). **Live-mode portal configured 2026-07-09**
+  (cancel at end of billing period, update payment method, invoice history visible), so
+  the API's default configuration exists and the button works. (TEST-mode portal config
+  is still needed only if/when you run the E2E harness.)
 - ⛔ **Public subscribe UI — intentionally none.** The subscription is for a FUTURE
   academy-projects program, not courses; the action (`createSubscriptionCheckoutSession`)
   is verified via an admin-only test harness on `/admin/billing`. The future program
@@ -207,11 +211,16 @@ can see and manage. **BUILT on `feat/stripe-phase-3` (2026-07-09)** — pending 
   up (and `pnpm db:migrate` does it for you).
 - **Deploys:** prod builds from `main`. Merging a webhook change deploys it; the
   migration is applied separately via `pnpm db:migrate`.
-- **Customer Portal config (phase 3, one-time):** the portal button fails until the
-  Stripe **Dashboard → Settings → Billing → Customer portal** is enabled/configured
-  (allow: update payment method, view invoices, cancel subscription). Do it once per
-  Stripe mode (test + live). The action surfaces the "No configuration" error inline
-  until then.
+- **Customer Portal config (phase 3, one-time):** `billingPortal.sessions.create` throws
+  `No configuration ... default configuration has not been created` until a portal config
+  is saved in that Stripe mode; the button surfaces that inline until then. Configure at
+  the direct URL **`https://dashboard.stripe.com/settings/billing/portal`** (the old
+  menu path is gone; `/test/…` and `/live/…` are separate per-mode configs). Click
+  **Activate link** under "Ways to get started" (creates the default config), enable
+  update-payment-method + invoice-history-visible + cancel-subscription (we chose **cancel
+  at end of billing period** so access lasts the paid-through period, matching the
+  status-driven revoke), then Save. **LIVE mode DONE 2026-07-09.** TEST mode still
+  unconfigured (only needed for the E2E harness).
 - **Subscribe harness E2E (test mode):** provision the recurring price in TEST mode
   (`SUBSCRIPTION_PRICE_CENTS=... tsx scripts/set-subscription-price.ts` with a
   `sk_test_…` key), then use the **Start test subscription** button on `/admin/billing`.
@@ -232,4 +241,5 @@ can see and manage. **BUILT on `feat/stripe-phase-3` (2026-07-09)** — pending 
 | 2026-07-08 | #268 | `/checkout/success` confirmation page |
 | 2026-07-08 | #269 | Removed the dead `?purchased` learner-home banner |
 | 2026-07-08 | #270 | Phase-2: Subscription/Invoice/Refund/Dispute + full webhook event coverage + subscription checkout + `deleteStudent` sub-cancel + promo widening + `set-subscription-price.ts` |
-| 2026-07-09 | (this PR) | Phase-3 human/ops layer: customer portal + dunning (email + banner) + per-learner admin billing view + `/admin/billing` revenue reporting + subscribe test harness. No schema change. |
+| 2026-07-09 | #280 | Phase-3 human/ops layer MERGED + LIVE: customer portal + dunning (email + banner) + per-learner admin billing view + `/admin/billing` revenue reporting + subscribe test harness. No schema change. (#271 closed as superseded.) |
+| 2026-07-09 | — | Live-mode Stripe Customer Portal configured (cancel-at-period-end, update card, invoice history). Test-mode E2E + live sub-price provisioning deferred to the future academy-projects program. |
