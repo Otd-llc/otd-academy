@@ -12,8 +12,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 
-export const dynamic = "force-dynamic";
-
 async function sampleTargets() {
   const [course, guide, lesson, part] = await Promise.all([
     db.project

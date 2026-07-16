@@ -235,6 +235,64 @@ git commit -m "wip(cache): enable cacheComponents, strip route configs (build re
 
 ---
 
+## Task 2 OUTPUT — measured 2026-07-16 (branch `feat/cache-components-ppr`)
+
+**The checkpoint question is answered: fully-dynamic pages may NOT simply have no static
+shell. A page that accesses uncached data outside `<Suspense>` is a hard BUILD ERROR.**
+
+And the scope is **worse than this plan's own worst case**. The 17-vs-5 framing was wrong
+in its denominator: it counted only the 20 `force-dynamic` pages, but the error hits **any**
+page that touches data — including pages that never had a route config at all.
+
+### Error class 1 — route-segment configs (expected, plus a surprise)
+
+`dynamic` was not the only rejected export. **`runtime` is rejected too:**
+
+```
+Route segment config "runtime" is not compatible with `nextConfig.cacheComponents`.
+Please remove it.
+```
+
+That is **25 more files** than the 34 this plan listed — 23 needed stripping, incl. 13
+`opengraph-image.tsx` files and 2 certificate routes that were never in the strip list.
+Harmless in itself (`"nodejs"` is the default runtime; removal is a semantic no-op), but it
+means **the strip surface was 57 files, not 34**. `maxDuration` is NOT rejected (survives).
+
+### Error class 2 — the blocking one
+
+```
+Error: Route "/diagram-render/[key]": Uncached data was accessed outside of <Suspense>.
+Error: Route "/projects/[slug]":     Uncached data was accessed outside of <Suspense>.
+  This delays the entire page from rendering... exiting the build.
+```
+
+**`/projects/[slug]` never had `force-dynamic`.** It built fine before because pre-
+`cacheComponents` Next let a page go dynamic *implicitly* the moment it read the session.
+Under the flag that implicit escape is gone: every page must explicitly be cached, or have
+its data access inside a Suspense boundary. There is no third option and no opt-out.
+
+The build **exits on the first failing route**, so the errors cannot be enumerated in one
+pass. Measured statically instead:
+
+| Page surface | Count |
+| --- | --- |
+| Total `page.tsx` under `src/app` | **53** |
+| Access uncached data directly (`await auth()` or `db.`) | **40** |
+| ...of those, `admin/*` (zero caching value) | **9** |
+| No direct `db`/`auth` | 13 — **but `/diagram-render/[key]` is in this group and still failed** (it reads `params`/`searchParams`, which also count as uncached data) |
+
+So the real restructure surface is **≥ 40 of 53 pages**, not 17 — and 40 is a *lower bound*:
+it misses pages that reach the DB through a loader import rather than a literal `db.`, and
+misses `params`-reading pages like the one that actually failed.
+
+### Verdict
+
+**≥ 40 pages, vs. the 5 public pages this work exists for.** The plan's own bail-out
+condition ("if it is 17, stop and re-scope") is met roughly 2.4× over. Stopped at the
+checkpoint; no component code written. See the checkpoint report for the options.
+
+---
+
 ### Task 3: Cache the user-independent library reads
 
 Scope from Task 2's output. Load the `vercel:next-cache-components` skill first.

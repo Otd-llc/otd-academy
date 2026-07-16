@@ -28,7 +28,6 @@ import {
 } from "@/lib/guide-templates/stage-skeletons";
 import { STAGE_LABELS } from "@/lib/stages";
 
-export const runtime = "nodejs";
 export const size = SIZE;
 export const contentType = "image/png";
 export const alt = "One Thousand Drones Academy build-guide lesson";

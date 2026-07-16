@@ -29,7 +29,6 @@ import { SKILL_PATHS, prereqClosure } from "@/lib/skill-paths";
 import { loadProjectMiniLessons } from "@/lib/library/load";
 import { toolsForCourse } from "@/lib/tools/registry";
 
-export const dynamic = "force-dynamic";
 
 // Plain-language framing per track / level — adds genuine, course-specific copy
 // (and the keywords learners search) instead of boilerplate.

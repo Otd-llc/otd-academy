@@ -17,8 +17,7 @@ import { SheetScaler } from "@/components/briefs/SheetScaler";
 import { breadcrumbJsonLd, techArticleJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { BRIEF_KEYS, getBrief } from "@/lib/brief-pages";
 
-// Pure static, no DB. Pre-render both keys at build time.
-export const dynamic = "force-static";
+// Pure static, no DB. generateStaticParams pre-renders both keys at build time.
 
 export function generateStaticParams() {
   return BRIEF_KEYS.map((key) => ({ key }));

@@ -13,9 +13,6 @@ import { resolveLibraryImages } from "@/lib/pdf/library-images";
 import { registerLibraryFonts } from "@/lib/pdf/library-fonts";
 import { LibraryPdf } from "@/lib/pdf/library-pdf";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ slug: string }> },

@@ -39,9 +39,10 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title, description },
 };
 
-// DB-backed; resolves the session at request time — force request-time
-// rendering so the CI build (stub DATABASE_URL) doesn't prerender the DB query.
-export const dynamic = "force-dynamic";
+// DB-backed and resolves the session at request time. The old force-dynamic existed
+// so the CI build (stub DATABASE_URL) wouldn't prerender the DB query; CI now builds
+// against the real ci-test branch, and cacheComponents rejects the config outright.
+// The public skill tree is cacheable; the session-dependent part is not.
 
 export default async function CoursesPage({
   searchParams,

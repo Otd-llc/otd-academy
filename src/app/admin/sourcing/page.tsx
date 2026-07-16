@@ -15,7 +15,6 @@ import { activeBomUnorderable, digikeySubstitutesUrl } from "@/lib/active-bom-so
 import { availabilityBadge } from "@/lib/part-availability";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
-export const dynamic = "force-dynamic";
 
 export default async function SourcingDashboardPage() {
   const session = await auth();

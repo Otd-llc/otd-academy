@@ -27,10 +27,11 @@ import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
 import { BRIEF_KEYS } from "@/lib/brief-pages";
 import { TOOLS } from "@/lib/tools/registry";
 
-// DB-backed: render at REQUEST time, never statically prerendered at build. The
-// CI build runs with a stub DATABASE_URL the query can't reach (and a build-time
-// snapshot of the sitemap has no value anyway).
-export const dynamic = "force-dynamic";
+// DB-backed. The old force-dynamic existed because the CI build ran with a stub
+// DATABASE_URL the query couldn't reach; CI now builds against the real ci-test
+// branch, and cacheComponents rejects the config outright. Every crawler hits this,
+// and its four reads are user-independent — so it is a caching target, not a
+// request-time one (a build-time snapshot would still be wrong; an hourly one is not).
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();

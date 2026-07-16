@@ -31,8 +31,9 @@ import { db } from "@/lib/db";
 import { questionKey } from "@/lib/logbook/question-key";
 import { getLessonState } from "@/lib/logbook/load";
 
-// DB-backed: render at request time (the CI build runs with a stub DATABASE_URL).
-export const dynamic = "force-dynamic";
+// DB-backed. The old force-dynamic existed because the CI build ran with a stub
+// DATABASE_URL; CI now builds against the real ci-test branch, and cacheComponents
+// rejects the config outright. The lesson content is cacheable; the session is not.
 
 type Params = { slug: string };
 

@@ -21,8 +21,6 @@ import {
 import { LogbookAdminControls } from "@/components/admin/LogbookAdminControls";
 import { LEVELS } from "@/lib/logbook/economy";
 
-export const dynamic = "force-dynamic";
-
 function Section({
   label,
   children,

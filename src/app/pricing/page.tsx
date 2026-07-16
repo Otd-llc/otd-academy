@@ -59,7 +59,6 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title, description },
 };
 
-export const dynamic = "force-dynamic";
 
 // The premium project price RANGE (lowest to highest), for the "one build" card.
 // A range, not a single number, so it never reads as "every board is $49".

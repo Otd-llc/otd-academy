@@ -10,8 +10,6 @@ import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
 import { ResetLessonControl } from "@/components/admin/ResetLessonControl";
 import { HARDWARE_PATCHES } from "@/lib/logbook/patches";
-
-export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Logbook instrumentation",
   robots: { index: false, follow: false },

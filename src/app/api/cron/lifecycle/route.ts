@@ -25,8 +25,11 @@ import {
   winBackAudience,
 } from "@/lib/lifecycle-triggers";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+// Never prerendered: GET reads `authorization` off the request for the CRON_SECRET
+// check, which forces request-time execution on its own. Under cacheComponents
+// dynamic is the default and a route-segment config is rejected outright.
+// If this ever DID freeze at build, the nightly lifecycle emails would stop with no
+// error at all — `await connection()` (next/server) is the escape hatch.
 export const maxDuration = 60;
 
 const FOUNDER_FIRST_NAME = "Josh";

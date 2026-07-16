@@ -19,8 +19,10 @@ import { FIELD_GUIDE_CHROME } from "@/lib/pdf/field-guide-chrome";
 import { clusterByKey } from "@/lib/library/clusters";
 import { isFieldGuideAuthorized, fieldGuideGateRedirect } from "@/lib/library/field-guide-gate";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+// Inherently dynamic and NOT cacheable: isFieldGuideAuthorized() calls auth(), and a
+// `use cache` function may not read the session (build error) — caching a gated
+// response would be worse than a build error. The gate is in-route, not middleware
+// (proxy.ts's matcher excludes paths containing a dot), so it is the only gate there is.
 
 export async function GET(
   req: Request,

@@ -11,8 +11,11 @@ import { refreshAvailability } from "@/lib/refresh-availability";
 import { activeBomUnorderable, newlyUnorderableCount } from "@/lib/active-bom-sourcing";
 import { sendSourcingDigest } from "@/lib/sourcing-digest-email";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+// Never prerendered: GET reads `authorization` off the request for the CRON_SECRET
+// check, which forces request-time execution on its own. Under cacheComponents
+// dynamic is the default and a route-segment config is rejected outright.
+// If this ever DID freeze at build, the DigiKey availability watchdog would stop with
+// no error at all — `await connection()` (next/server) is the escape hatch.
 export const maxDuration = 60; // V1: Vercel Hobby cap. With batch-5 concurrency, ~200 parts fit easily.
 
 export async function GET(req: Request): Promise<Response> {

@@ -14,8 +14,6 @@ import { PageHeader } from "@/components/PageHeader";
 import { breadcrumbJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { BRIEFS, BRIEF_KEYS } from "@/lib/brief-pages";
 
-export const dynamic = "force-static";
-
 // Short card heading per brief, so the cards don't echo the hero line (which is
 // itself the overview brief's title).
 const CARD_HEADING: Record<string, string> = {

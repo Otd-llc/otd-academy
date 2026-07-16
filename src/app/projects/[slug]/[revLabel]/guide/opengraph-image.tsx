@@ -13,7 +13,6 @@ import { renderCard, ShareCard } from "@/lib/og/card";
 import { SIZE } from "@/lib/og/tokens";
 import { db } from "@/lib/db";
 
-export const runtime = "nodejs";
 export const size = SIZE;
 export const contentType = "image/png";
 export const alt = "One Thousand Drones Academy build guide";

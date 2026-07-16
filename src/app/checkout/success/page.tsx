@@ -15,8 +15,9 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { getStripe } from "@/lib/stripe";
 
-// Depends on the request query + a runtime Stripe call — never prerender.
-export const dynamic = "force-dynamic";
+// Depends on the request query + a runtime Stripe call — never prerender. Reading
+// searchParams forces request-time execution on its own; under cacheComponents dynamic
+// is the default and a route-segment config is rejected outright.
 
 // A receipt is not a landing page — keep it out of the index.
 export const metadata: Metadata = {

@@ -23,8 +23,6 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export const dynamic = "force-dynamic";
-
 function iso(d: Date | null | undefined): string {
   return d ? d.toISOString().slice(0, 10) : "—";
 }

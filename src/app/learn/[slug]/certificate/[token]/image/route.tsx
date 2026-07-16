@@ -11,7 +11,6 @@ import { certificateId } from "@/lib/certificate-id";
 import { certFontData, sealDataUri } from "@/lib/pdf/cert-font-files";
 import { BRANDMARK_PATH, BRANDMARK_VIEWBOX, CERT_SKILLS } from "@/lib/pdf/certificate-content";
 
-export const runtime = "nodejs";
 export const size = { width: 1200, height: 848 };
 export const contentType = "image/png";
 

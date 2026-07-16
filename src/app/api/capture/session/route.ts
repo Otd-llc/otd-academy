@@ -7,8 +7,9 @@ import { db } from "@/lib/db";
 import { verifyCaptureToken } from "@/lib/capture-token";
 import { guideContentBlocksSchema } from "@/lib/schemas/guide";
 
-// Token-dependent response — never static-optimize/cache it.
-export const dynamic = "force-dynamic";
+// Token-dependent response — never static-optimize/cache it. The handler reads the
+// token off the request, which forces request-time execution; under cacheComponents
+// dynamic is the default and a route-segment config is rejected outright.
 
 export async function GET(req: Request) {
   const token = new URL(req.url).searchParams.get("token");
