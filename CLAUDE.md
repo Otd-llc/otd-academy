@@ -47,7 +47,10 @@ lines, or revisions before then. New boards start from `docs/boards/_template/`
   `.env.test.local` (gitignored) supplies `TEST_DATABASE_POOL`; `pnpm test` parallelizes
   by leasing a branch per DB-test file (`vitest.env.ts`), so concurrent runs are safe and
   the suite is ~80s (was ~13 min). **If `.env.test.local` is absent, tests fall back to
-  PROD** — so keep it present. The pool branches are persistent clones and drift behind
+  whatever `.env.local` sets — which is LOCAL `foundry_dev` since 2026-07-15, not prod.**
+  (This bullet used to warn that the fallback was PROD; that was true only while
+  `.env.local` pointed at prod. Keep `.env.test.local` present anyway — without it the DB
+  tests lose per-file branch isolation and serialize.) The pool branches are persistent clones and drift behind
   prod after a migration; `pnpm test:pool:refresh` re-applies migrations to each (and
   `pnpm db:migrate:prod` does it for you — **`pnpm db:migrate` no longer does**, since it
   now targets local, where a pool refresh would be meaningless). The pool stays on **Neon**

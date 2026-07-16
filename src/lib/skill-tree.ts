@@ -14,7 +14,7 @@
 import { cacheLife, cacheTag } from "next/cache";
 
 import { db } from "@/lib/db";
-import { ONE_HOUR } from "@/lib/cache-profile";
+import { ONE_HOUR, TAG_PROJECTS } from "@/lib/cache-profile";
 import {
   computeSkillTree,
   type RawEdge,
@@ -54,7 +54,7 @@ async function cachedProjectGraph(): Promise<{
 }> {
   "use cache";
   cacheLife(ONE_HOUR);
-  cacheTag("projects");
+  cacheTag(TAG_PROJECTS);
 
   const [projectRows, edgeRows] = await Promise.all([
     db.project.findMany({

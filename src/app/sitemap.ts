@@ -23,7 +23,7 @@ import type { MetadataRoute } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { db } from "@/lib/db";
-import { ONE_HOUR } from "@/lib/cache-profile";
+import { ONE_HOUR, TAG_MINI_LESSONS, TAG_PROJECTS } from "@/lib/cache-profile";
 import { siteUrl } from "@/lib/seo/jsonld";
 import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
 import { BRIEF_KEYS } from "@/lib/brief-pages";
@@ -40,7 +40,7 @@ import { TOOLS } from "@/lib/tools/registry";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   "use cache";
   cacheLife(ONE_HOUR);
-  cacheTag("mini-lessons", "projects");
+  cacheTag(TAG_MINI_LESSONS, TAG_PROJECTS);
 
   const base = siteUrl();
   // Inside `use cache` this resolves once per cache fill, not per request — so

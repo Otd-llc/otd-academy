@@ -32,6 +32,73 @@ the instrument works):
 | library OG × 10 | 10 fat-column reads | **1** |
 | guide `[stage]` | Part 28 / PartAsset 54 | **1 / 1** per render |
 
+> **Read the [next section](#where-the-cache-actually-lives) before quoting those numbers.**
+> They were taken against a single local `next start` process, where in-memory state
+> persists trivially across requests. That is **not** how every one of these routes behaves
+> on Vercel. The numbers prove the caching *works*; they do not prove the production steady
+> state for the request-time routes.
+
+---
+
+## Where the cache actually lives
+
+This is the part that is easy to get wrong, and the local measurement above hides it.
+
+**`use cache` stores entries IN-MEMORY by default — on Vercel too.** From Vercel's own docs:
+
+> "`use cache` is in-memory by default. This means that it is ephemeral, and disappears when
+> the instance that served the request is shut down. `use cache: remote` is a declarative way
+> telling the system to store the cached output in a remote cache such Vercel runtime cache."
+
+And Next's:
+
+> "In serverless environments, memory is not shared between instances and is typically
+> destroyed after serving a request, leading to frequent cache misses for runtime caching."
+
+So whether a cached read costs a DB query in production depends entirely on **whether its
+result landed in the prerendered static shell or is evaluated at request time.**
+
+`next build`'s route table is the authority. A route that carries a **Revalidate/Expire
+window** has its cached output in the shell:
+
+```
+├ ◐ /library      1h   1d      <- cached data IS in the prerendered shell
+├ ○ /sitemap.xml  1h   1d      <- fully static
+├ ◐ /parts                     <- no window: the cached loader runs at REQUEST time
+├ ◐ /pricing                   <- same
+├ ◐ /courses                   <- same
+```
+
+| | Shell-cached (`/library`, `/sitemap.xml`) | Request-time (`/parts`, `/pricing`, `/courses`) |
+| --- | --- | --- |
+| Where the data lives | the prerendered output | in-memory, per function instance |
+| Revalidation | hourly, ISR-style | hourly *per instance*, lost when it dies |
+| Production DB reads | **~24/day — the claim holds** | **scales with instance churn / cold starts, not with traffic — but not 24/day either** |
+
+**Why the split.** A page that touches a runtime API defers to request time, taking its
+cached loaders with it. `/parts` awaits `searchParams`; `/pricing` and `/courses` read the
+session. `/library` does neither, so PPR hoists its cached data into the shell — which is
+why it is the only page-route with a window, and happily it is also the actual SEO moat
+(69 lessons).
+
+Next's guidance names this exact case:
+
+> "Remote caching provides the most value when content is deferred to request time (outside
+> the static shell). This typically happens when a component accesses request values like
+> `cookies()`, `headers()`, or `searchParams` … For static shell content, `use cache` is
+> usually sufficient."
+
+**The lever, if `/parts` or `/pricing` ever earns real traffic**, is one directive —
+`'use cache: remote'` — which on Vercel maps to **Vercel Runtime Cache**: managed, shared
+across instances and regions, tag-aware, nothing to install. It is **billed**, and it adds a
+network hop to every lookup, which is why it is not on today at 4 requests/day on a free-tier
+Neon. **Redis is the *self-hosted* answer to the same problem** (wired via `cacheHandlers`);
+on Vercel it would be redundant infrastructure.
+
+What is **not** contingent on any of this, and was worth doing regardless: the N+1 kills
+(Part 28→1, PartAsset 54→1), the fat-column removal (~306 kB → ~18 kB per `/library` render),
+the bounded cache keys, and `/library` + `/sitemap.xml` being genuinely shell-cached.
+
 ---
 
 ## The model
@@ -260,9 +327,12 @@ Not oversights:
   request. Force it sooner by touching the lesson once through `/admin/library`, or by
   redeploying (the build id is part of every cache key). Optional fix, considered and
   deliberately deferred: a `CRON_SECRET`-guarded `POST /api/revalidate` the seed scripts call.
-- **Two inline tag strings** drift from Law 2's "use the constants": `src/app/sitemap.ts`
-  (`cacheTag("mini-lessons", "projects")`) and `src/lib/skill-tree.ts` (`cacheTag("projects")`).
-  They match by value, so nothing is broken today.
+- **`/parts`, `/pricing`, `/courses` are request-time cached, not shell-cached** — so their
+  in-memory entries are per-instance and ephemeral on Vercel. See
+  [Where the cache actually lives](#where-the-cache-actually-lives). The one-directive fix is
+  `'use cache: remote'`; deliberately not taken at today's traffic because it is billed.
+  Revisit if `/parts` starts drawing crawl volume, or watch **Runtime Cache** under Vercel
+  Observability (hit rate, reads/writes) once it does.
 
 ---
 
