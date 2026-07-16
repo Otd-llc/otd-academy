@@ -110,8 +110,8 @@
   {
     "basename": "drone-shared-autonomy",
     "image": "/guide-diagrams/drone-shared-autonomy.webp",
-    "alt": "Shared-autonomy brain-drone control, drawn as a loop. The pilot, wearing a video headset, supplies sparse high-level intent at roughly one command every second or two: imagine a movement, the EEG is classified, and it becomes a command like go left or hover. The drone's own flight controller handles the fast, continuous work at hundreds of hertz, holding altitude, staying stable, and avoiding obstacles on its own. A live video feed streams back from the drone's camera to the pilot's screen, closing the loop so the human can watch and adjust. The human sets the goal; the drone executes it continuously.",
-    "hash": "55eba17e7ebd"
+    "alt": "Shared-autonomy drone control, drawn as a loop. A pilot sits cross-legged on the ground, seen only inside the lens of a large FPV goggle, because that view is the drone's own camera looking back down at them. A gold intent stream of packets arcs from the goggle up toward the drone, shrinking as it goes, and stops short of the aircraft: the human sends sparse high-level commands at roughly one a second, and the drone's own flight controller does the fast continuous flying. A blue live video feed bows back underneath and returns to the goggle, closing the loop so the human can watch and adjust.",
+    "hash": "ad2414dc3194"
   },
   {
     "basename": "isolation-barrier",

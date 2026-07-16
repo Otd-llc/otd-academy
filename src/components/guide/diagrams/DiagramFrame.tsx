@@ -99,7 +99,9 @@ const FRAME_CSS = `
    a "Fig N" corner label; the title/eyebrow/caption are dropped (the prose says it). */
 .dgfrm-bare{position:relative;padding:clamp(1rem,3vw,1.5rem);}
 .dgfrm-bare .dgfrm-body{margin-top:0;}
-.dgfrm-fig{position:absolute;bottom:.55rem;right:.85rem;margin:0;
+/* Top-right, not bottom (owner directive 2026-07-15): a frame-breaking foreground
+   element runs off the BOTTOM edge of a scene diagram and collides with the label. */
+.dgfrm-fig{position:absolute;top:.55rem;right:.85rem;margin:0;
   font-family:var(--font-mono,"Space Mono",monospace);font-size:10px;font-weight:700;
   text-transform:uppercase;letter-spacing:.18em;color:var(--color-command-gold,#c8963e);}
 
