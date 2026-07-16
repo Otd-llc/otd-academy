@@ -73,4 +73,19 @@ lines, or revisions before then. New boards start from `docs/boards/_template/`
   parts library — unmatched rows are reported, never auto-created. Create new parts
   *before* importing. One CSV row per part (merge shared refDes; `refDes` count must
   equal `quantity`).
+- **Seeding Library content to PROD does NOT appear immediately — expect up to 1 hour.**
+  Since Cache Components landed, the public read path (`src/lib/library/load.ts`) is
+  `use cache` with a 1-hour window, tagged `mini-lessons` / `mini-lesson-<slug>`. Admin
+  edits through `src/lib/actions/mini-lesson.ts` fire `revalidateTag`, so **those are
+  live on the next request**. A `scripts/*seed*.ts` write cannot: it runs outside a
+  request context, where `revalidateTag` is unavailable. So a seeded change waits out
+  the hour.
+
+  This also affects `/sitemap.xml`, which is tagged `mini-lessons` for the same reason.
+
+  To force it sooner: touch the lesson once through `/admin/library` (fires the tags),
+  or redeploy (the build id is part of every cache key, so a deploy drops the whole
+  cache). If this becomes a routine annoyance, the fix is a `CRON_SECRET`-guarded
+  `POST /api/revalidate` the seed scripts call after writing — considered and
+  deliberately deferred, not overlooked.
 - **Branch off `main`.** Don't merge without the maintainer's explicit go-ahead.

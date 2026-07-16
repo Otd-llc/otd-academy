@@ -2,7 +2,19 @@
 // projects, the dependency edges, and the viewer's role / completed-enrollments /
 // entitlements, maps DB rows to the `Raw*` shapes, then delegates. One pass, no
 // N+1 (everything fetched in a single Promise.all).
+//
+// CACHING (cacheComponents): the split is deliberate. The project GRAPH (projects +
+// edges) is user-independent, so it is cached for an hour and every viewer -- anon
+// or signed-in -- gets the cached DB read. Only `loadViewer` is per-user, and it
+// stays uncached.
+//
+// Do NOT put `use cache` on buildSkillTree itself: it keys on its arguments, so
+// caching a per-user call would silently mint a cache entry per learner. The
+// expensive part is the DB read anyway; computeSkillTree is pure CPU.
+import { cacheLife, cacheTag } from "next/cache";
+
 import { db } from "@/lib/db";
+import { ONE_HOUR } from "@/lib/cache-profile";
 import {
   computeSkillTree,
   type RawEdge,
@@ -14,6 +26,22 @@ import {
 export async function buildSkillTree(
   userId: string | null,
 ): Promise<SkillTree> {
+  const { projects, edges } = await cachedProjectGraph();
+  const viewer = await loadViewer(userId);
+  return computeSkillTree(projects, edges, viewer);
+}
+
+// The user-independent half: every non-archived project and every dependency edge,
+// mapped to the pure engine's Raw* shapes. Returns plain arrays of scalars, which
+// serialize cleanly across the cache boundary (no Set/Map/Decimal -- keep it so).
+async function cachedProjectGraph(): Promise<{
+  projects: RawProject[];
+  edges: RawEdge[];
+}> {
+  "use cache";
+  cacheLife(ONE_HOUR);
+  cacheTag("projects");
+
   const [projectRows, edgeRows] = await Promise.all([
     db.project.findMany({
       where: { archivedAt: null },
@@ -63,8 +91,7 @@ export async function buildSkillTree(
     kind: e.kind,
   }));
 
-  const viewer = await loadViewer(userId);
-  return computeSkillTree(projects, edges, viewer);
+  return { projects, edges };
 }
 
 async function loadViewer(userId: string | null): Promise<Viewer> {

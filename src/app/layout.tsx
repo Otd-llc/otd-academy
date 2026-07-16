@@ -104,7 +104,19 @@ export default function RootLayout({
 
           {/* `flex-1` lets the footer settle at the bottom on short pages. */}
           <div className="flex-1">
-            <FanfareProvider>{children}</FanfareProvider>
+            {/* Page-level dynamic boundary. Nearly every page in this app reads the
+                session, so almost none can prerender their own content; this
+                boundary is what lets the SHELL (chrome + backdrop) prerender while
+                the page streams. The Neon-egress win does NOT come from here — it
+                comes from `use cache` on the user-independent loaders, which is what
+                decouples DB reads from traffic. A page that wants a real static
+                shell of its own adds its own inner <Suspense> around just its
+                dynamic parts; this is the floor, not the ceiling.
+                fallback={null} preserves today's behaviour exactly (the page simply
+                appears when ready) rather than flashing a skeleton on every nav. */}
+            <Suspense fallback={null}>
+              <FanfareProvider>{children}</FanfareProvider>
+            </Suspense>
           </div>
 
           <Suspense fallback={null}>

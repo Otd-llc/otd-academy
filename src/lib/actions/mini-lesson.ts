@@ -24,8 +24,9 @@
 // `lastVerifiedAt` (those remain author-controlled content fields).
 
 import { Prisma } from "@prisma/client";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { db } from "@/lib/db";
+import { ONE_HOUR } from "@/lib/cache-profile";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { withTxRetry } from "@/lib/tx-retry";
 import { miniLessonInputSchema } from "@/lib/schemas/mini-lesson";
@@ -35,7 +36,23 @@ import { miniLessonInputSchema } from "@/lib/schemas/mini-lesson";
 const strictMiniLessonInputSchema = miniLessonInputSchema.strict();
 
 // Revalidate every surface a mini-lesson edit can touch.
+//
+// The TAGS are what matter under cacheComponents: the public read path
+// (src/lib/library/load.ts) caches for an hour, so without these an edit would not
+// appear for up to an hour. With them the hour is only a fallback and an edit is
+// live on the next request. `mini-lessons` also refreshes the sitemap, which is
+// tagged with it (src/app/sitemap.ts) — a new lesson missing from the sitemap for
+// an hour is a real SEO cost.
+//
+// revalidateTag (background, stale-while-revalidate) not updateTag: the admin is
+// redirected after a write, so no single request has to see the fresh value.
+//
+// Next 16 requires a profile as the second argument — it must match the window the
+// read side was cached under, which is why both sides import ONE_HOUR rather than
+// repeat the literal.
 function revalidateLibrary(slug: string): void {
+  revalidateTag("mini-lessons", ONE_HOUR);
+  revalidateTag(`mini-lesson-${slug}`, ONE_HOUR);
   revalidatePath(`/library/${slug}`);
   revalidatePath("/library");
   revalidatePath("/admin/library");
@@ -174,7 +191,11 @@ export async function saveMiniLesson(input: unknown) {
   );
 
   revalidateLibrary(result.updated.slug);
+  // A rename leaves the OLD slug's cache entry behind, holding the pre-rename
+  // lesson. Drop its tag as well as its path, or the stale copy keeps serving on
+  // the old URL until the entry expires.
   if (result.priorSlug !== result.updated.slug) {
+    revalidateTag(`mini-lesson-${result.priorSlug}`, ONE_HOUR);
     revalidatePath(`/library/${result.priorSlug}`);
   }
   return result.updated;

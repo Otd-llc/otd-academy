@@ -107,10 +107,16 @@ function SpecLine({ items }: { items: string[] }) {
 }
 
 export default async function PricingPage() {
-  const now = new Date();
-
   const session = await auth();
   const email = session?.user?.email ?? null;
+
+  // AFTER auth(), deliberately. Under cacheComponents, reading the current time in a
+  // Server Component before touching Request data or uncached data is a build error:
+  // the prerenderer cannot tell whether "now" means build time or request time.
+  // auth() reads the session cookie, which settles that — this is request time.
+  // The Pass launch-window checks below need a live clock, so it must stay here
+  // rather than move into a cached function.
+  const now = new Date();
 
   const [bundle, priceRange] = await Promise.all([
     db.bundle.findUnique({ where: { key: "all-access" } }),

@@ -2,10 +2,27 @@
 // published + PUBLIC rows; keeping the query here (one place) means the route
 // and the index can't drift on the gating. Returns null when missing/unpublished
 // so the route 404s.
+//
+// CACHING (cacheComponents): these reads are user-independent, so they are cached
+// for an hour and tagged. That is the point of the whole migration -- it makes the
+// public pages' DB reads a function of TIME (~24/day) instead of TRAFFIC. Edits
+// fire revalidateTag (src/lib/actions/mini-lesson.ts), so the hour is only the
+// fallback, not the edit-to-live latency.
+//
+// A `use cache` function may not read the session -- none of these do. Do not add
+// an auth() call to anything in this file.
+import { cacheLife, cacheTag } from "next/cache";
+
 import { db } from "@/lib/db";
+import { ONE_HOUR } from "@/lib/cache-profile";
 import { byClusterThenOrdinal, bucketByCluster } from "@/lib/library/cluster-order";
 
 export async function loadPublicMiniLesson(slug: string) {
+  "use cache";
+  cacheLife(ONE_HOUR);
+  // Tagged both broadly and narrowly so a single-lesson edit does not blow the
+  // whole index, and an index-wide reseed still catches this row.
+  cacheTag("mini-lessons", `mini-lesson-${slug}`);
   return db.miniLesson.findFirst({
     where: { slug, published: true, accessTier: "PUBLIC" },
     select: {
@@ -46,6 +63,9 @@ export async function loadPublicMiniLesson(slug: string) {
 // inbound half of the internal-linking spine. Deduped by slug (a lesson may hold
 // more than one role for the same project) and title-sorted for a stable order.
 export async function loadProjectMiniLessons(projectId: string) {
+  "use cache";
+  cacheLife(ONE_HOUR);
+  cacheTag("mini-lessons");
   const rows = await db.projectMiniLesson.findMany({
     where: { projectId, miniLesson: { published: true, accessTier: "PUBLIC" } },
     select: { miniLesson: { select: { slug: true, title: true, summary: true } } },
@@ -66,6 +86,9 @@ export async function loadProjectMiniLessons(projectId: string) {
 // `updatedAt desc` DB order only sets the tie-break among equal-rank rows (the
 // "other" bucket, all clusterOrdinal 0) — freshest-first there.
 export async function listPublishedMiniLessons() {
+  "use cache";
+  cacheLife(ONE_HOUR);
+  cacheTag("mini-lessons");
   const rows = await db.miniLesson.findMany({
     where: { published: true, accessTier: "PUBLIC" },
     orderBy: { updatedAt: "desc" },
@@ -77,7 +100,19 @@ export async function listPublishedMiniLessons() {
 // Published, PUBLIC lessons grouped into per-cluster buckets (registry order) for
 // the clustered landing, plus a trailing "other" bucket for null/unknown-cluster
 // rows that §4.1 MUST render so a null-cluster lesson never silently disappears.
-export async function listPublishedByCluster() {
+//
+// NOTE the split: `use cache` sits on the ROW QUERY, not on listPublishedByCluster
+// itself, because bucketByCluster returns a Map<string, T[]> and whether Next
+// serializes a Map across the cache boundary is not an assumption worth making.
+// The Map is built OUTSIDE the boundary, from cached plain rows.
+//
+// The rows carry Date values (createdAt/updatedAt) and plain scalars, all of which
+// serialize cleanly. Keep it that way: if a future select adds a Prisma Decimal, it
+// will not cross the boundary.
+async function cachedPublishedRows() {
+  "use cache";
+  cacheLife(ONE_HOUR);
+  cacheTag("mini-lessons");
   const rows = await db.miniLesson.findMany({
     where: { published: true, accessTier: "PUBLIC" },
     orderBy: { updatedAt: "desc" },
@@ -104,7 +139,11 @@ export async function listPublishedByCluster() {
       diagramSrc: true,
     },
   });
-  return bucketByCluster(rows);
+  return rows;
+}
+
+export async function listPublishedByCluster() {
+  return bucketByCluster(await cachedPublishedRows());
 }
 
 // Published, PUBLIC lessons WITH content blocks for a Field Guide PDF.
@@ -114,6 +153,9 @@ export async function listPublishedByCluster() {
 //    clusters group (never interleaved). `cluster`/`clusterOrdinal` are always
 //    selected so the combined path has the fields to group + drive part dividers.
 export async function loadPublicLibraryForBook(cluster?: string) {
+  "use cache";
+  cacheLife(ONE_HOUR);
+  cacheTag("mini-lessons");
   const rows = await db.miniLesson.findMany({
     where: { published: true, accessTier: "PUBLIC", ...(cluster ? { cluster } : {}) },
     orderBy: cluster ? { clusterOrdinal: "asc" } : { updatedAt: "desc" },
