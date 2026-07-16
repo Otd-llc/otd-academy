@@ -88,4 +88,12 @@ lines, or revisions before then. New boards start from `docs/boards/_template/`
   cache). If this becomes a routine annoyance, the fix is a `CRON_SECRET`-guarded
   `POST /api/revalidate` the seed scripts call after writing — considered and
   deliberately deferred, not overlooked.
+- **A local `next start` needs `AUTH_TRUST_HOST=1`, or the route auth gate is silently OFF.**
+  Auth.js rejects an untrusted host in production mode, and on rejection `auth()` resolves to a
+  truthy **error object** rather than `null`. `src/proxy.ts` gates on `!req.auth`, so that error
+  reads as "signed in" and every non-public route serves to anonymous requests — `/account` and
+  `/admin/students` return 200 instead of `307 → /sign-in`. Real prod is trusted by Vercel
+  (`VERCEL=1`) and `next dev` trusts localhost, so this bites ONLY local prod-build measurement —
+  where it will quietly invalidate anything you conclude about signed-out behaviour. (The latent
+  fail-open itself is real but not live; gating on `req.auth?.user` is the fix.)
 - **Branch off `main`.** Don't merge without the maintainer's explicit go-ahead.

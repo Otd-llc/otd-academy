@@ -55,14 +55,12 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/learn", req.nextUrl.origin));
   }
 
-  // Forward the request path as a header so the root layout (a Server
-  // Component, which can't read the URL otherwise) knows which route is
-  // rendering and can pick the right chrome — full app-shell for signed-in
-  // users, a public header + sign-up CTA on PUBLIC routes. Only the
-  // pass-through response carries it; the redirect branches above are unchanged.
-  const requestHeaders = new Headers(req.headers);
-  requestHeaders.set("x-pathname", pathname);
-  return NextResponse.next({ request: { headers: requestHeaders } });
+  // No `x-pathname` forwarding: which routes wear the chrome is structural now
+  // (the `(chrome)` route group), not something the layout sniffs from a header
+  // at request time. That sniff was what forced the header behind a <Suspense>
+  // boundary — a prerendered shell cannot read a request header, so it could not
+  // know whether chrome applied to the route.
+  return NextResponse.next();
 });
 
 export const config = {

@@ -1,24 +1,18 @@
-// App-shell footer. Split out of the root layout for Cache Components: its CONTENT
-// is fully static, but whether it renders at all depends on the session + the route
-// (shouldRenderChrome), so the gate is request-time and the whole thing streams in
-// behind a <Suspense> boundary. Keeping it here lets the root layout stay a static,
-// prerenderable shell.
+// App-shell footer — fully static, top to bottom.
+//
+// Its content never depended on the session; only WHETHER it rendered did, and
+// that gate is now structural: it lives in the (chrome) route-group layout, and
+// the chrome-free routes (/sign-in, /embed/*) live under (bare) instead. So the
+// `auth()` + `x-pathname` read that used to open this file is gone, and with it
+// the <Suspense> boundary that made the footer stream in at request time. It is
+// part of the prerendered shell now.
 import Link from "next/link";
-import { headers } from "next/headers";
 
-import { auth } from "@/auth";
-import { shouldRenderChrome } from "@/lib/chrome";
 import { BrandMark } from "@/components/BrandMark";
 import { SOCIAL_LINKS } from "@/lib/seo/jsonld";
 import { XIcon, YouTubeIcon, GitHubIcon, LinkedInIcon } from "@/components/icons";
 
-export async function AppFooter() {
-  // Only the signed-in flag is needed here (no name/avatar), and auth() decodes the
-  // JWT session cookie rather than hitting the DB, so this second call is cheap.
-  const session = await auth();
-  const pathname = (await headers()).get("x-pathname") ?? "";
-  if (!shouldRenderChrome({ pathname, signedIn: !!session?.user?.email })) return null;
-
+export function AppFooter() {
   return (
     <footer className="relative overflow-hidden border-t border-panel-border/60 bg-deep-space print:hidden">
       <div className="relative z-0 mx-auto max-w-6xl px-6 py-10">

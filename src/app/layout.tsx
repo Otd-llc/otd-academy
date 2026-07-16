@@ -5,8 +5,7 @@ import "katex/dist/katex.min.css";
 import { env } from "@/env";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { organizationJsonLd } from "@/lib/seo/jsonld";
-import { AppHeader } from "@/components/chrome/AppHeader";
-import { AppFooter } from "@/components/chrome/AppFooter";
+import { IdentityMemo } from "@/components/chrome/IdentityMemo";
 import { PostHogProvider } from "@/components/PostHogProvider";
 import { TooltipProvider } from "@/components/TooltipProvider";
 import { FanfareProvider } from "@/components/logbook/Fanfare";
@@ -62,7 +61,13 @@ export const metadata: Metadata = {
 // The static shell. Deliberately NOT async and free of top-level awaits: under
 // cacheComponents anything this component reads (session, cookies, headers, DB)
 // would block EVERY route from prerendering, since every page renders inside it.
-// The request-time chrome lives in AppHeader/AppFooter behind <Suspense>.
+//
+// It is now ONLY the shell — <html>/<body>, the backdrop, the client providers,
+// and the site-wide Organization node. The chrome moved down into the (chrome)
+// route group, and so did the page-level <Suspense> boundary that used to wrap
+// {children} here. That boundary could not stay: it wrapped whatever the groups
+// render, chrome included, so the header streamed in behind the page content and
+// shoved it down on every route. Each group now carries its own boundary.
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -97,40 +102,29 @@ export default function RootLayout({
             Adds no DOM wrapper, so the body's flex column is preserved. */}
         <PostHogProvider>
         <TooltipProvider>
+        {/* Milestone fanfare. A pure client provider (no server data), so it sits
+            in the static shell beside the other providers rather than inside a
+            boundary. It adds no DOM wrapper, so the body's flex column survives. */}
+        <FanfareProvider>
           {/* Site-wide Organization node (name + url + sameAs social profiles).
               Unconditional (every page, chrome or not) so the entity signal is
               consistent across the whole site. Static -- part of the shell. */}
           <JsonLd data={organizationJsonLd()} />
-          {/* App-shell chrome. Both halves gate on the session + route
-              (shouldRenderChrome), so they are request-time and stream in behind
-              their own boundaries -- keeping the shell above prerenderable.
-              fallback={null}: the shell cannot know whether chrome applies to this
-              route, and /sign-in + /embed/* are chrome-free, so a skeleton here
-              would flash chrome onto the pages that must never show it. */}
+          {/* Refreshes the on-device "welcome back" identity. Session-scoped, so
+              it streams behind its own boundary; it renders NO DOM, so a boundary
+              here costs no layout shift. It stays in the root layout on purpose —
+              it must keep firing on the chrome-free routes (/sign-in, /embed/*)
+              too, which is why it did not follow the header into (chrome). */}
           <Suspense fallback={null}>
-            <AppHeader />
+            <IdentityMemo />
           </Suspense>
 
-          {/* `flex-1` lets the footer settle at the bottom on short pages. */}
-          <div className="flex-1">
-            {/* Page-level dynamic boundary. Nearly every page in this app reads the
-                session, so almost none can prerender their own content; this
-                boundary is what lets the SHELL (chrome + backdrop) prerender while
-                the page streams. The Neon-egress win does NOT come from here — it
-                comes from `use cache` on the user-independent loaders, which is what
-                decouples DB reads from traffic. A page that wants a real static
-                shell of its own adds its own inner <Suspense> around just its
-                dynamic parts; this is the floor, not the ceiling.
-                fallback={null} preserves today's behaviour exactly (the page simply
-                appears when ready) rather than flashing a skeleton on every nav. */}
-            <Suspense fallback={null}>
-              <FanfareProvider>{children}</FanfareProvider>
-            </Suspense>
-          </div>
-
-          <Suspense fallback={null}>
-            <AppFooter />
-          </Suspense>
+          {/* The route groups render here: (chrome) supplies the header, footer,
+              and the page-level dynamic boundary; (bare) supplies just the
+              boundary. Deliberately NOT wrapped in a <Suspense> at this level —
+              see the note above the component. */}
+          {children}
+        </FanfareProvider>
         </TooltipProvider>
         </PostHogProvider>
       </body>
