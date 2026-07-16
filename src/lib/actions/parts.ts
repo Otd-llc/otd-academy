@@ -15,6 +15,7 @@
 
 import { Prisma, PartCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { invalidateParts } from "@/lib/cache-invalidate";
 import { ZodError } from "zod";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth-helpers";
@@ -112,7 +113,8 @@ export async function createPart(input: unknown) {
       },
     });
 
-    revalidatePath("/parts");
+    invalidateParts();
+  revalidatePath("/parts");
     return part;
   } catch (err) {
     if (
@@ -153,6 +155,7 @@ export async function updatePartDatasheetUrl(input: {
   });
 
   revalidatePath(`/parts/${input.partId}`);
+  invalidateParts();
   revalidatePath("/parts");
   return { ok: true as const, datasheetUrl: next };
 }
@@ -179,6 +182,7 @@ export async function recheckPartAvailability(partId: string) {
     partIds: [partId],
   });
   revalidatePath(`/parts/${partId}`);
+  invalidateParts();
   revalidatePath("/parts");
   return { ok: true as const, ...result };
 }
