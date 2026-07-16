@@ -6,8 +6,6 @@ import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
 
-export const dynamic = "force-dynamic";
-
 export default async function StudentsAdminPage({
   searchParams,
 }: {

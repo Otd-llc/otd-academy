@@ -15,8 +15,6 @@ import {
 } from "@/lib/diagram-usage";
 import manifest from "@/components/guide/diagram-export-manifest.json";
 
-export const dynamic = "force-dynamic";
-
 type ManifestEntry = { basename: string; image: string; alt: string; hash: string };
 
 export async function GET() {

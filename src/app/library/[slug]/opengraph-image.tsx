@@ -5,8 +5,8 @@
 // export pipeline commits a dark `<name>.png` raster (Satori/resvg embed PNG
 // reliably; WebP is not guaranteed), which we read and embed as a data URI.
 //
-// Runtime: `nodejs` — Prisma + fs. Every failure path (unknown slug, no diagram,
-// unreadable raster, DB hiccup) degrades to the text-only FW7 card or the branded
+// Runs on the default Node runtime (fs). Every failure path (unknown slug, no
+// diagram, unreadable raster) degrades to the text-only FW7 card or the branded
 // fallback, so a crawler can never 500.
 
 import { readFile } from "node:fs/promises";
@@ -21,9 +21,8 @@ import {
   DefaultFooter,
 } from "@/lib/og/card";
 import { OG, SIZE } from "@/lib/og/tokens";
-import { db } from "@/lib/db";
+import { loadLessonCardMeta } from "@/lib/library/load";
 
-export const runtime = "nodejs";
 export const size = SIZE;
 export const contentType = "image/png";
 export const alt = "One Thousand Drones Academy library lesson";
@@ -38,20 +37,16 @@ function pngSize(buf: Buffer): { w: number; h: number } | null {
 
 type Diagram = { dataUri: string; ratio: number };
 
-// First diagram block → its DARK committed raster, embedded. Null if the lesson
-// has no diagram or the raster can't be read (→ text-only card).
-async function resolveDarkDiagram(blocks: unknown): Promise<Diagram | null> {
-  if (!Array.isArray(blocks)) return null;
-  const img = blocks.find(
-    (b): b is { type: string; src: string } =>
-      !!b &&
-      typeof b === "object" &&
-      (b as { type?: unknown }).type === "image" &&
-      typeof (b as { src?: unknown }).src === "string" &&
-      (b as { src: string }).src.startsWith("/guide-diagrams/"),
-  );
-  if (!img) return null;
-  const name = img.src.replace(/^\/guide-diagrams\//, "").replace(/\.svg$/, "");
+// A hero diagram src → its DARK committed raster, embedded. Null if the lesson has
+// no diagram or the raster can't be read (→ text-only card).
+//
+// Takes the stored `diagramSrc` rather than re-deriving it from contentBlocks: the
+// column is computed by firstDiagramSrc on write (src/lib/library/derived.ts), which
+// is the identical "first image block under /guide-diagrams/" rule this used to
+// re-implement inline.
+async function resolveDarkDiagram(src: string | null): Promise<Diagram | null> {
+  if (!src) return null;
+  const name = src.replace(/^\/guide-diagrams\//, "").replace(/\.svg$/, "");
   const file = path.join(process.cwd(), "public", "guide-diagrams", `${name}.png`);
   try {
     const buf = await readFile(file);
@@ -67,16 +62,18 @@ async function resolveDarkDiagram(blocks: unknown): Promise<Diagram | null> {
 
 type LessonData = { title: string; diagram: Diagram | null };
 
+// Reads the SHARED cached lesson rows rather than issuing its own query. This route
+// is hit once per lesson (69 today) by crawlers and social unfurlers, and it used to
+// SELECT contentBlocks — the fat column the index deliberately stopped selecting —
+// just to re-derive the hero diagram src that `diagramSrc` already stores. Now it
+// costs no DB read at all beyond the index's own hourly one.
 async function resolveLesson(slug: string): Promise<LessonData> {
   try {
-    const lesson = await db.miniLesson.findFirst({
-      where: { slug, published: true, accessTier: "PUBLIC" },
-      select: { title: true, contentBlocks: true },
-    });
+    const lesson = await loadLessonCardMeta(slug);
     if (!lesson) return { title: "One Thousand Drones Academy", diagram: null };
     return {
       title: lesson.title,
-      diagram: await resolveDarkDiagram(lesson.contentBlocks),
+      diagram: await resolveDarkDiagram(lesson.diagramSrc),
     };
   } catch {
     return { title: "One Thousand Drones Academy", diagram: null };

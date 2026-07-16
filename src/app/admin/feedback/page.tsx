@@ -6,8 +6,6 @@ import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
 import { FeedbackTriage, type FeedbackRow } from "@/components/admin/FeedbackTriage";
-
-export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Feedback",
   robots: { index: false, follow: false },

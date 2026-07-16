@@ -2,10 +2,49 @@
 // published + PUBLIC rows; keeping the query here (one place) means the route
 // and the index can't drift on the gating. Returns null when missing/unpublished
 // so the route 404s.
+//
+// CACHING (cacheComponents): these reads are user-independent, so they are cached
+// for an hour and tagged. That is the point of the whole migration -- it makes the
+// public pages' DB reads a function of TIME (~24/day) instead of TRAFFIC. Edits
+// fire updateTag (src/lib/actions/mini-lesson.ts), so the hour is only the fallback,
+// not the edit-to-live latency.
+//
+// A `use cache` function may not read the session -- none of these do. Do not add
+// an auth() call to anything in this file.
+import { cacheLife, cacheTag } from "next/cache";
+
 import { db } from "@/lib/db";
+import { ONE_HOUR, TAG_MINI_LESSONS, miniLessonTag } from "@/lib/cache-profile";
 import { byClusterThenOrdinal, bucketByCluster } from "@/lib/library/cluster-order";
 
+/**
+ * A published PUBLIC lesson by slug, or null.
+ *
+ * The membership check is NOT redundant with the query's `where` — it is what bounds
+ * the cache. `use cache` keys on arguments, and callers pass the raw `[slug]` route
+ * param, which matches ANY string. Without this guard a crawler walking broken links
+ * (or a scanner spraying paths) mints one cache entry AND one DB query per distinct
+ * garbage string, and those negative entries evict real lessons from the LRU. That
+ * would defeat the entire point of this file: DB reads would scale with the number of
+ * distinct URLs requested, i.e. with traffic.
+ *
+ * Checking against the cached row set costs no query of its own — cachedPublishedRows
+ * is the same hourly read the index already does — and bounds the cache key space to
+ * exactly the lessons that exist. This mirrors loadPublicLibraryForBook, whose caller
+ * validates the cluster against the registry before the cached call.
+ */
 export async function loadPublicMiniLesson(slug: string) {
+  const known = await cachedPublishedRows();
+  if (!known.some((r) => r.slug === slug)) return null;
+  return cachedMiniLesson(slug);
+}
+
+async function cachedMiniLesson(slug: string) {
+  "use cache";
+  cacheLife(ONE_HOUR);
+  // Tagged both broadly and narrowly so a single-lesson edit does not blow the
+  // whole index, and an index-wide reseed still catches this row.
+  cacheTag(TAG_MINI_LESSONS, miniLessonTag(slug));
   return db.miniLesson.findFirst({
     where: { slug, published: true, accessTier: "PUBLIC" },
     select: {
@@ -46,6 +85,9 @@ export async function loadPublicMiniLesson(slug: string) {
 // inbound half of the internal-linking spine. Deduped by slug (a lesson may hold
 // more than one role for the same project) and title-sorted for a stable order.
 export async function loadProjectMiniLessons(projectId: string) {
+  "use cache";
+  cacheLife(ONE_HOUR);
+  cacheTag(TAG_MINI_LESSONS);
   const rows = await db.projectMiniLesson.findMany({
     where: { projectId, miniLesson: { published: true, accessTier: "PUBLIC" } },
     select: { miniLesson: { select: { slug: true, title: true, summary: true } } },
@@ -60,24 +102,22 @@ export async function loadProjectMiniLessons(projectId: string) {
   return lessons.sort((a, b) => a.title.localeCompare(b.title));
 }
 
-// The flat list of every published, PUBLIC lesson (feeds the landing's ItemList
-// JSON-LD over ALL lessons). Cluster-MAJOR: registry `order` then `clusterOrdinal`
-// (byClusterThenOrdinal), so the two clusters group instead of interleave. The
-// `updatedAt desc` DB order only sets the tie-break among equal-rank rows (the
-// "other" bucket, all clusterOrdinal 0) — freshest-first there.
-export async function listPublishedMiniLessons() {
-  const rows = await db.miniLesson.findMany({
-    where: { published: true, accessTier: "PUBLIC" },
-    orderBy: { updatedAt: "desc" },
-    select: { slug: true, title: true, summary: true, updatedAt: true, cluster: true, clusterOrdinal: true },
-  });
-  return byClusterThenOrdinal(rows);
-}
-
 // Published, PUBLIC lessons grouped into per-cluster buckets (registry order) for
 // the clustered landing, plus a trailing "other" bucket for null/unknown-cluster
 // rows that §4.1 MUST render so a null-cluster lesson never silently disappears.
-export async function listPublishedByCluster() {
+//
+// NOTE the split: `use cache` sits on the ROW QUERY, not on listPublishedByCluster
+// itself, because bucketByCluster returns a Map<string, T[]> and whether Next
+// serializes a Map across the cache boundary is not an assumption worth making.
+// The Map is built OUTSIDE the boundary, from cached plain rows.
+//
+// The rows carry Date values (createdAt/updatedAt) and plain scalars, all of which
+// serialize cleanly. Keep it that way: if a future select adds a Prisma Decimal, it
+// will not cross the boundary.
+async function cachedPublishedRows() {
+  "use cache";
+  cacheLife(ONE_HOUR);
+  cacheTag(TAG_MINI_LESSONS);
   const rows = await db.miniLesson.findMany({
     where: { published: true, accessTier: "PUBLIC" },
     orderBy: { updatedAt: "desc" },
@@ -104,7 +144,30 @@ export async function listPublishedByCluster() {
       diagramSrc: true,
     },
   });
-  return bucketByCluster(rows);
+  return rows;
+}
+
+export async function listPublishedByCluster() {
+  return bucketByCluster(await cachedPublishedRows());
+}
+
+/**
+ * Thin card metadata for one published PUBLIC lesson — title + hero diagram src.
+ * Null when the slug is unknown or unpublished.
+ *
+ * Costs NO query of its own: it reads the same hourly cached row set the index uses.
+ * That matters because the caller is the per-lesson OG image route, which is hit for
+ * all 69 lessons by crawlers and social unfurlers. That route used to issue its own
+ * `findFirst` selecting `contentBlocks` — the fat column — purely to re-derive the
+ * first diagram's src, which is exactly what the stored `diagramSrc` column already
+ * holds (both come from firstDiagramSrc; see src/lib/library/derived.ts).
+ *
+ * Bounded by construction: the lookup is a find over the cached rows, so an unknown
+ * slug costs nothing and mints no cache entry.
+ */
+export async function loadLessonCardMeta(slug: string) {
+  const rows = await cachedPublishedRows();
+  return rows.find((r) => r.slug === slug) ?? null;
 }
 
 // Published, PUBLIC lessons WITH content blocks for a Field Guide PDF.
@@ -114,6 +177,9 @@ export async function listPublishedByCluster() {
 //    clusters group (never interleaved). `cluster`/`clusterOrdinal` are always
 //    selected so the combined path has the fields to group + drive part dividers.
 export async function loadPublicLibraryForBook(cluster?: string) {
+  "use cache";
+  cacheLife(ONE_HOUR);
+  cacheTag(TAG_MINI_LESSONS);
   const rows = await db.miniLesson.findMany({
     where: { published: true, accessTier: "PUBLIC", ...(cluster ? { cluster } : {}) },
     orderBy: cluster ? { clusterOrdinal: "asc" } : { updatedAt: "desc" },

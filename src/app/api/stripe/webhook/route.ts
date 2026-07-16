@@ -45,10 +45,10 @@ import {
 import { capture } from "@/lib/analytics";
 import { sendPaymentFailedEmail } from "@/lib/subscription-dunning";
 
-// Node runtime (raw body + crypto), and never statically prerender this route —
-// it depends on the request body, headers, and a runtime secret.
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+// Runs on the Node runtime (raw body + crypto), which is the default — cacheComponents
+// rejects an explicit `runtime` route-segment config, so it is no longer declared here.
+// Never statically prerendered: it depends on the request body, headers, and a runtime
+// secret, and POST is never prerendered regardless.
 
 // The all-access bundle key: both the one-time Pass and an active subscription
 // grant an Entitlement on THIS bundle (the access is identical; the source column

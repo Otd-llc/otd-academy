@@ -19,7 +19,6 @@ import {
 import { SIZE } from "@/lib/og/tokens";
 import { getTool } from "@/lib/tools/registry";
 
-export const runtime = "nodejs";
 export const size = SIZE;
 export const contentType = "image/png";
 export const alt = "One Thousand Drones Academy calculator";

@@ -9,7 +9,18 @@
 // the entity up, so the cuid only needs to be format-valid.
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// next/cache is stubbed WHOLESALE, so this factory must carry every export anything
+// in this module graph touches — a missing one fails the import with "No X export is
+// defined on the next/cache mock", which reads like a mock problem rather than the
+// real cause. cacheLife/cacheTag are no-ops here: without the Next compiler the
+// `use cache` directive is an inert string, so cached loaders simply run uncached.
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
+  updateTag: vi.fn(),
+  cacheLife: vi.fn(),
+  cacheTag: vi.fn(),
+}));
 
 const mockAuth = vi.fn<() => Promise<unknown>>();
 vi.mock("@/auth", () => ({ auth: () => mockAuth() }));

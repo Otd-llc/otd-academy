@@ -5,8 +5,6 @@ import { db } from "@/lib/db";
 import { verifyCaptureToken } from "@/lib/capture-token";
 import { guideContentBlocksSchema } from "@/lib/schemas/guide";
 
-export const dynamic = "force-dynamic";
-
 export async function GET(req: Request) {
   const token = new URL(req.url).searchParams.get("token");
   if (!token) {

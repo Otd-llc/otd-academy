@@ -19,7 +19,6 @@ import {
 import { OG, SIZE } from "@/lib/og/tokens";
 import { db } from "@/lib/db";
 
-export const runtime = "nodejs";
 export const size = SIZE;
 export const contentType = "image/png";
 export const alt = "One Thousand Drones Academy course";

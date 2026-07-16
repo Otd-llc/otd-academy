@@ -14,7 +14,10 @@
 // q/lifecycle/mains filters (a stable "how big is this category" navigational
 // aid).
 import Link from "next/link";
+import { cacheLife, cacheTag } from "next/cache";
+
 import { db } from "@/lib/db";
+import { ONE_HOUR, TAG_PARTS } from "@/lib/cache-profile";
 import { partsHref } from "@/lib/parts-list-url";
 import { categoryAncestry } from "@/lib/categories";
 
@@ -28,19 +31,27 @@ type Node = {
   parentId: string | null;
 };
 
-export async function CategoryTreePicker({
-  activePath,
-  current,
-}: {
-  activePath?: string;
-  current: Current;
-}) {
+// The category tree + per-category part counts. Identical for every visitor and on
+// every /parts render, so it is cached — this is 2 of the ~5 queries the public parts
+// catalog costs per render, and it is easy to miss because it lives in a component
+// rather than the page.
+//
+// Takes no arguments on purpose: the cache key is then a constant, so no amount of
+// ?q=/?cat= traffic can multiply the entries. `activePath`/`current` only affect
+// presentation and stay outside the boundary.
+//
+// Returns plain arrays/scalars — the Maps are built by the caller, outside the cache.
+async function cachedCategoryTree(): Promise<{
+  categories: Node[];
+  counts: { categoryId: string; n: number }[];
+}> {
+  "use cache";
+  cacheLife(ONE_HOUR);
+  cacheTag(TAG_PARTS);
   const categories = await db.category.findMany({
     orderBy: [{ depth: "asc" }, { order: "asc" }],
     select: { id: true, slug: true, name: true, path: true, parentId: true },
   });
-  if (categories.length === 0) return null;
-
   // Per-category direct count → subtree count (sum of self + descendants by path
   // prefix). n is small; O(n²) rollup is fine.
   const grouped = await db.part.groupBy({
@@ -48,9 +59,27 @@ export async function CategoryTreePicker({
     where: { categoryId: { not: null } },
     _count: { _all: true },
   });
+  return {
+    categories,
+    counts: grouped
+      .filter((g) => g.categoryId)
+      .map((g) => ({ categoryId: g.categoryId as string, n: g._count._all })),
+  };
+}
+
+export async function CategoryTreePicker({
+  activePath,
+  current,
+}: {
+  activePath?: string;
+  current: Current;
+}) {
+  const { categories, counts } = await cachedCategoryTree();
+  if (categories.length === 0) return null;
+
   const directCount = new Map<string, number>();
-  for (const g of grouped) {
-    if (g.categoryId) directCount.set(g.categoryId, g._count._all);
+  for (const g of counts) {
+    directCount.set(g.categoryId, g.n);
   }
   const subtreeCount = (node: Node): number => {
     let total = directCount.get(node.id) ?? 0;

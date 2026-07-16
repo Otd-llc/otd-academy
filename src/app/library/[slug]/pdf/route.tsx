@@ -13,9 +13,17 @@ import { resolveLibraryImages } from "@/lib/pdf/library-images";
 import { registerLibraryFonts } from "@/lib/pdf/library-fonts";
 import { LibraryPdf } from "@/lib/pdf/library-pdf";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
+// Reads no session at all, so unlike the field-guide books this one IS cacheable —
+// but the caching lives in loadPublicMiniLesson (`use cache`, tagged
+// `mini-lesson-${slug}`), NOT on this handler. Two reasons:
+//   • The DB read is the metric this migration exists to cut, and it is now cached
+//     and tag-invalidated: a content edit fires revalidateTag, so the next request
+//     renders a fresh PDF. No staleness window beyond the loader's.
+//   • Wrapping the handler itself would put a `Response` across the cache boundary,
+//     and whether Next serializes one is not an assumption worth making (same
+//     reasoning as the Map in library/load.ts).
+// The react-pdf render therefore still runs per request. That is Vercel compute,
+// not Neon egress, so it is not what this work is optimizing.
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ slug: string }> },

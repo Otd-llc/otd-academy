@@ -13,8 +13,6 @@ import { db } from "@/lib/db";
 import { env } from "@/env";
 import { getR2ObjectBytes } from "@/lib/part-r2";
 
-export const runtime = "nodejs";
-
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },

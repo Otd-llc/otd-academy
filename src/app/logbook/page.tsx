@@ -11,8 +11,8 @@ import { PatchWall, type PatchEntry } from "@/components/logbook/PatchWall";
 
 // The Logbook (design §9.5; layout locked 2026-07-11 = sticky standing rail +
 // patches-first accordion). Private, auth-gated by middleware (the redirect here
-// is a defense-in-depth backstop). Per-request (session-scoped).
-export const dynamic = "force-dynamic";
+// is a defense-in-depth backstop). Per-request (session-scoped) — entirely per-user,
+// so there is nothing here worth caching; under cacheComponents dynamic is the default.
 export const metadata: Metadata = {
   title: "Logbook",
   robots: { index: false, follow: false },

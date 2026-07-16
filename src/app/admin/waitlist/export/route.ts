@@ -5,9 +5,6 @@
 import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 function csvCell(value: string): string {
   // Quote + escape if the value contains a comma, quote, or newline.
   return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;

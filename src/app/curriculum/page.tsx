@@ -7,12 +7,20 @@
 // The DAG view intentionally does NOT honor the dashboard's `?archived=1` /
 // `?track=` filters — it's the curriculum map, not a filtered manifest.
 import Link from "next/link";
+import { connection } from "next/server";
 import { db } from "@/lib/db";
 import { CurriculumDag, type ProjectCard } from "@/components/CurriculumDag";
 import { ChevronLeftIcon } from "@/components/icons";
 import { PageHeader } from "@/components/PageHeader";
 
 export default async function CurriculumPage() {
+  // Admin-facing curriculum map: always live, never cached or prerendered. Unlike
+  // every other DB-backed page here this one reads no session, so nothing else
+  // establishes that it runs at request time — and under cacheComponents the
+  // Prisma client's internal clock read then trips the "current time before any
+  // Request data" prerender error. connection() states the intent outright.
+  await connection();
+
   // One query — pull each non-archived project with both edge sides and its
   // latest revision's currentStage. Prisma collapses the join behind the
   // scenes; we still bring the full row so the DTO mapping below stays

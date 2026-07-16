@@ -10,11 +10,16 @@
 // FW7 from) lives in git — commits 05cc36f and 47e1ed0.
 
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { db } from "@/lib/db";
 
-export const dynamic = "force-dynamic";
-
 async function sampleTargets() {
+  // Dev-only gallery: always live, never cached or prerendered. It reads no session,
+  // so nothing else establishes request-time execution, and under cacheComponents the
+  // Prisma client's internal clock read then trips the "current time before any
+  // Request data" prerender error. connection() states the intent outright.
+  await connection();
+
   const [course, guide, lesson, part] = await Promise.all([
     db.project
       .findFirst({ where: { level: { not: null } }, select: { slug: true } })

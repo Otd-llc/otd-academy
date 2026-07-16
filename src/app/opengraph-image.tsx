@@ -9,7 +9,6 @@
 import { renderCard, Field, IvoryGhost, DefaultFooter } from "@/lib/og/card";
 import { OG, SIZE } from "@/lib/og/tokens";
 
-export const runtime = "nodejs";
 export const alt = "One Thousand Drones Academy";
 export const size = SIZE;
 export const contentType = "image/png";

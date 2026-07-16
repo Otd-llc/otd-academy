@@ -14,8 +14,6 @@ import { clusterByKey } from "@/lib/library/clusters";
 import { fieldGuidePdfDownloadUrl, fieldGuideCoverPath } from "@/lib/library/field-guide-links";
 import { WelcomeClaim } from "./welcome-claim";
 
-export const dynamic = "force-dynamic";
-
 // L1.01 course; its published redirect lands on the live build guide.
 const L101 = "/courses/l1-01-wroom-breakout";
 

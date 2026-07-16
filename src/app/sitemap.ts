@@ -20,20 +20,33 @@
 // layout's metadataBase, no trailing slash). Revision labels are encoded with
 // `encodeURIComponent` to match the canonical guide URLs.
 import type { MetadataRoute } from "next";
+import { cacheLife, cacheTag } from "next/cache";
 
 import { db } from "@/lib/db";
+import { ONE_HOUR } from "@/lib/cache-profile";
 import { siteUrl } from "@/lib/seo/jsonld";
 import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
 import { BRIEF_KEYS } from "@/lib/brief-pages";
 import { TOOLS } from "@/lib/tools/registry";
 
-// DB-backed: render at REQUEST time, never statically prerendered at build. The
-// CI build runs with a stub DATABASE_URL the query can't reach (and a build-time
-// snapshot of the sitemap has no value anyway).
-export const dynamic = "force-dynamic";
-
+// DB-backed. The old force-dynamic existed because the CI build ran with a stub
+// DATABASE_URL the query couldn't reach; CI now builds against the real ci-test
+// branch, and cacheComponents rejects the config outright.
+//
+// CACHED for an hour: every crawler hits this and its four reads are
+// user-independent, so it is a caching target rather than a request-time one.
+// Tagged `mini-lessons` as well as `projects` — a new lesson that is missing from
+// the sitemap for an hour is a real SEO cost, so a lesson edit refreshes this too.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  "use cache";
+  cacheLife(ONE_HOUR);
+  cacheTag("mini-lessons", "projects");
+
   const base = siteUrl();
+  // Inside `use cache` this resolves once per cache fill, not per request — so
+  // lastModified is accurate to the hour. That is strictly more honest than the
+  // previous per-request `new Date()`, which told crawlers every URL had just
+  // changed on every single fetch.
   const lastModified = new Date();
 
   const [projects, parts, miniLessons, comingSoonCourses] = await Promise.all([

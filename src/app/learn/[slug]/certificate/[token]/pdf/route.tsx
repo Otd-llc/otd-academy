@@ -8,8 +8,6 @@ import { certificateId } from "@/lib/certificate-id";
 import { CertificatePdf } from "@/lib/pdf/certificate-pdf";
 import { registerCertFonts } from "@/lib/pdf/cert-fonts";
 
-export const runtime = "nodejs";
-
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ slug: string; token: string }> },

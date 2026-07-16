@@ -10,8 +10,6 @@ import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
 
-export const dynamic = "force-dynamic";
-
 function fmtDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }

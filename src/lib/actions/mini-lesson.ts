@@ -24,8 +24,9 @@
 // `lastVerifiedAt` (those remain author-controlled content fields).
 
 import { Prisma } from "@prisma/client";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { db } from "@/lib/db";
+import { TAG_MINI_LESSONS, miniLessonTag } from "@/lib/cache-profile";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { withTxRetry } from "@/lib/tx-retry";
 import { miniLessonInputSchema } from "@/lib/schemas/mini-lesson";
@@ -34,8 +35,23 @@ import { miniLessonInputSchema } from "@/lib/schemas/mini-lesson";
 // state can never ride in on the content payload).
 const strictMiniLessonInputSchema = miniLessonInputSchema.strict();
 
-// Revalidate every surface a mini-lesson edit can touch.
+// Invalidate every surface a mini-lesson edit can touch.
+//
+// The TAGS are what matter under cacheComponents: the public read path
+// (src/lib/library/load.ts) caches for an hour, so without them an edit would not
+// appear for up to an hour. `mini-lessons` also covers the sitemap, which carries
+// that tag (src/app/sitemap.ts) — a new lesson missing from the sitemap for an hour
+// is a real SEO cost, and no revalidatePath below reaches /sitemap.xml.
+//
+// updateTag, NOT revalidateTag: revalidateTag's second argument is a grace window,
+// and passing a non-zero one makes the invalidation stale-while-revalidate — the
+// edit goes live on the request AFTER the background refresh, not the next one.
+// updateTag expires the entry immediately, which is what "an edit appears now"
+// actually requires. It also takes no profile, so there is no window to get wrong.
+// (This deviates from the plan, which assumed revalidateTag purged promptly.)
 function revalidateLibrary(slug: string): void {
+  updateTag(TAG_MINI_LESSONS);
+  updateTag(miniLessonTag(slug));
   revalidatePath(`/library/${slug}`);
   revalidatePath("/library");
   revalidatePath("/admin/library");
@@ -174,7 +190,11 @@ export async function saveMiniLesson(input: unknown) {
   );
 
   revalidateLibrary(result.updated.slug);
+  // A rename leaves the OLD slug's cache entry behind, holding the pre-rename
+  // lesson. Drop its tag as well as its path, or the stale copy keeps serving on
+  // the old URL until the entry expires.
   if (result.priorSlug !== result.updated.slug) {
+    updateTag(miniLessonTag(result.priorSlug));
     revalidatePath(`/library/${result.priorSlug}`);
   }
   return result.updated;

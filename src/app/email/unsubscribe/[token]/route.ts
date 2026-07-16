@@ -11,9 +11,6 @@
 import { db } from "@/lib/db";
 import { verifyUnsubscribeToken } from "@/lib/unsubscribe-token";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
-
 const DEEP_SPACE = "#08090d";
 const NAVY_DARK = "#1f2438";
 const COMMAND_GOLD = "#c8963e";

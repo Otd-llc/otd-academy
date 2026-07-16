@@ -11,8 +11,6 @@ import { loadGoals } from "@/lib/admin/goals";
 import { PageHeader } from "@/components/PageHeader";
 import { GoalsBoard } from "@/components/admin/GoalsBoard";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Goals",
   robots: { index: false, follow: false },

@@ -12,7 +12,6 @@ import {
 } from "@/lib/og/card";
 import { SIZE } from "@/lib/og/tokens";
 
-export const runtime = "nodejs";
 export const size = SIZE;
 export const contentType = "image/png";
 export const alt = "One Thousand Drones Academy — Courses";

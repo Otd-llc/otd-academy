@@ -5,7 +5,8 @@ import { DiagramChromeProvider } from "@/components/guide/diagrams/DiagramChrome
 // Dev/CI-only surface for the diagram exporter: renders exactly one diagram by
 // basename, centered in the standard 36rem frame width, with global CSS applied
 // so brand tokens resolve. 404s in production unless DIAGRAM_EXPORT is set.
-export const dynamic = "force-dynamic";
+// Reads searchParams, so it runs per request; under cacheComponents dynamic is the
+// default and a route-segment config is rejected outright.
 
 export default async function DiagramRenderPage({
   params,

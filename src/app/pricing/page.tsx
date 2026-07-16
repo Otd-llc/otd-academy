@@ -15,15 +15,21 @@
 // pointer, or "you already have the Pass".
 //
 // Copy voice: no em-dashes, sentence-case headers, answer-first, concrete. No
-// fabricated metrics or testimonials. Keep `force-dynamic` so the CI build (stub
-// DATABASE_URL) doesn't prerender the DB query.
+// fabricated metrics or testimonials.
+//
+// CACHING: the product data (the Pass row + the premium price range) is
+// user-independent and this page is crawled, so both reads are `use cache` + tagged
+// `projects`. The per-viewer CTA branch below stays uncached, and `now` stays at
+// request time so the Pass launch window can never flip late.
 
 import type { Metadata } from "next";
 import { Fragment } from "react";
 import Link from "next/link";
+import { cacheLife, cacheTag } from "next/cache";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { ONE_HOUR, TAG_PROJECTS } from "@/lib/cache-profile";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { SignUpCta } from "@/components/SignUpCta";
 import { BuyPassButton, UpgradePassButton } from "@/components/learn/PassButtons";
@@ -59,15 +65,36 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title, description },
 };
 
-export const dynamic = "force-dynamic";
+
+// The all-access Pass row. User-independent product data on a public, crawled page,
+// so it is cached. `now` stays at request time in the page body — the launch-window
+// checks read it, and a cached clock would let the window flip up to an hour late.
+//
+// Tagged `projects` rather than a bundle-specific tag: the Pass price is provisioned
+// by scripts/set-pass-price.ts, which (like every seed script) runs outside a request
+// context and cannot invalidate anything. The hour is the real bound there — see the
+// seeding note in CLAUDE.md.
+async function loadAllAccessBundle() {
+  "use cache";
+  cacheLife(ONE_HOUR);
+  cacheTag(TAG_PROJECTS);
+  return db.bundle.findUnique({ where: { key: "all-access" } });
+}
 
 // The premium project price RANGE (lowest to highest), for the "one build" card.
 // A range, not a single number, so it never reads as "every board is $49".
 // Resolved from the catalog so it stays honest if a price changes.
+//
+// Cached: /pricing is public and in the sitemap, and this is user-independent catalog
+// data. Tagged `projects` so a price change (setProjectPrice) invalidates it rather
+// than waiting out the hour.
 async function premiumPriceRange(): Promise<{
   minCents: number | null;
   maxCents: number | null;
 }> {
+  "use cache";
+  cacheLife(ONE_HOUR);
+  cacheTag(TAG_PROJECTS);
   const where = {
     accessTier: "PREMIUM" as const,
     priceCents: { not: null, gt: 0 },
@@ -108,13 +135,19 @@ function SpecLine({ items }: { items: string[] }) {
 }
 
 export default async function PricingPage() {
-  const now = new Date();
-
   const session = await auth();
   const email = session?.user?.email ?? null;
 
+  // AFTER auth(), deliberately. Under cacheComponents, reading the current time in a
+  // Server Component before touching Request data or uncached data is a build error:
+  // the prerenderer cannot tell whether "now" means build time or request time.
+  // auth() reads the session cookie, which settles that — this is request time.
+  // The Pass launch-window checks below need a live clock, so it must stay here
+  // rather than move into a cached function.
+  const now = new Date();
+
   const [bundle, priceRange] = await Promise.all([
-    db.bundle.findUnique({ where: { key: "all-access" } }),
+    loadAllAccessBundle(),
     premiumPriceRange(),
   ]);
   const singleProjectCents = priceRange.minCents;

@@ -18,8 +18,12 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { cacheLife, cacheTag } from "next/cache";
+
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { ONE_HOUR, TAG_PROJECTS } from "@/lib/cache-profile";
+import { knownProjectSlugs } from "@/lib/skill-tree";
 import { WaitlistForm } from "@/components/learn/WaitlistForm";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { courseJsonLd, breadcrumbJsonLd, siteUrl } from "@/lib/seo/jsonld";
@@ -29,7 +33,6 @@ import { SKILL_PATHS, prereqClosure } from "@/lib/skill-paths";
 import { loadProjectMiniLessons } from "@/lib/library/load";
 import { toolsForCourse } from "@/lib/tools/registry";
 
-export const dynamic = "force-dynamic";
 
 // Plain-language framing per track / level — adds genuine, course-specific copy
 // (and the keywords learners search) instead of boilerplate.
@@ -45,7 +48,51 @@ const LEVEL_BLURB: Record<string, string> = {
   L3: "an advanced L3 capstone, the deep end where the subsystems come together",
 };
 
+// Every dependency edge in the curriculum, flattened for prereqClosure. This is a
+// WHOLE-TABLE read that ran on every render of every course page — 16 crawlable URLs
+// today, one per unbuilt course, all hitting it. It is the same graph for every
+// visitor, so it is cached and tagged `projects`; the dependency writers invalidate
+// it (src/lib/cache-invalidate.ts).
+//
+// Returns plain {fromSlug,toSlug} objects — no Prisma row shapes across the cache
+// boundary.
+async function cachedCourseEdges(): Promise<{ fromSlug: string; toSlug: string }[]> {
+  "use cache";
+  cacheLife(ONE_HOUR);
+  cacheTag(TAG_PROJECTS);
+  const rows = await db.projectDependency.findMany({
+    select: {
+      dependsOnProject: { select: { slug: true } },
+      dependentProject: { select: { slug: true } },
+    },
+  });
+  return rows.map((e) => ({
+    fromSlug: e.dependsOnProject.slug,
+    toSlug: e.dependentProject.slug,
+  }));
+}
+
+/**
+ * A course by slug, or null.
+ *
+ * The membership check BOUNDS THE CACHE and is not redundant with the query. `[slug]`
+ * matches any string and `use cache` keys on arguments, so without it a crawler on
+ * broken links mints an entry + a DB query per distinct garbage slug. knownProjectSlugs
+ * reads the already-cached project graph, so this costs no query of its own.
+ *
+ * An archived project is absent from that graph (it filters archivedAt: null) and so
+ * returns null here — the same 404 the callers' own `project.archivedAt` guard produced.
+ */
 async function loadCourse(slug: string) {
+  const known = await knownProjectSlugs();
+  if (!known.has(slug)) return null;
+  return cachedCourse(slug);
+}
+
+async function cachedCourse(slug: string) {
+  "use cache";
+  cacheLife(ONE_HOUR);
+  cacheTag(TAG_PROJECTS);
   return db.project.findUnique({
     where: { slug },
     select: {
@@ -78,10 +125,9 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const project = await db.project.findUnique({
-    where: { slug },
-    select: { publicTitle: true, name: true, tagline: true, archivedAt: true },
-  });
+  // Reuses the cached course read rather than issuing a second query — metadata and
+  // the page body are rendered for the same crawler hit.
+  const project = await loadCourse(slug);
   if (!project || project.archivedAt) {
     return { title: "Course — One Thousand Drones Academy" };
   }
@@ -140,17 +186,7 @@ export default async function CoursePreviewPage({
   const session = await auth();
   const sessionEmail = session?.user?.email ?? undefined;
 
-  const allEdges = (
-    await db.projectDependency.findMany({
-      select: {
-        dependsOnProject: { select: { slug: true } },
-        dependentProject: { select: { slug: true } },
-      },
-    })
-  ).map((e) => ({
-    fromSlug: e.dependsOnProject.slug,
-    toSlug: e.dependentProject.slug,
-  }));
+  const allEdges = await cachedCourseEdges();
   const inPaths = SKILL_PATHS.filter(
     (p) => p.goalSlug && prereqClosure(p.goalSlug, allEdges).has(slug),
   );

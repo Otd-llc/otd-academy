@@ -42,8 +42,16 @@ vi.mock("@/lib/db", () => ({
 }));
 
 const revalidatePath = vi.fn();
+const updateTag = vi.fn();
+// Stubbed wholesale, so every export the module graph touches must be here.
+// setProjectPrice invalidates the cached project graph (src/lib/cache-invalidate.ts),
+// which is what keeps /courses and the sitemap from serving a stale price for an hour.
 vi.mock("next/cache", () => ({
   revalidatePath: (...a: unknown[]) => revalidatePath(...a),
+  revalidateTag: vi.fn(),
+  updateTag: (...a: unknown[]) => updateTag(...a),
+  cacheLife: vi.fn(),
+  cacheTag: vi.fn(),
 }));
 
 import { setProjectPrice } from "@/lib/actions/project-price";
@@ -186,5 +194,16 @@ describe("setProjectPrice — success", () => {
 
     expect(revalidatePath).toHaveBeenCalledWith("/projects/wroom-l1-01");
     expect(revalidatePath).toHaveBeenCalledWith("/learn/wroom-l1-01");
+  });
+
+  // priceCents rides in the CACHED project graph (src/lib/skill-tree.ts), which feeds
+  // the /courses honeycomb and is tagged `projects`. No revalidatePath above reaches
+  // it: revalidatePath("/projects/…") mints an implicit tag for that route only. So
+  // without this tag a price change would keep serving the old price on /courses for
+  // up to an hour. This assertion is the guard on that.
+  test("invalidates the cached project graph so /courses cannot serve a stale price", async () => {
+    await setProjectPrice({ projectId: PROJECT_ID, priceCents: 4900 });
+
+    expect(updateTag).toHaveBeenCalledWith("projects");
   });
 });

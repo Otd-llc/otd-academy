@@ -16,8 +16,6 @@ import {
 } from "@/components/library/MiniLessonEditor";
 import { PageHeader } from "@/components/PageHeader";
 
-export const dynamic = "force-dynamic";
-
 type Params = { id: string };
 
 export default async function MiniLessonAdminEditPage({
