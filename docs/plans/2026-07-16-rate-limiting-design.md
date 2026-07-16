@@ -1,9 +1,19 @@
-# Rate limiting — design
+# Rate limiting — design (v1, SUPERSEDED — DO NOT BUILD FROM THIS)
 
-> **STATUS 2026-07-16: Upstash PROVISIONED (§8). Code NOT built yet.** Written ahead of the
-> paid ad campaigns, which are what turn the gaps below from theoretical into billable.
+> ## ⚑ SUPERSEDED 2026-07-16 by `2026-07-16-signup-abuse-defense-design.md`. Do not implement.
 >
-> Open decisions in §11 are proposals, not settled — the limits especially.
+> Five adversarial research agents validated this document. **Three of its load-bearing calls
+> were refuted**, one of them (fail-open) refuted largely by this document's own internal
+> contradictions. Building from it would ship: a limiter that bricks email sign-in on the first
+> Upstash blip, a per-IP limit 5–60× tighter than any published provider that blocks real users
+> behind NAT, an account-existence oracle on a public page, and no defense at all against the
+> canonical form-abuse attack.
+>
+> **Kept, not deleted** — v2 §11 catalogues exactly what was wrong and why, and that reasoning
+> is more useful with the original in front of you. The `KV_REST_API_*` provisioning facts in
+> §8 are correct and carried forward.
+>
+> Read `2026-07-16-signup-abuse-defense-design.md` instead.
 
 ## 1. Why
 
