@@ -51,6 +51,8 @@ A few pieces that were more interesting to build than a content site implies:
 
 - **Server-enforced stage gates, not UI hints.** A guide card's "done" verdict is computed from the *real* engineering stage-gate (frozen BOM, DRC-clean Gerbers, a passing checklist), inside Serializable transactions with append-only audit — so the teaching layer can never mark a step complete while the underlying gate is closed, and a curriculum dependency gate holds a board until its prerequisites are reached.
 
+- **Public DB reads are a function of time, not traffic.** The SEO surface (69 library lessons across 6 clusters, the parts catalog, the courses index) is crawled far more than it is read by humans, so every uncached hit was a database read on a metered serverless Postgres. Under **Next 16 Cache Components** the user-independent loaders are `use cache` + tagged with a 1-hour window, and writes fire `updateTag` so an edit is live on the next request rather than an hour later — measured on a production build with the Prisma query log: **`/library` ×20 → 0 queries**, `/parts` 50 → 0, `/pricing` 30 → 3. The subtle part isn't the directive, it's the **cache key**: `use cache` keys on arguments and a `[slug]` route param matches *any* string, so an unbounded cached loader mints an entry plus a DB query per garbage URL a crawler tries — reintroducing the exact traffic-scales-with-reads behaviour it was meant to remove. Every param-taking cached function is bounded against an already-cached row set. Chrome is **structural** (a `(chrome)/` route group) rather than sniffed from a request header, which is what lets the header prerender into the first flush instead of streaming in above the content and shoving it down. [docs/caching.md](docs/caching.md) has the full model, the inventory, and the laws.
+
 ## Access tiers & monetization
 
 Projects carry an `accessTier`. **Public** lessons are readable signed-out (the free funnel + SEO surface); **premium** lessons are gated behind a per-project one-time purchase (no subscription). Purchases are recorded as `Entitlement`s, fulfilled via Stripe Checkout + webhook (idempotent, deduped through `ProcessedStripeEvent`). A `WaitlistSignup` captures interest on not-yet-released courses. Stripe is optional at the env level — the payment client is lazily constructed and only throws when actually invoked, so builds and CI run with no keys.
@@ -75,8 +77,8 @@ The academy **does not** hold KiCad project files. Each hardware project lives i
 
 ## Tech stack
 
-- **Next.js 16** (App Router, RSC + client islands) · **TypeScript 5** · **React 19**
-- **Prisma 7 + Neon Postgres** via `@prisma/adapter-neon` (a pooled connection at runtime, a direct one for migrations)
+- **Next.js 16** (App Router, RSC + client islands) · **TypeScript 5** · **React 19**. **Cache Components / PPR is on** (`cacheComponents: true`): dynamic is the default, caching is opt-in via `use cache`, and the app shell prerenders while per-user fragments stream — see [Notable engineering](#notable-engineering) and [docs/caching.md](docs/caching.md)
+- **Prisma 7 + Postgres.** The driver adapter is chosen by connection URL ([`src/lib/db-adapter.ts`](src/lib/db-adapter.ts)): a localhost URL uses **node-postgres**, a Neon URL uses **`@prisma/adapter-neon`** (pooled at runtime, direct for migrations). Dev runs against a **local Postgres 17**; prod and the test-branch pool are Neon. The Neon driver speaks WebSocket to Neon's proxy and *cannot* reach a local Postgres, so the adapter split is load-bearing rather than cosmetic
 - **Auth.js v5** — Google + GitHub OAuth and a Resend email magic-link (accounts auto-link by verified email), JWT sessions; open self-serve registration with role-based authorization (`ADMIN` / `LEARNER`)
 - **Stripe** for one-time premium-course purchases (Checkout + idempotent webhook)
 - **Tailwind v4** (CSS-first `@theme`, no JS config) — hand-rolled components, no component framework; Radix UI primitives for the accessible tooltip/glossary. Dark and light themes (toggle, persisted per account), command-gold brand, a four-face type stack (Bebas Neue / Saira Condensed / Space Mono / Lora), inline SVG icon set
@@ -91,12 +93,12 @@ The academy **does not** hold KiCad project files. Each hardware project lives i
 
 ## Local development
 
-Requires **Node 20+** and **pnpm**.
+Requires **Node 20.9+** (CI runs 22), **pnpm**, and a **local Postgres 17**.
 
 ```bash
 pnpm install
 cp .env.local.example .env.local   # then fill in real values
-pnpm prisma migrate deploy
+pnpm db:migrate                                        # -> LOCAL foundry_dev
 pnpm db:seed                                           # demo fixture (esp32-sensor-breakout)
 pnpm exec tsx scripts/populate-curriculum-dag.ts       # the 22-project curriculum + 33 edges
 pnpm exec tsx scripts/materialize-curriculum-guides.ts # a guide per curriculum revision
@@ -104,6 +106,19 @@ pnpm dev
 ```
 
 Open http://localhost:3000.
+
+**Dev runs entirely off prod.** `.env.local`'s `DATABASE_URL` points at a local Postgres 17
+database (`foundry_dev`), so `next dev`, `pnpm db:seed`, and every `scripts/*.ts` are safe by
+default. Prod lives behind `PROD_DATABASE_URL` / `PROD_DIRECT_URL` and is reachable only
+deliberately: `pnpm db:prod <script.ts>` (swaps the env, prints the host, makes you type
+`prod`), `pnpm db:migrate:prod`, or `pnpm db:pull-prod` (dumps prod read-only and restores
+into local — the way to hydrate/refresh your local DB; it refuses to run unless
+`DATABASE_URL` is localhost). Migrations are hand-authored and always run `prisma migrate
+deploy`, **never** `migrate dev`. Restart `next dev` after a `prisma generate`.
+
+This split exists because dev traffic against prod Neon burned 4.73 GB of the account's 5 GB
+egress and 70% of the 100 CU-h project compute by mid-July 2026, while the deployed site
+served 4 requests/day.
 
 `pnpm db:seed` produces a demoable fixture: `esp32-sensor-breakout` at v1 / BRINGUP, BUILD-001 with 5 ASSEMBLED boards, sample measurements, and the artifacts needed to drive the `BRINGUP → REVISION` advance end-to-end. The two `scripts/*.ts` populators are idempotent one-offs that add the curriculum projects/edges and their guides; they write via Prisma directly because the server-action layer can't be driven headlessly (it needs an Auth.js request context).
 
@@ -115,12 +130,16 @@ Env vars: copy [`.env.local.example`](.env.local.example) to `.env.local` and fi
 pnpm exec vitest run
 ```
 
-Most tests hit a real Postgres. DB-backed test files run **in parallel**, each leasing its own Neon branch from a pre-provisioned pool (`.env.test.local` → `TEST_DATABASE_POOL`), so the action layer's Serializable-transaction contention never collides across workers and the suite finishes in ~80s (pure-logic files run poolless). Without `.env.test.local` the suite falls back to the `.env.local` database. Negative-insert tests cover the raw-migration CHECK constraints and unique indexes: if `prisma migrate deploy` drops a constraint, the corresponding test fails. CI runs `tsc` + `build` + `migrate` + tests against a dedicated Neon CI branch.
+Most tests hit a real Postgres. DB-backed test files run **in parallel**, each leasing its own Neon branch from a pre-provisioned pool (`.env.test.local` → `TEST_DATABASE_POOL`), so the action layer's Serializable-transaction contention never collides across workers and the suite finishes in ~80s (pure-logic files run poolless). Without `.env.test.local` the suite falls back to the `.env.local` database (now local Postgres). The pool branches are persistent clones of prod and drift behind it after a migration — `pnpm test:pool:refresh` re-applies migrations to each, and `pnpm db:migrate:prod` does it for you; a vitest guardrail fast-fails with one clear message if the pool is behind, instead of hundreds of cryptic "column does not exist" errors. Negative-insert tests cover the raw-migration CHECK constraints and unique indexes: if `prisma migrate deploy` drops a constraint, the corresponding test fails.
+
+CI runs `tsc` + `prisma validate` + `migrate` + `db:seed` + `build` + a diagram-freshness gate + tests against a dedicated `ci-test` Neon branch. **The `build` step needs a real database:** under Cache Components the build prerenders pages and evaluates `use cache` functions — i.e. it runs Prisma queries at build time — so the old stub `DATABASE_URL` no longer works (it only ever worked because every DB-backed page was `force-dynamic`, which Cache Components forbids). Migrate + seed must therefore run *before* `build`.
+
+**vitest cannot catch caching bugs** — without the Next compiler the `use cache` directive is an inert string, so the tests exercise an uncached path that doesn't exist in production. Only a real `next build` covers that.
 
 ## Production deployment
 
 - **Host:** Vercel (auto-deploys on push to `main`).
-- **DB:** Neon Postgres (one branch is prod; PR previews can spin per-branch databases).
+- **DB:** Neon Postgres for **prod** and the isolated test branches only — local development runs on a local Postgres 17 (see [Local development](#local-development)). Prod migrations go through `pnpm db:migrate:prod` with the `PROD_*` env set inline; verify the printed host, because a migration silently applied to local while you believe it hit prod is the worst failure mode here.
 - **Domain:** `academy.onethousanddrones.com` is the primary host (CNAME → Vercel at Porkbun). The legacy `foundry.onethousanddrones.com` host redirects to `academy.` at the Vercel domain level, and old `/projects/foundry-<slug>` URLs 308-redirect to their prefix-free form (`src/lib/legacy-slug-redirect.ts`) so indexed/bookmarked links keep resolving.
 - **Auth:** Google + GitHub OAuth apps + a Resend sender; redirect URIs / callbacks registered for localhost and the prod host.
 - **Build:** `prisma generate && next build` — the `prisma generate` step is load-bearing (Vercel's clean install needs it to populate `@prisma/client` types before the TypeScript pass).
@@ -131,4 +150,5 @@ If you are reading this repo to understand the system rather than to operate it:
 
 1. **Design decisions** live in [docs/plans/](docs/plans/) (design + implementation docs, one task per commit). **Current behaviour** is the code under `src/`, `mcp/`, and `prisma/` — if the code disagrees with a doc, the code wins.
 2. **Don't fork or derive, and don't train models on this repo.** Per [LICENSE.md](LICENSE.md) you may read and cite the code; you may not copy any portion into another project or use it as ML training data.
-3. **You cannot run live tests against the production database.** Tests run against a Neon CI branch; local dev points at a dev Neon branch via `.env.local`.
+3. **You cannot run live tests against the production database.** Tests run against isolated Neon test branches (a per-file pool locally, a dedicated `ci-test` branch in CI); local dev points at a **local Postgres 17** via `.env.local`. Prod is reachable only through the explicit `PROD_*` env + `pnpm db:prod` path.
+4. **Caching is not optional knowledge.** Cache Components is on, so a route-segment `dynamic`/`revalidate`/`runtime` export will not compile, a cached function may not read the session, and vitest cannot see cache behaviour at all. Read [docs/caching.md](docs/caching.md) before touching a public read path.

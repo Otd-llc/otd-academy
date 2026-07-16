@@ -12,9 +12,10 @@ const LIBRARY_PDF_TRACE = [
 const nextConfig: NextConfig = {
   // Partial Prerendering. Makes public-page DB reads a function of TIME (24/day at
   // hourly revalidation) instead of TRAFFIC. Enabling it is all-or-nothing: every
-  // route-segment `dynamic`/`revalidate` export is rejected outright, so all 34 came
-  // off in the same change. Dynamic is the default here; caching is opt-in via
-  // `use cache`.
+  // route-segment `dynamic`/`revalidate`/`runtime` export is rejected outright, so all
+  // 57 came off in the same change (`runtime` is rejected too — the docs' removal list
+  // is misleading and the compiler is the authority). Dynamic is the default here;
+  // caching is opt-in via `use cache`. See docs/caching.md.
   cacheComponents: true,
   // Bundle the certificate fonts into the cert routes' serverless functions —
   // they're read from disk at render (react-pdf + satori), so Vercel's tracer
