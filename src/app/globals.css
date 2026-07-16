@@ -35,6 +35,36 @@
      material on BOTH fields: dark slate on deep-space, warm beige on ivory. */
   --color-diagram-surface: #1f2438;
 
+  /* Faceted-scene ramps (guide diagrams that draw a 2.5D world, not a chart).
+     A facet's tone comes from its edge normal, so each object needs a 4-step ramp
+     rather than one fill. SLATE = the goggle, GOLD = the drone: two protagonists
+     that must stay visually separable in one frame. Scene-scoped on purpose —
+     these are lighting ramps, not page palette; do not reach for them in page UI. */
+  --color-s-hi: #8c9ab9;
+  --color-s-mid: #5f6d8f;
+  --color-s-lo: #414d6d;
+  --color-s-dk: #2c3550;
+  --color-f-hi: #f0cd86;
+  --color-f-lo: #8f6a2b;
+  --color-f-dk: #39435e;
+  --color-f-prop: #8794b8;
+  /* the world INSIDE a screen (an FPV feed): its own field + celestial + terrain ink */
+  --color-glass: #101d36;
+  --color-celest: #cfd8e8;
+  --color-terr: #4a8fff;
+  --color-pilot: #f1ece0;
+  --color-hud-dim: #8b93a3;
+  /* scene sky/ground planes */
+  --color-sky-a: #12182a;
+  --color-sky-b: #0a0e17;
+  --color-gnd-a: #1a1a12;
+  --color-gnd-b: #0c0d11;
+  /* directional strands: light at the human end, deep at the aircraft end */
+  --color-intent-a: #f6dfa8;
+  --color-intent-b: #a9761f;
+  --color-feed-a: #b4d2ff;
+  --color-feed-b: #2a548f;
+
   /* elevation scale — S1 deep drop for cards/panels, a smaller raise for buttons +
      the sticky header; rim = the lit top edge that pairs with a drop. */
   --elev-card: 0 26px 50px -12px rgba(0, 0, 0, 0.95), 0 10px 18px -8px rgba(0, 0, 0, 0.85);
@@ -129,6 +159,32 @@
   --color-navy-dark: #ffffff; /* CHROME fill (.glass-card) → white panel + hairline */
   --color-panel-border: #d9d2c2; /* warm hairline (the PDF HAIR) */
   --color-diagram-surface: #e9dfc9; /* SVG object body → warm beige material on ivory (NOT white) */
+
+  /* Faceted-scene ramps. The slate ramp LIGHTENS (a lit object on paper); the gold
+     ramp deepens like every other gold. The in-screen world stays a screen: --glass
+     goes pale blue, not ivory, because a live feed reads as emitted light on both
+     fields. --celest inverts meaning as well as value: moon on dark, sun on ivory. */
+  --color-s-hi: #a3aec7;
+  --color-s-mid: #79859f;
+  --color-s-lo: #5b6784;
+  --color-s-dk: #414d6a;
+  --color-f-hi: #e0b25b;
+  --color-f-lo: #6d4c11;
+  --color-f-dk: #2b3550;
+  --color-f-prop: #9aa5c2;
+  --color-glass: #dbe8f6;
+  --color-celest: #e0a02a;
+  --color-terr: #2563c4;
+  --color-pilot: #1f2430;
+  --color-hud-dim: #5c6473;
+  --color-sky-a: #e9eef7;
+  --color-sky-b: #f6efdf;
+  --color-gnd-a: #f0e4c4;
+  --color-gnd-b: #f7f1e2;
+  --color-intent-a: #d9a445;
+  --color-intent-b: #6d4a0c;
+  --color-feed-a: #6fa2e6;
+  --color-feed-b: #153a75;
 
   /* gold — DEEPENS on ivory for AA; emphasis INVERTS (gold-light goes deeper,
      gold-dim goes lighter). Verify each with a contrast checker in QA. */
