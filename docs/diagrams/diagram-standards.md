@@ -1,4 +1,4 @@
-# Guide-diagram standards (v2)
+# Guide-diagram standards (v3)
 
 > Motion is a separate concern — see [`animation-standards.md`](./animation-standards.md).
 > The end-to-end authoring + export workflow is the **diagram-export** skill.
@@ -14,7 +14,9 @@ A diagram is a **figure on the engineering-paper field**, part of the same
 console system as the rest of the product — read the **otd-frontend-design**
 skill first; this doc is diagram-specific and assumes it. The old v1 of this doc
 was dark-only and told you to fall back to literal hex; that is exactly what
-broke light mode and print. This v2 supersedes it.
+broke light mode and print. This v2 supersedes it. **v3 (2026-07-16)** splits
+diagrams into two CLASSES (below), drops the unjustified wide-aspect ceiling, and
+adds the Plate rules.
 
 ---
 
@@ -27,7 +29,7 @@ answer to different rules:
 |---|---|---|
 | Reports | values, structure, sequence | a place, or a relationship in space |
 | Reads as | a figure | a scene |
-| Aspect | 1.4–1.8 | **1.4–2.1** (see directive 3) |
+| Aspect | 1.4–1.8 | **1.4–2.4** (see directive 3) |
 | Labels | in the component, beside the art | **HTML over the art**, never in the SVG |
 | Motion | Tier A reveal; Tier B if the motion teaches | **Tier P** — scroll-linked parallax |
 | Narrow form | reflow to rows/cards | **re-compose**, never summarise |
@@ -83,7 +85,7 @@ width. A TALL diagram (portrait) is forced to its own page (gapping the page
 before it) and, if height-capped, shrinks its own baked text below the legible
 floor. So:
 - **Landscape. Floor ~1.2. Portrait (ratio < 1.0) is BANNED.**
-- **Instrument: target 1.4–1.8. Plate: up to ~2.1.**
+- **Instrument: target 1.4–1.8. Plate: up to ~2.4.**
 - Reflow information that *wants* to be a tall vertical list into a **horizontal
   flow, a 2-column grid, or side-by-side panels.** A 5-step pipeline is a
   left-to-right rail, not a top-to-bottom stack.
@@ -98,9 +100,18 @@ floor. So:
 > A **wide** diagram never reaches that cap: it renders at FULL column width, the
 > shortest height, and the smallest page cost. Baked labels are a fixed fraction
 > of raster width, and width is the constant — so aspect does not move them at
-> all. Wider is strictly *cheaper* in print. The ~2.1 Plate ceiling is a
-> composition limit (past it a scene stops fitting a phone's re-composition), not
-> a print one.
+> all. Wider is strictly *cheaper* in print.
+>
+> **What the wide ceiling actually is.** `CONTENT_W` is 487pt (A4 minus padding),
+> so a figure's printed height is `487 / ratio`: 271pt at 1.8, 221pt at 2.2, 203pt
+> at 2.4, 122pt at 4.0 — and `maxH` only bites below ratio ~0.97 (portrait). So the
+> limit is not the labels, and not the page: it is that **the art itself** stops
+> reading once the figure becomes a letterbox strip. ~2.4 (≈200pt tall) is where a
+> scene still has room to be a scene. That is the entire argument — if a Plate wants
+> to go wider, argue it at column height, not against this number.
+>
+> (The phone is NOT a reason: it gets the Plate's portrait re-composition and never
+> sees the wide aspect at all.)
 
 **4. Legible at EVERY scale, including print.**
 Real `px` text with a clamp floor of **~14px**. Because directive 3 keeps the
@@ -342,7 +353,33 @@ the wide form's information doesn't survive the reflow, the reflow is wrong. (Te
 cards are a legitimate Instrument reflow; for a Plate they throw away the only
 reason the Plate exists.)
 
-### P11 — The settled frame is the raster
+### P11 — The viewBox IS the figure
+
+Author the art **inside** the viewBox, with margin. Anything painted outside it does
+not exist, and the way you find out is brutal: the exporter calls
+`figure.screenshot()`, which captures only the figure's box, so overflow is **cut
+from every raster** — webp, share card, PDF — while the live web happily paints it
+onto the page and looks perfect. You will not see the bug on the surface you're
+designing on.
+
+This shipped. The first Plate was authored with 1232 units of art inside a
+1000-unit viewBox (`overflow: visible` let a sandbox absorb the spill), so the PDF
+silently lost **37% of the width** and sliced the foreground trees in half.
+
+- **`overflow: hidden` on the SVG, always.** Not a crop — a guardrail. If it clips
+  anything, your viewBox is wrong; fix the viewBox, don't remove the rule.
+- **Measure, don't eyeball.** `getBBox()` ignores CSS transforms and will lie to
+  you. Screenshot the SVG under reduced-motion, diff against the field colour, and
+  assert the painted bbox touches **no edge**. That check is cheap and it's the only
+  one that would have caught this.
+- A **frame-break** breaks the *sky plate* (the depicted world's edge), never the
+  figure. The plate floats inside the viewBox; foreground objects cross it onto the
+  bare field, and the viewBox still contains them.
+- Widening a viewBox shrinks the art relative to the frame while **HTML labels stay
+  real px** (P1), so they get proportionally bigger and their `%` anchors now point
+  at a different scene coordinate. Re-map both.
+
+### P12 — The settled frame is the raster
 
 The exporter emulates reduced-motion, so a Plate's motion resolves to its settled
 frame and *that* is what ships to the `.webp`, the share card and the PDF. Design
@@ -361,6 +398,9 @@ the settled frame to be complete on its own; verify it by rendering under
 - [ ] Anchors derive from objects, not canvas coordinates.
 - [ ] Scene ramps are tokens in BOTH theme blocks.
 - [ ] Narrow form re-composes the world; nothing is summarised away.
+- [ ] `overflow:hidden` on the SVG, and the painted bbox touches NO viewBox edge —
+      asserted from a screenshot, not from `getBBox()` (it ignores CSS transforms).
+- [ ] Raster edges eyeballed after export. The live web hides overflow bugs.
 - [ ] Settled frame verified under emulated reduced-motion, not by scroll luck.
 
 ## Verify — all THREE surfaces, every time
