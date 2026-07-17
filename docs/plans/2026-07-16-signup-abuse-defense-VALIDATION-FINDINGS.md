@@ -296,7 +296,131 @@ round 6.
 
 **Build note (not a defect):** `sendVerificationRequest` reads the body with `await request.json()`.
 
-## Still genuinely uncovered (cheap manual look, NOT another agent run)
-Denial instrumentation / alerting; a runtime kill switch; Turnstile privacy-policy disclosure
-(GDPR/CCPA — Cloudflare third party); IP-as-PII retention in Redis; whether Tier 2/3 earn their
-complexity. None block the architecture above.
+---
+
+# Third pass — the OTHER sections (2026-07-17)
+
+The first two passes converged on the magic-link CORE. Five bounded single-agent audits then
+covered the sections that got thin/no coverage. ~24 further findings. **The core architecture
+above still holds; these are defects in the surrounding sections, several critical.**
+
+## §6 degradation / circuit breaker — 6 findings
+- **`consecutive-failure-breaker-never-trips-on-flap` · MAJOR** — a *consecutive*-failure counter
+  never opens against a slow-but-intermittent Upstash (each just-under-timeout success resets it) —
+  the exact Stalloris regime it exists for. Fix: rolling failure-*rate* over a window, not a
+  consecutive count.
+- **`coarse-counter-unbounded-under-fanout` · MAJOR** — D6's "in-process counter as the coarse
+  limit" enforces per-instance, so effective cap = `N_instances × limit`, and `N_instances` grows
+  with the attack. Not defensible as a count. Adjudicate D6 to option B: brief bounded allow-grace
+  then deny; state plainly no per-instance count bounds aggregate sends.
+- **`escalate-to-deny-no-halfopen-stuck-closed` · MAJOR** — the escalate-to-fail-closed state has
+  no defined reset/half-open; a warm instance keeps denying real sign-ins after Upstash heals, and
+  per-instance state means some instances deny while siblings allow (nondeterministic UX). Fix:
+  explicit half-open probe, wall-clock bound.
+- **`degradation-latency-5x-underestimated` · MAJOR** — D7's ordered-consumption fix forces
+  *sequential* `limit()` calls; 5 checks × `timeout:1000` ≈ **5s** worst case on a slow Upstash, not
+  §6's "~1s". `Promise.all` for speed would violate D7's ordering. Fix: one overall `enforce()`
+  deadline; reconcile the parallel-vs-ordered tension explicitly.
+- **`no-runtime-observability-or-killswitch` · MEDIUM** — breaker/escalate/coarse state is all
+  per-instance in-memory; only signal is scattered `console.error`; no reset without redeploy. (See
+  §8's kill-switch finding.)
+- **`degradation-banner-unreachable-in-converged-locus` · MEDIUM** — under the converged locus every
+  Tier-1 denial (rate, degradation, Turnstile) surfaces as `?error=Configuration`; §6's/Task 5's
+  dedicated `rate_limited` banner is dead code. Not a hole (generic copy is desirable) — the plan is
+  just internally inconsistent. Drop the `rate_limited` claim or document the collapse.
+
+## §8 monitoring / operations — 7 findings (2 critical)
+- **`no-push-alert-write-only-logs` · CRITICAL** — every §8 signal is pull-only; "under attack now"
+  has no detector (crons run daily, `capture()` has no alert, no Resend webhook). Detection latency
+  = next business day; a bombing run finishes in minutes. Fix: reuse the existing
+  `sendSourcingDigest` admin-email-on-threshold pattern — fire on breaker trip + `magic:global` soft
+  threshold.
+- **`no-runtime-kill-switch` · CRITICAL** — no way to disable Turnstile/limiter without a redeploy,
+  and both are Tier-1 fail-closed. **Vercel env changes require a redeploy** (verified), so even a
+  flag isn't runtime. Fix: gate both on a **Vercel Edge Config** flag (request-time read, no
+  redeploy); at minimum a `SIGNUP_DEFENSE_ENABLED` env with the redeploy caveat documented.
+- **`upstash-spend-alert-not-realtime-signal` · MAJOR** — §8's "spend alert = intrusion alarm" is
+  false: a monthly-budget email can't track a burst, a *working* defense looks like a spend spike
+  (false positive), and a fail-open flood bills **zero** commands (silent exactly when it matters).
+  Delete the claim; alarm on Resend send-rate + denial-rate instead.
+- **`bot-flood-vs-viral-spike-indistinguishable` · MAJOR** — a paid campaign *is* a signup spike;
+  the separator (Turnstile managed pass/fail rate) is computed and discarded. Emit
+  `turnstile_failed` / `honeypot_tripped` / distinct-email-vs-IP-ratio `capture()` events.
+- **`no-per-rule-denial-metric` · MAJOR** — no per-rule denial counter, so a `magic:global` DoS is
+  invisible until conversions crater. `capture("magic_link_denied", { rule })`; alert on the
+  `magic:global` share.
+- **`analytics-false-blinds-upstash-dashboard` · MAJOR** — Task 4's `analytics:false` (for cost)
+  disables the exact Upstash dashboard §8 leans on. Pick one: enable analytics (§9 says cost is
+  cents) or move all visibility to app `capture()`. Don't do both.
+- **`deploy-ordering-observability-gap` · MAJOR** — between Task 2 and Task 5 the state is
+  Turnstile-only + open bypass + zero observability. Partly moot under the single-locus arch. Fold
+  the raw-endpoint 404 + all-call-site coverage + the `capture()` events into the first deploy.
+
+## Task 6 / Tier 2 waitlist — 4 findings
+- **`tier2-fail-open-unwired` · MAJOR** — `enforce()` takes no tier/failMode and its ladder escalates
+  to *deny*, so "Tier 2 fails open" is unimplementable as specified — waitlist would fail **closed**
+  during an outage. Fix: give `enforce` a `failMode: "open" | "escalate-closed"` (or a `degraded`
+  flag on `Verdict`). **Cross-cutting: this changes the `enforce` signature the whole plan uses.**
+- **`field-guide-tier2-dropped` · MEDIUM** — design §2 lists TWO Tier-2 items; the impl implements
+  only waitlist (`field-guide:user 10/hr` is in no task/RULES). Either implement it or record the
+  decision to drop (defensible — `requestFieldGuide` is session-gated and only mails the user's own
+  address; confirmed NOT the anonymous vector).
+- **`waitlist-ip-only-asymmetric` · MEDIUM** — bare per-IP (20/hr), the shape the design condemns,
+  with no composite backstop; NAT-punishing + IPv6-rotatable (N2). Justify or reconsider whether
+  Tier 2 earns its cost.
+- **`waitlist-limit-unexercised` · MEDIUM (test)** — no preview gate, vitest can't exercise the
+  denial, and the `next/headers` mock is unspecified so the IP rule silently no-ops in tests. Also
+  confirmed: `WaitlistForm.tsx:41` discards the return → the union change is genuinely needed
+  (D3-style false-success risk).
+
+## Tier 3 Stripe — deferral CORRECT, inventory WRONG — 3 findings
+- **`tier3-surface-omits-anonymous-tip-endpoint` · MAJOR** — `createTipCheckout` (`tips.ts:7-10`) is
+  **GUEST-CAPABLE (no `requireUser`)**, a Stripe `checkout.sessions.create` endpoint, absent from the
+  §2 table whose deferral rationale ("authenticated, account-bounded") is **false** for it. It's
+  Tier-2-shaped (anonymous → inherits N2/D7), not deferred-Tier-3. Enumerate + reclassify + add a
+  preview probe (server-action dispatch is by global action-ID POST, so verify reachability from a
+  public route).
+- **`tier3-enumerates-3-of-5` · MEDIUM** — omits `createPassCheckoutSession` +
+  `createUpgradeCheckoutSession` (`pass.ts`), both on public `/pricing`. The single `checkout:user`
+  rule must wrap all five.
+- **`stripe-cost-undercount` · MINOR** — `ensureStripeCustomer` makes ≥2 Stripe calls each
+  (`stripe.ts:52-74`); app-limiting is **complementary** to Stripe's account-wide 100 req/s limit
+  (a flood degrades real buyers' checkout), not redundant. Verdict: deferring the genuinely
+  authenticated actions is correct (user-keyed cuid, no email/IP normalization, reversible sessions,
+  no silent-success) — only the inventory is wrong.
+
+## Compliance / privacy + Task 7 — 4 findings
+- **`hash-ip-email-redis-keys` · MEDIUM, HIGH-value, ~free** — Upstash stores raw emails + IPs as
+  keys, so at rest it holds a list of exactly the victims being bombed. HMAC-hash (salted) after
+  normalization before keying — the limiter needs only equality, so it's transparent. Do this in
+  `emailKey`/`clientIp`. (Plain SHA is reversible for IPv4/emails — must be HMAC-with-secret.)
+- **`no-privacy-policy-art13-disclosure` · MAJOR** — the repo has **no privacy policy** (only
+  `/license`, a software license). Turnstile is a **pre-consent** third party (sends IP/UA/TLS
+  signals before the user agrees to anything); the lead-magnet modal collects no consent at all. The
+  obligation is **disclosure, not a consent banner** (Turnstile is cookieless in managed mode;
+  fraud-prevention is "strictly necessary"). Publish `/privacy` (controller, legitimate-interest
+  basis, data categories, recipients Cloudflare + Upstash, retention, US-transfer basis); link from
+  sign-in, the modal, and the footer. **Do NOT add a consent banner** (do not enable Turnstile
+  Pre-Clearance, which sets a cookie).
+- **`retention-and-dpa-undocumented` · MINOR/MEDIUM** — TTLs are good but undocumented as retention;
+  confirm the Cloudflare + Upstash DPAs (Art. 28) are in force before ship.
+- **`task7-omits-required-privacy-docs` · MEDIUM** — Task 7 lists only engineering docs; add the
+  `/privacy` page + an internal sub-processor/data-processing note. Also: the "dynamic
+  `next/headers` in `auth.ts`" trap Task 7 plans to record is **stale under the converged
+  architecture** (the callback does no abuse work now — it's `sendVerificationRequest`); verify the
+  locus before documenting.
+- **CLEAN:** CAN-SPAM — the gate touches only the transactional send path, never the `emailConsent`
+  marketing path. No obligation triggered.
+
+## Cross-cutting consequences for the converged architecture
+- **`enforce()` needs a `failMode` parameter** (Tier 2 fail-open vs Tier 1 escalate-closed) — a
+  signature change the § Converged architecture must absorb.
+- **The degradation ladder needs rework**: rolling-rate breaker (not consecutive), honest
+  no-per-instance-count degradation, explicit half-open recovery, one overall `enforce()` deadline.
+- **Two new deliverables no task owns**: an Edge Config runtime kill switch, and a `/privacy` page.
+- **Observability is a whole missing layer**: per-rule denial + Turnstile-outcome `capture()` events
+  and one real push alert (reusing the sourcing-digest pattern).
+
+## Still uncovered (cheap manual look, NOT an agent run)
+Exact retention-policy wording; the Cloudflare/Upstash DPA confirmation; final alert thresholds.
+None block the architecture; all are checklist items for the build PR.
