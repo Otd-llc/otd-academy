@@ -55,7 +55,11 @@ async function getPublishedRevisionArtifactUrl(
 
   const project = await db.project.findUnique({
     where: { id: projectId },
-    select: { publishedRevisionId: true },
+    select: {
+      slug: true,
+      publishedRevisionId: true,
+      publishedRevision: { select: { label: true } },
+    },
   });
   if (!project?.publishedRevisionId) return null;
 
@@ -71,9 +75,38 @@ async function getPublishedRevisionArtifactUrl(
   if (!artifact) return null;
 
   try {
-    return await getDownloadUrl(artifact.id);
+    // Give the learner a human filename (e.g. `l1-01-wroom-breakout-v1-starter.zip`)
+    // instead of the opaque R2 key (`kicad-<cuid>.zip`).
+    const filename = downloadNameFor(
+      subkind,
+      project.slug,
+      project.publishedRevision?.label ?? null,
+    );
+    return await getDownloadUrl(artifact.id, filename);
   } catch {
     // R2 disabled or transient — surface "not available" rather than throw.
     return null;
   }
+}
+
+// Friendly, board-derived download names per resource kind. The suffix names the
+// resource; the prefix is the board slug + published-revision label.
+const DOWNLOAD_SUFFIX: Record<
+  "BOM_EXPORT" | "GERBER_ZIP" | "BRINGUP_MEASUREMENTS_CSV",
+  string
+> = {
+  BOM_EXPORT: "starter.zip",
+  GERBER_ZIP: "reference-gerbers.zip",
+  BRINGUP_MEASUREMENTS_CSV: "bringup-measurements.csv",
+};
+
+function downloadNameFor(
+  subkind: "BOM_EXPORT" | "GERBER_ZIP" | "BRINGUP_MEASUREMENTS_CSV",
+  slug: string,
+  revLabel: string | null,
+): string {
+  const rev = revLabel
+    ? `-${revLabel.replace(/[^A-Za-z0-9._-]+/g, "-")}`
+    : "";
+  return `${slug}${rev}-${DOWNLOAD_SUFFIX[subkind]}`;
 }

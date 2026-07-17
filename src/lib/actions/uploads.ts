@@ -363,7 +363,10 @@ export async function recordArtifact(input: unknown) {
 
 // ─── getDownloadUrl ────────────────────────────────────
 
-export async function getDownloadUrl(artifactId: string): Promise<string> {
+export async function getDownloadUrl(
+  artifactId: string,
+  downloadFilename?: string,
+): Promise<string> {
   await requireUser();
   ensureR2Enabled();
 
@@ -381,9 +384,23 @@ export async function getDownloadUrl(artifactId: string): Promise<string> {
     new GetObjectCommand({
       Bucket: env.R2_BUCKET!,
       Key: artifact.fileKey,
+      // A friendly, board-derived download name when the caller supplies one.
+      // Without it the browser names the file after the R2 key's last segment
+      // (`kicad-<cuid>.zip`) — opaque and scary to a learner.
+      ...(downloadFilename
+        ? { ResponseContentDisposition: contentDisposition(downloadFilename) }
+        : {}),
     }),
     { expiresIn: GET_TTL_SECONDS },
   );
+}
+
+/** Build a safe `attachment` Content-Disposition. Callers pass server-derived
+ *  (board slug + rev) ASCII names, so we only strip characters that would break
+ *  the header's quoting — no RFC-5987 encoding needed. */
+function contentDisposition(filename: string): string {
+  const safe = filename.replace(/["\\\r\n]/g, "").trim() || "download";
+  return `attachment; filename="${safe}"`;
 }
 
 // ─── getArtifactRenderUrl ──────────────────────────────

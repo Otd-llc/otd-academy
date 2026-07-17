@@ -455,6 +455,16 @@ export async function buildKicadExportZip(
 
   root.file("bom.csv", buildBomCsv(resolvedParts), opts);
   root.file("EXPORT_REPORT.md", report, opts);
+  root.file(
+    "README.md",
+    buildReadme({
+      slug: projectName,
+      projectName: revision.project.name,
+      revLabel,
+      revDate,
+    }),
+    opts,
+  );
 
   const buffer = await zip.generateAsync({ type: "nodebuffer" });
 
@@ -504,4 +514,67 @@ function buildBomCsv(parts: ResolvedPart[]): string {
     rows.push(`"${p.refDesGroup}",${p.designators.length},"${p.mpn}"`);
   }
   return rows.join("\n") + "\n";
+}
+
+/** The in-zip `README.md`: what the starter is, the UNWIRED-by-design contract,
+ *  how to open it in KiCad, the file tree, and how to read EXPORT_REPORT.md.
+ *  Deterministic (only DB-derived values — no Date.now()) so the zip stays
+ *  byte-stable. Templated on the slug/name/rev so it works for any board. */
+function buildReadme(o: {
+  slug: string;
+  projectName: string;
+  revLabel: string;
+  revDate: string;
+}): string {
+  return `# KiCad starter — ${o.projectName}
+
+Revision \`${o.revLabel}\` · generated ${o.revDate}
+Project \`${o.slug}\`
+
+This is the KiCad project for this board's lesson. Every part is placed,
+fielded, and footprint-assigned, but the schematic is UNWIRED on purpose:
+drawing the nets and the power rails is the lesson. You finish the wiring,
+run ERC, lay it out, and DRC it.
+
+## Open it
+
+1. Unzip this folder somewhere you keep your projects.
+2. In KiCad 9 or newer, open \`${o.slug}.kicad_pro\`.
+   (The reference board was built on KiCad 10; the format targets modern KiCad.)
+3. Open the schematic (\`${o.slug}.kicad_sch\`) and start wiring.
+
+## What's inside
+
+    ${o.slug}/
+      ${o.slug}.kicad_pro      project file — open this
+      ${o.slug}.kicad_sch      schematic — parts placed, NOT wired (your job)
+      ${o.slug}.kicad_pcb      board — outline + stackup, no routing yet
+      sym-lib-table            wires up the project symbol library
+      fp-lib-table             wires up the project footprint library
+      bom.csv                  the bill of materials for this revision
+      EXPORT_REPORT.md         per-part symbol / footprint / 3D coverage
+      libs/
+        ${o.slug}.kicad_sym    project symbols (uploaded + generated stubs)
+        ${o.slug}.pretty/      project footprints
+        3dmodels/              bundled 3D models (present only when a part had one)
+
+## Before you wire
+
+Read \`EXPORT_REPORT.md\` first. It lists every part and how its symbol,
+footprint, and 3D model resolved:
+
+  - uploaded    a curated, board-specific asset is bundled here.
+  - referenced  the part points at a KiCad standard-library symbol or
+                footprint; you need the matching standard libs installed
+                (they ship with KiCad).
+  - stub        no asset existed, so a placeholder was generated. Swap it
+                for the real part before you order the board.
+
+## Where this came from
+
+This starter was generated from the board's frozen reference revision in the
+One Thousand Drones Academy. Follow the lesson for the step-by-step build. The
+reference gerbers and the bring-up measurements are downloadable from the same
+lesson when you want to check your own work against the proven board.
+`;
 }
