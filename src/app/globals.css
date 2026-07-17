@@ -348,10 +348,10 @@ body {
 .pc-node svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 /* prism parts: face (pc-top), cast edge lines (pc-cast), cast faces (pc-side,
    field-filled = the solid slab), inset rim (pc-rim). Default stroke = pending. */
-.pc-node .pc-top { fill: var(--color-deep-space); stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 2; stroke-linejoin: round; transition: stroke 0.4s, fill 0.4s; }
-.pc-node .pc-cast { fill: none; stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 0.9; stroke-linejoin: round; stroke-linecap: round; transition: stroke 0.4s; }
-.pc-node .pc-side { fill: var(--color-deep-space); stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 0.9; stroke-linejoin: round; transition: stroke 0.4s; }
-.pc-node .pc-rim { fill: none; stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 0.7; opacity: 0.75; transition: stroke 0.4s; }
+.pc-node .pc-top { fill: var(--color-deep-space); stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 1.1; stroke-linejoin: round; transition: stroke 0.4s, fill 0.4s; }
+.pc-node .pc-cast { fill: none; stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 0.5; stroke-linejoin: round; stroke-linecap: round; transition: stroke 0.4s; }
+.pc-node .pc-side { fill: var(--color-deep-space); stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 0.5; stroke-linejoin: round; transition: stroke 0.4s; }
+.pc-node .pc-rim { fill: none; stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 0.4; opacity: 0.75; transition: stroke 0.4s; }
 .pc-num { position: relative; z-index: 2; font-family: var(--font-numeral); font-weight: 800; font-size: 5.1cqw; line-height: 1; color: var(--color-gray-3); transition: color 0.4s; }
 /* three-letter stage label under the numeral, TOP comb only (mono, quieter than
    the numeral — G6 tucks it well under the big number). Tones track the numeral
@@ -374,12 +374,12 @@ body {
 .pc-node:hover :is(.pc-top, .pc-cast, .pc-side, .pc-rim) { stroke: var(--color-gold-light); }
 .pc-node:focus-visible { outline: none; }
 .pc-node:focus-visible :is(.pc-top, .pc-cast, .pc-side, .pc-rim) { stroke: var(--color-gold-light); }
-.pc-node:focus-visible .pc-top { stroke-width: 2.6; }
+.pc-node:focus-visible .pc-top { stroke-width: 1.5; }
 /* the viewed card reads as "current" — a bolder gold face line (+ gold numeral)
    regardless of its fill. No outer emphasis ring: the hexes tessellate, so any
    ring drawn outside the face bleeds onto the neighbours as stray gold nubs. */
 .pc-node.viewing :is(.pc-top, .pc-cast, .pc-side, .pc-rim) { stroke: var(--color-command-gold); }
-.pc-node.viewing .pc-top { stroke-width: 2.6; }
+.pc-node.viewing .pc-top { stroke-width: 1.5; }
 
 /* header variant: just the comb, centered. It orients by the ringed current
    hex; the stage name + phase already live in the PageHeader right below, so a
