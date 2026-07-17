@@ -1,17 +1,21 @@
 # Signup abuse defense — validation findings (round 2)
 
-> **Salvaged from a multi-agent validation run, 2026-07-16.** The run raised 54 findings over
-> 3 rounds and **did not reach a dry pass** — it hit a session rate limit mid-round-3, so ~36
-> findings lost their verifiers and the synthesis step never ran. The **18 below are the
-> confirmed floor** (≥2 of 3 independent refuters voted them real AND material before the
-> cutoff), deduplicated here into **7 distinct defects**. There are almost certainly more in
-> the unverified remainder; treat this as necessary, not complete.
+> **Two validation passes, 2026-07-16 → 07-17. This doc now carries BOTH the confirmed defects
+> AND the converged architecture they force.**
 >
-> **DO NOT BUILD the plan until D1–D5 (critical) are corrected.** Layer 0 — the plan's stated
-> primary control — is both unimplementable at the chosen location and bypassable, and the plan
-> would break the two conversion paths the ad campaign depends on while silently reporting
-> success. Every claim here is against installed source (`@auth/core@0.41.2`,
-> `next-auth@5.0.0-beta.31`, `@upstash/ratelimit@2.0.8`).
+> - **Part 1 (D1–D7 below):** the first pass — a multi-agent run that hit a session limit
+>   mid-way; 7 distinct critical/major defects confirmed against installed source.
+> - **Part 2 (§ "Second pass" near the end):** a bounded single-agent loop run TO DRY (6 rounds,
+>   one agent each, convergence confirmed on round 6). 13 further defects (N1–N3, R2-1…R2-4,
+>   F1–F2, P1–P3, enforce-before-turnstile), several of which found that the Part-1 *fixes
+>   contradicted each other*. **It resolves into a single coherent architecture — see
+>   "§ Converged architecture".**
+>
+> **DO NOT BUILD from the design/implementation plans as written.** Build from **§ Converged
+> architecture** — it supersedes the piecemeal fixes in D1–D7 and the plan docs. Every claim
+> here is against installed source (`@auth/core@0.41.2`, `next-auth@5.0.0-beta.31`;
+> `@upstash/ratelimit`/`@upstash/redis` are not installed yet, so their internals are verified
+> only where a prior round had them).
 
 ---
 
@@ -162,10 +166,137 @@ of which is the campaign's own conversion path. The choke point is correct for t
 the body) and **blind to the lead-magnet modal**. Any correction has to map all three call sites
 first.
 
-## What is NOT covered here
+---
 
-The run died before verifying ~36 further findings and never synthesized. Unverified topics that
-were raised but not confirmed (worth a cheap manual look, not another agent run): denial
-instrumentation / alerting, a runtime kill switch, Turnstile privacy-policy disclosure (GDPR/CCPA
-— Cloudflare third party), IP-as-PII retention in Redis, preview/prod sharing limiter counters,
-the burst rule making Gate 1 unobservable, and whether Tier 2/3 earn their complexity.
+# Second pass — single-agent loop to dry (2026-07-17)
+
+Six rounds, one agent per round, sequential, run until a round returned zero new material
+findings. Round 6 confirmed convergence. 13 further defects; the important ones showed the
+Part-1 *fixes* were mutually contradictory, and the loop derived the architecture that
+reconciles them (§ Converged architecture, below).
+
+## N1 — Preview and Production share one Upstash DB / static prefixes · MAJOR
+`otd-academy-ratelimit` is connected to Production **and** Preview with the same
+`KV_REST_API_*`, and Task 4's prefixes (`otd:magic:email:hour`, …) carry **no env component**
+→ Preview and Prod share every counter, including the 24h `magic:global:day`. The Task 5
+correctness gate *deliberately trips limits on a preview deploy* → pollutes prod; any preview
+URL can drain prod's global cap. **Contradicts design §9's own reason for excluding
+Development** ("must not share a security control's counters with production"). **Fix:**
+namespace prefixes by `process.env.VERCEL_ENV`.
+
+## N2 — `clientIp` keys on the full IPv6 address → free /64 rotation · MAJOR
+The per-IP rule keys on the full address; an IPv6 host controls a **/64 (2⁶⁴ addrs)** and
+rotates for free, so `magic:ip:hour` protects nothing against IPv6. With D5 (email alias
+bypass) this collapses the composite onto `magic:global:day` (itself D7). No gate catches it —
+Task 5 tests the *email* key "from a different IP," never IP rotation. **Fix:** normalize IPv6
+to /64 (or /56) before keying; `waitlist:ip` uses the same helper and gets fixed with it.
+
+## N3 — dwell-timer rejects the app's own fast paths · MINOR
+"reject a submit < ~2s after mount … costs an honest user nothing" is false for the C1
+one-click welcome-back (`SignInForms.tsx:211-254`), the B1 Resend button (`:191-196`), and the
+reopened lead-magnet modal. **Fix:** measure dwell from first interaction, exempt pre-filled
+fast paths, or drop dwell and rely on Turnstile + honeypot.
+
+## R2-1 / F1 — D1's "404 the raw endpoint" breaks the lead-magnet modal (all 3 buttons) · CRITICAL
+D1 justified 404-ing `POST /api/auth/signin/*` by "carries no legitimate traffic" — true only
+for the *page* (server actions, in-process `Auth(req)`). The **modal uses the `next-auth/react`
+client transport**: `FieldGuideDownload.tsx:140/248/255` POST resend **and** google/github to
+`/api/auth/signin/{provider}` over HTTP. A blanket 404 kills all three modal buttons — the
+campaign's conversion path — and **contradicts D2**, whose fix routes the modal token *through*
+that endpoint. The Task 5 "Google still works" gate tests the *page* button (immune by
+construction), so the breakage ships green. **Fix:** see § Converged architecture (the modal
+moves off the client transport entirely).
+
+## R2-2 — D1's "return early, don't throw" reproduces D3's silent-"sent" · MAJOR
+A clean early return from `sendVerificationRequest` yields the normal verify-request redirect
+with **no `?error=`**, indistinguishable from a real send → the modal says "your guide is on the
+way." D3's `res.error` check can't see it. Fails on every Cloudflare hiccup (Turnstile is
+fail-closed). **Fix:** throw a **plain `Error`** (→ `?error=Configuration`), never return early
+— see § Converged architecture, which proves this is the *only* signal that surfaces.
+
+## R2-3 — four new env vars, no cross-field validation · MAJOR
+`KV_REST_API_URL`/`_TOKEN` + `TURNSTILE_SECRET_KEY` + `NEXT_PUBLIC_TURNSTILE_SITE_KEY` are each
+independently `.optional()`; `src/env.ts` has no `superRefine`. Unsafe partial states: SITE set +
+SECRET unset → widget renders but the verifier waves everyone through (silent-off); SECRET set +
+SITE unset → no widget → everyone denied; half-set KV → 401 every call → constant degradation.
+**Fix:** `superRefine` — each pair both-set-or-both-unset, fail the build otherwise. Or resolve
+one `turnstileEnabled` boolean gating both widget and verify.
+
+## R2-4 / enforce-before-turnstile — ordering inverts §7 · MAJOR
+Design §7 requires "Turnstile before the limiter, pre-send." But `enforce` in the callback runs
+**before** `sendVerificationRequest` (Turnstile) — `send-token.js:23` then `:48`. A bot with a
+garbage token still burns the victim's `magic:email:*` counters *before* Turnstile blocks the
+send → **targeted lockout that weaponizes the per-email limit against the victim it protects**
+(design §11.5's own principle). **Fix:** run Turnstile **then** enforce, in one locus — see
+below.
+
+## P1 — the F2 pivot double-runs both checks · CRITICAL
+Putting Turnstile + `enforce` in the modal's server action, on top of D1 (Turnstile in
+`sendVerificationRequest`) and Task 5 (`enforce` in callback), runs both **twice** per modal
+send: the single-use Turnstile token's 2nd verify fails, and the 2nd `enforce` increments
+`burst:1/60s` to 2 → denies. **Every modal send dies.** **Fix:** exactly one locus; server
+actions are thin pass-throughs that verify nothing themselves.
+
+## P2 — `callbackUrl` → `redirectTo` on the server-`signIn` port · MEDIUM
+Client `signIn` uses `callbackUrl`; server `signIn` uses `redirectTo` and *overwrites* a stray
+`callbackUrl`. Porting the modal without the rename discards `/welcome?fg=<guide>` → the reader
+gets the **generic** email and wrong landing (`guideFromWelcomeUrl`, `src/auth.ts:99-103` sees
+nothing). tsc-clean, vitest-blind. **Fix:** `redirectTo: fieldGuideWelcomePath(guide)`.
+
+## P3 — honeypot server-read location unspecified · LOW
+The honeypot + dwell fields are named with tests, but no doc says *where* the server reads them.
+**Fix:** pin the read to the single locus (below) when the call sites are enumerated.
+
+---
+
+# Converged architecture (build from THIS)
+
+The loop's decisive result. The rate limiter and Turnstile were split across two `@auth/core`
+callbacks that run in a fixed order, which is the root of D1/R2-4/P1/F2/enforce-before-turnstile.
+**Both belong in one place**: the Resend provider's **`sendVerificationRequest`** (`src/auth.ts:93`)
+is the single locus that has *both* the normalized email (`identifier`, `send-token.js:49`) *and*
+the token body (via `toRequest`, `web.js:44-52`). Verified coherent against installed source on
+round 6.
+
+**1. One locus — `sendVerificationRequest` — does, in order:**
+   a. read the Turnstile token via `await request.json()` (NOT `request.formData()` — `toRequest`
+      JSON-stringifies the body but leaves a stale `x-www-form-urlencoded` content-type);
+   b. verify Turnstile → on fail, **throw a plain `Error`**;
+   c. run `enforce()` (Turnstile-first, so a bot never drains the counters) → on deny, **throw a
+      plain `Error`**;
+   d. else send the Resend email.
+
+**2. Why "plain `Error`" is load-bearing (proved round 5-6):** under a server-action send
+   (`Auth(req, { raw, skipCSRFCheck })`, `redirect:false`), a plain `Error` is NOT an `AuthError`,
+   so `index.js:124`'s re-throw is skipped; it becomes `?error=Configuration` on the returned URL,
+   which the thin pass-through reads. An `AuthError` subclass would re-throw → 500. An early return
+   → silent "sent" (R2-2). A success returns `/verify-request?...` with no `error` — a clean
+   discriminator. `Configuration` is overloaded with genuine config faults (unavoidable — it's the
+   only code a plain throw yields); the page maps it to generic copy.
+
+**3. The `signIn` callback does NO abuse work** — only the existing `resolveSignIn`
+   session-conflict logic. Its string-return short-circuits *before* `sendVerificationRequest`
+   (`send-token.js:34`), so the two are sequential and non-interacting. OAuth (Google/GitHub)
+   never reaches `sendVerificationRequest` and is fully untouched.
+
+**4. Modal + page send ONLY via server actions** (thin pass-throughs forwarding
+   `email` + `cf-turnstile-response` + honeypot + `redirectTo`). The modal **abandons
+   `next-auth/react` `signIn`** for `resend`/`google`/`github` — all three become server actions
+   (in-process `Auth(req)`, never HTTP). That collapses the modal onto the page's transport, at
+   which point 404-ing the raw `POST /api/auth/signin/*` genuinely breaks nothing (OAuth
+   *callbacks* `GET /api/auth/callback/*`, `csrf`, `session`, `signout` stay open). Denials are
+   surfaced by inspecting the returned URL for `?error=`; generic copy (no enumeration).
+
+**5. The rest of the corrected knobs (unchanged by the consolidation):** env cross-validation
+   (R2-3); `emailKey` alias/dot normalization (D5); `clientIp` IPv6 /64 (N2); env-namespaced
+   prefixes (N1); `magic:global:day` env-overridable + soft/hard split, ordered last with
+   documented consumption semantics (D7); Upstash `reason:"timeout"` treated as degrade not allow
+   (D4); a real module-scope in-process counter for degradation, since `ephemeralCache` is empty
+   during an outage (D6).
+
+**Build note (not a defect):** `sendVerificationRequest` reads the body with `await request.json()`.
+
+## Still genuinely uncovered (cheap manual look, NOT another agent run)
+Denial instrumentation / alerting; a runtime kill switch; Turnstile privacy-policy disclosure
+(GDPR/CCPA — Cloudflare third party); IP-as-PII retention in Redis; whether Tier 2/3 earn their
+complexity. None block the architecture above.
