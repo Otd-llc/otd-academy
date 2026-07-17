@@ -421,6 +421,70 @@ above still holds; these are defects in the surrounding sections, several critic
 - **Observability is a whole missing layer**: per-rule denial + Turnstile-outcome `capture()` events
   and one real push alert (reusing the sourcing-digest pattern).
 
+---
+
+# Fourth pass — push to dry (2026-07-17)
+
+A bounded single-agent loop over the WHOLE accumulated design (one agent/round, sequential, no
+fan-out), run until a round returned zero new material findings. **Reached dry on round 4**
+(new-finding counts: 3 → 2 → 1 → **0**). 6 further defects — every one a defect *created by an
+earlier fix*, which is exactly what this pass existed to catch.
+
+- **`converged-throw-dumps-page-signin-on-raw-error-page` · MAJOR** — the "throw plain `Error`"
+  denial works for the modal (`redirect:false`, inspects the URL) but the **page + B1 Resend use
+  `redirect:true`**, so the throw lands on the raw `/api/auth/error?error=Configuration`
+  (`pages.error` unset). Corrects the third pass's "not a hole" — it *is* a hole for the primary
+  sign-in surface. **Fix:** `pages.error = "/sign-in"` + a `Configuration` branch → generic copy;
+  gate-test from the PAGE, not only the modal.
+- **`page-b1-redirect-mode-split` · MAJOR** — the page and modal need **opposite** mechanisms:
+  page/B1 = `redirect:true` + `pages.error` routing; modal resend = `redirect:false` + URL
+  inspection. Going `redirect:false` on the page would break the B1 "check your email"
+  verify-request state. §4 must state the split, not unify it.
+- **`modal-oauth-redirect-mode-mis-assigned` · MAJOR** — assign redirect mode by **resolution
+  semantics, not surface**: an OAuth `signIn` under `redirect:false` returns the *provider's auth
+  URL* (no `?error=`), so "inspect for `?error=`" reads a successful Google init as a
+  result-to-display and **never navigates to Google** → dead-end + false-success on 2 of 3 modal
+  conversion buttons. **Invariant:** `redirect:false`+inspect ⟺ the surface stays mounted and
+  renders the outcome (magic-link SEND only); OAuth and the page forms are `redirect:true`
+  (transfer-browser).
+- **`converged-locus-cannot-prevent-token-writes` · MEDIUM** — `enforce` in `sendVerificationRequest`
+  runs *after* the `VerificationToken` INSERT is dispatched (`Promise.all` race), so a blocked
+  request still writes a row — unbounded, not the benign single-row D1 assumed. **Fix:** a cheap
+  **IP-only pre-check in the `signIn` callback** (before `createVerificationToken`) caps a rotating
+  flood; per-email + Turnstile stay in the locus. (Adjudicated coherent: this two-point split
+  preserves D7 ordering with no double-count; the IP-before-Turnstile residual is an accepted
+  NAT residual, not R2-4, since IP isn't the victim-inbox protection.)
+- **`hmac-key-unprovisioned-fragments-counter` · MEDIUM** — the compliance "HMAC (salted)" fix, if
+  wired with a per-instance random salt, fragments the per-email counter across instances
+  (`N_instances × limit`) on the HEALTHY path. **Fix:** pin the HMAC key to `env.AUTH_SECRET`
+  (reuse the `capture-token.ts` / `certificate-token.ts` pattern), deterministic, no new env var;
+  transform order is normalize-alias (D5) → IPv6 /64 (N2) → **HMAC last**.
+- **`killswitch-no-unified-defense-predicate` · MEDIUM** — the Edge Config kill switch + `turnstileEnabled`
+  + KV-presence are three gates with no precedence; a naive wiring flips the switch but `enforce`
+  keeps throwing → sign-in stays dead. **Fix:** resolve ONE `defenseEnabled` boolean gating *both*
+  the Turnstile throw and the `enforce` throw; Edge read failure → treat as enabled, short timeout.
+
+## Adjudicated coherent on the final pass (settled, do not reopen)
+The two-point IP(callback)/email+global(locus) split preserves D7 consumption order with no
+double-count; the full **3×4 denial matrix** (page / B1 / modal × Turnstile / IP / email-global /
+degradation) has **no empty or false-success cell**; the `?error=Configuration` overload of a real
+config fault is acceptable with generic copy (observability owns operator-side disambiguation);
+transform order normalize→/64→HMAC-last is correct with no wrong-commuting pair; OAuth,
+session-conflict, and `/verify` flows are untouched; no Cache Components / CLAUDE.md violation. The
+whole accumulated fix set was traced together on round 4 — **no fix breaks another.**
+
+---
+
+# ⚑ VALIDATION COMPLETE — the plan is validated to dry (2026-07-17)
+
+Four passes: the core reached dry (13 findings), all five surrounding sections got a full audit
+(~24), and a final whole-design push reached dry (6). ~50 distinct defects total. **The magic-link
+CORE ARCHITECTURE (§ Converged architecture) is coherent and stable; the surrounding sections need
+the fixes catalogued above folded in.** The design + implementation plan docs must now be
+*rewritten* against this — it is no longer a patch job (cross-cutting: the `enforce` `failMode`
+param, the degradation-ladder rework, the Edge Config kill switch, the `/privacy` page, the
+observability layer, and the redirect-mode-by-semantics invariant).
+
 ## Still uncovered (cheap manual look, NOT an agent run)
 Exact retention-policy wording; the Cloudflare/Upstash DPA confirmation; final alert thresholds.
 None block the architecture; all are checklist items for the build PR.
