@@ -1,6 +1,14 @@
 # Signup abuse defense — design (v2)
 
-> **STATUS 2026-07-16: design VALIDATED by five adversarial research agents, code NOT built.**
+> **STATUS 2026-07-16: NOT BUILDABLE AS WRITTEN — a second validation round confirmed 5 CRITICAL
+> defects. See `2026-07-16-signup-abuse-defense-VALIDATION-FINDINGS.md` (D1–D7) and correct this
+> design + the implementation plan before any code.** In short: Turnstile (the stated primary
+> control) is unimplementable in the `signIn` callback and the endpoint is bypassable (D1); there
+> are three magic-link send call sites on two transports, not one (D2); the lead-magnet modal
+> reports "sent" on a denial (D3); the Upstash timeout silently allows (D4); `emailKey` is Gmail-
+> alias-bypassable (D5); `ephemeralCache` can't be the degradation substrate (D6); the global cap
+> is an unsourced, attacker-triggerable kill switch (D7).
+>
 > Upstash provisioned (§9). Supersedes `2026-07-16-rate-limiting-design.md`, whose central
 > calls were **refuted** — see §11 for what was wrong and why, kept because the reasoning is
 > instructive.

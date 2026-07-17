@@ -1,5 +1,14 @@
 # Signup abuse defense — implementation plan
 
+> ## ⚑ DO NOT BUILD YET — 5 CRITICAL defects confirmed 2026-07-16.
+> See `2026-07-16-signup-abuse-defense-VALIDATION-FINDINGS.md` (D1–D7). Most touch THIS file:
+> Task 2 covers only 1 of 3 send call sites (D2); Task 4's `timeout` config silently allows and
+> its hang-test is impossible (D4); Task 3's `emailKey` is Gmail-alias-bypassable (D5) and its
+> `magic:global:day` is unsourced + un-raisable (D7); Task 5's callback choke point can't read
+> the Turnstile token (D1) and its denial path lies to the lead-magnet modal (D3). Correct those
+> before executing any task.
+
+
 > Design: **`2026-07-16-signup-abuse-defense-design.md`** — read it first. Every "why" lives
 > there; this file is the "how", one task per commit.
 >
