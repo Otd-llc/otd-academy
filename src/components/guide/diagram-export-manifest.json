@@ -33,7 +33,7 @@
     "basename": "four-layer-cross-section",
     "image": "/guide-diagrams/four-layer-cross-section.webp",
     "alt": "Isometric edge-on view of a four-layer circuit board. On top is F.Cu, the signal layer, carrying your traces including the USB D+/D- differential pair, drawn as two flush copper traces. Directly below it is In1.Cu, a solid ground plane, the reference the pair rides over. Then the FR4 core, then In2.Cu, a second solid ground plane, the reference for the bottom signals. On the bottom is B.Cu, the signal layer that fans the GPIO out, hugging In2. Thin prepreg layers insulate the outer copper from the planes. Signals sit on the outside and two ground planes sit inside, so every signal layer hugs a plane.",
-    "hash": "70d3bb7e57c0"
+    "hash": "a09cbd7a3745"
   },
   {
     "basename": "gerber-layer-stack",

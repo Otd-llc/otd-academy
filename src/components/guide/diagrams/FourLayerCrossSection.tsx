@@ -59,8 +59,8 @@ function pairMarkup() {
   const tx = x0 + 0.18 * DX;
   return (
     trace(0.18) + trace(0.48) +
-    `<line x1="${tx - 4}" y1="22" x2="${tx}" y2="${Y0 - 0.18 * DY - 1}" class="x4-leader"/>` +
-    `<text x="${tx - 16}" y="18" class="x4-pairlbl">D+ / D- pair</text>`
+    `<line x1="${tx - 4}" y1="8" x2="${tx}" y2="${Y0 - 0.18 * DY - 1}" class="x4-leader"/>` +
+    `<text x="${tx - 16}" y="4" class="x4-pairlbl">D+ / D- pair</text>`
   );
 }
 
@@ -98,7 +98,7 @@ export function FourLayerCrossSection({ caption }: { caption?: string }) {
     >
       <style>{CSS}</style>
       <div className="x4-wrap">
-        <svg className="x4-svg" viewBox="0 0 380 172" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <svg className="x4-svg" viewBox="0 -18 380 190" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
           <defs>
             <filter id="x4Blur" x="-30%" y="-120%" width="160%" height="360%">
               <feGaussianBlur stdDeviation="3" />
@@ -134,7 +134,7 @@ const CSS = `
 .x4-wrap{display:flex;align-items:center;justify-content:center;gap:clamp(1rem,4vw,1.8rem);}
 @container (max-width:520px){.x4-wrap{flex-direction:column;gap:1rem;}}
 .x4-svg{display:block;width:100%;height:auto;overflow:visible;flex:1 1 56%;min-width:0;max-width:380px;}
-.x4-pairlbl{fill:var(--color-command-gold,#c8963e);font-family:var(--font-mono,"Space Mono",monospace);font-size:10px;font-weight:700;}
+.x4-pairlbl{fill:var(--color-command-gold,#c8963e);font-family:var(--font-mono,"Space Mono",monospace);font-size:24px;font-weight:700;}
 .x4-leader{stroke:var(--color-command-gold,#c8963e);stroke-width:1;}
 
 .x4-key{margin:0;padding:0;list-style:none;flex:1 1 42%;min-width:0;display:flex;flex-direction:column;gap:clamp(.6rem,2.2vw,.9rem);text-align:left;}
