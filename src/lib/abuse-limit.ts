@@ -8,6 +8,16 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { env } from "@/env";
 import { RULES, nsPrefix, type RuleName, type Check } from "@/lib/abuse-policy";
+import type { AlertKind } from "@/lib/abuse-alert";
+
+// Fire an admin alert (design §10) without blocking the request. The dynamic
+// import keeps abuse-alert (db + Resend) out of this module's static graph, which
+// rides into the middleware bundle via auth.ts.
+function fireAlert(kind: AlertKind): void {
+  void import("@/lib/abuse-alert")
+    .then((m) => m.alertAbuse(kind))
+    .catch(() => {});
+}
 
 export type Verdict = { ok: true } | { ok: false; rule: RuleName | "degraded" };
 
@@ -74,7 +84,10 @@ function makeBreaker() {
       if (openedAt === null) {
         const total = recent.length;
         const failures = recent.filter((r) => !r.ok).length;
-        if (total >= MIN_SAMPLE && failures / total >= TRIP_RATE) openedAt = now; // trip
+        if (total >= MIN_SAMPLE && failures / total >= TRIP_RATE) {
+          openedAt = now; // trip
+          fireAlert("breaker-tripped");
+        }
       } else {
         // A half-open probe just recorded its outcome.
         if (ok) {
@@ -139,7 +152,10 @@ export async function enforce(checks: Check[], failMode: FailMode): Promise<Verd
         return degradeVerdict(failMode);
       }
       breaker.record(true);
-      if (!res.success) return { ok: false, rule: check.rule };
+      if (!res.success) {
+        if (check.rule === "magic:global:day") fireAlert("global-cap");
+        return { ok: false, rule: check.rule };
+      }
     } catch {
       breaker.record(false);
       return degradeVerdict(failMode);

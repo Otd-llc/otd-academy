@@ -13,6 +13,9 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock("@/env", () => ({ env: h.env }));
+// fireAlert() dynamically imports this; mock it so the breaker-trip test never
+// pulls Prisma (which would make this a DB test / fail without a DB).
+vi.mock("@/lib/abuse-alert", () => ({ alertAbuse: vi.fn() }));
 vi.mock("@upstash/redis", () => ({ Redis: class {} }));
 vi.mock("@upstash/ratelimit", () => ({
   Ratelimit: class {

@@ -115,17 +115,26 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         // point here (design §12.1). Each layer still self-gates on its own config
         // (Turnstile keyless -> pass; enforce with KV unset -> {ok:true}).
         if (await defenseEnabled()) {
-          if (isBotSubmission(body)) throw new Error("blocked");
+          if (isBotSubmission(body)) {
+            capture("honeypot_tripped");
+            throw new Error("blocked");
+          }
           const token =
             typeof body[TURNSTILE_FIELD] === "string"
               ? (body[TURNSTILE_FIELD] as string)
               : undefined;
-          if (!(await verifyTurnstile(token, null))) throw new Error("blocked");
+          if (!(await verifyTurnstile(token, null))) {
+            capture("turnstile_failed");
+            throw new Error("blocked");
+          }
           // Layer 1: per-email + global rate limit (the IP rule is the callback
           // pre-check, §4.3). enforce() DEGRADES on an Upstash failure; a deny
           // throws a plain Error -> ?error=Configuration.
           const verdict = await enforce(magicLinkChecks(to), "escalate-closed");
-          if (!verdict.ok) throw new Error("rate_limited");
+          if (!verdict.ok) {
+            capture("magic_link_denied", { rule: verdict.rule });
+            throw new Error("rate_limited");
+          }
         }
 
         const parsed = new URL(url);
@@ -186,7 +195,10 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         const check = ipOnlyCheck(clientIp(await headers()));
         if (check) {
           const verdict = await enforce([check], "escalate-closed");
-          if (!verdict.ok) return RATE_LIMITED_REDIRECT;
+          if (!verdict.ok) {
+            capture("magic_link_denied", { rule: "magic:ip:hour" });
+            return RATE_LIMITED_REDIRECT;
+          }
         }
       }
 
