@@ -600,6 +600,7 @@ against a preview soak. None are load-bearing for the architecture.
 | min form-dwell | e.g. **1500 ms** from first interaction | exempt fast paths (§9) |
 | breaker window | e.g. **30 s** rolling | failure-RATE, not consecutive (§8.1) |
 | breaker trip threshold | e.g. **≥50%** failures in-window | opens the circuit |
+| breaker min in-window sample | e.g. **≥20** calls | rate ignored below this — no "50%-of-2" false trip (§8.1) |
 | allow-grace | e.g. first **~2 s** after trip | then deny (§8.1, option B) |
 | half-open probe interval | e.g. **30 s** | one probe; success closes, failure re-opens (§8.1) |
 | Edge Config read timeout | e.g. **200 ms** | read failure → treat as enabled (§12.1) |
