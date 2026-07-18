@@ -17,26 +17,54 @@ export const CURRENT_WINDOW_DAYS = 14;
 
 // Course (build-guide) XP — Phase 2 (design 2026-07-11). Stage quizzes reuse the
 // library QUIZ_FULL/QUIZ_REPOP amounts; these are the once-ever milestone awards.
+// STAGE_CLEAR_XP is the legacy flat award, kept as the graduated table's fallback
+// for any stage not listed (e.g. REVISION) — see stageClearXp below.
 export const STAGE_CLEAR_XP = 20;
 export const COURSE_EXAM_XP = 150;
 export const COURSE_COMPLETE_XP = 300;
 
+// Graduated stage-clear XP (WI-1, 2026-07-18): the hard, verifiable stages pay more
+// than the read stages. The design-stage gates already REQUIRE the proof artifact to
+// advance (ERC=0 for SCHEMATIC, DRC=0 + attestation for LAYOUT), so a bigger award
+// here is already tied to producing verified work. Keyed by the FROM stage (the one
+// just cleared); stages absent from the table (REVISION) fall back to STAGE_CLEAR_XP.
+export const STAGE_CLEAR_XP_BY_STAGE: Record<string, number> = {
+  REQUIREMENTS: 10,
+  BOM_SOURCING: 15,
+  SCHEMATIC: 40, // ERC=0 gate
+  LAYOUT: 60, // DRC=0 + attestation — the hardest stage
+  DRC_GERBER: 25,
+  ORDERING: 30, // the leap to a physical order
+  ASSEMBLY: 40,
+  BRINGUP: 60, // "it works" payoff
+};
+export const stageClearXp = (stage: string): number =>
+  STAGE_CLEAR_XP_BY_STAGE[stage] ?? STAGE_CLEAR_XP;
+
 // The flight-training ladder (design §8; 12 ranks / 6 wing tiers, owner 2026-07-11).
 // Front-loaded: fast early levels, widening toward the top. Top (FL12) ≈ finishing
-// the library plus several build courses (~7k first-time XP). Tunable on-screen.
+// the library plus several build courses (~7.6k first-time XP). Tunable on-screen.
+//
+// Rebalanced 2026-07-18 (WI-1): graduated STAGE_CLEAR raised a full course from ~160
+// to ~280 stage-clear XP (≈ +120/course), so the upper band (FL6–FL12) is widened to
+// keep "library + several courses = FL12" and preserve the widening-toward-the-top
+// shape. FL1–FL5 are LEFT UNCHANGED on purpose: the early on-ramp pace is untouched,
+// and — since level recompute is increment-only (award.ts) and no real account sits
+// past FL5 — nobody is demoted. (The only fresh-recompute surface is the public
+// certificate flair, verify/page.tsx; it re-derives from xpTotal.)
 export const LEVELS = [
   { level: 1, minXp: 0, title: "Ground School" },
   { level: 2, minXp: 50, title: "First Solo" },
   { level: 3, minXp: 150, title: "Cross-Country" },
   { level: 4, minXp: 350, title: "Private Pilot" },
   { level: 5, minXp: 650, title: "Night Rated" },
-  { level: 6, minXp: 1050, title: "Instrument Rated" },
-  { level: 7, minXp: 1600, title: "Commercial" },
-  { level: 8, minXp: 2300, title: "Multi-Engine" },
-  { level: 9, minXp: 3200, title: "Flight Instructor" },
-  { level: 10, minXp: 4300, title: "Instrument Instructor" },
-  { level: 11, minXp: 5600, title: "Airline Transport" },
-  { level: 12, minXp: 7000, title: "Examiner" },
+  { level: 6, minXp: 1100, title: "Instrument Rated" },
+  { level: 7, minXp: 1700, title: "Commercial" },
+  { level: 8, minXp: 2400, title: "Multi-Engine" },
+  { level: 9, minXp: 3300, title: "Flight Instructor" },
+  { level: 10, minXp: 4500, title: "Instrument Instructor" },
+  { level: 11, minXp: 5900, title: "Airline Transport" },
+  { level: 12, minXp: 7600, title: "Examiner" },
 ] as const;
 
 export function levelFor(xpTotal: number) {

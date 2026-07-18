@@ -170,3 +170,90 @@ describe("recordQuizPass — server-scored", () => {
     expect(res.message).toMatch(/forbidden/i);
   });
 });
+
+describe("recordQuizPass — gate selection (WI-2)", () => {
+  // Cards with TWO quiz blocks whose key LENGTHS differ, so the block that actually
+  // scores is provable: an answer array of the wrong length can never pass a block,
+  // so ok:true pins down exactly which block was scored.
+  let flaggedEnrollmentId = ""; // practice(1 key) FIRST, flagged gate(2 keys) SECOND
+  let unflaggedEnrollmentId = ""; // two blocks, NEITHER flagged → first(1 key) is gate
+
+  beforeAll(async () => {
+    const flagged = await db.project.create({
+      data: { slug: `quiz-gate-${Date.now()}`, name: "Gate", createdById: callerId },
+    });
+    const fr = await db.revision.create({ data: { projectId: flagged.id, label: "v1" } });
+    const fg = await db.guide.create({
+      data: { revisionId: fr.id, title: "g", createdById: callerId },
+    });
+    await db.guideCard.create({
+      data: {
+        guideId: fg.id, stage: "REQUIREMENTS", ordinal: 0, eyebrow: "e", title: "t",
+        contentBlocks: [
+          { type: "quiz", questions: [{ q: "practice?", options: ["A", "B"], answer: 0 }] },
+          { type: "quiz", gate: true, questions: [
+            { q: "gate one?", options: ["A", "B"], answer: 1 },
+            { q: "gate two?", options: ["A", "B"], answer: 1 },
+          ] },
+        ],
+      },
+    });
+    flaggedEnrollmentId = (await db.enrollment.create({
+      data: { userId: callerId, projectId: flagged.id, revisionId: fr.id },
+    })).id;
+
+    const plain = await db.project.create({
+      data: { slug: `quiz-fallback-${Date.now()}`, name: "Fallback", createdById: callerId },
+    });
+    const pr = await db.revision.create({ data: { projectId: plain.id, label: "v1" } });
+    const pg = await db.guide.create({
+      data: { revisionId: pr.id, title: "g", createdById: callerId },
+    });
+    await db.guideCard.create({
+      data: {
+        guideId: pg.id, stage: "REQUIREMENTS", ordinal: 0, eyebrow: "e", title: "t",
+        contentBlocks: [
+          { type: "quiz", questions: [{ q: "first?", options: ["A", "B"], answer: 0 }] },
+          { type: "quiz", questions: [
+            { q: "second one?", options: ["A", "B"], answer: 1 },
+            { q: "second two?", options: ["A", "B"], answer: 1 },
+          ] },
+        ],
+      },
+    });
+    unflaggedEnrollmentId = (await db.enrollment.create({
+      data: { userId: callerId, projectId: plain.id, revisionId: pr.id },
+    })).id;
+  });
+
+  test("scores the FLAGGED gate block, not the first quiz block", async () => {
+    // The flagged gate (2nd, keys [1,1]) opens on its own answers.
+    const pass = await recordQuizPass({
+      enrollmentId: flaggedEnrollmentId, stage: "REQUIREMENTS", answers: [1, 1],
+    });
+    expect(pass.ok).toBe(true);
+  });
+
+  test("the FIRST (non-gate) block's answers do NOT open the flagged gate", async () => {
+    // The first block's answers ([0], length 1) are the wrong length for the gate
+    // block (length 2) — proving the first block is NOT the one scored.
+    const res = await recordQuizPass({
+      enrollmentId: flaggedEnrollmentId, stage: "REQUIREMENTS", answers: [0],
+    });
+    expect(res.ok).toBe(false);
+  });
+
+  test("falls back to the first quiz block when none is flagged", async () => {
+    // First block (keys [0]) opens the gate…
+    const pass = await recordQuizPass({
+      enrollmentId: unflaggedEnrollmentId, stage: "REQUIREMENTS", answers: [0],
+    });
+    expect(pass.ok).toBe(true);
+    // …and the SECOND block's answers ([1,1]) are the wrong length for the first,
+    // so they never open the gate.
+    const res = await recordQuizPass({
+      enrollmentId: unflaggedEnrollmentId, stage: "REQUIREMENTS", answers: [1, 1],
+    });
+    expect(res.ok).toBe(false);
+  });
+});

@@ -11,6 +11,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { advanceEnrollment } from "@/lib/actions/enrollment";
 import { advanceTargetHref } from "@/lib/learner-advance-nav";
+import { useFanfare } from "@/components/logbook/Fanfare";
 
 export function AdvanceEnrollmentButton({
   projectId,
@@ -27,6 +28,7 @@ export function AdvanceEnrollmentButton({
   const [pending, start] = useTransition();
   const [reasons, setReasons] = useState<string[] | null>(null);
   const router = useRouter();
+  const fanfare = useFanfare();
 
   return (
     <div className="space-y-2">
@@ -39,6 +41,16 @@ export function AdvanceEnrollmentButton({
             try {
               const res = await advanceEnrollment({ projectId });
               if (res.ok) {
+                // Banner on every clear (owner 2026-07-18). A clear that crosses a
+                // rank shows the richer level-up banner; otherwise the plain XP one.
+                // Fired before navigating — the FanfareProvider lives in the root
+                // layout, so the banner rides through the soft nav to the next card.
+                const sc = res.stageClear;
+                if (sc?.levelUp) {
+                  fanfare({ kind: "level", label: sc.levelUp.title, xp: sc.xp });
+                } else if (sc) {
+                  fanfare({ kind: "xp", label: sc.stageLabel, xp: sc.xp });
+                }
                 const target = advanceTargetHref(
                   res.toStage,
                   guideStages,

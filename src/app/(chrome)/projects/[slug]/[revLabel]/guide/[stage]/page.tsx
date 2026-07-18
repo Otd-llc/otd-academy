@@ -57,6 +57,7 @@ import { FirstRunCoach } from "@/components/guide/FirstRunCoach";
 import { Paywall } from "@/components/learn/Paywall";
 import { gateSpec } from "@/lib/gate-spec";
 import { proofHelp } from "@/lib/learner-proof-help";
+import Link from "next/link";
 import { guideCardView } from "@/lib/guide-view";
 import { resolveLessonAccess } from "@/lib/public-access";
 import { hasProjectEntitlement } from "@/lib/entitlements";
@@ -79,7 +80,7 @@ import {
 } from "@/lib/schemas/guide";
 
 type Params = { slug: string; revLabel: string; stage: string };
-type Search = { board?: string };
+type Search = { board?: string; as?: string };
 
 // Per-board scope applies to the two build cards (decision B).
 const PER_BOARD_STAGES: ReadonlySet<GuideStage> = new Set([
@@ -196,7 +197,7 @@ export default async function GuideCardPage({
   searchParams: Promise<Search>;
 }) {
   const { slug, revLabel, stage: stageParam } = await params;
-  const { board: boardParam } = await searchParams;
+  const { board: boardParam, as: viewAs } = await searchParams;
   const decodedLabel = decodeURIComponent(revLabel);
   const stageUpper = stageParam.toUpperCase();
 
@@ -539,8 +540,11 @@ export default async function GuideCardPage({
     selectedBoardId = valid ? boardParam : boards[0]!.id;
   }
 
-  // Role decides the view (session resolved + access-gated above).
-  const view = guideCardView(session?.user?.role);
+  // Role decides the view (session resolved + access-gated above). An ADMIN may opt
+  // into the learner view via ?as=learner to watch XP/fanfare land — downgrade-only,
+  // enforced in guideCardView, so the param is a no-op for anyone who isn't an admin.
+  const previewAsLearner = isAdmin && viewAs === "learner";
+  const view = guideCardView(session?.user?.role, { previewAsLearner });
 
   // AUTHOR-ONLY, and gated here rather than at the render site on purpose: StageGate
   // only renders under `view.isAuthorView` (below), but resolving its inputs is
@@ -767,6 +771,35 @@ export default async function GuideCardPage({
           viewingStage={stage}
         />
       </nav>
+      {/* Admin-only preview toggle (WI-3): flip between the author view and the
+          learner overlay (so the owner can watch XP/fanfare land). Just a query
+          param — downgrade-only, enforced in guideCardView. */}
+      {isAdmin && (
+        <div className="mb-6 flex items-center justify-between gap-3 border border-panel-border/60 bg-navy-dark/40 px-3 py-2">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
+            {previewAsLearner ? "▸ Previewing as learner" : "▸ Author view"}
+          </p>
+          {previewAsLearner ? (
+            <Link
+              href={
+                boardParam
+                  ? `${cardHref(stage)}?board=${encodeURIComponent(boardParam)}`
+                  : cardHref(stage)
+              }
+              className="font-mono text-[10px] uppercase tracking-[0.18em] text-command-gold transition-colors hover:text-gold-light"
+            >
+              ← Back to author view
+            </Link>
+          ) : (
+            <Link
+              href={`${cardHref(stage)}?${boardParam ? `board=${encodeURIComponent(boardParam)}&` : ""}as=learner`}
+              className="font-mono text-[10px] uppercase tracking-[0.18em] text-command-gold transition-colors hover:text-gold-light"
+            >
+              Preview as learner →
+            </Link>
+          )}
+        </div>
+      )}
       {/* Inline edit-in-place island: view mode renders the server-rendered
           PageHeader + GuideBlocks below as `children`; edit mode swaps in the
           authoring forms. StageGate + nav stay OUTSIDE (gate-wiring locked). */}

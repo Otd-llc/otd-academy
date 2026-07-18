@@ -19,7 +19,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { withTxRetry } from "@/lib/tx-retry";
 import { r2, enrollmentArtifactKey } from "@/lib/r2";
-import { nextStage, type StageName } from "@/lib/stages";
+import { nextStage, STAGE_LABELS, type StageName } from "@/lib/stages";
 import { learnerExitGate, learnerProofSubkind } from "@/lib/learner-gates";
 import { gateSpec } from "@/lib/gate-spec";
 import { getR2ObjectText } from "@/lib/part-r2";
@@ -30,7 +30,7 @@ import { loadLearnerGateContext } from "@/lib/load-learner-gate-context";
 import { STAGE_VALUES } from "@/lib/schemas/project-dependency";
 import { recordStageClear } from "@/lib/logbook/guide-awards";
 import { afterAward } from "@/lib/logbook/after-award";
-import { STAGE_CLEAR_XP } from "@/lib/logbook/economy";
+import { stageClearXp } from "@/lib/logbook/economy";
 import { MAX_UPLOAD_BYTES } from "@/lib/schemas/upload";
 import { capture } from "@/lib/analytics";
 
@@ -47,8 +47,15 @@ function ensureR2Enabled(): void {
   if (!env.R2_BUCKET) throw new Error("R2_BUCKET is not configured.");
 }
 
+// The stage-clear XP the advance just awarded, surfaced so the client can fanfare
+// it (WI-1 step 4). Null when nothing was awarded this call (idempotent replay).
+type StageClearAward = {
+  xp: number;
+  levelUp: { level: number; title: string } | null;
+  stageLabel: string;
+};
 type AdvanceEnrollmentResult =
-  | { ok: true; toStage: StageName }
+  | { ok: true; toStage: StageName; stageClear: StageClearAward | null }
   | { ok: false; reasons: string[] };
 
 const enrollSchema = z.object({ projectId: z.cuid() });
@@ -256,6 +263,7 @@ export async function advanceEnrollment(
   // Course XP: STAGE_CLEAR for the stage just cleared (design Phase 2). After
   // commit, best-effort — XP/telemetry never blocks the advance. Idempotent on the
   // dedupeKey, so a retried advance can't double-pay.
+  let stageClear: StageClearAward | null = null;
   if (outcome.ok) {
     try {
       const award = await recordStageClear(
@@ -265,18 +273,28 @@ export async function advanceEnrollment(
         new Date(),
       );
       if (award.awarded) {
+        // Graduated by stage (WI-1) — derive the toast/PostHog amount from the SAME
+        // pure fn recordStageClear ledgers with, so they can never disagree.
+        const xp = stageClearXp(outcome.fromStage);
         await afterAward(user.id, {
           source: "STAGE_CLEAR",
-          xp: STAGE_CLEAR_XP,
+          xp,
           levelUp: award.levelUp,
         });
+        // Surface the award so the client fanfares every clear (owner 2026-07-18).
+        // Left null on an idempotent replay, so a re-advance never re-toasts.
+        stageClear = {
+          xp,
+          levelUp: award.levelUp,
+          stageLabel: STAGE_LABELS[outcome.fromStage] ?? outcome.fromStage,
+        };
       }
     } catch {
       // never block the advance on XP
     }
   }
 
-  if (outcome.ok) return { ok: true, toStage: outcome.toStage };
+  if (outcome.ok) return { ok: true, toStage: outcome.toStage, stageClear };
   return outcome;
 }
 

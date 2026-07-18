@@ -1504,6 +1504,22 @@ export function GuideBlocks({
     });
   }
 
+  // The stage-gate quiz (WI-2): the quiz block flagged `gate: true`, else the first
+  // quiz block. Only THIS block receives the gate `quizContext`, so only it records a
+  // QuizPass; any other quiz blocks are practice mini-quizzes that still award
+  // per-pick XP via `logbook`. Mirrors recordQuizPass's server-side selection so the
+  // client and the gate never disagree on which block opens the stage.
+  const gateQuizIndex = (() => {
+    let firstQuiz = -1;
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i]!;
+      if (b.type !== "quiz") continue;
+      if (firstQuiz === -1) firstQuiz = i;
+      if (b.gate) return i;
+    }
+    return firstQuiz;
+  })();
+
   // One block → its anchor-wrapped (or plain) element. Reused inside the band.
   const renderBlock = (block: ContentBlock, i: number) => {
     const anchorId = anchorByIndex.get(i);
@@ -1514,7 +1530,7 @@ export function GuideBlocks({
         models={models}
         bomRows={bomRows}
         diagrams={diagrams}
-        quizContext={quizContext}
+        quizContext={i === gateQuizIndex ? quizContext : undefined}
         projectId={projectId}
         userId={userId}
         isSignedIn={isSignedIn}

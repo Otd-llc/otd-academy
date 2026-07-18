@@ -27,4 +27,31 @@ describe("guideCardView", () => {
       isLearnerView: true,
     });
   });
+
+  it("lets an ADMIN downgrade to the learner view via the preview override (WI-3)", () => {
+    expect(guideCardView("ADMIN", { previewAsLearner: true })).toEqual({
+      isAuthorView: false,
+      isLearnerView: true,
+    });
+  });
+
+  it("ignores previewAsLearner:false for an admin (stays author view)", () => {
+    expect(guideCardView("ADMIN", { previewAsLearner: false })).toEqual({
+      isAuthorView: true,
+      isLearnerView: false,
+    });
+  });
+
+  it("NEVER lets a non-admin reach the author view, even with previewAsLearner spoofed", () => {
+    // The override only ever DOWNGRADES — a learner (or anon) passing the flag stays
+    // in the learner view; there is no param path to author tooling for a non-admin.
+    expect(guideCardView("LEARNER", { previewAsLearner: true })).toEqual({
+      isAuthorView: false,
+      isLearnerView: true,
+    });
+    expect(guideCardView(undefined, { previewAsLearner: true })).toEqual({
+      isAuthorView: false,
+      isLearnerView: true,
+    });
+  });
 });

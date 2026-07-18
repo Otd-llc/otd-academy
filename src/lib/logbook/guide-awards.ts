@@ -15,7 +15,7 @@ import {
   academyDate,
   quizXp,
   dedupe,
-  STAGE_CLEAR_XP,
+  stageClearXp,
   COURSE_EXAM_XP,
   COURSE_COMPLETE_XP,
 } from "@/lib/logbook/economy";
@@ -25,7 +25,8 @@ type LevelUp = { level: number; title: string } | null;
 // Course stage-clear XP — Phase 2. Awarded once-ever when a learner passes a
 // stage's exit gate and advances (hooked in advanceEnrollment). Idempotent on the
 // dedupeKey, so a stale re-advance can never double-pay. `stage` is the FROM stage
-// (the one just cleared).
+// (the one just cleared); the amount is graduated by that stage (WI-1) via
+// stageClearXp — the caller must derive its toast/telemetry amount the same way.
 export async function recordStageClear(
   userId: string,
   slug: string,
@@ -35,7 +36,7 @@ export async function recordStageClear(
   return awardXp({
     userId,
     source: "STAGE_CLEAR",
-    amount: STAGE_CLEAR_XP,
+    amount: stageClearXp(stage),
     refId: `${slug}:${stage}`,
     dedupeKey: dedupe.stageClear(userId, slug, stage),
     now,

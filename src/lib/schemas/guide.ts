@@ -151,6 +151,12 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // revealed once the learner checks their answers.
   z.object({
     type: z.literal("quiz"),
+    // Marks THE stage-gate quiz among possibly several quiz blocks in a card:
+    // passing this one records the QuizPass the stage exit-gate checks. Other quiz
+    // blocks are practice mini-quizzes — they still award per-pick XP, but don't
+    // open the gate. Absent ⇒ the FIRST quiz block is the gate (back-compat, so
+    // existing single-quiz cards are unchanged). (WI-2)
+    gate: z.boolean().optional(),
     prompt: z.string().max(300).optional(),
     questions: z
       .array(
