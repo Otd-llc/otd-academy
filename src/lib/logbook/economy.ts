@@ -43,20 +43,28 @@ export const stageClearXp = (stage: string): number =>
 
 // The flight-training ladder (design §8; 12 ranks / 6 wing tiers, owner 2026-07-11).
 // Front-loaded: fast early levels, widening toward the top. Top (FL12) ≈ finishing
-// the library plus several build courses (~7k first-time XP). Tunable on-screen.
+// the library plus several build courses (~7.6k first-time XP). Tunable on-screen.
+//
+// Rebalanced 2026-07-18 (WI-1): graduated STAGE_CLEAR raised a full course from ~160
+// to ~280 stage-clear XP (≈ +120/course), so the upper band (FL6–FL12) is widened to
+// keep "library + several courses = FL12" and preserve the widening-toward-the-top
+// shape. FL1–FL5 are LEFT UNCHANGED on purpose: the early on-ramp pace is untouched,
+// and — since level recompute is increment-only (award.ts) and no real account sits
+// past FL5 — nobody is demoted. (The only fresh-recompute surface is the public
+// certificate flair, verify/page.tsx; it re-derives from xpTotal.)
 export const LEVELS = [
   { level: 1, minXp: 0, title: "Ground School" },
   { level: 2, minXp: 50, title: "First Solo" },
   { level: 3, minXp: 150, title: "Cross-Country" },
   { level: 4, minXp: 350, title: "Private Pilot" },
   { level: 5, minXp: 650, title: "Night Rated" },
-  { level: 6, minXp: 1050, title: "Instrument Rated" },
-  { level: 7, minXp: 1600, title: "Commercial" },
-  { level: 8, minXp: 2300, title: "Multi-Engine" },
-  { level: 9, minXp: 3200, title: "Flight Instructor" },
-  { level: 10, minXp: 4300, title: "Instrument Instructor" },
-  { level: 11, minXp: 5600, title: "Airline Transport" },
-  { level: 12, minXp: 7000, title: "Examiner" },
+  { level: 6, minXp: 1100, title: "Instrument Rated" },
+  { level: 7, minXp: 1700, title: "Commercial" },
+  { level: 8, minXp: 2400, title: "Multi-Engine" },
+  { level: 9, minXp: 3300, title: "Flight Instructor" },
+  { level: 10, minXp: 4500, title: "Instrument Instructor" },
+  { level: 11, minXp: 5900, title: "Airline Transport" },
+  { level: 12, minXp: 7600, title: "Examiner" },
 ] as const;
 
 export function levelFor(xpTotal: number) {
