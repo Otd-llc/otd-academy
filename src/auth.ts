@@ -70,6 +70,18 @@ const github = GitHub({
   },
 });
 
+// A denial from the locus (below) must reject the sendVerificationRequest promise
+// AFTER @auth/core's sendToken reaches `await Promise.all([sendRequest, createToken])`
+// and attaches its rejection handler (send-token.js:48-66). A fast reject — a missing
+// Turnstile token, a honeypot hit, a cached kill-switch read — otherwise rejects in the
+// microtask gap BEFORE that handler attaches, so Node flags unhandledRejection and Next
+// kills the function (exit 128) even though the 303 -> ?error=Configuration still fires.
+// Yielding one macrotask closes the gap. The happy-path send never calls this.
+async function denyAfterYield(reason: string): Promise<never> {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  throw new Error(reason);
+}
+
 export const { auth, handlers, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
   providers: [
@@ -117,7 +129,8 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         if (await defenseEnabled()) {
           if (isBotSubmission(body)) {
             capture("honeypot_tripped");
-            throw new Error("blocked");
+            console.warn("[locus] blocked: honeypot/dwell");
+            await denyAfterYield("blocked");
           }
           const token =
             typeof body[TURNSTILE_FIELD] === "string"
@@ -125,15 +138,23 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
               : undefined;
           if (!(await verifyTurnstile(token, null))) {
             capture("turnstile_failed");
-            throw new Error("blocked");
+            // DIAGNOSTIC (2026-07-18): tokenPresent tells apart a widget that never
+            // produced a token (empty field — key/hostname mismatch on Preview) from
+            // a real Cloudflare rejection.
+            console.warn(`[locus] blocked: turnstile (tokenPresent=${Boolean(token)})`);
+            await denyAfterYield("blocked");
           }
           // Layer 1: per-email + global rate limit (the IP rule is the callback
           // pre-check, §4.3). enforce() DEGRADES on an Upstash failure; a deny
-          // throws a plain Error -> ?error=Configuration.
+          // rejects a macrotask later (denyAfterYield) -> ?error=Configuration.
           const verdict = await enforce(magicLinkChecks(to), "escalate-closed");
+          // DIAGNOSTIC (2026-07-18): pairs with abuse-limit's degrade warns. verdict
+          // ok=true with NO degrade warn = the limiter genuinely allowed (Redis
+          // answered); ok=true WITH a degrade warn = degraded-allow (the Preview bug).
+          console.warn(`[locus] enforce verdict ok=${verdict.ok}${verdict.ok ? "" : ` rule=${verdict.rule}`}`);
           if (!verdict.ok) {
             capture("magic_link_denied", { rule: verdict.rule });
-            throw new Error("rate_limited");
+            await denyAfterYield("rate_limited");
           }
         }
 

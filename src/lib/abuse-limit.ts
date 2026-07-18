@@ -148,6 +148,10 @@ export async function enforce(checks: Check[], failMode: FailMode): Promise<Verd
     try {
       const res = await rl.limit(check.identity);
       if (res.reason === "timeout") {
+        // DIAGNOSTIC (2026-07-18): the degrade path was silent, so a Preview where
+        // every call timed out looked like "the limiter does nothing". Log the rule
+        // and cause so a redeploy shows WHY enforce degrades (timeout vs error).
+        console.warn(`[abuse-limit] degrade: Upstash TIMEOUT on ${check.rule} (>1000ms)`);
         breaker.record(false);
         return degradeVerdict(failMode);
       }
@@ -156,7 +160,10 @@ export async function enforce(checks: Check[], failMode: FailMode): Promise<Verd
         if (check.rule === "magic:global:day") fireAlert("global-cap");
         return { ok: false, rule: check.rule };
       }
-    } catch {
+    } catch (e) {
+      console.warn(
+        `[abuse-limit] degrade: Upstash ERROR on ${check.rule}: ${e instanceof Error ? e.message : String(e)}`,
+      );
       breaker.record(false);
       return degradeVerdict(failMode);
     }
