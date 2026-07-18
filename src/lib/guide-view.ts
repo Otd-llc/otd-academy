@@ -16,7 +16,16 @@ export interface GuideCardView {
   isLearnerView: boolean;
 }
 
-export function guideCardView(role: string | undefined): GuideCardView {
-  const isAuthorView = role === "ADMIN";
+export function guideCardView(
+  role: string | undefined,
+  opts: { previewAsLearner?: boolean } = {},
+): GuideCardView {
+  // Admin-only, downgrade-only preview override (WI-3): an ADMIN can opt INTO the
+  // learner view to watch the learner overlay + XP fanfare land — they're otherwise
+  // stuck in the author view and never see it as themselves. The override ONLY ever
+  // DOWNGRADES: a non-admin can never reach the author view through it, so a spoofed
+  // ?as=learner from anyone is harmless (they were already in the learner view).
+  const isAdmin = role === "ADMIN";
+  const isAuthorView = isAdmin && !opts.previewAsLearner;
   return { isAuthorView, isLearnerView: !isAuthorView };
 }
