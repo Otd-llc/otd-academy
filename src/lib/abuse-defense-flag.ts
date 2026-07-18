@@ -25,3 +25,24 @@ export async function defenseEnabled(): Promise<boolean> {
     return true;
   }
 }
+
+/**
+ * The soft-cap escalation flag (design §7.3): when the global magic-link volume
+ * nears the daily cap (the `global-cap` alert fires), an operator flips this to
+ * make the Turnstile widget interactive (a visible challenge) instead of
+ * invisible. Default OFF — absent key, no store, or any read error/timeout →
+ * false (never escalate a legit user on a blip). Read server-side (on the
+ * already-dynamic sign-in page) and passed to the widget as a prop.
+ */
+export async function turnstileInteractive(): Promise<boolean> {
+  if (!process.env.EDGE_CONFIG) return false;
+  try {
+    const value = await Promise.race([
+      get<boolean>("turnstileInteractive"),
+      new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), READ_TIMEOUT_MS)),
+    ]);
+    return value === true;
+  } catch {
+    return false;
+  }
+}

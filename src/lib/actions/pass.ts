@@ -20,6 +20,7 @@
 // import), so importing this module with no Stripe keys is always safe.
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
+import { enforceCheckoutLimit } from "@/lib/abuse-checkout";
 import { ensureStripeCustomer, getStripe } from "@/lib/stripe";
 import { siteUrl } from "@/lib/seo/jsonld";
 import { currentPassPriceId } from "@/lib/pass-pricing";
@@ -65,6 +66,7 @@ async function loadSellablePass(now: Date): Promise<{
  */
 export async function createPassCheckoutSession(): Promise<{ url: string }> {
   const user = await requireUser();
+  await enforceCheckoutLimit(user.id);
   const pass = await loadSellablePass(new Date());
   const customer = await ensureStripeCustomer(user);
   const base = siteUrl();
@@ -109,6 +111,7 @@ export async function createUpgradeCheckoutSession(): Promise<
   { url: string; granted?: false } | { granted: true; url?: undefined }
 > {
   const user = await requireUser();
+  await enforceCheckoutLimit(user.id);
   const pass = await loadSellablePass(new Date());
 
   // The learner's per-course Purchases → the credit pool. Credit = what they
@@ -205,6 +208,7 @@ export async function createSubscriptionCheckoutSession(): Promise<{
   url: string;
 }> {
   const user = await requireUser();
+  await enforceCheckoutLimit(user.id);
   const bundle = await db.bundle.findUnique({ where: { key: BUNDLE_KEY } });
   if (!bundle || !bundle.subscriptionPriceId) {
     throw new Error("The subscription isn't available yet.");

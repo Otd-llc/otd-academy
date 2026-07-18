@@ -16,7 +16,7 @@ import { Turnstile } from "@marsidev/react-turnstile";
 import { env } from "@/env";
 import { HONEYPOT_FIELD, DWELL_FIELD, TURNSTILE_FIELD } from "@/lib/abuse-guard";
 
-export function AbuseFields() {
+export function AbuseFields({ interactive = false }: { interactive?: boolean } = {}) {
   const anchorRef = useRef<HTMLSpanElement>(null);
   const dwellRef = useRef<HTMLInputElement>(null);
 
@@ -61,7 +61,10 @@ export function AbuseFields() {
         <Turnstile
           siteKey={siteKey}
           options={{
-            appearance: "interaction-only",
+            // Soft-cap escalation (design §7.3): "always" forces a visible
+            // challenge for everyone; "interaction-only" is invisible unless
+            // Turnstile itself decides a challenge is needed.
+            appearance: interactive ? "always" : "interaction-only",
             responseFieldName: TURNSTILE_FIELD,
             refreshExpired: "auto",
           }}

@@ -16,6 +16,7 @@ import {
   nsPrefix,
   magicLinkChecks,
   ipOnlyCheck,
+  userCheck,
 } from "@/lib/abuse-policy";
 import { env } from "@/env";
 
@@ -145,6 +146,15 @@ describe("ipOnlyCheck", () => {
   });
 });
 
+describe("userCheck", () => {
+  it("builds a checkout:user check keyed on the HMAC'd user id", () => {
+    const c = userCheck("cuid_abc123");
+    expect(c.rule).toBe("checkout:user");
+    expect(c.identity).toBe(hmacKey("cuid_abc123"));
+    expect(c.identity).not.toContain("cuid_abc123");
+  });
+});
+
 describe("RULES", () => {
   it("matches the sourced design numbers (guard against silent tidying)", () => {
     expect(RULES["magic:email:burst"]).toEqual({ limit: 1, window: "60 s" });
@@ -153,6 +163,7 @@ describe("RULES", () => {
     expect(RULES["magic:ip:hour"]).toEqual({ limit: 50, window: "1 h" });
     expect(RULES["waitlist:ip:hour"]).toEqual({ limit: 20, window: "1 h" });
     expect(RULES["tip:ip:hour"]).toEqual({ limit: 10, window: "1 h" });
+    expect(RULES["checkout:user"]).toEqual({ limit: 15, window: "1 h" });
   });
   it("resolves the global cap default (2000) when the env override is unset", () => {
     mockEnv.MAGIC_GLOBAL_DAILY_CAP = undefined;

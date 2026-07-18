@@ -22,6 +22,7 @@ export const RULES = {
   "magic:global:day": { limit: () => env.MAGIC_GLOBAL_DAILY_CAP ?? 2000, window: "24 h" },
   "waitlist:ip:hour": { limit: 20, window: "1 h" },
   "tip:ip:hour": { limit: 10, window: "1 h" },
+  "checkout:user": { limit: 15, window: "1 h" }, // Tier 3: authenticated Stripe actions
 } as const;
 
 export type RuleName = keyof typeof RULES;
@@ -119,4 +120,11 @@ export function ipCheckFor(rule: RuleName, ip: string | null): Check | null {
 /** The IP-only pre-check for the signIn callback (design §4.3). Null when no IP. */
 export function ipOnlyCheck(ip: string | null): Check | null {
   return ipCheckFor("magic:ip:hour", ip);
+}
+
+/** The per-user checkout check (Tier 3, design §2). HMAC the user's cuid — not
+ *  PII-sensitive like an email/IP, but HMAC keeps the key format uniform and
+ *  keeps raw user ids out of Upstash. */
+export function userCheck(userId: string): Check {
+  return { rule: "checkout:user", identity: hmacKey(userId) };
 }

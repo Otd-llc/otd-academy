@@ -3,6 +3,7 @@ import { InlineBanner } from "@/components/InlineBanner";
 import { SignInForms } from "@/components/auth/SignInForms";
 import { safeCallbackPath } from "@/lib/safe-callback";
 import { TURNSTILE_FIELD, HONEYPOT_FIELD, DWELL_FIELD } from "@/lib/abuse-guard";
+import { turnstileInteractive } from "@/lib/abuse-defense-flag";
 
 // Sign-in screen (design R11 + C1 + B1). A clean deep-space full-bleed field
 // with a soft gold bloom; the centered card is the client `SignInForms`, which
@@ -32,6 +33,10 @@ export default async function SignInPage({
   // Where to land after auth. Sanitized to a same-origin relative path so a
   // crafted ?callbackUrl can't open-redirect; defaults to the first-run router.
   const dest = safeCallbackPath(params.callbackUrl, "/start");
+  // Soft-cap escalation (design §7.3): force the Turnstile widget interactive when
+  // an operator has flipped the Edge Config flag. The sign-in page is already
+  // dynamic (it reads searchParams), so this adds no static-shell cost.
+  const interactive = await turnstileInteractive();
 
   async function googleAction() {
     "use server";
@@ -108,6 +113,7 @@ export default async function SignInPage({
           githubAction={githubAction}
           resendAction={resendAction}
           checkEmail={checkEmail}
+          interactive={interactive}
         />
       </div>
 
