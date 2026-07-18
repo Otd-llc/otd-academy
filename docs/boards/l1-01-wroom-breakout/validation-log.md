@@ -6,9 +6,9 @@
 | | |
 | --- | --- |
 | **Slug** | `l1-01-wroom-breakout` |
-| **Status** | `part-ready (shipped board)` — original ≥10-pass design validation predates this log file; **2→4 layer stackup change 2026-07-14** (layout-domain, scoped — R5 de-risk) |
-| **Passes run** | — (pre-protocol) + 1 scoped design-change audit (2026-07-14) |
-| **Last dry pass** | 2026-07-14 (scoped, disturbed `[D]` lenses; `[L]` verification owed at layout) |
+| **Status** | `part-ready (shipped board)` — original ≥10-pass design validation predates this log file; **2→4 layer stackup change 2026-07-14** (layout-domain, scoped — R5 de-risk); **C7 net+value ECN 2026-07-18** (C7 decoupling→EN RC net move + value 0.1→1 µF; schematic net change + BOM refDes regroup, no new part) |
+| **Passes run** | — (pre-protocol) + 1 scoped design-change audit (2026-07-14) + 1 net-change ECN (2026-07-18) |
+| **Last dry pass** | 2026-07-18 (C7 net ECN, scoped `[D]` lenses clean; board rewired, guide + docs consistent) |
 
 > **Note on provenance.** L1.01 was designed, validated, built, and shipped before the
 > formal `_protocol.md` / `validation-log.md` machinery existed, so it has no pass-by-pass
@@ -114,3 +114,63 @@ spans all four copper layers (status stays open → closes at layout review).
 
 **Dry pass:** the disturbed `[D]` lenses above yield zero new material findings; `[L]`
 verification is explicitly owed at the layout gate.
+
+---
+
+## ECN 2026-07-18 — C7 net correction (decoupling → EN RC cap)
+
+**Trigger.** A first-principles review (Espressif's ESP32-S3 hardware-design schematic
+checklist as the primary source) found **C7 (0.1 µF)** wired as a **third 3V3 decoupling
+cap** — in the guide's SCHEMATIC card and in the owner's in-progress KiCad reference
+schematic — instead of the **EN RC cap** it is specified as. The design docs were already
+correct: **design.md §2/§3/§4 and the LAYOUT card** both define C7 as the CHIP_PU (EN) RC
+cap forming the 10 kΩ (R1) + 0.1 µF RC. The **SCHEMATIC teaching card, the see-it-wired
+`-mcu` SVG, and the in-build wiring** were the outliers.
+
+**First-principles verdict.** The WROOM-1 has internal decoupling; its external 3V3 need is
+bulk (**C1**, 10 µF) + ~one 0.1 µF at its single 3V3 pin — already covered by **C2 + C3**. A
+third 0.1 µF in parallel is redundant. Meanwhile Espressif's checklist **requires an RC delay
+at CHIP_PU (R = 10 k, C = 0.1 µF)** so EN asserts *after* the 3V3 rail, and the same cap
+**debounces the EN reset button (SW1)**. Only one 0.1 µF is unallocated to a required role
+(C7), and the one unfilled required role is the EN RC. Therefore **C7 = the EN RC cap**;
+wiring it to +3V3 leaves the recommended EN RC unpopulated and SW1 undebounced.
+
+**Nature & scope (NO silent scope cut).** A **schematic net change plus a value/BOM change** —
+C7 pin 1 moves from the **+3V3** net to the **U1 EN (CHIP_PU)** net (pin 2 stays GND), and the
+owner chose to **upgrade C7 0.1 µF → 1 µF** for a more-robust RC (10 kΩ × 1 µF ≈ 10 ms). **No
+new part:** C7 regroups from the 0.1 µF line (Samsung `CL21B104KBCNNNC`, now C2,C3) onto the
+already-in-BOM 1 µF line (Würth `885012207103`, now C5,C6,C7); same 0805 land, X7R, 50 V. The
+BOM stays **17 lines** (a refDes regroup between two existing lines). Re-enters the protocol
+for the affected sub-circuits (module decoupling + boot/reset), not a fresh whole-board pass.
+
+### Re-run lenses (disturbed by the C7 net move)
+
+| # | Lens | Severity | Finding | Verified? | Fix / decision | Re-proof |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | `[D]` Requirements / vendor guidance | MED | C7 belongs on CHIP_PU as the EN RC (Espressif ESP32-S3 checklist: 10 k + 0.1 µF at CHIP_PU → EN asserts after the rail + debounces the reset button). A 3rd 3V3 decoupling cap is redundant (C2/C3 + module-internal cover it). | ✅ Espressif ESP32-S3 hardware-design schematic checklist. | Move C7: +3V3 → U1 EN. R1 (10 k) + C7 (0.1 µF) now form the EN RC. | Matches vendor guidance + design.md §3 calc trail. |
+| 2 | `[D]` Net integrity | LOW | Only C7's pin-1 net changes (+3V3 → EN); pin 2 stays GND. Decoupling drops to C1 (bulk) + C2/C3 (0.1 µF ×2). | ✅ owner rewired in KiCad (C7 pin 1 → EN); guide steps/tables updated to match. | +3V3 loses one tap (C7); EN gains the RC cap. No other net disturbed. | C7 now on EN; +3V3 = C1/C2/C3/R1/R5/TP1/U1/U2-VOUT/J2/J3. |
+| 3 | `[D]` Math (derived value) | — | EN RC delay = R1 × C7 = 10 kΩ × **1 µF** = **~10 ms** (Espressif's more-robust value; 0.1 µF → 1 ms is the leaner option). Also debounces SW1. | ✅ first-principles RC. | **Owner chose 1 µF** for extra reset margin over a slow LDO soft-start. | Rise-delay comfortably > typical LDO soft-start; one clean reset per SW1 press. |
+| 4 | `[P]` Part-truth / BOM | LOW | C7 value 0.1 µF → 1 µF. No new part: reuses the in-BOM Würth `885012207103` (1 µF X7R 50 V 0805) already on C5/C6. | ✅ both parts already curated + in the frozen BOM. | refDes regroup: `C2,C3,C7`(0.1 µF)→`C2,C3` qty 2; `C5,C6`(1 µF)→`C5,C6,C7` qty 3. Same 0805 land/symbol. | BOM stays **17 lines**; DB CHECK (refDes count = qty) satisfied. |
+| 5 | `[D]` Internal consistency | MED | design.md §2/§3/§4 + LAYOUT card = C7 EN cap (correct). SCHEMATIC card + `-mcu` SVG + in-build wiring = C7 decoupling (wrong). | ✅ | Guide SCHEMATIC card corrected — C7 moved decoupling → boot/reset across the Draw-it steps, part tables, intro prose, deepDive count, quiz q2, arrange step, and both see-it-wired alt/captureHints. design.md unchanged (already correct). | Full C7 scan of the SCHEMATIC card clean except the `wroom-power-flow.svg` overview (deferred). |
+| 6 | `[D]` Learnability | — | Boot/reset island now teaches the EN RC (POR rise-delay + SW1 debounce, Espressif-cited); decoupling island now correctly two 0.1 µF bypass caps. | ✅ against the L1 true-beginner bar. | Plain-language RC + debounce, no surface math; the "why" is honest vendor-guidance E-E-A-T. | Content edits live on local (not prod-pushed). |
+
+**Untouched lenses:** sourcing/lifecycle (same 17-line BOM), footprint↔symbol↔pinout (same
+C7 land/symbol), DFM/solderability (same package), physics/power-integrity (3V3 still
+well-decoupled: C1 bulk + C2/C3 + module-internal; the WiFi-TX transient is handled by C1 per
+the prior PI lens), RF/antenna keep-out, pipeline flags.
+
+**Risk.** A latent **design-vs-build/guide inconsistency** (docs said EN cap; guide + build
+said decoupling). Now resolved: board rewired (C7 → EN), guide aligned, docs consistent.
+
+**Residual / owed:**
+- **Recapture** the decoupling + boot/reset "see it wired" shots — emptied here because the
+  prior captures show the pre-move (stale) wiring.
+- **Redraw + re-export** the `wroom-power-flow.svg` overview diagram — its block still labels
+  C7 under "decoupling" (designed SVG, not auto-fixed).
+- **EN cap value — RESOLVED 1 µF** (10 kΩ × 1 µF ≈ 10 ms). BOM regrouped (C7 → Würth
+  `885012207103` line, no new part); guide C7 value + RC-delay prose/table updated to 1 µF / ~10 ms.
+- Guide content edits **and the BOM regroup** are on **LOCAL only** (owner's DO-NOT-PROD-PUSH
+  hold) pending sign-off.
+
+**Dry pass:** the disturbed `[D]` lenses above yield zero new material findings; the board is
+rewired and the guide + docs are consistent.
