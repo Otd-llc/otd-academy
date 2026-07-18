@@ -1,5 +1,10 @@
-# Signup abuse defense — Tier 3 (deferred to a follow-up PR)
+# Signup abuse defense — Tier 3
 
+> **UPDATE 2026-07-18 — BUILT (commit `21b0be2`), no longer deferred.** Implemented
+> exactly per the recipe below: the `checkout:user` rule + `userCheck` in
+> `abuse-policy.ts`, `enforceCheckoutLimit(userId)` in `abuse-checkout.ts` (fail-open),
+> wrapping all five `requireUser` actions. Kept as the record + rationale.
+>
 > Recorded as part of the signup-abuse-defense build (Task 10). The magic-link
 > Tier-1 defense (Turnstile + rate limiter + kill switch) and the Tier-2 anonymous
 > surfaces (waitlist, guest tip) shipped in that PR. Tier 3 is **deliberately
