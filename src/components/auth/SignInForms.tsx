@@ -25,6 +25,7 @@ import {
   type LastUser,
   type LastProvider,
 } from "@/lib/last-auth";
+import { AbuseFields } from "@/components/auth/AbuseFields";
 
 function GoogleMark({ className }: { className?: string }) {
   return (
@@ -81,11 +82,13 @@ export function SignInForms({
   githubAction,
   resendAction,
   checkEmail,
+  interactive = false,
 }: {
   googleAction: () => Promise<void>;
   githubAction: () => Promise<void>;
   resendAction: (formData: FormData) => Promise<void>;
   checkEmail: boolean;
+  interactive?: boolean;
 }) {
   const [mounted, setMounted] = useState(false);
   const [lastUser, setLastUser] = useState<LastUser | null>(null);
@@ -159,6 +162,7 @@ export function SignInForms({
         placeholder="you@example.com"
         className={INPUT}
       />
+      <AbuseFields interactive={interactive} />
       <button type="submit" className={CTA}>
         <MailIcon className="h-4 w-4" />
         <span>{cta}</span>
@@ -190,6 +194,7 @@ export function SignInForms({
           {email ? (
             <form action={resendAction} className="inline">
               <input type="hidden" name="email" value={email} />
+              <AbuseFields interactive={interactive} />
               <button type="submit" className="text-muted transition-colors hover:text-gold-light">
                 Resend
               </button>

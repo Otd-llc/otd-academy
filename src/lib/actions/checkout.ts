@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
+import { enforceCheckoutLimit } from "@/lib/abuse-checkout";
 import { ensureStripeCustomer, getStripe } from "@/lib/stripe";
 import { siteUrl } from "@/lib/seo/jsonld";
 import { capture } from "@/lib/analytics";
@@ -27,6 +28,7 @@ export async function createCheckoutSession(input: {
 }): Promise<{ url: string }> {
   const { projectId } = createCheckoutSessionSchema.parse(input);
   const user = await requireUser();
+  await enforceCheckoutLimit(user.id);
 
   const project = await db.project.findUnique({
     where: { id: projectId },

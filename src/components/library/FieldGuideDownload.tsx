@@ -19,13 +19,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
-
 import {
-  fieldGuideWelcomePath,
   fieldGuideCoverPath,
   fieldGuidePdfDownloadUrl,
 } from "@/lib/library/field-guide-links";
+import { sendGuideMagicLink, guideOAuthSignIn } from "@/lib/actions/magic-link";
+import { AbuseFields } from "@/components/auth/AbuseFields";
+import { TURNSTILE_FIELD, HONEYPOT_FIELD, DWELL_FIELD } from "@/lib/abuse-guard";
 import { PdfBuildButton } from "./PdfBuildButton";
 
 function DownloadGlyph() {
@@ -128,20 +128,26 @@ function LeadMagnetModal({
 }) {
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const callbackUrl = fieldGuideWelcomePath(guide); // post-signin target = the welcome (auto-downloads + funnels to L1.01)
 
-  async function submitEmail(e: React.FormEvent) {
+  async function submitEmail(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!email || state === "sending") return;
     setState("sending");
-    try {
-      // ONE magic link: signs in / creates the account AND (via callbackUrl) opens
-      // the guide. redirect:false keeps us on the page to confirm.
-      await signIn("resend", { email, redirect: false, callbackUrl });
-      setState("sent");
-    } catch {
-      setState("error");
-    }
+    // Read the Layer-0 fields (AbuseFields) synchronously before the await.
+    const fd = new FormData(e.currentTarget);
+    const val = (k: string) => {
+      const v = fd.get(k);
+      return typeof v === "string" ? v : undefined;
+    };
+    // ONE magic link via the server action: signs in / creates the account AND
+    // (via redirectTo) opens the guide. Key off the returned ?error=, never a
+    // truthy/ok check — a denial returns HTTP 200 (design D3). No error → sent.
+    const res = await sendGuideMagicLink(guide, email, {
+      token: val(TURNSTILE_FIELD),
+      honeypot: val(HONEYPOT_FIELD),
+      dwell: val(DWELL_FIELD),
+    });
+    setState(res.error ? "error" : "sent");
   }
 
   return (
@@ -222,6 +228,7 @@ function LeadMagnetModal({
                 placeholder="you@email.com"
                 className="w-full border-0 border-b border-panel-border/60 bg-transparent px-0 py-2 font-mono text-sm text-text placeholder:text-muted focus:border-command-gold focus:outline-none"
               />
+              <AbuseFields />
               <button
                 type="submit"
                 disabled={state === "sending"}
@@ -245,14 +252,14 @@ function LeadMagnetModal({
             <div className="flex flex-col gap-2">
               <button
                 type="button"
-                onClick={() => signIn("google", { callbackUrl })}
+                onClick={() => guideOAuthSignIn(guide, "google")}
                 className="inline-flex w-full items-center justify-center rounded-[6px] border border-panel-border px-4 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-text hover:border-command-gold/50 focus-visible:border-command-gold focus-visible:outline-none"
               >
                 Continue with Google
               </button>
               <button
                 type="button"
-                onClick={() => signIn("github", { callbackUrl })}
+                onClick={() => guideOAuthSignIn(guide, "github")}
                 className="inline-flex w-full items-center justify-center rounded-[6px] border border-panel-border px-4 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-text hover:border-command-gold/50 focus-visible:border-command-gold focus-visible:outline-none"
               >
                 Continue with GitHub
@@ -266,6 +273,19 @@ function LeadMagnetModal({
             >
               Maybe later
             </button>
+
+            {/* Disclosure: this form runs Cloudflare Turnstile (a pre-consent
+                third party). Opens in a new tab so it never closes the modal. */}
+            <p className="mt-4 text-center font-mono text-[9px] uppercase tracking-[0.18em] text-gray-3">
+              <a
+                href="/privacy"
+                target="_blank"
+                rel="noopener"
+                className="transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
+              >
+                Privacy
+              </a>
+            </p>
           </>
         )}
       </div>

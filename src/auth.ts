@@ -7,12 +7,17 @@ import type { UserRole } from "@prisma/client";
 import { db } from "@/lib/db";
 import { env } from "@/env";
 import { isAdminEmail } from "@/lib/admin-allowlist";
-import { resolveSignIn } from "@/lib/auth-link-guard";
+import { resolveSignIn, RATE_LIMITED_REDIRECT } from "@/lib/auth-link-guard";
 import { pickVerifiedGithubEmail, type GitHubEmail } from "@/lib/github-verified-email";
 import { magicLinkEmail } from "@/lib/auth-magic-link-email";
 import { fieldGuideMagicLinkEmail } from "@/lib/field-guide-email";
 import { guideFromWelcomeUrl } from "@/lib/library/field-guide-links";
 import { capture } from "@/lib/analytics";
+import { verifyTurnstile } from "@/lib/turnstile";
+import { isBotSubmission, TURNSTILE_FIELD } from "@/lib/abuse-guard";
+import { enforce } from "@/lib/abuse-limit";
+import { magicLinkChecks, ipOnlyCheck, clientIp } from "@/lib/abuse-policy";
+import { defenseEnabled } from "@/lib/abuse-defense-flag";
 
 // GitHub's OAuth profile carries no "email verified" flag, and the default
 // provider will use a public (possibly unverified) email. We only ever link
@@ -65,6 +70,18 @@ const github = GitHub({
   },
 });
 
+// A denial from the locus (below) must reject the sendVerificationRequest promise
+// AFTER @auth/core's sendToken reaches `await Promise.all([sendRequest, createToken])`
+// and attaches its rejection handler (send-token.js:48-66). A fast reject — a missing
+// Turnstile token, a honeypot hit, a cached kill-switch read — otherwise rejects in the
+// microtask gap BEFORE that handler attaches, so Node flags unhandledRejection and Next
+// kills the function (exit 128) even though the 303 -> ?error=Configuration still fires.
+// Yielding one macrotask closes the gap. The happy-path send never calls this.
+async function denyAfterYield(reason: string): Promise<never> {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  throw new Error(reason);
+}
+
 export const { auth, handlers, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
   providers: [
@@ -90,7 +107,51 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     Resend({
       apiKey: env.AUTH_RESEND_KEY,
       from: env.AUTH_RESEND_FROM,
-      async sendVerificationRequest({ identifier: to, provider, url }) {
+      async sendVerificationRequest({ identifier: to, provider, url, request }) {
+        // Layer 0 (design §4.1): read the forwarded fields, run the cheap bot
+        // checks, then verify Turnstile — BEFORE the send. Throw a PLAIN Error on
+        // any denial: it surfaces as ?error=Configuration to a redirect:false
+        // caller and via pages.error to a redirect:true one; NEVER an AuthError
+        // (500), NEVER an early return (silent "sent").
+        //
+        // `request` is toRequest(request) from @auth/core: the FULL POST body
+        // JSON-stringified, so request.json() yields { email, cf-turnstile-response,
+        // hp_url, dwell_ms, callbackUrl, ... } that the server actions forwarded.
+        let body: Record<string, unknown> = {};
+        try {
+          body = (await request.json()) as Record<string, unknown>;
+        } catch {
+          body = {};
+        }
+        // defenseEnabled (Edge Config) is the ONE kill switch over every denial
+        // point here (design §12.1). Each layer still self-gates on its own config
+        // (Turnstile keyless -> pass; enforce with KV unset -> {ok:true}).
+        if (await defenseEnabled()) {
+          if (isBotSubmission(body)) {
+            capture("honeypot_tripped");
+            await denyAfterYield("blocked");
+          }
+          const token =
+            typeof body[TURNSTILE_FIELD] === "string"
+              ? (body[TURNSTILE_FIELD] as string)
+              : undefined;
+          if (!(await verifyTurnstile(token, null))) {
+            // tokenPresent distinguishes a widget that never issued a token (empty
+            // field — a key/hostname mismatch) from a real Cloudflare rejection.
+            capture("turnstile_failed", { tokenPresent: Boolean(token) });
+            await denyAfterYield("blocked");
+          }
+          // Layer 1: per-email + global rate limit (the IP rule is the callback
+          // pre-check, §4.3). enforce() DEGRADES on an Upstash failure (logged in
+          // abuse-limit); a deny rejects a macrotask later (denyAfterYield) so it
+          // surfaces as ?error=Configuration instead of crashing the function.
+          const verdict = await enforce(magicLinkChecks(to), "escalate-closed");
+          if (!verdict.ok) {
+            capture("magic_link_denied", { rule: verdict.rule });
+            await denyAfterYield("rate_limited");
+          }
+        }
+
         const parsed = new URL(url);
         const host = parsed.host;
         // Lead-magnet capture: when the magic link's post-verification target is a
@@ -138,6 +199,23 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       // `email.verificationRequest === true` and no profile — nothing to verify.
       const isVerificationRequest = email?.verificationRequest === true;
       const provider = account?.provider;
+
+      // Abuse IP pre-check (design §4.3): the ONE cheap check BEFORE the
+      // VerificationToken row is written, capping a rotating flood before it costs
+      // a row. Gated to the magic-link SEND step (so OAuth is untouched) and to the
+      // kill switch. RETURNS a redirect string — it must NEVER throw (a callback
+      // throw becomes AccessDenied -> a 500 under the server-action `raw` path).
+      if (provider === "resend" && isVerificationRequest && (await defenseEnabled())) {
+        const { headers } = await import("next/headers");
+        const check = ipOnlyCheck(clientIp(await headers()));
+        if (check) {
+          const verdict = await enforce([check], "escalate-closed");
+          if (!verdict.ok) {
+            capture("magic_link_denied", { rule: "magic:ip:hour" });
+            return RATE_LIMITED_REDIRECT;
+          }
+        }
+      }
 
       // Magic-link click carries `user.email`, not `profile`. OAuth carries both.
       const profileEmail =
@@ -256,5 +334,10 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
   // own query (`?provider=…&type=email`) onto this path, so it must be query-free
   // (a query here would collide into a second `?`). The page keys the banner off
   // the appended `type=email`.
-  pages: { signIn: "/sign-in", verifyRequest: "/sign-in" },
+  //
+  // error → /sign-in so an auth error lands on our branded page, not the raw
+  // /api/auth/error. Auth.js appends `?error=<code>`; the page maps Configuration
+  // (a locus throw: Turnstile / rate limit / degradation) and rate_limited (the
+  // callback IP pre-check) to ONE generic banner (design §5, §6).
+  pages: { signIn: "/sign-in", verifyRequest: "/sign-in", error: "/sign-in" },
 });

@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { resolveSignIn, SESSION_CONFLICT_REDIRECT } from "@/lib/auth-link-guard";
+import {
+  resolveSignIn,
+  SESSION_CONFLICT_REDIRECT,
+  RATE_LIMITED_REDIRECT,
+} from "@/lib/auth-link-guard";
 
 // `resolveSignIn` is the pure decision behind the NextAuth `signIn` callback.
 // It returns `true` to allow, `false` to reject outright, or a redirect-path
@@ -171,5 +175,12 @@ describe("resolveSignIn", () => {
         emailVerified: true,
       }),
     ).toBe(SESSION_CONFLICT_REDIRECT);
+  });
+});
+
+describe("RATE_LIMITED_REDIRECT", () => {
+  it("is the generic rate-limit redirect, distinct from session_conflict", () => {
+    expect(RATE_LIMITED_REDIRECT).toBe("/sign-in?error=rate_limited");
+    expect(RATE_LIMITED_REDIRECT).not.toBe(SESSION_CONFLICT_REDIRECT);
   });
 });

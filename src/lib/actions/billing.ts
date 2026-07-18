@@ -10,6 +10,7 @@
 // is called only inside the body, never at import, so importing this module without keys
 // is always safe.
 import { requireUser } from "@/lib/auth-helpers";
+import { enforceCheckoutLimit } from "@/lib/abuse-checkout";
 import { getStripe } from "@/lib/stripe";
 import { siteUrl } from "@/lib/seo/jsonld";
 
@@ -25,6 +26,7 @@ import { siteUrl } from "@/lib/seo/jsonld";
  */
 export async function createBillingPortalSession(): Promise<{ url: string }> {
   const user = await requireUser();
+  await enforceCheckoutLimit(user.id);
   if (!user.stripeCustomerId) {
     throw new Error("You do not have a billing account yet.");
   }

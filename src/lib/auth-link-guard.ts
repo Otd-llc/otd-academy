@@ -42,6 +42,13 @@ export type SignInInput = {
 /** Where to bounce a sign-in that would link onto a different active session. */
 export const SESSION_CONFLICT_REDIRECT = "/sign-in?error=session_conflict";
 
+/** Where the abuse IP pre-check bounces a rate-limited magic-link send (design
+ *  §4.3). The signIn callback RETURNS this string — it never throws (a callback
+ *  throw becomes AccessDenied → a 500 under the server-action `raw` path). It
+ *  surfaces as an inspectable ?error= URL on both the page and the modal, and the
+ *  page maps it (with Configuration) to one generic banner (§6). */
+export const RATE_LIMITED_REDIRECT = "/sign-in?error=rate_limited";
+
 /** True when an active session belongs to a *different* identity than the one signing in. */
 function isSessionConflict(activeUserEmail: string | undefined, profileEmail: string): boolean {
   return (

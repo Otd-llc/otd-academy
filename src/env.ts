@@ -97,6 +97,29 @@ export const env = createEnv({
       .string()
       .min(1)
       .default("One Thousand Drones, LLC, Broken Arrow, OK 74012, USA"),
+    // ── Signup abuse defense (docs/plans/2026-07-16-signup-abuse-defense-design.md) ──
+    // Upstash Redis for the magic-link rate limiter. Names come from the Vercel
+    // Marketplace integration (`otd-academy-ratelimit`), NOT the UPSTASH_REDIS_REST_*
+    // names Redis.fromEnv() prefers — the client is constructed explicitly. This is the
+    // WRITE token (READ_ONLY cannot INCR). OPTIONAL so a keyless build/CI passes; UNSET
+    // IN PROD = the rate-limit floor is off (Turnstile still holds). Cross-validated
+    // below (both-or-neither) in createFinalSchema.
+    KV_REST_API_URL: z.url().optional(),
+    KV_REST_API_TOKEN: z.string().min(1).optional(),
+    // Cloudflare Turnstile (Layer 0 bot detection) — server-side verifier secret. Pairs
+    // with NEXT_PUBLIC_TURNSTILE_SITE_KEY (both-or-neither, enforced below): site-set +
+    // secret-unset waves everyone through, secret-set + site-unset denies everyone.
+    // OPTIONAL so a keyless build/CI passes.
+    TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
+    // The magic:global:day HARD ceiling (design §7.3), env-overridable so it can be
+    // raised at 3am without a code edit. OPTIONAL — the policy module supplies the
+    // default when unset.
+    MAGIC_GLOBAL_DAILY_CAP: z.coerce.number().int().positive().optional(),
+    // Vercel Edge Config connection string — the runtime kill-switch store
+    // (`defenseEnabled`, `turnstileInteractive`, design §12.1). Vercel injects it when
+    // an Edge Config store is connected. OPTIONAL: absent → the flag reads default-on
+    // (fail-safe), so the build works before the store exists.
+    EDGE_CONFIG: z.string().min(1).optional(),
   },
   client: {
     // Public site origin used as the metadataBase for absolute SEO URLs
@@ -111,6 +134,9 @@ export const env = createEnv({
     // posthog-node (server). HOST defaults to PostHog US cloud.
     NEXT_PUBLIC_POSTHOG_KEY: z.string().min(1).optional(),
     NEXT_PUBLIC_POSTHOG_HOST: z.url().default("https://us.i.posthog.com"),
+    // Cloudflare Turnstile site key (Layer 0 widget). Pairs with the server-side
+    // TURNSTILE_SECRET_KEY (both-or-neither, enforced in createFinalSchema).
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(1).optional(),
   },
   runtimeEnv: {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
@@ -152,5 +178,45 @@ export const env = createEnv({
     LAUNCH_WINDOW_DAYS: process.env.LAUNCH_WINDOW_DAYS,
     LIFECYCLE_RESEND_FROM: process.env.LIFECYCLE_RESEND_FROM,
     LIFECYCLE_POSTAL_ADDRESS: process.env.LIFECYCLE_POSTAL_ADDRESS,
+    KV_REST_API_URL: process.env.KV_REST_API_URL,
+    KV_REST_API_TOKEN: process.env.KV_REST_API_TOKEN,
+    TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
+    MAGIC_GLOBAL_DAILY_CAP: process.env.MAGIC_GLOBAL_DAILY_CAP,
+    EDGE_CONFIG: process.env.EDGE_CONFIG,
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+  },
+  // Cross-field validation the per-key schemas can't express (design §12.2, R2-3): each
+  // pair is both-set-or-both-unset. Only meaningful server-side (the client validation
+  // pass lacks the server vars), so guard on isServer.
+  createFinalSchema: (shape, isServer) => {
+    const schema = z.object(shape);
+    if (!isServer) return schema;
+    return schema
+      .refine((v) => Boolean(v.KV_REST_API_URL) === Boolean(v.KV_REST_API_TOKEN), {
+        message:
+          "KV_REST_API_URL and KV_REST_API_TOKEN must both be set or both unset (the Upstash rate limiter needs both).",
+      })
+      .refine(
+        (v) => Boolean(v.TURNSTILE_SECRET_KEY) === Boolean(v.NEXT_PUBLIC_TURNSTILE_SITE_KEY),
+        {
+          message:
+            "TURNSTILE_SECRET_KEY and NEXT_PUBLIC_TURNSTILE_SITE_KEY must both be set or both unset (widget + verifier ship together).",
+        },
+      );
   },
 });
+
+// Production safety net (design §12.2): warn once at server startup when a prod deploy
+// has NO abuse defense configured at all. WARN, not throw — a keyless preview/CI must
+// still pass. The typeof-window guard short-circuits before any server-var access, so
+// this stays client-safe.
+if (
+  typeof window === "undefined" &&
+  process.env.VERCEL_ENV === "production" &&
+  !process.env.TURNSTILE_SECRET_KEY &&
+  !process.env.KV_REST_API_URL
+) {
+  console.warn(
+    "[signup-abuse-defense] PRODUCTION DEPLOY IS UNPROTECTED: neither Cloudflare Turnstile nor the Upstash rate limiter is configured. Set TURNSTILE_SECRET_KEY + NEXT_PUBLIC_TURNSTILE_SITE_KEY and/or KV_REST_API_URL + KV_REST_API_TOKEN. See docs/plans/2026-07-16-signup-abuse-defense-design.md §12.2.",
+  );
+}

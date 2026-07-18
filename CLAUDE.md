@@ -99,4 +99,21 @@ lines, or revisions before then. New boards start from `docs/boards/_template/`
   (`VERCEL=1`) and `next dev` trusts localhost, so this bites ONLY local prod-build measurement —
   where it will quietly invalidate anything you conclude about signed-out behaviour. (The latent
   fail-open itself is real but not live; gating on `req.auth?.user` is the fix.)
+- **Signup abuse defense (magic-link send) — the ONE locus + its throw contract.** Turnstile +
+  honeypot/dwell + the per-email/global rate limiter all live in the Resend provider's
+  `sendVerificationRequest` (`src/auth.ts`), which reads the forwarded fields via **`await
+  request.json()`** (NOT `formData()` — `@auth/core`'s `toRequest` leaves a stale
+  `x-www-form-urlencoded` content-type). A denial there **throws a plain `Error`** → surfaces as
+  `?error=Configuration`; NEVER an `AuthError` (that 500s) and NEVER an early return (that is a
+  silent "sent"). The **IP-only pre-check** in the `signIn` callback (gated to `provider ===
+  "resend" && verificationRequest`, so OAuth is untouched) instead **RETURNS `RATE_LIMITED_REDIRECT`**
+  — a callback throw becomes `AccessDenied` → 500 under the server-action `raw` path. Every send
+  surface (sign-in form, B1 resend, lead-magnet modal) sends via a **server action** (in-process
+  `Auth(req)`); the raw `POST /api/auth/signin/*` is 404'd. All denial points are gated by ONE
+  `defenseEnabled()` — Vercel **Edge Config** store `otd-academy-flags`, fail-safe ON; flip its
+  `defenseEnabled` key to `false` to disable at runtime with no redeploy (`vercel edge-config
+  update otd-academy-flags --patch …`). The `Ratelimit`/`Redis` instances live in a **plain**
+  module (`src/lib/abuse-limit.ts`), never `"use server"`. Local dev is keyless (KV/Turnstile
+  unset) → every layer no-ops. Design + build:
+  `docs/plans/2026-07-16-signup-abuse-defense-{design,implementation}.md`.
 - **Branch off `main`.** Don't merge without the maintainer's explicit go-ahead.

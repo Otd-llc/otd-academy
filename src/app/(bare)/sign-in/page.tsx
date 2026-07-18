@@ -2,6 +2,8 @@ import { signIn, signOut } from "@/auth";
 import { InlineBanner } from "@/components/InlineBanner";
 import { SignInForms } from "@/components/auth/SignInForms";
 import { safeCallbackPath } from "@/lib/safe-callback";
+import { TURNSTILE_FIELD, HONEYPOT_FIELD, DWELL_FIELD } from "@/lib/abuse-guard";
+import { turnstileInteractive } from "@/lib/abuse-defense-flag";
 
 // Sign-in screen (design R11 + C1 + B1). A clean deep-space full-bleed field
 // with a soft gold bloom; the centered card is the client `SignInForms`, which
@@ -22,10 +24,19 @@ export default async function SignInPage({
   const params = await searchParams;
   const denied = params.error === "AccessDenied";
   const conflict = params.error === "session_conflict";
+  // Abuse denials surface here (design §5, §6): the locus throws → ?error=Configuration
+  // (Turnstile / rate limit / degradation); the IP pre-check returns ?error=rate_limited.
+  // Both map to ONE generic banner (no enumeration). Configuration is overloaded with
+  // genuine config faults, but generic copy is correct either way.
+  const rateLimited = params.error === "Configuration" || params.error === "rate_limited";
   const checkEmail = params.type === "email";
   // Where to land after auth. Sanitized to a same-origin relative path so a
   // crafted ?callbackUrl can't open-redirect; defaults to the first-run router.
   const dest = safeCallbackPath(params.callbackUrl, "/start");
+  // Soft-cap escalation (design §7.3): force the Turnstile widget interactive when
+  // an operator has flipped the Edge Config flag. The sign-in page is already
+  // dynamic (it reads searchParams), so this adds no static-shell cost.
+  const interactive = await turnstileInteractive();
 
   async function googleAction() {
     "use server";
@@ -39,7 +50,19 @@ export default async function SignInPage({
     "use server";
     const email = formData.get("email");
     if (typeof email === "string" && email.length > 0) {
-      await signIn("resend", { email, redirectTo: dest });
+      const fld = (k: string) => {
+        const v = formData.get(k);
+        return typeof v === "string" ? v : "";
+      };
+      // Forward the Layer-0 fields (design §4.4 seam): signIn spreads them into the
+      // POST body, so the locus reads them via request.json().
+      await signIn("resend", {
+        email,
+        redirectTo: dest,
+        [TURNSTILE_FIELD]: fld(TURNSTILE_FIELD),
+        [HONEYPOT_FIELD]: fld(HONEYPOT_FIELD),
+        [DWELL_FIELD]: fld(DWELL_FIELD),
+      });
     }
   }
 
@@ -51,7 +74,7 @@ export default async function SignInPage({
         className="pointer-events-none absolute inset-0 [background:radial-gradient(ellipse_55%_45%_at_center_38%,rgba(200,150,62,0.09)_0%,transparent_60%)]"
       />
 
-      {(conflict || denied) && (
+      {(conflict || denied || rateLimited) && (
         <div className="absolute inset-x-4 top-4 z-20 mx-auto max-w-md sm:top-6">
           {conflict ? (
             <>
@@ -76,7 +99,9 @@ export default async function SignInPage({
             </>
           ) : (
             <InlineBanner variant="error">
-              Sign-in needs a verified account. Try again.
+              {rateLimited
+                ? "Too many sign-in requests. Wait a few minutes, or use Google or GitHub."
+                : "Sign-in needs a verified account. Try again."}
             </InlineBanner>
           )}
         </div>
@@ -88,8 +113,20 @@ export default async function SignInPage({
           githubAction={githubAction}
           resendAction={resendAction}
           checkEmail={checkEmail}
+          interactive={interactive}
         />
       </div>
+
+      {/* Disclosure: this screen runs Cloudflare Turnstile (a pre-consent third
+          party), so a Privacy link is required here. See /privacy §3. */}
+      <p className="z-10 mt-8 font-mono text-[10px] uppercase tracking-[0.2em] text-gray-3">
+        <a
+          href="/privacy"
+          className="transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
+        >
+          Privacy
+        </a>
+      </p>
     </main>
   );
 }
