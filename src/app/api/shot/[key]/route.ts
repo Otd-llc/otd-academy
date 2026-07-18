@@ -17,6 +17,7 @@ import { r2, guideShotKey } from "@/lib/r2";
 
 const MIME: Record<string, string> = {
   webp: "image/webp",
+  png: "image/png",
   webm: "video/webm",
   mp4: "video/mp4",
 };
@@ -26,7 +27,7 @@ export async function GET(
   { params }: { params: Promise<{ key: string }> },
 ) {
   const { key } = await params;
-  const match = /^([a-z0-9]+)\.(webp|webm|mp4)$/.exec(key);
+  const match = /^([a-z0-9]+)\.(webp|png|webm|mp4)$/.exec(key);
   if (!match) return new Response("Not found", { status: 404 });
   const [, shotId, ext] = match;
 

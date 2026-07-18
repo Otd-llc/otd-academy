@@ -118,6 +118,49 @@ describe("GuideBlocks — empty media visibility", () => {
   });
 });
 
+describe("GuideBlocks — admin recapture on captured media", () => {
+  const shotReveal: ContentBlock = {
+    type: "image",
+    src: "/api/shot/def456.webp",
+    alt: "see it wired",
+    reveal: "See it wired · the regulator",
+  };
+  const shotBoxed: ContentBlock = {
+    type: "image",
+    src: "/api/shot/ghi789.webp",
+    alt: "boxed diagram",
+    boxed: true,
+  };
+  const staticReveal: ContentBlock = {
+    type: "image",
+    src: "/guide-diagrams/l1-01-sub-power.svg",
+    alt: "authored diagram",
+    reveal: "See it wired · the regulator",
+  };
+
+  test("admin: filled /api/shot plain image shows the recapture launcher", () => {
+    expect(render([filledImage], true).foundLauncher).toBe(true);
+  });
+
+  test("admin: filled /api/shot REVEAL image (see-it-wired) shows the recapture launcher", () => {
+    // Regression: the reveal branch used to return before the recapture launcher,
+    // so a captured see-it-wired had no way to be re-shot.
+    expect(render([shotReveal], true).foundLauncher).toBe(true);
+  });
+
+  test("admin: filled /api/shot BOXED image shows the recapture launcher", () => {
+    expect(render([shotBoxed], true).foundLauncher).toBe(true);
+  });
+
+  test("admin: an authored /guide-diagrams SVG (not a capture) shows NO launcher", () => {
+    expect(render([staticReveal], true).foundLauncher).toBe(false);
+  });
+
+  test("student: filled /api/shot reveal image shows NO launcher", () => {
+    expect(render([shotReveal], false).foundLauncher).toBe(false);
+  });
+});
+
 describe("GuideBlocks — mode band", () => {
   const modeDo: ContentBlock = {
     type: "callout",

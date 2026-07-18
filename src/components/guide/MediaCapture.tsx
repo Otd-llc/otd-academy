@@ -18,6 +18,9 @@ import {
 import { StreamRecorder, type RecordResult } from "@/lib/record-stream";
 
 const MAX_WIDTH = 1600;
+// Hi-res cap for a `zoom` image (the answer key): big enough that a learner can
+// zoom into net labels / refdes on a dense full-schematic shot.
+const MAX_WIDTH_ZOOM = 4096;
 const WEBP_QUALITY = 0.9;
 const ASPECTS = [
   { label: "16:10", value: 16 / 10 },
@@ -43,13 +46,13 @@ function fmt(s: number): string {
   return `${m}:${String(s % 60).padStart(2, "0")}`;
 }
 
-// Box (CSS px over the preview) → native source rect, output capped to MAX_WIDTH.
-function nativeRect(video: HTMLVideoElement, box: Box): Rect {
+// Box (CSS px over the preview) → native source rect, output capped to `maxWidth`.
+function nativeRect(video: HTMLVideoElement, box: Box, maxWidth: number): Rect {
   const scaleX = video.videoWidth / video.clientWidth;
   const scaleY = video.videoHeight / video.clientHeight;
   const sw = box.w * scaleX;
   const sh = box.h * scaleY;
-  const outW = Math.max(1, Math.min(Math.round(sw), MAX_WIDTH));
+  const outW = Math.max(1, Math.min(Math.round(sw), maxWidth));
   const outH = Math.max(1, Math.round(sh * (outW / sw)));
   return { sx: box.x * scaleX, sy: box.y * scaleY, sw, sh, outW, outH };
 }
@@ -60,12 +63,16 @@ export function MediaCapture({
   blockIndex,
   captureHint,
   caption: initialCaption,
+  zoom,
 }: {
   kind: "image" | "video";
   cardId: string;
   blockIndex: number;
   captureHint?: string;
   caption?: string;
+  // Hi-res "answer key" image: capture at a much higher width cap and encode
+  // lossless PNG (not the downscaled webp) so a learner can zoom into fine text.
+  zoom?: boolean;
 }) {
   const isVideo = kind === "video";
   const [open, setOpen] = useState(false);
@@ -80,7 +87,7 @@ export function MediaCapture({
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const blobRef = useRef<Blob | null>(null);
-  const extRef = useRef<"webp" | "webm" | "mp4">("webp");
+  const extRef = useRef<"webp" | "png" | "webm" | "mp4">("webp");
   const recorderRef = useRef<StreamRecorder | null>(null);
   const cropCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -250,7 +257,10 @@ export function MediaCapture({
   function captureFrame() {
     const video = videoRef.current;
     if (!video || !video.videoWidth || !box) return;
-    const r = nativeRect(video, box);
+    // A `zoom` image captures at the hi-res cap and encodes LOSSLESS PNG (webp is
+    // lossy and smears thin schematic lines / tiny net-label text).
+    const png = !!zoom;
+    const r = nativeRect(video, box, png ? MAX_WIDTH_ZOOM : MAX_WIDTH);
     const canvas = document.createElement("canvas");
     canvas.width = r.outW;
     canvas.height = r.outH;
@@ -266,20 +276,20 @@ export function MediaCapture({
           return;
         }
         blobRef.current = blob;
-        extRef.current = "webp";
+        extRef.current = png ? "png" : "webp";
         if (previewUrl) URL.revokeObjectURL(previewUrl);
         setPreviewUrl(URL.createObjectURL(blob));
         setPhase("review");
       },
-      "image/webp",
-      WEBP_QUALITY,
+      png ? "image/png" : "image/webp",
+      png ? undefined : WEBP_QUALITY,
     );
   }
 
   function startRecording() {
     const video = videoRef.current;
     if (!video || !video.videoWidth || !box) return;
-    const r = nativeRect(video, box);
+    const r = nativeRect(video, box, MAX_WIDTH);
     recRectRef.current = r;
     const canvas = document.createElement("canvas");
     canvas.width = r.outW;
@@ -334,7 +344,12 @@ export function MediaCapture({
     setError(null);
     try {
       const ext = extRef.current;
-      const contentType = ext === "webp" ? "image/webp" : `video/${ext}`;
+      const contentType =
+        ext === "webp"
+          ? "image/webp"
+          : ext === "png"
+            ? "image/png"
+            : `video/${ext}`;
       const { uploadUrl, shotId } = await createGuideShotUploadUrl({
         ext,
         contentType,

@@ -79,6 +79,12 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     // as `reveal` (object-contain, no full-width balloon) — a teaching diagram that
     // sits open beside the prose. Ignored when `reveal` is set.
     boxed: z.boolean().optional(),
+    // When true, this is a HI-RES, zoomable capture (the "answer key" type): the
+    // renderer shows a click-to-open lightbox with pan/zoom, and the capture path
+    // shoots at full resolution as a lossless PNG (not the downscaled webp) so a
+    // learner can zoom into fine detail like net labels. Takes render precedence
+    // over reveal/boxed.
+    zoom: z.boolean().optional(),
     // Author instruction for an EMPTY-src placeholder that an admin fills via the
     // in-app screen-capture tool — e.g. "KiCad ▸ Board Setup ▸ Constraints". Shown
     // in the admin capture modal; ignored once `src` is filled.

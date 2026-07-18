@@ -17,12 +17,14 @@ import { writeGuideBlockMedia } from "@/lib/guide-block-write";
 const MAX_BYTES = 60_000_000; // 60 MB — a few-minute clip
 const MIME: Record<string, string> = {
   webp: "image/webp",
+  png: "image/png",
   webm: "video/webm",
   mp4: "video/mp4",
 };
-// Which extensions each capture kind is allowed to upload.
+// Which extensions each capture kind is allowed to upload. `png` is the lossless
+// still for a hi-res `zoom` (answer-key) capture.
 const ALLOWED: Record<"image" | "video", string[]> = {
-  image: ["webp"],
+  image: ["webp", "png"],
   video: ["webm", "mp4"],
 };
 

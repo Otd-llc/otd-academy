@@ -32,7 +32,9 @@ function ensureR2Enabled(): void {
   }
 }
 
-const SHOT_EXT = z.enum(["webp", "webm", "mp4"]);
+// `png` is the lossless still for a `zoom` (hi-res answer-key) capture; `webp`
+// is the default lossy still; `webm`/`mp4` are clips.
+const SHOT_EXT = z.enum(["webp", "png", "webm", "mp4"]);
 
 const uploadInputSchema = z.object({
   ext: SHOT_EXT.default("webp"),

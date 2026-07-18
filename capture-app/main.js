@@ -86,9 +86,11 @@ function parseDeepLink(link) {
       hint: u.searchParams.get("hint") || "",
       caption: u.searchParams.get("caption") || "",
       aspect: u.searchParams.get("aspect") || "",
+      // Hi-res answer-key slot: shoot native-res lossless PNG (overlay reads this).
+      zoom: u.searchParams.get("zoom") === "1",
     };
     logLine(
-      `deep link parsed: api=${s.api} kind=${s.kind} aspect=${s.aspect} hasToken=${!!s.token}`,
+      `deep link parsed: api=${s.api} kind=${s.kind} aspect=${s.aspect} zoom=${s.zoom} hasToken=${!!s.token}`,
     );
     return s;
   } catch (e) {
@@ -440,7 +442,13 @@ ipcMain.handle(
     logLine(`upload → ${api}/api/capture ext=${ext} bytes=${body.length}`);
     try {
       const ctype =
-        ext === "webp" ? "image/webp" : ext === "mp4" ? "video/mp4" : "video/webm";
+        ext === "webp"
+          ? "image/webp"
+          : ext === "png"
+            ? "image/png"
+            : ext === "mp4"
+              ? "video/mp4"
+              : "video/webm";
       const headers = { "Content-Type": ctype };
       if (caption) headers["x-caption"] = encodeURIComponent(caption);
       const qs = new URLSearchParams({ token, ext }).toString();

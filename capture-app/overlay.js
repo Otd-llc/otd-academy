@@ -318,14 +318,14 @@
   closeBtnEl.addEventListener("click", () => window.otd.quit());
 
   // ── crop math (box CSS px → native source rect) ──
-  function cropRect() {
+  function cropRect(maxW = 1600) {
     const sx = box.x * scaleFactor;
     const sy = box.y * scaleFactor;
     const sw = box.w * scaleFactor;
     const sh = box.h * scaleFactor;
     // Output MUST be even on both axes — hardware H.264 encoders reject odd
     // dimensions and silently fall back to (slow) software encode.
-    let outW = Math.min(Math.round(sw), 1600);
+    let outW = Math.min(Math.round(sw), maxW);
     outW = Math.max(2, outW - (outW % 2));
     let outH = Math.round(sh * (outW / sw));
     outH = Math.max(2, outH - (outH % 2));
@@ -394,14 +394,19 @@
 
   function captureFrame() {
     if (!box || !screenVideo.videoWidth) return;
-    const r = cropRect();
+    // A `zoom` (answer-key) slot shoots hi-res + LOSSLESS PNG so a learner can
+    // zoom into fine schematic text; everything else stays the 1600px webp.
+    const hires = !!(session && session.zoom);
+    const r = cropRect(hires ? 4096 : 1600);
     const canvas = document.createElement("canvas");
     canvas.width = r.outW;
     canvas.height = r.outH;
     const ctx = canvas.getContext("2d");
     ctx.drawImage(screenVideo, r.sx, r.sy, r.sw, r.sh, 0, 0, r.outW, r.outH);
-    const dataUrl = canvas.toDataURL("image/webp", 0.9);
-    captured = { base64: dataUrl.split(",")[1], ext: "webp" };
+    const dataUrl = hires
+      ? canvas.toDataURL("image/png")
+      : canvas.toDataURL("image/webp", 0.9);
+    captured = { base64: dataUrl.split(",")[1], ext: hires ? "png" : "webp" };
     finishToReview(dataUrl, false);
   }
 

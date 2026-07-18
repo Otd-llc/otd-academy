@@ -28,6 +28,7 @@ export function CaptureLauncher({
   caption,
   existing,
   currentSrc,
+  zoom,
 }: {
   kind: "image" | "video";
   cardId: string;
@@ -38,6 +39,9 @@ export function CaptureLauncher({
   // slot src to CHANGE (not merely be non-empty) before swapping it in.
   existing?: boolean;
   currentSrc?: string;
+  // Hi-res "answer key" image: told to the desktop app (deep-link param) and the
+  // in-browser fallback so both shoot at full resolution + PNG.
+  zoom?: boolean;
 }) {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [browser, setBrowser] = useState(false);
@@ -101,6 +105,8 @@ export function CaptureLauncher({
         hint: s.hint,
         caption: s.caption,
         aspect: s.aspect,
+        // Hi-res answer-key flag: the desktop app exports native-res PNG when set.
+        zoom: zoom ? "1" : "0",
       });
       // Hand off to the desktop app through the registered protocol.
       window.location.href = `otd-capture://capture?${params.toString()}`;
@@ -126,6 +132,7 @@ export function CaptureLauncher({
         blockIndex={blockIndex}
         captureHint={captureHint}
         caption={caption}
+        zoom={zoom}
       />
     );
   }

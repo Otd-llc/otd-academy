@@ -54,6 +54,7 @@ import { EMBED_ISLANDS } from "@/components/tools/embed-islands";
 import { getTool } from "@/lib/tools/registry";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
 import { CaptureLauncher } from "@/components/guide/CaptureLauncher";
+import { ZoomableImage } from "@/components/guide/ZoomableImage";
 import { PartMpnLink } from "@/components/guide/PartMpnLink";
 import { YouTubeEmbed } from "@/components/guide/YouTubeEmbed";
 import {
@@ -464,6 +465,7 @@ function ImageBlock({
   caption,
   reveal,
   boxed,
+  zoom,
   captureHint,
   cardId,
   blockIndex,
@@ -476,6 +478,9 @@ function ImageBlock({
   caption?: string;
   reveal?: string;
   boxed?: boolean;
+  /** Hi-res, zoomable "answer key" type: renders a click-to-open pan/zoom
+   *  lightbox instead of a static figure. Precedence over reveal/boxed. */
+  zoom?: boolean;
   captureHint?: string;
   cardId?: string;
   blockIndex?: number;
@@ -504,6 +509,7 @@ function ImageBlock({
             blockIndex={blockIndex}
             captureHint={captureHint}
             caption={caption}
+            zoom={zoom}
           />
         </div>
       );
@@ -525,6 +531,40 @@ function ImageBlock({
       </DiagramChromeProvider>
     );
   }
+  // Admins can re-capture a shot they took (an /api/shot/ src) — NOT the baked-in
+  // SVG diagrams. Computed ONCE here and appended to whichever figure variant
+  // renders below (plain, boxed, OR reveal). It used to live only on the plain
+  // path, so a captured `reveal`/`boxed` image — every "See it wired" slot is a
+  // reveal — returned early and had no way to be re-shot.
+  const recapture =
+    isAdmin && cardId && blockIndex !== undefined && src.startsWith("/api/shot/") ? (
+      <CaptureLauncher
+        key="capture-redo"
+        kind="image"
+        cardId={cardId}
+        blockIndex={blockIndex}
+        captureHint={captureHint}
+        caption={caption}
+        existing
+        currentSrc={src}
+        zoom={zoom}
+      />
+    ) : null;
+  const withRecapture = (node: ReactNode): ReactNode =>
+    recapture ? (
+      <div className="space-y-2">
+        {node}
+        {recapture}
+      </div>
+    ) : (
+      node
+    );
+
+  // Hi-res "answer key" type: a click-to-open pan/zoom lightbox instead of a
+  // static figure, so a learner can read fine detail (net labels, refdes) on a
+  // dense capture. Takes precedence over reveal/boxed.
+  if (zoom) return withRecapture(<ZoomableImage src={src} alt={alt} caption={caption} />);
+
   // Small, odd-aspect schematic crops render inside a fixed white box with
   // `object-contain` (the vector scales to FIT, no tall-narrow balloon). `reveal`
   // wraps that box in a collapsed <details> (a try-first "check your work");
@@ -532,7 +572,7 @@ function ImageBlock({
   if (reveal || boxed) {
     const boxedFigure = (
       <figure className="space-y-2">
-        <div className="mx-auto h-[24rem] w-full max-w-[34rem] rounded border border-panel-border bg-white">
+        <div className="mx-auto h-[24rem] w-full max-w-[34rem] rounded border border-panel-border bg-diagram-surface">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
@@ -548,14 +588,16 @@ function ImageBlock({
         ) : null}
       </figure>
     );
-    if (!reveal) return boxedFigure;
-    return (
+    // The recapture launcher sits OUTSIDE the collapsed <details> so an admin can
+    // re-shot without expanding the "See it wired" reveal first.
+    if (!reveal) return withRecapture(boxedFigure);
+    return withRecapture(
       <details className="rounded border border-panel-border bg-deep-space/40 p-3">
         <summary className="cursor-pointer select-none font-mono text-[11px] uppercase tracking-wider text-command-gold transition-colors hover:text-gold-light">
           {reveal}
         </summary>
         <div className="mt-3">{boxedFigure}</div>
-      </details>
+      </details>,
     );
   }
   const figure = (
@@ -585,31 +627,7 @@ function ImageBlock({
       ) : null}
     </figure>
   );
-  // Admins can re-capture a shot they took (an /api/shot/ src) — not the baked-in
-  // SVG diagrams.
-  if (
-    isAdmin &&
-    cardId &&
-    blockIndex !== undefined &&
-    src.startsWith("/api/shot/")
-  ) {
-    return (
-      <div className="space-y-2">
-        {figure}
-        <CaptureLauncher
-          key="capture-redo"
-          kind="image"
-          cardId={cardId}
-          blockIndex={blockIndex}
-          captureHint={captureHint}
-          caption={caption}
-          existing
-          currentSrc={src}
-        />
-      </div>
-    );
-  }
-  return figure;
+  return withRecapture(figure);
 }
 
 // Video block. An mp4 source plays inline (controls); an empty src renders the
@@ -1145,6 +1163,7 @@ function GuideBlock({
           caption={block.caption}
           reveal={block.reveal}
           boxed={block.boxed}
+          zoom={block.zoom}
           captureHint={block.captureHint}
           cardId={cardId}
           blockIndex={index}
