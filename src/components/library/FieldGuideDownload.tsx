@@ -266,6 +266,19 @@ function LeadMagnetModal({
             >
               Maybe later
             </button>
+
+            {/* Disclosure: this form runs Cloudflare Turnstile (a pre-consent
+                third party). Opens in a new tab so it never closes the modal. */}
+            <p className="mt-4 text-center font-mono text-[9px] uppercase tracking-[0.18em] text-gray-3">
+              <a
+                href="/privacy"
+                target="_blank"
+                rel="noopener"
+                className="transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
+              >
+                Privacy
+              </a>
+            </p>
           </>
         )}
       </div>

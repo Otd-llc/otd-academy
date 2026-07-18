@@ -90,6 +90,17 @@ export default async function SignInPage({
           checkEmail={checkEmail}
         />
       </div>
+
+      {/* Disclosure: this screen runs Cloudflare Turnstile (a pre-consent third
+          party), so a Privacy link is required here. See /privacy §3. */}
+      <p className="z-10 mt-8 font-mono text-[10px] uppercase tracking-[0.2em] text-gray-3">
+        <a
+          href="/privacy"
+          className="transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
+        >
+          Privacy
+        </a>
+      </p>
     </main>
   );
 }
