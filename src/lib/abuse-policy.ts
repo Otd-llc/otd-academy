@@ -109,9 +109,14 @@ export function magicLinkChecks(rawEmail: string): Check[] {
   ];
 }
 
-/** The IP-only pre-check for the signIn callback (design §4.3). Null when no IP. */
-export function ipOnlyCheck(ip: string | null): Check | null {
+/** Build an IP-keyed check for any IP rule (normalize → /64 → HMAC). Null when no IP. */
+export function ipCheckFor(rule: RuleName, ip: string | null): Check | null {
   const prefix = ipPrefix(ip);
   if (!prefix) return null;
-  return { rule: "magic:ip:hour", identity: hmacKey(prefix) };
+  return { rule, identity: hmacKey(prefix) };
+}
+
+/** The IP-only pre-check for the signIn callback (design §4.3). Null when no IP. */
+export function ipOnlyCheck(ip: string | null): Check | null {
+  return ipCheckFor("magic:ip:hour", ip);
 }

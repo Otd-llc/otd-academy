@@ -11,11 +11,15 @@
 //
 // "use server" rule: this file exports ONLY async functions.
 import { z } from "zod";
+import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { getStripe, ensureStripeCustomer } from "@/lib/stripe";
 import { siteUrl } from "@/lib/seo/jsonld";
 import { parseTipAmountCents } from "@/lib/tips";
+import { clientIp, ipCheckFor } from "@/lib/abuse-policy";
+import { enforce } from "@/lib/abuse-limit";
+import { defenseEnabled } from "@/lib/abuse-defense-flag";
 
 const inputSchema = z.object({
   amountCents: z.number(),
@@ -29,6 +33,15 @@ export async function createTipCheckout(input: {
 }): Promise<{ url: string }> {
   const { amountCents: raw, slug } = inputSchema.parse(input);
   const amountCents = parseTipAmountCents(raw); // throws on out-of-range / non-int
+
+  // Tier 2 abuse limit (design §2): createTipCheckout is GUEST-capable, so it is
+  // an anonymous Stripe endpoint. Per-IP, FAIL-OPEN (a checkout session expires).
+  if (await defenseEnabled()) {
+    const check = ipCheckFor("tip:ip:hour", clientIp(await headers()));
+    if (check && !(await enforce([check], "open")).ok) {
+      throw new Error("Too many tip attempts. Please try again shortly.");
+    }
+  }
 
   // Optional signed-in user — a tip is guest-capable.
   const session = await auth();

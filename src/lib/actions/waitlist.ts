@@ -10,8 +10,12 @@
 // available, so a waitlist is meaningless) and is idempotent on the
 // [email, projectId] unique, so a repeat submit is a no-op.
 import { z } from "zod";
+import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { capture } from "@/lib/analytics";
+import { clientIp, ipCheckFor } from "@/lib/abuse-policy";
+import { enforce } from "@/lib/abuse-limit";
+import { defenseEnabled } from "@/lib/abuse-defense-flag";
 
 const joinWaitlistSchema = z.object({
   email: z.email(),
@@ -20,6 +24,16 @@ const joinWaitlistSchema = z.object({
 
 export async function joinWaitlist(input: unknown): Promise<{ ok: true }> {
   const { email, projectId } = joinWaitlistSchema.parse(input);
+
+  // Tier 2 abuse limit (design §2, §8): per-IP, FAIL-OPEN (a waitlist row is
+  // reversible, so an Upstash outage should not block signups). Throws on a deny
+  // so the client form's catch surfaces it (no false success).
+  if (await defenseEnabled()) {
+    const check = ipCheckFor("waitlist:ip:hour", clientIp(await headers()));
+    if (check && !(await enforce([check], "open")).ok) {
+      throw new Error("Too many requests. Please try again in a little while.");
+    }
+  }
 
   const project = await db.project.findUniqueOrThrow({
     where: { id: projectId },

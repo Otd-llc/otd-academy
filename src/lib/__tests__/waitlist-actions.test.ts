@@ -21,6 +21,12 @@ vi.mock("next/cache", () => ({
   cacheTag: vi.fn(),
 }));
 
+// joinWaitlist now reads headers() for the Tier-2 IP limit. Outside a request
+// scope headers() throws, so mock it: empty headers → no client IP → the IP rule
+// is skipped (the limiter is unconfigured in tests anyway), leaving the DB-logic
+// assertions below unchanged.
+vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+
 import { db } from "@/lib/db";
 import { joinWaitlist } from "@/lib/actions/waitlist";
 
