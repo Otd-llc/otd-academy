@@ -13,6 +13,8 @@ import { magicLinkEmail } from "@/lib/auth-magic-link-email";
 import { fieldGuideMagicLinkEmail } from "@/lib/field-guide-email";
 import { guideFromWelcomeUrl } from "@/lib/library/field-guide-links";
 import { capture } from "@/lib/analytics";
+import { verifyTurnstile } from "@/lib/turnstile";
+import { isBotSubmission, TURNSTILE_FIELD } from "@/lib/abuse-guard";
 
 // GitHub's OAuth profile carries no "email verified" flag, and the default
 // provider will use a public (possibly unverified) email. We only ever link
@@ -90,7 +92,29 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     Resend({
       apiKey: env.AUTH_RESEND_KEY,
       from: env.AUTH_RESEND_FROM,
-      async sendVerificationRequest({ identifier: to, provider, url }) {
+      async sendVerificationRequest({ identifier: to, provider, url, request }) {
+        // Layer 0 (design §4.1): read the forwarded fields, run the cheap bot
+        // checks, then verify Turnstile — BEFORE the send. Throw a PLAIN Error on
+        // any denial: it surfaces as ?error=Configuration to a redirect:false
+        // caller and via pages.error to a redirect:true one; NEVER an AuthError
+        // (500), NEVER an early return (silent "sent"). (enforce() is Task 7.)
+        //
+        // `request` is toRequest(request) from @auth/core: the FULL POST body
+        // JSON-stringified, so request.json() yields { email, cf-turnstile-response,
+        // hp_url, dwell_ms, callbackUrl, ... } that the server actions forwarded.
+        let body: Record<string, unknown> = {};
+        try {
+          body = (await request.json()) as Record<string, unknown>;
+        } catch {
+          body = {};
+        }
+        if (isBotSubmission(body)) throw new Error("blocked");
+        const token =
+          typeof body[TURNSTILE_FIELD] === "string"
+            ? (body[TURNSTILE_FIELD] as string)
+            : undefined;
+        if (!(await verifyTurnstile(token, null))) throw new Error("blocked");
+
         const parsed = new URL(url);
         const host = parsed.host;
         // Lead-magnet capture: when the magic link's post-verification target is a

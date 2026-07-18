@@ -24,6 +24,8 @@ import {
   fieldGuidePdfDownloadUrl,
 } from "@/lib/library/field-guide-links";
 import { sendGuideMagicLink, guideOAuthSignIn } from "@/lib/actions/magic-link";
+import { AbuseFields } from "@/components/auth/AbuseFields";
+import { TURNSTILE_FIELD, HONEYPOT_FIELD, DWELL_FIELD } from "@/lib/abuse-guard";
 import { PdfBuildButton } from "./PdfBuildButton";
 
 function DownloadGlyph() {
@@ -127,14 +129,24 @@ function LeadMagnetModal({
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
 
-  async function submitEmail(e: React.FormEvent) {
+  async function submitEmail(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!email || state === "sending") return;
     setState("sending");
+    // Read the Layer-0 fields (AbuseFields) synchronously before the await.
+    const fd = new FormData(e.currentTarget);
+    const val = (k: string) => {
+      const v = fd.get(k);
+      return typeof v === "string" ? v : undefined;
+    };
     // ONE magic link via the server action: signs in / creates the account AND
     // (via redirectTo) opens the guide. Key off the returned ?error=, never a
     // truthy/ok check — a denial returns HTTP 200 (design D3). No error → sent.
-    const res = await sendGuideMagicLink(guide, email);
+    const res = await sendGuideMagicLink(guide, email, {
+      token: val(TURNSTILE_FIELD),
+      honeypot: val(HONEYPOT_FIELD),
+      dwell: val(DWELL_FIELD),
+    });
     setState(res.error ? "error" : "sent");
   }
 
@@ -216,6 +228,7 @@ function LeadMagnetModal({
                 placeholder="you@email.com"
                 className="w-full border-0 border-b border-panel-border/60 bg-transparent px-0 py-2 font-mono text-sm text-text placeholder:text-muted focus:border-command-gold focus:outline-none"
               />
+              <AbuseFields />
               <button
                 type="submit"
                 disabled={state === "sending"}

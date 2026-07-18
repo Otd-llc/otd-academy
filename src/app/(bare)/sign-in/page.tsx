@@ -2,6 +2,7 @@ import { signIn, signOut } from "@/auth";
 import { InlineBanner } from "@/components/InlineBanner";
 import { SignInForms } from "@/components/auth/SignInForms";
 import { safeCallbackPath } from "@/lib/safe-callback";
+import { TURNSTILE_FIELD, HONEYPOT_FIELD, DWELL_FIELD } from "@/lib/abuse-guard";
 
 // Sign-in screen (design R11 + C1 + B1). A clean deep-space full-bleed field
 // with a soft gold bloom; the centered card is the client `SignInForms`, which
@@ -44,7 +45,19 @@ export default async function SignInPage({
     "use server";
     const email = formData.get("email");
     if (typeof email === "string" && email.length > 0) {
-      await signIn("resend", { email, redirectTo: dest });
+      const fld = (k: string) => {
+        const v = formData.get(k);
+        return typeof v === "string" ? v : "";
+      };
+      // Forward the Layer-0 fields (design §4.4 seam): signIn spreads them into the
+      // POST body, so the locus reads them via request.json().
+      await signIn("resend", {
+        email,
+        redirectTo: dest,
+        [TURNSTILE_FIELD]: fld(TURNSTILE_FIELD),
+        [HONEYPOT_FIELD]: fld(HONEYPOT_FIELD),
+        [DWELL_FIELD]: fld(DWELL_FIELD),
+      });
     }
   }
 

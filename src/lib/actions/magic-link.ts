@@ -13,6 +13,7 @@
 // forwarded options in Task 4.
 import { signIn } from "@/auth";
 import { fieldGuideWelcomePath } from "@/lib/library/field-guide-links";
+import { TURNSTILE_FIELD, HONEYPOT_FIELD, DWELL_FIELD } from "@/lib/abuse-guard";
 
 /**
  * Send ONE magic link whose post-verification target is the field guide. Returns
@@ -27,12 +28,17 @@ import { fieldGuideWelcomePath } from "@/lib/library/field-guide-links";
 export async function sendGuideMagicLink(
   guide: string,
   email: string,
+  fields: { token?: string; honeypot?: string; dwell?: string } = {},
 ): Promise<{ error: string | null }> {
   try {
     const result: unknown = await signIn("resend", {
       email,
       redirectTo: fieldGuideWelcomePath(guide),
       redirect: false,
+      // Forward the Layer-0 fields (design §4.4 seam) so the locus reads them.
+      [TURNSTILE_FIELD]: fields.token ?? "",
+      [HONEYPOT_FIELD]: fields.honeypot ?? "",
+      [DWELL_FIELD]: fields.dwell ?? "",
     });
     if (typeof result !== "string") return { error: null };
     // A dummy base makes this robust whether the URL is absolute or relative.
