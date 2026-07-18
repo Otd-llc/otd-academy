@@ -129,7 +129,6 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         if (await defenseEnabled()) {
           if (isBotSubmission(body)) {
             capture("honeypot_tripped");
-            console.warn("[locus] blocked: honeypot/dwell");
             await denyAfterYield("blocked");
           }
           const token =
@@ -137,21 +136,16 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
               ? (body[TURNSTILE_FIELD] as string)
               : undefined;
           if (!(await verifyTurnstile(token, null))) {
-            capture("turnstile_failed");
-            // DIAGNOSTIC (2026-07-18): tokenPresent tells apart a widget that never
-            // produced a token (empty field — key/hostname mismatch on Preview) from
-            // a real Cloudflare rejection.
-            console.warn(`[locus] blocked: turnstile (tokenPresent=${Boolean(token)})`);
+            // tokenPresent distinguishes a widget that never issued a token (empty
+            // field — a key/hostname mismatch) from a real Cloudflare rejection.
+            capture("turnstile_failed", { tokenPresent: Boolean(token) });
             await denyAfterYield("blocked");
           }
           // Layer 1: per-email + global rate limit (the IP rule is the callback
-          // pre-check, §4.3). enforce() DEGRADES on an Upstash failure; a deny
-          // rejects a macrotask later (denyAfterYield) -> ?error=Configuration.
+          // pre-check, §4.3). enforce() DEGRADES on an Upstash failure (logged in
+          // abuse-limit); a deny rejects a macrotask later (denyAfterYield) so it
+          // surfaces as ?error=Configuration instead of crashing the function.
           const verdict = await enforce(magicLinkChecks(to), "escalate-closed");
-          // DIAGNOSTIC (2026-07-18): pairs with abuse-limit's degrade warns. verdict
-          // ok=true with NO degrade warn = the limiter genuinely allowed (Redis
-          // answered); ok=true WITH a degrade warn = degraded-allow (the Preview bug).
-          console.warn(`[locus] enforce verdict ok=${verdict.ok}${verdict.ok ? "" : ` rule=${verdict.rule}`}`);
           if (!verdict.ok) {
             capture("magic_link_denied", { rule: verdict.rule });
             await denyAfterYield("rate_limited");
