@@ -108,6 +108,10 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/verify")).toBe(true);
   });
 
+  it("admits the /privacy disclosure (linked from /sign-in pre-consent; must render signed-out)", () => {
+    expect(isPublicPath("/privacy")).toBe(true);
+  });
+
   it("does NOT admit other learner routes (board, exam, complete)", () => {
     expect(isPublicPath("/learn/l1-01")).toBe(false);
     expect(isPublicPath("/learn/l1-01/exam")).toBe(false);

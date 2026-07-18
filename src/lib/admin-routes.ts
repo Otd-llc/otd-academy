@@ -86,6 +86,11 @@ export function isPublicPath(pathname: string): boolean {
   // The legal/license page is a public static page (linked from the footer); it
   // must render for signed-out visitors.
   if (top === "license") return true;
+  // The privacy disclosure is a public static page, linked from /sign-in as the
+  // pre-consent Turnstile disclosure (and from the footer). It MUST render
+  // signed-out: the sign-in screen links it before anyone authenticates, so
+  // gating it bounces the reader to /sign-in in a loop.
+  if (top === "privacy") return true;
   // One-click lifecycle-email unsubscribe (/email/unsubscribe/[token]). The signed
   // token in the path is the gate (verified in the route), so it must be reachable
   // signed-out — a recipient clicking from their inbox has no session. noindex.
