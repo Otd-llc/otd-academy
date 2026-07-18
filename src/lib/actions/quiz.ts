@@ -67,9 +67,14 @@ export async function recordQuizPass(
   const parsed = card
     ? guideContentBlocksSchema.safeParse(card.contentBlocks)
     : null;
-  const quizBlock = parsed?.success
-    ? parsed.data.find((b) => b.type === "quiz")
-    : undefined;
+  // Pick THE stage-gate quiz: the block flagged `gate: true`, else the first quiz
+  // block (back-compat — a single-quiz card, or mini-quizzes with no flag, gate on
+  // the first). Mirrors the client dispatch (GuideBlocks) so both agree on which
+  // block opens the gate. (WI-2)
+  const quizzes = parsed?.success
+    ? parsed.data.filter((b) => b.type === "quiz")
+    : [];
+  const quizBlock = quizzes.find((b) => b.type === "quiz" && b.gate) ?? quizzes[0];
   if (!quizBlock || quizBlock.type !== "quiz") {
     return { ok: false, message: "No quiz on this stage." };
   }

@@ -915,6 +915,24 @@ function QuizEditor({
         />
       </div>
 
+      <div>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={block.gate ?? false}
+            onChange={(e) =>
+              onChange({ ...block, gate: e.target.checked || undefined })
+            }
+            className="accent-command-gold"
+          />
+          <span className={labelClass}>This quiz is the stage gate</span>
+        </label>
+        <p className={helpClass}>
+          Passing the gate quiz advances the stage. Leave unchecked for a practice
+          mini-quiz. If no quiz on the card is flagged, the first quiz is the gate.
+        </p>
+      </div>
+
       {questions.map((q, qi) => (
         <fieldset
           key={qi}
