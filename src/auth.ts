@@ -7,7 +7,7 @@ import type { UserRole } from "@prisma/client";
 import { db } from "@/lib/db";
 import { env } from "@/env";
 import { isAdminEmail } from "@/lib/admin-allowlist";
-import { resolveSignIn } from "@/lib/auth-link-guard";
+import { resolveSignIn, RATE_LIMITED_REDIRECT } from "@/lib/auth-link-guard";
 import { pickVerifiedGithubEmail, type GitHubEmail } from "@/lib/github-verified-email";
 import { magicLinkEmail } from "@/lib/auth-magic-link-email";
 import { fieldGuideMagicLinkEmail } from "@/lib/field-guide-email";
@@ -15,6 +15,9 @@ import { guideFromWelcomeUrl } from "@/lib/library/field-guide-links";
 import { capture } from "@/lib/analytics";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { isBotSubmission, TURNSTILE_FIELD } from "@/lib/abuse-guard";
+import { enforce } from "@/lib/abuse-limit";
+import { magicLinkChecks, ipOnlyCheck, clientIp } from "@/lib/abuse-policy";
+import { defenseEnabled } from "@/lib/abuse-defense-flag";
 
 // GitHub's OAuth profile carries no "email verified" flag, and the default
 // provider will use a public (possibly unverified) email. We only ever link
@@ -97,7 +100,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         // checks, then verify Turnstile — BEFORE the send. Throw a PLAIN Error on
         // any denial: it surfaces as ?error=Configuration to a redirect:false
         // caller and via pages.error to a redirect:true one; NEVER an AuthError
-        // (500), NEVER an early return (silent "sent"). (enforce() is Task 7.)
+        // (500), NEVER an early return (silent "sent").
         //
         // `request` is toRequest(request) from @auth/core: the FULL POST body
         // JSON-stringified, so request.json() yields { email, cf-turnstile-response,
@@ -108,12 +111,22 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         } catch {
           body = {};
         }
-        if (isBotSubmission(body)) throw new Error("blocked");
-        const token =
-          typeof body[TURNSTILE_FIELD] === "string"
-            ? (body[TURNSTILE_FIELD] as string)
-            : undefined;
-        if (!(await verifyTurnstile(token, null))) throw new Error("blocked");
+        // defenseEnabled (Edge Config) is the ONE kill switch over every denial
+        // point here (design §12.1). Each layer still self-gates on its own config
+        // (Turnstile keyless -> pass; enforce with KV unset -> {ok:true}).
+        if (await defenseEnabled()) {
+          if (isBotSubmission(body)) throw new Error("blocked");
+          const token =
+            typeof body[TURNSTILE_FIELD] === "string"
+              ? (body[TURNSTILE_FIELD] as string)
+              : undefined;
+          if (!(await verifyTurnstile(token, null))) throw new Error("blocked");
+          // Layer 1: per-email + global rate limit (the IP rule is the callback
+          // pre-check, §4.3). enforce() DEGRADES on an Upstash failure; a deny
+          // throws a plain Error -> ?error=Configuration.
+          const verdict = await enforce(magicLinkChecks(to), "escalate-closed");
+          if (!verdict.ok) throw new Error("rate_limited");
+        }
 
         const parsed = new URL(url);
         const host = parsed.host;
@@ -162,6 +175,20 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       // `email.verificationRequest === true` and no profile — nothing to verify.
       const isVerificationRequest = email?.verificationRequest === true;
       const provider = account?.provider;
+
+      // Abuse IP pre-check (design §4.3): the ONE cheap check BEFORE the
+      // VerificationToken row is written, capping a rotating flood before it costs
+      // a row. Gated to the magic-link SEND step (so OAuth is untouched) and to the
+      // kill switch. RETURNS a redirect string — it must NEVER throw (a callback
+      // throw becomes AccessDenied -> a 500 under the server-action `raw` path).
+      if (provider === "resend" && isVerificationRequest && (await defenseEnabled())) {
+        const { headers } = await import("next/headers");
+        const check = ipOnlyCheck(clientIp(await headers()));
+        if (check) {
+          const verdict = await enforce([check], "escalate-closed");
+          if (!verdict.ok) return RATE_LIMITED_REDIRECT;
+        }
+      }
 
       // Magic-link click carries `user.email`, not `profile`. OAuth carries both.
       const profileEmail =
