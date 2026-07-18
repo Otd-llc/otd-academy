@@ -122,7 +122,9 @@ describe("advanceEnrollment", () => {
     const projectId = await enrollmentAt("REQUIREMENTS");
     await addQuizPass(projectId, "REQUIREMENTS");
     const r = await advanceEnrollment({ projectId });
-    expect(r).toEqual({ ok: true, toStage: "BOM_SOURCING" });
+    // toMatchObject, not toEqual: the result also carries the stage-clear XP award
+    // (WI-1 step 4), whose levelUp/amount is asserted in guide-awards.test.ts.
+    expect(r).toMatchObject({ ok: true, toStage: "BOM_SOURCING" });
     expect((await enrollmentRow(projectId)).currentStage).toBe("BOM_SOURCING");
   });
 
@@ -130,7 +132,7 @@ describe("advanceEnrollment", () => {
     const projectId = await enrollmentAt("BRINGUP");
     await addQuizPass(projectId, "BRINGUP"); // BRINGUP is quiz-only (no proof)
     const r = await advanceEnrollment({ projectId });
-    expect(r).toEqual({ ok: true, toStage: "REVISION" });
+    expect(r).toMatchObject({ ok: true, toStage: "REVISION" });
     const row = await enrollmentRow(projectId);
     expect(row.currentStage).toBe("REVISION");
     expect(row.status).toBe("COMPLETED");
@@ -174,7 +176,7 @@ describe("submitEnrollmentProof", () => {
     });
     await addQuizPass(projectId, "DRC_GERBER");
     const r = await advanceEnrollment({ projectId });
-    expect(r).toEqual({ ok: true, toStage: "ORDERING" });
+    expect(r).toMatchObject({ ok: true, toStage: "ORDERING" });
   });
 
   test("rejects a pasted link on a content-validated stage (ERC needs the file itself)", async () => {
@@ -207,7 +209,7 @@ describe("submitEnrollmentProof", () => {
     });
     await addQuizPass(projectId, "SCHEMATIC");
     const r = await advanceEnrollment({ projectId });
-    expect(r).toEqual({ ok: true, toStage: "LAYOUT" });
+    expect(r).toMatchObject({ ok: true, toStage: "LAYOUT" });
   });
 
   test("a DIRTY ERC proof (valid:false) does NOT unblock advanceEnrollment", async () => {

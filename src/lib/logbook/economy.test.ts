@@ -9,6 +9,7 @@ import {
   dedupe,
   wingTier,
   STAGE_CLEAR_XP,
+  stageClearXp,
   COURSE_EXAM_XP,
   COURSE_COMPLETE_XP,
 } from "@/lib/logbook/economy";
@@ -71,6 +72,19 @@ describe("course economy (Phase 2)", () => {
     expect(STAGE_CLEAR_XP).toBe(20);
     expect(COURSE_EXAM_XP).toBe(150);
     expect(COURSE_COMPLETE_XP).toBe(300);
+  });
+  it("stageClearXp graduates by stage — read stages pay less than proof stages", () => {
+    expect(stageClearXp("REQUIREMENTS")).toBe(10);
+    expect(stageClearXp("BOM_SOURCING")).toBe(15);
+    expect(stageClearXp("SCHEMATIC")).toBe(40);
+    expect(stageClearXp("LAYOUT")).toBe(60);
+    expect(stageClearXp("BRINGUP")).toBe(60);
+    // the hardest gated stages out-pay the read stages
+    expect(stageClearXp("LAYOUT")).toBeGreaterThan(stageClearXp("REQUIREMENTS"));
+  });
+  it("stageClearXp falls back to the legacy flat amount for unlisted stages", () => {
+    expect(stageClearXp("REVISION")).toBe(STAGE_CLEAR_XP); // not in the table
+    expect(stageClearXp("NONSENSE")).toBe(STAGE_CLEAR_XP);
   });
   it("course dedupe keys: stage-quiz is daily, the rest are once", () => {
     const d = new Date("2026-07-11T12:00:00Z");

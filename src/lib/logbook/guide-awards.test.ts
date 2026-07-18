@@ -110,11 +110,29 @@ describe("recordStageQuizAnswer", () => {
 });
 
 describe("recordStageClear", () => {
-  it("awards +20 once; a re-clear no-ops (dedupe)", async () => {
+  const xpOf = async () =>
+    (await db.user.findUniqueOrThrow({ where: { id: userId }, select: { xpTotal: true } }))
+      .xpTotal;
+
+  it("awards the stage's graduated amount once; a re-clear no-ops (dedupe)", async () => {
     const first = await recordStageClear(userId, slug, "REQUIREMENTS", DAY);
     expect(first).toMatchObject({ awarded: true });
     const again = await recordStageClear(userId, slug, "REQUIREMENTS", DAY);
     expect(again).toMatchObject({ awarded: false });
+  });
+
+  it("graduates the ledger amount by stage (SCHEMATIC = 40, not the flat 20)", async () => {
+    const before = await xpOf();
+    const cleared = await recordStageClear(userId, slug, "SCHEMATIC", DAY);
+    expect(cleared).toMatchObject({ awarded: true });
+    expect((await xpOf()) - before).toBe(40); // stageClearXp("SCHEMATIC")
+  });
+
+  it("an unlisted stage (REVISION) falls back to the flat 20", async () => {
+    const before = await xpOf();
+    const cleared = await recordStageClear(userId, slug, "REVISION", DAY);
+    expect(cleared).toMatchObject({ awarded: true });
+    expect((await xpOf()) - before).toBe(20);
   });
 });
 

@@ -21,8 +21,9 @@ import { LEVELS } from "@/lib/logbook/economy";
 import type { PatchArt } from "@/lib/logbook/patches";
 
 // `art` (patch) / the level derived from `label` (level) drive the emblem; both are
-// optional so existing callers keep working.
-export type FanfareInput = { kind: "level" | "patch"; label: string; xp?: number; art?: PatchArt };
+// optional so existing callers keep working. "xp" is a plain XP-gain banner (used by
+// the stage-clear advance, WI-1) — no rank/badge, just the amount + a headline.
+export type FanfareInput = { kind: "level" | "patch" | "xp"; label: string; xp?: number; art?: PatchArt };
 type FanfareItem = FanfareInput & { id: number };
 
 const FanfareCtx = createContext<(f: FanfareInput) => void>(() => {});
@@ -73,7 +74,7 @@ function Banner({ item, onDone }: { item: FanfareItem; onDone: () => void }) {
           {isLevel ? <RankWing level={level} size={38} /> : <PatchBadge art={item.art ?? "wings"} earned size={38} />}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-command-gold">▸ {isLevel ? "Level up" : "Badge earned"}</p>
+          <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-command-gold">▸ {item.kind === "level" ? "Level up" : item.kind === "patch" ? "Badge earned" : "Stage cleared"}</p>
           <p className="truncate font-display text-xl leading-tight tracking-wide text-title">{item.label}</p>
         </div>
         <p className="shrink-0 font-numeral text-2xl tabular-nums text-command-gold">{readout}</p>

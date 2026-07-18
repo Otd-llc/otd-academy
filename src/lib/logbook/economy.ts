@@ -17,9 +17,29 @@ export const CURRENT_WINDOW_DAYS = 14;
 
 // Course (build-guide) XP — Phase 2 (design 2026-07-11). Stage quizzes reuse the
 // library QUIZ_FULL/QUIZ_REPOP amounts; these are the once-ever milestone awards.
+// STAGE_CLEAR_XP is the legacy flat award, kept as the graduated table's fallback
+// for any stage not listed (e.g. REVISION) — see stageClearXp below.
 export const STAGE_CLEAR_XP = 20;
 export const COURSE_EXAM_XP = 150;
 export const COURSE_COMPLETE_XP = 300;
+
+// Graduated stage-clear XP (WI-1, 2026-07-18): the hard, verifiable stages pay more
+// than the read stages. The design-stage gates already REQUIRE the proof artifact to
+// advance (ERC=0 for SCHEMATIC, DRC=0 + attestation for LAYOUT), so a bigger award
+// here is already tied to producing verified work. Keyed by the FROM stage (the one
+// just cleared); stages absent from the table (REVISION) fall back to STAGE_CLEAR_XP.
+export const STAGE_CLEAR_XP_BY_STAGE: Record<string, number> = {
+  REQUIREMENTS: 10,
+  BOM_SOURCING: 15,
+  SCHEMATIC: 40, // ERC=0 gate
+  LAYOUT: 60, // DRC=0 + attestation — the hardest stage
+  DRC_GERBER: 25,
+  ORDERING: 30, // the leap to a physical order
+  ASSEMBLY: 40,
+  BRINGUP: 60, // "it works" payoff
+};
+export const stageClearXp = (stage: string): number =>
+  STAGE_CLEAR_XP_BY_STAGE[stage] ?? STAGE_CLEAR_XP;
 
 // The flight-training ladder (design §8; 12 ranks / 6 wing tiers, owner 2026-07-11).
 // Front-loaded: fast early levels, widening toward the top. Top (FL12) ≈ finishing
