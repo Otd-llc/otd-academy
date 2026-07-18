@@ -22,6 +22,11 @@ export default async function SignInPage({
   const params = await searchParams;
   const denied = params.error === "AccessDenied";
   const conflict = params.error === "session_conflict";
+  // Abuse denials surface here (design §5, §6): the locus throws → ?error=Configuration
+  // (Turnstile / rate limit / degradation); the IP pre-check returns ?error=rate_limited.
+  // Both map to ONE generic banner (no enumeration). Configuration is overloaded with
+  // genuine config faults, but generic copy is correct either way.
+  const rateLimited = params.error === "Configuration" || params.error === "rate_limited";
   const checkEmail = params.type === "email";
   // Where to land after auth. Sanitized to a same-origin relative path so a
   // crafted ?callbackUrl can't open-redirect; defaults to the first-run router.
@@ -51,7 +56,7 @@ export default async function SignInPage({
         className="pointer-events-none absolute inset-0 [background:radial-gradient(ellipse_55%_45%_at_center_38%,rgba(200,150,62,0.09)_0%,transparent_60%)]"
       />
 
-      {(conflict || denied) && (
+      {(conflict || denied || rateLimited) && (
         <div className="absolute inset-x-4 top-4 z-20 mx-auto max-w-md sm:top-6">
           {conflict ? (
             <>
@@ -76,7 +81,9 @@ export default async function SignInPage({
             </>
           ) : (
             <InlineBanner variant="error">
-              Sign-in needs a verified account. Try again.
+              {rateLimited
+                ? "Too many sign-in requests. Wait a few minutes, or use Google or GitHub."
+                : "Sign-in needs a verified account. Try again."}
             </InlineBanner>
           )}
         </div>

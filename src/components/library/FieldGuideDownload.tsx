@@ -19,13 +19,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
-
 import {
-  fieldGuideWelcomePath,
   fieldGuideCoverPath,
   fieldGuidePdfDownloadUrl,
 } from "@/lib/library/field-guide-links";
+import { sendGuideMagicLink, guideOAuthSignIn } from "@/lib/actions/magic-link";
 import { PdfBuildButton } from "./PdfBuildButton";
 
 function DownloadGlyph() {
@@ -128,20 +126,16 @@ function LeadMagnetModal({
 }) {
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const callbackUrl = fieldGuideWelcomePath(guide); // post-signin target = the welcome (auto-downloads + funnels to L1.01)
 
   async function submitEmail(e: React.FormEvent) {
     e.preventDefault();
     if (!email || state === "sending") return;
     setState("sending");
-    try {
-      // ONE magic link: signs in / creates the account AND (via callbackUrl) opens
-      // the guide. redirect:false keeps us on the page to confirm.
-      await signIn("resend", { email, redirect: false, callbackUrl });
-      setState("sent");
-    } catch {
-      setState("error");
-    }
+    // ONE magic link via the server action: signs in / creates the account AND
+    // (via redirectTo) opens the guide. Key off the returned ?error=, never a
+    // truthy/ok check — a denial returns HTTP 200 (design D3). No error → sent.
+    const res = await sendGuideMagicLink(guide, email);
+    setState(res.error ? "error" : "sent");
   }
 
   return (
@@ -245,14 +239,14 @@ function LeadMagnetModal({
             <div className="flex flex-col gap-2">
               <button
                 type="button"
-                onClick={() => signIn("google", { callbackUrl })}
+                onClick={() => guideOAuthSignIn(guide, "google")}
                 className="inline-flex w-full items-center justify-center rounded-[6px] border border-panel-border px-4 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-text hover:border-command-gold/50 focus-visible:border-command-gold focus-visible:outline-none"
               >
                 Continue with Google
               </button>
               <button
                 type="button"
-                onClick={() => signIn("github", { callbackUrl })}
+                onClick={() => guideOAuthSignIn(guide, "github")}
                 className="inline-flex w-full items-center justify-center rounded-[6px] border border-panel-border px-4 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-text hover:border-command-gold/50 focus-visible:border-command-gold focus-visible:outline-none"
               >
                 Continue with GitHub

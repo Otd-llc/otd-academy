@@ -256,5 +256,10 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
   // own query (`?provider=…&type=email`) onto this path, so it must be query-free
   // (a query here would collide into a second `?`). The page keys the banner off
   // the appended `type=email`.
-  pages: { signIn: "/sign-in", verifyRequest: "/sign-in" },
+  //
+  // error → /sign-in so an auth error lands on our branded page, not the raw
+  // /api/auth/error. Auth.js appends `?error=<code>`; the page maps Configuration
+  // (a locus throw: Turnstile / rate limit / degradation) and rate_limited (the
+  // callback IP pre-check) to ONE generic banner (design §5, §6).
+  pages: { signIn: "/sign-in", verifyRequest: "/sign-in", error: "/sign-in" },
 });
