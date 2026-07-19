@@ -17,7 +17,9 @@
     "lint": "eslint .",
     "diagrams:export": "tsx scripts/export-diagrams.ts",
     "diagrams:check": "tsx scripts/export-diagrams.ts --check",
-    "postinstall": "prisma generate && node scripts/copy-occt-wasm.cjs"
+    "postinstall": "prisma generate && node scripts/copy-occt-wasm.cjs",
+    "prepare": "git config core.hooksPath .githooks || exit 0",
+    "check:classification": "node scripts/check-classification.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
