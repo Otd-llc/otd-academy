@@ -6,9 +6,9 @@
 | | |
 | --- | --- |
 | **Slug** | `l1-01-wroom-breakout` |
-| **Status** | `part-ready (shipped board)` — original ≥10-pass design validation predates this log file; **2→4 layer stackup change 2026-07-14** (layout-domain, scoped — R5 de-risk); **C7 net+value ECN 2026-07-18** (C7 decoupling→EN RC net move + value 0.1→1 µF; schematic net change + BOM refDes regroup, no new part) |
-| **Passes run** | — (pre-protocol) + 1 scoped design-change audit (2026-07-14) + 1 net-change ECN (2026-07-18) |
-| **Last dry pass** | 2026-07-18 (C7 net ECN, scoped `[D]` lenses clean; board rewired, guide + docs consistent) |
+| **Status** | `part-ready (shipped board)` — original ≥10-pass design validation predates this log file; **2→4 layer stackup change 2026-07-14** (layout-domain, scoped — R5 de-risk); **C7 net+value ECN 2026-07-18** (C7 decoupling→EN RC net move + value 0.1→1 µF; schematic net change + BOM refDes regroup, no new part); **WROOM EPAD representation ECN 2026-07-19** (U1 exposed-pad: symbol 9-way split `41_1..41_9`→single pin `41` + footprint SnapEDA→stock `RF_Module`; CAD-representation only, no net/BOM change; starter re-exported) |
+| **Passes run** | — (pre-protocol) + 1 scoped design-change audit (2026-07-14) + 1 net-change ECN (2026-07-18) + 1 CAD-representation ECN (2026-07-19) |
+| **Last dry pass** | 2026-07-19 (WROOM EPAD ECN, scoped `[S]`/`[P]`/`[DFM]` clean; starter re-exported + structurally verified) |
 
 > **Note on provenance.** L1.01 was designed, validated, built, and shipped before the
 > formal `_protocol.md` / `validation-log.md` machinery existed, so it has no pass-by-pass
@@ -174,3 +174,61 @@ said decoupling). Now resolved: board rewired (C7 → EN), guide aligned, docs c
 
 **Dry pass:** the disturbed `[D]` lenses above yield zero new material findings; the board is
 rewired and the guide + docs are consistent.
+
+---
+
+## ECN 2026-07-19 — U1 (ESP32-S3-WROOM-1-N16R2) exposed-pad representation
+
+**Trigger.** KiCad **"Update PCB from Schematic"** warned *"No net found for component U1
+pad 41_10 … 41_21 (no pin 41_NN in symbol)"* — 12 warnings. Traced to a **non-idiomatic
+EPAD model** in the WROOM part: the module's exposed thermal pad (Espressif **pin 41**,
+GND, ONE net) was modelled as a **9-way split** — symbol pins `41_1..41_9` paired with an
+**UNVERIFIED** SnapEDA footprint (`XCVR_ESP32-S3-WROOM-1-N16R2`, thermal vias all named
+`41_1`). The academy starter export was internally self-consistent (`41_1..41_9` on both
+symbol and footprint), so it did not itself emit the warnings — but the split is
+**incompatible with any single-`41` WROOM footprint** (KiCad's stock uses one pad `41`),
+so the warnings appear the moment a stock-style footprint is on U1.
+
+**Fix chosen (done right).** Model the EPAD the idiomatic KiCad way — one pin, one pad:
+- **Symbol** (kept — our teaching symbol; pins 1–40 untouched): collapse EPAD pins
+  `41_1..41_9` → a single pin **`41`** (GND). 49 → 41 pins.
+- **Footprint**: drop the UNVERIFIED SnapEDA PartAsset and **reference the KiCad-stock
+  `RF_Module:ESP32-S3-WROOM-1`** (pads 1–40 + `41`×13 + 9 netless paste/mechanical pads).
+
+**Nature & scope (NO silent scope cut).** A **CAD-representation fix**, not an electrical
+change: the EPAD was always GND (one net); the schematic/nets/BOM/parts are unchanged; the
+starter is unwired. Re-enters the protocol only for the **disturbed lenses** below —
+`[S]` footprint↔symbol↔pinout, `[P]` part-truth, `[DFM]` land pattern.
+
+### Re-run lenses
+
+| # | Lens | Severity | Finding | Verified? | Fix / decision | Re-proof |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | `[P]` Part-truth (datasheet) | — | Is the EPAD really pin 41 = GND, module = 41 pins (40 perimeter + EPAD)? | ✅ **Espressif ESP32-S3-WROOM-1/-1U datasheet** (v1.8): 41 pins; pin 41 = EPAD, "Soldering the EPAD to the ground of the base board … optimizes thermal performance." Matches KiCad's stock symbol (pin 41 = GND). | Model EPAD as a single pin `41` (GND). | Datasheet-authoritative; corroborated by KiCad's maintained stock symbol. |
+| 2 | `[S]` Footprint↔symbol↔pinout | (the defect) | 9-way EPAD split mismatches a single-`41` footprint → 12 "no net" warnings. Are the perimeter pins 1–40 standard-numbered (so the stock footprint's pads 1–40 still map)? | ✅ Symbol spot-check vs Table 3-1: pin 1=GND, 2=3V3, 3=EN, 28=IO35, 34=IO41, 40=GND — all standard. Stock fp pads = 1–40 + `41`×13 + 9 netless. | Symbol → single pin `41`; footprint → stock ref. **Re-export verified** (`scripts/_verify-wroom-fix.ts`): symbol pin `41` present, **no `41_*` split**, U1.Footprint = `RF_Module:ESP32-S3-WROOM-1`, WROOM fp/3D no longer bundled. | Symbol pins {1..41} ↔ stock pads {1..41}: every numbered pad has a pin and every pin a pad → **zero "no net" warnings**. |
+| 3 | `[DFM]` Land pattern | LOW | Starter footprint changes **SnapEDA (UNVERIFIED) → KiCad-stock**. | ✅ Both follow the Espressif WROOM-1 land pattern; KiCad's is the maintained/vetted one. | Adopt the stock footprint for the **starter**. Drops an UNVERIFIED asset. | Stock `RF_Module` footprint is the canonical WROOM-1 land; strict trust improvement. |
+
+**Untouched lenses (not re-run — a CAD-representation fix can't disturb them):**
+requirements & traceability, net integrity (same nets/pins; EPAD still GND), math,
+physics, power integrity, FMEA, DFM-solderability (same module package), sourcing/lifecycle
+(same 17-line BOM; no part change), layout-readiness, RF/antenna keep-out, learnability,
+pipeline flags (`hasMainsNet`/`hasLiIon`/`hasThermalConcern` false, `requiresStripboard` false).
+
+**Residual / owed:**
+- The fabricated **reference board** and its **reference gerbers** (separate `GERBER_ZIP`
+  artifact) are **NOT** touched by this ECN — only the learner **starter** footprint changes.
+  Both footprints follow the datasheet land pattern (interchangeable for the module).
+- **Bundled 3D drops** for U1 (the referenced stock footprint pulls KiCad's own WROOM 3D).
+- **Not yet driven through an actual KiCad "Update PCB from Schematic"** on this machine
+  (no KiCad here) — consistency proven **structurally** (pin↔pad number coverage). An owner
+  eyeball in KiCad closes it.
+
+**Applied (PROD).** Symbol re-uploaded (single pin `41`), FOOTPRINT PartAsset deleted,
+`Part.kicadFootprint = RF_Module:ESP32-S3-WROOM-1`; l1-01 starter re-exported
+(`exports/…/kicad-q4m11894….zip`). Idempotent scripts (gitignored, local):
+`scripts/_fix-wroom-epad.ts` (s-expr parser, self-verifying), `_reexport-kicad-starter.ts`,
+`_verify-wroom-fix.ts`.
+
+**Dry pass:** the disturbed `[S]`/`[P]`/`[DFM]` lenses yield zero new material findings;
+symbol↔footprint are consistent (pin `41` ↔ stock pad `41`) and the starter is re-exported
++ verified.
