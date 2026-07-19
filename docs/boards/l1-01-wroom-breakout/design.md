@@ -235,7 +235,11 @@ flags, so there are **no conditional items**):
 - [x] **Footprint ↔ pinout cross-checked** — each part's footprint pad map
   matches the datasheet pinout (esp. RT9080's own pinout, the USBLC6 channel
   map, and the S3-WROOM-1 castellated pads; KiCad symbol/footprint refs
-  populated on all 17 parts).
+  populated on all 17 parts). **U1 EPAD re-modelled in the 2026-07-19 ECN** —
+  the ESP32-S3-WROOM-1 exposed pad (Espressif **pin 41 = GND**) is now a single
+  symbol pin `41` on the KiCad-stock footprint `RF_Module:ESP32-S3-WROOM-1`
+  (was a non-idiomatic 9-way `41_1..41_9` split on an UNVERIFIED SnapEDA
+  footprint); `[S]`/`[P]`/`[DFM]` re-run clean, starter re-exported.
 - [x] **Fab-DRU DRC accounted for** — the fab's design rules (`.kicad_dru`,
   PCBWay) are applied in the lesson's Board Setup and DRC = 0 errors gates the
   LAYOUT stage. **Now a 4-layer PCBWay stackup** (M5): the Board-Setup physical
