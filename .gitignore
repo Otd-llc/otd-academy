@@ -113,10 +113,19 @@ next-env.d.ts
 .vitest-branch-locks/
 _worker-map.log
 
-# Classification guard: confidential/internal docs never belong in this PUBLIC repo.
-# Author them outside the tree (see docs/classification-guard.md). The pre-commit
-# hook + CI check are the real barrier; these patterns just stop `git add .` sweeping
-# them in. Casing beyond these is caught by the (case-insensitive) scanner.
+# Classification guard: confidential/internal/controlled docs never belong in this
+# PUBLIC repo. Author them outside the tree (pnpm classify:stash <file>; see
+# docs/classification-guard.md). The pre-commit hook + CI check are the real barrier;
+# these patterns just stop `git add .` sweeping them in. Casing beyond these is caught
+# by the (case-insensitive) scanner.
+# Hyphen-terminal tokens = the otd-external-docs skill's naming contract:
+#   OTD-<Topic>-<Type>-<YYYY-MM-DD>-confidential[-CUI|-ITAR|-EAR].<ext>
+*-confidential.*
+*-internal.*
+*-CUI.*
+*-ITAR.*
+*-EAR.*
+# Legacy dot-delimited form (kept for backward compatibility).
 *.confidential.*
 *.CONFIDENTIAL.*
 *.Confidential.*
