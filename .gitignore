@@ -112,3 +112,14 @@ next-env.d.ts
 # vitest per-worker branch lease locks
 .vitest-branch-locks/
 _worker-map.log
+
+# Classification guard: confidential/internal docs never belong in this PUBLIC repo.
+# Author them outside the tree (see docs/classification-guard.md). The pre-commit
+# hook + CI check are the real barrier; these patterns just stop `git add .` sweeping
+# them in. Casing beyond these is caught by the (case-insensitive) scanner.
+*.confidential.*
+*.CONFIDENTIAL.*
+*.Confidential.*
+*.internal.*
+*.INTERNAL.*
+*.Internal.*

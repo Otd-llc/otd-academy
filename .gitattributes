@@ -15,3 +15,7 @@
 *.zip   binary
 *.mp4   binary
 *.webm  binary
+
+# Git hooks are shell scripts; they must stay LF or `sh` breaks on macOS/Linux.
+# Scoped (not a blanket rule) to match the pin-only approach above.
+.githooks/** text eol=lf

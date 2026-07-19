@@ -1,0 +1,5 @@
+#!/bin/sh
+# Block committing confidential/internal-classified documents to this public repo.
+# Installed via the package.json `prepare` script (sets core.hooksPath=.githooks),
+# or by hand: git config core.hooksPath .githooks. See docs/classification-guard.md.
+exec node scripts/check-classification.mjs --staged

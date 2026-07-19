@@ -1,0 +1,18 @@
+name: classification-guard
+
+# The un-bypassable backstop for the local pre-commit hook: a marked confidential /
+# internal document must never reach this public repo. Fast + dependency-free, kept
+# in its own workflow so it is not serialized behind CI's shared-test-db concurrency.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node scripts/check-classification.mjs
