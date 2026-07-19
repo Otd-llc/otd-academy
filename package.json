@@ -19,7 +19,9 @@
     "diagrams:check": "tsx scripts/export-diagrams.ts --check",
     "postinstall": "prisma generate && node scripts/copy-occt-wasm.cjs",
     "prepare": "git config core.hooksPath .githooks || exit 0",
-    "check:classification": "node scripts/check-classification.mjs"
+    "check:classification": "node scripts/check-classification.mjs",
+    "test:classification": "node --test scripts/check-classification.test.mjs scripts/classify-stash.test.mjs",
+    "classify:stash": "node scripts/classify-stash.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",

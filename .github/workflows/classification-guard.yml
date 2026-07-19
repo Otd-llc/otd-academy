@@ -15,4 +15,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
+      # Prove the detection logic itself before trusting it against the tree.
+      - run: node --test scripts/check-classification.test.mjs scripts/classify-stash.test.mjs
       - run: node scripts/check-classification.mjs
