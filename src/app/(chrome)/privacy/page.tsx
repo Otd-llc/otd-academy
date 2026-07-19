@@ -9,10 +9,12 @@
 // consent banner. Do not add a consent banner or enable Turnstile Pre-Clearance.
 // See docs/plans/2026-07-16-signup-abuse-defense-design.md §11.
 //
-// DRAFT: the effective date, the exact retention periods, the transfer
-// mechanism, the sub-processor DPA confirmations, and the GDPR EU-representative
-// question are owner/counsel items (implementation plan Task 11). Every practice
-// described is drawn from the codebase; verify before relying on it legally.
+// Effective date, transfer mechanism (SCCs), and the sub-processor list are set;
+// the sub-processor DPAs were verified 2026-07-19 (all auto-incorporated via each
+// vendor's ToS except PostHog, which needs a generated + counter-signed DPA). The
+// one open counsel item is the GDPR Art. 27 EU/UK representative (appoint one, or
+// document the occasional-processing derogation). Every practice described is drawn
+// from the codebase; counsel sign-off is still owed before relying on it legally.
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/PageHeader";
 
@@ -170,9 +172,20 @@ export default function PrivacyPage() {
               <p>
                 When you use a form on the site, such as signing in or requesting a field guide,
                 we run <strong className="font-semibold text-title">Cloudflare Turnstile</strong>{" "}
-                to tell real visitors apart from automated abuse. Turnstile receives your IP
-                address and signals about your browser and device when the widget loads, before
-                you submit the form. In the managed mode we use, it sets no cookies.
+                to tell real visitors apart from automated abuse. When the widget loads, before you
+                submit the form, Turnstile receives your IP address, a TLS fingerprint, your
+                browser&apos;s User-Agent, and the site identifier. In the managed mode we use, it
+                sets no cookies. Cloudflare uses these signals to secure our site as our processor,
+                and also acts as an independent controller to improve its own bot detection; that
+                use is described in{" "}
+                <a
+                  href="https://www.cloudflare.com/turnstile-privacy-policy/"
+                  rel="noopener"
+                  className={linkClass}
+                >
+                  Cloudflare&apos;s Turnstile privacy policy
+                </a>
+                .
               </p>
               <p>
                 We also run a rate limiter (<strong className="font-semibold text-title">Upstash
