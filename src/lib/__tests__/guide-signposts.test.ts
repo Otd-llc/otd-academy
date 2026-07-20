@@ -5,6 +5,7 @@ import {
   parseModeLabel,
   MODES,
   scanModeBands,
+  parseAlertLabel,
 } from "@/lib/guide-signposts";
 import type { ContentBlock } from "@/lib/schemas/guide";
 
@@ -79,5 +80,68 @@ describe("guide signposts: band ordinals", () => {
 
   it("returns an empty map for a card with no bands", () => {
     expect(scanModeBands([{ type: "prose", md: "x" }]).size).toBe(0);
+  });
+});
+
+describe("guide signposts: alert ladder", () => {
+  it("parses a headlined gotcha", () => {
+    expect(
+      parseAlertLabel("Gotcha · an LDO without its output cap can oscillate", "warn"),
+    ).toEqual({
+      rung: "caution",
+      word: "Gotcha",
+      headline: "an LDO without its output cap can oscillate",
+    });
+  });
+
+  it("parses a bare gotcha with no headline", () => {
+    expect(parseAlertLabel("Gotcha", "warn")).toEqual({
+      rung: "caution",
+      word: "Gotcha",
+      headline: null,
+    });
+  });
+
+  it("promotes a critical severity to the warning rung", () => {
+    const r = parseAlertLabel("Gotcha · a soldering iron never looks hot", "critical");
+    expect(r?.rung).toBe("warning");
+    expect(r?.word).toBe("Warning");
+  });
+
+  it("returns null for a label that is not an alert", () => {
+    expect(parseAlertLabel("Check yourself", "info")).toBeNull();
+  });
+
+  it("accepts a Warning-prefixed label on a critical callout", () => {
+    expect(parseAlertLabel("Warning · a soldering iron never looks hot", "critical")).toEqual({
+      rung: "warning",
+      word: "Warning",
+      headline: "a soldering iron never looks hot",
+    });
+  });
+
+  it("accepts a Note-prefixed label on an info callout", () => {
+    expect(parseAlertLabel("Note · the WROOM carries its own decoupling", "info")?.rung).toBe(
+      "note",
+    );
+  });
+
+  it("does not claim a label that merely contains the word gotcha", () => {
+    expect(parseAlertLabel("The gotcha with LDOs", "warn")).toBeNull();
+  });
+
+  // THE REGRESSION THAT MATTERS: defaultBlock("callout") emits label "Note".
+  // If a bare rung word were claimed, every callout an author inserts would render
+  // as a headline-less Note-rung alert.
+  it("does not claim the editor's default callout label", () => {
+    expect(parseAlertLabel("Note", "info")).toBeNull();
+    expect(parseAlertLabel("Warning", "critical")).toBeNull();
+  });
+
+  it("does not claim a colon-separated label", () => {
+    expect(parseAlertLabel("Caution: read first", "warn")).toBeNull();
+    expect(
+      parseAlertLabel("First power-on: a charger, not your laptop", "warn"),
+    ).toBeNull();
   });
 });

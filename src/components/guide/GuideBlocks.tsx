@@ -25,8 +25,11 @@ import {
   MODE_VAR,
   MODE_TEXT,
   parseModeLabel,
+  parseAlertLabel,
   scanModeBands,
+  type Rung,
 } from "@/lib/guide-signposts";
+import { RungGlyph } from "@/components/guide/RungGlyph";
 import { IslandRail } from "@/components/guide/IslandRail";
 import { ResumePill } from "@/components/guide/ResumePill";
 import { SetupBand } from "@/components/guide/SetupBand";
@@ -783,6 +786,68 @@ function CalloutBlock({
   );
 }
 
+// C9a — the alert ladder. Three rungs, each with its own SHAPE as well as its own
+// colour, so severity survives greyscale, print and colour-blindness. A bare
+// "Gotcha" used to render as the same flat grey box as everything else, which is
+// how a trap that costs a re-spin ended up reading as weightless.
+//
+// Colours are token vars, never literal hex, so every rung flips under
+// `[data-theme="light"]`. `note` deliberately takes the hairline colour: the
+// bottom rung should recede, not compete with the teaching spine.
+const RUNG_META: Record<Rung, { accent: string; spine: string }> = {
+  note: { accent: "text-muted", spine: "var(--color-panel-border)" },
+  caution: { accent: "text-command-gold", spine: "var(--color-command-gold)" },
+  warning: { accent: "text-alert-red", spine: "var(--color-alert-red)" },
+};
+
+function AlertBlock({
+  rung,
+  word,
+  headline,
+  body,
+}: {
+  rung: Rung;
+  word: string;
+  headline: string | null;
+  body: string;
+}) {
+  const R = RUNG_META[rung];
+  // Split the body at the FIRST sentence boundary: the trap, then what it costs.
+  // "then" labels the consequence so the two are read as cause and price, not as
+  // one undifferentiated paragraph.
+  const cut = body.indexOf(". ");
+  const trap = cut > 0 ? body.slice(0, cut + 1) : body;
+  const cost = cut > 0 ? body.slice(cut + 2) : "";
+  return (
+    <section className="border-l-2 pl-4" style={{ borderColor: R.spine }}>
+      <span
+        className={`flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] ${R.accent}`}
+      >
+        <RungGlyph rung={rung} />
+        {headline ? `${word} · ${headline}` : word}
+      </span>
+      {trap ? (
+        <p className="mt-1.5 whitespace-pre-wrap font-serif text-[15px] leading-relaxed text-muted">
+          <Inline text={trap} />
+        </p>
+      ) : null}
+      {cost ? (
+        <p className="mt-1.5 flex gap-2.5">
+          <span
+            aria-hidden
+            className={`shrink-0 font-mono text-[9px] uppercase tracking-[0.2em] ${R.accent}`}
+          >
+            then
+          </span>
+          <span className="whitespace-pre-wrap font-serif text-[15px] leading-relaxed text-muted">
+            <Inline text={cost} />
+          </span>
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 function StepsBlock({
   ordered,
   items,
@@ -1104,6 +1169,8 @@ function GuideBlock({
             of={band?.of ?? 1}
           />
         );
+      const alert = parseAlertLabel(label, block.severity);
+      if (alert) return <AlertBlock {...alert} body={block.body} />;
       return (
         <CalloutBlock severity={block.severity} label={label} body={block.body} />
       );
