@@ -91,8 +91,10 @@ const toneFor = (k: string) => TONE[k] ?? { c: RED, bg: RED_TINT };
 export function parseExternalMarkdown(src: string): ExternalDoc {
   const cm = src.match(/CLASSIFICATION:\s*(\w+)/i);
   const classification = (cm ? cm[1] : "PUBLIC").toUpperCase();
-  const asOf = (src.match(/accurate as of\s+(\d{4}-\d{2}-\d{2})/i) ?? [])[1];
-  const reviewBy = (src.match(/review by\s+(\d{4}-\d{2}-\d{2})/i) ?? [])[1];
+  // capture the date after "accurate as of" / "review by", ISO or text form
+  // ("2026-07-20" or "19 July 2026"), up to the first period or semicolon.
+  const asOf = (src.match(/accurate as of\s+([0-9A-Za-z][0-9A-Za-z ,-]*?)\s*[.;]/i) ?? [])[1]?.trim();
+  const reviewBy = (src.match(/review by\s+([0-9A-Za-z][0-9A-Za-z ,-]*?)\s*[.;]/i) ?? [])[1]?.trim();
 
   let text = src.replace(/<!--[\s\S]*?-->/g, "");
   // strip a leading authoring note blockquote (> DRAFT / FILLED / SCAFFOLD ...)
@@ -303,10 +305,13 @@ function DocBlockView({ b }: { b: DocBlock }) {
 export function ExternalDocPdf({ doc }: { doc: ExternalDoc }) {
   const controlled = CONTROLLED.has(doc.classification);
   const tone = toneFor(doc.classification);
-  const metaLine =
-    doc.classification +
-    (doc.asOf ? ` · accurate ${doc.asOf}` : "") +
-    (doc.reviewBy ? ` · review ${doc.reviewBy}` : "");
+  // the badge + running header already carry the class; the strip is dates only
+  const metaLine = [
+    doc.asOf ? `accurate ${doc.asOf}` : null,
+    doc.reviewBy ? `review ${doc.reviewBy}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const footNote = controlled
     ? `${doc.classification} · provided by access-controlled link, not attachment`
     : `${doc.classification} · informational only`;
@@ -326,7 +331,7 @@ export function ExternalDocPdf({ doc }: { doc: ExternalDoc }) {
               <Text style={s.title}>{doc.title}</Text>
               <Text style={{ ...s.badge, color: tone.c, backgroundColor: tone.bg }}>{doc.classification}</Text>
             </View>
-            <Text style={s.metaStrip}>{metaLine}</Text>
+            {metaLine ? <Text style={s.metaStrip}>{metaLine}</Text> : null}
             <View style={s.headRule} />
           </View>
         </View>
