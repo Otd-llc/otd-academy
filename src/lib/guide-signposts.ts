@@ -117,3 +117,25 @@ export function parseAlertLabel(
     severity === "critical" ? "warning" : severity === "info" ? "note" : "caution";
   return { rung, word: RUNG_WORD[rung], headline: m[3]?.trim() || null };
 }
+
+// A CLOSED verb set on purpose. The corpus grew an implicit `Verb ·` convention and
+// applied it about half the time ("KiCad 10 · PCB-editor keys" vs "The KiCad 10 keys
+// you'll use" are the same thing written two ways). A closed set means an unlisted
+// verb degrades to the generic callout instead of silently joining the family.
+// `Setup` is deliberately ABSENT: GuideBlocks absorbs a `Setup · …` callout into the
+// SetupBand summary and never renders it as a block, so listing it here would be
+// dead code that reads as working.
+// `Route it` is absent too: it is a Do wearing an aside's clothes, and Phase 5
+// relabels it rather than the aside family absorbing it.
+export const ASIDE_VERBS = ["Keys", "Alternative"] as const;
+export type AsideVerb = (typeof ASIDE_VERBS)[number];
+
+export function parseAsideLabel(
+  label: string,
+): { verb: AsideVerb; headline: string } | null {
+  const [head, ...rest] = label.split("·").map((s) => s.trim());
+  if (!rest.length) return null;
+  const verb = ASIDE_VERBS.find((v) => v.toLowerCase() === head.toLowerCase());
+  if (!verb) return null;
+  return { verb, headline: rest.join(" · ") };
+}

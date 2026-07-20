@@ -6,6 +6,7 @@ import {
   MODES,
   scanModeBands,
   parseAlertLabel,
+  parseAsideLabel,
 } from "@/lib/guide-signposts";
 import type { ContentBlock } from "@/lib/schemas/guide";
 
@@ -143,5 +144,39 @@ describe("guide signposts: alert ladder", () => {
     expect(
       parseAlertLabel("First power-on: a charger, not your laptop", "warn"),
     ).toBeNull();
+  });
+});
+
+describe("guide signposts: asides", () => {
+  it("parses a Keys aside", () => {
+    expect(parseAsideLabel("Keys · The KiCad 10 keys you'll use")).toEqual({
+      verb: "Keys",
+      headline: "The KiCad 10 keys you'll use",
+    });
+  });
+
+  // SetupBand owns this label (GuideBlocks.tsx never renders the block), so the
+  // aside family must not claim it.
+  it("does not claim a Setup label", () => {
+    expect(parseAsideLabel("Setup · Get KiCad + the starter open")).toBeNull();
+  });
+
+  it("parses an Alternative aside", () => {
+    expect(parseAsideLabel("Alternative · have hot air? Reflow them instead")).toEqual({
+      verb: "Alternative",
+      headline: "have hot air? Reflow them instead",
+    });
+  });
+
+  it("does not claim a numbered section header", () => {
+    expect(parseAsideLabel("01 · The regulator")).toBeNull();
+  });
+
+  it("does not claim a mode band", () => {
+    expect(parseAsideLabel("Mode · do · in KiCad · Build it")).toBeNull();
+  });
+
+  it("does not claim an unknown verb", () => {
+    expect(parseAsideLabel("Wibble · something")).toBeNull();
   });
 });

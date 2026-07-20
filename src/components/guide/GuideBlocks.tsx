@@ -26,8 +26,10 @@ import {
   MODE_TEXT,
   parseModeLabel,
   parseAlertLabel,
+  parseAsideLabel,
   scanModeBands,
   type Rung,
+  type AsideVerb,
 } from "@/lib/guide-signposts";
 import { RungGlyph } from "@/components/guide/RungGlyph";
 import { IslandRail } from "@/components/guide/IslandRail";
@@ -848,6 +850,70 @@ function AlertBlock({
   );
 }
 
+// E6d1 — the aside. A glyph and its verb sitting in a break in a hairline: the
+// classic manual divider, so an aside reads as a pause in the teaching spine
+// rather than another block standing on it at the same weight.
+//
+// The verb set is closed (see ASIDE_VERBS); an unlisted verb falls through to the
+// generic callout.
+const ASIDE_GLYPH: Record<AsideVerb, ReactNode> = {
+  Keys: (
+    <>
+      <rect x="2.5" y="6.5" width="19" height="11" rx="1" />
+      <path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M7.5 14h9" />
+    </>
+  ),
+  Alternative: (
+    <>
+      <path d="M5 3v6a4 4 0 0 0 4 4h10" />
+      <path d="M16 10l3 3-3 3" />
+      <path d="M5 21v-4" />
+    </>
+  ),
+};
+
+function AsideBlock({
+  verb,
+  headline,
+  body,
+}: {
+  verb: AsideVerb;
+  headline: string;
+  body: string;
+}) {
+  return (
+    <section>
+      <div className="flex items-center gap-2.5">
+        <span aria-hidden className="h-px w-6 bg-panel-border" />
+        <svg
+          className="h-3.5 w-3.5 shrink-0 text-muted"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.6}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          {ASIDE_GLYPH[verb]}
+        </svg>
+        <span className="shrink-0 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+          {verb}
+        </span>
+        <span aria-hidden className="h-px flex-1 bg-panel-border" />
+      </div>
+      <p className="mt-2 font-serif text-[15px] font-semibold leading-snug text-title">
+        {headline}
+      </p>
+      {body ? (
+        <p className="mt-1 whitespace-pre-wrap font-serif text-[15px] leading-relaxed text-muted">
+          <Inline text={body} />
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 function StepsBlock({
   ordered,
   items,
@@ -1171,6 +1237,8 @@ function GuideBlock({
         );
       const alert = parseAlertLabel(label, block.severity);
       if (alert) return <AlertBlock {...alert} body={block.body} />;
+      const aside = parseAsideLabel(label);
+      if (aside) return <AsideBlock {...aside} body={block.body} />;
       return (
         <CalloutBlock severity={block.severity} label={label} body={block.body} />
       );

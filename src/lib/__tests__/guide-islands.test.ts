@@ -43,4 +43,21 @@ describe("deriveSetupRanges", () => {
     const blocks = [co("Mode · do · Build"), co("01 · The regulator"), prose()];
     expect(deriveSetupRanges(blocks)).toEqual([]);
   });
+
+  // DOCUMENTED, NOT DESIRED. `isStructuralBreak` returns false for ANY non-callout
+  // block, so a Do expressed as a block rather than a callout does not terminate a
+  // Setup range. This matters once the signpost work moves `Draw it ·` callouts into
+  // their own block type: they stop closing the region they used to close. Today
+  // nothing changes (SCHEMATIC's one open range already swallows its Do block), but
+  // nothing pinned it either. If a reviewer decides a Do block SHOULD close a setup
+  // region, that is a deliberate change to isStructuralBreak with this test
+  // inverted, not a silent drift.
+  it("a non-callout block does not terminate a Setup range", () => {
+    const ranges = deriveSetupRanges([
+      co("Setup · Get KiCad open"),
+      { type: "steps", ordered: true, items: ["wire it"] },
+      co("01 · The regulator"),
+    ]);
+    expect(ranges[0]).toEqual({ start: 0, end: 2, title: "Get KiCad open" });
+  });
 });
