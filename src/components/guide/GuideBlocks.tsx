@@ -32,6 +32,8 @@ import {
   type AsideVerb,
 } from "@/lib/guide-signposts";
 import { RungGlyph } from "@/components/guide/RungGlyph";
+import { DoStepsBlock } from "@/components/guide/DoStepsBlock";
+import { TraceListBlock } from "@/components/guide/TraceListBlock";
 import { IslandRail } from "@/components/guide/IslandRail";
 import { ResumePill } from "@/components/guide/ResumePill";
 import { SetupBand } from "@/components/guide/SetupBand";
@@ -986,19 +988,86 @@ function ActionCalloutBlock({ label, body }: { label: string; body: string }) {
   );
 }
 
-// "NN · Title" → a real numbered section header, not another grey box — so the
-// card's spine is scannable at a glance.
-function SectionHeaderBlock({ label, body }: { label: string; body: string }) {
+// F7c4 — "NN · Title" as a numbered section header with a STICKY margin flag.
+//
+// Two things this adds over the old component:
+//
+//   1. `severity` finally renders. The old header ignored it, so LAYOUT sections
+//      02 and 04 (`warn`) and ASSEMBLY 01 (`critical`) were authored as flagged
+//      and drew identical to an ordinary section — the author's flag written and
+//      thrown away.
+//   2. The flag is sticky in the margin, so it stays level with the eye for the
+//      whole section. A banner you have scrolled past has stopped warning you,
+//      and ASSEMBLY's safety section is one a learner is inside for ten minutes.
+//
+// The flag reuses the C9a rung shapes, so the margin and the alert ladder speak
+// one language. Below `lg` the margin collapses to a left-spine indent above the
+// heading. `reason` is optional: severity alone renders the rung word, and an
+// authored reason adds the sentence that says what to do about it.
+//
+// Heading level stays `h3` deliberately (mode band is `h2`). These pages are
+// indexed, so the outline is an SEO artefact, not markup taste.
+const SEV_VAR = {
+  info: "var(--color-panel-border)",
+  warn: "var(--color-command-gold)",
+  critical: "var(--color-alert-red)",
+} as const;
+const SEV_TEXT = {
+  info: "text-command-gold",
+  warn: "text-command-gold",
+  critical: "text-alert-red",
+} as const;
+const SEV_WORD = { info: null, warn: "Caution", critical: "Warning" } as const;
+const SEV_RUNG: Record<"info" | "warn" | "critical", Rung> = {
+  info: "note",
+  warn: "caution",
+  critical: "warning",
+};
+
+const SECTION_MARGIN =
+  "mb-2 border-l-2 pl-3 lg:sticky lg:top-4 lg:float-left lg:-ml-52 lg:mb-0 lg:w-48 lg:border-l-0 lg:border-r-2 lg:pl-0 lg:pr-3 lg:text-right";
+
+function SectionHeaderBlock({
+  label,
+  body,
+  severity,
+  reason,
+}: {
+  label: string;
+  body: string;
+  severity: "critical" | "warn" | "info";
+  reason?: string;
+}) {
   const m = label.match(/^(\d+)\s*·\s*(.*)$/);
   const num = m?.[1] ?? "";
   const title = m?.[2] ?? label;
+  const word = SEV_WORD[severity];
   return (
-    <div className="border-t border-panel-border/60 pt-5">
+    <div className="relative border-t border-panel-border/60 pt-5">
+      {word ? (
+        <div className={SECTION_MARGIN} style={{ borderColor: SEV_VAR[severity] }}>
+          <span className={`inline-flex ${SEV_TEXT[severity]}`}>
+            <RungGlyph rung={SEV_RUNG[severity]} className="h-4 w-4 shrink-0" />
+          </span>
+          <p
+            className={`mt-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] ${SEV_TEXT[severity]}`}
+          >
+            {word}
+          </p>
+          {reason ? (
+            <p className="mt-1 font-mono text-[9px] uppercase leading-relaxed tracking-[0.14em] text-muted">
+              {reason}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <div className="flex items-baseline gap-3">
-        <span className="font-mono text-sm font-bold tabular-nums text-command-gold">
+        <span
+          className={`font-mono text-sm font-bold tabular-nums ${SEV_TEXT[severity]}`}
+        >
           {num}
         </span>
-        <h3 className="font-mono text-sm font-bold uppercase tracking-[0.12em] text-gray-1">
+        <h3 className="font-mono text-sm font-bold uppercase tracking-[0.12em] text-title">
           {title}
         </h3>
       </div>
@@ -1225,7 +1294,14 @@ function GuideBlock({
       if (/^draw it\b/i.test(label))
         return <ActionCalloutBlock label={label} body={block.body} />;
       if (/^\d+\s*·/.test(label))
-        return <SectionHeaderBlock label={label} body={block.body} />;
+        return (
+          <SectionHeaderBlock
+            label={label}
+            body={block.body}
+            severity={block.severity}
+            reason={block.reason}
+          />
+        );
       if (/^mode\b/i.test(label))
         return (
           <ModeBandBlock
@@ -1246,6 +1322,18 @@ function GuideBlock({
 
     case "steps":
       return <StepsBlock ordered={block.ordered} items={block.items} />;
+
+    case "doSteps":
+      return <DoStepsBlock title={block.title} body={block.body} steps={block.steps} />;
+
+    case "traceList":
+      return (
+        <TraceListBlock
+          headline={block.headline}
+          body={block.body}
+          items={block.items}
+        />
+      );
 
     case "table":
       return (

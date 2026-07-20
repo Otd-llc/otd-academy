@@ -153,3 +153,65 @@ describe("guide schemas", () => {
     ).toBe(false);
   });
 });
+
+describe("signpost block types", () => {
+  it("accepts a doSteps block", () => {
+    const r = contentBlockSchema.safeParse({
+      type: "doSteps",
+      title: "wire the decoupling, then tie the module",
+      body: "Caps first, right at U1's power pins.",
+      steps: [{ text: "Drop a +3V3 port on C1.", proof: "C1 carries a +3V3 port." }],
+    });
+    expect(r.success, JSON.stringify(r)).toBe(true);
+  });
+
+  it("accepts a doSteps step with no proof", () => {
+    const r = contentBlockSchema.safeParse({
+      type: "doSteps",
+      title: "x",
+      body: "",
+      steps: [{ text: "Do the thing." }],
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects a doSteps block with no steps", () => {
+    const r = contentBlockSchema.safeParse({ type: "doSteps", title: "x", body: "", steps: [] });
+    expect(r.success).toBe(false);
+  });
+
+  it("accepts a traceList block", () => {
+    const r = contentBlockSchema.safeParse({
+      type: "traceList",
+      headline: "what ERC can't catch",
+      body: "ERC checks connectivity, not intent.",
+      items: [{ text: "U2 VIN sits on +5V.", help: "The VIN wire lands on the +5V label." }],
+    });
+    expect(r.success, JSON.stringify(r)).toBe(true);
+  });
+
+  // discriminatedUnion STRIPS unknown keys, so asserting `.success` alone would
+  // pass before `reason` exists. Assert the value survives the parse.
+  it("accepts an optional reason on a callout and preserves it", () => {
+    const r = contentBlockSchema.safeParse({
+      type: "callout",
+      severity: "warn",
+      label: "02 · Set up PCBWay's rules",
+      body: "Load the limits now.",
+      reason: "Do this before you route, or you will redo it",
+    });
+    expect(r.success, JSON.stringify(r)).toBe(true);
+    if (r.success) {
+      expect((r.data as { reason?: string }).reason).toBe(
+        "Do this before you route, or you will redo it",
+      );
+    }
+  });
+
+  it("still accepts a callout with no reason", () => {
+    const r = contentBlockSchema.safeParse({
+      type: "callout", severity: "info", label: "Note", body: "",
+    });
+    expect(r.success).toBe(true);
+  });
+});

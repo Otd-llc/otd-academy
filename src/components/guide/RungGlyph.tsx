@@ -7,9 +7,15 @@
 
 import type { Rung } from "@/lib/guide-signposts";
 
-export function RungGlyph({ rung }: { rung: Rung }) {
+export function RungGlyph({
+  rung,
+  className = "h-3.5 w-3.5 shrink-0",
+}: {
+  rung: Rung;
+  className?: string;
+}) {
   const p = {
-    className: "h-3.5 w-3.5 shrink-0",
+    className,
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",

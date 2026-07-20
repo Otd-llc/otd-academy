@@ -23,6 +23,14 @@ export const LIBRARY_BLOCK_TYPES: ReadonlySet<string> = new Set([
   "youtube",
   "calculator",
   "math",
+  // The two signpost block types. Both are pure content — a Do list whose steps
+  // carry their own proof, and a trace list whose items carry their own answer
+  // key — with no project or enrollment coupling, so they are public-safe in the
+  // same way `steps` is. Allowed here so an author who reaches for one in a
+  // mini-lesson gets it on the page AND in the printed PDF, rather than having it
+  // silently filtered out of both.
+  "doSteps",
+  "traceList",
 ]);
 
 export function isLibraryBlock(block: ContentBlock): boolean {
