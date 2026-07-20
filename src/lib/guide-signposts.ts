@@ -59,19 +59,30 @@ export function parseModeLabel(label: string): ParsedModeLabel | null {
 }
 
 /**
- * Map of block index → this band's position among the card's mode bands.
- * The band renders `[ do 02 / 06 ]`, and "of" is per CARD (a stage), which is the
- * unit a learner experiences as "how much of this is left".
+ * Map of block index → this band's position among the card's bands OF THE SAME
+ * MODE. The band renders `[ do 01 / 05 ]`, so the first `do` band on a card is
+ * `01` and the denominator is how many `do` bands that card has.
+ *
+ * Numbering per MODE, not per card, because the number sits immediately beside
+ * the mode word and is therefore read as counting that word. Counting every band
+ * in the card made the FIRST do band render `[ do 02 / 07 ]` (it was the second
+ * band, after the orient one), which reads as "do number 2" to everyone who is
+ * not holding the source.
  */
 export function scanModeBands(
   blocks: ContentBlock[],
 ): Map<number, { ord: number; of: number }> {
-  const idx: number[] = [];
+  const byMode = new Map<Mode, number[]>();
   blocks.forEach((b, i) => {
-    if (b.type === "callout" && parseModeLabel(b.label)) idx.push(i);
+    if (b.type !== "callout") return;
+    const parsed = parseModeLabel(b.label);
+    if (!parsed) return;
+    byMode.set(parsed.mode, [...(byMode.get(parsed.mode) ?? []), i]);
   });
   const out = new Map<number, { ord: number; of: number }>();
-  idx.forEach((blockIndex, n) => out.set(blockIndex, { ord: n + 1, of: idx.length }));
+  for (const idx of byMode.values()) {
+    idx.forEach((blockIndex, n) => out.set(blockIndex, { ord: n + 1, of: idx.length }));
+  }
   return out;
 }
 
