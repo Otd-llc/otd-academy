@@ -20,7 +20,12 @@
 import { Fragment, type ReactNode } from "react";
 import sanitizeHtml from "sanitize-html";
 import type { ContentBlock } from "@/lib/schemas/guide";
-import { scanIslands, RAIL_MIN_ISLANDS, deriveSetupRanges } from "@/lib/guide-islands";
+import {
+  scanIslands,
+  RAIL_MIN_ISLANDS,
+  deriveSetupRanges,
+  deriveSectionRanges,
+} from "@/lib/guide-islands";
 import {
   MODE_VAR,
   MODE_TEXT,
@@ -996,22 +1001,18 @@ function ActionCalloutBlock({ label, body }: { label: string; body: string }) {
 //      02 and 04 (`warn`) and ASSEMBLY 01 (`critical`) were authored as flagged
 //      and drew identical to an ordinary section — the author's flag written and
 //      thrown away.
-//   2. The flag sits in the left margin rather than in the reading column, so it
-//      annotates the section instead of interrupting it.
+//   2. The flag is STICKY in the margin, so it stays level with the eye for the
+//      whole section. A banner you have scrolled past has stopped warning you,
+//      and ASSEMBLY's safety section is one a learner is inside for ten minutes.
 //
-// NOT STICKY, and that is a deliberate retreat from the sandbox specimen.
-// `position: sticky` is constrained by its CONTAINING BLOCK, and contentBlocks
-// is a FLAT list: a section-header block contains only the header (measured at
-// 101px on LAYOUT), not the section that follows it, so a sticky flag can travel
-// ~58px and then leaves with the scroll. The sandbox specimen only appeared to
-// stick because it carried filler paragraphs inside the same div. This is NOT
-// the ancestor-overflow failure the plan predicted — no ancestor sets overflow.
-//
-// Making it genuinely sticky means deriving section RANGES and wrapping each
-// section's blocks the way SetupBand already wraps a `Setup · …` range. That is
-// worth doing, but it is a structural change to the render loop with a real
-// nesting question (a `Setup · …` range can open inside a section), so it is a
-// decision to take deliberately rather than a side effect of this task.
+// Sticky only works because this component WRAPS its section (`children` = every
+// block from the header to the next header or mode band, via
+// deriveSectionRanges). `position: sticky` is bound by its containing block, and
+// contentBlocks is a FLAT list, so while the header was a plain sibling of its
+// section its box was only as tall as the header itself — measured at 101px on
+// LAYOUT, giving the flag ~58px of travel before it left with the scroll. The
+// sandbox specimen only appeared to stick because it carried filler paragraphs
+// inside the same div.
 //
 // The flag reuses the C9a rung shapes, so the margin and the alert ladder speak
 // one language. Below `lg` the margin collapses to a left-spine indent above the
@@ -1038,25 +1039,29 @@ const SEV_RUNG: Record<"info" | "warn" | "critical", Rung> = {
 };
 
 const SECTION_MARGIN =
-  "mb-2 border-l-2 pl-3 lg:float-left lg:-ml-52 lg:mb-0 lg:w-48 lg:border-l-0 lg:border-r-2 lg:pl-0 lg:pr-3 lg:text-right";
+  "mb-2 border-l-2 pl-3 lg:sticky lg:top-4 lg:float-left lg:-ml-52 lg:mb-0 lg:w-48 lg:border-l-0 lg:border-r-2 lg:pl-0 lg:pr-3 lg:text-right";
 
 function SectionHeaderBlock({
   label,
   body,
   severity,
   reason,
+  children,
 }: {
   label: string;
   body: string;
   severity: "critical" | "warn" | "info";
   reason?: string;
+  /** The section's blocks. Absent when a header is rendered outside a section
+   *  range (a lone `NN · …` callout), which still renders as a plain header. */
+  children?: ReactNode;
 }) {
   const m = label.match(/^(\d+)\s*·\s*(.*)$/);
   const num = m?.[1] ?? "";
   const title = m?.[2] ?? label;
   const word = SEV_WORD[severity];
   return (
-    <div className="relative border-t border-panel-border/60 pt-5">
+    <section className="relative border-t border-panel-border/60 pt-5">
       {word ? (
         <div className={SECTION_MARGIN} style={{ borderColor: SEV_VAR[severity] }}>
           <span className={`inline-flex ${SEV_TEXT[severity]}`}>
@@ -1089,7 +1094,11 @@ function SectionHeaderBlock({
           <Inline text={body} />
         </p>
       ) : null}
-    </div>
+      {/* The section's own blocks, carrying the same vertical rhythm they had as
+          top-level siblings. `mt-5` matches the space-y-5 gap they came from, so
+          wrapping changes the containing block without changing the spacing. */}
+      {children ? <div className="mt-5 space-y-5">{children}</div> : null}
+    </section>
   );
 }
 
@@ -1728,6 +1737,12 @@ export function GuideBlocks({
   const setupRanges = deriveSetupRanges(blocks);
   const setupStart = new Map(setupRanges.map((r) => [r.start, r]));
 
+  // "NN · …" sections WRAP their blocks, so the header's box spans the section
+  // and F7c4's margin flag has something to be sticky within. A setup range
+  // nests inside a section rather than terminating it (deriveSetupRanges already
+  // stops at a section header), so the two never claim the same block.
+  const sectionStart = new Map(deriveSectionRanges(blocks).map((r) => [r.start, r]));
+
   // Figure numbers for in-lesson diagrams: an image block whose src resolves to a
   // registry diagram gets the next "Fig N" (plain images get none). Drives the bare
   // frame's corner label; the standalone export stays fully titled.
@@ -1789,18 +1804,66 @@ export function GuideBlocks({
     );
   };
 
+  // Render blocks [from, to), collapsing any `Setup · …` range into a SetupBand.
+  // Extracted so a section can render its own children through the same path: a
+  // setup range never straddles a section boundary (it terminates at a section
+  // header), so it always falls wholly inside one span or the other.
+  const renderSpan = (from: number, to: number): ReactNode[] => {
+    const acc: ReactNode[] = [];
+    for (let i = from; i < to; ) {
+      const range = setupStart.get(i);
+      if (range) {
+        // The Setup callout (range.start) becomes the band summary, not body.
+        const children: ReactNode[] = [];
+        for (let j = range.start + 1; j < range.end; j++) children.push(renderBlock(blocks[j]!, j));
+        acc.push(
+          <SetupBand key={`setup-${i}`} title={range.title} count={range.end - range.start - 1} storageKey={railKey}>
+            {children}
+          </SetupBand>,
+        );
+        i = range.end;
+      } else {
+        acc.push(renderBlock(blocks[i]!, i));
+        i++;
+      }
+    }
+    return acc;
+  };
+
   const out: ReactNode[] = [];
   for (let i = 0; i < blocks.length; ) {
+    // A numbered section WRAPS its blocks so the header's box spans the section.
+    // That is what lets F7c4's margin flag stay sticky for the whole section; as
+    // flat siblings the header's box was only as tall as the header.
+    const section = sectionStart.get(i);
+    const header = section ? blocks[i] : null;
+    if (section && header && header.type === "callout") {
+      const anchorId = anchorByIndex.get(i);
+      const body = (
+        <SectionHeaderBlock
+          label={header.label ?? ""}
+          body={header.body}
+          severity={header.severity}
+          reason={header.reason}
+        >
+          {renderSpan(section.start + 1, section.end)}
+        </SectionHeaderBlock>
+      );
+      out.push(
+        anchorId ? (
+          <div key={i} id={anchorId} className="scroll-mt-24">
+            {body}
+          </div>
+        ) : (
+          <Fragment key={i}>{body}</Fragment>
+        ),
+      );
+      i = section.end;
+      continue;
+    }
     const range = setupStart.get(i);
     if (range) {
-      // The Setup callout (range.start) becomes the band summary, not body.
-      const children: ReactNode[] = [];
-      for (let j = range.start + 1; j < range.end; j++) children.push(renderBlock(blocks[j]!, j));
-      out.push(
-        <SetupBand key={`setup-${i}`} title={range.title} count={range.end - range.start - 1} storageKey={railKey}>
-          {children}
-        </SetupBand>,
-      );
+      out.push(...renderSpan(i, range.end));
       i = range.end;
     } else {
       out.push(renderBlock(blocks[i]!, i));

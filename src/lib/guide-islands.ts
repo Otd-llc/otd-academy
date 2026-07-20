@@ -47,6 +47,39 @@ function isStructuralBreak(b: ContentBlock): boolean {
   return MODE_LABEL_RE.test(label) || SECTION_LABEL_RE.test(label) || SETUP_LABEL_RE.test(label);
 }
 
+// A "NN · Title" callout opens a SECTION that runs until the next section
+// header, the next "Mode · …" band, or the end of the card. `end` is exclusive
+// and the header itself is the range start.
+//
+// This exists so the renderer can WRAP a section's blocks instead of leaving the
+// header as a flat sibling of them. Without a wrapper the header's box is only
+// as tall as the header, which is why F7c4's margin flag could not stick: a
+// sticky element is bound by its containing block.
+//
+// A `Setup · …` range NESTS inside a section rather than terminating it: a setup
+// range already ends at the next section header or mode band, so it can never
+// straddle a section boundary. That makes the two derivations compose instead of
+// collide.
+export function deriveSectionRanges(blocks: ContentBlock[]): SetupRange[] {
+  const out: SetupRange[] = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    if (b.type !== "callout") continue;
+    const m = (b.label ?? "").match(SECTION_LABEL_RE);
+    if (!m) continue;
+    let end = i + 1;
+    while (end < blocks.length) {
+      const n = blocks[end]!;
+      const label = n.type === "callout" ? (n.label ?? "") : "";
+      if (label && (SECTION_LABEL_RE.test(label) || MODE_LABEL_RE.test(label))) break;
+      end++;
+    }
+    out.push({ start: i, end, title: m[2].trim() });
+    i = end - 1;
+  }
+  return out;
+}
+
 export function deriveSetupRanges(blocks: ContentBlock[]): SetupRange[] {
   const out: SetupRange[] = [];
   for (let i = 0; i < blocks.length; i++) {
