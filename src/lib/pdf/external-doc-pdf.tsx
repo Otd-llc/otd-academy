@@ -110,8 +110,8 @@ export function parseExternalMarkdown(src: string): ExternalDoc {
   // title = first `# ` line
   for (; i < lines.length; i++) {
     const m = lines[i].match(/^#\s+(.*)$/);
-    // drop the "One Thousand Drones[, LLC]:" prefix; the brandmark + badge ID it
-    if (m) { title = m[1].trim().replace(/^One Thousand Drones(?:,?\s*LLC)?:\s*/i, "").trim(); i++; break; }
+    // drop the "One Thousand Drones[ Academy][, LLC]:" prefix; the brandmark IDs it
+    if (m) { title = m[1].trim().replace(/^One Thousand Drones(?:\s+Academy)?(?:,?\s*LLC)?:\s*/i, "").trim(); i++; break; }
   }
   // leading bold banner lines (status / as-of), until a blank line
   for (; i < lines.length; i++) {
