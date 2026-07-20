@@ -996,9 +996,22 @@ function ActionCalloutBlock({ label, body }: { label: string; body: string }) {
 //      02 and 04 (`warn`) and ASSEMBLY 01 (`critical`) were authored as flagged
 //      and drew identical to an ordinary section — the author's flag written and
 //      thrown away.
-//   2. The flag is sticky in the margin, so it stays level with the eye for the
-//      whole section. A banner you have scrolled past has stopped warning you,
-//      and ASSEMBLY's safety section is one a learner is inside for ten minutes.
+//   2. The flag sits in the left margin rather than in the reading column, so it
+//      annotates the section instead of interrupting it.
+//
+// NOT STICKY, and that is a deliberate retreat from the sandbox specimen.
+// `position: sticky` is constrained by its CONTAINING BLOCK, and contentBlocks
+// is a FLAT list: a section-header block contains only the header (measured at
+// 101px on LAYOUT), not the section that follows it, so a sticky flag can travel
+// ~58px and then leaves with the scroll. The sandbox specimen only appeared to
+// stick because it carried filler paragraphs inside the same div. This is NOT
+// the ancestor-overflow failure the plan predicted — no ancestor sets overflow.
+//
+// Making it genuinely sticky means deriving section RANGES and wrapping each
+// section's blocks the way SetupBand already wraps a `Setup · …` range. That is
+// worth doing, but it is a structural change to the render loop with a real
+// nesting question (a `Setup · …` range can open inside a section), so it is a
+// decision to take deliberately rather than a side effect of this task.
 //
 // The flag reuses the C9a rung shapes, so the margin and the alert ladder speak
 // one language. Below `lg` the margin collapses to a left-spine indent above the
@@ -1025,7 +1038,7 @@ const SEV_RUNG: Record<"info" | "warn" | "critical", Rung> = {
 };
 
 const SECTION_MARGIN =
-  "mb-2 border-l-2 pl-3 lg:sticky lg:top-4 lg:float-left lg:-ml-52 lg:mb-0 lg:w-48 lg:border-l-0 lg:border-r-2 lg:pl-0 lg:pr-3 lg:text-right";
+  "mb-2 border-l-2 pl-3 lg:float-left lg:-ml-52 lg:mb-0 lg:w-48 lg:border-l-0 lg:border-r-2 lg:pl-0 lg:pr-3 lg:text-right";
 
 function SectionHeaderBlock({
   label,

@@ -54,11 +54,15 @@ export function TraceListBlock({
             const hasHelp = Boolean(it.help);
             return (
               <li key={i} className="border-b border-panel-border/60 py-2.5">
-                <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1.5">
+                {/* The verdicts sit BESIDE the item from `sm` up and BELOW it on a
+                    phone. Inline at every width squeezes the item text into a
+                    sliver — measured at 390px, a one-line target wrapped to six.
+                    The sandbox round only ever judged this at 1100 to 1280px. */}
+                <div className="flex flex-col gap-y-1.5 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-x-4">
                   {/* Deliberately NOT dimmed on "looks right": the selected verdict
                       already carries that state unmistakably, and the sandbox dimmed
                       it to gray-3, which fails WCAG AA in both themes. */}
-                  <p className="min-w-0 flex-1 font-serif text-[15px] leading-relaxed text-muted">
+                  <p className="font-serif text-[15px] leading-relaxed text-muted sm:min-w-0 sm:flex-1">
                     <Inline text={it.text} />
                   </p>
                   {/* The two verdicts are two answers to ONE question, so they are
