@@ -162,10 +162,13 @@ describe("GuideBlocks — admin recapture on captured media", () => {
 });
 
 describe("GuideBlocks — mode band", () => {
+  // The shipping grammar is `Mode · <mode> · [venue ·] <title>`. The em-dash
+  // eyebrow this fixture used to carry ("do — in KiCad") appears nowhere in the
+  // corpus; it predates the venue segment.
   const modeDo: ContentBlock = {
     type: "callout",
     severity: "info",
-    label: "Mode · do — in KiCad · Build it, island by island",
+    label: "Mode · do · in KiCad · Build it, island by island",
     body: "From here, have KiCad open.",
   };
 
@@ -173,7 +176,24 @@ describe("GuideBlocks — mode band", () => {
     const r = render([modeDo], false);
     expect(r.text).toContain("Build it, island by island"); // the section title
     expect(r.text).toContain("From here, have KiCad open"); // the subtitle/body
-    expect(r.text).toContain("do — in KiCad"); // the mode eyebrow
+    expect(r.text).toContain("do"); // the mode word, in the bracket tag
+    expect(r.text).toContain("in KiCad"); // the venue, as its own chip
     expect(r.text).not.toContain("Mode ·"); // parsed away — never shown as a raw label
+  });
+
+  // A12b2 regression: the venue used to land inside the Bebas display title
+  // because the old parser took everything after the mode word as the title.
+  test("the venue is not part of the display title", () => {
+    const r = render([modeDo], false);
+    expect(r.text).not.toContain("in KiCad · Build it");
+  });
+
+  test("a band with no venue still renders its title", () => {
+    const r = render(
+      [{ type: "callout", severity: "info", label: "Mode · check · Prove it", body: "" }],
+      false,
+    );
+    expect(r.text).toContain("Prove it");
+    expect(r.text).toContain("check");
   });
 });

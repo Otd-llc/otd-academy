@@ -1,3 +1,5 @@
+import type { ContentBlock } from "@/lib/schemas/guide";
+
 // The signpost vocabulary shared by the guide renderer, the PDF renderer and the
 // island scan. Colours resolve through CSS custom properties, never literal hex,
 // so every signpost flips under the `[data-theme="light"]` token override.
@@ -54,4 +56,21 @@ export function parseModeLabel(label: string): ParsedModeLabel | null {
     venue: hasVenue ? parts[2] : null,
     title: (hasVenue ? parts.slice(3) : parts.slice(2)).join(" · "),
   };
+}
+
+/**
+ * Map of block index → this band's position among the card's mode bands.
+ * The band renders `[ do 02 / 06 ]`, and "of" is per CARD (a stage), which is the
+ * unit a learner experiences as "how much of this is left".
+ */
+export function scanModeBands(
+  blocks: ContentBlock[],
+): Map<number, { ord: number; of: number }> {
+  const idx: number[] = [];
+  blocks.forEach((b, i) => {
+    if (b.type === "callout" && parseModeLabel(b.label)) idx.push(i);
+  });
+  const out = new Map<number, { ord: number; of: number }>();
+  idx.forEach((blockIndex, n) => out.set(blockIndex, { ord: n + 1, of: idx.length }));
+  return out;
 }

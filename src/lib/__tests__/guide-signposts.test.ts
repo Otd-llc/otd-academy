@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { MODE_VAR, MODE_TEXT, parseModeLabel, MODES } from "@/lib/guide-signposts";
+import {
+  MODE_VAR,
+  MODE_TEXT,
+  parseModeLabel,
+  MODES,
+  scanModeBands,
+} from "@/lib/guide-signposts";
+import type { ContentBlock } from "@/lib/schemas/guide";
 
 describe("guide signposts: mode vocabulary", () => {
   it("resolves every mode colour through a CSS custom property", () => {
@@ -44,5 +51,33 @@ describe("guide signposts: mode vocabulary", () => {
 
   it("returns null for a label that is not a mode band", () => {
     expect(parseModeLabel("01 · The regulator")).toBeNull();
+  });
+});
+
+const band = (label: string): ContentBlock => ({
+  type: "callout",
+  severity: "info",
+  label,
+  body: "",
+});
+
+describe("guide signposts: band ordinals", () => {
+  it("numbers mode bands within a card and reports the total", () => {
+    const blocks: ContentBlock[] = [
+      { type: "prose", md: "intro" },
+      band("Mode · orient · Meet the board"),
+      band("Mode · do · in KiCad · Build it"),
+      { type: "prose", md: "filler" },
+      band("Mode · check · Prove it"),
+    ];
+    const m = scanModeBands(blocks);
+    expect(m.get(1)).toEqual({ ord: 1, of: 3 });
+    expect(m.get(2)).toEqual({ ord: 2, of: 3 });
+    expect(m.get(4)).toEqual({ ord: 3, of: 3 });
+    expect(m.has(0)).toBe(false);
+  });
+
+  it("returns an empty map for a card with no bands", () => {
+    expect(scanModeBands([{ type: "prose", md: "x" }]).size).toBe(0);
   });
 });

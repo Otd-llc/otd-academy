@@ -17,10 +17,16 @@
 // Resilience: an unknown/extra block type is skipped (renders nothing) rather
 // than crashing the page.
 
-import { Fragment, type CSSProperties, type ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import sanitizeHtml from "sanitize-html";
 import type { ContentBlock } from "@/lib/schemas/guide";
 import { scanIslands, RAIL_MIN_ISLANDS, deriveSetupRanges } from "@/lib/guide-islands";
+import {
+  MODE_VAR,
+  MODE_TEXT,
+  parseModeLabel,
+  scanModeBands,
+} from "@/lib/guide-signposts";
 import { IslandRail } from "@/components/guide/IslandRail";
 import { ResumePill } from "@/components/guide/ResumePill";
 import { SetupBand } from "@/components/guide/SetupBand";
@@ -874,83 +880,66 @@ function SectionHeaderBlock({ label, body }: { label: string; body: string }) {
   );
 }
 
-// "Mode · <eyebrow> · <title>" → a full-width, colour-coded section ribbon that tells
-// the learner which MODE they're in — read (orient) vs hands-on (do) vs verify (check)
-// — so "should I have hands on the keyboard right now?" is never ambiguous. The COLOUR
-// keys off the first word of the eyebrow; the eyebrow text itself is free ("do — in
-// KiCad", "do — at the bench", …) so the same ribbon generalises across stages.
-// The colour keys off the eyebrow's first word; the eyebrow text is free
-// ("do — in KiCad", "do — at the bench", …) so the same band generalises.
-const MODE_STYLE: Record<string, { color: string; eyebrow: string }> = {
-  orient: { color: "#4a8fff", eyebrow: "text-signal-blue" },
-  do: { color: "#c8963e", eyebrow: "text-command-gold" },
-  check: { color: "#8fe3a0", eyebrow: "text-status-green" },
-};
-
-// A thin-line mark per mode, stroke = the eyebrow colour (currentColor): a
-// reticle for orient ("get your bearings"), a play glyph for do (hands on), a
-// check for check.
-function ModeIcon({ mode }: { mode: string }) {
-  const p = {
-    className: "h-3.5 w-3.5 shrink-0",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.7,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-  };
-  if (mode === "orient")
-    return (
-      <svg {...p}>
-        <circle cx="12" cy="12" r="8" />
-        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-        <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
-      </svg>
-    );
-  if (mode === "check")
-    return (
-      <svg {...p}>
-        <circle cx="12" cy="12" r="8" />
-        <path d="m8.5 12 2.4 2.4 4.6-5.2" />
-      </svg>
-    );
+// A12b2 — the mode band. `[ do 02 / 06 ]` in the gate's own bracket vocabulary,
+// the venue as a mono chip (NOT inside the Bebas title, which is what the old
+// positional parse did), and a hairline closing the row.
+//
+// The fraction is per CARD: a learner three hours into SCHEMATIC is not asking
+// "which band is this", they are asking how much is left.
+//
+// The mode vocabulary lives in `@/lib/guide-signposts` so the colours resolve
+// through CSS custom properties and flip under `[data-theme="light"]`. The old
+// MODE_STYLE map held literal hex and could not.
+function ModeBandBlock({
+  label,
+  body,
+  ord,
+  of,
+}: {
+  label: string;
+  body: string;
+  ord: number;
+  of: number;
+}) {
+  const parsed = parseModeLabel(label);
+  if (!parsed) return null;
+  const { mode, venue, title } = parsed;
   return (
-    <svg {...p} fill="currentColor" stroke="none">
-      <path d="M8 5.5v13l10.5-6.5z" />
-    </svg>
-  );
-}
-
-// A briefing-panel section marker: a colour-coded left spine, a soft corner glow
-// and a registration tick (the same command motif as the start-here beacon),
-// with the title set in the brand display face. `.mode-band` lives in
-// globals.css; `--mode` is the band colour, set inline per variant.
-function ModeBandBlock({ label, body }: { label: string; body: string }) {
-  const parts = label.split("·").map((s) => s.trim());
-  const eyebrow = parts[1] ?? "";
-  const key = (eyebrow.split(/[\s—–-]+/)[0] || "do").toLowerCase();
-  const title = parts.slice(2).join(" · ");
-  const M = MODE_STYLE[key] ?? MODE_STYLE.do;
-  return (
-    <div className="mode-band" style={{ "--mode": M.color } as CSSProperties}>
-      <span
-        className={`flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.24em] ${M.eyebrow}`}
-      >
-        <ModeIcon mode={key} />
-        {eyebrow}
-      </span>
-      {title ? (
-        <h2 className="mt-1.5 font-display text-2xl leading-none tracking-wide text-gray-1">
-          {title}
-        </h2>
-      ) : null}
+    <section className="mt-3">
+      <div className="flex items-center gap-3">
+        <span
+          className={`shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.2em] ${MODE_TEXT[mode]}`}
+        >
+          [ {mode}{" "}
+          <span className="font-numeral text-sm tabular-nums">
+            {String(ord).padStart(2, "0")}
+          </span>
+          <span className="text-muted"> / </span>
+          <span className="font-numeral text-sm tabular-nums text-muted">
+            {String(of).padStart(2, "0")}
+          </span>{" "}
+          ]
+        </span>
+        {venue ? (
+          <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.18em] text-muted">
+            {venue}
+          </span>
+        ) : null}
+        <span
+          aria-hidden
+          className="h-px flex-1"
+          style={{ background: `color-mix(in srgb, ${MODE_VAR[mode]} 40%, transparent)` }}
+        />
+      </div>
+      <h2 className="mt-2 font-display text-3xl leading-none tracking-wide text-title">
+        {title}
+      </h2>
       {body ? (
-        <p className="mt-2 whitespace-pre-wrap font-serif text-sm leading-relaxed text-muted">
+        <p className="mt-2 whitespace-pre-wrap font-serif text-[15px] leading-relaxed text-muted">
           <Inline text={body} />
         </p>
       ) : null}
-    </div>
+    </section>
   );
 }
 
@@ -1051,6 +1040,7 @@ function GuideBlock({
   isAdmin,
   logbook,
   fig,
+  band,
 }: {
   block: ContentBlock;
   index: number;
@@ -1067,6 +1057,8 @@ function GuideBlock({
   /** This diagram's figure number in the lesson (image blocks whose src is a
    *  registry diagram), passed to ImageBlock so the bare frame shows "Fig N". */
   fig?: number;
+  /** This mode band's position among the card's bands, for A12b2's fraction. */
+  band?: { ord: number; of: number };
 }) {
   switch (block.type) {
     case "prose": {
@@ -1104,7 +1096,14 @@ function GuideBlock({
       if (/^\d+\s*·/.test(label))
         return <SectionHeaderBlock label={label} body={block.body} />;
       if (/^mode\b/i.test(label))
-        return <ModeBandBlock label={label} body={block.body} />;
+        return (
+          <ModeBandBlock
+            label={label}
+            body={block.body}
+            ord={band?.ord ?? 1}
+            of={band?.of ?? 1}
+          />
+        );
       return (
         <CalloutBlock severity={block.severity} label={label} body={block.body} />
       );
@@ -1504,6 +1503,10 @@ export function GuideBlocks({
     });
   }
 
+  // Mode-band ordinals, same shape as the figure scan: each band's position among
+  // the bands IN THIS CARD, so A12b2 can render `[ do 02 / 06 ]`.
+  const bandByIndex = scanModeBands(blocks);
+
   // The stage-gate quiz (WI-2): the quiz block flagged `gate: true`, else the first
   // quiz block. Only THIS block receives the gate `quizContext`, so only it records a
   // QuizPass; any other quiz blocks are practice mini-quizzes that still award
@@ -1538,6 +1541,7 @@ export function GuideBlocks({
         isAdmin={isAdmin}
         logbook={logbook}
         fig={figByIndex.get(i)}
+        band={bandByIndex.get(i)}
       />
     );
     return anchorId ? (

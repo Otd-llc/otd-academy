@@ -1308,39 +1308,6 @@ body {
   }
 }
 
-/* ── Mode band (orient / do / check) ───────────────────────────────
- * A briefing-panel treatment for the ModeBandBlock: a colour-coded left
- * spine, a soft corner glow, and a corner registration tick — the same
- * command motif as the beacon. `--mode` (the band colour) is set inline. */
-.mode-band {
-  position: relative;
-  margin-top: 0.75rem;
-  overflow: hidden;
-  border-radius: 0.55rem;
-  padding: 0.85rem 1.1rem 0.9rem 1.3rem;
-  border: 1px solid color-mix(in srgb, var(--mode) 26%, transparent);
-  background:
-    radial-gradient(
-      130% 150% at 0% 0%,
-      color-mix(in srgb, var(--mode) 13%, transparent),
-      transparent 52%
-    ),
-    rgba(255, 255, 255, 0.012);
-}
-.mode-band::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: linear-gradient(
-    to bottom,
-    var(--mode),
-    color-mix(in srgb, var(--mode) 15%, transparent)
-  );
-}
-
 /* ── Light-theme decontamination overrides (Phase 1) ─────────────────────────
    Non-token literals the `:root[data-theme="light"]` token block can't reach:
    hardcoded bright-white ink (#fff), a pale-gray lead, white washes, the
