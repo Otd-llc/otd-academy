@@ -36,10 +36,6 @@ export function isPublicPath(pathname: string): boolean {
   // /sign-in. Nested OG routes (e.g. /courses/[slug]/opengraph-image) already
   // inherit their public prefix; only these root-level ones need naming here.
   if (top === "opengraph-image" || top === "twitter-image") return true;
-  // TEMPORARY — design sandbox routes (/sandbox/*). Non-production ONLY, so this
-  // can never open a path on the deployed site; the sandbox pages carry their own
-  // `notFound()` production guard as well. Delete with the sandbox routes.
-  if (top === "sandbox" && process.env.NODE_ENV !== "production") return true;
   // Parts catalog list (/parts) + detail (/parts/[id]) are public; the create
   // form (/parts/new) is not.
   if (top === "parts") return segments[1] !== "new";
