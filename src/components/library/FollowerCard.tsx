@@ -49,7 +49,7 @@ export function FollowerCard({
   return (
     <div>
       {/* XP ring hero — opens the rank ladder */}
-      <button type="button" onClick={() => setRankOpen(true)} className="flex items-center gap-4 rounded-lg p-1 text-left transition-opacity hover:opacity-80" aria-label="Open the rank ladder">
+      <button type="button" onClick={() => setRankOpen(true)} className="flex items-center gap-4 rounded p-1 text-left transition-opacity hover:opacity-80" aria-label="Open the rank ladder">
         <div className="relative grid h-[92px] w-[92px] shrink-0 place-items-center">
           <svg viewBox="0 0 80 80" className="h-[92px] w-[92px] -rotate-90" aria-hidden>
             {Array.from({ length: 40 }).map((_, i) => {

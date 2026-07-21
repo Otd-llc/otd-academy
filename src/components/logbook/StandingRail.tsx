@@ -17,7 +17,7 @@ export function StandingRail({ level, title, xp, nextMinXp, nextLevel, bandPct }
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="flex items-center gap-6 rounded-lg p-2 text-left transition-opacity hover:opacity-80" aria-label="Open the rank ladder">
+      <button type="button" onClick={() => setOpen(true)} className="flex items-center gap-6 rounded p-2 text-left transition-opacity hover:opacity-80" aria-label="Open the rank ladder">
         <div className="relative shrink-0">
           <div className="relative grid h-[168px] w-[168px] place-items-center">
             <svg viewBox="0 0 80 80" className="h-[168px] w-[168px] -rotate-90" aria-hidden>

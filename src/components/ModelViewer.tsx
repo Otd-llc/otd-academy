@@ -42,7 +42,11 @@ export default function ModelViewer({
   const [error, setError] = useState(false);
   const [hintGone, setHintGone] = useState(false);
   const interactRef = useRef(onFirstInteract);
-  interactRef.current = onFirstInteract;
+  // Kept current in an effect, not during render. Writing a ref while rendering is a
+  // side effect in the render phase, which React may run twice or discard.
+  useEffect(() => {
+    interactRef.current = onFirstInteract;
+  });
   const boundsKey = JSON.stringify(bounds);
 
   useEffect(() => {
@@ -222,7 +226,7 @@ export default function ModelViewer({
               hintGone ? "opacity-0" : "opacity-100"
             }`}
           >
-            <span className="flex items-center gap-1.5 rounded-full border border-command-gold/40 bg-deep-space/50 px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-command-gold backdrop-blur-sm">
+            <span className="flex items-center gap-1.5 border border-command-gold/40 bg-deep-space/50 px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-command-gold backdrop-blur-sm">
               <RotateIcon className="h-3 w-3" />
               Drag to explore
             </span>

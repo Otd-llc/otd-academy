@@ -954,7 +954,7 @@ function StepsBlock({
 // answer to "where do I go next".
 function AdvanceBlock({ body }: { body: string }) {
   return (
-    <div className="rounded-lg border border-command-gold/50 bg-command-gold/[0.06] px-5 py-4">
+    <div className="rounded-[8px] border border-command-gold/50 bg-command-gold/[0.06] px-5 py-4">
       <span className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-command-gold">
         ✓ Exit this stage
       </span>

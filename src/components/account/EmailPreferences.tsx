@@ -33,7 +33,7 @@ export function EmailPreferences({ initialConsent }: { initialConsent: boolean }
 
   return (
     <div className="mt-4">
-      <div className="flex items-center justify-between gap-5 rounded-lg border border-panel-border/70 px-4 py-3.5">
+      <div className="flex items-center justify-between gap-5 border-y border-panel-border/60 py-3.5">
         <div>
           <p className="font-serif text-sm text-text">Build tips and product updates</p>
           <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-gray-3">

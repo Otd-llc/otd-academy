@@ -142,7 +142,7 @@ export default async function PartsListPage({
 
       {/* Control bar — search, facets, and sort as one instrument panel, with
           the live catalog count as the readout. */}
-      <section className="mt-8 rounded-2xl border border-panel-border bg-bg-2/30 p-4 sm:p-5">
+      <section className="mt-8 rounded border border-panel-border bg-bg-2/30 p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3 pb-3">
           <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-command-gold">
             Search the catalog

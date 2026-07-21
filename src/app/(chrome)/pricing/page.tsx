@@ -289,7 +289,7 @@ export default async function PricingPage() {
       {/* Good-better-best: one build (quiet) vs the Pass (hero). */}
       <section className="mt-12 grid grid-cols-1 gap-5 lg:grid-cols-5">
         {/* Single build */}
-        <div className="flex flex-col gap-6 rounded-2xl border border-panel-border bg-bg-2/30 p-7 sm:p-8 lg:col-span-2">
+        <div className="flex flex-col gap-6 rounded-[14px] border border-panel-border bg-bg-2/30 p-7 sm:p-8 lg:col-span-2">
           <div>
             <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-muted">
               One build
@@ -329,11 +329,7 @@ export default async function PricingPage() {
         </div>
 
         {/* All-Access Pass (the hero) */}
-        <div className="relative flex flex-col gap-6 overflow-hidden rounded-2xl border border-command-gold/70 bg-bg-2/50 p-7 shadow-[0_0_60px_-20px_color-mix(in_srgb,var(--color-command-gold)_70%,transparent)] sm:p-9 lg:col-span-3">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-command-gold/10 blur-3xl"
-          />
+        <div className="relative flex flex-col gap-6 rounded-[14px] border border-command-gold/70 bg-bg-2/50 p-7 shadow-[0_0_60px_-20px_color-mix(in_srgb,var(--color-command-gold)_70%,transparent)] sm:p-9 lg:col-span-3">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-command-gold">
@@ -344,7 +340,7 @@ export default async function PricingPage() {
               </p>
             </div>
             {launchOpen ? (
-              <span className="shrink-0 rounded-full border border-command-gold/40 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">
+              <span className="shrink-0 border border-command-gold/40 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">
                 Launch price
               </span>
             ) : null}

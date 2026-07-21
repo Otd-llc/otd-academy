@@ -168,7 +168,7 @@ function MainNavView({
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-full z-30 mt-2 min-w-44 overflow-hidden rounded-lg border border-panel-border bg-deep-space shadow-[var(--elev-raise)] sm:hidden">
+        <div className="absolute right-0 top-full z-30 mt-2 min-w-44 overflow-hidden rounded border border-panel-border bg-deep-space shadow-[var(--elev-raise)] sm:hidden">
           {links.map((link, i) => {
             const active = isActive(pathname, link.href);
             return (

@@ -77,7 +77,7 @@ export default async function CertificateSharePage({
         alt={`${heading} · ${claims.name}`}
         width={1200}
         height={848}
-        className="w-full max-w-3xl rounded-lg border border-panel-border shadow-lg"
+        className="w-full max-w-3xl rounded border border-panel-border [box-shadow:var(--elev-card)]"
       />
       <ShareCard
         downloadUrl={pdfPath(slug, token)}

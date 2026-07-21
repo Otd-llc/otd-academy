@@ -9,10 +9,10 @@ import type { BoardReadiness, BoardReadinessTier } from "@/lib/board-readiness";
 function Bar({ label, ok, hint }: { label: string; ok: boolean; hint: string }) {
   return (
     <div
-      className={`flex flex-col gap-1 rounded-lg border px-4 py-3 ${
+      className={`flex flex-col gap-1 border px-4 py-3 ${
         ok
-          ? "border-status-green/50 bg-status-green/5"
-          : "border-panel-border bg-panel-border/5"
+          ? "border-status-green/50"
+          : "border-panel-border"
       }`}
     >
       <div className="flex items-center gap-2">
@@ -47,7 +47,7 @@ export function BoardReadinessPanel({
   readiness: BoardReadiness;
 }) {
   return (
-    <section className="mb-8 rounded-xl border border-panel-border p-5 [background:linear-gradient(180deg,#13131f_0%,#0d0e14_100%)]">
+    <section className="mb-8 border border-panel-border bg-deep-space p-5">
       <div className="flex items-baseline justify-between gap-4">
         <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-gold-dim">
           Board readiness

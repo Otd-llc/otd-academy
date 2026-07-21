@@ -287,11 +287,11 @@ body {
    — the link's aria-label already names the stage. */
 .gh-num { position: absolute; left: 0; right: 0; top: 12%; z-index: 0; pointer-events: none; font-family: var(--font-numeral); font-weight: 800; letter-spacing: 0.02em; line-height: 1; color: transparent; -webkit-text-stroke: 1.75px color-mix(in srgb, var(--color-gold-light) 34%, transparent); }
 /* title + lead, centred in the lower two-thirds */
-.gh-m { position: absolute; left: 0; right: 0; top: 64%; transform: translateY(-50%); z-index: 1; padding: 0 7%; }
+.gh-m { position: absolute; left: 0; right: 0; top: 64%; transform: translateY(-50%); z-index: 1; padding: 0 13%; }
 .gh-m > .gh-title { display: block; }
 /* type scales with the hex (cqw = 1% of the cell width) so cells stay legible all
    the way down to the two-up phone size, bounded by a px floor + ceiling. */
-.gh-title { font-family: var(--font-display), sans-serif; font-size: clamp(14px, 11cqw, 32px); letter-spacing: 0.04em; line-height: 0.9; color: var(--color-gray-1); margin-bottom: 8px; }
+.gh-title { font-family: var(--font-display), sans-serif; font-size: clamp(14px, 10cqw, 32px); letter-spacing: 0.04em; line-height: 0.9; color: var(--color-gray-1); margin-bottom: 8px; overflow-wrap: break-word; hyphens: auto; text-wrap: balance; }
 .gh-lead { font-family: var(--font-serif), serif; font-size: clamp(11px, 4.8cqw, 15px); line-height: 1.5; color: #d8d8d8; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 /* small cells can't fit a 2-line description at a legible size without truncating
    it — drop it (full text is on the stage page), re-centre the title, and lift the

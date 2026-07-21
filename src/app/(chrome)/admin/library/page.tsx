@@ -63,8 +63,8 @@ export default async function LibraryAdminPage() {
                 <span
                   className={
                     l.published
-                      ? "inline-flex items-center rounded-full border border-command-gold/40 bg-command-gold/10 px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider text-command-gold"
-                      : "inline-flex items-center rounded-full border border-panel-border bg-deep-space px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider text-muted"
+                      ? "inline-flex items-center border border-command-gold/40 px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider text-command-gold"
+                      : "inline-flex items-center border border-panel-border px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider text-muted"
                   }
                 >
                   {l.published ? "Published" : "Draft"}

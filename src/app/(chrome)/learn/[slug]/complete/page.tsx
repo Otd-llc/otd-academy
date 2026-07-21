@@ -214,7 +214,7 @@ export default async function LessonCompletePage({
             }
             width={1200}
             height={848}
-            className="w-full rounded-lg border border-panel-border shadow-lg"
+            className="w-full rounded border border-panel-border [box-shadow:var(--elev-card)]"
           />
           <ShareCard
             downloadUrl={`/learn/${project.slug}/certificate/${shareToken}/pdf`}
