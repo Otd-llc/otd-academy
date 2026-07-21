@@ -35,6 +35,7 @@ import {
   type Rung,
   type AsideVerb,
 } from "@/lib/guide-signposts";
+import { STAGE_ORDER, STAGE_LABELS } from "@/lib/stages";
 import { RungGlyph } from "@/components/guide/RungGlyph";
 import { DoStepsBlock } from "@/components/guide/DoStepsBlock";
 import { TraceListBlock } from "@/components/guide/TraceListBlock";
@@ -775,6 +776,31 @@ function DeepDiveBlock({ summary, body }: { summary: string; body: string }) {
   );
 }
 
+// G5 — the teaching aside. Owner pick, sandbox round G, 2026-07-21.
+//
+// Replaces the `.callout` tile: a tinted, full-border, 8px-radius box, which is
+// the filled card the design law rejects for a content surface. 25 blocks in
+// L1.01 rendered as that tile and every one was `info`, so signal-blue ended up
+// the most-repeated accent in the lesson when blue is meant to stay secondary
+// to gold.
+//
+// No box, no fill, no wash: the question goes in the display face and a short
+// gold rule sits beside the answer. Most of these blocks ARE questions
+// ("Lead-free or leaded?", "Power symbol or net label?"), so Bebas asks and Lora
+// answers. The rule is the whole of the furniture, which is the point: an aside
+// should carry LESS weight than the teaching spine, not different weight.
+//
+// The stub rule is fixed-width rather than full-bleed so it never reads as a
+// divider between sections, and it scales with nothing, so a 95-character aside
+// and an 829-character one get the same quiet mark.
+const ASIDE_RULE: Record<"critical" | "warn" | "info", string> = {
+  // Red stays meaningful: an unlabelled critical callout keeps the alert colour
+  // rather than being flattened into the teaching gold.
+  critical: "border-alert-red/60",
+  warn: "border-command-gold/60",
+  info: "border-command-gold/60",
+};
+
 function CalloutBlock({
   severity,
   label,
@@ -785,12 +811,20 @@ function CalloutBlock({
   body: string;
 }) {
   return (
-    <div className={`callout ${SEVERITY_CLASS[severity]}`}>
-      <span className="callout-label">{label}</span>
-      <p className="whitespace-pre-wrap font-serif">
-        <Inline text={body} />
-      </p>
-    </div>
+    <section className="my-7">
+      <h4 className="font-display text-2xl leading-none tracking-wide text-title">
+        {label}
+      </h4>
+      <div className="mt-2 flex gap-3">
+        <span
+          aria-hidden
+          className={`mt-3 w-8 shrink-0 self-start border-t ${ASIDE_RULE[severity]}`}
+        />
+        <p className="whitespace-pre-wrap font-serif text-[15px] leading-relaxed text-muted">
+          <Inline text={body} />
+        </p>
+      </div>
+    </section>
   );
 }
 
@@ -951,16 +985,60 @@ function StepsBlock({
 
 // "Exit this stage" → the unmissable advance banner: gold-rimmed, the literal
 // answer to "where do I go next".
-function AdvanceBlock({ body }: { body: string }) {
+// H4e — the stage sign-off. Owner pick, sandbox round H, 2026-07-21.
+//
+// The old block was a gold-tinted rounded filled box (ban #1, the same filled
+// card as the callout tile) whose body used the legacy `gray-1` token, banned
+// on a public page.
+//
+// This is the one place a vertical wash earns its keep: the card's last inches
+// darken back into the field, which is literally what is happening. `.section-
+// band` only ever washes horizontally, so the direction itself carries meaning
+// rather than being decoration. Gold hairline on top, wash dying downward, no
+// side or bottom walls.
+//
+// The stage position is the card's numeral moment: Saira, tabular, per the
+// design system's progress recipe (`·` as the separator, never an em-dash).
+// It degrades cleanly when `stage` is absent (a Library mini-lesson renders the
+// same block with no readout rather than a wrong one).
+
+/** The stages that have a guide card. `REVISION` is the terminal admin stage
+ *  and carries no lesson, so counting it would make every card read "/ 9". */
+const GUIDE_STAGES = STAGE_ORDER.filter((s) => s !== "REVISION");
+
+function AdvanceBlock({ body, stage }: { body: string; stage?: string }) {
+  const idx = stage ? GUIDE_STAGES.indexOf(stage as (typeof GUIDE_STAGES)[number]) : -1;
+  const next = idx >= 0 && idx < GUIDE_STAGES.length - 1 ? GUIDE_STAGES[idx + 1] : null;
+  const gold = (pct: number) => `color-mix(in srgb, var(--color-command-gold) ${pct}%, transparent)`;
   return (
-    <div className="rounded-[8px] border border-command-gold/50 bg-command-gold/[0.06] px-5 py-4">
-      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-command-gold">
-        ✓ Exit this stage
-      </span>
-      <p className="mt-2 whitespace-pre-wrap font-serif text-base leading-relaxed text-gray-1">
+    <section
+      className="-mx-4 mt-10 px-4 pb-6 pt-4"
+      style={{
+        background: `linear-gradient(to bottom, ${gold(7)} 0%, ${gold(2)} 45%, transparent 100%)`,
+        borderTop: `1px solid ${gold(45)}`,
+      }}
+    >
+      <div className="flex items-baseline gap-3">
+        <h4 className="shrink-0 font-display text-2xl leading-none tracking-wide text-title">
+          Exit this stage
+        </h4>
+        {idx >= 0 ? (
+          <p className="ml-auto shrink-0 font-numeral text-2xl leading-none tabular-nums text-command-gold">
+            {idx + 1}
+            <span className="mx-1 text-muted">/</span>
+            <span className="text-muted">{GUIDE_STAGES.length}</span>
+          </p>
+        ) : null}
+      </div>
+      <p className="mt-2 whitespace-pre-wrap font-serif text-[15px] leading-relaxed text-muted">
         <Inline text={body} />
       </p>
-    </div>
+      {next ? (
+        <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+          Next · <span className="text-command-gold">{STAGE_LABELS[next]}</span>
+        </p>
+      ) : null}
+    </section>
   );
 }
 
@@ -1037,8 +1115,18 @@ const SEV_RUNG: Record<"info" | "warn" | "critical", Rung> = {
   critical: "warning",
 };
 
+// The margin treatment needs REAL GUTTER, and the guide column is a fixed 848px
+// centred, so the gutter is (viewport - 848) / 2. The flag is 176px wide and is
+// pulled 192px left, so it needs 192px of gutter: that arrives at 1232px, NOT at
+// `lg` (1024px, where the gutter is 88px and the flag hung 120px off the left of
+// the viewport, clipped). `xl` is the first breakpoint that clears it, with 24px
+// to spare at exactly 1280.
+//
+// Below that the flag stacks above the heading as a left-spine indent, which is
+// also what mobile gets. Measure before moving this breakpoint again: shrinking
+// the flag or widening the column both change the arithmetic.
 const SECTION_MARGIN =
-  "mb-2 border-l-2 pl-3 lg:sticky lg:top-4 lg:float-left lg:-ml-52 lg:mb-0 lg:w-48 lg:border-l-0 lg:border-r-2 lg:pl-0 lg:pr-3 lg:text-right";
+  "mb-2 border-l-2 pl-3 xl:sticky xl:top-4 xl:float-left xl:-ml-48 xl:mb-0 xl:w-44 xl:border-l-0 xl:border-r-2 xl:pl-0 xl:pr-3 xl:text-right";
 
 function SectionHeaderBlock({
   label,
@@ -1240,6 +1328,7 @@ function GuideBlock({
   isAdmin,
   logbook,
   fig,
+  stage,
 }: {
   block: ContentBlock;
   index: number;
@@ -1256,6 +1345,8 @@ function GuideBlock({
   /** This diagram's figure number in the lesson (image blocks whose src is a
    *  registry diagram), passed to ImageBlock so the bare frame shows "Fig N". */
   fig?: number;
+  /** The card's stage, for the sign-off block's position readout. */
+  stage?: string;
 }) {
   switch (block.type) {
     case "prose": {
@@ -1285,7 +1376,7 @@ function GuideBlock({
       // each read distinctly (see the role-styled callout components above).
       const label = block.label ?? "";
       if (/^exit this stage/i.test(label))
-        return <AdvanceBlock body={block.body} />;
+        return <AdvanceBlock body={block.body} stage={stage} />;
       if (/^check yourself/i.test(label))
         return <SelfCheckBlock body={block.body} severity={block.severity} />;
       if (/^draw it\b/i.test(label))
@@ -1759,6 +1850,7 @@ export function GuideBlocks({
         isAdmin={isAdmin}
         logbook={logbook}
         fig={figByIndex.get(i)}
+        stage={stage}
       />
     );
     return anchorId ? (
