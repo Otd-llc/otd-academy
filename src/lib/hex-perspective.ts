@@ -251,7 +251,7 @@ export function projectComb(boxes: HexBox[], cam: HexCam): HexSolid[] {
 }
 
 /** A viewBox that contains every projected point, with a little air. */
-export function sceneBox(solids: HexSolid[], pad = 6) {
+export function sceneBox(solids: HexSolid[], pad = 2) {
   if (solids.length === 0) return { x: 0, y: 0, w: 1, h: 1 };
   const pts = solids.flatMap((s) => [...s.face, ...s.rear]);
   const xs = pts.map((p) => p[0]);

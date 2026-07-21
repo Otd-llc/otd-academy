@@ -175,11 +175,13 @@ export default async function CoursesPage({
 
           {/* The selected path: its goal + prerequisite chain, topo-ordered,
               rendered to the build-guide number-hero honeycomb standard. */}
-          <SkillHoneycomb
-            nodes={selected.nodes}
-            goalSlug={selected.goalSlug}
-            viewer={viewer}
-          />
+          <div className="-mx-4 sm:mx-0">
+            <SkillHoneycomb
+              nodes={selected.nodes}
+              goalSlug={selected.goalSlug}
+              viewer={viewer}
+            />
+          </div>
 
           {/* Go further — the other builds as their destination hexes, in the
               same honeycomb language as the body (the flagship reads ★ gold). */}
