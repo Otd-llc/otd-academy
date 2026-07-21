@@ -41,6 +41,7 @@ export function BomPdfExport({
   rows: BomPdfRow[];
 }) {
   const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- mount flag for the portal; client-only, cannot run during SSR
   useEffect(() => setMounted(true), []);
   if (!rows.length) return null;
   const totalParts = rows.reduce((n, r) => n + (r.qty || 0), 0);

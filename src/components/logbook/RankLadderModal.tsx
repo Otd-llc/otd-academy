@@ -25,6 +25,7 @@ export function RankLadderModal({ level, onClose }: { level: number; onClose: ()
   // Snap to the current rank on open.
   useEffect(() => {
     idxRef.current = level - 1;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- snaps the wheel when the target rank changes
     setFocus(level - 1);
     requestAnimationFrame(() => { if (wheel.current) wheel.current.scrollTop = (level - 1) * ROW_H; });
   }, [level]);

@@ -16,6 +16,7 @@ export function SetupBand({ title, count, storageKey, children }: { title: strin
 
   useEffect(() => {
     try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reads a client-only store on mount; SSR fallback then adjusts once
       if (localStorage.getItem(storageKey)) setOpen(false); // returning → collapse
     } catch {
       /* private mode — stay open */

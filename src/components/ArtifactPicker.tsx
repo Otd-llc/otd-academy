@@ -123,6 +123,7 @@ export function ArtifactPicker({
   // create succeeds.
   useEffect(() => {
     if (state.createdId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- surfaces a server-action result; setState is how it reaches the UI
       setNoteBody("");
       setPreview(false);
       onCreated?.();

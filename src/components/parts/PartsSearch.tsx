@@ -20,10 +20,15 @@ export function PartsSearch({
   const [, startTransition] = useTransition();
 
   // Reflect external URL changes (Back/Forward, filter/pagination nav) back into the
-  // box so it never shows stale text relative to the list.
-  useEffect(() => {
+  // box so it never shows stale text relative to the list. Done as a render-phase
+  // adjustment (React's "storing a previous prop" pattern) rather than an effect:
+  // it applies before paint, so the box never flashes the stale value, and there is
+  // no extra render pass.
+  const [syncedQ, setSyncedQ] = useState(initialQ);
+  if (initialQ !== syncedQ) {
+    setSyncedQ(initialQ);
     setValue(initialQ);
-  }, [initialQ]);
+  }
 
   // Debounce: push `q` to the URL when the box diverges from it. Comparing the trimmed
   // value against `initialQ` (the URL's current, schema-trimmed q) both skips firing on

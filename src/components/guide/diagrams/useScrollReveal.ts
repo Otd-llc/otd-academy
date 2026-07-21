@@ -28,6 +28,7 @@ export function useScrollReveal<T extends HTMLElement = HTMLElement>(
     if (!el) return;
     // HARD rule: respect prefers-reduced-motion — never arm, never animate.
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- client-only mount detection (matchMedia); no SSR render path
     setArmed(true);
     const io = new IntersectionObserver(
       (entries) => {

@@ -204,6 +204,10 @@ export default function ModelViewer({
       }
     })();
     return () => { disposed = true; cleanup(); };
+    // boundsKey is JSON.stringify(bounds); it is the stable serialization the
+    // effect keys on, so bounds.center/.radius are covered transitively. Depending
+    // on the object itself would re-run every render (new reference each time).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src, boundsKey, float]);
 
   if (error) {

@@ -78,6 +78,9 @@ function Corner({ corner }: { corner: "tl" | "tr" | "bl" | "br" }) {
 // The embossed gold-foil seal — a pre-rendered PNG (scripts/gen-seal.ts), since
 // react-pdf can't draw metallic relief. Embedded as a data URI.
 function Seal() {
+  // react-pdf <Image> draws into the PDF, not a DOM <img> — it takes no alt prop
+  // and the DOM a11y rule does not apply.
+  // eslint-disable-next-line jsx-a11y/alt-text
   return <Image src={sealDataUri()} style={{ width: 108, height: 108 }} />;
 }
 

@@ -74,6 +74,7 @@ export function FieldGuideDownload({
     if (gateHandled.current) return;
     if (!signedIn && search.get("gate") === guide) {
       gateHandled.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the URL on mount to auto-open; ref-guarded to fire once
       setGateExpired(search.get("expired") === "1");
       setModalOpen(true);
       const params = new URLSearchParams(Array.from(search.entries()));

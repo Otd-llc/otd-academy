@@ -64,6 +64,7 @@ export function BulkMeasurementsDialog({
     if (state.ok) {
       // Close dialog and reset textarea on successful submit.
       ref.current?.close();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- surfaces a server-action result; setState is how it reaches the UI
       setText("");
     }
   }, [state.ok]);

@@ -23,6 +23,7 @@ export function ResumePill({ islands, storageKey, serverResume = null }: { islan
     if (!rec) return;
     if (!rec.anchorId || rec.anchorId === islands[0]?.anchorId) return; // nothing to resume
     const island = islands.find((i) => i.anchorId === rec.anchorId);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads a client-only store on mount; SSR fallback then adjusts once
     if (island) setTarget(island);
   }, [islands, storageKey, serverResume]);
 
