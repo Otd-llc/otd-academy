@@ -40,7 +40,7 @@ export function VerifyLinkShare({
   }
 
   return (
-    <div className="w-full max-w-md rounded-lg border border-panel-border bg-deep-space p-5 text-left">
+    <div className="w-full max-w-md rounded border border-panel-border bg-deep-space p-5 text-left">
       <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-command-gold">
         Verification
       </p>

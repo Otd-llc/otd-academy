@@ -28,7 +28,7 @@ function Body({ text, emphasis }: { text: string; emphasis: string }) {
 export function BriefDocumentMobile({ brief }: { brief: BriefData }) {
   return (
     <article
-      className="relative overflow-hidden rounded-lg border border-panel-border px-5 py-7 text-white"
+      className="relative overflow-hidden rounded border border-panel-border px-5 py-7 text-title"
       style={{ backgroundColor: "var(--color-deep-space)" }}
     >
       {/* Header */}

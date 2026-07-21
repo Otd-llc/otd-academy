@@ -72,7 +72,7 @@ export function Tooltip({
           // a SOLID deep-space surface (not the translucent .glass-card) with a
           // gold hairline + near-white non-italic body. The arrow matches the
           // solid surface so it reads as part of the bubble.
-          className="z-50 max-w-xs rounded-lg border border-[rgba(200,150,62,0.45)] bg-deep-space px-3 py-2 text-xs leading-relaxed shadow-xl"
+          className="z-50 max-w-xs rounded border border-command-gold/45 bg-deep-space px-3 py-2 text-xs leading-relaxed shadow-xl"
         >
           {label ? (
             <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">

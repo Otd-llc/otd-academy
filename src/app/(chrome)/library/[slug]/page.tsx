@@ -204,7 +204,7 @@ export default async function LibraryArticlePage({
       ) : null}
 
       {downFunnel.length > 0 ? (
-        <section className="mt-8 rounded-md border border-command-gold/40 bg-command-gold/5 p-5">
+        <section className="mt-8 rounded-[8px] border border-command-gold/40 bg-command-gold/5 p-5">
           {downFunnel.map((r) => {
             // Degrade to the course waitlist/preview when the build isn't live
             // (decision 4 — never dead-link a "coming soon" build).

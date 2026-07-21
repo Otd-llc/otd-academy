@@ -384,7 +384,7 @@ export function MediaCapture({
         <button
           type="button"
           aria-label={isVideo ? "Add a clip" : "Add a screenshot"}
-          className="group inline-flex items-center gap-2 rounded-full border border-command-gold/70 bg-command-gold/10 px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold shadow-[0_0_20px_-4px_var(--color-command-gold)] transition-colors hover:bg-command-gold hover:text-deep-space"
+          className="group inline-flex items-center gap-2 rounded border border-command-gold/70 bg-command-gold/10 px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold shadow-[0_0_20px_-4px_var(--color-command-gold)] transition-colors hover:bg-command-gold hover:text-deep-space"
         >
           <span className="text-base leading-none">+</span>{" "}
           {isVideo ? "Add clip" : "Add screenshot"}

@@ -86,7 +86,7 @@ export default async function WaitlistAdminPage() {
                 >
                   {c.title}
                 </Link>
-                <span className="inline-flex items-center rounded-full border border-command-gold/40 bg-command-gold/10 px-3 py-1 font-mono text-sm font-bold uppercase tracking-wider text-command-gold">
+                <span className="inline-flex items-center border border-command-gold/40 px-3 py-1 font-mono text-sm font-bold uppercase tracking-wider text-command-gold">
                   {c.emails.length}{" "}
                   {c.emails.length === 1 ? "signup" : "signups"}
                 </span>

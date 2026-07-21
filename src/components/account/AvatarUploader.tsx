@@ -191,7 +191,7 @@ export function AvatarUploader({
           aria-modal="true"
           aria-label="Crop your avatar"
         >
-          <div className="w-full max-w-sm rounded-lg border border-panel-border bg-deep-space p-5 shadow-[var(--elev-card)]">
+          <div className="w-full max-w-sm rounded border border-panel-border bg-deep-space p-5 shadow-[var(--elev-card)]">
             <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
               ▸ Crop avatar
             </p>

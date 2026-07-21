@@ -324,7 +324,7 @@ function AddBlockMenu({
         className={
           variant === "full"
             ? "inline-flex items-center gap-1.5 rounded border border-command-gold px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold"
-            : "inline-flex items-center gap-1 rounded-full border border-command-gold bg-deep-space px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold"
+            : "inline-flex items-center gap-1 rounded border border-command-gold bg-deep-space px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold"
         }
       >
         <PlusIcon className={variant === "full" ? "h-4 w-4" : "h-3 w-3"} />

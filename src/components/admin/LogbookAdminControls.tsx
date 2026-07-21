@@ -45,6 +45,51 @@ const INPUT =
 const BTN =
   "shrink-0 rounded border border-command-gold px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-40";
 
+/** The patch grid. Defined at module scope on purpose: a component declared inside
+ *  another component is a NEW component type on every parent render, so React
+ *  unmounts and remounts the entire subtree each time. What it used to close over is
+ *  passed in instead. */
+function PatchGrid({
+  tiles,
+  earned,
+  pendingKey,
+  pending,
+  onToggle,
+}: {
+  tiles: Tile[];
+  earned: Set<string>;
+  pendingKey: string | null;
+  pending: boolean;
+  onToggle: (key: string, on: boolean) => void;
+}) {
+  return (
+    <div className="mt-2 grid grid-cols-4 gap-1 sm:grid-cols-6">
+      {tiles.map((t) => {
+        const on = earned.has(t.key);
+        const busy = pendingKey === t.key && pending;
+        return (
+          <button
+            key={t.key}
+            type="button"
+            disabled={pending}
+            onClick={() => onToggle(t.key, on)}
+            title={`${t.key} · click to ${on ? "revoke" : "grant"}`}
+            className="flex flex-col items-center gap-1 rounded p-2 text-center transition-colors hover:bg-command-gold/[0.06] disabled:opacity-60"
+          >
+            <PatchBadge art={t.art} earned={on} tier={t.tier} size={46} />
+            <span className={`font-mono text-[8px] uppercase leading-tight tracking-[0.08em] ${on ? "text-gold-light" : "text-muted"}`}>
+              {t.label}
+            </span>
+            <span className="font-mono text-[7px] uppercase tracking-[0.12em] text-gray-3">
+              {busy ? "…" : on ? "granted" : "grant"}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function LogbookAdminControls({
   userId,
   xpTotal,
@@ -94,34 +139,6 @@ export function LogbookAdminControls({
     });
   };
 
-  function Grid({ tiles }: { tiles: Tile[] }) {
-    return (
-      <div className="mt-2 grid grid-cols-4 gap-1 sm:grid-cols-6">
-        {tiles.map((t) => {
-          const on = earned.has(t.key);
-          const busy = pendingKey === t.key && pending;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              disabled={pending}
-              onClick={() => toggle(t.key, on)}
-              title={`${t.key} — click to ${on ? "revoke" : "grant"}`}
-              className="flex flex-col items-center gap-1 rounded p-2 text-center transition-colors hover:bg-command-gold/[0.06] disabled:opacity-60"
-            >
-              <PatchBadge art={t.art} earned={on} tier={t.tier} size={46} />
-              <span className={`font-mono text-[8px] uppercase leading-tight tracking-[0.08em] ${on ? "text-gold-light" : "text-muted"}`}>
-                {t.label}
-              </span>
-              <span className="font-mono text-[7px] uppercase tracking-[0.12em] text-gray-3">
-                {busy ? "…" : on ? "granted" : "grant"}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8">
@@ -131,15 +148,15 @@ export function LogbookAdminControls({
         </p>
 
         <p className="mt-4 font-mono text-[9px] uppercase tracking-[0.2em] text-command-gold">Cluster &amp; skill</p>
-        <Grid tiles={STANDARD} />
+        <PatchGrid tiles={STANDARD} earned={earned} pendingKey={pendingKey} pending={pending} onToggle={toggle} />
 
         <p className="mt-5 font-mono text-[9px] uppercase tracking-[0.2em] text-command-gold">Hardware · bronze / silver / gold</p>
-        <Grid tiles={HARDWARE} />
+        <PatchGrid tiles={HARDWARE} earned={earned} pendingKey={pendingKey} pending={pending} onToggle={toggle} />
 
         {extras.length > 0 ? (
           <>
             <p className="mt-5 font-mono text-[9px] uppercase tracking-[0.2em] text-gray-3">Other earned</p>
-            <Grid tiles={extras} />
+            <PatchGrid tiles={extras} earned={earned} pendingKey={pendingKey} pending={pending} onToggle={toggle} />
           </>
         ) : null}
       </div>
