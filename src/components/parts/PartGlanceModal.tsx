@@ -86,6 +86,7 @@ export function PartGlanceModal({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetches on open; setState surfaces loading/result/error
     setLoading(true);
     setError(false);
     setResult(null);

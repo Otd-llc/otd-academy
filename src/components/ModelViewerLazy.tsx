@@ -46,6 +46,7 @@ export function ModelViewerLazy({
     if (!el) return;
     // No IntersectionObserver (very old browser) → just mount.
     if (typeof IntersectionObserver === "undefined") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- client-only mount detection (IntersectionObserver); no SSR render path
       setShow(true);
       return;
     }

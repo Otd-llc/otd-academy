@@ -88,6 +88,7 @@ export function KitBlock({
   useEffect(() => {
     try {
       const raw = localStorage.getItem(storageKey);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reads a client-only store on mount; SSR fallback then adjusts once
       if (raw) setOwned(new Set(JSON.parse(raw) as string[]));
     } catch {
       // corrupt / unavailable storage → start clean, still fully usable

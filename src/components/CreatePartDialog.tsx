@@ -157,6 +157,7 @@ export function PartFields({
   useEffect(() => {
     let active = true;
     if (!currentSymbol) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- surfaces an async fetch result; setState is how it reaches the UI
       setSymbolFpFilters(null);
       setSymbolDatasheet(null);
       return;

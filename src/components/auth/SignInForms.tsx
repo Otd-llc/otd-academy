@@ -97,6 +97,7 @@ export function SignInForms({
   const [useAnother, setUseAnother] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads a client-only store on mount; SSR fallback then adjusts once
     setMounted(true);
     try {
       setLastUser(parseLastUser(localStorage.getItem(LAST_USER_KEY)));

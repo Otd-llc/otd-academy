@@ -117,6 +117,7 @@ export function QuizBlock({
   useEffect(() => {
     if (!allSolved || passed || recording || !context) return;
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fires a once-only async record; the guard flag drives the UI
     setRecording(true);
     recordQuizPass({
       enrollmentId: context.enrollmentId,

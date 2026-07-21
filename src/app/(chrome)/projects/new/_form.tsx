@@ -4,6 +4,7 @@
 // the form: the server action returns either { errors } (Zod validation
 // failure) or redirects on success. Pending state disables the submit
 // button and swaps its label per design §9.4.
+import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import {
@@ -272,12 +273,12 @@ export function NewProjectForm() {
 
       <div className="flex items-center gap-3">
         <SubmitButton />
-        <a
+        <Link
           href="/"
           className="font-mono text-xs uppercase tracking-wider text-signal-blue underline"
         >
           Cancel
-        </a>
+        </Link>
       </div>
     </form>
   );

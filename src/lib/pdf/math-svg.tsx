@@ -14,7 +14,6 @@ import { liteAdaptor } from "mathjax-full/js/adaptors/liteAdaptor.js";
 import { RegisterHTMLHandler } from "mathjax-full/js/handlers/html.js";
 import { AllPackages } from "mathjax-full/js/input/tex/AllPackages.js";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 let doc: any = null;
 let adaptor: any = null;
 function ensure() {

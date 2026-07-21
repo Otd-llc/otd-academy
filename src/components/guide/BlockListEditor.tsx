@@ -203,7 +203,6 @@ export function BlockListEditor({
                   </div>
                   <div
                     role="group"
-                    aria-invalid={hasBlockError || undefined}
                     aria-describedby={hasBlockError ? blockErrListId : undefined}
                   >
                     <BlockEditor

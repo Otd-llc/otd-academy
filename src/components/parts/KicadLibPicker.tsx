@@ -50,15 +50,20 @@ export function KicadLibPicker({
   const seq = useRef(0);
   const listId = useId();
 
-  // Re-seed when the auto-suggested value changes (category select).
-  useEffect(() => {
+  // Re-seed when the auto-suggested value changes (category select). Render-phase
+  // adjustment (React's "storing a previous prop" pattern), not an effect: it applies
+  // before paint, with no extra render pass.
+  const [syncedValue, setSyncedValue] = useState(value);
+  if (value !== syncedValue) {
+    setSyncedValue(value);
     setSelected(value ?? null);
-  }, [value]);
+  }
 
   // Debounced server search, latest-response-wins.
   useEffect(() => {
     const term = query.trim();
     if (term.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- debounced async search; setState surfaces the result and loading state
       setHits([]);
       setLoading(false);
       return;
