@@ -15,8 +15,10 @@ import {
   computeLayout,
   HexPrism,
   RATIO,
+  buildCombScene,
   type Box,
 } from "@/components/guide/GuideHoneycomb";
+import { HexPrismScene } from "@/components/guide/HexPrismScene";
 
 const useIsoLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
@@ -27,6 +29,15 @@ const TRACK_ACCENT: Record<string, string> = {
   POWER: "#ef5350",
   COMMS: "#4a8fff",
 };
+
+/** The hex's stroke colour. Hoisted out of the render loop because the prisms now
+ *  live in the shared scene svg and need it too — a `--accent` that reaches only the
+ *  label leaves `stroke: var(--accent)` unresolved, and an unresolved stroke on a
+ *  deep-space fill is an invisible hex. */
+function accentFor(p: PathDest): string {
+  if (p.isPrimary) return "#c8963e";
+  return (p.goalTrack ? TRACK_ACCENT[p.goalTrack] : undefined) ?? "#8b6428";
+}
 
 export interface PathDest {
   key: string;
@@ -50,10 +61,13 @@ export function PathHoneycomb({
     boxes: [],
     height: 0,
   });
+  const [cw, setCw] = useState(0);
+  const [hot, setHot] = useState<number | null>(null);
 
   const measure = useCallback(() => {
     const el = ref.current;
     if (!el) return;
+    setCw(el.clientWidth);
     // 4-up on a wide row, capped so desktop hexes stay compact; collapses to a
     // 2-up offset comb on phones (smaller than the body comb's min).
     setLayout(
@@ -76,19 +90,33 @@ export function PathHoneycomb({
 
   if (paths.length === 0) return null;
 
+  // The shared camera: this comb needs no special handling now that the projection
+  // leaves every cell the same size. The flagship keeps its prominence from the ★
+  // eyebrow and its brighter stroke, not from where it sits in a rotation.
+  const scene = buildCombScene(layout.boxes, cw);
+
   return (
     <div
       ref={ref}
       className="gh"
-      style={{ position: "relative", height: measured ? layout.height : undefined }}
+      style={{ position: "relative", height: measured ? scene.height : undefined }}
     >
+      {measured && scene.solids.length > 0 ? (
+        <HexPrismScene
+          solids={scene.solids}
+          vb={scene.vb}
+          track
+          cells={paths.map((p) => ({
+            kind: "pending" as const,
+            flag: p.isPrimary,
+            accent: accentFor(p),
+          }))}
+          hot={hot}
+        />
+      ) : null}
       {paths.map((p, i) => {
         const b = layout.boxes[i];
-        const accent = p.isPrimary
-          ? "#c8963e"
-          : p.goalTrack
-            ? TRACK_ACCENT[p.goalTrack] ?? "#8b6428"
-            : "#8b6428";
+        const accent = accentFor(p);
         const eyebrow = p.isPrimary
           ? "★ Flagship"
           : (p.goalTrack ?? (p.isBench ? "Bench" : "Path"));
@@ -99,16 +127,11 @@ export function PathHoneycomb({
               ? `${p.total} tools`
               : `${p.total} courses`;
 
-        const wrapStyle: CSSProperties = b
-          ? {
-              position: "absolute",
-              left: b.left,
-              top: b.top,
-              width: b.w,
-              height: b.h,
-              // prism occlusion: paint left column first (see HexPrism)
-              zIndex: Math.round(b.left) + 1,
-            }
+        // Measured: content billboarded onto the projected face. Pre-measure: the
+        // stacked fallback that keeps these links in the SSR HTML.
+        const placed = b ? scene.place(i) : null;
+        const wrapStyle: CSSProperties = placed
+          ? placed
           : {
               position: "relative",
               width: "100%",
@@ -124,8 +147,13 @@ export function PathHoneycomb({
             aria-label={`${p.label} — ${chip}`}
             className={`phex group${p.isPrimary ? " flag" : ""}`}
             style={{ "--accent": accent, ...wrapStyle } as CSSProperties}
+            onMouseEnter={() => setHot(i)}
+            onMouseLeave={() => setHot((h) => (h === i ? null : h))}
+            onFocus={() => setHot(i)}
+            onBlur={() => setHot((h) => (h === i ? null : h))}
           >
-            <HexPrism className="phex-hex" />
+            {/* flat shell = pre-measure fallback only; measured hexes are in the scene */}
+            {placed ? null : <HexPrism className="phex-hex" />}
             <span className="phex-inner">
               <span className="phex-eyebrow">{eyebrow}</span>
               <span className="phex-title">{p.label}</span>

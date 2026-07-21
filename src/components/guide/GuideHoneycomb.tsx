@@ -15,6 +15,16 @@
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { GuideStage } from "@/lib/guide-templates/stage-skeletons";
+import { CombArrows, HexPrismScene } from "@/components/guide/HexPrismScene";
+import {
+  HEX_CAM_S5,
+  paintOrder,
+  projectComb,
+  sceneBox,
+  sceneHeight,
+  sceneToPx,
+  type HexCam,
+} from "@/lib/hex-perspective";
 
 const useIsoLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
@@ -132,6 +142,46 @@ export function computeLayout(
   return { boxes, height: (rows - 1) * vstep + h };
 }
 
+/**
+ * Shared plumbing for a three-point comb: project the measured boxes, fit a scene
+ * box, and hand back everything a caller needs to park billboarded HTML on the
+ * projected faces. Used by this hub, SkillHoneycomb and PathHoneycomb so all three
+ * stay one camera and one paint order.
+ */
+export function buildCombScene(boxes: Box[], cw: number, cam: HexCam = HEX_CAM_S5) {
+  const solids = boxes.length > 0 && cw > 0 ? projectComb(boxes, cam) : [];
+  const vb = sceneBox(solids);
+  // Depth order, as an inline z-index: a nearer cell's LABEL must sit above a
+  // farther one's the same way its prism does. Inline beats any class rule, which
+  // is why `.gh-node.current { z-index }` had to go rather than be worked around.
+  const depthZ = new Map<number, number>();
+  paintOrder(solids).forEach((s, k) => depthZ.set(s.i, k + 1));
+  return {
+    solids,
+    vb,
+    height: solids.length > 0 ? sceneHeight(vb, cw) : 0,
+    /** where cell `i`'s billboarded content sits, and how big it draws. */
+    place(i: number): React.CSSProperties | null {
+      const s = solids[i];
+      const b = boxes[i];
+      if (!s || !b) return null;
+      const p = sceneToPx(vb, cw, s.centre);
+      const u = cw / vb.w;
+      return {
+        position: "absolute",
+        left: p.x,
+        top: p.y,
+        width: b.w,
+        height: b.h,
+        // `fit`, not `scale`: a turned face is a trapezoid and the label has to stay
+        // inside its narrow side too.
+        transform: `translate(-50%, -50%) scale(${(s.fit * u).toFixed(4)})`,
+        zIndex: depthZ.get(i) ?? 1,
+      };
+    },
+  };
+}
+
 export function GuideHoneycomb({
   slug,
   revLabel,
@@ -169,19 +219,22 @@ export function GuideHoneycomb({
     return () => ro.disconnect();
   }, [measure]);
 
+  const scene = buildCombScene(layout.boxes, cw);
+
   return (
-    <div ref={ref} className="gh" style={{ position: "relative", height: layout.height }}>
-      <svg width="0" height="0" aria-hidden className="absolute">
-        <defs>
-          <linearGradient id="gh-honey" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#eab94d" />
-            <stop offset="1" stopColor="#b07f31" />
-          </linearGradient>
-        </defs>
-      </svg>
+    <div ref={ref} className="gh" style={{ position: "relative", height: scene.height }}>
+      {scene.solids.length > 0 ? (
+        <HexPrismScene
+          solids={scene.solids}
+          vb={scene.vb}
+          cells={stages.map((s) => ({ kind: s.kind }))}
+          hot={hot}
+        />
+      ) : null}
       {stages.map((s, i) => {
         const b = layout.boxes[i];
-        if (!b) return null;
+        const style = scene.place(i);
+        if (!b || !style) return null;
         return (
           <Link
             key={s.stage}
@@ -189,15 +242,14 @@ export function GuideHoneycomb({
             aria-current={s.kind === "current" ? "step" : undefined}
             aria-label={`Stage ${s.num} — ${s.title} (${s.statusText})`}
             className={`gh-node ${s.kind}`}
-            // zIndex grows with `left` so each hex's down-right cast is covered by
-            // its right/lower neighbour's opaque face (the prism occlusion model).
-            style={{ left: b.left, top: b.top, width: b.w, height: b.h, zIndex: Math.round(b.left) + 1 }}
+            // The hex itself lives in the scene svg below this; what sits here is the
+            // cell's content, billboarded onto its projected face.
+            style={style}
             onMouseEnter={() => setHot(i)}
             onMouseLeave={() => setHot((h) => (h === i ? null : h))}
             onFocus={() => setHot(i)}
             onBlur={() => setHot((h) => (h === i ? null : h))}
           >
-            <HexPrism className="gh-hex" />
             <span
               className="gh-num"
               aria-hidden
@@ -221,47 +273,14 @@ export function GuideHoneycomb({
         );
       })}
 
-      {/* Path-direction arrows (K10) — identical to SkillHoneycomb: a 12 × 10
-          solid triangle on each consecutive pair's seam (midpoint of the two
-          cell centers, base 7px scaled off the line on the destination face,
-          rotated along the flow). Gold when the source stage is done, dim ahead;
-          a hovered/focused hex lights its outgoing arrow, and they drift. */}
-      {layout.boxes.length === stages.length && layout.height > 0 && cw > 0
-        ? (() => {
-            const arrows = stages.slice(0, -1).map((s, i) => {
-              const a = layout.boxes[i]!;
-              const b = layout.boxes[i + 1]!;
-              const ax = a.left + a.w / 2;
-              const ay = a.top + a.h / 2;
-              const bx = b.left + b.w / 2;
-              const by = b.top + b.h / 2;
-              const ang = (Math.atan2(by - ay, bx - ax) * 180) / Math.PI;
-              const sc = a.w / 200; // K10 sizes were tuned on 200px cells
-              const cls = [s.kind === "done" ? "on" : "off", hot === i ? "hot" : ""]
-                .filter(Boolean)
-                .join(" ");
-              return (
-                <g
-                  key={s.stage}
-                  className={cls}
-                  transform={`translate(${(ax + bx) / 2} ${(ay + by) / 2}) rotate(${ang}) translate(${7 * sc} 0) scale(${sc})`}
-                >
-                  <path d="M -6 -5 L 6 0 L -6 5 Z" style={{ animationDelay: `${i * 0.25}s` }} />
-                </g>
-              );
-            });
-            return (
-              <svg
-                className="sk-arw"
-                viewBox={`0 0 ${cw} ${layout.height}`}
-                preserveAspectRatio="none"
-                aria-hidden
-              >
-                {arrows}
-              </svg>
-            );
-          })()
-        : null}
+      {/* Path-direction arrows — now drawn on the PROJECTED centres (see CombArrows),
+          because a seam that moved with the perspective takes its arrow with it. */}
+      <CombArrows
+        solids={scene.solids}
+        vb={scene.vb}
+        on={stages.map((s) => s.kind === "done")}
+        hot={hot}
+      />
     </div>
   );
 }

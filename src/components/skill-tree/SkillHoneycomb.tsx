@@ -24,8 +24,10 @@ import {
   computeLayout,
   HexPrism,
   RATIO,
+  buildCombScene,
   type Box,
 } from "@/components/guide/GuideHoneycomb";
+import { CombArrows, HexPrismScene } from "@/components/guide/HexPrismScene";
 import { Tooltip } from "@/components/Tooltip";
 import { AdminTierToggle } from "@/components/skill-tree/AdminTierToggle";
 import type { NodeState, SkillNode } from "@/lib/skill-tree-core";
@@ -114,6 +116,7 @@ function HexInner({
   num,
   numFontSize,
   isStarred,
+  showShell,
 }: {
   node: SkillNode;
   num: string;
@@ -121,11 +124,16 @@ function HexInner({
   // `.gh-node` is a `container-type: inline-size` container, so cqw resolves).
   numFontSize: number | string;
   isStarred: boolean;
+  /** true only before the layout is measured, when there is no scene to draw into. */
+  showShell: boolean;
 }) {
   const trackColor = node.track ? TRACK_COLOR[node.track] : undefined;
   return (
     <>
-      <HexPrism className="gh-hex" />
+      {/* The flat shell is the PRE-MEASURE fallback only. Once the layout is
+          measured the hexes come from the shared perspective scene, so a measured
+          cell renders content alone. */}
+      {showShell ? <HexPrism className="gh-hex" /> : null}
       <span className="gh-num" aria-hidden style={{ fontSize: numFontSize }}>
         {num}
       </span>
@@ -189,20 +197,22 @@ export function SkillHoneycomb({ nodes, goalSlug, viewer }: SkillHoneycombProps)
 
   if (nodes.length === 0) return null;
 
+  const scene = buildCombScene(layout.boxes, cw);
+
   return (
     <div
       ref={ref}
       className="gh sk-lean"
-      style={{ position: "relative", height: measured ? layout.height : undefined }}
+      style={{ position: "relative", height: measured ? scene.height : undefined }}
     >
-      <svg width="0" height="0" aria-hidden className="absolute">
-        <defs>
-          <linearGradient id="gh-honey" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#eab94d" />
-            <stop offset="1" stopColor="#b07f31" />
-          </linearGradient>
-        </defs>
-      </svg>
+      {measured && scene.solids.length > 0 ? (
+        <HexPrismScene
+          solids={scene.solids}
+          vb={scene.vb}
+          cells={nodes.map((n) => ({ kind: hexKind(n), dim: isDim(n.state) }))}
+          hot={hot}
+        />
+      ) : null}
 
       {nodes.map((node, i) => {
         const b = layout.boxes[i];
@@ -215,18 +225,12 @@ export function SkillHoneycomb({ nodes, goalSlug, viewer }: SkillHoneycombProps)
         // Wrapper: absolute box once measured; a stacked, fluid block before that
         // (the no-JS / pre-hydration fallback). The `#node-<slug>` anchor lives
         // here so it resolves in both modes.
-        const wrapStyle: React.CSSProperties = b
-          ? {
-              position: "absolute",
-              left: b.left,
-              top: b.top,
-              width: b.w,
-              height: b.h,
-              // paint order for prism occlusion: zIndex grows with `left`, so a
-              // hex's down-right cast is always covered by its right/lower
-              // neighbour's opaque face — DOM (tab) order stays the path order.
-              zIndex: Math.round(b.left) + 1,
-            }
+        // Measured: the cell's content, billboarded onto its projected face (the hex
+        // itself is in the scene svg above). Pre-measure: the stacked fluid fallback
+        // that keeps the `#node-<slug>` anchors and the links in the SSR HTML.
+        const placed = b ? scene.place(i) : null;
+        const wrapStyle: React.CSSProperties = placed
+          ? placed
           : {
               position: "relative",
               width: "100%",
@@ -254,6 +258,7 @@ export function SkillHoneycomb({ nodes, goalSlug, viewer }: SkillHoneycombProps)
             num={num}
             numFontSize={numFontSize}
             isStarred={isStarred}
+            showShell={!placed}
           />
         );
 
@@ -326,49 +331,14 @@ export function SkillHoneycomb({ nodes, goalSlug, viewer }: SkillHoneycombProps)
           midpoint of the two cell centers (true for tessellated hexes). Gold =
           traversed (source done); dim = ahead; a hovered/focused hex lights its
           outgoing arrow. Decorative — the chips carry the affordance. */}
-      {measured && cw > 0
-        ? (() => {
-            const arrows = nodes.slice(0, -1).map((node, i) => {
-              const a = layout.boxes[i]!;
-              const b = layout.boxes[i + 1]!;
-              const ax = a.left + a.w / 2;
-              const ay = a.top + a.h / 2;
-              const bx = b.left + b.w / 2;
-              const by = b.top + b.h / 2;
-              const ang = (Math.atan2(by - ay, bx - ax) * 180) / Math.PI;
-              const s = a.w / 200; // K10 sizes were tuned on 200px cells
-              const cls = [
-                hexKind(node) === "done" ? "on" : "off",
-                hot === i ? "hot" : "",
-              ]
-                .filter(Boolean)
-                .join(" ");
-              return (
-                <g
-                  key={node.slug}
-                  className={cls}
-                  transform={`translate(${(ax + bx) / 2} ${(ay + by) / 2}) rotate(${ang}) translate(${7 * s} 0) scale(${s})`}
-                >
-                  {/* staggered delay: the drift reads as a slow wave down the path */}
-                  <path
-                    d="M -6 -5 L 6 0 L -6 5 Z"
-                    style={{ animationDelay: `${i * 0.25}s` }}
-                  />
-                </g>
-              );
-            });
-            return (
-              <svg
-                className="sk-arw"
-                viewBox={`0 0 ${cw} ${layout.height}`}
-                preserveAspectRatio="none"
-                aria-hidden
-              >
-                {arrows}
-              </svg>
-            );
-          })()
-        : null}
+      {measured ? (
+        <CombArrows
+          solids={scene.solids}
+          vb={scene.vb}
+          on={nodes.map((n) => hexKind(n) === "done")}
+          hot={hot}
+        />
+      ) : null}
     </div>
   );
 }
