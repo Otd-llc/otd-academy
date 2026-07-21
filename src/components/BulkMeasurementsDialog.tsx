@@ -29,7 +29,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded border border-command-gold bg-navy-dark px-3 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+      className="rounded border border-command-gold bg-deep-space px-3 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
     >
       {pending ? "WORKING…" : "Submit batch"}
     </button>
@@ -77,14 +77,14 @@ export function BulkMeasurementsDialog({
         onClick={() => ref.current?.showModal()}
         disabled={disabled}
         title={disabled ? disabledReason : undefined}
-        className="rounded border border-command-gold bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-40"
+        className="rounded border border-command-gold bg-deep-space px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-40"
       >
         Bulk add (tab-paste)
       </button>
 
       <dialog
         ref={ref}
-        className="m-auto max-w-3xl rounded border border-panel-border bg-navy-dark p-6 text-link-muted backdrop:bg-deep-space/70"
+        className="m-auto max-w-3xl rounded border border-panel-border bg-deep-space p-6 text-link-muted backdrop:bg-deep-space/70"
       >
         <form action={action} className="space-y-4 font-mono text-sm">
           <input type="hidden" name="boardId" value={boardId} />

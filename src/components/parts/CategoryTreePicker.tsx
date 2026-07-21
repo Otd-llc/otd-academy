@@ -110,8 +110,8 @@ export async function CategoryTreePicker({
   const rowCls = (active: boolean) =>
     `flex items-center gap-2 rounded px-2 py-1 font-mono text-xs transition-colors ${
       active
-        ? "bg-command-gold text-navy-dark"
-        : "text-link-muted hover:bg-navy-dark hover:text-command-gold"
+        ? "bg-command-gold text-deep-space"
+        : "text-link-muted hover:bg-command-gold/10 hover:text-command-gold"
     }`;
 
   function renderNodes(nodes: Node[]) {
@@ -193,7 +193,7 @@ export async function CategoryTreePicker({
           active so the current location stays visible. Native <details>, no JS. */}
       <details
         open={activeNode !== null}
-        className="rounded border border-panel-border bg-navy-dark/30 p-3"
+        className="rounded border border-panel-border bg-deep-space p-3"
       >
         <summary className="cursor-pointer font-mono text-xs uppercase tracking-wider text-command-gold">
           Browse by category

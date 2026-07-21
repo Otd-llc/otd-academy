@@ -21,7 +21,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded border border-command-gold bg-navy-dark px-6 py-2 font-mono text-sm uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+      className="rounded border border-command-gold bg-deep-space px-6 py-2 font-mono text-sm uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
     >
       {pending ? "WORKING…" : "Create project"}
     </button>
@@ -152,7 +152,7 @@ export function NewProjectForm() {
               id="track"
               name="track"
               defaultValue=""
-              className="mt-1 block w-full rounded border border-panel-border bg-navy-dark px-2 py-1 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+              className="mt-1 block w-full rounded border border-panel-border bg-deep-space px-2 py-1 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
             >
               <option value="">— none —</option>
               <option value="SENSE">SENSE</option>
@@ -170,7 +170,7 @@ export function NewProjectForm() {
               id="level"
               name="level"
               defaultValue=""
-              className="mt-1 block w-full rounded border border-panel-border bg-navy-dark px-2 py-1 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+              className="mt-1 block w-full rounded border border-panel-border bg-deep-space px-2 py-1 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
             >
               <option value="">— none —</option>
               <option value="L1">L1</option>
@@ -188,7 +188,7 @@ export function NewProjectForm() {
               name="disciplineTaught"
               type="text"
               maxLength={200}
-              className="mt-1 block w-full rounded border border-panel-border bg-navy-dark px-2 py-1 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
+              className="mt-1 block w-full rounded border border-panel-border bg-deep-space px-2 py-1 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none"
             />
             <FieldError messages={state.errors?.disciplineTaught} />
           </label>

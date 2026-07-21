@@ -31,9 +31,9 @@ const ASPECTS = [
 ];
 
 const BTN =
-  "inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space";
+  "inline-flex items-center gap-1.5 rounded border border-command-gold bg-deep-space px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space";
 const BTN_GHOST =
-  "inline-flex items-center gap-1.5 rounded border border-panel-border bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-muted transition-colors hover:border-command-gold hover:text-command-gold";
+  "inline-flex items-center gap-1.5 rounded border border-panel-border bg-deep-space px-4 py-2 font-mono text-xs uppercase tracking-wider text-muted transition-colors hover:border-command-gold hover:text-command-gold";
 
 type Phase = "prep" | "live" | "recording" | "review" | "saving";
 type Box = { x: number; y: number; w: number; h: number };

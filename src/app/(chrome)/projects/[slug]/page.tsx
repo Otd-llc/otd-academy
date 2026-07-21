@@ -147,18 +147,18 @@ export default async function ProjectDetailPage({
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {project.track && (
               <span
-                className={`inline-flex items-center rounded border border-panel-border bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider ${TRACK_COLOR[project.track]}`}
+                className={`inline-flex items-center rounded border border-panel-border bg-deep-space px-2 py-0.5 font-mono text-xs uppercase tracking-wider ${TRACK_COLOR[project.track]}`}
               >
                 {project.track}
               </span>
             )}
             {project.level && (
-              <span className="inline-flex items-center rounded border border-panel-border bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-command-gold">
+              <span className="inline-flex items-center rounded border border-panel-border bg-deep-space px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-command-gold">
                 {project.level}
               </span>
             )}
             {!project.criticalPath && (
-              <span className="inline-flex items-center rounded border border-panel-border bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-muted">
+              <span className="inline-flex items-center rounded border border-panel-border bg-deep-space px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-muted">
                 BENCH TOOL
               </span>
             )}
@@ -166,7 +166,7 @@ export default async function ProjectDetailPage({
                 requirement so reviewers know to expect the extra checklist
                 materialized on each revision. */}
             {project.requiresStripboard && (
-              <span className="inline-flex items-center rounded border border-panel-border bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-signal-blue">
+              <span className="inline-flex items-center rounded border border-panel-border bg-deep-space px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-signal-blue">
                 REQUIRES STRIPBOARD
               </span>
             )}
@@ -174,7 +174,7 @@ export default async function ProjectDetailPage({
                 requirement (proposal §3 #5). Painted alert-red because
                 mains exposure is the highest-stakes safety flag. */}
             {project.hasMainsNet && (
-              <span className="inline-flex items-center rounded border border-panel-border bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-alert-red">
+              <span className="inline-flex items-center rounded border border-panel-border bg-deep-space px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-alert-red">
                 HAS MAINS NET
               </span>
             )}
@@ -280,7 +280,7 @@ export default async function ProjectDetailPage({
           </h2>
           <Link
             href={`/projects/${project.slug}/revisions/new`}
-            className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+            className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-deep-space px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
           >
             <PlusIcon className="h-4 w-4" />
             New revision
@@ -361,7 +361,7 @@ export default async function ProjectDetailPage({
             <input type="hidden" name="id" value={project.id} />
             <button
               type="submit"
-              className="inline-flex items-center gap-1.5 rounded border border-panel-border bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-status-green transition-colors hover:border-status-green"
+              className="inline-flex items-center gap-1.5 rounded border border-panel-border bg-deep-space px-4 py-2 font-mono text-xs uppercase tracking-wider text-status-green transition-colors hover:border-status-green"
             >
               <ArchiveRestoreIcon className="h-4 w-4" />
               Unarchive project
@@ -372,7 +372,7 @@ export default async function ProjectDetailPage({
             <input type="hidden" name="id" value={project.id} />
             <button
               type="submit"
-              className="inline-flex items-center gap-1.5 rounded border border-panel-border bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-alert-red transition-colors hover:border-alert-red"
+              className="inline-flex items-center gap-1.5 rounded border border-panel-border bg-deep-space px-4 py-2 font-mono text-xs uppercase tracking-wider text-alert-red transition-colors hover:border-alert-red"
             >
               <ArchiveIcon className="h-4 w-4" />
               Archive project

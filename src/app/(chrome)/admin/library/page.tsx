@@ -40,7 +40,7 @@ export default async function LibraryAdminPage() {
 
       <Link
         href="/admin/library/new"
-        className="mt-5 inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+        className="mt-5 inline-flex items-center gap-1.5 rounded border border-command-gold bg-deep-space px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
       >
         <span aria-hidden="true">+</span> New mini-lesson
       </Link>

@@ -12,15 +12,15 @@ import type { FactTrust } from "@prisma/client";
 
 const TONE: Record<FactTrust, { box: string; label: string }> = {
   UNVERIFIED: {
-    box: "border-panel-border bg-navy-dark text-muted",
+    box: "border-panel-border bg-deep-space text-muted",
     label: "UNVERIFIED",
   },
   VERIFIED: {
-    box: "border-command-gold bg-navy-dark text-command-gold",
+    box: "border-command-gold bg-deep-space text-command-gold",
     label: "VERIFIED",
   },
   FLAGGED: {
-    box: "border-alert-red bg-navy-dark text-alert-red",
+    box: "border-alert-red bg-deep-space text-alert-red",
     label: "FLAGGED",
   },
 };

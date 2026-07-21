@@ -325,8 +325,15 @@ export default async function CoursePreviewPage({
           </dl>
         </header>
 
-        {/* ── REGISTER INTEREST (terminal panel) ───────────────── */}
-        <section data-reveal className="glass-card mt-10 border-command-gold/30 p-6 shadow-[0_0_40px_-12px_color-mix(in_srgb,var(--color-command-gold)_50%,transparent)] sm:p-7">
+        {/* ── REGISTER INTEREST ────────────────────────────────────
+            A form in the page flow is a CONTENT surface, so it groups without a
+            box. The prominence a conversion point needs comes from a gold
+            top-rule masthead and a closing rule instead — the sanctioned
+            framing-that-is-not-a-box — rather than a filled card and a glow. */}
+        <section
+          data-reveal
+          className="mt-10 border-y border-t-2 border-panel-border/60 border-t-command-gold py-6 sm:py-7"
+        >
           <p className="font-mono text-xs uppercase tracking-[0.25em] text-command-gold">
             ▸ Register interest
           </p>

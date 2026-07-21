@@ -327,13 +327,13 @@ export function MiniLessonEditor({
       {error ? (
         <p
           role="alert"
-          className="rounded border border-alert-red bg-navy-dark px-4 py-3 font-mono text-sm text-alert-red"
+          className="rounded border border-alert-red bg-deep-space px-4 py-3 font-mono text-sm text-alert-red"
         >
           {error}
         </p>
       ) : null}
       {ok ? (
-        <p className="rounded border border-command-gold bg-navy-dark px-4 py-3 font-mono text-sm text-command-gold">
+        <p className="rounded border border-command-gold bg-deep-space px-4 py-3 font-mono text-sm text-command-gold">
           {ok}
         </p>
       ) : null}

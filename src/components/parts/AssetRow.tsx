@@ -255,7 +255,7 @@ export function AssetRow({
   // ─── no asset yet → just the upload affordance ────────────────────────────
   if (!asset) {
     return (
-      <section className="rounded border border-dashed border-panel-border bg-navy-dark/10 p-4">
+      <section className="rounded border border-dashed border-panel-border bg-deep-space p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <h3 className="font-display text-xl tracking-wider text-muted">
@@ -374,7 +374,7 @@ export function AssetRow({
   ) : null;
 
   return (
-    <section className="space-y-4 rounded border border-panel-border bg-navy-dark/30 p-4">
+    <section className="space-y-4 rounded border border-panel-border bg-deep-space p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <h3 className="font-display text-xl tracking-wider text-title">
@@ -516,7 +516,7 @@ export function AssetRow({
       {error ? (
         <p
           role="alert"
-          className="rounded border border-alert-red bg-navy-dark px-4 py-3 font-mono text-sm text-alert-red"
+          className="rounded border border-alert-red bg-deep-space px-4 py-3 font-mono text-sm text-alert-red"
         >
           {error}
         </p>

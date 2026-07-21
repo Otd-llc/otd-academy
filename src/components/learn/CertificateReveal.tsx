@@ -43,7 +43,7 @@ export function CertificateReveal({
   }, [slug, score, total]);
 
   return (
-    <section className="signin-rise flex flex-col items-center gap-6 rounded border border-command-gold/40 bg-navy-dark px-6 py-12 text-center">
+    <section className="signin-rise flex flex-col items-center gap-6 rounded border border-command-gold/40 bg-deep-space px-6 py-12 text-center">
       <BrandMark className="signin-rise animate-pulse-brand h-16 w-16 text-command-gold" />
       <div
         className="signin-rise flex flex-col items-center"

@@ -22,7 +22,7 @@ export function PartCard({ part: p }: { part: PartsListRow }) {
         <span>·</span>
         <span>{p.lifecycle}</span>
         {p.isCertifiedModule && (
-          <span className="rounded border border-panel-border bg-navy-dark px-2 py-0.5 uppercase tracking-wider text-alert-red">
+          <span className="rounded border border-panel-border bg-deep-space px-2 py-0.5 uppercase tracking-wider text-alert-red">
             CERTIFIED MODULE
           </span>
         )}

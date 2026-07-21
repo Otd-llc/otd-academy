@@ -1,6 +1,6 @@
 // /projects/new — server component shell hosting the client form.
 // The client form handles useActionState; this file just supplies the
-// layout chrome (header, navy-dark panel).
+// layout chrome (header, hairline panel).
 import { NewProjectForm } from "./_form";
 
 export default function NewProjectPage() {

@@ -16,7 +16,7 @@ export function PartsPagination({
 }) {
   if (totalPages <= 1) return null;
   const cls =
-    "rounded border border-panel-border bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider";
+    "rounded border border-panel-border bg-deep-space px-3 py-1 font-mono text-xs uppercase tracking-wider";
   const prev =
     page > 1 ? partsHref(current, { page: String(page - 1) }) : null;
   const next =

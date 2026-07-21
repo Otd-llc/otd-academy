@@ -38,9 +38,9 @@ function FilterChip({
 }) {
   const base =
     "inline-flex items-center rounded border px-2 py-0.5 font-mono text-xs uppercase tracking-wider transition-colors";
-  const activeCls = "border-command-gold bg-command-gold text-navy-dark";
+  const activeCls = "border-command-gold bg-command-gold text-deep-space";
   const inactiveCls =
-    "border-panel-border bg-navy-dark text-muted hover:border-command-gold hover:text-command-gold";
+    "border-panel-border bg-deep-space text-muted hover:border-command-gold hover:text-command-gold";
   return (
     <Link href={href} className={`${base} ${active ? activeCls : inactiveCls}`}>
       {label}
@@ -126,7 +126,7 @@ export default async function PartsListPage({
           </Link>
           <Link
             href="/parts/new"
-            className="inline-flex items-center gap-1.5 rounded-md border border-panel-border bg-navy-dark px-4 py-2 text-command-gold transition-colors hover:border-command-gold"
+            className="inline-flex items-center gap-1.5 rounded-md border border-panel-border bg-deep-space px-4 py-2 text-command-gold transition-colors hover:border-command-gold"
           >
             <PlusIcon className="h-4 w-4" />
             New part
@@ -264,7 +264,7 @@ export default async function PartsListPage({
                     </td>
                     <td className="py-3 pr-4">
                       {p.isCertifiedModule && (
-                        <span className="inline-flex items-center rounded border border-panel-border bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-alert-red">
+                        <span className="inline-flex items-center rounded border border-panel-border bg-deep-space px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-alert-red">
                           CERTIFIED MODULE
                         </span>
                       )}

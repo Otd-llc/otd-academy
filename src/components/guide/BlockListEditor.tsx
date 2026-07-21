@@ -121,7 +121,7 @@ export function BlockListEditor({
                 <InsertZone onInsert={(t) => insertBlock(t, i)} />
 
                 <div
-                  className={`rounded border bg-navy-dark/30 p-3 transition-shadow ${blockAccentClass(
+                  className={`rounded border bg-deep-space p-3 transition-shadow ${blockAccentClass(
                     block,
                   )} ${isDragging ? "opacity-40" : ""} ${
                     isDropTarget
@@ -334,7 +334,7 @@ function AddBlockMenu({
         <ul
           id={menuId}
           aria-label="Block types"
-          className={`absolute z-20 mt-1 min-w-44 rounded border border-panel-border bg-navy-dark p-1 shadow-xl ${
+          className={`absolute z-20 mt-1 min-w-44 rounded border border-panel-border bg-deep-space p-1 shadow-xl ${
             variant === "full" ? "left-0" : "left-1/2 -translate-x-1/2"
           }`}
         >

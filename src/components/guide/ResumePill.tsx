@@ -1,7 +1,7 @@
 "use client";
 
 // Resume pill (guide-pacing plan, Task 6). A floating control (chrome, so a
-// navy-dark widget is on-brand) that offers to jump back to where the learner
+// floating widget is on-brand) that offers to jump back to where the learner
 // left off. NO auto-scroll — it only appears when a resume record exists, the
 // URL has no hash (they didn't deep-link in), and the saved anchor isn't the
 // first island. One click scrolls there; dismiss hides it for the session and
@@ -44,7 +44,7 @@ export function ResumePill({ islands, storageKey, serverResume = null }: { islan
           display: "flex",
           alignItems: "center",
           gap: 4,
-          background: "var(--color-navy-dark)",
+          background: "var(--color-deep-space)",
           border: "1px solid color-mix(in srgb, var(--color-command-gold) 55%, transparent)",
           borderRadius: 6,
           boxShadow: "var(--elev-raise)",

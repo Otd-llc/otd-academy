@@ -150,7 +150,7 @@ export function DeratingEditor({
           {curves.map((curve, i) => (
             <div
               key={i}
-              className="rounded border border-command-gold/25 bg-navy-dark/30 p-3"
+              className="rounded border border-command-gold/25 bg-deep-space p-3"
             >
               <div className="mb-2 flex items-center justify-between gap-2">
                 <span className="font-mono text-xs uppercase tracking-wider text-command-gold">

@@ -714,7 +714,7 @@ export default async function GuideHubPage({
         lead={
           frozen
             ? "This is an earlier version of the lesson, shown read-only."
-            : "Build this board start to finish — design it, lay it out, then assemble and bring a real one to life. One stage at a time, checked off as you go."
+            : "Build this board start to finish: design it, lay it out, then assemble and bring a real one to life. One stage at a time, checked off as you go."
         }
         meta={[
           { label: "Project", value: project.name },
@@ -747,7 +747,7 @@ export default async function GuideHubPage({
             {allCells.filter(Boolean).length} complete
           </span>
         </div>
-        <div className="mt-6">
+        <div className="mt-6 -mx-4 sm:mx-0">
           <GuideHoneycomb
             slug={project.slug}
             revLabel={revision.label}

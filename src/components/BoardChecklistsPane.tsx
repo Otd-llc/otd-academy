@@ -29,7 +29,7 @@ export type BoardChecklistInput = Checklist & {
 
 function checklistSubkindPillClasses(subkind: ChecklistSubkind): string {
   const base =
-    "inline-block rounded border bg-navy-dark px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider";
+    "inline-block rounded border bg-deep-space px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider";
   // SCREENING_STEP_0 is the canonical board-scope subkind — emphasise.
   if (subkind === "SCREENING_STEP_0") {
     return `${base} border-command-gold text-command-gold`;
