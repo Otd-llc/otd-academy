@@ -25,7 +25,7 @@ type TransitionRow = {
 function Stagepiece({ stage }: { stage: Stage | null }) {
   return (
     <span className="font-mono text-sm text-command-gold">
-      {stage ?? "—"}
+      {stage ?? "·"}
     </span>
   );
 }

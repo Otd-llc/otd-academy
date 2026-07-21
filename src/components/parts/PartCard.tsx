@@ -8,7 +8,7 @@ import { DkAvailabilityCell } from "@/components/parts/DkAvailabilityCell";
 
 export function PartCard({ part: p }: { part: PartsListRow }) {
   return (
-    <li className="glass-card flex flex-col gap-2 p-4 font-mono text-sm">
+    <li className="flex flex-col gap-2 border-b border-panel-border/60 py-4 font-mono text-sm">
       <div className="flex items-start justify-between gap-3">
         <Link href={`/parts/${p.id}`} className="text-command-gold underline-offset-2 hover:underline">
           {p.mpn}

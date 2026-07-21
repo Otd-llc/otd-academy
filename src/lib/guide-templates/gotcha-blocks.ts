@@ -57,6 +57,15 @@ const ISOLATION_SLUGS = new Set([
   "l3-01-eeg-front-end",
 ]);
 
+// Every label carries its rung word as a `Verb · headline` prefix so these ride
+// the C9a alert ladder (parseAlertLabel, src/lib/guide-signposts.ts) instead of
+// falling through to a generic grey box. Without the prefix a GENERATED gotcha
+// and a hand-authored one render as two different things while doing the same
+// job, which is the exact split the signpost system exists to end.
+//
+// The word must MATCH the severity: severity is what decides the rendered rung,
+// so an `info` gotcha is written `Note · …`. They can never disagree on screen,
+// but they can read as a contradiction in this file.
 const GOTCHAS: Gotcha[] = [
   {
     id: "antenna-keepout",
@@ -65,7 +74,7 @@ const GOTCHAS: Gotcha[] = [
     block: {
       type: "callout",
       severity: "warn",
-      label: "WROOM antenna keep-out",
+      label: "Gotcha · WROOM antenna keep-out",
       body: "Confirm the keep-out against the module datasheet — no copper / no ground pour under the antenna. Violating it detunes the radio and kills range.",
     },
   },
@@ -76,7 +85,7 @@ const GOTCHAS: Gotcha[] = [
     block: {
       type: "callout",
       severity: "warn",
-      label: "Isolated rail post-regulator",
+      label: "Gotcha · Isolated rail post-regulator",
       body: "Isolated DC-DC converters are noisy — post-regulate + filter the isolated secondary before it feeds the analog front-end.",
     },
   },
@@ -87,7 +96,7 @@ const GOTCHAS: Gotcha[] = [
     block: {
       type: "callout",
       severity: "warn",
-      label: "WS2812 level-shift",
+      label: "Gotcha · WS2812 level-shift",
       body: "3.3V logic is out of spec for 5V WS2812 — level-shift via 74AHCT125, run the strip ~4.5V, or substitute SK6812.",
     },
   },
@@ -98,7 +107,7 @@ const GOTCHAS: Gotcha[] = [
     block: {
       type: "callout",
       severity: "warn",
-      label: "Servo/motor brownout",
+      label: "Gotcha · Servo/motor brownout",
       body: "Separate supply rail, bulk cap sized for stall current, wide/short high-current traces (double-track on stripboard).",
     },
   },
@@ -109,7 +118,7 @@ const GOTCHAS: Gotcha[] = [
     block: {
       type: "callout",
       severity: "warn",
-      label: "ADC1-only",
+      label: "Gotcha · ADC1-only",
       body: "ADC2 pins are unusable while WiFi/ESP-NOW is active — route all sampled inputs to ADC1.",
     },
   },
@@ -120,7 +129,7 @@ const GOTCHAS: Gotcha[] = [
     block: {
       type: "callout",
       severity: "info",
-      label: "Power-bank auto-shutoff",
+      label: "Note · Power-bank auto-shutoff",
       body: "USB power banks auto-shutoff under low/steady draw — source from a USB-C wall PD supply or add a periodic-pulse load.",
     },
   },

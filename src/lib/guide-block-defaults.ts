@@ -20,7 +20,7 @@ import {
 } from "@/components/icons";
 
 export const BLOCK_TYPES = [
-  "prose", "heading", "callout", "steps", "table", "bomTable", "termRef", "sourceRef", "partModel", "image", "video", "youtube", "quiz", "deepDive", "action", "vendorCta", "kit", "calculator", "math",
+  "prose", "heading", "callout", "steps", "doSteps", "traceList", "table", "bomTable", "termRef", "sourceRef", "partModel", "image", "video", "youtube", "quiz", "deepDive", "action", "vendorCta", "kit", "calculator", "math",
 ] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
 
@@ -29,6 +29,8 @@ export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   heading: "Heading",
   callout: "Callout",
   steps: "Steps",
+  doSteps: "Do steps (with proof)",
+  traceList: "Trace list (eyeball it)",
   table: "Table",
   bomTable: "BOM table (auto)",
   termRef: "Glossary term",
@@ -57,6 +59,8 @@ export const BLOCK_TYPE_ICON: Record<
   heading: TagIcon,
   callout: AlertTriangleIcon,
   steps: ListIcon,
+  doSteps: ListIcon,
+  traceList: EyeIcon,
   table: TableIcon,
   bomTable: TableIcon,
   termRef: TagIcon,
@@ -87,6 +91,20 @@ export function defaultBlock(type: BlockType): ContentBlock {
       return { type: "callout", severity: "info", label: "Note", body: "" };
     case "steps":
       return { type: "steps", ordered: true, items: ["Step 1"] };
+    case "doSteps":
+      return {
+        type: "doSteps",
+        title: "do the thing",
+        body: "",
+        steps: [{ text: "Step 1" }],
+      };
+    case "traceList":
+      return {
+        type: "traceList",
+        headline: "what the checker can't catch",
+        body: "",
+        items: [{ text: "Thing to trace by eye" }],
+      };
     case "table":
       return { type: "table", columns: ["Column 1"], rows: [[{ text: "" }]] };
     case "bomTable":

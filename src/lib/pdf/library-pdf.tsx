@@ -210,6 +210,15 @@ const s = StyleSheet.create({
   stepMark: { fontFamily: "Mono", fontSize: 10, color: GOLD, width: 20 },
   stepText: { flex: 1, fontFamily: "Serif", fontSize: 11, color: INK, lineHeight: 1.5 },
 
+  // doSteps / traceList. Print is static: there is no ticking and no reveal, so
+  // everything the screen hides behind an interaction is printed OPEN. A field
+  // guide the learner carries to the bench with the answer key withheld would be
+  // worse than no field guide.
+  signKicker: { fontFamily: "Mono", fontSize: 8, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: GOLD, marginTop: 12, marginBottom: 2 },
+  signRevealRow: { flexDirection: "row", marginLeft: 20, marginBottom: 4 },
+  signRevealLabel: { fontFamily: "Mono", fontSize: 7, letterSpacing: 1, textTransform: "uppercase", color: GOLD, width: 62 },
+  signRevealText: { flex: 1, fontFamily: "Serif", fontSize: 9.5, color: MUTED, lineHeight: 1.45 },
+
   // tables
   table: { marginTop: 12, borderTopWidth: 1, borderTopColor: GOLD },
   thRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: GOLD, backgroundColor: GOLD_TINT },
@@ -475,6 +484,50 @@ function Block({ block, images }: { block: ContentBlock; images: Map<string, Res
         </View>
       );
 
+    case "doSteps":
+      return (
+        <View style={s.steps}>
+          <Text style={s.signKicker}>{`Do · ${block.title}`}</Text>
+          {block.body ? <Text style={s.calloutBody}>{inlineSpans(block.body, "dsb")}</Text> : null}
+          {block.steps.map((st, i) => (
+            <View key={i} wrap={false}>
+              <View style={s.stepRow}>
+                <Text style={s.stepMark}>{`${i + 1}.`}</Text>
+                <Text style={s.stepText}>{inlineSpans(st.text, `ds${i}`)}</Text>
+              </View>
+              {st.proof ? (
+                <View style={s.signRevealRow}>
+                  <Text style={s.signRevealLabel}>You should see</Text>
+                  <Text style={s.signRevealText}>{inlineSpans(st.proof, `dsp${i}`)}</Text>
+                </View>
+              ) : null}
+            </View>
+          ))}
+        </View>
+      );
+
+    case "traceList":
+      return (
+        <View style={s.steps}>
+          <Text style={s.signKicker}>{`Eyeball it · ${block.headline}`}</Text>
+          {block.body ? <Text style={s.calloutBody}>{inlineSpans(block.body, "tlb")}</Text> : null}
+          {block.items.map((it, i) => (
+            <View key={i} wrap={false}>
+              <View style={s.stepRow}>
+                <Text style={s.stepMark}>{`${i + 1}.`}</Text>
+                <Text style={s.stepText}>{inlineSpans(it.text, `tl${i}`)}</Text>
+              </View>
+              {it.help ? (
+                <View style={s.signRevealRow}>
+                  <Text style={s.signRevealLabel}>Look for</Text>
+                  <Text style={s.signRevealText}>{inlineSpans(it.help, `tlh${i}`)}</Text>
+                </View>
+              ) : null}
+            </View>
+          ))}
+        </View>
+      );
+
     case "table":
       return (
         <View style={s.table}>
@@ -646,6 +699,22 @@ function Block({ block, images }: { block: ContentBlock; images: Map<string, Res
     default:
       return null;
   }
+}
+
+/**
+ * The per-block renderer, exported for `library-pdf-coverage.test.ts`.
+ *
+ * That switch ends in `default: return null`, so a block type it does not handle
+ * prints as NOTHING — silently, with a green typecheck. It is the only
+ * contentBlocks consumer with no compiler backstop, so the coverage test is the
+ * backstop instead. `Block` is a plain function with no hooks, so calling it
+ * directly is safe.
+ */
+export function renderBlockToPdf(
+  block: ContentBlock,
+  images: Map<string, ResolvedImage>,
+) {
+  return Block({ block, images });
 }
 
 function Blocks({ blocks, images }: { blocks: ContentBlock[]; images: Map<string, ResolvedImage> }) {

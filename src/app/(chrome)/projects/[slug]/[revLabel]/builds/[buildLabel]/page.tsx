@@ -38,7 +38,7 @@ import { ChevronLeftIcon } from "@/components/icons";
 type Params = { slug: string; revLabel: string; buildLabel: string };
 
 function isoDate(d: Date | null | undefined): string {
-  return d ? d.toISOString().slice(0, 10) : "—";
+  return d ? d.toISOString().slice(0, 10) : "·";
 }
 
 export default async function BuildDetailPage({

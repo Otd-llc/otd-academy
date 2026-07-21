@@ -44,7 +44,7 @@ function StatusPill({ status }: { status: BoardStatus }) {
 }
 
 function truncateHash(hash: string | null | undefined): string {
-  if (!hash) return "—";
+  if (!hash) return "·";
   // Convention: display the first 7 chars (git short-hash equivalent).
   // The leading 'g' (if present) is the git-describe prefix, not part of
   // the SHA — strip it before slicing so the short-hash is the actual SHA

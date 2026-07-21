@@ -43,7 +43,7 @@ export default async function SourcingDashboardPage() {
       ) : (
         <div className="space-y-6">
           {issues.map((b) => (
-            <section key={b.projectSlug} className="glass-card p-5">
+            <section key={b.projectSlug} className="border-t border-panel-border/60 pt-5">
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-panel-border pb-3">
                 <h2 className="font-display text-xl tracking-wider text-title">
                   {b.projectName}{" "}

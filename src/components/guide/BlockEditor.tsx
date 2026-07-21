@@ -66,6 +66,10 @@ export function BlockEditor({
       return <CalloutEditor block={block} onChange={onChange} {...err} />;
     case "steps":
       return <StepsEditor block={block} onChange={onChange} {...err} />;
+    case "doSteps":
+      return <DoStepsEditor block={block} onChange={onChange} {...err} />;
+    case "traceList":
+      return <TraceListEditor block={block} onChange={onChange} {...err} />;
     case "table":
       return <TableBlockEditor block={block} onChange={onChange} {...err} />;
     case "bomTable":
@@ -400,6 +404,25 @@ function CalloutEditor({
           className={`mt-1 ${textareaClass}`}
         />
       </div>
+      {/* `reason` renders only on a numbered "NN · Title" section header with a
+          non-info severity, in the sticky margin flag beside it. Severity alone
+          says how bad it is; the reason says what to do about it. */}
+      <div>
+        <label htmlFor={`${baseId}-reason`} className={labelClass}>
+          Flag reason (optional — section headers only)
+        </label>
+        <input
+          id={`${baseId}-reason`}
+          type="text"
+          maxLength={120}
+          placeholder="Why this section is flagged, e.g. Do this before you route"
+          value={block.reason ?? ""}
+          onChange={(e) =>
+            onChange({ ...block, reason: e.target.value || undefined })
+          }
+          className={`mt-1 ${inputClass}`}
+        />
+      </div>
     </div>
   );
 }
@@ -501,6 +524,281 @@ function StepsEditor({
             hint="Add step"
             ariaLabel="Add step"
             onClick={addItem}
+          >
+            <PlusIcon className="h-4 w-4" />
+          </IconButton>
+        </div>
+      </fieldset>
+    </div>
+  );
+}
+
+// ─── doSteps / traceList ──────────────────────────────────────────────────
+// Both edit an array of {text, <second field>} rows, which is the same shape
+// problem KitEditor solves; they follow StepsEditor's row idiom (reorder +
+// remove per row, add at the bottom) because that is what an author already
+// knows from the plain Steps block.
+//
+// The second field is OPTIONAL in both schemas on purpose. A proof line the
+// author cannot write honestly should be left EMPTY — the step degrades to a
+// plain tick instead of shipping a confident wrong answer key — so the input
+// clears to `undefined` rather than storing "".
+
+function DoStepsEditor({
+  block,
+  onChange,
+  hasError,
+  errorId,
+}: {
+  block: Extract<ContentBlock, { type: "doSteps" }>;
+  onChange: (next: ContentBlock) => void;
+} & BlockErrorProps) {
+  const baseId = useId();
+  const { steps } = block;
+
+  const setStep = (i: number, patch: Partial<(typeof steps)[number]>) =>
+    onChange({
+      ...block,
+      steps: steps.map((s, si) => (si === i ? { ...s, ...patch } : s)),
+    });
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label htmlFor={`${baseId}-title`} className={labelClass}>
+          Title (renders as &ldquo;Do · title&rdquo;)
+        </label>
+        <input
+          id={`${baseId}-title`}
+          type="text"
+          maxLength={120}
+          value={block.title}
+          onChange={(e) => onChange({ ...block, title: e.target.value })}
+          className={`mt-1 ${inputClass}`}
+          {...ariaErrorProps({ hasError, errorId })}
+        />
+      </div>
+      <div>
+        <label htmlFor={`${baseId}-body`} className={labelClass}>
+          Intro (optional)
+        </label>
+        <textarea
+          id={`${baseId}-body`}
+          maxLength={2000}
+          rows={2}
+          value={block.body}
+          onChange={(e) => onChange({ ...block, body: e.target.value })}
+          className={`mt-1 ${inputClass}`}
+        />
+      </div>
+      <fieldset>
+        <legend className={labelClass}>Steps</legend>
+        <div className="mt-1 space-y-2">
+          {steps.map((s, i) => (
+            <div
+              key={i}
+              className="space-y-1.5 rounded border border-panel-border p-2"
+            >
+              <div className="flex items-center gap-1">
+                <label htmlFor={`${baseId}-step-${i}`} className="sr-only">
+                  Step {i + 1}
+                </label>
+                <input
+                  id={`${baseId}-step-${i}`}
+                  type="text"
+                  maxLength={1000}
+                  placeholder="What to do"
+                  value={s.text}
+                  onChange={(e) => setStep(i, { text: e.target.value })}
+                  className={inputClass}
+                />
+                <IconButton
+                  type="button"
+                  hint="Move up"
+                  ariaLabel={`Move step ${i + 1} up`}
+                  disabled={i === 0}
+                  onClick={() => onChange({ ...block, steps: moveWithin(steps, i, -1) })}
+                >
+                  <ChevronUpIcon className="h-4 w-4" />
+                </IconButton>
+                <IconButton
+                  type="button"
+                  hint="Move down"
+                  ariaLabel={`Move step ${i + 1} down`}
+                  disabled={i === steps.length - 1}
+                  onClick={() => onChange({ ...block, steps: moveWithin(steps, i, 1) })}
+                >
+                  <ChevronDownIcon className="h-4 w-4" />
+                </IconButton>
+                <IconButton
+                  type="button"
+                  tone="danger"
+                  hint="Remove step"
+                  ariaLabel={`Remove step ${i + 1}`}
+                  disabled={steps.length <= 1}
+                  onClick={() =>
+                    steps.length > 1 &&
+                    onChange({ ...block, steps: steps.filter((_, si) => si !== i) })
+                  }
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </IconButton>
+              </div>
+              <label htmlFor={`${baseId}-proof-${i}`} className="sr-only">
+                Proof for step {i + 1}
+              </label>
+              <input
+                id={`${baseId}-proof-${i}`}
+                type="text"
+                maxLength={300}
+                placeholder="You should see — optional, leave empty if you can't say honestly"
+                value={s.proof ?? ""}
+                onChange={(e) => setStep(i, { proof: e.target.value || undefined })}
+                className={inputClass}
+              />
+            </div>
+          ))}
+        </div>
+        <div className="mt-1">
+          <IconButton
+            type="button"
+            hint="Add step"
+            ariaLabel="Add step"
+            onClick={() =>
+              onChange({ ...block, steps: [...steps, { text: `Step ${steps.length + 1}` }] })
+            }
+          >
+            <PlusIcon className="h-4 w-4" />
+          </IconButton>
+        </div>
+      </fieldset>
+    </div>
+  );
+}
+
+function TraceListEditor({
+  block,
+  onChange,
+  hasError,
+  errorId,
+}: {
+  block: Extract<ContentBlock, { type: "traceList" }>;
+  onChange: (next: ContentBlock) => void;
+} & BlockErrorProps) {
+  const baseId = useId();
+  const { items } = block;
+
+  const setItem = (i: number, patch: Partial<(typeof items)[number]>) =>
+    onChange({
+      ...block,
+      items: items.map((it, n) => (n === i ? { ...it, ...patch } : it)),
+    });
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label htmlFor={`${baseId}-headline`} className={labelClass}>
+          Headline (renders as &ldquo;Eyeball it · headline&rdquo;)
+        </label>
+        <input
+          id={`${baseId}-headline`}
+          type="text"
+          maxLength={120}
+          value={block.headline}
+          onChange={(e) => onChange({ ...block, headline: e.target.value })}
+          className={`mt-1 ${inputClass}`}
+          {...ariaErrorProps({ hasError, errorId })}
+        />
+      </div>
+      <div>
+        <label htmlFor={`${baseId}-body`} className={labelClass}>
+          Intro (optional)
+        </label>
+        <textarea
+          id={`${baseId}-body`}
+          maxLength={2000}
+          rows={2}
+          value={block.body}
+          onChange={(e) => onChange({ ...block, body: e.target.value })}
+          className={`mt-1 ${inputClass}`}
+        />
+      </div>
+      <fieldset>
+        <legend className={labelClass}>Things to trace by eye</legend>
+        <div className="mt-1 space-y-2">
+          {items.map((it, i) => (
+            <div
+              key={i}
+              className="space-y-1.5 rounded border border-panel-border p-2"
+            >
+              <div className="flex items-center gap-1">
+                <label htmlFor={`${baseId}-item-${i}`} className="sr-only">
+                  Item {i + 1}
+                </label>
+                <input
+                  id={`${baseId}-item-${i}`}
+                  type="text"
+                  maxLength={1000}
+                  placeholder="What to check"
+                  value={it.text}
+                  onChange={(e) => setItem(i, { text: e.target.value })}
+                  className={inputClass}
+                />
+                <IconButton
+                  type="button"
+                  hint="Move up"
+                  ariaLabel={`Move item ${i + 1} up`}
+                  disabled={i === 0}
+                  onClick={() => onChange({ ...block, items: moveWithin(items, i, -1) })}
+                >
+                  <ChevronUpIcon className="h-4 w-4" />
+                </IconButton>
+                <IconButton
+                  type="button"
+                  hint="Move down"
+                  ariaLabel={`Move item ${i + 1} down`}
+                  disabled={i === items.length - 1}
+                  onClick={() => onChange({ ...block, items: moveWithin(items, i, 1) })}
+                >
+                  <ChevronDownIcon className="h-4 w-4" />
+                </IconButton>
+                <IconButton
+                  type="button"
+                  tone="danger"
+                  hint="Remove item"
+                  ariaLabel={`Remove item ${i + 1}`}
+                  disabled={items.length <= 1}
+                  onClick={() =>
+                    items.length > 1 &&
+                    onChange({ ...block, items: items.filter((_, n) => n !== i) })
+                  }
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </IconButton>
+              </div>
+              <label htmlFor={`${baseId}-help-${i}`} className="sr-only">
+                Help for item {i + 1}
+              </label>
+              <input
+                id={`${baseId}-help-${i}`}
+                type="text"
+                maxLength={300}
+                placeholder="Look for — shown only on 'not sure'"
+                value={it.help ?? ""}
+                onChange={(e) => setItem(i, { help: e.target.value || undefined })}
+                className={inputClass}
+              />
+            </div>
+          ))}
+        </div>
+        <div className="mt-1">
+          <IconButton
+            type="button"
+            hint="Add item"
+            ariaLabel="Add item"
+            onClick={() =>
+              onChange({ ...block, items: [...items, { text: "Thing to trace by eye" }] })
+            }
           >
             <PlusIcon className="h-4 w-4" />
           </IconButton>

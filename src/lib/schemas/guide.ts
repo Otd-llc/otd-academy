@@ -28,7 +28,56 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     text: z.string().trim().min(1).max(120),
     level: z.union([z.literal(2), z.literal(3)]).optional(),
   }),
-  z.object({ type: z.literal("callout"), severity: z.enum(["critical", "warn", "info"]), label: z.string().trim().min(1).max(120), body: z.string().max(2000) }),
+  // `reason` names WHY a section is flagged, in words, and renders in the margin
+  // beside the change-bar mark (F7c4). Severity alone only tells the learner how
+  // bad it is; the reason tells them what to do about it. Optional, so every
+  // existing callout stays valid.
+  z.object({
+    type: z.literal("callout"),
+    severity: z.enum(["critical", "warn", "info"]),
+    label: z.string().trim().min(1).max(120),
+    body: z.string().max(2000),
+    reason: z.string().trim().max(120).optional(),
+  }),
+  // doSteps — a "Do ·" action block whose steps each carry the EVIDENCE that the
+  // step worked. Ticking a step reveals its proof (B9b), so the learner confirms
+  // rather than guesses. Distinct from `steps` (a plain ordered list) on purpose:
+  // `steps` stays exactly as authored everywhere it is already used.
+  z.object({
+    type: z.literal("doSteps"),
+    title: z.string().trim().min(1).max(120),
+    body: z.string().max(2000),
+    steps: z
+      .array(
+        z.object({
+          text: z.string().max(1000),
+          /** What the learner should SEE when this step worked. */
+          proof: z.string().max(300).optional(),
+        }),
+      )
+      .min(1)
+      .max(20),
+  }),
+  // traceList — an "Eyeball it ·" verify block: things to check by eye, each with
+  // the answer-key line that only opens when the learner says they are not sure
+  // (D8c3). The items used to live buried in a body paragraph, where they could
+  // not be counted, ticked, or matched against the stage gate that asks for the
+  // same three.
+  z.object({
+    type: z.literal("traceList"),
+    headline: z.string().trim().min(1).max(120),
+    body: z.string().max(2000),
+    items: z
+      .array(
+        z.object({
+          text: z.string().max(1000),
+          /** Shown only on "not sure": what right looks like. */
+          help: z.string().max(300).optional(),
+        }),
+      )
+      .min(1)
+      .max(12),
+  }),
   z.object({ type: z.literal("steps"), ordered: z.boolean().default(true), items: z.array(z.string().max(500)).min(1) }),
   z.object({ type: z.literal("table"), columns: z.array(z.string()).min(1), rows: z.array(z.array(cellSchema)) }),
   // bomTable — the revision's bill of materials, rendered LIVE from BomLine data

@@ -37,7 +37,7 @@ import {
 const inputClass = `mt-1 w-full ${fieldInputClass}`;
 const selectClass = `mt-1 w-full ${fieldSelectClass}`;
 
-// `type` is optional in the schema; the select's "—" option maps to undefined.
+// `type` is optional in the schema; the select's "·" option maps to undefined.
 type PinType = NonNullable<Pin["type"]>;
 
 /**
@@ -184,7 +184,7 @@ export function PinoutEditor({
                       }
                       className={selectClass}
                     >
-                      <option value="">—</option>
+                      <option value="">·</option>
                       {PIN_TYPES.map((t) => (
                         <option key={t} value={t}>
                           {t}

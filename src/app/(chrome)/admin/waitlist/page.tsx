@@ -76,9 +76,9 @@ export default async function WaitlistAdminPage() {
           No waitlist signups yet.
         </p>
       ) : (
-        <ul className="mt-8 space-y-3">
+        <ul className="mt-8 border-t border-panel-border/60">
           {courses.map((c) => (
-            <li key={c.slug} className="glass-card p-5">
+            <li key={c.slug} className="border-b border-panel-border/60 py-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <Link
                   href={`/courses/${c.slug}`}

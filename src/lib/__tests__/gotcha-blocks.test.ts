@@ -4,6 +4,7 @@ import {
   type GuideProjectFacts,
 } from "@/lib/guide-templates/gotcha-blocks";
 import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
+import { parseAlertLabel } from "@/lib/guide-signposts";
 
 const wroom = { slug: "l1-01-wroom-breakout", track: "COMMS", requiresStripboard: false } as const;
 const eeg = { slug: "l3-01-eeg-front-end", track: "SENSE", requiresStripboard: false } as const;
@@ -113,5 +114,47 @@ describe("gotchaBlocksFor", () => {
         ].sort(),
       );
     });
+  });
+});
+
+// Every generated gotcha must be CLAIMED by the alert ladder. Without this, a
+// future label edit silently drops one back to a generic grey box while every
+// hand-authored gotcha keeps the ladder treatment — the exact split the signpost
+// system exists to end, and it is invisible until someone looks at the page.
+describe("generated gotchas ride the alert ladder", () => {
+  const ALL: GuideProjectFacts[] = [wroom, eeg, ...ALL_SLUGS];
+
+  it("parseAlertLabel claims every generated gotcha label", () => {
+    const seen = new Set<string>();
+    for (const p of ALL) {
+      for (const stage of GUIDE_STAGES) {
+        for (const b of gotchaBlocksFor(p, stage)) {
+          if (b.type !== "callout") continue;
+          if (seen.has(b.label)) continue;
+          seen.add(b.label);
+          expect(
+            parseAlertLabel(b.label, b.severity),
+            `"${b.label}" is not claimed by the alert ladder`,
+          ).not.toBeNull();
+        }
+      }
+    }
+    expect(seen.size).toBeGreaterThan(0);
+  });
+
+  it("the authored rung word matches the block's severity", () => {
+    for (const p of ALL) {
+      for (const stage of GUIDE_STAGES) {
+        for (const b of gotchaBlocksFor(p, stage)) {
+          if (b.type !== "callout") continue;
+          const parsed = parseAlertLabel(b.label, b.severity);
+          const authored = b.label.split("·")[0]!.trim();
+          expect(
+            parsed?.word.toLowerCase(),
+            `"${b.label}" is authored as "${authored}" but severity "${b.severity}" renders "${parsed?.word}"`,
+          ).toBe(authored.toLowerCase());
+        }
+      }
+    }
   });
 });

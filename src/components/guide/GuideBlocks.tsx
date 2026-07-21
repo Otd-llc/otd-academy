@@ -17,10 +17,28 @@
 // Resilience: an unknown/extra block type is skipped (renders nothing) rather
 // than crashing the page.
 
-import { Fragment, type CSSProperties, type ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import sanitizeHtml from "sanitize-html";
 import type { ContentBlock } from "@/lib/schemas/guide";
-import { scanIslands, RAIL_MIN_ISLANDS, deriveSetupRanges } from "@/lib/guide-islands";
+import {
+  scanIslands,
+  RAIL_MIN_ISLANDS,
+  deriveSetupRanges,
+  deriveSectionRanges,
+} from "@/lib/guide-islands";
+import {
+  MODE_VAR,
+  MODE_TEXT,
+  parseModeLabel,
+  parseAlertLabel,
+  parseAsideLabel,
+  scanModeBands,
+  type Rung,
+  type AsideVerb,
+} from "@/lib/guide-signposts";
+import { RungGlyph } from "@/components/guide/RungGlyph";
+import { DoStepsBlock } from "@/components/guide/DoStepsBlock";
+import { TraceListBlock } from "@/components/guide/TraceListBlock";
 import { IslandRail } from "@/components/guide/IslandRail";
 import { ResumePill } from "@/components/guide/ResumePill";
 import { SetupBand } from "@/components/guide/SetupBand";
@@ -97,7 +115,7 @@ export type BomRow = {
   dkLifecycle: string | null;
   dkCheckedAt: Date | null;
   // DigiKey unit price snapshot (cents). Null when never checked / unpriced →
-  // the Unit/Ext cells show "—" and the line is excluded from the design total.
+  // the Unit/Ext cells show "·" and the line is excluded from the design total.
   dkUnitPriceCents: number | null;
   // DigiKey part number (lowest-MOQ variation) for the FastAdd cart URL. Null
   // when unmatched → the line is omitted from the cart link.
@@ -324,11 +342,11 @@ function BomTableBlock({
                   <span>
                     unit{" "}
                     <span className="tabular-nums">
-                      {r.dkUnitPriceCents != null ? formatUsd(r.dkUnitPriceCents) : "—"}
+                      {r.dkUnitPriceCents != null ? formatUsd(r.dkUnitPriceCents) : "·"}
                     </span>{" "}
                     · ext{" "}
                     <span className="tabular-nums">
-                      {r.dkUnitPriceCents != null ? formatUsd(r.qty * r.dkUnitPriceCents) : "—"}
+                      {r.dkUnitPriceCents != null ? formatUsd(r.qty * r.dkUnitPriceCents) : "·"}
                     </span>
                   </span>
                 ) : null}
@@ -777,6 +795,132 @@ function CalloutBlock({
   );
 }
 
+// C9a — the alert ladder. Three rungs, each with its own SHAPE as well as its own
+// colour, so severity survives greyscale, print and colour-blindness. A bare
+// "Gotcha" used to render as the same flat grey box as everything else, which is
+// how a trap that costs a re-spin ended up reading as weightless.
+//
+// Colours are token vars, never literal hex, so every rung flips under
+// `[data-theme="light"]`. `note` deliberately takes the hairline colour: the
+// bottom rung should recede, not compete with the teaching spine.
+const RUNG_META: Record<Rung, { accent: string; spine: string }> = {
+  note: { accent: "text-muted", spine: "var(--color-panel-border)" },
+  caution: { accent: "text-command-gold", spine: "var(--color-command-gold)" },
+  warning: { accent: "text-alert-red", spine: "var(--color-alert-red)" },
+};
+
+function AlertBlock({
+  rung,
+  word,
+  headline,
+  body,
+}: {
+  rung: Rung;
+  word: string;
+  headline: string | null;
+  body: string;
+}) {
+  const R = RUNG_META[rung];
+  // Split the body at the FIRST sentence boundary: the trap, then what it costs.
+  // "then" labels the consequence so the two are read as cause and price, not as
+  // one undifferentiated paragraph.
+  const cut = body.indexOf(". ");
+  const trap = cut > 0 ? body.slice(0, cut + 1) : body;
+  const cost = cut > 0 ? body.slice(cut + 2) : "";
+  return (
+    <section className="border-l-2 pl-4" style={{ borderColor: R.spine }}>
+      <span
+        className={`flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] ${R.accent}`}
+      >
+        <RungGlyph rung={rung} />
+        {headline ? `${word} · ${headline}` : word}
+      </span>
+      {trap ? (
+        <p className="mt-1.5 whitespace-pre-wrap font-serif text-[15px] leading-relaxed text-muted">
+          <Inline text={trap} />
+        </p>
+      ) : null}
+      {cost ? (
+        <p className="mt-1.5 flex gap-2.5">
+          <span
+            aria-hidden
+            className={`shrink-0 font-mono text-[9px] uppercase tracking-[0.2em] ${R.accent}`}
+          >
+            then
+          </span>
+          <span className="whitespace-pre-wrap font-serif text-[15px] leading-relaxed text-muted">
+            <Inline text={cost} />
+          </span>
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+// E6d1 — the aside. A glyph and its verb sitting in a break in a hairline: the
+// classic manual divider, so an aside reads as a pause in the teaching spine
+// rather than another block standing on it at the same weight.
+//
+// The verb set is closed (see ASIDE_VERBS); an unlisted verb falls through to the
+// generic callout.
+const ASIDE_GLYPH: Record<AsideVerb, ReactNode> = {
+  Keys: (
+    <>
+      <rect x="2.5" y="6.5" width="19" height="11" rx="1" />
+      <path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M7.5 14h9" />
+    </>
+  ),
+  Alternative: (
+    <>
+      <path d="M5 3v6a4 4 0 0 0 4 4h10" />
+      <path d="M16 10l3 3-3 3" />
+      <path d="M5 21v-4" />
+    </>
+  ),
+};
+
+function AsideBlock({
+  verb,
+  headline,
+  body,
+}: {
+  verb: AsideVerb;
+  headline: string;
+  body: string;
+}) {
+  return (
+    <section>
+      <div className="flex items-center gap-2.5">
+        <span aria-hidden className="h-px w-6 bg-panel-border" />
+        <svg
+          className="h-3.5 w-3.5 shrink-0 text-muted"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.6}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          {ASIDE_GLYPH[verb]}
+        </svg>
+        <span className="shrink-0 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+          {verb}
+        </span>
+        <span aria-hidden className="h-px flex-1 bg-panel-border" />
+      </div>
+      <p className="mt-2 font-serif text-[15px] font-semibold leading-snug text-title">
+        {headline}
+      </p>
+      {body ? (
+        <p className="mt-1 whitespace-pre-wrap font-serif text-[15px] leading-relaxed text-muted">
+          <Inline text={body} />
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 function StepsBlock({
   ordered,
   items,
@@ -849,19 +993,99 @@ function ActionCalloutBlock({ label, body }: { label: string; body: string }) {
   );
 }
 
-// "NN · Title" → a real numbered section header, not another grey box — so the
-// card's spine is scannable at a glance.
-function SectionHeaderBlock({ label, body }: { label: string; body: string }) {
+// F7c4 — "NN · Title" as a numbered section header with a STICKY margin flag.
+//
+// Two things this adds over the old component:
+//
+//   1. `severity` finally renders. The old header ignored it, so LAYOUT sections
+//      02 and 04 (`warn`) and ASSEMBLY 01 (`critical`) were authored as flagged
+//      and drew identical to an ordinary section — the author's flag written and
+//      thrown away.
+//   2. The flag is STICKY in the margin, so it stays level with the eye for the
+//      whole section. A banner you have scrolled past has stopped warning you,
+//      and ASSEMBLY's safety section is one a learner is inside for ten minutes.
+//
+// Sticky only works because this component WRAPS its section (`children` = every
+// block from the header to the next header or mode band, via
+// deriveSectionRanges). `position: sticky` is bound by its containing block, and
+// contentBlocks is a FLAT list, so while the header was a plain sibling of its
+// section its box was only as tall as the header itself — measured at 101px on
+// LAYOUT, giving the flag ~58px of travel before it left with the scroll. The
+// sandbox specimen only appeared to stick because it carried filler paragraphs
+// inside the same div.
+//
+// The flag reuses the C9a rung shapes, so the margin and the alert ladder speak
+// one language. Below `lg` the margin collapses to a left-spine indent above the
+// heading. `reason` is optional: severity alone renders the rung word, and an
+// authored reason adds the sentence that says what to do about it.
+//
+// Heading level stays `h3` deliberately (mode band is `h2`). These pages are
+// indexed, so the outline is an SEO artefact, not markup taste.
+const SEV_VAR = {
+  info: "var(--color-panel-border)",
+  warn: "var(--color-command-gold)",
+  critical: "var(--color-alert-red)",
+} as const;
+const SEV_TEXT = {
+  info: "text-command-gold",
+  warn: "text-command-gold",
+  critical: "text-alert-red",
+} as const;
+const SEV_WORD = { info: null, warn: "Caution", critical: "Warning" } as const;
+const SEV_RUNG: Record<"info" | "warn" | "critical", Rung> = {
+  info: "note",
+  warn: "caution",
+  critical: "warning",
+};
+
+const SECTION_MARGIN =
+  "mb-2 border-l-2 pl-3 lg:sticky lg:top-4 lg:float-left lg:-ml-52 lg:mb-0 lg:w-48 lg:border-l-0 lg:border-r-2 lg:pl-0 lg:pr-3 lg:text-right";
+
+function SectionHeaderBlock({
+  label,
+  body,
+  severity,
+  reason,
+  children,
+}: {
+  label: string;
+  body: string;
+  severity: "critical" | "warn" | "info";
+  reason?: string;
+  /** The section's blocks. Absent when a header is rendered outside a section
+   *  range (a lone `NN · …` callout), which still renders as a plain header. */
+  children?: ReactNode;
+}) {
   const m = label.match(/^(\d+)\s*·\s*(.*)$/);
   const num = m?.[1] ?? "";
   const title = m?.[2] ?? label;
+  const word = SEV_WORD[severity];
   return (
-    <div className="border-t border-panel-border/60 pt-5">
+    <section className="relative border-t border-panel-border/60 pt-5">
+      {word ? (
+        <div className={SECTION_MARGIN} style={{ borderColor: SEV_VAR[severity] }}>
+          <span className={`inline-flex ${SEV_TEXT[severity]}`}>
+            <RungGlyph rung={SEV_RUNG[severity]} className="h-4 w-4 shrink-0" />
+          </span>
+          <p
+            className={`mt-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] ${SEV_TEXT[severity]}`}
+          >
+            {word}
+          </p>
+          {reason ? (
+            <p className="mt-1 font-mono text-[9px] uppercase leading-relaxed tracking-[0.14em] text-muted">
+              {reason}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <div className="flex items-baseline gap-3">
-        <span className="font-mono text-sm font-bold tabular-nums text-command-gold">
+        <span
+          className={`font-mono text-sm font-bold tabular-nums ${SEV_TEXT[severity]}`}
+        >
           {num}
         </span>
-        <h3 className="font-mono text-sm font-bold uppercase tracking-[0.12em] text-gray-1">
+        <h3 className="font-mono text-sm font-bold uppercase tracking-[0.12em] text-title">
           {title}
         </h3>
       </div>
@@ -870,87 +1094,74 @@ function SectionHeaderBlock({ label, body }: { label: string; body: string }) {
           <Inline text={body} />
         </p>
       ) : null}
-    </div>
+      {/* The section's own blocks, carrying the same vertical rhythm they had as
+          top-level siblings. `mt-5` matches the space-y-5 gap they came from, so
+          wrapping changes the containing block without changing the spacing. */}
+      {children ? <div className="mt-5 space-y-5">{children}</div> : null}
+    </section>
   );
 }
 
-// "Mode · <eyebrow> · <title>" → a full-width, colour-coded section ribbon that tells
-// the learner which MODE they're in — read (orient) vs hands-on (do) vs verify (check)
-// — so "should I have hands on the keyboard right now?" is never ambiguous. The COLOUR
-// keys off the first word of the eyebrow; the eyebrow text itself is free ("do — in
-// KiCad", "do — at the bench", …) so the same ribbon generalises across stages.
-// The colour keys off the eyebrow's first word; the eyebrow text is free
-// ("do — in KiCad", "do — at the bench", …) so the same band generalises.
-const MODE_STYLE: Record<string, { color: string; eyebrow: string }> = {
-  orient: { color: "#4a8fff", eyebrow: "text-signal-blue" },
-  do: { color: "#c8963e", eyebrow: "text-command-gold" },
-  check: { color: "#8fe3a0", eyebrow: "text-status-green" },
-};
-
-// A thin-line mark per mode, stroke = the eyebrow colour (currentColor): a
-// reticle for orient ("get your bearings"), a play glyph for do (hands on), a
-// check for check.
-function ModeIcon({ mode }: { mode: string }) {
-  const p = {
-    className: "h-3.5 w-3.5 shrink-0",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.7,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-  };
-  if (mode === "orient")
-    return (
-      <svg {...p}>
-        <circle cx="12" cy="12" r="8" />
-        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-        <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
-      </svg>
-    );
-  if (mode === "check")
-    return (
-      <svg {...p}>
-        <circle cx="12" cy="12" r="8" />
-        <path d="m8.5 12 2.4 2.4 4.6-5.2" />
-      </svg>
-    );
+// A12b2 — the mode band. `[ do 02 / 06 ]` in the gate's own bracket vocabulary,
+// the venue as a mono chip (NOT inside the Bebas title, which is what the old
+// positional parse did), and a hairline closing the row.
+//
+// The fraction is per CARD: a learner three hours into SCHEMATIC is not asking
+// "which band is this", they are asking how much is left.
+//
+// The mode vocabulary lives in `@/lib/guide-signposts` so the colours resolve
+// through CSS custom properties and flip under `[data-theme="light"]`. The old
+// MODE_STYLE map held literal hex and could not.
+function ModeBandBlock({
+  label,
+  body,
+  ord,
+  of,
+}: {
+  label: string;
+  body: string;
+  ord: number;
+  of: number;
+}) {
+  const parsed = parseModeLabel(label);
+  if (!parsed) return null;
+  const { mode, venue, title } = parsed;
   return (
-    <svg {...p} fill="currentColor" stroke="none">
-      <path d="M8 5.5v13l10.5-6.5z" />
-    </svg>
-  );
-}
-
-// A briefing-panel section marker: a colour-coded left spine, a soft corner glow
-// and a registration tick (the same command motif as the start-here beacon),
-// with the title set in the brand display face. `.mode-band` lives in
-// globals.css; `--mode` is the band colour, set inline per variant.
-function ModeBandBlock({ label, body }: { label: string; body: string }) {
-  const parts = label.split("·").map((s) => s.trim());
-  const eyebrow = parts[1] ?? "";
-  const key = (eyebrow.split(/[\s—–-]+/)[0] || "do").toLowerCase();
-  const title = parts.slice(2).join(" · ");
-  const M = MODE_STYLE[key] ?? MODE_STYLE.do;
-  return (
-    <div className="mode-band" style={{ "--mode": M.color } as CSSProperties}>
-      <span
-        className={`flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.24em] ${M.eyebrow}`}
-      >
-        <ModeIcon mode={key} />
-        {eyebrow}
-      </span>
-      {title ? (
-        <h2 className="mt-1.5 font-display text-2xl leading-none tracking-wide text-gray-1">
-          {title}
-        </h2>
-      ) : null}
+    <section className="mt-3">
+      <div className="flex items-center gap-3">
+        <span
+          className={`shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.2em] ${MODE_TEXT[mode]}`}
+        >
+          [ {mode}{" "}
+          <span className="font-numeral text-sm tabular-nums">
+            {String(ord).padStart(2, "0")}
+          </span>
+          <span className="text-muted"> / </span>
+          <span className="font-numeral text-sm tabular-nums text-muted">
+            {String(of).padStart(2, "0")}
+          </span>{" "}
+          ]
+        </span>
+        {venue ? (
+          <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.18em] text-muted">
+            {venue}
+          </span>
+        ) : null}
+        <span
+          aria-hidden
+          className="h-px flex-1"
+          style={{ background: `color-mix(in srgb, ${MODE_VAR[mode]} 40%, transparent)` }}
+        />
+      </div>
+      <h2 className="mt-2 font-display text-3xl leading-none tracking-wide text-title">
+        {title}
+      </h2>
       {body ? (
-        <p className="mt-2 whitespace-pre-wrap font-serif text-sm leading-relaxed text-muted">
+        <p className="mt-2 whitespace-pre-wrap font-serif text-[15px] leading-relaxed text-muted">
           <Inline text={body} />
         </p>
       ) : null}
-    </div>
+    </section>
   );
 }
 
@@ -1051,6 +1262,7 @@ function GuideBlock({
   isAdmin,
   logbook,
   fig,
+  band,
 }: {
   block: ContentBlock;
   index: number;
@@ -1067,6 +1279,8 @@ function GuideBlock({
   /** This diagram's figure number in the lesson (image blocks whose src is a
    *  registry diagram), passed to ImageBlock so the bare frame shows "Fig N". */
   fig?: number;
+  /** This mode band's position among the card's bands, for A12b2's fraction. */
+  band?: { ord: number; of: number };
 }) {
   switch (block.type) {
     case "prose": {
@@ -1102,9 +1316,27 @@ function GuideBlock({
       if (/^draw it\b/i.test(label))
         return <ActionCalloutBlock label={label} body={block.body} />;
       if (/^\d+\s*·/.test(label))
-        return <SectionHeaderBlock label={label} body={block.body} />;
+        return (
+          <SectionHeaderBlock
+            label={label}
+            body={block.body}
+            severity={block.severity}
+            reason={block.reason}
+          />
+        );
       if (/^mode\b/i.test(label))
-        return <ModeBandBlock label={label} body={block.body} />;
+        return (
+          <ModeBandBlock
+            label={label}
+            body={block.body}
+            ord={band?.ord ?? 1}
+            of={band?.of ?? 1}
+          />
+        );
+      const alert = parseAlertLabel(label, block.severity);
+      if (alert) return <AlertBlock {...alert} body={block.body} />;
+      const aside = parseAsideLabel(label);
+      if (aside) return <AsideBlock {...aside} body={block.body} />;
       return (
         <CalloutBlock severity={block.severity} label={label} body={block.body} />
       );
@@ -1112,6 +1344,18 @@ function GuideBlock({
 
     case "steps":
       return <StepsBlock ordered={block.ordered} items={block.items} />;
+
+    case "doSteps":
+      return <DoStepsBlock title={block.title} body={block.body} steps={block.steps} />;
+
+    case "traceList":
+      return (
+        <TraceListBlock
+          headline={block.headline}
+          body={block.body}
+          items={block.items}
+        />
+      );
 
     case "table":
       return (
@@ -1493,6 +1737,12 @@ export function GuideBlocks({
   const setupRanges = deriveSetupRanges(blocks);
   const setupStart = new Map(setupRanges.map((r) => [r.start, r]));
 
+  // "NN · …" sections WRAP their blocks, so the header's box spans the section
+  // and F7c4's margin flag has something to be sticky within. A setup range
+  // nests inside a section rather than terminating it (deriveSetupRanges already
+  // stops at a section header), so the two never claim the same block.
+  const sectionStart = new Map(deriveSectionRanges(blocks).map((r) => [r.start, r]));
+
   // Figure numbers for in-lesson diagrams: an image block whose src resolves to a
   // registry diagram gets the next "Fig N" (plain images get none). Drives the bare
   // frame's corner label; the standalone export stays fully titled.
@@ -1503,6 +1753,10 @@ export function GuideBlocks({
       if (b.type === "image" && b.src && DIAGRAM_COMPONENTS[b.src]) figByIndex.set(i, ++n);
     });
   }
+
+  // Mode-band ordinals, same shape as the figure scan: each band's position among
+  // the bands IN THIS CARD, so A12b2 can render `[ do 02 / 06 ]`.
+  const bandByIndex = scanModeBands(blocks);
 
   // The stage-gate quiz (WI-2): the quiz block flagged `gate: true`, else the first
   // quiz block. Only THIS block receives the gate `quizContext`, so only it records a
@@ -1538,6 +1792,7 @@ export function GuideBlocks({
         isAdmin={isAdmin}
         logbook={logbook}
         fig={figByIndex.get(i)}
+        band={bandByIndex.get(i)}
       />
     );
     return anchorId ? (
@@ -1549,18 +1804,66 @@ export function GuideBlocks({
     );
   };
 
+  // Render blocks [from, to), collapsing any `Setup · …` range into a SetupBand.
+  // Extracted so a section can render its own children through the same path: a
+  // setup range never straddles a section boundary (it terminates at a section
+  // header), so it always falls wholly inside one span or the other.
+  const renderSpan = (from: number, to: number): ReactNode[] => {
+    const acc: ReactNode[] = [];
+    for (let i = from; i < to; ) {
+      const range = setupStart.get(i);
+      if (range) {
+        // The Setup callout (range.start) becomes the band summary, not body.
+        const children: ReactNode[] = [];
+        for (let j = range.start + 1; j < range.end; j++) children.push(renderBlock(blocks[j]!, j));
+        acc.push(
+          <SetupBand key={`setup-${i}`} title={range.title} count={range.end - range.start - 1} storageKey={railKey}>
+            {children}
+          </SetupBand>,
+        );
+        i = range.end;
+      } else {
+        acc.push(renderBlock(blocks[i]!, i));
+        i++;
+      }
+    }
+    return acc;
+  };
+
   const out: ReactNode[] = [];
   for (let i = 0; i < blocks.length; ) {
+    // A numbered section WRAPS its blocks so the header's box spans the section.
+    // That is what lets F7c4's margin flag stay sticky for the whole section; as
+    // flat siblings the header's box was only as tall as the header.
+    const section = sectionStart.get(i);
+    const header = section ? blocks[i] : null;
+    if (section && header && header.type === "callout") {
+      const anchorId = anchorByIndex.get(i);
+      const body = (
+        <SectionHeaderBlock
+          label={header.label ?? ""}
+          body={header.body}
+          severity={header.severity}
+          reason={header.reason}
+        >
+          {renderSpan(section.start + 1, section.end)}
+        </SectionHeaderBlock>
+      );
+      out.push(
+        anchorId ? (
+          <div key={i} id={anchorId} className="scroll-mt-24">
+            {body}
+          </div>
+        ) : (
+          <Fragment key={i}>{body}</Fragment>
+        ),
+      );
+      i = section.end;
+      continue;
+    }
     const range = setupStart.get(i);
     if (range) {
-      // The Setup callout (range.start) becomes the band summary, not body.
-      const children: ReactNode[] = [];
-      for (let j = range.start + 1; j < range.end; j++) children.push(renderBlock(blocks[j]!, j));
-      out.push(
-        <SetupBand key={`setup-${i}`} title={range.title} count={range.end - range.start - 1} storageKey={railKey}>
-          {children}
-        </SetupBand>,
-      );
+      out.push(...renderSpan(i, range.end));
       i = range.end;
     } else {
       out.push(renderBlock(blocks[i]!, i));

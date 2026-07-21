@@ -826,7 +826,7 @@ export default async function GuideCardPage({
               ? [
                   { label: "Phase", value: STAGE_LABELS[stage] },
                   { label: "Project", value: project.name },
-                  { label: "Build", value: activeBuild ? activeBuild.label : "—" },
+                  { label: "Build", value: activeBuild ? activeBuild.label : "·" },
                 ]
               : [
                   { label: "Phase", value: STAGE_LABELS[stage] },

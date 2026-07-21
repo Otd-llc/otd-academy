@@ -14,48 +14,61 @@
 //
 // Pure CSS + a fixed-aspect container with percent-positioned hexes, so the
 // ribbon scales with its width. No client JS — a server component.
+//
+// PROJECTION — one-point (sandbox rounds P1 → P1a, owner pick 2026-07-20). Each
+// hex is a thin prism whose depth converges on a single vanishing point at the
+// centre of the run, replacing the constant down-right oblique cast this comb used
+// to draw. The hex FACES stay parallel to the picture plane, which is why this cut
+// won: nothing is foreshortened, so no face, label or tap target shrinks and the
+// responsive behaviour is unchanged. The geometry is pure and lives in
+// lib/phase-comb.ts; this file only paints it.
+//
+// PAINT ORDER. Because the casts converge, hexes left of the VP cast right and
+// hexes right of it cast LEFT, so no DOM order can be correct — a right-hand hex's
+// slab lands on the neighbour whose face should occlude it, and depth cannot break
+// the tie because every hex is at the same depth. A prism body always lies behind
+// every face, so each hex draws TWO svgs: the slab at z-index 0 and the face at
+// z-index 1. `.pc-comb` is the stacking context (isolation: isolate) and `.pc-node`
+// deliberately creates none, so those z-indexes sort across ALL hexes at once:
+// every slab paints under every face. Keep `.pc-node` free of transform, filter,
+// opacity and z-index or that collapses back into the bug.
 
 import Link from "next/link";
 import {
+  COMB_HEX_CORNERS,
   combAbbr,
   combGlyph,
   combNodeState,
   combPositions,
+  combRearFace,
   combViewBox,
+  COMB_HEX_W,
+  type CombPoint,
   type CombStageStatus,
 } from "@/lib/phase-comb";
 
-// Flat-top hex path in the intrinsic 48 × 41.57 cell (matches phase-comb.ts).
-const HEX = "12,0 36,0 48,20.785 36,41.57 12,41.57 0,20.785";
+const pts = (list: CombPoint[]) => list.map((p) => `${p.x},${p.y}`).join(" ");
 
-// Ortho-3D face treatment (sandbox winner "G6", 2026-07-07): each hex is a thin
-// prism with a down-right oblique cast, its cast faces filled with the field
-// color (a solid occluding slab), plus a fine inset rim line on the face. The
-// cast draws OUTSIDE the 48 × 41.57 viewBox (svg overflow is visible); the comb
-// container carries +CAST of layout room so the bottom row's cast isn't cramped.
-// Slimmer than the /courses cells (owner note 2026-07-07): the lesson serpentine
-// is small and laced tight, so a shallower cast keeps the ribbon reading clean.
-const CAST = 3.5;
-// corner ring of HEX: c0 TL, c1 TR, c2 R, c3 BR, c4 BL, c5 L
-const C: [number, number][] = [
-  [12, 0], [36, 0], [48, 20.785], [36, 41.57], [12, 41.57], [0, 20.785],
-];
-const pts = (list: [number, number][]) =>
-  list.map(([x, y]) => `${x},${y}`).join(" ");
-// visible cast silhouette run for a down-right offset: BL → BR → R → TR
-const RUN: [number, number][] = [C[4]!, C[3]!, C[2]!, C[1]!];
-const off = ([x, y]: [number, number]): [number, number] => [x + CAST, y + CAST];
-const CAST_SIDES = RUN.slice(0, -1).map((a, i) =>
-  pts([a, RUN[i + 1]!, off(RUN[i + 1]!), off(a)]),
-);
-const CAST_EDGES = RUN.map((p) => pts([p, off(p)])).concat([pts(RUN.map(off))]);
+const FACE: CombPoint[] = COMB_HEX_CORNERS.map(([x, y]) => ({ x, y }));
+const HEX = pts(FACE);
 // fine rim: the face outline inset toward the centroid (24, 20.785) by 0.86
 const RIM = pts(
-  C.map(([x, y]) => [
-    Math.round((24 + (x - 24) * 0.86) * 100) / 100,
-    Math.round((20.785 + (y - 20.785) * 0.86) * 100) / 100,
-  ]),
+  FACE.map((p) => ({
+    x: Math.round((24 + (p.x - 24) * 0.86) * 100) / 100,
+    y: Math.round((20.785 + (p.y - 20.785) * 0.86) * 100) / 100,
+  })),
 );
+
+/** The prism's six side faces: each near edge swept to its far counterpart. All
+ *  six are drawn and the opaque face covers the ones that fall behind it, so the
+ *  silhouette stays correct wherever the hex sits relative to the VP. */
+function prismSides(i: number, n: number): string[] {
+  const rear = combRearFace(i, n);
+  return FACE.map((a, k) => {
+    const b = FACE[(k + 1) % 6]!;
+    return pts([a, b, rear[(k + 1) % 6]!, rear[k]!]);
+  });
+}
 
 export interface PhaseStep {
   stage: string;
@@ -82,16 +95,25 @@ export function PhaseComb({
   next?: PhaseStep | null;
 }) {
   const positions = combPositions(stages.length);
-  // pad the layout box by the cast offset so percent positions account for the
-  // prism depth hanging off the bottom-right of the ribbon
-  const { w: vw, h: vh } = combViewBox(stages.length);
-  const w = vw + CAST;
-  const h = vh + CAST;
+  // No cast padding any more: a converging prism points INWARD, so nothing hangs
+  // off the ribbon's edge and the layout box is the comb's own box. The container's
+  // aspect ratio and cell width are derived from it rather than hardcoded, so a
+  // 9-stage comb (with REVISION) is as correct as the 8-stage one.
+  const { w, h } = combViewBox(stages.length);
   const href = (s: string) =>
     `/projects/${slug}/${encodeURIComponent(revLabel)}/guide/${s}`;
 
   const comb = (
-    <ol className="pc-comb" aria-label="Build stages">
+    <ol
+      className="pc-comb"
+      aria-label="Build stages"
+      style={
+        {
+          "--pc-ar": `${w} / ${h}`,
+          "--pc-cw": `${(COMB_HEX_W / w) * 100}%`,
+        } as React.CSSProperties
+      }
+    >
       {stages.map((s, i) => {
         const base = combNodeState(s.state);
         const isViewing = s.stage === viewingStage;
@@ -111,13 +133,16 @@ export function PhaseComb({
                 top: `${(p.y / h) * 100}%`,
               }}
             >
-              <svg viewBox="0 0 48 41.57" preserveAspectRatio="none">
-                {CAST_SIDES.map((q) => (
+              {/* slab — z-index 0, so it sorts under EVERY hex's face, not just
+                  this one's. See the paint-order note at the top of the file. */}
+              <svg className="pc-slab" viewBox="0 0 48 41.57" preserveAspectRatio="none">
+                <polygon className="pc-side" points={pts(combRearFace(i, stages.length))} />
+                {prismSides(i, stages.length).map((q) => (
                   <polygon key={q} className="pc-side" points={q} />
                 ))}
-                {CAST_EDGES.map((l) => (
-                  <polyline key={l} className="pc-cast" points={l} />
-                ))}
+              </svg>
+              {/* face — z-index 1 */}
+              <svg className="pc-face" viewBox="0 0 48 41.57" preserveAspectRatio="none">
                 <polygon className="pc-top" points={HEX} />
                 <polygon className="pc-rim" points={RIM} />
               </svg>

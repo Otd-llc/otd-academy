@@ -319,8 +319,11 @@ body {
 .gh-node.done .gh-chip { background: #241b06; color: var(--color-gold-light); }
 /* a cell sits above its neighbours when current or hovered, so its glow / brighter
    border isn't covered by the later-drawn adjacent hex on the shared edges. */
-.gh-node.current { z-index: 5; }
-.gh-node:hover { z-index: 6; }
+/* No z-index on a measured cell. It used to lift the current/hovered hex above its
+   neighbours' parallel casts; the prisms now live in one scene svg that paints far
+   to near, and the components set an inline z-index from that same depth order, so a
+   class rule here would fight it. (A stacking context on a cell was also what made
+   the old per-cell prism impossible to order correctly.) */
 .gh-node.current .gh-hex polygon { stroke: var(--color-command-gold); filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-command-gold) 60%, transparent)); animation: gh-pulse 1.8s ease-in-out infinite; }
 .gh-node.current .gh-num { -webkit-text-stroke-color: color-mix(in srgb, var(--color-command-gold) 52%, transparent); }
 .gh-node.current .gh-title { color: var(--color-command-gold); }
@@ -343,13 +346,23 @@ body {
    Draw/stacking order is DOM order on purpose: each hex's opaque face occludes
    the previous hex's cast where the ribbon laces, exactly like the one-SVG
    sandbox render the owner approved — no per-state z-index. */
-.pc-comb { position: relative; width: 100%; max-width: 340px; margin: 0 auto; aspect-ratio: 305 / 67.354; list-style: none; padding: 0; container-type: inline-size; isolation: isolate; }
-.pc-node { position: absolute; width: 15.74%; aspect-ratio: 48 / 41.57; display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; }
+/* The container's aspect ratio and cell width come from the component (--pc-ar /
+   --pc-cw), computed from the stage count, so a 9-stage comb is as correct as the
+   8-stage one and neither is stretched. The fallbacks are the 8-stage values. */
+.pc-comb { position: relative; width: 100%; max-width: 340px; margin: 0 auto; aspect-ratio: var(--pc-ar, 300 / 62.354); list-style: none; padding: 0; container-type: inline-size; isolation: isolate; }
+.pc-node { position: absolute; width: var(--pc-cw, 16%); aspect-ratio: 48 / 41.57; display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; }
 .pc-node svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-/* prism parts: face (pc-top), cast edge lines (pc-cast), cast faces (pc-side,
-   field-filled = the solid slab), inset rim (pc-rim). Default stroke = pending. */
+/* ONE-POINT PAINT ORDER. Each hex draws its prism slab and its face as two svgs.
+   Because the casts converge on the centre of the run, hexes on the right cast
+   LEFT, so no DOM order occludes correctly — these z-indexes do it instead. They
+   sort across every hex at once (the comb isolates; .pc-node must NOT create a
+   stacking context, so keep transform/filter/opacity/z-index off it), which puts
+   every slab under every face. The numeral + abbr sit at 2, above both. */
+.pc-node .pc-slab { z-index: 0; }
+.pc-node .pc-face { z-index: 1; }
+/* prism parts: face (pc-top), the converging side faces (pc-side, field-filled =
+   the solid slab), inset rim (pc-rim). Default stroke = pending. */
 .pc-node .pc-top { fill: var(--color-deep-space); stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 1.1; stroke-linejoin: round; transition: stroke 0.4s, fill 0.4s; }
-.pc-node .pc-cast { fill: none; stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 0.5; stroke-linejoin: round; stroke-linecap: round; transition: stroke 0.4s; }
 .pc-node .pc-side { fill: var(--color-deep-space); stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 0.5; stroke-linejoin: round; transition: stroke 0.4s; }
 .pc-node .pc-rim { fill: none; stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 0.4; opacity: 0.75; transition: stroke 0.4s; }
 .pc-num { position: relative; z-index: 2; font-family: var(--font-numeral); font-weight: 800; font-size: 5.1cqw; line-height: 1; color: var(--color-gray-3); transition: color 0.4s; }
@@ -365,20 +378,20 @@ body {
 .pc-node.viewing .pc-abbr { color: var(--color-gold-light); }
 .pc-node.blocked .pc-abbr { color: var(--color-alert-red); }
 .pc-node.complete .pc-top { fill: url(#pc-honey); }
-.pc-node.complete :is(.pc-top, .pc-cast, .pc-side, .pc-rim) { stroke: var(--color-command-gold); }
+.pc-node.complete :is(.pc-top, .pc-side, .pc-rim) { stroke: var(--color-command-gold); }
 .pc-node.complete .pc-num { color: var(--color-deep-space); }
-.pc-node.current :is(.pc-top, .pc-cast, .pc-side, .pc-rim) { stroke: var(--color-command-gold); }
+.pc-node.current :is(.pc-top, .pc-side, .pc-rim) { stroke: var(--color-command-gold); }
 .pc-node.current .pc-num { color: var(--color-gold-light); }
-.pc-node.blocked :is(.pc-top, .pc-cast, .pc-side, .pc-rim) { stroke: var(--color-alert-red); }
+.pc-node.blocked :is(.pc-top, .pc-side, .pc-rim) { stroke: var(--color-alert-red); }
 .pc-node.blocked .pc-num { color: var(--color-alert-red); }
-.pc-node:hover :is(.pc-top, .pc-cast, .pc-side, .pc-rim) { stroke: var(--color-gold-light); }
+.pc-node:hover :is(.pc-top, .pc-side, .pc-rim) { stroke: var(--color-gold-light); }
 .pc-node:focus-visible { outline: none; }
-.pc-node:focus-visible :is(.pc-top, .pc-cast, .pc-side, .pc-rim) { stroke: var(--color-gold-light); }
+.pc-node:focus-visible :is(.pc-top, .pc-side, .pc-rim) { stroke: var(--color-gold-light); }
 .pc-node:focus-visible .pc-top { stroke-width: 1.5; }
 /* the viewed card reads as "current" — a bolder gold face line (+ gold numeral)
    regardless of its fill. No outer emphasis ring: the hexes tessellate, so any
    ring drawn outside the face bleeds onto the neighbours as stray gold nubs. */
-.pc-node.viewing :is(.pc-top, .pc-cast, .pc-side, .pc-rim) { stroke: var(--color-command-gold); }
+.pc-node.viewing :is(.pc-top, .pc-side, .pc-rim) { stroke: var(--color-command-gold); }
 .pc-node.viewing .pc-top { stroke-width: 1.5; }
 
 /* header variant: just the comb, centered. It orients by the ringed current
@@ -415,6 +428,30 @@ body {
 .gh-node.sk-dim:hover { opacity: 1; }
 .gh-node.sk-goal .gh-hex polygon { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--color-command-gold) 45%, transparent)); }
 
+/* HexPrismScene — every prism of a comb in ONE svg, three-point perspective
+   (sandbox "T3", 2026-07-20). Replaces the per-cell oblique cast + the
+   `zIndex: left` occlusion trick, which could not survive converging casts: the
+   scene paints far to near instead. Colour is token-only, so the comb flips with
+   the theme — the old `.gh-3d` rules baked #eab94d and never did.
+   The cells' HTML content is billboarded OVER this by the components. */
+.ghp { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.ghp-face { fill: var(--color-deep-space); stroke: var(--color-panel-border); stroke-linejoin: round; transition: stroke 0.15s; }
+.ghp-side { fill: var(--color-deep-space); stroke: var(--color-panel-border); stroke-linejoin: round; transition: stroke 0.15s; }
+.ghp-cell.done .ghp-face { fill: url(#ghp-honey); }
+.ghp-cell.done :is(.ghp-face, .ghp-side) { stroke: var(--color-command-gold); }
+.ghp-cell.current :is(.ghp-face, .ghp-side) { stroke: var(--color-command-gold); }
+.ghp-cell.current .ghp-face { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-command-gold) 60%, transparent)); animation: gh-pulse 1.8s ease-in-out infinite; }
+.ghp-cell.blocked :is(.ghp-face, .ghp-side) { stroke: var(--color-alert-red); }
+.ghp-cell.dim { opacity: 0.6; }
+.ghp-cell.hot :is(.ghp-face, .ghp-side) { stroke: var(--color-gold-light); }
+/* the go-further comb: stroke is the track accent, dim at rest, lit on hover */
+.ghp-cell.track :is(.ghp-face, .ghp-side) { stroke: var(--accent); stroke-opacity: 0.5; transition: stroke-opacity 0.18s ease, filter 0.18s ease; }
+.ghp-cell.track.flag :is(.ghp-face, .ghp-side) { stroke-opacity: 0.72; }
+.ghp-cell.track.flag .ghp-face { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-command-gold) 32%, transparent)); }
+.ghp-cell.track.hot :is(.ghp-face, .ghp-side) { stroke-opacity: 1; }
+.ghp-cell.track.hot .ghp-face { filter: drop-shadow(0 0 11px var(--accent)); }
+@media (prefers-reduced-motion: reduce) { .ghp-cell.current .ghp-face { animation: none; } }
+
 /* Ortho-3D prism shell (`HexPrism`, sandbox winner H4+K10, 2026-07-07) — the
    /courses combs render each hex as a thin prism: opaque face (gh-top), a
    down-right cast (gh-cast lines) whose faces fill with the field color
@@ -439,11 +476,11 @@ body {
    focusing a hex lights ITS outgoing arrow (the .hot class, set by the
    component) so the next step reads off the hover. Overlay sits above every
    prism cell and never intercepts the pointer. */
-.sk-arw { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 10000; }
-/* z-index note: cell wrappers carry zIndex ≈ their `left` (occlusion order), so
-   on wide layouts right-column cells reach 700+. The overlay must beat EVERY
-   cell or the arrows on those faces disappear under them — hence the big value
-   (it stays local to the comb's stacking scope). */
+.sk-arw { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 500; }
+/* z-index note: this used to be 10000, because cell wrappers carried zIndex ≈ their
+   `left` for the old cast-occlusion order and reached 700+ on wide layouts. Cells now
+   carry their DEPTH order instead — one per cell, so a comb of 22 tops out at 22 —
+   and the overlay only has to clear that. */
 .sk-arw path { transition: fill 0.15s, filter 0.15s; animation: sk-arwdrift 2.6s ease-in-out infinite; }
 .sk-arw g.on path { fill: var(--color-command-gold); }
 .sk-arw g.off path { fill: color-mix(in srgb, var(--color-panel-border) 90%, transparent); }
@@ -1306,39 +1343,6 @@ body {
   .start-beacon svg {
     opacity: 0.9;
   }
-}
-
-/* ── Mode band (orient / do / check) ───────────────────────────────
- * A briefing-panel treatment for the ModeBandBlock: a colour-coded left
- * spine, a soft corner glow, and a corner registration tick — the same
- * command motif as the beacon. `--mode` (the band colour) is set inline. */
-.mode-band {
-  position: relative;
-  margin-top: 0.75rem;
-  overflow: hidden;
-  border-radius: 0.55rem;
-  padding: 0.85rem 1.1rem 0.9rem 1.3rem;
-  border: 1px solid color-mix(in srgb, var(--mode) 26%, transparent);
-  background:
-    radial-gradient(
-      130% 150% at 0% 0%,
-      color-mix(in srgb, var(--mode) 13%, transparent),
-      transparent 52%
-    ),
-    rgba(255, 255, 255, 0.012);
-}
-.mode-band::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: linear-gradient(
-    to bottom,
-    var(--mode),
-    color-mix(in srgb, var(--mode) 15%, transparent)
-  );
 }
 
 /* ── Light-theme decontamination overrides (Phase 1) ─────────────────────────

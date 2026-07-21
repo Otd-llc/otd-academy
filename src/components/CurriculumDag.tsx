@@ -68,7 +68,7 @@ function Card({ p }: { p: ProjectCard }) {
   const trackColor = p.track ? TRACK_COLOR[p.track] : "text-muted";
   return (
     <div
-      className={`flex flex-col gap-2 border border-panel-border bg-navy-dark p-3 ${p.criticalPath ? "" : "opacity-60"}`}
+      className={`flex flex-col gap-2 border border-panel-border p-3 ${p.criticalPath ? "" : "opacity-60"}`}
     >
       <Link
         href={`/projects/${p.slug}`}
@@ -77,11 +77,11 @@ function Card({ p }: { p: ProjectCard }) {
         {p.slug}
       </Link>
       <div className="flex flex-wrap items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-muted">
-        <span className="text-command-gold">{p.latestStage ?? "—"}</span>
+        <span className="text-command-gold">{p.latestStage ?? "·"}</span>
         <span>·</span>
-        <span className={trackColor}>{p.track ?? "—"}</span>
+        <span className={trackColor}>{p.track ?? "·"}</span>
         <span>·</span>
-        <span>{p.level ?? "—"}</span>
+        <span>{p.level ?? "·"}</span>
         {!p.criticalPath && (
           <>
             <span>·</span>

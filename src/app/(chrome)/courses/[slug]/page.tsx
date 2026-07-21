@@ -25,6 +25,7 @@ import { db } from "@/lib/db";
 import { ONE_HOUR, TAG_PROJECTS } from "@/lib/cache-profile";
 import { knownProjectSlugs } from "@/lib/skill-tree";
 import { WaitlistForm } from "@/components/learn/WaitlistForm";
+import { IndexRows } from "@/components/IndexRows";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { courseJsonLd, breadcrumbJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { ChevronLeftIcon } from "@/components/icons";
@@ -279,17 +280,17 @@ export default async function CoursePreviewPage({
         {/* ── HERO ─────────────────────────────────────────────── */}
         <header className="mt-8">
           <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em]">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-command-gold/50 bg-command-gold/10 px-2.5 py-1 text-command-gold">
+            <span className="inline-flex items-center gap-1.5 border border-command-gold/50 px-2.5 py-1 text-command-gold">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-command-gold" />
               In fabrication
             </span>
             {project.track ? (
-              <span className="rounded-full border border-panel-border px-2.5 py-1 text-muted">
+              <span className="border border-panel-border px-2.5 py-1 text-muted">
                 {project.track}
               </span>
             ) : null}
             {project.level ? (
-              <span className="rounded-full border border-panel-border px-2.5 py-1 text-muted">
+              <span className="border border-panel-border px-2.5 py-1 text-muted">
                 {project.level}
               </span>
             ) : null}
@@ -305,10 +306,10 @@ export default async function CoursePreviewPage({
           ) : null}
 
           {/* Spec readout strip — instrument-panel facts. */}
-          <dl className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-panel-border bg-panel-border/40 sm:grid-cols-4">
+          <dl className="mt-8 grid grid-cols-2 gap-px overflow-hidden border border-panel-border bg-panel-border/40 sm:grid-cols-4">
             {[
-              ["Track", project.track ?? "—"],
-              ["Level", project.level ?? "—"],
+              ["Track", project.track ?? "·"],
+              ["Level", project.level ?? "·"],
               ["Prerequisites", String(prereqs.length)],
               ["Status", "Coming soon"],
             ].map(([k, v]) => (
@@ -363,25 +364,14 @@ export default async function CoursePreviewPage({
                 These free explainers cover the concepts this build puts into
                 practice. No account needed.
               </p>
-              <ul className="mt-5 grid gap-2 sm:grid-cols-2">
-                {reading.map((l) => (
-                  <li key={l.slug}>
-                    <Link
-                      href={`/library/${l.slug}`}
-                      className="group flex h-full flex-col gap-1 rounded border border-panel-border bg-deep-space/40 px-4 py-3 transition-colors hover:border-command-gold/50"
-                    >
-                      <span className="font-mono text-sm text-text group-hover:text-command-gold">
-                        {l.title} →
-                      </span>
-                      {l.summary ? (
-                        <span className="font-serif text-xs leading-snug text-muted">
-                          {l.summary}
-                        </span>
-                      ) : null}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <IndexRows
+                rows={reading.map((l) => ({
+                  key: l.slug,
+                  href: `/library/${l.slug}`,
+                  title: l.title,
+                  summary: l.summary,
+                }))}
+              />
               <p className="mt-3 font-mono text-xs uppercase tracking-wider">
                 <Link
                   href="/library"
@@ -400,23 +390,14 @@ export default async function CoursePreviewPage({
                 Free calculators that do the math this board needs. Each is worked
                 from a real OTD board, with the formula and a cited source.
               </p>
-              <ul className="mt-5 grid gap-2 sm:grid-cols-2">
-                {tools.map((t) => (
-                  <li key={t.slug}>
-                    <Link
-                      href={`/tools/${t.slug}`}
-                      className="group flex h-full flex-col gap-1 rounded border border-panel-border bg-deep-space/40 px-4 py-3 transition-colors hover:border-command-gold/50"
-                    >
-                      <span className="font-mono text-sm text-text group-hover:text-command-gold">
-                        {t.title} →
-                      </span>
-                      <span className="font-serif text-xs leading-snug text-muted">
-                        {t.summary}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <IndexRows
+                rows={tools.map((t) => ({
+                  key: t.slug,
+                  href: `/tools/${t.slug}`,
+                  title: t.title,
+                  summary: t.summary,
+                }))}
+              />
             </section>
           ) : null}
 
@@ -427,18 +408,26 @@ export default async function CoursePreviewPage({
               of work: a clean ERC, valid gerbers, a passing bring-up. You finish
               having actually done the engineering, not just watched it.
             </p>
-            <ol className="mt-5 flex flex-wrap gap-2">
+            {/* The pipeline as a flow, not nine boxes (sandbox "P5"). These stages
+                are NOT links, so the old bordered + filled chips were decoration
+                around text rather than an affordance. The arrows are deliberately
+                dimmer and sit BETWEEN items, where the row arrows in IndexRows sit at
+                the right margin in full gold — same glyph, two jobs, told apart by
+                weight and position. */}
+            <ol className="mt-5 flex flex-wrap items-baseline gap-x-2 gap-y-2 border-t border-panel-border/60 pt-4">
               {STAGE_ORDER.map((s: StageName, i) => (
-                <li
-                  key={s}
-                  className="inline-flex items-baseline gap-2 rounded border border-panel-border bg-deep-space/60 px-3 py-1.5"
-                >
-                  <span className="font-mono text-[11px] font-bold text-command-gold">
+                <li key={s} className="inline-flex items-baseline gap-2">
+                  <span className="font-numeral text-sm tabular-nums text-command-gold">
                     {String(i + 1).padStart(2, "0")}
                   </span>
-                  <span className="font-mono text-[11px] uppercase tracking-wider text-text">
+                  <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-text">
                     {STAGE_LABELS[s]}
                   </span>
+                  {i < STAGE_ORDER.length - 1 ? (
+                    <span aria-hidden="true" className="ml-1 font-mono text-xs text-command-gold/60">
+                      →
+                    </span>
+                  ) : null}
                 </li>
               ))}
             </ol>
@@ -447,23 +436,17 @@ export default async function CoursePreviewPage({
           {prereqs.length > 0 ? (
             <section data-reveal>
               <SectionHead>Builds on</SectionHead>
-              <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-                {prereqs.map((p) => (
-                  <li key={p.slug}>
-                    <Link
-                      href={`/courses/${p.slug}`}
-                      className="group flex items-center justify-between gap-2 rounded border border-panel-border bg-deep-space/40 px-4 py-3 transition-colors hover:border-command-gold/50"
-                    >
-                      <span className="font-mono text-sm text-text group-hover:text-command-gold">
-                        {p.publicTitle ?? p.name}
-                      </span>
-                      <span aria-hidden="true" className="text-command-gold">
-                        →
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              {/* No summaries on a prerequisite, so these render as a bare title
+                  list — the arrow column keeps them on the same axis as the two
+                  lists above. */}
+              <IndexRows
+                className="mt-4"
+                rows={prereqs.map((p) => ({
+                  key: p.slug,
+                  href: `/courses/${p.slug}`,
+                  title: p.publicTitle ?? p.name,
+                }))}
+              />
             </section>
           ) : null}
 
@@ -475,7 +458,16 @@ export default async function CoursePreviewPage({
                   <Link
                     key={p.key}
                     href={`/courses?path=${p.key}`}
-                    className="rounded-full border border-panel-border bg-deep-space/60 px-4 py-1.5 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:border-command-gold/50"
+                    // Square registration tag (sandbox "Q2"), replacing a full pill —
+                    // the one radius the house corner language rules out by name, and
+                    // it was on navigation links. The flagship carries gold; the rest
+                    // stay quiet until hovered, so the star is not the only thing
+                    // separating them.
+                    className={`border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.18em] transition-colors focus-visible:outline-none ${
+                      p.kind === "primary"
+                        ? "border-command-gold/60 text-command-gold hover:border-command-gold hover:text-gold-light focus-visible:border-command-gold focus-visible:text-gold-light"
+                        : "border-panel-border text-muted hover:border-command-gold/60 hover:text-command-gold focus-visible:border-command-gold/60 focus-visible:text-command-gold"
+                    }`}
                   >
                     {p.kind === "primary" ? "★ " : ""}
                     {p.label}

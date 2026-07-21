@@ -234,12 +234,12 @@ function PinoutBlock({ fact }: { fact: VerifiedFact }) {
           <tbody>
             {pins.map((p, i) => (
               <tr key={i} className="border-b border-panel-border/50">
-                <td className="py-1 pr-3 text-link-muted">{p.number ?? "—"}</td>
-                <td className="py-1 pr-3 text-link-muted">{p.name ?? "—"}</td>
+                <td className="py-1 pr-3 text-link-muted">{p.number ?? "·"}</td>
+                <td className="py-1 pr-3 text-link-muted">{p.name ?? "·"}</td>
                 <td className="py-1 pr-3 text-link-muted">
-                  {fnText(p.function) || "—"}
+                  {fnText(p.function) || "·"}
                 </td>
-                <td className="py-1 pr-3 text-muted">{p.type ?? "—"}</td>
+                <td className="py-1 pr-3 text-muted">{p.type ?? "·"}</td>
               </tr>
             ))}
           </tbody>

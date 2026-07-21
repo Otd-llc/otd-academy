@@ -159,9 +159,9 @@ export function MeasurementsLog({
                                   key={r.id}
                                   className="border-b border-panel-border/40"
                                 >
-                                  <td className="px-1 py-1">{r.expectedValue ?? "—"}</td>
+                                  <td className="px-1 py-1">{r.expectedValue ?? "·"}</td>
                                   <td className="px-1 py-1 text-link-muted">{r.actualValue}</td>
-                                  <td className="px-1 py-1">{r.unit ?? "—"}</td>
+                                  <td className="px-1 py-1">{r.unit ?? "·"}</td>
                                   <td className="px-1 py-1">
                                     <span className={resultPillClasses(r.result)}>
                                       {r.result}

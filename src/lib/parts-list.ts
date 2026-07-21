@@ -19,7 +19,7 @@ const LIST_SELECT = {
   category: true,
   // Linked category (Phase B). `name` is the human label shown in the list;
   // `slug`/`path` back the picker's active-node + breadcrumb. Bridge display:
-  // `categoryRef?.name ?? category ?? "—"`.
+  // `categoryRef?.name ?? category ?? "·"`.
   categoryRef: { select: { slug: true, name: true, path: true } },
   lifecycle: true,
   isCertifiedModule: true,
