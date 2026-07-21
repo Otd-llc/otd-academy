@@ -60,7 +60,9 @@ export function DoStepsBlock({
                     }`}
                   />
                   <span className="font-serif text-[15px] leading-relaxed text-muted">
-                    <Inline text={s.text} />
+                    {/* plain: this sits inside the step's toggle button, and a
+                        glossary trigger is itself a button. */}
+                    <Inline text={s.text} plain />
                   </span>
                 </button>
                 {open && s.proof ? (

@@ -303,7 +303,8 @@ export function QuizBlock({
                       </svg>
                       <b>{String.fromCharCode(65 + oi)}</b>
                     </span>
-                    <span><Inline text={opt} /></span>
+                    {/* plain: the option label lives inside the answer button. */}
+                    <span><Inline text={opt} plain /></span>
                   </button>
                 );
               })}
