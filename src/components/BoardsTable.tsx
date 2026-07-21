@@ -5,7 +5,7 @@
 // happen on the Board detail page reached by clicking the row.
 //
 // §8.3 pill rules:
-//   - All pills sit on a navy-dark chip background (defeats command-gold
+//   - All pills sat on a navy-dark chip background (defeated command-gold
 //     vs status-green ~1.12:1 invisibility inside gold-accented panels).
 //   - BARE / SCREENED       → text-muted + panel-border
 //   - ASSEMBLED / POWERED   → text-command-gold + panel-border (in-flight)
@@ -36,7 +36,7 @@ function StatusPill({ status }: { status: BoardStatus }) {
   const tone = STATUS_TONE[status];
   return (
     <span
-      className={`inline-block rounded border bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider ${tone.text} ${tone.border}`}
+      className={`inline-block rounded border bg-deep-space px-2 py-0.5 font-mono text-xs uppercase tracking-wider ${tone.text} ${tone.border}`}
     >
       {status}
     </span>
@@ -73,14 +73,14 @@ export function BoardsTable({
   buildBaseHref: string;
 }) {
   return (
-    <section className="border border-panel-border bg-navy-dark p-6">
+    <section className="border border-panel-border bg-deep-space p-6">
       <div className="flex items-center justify-between gap-4">
         <h2 className="font-display text-2xl tracking-wider text-title">
           BOARDS
         </h2>
         <Link
           href={`${buildBaseHref}/boards/new`}
-          className="rounded border border-command-gold bg-navy-dark px-4 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+          className="rounded border border-command-gold bg-deep-space px-4 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
         >
           Register board
         </Link>

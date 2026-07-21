@@ -49,14 +49,14 @@ export function ErrataPane({
   const newErratumHref = `/projects/${projectSlug}/${encodeURIComponent(revLabel)}/errata/new`;
 
   return (
-    <section className="border border-panel-border bg-navy-dark p-6">
+    <section className="border border-panel-border bg-deep-space p-6">
       <div className="flex items-baseline justify-between gap-4">
         <h2 className="font-display text-2xl tracking-wider text-title">
           ERRATA
         </h2>
         <Link
           href={newErratumHref}
-          className="rounded border border-command-gold bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+          className="rounded border border-command-gold bg-deep-space px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
         >
           + Create erratum
         </Link>

@@ -204,7 +204,7 @@ export default function ModelViewer({
 
   if (error) {
     return (
-      <p className="rounded border border-panel-border bg-navy-dark/30 px-4 py-3 font-mono text-xs text-muted">
+      <p className="rounded border border-panel-border bg-deep-space px-4 py-3 font-mono text-xs text-muted">
         3D preview unavailable — download the model to open it in CAD.
       </p>
     );

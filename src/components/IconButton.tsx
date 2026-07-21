@@ -37,8 +37,8 @@ export function IconButton({
 }) {
   const toneClasses =
     tone === "danger"
-      ? "text-muted hover:text-alert-red hover:bg-navy-dark/40"
-      : "text-muted hover:text-command-gold hover:bg-navy-dark/40";
+      ? "text-muted hover:text-alert-red hover:bg-command-gold/10"
+      : "text-muted hover:text-command-gold hover:bg-command-gold/10";
   return (
     <Tooltip content={hint}>
       <span

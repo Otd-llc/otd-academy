@@ -1231,7 +1231,7 @@ function VendorCtaBlock({
         href={href}
         target="_blank"
         rel="noopener noreferrer nofollow sponsored"
-        className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+        className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-deep-space px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
       >
         {label}
         <ExternalLinkIcon className="h-3.5 w-3.5 shrink-0" />

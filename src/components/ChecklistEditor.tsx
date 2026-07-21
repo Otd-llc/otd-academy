@@ -358,8 +358,8 @@ function ItemRow({
                   disabled={disabled || item.checked}
                   className={`inline-flex shrink-0 items-center justify-center rounded p-2.5 transition-colors disabled:opacity-40 ${
                     item.notApplicable
-                      ? "text-command-gold hover:bg-navy-dark/40"
-                      : "text-muted hover:bg-navy-dark/40 hover:text-command-gold"
+                      ? "text-command-gold hover:bg-command-gold/10"
+                      : "text-muted hover:bg-command-gold/10 hover:text-command-gold"
                   }`}
                 >
                   <NotApplicableIcon className="h-5 w-5" />
@@ -456,7 +456,7 @@ function ItemRow({
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="rounded border border-panel-border bg-navy-dark px-3 py-2 font-mono text-xs uppercase tracking-wider text-muted hover:border-command-gold hover:text-command-gold"
+              className="rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-xs uppercase tracking-wider text-muted hover:border-command-gold hover:text-command-gold"
             >
               Done
             </button>
@@ -479,7 +479,7 @@ function AddItemButton() {
     <button
       type="submit"
       disabled={pending}
-      className="inline-flex items-center gap-2 rounded-md border border-command-gold bg-navy-dark px-4 py-2.5 font-mono text-sm uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+      className="inline-flex items-center gap-2 rounded-md border border-command-gold bg-deep-space px-4 py-2.5 font-mono text-sm uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
     >
       <PlusIcon className="h-4 w-4" />
       {pending ? "WORKING…" : "Add item"}

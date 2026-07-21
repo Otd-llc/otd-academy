@@ -693,7 +693,7 @@ body {
      on hover. Flat (no gradient/glow/bevel); the modern default that the in-guide
      action buttons already use, so the whole app converges on one secondary look. */
   .glass-button {
-    background: var(--color-navy-dark);
+    background: var(--color-deep-space);
     color: var(--color-command-gold);
     border: 1px solid var(--color-command-gold);
     border-radius: 6px;

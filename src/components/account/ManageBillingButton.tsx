@@ -8,7 +8,7 @@ import { useState, useTransition } from "react";
 import { createBillingPortalSession } from "@/lib/actions/billing";
 
 const BTN =
-  "inline-flex items-center justify-center gap-1.5 rounded border border-command-gold bg-navy-dark px-6 py-3 font-mono text-sm uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50";
+  "inline-flex items-center justify-center gap-1.5 rounded border border-command-gold bg-deep-space px-6 py-3 font-mono text-sm uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50";
 
 export function ManageBillingButton() {
   const [error, setError] = useState<string | null>(null);

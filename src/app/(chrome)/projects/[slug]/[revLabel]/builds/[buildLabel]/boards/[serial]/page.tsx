@@ -133,7 +133,7 @@ export default async function BoardDetailPage({
           </div>
           <div className="flex flex-col items-end gap-2">
             <span
-              className={`rounded bg-navy-dark px-2 py-0.5 font-mono text-xs uppercase tracking-wider ${
+              className={`rounded bg-deep-space px-2 py-0.5 font-mono text-xs uppercase tracking-wider ${
                 buildIsFrozen
                   ? "border border-alert-red text-alert-red"
                   : "border border-panel-border text-command-gold"

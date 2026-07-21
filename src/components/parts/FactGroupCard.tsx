@@ -264,7 +264,7 @@ export function FactGroupCard({
   // ─── EDIT mode ──────────────────────────────────────────────────────────
   if (editing) {
     return (
-      <section className="space-y-5 rounded border-t-2 border-command-gold bg-navy-dark/20 p-4">
+      <section className="space-y-5 rounded border-t-2 border-command-gold bg-deep-space p-4">
         <div className="flex items-center justify-between gap-3">
           <h3 className="font-display text-xl tracking-wider text-title">
             {label}
@@ -292,7 +292,7 @@ export function FactGroupCard({
         {error ? (
           <p
             role="alert"
-            className="rounded border border-alert-red bg-navy-dark px-4 py-3 font-mono text-sm text-alert-red"
+            className="rounded border border-alert-red bg-deep-space px-4 py-3 font-mono text-sm text-alert-red"
           >
             {error}
           </p>
@@ -323,7 +323,7 @@ export function FactGroupCard({
   // ─── VIEW mode (existing fact) ──────────────────────────────────────────
   if (fact) {
     return (
-      <section className="rounded border border-panel-border bg-navy-dark/30 p-4">
+      <section className="rounded border border-panel-border bg-deep-space p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <h3 className="font-display text-xl tracking-wider text-title">
@@ -405,7 +405,7 @@ export function FactGroupCard({
         {error ? (
           <p
             role="alert"
-            className="mt-3 rounded border border-alert-red bg-navy-dark px-4 py-3 font-mono text-sm text-alert-red"
+            className="mt-3 rounded border border-alert-red bg-deep-space px-4 py-3 font-mono text-sm text-alert-red"
           >
             {error}
           </p>
@@ -416,7 +416,7 @@ export function FactGroupCard({
 
   // ─── VIEW mode (missing group → Add affordance) ─────────────────────────
   return (
-    <section className="rounded border border-dashed border-panel-border bg-navy-dark/10 p-4">
+    <section className="rounded border border-dashed border-panel-border bg-deep-space p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h3 className="font-display text-xl tracking-wider text-muted">

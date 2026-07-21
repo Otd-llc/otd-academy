@@ -67,7 +67,7 @@ describe("RegressAtRiskBanner", () => {
     const cls = classOf(tree);
     expect(cls).toContain("border-alert-red");
     expect(cls).toContain("text-alert-red");
-    expect(cls).toContain("bg-navy-dark");
+    expect(cls).toContain("bg-deep-space");
     expect(cls).toContain("font-mono");
 
     const text = textOf(tree);

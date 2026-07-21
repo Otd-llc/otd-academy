@@ -118,7 +118,7 @@ export function CategoryCombobox({
           <ul
             id={listId}
             role="listbox"
-            className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded border border-panel-border bg-navy-dark py-1 shadow-lg"
+            className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded border border-panel-border bg-deep-space py-1 shadow-lg"
           >
             {filtered.length === 0 ? (
               <li className="px-2 py-1 font-mono text-xs text-muted">

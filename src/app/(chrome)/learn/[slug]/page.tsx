@@ -173,7 +173,7 @@ export default async function LearnerBoardPage({
             </div>
             <Link
               href={guideHref(project.slug, revLabel, enrollment.currentStage)}
-              className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+              className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-deep-space px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
             >
               Continue
             </Link>

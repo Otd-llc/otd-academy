@@ -6,7 +6,7 @@
 // in Next.js 16 (must be awaited).
 //
 // Polish §15.4: each row shows its current-state — latest revision label +
-// its currentStage as a navy-dark chip pill (command-gold for the active
+// its currentStage as a hairline chip (command-gold for the active
 // stage). Sorting is by last-activity (max of project.updatedAt and the
 // most-recent revision.updatedAt) so freshly-touched work surfaces first.
 //

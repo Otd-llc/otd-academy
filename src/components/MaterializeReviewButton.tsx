@@ -27,7 +27,7 @@ function SubmitPill({ label }: { label: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-deep-space px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
     >
       {pending ? (
         "WORKING…"

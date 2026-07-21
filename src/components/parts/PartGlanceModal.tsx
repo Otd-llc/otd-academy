@@ -128,7 +128,7 @@ export function PartGlanceModal({
       // Center explicitly (fixed inset-0 + m-auto + h-fit) rather than relying on
       // the UA's default modal centering, which Tailwind's preflight margin reset
       // defeats — without this the dialog falls to the inset-0 origin (top-left).
-      className="fixed inset-0 m-auto h-fit w-[calc(100%-2rem)] max-w-2xl rounded border border-panel-border bg-navy-dark p-0 text-link-muted backdrop:bg-deep-space/80"
+      className="fixed inset-0 m-auto h-fit w-[calc(100%-2rem)] max-w-2xl rounded border border-panel-border bg-deep-space p-0 text-link-muted backdrop:bg-deep-space/80"
     >
       {/* inner content wrapper — clicks here do NOT hit the backdrop */}
       <div className="max-h-[80vh] overflow-y-auto p-6">
@@ -146,7 +146,7 @@ export function PartGlanceModal({
             autoFocus
             aria-label="Close quick glance"
             onClick={onClose}
-            className="inline-flex shrink-0 items-center justify-center rounded p-2 text-muted transition-colors hover:bg-navy-dark/40 hover:text-command-gold focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold"
+            className="inline-flex shrink-0 items-center justify-center rounded p-2 text-muted transition-colors hover:bg-command-gold/10 hover:text-command-gold focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold"
           >
             <CloseIcon className="h-5 w-5" />
           </button>

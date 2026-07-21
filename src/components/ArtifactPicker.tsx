@@ -52,7 +52,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded border border-command-gold bg-navy-dark px-3 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+      className="rounded border border-command-gold bg-deep-space px-3 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
     >
       {pending ? "WORKING…" : "Add artifact"}
     </button>
@@ -423,7 +423,7 @@ export function ArtifactPicker({
             ref={fileInputRef}
             type="file"
             required
-            className="mt-1 w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted file:mr-3 file:rounded file:border-0 file:bg-navy-dark file:px-2 file:py-1 file:font-mono file:text-xs file:uppercase file:tracking-wider file:text-command-gold"
+            className="mt-1 w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted file:mr-3 file:rounded file:border-0 file:bg-deep-space file:px-2 file:py-1 file:font-mono file:text-xs file:uppercase file:tracking-wider file:text-command-gold"
           />
         </div>
       )}
@@ -433,7 +433,7 @@ export function ArtifactPicker({
           <button
             type="submit"
             disabled={fileBusy}
-            className="rounded border border-command-gold bg-navy-dark px-3 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+            className="rounded border border-command-gold bg-deep-space px-3 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
           >
             {fileStatus === "presigning"
               ? "WORKING… (presigning)"

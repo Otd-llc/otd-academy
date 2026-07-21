@@ -108,7 +108,7 @@ export function ReferenceAssetAdmin({
           type="file"
           accept={copy.accept}
           disabled={!published || pending}
-          className="font-mono text-xs text-muted file:mr-3 file:rounded file:border file:border-panel-border file:bg-navy-dark file:px-3 file:py-1.5 file:font-mono file:text-xs file:uppercase file:tracking-wider file:text-command-gold disabled:opacity-50"
+          className="font-mono text-xs text-muted file:mr-3 file:rounded file:border file:border-panel-border file:bg-deep-space file:px-3 file:py-1.5 file:font-mono file:text-xs file:uppercase file:tracking-wider file:text-command-gold disabled:opacity-50"
         />
         <button
           type="button"

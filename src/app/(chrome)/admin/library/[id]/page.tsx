@@ -113,7 +113,7 @@ function Shell({
         eyebrow="MINI-LESSON"
         title={heading}
       />
-      <div className="mt-8 rounded border-t-2 border-command-gold bg-navy-dark/20 p-4">
+      <div className="mt-8 rounded border-t-2 border-command-gold bg-deep-space p-4">
         {children}
       </div>
     </main>

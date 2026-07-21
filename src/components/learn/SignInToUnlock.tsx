@@ -15,7 +15,7 @@ export function SignInToUnlock({ priceCents }: { priceCents: number }) {
     <div className="space-y-2">
       <Link
         href="/sign-in"
-        className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-5 py-2.5 font-mono text-sm uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+        className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-deep-space px-5 py-2.5 font-mono text-sm uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
       >
         Sign in to unlock {formatUsd(priceCents)}
       </Link>

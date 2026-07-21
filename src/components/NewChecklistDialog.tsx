@@ -30,7 +30,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded border border-command-gold bg-navy-dark px-3 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+      className="rounded border border-command-gold bg-deep-space px-3 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
     >
       {pending ? "WORKING…" : "Create checklist"}
     </button>
@@ -85,7 +85,7 @@ export function NewChecklistDialog({
         onClick={() => ref.current?.showModal()}
         disabled={disabled}
         title={disabled ? disabledReason : undefined}
-        className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-40"
+        className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-deep-space px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-40"
       >
         <PlusIcon className="h-4 w-4" />
         New checklist
@@ -93,7 +93,7 @@ export function NewChecklistDialog({
 
       <dialog
         ref={ref}
-        className="m-auto max-w-lg rounded border border-panel-border bg-navy-dark p-6 text-link-muted backdrop:bg-deep-space/70"
+        className="m-auto max-w-lg rounded border border-panel-border bg-deep-space p-6 text-link-muted backdrop:bg-deep-space/70"
       >
         <form action={action} className="space-y-4 font-mono text-sm">
           <input type="hidden" name="ownerKind" value={ownerKind} />

@@ -194,7 +194,7 @@ export function GuideCardEditor({
 
   // ─── EDIT mode ──────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6 rounded border-t-2 border-command-gold bg-navy-dark/20 p-4">
+    <div className="space-y-6 rounded border-t-2 border-command-gold bg-deep-space p-4">
       <span className="block font-mono text-[10px] uppercase tracking-[0.25em] text-gold-dim">
         Editing
       </span>
@@ -221,7 +221,7 @@ export function GuideCardEditor({
         // or a root-relative path" — read cleanly.
         <p
           role="alert"
-          className="rounded border border-alert-red bg-navy-dark px-4 py-3 font-mono text-sm text-alert-red"
+          className="rounded border border-alert-red bg-deep-space px-4 py-3 font-mono text-sm text-alert-red"
         >
           {error}
         </p>

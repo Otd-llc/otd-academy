@@ -146,7 +146,7 @@ export function LearnerGate({
                   <Dialog.Trigger asChild>
                     <button
                       type="button"
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-3 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded border border-command-gold bg-deep-space px-3 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
                     >
                       Upload {artifact.label}
                     </button>
@@ -234,7 +234,7 @@ export function LearnerGate({
       </ul>
 
       {hasExam && stage === guideStages[guideStages.length - 1] && (
-        <div className="mt-4 rounded border border-command-gold/40 bg-navy-dark p-4 text-left">
+        <div className="mt-4 rounded border border-command-gold/40 bg-deep-space p-4 text-left">
           <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
             ★ Finish line
           </p>

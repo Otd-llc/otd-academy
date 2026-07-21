@@ -5,7 +5,7 @@
 // Each row shows step | expected | actual | unit | result pill | when | who.
 //
 // Result pill colors per design §8.3:
-//   PASS     → status-green text on navy-dark chip
+//   PASS     → status-green text on a hairline chip
 //   FAIL     → alert-red text, filled chip
 //   OBSERVED → muted text
 //   PEND     → muted text
@@ -34,7 +34,7 @@ export type MeasurementRow = {
 
 function resultPillClasses(result: MeasurementResult): string {
   const base =
-    "inline-block rounded border bg-navy-dark px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider";
+    "inline-block rounded border bg-deep-space px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider";
   switch (result) {
     case "PASS":
       return `${base} border-status-green text-status-green`;
@@ -97,7 +97,7 @@ export function MeasurementsLog({
   const stagesPresent = STAGE_ORDER.filter((s) => byStage.has(s as Stage));
 
   return (
-    <section className="border border-panel-border bg-navy-dark p-6">
+    <section className="border border-panel-border bg-deep-space p-6">
       <div className="flex items-baseline justify-between gap-4">
         <h2 className="font-display text-2xl tracking-wider text-title">
           MEASUREMENTS

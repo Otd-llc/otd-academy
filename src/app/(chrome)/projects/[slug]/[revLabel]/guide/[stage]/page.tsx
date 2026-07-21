@@ -775,7 +775,7 @@ export default async function GuideCardPage({
           learner overlay (so the owner can watch XP/fanfare land). Just a query
           param — downgrade-only, enforced in guideCardView. */}
       {isAdmin && (
-        <div className="mb-6 flex items-center justify-between gap-3 border border-panel-border/60 bg-navy-dark/40 px-3 py-2">
+        <div className="mb-6 flex items-center justify-between gap-3 border border-panel-border/60 bg-deep-space px-3 py-2">
           <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
             {previewAsLearner ? "▸ Previewing as learner" : "▸ Author view"}
           </p>

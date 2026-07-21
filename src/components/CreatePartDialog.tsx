@@ -35,7 +35,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded border border-command-gold bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+      className="rounded border border-command-gold bg-deep-space px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
     >
       {pending ? "WORKING…" : "Create part"}
     </button>
@@ -82,7 +82,7 @@ export function CreatePartDialog({
     <dialog
       ref={ref}
       onClose={onClose}
-      className="w-full max-w-xl rounded border border-panel-border bg-navy-dark p-6 text-link-muted backdrop:bg-deep-space/80"
+      className="w-full max-w-xl rounded border border-panel-border bg-deep-space p-6 text-link-muted backdrop:bg-deep-space/80"
     >
       <div className="flex items-baseline justify-between gap-4">
         <h2 className="font-display text-2xl tracking-wider text-title">

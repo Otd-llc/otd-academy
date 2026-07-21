@@ -160,13 +160,13 @@ export function ProofUploadForm({
             type="file"
             accept={accept}
             disabled={disabled}
-            className="min-w-0 flex-1 font-mono text-xs text-gray-1 file:mr-3 file:rounded file:border file:border-panel-border file:bg-navy-dark file:px-3 file:py-1.5 file:font-mono file:text-xs file:uppercase file:tracking-wider file:text-command-gold disabled:opacity-50"
+            className="min-w-0 flex-1 font-mono text-xs text-gray-1 file:mr-3 file:rounded file:border file:border-panel-border file:bg-deep-space file:px-3 file:py-1.5 file:font-mono file:text-xs file:uppercase file:tracking-wider file:text-command-gold disabled:opacity-50"
           />
           <button
             type="button"
             disabled={pending || disabled}
             onClick={uploadSelected}
-            className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-3 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-deep-space px-3 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
           >
             {pending ? "Uploading…" : "Upload"}
           </button>
@@ -191,7 +191,7 @@ export function ProofUploadForm({
               type="button"
               disabled={pending || url.length === 0 || disabled}
               onClick={submitLink}
-              className="inline-flex items-center gap-1.5 rounded border border-panel-border bg-navy-dark px-3 py-2 font-mono text-xs uppercase tracking-wider text-signal-blue transition-colors hover:border-signal-blue disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded border border-panel-border bg-deep-space px-3 py-2 font-mono text-xs uppercase tracking-wider text-signal-blue transition-colors hover:border-signal-blue disabled:opacity-50"
             >
               Add link
             </button>

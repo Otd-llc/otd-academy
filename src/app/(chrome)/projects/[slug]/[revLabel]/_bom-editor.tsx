@@ -59,7 +59,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded border border-command-gold bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+      className="rounded border border-command-gold bg-deep-space px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
     >
       {pending ? "WORKING…" : "Add line"}
     </button>
@@ -72,7 +72,7 @@ function ImportButton({ disabled }: { disabled?: boolean }) {
     <button
       type="submit"
       disabled={pending || disabled}
-      className="rounded border border-command-gold bg-navy-dark px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+      className="rounded border border-command-gold bg-deep-space px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
     >
       {pending ? "IMPORTING…" : "Import CSV"}
     </button>
@@ -117,7 +117,7 @@ const ADMIN_DK_TONE: Record<string, string> = {
   green: "border-signal-blue/50 bg-signal-blue/15 text-signal-blue",
   amber: "border-command-gold/50 bg-command-gold/15 text-command-gold",
   red: "border-alert-red/50 bg-alert-red/15 text-alert-red",
-  grey: "border-panel-border bg-navy-dark text-muted",
+  grey: "border-panel-border bg-deep-space text-muted",
 };
 
 // DigiKey live-availability chip (watchdog). Always rendered for admins so a
@@ -153,7 +153,7 @@ function CostBadge({ cost }: { cost: BomCost }) {
   const { totalCents, targetCents, overTarget, unpricedCount } = cost;
   return (
     <span
-      className={`inline-flex items-center rounded border border-panel-border bg-navy-dark px-2 py-1 font-mono text-xs ${
+      className={`inline-flex items-center rounded border border-panel-border bg-deep-space px-2 py-1 font-mono text-xs ${
         overTarget ? "text-alert-red" : "text-command-gold"
       }`}
     >
@@ -294,7 +294,7 @@ export function BomEditor({
                 name="partId"
                 required
                 disabled={disabled}
-                className="min-w-0 flex-1 rounded border border-panel-border bg-navy-dark px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
+                className="min-w-0 flex-1 rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
               >
                 <option value="">— select —</option>
                 {allParts.map((p) => (
@@ -326,7 +326,7 @@ export function BomEditor({
               required
               disabled={disabled}
               placeholder="R1 or C1,C2,C3"
-              className="mt-1 w-full rounded border border-panel-border bg-navy-dark px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
+              className="mt-1 w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
             />
             <FieldError messages={state.errors?.refDes} />
           </div>
@@ -342,7 +342,7 @@ export function BomEditor({
               required
               disabled={disabled}
               defaultValue="1"
-              className="mt-1 w-full rounded border border-panel-border bg-navy-dark px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
+              className="mt-1 w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
             />
             <FieldError messages={state.errors?.quantity} />
           </div>
@@ -359,7 +359,7 @@ export function BomEditor({
               name="notes"
               disabled={disabled}
               maxLength={1000}
-              className="mt-1 w-full rounded border border-panel-border bg-navy-dark px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
+              className="mt-1 w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
             />
             <FieldError messages={state.errors?.notes} />
           </div>
@@ -374,7 +374,7 @@ export function BomEditor({
               disabled={disabled}
               maxLength={200}
               placeholder="second-source part number"
-              className="mt-1 w-full rounded border border-panel-border bg-navy-dark px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
+              className="mt-1 w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
             />
             <FieldError messages={state.errors?.altMpn} />
           </div>
@@ -387,7 +387,7 @@ export function BomEditor({
               disabled={disabled}
               maxLength={200}
               placeholder="second-source maker"
-              className="mt-1 w-full rounded border border-panel-border bg-navy-dark px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
+              className="mt-1 w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
             />
             <FieldError messages={state.errors?.altManufacturer} />
           </div>
@@ -404,7 +404,7 @@ export function BomEditor({
               min="0"
               disabled={disabled}
               placeholder="0.00"
-              className="mt-1 w-full rounded border border-panel-border bg-navy-dark px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
+              className="mt-1 w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-sm text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
             />
             <FieldError messages={state.errors?.unitPriceCents} />
           </div>
@@ -453,13 +453,13 @@ export function BomEditor({
                 placeholder={
                   "refDes,manufacturer,mpn,quantity,unitPrice\nR1,Yageo,RC0805JR-070R0L,1,0.02"
                 }
-                className="w-full rounded border border-panel-border bg-navy-dark px-2 py-2 font-mono text-xs text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
+                className="w-full rounded border border-panel-border bg-deep-space px-2 py-2 font-mono text-xs text-link-muted focus:border-command-gold focus:outline-none disabled:opacity-50"
               />
               <ImportButton disabled={disabled} />
             </form>
 
             {importState.report && (
-              <div className="space-y-2 border border-panel-border bg-navy-dark p-3 font-mono text-xs">
+              <div className="space-y-2 border border-panel-border bg-deep-space p-3 font-mono text-xs">
                 <p className="text-link-muted">
                   <span className="text-command-gold">
                     {importState.report.created} created

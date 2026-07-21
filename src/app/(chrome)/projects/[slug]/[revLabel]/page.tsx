@@ -334,7 +334,7 @@ export default async function RevisionDetailPage({
               {canCreateBuild ? (
                 <Link
                   href={`/projects/${project.slug}/${encodeURIComponent(revision.label)}/builds/new`}
-                  className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
+                  className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-deep-space px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
                 >
                   <PlusIcon className="h-4 w-4" />
                   New build

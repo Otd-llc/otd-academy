@@ -54,7 +54,7 @@ export function KicadExportButton({ revisionId }: { revisionId: string }) {
         type="button"
         onClick={run}
         disabled={isPending}
-        className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-navy-dark px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-deep-space px-3 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
       >
         {isPending ? "Generating…" : "Export to KiCad"}
       </button>
@@ -71,7 +71,7 @@ export function KicadExportButton({ revisionId }: { revisionId: string }) {
       {error ? (
         <p
           role="alert"
-          className="rounded border border-alert-red bg-navy-dark px-3 py-2 font-mono text-xs text-alert-red"
+          className="rounded border border-alert-red bg-deep-space px-3 py-2 font-mono text-xs text-alert-red"
         >
           {error}
         </p>

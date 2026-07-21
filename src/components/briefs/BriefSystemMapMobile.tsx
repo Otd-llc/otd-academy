@@ -124,7 +124,7 @@ export function BriefSystemMapMobile() {
           />
           <polygon
             points={hexPoints(c.x, CAP_CY, CAP_S)}
-            fill="var(--color-navy-dark)"
+            fill="var(--color-diagram-surface)"
             stroke={GOLD}
             strokeWidth={3}
             strokeLinejoin="round"

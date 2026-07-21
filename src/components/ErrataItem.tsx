@@ -14,7 +14,7 @@
 // Severity pill color rule per design §8.3 (with the §11.2 plan extension
 // for severities): BLOCKER → alert-red text, MAJOR → command-gold text,
 // MINOR → muted text. Status pill rule: OPEN → alert-red, FIXED_NEXT_REV
-// → command-gold, WONT_FIX → muted. Both sit on a navy-dark chip
+// → command-gold, WONT_FIX → muted. Both sit on a hairline chip
 // background with 1px panel-border per the §8.3 pill anatomy.
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
@@ -37,9 +37,9 @@ const STATUSES: ErratumStatus[] = ["OPEN", "FIXED_NEXT_REV", "WONT_FIX"];
 // Tailwind class strings keyed off the enum value. Inlined so PurgeCSS can
 // see them at build time.
 function severityPillClasses(sev: ErratumSeverity): string {
-  // Common: navy-dark chip + 1px panel-border + Space Mono caps (§8.3).
+  // Common: field-coloured chip + 1px panel-border + Space Mono caps (§8.3).
   const base =
-    "inline-block rounded border bg-navy-dark px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider";
+    "inline-block rounded border bg-deep-space px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider";
   switch (sev) {
     case "BLOCKER":
       return `${base} border-panel-border text-alert-red`;
@@ -52,7 +52,7 @@ function severityPillClasses(sev: ErratumSeverity): string {
 
 function statusPillClasses(status: ErratumStatus): string {
   const base =
-    "inline-block rounded border bg-navy-dark px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider";
+    "inline-block rounded border bg-deep-space px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider";
   switch (status) {
     case "OPEN":
       return `${base} border-panel-border text-alert-red`;
@@ -69,7 +69,7 @@ function SubmitButton({ label }: { label: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded border border-command-gold bg-navy-dark px-2 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
+      className="rounded border border-command-gold bg-deep-space px-2 py-1 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50"
     >
       {pending ? "WORKING…" : label}
     </button>
@@ -159,7 +159,7 @@ export function ErrataItem({
           <button
             type="button"
             onClick={() => setEditing((v) => !v)}
-            className="rounded border border-panel-border bg-navy-dark px-2 py-1 font-mono text-xs uppercase tracking-wider text-link-muted hover:border-command-gold hover:text-command-gold"
+            className="rounded border border-panel-border bg-deep-space px-2 py-1 font-mono text-xs uppercase tracking-wider text-link-muted hover:border-command-gold hover:text-command-gold"
           >
             {editing ? "Cancel" : "Edit"}
           </button>
@@ -260,7 +260,7 @@ export function ErrataItem({
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="rounded border border-panel-border bg-navy-dark px-2 py-1 font-mono text-xs uppercase tracking-wider text-muted hover:border-command-gold hover:text-command-gold"
+              className="rounded border border-panel-border bg-deep-space px-2 py-1 font-mono text-xs uppercase tracking-wider text-muted hover:border-command-gold hover:text-command-gold"
             >
               Done
             </button>

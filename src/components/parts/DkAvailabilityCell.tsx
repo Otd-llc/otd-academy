@@ -10,7 +10,7 @@ const TONE_CLASS: Record<string, string> = {
   green: "bg-signal-blue/15 text-signal-blue",
   amber: "bg-command-gold/15 text-command-gold",
   red: "bg-alert-red/15 text-alert-red",
-  grey: "bg-navy-dark text-muted",
+  grey: "bg-deep-space text-muted",
 };
 
 export interface DkSnapshotFields {
