@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 };
 
 function iso(d: Date | null | undefined): string {
-  return d ? d.toISOString().slice(0, 10) : "—";
+  return d ? d.toISOString().slice(0, 10) : "·";
 }
 
 function pct(rate: number): string {

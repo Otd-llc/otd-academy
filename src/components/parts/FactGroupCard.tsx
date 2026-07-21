@@ -530,15 +530,15 @@ function FactSummary({
             {pins.map((p, i) => (
               <tr key={i} className="border-b border-panel-border/50">
                 <td className="py-1 pr-3 text-link-muted">
-                  {String(p.number ?? "—")}
+                  {String(p.number ?? "·")}
                 </td>
                 <td className="py-1 pr-3 text-link-muted">
-                  {String(p.name ?? "—")}
+                  {String(p.name ?? "·")}
                 </td>
                 <td className="py-1 pr-3 text-link-muted">
-                  {typeof p.function === "string" ? p.function : "—"}
+                  {typeof p.function === "string" ? p.function : "·"}
                 </td>
-                <td className="py-1 pr-3 text-muted">{String(p.type ?? "—")}</td>
+                <td className="py-1 pr-3 text-muted">{String(p.type ?? "·")}</td>
               </tr>
             ))}
           </tbody>

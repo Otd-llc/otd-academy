@@ -145,7 +145,7 @@ describe("categoryLabel", () => {
 
   it("falls back to the legacy enum, then to a dash", () => {
     expect(categoryLabel({ categoryRef: null, category: "MLCC_CAPACITOR" })).toBe("MLCC_CAPACITOR");
-    expect(categoryLabel({ categoryRef: null, category: null })).toBe("—");
-    expect(categoryLabel({})).toBe("—");
+    expect(categoryLabel({ categoryRef: null, category: null })).toBe("·");
+    expect(categoryLabel({})).toBe("·");
   });
 });

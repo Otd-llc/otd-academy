@@ -353,7 +353,7 @@ export function AssetRow({
       ? "STEP"
       : ext === ".wrl"
         ? "VRML"
-        : ext.replace(".", "").toUpperCase() || "—";
+        : ext.replace(".", "").toUpperCase() || "·";
   const extentMm = renderBounds ? (renderBounds.radius * 2).toFixed(1) : null;
   const infoEl = renderUrl ? (
     <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 font-mono text-xs">

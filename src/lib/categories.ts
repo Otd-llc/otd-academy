@@ -134,14 +134,14 @@ export function categoryAncestry<T extends { id: string; parentId: string | null
 
 /**
  * The human display label for a part's category: the linked category's name
- * wins (the enum→tree bridge), falling back to the legacy enum token, then "—".
+ * wins (the enum→tree bridge), falling back to the legacy enum token, then "·".
  * Single source for the list cell, the mobile card, and the detail header.
  */
 export function categoryLabel(part: {
   categoryRef?: { name: string } | null;
   category?: string | null;
 }): string {
-  return part.categoryRef?.name ?? part.category ?? "—";
+  return part.categoryRef?.name ?? part.category ?? "·";
 }
 
 // ─── subtree filter ─────────────────────────────────────────────────────────

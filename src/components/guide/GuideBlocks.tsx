@@ -115,7 +115,7 @@ export type BomRow = {
   dkLifecycle: string | null;
   dkCheckedAt: Date | null;
   // DigiKey unit price snapshot (cents). Null when never checked / unpriced →
-  // the Unit/Ext cells show "—" and the line is excluded from the design total.
+  // the Unit/Ext cells show "·" and the line is excluded from the design total.
   dkUnitPriceCents: number | null;
   // DigiKey part number (lowest-MOQ variation) for the FastAdd cart URL. Null
   // when unmatched → the line is omitted from the cart link.
@@ -342,11 +342,11 @@ function BomTableBlock({
                   <span>
                     unit{" "}
                     <span className="tabular-nums">
-                      {r.dkUnitPriceCents != null ? formatUsd(r.dkUnitPriceCents) : "—"}
+                      {r.dkUnitPriceCents != null ? formatUsd(r.dkUnitPriceCents) : "·"}
                     </span>{" "}
                     · ext{" "}
                     <span className="tabular-nums">
-                      {r.dkUnitPriceCents != null ? formatUsd(r.qty * r.dkUnitPriceCents) : "—"}
+                      {r.dkUnitPriceCents != null ? formatUsd(r.qty * r.dkUnitPriceCents) : "·"}
                     </span>
                   </span>
                 ) : null}

@@ -272,7 +272,7 @@ export default async function RevisionDetailPage({
             <p className="mt-1 font-mono text-sm text-link-muted">
               {revision.bomFrozenAt
                 ? revision.bomFrozenAt.toISOString().slice(0, 10)
-                : "—"}
+                : "·"}
             </p>
           </div>
           <div>
@@ -282,7 +282,7 @@ export default async function RevisionDetailPage({
             <p className="mt-1 font-mono text-sm text-link-muted">
               {revision.frozenAt
                 ? revision.frozenAt.toISOString().slice(0, 10)
-                : "—"}
+                : "·"}
             </p>
           </div>
           <div>

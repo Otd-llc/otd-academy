@@ -82,12 +82,12 @@ export function BomPdfExport({
                 <td className="border-b border-[#ddd] px-2 py-1.5 font-bold">{r.refDes}</td>
                 <td className="border-b border-[#ddd] px-2 py-1.5">{r.qty}×</td>
                 <td className="border-b border-[#ddd] px-2 py-1.5">
-                  {r.mpn ?? "—"}
+                  {r.mpn ?? "·"}
                   {r.lifecycle && r.lifecycle !== "ACTIVE" ? (
                     <span className="ml-1 font-bold text-[#c0392b]">({r.lifecycle})</span>
                   ) : null}
                 </td>
-                <td className="border-b border-[#ddd] px-2 py-1.5">{r.manufacturer ?? "—"}</td>
+                <td className="border-b border-[#ddd] px-2 py-1.5">{r.manufacturer ?? "·"}</td>
                 <td className="border-b border-[#ddd] px-2 py-1.5 text-[#333]">
                   {r.description ?? ""}
                 </td>

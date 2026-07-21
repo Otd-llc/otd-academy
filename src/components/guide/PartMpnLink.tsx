@@ -24,8 +24,8 @@ export function PartMpnLink({
   description: string | null;
   datasheetUrl: string | null;
 }) {
-  // No part / no MPN → inert text (graceful, mirrors the table's "—").
-  if (!mpn) return <span className="mpn">—</span>;
+  // No part / no MPN → inert text (graceful, mirrors the table's "·").
+  if (!mpn) return <span className="mpn">·</span>;
   const href = `/parts/${partId}`;
   return (
     <span className="inline-flex items-center gap-1.5">
