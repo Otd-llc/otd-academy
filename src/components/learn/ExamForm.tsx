@@ -73,7 +73,7 @@ export function ExamForm({
                 // {q.section}
               </p>
             )}
-            <fieldset className="glass-card space-y-3 p-5">
+            <fieldset className="space-y-3 border-t border-panel-border/60 pt-5">
               <legend className="font-serif text-base leading-relaxed text-gray-1">
                 {qi + 1}. {q.prompt}
               </legend>

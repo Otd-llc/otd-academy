@@ -388,11 +388,11 @@ export default async function HomePage({
           NO PROJECTS YET. CREATE ONE TO BEGIN.
         </p>
       ) : (
-        <ul className="mt-8 flex flex-col gap-3 font-mono text-sm sm:mt-10">
+        <ul className="mt-8 border-t border-panel-border/60 font-mono text-sm sm:mt-10">
           {sorted.map((p) => (
             <li
               key={p.id}
-              className="glass-card grid grid-cols-1 gap-3 p-4 sm:grid-cols-[2fr_1fr_auto_auto] sm:items-center sm:gap-4 sm:p-5"
+              className="grid grid-cols-1 gap-3 border-b border-panel-border/60 py-4 sm:grid-cols-[2fr_1fr_auto_auto] sm:items-center sm:gap-4"
             >
               {/* Name + slug — stack on mobile; name leads in both cases. */}
               <div className="min-w-0">

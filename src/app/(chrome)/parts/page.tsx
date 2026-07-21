@@ -278,7 +278,7 @@ export default async function PartsListPage({
             </table>
           </div>
           {/* Mobile: stacked cards below md. */}
-          <ul className="mt-8 flex flex-col gap-3 md:hidden">
+          <ul className="mt-8 border-t border-panel-border/60 md:hidden">
             {parts.map((p) => (
               <PartCard key={p.id} part={p} />
             ))}

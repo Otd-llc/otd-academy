@@ -18,6 +18,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { IndexRows } from "@/components/IndexRows";
 import { PageHeader } from "@/components/PageHeader";
 import { GenerateGuideButton } from "@/components/guide/GenerateGuideButton";
 import {
@@ -213,25 +214,14 @@ function ConceptsBehindThisBuild({
         The free reference guides behind this board: the electronics ideas it
         assumes, each a short read. No account needed.
       </p>
-      <ul className="mt-5 grid gap-2 sm:grid-cols-2">
-        {lessons.map((l) => (
-          <li key={l.slug}>
-            <Link
-              href={`/library/${l.slug}`}
-              className="group flex h-full flex-col gap-1 rounded border border-panel-border bg-deep-space/40 px-4 py-3 transition-colors hover:border-command-gold/50"
-            >
-              <span className="font-mono text-sm text-text group-hover:text-command-gold">
-                {l.title} →
-              </span>
-              {l.summary ? (
-                <span className="font-serif text-xs leading-snug text-muted">
-                  {l.summary}
-                </span>
-              ) : null}
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <IndexRows
+        rows={lessons.map((l) => ({
+          key: l.slug,
+          href: `/library/${l.slug}`,
+          title: l.title,
+          summary: l.summary,
+        }))}
+      />
     </section>
   );
 }
@@ -434,7 +424,7 @@ export default async function GuideHubPage({
           meta={[
             { label: "Project", value: project.name },
             { label: "Revision", value: revision.label },
-            { label: "Build", value: activeBuild ? activeBuild.label : "—" },
+            { label: "Build", value: activeBuild ? activeBuild.label : "·" },
             { label: "Stage", value: revision.currentStage },
           ]}
         />
@@ -857,26 +847,17 @@ export default async function GuideHubPage({
         <section className="mt-10">
           <h2 className="title-section">Tools for this build</h2>
           <p className="mt-3 max-w-2xl font-serif text-base leading-relaxed text-muted">
-            Free calculators that do the math this board needs — each worked from
-            a real OTD board, with the formula and a cited source.
+            Free calculators that do the math this board needs, each worked from a
+            real OTD board, with the formula and a cited source.
           </p>
-          <ul className="mt-5 grid gap-2 sm:grid-cols-2">
-            {tools.map((t) => (
-              <li key={t.slug}>
-                <Link
-                  href={`/tools/${t.slug}`}
-                  className="group flex h-full flex-col gap-1 rounded border border-panel-border bg-deep-space/40 px-4 py-3 transition-colors hover:border-command-gold/50"
-                >
-                  <span className="font-mono text-sm text-text group-hover:text-command-gold">
-                    {t.title} →
-                  </span>
-                  <span className="font-serif text-xs leading-snug text-muted">
-                    {t.summary}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <IndexRows
+            rows={tools.map((t) => ({
+              key: t.slug,
+              href: `/tools/${t.slug}`,
+              title: t.title,
+              summary: t.summary,
+            }))}
+          />
         </section>
       ) : null}
     </main>

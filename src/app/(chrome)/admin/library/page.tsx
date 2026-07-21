@@ -50,9 +50,9 @@ export default async function LibraryAdminPage() {
           No mini-lessons yet.
         </p>
       ) : (
-        <ul className="mt-8 space-y-3">
+        <ul className="mt-8 border-t border-panel-border/60">
           {lessons.map((l) => (
-            <li key={l.id} className="glass-card p-5">
+            <li key={l.id} className="border-b border-panel-border/60 py-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <Link
                   href={`/admin/library/${l.id}`}
