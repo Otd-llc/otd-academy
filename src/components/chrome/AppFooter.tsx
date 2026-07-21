@@ -16,8 +16,9 @@ export function AppFooter() {
   return (
     <footer className="relative overflow-hidden border-t border-panel-border/60 bg-deep-space print:hidden">
       <div className="relative z-0 mx-auto max-w-6xl px-6 py-10">
-        {/* Brand-icon watermark: gradient-alpha (135deg from top-left, fades
-            to the resting 0.10), behind the colophon. On desktop it bleeds off
+        {/* Brand-icon watermark: gradient-alpha on the 135deg axis, faint at the
+            top-left and brightening into the bottom-right corner, behind the
+            colophon. On desktop it bleeds off
             the right edge, vertically centered; on mobile it tucks down into
             the empty bottom-right space so it never sits behind the columns. */}
         <div
@@ -27,8 +28,8 @@ export function AppFooter() {
             zIndex: -1,
             opacity: 0.25,
             color: "var(--color-command-gold)",
-            WebkitMaskImage: "linear-gradient(135deg, #000 0%, rgba(0,0,0,0.4) 45%, rgba(0,0,0,0.4) 100%)",
-            maskImage: "linear-gradient(135deg, #000 0%, rgba(0,0,0,0.4) 45%, rgba(0,0,0,0.4) 100%)",
+            WebkitMaskImage: "linear-gradient(135deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0.55) 45%, #000 85%)",
+            maskImage: "linear-gradient(135deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0.55) 45%, #000 85%)",
           }}
         >
           <BrandMark className="h-auto w-full" />

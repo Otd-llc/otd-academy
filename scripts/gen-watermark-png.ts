@@ -11,8 +11,8 @@
 // it produced was committed but the recipe was not, so the asset could not be
 // regenerated when the gradient direction changed. It is checked in now.
 //
-// The gradient runs STRONG at the top-left and fades toward the bottom-right, matching
-// the academy and apex footers, whose masks are opaque at the top-left end.
+// The gradient is faint at the top-left and BRIGHTEST in the bottom-right corner,
+// matching the on-page SVG in library-pdf.tsx and both footers.
 
 import { writeFileSync } from "node:fs";
 import path from "node:path";
@@ -21,8 +21,8 @@ import { BRANDMARK_PATH, BRANDMARK_VIEWBOX } from "../src/lib/pdf/certificate-co
 
 const GOLD = "#c8963e";
 // Matches the on-page SVG in library-pdf.tsx: same axis, same stops, same direction.
-const STOP_NEAR = 0.16; // top-left
-const STOP_FAR = 0.05; // bottom-right
+const STOP_TOP_LEFT = 0.05;
+const STOP_BOTTOM_RIGHT = 0.16;
 
 // The committed asset is 1380 × 1323, which is the mark's 418:400 ratio; keep it so
 // the PDFs' fixed WM_W/WM_H layout boxes are unaffected.
@@ -32,8 +32,8 @@ const HEIGHT = Math.round(WIDTH * (400 / 418));
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="${BRANDMARK_VIEWBOX}">
   <defs>
     <linearGradient id="wm" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="${GOLD}" stop-opacity="${STOP_NEAR}"/>
-      <stop offset="1" stop-color="${GOLD}" stop-opacity="${STOP_FAR}"/>
+      <stop offset="0" stop-color="${GOLD}" stop-opacity="${STOP_TOP_LEFT}"/>
+      <stop offset="1" stop-color="${GOLD}" stop-opacity="${STOP_BOTTOM_RIGHT}"/>
     </linearGradient>
   </defs>
   <path d="${BRANDMARK_PATH}" fill="url(#wm)"/>
@@ -45,7 +45,7 @@ async function main() {
   writeFileSync(out, png);
   const meta = await sharp(png).metadata();
   console.log(`wrote ${out} — ${meta.width}x${meta.height}, ${png.length} bytes`);
-  console.log(`gradient: ${STOP_NEAR} at top-left → ${STOP_FAR} at bottom-right`);
+  console.log(`gradient: ${STOP_TOP_LEFT} at top-left → ${STOP_BOTTOM_RIGHT} at bottom-right`);
 }
 
 main();

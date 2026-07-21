@@ -878,19 +878,19 @@ export function LibraryPdf({
 
 // ── whole library, one book ──────────────────────────────────────────────────
 // The corner watermark brandmark: anchored bottom-right (where it has always sat),
-// with a 135deg gradient-alpha fill running STRONG at the top-left and fading toward
-// the bottom-right, matching both footers.
+// with a 135deg gradient-alpha fill that is faint at the top-left and BRIGHTEST in the
+// bottom-right corner, where the mark itself sits.
 //
-// It used to run the other way while claiming in this comment to match the footer; it
-// never did. The footers mask with `linear-gradient(135deg, #000 0%, …0.4 45%)`, which
-// is opaque at the top-left end, and this gradient's stops were the reverse of that.
+// The footers now match this rather than the other way round: their masks hold the
+// faded value across the top-left end and ramp to fully opaque at the bottom-right.
+// The two had been running in opposite directions since the watermark was introduced.
 function Brandmark({ size }: { size: number }) {
   return (
     <Svg width={size} height={size * (400 / 418)} viewBox={BRANDMARK_VIEWBOX}>
       <Defs>
         <LinearGradient id="wmGrad" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor={GOLD} stopOpacity={0.16} />
-          <Stop offset="1" stopColor={GOLD} stopOpacity={0.05} />
+          <Stop offset="0" stopColor={GOLD} stopOpacity={0.05} />
+          <Stop offset="1" stopColor={GOLD} stopOpacity={0.16} />
         </LinearGradient>
       </Defs>
       <Path d={BRANDMARK_PATH} fill="url(#wmGrad)" />
