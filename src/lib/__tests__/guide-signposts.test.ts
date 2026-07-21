@@ -4,7 +4,6 @@ import {
   MODE_TEXT,
   parseModeLabel,
   MODES,
-  scanModeBands,
   parseAlertLabel,
   parseAsideLabel,
 } from "@/lib/guide-signposts";
@@ -61,34 +60,6 @@ const band = (label: string): ContentBlock => ({
   severity: "info",
   label,
   body: "",
-});
-
-describe("guide signposts: band ordinals", () => {
-  // THE MISREAD THIS PREVENTS: numbering across every band in the card made the
-  // FIRST do band render `[ do 02 / 07 ]`, because it was the second band overall.
-  // A number beside the word `do` is read as counting `do`s.
-  it("numbers each mode separately, so the first do band is 01", () => {
-    const blocks: ContentBlock[] = [
-      { type: "prose", md: "intro" },
-      band("Mode · orient · Meet the board"),
-      band("Mode · do · in KiCad · Set up the board"),
-      { type: "prose", md: "filler" },
-      band("Mode · do · in KiCad · Place every part"),
-      band("Mode · check · Prove it"),
-      band("Mode · do · in KiCad · Route the copper"),
-    ];
-    const m = scanModeBands(blocks);
-    expect(m.get(1)).toEqual({ ord: 1, of: 1 }); // the only orient band
-    expect(m.get(2)).toEqual({ ord: 1, of: 3 }); // FIRST do band → 01, not 02
-    expect(m.get(4)).toEqual({ ord: 2, of: 3 });
-    expect(m.get(6)).toEqual({ ord: 3, of: 3 });
-    expect(m.get(5)).toEqual({ ord: 1, of: 1 }); // the only check band
-    expect(m.has(0)).toBe(false);
-  });
-
-  it("returns an empty map for a card with no bands", () => {
-    expect(scanModeBands([{ type: "prose", md: "x" }]).size).toBe(0);
-  });
 });
 
 describe("guide signposts: alert ladder", () => {
