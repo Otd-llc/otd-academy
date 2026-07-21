@@ -32,7 +32,6 @@ import {
   parseModeLabel,
   parseAlertLabel,
   parseAsideLabel,
-  scanModeBands,
   type Rung,
   type AsideVerb,
 } from "@/lib/guide-signposts";
@@ -1102,27 +1101,14 @@ function SectionHeaderBlock({
   );
 }
 
-// A12b2 — the mode band. `[ do 02 / 06 ]` in the gate's own bracket vocabulary,
+// A12b2 — the mode band. `[ do ]` in the gate's own bracket vocabulary,
 // the venue as a mono chip (NOT inside the Bebas title, which is what the old
 // positional parse did), and a hairline closing the row.
-//
-// The fraction is per CARD: a learner three hours into SCHEMATIC is not asking
-// "which band is this", they are asking how much is left.
 //
 // The mode vocabulary lives in `@/lib/guide-signposts` so the colours resolve
 // through CSS custom properties and flip under `[data-theme="light"]`. The old
 // MODE_STYLE map held literal hex and could not.
-function ModeBandBlock({
-  label,
-  body,
-  ord,
-  of,
-}: {
-  label: string;
-  body: string;
-  ord: number;
-  of: number;
-}) {
+function ModeBandBlock({ label, body }: { label: string; body: string }) {
   const parsed = parseModeLabel(label);
   if (!parsed) return null;
   const { mode, venue, title } = parsed;
@@ -1132,15 +1118,7 @@ function ModeBandBlock({
         <span
           className={`shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.2em] ${MODE_TEXT[mode]}`}
         >
-          [ {mode}{" "}
-          <span className="font-numeral text-sm tabular-nums">
-            {String(ord).padStart(2, "0")}
-          </span>
-          <span className="text-muted"> / </span>
-          <span className="font-numeral text-sm tabular-nums text-muted">
-            {String(of).padStart(2, "0")}
-          </span>{" "}
-          ]
+          [ {mode} ]
         </span>
         {venue ? (
           <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.18em] text-muted">
@@ -1262,7 +1240,6 @@ function GuideBlock({
   isAdmin,
   logbook,
   fig,
-  band,
 }: {
   block: ContentBlock;
   index: number;
@@ -1279,8 +1256,6 @@ function GuideBlock({
   /** This diagram's figure number in the lesson (image blocks whose src is a
    *  registry diagram), passed to ImageBlock so the bare frame shows "Fig N". */
   fig?: number;
-  /** This mode band's position among the card's bands, for A12b2's fraction. */
-  band?: { ord: number; of: number };
 }) {
   switch (block.type) {
     case "prose": {
@@ -1326,12 +1301,7 @@ function GuideBlock({
         );
       if (/^mode\b/i.test(label))
         return (
-          <ModeBandBlock
-            label={label}
-            body={block.body}
-            ord={band?.ord ?? 1}
-            of={band?.of ?? 1}
-          />
+          <ModeBandBlock label={label} body={block.body} />
         );
       const alert = parseAlertLabel(label, block.severity);
       if (alert) return <AlertBlock {...alert} body={block.body} />;
@@ -1754,9 +1724,6 @@ export function GuideBlocks({
     });
   }
 
-  // Mode-band ordinals, same shape as the figure scan: each band's position among
-  // the bands IN THIS CARD, so A12b2 can render `[ do 02 / 06 ]`.
-  const bandByIndex = scanModeBands(blocks);
 
   // The stage-gate quiz (WI-2): the quiz block flagged `gate: true`, else the first
   // quiz block. Only THIS block receives the gate `quizContext`, so only it records a
@@ -1792,7 +1759,6 @@ export function GuideBlocks({
         isAdmin={isAdmin}
         logbook={logbook}
         fig={figByIndex.get(i)}
-        band={bandByIndex.get(i)}
       />
     );
     return anchorId ? (
