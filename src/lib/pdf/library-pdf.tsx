@@ -878,9 +878,12 @@ export function LibraryPdf({
 
 // ── whole library, one book ──────────────────────────────────────────────────
 // The corner watermark brandmark: anchored bottom-right (where it has always sat),
-// but with a 135deg gradient-alpha fill (owner pick) — brightest at the bottom-right
-// corner, fading toward the top-left — matching the site footer's gradient watermark
-// treatment (vs the old flat single-opacity fill).
+// with a 135deg gradient-alpha fill that is faint at the top-left and BRIGHTEST in the
+// bottom-right corner, where the mark itself sits.
+//
+// The footers now match this rather than the other way round: their masks hold the
+// faded value across the top-left end and ramp to fully opaque at the bottom-right.
+// The two had been running in opposite directions since the watermark was introduced.
 function Brandmark({ size }: { size: number }) {
   return (
     <Svg width={size} height={size * (400 / 418)} viewBox={BRANDMARK_VIEWBOX}>
