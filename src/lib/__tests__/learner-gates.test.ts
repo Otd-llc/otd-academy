@@ -40,6 +40,50 @@ describe("learnerExitGate — REQUIREMENTS (quiz-only, no proof artifact)", () =
   });
 });
 
+describe("learnerExitGate — quiz-less card (cardHasQuiz: false)", () => {
+  // A stage card that ships WITHOUT a quiz block must not strand the learner
+  // behind an unproducible QuizPass: the gate UI already says "coming soon" for
+  // a quiz-less card, so the gate itself treats the quiz as auto-satisfied.
+  test("quiz requirement auto-satisfies when the card has no quiz", () => {
+    const r = learnerExitGate("REQUIREMENTS", ctx({ cardHasQuiz: false }));
+    expect(r.ok).toBe(true);
+  });
+
+  test("artifact requirement still applies on a quiz-less SCHEMATIC card", () => {
+    const r = learnerExitGate("SCHEMATIC", ctx({ cardHasQuiz: false }));
+    expect(r.ok).toBe(false);
+    expect((r as { reasons: string[] }).reasons).toHaveLength(1);
+    expect((r as { reasons: string[] }).reasons[0]).toMatch(/ERC report/);
+  });
+
+  test("cardHasQuiz undefined keeps the quiz required (back-compat)", () => {
+    const r = learnerExitGate("REQUIREMENTS", ctx());
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe("learnerExitGate — non-fab course (hasFabOutputs: false)", () => {
+  // Seam for a future course whose build produces no ERC/DRC artifacts (module
+  // integration, firmware-only). No catalog course flips this yet; the seam
+  // exists so the first one cannot strand learners at SCHEMATIC/DRC_GERBER.
+  test("SCHEMATIC needs only the quiz when the course has no fab outputs", () => {
+    const r = learnerExitGate("SCHEMATIC", {
+      ...ctx({ quizPasses: new Set<Stage>(["SCHEMATIC"]) }),
+      hasFabOutputs: false,
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  test("DRC_GERBER artifact skipped when the course has no fab outputs", () => {
+    const r = learnerExitGate("DRC_GERBER", {
+      ...ctx(),
+      hasFabOutputs: false,
+    });
+    expect(r.ok).toBe(false);
+    expect((r as { reasons: string[] }).reasons).toEqual([QUIZ_NOT_PASSED_MSG]);
+  });
+});
+
 describe("learnerExitGate — SCHEMATIC (proof + quiz)", () => {
   test("requires a clean ERC report as the proof artifact", () => {
     expect(learnerProofSubkind("SCHEMATIC")).toBe("ERC_REPORT");

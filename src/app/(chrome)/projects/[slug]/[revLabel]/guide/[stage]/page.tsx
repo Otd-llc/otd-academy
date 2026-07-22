@@ -445,10 +445,12 @@ export default async function GuideCardPage({
   // Learner overlay (learner view only): if the signed-in learner has an
   // enrollment on this board, the quiz records against it and on their CURRENT
   // stage we surface the advance affordance.
-  const gate = gateSpec(stage);
+  const cardHasQuiz = blocks.some((b) => b.type === "quiz");
+  // Same inputs the advance action derives server-side (loadLearnerGateContext),
+  // so the gate panel and the actual gate agree on a quiz-less card.
+  const gate = gateSpec(stage, { cardHasQuiz });
   const proofArtifact = gate.artifact;
   const proofHelpData = proofArtifact ? proofHelp(proofArtifact.subkind) : null;
-  const cardHasQuiz = blocks.some((b) => b.type === "quiz");
   let learnerQuizContext:
     | { enrollmentId: string; stage: string; passed: boolean }
     | undefined;
