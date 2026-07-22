@@ -259,6 +259,9 @@ model WaitlistSignup {
   projectId String
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+  // Once-only ledger for the promised "we'll email you when it opens" send:
+  // null = owed when the course publishes; set = sent (src/lib/waitlist-notify.ts).
+  notifiedAt DateTime?
 
   @@unique([email, projectId])
 }
