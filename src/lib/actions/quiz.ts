@@ -21,6 +21,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { STAGE_VALUES } from "@/lib/schemas/project-dependency";
 import { parseGuideBlocks } from "@/lib/guide-blocks-parse";
+import { loadStageCard } from "@/lib/logbook/stage-card-load";
 
 const recordQuizPassSchema = z.object({
   enrollmentId: z.cuid(),
@@ -37,41 +38,25 @@ export async function recordQuizPass(
   const user = await requireUser();
   const { enrollmentId, stage, answers } = recordQuizPassSchema.parse(input);
 
-  // Load the enrollment (to confirm ownership) + this stage's card content, so we
-  // can score against the SERVER's answer keys rather than a client-claimed score.
-  const enrollment = await db.enrollment.findUniqueOrThrow({
-    where: { id: enrollmentId },
-    select: {
-      userId: true,
-      project: { select: { slug: true } },
-      revision: {
-        select: {
-          label: true,
-          guide: {
-            select: {
-              cards: { where: { stage }, select: { contentBlocks: true } },
-            },
-          },
-        },
-      },
-    },
-  });
+  // Shared load (loadStageCard): the enrollment ownership + this stage's card
+  // content, the same shape the per-pick XP scorer uses — one loader so the gate
+  // and the XP can't drift on which card they read.
+  const load = await loadStageCard(db, enrollmentId, stage, user.id);
   // A learner records only their OWN passes (no writing to someone else's track).
-  if (enrollment.userId !== user.id) {
+  if (!load.owned) {
     return { ok: false, message: "Forbidden: not your enrollment." };
   }
 
   // Authoritative scoring: re-score the SUBMITTED answers against the card's real
   // answer keys. The server owns the keys, so a fabricated score can't pass.
-  const card = enrollment.revision.guide?.cards[0];
   // Per-block parse (parseGuideBlocks): a malformed sibling block no longer wipes
   // the gate quiz off this card, so the stage stays passable. Pick THE stage-gate
   // quiz: the block flagged `gate: true`, else the first quiz block (back-compat —
   // a single-quiz card, or mini-quizzes with no flag, gate on the first). Mirrors
   // the client dispatch (GuideBlocks) so both agree on which block opens the gate.
   // (WI-2)
-  const quizzes = card
-    ? parseGuideBlocks(card.contentBlocks).blocks.filter((b) => b.type === "quiz")
+  const quizzes = load.contentBlocks
+    ? parseGuideBlocks(load.contentBlocks).blocks.filter((b) => b.type === "quiz")
     : [];
   const quizBlock = quizzes.find((b) => b.type === "quiz" && b.gate) ?? quizzes[0];
   if (!quizBlock || quizBlock.type !== "quiz") {
@@ -102,10 +87,10 @@ export async function recordQuizPass(
   }
 
   // Refresh the learner guide so the gate re-evaluates with the new pass.
-  const base = `/projects/${enrollment.project.slug}/${encodeURIComponent(enrollment.revision.label)}/guide`;
+  const base = `/projects/${load.projectSlug}/${encodeURIComponent(load.revLabel)}/guide`;
   revalidatePath(base);
   revalidatePath(`${base}/${stage}`);
-  revalidatePath(`/learn/${enrollment.project.slug}`);
+  revalidatePath(`/learn/${load.projectSlug}`);
 
   return { ok: true };
 }

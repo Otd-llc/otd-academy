@@ -1,5 +1,6 @@
 // The Logbook economy: every amount, curve, and key in ONE tunable module
 // (design §5/§7/§13). Pure — no DB, no clock reads (callers inject `now`).
+import type { Stage } from "@prisma/client";
 
 export const XP = {
   QUIZ_FULL: 5,
@@ -31,7 +32,12 @@ export const COURSE_COMPLETE_XP = 300;
 // advance (ERC=0 for SCHEMATIC, DRC=0 + attestation for LAYOUT), so a bigger award
 // here is already tied to producing verified work. Keyed by the FROM stage (the one
 // just cleared); stages absent from the table (REVISION) fall back to STAGE_CLEAR_XP.
-export const STAGE_CLEAR_XP_BY_STAGE: Record<string, number> = {
+// Typed Record<Stage, number> (not Record<string, …>): every Stage MUST appear,
+// so adding a stage to the Prisma enum breaks the build here instead of silently
+// paying the STAGE_CLEAR_XP fallback. REVISION is the terminal stage (nothing
+// clears out of it), listed explicitly at the base value so the map is
+// exhaustive and there is no silent `??` gap.
+export const STAGE_CLEAR_XP_BY_STAGE: Record<Stage, number> = {
   REQUIREMENTS: 10,
   BOM_SOURCING: 15,
   SCHEMATIC: 40, // ERC=0 gate
@@ -40,9 +46,10 @@ export const STAGE_CLEAR_XP_BY_STAGE: Record<string, number> = {
   ORDERING: 30, // the leap to a physical order
   ASSEMBLY: 40,
   BRINGUP: 60, // "it works" payoff
+  REVISION: STAGE_CLEAR_XP, // terminal — never actually cleared FROM
 };
 export const stageClearXp = (stage: string): number =>
-  STAGE_CLEAR_XP_BY_STAGE[stage] ?? STAGE_CLEAR_XP;
+  STAGE_CLEAR_XP_BY_STAGE[stage as Stage] ?? STAGE_CLEAR_XP;
 
 // The flight-training ladder (design §8; 12 ranks / 6 wing tiers, owner 2026-07-11).
 // Front-loaded: fast early levels, widening toward the top. Top (FL12) ≈ finishing

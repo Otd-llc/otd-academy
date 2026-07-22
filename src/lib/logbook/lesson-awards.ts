@@ -9,6 +9,7 @@ import { questionKey } from "@/lib/logbook/question-key";
 import { quizQuestions } from "@/lib/logbook/lesson-content";
 import { libraryReviewItemId } from "@/lib/logbook/review-schedule";
 import { seedReviewItem } from "@/lib/logbook/review-seed";
+import { capture } from "@/lib/analytics";
 import { awardXp } from "@/lib/logbook/award";
 import { milestonesFor } from "@/lib/logbook/milestones";
 import { earnBadge, isUniqueViolation } from "@/lib/logbook/badge";
@@ -77,7 +78,14 @@ export async function recordQuizAnswer(
         options: q.options,
         answer: q.answer,
         now,
-      }).catch((e) => console.error("[review] library seed failed", e));
+      }).catch((e) => {
+        console.error("[review] library seed failed", e);
+        capture(
+          "review_seed_failed",
+          { surface: "library", detail: e instanceof Error ? e.message : String(e) },
+          userId,
+        );
+      });
     }
   }
 

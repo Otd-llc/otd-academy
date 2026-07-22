@@ -1316,6 +1316,10 @@ model XpEvent {
 
   @@index([userId])
   @@index([source, refId])
+  // The per-answer firstEver guards filter (userId, source, refId); the
+  // (source, refId) index widens with total answer history on a shared refId
+  // (questionKey). A covering composite keeps that hot-path read tight.
+  @@index([userId, source, refId])
 }
 
 // Durable once-ever lesson completion (drives progress + cluster/library patches).

@@ -39,6 +39,22 @@ export function libraryReviewItemId(slug: string, reviewId: string): string {
   return `lib:${slug}:${reviewId}`;
 }
 
+// AUTO (untagged, "review your mistakes") guide review-item id. Keyed on a
+// REVISION-INDEPENDENT base: the auto path used to reuse `questionKey`, which
+// embeds the revision label (guide:<slug>:<rev>:<stage>#…), so a revision bump
+// changed the id, ORPHANED the old ReviewSchedule (still "due"), and left a
+// stale duplicate in the deck until the manual prune ran. The question's own
+// id/hash is stable across revisions, so this stays put through a bump. Distinct
+// `auto:` prefix so it never collides with a reviewId-tagged (`<slug>:<stage>:…`)
+// or library (`lib:…`) id.
+export function autoReviewItemId(
+  projectSlug: string,
+  stage: string,
+  questionIdOrHash: string,
+): string {
+  return `auto:${projectSlug}:${stage}#${questionIdOrHash}`;
+}
+
 export type ScheduleState = {
   intervalDays: number;
   lapses: number;

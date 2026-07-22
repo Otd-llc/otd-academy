@@ -37,12 +37,14 @@ export default async function ReviewPage() {
   const items: ReviewDeckItem[] = itemOrder.map((ri) => {
     const it = raw[ri]!;
     const order = shuffleIndices(it.options.length); // display -> original
+    // NOTE: the answer key is deliberately NOT in the payload — the client
+    // learns the correct option only from recordReviewAnswer's response, after
+    // it answers. `originalIndex` is just the shuffle permutation (no answer).
     return {
       reviewItemId: it.reviewItemId,
       q: it.q,
       options: order.map((oi) => it.options[oi]!),
       originalIndex: order,
-      answerDisplay: order.indexOf(it.answer),
     };
   });
 
