@@ -234,6 +234,14 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
     term: "ground pour",
     def: "A large filled copper area tied to ground, poured around the traces on a layer for a low-impedance return path and shielding — but kept OUT of an antenna keep-out, where copper would detune the radio.",
   },
+  impedance: {
+    term: "impedance",
+    def: "Resistance's fast-current cousin: how much a path fights current that is changing quickly, measured in ohms. A low-impedance return path is one that fast signal current can flow back through easily, which is what a solid ground plane provides.",
+  },
+  "stitching via": {
+    term: "stitching via",
+    def: "A via whose only job is to tie the ground copper on different layers into one continuous body. Scattered across the board, and clustered under a module's centre ground pad, so return current always has a short hop between layers.",
+  },
   moq: {
     term: "MOQ",
     def: "Minimum Order Quantity — the smallest amount a distributor will sell of a part. Cheap passives often come on reels of thousands; plan a few extras of any part you hand-place and might lose or cook.",
@@ -347,6 +355,7 @@ const ALIASES: Record<string, string> = {
   "low-dropout regulator": "ldo",
   "low dropout regulator": "ldo",
   "dropout voltage": "dropout",
+  "stitching vias": "stitching via",
   "decoupling capacitor": "decoupling",
   "decoupling cap": "decoupling",
   "bypass capacitor": "decoupling",
