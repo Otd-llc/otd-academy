@@ -7,7 +7,9 @@ import {
   recordStageClear,
   recordCourseExamPass,
   recordCourseComplete,
+  recordReviewAnswer,
 } from "@/lib/logbook/guide-awards";
+import { XP } from "@/lib/logbook/economy";
 
 const stamp = Date.now();
 const slug = `stagequiz-${stamp}`;
@@ -21,9 +23,13 @@ const quizBlock = {
   type: "quiz",
   questions: [
     { q: "Stage question one?", options: ["a", "b", "c"], answer: 2 },
-    { q: "Stage question two?", options: ["a", "b", "c"], answer: 1 },
+    // reviewId opts this question into the review deck on ANY answer (step 4).
+    { q: "Stage question two?", options: ["a", "b", "c"], answer: 1, reviewId: "stage-q-two" },
+    // untagged: only a WRONG answer feeds it into the deck (auto path).
+    { q: "Stage question three?", options: ["a", "b", "c"], answer: 0 },
   ],
 };
+const REVIEW_ITEM_ID = `${slug}:SCHEMATIC:stage-q-two`;
 const keys = guideQuestionKeys(slug, "v1", STAGE, [quizBlock]);
 
 beforeAll(async () => {
@@ -56,6 +62,10 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.enrollment.deleteMany({ where: { userId: { in: [userId, otherId] } } });
+  // QuizItem is not user/project-scoped by FK, so clean it explicitly; its FK
+  // cascades any remaining ReviewSchedule rows. Project must go before User
+  // (Project.createdById restricts), so keep that original order.
+  await db.quizItem.deleteMany({ where: { projectSlug: slug } });
   await db.project.deleteMany({ where: { createdById: userId } });
   await db.user.deleteMany({ where: { id: { in: [userId, otherId] } } });
 });
@@ -103,6 +113,50 @@ describe("recordStageQuizAnswer", () => {
     expect(r).toMatchObject({ ok: true, correct: true, xp: 0 });
   });
 
+  it("seeds a QuizItem snapshot + opens a ReviewSchedule for a reviewable question", async () => {
+    // keys[1] carries a reviewId, so the earlier answers to it opened the review
+    // item (forward-only seeding from the stage-answer path).
+    const item = await db.quizItem.findUnique({
+      where: { reviewItemId: REVIEW_ITEM_ID },
+    });
+    expect(item).toMatchObject({ projectSlug: slug, stage: STAGE, answer: 1 });
+    expect(item?.options).toEqual(["a", "b", "c"]);
+
+    const sched = await db.reviewSchedule.findUnique({
+      where: { userId_reviewItemId: { userId, reviewItemId: REVIEW_ITEM_ID } },
+    });
+    expect(sched).not.toBeNull();
+    expect(sched?.intervalDays).toBe(1);
+    expect(sched?.lapses).toBe(0);
+  });
+
+  it("does NOT seed an untagged question that was answered CORRECTLY", async () => {
+    // keys[0] (untagged) was answered correctly above, so nothing feeds the deck
+    // for it (the auto path only fires on a WRONG answer).
+    const item = await db.quizItem.findUnique({
+      where: { reviewItemId: keys[0] },
+    });
+    expect(item).toBeNull();
+  });
+
+  it("a WRONG answer to an UNTAGGED question seeds it keyed by its questionKey", async () => {
+    // keys[2] has no reviewId; answering it wrong feeds the deck (review-your-mistakes).
+    const r = await recordStageQuizAnswer(
+      { enrollmentId, stage: STAGE, questionKey: keys[2], pick: 1 }, // answer is 0
+      userId,
+      DAY,
+    );
+    expect(r).toMatchObject({ ok: true, correct: false });
+    const item = await db.quizItem.findUnique({
+      where: { reviewItemId: keys[2] },
+    });
+    expect(item).toMatchObject({ projectSlug: slug, stage: STAGE, answer: 0 });
+    const sched = await db.reviewSchedule.findUnique({
+      where: { userId_reviewItemId: { userId, reviewItemId: keys[2] } },
+    });
+    expect(sched).not.toBeNull();
+  });
+
   it("refuses another user's enrollment", async () => {
     const r = await recordStageQuizAnswer(
       { enrollmentId, stage: STAGE, questionKey: keys[0], pick: 2 },
@@ -119,6 +173,58 @@ describe("recordStageQuizAnswer", () => {
       DAY,
     );
     expect(r).toMatchObject({ ok: false });
+  });
+});
+
+describe("recordReviewAnswer", () => {
+  const RITEM = `${slug}:SCHEMATIC:review-target`;
+  beforeAll(async () => {
+    await db.quizItem.create({
+      data: {
+        reviewItemId: RITEM,
+        projectSlug: slug,
+        stage: STAGE,
+        q: "Review target?",
+        options: ["a", "b", "c"],
+        answer: 2,
+      },
+    });
+    // A clearly past-due schedule (interval 3), so the item is due on DAY.
+    await db.reviewSchedule.create({
+      data: {
+        userId,
+        reviewItemId: RITEM,
+        dueOn: new Date("2026-07-08T00:00:00Z"),
+        intervalDays: 3,
+        lapses: 0,
+        lastSeenOn: new Date("2026-07-05T00:00:00Z"),
+      },
+    });
+  });
+
+  it("refuses an item the user has no schedule for", async () => {
+    const r = await recordReviewAnswer(
+      { reviewItemId: `${slug}:SCHEMATIC:not-scheduled`, pick: 0 },
+      userId,
+      DAY,
+      0.5,
+    );
+    expect(r).toMatchObject({ ok: false });
+  });
+
+  it("a correct DUE answer awards REVIEW_CORRECT and climbs the ladder", async () => {
+    const r = await recordReviewAnswer({ reviewItemId: RITEM, pick: 2 }, userId, DAY, 0);
+    expect(r).toMatchObject({ ok: true, correct: true, xp: XP.REVIEW_CORRECT });
+    const s = await db.reviewSchedule.findUnique({
+      where: { userId_reviewItemId: { userId, reviewItemId: RITEM } },
+    });
+    // 3 -> 7, jitterFactor(0) = 0.85: round(7 * 0.85) = 6.
+    expect(s?.intervalDays).toBe(6);
+  });
+
+  it("a same-day re-answer is a no-op (not due after the advance)", async () => {
+    const r = await recordReviewAnswer({ reviewItemId: RITEM, pick: 2 }, userId, DAY, 0);
+    expect(r).toMatchObject({ ok: true, xp: 0 });
   });
 });
 

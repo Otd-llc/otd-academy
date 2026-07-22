@@ -1311,6 +1311,46 @@ function QuizEditor({
               className={`mt-1 ${inputClass}`}
             />
           </div>
+          <div>
+            <label className={labelClass}>Review id (optional)</label>
+            <input
+              type="text"
+              maxLength={80}
+              value={q.reviewId ?? ""}
+              onChange={(e) =>
+                patchQ(qi, {
+                  reviewId:
+                    e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") ||
+                    undefined,
+                })
+              }
+              placeholder="e.g. ldo-output-cap"
+              className={`mt-1 ${inputClass}`}
+            />
+            <p className={helpClass}>
+              Lowercase slug. Set it to ALWAYS resurface this question in the
+              spaced-review deck, even when answered correctly. Leave empty and a
+              wrong answer still auto-feeds the deck. Do not change it once set (it
+              re-keys the item&apos;s review history).
+            </p>
+          </div>
+          <div>
+            <label className={labelClass}>Stable id (optional, advanced)</label>
+            <input
+              type="text"
+              maxLength={60}
+              value={q.id ?? ""}
+              onChange={(e) =>
+                patchQ(qi, { id: e.target.value.trim() || undefined })
+              }
+              className={`mt-1 ${inputClass}`}
+            />
+            <p className={helpClass}>
+              A stable identity for the XP and review keys. Setting or changing it
+              re-keys this question&apos;s history, so set it once on a new question
+              and leave it. Blank falls back to a hash of the question text.
+            </p>
+          </div>
         </fieldset>
       ))}
 
