@@ -90,6 +90,61 @@ async function enrollmentFor(projectId: string) {
   });
 }
 
+describe("getExam — premium entitlement gate", () => {
+  // A PREMIUM course's exam bank is paid capstone content. getExam is a
+  // directly-invocable server action, so the UI gate on the exam page is not
+  // the real boundary — the action itself must refuse a non-entitled caller.
+  let premiumId = "";
+  beforeAll(async () => {
+    const project = await db.project.create({
+      data: {
+        slug: `exam-prem-${Date.now()}`,
+        name: "Premium exam",
+        createdById: userId,
+        accessTier: "PREMIUM",
+      },
+    });
+    premiumId = project.id;
+    await db.exam.create({
+      data: {
+        projectId: project.id,
+        title: "Premium final",
+        passThreshold: 80,
+        questions: [
+          { id: "q1", prompt: "2+2?", options: ["3", "4"], correctIndex: 1 },
+        ],
+      },
+    });
+  });
+
+  test("returns null for a signed-in caller with no entitlement or enrollment", async () => {
+    const res = await getExam(premiumId);
+    expect(res).toBeNull();
+  });
+
+  test("returns the stripped bank once the caller is entitled", async () => {
+    await db.entitlement.create({
+      data: { userId, projectId: premiumId, source: "GRANT" },
+    });
+    const res = await getExam(premiumId);
+    expect(res).not.toBeNull();
+    expect(res!.questions[0]).not.toHaveProperty("correctIndex");
+    await db.entitlement.deleteMany({ where: { userId, projectId: premiumId } });
+  });
+
+  test("returns the stripped bank for an enrolled caller", async () => {
+    const rev = await db.revision.create({
+      data: { projectId: premiumId, label: "vprem" },
+    });
+    await db.enrollment.create({
+      data: { userId, projectId: premiumId, revisionId: rev.id },
+    });
+    const res = await getExam(premiumId);
+    expect(res).not.toBeNull();
+    await db.enrollment.deleteMany({ where: { userId, projectId: premiumId } });
+  });
+});
+
 describe("submitExam", () => {
   test("above-threshold submission records passed:true and sets MASTERED", async () => {
     const pid = await makeExamEnrollment("COMPLETED");
