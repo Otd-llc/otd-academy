@@ -214,6 +214,19 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
             // Stable identity for the Logbook XP ledger (optional; absent →
             // key falls back to a hash of `q`, see question-key.ts).
             id: z.string().trim().min(1).max(60).optional(),
+            // Opt-in cross-session REVIEW identity (step 4). Present ⇒ this question
+            // enters the spaced-review deck, keyed by
+            // `<projectSlug>:<stage>:<reviewId>` (revision-independent, so it
+            // survives a revision bump). DECOUPLED from `id`/questionKey on purpose,
+            // so marking a question reviewable never re-keys the XP ledger. Slug
+            // charset only, since it is a `:`-delimited composite-key segment.
+            reviewId: z
+              .string()
+              .trim()
+              .min(1)
+              .max(80)
+              .regex(/^[a-z0-9-]+$/, "reviewId must be lowercase slug chars")
+              .optional(),
             q: z.string().trim().min(1).max(500),
             options: z.array(z.string().trim().min(1).max(300)).min(2).max(6),
             answer: z.int().nonnegative(),

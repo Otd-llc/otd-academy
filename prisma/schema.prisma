@@ -30,6 +30,9 @@ enum XpSource {
   // Admin manual XP adjustment (2026-07-13) — a signed correction/comp from the
   // per-learner admin tooling. Distinct source so instrumentation can exclude it.
   MANUAL_ADJUST
+  // Cross-session review deck correct answer (step 4, 2026-07-21). Once per due
+  // cycle (dedupe key embeds the cycle's dueOn), small amount.
+  REVIEW_CORRECT
 }
 
 enum FeedbackStatus {
@@ -117,6 +120,7 @@ model User {
   quizLocks         QuizLock[]
   badges            BadgeEarned[]
   lessonFeedback    LessonFeedback[]
+  reviewSchedules   ReviewSchedule[]
 }
 
 model Account {
@@ -1334,6 +1338,49 @@ model QuizLock {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, questionKey, lockedOn])
+}
+
+// ─── Cross-session review deck (step 4, 2026-07-21) ─────────────────────────
+// See docs/plans/2026-07-21-review-deck-design.md.
+
+// Registry of REVIEW-able quiz items. Populated forward-only from the stage-quiz
+// answer path (a snapshot of the question at answer time), so the /review deck can
+// render an item by its stable reviewItemId without re-parsing contentBlocks JSON.
+// reviewItemId = <projectSlug>:<stage>:<reviewId>, revision-independent (survives a
+// revision bump) and decoupled from questionKey (so marking a question reviewable
+// never re-keys the XP ledger). Refreshed on each encounter (last-writer-wins), so
+// a content edit propagates on the next stage answer.
+model QuizItem {
+  reviewItemId String           @id
+  projectSlug  String
+  stage        Stage
+  q            String
+  options      String[]
+  answer       Int
+  updatedAt    DateTime         @updatedAt
+  schedules    ReviewSchedule[]
+
+  @@index([projectSlug])
+}
+
+// A learner's spaced-review schedule for one item. Created forward-only at the
+// item's first encounter (start-fresh: no history bootstrap). `dueOn`/`intervalDays`
+// drive the ladder (see review-schedule.ts); `suspended` retires a leech.
+model ReviewSchedule {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewItemId String
+  item         QuizItem @relation(fields: [reviewItemId], references: [reviewItemId], onDelete: Cascade)
+  dueOn        DateTime @db.Date
+  intervalDays Int      @default(1)
+  lapses       Int      @default(0)
+  suspended    Boolean  @default(false)
+  lastSeenOn   DateTime @db.Date
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, reviewItemId])
+  @@index([userId, dueOn])
 }
 
 // Admin write audit (2026-07-13): every MANUAL logbook mutation from the per-learner

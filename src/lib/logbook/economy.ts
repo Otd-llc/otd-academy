@@ -8,6 +8,9 @@ export const XP = {
   LESSON_PER_MIN_REPOP: 1,
   FEEDBACK_SUBMIT: 2,
   FEEDBACK_USEFUL: 25,
+  // Cross-session review correct answer (step 4). Small on purpose: the deck exists
+  // for retention, not grinding, and the once-per-due-cycle dedupe (below) caps it.
+  REVIEW_CORRECT: 2,
 } as const;
 export const CLUSTER_XP = 100;
 export const LIBRARY_XP = 500;
@@ -124,4 +127,9 @@ export const dedupe = {
     `COURSE_EXAM_PASS:${userId}:${slug}`,
   courseComplete: (userId: string, slug: string) =>
     `COURSE_COMPLETE:${userId}:${slug}`,
+  // Review award is once per DUE CYCLE, not per day: the key embeds the cycle's
+  // dueOn (the day the item was due when answered), so a still-due item cannot be
+  // farmed once per calendar day. `dueDay` is academyDay(dueOn).
+  review: (userId: string, reviewItemId: string, dueDay: string) =>
+    `REVIEW_CORRECT:${userId}:${reviewItemId}:${dueDay}`,
 } as const;
