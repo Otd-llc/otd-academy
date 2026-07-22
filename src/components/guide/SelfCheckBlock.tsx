@@ -14,6 +14,7 @@
 
 import { useState } from "react";
 import { Inline } from "@/components/guide/InlineText";
+import { trackFormativeCheck } from "@/lib/analytics-client";
 
 const TEXTAREA =
   "w-full resize-none rounded border border-panel-border bg-transparent px-3 py-2 font-serif text-[15px] leading-relaxed text-text placeholder:text-gray-3 focus:border-command-gold focus:outline-none";
@@ -76,7 +77,11 @@ export function SelfCheckBlock({
             <button
               type="button"
               disabled={!canReveal}
-              onClick={() => setRevealed(true)}
+              onClick={() => {
+                setRevealed(true);
+                // Reveal is a one-time false->true transition, so this fires once.
+                trackFormativeCheck("self_check", "revealed");
+              }}
               className="glass-button px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider disabled:cursor-not-allowed disabled:opacity-40"
             >
               Compare with the answer

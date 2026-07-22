@@ -19,7 +19,7 @@ whether to author inline density now or wait for the parse-resilience fix.
 | Step | What | Effort | Status | Why this order |
 | --- | --- | --- | --- | --- |
 | 1 | Parse resilience (section 10) | M | DONE (2026-07-21) | Prerequisite + latent-correctness fix; one bad block silently blanks a card / blocks the gate today |
-| 2 | Engagement telemetry (section 12) | S | open | Without it, scaling inline checks is blind |
+| 2 | Engagement telemetry (section 12) | S | DONE (2026-07-21) | Without it, scaling inline checks is blind |
 | 3 | MCQ attempt-reward (section 8) | S | open | Stops the XP economy teaching "don't answer" before mass-authoring MCQ |
 | 4 | Cross-session review deck (section 12) | L | open | The biggest retention lever; net-new, benefits from 1-3 |
 
@@ -544,6 +544,15 @@ PostHog events from the existing session-only islands (`posthog-js` is already
 wired, see `analytics-client.ts`) on reveal / help-open / step-tick. That gives an
 aggregate attempted/revealed signal without per-user persistence. Do it before
 scaling inline-check content, or the rollout is blind.
+
+**SHIPPED 2026-07-21.** `trackFormativeCheck(kind, action)` in
+`analytics-client.ts` fires a single `formative_check_engaged` PostHog event, wired
+into all four islands at the engagement moment, once per block per session (a
+`firedRef` guard): SelfCheckBlock on reveal, TraceListBlock on first "not sure",
+DoStepsBlock on first step tick, QuizBlock on first pick (anon included). No schema,
+no per-user persistence; a no-op without a PostHog key (so local dev is silent).
+Segmenting by stage/card is a deliberate follow-up (would need threading cardId
+through the islands) — this v1 answers "are checks used, and which types".
 
 **Build order** (across section 10 and this section):
 

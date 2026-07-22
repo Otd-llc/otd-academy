@@ -11,8 +11,9 @@
 // already stores attestations, and a Do list that double-stores them creates two
 // sources of truth about the same claim.
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Inline } from "@/components/guide/InlineText";
+import { trackFormativeCheck } from "@/lib/analytics-client";
 
 export function DoStepsBlock({
   title,
@@ -25,6 +26,13 @@ export function DoStepsBlock({
 }) {
   const [done, setDone] = useState<boolean[]>(() => steps.map(() => false));
   const baseId = useId();
+  // One engagement ping per block per session (first tick), not per tick.
+  const fired = useRef(false);
+  const pingOnce = () => {
+    if (fired.current) return;
+    fired.current = true;
+    trackFormativeCheck("do_steps", "step_ticked");
+  };
 
   return (
     <div>
@@ -46,7 +54,10 @@ export function DoStepsBlock({
               <li key={i} className="border-b border-panel-border/60 py-2.5">
                 <button
                   type="button"
-                  onClick={() => setDone((d) => d.map((v, j) => (j === i ? !v : v)))}
+                  onClick={() => {
+                    setDone((d) => d.map((v, j) => (j === i ? !v : v)));
+                    pingOnce();
+                  }}
                   aria-pressed={open}
                   {...(hasProof
                     ? { "aria-expanded": open, "aria-controls": proofId }

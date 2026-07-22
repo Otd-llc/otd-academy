@@ -27,7 +27,10 @@ import { Inline } from "@/components/guide/InlineText";
 import { XpTick } from "@/components/library/XpTick";
 import { patchLabel, artForBadge } from "@/lib/logbook/patches";
 import { useFanfare } from "@/components/logbook/Fanfare";
-import { trackSigninToLogClicked } from "@/lib/analytics-client";
+import {
+  trackSigninToLogClicked,
+  trackFormativeCheck,
+} from "@/lib/analytics-client";
 
 export interface QuizQuestion {
   q: string;
@@ -102,6 +105,9 @@ export function QuizBlock({
   );
   const firedAnswer = useRef<boolean[]>(questions.map(() => false));
   const completeFired = useRef(false);
+  // Aggregate engagement ping, once per block per session, fired for signed-in
+  // AND anon (unlike the XP path in fireAnswer, which is signed-in only).
+  const engagePinged = useRef(false);
   const fanfare = useFanfare();
 
   const isSolved = (qi: number) => selected[qi] === questions[qi].answer;
@@ -144,6 +150,10 @@ export function QuizBlock({
   function pick(qi: number, oi: number) {
     if (isSolved(qi)) return; // locked once correct
     if (wrong[qi].includes(oi)) return; // already ruled out
+    if (!engagePinged.current) {
+      engagePinged.current = true;
+      trackFormativeCheck("quiz", "answered");
+    }
     setSelected((prev) => prev.map((s, i) => (i === qi ? oi : s)));
     if (oi !== questions[qi].answer) {
       setWrong((prev) => prev.map((w, i) => (i === qi ? [...w, oi] : w)));

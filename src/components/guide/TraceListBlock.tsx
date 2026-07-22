@@ -13,8 +13,9 @@
 // DoStepsBlock and SelfCheckBlock. See the note there on why this does not
 // persist.
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Inline } from "@/components/guide/InlineText";
+import { trackFormativeCheck } from "@/lib/analytics-client";
 
 type Verdict = "ok" | "unsure";
 
@@ -32,9 +33,16 @@ export function TraceListBlock({
 }) {
   const [state, setState] = useState<(Verdict | null)[]>(() => items.map(() => null));
   const baseId = useId();
+  // One "opened a hint" ping per block per session, on the first "not sure".
+  const hintFired = useRef(false);
 
-  const set = (i: number, v: Verdict) =>
+  const set = (i: number, v: Verdict) => {
     setState((s) => s.map((cur, j) => (j === i ? (cur === v ? null : v) : cur)));
+    if (v === "unsure" && !hintFired.current) {
+      hintFired.current = true;
+      trackFormativeCheck("trace_list", "hint_opened");
+    }
+  };
 
   return (
     <div>
