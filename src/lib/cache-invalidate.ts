@@ -12,7 +12,7 @@
 // updateTag expires immediately. See src/lib/cache-profile.ts.
 import { updateTag } from "next/cache";
 
-import { TAG_PARTS, TAG_PROJECTS } from "@/lib/cache-profile";
+import { TAG_PARTS, TAG_PROJECTS, guideContentTag } from "@/lib/cache-profile";
 
 /**
  * Call after ANY write to Project or ProjectDependency.
@@ -40,4 +40,18 @@ export function invalidateProjectGraph(): void {
  */
 export function invalidateParts(): void {
   updateTag(TAG_PARTS);
+}
+
+/**
+ * Call after ANY write that changes what a project's public guide renders: a
+ * guide-card edit/reorder/materialize (src/lib/actions/guides.ts) or a capture
+ * media write (src/lib/guide-block-write.ts).
+ *
+ * The anonymous halves of the guide hub + stage pages are cached under this tag
+ * (src/lib/guide/cached-guide-read.ts) because they are sitemapped and crawled;
+ * without this, an author's edit stays invisible on the public page for up to
+ * an hour.
+ */
+export function invalidateGuideContent(slug: string): void {
+  updateTag(guideContentTag(slug));
 }

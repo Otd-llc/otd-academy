@@ -37,3 +37,7 @@ export const TAG_MINI_LESSONS = "mini-lessons";
 export const TAG_PROJECTS = "projects";
 export const TAG_PARTS = "parts";
 export const miniLessonTag = (slug: string) => `mini-lesson-${slug}`;
+// Per-project guide content (the cached anonymous guide read,
+// src/lib/guide/cached-guide-read.ts). Invalidated by every guide-card write —
+// see invalidateGuideContent in src/lib/cache-invalidate.ts.
+export const guideContentTag = (slug: string) => `guide-content-${slug}`;

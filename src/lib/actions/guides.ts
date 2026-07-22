@@ -29,6 +29,7 @@
 
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { invalidateGuideContent } from "@/lib/cache-invalidate";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { assertNotFrozen } from "@/lib/assertions";
@@ -54,6 +55,9 @@ async function revalidateGuideRoute(revisionId: string): Promise<void> {
   revalidatePath(
     `/projects/${rev.project.slug}/${encodeURIComponent(rev.label)}/guide`,
   );
+  // The public (anonymous) guide read is cached per project; every card write
+  // must bust it or the edit stays invisible to signed-out readers for an hour.
+  invalidateGuideContent(rev.project.slug);
 }
 
 // ─── materializeGuide ──────────────────────────────────

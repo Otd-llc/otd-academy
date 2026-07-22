@@ -18,6 +18,11 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
+import {
+  cachedGuideHub,
+  cachedRevLabelsLower,
+} from "@/lib/guide/cached-guide-read";
+import { knownProjectSlugs } from "@/lib/skill-tree";
 import { IndexRows } from "@/components/IndexRows";
 import { PageHeader } from "@/components/PageHeader";
 import { GenerateGuideButton } from "@/components/guide/GenerateGuideButton";
@@ -174,12 +179,15 @@ export async function generateMetadata({
 }: {
   params: Promise<Params>;
 }): Promise<Metadata> {
-  const { slug } = await params;
-  const project = await db.project.findUnique({
-    where: { slug },
-    select: { name: true, description: true },
-  });
-  if (!project) return {};
+  const { slug, revLabel } = await params;
+  // Bound both raw route params before the cached read (repo caching law).
+  const known = await knownProjectSlugs();
+  if (!known.has(slug)) return {};
+  const labelLower = decodeURIComponent(revLabel).toLowerCase();
+  if (!(await cachedRevLabelsLower(slug)).includes(labelLower)) return {};
+  const data = await cachedGuideHub(slug, labelLower);
+  if (!data) return {};
+  const project = data.project;
 
   const title = `${project.name} — Build guide`;
   const description =
@@ -234,22 +242,16 @@ export default async function GuideHubPage({
   const { slug, revLabel } = await params;
   const decodedLabel = decodeURIComponent(revLabel);
 
-  const project = await db.project.findUnique({
-    where: { slug },
-    select: {
-      id: true,
-      slug: true,
-      name: true,
-      description: true,
-      level: true,
-      accessTier: true,
-      stripePriceId: true,
-      priceCents: true,
-      publishedRevisionId: true,
-      exam: { select: { questions: true } },
-    },
-  });
-  if (!project) notFound();
+  // Cached, user-independent read (project + revision + guide-card list).
+  // Bound BOTH raw route params against cached known-value sets first (repo
+  // caching law) so crawler garbage can't mint cache entries.
+  const known = await knownProjectSlugs();
+  if (!known.has(slug)) notFound();
+  const labelLower = decodedLabel.toLowerCase();
+  if (!(await cachedRevLabelsLower(slug)).includes(labelLower)) notFound();
+  const data = await cachedGuideHub(slug, labelLower);
+  if (!data) notFound();
+  const { project, revision } = data;
 
   // Course JSON-LD — the project rendered as a schema.org Course (provider =
   // One Thousand Drones). Emitted on both the no-guide and the populated hub
@@ -259,50 +261,6 @@ export default async function GuideHubPage({
     description: project.description,
     level: project.level,
   });
-
-  const revision = await db.revision.findFirst({
-    where: {
-      projectId: project.id,
-      label: { equals: decodedLabel, mode: "insensitive" },
-    },
-    select: {
-      id: true,
-      label: true,
-      currentStage: true,
-      frozenAt: true,
-      guide: {
-        select: {
-          id: true,
-          cards: {
-            orderBy: { ordinal: "asc" },
-            select: {
-              id: true,
-              stage: true,
-              ordinal: true,
-              eyebrow: true,
-              title: true,
-              lead: true,
-              completionRef: true,
-            },
-          },
-        },
-      },
-      builds: {
-        where: { frozenAt: null },
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        select: {
-          id: true,
-          label: true,
-          boards: {
-            orderBy: { serial: "asc" },
-            select: { id: true, serial: true, status: true },
-          },
-        },
-      },
-    },
-  });
-  if (!revision) notFound();
 
   // Role decides the view: ADMINs see the shared reference revision's completion
   // (design roll-up + per-board build matrix); learners see their OWN journey and
@@ -315,16 +273,20 @@ export default async function GuideHubPage({
   // PREMIUM project's hub is its public sales surface (allow), a FREE project's
   // hub still requires an account (redirect anonymous), PUBLIC is open. We load
   // the viewer's entitlement so an entitled premium learner is treated as
-  // allowed even though card 0 already would be.
+  // allowed even though card 0 already would be. The viewer id rides on the
+  // session JWT (session-claims); the email lookup remains only for tokens
+  // minted before that claim shipped.
+  let viewerUserId: string | null = session?.user?.id ?? null;
   let hasEntitlement = false;
-  if (sessionEmail) {
+  if (!viewerUserId && sessionEmail) {
     const viewer = await db.user.findUnique({
       where: { email: sessionEmail },
       select: { id: true },
     });
-    if (viewer) {
-      hasEntitlement = await hasProjectEntitlement(db, viewer.id, project.id);
-    }
+    viewerUserId = viewer?.id ?? null;
+  }
+  if (viewerUserId) {
+    hasEntitlement = await hasProjectEntitlement(db, viewerUserId, project.id);
   }
   if (
     resolveLessonAccess({
@@ -358,23 +320,38 @@ export default async function GuideHubPage({
   const buyPriceCents = resolveBuyPriceCents(project);
   const signedIn = !!sessionEmail;
   const view = guideCardView(session?.user?.role);
-  const learnerEmail = session?.user?.email ?? null;
   let learnerCurrentStage: string | null = null;
-  if (learnerEmail && view.isLearnerView) {
+  if (viewerUserId && view.isLearnerView) {
     const enrollment = await db.enrollment.findFirst({
-      where: { projectId: project.id, user: { email: learnerEmail } },
+      where: { projectId: project.id, userId: viewerUserId },
       select: { currentStage: true },
     });
     learnerCurrentStage = enrollment?.currentStage ?? null;
   }
 
   const frozen = revision.frozenAt !== null;
-  const activeBuild = revision.builds[0] ?? null;
+  // Builds/boards are operator tooling: dynamic, author-view only (plus the
+  // rare no-guide branch below) — never part of the cached anonymous payload.
+  const activeBuild =
+    view.isAuthorView || !revision.guideId
+      ? await db.build.findFirst({
+          where: { revisionId: revision.id, frozenAt: null },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            label: true,
+            boards: {
+              orderBy: { serial: "asc" },
+              select: { id: true, serial: true, status: true },
+            },
+          },
+        })
+      : null;
   const revPath = `/projects/${project.slug}/${encodeURIComponent(revision.label)}`;
   const cardHref = (s: string) => `${revPath}/guide/${s}`;
 
   // ─── No guide yet ───────────────────────────────────────
-  if (!revision.guide) {
+  if (!revision.guideId) {
     // Board-readiness (WS4, advisory): load the assessor inputs scoped to this
     // branch only — the button only renders here, so we don't bloat the main
     // query for the populated-guide render. Drives the Generate button's
@@ -445,7 +422,8 @@ export default async function GuideHubPage({
     );
   }
 
-  const cards = revision.guide.cards;
+  const guideId = revision.guideId;
+  const cards = data.cards;
   const cardByStage = new Map(cards.map((c) => [c.stage, c]));
 
   // ─── PREMIUM sales view ────────────────────────────────
@@ -553,9 +531,10 @@ export default async function GuideHubPage({
 
   // The 8-stage order-of-operations rail: authors see revision completion,
   // learners see their own enrollment journey.
-  const guideProgress = view.isAuthorView
-    ? await resolveGuideProgress(revision.id, revision.guide.id)
-    : resolveLearnerGuideProgress(learnerCurrentStage);
+  const guideProgress =
+    view.isAuthorView && guideId
+      ? await resolveGuideProgress(revision.id, guideId)
+      : resolveLearnerGuideProgress(learnerCurrentStage);
 
   // ─── Tier 1: design-stage roll-up ──────
   // Authors see the reference revision's completion (done/total); learners see
@@ -667,9 +646,9 @@ export default async function GuideHubPage({
   let mediaQueue: StageMediaQueue[] = [];
   let mediaQueueTotal = 0;
   let readiness: LessonReadiness | null = null;
-  if (view.isAuthorView) {
+  if (view.isAuthorView && guideId) {
     const blockRows = await db.guideCard.findMany({
-      where: { guideId: revision.guide.id },
+      where: { guideId },
       orderBy: { ordinal: "asc" },
       select: { stage: true, contentBlocks: true },
     });
@@ -682,22 +661,33 @@ export default async function GuideHubPage({
 
     // Two-tier "definition of done": publishable (free/SEO) vs vetted (premium).
     // broughtUpBoards is the team-built signal — counted across all of this
-    // project's builds, not just the active one.
-    const broughtUpBoards = await db.board.count({
-      where: {
-        status: "BROUGHT_UP",
-        build: { revision: { projectId: project.id } },
-      },
-    });
-    const examQuestions = Array.isArray(project.exam?.questions)
-      ? (project.exam.questions as unknown[]).length
+    // project's builds, not just the active one. The exam bank + published
+    // pointer are author-only readiness inputs, so they stay out of the cached
+    // payload and are fetched here.
+    const [broughtUpBoards, readinessMeta] = await Promise.all([
+      db.board.count({
+        where: {
+          status: "BROUGHT_UP",
+          build: { revision: { projectId: project.id } },
+        },
+      }),
+      db.project.findUniqueOrThrow({
+        where: { id: project.id },
+        select: {
+          publishedRevisionId: true,
+          exam: { select: { questions: true } },
+        },
+      }),
+    ]);
+    const examQuestions = Array.isArray(readinessMeta.exam?.questions)
+      ? (readinessMeta.exam.questions as unknown[]).length
       : 0;
     readiness = assessLessonReadiness({
       stages: GUIDE_STAGES,
       cards: parsedCards,
-      exam: project.exam ? { questions: examQuestions } : null,
+      exam: readinessMeta.exam ? { questions: examQuestions } : null,
       broughtUpBoards,
-      published: project.publishedRevisionId != null,
+      published: readinessMeta.publishedRevisionId != null,
     });
   }
 
