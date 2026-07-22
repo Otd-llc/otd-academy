@@ -55,7 +55,8 @@ export async function joinPassWaitlist(input: unknown): Promise<{ ok: true }> {
   // when PostHog is unconfigured.
   if (!prior) {
     try {
-      capture("email_captured", { source: "pass_waitlist", email }, userId ?? undefined);
+      // No raw email in props — PII stays out of analytics (the DB row holds it).
+      capture("email_captured", { source: "pass_waitlist" }, userId ?? undefined);
     } catch {
       // best-effort
     }

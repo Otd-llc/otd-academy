@@ -66,7 +66,8 @@ export async function joinWaitlist(input: unknown): Promise<{ ok: true }> {
   // on a new signup; best-effort; no-op when PostHog is unconfigured.
   if (!prior) {
     try {
-      capture("email_captured", { source: "waitlist", projectId, email });
+      // No raw email in props — PII stays out of analytics (the DB row holds it).
+      capture("email_captured", { source: "waitlist", projectId });
     } catch {
       // best-effort
     }

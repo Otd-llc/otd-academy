@@ -81,11 +81,18 @@ describe("analytics capture — enabled path", () => {
     );
   });
 
-  it("falls back to an anonymous distinctId when none is provided", () => {
+  it("mints a UNIQUE anonymous distinctId per call when none is provided", () => {
+    // The old constant "anonymous-server" collapsed every anonymous event into
+    // ONE PostHog person forever — "people who joined the waitlist" counted as
+    // a single person, however many there were.
     envMock.NEXT_PUBLIC_POSTHOG_KEY = "phc_test_key";
-    capture("email_captured", { email: "a@b.com" });
-    expect(captureSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ distinctId: "anonymous-server" }),
-    );
+    capture("email_captured", { source: "waitlist" });
+    capture("email_captured", { source: "waitlist" });
+    expect(captureSpy).toHaveBeenCalledTimes(2);
+    const idA = (captureSpy.mock.calls[0]![0] as { distinctId: string }).distinctId;
+    const idB = (captureSpy.mock.calls[1]![0] as { distinctId: string }).distinctId;
+    expect(idA).not.toBe("anonymous-server");
+    expect(idA).not.toBe(idB);
+    expect(idA.length).toBeGreaterThanOrEqual(16);
   });
 });

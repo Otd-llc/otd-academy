@@ -44,6 +44,7 @@ import {
 } from "@/lib/stripe-webhook";
 import { capture } from "@/lib/analytics";
 import { sendPaymentFailedEmail } from "@/lib/subscription-dunning";
+import { recordDunningPending } from "@/lib/dunning-retry";
 
 // Runs on the Node runtime (raw body + crypto), which is the default — cacheComponents
 // rejects an explicit `runtime` route-segment config, so it is no longer declared here.
@@ -519,10 +520,17 @@ export async function POST(req: Request): Promise<Response> {
     if (customerId) {
       const user = await db.user.findUnique({
         where: { stripeCustomerId: customerId },
-        select: { email: true },
+        select: { id: true, email: true },
       });
       if (user?.email) {
-        await sendPaymentFailedEmail({ toEmail: user.email });
+        const ok = await sendPaymentFailedEmail({ toEmail: user.email });
+        if (!ok && inv.id) {
+          // The claim above already committed, so Stripe will never redeliver
+          // this send — park it for the lifecycle cron's durable retry instead
+          // of letting the customer's only "your card failed" notice vanish.
+          await recordDunningPending(db, user.id, inv.id);
+          capture("dunning_send_failed", { stage: "webhook", invoiceId: inv.id }, user.id);
+        }
       } else {
         console.warn(
           `[stripe-webhook] payment_failed for customer ${customerId}: no user/email to notify`,

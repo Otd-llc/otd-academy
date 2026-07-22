@@ -276,9 +276,10 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
   events: {
     async createUser({ user }) {
       try {
-        const props = user.email ? { email: user.email } : undefined;
-        capture("signed_up", props, user.id);
-        if (user.email) capture("email_captured", { source: "signup", email: user.email }, user.id);
+        // No raw email in event props (PII stays out of analytics; the
+        // distinct_id already ties the person, and the DB holds the address).
+        capture("signed_up", undefined, user.id);
+        if (user.email) capture("email_captured", { source: "signup" }, user.id);
       } catch {
         // never block account creation on telemetry
       }

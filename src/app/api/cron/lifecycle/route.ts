@@ -14,8 +14,12 @@ import {
   type LifecycleSequence,
 } from "@/lib/lifecycle-emails";
 import { sendLifecycleEmail } from "@/lib/lifecycle-send";
+import { drainDunningPending } from "@/lib/dunning-retry";
+import { notifyWaitlist } from "@/lib/waitlist-notify";
+import { capture } from "@/lib/analytics";
 import {
   type AudienceUser,
+  ENTRY_BOARD_SLUG,
   welcomeAudience,
   schematicNudgeAudience,
   layoutNudgeAudience,
@@ -52,7 +56,13 @@ function host(): string {
 
 // Resolve every personalization token for one recipient. Links are env-configured
 // where they exist; otherwise they fall back to the published guide / Pass routes.
-function contextFor(user: AudienceUser): LifecycleContext {
+//
+// `l101Label` is the entry board's CURRENT published revision label, resolved
+// once per tick — the old literal "v1" was one label rename away from mailing
+// out 404s. passUrl/upgradeUrl point at /pricing, the only page with the Pass
+// buy/upgrade buttons; they used to send a ready-to-buy reader to /courses,
+// which has no purchase surface at all.
+function contextFor(user: AudienceUser, l101Label: string): LifecycleContext {
   const base = siteUrl();
   return {
     firstName: firstName(user.name),
@@ -60,11 +70,11 @@ function contextFor(user: AudienceUser): LifecycleContext {
     unsubscribeUrl: `${base}/email/unsubscribe/${signUnsubscribeToken(user.id)}`,
     host: host(),
     postalAddress: env.LIFECYCLE_POSTAL_ADDRESS,
-    l101Url: `${base}/projects/l1-01-wroom-breakout/v1/guide`,
+    l101Url: `${base}/projects/${ENTRY_BOARD_SLUG}/${encodeURIComponent(l101Label)}/guide`,
     certUrl: `${base}/verify`,
     l2Url: `${base}/courses`,
-    passUrl: `${base}/courses`,
-    upgradeUrl: `${base}/courses`,
+    passUrl: `${base}/pricing`,
+    upgradeUrl: `${base}/pricing`,
     projectName: "your project",
     projectPrice: "what you paid",
   };
@@ -153,6 +163,14 @@ export async function GET(req: Request): Promise<Response> {
   const now = new Date();
   const plans = await plan(now);
 
+  // Entry board's live published label for deep links (fallback "v1" only when
+  // nothing is published — those sequences shouldn't be firing then anyway).
+  const entry = await db.project.findUnique({
+    where: { slug: ENTRY_BOARD_SLUG },
+    select: { publishedRevision: { select: { label: true } } },
+  });
+  const l101Label = entry?.publishedRevision?.label ?? "v1";
+
   let sent = 0;
   let skipped = 0;
   const errors: string[] = [];
@@ -177,7 +195,7 @@ export async function GET(req: Request): Promise<Response> {
         continue;
       }
       try {
-        const ctx = contextFor(user);
+        const ctx = contextFor(user, l101Label);
         const email = build(ctx);
         const outcome = await sendLifecycleEmail(db, {
           userId: user.id,
@@ -194,11 +212,24 @@ export async function GET(req: Request): Promise<Response> {
           skipped++;
         }
       } catch (e) {
-        errors.push(`${sequence}/${user.id}: ${e instanceof Error ? e.message : String(e)}`);
+        const detail = e instanceof Error ? e.message : String(e);
+        errors.push(`${sequence}/${user.id}: ${detail}`);
+        // The JSON body below is unread in practice (Vercel cron discards it);
+        // PostHog is the only place a failed send is actually visible. The
+        // claim was released (lifecycle-send), so the next tick retries.
+        capture("lifecycle_send_failed", { sequence, detail }, user.id);
       }
       if (++batched % BATCH === 0) await sleep(BATCH_PAUSE_MS);
     }
   }
 
-  return Response.json({ ok: true, sent, skipped, perSequence, errors });
+  // Drain parked dunning retries (transactional billing notices a webhook-time
+  // send failed to deliver; not consent-gated — see dunning-retry.ts).
+  const dunning = await drainDunningPending(db);
+
+  // Fulfill the "we'll email you the moment it goes live" waitlist promise for
+  // any course that has published since the last tick (see waitlist-notify.ts).
+  const waitlist = await notifyWaitlist(db);
+
+  return Response.json({ ok: true, sent, skipped, perSequence, errors, dunning, waitlist });
 }

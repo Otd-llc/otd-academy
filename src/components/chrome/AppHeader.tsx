@@ -28,6 +28,7 @@ import { MainNav, MainNavStatic } from "@/components/MainNav";
 import { SignUpCta } from "@/components/SignUpCta";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserMenu } from "@/components/UserMenu";
+import { IdentitySync } from "@/components/chrome/IdentitySync";
 
 export function AppHeader() {
   // Persist the theme choice to the signed-in user's account. Passed
@@ -110,10 +111,19 @@ async function HeaderNav() {
 }
 
 // Dynamic island: the signed-in menu, or the sign-up CTA for anonymous visitors.
+// Also mounts IdentitySync (PostHog identify/reset) — this island already
+// resolved the session, so identity stitching costs no extra request.
 async function HeaderAccount() {
   const account = await currentAccount();
 
-  if (!account) return <SignUpCta />;
+  if (!account) {
+    return (
+      <>
+        <IdentitySync userId={null} />
+        <SignUpCta />
+      </>
+    );
+  }
 
   async function signOutAction() {
     "use server";
@@ -121,12 +131,15 @@ async function HeaderAccount() {
   }
 
   return (
-    <UserMenu
-      email={account.email}
-      name={account.name}
-      image={account.image}
-      role={account.role}
-      signOutAction={signOutAction}
-    />
+    <>
+      <IdentitySync userId={account.id} />
+      <UserMenu
+        email={account.email}
+        name={account.name}
+        image={account.image}
+        role={account.role}
+        signOutAction={signOutAction}
+      />
+    </>
   );
 }

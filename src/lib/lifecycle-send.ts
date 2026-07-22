@@ -16,9 +16,10 @@ export type SendOutcome = "sent" | "skipped-consent" | "already-sent";
 // Send `email` to one recipient and record the LifecycleSend row. The unique
 // (userId, sequence) index makes the ledger insert the idempotency point: if a
 // concurrent run already inserted it, we treat it as already-sent and do NOT send
-// again. We INSERT FIRST (claim), then send, so a crash after send-before-claim
-// can at worst re-send once on the next tick rather than spam; here the claim
-// guards the send. resendFetch is injectable so tests never touch the network.
+// again. We INSERT FIRST (claim), then send — the claim guards against a
+// concurrent duplicate — and RELEASE the claim on a failed send so the next
+// tick retries (see releaseClaim below). resendFetch is injectable so tests
+// never touch the network.
 export async function sendLifecycleEmail(
   db: PrismaClient,
   args: {
@@ -50,37 +51,61 @@ export async function sendLifecycleEmail(
     return "already-sent";
   }
 
+  // Release the claim on ANY send failure so the next tick retries this user.
+  // The old behavior left the row, which silently marked the email "sent"
+  // forever — a transient Resend 429/500 became a permanently dropped welcome /
+  // nudge / win-back. The remaining crash window (process death between a
+  // successful send and returning) can at worst re-send once, which beats
+  // never-sending.
+  const releaseClaim = () =>
+    db.lifecycleSend
+      .delete({
+        where: {
+          userId_sequence: { userId: args.userId, sequence: args.sequence },
+        },
+      })
+      .catch(() => {
+        /* best-effort: a leaked claim only costs this user this sequence */
+      });
+
   const { subject, html, text } = args.email;
-  const res = await resendFetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.AUTH_RESEND_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      // Dedicated marketing sender, kept off the transactional login@ identity.
-      from: env.LIFECYCLE_RESEND_FROM ?? env.AUTH_RESEND_FROM,
-      to: args.to,
-      subject,
-      html,
-      text,
-      // RFC 8058 one-click unsubscribe: required by Gmail/Yahoo bulk-sender rules,
-      // and it lets the mail client show a native Unsubscribe control.
+  let res: Response;
+  try {
+    res = await resendFetch("https://api.resend.com/emails", {
+      method: "POST",
       headers: {
-        "List-Unsubscribe": `<${args.unsubscribeUrl}>`,
-        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        Authorization: `Bearer ${env.AUTH_RESEND_KEY}`,
+        "Content-Type": "application/json",
       },
-    }),
-  });
+      body: JSON.stringify({
+        // Dedicated marketing sender, kept off the transactional login@ identity.
+        from: env.LIFECYCLE_RESEND_FROM ?? env.AUTH_RESEND_FROM,
+        to: args.to,
+        subject,
+        html,
+        text,
+        // RFC 8058 one-click unsubscribe: required by Gmail/Yahoo bulk-sender rules,
+        // and it lets the mail client show a native Unsubscribe control.
+        headers: {
+          "List-Unsubscribe": `<${args.unsubscribeUrl}>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        },
+      }),
+    });
+  } catch (err) {
+    await releaseClaim();
+    throw err;
+  }
   if (!res.ok) {
-    // The claim row stays (we won't retry this user on the next tick); surface the
-    // error so the cron logs it. Re-throw so a systemic Resend outage is visible.
+    // Surface the error so the cron logs it; re-throw so a systemic Resend
+    // outage is visible.
     let detail = "";
     try {
       detail = JSON.stringify(await res.json());
     } catch {
       /* non-JSON body */
     }
+    await releaseClaim();
     throw new Error(`Resend (lifecycle ${args.sequence}) error: ${detail}`);
   }
   return "sent";

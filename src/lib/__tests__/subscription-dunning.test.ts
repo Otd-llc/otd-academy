@@ -31,19 +31,26 @@ describe("sendPaymentFailedEmail", () => {
     expect(body.html).toContain("https://academy.test/account");
   });
 
-  test("a non-ok Resend response does NOT throw", async () => {
+  test("a successful send resolves true", async () => {
+    const fakeFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    await expect(
+      sendPaymentFailedEmail({ toEmail: "learner@test" }, fakeFetch as unknown as typeof fetch),
+    ).resolves.toBe(true);
+  });
+
+  test("a non-ok Resend response does NOT throw and resolves false", async () => {
     const fakeFetch = vi
       .fn()
       .mockResolvedValue({ ok: false, json: async () => ({ error: "boom" }) });
     await expect(
       sendPaymentFailedEmail({ toEmail: "learner@test" }, fakeFetch as unknown as typeof fetch),
-    ).resolves.toBeUndefined();
+    ).resolves.toBe(false);
   });
 
-  test("a thrown fetch does NOT propagate", async () => {
+  test("a thrown fetch does NOT propagate and resolves false", async () => {
     const fakeFetch = vi.fn().mockRejectedValue(new Error("network down"));
     await expect(
       sendPaymentFailedEmail({ toEmail: "learner@test" }, fakeFetch as unknown as typeof fetch),
-    ).resolves.toBeUndefined();
+    ).resolves.toBe(false);
   });
 });
