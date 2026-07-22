@@ -349,6 +349,12 @@ export async function POST(req: Request): Promise<Response> {
         status: f.status,
         currentPeriodEnd: f.currentPeriodEnd,
         cancelAtPeriodEnd: f.cancelAtPeriodEnd,
+        // Subscriber-priced MRR inputs + test-vs-live (billing-metrics reads
+        // these; pre-column rows backfill on their next webhook update).
+        priceCents: f.priceCents,
+        interval: f.interval,
+        currency: f.currency,
+        livemode: f.livemode,
         ...(f.metadata ? { metadata: f.metadata } : {}),
       };
       const subRow = await tx.subscription.upsert({
@@ -428,6 +434,7 @@ export async function POST(req: Request): Promise<Response> {
           stripeCustomerId: f.stripeCustomerId,
           amountPaidCents: f.amountPaidCents,
           currency: f.currency,
+          livemode: f.livemode,
           periodStart: f.periodStart,
           periodEnd: f.periodEnd,
           paidAt: f.paidAt,

@@ -136,6 +136,8 @@ describe("purchaseFromCheckoutSession (pure)", () => {
       amountDiscountCents: 0,
       stripePromotionCodeId: null,
       currency: "usd",
+      // Fixture has no livemode field → defaults true (real sessions stamp it).
+      livemode: true,
       metadata: { userId: "user_1", projectId: "proj_1", stripePriceId: "price_1" },
     });
   });
