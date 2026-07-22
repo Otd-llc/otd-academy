@@ -117,9 +117,15 @@ export function resolveBoardConfig(config?: Partial<BoardConfig>): BoardConfig {
  * long diagonal a 2-layer reference cannot hold continuous under, so it needs a
  * dedicated inner ground plane. See docs/boards/l1-01-wroom-breakout/design.md
  * (constraint M5 + risk R5).
+ *
+ * l1-02 reuses the l1-01 core verbatim (same module, same native-USB pair, same
+ * stackup reasoning) and its radio link is load-bearing, so it keeps the same
+ * 4-layer stack. See docs/boards/l1-02-espnow-link/design.md (§2 topology +
+ * risks RK5/RK6).
  */
 export const BOARD_CONFIG_OVERRIDES: Record<string, Partial<BoardConfig>> = {
   "l1-01-wroom-breakout": { copperLayers: 4 },
+  "l1-02-espnow-link": { copperLayers: 4 },
 };
 
 // ── `.kicad_pro` builder ────────────────────────────────────────────────────
