@@ -15,6 +15,7 @@
 // reliable shutdown hook, so events flush on the SDK's own interval. For
 // fire-and-forget funnel events that is the right trade-off.
 
+import { randomUUID } from "node:crypto";
 import { PostHog } from "posthog-node";
 import { env } from "@/env";
 
@@ -44,8 +45,10 @@ export function getClient(): PostHog | null {
  * NO-OP when analytics is disabled (no key). Never throws: the call is wrapped
  * so a telemetry failure cannot propagate into — and break — the request that
  * fired it. Pass `distinctId` (the user id) to tie the event to a person; when
- * omitted we use an "anonymous-server" id so the event is still captured (e.g.
- * an anonymous waitlist email_captured).
+ * omitted a UNIQUE anonymous id is minted per event so the event is still
+ * captured (e.g. an anonymous waitlist email_captured) WITHOUT collapsing every
+ * anonymous event into one shared PostHog person — the old "anonymous-server"
+ * constant made "unique waitlist joiners" read as 1, forever.
  */
 export function capture(
   event: string,
@@ -56,7 +59,7 @@ export function capture(
   if (!ph) return; // disabled → no-op
   try {
     ph.capture({
-      distinctId: distinctId ?? "anonymous-server",
+      distinctId: distinctId ?? `anon-${randomUUID()}`,
       event,
       properties,
     });
