@@ -78,7 +78,7 @@ export function TraceWidthCalculator() {
                 ),
               )}
             </span>
-            <span className="text-xs leading-snug text-gray-3">
+            <span className="text-xs leading-snug text-muted">
               External traces cool in air and can be narrower; internal traces are
               buried and need more copper.
             </span>

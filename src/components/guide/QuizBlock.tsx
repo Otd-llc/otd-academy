@@ -288,7 +288,13 @@ export function QuizBlock({
               {String(qi + 1).padStart(2, "0")}
             </span>
 
-            <div className="qzh-opts mt-3">
+            {/* role="group" + label: the options were loose buttons with no
+                announced set membership (TraceListBlock already does this). */}
+            <div
+              className="qzh-opts mt-3"
+              role="group"
+              aria-label={`Question ${qi + 1} answer options`}
+            >
               {q.options.map((opt, oi) => {
                 const isAnswer = oi === q.answer;
                 const isRuledOut = ruledOut.includes(oi);
@@ -302,12 +308,17 @@ export function QuizBlock({
                       : solved
                         ? "dim"
                         : undefined;
+                // aria-disabled + click guard, NOT the disabled attribute:
+                // disabling the just-clicked button ejected keyboard focus to
+                // <body> on every wrong pick (pick() already ignores solved /
+                // ruled-out options). aria-disabled keeps the state announced
+                // without the focus loss.
                 return (
                   <button
                     key={oi}
                     type="button"
                     onClick={() => pick(qi, oi)}
-                    disabled={solved || isRuledOut}
+                    aria-disabled={solved || isRuledOut}
                     data-st={st}
                     className="qzh-opt"
                   >
@@ -324,39 +335,44 @@ export function QuizBlock({
               })}
             </div>
 
-            {solved ? (
-              <div className="mt-3 space-y-1">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-command-gold">
-                  ⬡ Powered — locked in.
-                </p>
-                {q.explain ? (
-                  <p className="font-serif text-sm italic text-muted">
-                    <Inline text={q.explain} />
+            {/* role="status": the grade verdicts were static <p>s — silent to
+                screen readers on the primary assessment loop. One polite live
+                region per question announces solve/miss as it lands. */}
+            <div role="status">
+              {solved ? (
+                <div className="mt-3 space-y-1">
+                  <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-command-gold">
+                    ⬡ Powered — locked in.
                   </p>
-                ) : null}
-              </div>
-            ) : missed ? (
-              <div className="mt-2 space-y-1">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-alert-red">
-                  Not quite — ruled out, pick again.
-                </p>
-                {/* The miss → review loop, made visible at the miss (a signed-in
-                    first wrong pick banks the question for spaced review; the
-                    deck otherwise appears to fill from nowhere). */}
-                {lb?.signedIn ? (
-                  <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
-                    Saved to your{" "}
-                    <a
-                      href="/review"
-                      className="text-signal-blue underline-offset-2 hover:underline"
-                    >
-                      review deck
-                    </a>{" "}
-                    to try again later.
+                  {q.explain ? (
+                    <p className="font-serif text-sm italic text-muted">
+                      <Inline text={q.explain} />
+                    </p>
+                  ) : null}
+                </div>
+              ) : missed ? (
+                <div className="mt-2 space-y-1">
+                  <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-alert-red">
+                    Not quite — ruled out, pick again.
                   </p>
-                ) : null}
-              </div>
-            ) : null}
+                  {/* The miss → review loop, made visible at the miss (a signed-in
+                      first wrong pick banks the question for spaced review; the
+                      deck otherwise appears to fill from nowhere). */}
+                  {lb?.signedIn ? (
+                    <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
+                      Saved to your{" "}
+                      <a
+                        href="/review"
+                        className="text-signal-blue underline-offset-2 hover:underline"
+                      >
+                        review deck
+                      </a>{" "}
+                      to try again later.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
 
             {/* Logbook XP slot (signed-in Library only): the tick on a fresh
                 award, or a muted marker for an already-logged / locked question. */}
@@ -369,7 +385,7 @@ export function QuizBlock({
                     Logged today
                   </span>
                 ) : qLocked[qi] ? (
-                  <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-gray-3">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
                     Locked today · +0
                   </span>
                 ) : null}

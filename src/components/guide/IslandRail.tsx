@@ -28,7 +28,9 @@ import {
 type NodeState = "active" | "visited" | "unvisited";
 
 const numColor = (st: NodeState) =>
-  st === "active" ? "var(--color-gold-light)" : st === "visited" ? "var(--color-command-gold)" : "var(--color-gray-3)";
+  // Unvisited numerals use muted, not gray-3: they are the rail's nav labels
+  // (meaning-bearing), and gray-3 fails WCAG AA in both themes.
+  st === "active" ? "var(--color-gold-light)" : st === "visited" ? "var(--color-command-gold)" : "var(--color-muted)";
 
 function SairaNum({ children, st, size }: { children: React.ReactNode; st: NodeState; size: number }) {
   return (
@@ -288,7 +290,7 @@ export function IslandRail({
           <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
             <span className="font-mono" style={{ fontSize: 9, letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--color-muted)" }}>ISLAND</span>
             <SairaNum st="active" size={20}>{cur.num}</SairaNum>
-            <span className="font-mono" style={{ fontSize: 9, letterSpacing: "0.2em", color: "var(--color-gray-3)" }}>/ {n}</span>
+            <span className="font-mono" style={{ fontSize: 9, letterSpacing: "0.2em", color: "var(--color-muted)" }}>/ {n}</span>
             <span className="font-mono" style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cur.title}</span>
           </div>
           <div style={{ display: "flex", gap: 3 }}>

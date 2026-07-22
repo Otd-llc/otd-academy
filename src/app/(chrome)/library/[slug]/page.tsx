@@ -188,7 +188,7 @@ export default async function LibraryArticlePage({
 
       {upLinks.length > 0 ? (
         <nav className="mt-8 border-t border-panel-border pt-6">
-          <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.22em] text-gray-3">
+          <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.22em] text-muted">
             Part of the path
           </p>
           <ul className="space-y-1">

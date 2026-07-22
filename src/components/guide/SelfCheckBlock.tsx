@@ -17,7 +17,7 @@ import { Inline } from "@/components/guide/InlineText";
 import { trackFormativeCheck } from "@/lib/analytics-client";
 
 const TEXTAREA =
-  "w-full resize-none rounded border border-panel-border bg-transparent px-3 py-2 font-serif text-[15px] leading-relaxed text-text placeholder:text-gray-3 focus:border-command-gold focus:outline-none";
+  "w-full resize-none rounded border border-panel-border bg-transparent px-3 py-2 font-serif text-[15px] leading-relaxed text-text placeholder:text-muted focus:border-command-gold focus:outline-none";
 
 export function SelfCheckBlock({
   body,
