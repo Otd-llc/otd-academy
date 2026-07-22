@@ -21,7 +21,8 @@ const contentBlocks = [
   {
     type: "quiz",
     questions: [
-      { id: "q1", q: "First question?", options: ["yes", "no"], answer: 0 },
+      // reviewId opts q1 into the review deck (library path, step 4).
+      { id: "q1", q: "First question?", options: ["yes", "no"], answer: 0, reviewId: "lib-q1" },
       { id: "q2", q: "Second question?", options: ["yes", "no"], answer: 1 },
     ],
   },
@@ -50,7 +51,8 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.miniLesson.deleteMany({ where: { slug } });
-  if (userId) await db.user.delete({ where: { id: userId } });
+  if (userId) await db.user.delete({ where: { id: userId } }); // cascades ReviewSchedule
+  await db.quizItem.deleteMany({ where: { projectSlug: slug } });
 });
 
 describe("recordQuizAnswer", () => {
@@ -86,6 +88,18 @@ describe("recordQuizAnswer", () => {
       .toMatchObject({ ok: false });
     expect(await recordQuizAnswer({ slug: "missing", questionKey: K1, pick: 0 }, userId, DAY1))
       .toMatchObject({ ok: false });
+  });
+
+  it("seeds a stage-less review item for a reviewable LIBRARY question", async () => {
+    // Answering K1 (reviewId "lib-q1") above opened a library review item, keyed
+    // lib:<slug>:lib-q1 with a NULL stage (library lessons have no stage).
+    const reviewItemId = `lib:${slug}:lib-q1`;
+    const item = await db.quizItem.findUnique({ where: { reviewItemId } });
+    expect(item).toMatchObject({ projectSlug: slug, stage: null, answer: 0 });
+    const sched = await db.reviewSchedule.findUnique({
+      where: { userId_reviewItemId: { userId, reviewItemId } },
+    });
+    expect(sched).not.toBeNull();
   });
 });
 

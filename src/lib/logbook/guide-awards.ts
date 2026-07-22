@@ -13,10 +13,10 @@ import { awardXp, type AwardResult } from "@/lib/logbook/award";
 import { earnBadge } from "@/lib/logbook/badge";
 import {
   reviewItemId,
-  initialSchedule,
   advanceSchedule,
   jitterFactor,
 } from "@/lib/logbook/review-schedule";
+import { seedReviewItem } from "@/lib/logbook/review-seed";
 import {
   academyDate,
   academyDay,
@@ -106,13 +106,9 @@ export type StageQuizResult =
   // rewarded regardless of correctness (attempt-reward, see below).
   | { ok: true; correct: boolean; xp: number; locked?: boolean; levelUp: LevelUp };
 
-// Snapshot a reviewable question into the QuizItem registry and OPEN its
-// ReviewSchedule (first-encounter only). Called from the stage-answer path, so the
-// deck is seeded forward-only (no history bootstrap). The QuizItem is refreshed on
-// every encounter (last-writer-wins) so a content edit propagates on the next
-// answer; the schedule is created once and thereafter advanced only by the review
-// path. A question with no `reviewId` (not opted in) is skipped.
-async function seedReviewItem(
+// Seed a reviewable STAGE-quiz question into the review deck (forward-only). A
+// question with no `reviewId` (not opted in) is skipped.
+async function seedStageReviewItem(
   userId: string,
   projectSlug: string,
   stage: Stage,
@@ -120,30 +116,15 @@ async function seedReviewItem(
   now: Date,
 ): Promise<void> {
   if (!q.reviewId || !q.options) return;
-  const itemId = reviewItemId(projectSlug, stage, q.reviewId);
-  await db.quizItem.upsert({
-    where: { reviewItemId: itemId },
-    create: {
-      reviewItemId: itemId,
-      projectSlug,
-      stage,
-      q: q.q,
-      options: q.options,
-      answer: q.answer,
-    },
-    update: { q: q.q, options: q.options, answer: q.answer },
-  });
-  const init = initialSchedule(now);
-  await db.reviewSchedule.upsert({
-    where: { userId_reviewItemId: { userId, reviewItemId: itemId } },
-    create: {
-      userId,
-      reviewItemId: itemId,
-      dueOn: init.dueOn,
-      intervalDays: init.intervalDays,
-      lastSeenOn: academyDate(now),
-    },
-    update: {},
+  await seedReviewItem({
+    userId,
+    reviewItemId: reviewItemId(projectSlug, stage, q.reviewId),
+    projectSlug,
+    stage,
+    q: q.q,
+    options: q.options,
+    answer: q.answer,
+    now,
   });
 }
 
@@ -214,9 +195,13 @@ export async function recordStageQuizAnswer(
   // REVIEWABLE question (one carrying an authored reviewId), snapshot it into the
   // QuizItem registry and open its ReviewSchedule. Best-effort — the review deck
   // must never break the quiz answer, so a failure here is logged and swallowed.
-  await seedReviewItem(userId, enrollment.project.slug, input.stage, q, now).catch(
-    (e) => console.error("[review] seed failed", e),
-  );
+  await seedStageReviewItem(
+    userId,
+    enrollment.project.slug,
+    input.stage,
+    q,
+    now,
+  ).catch((e) => console.error("[review] seed failed", e));
 
   // Reward the FIRST answer of the day for this question (right or wrong), once,
   // via the per-day dedupe key. firstEver keys off the durable pass + any prior

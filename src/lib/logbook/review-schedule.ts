@@ -32,6 +32,13 @@ export function reviewItemId(
   return `${projectSlug}:${stage}:${reviewId}`;
 }
 
+// Library (mini-lesson) reviewable item id. A distinct `lib:` prefix + the lesson
+// slug keeps it from ever colliding with a guide item id (`<project>:<stage>:<id>`),
+// and library lessons carry no stage.
+export function libraryReviewItemId(slug: string, reviewId: string): string {
+  return `lib:${slug}:${reviewId}`;
+}
+
 export type ScheduleState = {
   intervalDays: number;
   lapses: number;

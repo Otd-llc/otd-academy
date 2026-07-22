@@ -1353,7 +1353,8 @@ model QuizLock {
 model QuizItem {
   reviewItemId String           @id
   projectSlug  String
-  stage        Stage
+  // Guide stage, or NULL for a library (mini-lesson) item, which has no stage.
+  stage        Stage?
   q            String
   options      String[]
   answer       Int
