@@ -234,6 +234,14 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
     term: "ground pour",
     def: "A large filled copper area tied to ground, poured around the traces on a layer for a low-impedance return path and shielding — but kept OUT of an antenna keep-out, where copper would detune the radio.",
   },
+  "mac address": {
+    term: "MAC address",
+    def: "The radio's factory serial number: a unique hardware address burned into every network device. ESP-NOW peers send packets to each other's MAC address directly, so pairing two boards means telling each one the other's MAC.",
+  },
+  "wi-fi channel": {
+    term: "Wi-Fi channel",
+    def: "One of the numbered frequency slots the 2.4 GHz band is divided into. Two ESP-NOW radios only hear each other on the same channel, and a mismatch fails silently: both boards run and nothing arrives.",
+  },
   impedance: {
     term: "impedance",
     def: "Resistance's fast-current cousin: how much a path fights current that is changing quickly, measured in ohms. A low-impedance return path is one that fast signal current can flow back through easily, which is what a solid ground plane provides.",

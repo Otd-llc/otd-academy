@@ -27,4 +27,10 @@ describe("glossary lookup", () => {
     expect(lookupTerm("stitching via")).not.toBeNull();
     expect(lookupTerm("stitching vias")).toBe(lookupTerm("stitching via"));
   });
+
+  // Used by the L1.02 (ESP-NOW link) guide.
+  it("resolves MAC address and Wi-Fi channel (used by the L1.02 guide)", () => {
+    expect(lookupTerm("MAC address")).not.toBeNull();
+    expect(lookupTerm("wi-fi channel")).not.toBeNull();
+  });
 });
