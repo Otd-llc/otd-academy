@@ -793,13 +793,6 @@ function DeepDiveBlock({ summary, body }: { summary: string; body: string }) {
 // The stub rule is fixed-width rather than full-bleed so it never reads as a
 // divider between sections, and it scales with nothing, so a 95-character aside
 // and an 829-character one get the same quiet mark.
-const ASIDE_RULE: Record<"critical" | "warn" | "info", string> = {
-  // Red stays meaningful: an unlabelled critical callout keeps the alert colour
-  // rather than being flattened into the teaching gold.
-  critical: "border-alert-red/60",
-  warn: "border-command-gold/60",
-  info: "border-command-gold/60",
-};
 
 function CalloutBlock({
   severity,
@@ -810,20 +803,26 @@ function CalloutBlock({
   label: string;
   body: string;
 }) {
+  // V5 (owner pick, sandbox round 2026-07-22): a thin severity-coloured TOP rule +
+  // a small mono-caps title. The old treatment set the label as `font-display
+  // text-2xl` (big Bebas caps), which is LARGER than the numbered section spine
+  // (`font-mono text-sm`), so a generic callout outranked its own section. This
+  // masthead form reads as subordinate and matches how the alert ladder + section
+  // headers already demote their labels. Critical keeps the alert colour; teaching
+  // callouts (warn/info) use gold.
+  const critical = severity === "critical";
+  const topRule = critical ? "border-alert-red/50" : "border-command-gold/40";
+  const accent = critical ? "text-alert-red" : "text-command-gold";
   return (
-    <section className="my-7">
-      <h4 className="font-display text-2xl leading-none tracking-wide text-title">
+    <section className={`my-7 border-t pt-2 ${topRule}`}>
+      <span
+        className={`font-mono text-[10px] font-bold uppercase tracking-[0.22em] ${accent}`}
+      >
         {label}
-      </h4>
-      <div className="mt-2 flex gap-3">
-        <span
-          aria-hidden
-          className={`mt-3 w-8 shrink-0 self-start border-t ${ASIDE_RULE[severity]}`}
-        />
-        <p className="whitespace-pre-wrap font-serif text-[15px] leading-relaxed text-muted">
-          <Inline text={body} />
-        </p>
-      </div>
+      </span>
+      <p className="mt-1.5 whitespace-pre-wrap font-serif text-[15px] leading-relaxed text-muted">
+        <Inline text={body} />
+      </p>
     </section>
   );
 }
