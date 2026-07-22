@@ -343,6 +343,7 @@ model Purchase {
   stripePromotionCodeId String?  // coupon/promo audit (phase 2)
   refundedCents         Int      @default(0) // SET to charge.amount_refunded (phase 2)
   currency              String   @default("usd")
+  livemode              Boolean  @default(true) // Stripe test-vs-live; reporting filters true
   metadata              Json?    // session.metadata snapshot — our own ids only, never PII
   createdAt             DateTime @default(now())
 
@@ -368,6 +369,16 @@ model Subscription {
   status               String    // active | trialing | past_due | canceled | ...
   currentPeriodEnd     DateTime?
   cancelAtPeriodEnd    Boolean   @default(false)
+  // What THIS subscriber actually pays (stamped from the Stripe price on every
+  // upsert) — MRR must never be recomputed from the current catalog price, which
+  // misstates grandfathered subs and overstates annual intervals 12x. Nullable:
+  // pre-column rows backfill on their next webhook update.
+  priceCents           Int?
+  interval             String?   // month | year (Stripe price.recurring.interval)
+  currency             String    @default("usd")
+  // Stripe test-vs-live. Reporting filters livemode=true so admin test
+  // subscriptions never inflate MRR.
+  livemode             Boolean   @default(true)
   metadata             Json?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
@@ -395,6 +406,7 @@ model Invoice {
   stripeCustomerId     String?
   amountPaidCents      Int
   currency             String        @default("usd")
+  livemode             Boolean       @default(true) // Stripe test-vs-live; reporting filters true
   periodStart          DateTime?
   periodEnd            DateTime?
   metadata             Json?

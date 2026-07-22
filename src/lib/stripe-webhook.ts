@@ -93,6 +93,8 @@ export interface PurchaseFields {
   amountDiscountCents: number;
   stripePromotionCodeId: string | null;
   currency: string;
+  // Stripe test-vs-live; reporting filters livemode=true.
+  livemode: boolean;
   // Session metadata snapshot — our own ids only (userId/projectId/kind/bundleKey/
   // stripePriceId); never customer PII. Omitted when the session carries none.
   metadata?: Record<string, string>;
@@ -145,6 +147,7 @@ export function purchaseFromCheckoutSession(
     amountDiscountCents: session.total_details?.amount_discount ?? 0,
     stripePromotionCodeId: null,
     currency: session.currency ?? "usd",
+    livemode: session.livemode ?? true,
     ...(session.metadata ? { metadata: session.metadata } : {}),
   };
 }
@@ -161,6 +164,13 @@ export interface SubscriptionFields {
   status: string;
   currentPeriodEnd: Date | null;
   cancelAtPeriodEnd: boolean;
+  // What THIS subscriber pays (items.data[0].price) — MRR reads these, never the
+  // current catalog price (which misstates grandfathered/annual subs).
+  priceCents: number | null;
+  interval: string | null;
+  currency: string;
+  // Stripe test-vs-live; reporting filters livemode=true.
+  livemode: boolean;
   // The userId stamped at checkout (subscription_data.metadata.userId), if present.
   metadataUserId: string | null;
   metadata?: Record<string, string>;
@@ -199,6 +209,10 @@ export function subscriptionFromEvent(
     status: sub.status,
     currentPeriodEnd: maxEnd != null ? new Date(maxEnd * 1000) : null,
     cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
+    priceCents: typeof price?.unit_amount === "number" ? price.unit_amount : null,
+    interval: price?.recurring?.interval ?? null,
+    currency: price?.currency ?? "usd",
+    livemode: sub.livemode ?? true,
     metadataUserId:
       typeof metaUserId === "string" && metaUserId.length > 0 ? metaUserId : null,
     ...(sub.metadata ? { metadata: sub.metadata } : {}),
@@ -213,6 +227,8 @@ export interface InvoiceFields {
   stripeCustomerId: string | null;
   amountPaidCents: number;
   currency: string;
+  // Stripe test-vs-live; reporting filters livemode=true.
+  livemode: boolean;
   periodStart: Date | null;
   periodEnd: Date | null;
   paidAt: Date;
@@ -249,6 +265,7 @@ export function invoiceFromEvent(inv: Stripe.Invoice): InvoiceFields {
     stripeCustomerId: stripeId(inv.customer ?? null),
     amountPaidCents: inv.amount_paid ?? 0,
     currency: inv.currency ?? "usd",
+    livemode: inv.livemode ?? true,
     periodStart:
       typeof inv.period_start === "number"
         ? new Date(inv.period_start * 1000)

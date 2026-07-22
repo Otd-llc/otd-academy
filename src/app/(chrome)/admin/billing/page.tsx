@@ -10,11 +10,12 @@ import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
 import { formatUsd } from "@/lib/format-money";
 import {
-  mrrCents,
+  mrrByCurrency,
   activeSubCount,
-  grossRevenueCents,
+  grossRevenueByCurrency,
   refundRate,
   disputeRate,
+  type ByCurrency,
 } from "@/lib/billing-metrics";
 import { StartTestSubscriptionButton } from "@/components/admin/StartTestSubscriptionButton";
 
@@ -29,6 +30,21 @@ function iso(d: Date | null | undefined): string {
 
 function pct(rate: number): string {
   return `${(rate * 100).toFixed(1)}%`;
+}
+
+// Render per-currency cents as one line per currency. USD keeps the $ format;
+// anything else renders as "1,234.56 EUR" — never silently summed into dollars
+// (the pre-audit report added euro cents to dollar cents as one integer).
+function money(by: ByCurrency): string {
+  const entries = Object.entries(by);
+  if (entries.length === 0) return formatUsd(0);
+  return entries
+    .map(([cur, cents]) =>
+      cur === "usd"
+        ? formatUsd(cents)
+        : `${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })} ${cur.toUpperCase()}`,
+    )
+    .join(" · ");
 }
 
 function Tile({
@@ -59,23 +75,33 @@ export default async function AdminBillingPage() {
   await requireAdmin();
 
   // Metrics inputs (whole-table reads — small sets; force-dynamic).
+  // LIVE MONEY ONLY: livemode=false rows (the test-harness button below, a
+  // test-mode webhook delivery) must never inflate the report.
   const bundle = await db.bundle.findUnique({
     where: { key: "all-access" },
     select: { subscriptionPriceCents: true },
   });
-  const [subs, allPurchases, allInvoices, disputeCount, purchaseCount] =
+  const [subs, allPurchases, allInvoices, disputeCount, purchaseCount, invoiceCount] =
     await Promise.all([
-      db.subscription.findMany({ select: { status: true } }),
-      db.purchase.findMany({
-        select: { amountTotalCents: true, refundedCents: true },
+      db.subscription.findMany({
+        where: { livemode: true },
+        select: { status: true, priceCents: true, interval: true, currency: true },
       }),
-      db.invoice.findMany({ select: { amountPaidCents: true } }),
+      db.purchase.findMany({
+        where: { livemode: true },
+        select: { amountTotalCents: true, refundedCents: true, currency: true },
+      }),
+      db.invoice.findMany({
+        where: { livemode: true },
+        select: { amountPaidCents: true, currency: true },
+      }),
       db.dispute.count(),
-      db.purchase.count(),
+      db.purchase.count({ where: { livemode: true } }),
+      db.invoice.count({ where: { livemode: true } }),
     ]);
 
-  const mrr = mrrCents(subs, bundle?.subscriptionPriceCents ?? null);
-  const gross = grossRevenueCents(allPurchases, allInvoices);
+  const mrr = mrrByCurrency(subs, bundle?.subscriptionPriceCents ?? null);
+  const gross = grossRevenueByCurrency(allPurchases, allInvoices);
 
   // Recent activity: last ~15 across the four money tables, normalized + merged by date.
   // Refunds/Disputes render as negative money (they reduce net).
@@ -84,12 +110,18 @@ export default async function AdminBillingPage() {
       db.purchase.findMany({
         orderBy: { createdAt: "desc" },
         take: 15,
-        select: { id: true, amountTotalCents: true, createdAt: true, bundleId: true },
+        select: {
+          id: true,
+          amountTotalCents: true,
+          createdAt: true,
+          bundleId: true,
+          livemode: true,
+        },
       }),
       db.invoice.findMany({
         orderBy: { paidAt: "desc" },
         take: 15,
-        select: { id: true, amountPaidCents: true, paidAt: true },
+        select: { id: true, amountPaidCents: true, paidAt: true, livemode: true },
       }),
       db.refund.findMany({
         orderBy: { createdAt: "desc" },
@@ -106,13 +138,13 @@ export default async function AdminBillingPage() {
   const activity = [
     ...recentPurchases.map((p) => ({
       id: `p_${p.id}`,
-      type: p.bundleId ? "Purchase · Pass" : "Purchase",
+      type: `${p.bundleId ? "Purchase · Pass" : "Purchase"}${p.livemode ? "" : " · TEST"}`,
       amountCents: p.amountTotalCents,
       at: p.createdAt,
     })),
     ...recentInvoices.map((i) => ({
       id: `i_${i.id}`,
-      type: "Invoice",
+      type: `Invoice${i.livemode ? "" : " · TEST"}`,
       amountCents: i.amountPaidCents,
       at: i.paidAt,
     })),
@@ -142,14 +174,20 @@ export default async function AdminBillingPage() {
       />
 
       <section className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {/* Recurring revenue assumes a MONTHLY interval (the provisioned default); the
-            interval is not stored in our DB. See billing-metrics.ts. */}
-        <Tile label="Recurring / mo" value={formatUsd(mrr)} sub="MRR (assumes monthly)" />
-        <Tile label="Gross revenue" value={formatUsd(gross)} sub="Purchases + invoices" />
+        <Tile
+          label="Recurring / mo"
+          value={money(mrr)}
+          sub="MRR (each sub's own price)"
+        />
+        <Tile label="Gross revenue" value={money(gross)} sub="Purchases + invoices · live mode" />
         <Tile label="Active subs" value={String(activeSubCount(subs))} />
-        <Tile label="Refund rate" value={pct(refundRate(allPurchases))} />
-        <Tile label="Dispute rate" value={pct(disputeRate(disputeCount, purchaseCount))} />
-        <Tile label="Purchases" value={String(purchaseCount)} sub="All-time count" />
+        <Tile label="Refund rate" value={pct(refundRate(allPurchases, allInvoices))} />
+        <Tile
+          label="Dispute rate"
+          value={pct(disputeRate(disputeCount, purchaseCount, invoiceCount))}
+          sub="Per payment (purchases + invoices)"
+        />
+        <Tile label="Purchases" value={String(purchaseCount)} sub="All-time · live mode" />
       </section>
 
       <section className="mt-12">

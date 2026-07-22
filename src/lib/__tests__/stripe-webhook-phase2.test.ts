@@ -27,9 +27,19 @@ describe("subscriptionFromEvent (pure)", () => {
       customer: "cus_1",
       status: "active",
       cancel_at_period_end: false,
+      livemode: false,
       items: {
         data: [
-          { current_period_end: 1780000000, price: { id: "price_1", product: "prod_1" } },
+          {
+            current_period_end: 1780000000,
+            price: {
+              id: "price_1",
+              product: "prod_1",
+              unit_amount: 900,
+              currency: "usd",
+              recurring: { interval: "month" },
+            },
+          },
           { current_period_end: 1790000000, price: { id: "price_2", product: "prod_2" } },
         ],
       },
@@ -45,6 +55,11 @@ describe("subscriptionFromEvent (pure)", () => {
     expect(f.metadataUserId).toBe("user_1");
     // MAX of the item period ends.
     expect(f.currentPeriodEnd).toEqual(new Date(1790000000 * 1000));
+    // Subscriber-priced MRR inputs + test-vs-live, stamped from the price/object.
+    expect(f.priceCents).toBe(900);
+    expect(f.interval).toBe("month");
+    expect(f.currency).toBe("usd");
+    expect(f.livemode).toBe(false);
   });
 
   test("null period + null metadata userId when absent", () => {
