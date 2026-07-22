@@ -24,7 +24,9 @@ import {
 } from "@/lib/logbook/lesson-awards";
 import {
   recordStageQuizAnswer as awardStageQuiz,
+  recordReviewAnswer as awardReview,
   type StageQuizResult,
+  type ReviewAnswerResult,
 } from "@/lib/logbook/guide-awards";
 
 type NeedsAuth = { ok: false; needsAuth: true };
@@ -82,6 +84,31 @@ export async function recordStageQuizAnswer(
   if (result.ok && "correct" in result && result.correct) {
     await afterAward(userId, {
       source: "STAGE_QUIZ_CORRECT",
+      xp: result.xp,
+      levelUp: result.levelUp,
+    });
+  }
+  return result;
+}
+
+const reviewAnswerSchema = z.object({
+  reviewItemId: z.string().trim().min(1).max(300),
+  pick: z.int().nonnegative(),
+});
+
+// Cross-session review deck answer (step 4). Server re-scores against the QuizItem
+// snapshot, advances the schedule, and awards the once-per-due-cycle REVIEW_CORRECT.
+// `Math.random()` is injected here (the core stays pure) for the schedule jitter.
+export async function recordReviewAnswer(
+  input: unknown,
+): Promise<ReviewAnswerResult | NeedsAuth> {
+  const userId = await currentUserId();
+  if (!userId) return { ok: false, needsAuth: true };
+  const parsed = reviewAnswerSchema.parse(input);
+  const result = await awardReview(parsed, userId, new Date(), Math.random());
+  if (result.ok && result.correct && result.xp > 0) {
+    await afterAward(userId, {
+      source: "REVIEW_CORRECT",
       xp: result.xp,
       levelUp: result.levelUp,
     });
