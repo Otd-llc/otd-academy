@@ -126,6 +126,11 @@ export function resolveBoardConfig(config?: Partial<BoardConfig>): BoardConfig {
 export const BOARD_CONFIG_OVERRIDES: Record<string, Partial<BoardConfig>> = {
   "l1-01-wroom-breakout": { copperLayers: 4 },
   "l1-02-espnow-link": { copperLayers: 4 },
+  // l1-03/04/05 reuse the l1-01 WROOM core verbatim (same native-USB pair, same
+  // stackup reasoning), so they keep the 4-layer stack.
+  "l1-03-ws2812-node": { copperLayers: 4 },
+  "l1-04-single-servo": { copperLayers: 4 },
+  "l1-05-internal-adc": { copperLayers: 4 },
 };
 
 // ── `.kicad_pro` builder ────────────────────────────────────────────────────
