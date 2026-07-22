@@ -538,5 +538,7 @@ export async function getPartAssetRenderUrl(partId: string): Promise<string | nu
     where: { partId_kind: { partId, kind: "MODEL_3D" } },
     select: { id: true, renderKey: true, updatedAt: true },
   });
-  return asset?.renderKey ? partModelSrc(asset.id, asset.updatedAt) : null;
+  return asset?.renderKey
+    ? partModelSrc(asset.id, asset.updatedAt, asset.renderKey)
+    : null;
 }

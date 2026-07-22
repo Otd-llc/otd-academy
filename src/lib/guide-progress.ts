@@ -16,6 +16,7 @@ import {
 import {
   resolveCardCompletion,
   type CompletionState,
+  type PreloadedGateSubstrate,
 } from "@/lib/guide-completion";
 import { completionRefSchema, type CompletionRef } from "@/lib/schemas/guide";
 
@@ -36,6 +37,9 @@ export async function resolveGuideProgress(
   revisionId: string,
   guideId: string,
   boardId?: string,
+  /** Shared revision substrate (audit Phase 9): the hub preloads it once so
+   *  this 8-stage fan-out stops re-loading the gate context per stage. */
+  pre?: PreloadedGateSubstrate,
 ): Promise<GuideStageStatus[]> {
   const cards = await db.guideCard.findMany({
     where: { guideId },
@@ -46,12 +50,15 @@ export async function resolveGuideProgress(
   return Promise.all(
     GUIDE_STAGES.map(async (stage, ordinal): Promise<GuideStageStatus> => {
       const card = byStage.get(stage);
-      const completion = await resolveCardCompletion({
-        revisionId,
-        stage,
-        completionRef: parseRef(card?.completionRef),
-        boardId,
-      });
+      const completion = await resolveCardCompletion(
+        {
+          revisionId,
+          stage,
+          completionRef: parseRef(card?.completionRef),
+          boardId,
+        },
+        pre,
+      );
       return { stage, ordinal, state: completion.state };
     }),
   );

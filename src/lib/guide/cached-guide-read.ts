@@ -215,14 +215,16 @@ export async function cachedGuideStage(
         kind: "MODEL_3D",
         renderKey: { not: null },
       },
-      select: { partId: true, id: true, updatedAt: true, renderBounds: true },
+      select: { partId: true, id: true, updatedAt: true, renderBounds: true, renderKey: true },
     });
     const assetByPart = new Map(assets.map((a) => [a.partId, a]));
     for (const part of parts) {
       const asset = assetByPart.get(part.id);
       if (!asset) continue;
       models[part.mpn] = {
-        src: partModelSrc(asset.id, asset.updatedAt),
+        // renderKey enables the direct-R2 URL when NEXT_PUBLIC_R2_PUBLIC_BASE_URL
+        // is set (Phase 9); else partModelSrc falls back to the proxy.
+        src: partModelSrc(asset.id, asset.updatedAt, asset.renderKey),
         bounds: renderBoundsSchema.safeParse(asset.renderBounds).data ?? null,
       };
     }
@@ -260,7 +262,7 @@ export async function cachedGuideStage(
       env.R2_ENABLED && env.R2_BUCKET
         ? await db.partAsset.findMany({
             where: { partId: { in: partIds }, kind: "MODEL_3D", renderKey: { not: null } },
-            select: { id: true, partId: true, updatedAt: true, renderBounds: true },
+            select: { id: true, partId: true, updatedAt: true, renderBounds: true, renderKey: true },
           })
         : [];
     const modelByPart = new Map(
@@ -269,7 +271,7 @@ export async function cachedGuideStage(
           [
             a.partId,
             {
-              src: partModelSrc(a.id, a.updatedAt),
+              src: partModelSrc(a.id, a.updatedAt, a.renderKey),
               bounds: renderBoundsSchema.safeParse(a.renderBounds).data ?? null,
             },
           ] as const,

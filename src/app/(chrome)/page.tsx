@@ -15,7 +15,7 @@
 // curriculum spine. `?track=`, `?level=`, `?showBenchTools=1`, `?archived=1`
 // each independently narrow the query.
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { permanentRedirect, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { learnerLandingPath } from "@/lib/learner-landing";
@@ -151,8 +151,11 @@ export default async function HomePage({
   const email = session?.user?.email;
   // Signed-out visitors land on the public, crawlable course catalog — never a
   // sign-in wall at the domain root (this page is the operator dashboard).
+  // PERMANENT (308, audit SEO rider): the old 307 told crawlers the move was
+  // temporary, so "/" could stay separately indexed instead of consolidating
+  // its (highest-authority) signals onto /courses.
   if (!email) {
-    redirect("/courses");
+    permanentRedirect("/courses");
   }
   const me = await db.user.findUnique({
     where: { email },
