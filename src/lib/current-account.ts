@@ -19,6 +19,8 @@ import { db } from "@/lib/db";
 import { avatarSrc } from "@/lib/effective-avatar";
 
 export type CurrentAccount = {
+  /** DB user id — feeds PostHog identify (IdentitySync); null if the row read failed. */
+  id: string | null;
   email: string;
   name: string | null;
   // Mirrors the session's own role union so this flows straight into UserMenu.
@@ -40,6 +42,7 @@ export const currentAccount = cache(async (): Promise<CurrentAccount | null> => 
     .catch(() => null);
 
   return {
+    id: account?.id ?? null,
     email,
     name: user.name ?? null,
     role: user.role ?? null,
