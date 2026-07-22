@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { loadLessonMeta, getLogbook } from "@/lib/logbook/load";
+import { dueReviewCount } from "@/lib/logbook/review-load";
 import { LEVELS } from "@/lib/logbook/economy";
 import { ROADMAP_PATCHES, SKILL_PATCH_LABELS, patchLabel, artForBadge, HARDWARE_PATCHES } from "@/lib/logbook/patches";
 import { StandingRail } from "@/components/logbook/StandingRail";
@@ -47,6 +48,7 @@ export default async function LogbookPage() {
   const now = new Date();
   const lessons = await loadLessonMeta();
   const lb = await getLogbook(user.id, lessons, now);
+  const reviewDue = await dueReviewCount(user.id, now);
 
   const earnedKeys = new Set(lb.badges.map((b) => b.badgeKey));
   const curMin = LEVELS[lb.level - 1]?.minXp ?? 0;
@@ -80,6 +82,20 @@ export default async function LogbookPage() {
       <div className="title-rule mb-4" aria-hidden />
       <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">Account</p>
       <h1 className="mt-1 font-display text-4xl tracking-wide text-title">Logbook</h1>
+
+      {reviewDue > 0 ? (
+        <Link
+          href="/review"
+          className="mt-4 flex items-center justify-between rounded border border-command-gold/40 bg-command-gold/5 px-4 py-2.5 transition-colors hover:border-command-gold/70"
+        >
+          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-command-gold">
+            {reviewDue} {reviewDue === 1 ? "item" : "items"} due for review
+          </span>
+          <span aria-hidden className="font-mono text-[11px] text-command-gold">
+            →
+          </span>
+        </Link>
+      ) : null}
 
       <div className="mt-8 grid gap-10 lg:grid-cols-[300px_1fr]">
         {/* LEFT — sticky standing rail: rank wing in the XP ring; click → rank ladder */}
