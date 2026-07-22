@@ -728,7 +728,7 @@ export default async function GuideHubPage({
             <PublishRevisionButton
               projectId={project.id}
               revisionId={revision.id}
-              isPublished={project.publishedRevisionId === revision.id}
+              isPublished={project.publishedLabel === revision.label}
             />
           </div>
         </>
