@@ -110,7 +110,61 @@ export default async function ToolPage({ params }: { params: Promise<Params> }) 
 
       <Body />
 
+      <UsedInTheseBuilds slugs={tool.relatedCourses} />
+
       <EmbedSnippet slug={tool.slug} title={tool.title} base={base} />
     </main>
+  );
+}
+
+// "l2-01-battery-power-module" → { code: "L2-01", words: "BATTERY POWER MODULE" }.
+// Static (no DB) so the tool pages stay fully prerendered; the /courses page
+// resolves the real name. A bench-tool slug (bn-*) keeps its full form as words.
+function courseLabel(slug: string): { code: string; words: string } {
+  const m = slug.match(/^(l\d+)-(\d+)-(.+)$/);
+  if (!m) return { code: "", words: slug.replace(/-/g, " ").toUpperCase() };
+  return {
+    code: `${m[1]!.toUpperCase()}-${m[2]!}`,
+    words: m[3]!.replace(/-/g, " ").toUpperCase(),
+  };
+}
+
+// The reverse half of the tools↔courses spine. `relatedCourses` existed in the
+// registry from day one but was only ever consumed course→tool (toolsForCourse),
+// so the highest-volume organic entry pages (these calculators) terminated with
+// no path into the catalog or the Library — no internal link equity out, no
+// funnel step for the visitor who just did this tool's math.
+function UsedInTheseBuilds({ slugs }: { slugs: string[] }) {
+  if (slugs.length === 0) return null;
+  return (
+    <nav className="mt-10 border-t border-panel-border/60 pt-6">
+      <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">
+        ▸ Boards that use this math
+      </p>
+      <ul className="flex flex-wrap gap-x-6 gap-y-2">
+        {slugs.map((slug) => {
+          const { code, words } = courseLabel(slug);
+          return (
+            <li key={slug}>
+              <a
+                href={`/courses/${slug}`}
+                className="font-mono text-[11px] uppercase tracking-[0.14em] text-text hover:text-gold-light"
+              >
+                {code ? (
+                  <span className="font-numeral text-command-gold">{code}</span>
+                ) : null}{" "}
+                {words} →
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
+        Concepts behind the math:{" "}
+        <a href="/library" className="text-signal-blue underline-offset-2 hover:underline">
+          the reference library
+        </a>
+      </p>
+    </nav>
   );
 }

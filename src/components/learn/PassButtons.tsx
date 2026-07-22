@@ -15,6 +15,7 @@ import {
   createUpgradeCheckoutSession,
 } from "@/lib/actions/pass";
 import { formatUsd } from "@/lib/format-money";
+import { trackCtaClicked } from "@/lib/analytics-client";
 
 const BTN =
   "inline-flex items-center justify-center gap-1.5 rounded border border-command-gold bg-deep-space px-6 py-3 font-mono text-sm uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50";
@@ -24,6 +25,7 @@ export function BuyPassButton({ priceCents }: { priceCents: number }) {
   const [pending, start] = useTransition();
 
   function buy() {
+    trackCtaClicked("buy_pass");
     start(async () => {
       setError(null);
       try {
@@ -54,6 +56,7 @@ export function UpgradePassButton({ chargeCents }: { chargeCents: number }) {
   const [pending, start] = useTransition();
 
   function upgrade() {
+    trackCtaClicked("upgrade_pass");
     start(async () => {
       setError(null);
       try {
