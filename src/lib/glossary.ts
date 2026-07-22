@@ -234,6 +234,10 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
     term: "ground pour",
     def: "A large filled copper area tied to ground, poured around the traces on a layer for a low-impedance return path and shielding — but kept OUT of an antenna keep-out, where copper would detune the radio.",
   },
+  "level shifter": {
+    term: "level shifter",
+    def: "A part that translates a logic signal from one voltage domain to another: here, a buffer whose TTL inputs accept 3.3 V highs while its output swings to the 5 V rail, so a 3.3 V GPIO can reliably drive a 5 V device's data input.",
+  },
   "mac address": {
     term: "MAC address",
     def: "The radio's factory serial number: a unique hardware address burned into every network device. ESP-NOW peers send packets to each other's MAC address directly, so pairing two boards means telling each one the other's MAC.",

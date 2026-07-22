@@ -33,4 +33,9 @@ describe("glossary lookup", () => {
     expect(lookupTerm("MAC address")).not.toBeNull();
     expect(lookupTerm("wi-fi channel")).not.toBeNull();
   });
+
+  // Used by the L1.03 (WS2812 level-shifter) guide.
+  it("resolves level shifter (used by the L1.03 guide)", () => {
+    expect(lookupTerm("level shifter")).not.toBeNull();
+  });
 });
