@@ -209,6 +209,7 @@ const {
   disputeUpsert,
   userFindUniqueTop,
   sendDunning,
+  recordDunningPendingMock,
   fakeEnv,
 } = vi.hoisted(() => ({
   constructEvent: vi.fn(),
@@ -229,6 +230,7 @@ const {
   // post-commit via the real db, not the transaction client.
   userFindUniqueTop: vi.fn(),
   sendDunning: vi.fn(),
+  recordDunningPendingMock: vi.fn(),
   fakeEnv: {} as { STRIPE_WEBHOOK_SECRET?: string },
 }));
 
@@ -238,6 +240,10 @@ vi.mock("@/lib/stripe", () => ({
 
 vi.mock("@/lib/subscription-dunning", () => ({
   sendPaymentFailedEmail: sendDunning,
+}));
+
+vi.mock("@/lib/dunning-retry", () => ({
+  recordDunningPending: recordDunningPendingMock,
 }));
 
 vi.mock("@/lib/db", () => {
@@ -306,7 +312,8 @@ beforeEach(() => {
   entitlementUpsert.mockResolvedValue({ id: "ent_1" });
   entitlementDeleteMany.mockResolvedValue({ count: 1 });
   disputeUpsert.mockResolvedValue({});
-  userFindUniqueTop.mockResolvedValue({ email: "learner@test" });
+  userFindUniqueTop.mockResolvedValue({ id: "user_1", email: "learner@test" });
+  sendDunning.mockResolvedValue(true);
 });
 
 const SUB_EVENT = (status: string, type = "customer.subscription.updated") => ({
@@ -586,9 +593,22 @@ describe("POST webhook — invoice.payment_failed (dunning)", () => {
     expect(processedCreate).toHaveBeenCalledTimes(1);
     expect(userFindUniqueTop).toHaveBeenCalledWith({
       where: { stripeCustomerId: "cus_1" },
-      select: { email: true },
+      select: { id: true, email: true },
     });
     expect(sendDunning).toHaveBeenCalledWith({ toEmail: "learner@test" });
+    // Successful send → nothing parked for retry.
+    expect(recordDunningPendingMock).not.toHaveBeenCalled();
+  });
+
+  test("a FAILED send parks a durable retry marker (the claim already committed)", async () => {
+    constructEvent.mockReturnValue(FAIL("evt_fail_park"));
+    sendDunning.mockResolvedValue(false);
+    const res = await POST(req());
+    expect(res.status).toBe(200);
+    expect(recordDunningPendingMock).toHaveBeenCalledTimes(1);
+    const [, uid, invoiceId] = recordDunningPendingMock.mock.calls[0]!;
+    expect(uid).toBe("user_1");
+    expect(invoiceId).toBe("in_fail");
   });
 
   test("a REDELIVERED payment_failed (claim P2002) sends NO second email", async () => {

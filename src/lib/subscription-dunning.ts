@@ -15,7 +15,7 @@ import { subscriptionPaymentFailedEmail } from "@/lib/subscription-dunning-email
 export async function sendPaymentFailedEmail(
   args: { toEmail: string },
   resendFetch: typeof fetch = fetch,
-): Promise<void> {
+): Promise<boolean> {
   const base = siteUrl();
   const accountUrl = `${base}/account`;
   const host = new URL(base).host;
@@ -44,11 +44,14 @@ export async function sendPaymentFailedEmail(
         /* non-JSON body */
       }
       console.error(`[dunning] Resend error for ${args.toEmail}: ${detail}`);
+      return false;
     }
+    return true;
   } catch (e) {
     console.error(
       `[dunning] send failed for ${args.toEmail}:`,
       e instanceof Error ? e.message : e,
     );
+    return false;
   }
 }
