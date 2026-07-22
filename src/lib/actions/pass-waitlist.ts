@@ -5,14 +5,28 @@
 // leave an email. When a signed-in learner joins, we stamp their userId. The
 // upsert on the unique email makes a repeat submit a no-op (no throw, no dup).
 import { z } from "zod";
+import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { capture } from "@/lib/analytics";
+import { clientIp, ipCheckFor } from "@/lib/abuse-policy";
+import { enforce } from "@/lib/abuse-limit";
+import { defenseEnabled } from "@/lib/abuse-defense-flag";
 
 const joinPassWaitlistSchema = z.object({ email: z.email() });
 
 export async function joinPassWaitlist(input: unknown): Promise<{ ok: true }> {
   const { email } = joinPassWaitlistSchema.parse(input);
+
+  // Same fail-open per-IP guard as joinWaitlist (shared bucket — same abuse
+  // class): this was the one anonymous public write with no rate limit, an
+  // arbitrary-email insert + telemetry-pollution loop.
+  if (await defenseEnabled()) {
+    const check = ipCheckFor("waitlist:ip:hour", clientIp(await headers()));
+    if (check && !(await enforce([check], "open")).ok) {
+      throw new Error("Too many requests. Please try again in a little while.");
+    }
+  }
 
   // Stamp the signed-in user's id when we have a session (best-effort; anon is
   // fine). The email is still the unique key.

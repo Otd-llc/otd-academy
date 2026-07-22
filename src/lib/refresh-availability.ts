@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import type { DkClient } from "@/lib/digikey";
 import { assessPartAvailability } from "@/lib/part-availability";
+import { capture } from "@/lib/analytics";
 
 export interface RefreshArgs {
   db: PrismaClient;
@@ -145,5 +146,11 @@ export async function refreshAvailability(args: RefreshArgs): Promise<RefreshRes
     );
   }
 
+  // Quiet staleness was invisible: per-part failures rolled into a `failed`
+  // count returned in a cron JSON body nobody reads, while dkCheckedAt aged and
+  // learner BOM prices went stale. One summary event per sweep with failures.
+  if (failed > 0) {
+    capture("availability_refresh_failed", { checked, changed, failed });
+  }
   return { checked, changed, failed };
 }

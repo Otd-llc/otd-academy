@@ -75,6 +75,16 @@ function dkHeaders(token: string): Record<string, string> {
   };
 }
 
+// Every DigiKey fetch is bounded (same shape as turnstile.ts): a hung TCP
+// connection used to stall a batch-of-5 up to the cron's 60s wall — the sweep
+// refreshed fewer parts, dkCheckedAt silently aged, and learner BOM prices went
+// stale with no error anywhere. A timeout now counts as that part's failure.
+const DK_TIMEOUT_MS = 5000;
+
+function dkTimeout(): AbortSignal {
+  return AbortSignal.timeout(DK_TIMEOUT_MS);
+}
+
 async function getToken(): Promise<string> {
   const res = await fetch(`${BASE}/v1/oauth2/token`, {
     method: "POST",
@@ -84,6 +94,7 @@ async function getToken(): Promise<string> {
       client_secret: env.DIGIKEY_CLIENT_SECRET!,
       grant_type: "client_credentials",
     }),
+    signal: dkTimeout(),
   });
   if (!res.ok) throw new Error(`DigiKey OAuth ${res.status}`);
   return ((await res.json()) as { access_token: string }).access_token;
@@ -102,6 +113,7 @@ export async function makeDigikeyClient(): Promise<DkClient> {
         method: "POST",
         headers: dkHeaders(token),
         body: JSON.stringify({ Keywords: mpn, RecordCount: 5 }),
+        signal: dkTimeout(),
       });
       if (!res.ok) throw new Error(`DigiKey search ${res.status}`);
       const json = (await res.json()) as { Products?: any[] };
@@ -118,7 +130,7 @@ export async function makeDigikeyClient(): Promise<DkClient> {
       try {
         const dres = await fetch(
           `${BASE}/products/v4/search/${encodeURIComponent(keywordSnap.partNumber)}/productdetails`,
-          { method: "GET", headers: dkHeaders(token) },
+          { method: "GET", headers: dkHeaders(token), signal: dkTimeout() },
         );
         if (!dres.ok) return keywordSnap;
         const djson = (await dres.json()) as { Product?: any };

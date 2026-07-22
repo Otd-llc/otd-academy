@@ -9,6 +9,7 @@ import { Redis } from "@upstash/redis";
 import { env } from "@/env";
 import { RULES, nsPrefix, type RuleName, type Check } from "@/lib/abuse-policy";
 import type { AlertKind } from "@/lib/abuse-alert";
+import { capture } from "@/lib/analytics";
 
 // Fire an admin alert (design §10) without blocking the request. The dynamic
 // import keeps abuse-alert (db + Resend) out of this module's static graph, which
@@ -152,6 +153,7 @@ export async function enforce(checks: Check[], failMode: FailMode): Promise<Verd
         // every call timed out looked like "the limiter does nothing". Log the rule
         // and cause so a redeploy shows WHY enforce degrades (timeout vs error).
         console.warn(`[abuse-limit] degrade: Upstash TIMEOUT on ${check.rule} (>1000ms)`);
+        capture("abuse_limiter_degraded", { rule: check.rule, cause: "timeout" });
         breaker.record(false);
         return degradeVerdict(failMode);
       }
@@ -164,6 +166,7 @@ export async function enforce(checks: Check[], failMode: FailMode): Promise<Verd
       console.warn(
         `[abuse-limit] degrade: Upstash ERROR on ${check.rule}: ${e instanceof Error ? e.message : String(e)}`,
       );
+      capture("abuse_limiter_degraded", { rule: check.rule, cause: "error" });
       breaker.record(false);
       return degradeVerdict(failMode);
     }
