@@ -5,6 +5,7 @@
 // change. No-ops cleanly (200) when DigiKey creds are absent so a keyless
 // deploy/CI never errors.
 import { env } from "@/env";
+import { cronAuthorized } from "@/lib/cron-auth";
 import { db } from "@/lib/db";
 import { digikeyConfigured, makeDigikeyClient } from "@/lib/digikey";
 import { refreshAvailability } from "@/lib/refresh-availability";
@@ -19,8 +20,7 @@ import { sendSourcingDigest } from "@/lib/sourcing-digest-email";
 export const maxDuration = 60; // V1: Vercel Hobby cap. With batch-5 concurrency, ~200 parts fit easily.
 
 export async function GET(req: Request): Promise<Response> {
-  const auth = req.headers.get("authorization");
-  if (!env.CRON_SECRET || auth !== `Bearer ${env.CRON_SECRET}`) {
+  if (!cronAuthorized(req.headers.get("authorization"), env.CRON_SECRET)) {
     return new Response("Unauthorized", { status: 401 });
   }
   if (!digikeyConfigured()) {

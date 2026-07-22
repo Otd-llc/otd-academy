@@ -4,6 +4,7 @@
 // (idempotent once-only — see lifecycle-send.ts). Batched + throttled so a big
 // audience doesn't burst Resend. No-ops cleanly when disabled or unkeyed.
 import { env } from "@/env";
+import { cronAuthorized } from "@/lib/cron-auth";
 import { db } from "@/lib/db";
 import { siteUrl } from "@/lib/seo/jsonld";
 import { signUnsubscribeToken } from "@/lib/unsubscribe-token";
@@ -142,8 +143,7 @@ async function plan(now: Date): Promise<SequencePlan[]> {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function GET(req: Request): Promise<Response> {
-  const auth = req.headers.get("authorization");
-  if (!env.CRON_SECRET || auth !== `Bearer ${env.CRON_SECRET}`) {
+  if (!cronAuthorized(req.headers.get("authorization"), env.CRON_SECRET)) {
     return new Response("Unauthorized", { status: 401 });
   }
   if (!env.LIFECYCLE_EMAIL_ENABLED) {

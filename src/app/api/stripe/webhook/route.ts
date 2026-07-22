@@ -151,6 +151,11 @@ export async function POST(req: Request): Promise<Response> {
     // callback narrows to `never` at the read site); the `purchase_completed`
     // funnel event fires AFTER the transaction commits (never inside — see header).
     let purchaseCompleted: { userId: string; projectId: string } | null = null;
+    // Set inside the txn, CAPTURED after commit (telemetry never runs inside the
+    // transaction — see header). Non-null = money moved but no Purchase row was
+    // recordable (null amount_total): a revenue-audit hole that console alone
+    // left invisible.
+    let purchaseRecordMissing: { sessionId: string; kind: string } | null = null;
 
     // 5d. Claim + grant + Purchase in ONE transaction (atomicity — see header).
     try {
@@ -222,6 +227,7 @@ export async function POST(req: Request): Promise<Response> {
             console.error(
               `[stripe-webhook] paid payment-mode bundle session ${session.id} has null amount_total; entitlement granted, Purchase NOT recorded`,
             );
+            purchaseRecordMissing = { sessionId: session.id, kind: "bundle" };
           }
           return null;
         }
@@ -257,6 +263,7 @@ export async function POST(req: Request): Promise<Response> {
             console.error(
               `[stripe-webhook] paid payment-mode session ${session.id} has null amount_total; entitlement granted, Purchase NOT recorded`,
             );
+            purchaseRecordMissing = { sessionId: session.id, kind: "course" };
           }
           return {
             userId: grant.userId,
@@ -293,6 +300,13 @@ export async function POST(req: Request): Promise<Response> {
           { projectId: purchaseCompleted.projectId },
           purchaseCompleted.userId,
         );
+      } catch {
+        // never break the webhook ack on telemetry
+      }
+    }
+    if (purchaseRecordMissing) {
+      try {
+        capture("purchase_record_missing", purchaseRecordMissing);
       } catch {
         // never break the webhook ack on telemetry
       }
