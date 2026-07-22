@@ -27,7 +27,10 @@ import { Inline } from "@/components/guide/InlineText";
 import { XpTick } from "@/components/library/XpTick";
 import { patchLabel, artForBadge } from "@/lib/logbook/patches";
 import { useFanfare } from "@/components/logbook/Fanfare";
-import { trackSigninToLogClicked } from "@/lib/analytics-client";
+import {
+  trackSigninToLogClicked,
+  trackFormativeCheck,
+} from "@/lib/analytics-client";
 
 export interface QuizQuestion {
   q: string;
@@ -102,6 +105,9 @@ export function QuizBlock({
   );
   const firedAnswer = useRef<boolean[]>(questions.map(() => false));
   const completeFired = useRef(false);
+  // Aggregate engagement ping, once per block per session, fired for signed-in
+  // AND anon (unlike the XP path in fireAnswer, which is signed-in only).
+  const engagePinged = useRef(false);
   const fanfare = useFanfare();
 
   const isSolved = (qi: number) => selected[qi] === questions[qi].answer;
@@ -144,6 +150,10 @@ export function QuizBlock({
   function pick(qi: number, oi: number) {
     if (isSolved(qi)) return; // locked once correct
     if (wrong[qi].includes(oi)) return; // already ruled out
+    if (!engagePinged.current) {
+      engagePinged.current = true;
+      trackFormativeCheck("quiz", "answered");
+    }
     setSelected((prev) => prev.map((s, i) => (i === qi ? oi : s)));
     if (oi !== questions[qi].answer) {
       setWrong((prev) => prev.map((w, i) => (i === qi ? [...w, oi] : w)));
@@ -163,25 +173,28 @@ export function QuizBlock({
     if (firedAnswer.current[qi] || qEarnedPrior[qi] || qLocked[qi]) return;
     firedAnswer.current[qi] = true;
     answerChain.current[qi] = answerChain.current[qi]
-      .then(() =>
+      // async/await so the two branches resolve to a single Promise<union>: the
+      // course and library result types diverge (course rewards a wrong first pick,
+      // so its success variant always carries levelUp), and a bare `a ? p1 : p2`
+      // yields Promise<A> | Promise<B>, which will not unify.
+      .then(async () =>
         lb.mode === "course"
-          ? recordStageQuizAnswer({
+          ? await recordStageQuizAnswer({
               enrollmentId: lb.enrollmentId,
               stage: lb.stage,
               questionKey: key,
               pick: oi,
             })
-          : recordQuizAnswer({ slug: lb.slug, questionKey: key, pick: oi }),
+          : await recordQuizAnswer({ slug: lb.slug, questionKey: key, pick: oi }),
       )
       .then((res) => {
         if (!res || !("ok" in res) || !res.ok) return;
-        if ("correct" in res && res.correct) {
-          if (res.xp > 0) {
-            setXpShown((prev) => prev.map((v, i) => (i === qi ? res.xp : v)));
-          } else {
-            setQLocked((prev) => prev.map((v, i) => (i === qi ? true : v)));
-          }
-          if (res.levelUp) {
+        // Show the XP tick whenever the answer earned XP — including a rewarded
+        // WRONG first pick (course attempt-reward), where `correct` is false but
+        // `xp` > 0. No XP (dedupe / library wrong pick) greys the slot instead.
+        if ("xp" in res && res.xp > 0) {
+          setXpShown((prev) => prev.map((v, i) => (i === qi ? res.xp : v)));
+          if ("levelUp" in res && res.levelUp) {
             fanfare({ kind: "level", label: res.levelUp.title, xp: res.xp });
           }
         } else {

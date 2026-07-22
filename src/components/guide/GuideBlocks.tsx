@@ -1317,6 +1317,7 @@ function VendorCtaBlock({
 function GuideBlock({
   block,
   index,
+  storageIndex,
   models,
   bomRows,
   diagrams,
@@ -1332,6 +1333,10 @@ function GuideBlock({
 }: {
   block: ContentBlock;
   index: number;
+  /** The block's RAW stored position, used for the capture write-back (which
+   *  addresses `blocks[blockIndex]`). Defaults to `index` when not threaded, so
+   *  callers that don't filter (PDF, readiness) are unaffected. */
+  storageIndex?: number;
   models?: Record<string, ResolvedModel>;
   bomRows?: BomRow[];
   diagrams?: Record<string, string>;
@@ -1471,7 +1476,7 @@ function GuideBlock({
           zoom={block.zoom}
           captureHint={block.captureHint}
           cardId={cardId}
-          blockIndex={index}
+          blockIndex={storageIndex ?? index}
           isAdmin={isAdmin}
           inlineSvg={block.src ? diagrams?.[block.src] : undefined}
           fig={fig}
@@ -1486,7 +1491,7 @@ function GuideBlock({
           caption={block.caption}
           captureHint={block.captureHint}
           cardId={cardId}
-          blockIndex={index}
+          blockIndex={storageIndex ?? index}
           isAdmin={isAdmin}
         />
       );
@@ -1729,6 +1734,8 @@ function GuideBlock({
 
 export function GuideBlocks({
   blocks,
+  storageIndices,
+  droppedBlocks = [],
   models,
   bomRows,
   diagrams,
@@ -1745,6 +1752,12 @@ export function GuideBlocks({
   logbook,
 }: {
   blocks: ContentBlock[];
+  /** For each rendered block, its position in the RAW stored array. The capture
+   *  tool addresses a block by that (writes to `blocks[blockIndex]`), so a
+   *  survivor after a dropped block keeps its true index. Absent → position `i`. */
+  storageIndices?: number[];
+  /** Raw positions that failed to parse; drives an admin-only "skipped" banner. */
+  droppedBlocks?: number[];
   models?: Record<string, ResolvedModel>;
   bomRows?: BomRow[];
   diagrams?: Record<string, string>;
@@ -1839,6 +1852,7 @@ export function GuideBlocks({
       <GuideBlock
         block={block}
         index={i}
+        storageIndex={storageIndices?.[i] ?? i}
         models={models}
         bomRows={bomRows}
         diagrams={diagrams}
@@ -1932,6 +1946,20 @@ export function GuideBlocks({
   return (
     <LessonProvider lessonBase={lessonBase}>
       <div className="space-y-5">
+        {/* Admin-only signal: some blocks failed to parse and were skipped. Without
+            this a typo that silently drops a live block would be invisible to the
+            author (the learner just never sees it). Learners never see this note. */}
+        {isAdmin && droppedBlocks.length > 0 ? (
+          <p
+            role="status"
+            className="rounded border border-alert-red/50 bg-alert-red/5 px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-alert-red"
+          >
+            {droppedBlocks.length} block{droppedBlocks.length === 1 ? "" : "s"}{" "}
+            skipped (malformed) at position{droppedBlocks.length === 1 ? "" : "s"}{" "}
+            {droppedBlocks.join(", ")}. Fix in the source content; learners see the
+            rest of the card.
+          </p>
+        ) : null}
         {showRail ? (
           <IslandRail
             islands={islands}

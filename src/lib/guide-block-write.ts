@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { assertNotFrozen } from "@/lib/assertions";
 import { withTxRetry } from "@/lib/tx-retry";
-import { guideContentBlocksSchema } from "@/lib/schemas/guide";
+import { parseBlockAt } from "@/lib/guide-blocks-parse";
 
 export async function writeGuideBlockMedia(
   cardId: string,
@@ -28,17 +28,25 @@ export async function writeGuideBlockMedia(
         });
         await assertNotFrozen(tx, card.guide.revisionId);
 
-        const blocks = guideContentBlocksSchema.parse(card.contentBlocks);
-        const block = blocks[blockIndex];
+        // Validate ONLY the target block (parseBlockAt), not the whole array, so a
+        // malformed SIBLING block can't throw and block a legitimate capture write.
+        // `blockIndex` is the block's STORAGE position (threaded from the resilient
+        // render parse), so writing back to the raw array's [blockIndex] hits the
+        // right block. Malformed siblings pass through the copy untouched.
+        const raw = card.contentBlocks;
+        if (!Array.isArray(raw)) {
+          throw new Error("Card has no content blocks.");
+        }
+        const block = parseBlockAt(raw, blockIndex);
         if (!block || (block.type !== "image" && block.type !== "video")) {
           throw new Error("Target block is not an image or video block.");
         }
-        blocks[blockIndex] = {
+        const next = [...raw];
+        next[blockIndex] = {
           ...block,
           src,
           ...(caption !== undefined ? { caption } : {}),
         };
-        const next = guideContentBlocksSchema.parse(blocks);
 
         await tx.guideCard.update({
           where: { id: cardId },

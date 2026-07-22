@@ -94,8 +94,9 @@ export async function recordCourseComplete(
 
 export type StageQuizResult =
   | { ok: false }
-  | { ok: true; correct: false; xp: 0 }
-  | { ok: true; correct: true; xp: number; locked?: boolean; levelUp: LevelUp };
+  // `xp` can be > 0 even when `correct` is false: the FIRST answer of the day is
+  // rewarded regardless of correctness (attempt-reward, see below).
+  | { ok: true; correct: boolean; xp: number; locked?: boolean; levelUp: LevelUp };
 
 export async function recordStageQuizAnswer(
   input: { enrollmentId: string; stage: Stage; questionKey: string; pick: number },
@@ -143,21 +144,27 @@ export async function recordStageQuizAnswer(
     },
   };
 
-  // Wrong pick → lock the question for today (feeds nothing here, but keeps the
-  // anti guess-farm parity with the library + greys the slot).
-  if (input.pick !== q.answer) {
+  const wrong = input.pick !== q.answer;
+
+  // A wrong pick still records the day-lock (greys the slot + keeps parity with the
+  // library completion check), but it no longer FORFEITS the XP. The first answer
+  // of the day is rewarded regardless of correctness: penalising a first-attempt
+  // error taught the learner to not answer rather than commit and learn from the
+  // correction, and errorful generation aids retention. The per-day dedupe key —
+  // not correctness — is the anti-farm cap, so a wrong-then-right cycle can't
+  // double-pay, and there is no XP incentive to guess wrong.
+  if (wrong) {
     await db.quizLock.upsert({
       where: lockWhere,
       create: { userId, questionKey: input.questionKey, lockedOn: day },
       update: {},
     });
-    return { ok: true, correct: false, xp: 0 };
   }
 
-  // Correct, but locked earlier today → no XP.
-  const locked = await db.quizLock.findUnique({ where: lockWhere });
-  if (locked) return { ok: true, correct: true, xp: 0, locked: true, levelUp: null };
-
+  // Reward the FIRST answer of the day for this question (right or wrong), once,
+  // via the per-day dedupe key. firstEver keys off the durable pass + any prior
+  // award so an admin XP reset repops at the repop rate, never full-rate
+  // re-inflation (mirrors the library's LessonCompletion guard).
   const [priorAward, pass] = await Promise.all([
     db.xpEvent.findFirst({
       where: { userId, source: "STAGE_QUIZ_CORRECT", refId: input.questionKey },
@@ -180,6 +187,8 @@ export async function recordStageQuizAnswer(
     dedupeKey: dedupe.stageQuiz(userId, input.questionKey, now),
     now,
   });
-  if (!res.awarded) return { ok: true, correct: true, xp: 0, locked: true, levelUp: null };
-  return { ok: true, correct: true, xp: amount, levelUp: res.levelUp };
+  // Already answered this question today (dedupe) → the attempt XP was already paid.
+  if (!res.awarded)
+    return { ok: true, correct: !wrong, xp: 0, locked: true, levelUp: null };
+  return { ok: true, correct: !wrong, xp: amount, levelUp: res.levelUp };
 }

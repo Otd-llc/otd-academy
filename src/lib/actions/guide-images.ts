@@ -19,7 +19,7 @@ import { env } from "@/env";
 import { db } from "@/lib/db";
 import { r2, guideShotKey } from "@/lib/r2";
 import { requireAdmin } from "@/lib/auth-helpers";
-import { guideContentBlocksSchema } from "@/lib/schemas/guide";
+import { parseBlockAt } from "@/lib/guide-blocks-parse";
 import { writeGuideBlockMedia } from "@/lib/guide-block-write";
 import { signCaptureToken } from "@/lib/capture-token";
 
@@ -103,8 +103,9 @@ export async function createCaptureSession(input: unknown) {
     where: { id: data.cardId },
     select: { contentBlocks: true },
   });
-  const blocks = guideContentBlocksSchema.parse(card.contentBlocks);
-  const block = blocks[data.blockIndex];
+  // Validate only the target block (parseBlockAt) so a malformed sibling can't
+  // throw and make a card with one bad block un-capturable.
+  const block = parseBlockAt(card.contentBlocks, data.blockIndex);
   if (!block || (block.type !== "image" && block.type !== "video")) {
     throw new Error("Target block is not an image or video block.");
   }

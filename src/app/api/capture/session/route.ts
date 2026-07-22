@@ -5,7 +5,7 @@
 // side effects. Token-gated (no cookie), like /api/capture and /api/capture/status.
 import { db } from "@/lib/db";
 import { verifyCaptureToken } from "@/lib/capture-token";
-import { guideContentBlocksSchema } from "@/lib/schemas/guide";
+import { parseBlockAt } from "@/lib/guide-blocks-parse";
 
 // Token-dependent response — never static-optimize/cache it. The handler reads the
 // token off the request, which forces request-time execution; under cacheComponents
@@ -33,8 +33,7 @@ export async function GET(req: Request) {
   let script = "";
   if (card) {
     try {
-      const blocks = guideContentBlocksSchema.parse(card.contentBlocks);
-      const block = blocks[claims.blockIndex];
+      const block = parseBlockAt(card.contentBlocks, claims.blockIndex);
       if (block && (block.type === "image" || block.type === "video")) {
         hint = block.captureHint ?? "";
         caption = block.caption ?? "";
