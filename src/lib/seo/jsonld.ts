@@ -57,6 +57,22 @@ export const ORG_IDENTIFIERS = [
   { name: "UEI", value: "WDQXD9L9UFH3" },
 ] as const;
 
+// The named human accountable for the work — the strongest E-E-A-T signal (a
+// real person, not just a brand). Rendered as the /about byline + the
+// Organization `founder`.
+export const FOUNDER_NAME = "Joshua Tollette";
+
+// One Thousand Drones LLC's registered business address (registered-agent
+// address, public record). Emitted as the Organization `address` and shown on
+// /about. Kept as one source of truth so the schema and the visible page match.
+export const ORG_ADDRESS = {
+  streetAddress: "9905 S Pennsylvania Ave, Ste A",
+  addressLocality: "Oklahoma City",
+  addressRegion: "OK",
+  postalCode: "73159",
+  addressCountry: "US",
+} as const;
+
 // The subject-matter the org demonstrably works in — binds the entity to its
 // topics in the knowledge graph (entity SEO / E-E-A-T `knowsAbout`).
 const ORG_KNOWS_ABOUT = [
@@ -82,6 +98,8 @@ export function organizationJsonLd() {
     url: siteUrl(),
     description:
       "One Thousand Drones Academy teaches printed-circuit-board engineering through real ESP32-S3 projects designed in KiCad, where progress is gated on a clean design-rule check rather than quizzes.",
+    founder: { "@type": "Person", name: FOUNDER_NAME },
+    address: { "@type": "PostalAddress", ...ORG_ADDRESS },
     sameAs: [...SOCIAL_LINKS],
     knowsAbout: [...ORG_KNOWS_ABOUT],
     identifier: ORG_IDENTIFIERS.map((id) => ({
