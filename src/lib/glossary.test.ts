@@ -19,4 +19,12 @@ describe("glossary lookup", () => {
   it("returns null for an unknown term (degrades to plain text)", () => {
     expect(lookupTerm("not-a-real-term-xyz")).toBeNull();
   });
+
+  // The two terms the L1.01 LAYOUT card references inline (2026-07-22 audit:
+  // both silently degraded to plain text because no entry existed).
+  it("resolves impedance and stitching via (used by the L1.01 LAYOUT card)", () => {
+    expect(lookupTerm("impedance")).not.toBeNull();
+    expect(lookupTerm("stitching via")).not.toBeNull();
+    expect(lookupTerm("stitching vias")).toBe(lookupTerm("stitching via"));
+  });
 });
