@@ -11,6 +11,7 @@
 // whole action module into the bundle's server graph.
 import { ZodError } from "zod";
 import { editGuideCard, materializeGuide } from "@/lib/actions/guides";
+import { setPublishedRevision } from "@/lib/actions/projects";
 import { saveGuideCardSchema } from "@/lib/schemas/guide";
 
 export type GuideFormState = {
@@ -50,6 +51,31 @@ export async function materializeGuideFormAction(
   try {
     const g = await materializeGuide({ revisionId });
     return { createdId: g.id, ok: true };
+  } catch (err) {
+    if (err instanceof ZodError) return { errors: zodErrors(err) };
+    return { message: err instanceof Error ? err.message : "Unknown error" };
+  }
+}
+
+// ─── publishRevision form action ───────────────────────
+//
+// Backs the "Publish revision" button beside the hub's ReadinessPanel — the
+// missing UI for the go-live lever. `setPublishedRevision` is the ONLY
+// publish path that both flips `publishedRevisionId` AND busts the cached
+// project graph (invalidateProjectGraph → /courses + /sitemap.xml + the
+// cached guide reads), which a raw seed-script write cannot do (no request
+// context). It enforces requireAdmin + the publishable readiness bar; a
+// refusal surfaces here as `message` (the failing checks, human-readable).
+export async function publishRevisionFormAction(
+  _prev: GuideFormState,
+  formData: FormData,
+): Promise<GuideFormState> {
+  const projectId = pickString(formData, "projectId");
+  const revisionId = pickString(formData, "revisionId");
+  if (!projectId || !revisionId) return { message: "Missing project or revision id." };
+  try {
+    await setPublishedRevision({ projectId, revisionId });
+    return { ok: true };
   } catch (err) {
     if (err instanceof ZodError) return { errors: zodErrors(err) };
     return { message: err instanceof Error ? err.message : "Unknown error" };

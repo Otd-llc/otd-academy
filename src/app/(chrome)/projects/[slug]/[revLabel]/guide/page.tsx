@@ -61,6 +61,7 @@ import {
   type StageMediaQueue,
 } from "@/lib/guide-media-queue";
 import { ReadinessPanel } from "@/components/guide/ReadinessPanel";
+import { PublishRevisionButton } from "@/components/guide/PublishRevisionButton";
 import {
   assessLessonReadiness,
   parsedReadinessCards,
@@ -714,9 +715,22 @@ export default async function GuideHubPage({
         ]}
       />
 
-      {/* Admin readiness panel — two-tier definition of done. */}
+      {/* Admin readiness panel — two-tier definition of done — plus the
+          go-live lever itself. The button's action (setPublishedRevision)
+          re-enforces the publishable bar server-side and busts the cached
+          project graph, which a seed-script publish cannot (no request
+          context). */}
       {view.isAuthorView && readiness ? (
-        <ReadinessPanel readiness={readiness} />
+        <>
+          <ReadinessPanel readiness={readiness} />
+          <div className="mt-4">
+            <PublishRevisionButton
+              projectId={project.id}
+              revisionId={revision.id}
+              isPublished={project.publishedRevisionId === revision.id}
+            />
+          </div>
+        </>
       ) : null}
 
       {/* Admin capture queue — empty screenshot/clip slots across the guide. */}
