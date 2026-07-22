@@ -365,14 +365,14 @@ body {
 .pc-node .pc-top { fill: var(--color-deep-space); stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 1.1; stroke-linejoin: round; transition: stroke 0.4s, fill 0.4s; }
 .pc-node .pc-side { fill: var(--color-deep-space); stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 0.5; stroke-linejoin: round; transition: stroke 0.4s; }
 .pc-node .pc-rim { fill: none; stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 0.4; opacity: 0.75; transition: stroke 0.4s; }
-.pc-num { position: relative; z-index: 2; font-family: var(--font-numeral); font-weight: 800; font-size: 5.1cqw; line-height: 1; color: var(--color-gray-3); transition: color 0.4s; }
+.pc-num { position: relative; z-index: 2; font-family: var(--font-numeral); font-weight: 800; font-size: 5.1cqw; line-height: 1; color: var(--color-muted); transition: color 0.4s; }
 /* three-letter stage label under the numeral, TOP comb only (mono, quieter than
    the numeral — G6 tucks it well under the big number). Tones track the numeral
    so it reads on every hex fill. 2.5cqw matches the label's PROPORTION on a
    phone-width comb (where the 9px floor puts it at ~2.5% of the comb), so the
    desktop label is at least as large as mobile instead of shrinking to 1.4%.
    The 9px floor still holds it legible on the very narrowest combs. */
-.pc-abbr { position: relative; z-index: 2; font-family: var(--font-mono); font-weight: 700; font-size: max(2.5cqw, 9px); letter-spacing: 0.12em; line-height: 1; margin-top: 0.7cqw; color: var(--color-gray-3); transition: color 0.4s; }
+.pc-abbr { position: relative; z-index: 2; font-family: var(--font-mono); font-weight: 700; font-size: max(2.5cqw, 9px); letter-spacing: 0.12em; line-height: 1; margin-top: 0.7cqw; color: var(--color-muted); transition: color 0.4s; }
 .pc-node.complete .pc-abbr { color: var(--color-deep-space); }
 .pc-node.current .pc-abbr { color: var(--color-gold-light); }
 .pc-node.viewing .pc-abbr { color: var(--color-gold-light); }
@@ -553,8 +553,14 @@ body {
 .qzh-opt[data-st="ok"] { color: var(--color-gold-light); }
 .qzh-opt[data-st="bad"] .qzh-hex polygon { stroke: var(--color-alert-red); }
 .qzh-opt[data-st="bad"] .qzh-hex b { color: var(--color-alert-red); }
-.qzh-opt[data-st="bad"] { color: #7a4a48; text-decoration: line-through; }
+/* Ruled-out option text: token, not the old hardcoded #7a4a48 (2.75:1 on
+   deep-space, failed AA, and had no light override). The strike-through keeps
+   the state non-color-alone; the coral token reads in both themes. */
+.qzh-opt[data-st="bad"] { color: var(--color-alert-red); text-decoration: line-through; }
 .qzh-opt[data-st="dim"] { opacity: 0.45; }
+/* Visible keyboard focus on quiz/survey options (they had NO focus-visible rule
+   anywhere — UA default only, inconsistent with every other control). */
+.qzh-opt:focus-visible { outline: 2px solid var(--color-gold-light); outline-offset: 2px; }
 @keyframes qzh-pop { 0% { transform: scale(1); } 45% { transform: scale(1.07); } 100% { transform: scale(1); } }
 @keyframes qzh-nudge { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
 .qzh-opt[data-st="ok"] .qzh-hex { animation: qzh-pop 0.3s ease; }

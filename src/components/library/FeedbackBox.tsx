@@ -88,7 +88,7 @@ export function FeedbackBox({
             rows={3}
             maxLength={2000}
             placeholder="What would make this lesson clearer or more correct?"
-            className="w-full resize-y border-0 border-b border-panel-border bg-transparent px-0 py-1 font-serif text-sm text-text placeholder:text-gray-3 focus:border-command-gold focus:outline-none"
+            className="w-full resize-y border-0 border-b border-panel-border bg-transparent px-0 py-1 font-serif text-sm text-text placeholder:text-muted focus:border-command-gold focus:outline-none"
           />
           <div className="mt-3 flex flex-wrap items-center gap-4">
             <button

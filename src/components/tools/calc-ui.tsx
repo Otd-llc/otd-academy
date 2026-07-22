@@ -41,7 +41,7 @@ export function NumberField({
           <span className="shrink-0 font-mono text-sm text-muted">{suffix}</span>
         ) : null}
       </span>
-      {hint ? <span className="text-xs leading-snug text-gray-3">{hint}</span> : null}
+      {hint ? <span className="text-xs leading-snug text-muted">{hint}</span> : null}
     </label>
   );
 }

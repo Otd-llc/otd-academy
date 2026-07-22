@@ -68,6 +68,16 @@ function Banner({ item, onDone }: { item: FanfareItem; onDone: () => void }) {
       className={`${leaving ? "fanfare-up" : "fanfare-drop"} pointer-events-auto relative w-full border-b border-panel-border/60 bg-deep-space shadow-[var(--elev-card)]`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
+      // Keyboard parity with the hover pause (WCAG 2.2.1): the banner
+      // auto-dismisses in 4s and sits at the END of the DOM, so a keyboard
+      // user could rarely reach its link/dismiss before it vanished. Focus
+      // anywhere inside now holds it open, like the pointer does.
+      onFocus={() => setPaused(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          setPaused(false);
+        }
+      }}
     >
       <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-4 py-3 sm:gap-4 sm:px-6">
         <span className="shrink-0">

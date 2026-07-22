@@ -56,7 +56,7 @@ export function VerifyForm({ initialCode }: { initialCode?: string }) {
           value={dashed(chars)}
           onChange={(e) => setChars(extractChars(e.target.value))}
           placeholder="XXXX-XXXX"
-          className="min-w-0 flex-1 bg-transparent py-4 pl-1 pr-2 font-mono text-base uppercase tracking-[0.3em] text-title outline-none placeholder:text-gray-3 sm:text-lg"
+          className="min-w-0 flex-1 bg-transparent py-4 pl-1 pr-2 font-mono text-base uppercase tracking-[0.3em] text-title outline-none placeholder:text-muted sm:text-lg"
         />
         <button
           type="submit"
@@ -66,7 +66,7 @@ export function VerifyForm({ initialCode }: { initialCode?: string }) {
           Verify
         </button>
       </div>
-      <p className="mt-2.5 text-center font-mono text-[10px] uppercase tracking-[0.22em] text-gray-3">
+      <p className="mt-2.5 text-center font-mono text-[10px] uppercase tracking-[0.22em] text-muted">
         8 characters · dashes added for you
       </p>
     </form>

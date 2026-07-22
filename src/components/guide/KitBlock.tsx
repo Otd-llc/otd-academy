@@ -124,8 +124,9 @@ export function KitBlock({
           >
             {it.label}
           </span>
+          {/* Checked dims via opacity, not gray-3 (fails AA in both themes). */}
           {it.note ? (
-            <p className={`mt-0.5 font-serif text-sm leading-snug ${on ? "text-gray-3" : "text-muted"}`}>
+            <p className={`mt-0.5 font-serif text-sm leading-snug text-muted ${on ? "opacity-75" : ""}`}>
               <Inline text={it.note} />
             </p>
           ) : null}

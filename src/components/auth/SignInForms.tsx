@@ -64,14 +64,14 @@ const OUTLINE =
 const SQUARE_BASE =
   "flex w-full flex-col items-center justify-center gap-2 rounded-md border p-4 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors focus-visible:outline-none";
 const INPUT =
-  "w-full rounded-md border border-panel-border bg-transparent px-3 py-2.5 font-mono text-sm text-text placeholder:text-gray-3 focus:border-command-gold focus:outline-none";
+  "w-full rounded-md border border-panel-border bg-transparent px-3 py-2.5 font-mono text-sm text-text placeholder:text-muted focus:border-command-gold focus:outline-none";
 const LABEL = "block font-mono text-[9px] uppercase tracking-[0.2em] text-muted";
 
 function Divider({ label = "or" }: { label?: string }) {
   return (
     <div className="my-4 flex items-center gap-3" aria-hidden>
       <span className="h-px flex-1 bg-panel-border/70" />
-      <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-gray-3">{label}</span>
+      <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted">{label}</span>
       <span className="h-px flex-1 bg-panel-border/70" />
     </div>
   );
@@ -262,7 +262,7 @@ export function SignInForms({
         <button
           type="button"
           onClick={forget}
-          className="mt-4 self-center font-mono text-[10px] uppercase tracking-[0.14em] text-gray-3 transition-colors hover:text-gold-light"
+          className="mt-4 self-center font-mono text-[10px] uppercase tracking-[0.14em] text-muted transition-colors hover:text-gold-light"
         >
           Not you? Use another account ›
         </button>
@@ -306,12 +306,15 @@ export function SignInForms({
       </div>
 
       <Divider />
-      <label htmlFor="si-email" className={`${LABEL} mb-1.5`}>
+      {/* Plain heading, not a second <label for="si-email"> — the input already
+          carries an sr-only "Email address" label inside emailForm(); two labels
+          on one control read as a doubled/conflicting name to AT. */}
+      <p className={`${LABEL} mb-1.5`} aria-hidden="true">
         Or a magic link
-      </label>
+      </p>
       {emailForm()}
 
-      <p className="mt-4 text-center font-mono text-[9px] uppercase tracking-[0.08em] text-gray-3">
+      <p className="mt-4 text-center font-mono text-[9px] uppercase tracking-[0.08em] text-muted">
         By continuing you agree to the{" "}
         <a href="/license" className="text-muted transition-colors hover:text-gold-light">
           terms

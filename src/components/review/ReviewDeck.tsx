@@ -7,7 +7,7 @@
 // and no hydration mismatch, while repeated exposure still can't train the answer's
 // position (response learning). `recordReviewAnswer` is authoritative on scoring +
 // XP; the client uses `answerDisplay` only for instant feedback.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { recordReviewAnswer } from "@/lib/actions/logbook";
 import { useFanfare } from "@/components/logbook/Fanfare";
@@ -31,6 +31,20 @@ export function ReviewDeck({ items }: { items: ReviewDeckItem[] }) {
   const firedRef = useRef(false);
   const fanfare = useFanfare();
 
+  // Focus management (audit Phase 7): grading used to `disabled` the focused
+  // option (focus dumped to <body>) and next() replaced the card with focus
+  // stranded on a removed button. On grade → focus the Next control; on
+  // advance → focus the new question.
+  const nextBtnRef = useRef<HTMLButtonElement | null>(null);
+  const questionRef = useRef<HTMLParagraphElement | null>(null);
+  const answered = pickedDisplay !== null;
+  useEffect(() => {
+    if (answered) nextBtnRef.current?.focus();
+  }, [answered]);
+  useEffect(() => {
+    if (pos > 0 && pos < items.length) questionRef.current?.focus();
+  }, [pos, items.length]);
+
   if (pos >= items.length) {
     return (
       <div className="rounded border border-status-green/40 bg-status-green/5 px-4 py-10 text-center">
@@ -50,7 +64,6 @@ export function ReviewDeck({ items }: { items: ReviewDeckItem[] }) {
   }
 
   const item = items[pos]!;
-  const answered = pickedDisplay !== null;
   const correct = answered && pickedDisplay === item.answerDisplay;
 
   async function pick(displayIdx: number) {
@@ -89,9 +102,19 @@ export function ReviewDeck({ items }: { items: ReviewDeckItem[] }) {
         ) : null}
       </div>
 
-      <p className="mb-5 font-serif text-lg leading-relaxed text-text">{item.q}</p>
+      <p
+        ref={questionRef}
+        tabIndex={-1}
+        className="mb-5 font-serif text-lg leading-relaxed text-text outline-none"
+      >
+        {item.q}
+      </p>
 
-      <ul className="space-y-2">
+      <ul
+        className="space-y-2"
+        role="group"
+        aria-label={`Item ${pos + 1} answer options`}
+      >
         {item.options.map((opt, displayIdx) => {
           const isPicked = pickedDisplay === displayIdx;
           const isAnswer = displayIdx === item.answerDisplay;
@@ -101,13 +124,15 @@ export function ReviewDeck({ items }: { items: ReviewDeckItem[] }) {
               ? "border-status-green text-status-green"
               : "border-alert-red text-alert-red line-through"
             : "border-panel-border text-text hover:border-command-gold/60";
+          // aria-disabled + guard (pick() ignores repeat calls), NOT disabled:
+          // disabling all options on grade ejected keyboard focus to <body>.
           return (
             <li key={displayIdx}>
               <button
                 type="button"
-                disabled={answered}
+                aria-disabled={answered}
                 onClick={() => pick(displayIdx)}
-                className={`w-full rounded border px-3 py-2 text-left font-serif text-[15px] leading-relaxed transition-colors disabled:cursor-default ${tone}`}
+                className={`w-full rounded border px-3 py-2 text-left font-serif text-[15px] leading-relaxed transition-colors ${answered ? "cursor-default" : ""} ${tone}`}
               >
                 {opt}
               </button>
@@ -116,24 +141,29 @@ export function ReviewDeck({ items }: { items: ReviewDeckItem[] }) {
         })}
       </ul>
 
-      {answered ? (
-        <div className="mt-5 flex items-center justify-between">
-          <span
-            className={`font-mono text-[11px] uppercase tracking-wider ${
-              correct ? "text-status-green" : "text-alert-red"
-            }`}
-          >
-            {correct ? "Correct" : "Not quite"}
-          </span>
-          <button
-            type="button"
-            onClick={next}
-            className="glass-button px-4 py-1.5 font-mono text-[11px] uppercase tracking-wider"
-          >
-            {pos + 1 < items.length ? "Next →" : "Finish"}
-          </button>
-        </div>
-      ) : null}
+      {/* role="status": the Correct / Not quite verdict was a static span,
+          silent to screen readers. */}
+      <div role="status">
+        {answered ? (
+          <div className="mt-5 flex items-center justify-between">
+            <span
+              className={`font-mono text-[11px] uppercase tracking-wider ${
+                correct ? "text-status-green" : "text-alert-red"
+              }`}
+            >
+              {correct ? "Correct" : "Not quite"}
+            </span>
+            <button
+              ref={nextBtnRef}
+              type="button"
+              onClick={next}
+              className="glass-button px-4 py-1.5 font-mono text-[11px] uppercase tracking-wider"
+            >
+              {pos + 1 < items.length ? "Next →" : "Finish"}
+            </button>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

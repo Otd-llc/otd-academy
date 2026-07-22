@@ -24,11 +24,11 @@ export function XpTick({ amount }: { amount: number }) {
       aria-live="polite"
       className="relative inline-flex items-baseline leading-none"
     >
-      {/* Persistent earned marker (stays after the float fades). */}
-      <span
-        aria-hidden
-        className="font-numeral text-sm font-bold tabular-nums text-command-gold/80"
-      >
+      {/* Persistent earned marker (stays after the float fades). NOT
+          aria-hidden: it is the live region's ONLY announceable content — with
+          both children hidden the region announced nothing and the award was
+          sight-only after all, exactly what the wrapper claims to prevent. */}
+      <span className="font-numeral text-sm font-bold tabular-nums text-command-gold/80">
         +{amount} XP
       </span>
       {/* Floating pop: rises and fades once, does not affect layout. */}
