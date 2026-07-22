@@ -14,6 +14,7 @@ import {
   type LifecycleSequence,
 } from "@/lib/lifecycle-emails";
 import { sendLifecycleEmail } from "@/lib/lifecycle-send";
+import { capture } from "@/lib/analytics";
 import {
   type AudienceUser,
   welcomeAudience,
@@ -194,7 +195,12 @@ export async function GET(req: Request): Promise<Response> {
           skipped++;
         }
       } catch (e) {
-        errors.push(`${sequence}/${user.id}: ${e instanceof Error ? e.message : String(e)}`);
+        const detail = e instanceof Error ? e.message : String(e);
+        errors.push(`${sequence}/${user.id}: ${detail}`);
+        // The JSON body below is unread in practice (Vercel cron discards it);
+        // PostHog is the only place a failed send is actually visible. The
+        // claim was released (lifecycle-send), so the next tick retries.
+        capture("lifecycle_send_failed", { sequence, detail }, user.id);
       }
       if (++batched % BATCH === 0) await sleep(BATCH_PAUSE_MS);
     }

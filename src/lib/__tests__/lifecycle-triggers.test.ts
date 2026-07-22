@@ -302,6 +302,73 @@ describe("once-only send + consent guard (lifecycle-send)", () => {
     expect(wEnrolledNone.map((x) => x.id)).not.toContain(u.id);
   });
 
+  test("a failed Resend send releases the claim so the next tick retries", async () => {
+    resendCalls.length = 0;
+    const u = await makeUser("send-retry");
+    const built = welcomeEmail({
+      firstName: "X",
+      founderFirstName: "Josh",
+      unsubscribeUrl: "https://x/u",
+      host: "x",
+      postalAddress: "One Thousand Drones, LLC, Broken Arrow, OK",
+      l101Url: "https://x/l101",
+    });
+    const failFetch = vi.fn(async () =>
+      new Response(JSON.stringify({ message: "rate limited" }), { status: 429 }),
+    ) as unknown as typeof fetch;
+
+    // Failed send: throws (so the cron logs it) AND releases the claim — the
+    // old behavior left the ledger row, silently marking the email "sent"
+    // forever with no retry.
+    await expect(
+      sendLifecycleEmail(
+        db,
+        { userId: u.id, to: u.email!, sequence: "1.1", email: built, unsubscribeUrl: "https://x/u" },
+        failFetch,
+      ),
+    ).rejects.toThrow(/Resend/);
+    const ledger = await db.lifecycleSend.findUnique({
+      where: { userId_sequence: { userId: u.id, sequence: "1.1" } },
+    });
+    expect(ledger).toBeNull();
+
+    // Next tick: the retry succeeds and claims normally.
+    const retry = await sendLifecycleEmail(
+      db,
+      { userId: u.id, to: u.email!, sequence: "1.1", email: built, unsubscribeUrl: "https://x/u" },
+      okFetch,
+    );
+    expect(retry).toBe("sent");
+    expect(resendCalls).toHaveLength(1);
+  });
+
+  test("a thrown fetch (network error) also releases the claim", async () => {
+    const u = await makeUser("send-neterr");
+    const built = welcomeEmail({
+      firstName: "X",
+      founderFirstName: "Josh",
+      unsubscribeUrl: "https://x/u",
+      host: "x",
+      postalAddress: "One Thousand Drones, LLC, Broken Arrow, OK",
+      l101Url: "https://x/l101",
+    });
+    const throwFetch = vi.fn(async () => {
+      throw new Error("ECONNRESET");
+    }) as unknown as typeof fetch;
+
+    await expect(
+      sendLifecycleEmail(
+        db,
+        { userId: u.id, to: u.email!, sequence: "2.1", email: built, unsubscribeUrl: "https://x/u" },
+        throwFetch,
+      ),
+    ).rejects.toThrow();
+    const ledger = await db.lifecycleSend.findUnique({
+      where: { userId_sequence: { userId: u.id, sequence: "2.1" } },
+    });
+    expect(ledger).toBeNull();
+  });
+
   test("consent guard: an opted-out user is skipped and never emailed", async () => {
     resendCalls.length = 0;
     const u = await makeUser("send-optout", { emailConsent: false });
