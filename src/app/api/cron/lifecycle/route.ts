@@ -18,6 +18,7 @@ import { drainDunningPending } from "@/lib/dunning-retry";
 import { capture } from "@/lib/analytics";
 import {
   type AudienceUser,
+  ENTRY_BOARD_SLUG,
   welcomeAudience,
   schematicNudgeAudience,
   layoutNudgeAudience,
@@ -54,7 +55,13 @@ function host(): string {
 
 // Resolve every personalization token for one recipient. Links are env-configured
 // where they exist; otherwise they fall back to the published guide / Pass routes.
-function contextFor(user: AudienceUser): LifecycleContext {
+//
+// `l101Label` is the entry board's CURRENT published revision label, resolved
+// once per tick — the old literal "v1" was one label rename away from mailing
+// out 404s. passUrl/upgradeUrl point at /pricing, the only page with the Pass
+// buy/upgrade buttons; they used to send a ready-to-buy reader to /courses,
+// which has no purchase surface at all.
+function contextFor(user: AudienceUser, l101Label: string): LifecycleContext {
   const base = siteUrl();
   return {
     firstName: firstName(user.name),
@@ -62,11 +69,11 @@ function contextFor(user: AudienceUser): LifecycleContext {
     unsubscribeUrl: `${base}/email/unsubscribe/${signUnsubscribeToken(user.id)}`,
     host: host(),
     postalAddress: env.LIFECYCLE_POSTAL_ADDRESS,
-    l101Url: `${base}/projects/l1-01-wroom-breakout/v1/guide`,
+    l101Url: `${base}/projects/${ENTRY_BOARD_SLUG}/${encodeURIComponent(l101Label)}/guide`,
     certUrl: `${base}/verify`,
     l2Url: `${base}/courses`,
-    passUrl: `${base}/courses`,
-    upgradeUrl: `${base}/courses`,
+    passUrl: `${base}/pricing`,
+    upgradeUrl: `${base}/pricing`,
     projectName: "your project",
     projectPrice: "what you paid",
   };
@@ -155,6 +162,14 @@ export async function GET(req: Request): Promise<Response> {
   const now = new Date();
   const plans = await plan(now);
 
+  // Entry board's live published label for deep links (fallback "v1" only when
+  // nothing is published — those sequences shouldn't be firing then anyway).
+  const entry = await db.project.findUnique({
+    where: { slug: ENTRY_BOARD_SLUG },
+    select: { publishedRevision: { select: { label: true } } },
+  });
+  const l101Label = entry?.publishedRevision?.label ?? "v1";
+
   let sent = 0;
   let skipped = 0;
   const errors: string[] = [];
@@ -179,7 +194,7 @@ export async function GET(req: Request): Promise<Response> {
         continue;
       }
       try {
-        const ctx = contextFor(user);
+        const ctx = contextFor(user, l101Label);
         const email = build(ctx);
         const outcome = await sendLifecycleEmail(db, {
           userId: user.id,
