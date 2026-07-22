@@ -8,55 +8,29 @@
 // lived on a different person keyed by the DB user id — the funnel could not
 // stitch a single journey across the sign-in boundary and its conversion rates
 // were uninterpretable. This island mounts inside the header's account slot
-// (which already resolved the session — no extra request) and:
-//   - signed in  → identify(userId): merges the pre-signup anonymous history
-//     onto the user person (PostHog aliases the device id on first identify).
-//   - signed out AFTER a previous identify → reset(): drops the id so a shared
-//     device doesn't keep attributing events to the signed-out user.
+// (which already resolved the session — no extra request) and identifies /
+// resets accordingly (see applyIdentity for the exact decision).
 //
-// The "was identified" marker lives in localStorage rather than poking
-// posthog-js internals; it is instance state, not per-user data, so it is
-// deliberately NOT userId-scoped (cf. localstorage-user-scope — this is the
-// same class as the theme/device flags).
-//
-// posthog-js loads lazily; init may land after this effect (the provider owns
-// it), so a short bounded retry covers the first-mount race instead of losing
-// the identify until the next navigation.
+// It goes through getPosthog() — the ONE loader that owns init AND the c15t
+// consent gate — rather than importing posthog-js directly. Two wins over the
+// old private import + `__loaded` retry loop: (1) getPosthog() resolves the
+// initialized instance itself, so there is no first-mount race to retry around;
+// (2) it returns null until analytics consent is granted, so identify() can
+// never fire for a visitor who declined — the retry loop had no such gate.
 
 import { useEffect } from "react";
-
-const MARKER = "otd:ph-identified";
+import { getPosthog } from "@/lib/posthog-client";
+import { applyIdentity } from "@/lib/identity-sync";
 
 export function IdentitySync({ userId }: { userId: string | null }) {
   useEffect(() => {
     let cancelled = false;
-    let tries = 0;
-
-    const attempt = () => {
-      if (cancelled) return;
-      void import("posthog-js").then(({ default: ph }) => {
-        if (cancelled) return;
-        if (!ph.__loaded) {
-          // Provider hasn't initialized yet (or analytics is disabled). Retry
-          // briefly; if the key is unset this simply gives up after ~5s.
-          if (tries++ < 5) setTimeout(attempt, 1000);
-          return;
-        }
-        try {
-          if (userId) {
-            if (ph.get_distinct_id() !== userId) ph.identify(userId);
-            window.localStorage.setItem(MARKER, "1");
-          } else if (window.localStorage.getItem(MARKER)) {
-            ph.reset();
-            window.localStorage.removeItem(MARKER);
-          }
-        } catch {
-          /* telemetry must never break the UI */
-        }
-      });
-    };
-    attempt();
-
+    void getPosthog().then((ph) => {
+      // null → no key or consent not granted: nothing to stitch, and we must
+      // not touch an instance that was never allowed to init.
+      if (cancelled || !ph) return;
+      applyIdentity(ph, userId, window.localStorage);
+    });
     return () => {
       cancelled = true;
     };
