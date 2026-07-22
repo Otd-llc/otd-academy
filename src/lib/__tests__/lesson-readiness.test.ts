@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   assessLessonReadiness,
+  parsedReadinessCards,
   type LessonCard,
 } from "@/lib/lesson-readiness";
 import type { ContentBlock } from "@/lib/schemas/guide";
@@ -25,6 +26,40 @@ function doneCards(): LessonCard[] {
 function placeholderMediaCards(): LessonCard[] {
   return STAGES.map((stage) => ({ stage, blocks: [quiz, emptyImage] }));
 }
+
+describe("assessLessonReadiness — malformed blocks gate the publishable bar", () => {
+  // The render path is per-block resilient (parseGuideBlocks): a malformed
+  // block silently vanishes for learners. Readiness must therefore SEE the
+  // survivors (not zero the card) AND refuse to publish while any block is
+  // malformed — otherwise a typo ships an invisible hole in a live lesson.
+  it("a card with malformed blocks fails publishable with a named check", () => {
+    const cards = doneCards();
+    cards[0] = { ...cards[0]!, malformedBlocks: 2 };
+    const r = assessLessonReadiness({
+      stages: STAGES,
+      cards,
+      exam: { questions: 18 },
+      broughtUpBoards: 1,
+      published: false,
+    });
+    expect(r.publishable).toBe(false);
+    const check = r.checks.find((c) => c.label === "No malformed blocks");
+    expect(check?.ok).toBe(false);
+    expect(check?.detail).toContain("A");
+  });
+
+  it("parsedReadinessCards keeps survivors and counts the malformed", () => {
+    const rows = [
+      {
+        stage: "A",
+        contentBlocks: [quiz, { type: "quiz" /* missing questions */ }, image],
+      },
+    ];
+    const cards = parsedReadinessCards(rows);
+    expect(cards[0]!.blocks).toHaveLength(2);
+    expect(cards[0]!.malformedBlocks).toBe(1);
+  });
+});
 
 describe("assessLessonReadiness — two-tier bar", () => {
   it("a complete lesson with real media + a brought-up board is VETTED", () => {

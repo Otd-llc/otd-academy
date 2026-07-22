@@ -6,8 +6,10 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
-import { guideContentBlocksSchema } from "@/lib/schemas/guide";
-import { assessLessonReadiness } from "@/lib/lesson-readiness";
+import {
+  assessLessonReadiness,
+  parsedReadinessCards,
+} from "@/lib/lesson-readiness";
 
 async function main() {
   const slug = process.argv[2];
@@ -42,10 +44,12 @@ async function main() {
   }
 
   const rev = project.revisions.find((r) => r.guide) ?? project.revisions[0];
-  const cards = (rev?.guide?.cards ?? []).map((c) => ({
-    stage: c.stage as string,
-    blocks: guideContentBlocksSchema.safeParse(c.contentBlocks).data ?? [],
-  }));
+  const cards = parsedReadinessCards(
+    (rev?.guide?.cards ?? []).map((c) => ({
+      stage: c.stage as string,
+      contentBlocks: c.contentBlocks,
+    })),
+  );
   const examQuestions =
     project.exam && Array.isArray(project.exam.questions)
       ? (project.exam.questions as unknown[]).length

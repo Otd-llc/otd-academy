@@ -14,10 +14,31 @@
 
 import type { ContentBlock } from "@/lib/schemas/guide";
 import { collectEmptyMedia } from "@/lib/guide-media-queue";
+import { parseGuideBlocks } from "@/lib/guide-blocks-parse";
 
 export interface LessonCard {
   stage: string;
   blocks: ContentBlock[];
+  /** Blocks in the stored array that failed to parse (parseGuideBlocks).
+   *  The render path silently drops these for learners, so readiness must
+   *  surface them — omitted/0 = clean. */
+  malformedBlocks?: number;
+}
+
+/**
+ * Map raw guideCard rows to readiness cards with the SAME per-block parser the
+ * render path uses. The old all-or-nothing safeParse zeroed a whole card on one
+ * malformed block, so readiness reported misleading failures ("no quiz",
+ * "missing cards") instead of the real one — and could never gate on malformed
+ * content at all.
+ */
+export function parsedReadinessCards(
+  rows: { stage: string; contentBlocks: unknown }[],
+): LessonCard[] {
+  return rows.map((r) => {
+    const { blocks, dropped } = parseGuideBlocks(r.contentBlocks);
+    return { stage: r.stage, blocks, malformedBlocks: dropped.length };
+  });
 }
 
 export interface LessonReadinessInput {
@@ -92,6 +113,20 @@ export function assessLessonReadiness(
     tier: "publishable",
     ok: todoStages.length === 0,
     detail: todoStages.length ? `TODO in: ${todoStages.join(", ")}` : undefined,
+  });
+
+  // A malformed block renders as NOTHING for learners (per-block parse drops
+  // it), so publishing with one ships an invisible hole in a live lesson.
+  const malformedStages = cards
+    .filter((c) => (c.malformedBlocks ?? 0) > 0)
+    .map((c) => `${c.stage} (${c.malformedBlocks})`);
+  checks.push({
+    label: "No malformed blocks",
+    tier: "publishable",
+    ok: malformedStages.length === 0,
+    detail: malformedStages.length
+      ? `malformed in: ${malformedStages.join(", ")}`
+      : undefined,
   });
 
   checks.push({

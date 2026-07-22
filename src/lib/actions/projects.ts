@@ -14,8 +14,10 @@ import {
   createProjectSchema,
   editProjectSchema,
 } from "@/lib/schemas/project";
-import { guideContentBlocksSchema } from "@/lib/schemas/guide";
-import { assessLessonReadiness } from "@/lib/lesson-readiness";
+import {
+  assessLessonReadiness,
+  parsedReadinessCards,
+} from "@/lib/lesson-readiness";
 import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
 import { revalidatePath } from "next/cache";
 import { invalidateProjectGraph } from "@/lib/cache-invalidate";
@@ -72,10 +74,15 @@ export async function setPublishedRevision(
   }
 
   if (!force) {
-    const cards = revision.guide.cards.map((c) => ({
-      stage: c.stage as string,
-      blocks: guideContentBlocksSchema.safeParse(c.contentBlocks).data ?? [],
-    }));
+    // Per-block parse (same as the render path): a malformed block no longer
+    // zeroes the card into misleading "no quiz"/"missing card" failures — it
+    // fails the dedicated "No malformed blocks" check instead.
+    const cards = parsedReadinessCards(
+      revision.guide.cards.map((c) => ({
+        stage: c.stage as string,
+        contentBlocks: c.contentBlocks,
+      })),
+    );
     const examQuestions = Array.isArray(revision.project.exam?.questions)
       ? (revision.project.exam.questions as unknown[]).length
       : 0;

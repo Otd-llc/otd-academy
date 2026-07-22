@@ -11,8 +11,10 @@ import { ShareCard } from "@/components/learn/ShareCard";
 import { TipBlock } from "@/components/learn/TipBlock";
 import { GuideActionButton } from "@/components/guide/GuideActionButton";
 import { pickNextLessons } from "@/lib/learner-next-lessons";
-import { guideContentBlocksSchema } from "@/lib/schemas/guide";
-import { assessLessonReadiness } from "@/lib/lesson-readiness";
+import {
+  assessLessonReadiness,
+  parsedReadinessCards,
+} from "@/lib/lesson-readiness";
 import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
 import { goldenReferenceFromRows } from "@/lib/golden-reference-load";
 import { type GoldenReference } from "@/lib/golden-reference";
@@ -115,10 +117,12 @@ export default async function LessonCompletePage({
           },
         }),
       ]);
-      const parsedCards = blockRows.map((c) => ({
-        stage: c.stage as string,
-        blocks: guideContentBlocksSchema.safeParse(c.contentBlocks).data ?? [],
-      }));
+      const parsedCards = parsedReadinessCards(
+        blockRows.map((c) => ({
+          stage: c.stage as string,
+          contentBlocks: c.contentBlocks,
+        })),
+      );
       const examQuestions = Array.isArray(exam?.questions)
         ? (exam.questions as unknown[]).length
         : 0;

@@ -52,7 +52,6 @@ import {
 } from "@/lib/guide-completion";
 import {
   completionRefSchema,
-  guideContentBlocksSchema,
   type CompletionRef,
 } from "@/lib/schemas/guide";
 import { CaptureQueue } from "@/components/guide/CaptureQueue";
@@ -64,6 +63,7 @@ import {
 import { ReadinessPanel } from "@/components/guide/ReadinessPanel";
 import {
   assessLessonReadiness,
+  parsedReadinessCards,
   type LessonReadiness,
 } from "@/lib/lesson-readiness";
 import {
@@ -652,10 +652,12 @@ export default async function GuideHubPage({
       orderBy: { ordinal: "asc" },
       select: { stage: true, contentBlocks: true },
     });
-    const parsedCards = blockRows.map((c) => ({
-      stage: c.stage as string,
-      blocks: guideContentBlocksSchema.safeParse(c.contentBlocks).data ?? [],
-    }));
+    const parsedCards = parsedReadinessCards(
+      blockRows.map((c) => ({
+        stage: c.stage as string,
+        contentBlocks: c.contentBlocks,
+      })),
+    );
     mediaQueue = collectEmptyMedia(parsedCards);
     mediaQueueTotal = emptyMediaCount(mediaQueue);
 
