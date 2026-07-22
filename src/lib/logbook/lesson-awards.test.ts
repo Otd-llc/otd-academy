@@ -101,6 +101,13 @@ describe("recordQuizAnswer", () => {
     });
     expect(sched).not.toBeNull();
   });
+
+  it("a WRONG answer to an UNTAGGED library question seeds it keyed by questionKey", async () => {
+    // K2 (no reviewId) was answered wrong above → auto-fed into the deck, keyed by
+    // its questionKey with a null stage.
+    const item = await db.quizItem.findUnique({ where: { reviewItemId: K2 } });
+    expect(item).toMatchObject({ projectSlug: slug, stage: null, answer: 1 });
+  });
 });
 
 describe("recordLessonComplete", () => {

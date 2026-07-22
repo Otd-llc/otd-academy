@@ -54,25 +54,35 @@ export async function recordQuizAnswer(
       lockedOn: day,
     },
   };
+  const wrong = input.pick !== q.answer;
 
-  // Forward-only review seeding (step 4): a REVIEWABLE library question (one with an
-  // authored reviewId) is snapshotted into the deck. Best-effort — never break the
-  // quiz answer. Library items carry no stage (null), keyed `lib:<slug>:<reviewId>`.
-  if (q.reviewId && q.options) {
-    await seedReviewItem({
-      userId,
-      reviewItemId: libraryReviewItemId(input.slug, q.reviewId),
-      projectSlug: input.slug,
-      stage: null,
-      q: q.q,
-      options: q.options,
-      answer: q.answer,
-      now,
-    }).catch((e) => console.error("[review] library seed failed", e));
+  // Forward-only review seeding (step 4). Two ways in: a reviewId-tagged library
+  // question seeds on ANY answer (keyed `lib:<slug>:<reviewId>`); an untagged one
+  // seeds only on a WRONG answer ("review your mistakes", auto), keyed by its
+  // questionKey (which prefers a stable authored id). Best-effort — never break the
+  // quiz answer. Library items carry no stage (null).
+  if (q.options) {
+    const itemId = q.reviewId
+      ? libraryReviewItemId(input.slug, q.reviewId)
+      : wrong
+        ? input.questionKey
+        : null;
+    if (itemId) {
+      await seedReviewItem({
+        userId,
+        reviewItemId: itemId,
+        projectSlug: input.slug,
+        stage: null,
+        q: q.q,
+        options: q.options,
+        answer: q.answer,
+        now,
+      }).catch((e) => console.error("[review] library seed failed", e));
+    }
   }
 
   // Wrong pick → lock the question for today (anti guess-farming); feeds completion.
-  if (input.pick !== q.answer) {
+  if (wrong) {
     await db.quizLock.upsert({
       where: lockWhere,
       create: { userId, questionKey: input.questionKey, lockedOn: day },

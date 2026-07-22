@@ -106,19 +106,33 @@ export type StageQuizResult =
   // rewarded regardless of correctness (attempt-reward, see below).
   | { ok: true; correct: boolean; xp: number; locked?: boolean; levelUp: LevelUp };
 
-// Seed a reviewable STAGE-quiz question into the review deck (forward-only). A
-// question with no `reviewId` (not opted in) is skipped.
+// Seed a STAGE-quiz question into the review deck (forward-only). Two ways in:
+//   - a reviewId-tagged question seeds on ANY answer (the author wants it reviewed,
+//     keyed by the fully-stable reviewId), OR
+//   - an untagged question seeds only on a WRONG answer ("review your mistakes",
+//     auto, no authoring), keyed by its questionKey.
+// The questionKey itself prefers a stable authored `id` over a text hash, so an
+// id'd question is stable across text edits; a hash-keyed one degrades gracefully
+// (the QuizItem snapshot still renders it; the prune job clears stale rows).
 async function seedStageReviewItem(
   userId: string,
   projectSlug: string,
   stage: Stage,
   q: QuizQ,
+  questionKey: string,
+  wrong: boolean,
   now: Date,
 ): Promise<void> {
-  if (!q.reviewId || !q.options) return;
+  if (!q.options) return;
+  const itemId = q.reviewId
+    ? reviewItemId(projectSlug, stage, q.reviewId)
+    : wrong
+      ? questionKey
+      : null;
+  if (!itemId) return;
   await seedReviewItem({
     userId,
-    reviewItemId: reviewItemId(projectSlug, stage, q.reviewId),
+    reviewItemId: itemId,
     projectSlug,
     stage,
     q: q.q,
@@ -200,6 +214,8 @@ export async function recordStageQuizAnswer(
     enrollment.project.slug,
     input.stage,
     q,
+    input.questionKey,
+    wrong,
     now,
   ).catch((e) => console.error("[review] seed failed", e));
 

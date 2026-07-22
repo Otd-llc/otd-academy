@@ -23,8 +23,10 @@ const quizBlock = {
   type: "quiz",
   questions: [
     { q: "Stage question one?", options: ["a", "b", "c"], answer: 2 },
-    // reviewId opts this question into the review deck (step 4).
+    // reviewId opts this question into the review deck on ANY answer (step 4).
     { q: "Stage question two?", options: ["a", "b", "c"], answer: 1, reviewId: "stage-q-two" },
+    // untagged: only a WRONG answer feeds it into the deck (auto path).
+    { q: "Stage question three?", options: ["a", "b", "c"], answer: 0 },
   ],
 };
 const REVIEW_ITEM_ID = `${slug}:SCHEMATIC:stage-q-two`;
@@ -128,12 +130,31 @@ describe("recordStageQuizAnswer", () => {
     expect(sched?.lapses).toBe(0);
   });
 
-  it("does NOT seed a review item for a question without a reviewId", async () => {
-    // keys[0] has no reviewId, so no QuizItem exists for its stage/text.
+  it("does NOT seed an untagged question that was answered CORRECTLY", async () => {
+    // keys[0] (untagged) was answered correctly above, so nothing feeds the deck
+    // for it (the auto path only fires on a WRONG answer).
     const item = await db.quizItem.findUnique({
-      where: { reviewItemId: `${slug}:SCHEMATIC:stage-q-one` },
+      where: { reviewItemId: keys[0] },
     });
     expect(item).toBeNull();
+  });
+
+  it("a WRONG answer to an UNTAGGED question seeds it keyed by its questionKey", async () => {
+    // keys[2] has no reviewId; answering it wrong feeds the deck (review-your-mistakes).
+    const r = await recordStageQuizAnswer(
+      { enrollmentId, stage: STAGE, questionKey: keys[2], pick: 1 }, // answer is 0
+      userId,
+      DAY,
+    );
+    expect(r).toMatchObject({ ok: true, correct: false });
+    const item = await db.quizItem.findUnique({
+      where: { reviewItemId: keys[2] },
+    });
+    expect(item).toMatchObject({ projectSlug: slug, stage: STAGE, answer: 0 });
+    const sched = await db.reviewSchedule.findUnique({
+      where: { userId_reviewItemId: { userId, reviewItemId: keys[2] } },
+    });
+    expect(sched).not.toBeNull();
   });
 
   it("refuses another user's enrollment", async () => {
