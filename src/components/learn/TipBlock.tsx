@@ -49,8 +49,8 @@ export function TipBlock({ slug }: { slug: string }) {
         Support the <span className="text-command-gold">Academy</span>
       </h2>
       <p className="mt-2 font-serif text-sm italic text-muted">
-        These lessons are free. If this one helped, a one-time tip keeps the next
-        board coming.
+        If this build helped, a one-time tip keeps the next board coming. A tip
+        buys nothing and unlocks nothing; it just helps.
       </p>
       <div className="mt-5 flex flex-wrap items-center gap-2">
         {TIP_PRESETS_CENTS.map((cents) => (
