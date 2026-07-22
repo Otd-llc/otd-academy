@@ -377,6 +377,28 @@ export default async function LessonCompletePage({
           ← All lessons
         </Link>
       </section>
+
+      {/* Go further — the warmest upgrade moment in the product (a learner who
+          just finished the free flagship board), which used to monetize only
+          via tip + affiliate and never introduced the paid catalog. */}
+      <section
+        className="signin-rise w-full max-w-2xl border-t border-panel-border/60 pt-8"
+        style={{ animationDelay: "360ms" }}
+      >
+        <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-gold-dim">
+          // Go further
+        </p>
+        <p className="mx-auto mt-3 max-w-md font-serif text-sm leading-relaxed text-muted">
+          L1.01 is the first board of a full track: radios, power systems, and
+          two capstones, each built the same way you just built this one.
+        </p>
+        <Link
+          href="/pricing"
+          className="glass-button mt-4 inline-block px-6 py-3 font-mono text-sm uppercase tracking-[0.16em]"
+        >
+          See the full track →
+        </Link>
+      </section>
     </main>
   );
 }

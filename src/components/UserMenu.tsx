@@ -41,6 +41,12 @@ const WINGS = (
     <path d="M12 6v9M9 15l3 3 3-3M12 8L3 6l4 4M12 8l9-2-4 4" />
   </svg>
 );
+// Stacked cards — the review deck.
+const CARDS = (
+  <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
+    <path d="M7 8h13v11H7zM4 5h13v2.5M10 12.5h7M10 15.5h5" />
+  </svg>
+);
 const GEAR = (
   <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden>
     <circle cx="12" cy="12" r="3" />
@@ -188,6 +194,11 @@ export function UserMenu({
         <Link href="/logbook" onClick={close} className={ROW}>
           <span className="text-muted group-hover:text-gold-light">{WINGS}</span>
           <span>Logbook</span>
+          <span aria-hidden className="ml-auto text-gray-3">›</span>
+        </Link>
+        <Link href="/review" onClick={close} className={ROW}>
+          <span className="text-muted group-hover:text-gold-light">{CARDS}</span>
+          <span>Review</span>
           <span aria-hidden className="ml-auto text-gray-3">›</span>
         </Link>
         <Link href="/courses" onClick={close} className={ROW}>

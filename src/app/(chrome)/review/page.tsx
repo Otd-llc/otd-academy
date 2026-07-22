@@ -65,13 +65,14 @@ export default async function ReviewPage() {
         <div className="rounded border border-panel-border/60 px-4 py-10 text-center">
           <p className="font-serif text-base text-text">Nothing due right now.</p>
           <p className="mt-1 font-mono text-[11px] uppercase tracking-wider text-muted">
-            Come back later, or answer more lesson quizzes to fill the deck.
+            Miss a quiz question once and it lands here, then resurfaces on a
+            spacing schedule. Keep building; the deck fills itself.
           </p>
           <Link
-            href="/courses"
+            href="/logbook"
             className="mt-5 inline-block font-mono text-[11px] uppercase tracking-wider text-signal-blue underline-offset-4 hover:underline"
           >
-            Back to courses →
+            Back to your logbook →
           </Link>
         </div>
       ) : (

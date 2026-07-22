@@ -52,6 +52,7 @@ async function cachedMiniLesson(slug: string) {
       slug: true,
       title: true,
       summary: true,
+      cluster: true, // → the lesson page's Field Guide lead-magnet CTA
       contentBlocks: true,
       seoTitle: true,
       seoDescription: true,

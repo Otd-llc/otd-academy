@@ -15,6 +15,8 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/PageHeader";
 import { DownloadPdfLink } from "@/components/library/DownloadPdfLink";
 import { FeedbackBox } from "@/components/library/FeedbackBox";
+import { FieldGuideDownload } from "@/components/library/FieldGuideDownload";
+import { clusterByKey } from "@/lib/library/clusters";
 import {
   techArticleJsonLd,
   learningResourceJsonLd,
@@ -142,6 +144,7 @@ export default async function LibraryArticlePage({
 
   const upLinks = lesson.relatedProjects.filter((r) => r.role === "SUPPORTING");
   const downFunnel = lesson.relatedProjects.filter((r) => r.role === "DOWN_FUNNEL");
+  const lessonCluster = lesson.cluster ? clusterByKey(lesson.cluster) : null;
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -233,6 +236,24 @@ export default async function LibraryArticlePage({
             );
           })}
         </section>
+      ) : null}
+
+      {/* The lead magnet, ON the pages organic search actually lands on. The
+          account-gated Field Guide CTA used to live only on the /library index;
+          a visitor arriving from Google on this lesson saw just the free
+          per-lesson PDF and no email-first conversion path at all. */}
+      {lessonCluster ? (
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-panel-border/60 pt-6">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
+            Want the whole {lessonCluster.label} cluster as one book?
+          </p>
+          <FieldGuideDownload
+            guide={lessonCluster.key}
+            label={`${lessonCluster.label} Field Guide`}
+            name={`the ${lessonCluster.label} Field Guide`}
+            signedIn={signedIn}
+          />
+        </div>
       ) : null}
 
       <FeedbackBox pageRef={`library/${lesson.slug}`} signedIn={signedIn} />

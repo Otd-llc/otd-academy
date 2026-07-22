@@ -10,12 +10,15 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { auth } from "@/auth";
+import { db } from "@/lib/db";
 import { clusterByKey } from "@/lib/library/clusters";
 import { fieldGuidePdfDownloadUrl, fieldGuideCoverPath } from "@/lib/library/field-guide-links";
 import { WelcomeClaim } from "./welcome-claim";
 
-// L1.01 course; its published redirect lands on the live build guide.
-const L101 = "/courses/l1-01-wroom-breakout";
+// L1.01 LEARN page — the surface with the EnrollButton. The old /courses link
+// landed on the guide OUTLINE, where a signed-in reader had no way to start
+// tracked progress (no enroll affordance, no XP, no track panel).
+const L101 = "/learn/l1-01-wroom-breakout";
 
 export default async function WelcomePage({
   searchParams,
@@ -25,6 +28,23 @@ export default async function WelcomePage({
   // Post-signin only: an anonymous hit has nothing to claim.
   const session = await auth();
   if (!session?.user) redirect("/library");
+
+  // This path deliberately skips the /start goal survey (a field-guide grab is
+  // the self-identification), but skipping used to leave onboardingGoal null —
+  // so lead-magnet signups silently missed the Library's goal-tailored intro
+  // that survey-path signups get. Default the goal to "learn" (learning the
+  // electronics — what downloading a reference guide signals) so both entry
+  // paths converge; a later /start visit can still overwrite it.
+  if (session.user.email) {
+    await db.user
+      .updateMany({
+        where: { email: session.user.email, onboardingGoal: null },
+        data: { onboardingGoal: "learn", onboardingGoalAt: new Date() },
+      })
+      .catch(() => {
+        /* personalization only — never block the welcome render */
+      });
+  }
 
   const { fg } = await searchParams;
   const guide = fg && (fg === "combined" || clusterByKey(fg)) ? fg : null;

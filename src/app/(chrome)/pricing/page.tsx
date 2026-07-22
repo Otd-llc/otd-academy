@@ -38,6 +38,32 @@ import { formatUsdShort } from "@/lib/format-money";
 import { productOfferJsonLd, siteUrl } from "@/lib/seo/jsonld";
 import { currentPassPriceId, isLaunchActive } from "@/lib/pass-pricing";
 import { quoteUpgrade } from "@/lib/pass-upgrade";
+import { PricingViewedPing } from "@/components/learn/PricingViewedPing";
+
+// The visible FAQ AND the FAQPage structured data render from this one array so
+// they can never drift apart.
+const PRICING_FAQS: [string, string][] = [
+  [
+    "Is this a subscription?",
+    "No. Every purchase is one-time. A build you buy, and the All-Access Pass, stay yours with no recurring charge.",
+  ],
+  [
+    "What is free?",
+    "All of Level 1 is free, including the L2.01 battery power module. You can build those start to finish with a free account, no payment.",
+  ],
+  [
+    "Can I get a refund?",
+    "Yes. Email us within 14 days of your purchase for a full refund.",
+  ],
+  [
+    "I already bought builds. Do I pay full price for the Pass?",
+    "No. We credit what you already paid for individual builds toward the Pass, so you pay only the difference. If your purchases already cover it, the Pass is added at no extra charge.",
+  ],
+  [
+    "Do I have to buy parts from you?",
+    "No. Each build lists its parts and gives you a one-click DigiKey cart so you can order them yourself. An optional kit is offered beside that cart when one is available.",
+  ],
+];
 
 // Render a price string with its currency+digit run in the display-numeral face
 // (Saira), leaving words like "to" / "Free" in the surrounding font.
@@ -253,10 +279,25 @@ export default async function PricingPage() {
       },
     ];
 
+  // FAQPage structured data from the same array the visible FAQ renders (the
+  // pattern courses/[slug] already ships) — free SERP rich-result eligibility
+  // on the most commercially important page.
+  const faqLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: PRICING_FAQS.map(([q, a]) => ({
+      "@type": "Question",
+      name: q,
+      acceptedAnswer: { "@type": "Answer", text: a },
+    })),
+  };
+
   return (
     <main className="mx-auto max-w-5xl px-5 py-12 sm:px-6 sm:py-16">
       {passOfferLd ? <JsonLd data={passOfferLd} /> : null}
       {singleOfferLd ? <JsonLd data={singleOfferLd} /> : null}
+      <JsonLd data={faqLd} />
+      <PricingViewedPing />
 
       {/* Hero */}
       <header className="border-b border-panel-border pb-14 sm:pb-20">
@@ -460,28 +501,7 @@ export default async function PricingPage() {
           Questions
         </p>
         <dl className="mt-7 grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
-          {[
-            [
-              "Is this a subscription?",
-              "No. Every purchase is one-time. A build you buy, and the All-Access Pass, stay yours with no recurring charge.",
-            ],
-            [
-              "What is free?",
-              "All of Level 1 is free, including the L2.01 battery power module. You can build those start to finish with a free account, no payment.",
-            ],
-            [
-              "Can I get a refund?",
-              "Yes. Email us within 14 days of your purchase for a full refund.",
-            ],
-            [
-              "I already bought builds. Do I pay full price for the Pass?",
-              "No. We credit what you already paid for individual builds toward the Pass, so you pay only the difference. If your purchases already cover it, the Pass is added at no extra charge.",
-            ],
-            [
-              "Do I have to buy parts from you?",
-              "No. Each build lists its parts and gives you a one-click DigiKey cart so you can order them yourself. An optional kit is offered beside that cart when one is available.",
-            ],
-          ].map(([q, a]) => (
+          {PRICING_FAQS.map(([q, a]) => (
             <div key={q}>
               <dt className="title-card">
                 {q}
