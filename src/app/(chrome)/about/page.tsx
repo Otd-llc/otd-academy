@@ -10,7 +10,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { JsonLd } from "@/components/seo/JsonLd";
-import { aboutPageJsonLd, organizationJsonLd, siteUrl, ORG_IDENTIFIERS } from "@/lib/seo/jsonld";
+import { aboutPageJsonLd, organizationJsonLd, siteUrl, ORG_IDENTIFIERS, FOUNDER_NAME, ORG_ADDRESS } from "@/lib/seo/jsonld";
 
 const title = "About | One Thousand Drones Academy";
 const description =
@@ -121,18 +121,21 @@ export default function AboutPage() {
         <p className="font-mono text-[11px] uppercase tracking-[0.35em] text-command-gold">
           Who builds it
         </p>
+        <p className="mt-4 font-display text-2xl tracking-wide text-title">
+          {FOUNDER_NAME}
+        </p>
+        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-command-gold">
+          Founder, One Thousand Drones LLC
+        </p>
         <div className="mt-4 space-y-4 font-serif text-base leading-relaxed text-text">
           <p>
-            The Academy is built and maintained by One Thousand Drones LLC, a
-            hardware company in Broken Arrow, Oklahoma. It is the talent and hardware
-            pipeline beneath the company&apos;s Brain-to-Swarm program, so the boards
-            you build are the same platform the company develops on, not toy
-            exercises.
+            The Academy is built by {FOUNDER_NAME}, founder of One Thousand Drones
+            LLC, an Oklahoma hardware company and registered federal contractor. It
+            is the talent and hardware pipeline beneath the company&apos;s
+            Brain-to-Swarm program, so the boards you build are the same platform the
+            company develops on, not toy exercises.
           </p>
-          <p>
-            One Thousand Drones LLC is a registered federal contractor. Its
-            identifiers are public and verifiable:
-          </p>
+          <p>The company&apos;s identity is public and verifiable:</p>
         </div>
         <ul className="mt-5 flex flex-wrap gap-x-8 gap-y-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
           {ORG_IDENTIFIERS.map((id) => (
@@ -141,6 +144,14 @@ export default function AboutPage() {
             </li>
           ))}
         </ul>
+        <address className="mt-4 not-italic font-mono text-[11px] uppercase leading-relaxed tracking-[0.14em] text-muted">
+          One Thousand Drones LLC
+          <br />
+          {ORG_ADDRESS.streetAddress}
+          <br />
+          {ORG_ADDRESS.addressLocality}, {ORG_ADDRESS.addressRegion}{" "}
+          {ORG_ADDRESS.postalCode}, USA
+        </address>
       </section>
 
       {/* CTAs */}

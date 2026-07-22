@@ -83,6 +83,9 @@ describe("organizationJsonLd", () => {
     expect(ids.find((i) => i.name === "UEI")?.value).toBe("WDQXD9L9UFH3");
     expect(o.knowsAbout).toContain("KiCad");
     expect(o.legalName).toBe("One Thousand Drones LLC");
+    expect((o.founder as Record<string, unknown>).name).toBe("Joshua Tollette");
+    expect((o.address as Record<string, unknown>).addressLocality).toBe("Oklahoma City");
+    expect((o.address as Record<string, unknown>)["@type"]).toBe("PostalAddress");
   });
 });
 

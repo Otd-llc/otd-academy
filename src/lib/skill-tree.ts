@@ -15,6 +15,7 @@ import { cacheLife, cacheTag } from "next/cache";
 
 import { db } from "@/lib/db";
 import { ONE_HOUR, TAG_PROJECTS } from "@/lib/cache-profile";
+import { NON_CATALOG_SLUGS } from "@/lib/catalog-exclusions";
 import {
   computeSkillTree,
   type RawEdge,
@@ -58,7 +59,7 @@ async function cachedProjectGraph(): Promise<{
 
   const [projectRows, edgeRows] = await Promise.all([
     db.project.findMany({
-      where: { archivedAt: null },
+      where: { archivedAt: null, slug: { notIn: [...NON_CATALOG_SLUGS] } },
       select: {
         slug: true,
         name: true,

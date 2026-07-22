@@ -28,6 +28,7 @@ import { siteUrl } from "@/lib/seo/jsonld";
 import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
 import { BRIEF_KEYS } from "@/lib/brief-pages";
 import { TOOLS } from "@/lib/tools/registry";
+import { NON_CATALOG_SLUGS } from "@/lib/catalog-exclusions";
 
 // DB-backed. The old force-dynamic existed because the CI build ran with a stub
 // DATABASE_URL the query couldn't reach; CI now builds against the real ci-test
@@ -55,6 +56,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         accessTier: { in: ["PUBLIC", "PREMIUM"] },
         publishedRevisionId: { not: null },
         archivedAt: null,
+        slug: { notIn: [...NON_CATALOG_SLUGS] },
       },
       select: {
         slug: true,
@@ -77,6 +79,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         accessTier: { in: ["PUBLIC", "PREMIUM"] },
         publishedRevisionId: null,
         archivedAt: null,
+        slug: { notIn: [...NON_CATALOG_SLUGS] },
       },
       select: { slug: true, updatedAt: true },
     }),
