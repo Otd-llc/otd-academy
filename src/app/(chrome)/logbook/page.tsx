@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { db } from "@/lib/db";
+import { currentUserId } from "@/lib/auth-helpers";
 import { loadLessonMeta, getLogbook } from "@/lib/logbook/load";
 import { dueReviewCount } from "@/lib/logbook/review-load";
 import { LEVELS } from "@/lib/logbook/economy";
@@ -39,11 +38,9 @@ function Section({ title, count, defaultOpen, children }: { title: string; count
 }
 
 export default async function LogbookPage() {
-  const session = await auth();
-  const email = session?.user?.email;
-  if (!email) redirect("/sign-in");
-  const user = await db.user.findUnique({ where: { email }, select: { id: true } });
-  if (!user) redirect("/sign-in");
+  const userId = await currentUserId();
+  if (!userId) redirect("/sign-in");
+  const user = { id: userId };
 
   const now = new Date();
   const lessons = await loadLessonMeta();
