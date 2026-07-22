@@ -3,7 +3,7 @@
 // Token-scoped (same token as the upload), so it only reveals the one block's src.
 import { db } from "@/lib/db";
 import { verifyCaptureToken } from "@/lib/capture-token";
-import { guideContentBlocksSchema } from "@/lib/schemas/guide";
+import { parseBlockAt } from "@/lib/guide-blocks-parse";
 
 export async function GET(req: Request) {
   const token = new URL(req.url).searchParams.get("token");
@@ -22,8 +22,7 @@ export async function GET(req: Request) {
   let src = "";
   if (card) {
     try {
-      const blocks = guideContentBlocksSchema.parse(card.contentBlocks);
-      const block = blocks[claims.blockIndex];
+      const block = parseBlockAt(card.contentBlocks, claims.blockIndex);
       if (block && (block.type === "image" || block.type === "video")) {
         src = block.src || "";
       }

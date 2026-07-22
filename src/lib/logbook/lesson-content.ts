@@ -5,17 +5,17 @@
 //
 // Defensive over the raw JSON (contentBlocks is Prisma `Json`): a parse failure
 // yields no questions rather than throwing on the public path (matches
-// reading-time's degrade-don't-crash posture).
-import { guideContentBlocksSchema } from "@/lib/schemas/guide";
+// reading-time's degrade-don't-crash posture). Parses per-block (parseGuideBlocks)
+// so ONE malformed block no longer discards every quiz on the card — the gate quiz
+// and per-pick XP survive alongside a bad sibling.
+import { parseGuideBlocks } from "@/lib/guide-blocks-parse";
 import { questionKey, guideKey } from "@/lib/logbook/question-key";
 
 export type QuizQ = { id?: string; q: string; answer: number };
 
 export function quizQuestions(contentBlocks: unknown): QuizQ[] {
-  const parsed = guideContentBlocksSchema.safeParse(contentBlocks);
-  if (!parsed.success) return [];
-  return parsed.data
-    .filter((b) => b.type === "quiz")
+  return parseGuideBlocks(contentBlocks)
+    .blocks.filter((b) => b.type === "quiz")
     .flatMap((b) => (b.type === "quiz" ? b.questions : []));
 }
 

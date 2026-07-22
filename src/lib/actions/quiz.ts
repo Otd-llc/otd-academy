@@ -20,7 +20,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { STAGE_VALUES } from "@/lib/schemas/project-dependency";
-import { guideContentBlocksSchema } from "@/lib/schemas/guide";
+import { parseGuideBlocks } from "@/lib/guide-blocks-parse";
 
 const recordQuizPassSchema = z.object({
   enrollmentId: z.cuid(),
@@ -64,15 +64,14 @@ export async function recordQuizPass(
   // Authoritative scoring: re-score the SUBMITTED answers against the card's real
   // answer keys. The server owns the keys, so a fabricated score can't pass.
   const card = enrollment.revision.guide?.cards[0];
-  const parsed = card
-    ? guideContentBlocksSchema.safeParse(card.contentBlocks)
-    : null;
-  // Pick THE stage-gate quiz: the block flagged `gate: true`, else the first quiz
-  // block (back-compat — a single-quiz card, or mini-quizzes with no flag, gate on
-  // the first). Mirrors the client dispatch (GuideBlocks) so both agree on which
-  // block opens the gate. (WI-2)
-  const quizzes = parsed?.success
-    ? parsed.data.filter((b) => b.type === "quiz")
+  // Per-block parse (parseGuideBlocks): a malformed sibling block no longer wipes
+  // the gate quiz off this card, so the stage stays passable. Pick THE stage-gate
+  // quiz: the block flagged `gate: true`, else the first quiz block (back-compat —
+  // a single-quiz card, or mini-quizzes with no flag, gate on the first). Mirrors
+  // the client dispatch (GuideBlocks) so both agree on which block opens the gate.
+  // (WI-2)
+  const quizzes = card
+    ? parseGuideBlocks(card.contentBlocks).blocks.filter((b) => b.type === "quiz")
     : [];
   const quizBlock = quizzes.find((b) => b.type === "quiz" && b.gate) ?? quizzes[0];
   if (!quizBlock || quizBlock.type !== "quiz") {

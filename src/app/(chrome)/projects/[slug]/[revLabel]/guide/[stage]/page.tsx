@@ -74,10 +74,10 @@ import {
 import { STAGE_LABELS } from "@/lib/stages";
 import {
   completionRefSchema,
-  guideContentBlocksSchema,
   type CompletionRef,
   type ContentBlock,
 } from "@/lib/schemas/guide";
+import { parseGuideBlocks } from "@/lib/guide-blocks-parse";
 
 type Params = { slug: string; revLabel: string; stage: string };
 type Search = { board?: string; as?: string };
@@ -393,9 +393,16 @@ export default async function GuideCardPage({
   });
   if (!card) notFound();
 
-  // Parse JSON columns through the Zod schemas (defense-in-depth + typing).
-  const blocksResult = guideContentBlocksSchema.safeParse(card.contentBlocks);
-  const blocks = blocksResult.success ? blocksResult.data : [];
+  // Parse contentBlocks PER-BLOCK (parseGuideBlocks) rather than all-or-nothing:
+  // one malformed block no longer blanks the entire card. Survivors render in
+  // order; `blockStorageIndices` maps each survivor back to its raw position (the
+  // capture tool addresses blocks by that); `droppedBlocks` feeds an admin-only
+  // "skipped" signal so a typo that silently drops a live block is visible.
+  const {
+    blocks,
+    storageIndices: blockStorageIndices,
+    dropped: droppedBlocks,
+  } = parseGuideBlocks(card.contentBlocks);
 
   // Resolve any partModel blocks → presigned MODEL_3D render URL + camera bounds,
   // keyed by MPN. An MPN with no part / no 3D asset / R2 off is simply omitted,
@@ -837,6 +844,8 @@ export default async function GuideCardPage({
 
         <GuideBlocks
           blocks={blocks}
+          storageIndices={blockStorageIndices}
+          droppedBlocks={droppedBlocks}
           models={models}
           bomRows={bomRows}
           diagrams={diagrams}
