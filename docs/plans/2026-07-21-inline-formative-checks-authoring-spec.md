@@ -20,7 +20,7 @@ whether to author inline density now or wait for the parse-resilience fix.
 | --- | --- | --- | --- | --- |
 | 1 | Parse resilience (section 10) | M | DONE (2026-07-21) | Prerequisite + latent-correctness fix; one bad block silently blanks a card / blocks the gate today |
 | 2 | Engagement telemetry (section 12) | S | DONE (2026-07-21) | Without it, scaling inline checks is blind |
-| 3 | MCQ attempt-reward (section 8) | S | open | Stops the XP economy teaching "don't answer" before mass-authoring MCQ |
+| 3 | MCQ attempt-reward (section 8) | S | DONE (2026-07-21) | Stops the XP economy teaching "don't answer" before mass-authoring MCQ |
 | 4 | Cross-session review deck (section 12) | L | open | The biggest retention lever; net-new, benefits from 1-3 |
 
 **Owner / next action:** repo maintainer to approve step order; step 1 unblocks safe
@@ -398,6 +398,16 @@ persists nothing today, so it needs a stable key, a new `XpSource` enum value
 (Prisma enum migration, full tsc + vitest per the schema-change rule), and a
 server action wired into the currently server-free island. Track separately from
 this authoring spec.
+
+**SHIPPED 2026-07-21 (the MCQ half only).** `recordStageQuizAnswer` now rewards the
+FIRST answer of the day regardless of correctness: a wrong first pick awards XP and
+still writes the day-lock (greys the slot, library parity), and the per-day dedupe
+key is the farm cap, so a wrong-then-right cycle can't double-pay. `StageQuizResult`
+widened (a wrong answer can carry `xp > 0`), and `QuizBlock` shows the XP tick
+whenever `xp > 0`. Source stays `STAGE_QUIZ_CORRECT` (no migration; the name now
+reads "answered", documented in-code). LIBRARY `recordQuizAnswer` is deliberately
+UNCHANGED — a separate surface, bigger blast radius (lesson completion). The
+"Check yourself" attempt-reward (enum migration) remains deferred.
 
 ## 9. Worked example: one stage authored to the rhythm
 

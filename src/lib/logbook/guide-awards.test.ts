@@ -70,15 +70,28 @@ describe("recordStageQuizAnswer", () => {
     expect(r).toMatchObject({ ok: true, correct: true, xp: 5 });
   });
 
-  it("a wrong pick awards 0 and writes a lock", async () => {
+  it("rewards a wrong FIRST pick (attempt-reward) and still writes a lock", async () => {
+    // keys[1] not yet answered, so firstEver → full rate even though the pick is
+    // wrong. The lock still lands (greys the slot / library parity).
     const r = await recordStageQuizAnswer(
       { enrollmentId, stage: STAGE, questionKey: keys[1], pick: 0 },
       userId,
       DAY,
     );
-    expect(r).toMatchObject({ ok: true, correct: false, xp: 0 });
+    expect(r).toMatchObject({ ok: true, correct: false, xp: 5 });
     const lock = await db.quizLock.findFirst({ where: { userId, questionKey: keys[1] } });
     expect(lock).not.toBeNull();
+  });
+
+  it("does not double-pay: a same-day retry after the wrong pick awards 0", async () => {
+    // keys[1] was already answered (wrong) this day → the per-day dedupe caps it,
+    // so the corrected retry pays nothing. correct is now true, xp 0.
+    const r = await recordStageQuizAnswer(
+      { enrollmentId, stage: STAGE, questionKey: keys[1], pick: 1 },
+      userId,
+      DAY,
+    );
+    expect(r).toMatchObject({ ok: true, correct: true, xp: 0, locked: true });
   });
 
   it("dedupes a same-day replay (xp 0)", async () => {
