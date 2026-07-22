@@ -1,8 +1,20 @@
 # Cross-session review deck: design (step 4)
 
-Status: BUILT 2026-07-21 (unmerged, on `feat/guide-parse-resilience`). This design
+Status: BUILT 2026-07-21 (unmerged, on `feat/review-deck` / PR #331). This design
 was revised twice after two 3-lens validation passes, then built to the start-fresh
-shape below. What shipped: the `reviewId` opt-in field, `QuizItem` + `ReviewSchedule`
+shape below.
+
+**Post-build addition (the primary populate mechanism):** the deck also AUTO-FEEDS
+from WRONG answers. A wrong answer to any UNTAGGED question seeds it into the deck
+(keyed by its `questionKey`, which prefers a stable authored `id`); a `reviewId`-
+tagged question still seeds on any answer (keyed by the fully-stable `reviewId`). So
+the deck fills from existing content with zero authoring, and "review your own
+mistakes" is the default. Instability is handled three ways: the `QuizItem` snapshot
+makes an edited/orphaned question still render (never a crash), the `questionKey`
+prefers an authored `id` (stable across text edits when present), and
+`scripts/prune-review-items.ts` clears orphaned rows whose key no longer resolves
+(run on a cron). Fully stable (no stale, no dupe) only for questions with a stable
+`id`/`reviewId`; the auto path degrades gracefully otherwise. What shipped: the `reviewId` opt-in field, `QuizItem` + `ReviewSchedule`
 models (+ `REVIEW_CORRECT` XpSource), the pure scheduler (`review-schedule.ts`),
 forward-only seeding from the stage-answer path, the `recordReviewAnswer` action,
 the `dueReviewItems`/`dueReviewCount` loaders, the `/review` route + `ReviewDeck`
