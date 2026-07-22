@@ -66,6 +66,7 @@ async function main() {
     exam: project.exam ? { questions: examQuestions } : null,
     broughtUpBoards,
     published: project.publishedRevisionId != null,
+    projectSlug: slug,
   });
 
   console.log(`\nLesson readiness — ${project.name} (${slug})\n`);

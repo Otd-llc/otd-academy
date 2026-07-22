@@ -15,6 +15,7 @@
 import type { ContentBlock } from "@/lib/schemas/guide";
 import { collectEmptyMedia } from "@/lib/guide-media-queue";
 import { parseGuideBlocks } from "@/lib/guide-blocks-parse";
+import { BOARD_CONFIG_OVERRIDES } from "@/lib/kicad/project";
 
 export interface LessonCard {
   stage: string;
@@ -49,6 +50,11 @@ export interface LessonReadinessInput {
   /** Count of this project's boards at BROUGHT_UP — the vetted (team-built) signal. */
   broughtUpBoards: number;
   published: boolean;
+  /** When supplied, requires an explicit BOARD_CONFIG_OVERRIDES entry for the
+   *  slug (the KiCad starter silently exports the 2-layer default otherwise —
+   *  wrong for any board that needs inner planes). An empty `{}` entry is a
+   *  deliberate 2-layer choice and passes. Omitted = check not emitted. */
+  projectSlug?: string;
 }
 
 /** Which bar a check gates. "info" checks are reported but gate neither bar. */
@@ -84,8 +90,20 @@ function cardFor(cards: LessonCard[], stage: string): LessonCard | undefined {
 export function assessLessonReadiness(
   input: LessonReadinessInput,
 ): LessonReadiness {
-  const { stages, cards, exam, broughtUpBoards, published } = input;
+  const { stages, cards, exam, broughtUpBoards, published, projectSlug } = input;
   const checks: ReadinessCheck[] = [];
+
+  if (projectSlug !== undefined) {
+    const explicit = projectSlug in BOARD_CONFIG_OVERRIDES;
+    checks.push({
+      label: "Explicit KiCad board config",
+      tier: "publishable",
+      ok: explicit,
+      detail: explicit
+        ? undefined
+        : `add "${projectSlug}" to BOARD_CONFIG_OVERRIDES (an empty {} = deliberate 2-layer)`,
+    });
+  }
 
   // ── Publishable tier: content completeness (free / SEO floor) ──────────────
   const missingStages = stages.filter((s) => !cardFor(cards, s));

@@ -691,6 +691,7 @@ export default async function GuideHubPage({
       exam: readinessMeta.exam ? { questions: examQuestions } : null,
       broughtUpBoards,
       published: readinessMeta.publishedRevisionId != null,
+      projectSlug: project.slug,
     });
   }
 

@@ -60,6 +60,7 @@ export async function setPublishedRevision(
       },
       project: {
         select: {
+          slug: true,
           publishedRevisionId: true,
           exam: { select: { questions: true } },
         },
@@ -92,6 +93,7 @@ export async function setPublishedRevision(
       exam: revision.project.exam ? { questions: examQuestions } : null,
       broughtUpBoards: 0, // not part of the publishable bar
       published: revision.project.publishedRevisionId != null,
+      projectSlug: revision.project.slug,
     });
     if (!readiness.publishable) {
       const failing = readiness.checks

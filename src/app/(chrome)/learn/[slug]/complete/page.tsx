@@ -132,6 +132,7 @@ export default async function LessonCompletePage({
         exam: exam ? { questions: examQuestions } : null,
         broughtUpBoards,
         published: project.publishedRevisionId != null,
+        projectSlug: slug,
       }).vetted;
     }
     golden = goldenReferenceFromRows({

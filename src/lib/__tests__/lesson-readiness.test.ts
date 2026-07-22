@@ -61,6 +61,56 @@ describe("assessLessonReadiness — malformed blocks gate the publishable bar", 
   });
 });
 
+describe("assessLessonReadiness — explicit board config gates publish", () => {
+  // The KiCad starter exports at the 2-layer default for any slug missing from
+  // BOARD_CONFIG_OVERRIDES — silently wrong for a 4-layer board (l1-01 needs
+  // its inner GND planes). Publishing forces the decision: the slug must have
+  // an explicit entry, even if that entry is {} (deliberate 2-layer).
+  it("a slug with no BOARD_CONFIG_OVERRIDES entry fails publishable", () => {
+    const r = assessLessonReadiness({
+      stages: STAGES,
+      cards: doneCards(),
+      exam: { questions: 18 },
+      broughtUpBoards: 1,
+      published: false,
+      projectSlug: "l9-99-not-in-map",
+    });
+    expect(r.publishable).toBe(false);
+    expect(
+      r.checks.find((c) => c.label === "Explicit KiCad board config")?.ok,
+    ).toBe(false);
+  });
+
+  it("a slug with an explicit entry passes the check", () => {
+    const r = assessLessonReadiness({
+      stages: STAGES,
+      cards: doneCards(),
+      exam: { questions: 18 },
+      broughtUpBoards: 1,
+      published: false,
+      projectSlug: "l1-01-wroom-breakout",
+    });
+    expect(
+      r.checks.find((c) => c.label === "Explicit KiCad board config")?.ok,
+    ).toBe(true);
+    expect(r.publishable).toBe(true);
+  });
+
+  it("no projectSlug supplied leaves the check out (back-compat)", () => {
+    const r = assessLessonReadiness({
+      stages: STAGES,
+      cards: doneCards(),
+      exam: { questions: 18 },
+      broughtUpBoards: 1,
+      published: false,
+    });
+    expect(
+      r.checks.find((c) => c.label === "Explicit KiCad board config"),
+    ).toBeUndefined();
+    expect(r.publishable).toBe(true);
+  });
+});
+
 describe("assessLessonReadiness — two-tier bar", () => {
   it("a complete lesson with real media + a brought-up board is VETTED", () => {
     const r = assessLessonReadiness({
