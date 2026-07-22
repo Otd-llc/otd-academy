@@ -45,7 +45,7 @@ export function AppFooter() {
           {[
             { label: "Learn", links: [["Courses", "/courses"], ["Library", "/library"], ["Glossary", "/glossary"], ["Tools", "/tools"]] },
             { label: "Catalog", links: [["Parts", "/parts"], ["Briefs", "/briefs"]] },
-            { label: "Account", links: [["Sign in", "/sign-in"], ["Pricing", "/pricing"], ["Verify", "/verify"], ["License", "/license"], ["Privacy", "/privacy"]] },
+            { label: "Account", links: [["About", "/about"], ["Sign in", "/sign-in"], ["Pricing", "/pricing"], ["Verify", "/verify"], ["License", "/license"], ["Privacy", "/privacy"]] },
           ].map((g) => (
             <nav key={g.label} className="flex flex-col items-start gap-2" aria-label={g.label}>
               <span className="font-display text-sm tracking-[0.1em] text-command-gold">{g.label}</span>

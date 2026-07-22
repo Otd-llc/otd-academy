@@ -146,7 +146,7 @@ export function BriefDocumentMobile({ brief }: { brief: BriefData }) {
           </Link>
         </p>
         <p className="mt-1 text-center font-mono text-[10px] uppercase tracking-[0.12em] text-muted">
-          Free · No subscription · Lifetime access
+          First board free · No subscription · Lifetime access
         </p>
         <p className="mt-4 text-center font-mono text-[9px] uppercase tracking-[0.12em] text-muted">
           One Thousand Drones LLC · CAGE 1ZYS4 · UEI WDQXD9L9UFH3

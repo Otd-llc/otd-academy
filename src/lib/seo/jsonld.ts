@@ -49,16 +49,58 @@ export const SOCIAL_LINKS = [
   "https://www.linkedin.com/company/one-thousand-drones",
 ] as const;
 
+// One Thousand Drones LLC's verifiable federal registrations. Real, checkable
+// identifiers (SAM.gov / DLA CAGE) are a strong organizational trust signal
+// (E-E-A-T) and are already printed publicly on the capability briefs.
+export const ORG_IDENTIFIERS = [
+  { name: "CAGE", value: "1ZYS4" },
+  { name: "UEI", value: "WDQXD9L9UFH3" },
+] as const;
+
+// The subject-matter the org demonstrably works in — binds the entity to its
+// topics in the knowledge graph (entity SEO / E-E-A-T `knowsAbout`).
+const ORG_KNOWS_ABOUT = [
+  "Printed circuit board design",
+  "KiCad",
+  "ESP32-S3",
+  "Embedded systems",
+  "Schematic capture",
+  "PCB layout",
+  "Electronics manufacturing",
+] as const;
+
 // Site-wide Organization node (rendered once in the root layout). Carries the
-// canonical name + url + `sameAs` so every page reinforces the same entity.
+// canonical name + url + `sameAs`, plus the verifiable federal identifiers and
+// `knowsAbout` topics, so every page reinforces the same trusted entity.
 export function organizationJsonLd() {
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
     "@id": `${siteUrl()}/#organization`,
     name: "One Thousand Drones",
+    legalName: "One Thousand Drones LLC",
     url: siteUrl(),
+    description:
+      "One Thousand Drones Academy teaches printed-circuit-board engineering through real ESP32-S3 projects designed in KiCad, where progress is gated on a clean design-rule check rather than quizzes.",
     sameAs: [...SOCIAL_LINKS],
+    knowsAbout: [...ORG_KNOWS_ABOUT],
+    identifier: ORG_IDENTIFIERS.map((id) => ({
+      "@type": "PropertyValue",
+      name: id.name,
+      value: id.value,
+    })),
+  };
+}
+
+// AboutPage — the /about trust surface. References the site-wide Organization
+// node by @id (declared once in the layout) instead of re-declaring it, so the
+// knowledge-graph entity stays single-source. PURE.
+export function aboutPageJsonLd(input: { url: string }): object {
+  return {
+    "@context": SCHEMA_CONTEXT,
+    "@type": "AboutPage",
+    url: input.url,
+    mainEntity: { "@id": `${siteUrl()}/#organization` },
   };
 }
 

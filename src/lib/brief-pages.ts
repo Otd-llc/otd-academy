@@ -95,7 +95,7 @@ export const PROOF_STATS: BriefStat[] = [
   { value: "22", label: "boards across four tracks and three levels" },
   { value: "8", label: "build stages on every project, requirements to bring-up" },
   { value: "DRC = 0", label: "a clean design-rule check is the real gate, not quizzes" },
-  { value: "$0", label: "no subscription, one-time purchase per project, Level 1 free" },
+  { value: "$0", label: "no subscription, one-time purchase per project, the first board free" },
 ];
 
 // The curriculum system map: a root node fanning to the four tracks and two
@@ -185,7 +185,7 @@ export const BRIEFS: Record<BriefKey, BriefData> = {
       {
         value: "1×",
         label: "No subscription",
-        desc: "Buy a project once and keep it. Level 1 starts free.",
+        desc: "Buy a project once and keep it. The first board is free.",
       },
     ],
   },
@@ -194,19 +194,19 @@ export const BRIEFS: Record<BriefKey, BriefData> = {
     eyebrow: "BRIEF / LEARNERS",
     title: "Design real boards, not watch videos about them.",
     accentWord: "them.",
-    lead: "Tutorials teach concepts but never produce a manufacturable board, and there is no credible proof of the skill. At One Thousand Drones Academy you design a real PCB on the ESP32-S3 in KiCad 10, from requirements through schematic, layout, and gerber export, and you finish with a certificate anyone can verify. Level 1 is free.",
+    lead: "Tutorials teach concepts but never produce a manufacturable board, and there is no credible proof of the skill. At One Thousand Drones Academy you design a real PCB on the ESP32-S3 in KiCad 10, from requirements through schematic, layout, and gerber export, and you finish with a certificate anyone can verify. The first board is free.",
     meta: [
-      { label: "Start at", value: "Level 1 (free)" },
+      { label: "Start at", value: "L1.01 (free)" },
       { label: "Platform", value: "ESP32-S3" },
       { label: "Tool", value: "KiCad 10" },
     ],
     seoTitle: "Learner brief · One Thousand Drones Academy",
     seoDescription:
-      "Design a real PCB on the ESP32-S3 in KiCad 10, from requirements to fab-ready gerbers. You advance only by passing a clean design-rule check, and each board earns a verifiable certificate. Level 1 is free.",
+      "Design a real PCB on the ESP32-S3 in KiCad 10, from requirements to fab-ready gerbers. You advance only by passing a clean design-rule check, and each board earns a verifiable certificate. The first board is free.",
     valueHeading: "Who it is for",
     valueBody: [
       "You can write firmware but you have never laid out a board. You hit a project that needs custom hardware, or you want a portfolio piece that proves you can ship a PCB. Most hardware courses stop at theory, so the skill stays unproven.",
-      "At the academy you design a real PCB on the ESP32-S3 in KiCad 10, from requirements through schematic, layout, and gerber export. You advance only by passing a clean design-rule check, the same gate a working engineer passes. The board's parts are priced against live DigiKey stock and one click to a cart, so you can order and build it. Level 1 is free, and you pay once per project after that, with no subscription.",
+      "At the academy you design a real PCB on the ESP32-S3 in KiCad 10, from requirements through schematic, layout, and gerber export. You advance only by passing a clean design-rule check, the same gate a working engineer passes. The board's parts are priced against live DigiKey stock and one click to a cart, so you can order and build it. The first board is free, and you pay once per project after that, with no subscription.",
     ],
     proofHeading: "What you get",
     proofPoints: [
@@ -224,12 +224,12 @@ export const BRIEFS: Record<BriefKey, BriefData> = {
       },
       {
         lead: "A path that starts free.",
-        body: "Level 1 is free, and paid projects start at $49. You pay once per project, with no subscription.",
+        body: "The first board is free, and paid projects start at $49. You pay once per project, with no subscription.",
       },
     ],
     ctas: [
       {
-        label: "Start free at Level 1",
+        label: "Start free at L1.01",
         href: "/projects/l1-01-wroom-breakout/v1/guide",
         primary: true,
       },
@@ -252,9 +252,9 @@ export const BRIEFS: Record<BriefKey, BriefData> = {
         desc: "Requirements, BOM, schematic, ERC, layout, DRC, gerbers, bring-up in KiCad.",
       },
       {
-        value: "L1",
-        label: "Starts free",
-        desc: "The flagship board is public and free. Buy later projects once.",
+        value: "L1.01",
+        label: "Free flagship",
+        desc: "The first board is public and free. Buy later projects once.",
       },
       {
         value: "1×",

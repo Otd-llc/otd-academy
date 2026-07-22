@@ -173,7 +173,7 @@ export function BriefDocument({ brief }: { brief: BriefData }) {
             </a>
           </p>
           <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-muted">
-            Free · No subscription · Lifetime access
+            First board free · No subscription · Lifetime access
           </p>
         </div>
         <div className="text-right font-mono text-[10px] uppercase tracking-[0.12em] text-muted">

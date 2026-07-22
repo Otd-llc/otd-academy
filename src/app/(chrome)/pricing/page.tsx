@@ -49,7 +49,7 @@ const PRICING_FAQS: [string, string][] = [
   ],
   [
     "What is free?",
-    "All of Level 1 is free, including the L2.01 battery power module. You can build those start to finish with a free account, no payment.",
+    "The first board, L1.01, is free to build start to finish, no account required. Every other build is a one-time premium purchase, with no subscription.",
   ],
   [
     "Can I get a refund?",
@@ -81,7 +81,7 @@ function priceNumerals(text: string): React.ReactNode {
 
 const title = "Pricing | One Thousand Drones Academy";
 const description =
-  "All of Level 1 is free, including the battery power module. Buy a single premium build, or get the All-Access Pass for every premium board and bench tool. One-time purchase, no subscription, 14-day money-back guarantee.";
+  "The first board, L1.01, is free to build start to finish. Every other build is a one-time premium purchase, or get the All-Access Pass for every premium board and bench tool. No subscription, 14-day money-back guarantee.";
 
 export const metadata: Metadata = {
   title,
@@ -259,11 +259,16 @@ export default async function PricingPage() {
   const catalog: { code: string; desc: string; price: string; hero?: boolean }[] =
     [
       {
-        code: "L1",
-        desc: "Level 1, full track (includes the L2.01 battery module)",
+        code: "L1.01",
+        desc: "The flagship board, free start to finish",
         price: "Free",
       },
-      { code: "L2", desc: "Level 2 builds (L2.02 to L2.05)", price: "$49" },
+      {
+        code: "L1",
+        desc: "Level 1 premium builds (L1.02 to L1.05)",
+        price: "Soon",
+      },
+      { code: "L2", desc: "Level 2 builds (L2.01 to L2.05)", price: "$49" },
       { code: "L3", desc: "Level 3 builds", price: "$89" },
       {
         code: "CAP",
@@ -318,9 +323,9 @@ export default async function PricingPage() {
           </span>
         </h1>
         <p className="subhead">
-          All of Level 1 is free. Buy a single premium build, or take the
-          All-Access Pass for every premium board and bench tool. One-time
-          purchase, no subscription.
+          The first board is free. Every other build is a one-time premium
+          purchase, or take the All-Access Pass for every premium board and
+          bench tool. No subscription.
         </p>
         <SpecLine
           items={["One-time purchase", "No subscription", "14-day refund"]}
@@ -417,7 +422,7 @@ export default async function PricingPage() {
               <div className="space-y-2">
                 <PassWaitlistForm defaultEmail={email ?? undefined} />
                 <p className="font-mono text-[11px] uppercase tracking-wider text-muted">
-                  The Pass opens with the Level 1 launch.
+                  The Pass opens with the premium launch.
                 </p>
               </div>
             ) : !signedIn ? (
@@ -446,7 +451,7 @@ export default async function PricingPage() {
         </h2>
         <p className="mt-3 max-w-2xl font-serif text-base leading-relaxed text-text">
           Every line is a one-time purchase with lifetime access. Paid tracks
-          open with the Level 1 launch. Join the Pass waitlist above and we&apos;ll
+          open with the premium launch. Join the Pass waitlist above and we&apos;ll
           tell you first.
         </p>
 

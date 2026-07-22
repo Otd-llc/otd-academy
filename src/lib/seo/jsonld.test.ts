@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { techArticleJsonLd, learningResourceJsonLd, definedTermJsonLd, videoObjectJsonLd } from "@/lib/seo/jsonld";
+import { techArticleJsonLd, learningResourceJsonLd, definedTermJsonLd, videoObjectJsonLd, organizationJsonLd, aboutPageJsonLd } from "@/lib/seo/jsonld";
 
 describe("videoObjectJsonLd", () => {
   it("derives thumbnail, nocookie embed, and canonical watch url from the bare id", () => {
@@ -70,5 +70,29 @@ describe("definedTermJsonLd", () => {
     expect(d["@type"]).toBe("DefinedTerm");
     expect(d.name).toBe("Embodied Motor Imagery");
     expect((d.inDefinedTermSet as Record<string, unknown>).url).toContain("/glossary");
+  });
+});
+
+describe("organizationJsonLd", () => {
+  it("carries the verifiable CAGE + UEI identifiers and knowsAbout topics", () => {
+    const o = organizationJsonLd() as Record<string, unknown>;
+    expect(o["@type"]).toBe("Organization");
+    expect(o["@id"]).toContain("#organization");
+    const ids = o.identifier as { name: string; value: string }[];
+    expect(ids.find((i) => i.name === "CAGE")?.value).toBe("1ZYS4");
+    expect(ids.find((i) => i.name === "UEI")?.value).toBe("WDQXD9L9UFH3");
+    expect(o.knowsAbout).toContain("KiCad");
+    expect(o.legalName).toBe("One Thousand Drones LLC");
+  });
+});
+
+describe("aboutPageJsonLd", () => {
+  it("is an AboutPage that references the org node by @id (single-source entity)", () => {
+    const a = aboutPageJsonLd({
+      url: "https://academy.onethousanddrones.com/about",
+    }) as Record<string, unknown>;
+    expect(a["@type"]).toBe("AboutPage");
+    expect(a.url).toContain("/about");
+    expect((a.mainEntity as Record<string, unknown>)["@id"]).toContain("#organization");
   });
 });
