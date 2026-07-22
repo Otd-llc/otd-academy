@@ -7,6 +7,8 @@ import { readingMinutes } from "@/lib/library/reading-time";
 import { clusterByKey } from "@/lib/library/clusters";
 import { questionKey } from "@/lib/logbook/question-key";
 import { quizQuestions } from "@/lib/logbook/lesson-content";
+import { libraryReviewItemId } from "@/lib/logbook/review-schedule";
+import { seedReviewItem } from "@/lib/logbook/review-seed";
 import { awardXp } from "@/lib/logbook/award";
 import { milestonesFor } from "@/lib/logbook/milestones";
 import { earnBadge, isUniqueViolation } from "@/lib/logbook/badge";
@@ -52,6 +54,22 @@ export async function recordQuizAnswer(
       lockedOn: day,
     },
   };
+
+  // Forward-only review seeding (step 4): a REVIEWABLE library question (one with an
+  // authored reviewId) is snapshotted into the deck. Best-effort — never break the
+  // quiz answer. Library items carry no stage (null), keyed `lib:<slug>:<reviewId>`.
+  if (q.reviewId && q.options) {
+    await seedReviewItem({
+      userId,
+      reviewItemId: libraryReviewItemId(input.slug, q.reviewId),
+      projectSlug: input.slug,
+      stage: null,
+      q: q.q,
+      options: q.options,
+      answer: q.answer,
+      now,
+    }).catch((e) => console.error("[review] library seed failed", e));
+  }
 
   // Wrong pick → lock the question for today (anti guess-farming); feeds completion.
   if (input.pick !== q.answer) {
