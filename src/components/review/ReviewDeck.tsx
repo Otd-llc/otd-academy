@@ -10,6 +10,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { recordReviewAnswer } from "@/lib/actions/logbook";
+import { useFanfare } from "@/components/logbook/Fanfare";
 
 export type ReviewDeckItem = {
   reviewItemId: string;
@@ -28,6 +29,7 @@ export function ReviewDeck({ items }: { items: ReviewDeckItem[] }) {
   const [reviewed, setReviewed] = useState(0);
   const [xp, setXp] = useState(0);
   const firedRef = useRef(false);
+  const fanfare = useFanfare();
 
   if (pos >= items.length) {
     return (
@@ -61,6 +63,9 @@ export function ReviewDeck({ items }: { items: ReviewDeckItem[] }) {
     });
     if (res && "ok" in res && res.ok && "xp" in res && res.xp > 0) {
       setXp((x) => x + res.xp);
+      if ("levelUp" in res && res.levelUp) {
+        fanfare({ kind: "level", label: res.levelUp.title, xp: res.xp });
+      }
     }
   }
 

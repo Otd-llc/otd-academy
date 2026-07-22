@@ -36,8 +36,12 @@ export default async function ReviewPage() {
   });
   if (!user) redirect("/sign-in");
 
+  // Overdue-first selection (dueReviewItems orders by dueOn), then de-mass the
+  // PRESENTATION order so a session isn't strictly oldest-first blocks of one stage.
   const raw = await dueReviewItems(user.id, new Date());
-  const items: ReviewDeckItem[] = raw.map((it) => {
+  const itemOrder = shuffleIndices(raw.length);
+  const items: ReviewDeckItem[] = itemOrder.map((ri) => {
+    const it = raw[ri]!;
     const order = shuffleIndices(it.options.length); // display -> original
     return {
       reviewItemId: it.reviewItemId,
