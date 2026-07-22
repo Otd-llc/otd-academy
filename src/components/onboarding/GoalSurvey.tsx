@@ -52,7 +52,7 @@ export function GoalSurvey() {
         Pick the closest. It tailors what we show you next.
       </p>
 
-      <div className="qzh-opts mt-8">
+      <div className="qzh-opts mt-8" role="group" aria-label="Your goal">
         {ONBOARDING_GOAL_OPTIONS.map((o, i) => (
           <button
             key={o.key}
@@ -87,8 +87,9 @@ export function GoalSurvey() {
         >
           Skip
         </button>
+        {/* role="alert": the save failure was a plain span, silent to AT. */}
         {error && (
-          <span className="font-mono text-xs uppercase tracking-wider text-alert-red">
+          <span role="alert" className="font-mono text-xs uppercase tracking-wider text-alert-red">
             {error}
           </span>
         )}

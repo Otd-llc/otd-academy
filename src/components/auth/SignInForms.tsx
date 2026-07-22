@@ -306,9 +306,12 @@ export function SignInForms({
       </div>
 
       <Divider />
-      <label htmlFor="si-email" className={`${LABEL} mb-1.5`}>
+      {/* Plain heading, not a second <label for="si-email"> — the input already
+          carries an sr-only "Email address" label inside emailForm(); two labels
+          on one control read as a doubled/conflicting name to AT. */}
+      <p className={`${LABEL} mb-1.5`} aria-hidden="true">
         Or a magic link
-      </label>
+      </p>
       {emailForm()}
 
       <p className="mt-4 text-center font-mono text-[9px] uppercase tracking-[0.08em] text-muted">

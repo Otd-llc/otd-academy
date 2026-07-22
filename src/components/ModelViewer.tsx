@@ -23,6 +23,7 @@ export default function ModelViewer({
   float = false,
   showHint = true,
   onFirstInteract,
+  label,
 }: {
   src: string;
   bounds?: RenderBounds | null;
@@ -37,6 +38,9 @@ export default function ModelViewer({
   /** Float mode: fires once, the first time the learner grabs the model — so a
    *  caller-owned hint can fade in sync with the built-in one. */
   onFirstInteract?: () => void;
+  /** Accessible name for the canvas (e.g. the part's MPN). The three.js canvas
+   *  is pointer-only, so without this the model is a nameless blank to AT. */
+  label?: string;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState(false);
@@ -161,9 +165,17 @@ export default function ModelViewer({
           () => { if (!disposed) setError(true); },
         );
 
+        // The JS auto-spin was the ONE unguarded motion in the app (every CSS
+        // animation respects reduced-motion via globals.css). A continuous
+        // rotation is exactly what vestibular users set the preference for.
+        const reducedMotion = window.matchMedia(
+          "(prefers-reduced-motion: reduce)",
+        ).matches;
         let raf = 0;
         const tick = () => {
-          if (float && !interacted && loadedRoot) loadedRoot.rotation.y += 0.006;
+          if (float && !interacted && !reducedMotion && loadedRoot) {
+            loadedRoot.rotation.y += 0.006;
+          }
           controls.update();
           renderer.render(scene, camera);
           raf = requestAnimationFrame(tick);
@@ -223,7 +235,12 @@ export default function ModelViewer({
   if (float) {
     return (
       <div className={`relative ${heightClass} w-full`}>
-        <div ref={mountRef} className="h-full w-full" />
+        <div
+          ref={mountRef}
+          className="h-full w-full"
+          role="img"
+          aria-label={label ?? "Interactive 3D part model"}
+        />
         {showHint ? (
           <div
             className={`pointer-events-none absolute inset-0 flex items-center justify-center transition-opacity duration-500 ${
@@ -246,6 +263,8 @@ export default function ModelViewer({
       <div
         ref={mountRef}
         className="h-full w-full overflow-hidden rounded border border-panel-border bg-deep-space"
+        role="img"
+        aria-label={label ?? "Interactive 3D part model"}
       />
       <div className="pointer-events-none absolute left-2 top-2 flex select-none items-center gap-1.5 rounded-md border border-panel-border/60 bg-deep-space/70 px-2 py-1 backdrop-blur-sm">
         <RotateIcon className="h-3 w-3 text-command-gold" />

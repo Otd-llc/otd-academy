@@ -142,7 +142,7 @@ export function CaptureLauncher({
       <button
         type="button"
         onClick={launch}
-        className="inline-flex items-center gap-2 rounded-md border border-command-gold/40 bg-command-gold/5 px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-command-gold shadow-[0_0_12px_rgba(212,175,55,0.15)] transition hover:border-command-gold hover:bg-command-gold/10 hover:text-gold-light hover:shadow-[0_0_18px_rgba(212,175,55,0.35)]"
+        className="inline-flex items-center gap-2 rounded-md border border-command-gold/40 bg-command-gold/5 px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-command-gold shadow-[0_0_12px_color-mix(in_srgb,var(--color-command-gold)_15%,transparent)] transition hover:border-command-gold hover:bg-command-gold/10 hover:text-gold-light hover:shadow-[0_0_18px_color-mix(in_srgb,var(--color-command-gold)_35%,transparent)]"
       >
         <span className="text-base leading-none">+</span>
         {label}
@@ -150,17 +150,22 @@ export function CaptureLauncher({
       {captureHint ? (
         <p className="text-[11px] text-muted">Capture: {captureHint}</p>
       ) : null}
-      {status.kind !== "idle" ? (
-        <p
-          className={
-            status.kind === "error"
-              ? "text-[11px] text-red-400"
-              : "text-[11px] text-command-gold/80"
-          }
-        >
-          {status.message}
-        </p>
-      ) : null}
+      {/* role="status" so capture errors are announced; alert-red token, not
+          the raw tailwind palette red-400 (the one token-law leak in
+          src/components — a fixed light-red that never flipped for ivory). */}
+      <p role="status" className="min-h-0">
+        {status.kind !== "idle" ? (
+          <span
+            className={
+              status.kind === "error"
+                ? "text-[11px] text-alert-red"
+                : "text-[11px] text-command-gold/80"
+            }
+          >
+            {status.message}
+          </span>
+        ) : null}
+      </p>
       <button
         type="button"
         onClick={() => setBrowser(true)}

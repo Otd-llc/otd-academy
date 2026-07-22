@@ -258,8 +258,11 @@ export function IslandRail({
                   key={is.anchorId}
                   onClick={() => go(is.anchorId)}
                   title={`${is.num} · ${is.title}`}
+                  aria-label={`${is.num} ${is.title}`}
                   aria-current={st === "active" ? "true" : undefined}
-                  className="focus-visible:outline-none"
+                  // Visible focus ring (WCAG 2.4.7): outline-none with no
+                  // replacement left keyboard focus invisible on the rail.
+                  className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-light"
                   style={{ position: "relative", height: rowH, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", padding: 0 }}
                 >
                   <span style={{ background: "var(--color-deep-space)", padding: st === "active" ? "2px 6px" : "1px 6px", border: st === "active" ? "1px solid var(--color-command-gold)" : "1px solid transparent", borderRadius: 3, transition: "all .3s" }}>
@@ -302,7 +305,7 @@ export function IslandRail({
                   onClick={() => go(is.anchorId)}
                   title={`${is.num} · ${is.title}`}
                   aria-label={`${is.num} ${is.title}`}
-                  className="focus-visible:outline-none"
+                  className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-light"
                   style={{ flex: 1, height: 5, borderRadius: 2, border: "none", cursor: "pointer", padding: 0, background: done ? "var(--color-command-gold)" : "color-mix(in srgb, var(--color-panel-border) 70%, transparent)", transition: "background .3s" }}
                 />
               );
