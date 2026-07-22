@@ -1,0 +1,20 @@
+[
+  {
+    "id": "req-example",
+    "section": "Requirements",
+    "prompt": "Replace with a real question. Every wrong option must be a REAL misconception at the same register (often a neighbouring stage's concept), never a joke.",
+    "options": [
+      "A plausible misconception",
+      "The correct answer",
+      "Another plausible misconception"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "conventions",
+    "section": "Notes (delete this entry)",
+    "prompt": "Conventions: >= 10 questions total (publishable bar; L1.01 ships 18). Group by the 8 build stages via `section`. Spread correctIndex evenly across positions - options render in stored order, no client shuffle. ids kebab-case, stage-prefixed. True-beginner register for L1 courses: plain core ideas, no math or edge-cases. Seed with: npx tsx scripts/seed-exam.ts <slug> <this-file> --threshold 75",
+    "options": ["Delete", "this", "entry"],
+    "correctIndex": 0
+  }
+]
