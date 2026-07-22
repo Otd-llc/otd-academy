@@ -6,6 +6,7 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { organizationJsonLd } from "@/lib/seo/jsonld";
 import { IdentityMemo } from "@/components/chrome/IdentityMemo";
 import { PostHogProvider } from "@/components/PostHogProvider";
+import { ConsentProviders } from "@/components/chrome/ConsentProviders";
 import { TooltipProvider } from "@/components/TooltipProvider";
 import { FanfareProvider } from "@/components/logbook/Fanfare";
 
@@ -99,6 +100,13 @@ export default function RootLayout({
             sibling to TooltipProvider; a hard no-op when NEXT_PUBLIC_POSTHOG_KEY
             is unset (no init, no network), so unconfigured builds are unaffected.
             Adds no DOM wrapper, so the body's flex column is preserved. */}
+        {/* Consent management (c15t, offline mode — localStorage, no backend).
+            Wraps PostHogProvider so getPosthog() reads the analytics
+            ("measurement") decision via ConsentBridge before it ever inits: an
+            EU visitor is not tracked until they consent. One "use client"
+            boundary (ConsentProviders) so the provider's React context is never
+            evaluated server-side. */}
+        <ConsentProviders>
         <PostHogProvider>
         <TooltipProvider>
         {/* Milestone fanfare. A pure client provider (no server data), so it sits
@@ -126,6 +134,7 @@ export default function RootLayout({
         </FanfareProvider>
         </TooltipProvider>
         </PostHogProvider>
+        </ConsentProviders>
       </body>
     </html>
   );

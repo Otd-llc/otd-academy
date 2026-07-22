@@ -13,8 +13,13 @@
 // analytics.ts), and default autocapture on a content-heavy site is pure
 // ingest volume.
 //
-// Resolves null when analytics is disabled (no key) — callers optional-chain.
+// Resolves null when analytics is disabled (no key) OR when the visitor has not
+// consented to analytics (c15t, offline mode) — callers optional-chain, so a
+// dropped capture is a silent no-op, exactly the GDPR-safe behaviour we want
+// pre-consent. On grant, the next getPosthog() call inits and subsequent
+// captures flow.
 import { env } from "@/env";
+import { analyticsConsentGranted } from "@/lib/consent-signal";
 import type { PostHog } from "posthog-js";
 
 let loader: Promise<PostHog | null> | null = null;
@@ -22,6 +27,9 @@ let loader: Promise<PostHog | null> | null = null;
 export function getPosthog(): Promise<PostHog | null> {
   const key = env.NEXT_PUBLIC_POSTHOG_KEY;
   if (!key) return Promise.resolve(null);
+  // Consent gate: never init (no pageview, no cookie) until analytics is
+  // granted. Not memoized in `loader` — a later grant must be able to init.
+  if (!analyticsConsentGranted()) return Promise.resolve(null);
   loader ??= import("posthog-js").then((m) => {
     const ph = m.default;
     if (!ph.__loaded) {
@@ -38,4 +46,17 @@ export function getPosthog(): Promise<PostHog | null> {
     return ph;
   });
   return loader;
+}
+
+/**
+ * The already-loaded PostHog instance, or null if it was never loaded — WITHOUT
+ * the consent gate and WITHOUT initializing. Only for the consent-revoke path
+ * (ConsentBridge): getPosthog() returns null once consent is withdrawn, so it
+ * can't reach the live instance to opt it out + reset. Never inits, so it can't
+ * leak an instance for a visitor who never consented.
+ */
+export async function getLoadedPosthog(): Promise<PostHog | null> {
+  if (!loader) return null;
+  const ph = await loader;
+  return ph && ph.__loaded ? ph : null;
 }

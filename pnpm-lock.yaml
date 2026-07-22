@@ -23,6 +23,9 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.1055.0
         version: 3.1055.0
+      '@c15t/nextjs':
+        specifier: 2.0.0-rc.12
+        version: 2.0.0-rc.12(@types/react@19.2.15)(next@16.2.6(@babel/core@7.29.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
       '@marsidev/react-turnstile':
         specifier: ^1.5.3
         version: 1.5.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -58,7 +61,7 @@ importers:
         version: 4.5.1(react@19.2.4)
       '@t3-oss/env-nextjs':
         specifier: ^0.13.11
-        version: 0.13.11(typescript@5.9.3)(valibot@1.2.0(typescript@5.9.3))(zod@4.4.3)
+        version: 0.13.11(typescript@5.9.3)(valibot@1.3.1(typescript@5.9.3))(zod@4.4.3)
       '@upstash/ratelimit':
         specifier: ^2.0.8
         version: 2.0.8(@upstash/redis@1.38.0)
@@ -68,6 +71,9 @@ importers:
       '@vercel/edge-config':
         specifier: ^1.4.3
         version: 1.4.3(next@16.2.6(@babel/core@7.29.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))
+      c15t:
+        specifier: 2.0.0-rc.10
+        version: 2.0.0-rc.10(@types/react@19.2.15)(react@19.2.4)(typescript@5.9.3)
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -399,6 +405,28 @@ packages:
   '@babel/types@7.29.7':
     resolution: {integrity: sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==}
     engines: {node: '>=6.9.0'}
+
+  '@c15t/nextjs@2.0.0-rc.12':
+    resolution: {integrity: sha512-GSWfDXZ3OL+fxDl9+80TRtkavpkM67SLBJgRwIyYtnSYk4I7MQEM+SGoIhVxoq1jGTZ212PB6W14pYiKd+jmOA==}
+    peerDependencies:
+      next: ^16.0.0 || ^15.0.0 || ^14.0.0 || ^13.0.0
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+
+  '@c15t/react@2.0.0-rc.12':
+    resolution: {integrity: sha512-1exKbV05z911CuZn9DtjWOe0vqHiJMTW7ygcV5c7dOO8UpMlijc8y+vu4eMq7eIt1R3pzoi2b+iW7h/MReVTFQ==}
+    peerDependencies:
+      react: ^19.0.0 || ^19.0.0-rc || ^18.0.0 || ^17.0.0 || ^16.8.0
+      react-dom: ^19.0.0 || ^19.0.0-rc || ^18.0.0 || ^17.0.0 || ^16.8.0
+
+  '@c15t/schema@2.0.0-rc.6':
+    resolution: {integrity: sha512-cKvELRvRytOB+r+4my7lS/bK7Nw8sK4k3iLREoETYzQf81U+lLN/8BPK08v6S2/FeGvhtXnaXq+0t5oWyRS7qQ==}
+
+  '@c15t/translations@2.0.0-rc.8':
+    resolution: {integrity: sha512-yE7c6JAKEmOpIfwvHtl9MYPw9n43ZLkTd7cXo6JfdBupZUhI6hQucdhycu9nUte5ZGE/DGL9IYNH1UbN022/Lw==}
+
+  '@c15t/ui@2.0.0-rc.11':
+    resolution: {integrity: sha512-vKRjCcemE1J/IyiQRIQS01Vcjqr9HseumOO6R6a6riP0qQOJ0Sdloxccs91yCLtc7xiF5bHL38rm0PEkG6cq9g==}
 
   '@dimforge/rapier3d-compat@0.12.0':
     resolution: {integrity: sha512-uekIGetywIgopfD97oDL5PfeezkFpNhwlzlaEYNOA0N6ghdsOvh/HYjSMek5Q2O1PYvRSDFcqFVJl4r4ZBwOow==}
@@ -2410,6 +2438,9 @@ packages:
       magicast:
         optional: true
 
+  c15t@2.0.0-rc.10:
+    resolution: {integrity: sha512-J95aO07P7y17Qb2fV7IlVUzygY2vxUVDrbb0iELJ41j/vM4tZjzG4ZSusHKPlYtcuL2lZXkVt+cqbNYFhefb6Q==}
+
   call-bind-apply-helpers@1.0.2:
     resolution: {integrity: sha512-Sp1ablJ0ivDkSzjcaJdxEunN5/XvksFJ2sMBFfq6x0ryhQV/2b/KwFe21cMpmHtPOSij8K99/wSfoEuTObmuMQ==}
     engines: {node: '>= 0.4'}
@@ -4387,6 +4418,14 @@ packages:
       typescript:
         optional: true
 
+  valibot@1.3.1:
+    resolution: {integrity: sha512-sfdRir/QFM0JaF22hqTroPc5xy4DimuGQVKFrzF1YfGwaS1nJot3Y8VqMdLO2Lg27fMzat2yD3pY5PbAYO39Gg==}
+    peerDependencies:
+      typescript: '>=5'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
     engines: {node: '>= 0.8'}
@@ -4552,6 +4591,24 @@ packages:
 
   zod@4.4.3:
     resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
+
+  zustand@5.0.12:
+    resolution: {integrity: sha512-i77ae3aZq4dhMlRhJVCYgMLKuSiZAaUPAct2AksxQ+gOtimhGMdXljRT21P5BNpeT4kXlLIckvkPM029OljD7g==}
+    engines: {node: '>=12.20.0'}
+    peerDependencies:
+      '@types/react': '>=18.0.0'
+      immer: '>=9.0.6'
+      react: '>=18.0.0'
+      use-sync-external-store: '>=1.2.0'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      immer:
+        optional: true
+      react:
+        optional: true
+      use-sync-external-store:
+        optional: true
 
 snapshots:
 
@@ -4946,6 +5003,51 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
+
+  '@c15t/nextjs@2.0.0-rc.12(@types/react@19.2.15)(next@16.2.6(@babel/core@7.29.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)':
+    dependencies:
+      '@c15t/react': 2.0.0-rc.12(@types/react@19.2.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
+      '@c15t/translations': 2.0.0-rc.8
+      c15t: 2.0.0-rc.10(@types/react@19.2.15)(react@19.2.4)(typescript@5.9.3)
+      next: 16.2.6(@babel/core@7.29.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+    transitivePeerDependencies:
+      - '@types/react'
+      - immer
+      - typescript
+      - use-sync-external-store
+
+  '@c15t/react@2.0.0-rc.12(@types/react@19.2.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)':
+    dependencies:
+      '@c15t/ui': 2.0.0-rc.11(@types/react@19.2.15)(react@19.2.4)(typescript@5.9.3)
+      c15t: 2.0.0-rc.10(@types/react@19.2.15)(react@19.2.4)(typescript@5.9.3)
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+    transitivePeerDependencies:
+      - '@types/react'
+      - immer
+      - typescript
+      - use-sync-external-store
+
+  '@c15t/schema@2.0.0-rc.6(typescript@5.9.3)':
+    dependencies:
+      valibot: 1.3.1(typescript@5.9.3)
+    transitivePeerDependencies:
+      - typescript
+
+  '@c15t/translations@2.0.0-rc.8': {}
+
+  '@c15t/ui@2.0.0-rc.11(@types/react@19.2.15)(react@19.2.4)(typescript@5.9.3)':
+    dependencies:
+      '@c15t/translations': 2.0.0-rc.8
+      c15t: 2.0.0-rc.10(@types/react@19.2.15)(react@19.2.4)(typescript@5.9.3)
+    transitivePeerDependencies:
+      - '@types/react'
+      - immer
+      - react
+      - typescript
+      - use-sync-external-store
 
   '@dimforge/rapier3d-compat@0.12.0': {}
 
@@ -6153,18 +6255,18 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@t3-oss/env-core@0.13.11(typescript@5.9.3)(valibot@1.2.0(typescript@5.9.3))(zod@4.4.3)':
+  '@t3-oss/env-core@0.13.11(typescript@5.9.3)(valibot@1.3.1(typescript@5.9.3))(zod@4.4.3)':
     optionalDependencies:
       typescript: 5.9.3
-      valibot: 1.2.0(typescript@5.9.3)
+      valibot: 1.3.1(typescript@5.9.3)
       zod: 4.4.3
 
-  '@t3-oss/env-nextjs@0.13.11(typescript@5.9.3)(valibot@1.2.0(typescript@5.9.3))(zod@4.4.3)':
+  '@t3-oss/env-nextjs@0.13.11(typescript@5.9.3)(valibot@1.3.1(typescript@5.9.3))(zod@4.4.3)':
     dependencies:
-      '@t3-oss/env-core': 0.13.11(typescript@5.9.3)(valibot@1.2.0(typescript@5.9.3))(zod@4.4.3)
+      '@t3-oss/env-core': 0.13.11(typescript@5.9.3)(valibot@1.3.1(typescript@5.9.3))(zod@4.4.3)
     optionalDependencies:
       typescript: 5.9.3
-      valibot: 1.2.0(typescript@5.9.3)
+      valibot: 1.3.1(typescript@5.9.3)
       zod: 4.4.3
 
   '@tailwindcss/node@4.3.0':
@@ -6739,6 +6841,18 @@ snapshots:
       perfect-debounce: 2.1.0
       pkg-types: 2.3.1
       rc9: 3.0.1
+
+  c15t@2.0.0-rc.10(@types/react@19.2.15)(react@19.2.4)(typescript@5.9.3):
+    dependencies:
+      '@c15t/schema': 2.0.0-rc.6(typescript@5.9.3)
+      '@c15t/translations': 2.0.0-rc.8
+      zustand: 5.0.12(@types/react@19.2.15)(react@19.2.4)
+    transitivePeerDependencies:
+      - '@types/react'
+      - immer
+      - react
+      - typescript
+      - use-sync-external-store
 
   call-bind-apply-helpers@1.0.2:
     dependencies:
@@ -8962,6 +9076,10 @@ snapshots:
     optionalDependencies:
       typescript: 5.9.3
 
+  valibot@1.3.1(typescript@5.9.3):
+    optionalDependencies:
+      typescript: 5.9.3
+
   vary@1.1.2: {}
 
   vite-compatible-readable-stream@3.6.1:
@@ -9094,3 +9212,8 @@ snapshots:
       zod: 4.4.3
 
   zod@4.4.3: {}
+
+  zustand@5.0.12(@types/react@19.2.15)(react@19.2.4):
+    optionalDependencies:
+      '@types/react': 19.2.15
+      react: 19.2.4
