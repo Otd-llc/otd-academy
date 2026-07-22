@@ -11,7 +11,17 @@
 import { parseGuideBlocks } from "@/lib/guide-blocks-parse";
 import { questionKey, guideKey } from "@/lib/logbook/question-key";
 
-export type QuizQ = { id?: string; q: string; answer: number };
+// `options` / `reviewId` are carried through for the review deck (step 4): a
+// reviewable question (one with a `reviewId`) needs its options + answer snapshot
+// when seeding a QuizItem. `questionKey` still reads only `id`/`q`, so this is
+// additive.
+export type QuizQ = {
+  id?: string;
+  q: string;
+  answer: number;
+  options?: string[];
+  reviewId?: string;
+};
 
 export function quizQuestions(contentBlocks: unknown): QuizQ[] {
   return parseGuideBlocks(contentBlocks)
