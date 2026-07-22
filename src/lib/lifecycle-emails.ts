@@ -379,6 +379,29 @@ export function logbookMilestoneEmail(
   });
 }
 
+// ─── Review-due nudge (audit Phase 4 follow-up) ─────────────────────────────
+// The spaced-review deck's return trigger: without one, due cards accumulate
+// unseen and the retention feature can't drive the return visits it exists for.
+// WEEKLY, not part of the fixed once-ever registry: the cron keys the ledger
+// row `review-nudge:<iso-week>` (one send per user per week, max), so like the
+// milestone emails it takes its variable copy as an argument.
+export function reviewNudgeEmail(
+  ctx: LifecycleContext,
+  m: { dueCount: number; reviewUrl: string },
+): LifecycleEmail {
+  const n = m.dueCount;
+  return wrap({
+    ...base(ctx),
+    subject: `${n} ${n === 1 ? "card is" : "cards are"} due in your review deck`,
+    paragraphs: [
+      `Hi ${ctx.firstName},`,
+      `${n} ${n === 1 ? "question" : "questions"} from your lessons ${n === 1 ? "is" : "are"} due for review. Each one takes a few seconds, and answering pushes it further out on the schedule.`,
+      "Miss one and it just comes back sooner. That is the whole system.",
+    ],
+    cta: { label: "Open the review deck", url: m.reviewUrl },
+  });
+}
+
 // ─── Sequence registry ──────────────────────────────────────────────────────
 // Maps each LifecycleSend.sequence id to its builder. Keys are the email ids from
 // the docs file; the cron uses these to pick the builder for a selected audience.

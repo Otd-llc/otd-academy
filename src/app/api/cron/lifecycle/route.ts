@@ -16,6 +16,7 @@ import {
 import { sendLifecycleEmail } from "@/lib/lifecycle-send";
 import { drainDunningPending } from "@/lib/dunning-retry";
 import { notifyWaitlist } from "@/lib/waitlist-notify";
+import { sendReviewDueNudges } from "@/lib/review-nudge";
 import { capture } from "@/lib/analytics";
 import {
   type AudienceUser,
@@ -231,5 +232,18 @@ export async function GET(req: Request): Promise<Response> {
   // any course that has published since the last tick (see waitlist-notify.ts).
   const waitlist = await notifyWaitlist(db);
 
-  return Response.json({ ok: true, sent, skipped, perSequence, errors, dunning, waitlist });
+  // Weekly spaced-review return trigger (>= 3 due cards, once per ISO week,
+  // consent-gated — see review-nudge.ts).
+  const reviewNudge = await sendReviewDueNudges(db, now);
+
+  return Response.json({
+    ok: true,
+    sent,
+    skipped,
+    perSequence,
+    errors,
+    dunning,
+    waitlist,
+    reviewNudge,
+  });
 }
