@@ -13,10 +13,13 @@ import { awardXp, type AwardResult } from "@/lib/logbook/award";
 import { earnBadge } from "@/lib/logbook/badge";
 import {
   reviewItemId,
+  autoReviewItemId,
   advanceSchedule,
   jitterFactor,
 } from "@/lib/logbook/review-schedule";
 import { seedReviewItem } from "@/lib/logbook/review-seed";
+import { loadStageCard } from "@/lib/logbook/stage-card-load";
+import { capture } from "@/lib/analytics";
 import {
   academyDate,
   academyDay,
@@ -124,10 +127,15 @@ async function seedStageReviewItem(
   now: Date,
 ): Promise<void> {
   if (!q.options) return;
+  // The question's own identity (id or text-hash) is the part of questionKey
+  // after the last '#' — stable across revisions, unlike the full questionKey
+  // (which embeds the revision label). Auto items key on THAT so a rev bump
+  // doesn't orphan the schedule.
+  const qIdent = questionKey.slice(questionKey.lastIndexOf("#") + 1);
   const itemId = q.reviewId
     ? reviewItemId(projectSlug, stage, q.reviewId)
     : wrong
-      ? questionKey
+      ? autoReviewItemId(projectSlug, stage, qIdent)
       : null;
   if (!itemId) return;
   await seedReviewItem({
@@ -147,34 +155,15 @@ export async function recordStageQuizAnswer(
   userId: string,
   now: Date,
 ): Promise<StageQuizResult> {
-  // Mirror recordQuizPass's load: the card's contentBlocks + the slug/label the
-  // guide key is built from, all off the enrollment.
-  const enrollment = await db.enrollment.findUnique({
-    where: { id: input.enrollmentId },
-    select: {
-      userId: true,
-      project: { select: { slug: true } },
-      revision: {
-        select: {
-          label: true,
-          guide: {
-            select: {
-              cards: {
-                where: { stage: input.stage },
-                select: { contentBlocks: true },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-  if (!enrollment || enrollment.userId !== userId) return { ok: false };
-  const card = enrollment.revision.guide?.cards[0];
-  if (!card) return { ok: false };
+  // Shared load (loadStageCard): same enrollment→card shape the exit-gate scorer
+  // uses, so the gate and this per-pick XP can never drift on which card they
+  // read. The PARSE stays local (XP flattens every quiz question; the gate picks
+  // one gate block) — deliberately different intents over the same data.
+  const load = await loadStageCard(db, input.enrollmentId, input.stage, userId);
+  if (!load.owned || load.contentBlocks == null) return { ok: false };
 
-  const gk = guideKey(enrollment.project.slug, enrollment.revision.label, input.stage);
-  const q = quizQuestions(card.contentBlocks).find(
+  const gk = guideKey(load.projectSlug, load.revLabel, input.stage);
+  const q = quizQuestions(load.contentBlocks).find(
     (qq) => questionKey(gk, qq) === input.questionKey,
   );
   if (!q) return { ok: false };
@@ -211,13 +200,22 @@ export async function recordStageQuizAnswer(
   // must never break the quiz answer, so a failure here is logged and swallowed.
   await seedStageReviewItem(
     userId,
-    enrollment.project.slug,
+    load.projectSlug,
     input.stage,
     q,
     input.questionKey,
     wrong,
     now,
-  ).catch((e) => console.error("[review] seed failed", e));
+  ).catch((e) => {
+    // Telemetry, not just console: a silent seed failure means this question
+    // never enters the deck, invisible in unwatched Vercel logs.
+    console.error("[review] seed failed", e);
+    capture(
+      "review_seed_failed",
+      { surface: "guide", detail: e instanceof Error ? e.message : String(e) },
+      userId,
+    );
+  });
 
   // Reward the FIRST answer of the day for this question (right or wrong), once,
   // via the per-day dedupe key. firstEver keys off the durable pass + any prior
@@ -253,7 +251,10 @@ export async function recordStageQuizAnswer(
 
 export type ReviewAnswerResult =
   | { ok: false }
-  | { ok: true; correct: boolean; xp: number; levelUp: LevelUp };
+  // `answer` is the ORIGINAL (unshuffled) index of the correct option, returned
+  // AFTER the pick so the deck can reveal it — the client no longer receives the
+  // answer key up front (it can't be read before answering).
+  | { ok: true; correct: boolean; answer: number; xp: number; levelUp: LevelUp };
 
 // A learner's answer in the /review deck. Re-scores against the QuizItem registry
 // snapshot (server-authoritative), advances the schedule up/down the ladder, and
@@ -280,13 +281,14 @@ export async function recordReviewAnswer(
   // to review.
   if (!schedule) return { ok: false };
 
-  const correct = input.pick === schedule.item.answer;
+  const answer = schedule.item.answer;
+  const correct = input.pick === answer;
   const today = academyDate(now);
 
   // Not due (already reviewed this cycle, or a stale double-submit) → no-op. This is
   // the idempotency guard: never advance or award twice for one due cycle.
   if (schedule.dueOn.getTime() > today.getTime()) {
-    return { ok: true, correct, xp: 0, levelUp: null };
+    return { ok: true, correct, answer, xp: 0, levelUp: null };
   }
 
   // The cycle being answered is `schedule.dueOn`; advance BEFORE it changes.
@@ -301,12 +303,39 @@ export async function recordReviewAnswer(
     now,
     jitterFactor(rand),
   );
+  // AWARD BEFORE ADVANCE (atomicity fix): the two writes are independently
+  // idempotent — the award on its per-cycle dedupeKey, the advance on the
+  // conditional `dueOn <= today` race guard — so ordering does not affect the
+  // net state (exactly one award, exactly one advance, whichever concurrent
+  // caller wins each). But if the advance ran FIRST and the award then threw
+  // (transient serialization / connection blip), `dueOn` had already moved out
+  // of this cycle and the REVIEW_CORRECT XP was lost with no re-eligibility.
+  // Awarding first means a failed advance keeps the XP and simply leaves the
+  // item due for a dedupe-protected retry — an under-advance beats an
+  // unrecoverable under-credit.
+  let xp = 0;
+  let awardedLevelUp: { level: number; title: string } | null = null;
+  if (correct) {
+    const res = await awardXp({
+      userId,
+      source: "REVIEW_CORRECT",
+      amount: XP.REVIEW_CORRECT,
+      refId: input.reviewItemId,
+      dedupeKey: dedupe.review(userId, input.reviewItemId, cycleDueDay),
+      now,
+    });
+    if (res.awarded) {
+      xp = XP.REVIEW_CORRECT;
+      awardedLevelUp = res.levelUp;
+    }
+  }
+
   // CONDITIONAL advance (race guard): only if the row is STILL due. The early
   // dueOn check above catches a serial re-answer, but two concurrent submits could
   // both pass it (both read the row before either writes). Gating the write on
   // `dueOn <= today` means exactly one wins; a loser gets count 0 and no-ops, so the
-  // schedule can never double-advance and the award only fires for the winner.
-  const { count } = await db.reviewSchedule.updateMany({
+  // schedule can never double-advance.
+  await db.reviewSchedule.updateMany({
     where: {
       userId,
       reviewItemId: input.reviewItemId,
@@ -320,22 +349,6 @@ export async function recordReviewAnswer(
       lastSeenOn: today,
     },
   });
-  if (count === 0) return { ok: true, correct, xp: 0, levelUp: null };
 
-  if (!correct) return { ok: true, correct: false, xp: 0, levelUp: null };
-
-  const res = await awardXp({
-    userId,
-    source: "REVIEW_CORRECT",
-    amount: XP.REVIEW_CORRECT,
-    refId: input.reviewItemId,
-    dedupeKey: dedupe.review(userId, input.reviewItemId, cycleDueDay),
-    now,
-  });
-  return {
-    ok: true,
-    correct: true,
-    xp: res.awarded ? XP.REVIEW_CORRECT : 0,
-    levelUp: res.awarded ? res.levelUp : null,
-  };
+  return { ok: true, correct, answer, xp, levelUp: awardedLevelUp };
 }

@@ -9,7 +9,14 @@ import {
   recordCourseComplete,
   recordReviewAnswer,
 } from "@/lib/logbook/guide-awards";
+import { autoReviewItemId } from "@/lib/logbook/review-schedule";
 import { XP } from "@/lib/logbook/economy";
+
+// The revision-independent id an untagged (wrong-answer) item is seeded under:
+// autoReviewItemId keyed on the question's own identity (the part of the
+// questionKey after '#'), NOT the full revision-scoped questionKey.
+const autoIdFor = (questionKey: string) =>
+  autoReviewItemId(slug, STAGE, questionKey.slice(questionKey.lastIndexOf("#") + 1));
 
 const stamp = Date.now();
 const slug = `stagequiz-${stamp}`;
@@ -139,20 +146,23 @@ describe("recordStageQuizAnswer", () => {
     expect(item).toBeNull();
   });
 
-  it("a WRONG answer to an UNTAGGED question seeds it keyed by its questionKey", async () => {
+  it("a WRONG answer to an UNTAGGED question seeds it under a revision-independent auto id", async () => {
     // keys[2] has no reviewId; answering it wrong feeds the deck (review-your-mistakes).
+    // The item is keyed by autoReviewItemId (no revision label) so a rev bump
+    // doesn't orphan the schedule — NOT by the revision-scoped questionKey.
+    const autoId = autoIdFor(keys[2]!);
     const r = await recordStageQuizAnswer(
       { enrollmentId, stage: STAGE, questionKey: keys[2], pick: 1 }, // answer is 0
       userId,
       DAY,
     );
     expect(r).toMatchObject({ ok: true, correct: false });
-    const item = await db.quizItem.findUnique({
-      where: { reviewItemId: keys[2] },
-    });
+    // The old revision-scoped key must NOT be used.
+    expect(await db.quizItem.findUnique({ where: { reviewItemId: keys[2] } })).toBeNull();
+    const item = await db.quizItem.findUnique({ where: { reviewItemId: autoId } });
     expect(item).toMatchObject({ projectSlug: slug, stage: STAGE, answer: 0 });
     const sched = await db.reviewSchedule.findUnique({
-      where: { userId_reviewItemId: { userId, reviewItemId: keys[2] } },
+      where: { userId_reviewItemId: { userId, reviewItemId: autoId } },
     });
     expect(sched).not.toBeNull();
   });
@@ -225,6 +235,88 @@ describe("recordReviewAnswer", () => {
   it("a same-day re-answer is a no-op (not due after the advance)", async () => {
     const r = await recordReviewAnswer({ reviewItemId: RITEM, pick: 2 }, userId, DAY, 0);
     expect(r).toMatchObject({ ok: true, xp: 0 });
+  });
+
+  it("returns the correct ORIGINAL index so the client can reveal it", async () => {
+    // Fresh due item (the RITEM above was advanced by earlier tests).
+    const RID = `${slug}:SCHEMATIC:reveal-target`;
+    await db.quizItem.create({
+      data: { reviewItemId: RID, projectSlug: slug, stage: STAGE, q: "Reveal?", options: ["a", "b"], answer: 1 },
+    });
+    await db.reviewSchedule.create({
+      data: {
+        userId,
+        reviewItemId: RID,
+        dueOn: new Date("2026-07-08T00:00:00Z"),
+        intervalDays: 3,
+        lapses: 0,
+        lastSeenOn: new Date("2026-07-05T00:00:00Z"),
+      },
+    });
+    // Answer WRONG (pick 0) — the response must still carry answer: 1.
+    const r = await recordReviewAnswer({ reviewItemId: RID, pick: 0 }, userId, DAY, 0);
+    expect(r).toMatchObject({ ok: true, correct: false, answer: 1, xp: 0 });
+  });
+
+  it("a WRONG due answer steps the interval DOWN toward the floor (leech on repeated miss)", async () => {
+    const RID = `${slug}:SCHEMATIC:stepdown-target`;
+    await db.quizItem.create({
+      data: { reviewItemId: RID, projectSlug: slug, stage: STAGE, q: "Step?", options: ["a", "b"], answer: 1 },
+    });
+    // High interval so a miss visibly steps down (LAPSE_FACTOR 0.4).
+    await db.reviewSchedule.create({
+      data: {
+        userId,
+        reviewItemId: RID,
+        dueOn: new Date("2026-07-08T00:00:00Z"),
+        intervalDays: 20,
+        lapses: 0,
+        lastSeenOn: new Date("2026-07-05T00:00:00Z"),
+      },
+    });
+    const r = await recordReviewAnswer({ reviewItemId: RID, pick: 0 }, userId, DAY, 0);
+    expect(r).toMatchObject({ ok: true, correct: false, xp: 0 });
+    const s = await db.reviewSchedule.findUniqueOrThrow({
+      where: { userId_reviewItemId: { userId, reviewItemId: RID } },
+    });
+    expect(s.intervalDays).toBeLessThan(20);
+    expect(s.lapses).toBe(1);
+  });
+
+  it("two concurrent correct answers award ONCE and advance ONCE (race guard)", async () => {
+    const RID = `${slug}:SCHEMATIC:race-target`;
+    await db.quizItem.create({
+      data: { reviewItemId: RID, projectSlug: slug, stage: STAGE, q: "Race?", options: ["a", "b"], answer: 1 },
+    });
+    await db.reviewSchedule.create({
+      data: {
+        userId,
+        reviewItemId: RID,
+        dueOn: new Date("2026-07-08T00:00:00Z"),
+        intervalDays: 3,
+        lapses: 0,
+        lastSeenOn: new Date("2026-07-05T00:00:00Z"),
+      },
+    });
+    const before = (
+      await db.user.findUniqueOrThrow({ where: { id: userId }, select: { xpTotal: true } })
+    ).xpTotal;
+    const [a, b] = await Promise.all([
+      recordReviewAnswer({ reviewItemId: RID, pick: 1 }, userId, DAY, 0),
+      recordReviewAnswer({ reviewItemId: RID, pick: 1 }, userId, DAY, 0),
+    ]);
+    // Exactly one of the two carries the XP; both report correct.
+    const awarded = [a, b].filter((r) => r.ok && r.xp > 0);
+    expect(awarded).toHaveLength(1);
+    const after = (
+      await db.user.findUniqueOrThrow({ where: { id: userId }, select: { xpTotal: true } })
+    ).xpTotal;
+    expect(after - before).toBe(XP.REVIEW_CORRECT); // never doubled
+    // And the schedule advanced exactly once (interval climbed, not twice).
+    const s = await db.reviewSchedule.findUniqueOrThrow({
+      where: { userId_reviewItemId: { userId, reviewItemId: RID } },
+    });
+    expect(s.intervalDays).toBeGreaterThan(3);
   });
 });
 

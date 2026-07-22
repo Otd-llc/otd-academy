@@ -6,7 +6,8 @@
 // display + a display->original permutation), so there is no client-side randomness
 // and no hydration mismatch, while repeated exposure still can't train the answer's
 // position (response learning). `recordReviewAnswer` is authoritative on scoring +
-// XP; the client uses `answerDisplay` only for instant feedback.
+// XP; the correct option is returned in the ANSWER of that response (never
+// shipped in the payload), so it can't be read before answering.
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { recordReviewAnswer } from "@/lib/actions/logbook";
@@ -19,13 +20,14 @@ export type ReviewDeckItem = {
   options: string[];
   /** displayIndex -> ORIGINAL option index (what the server scores against). */
   originalIndex: number[];
-  /** The display index of the correct option (client feedback only). */
-  answerDisplay: number;
 };
 
 export function ReviewDeck({ items }: { items: ReviewDeckItem[] }) {
   const [pos, setPos] = useState(0);
   const [pickedDisplay, setPickedDisplay] = useState<number | null>(null);
+  // The correct DISPLAY index, learned from the server response (not shipped in
+  // the payload). Null until answered.
+  const [answerDisplay, setAnswerDisplay] = useState<number | null>(null);
   const [reviewed, setReviewed] = useState(0);
   const [xp, setXp] = useState(0);
   const firedRef = useRef(false);
@@ -64,7 +66,7 @@ export function ReviewDeck({ items }: { items: ReviewDeckItem[] }) {
   }
 
   const item = items[pos]!;
-  const correct = answered && pickedDisplay === item.answerDisplay;
+  const correct = answered && pickedDisplay === answerDisplay;
 
   async function pick(displayIdx: number) {
     if (answered || firedRef.current) return;
@@ -74,10 +76,16 @@ export function ReviewDeck({ items }: { items: ReviewDeckItem[] }) {
       reviewItemId: item.reviewItemId,
       pick: item.originalIndex[displayIdx]!,
     });
-    if (res && "ok" in res && res.ok && "xp" in res && res.xp > 0) {
-      setXp((x) => x + res.xp);
-      if ("levelUp" in res && res.levelUp) {
-        fanfare({ kind: "level", label: res.levelUp.title, xp: res.xp });
+    if (res && "ok" in res && res.ok) {
+      // Map the server's ORIGINAL correct index to its display slot so the
+      // reveal can green it (the payload never carried the answer).
+      const disp = item.originalIndex.indexOf(res.answer);
+      setAnswerDisplay(disp >= 0 ? disp : null);
+      if (res.xp > 0) {
+        setXp((x) => x + res.xp);
+        if (res.levelUp) {
+          fanfare({ kind: "level", label: res.levelUp.title, xp: res.xp });
+        }
       }
     }
   }
@@ -85,6 +93,7 @@ export function ReviewDeck({ items }: { items: ReviewDeckItem[] }) {
   function next() {
     setReviewed((r) => r + 1);
     setPickedDisplay(null);
+    setAnswerDisplay(null);
     firedRef.current = false;
     setPos((p) => p + 1);
   }
@@ -117,7 +126,7 @@ export function ReviewDeck({ items }: { items: ReviewDeckItem[] }) {
       >
         {item.options.map((opt, displayIdx) => {
           const isPicked = pickedDisplay === displayIdx;
-          const isAnswer = displayIdx === item.answerDisplay;
+          const isAnswer = displayIdx === answerDisplay;
           const reveal = answered && (isPicked || isAnswer);
           const tone = reveal
             ? isAnswer
