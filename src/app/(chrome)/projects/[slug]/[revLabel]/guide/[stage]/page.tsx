@@ -30,20 +30,18 @@ import {
 } from "@/lib/seo/jsonld";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/PageHeader";
-import {
-  GuideBlocks,
-  type ResolvedModel,
-  type BomRow,
-} from "@/components/guide/GuideBlocks";
+import { GuideBlocks } from "@/components/guide/GuideBlocks";
 import { resolveInlineDiagrams } from "@/lib/inline-diagrams";
+import {
+  cachedGuideStage,
+  cachedRevLabelsLower,
+} from "@/lib/guide/cached-guide-read";
+import { knownProjectSlugs } from "@/lib/skill-tree";
 import { questionKey, guideKey } from "@/lib/logbook/question-key";
 import { getStageQuestionState } from "@/lib/logbook/load";
 import { GuideCardEditor } from "@/components/guide/GuideCardEditor";
 import { PhaseComb } from "@/components/guide/PhaseComb";
 import { BomPdfExport } from "@/components/guide/BomPdfExport";
-import { partModelSrc } from "@/lib/part-model-url";
-import { env } from "@/env";
-import { renderBoundsSchema } from "@/lib/schemas/part-asset";
 import { StageGate } from "@/components/guide/StageGate";
 import { BoardSelector } from "@/components/guide/BoardSelector";
 import { GenerateGuideButton } from "@/components/guide/GenerateGuideButton";
@@ -77,7 +75,6 @@ import {
   type CompletionRef,
   type ContentBlock,
 } from "@/lib/schemas/guide";
-import { parseGuideBlocks } from "@/lib/guide-blocks-parse";
 
 type Params = { slug: string; revLabel: string; stage: string };
 type Search = { board?: string; as?: string };
@@ -100,12 +97,12 @@ function accentWordFor(title: string): string {
   return tokens[tokens.length - 1] ?? title;
 }
 
-// SEO. Runs separately from the component, so it re-resolves only what the
-// tags need (project name + published-revision label for the canonical, plus
-// the card title/lead) with tight selects. The canonical always points at the
-// PUBLISHED revision (not the viewed `revLabel`) so crawlers consolidate on one
-// URL; when the project has no published revision we omit `alternates.canonical`.
-// OG images land in a later task (B2).
+// SEO. Reads the same cached payload as the page body (cachedGuideStage), so
+// metadata + body cost ONE cached compute instead of re-querying project + card
+// (the card row used to be fetched three times per anonymous crawl). The
+// canonical always points at the PUBLISHED revision (not the viewed `revLabel`)
+// so crawlers consolidate on one URL; when the project has no published
+// revision we omit `alternates.canonical`. OG images land in a later task (B2).
 export async function generateMetadata({
   params,
 }: {
@@ -114,37 +111,29 @@ export async function generateMetadata({
   const { slug, revLabel, stage: stageParam } = await params;
   const stageUpper = stageParam.toUpperCase();
 
-  const project = await db.project.findUnique({
-    where: { slug },
-    select: {
-      name: true,
-      accessTier: true,
-      publishedRevision: { select: { label: true } },
-    },
-  });
-  if (!project) return {};
-
+  // Bound the cache key BEFORE the cached read (repo caching law): a route
+  // param matches any string, and an unbounded arg mints a cache entry + a DB
+  // read per garbage URL a crawler tries.
+  const known = await knownProjectSlugs();
+  if (!known.has(slug)) return {};
   const decodedLabel = decodeURIComponent(revLabel);
-  const card = isGuideStage(stageUpper)
-    ? await db.guideCard.findFirst({
-        where: {
-          stage: stageUpper,
-          guide: {
-            revision: {
-              project: { slug },
-              label: { equals: decodedLabel, mode: "insensitive" },
-            },
-          },
-        },
-        select: { title: true, lead: true, ordinal: true },
-      })
+  const labelLower = decodedLabel.toLowerCase();
+  if (!(await cachedRevLabelsLower(slug)).includes(labelLower)) return {};
+
+  const data = isGuideStage(stageUpper)
+    ? await cachedGuideStage(slug, labelLower, stageUpper)
     : null;
+  if (!data && isGuideStage(stageUpper)) return {};
+
+  const project = data?.project ?? null;
+  if (!project) return {};
+  const card = data?.card ?? null;
 
   const cardTitle = card?.title ?? stageUpper;
   const title = `${cardTitle} — ${project.name}`;
   const canonical = canonicalLessonPath({
     slug,
-    publishedLabel: project.publishedRevision?.label ?? null,
+    publishedLabel: project.publishedLabel,
     stage: stageUpper,
   });
 
@@ -204,19 +193,16 @@ export default async function GuideCardPage({
   if (!isGuideStage(stageUpper)) notFound();
   const stage: GuideStage = stageUpper;
 
-  const project = await db.project.findUnique({
-    where: { slug },
-    select: {
-      id: true,
-      slug: true,
-      name: true,
-      accessTier: true,
-      stripePriceId: true,
-      priceCents: true,
-      exam: { select: { id: true } },
-    },
-  });
-  if (!project) notFound();
+  // Cached, user-independent read (project + revision + card + parsed blocks +
+  // models + BOM). Bound BOTH raw route params against cached known-value sets
+  // first (repo caching law) so crawler garbage can't mint cache entries.
+  const known = await knownProjectSlugs();
+  if (!known.has(slug)) notFound();
+  const labelLower = decodedLabel.toLowerCase();
+  if (!(await cachedRevLabelsLower(slug)).includes(labelLower)) notFound();
+  const data = await cachedGuideStage(slug, labelLower, stage);
+  if (!data) notFound();
+  const { project, revision } = data;
 
   // Page-level access gate (hoisted above the no-guide return + R2 work). The
   // page is auth-gated by middleware, which admits guide routes for anonymous
@@ -233,32 +219,25 @@ export default async function GuideCardPage({
   const sessionEmail = session?.user?.email ?? null;
   const isAdmin = session?.user?.role === "ADMIN";
 
-  // Resolve this stage's card ordinal cheaply for the gate (card 0 of a PREMIUM
-  // project is the free preview). A stage with no card here will notFound()
-  // below anyway; treat its ordinal as 0 (no leak — the page 404s regardless).
-  const gateCard = await db.guideCard.findFirst({
-    where: {
-      stage,
-      guide: { revision: { projectId: project.id, label: { equals: decodedLabel, mode: "insensitive" } } },
-    },
-    select: { ordinal: true },
-  });
-  const cardOrdinal = gateCard?.ordinal ?? 0;
+  // Card ordinal for the gate (card 0 of a PREMIUM project is the free
+  // preview) comes straight off the cached payload; a stage with no card
+  // notFound()s below anyway, so 0 is the safe non-walled default.
+  const cardOrdinal = data.card?.ordinal ?? 0;
 
-  // Entitlement is a signed-in-only concern; resolve the viewer's user id from
-  // their session email solely to look up their entitlement here (the learner
-  // overlay below re-queries enrollments by email, so it does not reuse this id).
-  let viewerUserId: string | null = null;
+  // Entitlement is a signed-in-only concern. The viewer id rides on the session
+  // JWT (session-claims); the email lookup remains only for tokens minted
+  // before that claim shipped.
+  let viewerUserId: string | null = session?.user?.id ?? null;
   let hasEntitlement = false;
-  if (sessionEmail) {
+  if (!viewerUserId && sessionEmail) {
     const viewer = await db.user.findUnique({
       where: { email: sessionEmail },
       select: { id: true },
     });
     viewerUserId = viewer?.id ?? null;
-    if (viewerUserId) {
-      hasEntitlement = await hasProjectEntitlement(db, viewerUserId, project.id);
-    }
+  }
+  if (viewerUserId) {
+    hasEntitlement = await hasProjectEntitlement(db, viewerUserId, project.id);
   }
 
   const decision = resolveLessonAccess({
@@ -285,38 +264,11 @@ export default async function GuideCardPage({
     );
   }
 
-  const revision = await db.revision.findFirst({
-    where: {
-      projectId: project.id,
-      label: { equals: decodedLabel, mode: "insensitive" },
-    },
-    select: {
-      id: true,
-      label: true,
-      frozenAt: true,
-      guide: { select: { id: true } },
-      builds: {
-        where: { frozenAt: null },
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        select: {
-          id: true,
-          label: true,
-          boards: {
-            orderBy: { serial: "asc" },
-            select: { id: true, serial: true, status: true },
-          },
-        },
-      },
-    },
-  });
-  if (!revision) notFound();
-
   const hubHref = `/projects/${project.slug}/${encodeURIComponent(revision.label)}/guide`;
   const frozen = revision.frozenAt !== null;
 
   // No guide materialized yet → offer to generate it (deep-link safety).
-  if (!revision.guide) {
+  if (!revision.guideId) {
     // Board-readiness (WS4, advisory): scoped to this branch (the button only
     // renders here). Drives the Generate button's soft-confirm ack.
     const boardRows = await db.revision.findUniqueOrThrow({
@@ -378,151 +330,25 @@ export default async function GuideCardPage({
     );
   }
 
-  const card = await db.guideCard.findFirst({
-    where: { guideId: revision.guide.id, stage },
-    select: {
-      id: true,
-      stage: true,
-      ordinal: true,
-      eyebrow: true,
-      title: true,
-      lead: true,
-      contentBlocks: true,
-      completionRef: true,
-    },
-  });
+  const card = data.card;
   if (!card) notFound();
 
-  // Parse contentBlocks PER-BLOCK (parseGuideBlocks) rather than all-or-nothing:
-  // one malformed block no longer blanks the entire card. Survivors render in
-  // order; `blockStorageIndices` maps each survivor back to its raw position (the
-  // capture tool addresses blocks by that); `droppedBlocks` feeds an admin-only
-  // "skipped" signal so a typo that silently drops a live block is visible.
+  // Parsed PER-BLOCK inside the cached read (parseGuideBlocks): one malformed
+  // block doesn't blank the card. `blockStorageIndices` maps each survivor back
+  // to its raw position (the capture tool addresses blocks by that);
+  // `droppedBlocks` feeds the admin-only "skipped" signal.
   const {
     blocks,
     storageIndices: blockStorageIndices,
     dropped: droppedBlocks,
-  } = parseGuideBlocks(card.contentBlocks);
+  } = card;
 
-  // Resolve any partModel blocks → presigned MODEL_3D render URL + camera bounds,
-  // keyed by MPN. An MPN with no part / no 3D asset / R2 off is simply omitted,
-  // and the block degrades to its caption.
-  const modelMpns = Array.from(
-    new Set(blocks.flatMap((b) => (b.type === "partModel" && b.mpn ? [b.mpn] : []))),
-  );
-  const models: Record<string, ResolvedModel> = {};
-  // TWO queries regardless of how many partModel blocks the card carries. This used
-  // to be a loop costing THREE per MPN — a Part lookup, then getPartAssetRenderUrl
-  // (which reads PartAsset), then a second read of the SAME PartAsset row just for
-  // renderBounds. On the public guide pages, which are the crawled SEO surface, that
-  // was the largest per-render DB cost left.
-  //
-  // Same batching shape the bomTable branch below already uses, and the resulting
-  // URL is identical: getPartAssetRenderUrl was itself returning partModelSrc(), so
-  // this is not a presign-vs-proxy change — just the same URL, computed without the
-  // duplicate reads.
-  if (modelMpns.length > 0 && env.R2_ENABLED && env.R2_BUCKET) {
-    const parts = await db.part.findMany({
-      where: { mpn: { in: modelMpns } },
-      select: { id: true, mpn: true },
-    });
-    const assets = await db.partAsset.findMany({
-      where: {
-        partId: { in: parts.map((p) => p.id) },
-        kind: "MODEL_3D",
-        // Mirrors getPartAssetRenderUrl's `asset?.renderKey ? … : null` guard: an
-        // asset row with no derived render has no URL to serve.
-        renderKey: { not: null },
-      },
-      select: { partId: true, id: true, updatedAt: true, renderBounds: true },
-    });
-    const assetByPart = new Map(assets.map((a) => [a.partId, a]));
-    for (const part of parts) {
-      const asset = assetByPart.get(part.id);
-      if (!asset) continue;
-      models[part.mpn] = {
-        src: partModelSrc(asset.id, asset.updatedAt),
-        bounds: renderBoundsSchema.safeParse(asset.renderBounds).data ?? null,
-      };
-    }
-  }
-
-  // Resolve a bomTable block (if any) → the revision's Bill of Materials rows
-  // (BomLine + Part), keyed to this revision. Fetched only when a card uses the
-  // block; an empty BOM degrades to the block's "not locked yet" note.
-  let bomRows: BomRow[] | undefined;
-  if (blocks.some((b) => b.type === "bomTable")) {
-    const lines = await db.bomLine.findMany({
-      where: { revisionId: revision.id },
-      select: {
-        refDes: true,
-        quantity: true,
-        part: {
-          select: {
-            id: true,
-            mpn: true,
-            manufacturer: true,
-            description: true,
-            datasheetUrl: true,
-            lifecycle: true,
-            datasheet: { select: { id: true } },
-            dkInStock: true,
-            dkLifecycle: true,
-            dkCheckedAt: true,
-            dkUnitPriceCents: true,
-            dkPartNumber: true,
-          },
-        },
-      },
-      orderBy: { refDes: "asc" },
-    });
-    // Batch-fetch each part's MODEL_3D render in ONE query, then point each BOM
-    // row at the stable /api/part-model proxy URL (immutable-cached, no per-render
-    // presign) so every row can float its part in 3D without N presigns and the
-    // .glb caches across pages. R2 off → no models (rows degrade to spec only).
-    const partIds = lines.map((l) => l.part.id);
-    const assets =
-      env.R2_ENABLED && env.R2_BUCKET
-        ? await db.partAsset.findMany({
-            where: { partId: { in: partIds }, kind: "MODEL_3D", renderKey: { not: null } },
-            select: { id: true, partId: true, updatedAt: true, renderBounds: true },
-          })
-        : [];
-    const modelByPart = new Map(
-      assets.map(
-        (a) =>
-          [
-            a.partId,
-            {
-              src: partModelSrc(a.id, a.updatedAt),
-              bounds: renderBoundsSchema.safeParse(a.renderBounds).data ?? null,
-            },
-          ] as const,
-      ),
-    );
-    bomRows = lines.map((l) => {
-      const m = modelByPart.get(l.part.id);
-      return {
-        partId: l.part.id,
-        refDes: l.refDes,
-        qty: l.quantity,
-        mpn: l.part.mpn,
-        manufacturer: l.part.manufacturer,
-        description: l.part.description,
-        datasheetUrl: l.part.datasheetUrl,
-        lifecycle: l.part.lifecycle,
-        // A datasheet via either the external URL or an uploaded PartDatasheet.
-        hasDatasheet: !!l.part.datasheetUrl || l.part.datasheet !== null,
-        dkInStock: l.part.dkInStock,
-        dkLifecycle: l.part.dkLifecycle,
-        dkCheckedAt: l.part.dkCheckedAt,
-        dkUnitPriceCents: l.part.dkUnitPriceCents,
-        dkPartNumber: l.part.dkPartNumber,
-        modelSrc: m?.src ?? null,
-        modelBounds: m?.bounds ?? null,
-      };
-    });
-  }
+  // partModel render URLs + BOM rows are resolved inside the cached read
+  // (cached-guide-read.ts) — batched, user-independent, and cached with the
+  // rest of the card. An MPN with no part / no 3D asset / R2 off is simply
+  // omitted; an empty BOM degrades to the block's "not locked yet" note.
+  const models = data.models;
+  const bomRows = data.bomRows;
 
   // Inline our house-style diagram SVGs so they render in the site's Space Mono
   // (an <img> SVG is sandboxed and falls back to system mono). KiCad exports are
@@ -535,8 +361,30 @@ export default async function GuideCardPage({
     if (refResult.success) completionRef = refResult.data;
   }
 
-  // Board scope (decision B) — only the two build cards carry a selector.
-  const activeBuild = revision.builds[0] ?? null;
+  // Role decides the view (session resolved + access-gated above). An ADMIN may opt
+  // into the learner view via ?as=learner to watch XP/fanfare land — downgrade-only,
+  // enforced in guideCardView, so the param is a no-op for anyone who isn't an admin.
+  const previewAsLearner = isAdmin && viewAs === "learner";
+  const view = guideCardView(session?.user?.role, { previewAsLearner });
+
+  // Board scope (decision B) — only the two build cards carry a selector, and
+  // ONLY the author view renders it (BoardSelector, Stage Gate, meta strip).
+  // The build/boards read is author-only tooling, so it stays dynamic and out
+  // of the cached payload — anonymous crawls never pay for it.
+  const activeBuild = view.isAuthorView
+    ? await db.build.findFirst({
+        where: { revisionId: revision.id, frozenAt: null },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          label: true,
+          boards: {
+            orderBy: { serial: "asc" },
+            select: { id: true, serial: true, status: true },
+          },
+        },
+      })
+    : null;
   const isPerBoard = PER_BOARD_STAGES.has(stage);
   const boards = activeBuild?.boards ?? [];
   // Resolve the selected board: explicit ?board (validated to belong to the
@@ -546,12 +394,6 @@ export default async function GuideCardPage({
     const valid = boardParam && boards.some((b) => b.id === boardParam);
     selectedBoardId = valid ? boardParam : boards[0]!.id;
   }
-
-  // Role decides the view (session resolved + access-gated above). An ADMIN may opt
-  // into the learner view via ?as=learner to watch XP/fanfare land — downgrade-only,
-  // enforced in guideCardView, so the param is a no-op for anyone who isn't an admin.
-  const previewAsLearner = isAdmin && viewAs === "learner";
-  const view = guideCardView(session?.user?.role, { previewAsLearner });
 
   // AUTHOR-ONLY, and gated here rather than at the render site on purpose: StageGate
   // only renders under `view.isAuthorView` (below), but resolving its inputs is
@@ -596,8 +438,6 @@ export default async function GuideCardPage({
   const cardHref = (s: string) =>
     `/projects/${project.slug}/${encodeURIComponent(revision.label)}/guide/${s}`;
 
-  const learnerEmail = session?.user?.email ?? null;
-
   // Edit-in-place is author-only, additionally blocked on a frozen revision
   // (defense-in-depth: editGuideCard rejects frozen edits regardless).
   const canEdit = !frozen && view.isAuthorView;
@@ -618,9 +458,9 @@ export default async function GuideCardPage({
   let learnerProofInvalidDetail: string | null = null;
   let learnerCurrentStage: string | null = null;
   let serverResume: ResumeRecord | null = null;
-  if (learnerEmail && view.isLearnerView) {
+  if (viewerUserId && view.isLearnerView) {
     const enrollment = await db.enrollment.findFirst({
-      where: { projectId: project.id, user: { email: learnerEmail } },
+      where: { projectId: project.id, userId: viewerUserId },
       select: {
         id: true,
         currentStage: true,
@@ -665,9 +505,10 @@ export default async function GuideCardPage({
   // The 8-stage "order of operations" rail. ADMINs see the shared reference
   // revision's completion (board-scoped on the build cards); learners see their
   // OWN journey derived from their enrollment's currentStage.
-  const guideProgress = view.isAuthorView
-    ? await resolveGuideProgress(revision.id, revision.guide.id, selectedBoardId)
-    : resolveLearnerGuideProgress(learnerCurrentStage);
+  const guideProgress =
+    view.isAuthorView && revision.guideId
+      ? await resolveGuideProgress(revision.id, revision.guideId, selectedBoardId)
+      : resolveLearnerGuideProgress(learnerCurrentStage);
 
   // prev / next cards for the comb's control row, relative to the viewed stage.
   // The Next button is the (animated) continue cue; the gated advance of a
@@ -904,7 +745,7 @@ export default async function GuideCardPage({
           cardBaseHref={hubHref}
           completedHref={`/learn/${project.slug}/complete`}
           guideStages={GUIDE_STAGES}
-          hasExam={!!project.exam}
+          hasExam={project.hasExam}
           quizRequired={gate.quiz}
           quizPassed={learnerQuizPassed}
           cardHasQuiz={cardHasQuiz}

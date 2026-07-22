@@ -31,6 +31,7 @@ export default async function LearnerHomePage() {
     select: {
       status: true,
       currentStage: true,
+      projectId: true,
       project: { select: { slug: true, name: true, exam: { select: { id: true } } } },
       quizPasses: { select: { stage: true } },
       examResults: {
@@ -41,16 +42,14 @@ export default async function LearnerHomePage() {
     },
     orderBy: { startedAt: "desc" },
   });
-  const enrolledProjectIds = new Set(
-    (
-      await db.enrollment.findMany({
-        where: { userId: user.id },
-        select: { projectId: true },
-      })
-    ).map((e) => e.projectId),
-  );
+  // Derived from the one enrollment scan above — this page used to issue the
+  // same scan three times (here, an ids-only copy, and inside availability).
+  const enrolledProjectIds = new Set(enrollments.map((e) => e.projectId));
 
-  const availability = await learnerBoardAvailability(user.id);
+  const availability = await learnerBoardAvailability(
+    user.id,
+    enrollments.map((e) => ({ projectId: e.projectId, status: e.status })),
+  );
   const availabilityById = new Map(availability.map((a) => [a.projectId, a]));
   const browsable = await db.project.findMany({
     where: { archivedAt: null, publishedRevisionId: { not: null } },

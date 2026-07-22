@@ -6,10 +6,8 @@
 // module and reach the client via `import type` (use-server-export-rule: this file
 // exports ONLY async functions).
 import { z } from "zod";
-import { auth } from "@/auth";
-import { db } from "@/lib/db";
 import { capture } from "@/lib/analytics";
-import { requireAdmin } from "@/lib/auth-helpers";
+import { requireAdmin, currentUserId } from "@/lib/auth-helpers";
 import {
   submitFeedback,
   markFeedback as markFeedbackCore,
@@ -18,16 +16,6 @@ import {
 } from "@/lib/logbook/feedback";
 
 type NeedsAuth = { ok: false; needsAuth: true };
-
-async function currentUserId(): Promise<string | null> {
-  const session = await auth();
-  if (!session?.user?.email) return null;
-  const user = await db.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  });
-  return user?.id ?? null;
-}
 
 const submitSchema = z.object({
   pageRef: z.string().trim().min(1).max(200),

@@ -5,6 +5,7 @@
 // can import it.
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { invalidateGuideContent } from "@/lib/cache-invalidate";
 import { db } from "@/lib/db";
 import { assertNotFrozen } from "@/lib/assertions";
 import { withTxRetry } from "@/lib/tx-retry";
@@ -64,5 +65,7 @@ export async function writeGuideBlockMedia(
   revalidatePath(
     `/projects/${rev.project.slug}/${encodeURIComponent(rev.label)}/guide`,
   );
+  // Bust the cached anonymous guide read (capture writes change live media).
+  invalidateGuideContent(rev.project.slug);
   return { src };
 }

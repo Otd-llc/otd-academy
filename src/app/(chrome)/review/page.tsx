@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { db } from "@/lib/db";
+import { currentUserId } from "@/lib/auth-helpers";
 import { dueReviewItems } from "@/lib/logbook/review-load";
 import { ReviewDeck, type ReviewDeckItem } from "@/components/review/ReviewDeck";
 
@@ -27,14 +26,9 @@ export const metadata: Metadata = {
 };
 
 export default async function ReviewPage() {
-  const session = await auth();
-  const email = session?.user?.email;
-  if (!email) redirect("/sign-in");
-  const user = await db.user.findUnique({
-    where: { email },
-    select: { id: true },
-  });
-  if (!user) redirect("/sign-in");
+  const userId = await currentUserId();
+  if (!userId) redirect("/sign-in");
+  const user = { id: userId };
 
   // Overdue-first selection (dueReviewItems orders by dueOn), then de-mass the
   // PRESENTATION order so a session isn't strictly oldest-first blocks of one stage.

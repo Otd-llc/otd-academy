@@ -10,9 +10,8 @@
 // live in the core module and are consumed by the client via `import type`
 // (erased at build — the client never pulls db/Prisma). See use-server-export-rule.
 import { z } from "zod";
-import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth-helpers";
+import { requireAdmin, currentUserId } from "@/lib/auth-helpers";
 import { STAGE_VALUES } from "@/lib/schemas/project-dependency";
 import { resetLessonXp as resetLessonXpCore } from "@/lib/logbook/reset";
 import { afterAward } from "@/lib/logbook/after-award";
@@ -30,16 +29,6 @@ import {
 } from "@/lib/logbook/guide-awards";
 
 type NeedsAuth = { ok: false; needsAuth: true };
-
-async function currentUserId(): Promise<string | null> {
-  const session = await auth();
-  if (!session?.user?.email) return null;
-  const user = await db.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  });
-  return user?.id ?? null;
-}
 
 const quizAnswerSchema = z.object({
   slug: z.string().trim().min(1).max(200),
