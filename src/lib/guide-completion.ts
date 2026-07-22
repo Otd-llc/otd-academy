@@ -73,6 +73,40 @@ export async function resolveActiveBuild(revisionId: string) {
 
 type ActiveBuild = NonNullable<Awaited<ReturnType<typeof resolveActiveBuild>>>;
 
+// ─── Preloaded substrate (audit Phase 9: author-hub query collapse) ─────────
+//
+// The author hub resolves completion for 8 rail stages + 6 design cells + a
+// boards×2 build matrix; each resolveCardCompletion call independently loaded
+// the active build (1 heavy include), the full gate context (~6 queries), and
+// a realign artifact set — ~220 queries per hub render at 3 boards. All of that
+// substrate is REVISION-scoped and identical across the calls, so the hub loads
+// it ONCE and threads it through; single-call sites (the stage page's gate)
+// skip the preload and behave exactly as before.
+export type PreloadedGateSubstrate = {
+  activeBuild: ActiveBuild | null;
+  gateBase: Awaited<ReturnType<typeof loadGateContext>>;
+  /** ALL revision-scoped artifacts, grouped by stage (the realign source). */
+  artifactsByStage: Map<Stage, Artifact[]>;
+};
+
+export async function preloadGateSubstrate(
+  revisionId: string,
+): Promise<PreloadedGateSubstrate> {
+  const [activeBuild, gateBase, allArtifacts] = await Promise.all([
+    resolveActiveBuild(revisionId),
+    loadGateContext(db, revisionId),
+    db.artifact.findMany({ where: { revisionId } }),
+  ]);
+  const artifactsByStage = new Map<Stage, Artifact[]>();
+  for (const a of allArtifacts) {
+    if (!a.stage) continue;
+    const list = artifactsByStage.get(a.stage) ?? [];
+    list.push(a);
+    artifactsByStage.set(a.stage, list);
+  }
+  return { activeBuild, gateBase, artifactsByStage };
+}
+
 /** Boards of a build, ordered by serial (stable matrix order). */
 export async function listBoards(buildId: string) {
   return db.board.findMany({
@@ -91,11 +125,12 @@ export async function listBoards(buildId: string) {
 async function evaluateStageGate(
   revisionId: string,
   stage: Stage,
+  pre?: PreloadedGateSubstrate,
 ): Promise<boolean | null> {
   const def = STAGES[stage];
   if (!def.exitGate) return null;
 
-  const base = await loadGateContext(db, revisionId);
+  const base = pre?.gateBase ?? (await loadGateContext(db, revisionId));
 
   // `loadGateContext` filtered revision-scoped artifacts to the revision's
   // `currentStage`. The gates that inspect revision artifacts match on
@@ -104,8 +139,12 @@ async function evaluateStageGate(
   // the card's stage, realign: re-load revision artifacts at the card stage
   // and pin `currentStage` to it. Build-scoped artifacts (ORDERING/ASSEMBLY/
   // BRINGUP) ride on `activeBuild.artifacts`, which is already unfiltered.
+  // With a preload, the per-stage set comes from the grouped one-shot load —
+  // equivalent to the per-stage query for every stage incl. currentStage.
   let artifacts = base.artifacts;
-  if (stage !== base.revision.currentStage) {
+  if (pre) {
+    artifacts = pre.artifactsByStage.get(stage) ?? [];
+  } else if (stage !== base.revision.currentStage) {
     artifacts = await db.artifact.findMany({ where: { revisionId, stage } });
   }
 
@@ -294,8 +333,13 @@ async function resolveWidget(
 
 export async function resolveCardCompletion(
   input: ResolveCardCompletionInput,
+  /** Revision-scoped substrate loaded once by multi-stage callers (the hub);
+   *  omitted → per-call loads (single-call sites, unchanged behaviour). */
+  pre?: PreloadedGateSubstrate,
 ): Promise<CardCompletion> {
-  const activeBuild = await resolveActiveBuild(input.revisionId);
+  const activeBuild = pre
+    ? pre.activeBuild
+    : await resolveActiveBuild(input.revisionId);
   const widget = await resolveWidget(input, activeBuild);
 
   // Scope absent (no build / no boards for a build-or-board-scoped ref) is
@@ -319,7 +363,7 @@ export async function resolveCardCompletion(
   // must not fake `complete` from the ref, so we leave `complete === false` and
   // let the partial/untouched logic below cap the state at `partial` (when the
   // widget shows progress/substrate) or `untouched`/`blocked` per scope.
-  const gate = await evaluateStageGate(input.revisionId, input.stage);
+  const gate = await evaluateStageGate(input.revisionId, input.stage, pre);
   const complete = gate === true;
 
   let state: CompletionState;

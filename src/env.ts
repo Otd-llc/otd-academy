@@ -137,9 +137,15 @@ export const env = createEnv({
     // Cloudflare Turnstile site key (Layer 0 widget). Pairs with the server-side
     // TURNSTILE_SECRET_KEY (both-or-neither, enforced in createFinalSchema).
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(1).optional(),
+    // Public R2 custom-domain base (audit Phase 9), e.g. https://media.onethousanddrones.com.
+    // OPTIONAL: unset → part-model/avatar URLs fall back to the Vercel fn proxies
+    // (metered egress). Set once the R2 domain is provisioned; the URL builders
+    // switch to direct zero-egress R2 URLs with no code change.
+    NEXT_PUBLIC_R2_PUBLIC_BASE_URL: z.url().optional(),
   },
   runtimeEnv: {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+    NEXT_PUBLIC_R2_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL,
     NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
     NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
     DATABASE_URL: process.env.DATABASE_URL,

@@ -347,6 +347,8 @@ export default async function GuideCardPage({
   // (cached-guide-read.ts) — batched, user-independent, and cached with the
   // rest of the card. An MPN with no part / no 3D asset / R2 off is simply
   // omitted; an empty BOM degrades to the block's "not locked yet" note.
+  // (Phase 9: partModelSrc's direct-R2 renderKey wiring lives in the cached
+  // module now, since the resolution moved there.)
   const models = data.models;
   const bomRows = data.bomRows;
 

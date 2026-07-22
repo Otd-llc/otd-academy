@@ -47,6 +47,7 @@ import { courseJsonLd } from "@/lib/seo/jsonld";
 import { JsonLd } from "@/components/seo/JsonLd";
 import {
   resolveCardCompletion,
+  preloadGateSubstrate,
   type CardCompletion,
   type CompletionState,
 } from "@/lib/guide-completion";
@@ -530,11 +531,19 @@ export default async function GuideHubPage({
     );
   }
 
+  // AUTHOR-VIEW substrate, loaded ONCE (audit Phase 9): the rail (8 stages) +
+  // design cells (6) + build matrix (boards x 2) below each resolved the full
+  // gate context independently — ~220 queries per hub render at 3 boards. One
+  // preload serves them all; learners never pay it.
+  const pre = view.isAuthorView
+    ? await preloadGateSubstrate(revision.id)
+    : undefined;
+
   // The 8-stage order-of-operations rail: authors see revision completion,
   // learners see their own enrollment journey.
   const guideProgress =
     view.isAuthorView && guideId
-      ? await resolveGuideProgress(revision.id, guideId)
+      ? await resolveGuideProgress(revision.id, guideId, undefined, pre)
       : resolveLearnerGuideProgress(learnerCurrentStage);
 
   // ─── Tier 1: design-stage roll-up ──────
@@ -548,11 +557,14 @@ export default async function GuideHubPage({
       const card = cardByStage.get(stage);
       if (!card) return null;
       if (view.isAuthorView) {
-        const completion = await resolveCardCompletion({
-          revisionId: revision.id,
-          stage,
-          completionRef: parseRef(card.completionRef),
-        });
+        const completion = await resolveCardCompletion(
+          {
+            revisionId: revision.id,
+            stage,
+            completionRef: parseRef(card.completionRef),
+          },
+          pre,
+        );
         return {
           stage,
           card,
@@ -627,12 +639,15 @@ export default async function GuideHubPage({
               const card = cardByStage.get(stage);
               if (!card) return null;
               const completionRef = parseRef(card.completionRef);
-              const completion = await resolveCardCompletion({
-                revisionId: revision.id,
-                stage,
-                completionRef,
-                boardId: board.id,
-              });
+              const completion = await resolveCardCompletion(
+                {
+                  revisionId: revision.id,
+                  stage,
+                  completionRef,
+                  boardId: board.id,
+                },
+                pre,
+              );
               return completion;
             }),
           ),
