@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { env } from "@/env";
 import { isAdminEmail } from "@/lib/admin-allowlist";
 import { resolveSignIn, RATE_LIMITED_REDIRECT } from "@/lib/auth-link-guard";
+import { applySessionClaims } from "@/lib/session-claims";
 import { pickVerifiedGithubEmail, type GitHubEmail } from "@/lib/github-verified-email";
 import { magicLinkEmail } from "@/lib/auth-magic-link-email";
 import { fieldGuideMagicLinkEmail } from "@/lib/field-guide-email";
@@ -263,10 +264,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.role = (token.role as UserRole | undefined) ?? "LEARNER";
-      }
-      return session;
+      return applySessionClaims(session, token as { sub?: string; role?: UserRole });
     },
   },
   // Funnel instrumentation. `createUser` fires EXACTLY ONCE — the first time the
