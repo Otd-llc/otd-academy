@@ -40,10 +40,10 @@ export function ReviewDeck({ items }: { items: ReviewDeckItem[] }) {
           {xp > 0 ? ` · +${xp} XP` : ""}
         </p>
         <Link
-          href="/courses"
+          href="/logbook"
           className="mt-5 inline-block font-mono text-[11px] uppercase tracking-wider text-signal-blue underline-offset-4 hover:underline"
         >
-          Back to courses →
+          Back to your logbook →
         </Link>
       </div>
     );

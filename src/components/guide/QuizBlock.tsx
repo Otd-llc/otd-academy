@@ -336,9 +336,26 @@ export function QuizBlock({
                 ) : null}
               </div>
             ) : missed ? (
-              <p className="mt-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-alert-red">
-                Not quite — ruled out, pick again.
-              </p>
+              <div className="mt-2 space-y-1">
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-alert-red">
+                  Not quite — ruled out, pick again.
+                </p>
+                {/* The miss → review loop, made visible at the miss (a signed-in
+                    first wrong pick banks the question for spaced review; the
+                    deck otherwise appears to fill from nowhere). */}
+                {lb?.signedIn ? (
+                  <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
+                    Saved to your{" "}
+                    <a
+                      href="/review"
+                      className="text-signal-blue underline-offset-2 hover:underline"
+                    >
+                      review deck
+                    </a>{" "}
+                    to try again later.
+                  </p>
+                ) : null}
+              </div>
             ) : null}
 
             {/* Logbook XP slot (signed-in Library only): the tick on a fresh
