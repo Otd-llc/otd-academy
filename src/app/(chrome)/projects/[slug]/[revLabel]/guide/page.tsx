@@ -52,7 +52,6 @@ import {
 } from "@/lib/guide-completion";
 import {
   completionRefSchema,
-  guideContentBlocksSchema,
   type CompletionRef,
 } from "@/lib/schemas/guide";
 import { CaptureQueue } from "@/components/guide/CaptureQueue";
@@ -62,8 +61,10 @@ import {
   type StageMediaQueue,
 } from "@/lib/guide-media-queue";
 import { ReadinessPanel } from "@/components/guide/ReadinessPanel";
+import { PublishRevisionButton } from "@/components/guide/PublishRevisionButton";
 import {
   assessLessonReadiness,
+  parsedReadinessCards,
   type LessonReadiness,
 } from "@/lib/lesson-readiness";
 import {
@@ -652,10 +653,12 @@ export default async function GuideHubPage({
       orderBy: { ordinal: "asc" },
       select: { stage: true, contentBlocks: true },
     });
-    const parsedCards = blockRows.map((c) => ({
-      stage: c.stage as string,
-      blocks: guideContentBlocksSchema.safeParse(c.contentBlocks).data ?? [],
-    }));
+    const parsedCards = parsedReadinessCards(
+      blockRows.map((c) => ({
+        stage: c.stage as string,
+        contentBlocks: c.contentBlocks,
+      })),
+    );
     mediaQueue = collectEmptyMedia(parsedCards);
     mediaQueueTotal = emptyMediaCount(mediaQueue);
 
@@ -688,6 +691,7 @@ export default async function GuideHubPage({
       exam: readinessMeta.exam ? { questions: examQuestions } : null,
       broughtUpBoards,
       published: readinessMeta.publishedRevisionId != null,
+      projectSlug: project.slug,
     });
   }
 
@@ -712,9 +716,22 @@ export default async function GuideHubPage({
         ]}
       />
 
-      {/* Admin readiness panel — two-tier definition of done. */}
+      {/* Admin readiness panel — two-tier definition of done — plus the
+          go-live lever itself. The button's action (setPublishedRevision)
+          re-enforces the publishable bar server-side and busts the cached
+          project graph, which a seed-script publish cannot (no request
+          context). */}
       {view.isAuthorView && readiness ? (
-        <ReadinessPanel readiness={readiness} />
+        <>
+          <ReadinessPanel readiness={readiness} />
+          <div className="mt-4">
+            <PublishRevisionButton
+              projectId={project.id}
+              revisionId={revision.id}
+              isPublished={project.publishedLabel === revision.label}
+            />
+          </div>
+        </>
       ) : null}
 
       {/* Admin capture queue — empty screenshot/clip slots across the guide. */}

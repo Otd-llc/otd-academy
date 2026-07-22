@@ -10,6 +10,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
+import { hasProjectEntitlement } from "@/lib/entitlements";
 import { withTxRetry } from "@/lib/tx-retry";
 import { recordCourseExamPass } from "@/lib/logbook/guide-awards";
 import { afterAward } from "@/lib/logbook/after-award";
@@ -42,7 +43,29 @@ type PublicExam = {
 };
 
 export async function getExam(projectId: string): Promise<PublicExam | null> {
-  await requireUser();
+  const user = await requireUser();
+
+  // Entitlement gate. A PREMIUM course's exam bank is paid capstone content,
+  // and this is a directly-invocable server action — the exam page's UI gate
+  // is not the real boundary. Mirrors the guide page's check
+  // (resolveLessonAccess + hasProjectEntitlement): admins and entitled or
+  // enrolled callers pass; everyone else gets the same null as "no exam".
+  const project = await db.project.findUnique({
+    where: { id: projectId },
+    select: { accessTier: true },
+  });
+  if (!project) return null;
+  if (project.accessTier === "PREMIUM" && user.role !== "ADMIN") {
+    const [entitled, enrollment] = await Promise.all([
+      hasProjectEntitlement(db, user.id, projectId),
+      db.enrollment.findUnique({
+        where: { userId_projectId: { userId: user.id, projectId } },
+        select: { id: true },
+      }),
+    ]);
+    if (!entitled && !enrollment) return null;
+  }
+
   const exam = await db.exam.findUnique({
     where: { projectId },
     select: { id: true, title: true, passThreshold: true, questions: true },

@@ -13,6 +13,12 @@ export const QUIZ_NOT_PASSED_MSG =
 export interface LearnerGateContext {
   enrollmentArtifacts: Pick<Artifact, "subkind" | "valid">[];
   quizPasses: Set<Stage>;
+  /** Whether this stage's card carries a renderable quiz block (server-derived
+   *  from the card's contentBlocks — never client-supplied). Omitted = assume
+   *  it does, which keeps the quiz required (back-compat). */
+  cardHasQuiz?: boolean;
+  /** Whether the course produces fab artifacts (see GateSpecOpts). */
+  hasFabOutputs?: boolean;
 }
 
 /** The proof-artifact subkind a stage requires of a learner, or undefined when
@@ -26,7 +32,10 @@ export function learnerExitGate(
   ctx: LearnerGateContext,
 ): GateResult {
   const reasons: string[] = [];
-  const spec = gateSpec(stage);
+  const spec = gateSpec(stage, {
+    cardHasQuiz: ctx.cardHasQuiz,
+    hasFabOutputs: ctx.hasFabOutputs,
+  });
   if (spec.artifact) {
     // A validated subkind (e.g. ERC_REPORT) is satisfied only by an artifact that
     // PASSED its check (valid === true); a presence-only subkind just needs one to

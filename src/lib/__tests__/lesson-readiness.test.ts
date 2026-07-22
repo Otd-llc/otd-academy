@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   assessLessonReadiness,
+  parsedReadinessCards,
   type LessonCard,
 } from "@/lib/lesson-readiness";
 import type { ContentBlock } from "@/lib/schemas/guide";
@@ -25,6 +26,90 @@ function doneCards(): LessonCard[] {
 function placeholderMediaCards(): LessonCard[] {
   return STAGES.map((stage) => ({ stage, blocks: [quiz, emptyImage] }));
 }
+
+describe("assessLessonReadiness — malformed blocks gate the publishable bar", () => {
+  // The render path is per-block resilient (parseGuideBlocks): a malformed
+  // block silently vanishes for learners. Readiness must therefore SEE the
+  // survivors (not zero the card) AND refuse to publish while any block is
+  // malformed — otherwise a typo ships an invisible hole in a live lesson.
+  it("a card with malformed blocks fails publishable with a named check", () => {
+    const cards = doneCards();
+    cards[0] = { ...cards[0]!, malformedBlocks: 2 };
+    const r = assessLessonReadiness({
+      stages: STAGES,
+      cards,
+      exam: { questions: 18 },
+      broughtUpBoards: 1,
+      published: false,
+    });
+    expect(r.publishable).toBe(false);
+    const check = r.checks.find((c) => c.label === "No malformed blocks");
+    expect(check?.ok).toBe(false);
+    expect(check?.detail).toContain("A");
+  });
+
+  it("parsedReadinessCards keeps survivors and counts the malformed", () => {
+    const rows = [
+      {
+        stage: "A",
+        contentBlocks: [quiz, { type: "quiz" /* missing questions */ }, image],
+      },
+    ];
+    const cards = parsedReadinessCards(rows);
+    expect(cards[0]!.blocks).toHaveLength(2);
+    expect(cards[0]!.malformedBlocks).toBe(1);
+  });
+});
+
+describe("assessLessonReadiness — explicit board config gates publish", () => {
+  // The KiCad starter exports at the 2-layer default for any slug missing from
+  // BOARD_CONFIG_OVERRIDES — silently wrong for a 4-layer board (l1-01 needs
+  // its inner GND planes). Publishing forces the decision: the slug must have
+  // an explicit entry, even if that entry is {} (deliberate 2-layer).
+  it("a slug with no BOARD_CONFIG_OVERRIDES entry fails publishable", () => {
+    const r = assessLessonReadiness({
+      stages: STAGES,
+      cards: doneCards(),
+      exam: { questions: 18 },
+      broughtUpBoards: 1,
+      published: false,
+      projectSlug: "l9-99-not-in-map",
+    });
+    expect(r.publishable).toBe(false);
+    expect(
+      r.checks.find((c) => c.label === "Explicit KiCad board config")?.ok,
+    ).toBe(false);
+  });
+
+  it("a slug with an explicit entry passes the check", () => {
+    const r = assessLessonReadiness({
+      stages: STAGES,
+      cards: doneCards(),
+      exam: { questions: 18 },
+      broughtUpBoards: 1,
+      published: false,
+      projectSlug: "l1-01-wroom-breakout",
+    });
+    expect(
+      r.checks.find((c) => c.label === "Explicit KiCad board config")?.ok,
+    ).toBe(true);
+    expect(r.publishable).toBe(true);
+  });
+
+  it("no projectSlug supplied leaves the check out (back-compat)", () => {
+    const r = assessLessonReadiness({
+      stages: STAGES,
+      cards: doneCards(),
+      exam: { questions: 18 },
+      broughtUpBoards: 1,
+      published: false,
+    });
+    expect(
+      r.checks.find((c) => c.label === "Explicit KiCad board config"),
+    ).toBeUndefined();
+    expect(r.publishable).toBe(true);
+  });
+});
 
 describe("assessLessonReadiness — two-tier bar", () => {
   it("a complete lesson with real media + a brought-up board is VETTED", () => {

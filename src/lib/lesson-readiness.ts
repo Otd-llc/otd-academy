@@ -14,10 +14,32 @@
 
 import type { ContentBlock } from "@/lib/schemas/guide";
 import { collectEmptyMedia } from "@/lib/guide-media-queue";
+import { parseGuideBlocks } from "@/lib/guide-blocks-parse";
+import { BOARD_CONFIG_OVERRIDES } from "@/lib/kicad/project";
 
 export interface LessonCard {
   stage: string;
   blocks: ContentBlock[];
+  /** Blocks in the stored array that failed to parse (parseGuideBlocks).
+   *  The render path silently drops these for learners, so readiness must
+   *  surface them — omitted/0 = clean. */
+  malformedBlocks?: number;
+}
+
+/**
+ * Map raw guideCard rows to readiness cards with the SAME per-block parser the
+ * render path uses. The old all-or-nothing safeParse zeroed a whole card on one
+ * malformed block, so readiness reported misleading failures ("no quiz",
+ * "missing cards") instead of the real one — and could never gate on malformed
+ * content at all.
+ */
+export function parsedReadinessCards(
+  rows: { stage: string; contentBlocks: unknown }[],
+): LessonCard[] {
+  return rows.map((r) => {
+    const { blocks, dropped } = parseGuideBlocks(r.contentBlocks);
+    return { stage: r.stage, blocks, malformedBlocks: dropped.length };
+  });
 }
 
 export interface LessonReadinessInput {
@@ -28,6 +50,11 @@ export interface LessonReadinessInput {
   /** Count of this project's boards at BROUGHT_UP — the vetted (team-built) signal. */
   broughtUpBoards: number;
   published: boolean;
+  /** When supplied, requires an explicit BOARD_CONFIG_OVERRIDES entry for the
+   *  slug (the KiCad starter silently exports the 2-layer default otherwise —
+   *  wrong for any board that needs inner planes). An empty `{}` entry is a
+   *  deliberate 2-layer choice and passes. Omitted = check not emitted. */
+  projectSlug?: string;
 }
 
 /** Which bar a check gates. "info" checks are reported but gate neither bar. */
@@ -63,8 +90,20 @@ function cardFor(cards: LessonCard[], stage: string): LessonCard | undefined {
 export function assessLessonReadiness(
   input: LessonReadinessInput,
 ): LessonReadiness {
-  const { stages, cards, exam, broughtUpBoards, published } = input;
+  const { stages, cards, exam, broughtUpBoards, published, projectSlug } = input;
   const checks: ReadinessCheck[] = [];
+
+  if (projectSlug !== undefined) {
+    const explicit = projectSlug in BOARD_CONFIG_OVERRIDES;
+    checks.push({
+      label: "Explicit KiCad board config",
+      tier: "publishable",
+      ok: explicit,
+      detail: explicit
+        ? undefined
+        : `add "${projectSlug}" to BOARD_CONFIG_OVERRIDES (an empty {} = deliberate 2-layer)`,
+    });
+  }
 
   // ── Publishable tier: content completeness (free / SEO floor) ──────────────
   const missingStages = stages.filter((s) => !cardFor(cards, s));
@@ -92,6 +131,20 @@ export function assessLessonReadiness(
     tier: "publishable",
     ok: todoStages.length === 0,
     detail: todoStages.length ? `TODO in: ${todoStages.join(", ")}` : undefined,
+  });
+
+  // A malformed block renders as NOTHING for learners (per-block parse drops
+  // it), so publishing with one ships an invisible hole in a live lesson.
+  const malformedStages = cards
+    .filter((c) => (c.malformedBlocks ?? 0) > 0)
+    .map((c) => `${c.stage} (${c.malformedBlocks})`);
+  checks.push({
+    label: "No malformed blocks",
+    tier: "publishable",
+    ok: malformedStages.length === 0,
+    detail: malformedStages.length
+      ? `malformed in: ${malformedStages.join(", ")}`
+      : undefined,
   });
 
   checks.push({

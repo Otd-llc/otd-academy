@@ -51,9 +51,31 @@ const ARTIFACT: Partial<Record<Stage, GateArtifactSpec>> = {
   },
 };
 
+export interface GateSpecOpts {
+  /**
+   * Whether the stage's card actually carries a (renderable) quiz block. The
+   * doc comment on GateSpec.quiz always promised "when the stage's card has
+   * one" — this implements it. Omitted = quiz required (back-compat; callers
+   * that can see the card should pass it, or a quiz-less card strands the
+   * learner behind an unproducible QuizPass while the UI says "coming soon".
+   */
+  cardHasQuiz?: boolean;
+  /**
+   * Whether the course's build produces fab artifacts (ERC/DRC reports). Every
+   * catalog course today does; the seam exists so the first module-integration
+   * or firmware-only course can flip it instead of stranding learners at
+   * SCHEMATIC / DRC_GERBER with an un-uploadable proof. Omitted = true.
+   */
+  hasFabOutputs?: boolean;
+}
+
 /** What a learner must satisfy to clear a stage, plus how to present it. */
-export function gateSpec(stage: Stage): GateSpec {
-  return { quiz: true, artifact: ARTIFACT[stage] ?? null };
+export function gateSpec(stage: Stage, opts?: GateSpecOpts): GateSpec {
+  const hasFab = opts?.hasFabOutputs ?? true;
+  return {
+    quiz: opts?.cardHasQuiz !== false,
+    artifact: hasFab ? (ARTIFACT[stage] ?? null) : null,
+  };
 }
 
 /** How-to help for a stage's proof artifact, or undefined for quiz-only stages. */

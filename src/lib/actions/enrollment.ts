@@ -211,7 +211,7 @@ export async function advanceEnrollment(
         const to = nextStage(stage);
         if (!to) throw new Error("Already at the final stage.");
 
-        const ctx = await loadLearnerGateContext(tx, e.id);
+        const ctx = await loadLearnerGateContext(tx, e.id, stage);
         const gate = learnerExitGate(stage, ctx);
         if (!gate.ok) return { ok: false as const, reasons: gate.reasons };
 
