@@ -300,9 +300,16 @@ export async function recordReviewAnswer(
     now,
     jitterFactor(rand),
   );
-  await db.reviewSchedule.update({
+  // CONDITIONAL advance (race guard): only if the row is STILL due. The early
+  // dueOn check above catches a serial re-answer, but two concurrent submits could
+  // both pass it (both read the row before either writes). Gating the write on
+  // `dueOn <= today` means exactly one wins; a loser gets count 0 and no-ops, so the
+  // schedule can never double-advance and the award only fires for the winner.
+  const { count } = await db.reviewSchedule.updateMany({
     where: {
-      userId_reviewItemId: { userId, reviewItemId: input.reviewItemId },
+      userId,
+      reviewItemId: input.reviewItemId,
+      dueOn: { lte: today },
     },
     data: {
       intervalDays: next.intervalDays,
@@ -312,6 +319,7 @@ export async function recordReviewAnswer(
       lastSeenOn: today,
     },
   });
+  if (count === 0) return { ok: true, correct, xp: 0, levelUp: null };
 
   if (!correct) return { ok: true, correct: false, xp: 0, levelUp: null };
 
