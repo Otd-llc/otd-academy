@@ -12,6 +12,9 @@ export interface BoardAvailability {
 
 export async function learnerBoardAvailability(
   userId: string,
+  // Callers that already loaded the learner's enrollments (e.g. /learn) pass
+  // them in to skip the third query; shape needs only projectId + status.
+  preloadedEnrollments?: { projectId: string; status: string }[],
 ): Promise<BoardAvailability[]> {
   const [projects, edges, enrollments] = await Promise.all([
     db.project.findMany({
@@ -21,10 +24,11 @@ export async function learnerBoardAvailability(
     db.projectDependency.findMany({
       select: { dependentProjectId: true, dependsOnProjectId: true },
     }),
-    db.enrollment.findMany({
-      where: { userId },
-      select: { projectId: true, status: true },
-    }),
+    preloadedEnrollments ??
+      db.enrollment.findMany({
+        where: { userId },
+        select: { projectId: true, status: true },
+      }),
   ]);
 
   const completed = new Set(
