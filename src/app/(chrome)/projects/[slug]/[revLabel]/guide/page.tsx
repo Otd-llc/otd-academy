@@ -716,6 +716,24 @@ export default async function GuideHubPage({
         ]}
       />
 
+      {/* Signed-in but NOT enrolled: the hub used to render as an inert article
+          (no XP, no track panel, no way to start tracked progress short of
+          finding /learn yourself). Point them at the enroll surface. */}
+      {view.isLearnerView && signedIn && learnerCurrentStage === null ? (
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-3 border border-command-gold/40 bg-command-gold/5 px-4 py-3">
+          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-text">
+            Reading is free. Enroll to track your build, earn XP, and clear
+            stages.
+          </p>
+          <Link
+            href={`/learn/${project.slug}`}
+            className="glass-button-cta inline-flex items-center gap-2 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.14em]"
+          >
+            Enroll free →
+          </Link>
+        </div>
+      ) : null}
+
       {/* Admin readiness panel — two-tier definition of done — plus the
           go-live lever itself. The button's action (setPublishedRevision)
           re-enforces the publishable bar server-side and busts the cached

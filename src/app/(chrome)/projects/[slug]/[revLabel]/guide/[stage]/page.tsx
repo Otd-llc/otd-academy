@@ -559,6 +559,25 @@ export default async function GuideCardPage({
       state,
       questionKeysByBlock,
     };
+  } else if (!sessionEmail && view.isLearnerView) {
+    // ANONYMOUS reader on the public guide (the top SEO surface): the quiz
+    // blocks used to render with no XP affordance at all, while the Library
+    // shows its "Sign in to log XP" driver on the same component. A signed-out
+    // course logbook (fireAnswer guards on signedIn, so nothing ever posts)
+    // makes the guide checkpoints convert the same way. Signed-in non-enrolled
+    // readers are handled by the hub's enroll CTA instead — "sign in" would be
+    // the wrong nudge for them.
+    courseLogbook = {
+      mode: "course",
+      enrollmentId: "",
+      stage,
+      signedIn: false,
+      signInHref: `/sign-in?callbackUrl=${encodeURIComponent(
+        `/projects/${slug}/${revLabel}/guide/${stageParam}`,
+      )}`,
+      state: {},
+      questionKeysByBlock: {},
+    };
   }
 
   // ─── Structured data (JSON-LD) — public SEO surface ───
