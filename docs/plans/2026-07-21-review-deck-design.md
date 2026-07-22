@@ -1,10 +1,15 @@
-# Cross-session review deck: design (step 4, deferred build)
+# Cross-session review deck: design (step 4)
 
-Status: design only, 2026-07-21 (revised twice, after two 3-lens validation
-passes). No schema migration in this pass. This is the concrete shape for
-build-order step 4 in
-`docs/plans/2026-07-21-inline-formative-checks-authoring-spec.md`. Build is gated on
-a real prerequisite (see "Build trigger"), not started.
+Status: BUILT 2026-07-21 (unmerged, on `feat/guide-parse-resilience`). This design
+was revised twice after two 3-lens validation passes, then built to the start-fresh
+shape below. What shipped: the `reviewId` opt-in field, `QuizItem` + `ReviewSchedule`
+models (+ `REVIEW_CORRECT` XpSource), the pure scheduler (`review-schedule.ts`),
+forward-only seeding from the stage-answer path, the `recordReviewAnswer` action,
+the `dueReviewItems`/`dueReviewCount` loaders, the `/review` route + `ReviewDeck`
+island (server-side option shuffle), and the logbook "N due" nudge. Locked decisions
+matched the recommendations here (decoupled `reviewId`, start-fresh, fixed ladder +
+jitter + step-down + graduate, `REVIEW_CORRECT` award, `/review` + nudge). The
+original design text is kept below for the rationale.
 
 ## Bottom line
 

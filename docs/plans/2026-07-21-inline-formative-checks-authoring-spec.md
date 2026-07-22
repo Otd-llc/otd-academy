@@ -21,7 +21,7 @@ whether to author inline density now or wait for the parse-resilience fix.
 | 1 | Parse resilience (section 10) | M | DONE (2026-07-21) | Prerequisite + latent-correctness fix; one bad block silently blanks a card / blocks the gate today |
 | 2 | Engagement telemetry (section 12) | S | DONE (2026-07-21) | Without it, scaling inline checks is blind |
 | 3 | MCQ attempt-reward (section 8) | S | DONE (2026-07-21) | Stops the XP economy teaching "don't answer" before mass-authoring MCQ |
-| 4 | Cross-session review deck (section 12) | L | open | The biggest retention lever; net-new, benefits from 1-3 |
+| 4 | Cross-session review deck (section 12) | L | BUILT (2026-07-21, unmerged) | The biggest retention lever; net-new, benefits from 1-3 |
 
 **Owner / next action:** repo maintainer to approve step order; step 1 unblocks safe
 inline authoring. Everything below is the detail behind this table.
