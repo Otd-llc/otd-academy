@@ -7,17 +7,25 @@
 // full-rate re-inflation (mirrors the library's LessonCompletion guard).
 import type { Stage } from "@prisma/client";
 import { db } from "@/lib/db";
-import { quizQuestions } from "@/lib/logbook/lesson-content";
+import { quizQuestions, type QuizQ } from "@/lib/logbook/lesson-content";
 import { questionKey, guideKey } from "@/lib/logbook/question-key";
 import { awardXp, type AwardResult } from "@/lib/logbook/award";
 import { earnBadge } from "@/lib/logbook/badge";
 import {
+  reviewItemId,
+  initialSchedule,
+  advanceSchedule,
+  jitterFactor,
+} from "@/lib/logbook/review-schedule";
+import {
   academyDate,
+  academyDay,
   quizXp,
   dedupe,
   stageClearXp,
   COURSE_EXAM_XP,
   COURSE_COMPLETE_XP,
+  XP,
 } from "@/lib/logbook/economy";
 
 type LevelUp = { level: number; title: string } | null;
@@ -98,6 +106,47 @@ export type StageQuizResult =
   // rewarded regardless of correctness (attempt-reward, see below).
   | { ok: true; correct: boolean; xp: number; locked?: boolean; levelUp: LevelUp };
 
+// Snapshot a reviewable question into the QuizItem registry and OPEN its
+// ReviewSchedule (first-encounter only). Called from the stage-answer path, so the
+// deck is seeded forward-only (no history bootstrap). The QuizItem is refreshed on
+// every encounter (last-writer-wins) so a content edit propagates on the next
+// answer; the schedule is created once and thereafter advanced only by the review
+// path. A question with no `reviewId` (not opted in) is skipped.
+async function seedReviewItem(
+  userId: string,
+  projectSlug: string,
+  stage: Stage,
+  q: QuizQ,
+  now: Date,
+): Promise<void> {
+  if (!q.reviewId || !q.options) return;
+  const itemId = reviewItemId(projectSlug, stage, q.reviewId);
+  await db.quizItem.upsert({
+    where: { reviewItemId: itemId },
+    create: {
+      reviewItemId: itemId,
+      projectSlug,
+      stage,
+      q: q.q,
+      options: q.options,
+      answer: q.answer,
+    },
+    update: { q: q.q, options: q.options, answer: q.answer },
+  });
+  const init = initialSchedule(now);
+  await db.reviewSchedule.upsert({
+    where: { userId_reviewItemId: { userId, reviewItemId: itemId } },
+    create: {
+      userId,
+      reviewItemId: itemId,
+      dueOn: init.dueOn,
+      intervalDays: init.intervalDays,
+      lastSeenOn: academyDate(now),
+    },
+    update: {},
+  });
+}
+
 export async function recordStageQuizAnswer(
   input: { enrollmentId: string; stage: Stage; questionKey: string; pick: number },
   userId: string,
@@ -161,6 +210,14 @@ export async function recordStageQuizAnswer(
     });
   }
 
+  // Forward-only review seeding (step 4): the first time a learner answers a
+  // REVIEWABLE question (one carrying an authored reviewId), snapshot it into the
+  // QuizItem registry and open its ReviewSchedule. Best-effort — the review deck
+  // must never break the quiz answer, so a failure here is logged and swallowed.
+  await seedReviewItem(userId, enrollment.project.slug, input.stage, q, now).catch(
+    (e) => console.error("[review] seed failed", e),
+  );
+
   // Reward the FIRST answer of the day for this question (right or wrong), once,
   // via the per-day dedupe key. firstEver keys off the durable pass + any prior
   // award so an admin XP reset repops at the repop rate, never full-rate
@@ -191,4 +248,85 @@ export async function recordStageQuizAnswer(
   if (!res.awarded)
     return { ok: true, correct: !wrong, xp: 0, locked: true, levelUp: null };
   return { ok: true, correct: !wrong, xp: amount, levelUp: res.levelUp };
+}
+
+export type ReviewAnswerResult =
+  | { ok: false }
+  | { ok: true; correct: boolean; xp: number; levelUp: LevelUp };
+
+// A learner's answer in the /review deck. Re-scores against the QuizItem registry
+// snapshot (server-authoritative), advances the schedule up/down the ladder, and
+// awards a small once-per-due-cycle XP on a correct answer.
+//
+// IDEMPOTENT per due cycle: the schedule is only processed while the item is DUE
+// (dueOn <= today). A first answer advances dueOn into the future, so a stale
+// re-submit finds the item not-due and no-ops (no second advance, no second award).
+// The award dedupe embeds the cycle's dueOn as a second guard. `rand` is injected
+// (Math.random() at the call site) so jitter is testable.
+export async function recordReviewAnswer(
+  input: { reviewItemId: string; pick: number },
+  userId: string,
+  now: Date,
+  rand: number,
+): Promise<ReviewAnswerResult> {
+  const schedule = await db.reviewSchedule.findUnique({
+    where: {
+      userId_reviewItemId: { userId, reviewItemId: input.reviewItemId },
+    },
+    include: { item: { select: { answer: true } } },
+  });
+  // Not scheduled for this user → they have not seen this item, so there is nothing
+  // to review.
+  if (!schedule) return { ok: false };
+
+  const correct = input.pick === schedule.item.answer;
+  const today = academyDate(now);
+
+  // Not due (already reviewed this cycle, or a stale double-submit) → no-op. This is
+  // the idempotency guard: never advance or award twice for one due cycle.
+  if (schedule.dueOn.getTime() > today.getTime()) {
+    return { ok: true, correct, xp: 0, levelUp: null };
+  }
+
+  // The cycle being answered is `schedule.dueOn`; advance BEFORE it changes.
+  const cycleDueDay = academyDay(schedule.dueOn);
+  const next = advanceSchedule(
+    {
+      intervalDays: schedule.intervalDays,
+      lapses: schedule.lapses,
+      suspended: schedule.suspended,
+    },
+    correct,
+    now,
+    jitterFactor(rand),
+  );
+  await db.reviewSchedule.update({
+    where: {
+      userId_reviewItemId: { userId, reviewItemId: input.reviewItemId },
+    },
+    data: {
+      intervalDays: next.intervalDays,
+      dueOn: next.dueOn,
+      lapses: next.lapses,
+      suspended: next.suspended,
+      lastSeenOn: today,
+    },
+  });
+
+  if (!correct) return { ok: true, correct: false, xp: 0, levelUp: null };
+
+  const res = await awardXp({
+    userId,
+    source: "REVIEW_CORRECT",
+    amount: XP.REVIEW_CORRECT,
+    refId: input.reviewItemId,
+    dedupeKey: dedupe.review(userId, input.reviewItemId, cycleDueDay),
+    now,
+  });
+  return {
+    ok: true,
+    correct: true,
+    xp: res.awarded ? XP.REVIEW_CORRECT : 0,
+    levelUp: res.awarded ? res.levelUp : null,
+  };
 }
