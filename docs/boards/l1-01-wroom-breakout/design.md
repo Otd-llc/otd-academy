@@ -101,6 +101,12 @@
     2026-07-23): **J2 (2.3, 4.33) 0°**, **J3 (27.7, 57.67 = 62−4.33) 180°** (rotated
     so pin order matches the ratsnest); header pads ~1.45 mm off each side edge
     (> PCBWay 0.5 mm). Closes **R7** (§6); see `validation-log.md`.
+  - **Board finish (M7):** **ENIG** (immersion gold) — flat gold pads so the
+    WROOM's fine-pitch castellated pads solder reliably (lumpy HASL leaves each pad
+    a slightly different height, risking an open joint under the module). RoHS;
+    small cost bump over HASL, negligible at proto quantity. Set in the starter's
+    KiCad stackup (`copper_finish "ENIG"`, PR #357) and picked in the PCBWay order
+    (§8 / the ORDERING lesson card).
 
 ## 2 · Topology
 
