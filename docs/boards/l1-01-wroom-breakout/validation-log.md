@@ -6,9 +6,9 @@
 | | |
 | --- | --- |
 | **Slug** | `l1-01-wroom-breakout` |
-| **Status** | `part-ready (shipped board)` — original ≥10-pass design validation predates this log file; **2→4 layer stackup change 2026-07-14** (layout-domain, scoped — R5 de-risk); **C7 net+value ECN 2026-07-18** (C7 decoupling→EN RC net move + value 0.1→1 µF; schematic net change + BOM refDes regroup, no new part); **WROOM EPAD representation ECN 2026-07-19** (U1 exposed-pad: symbol 9-way split `41_1..41_9`→single pin `41` + footprint SnapEDA→stock `RF_Module`; CAD-representation only, no net/BOM change; starter re-exported) |
-| **Passes run** | — (pre-protocol) + 1 scoped design-change audit (2026-07-14) + 1 net-change ECN (2026-07-18) + 1 CAD-representation ECN (2026-07-19) |
-| **Last dry pass** | 2026-07-19 (WROOM EPAD ECN, scoped `[S]`/`[P]`/`[DFM]` clean; starter re-exported + structurally verified) |
+| **Status** | `part-ready (shipped board)` — original ≥10-pass design validation predates this log file; **2→4 layer stackup change 2026-07-14** (layout-domain, scoped — R5 de-risk); **C7 net+value ECN 2026-07-18** (C7 decoupling→EN RC net move + value 0.1→1 µF; schematic net change + BOM refDes regroup, no new part); **WROOM EPAD representation ECN 2026-07-19** (U1 exposed-pad: symbol 9-way split `41_1..41_9`→single pin `41` + footprint SnapEDA→stock `RF_Module`; CAD-representation only, no net/BOM change; starter re-exported); **board outline 28→30 mm + J2/J3 placement 2026-07-23** (R7 close — layout geometry; no schematic/net/part/BOM change; owner-verified in KiCad) |
+| **Passes run** | — (pre-protocol) + 1 scoped design-change audit (2026-07-14) + 1 net-change ECN (2026-07-18) + 1 CAD-representation ECN (2026-07-19) + 1 scoped layout-geometry change (2026-07-23, R7 close) |
+| **Last dry pass** | 2026-07-23 (R7 header geometry — 30×62 outline + J2/J3 25.4 mm on-center; scoped `[L]`/`[DFM]`/RF/reqs/learnability/consistency clean; placement owner-verified in KiCad) |
 
 > **Note on provenance.** L1.01 was designed, validated, built, and shipped before the
 > formal `_protocol.md` / `validation-log.md` machinery existed, so it has no pass-by-pass
@@ -232,3 +232,69 @@ pipeline flags (`hasMainsNet`/`hasLiIon`/`hasThermalConcern` false, `requiresStr
 **Dry pass:** the disturbed `[S]`/`[P]`/`[DFM]` lenses yield zero new material findings;
 symbol↔footprint are consistent (pin `41` ↔ stock pad `41`) and the starter is re-exported
 + verified.
+
+---
+
+## Design change 2026-07-23 — board outline 28→30 mm + J2/J3 header placement (R7 close)
+
+**Trigger.** Closing **R7** (outline / header row spacing, open since design — "close at
+layout"). Test-fitting the two 1×22 breakout headers in KiCad against the module showed the
+**S3-WROOM-1 (18 mm body) sits *between* J2 and J3**, so the row spacing has a hard floor of
+**23.114 mm** (module body + ~0.1″ hand-clearance per side). The smallest breadboard-grid
+spacing above that floor is **25.4 mm (1.0″)**, which the old **28 mm** outline can't hold with
+PCBWay's 0.5 mm copper-to-edge → outline grows to **30 mm**. At 25.4 mm the board is wider than
+a single breadboard straddles, so it seats across **two** breadboards (one row per board).
+
+**Nature & scope (NO silent scope cut).** A **layout / mechanical design change** — board
+**outline** (28→30 mm wide) + **header placement geometry**. **No schematic, net, part,
+footprint, or BOM change** (same 1×22 Sullins `PRPC040SAAN-RC` headers, same nets, same 17-line
+BOM). Per `_protocol.md` it re-enters only for the **disturbed lenses** below; the electrical
+lenses are named and left untouched. It **closes R7** and **extends R4** (the header top pins
+add a lateral antenna keep-out check, verified at the `[L]` gate).
+
+**Derived geometry** (datasheet-grounded — ESP32-S3-WROOM-1/-1U **Datasheet v1.8**, Fig 10-1
+module = **18 × 25.5 × 3.1 mm**, Fig 11-1 **antenna area = top 6 mm**; the antenna overhangs the
+top board edge, so its radiating keep-out is air):
+
+- **Board:** 30 (W) × 62 (H) mm.
+- **J2:** X **2.3**, Y **4.33**, **0°** (pin 1 top). **J3:** X **27.7**, Y **57.67** (= 62 − 4.33),
+  **180°** (rotated so the pin order matches the ratsnest).
+- C-C **25.4 mm** (1.0″); header pads **~1.45 mm** off each side edge (> PCBWay 0.5 mm); the
+  module (X 6–24) clears each header by **3.7 mm** (> the 23.114 mm floor); the 53.34 mm header
+  (pin1→pin22) centered vertically → **4.33 mm** top/bottom margins; top pins beside the module
+  (outside the 18 mm antenna width), bottom pins beside the centered USB-C.
+
+### Re-run lenses (disturbed by the outline + placement change)
+
+| # | Lens | Severity | Finding (worst-case) | Verified? | Fix / decision | Re-proof |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | `[L]` Layout-readiness | MED | 25.4 mm C-C needs the 18 mm module to fit *between* the rows AND header pads to clear the fab's 0.5 mm copper-to-edge; the old 28 mm outline left only ~0.03 mm edge margin at 25.4 mm. | ✅ datasheet module width + PCBWay 0.5 mm edge rule; **owner placed J2/J3 in KiCad — ratsnest lines up (J3 @ 180°)**. | Outline → **30 mm**; J2 (2.3, 4.33) 0°, J3 (27.7, 57.67) 180°. Pads ~1.45 mm off each edge; module clears each header 3.7 mm. | Placement fits with margin, owner-verified in KiCad; routed-board DRC = 0 owed at `[L]`. |
+| 2 | `[DFM]` Fab / edge clearance | LOW | Header pad-to-board-edge must clear PCBWay's 0.5 mm min copper-to-edge. | ✅ ~0.85 mm pad radius → ~1.45 mm edge gap at X 2.3/27.7 on the 30 mm outline. | Accept the 30 mm outline (1.45 mm edge margin). | > PCBWay 0.5 mm; verified on the routed copper at `[L]`. |
+| 3 | `[D]` Physics / RF (antenna keep-out) | MED | Header top pins sit at the top corners — must clear the antenna's **lateral** keep-out (the datasheet defers it to the Hardware Design Guidelines, §11.2). | ⚠ **partial** — the headers at X 2.3/27.7 are outside the 18 mm antenna width and the antenna (top 6 mm) overhangs the top edge (radiating keep-out = air); the exact lateral clearance is **owed at `[L]`**. | Keep the header top at Y 4.33 (owner-placed); confirm the lateral keep-out against the Hardware Design Guidelines on the routed board. **Extends R4.** | Owed at `[L]` with R4 (keep-out on all copper + DRC = 0). |
+| 4 | `[D]` Requirements & traceability | LOW | The outline was a lesson-only number (the LAYOUT rectangle), never a design constraint; header spacing (R7) was open. | ✅ | Add **M6** (30×62 outline + J2/J3 25.4 mm on-center, two-breadboard) to design.md §1; trace M6 → R7 close → `[L]`. | New mechanical constraint traced end-to-end. |
+| 5 | `[D]` Learnability | — | The lesson must teach the exact placement (25.4 mm C-C, 4.33 mm margins, **J3 @ 180°** for the ratsnest, KiCad's **in-field math** `62 - 4.33`) + why two breadboards. | ✅ against the L1 beginner bar. | Author into the LAYOUT card (Properties X/Y or Move Exactly, the 180° rotation, in-field math) + a two-breadboard demo. Content workstream (prod DB), separate. | Owed as a content edit; readiness re-checked after. |
+| 6 | `[D]` Internal consistency | LOW | The LAYOUT card draws a **28 mm** rectangle; design.md stated no outline. | ✅ | design.md §1 (M6) + §6 (R7) now state 30×62 + the placement; the LAYOUT card rectangle 28→30 + placement steps land in the content workstream. | Doc updated here; lesson update owed (tracked below). |
+
+**Untouched lenses (not re-run — an outline/placement change can't disturb them):** net
+integrity (same nets/pins), math (no derived component-value change — outline/placement is a
+layout quantity, not a BOM number), part-truth (same parts/datasheets), footprint↔symbol↔pinout
+(same 1×22 header footprint + all others), power integrity, FMEA (no new electrical failure mode
+— the antenna-detune mode is R4, already tracked), sourcing/lifecycle (30 mm is a bare-board
+spec, not a part; BOM stays 17 lines), pipeline flags (`hasMainsNet`/`hasLiIon`/`hasThermalConcern`
+false, `requiresStripboard` false).
+
+**Risk moves.** **R7 geometry captured + owner-verified in KiCad** (J2/J3 placed, ratsnest
+aligned with J3 @ 180°); the final **`[L]` tick** (routed 30×62 board, antenna lateral keep-out
+per the Hardware Design Guidelines, DRC = 0) closes at LAYOUT_REVIEW **with R4**. **R4 extended**
+— the header top pins add a lateral keep-out check to the antenna sign-off.
+
+**Residual / owed:**
+- **`[L]` gate:** routed 30×62 board — antenna lateral keep-out clearance verified, header edge
+  clearances on the real copper, DRC = 0 on the PCBWay 4-layer DRU.
+- **Content workstream (prod DB, separate):** LAYOUT card outline 28→30 mm, the exact placement
+  steps (25.4 mm C-C, J2/J3 X/Y, **J3 @ 180°**, in-field math `62 - 4.33`), and the two-breadboard
+  demo — coordinated with the net-class starter-export fix (PR #355).
+
+**Dry pass:** the disturbed lenses yield zero new material findings; the placement is
+owner-verified in KiCad (ratsnest aligned). The antenna lateral keep-out + DRC = 0 are the only
+items owed, explicitly at the `[L]` gate (with R4).
