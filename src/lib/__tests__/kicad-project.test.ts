@@ -88,7 +88,7 @@ describe("project — buildKicadPro golden JSON shape", () => {
     expect(typeof pro.meta.version).toBe("number");
   });
 
-  test("net_settings has a Default and a wider Power class", () => {
+  test("net_settings has a Default and a wider Power class, each with a priority and no legacy nets", () => {
     const classes = pro.net_settings.classes as Array<Record<string, any>>;
     const def = classes.find((c) => c.name === "Default")!;
     const pwr = classes.find((c) => c.name === "Power")!;
@@ -96,15 +96,20 @@ describe("project — buildKicadPro golden JSON shape", () => {
     expect(pwr).toBeDefined();
     expect(pwr.track_width).toBeGreaterThan(def.track_width);
     expect(pwr.clearance).toBeGreaterThanOrEqual(def.clearance);
-    // Power carries the rail nets
-    expect(pwr.nets).toEqual(expect.arrayContaining(["+3V3", "+5V", "GND"]));
+    // KiCad 9/10 shape: every class has a numeric priority; Default is the INT_MAX fallback.
+    expect(def.priority).toBe(2147483647);
+    expect(typeof pwr.priority).toBe("number");
+    // The legacy per-class `nets` array is gone — membership moved to netclass_patterns.
+    expect(def).not.toHaveProperty("nets");
+    expect(pwr).not.toHaveProperty("nets");
   });
 
-  test("net_settings assigns +3V3/+5V/GND to the Power class", () => {
-    const assign = pro.net_settings.netclass_assignments as Record<string, string>;
-    expect(assign["+3V3"]).toBe("Power");
-    expect(assign["+5V"]).toBe("Power");
-    expect(assign["GND"]).toBe("Power");
+  test("net_settings assigns +3V3/+5V/GND to Power via netclass_patterns (assignments map is null)", () => {
+    expect(pro.net_settings.netclass_assignments).toBeNull();
+    const patterns = pro.net_settings.netclass_patterns as Array<{ netclass: string; pattern: string }>;
+    for (const net of ["+3V3", "+5V", "GND"]) {
+      expect(patterns).toEqual(expect.arrayContaining([{ netclass: "Power", pattern: net }]));
+    }
   });
 
   test("board.design_settings.rules reflect the BoardConfig floors (2-layer defaults)", () => {
