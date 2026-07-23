@@ -1,43 +1,32 @@
-"use client";
+// The "set up once" region — rendered as the first hands-on DO step (guide-pacing
+// plan Task 5, revised 2026-07-22). It wraps the derived setup range: a
+// `Setup · …` callout + the blocks up to the next structural break (a mode band,
+// a numbered section, another setup, or the end of the card).
+//
+// Owner call (2026-07-22): the KiCad + starter setup is the FIRST thing a learner
+// DOES, so it must always be visible and read as a DO step. It used to render as a
+// collapsible <details> that auto-collapsed for RETURNING visitors — now it is a
+// framed, always-open section carrying the gold "Do ·" kicker motif (the same
+// Design-Stages kicker as ActionCalloutBlock), so it can't be hidden and reads as
+// build step 1.
+//
+// Purely a render-time grouping — the block list stays flat, so readiness
+// counters and the PDF export are unaffected. No client state, so this is a plain
+// server component (was "use client" only for the old collapse memory).
 
-// The "set up once" collapsible band (guide-pacing plan, Task 5). Wraps the
-// derived setup range (a `Setup · …` callout + the blocks up to the first
-// numbered section) in a styled <details>. It renders OPEN on the server so
-// crawlers, the PDF export, and first-time learners always see the content;
-// on mount it collapses for RETURNING visitors (a resume record already exists
-// for this card), so the ~26-block preamble stops pushing island 01 down the
-// page on every revisit. Purely a render-time grouping — the block list stays
-// flat, so readiness counters and PDF export are unaffected.
+import type { ReactNode } from "react";
 
-import { useEffect, useState } from "react";
-
-export function SetupBand({ title, count, storageKey, children }: { title: string; count: number; storageKey: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(true); // SSR-open fallback
-
-  useEffect(() => {
-    try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- reads a client-only store on mount; SSR fallback then adjusts once
-      if (localStorage.getItem(storageKey)) setOpen(false); // returning → collapse
-    } catch {
-      /* private mode — stay open */
-    }
-  }, [storageKey]);
-
+export function SetupBand({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <details
-      open={open}
-      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
-      className="border-y border-command-gold/30"
-    >
-      <summary className="flex cursor-pointer list-none items-center gap-3 py-3 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
-        <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">▸ Set up once</span>
-        <span className="truncate font-mono text-[13px] tracking-[0.03em] text-title">{title}</span>
-        <span className="ml-auto whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
-          {count} {count === 1 ? "step" : "steps"} · {open ? "hide" : "show"}
+    <section className="border-y border-command-gold/30 py-4">
+      <div className="flex items-center gap-3">
+        <span className="shrink-0 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-command-gold">
+          Do · {title}
         </span>
-        <span aria-hidden style={{ color: "var(--color-command-gold)", transition: "transform .2s", transform: open ? "rotate(90deg)" : "none" }}>›</span>
-      </summary>
-      <div className="space-y-5 pb-4 pt-1">{children}</div>
-    </details>
+        <span aria-hidden className="h-px flex-1 bg-gradient-to-r from-command-gold/30 to-transparent" />
+        <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.16em] text-muted">set up once</span>
+      </div>
+      <div className="space-y-5 pt-3">{children}</div>
+    </section>
   );
 }

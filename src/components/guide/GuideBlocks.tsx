@@ -1805,7 +1805,7 @@ export function GuideBlocks({
   const railKey = resumeKey(userId, projectId, cardId);
   const resumeEnabled = !isSignedIn || isEnrolled;
 
-  // "Setup · …" ranges collapse into a SetupBand. Islands terminate a range, so
+  // "Setup · …" ranges group into a SetupBand (always-visible "Do ·" step). Islands terminate a range, so
   // no anchored block ever falls inside one — the two derivations don't collide.
   const setupRanges = deriveSetupRanges(blocks);
   const setupStart = new Map(setupRanges.map((r) => [r.start, r]));
@@ -1875,7 +1875,7 @@ export function GuideBlocks({
     );
   };
 
-  // Render blocks [from, to), collapsing any `Setup · …` range into a SetupBand.
+  // Render blocks [from, to), grouping any `Setup · …` range into a SetupBand.
   // Extracted so a section can render its own children through the same path: a
   // setup range never straddles a section boundary (it terminates at a section
   // header), so it always falls wholly inside one span or the other.
@@ -1888,7 +1888,7 @@ export function GuideBlocks({
         const children: ReactNode[] = [];
         for (let j = range.start + 1; j < range.end; j++) children.push(renderBlock(blocks[j]!, j));
         acc.push(
-          <SetupBand key={`setup-${i}`} title={range.title} count={range.end - range.start - 1} storageKey={railKey}>
+          <SetupBand key={`setup-${i}`} title={range.title}>
             {children}
           </SetupBand>,
         );
