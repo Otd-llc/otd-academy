@@ -131,6 +131,10 @@ export const BOARD_CONFIG_OVERRIDES: Record<string, Partial<BoardConfig>> = {
   "l1-03-ws2812-node": { copperLayers: 4 },
   "l1-04-single-servo": { copperLayers: 4 },
   "l1-05-internal-adc": { copperLayers: 4 },
+  // l2-01 is a pure power module: no WROOM, no native-USB pair, no antenna.
+  // An explicit EMPTY override = the deliberate 2-layer default (the readiness
+  // gate wants the choice recorded, not inferred).
+  "l2-01-battery-power-module": {},
 };
 
 // ── `.kicad_pro` builder ────────────────────────────────────────────────────
