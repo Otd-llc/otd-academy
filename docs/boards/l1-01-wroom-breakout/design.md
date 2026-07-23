@@ -93,6 +93,14 @@
   - **Regulatory:** ESP32-S3-WROOM-1 is a **pre-certified module** (FCC/IC/CE) —
     no board-level radiator cert, provided antenna keep-out (M1) is honored. No
     mains/battery/HV — out of scope.
+  - **Mechanical / breadboard (M6):** outline **30 × 62 mm**; the two 1×22 breakout
+    headers (J2/J3) at **25.4 mm on-center** — the S3-WROOM-1's 18 mm body sits
+    *between* them (23.114 mm floor: body + ~0.1″ hand-clearance per side). At that
+    spacing the board is wider than a single breadboard straddles, so it seats across
+    **two** breadboards (one row per board). Placement (KiCad, owner-verified
+    2026-07-23): **J2 (2.3, 4.33) 0°**, **J3 (27.7, 57.67 = 62−4.33) 180°** (rotated
+    so pin order matches the ratsnest); header pads ~1.45 mm off each side edge
+    (> PCBWay 0.5 mm). Closes **R7** (§6); see `validation-log.md`.
 
 ## 2 · Topology
 
@@ -216,7 +224,7 @@ that forced the S3 pivot).
 | R4 | Antenna keep-out — copper/parts under the PCB antenna would detune it and break the module's pre-cert | Low × High | Module on a board **edge** with a keep-out (M1, per Espressif integration rules); resolved in KiCad layout + the LAYOUT_REVIEW antenna-keep-out gate item. **On 4-layer (M5) the keep-out rule area must exclude all four copper layers, incl. both inner ground planes (`In1.Cu` + `In2.Cu`)** — a solid inner plane under the antenna detunes it too. | open → close in layout |
 | R5 | USB D+/D- routing — the native-USB pair is a **forced long diagonal** (USB-C edge → GPIO19/20 at the opposite corner); a 2-layer board cannot keep a continuous ground reference under it while the GPIO fan out | Med × Med | **Resolved by the 4-layer stackup (M5):** a dedicated inner ground plane (`In1.Cu`) gives the pair a continuous reference the whole run, independent of GPIO routing. FS (12 Mbit/s) tolerates the length; the extra layers buy clean routability + margin, not FS SI. See `validation-log.md` 2026-07-14. | **DE-RISKED** |
 | R6 | S3 native-USB quirk — firmware that reconfigures GPIO19/20 (or heavy USB use) can drop the CDC port | Low × Low | Documented; recover via **BOOT + EN** (keep the buttons, F4). | **DE-RISKED** |
-| R7 | Board outline / header row spacing (physical) | Low × Low | Finalized in KiCad layout (breadboard-straddle row spacing). | open → close in layout |
+| R7 | Board outline / header row spacing (physical) | Low × Low | **Geometry closed 2026-07-23** (`validation-log.md`): outline **30 × 62 mm**; J2/J3 = **25.4 mm on-center** (the S3-WROOM-1 18 mm body sits *between* them → 23.114 mm floor); **J2 (2.3, 4.33) 0°**, **J3 (27.7, 57.67 = 62−4.33) 180°** (rotated so pin order matches the ratsnest); owner-verified in KiCad. Wider than one breadboard straddles → seats across **two** breadboards. | geometry captured; final `[L]` tick (antenna lateral keep-out + DRC=0) closes at layout review with R4 |
 
 ## 7 · DESIGN_VALIDATION checklist
 
@@ -247,10 +255,12 @@ flags, so there are **no conditional items**):
 - [x] **BOM availability confirmed** — every part in stock (nightly DigiKey
   watchdog; C1 Murata→KEMET ECN 2026-06-24 proves the loop).
 - [ ] **All top risks de-risked** — R1–R3, R6 de-risked; **R5 de-risked via the
-  4-layer stackup** (2026-07-14, `validation-log.md`); **R4** (now incl. the
-  inner-plane keep-out) **and R7 close at layout review** (the in-app LAYOUT_REVIEW
-  checklist — antenna keep-out item — is still unchecked; tick this after that
-  sign-off).
+  4-layer stackup** (2026-07-14, `validation-log.md`); **R7 geometry captured +
+  owner-verified in KiCad** (2026-07-23, `validation-log.md`: 30×62 mm outline +
+  J2/J3 25.4 mm on-center); **R4** (now incl. the inner-plane keep-out) **and R7's
+  final tick close at layout review** (the in-app LAYOUT_REVIEW checklist — antenna
+  keep-out item — is still unchecked; tick after that sign-off, incl. R7's antenna
+  lateral keep-out + DRC = 0).
 
 > These are *attestations* (a human checked), not machine proofs — except BOM
 > availability (parts MCP) and DRU presence, which are verifiable.
