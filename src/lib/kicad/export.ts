@@ -548,7 +548,7 @@ run ERC, lay it out, and DRC it.
     ${o.slug}/
       ${o.slug}.kicad_pro      project file — open this
       ${o.slug}.kicad_sch      schematic — parts placed, NOT wired (your job)
-      ${o.slug}.kicad_pcb      board — outline + stackup, no routing yet
+      ${o.slug}.kicad_pcb      board — layer stack + rules only; you draw the outline and route
       sym-lib-table            wires up the project symbol library
       fp-lib-table             wires up the project footprint library
       bom.csv                  the bill of materials for this revision
