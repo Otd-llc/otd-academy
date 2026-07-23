@@ -269,6 +269,17 @@ describe("pcb — buildBasePcb", () => {
     expect(copper).toHaveLength(4);
   });
 
+  test("emits a physical stackup carrying the ENIG board finish", () => {
+    expect(text).toContain("stackup");
+    expect(text).toContain('"ENIG"');
+  });
+
+  test("the 4-layer stackup carries the inner core dielectric + inner copper", () => {
+    const four = buildBasePcb({ config: { copperLayers: 4 } });
+    expect(four).toContain("1.24"); // core thickness — present only in the 4-layer stackup
+    expect(four).toContain("In1.Cu");
+  });
+
   test("is deterministic — same input twice yields identical bytes", () => {
     expect(buildBasePcb()).toBe(buildBasePcb());
   });

@@ -51,6 +51,8 @@ export type BoardConfig = {
   minViaDrill: number;
   /** Global minimum annular ring width (mm). */
   minViaAnnularWidth: number;
+  /** PCB surface finish written into the KiCad stackup (`copper_finish`), e.g. "ENIG". */
+  copperFinish: string;
   /** Net classes. The first MUST be the "Default" class. */
   netClasses: NetClassConfig[];
 };
@@ -74,6 +76,7 @@ export const DEFAULT_BOARD_CONFIG: BoardConfig = {
   minTrackWidth: 0.2,
   minViaDrill: 0.3,
   minViaAnnularWidth: 0.15, // PCBWay's min annular floor; 0.13 let a ring through the fab can't build
+  copperFinish: "ENIG", // flat gold pads = easiest hand-solder; set in the KiCad stackup + the PCBWay order
   netClasses: [
     {
       name: "Default",
