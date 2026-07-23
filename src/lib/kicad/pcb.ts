@@ -83,13 +83,67 @@ function buildLayers(copperLayers: number): SNode {
 }
 
 /**
+ * The physical `(stackup ...)` — a 1.6 mm FR4 board (2- or 4-layer) with the
+ * board's surface finish. Modelled on a real KiCad-10 4-layer stackup (0.035 mm
+ * copper; prepreg 0.1 / core 1.24 / prepreg 0.1 between the four coppers; the
+ * 2-layer case collapses the inner stack to one 1.51 mm core). Without this block
+ * KiCad auto-generates the stackup and leaves Board finish = "None".
+ */
+function buildStackup(cfg: BoardConfig): SNode {
+  const copper = (name: string) =>
+    list([sym("layer"), str(name), list([sym("type"), str("copper")]), list([sym("thickness"), sym("0.035")])]);
+  const dielectric = (name: string, kind: string, thickness: number) =>
+    list([
+      sym("layer"), str(name), list([sym("type"), str(kind)]),
+      list([sym("thickness"), sym(String(thickness))]),
+      list([sym("material"), str("FR4")]),
+      list([sym("epsilon_r"), sym("4.5")]),
+      list([sym("loss_tangent"), sym("0.02")]),
+    ]);
+  const tech = (name: string, kind: string, thickness?: number) =>
+    list([
+      sym("layer"), str(name), list([sym("type"), str(kind)]),
+      ...(thickness !== undefined ? [list([sym("thickness"), sym(String(thickness))])] : []),
+    ]);
+
+  const rows: SNode[] = [
+    tech("F.SilkS", "Top Silk Screen"),
+    tech("F.Paste", "Top Solder Paste"),
+    tech("F.Mask", "Top Solder Mask", 0.01),
+    copper("F.Cu"),
+  ];
+  if (cfg.copperLayers >= 4) {
+    rows.push(
+      dielectric("dielectric 1", "prepreg", 0.1),
+      copper("In1.Cu"),
+      dielectric("dielectric 2", "core", 1.24),
+      copper("In2.Cu"),
+      dielectric("dielectric 3", "prepreg", 0.1),
+    );
+  } else {
+    rows.push(dielectric("dielectric 1", "core", 1.51));
+  }
+  rows.push(
+    copper("B.Cu"),
+    tech("B.Mask", "Bottom Solder Mask", 0.01),
+    tech("B.Paste", "Bottom Solder Paste"),
+    tech("B.SilkS", "Bottom Silk Screen"),
+    list([sym("copper_finish"), str(cfg.copperFinish)]),
+    list([sym("dielectric_constraints"), sym("no")]),
+  );
+  return list([sym("stackup"), ...rows]);
+}
+
+/**
  * The `(setup ...)` block: board design-rule defaults derived from BoardConfig.
- * Carries the global clearances/widths plus a `(pcbplotparams ...)` stub so the
- * file is complete enough for KiCad to open without re-deriving plot settings.
+ * Carries the physical stackup (with the board finish), the global clearances,
+ * plus a `(pcbplotparams ...)` stub so the file is complete enough for KiCad to
+ * open without re-deriving plot settings.
  */
 function buildSetup(cfg: BoardConfig): SNode {
   return list([
     sym("setup"),
+    buildStackup(cfg),
     list([sym("pad_to_mask_clearance"), sym("0")]),
     list([
       sym("allow_soldermask_bridges_in_footprints"),
