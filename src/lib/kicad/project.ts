@@ -73,7 +73,7 @@ export const DEFAULT_BOARD_CONFIG: BoardConfig = {
   minClearance: 0.2,
   minTrackWidth: 0.2,
   minViaDrill: 0.3,
-  minViaAnnularWidth: 0.13,
+  minViaAnnularWidth: 0.15, // PCBWay's min annular floor; 0.13 let a ring through the fab can't build
   netClasses: [
     {
       name: "Default",
@@ -165,8 +165,13 @@ export function buildKicadPro(opts: BuildKicadProOpts): string {
   const cfg = resolveBoardConfig(opts.config);
 
   // KiCad's net_settings.classes carry the human-facing class definitions;
-  // board.design_settings.rules carries the global rule floor. We mirror the
-  // class track/clearance into net_settings (where KiCad actually reads them).
+  // board.design_settings.rules carries the global rule floor. Verified against a
+  // real KiCad-10 .kicad_pro: every class needs a `priority` (Default = INT_MAX =
+  // the catch-all fallback; named classes rank above it), and membership lives in
+  // `netclass_patterns` — NOT the old per-class `nets` array or a
+  // `netclass_assignments` map. Emitting those older shapes makes KiCad 10 discard
+  // the whole net_settings block back to a bare Default (the "no net classes" bug).
+  let nonDefaultRank = 0;
   const netClasses = cfg.netClasses.map((nc) => ({
     name: nc.name,
     // KiCad colours/options we leave at neutral defaults.
@@ -178,8 +183,8 @@ export function buildKicadPro(opts: BuildKicadProOpts): string {
     line_style: 0,
     microvia_diameter: 0.3,
     microvia_drill: 0.1,
-    nets: nc.nets,
     pcb_color: "rgba(0, 0, 0, 0.000)",
+    priority: nc.name === "Default" ? 2147483647 : nonDefaultRank++,
     schematic_color: "rgba(0, 0, 0, 0.000)",
     track_width: nc.trackWidth,
     via_diameter: nc.viaDiameter,
@@ -187,13 +192,11 @@ export function buildKicadPro(opts: BuildKicadProOpts): string {
     wire_width: 6,
   }));
 
-  // Flatten net→class assignment (KiCad 8+ keeps an explicit map alongside the
-  // per-class `nets` arrays). Default class needs no explicit assignment.
-  const netClassAssignments: Record<string, string> = {};
-  for (const nc of cfg.netClasses) {
-    if (nc.name === "Default") continue;
-    for (const net of nc.nets) netClassAssignments[net] = nc.name;
-  }
+  // Membership → one {netclass, pattern} per net (exact-name pattern). The Default
+  // class catches everything unmatched, so it needs no patterns.
+  const netClassPatterns = cfg.netClasses.flatMap((nc) =>
+    nc.name === "Default" ? [] : nc.nets.map((net) => ({ netclass: nc.name, pattern: net })),
+  );
 
   const pro = {
     board: {
@@ -278,8 +281,8 @@ export function buildKicadPro(opts: BuildKicadProOpts): string {
         version: 4,
       },
       net_colors: null,
-      netclass_assignments: netClassAssignments,
-      netclass_patterns: [],
+      netclass_assignments: null,
+      netclass_patterns: netClassPatterns,
     },
     pcbnew: {
       last_paths: {
