@@ -19,16 +19,19 @@ import {
   list,
   isList,
   isAtom,
+  head,
+  atomValue,
   findChild,
   findChildren,
   type SNode,
+  type SList,
 } from "@/lib/kicad/sexpr";
 import {
   setSymbolFootprint,
   buildSymbolLib,
   renameSymbol,
 } from "@/lib/kicad/symbol-lib";
-import { setFootprintModelPath } from "@/lib/kicad/footprint-lib";
+import { setFootprintModelPath, setFootprintReferenceTextSize } from "@/lib/kicad/footprint-lib";
 import { buildSymLibTable, buildFpLibTable } from "@/lib/kicad/lib-tables";
 
 // ── Ground-truth fixtures (reused from kicad-meta.test.ts) ─────────────────
@@ -381,6 +384,56 @@ describe("footprint-lib — setFootprintModelPath", () => {
       "${KIPRJMOD}/3dmodels/x.step",
     );
     const once = parseSexpr(out);
+    expect(parseSexpr(serializeSexpr(once))).toEqual(once);
+  });
+});
+
+describe("footprint-lib — setFootprintReferenceTextSize", () => {
+  const refFont = (fpText: string) => {
+    const fp = parseSexpr(fpText);
+    if (!isList(fp)) throw new Error("not a list");
+    const ref = fp.items.find(
+      (c): c is SList =>
+        isList(c) &&
+        ((head(c) === "fp_text" && atomValue(c.items[1]) === "reference") ||
+          (head(c) === "property" && atomValue(c.items[1]) === "Reference")),
+    )!;
+    const font = findChild(findChild(ref, "effects"), "font")!;
+    const size = findChild(font, "size")!;
+    const thick = findChild(font, "thickness")!;
+    return { w: atomValue(size.items[1]), h: atomValue(size.items[2]), t: atomValue(thick.items[1]) };
+  };
+
+  test("rewrites a tiny fp_text reference font to 1/1/0.15, leaving Value text alone", () => {
+    const tiny = `(footprint "TINY" (layer "F.Cu") (attr smd)
+      (fp_text reference "REF**" (at 0 0) (layer F.SilkS) (effects (font (size 0.5 0.5) (thickness 0.1))))
+      (fp_text value "VAL" (at 0 1) (layer F.Fab) (effects (font (size 0.5 0.5) (thickness 0.1)))))`;
+    const out = setFootprintReferenceTextSize(tiny);
+    expect(refFont(out)).toEqual({ w: "1", h: "1", t: "0.15" });
+    // the Value text keeps its original (untouched) font
+    expect(out).toContain('(fp_text value "VAL"');
+    expect(out).toContain("(size 0.5 0.5)");
+  });
+
+  test("handles the KiCad-7+ (property \"Reference\" ...) shape", () => {
+    const prop = `(footprint "PROP" (layer "F.Cu")
+      (property "Reference" "REF**" (at 0 0) (effects (font (size 0.4 0.4) (thickness 0.08)))))`;
+    expect(refFont(setFootprintReferenceTextSize(prop))).toEqual({ w: "1", h: "1", t: "0.15" });
+  });
+
+  test("inserts a font when the reference text has none", () => {
+    const bare = `(footprint "BARE" (layer "F.Cu") (fp_text reference "REF**" (at 0 0)))`;
+    expect(refFont(setFootprintReferenceTextSize(bare))).toEqual({ w: "1", h: "1", t: "0.15" });
+  });
+
+  test("a footprint with no reference text is returned unchanged", () => {
+    const noref = `(footprint "NOREF" (layer "F.Cu") (attr smd))`;
+    expect(setFootprintReferenceTextSize(noref)).toBe(noref);
+  });
+
+  test("output round-trips structurally", () => {
+    const tiny = `(footprint "T" (layer "F.Cu") (fp_text reference "REF**" (at 0 0) (effects (font (size 0.5 0.5)))))`;
+    const once = parseSexpr(setFootprintReferenceTextSize(tiny));
     expect(parseSexpr(serializeSexpr(once))).toEqual(once);
   });
 });

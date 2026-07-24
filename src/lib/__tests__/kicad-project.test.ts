@@ -114,6 +114,19 @@ describe("project — buildKicadPro golden JSON shape", () => {
     }
   });
 
+  test("via_dimensions leads with a fab-floor via (min drill + 2x min annular) for tight-spot escapes", () => {
+    const vias = pro.board.design_settings.via_dimensions as Array<{ diameter: number; drill: number }>;
+    // index 0 = the small escape via a learner picks at e.g. D1's GND via.
+    expect(vias[0]).toEqual({ diameter: 0.6, drill: 0.3 }); // 0.3 drill + 2×0.15 annular
+    // the per-class Default + Power sizes still follow it.
+    expect(vias).toEqual(
+      expect.arrayContaining([
+        { diameter: 0.8, drill: 0.4 },
+        { diameter: 1.0, drill: 0.5 },
+      ]),
+    );
+  });
+
   test("board.design_settings.rules reflect the BoardConfig floors (2-layer defaults)", () => {
     const rules = pro.board.design_settings.rules;
     expect(rules.min_clearance).toBe(DEFAULT_BOARD_CONFIG.minClearance);
