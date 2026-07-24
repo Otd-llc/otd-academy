@@ -97,10 +97,14 @@
     headers (J2/J3) at **25.4 mm on-center** — the S3-WROOM-1's 18 mm body sits
     *between* them (23.114 mm floor: body + ~0.1″ hand-clearance per side). At that
     spacing the board is wider than a single breadboard straddles, so it seats across
-    **two** breadboards (one row per board). Placement (KiCad, owner-verified
-    2026-07-23): **J2 (2.3, 4.33) 0°**, **J3 (27.7, 57.67 = 62−4.33) 180°** (rotated
-    so pin order matches the ratsnest); header pads ~1.45 mm off each side edge
-    (> PCBWay 0.5 mm). Closes **R7** (§6); see `validation-log.md`.
+    **two** breadboards (one row per board). Four alignment-critical parts are pinned
+    by coordinate (KiCad, owner-verified 2026-07-23), placed while the outline sits at
+    the origin: **U1 (15, 7.5)** on the vertical centerline up top (antenna overhanging
+    the top short edge), **J1 (15, 56.5)** USB-C centered on the bottom edge, **J2
+    (2.3, 4.33) 0°**, and **J3 (27.7, 57.67 = 62−4.33) 180°** (rotated so pin order
+    matches the ratsnest); header pads ~1.45 mm off each side edge (> PCBWay 0.5 mm).
+    Everything else is hand-placed around these four. Closes **R7** (§6); see
+    `validation-log.md`.
   - **Board finish (M7):** **ENIG** (immersion gold) — flat gold pads so the
     WROOM's fine-pitch castellated pads solder reliably (lumpy HASL leaves each pad
     a slightly different height, risking an open joint under the module). RoHS;
