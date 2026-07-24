@@ -250,10 +250,17 @@ export function buildKicadPro(opts: BuildKicadProOpts): string {
         // Track widths / via dimensions offered in the pcbnew dropdowns; index
         // 0 (the "use net class value" entry) plus the Default + Power widths.
         track_widths: [0.0, cfg.minTrackWidth, ...cfg.netClasses.map((n) => n.trackWidth)],
-        via_dimensions: cfg.netClasses.map((n) => ({
-          diameter: n.viaDiameter,
-          drill: n.viaDrill,
-        })),
+        via_dimensions: [
+          // A fab-floor via (min drill + 2× the min annular ring) at the top of the
+          // dropdown, so a learner can shrink a via in a tight spot without hand-typing
+          // sizes — e.g. D1's GND via, which at the wide Power-class size blocks the USB
+          // pair from routing out of the ESD array.
+          {
+            diameter: Math.round((cfg.minViaDrill + 2 * cfg.minViaAnnularWidth) * 1000) / 1000,
+            drill: cfg.minViaDrill,
+          },
+          ...cfg.netClasses.map((n) => ({ diameter: n.viaDiameter, drill: n.viaDrill })),
+        ],
       },
       layer_presets: [],
       viewports: [],
