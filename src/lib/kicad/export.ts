@@ -136,7 +136,7 @@ export type BuildKicadExportResult = {
  *   3. (No nets — the export is UNWIRED by design; the student wires it.)
  *   4. Per part: resolve SYMBOL/FOOTPRINT/MODEL_3D — fetch the asset text/bytes
  *      from R2 when a PartAsset row exists, else synthesize a stub. Rewrite each
- *      footprint's 3D path to `${KIPRJMOD}/3dmodels/<file>`. Track coverage.
+ *      footprint's 3D path to `${KIPRJMOD}/libs/3dmodels/<file>`. Track coverage.
  *   5. Expand grouped refDes → per-instance designator list.
  *   6. Run the generators: symbol lib (Footprint pre-wired to <slug>:<fp>), the
  *      .pretty footprints, lib-tables, .kicad_pro, gridPlacement (over the
@@ -311,11 +311,15 @@ export async function buildKicadExportZip(
     }
 
     // Rewrite the (bundled) footprint's 3D-model path to the bundled file. Only
-    // applies when we have a project footprint body (uploaded/stub).
+    // applies when we have a project footprint body (uploaded/stub). This path
+    // MUST match where the zip writes the model below — `libs/3dmodels/` (the
+    // models live under `libs/`, next to the `.pretty`). Emit a bare
+    // `${KIPRJMOD}/3dmodels/…` and KiCad resolves it to a nonexistent path, so
+    // every bundled model silently fails to load in the 3D viewer.
     if (model3d && footprintText !== undefined) {
       footprintText = setFootprintModelPath(
         footprintText,
-        `\${KIPRJMOD}/3dmodels/${model3d.filename}`,
+        `\${KIPRJMOD}/libs/3dmodels/${model3d.filename}`,
       );
     }
 
