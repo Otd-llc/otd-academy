@@ -33,7 +33,7 @@ import { env } from "@/env";
 import { pinoutSchema, type Pinout } from "@/lib/schemas/part-fact";
 
 import { buildSymbolLib } from "@/lib/kicad/symbol-lib";
-import { setFootprintModelPath } from "@/lib/kicad/footprint-lib";
+import { setFootprintModelPath, setFootprintReferenceTextSize } from "@/lib/kicad/footprint-lib";
 import { buildSymLibTable, buildFpLibTable } from "@/lib/kicad/lib-tables";
 import { buildKicadPro, BOARD_CONFIG_OVERRIDES } from "@/lib/kicad/project";
 import { gridPlacement } from "@/lib/kicad/placement";
@@ -317,6 +317,14 @@ export async function buildKicadExportZip(
         footprintText,
         `\${KIPRJMOD}/3dmodels/${model3d.filename}`,
       );
+    }
+
+    // Normalize the reference-designator silkscreen to a uniform, readable size.
+    // Some vendor-tool footprints ship a tiny refdes; without this the learner
+    // has to hand-resize every C1/R4/… label on the board. Bundled footprints
+    // only (uploaded/stub) — a referenced footprint keeps KiCad's stock text.
+    if (footprintText !== undefined) {
+      footprintText = setFootprintReferenceTextSize(footprintText);
     }
 
     resolvedParts.push({
