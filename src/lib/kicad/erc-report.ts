@@ -14,6 +14,9 @@ export interface ErcCounts {
 
 // `** ERC messages: <errors> Errors <warnings> Warnings …`
 const SUMMARY_RE = /\*\*\s*ERC messages:\s*(\d+)\s+Errors?\s+(\d+)\s+Warnings?/i;
+// A per-violation severity marker, either "Severity: <sev>" (6–8) or a bare
+// "; <sev>" ending the Rule/override line (KiCad 10). Line-anchored.
+const SEVERITY_RE = /(?:Severity:\s*|;\s*)(error|warning)\s*$/gim;
 
 /**
  * Error + warning counts from an ERC report, or null when the text is not a
@@ -25,11 +28,18 @@ export function parseErcReport(text: string): ErcCounts | null {
   if (summary) {
     return { errors: Number(summary[1]), warnings: Number(summary[2]) };
   }
-  // Fallback for exports without the summary line: count the per-violation
-  // severity markers — but only trust it if the file is plausibly ERC output.
-  if (!/\bERC\b|Severity:\s*(error|warning)/i.test(text)) return null;
-  const errors = (text.match(/Severity:\s*error/gi) ?? []).length;
-  const warnings = (text.match(/Severity:\s*warning/gi) ?? []).length;
+  // Fallback for exports without the summary line: count per-violation severity
+  // markers (both the 6–8 "Severity:" and KiCad-10 "; <sev>" shapes) — but only
+  // trust it if the file is plausibly ERC output.
+  let errors = 0;
+  let warnings = 0;
+  let sawSeverity = false;
+  for (const m of text.matchAll(SEVERITY_RE)) {
+    sawSeverity = true;
+    if (m[1].toLowerCase() === "error") errors++;
+    else warnings++;
+  }
+  if (!sawSeverity && !/\bERC\b/i.test(text)) return null;
   return { errors, warnings };
 }
 
