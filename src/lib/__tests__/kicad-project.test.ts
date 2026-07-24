@@ -48,9 +48,11 @@ describe("project — DEFAULT_BOARD_CONFIG + resolveBoardConfig", () => {
     expect(pwr.clearance).toBeGreaterThanOrEqual(def.clearance);
   });
 
-  test("Power class is assigned the +3V3/+5V/GND rails", () => {
+  test("Power class is assigned the VBUS/+3V3/+5V/GND rails", () => {
     const pwr = DEFAULT_BOARD_CONFIG.netClasses.find((c) => c.name === "Power")!;
-    expect(pwr.nets).toEqual(expect.arrayContaining(["+3V3", "+5V", "GND"]));
+    // VBUS (raw pre-fuse 5 V) must be here: the L1.01 LAYOUT lesson promises it
+    // is on the 0.5 mm Power class; a missing pattern drops it to 0.25 mm Default.
+    expect(pwr.nets).toEqual(expect.arrayContaining(["VBUS", "+3V3", "+5V", "GND"]));
   });
 
   test("resolveBoardConfig merges overrides over the defaults", () => {
@@ -104,10 +106,10 @@ describe("project — buildKicadPro golden JSON shape", () => {
     expect(pwr).not.toHaveProperty("nets");
   });
 
-  test("net_settings assigns +3V3/+5V/GND to Power via netclass_patterns (assignments map is null)", () => {
+  test("net_settings assigns VBUS/+3V3/+5V/GND to Power via netclass_patterns (assignments map is null)", () => {
     expect(pro.net_settings.netclass_assignments).toBeNull();
     const patterns = pro.net_settings.netclass_patterns as Array<{ netclass: string; pattern: string }>;
-    for (const net of ["+3V3", "+5V", "GND"]) {
+    for (const net of ["VBUS", "+3V3", "+5V", "GND"]) {
       expect(patterns).toEqual(expect.arrayContaining([{ netclass: "Power", pattern: net }]));
     }
   });

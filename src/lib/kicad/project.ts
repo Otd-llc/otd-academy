@@ -67,7 +67,11 @@ export type BoardConfig = {
  *  - Default class: 0.25 mm track, 0.2 mm clearance (comfortable for a
  *    beginner reflow/hand-solder board at typical fab minimums).
  *  - Power class: 0.5 mm track, 0.25 mm clearance (2x the Default track so
- *    rails carry more current and are easier to probe/rework).
+ *    rails carry more current and are easier to probe/rework). Carries the
+ *    supply nets a USB board actually routes: VBUS (raw 5 V from the connector,
+ *    pre-fuse), +5V (post-fuse), +3V3, and GND. The L1.01 LAYOUT lesson tells
+ *    the learner these are "already assigned to Power," so the starter must
+ *    match — a missing VBUS pattern silently drops it to the 0.25 mm Default.
  */
 export const DEFAULT_BOARD_CONFIG: BoardConfig = {
   copperLayers: 2,
@@ -92,7 +96,7 @@ export const DEFAULT_BOARD_CONFIG: BoardConfig = {
       clearance: 0.25,
       viaDiameter: 1.0,
       viaDrill: 0.5,
-      nets: ["+3V3", "+5V", "GND"],
+      nets: ["VBUS", "+3V3", "+5V", "GND"],
     },
   ],
 };
