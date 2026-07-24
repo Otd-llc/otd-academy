@@ -24,6 +24,7 @@ export function ModelViewerLazy({
   bounds,
   heightClass = "h-64",
   float = false,
+  hero = false,
   showHint = true,
 }: {
   src: string;
@@ -33,6 +34,9 @@ export function ModelViewerLazy({
   heightClass?: string;
   /** Frameless floating preview (lesson parts). Off by default. */
   float?: boolean;
+  /** Frameless showcase (finished-board hero): transparent, slow continuous spin,
+   *  zoom-only. Off by default. */
+  hero?: boolean;
   /** Float mode: render the built-in centered pill. Set false to place your own
    *  hint off-model (never over the model). */
   showHint?: boolean;
@@ -65,16 +69,16 @@ export function ModelViewerLazy({
   }, [show]);
 
   if (show) {
-    return <ModelViewer src={src} bounds={bounds} heightClass={heightClass} float={float} showHint={showHint} />;
+    return <ModelViewer src={src} bounds={bounds} heightClass={heightClass} float={float} hero={hero} showHint={showHint} />;
   }
 
-  // Float placeholder is frameless (no border/bg) so nothing flashes a box
+  // Frameless placeholder (float/hero) shows no border/bg so nothing flashes a box
   // before the transparent viewer swaps in; framed placeholder keeps its pane.
   return (
     <div
       ref={placeholderRef}
       className={`flex ${heightClass} w-full items-center justify-center font-mono text-xs text-muted ${
-        float ? "" : "rounded border border-panel-border bg-deep-space"
+        float || hero ? "" : "rounded border border-panel-border bg-deep-space"
       }`}
     >
       Loading 3D model…

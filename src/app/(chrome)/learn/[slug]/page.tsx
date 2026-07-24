@@ -1,21 +1,22 @@
-// Learner board page (Slice 4 / Task 4.3). Shows one of: Enroll (available),
-// Continue (resume at the learner's currentStage), or Locked + the prerequisite
-// list, plus an exam link once the board is COMPLETED.
+// Learner board page. Hero (locked design): the build-stage comb, the board title
+// + level gauge (real data: level, track, stages, BOM parts), the click-to-load 3D
+// board, and a state-dependent primary CTA — Enroll / Resume / View completion.
+// Below the hero: the state extras (first-board checklist, exam, locked prereqs,
+// not-open). Mobile: comb → title → board → lead → the rest (see the flatten below).
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { currentUserOrRedirect } from "@/lib/learner";
 import { learnerBoardAvailability } from "@/lib/learner-board-availability";
-import {
-  STAGE_ORDER,
-  STAGE_LABELS,
-  ENROLLMENT_STATUS_LABEL,
-  type StageName,
-} from "@/lib/stages";
+import { STAGE_LABELS, ENROLLMENT_STATUS_LABEL, type StageName } from "@/lib/stages";
+import { GUIDE_STAGES, type GuideStage } from "@/lib/guide-templates/stage-skeletons";
+import { resolveLearnerGuideProgress } from "@/lib/guide-progress";
 import type { EnrollmentStatus } from "@prisma/client";
 import { EnrollButton } from "@/components/learn/EnrollButton";
 import { FirstBoardChecklist } from "@/components/learn/FirstBoardChecklist";
-import { ModelViewerLazy } from "@/components/ModelViewerLazy";
+import { ClickToLoadBoard } from "@/components/learn/ClickToLoadBoard";
+import { PhaseComb } from "@/components/guide/PhaseComb";
 import { getArtifactRenderUrl } from "@/lib/actions/uploads";
 import { renderBoundsSchema, type RenderBounds } from "@/lib/schemas/part-asset";
 import { ChevronLeftIcon } from "@/components/icons";
@@ -24,11 +25,10 @@ function guideHref(slug: string, revLabel: string, stage: string): string {
   return `/projects/${slug}/${encodeURIComponent(revLabel)}/guide/${stage}`;
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  IN_PROGRESS: "text-command-gold",
-  COMPLETED: "text-status-green",
-  MASTERED: "text-command-gold",
-};
+const N = "font-numeral tabular-nums leading-none text-command-gold";
+const L = "font-mono uppercase tracking-[0.16em] text-muted";
+const CTA = "glass-button glass-button-cta w-full py-5 text-center font-mono text-base uppercase tracking-[0.18em]";
+const SECONDARY = "text-center font-mono text-xs uppercase tracking-[0.16em] text-command-gold underline decoration-command-gold/40 underline-offset-4 hover:text-gold-light";
 
 export default async function LearnerBoardPage({
   params,
@@ -48,7 +48,9 @@ export default async function LearnerBoardPage({
       level: true,
       track: true,
       publishedRevisionId: true,
-      publishedRevision: { select: { label: true } },
+      publishedRevision: {
+        select: { label: true, _count: { select: { bomLines: true } } },
+      },
       exam: { select: { id: true } },
     },
   });
@@ -64,15 +66,13 @@ export default async function LearnerBoardPage({
   const locked = entry ? !entry.available : false;
 
   const revLabel = project.publishedRevision?.label ?? null;
-  const stageIndex = enrollment
-    ? STAGE_ORDER.indexOf(enrollment.currentStage as StageName) + 1
-    : 0;
   const isAdmin = user.role === "ADMIN";
+  const partsCount = project.publishedRevision?._count.bomLines ?? 0;
+  const levelNum = (project.level ?? "").replace(/\D/g, "") || project.level || "·";
 
   // Completed-board 3D model: a MODEL_3D artifact on the published (reference)
-  // revision. Render the viewer when it exists (everyone sees the finished board
-  // they're building toward); show an admin-only "to be added" placeholder when
-  // it doesn't — students and the public see nothing until it's uploaded.
+  // revision. Renders as the click-to-load hero when it exists; admin-only "to be
+  // added" placeholder otherwise (students/public see nothing until it's uploaded).
   let boardModel: { src: string; bounds: RenderBounds | null } | null = null;
   if (project.publishedRevisionId) {
     const m = await db.artifact.findFirst({
@@ -96,126 +96,157 @@ export default async function LearnerBoardPage({
     }
   }
 
+  // Build-stage comb progress from the learner's currentStage (same helper the
+  // guide pages use). Not enrolled → all untouched.
+  const guideProgress = resolveLearnerGuideProgress(enrollment?.currentStage ?? null);
+  const viewingStage: GuideStage = (enrollment?.currentStage as GuideStage) ?? GUIDE_STAGES[0]!;
+  const stageIdx = enrollment ? GUIDE_STAGES.indexOf(enrollment.currentStage as GuideStage) : -1;
+  const notOpen = !project.publishedRevisionId || !revLabel;
+  const isEnrolled = !!enrollment;
+  const isDone = !!enrollment && enrollment.status !== "IN_PROGRESS";
+  // Stages cleared: in-progress = index of current; done = all.
+  const doneCount = !isEnrolled ? 0 : isDone ? GUIDE_STAGES.length : Math.max(0, stageIdx);
+
+  // Primary CTA (state-dependent).
+  let primaryCta: ReactNode = null;
+  if (!notOpen && revLabel) {
+    if (!isEnrolled && !locked) {
+      primaryCta = (
+        <EnrollButton
+          projectId={project.id}
+          continueHref={guideHref(project.slug, revLabel, "REQUIREMENTS")}
+          label="Start building →"
+          busyLabel="Starting…"
+          className={CTA}
+        />
+      );
+    } else if (isEnrolled && !isDone) {
+      primaryCta = (
+        <Link href={guideHref(project.slug, revLabel, enrollment!.currentStage)} className={CTA}>
+          Resume the build →
+        </Link>
+      );
+    } else if (isEnrolled && isDone) {
+      primaryCta = (
+        <Link href={`/learn/${project.slug}/complete`} className={CTA}>
+          View completion →
+        </Link>
+      );
+    }
+  }
+  const secondary =
+    !notOpen && revLabel && !isEnrolled && !locked ? (
+      <Link href={guideHref(project.slug, revLabel, "REQUIREMENTS")} className={SECONDARY}>
+        Preview the guide first
+      </Link>
+    ) : null;
+
   return (
-    <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+    <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
       <nav className="mb-6 font-mono text-xs uppercase tracking-wider">
         <Link
           href="/learn"
-          className="group inline-flex items-center gap-1.5 text-muted group-hover:text-gold-light hover:text-gold-light focus-visible:outline-none focus-visible:text-gold-light"
+          className="group inline-flex items-center gap-1.5 text-muted hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
         >
           <ChevronLeftIcon className="h-4 w-4" />
           My learning
         </Link>
       </nav>
 
-      <div className="border-b border-command-gold/30 pb-6">
-        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
-          ▸ Board · {project.slug}
-          {project.level ? ` · ${project.level}` : ""}
-          {project.track ? ` · ${project.track}` : ""}
-        </p>
-        <h1 className="mt-2 title-hero">
-          {project.name}
-        </h1>
-        {project.description && (
-          <p className="mt-3 font-serif text-base leading-relaxed text-text">
-            {project.description}
-          </p>
-        )}
-      </div>
-
-      {/* Provisioning reassurance — set expectations out of the gate. */}
-      <p className="mt-4 font-mono text-xs uppercase tracking-wider text-status-green">
-        ✓ All parts, symbols &amp; footprints provided · download-ready
-      </p>
-      {/* Completed-board 3D: the hero render once it exists; an admin-only
-          placeholder until then (learners/public see nothing). */}
-      {boardModel ? (
-        <div className="mt-4">
-          <ModelViewerLazy src={boardModel.src} bounds={boardModel.bounds} />
-        </div>
-      ) : isAdmin ? (
-        <div className="mt-4 flex flex-col items-center justify-center gap-2 rounded border border-dashed border-panel-border bg-deep-space/40 px-6 py-8 text-center">
-          <span className="font-mono text-xs uppercase tracking-wider text-muted">
-            3D model · to be added
-          </span>
-          <span className="max-w-md font-serif text-sm text-muted">
-            Upload a MODEL_3D artifact on the published revision to show the
-            finished board here. Admins only · hidden from learners until it
-            exists.
-          </span>
-        </div>
-      ) : null}
-
-      <section className="mt-8 border-t border-panel-border/60 pt-6">
-        {!project.publishedRevisionId || !revLabel ? (
-          <p className="font-mono text-sm uppercase tracking-wider text-muted">
-            This board isn’t open for enrollment yet.
-          </p>
-        ) : enrollment ? (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="font-mono text-xs uppercase tracking-wider text-muted">
-                Status ·{" "}
-                <span className={STATUS_COLOR[enrollment.status] ?? "text-text"}>
-                  {ENROLLMENT_STATUS_LABEL[enrollment.status as EnrollmentStatus] ??
-                    enrollment.status}
-                </span>
+      {/* ── HERO ── two desktop columns; on mobile the columns flatten (via
+          display:contents) into: comb → title → board → lead → the rest. */}
+      <section>
+        <div className="grid grid-cols-1 gap-y-4 lg:grid-cols-2 lg:items-start lg:gap-x-10 lg:gap-y-0">
+          {/* LEFT column (desktop) */}
+          <div className="contents lg:flex lg:flex-col lg:gap-5">
+            {/* title block — mobile #2 */}
+            <div className="order-2 flex flex-col gap-4">
+              <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-command-gold">
+                Board{project.level ? ` · ${project.level}` : ""}
+                {project.track ? ` · ${project.track}` : ""}
               </p>
-              <p className="font-mono text-xs uppercase tracking-wider text-muted">
-                Stage{" "}
-                <span className="font-numeral tabular-nums">{stageIndex}</span> /{" "}
-                <span className="font-numeral tabular-nums">
-                  {STAGE_ORDER.length}
-                </span>{" "}
-                · {STAGE_LABELS[enrollment.currentStage as StageName]}
+              <h1 className="title-hero max-lg:text-[2rem] max-lg:leading-[0.95]">{project.name}</h1>
+            </div>
+            {/* lead — mobile #4 */}
+            {project.description ? (
+              <p className="order-4 font-serif text-base leading-relaxed text-muted">{project.description}</p>
+            ) : null}
+            {/* the rest — mobile #5 */}
+            <div className="order-5 flex flex-col gap-5">
+              {/* Level gauge (real data). */}
+              <div className="flex items-center gap-5">
+                <div className="shrink-0 text-center">
+                  <p className={`${L} text-[9px]`}>Level</p>
+                  <p className={`${N} text-6xl max-lg:text-5xl`}>{levelNum}</p>
+                  {project.track ? <p className={`${L} text-[9px]`}>{project.track.toLowerCase()}</p> : null}
+                </div>
+                <div className="h-14 w-px bg-panel-border/60" />
+                <p className="font-mono text-[11px] uppercase leading-relaxed tracking-[0.14em] text-muted">
+                  {GUIDE_STAGES.length} stages
+                  <br />
+                  {partsCount} parts
+                </p>
+              </div>
+              {primaryCta}
+              {secondary}
+              <p className="font-mono text-xs uppercase tracking-wider text-status-green">
+                ✓ All parts, symbols &amp; footprints provided · download-ready
               </p>
             </div>
-            <Link
-              href={guideHref(project.slug, revLabel, enrollment.currentStage)}
-              className="inline-flex items-center gap-1.5 rounded border border-command-gold bg-deep-space px-4 py-2 font-mono text-xs uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space"
-            >
-              Continue
-            </Link>
-            <FirstBoardChecklist
-              slug={project.slug}
-              revLabel={revLabel}
-              currentStage={enrollment.currentStage}
-            />
-            {enrollment.status !== "IN_PROGRESS" && (
-              <div className="border-t border-panel-border pt-4">
-                <Link
-                  href={`/learn/${project.slug}/complete`}
-                  className="font-mono text-xs uppercase tracking-[0.18em] text-command-gold hover:text-gold-light focus-visible:outline-none focus-visible:text-gold-light"
-                >
-                  View completion
-                </Link>
-              </div>
-            )}
-            {enrollment.status !== "IN_PROGRESS" && project.exam && (
-              <div className="border-t border-panel-border pt-4">
-                <Link
-                  href={`/learn/${project.slug}/exam`}
-                  className="glass-button inline-flex items-center gap-1.5 px-4 py-2 font-mono text-xs uppercase tracking-wider"
-                >
-                  {enrollment.status === "MASTERED"
-                    ? "Review exam"
-                    : "Take the final exam"}
-                </Link>
-              </div>
-            )}
           </div>
-        ) : locked ? (
+
+          {/* RIGHT column (desktop) */}
+          <div className="contents lg:flex lg:flex-col lg:gap-3">
+            {/* comb — mobile #1. Progress readout is desktop-only + only when enrolled. */}
+            {revLabel ? (
+              <div className="order-1 flex flex-col gap-3">
+                {isEnrolled ? (
+                  <p className="hidden text-center font-mono text-[11px] uppercase tracking-[0.2em] text-muted lg:block">
+                    <span className="font-numeral text-2xl tabular-nums text-command-gold">{doneCount}</span> /{" "}
+                    <span className="font-numeral text-2xl tabular-nums text-muted">{GUIDE_STAGES.length}</span> stages ·{" "}
+                    {STAGE_LABELS[enrollment!.currentStage as StageName]}
+                  </p>
+                ) : null}
+                <PhaseComb
+                  slug={project.slug}
+                  revLabel={revLabel}
+                  stages={guideProgress}
+                  viewingStage={viewingStage}
+                  variant="footer"
+                />
+              </div>
+            ) : null}
+            {/* board — mobile #3 */}
+            {boardModel ? (
+              <div className="order-3">
+                <ClickToLoadBoard poster={`/board-posters/${project.slug}.png`} src={boardModel.src} bounds={boardModel.bounds} />
+              </div>
+            ) : isAdmin ? (
+              <div className="order-3 flex flex-col items-center justify-center gap-2 rounded border border-dashed border-panel-border bg-deep-space/40 px-6 py-8 text-center">
+                <span className="font-mono text-xs uppercase tracking-wider text-muted">3D model · to be added</span>
+                <span className="max-w-md font-serif text-sm text-muted">
+                  Upload a MODEL_3D artifact on the published revision to show the finished board here. Admins only ·
+                  hidden from learners until it exists.
+                </span>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      {/* ── STATE EXTRAS below the hero ── */}
+      <section className="mt-10 border-t border-panel-border/60 pt-6">
+        {notOpen ? (
+          <p className="font-mono text-sm uppercase tracking-wider text-muted">This board isn’t open for enrollment yet.</p>
+        ) : locked && !isEnrolled ? (
           <div className="space-y-3">
-            <p className="font-mono text-sm uppercase tracking-wider text-alert-red">
-              Locked · finish these boards first:
-            </p>
+            <p className="font-mono text-sm uppercase tracking-wider text-alert-red">Locked · finish these boards first:</p>
             <ul className="space-y-1">
               {entry?.missingPrereqs.map((p) => (
                 <li key={p.id} className="group font-mono text-sm">
                   <Link
                     href={`/learn/${p.slug}`}
-                    className="text-title group-hover:text-gold-light focus-visible:outline-none focus-visible:text-gold-light"
+                    className="text-title group-hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
                   >
                     {p.name}
                   </Link>
@@ -223,17 +254,27 @@ export default async function LearnerBoardPage({
               ))}
             </ul>
           </div>
-        ) : (
-          <div className="space-y-3">
-            <p className="font-mono text-sm uppercase tracking-wider text-muted">
-              Ready to start.
+        ) : isEnrolled ? (
+          <div className="space-y-4">
+            <p className="font-mono text-xs uppercase tracking-wider text-muted">
+              Status ·{" "}
+              <span className={isDone ? "text-status-green" : "text-command-gold"}>
+                {ENROLLMENT_STATUS_LABEL[enrollment!.status as EnrollmentStatus] ?? enrollment!.status}
+              </span>
             </p>
-            <EnrollButton
-              projectId={project.id}
-              continueHref={guideHref(project.slug, revLabel, "REQUIREMENTS")}
-            />
+            {revLabel ? (
+              <FirstBoardChecklist slug={project.slug} revLabel={revLabel} currentStage={enrollment!.currentStage} />
+            ) : null}
+            {isDone && project.exam ? (
+              <Link
+                href={`/learn/${project.slug}/exam`}
+                className="glass-button inline-flex items-center gap-1.5 px-4 py-2 font-mono text-xs uppercase tracking-wider"
+              >
+                {enrollment!.status === "MASTERED" ? "Review exam" : "Take the final exam"}
+              </Link>
+            ) : null}
           </div>
-        )}
+        ) : null}
       </section>
     </main>
   );
