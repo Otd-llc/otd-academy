@@ -9,12 +9,10 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { currentUserOrRedirect } from "@/lib/learner";
 import { learnerBoardAvailability } from "@/lib/learner-board-availability";
-import { STAGE_LABELS, ENROLLMENT_STATUS_LABEL, type StageName } from "@/lib/stages";
+import { STAGE_LABELS, type StageName } from "@/lib/stages";
 import { GUIDE_STAGES, type GuideStage } from "@/lib/guide-templates/stage-skeletons";
 import { resolveLearnerGuideProgress } from "@/lib/guide-progress";
-import type { EnrollmentStatus } from "@prisma/client";
 import { EnrollButton } from "@/components/learn/EnrollButton";
-import { FirstBoardChecklist } from "@/components/learn/FirstBoardChecklist";
 import { ClickToLoadBoard } from "@/components/learn/ClickToLoadBoard";
 import { PhaseComb } from "@/components/guide/PhaseComb";
 import { getArtifactRenderUrl } from "@/lib/actions/uploads";
@@ -106,6 +104,7 @@ export default async function LearnerBoardPage({
   const isDone = !!enrollment && enrollment.status !== "IN_PROGRESS";
   // Stages cleared: in-progress = index of current; done = all.
   const doneCount = !isEnrolled ? 0 : isDone ? GUIDE_STAGES.length : Math.max(0, stageIdx);
+  const hasExtras = notOpen || (locked && !isEnrolled) || (isDone && !!project.exam);
 
   // Primary CTA (state-dependent).
   let primaryCta: ReactNode = null;
@@ -234,48 +233,38 @@ export default async function LearnerBoardPage({
         </div>
       </section>
 
-      {/* ── STATE EXTRAS below the hero ── */}
-      <section className="mt-10 border-t border-panel-border/60 pt-6">
-        {notOpen ? (
-          <p className="font-mono text-sm uppercase tracking-wider text-muted">This board isn’t open for enrollment yet.</p>
-        ) : locked && !isEnrolled ? (
-          <div className="space-y-3">
-            <p className="font-mono text-sm uppercase tracking-wider text-alert-red">Locked · finish these boards first:</p>
-            <ul className="space-y-1">
-              {entry?.missingPrereqs.map((p) => (
-                <li key={p.id} className="group font-mono text-sm">
-                  <Link
-                    href={`/learn/${p.slug}`}
-                    className="text-title group-hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
-                  >
-                    {p.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : isEnrolled ? (
-          <div className="space-y-4">
-            <p className="font-mono text-xs uppercase tracking-wider text-muted">
-              Status ·{" "}
-              <span className={isDone ? "text-status-green" : "text-command-gold"}>
-                {ENROLLMENT_STATUS_LABEL[enrollment!.status as EnrollmentStatus] ?? enrollment!.status}
-              </span>
-            </p>
-            {revLabel ? (
-              <FirstBoardChecklist slug={project.slug} revLabel={revLabel} currentStage={enrollment!.currentStage} />
-            ) : null}
-            {isDone && project.exam ? (
-              <Link
-                href={`/learn/${project.slug}/exam`}
-                className="glass-button inline-flex items-center gap-1.5 px-4 py-2 font-mono text-xs uppercase tracking-wider"
-              >
-                {enrollment!.status === "MASTERED" ? "Review exam" : "Take the final exam"}
-              </Link>
-            ) : null}
-          </div>
-        ) : null}
-      </section>
+      {/* ── STATE EXTRAS below the hero ── only genuinely-extra content (the comb +
+          hero CTA already convey progress + status, so no duplicate progress list). */}
+      {hasExtras ? (
+        <section className="mt-10 border-t border-panel-border/60 pt-6">
+          {notOpen ? (
+            <p className="font-mono text-sm uppercase tracking-wider text-muted">This board isn’t open for enrollment yet.</p>
+          ) : locked && !isEnrolled ? (
+            <div className="space-y-3">
+              <p className="font-mono text-sm uppercase tracking-wider text-alert-red">Locked · finish these boards first:</p>
+              <ul className="space-y-1">
+                {entry?.missingPrereqs.map((p) => (
+                  <li key={p.id} className="group font-mono text-sm">
+                    <Link
+                      href={`/learn/${p.slug}`}
+                      className="text-title group-hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
+                    >
+                      {p.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : isDone && project.exam ? (
+            <Link
+              href={`/learn/${project.slug}/exam`}
+              className="glass-button inline-flex items-center gap-1.5 px-4 py-2 font-mono text-xs uppercase tracking-wider"
+            >
+              {enrollment!.status === "MASTERED" ? "Review exam" : "Take the final exam"}
+            </Link>
+          ) : null}
+        </section>
+      ) : null}
     </main>
   );
 }
