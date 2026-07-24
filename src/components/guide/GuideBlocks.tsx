@@ -3,11 +3,13 @@
 //
 // SERVER COMPONENT (no "use client"). Two reasons it stays server:
 //   1. `prose` blocks are sanitized with `sanitize-html` — a server-side
-//      concern. We reuse the exact allow-list pattern from
-//      `src/lib/actions/artifacts.ts` (`sanitizeNote`): markdown source is the
-//      storage format, so we strip ALL tags to plain text and render it as
-//      text (whitespace-pre-wrap) rather than via dangerouslySetInnerHTML. The
-//      repo ships no markdown→HTML renderer (see ErrataItem's plain
+//      concern (`sanitizeProse` in @/lib/sanitize-prose, unit-tested). Same
+//      allow-list shape as `src/lib/actions/artifacts.ts` (`sanitizeNote`) —
+//      markdown source is the storage format, so we strip ALL tags to plain
+//      text and render it as text rather than via dangerouslySetInnerHTML —
+//      but it then decodes the bare < > & that sanitize-html entity-encodes,
+//      so literal comparison/hotkey glyphs survive (React re-escapes at the
+//      DOM). The repo ships no markdown→HTML renderer (see ErrataItem's plain
 //      whitespace-pre-wrap description), so this matches the established
 //      convention and is XSS-safe by construction.
 //   2. The only interactive leaf, `termRef`, renders <GlossaryTerm> — itself a
@@ -18,8 +20,8 @@
 // than crashing the page.
 
 import { Fragment, type ReactNode } from "react";
-import sanitizeHtml from "sanitize-html";
 import type { ContentBlock } from "@/lib/schemas/guide";
+import { sanitizeProse } from "@/lib/sanitize-prose";
 import {
   scanIslands,
   RAIL_MIN_ISLANDS,
@@ -188,14 +190,7 @@ function DkAvailabilityBadge({
 // Strict allow-list mirrors `sanitizeNote` in artifacts.ts: drop every tag so
 // the prose markdown source can never inject HTML. The output is plain text
 // (or pure markdown punctuation), rendered with whitespace preserved.
-function sanitizeProse(md: string): string {
-  return sanitizeHtml(md, {
-    allowedTags: [],
-    allowedAttributes: {},
-    disallowedTagsMode: "discard",
-    nonTextTags: ["script", "style", "textarea", "noscript"],
-  });
-}
+// `sanitizeProse` lives in @/lib/sanitize-prose (pure + unit-tested there).
 
 // Map the schema's callout severity → the bench `.callout` modifier class.
 const SEVERITY_CLASS: Record<"critical" | "warn" | "info", string> = {
