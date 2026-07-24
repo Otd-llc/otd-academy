@@ -5,7 +5,13 @@
 // shouldn't gate them — only real errors (clearance, track width, unconnected)
 // must be zero. KiCad lists each violation with `; Severity: error|warning`, and
 // closes each section with a `** Found N … **` summary (DRC violations +
-// unconnected items + parity issues). PURE: no DB / IO.
+// unconnected items + parity issues). Note the summary lumps errors+warnings
+// together, so the pass/fail split MUST come from the per-violation severity.
+// KiCad marks that severity differently across versions:
+//   6–8:       "[rule]: <msg> ; Severity: warning"
+//   KiCad 10:  "Rule: <name>; warning"  /  "Local override; error"
+//              (the severity word ENDS the Rule/override line — no "Severity:")
+// We accept BOTH. PURE: no DB / IO.
 
 export interface DrcCounts {
   errors: number;
@@ -14,28 +20,34 @@ export interface DrcCounts {
 
 // Every KiCad DRC summary line: "** Found <n> <kind> **".
 const FOUND_RE = /\*\*\s*Found\s+(\d+)\b/gi;
+// A per-violation severity marker, either "Severity: <sev>" (6–8) or a bare
+// "; <sev>" that ends the Rule/override line (KiCad 10). Line-anchored so a
+// stray "; error" inside a description doesn't false-match.
+const SEVERITY_RE = /(?:Severity:\s*|;\s*)(error|warning)\s*$/gim;
 
 /**
  * Error + warning counts from a DRC report, or null when the text isn't a
  * recognizable DRC report — so a random/empty file fails loudly rather than
- * passing blind. Errors are the per-violation `Severity: error` markers (these
- * include clearance/width/unconnected); warnings are `Severity: warning`. A clean
+ * passing blind. Errors are the per-violation error-severity markers (these
+ * include clearance/width/unconnected); warnings are warning-severity. A clean
  * export has only `** Found 0 … **` lines and no severity markers → 0/0.
  */
 export function parseDrcReport(text: string): DrcCounts | null {
-  const hasSeverity = /Severity:\s*(error|warning)/i.test(text);
+  let errors = 0;
+  let warnings = 0;
+  let sawSeverity = false;
+  for (const m of text.matchAll(SEVERITY_RE)) {
+    sawSeverity = true;
+    if (m[1].toLowerCase() === "error") errors++;
+    else warnings++;
+  }
   const found = [...text.matchAll(FOUND_RE)];
   const recognizable =
     found.length > 0 ||
-    hasSeverity ||
+    sawSeverity ||
     /\bDRC\b|Drc report|design rule/i.test(text);
   if (!recognizable) return null;
-  if (hasSeverity) {
-    return {
-      errors: (text.match(/Severity:\s*error/gi) ?? []).length,
-      warnings: (text.match(/Severity:\s*warning/gi) ?? []).length,
-    };
-  }
+  if (sawSeverity) return { errors, warnings };
   // No per-violation severities (a summary-only export). Conservatively treat the
   // summed "Found N" totals as errors so a nonzero count still blocks.
   return {
