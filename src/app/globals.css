@@ -603,17 +603,32 @@ body {
   mask-repeat: no-repeat;
 }
 
-/* A completed hex: gold wash instead of the honey slab, so a board sits on it
-   without fighting a solid gold plate. The shipped `.gh-node.done` ink is DARK,
-   sized for that slab — over a wash it is dark-on-dark, so the title and chip
-   have to be re-pointed here or the completed course becomes unreadable. */
-.sk-lean .ghp-cell.done .ghp-face {
+/* A completed hex: gold wash instead of the honey slab, so artwork sits on it
+   without fighting a solid gold plate. Applies to BOTH combs — the skill tree
+   (a board render) and the build-guide hub (the stage's artifact). It was
+   `.sk-lean`-scoped when only /courses carried art; register item A11.
+
+   The shipped `.gh-node.done` ink is DARK, sized for the honey slab. Over a wash
+   it is dark-on-dark, so every rung of it has to be re-pointed or a completed
+   cell becomes unreadable. The LEAD is the one that only bites the hub: the
+   skill tree hides `.gh-lead` entirely (`.sk-lean`), so a dark tagline could
+   never show there. */
+.ghp-cell.done .ghp-face {
   fill: color-mix(in srgb, var(--color-command-gold) 14%, var(--color-deep-space));
 }
-.sk-lean .gh-node.done .gh-title { color: var(--color-title); }
-.sk-lean .gh-node.done .gh-chip {
+.gh-node.done .gh-title { color: var(--color-title); }
+.gh-node.done .gh-lead { color: var(--color-muted); }
+.gh-node.done .gh-chip {
   background: var(--color-command-gold);
   color: var(--color-deep-space);
+}
+/* The pre-measure shells (flat `.gh-hex`, per-cell `.gh-3d`) draw before the
+   scene exists, so they carry the honey fill too and would flash a gold slab
+   under the artwork on first paint. */
+.gh-node.done .gh-hex polygon,
+.gh-node.done .gh-3d .gh-top {
+  fill: color-mix(in srgb, var(--color-command-gold) 14%, var(--color-deep-space));
+  stroke: var(--color-command-gold);
 }
 
 /* PathHoneycomb — the /courses "Go further" destinations: track-stroked hexes
@@ -1553,4 +1568,5 @@ body {
     display: none !important;
   }
 }
+
 
