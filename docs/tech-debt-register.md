@@ -69,6 +69,24 @@ Status: `open` · `in progress` · `accept/monitor` · `needs maintainer` (infra
 - **A10 · Branch sprawl.** 14 local / 10 remote branches. → Prune merged/dead branches.
 
 ### P3
+
+- **A11 · The build-guide hub's completed hexes still use the honey slab (`open`).**
+  `/courses` completed hexes moved to a gold WASH (#367) so a board render can sit on
+  them; the fix is scoped to `.sk-lean`, so the hub (#368) never got it. A printed BOM
+  sheet or schematic page on a solid gold plate reads muddy. Deliberately not smuggled
+  into #368 — it changes how every completed stage looks, so it wants its own sandbox
+  round. **Note the trap if it is taken:** the shipped `.gh-node.done` ink is DARK,
+  sized for the slab; over a wash it is dark-on-dark, so title → ivory and chip → solid
+  gold must move with it or a completed stage becomes unreadable.
+
+- **A12 · `/learn` board art is on a different camera from the combs (`open`).** Both
+  honeycombs render boards at tilt 45 / spin 25 (`board-posters/comb/`), while the
+  `/learn` ladder + board hero still use the original tilt 45 / spin 45
+  (`board-posters/`). Two poster sets exist on purpose rather than by oversight —
+  unifying means re-rendering the ladder art and eyeballing that composition, because
+  the ladder's frame-breaking layout was tuned to the old silhouette. Rebuild flags for
+  the comb camera are in `src/lib/guide-stage-art.ts`.
+
 - 8 `any`, 2 `@ts-ignore` — minor; ESLint (A1) will surface these.
 - 26 `TODO/FIXME` — mostly intentional authoring-stub markers (the lesson-readiness gate keys
   off the literal "TODO"); benign, but worth an occasional sweep.
