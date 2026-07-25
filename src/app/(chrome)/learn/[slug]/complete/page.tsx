@@ -19,6 +19,9 @@ import { GUIDE_STAGES } from "@/lib/guide-templates/stage-skeletons";
 import { goldenReferenceFromRows } from "@/lib/golden-reference-load";
 import { type GoldenReference } from "@/lib/golden-reference";
 import { GoldenReferencePanel } from "@/components/GoldenReferencePanel";
+import { ClickToLoadBoard } from "@/components/learn/ClickToLoadBoard";
+import { getArtifactRenderUrl } from "@/lib/actions/uploads";
+import { renderBoundsSchema, type RenderBounds } from "@/lib/schemas/part-asset";
 
 export default async function LessonCompletePage({
   params,
@@ -160,6 +163,32 @@ export default async function LessonCompletePage({
     await recordCertificate(shareToken, claims, user.id); // make the code checkable
   }
 
+  // The finished board itself — the reward. Same MODEL_3D artifact the /learn hero
+  // resolves (published rev, buildId null, renderKey set); hero viewer = transparent,
+  // slow spin, zoom-only. Absent → the section simply doesn't render.
+  let boardModel: { src: string; bounds: RenderBounds | null } | null = null;
+  if (project.publishedRevisionId) {
+    const m = await db.artifact.findFirst({
+      where: {
+        revisionId: project.publishedRevisionId,
+        buildId: null,
+        subkind: "MODEL_3D",
+        renderKey: { not: null },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, renderBounds: true },
+    });
+    if (m) {
+      const src = await getArtifactRenderUrl(m.id);
+      if (src) {
+        boardModel = {
+          src,
+          bounds: renderBoundsSchema.safeParse(m.renderBounds).data ?? null,
+        };
+      }
+    }
+  }
+
   return (
     <main className="relative mx-auto flex min-h-[80svh] max-w-3xl flex-col items-center gap-8 px-4 py-16 text-center sm:px-6">
       {/* Thank-you banner after a successful tip checkout (?tipped=1). */}
@@ -188,6 +217,16 @@ export default async function LessonCompletePage({
       >
         <div className="signin-bar-fill h-full bg-command-gold" />
       </div>
+
+      {/* The reward: the finished board, spinning. Zoom-only, no background. */}
+      {boardModel && (
+        <div
+          className="signin-rise w-full max-w-2xl"
+          style={{ animationDelay: "170ms" }}
+        >
+          <ClickToLoadBoard poster={`/board-posters/${project.slug}.png`} src={boardModel.src} bounds={boardModel.bounds} heightClass="h-80" />
+        </div>
+      )}
 
       {/* The certificate itself, shown on the page, with download + share */}
       {shareToken && (

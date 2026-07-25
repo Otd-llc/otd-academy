@@ -13,6 +13,7 @@ export function EnrollButton({
   label = "Enroll",
   busyLabel = "Enrolling…",
   cta = false,
+  className,
 }: {
   projectId: string;
   continueHref: string;
@@ -22,6 +23,8 @@ export function EnrollButton({
   busyLabel?: string;
   /** Render as the solid-gold primary CTA instead of the gold-outline secondary. */
   cta?: boolean;
+  /** Override the button classes entirely (e.g. the big full-width hero CTA). */
+  className?: string;
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +47,10 @@ export function EnrollButton({
             }
           })
         }
-        className={`${cta ? "glass-button-cta" : "glass-button"} inline-flex items-center gap-1.5 px-4 py-2 font-mono text-xs uppercase tracking-wider`}
+        className={
+          className ??
+          `${cta ? "glass-button-cta" : "glass-button"} inline-flex items-center gap-1.5 px-4 py-2 font-mono text-xs uppercase tracking-wider`
+        }
       >
         {pending ? busyLabel : label}
       </button>

@@ -4,8 +4,12 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
+import { LearnLadder } from "@/components/learn/LearnLadder";
+import { LibraryStanding } from "@/components/learn/LibraryStanding";
 import { DunningBanner } from "@/components/billing/DunningBanner";
 import { pastDueSubscription } from "@/lib/past-due-subscription";
+import { getLearnLibraryStanding } from "@/lib/logbook/load";
+import { boardPoster } from "@/lib/board-posters";
 import { currentUserOrRedirect } from "@/lib/learner";
 import { learnerBoardAvailability } from "@/lib/learner-board-availability";
 import {
@@ -32,6 +36,7 @@ export default async function LearnerHomePage() {
       status: true,
       currentStage: true,
       projectId: true,
+      revision: { select: { label: true } },
       project: { select: { slug: true, name: true, exam: { select: { id: true } } } },
       quizPasses: { select: { stage: true } },
       examResults: {
@@ -46,6 +51,35 @@ export default async function LearnerHomePage() {
   // same scan three times (here, an ids-only copy, and inside availability).
   const enrolledProjectIds = new Set(enrollments.map((e) => e.projectId));
 
+  // Ladder rows — latest-activity board (index 0; ordered startedAt desc above)
+  // is the one the selector opens on. Poster gated to slugs with a baked asset.
+  const ladderBoards = enrollments.map((e) => {
+    const exam = e.examResults[0];
+    const done = e.status === "COMPLETED" || e.status === "MASTERED";
+    const revLabel = e.revision?.label ?? null;
+    // Resume INTO the build — the guide at the current stage — not the board-detail
+    // page (which just re-states this row). Completed → the completion page.
+    const href = done
+      ? `/learn/${e.project.slug}/complete`
+      : revLabel
+        ? `/projects/${e.project.slug}/${encodeURIComponent(revLabel)}/guide/${e.currentStage}`
+        : `/learn/${e.project.slug}`;
+    return {
+      slug: e.project.slug,
+      name: e.project.name,
+      href,
+      statusLabel: ENROLLMENT_STATUS_LABEL[e.status as EnrollmentStatus] ?? e.status,
+      statusColor: STATUS_COLOR[e.status] ?? "text-text",
+      done,
+      stageIndex: STAGE_ORDER.indexOf(e.currentStage as StageName) + 1,
+      totalStages: STAGE_ORDER.length,
+      phase: STAGE_LABELS[e.currentStage as StageName],
+      checks: e.quizPasses.length,
+      poster: boardPoster(e.project.slug),
+      exam: exam ? { score: exam.score, total: exam.total, passed: exam.passed } : null,
+    };
+  });
+
   const availability = await learnerBoardAvailability(
     user.id,
     enrollments.map((e) => ({ projectId: e.projectId, status: e.status })),
@@ -58,13 +92,16 @@ export default async function LearnerHomePage() {
   });
   const notEnrolled = browsable.filter((p) => !enrolledProjectIds.has(p.id));
 
+  // Subordinate Library standing (owner-picked L1 strip) — rank + lessons read +
+  // the single resume lesson. Null when no public library lessons exist.
+  const libraryStanding = await getLearnLibraryStanding(user.id);
+
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       {pastDue ? <DunningBanner /> : null}
       <PageHeader
         eyebrow="YOUR PROGRESS"
         title="My learning"
-        accentWord="learning"
         lead="Your enrolled boards and where each one stands."
       />
 
@@ -77,54 +114,7 @@ export default async function LearnerHomePage() {
             Not enrolled in any board yet. Pick one below.
           </p>
         ) : (
-          <ul className="mt-4 border-t border-panel-border/60">
-            {enrollments.map((e) => {
-              const stageIndex =
-                STAGE_ORDER.indexOf(e.currentStage as StageName) + 1;
-              const exam = e.examResults[0];
-              return (
-                <li
-                  key={e.project.slug}
-                  className="group border-b border-panel-border/60 py-6 hover:bg-command-gold/[0.04] focus-within:bg-command-gold/[0.06]"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Link
-                      href={`/learn/${e.project.slug}`}
-                      className="title-card group-hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
-                    >
-                      {e.project.name}
-                    </Link>
-                    <span
-                      className={`font-mono text-xs uppercase tracking-wider ${
-                        STATUS_COLOR[e.status] ?? "text-text"
-                      }`}
-                    >
-                      {ENROLLMENT_STATUS_LABEL[e.status as EnrollmentStatus] ?? e.status}
-                    </span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 font-mono text-xs uppercase tracking-wider text-muted">
-                    <span>
-                      Stage <span className="font-numeral tabular-nums">{stageIndex}</span> /{" "}
-                      <span className="font-numeral tabular-nums">{STAGE_ORDER.length}</span> ·{" "}
-                      {STAGE_LABELS[e.currentStage as StageName]}
-                    </span>
-                    <span>
-                      <span className="font-numeral tabular-nums">{e.quizPasses.length}</span> checks passed
-                    </span>
-                    {exam && (
-                      <span
-                        className={
-                          exam.passed ? "text-status-green" : "text-alert-red"
-                        }
-                      >
-                        Exam <span className="font-numeral tabular-nums">{exam.score}/{exam.total}</span>
-                      </span>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          <LearnLadder boards={ladderBoards} />
         )}
       </section>
 
@@ -164,6 +154,8 @@ export default async function LearnerHomePage() {
           </ul>
         )}
       </section>
+
+      {libraryStanding ? <LibraryStanding standing={libraryStanding} /> : null}
     </main>
   );
 }
