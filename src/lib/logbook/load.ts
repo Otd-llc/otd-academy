@@ -327,3 +327,68 @@ export async function getLibraryResume(
   if (firstUncompleted) return { mode: "next", slug: firstUncompleted };
   return { mode: "restart", slug: orderedSlugs[0] };
 }
+
+// ── The "My learning" library strip (design: the subordinate Library standing
+// under the board ladder). One compact standing: rank (FL/title/xpTotal),
+// overall lessons read, and the single resume lesson (title + cluster) to link.
+// Deliberately lighter than the /library page — it never loads contentBlocks or
+// the full cluster grouping; just the progress-relevant columns + 3 user reads.
+export type LearnLibraryStanding = {
+  doneCount: number;
+  totalCount: number;
+  rank: { level: number; title: string; xpTotal: number };
+  resume:
+    | { slug: string; title: string; clusterLabel: string | null; mode: ResumeMode }
+    | null;
+};
+
+export async function getLearnLibraryStanding(
+  userId: string,
+): Promise<LearnLibraryStanding | null> {
+  const lessons = await db.miniLesson.findMany({
+    where: { published: true, accessTier: "PUBLIC" },
+    select: { slug: true, title: true, cluster: true, clusterOrdinal: true },
+  });
+  if (lessons.length === 0) return null;
+
+  // Cluster-major order (registry order, then within-cluster ordinal) — the same
+  // order /library flattens in, so the resume pick matches that page.
+  const clusterRank = new Map(LIBRARY_CLUSTERS.map((c, i) => [c.key, i]));
+  const ordered = [...lessons].sort((a, b) => {
+    const ca = a.cluster ? clusterRank.get(a.cluster) ?? 99 : 99;
+    const cb = b.cluster ? clusterRank.get(b.cluster) ?? 99 : 99;
+    return ca - cb || a.clusterOrdinal - b.clusterOrdinal;
+  });
+  const orderedSlugs = ordered.map((l) => l.slug);
+  const slugSet = new Set(orderedSlugs);
+
+  const [resume, completions, user] = await Promise.all([
+    getLibraryResume(userId, orderedSlugs),
+    db.lessonCompletion.findMany({ where: { userId }, select: { lessonSlug: true } }),
+    db.user.findUnique({ where: { id: userId }, select: { xpTotal: true } }),
+  ]);
+
+  const doneCount = completions.reduce(
+    (n, c) => n + (slugSet.has(c.lessonSlug) ? 1 : 0),
+    0,
+  );
+  const rank = levelFor(user?.xpTotal ?? 0);
+  const resumeLesson = resume
+    ? ordered.find((l) => l.slug === resume.slug) ?? null
+    : null;
+
+  return {
+    doneCount,
+    totalCount: orderedSlugs.length,
+    rank: { level: rank.level, title: rank.title, xpTotal: user?.xpTotal ?? 0 },
+    resume:
+      resume && resumeLesson
+        ? {
+            slug: resume.slug,
+            title: resumeLesson.title,
+            clusterLabel: clusterByKey(resumeLesson.cluster)?.label ?? null,
+            mode: resume.mode,
+          }
+        : null,
+  };
+}

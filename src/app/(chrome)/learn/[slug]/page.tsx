@@ -172,7 +172,8 @@ export default async function LearnerBoardPage({
             ) : null}
             {/* the rest — mobile #5 */}
             <div className="order-5 flex flex-col gap-5">
-              {/* Level gauge (real data). */}
+              {/* Level gauge (real data). The "all parts provided" reassurance sits
+                  in the gauge row's empty right space (above the CTA), not below it. */}
               <div className="flex items-center gap-5">
                 <div className="shrink-0 text-center">
                   <p className={`${L} text-[9px]`}>Level</p>
@@ -180,17 +181,17 @@ export default async function LearnerBoardPage({
                   {project.track ? <p className={`${L} text-[9px]`}>{project.track.toLowerCase()}</p> : null}
                 </div>
                 <div className="h-14 w-px bg-panel-border/60" />
-                <p className="font-mono text-[11px] uppercase leading-relaxed tracking-[0.14em] text-muted">
+                <p className="shrink-0 whitespace-nowrap font-mono text-[11px] uppercase leading-relaxed tracking-[0.14em] text-muted">
                   {GUIDE_STAGES.length} stages
                   <br />
                   {partsCount} parts
                 </p>
+                <p className="ml-auto max-w-[15rem] text-right font-mono text-[11px] uppercase leading-relaxed tracking-wider text-status-green">
+                  ✓ All parts, symbols &amp; footprints provided · download-ready
+                </p>
               </div>
               {primaryCta}
               {secondary}
-              <p className="font-mono text-xs uppercase tracking-wider text-status-green">
-                ✓ All parts, symbols &amp; footprints provided · download-ready
-              </p>
             </div>
           </div>
 

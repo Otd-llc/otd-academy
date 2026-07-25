@@ -130,6 +130,12 @@
      grid stays locked in ratio to the headline instead of shrinking to tiny
      cells on small screens. */
   --hero-size: clamp(54px, 9vw, 108px);
+
+  /* Finished-board poster halo — a silhouette drop-shadow that layers the board
+     off the field on the /learn ladder. Theme-adaptive: a soft LIGHT glow on the
+     dark field (below), a soft DARK shadow on ivory (light block). Owner-picked
+     "T2 · medium" strength. */
+  --board-halo: rgba(206, 218, 242, 0.24);
 }
 
 /*
@@ -159,6 +165,7 @@
   --color-navy-dark: #ffffff; /* CHROME fill (.glass-card) → white panel + hairline */
   --color-panel-border: #d9d2c2; /* warm hairline (the PDF HAIR) */
   --color-diagram-surface: #e9dfc9; /* SVG object body → warm beige material on ivory (NOT white) */
+  --board-halo: rgba(0, 0, 0, 0.2); /* board halo inverts to a soft dark shadow on paper */
 
   /* Faceted-scene ramps. The slate ramp LIGHTENS (a lit object on paper); the gold
      ramp deepens like every other gold. The in-screen world stays a screen: --glass
@@ -244,9 +251,15 @@ body {
   position: absolute;
   inset: 0;
   --tex-rgb: 150 170 205;
+  /* Texture opacities as vars so a theme can tone them without redeclaring the
+     whole background-image. Base = the original dark values; the dark-only rule
+     below eases them a touch (owner 2026-07-24 "tone down the gray haze on dark,
+     light is fine"). Light inherits these base values untouched. */
+  --tex-dot: 0.045;
+  --tex-line: 0.03;
   background-image:
-    radial-gradient(rgb(var(--tex-rgb) / 0.045) 0.5px, transparent 0.7px),
-    repeating-linear-gradient(0deg, transparent 0 2px, rgb(var(--tex-rgb) / 0.03) 2px 3px);
+    radial-gradient(rgb(var(--tex-rgb) / var(--tex-dot)) 0.5px, transparent 0.7px),
+    repeating-linear-gradient(0deg, transparent 0 2px, rgb(var(--tex-rgb) / var(--tex-line)) 2px 3px);
   background-size: 7px 7px, auto;
   --backdrop-mask: linear-gradient(
     180deg,
@@ -257,6 +270,13 @@ body {
   );
   -webkit-mask-image: var(--backdrop-mask);
   mask-image: var(--backdrop-mask);
+}
+/* Dark-only: ease the engineering-paper texture a smidge so the floating board
+   hero (and dark surfaces generally) sit on a cleaner field. Light is untouched
+   (it does not match :not([data-theme="light"]) and keeps the base opacities). */
+:root:not([data-theme="light"]) .app-backdrop::after {
+  --tex-dot: 0.032;
+  --tex-line: 0.02;
 }
 @media print {
   .app-backdrop {
