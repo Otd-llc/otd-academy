@@ -33,6 +33,7 @@ import { AdminTierToggle } from "@/components/skill-tree/AdminTierToggle";
 import type { NodeState, SkillNode } from "@/lib/skill-tree-core";
 import { hrefForNode, type HrefViewer } from "@/lib/skill-tree-href";
 import { formatUsd, resolveBuyPriceCents } from "@/lib/format-money";
+import { COMB_STANDIN, combPoster } from "@/lib/board-posters";
 
 const useIsoLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
@@ -109,8 +110,60 @@ function statusText(node: SkillNode): string {
   }
 }
 
+// The finished-board graphic on a cell (sandbox rounds A–J, 2026-07-25).
+//
+// A course with a baked comb render draws it. One without draws L1.01's
+// silhouette instead: the same PNG used as an alpha MASK, filled faint gold inside
+// a gold rim, so it reads as "a board goes here, not this board". The soft render
+// shadow is inside that alpha on purpose — the owner picked the ghost WITH its
+// shadow over a hard-edged silhouette.
+//
+// Geometry is a share of the cell box, grown about a fixed centre at 26% so the
+// active step's larger board sits on the same line as its neighbours' (round I,
+// scale 1.30). The art is `pointer-events: none`; the whole hex is still the link.
+const ART_SCALE = 1.3;
+
+function BoardArt({ slug, isCurrent }: { slug: string; isCurrent: boolean }) {
+  const poster = combPoster(slug);
+  const w = (isCurrent ? 96 : 82) * ART_SCALE;
+  const h = (isCurrent ? 56 : 46) * ART_SCALE;
+  const inset = (100 - w) / 2;
+  const box: React.CSSProperties = {
+    position: "absolute",
+    pointerEvents: "none",
+    left: `${inset}%`,
+    right: `${inset}%`,
+    top: `${26 - h / 2}%`,
+    height: `${h}%`,
+    zIndex: 2,
+  };
+
+  if (poster) {
+    return (
+      <span
+        aria-hidden
+        className="sk-art"
+        style={{ ...box, backgroundImage: `url(${poster})` }}
+      />
+    );
+  }
+  return (
+    <span aria-hidden className="sk-art-soon" style={box}>
+      <span
+        className="sk-art-soon-fill"
+        style={{
+          WebkitMaskImage: `url(${COMB_STANDIN})`,
+          maskImage: `url(${COMB_STANDIN})`,
+        }}
+      />
+    </span>
+  );
+}
+
 // The hex inner — number hero, title (+ track dot / ★), tagline lead, chip. Same
-// DOM shape as GuideHoneycomb so the shared `.gh-*` CSS styles it identically.
+// DOM shape as GuideHoneycomb so the shared `.gh-*` CSS styles it identically,
+// except the ordinal: on this comb it is a full-cell watermark clipped to the hex
+// face rather than the hub's top-third numeral (rounds C–G).
 function HexInner({
   node,
   num,
@@ -134,9 +187,13 @@ function HexInner({
           measured the hexes come from the shared perspective scene, so a measured
           cell renders content alone. */}
       {showShell ? <HexPrism className="gh-hex" /> : null}
-      <span className="gh-num" aria-hidden style={{ fontSize: numFontSize }}>
+      {/* The ordinal, as a watermark spanning the whole face. The stroke/fill
+          colours travel as `--num-*` vars so the light theme can re-point them
+          (an inline colour would beat any stylesheet). */}
+      <span className="sk-num" aria-hidden style={{ fontSize: numFontSize }}>
         {num}
       </span>
+      <BoardArt slug={node.slug} isCurrent={node.state === "available" && node.isNext} />
       <span className="gh-m">
         <span className="gh-title">
           {trackColor ? (
@@ -239,13 +296,11 @@ export function SkillHoneycomb({ nodes, goalSlug, viewer }: SkillHoneycombProps)
               aspectRatio: `1 / ${RATIO}`,
             };
 
-        // Number-hero size: measured px (eased down on small cells, as the hub
-        // does), else a container-query clamp for the fluid fallback.
-        // Eased down vs the old Bebas tuning — Saira Condensed (the numeral face)
-        // renders taller, so the smaller multiplier keeps the number off the title.
-        const numFontSize: number | string = b
-          ? Math.round(b.w * (b.w <= 200 ? 0.32 : 0.38))
-          : "clamp(28px, 22cqw, 58px)";
+        // Watermark ordinal size. Saira's two digits run about one em wide, so a
+        // font-size of the cell width spans the face; the `.sk-num` clip keeps it
+        // off the neighbours. The fallback uses a container query, since the
+        // pre-measure cell has no measured width yet.
+        const numFontSize: number | string = b ? Math.round(b.w * 0.98) : "98cqw";
 
         const nodeClass = `gh-node ${kind}${dim ? " sk-dim" : ""}${
           isStarred ? " sk-goal" : ""

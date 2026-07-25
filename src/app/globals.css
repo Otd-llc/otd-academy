@@ -521,6 +521,94 @@ body {
 .sk-lean .gh-lead { display: none; }
 .sk-lean .gh-status { bottom: 20%; }
 
+/* Board art on the /courses comb (sandbox rounds A-J, owner-locked 2026-07-25).
+   The finished-board render sits in the upper half of each face, the ordinal
+   becomes a watermark spanning the whole cell behind it, and a completed hex
+   trades its honey slab for a gold WASH so the board can read on top of it.
+
+   Scoped to `.sk-lean` throughout: the build-guide hub shares `.gh-*` and the
+   prism scene, and it must keep the number-hero standard. */
+
+/* The ordinal, full-cell. Clipped to the hex so it cannot bleed onto a
+   neighbouring cell, and painted through `background-clip: text` so the ink can
+   fall off down the face rather than sit flat. The gradient is the DARK value;
+   the light override below re-points it, because the same alpha that is quiet on
+   deep space is loud on ivory (rounds F-G). */
+.sk-num {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  font-family: var(--font-numeral);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke-width: 0;
+  background-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--color-gold-light) 32%, transparent) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+:root[data-theme="light"] .sk-num {
+  background-image: linear-gradient(
+    to bottom,
+    transparent 8%,
+    color-mix(in srgb, var(--color-gold-light) 20%, transparent) 100%
+  );
+}
+
+/* The board itself. Contain-fitted: every comb render is normalised to a square
+   by alpha AREA before it ships, so a board reads the same weight whatever its
+   camera happened to frame. */
+.sk-art {
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* No render yet: L1.01's silhouette, gold-ghosted. The fill is masked by the
+   PNG's own alpha (shadow included, which is the look the owner picked) and the
+   rim is four drop-shadows on the wrapper, so the shape keeps an edge even where
+   the fill is faint. */
+.sk-art-soon {
+  filter: drop-shadow(1px 0 0 color-mix(in srgb, var(--color-command-gold) 55%, transparent))
+    drop-shadow(-1px 0 0 color-mix(in srgb, var(--color-command-gold) 55%, transparent))
+    drop-shadow(0 1px 0 color-mix(in srgb, var(--color-command-gold) 55%, transparent))
+    drop-shadow(0 -1px 0 color-mix(in srgb, var(--color-command-gold) 55%, transparent));
+}
+.sk-art-soon-fill {
+  position: absolute;
+  inset: 0;
+  background-color: color-mix(in srgb, var(--color-command-gold) 16%, var(--color-deep-space));
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+/* A completed hex: gold wash instead of the honey slab, so a board sits on it
+   without fighting a solid gold plate. The shipped `.gh-node.done` ink is DARK,
+   sized for that slab — over a wash it is dark-on-dark, so the title and chip
+   have to be re-pointed here or the completed course becomes unreadable. */
+.sk-lean .ghp-cell.done .ghp-face {
+  fill: color-mix(in srgb, var(--color-command-gold) 14%, var(--color-deep-space));
+}
+.sk-lean .gh-node.done .gh-title { color: var(--color-title); }
+.sk-lean .gh-node.done .gh-chip {
+  background: var(--color-command-gold);
+  color: var(--color-deep-space);
+}
+
 /* PathHoneycomb — the /courses "Go further" destinations: track-stroked hexes
    (one per other build) in the honeycomb language, laid out by the shared
    measured `computeLayout` so the rows tessellate. The track colour rides in on
@@ -1458,3 +1546,4 @@ body {
     display: none !important;
   }
 }
+
