@@ -579,13 +579,69 @@ body {
   position: absolute;
   z-index: 2;
   pointer-events: none;
+  /* The tile is PLACED at its big size and scaled down to rest, so growing never
+     moves the artwork and the two states can transition into each other. Rest is
+     1.15 of the cell against an active 1.60 — the ratio, not the size, lives
+     here. Overlapping a neighbour while grown is intended. */
+  transform: scale(var(--tile-rest, 0.72));
+  transform-origin: center;
+  transition: transform 0.28s cubic-bezier(0.2, 0.85, 0.25, 1);
+}
+/* Full size on the stage you are ON, or the one you reach for. `focus-visible`
+   matters as much as hover: the hexes are links, so a keyboard user has to get
+   the same affordance. */
+.gh-node.current .gh-art,
+.gh-node:hover .gh-art,
+.gh-node:focus-visible .gh-art {
+  transform: scale(1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .gh-art { transition: none; }
+}
+
+/* A stage the learner has NOT reached: the same artifact as an OUTLINE. The
+   shape is painted close to the face colour and the rim is its drop-shadow, so
+   what survives is the silhouette of what they will make, without handing over
+   the artifact itself. */
+.gh-art-soon {
+  filter: drop-shadow(1px 0 0 color-mix(in srgb, var(--color-command-gold) 60%, transparent))
+    drop-shadow(-1px 0 0 color-mix(in srgb, var(--color-command-gold) 60%, transparent))
+    drop-shadow(0 1px 0 color-mix(in srgb, var(--color-command-gold) 60%, transparent))
+    drop-shadow(0 -1px 0 color-mix(in srgb, var(--color-command-gold) 60%, transparent));
+}
+.gh-art-soon-fill {
+  position: absolute;
+  inset: 0;
+  background-color: color-mix(in srgb, var(--color-command-gold) 14%, var(--color-deep-space));
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+/* Every stage done. Nothing is current, so nothing holds full size on its own:
+   the tiles all rest a size larger instead of the comb having no focal point.
+   The hexes also leave the gold wash for the verified channel — eight washed
+   faces at once is warmer than the wash was tuned for, and a finished build is
+   the success state `status-green` exists for. */
+.comb-complete { --tile-rest: 0.81; }
+.comb-complete .ghp-cell.done .ghp-face { fill: var(--color-deep-space); }
+.comb-complete .ghp-cell.done :is(.ghp-face, .ghp-side) {
+  stroke: var(--color-status-green);
+}
+.comb-complete .gh-node.done .gh-chip {
+  background: var(--color-status-green);
+  color: var(--color-deep-space);
 }
 
 /* No render yet: L1.01's silhouette, gold-ghosted. The fill is masked by the
    PNG's own alpha (shadow included, which is the look the owner picked) and the
    rim is four drop-shadows on the wrapper, so the shape keeps an edge even where
    the fill is faint. */
-.sk-art-soon {
+.sk-art-soon,
+.gh-art-soon {
   filter: drop-shadow(1px 0 0 color-mix(in srgb, var(--color-command-gold) 55%, transparent))
     drop-shadow(-1px 0 0 color-mix(in srgb, var(--color-command-gold) 55%, transparent))
     drop-shadow(0 1px 0 color-mix(in srgb, var(--color-command-gold) 55%, transparent))
@@ -1513,6 +1569,14 @@ body {
   background: #6e4f12;
   color: #faf7f0;
 }
+:root[data-theme="light"] .comb-complete .gh-node.done .gh-chip {
+  /* a finished comb runs on the verified channel in BOTH themes; without this,
+     the deep-gold light override above out-specifies it and the chip goes gold
+     on ivory while the hex strokes stay green. `status-green` is already
+     deepened for AA on paper. */
+  background: var(--color-status-green);
+  color: var(--color-deep-space);
+}
 :root[data-theme="light"] .glass-popover {
   /* The floating info pane (glossary term popover): a warm white/ivory sheet on
      paper (the dark-navy fill would be a hole in the page), and the dark glow
@@ -1568,5 +1632,6 @@ body {
     display: none !important;
   }
 }
+
 
 

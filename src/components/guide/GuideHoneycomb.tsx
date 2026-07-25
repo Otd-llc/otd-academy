@@ -191,21 +191,32 @@ const TILE_W = 94 * TILE_SCALE;
 const TILE_H = 58 * TILE_SCALE;
 
 function StageTile({ stage, kind }: { stage: GuideStage; kind: HoneycombStage["kind"] }) {
-  if (kind !== "done" && kind !== "current") return null;
   const src = stageArt(stage);
   if (!src) return null;
+  const box: React.CSSProperties = {
+    left: `${(100 - TILE_W) / 2}%`,
+    right: `${(100 - TILE_W) / 2}%`,
+    top: `${27 - TILE_H / 2}%`,
+    height: `${TILE_H}%`,
+  };
+
+  // A stage the learner has reached draws its artifact. One they have not draws
+  // the SAME artifact as a silhouette — the shape of what they will make, not
+  // the thing itself. That keeps the ladder honest (it does not hand over the
+  // answer) while still telling them what the phase produces, and it matches the
+  // stand-in language the skill tree uses for a board with no render yet.
+  if (kind === "done" || kind === "current") {
+    return (
+      <span aria-hidden className="gh-art" style={{ ...box, backgroundImage: `url(${src})` }} />
+    );
+  }
   return (
-    <span
-      aria-hidden
-      className="gh-art"
-      style={{
-        left: `${(100 - TILE_W) / 2}%`,
-        right: `${(100 - TILE_W) / 2}%`,
-        top: `${27 - TILE_H / 2}%`,
-        height: `${TILE_H}%`,
-        backgroundImage: `url(${src})`,
-      }}
-    />
+    <span aria-hidden className="gh-art gh-art-soon" style={box}>
+      <span
+        className="gh-art-soon-fill"
+        style={{ WebkitMaskImage: `url(${src})`, maskImage: `url(${src})` }}
+      />
+    </span>
   );
 }
 
@@ -248,8 +259,19 @@ export function GuideHoneycomb({
 
   const scene = buildCombScene(layout.boxes, cw);
 
+  // A comb with every stage done has no current cell, so nothing sits at full
+  // size and nothing anchors it. That end state gets its own treatment: the
+  // tiles all rest a size larger, and the hexes drop the gold wash for the
+  // verified channel, so a finished build reads as finished at a glance rather
+  // than as a comb waiting for its next step. Both live in CSS off this class.
+  const allDone = stages.length > 0 && stages.every((s) => s.kind === "done");
+
   return (
-    <div ref={ref} className="gh" style={{ position: "relative", height: scene.height }}>
+    <div
+      ref={ref}
+      className={`gh${allDone ? " comb-complete" : ""}`}
+      style={{ position: "relative", height: scene.height }}
+    >
       {scene.solids.length > 0 ? (
         <HexPrismScene
           solids={scene.solids}
