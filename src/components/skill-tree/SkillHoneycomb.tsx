@@ -190,7 +190,7 @@ function HexInner({
       {/* The ordinal, as a watermark spanning the whole face. The stroke/fill
           colours travel as `--num-*` vars so the light theme can re-point them
           (an inline colour would beat any stylesheet). */}
-      <span className="sk-num" aria-hidden style={{ fontSize: numFontSize }}>
+      <span className="comb-num" aria-hidden style={{ fontSize: numFontSize }}>
         {num}
       </span>
       <BoardArt slug={node.slug} isCurrent={node.state === "available" && node.isNext} />
@@ -297,7 +297,7 @@ export function SkillHoneycomb({ nodes, goalSlug, viewer }: SkillHoneycombProps)
             };
 
         // Watermark ordinal size. Saira's two digits run about one em wide, so a
-        // font-size of the cell width spans the face; the `.sk-num` clip keeps it
+        // font-size of the cell width spans the face; the `.comb-num` clip keeps it
         // off the neighbours. The fallback uses a container query, since the
         // pre-measure cell has no measured width yet.
         const numFontSize: number | string = b ? Math.round(b.w * 0.98) : "98cqw";
