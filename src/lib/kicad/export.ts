@@ -412,7 +412,13 @@ export async function buildKicadExportZip(
   const fpLibTable = buildFpLibTable([
     { nick: projectName, file: `${projectName}.pretty`, descr: revision.project.name },
   ]);
-  const basePcb = buildBasePcb({ config: boardConfig });
+  const basePcb = buildBasePcb({
+    config: boardConfig,
+    projectName,
+    rev: revLabel,
+    date: revDate,
+    company: env.KICAD_EXPORT_COMPANY,
+  });
 
   const schematic = buildSchematic({
     projectName,

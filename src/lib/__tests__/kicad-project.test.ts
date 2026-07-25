@@ -298,4 +298,49 @@ describe("pcb — buildBasePcb", () => {
   test("is deterministic — same input twice yields identical bytes", () => {
     expect(buildBasePcb()).toBe(buildBasePcb());
   });
+
+  // The Plot dialog opens with whatever `layerselection` pre-ticks. It must be
+  // EXACTLY the fab set, or the learner plots courtyard/fab/empty-user layers the
+  // board house then has to be told to ignore.
+  test("layerselection pre-ticks exactly the fab set, paste excluded (2-layer)", () => {
+    // bits: F.Cu 0, B.Cu 31 | B.SilkS 36, F.SilkS 37, B.Mask 38, F.Mask 39, Edge.Cuts 44
+    expect(text).toContain("(layerselection 0x000010f0_80000001)");
+    // F.Paste 34 / B.Paste 35 would set 0x…c in the high word's low nibble-pair.
+    expect(text).not.toContain("0xffffffff");
+  });
+
+  test("layerselection picks up the inner coppers on a 4-layer board", () => {
+    // adds In1.Cu 1 + In2.Cu 2 → low word 0x80000007
+    expect(buildBasePcb({ config: { copperLayers: 4 } })).toContain(
+      "(layerselection 0x000010f0_80000007)",
+    );
+  });
+
+  // KiCad copies the board title-block revision into every Gerber's
+  // %TF.ProjectId and into the .gbrjob "Revision". With no title block it ships
+  // as the literal `rev?`.
+  test("omits the title block entirely when no projectName is supplied", () => {
+    expect(findChild(node, "title_block")).toBeUndefined();
+  });
+
+  test("emits a title block with the revision when supplied", () => {
+    const withTitle = buildBasePcb({
+      projectName: "l1-01-wroom-breakout",
+      rev: "v1",
+      date: "2026-07-24",
+      company: "One Thousand Drones",
+    });
+    const tb = findChild(parseSexpr(withTitle), "title_block")!;
+    expect(tb).toBeDefined();
+    expect(withTitle).toContain('(rev "v1")');
+    expect(withTitle).toContain('(title "l1-01-wroom-breakout")');
+    expect(withTitle).toContain('(company "One Thousand Drones")');
+  });
+
+  test("omits empty title-block sub-nodes rather than emitting (rev \"\")", () => {
+    const noRev = buildBasePcb({ projectName: "x" });
+    expect(noRev).toContain('(title "x")');
+    expect(noRev).not.toContain("(rev ");
+    expect(noRev).not.toContain("(date ");
+  });
 });
