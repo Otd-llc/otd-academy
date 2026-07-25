@@ -412,7 +412,17 @@ export async function buildKicadExportZip(
   const fpLibTable = buildFpLibTable([
     { nick: projectName, file: `${projectName}.pretty`, descr: revision.project.name },
   ]);
-  const basePcb = buildBasePcb({ config: boardConfig });
+  const basePcb = buildBasePcb({
+    config: boardConfig,
+    projectName,
+    rev: revLabel,
+    date: revDate,
+    company: env.KICAD_EXPORT_COMPANY,
+    // Short SHA of the deploy that built this starter, into Comment1. Board text
+    // can print it as ${COMMENT1}; unset off-Vercel, so a local export records no
+    // provenance rather than a wrong one.
+    gitSha: env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7),
+  });
 
   const schematic = buildSchematic({
     projectName,

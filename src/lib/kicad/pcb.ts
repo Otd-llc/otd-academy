@@ -135,6 +135,38 @@ function buildStackup(cfg: BoardConfig): SNode {
 }
 
 /**
+ * The Plot dialog's pre-ticked layer set, as a KiCad LSET bitmask indexed by the
+ * layer ordinals `buildLayers` emits: F.Cu 0, In1…Inn 1…n, B.Cu 31, B.SilkS 36,
+ * F.SilkS 37, B.Mask 38, F.Mask 39, Edge.Cuts 44.
+ *
+ * We pre-tick EXACTLY the fab set — every copper layer, both silkscreens, both
+ * solder masks, Edge.Cuts — and nothing else. Notably F.Paste/B.Paste (34/35)
+ * stay OFF: a hand-soldered board needs no stencil, and the DRC_GERBER lesson
+ * card tells the learner to leave them unticked.
+ *
+ * Why this matters: whatever is ticked here is what the learner's Plot dialog
+ * opens with. The previous stub pre-ticked all 32 copper bits plus paste, which
+ * plotted 19 files for a 9-layer fab set and buried the real layers in courtyard
+ * / fab / empty-user-layer noise the board house has to be told to ignore.
+ *
+ * Emitted as the `0x<hi>_<lo>` pair KiCad writes for a 64-bit LSET. KiCad 10
+ * renumbers layers on load (F.Cu 0, B.Cu 2, In1 4 …) and remaps the mask with
+ * them, so the ordinals here must match `buildLayers`, not a KiCad-10-saved file.
+ */
+function plotLayerSelection(copperLayers: number): string {
+  const bits: number[] = [0, 31]; // F.Cu, B.Cu
+  for (let i = 1; i <= Math.max(0, copperLayers - 2); i++) bits.push(i); // In1.Cu…
+  bits.push(36, 37, 38, 39, 44); // both silk, both mask, Edge.Cuts
+  let lo = 0, hi = 0;
+  for (const b of bits) {
+    if (b < 32) lo |= 1 << b;
+    else hi |= 1 << (b - 32);
+  }
+  const hex = (n: number) => (n >>> 0).toString(16).padStart(8, "0");
+  return `0x${hex(hi)}_${hex(lo)}`;
+}
+
+/**
  * The `(setup ...)` block: board design-rule defaults derived from BoardConfig.
  * Carries the physical stackup (with the board finish), the global clearances,
  * plus a `(pcbplotparams ...)` stub so the file is complete enough for KiCad to
@@ -151,7 +183,7 @@ function buildSetup(cfg: BoardConfig): SNode {
     ]),
     list([
       sym("pcbplotparams"),
-      list([sym("layerselection"), sym("0x00010fc_ffffffff")]),
+      list([sym("layerselection"), sym(plotLayerSelection(cfg.copperLayers))]),
       list([sym("plot_on_all_layers_selection"), sym("0x0000000_00000000")]),
       list([sym("disableapertmacros"), sym("no")]),
       list([sym("usegerberextensions"), sym("no")]),
@@ -196,7 +228,50 @@ function buildSetup(cfg: BoardConfig): SNode {
 export type BuildBasePcbOpts = {
   /** Board-config overrides; omitted fields fall back to DEFAULT_BOARD_CONFIG. */
   config?: Partial<BoardConfig>;
+  /** Title-block title — the KiCad project name. Omitted ⇒ no `(title_block ...)`. */
+  projectName?: string;
+  /** Title-block revision, e.g. `v1`. Reaches the fab as the Gerber `%TF.ProjectId` revision field. */
+  rev?: string;
+  /** Title-block date (already formatted). */
+  date?: string;
+  /** Title-block company. */
+  company?: string;
+  /**
+   * Short git SHA of the build that produced this export, stamped into the title
+   * block's Comment1. Omitted when unset (a starter built off-Vercel records no
+   * provenance rather than a wrong one).
+   */
+  gitSha?: string;
 };
+
+/**
+ * `(title_block (title <project>) [(date ..)] [(rev ..)] [(company ..)])`, the
+ * same shape (and sub-node order) `schematic.ts` emits, so the board and the
+ * schematic agree.
+ *
+ * `rev` is the load-bearing one: KiCad copies the board's title-block revision
+ * into every plotted Gerber's `%TF.ProjectId` attribute and into the `.gbrjob`
+ * `"Revision"` field. With no title block at all, that field ships as the
+ * literal `rev?` — so the fab receives a board stamped "revision unknown" while
+ * the silkscreen says `v1`.
+ *
+ * `gitSha` lands in **Comment1**, which board text can reference as
+ * `${COMMENT1}` — KiCad resolves title-block variables at plot time into real
+ * silkscreen geometry (verified against KiCad 10.0.3 by plotting the same board
+ * with two different Comment1 values and diffing the output). That makes a
+ * silk-stamped build hash automatic instead of hand-typed, which is how the
+ * previous hand-typed stamp ended up naming a commit that post-dated the fixes
+ * the export was actually missing.
+ */
+function buildTitleBlock(opts: BuildBasePcbOpts): SNode | undefined {
+  if (!opts.projectName) return undefined;
+  const items: SNode[] = [sym("title_block"), list([sym("title"), str(opts.projectName)])];
+  if (opts.date) items.push(list([sym("date"), str(opts.date)]));
+  if (opts.rev) items.push(list([sym("rev"), str(opts.rev)]));
+  if (opts.company) items.push(list([sym("company"), str(opts.company)]));
+  if (opts.gitSha) items.push(list([sym("comment"), sym("1"), str(opts.gitSha)]));
+  return list(items);
+}
 
 /**
  * Build a minimal, board-setup-only `.kicad_pcb` body (S-expression text, one
@@ -213,6 +288,7 @@ export type BuildBasePcbOpts = {
  */
 export function buildBasePcb(opts: BuildBasePcbOpts = {}): string {
   const cfg = resolveBoardConfig(opts.config);
+  const titleBlock = buildTitleBlock(opts);
 
   const root = list([
     sym("kicad_pcb"),
@@ -225,6 +301,8 @@ export function buildBasePcb(opts: BuildBasePcbOpts = {}): string {
       list([sym("legacy_teardrops"), sym("no")]),
     ]),
     list([sym("paper"), str("A4")]),
+    // KiCad's position for the title block is after (paper ...), matching schematic.ts.
+    ...(titleBlock ? [titleBlock] : []),
     buildLayers(cfg.copperLayers),
     buildSetup(cfg),
   ]);
