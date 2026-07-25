@@ -43,6 +43,11 @@ export const env = createEnv({
     // Company name stamped into the KiCad export's schematic title block. Optional
     // (omitted from the title block if unset).
     KICAD_EXPORT_COMPANY: z.string().optional(),
+    // Set by Vercel on every deploy; the commit the running build came from. The
+    // KiCad export stamps its short form into the board title block's Comment1 so a
+    // downloaded starter records which build produced it. Optional: unset locally,
+    // in which case the comment is omitted rather than stamped with a lie.
+    VERCEL_GIT_COMMIT_SHA: z.string().optional(),
     // Stripe (GTM Phase 3). OPTIONAL: the Stripe client is lazily constructed and
     // the payment paths throw a clear "not configured" only when called without a
     // key, so a build/CI with no keys must still pass.
@@ -167,6 +172,7 @@ export const env = createEnv({
     R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
     R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
     KICAD_EXPORT_COMPANY: process.env.KICAD_EXPORT_COMPANY,
+    VERCEL_GIT_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     PCBWAY_AFFILIATE_URL: process.env.PCBWAY_AFFILIATE_URL,

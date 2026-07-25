@@ -418,6 +418,10 @@ export async function buildKicadExportZip(
     rev: revLabel,
     date: revDate,
     company: env.KICAD_EXPORT_COMPANY,
+    // Short SHA of the deploy that built this starter, into Comment1. Board text
+    // can print it as ${COMMENT1}; unset off-Vercel, so a local export records no
+    // provenance rather than a wrong one.
+    gitSha: env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7),
   });
 
   const schematic = buildSchematic({

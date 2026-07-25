@@ -343,4 +343,18 @@ describe("pcb — buildBasePcb", () => {
     expect(noRev).not.toContain("(rev ");
     expect(noRev).not.toContain("(date ");
   });
+
+  // Comment1 is what board text prints as ${COMMENT1}, so a silk build-stamp can
+  // be generated rather than hand-typed.
+  test("stamps the build SHA into Comment1 when supplied", () => {
+    expect(buildBasePcb({ projectName: "x", gitSha: "4ef28f4" })).toContain('(comment 1 "4ef28f4")');
+  });
+
+  test("omits Comment1 when there is no SHA (no provenance beats wrong provenance)", () => {
+    expect(buildBasePcb({ projectName: "x" })).not.toContain("(comment ");
+  });
+
+  test("a SHA without a projectName emits no title block at all", () => {
+    expect(buildBasePcb({ gitSha: "4ef28f4" })).not.toContain("(comment ");
+  });
 });

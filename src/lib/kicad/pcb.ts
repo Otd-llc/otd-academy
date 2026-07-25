@@ -236,6 +236,12 @@ export type BuildBasePcbOpts = {
   date?: string;
   /** Title-block company. */
   company?: string;
+  /**
+   * Short git SHA of the build that produced this export, stamped into the title
+   * block's Comment1. Omitted when unset (a starter built off-Vercel records no
+   * provenance rather than a wrong one).
+   */
+  gitSha?: string;
 };
 
 /**
@@ -248,6 +254,14 @@ export type BuildBasePcbOpts = {
  * `"Revision"` field. With no title block at all, that field ships as the
  * literal `rev?` — so the fab receives a board stamped "revision unknown" while
  * the silkscreen says `v1`.
+ *
+ * `gitSha` lands in **Comment1**, which board text can reference as
+ * `${COMMENT1}` — KiCad resolves title-block variables at plot time into real
+ * silkscreen geometry (verified against KiCad 10.0.3 by plotting the same board
+ * with two different Comment1 values and diffing the output). That makes a
+ * silk-stamped build hash automatic instead of hand-typed, which is how the
+ * previous hand-typed stamp ended up naming a commit that post-dated the fixes
+ * the export was actually missing.
  */
 function buildTitleBlock(opts: BuildBasePcbOpts): SNode | undefined {
   if (!opts.projectName) return undefined;
@@ -255,6 +269,7 @@ function buildTitleBlock(opts: BuildBasePcbOpts): SNode | undefined {
   if (opts.date) items.push(list([sym("date"), str(opts.date)]));
   if (opts.rev) items.push(list([sym("rev"), str(opts.rev)]));
   if (opts.company) items.push(list([sym("company"), str(opts.company)]));
+  if (opts.gitSha) items.push(list([sym("comment"), sym("1"), str(opts.gitSha)]));
   return list(items);
 }
 
