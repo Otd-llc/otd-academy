@@ -15,6 +15,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { GuideStage } from "@/lib/guide-templates/stage-skeletons";
+import { stageArt } from "@/lib/guide-stage-art";
 import { CombArrows, HexPrismScene } from "@/components/guide/HexPrismScene";
 import {
   HEX_CAM_S5,
@@ -182,6 +183,32 @@ export function buildCombScene(boxes: Box[], cw: number, cam: HexCam = HEX_CAM_S
   };
 }
 
+// The stage's artifact tile. Grown about a fixed centre at 27% of the cell so the
+// size knob does not also walk the tile up the face (sandbox round L, scale 1.60).
+// `pointer-events: none` — the whole hex stays the link.
+const TILE_SCALE = 1.6;
+const TILE_W = 94 * TILE_SCALE;
+const TILE_H = 58 * TILE_SCALE;
+
+function StageTile({ stage, kind }: { stage: GuideStage; kind: HoneycombStage["kind"] }) {
+  if (kind !== "done" && kind !== "current") return null;
+  const src = stageArt(stage);
+  if (!src) return null;
+  return (
+    <span
+      aria-hidden
+      className="gh-art"
+      style={{
+        left: `${(100 - TILE_W) / 2}%`,
+        right: `${(100 - TILE_W) / 2}%`,
+        top: `${27 - TILE_H / 2}%`,
+        height: `${TILE_H}%`,
+        backgroundImage: `url(${src})`,
+      }}
+    />
+  );
+}
+
 export function GuideHoneycomb({
   slug,
   revLabel,
@@ -251,17 +278,21 @@ export function GuideHoneycomb({
             onBlur={() => setHot((h) => (h === i ? null : h))}
           >
             <span
-              className="gh-num"
+              className="comb-num"
               aria-hidden
-              // hero size on big cells; eased down on small ones so it stops
-              // swallowing the room the title + chip need on a phone.
-              // Saira Condensed (the numeral face) renders taller/heavier than
-              // Bebas at the same size, so the multiplier is eased down vs the old
-              // Bebas tuning to keep the number clear of the title below it.
-              style={{ fontSize: Math.round(b.w * (b.w <= 200 ? 0.32 : 0.38)) }}
+              // The ordinal is a watermark spanning the whole face rather than the
+              // old top-third hero: the stage's artifact now owns that space.
+              // Saira's two digits run about one em wide, so a font-size of the
+              // cell width fills the cell; the class clips it to the hex.
+              style={{ fontSize: Math.round(b.w * 0.98) }}
             >
               {s.num}
             </span>
+            {/* The stage's artifact, on the cells the learner has reached. A
+                locked stage stays type-only on purpose: showing the artifact of
+                work not yet done gives away the answer and flattens the ladder
+                into a gallery (sandbox round K, owner pick K5). */}
+            <StageTile stage={s.stage} kind={s.kind} />
             <span className="gh-m">
               <span className="gh-title">{s.title}</span>
               {s.lead ? <span className="gh-lead">{s.lead}</span> : null}

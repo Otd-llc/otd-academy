@@ -534,7 +534,7 @@ body {
    fall off down the face rather than sit flat. The gradient is the DARK value;
    the light override below re-points it, because the same alpha that is quiet on
    deep space is loud on ivory (rounds F-G). */
-.sk-num {
+.comb-num {
   position: absolute;
   inset: 0;
   z-index: 0;
@@ -557,7 +557,7 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
 }
-:root[data-theme="light"] .sk-num {
+:root[data-theme="light"] .comb-num {
   background-image: linear-gradient(
     to bottom,
     transparent 8%,
@@ -567,11 +567,18 @@ body {
 
 /* The board itself. Contain-fitted: every comb render is normalised to a square
    by alpha AREA before it ships, so a board reads the same weight whatever its
-   camera happened to frame. */
-.sk-art {
+   camera happened to frame. `.gh-art` is the build-guide hub's stage tile, which
+   wants the same treatment. */
+.sk-art,
+.gh-art {
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
+}
+.gh-art {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
 }
 
 /* No render yet: L1.01's silhouette, gold-ghosted. The fill is masked by the
