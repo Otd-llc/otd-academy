@@ -21,12 +21,21 @@ import { requireAdmin } from "@/lib/auth-helpers";
 import { assertBomNotFrozen, assertNotFrozen } from "@/lib/assertions";
 import { withTxRetry } from "@/lib/tx-retry";
 import { parseBomCsv } from "@/lib/bom-csv";
+import { invalidateGuideContent } from "@/lib/cache-invalidate";
 import {
   createBomLineSchema,
   deleteBomLineSchema,
   editBomLineSchema,
 } from "@/lib/schemas/bom-line";
 
+// Every BOM write must revalidate BOTH surfaces, and they are not the same one:
+//   • revalidatePath  → the admin revision page (uncached, per-request);
+//   • invalidateGuideContent → the PUBLIC guide, which resolves `bomTable` blocks
+//     from these very rows and is `use cache`-tagged (guide/cached-guide-read.ts).
+// Path revalidation does NOT clear a cacheTag, so with only the former the admin
+// sees the new BOM immediately while signed-out/learner traffic keeps serving the
+// previous parts list — wrong parts, refdes and quantities — for up to an hour.
+// The divergence is invisible to the one person who could catch it.
 async function loadRevisionRouteContext(revisionId: string) {
   const rev = await db.revision.findUniqueOrThrow({
     where: { id: revisionId },
@@ -66,6 +75,7 @@ export async function createBomLine(input: unknown) {
     data.revisionId,
   );
   revalidatePath(`/projects/${projectSlug}/${revLabel}`);
+  invalidateGuideContent(projectSlug);
   return result;
 }
 
@@ -98,6 +108,7 @@ export async function editBomLine(input: unknown) {
     result.revisionId,
   );
   revalidatePath(`/projects/${projectSlug}/${revLabel}`);
+  invalidateGuideContent(projectSlug);
   return result;
 }
 
@@ -123,6 +134,7 @@ export async function deleteBomLine(input: unknown) {
 
   const { revLabel, projectSlug } = await loadRevisionRouteContext(revisionId);
   revalidatePath(`/projects/${projectSlug}/${revLabel}`);
+  invalidateGuideContent(projectSlug);
 }
 
 // ─── CSV import (WS3) ──────────────────────────────────────────────────
@@ -218,6 +230,7 @@ export async function importBomCsv(input: {
 
   const { revLabel, projectSlug } = await loadRevisionRouteContext(revisionId);
   revalidatePath(`/projects/${projectSlug}/${revLabel}`);
+  invalidateGuideContent(projectSlug);
   return { ...result, rowErrors: errors };
 }
 
