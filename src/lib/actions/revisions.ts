@@ -71,14 +71,28 @@ export async function createRevision(input: unknown) {
         });
         if (sourceBomLines.length > 0) {
           await tx.bomLine.createMany({
-            data: sourceBomLines.map((src) => ({
-              revisionId: rev.id,
-              partId: src.partId,
-              refDes: src.refDes,
-              quantity: src.quantity,
-              notes: src.notes,
-              createdById: user.id,
-            })),
+            // Destructure-and-OMIT, never re-list the carried fields: an
+            // explicit field list silently drops every column added later.
+            // It already did — altMpn/altManufacturer (WS1) and unitPriceCents
+            // (WS3) all landed after this copy-forward was written and none
+            // came across, so a copied revision read $0.00 total with every
+            // line unpriced and overTarget:false (bom-cost.ts treats a null
+            // unitPriceCents as unpriced) — a board that looks free and
+            // comfortably under target. Only identity/ownership is reset.
+            data: sourceBomLines.map(
+              ({
+                id: _id,
+                revisionId: _revisionId,
+                createdAt: _createdAt,
+                updatedAt: _updatedAt,
+                createdById: _createdById,
+                ...carry
+              }) => ({
+                ...carry,
+                revisionId: rev.id,
+                createdById: user.id,
+              }),
+            ),
           });
         }
 
