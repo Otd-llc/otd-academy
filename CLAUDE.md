@@ -16,6 +16,13 @@ advance its revision — or when you start or substantially edit any
 2. Run it, or at minimum **surface it to the user and get their go-ahead** before
    proceeding.
 
+There is a `board-design-validation` skill, but it ships in the **`otd-skills` plugin**
+(`Otd-llc/otd-skills`) — it is *not* in this repo, so `find . -name SKILL.md` will not
+find it and an agent without that plugin installed has no such skill. Its own first
+instruction is to read `docs/boards/_protocol.md`. **`docs/boards/_protocol.md` is the
+source of truth; always cite it by path**, so the gate holds whether or not the plugin is
+present.
+
 **A board is NOT part-ready** until its design has passed the protocol: **≥ 10
 recursive audit passes, a "dry" pass (zero new material findings), every applicable
 audit clean, and the board's `validation-log.md` complete.** Do not create parts, BOM

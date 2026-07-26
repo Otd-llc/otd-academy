@@ -6,23 +6,36 @@ description: >-
   a bom.csv, materializing a DESIGN_VALIDATION checklist, writing BOM lines, or when
   the user asks to "add a part", "create parts", "source the BOM", "import the BOM",
   "create the revision", or work a board toward part-ready / BOM-frozen. Codified from
-  the l1-03-ws2812-node pipeline run (2026-06-18). Pairs with the board-design-validation
-  skill (which gates part creation) — read that FIRST.
+  the l1-03-ws2812-node pipeline run (2026-06-18). Pairs with the Recursive Board-Design
+  Validation Protocol at docs/boards/_protocol.md (which gates part creation) — read that
+  FIRST.
 ---
 
 # Adding parts + wiring a board BOM
 
-The library is global and **lives in PROD** (`.env.local` `DATABASE_URL`). Adding parts
-and BOM lines is a **direct-Prisma seed-script** job, not a UI job — the server actions
-can't be driven headlessly. This skill is the proven sequence; the three committed
-scripts under `scripts/` are working templates — copy them, don't reinvent.
+The library is global, but **`.env.local` `DATABASE_URL` is LOCAL** (`foundry_dev`) — it
+has been since 2026-07-15, and it used to be PROD. So a bare `pnpm exec tsx` run of any
+script here writes **local**, not the live library. To write the real PROD library, run
+the script through **`pnpm db:prod <script.ts>`**, which swaps the env, prints the target
+host, and makes you type `prod` to continue.
+
+Adding parts and BOM lines is a **direct-Prisma seed-script** job, not a UI job — the
+server actions can't be driven headlessly. This skill is the proven sequence; the three
+committed scripts under `scripts/` are working templates — copy them, don't reinvent.
 
 ## Gate first (do not skip)
 
-A board is **not part-ready** until its `design.md` passes the **board-design-validation**
-protocol (≥10 passes + a design-stage DRY pass). **Read that skill and confirm the gate
-before creating any part.** Creating parts/BOM/revision before the gate is the one thing
-this whole system exists to prevent.
+A board is **not part-ready** until its `design.md` passes the Recursive Board-Design
+Validation Protocol — **`docs/boards/_protocol.md`**, in this repo (≥10 passes + a
+design-stage DRY pass). **Read that file and confirm the gate before creating any part.**
+Creating parts/BOM/revision before the gate is the one thing this whole system exists to
+prevent.
+
+There is also a `board-design-validation` skill, but it ships in the **`otd-skills`
+plugin** (`Otd-llc/otd-skills`), not in this repo — so it is absent unless that plugin is
+installed. Its own first instruction is to read `docs/boards/_protocol.md`, which is the
+source of truth either way. **Cite the path, not the skill**: an agent told to read a
+skill it cannot find will most naturally proceed without the gate.
 
 ## Why a script, not the admin UI (friction F9)
 
@@ -97,21 +110,27 @@ block BOM import (category is optional).
 
 ```ts
 import { config as loadEnv } from "dotenv";
-loadEnv({ path: ".env.local" });          // PROD — order matters: env BEFORE the db import
+loadEnv({ path: ".env.local" });          // LOCAL foundry_dev — order matters: env BEFORE the db import
 async function main() {
   const { db } = await import("@/lib/db"); // dynamic import AFTER env load
   // ... reads/writes; upsert on manufacturer_mpn; idempotent ...
   await db.$disconnect();
 }
 main().catch((e) => { console.error(e); process.exit(1); });
-// Run via PowerShell: pnpm exec tsx scripts/<name>.ts   (Bash `pnpm` = command not found)
+// Run via PowerShell (Bash `pnpm` = command not found):
+//   LOCAL: pnpm exec tsx scripts/<name>.ts
+//   PROD:  pnpm db:prod scripts/<name>.ts
 ```
 
 ## Guardrails
 
-- **PROD writes.** These scripts mutate the production library. That's correct for real
-  curriculum parts — but never run the vitest suite concurrently (it corrupts the
-  `esp32-sensor-breakout` fixture; `pnpm db:seed` restores). See [[test-seed-fixture]].
+- **Know which database you are writing.** A bare `pnpm exec tsx` run writes **LOCAL**
+  `foundry_dev`; only `pnpm db:prod <script.ts>` writes the production library. Parts
+  seeded to local while you believe they went to prod fail silently — the scripts are
+  idempotent and exit 0, and the gap surfaces only when the public catalog or a
+  learner-facing BOM turns up empty. When you *do* write prod, never run the vitest suite
+  concurrently (it corrupts the `esp32-sensor-breakout` fixture; `pnpm db:seed` restores).
+  See [[test-seed-fixture]].
 - Commit the create/build/attest scripts (idempotent, reproducible, audit trail); keep
   throwaway probes as `scripts/_*.ts` (gitignored).
 - Datasheet URLs must be real `http(s)` — leave null rather than guess a wrong URL.
