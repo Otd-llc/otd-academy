@@ -10,9 +10,12 @@
 // Leaves 3/4/6 (footprint↔pinout [S], fab-DRU [L], all-risks-de-risked — RK5/RK6
 // close at layout) UNCHECKED — they can't honestly close pre-schematic/pre-layout.
 //
-// Run (PowerShell): pnpm exec tsx scripts/attest-l102-dv.ts
+// Run (PowerShell) — .env.local is LOCAL foundry_dev since 2026-07-15, so the bare run
+// writes local; `pnpm db:prod` is the guarded path to the real library:
+//   LOCAL: pnpm exec tsx scripts/attest-l102-dv.ts
+//   PROD:  pnpm db:prod scripts/attest-l102-dv.ts
 import { config as loadEnv } from "dotenv";
-loadEnv({ path: ".env.local" }); // PROD — env BEFORE the db import
+loadEnv({ path: ".env.local" }); // LOCAL foundry_dev — env BEFORE the db import
 
 const PROJECT_SLUG = "l1-02-espnow-link";
 const REV_LABEL = "v1";

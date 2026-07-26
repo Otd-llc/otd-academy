@@ -10,9 +10,12 @@
 // Does NOT advance the stage → bomFrozenAt stays null (HOLD before LAYOUT freeze).
 // All parts already exist in the catalog (100% reuse) — nothing is created here.
 //
-// Run (PowerShell): pnpm exec tsx scripts/build-l102-revision-bom.ts
+// Run (PowerShell) — .env.local is LOCAL foundry_dev since 2026-07-15, so the bare run
+// writes local; `pnpm db:prod` is the guarded path to the real library:
+//   LOCAL: pnpm exec tsx scripts/build-l102-revision-bom.ts
+//   PROD:  pnpm db:prod scripts/build-l102-revision-bom.ts
 import { config as loadEnv } from "dotenv";
-loadEnv({ path: ".env.local" }); // PROD — env BEFORE the db import
+loadEnv({ path: ".env.local" }); // LOCAL foundry_dev — env BEFORE the db import
 import { readFileSync } from "node:fs";
 
 const PROJECT_SLUG = "l1-02-espnow-link";
