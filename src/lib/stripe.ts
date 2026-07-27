@@ -26,7 +26,22 @@ export function getStripe(): Stripe {
   // Pin the API version so payload/param shapes stay deterministic across SDK
   // bumps. This string is the exact version the installed `stripe` package's
   // types expect (Stripe.LatestApiVersion), so tsc stays happy.
-  stripeSingleton = new Stripe(key, { apiVersion: "2026-05-27.dahlia" });
+  // Bound the call inside the serverless budget. The SDK defaults are
+  // timeout 80_000 with maxNetworkRetries 2 — i.e. up to ~4 minutes of attempts
+  // for a function that Vercel kills at 10s (Hobby default; only the cron routes
+  // raise maxDuration to 60). The default can therefore never be reached: a slow
+  // Stripe call died as an opaque function timeout instead of a catchable
+  // StripeConnectionError, on every checkout and Pass action.
+  //
+  // Budget arithmetic, worst case: 2 attempts x 4s + ~0.5s backoff ~= 8.5s, which
+  // fits under 10s with headroom. Retries stay enabled because the SDK attaches an
+  // Idempotency-Key automatically, so a retried POST cannot double-charge.
+  // Re-derive these two numbers if maxDuration changes.
+  stripeSingleton = new Stripe(key, {
+    apiVersion: "2026-05-27.dahlia",
+    timeout: 4000,
+    maxNetworkRetries: 1,
+  });
   return stripeSingleton;
 }
 

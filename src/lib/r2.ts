@@ -29,6 +29,25 @@ export const r2 = new S3Client({
     accessKeyId: env.R2_ACCESS_KEY_ID!,
     secretAccessKey: env.R2_SECRET_ACCESS_KEY!,
   },
+  // Without these the SDK waits indefinitely, and no call site passes an
+  // abortSignal — so a slow or unreachable R2 pinned a whole function invocation
+  // per request across every call site, including the PUBLIC asset proxies where
+  // an anonymous visitor can trigger it. Set on the client so all of them are
+  // covered at once. Plain-object form (the SDK builds the NodeHttpHandler
+  // itself), so this needs no extra @smithy dependency.
+  requestHandler: {
+    // Time to establish the socket — a genuinely unreachable endpoint fails fast.
+    connectionTimeout: 3000,
+    // Socket INACTIVITY, not total transfer time, so streaming a large asset
+    // through the proxy is unaffected as long as bytes keep arriving.
+    //
+    // Deliberately socketTimeout and not requestTimeout: in @smithy/node-http-handler
+    // a bare `requestTimeout` only logs a warning and lets the request run on — it
+    // aborts only when paired with `throwOnRequestTimeout: true`. socketTimeout
+    // rejects on its own. A total-duration cap is left off on purpose; it would
+    // kill legitimate large asset streams.
+    socketTimeout: 10000,
+  },
 });
 
 export function slug(filename: string): string {
