@@ -11,11 +11,21 @@ describe("MCP server source guards", () => {
   test("no module imports the read-write owner client (src/lib/db)", () => {
     for (const f of FILES) {
       const src = readFileSync(join(SRC, f), "utf8");
-      // Quote-anchored: catches real module refs in any form — static `import`,
-      // dynamic `import("…lib/db")`, `require("…lib/db")`, and `export {…} from "…lib/db"` —
-      // by requiring a quote between the keyword and `lib/db`. Prose comments that mention
-      // the unquoted path (e.g. "deliberately does NOT import src/lib/db.ts") never match.
-      expect(src, `${f} must not import src/lib/db`).not.toMatch(/(?:from|import|require)\s*\(?\s*["'][^"']*lib\/db/);
+      // Quote-anchored on BOTH sides: catches real module refs in any form — static
+      // `import`, dynamic `import("…lib/db")`, `require("…lib/db")`, and
+      // `export {…} from "…lib/db"` — by requiring a quote before `lib/db` and the
+      // CLOSING quote (optionally past a .ts/.js extension) straight after it. Prose
+      // comments that mention the unquoted path (e.g. "deliberately does NOT import
+      // src/lib/db.ts") never match.
+      //
+      // The trailing anchor is load-bearing: `lib/db` is a PREFIX of `lib/db-adapter`,
+      // which client.ts legitimately imports (it builds no client and reads no env, so
+      // sharing it cannot leak the read-write client). Without the closing quote this
+      // guard flagged that safe import and failed — and the tempting fix, loosening the
+      // pattern, would have blunted the real check. This is the tight version instead.
+      expect(src, `${f} must not import src/lib/db`).not.toMatch(
+        /(?:from|import|require)\s*\(?\s*["'][^"']*lib\/db(?:\.[jt]s)?["']/,
+      );
     }
   });
 

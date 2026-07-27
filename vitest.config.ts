@@ -41,15 +41,26 @@ const gatedBasenames = [
 //              slot — runs free. ~half the suite, so this halves lease pressure.
 // The split is computed by scanning sources, so it stays correct as tests change
 // (e.g. a CONVERT-TO-UNIT file that starts mocking the DB moves to "unit").
+// Scan `mcp` as well as `src`. The MCP server keeps its own suites under
+// mcp/parts-server/__tests__/ (env resolver, answer-contract formatter, source
+// guards) and a src-only scan never discovered them — so the guards asserting
+// that the server cannot reach the read-write DB client and never writes to
+// stdout (a stray console.log corrupts the MCP protocol stream) were dead files
+// that nothing executed. Any new top-level directory with tests needs adding here.
+const TEST_ROOTS = ["src", "mcp"];
+
 function allTestFiles(): string[] {
-  return readdirSync("src", { recursive: true })
-    .map((p) => `src/${String(p).replace(/\\/g, "/")}`)
-    .filter(
-      (p) =>
-        /\.test\.tsx?$/.test(p) &&
-        !p.includes("/.claude/") &&
-        !gatedBasenames.some((g) => p.endsWith(`/${g}`)),
-    );
+  return TEST_ROOTS.flatMap((root) =>
+    readdirSync(root, { recursive: true })
+      .map((p) => `${root}/${String(p).replace(/\\/g, "/")}`)
+      .filter(
+        (p) =>
+          /\.test\.tsx?$/.test(p) &&
+          !p.includes("/.claude/") &&
+          !p.includes("/node_modules/") &&
+          !gatedBasenames.some((g) => p.endsWith(`/${g}`)),
+      ),
+  );
 }
 
 const dbFiles: string[] = [];

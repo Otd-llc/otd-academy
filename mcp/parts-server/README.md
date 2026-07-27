@@ -162,6 +162,17 @@ The server requires `PARTS_MCP_DATABASE_URL` in the environment (loaded from `.e
 - the injected-client tool handlers ([src/lib/\_\_tests\_\_/parts-mcp-tools.test.ts](../../src/lib/__tests__/parts-mcp-tools.test.ts)),
 - the source guards ([\_\_tests\_\_/source-guards.test.ts](./__tests__/source-guards.test.ts)).
 
+> **These four were only ever green by assertion.** `vitest.config.ts` built its
+> file list by scanning `src` alone, so the three suites in this directory —
+> the env resolver, the formatter and the source guards — were never discovered
+> by `pnpm test`. (The two under `src/lib/__tests__/` did run.) Worse, the
+> source guard's no-`lib/db` pattern was unanchored, and `lib/db` is a prefix of
+> the `lib/db-adapter` that `client.ts` legitimately imports, so it **failed the
+> first time it executed**. Both are fixed — the scan now covers `mcp` and the
+> pattern is anchored on the closing quote — and the claim above is now backed
+> by a run rather than by this sentence. Treat "verified" here as meaning
+> "executed in CI"; if a suite is not in the scan roots, it is not verified.
+
 **Read-only role provisioned + cannot-write proof GREEN.** The `foundry_ro` role (§6) **is provisioned**, and the **cannot-write proof** test ([src/lib/\_\_tests\_\_/parts-mcp-readonly.test.ts](../../src/lib/__tests__/parts-mcp-readonly.test.ts)) **passes as part of the suite** (540 tests passing): a `SELECT` succeeds, while an `UPDATE` is rejected (either `permission denied` or `read-only transaction`).
 
 **Still pending — the live Claude Code demo.** This is the one remaining step, and it is **not** a code/infra gate; it requires the user to:
