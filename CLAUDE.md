@@ -36,7 +36,7 @@ lines, or revisions before then. New boards start from `docs/boards/_template/`
   `next dev`, `pnpm db:seed`, and every `scripts/*.ts` hit local, so they are **safe by
   default**. **PROD is `PROD_DATABASE_URL` / `PROD_DIRECT_URL`**, reachable only via:
   - `pnpm db:prod <script.ts>` — swaps the env, prints the host, makes you type `prod`
-  - `pnpm db:migrate:prod` — needs the PROD env set inline (see the migration bullet)
+  - `pnpm db:migrate:prod` — swaps the env itself, prints the host, makes you type `prod`
   - `pnpm db:pull-prod` — dumps PROD read-only, restores into local (refuses to run
     unless `DATABASE_URL` is localhost). **Hydrate/refresh local with this.**
 
@@ -70,13 +70,17 @@ lines, or revisions before then. New boards start from `docs/boards/_template/`
   `prisma migrate deploy` (**never** `migrate dev`). Since 2026-07-15 the command is split:
   - **`pnpm db:migrate`** → applies to **LOCAL** `foundry_dev`. Test it here first.
   - **`pnpm db:migrate:prod`** → applies to **PROD** *and* refreshes the test pool (the
-    pool branches clone prod, so they drift after a prod migration). It inherits `.env.local`
-    like any pnpm script, so it needs the PROD env set inline:
+    pool branches clone prod, so they drift after a prod migration). **No inline env
+    needed any more** — it runs `scripts/migrate-prod.ts`, which reads `PROD_*` from
+    `.env.local` itself, **refuses** if that host is local, prints the target host, and
+    makes you type `prod`. Just:
     ```powershell
-    $env:DATABASE_URL=$PROD_DATABASE_URL; $env:DIRECT_URL=$PROD_DIRECT_URL; pnpm db:migrate:prod
+    pnpm db:migrate:prod
     ```
-    **Verify it actually reached prod** — a migration silently applied to local while you
-    believe it hit prod is the worst failure mode here.
+    *This used to be a bare `prisma migrate deploy` that inherited `.env.local` (LOCAL),
+    so forgetting the inline swap migrated local, exited 0, then refreshed the Neon test
+    pool — a fully green run against the wrong database. The swap now happens inside the
+    script, so there is no longer an inline step to forget.*
 
   Restart `next dev` after `prisma generate`.
 - **BOM CSV import is strict-match** on `(manufacturer, mpn)` against the curated

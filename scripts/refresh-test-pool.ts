@@ -1,7 +1,9 @@
 // Refresh the test-branch pool so its schema matches prod (and the Prisma client).
 //
-// Run this after any prod migration — or just use `pnpm db:migrate`, which chains
-// it automatically. Without it, the persistent Neon pool branches
+// Run this after any prod migration — or just use `pnpm db:migrate:prod`, which
+// chains it automatically once the migration succeeds. (`pnpm db:migrate` does NOT:
+// since 2026-07-15 it targets LOCAL, where refreshing the pool would be
+// meaningless.) Without it, the persistent Neon pool branches
 // (TEST_DATABASE_POOL in .env.test.local) drift behind prod and every DB test
 // fails with the cryptic "column (not available)".
 //
