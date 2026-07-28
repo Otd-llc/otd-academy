@@ -55,6 +55,12 @@ next-env.d.ts
 # Partner-facing ecosystem progress reports + GTM/IP strategy (cross-program; NOT public)
 /docs/partner-progress-report*.md
 /docs/hex-cluster-commercial-strategy.md
+# Sales + pitch material. Added 2026-07-25 after a local-only branch carrying 10
+# audience pitch decks, pricing and competitive positioning was found one merge
+# away from this PUBLIC repo. The classification guard keys on filename tokens and
+# body banners, so unlabelled business material like that would have passed it.
+/docs/pitch/
+/docs/sales/
 /docs/research/
 /docs/plans/2026-06-21-seo-content-moat-handoff.md
 /docs/plans/2026-06-21-seo-content-moat-library-implementation.md
