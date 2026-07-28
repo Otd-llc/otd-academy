@@ -6,10 +6,12 @@
 // "Bourns Inc."). Datasheet URL is web-sourced (the canonical Bourns 3362 PDF).
 // Category left null: a trimpot has no leaf in the 6-node category tree yet (F10).
 //
-// PROD write (.env.local DATABASE_URL). Run in PowerShell:
-//   pnpm exec tsx scripts/seed-l105-parts.ts
+// .env.local DATABASE_URL is LOCAL foundry_dev since 2026-07-15, so the bare run writes
+// local; `pnpm db:prod` is the guarded path to the real library. Run in PowerShell:
+//   LOCAL: pnpm exec tsx scripts/seed-l105-parts.ts
+//   PROD:  pnpm db:prod scripts/seed-l105-parts.ts
 import { config as loadEnv } from "dotenv";
-loadEnv({ path: ".env.local" });
+loadEnv({ path: ".env.local" }); // LOCAL foundry_dev
 
 interface NewPart {
   manufacturer: string;

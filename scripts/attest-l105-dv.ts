@@ -9,10 +9,13 @@
 //   • Fab-DRU DRC accounted for          → [L] layout stage
 //   • All top risks de-risked            → RK10 closes at [S], RK11/RK12 at [L]
 //
-// Idempotent (skips an already-checked item) + freeze-guarded. PROD write.
-// Run in PowerShell:  pnpm exec tsx scripts/attest-l105-dv.ts
+// Idempotent (skips an already-checked item) + freeze-guarded.
+// .env.local is LOCAL foundry_dev since 2026-07-15, so the bare run writes local;
+// `pnpm db:prod` is the guarded path to the real library. Run in PowerShell:
+//   LOCAL: pnpm exec tsx scripts/attest-l105-dv.ts
+//   PROD:  pnpm db:prod scripts/attest-l105-dv.ts
 import { config as loadEnv } from "dotenv";
-loadEnv({ path: ".env.local" });
+loadEnv({ path: ".env.local" }); // LOCAL foundry_dev
 
 const PROJECT_SLUG = "l1-05-internal-adc";
 

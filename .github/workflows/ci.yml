@@ -20,6 +20,14 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm tsc --noEmit
+      # Placed with the other static checks, ahead of the DB/build steps: it needs
+      # no database and no secrets, so it gives the fastest possible feedback and
+      # cannot be skipped by an earlier infrastructure failure. Register item A1
+      # triaged the baseline to 0 errors / 15 warnings and noted it was ready for
+      # the required checks; until it ran here, nothing stopped that re-accumulating.
+      # `eslint .` exits non-zero on errors only — warnings stay visible without
+      # failing the build, so the 15 known ones do not need grandfathering.
+      - run: pnpm lint
       - run: pnpm prisma validate
       # ORDER MATTERS: migrate + seed MUST run BEFORE `next build`.
       # The build now targets a REAL database (below), and under cacheComponents it

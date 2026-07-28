@@ -20,8 +20,15 @@ import { pathToFileURL } from "node:url";
 
 async function main() {
   const argv = process.argv.slice(2);
-  const yes = argv.includes("--yes");
-  const target = argv.find((a) => a.endsWith(".ts") || a.endsWith(".tsx"));
+  // Parse ONLY this wrapper's own flags — everything after `--` belongs to the
+  // target script. Scanning the whole argv meant a target's own `--yes` (e.g.
+  // `pnpm db:prod scripts/x.ts -- --yes --write`) silently skipped the production
+  // confirmation prompt: the one guard standing between a routine flag and a
+  // live prod write.
+  const sepIdx = argv.indexOf("--");
+  const ownArgs = sepIdx === -1 ? argv : argv.slice(0, sepIdx);
+  const yes = ownArgs.includes("--yes");
+  const target = ownArgs.find((a) => a.endsWith(".ts") || a.endsWith(".tsx"));
 
   if (!target) {
     console.error("usage: pnpm db:prod <script.ts> [--yes] [-- <script args>]");

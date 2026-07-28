@@ -7,9 +7,12 @@
 // (DV dedupes by (revisionId, subkind); BOM upserts on [revisionId, partId]).
 // Does NOT advance the stage and does NOT freeze the BOM (HOLD before LAYOUT).
 //
-// PROD write. Run in PowerShell:  pnpm exec tsx scripts/build-l104-revision-bom.ts
+// .env.local is LOCAL foundry_dev since 2026-07-15, so the bare run writes local;
+// `pnpm db:prod` is the guarded path to the real library. Run in PowerShell:
+//   LOCAL: pnpm exec tsx scripts/build-l104-revision-bom.ts
+//   PROD:  pnpm db:prod scripts/build-l104-revision-bom.ts
 import { config as loadEnv } from "dotenv";
-loadEnv({ path: ".env.local" });
+loadEnv({ path: ".env.local" }); // LOCAL foundry_dev
 import { readFileSync } from "node:fs";
 
 const PROJECT_SLUG = "l1-04-single-servo";

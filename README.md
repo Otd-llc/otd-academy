@@ -139,7 +139,7 @@ CI runs `tsc` + `prisma validate` + `migrate` + `db:seed` + `build` + a diagram-
 ## Production deployment
 
 - **Host:** Vercel (auto-deploys on push to `main`).
-- **DB:** Neon Postgres for **prod** and the isolated test branches only — local development runs on a local Postgres 17 (see [Local development](#local-development)). Prod migrations go through `pnpm db:migrate:prod` with the `PROD_*` env set inline; verify the printed host, because a migration silently applied to local while you believe it hit prod is the worst failure mode here.
+- **DB:** Neon Postgres for **prod** and the isolated test branches only — local development runs on a local Postgres 17 (see [Local development](#local-development)). Prod migrations go through `pnpm db:migrate:prod`, which reads `PROD_*` from `.env.local` itself, refuses to run if that host is local, prints the target host and requires typing `prod` — no inline env needed. Verify the printed host anyway, because a migration silently applied to local while you believe it hit prod is the worst failure mode here.
 - **Domain:** `academy.onethousanddrones.com` is the primary host (CNAME → Vercel at Porkbun). The legacy `foundry.onethousanddrones.com` host redirects to `academy.` at the Vercel domain level, and old `/projects/foundry-<slug>` URLs 308-redirect to their prefix-free form (`src/lib/legacy-slug-redirect.ts`) so indexed/bookmarked links keep resolving.
 - **Auth:** Google + GitHub OAuth apps + a Resend sender; redirect URIs / callbacks registered for localhost and the prod host.
 - **Build:** `prisma generate && next build` — the `prisma generate` step is load-bearing (Vercel's clean install needs it to populate `@prisma/client` types before the TypeScript pass).
