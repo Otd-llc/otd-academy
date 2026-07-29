@@ -122,6 +122,25 @@ served 4 requests/day.
 
 `pnpm db:seed` produces a demoable fixture: `esp32-sensor-breakout` at v1 / BRINGUP, BUILD-001 with 5 ASSEMBLED boards, sample measurements, and the artifacts needed to drive the `BRINGUP → REVISION` advance end-to-end. The two `scripts/*.ts` populators are idempotent one-offs that add the curriculum projects/edges and their guides; they write via Prisma directly because the server-action layer can't be driven headlessly (it needs an Auth.js request context).
 
+### Lesson content and its backup
+
+Authored lesson prose is **not in this repo**. `GuideCard.contentBlocks`,
+`MiniLesson.contentBlocks` and `Exam.questions` live in the database, so the code here
+renders content it does not contain.
+
+```bash
+pnpm content:export   # mirror the content tables to a JSON archive
+pnpm content:check    # exit non-zero if that archive is stale
+```
+
+Both write **outside this repository** (`CONTENT_ARCHIVE_DIR`, default
+`../otd-content-archive/content`) into a private archive, because the corpus includes exam
+answer keys that gate the certificates served at `/verify`. `scripts/import-content.ts`
+restores it, dry-run by default. A daily workflow in that private repo refreshes the
+production mirror; it pins this repo at the `content-export-v1` tag, so **changing
+`scripts/export-content.ts` requires bumping that tag** or the schedule keeps running the
+old code.
+
 Env vars: copy [`.env.local.example`](.env.local.example) to `.env.local` and fill in the values — that file is the authoritative list. It covers the Neon database, Auth.js + Google OAuth, the admin allowlist, and the optional file-storage / payments / parts-MCP groups. Values are never committed.
 
 ## Tests
@@ -152,3 +171,4 @@ If you are reading this repo to understand the system rather than to operate it:
 2. **Don't fork or derive, and don't train models on this repo.** Per [LICENSE.md](LICENSE.md) you may read and cite the code; you may not copy any portion into another project or use it as ML training data.
 3. **You cannot run live tests against the production database.** Tests run against isolated Neon test branches (a per-file pool locally, a dedicated `ci-test` branch in CI); local dev points at a **local Postgres 17** via `.env.local`. Prod is reachable only through the explicit `PROD_*` env + `pnpm db:prod` path.
 4. **Caching is not optional knowledge.** Cache Components is on, so a route-segment `dynamic`/`revalidate`/`runtime` export will not compile, a cached function may not read the session, and vitest cannot see cache behaviour at all. Read [docs/caching.md](docs/caching.md) before touching a public read path.
+5. **The lessons are not here.** Guide prose, library articles and exam banks live in the database, mirrored to a private archive (see *Lesson content and its backup* above). Reading `src/` tells you how content renders, never what it says.

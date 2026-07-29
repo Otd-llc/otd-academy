@@ -20,6 +20,17 @@
 // READ-ONLY. This script performs no Prisma mutation of any kind, which is what
 // makes it safe to point at production.
 //
+// *** IF YOU CHANGE THIS FILE, BUMP THE PINNED TAG. ***
+// A daily workflow in the PRIVATE Otd-llc/otd-content-archive repo runs this
+// against production. It checks this repo out at the `content-export-v1` TAG, not
+// main, so that a merged PR here cannot reach the production credential it holds.
+// The consequence: your change does not take effect on the schedule until the tag
+// moves, and nothing warns you.
+//
+//   git tag -f content-export-v1 <sha> && git push -f origin content-export-v1
+//
+// Then re-run the workflow once to confirm it still passes.
+//
 // dotenv defaults to override:false, so under `pnpm db:prod` -- which sets
 // DATABASE_URL to prod BEFORE importing this file -- the prod URL survives. Run
 // directly, it falls back to .env.local (LOCAL).

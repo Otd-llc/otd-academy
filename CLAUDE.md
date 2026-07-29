@@ -127,4 +127,29 @@ lines, or revisions before then. New boards start from `docs/boards/_template/`
   module (`src/lib/abuse-limit.ts`), never `"use server"`. Local dev is keyless (KV/Turnstile
   unset) → every layer no-ops. Design + build:
   `docs/plans/2026-07-16-signup-abuse-defense-{design,implementation}.md`.
+- **Authored lesson content lives ONLY in the production database, and its backup is a
+  SEPARATE PRIVATE REPO.** `GuideCard.contentBlocks`, `MiniLesson.contentBlocks` and
+  `Exam.questions` are not in git, and Neon's free plan keeps only a short history window
+  (~6h), so anything authored yesterday has no provider-side recovery path.
+
+  - `pnpm content:export` / `pnpm content:check` (`scripts/export-content.ts`) mirror the
+    content tables to a deterministic, PII-free JSON tree. **It writes OUTSIDE this repo**
+    — `CONTENT_ARCHIVE_DIR`, defaulting to `../otd-content-archive/content` — because this
+    repo is PUBLIC and the corpus is the priced curriculum plus every exam **answer key**,
+    which gate the `/verify` certificates. A `/content/` gitignore entry exists as
+    belt-and-braces; the default target is the real protection.
+  - `scripts/import-content.ts` restores it. **Dry run is the default**; `--write` applies.
+    Projects are never created (they carry pricing and curriculum edges the archive lacks);
+    revisions match case-insensitively; `createdById` resolves to an admin on the target.
+  - A **daily workflow in the private `Otd-llc/otd-content-archive`** refreshes the prod
+    mirror. It lives there, not here, so the prod URL is never an Actions secret on a public
+    repo. It checks this repo out at the **`content-export-v1` tag**, so **if you change
+    `scripts/export-content.ts` you must bump that tag or the schedule silently keeps
+    running the old code.** Nothing warns you.
+  - The archive carries **two** trees: `content/` mirrors prod, `local-snapshot/` mirrors
+    the dev DB. Neither is a superset — L2.01's authored guide and its 18-question exam
+    exist only on local, held back pending a safety review. `local-snapshot/` retires when
+    L2.01 ships.
+  - The restore is **exercised**, not assumed (drill recorded in the archive's README).
+    Re-run that drill after any change to either script.
 - **Branch off `main`.** Don't merge without the maintainer's explicit go-ahead.
