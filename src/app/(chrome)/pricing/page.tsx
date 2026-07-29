@@ -36,7 +36,8 @@ import { BuyPassButton, UpgradePassButton } from "@/components/learn/PassButtons
 import { PassWaitlistForm } from "@/components/learn/PassWaitlistForm";
 import { formatUsdShort } from "@/lib/format-money";
 import { productOfferJsonLd, siteUrl } from "@/lib/seo/jsonld";
-import { currentPassPriceId, isLaunchActive } from "@/lib/pass-pricing";
+import { currentPassPriceId, isLaunchActive, passSellable } from "@/lib/pass-pricing";
+import { countPublishedPremiumProjects } from "@/lib/premium-catalog";
 import { quoteUpgrade } from "@/lib/pass-upgrade";
 import { PricingViewedPing } from "@/components/learn/PricingViewedPing";
 
@@ -49,7 +50,7 @@ const PRICING_FAQS: [string, string][] = [
   ],
   [
     "What is free?",
-    "The first board, L1.01, is free to build start to finish, no account required. Every other build is a one-time premium purchase, with no subscription.",
+    "The first board, L1.01, is free to build start to finish, no account required. The rest of the catalog is still in the workshop. Every one of those builds will be a one-time premium purchase, never a subscription, and each price goes up here the day that build opens.",
   ],
   [
     "Can I get a refund?",
@@ -121,10 +122,14 @@ async function premiumPriceRange(): Promise<{
   "use cache";
   cacheLife(ONE_HOUR);
   cacheTag(TAG_PROJECTS);
+  // publishedRevisionId is load-bearing: 16 premium projects carry a price and
+  // none is published, so without it this advertised "$49 to $149" (and emitted
+  // a Product offer) for a cohort nobody can buy.
   const where = {
     accessTier: "PREMIUM" as const,
     priceCents: { not: null, gt: 0 },
     archivedAt: null,
+    publishedRevisionId: { not: null },
   };
   const [cheapest, dearest] = await Promise.all([
     db.project.findFirst({
@@ -185,10 +190,19 @@ export default async function PricingPage() {
   const passCents = bundle ? currentPassPriceId(bundle, now) : null;
   const launchOpen = bundle ? isLaunchActive(bundle, now) : false;
   const standardCents = bundle?.priceCents ?? null;
-  // The Pass is sellable only once set-pass-price.ts has provisioned a Stripe
-  // price id (loadSellablePass enforces the same server-side). Until then the
-  // Pass renders as a waitlist, not a buy button that would error.
-  const passOnSale = bundle?.stripePriceId != null && passCents !== null;
+  // The Pass unlocks EVERY project (@/lib/entitlements), so it is sellable only
+  // once at least one premium project is actually published — the same predicate
+  // loadSellablePass enforces server-side. Read at REQUEST time, deliberately not
+  // inside the `use cache` block above: a stale count would render a buy button
+  // for an empty catalog for up to an hour.
+  const publishedPremium = await countPublishedPremiumProjects();
+  const passOnSale = passSellable(bundle, publishedPremium, now);
+
+  // Nothing that is not for sale may show a price. The CTA and the price display
+  // are separate code paths; gating only the CTA renders "$299 / $399 · Launch
+  // price" directly above a waitlist form.
+  const passDisplayCents = passOnSale ? passCents : null;
+  const showLaunchBadge = passOnSale && launchOpen;
 
   // Resolve the signed-in viewer's state for the CTA.
   let signedIn = false;
@@ -227,8 +241,11 @@ export default async function PricingPage() {
   }
 
   const base = siteUrl();
+  // Advertising an `offers` price for something that cannot be bought is a
+  // Merchant-listing mismatch. Both conjuncts are needed: passOnSale is a plain
+  // boolean and does not narrow `passCents` to a number.
   const passOfferLd =
-    passCents !== null
+    passOnSale && passCents !== null
       ? productOfferJsonLd({
           name: "All-Access Pass",
           description:
@@ -247,11 +264,13 @@ export default async function PricingPage() {
         })
       : null;
 
+  // passDisplayCents, not passCents: an unsellable Pass reads "Soon" in the
+  // catalog rather than quoting a price nobody can pay.
   const passUnit =
-    passCents !== null
-      ? launchOpen && standardCents !== null && standardCents > passCents
-        ? `${formatUsdShort(passCents)} / ${formatUsdShort(standardCents)}`
-        : formatUsdShort(passCents)
+    passDisplayCents !== null
+      ? launchOpen && standardCents !== null && standardCents > passDisplayCents
+        ? `${formatUsdShort(passDisplayCents)} / ${formatUsdShort(standardCents)}`
+        : formatUsdShort(passDisplayCents)
       : "Soon";
 
   // Catalog price rows. The level code is the real curriculum level, a quiet
@@ -268,14 +287,18 @@ export default async function PricingPage() {
         desc: "Level 1 premium builds (L1.02 to L1.05)",
         price: "Soon",
       },
-      { code: "L2", desc: "Level 2 builds (L2.01 to L2.05)", price: "$49" },
-      { code: "L3", desc: "Level 3 builds", price: "$89" },
+      // Every tier below is unpublished, so none of it is buyable. Quoting a
+      // firm figure for it is the same defect the Pass hero just shed: it
+      // advertises a price the checkout will refuse, and commits us to a number
+      // before the build is finished. They read "Soon" until they publish.
+      { code: "L2", desc: "Level 2 builds (L2.01 to L2.05)", price: "Soon" },
+      { code: "L3", desc: "Level 3 builds", price: "Soon" },
       {
         code: "CAP",
         desc: "Capstone builds (EEG front-end, fleet hub)",
-        price: "$149",
+        price: "Soon",
       },
-      { code: "BN", desc: "Bench-tool builds", price: "$89" },
+      { code: "BN", desc: "Bench-tool builds", price: "Soon" },
       {
         code: "PASS",
         desc: "All-Access Pass, every premium build and bench tool",
@@ -385,18 +408,18 @@ export default async function PricingPage() {
                 Every premium build and bench tool
               </p>
             </div>
-            {launchOpen ? (
+            {showLaunchBadge ? (
               <span className="shrink-0 border border-command-gold/40 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-command-gold">
                 Launch price
               </span>
             ) : null}
           </div>
-          {passCents !== null ? (
+          {passDisplayCents !== null ? (
             <p className="font-display text-7xl leading-none tracking-wide text-command-gold">
-              {priceNumerals(formatUsdShort(passCents))}
+              {priceNumerals(formatUsdShort(passDisplayCents))}
               {launchOpen &&
               standardCents !== null &&
-              standardCents > passCents ? (
+              standardCents > passDisplayCents ? (
                 <span className="ml-3 align-baseline text-3xl text-muted line-through">
                   {priceNumerals(formatUsdShort(standardCents))}
                 </span>
