@@ -71,10 +71,29 @@ function existingFiles(root: string): Set<string> {
   return out;
 }
 
+/**
+ * The target host, for the banner. A malformed DATABASE_URL otherwise surfaces as
+ * a bare `TypeError: Invalid URL` from deep in the script with the value masked
+ * by CI, which is what a mangled Actions secret looked like the first time this
+ * ran on a runner.
+ */
+function targetHost(): string {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL is not set");
+  try {
+    return new URL(url).hostname;
+  } catch {
+    throw new Error(
+      `DATABASE_URL is not a valid URL (length ${url.length}, starts ${JSON.stringify(url.slice(0, 12))}). ` +
+        "A secret set through a shell pipe can pick up a trailing newline; set it with an explicit value instead.",
+    );
+  }
+}
+
 async function main() {
   const { db } = await import("@/lib/db");
   const root = archiveRoot();
-  const host = new URL(process.env.DATABASE_URL ?? "postgres://unknown").hostname;
+  const host = targetHost();
 
   console.log("");
   console.log(`  source  : ${host}`);
