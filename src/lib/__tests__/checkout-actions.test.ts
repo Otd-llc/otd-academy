@@ -91,6 +91,39 @@ describe("createCheckoutSession — refusals", () => {
     ).rejects.toThrow(/available for purchase/i);
     expect(sessionsCreate).not.toHaveBeenCalled();
   });
+
+  // Priced but UNPUBLISHED was buyable until this guard landed: 16 PREMIUM
+  // projects carry a live Stripe price and none has a published revision, so any
+  // signed-in stranger could pay for a course that renders nothing.
+  test("refuses a priced PREMIUM project that is not published", async () => {
+    projectFindUnique.mockResolvedValue({
+      id: PROJECT_ID,
+      slug: "premium-unpublished",
+      accessTier: "PREMIUM",
+      stripePriceId: "price_xyz",
+      publishedRevisionId: null,
+      archivedAt: null,
+    });
+    await expect(
+      createCheckoutSession({ projectId: PROJECT_ID }),
+    ).rejects.toThrow(/available for purchase/i);
+    expect(sessionsCreate).not.toHaveBeenCalled();
+  });
+
+  test("refuses a priced, published PREMIUM project that is archived", async () => {
+    projectFindUnique.mockResolvedValue({
+      id: PROJECT_ID,
+      slug: "premium-archived",
+      accessTier: "PREMIUM",
+      stripePriceId: "price_xyz",
+      publishedRevisionId: "rev_1",
+      archivedAt: new Date("2026-07-01T00:00:00Z"),
+    });
+    await expect(
+      createCheckoutSession({ projectId: PROJECT_ID }),
+    ).rejects.toThrow(/available for purchase/i);
+    expect(sessionsCreate).not.toHaveBeenCalled();
+  });
 });
 
 describe("createCheckoutSession — success", () => {
@@ -100,6 +133,10 @@ describe("createCheckoutSession — success", () => {
       slug: "premium-course",
       accessTier: "PREMIUM",
       stripePriceId: "price_xyz",
+      // A sellable project must also be PUBLISHED and not archived. Without these
+      // two the guard sees `undefined !== null` and refuses.
+      publishedRevisionId: "rev_1",
+      archivedAt: null,
     });
   });
 

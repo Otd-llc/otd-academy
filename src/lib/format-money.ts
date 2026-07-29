@@ -50,3 +50,27 @@ export function resolveBuyPriceCents(project: {
     ? project.priceCents
     : null;
 }
+
+/**
+ * Resolve a project's buy price only when the project is actually BUYABLE:
+ * priced AND published AND not archived.
+ *
+ * `resolveBuyPriceCents` answers "does it carry a price", which is a different
+ * question and was the wrong one for a buy CTA. As of 2026-07-28, 16 PREMIUM
+ * projects carry a live Stripe price and none of them has a published revision,
+ * so pricing alone rendered a buy button whose server action refuses — a dead
+ * button on every premium guide page.
+ *
+ * Use this anywhere a purchase is OFFERED. `checkout.ts` keeps its own
+ * server-side re-check for defense-in-depth; a hidden button is not a gate.
+ */
+export function projectBuyable(project: {
+  stripePriceId: string | null;
+  priceCents: number | null;
+  publishedRevisionId: string | null;
+  archivedAt: Date | null;
+}): number | null {
+  if (project.publishedRevisionId === null) return null;
+  if (project.archivedAt !== null) return null;
+  return resolveBuyPriceCents(project);
+}

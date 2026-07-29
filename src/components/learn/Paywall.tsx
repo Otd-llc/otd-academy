@@ -19,7 +19,7 @@
 import { WaitlistForm } from "@/components/learn/WaitlistForm";
 import { BuyButton } from "@/components/learn/BuyButton";
 import { SignInToUnlock } from "@/components/learn/SignInToUnlock";
-import { resolveBuyPriceCents, formatUsd } from "@/lib/format-money";
+import { projectBuyable } from "@/lib/format-money";
 
 export function Paywall({
   projectId,
@@ -27,6 +27,8 @@ export function Paywall({
   lessonTitles,
   stripePriceId,
   priceCents,
+  publishedRevisionId,
+  archivedAt,
   signedIn,
 }: {
   projectId: string;
@@ -34,14 +36,20 @@ export function Paywall({
   lessonTitles?: string[];
   stripePriceId?: string | null;
   priceCents?: number | null;
+  /** Required: a price alone does not make a project buyable. */
+  publishedRevisionId: string | null;
+  archivedAt: Date | null;
   signedIn: boolean;
 }) {
   const titles = lessonTitles?.filter(Boolean) ?? [];
-  // Purchasable only when BOTH the Stripe price id and a display price exist.
-  // Resolves to a concrete `number | null` so the BuyButton call site is narrowed.
-  const buyPriceCents = resolveBuyPriceCents({
+  // Purchasable only when priced AND published AND not archived. Gating on price
+  // alone rendered a Buy button for all 16 priced-but-unpublished projects, whose
+  // server action then refuses -- a dead button at the highest-intent moment.
+  const buyPriceCents = projectBuyable({
     stripePriceId: stripePriceId ?? null,
     priceCents: priceCents ?? null,
+    publishedRevisionId,
+    archivedAt,
   });
   const purchasable = buyPriceCents !== null;
 
@@ -95,17 +103,11 @@ export function Paywall({
               <SignInToUnlock priceCents={buyPriceCents} />
             )
           ) : (
-            <div className="space-y-3">
-              {priceCents != null ? (
-                <p className="font-mono text-2xl text-title">
-                  {formatUsd(priceCents)}
-                  <span className="ml-2 text-xs uppercase tracking-wider text-muted">
-                    at launch
-                  </span>
-                </p>
-              ) : null}
-              <WaitlistForm projectId={projectId} />
-            </div>
+            // Nothing that is not for sale shows a price. This branch used to
+            // print "$49.00 at launch" from `priceCents` alone -- which is now
+            // exactly the unbuyable case, so it advertised a firm price for a
+            // course nobody can buy and whose price may not survive to launch.
+            <WaitlistForm projectId={projectId} />
           )}
         </div>
       </div>

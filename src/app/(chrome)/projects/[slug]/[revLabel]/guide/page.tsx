@@ -42,7 +42,7 @@ import { hasProjectEntitlement } from "@/lib/entitlements";
 import { WaitlistForm } from "@/components/learn/WaitlistForm";
 import { BuyButton } from "@/components/learn/BuyButton";
 import { SignInToUnlock } from "@/components/learn/SignInToUnlock";
-import { resolveBuyPriceCents } from "@/lib/format-money";
+import { projectBuyable } from "@/lib/format-money";
 import { courseJsonLd } from "@/lib/seo/jsonld";
 import { JsonLd } from "@/components/seo/JsonLd";
 import {
@@ -319,7 +319,9 @@ export default async function GuideHubPage({
   // a Stripe price id and a display price; the waitlist otherwise (Task B1). When
   // purchasable but the viewer is signed OUT, a sign-in CTA stands in for the Buy
   // button (they can't check out anonymously — createCheckoutSession needs a user).
-  const buyPriceCents = resolveBuyPriceCents(project);
+  // Buyable, not merely priced: an unpublished or archived project must not offer
+  // a purchase, because createCheckoutSession refuses it (see projectBuyable).
+  const buyPriceCents = projectBuyable(project);
   const signedIn = !!sessionEmail;
   const view = guideCardView(session?.user?.role);
   let learnerCurrentStage: string | null = null;

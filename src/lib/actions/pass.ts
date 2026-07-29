@@ -23,7 +23,8 @@ import { requireUser } from "@/lib/auth-helpers";
 import { enforceCheckoutLimit } from "@/lib/abuse-checkout";
 import { ensureStripeCustomer, getStripe } from "@/lib/stripe";
 import { siteUrl } from "@/lib/seo/jsonld";
-import { currentPassPriceId } from "@/lib/pass-pricing";
+import { currentPassPriceId, passSellable } from "@/lib/pass-pricing";
+import { countPublishedPremiumProjects } from "@/lib/premium-catalog";
 import { quoteUpgrade } from "@/lib/pass-upgrade";
 
 // The stable lookup key for the one All-Access Pass bundle.
@@ -33,26 +34,38 @@ export async function passBundleKey(): Promise<string> {
 
 const BUNDLE_KEY = "all-access";
 
-// Load the configured Pass bundle, or throw a clear "not for sale" error. A Pass
-// is sellable only once `set-pass-price.ts` has run (a stripePriceId + a resolved
-// current price). Internal helper — not exported (this is a "use server" file).
+// Load the configured Pass bundle, or throw a clear "not for sale" error.
+//
+// Three necessary conditions (see passSellable): a Stripe price id, a price that
+// resolves now, and at least one PUBLISHED PREMIUM project. A bundle entitlement
+// unlocks every project (@/lib/entitlements), so selling with nothing published
+// charges for an empty catalog.
+//
+// This is the chokepoint for BOTH the straight buy and the pay-the-difference
+// upgrade — including the upgrade's `alreadyCovered` branch, which grants an
+// entitlement DIRECTLY with no Stripe round-trip. Do NOT move this gate down to
+// the individual call sites; that reopens the direct-grant path.
+//
+// Internal helper — not exported (this is a "use server" file).
 async function loadSellablePass(now: Date): Promise<{
   id: string;
   stripePriceId: string;
   currentCents: number;
 }> {
-  const bundle = await db.bundle.findUnique({ where: { key: BUNDLE_KEY } });
-  if (!bundle || !bundle.stripePriceId) {
+  const [bundle, publishedPremium] = await Promise.all([
+    db.bundle.findUnique({ where: { key: BUNDLE_KEY } }),
+    countPublishedPremiumProjects(),
+  ]);
+  if (!passSellable(bundle, publishedPremium, now)) {
     throw new Error("The All-Access Pass isn't available yet.");
   }
-  const currentCents = currentPassPriceId(bundle, now);
-  if (currentCents === null) {
-    throw new Error("The All-Access Pass isn't available yet.");
-  }
+  // Sound: passSellable returned true, so bundle is non-null, stripePriceId is
+  // non-null, and currentPassPriceId is pure over the same bundle and the same
+  // `now`, so it cannot now return null. It is not a type predicate, hence `!`.
   return {
-    id: bundle.id,
-    stripePriceId: bundle.stripePriceId,
-    currentCents,
+    id: bundle!.id,
+    stripePriceId: bundle!.stripePriceId!,
+    currentCents: currentPassPriceId(bundle!, now)!,
   };
 }
 
@@ -209,8 +222,15 @@ export async function createSubscriptionCheckoutSession(): Promise<{
 }> {
   const user = await requireUser();
   await enforceCheckoutLimit(user.id);
-  const bundle = await db.bundle.findUnique({ where: { key: BUNDLE_KEY } });
-  if (!bundle || !bundle.subscriptionPriceId) {
+  const [bundle, publishedPremium] = await Promise.all([
+    db.bundle.findUnique({ where: { key: BUNDLE_KEY } }),
+    countPublishedPremiumProjects(),
+  ]);
+  // Same bundle, same access, so the same sell-side gate: a subscription that
+  // unlocks an empty catalog is the same defect billed monthly. Deliberately NOT
+  // routed through passSellable — a subscription needs only subscriptionPriceId,
+  // and coupling it to the one-time stripePriceId would be a new dependency.
+  if (!bundle || !bundle.subscriptionPriceId || publishedPremium === 0) {
     throw new Error("The subscription isn't available yet.");
   }
   const customer = await ensureStripeCustomer(user);
