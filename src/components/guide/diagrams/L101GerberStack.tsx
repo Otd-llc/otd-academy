@@ -60,8 +60,12 @@ const N = SHEETS.length;
 // height instead. `evenLabels` and `leaders` are separate on purpose -- the even
 // spread is what makes the column legible, and it stands on its own without lines
 // drawn back to the sheets (owner directive 2026-07-28).
-const WIDE = { gap: 5, gut: 100, spread: 9, evenLabels: true, leaders: false };
-const NARROW = { gap: 13, gut: 30, spread: 5, evenLabels: false, leaders: false };
+// `padTop` is headroom inside the viewBox for the frame's own "Fig N" corner. The
+// wide form keeps its labels clear via insetTop below; the narrow form anchors each
+// label to the sheet it names (that tie is the point of the phone composition), so
+// it buys the clearance by starting the whole stack lower instead.
+const WIDE = { gap: 5, gut: 100, spread: 9, evenLabels: true, leaders: false, padTop: 0 };
+const NARROW = { gap: 13, gut: 30, spread: 5, evenLabels: false, leaders: false, padTop: 15 };
 
 // Front sheets give up this much alpha at full spread, and this fraction of it is
 // already given up at rest -- so the exported raster is an x-ray too, not a closed
@@ -131,17 +135,25 @@ function stackMarkup(gap: number): string {
     .join("");
 }
 
-function box(gap: number, gut: number) {
+function box(gap: number, gut: number, padTop = 0) {
   const pad = 1.5;
   const w = P_W + gut;
   const h = P_H + gap * (N - 1) + T_CU;
-  return { w, h, viewBox: `${-pad} ${-pad} ${f(w + pad * 2)} ${f(h + pad * 2)}`, pad };
+  return {
+    w,
+    h,
+    pad,
+    padTop,
+    // total box height, so label percentages and the viewBox agree
+    boxH: h + pad * 2 + padTop,
+    viewBox: `${-pad} ${-(pad + padTop)} ${f(w + pad * 2)} ${f(h + pad * 2 + padTop)}`,
+  };
 }
 
 // Where each sheet's label sits and, when leaders are on, where it points back to.
 // Both the SVG leader and the HTML label read this, so they cannot drift apart.
-function labelGeometry(gap: number, gut: number, even: boolean) {
-  const { w, h, pad } = box(gap, gut);
+function labelGeometry(gap: number, gut: number, even: boolean, padTop = 0) {
+  const { w, h, pad, boxH } = box(gap, gut, padTop);
   // The frame paints its own "Fig N" in the TOP-RIGHT corner when a diagram is
   // in-lesson, and this label column lives in the right gutter, so the first label
   // has to start below that corner or the two collide. Everything after it is
@@ -160,7 +172,7 @@ function labelGeometry(gap: number, gut: number, even: boolean) {
       x,
       y,
       left: `${f(((x + pad) / (w + pad * 2)) * 100)}%`,
-      top: `${f(((y + pad) / (h + pad * 2)) * 100)}%`,
+      top: `${f(((y + pad + padTop) / boxH) * 100)}%`,
     };
   });
 }
@@ -176,14 +188,14 @@ function leaderMarkup(gap: number, gut: number, even: boolean): string {
     .join("");
 }
 
-const WIDE_BOX = box(WIDE.gap, WIDE.gut);
-const NARROW_BOX = box(NARROW.gap, NARROW.gut);
+const WIDE_BOX = box(WIDE.gap, WIDE.gut, WIDE.padTop);
+const NARROW_BOX = box(NARROW.gap, NARROW.gut, NARROW.padTop);
 const WIDE_MARKUP =
   stackMarkup(WIDE.gap) + (WIDE.leaders ? leaderMarkup(WIDE.gap, WIDE.gut, WIDE.evenLabels) : "");
 const NARROW_MARKUP =
   stackMarkup(NARROW.gap) + (NARROW.leaders ? leaderMarkup(NARROW.gap, NARROW.gut, NARROW.evenLabels) : "");
-const WIDE_LABELS = labelGeometry(WIDE.gap, WIDE.gut, WIDE.evenLabels);
-const NARROW_LABELS = labelGeometry(NARROW.gap, NARROW.gut, NARROW.evenLabels);
+const WIDE_LABELS = labelGeometry(WIDE.gap, WIDE.gut, WIDE.evenLabels, WIDE.padTop);
+const NARROW_LABELS = labelGeometry(NARROW.gap, NARROW.gut, NARROW.evenLabels, NARROW.padTop);
 
 function Labels({
   pos,
