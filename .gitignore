@@ -86,6 +86,10 @@ next-env.d.ts
 /docs/plans/2026-07-16-signup-abuse-defense-design.md
 /docs/plans/2026-07-16-signup-abuse-defense-implementation.md
 /docs/plans/2026-07-18-course-xp-graduation-and-mini-quizzes.md
+# Post-audit remediation plan. Enumerates still-open live money-path holes, so it
+# must never reach this PUBLIC repo. Backed up in the private store as
+# otd-classified/internal/academy-post-audit-remediation-plan.md.
+/docs/plans/2026-07-28-post-audit-remediation.md
 
 # Local one-off / scratch scripts — operational snapshots already applied to the
 # DB, kept locally for reference but not part of the app or build. Safe to delete.
