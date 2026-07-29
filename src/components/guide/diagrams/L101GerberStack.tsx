@@ -56,10 +56,12 @@ const N = SHEETS.length;
 // wants the same world re-composed rather than summarised into text cards.
 // The wide gutter is a real legend column, not padding: at the tight gap that
 // keeps the stack reading as a stack, the eight sheet anchors span only a third of
-// the art's height, so the labels are spread evenly over the full height instead
-// and a leader carries the eye back to the sheet each one names.
-const WIDE = { gap: 5, gut: 100, spread: 9, leaders: true };
-const NARROW = { gap: 13, gut: 30, spread: 5, leaders: false };
+// the art's height, so the wide form spreads its labels evenly over the full
+// height instead. `evenLabels` and `leaders` are separate on purpose -- the even
+// spread is what makes the column legible, and it stands on its own without lines
+// drawn back to the sheets (owner directive 2026-07-28).
+const WIDE = { gap: 5, gut: 100, spread: 9, evenLabels: true, leaders: false };
+const NARROW = { gap: 13, gut: 30, spread: 5, evenLabels: false, leaders: false };
 
 // Front sheets give up this much alpha at full spread, and this fraction of it is
 // already given up at rest -- so the exported raster is an x-ray too, not a closed
@@ -140,12 +142,17 @@ function box(gap: number, gut: number) {
 // Both the SVG leader and the HTML label read this, so they cannot drift apart.
 function labelGeometry(gap: number, gut: number, even: boolean) {
   const { w, h, pad } = box(gap, gut);
-  const inset = h * 0.05;
+  // The frame paints its own "Fig N" in the TOP-RIGHT corner when a diagram is
+  // in-lesson, and this label column lives in the right gutter, so the first label
+  // has to start below that corner or the two collide. Everything after it is
+  // spread from there to the bottom of the art.
+  const insetTop = h * 0.14;
+  const insetBottom = h * 0.03;
   return SHEETS.map((s, i) => {
     const t = thickOf(s.kind);
     // the near edge is the sheet's BOTTOM; its mass runs up by P_H, so centre on that
     const anchorY = -MIN_Y + i * gap + t / 2 - P_H / 2;
-    const y = even ? inset + (i * (h - inset * 2)) / (N - 1) : anchorY;
+    const y = even ? insetTop + (i * (h - insetTop - insetBottom)) / (N - 1) : anchorY;
     const x = P_W + 3;
     return {
       anchorX: P_W,
@@ -171,10 +178,12 @@ function leaderMarkup(gap: number, gut: number, even: boolean): string {
 
 const WIDE_BOX = box(WIDE.gap, WIDE.gut);
 const NARROW_BOX = box(NARROW.gap, NARROW.gut);
-const WIDE_MARKUP = stackMarkup(WIDE.gap) + leaderMarkup(WIDE.gap, WIDE.gut, WIDE.leaders);
-const NARROW_MARKUP = stackMarkup(NARROW.gap);
-const WIDE_LABELS = labelGeometry(WIDE.gap, WIDE.gut, WIDE.leaders);
-const NARROW_LABELS = labelGeometry(NARROW.gap, NARROW.gut, NARROW.leaders);
+const WIDE_MARKUP =
+  stackMarkup(WIDE.gap) + (WIDE.leaders ? leaderMarkup(WIDE.gap, WIDE.gut, WIDE.evenLabels) : "");
+const NARROW_MARKUP =
+  stackMarkup(NARROW.gap) + (NARROW.leaders ? leaderMarkup(NARROW.gap, NARROW.gut, NARROW.evenLabels) : "");
+const WIDE_LABELS = labelGeometry(WIDE.gap, WIDE.gut, WIDE.evenLabels);
+const NARROW_LABELS = labelGeometry(NARROW.gap, NARROW.gut, NARROW.evenLabels);
 
 function Labels({
   pos,

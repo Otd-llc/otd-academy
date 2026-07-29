@@ -45,7 +45,7 @@
     "basename": "l101-gerber-stack",
     "image": "/guide-diagrams/l101-gerber-stack.webp",
     "alt": "The L1.01 board drawn as an exploded stack of its eight Gerber layers, each one rendered from the actual exported file. Front to back: F_Silk, the white labels; F_Mask, the solder mask with an opening at every pad; F_Cu, layer 1, carrying your traces; In1_Cu and In2_Cu, layers 2 and 3, the two inner copper ground planes; B_Cu, layer 4, the back-side traces; then B_Mask and B_Silk. The front sheets are drawn part-transparent so the copper underneath shows through. Eight flat drawings, pressed together in this order, are the board the fab builds.",
-    "hash": "751f30342c9c"
+    "hash": "45622d9f5d5f"
   },
   {
     "basename": "continuity-vbus-gnd",
