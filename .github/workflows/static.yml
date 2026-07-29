@@ -1,0 +1,46 @@
+name: static
+
+# The cheap, deterministic half of CI, split out so it can be a REQUIRED check.
+#
+# Why its own workflow file, not a job inside ci.yml: ci.yml declares
+# `concurrency: ci-shared-test-db` at WORKFLOW scope, which a job cannot opt out
+# of. Every run there queues single-file behind an ~11-minute build, and a
+# pending run gets cancelled when a newer one arrives -- which is exactly what
+# happened on #378, where CI was cancelled at 20s and nobody noticed because
+# `guard` was the only required check. Requiring anything that lives inside that
+# workflow would gate merges on infrastructure noise.
+#
+# Same reasoning as classification-guard.yml, which says so in its own header.
+#
+# Nothing here needs a database or a secret: `tsc` and `eslint` are static, and
+# `prisma validate` parses the schema without resolving the datasource URL. That
+# is what makes it safe to require -- it cannot fail on a cold Neon branch, a
+# playwright download, or a seed race.
+#
+# The heavy half (migrate, seed, next build, the diagram gate, ~1930 tests) stays
+# in ci.yml and stays advisory until its flaky steps get the retry treatment that
+# `migrate` already has.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with: { version: 11 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tsc --noEmit
+      # Ahead of nothing in particular now, but kept with the other static checks:
+      # it needs no database and no secrets, so it gives the fastest feedback and
+      # cannot be skipped by an earlier infrastructure failure. Register item A1
+      # triaged the baseline to 0 errors; until it ran in CI, nothing stopped that
+      # re-accumulating. `eslint .` exits non-zero on errors only, so the known
+      # warnings stay visible without failing the run.
+      - run: pnpm lint
+      - run: pnpm prisma validate
