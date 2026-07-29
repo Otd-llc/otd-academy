@@ -59,7 +59,7 @@ depth teaches, it's decoration and it doesn't ship.
 | Rule | Value |
 |---|---|
 | **Binding** | One CSS custom property (`--p`, -1..+1, 0 = element centred) written by the shared `useScrollParallax` primitive. `useScrollReveal` is fire-once and structurally cannot express this; do not reinvent either per file. |
-| **Read path** | CSS only, and **only `transform` may read `--p`.** No React state — a scroll must never re-render the tree. Composited properties only; CLS 0. |
+| **Read path** | CSS only, and **only `transform` and `opacity` may read `--p`.** No React state — a scroll must never re-render the tree. Composited properties only; CLS 0. (`opacity` was added 2026-07-28 for `L101GerberStack`, where the front sheets give up alpha as the stack spreads so the inner layers come into view. The rule exists to keep the work off the main thread, and `opacity` composites exactly as `transform` does — so the constraint is *compositor-only properties*, not `transform` specifically. Anything that triggers layout or paint still does not ship.) |
 | **Listener** | rAF-throttled, attached ONLY while the diagram is intersecting. A lesson page holds several diagrams; none may cost a scroll handler offscreen. |
 | **Budget** | Sized to the FRAME, not the viewBox. ~8–12 CSS px of travel for the outermost layers; the total near-to-far separation should read as depth, not as a slideshow of planes. |
 | **Coupling** | Objects joined by a connector share one factor (`diagram-standards` P3). Anything planted on the ground does not move at all (P2). |

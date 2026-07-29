@@ -10,6 +10,7 @@ import { HaslVsEnig } from "./diagrams/HaslVsEnig";
 import { TwoLayerCrossSection } from "./diagrams/TwoLayerCrossSection";
 import { FourLayerCrossSection } from "./diagrams/FourLayerCrossSection";
 import { GerberLayerStack } from "./diagrams/GerberLayerStack";
+import { L101GerberStack } from "./diagrams/L101GerberStack";
 import { ContinuityVbusGnd } from "./diagrams/ContinuityVbusGnd";
 import { Adc1PinMap } from "./diagrams/Adc1PinMap";
 import { AntennaKeepout } from "./diagrams/AntennaKeepout";
@@ -64,6 +65,7 @@ const CORE_DIAGRAMS: Record<string, DiagramComponent> = {
   "/guide-diagrams/two-layer-cross-section.svg": TwoLayerCrossSection,
   "/guide-diagrams/four-layer-cross-section.svg": FourLayerCrossSection,
   "/guide-diagrams/gerber-layer-stack.svg": GerberLayerStack,
+  "/guide-diagrams/l101-gerber-stack.svg": L101GerberStack,
   "/guide-diagrams/continuity-vbus-gnd.svg": ContinuityVbusGnd,
   "/guide-diagrams/adc1-pin-map.svg": Adc1PinMap,
   "/guide-diagrams/antenna-keepout.svg": AntennaKeepout,
