@@ -34,7 +34,14 @@ answer to different rules:
 | Motion | Tier A reveal; Tier B if the motion teaches | **Tier P** — scroll-linked parallax |
 | Narrow form | reflow to rows/cards | **re-compose**, never summarise |
 | Cost | hours | a full design session |
-| Examples | all 84 others | `DroneSharedAutonomy` |
+| Examples | all 84 others | `DroneSharedAutonomy`, `L101GerberStack` |
+
+**Plates shipped, and why each earned it:**
+
+| Plate | Signed off | The depth that is load-bearing |
+|---|---|---|
+| `DroneSharedAutonomy` | 2026-07-16 | "you are looking through the aircraft" cannot survive being drawn as a flowchart |
+| `L101GerberStack` | 2026-07-28 | the lesson IS that eight sheets are pressed together in an order; a flat frame makes that claim false |
 
 **The default is Instrument, and a Plate must be argued for.** A pin map, a
 stackup, a bar chart, a pipeline — those are Instruments; making one a Plate adds
@@ -301,6 +308,15 @@ occluding what is behind it — it goes see-through and the grid runs straight
 through it. Keep group `opacity` for stroke-only art (clouds, `fill:none`); use
 `stroke-opacity` for anything with a fill. This one survived two rounds of "fix the
 fill" because it presents as a fill bug and isn't.
+
+> **The one sanctioned inversion (2026-07-28).** `L101GerberStack` uses group
+> `opacity` on filled sheets *on purpose*: its lesson is that eight layers are
+> pressed together in an order, so the front sheets must stop occluding the inner
+> planes as the stack spreads. That is precisely the failure P4 describes, used as
+> the effect. The rule stands everywhere else — if you reach for group `opacity` on
+> a filled object, you owe a comment at the call site saying which you meant, or the
+> next person will "fix" it. Note the two are not interchangeable: `stroke-opacity`
+> could not produce this, because the thing that must become see-through is a fill.
 
 ### P5 — Scale is derived, never eyeballed
 
