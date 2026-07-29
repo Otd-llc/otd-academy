@@ -50,7 +50,7 @@ const PRICING_FAQS: [string, string][] = [
   ],
   [
     "What is free?",
-    "The first board, L1.01, is free to build start to finish, no account required. The rest of the catalog is still in the workshop. Every one of those builds will be a one-time premium purchase, never a subscription, and each price goes up here the day that build opens.",
+    "The first board, L1.01, is free to build start to finish, no account required. The rest of the catalog is still being built. Each of those boards is a one-time purchase, and its price appears here the day it opens.",
   ],
   [
     "Can I get a refund?",
@@ -81,8 +81,10 @@ function priceNumerals(text: string): React.ReactNode {
 }
 
 const title = "Pricing | One Thousand Drones Academy";
+// Front-loads the claim that survives truncation: L1.01 is free and complete.
+// Google cuts around 160 characters, so the honest catalog state trails it.
 const description =
-  "The first board, L1.01, is free to build start to finish. Every other build is a one-time premium purchase, or get the All-Access Pass for every premium board and bench tool. No subscription, 14-day money-back guarantee.";
+  "The first board, L1.01, is free to build start to finish, no account required. The rest of the catalog is still being built, and each price appears the day that board opens.";
 
 export const metadata: Metadata = {
   title,
@@ -346,9 +348,9 @@ export default async function PricingPage() {
           </span>
         </h1>
         <p className="subhead">
-          The first board is free. Every other build is a one-time premium
-          purchase, or take the All-Access Pass for every premium board and
-          bench tool. No subscription.
+          The first board is free to build start to finish, no account
+          required. The rest of the catalog is still being built, and each
+          board&apos;s price appears here the day it opens.
         </p>
         <SpecLine
           items={["One-time purchase", "No subscription", "14-day refund"]}
