@@ -32,13 +32,26 @@ export async function createCheckoutSession(input: {
 
   const project = await db.project.findUnique({
     where: { id: projectId },
-    select: { id: true, slug: true, accessTier: true, stripePriceId: true },
+    select: {
+      id: true,
+      slug: true,
+      accessTier: true,
+      stripePriceId: true,
+      publishedRevisionId: true,
+      archivedAt: true,
+    },
   });
 
+  // Priced AND published AND not archived. Without the last two, a PREMIUM row
+  // carrying a Stripe price sells access to a project that renders nothing --
+  // the state of all 16 priced projects as of 2026-07-28. `projectId` is
+  // client-supplied, so the archived check is a real gate, not a formality.
   if (
     !project ||
     project.accessTier !== "PREMIUM" ||
-    project.stripePriceId === null
+    project.stripePriceId === null ||
+    project.publishedRevisionId === null ||
+    project.archivedAt !== null
   ) {
     throw new Error("This course isn't available for purchase.");
   }

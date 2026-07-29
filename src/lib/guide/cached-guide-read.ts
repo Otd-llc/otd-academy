@@ -58,6 +58,11 @@ export type CachedGuideProject = {
   accessTier: AccessTier;
   stripePriceId: string | null;
   priceCents: number | null;
+  // Buyability inputs. A price alone is NOT enough to offer a purchase: 16 premium
+  // projects carry a live Stripe price and none is published, so the CTA needs
+  // these two to agree with checkout.ts's server gate (see projectBuyable).
+  publishedRevisionId: string | null;
+  archivedAt: Date | null;
   hasExam: boolean;
   publishedLabel: string | null;
 };
@@ -102,6 +107,8 @@ const PROJECT_SELECT = {
   accessTier: true,
   stripePriceId: true,
   priceCents: true,
+  publishedRevisionId: true,
+  archivedAt: true,
   exam: { select: { id: true } },
   publishedRevision: { select: { label: true } },
 } as const;
@@ -115,6 +122,8 @@ type ProjectRow = {
   accessTier: AccessTier;
   stripePriceId: string | null;
   priceCents: number | null;
+  publishedRevisionId: string | null;
+  archivedAt: Date | null;
   exam: { id: string } | null;
   publishedRevision: { label: string } | null;
 };
@@ -129,6 +138,8 @@ function toProject(p: ProjectRow): CachedGuideProject {
     accessTier: p.accessTier,
     stripePriceId: p.stripePriceId,
     priceCents: p.priceCents,
+    publishedRevisionId: p.publishedRevisionId,
+    archivedAt: p.archivedAt,
     hasExam: p.exam !== null,
     publishedLabel: p.publishedRevision?.label ?? null,
   };
