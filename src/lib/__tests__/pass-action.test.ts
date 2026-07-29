@@ -59,6 +59,14 @@ vi.mock("@/lib/db", () => {
   };
 });
 
+// The Pass actions are gated on published premium content. Every test in this
+// file asserts a SELLABLE Pass, so keep the count non-zero -- in particular the
+// "no recurring price" test must still refuse for the subscriptionPriceId
+// reason, not this one. The zero case lives in pass-sellable-gate.test.ts.
+vi.mock("@/lib/premium-catalog", () => ({
+  countPublishedPremiumProjects: vi.fn(async () => 1),
+}));
+
 import {
   createUpgradeCheckoutSession,
   createSubscriptionCheckoutSession,

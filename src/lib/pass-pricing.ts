@@ -41,6 +41,36 @@ export function currentPassPriceId(
     : null;
 }
 
+/** A Bundle as far as sellability is concerned: pricing + Stripe provisioning. */
+export interface BundleSellability extends BundlePricing {
+  stripePriceId: string | null;
+}
+
+/**
+ * Is the All-Access Pass sellable right now? Three necessary conditions:
+ *   1. the bundle row exists and carries a Stripe price id (set-pass-price.ts ran),
+ *   2. a price resolves at `now` (launch window or standard),
+ *   3. at least one PREMIUM project is PUBLISHED.
+ *
+ * (3) is the one that was missing. A bundle entitlement unlocks every project
+ * (@/lib/entitlements), so with nothing published a buyer pays for an empty
+ * catalog. Encoded here rather than as an operator flag so it cannot be
+ * forgotten in either direction.
+ *
+ * SELL-SIDE ONLY. Never use this to decide whether to REVOKE an existing
+ * entitlement: revoking from a customer Stripe is still billing converts them
+ * into an unpaid customer rather than stopping the charge.
+ */
+export function passSellable(
+  bundle: BundleSellability | null,
+  publishedPremiumCount: number,
+  now: Date,
+): boolean {
+  if (!bundle || !bundle.stripePriceId) return false;
+  if (currentPassPriceId(bundle, now) === null) return false;
+  return publishedPremiumCount > 0;
+}
+
 /** True when a launch window is configured and still open at `now`. */
 export function isLaunchActive(bundle: BundlePricing, now: Date): boolean {
   return (
