@@ -138,3 +138,9 @@ _worker-map.log
 *.internal.*
 *.INTERNAL.*
 *.Internal.*
+
+# Belt-and-braces. The content exporter writes OUTSIDE this repo by default
+# (CONTENT_ARCHIVE_DIR -> ../otd-content-archive/content). If it is ever pointed
+# here, this stops authored lesson prose and exam ANSWER KEYS from reaching a
+# PUBLIC repo. The real protection is the default target, not this line.
+/content/
