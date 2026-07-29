@@ -11,6 +11,8 @@
     "db:migrate:prod": "tsx scripts/migrate-prod.ts",
     "db:prod": "tsx scripts/with-prod-db.ts",
     "db:pull-prod": "powershell -ExecutionPolicy Bypass -File scripts/db-pull-prod.ps1",
+    "content:export": "tsx scripts/export-content.ts",
+    "content:check": "tsx scripts/export-content.ts --check",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:pool:refresh": "tsx scripts/refresh-test-pool.ts",
