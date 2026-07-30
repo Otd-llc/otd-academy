@@ -240,11 +240,22 @@ export async function advanceEnrollment(
     ),
   );
 
-  // Funnel: `board_activated` — the leverage metric. Fires when the LEARNER
-  // passes the authoritative DRC/gerber gate, i.e. a successful advance OUT of
-  // DRC_GERBER on their own enrollment (clean DRC + valid gerbers submitted).
-  // After commit, best-effort (try/catch) so telemetry can never block the
-  // advance; a no-op when PostHog is unconfigured.
+  // Funnel: `board_activated` — the leverage metric. Fires on a successful advance
+  // OUT of DRC_GERBER on the learner's own enrollment.
+  //
+  // WHAT IT ACTUALLY MEANS, precisely, because this is the metric decisions get made
+  // on: the learner passed the stage's comprehension quiz AND uploaded a DRC report
+  // that `validateDrcReport` parsed to zero errors. That is the whole bar.
+  //
+  // It does NOT mean "valid gerbers submitted" (this comment used to say so). No
+  // gerber is ever uploaded or inspected anywhere on the learner path — the gerber
+  // export is taught on that card, not gated. Nor does the DRC check bind the report
+  // to THIS board: it counts errors, so a clean report from an unrelated (or empty)
+  // KiCad project satisfies it. Read the number as "reached the end of the design
+  // half and produced a clean DRC report", not as "has a fabricable board".
+  //
+  // After commit, best-effort (try/catch) so telemetry can never block the advance;
+  // a no-op when PostHog is unconfigured.
   if (outcome.ok && outcome.fromStage === "DRC_GERBER") {
     try {
       capture(
