@@ -1,0 +1,200 @@
+[
+  {
+    "id": "req-marginal-not-proof",
+    "section": "Requirements",
+    "prompt": "A friend wired a 5 V strip straight to a 3.3 V GPIO and reports it has run all week. Why is that not evidence you can leave the buffer off?",
+    "options": [
+      "3.3 V sits under the pixel's worst-case 3.5 V bar, so the build is running on part-to-part slack",
+      "Their strip is shorter, and the threshold climbs as you add pixels to the chain",
+      "A GPIO driving a load outside its rating degrades over weeks, so it will fail eventually"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "req-why-external-rail",
+    "section": "Requirements",
+    "prompt": "A classmate wires a 30-pixel strip to the board's own USB 5 V, and the whole board browns out on the first full-white frame. What did they run into?",
+    "options": [
+      "Voltage: a strip that long needs more than 5 V to reach its far end",
+      "Noise: USB power is too dirty for the pixel data to survive the trip",
+      "Current: about 60 mA per pixel at full white is roughly 1.8 A, past the polyfuse and past the port"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "req-common-ground",
+    "section": "Requirements",
+    "prompt": "The two 5 V rails must never share copper, yet the two grounds must be joined. Why is ground the exception?",
+    "options": [
+      "A shared ground gives the strip a second path for its supply current, which halves the drop",
+      "The strip reads its data input as a voltage measured against its own ground, so without a shared reference the signal means nothing",
+      "Ground carries the data signal itself, so the strip receives nothing until the two are tied"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "bom-clone-datasheet",
+    "section": "BOM sourcing",
+    "prompt": "The onboard pixel is sold as WS2812B compatible. What does that word actually promise you?",
+    "options": [
+      "That its electrical specifications match the reference part it clones",
+      "That the manufacturer has tested it against the reference part",
+      "Only that it speaks the same protocol: its supply range and the voltage that kills its data pin are its own"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "bom-inrush-ceiling",
+    "section": "BOM sourcing",
+    "prompt": "You already have 10 µF parts on the reel. Why is the bulk capacitor on the USB 5 V rail specified at 4.7 µF instead?",
+    "options": [
+      "USB caps a device's total bus capacitance at 10 µF, and this board already spends some of it elsewhere",
+      "A 10 µF part is too slow to answer the pixel's 60 mA current pulses",
+      "The 10 µF version of that part only comes in a package too small to hand-solder"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "sch-shifter-vcc",
+    "section": "Schematic",
+    "prompt": "You feed U3's VCC pin from +3V3 instead of the +5V rail. The gate still passes the signal through. What did you just undo?",
+    "options": [
+      "Nothing: an AHCT output level follows its input, not its supply",
+      "Everything: a buffer's output swings to its own supply, so the pixel is back to reading a 3.3 V high",
+      "Only the edge speed: the level still clears the pixel's bar, but the corners round off"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "sch-oe-active-low",
+    "section": "Schematic",
+    "prompt": "You tie U3's 1OE pin to +5V because enable sounds like it should be high. The board powers up and the pixel stays dark. What happened?",
+    "options": [
+      "The bar over 1OE means active low, so a high enable leaves that gate's output in high impedance",
+      "The gate now drives 5 V continuously, which latches the pixel at black",
+      "The gate inverts while its enable is high, so the pixel reads every bit backwards"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "sch-din-dout",
+    "section": "Schematic",
+    "prompt": "R7 lands on the pixel's pin 2 rather than pin 4. ERC reports nothing at all. What will the built board do?",
+    "options": [
+      "ERC would in fact flag it, because two outputs on one net is a pin conflict",
+      "The pixel lights, but its colours come out in the wrong order",
+      "The pixel stays dark and its own output fights the buffer, because pin 4 listens and pin 2 talks"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "lay-isolation-needs-a-rule",
+    "section": "Layout",
+    "prompt": "Your ground pour spread across and joined 5V_EXT to the board's own 5 V, and DRC still passed. Why did the checker say nothing?",
+    "options": [
+      "DRC only measures track widths and hole sizes, never the gap between two nets",
+      "Two nets touching is not an error unless a rule says they must stay apart, so you have to write that rule",
+      "Copper zones sit outside DRC, which checks only the traces you routed by hand"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "lay-star-ground",
+    "section": "Layout",
+    "prompt": "The strip's whole return current lands at J5. Why gather it into a tight via cluster there instead of letting the pour carry it away?",
+    "options": [
+      "A pour is not zero resistance, and a wandering return shifts the ground your data line is measured against",
+      "A dense cluster is the only thing that ties the two inner planes to each other",
+      "KiCad will not fill a ground zone that has more than one entry point"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "lay-terminal-edge",
+    "section": "Layout",
+    "prompt": "The only board edge left for the two screw terminals is the antenna end. Why is that the wrong place, even though nothing on the board itself would move?",
+    "options": [
+      "Screw terminals stand too tall to sit beside the module's body",
+      "Strip current on that edge couples straight into the USB data pair",
+      "The wires you screw into them are conductors too, and conductors near the antenna detune it"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "drc-silk-over-pad",
+    "section": "DRC + Gerber",
+    "prompt": "In your layout the 5 V warning text at J5 overlaps a terminal pad. What arrives on the finished boards?",
+    "options": [
+      "The warning, printed over the pad exactly as you drew it",
+      "A warning with a hole in it, or none at all: fabs strip silkscreen off exposed pads automatically",
+      "Nothing changes, and DRC would have flagged the overlap before you exported"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "ord-strip-voltage-family",
+    "section": "Ordering",
+    "prompt": "A listing reads addressable RGB LED strip, 60 pixels per metre, individually controllable, 12 V. Can you drive it from this board?",
+    "options": [
+      "No: 12 V addressable strips are a different chip family, and this board's terminal is 5 V only",
+      "Yes, as long as firmware caps the brightness so the current stays low",
+      "Yes, if the strip is long enough that its far end drops back near 5 V"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "ord-supply-fused",
+    "section": "Ordering",
+    "prompt": "The lesson insists the strip's supply be fused or current-limited. What is standing behind that requirement?",
+    "options": [
+      "The strip has no limit of its own, so it would draw current until the pixels burned out",
+      "USB requires it of any supply that shares a ground with the bus",
+      "The board's polyfuse cannot reach that rail, and the TVS defending it is sacrificial, so only something upstream can end a fault"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "asm-pixel-technique",
+    "section": "Assembly",
+    "prompt": "A pixel pad still refuses to wet after two attempts. What is the move?",
+    "options": [
+      "Turn the iron up and stay on the pad until the solder finally takes",
+      "More flux, let it cool, then a short return pass: around 315 °C and brief dwells",
+      "Switch to hot air, which heats the whole part evenly and spares the lens"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "asm-isolation-sweep",
+    "section": "Assembly",
+    "prompt": "Your layout passed DRC with the isolation rule loaded. Why does the meter still have to check the two 5 V rails on the built board?",
+    "options": [
+      "The rule checked the design file, and a stray strand or a solder splash between two terminal pins exists only on the board you built",
+      "DRC does not examine power nets, only the signal nets you routed",
+      "It confirms the rule itself was written correctly before you order more boards"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "bru-meter-average",
+    "section": "Bring-up",
+    "prompt": "The onboard pixel is happily cycling colours, and your multimeter reads 0.4 V at TP3 on the shifted line. Is the buffer failing?",
+    "options": [
+      "Yes: a working shifted line should sit near 5 V the whole time the pixel is lit",
+      "Yes: the pixel is running on luck, which is the marginal case this board exists to prevent",
+      "No: a meter reports an average and the data line spends most of its time low, so only a scope shows the peak"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "bru-silent-tvs",
+    "section": "Bring-up",
+    "prompt": "The strip's supply is definitely on and its current limit is pegged, yet the onboard pixel and the strip are both dark. What does that combination point at?",
+    "options": [
+      "A tripped polyfuse on the USB rail, which has cut the board's own 5 V",
+      "A TVS on the external rail that has failed short, a fault with no indicator LED to announce it",
+      "Firmware that never started, so nothing is driving the data line at all"
+    ],
+    "correctIndex": 1
+  }
+]
