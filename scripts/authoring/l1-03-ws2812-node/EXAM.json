@@ -59,7 +59,7 @@
     "section": "Schematic",
     "prompt": "You feed U3's VCC pin from +3V3 instead of the +5V rail. The gate still passes the signal through. What did you just undo?",
     "options": [
-      "Nothing: an AHCT output level follows its input, not its supply",
+      "Nothing: an AHCT output level follows its input rather than its supply",
       "Everything: a buffer's output swings to its own supply, so the pixel is back to reading a 3.3 V high",
       "Only the edge speed: the level still clears the pixel's bar, but the corners round off"
     ],
