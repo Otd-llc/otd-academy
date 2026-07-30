@@ -37,10 +37,17 @@ function main() {
     process.exit(1);
   }
 
-  // Edge_Cuts defines the board frame. Its bbox is the origin every sheet is
+  // Edge_Cuts defines the board frame. Its CENTRELINE is the origin every sheet is
   // re-based to, and it doubles as the clip path and the drawn outline.
+  //
+  // Centreline, not the ink bbox. Edge_Cuts is plotted with a 0.1 mm round pen
+  // (%ADD10C,0.100000), and the ink bbox pads half that on all four sides, so a
+  // 30 x 62 mm board measured that way reports 30.1 x 62.1 and the outline lands at
+  // 0.05,0.05 instead of the origin. The router cuts on the centreline, so that is
+  // the board. Every sheet shifts by the same 0.05 mm, so relative alignment is
+  // untouched.
   const edge = parseGerber(readFileSync(at("Edge_Cuts"), "utf8"));
-  const [OX, OY] = edge.bbox;
+  const [OX, OY] = edge.coreBbox;
   const outline = simplifyPath(edge.paths[0].d, 0.02, OX, OY);
 
   const emitted: string[] = [];
@@ -114,10 +121,12 @@ export interface GerberSheet {
   paths: GerberSheetPath[];
 }
 
-/** Board outline from Edge_Cuts, at the origin. Doubles as the sheet clip path. */
+/** Board outline from Edge_Cuts, at the origin. Doubles as the sheet clip path.
+ *  w/h are the Edge_Cuts CENTRELINE span, which is what the router cuts, not the
+ *  bounding box of the plotted 0.1 mm outline. */
 export const BOARD = {
-  w: ${edge.w},
-  h: ${edge.h},
+  w: ${edge.coreW},
+  h: ${edge.coreH},
   outline: ${JSON.stringify(outline)},
 } as const;
 
@@ -128,7 +137,12 @@ ${emitted.join("\n")}
 `;
   writeFileSync(OUT, out);
   console.log(`\nwrote ${OUT}  (${(out.length / 1024).toFixed(0)} KB, geometry ${(bytes / 1024).toFixed(0)} KB)`);
-  console.log(`board ${edge.w} x ${edge.h} mm from Edge_Cuts`);
+  // Report what was WRITTEN (the centreline), not the ink bbox. This line printing
+  // 30.1 x 62.1 while the file said 30 x 62 is how the wrong number survived.
+  console.log(
+    `board ${edge.coreW} x ${edge.coreH} mm from Edge_Cuts centreline` +
+      ` (ink bbox ${edge.w} x ${edge.h}, +1 pen width)`,
+  );
 }
 
 main();

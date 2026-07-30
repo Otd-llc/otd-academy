@@ -33,11 +33,21 @@ export interface GerberFile {
   apertureCount: number;
   flashCount: number;
   regionCount: number;
-  /** [minX, minY, maxX, maxY] in mm, already Y-flipped */
+  /** [minX, minY, maxX, maxY] in mm, already Y-flipped. INCLUDES half the aperture
+   *  width on every side, because that is where the plotted ink actually reaches.
+   *  Right for a viewBox, WRONG for reporting an object's size. */
   bbox: [number, number, number, number];
+  /** The same extents measured on the path CENTRELINES, with no aperture padding.
+   *  For Edge_Cuts this is the board: the router cuts on the centreline, so a
+   *  30 x 62 mm board plotted with a 0.1 mm pen has a 30.1 x 62.1 mm ink bbox and
+   *  a 30 x 62 mm centreline bbox. Report dimensions from THIS one. */
+  coreBbox: [number, number, number, number];
   viewBox: string;
   w: number;
   h: number;
+  /** Centreline span. For Edge_Cuts, the true board size. */
+  coreW: number;
+  coreH: number;
   paths: GerberPath[];
 }
 
@@ -133,6 +143,9 @@ export function parseGerber(src: string): GerberFile {
   const strokeRuns = new Map<number, string>();
   const flashRuns = new Map<number, string>();
   const bbox: [number, number, number, number] = [Infinity, Infinity, -Infinity, -Infinity];
+  // Same points, no aperture padding. Kept in step with bbox so a caller can ask
+  // either "where does the ink reach" or "where is the geometry".
+  const coreBbox: [number, number, number, number] = [Infinity, Infinity, -Infinity, -Infinity];
 
   const grow = (px: number, py: number, pad = 0) => {
     if (!Number.isFinite(px) || !Number.isFinite(py)) return;
@@ -140,6 +153,10 @@ export function parseGerber(src: string): GerberFile {
     bbox[1] = Math.min(bbox[1], -py - pad);
     bbox[2] = Math.max(bbox[2], px + pad);
     bbox[3] = Math.max(bbox[3], -py + pad);
+    coreBbox[0] = Math.min(coreBbox[0], px);
+    coreBbox[1] = Math.min(coreBbox[1], -py);
+    coreBbox[2] = Math.max(coreBbox[2], px);
+    coreBbox[3] = Math.max(coreBbox[3], -py);
   };
 
   // Tokenise: extended commands %...%, then plain blocks ending in *
@@ -280,15 +297,19 @@ export function parseGerber(src: string): GerberFile {
   paths.push(...regions);
 
   const [x0, y0, x1, y1] = bbox;
+  const [cx0, cy0, cx1, cy1] = coreBbox;
   return {
     meta,
     apertureCount: aps.size,
     flashCount: nFlash,
     regionCount: nRegion,
     bbox,
+    coreBbox,
     viewBox: `${f(x0)} ${f(y0)} ${f(x1 - x0)} ${f(y1 - y0)}`,
     w: f(x1 - x0),
     h: f(y1 - y0),
+    coreW: f(cx1 - cx0),
+    coreH: f(cy1 - cy0),
     paths,
   };
 }
