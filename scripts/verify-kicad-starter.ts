@@ -16,17 +16,28 @@
 //   4. VBUS in the Power net class — the LAYOUT lesson tells the learner the
 //      supply nets are "already assigned to Power". A missing VBUS pattern
 //      silently drops the raw 5 V rail to the 0.25 mm Default width (#360).
-//   5. No keepout zone on the decoupling cap footprint — the KEMET 0805 asset
+//   5. No keepout zone on a two-terminal footprint — the KEMET 0805 asset
 //      shipped a `copperpour not_allowed` zone that raised a DRC error and cut
-//      an island out of the ground pour.
+//      an island out of the ground pour. A keepout on a MULTI-pad footprint is
+//      reported, not failed: on the WROOM it is the antenna keep-out, which is
+//      the point of that lesson section.
 //   6. Solder-mask bridges allowed on the USB-C footprint — the connector's
 //      fine-pitch pads legitimately share mask webs; without the attribute the
 //      board DRCs dirty on a correct footprint.
 //   7. ENIG finish + the board's copper-layer count actually in the stackup
 //      (#357, #355) — the PCBWay order and the lesson both assume them.
 //
-// Checks 5 and 6 apply only when the board's BOM carries those parts, so they
-// report `n/a` rather than failing on a board that has neither.
+// Two more checks are not L1.01 fixes; they are traps L1.01 happened to avoid
+// and a later board did not:
+//
+//   8. Every symbol pin on the 1.27 mm connection grid. An off-grid pin places
+//      fine and then refuses to take a wire, which a beginner reads as "the
+//      wire will not connect". Caught on l1-03's SMAJ5.0A symbol asset.
+//   9. No part fell back to an auto-generated stub. A stub is a placeholder,
+//      and for anything that is not two-terminal it has no pads at all.
+//
+// Check 6 applies only when the board's BOM carries a USB-C connector, so it
+// reports `n/a` rather than failing on a board that has none.
 //
 //   pnpm exec tsx scripts/verify-kicad-starter.ts <starter.zip> [--layers 4]
 import { readFileSync } from "node:fs";
@@ -65,6 +76,49 @@ function refFont(fpText: string): { w?: string; h?: string; t?: string } | null 
 function modelPath(fpText: string): string | undefined {
   const m = findChild(parseSexpr(fpText), "model");
   return m ? atomValue(m.items[1]) : undefined;
+}
+
+/** KiCad's schematic connection grid. A pin that does not land on it cannot be
+ *  wired to until the learner drops to a finer grid. */
+const SCH_GRID = 1.27;
+const onGrid = (v: number) => Math.abs(v / SCH_GRID - Math.round(v / SCH_GRID)) < 1e-6;
+
+/**
+ * Symbol pins that sit off the 1.27 mm connection grid, as `NAME@(x,y)`.
+ *
+ * Vendor CAD tools export symbols on whatever grid they like. KiCad places such
+ * a symbol happily, but the learner then cannot snap a wire to the pin, which
+ * reads as "the wire will not connect" rather than "the symbol is off grid".
+ * Caught on the SMAJ5.0A asset, whose pins sit at -6.858 / +5.842 instead of a
+ * symmetric +/-7.62.
+ */
+function offGridPins(libText: string): string[] {
+  const root = parseSexpr(libText);
+  if (!isList(root)) return [];
+  const bad: string[] = [];
+
+  const walk = (node: SList, symbolName: string) => {
+    for (const child of node.items) {
+      if (!isList(child)) continue;
+      const kw = head(child);
+      if (kw === "symbol") {
+        walk(child, atomValue(child.items[1]) ?? symbolName);
+        continue;
+      }
+      if (kw === "pin") {
+        const at = findChild(child, "at");
+        const x = Number(atomValue(at?.items[1]));
+        const y = Number(atomValue(at?.items[2]));
+        if (Number.isFinite(x) && Number.isFinite(y) && !(onGrid(x) && onGrid(y))) {
+          bad.push(`${symbolName}@(${x},${y})`);
+        }
+        continue;
+      }
+      walk(child, symbolName);
+    }
+  };
+  walk(root, "?");
+  return [...new Set(bad)];
 }
 
 type Check = [name: string, result: boolean | "n/a"];
@@ -137,8 +191,27 @@ async function main() {
     .filter((c) => c.length === 7 && (c[3] === "stubbed" || c[4] === "stubbed"))
     .map((c) => `${c[1]} (${c[2]})`);
 
-  const decap = fps["C0805C106K3PACTU.kicad_mod"];
+  // Keepout zones inside a footprint. Two very different cases:
+  //
+  //   - On a two-terminal jellybean it is always a defect. The KEMET 0805
+  //     decoupling cap shipped one, and it both raised a DRC error and cut an
+  //     island out of the ground pour. Checked across every bundled two-pad
+  //     footprint, not just that one part, so the next asset to arrive with one
+  //     is caught on whichever board first uses it.
+  //   - On the WROOM module it is the ANTENNA keep-out, which is the whole
+  //     point of that lesson section. Reported, never failed.
+  const keepouts = Object.entries(fps).filter(([, t]) => t.includes("(keepout"));
+  const padCount = (t: string) => (t.match(/\(pad /g) ?? []).length;
+  const badKeepout = keepouts.filter(([, t]) => padCount(t) <= 2).map(([n]) => n);
+  const okKeepout = keepouts.filter(([, t]) => padCount(t) > 2).map(([n]) => n);
+
   const usbc = fps["USB4110-GF-A.kicad_mod"];
+
+  // Symbol pin grid: the project library plus every def embedded in the
+  // schematic (which includes the flattened standard-library symbols).
+  const symLibName = names.find((f) => f.endsWith(".kicad_sym"));
+  const symLib = symLibName ? await zip.files[symLibName]!.async("string") : "";
+  const offGrid = [...new Set([...offGridPins(symLib), ...offGridPins(sch)])];
 
   const checks: Check[] = [
     ["VBUS/+3V3/+5V/GND all map to the Power net class", ["VBUS", "+3V3", "+5V", "GND"].every((n) => patterns.some((p) => p.netclass === "Power" && p.pattern === n))],
@@ -146,8 +219,9 @@ async function main() {
     [`refdes font 1/1/0.15 on all ${fpFiles.length} bundled footprints`, badRef.length === 0],
     ["3D-model paths under libs/3dmodels/", badModel.length === 0],
     ["every claimed 3D model is actually bundled", danglingModel.length === 0],
-    ["decoupling-cap footprint has NO keepout zone", decap === undefined ? "n/a" : !decap.includes("(keepout")],
+    ["no two-terminal footprint carries a keepout zone", badKeepout.length === 0],
     ["USB-C footprint allows soldermask bridges", usbc === undefined ? "n/a" : /\(attr[^)]*allow_soldermask_bridges/.test(usbc)],
+    ["every symbol pin sits on the 1.27 mm connection grid", offGrid.length === 0],
     ['board finish = ENIG', pcb.includes('(copper_finish "ENIG")')],
     [`${layers}-layer stackup in the .kicad_pcb`, layers === 2 ? !pcb.includes("In1.Cu") : pcb.includes("In1.Cu") && pcb.includes("In2.Cu")],
     ["schematic is UNWIRED by design (no power ports, no wires)", !sch.includes('lib_id "power:') && !/\(\s*wire\s/.test(sch)],
@@ -162,6 +236,9 @@ async function main() {
   if (badRef.length) console.log(`  refdes offenders: ${badRef.join(", ")}`);
   if (badModel.length) console.log(`  model-path offenders: ${badModel.join(", ")}`);
   if (danglingModel.length) console.log(`  dangling models: ${danglingModel.join(", ")}`);
+  if (badKeepout.length) console.log(`  keepout offenders: ${badKeepout.join(", ")}`);
+  if (okKeepout.length) console.log(`  note: intentional keepout (multi-pad, e.g. the antenna): ${okKeepout.join(", ")}`);
+  if (offGrid.length) console.log(`  off-grid pins: ${offGrid.join(", ")}`);
   if (stubbed.length) console.log(`  stubbed parts: ${stubbed.join(", ")}`);
 
   console.log(`\n${ok ? "ALL PASS" : "SOME FAILED"} — ${zipPath}`);
