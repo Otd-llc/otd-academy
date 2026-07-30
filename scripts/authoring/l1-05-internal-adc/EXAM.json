@@ -1,0 +1,200 @@
+[
+  {
+    "id": "req-resolution-vs-accuracy",
+    "section": "Requirements",
+    "prompt": "You read 12 bits and 0.8 mV steps on the datasheet, then expect the console to agree with your meter to a millivolt. Where does that expectation go wrong?",
+    "options": [
+      "Resolution counts the steps; accuracy is where the whole staircase sits",
+      "The 0.8 mV figure applies to averaged readings, never to raw ones",
+      "The ±50 mV is the trimpot's tolerance rather than the converter's"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "req-why-calibration",
+    "section": "Requirements",
+    "prompt": "Two boards built from the same BOM read tens of millivolts apart at the same knob position, before calibration is applied. What are you seeing?",
+    "options": [
+      "The delay the RC filter adds when you sweep the knob quickly",
+      "The per-chip reference, which lands anywhere in a 200 mV window",
+      "Noise picked up from the radio while the converter is sampling"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "req-adc1-in-copper",
+    "section": "Requirements",
+    "prompt": "A classmate's readings turn to garbage the moment their firmware brings Wi-Fi up. Why can that not happen on this board?",
+    "options": [
+      "Firmware refuses to open an ADC2 channel and logs a warning instead",
+      "The lesson keeps the radio switched off for the whole measurement",
+      "The signal is wired to an ADC1 channel in copper, so the trap cannot fire"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "bom-pot-quality",
+    "section": "BOM sourcing",
+    "prompt": "Your averaged readings still jump about, and an ohm sweep finds a scratchy patch mid-travel on the pot. Which sourcing call does that vindicate?",
+    "options": [
+      "An open-frame pot cannot span the rail without a series resistor",
+      "The cheapest parts are rarely listed under an exact orderable MPN",
+      "The knob gets swept constantly, and a worn wiper reads as ADC noise"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "bom-lean-front-end",
+    "section": "BOM sourcing",
+    "prompt": "This is the leanest BOM in the series: five analog lines. Why so few?",
+    "options": [
+      "The board itself is half the size of the four boards before it",
+      "The part under test ships inside the module, so the front end is one source, one filter and one guard",
+      "Analog parts are expensive, so the design keeps their count down"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "sch-path-order",
+    "section": "Schematic",
+    "prompt": "C8 ends up on the pot side of R7 instead of at the pin. Every net still connects. What did that cost you?",
+    "options": [
+      "The filter: the network is R7 into a capacitor at the pin, in that order",
+      "Nothing measurable: a capacitor to ground filters the same either way",
+      "The pot's usable range, which now stops short of the 3.3 V rail"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "sch-clamp-node",
+    "section": "Schematic",
+    "prompt": "D2 clamps AIN rather than ADC_IN. Why there?",
+    "options": [
+      "ADC_IN has no board room left beside the 100 nF capacitor",
+      "Strikes arrive where hands and probes touch, so the clamp meets them there",
+      "The clamp needs the pot's resistance in series with it to work"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "sch-gpio3-trap",
+    "section": "Schematic",
+    "prompt": "GPIO3 is an ADC1 channel as well. Why is it still the wrong pin for the knob?",
+    "options": [
+      "It belongs to the module's fixed native USB data pair",
+      "Its channel number collides with the stored calibration data",
+      "It is a strapping pin, so the knob's position at reset could change how the chip boots"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "lay-at-the-pin",
+    "section": "Layout",
+    "prompt": "The schematic says the 100 nF belongs at the pin. What does that mean once you are placing parts?",
+    "options": [
+      "The capacitor's pad within millimetres of GPIO1's pad, with R7 immediately upstream",
+      "The capacitor on the same net as the pin, which the netlist already guarantees",
+      "A wide trace from the capacitor to the pin, so charge arrives quickly"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "lay-quiet-run",
+    "section": "Layout",
+    "prompt": "To save space you run the analog trace alongside the USB pair for a few millimetres. What is the risk?",
+    "options": [
+      "A high-impedance measurement node picks up whatever switches beside it",
+      "DRC flags the spacing as a differential-pair clearance violation",
+      "The USB pair loses its match and enumeration turns unreliable"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "lay-knob-access",
+    "section": "Layout",
+    "prompt": "You place RV1 in the middle of the board, hemmed in by other parts. What did that cost?",
+    "options": [
+      "Heat: the pot can no longer shed what the rail puts into it",
+      "Clearance: its body now overlaps the pour on the inner layers",
+      "The workflow: the lesson is sweep and watch, and you cannot reach the screw while the console is in view"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "drc-probe-silk",
+    "section": "DRC + Gerber",
+    "prompt": "On the viewer pass, which silkscreen earns the deliberate look on this board?",
+    "options": [
+      "The board name, to confirm the silk font reads at this size",
+      "J4's 3V3 / AIN / GND order and RV1's marking, which a probing hand relies on",
+      "The antenna keep-out outline, so the assembler leaves it clear"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "ord-meter-trust",
+    "section": "Ordering",
+    "prompt": "Why does this lesson ask you to check your multimeter before the boards even arrive?",
+    "options": [
+      "A meter's input resistance loads the pot and shifts the reading",
+      "The build log will not accept a run without a calibration record",
+      "Bring-up measures a measurer, so the meter is the reference instrument and has to be trusted first"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "ord-drawer-first",
+    "section": "Ordering",
+    "prompt": "Three boards' worth of reels are already in your drawer. What should the parts cart hold?",
+    "options": [
+      "The real gaps, counted first: the trimpot and the diode by exact MPN",
+      "Fresh reels regardless, since passives drift while they sit unused",
+      "Every line bought new, so the front end comes from a single batch"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "asm-pot-preflight",
+    "section": "Assembly",
+    "prompt": "Which pre-power check does this board add over the earlier builds?",
+    "options": [
+      "A capacitance check on C8, confirming the placed part really is 100 nF",
+      "An ohmmeter sweep of RV1, proving smooth wiper travel while the board is cold",
+      "A DC voltage reading at J4's AIN pin against the board's ground"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "bru-clip-vs-floor",
+    "section": "Bring-up",
+    "prompt": "You sweep the knob to each end in turn. How do the two limits differ on the console?",
+    "options": [
+      "Both ends pin flat, one of them at 0 and the other at 4095",
+      "The top pins hard at 4095, while the bottom's small codes keep wandering outside the accuracy band",
+      "Both ends wander, since the accuracy band covers the whole range"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "bru-delta-judgment",
+    "section": "Bring-up",
+    "prompt": "Your meter reads 1.650 V on AIN while the console's calibrated reading says 1.628 V. Finding or physics?",
+    "options": [
+      "Physics: 22 mV sits inside the ±50 mV band the part is honest to",
+      "A finding: 22 mV is 27 codes, far past what 0.8 mV steps allow",
+      "A finding: recalibrate in firmware until the two readings agree"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "bru-averaging-limit",
+    "section": "Bring-up",
+    "prompt": "Averaging visibly tightens the stream of readings. What does it leave untouched?",
+    "options": [
+      "The width of the raw wobble, which reads the same either way",
+      "The clip at the top, which averaging pushes a little higher",
+      "The ±50 mV band: averaging shrinks the random part and never the calibrated staircase's offset"
+    ],
+    "correctIndex": 2
+  }
+]
