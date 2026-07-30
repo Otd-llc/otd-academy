@@ -16,6 +16,10 @@
 //   4. VBUS in the Power net class — the LAYOUT lesson tells the learner the
 //      supply nets are "already assigned to Power". A missing VBUS pattern
 //      silently drops the raw 5 V rail to the 0.25 mm Default width (#360).
+//      Pass `--power-nets VSERVO` (comma-separated) for a board whose design
+//      carries a supply rail beyond the default four; those are usually the
+//      HIGHEST-current nets on the board, so they are the worst ones to leave
+//      on a 0.25 mm track.
 //   5. No keepout zone on a two-terminal footprint — the KEMET 0805 asset
 //      shipped a `copperpour not_allowed` zone that raised a DRC error and cut
 //      an island out of the ground pour. A keepout on a MULTI-pad footprint is
@@ -126,11 +130,20 @@ type Check = [name: string, result: boolean | "n/a"];
 async function main() {
   const zipPath = process.argv[2];
   if (!zipPath) {
-    console.error("usage: pnpm exec tsx scripts/verify-kicad-starter.ts <starter.zip> [--layers N]");
+    console.error(
+      "usage: pnpm exec tsx scripts/verify-kicad-starter.ts <starter.zip> [--layers N] [--power-nets A,B]",
+    );
     process.exit(2);
   }
   const layersArg = process.argv.indexOf("--layers");
   const layers = layersArg >= 0 ? Number(process.argv[layersArg + 1]) : 4;
+
+  // A board with a supply rail beyond the default four names it here, and the
+  // rail must be in the Power class or it routes at the Default track width.
+  const netsArg = process.argv.indexOf("--power-nets");
+  const extraPowerNets =
+    netsArg >= 0 ? (process.argv[netsArg + 1] ?? "").split(",").map((s) => s.trim()).filter(Boolean) : [];
+  const powerNets = ["VBUS", "+3V3", "+5V", "GND", ...extraPowerNets];
 
   const zip = await JSZip.loadAsync(readFileSync(zipPath));
   const names = Object.keys(zip.files);
@@ -214,7 +227,7 @@ async function main() {
   const offGrid = [...new Set([...offGridPins(symLib), ...offGridPins(sch)])];
 
   const checks: Check[] = [
-    ["VBUS/+3V3/+5V/GND all map to the Power net class", ["VBUS", "+3V3", "+5V", "GND"].every((n) => patterns.some((p) => p.netclass === "Power" && p.pattern === n))],
+    [`${powerNets.join("/")} all map to the Power net class`, powerNets.every((n) => patterns.some((p) => p.netclass === "Power" && p.pattern === n))],
     ["via dropdown leads with the 0.6/0.3 mm fab-floor preset", vias[0]?.diameter === 0.6 && vias[0]?.drill === 0.3],
     [`refdes font 1/1/0.15 on all ${fpFiles.length} bundled footprints`, badRef.length === 0],
     ["3D-model paths under libs/3dmodels/", badModel.length === 0],
