@@ -1,0 +1,200 @@
+[
+  {
+    "id": "req-brownout-chain",
+    "section": "Requirements",
+    "prompt": "On a shared 5 V rail the servo stalls and the processor reboots mid-move. What is the mechanism?",
+    "options": [
+      "Commutation noise couples into the module and corrupts the running firmware",
+      "The PWM pin sinks the stall current and drags the chip's supply down with it",
+      "About 0.9 A across the cable and connector resistance sags the regulator's input past its headroom"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "req-header-order",
+    "section": "Requirements",
+    "prompt": "A beginner pushes the servo's 3-pin plug on backwards. What does the GND / V+ / SIG order guarantee?",
+    "options": [
+      "Reversing swaps the two outer pins, so power never lands on the signal",
+      "The connector is keyed, so it cannot physically go on backwards",
+      "The series resistor absorbs the reversed supply until the fuse trips"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "req-servo-class",
+    "section": "Requirements",
+    "prompt": "You have a standard-size MG996R in a drawer and it fits the same 3-pin header. Why is it out of bounds on this board?",
+    "options": [
+      "Its plug uses a different pin order, so V+ would land on the signal pin",
+      "It stalls near 2.5 A, well past the 0.9 A worst case the fuse, the capacitor and the trace widths were proven against",
+      "It needs a 12 V supply, and this board's terminal is 5 V only"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "bom-ptc-two-currents",
+    "section": "BOM sourcing",
+    "prompt": "The 1.5 A PTC is out of stock and a 1.0 A hold part from the same family is on the shelf. What goes wrong if you substitute it?",
+    "options": [
+      "A 0.9 A stall is a legitimate operating state here, and a 1.0 A hold would trip on it",
+      "A lower hold rating drags the trip current down in proportion with it",
+      "The crowbar needs the higher hold rating before it can conduct fully"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "bom-c8-voltage-rating",
+    "section": "BOM sourcing",
+    "prompt": "The servo rail never exceeds 5.5 V, so a 6.3 V capacitor looks like plenty. Why is C8 specified at 16 V?",
+    "options": [
+      "Because a 1000 µF part is only made in ratings of 16 V and above",
+      "Because D3 clamps a transient at up to 10.3 V, and C8 is sitting on that node when it does",
+      "Because a higher voltage rating is what gives the part its low equivalent series resistance"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "sch-vservo-label",
+    "section": "Schematic",
+    "prompt": "You label J5 pin 2 as +5V rather than VSERVO. ERC passes without a word. What did that one keystroke do?",
+    "options": [
+      "Nothing electrical: both names resolve to the same 5 V on this board",
+      "It leaves the servo unpowered, since +5V never reaches that connector",
+      "It puts the servo's stall current back through the USB cable and the logic fuse, rebuilding the brownout the board exists to prevent"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "sch-fuse-first",
+    "section": "Schematic",
+    "prompt": "To shorten a trace, someone moves F2 downstream of D2. What does that break?",
+    "options": [
+      "The crowbar's deliberate short no longer runs through the fuse",
+      "Only cooling: a PTC away from the connector runs warmer than it should",
+      "Only trace length: the fuse guards the rail from either position"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "sch-crowbar-flipped",
+    "section": "Schematic",
+    "prompt": "You install D2 the other way round, anode on the rail and cathode to ground. ERC passes. What happens at first power-up?",
+    "options": [
+      "Nothing: a Schottky conducts either way at voltages this low",
+      "It protects better, since it now catches both fault polarities",
+      "It conducts on a perfectly correct supply, so the fuse trips every time you switch on"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "lay-servo-net-class",
+    "section": "Layout",
+    "prompt": "VSERVO needs 0.8 mm of copper and the Power class already sits at 0.5 mm. Why add a third net class instead of widening Power?",
+    "options": [
+      "KiCad requires any net fed by a connector to sit in a class of its own",
+      "Only one net carries the amps, and Power also threads VBUS and 3V3 through tight space near the USB connector for a current that never arrives there",
+      "The servo rail is a different voltage from the logic rails, and one class cannot mix voltages"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "lay-narrow-section",
+    "section": "Layout",
+    "prompt": "One 3 mm stretch of your VSERVO path came out at 0.25 mm, and DRC passes clean. Does it matter?",
+    "options": [
+      "Yes: the whole 0.9 A goes through that section, so it runs hot while the rest of the rail is fine",
+      "No: DRC is the authority on trace width, and 0.25 mm is inside the fab's limits",
+      "No, as long as the average width along the whole rail stays above 0.8 mm"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "lay-single-point-tie",
+    "section": "Layout",
+    "prompt": "The servo cluster meets the ground plane at one deliberate point, at the bulk capacitor's ground. What does that prevent?",
+    "options": [
+      "Extra vias, which the fab quotes and charges for individually",
+      "A DRC violation for a zone with more than one pad connection",
+      "The motor's switching return writing its own voltage across the copper the microcontroller uses as zero"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "drc-safety-silk",
+    "section": "DRC + Gerber",
+    "prompt": "On the viewer pass, which silkscreen text earns the most attention on this particular board?",
+    "options": [
+      "The board name and revision, so the right file gets ordered",
+      "J4's polarity marks, J5's GND / V+ / SIG order, and C8's plus sign",
+      "The layer count in the corner, which the fab reads to set the stackup"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "ord-package-suffix",
+    "section": "Ordering",
+    "prompt": "You search the distributor for SS34 and add the first result to the cart. What is the risk?",
+    "options": [
+      "You may get the SMA-package variant, a different part number that will not fit the pads you drew",
+      "Nothing: SS34 is one part, and the suffix only records the reel size",
+      "The price will beat the BOM, because the first result is usually a marketplace reseller"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "ord-amp-headroom",
+    "section": "Ordering",
+    "prompt": "On a 1 A current-limited supply the servo dies mid-sweep while the serial console keeps ticking. What happened?",
+    "options": [
+      "The board and the module together ate the headroom the servo needed",
+      "The supply sagged as it warmed, which is why larger bricks drift less",
+      "Start-up inrush reaches about 1.3 A, and the supply folded back right at that moment"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "asm-diode-bands",
+    "section": "Assembly",
+    "prompt": "D2 and D3 both carry a cathode band. What is assembly's job with them?",
+    "options": [
+      "Point both bands at the input terminal, the way protection parts generally face",
+      "Match each band to its silkscreen mark before any heat lands on the pad",
+      "Nothing: on surface-mount diodes the band is a manufacturing mark rather than a polarity mark"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "asm-isolation-beep",
+    "section": "Assembly",
+    "prompt": "On a freshly built board the meter beeps between VSERVO and VBUS. What does that beep mean?",
+    "options": [
+      "A bridge has welded the two rails together, so the sag path this board removes is back",
+      "F2 has failed short, which is how a resettable fuse usually ends its life",
+      "Normal: the two rails share a ground, so the meter is reading the plane"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "bru-stall-demo",
+    "section": "Bring-up",
+    "prompt": "You pinch the servo horn against a commanded move and the serial heartbeat never skips a line. What did that prove?",
+    "options": [
+      "That the servo is weaker than its datasheet claims, so the stall stayed small",
+      "That the bulk capacitor carried the whole stall, which is what it is there for",
+      "The topology: worst-case motor current flowed and none of it crossed the logic path"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "bru-reset-diagnosis",
+    "section": "Bring-up",
+    "prompt": "Your finished board resets every time the servo starts a large move. What is the design-level suspect?",
+    "options": [
+      "The PWM frequency is wrong, so the servo draws more than it should",
+      "The two rails are joined somewhere: a bridge or a mislabelled net has rebuilt the shared-rail failure",
+      "The USB port is too weak, and a wall charger will cure it"
+    ],
+    "correctIndex": 1
+  }
+]
