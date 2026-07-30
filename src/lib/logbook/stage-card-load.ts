@@ -19,6 +19,12 @@ export type StageCardLoad = {
   revLabel: string;
   /** Raw contentBlocks for this stage's card, or null when there is no card. */
   contentBlocks: unknown | null;
+  /**
+   * The learner's OWN current stage. `null` when not owned — callers compare it
+   * against the requested stage, and a sentinel that could accidentally equal a
+   * real Stage would silently authorise the very thing the comparison guards.
+   */
+  currentStage: Stage | null;
 };
 
 /**
@@ -36,6 +42,7 @@ export async function loadStageCard(
     where: { id: enrollmentId },
     select: {
       userId: true,
+      currentStage: true,
       project: { select: { slug: true } },
       revision: {
         select: {
@@ -50,12 +57,19 @@ export async function loadStageCard(
     },
   });
   if (!enrollment || enrollment.userId !== userId) {
-    return { owned: false, projectSlug: "", revLabel: "", contentBlocks: null };
+    return {
+      owned: false,
+      projectSlug: "",
+      revLabel: "",
+      contentBlocks: null,
+      currentStage: null,
+    };
   }
   return {
     owned: true,
     projectSlug: enrollment.project.slug,
     revLabel: enrollment.revision.label,
     contentBlocks: enrollment.revision.guide?.cards[0]?.contentBlocks ?? null,
+    currentStage: enrollment.currentStage,
   };
 }

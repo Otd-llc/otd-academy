@@ -20,7 +20,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { STAGE_VALUES } from "@/lib/schemas/project-dependency";
-import { parseGuideBlocks } from "@/lib/guide-blocks-parse";
+import { gateQuizBlock } from "@/lib/gate-quiz";
 import { loadStageCard } from "@/lib/logbook/stage-card-load";
 
 const recordQuizPassSchema = z.object({
@@ -47,19 +47,22 @@ export async function recordQuizPass(
     return { ok: false, message: "Forbidden: not your enrollment." };
   }
 
+  // ...and only for the stage they are actually ON. Every stage card is publicly
+  // readable and this action took any stage, so a learner could pre-clear all eight
+  // quizzes before starting and then advance six times back to back. The comparison
+  // is exact in BOTH directions: a stage already behind them is refused too, since
+  // re-passing a cleared stage records nothing useful and only muddies the signal.
+  if (load.currentStage !== stage) {
+    return { ok: false, message: "You're not at this stage yet." };
+  }
+
   // Authoritative scoring: re-score the SUBMITTED answers against the card's real
   // answer keys. The server owns the keys, so a fabricated score can't pass.
-  // Per-block parse (parseGuideBlocks): a malformed sibling block no longer wipes
-  // the gate quiz off this card, so the stage stays passable. Pick THE stage-gate
-  // quiz: the block flagged `gate: true`, else the first quiz block (back-compat —
-  // a single-quiz card, or mini-quizzes with no flag, gate on the first). Mirrors
-  // the client dispatch (GuideBlocks) so both agree on which block opens the gate.
-  // (WI-2)
-  const quizzes = load.contentBlocks
-    ? parseGuideBlocks(load.contentBlocks).blocks.filter((b) => b.type === "quiz")
-    : [];
-  const quizBlock = quizzes.find((b) => b.type === "quiz" && b.gate) ?? quizzes[0];
-  if (!quizBlock || quizBlock.type !== "quiz") {
+  // Which block is THE gate now lives in gate-quiz.ts — one home, because the
+  // client dispatch (GuideBlocks) and the review-snapshot path have to agree with
+  // this on which block opens the gate, and three copies of the rule drift. (WI-2)
+  const quizBlock = gateQuizBlock(load.contentBlocks);
+  if (!quizBlock) {
     return { ok: false, message: "No quiz on this stage." };
   }
   const keys = quizBlock.questions.map((q) => q.answer);

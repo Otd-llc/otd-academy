@@ -53,6 +53,34 @@ function sameJson(a: unknown, b: unknown): boolean {
 
 const WRITE = process.argv.includes("--write");
 
+/**
+ * `--only <slug>[,<slug>]` narrows the import to named lesson slugs.
+ *
+ * WHY THIS EXISTS. The archive is an export of PRODUCTION, so importing it into a
+ * target that holds content prod does not have OVERWRITES that content. That bit
+ * for real on 2026-07-29: l2-01-battery-power-module was authored locally and
+ * deliberately held back from prod pending a safety review, so the archive carried
+ * a 13-block skeleton while the local database held 79 authored blocks. A full
+ * import would have replaced the authored lesson with the skeleton, and the only
+ * copy was that database. Narrow the blast radius when you only mean to land one
+ * lesson's edits.
+ */
+const ONLY = (() => {
+  const i = process.argv.indexOf("--only");
+  if (i === -1) return null;
+  const raw = process.argv[i + 1];
+  if (!raw || raw.startsWith("--")) throw new Error("--only needs a slug (or comma-separated slugs)");
+  return new Set(raw.split(",").map((s) => s.trim()).filter(Boolean));
+})();
+
+/**
+ * A card losing most of its blocks is far more likely to be an accidental clobber
+ * than an intended edit, so it stops the run unless explicitly allowed. Compares
+ * counts only — a same-size rewrite is a normal edit and passes through.
+ */
+const ALLOW_SHRINK = process.argv.includes("--allow-shrink");
+const SHRINK_FACTOR = 0.5;
+
 type Plan = {
   creates: string[];
   updates: string[];
@@ -134,7 +162,12 @@ async function main() {
 
   // ── guides + cards ──────────────────────────────────────────────────────
   const guidesRoot = join(root, "guides");
+  const shrinking: string[] = [];
   for (const projectSlug of listDirs(guidesRoot)) {
+    if (ONLY && !ONLY.has(projectSlug)) {
+      plan.skipped.push(`${projectSlug} (not in --only)`);
+      continue;
+    }
     const project = await db.project.findUnique({
       where: { slug: projectSlug },
       select: { id: true },
@@ -225,6 +258,24 @@ async function main() {
             plan.unchanged.push(`card ${ref}`);
             continue;
           }
+          const before = Array.isArray(existing.contentBlocks)
+            ? existing.contentBlocks.length
+            : 0;
+          const after = Array.isArray(card.contentBlocks) ? card.contentBlocks.length : 0;
+          if (before > 0 && after < before * SHRINK_FACTOR) {
+            shrinking.push(`${ref} (${before} -> ${after} blocks)`);
+            // Thrown BEFORE this card's upsert, so the clobber never lands. Cards
+            // already written this run were non-shrinking and the import is
+            // idempotent, so re-running after review is safe.
+            if (WRITE && !ALLOW_SHRINK) {
+              throw new Error(
+                `refusing to shrink ${ref} from ${before} to ${after} blocks.\n` +
+                  `  The archive is an export of PRODUCTION, so this target holds content prod does not.\n` +
+                  `  Check whether that content is authored-but-unpushed before you overwrite it.\n` +
+                  `  Narrow the run with --only <slug>, or pass --allow-shrink if the reduction is intended.`,
+              );
+            }
+          }
           plan.updates.push(
             `card ${ref} (${blockSummary(existing.contentBlocks)} -> ${blockSummary(card.contentBlocks)})`,
           );
@@ -242,7 +293,13 @@ async function main() {
   }
 
   // ── mini-lessons ────────────────────────────────────────────────────────
-  for (const file of listJson(join(root, "library"))) {
+  // `--only` names PROJECT slugs, and a library mini-lesson has its own slug rather
+  // than belonging to one project, so there is no sensible subset: narrowing to a
+  // lesson means "don't touch the library at all".
+  if (ONLY) {
+    plan.skipped.push(`library (--only names project slugs; library is not project-scoped)`);
+  }
+  for (const file of ONLY ? [] : listJson(join(root, "library"))) {
     const l = readJson<Record<string, unknown>>(join(root, "library", file));
     const slug = l.slug as string;
     const existing = await db.miniLesson.findUnique({
@@ -320,6 +377,11 @@ async function main() {
   // ── exams ───────────────────────────────────────────────────────────────
   for (const file of listJson(join(root, "exams"))) {
     const slug = file.replace(/\.json$/, "");
+    // An exam IS project-scoped (one per project), so --only narrows it by slug.
+    if (ONLY && !ONLY.has(slug)) {
+      plan.skipped.push(`exam ${slug} (not in --only)`);
+      continue;
+    }
     const e = readJson<{ title: string; passThreshold: number; questions: unknown }>(
       join(root, "exams", file),
     );
@@ -372,6 +434,18 @@ async function main() {
   show("SKIPPED", plan.skipped);
   console.log(`  unchanged : ${plan.unchanged.length}`);
   console.log("");
+
+  // Shown in FULL and last, so it cannot scroll past inside a long update list.
+  // A --write run throws at the first of these rather than reaching here.
+  if (shrinking.length) {
+    console.log(`  *** ${shrinking.length} card(s) would LOSE more than half their blocks ***`);
+    for (const s of shrinking) console.log(`    ${s}`);
+    console.log("");
+    console.log("  The archive is an export of PRODUCTION. A target holding content prod");
+    console.log("  does not have (authored locally, not yet pushed) gets overwritten by it.");
+    console.log("  Narrow with --only <slug>, or pass --allow-shrink if that is intended.");
+    console.log("");
+  }
 
   if (!WRITE) {
     const touched = plan.creates.length + plan.updates.length;
