@@ -1,5 +1,18 @@
 # One Thousand Drones Academy
 
+<p align="center">
+  <a href="https://academy.onethousanddrones.com">
+    <picture>
+      <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/hero-board-light.png" />
+      <img src="docs/screenshots/hero-board-dark.png" alt="L1.01 WROOM breakout: the dimensioned drawing beside the finished board" width="100%" />
+    </picture>
+  </a>
+</p>
+
+<p align="center">
+  <sub>The flagship board a learner finishes with, drawn from its own Gerbers and rendered from the released 3D model. 30 x 62 mm, four copper layers.</sub>
+</p>
+
 > **License:** All rights reserved. See [LICENSE.md](LICENSE.md). This repo is public for transparency, reference, and portfolio purposes; the code is **not** licensed for use, fork, or derivative work by anyone other than the copyright holder.
 
 **Production:** https://academy.onethousanddrones.com
@@ -12,7 +25,7 @@ The same engine that tracks a real hardware project's lifecycle backs the learni
 
 ## Screenshots
 
-Dark is primary; every surface also flips to a warm-ivory light theme (shown: the signed-in library).
+Dark is primary; every surface also flips to a warm-ivory light theme, including the hero above and the signed-in library below.
 
 | The Library (`/library`) — a magazine index of reference guides | Signed in — a resume card, XP ring, and per-section schematic heads (light) |
 | :---: | :---: |
