@@ -8,7 +8,7 @@ Generated from `l1-03-ws2812-node@v1` by the BOM-to-KiCad export (#13):
 
 ```powershell
 pnpm exec tsx scripts/gen-kicad-starter.ts l1-03-ws2812-node v1 --out l1-03.zip
-pnpm exec tsx scripts/verify-kicad-starter.ts l1-03.zip --layers 4
+pnpm exec tsx scripts/verify-kicad-starter.ts l1-03.zip --layers 4 --power-nets 5V_EXT
 ```
 
 Both scripts are read-only and land in `author/starter-l1-02-espnow-link` (#395).
@@ -24,7 +24,7 @@ owner.
 | Bundled 3D models | 23 (`libs/3dmodels/`) |
 | Stubbed parts | **0** |
 | Stackup | 4-layer (sig / GND / GND / sig), ENIG |
-| Zip | 7,957,523 bytes |
+| Zip | 7,957,597 bytes |
 
 Asset coverage, from the in-zip `EXPORT_REPORT.md`:
 
@@ -52,7 +52,7 @@ terminals, C10 radial electrolytic, D2/D3 TVS. All nine resolved.
 | Every claimed 3D model actually bundled | PASS |
 | refdes silkscreen normalised to 1 / 1 / 0.15 mm (all 23 bundled footprints) | PASS |
 | Via dropdown leads with the 0.6 mm / 0.3 mm fab-floor preset | PASS |
-| VBUS (plus +3V3, +5V, GND) assigned to the Power net class | PASS |
+| VBUS, +3V3, +5V, GND **and 5V_EXT** assigned to the Power net class | PASS |
 | No keepout zone on any two-terminal footprint | PASS |
 | Solder-mask bridges allowed on the J1 USB-C footprint | PASS |
 | Board finish ENIG, 4-layer stackup, unwired schematic, zero stubs | PASS |
@@ -61,6 +61,30 @@ terminals, C10 radial electrolytic, D2/D3 TVS. All nine resolved.
 The U1 footprint does carry a keepout zone, and that one is meant to be there:
 it is the 18 x 6 mm **antenna keep-out** the lesson teaches. The check fails only
 on two-terminal parts, where a keepout has no legitimate reason to exist.
+
+## The injection rail was going to route at 0.25 mm
+
+The Power net class names four rails: `VBUS`, `+3V3`, `+5V`, `GND`. This board
+has a fifth. **5V_EXT** is the external 5 V the learner injects at J5 to feed the
+strip, it is the highest-current net on the board, and it matched no pattern, so
+it would have routed at the 0.25 mm **Default** track width while every other
+supply got 0.5 mm.
+
+That is the same failure VBUS itself had in #360, one board later, on the net
+that can least afford it. `BOARD_CONFIG_OVERRIDES` now declares it:
+
+```ts
+"l1-03-ws2812-node": { copperLayers: 4, netClasses: withPowerNets("5V_EXT") },
+```
+
+and the verifier takes `--power-nets 5V_EXT` so it is checked rather than
+assumed. L1.04 has the same shape of problem with its `VSERVO` servo rail; that
+is fixed in its own packet, and the two touch the same block, so whichever lands
+second wants a one-line rebase.
+
+**The learner still has to use the name.** Net classes match on net name and the
+schematic is unwired, so the rail only picks up the Power class if the schematic
+labels it `5V_EXT`. The LAYOUT card should say so.
 
 ## Open finding: the D2 symbol is off grid
 
