@@ -47,6 +47,15 @@ export async function recordQuizPass(
     return { ok: false, message: "Forbidden: not your enrollment." };
   }
 
+  // ...and only for the stage they are actually ON. Every stage card is publicly
+  // readable and this action took any stage, so a learner could pre-clear all eight
+  // quizzes before starting and then advance six times back to back. The comparison
+  // is exact in BOTH directions: a stage already behind them is refused too, since
+  // re-passing a cleared stage records nothing useful and only muddies the signal.
+  if (load.currentStage !== stage) {
+    return { ok: false, message: "You're not at this stage yet." };
+  }
+
   // Authoritative scoring: re-score the SUBMITTED answers against the card's real
   // answer keys. The server owns the keys, so a fabricated score can't pass.
   // Which block is THE gate now lives in gate-quiz.ts — one home, because the

@@ -47,6 +47,13 @@ function quizBlock(answers: number[]) {
   };
 }
 
+// Move an enrollment's own currentStage. recordQuizPass only accepts a pass for the
+// stage the learner is ON, so a test that exercises any OTHER refusal reason has to
+// put the learner there first — otherwise it passes for the wrong reason.
+async function setStage(id: string, stage: Stage) {
+  await db.enrollment.update({ where: { id }, data: { currentStage: stage } });
+}
+
 // project + revision + guide (+ a quiz card per entry) + enrollment for `userId`.
 async function makeEnrollment(
   userId: string,
@@ -122,25 +129,34 @@ describe("recordQuizPass — server-scored", () => {
   });
 
   test("wrong answers are refused and record nothing", async () => {
+    // setStage + the message assertion together stop this passing for the wrong
+    // reason: without them the action refuses because the learner isn't on
+    // SCHEMATIC, and the wrong-answer path would go untested.
+    await setStage(enrollmentId, "SCHEMATIC");
     const res = await recordQuizPass({
       enrollmentId,
       stage: "SCHEMATIC",
       answers: [0, 0, 0, 0, 0],
     });
     expect(res.ok).toBe(false);
+    expect(res.message).toMatch(/not fully correct/i);
     const row = await db.quizPass.findUnique({
       where: { enrollmentId_stage: { enrollmentId, stage: "SCHEMATIC" } },
     });
     expect(row).toBeNull();
+    await setStage(enrollmentId, "REQUIREMENTS");
   });
 
   test("a mis-counted answer array can't sneak a pass", async () => {
+    await setStage(enrollmentId, "SCHEMATIC");
     const res = await recordQuizPass({
       enrollmentId,
       stage: "SCHEMATIC",
       answers: [2, 2], // SCHEMATIC has 5 questions
     });
     expect(res.ok).toBe(false);
+    expect(res.message).toMatch(/not fully correct/i);
+    await setStage(enrollmentId, "REQUIREMENTS");
   });
 
   test("re-pass is idempotent (still one row)", async () => {
@@ -152,12 +168,17 @@ describe("recordQuizPass — server-scored", () => {
   });
 
   test("a stage with no quiz on the card is refused", async () => {
+    // On LAYOUT, so the refusal is provably about the missing quiz rather than
+    // about the learner being on a different stage.
+    await setStage(enrollmentId, "LAYOUT");
     const res = await recordQuizPass({
       enrollmentId,
       stage: "LAYOUT", // no LAYOUT card on this enrollment's guide
       answers: [0],
     });
     expect(res.ok).toBe(false);
+    expect(res.message).toMatch(/no quiz/i);
+    await setStage(enrollmentId, "REQUIREMENTS");
   });
 
   test("cannot record against another user's enrollment", async () => {
@@ -168,6 +189,52 @@ describe("recordQuizPass — server-scored", () => {
     });
     expect(res.ok).toBe(false);
     expect(res.message).toMatch(/forbidden/i);
+  });
+});
+
+describe("recordQuizPass — a pass only counts at the stage you're ON", () => {
+  // Every stage card is publicly readable and this action used to accept ANY stage,
+  // so a learner could clear all eight quizzes before starting and then advance
+  // straight through. The pass has to be earned at the point of learning.
+  test("refuses a stage AHEAD of the learner's currentStage, and records nothing", async () => {
+    await setStage(enrollmentId, "REQUIREMENTS");
+    const res = await recordQuizPass({
+      enrollmentId,
+      stage: "SCHEMATIC", // correct answers, but the learner is still on REQUIREMENTS
+      answers: [2, 2, 2, 2, 2],
+    });
+    expect(res.ok).toBe(false);
+    expect(res.message).toMatch(/not at this stage/i);
+    const row = await db.quizPass.findUnique({
+      where: { enrollmentId_stage: { enrollmentId, stage: "SCHEMATIC" } },
+    });
+    expect(row).toBeNull();
+  });
+
+  test("accepts the very same submission once the learner IS on that stage", async () => {
+    // Same enrollment, same answers as the refusal above — only currentStage moved.
+    // That isolates the gate to the stage check and nothing else.
+    await setStage(enrollmentId, "SCHEMATIC");
+    const res = await recordQuizPass({
+      enrollmentId,
+      stage: "SCHEMATIC",
+      answers: [2, 2, 2, 2, 2],
+    });
+    expect(res.ok).toBe(true);
+    await db.quizPass.deleteMany({ where: { enrollmentId, stage: "SCHEMATIC" } });
+    await setStage(enrollmentId, "REQUIREMENTS");
+  });
+
+  test("refuses a stage BEHIND the learner too (re-passing a cleared stage)", async () => {
+    await setStage(enrollmentId, "SCHEMATIC");
+    const res = await recordQuizPass({
+      enrollmentId,
+      stage: "REQUIREMENTS",
+      answers: [1, 0, 2],
+    });
+    expect(res.ok).toBe(false);
+    expect(res.message).toMatch(/not at this stage/i);
+    await setStage(enrollmentId, "REQUIREMENTS");
   });
 });
 
