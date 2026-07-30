@@ -1,0 +1,200 @@
+[
+  {
+    "id": "req-role-firmware",
+    "section": "Requirements",
+    "prompt": "Both nodes are assembled, powered and healthy. You press the USER button on either one and neither LINK LED lights. What does the pair still need?",
+    "options": [
+      "One board flashed as sender, one as receiver: identical hardware leaves the role to firmware",
+      "The expansion-header jumper that picks which of the two boards transmits",
+      "A wire between the two headers, since ESP-NOW peers need a shared reference"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "req-adc1-only",
+    "section": "Requirements",
+    "prompt": "The expansion header brings out ADC1 pins and no ADC2 pins at all. What drives that choice on this board in particular?",
+    "options": [
+      "The ADC2 pins are already committed to the module's native USB data pair",
+      "ADC1 inputs tolerate 5 V, which makes them the safe choice on a header",
+      "The radio claims ADC2 whenever it runs, and this radio never stops running"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "bom-pair-quantities",
+    "section": "BOM sourcing",
+    "prompt": "Your cart holds three B3F buttons and every line matched an exact MPN. What is still wrong?",
+    "options": [
+      "Nothing: the board carries three buttons and the BOM lists three",
+      "The BOM is per node and you build two, so the cart wants six plus spares",
+      "The USER button rides the chip's internal pull-up, so two buttons suffice"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "bom-second-source",
+    "section": "BOM sourcing",
+    "prompt": "D1, the USBLC6 ESD array, goes out of stock the week you order. What does your BOM line already tell you to do?",
+    "options": [
+      "Leave D1 off: the polyfuse and the CC resistors already guard the port",
+      "Fit the second source the line names, the UMW USBLC6-2SC6",
+      "Substitute any SOT-23-6 diode array that drops into the same footprint"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "sch-button-direction",
+    "section": "Schematic",
+    "prompt": "You wire SW3's far leg to +3V3 instead of GND. ERC passes clean. What does the finished board do?",
+    "options": [
+      "GPIO21 reads high pressed or not, so every press is invisible",
+      "The internal pull-up fights the button and the pin oscillates",
+      "The board refuses to boot, since GPIO21 is sampled at reset"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "sch-pullup-choice",
+    "section": "Schematic",
+    "prompt": "EN and GPIO0 each carry an external 10 kΩ pull-up. GPIO21 carries none. What decides which pins get a real resistor?",
+    "options": [
+      "How much current the switch has to carry when it closes",
+      "Whether the pin sits on ADC1 or on the radio-shared ADC2",
+      "Whether the level must be defined before any firmware runs"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "sch-header-5v",
+    "section": "Schematic",
+    "prompt": "A learner jumpers the header's 5V position across to one of its GPIO positions, to power a small sensor from there. What happens?",
+    "options": [
+      "Nothing: the pin regulates the 5 V down to 3.3 V on its way in",
+      "The sensor browns out, since a GPIO sources only a few milliamps",
+      "The pin can be destroyed: ESP32-S3 GPIO are 3.3 V parts"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "lay-keepout-pour",
+    "section": "Layout",
+    "prompt": "You drew the antenna rule area, poured ground, and the pour filled straight through it. What did the rule area fail to say?",
+    "options": [
+      "Keep out copper pours, on all four copper layers",
+      "Keep out silkscreen, which the pour follows on the outer layers",
+      "That the board outline has to stop short of the antenna"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "lay-keepout-range",
+    "section": "Layout",
+    "prompt": "Two finished nodes link reliably at arm's length and drop out across the room. Which layout mistake matches that symptom?",
+    "options": [
+      "The USB pair was drawn trace by trace instead of with the pair router",
+      "Copper reached into the keep-out, and a detuned antenna radiates less",
+      "The power nets were left on the Default class at 0.25 mm"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "lay-decoupling-loop",
+    "section": "Layout",
+    "prompt": "The node resets every time it transmits, and the trouble started when you moved the 0.1 µF caps away from U1 to make room. Why does that distance matter?",
+    "options": [
+      "The longer traces add resistance, which drops the rail below 3.0 V",
+      "A capacitor loses capacitance the further it sits from the regulator",
+      "The loop grows, and its inductance resists the fast current step"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "drc-parity",
+    "section": "DRC + Gerber",
+    "prompt": "You renamed a net in the schematic, exported Gerbers straight afterwards, and the built board's LINK LED never lights. Which check would have caught it?",
+    "options": [
+      "Test for parity between PCB and schematic, ticked in the DRC run",
+      "Refill all zones, so DRC measures the copper you actually export",
+      "The Gerber job file, which pins down which file is which layer"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "ord-quantity",
+    "section": "Ordering",
+    "prompt": "You need two identical nodes. What does the board order look like?",
+    "options": [
+      "Two uploads of the same zip, one order per board you need",
+      "One zip at the minimum quantity of 5: two to build, three spare",
+      "One zip with panelisation, so both boards arrive on one panel"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "ord-enig",
+    "section": "Ordering",
+    "prompt": "The quote offers HASL free and ENIG for a few dollars more. What does ENIG buy on this board?",
+    "options": [
+      "A finish that resists corrosion across the board's service life",
+      "Dead-flat pads under the WROOM's fine-pitch castellations",
+      "A gold surface that wets at a lower soldering temperature"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "id": "asm-batch-passes",
+    "section": "Assembly",
+    "prompt": "Two bare boards, hot iron, flux already out. What is the efficient build order?",
+    "options": [
+      "Finish board A completely, then set the bench up again for board B",
+      "Alternate part by part between boards so both progress together",
+      "Each pass on both boards while the bench is set for that pass"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "asm-continuity-each",
+    "section": "Assembly",
+    "prompt": "Board A passed its VBUS-to-GND continuity sweep. What does board B need before it sees power?",
+    "options": [
+      "Its own sweep: a solder bridge is a per-board accident",
+      "Nothing: identical boards give identical results",
+      "A visual pass only, since the meter cleared this design"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "bru-solo-first",
+    "section": "Bring-up",
+    "prompt": "Why run the whole solo ladder on each board before the first link test?",
+    "options": [
+      "A dead link across two unproven boards means debugging two unknowns",
+      "The radio wants several minutes on a settled rail before it transmits",
+      "A board only prints its factory MAC after it has enumerated once"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "id": "bru-peer-mac",
+    "section": "Bring-up",
+    "prompt": "You paste each board's own printed MAC into its own config. Both boards run happily and nothing ever arrives. What went wrong?",
+    "options": [
+      "The two boards ended up pinned to different Wi-Fi channels",
+      "Both boards are running receiver firmware, so nobody transmits",
+      "Packets carry a destination: each config needs the peer's MAC"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "id": "bru-powerbank",
+    "section": "Bring-up",
+    "prompt": "The link ran for five minutes on a USB power bank, then the receiver went dark. What is the documented cause?",
+    "options": [
+      "The PTC fuse tripped and needs time to cool before it resets",
+      "The power bank auto-slept under the light load",
+      "The radio overheated and the transmitter shut itself down"
+    ],
+    "correctIndex": 1
+  }
+]
