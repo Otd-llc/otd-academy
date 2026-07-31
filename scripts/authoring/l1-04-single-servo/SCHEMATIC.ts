@@ -242,6 +242,7 @@ const BLOCKS: Blk[] = [
     },
     {
       text: "U1's pad also has hidden GND pins. You will confirm those land on GND in the grounds sweep in island 09.",
+      proof: "You can say that U1 has hidden GND pins and that island 09 is where they get checked.",
     },
   ]),
   tube("Wire the decoupling and tie the module"),
