@@ -7,9 +7,9 @@
 | | |
 | --- | --- |
 | **Slug** | `l2-04-power-led-driver` |
-| **Status** | **`Pass 15 — design-stage DRY; gate MET`.** Two passes changed hardware: **Pass 3** (part-truth) found the LM3404's **±23.6 % on-time tolerance** and proved the first current loop sat **0.8 %** above the datasheet's 25 mV CS signal-to-noise floor — the inductor/on-time/sense triple was re-solved by program; **Pass 7** (power integrity) found the **input-filter negative-resistance** condition that makes C7's 85 mΩ ESR a functional requirement rather than bulk. Every `[D]` audit is clean and both `hasThermalConcern` conditionals are run. **Owed by phase (F7, not blockers):** footprint↔pinout `[S]`, fab-DRU + the V12⟂VBUS ERC `[L]`, and four bring-up measurements B1–B4. **Parts NOT created, BOM NOT imported, revision NOT advanced.** |
-| **Passes run** | **15** |
-| **Last dry pass** | **Pass 15** (2026-07-30) — full sweep after the Pass-14 fold, zero new material findings |
+| **Status** | **`Pass 17 — design-stage DRY; gate MET`.** Two passes changed hardware: **Pass 3** (part-truth) found the LM3404's **±23.6 % on-time tolerance** and proved the first current loop sat **0.8 %** above the datasheet's 25 mV CS signal-to-noise floor — the inductor/on-time/sense triple was re-solved by program; **Pass 7** (power integrity) found the **input-filter negative-resistance** condition that makes C7's 85 mΩ ESR a functional requirement rather than bulk. Every `[D]` audit is clean and both `hasThermalConcern` conditionals are run. **Owed by phase (F7, not blockers):** footprint↔pinout `[S]`, fab-DRU + the V12⟂VBUS ERC `[L]`, and four bring-up measurements B1–B4. **Parts NOT created, BOM NOT imported, revision NOT advanced.** |
+| **Passes run** | **17** |
+| **Last dry pass** | **Pass 17** (2026-07-30). Pass 15 had reached DRY; **Pass 16 re-opened the sweep** on a citation check and proved the project-flag defect is **systemic, not per-board** (the seed script can never turn on the Li-ion or thermal conditionals, on any of the 27 boards). Folded, re-swept, DRY re-achieved at Pass 17 |
 
 ## Gate (Definition of done — all must hold before any part/BOM/revision)
 
@@ -21,12 +21,13 @@
 - [x] Every part hand-buildable (Pass 9) + sourceable with exact import strings, **live
       DigiKey screen of all 32 lines, zero OOS** (Pass 2, re-run Pass 12)
 - [x] Layout constraints captured L-1…L-8 (Pass 10) · teachable (Pass 9) · consistent
-      (Passes 12, 14, 15) · pipeline-conformant (Pass 11)
+      (Passes 12, 14, 15, 17) · pipeline-conformant (Passes 11, **16**)
 - [x] **Every applicable conditional audit run** — `hasThermalConcern` **fires** (Pass 8
       raised the flag error; Pass 13 ran both conditional audits clean). `hasMainsNet`,
       `hasLiIon`, `requiresStripboard` all correctly false ⇒ no other conditional fires
 - [x] Every risk de-risked or explicitly scheduled — RK1–RK21 (Pass 8)
-- [x] **≥ 10 passes run (15) AND a design-stage dry pass achieved at Pass 15**
+- [x] **≥ 10 passes run (17) AND a design-stage dry pass achieved at Pass 17**
+      (first reached at Pass 15; re-opened by Pass 16 and re-achieved)
 - [~] *Phase-staged (F7):* footprint↔symbol↔pinout `[S]`; fab-DRU + V12⟂VBUS ERC `[L]`;
       bring-up residuals B1–B4 (§9 of `design.md`)
 
@@ -287,12 +288,53 @@ that changed hardware (part-truth, power integrity).
   region where **linear wins**, gives the rule the learner can carry away, and hands
   them a $1.91 breadboard build that makes the comparison a measurement.
 
-**Verdict: DRY (design-stage), zero new material findings.** With **15 passes run** and
-a design-stage dry pass achieved, **every `[D]` audit is clean and both conditional
+**Verdict: DRY (design-stage), zero new material findings** — *at the time*. **Pass 16
+subsequently re-opened the sweep**, so this is not the closing pass; see below.
+
+### Pass 16 — Pipeline conformance, second look (audit 14) · adversarial stance: *"check the citations you wrote, not the claims you made"* — **NOT DRY**
+
+Verifying a single file-and-line reference in the flag banner turned a per-board defect
+into a systemic one.
+
+| # | Sev | Finding | Verified? | Fix / decision | Re-proof |
+| --- | --- | --- | --- | --- | --- |
+| **P16-1** | **HIGH (curriculum-wide) / MED (this board)** | **The citation was wrong, and checking it exposed something worse.** `design.md` cited `scripts/populate-curriculum-dag.ts:149` as the source of `hasThermalConcern = false`. Line 149 is where the project is *declared* — **the flag is never set there at all.** The script sets `criticalPath`, `hasMainsNet` and `requiresStripboard` on **all 27 boards** and sets **`hasLiIon` and `hasThermalConcern` on none**; both default `false` in `prisma/schema.prisma:181-182`. **The two conditional audits that exist to catch the two most dangerous board classes — battery and thermal — are therefore off by construction on every board in the curriculum**, and can only be turned on by a human remembering. | ✅ counted directly in `scripts/populate-curriculum-dag.ts`: occurrences of `hasLiIon` = **0**, `hasThermalConcern` = **0**, against `criticalPath` = **27**, `hasMainsNet` = **27**, `requiresStripboard` = **27**; the two defaults read from the schema | **FOLD:** citation corrected to the schema default; the banner and friction **G1** rewritten from "this board's flag is wrong" (Med) to the systemic finding (**High**), with the concrete fix — add both flags to the seed script's per-board records rather than flipping them by hand. | Banner, §1, G1 |
+| **P16-2** | **MED** | **Read-across: `l2-01-battery-power-module` has the same latent defect and is worse exposed.** Its design doc asserts `hasLiIon = true, hasThermalConcern = true` in its header table and ticks both conditional DV rows — but its seed record sets neither, so unless someone flipped them manually the live project has **both false** and the Li-ion safety conditional never materialized on the curriculum's first safety-critical board. | ✅ its seed entry read directly (`requiresStripboard`/`hasMainsNet` only) | **Reported, not fixed here** — l2-01 is another board's branch and another board's owner decision. Recorded in G1 so it is not lost. | G1 read-across |
+| P16-3 | LOW | The DAG citation *was* right: `scripts/populate-curriculum-dag.ts:351` carries `l2-04 ⟸ l1-01 @ REQUIREMENTS`, and l1-01's latest revision is at LAYOUT, so no gate blocks this board (Pass 11's P11-3 stands). | ✅ | No change. | Pass 11 |
+
+**Verdict: NOT DRY.** A documentation defect on its own, but the thing it uncovered is a
+curriculum-wide gap in the gate machinery, so the sweep reopens.
+
+### Pass 17 — Design-stage DRY sweep after the Pass-16 fold — **DRY**
+
+Re-ran the consistency and pipeline lenses over the corrected documents, plus a
+re-check of everything Pass 15 had cleared (nothing electrical was touched by Pass 16,
+so the electrical re-proof is by inspection of the diff rather than re-derivation).
+
+- **Citations:** every file-and-line reference in `design.md` and this log re-verified
+  against the repository — `prisma/schema.prisma:181-182`,
+  `scripts/populate-curriculum-dag.ts:351`,
+  `canonical-checklist-templates.ts:209-219`. The one that was wrong is the one Pass 16
+  found; there are no others.
+- **Consistency:** re-ran the cross-check script — 32 rows, 52 refDes, no duplicates or
+  gaps, every MPN and refDes in `bom.csv` present in `design.md`, 13 `(NEW)` tags
+  matching the §8 list of 13, `RK1`–`RK21` all defined and resolved, all markdown
+  tables column-consistent, `Würth` byte-identical to l1-03's.
+- **Pass/DRY bookkeeping:** the pass count, the DRY-pass reference and the validation
+  row in `design.md`'s header table all updated to 17 — the exact class of stale
+  bookkeeping that l1-03's F11-3 caught, checked deliberately because this fold touched
+  the header.
+- **Electrical:** unchanged by Pass 16. The locked triple (L 100 µH / R_ON 82 kΩ /
+  R8 0.62 Ω / C11 2.2 µF), the CS window margins (1.20× / 1.25×), the current band
+  (323.6–388.0 mA) and all three junction temperatures stand as re-derived in Pass 15.
+
+**Verdict: DRY (design-stage), zero new material findings.** With **17 passes run** and
+the design-stage dry pass re-achieved, **every `[D]` audit is clean and both conditional
 audits are earned — the gate is met.** The board is **part-ready pending the owner's
-actions**: set `hasThermalConcern = true` (and `targetCost`), create the 13 new parts,
-import `bom.csv`, and sign the `DESIGN_VALIDATION` attestations. **Nothing in the
-library, the BOM or the revision was touched by this design pass.**
+actions**: set `hasThermalConcern = true` (ideally by fixing the seed script per G1),
+set `targetCost`, create the 13 new parts, import `bom.csv`, and sign the
+`DESIGN_VALIDATION` attestations. **Nothing in the library, the BOM or the revision was
+touched by this design pass.**
 
 Still owed, by phase and by design (protocol F7): footprint ↔ symbol ↔ pinout `[S]`;
 fab-DRU DRC + the V12 ⟂ VBUS isolation ERC `[L]`; and the four bring-up measurements

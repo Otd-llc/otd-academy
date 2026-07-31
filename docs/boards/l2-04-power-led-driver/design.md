@@ -1,8 +1,9 @@
 # L2.04 Constant-Current Power-LED Driver — design doc
 
 > ✅ **Design-stage gate MET (2026-07-30).** The **Recursive Board-Design Validation
-> Protocol** (`../_protocol.md`) ran **15 passes, with the design-stage DRY pass at
-> Pass 15** (`validation-log.md` is the evidence). Every `[D]` audit is clean, both
+> Protocol** (`../_protocol.md`) ran **17 passes, with the design-stage DRY pass at
+> Pass 17** (`validation-log.md` is the evidence — Pass 16 re-opened the sweep by
+> finding that the flag problem below is systemic, not per-board). Every `[D]` audit is clean, both
 > `hasThermalConcern` conditional audits are run and clean, and the **13 new parts**
 > may now be created and the BOM imported **by the owner** (the other 19 lines,
 > including `SS34-E3/57T`, are already in the library — §8). Two passes changed real
@@ -16,11 +17,22 @@
 > `DESIGN_VALIDATION` ticks remain **Josh's honest human attestations** — the log
 > earns them, he signs them.
 >
-> 🚩 **PROJECT-FLAG CHANGE REQUIRED BEFORE PART CREATION.** The seeded project record
-> carries `hasThermalConcern = false`. **That is wrong for this board and must be set
-> `true`** (§1 constraints, §5, Pass 8). It is the one flag that changes the
-> materialized `DESIGN_VALIDATION` checklist — it adds the two conditional rows this
-> doc already evidences (§7). Source: `scripts/populate-curriculum-dag.ts:149`.
+> 🚩 **PROJECT-FLAG CHANGE REQUIRED BEFORE PART CREATION.** This board's record carries
+> `hasThermalConcern = false`. **That is wrong for this board and must be set `true`**
+> (§1 constraints, §5, Pass 8) — it is the one flag that changes the materialized
+> `DESIGN_VALIDATION` checklist, adding the two conditional rows this doc already
+> evidences (§7).
+>
+> **And it is not a per-board typo — it is systemic (Pass 16).**
+> `scripts/populate-curriculum-dag.ts` sets `criticalPath`, `hasMainsNet` and
+> `requiresStripboard` on **all 27 boards** and sets **`hasLiIon` and
+> `hasThermalConcern` on none of them**; both default `false`
+> (`prisma/schema.prisma:181-182`). So the two conditional audits that exist to catch
+> the two most dangerous board classes — battery and thermal — **can never fire from
+> the seed.** The read-across is immediate: **`l2-01-battery-power-module`**, the
+> curriculum's first safety-critical Li-ion board, asserts `hasLiIon = true,
+> hasThermalConcern = true` in its own design doc, and the seed would have left both
+> false. Worth a fix in the seed script rather than a manual flip per board.
 
 | | |
 | --- | --- |
@@ -30,7 +42,7 @@
 | **Track / Level** | POWER / L2 |
 | **Teaches** | **Constant-current LED drive** (the graded concept) — and the *reasoned* choice between a **linear** and a **switching** constant-current topology, decided on heat, efficiency and complexity with real numbers, and then **measured on the bench** (§2.5) |
 | **Project flags** | `hasMainsNet = false`, `hasLiIon = false`, **`hasThermalConcern = true` (CHANGE REQUIRED — seeded false)**, `requiresStripboard = false` |
-| **Validation** | `passes 1–15, Pass 15 DRY` (design-stage) → `[S]`/`[L]` owed — see `validation-log.md` |
+| **Validation** | `passes 1–17, Pass 17 DRY` (design-stage) → `[S]`/`[L]` owed — see `validation-log.md` |
 
 > **Headline:** the **L1.01 WROOM core reused verbatim** (USB-C → PTC → USBLC6 →
 > RT9080 → 3V3 → ESP32-S3) plus a **second, independent 12 V rail** feeding an
@@ -754,7 +766,7 @@ requires; `canonical-checklist-templates.ts:209-219`):
 
 | # | Stage | Friction | Severity | Follow-up |
 | --- | --- | --- | --- | --- |
-| G1 | Design / flags | **`hasThermalConcern` was seeded `false` on a constant-current power-LED board.** It is the one flag that changes the materialized DV checklist, and it was wrong in the direction that *removes* scrutiny. l1-03's F1 was the mirror image (a flag wrongly true). | **Med** | Set it true before parts are created (banner at the top). More generally: **audit every seeded flag against the topology when a board's design.md is first written** — twice now the seed has been wrong. |
+| **G1** | **Pipeline / flags** | **The seed script can never turn on the two conditional audits that matter most.** `populate-curriculum-dag.ts` sets `criticalPath`, `hasMainsNet` and `requiresStripboard` for **all 27** boards and sets **`hasLiIon` and `hasThermalConcern` for none**, both of which default `false` (`prisma/schema.prisma:181-182`). So the Li-ion and deep-thermal conditionals — the two that exist precisely because those board classes can hurt someone — are off by construction on every board, and only a human remembering to flip them turns them on. This board found it as a per-board defect (Pass 8) and Pass 16 proved it systemic. **Read-across: `l2-01-battery-power-module` asserts both flags true in its design doc and the seed would have left both false.** l1-03's F1 was the mirror image (a flag wrongly *true*), which is the benign direction. | **High** | Add the two flags to the seed script's per-board records, with `hasThermalConcern: true` on l2-04 and `hasLiIon: true, hasThermalConcern: true` on l2-01, and re-seed. Until then: **audit every flag against the topology when a board's design.md is first written** — three boards in, the seed has been wrong every time it mattered. |
 | G2 | Design / sourcing | **Three of the five obvious buck-LED-driver ICs are obsolete or out of stock**, and one (CAT4201) shows 81,000 units while being marked obsolete — **stock is not lifecycle**. Picking by "what everyone uses" would have chosen a dead part. | Med | Screen lifecycle **and** stock on the first candidate list, before any math is done against a specific part. Pass 2 did; Pass 1 had not. |
 | G3 | Design / parts | **A relabelled module can carry ratings its own die's datasheet contradicts** — the star says 1.23 A / 105 °C, the LUXEON C DS41 says 500 mA / 85 °C. This is l1-03's F8 (the WS2812 clone) recurring in a different costume. | Med | Design to the conservative intersection, name both sources in §4, and put the die-generation check in receiving inspection. Candidate standing rule: *when two datasheets describe the same part, the design uses the intersection and the doc names both.* |
 | **G4** | **Protocol / method** | **The nominal-value calculation hid a violated constraint.** The first design (L 100 µH, R_ON 68 kΩ) looked healthy at every typical value and sat **0.8 %** above the datasheet's CS SNR floor once the LM3404's **±23.6 % on-time tolerance** was applied. A ±24 % tolerance on a *timing* parameter is not where anyone looks first — the eye goes to voltages and currents. | **High** | The fix that worked: stop hand-evaluating corners and **write the worst-case model as code** (`validation-log.md` Pass 3), then *search* the component space against the datasheet's own inequalities. Recommend `_protocol.md` add: *"where three or more independent tolerances meet in one inequality, evaluate it by program, not by hand."* |
