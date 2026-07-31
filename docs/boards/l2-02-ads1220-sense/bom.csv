@@ -1,0 +1,27 @@
+refDes,manufacturer,mpn,quantity,unitPrice,notes
+C1,KEMET,C0805C106K3PACTU,1,,10uF 0805 bulk on 3V3 (L1.01 core)
+"C2,C3,C7,C10,C12",Samsung Electro-Mechanics,CL21B104KBCNNNC,5,,100nF 0805 — C2/C3 module decap + C7 EN + C10 at AVDD pin 12 + C12 at DVDD pin 13
+"C5,C6,C8,C9,C11",Würth Elektronik,885012207103,5,,1uF 0805 — C5/C6 U2 in/out + C8 U4 in + C9 U4 out (AVDD) + C11 DVDD local bulk
+"C13,C16,C19",Samsung Electro-Mechanics,CL21C103JBFNNNE,3,0.41,10nF 0805 C0G/NP0 differential filter — signal (C13) reference (C16) aux (C19)
+"C14,C15,C17,C18,C20,C21",KEMET,C0805C102J5GACTU,6,0.16,1nF 0805 C0G/NP0 common-mode filter — AIN0/AIN1 REFP0/REFN0 AIN2/AIN3
+D1,STMicroelectronics,USBLC6-2SC6,1,,USB ESD/TVS array (L1.01 core)
+F1,Littelfuse,1206L050YR,1,,0.5A PTC on VBUS (L1.01 core)
+J1,GCT,USB4110-GF-A,1,,USB-C receptacle (L1.01 core)
+"J2,J3,J4",Sullins Connector Solutions,PRPC040SAAN-RC,3,,Breakaway 0.1in header — J2/J3 GPIO breakout + J4 1x4 sensor (EXC+ / IN+ / IN- / EXC-)
+LED1,Würth Elektronik,150080RS75000,1,,Red power LED 0805 (L1.01 core)
+LED2,Würth Elektronik,150080YS75000,1,,Yellow user/status LED 0805 (L1.01 core)
+"R1,R2",Yageo,RC0805FR-0710KL,2,,10k 0805 EN/GPIO0 pull-ups (L1.01 core)
+"R3,R4",Yageo,RC0805FR-075K1L,2,,5.1k 0805 CC sink pull-downs (L1.01 core)
+"R5,R6",Yageo,RC0805FR-07470RL,2,,470R 0805 LED series (L1.01 core)
+R7,Yageo,RC0805FR-0710RL,1,0.11,10R 0805 DVDD series filter with C11 — ferrite rejected (LC peaking) (NEW)
+"R8,R9,R10,R11,R12",Yageo,RC0805FR-0747RL,5,0.10,47R 0805 series on SCLK/CS/DIN/DOUT/DRDY per ADS1220 datasheet 9.1.1 (NEW)
+"R13,R14,R15,R16,R18,R19,R20,R21,R22,R23",Yageo,RT0805BRD071KL,10,0.10,1k 0805 0.1% 25ppm thin film — 4x on-board bridge arm + 6x signal/reference/aux series (NEW)
+R17,Yageo,RT0805BRD071ML,1,0.10,1M 0805 0.1% 25ppm thin film — SW3 known-step shunt (-824.3uV) (NEW)
+"R24,R25",Yageo,RC0805FR-071ML,2,0.10,1M 0805 1% — floating-source bias: AIN2 to AVDD and AIN3 to AGND (reuse — already in catalog)
+"SW1,SW2,SW3",Omron,B3F-1000,3,,Tactile switch 6mm THT — EN/BOOT (L1.01 core) + SW3 824uV step
+"TP1,TP3",Keystone Electronics,5010,2,,Red test point THT — 3V3 (TP1) + AVDD (TP3)
+"TP2,TP4",Keystone Electronics,5011,2,,Black test point THT — GND (TP2) + AGND (TP4)
+U1,Espressif Systems,ESP32-S3-WROOM-1-N16R2,1,,ESP32-S3 module (L1.01 core)
+U2,Richtek,RT9080-33GJ5,1,,3.3V/600mA LDO — digital 3V3 rail (L1.01 core)
+U3,Texas Instruments,ADS1220IPWR,1,9.26,24-bit SPI delta-sigma ADC with PGA 1-128 — TSSOP-16 PW package (the leadless RVA/VQFN is excluded) (NEW)
+U4,Texas Instruments,LP5907MFX-3.3/NOPB,1,0.66,3.3V/250mA low-noise LDO SOT-23-5 — AVDD analog rail with GPIO-gated EN (NEW)
