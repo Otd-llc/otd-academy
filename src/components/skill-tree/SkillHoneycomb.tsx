@@ -33,7 +33,7 @@ import { AdminTierToggle } from "@/components/skill-tree/AdminTierToggle";
 import type { NodeState, SkillNode } from "@/lib/skill-tree-core";
 import { hrefForNode, type HrefViewer } from "@/lib/skill-tree-href";
 import { formatUsd, resolveBuyPriceCents } from "@/lib/format-money";
-import { COMB_STANDIN, combPoster } from "@/lib/board-posters";
+import { COMB_STANDIN_GHOST, combPoster } from "@/lib/board-posters";
 
 const useIsoLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
@@ -112,11 +112,15 @@ function statusText(node: SkillNode): string {
 
 // The finished-board graphic on a cell (sandbox rounds A–J, 2026-07-25).
 //
-// A course with a baked comb render draws it. One without draws L1.01's
-// silhouette instead: the same PNG used as an alpha MASK, filled faint gold inside
-// a gold rim, so it reads as "a board goes here, not this board". The soft render
-// shadow is inside that alpha on purpose — the owner picked the ghost WITH its
-// shadow over a hard-edged silhouette.
+// A course with a baked comb render draws it. One without draws L1.01 as a gold
+// GHOST instead, so it reads as "a board goes here, not this board".
+//
+// The ghost masks against COMB_STANDIN_GHOST, not against the render's own alpha.
+// The render carries a baked contact shadow as a clean band at alpha ~0.2, and
+// masking that produced a smear offset below the board. (An earlier round kept the
+// shadow deliberately; it was reversed once the alpha was actually measured.) The
+// ghost map is `coverage x ink` off luminance, so what shows is the board's own
+// structure. Regenerate with `pnpm tsx scripts/make-stage-ghosts.ts`.
 //
 // Geometry is a share of the cell box, grown about a fixed centre at 26% so the
 // active step's larger board sits on the same line as its neighbours' (round I,
@@ -152,8 +156,8 @@ function BoardArt({ slug, isCurrent }: { slug: string; isCurrent: boolean }) {
       <span
         className="sk-art-soon-fill"
         style={{
-          WebkitMaskImage: `url(${COMB_STANDIN})`,
-          maskImage: `url(${COMB_STANDIN})`,
+          WebkitMaskImage: `url(${COMB_STANDIN_GHOST})`,
+          maskImage: `url(${COMB_STANDIN_GHOST})`,
         }}
       />
     </span>
