@@ -115,6 +115,21 @@ export function resolveBoardConfig(config?: Partial<BoardConfig>): BoardConfig {
 }
 
 /**
+ * The default net classes with extra net names folded into the **Power** class.
+ *
+ * A board whose design carries a supply rail beyond the four the default class
+ * lists (VBUS, +3V3, +5V, GND) has to say so, or that rail silently routes at
+ * the 0.25 mm Default width. This is the same failure VBUS itself had (#360),
+ * and it bites hardest on exactly the rails that carry the most current, since
+ * those are the board-specific ones: an LED-strip injection rail, a servo rail.
+ */
+function withPowerNets(...extra: string[]): NetClassConfig[] {
+  return DEFAULT_BOARD_CONFIG.netClasses.map((nc) =>
+    nc.name === "Power" ? { ...nc, nets: [...nc.nets, ...extra] } : nc,
+  );
+}
+
+/**
  * Per-board KiCad-export overrides, keyed by project slug. Most boards take
  * DEFAULT_BOARD_CONFIG (2-layer); a board whose design demands a different
  * stackup lists its override here. `buildKicadExportZip` looks the slug up and
@@ -135,7 +150,10 @@ export const BOARD_CONFIG_OVERRIDES: Record<string, Partial<BoardConfig>> = {
   "l1-02-espnow-link": { copperLayers: 4 },
   // l1-03/04/05 reuse the l1-01 WROOM core verbatim (same native-USB pair, same
   // stackup reasoning), so they keep the 4-layer stack.
-  "l1-03-ws2812-node": { copperLayers: 4 },
+  // l1-03's 5 V injection rail is a fifth supply net the default Power class
+  // does not name, and it is the highest-current net on the board (the external
+  // strip, fed at J5). Without this it routes at the 0.25 mm Default width.
+  "l1-03-ws2812-node": { copperLayers: 4, netClasses: withPowerNets("5V_EXT") },
   "l1-04-single-servo": { copperLayers: 4 },
   "l1-05-internal-adc": { copperLayers: 4 },
   // l2-01 is a pure power module: no WROOM, no native-USB pair, no antenna.
