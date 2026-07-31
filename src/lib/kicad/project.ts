@@ -154,7 +154,7 @@ export const BOARD_CONFIG_OVERRIDES: Record<string, Partial<BoardConfig>> = {
   // does not name, and it is the highest-current net on the board (the external
   // strip, fed at J5). Without this it routes at the 0.25 mm Default width.
   "l1-03-ws2812-node": { copperLayers: 4, netClasses: withPowerNets("5V_EXT") },
-  "l1-04-single-servo": { copperLayers: 4 },
+  "l1-04-single-servo": { copperLayers: 4, netClasses: withPowerNets("VSERVO") },
   "l1-05-internal-adc": { copperLayers: 4 },
   // l2-01 is a pure power module: no WROOM, no native-USB pair, no antenna.
   // An explicit EMPTY override = the deliberate 2-layer default (the readiness
