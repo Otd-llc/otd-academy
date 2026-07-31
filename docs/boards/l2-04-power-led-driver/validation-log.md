@@ -367,6 +367,13 @@ path" is exactly why row 26 escaped three sweeps.
   82 kΩ / R8 0.62 Ω / C11 2.2 µF), the CS window margins (1.20× / 1.25×), the current
   band (323.6–388.0 mA), all three junction temperatures, the input-filter criterion,
   and every sourcing figure.
+- **One evidence-quality note, recorded rather than left implicit (not a finding — no
+  number or conclusion moves):** the Wakefield 882-series performance table is
+  **row-offset in the PDF's text layer**, so the extraction permits two readings for
+  the 1.00 in part — 60 °C at 9 W (6.7 °C/W) or 48 °C at 9 W (5.3 °C/W). §3 row 33
+  uses the **worse** one and then derates it a further 2×, so the heatsink conclusion
+  holds under either reading with ≥ 2× margin. The caveat is now stated inline rather
+  than the figure being presented as unambiguous, and **B1** measures it regardless.
 
 **Verdict: DRY (design-stage), zero new material findings.** With **19 passes run** and
 the design-stage dry pass re-achieved, **every `[D]` audit is clean and both conditional
