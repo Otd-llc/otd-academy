@@ -599,27 +599,6 @@ body {
   .gh-art { transition: none; }
 }
 
-/* A stage the learner has NOT reached: the same artifact as an OUTLINE. The
-   shape is painted close to the face colour and the rim is its drop-shadow, so
-   what survives is the silhouette of what they will make, without handing over
-   the artifact itself. */
-.gh-art-soon {
-  filter: drop-shadow(1px 0 0 color-mix(in srgb, var(--color-command-gold) 60%, transparent))
-    drop-shadow(-1px 0 0 color-mix(in srgb, var(--color-command-gold) 60%, transparent))
-    drop-shadow(0 1px 0 color-mix(in srgb, var(--color-command-gold) 60%, transparent))
-    drop-shadow(0 -1px 0 color-mix(in srgb, var(--color-command-gold) 60%, transparent));
-}
-.gh-art-soon-fill {
-  position: absolute;
-  inset: 0;
-  background-color: color-mix(in srgb, var(--color-command-gold) 14%, var(--color-deep-space));
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-}
 
 /* Every stage done. Nothing is current, so nothing holds full size on its own:
    the tiles all rest a size larger instead of the comb having no focal point.
@@ -636,21 +615,27 @@ body {
   color: var(--color-deep-space);
 }
 
-/* No render yet: L1.01's silhouette, gold-ghosted. The fill is masked by the
-   PNG's own alpha (shadow included, which is the look the owner picked) and the
-   rim is four drop-shadows on the wrapper, so the shape keeps an edge even where
-   the fill is faint. */
-.sk-art-soon,
-.gh-art-soon {
-  filter: drop-shadow(1px 0 0 color-mix(in srgb, var(--color-command-gold) 55%, transparent))
-    drop-shadow(-1px 0 0 color-mix(in srgb, var(--color-command-gold) 55%, transparent))
-    drop-shadow(0 1px 0 color-mix(in srgb, var(--color-command-gold) 55%, transparent))
-    drop-shadow(0 -1px 0 color-mix(in srgb, var(--color-command-gold) 55%, transparent));
-}
-.sk-art-soon-fill {
+/* Not reached yet: the artifact as a gold GHOST. One treatment for both combs --
+   the skill tree's stand-in board and the build-guide hub's stage tile.
+
+   The mask is a purpose-built GHOST map (`/guide-stages/ghost/*`,
+   `/board-posters/comb/ghost/*`, from `scripts/make-stage-ghosts.ts`), never the
+   artifact PNG's own alpha. Masking that alpha was the shipped behaviour and it
+   failed in two different ways at once: the four kicad renders carry a baked
+   contact shadow as a clean band at alpha ~0.2, which came through as a smear
+   offset below the board, and the four svg plots are opaque sheets whose structure
+   is in LUMINANCE, so a flat fill flooded them into featureless slabs. The ghost
+   maps are `coverage x ink`, normalised per tile so a dense module render and a
+   mostly-white BOM sheet carry the same weight in one comb.
+
+   There is no rim here. The old four-drop-shadow outline existed to give a faint
+   14% fill an edge; the ghost draws its own detail, and a rim around it reads as a
+   sticker. */
+.sk-art-soon-fill,
+.gh-art-soon-fill {
   position: absolute;
   inset: 0;
-  background-color: color-mix(in srgb, var(--color-command-gold) 16%, var(--color-deep-space));
+  background-color: color-mix(in srgb, var(--color-command-gold) 88%, var(--color-deep-space));
   -webkit-mask-size: contain;
   mask-size: contain;
   -webkit-mask-position: center;

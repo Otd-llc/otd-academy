@@ -22,8 +22,22 @@ export function boardPoster(slug: string): string | null {
 // L1.01's silhouette, masked and gold-ghosted, until its own board is rendered.
 export const COMB_POSTER_SLUGS = new Set<string>(["l1-01-wroom-breakout"]);
 
-/** The L1.01 comb render, used as the stand-in for any board without its own. */
-export const COMB_STANDIN = "/board-posters/comb/l1-01-wroom-breakout.png";
+/**
+ * The stand-in for any board without a comb render of its own: L1.01 as a GHOST,
+ * an alpha map that carries the board's structure rather than just its outline.
+ *
+ * There is no plain-render stand-in export any more. A cell that has its own
+ * poster draws it through `combPoster`; a cell that does not is by definition
+ * locked or undiscovered, so the only thing the stand-in was ever used for is
+ * this ghost.
+ *
+ * The render's own alpha cannot be used for this. It includes the baked contact
+ * shadow as a clean band at alpha ~0.2, so masking a fill with it produced a smear
+ * offset below the board rather than the board. Regenerate with
+ * `pnpm tsx scripts/make-stage-ghosts.ts`.
+ */
+export const COMB_STANDIN_GHOST =
+  "/board-posters/comb/ghost/l1-01-wroom-breakout.png";
 
 export function combPoster(slug: string): string | null {
   return COMB_POSTER_SLUGS.has(slug) ? `/board-posters/comb/${slug}.png` : null;

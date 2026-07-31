@@ -15,7 +15,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { GuideStage } from "@/lib/guide-templates/stage-skeletons";
-import { stageArt } from "@/lib/guide-stage-art";
+import { stageArt, stageArtGhost } from "@/lib/guide-stage-art";
 import { CombArrows, HexPrismScene } from "@/components/guide/HexPrismScene";
 import {
   HEX_CAM_S5,
@@ -192,7 +192,8 @@ const TILE_H = 58 * TILE_SCALE;
 
 function StageTile({ stage, kind }: { stage: GuideStage; kind: HoneycombStage["kind"] }) {
   const src = stageArt(stage);
-  if (!src) return null;
+  const ghostSrc = stageArtGhost(stage);
+  if (!src || !ghostSrc) return null;
   const box: React.CSSProperties = {
     left: `${(100 - TILE_W) / 2}%`,
     right: `${(100 - TILE_W) / 2}%`,
@@ -201,10 +202,17 @@ function StageTile({ stage, kind }: { stage: GuideStage; kind: HoneycombStage["k
   };
 
   // A stage the learner has reached draws its artifact. One they have not draws
-  // the SAME artifact as a silhouette — the shape of what they will make, not
-  // the thing itself. That keeps the ladder honest (it does not hand over the
-  // answer) while still telling them what the phase produces, and it matches the
-  // stand-in language the skill tree uses for a board with no render yet.
+  // the SAME artifact as a gold GHOST — the thing itself, drawn in one colour at
+  // low weight. That tells them what the phase produces without handing it over,
+  // and it matches the stand-in language the skill tree uses for a board with no
+  // render yet.
+  //
+  // The ghost masks against `stageArtGhost`, NOT against the artifact PNG. Masking
+  // the PNG's own alpha was the shipped behaviour and it was wrong twice over: on
+  // the four kicad renders that alpha carries a baked contact shadow, which came
+  // through as a smear offset below the board, and on the four svg plots it is a
+  // solid sheet rectangle, so the fill flooded it into a featureless slab. The
+  // ghost maps are built from luminance, where the drawing actually lives.
   if (kind === "done" || kind === "current") {
     return (
       <span aria-hidden className="gh-art" style={{ ...box, backgroundImage: `url(${src})` }} />
@@ -214,7 +222,7 @@ function StageTile({ stage, kind }: { stage: GuideStage; kind: HoneycombStage["k
     <span aria-hidden className="gh-art gh-art-soon" style={box}>
       <span
         className="gh-art-soon-fill"
-        style={{ WebkitMaskImage: `url(${src})`, maskImage: `url(${src})` }}
+        style={{ WebkitMaskImage: `url(${ghostSrc})`, maskImage: `url(${ghostSrc})` }}
       />
     </span>
   );

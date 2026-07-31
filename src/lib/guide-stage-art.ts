@@ -32,3 +32,18 @@ const STAGE_ART: Partial<Record<Stage, string>> = {
 export function stageArt(stage: Stage): string | null {
   return STAGE_ART[stage] ?? null;
 }
+
+// The GHOST of the same artifact, for a stage the learner has not reached.
+//
+// A locked cell masks a flat gold fill, so the mask has to describe the DRAWING.
+// The source PNG's alpha does not: on the four svg plots it is a solid sheet
+// rectangle (the structure is in luminance), and on the four kicad renders it
+// includes a baked contact shadow that masked into a smear below the board. These
+// maps are `coverage x ink`, normalised per tile so a dense render and a mostly
+// white BOM sheet read at the same weight in one comb.
+//
+// Regenerate with `pnpm tsx scripts/make-stage-ghosts.ts` whenever a stage tile is
+// re-rendered; that script carries the measurements the treatment rests on.
+export function stageArtGhost(stage: Stage): string | null {
+  return STAGE_ART[stage] ? `/guide-stages/ghost/${stage}.png` : null;
+}
