@@ -153,6 +153,14 @@ async function main() {
     );
   }
 
+  // Standalone too, not just inside the zip: anyone grabbing a single .3mf by
+  // URL never opens the archive, and CC BY only works if the terms travel.
+  await put(
+    `printables/${RELEASE}/LICENSE.txt`,
+    Buffer.from(LICENSE_TXT, "utf8"),
+    "text/plain; charset=utf-8",
+  );
+
   console.log("\n-- individual files --");
   for (const part of manifest.parts) {
     if (WITHHELD_PARTS.has(part.part)) continue;
@@ -168,6 +176,7 @@ async function main() {
     const names = set.parts(manifest);
     const zip = new JSZip();
     zip.file("README.txt", setReadme(set.label, names));
+    zip.file("LICENSE.txt", LICENSE_TXT);
     for (const name of names) {
       const part = manifest.parts.find((p) => p.part === name);
       if (!part) continue;
@@ -205,12 +214,46 @@ function setReadme(label: string, names: string[]): string {
     "Formats: 3mf/ (recommended -- carries units and part names)",
     "         stl/ (universal fallback)",
     "",
+    "Printed in PLA at 0.2 mm. Parts are exported in their CAD orientation;",
+    "check each one sits on its flat face before slicing.",
+    "",
     `Parts (${names.length}):`,
     ...names.map((n) => `  - ${n}`),
     "",
-    "LICENSE: see LICENSE.txt in this archive.",
+    "Licensed CC BY 4.0 -- see LICENSE.txt.",
   ].join("\n");
 }
+
+// CC BY 4.0: attribution is the only condition. Chosen deliberately over NC/SA.
+// The parts are not the moat, enforcement against a functional printed object is
+// thin under the useful-article doctrine, and both NC and SA suppress the remix
+// volume that makes a listing rank. Mandated attribution IS the return here.
+//
+// NOTE: this is one-way. Files published under CC BY stay CC BY; only future
+// releases can carry a different license.
+const LICENSE_TXT = [
+  "Hex Cluster modular tile system",
+  "Copyright (c) One Thousand Drones, LLC",
+  "",
+  "This work is licensed under the Creative Commons Attribution 4.0",
+  "International License (CC BY 4.0).",
+  "",
+  "You are free to:",
+  "  Share  -- copy and redistribute in any medium or format",
+  "  Adapt  -- remix, transform, and build upon it, for any purpose,",
+  "            including commercially.",
+  "",
+  "Under the following term:",
+  "  Attribution -- You must give appropriate credit to One Thousand",
+  "  Drones, LLC, provide a link to this license, and indicate if changes",
+  "  were made. You may do so in any reasonable manner, but not in any way",
+  "  that suggests One Thousand Drones endorses you or your use.",
+  "",
+  "Full licence text: https://creativecommons.org/licenses/by/4.0/legalcode",
+  "Summary:           https://creativecommons.org/licenses/by/4.0/",
+  "",
+  "Source: https://academy.onethousanddrones.com/hex",
+].join("\n");
 
 main().catch((err) => {
   console.error(err instanceof Error ? err.message : err);
