@@ -7,27 +7,28 @@
 | | |
 | --- | --- |
 | **Slug** | `l2-04-power-led-driver` |
-| **Status** | **`Pass 17 — design-stage DRY; gate MET`.** Two passes changed hardware: **Pass 3** (part-truth) found the LM3404's **±23.6 % on-time tolerance** and proved the first current loop sat **0.8 %** above the datasheet's 25 mV CS signal-to-noise floor — the inductor/on-time/sense triple was re-solved by program; **Pass 7** (power integrity) found the **input-filter negative-resistance** condition that makes C7's 85 mΩ ESR a functional requirement rather than bulk. Every `[D]` audit is clean and both `hasThermalConcern` conditionals are run. **Owed by phase (F7, not blockers):** footprint↔pinout `[S]`, fab-DRU + the V12⟂VBUS ERC `[L]`, and four bring-up measurements B1–B4. **Parts NOT created, BOM NOT imported, revision NOT advanced.** |
-| **Passes run** | **17** |
-| **Last dry pass** | **Pass 17** (2026-07-30). Pass 15 had reached DRY; **Pass 16 re-opened the sweep** on a citation check and proved the project-flag defect is **systemic, not per-board** (the seed script can never turn on the Li-ion or thermal conditionals, on any of the 27 boards). Folded, re-swept, DRY re-achieved at Pass 17 |
+| **Status** | **`Pass 19 — design-stage DRY; gate MET`.** Two passes changed hardware: **Pass 3** (part-truth) found the LM3404's **±23.6 % on-time tolerance** and proved the first current loop sat **0.8 %** above the datasheet's 25 mV CS signal-to-noise floor — the inductor/on-time/sense triple was re-solved by program; **Pass 7** (power integrity) found the **input-filter negative-resistance** condition that makes C7's 85 mΩ ESR a functional requirement rather than bulk. Every `[D]` audit is clean and both `hasThermalConcern` conditionals are run. **Owed by phase (F7, not blockers):** footprint↔pinout `[S]`, fab-DRU + the V12⟂VBUS ERC `[L]`, and four bring-up measurements B1–B4. **Parts NOT created, BOM NOT imported, revision NOT advanced.** |
+| **Passes run** | **19** |
+| **Last dry pass** | **Pass 19** (2026-07-30). DRY was first reached at Pass 15 and reopened twice, both times by re-checking something nobody had re-checked: **Pass 16** verified a file-and-line citation and proved the project-flag defect is **systemic, not per-board** (the seed script can never turn on the Li-ion or thermal conditionals, on any of the 27 boards); **Pass 18** re-derived the one calc row nothing else depends on and found it used the wrong circuit model — 2.7× out, and hiding the fact that the current *self-limits*. Both folded and re-swept; DRY re-achieved at **Pass 19** |
 
 ## Gate (Definition of done — all must hold before any part/BOM/revision)
 
 - [x] Requirements traced (Pass 1) · pins accounted + sequencing proven (Pass 4)
-- [x] Every number worst-case-proven (Passes 3, 5, 6, 13 — **by program, after Pass 3
+- [x] Every number worst-case-proven (Passes 3, 5, 6, 13, **18** — **by program, after Pass 3
       showed the hand-evaluated nominal hid a violated constraint**) · every active part
       datasheet-verified against its **own** datasheet (Passes 2, 3)
 - [x] Power integrity proven (Pass 7) · every failure mode mitigated-or-accepted (Pass 8)
 - [x] Every part hand-buildable (Pass 9) + sourceable with exact import strings, **live
       DigiKey screen of all 32 lines, zero OOS** (Pass 2, re-run Pass 12)
 - [x] Layout constraints captured L-1…L-8 (Pass 10) · teachable (Pass 9) · consistent
-      (Passes 12, 14, 15, 17) · pipeline-conformant (Passes 11, **16**)
+      (Passes 12, 14, 15, 17, 19) · pipeline-conformant (Passes 11, **16**)
 - [x] **Every applicable conditional audit run** — `hasThermalConcern` **fires** (Pass 8
       raised the flag error; Pass 13 ran both conditional audits clean). `hasMainsNet`,
       `hasLiIon`, `requiresStripboard` all correctly false ⇒ no other conditional fires
-- [x] Every risk de-risked or explicitly scheduled — RK1–RK21 (Pass 8)
-- [x] **≥ 10 passes run (17) AND a design-stage dry pass achieved at Pass 17**
-      (first reached at Pass 15; re-opened by Pass 16 and re-achieved)
+- [x] Every risk de-risked or explicitly scheduled — RK1–RK21 (Pass 8; RK14 upgraded
+      to de-risked at Pass 18)
+- [x] **≥ 10 passes run (19) AND a design-stage dry pass achieved at Pass 19**
+      (first reached at Pass 15; re-opened by Passes 16 and 18, re-achieved each time)
 - [~] *Phase-staged (F7):* footprint↔symbol↔pinout `[S]`; fab-DRU + V12⟂VBUS ERC `[L]`;
       bring-up residuals B1–B4 (§9 of `design.md`)
 
@@ -328,7 +329,46 @@ so the electrical re-proof is by inspection of the diff rather than re-derivatio
   R8 0.62 Ω / C11 2.2 µF), the CS window margins (1.20× / 1.25×), the current band
   (323.6–388.0 mA) and all three junction temperatures stand as re-derived in Pass 15.
 
-**Verdict: DRY (design-stage), zero new material findings.** With **17 passes run** and
+**Verdict: DRY (design-stage), zero new material findings** — *at the time*. **Pass 18
+reopened it once more**; see below.
+
+### Pass 18 — Math, third look at the cross-domain path (audits 3, 7) · adversarial stance: *"re-derive the one number nobody re-derived"* — **NOT DRY**
+
+Row 26 (the injection into an unpowered 3V3 rail) was the only calc row that had never
+been re-derived after its first writing — it survived Passes 5, 15 and 17 because it is
+not part of the current loop and nothing else depends on it. It was wrong.
+
+| # | Sev | Finding | Verified? | Fix / decision | Re-proof |
+| --- | --- | --- | --- | --- | --- |
+| **P18-1** | **MED** | **The injection current used the wrong circuit model, and the qualitative conclusion drawn from it was also wrong.** Row 26 computed `(V12 − V_clamp)/R12`, which treats the divider's top resistor as if it fed the clamp directly and **ignores R13 shunting to ground**. The correct Thevenin source is `V_th = 1.266 V` behind `R_th = R12‖R13 = 8.91 kΩ`, giving **63.5 µA, not 172 µA** — wrong by 2.7×. Worse, the wrong model hid the important behaviour: because the source is only 1.266 V, **the clamp reverse-biases and the path shuts off once 3V3 reaches 0.566 V.** The injection is *self-limiting*. | ✅ re-derived from first principles and evaluated across V3 = 0 → 0.6 V | **FOLD.** Row 26 rewritten with the Thevenin model, the current, and the self-limiting voltage. | §3 row 26 |
+| **P18-2** | **MED** | **A second path was counted that does not exist.** The row also added a contribution from the LED-anode divider. But in this exact scenario — 12 V present, USB absent — R10 holds DIM low, U3 never switches, and **LED+ is bled to ~0 V through R11 via L1**, so that divider's Thevenin source is 0 V and it injects **nothing**. The doc was summing a term whose own sequencing analysis, three sections earlier, already said was zero. | ✅ cross-checked against the §2 sequencing block | **FOLD:** row 26 now states only the V12 path contributes, and why. | §2 sequencing ↔ §3 row 26 now agree |
+| **P18-3** | **MED** | **The risk statement was therefore pessimistic in the wrong way.** RK14 read "residual = an indeterminate MCU until USB arrives" and was filed *accept + document*. With the rail bounded at **0.566 V** — far below any ESP32 operating or brownout threshold — the MCU is not indeterminate; it is simply **held off**, which is the safe state and the one the board wants. | ✅ follows from P18-1 | **FOLD:** RK14 upgraded from *accept + document* to **DE-RISKED (bounded + self-limiting)**, likelihood/impact lowered to Low × Low, and **B3** reframed from "measure the unknown residual" to "confirm the predicted ≤ 0.566 V." | RK14; §2 sequencing; §9 B3 |
+
+**Verdict: NOT DRY.** No hardware changes — a modelling error and the two conclusions
+that rested on it. The lesson is the one G4 already recorded in a different form: *the
+rows nobody re-derives are the rows that stay wrong*, and "it is not on the critical
+path" is exactly why row 26 escaped three sweeps.
+
+### Pass 19 — Design-stage DRY sweep after the Pass-18 fold — **DRY**
+
+- **Arithmetic:** row 26 re-evaluated at V3 = 0, 0.2, 0.4 and 0.566 V — monotonic to
+  zero, no sign errors, and consistent with §2's sequencing narrative and with RK14's
+  new status. No other calc row depends on it, so nothing downstream moves.
+- **Consistency:** re-ran the cross-check script — 32 rows / 52 refDes, no duplicates or
+  gaps, every MPN and refDes present in `design.md`, 13 `(NEW)` tags matching the §8
+  list, `RK1`–`RK21` all defined and resolved, all markdown tables column-consistent,
+  no escaped pipes left in any table cell. The stale `172 µA` figure is gone from all
+  three places it appeared (§2, RK14, §9 B3), and the only surviving mention is the
+  **citation in row 26 that documents the correction**.
+- **Risk register:** RK14's status change re-checked against §7's tick list — item 6 now
+  counts RK14 among the de-risked rather than the accept-and-document set, and the two
+  lists agree.
+- **Unchanged and re-confirmed by inspection:** the locked triple (L 100 µH / R_ON
+  82 kΩ / R8 0.62 Ω / C11 2.2 µF), the CS window margins (1.20× / 1.25×), the current
+  band (323.6–388.0 mA), all three junction temperatures, the input-filter criterion,
+  and every sourcing figure.
+
+**Verdict: DRY (design-stage), zero new material findings.** With **19 passes run** and
 the design-stage dry pass re-achieved, **every `[D]` audit is clean and both conditional
 audits are earned — the gate is met.** The board is **part-ready pending the owner's
 actions**: set `hasThermalConcern = true` (ideally by fixing the seed script per G1),

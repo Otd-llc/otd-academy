@@ -1,9 +1,11 @@
 # L2.04 Constant-Current Power-LED Driver — design doc
 
 > ✅ **Design-stage gate MET (2026-07-30).** The **Recursive Board-Design Validation
-> Protocol** (`../_protocol.md`) ran **17 passes, with the design-stage DRY pass at
-> Pass 17** (`validation-log.md` is the evidence — Pass 16 re-opened the sweep by
-> finding that the flag problem below is systemic, not per-board). Every `[D]` audit is clean, both
+> Protocol** (`../_protocol.md`) ran **19 passes, with the design-stage DRY pass at
+> Pass 19** (`validation-log.md` is the evidence). DRY was first reached at Pass 15 and
+> reopened twice, each time by re-checking something nobody had re-checked: **Pass 16**
+> proved the flag problem below is systemic rather than per-board, and **Pass 18** found
+> the cross-domain injection row used the wrong circuit model. Every `[D]` audit is clean, both
 > `hasThermalConcern` conditional audits are run and clean, and the **13 new parts**
 > may now be created and the BOM imported **by the owner** (the other 19 lines,
 > including `SS34-E3/57T`, are already in the library — §8). Two passes changed real
@@ -42,7 +44,7 @@
 | **Track / Level** | POWER / L2 |
 | **Teaches** | **Constant-current LED drive** (the graded concept) — and the *reasoned* choice between a **linear** and a **switching** constant-current topology, decided on heat, efficiency and complexity with real numbers, and then **measured on the bench** (§2.5) |
 | **Project flags** | `hasMainsNet = false`, `hasLiIon = false`, **`hasThermalConcern = true` (CHANGE REQUIRED — seeded false)**, `requiresStripboard = false` |
-| **Validation** | `passes 1–17, Pass 17 DRY` (design-stage) → `[S]`/`[L]` owed — see `validation-log.md` |
+| **Validation** | `passes 1–19, Pass 19 DRY` (design-stage) → `[S]`/`[L]` owed — see `validation-log.md` |
 
 > **Headline:** the **L1.01 WROOM core reused verbatim** (USB-C → PTC → USBLC6 →
 > RT9080 → 3V3 → ESP32-S3) plus a **second, independent 12 V rail** feeding an
@@ -300,12 +302,14 @@ chosen KiCad symbols** (audit 6, phase-staged).
   well below the 10.8 V rail minimum; the LED stays dark until firmware drives GPIO6
   high. **F4 is satisfied by hardware, not by firmware discipline.**
 - *Power-up, 12 V only (no USB):* U3 powers up; DIM is still held low by R10, which
-  references common GND and does not need 3V3 → **LED off**. The two sense dividers
-  inject at most **~172 µA** into the unpowered 3V3 rail through the ESP32's pin
-  clamps, which can float 3V3 to a partial voltage. No node exceeds any abs-max and
-  the LED cannot light, but the MCU is indeterminate until USB arrives — **RK14,
-  accept + document + bring-up measurement B3**, with the documented order "USB first,
-  then 12 V."
+  references common GND and does not need 3V3 → **LED off**. Only the **V12** sense
+  divider injects into the unpowered 3V3 rail through the ESP32's pin clamp — the LED
+  divider contributes nothing, because with DIM low the LED+ node is bled to ~0 V —
+  and that injection is **≤ 63.5 µA and self-limiting: it stops once 3V3 reaches
+  0.566 V** (§3 row 26). No node exceeds any abs-max, the LED cannot light, and the
+  rail cannot climb high enough to part-start the MCU, which is simply **held off**.
+  **RK14**, with the documented order "USB first, then 12 V" and **bring-up
+  measurement B3** to confirm the real rail voltage.
 - *Power-down, USB pulled while 12 V stays on:* GPIO6 collapses, R10 pulls DIM low →
   LED off within one PWM period. DIM's abs-max is **−0.3…+7 V referenced to GND** (not
   to VIN), so the reverse case — 3.3 V on DIM with V12 absent — is also inside the
@@ -443,7 +447,7 @@ the hand-evaluated *nominal* hid a violated constraint.
 | 23 | **Board efficiency** | `P_LED/P_IN` | **72.7 %** (nom f) / **71.0 %** (460 kHz corner) / **75.9 %** (typical diode drop) | §2.5; measurement B2 closes the spread |
 | 24 | V12 sense divider | `R13/(R12+R13) = 10/92 = 0.1087`; ADC1 12 dB f.s. ≈ 3.1 V, GPIO abs-max 3.6 V (L1.05) | 11.65 V → **1.27 V**; 12.85 V → **1.40 V**; 24 V fault → **2.57 V** | stays under abs-max even at the wrong-brick corner ✓. Source impedance 8.9 kΩ, with C12 0.1 µF holding the sample against the SAR |
 | 25 | LED-anode sense divider | `R15/(R14+R15) = 5.1/15.1 = 0.3377`, then R16 10 kΩ in series to the pin | V_O 2.99 V → **1.01 V**; open-LED 9.6 V → **3.24 V** (rails the ADC — an unambiguous fault code); shorted LED → **0.07 V** | three distinguishable states, which is what makes RK6/RK7/RK20 detectable. R16 bounds any clamp current to **≤ 90 µA** |
-| 26 | Cross-domain injection, 3V3 down | `(V12 − V_clamp)/R12 + (V_LED − V_clamp)/(R14+R16)` | **≈ 172 µA** | RK14: no abs-max exceeded, LED stays off (row 14); residual = indeterminate MCU. **Measurement B3 owed** |
+| **26** | **Cross-domain injection, 3V3 down — and why it self-limits** | Thevenin at each divider tap against the GPIO clamp sitting at `V(3V3) + 0.7 V`. **V12 tap:** `V_th = 1.266 V`, `R_th = R12‖R13 = 8.91 kΩ` ⇒ `I = (1.266 − V3 − 0.7)/8.91 kΩ`. **LED tap: zero** — with USB absent, R10 holds DIM low, U3 never switches, and LED+ is bled to ~0 V through R11 via L1 | **≤ 63.5 µA at V3 = 0, falling to zero at V3 = 0.566 V** | **The injection cannot hold the rail above ~0.57 V** — the clamp reverse-biases and the path shuts off. That is far below any ESP32 operating threshold, so the MCU is **held off, not left indeterminate**. **The first derivation used `(V12 − V_clamp)/R12`, which ignores R13 shunting to ground — wrong by 2.7× and, worse, it missed the self-limiting entirely (Pass 18).** **B3** confirms the real rail voltage |
 | 27 | VBUS budget | unchanged from L1.01: 220 mA cont., ~560 mA WiFi-TX peak | **0 mA added** | every new part sits on V12; the dividers source *into* 3V3, they do not load it |
 | 28 | C8 input capacitor | `C_IN(min) = I_F·t_ON/ΔV_IN(max)`, ΔV = 5 % of 12 V (Eq. 12); TI: use **2×** and rate for **2× V_IN** | need **0.55 → 1.09 µF**; **2.2 µF/50 V X7R 1210** chosen | ≈ 1.9 µF after DC-bias derating ✓. `I_IN(rms) = I_F√(D(1−D))` = **154 mA**, far under a 1210's rating |
 | 29 | C7 bulk / hot-plug energy | `½CV²` = 0.5 × 100 µF × 12² | **7.2 mJ** at plug-in | limited by F2's R_i + D2; D2's I_FSM is **100 A / 8.3 ms** (Vishay 88751) ⇒ orders of margin |
@@ -579,7 +583,7 @@ IDs `RK#` (risks ≠ reference designators).
 | **RK11** | **Inductor saturation** in a fault | Low × Med | I_peak 447 mA vs **I_sat 2.1 A**; even at the LM3404's 1.8 A max current limit the core is unsaturated — the datasheet's stated selection rule (§3 row 38). | **DE-RISKED** |
 | **RK12** | **GPIO4/5/6 also appear on the breakout headers** — a learner wiring to them fights the driver | Med × Med | Inherited pattern from l1-03 (GPIO5). Silk-mark the three pins as in-use; the guide names them; the header pins stay electrically safe (dividers ≥ 10 kΩ; DIM has a 1 kΩ pull-down that a GPIO can override but a passive wire cannot). | accept + document |
 | **RK13** | **Switching-node EMI** into the WROOM antenna, the USB link, or the ADC readings; and the 12 V brick lead as a radiator | Med × Med | Shielded inductor; small SW loop (L-2); 208–460 kHz fundamental; switching cluster at the far edge from the antenna (L-1); both ADC taps filtered and routed away (L-8); C7+C8 as the input filter (row 21). No common-mode choke — accepted for a DC-brick-fed teaching board. Confirm at bring-up with WiFi on and the LED at 50 % duty. | de-risked (design) + `[L]` |
-| **RK14** | **12 V present, USB absent → ~172 µA into an unpowered 3V3 rail** through the ADC clamps | Med × Low | Quantified (§3 row 26): no abs-max exceeded and **the LED cannot light** (RK10 is independent of 3V3). Residual = an indeterminate MCU until USB arrives. **Documented power order: USB first, then 12 V**; measured at bring-up (B3). Same class of cross-domain residual l1-03 accepted at F10-4. | accept + document |
+| **RK14** | **12 V present, USB absent → current into an unpowered 3V3 rail** through the ADC clamps | Low × Low | Quantified properly in §3 row 26 (Pass 18 corrected an earlier, wrong 172 µA figure): only the V12 divider contributes, at **≤ 63.5 µA**, and it is **self-limiting — the clamp reverse-biases at V(3V3) = 0.566 V**, far below any ESP32 threshold. So no abs-max is exceeded, **the LED cannot light** (RK10 is independent of 3V3), and the MCU is **held off rather than part-started**. **Documented power order: USB first, then 12 V**; confirmed at bring-up (B3). | **DE-RISKED** (bounded + self-limiting) |
 | **RK15** | **Hot-plug inrush into C7 (7.2 mJ)** erodes the barrel-jack contacts over many cycles | Low × Low | Standard for barrel-jack DC entry; D2's I_FSM 100 A and F2's R_i bound the peak; guide rule: "switch the brick at the outlet, not at the jack." | accept + document |
 | **RK16** | **V_F sensing is a coarse thermometer** — the lesson leans on it | Med × Low | Honestly scoped: the ESP32 ADC's **±50 mV** absolute band (L1.05 K5) over a 0.34 divider is **±0.15 V** on V_F — useless absolutely, fine *relatively* (offset and gain errors are per-chip constants), against a −3.0 mV/°C × 50 °C ≈ 0.15 V real swing. Firmware oversamples; the guide teaches relative droop and uses a DMM for absolute V_F. | accept + document |
 | **RK17** | **The wrong LM3404 variant is bought** (`MRX`/PowerPAD instead of `MA`) | Med × Med | Both are stocked and differ by one letter. `bom.csv` carries the full `LM3404MAX/NOPB`; §4 states the reason; the library entry must record "SOIC-8, **no** exposed pad" so a future substitution cannot silently move to a package the learner cannot solder. | **DE-RISKED (documented)** |
@@ -757,7 +761,7 @@ requires; `canonical-checklist-templates.ts:209-219`):
 | L1 | Fab-DRU DRC clean + the **V12 ⟂ VBUS** net-isolation ERC + L-1…L-8 | `[L]` | Needs a routed board |
 | **B1** | **Bare-star θ(case→ambient)** — the one estimated number in §3 (row 34) | bring-up | No manufacturer publishes it; measure with and without HS1 after a 13-minute dwell (row 35) and fold the real value back |
 | **B2** | **SS34 V_F at 0.357 A and 25/85 °C** | bring-up | §3 rows 20e/20g are bounded by the 3 A guarantee; the measurement closes the 71 %→76 % efficiency spread |
-| **B3** | **Partial-3V3 rail voltage with 12 V applied and USB absent** | bring-up | RK14's residual — the 172 µA is calculated, the resulting rail voltage depends on module leakage |
+| **B3** | **3V3 rail voltage with 12 V applied and USB absent** | bring-up | §3 row 26 predicts it settles at **≤ 0.566 V** and self-limits; the arithmetic is clean but the module's own leakage is not modelled, so confirm the number rather than trust it (RK14)s on module leakage |
 | **B4** | **Off-state glow, dark room**, and the reversed-LED V_O | bring-up | TI explicitly makes the glow resistor the designer's to verify (RK9); RK20's residual needs the real number |
 
 ---
