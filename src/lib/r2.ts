@@ -130,6 +130,27 @@ export function userAvatarKey(userId: string): string {
   return `avatars/${userId}.webp`;
 }
 
+// Hex-cluster printable key. The .FCStd sources live in the PRIVATE hardware
+// repo and never ship; what ships is the generated mesh set (3MF primary, STL
+// fallback, STEP archival) produced by that repo's tools/build_printables.py.
+//
+// Keyed by an immutable `release` segment (a date, e.g. 2026-07-31) rather than
+// overwriting in place. Two reasons: a Printables/MakerWorld listing links a URL
+// that must not silently change under people who already downloaded it, and an
+// immutable key can be served with a long cache header. Re-cutting the meshes
+// mints a NEW release; the old one stays until deliberately purged.
+//   printables/{release}/{format}/{part}.{ext}
+//   printables/{release}/sets/{set}.zip
+export function printableKey(
+  release: string, format: "3mf" | "stl" | "step", part: string, ext: string,
+): string {
+  return `printables/${release}/${format}/${slug(part)}.${ext.replace(/^\./, "").toLowerCase()}`;
+}
+
+export function printableSetKey(release: string, set: string): string {
+  return `printables/${release}/sets/${slug(set)}.zip`;
+}
+
 // Guide screenshot/clip key (admin in-app capture). A flat, content-addressed
 // tree keyed only by a per-capture cuid — these are public lesson media, served
 // (with long-cache headers) through `/api/shot/{cuid}`, NOT presigned. `.webp`
