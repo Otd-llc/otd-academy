@@ -31,8 +31,10 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 type R2Mod = typeof import("../src/lib/r2");
 type EnvMod = typeof import("../src/env");
 
+// The mesh set is generated in the PRIVATE hex-cluster repo (a sibling
+// checkout), so this is a path out of the tree rather than a repo asset.
 const SOURCE_DIR = resolve(
-  process.env.PRINTABLES_DIR ?? "../otd/hardware/enclosure/build/printables",
+  process.env.PRINTABLES_DIR ?? "../hex-cluster/build/printables",
 );
 
 // Immutable release segment. Override to re-cut without clobbering a published
