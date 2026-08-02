@@ -41,3 +41,19 @@ export const miniLessonTag = (slug: string) => `mini-lesson-${slug}`;
 // src/lib/guide/cached-guide-read.ts). Invalidated by every guide-card write —
 // see invalidateGuideContent in src/lib/cache-invalidate.ts.
 export const guideContentTag = (slug: string) => `guide-content-${slug}`;
+
+/**
+ * The public /c/<shareCode> page for one saved hex cluster.
+ *
+ * CLUSTER-level, keyed on the cluster id rather than the share code, and there
+ * is deliberately no per-revision tag. Revisions are immutable, and every event
+ * that changes what /c/ renders is cluster-level: archive, unarchive, and
+ * account deletion. A per-revision tag would additionally have left 99 stale
+ * pages after archiving a 100-revision cluster, where this invalidates all of
+ * them at once.
+ *
+ * Rename is NOT one of those events: /c/ renders summary.nameAtSave, which a
+ * rename cannot reach, and the HexCluster.name fallback applies only when
+ * userId is null — a state in which nobody can rename.
+ */
+export const hexClusterTag = (clusterId: string) => `hex-cluster-${clusterId}`;

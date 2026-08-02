@@ -206,6 +206,16 @@ export function UserMenu({
           <span>Courses</span>
           <span aria-hidden className="ml-auto text-gray-3">›</span>
         </Link>
+        {/* The register of saved hex-cluster drawings. Linked from the ACCOUNT
+            area, which the design's "academy ships unlinked" step means only
+            for the CONFIGURATOR — a saved build has to be findable by the
+            person who saved it from the moment it exists, or a drawing number
+            can be recovered only by finding the printed sheet. */}
+        <Link href="/account/hex-clusters" onClick={close} className={ROW}>
+          <span className="text-muted">{HEX}</span>
+          <span>Saved builds</span>
+          <span aria-hidden className="ml-auto text-gray-3">›</span>
+        </Link>
         <Link href="/account" onClick={close} className={ROW}>
           <span className="text-muted">{GEAR}</span>
           <span>Account</span>

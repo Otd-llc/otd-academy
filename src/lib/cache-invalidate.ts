@@ -12,7 +12,12 @@
 // updateTag expires immediately. See src/lib/cache-profile.ts.
 import { updateTag } from "next/cache";
 
-import { TAG_PARTS, TAG_PROJECTS, guideContentTag } from "@/lib/cache-profile";
+import {
+  TAG_PARTS,
+  TAG_PROJECTS,
+  guideContentTag,
+  hexClusterTag,
+} from "@/lib/cache-profile";
 
 /**
  * Call after ANY write to Project or ProjectDependency.
@@ -54,4 +59,20 @@ export function invalidateParts(): void {
  */
 export function invalidateGuideContent(slug: string): void {
   updateTag(guideContentTag(slug));
+}
+
+/**
+ * Call after ANY write that changes what /c/<shareCode> renders for a saved
+ * hex cluster: a new revision, archive, unarchive, or the name scrub in
+ * deleteStudent.
+ *
+ * Account deletion IS a cache concern. Without this, a deleted user's build
+ * title survives on a public page for up to an hour after the row that carried
+ * it was scrubbed.
+ *
+ * Rename is deliberately absent: /c/ renders summary.nameAtSave, frozen inside
+ * an immutable revision, which a rename cannot reach.
+ */
+export function invalidateHexCluster(clusterId: string): void {
+  updateTag(hexClusterTag(clusterId));
 }

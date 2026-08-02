@@ -24,7 +24,11 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: ["/", "/projects/*/*/guide"],
-      disallow: ["/api/", "/learn", "/projects"],
+      // `/c/` carries the TRAILING SLASH deliberately. Disallow is a prefix
+      // match, so a bare `/c` would also de-index `/courses`, `/courses/*` and
+      // `/checkout/success`. Those pages are unlisted records reached by an
+      // unguessable token off a printed sheet; they are noindex as well.
+      disallow: ["/api/", "/learn", "/projects", "/c/", "/account"],
     },
     sitemap: `${siteUrl()}/sitemap.xml`,
   };

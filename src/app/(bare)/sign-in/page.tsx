@@ -2,7 +2,11 @@ import { signIn, signOut } from "@/auth";
 import { InlineBanner } from "@/components/InlineBanner";
 import { SignInForms } from "@/components/auth/SignInForms";
 import { safeCallbackPath } from "@/lib/safe-callback";
-import { TURNSTILE_FIELD, HONEYPOT_FIELD, DWELL_FIELD } from "@/lib/abuse-guard";
+import {
+  TURNSTILE_FIELD,
+  HONEYPOT_FIELD,
+  DWELL_FIELD,
+} from "@/lib/abuse-guard";
 import { turnstileInteractive } from "@/lib/abuse-defense-flag";
 
 // Sign-in screen (design R11 + C1 + B1). A clean deep-space full-bleed field
@@ -19,7 +23,11 @@ import { turnstileInteractive } from "@/lib/abuse-defense-flag";
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; type?: string; callbackUrl?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    type?: string;
+    callbackUrl?: string;
+  }>;
 }) {
   const params = await searchParams;
   const denied = params.error === "AccessDenied";
@@ -28,7 +36,8 @@ export default async function SignInPage({
   // (Turnstile / rate limit / degradation); the IP pre-check returns ?error=rate_limited.
   // Both map to ONE generic banner (no enumeration). Configuration is overloaded with
   // genuine config faults, but generic copy is correct either way.
-  const rateLimited = params.error === "Configuration" || params.error === "rate_limited";
+  const rateLimited =
+    params.error === "Configuration" || params.error === "rate_limited";
   const checkEmail = params.type === "email";
   // Where to land after auth. Sanitized to a same-origin relative path so a
   // crafted ?callbackUrl can't open-redirect; defaults to the first-run router.
@@ -68,6 +77,11 @@ export default async function SignInPage({
 
   return (
     <main className="relative flex min-h-[100svh] flex-col items-center justify-center overflow-hidden bg-deep-space px-6 py-16">
+      {/* No hex stash here. A mid-save build is stashed by the save page's own
+          client gate, before it navigates: this page never sees the fragment.
+          Measured — the hop to /sign-in is a scripted navigation, not a 307,
+          so nothing is inherited. See components/hex/hex-stash.ts. */}
+
       {/* A single soft gold bloom behind the card — no grid, no frame. */}
       <div
         aria-hidden
