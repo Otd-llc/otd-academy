@@ -29,6 +29,27 @@ describe("saved hex-cluster path gating", () => {
   });
 });
 
+describe("hex spec page gating", () => {
+  it("/hex is public — an immutable LICENSE.txt cites it as the CC BY source", () => {
+    // Every published .3mf/.stl/.step carries
+    //   Source: https://academy.onethousanddrones.com/hex
+    // and those objects cannot be un-published. If this 307s to /sign-in, every
+    // attribution in the wild points at a redirect.
+    expect(isPublicPath("/hex")).toBe(true);
+    expect(isAdminOnlyPath("/hex")).toBe(false);
+  });
+
+  it("opens exactly that page, not a prefix", () => {
+    // Nothing is nested under /hex today. A child must be added deliberately.
+    expect(isPublicPath("/hex/parts")).toBe(false);
+    expect(isPublicPath("/hex/2026-07-31/downloads")).toBe(false);
+  });
+
+  it("does not leak the signed-in hex-cluster surfaces", () => {
+    expect(isPublicPath("/account/hex-clusters")).toBe(false);
+  });
+});
+
 describe("library path gating", () => {
   it("the library index is public", () => {
     expect(isPublicPath("/library")).toBe(true);

@@ -23,7 +23,15 @@ loadEnv({ path: ".env.local" });
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import JSZip from "jszip";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+
+// The print spec, shared with the academy's /hex page. A plain data module with
+// no env dependency, so a static import is safe above the dotenv call below.
+import {
+  HEX_CLEARANCE,
+  HEX_ORIENTATION,
+  HEX_PRINT_PARAMS,
+} from "../src/lib/hex-spec";
 
 // Dynamic imports inside main() so dotenv populates process.env BEFORE
 // src/env.ts validates it at module-eval time (a static import would hoist
@@ -81,6 +89,21 @@ type ManifestPart = {
 type Manifest = { parts: ManifestPart[]; failures: unknown[] };
 
 const write = process.argv.includes("--write");
+// Re-PUT objects that are already present at the right size. Only needed to
+// repair a corrupted upload; the default skip is what makes a run resumable.
+const force = process.argv.includes("--force");
+
+// The publish is ~170 objects and 60 MB over one TLS session, and the first two
+// real runs both died partway with `ssl3_read_bytes: tls alert bad record mac`
+// at different objects. Without a retry AND a skip, every attempt restarts from
+// zero and the publish becomes a coin flip that gets more expensive each throw.
+//
+// Skipping is safe precisely because the keys are IMMUTABLE: a release segment
+// is never overwritten, so a key that exists at the expected size holds the
+// bytes this run would have written. That is what turns "run it again" into
+// "resume", and it is why the check is on size rather than a re-hash.
+const MAX_ATTEMPTS = 5;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function loadManifest(): Manifest {
   const path = join(SOURCE_DIR, "manifest.json");
@@ -97,22 +120,62 @@ function loadManifest(): Manifest {
 let r2!: R2Mod["r2"];
 let env!: EnvMod["env"];
 
+/** Byte size of an existing object, or null if it is absent (or unreadable). */
+async function existingSize(key: string): Promise<number | null> {
+  try {
+    const out = await r2.send(
+      new HeadObjectCommand({ Bucket: env.R2_BUCKET!, Key: key }),
+    );
+    return out.ContentLength ?? null;
+  } catch {
+    return null;
+  }
+}
+
+let skipped = 0;
+let retried = 0;
+
 async function put(key: string, body: Buffer, contentType: string) {
+  const kb = `${(body.length / 1024).toFixed(0)} KB`;
   if (!write) {
-    console.log(`  [dry] ${key}  (${(body.length / 1024).toFixed(0)} KB)`);
+    console.log(`  [dry] ${key}  (${kb})`);
     return;
   }
-  await r2.send(
-    new PutObjectCommand({
-      Bucket: env.R2_BUCKET!,
-      Key: key,
-      Body: body,
-      ContentType: contentType,
-      // Immutable keys (see printableKey) make a long cache safe.
-      CacheControl: "public, max-age=31536000, immutable",
-    }),
-  );
-  console.log(`  [put] ${key}  (${(body.length / 1024).toFixed(0)} KB)`);
+
+  if (!force && (await existingSize(key)) === body.length) {
+    skipped++;
+    console.log(`  [skip] ${key}  (already published, ${kb})`);
+    return;
+  }
+
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await r2.send(
+        new PutObjectCommand({
+          Bucket: env.R2_BUCKET!,
+          Key: key,
+          Body: body,
+          ContentType: contentType,
+          // Immutable keys (see printableKey) make a long cache safe.
+          CacheControl: "public, max-age=31536000, immutable",
+        }),
+      );
+      console.log(`  [put] ${key}  (${kb})`);
+      return;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (attempt >= MAX_ATTEMPTS) {
+        throw new Error(
+          `${key} failed after ${MAX_ATTEMPTS} attempts: ${msg}\n` +
+            `Re-run the same command; published objects are skipped, so it resumes.`,
+        );
+      }
+      retried++;
+      const wait = 400 * 2 ** (attempt - 1);
+      console.log(`  [retry ${attempt}/${MAX_ATTEMPTS - 1}] ${key}: ${msg}`);
+      await sleep(wait);
+    }
+  }
 }
 
 const CONTENT_TYPE: Record<string, string> = {
@@ -125,7 +188,7 @@ async function main() {
   const r2mod = await import("../src/lib/r2");
   ({ env } = await import("../src/env"));
   r2 = r2mod.r2;
-  const { printableKey, printableSetKey } = r2mod;
+  const { printableKey, printableLicenseKey, printableSetKey } = r2mod;
 
   if (!env.R2_ENABLED || !env.R2_BUCKET) {
     throw new Error("R2 is not configured (R2_ENABLED / R2_BUCKET). Refusing to run.");
@@ -158,7 +221,7 @@ async function main() {
   // Standalone too, not just inside the zip: anyone grabbing a single .3mf by
   // URL never opens the archive, and CC BY only works if the terms travel.
   await put(
-    `printables/${RELEASE}/LICENSE.txt`,
+    printableLicenseKey(RELEASE),
     Buffer.from(LICENSE_TXT, "utf8"),
     "text/plain; charset=utf-8",
   );
@@ -198,9 +261,28 @@ async function main() {
   const base = env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
   console.log(
     `\n${write ? "Uploaded" : "Would upload"} release ${RELEASE}.` +
-      (base ? `\nPublic base: ${base}/printables/${RELEASE}/` : ""),
+      (write ? `\nskipped (already published): ${skipped} · retries: ${retried}` : "") +
+      (base
+        ? `\nPublic base: ${base}/printables/${RELEASE}/`
+        : write
+          ? `\nNo R2 custom domain set, so the files serve through /api/printable/${RELEASE}/...`
+          : ""),
   );
   if (!write) console.log("Re-run with --write to apply.");
+}
+
+// The README is deliberately plain ASCII (it uses `--` for dashes throughout),
+// because it is read in whatever the downloader's zip viewer or Notepad does
+// with encodings. The shared spec is written for the WEB page, so degree signs,
+// en dashes and multiplication signs come through it; fold them here rather
+// than ASCII-ifying the page.
+function ascii(s: string): string {
+  return s
+    .replace(/°/g, " deg ")
+    .replace(/[–—]/g, "-")
+    .replace(/×/g, "x")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function setReadme(label: string, names: string[]): string {
@@ -216,8 +298,25 @@ function setReadme(label: string, names: string[]): string {
     "Formats: 3mf/ (recommended -- carries units and part names)",
     "         stl/ (universal fallback)",
     "",
-    "Printed in PLA at 0.2 mm. Parts are exported in their CAD orientation;",
-    "check each one sits on its flat face before slicing.",
+    // CORRECTED 2026-08-02. The 2026-07-31 release says "Printed in PLA at
+    // 0.2 mm". The material is PETG, and the 0.25 mm design gap is toleranced
+    // against PETG shrinkage, so it is not a free choice. That release is
+    // immutable and stays wrong -- the /hex page is the authority, and this
+    // text is corrected for the NEXT release. Composed from the SHARED spec
+    // module so the archive and the page cannot drift apart.
+    "Print settings:",
+    ...HEX_PRINT_PARAMS.map(
+      (p) => `  ${p.label}: ${ascii(p.value)}${p.aside ? ` (${ascii(p.aside)})` : ""}`,
+    ),
+    ...HEX_CLEARANCE.map(
+      (p) => `  ${p.label}: ${ascii(p.value)}${p.aside ? ` (${ascii(p.aside)})` : ""}`,
+    ),
+    "",
+    `Hex bases print ${HEX_ORIENTATION.value}. ${ascii(HEX_ORIENTATION.why)}`,
+    "Parts are exported in their CAD orientation; check each one sits on its",
+    "flat face before slicing.",
+    "",
+    "Full spec: https://academy.onethousanddrones.com/hex",
     "",
     `Parts (${names.length}):`,
     ...names.map((n) => `  - ${n}`),

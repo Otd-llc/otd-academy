@@ -151,6 +151,15 @@ export function printableSetKey(release: string, set: string): string {
   return `printables/${release}/sets/${slug(set)}.zip`;
 }
 
+// The release's standalone CC BY notice. It sits beside the meshes as well as
+// inside the set archive: anyone grabbing a single .3mf by URL never opens the
+// zip, and CC BY only works if the terms travel with the file. A helper rather
+// than a literal because two places name it — the uploader that writes it and
+// the /hex page that links it — and they must not drift.
+export function printableLicenseKey(release: string): string {
+  return `printables/${release}/LICENSE.txt`;
+}
+
 // Guide screenshot/clip key (admin in-app capture). A flat, content-addressed
 // tree keyed only by a per-capture cuid — these are public lesson media, served
 // (with long-cache headers) through `/api/shot/{cuid}`, NOT presigned. `.webp`
