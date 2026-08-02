@@ -4,6 +4,8 @@
 // "use client") and queries the DB at request/build time. We emit only the
 // publicly crawlable URLs:
 //   - the static public indexes `/courses` and `/parts`
+//   - the Hex Cluster spec page `/hex` (the CC BY attribution target cited
+//     inside every published printable)
 //   - every part detail `/parts/{id}`
 //   - the Library index `/library` plus every published PUBLIC mini-lesson
 //     `/library/{slug}`, and the static `/glossary` reference index
@@ -90,6 +92,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/courses`, lastModified },
     { url: `${base}/pricing`, lastModified },
     { url: `${base}/parts`, lastModified },
+    // The Hex Cluster spec + CC BY attribution target. Static, gate-less, and
+    // the URL cited inside every published printable's LICENSE.txt, so it is
+    // the one page that must never be missing from the crawl surface.
+    { url: `${base}/hex`, lastModified },
   ];
 
   // The static public briefs: the index + each brief key (overview, learner).

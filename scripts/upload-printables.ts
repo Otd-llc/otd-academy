@@ -25,6 +25,14 @@ import { join, resolve } from "node:path";
 import JSZip from "jszip";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 
+// The print spec, shared with the academy's /hex page. A plain data module with
+// no env dependency, so a static import is safe above the dotenv call below.
+import {
+  HEX_CLEARANCE,
+  HEX_ORIENTATION,
+  HEX_PRINT_PARAMS,
+} from "../src/lib/hex-spec";
+
 // Dynamic imports inside main() so dotenv populates process.env BEFORE
 // src/env.ts validates it at module-eval time (a static import would hoist
 // above loadEnv and fail on every var). Same shape as the other scripts here.
@@ -125,7 +133,7 @@ async function main() {
   const r2mod = await import("../src/lib/r2");
   ({ env } = await import("../src/env"));
   r2 = r2mod.r2;
-  const { printableKey, printableSetKey } = r2mod;
+  const { printableKey, printableLicenseKey, printableSetKey } = r2mod;
 
   if (!env.R2_ENABLED || !env.R2_BUCKET) {
     throw new Error("R2 is not configured (R2_ENABLED / R2_BUCKET). Refusing to run.");
@@ -158,7 +166,7 @@ async function main() {
   // Standalone too, not just inside the zip: anyone grabbing a single .3mf by
   // URL never opens the archive, and CC BY only works if the terms travel.
   await put(
-    `printables/${RELEASE}/LICENSE.txt`,
+    printableLicenseKey(RELEASE),
     Buffer.from(LICENSE_TXT, "utf8"),
     "text/plain; charset=utf-8",
   );
@@ -203,6 +211,20 @@ async function main() {
   if (!write) console.log("Re-run with --write to apply.");
 }
 
+// The README is deliberately plain ASCII (it uses `--` for dashes throughout),
+// because it is read in whatever the downloader's zip viewer or Notepad does
+// with encodings. The shared spec is written for the WEB page, so degree signs,
+// en dashes and multiplication signs come through it; fold them here rather
+// than ASCII-ifying the page.
+function ascii(s: string): string {
+  return s
+    .replace(/°/g, " deg ")
+    .replace(/[–—]/g, "-")
+    .replace(/×/g, "x")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function setReadme(label: string, names: string[]): string {
   return [
     `${label}`,
@@ -216,8 +238,25 @@ function setReadme(label: string, names: string[]): string {
     "Formats: 3mf/ (recommended -- carries units and part names)",
     "         stl/ (universal fallback)",
     "",
-    "Printed in PLA at 0.2 mm. Parts are exported in their CAD orientation;",
-    "check each one sits on its flat face before slicing.",
+    // CORRECTED 2026-08-02. The 2026-07-31 release says "Printed in PLA at
+    // 0.2 mm". The material is PETG, and the 0.25 mm design gap is toleranced
+    // against PETG shrinkage, so it is not a free choice. That release is
+    // immutable and stays wrong -- the /hex page is the authority, and this
+    // text is corrected for the NEXT release. Composed from the SHARED spec
+    // module so the archive and the page cannot drift apart.
+    "Print settings:",
+    ...HEX_PRINT_PARAMS.map(
+      (p) => `  ${p.label}: ${ascii(p.value)}${p.aside ? ` (${ascii(p.aside)})` : ""}`,
+    ),
+    ...HEX_CLEARANCE.map(
+      (p) => `  ${p.label}: ${ascii(p.value)}${p.aside ? ` (${ascii(p.aside)})` : ""}`,
+    ),
+    "",
+    `Hex bases print ${HEX_ORIENTATION.value}. ${ascii(HEX_ORIENTATION.why)}`,
+    "Parts are exported in their CAD orientation; check each one sits on its",
+    "flat face before slicing.",
+    "",
+    "Full spec: https://academy.onethousanddrones.com/hex",
     "",
     `Parts (${names.length}):`,
     ...names.map((n) => `  - ${n}`),

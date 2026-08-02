@@ -99,6 +99,16 @@ export function isPublicPath(pathname: string): boolean {
   // via a headless browser with no session). The page itself 404s in production
   // unless DIAGRAM_EXPORT is set, so exposing the prefix is safe.
   if (top === "diagram-render") return true;
+  // The Hex Cluster spec + attribution page (/hex). This one is not a
+  // preference: every published .3mf/.stl/.step carries an immutable
+  // LICENSE.txt reading `Source: https://academy.onethousanddrones.com/hex`,
+  // and CC BY makes attribution the whole return on the release. A 307 to
+  // /sign-in here means every attribution in the wild points at nothing.
+  // EXACTLY one segment, matching the URL those files cite. Nothing is nested
+  // under it today, and a gate that admits paths which do not exist is a gate
+  // that will admit the wrong one later — add the segment here deliberately if
+  // /hex ever grows a child.
+  if (segments.length === 1 && top === "hex") return true;
   // The public page for one saved hex cluster (/c/[shareCode]). It is what a
   // printed build sheet's QR points at, so it MUST render signed-out — a
   // scanned sheet that 307s to /sign-in is a dead drawing. The unguessable
