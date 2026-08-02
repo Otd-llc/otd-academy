@@ -30,6 +30,17 @@ interface Envelope {
   h: string;
   v: number;
   s: unknown;
+  /** The configurator's DRAFT name, pre-filling the field below.
+   *
+   *  Optional, and treated as a suggestion rather than a value: an older
+   *  configurator deploy omits it entirely, and this page re-validates and
+   *  the server re-validates again. `nameAtSave` is still stamped from what
+   *  the user CONFIRMS here, so nothing unreviewed reaches the register.
+   *
+   *  It exists because the configurator's sheet now shows the name as its
+   *  TITLE — arriving here with an empty field would ask again for something
+   *  the user already typed and is looking at. */
+  n?: string;
 }
 
 type Phase =
@@ -90,10 +101,18 @@ export function SaveHexClusterForm({
   const [name, setName] = useState("");
 
   useEffect(() => {
+    // Pre-fill from the configurator's draft. Applied at BOTH entry points
+    // below — the direct one and the far side of a sign-in — because the
+    // stashed path is the one that silently keeps an empty field.
+    const prefill = (env: Envelope) => {
+      if (typeof env.n === "string" && env.n.trim()) setName(env.n.trim());
+    };
+
     // Straight from the fragment, when the user got here signed in.
     const direct = window.location.hash.replace(/^#/, "");
     if (direct) {
       const env = decodeEnvelope(direct);
+      if (env) prefill(env);
       setPhase(
         env
           ? { kind: "form", envelope: env, mode, share }
@@ -128,6 +147,7 @@ export function SaveHexClusterForm({
       setPhase({ kind: "malformed" });
       return;
     }
+    prefill(env);
     // The mode choice rode in the stash too: it lives only in the query, and
     // the query is what the round trip is most likely to drop.
     const stashed = new URLSearchParams(stash.search);
