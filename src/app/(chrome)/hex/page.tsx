@@ -22,7 +22,7 @@
 // conditional is a NEXT_PUBLIC env var, inlined at build.
 import type { Metadata } from "next";
 
-import { PageHeader } from "@/components/PageHeader";
+import { HexBodyGlyph } from "@/components/hex/HexBodyGlyph";
 import {
   HEX_CLEARANCE,
   HEX_CONFIGURATOR_URL,
@@ -88,17 +88,55 @@ export default function HexPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-      <PageHeader
-        eyebrow="OPEN HARDWARE"
-        title="Hex Cluster"
-        lead="A printable mounting standard. Dovetails on all six edges, so a tiled layout behaves as one rigid body."
-        meta={[
-          { label: "License", value: HEX_LICENSE.name },
-          { label: "Release", value: HEX_RELEASE },
-          { label: "Parts", value: String(HEX_PART_COUNT) },
-          { label: "Material", value: "PETG" },
-        ]}
-      />
+      {/* HERO — sandbox option E2, the owner's pick. The part IS the hero: the
+          outer silhouette of the real Hex-TB-Main geometry, so the page says
+          "hex, dovetailed on six edges" before a word is read. Built from the
+          approved option rather than layered over the previous PageHeader hero;
+          that header is gone from this page, not overridden. */}
+      <header className="mb-12">
+        <div className="title-rule" aria-hidden="true" />
+        <div className="mt-8 flex flex-col items-center gap-7 sm:flex-row sm:items-center sm:gap-10">
+          <HexBodyGlyph
+            variant="outline"
+            className="h-40 w-auto shrink-0 text-command-gold sm:h-44"
+          />
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+              Cell pitch
+            </p>
+            {/* The page's numeral moment. Saira, gold, tabular. */}
+            <p className="font-numeral text-6xl tracking-wide tabular-nums text-command-gold sm:text-7xl">
+              {HEX_PITCH_MM.toFixed(2)} mm
+            </p>
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+              centre to centre · 0.25 mm design gap
+            </p>
+            <h1 className="title-section mt-5">Hex Cluster</h1>
+            <p className="mt-2 max-w-md font-serif text-base leading-relaxed text-text">
+              A printable mounting standard. Dovetails on all six edges, so a
+              tiled layout behaves as one rigid body.
+            </p>
+          </div>
+        </div>
+
+        {/* The identity strip the old PageHeader carried. Kept, and kept BELOW
+            the hero: a reader arriving from a LICENSE.txt needs the licence and
+            the release visible without scrolling, and E2's hero has no slot for
+            them. Hairline row, not a filled bar. */}
+        <dl className="mt-9 flex flex-wrap gap-x-8 gap-y-2 border-t border-panel-border/60 pt-4 font-mono text-[10px] uppercase tracking-[0.18em]">
+          {[
+            { label: "License", value: HEX_LICENSE.name },
+            { label: "Release", value: HEX_RELEASE },
+            { label: "Parts", value: String(HEX_PART_COUNT) },
+            { label: "Material", value: "PETG" },
+          ].map((m) => (
+            <div key={m.label} className="flex gap-2">
+              <dt className="text-command-gold">{m.label}</dt>
+              <dd className="text-title">{m.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </header>
 
       <section className="border-t border-panel-border/60 pt-6">
         <SectionHeading>What it is</SectionHeading>
@@ -120,31 +158,24 @@ export default function HexPage() {
       </section>
 
       <section className="mt-10 border-t border-panel-border/60 pt-6">
-        <SectionHeading>The two numbers that matter</SectionHeading>
-        <div className="mt-5 grid gap-8 sm:grid-cols-2">
-          <div>
-            <p className="font-numeral text-5xl tracking-wide tabular-nums text-command-gold sm:text-6xl">
-              0.25 mm
-            </p>
-            <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
-              design gap between tiles
-            </p>
-          </div>
-          <div>
-            <p className="font-numeral text-5xl tracking-wide tabular-nums text-command-gold sm:text-6xl">
-              {HEX_PITCH_MM.toFixed(2)} mm
-            </p>
-            <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
-              cell pitch, centre to centre
-            </p>
-          </div>
+        <SectionHeading>Geometry</SectionHeading>
+        {/* The pitch is the hero's readout, so it is NOT repeated here. What is
+            left is the number a person about to print needs, and the derivation
+            that ties the two together. */}
+        <div className="mt-5">
+          <p className="font-numeral text-5xl tracking-wide tabular-nums text-command-gold sm:text-6xl">
+            0.25 mm
+          </p>
+          <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+            design gap between tiles
+          </p>
         </div>
         <p className="mt-6 font-serif text-sm leading-relaxed text-muted">
-          The pitch is the hex across-flats dimension plus the gap: a 43.85 mm
-          circumradius gives 75.95 mm across flats, and the 0.25 mm clearance
-          takes it to {HEX_PITCH_MM.toFixed(2)} mm, which is 3.00 in. Design to
-          the pitch if you are adapting the standard; design to the gap if you
-          are printing it.
+          The pitch above is the hex across-flats dimension plus that gap: a
+          43.85 mm circumradius gives 75.95 mm across flats, and the 0.25 mm
+          clearance takes it to {HEX_PITCH_MM.toFixed(2)} mm, which is 3.00 in.
+          Design to the pitch if you are adapting the standard; design to the
+          gap if you are printing it.
         </p>
       </section>
 
