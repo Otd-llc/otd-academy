@@ -99,5 +99,28 @@ export function isPublicPath(pathname: string): boolean {
   // via a headless browser with no session). The page itself 404s in production
   // unless DIAGRAM_EXPORT is set, so exposing the prefix is safe.
   if (top === "diagram-render") return true;
+  // The public page for one saved hex cluster (/c/[shareCode]). It is what a
+  // printed build sheet's QR points at, so it MUST render signed-out — a
+  // scanned sheet that 307s to /sign-in is a dead drawing. The unguessable
+  // 22-char token in the path is the gate; the page is noindex and shows the
+  // cluster's name, never the owner's.
+  if (top === "c") return true;
+  // The save page (/account/hex-clusters/save) is public-ELIGIBLE and gates
+  // itself INSIDE the page with its own redirect, carrying the search string.
+  // It has to be this way round: middleware would redirect before any page JS
+  // runs, and the build being saved lives in the URL FRAGMENT — which a
+  // client island has to stash across the magic-link round trip. A Server
+  // Component redirect() never sends a body, so no island would ever mount.
+  // EXACTLY three segments: this opens one page, not a prefix. Nothing nested
+  // under it exists today, and a gate that admits paths that do not exist is a
+  // gate that will admit the wrong one later.
+  if (
+    segments.length === 3 &&
+    top === "account" &&
+    segments[1] === "hex-clusters" &&
+    segments[2] === "save"
+  ) {
+    return true;
+  }
   return false;
 }
