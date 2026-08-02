@@ -23,7 +23,7 @@ loadEnv({ path: ".env.local" });
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import JSZip from "jszip";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 
 // The print spec, shared with the academy's /hex page. A plain data module with
 // no env dependency, so a static import is safe above the dotenv call below.
@@ -89,6 +89,21 @@ type ManifestPart = {
 type Manifest = { parts: ManifestPart[]; failures: unknown[] };
 
 const write = process.argv.includes("--write");
+// Re-PUT objects that are already present at the right size. Only needed to
+// repair a corrupted upload; the default skip is what makes a run resumable.
+const force = process.argv.includes("--force");
+
+// The publish is ~170 objects and 60 MB over one TLS session, and the first two
+// real runs both died partway with `ssl3_read_bytes: tls alert bad record mac`
+// at different objects. Without a retry AND a skip, every attempt restarts from
+// zero and the publish becomes a coin flip that gets more expensive each throw.
+//
+// Skipping is safe precisely because the keys are IMMUTABLE: a release segment
+// is never overwritten, so a key that exists at the expected size holds the
+// bytes this run would have written. That is what turns "run it again" into
+// "resume", and it is why the check is on size rather than a re-hash.
+const MAX_ATTEMPTS = 5;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function loadManifest(): Manifest {
   const path = join(SOURCE_DIR, "manifest.json");
@@ -105,22 +120,62 @@ function loadManifest(): Manifest {
 let r2!: R2Mod["r2"];
 let env!: EnvMod["env"];
 
+/** Byte size of an existing object, or null if it is absent (or unreadable). */
+async function existingSize(key: string): Promise<number | null> {
+  try {
+    const out = await r2.send(
+      new HeadObjectCommand({ Bucket: env.R2_BUCKET!, Key: key }),
+    );
+    return out.ContentLength ?? null;
+  } catch {
+    return null;
+  }
+}
+
+let skipped = 0;
+let retried = 0;
+
 async function put(key: string, body: Buffer, contentType: string) {
+  const kb = `${(body.length / 1024).toFixed(0)} KB`;
   if (!write) {
-    console.log(`  [dry] ${key}  (${(body.length / 1024).toFixed(0)} KB)`);
+    console.log(`  [dry] ${key}  (${kb})`);
     return;
   }
-  await r2.send(
-    new PutObjectCommand({
-      Bucket: env.R2_BUCKET!,
-      Key: key,
-      Body: body,
-      ContentType: contentType,
-      // Immutable keys (see printableKey) make a long cache safe.
-      CacheControl: "public, max-age=31536000, immutable",
-    }),
-  );
-  console.log(`  [put] ${key}  (${(body.length / 1024).toFixed(0)} KB)`);
+
+  if (!force && (await existingSize(key)) === body.length) {
+    skipped++;
+    console.log(`  [skip] ${key}  (already published, ${kb})`);
+    return;
+  }
+
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await r2.send(
+        new PutObjectCommand({
+          Bucket: env.R2_BUCKET!,
+          Key: key,
+          Body: body,
+          ContentType: contentType,
+          // Immutable keys (see printableKey) make a long cache safe.
+          CacheControl: "public, max-age=31536000, immutable",
+        }),
+      );
+      console.log(`  [put] ${key}  (${kb})`);
+      return;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (attempt >= MAX_ATTEMPTS) {
+        throw new Error(
+          `${key} failed after ${MAX_ATTEMPTS} attempts: ${msg}\n` +
+            `Re-run the same command; published objects are skipped, so it resumes.`,
+        );
+      }
+      retried++;
+      const wait = 400 * 2 ** (attempt - 1);
+      console.log(`  [retry ${attempt}/${MAX_ATTEMPTS - 1}] ${key}: ${msg}`);
+      await sleep(wait);
+    }
+  }
 }
 
 const CONTENT_TYPE: Record<string, string> = {
@@ -206,7 +261,12 @@ async function main() {
   const base = env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
   console.log(
     `\n${write ? "Uploaded" : "Would upload"} release ${RELEASE}.` +
-      (base ? `\nPublic base: ${base}/printables/${RELEASE}/` : ""),
+      (write ? `\nskipped (already published): ${skipped} · retries: ${retried}` : "") +
+      (base
+        ? `\nPublic base: ${base}/printables/${RELEASE}/`
+        : write
+          ? `\nNo R2 custom domain set, so the files serve through /api/printable/${RELEASE}/...`
+          : ""),
   );
   if (!write) console.log("Re-run with --write to apply.");
 }
