@@ -141,9 +141,20 @@ const getBytes = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/part-r2", () => ({ getR2ObjectBytes: getBytes }));
 
 describe("the proxy route serves an object", () => {
-  afterEach(() => getBytes.mockReset());
+  afterEach(() => {
+    getBytes.mockReset();
+    vi.resetModules();
+    vi.unstubAllEnvs();
+  });
 
+  // R2 config must be STUBBED, not inherited. CI has no `.env.local`, so
+  // R2_ENABLED/R2_BUCKET are unset there and the route 404s before it resolves
+  // anything — which passed locally and went red in CI on the first run. A test
+  // that only holds on a developer's machine is not a test.
   async function call(path: string[]) {
+    vi.stubEnv("R2_ENABLED", "true");
+    vi.stubEnv("R2_BUCKET", "test-bucket");
+    vi.resetModules();
     const { GET } = await import("@/app/api/printable/[...path]/route");
     return GET({} as never, { params: Promise.resolve({ path }) });
   }
@@ -177,6 +188,20 @@ describe("the proxy route serves an object", () => {
 
   it("never reaches R2 for a rejected path", async () => {
     const res = await call(["..", "avatars", "x.webp"]);
+    expect(res.status).toBe(404);
+    expect(getBytes).not.toHaveBeenCalled();
+  });
+
+  it("404s with R2 switched off, without touching the bucket", async () => {
+    // The CI-shaped environment, asserted deliberately rather than encountered
+    // by accident: no R2 config means no download, and no attempt at one.
+    vi.stubEnv("R2_ENABLED", "false");
+    vi.stubEnv("R2_BUCKET", undefined);
+    vi.resetModules();
+    const { GET } = await import("@/app/api/printable/[...path]/route");
+    const res = await GET({} as never, {
+      params: Promise.resolve({ path: [RELEASE, "LICENSE.txt"] }),
+    });
     expect(res.status).toBe(404);
     expect(getBytes).not.toHaveBeenCalled();
   });
