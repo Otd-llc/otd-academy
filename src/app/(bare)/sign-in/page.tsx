@@ -1,6 +1,5 @@
 import { signIn, signOut } from "@/auth";
 import { InlineBanner } from "@/components/InlineBanner";
-import { FragmentStash } from "@/components/hex/FragmentStash";
 import { SignInForms } from "@/components/auth/SignInForms";
 import { safeCallbackPath } from "@/lib/safe-callback";
 import {
@@ -78,13 +77,10 @@ export default async function SignInPage({
 
   return (
     <main className="relative flex min-h-[100svh] flex-col items-center justify-center overflow-hidden bg-deep-space px-6 py-16">
-      {/* Renders nothing. Stashes a hex build that is mid-save, because the
-          fragment carrying it survives the 307 to here but NOT the magic-link
-          round trip — that opens a fresh browsing context. It has to run on
-          THIS page: the save page gates itself with a Server Component
-          redirect(), which never sends a body, so no island of its own would
-          ever mount for an anonymous first visit. */}
-      <FragmentStash callbackUrl={params.callbackUrl} />
+      {/* No hex stash here. A mid-save build is stashed by the save page's own
+          client gate, before it navigates: this page never sees the fragment.
+          Measured — the hop to /sign-in is a scripted navigation, not a 307,
+          so nothing is inherited. See components/hex/hex-stash.ts. */}
 
       {/* A single soft gold bloom behind the card — no grid, no frame. */}
       <div

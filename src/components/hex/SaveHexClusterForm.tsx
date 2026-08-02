@@ -9,7 +9,7 @@ import {
   HEX_STASH_KEY,
   HEX_STASH_TTL_MS,
   type HexStash,
-} from "@/components/hex/FragmentStash";
+} from "@/components/hex/hex-stash";
 
 /**
  * Confirm a name and save a build.
@@ -102,8 +102,10 @@ export function SaveHexClusterForm({
       return;
     }
 
-    // Otherwise this is the far side of a magic-link round trip, and the
-    // fragment is gone. /sign-in stashed it before sending the email.
+    // Otherwise the fragment is gone: either the far side of a magic-link
+    // round trip, or the return from any sign-in — the hop to /sign-in is a
+    // scripted navigation and carries no fragment. The gate stashed it on the
+    // way out.
     let stash: HexStash | null = null;
     try {
       const raw = window.localStorage.getItem(HEX_STASH_KEY);

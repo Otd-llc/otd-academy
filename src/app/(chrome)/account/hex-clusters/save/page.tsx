@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { SaveHexClusterForm } from "@/components/hex/SaveHexClusterForm";
+import { SaveSignInGate } from "@/components/hex/SaveSignInGate";
 
 // The hand-off target for "Save" in the hex configurator.
 //
@@ -10,6 +10,14 @@ import { SaveHexClusterForm } from "@/components/hex/SaveHexClusterForm";
 // magic-link round trip; middleware would redirect before any page JS runs, so
 // the island would never mount. isPublicPath names this route for the same
 // reason.
+//
+// The anonymous branch RENDERS A CLIENT GATE instead of calling redirect().
+// This route has a cached shell, so a Server Component redirect() here is
+// delivered after a 200 body and run by the client router — a scripted
+// navigation, which inherits no fragment. Measured: this document loads with
+// the fragment intact and /sign-in's location.hash is empty, while a
+// middleware 307 (/account) does inherit it. The gate reads the envelope in
+// THIS document, stashes it, and only then navigates.
 //
 // The search string is carried into callbackUrl and ENCODED: since the user
 // picks the save mode at the configurator's Save control, that choice lives
@@ -34,7 +42,7 @@ export default async function SaveHexClusterPage({
     if (params.mode) query.set("mode", params.mode);
     if (params.share) query.set("share", params.share);
     const target = `/account/hex-clusters/save${query.size ? `?${query}` : ""}`;
-    redirect(`/sign-in?callbackUrl=${encodeURIComponent(target)}`);
+    return <SaveSignInGate target={target} />;
   }
 
   const mode = params.mode === "rev" ? "rev" : "new";

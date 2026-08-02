@@ -666,6 +666,35 @@ number — stated in the UI, because that is a new drawing for the same design.
 
 ### 5.4 Fragment survival
 
+> **Corrected 2026-08-02, after a browser walk against a running build.** Item 4
+> below was **wrong**, and correction 1 was right for the wrong reason. There is
+> **no 307 on this hop.** The save route has a cached shell, so a Server
+> Component `redirect()` here is delivered *after* a 200 body and executed by
+> the client router — a **scripted** navigation, which inherits nothing. RFC
+> 9110 §10.2.2 governs a `Location` header, and there is no `Location` header
+> in this hop.
+>
+> Measured on the shipped code, Chromium via Playwright:
+>
+> | hop | status | fragment on arrival |
+> | --- | --- | --- |
+> | `/account/hex-clusters/save#…` (anonymous) | **200 + body** | 956 chars **in this document** |
+> | → `/sign-in?callbackUrl=…` | scripted nav | **0 chars** |
+> | control: `/account#FRAG` (middleware) | **307** | `#FRAG` — inherited |
+>
+> So a stash placed on `/sign-in` can never see a build: **every anonymous save
+> lost the build outright.** The fragment dies at the *first* hop, not at the
+> magic link.
+>
+> The fix inverts item 4. The 200 body means a client island on the save page
+> **does** mount — so the anonymous branch **renders a client gate**
+> (`SaveSignInGate`) that reads `location.hash` in this document, stashes it,
+> and only then navigates. `FragmentStash` on `/sign-in` is deleted.
+> `localStorage` (correction 1) survives regardless, so the storage choice
+> stands; its stated reason now covers both hops rather than only the magic
+> link. Guarded by `src/lib/__tests__/hex-save-gate.test.tsx`, which is
+> mutation-checked: restoring `redirect()` fails three of its five cases.
+
 Verified in Chromium 148 and normative in RFC 9110 §10.2.2 (a UA **MUST** inherit
 the original fragment when `Location` has none): the payload survives the 307 to
 `/sign-in`. It dies at the magic-link round trip.
@@ -1352,3 +1381,75 @@ normative to the byte with a conformance fixture, the concurrency section names
 the exact SQL and the three races it kills, and where the document is genuinely
 under-specified it says so and scopes it. Residual work surfaces as a type error
 or a failing first test, not as a shipped defect.
+
+### Build walk — 2026-08-02 · a real browser, against a running build
+
+Ten passes to dry, and the first defect showed up in the first minute of driving
+the shipped UI. The document was self-consistent; it was consistent about a fact
+that is not true of this app.
+
+**§5.4 item 4 was wrong: the anonymous save lost the build outright.** Full
+account in the corrected §5.4. The short of it: the save route has a cached
+shell, so a Server Component `redirect()` is delivered after a **200 body** and
+run by the client router. That is a scripted navigation, and it inherits no
+fragment. `/sign-in`'s `location.hash` measured **0** characters where the save
+page's own document had **956**. A middleware 307 (`/account#FRAG`) inherits
+correctly, which is what made the wrong premise plausible: the reasoning was
+right about 307s and wrong about which hop this is.
+
+Neither the type checker nor 2045 tests could see it — every piece was correct
+in isolation, and the thing that failed was a browser's navigation semantics.
+The guard added is `src/lib/__tests__/hex-save-gate.test.tsx`, structural rather
+than behavioural (it pins that the anonymous branch *returns an element* instead
+of throwing `NEXT_REDIRECT`), mutation-checked: restoring `redirect()` fails
+three of its five cases.
+
+**Proven end to end, local academy + local configurator, both save modes:**
+EXPORT → Save → "new drawing" → the gate stashes 1014 chars → sign-in → the form
+restores and clears the stash → save → `DEV-HEX-1001 Rev A` → the return leg
+carries `d,r,s,h,n,t` + the payload fragment → the configurator adopts the
+lineage (`sessionStorage`) and the print identity (`localStorage`) → the sheet
+re-renders in the **saved regime** with the stamp and a `/c/<shareCode>` QR →
+Save now offers "Save revision to DEV-HEX-1002" → the revision save reaches the
+action with `?mode=rev&share=…`. The register showed the caps (`5 / 50` active,
+`5 / 200` total), and every `/c/<code>` rendered the drawing, the name at save,
+the envelope and the BOM.
+
+**Idempotency confirmed by accident, three times.** A revision save of an
+unchanged build returned `Rev A` and the *same* share code rather than minting
+`Rev B` — §5's latest-revision idempotency window doing exactly its job. Worth
+recording because it looks like a bug in a walk log.
+
+**Not proven in a browser: the `Rev A → Rev B` increment.** Forcing it needs a
+byte-changing edit, and driving the 3D picker headlessly did not land one (two
+attempts changed the inspector's state without changing the canonical scene —
+probe error, not app defect: the first click opens the cap gallery rather than
+adding a cap). `revNo` increment, the advisory lock and the per-cluster
+uniqueness backstop are covered by the Tier 2b action tests against real
+Postgres. Stated as a gap rather than counted as passed.
+
+**Open finding, in the configurator, not the academy: the summary ENVELOPE is
+measured before the scene settles.** Same build, same content-keyed drawing
+number `OTD-HEX-h1-cb5930fb`, one page load, four reads at increasing settle:
+
+```
+  2 s   90.6 × 85.6 × 82.7 mm
+  5 s   90.6 × 50.7 × 82.7 mm
+  9 s   90.6 × 48.9 × 82.7 mm
+ 20 s+  90.6 × 48.8 × 82.7 mm   (stable across six consecutive reads)
+```
+
+The Y dimension is wrong by up to 75% inside the first few seconds, and
+`canSummarise()` enables **Save** well before it settles. Two consequences, both
+observed: a printed sheet can carry an envelope that is not the build's, and —
+because `exportBuildSheet` and `beginSave` each call `buildSummary()`
+separately — the sheet and the record its QR resolves to are measured at
+different instants and can disagree. Seen: `DEV-HEX-1004`'s sheet said
+`90.6 × 67.7 × 82.7` while its own `/c/` page said `90.6 × 54.9 × 82.7`.
+
+That is squarely against the point of the feature — the stored summary is meant
+to be what paper can be checked against. It is a bioscale-viz defect (Tier 0/1,
+already merged and live), and the fix is a design choice rather than a patch:
+gate Save on a settled scene, or derive the envelope from the canonical model
+instead of the rendered graph. Left to the owner rather than changed unilaterally
+in spec-guarded shipped code.
