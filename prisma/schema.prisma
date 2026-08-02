@@ -120,6 +120,7 @@ model User {
   quizLocks         QuizLock[]
   badges            BadgeEarned[]
   lessonFeedback    LessonFeedback[]
+  hexClusters       HexCluster[]
   reviewSchedules   ReviewSchedule[]
 }
 
@@ -1429,6 +1430,62 @@ model BadgeEarned {
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, badgeKey])
+}
+
+// A saved hex-cluster configuration = one DRAWING in the OTD register.
+// Design: docs/plans/2026-08-01-hex-cluster-saved-builds-design.md §4.
+model HexCluster {
+  id String @id @default(cuid())
+  // Nullable + SetNull, the Purchase pattern: deleteStudent hard-deletes users
+  // and a printed sheet's QR must not 404 because an account was cleaned up.
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  // autoincrement(), not a hand-rolled sequence: Postgres allocates at INSERT
+  // (atomic, gaps expected), and Prisma types it Int so no nextval()::int cast
+  // and no BigInt can reach a server action's return value.
+  // Migration: ALTER SEQUENCE "HexCluster_drawingNo_seq" RESTART WITH 1001
+  drawingNo Int      @unique @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  // Soft delete, named for Project.archivedAt. /c/ resolves an archived cluster
+  // to "removed by its owner". Does NOT count against the active cluster quota.
+  archivedAt DateTime?
+
+  revisions HexClusterRevision[]
+
+  // Raw migration CHECKs: hexcluster_name_len, hexcluster_drawingno_floor
+  @@index([userId, updatedAt])
+  @@index([userId, archivedAt])
+}
+
+// One immutable save. Never UPDATEd: paper cites (drawingNo, revNo).
+model HexClusterRevision {
+  id        String     @id @default(cuid())
+  clusterId String
+  cluster   HexCluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+  revNo     Int
+  // Public token for /c/<shareCode>. 22-char base62 from crypto.randomBytes, not
+  // cuid(): cuid v1 is timestamp+counter+fingerprint and is not unguessable.
+  shareCode String     @unique
+  // OPAQUE. Exactly the string after '#' in a deep link, transport prefix
+  // included. Never parsed, re-encoded or migrated here.
+  payload String
+  // h1:<64-hex> over the canonicalised state (design §2.2). Client-supplied and
+  // unverifiable here by design. NOT unique per cluster: A -> B -> A must give
+  // Rev C carrying Rev A's hash.
+  payloadHash String
+  // EncodedState.v at save time. A number, not a shape. Also client-supplied.
+  schemaVersion Int
+  // What the SCENE said, captured at save time and not reconstructible later.
+  // Required. Shape pinned in design §4.1, validated on write.
+  summary   Json
+  createdAt DateTime @default(now())
+
+  // Raw migration CHECKs: hexrev_revno_positive, hexrev_payload_len,
+  // hexrev_hash_len, hexrev_schema_ver, hexrev_summary_len
+  @@unique([clusterId, revNo])
+  @@index([clusterId, createdAt])
 }
 
 // Per-page lesson feedback (the no-forum channel, design §9.4). Routes to admin;
