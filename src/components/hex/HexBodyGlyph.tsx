@@ -36,15 +36,12 @@ export type HexGlyphVariant =
  *  right at a glance: `BODY_INNER` below is the inner wall, whose profile shows
  *  a notch on only the two FLAT edges, so a silhouette drawn from it quietly
  *  claims a two-dovetail part. Verified by rendering, not by reading. */
-//  ONE DEVIATION from the generated data, and the only one in this file: the
-//  emitted path carries a trailing `306 859 300 870 408 870 410 867 394 859`
-//  after it has already returned to its start point. That tail is a degenerate
-//  projection artefact and draws as a visible spur off the bottom-left vertex.
-//  It is TRUNCATED here at the closing point and closed with Z. This is
-//  subpath selection, not redrawing: no coordinate is invented or moved, and
-//  the remaining points are the generator's. The real fix belongs upstream in
-//  `tools/glyph/build-glyphs.mjs` (bioscale-viz PR #5), which should not emit
-//  it; when that lands, take the path verbatim again and delete this note.
+//  VERBATIM from the generator, including the closing Z. It briefly was not:
+//  the emitter used to weld a four-point tail onto this loop after it had
+//  already returned to its start, drawing a spur off the bottom-left vertex,
+//  and this file truncated it by hand. That was fixed upstream instead
+//  (bioscale-viz PR #8, `chain()` now stops a walk at its own start), so the
+//  hand-truncation is gone and these are the emitted bytes again.
 const BODY_OUTER =
   "M306 859L394 859 378 838 622 838 606 859 694 859 800 675 811 700 884 574 " +
   "857 577 963 393 919 316 909 341 787 130 814 133 769 57 557 57 573 35 " +
