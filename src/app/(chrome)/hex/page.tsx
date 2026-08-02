@@ -23,7 +23,6 @@
 import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/PageHeader";
-import { env } from "@/env";
 import {
   HEX_CLEARANCE,
   HEX_CONFIGURATOR_URL,
@@ -35,7 +34,7 @@ import {
   HEX_RELEASE,
   type SpecRow,
 } from "@/lib/hex-spec";
-import { printableLicenseKey, printableSetKey } from "@/lib/r2";
+import { printableLicenseUrl, printableSetUrl } from "@/lib/printable-url";
 
 export const metadata: Metadata = {
   // The long keyworded string lives here, not in the visible H1.
@@ -79,17 +78,13 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 }
 
 export default function HexPage() {
-  // Unset until the R2 custom domain is provisioned (Cloudflare + OTD DNS,
-  // owner-only). The section below lights up with no code change the moment it
-  // lands; until then it says plainly that the links are not live rather than
-  // hiding, which would leave a reader hunting for a download that is absent.
-  const r2Base = env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
-  const setUrl = r2Base
-    ? `${r2Base}/${printableSetKey(HEX_RELEASE, "hex-cluster")}`
-    : null;
-  const licenseFileUrl = r2Base
-    ? `${r2Base}/${printableLicenseKey(HEX_RELEASE)}`
-    : null;
+  // Always real links. They resolve to the direct R2 object when the custom
+  // domain is provisioned and to the `/api/printable` proxy until then, so the
+  // download does not wait on a DNS change nobody in this codebase can make.
+  // If the release is not in the bucket yet, the proxy answers 404 rather than
+  // this page lying about a file that exists.
+  const setUrl = printableSetUrl(HEX_RELEASE, "hex-cluster");
+  const licenseFileUrl = printableLicenseUrl(HEX_RELEASE);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -196,65 +191,45 @@ export default function HexPage() {
 
       <section className="mt-10 border-t border-panel-border/60 pt-6">
         <SectionHeading>Files</SectionHeading>
-        {setUrl && licenseFileUrl ? (
-          <>
-            <p className="mt-3 font-serif text-base leading-relaxed text-text">
-              Release {HEX_RELEASE}. {HEX_PART_COUNT} parts as 3MF and STL, with
-              STEP kept per part for remixing. The release segment is immutable:
-              a link you save today keeps resolving to the geometry you
-              downloaded.
-            </p>
-            <ul className="mt-5 border-t border-panel-border/60">
-              <li>
-                <a
-                  href={setUrl}
-                  className="group flex flex-col gap-1.5 border-b border-panel-border/60 py-5 hover:bg-command-gold/[0.04] focus-visible:bg-command-gold/[0.06] focus-visible:outline-none"
-                >
-                  <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
-                    ▸ Complete set
-                  </span>
-                  <span className="title-card group-hover:text-gold-light">
-                    hex-cluster.zip
-                  </span>
-                  <span className="text-sm text-muted">
-                    Every part in 3MF and STL, with the license.
-                  </span>
-                </a>
-              </li>
-              <li>
-                <a
-                  href={licenseFileUrl}
-                  className="group flex flex-col gap-1.5 border-b border-panel-border/60 py-5 hover:bg-command-gold/[0.04] focus-visible:bg-command-gold/[0.06] focus-visible:outline-none"
-                >
-                  <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
-                    ▸ License
-                  </span>
-                  <span className="title-card group-hover:text-gold-light">
-                    LICENSE.txt
-                  </span>
-                  <span className="text-sm text-muted">
-                    The same notice that travels inside every file.
-                  </span>
-                </a>
-              </li>
-            </ul>
-          </>
-        ) : (
-          <div className="mt-3 space-y-4 font-serif text-base leading-relaxed text-text">
-            <p>
-              Direct downloads are not live yet. The {HEX_RELEASE} set is cut
-              and staged, and the public links land here once the file host is
-              on its own domain. There is no other place to get them in the
-              meantime, so nothing is being held back from you.
-            </p>
-            <p>
-              What does work today is the configurator below: lay out a cluster
-              and it generates a build sheet carrying the full bill of
-              materials, the dimensions of every part and these same print
-              settings.
-            </p>
-          </div>
-        )}
+        <p className="mt-3 font-serif text-base leading-relaxed text-text">
+          Release {HEX_RELEASE}. {HEX_PART_COUNT} parts as 3MF and STL, with
+          STEP kept per part for remixing. The release segment is immutable: a
+          link you save today keeps resolving to the geometry you downloaded.
+        </p>
+        <ul className="mt-5 border-t border-panel-border/60">
+          <li>
+            <a
+              href={setUrl}
+              className="group flex flex-col gap-1.5 border-b border-panel-border/60 py-5 hover:bg-command-gold/[0.04] focus-visible:bg-command-gold/[0.06] focus-visible:outline-none"
+            >
+              <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+                ▸ Complete set
+              </span>
+              <span className="title-card group-hover:text-gold-light">
+                hex-cluster.zip
+              </span>
+              <span className="text-sm text-muted">
+                Every part in 3MF and STL, with the license.
+              </span>
+            </a>
+          </li>
+          <li>
+            <a
+              href={licenseFileUrl}
+              className="group flex flex-col gap-1.5 border-b border-panel-border/60 py-5 hover:bg-command-gold/[0.04] focus-visible:bg-command-gold/[0.06] focus-visible:outline-none"
+            >
+              <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+                ▸ License
+              </span>
+              <span className="title-card group-hover:text-gold-light">
+                LICENSE.txt
+              </span>
+              <span className="text-sm text-muted">
+                The same notice that travels inside every file.
+              </span>
+            </a>
+          </li>
+        </ul>
       </section>
 
       <section className="mt-10 border-t border-panel-border/60 pt-6">

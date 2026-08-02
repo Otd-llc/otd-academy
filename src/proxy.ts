@@ -12,8 +12,10 @@ import { resolveRouteGate } from "@/lib/route-gate";
 // + `/api/capture/status` — the OTD Capture app POSTs/polls with NO session
 // cookie; they're gated by a short-lived signed token in the route itself, so
 // they MUST reach the route, never be 307'd to /sign-in), the public asset
-// proxies (`/api/avatar/*`, `/api/part-model/*` — cache-friendly R2 streamers that
-// must load for signed-out visitors on public lessons), the Vercel cron route
+// proxies (`/api/avatar/*`, `/api/part-model/*`, `/api/printable/*` — cache-friendly
+// R2 streamers that must load for signed-out visitors on public lessons and on the
+// CC BY hex-cluster download page, whose whole point is that anyone can fetch the
+// files without an account), the Vercel cron route
 // (`/api/cron/*` — invoked by Vercel's scheduler with an `Authorization: Bearer
 // $CRON_SECRET` header and NO session cookie; it has its own CRON_SECRET guard,
 // so it MUST reach the route, never be 307'd to /sign-in), the sign-in page
@@ -62,6 +64,6 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    "/((?!api/auth|api/avatar|api/part-model|api/stripe/webhook|api/capture|api/cron|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico|.*\\..*).*)",
+    "/((?!api/auth|api/avatar|api/part-model|api/printable|api/stripe/webhook|api/capture|api/cron|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico|.*\\..*).*)",
   ],
 };
