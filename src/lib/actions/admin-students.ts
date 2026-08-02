@@ -15,6 +15,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth-helpers";
+import { invalidateHexCluster } from "@/lib/cache-invalidate";
 import { getStripe } from "@/lib/stripe";
 
 const ALL_ACCESS_KEY = "all-access";
@@ -123,9 +124,7 @@ const revokeSchema = z
   .object({ userId: z.cuid(), entitlementId: z.cuid() })
   .strict();
 
-export async function revokeEntitlement(
-  input: unknown,
-): Promise<{ ok: true }> {
+export async function revokeEntitlement(input: unknown): Promise<{ ok: true }> {
   const { userId, entitlementId } = revokeSchema.parse(input);
   await requireAdmin();
 
@@ -201,6 +200,26 @@ export async function deleteStudent(input: unknown): Promise<{ ok: true }> {
     }
   }
 
+  // Saved hex clusters survive the delete with userId → NULL, for the same
+  // reason Purchase does: a printed sheet's QR must not 404 because an account
+  // was cleaned up. But SetNull does not scrub `name`, and /c/ falls back to it
+  // once userId is null — so a deleted user's build title would keep rendering
+  // on a public page.
+  //
+  // ORDER IS LOAD-BEARING. Collect the ids and scrub BEFORE the delete: after
+  // it, userId is already NULL, an updateMany({ where: { userId } }) matches
+  // zero rows, the id list is unobtainable, and the scrub reports success
+  // having done nothing.
+  const hexClusterIds = (
+    await db.hexCluster.findMany({ where: { userId }, select: { id: true } })
+  ).map((c) => c.id);
+  if (hexClusterIds.length > 0) {
+    await db.hexCluster.updateMany({
+      where: { id: { in: hexClusterIds } },
+      data: { name: "(deleted)" },
+    });
+  }
+
   try {
     await db.user.delete({ where: { id: userId } });
   } catch (e) {
@@ -214,6 +233,10 @@ export async function deleteStudent(input: unknown): Promise<{ ok: true }> {
     }
     throw e;
   }
+
+  // Account deletion IS a cache concern: without these, the deleted user's
+  // build title survives on /c/ for up to an hour after the scrub.
+  for (const id of hexClusterIds) invalidateHexCluster(id);
 
   revalidatePath("/admin/students");
   return { ok: true };

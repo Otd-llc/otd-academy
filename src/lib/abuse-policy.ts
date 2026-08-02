@@ -19,10 +19,18 @@ export const RULES = {
   "magic:email:hour": { limit: 5, window: "1 h" }, // Cognito ResendConfirmationCode
   "magic:email:day": { limit: 15, window: "24 h" }, // bounds a slow-drip bomb
   "magic:ip:hour": { limit: 50, window: "1 h" }, // Auth0 /passwordless/start (callback pre-check)
-  "magic:global:day": { limit: () => env.MAGIC_GLOBAL_DAILY_CAP ?? 2000, window: "24 h" },
+  "magic:global:day": {
+    limit: () => env.MAGIC_GLOBAL_DAILY_CAP ?? 2000,
+    window: "24 h",
+  },
   "waitlist:ip:hour": { limit: 20, window: "1 h" },
   "tip:ip:hour": { limit: 10, window: "1 h" },
   "checkout:user": { limit: 15, window: "1 h" }, // Tier 3: authenticated Stripe actions
+  // Burst only. The real bounds on saved hex clusters are row COUNTS (50
+  // active / 200 total / 100 revisions), which a sliding-window rate limiter
+  // cannot express and which are counted in SQL inside an advisory-locked
+  // transaction. This just stops a stuck client hammering the endpoint.
+  "hex:save:user": { limit: 30, window: "1 h" },
 } as const;
 
 export type RuleName = keyof typeof RULES;
@@ -65,14 +73,20 @@ export function ipPrefix(ip: string | null): string | null {
   const headParts = head ? head.split(":") : [];
   const tailParts = tail ? tail.split(":") : [];
   const missing = 8 - headParts.length - tailParts.length;
-  const full = [...headParts, ...Array(Math.max(0, missing)).fill("0"), ...tailParts];
+  const full = [
+    ...headParts,
+    ...Array(Math.max(0, missing)).fill("0"),
+    ...tailParts,
+  ];
   const first4 = full.slice(0, 4).map((h) => (h === "" ? "0" : h));
   return `${first4.join(":")}::/64`;
 }
 
 /** HMAC-SHA256 pinned to AUTH_SECRET (reuse capture-token pattern). Applied LAST. */
 export function hmacKey(value: string): string {
-  return createHmac("sha256", env.AUTH_SECRET).update(value).digest("base64url");
+  return createHmac("sha256", env.AUTH_SECRET)
+    .update(value)
+    .digest("base64url");
 }
 
 /**
@@ -127,4 +141,10 @@ export function ipOnlyCheck(ip: string | null): Check | null {
  *  keeps raw user ids out of Upstash. */
 export function userCheck(userId: string): Check {
   return { rule: "checkout:user", identity: hmacKey(userId) };
+}
+
+/** Per-user burst check for saving a hex cluster. Same HMAC treatment as
+ *  userCheck, for the same reason: keep raw user ids out of Upstash. */
+export function hexSaveCheck(userId: string): Check {
+  return { rule: "hex:save:user", identity: hmacKey(userId) };
 }
