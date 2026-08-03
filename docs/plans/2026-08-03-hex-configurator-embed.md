@@ -1,678 +1,447 @@
-# Embedded hex configurator on `/hex` — implementation plan
+# Embedded hex configurator on `/hex` — implementation plan (v2)
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement
 > this plan task-by-task.
 
 **Goal:** Open the hex configurator inside `/hex`, expanding from the CTA, with
-the academy chrome intact and the save round-trip reduced from three
-cross-origin navigations to zero.
+the academy chrome intact and saving working in place — no cross-subdomain
+bouncing.
 
 **Architecture:** The configurator stays a separate deploy and a real standalone
-page (printed QR codes point at it and cannot be changed). The academy frames it
-and talks to it over an origin-restricted `postMessage` channel. When framed,
-the configurator stops navigating the window and delegates: it asks the parent
-to save, and the parent — already on the academy, already holding the session —
-runs the existing server action and posts the result back. The build never
-travels through a URL again.
+page. The academy frames it and talks to it over a pinned `postMessage` channel.
+Saving is delegated to the parent, which already holds the session. Auth is
+discovered lazily at save time so `/hex` stays static, and sign-in runs in a
+popup so the frame and the in-progress build survive it.
 
-**Tech stack:** Next 16 App Router (academy), Vite + three.js (configurator),
-`postMessage`, the existing `saveHexCluster` server action, View Transitions
-with a measured-rect fallback for the expand animation.
+**Tech stack:** Next 16 App Router, Vite + three.js, `postMessage`, the existing
+`saveHexCluster` server action.
+
+---
+
+## 0. Status: v1 was validated and largely rejected
+
+v1 of this plan was reviewed by four independent lenses (security, mobile/iOS,
+codebase fidelity, adversarial completeness). They returned 11 critical and 14
+high findings. Four of v1's code blocks referenced functions, variables and CSS
+selectors **that do not exist**. This document is re-derived against verified
+code; every API below was read, not recalled.
+
+The three findings that changed the design rather than the code are answered in
+§3. Read that before any task.
 
 ---
 
 ## 1. Why this exists
 
-Today, saving a build is three navigations across two origins:
+Saving today is three navigations across two origins: the user leaves the
+academy, the academy hands them back, and they leave again. Every hop carries
+the whole build in a URL fragment because the two origins share no session.
 
-```
-demo/hex  --assign-->  academy/account/hex-clusters/save?mode=..#envelope
-                       (maybe a magic-link round trip)
-                       --assign-->  demo/hex?d=..&r=..&s=..&h=..&n=..&t=..#payload
-```
-
-The user leaves the academy, comes back, and leaves again. Every hop carries the
-whole build in a URL fragment because the two origins share no session, which is
-why `save-link.ts` and `SaveHexClusterForm.tsx` are as intricate as they are.
-
-Framed, the same operation is a message, a server action, and a message back.
-Nothing navigates. The fragment gymnastics stop being necessary for the embedded
-path (they stay for the standalone path, which must keep working).
+Framed, it is a message, a server action, and a message back.
 
 **What must not break:**
 
 - `demo.onethousanddrones.com/hex` stays a working standalone page. Printed
-  build sheets carry QR codes pointing at it, and paper cannot be re-issued.
-- `/c/[shareCode]` and the existing save flow keep working for anyone arriving
-  from a QR or a saved link.
-- The register semantics: drawing number, revision, payload hash, lineage.
+  build sheets carry QR codes pointing at it; paper cannot be re-issued.
+- The register semantics: drawing number, revision, and the content-hash
+  identity that decides whether a sheet prints as controlled.
+- `/hex` stays statically prerendered. It is the URL every published
+  `LICENSE.txt` cites.
+
+---
 
 ## 2. Verified constraints
 
-Checked 2026-08-03, not assumed:
+Read from source, with line numbers, 2026-08-03.
 
-| Fact | Evidence |
+| Fact | Where |
 | --- | --- |
-| The demo host sets no framing headers | `curl -I https://demo.onethousanddrones.com/hex` returns no `X-Frame-Options` and no CSP; no `_headers` file in bioscale-viz |
-| An origin-restricted postMessage bridge already exists and is trusted | `bioscale-viz/src/main.ts:231` guards on `/^https?:\/\/([a-z0-9-]+\.)*onethousanddrones\.com$/` and localhost; `parentTargetOrigin()` derives the reply target from the referrer |
-| Embed detection idiom already in use | `main.ts:139` — `if (window.parent === window) return;` |
-| The hex app has NO bridge yet | the listener above is in `src/main.ts` (the BioScale visualiser), not `src/hex/main.ts` |
-| Save currently navigates the window | `bioscale-viz/src/hex/save-link.ts` — `window.location.assign(buildSaveURL(...))` |
-| The return leg also navigates | `project-foundry/src/components/hex/SaveHexClusterForm.tsx:192,239` |
+| Identity store is **content-keyed** on a bare 64-hex canon hash; `rememberIdentity(hash, entry)` is what makes a sheet print as controlled | `bioscale-viz/src/hex/identity.ts:194`, `:214`, consumed `src/hex/export/index.ts:359` |
+| `writeLineage` takes `{shareCode, drawingLabel}` ONLY — it is not the identity write | `identity.ts:63-66`, `:158` |
+| `beginSave` already computes the bare canon hash before wrapping it | `src/hex/save-link.ts:135-137` (`payloadHash(await canonHash(captured.state))`) |
+| `beginSave`'s callers **discard the result** (`void`), so widening its return type is a compile-time no-op | `src/hex/export/index.ts:186`, `:190` |
+| `SaveEnvelope.n` is OPTIONAL | `save-link.ts:91` |
+| `SaveSignInGate` does a **top-level** `window.location.replace` | `project-foundry/src/components/hex/SaveSignInGate.tsx:46` |
+| `SaveHexClusterForm` takes `{mode, share}` only; the envelope comes from `location.hash` or a localStorage stash; it has TWO navigation exits and renders a full page | `SaveHexClusterForm.tsx:93-99`, `:103-160`, `:204`, `:246`, `:252-257` |
+| `requireUser()` **throws**; `saveHexCluster` has eight failure codes | `src/lib/auth-helpers.ts:8-16`; `src/lib/actions/hex-clusters.ts` |
+| `input.share` reaches Prisma unvalidated at runtime | `src/lib/actions/hex-clusters.ts:137-140` |
+| The cluster cap is **terminal** — 200, no hard delete in v1 | `src/lib/hex-cluster.ts:77`; `actions/hex-clusters.ts:264-269` |
+| The academy sets `frame-ancestors` on `/embed/*` ONLY; every other route keeps the browser default | `next.config.ts:47-58` |
+| `/hex` is fully prerendered; there is no `SessionProvider`/`useSession` anywhere in the academy | `src/app/(chrome)/hex/page.tsx:36`; grep |
+| Configurator brand chrome is `#header > a.brand-link` with `.brand-line`, `.page-title` — NOT `.hex-brand` | `bioscale-viz/hex.html:68-72`; `src/styles/header.css` |
+| `#webgl` already sets `touch-action: none`; page sets `user-scalable=no` | `src/styles/base.css:41`; `hex.html:25` |
+| No `webglcontextlost` handling anywhere; PMREM env baked once at import | grep; `src/hex/scene.ts:67-68` |
+| Child scrollers have no `overscroll-behavior` containment | `inspector.css:223`, `:805`; `export.css:79`, `:137` |
+| `ConfiguratorLink`'s own handler calls `preventDefault` then `location.assign` unconditionally | `src/components/hex/ConfiguratorLink.tsx:74`, `:93` |
+| `ph_did` is resolved ASYNC, after `await getPosthog()` | `ConfiguratorLink.tsx:79` |
+| bioscale-viz deploys on push to `main` only — no preview deploys | `.github/workflows/deploy.yml` |
+| Vite dev server defaults to port 3000, colliding with `next dev` | `bioscale-viz/vite.config.ts` |
+| The established kill-switch pattern is Edge Config, request-time, fail-safe | `src/lib/abuse-defense-flag.ts:14` |
 
-## 2a. Owner decisions, settled 2026-08-03
-
-These were open questions; they are now requirements, and they change the work.
-
-1. **Mobile embeds too.** There is no desktop-only branch and no navigation
-   fallback by viewport. Task 1 is therefore not a go/no-go on scope, it is the
-   point where mobile problems get found and fixed, and mobile is a first-class
-   target for every task after it.
-2. **The configurator hides its own brand chrome when embedded.** Driven by
-   `?embed=1`, not by frame-detection alone, so a standalone visitor who is
-   somehow framed still sees a complete app.
-3. **Auto-open on a deep link.** A visitor arriving with a build in the URL
-   (a QR scan, a shared link) gets the frame already open. A COLD visitor does
-   not: `/hex` is the spec page the printed files cite, and opening a 3D app
-   over it before it has been read once would bury the thing every published
-   `LICENSE.txt` points at.
-
-**Mobile consequences to design for, not discover:**
-
-- `100svh`, never `100vh`. Mobile browser chrome resizes the viewport and `vh`
-  leaves the canvas cut off behind the URL bar.
-- Touch arbitration is the real risk: a drag on the canvas must orbit the
-  camera, not scroll the page. Body scroll lock while open is mandatory, and
-  `touch-action` on the frame wrapper needs checking on iOS specifically.
-- The academy header is sticky and costs vertical space that a phone does not
-  have. Decide whether it collapses while the frame is open, and if it does,
-  keep a visible way back out.
-- The configurator already handles phones standalone (`syncMobileToolbarTop` in
-  `src/hex/main.ts` exists for exactly this), so the app is mobile-capable; what
-  is unproven is the app INSIDE a frame on a phone.
+**Storage partitioning is NOT a production problem.** `demo.` and `academy.`
+share a registrable domain, so Safari treats the frame as first-party. It bites
+only when framing from `localhost` or `*.vercel.app` — which is a testing
+problem, handled in Task 1.
 
 ---
 
-## Task 1: Make the frame work on a phone, first
+## 3. The three problems that nearly sank v1, and their answers
+
+### 3.1 Removing the navigation removes the payload-matches-scene guarantee
+
+`adoptReturnLink` compares the link's hash against the live scene, because
+"without the `h=` comparison the value being checked is the value being
+written" (`identity.ts:257-262`). That works standalone only because
+`location.assign` tears the page down: nothing can edit during a teardown.
+
+Framed, nothing tears down. The user can keep placing cells while the save panel
+is open, and a naive adopt stamps a drawing number onto geometry the register
+has never seen.
+
+**The answer is not to lock the scene. It is to key the identity on the hash of
+what was actually saved.** `rememberIdentity` is content-keyed, and the child
+already has the bare canon hash at `save-link.ts:135` — it never needs to cross
+the wire.
+
+So: the child stashes the canon hash it captured when it sent the request, and
+on `saved` calls `rememberIdentity(stashedHash, entry)`. If the user edited
+meanwhile, the current scene's hash no longer matches and the sheet correctly
+prints UNCONTROLLED; undo back to the saved state and it correctly prints the
+number. The store does the reasoning for us.
+
+This is strictly better than v1's proposal AND better than locking the UI.
+
+### 3.2 Sign-in destroys the frame
+
+`SaveSignInGate` does a top-level `window.location.replace`, which unmounts the
+iframe and discards the scene, the undo stack and the envelope. v1 claimed "the
+envelope is held in React state, so nothing has to survive a fragment round
+trip" — exactly wrong. The localStorage stash is the ONLY thing that survives,
+and v1 removed the reason for it. OAuth additionally refuses to render in a
+frame at all.
+
+**Answer: sign-in runs in a popup, with the existing flow as the fallback.**
+
+- Parent opens `window.open('/sign-in?callbackUrl=…')`. A popup is a top-level
+  context, so OAuth works and the frame is untouched.
+- Parent polls `/api/auth/session` until authenticated or the popup closes.
+- **The stash is still written before opening the popup.** If the user completes
+  a magic link on another device, or the popup is blocked, the existing
+  standalone recovery path still works. It is a fallback, not dead code.
+
+### 3.3 `/hex` cannot know whether the user is signed in
+
+No `SessionProvider`, no `useSession`, and the page is deliberately static.
+
+**Answer: do not ask. Discover auth lazily at save time.** The parent attempts
+the save; `requireUser()` throws on an anonymous caller; the panel catches that
+and opens the sign-in popup. `/hex` stays prerendered, no session read at
+render, no loading state for auth, and one less thing to keep in sync.
+
+---
+
+## 4. Non-negotiables carried from the review
+
+Every task below must respect these. They are listed once so they are not
+re-litigated per task.
+
+1. **Pin the peer, do not pattern-match it.** The parent accepts messages only
+   when `ev.source === iframeRef.current.contentWindow` AND `ev.origin` equals a
+   single constant child origin. The child replies only to an origin captured
+   from the parent's `ready` handshake. No family regex, no `*`, no
+   `document.referrer` dependency, and `localhost` only when
+   `NODE_ENV !== "production"`.
+2. **`parseMessage` validates, it does not cast.** Every field, every type. A
+   non-string `share` must never reach Prisma — `input.share` is a live filter
+   injection today (`actions/hex-clusters.ts:137-140`), and the message channel
+   would be the first way a non-string gets there. Re-validate `mode` and
+   `share` inside `saveHexCluster` as well; it is now reachable from a channel
+   the page does not control.
+3. **No message performs a write.** A `save-request` may only open a panel. The
+   write is gated on a click in the academy's own DOM. State this as a non-goal
+   so an executor reading the summary does not build the auto-run version.
+4. **The protocol carries `protocolVersion` and a `requestId`.** Two repos
+   deploy independently; an unknown version falls back to navigation rather than
+   dropping messages silently. A `saved` whose `requestId` does not match the
+   in-flight request is ignored.
+5. **`save-failed` exists.** Eight failure codes plus a throwing `requireUser`
+   plus a user who closes the panel. The child needs a timeout that restores its
+   Save control regardless.
+6. **The academy gets `frame-ancestors` too, before the frame ships.** The
+   parent holds the session and the write; today it is framable by anyone. With
+   auto-open, `evil.test` can frame `/hex?build=…` and harvest clicks against a
+   terminal 200-cluster cap.
+
+---
+
+## Task 1: Make it testable, then probe on a real phone
+
+v1's probe could not have worked: `/sandbox/*` is not in `isPublicPath`, so it
+307s to `/sign-in` signed-out and reads as "the frame is broken". And nothing in
+v1 let the two sides run locally at once — Vite and Next both default to 3000,
+bioscale has no preview deploys, and Task 8's allow-list excluded every dev
+origin.
 
 **Files:**
 - Create: `src/app/(chrome)/sandbox/hex-embed-probe/page.tsx`
+- Modify: `bioscale-viz/vite.config.ts` (move dev server off 3000)
+- Modify: `src/env.ts` (add `NEXT_PUBLIC_HEX_CONFIGURATOR_URL`, optional)
 
-**Step 1: Write the probe**
+**Steps:**
 
-```tsx
-// Dev-only spike. Answers three questions before any real work:
-// does the configurator frame at all, does WebGL run inside it, and is it
-// usable on a phone viewport. DELETE once Task 1 is signed off.
-import { notFound } from "next/navigation";
+1. Move the Vite dev port to 5180. Two dev servers must coexist.
+2. Add `NEXT_PUBLIC_HEX_CONFIGURATOR_URL`, defaulting to the production demo, so
+   the frame can be pointed at a local Vite build. Without this, every
+   configurator-side task can only be tested after it is in production.
+3. Build the probe. Sign-in is required to reach it; that is fine as long as it
+   is known — put it in the page comment so a blank frame is not misdiagnosed.
+4. Probe on a **real handset** over the LAN, not DevTools device mode. Confirm
+   and record here: sizing with the URL bar collapsing; one-finger drag orbits
+   and does not scroll the parent; pinch on a NON-canvas part of the child;
+   **background the tab for 30s and return** (this is the WebGL context-loss
+   trigger, and v1's checklist missed it); export the sheet and **print**;
+   the Back button.
 
-export default function HexEmbedProbe() {
-  if (process.env.NODE_ENV === "production") notFound();
-  return (
-    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <h1 className="title-section">Embed probe</h1>
-      <iframe
-        src="https://demo.onethousanddrones.com/hex"
-        title="Hex configurator"
-        className="mt-6 h-[70svh] w-full border border-panel-border/60"
-        allow="fullscreen"
-      />
-    </main>
-  );
-}
-```
-
-**Step 2: Check it on the desktop viewport**
-
-Run: `pnpm dev`, open `http://localhost:3000/sandbox/hex-embed-probe`
-
-1. The configurator renders (not a blank frame, not refused-to-connect).
-2. Placing a cell works and the camera responds to drag.
-
-**Step 3: Check it on a REAL phone, not an emulated viewport**
-
-DevTools device mode does not reproduce iOS Safari's viewport behaviour,
-its touch handling, or its WebGL limits, and those are the three things at
-risk. Serve the dev server on the LAN (`pnpm dev --host`) and open it on an
-actual handset.
-
-Confirm, and record each answer in this file:
-
-- **Sizing.** No cut-off canvas behind the URL bar, on both first paint and
-  after the bar collapses on scroll.
-- **Touch.** A one-finger drag on the canvas orbits the camera and does NOT
-  scroll the page. Pinch zooms the model, not the document.
-- **Frame rate.** Rotating a seven-tile cluster is smooth enough to use.
-- **Memory.** The tab survives opening, closing and reopening the frame several
-  times without the renderer being killed. iOS is the one that reclaims WebGL
-  contexts aggressively.
-
-**Step 4: Fix what fails, here, before Task 2**
-
-Mobile is a requirement, not a branch, so a failure at this step is work to be
-done rather than scope to be cut. The likely fixes, in order of probability:
-`100svh` instead of `100vh`; `overscroll-behavior: contain` and a body scroll
-lock; `touch-action: none` on the frame wrapper; and, if the renderer is being
-reclaimed, unmounting the iframe on close rather than hiding it.
-
-**Step 4: Commit**
-
-```bash
-git add "src/app/(chrome)/sandbox/hex-embed-probe/page.tsx" docs/plans/2026-08-03-hex-configurator-embed.md
-git commit -m "spike(hex): probe whether the configurator survives being framed"
-```
+**Commit:** `spike(hex): make the embed testable locally, probe it on a phone`
 
 ---
 
-## Task 2: The message protocol, defined once and shared
-
-Both repos must agree on the wire format. Define it in one file per side with
-identical contents, because they cannot import from each other.
+## Task 2: The protocol
 
 **Files:**
-- Create: `src/lib/hex-embed-protocol.ts` (academy)
-- Create: `bioscale-viz/src/hex/embed-protocol.ts` (configurator)
+- Create: `src/lib/hex-embed-protocol.ts`, `bioscale-viz/src/hex/embed-protocol.ts`
 - Test: `src/lib/__tests__/hex-embed-protocol.test.ts`
 
-**Step 1: Write the failing test**
+Message set: `ready` (parent → child, carries theme and the parent origin),
+`save-request`, `saved`, `save-failed`, `save-cancelled`, `close-request`
+(child → parent, so Escape works), `set-theme`, `context-lost`.
 
-```ts
-import { describe, expect, it } from "vitest";
-import { isAcademyOrigin, parseMessage } from "@/lib/hex-embed-protocol";
+`set-theme` and `context-lost` are defined HERE, not bolted on in a later task —
+v1 referenced a `set-theme` that Task 2 never declared.
 
-describe("isAcademyOrigin", () => {
-  it.each([
-    "https://academy.onethousanddrones.com",
-    "https://demo.onethousanddrones.com",
-    "http://localhost:3000",
-  ])("accepts %s", (o) => expect(isAcademyOrigin(o)).toBe(true));
+Every message carries `protocolVersion` and, where it is part of a save,
+`requestId`.
 
-  it.each([
-    "https://onethousanddrones.com.evil.test",
-    "https://evil-onethousanddrones.com",
-    "https://academy.onethousanddrones.com.attacker.io",
-    "null",
-    "",
-  ])("rejects %s", (o) => expect(isAcademyOrigin(o)).toBe(false));
-});
+Tests must cover: the rejection table for origins (including
+`onethousanddrones.com.evil.test` and `evil-onethousanddrones.com`), and that
+`parseMessage` returns null for a non-string `share`, a bad `mode`, and a
+non-string envelope field.
 
-describe("parseMessage", () => {
-  it("returns null for anything that is not our envelope", () => {
-    expect(parseMessage(null)).toBeNull();
-    expect(parseMessage({})).toBeNull();
-    expect(parseMessage({ type: "otter" })).toBeNull();
-    expect(parseMessage("otd-hex:save-request")).toBeNull();
-  });
-
-  it("reads a save request", () => {
-    const msg = {
-      channel: "otd-hex",
-      type: "save-request",
-      mode: "new",
-      share: null,
-      envelope: { p: "PAYLOAD", h: "HASH", v: 1, s: {}, n: "Bench" },
-    };
-    expect(parseMessage(msg)?.type).toBe("save-request");
-  });
-});
-```
-
-**Step 2: Run it and watch it fail**
-
-Run: `pnpm vitest run src/lib/__tests__/hex-embed-protocol.test.ts`
-Expected: FAIL, cannot resolve `@/lib/hex-embed-protocol`.
-
-**Step 3: Implement**
-
-```ts
-// The academy <-> configurator wire format. Two origins, no shared code, so
-// this file exists TWICE, byte-identical, and the test pins the half that can
-// be tested here. Changing one without the other silently breaks the channel:
-// messages are dropped, not rejected loudly.
-export const CHANNEL = "otd-hex";
-
-/** Only OTD origins may drive the embed, and only OTD origins may be replied
- *  to. The regex anchors BOTH ends: `onethousanddrones.com.evil.test` and
- *  `evil-onethousanddrones.com` both match a lazy version of this. */
-const OTD = /^https:\/\/([a-z0-9-]+\.)*onethousanddrones\.com$/;
-const LOCAL = /^http:\/\/localhost(:\d+)?$/;
-
-export function isAcademyOrigin(origin: string): boolean {
-  return OTD.test(origin) || LOCAL.test(origin);
-}
-
-export type SaveRequest = {
-  channel: typeof CHANNEL;
-  type: "save-request";
-  mode: "new" | "rev";
-  share: string | null;
-  envelope: { p: string; h: string; v: number; s: unknown; n: string };
-};
-
-export type Saved = {
-  channel: typeof CHANNEL;
-  type: "saved";
-  drawingLabel: string;
-  revLabel: string;
-  shareCode: string;
-  payloadHash: string;
-  name: string;
-  savedAt: string;
-};
-
-export type Cancelled = { channel: typeof CHANNEL; type: "save-cancelled" };
-export type Ready = { channel: typeof CHANNEL; type: "ready" };
-
-export type HexMessage = SaveRequest | Saved | Cancelled | Ready;
-
-/** Narrow an untrusted `event.data`. Returns null rather than throwing: a
- *  malformed message from a permitted origin must be ignored, not crash the
- *  page that received it. */
-export function parseMessage(data: unknown): HexMessage | null {
-  if (typeof data !== "object" || data === null) return null;
-  const d = data as Record<string, unknown>;
-  if (d.channel !== CHANNEL || typeof d.type !== "string") return null;
-  switch (d.type) {
-    case "save-request":
-      return typeof d.envelope === "object" && d.envelope !== null
-        ? (d as unknown as SaveRequest)
-        : null;
-    case "saved":
-      return typeof d.shareCode === "string" ? (d as unknown as Saved) : null;
-    case "save-cancelled":
-    case "ready":
-      return d as unknown as HexMessage;
-    default:
-      return null;
-  }
-}
-```
-
-**Step 4: Run the test**
-
-Run: `pnpm vitest run src/lib/__tests__/hex-embed-protocol.test.ts`
-Expected: PASS.
-
-**Step 5: Copy the file verbatim into bioscale-viz**
-
-Copy to `bioscale-viz/src/hex/embed-protocol.ts`, changing nothing but the
-import-free content (it has no imports).
-
-**Step 6: Commit both repos**
-
-```bash
-git add src/lib/hex-embed-protocol.ts src/lib/__tests__/hex-embed-protocol.test.ts
-git commit -m "feat(hex): define the embed message protocol"
-```
+**Commit:** `feat(hex): define the embed message protocol`
 
 ---
 
-## Task 3: The configurator learns it is embedded
+## Task 3: The configurator delegates saving
 
 **Files:**
 - Create: `bioscale-viz/src/hex/embed.ts`
-- Modify: `bioscale-viz/src/hex/save-link.ts` (the `beginSave` tail)
-- Test: `bioscale-viz/src/hex/embed.test.ts`
+- Modify: `bioscale-viz/src/hex/save-link.ts`, `src/hex/export/index.ts`
 
-**Step 1: Write the failing test**
+Key points, all of which v1 got wrong:
 
-```ts
-import { describe, expect, it, vi } from 'vitest';
-import { isEmbedded, requestParentSave } from './embed.js';
+- **Hoist the envelope literal.** There is no `envelopeObject` at
+  `save-link.ts:135`; the literal goes straight into `encodeSaveEnvelope`.
+  Hoist it, and handle `n` being optional.
+- **Stash the bare canon hash** alongside the pending request. This is what §3.1
+  turns on.
+- **The callers must consume the result.** `export/index.ts:186,190` are
+  `void beginSave(...)`. Widening the return type changes nothing on its own.
+  Give the Save control a pending state, or `save-cancelled` and `save-failed`
+  have nothing to re-enable.
+- **The fallback must navigate the TOP window,** not the frame. v1's fallback
+  loaded the academy save page *inside* the iframe.
 
-describe('isEmbedded', () => {
-    it('is false when the page owns its window', () => {
-        expect(isEmbedded()).toBe(false); // jsdom: window.parent === window
-    });
-});
-
-describe('requestParentSave', () => {
-    it('posts the envelope to the parent, never to *', () => {
-        const post = vi.fn();
-        const env = { p: 'P', h: 'H', v: 1, s: {}, n: 'Bench' };
-        requestParentSave(env, 'new', null, {
-            parent: { postMessage: post } as unknown as Window,
-            targetOrigin: 'https://academy.onethousanddrones.com',
-        });
-        expect(post).toHaveBeenCalledOnce();
-        const [msg, origin] = post.mock.calls[0];
-        expect(origin).toBe('https://academy.onethousanddrones.com');
-        expect(origin).not.toBe('*'); // a build is not for every listener
-        expect(msg.type).toBe('save-request');
-        expect(msg.envelope.p).toBe('P');
-    });
-});
-```
-
-**Step 2: Run it and watch it fail**
-
-Run: `pnpm vitest run src/hex/embed.test.ts`
-Expected: FAIL, module not found.
-
-**Step 3: Implement**
-
-```ts
-/**
- * Being embedded changes exactly one thing: this app stops navigating the
- * window and starts asking its parent to act.
- *
- * The parent is the academy, which is already signed in and already owns the
- * register, so the whole three-navigation round trip collapses to a message.
- * Standalone behaviour is untouched -- printed QR codes point at this page
- * directly and paper cannot be re-issued.
- */
-import { CHANNEL, isAcademyOrigin } from './embed-protocol.js';
-
-export function isEmbedded(): boolean {
-    try {
-        return window.parent !== window;
-    } catch {
-        return true; // cross-origin parent access threw: we are framed
-    }
-}
-
-/** The origin to reply to, derived from the referrer and VALIDATED. Never `*`:
- *  a build payload posted to `*` is readable by any frame that can reach us. */
-export function parentTargetOrigin(): string | null {
-    try {
-        const ref = document.referrer;
-        if (!ref) return null;
-        const origin = new URL(ref).origin;
-        return isAcademyOrigin(origin) ? origin : null;
-    } catch {
-        return null;
-    }
-}
-
-export function requestParentSave(
-    envelope: { p: string; h: string; v: number; s: unknown; n: string },
-    mode: 'new' | 'rev',
-    share: string | null,
-    deps?: { parent?: Window; targetOrigin?: string | null },
-): boolean {
-    const target = deps?.targetOrigin ?? parentTargetOrigin();
-    const parent = deps?.parent ?? window.parent;
-    if (!target) return false; // unknown parent: caller falls back to navigating
-    parent.postMessage({ channel: CHANNEL, type: 'save-request', mode, share, envelope }, target);
-    return true;
-}
-```
-
-**Step 4: Wire it into `beginSave`**
-
-Modify `bioscale-viz/src/hex/save-link.ts`, replacing the navigation tail:
-
-```ts
-    track(EVENTS.saveStarted, { mode, hasLineage: Boolean(lineage) });
-
-    // EMBEDDED: ask the parent and stay put. The academy runs the save with the
-    // session it already has, then posts the identity back. FALLS THROUGH to
-    // the navigation when the parent cannot be identified, so a frame we do not
-    // recognise degrades to the behaviour that has always worked.
-    if (isEmbedded() && requestParentSave(envelopeObject, mode, lineage?.shareCode ?? null)) {
-        return 'awaiting-parent';
-    }
-
-    window.location.assign(buildSaveURL(mode, lineage?.shareCode ?? null, encoded));
-    return 'navigating';
-```
-
-`BeginSaveResult` gains `'awaiting-parent'`. Every caller must handle it: grep
-`beginSave(` and update the switch, or TypeScript will tell you.
-
-**Step 5: Run the tests**
-
-Run: `pnpm test`
-Expected: PASS, and the existing `save-link.test.ts` still passes untouched.
-
-**Step 6: Commit**
-
-```bash
-git add src/hex/embed.ts src/hex/embed.test.ts src/hex/save-link.ts src/hex/embed-protocol.ts
-git commit -m "feat(hex): delegate save to the parent when embedded"
-```
+**Commit:** `feat(hex): delegate save to the parent when embedded`
 
 ---
 
-## Task 4: The configurator adopts the saved identity without reloading
-
-**Files:**
-- Modify: `bioscale-viz/src/hex/main.ts` (add the listener near the existing one)
-- Modify: `bioscale-viz/src/hex/identity.ts` (expose a setter if none exists)
-
-**Step 1: Add the listener**
-
-```ts
-// Embedded save: the parent did the write and is handing back the register
-// entry. Adopt it exactly as a return navigation would have, minus the reload.
-window.addEventListener('message', (ev) => {
-    if (!isAcademyOrigin(ev.origin)) return;
-    const msg = parseMessage(ev.data);
-    if (!msg) return;
-    if (msg.type === 'saved') {
-        writeLineage({
-            drawingLabel: msg.drawingLabel,
-            revLabel: msg.revLabel,
-            shareCode: msg.shareCode,
-            name: msg.name,
-            savedAt: msg.savedAt,
-        });
-        // The sheet's masthead switches from "uncontrolled print" to the
-        // register number on the next render; nothing else changes.
-        rerenderIdentityDependentUI();
-    }
-});
-```
-
-**Step 2: Verify by hand against the probe**
-
-There is no unit test that proves a cross-origin handshake; this one is checked
-in the browser. Open the probe, place a cell, save, and confirm the sheet
-masthead shows the drawing number **without the page reloading**.
-
-**Step 3: Commit**
-
-```bash
-git commit -am "feat(hex): adopt a parent-saved identity in place"
-```
-
----
-
-## Task 5: The academy frame, expanding from the button
-
-**Files:**
-- Create: `src/components/hex/HexConfiguratorFrame.tsx`
-- Modify: `src/app/(chrome)/hex/page.tsx` (swap the CTA)
-
-**Step 1: Build the component**
-
-Requirements, each of which is a real decision:
-
-- **Expands from the CTA.** Measure the button rect, render the frame at that
-  rect, then animate to the target box on the next frame. Prefer
-  `document.startViewTransition` where supported and fall back to the measured
-  rect, because View Transitions are not universal.
-- **Respects `prefers-reduced-motion`.** No expansion; the frame simply appears.
-- **Header stays.** The frame occupies `100svh` minus the header, pinned below
-  it. `svh`, not `vh`: mobile browser chrome changes the viewport and `vh`
-  leaves a cut-off canvas.
-- **Body scroll locks while open**, or the page scrolls under the 3D drag. Unlock
-  on close, and restore the previous scroll position.
-- **Escape closes.** So does an explicit close control; the control is not
-  optional, since Escape is invisible on a touch device.
-- **Focus is trapped while open and returns to the CTA on close.**
-- **The iframe `src` carries `?embed=1`** plus the `ph_did` handoff, so the
-  configurator can hide its own brand chrome and adopt the person id.
-- **`sandbox` is NOT set.** The frame needs scripts, WebGL and same-origin
-  storage for its own persistence; a sandbox attribute that omits any of those
-  silently breaks the app. Leave it off and rely on origin checks, which is what
-  the protocol is for.
-
-**Step 2: Swap the CTA on `/hex`**
-
-`ConfiguratorLink` stays for the no-JS and fallback case. The new component
-renders it as its trigger, so with JS disabled the link still navigates to the
-standalone configurator.
-
-**Step 3: Verify**
-
-- Open, close, reopen: no leaked scroll lock, focus back on the CTA.
-- `prefers-reduced-motion: reduce`: no animation, frame still opens.
-- 390px: the frame fills the viewport under the header and the canvas responds.
-
-**Step 4: Commit**
-
-```bash
-git add src/components/hex/HexConfiguratorFrame.tsx "src/app/(chrome)/hex/page.tsx"
-git commit -m "feat(hex): open the configurator in place, expanding from the CTA"
-```
-
----
-
-## Task 6: The academy handles the save request
-
-**Files:**
-- Create: `src/components/hex/EmbeddedSavePanel.tsx`
-- Modify: `src/components/hex/HexConfiguratorFrame.tsx`
-
-The parent listens for `save-request`, and because it is already the academy it
-can do what the standalone flow needs three navigations for:
-
-1. **Signed out?** Render the existing `SaveSignInGate` in a panel over the
-   frame. The envelope is held in React state, not a URL, so nothing has to
-   survive a fragment round trip.
-2. **Signed in?** Render the existing `SaveHexClusterForm` in the panel, in a
-   mode that returns the result rather than navigating.
-3. On success, post `saved` back into the iframe.
-4. On cancel, post `save-cancelled` so the configurator can re-enable its UI.
-
-`SaveHexClusterForm` currently ends with `window.location.assign`. Give it an
-`onSaved` callback; when provided, call it instead of navigating. The standalone
-route passes nothing and keeps navigating, so that path is untouched.
-
-**Commit:**
-
-```bash
-git commit -am "feat(hex): run the save in place when the configurator is embedded"
-```
-
----
-
-## Task 7: Deep links and the QR path
-
-**Files:**
-- Modify: `src/app/(chrome)/hex/page.tsx`
-- Modify: `src/app/(bare)/c/[shareCode]/page.tsx`
-
-- `/hex?build=<code>` opens with the frame **already expanded** and the build
-  loaded, by putting the payload on the iframe `src` fragment. This is owner
-  decision 3.
-- A COLD `/hex` visit does not auto-open. The page is the spec sheet every
-  published `LICENSE.txt` cites; opening a 3D app over it before it has been
-  read once buries the thing the URL exists to serve. Auto-open is keyed on the
-  build parameter, not on arrival.
-- Because auto-open skips the expand-from-button animation (there is no button
-  press to expand from), the frame must render open on first paint rather than
-  animating from nothing, or the page visibly lurches. Reduced-motion handling
-  already covers this case; reuse it.
-- `/c/[shareCode]`'s "Open in the configurator" points at `/hex?build=…` so a
-  scanned QR lands on the academy with chrome, not on the bare configurator.
-- The printed QR itself still points at `demo…/hex`. It cannot be changed and
-  must keep working standalone. **Do not "fix" this.**
-
-**Commit:**
-
-```bash
-git commit -am "feat(hex): deep-link builds into the embedded configurator"
-```
-
----
-
-## Task 8: Lock the frame down
-
-**Files:**
-- Create: `bioscale-viz/public/_headers`
-
-```
-/*
-  Content-Security-Policy: frame-ancestors 'self' https://academy.onethousanddrones.com https://onethousanddrones.com
-```
-
-Framing is currently unrestricted, which is how this plan is possible at all
-and also means anyone can frame the configurator today. Once the academy is a
-known ancestor, restrict it. **Ship this AFTER Task 5 works**, or the frame
-breaks before the allow-list is right, and verify the standalone page still
-loads afterwards.
-
-**Commit:**
-
-```bash
-git commit -am "chore(hex): restrict who may frame the configurator"
-```
-
----
-
-## 3. What this deliberately does not do
-
-- **Does not retire the standalone page.** Printed sheets cite it.
-- **Does not remove the fragment-based save flow.** It stays for the standalone
-  path and as the fallback when the parent cannot be identified.
-- **Does not merge the two deploys.** They stay separate; the frame is the seam.
-- **Does not change the register semantics.** Drawing numbers, revisions and
-  payload hashes are untouched; only the transport changes.
-
-## 4. Task 9: The configurator hides its own chrome when embedded
-
-Owner decision 2. Two stacked brand headers is the giveaway that something has
-been iframed rather than integrated.
+## Task 4: The configurator adopts the identity
 
 **Files:**
 - Modify: `bioscale-viz/src/hex/main.ts`
-- Modify: `bioscale-viz/src/styles/index.css` (or the hex stylesheet)
 
-**Step 1: Read the flag and mark the document**
+On `saved`, matching `requestId`:
 
 ```ts
-// `?embed=1`, not frame-detection alone. A standalone visitor who is somehow
-// framed should still get a complete app; only a parent that asked for the
-// embedded presentation gets it.
-if (new URLSearchParams(location.search).get('embed') === '1') {
-    document.documentElement.setAttribute('data-embed', '1');
-}
+// Keyed on the hash captured when the request was SENT, not the scene as it
+// stands now. The user can keep building while the panel is open, and the
+// identity store is content-keyed, so attaching the number to the saved
+// geometry makes an edited scene correctly print UNCONTROLLED and a scene
+// undone back to the saved state correctly print the number.
+rememberIdentity(pending.canonHash, {
+    drawingLabel: msg.drawingLabel,
+    revLabel: msg.revLabel,
+    shareCode: msg.shareCode,
+    name: msg.name,
+    savedAt: msg.savedAt,
+    touchedAt: Date.now(),
+});
+writeLineage({ shareCode: msg.shareCode, drawingLabel: msg.drawingLabel });
 ```
 
-**Step 2: Hide the chrome in CSS, not by deleting nodes**
+Both writes. v1 called only `writeLineage`, with the wrong shape, which is why
+its own verification step could never have passed. Apply the same format guards
+`adoptReturnLink` uses (`identity.ts:250-253`) before writing.
 
-```css
-/* Embedded: the academy supplies the header, the footer and the page title.
-   Hidden rather than removed so the standalone page is untouched and one
-   attribute flips the whole presentation back. */
-html[data-embed='1'] .hex-brand,
-html[data-embed='1'] .hex-page-title {
-    display: none;
-}
-```
-
-Keep the toolbar, the export control and the theme toggle: those are the app,
-not the chrome. **The theme toggle is the interesting one** — the academy has
-its own, and two toggles that disagree is worse than one that is missing.
-Either hide the configurator's and have the parent post the theme across, or
-keep it and accept the divergence. Recommend the former, and it needs a
-`set-theme` message added to the protocol in Task 2.
-
-**Step 3: Verify both presentations**
-
-Standalone `demo…/hex` is unchanged; `demo…/hex?embed=1` has no brand header.
-
-**Commit:**
-
-```bash
-git commit -am "feat(hex): drop the app's own chrome when embedded"
-```
+**Commit:** `feat(hex): adopt a parent-saved identity in place`
 
 ---
 
-## 5. Settled, previously open
+## Task 5: The frame
 
-All three owner questions are answered in section 2a. Nothing in this plan is
-blocked on a decision; what remains is the mobile evidence from Task 1.
+**Files:**
+- Create: `src/components/hex/HexConfiguratorFrame.tsx`
+- Modify: `src/components/hex/ConfiguratorLink.tsx` (add an `onActivate` seam)
+- Modify: `src/app/(chrome)/hex/page.tsx`
+
+- **`ConfiguratorLink` needs a seam.** Wrapping it does not work: its own
+  handler runs first and unconditionally navigates. Add
+  `onActivate?: () => boolean`; returning true suppresses the navigation while
+  keeping `trackCtaClicked` and the `ph_did` resolution.
+- **Mount the iframe at final size** and animate a wrapper's `clip-path`. A
+  `transform: scale()` never changes the iframe's layout box, so the child never
+  fires `resize` and renders at the button's aspect ratio. `startViewTransition`
+  snapshots a canvas with no `preserveDrawingBuffer` — a black box inflating.
+- **`allow="fullscreen; clipboard-write; web-share"`.** Without `web-share` the
+  child's share chain falls through to `window.prompt`, which Chrome ignores in
+  cross-origin frames entirely.
+- **`sandbox="allow-scripts allow-same-origin allow-downloads allow-popups allow-modals allow-forms"`.**
+  v1's reason for omitting it was wrong: `allow-same-origin` restores the
+  *child's* origin, not the parent's. What omission actually grants is
+  `allow-top-navigation` — the framed app could navigate the academy anywhere.
+- **Size from a measured header**, not a constant. The academy header wraps to
+  two rows on mobile and is taller for admins. Reuse the measured-header pattern
+  at `IslandRail.tsx:92-100`. Subtract `env(safe-area-inset-bottom)`.
+- **`100dvh`, with the child coalescing resize into rAF** and skipping `setSize`
+  under ~2px. `svh` leaves a dead strip under a scroll-locked page; raw `dvh`
+  reallocates the drawing buffer on every toolbar transition, which is itself a
+  context-loss trigger.
+- **Body lock is `position: fixed; top: -scrollY`,** not `overflow: hidden`,
+  which iOS still rubber-bands.
+- **Escape cannot be trapped cross-origin.** The child posts `close-request`;
+  the parent's visible close control is the guaranteed exit. Use `inert` on the
+  rest of the document rather than a focus trap that cannot enumerate the child.
+- **Resolve `ph_did` BEFORE setting `src`.** It is async, and on the auto-open
+  path there is no click to resolve it during — so the child would get no id,
+  refuse to init, and the embedded funnel would be dark. Never bake it in
+  server-side: `cacheComponents` would hand one visitor's id to everyone.
+
+**Commit:** `feat(hex): open the configurator in place`
+
+---
+
+## Task 6: The academy handles the save
+
+**Files:**
+- Create: `src/components/hex/EmbeddedSavePanel.tsx`
+- Modify: `src/components/hex/SaveHexClusterForm.tsx`
+
+`SaveHexClusterForm` cannot be reused as-is: it takes `{mode, share}`, sources
+the envelope from `location.hash` or the stash, renders a full page, has **two**
+navigation exits, and its done-state copy says "Returning you to the
+configurator…". Extract the form body into a component that accepts an envelope
+as a prop and reports via callback, and let both the route and the panel render
+it.
+
+Flow: `save-request` → panel → click → server action inside `try/catch` →
+`saved` or `save-failed`. On an auth throw, write the stash and open the sign-in
+popup (§3.2), poll `/api/auth/session`, resume in place.
+
+**Commit:** `feat(hex): run the save in place when embedded`
+
+---
+
+## Task 7: Deep links
+
+`/hex?build=<shareCode>` — a share code, never a payload. A payload in an
+academy query string would land in access logs, the Referer of every asset, and
+PostHog's `$current_url`; `save-link.ts:12-18` forbids exactly this.
+
+Resolving a code to a payload needs a DB read, which `/hex` cannot do without
+losing its prerender. **Decide explicitly:** a client fetch from a cached
+route is the recommendation, keeping the page static. Carry `d/r/s/h/n/t`
+through so `adoptReturnLink`'s guarantees survive; v1 dropped `h`.
+
+**Commit:** `feat(hex): deep-link builds into the embedded configurator`
+
+---
+
+## Task 8: Framing headers, BOTH sides, before the frame ships
+
+Moved earlier than v1, which deferred it to last on backwards reasoning: nobody
+legitimately frames the configurator today, so the header can ship first.
+
+- `bioscale-viz/public/_headers`: `frame-ancestors` allowing the academy, the
+  apex, `localhost:3000` and the Vercel preview pattern. Omitting the dev
+  origins kills local development of every later task.
+- `project-foundry/next.config.ts`: `frame-ancestors 'self'` on `/:path*`,
+  keeping `/embed/:path*` as the explicit exception, ordered first. Plus
+  `frame-src` pinning what the parent may embed.
+
+**Commit:** `chore(hex): restrict framing on both sides`
+
+---
+
+## Task 9: The configurator's chrome, and its escapes
+
+- `html[data-embed='1'] #header { display: none }` — the real selector.
+  `.hex-brand` and `.hex-page-title` do not exist, and CSS fails silently.
+- Call `syncMobileToolbarTop()` again after setting the attribute.
+- **`target="_top"` on every outbound anchor** reachable while embedded. The
+  brand link goes to the BioScale demo and the sheet footer to the apex site;
+  today both would load inside the academy's frame.
+- Ship `overscroll-behavior: contain` on `#inspector-body`, `#export-modal` and
+  `.export-modal-body` — **in bioscale**, since a parent cannot reach a
+  cross-origin child's scrollers.
+- `html[data-embed='1'] body { touch-action: none }` so a pinch starting off the
+  canvas does not zoom the academy.
+- De-rate the GPU budget under `[data-embed='1']` + coarse pointer:
+  `setPixelRatio(1)`, 1024² shadow map, `antialias: false`.
+
+**Commit:** `feat(hex): drop the app's own chrome when embedded`
+
+---
+
+## Task 10: WebGL context loss
+
+Nothing handles it today, and iOS takes the context on backgrounding.
+
+- Child: `webglcontextlost` → `preventDefault()`, stop the loop, post
+  `context-lost`. `webglcontextrestored` → **re-bake the PMREM environment**
+  (`scene.ts:67-68` runs once at import and three's restore path does not redo
+  it, so materials come back unlit) → resume.
+- Parent: on `context-lost`, show a reload control that remounts the iframe with
+  a fresh `key`.
+- Do **not** unmount on close as the primary remedy — that costs a 6.4 MB,
+  75-file reload plus a PMREM bake per reopen. Keep it mounted and hidden for a
+  grace window, unmount after.
+
+**Commit:** `fix(hex): survive a lost WebGL context`
+
+---
+
+## Task 11: Kill switch and entry-point sweep
+
+- **Flag the embed.** Rolling back otherwise needs coordinated Vercel and
+  Cloudflare Pages redeploys. It must be build-time (`NEXT_PUBLIC_*`) or a small
+  dynamic island — a request-time Edge Config read would un-static `/hex`.
+- **Sweep the entry points.** `account/hex-clusters/page.tsx:30` and
+  `AppFooter.tsx` both still point at the standalone configurator, and the
+  footer link carries no `ph_did`, so it reaches a configurator that correctly
+  refuses to initialise analytics. Decide per surface: framed or standalone.
+- **Analytics.** Add `embedded: true` to `saveStarted` and an academy-side
+  `hex_save_completed`. Without it, every existing funnel on `hex_save_started`
+  silently mixes two different behaviours.
+
+**Commit:** `chore(hex): flag the embed and sweep the entry points`
+
+---
+
+## 5. Non-goals
+
+- Retiring the standalone page. Printed sheets cite it.
+- Removing the fragment save flow or the localStorage stash. Both are the
+  fallback, and the stash is the only thing that survives a magic link opened on
+  another device.
+- Merging the two deploys.
+- **Any message performing a write.** See §4.3.
