@@ -10,7 +10,12 @@ import Link from "next/link";
 
 import { BrandMark } from "@/components/BrandMark";
 import { SOCIAL_LINKS } from "@/lib/seo/jsonld";
-import { XIcon, YouTubeIcon, GitHubIcon, LinkedInIcon } from "@/components/icons";
+import {
+  XIcon,
+  YouTubeIcon,
+  GitHubIcon,
+  LinkedInIcon,
+} from "@/components/icons";
 
 export function AppFooter() {
   return (
@@ -28,54 +33,112 @@ export function AppFooter() {
             zIndex: -1,
             opacity: 0.25,
             color: "var(--color-command-gold)",
-            WebkitMaskImage: "linear-gradient(135deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0.55) 45%, #000 85%)",
-            maskImage: "linear-gradient(135deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0.55) 45%, #000 85%)",
+            WebkitMaskImage:
+              "linear-gradient(135deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0.55) 45%, #000 85%)",
+            maskImage:
+              "linear-gradient(135deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0.55) 45%, #000 85%)",
           }}
         >
           <BrandMark className="h-auto w-full" />
         </div>
 
-        <Link href="/" aria-label="One Thousand Drones home" className="inline-flex items-center gap-2.5">
+        <Link
+          href="/"
+          aria-label="One Thousand Drones home"
+          className="inline-flex items-center gap-2.5"
+        >
           <BrandMark className="h-6 w-6 text-command-gold" />
-          <span className="font-display text-2xl tracking-[0.2em] text-title">ONE THOUSAND DRONES</span>
+          <span className="font-display text-2xl tracking-[0.2em] text-title">
+            ONE THOUSAND DRONES
+          </span>
         </Link>
-        <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.16em] text-muted">One mind, many machines.</p>
+        <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.16em] text-muted">
+          One mind, many machines.
+        </p>
 
         <div className="mt-7 grid grid-cols-2 gap-x-6 gap-y-7 sm:grid-cols-4">
           {[
-            { label: "Learn", links: [["Courses", "/courses"], ["Library", "/library"], ["Glossary", "/glossary"], ["Tools", "/tools"]] },
-            { label: "Catalog", links: [["Parts", "/parts"], ["Hex Cluster", "/hex"], ["Briefs", "/briefs"]] },
-            { label: "Account", links: [["About", "/about"], ["Sign in", "/sign-in"], ["Pricing", "/pricing"], ["Verify", "/verify"], ["License", "/license"], ["Privacy", "/privacy"]] },
+            {
+              label: "Learn",
+              links: [
+                ["Courses", "/courses"],
+                ["Library", "/library"],
+                ["Glossary", "/glossary"],
+                ["Tools", "/tools"],
+              ],
+            },
+            // "Configurator" points at /hex?open=1, not off-site. It used to be
+            // an external link in the Company group, marked with the leaving
+            // arrow, because the configurator was another property you had to
+            // travel to. It is embedded now: this lands on the spec page with
+            // the frame already open, so the visitor keeps the academy's header
+            // and never leaves.
+            {
+              label: "Catalog",
+              links: [
+                ["Parts", "/parts"],
+                ["Hex Cluster", "/hex"],
+                ["Configurator", "/hex?open=1"],
+                ["Briefs", "/briefs"],
+              ],
+            },
+            {
+              label: "Account",
+              links: [
+                ["About", "/about"],
+                ["Sign in", "/sign-in"],
+                ["Pricing", "/pricing"],
+                ["Verify", "/verify"],
+                ["License", "/license"],
+                ["Privacy", "/privacy"],
+              ],
+            },
           ].map((g) => (
-            <nav key={g.label} className="flex flex-col items-start gap-2" aria-label={g.label}>
-              <span className="font-display text-sm tracking-[0.1em] text-command-gold">{g.label}</span>
+            <nav
+              key={g.label}
+              className="flex flex-col items-start gap-2"
+              aria-label={g.label}
+            >
+              <span className="font-display text-sm tracking-[0.1em] text-command-gold">
+                {g.label}
+              </span>
               {g.links.map(([label, href]) => (
-                <Link key={label} href={href} className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none">
+                <Link
+                  key={label}
+                  href={href}
+                  className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
+                >
                   {label}
                 </Link>
               ))}
             </nav>
           ))}
-          <nav className="flex flex-col items-start gap-2" aria-label="One Thousand Drones">
-            <span className="font-display text-sm tracking-[0.1em] text-command-gold">Company</span>
+          <nav
+            className="flex flex-col items-start gap-2"
+            aria-label="One Thousand Drones"
+          >
+            <span className="font-display text-sm tracking-[0.1em] text-command-gold">
+              Company
+            </span>
             {[
               ["Main site", "https://onethousanddrones.com"],
-              // The configurator itself, alongside the other off-site
-              // destinations rather than in Catalog: it is a separate deploy on
-              // another domain, and the arrow that marks the rest of this group
-              // is exactly the warning a visitor should get before leaving.
-              // Catalog carries /hex, which is the on-site route in.
-              ["Configurator", "https://demo.onethousanddrones.com/hex"],
               ["About", "https://onethousanddrones.com/about"],
               ["Contact", "https://onethousanddrones.com/contact"],
             ].map(([label, href]) => (
-              <a key={label} href={href} rel="noopener" className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none">
+              <a
+                key={label}
+                href={href}
+                rel="noopener"
+                className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
+              >
                 {label} <span className="text-signal-blue">↗</span>
               </a>
             ))}
           </nav>
           <div className="flex flex-col items-start gap-2">
-            <span className="font-display text-sm tracking-[0.1em] text-command-gold">Registry</span>
+            <span className="font-display text-sm tracking-[0.1em] text-command-gold">
+              Registry
+            </span>
             <p className="font-mono text-[10px] uppercase leading-relaxed tracking-[0.14em] text-gray-3">
               Broken Arrow, OK · USA
               <br />
@@ -87,7 +150,10 @@ export function AppFooter() {
         </div>
 
         <div className="mt-8 flex flex-col items-center gap-4 border-t border-panel-border/60 pt-4 sm:relative sm:flex-row sm:justify-center">
-          <ul className="flex items-center gap-5 sm:absolute sm:left-0" aria-label="One Thousand Drones on social media">
+          <ul
+            className="flex items-center gap-5 sm:absolute sm:left-0"
+            aria-label="One Thousand Drones on social media"
+          >
             {[
               { href: SOCIAL_LINKS[0], label: "X", Icon: XIcon },
               { href: SOCIAL_LINKS[1], label: "YouTube", Icon: YouTubeIcon },
@@ -107,7 +173,9 @@ export function AppFooter() {
               </li>
             ))}
           </ul>
-          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-gray-3">© 2026 One Thousand Drones, LLC</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-gray-3">
+            © 2026 One Thousand Drones, LLC
+          </p>
         </div>
       </div>
     </footer>

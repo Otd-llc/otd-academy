@@ -22,6 +22,14 @@
 // `src/analytics.ts`).
 //
 // A plain <a>, not next/link: the destination is another origin.
+//
+// It stays a real anchor even where the embed is available, and that is the
+// point of the seam below. The href is the standalone configurator, so the link
+// works before hydration, with JavaScript off, under the kill switch, and on a
+// middle-click or Cmd-click -- all of which are cases where opening an in-page
+// frame is either impossible or not what was asked for. The embed is an
+// enhancement layered on a link that already worked.
+import { useHexConfigurator } from "@/components/hex/hex-configurator-context";
 import { trackCtaClicked } from "@/lib/analytics-client";
 import { getPosthog } from "@/lib/posthog-client";
 
@@ -41,6 +49,11 @@ export function ConfiguratorLink({
   children: React.ReactNode;
   placement: string;
 }) {
+  // Null outside a host: on any page that has not opted into a frame, and
+  // whenever the kill switch is off. Then everything below is exactly the
+  // cross-origin navigation that shipped before the embed existed.
+  const frame = useHexConfigurator();
+
   // Two separate domains cannot share a cookie, so without this the same human
   // is two anonymous strangers and the funnel never joins. Hand our person id
   // across; the configurator bootstraps PostHog with it and strips it from its
@@ -50,10 +63,13 @@ export function ConfiguratorLink({
   // browser: baking it into the href server-side would put one visitor's id in
   // a cached/prerendered page and hand it to everyone who saw it after.
   function handoff(e: React.MouseEvent<HTMLAnchorElement>) {
-    trackCtaClicked("hex_configurator", { placement });
+    trackCtaClicked("hex_configurator", { placement, embedded: !!frame });
 
     // Let the browser do its normal thing for new-tab / middle / modified
-    // clicks; hijacking those would break an expectation for a metric.
+    // clicks; hijacking those would break an expectation for a metric. It also
+    // leaves a deliberate escape hatch: a Cmd-click still opens the standalone
+    // configurator in its own tab, which is what someone who wants two clusters
+    // side by side is reaching for.
     if (
       e.defaultPrevented ||
       e.button !== 0 ||
@@ -62,6 +78,18 @@ export function ConfiguratorLink({
       e.shiftKey ||
       e.altKey
     ) {
+      return;
+    }
+
+    // The embed. `preventDefault` is synchronous and the rect is read before
+    // anything can reflow, so the frame grows out of the button that was
+    // actually pressed.
+    if (frame) {
+      e.preventDefault();
+      frame.open({
+        placement,
+        originRect: e.currentTarget.getBoundingClientRect(),
+      });
       return;
     }
 

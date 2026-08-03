@@ -33,7 +33,10 @@ export const env = createEnv({
     // AUTH_RESEND_KEY — Resend API key. AUTH_RESEND_FROM — verified sender; the
     // sending domain (onethousanddrones.com) must be verified in Resend.
     AUTH_RESEND_KEY: z.string().min(1),
-    AUTH_RESEND_FROM: z.string().min(1).default("OTD Academy <login@onethousanddrones.com>"),
+    AUTH_RESEND_FROM: z
+      .string()
+      .min(1)
+      .default("OTD Academy <login@onethousanddrones.com>"),
     ALLOWED_EMAILS: z.string().min(1),
     R2_ENABLED: z.coerce.boolean().default(false),
     R2_ACCOUNT_ID: z.string().optional(),
@@ -147,8 +150,30 @@ export const env = createEnv({
     // (metered egress). Set once the R2 domain is provisioned; the URL builders
     // switch to direct zero-egress R2 URLs with no code change.
     NEXT_PUBLIC_R2_PUBLIC_BASE_URL: z.url().optional(),
+    // Origin of the hex configurator that /hex embeds. OPTIONAL: unset → the
+    // production demo. It exists so the frame can be pointed at a local Vite
+    // build (http://localhost:5180) or a LAN address for handset testing.
+    // Without it, every configurator-side change could only be exercised after
+    // it was already in production, which is not a review loop.
+    NEXT_PUBLIC_HEX_CONFIGURATOR_URL: z.url().optional(),
+    // The embed kill switch. Set to "off" to make /hex's buttons plain
+    // cross-origin links again, which is exactly the behaviour that shipped
+    // before the frame existed.
+    //
+    // A BUILD-TIME variable, not an Edge Config flag, and that is a deliberate
+    // trade. /hex is statically prerendered with no request-time read at all;
+    // an Edge Config lookup would have to be awaited somewhere in the tree and
+    // would turn a fully static public spec page dynamic, which costs more on
+    // every visit than the flag saves on the one day it is used. The price is
+    // that flipping it needs a redeploy rather than a `vercel edge-config
+    // update`. Accepted: the fallback path is a link that already works, so the
+    // failure this guards against degrades rather than breaks.
+    NEXT_PUBLIC_HEX_EMBED: z.enum(["on", "off"]).default("on"),
   },
   runtimeEnv: {
+    NEXT_PUBLIC_HEX_CONFIGURATOR_URL:
+      process.env.NEXT_PUBLIC_HEX_CONFIGURATOR_URL,
+    NEXT_PUBLIC_HEX_EMBED: process.env.NEXT_PUBLIC_HEX_EMBED,
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
     NEXT_PUBLIC_R2_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL,
     NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
@@ -204,12 +229,17 @@ export const env = createEnv({
     const schema = z.object(shape);
     if (!isServer) return schema;
     return schema
-      .refine((v) => Boolean(v.KV_REST_API_URL) === Boolean(v.KV_REST_API_TOKEN), {
-        message:
-          "KV_REST_API_URL and KV_REST_API_TOKEN must both be set or both unset (the Upstash rate limiter needs both).",
-      })
       .refine(
-        (v) => Boolean(v.TURNSTILE_SECRET_KEY) === Boolean(v.NEXT_PUBLIC_TURNSTILE_SITE_KEY),
+        (v) => Boolean(v.KV_REST_API_URL) === Boolean(v.KV_REST_API_TOKEN),
+        {
+          message:
+            "KV_REST_API_URL and KV_REST_API_TOKEN must both be set or both unset (the Upstash rate limiter needs both).",
+        },
+      )
+      .refine(
+        (v) =>
+          Boolean(v.TURNSTILE_SECRET_KEY) ===
+          Boolean(v.NEXT_PUBLIC_TURNSTILE_SITE_KEY),
         {
           message:
             "TURNSTILE_SECRET_KEY and NEXT_PUBLIC_TURNSTILE_SITE_KEY must both be set or both unset (widget + verifier ship together).",

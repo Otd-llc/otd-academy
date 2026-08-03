@@ -40,7 +40,10 @@ export default async function HexClustersPage({
   const session = await auth();
   const email = session?.user?.email;
   if (!email) redirect("/sign-in?callbackUrl=%2Faccount%2Fhex-clusters");
-  const user = await db.user.findUnique({ where: { email }, select: { id: true } });
+  const user = await db.user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
   if (!user) redirect("/sign-in");
 
   const clusters = await db.hexCluster.findMany({
@@ -55,7 +58,14 @@ export default async function HexClustersPage({
       archivedAt: true,
       revisions: {
         orderBy: { revNo: "desc" },
-        select: { revNo: true, shareCode: true, createdAt: true, summary: true, payload: true, payloadHash: true },
+        select: {
+          revNo: true,
+          shareCode: true,
+          createdAt: true,
+          summary: true,
+          payload: true,
+          payloadHash: true,
+        },
       },
     },
   });
@@ -118,7 +128,8 @@ export default async function HexClustersPage({
         <ul className="mt-8">
           {clusters.map((cluster) => {
             const latest = cluster.revisions[0];
-            const summary = latest?.summary as unknown as StoredSummary | undefined;
+            const summary = latest?.summary as unknown as
+              StoredSummary | undefined;
             return (
               <HexClusterRow
                 key={cluster.id}
@@ -126,10 +137,12 @@ export default async function HexClustersPage({
                 drawingLabel={formatDrawingLabel(cluster.drawingNo)}
                 name={cluster.name}
                 archived={cluster.archivedAt !== null}
-                latestRevLabel={latest ? formatRevLabel(latest.revNo) : "—"}
+                latestRevLabel={latest ? formatRevLabel(latest.revNo) : "·"}
                 // The list's "saved" date is the latest REVISION's createdAt,
                 // not the parent's — the parent moves on a rename too.
-                savedAt={latest ? latest.createdAt.toISOString().slice(0, 10) : "—"}
+                savedAt={
+                  latest ? latest.createdAt.toISOString().slice(0, 10) : "·"
+                }
                 cells={summary?.cells ?? 0}
                 pieces={summary?.pieces ?? 0}
                 openHref={
