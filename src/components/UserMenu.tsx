@@ -211,6 +211,16 @@ export function UserMenu({
             for the CONFIGURATOR — a saved build has to be findable by the
             person who saved it from the moment it exists, or a drawing number
             can be recovered only by finding the printed sheet. */}
+        {/* Keeps the GENERIC hexagon, deliberately. The real Hex-TB-Main
+            outline was tried here and is worse at this size: rendered at 15px
+            beside the generic mark, its six dovetails do not read as features,
+            they read as irregularity on the edges, so it looks like a slightly
+            wobbly hexagon and says nothing the clean one does not. The
+            dovetails only become legible around 40px.
+
+            An icon is a symbol, not a drawing of the part. If this row should
+            say "hex cluster" rather than "honeycomb", the answer is a mark
+            DRAWN for icon scale, not the CAD projection shrunk. */}
         <Link href="/account/hex-clusters" onClick={close} className={ROW}>
           <span className="text-muted">{HEX}</span>
           <span>Saved builds</span>

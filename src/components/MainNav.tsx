@@ -52,6 +52,13 @@ const LINKS = [
   { href: "/tools", label: "Tools", adminOnly: false },
   { href: "/learn", label: "Learn", adminOnly: false },
   { href: "/parts", label: "Parts", adminOnly: false },
+  // Points at the academy's own /hex page, NOT straight out to the
+  // configurator. The whole strategy is maker -> academy, and a nav item that
+  // fires a visitor to another domain is a leak in the one place every page
+  // carries. /hex explains the standard, serves the downloads and carries the
+  // configurator CTA, so the click still gets there, one step later and
+  // measurable (the CTA is instrumented; a raw external nav link would not be).
+  { href: "/hex", label: "Hex", adminOnly: false },
 ] as const;
 
 // `pathname` is null in the static shell, where the URL is not knowable — then

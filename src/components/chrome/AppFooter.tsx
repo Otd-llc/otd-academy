@@ -44,7 +44,7 @@ export function AppFooter() {
         <div className="mt-7 grid grid-cols-2 gap-x-6 gap-y-7 sm:grid-cols-4">
           {[
             { label: "Learn", links: [["Courses", "/courses"], ["Library", "/library"], ["Glossary", "/glossary"], ["Tools", "/tools"]] },
-            { label: "Catalog", links: [["Parts", "/parts"], ["Briefs", "/briefs"]] },
+            { label: "Catalog", links: [["Parts", "/parts"], ["Hex Cluster", "/hex"], ["Briefs", "/briefs"]] },
             { label: "Account", links: [["About", "/about"], ["Sign in", "/sign-in"], ["Pricing", "/pricing"], ["Verify", "/verify"], ["License", "/license"], ["Privacy", "/privacy"]] },
           ].map((g) => (
             <nav key={g.label} className="flex flex-col items-start gap-2" aria-label={g.label}>
@@ -60,6 +60,12 @@ export function AppFooter() {
             <span className="font-display text-sm tracking-[0.1em] text-command-gold">Company</span>
             {[
               ["Main site", "https://onethousanddrones.com"],
+              // The configurator itself, alongside the other off-site
+              // destinations rather than in Catalog: it is a separate deploy on
+              // another domain, and the arrow that marks the rest of this group
+              // is exactly the warning a visitor should get before leaving.
+              // Catalog carries /hex, which is the on-site route in.
+              ["Configurator", "https://demo.onethousanddrones.com/hex"],
               ["About", "https://onethousanddrones.com/about"],
               ["Contact", "https://onethousanddrones.com/contact"],
             ].map(([label, href]) => (
