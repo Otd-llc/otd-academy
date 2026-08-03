@@ -1,4 +1,4 @@
-﻿// A short silent loop of the configurator, for the /hex hero.
+// A short silent loop of the configurator, for the /hex hero.
 //
 // WHY THE FIRST TAKE RAN AT ABOUT HALF A FRAME PER SECOND. The app has an
 // idle-frame skip: `tick()` runs rAF continuously, but `renderer.render()` only
@@ -126,9 +126,11 @@ await page.waitForTimeout(1200); // let the collapse settle before recording
 const trimMs = Date.now() - contextStart;
 
 const actualMs = await page.evaluate(async (seconds) => {
-  const { placeCell, removeCell, cells } = await import("/src/hex/cells.ts");
+  const { placeCell, removeCell, cells, slotHasAnyCell } =
+    await import("/src/hex/cells.ts");
   const { slotsForCell, defaultKindForSlot, setCapAt, isCapAvailable } =
     await import("/src/hex/caps.ts");
+  const { HEX_NEIGHBORS } = await import("/src/hex/types.ts");
   const { ghosts, rebuildGhosts } = await import("/src/hex/ghosts.ts");
   const { controls } = await import("/src/hex/scene.ts");
   const { bumpRender } = await import("/src/hex/main.ts");
@@ -179,7 +181,30 @@ const actualMs = await page.evaluate(async (seconds) => {
   const caps = [];
   const added = [];
   const fired = new Set();
-  const capSlots = slotsForCell(tray).slice(0, 3);
+
+  /** Cap slots on edges that are actually FREE.
+   *
+   *  This is where the clipping came from. `slotsForCell(cell)` with no options
+   *  returns every edge slot, including the ones a neighbouring tile is already
+   *  mated to -- and caps.ts says why that is wrong in as many words: "the two
+   *  bases mate directly via their own dovetail features, and a cap there would
+   *  block the conduit between them". A cap placed on such an edge is not merely
+   *  redundant, it is geometry pushed inside the tile next door.
+   *
+   *  Two mistakes compounded. The slots were taken with no `hasNeighborOnEdge`
+   *  predicate, AND they were computed once up front, before the neighbours
+   *  existed -- so even a correct predicate would have been answering about an
+   *  empty board. Computed here, at the moment the first cap goes on, with the
+   *  occupancy of the board as it stands. HEX_NEIGHBORS[0] is {+1,0} and [4] is
+   *  {-1,+1}: precisely the two slots the choreography fills, and precisely the
+   *  two that were being capped. */
+  const freeCapSlots = () =>
+    slotsForCell(tray, {
+      hasNeighborOnEdge: (edgeIdx) => {
+        const n = HEX_NEIGHBORS[edgeIdx];
+        return !!n && slotHasAnyCell(tray.q + n.dq, tray.r + n.dr);
+      },
+    });
 
   // At least one CORNER cap, not three of whatever the slot defaults to. The
   // corner is the piece that shows the system turning a corner rather than just
@@ -197,6 +222,18 @@ const actualMs = await page.evaluate(async (seconds) => {
       if (isCapAvailable(corner)) return corner;
     }
     return defaultKindForSlot(spec);
+  };
+
+  /** Cap the next still-free edge, remembering the spec so the removal beats
+   *  take off exactly what went on. Silently does nothing when there is no free
+   *  edge left -- better a missing cap than one driven into a neighbour. */
+  const addCap = (i) => {
+    const spec = freeCapSlots().find(
+      (s) => !caps.some((c) => c.slotId === s.slotId),
+    );
+    if (!spec) return;
+    setCapAt(tray, spec, kindFor(spec, i));
+    caps.push(spec);
   };
 
   // Anything that changes the cluster's topology REBUILDS THE GHOSTS. A ghost
@@ -245,31 +282,13 @@ const actualMs = await page.evaluate(async (seconds) => {
         ),
       ),
     ],
-    [
-      0.37,
-      topology(() => {
-        setCapAt(tray, capSlots[0], kindFor(capSlots[0], 0));
-        caps.push(capSlots[0]);
-      }),
-    ],
-    [
-      0.43,
-      topology(() => {
-        setCapAt(tray, capSlots[1], kindFor(capSlots[1], 1));
-        caps.push(capSlots[1]);
-      }),
-    ],
-    [
-      0.49,
-      topology(() => {
-        setCapAt(tray, capSlots[2], kindFor(capSlots[2], 2));
-        caps.push(capSlots[2]);
-      }),
-    ],
+    [0.37, topology(() => addCap(0))],
+    [0.43, topology(() => addCap(1))],
+    [0.49, topology(() => addCap(2))],
     [0.6, () => void (tray.exploded = false)],
-    [0.7, topology(() => setCapAt(tray, capSlots[0], null))],
-    [0.75, topology(() => setCapAt(tray, capSlots[1], null))],
-    [0.8, topology(() => setCapAt(tray, capSlots[2], null))],
+    [0.7, topology(() => caps[0] && setCapAt(tray, caps[0], null))],
+    [0.75, topology(() => caps[1] && setCapAt(tray, caps[1], null))],
+    [0.8, topology(() => caps[2] && setCapAt(tray, caps[2], null))],
     [
       0.86,
       topology(() => {
