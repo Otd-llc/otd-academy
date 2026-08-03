@@ -37,6 +37,18 @@ export const HEX_CONFIGURATOR_URL = "https://demo.onethousanddrones.com/hex";
  *  release 2026-07-31; TB-1-POWER withheld on disclosure grounds). */
 export const HEX_PART_COUNT = 53;
 
+/** Sizes of the published downloads, so the page can tell someone what a tap
+ *  will cost them before they take it on a phone tether.
+ *
+ *  Safe as constants precisely because release keys are IMMUTABLE: a segment is
+ *  never overwritten, so these bytes cannot change under the page. Re-cutting
+ *  the meshes mints a new release, which is when these get updated alongside
+ *  HEX_RELEASE. Measured from the published objects, not estimated. */
+export const HEX_RELEASE_FILES = {
+  set: { bytes: 13_682_756, label: "13.7 MB" },
+  license: { bytes: 836, label: "836 B" },
+} as const;
+
 export type SpecRow = {
   label: string;
   value: string;

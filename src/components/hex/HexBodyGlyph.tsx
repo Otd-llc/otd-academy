@@ -42,7 +42,43 @@ export type HexGlyphVariant =
 //  and this file truncated it by hand. That was fixed upstream instead
 //  (bioscale-viz PR #8, `chain()` now stops a walk at its own start), so the
 //  hand-truncation is gone and these are the emitted bytes again.
-const BODY_OUTER =
+/** Image units per millimetre, for placing these glyphs at REAL spacing (a
+ *  lattice at the 76.20 mm cell pitch) instead of a gap that merely looks
+ *  right.
+ *
+ *  Derived from the DRAWN EXTENT, not the viewBox. The obvious reading is
+ *  `1000 / 87.757`, since the viewBox is 1000 wide and the part is 87.757 mm
+ *  across, and it is wrong: the generator pads the path inside the box, so the
+ *  outer path actually spans x 37..963, which is 926 units. Using 1000 makes
+ *  every derived distance 8% too large, which in a lattice means the tiles sit
+ *  apart with a visible gap and the dovetails never meet. That is exactly what
+ *  the first render showed.
+ *
+ *  Cross-check: 926 across corners implies 926 x cos(30) = 802 across flats,
+ *  and the pitch works out at 804 units, so neighbours land 2 units apart with
+ *  their dovetails overlapping. That is an engaged joint, which is the thing
+ *  the drawing is supposed to depict. */
+const OUTER_PATH_SPAN_X = 926;
+const PART_WIDTH_MM = 87.757;
+export const GLYPH_UNITS_PER_MM = OUTER_PATH_SPAN_X / PART_WIDTH_MM;
+
+/** Where the hex body's centre sits inside the viewBox, for transforms.
+ *  Measured from the same path: x 37..963 and y 35..859 both centre here. */
+export const GLYPH_CENTRE = { x: 500, y: 447 } as const;
+
+/** Half the DRAWN extent, for framing a group of translated copies. Not the
+ *  same as GLYPH_CENTRE, and conflating the two is how the first lattice got a
+ *  viewBox 537 units too wide on each side: the tiles were laid out correctly
+ *  and then framed so loosely that they read as scattered. */
+export const GLYPH_HALF = { x: OUTER_PATH_SPAN_X / 2, y: 824 / 2 } as const;
+
+/** Which way the part faces, established from the path rather than assumed:
+ *  the left extreme is a single point (a VERTEX) and the top extreme is a short
+ *  run (a dovetail tip on a flat edge). So vertices lie on the horizontal axis
+ *  and the flats face up and down, which fixes where a neighbour must sit. */
+export const GLYPH_VERTEX_ON_X = true;
+
+export const BODY_OUTER =
   "M306 859L394 859 378 838 622 838 606 859 694 859 800 675 811 700 884 574 " +
   "857 577 963 393 919 316 909 341 787 130 814 133 769 57 557 57 573 35 " +
   "427 35 443 57 231 57 186 133 213 130 91 341 81 316 37 393 143 577 116 574 " +
@@ -50,7 +86,7 @@ const BODY_OUTER =
 
 /** The inner wall of the top view. Part of the full projection; NOT a
  *  silhouette (see above). */
-const BODY_INNER =
+export const BODY_INNER =
   "M704 116L879 420 883 431 883 442 879 453 704 756 692 768 681 772 608 772 " +
   "603 771 589 761 583 751 581 734 577 724 570 715 560 709 549 707 451 707 " +
   "440 709 426 719 419 734 417 751 411 761 397 771 386 773 325 773 308 768 " +
@@ -58,7 +94,7 @@ const BODY_INNER =
   "402 104 411 112 417 121 419 138 423 149 435 161 445 165 555 165 565 161 " +
   "574 153 581 138 583 121 586 116 598 104 608 100 681 100 692 104Z";
 
-const TOP_INTERIOR = [
+export const TOP_INTERIOR = [
   "M565 150L565 105 564 125",
   "M565 150L562 155 438 155 435 152 435 104 438 100 562 100 565 105 563 101",
   "M560 773L440 773 435 769 435 720 439 717 561 717 565 720 565 769 560 773 440 773 435 769",
