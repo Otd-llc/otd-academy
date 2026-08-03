@@ -1,4 +1,4 @@
-﻿// SANDBOX -- B2 built out properly. Delete this route before the PR.
+// SANDBOX -- B2 built out properly. Delete this route before the PR.
 //
 // Full-bleed loop with the CTA over it, downloads and licence immediately
 // under, spec below the fold. Built against the real tokens rather than the
@@ -42,7 +42,7 @@ const PITCH = `${HEX_PITCH_MM.toFixed(2)} mm`;
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
     <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
-      â–¸ {children}
+      &#9656; {children}
     </p>
   );
 }
@@ -84,12 +84,14 @@ export default function HexB2() {
     {
       href: SET_URL,
       name: "hex-cluster.zip",
+      format: "ZIP",
       size: HEX_RELEASE_FILES.set.label,
       desc: `Every part in 3MF and STL, with the licence`,
     },
     {
       href: LICENSE_URL,
       name: "LICENSE.txt",
+      format: "TXT",
       size: HEX_RELEASE_FILES.license.label,
       desc: "The same notice that travels inside every file",
     },
@@ -97,7 +99,7 @@ export default function HexB2() {
 
   return (
     <main className="pb-24">
-      {/* â”€â”€ the loop, full bleed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* -- the loop, full bleed ------------------------------------------- */}
       <section className="relative">
         <ThemedLoop className="h-[46vh] min-h-[320px] w-full object-cover sm:h-[58vh]" />
 
@@ -107,8 +109,12 @@ export default function HexB2() {
           <div className="mx-auto max-w-6xl px-6 py-7 sm:px-8">
             <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
               <div>
+                {/* One string, not interleaved JSX text and expressions. Broken
+                    across lines, JSX collapses the whitespace at each boundary
+                    and the count fused to its noun ("53PARTS"). A template
+                    literal has no boundaries to collapse. */}
                 <Eyebrow>
-                  Free Â· CC BY 4.0 Â· {HEX_PART_COUNT} parts Â· {PITCH} pitch
+                  {`Free · CC BY 4.0 · ${HEX_PART_COUNT} parts · ${PITCH} pitch`}
                 </Eyebrow>
                 <h1 className="title-hero mt-2">Hex Cluster.</h1>
                 <p className="mt-3 max-w-xl font-serif text-base leading-relaxed text-text">
@@ -119,7 +125,13 @@ export default function HexB2() {
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-5">
+              {/* The gold ladder, both rungs used. The download was a text link
+                  and read as an afterthought next to a filled CTA -- which is
+                  exactly backwards for a page whose whole job is handing files
+                  to people with printers. It is a gold-OUTLINE button now: the
+                  sanctioned second rung, unmistakably a control, and still
+                  clearly subordinate to the solid primary. */}
+              <div className="flex flex-wrap items-center gap-4">
                 <Link
                   href="/hex?open=1"
                   className="glass-button glass-button-cta inline-flex items-center px-7 py-3.5 font-mono text-sm uppercase tracking-[0.16em]"
@@ -128,9 +140,13 @@ export default function HexB2() {
                 </Link>
                 <a
                   href={SET_URL}
-                  className="font-mono text-[11px] uppercase tracking-[0.16em] text-command-gold underline underline-offset-4 hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
+                  className="glass-button inline-flex items-baseline gap-2.5 px-6 py-3.5 font-mono text-sm uppercase tracking-[0.16em]"
                 >
-                  Download all {HEX_PART_COUNT} parts
+                  <span aria-hidden="true">↓</span>
+                  <span>Download all {HEX_PART_COUNT}</span>
+                  <span className="font-numeral text-base tabular-nums">
+                    {HEX_RELEASE_FILES.set.label}
+                  </span>
                 </a>
               </div>
             </div>
@@ -138,7 +154,7 @@ export default function HexB2() {
         </div>
       </section>
 
-      {/* â”€â”€ downloads + licence, immediately under. No scrolling to find them. */}
+      {/* -- downloads + licence, immediately under. No scrolling to find them. */}
       <section className="mx-auto max-w-6xl px-6 pt-10 sm:px-8">
         <div className="grid gap-x-12 gap-y-10 lg:grid-cols-2">
           <div>
@@ -148,18 +164,25 @@ export default function HexB2() {
                 <li key={f.name}>
                   <a
                     href={f.href}
-                    className="group flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-panel-border/60 py-3.5 hover:bg-command-gold/[0.04] focus-visible:bg-command-gold/[0.06] focus-visible:outline-none"
+                    download
+                    className="group flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-panel-border/60 py-4 hover:bg-command-gold/[0.04] focus-visible:bg-command-gold/[0.06] focus-visible:outline-none"
                   >
-                    <span className="font-mono text-[10px] text-command-gold">
-                      â–¸
+                    <span
+                      aria-hidden="true"
+                      className="font-mono text-base leading-none text-command-gold transition-transform group-hover:translate-y-0.5"
+                    >
+                      &darr;
                     </span>
-                    <span className="font-mono text-xs text-title group-hover:text-gold-light">
+                    <span className="badge border-command-gold/50 text-command-gold">
+                      {f.format}
+                    </span>
+                    <span className="font-mono text-sm text-title group-hover:text-gold-light">
                       {f.name}
                     </span>
-                    <span className="font-numeral text-base tabular-nums text-muted">
+                    <span className="font-numeral text-lg tabular-nums text-text">
                       {f.size}
                     </span>
-                    <span className="w-full font-serif text-xs text-muted sm:ml-auto sm:w-auto">
+                    <span className="w-full font-serif text-xs text-muted sm:ml-auto sm:w-auto sm:text-right">
                       {f.desc}
                     </span>
                   </a>
@@ -193,7 +216,7 @@ export default function HexB2() {
         </div>
       </section>
 
-      {/* â”€â”€ the spec, for whoever arrived cold â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* -- the spec, for whoever arrived cold ----------------------------- */}
       <section className="mx-auto mt-16 max-w-6xl px-6 sm:px-8">
         <Eyebrow>Print it</Eyebrow>
         <p className="mt-3 max-w-2xl font-serif text-sm leading-relaxed text-muted">
