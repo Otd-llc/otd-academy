@@ -202,10 +202,25 @@ export default function HexPage() {
 
           <div className="absolute inset-0 flex items-end">
             <div className="w-full p-6 sm:p-12">
-              <h1 className="title-hero">Hex Cluster.</h1>
-              <p className="mt-3 max-w-xl font-serif text-base leading-relaxed text-text">
-                A printable mounting standard. {HEX_PART_COUNT} parts,{" "}
-                {HEX_LICENSE.name}.
+              {/* The house hero, composed from the shared recipes rather than
+                  a bare Bebas string: mono eyebrow, `.accent` for the ivory →
+                  gold alternation across the content words, and `.tdot` for the
+                  hollow title period. A literal full stop renders as a solid
+                  ivory block at this size, which is why the outline glyph
+                  exists. */}
+              <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+                &#9656; Open hardware release
+              </p>
+              <h1 className="title-hero mt-3">
+                Hex <span className="accent">cluster</span>
+                <span className="tdot">.</span>
+              </h1>
+              <p className="mt-4 max-w-xl font-serif text-[15px] leading-relaxed text-text">
+                A printable mounting standard.{" "}
+                <span className="font-numeral tabular-nums">
+                  {HEX_PART_COUNT}
+                </span>{" "}
+                parts, {HEX_LICENSE.name}.
               </p>
               {/* ConfiguratorLink, not a plain href to `?open=1`: on THIS page
                   the deep-link effect has already run, so a same-page query
