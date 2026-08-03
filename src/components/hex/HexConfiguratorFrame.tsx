@@ -328,12 +328,35 @@ export function HexConfiguratorFrame({
 
   // -- theme -------------------------------------------------------------
 
+  // Bound to the frame EXISTING, not to it being open.
+  //
+  // This used to be `if (phase !== "open") return`, which desynced the theme
+  // permanently the first time anyone toggled with the panel closed: nothing was
+  // listening, so the child never heard it -- and REOPENING cannot repair it,
+  // because the iframe is deliberately never reloaded (that would throw away the
+  // build), so there is no second `load` and therefore no second handshake. The
+  // frame stayed on the old theme until a full page reload.
+  //
+  // A `display: none` iframe still has a live document and still runs its
+  // message handlers; only its rAF loop is stopped. So it can be told about a
+  // theme change while hidden and is simply correct when shown again.
   useEffect(() => {
-    if (phase !== "open") return;
+    if (!src) return;
     const send = () => post({ type: "set-theme", theme: currentTheme() });
     window.addEventListener(THEME_EVENT, send);
     return () => window.removeEventListener(THEME_EVENT, send);
-  }, [phase, post]);
+  }, [src, post]);
+
+  // And state it again on every open. The listener above covers a toggle while
+  // the frame is alive, but not one that lands in the gap between the visitor
+  // clicking open and `src` resolving (it is set inside an async effect, after
+  // a PostHog read and possibly a recall fetch). Re-stating on open is one
+  // message and makes "the frame is open" mean "the frame agrees with us",
+  // rather than depending on when a listener happened to attach.
+  useEffect(() => {
+    if (phase !== "open" || !src) return;
+    post({ type: "set-theme", theme: currentTheme() });
+  }, [phase, src, post]);
 
   // -- the inbound channel -----------------------------------------------
 
