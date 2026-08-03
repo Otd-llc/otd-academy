@@ -49,11 +49,36 @@ const nextConfig: NextConfig = {
     return [
       {
         // The calculator embed widgets are meant to be dropped into other sites
-        // via <iframe>, so explicitly allow any origin to frame them. Nothing
-        // else in the app sets X-Frame-Options, so every other route keeps the
-        // browser default (frameable same-origin only is not enforced anywhere).
+        // via <iframe>, so explicitly allow any origin to frame them.
         source: "/embed/:path*",
-        headers: [{ key: "Content-Security-Policy", value: "frame-ancestors *" }],
+        headers: [
+          { key: "Content-Security-Policy", value: "frame-ancestors *" },
+        ],
+      },
+      {
+        // Everything else: same-origin framing only.
+        //
+        // There was no policy here at all, which meant any site could frame
+        // /account, /admin or /checkout and overlay its own controls. That is
+        // textbook clickjacking against pages that act with the visitor's
+        // session, and the browser default does NOT prevent it -- "frameable by
+        // anyone" is the default, not "same-origin only".
+        //
+        // The negative lookahead is load-bearing and not a tidiness choice.
+        // Next.js applies EVERY matching rule, so a bare `/:path*` here would
+        // send a second CSP on /embed/* as well; the browser then enforces the
+        // INTERSECTION of the two policies, `frame-ancestors *` would be
+        // narrowed to 'self', and the calculator widgets would silently stop
+        // rendering on the third-party sites they exist for.
+        //
+        // 'self' rather than a list: the only in-house page that frames another
+        // is /hex, and what it frames is the CONFIGURATOR, which lives on a
+        // different origin and carries its own frame-ancestors policy. Nothing
+        // in this app needs to be framed from outside it.
+        source: "/:path((?!embed).*)",
+        headers: [
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+        ],
       },
     ];
   },

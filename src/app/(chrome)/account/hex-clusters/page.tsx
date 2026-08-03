@@ -145,20 +145,17 @@ export default async function HexClustersPage({
                 }
                 cells={summary?.cells ?? 0}
                 pieces={summary?.pieces ?? 0}
+                // The SHARE CODE, not the build. `/hex` resolves it on the
+                // client and hands the payload plus all six identity
+                // parameters straight to the frame, so the configurator opens
+                // INSIDE the academy instead of navigating away from it.
+                //
+                // This URL used to carry the whole payload in its fragment.
+                // Routing that through an academy page would have put a build
+                // into PostHog, which captures `location.href` for a pageview
+                // with the fragment attached.
                 openHref={
-                  latest
-                    ? `${CONFIGURATOR}?${new URLSearchParams({
-                        d: formatDrawingLabel(cluster.drawingNo),
-                        r: formatRevLabel(latest.revNo),
-                        s: latest.shareCode,
-                        h: latest.payloadHash,
-                        // The STORED name, never cluster.name: a rename would
-                        // otherwise stamp the sheet with the new name while /c/
-                        // renders the old one.
-                        n: summary?.nameAtSave ?? cluster.name,
-                        t: latest.createdAt.toISOString(),
-                      })}#${latest.payload}`
-                    : null
+                  latest ? `/hex?open=1&build=${latest.shareCode}` : null
                 }
                 revisions={cluster.revisions.map((r) => ({
                   revLabel: formatRevLabel(r.revNo),

@@ -45,10 +45,12 @@ import {
   type OpenOptions,
 } from "@/components/hex/hex-configurator-context";
 import { EmbeddedSavePanel } from "@/components/hex/EmbeddedSavePanel";
+import { loadHexRecall } from "@/lib/actions/hex-recall";
 import {
   hexConfiguratorOrigin,
   hexConfiguratorSrc,
 } from "@/lib/hex-configurator-url";
+import type { HexRecall } from "@/lib/hex-recall";
 import {
   CHANNEL,
   PROTOCOL_VERSION,
@@ -86,6 +88,11 @@ export function HexConfiguratorFrame({
   const [src, setSrc] = useState<string | null>(null);
   const [pendingSave, setPendingSave] = useState<SaveRequest | null>(null);
   const [contextLost, setContextLost] = useState(false);
+  /** A `?build=` was asked for and could not be resolved -- unknown code,
+   *  archived, or a deleted account. The frame still opens; saying nothing
+   *  would leave someone who clicked "Open in the configurator" on a specific
+   *  saved build staring at an empty bench with no explanation. */
+  const [recallFailed, setRecallFailed] = useState(false);
   /** Bumped to remount the iframe, which is the only reload available across
    *  origins. Part of the `key`, so it also resets the handshake. */
   const [reloadKey, setReloadKey] = useState(0);
@@ -138,7 +145,37 @@ export function HexConfiguratorFrame({
             // No consent, blocked, or not loaded. The embed works without it;
             // only the cross-property funnel join is lost.
           }
-          setSrc(hexConfiguratorSrc({ distinctId }));
+
+          // A recall, when one was asked for. Resolved HERE rather than woven
+          // into the URL by the linking page, so the payload never touches the
+          // academy's own address bar -- PostHog captures `location.href` for a
+          // pageview, fragment included, and a build payload in analytics is a
+          // leak nobody would notice.
+          let recalled: { payload: string; recall: HexRecall } | null = null;
+          const build = options.build ?? null;
+          if (build) {
+            try {
+              const result = await loadHexRecall(build);
+              if (result.ok) {
+                recalled = { payload: result.payload, recall: result.recall };
+              } else {
+                setRecallFailed(true);
+              }
+            } catch {
+              // Network or action failure. The configurator still opens, just
+              // empty, and the notice below says so rather than pretending the
+              // visitor asked for a blank bench.
+              setRecallFailed(true);
+            }
+          }
+
+          setSrc(
+            hexConfiguratorSrc({
+              distinctId,
+              payload: recalled?.payload ?? null,
+              recall: recalled?.recall ?? null,
+            }),
+          );
         })();
       }
       setPhase("open");
@@ -164,10 +201,14 @@ export function HexConfiguratorFrame({
   // that only matters after hydration anyway.
   useEffect(() => {
     if (!enabled) return;
-    if (new URLSearchParams(window.location.search).get("open") !== "1") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("open") !== "1") return;
     // No origin rect: nothing was clicked, so there is nothing to grow out of
     // and the FLIP falls back to a fade.
-    open({ placement: "deep_link" });
+    //
+    // `build` is a share code, never a payload. It is the whole reason a recall
+    // link can stay short enough to read.
+    open({ placement: "deep_link", build: params.get("build") });
     // Mount only. Re-running on `open`'s identity would reopen the frame every
     // time the callback was rebuilt, including right after the visitor closed
     // it.
@@ -407,7 +448,7 @@ export function HexConfiguratorFrame({
             style={{ display: phase === "open" ? "flex" : "none" }}
             className="fixed inset-x-0 bottom-0 top-[var(--hex-frame-top,3.5rem)] z-30 flex-col bg-deep-space outline-none"
           >
-            <FrameToolbar onClose={close} />
+            <FrameToolbar onClose={close} recallFailed={recallFailed} />
 
             <div className="relative flex-1">
               {src && (
@@ -478,12 +519,26 @@ function FramePortal({ children }: { children: React.ReactNode }) {
 
 /** A hairline strip, not a filled bar: the frame is an instrument on the field,
  *  and a toolbar with a fill would read as a second site header. */
-function FrameToolbar({ onClose }: { onClose: () => void }) {
+function FrameToolbar({
+  onClose,
+  recallFailed,
+}: {
+  onClose: () => void;
+  recallFailed: boolean;
+}) {
   return (
     <div className="flex shrink-0 items-center gap-4 border-b border-panel-border/60 px-4 py-2 sm:px-6">
       <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
         ▸ Cluster configurator
       </span>
+      {recallFailed && (
+        // One line, in the strip that is already there. A saved build that
+        // cannot be reopened is worth saying out loud, but it is not an error
+        // state for the whole page: the configurator below is perfectly usable.
+        <span className="font-serif text-xs text-muted">
+          That saved build could not be opened. It may have been archived.
+        </span>
+      )}
       <button
         type="button"
         onClick={onClose}

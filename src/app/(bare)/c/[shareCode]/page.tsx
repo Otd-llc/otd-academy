@@ -27,20 +27,29 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const CONFIGURATOR = "https://demo.onethousanddrones.com/hex";
-
-/** The §3 return link, in full. Omitting h= would make the identity check
- *  vacuous, so a recall from here would land silently in the unsaved regime and
- *  print UNCONTROLLED on a build that is saved. */
+/**
+ * The §3 return link, now routed through the academy's own embedded frame.
+ *
+ * This used to be the configurator's URL with all six identity parameters and
+ * the whole payload in the fragment. It is a SHARE CODE now, and `/hex`
+ * rebuilds the rest on the client from `loadHexRecall`.
+ *
+ * Two reasons, and the second is the load-bearing one:
+ *   - The configurator opens INSIDE the academy, which is the point of the
+ *     embed. A page reached from a printed QR should not throw the reader onto
+ *     another property to look at the thing they scanned.
+ *   - The payload never touches an academy URL. PostHog captures
+ *     `location.href` for a pageview WITH the fragment, so forwarding a build
+ *     through an academy page would file every recalled cluster in analytics.
+ *
+ * The six parameters have not gone anywhere; they are assembled in
+ * `hexConfiguratorSrc` from a `HexRecall` whose fields are all REQUIRED, so the
+ * old hazard (dropping `h=`, making the identity check vacuous, and printing
+ * UNCONTROLLED on a build that is saved) is now a compile error rather than a
+ * silent one.
+ */
 function openInConfigurator(c: PublicCluster): string {
-  const url = new URL(CONFIGURATOR);
-  url.searchParams.set("d", c.drawingLabel);
-  url.searchParams.set("r", c.revLabel);
-  url.searchParams.set("s", c.shareCode);
-  url.searchParams.set("h", c.payloadHash);
-  url.searchParams.set("n", c.nameAtSave);
-  url.searchParams.set("t", c.savedAt);
-  return `${url.toString()}#${c.payload}`;
+  return `/hex?open=1&build=${encodeURIComponent(c.shareCode)}`;
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
