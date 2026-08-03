@@ -151,6 +151,29 @@ export function HexConfiguratorFrame({
     setPendingSave(null);
   }, []);
 
+  // -- the deep link -----------------------------------------------------
+  //
+  // `/hex?open=1` lands on the spec page with the configurator already open.
+  // It exists so a nav link can point INTO the academy rather than off it: the
+  // footer's "Configurator" used to jump straight to the other property, which
+  // is the disjointed hop this whole feature removes.
+  //
+  // Read from `window.location` rather than `useSearchParams`, deliberately.
+  // This page is prerendered whole; `useSearchParams` would force a Suspense
+  // boundary and pull the route toward dynamic rendering to answer a question
+  // that only matters after hydration anyway.
+  useEffect(() => {
+    if (!enabled) return;
+    if (new URLSearchParams(window.location.search).get("open") !== "1") return;
+    // No origin rect: nothing was clicked, so there is nothing to grow out of
+    // and the FLIP falls back to a fade.
+    open({ placement: "deep_link" });
+    // Mount only. Re-running on `open`'s identity would reopen the frame every
+    // time the callback was rebuilt, including right after the visitor closed
+    // it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
+
   // -- the FLIP ----------------------------------------------------------
   //
   // Runs in a layout-ish effect on the phase change rather than in CSS, because

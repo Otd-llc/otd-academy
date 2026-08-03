@@ -17,9 +17,8 @@
 
 import { randomBytes } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth-helpers";
+import { currentUserId, requireUser } from "@/lib/auth-helpers";
 import { enforce } from "@/lib/abuse-limit";
 import { hexSaveCheck } from "@/lib/abuse-policy";
 import { defenseEnabled } from "@/lib/abuse-defense-flag";
@@ -329,12 +328,18 @@ async function saveNewDrawing(
  * The session read here is NOT the security boundary. `saveHexCluster` still
  * calls `requireUser()`, and every write is still scoped by `userId` in the
  * WHERE clause. This only decides which UI to show.
+ *
+ * `currentUserId()` and not `auth()` directly, for two reasons. It is the
+ * cheapest form of the question (the id rides on the session JWT, so the common
+ * case is zero DB queries), and it keeps this module's auth dependency where
+ * every other action in the file already has it -- importing `@/auth` here
+ * bypassed the `@/lib/auth-helpers` mock in the action tests and pulled the real
+ * next-auth into a vitest run, where `next/server` does not resolve.
  */
 export async function saveHexClusterEmbedded(
   input: SaveInput,
 ): Promise<{ auth: "signed-out" } | { auth: "ok"; result: SaveResult }> {
-  const session = await auth();
-  if (!session?.user) return { auth: "signed-out" };
+  if (!(await currentUserId())) return { auth: "signed-out" };
   return { auth: "ok", result: await saveHexCluster(input) };
 }
 
