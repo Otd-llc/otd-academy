@@ -13,12 +13,14 @@
 // `@/lib/printable-key`, which rebuilds every key from validated tokens.
 import type { NextRequest } from "next/server";
 
+import { capture } from "@/lib/analytics";
 import { env } from "@/env";
 import { getR2ObjectBytes } from "@/lib/part-r2";
 import { PRINTABLE_CONTENT_TYPE, resolvePrintable } from "@/lib/printable-key";
+import { distinctIdFromCookies } from "@/lib/posthog-distinct-id";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await params;
@@ -36,6 +38,34 @@ export async function GET(
     // Absent object, or R2 unreachable. A 404 is the honest answer either way:
     // the release either is not published yet or that part is not in it.
     return new Response("Not found", { status: 404 });
+  }
+
+  // Counted HERE rather than with a click handler on the page. This is the top
+  // of the maker funnel and the one hop we can measure without cooperation: a
+  // download is a server request to our own route, so no ad blocker, no
+  // `<a download>` quirk and no direct-link share can drop it. Stitched to the
+  // browser's PostHog person where there is one, because "of everyone who
+  // downloaded, how many went on to configure" is the whole question.
+  //
+  // After the bytes are fetched and before the response, so a 404 is never
+  // counted as a download. `capture` is a no-op without a key and swallows its
+  // own errors, but the try/catch is the house convention: telemetry must never
+  // be able to fail a download.
+  try {
+    capture(
+      "printable_downloaded",
+      {
+        key: resolved.key,
+        release: path[0],
+        kind: resolved.ext,
+        filename: resolved.filename,
+        bytes: bytes.byteLength,
+        referrer: req.headers.get("referer") ?? undefined,
+      },
+      distinctIdFromCookies(req.cookies) ?? undefined,
+    );
+  } catch {
+    // Never let instrumentation break the thing it is instrumenting.
   }
 
   return new Response(new Uint8Array(bytes), {
