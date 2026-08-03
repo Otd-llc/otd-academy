@@ -212,12 +212,16 @@ export default function HexPage() {
           parts do not engage cleanly, measure shrinkage and re-slice with
           compensation rather than sanding the joints.
         </p>
+        {/* States the requirement and why. It does NOT narrate our own errata:
+            an earlier draft went on to say that the shipped README names the
+            wrong material and that this page overrides it. True, and none of a
+            maker's business -- they came to print a part, not to referee which
+            of our documents is authoritative. The correction belongs in the
+            next release, where it now is. */}
         <p className="mt-3 font-serif text-sm leading-relaxed text-muted">
           The material is not a free choice. The gap is toleranced against PETG
           shrinkage, and the dovetail carries pull-out load through interlayer
-          bonds, where PETG has the adhesion the joint needs. The README shipped
-          inside the {HEX_RELEASE} archive says PLA. That is an error in an
-          immutable file; this page is the authority.
+          bonds, where PETG has the adhesion the joint needs.
         </p>
       </section>
 
