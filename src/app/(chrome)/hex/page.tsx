@@ -240,10 +240,16 @@ export default function HexPage() {
             {/* The pitch is the rail's dimensioned readout, so it is NOT
                 repeated. What is left is the number a person about to print
                 needs, and the derivation tying the two together. */}
-            <p className="font-numeral text-5xl tracking-wide tabular-nums text-command-gold">
+            {/* Subordinate to the rail's pitch on purpose. Both were text-5xl
+                gold Saira, which gave the page two hero numbers competing a
+                few hundred pixels apart. Gold at hero scale is the page's ONE
+                numeral moment and the pitch owns it; the gap is still a figure,
+                just an ivory one at a smaller step, the same ink as the spec
+                values it belongs with. */}
+            <p className="font-numeral text-3xl tracking-wide tabular-nums text-title">
               0.25 mm
             </p>
-            <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+            <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
               design gap between tiles
             </p>
             <p className="mt-6 max-w-xl font-serif text-sm leading-relaxed text-muted">
