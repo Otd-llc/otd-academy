@@ -17,6 +17,7 @@
 
 import { randomBytes } from "node:crypto";
 import { Prisma } from "@prisma/client";
+import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-helpers";
 import { enforce } from "@/lib/abuse-limit";
@@ -308,6 +309,34 @@ async function saveNewDrawing(
 // â”€â”€ Row actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Their own result type: they mint no revision, so a SaveOk shape was
 // unsatisfiable, and a bare boolean could not say why.
+
+/**
+ * The same save, for a caller that cannot afford a throw.
+ *
+ * `saveHexCluster` calls `requireUser()`, which THROWS for a signed-out
+ * visitor. That is right for the save PAGE, whose route gate has already sent
+ * anonymous visitors to /sign-in, so reaching the action signed out means
+ * something is wrong. It is wrong for the embedded panel, where being signed
+ * out is the ordinary case and the whole point is to discover it and offer a
+ * sign-in WITHOUT tearing down a frame that is holding the visitor's build.
+ *
+ * A separate action rather than a flag on the existing one, and a WRAPPER shape
+ * rather than a new `SaveErrCode` member: "signed out" is not a save error, it
+ * is the absence of the identity a save needs, and putting it in that union
+ * would add a case to every exhaustive switch over save failures that none of
+ * them can act on.
+ *
+ * The session read here is NOT the security boundary. `saveHexCluster` still
+ * calls `requireUser()`, and every write is still scoped by `userId` in the
+ * WHERE clause. This only decides which UI to show.
+ */
+export async function saveHexClusterEmbedded(
+  input: SaveInput,
+): Promise<{ auth: "signed-out" } | { auth: "ok"; result: SaveResult }> {
+  const session = await auth();
+  if (!session?.user) return { auth: "signed-out" };
+  return { auth: "ok", result: await saveHexCluster(input) };
+}
 
 export async function renameHexCluster(
   id: string,

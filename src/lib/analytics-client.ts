@@ -61,3 +61,23 @@ export function trackFormativeCheck(
 ): void {
   fire("formative_check_engaged", { kind, action });
 }
+
+/**
+ * Fire when a hex-cluster build actually lands in the register.
+ *
+ * The BOTTOM of the maker funnel, and the only step that was missing: the
+ * configurator fires `hex_save_started` on its own origin, but it cannot see
+ * whether the save succeeded, because the write happens here. Without this the
+ * funnel's last measurable step is an intent, not an outcome.
+ *
+ * `embedded` distinguishes the in-frame save from the navigate-away one. They
+ * are different flows with different drop-off, and a single event covering both
+ * silently averages them.
+ */
+export function fireHexSaveCompleted(properties: {
+  mode: "new" | "rev";
+  embedded: boolean;
+  rev: string;
+}): void {
+  fire("hex_save_completed", properties);
+}
