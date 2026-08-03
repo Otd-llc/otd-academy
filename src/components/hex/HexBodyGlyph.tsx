@@ -207,12 +207,18 @@ export function HexBodyGlyph({
   variant = "top",
   className,
   style,
+  strokeWidth,
   title = "Hex Cluster base tile, dovetailed on all six edges",
 }: {
   variant?: HexGlyphVariant;
   className?: string;
   /** Sizing only. Colour must come from the parent's text colour, never here. */
   style?: React.CSSProperties;
+  /** Override the stroke, in viewBox units. The default is the generator's 10
+   *  on a 1000-wide box, which is 1% of the width: correct at hero size and
+   *  invisible at icon size, where 1% of 15px is a sixth of a pixel. An icon
+   *  needs roughly 70. */
+  strokeWidth?: number;
   /** Accessible name. Pass null-ish only when a caption already names it. */
   title?: string;
 }) {
@@ -237,7 +243,7 @@ export function HexBodyGlyph({
         stroke="currentColor"
         // The generator's stroke is 10 on a 1000-unit box (1%). Kept, so the
         // glyph reads at the same weight the configurator's icons do.
-        strokeWidth={variant === "outline" ? 12 : 10}
+        strokeWidth={strokeWidth ?? (variant === "outline" ? 12 : 10)}
         strokeLinecap="round"
         strokeLinejoin="round"
       >
