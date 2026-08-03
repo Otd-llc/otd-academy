@@ -72,7 +72,7 @@ await page.addStyleTag({
 // and appeared as a phantom beat at four seconds.
 await page.evaluate(async () => {
   const { placeCell, removeCell, cells } = await import("/src/hex/cells.ts");
-  const { rebuildGhosts } = await import("/src/hex/ghosts.ts");
+  const { ghosts, rebuildGhosts } = await import("/src/hex/ghosts.ts");
   const { controls, cellsContainer } = await import("/src/hex/scene.ts");
 
   // The ghost wireframes STAY. They are the app's own "you can add one here"
@@ -108,8 +108,17 @@ await page.evaluate(async () => {
 
   // Back to the opening state.
   tray.exploded = false;
-  for (const key of [...cells.keys()]) if (cells.get(key) !== tray) removeCell(key);
+  for (const key of [...cells.keys()])
+    if (cells.get(key) !== tray) removeCell(key);
   rebuildGhosts();
+  // Same two-ghost limit as the choreography, or the clip OPENS on all six and
+  // four of them vanish on the first beat.
+  for (const g of ghosts) {
+    g.root.visible = [
+      [1, 0],
+      [-1, 1],
+    ].some(([q, r]) => g.slot.q === q && g.slot.r === r);
+  }
   await new Promise((r) => requestAnimationFrame(() => r(null)));
 });
 await page.waitForTimeout(1200); // let the collapse settle before recording
@@ -120,7 +129,7 @@ const actualMs = await page.evaluate(async (seconds) => {
   const { placeCell, removeCell, cells } = await import("/src/hex/cells.ts");
   const { slotsForCell, defaultKindForSlot, setCapAt, isCapAvailable } =
     await import("/src/hex/caps.ts");
-  const { rebuildGhosts } = await import("/src/hex/ghosts.ts");
+  const { ghosts, rebuildGhosts } = await import("/src/hex/ghosts.ts");
   const { controls } = await import("/src/hex/scene.ts");
   const { bumpRender } = await import("/src/hex/main.ts");
 
@@ -180,7 +189,11 @@ const actualMs = await page.evaluate(async (seconds) => {
   // gltf is still FCStd-only, and setting one of those places nothing at all.
   const kindFor = (spec, i) => {
     if (i === 0) {
-      const corner = { shape: spec.shape, variant: "corner", gender: spec.gender };
+      const corner = {
+        shape: spec.shape,
+        variant: "corner",
+        gender: spec.gender,
+      };
       if (isCapAvailable(corner)) return corner;
     }
     return defaultKindForSlot(spec);
@@ -191,24 +204,84 @@ const actualMs = await page.evaluate(async (seconds) => {
   // it, and the two z-fight for the rest of the clip. `placeCell`/`removeCell`
   // do not do this for you: in the app it is the picking layer's job, and a
   // script driving the scene directly has to take that job on.
+  //
+  // Then all but TWO are hidden. Six rings of wireframe is what the app should
+  // show someone holding a mouse -- every slot they could click -- but in a
+  // recording it is six rings of high-frequency edges, which roughly doubled
+  // the encoded size for detail nobody is going to read at hero scale.
+  //
+  // The two kept are the slots the choreography is about to fill, which is the
+  // pair that actually carries meaning: a marked empty slot, then a tile
+  // snapping into precisely that slot. The other four were decoration.
+  const limitGhosts = () => {
+    for (const g of ghosts) {
+      g.root.visible = neighbours.some(
+        ([q, r]) => g.slot.q === q && g.slot.r === r,
+      );
+    }
+  };
+
   const topology = (fn) => () => {
     fn();
     rebuildGhosts();
+    limitGhosts();
   };
 
   const beats = [
     [0.04, () => void (tray.exploded = true)],
-    [0.22, topology(() => added.push(placeCell(neighbours[0][0], neighbours[0][1], "hex-tb-carrier-solid")))],
-    [0.30, topology(() => added.push(placeCell(neighbours[1][0], neighbours[1][1], "hex-tb-carrier-solid")))],
-    [0.37, topology(() => { setCapAt(tray, capSlots[0], kindFor(capSlots[0], 0)); caps.push(capSlots[0]); })],
-    [0.43, topology(() => { setCapAt(tray, capSlots[1], kindFor(capSlots[1], 1)); caps.push(capSlots[1]); })],
-    [0.49, topology(() => { setCapAt(tray, capSlots[2], kindFor(capSlots[2], 2)); caps.push(capSlots[2]); })],
-    [0.60, () => void (tray.exploded = false)],
-    [0.70, topology(() => setCapAt(tray, capSlots[0], null))],
+    [
+      0.22,
+      topology(() =>
+        added.push(
+          placeCell(neighbours[0][0], neighbours[0][1], "hex-tb-carrier-solid"),
+        ),
+      ),
+    ],
+    [
+      0.3,
+      topology(() =>
+        added.push(
+          placeCell(neighbours[1][0], neighbours[1][1], "hex-tb-carrier-solid"),
+        ),
+      ),
+    ],
+    [
+      0.37,
+      topology(() => {
+        setCapAt(tray, capSlots[0], kindFor(capSlots[0], 0));
+        caps.push(capSlots[0]);
+      }),
+    ],
+    [
+      0.43,
+      topology(() => {
+        setCapAt(tray, capSlots[1], kindFor(capSlots[1], 1));
+        caps.push(capSlots[1]);
+      }),
+    ],
+    [
+      0.49,
+      topology(() => {
+        setCapAt(tray, capSlots[2], kindFor(capSlots[2], 2));
+        caps.push(capSlots[2]);
+      }),
+    ],
+    [0.6, () => void (tray.exploded = false)],
+    [0.7, topology(() => setCapAt(tray, capSlots[0], null))],
     [0.75, topology(() => setCapAt(tray, capSlots[1], null))],
-    [0.80, topology(() => setCapAt(tray, capSlots[2], null))],
-    [0.86, topology(() => { for (const [k, v] of cells) if (v === added[0]) removeCell(k); })],
-    [0.92, topology(() => { for (const [k, v] of cells) if (v === added[1]) removeCell(k); })],
+    [0.8, topology(() => setCapAt(tray, capSlots[2], null))],
+    [
+      0.86,
+      topology(() => {
+        for (const [k, v] of cells) if (v === added[0]) removeCell(k);
+      }),
+    ],
+    [
+      0.92,
+      topology(() => {
+        for (const [k, v] of cells) if (v === added[1]) removeCell(k);
+      }),
+    ],
   ];
 
   await new Promise((resolve) => {
@@ -234,7 +307,8 @@ const actualMs = await page.evaluate(async (seconds) => {
   done = true;
   // Caps and neighbours must ALL be gone by here, or the closing frame does not
   // match the opening one and the loop visibly jumps.
-  if (cells.size !== 1) console.warn("loop does not close: cells =", cells.size);
+  if (cells.size !== 1)
+    console.warn("loop does not close: cells =", cells.size);
   // The REAL elapsed time, returned so the trim is exact. Neither guess worked:
   // measuring from context creation assumed recording starts there (it does not,
   // and the beats landed 4.4s late), and trimming a fixed 12s off the end cut the
@@ -256,29 +330,62 @@ const trim = (trimMs / 1000).toFixed(2);
 // Safari builds will autoplay; WebM is smaller where it is supported.
 // `faststart` puts the index at the front so playback can begin early.
 execFileSync("ffmpeg", [
-  "-y", "-loglevel", "error",
-  "-sseof", `-${(actualMs / 1000).toFixed(2)}`, "-i", raw,
+  "-y",
+  "-loglevel",
+  "error",
+  "-sseof",
+  `-${(actualMs / 1000).toFixed(2)}`,
+  "-i",
+  raw,
   "-an",
   // Retimed to a fixed length. The capture rate is whatever the machine managed;
   // the hero wants a predictable loop, and a pure speed change keeps every frame
   // real rather than interpolating new ones.
-  "-vf", `setpts=${(SECONDS / (actualMs / 1000)).toFixed(4)}*PTS,fps=30`,
-  "-c:v", "libx264", "-preset", "slow", "-crf", "31",
-  "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+  "-vf",
+  `setpts=${(SECONDS / (actualMs / 1000)).toFixed(4)}*PTS,fps=30`,
+  "-c:v",
+  "libx264",
+  "-preset",
+  "slow",
+  "-crf",
+  "31",
+  "-pix_fmt",
+  "yuv420p",
+  "-movflags",
+  "+faststart",
   `${OUT}/configurator${suffix}.mp4`,
 ]);
 execFileSync("ffmpeg", [
-  "-y", "-loglevel", "error",
-  "-sseof", `-${(actualMs / 1000).toFixed(2)}`, "-i", raw,
+  "-y",
+  "-loglevel",
+  "error",
+  "-sseof",
+  `-${(actualMs / 1000).toFixed(2)}`,
+  "-i",
+  raw,
   "-an",
-  "-vf", `setpts=${(SECONDS / (actualMs / 1000)).toFixed(4)}*PTS,fps=30`,
-  "-c:v", "libvpx-vp9", "-crf", "36", "-b:v", "0", "-row-mt", "1",
+  "-vf",
+  `setpts=${(SECONDS / (actualMs / 1000)).toFixed(4)}*PTS,fps=30`,
+  "-c:v",
+  "libvpx-vp9",
+  "-crf",
+  "36",
+  "-b:v",
+  "0",
+  "-row-mt",
+  "1",
   `${OUT}/configurator${suffix}.webm`,
 ]);
 execFileSync("ffmpeg", [
-  "-y", "-loglevel", "error",
-  "-ss", "5", "-i", `${OUT}/configurator${suffix}.mp4`,
-  "-frames:v", "1",
+  "-y",
+  "-loglevel",
+  "error",
+  "-ss",
+  "5",
+  "-i",
+  `${OUT}/configurator${suffix}.mp4`,
+  "-frames:v",
+  "1",
   `${OUT}/configurator${suffix}-poster.jpg`,
 ]);
 
@@ -288,15 +395,8 @@ for (const f of [
   `configurator${suffix}.webm`,
   `configurator${suffix}-poster.jpg`,
 ]) {
-  const { size } = await import("node:fs").then((m) => m.statSync(`${OUT}/${f}`));
+  const { size } = await import("node:fs").then((m) =>
+    m.statSync(`${OUT}/${f}`),
+  );
   console.log(`${f}  ${(size / 1024).toFixed(0)} KB`);
 }
-
-
-
-
-
-
-
-
-
