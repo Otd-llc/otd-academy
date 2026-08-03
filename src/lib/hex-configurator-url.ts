@@ -49,10 +49,20 @@ export function hexConfiguratorSrc(opts?: {
    *  rather than as an anonymous copy of itself. All six fields or none: the
    *  type has no optional members, so a caller cannot drop one silently. */
   recall?: HexRecall | null;
+  /** The academy's current theme, so the frame is right on its FIRST PAINT.
+   *
+   *  The handshake carries the theme too, and that is what keeps the two in step
+   *  afterwards -- but a postMessage cannot arrive before the child has painted,
+   *  so without this the frame shows the visitor's old configurator theme and
+   *  then snaps. It also covers the case where the handshake is refused outright
+   *  (any origin outside *.onethousanddrones.com, such as a Vercel preview),
+   *  where otherwise the theme would never sync at all. */
+  theme?: "dark" | "light" | null;
 }): string {
   const url = new URL("/hex", hexConfiguratorOrigin());
   url.searchParams.set("embed", "1");
   if (opts?.distinctId) url.searchParams.set("ph_did", opts.distinctId);
+  if (opts?.theme) url.searchParams.set("theme", opts.theme);
 
   if (opts?.recall) {
     const r = opts.recall;

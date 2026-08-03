@@ -38,6 +38,7 @@ import type { Metadata } from "next";
 
 import { ConfiguratorLink } from "@/components/hex/ConfiguratorLink";
 import { HexConfiguratorFrame } from "@/components/hex/HexConfiguratorFrame";
+import { ThemedLoop } from "@/components/hex/ThemedLoop";
 import { ARRANGEMENTS, HexLattice } from "@/components/hex/HexLattice";
 import { env } from "@/env";
 import {
@@ -156,14 +157,16 @@ export default function HexPage() {
     {
       href: printableSetUrl(HEX_RELEASE, "hex-cluster"),
       name: "hex-cluster.zip",
+      format: "ZIP",
       size: HEX_RELEASE_FILES.set.label,
-      desc: "Every part in 3MF and STL, with the license.",
+      desc: `All ${HEX_PART_COUNT} parts, 3MF and STL`,
     },
     {
       href: printableLicenseUrl(HEX_RELEASE),
       name: "LICENSE.txt",
+      format: "TXT",
       size: HEX_RELEASE_FILES.license.label,
-      desc: "The same notice that travels inside every file.",
+      desc: "The notice that travels inside every file",
     },
   ];
 
@@ -173,6 +176,108 @@ export default function HexPage() {
     // to <body>, so wrapping costs no extra element in the layout. The page
     // stays a server component; only the host and the links are client.
     <HexConfiguratorFrame enabled={env.NEXT_PUBLIC_HEX_EMBED !== "off"}>
+      {/* ── the loop, and everything a visitor came for, above the fold ─────
+          Owner pick (sandbox round, option B2). The page used to open on the
+          spec document, which is the right shape for a reader arriving from a
+          LICENSE.txt and the wrong one for someone being handed the link: the
+          configurator was a section heading near the bottom, and the downloads
+          were below that.
+
+          Order is deliberate: OPEN, DOWNLOAD, LICENCE, then the document. The
+          people this gets sent to already know what it is. The people who
+          follow an attribution link do not, and the document is still there,
+          one screen down, unchanged. */}
+      <section className="relative mx-auto max-w-[100rem] px-4 sm:px-6">
+        <div className="relative overflow-hidden border border-panel-border/60">
+          <ThemedLoop className="h-[58vh] min-h-[380px] w-full object-cover" />
+
+          {/* Bottom-up scrim: legibility only. It carries no colour and states
+              nothing, and it reaches full transparency well above the middle of
+              the frame, so the geometry is untouched. */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-gradient-to-t from-deep-space via-deep-space/45 to-transparent"
+          />
+
+          <div className="absolute inset-0 flex items-end">
+            <div className="w-full p-6 sm:p-12">
+              <h1 className="title-hero">Hex Cluster.</h1>
+              <p className="mt-3 max-w-xl font-serif text-base leading-relaxed text-text">
+                A printable mounting standard. {HEX_PART_COUNT} parts,{" "}
+                {HEX_LICENSE.name}.
+              </p>
+              {/* ConfiguratorLink, not a plain href to `?open=1`: on THIS page
+                  the deep-link effect has already run, so a same-page query
+                  change would do nothing. The link reads the frame's context
+                  and opens it directly, and still degrades to the standalone
+                  configurator with no JS or under the kill switch. */}
+              <p className="mt-7">
+                <ConfiguratorLink
+                  href={HEX_CONFIGURATOR_URL}
+                  placement="hero"
+                  className="glass-button glass-button-cta inline-flex items-center px-8 py-4 font-mono text-sm uppercase tracking-[0.16em]"
+                >
+                  Open the configurator
+                </ConfiguratorLink>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Downloads and licence, immediately under the fold line. Someone who
+            arrived to fetch files never has to hunt for them. */}
+        <div className="mt-8 grid gap-x-14 gap-y-10 lg:grid-cols-2">
+          <div>
+            <ul className="border-t border-panel-border/60">
+              {files.map((f) => (
+                <li key={f.name}>
+                  <a
+                    href={f.href}
+                    download
+                    className="group flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-panel-border/60 py-4 hover:bg-command-gold/[0.04] focus-visible:bg-command-gold/[0.06] focus-visible:outline-none"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="font-mono text-base leading-none text-command-gold transition-transform group-hover:translate-y-0.5"
+                    >
+                      &darr;
+                    </span>
+                    <span className="badge border-command-gold/50 text-command-gold">
+                      {f.format}
+                    </span>
+                    <span className="font-mono text-sm text-title group-hover:text-gold-light">
+                      {f.name}
+                    </span>
+                    <span className="font-numeral text-lg tabular-nums text-text">
+                      {f.size}
+                    </span>
+                    <span className="w-full font-serif text-xs text-muted sm:ml-auto sm:w-auto sm:text-right">
+                      {f.desc}
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 font-serif text-xs leading-relaxed text-muted">
+              No account, no email. Release {HEX_RELEASE}; the segment is
+              immutable, so a link you save today keeps resolving to the
+              geometry you downloaded.
+            </p>
+          </div>
+
+          <div>
+            <Heading>Licence</Heading>
+            <p className="mt-4 font-serif text-base leading-relaxed text-text">
+              {HEX_LICENSE.name}. Use it commercially, remix it, sell what you
+              print. Keep the credit.
+            </p>
+            <p className="mt-4 border-y border-command-gold/40 py-3 font-mono text-[11px] leading-relaxed text-title">
+              {HEX_LICENSE.credit}
+            </p>
+          </div>
+        </div>
+      </section>
+
       <main className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="grid lg:grid-cols-[420px_1fr]">
           {/* F5 — the rule lives on this OUTER grid item, which stretches to the
@@ -229,11 +334,12 @@ export default function HexPage() {
           </div>
 
           <div className="py-10 lg:pl-12">
+            {/* No title here any more: the hero above owns the H1, and a second
+                "Hex Cluster" a screen down read as the page starting twice. */}
             <div className="title-rule" aria-hidden="true" />
-            <h1 className="title-section mt-6">Hex Cluster</h1>
-            <p className="mt-3 max-w-xl font-serif text-base leading-relaxed text-text">
-              A printable mounting standard. Dovetails on all six edges, so a
-              tiled layout behaves as one rigid body.
+            <p className="mt-6 max-w-xl font-serif text-base leading-relaxed text-text">
+              Dovetails on all six edges, so a tiled layout behaves as one rigid
+              body.
             </p>
 
             <Section title="What it is">
@@ -318,45 +424,6 @@ export default function HexPage() {
               </p>
             </Section>
 
-            <Section title="Files">
-              <p className="max-w-xl font-serif text-base leading-relaxed text-text">
-                Release {HEX_RELEASE}. {HEX_PART_COUNT} parts as 3MF and STL,
-                with STEP kept per part for remixing. The release segment is
-                immutable: a link you save today keeps resolving to the geometry
-                you downloaded.
-              </p>
-              {/* F4 — an arrow leads each row, with the size, so someone on a
-                tether knows the cost before they tap. */}
-              <ul className="mt-6 max-w-xl border-t border-panel-border/60">
-                {files.map((f) => (
-                  <li key={f.name} className="border-b border-panel-border/60">
-                    <a
-                      href={f.href}
-                      className="group block py-4 hover:bg-command-gold/[0.04] focus-visible:bg-command-gold/[0.06] focus-visible:outline-none"
-                    >
-                      <span className="flex items-baseline gap-3">
-                        <span
-                          aria-hidden="true"
-                          className="font-mono text-command-gold"
-                        >
-                          ↓
-                        </span>
-                        <span className="title-card group-hover:text-gold-light">
-                          {f.name}
-                        </span>
-                        <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
-                          {f.size}
-                        </span>
-                      </span>
-                      <span className="mt-1 block pl-6 text-sm text-muted">
-                        {f.desc}
-                      </span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-
             <Section title="License and attribution">
               <div className="max-w-xl space-y-4 font-serif text-base leading-relaxed text-text">
                 <p>
@@ -403,23 +470,6 @@ export default function HexPage() {
                 </a>
                 . CC BY runs one way: files already published under it stay
                 under it, and only a future release could carry different terms.
-              </p>
-            </Section>
-
-            <Section title="Configure a cluster">
-              <p className="max-w-xl font-serif text-base leading-relaxed text-text">
-                Lay out tiles, inserts and caps in the browser, then print a
-                dimensioned build sheet with the bill of materials for exactly
-                the layout you made.
-              </p>
-              <p className="mt-6">
-                <ConfiguratorLink
-                  href={HEX_CONFIGURATOR_URL}
-                  placement="footer_cta"
-                  className="glass-button glass-button-cta inline-flex items-center px-6 py-3 font-mono text-sm uppercase tracking-[0.16em]"
-                >
-                  Open the configurator
-                </ConfiguratorLink>
               </p>
             </Section>
           </div>

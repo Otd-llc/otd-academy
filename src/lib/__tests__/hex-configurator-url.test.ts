@@ -62,6 +62,32 @@ describe("hexConfiguratorSrc", () => {
     expect(hexConfiguratorSrc({ distinctId: null })).not.toContain("ph_did");
   });
 
+  // The frame has to be right on its FIRST PAINT. The handshake carries the
+  // theme as well, and that is what keeps the two in step afterwards, but a
+  // postMessage cannot land before the child paints -- so without this the frame
+  // shows the visitor's old configurator theme and then snaps to the academy's.
+  // It is also the only channel that works when the handshake is refused, which
+  // it is for any origin outside *.onethousanddrones.com.
+  it.each([
+    ["dark", "dark"],
+    ["light", "light"],
+  ])("carries theme=%s so the frame boots correct", async (theme: string) => {
+    vi.stubEnv("NEXT_PUBLIC_HEX_CONFIGURATOR_URL", undefined);
+    const { hexConfiguratorSrc } = await load();
+    const src = new URL(
+      hexConfiguratorSrc({ theme: theme as "dark" | "light" }),
+    );
+    expect(src.searchParams.get("theme")).toBe(theme);
+  });
+
+  it("omits theme entirely when none was resolved", async () => {
+    vi.stubEnv("NEXT_PUBLIC_HEX_CONFIGURATOR_URL", undefined);
+    const { hexConfiguratorSrc } = await load();
+    expect(
+      new URL(hexConfiguratorSrc({ theme: null })).searchParams.has("theme"),
+    ).toBe(false);
+  });
+
   it("puts the payload in the FRAGMENT, never the query", async () => {
     vi.stubEnv("NEXT_PUBLIC_HEX_CONFIGURATOR_URL", undefined);
     const { hexConfiguratorSrc } = await load();
