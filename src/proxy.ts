@@ -64,6 +64,14 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
+    // `api/printable` is a PREFIX, and two routes rely on that: the download
+    // proxy at /api/printable/* and the custom-pack builder at
+    // /api/printable-pack. Both are deliberately public (the release is CC BY
+    // and ungated). Narrowing this to `api/printable/` with a trailing slash
+    // would silently put the pack endpoint behind the auth gate, and the only
+    // symptom would be downloads 307ing to /sign-in for signed-out visitors --
+    // which is exactly nobody who is logged in, so it would look fine in
+    // testing.
     "/((?!api/auth|api/avatar|api/part-model|api/printable|api/stripe/webhook|api/capture|api/cron|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico|.*\\..*).*)",
   ],
 };
