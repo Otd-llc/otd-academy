@@ -70,10 +70,14 @@ const RELEASE = process.env.PRINTABLES_RELEASE ?? "2026-07-31";
 // surfaces. Add a part here only for that reason; do not use it as a paywall.
 const WITHHELD_PARTS = new Set(["TB-1-POWER"]);
 
-const SETS: Record<string, { label: string; parts: (m: Manifest) => string[] }> = {
+const SETS: Record<
+  string,
+  { label: string; parts: (m: Manifest) => string[] }
+> = {
   "hex-cluster": {
     label: "Hex Cluster modular tile system -- complete set",
-    parts: (m) => m.parts.map((p) => p.part).filter((p) => !WITHHELD_PARTS.has(p)),
+    parts: (m) =>
+      m.parts.map((p) => p.part).filter((p) => !WITHHELD_PARTS.has(p)),
   },
 };
 
@@ -198,14 +202,18 @@ async function main() {
   const { printableKey, printableLicenseKey, printableSetKey } = r2mod;
 
   if (!env.R2_ENABLED || !env.R2_BUCKET) {
-    throw new Error("R2 is not configured (R2_ENABLED / R2_BUCKET). Refusing to run.");
+    throw new Error(
+      "R2 is not configured (R2_ENABLED / R2_BUCKET). Refusing to run.",
+    );
   }
 
   const manifest = loadManifest();
   console.log(`source:  ${SOURCE_DIR}`);
   console.log(`release: ${RELEASE}`);
   console.log(`bucket:  ${env.R2_BUCKET}`);
-  console.log(`mode:    ${write ? "WRITE (uploads to the real bucket)" : "DRY RUN"}`);
+  console.log(
+    `mode:    ${write ? "WRITE (uploads to the real bucket)" : "DRY RUN"}`,
+  );
   console.log(`parts:   ${manifest.parts.length}`);
 
   // A part that failed the watertight gate is absent from the manifest, so it
@@ -239,7 +247,11 @@ async function main() {
     for (const [format, file] of Object.entries(part.files)) {
       const fmt = format as "3mf" | "stl" | "step";
       const body = readFileSync(join(SOURCE_DIR, file.path));
-      await put(printableKey(RELEASE, fmt, part.part, fmt), body, CONTENT_TYPE[fmt]);
+      await put(
+        printableKey(RELEASE, fmt, part.part, fmt),
+        body,
+        CONTENT_TYPE[fmt],
+      );
     }
   }
 
@@ -260,10 +272,16 @@ async function main() {
       for (const fmt of ["3mf", "stl"] as const) {
         const file = part.files[fmt];
         if (!file) continue;
-        zip.file(`${fmt}/${name}.${fmt}`, readFileSync(join(SOURCE_DIR, file.path)));
+        zip.file(
+          `${fmt}/${name}.${fmt}`,
+          readFileSync(join(SOURCE_DIR, file.path)),
+        );
       }
     }
-    const body = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+    const body = await zip.generateAsync({
+      type: "nodebuffer",
+      compression: "DEFLATE",
+    });
     console.log(`  ${setName}: ${names.length} part(s)`);
     await put(printableSetKey(RELEASE, setName), body, "application/zip");
   }
@@ -271,7 +289,9 @@ async function main() {
   const base = env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
   console.log(
     `\n${write ? "Uploaded" : "Would upload"} release ${RELEASE}.` +
-      (write ? `\nskipped (already published): ${skipped} · retries: ${retried}` : "") +
+      (write
+        ? `\nskipped (already published): ${skipped} · retries: ${retried}`
+        : "") +
       (base
         ? `\nPublic base: ${base}/printables/${RELEASE}/`
         : write
@@ -322,7 +342,30 @@ function orientationNote(parts: ManifestPart[]): string[] {
       "hand. Check every part sits on a flat face before slicing.",
     );
   } else {
-    lines.push("", "Check each part sits on a flat face before slicing.");
+    lines.push(
+      "",
+      "Every orientation has been checked: each part rests on a flat face, with",
+      "the two exceptions below. Nobody has printed the set yet, so this is a",
+      "geometric check and not a print-tested one.",
+    );
+  }
+
+  // The two parts that rest on a line by DESIGN, named so nobody is surprised
+  // mid-print. Owner decision 2026-08-03: keep the orientation, say it plainly.
+  // A spike carries load along its axis; printed upright the layers stack along
+  // that axis and peel apart, so both are laid down to run the layers across it.
+  // A lying cone touches the bed along a line no matter how it is turned.
+  const NEEDS_SUPPORT = ["Hex-TB-Spike-Solid", "Hex-TB-Spike-Ball-Joint"];
+  const present = NEEDS_SUPPORT.filter((n) => parts.some((p) => p.part === n));
+  if (present.length > 0) {
+    lines.push(
+      "",
+      `Support required -- ${present.join(", ")}.`,
+      "These are laid on their side on purpose: a spike is loaded along its axis,",
+      "and lying down runs the layers ACROSS that load instead of letting them",
+      "peel apart. The cost is that they touch the bed along a line, so give them",
+      "supports or a brim. Every other part stands on its own.",
+    );
   }
   return lines;
 }
@@ -352,10 +395,12 @@ function setReadme(
     // module so the archive and the page cannot drift apart.
     "Print settings:",
     ...HEX_PRINT_PARAMS.map(
-      (p) => `  ${p.label}: ${ascii(p.value)}${p.aside ? ` (${ascii(p.aside)})` : ""}`,
+      (p) =>
+        `  ${p.label}: ${ascii(p.value)}${p.aside ? ` (${ascii(p.aside)})` : ""}`,
     ),
     ...HEX_CLEARANCE.map(
-      (p) => `  ${p.label}: ${ascii(p.value)}${p.aside ? ` (${ascii(p.aside)})` : ""}`,
+      (p) =>
+        `  ${p.label}: ${ascii(p.value)}${p.aside ? ` (${ascii(p.aside)})` : ""}`,
     ),
     "",
     `Hex bases print ${HEX_ORIENTATION.value}. ${ascii(HEX_ORIENTATION.why)}`,
