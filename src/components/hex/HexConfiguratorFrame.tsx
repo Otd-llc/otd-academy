@@ -174,6 +174,10 @@ export function HexConfiguratorFrame({
               distinctId,
               payload: recalled?.payload ?? null,
               recall: recalled?.recall ?? null,
+              // Read at OPEN time, not at render: the page is prerendered, so a
+              // build-time value would bake one visitor's theme into HTML served
+              // to everyone. The handshake keeps it in step from here on.
+              theme: currentTheme(),
             }),
           );
         })();

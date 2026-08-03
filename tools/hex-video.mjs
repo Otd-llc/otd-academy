@@ -1,12 +1,19 @@
-﻿// A short silent loop of the configurator building a cluster, for the /hex hero.
+﻿// A short silent loop of the configurator, for the /hex hero.
 //
-// The choreography runs INSIDE the page as one awaited promise rather than as a
-// series of Playwright waits, because the recording is real time: any round trip
-// between node and the browser lands in the footage as a stutter.
+// WHY THE FIRST TAKE RAN AT ABOUT HALF A FRAME PER SECOND. The app has an
+// idle-frame skip: `tick()` runs rAF continuously, but `renderer.render()` only
+// fires while there is "active work" -- a lerp in flight, controls damping, or
+// recent input -- and a `renderBudget` that decays to zero otherwise. Between
+// scripted changes there was no active work, so the GPU went idle and the
+// screencast captured the same frame over and over. It was never a capture-rate
+// problem; the page genuinely was not drawing.
 //
-// Playwright starts recording when the CONTEXT is created, so the boot and the
-// model load are in the file too. The offset from context creation to the first
-// frame worth keeping is measured, not guessed, and handed to ffmpeg as the trim.
+// `bumpRender` is exported for exactly this, so the recording keeps the budget
+// topped up for its whole duration and every frame is a real one.
+//
+// The choreography is a closed loop: it starts and ends on a collapsed carrier
+// parts tray, and the camera completes exactly one revolution, so the last frame
+// meets the first.
 import { chromium } from "playwright";
 import { mkdirSync, readdirSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -22,6 +29,12 @@ mkdirSync(OUT, { recursive: true });
 
 const W = 1280;
 const H = 800;
+const SECONDS = 10;
+
+// BOTH themes, for the same reason the stills are shot twice: a clip recorded on
+// deep space is a black slab on the ivory theme.
+const THEME = process.argv[2] === "light" ? "light" : "dark";
+const suffix = THEME === "light" ? "-light" : "";
 
 const browser = await chromium.launch();
 const contextStart = Date.now();
@@ -30,79 +43,184 @@ const ctx = await browser.newContext({
   recordVideo: { dir: RAW, size: { width: W, height: H } },
 });
 const page = await ctx.newPage();
-// Pin the theme BEFORE boot. Playwright's default colorScheme is light, and the
-// app's no-flash script honours prefers-color-scheme, so leaving this out
-// silently records the wrong palette -- which is exactly what the first take did.
-await page.addInitScript(() => {
+// Pin the theme BEFORE boot: the app resolves it in a no-flash inline script,
+// and Playwright's default colorScheme is light.
+await page.addInitScript((t) => {
   try {
-    localStorage.setItem("otd-theme", "dark");
+    localStorage.setItem("otd-theme", t);
   } catch {
     /* private mode */
   }
-});
+}, THEME);
 await page.goto(APP, { waitUntil: "domcontentloaded" });
 await page.waitForTimeout(11000); // three.js, models, first paint
 
-// Hide the timed nudges. The toolbar and header STAY: this is a clip about what
-// the tool does, and a tool with no interface in shot is just a turntable.
+// ALL app chrome goes. This clip is about the geometry: the brand lockup and the
+// edit/export controls are the page's job, not the loop's, and at hero size they
+// read as clutter someone has to look past.
 await page.addStyleTag({
-  content: "#idle-prompt, #ghost-tip, #hint { display: none !important; }",
+  content: `
+    #header, #toolbar, #inspector, #idle-prompt, #ghost-tip, #hint,
+    #crosshair, #action-sheet, #export-modal, .long-press-indicator,
+    #loading { display: none !important; }
+  `,
 });
 
-const trimMs = Date.now() - contextStart;
-
+// SETUP happens in its own evaluate, BEFORE the trim is measured. The first take
+// measured the trim first, so the framing pass -- which places the neighbours to
+// size the shot and then takes them away again -- was inside the recorded window
+// and appeared as a phantom beat at four seconds.
 await page.evaluate(async () => {
   const { placeCell, removeCell, cells } = await import("/src/hex/cells.ts");
   const { controls, cellsContainer } = await import("/src/hex/scene.ts");
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  // A ring of six around one, laid down in order so the dovetails visibly meet.
-  const CELLS = [
-    [0, 0],
+  // The ghost wireframes STAY. They are the app's own "you can add one here"
+  // affordance, and in the loop they do the explaining that a caption would
+  // otherwise have to: the empty slots are visibly slots, so the tiles that
+  // arrive later read as snapping into a system rather than floating in.
+
+  // Open on the carrier parts tray -- the part that best shows what the system
+  // is for, and the one with something inside it to reveal.
+  const tray = placeCell(0, 0, "hex-tb-carrier-parts-tray");
+
+  // Frame for the WIDEST moment (exploded, with neighbours) so the camera never
+  // has to move to keep up. A hero loop that re-frames itself reads as a bug.
+  for (const [q, r] of [
     [1, 0],
-    [1, -1],
-    [0, -1],
-    [-1, 0],
     [-1, 1],
-    [0, 1],
-  ];
-
-  // Frame the FINISHED cluster first, then take it back down, so the camera
-  // never jumps mid-clip: a hero loop that re-frames itself reads as a bug.
-  //
-  // Torn down with removeCell, NOT cellsContainer.clear(). The first take used
-  // clear(), which empties the SCENE GRAPH while leaving the `cells` registry
-  // populated -- so the re-placement deduped against entries that were still
-  // there, added nothing back, and recorded seven ghost previews and no cluster.
-  for (const [q, r] of CELLS) placeCell(q, r);
+  ])
+    placeCell(q, r, "hex-tb-carrier-solid");
+  tray.exploded = true;
   await new Promise((r) => requestAnimationFrame(() => r(null)));
   await controls.fitToSphere(cellsContainer, false);
-  controls.dollyTo(controls.distance / 0.66, false);
-  for (const key of [...cells.keys()]) removeCell(key);
+  // MULTIPLY to move in. The first take divided by 0.60, which pushed the camera
+  // two thirds further out and shrank the subject to a thumbnail.
+  controls.dollyTo(controls.distance * 1.06, false);
+
+  // Back to the opening state.
+  tray.exploded = false;
+  for (const key of [...cells.keys()]) if (cells.get(key) !== tray) removeCell(key);
   await new Promise((r) => requestAnimationFrame(() => r(null)));
-  await sleep(700);
-
-  // Place them one at a time.
-  for (const [q, r] of CELLS) {
-    placeCell(q, r);
-    await sleep(430);
-  }
-
-  // Then a slow orbit of the finished cluster. Stepped per frame rather than one
-  // eased `rotate`, so the speed is constant instead of ease-in-ease-out.
-  const start = performance.now();
-  const DURATION = 3600;
-  await new Promise((resolve) => {
-    function step(now) {
-      const t = now - start;
-      controls.rotate(0.0075, 0, false);
-      if (t < DURATION) requestAnimationFrame(step);
-      else resolve(null);
-    }
-    requestAnimationFrame(step);
-  });
-  await sleep(500);
 });
+await page.waitForTimeout(1200); // let the collapse settle before recording
+
+const trimMs = Date.now() - contextStart;
+
+const actualMs = await page.evaluate(async (seconds) => {
+  const { placeCell, removeCell, cells } = await import("/src/hex/cells.ts");
+  const { slotsForCell, defaultKindForSlot, setCapAt, isCapAvailable } =
+    await import("/src/hex/caps.ts");
+  const { controls } = await import("/src/hex/scene.ts");
+  const { bumpRender } = await import("/src/hex/main.ts");
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const tray = [...cells.values()][0];
+  const neighbours = [
+    [1, 0],
+    [-1, 1],
+  ];
+
+  // One full revolution across the clip, so the last frame meets the first.
+  const RATE = (2 * Math.PI) / seconds; // rad/s
+  const t0 = performance.now();
+  let done = false;
+  let last = t0;
+
+  // The camera and the render budget are driven from one rAF loop. Without the
+  // bump the app stops drawing the moment nothing is lerping, which is what made
+  // the first take a slideshow.
+  // The turn is ACCUMULATED and clamped to exactly one revolution, rather than
+  // left to a fixed rate for a fixed duration. Timers slip under a page that is
+  // rendering every frame and cloning meshes, so the real runtime overran the
+  // planned twelve seconds every time -- and an overrun at a fixed rate means
+  // more than 360 degrees, which is precisely what stops the last frame meeting
+  // the first. Clamping makes the loop close whatever the clock does.
+  let turned = 0;
+  (function spin(now) {
+    const dt = Math.min((now - last) / 1000, 1 / 30);
+    last = now;
+    const step = Math.min(RATE * dt, 2 * Math.PI - turned);
+    if (step > 0) {
+      controls.rotate(step, 0, false);
+      turned += step;
+    }
+    bumpRender(10);
+    if (!done) requestAnimationFrame(spin);
+  })(t0);
+
+  // BEATS FIRE ON ROTATION ANGLE, NOT ON THE CLOCK.
+  //
+  // Every wall-clock version of this drifted. setTimeout is throttled hard on a
+  // page rendering every frame at 1280x800 while Playwright screencasts it, so a
+  // ten-second plan took sixteen and the beats slid out from under the camera.
+  // Keying them to accumulated azimuth makes the two impossible to separate:
+  // whatever the frame rate does, the lid opens at the same point in the turn,
+  // and the clip always ends where it started.
+  const caps = [];
+  const added = [];
+  const fired = new Set();
+  const capSlots = slotsForCell(tray).slice(0, 3);
+
+  // At least one CORNER cap, not three of whatever the slot defaults to. The
+  // corner is the piece that shows the system turning a corner rather than just
+  // running in a line, so a loop without one undersells what the caps are for.
+  // `variantsFor` offers corner on both shapes; it is guarded by
+  // `isCapAvailable` because a variant can exist in the type union while its
+  // gltf is still FCStd-only, and setting one of those places nothing at all.
+  const kindFor = (spec, i) => {
+    if (i === 0) {
+      const corner = { shape: spec.shape, variant: "corner", gender: spec.gender };
+      if (isCapAvailable(corner)) return corner;
+    }
+    return defaultKindForSlot(spec);
+  };
+
+  const beats = [
+    [0.04, () => void (tray.exploded = true)],
+    [0.22, () => added.push(placeCell(neighbours[0][0], neighbours[0][1], "hex-tb-carrier-solid"))],
+    [0.30, () => added.push(placeCell(neighbours[1][0], neighbours[1][1], "hex-tb-carrier-solid"))],
+    [0.37, () => { setCapAt(tray, capSlots[0], kindFor(capSlots[0], 0)); caps.push(capSlots[0]); }],
+    [0.43, () => { setCapAt(tray, capSlots[1], kindFor(capSlots[1], 1)); caps.push(capSlots[1]); }],
+    [0.49, () => { setCapAt(tray, capSlots[2], kindFor(capSlots[2], 2)); caps.push(capSlots[2]); }],
+    [0.60, () => void (tray.exploded = false)],
+    [0.70, () => setCapAt(tray, capSlots[0], null)],
+    [0.75, () => setCapAt(tray, capSlots[1], null)],
+    [0.80, () => setCapAt(tray, capSlots[2], null)],
+    [0.86, () => { for (const [k, v] of cells) if (v === added[0]) removeCell(k); }],
+    [0.92, () => { for (const [k, v] of cells) if (v === added[1]) removeCell(k); }],
+  ];
+
+  await new Promise((resolve) => {
+    const poll = setInterval(() => {
+      const f = turned / (2 * Math.PI);
+      for (const [mark, fn] of beats) {
+        if (f >= mark && !fired.has(mark)) {
+          fired.add(mark);
+          try {
+            fn();
+          } catch {
+            /* a beat must never strand the recording */
+          }
+        }
+      }
+      if (f >= 1) {
+        clearInterval(poll);
+        resolve(null);
+      }
+    }, 50);
+  });
+  await sleep(400); // let the final removal settle before the loop point
+  done = true;
+  // Caps and neighbours must ALL be gone by here, or the closing frame does not
+  // match the opening one and the loop visibly jumps.
+  if (cells.size !== 1) console.warn("loop does not close: cells =", cells.size);
+  // The REAL elapsed time, returned so the trim is exact. Neither guess worked:
+  // measuring from context creation assumed recording starts there (it does not,
+  // and the beats landed 4.4s late), and trimming a fixed 12s off the end cut the
+  // opening off whenever the beats overran their budget. The page is the only
+  // thing that knows how long it actually took.
+  return performance.now() - t0;
+}, SECONDS);
 
 await ctx.close(); // flushes the video
 await browser.close();
@@ -113,72 +231,51 @@ const raw = join(
 );
 const trim = (trimMs / 1000).toFixed(2);
 
-// Two encodes, because one format does not cover the field: MP4/H.264 is the
-// safe default and the only thing some older Safari builds will autoplay; WebM
-// is smaller where it is supported. `faststart` puts the index at the front so
-// playback can begin before the file has finished arriving.
+// Two encodes: MP4/H.264 is the safe default and the only thing some older
+// Safari builds will autoplay; WebM is smaller where it is supported.
+// `faststart` puts the index at the front so playback can begin early.
 execFileSync("ffmpeg", [
-  "-y",
-  "-loglevel",
-  "error",
-  "-ss",
-  trim,
-  "-i",
-  raw,
+  "-y", "-loglevel", "error",
+  "-sseof", `-${(actualMs / 1000).toFixed(2)}`, "-i", raw,
   "-an",
-  "-c:v",
-  "libx264",
-  "-preset",
-  "slow",
-  "-crf",
-  "26",
-  "-pix_fmt",
-  "yuv420p",
-  "-movflags",
-  "+faststart",
-  `${OUT}/configurator.mp4`,
+  // Retimed to a fixed length. The capture rate is whatever the machine managed;
+  // the hero wants a predictable loop, and a pure speed change keeps every frame
+  // real rather than interpolating new ones.
+  "-vf", `setpts=${(SECONDS / (actualMs / 1000)).toFixed(4)}*PTS,fps=30`,
+  "-c:v", "libx264", "-preset", "slow", "-crf", "31",
+  "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+  `${OUT}/configurator${suffix}.mp4`,
 ]);
 execFileSync("ffmpeg", [
-  "-y",
-  "-loglevel",
-  "error",
-  "-ss",
-  trim,
-  "-i",
-  raw,
+  "-y", "-loglevel", "error",
+  "-sseof", `-${(actualMs / 1000).toFixed(2)}`, "-i", raw,
   "-an",
-  "-c:v",
-  "libvpx-vp9",
-  "-crf",
-  "38",
-  "-b:v",
-  "0",
-  "-row-mt",
-  "1",
-  `${OUT}/configurator.webm`,
+  "-vf", `setpts=${(SECONDS / (actualMs / 1000)).toFixed(4)}*PTS,fps=30`,
+  "-c:v", "libvpx-vp9", "-crf", "36", "-b:v", "0", "-row-mt", "1",
+  `${OUT}/configurator${suffix}.webm`,
 ]);
-// A poster, so the hero has something to show before the video is decodable.
 execFileSync("ffmpeg", [
-  "-y",
-  "-loglevel",
-  "error",
-  "-ss",
-  "9",
-  "-i",
-  `${OUT}/configurator.mp4`,
-  "-frames:v",
-  "1",
-  `${OUT}/configurator-poster.jpg`,
+  "-y", "-loglevel", "error",
+  "-ss", "5", "-i", `${OUT}/configurator${suffix}.mp4`,
+  "-frames:v", "1",
+  `${OUT}/configurator${suffix}-poster.jpg`,
 ]);
 
 console.log(`trimmed ${trim}s of boot`);
 for (const f of [
-  "configurator.mp4",
-  "configurator.webm",
-  "configurator-poster.jpg",
+  `configurator${suffix}.mp4`,
+  `configurator${suffix}.webm`,
+  `configurator${suffix}-poster.jpg`,
 ]) {
-  const { size } = await import("node:fs").then((m) =>
-    m.statSync(`${OUT}/${f}`),
-  );
+  const { size } = await import("node:fs").then((m) => m.statSync(`${OUT}/${f}`));
   console.log(`${f}  ${(size / 1024).toFixed(0)} KB`);
 }
+
+
+
+
+
+
+
+
+
