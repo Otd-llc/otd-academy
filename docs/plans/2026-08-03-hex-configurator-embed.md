@@ -60,14 +60,40 @@ Checked 2026-08-03, not assumed:
 | Save currently navigates the window | `bioscale-viz/src/hex/save-link.ts` — `window.location.assign(buildSaveURL(...))` |
 | The return leg also navigates | `project-foundry/src/components/hex/SaveHexClusterForm.tsx:192,239` |
 
-**Open risk to settle in Task 1, not later:** whether a WebGL canvas in a
-cross-origin iframe performs acceptably on a mid-range phone. If it does not,
-the mobile branch keeps the current navigation and only desktop embeds. Do not
-build the whole thing and find out at the end.
+## 2a. Owner decisions, settled 2026-08-03
+
+These were open questions; they are now requirements, and they change the work.
+
+1. **Mobile embeds too.** There is no desktop-only branch and no navigation
+   fallback by viewport. Task 1 is therefore not a go/no-go on scope, it is the
+   point where mobile problems get found and fixed, and mobile is a first-class
+   target for every task after it.
+2. **The configurator hides its own brand chrome when embedded.** Driven by
+   `?embed=1`, not by frame-detection alone, so a standalone visitor who is
+   somehow framed still sees a complete app.
+3. **Auto-open on a deep link.** A visitor arriving with a build in the URL
+   (a QR scan, a shared link) gets the frame already open. A COLD visitor does
+   not: `/hex` is the spec page the printed files cite, and opening a 3D app
+   over it before it has been read once would bury the thing every published
+   `LICENSE.txt` points at.
+
+**Mobile consequences to design for, not discover:**
+
+- `100svh`, never `100vh`. Mobile browser chrome resizes the viewport and `vh`
+  leaves the canvas cut off behind the URL bar.
+- Touch arbitration is the real risk: a drag on the canvas must orbit the
+  camera, not scroll the page. Body scroll lock while open is mandatory, and
+  `touch-action` on the frame wrapper needs checking on iOS specifically.
+- The academy header is sticky and costs vertical space that a phone does not
+  have. Decide whether it collapses while the frame is open, and if it does,
+  keep a visible way back out.
+- The configurator already handles phones standalone (`syncMobileToolbarTop` in
+  `src/hex/main.ts` exists for exactly this), so the app is mobile-capable; what
+  is unproven is the app INSIDE a frame on a phone.
 
 ---
 
-## Task 1: Prove the frame works before building anything on it
+## Task 1: Make the frame work on a phone, first
 
 **Files:**
 - Create: `src/app/(chrome)/sandbox/hex-embed-probe/page.tsx`
@@ -96,21 +122,38 @@ export default function HexEmbedProbe() {
 }
 ```
 
-**Step 2: Run it and check three things**
+**Step 2: Check it on the desktop viewport**
 
 Run: `pnpm dev`, open `http://localhost:3000/sandbox/hex-embed-probe`
 
-Expected, and each is a go/no-go:
-1. The configurator renders (not a blank frame or a refused-to-connect error).
-2. Placing a cell works, and the camera responds to drag.
-3. At a 390px viewport, the canvas still responds to touch and the frame rate
-   is tolerable.
+1. The configurator renders (not a blank frame, not refused-to-connect).
+2. Placing a cell works and the camera responds to drag.
 
-**Step 3: Record the answer in this plan**
+**Step 3: Check it on a REAL phone, not an emulated viewport**
 
-If (3) fails, add a note here and scope the embed to `lg:` widths, keeping the
-navigation fallback on phones. Do not proceed to Task 2 until this is written
-down.
+DevTools device mode does not reproduce iOS Safari's viewport behaviour,
+its touch handling, or its WebGL limits, and those are the three things at
+risk. Serve the dev server on the LAN (`pnpm dev --host`) and open it on an
+actual handset.
+
+Confirm, and record each answer in this file:
+
+- **Sizing.** No cut-off canvas behind the URL bar, on both first paint and
+  after the bar collapses on scroll.
+- **Touch.** A one-finger drag on the canvas orbits the camera and does NOT
+  scroll the page. Pinch zooms the model, not the document.
+- **Frame rate.** Rotating a seven-tile cluster is smooth enough to use.
+- **Memory.** The tab survives opening, closing and reopening the frame several
+  times without the renderer being killed. iOS is the one that reclaims WebGL
+  contexts aggressively.
+
+**Step 4: Fix what fails, here, before Task 2**
+
+Mobile is a requirement, not a branch, so a failure at this step is work to be
+done rather than scope to be cut. The likely fixes, in order of probability:
+`100svh` instead of `100vh`; `overscroll-behavior: contain` and a body scroll
+lock; `touch-action: none` on the frame wrapper; and, if the renderer is being
+reclaimed, unmounting the iframe on close rather than hiding it.
 
 **Step 4: Commit**
 
@@ -521,8 +564,17 @@ git commit -am "feat(hex): run the save in place when the configurator is embedd
 - Modify: `src/app/(chrome)/hex/page.tsx`
 - Modify: `src/app/(bare)/c/[shareCode]/page.tsx`
 
-- `/hex?build=<code>` opens with the frame already expanded and the build
-  loaded, by putting the payload on the iframe `src` fragment.
+- `/hex?build=<code>` opens with the frame **already expanded** and the build
+  loaded, by putting the payload on the iframe `src` fragment. This is owner
+  decision 3.
+- A COLD `/hex` visit does not auto-open. The page is the spec sheet every
+  published `LICENSE.txt` cites; opening a 3D app over it before it has been
+  read once buries the thing the URL exists to serve. Auto-open is keyed on the
+  build parameter, not on arrival.
+- Because auto-open skips the expand-from-button animation (there is no button
+  press to expand from), the frame must render open on first paint rather than
+  animating from nothing, or the page visibly lurches. Reduced-motion handling
+  already covers this case; reuse it.
 - `/c/[shareCode]`'s "Open in the configurator" points at `/hex?build=…` so a
   scanned QR lands on the academy with chrome, not on the bare configurator.
 - The printed QR itself still points at `demo…/hex`. It cannot be changed and
@@ -569,13 +621,58 @@ git commit -am "chore(hex): restrict who may frame the configurator"
 - **Does not change the register semantics.** Drawing numbers, revisions and
   payload hashes are untouched; only the transport changes.
 
-## 4. Open questions for the owner
+## 4. Task 9: The configurator hides its own chrome when embedded
 
-1. **Mobile.** If Task 1 shows a framed WebGL canvas is poor on a phone, do we
-   embed on desktop only and navigate on mobile, or accept the performance?
-2. **Does the configurator hide its own brand header when embedded?** It would
-   otherwise sit under the academy's, giving two headers. Recommend yes, via
-   `?embed=1`.
-3. **Should `/hex` open the frame automatically for a visitor arriving from a
-   QR**, or always require the click? Recommend the click, so the page is read
-   at least once.
+Owner decision 2. Two stacked brand headers is the giveaway that something has
+been iframed rather than integrated.
+
+**Files:**
+- Modify: `bioscale-viz/src/hex/main.ts`
+- Modify: `bioscale-viz/src/styles/index.css` (or the hex stylesheet)
+
+**Step 1: Read the flag and mark the document**
+
+```ts
+// `?embed=1`, not frame-detection alone. A standalone visitor who is somehow
+// framed should still get a complete app; only a parent that asked for the
+// embedded presentation gets it.
+if (new URLSearchParams(location.search).get('embed') === '1') {
+    document.documentElement.setAttribute('data-embed', '1');
+}
+```
+
+**Step 2: Hide the chrome in CSS, not by deleting nodes**
+
+```css
+/* Embedded: the academy supplies the header, the footer and the page title.
+   Hidden rather than removed so the standalone page is untouched and one
+   attribute flips the whole presentation back. */
+html[data-embed='1'] .hex-brand,
+html[data-embed='1'] .hex-page-title {
+    display: none;
+}
+```
+
+Keep the toolbar, the export control and the theme toggle: those are the app,
+not the chrome. **The theme toggle is the interesting one** — the academy has
+its own, and two toggles that disagree is worse than one that is missing.
+Either hide the configurator's and have the parent post the theme across, or
+keep it and accept the divergence. Recommend the former, and it needs a
+`set-theme` message added to the protocol in Task 2.
+
+**Step 3: Verify both presentations**
+
+Standalone `demo…/hex` is unchanged; `demo…/hex?embed=1` has no brand header.
+
+**Commit:**
+
+```bash
+git commit -am "feat(hex): drop the app's own chrome when embedded"
+```
+
+---
+
+## 5. Settled, previously open
+
+All three owner questions are answered in section 2a. Nothing in this plan is
+blocked on a decision; what remains is the mobile evidence from Task 1.
