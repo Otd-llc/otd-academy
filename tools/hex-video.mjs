@@ -72,12 +72,20 @@ await page.addStyleTag({
 // and appeared as a phantom beat at four seconds.
 await page.evaluate(async () => {
   const { placeCell, removeCell, cells } = await import("/src/hex/cells.ts");
+  const { rebuildGhosts } = await import("/src/hex/ghosts.ts");
   const { controls, cellsContainer } = await import("/src/hex/scene.ts");
 
   // The ghost wireframes STAY. They are the app's own "you can add one here"
   // affordance, and in the loop they do the explaining that a caption would
   // otherwise have to: the empty slots are visibly slots, so the tiles that
   // arrive later read as snapping into a system rather than floating in.
+  //
+  // BUT THEY MUST BE REBUILT AFTER EVERY TOPOLOGY CHANGE. `placeCell` and
+  // `removeCell` do not touch the ghosts -- cells.ts says so in as many words
+  // ("Caller (inspector) is expected to call rebuildGhosts() after"), because
+  // in the real app it is the picking layer that owns that. Driving the scene
+  // straight from a script skips it, so a ghost stayed on every slot that had
+  // just been filled and z-fought the tile now occupying it.
 
   // Open on the carrier parts tray -- the part that best shows what the system
   // is for, and the one with something inside it to reveal.
@@ -91,6 +99,7 @@ await page.evaluate(async () => {
   ])
     placeCell(q, r, "hex-tb-carrier-solid");
   tray.exploded = true;
+  rebuildGhosts();
   await new Promise((r) => requestAnimationFrame(() => r(null)));
   await controls.fitToSphere(cellsContainer, false);
   // MULTIPLY to move in. The first take divided by 0.60, which pushed the camera
@@ -100,6 +109,7 @@ await page.evaluate(async () => {
   // Back to the opening state.
   tray.exploded = false;
   for (const key of [...cells.keys()]) if (cells.get(key) !== tray) removeCell(key);
+  rebuildGhosts();
   await new Promise((r) => requestAnimationFrame(() => r(null)));
 });
 await page.waitForTimeout(1200); // let the collapse settle before recording
@@ -110,6 +120,7 @@ const actualMs = await page.evaluate(async (seconds) => {
   const { placeCell, removeCell, cells } = await import("/src/hex/cells.ts");
   const { slotsForCell, defaultKindForSlot, setCapAt, isCapAvailable } =
     await import("/src/hex/caps.ts");
+  const { rebuildGhosts } = await import("/src/hex/ghosts.ts");
   const { controls } = await import("/src/hex/scene.ts");
   const { bumpRender } = await import("/src/hex/main.ts");
 
@@ -175,19 +186,29 @@ const actualMs = await page.evaluate(async (seconds) => {
     return defaultKindForSlot(spec);
   };
 
+  // Anything that changes the cluster's topology REBUILDS THE GHOSTS. A ghost
+  // left on a slot that has just been filled sits inside the tile that filled
+  // it, and the two z-fight for the rest of the clip. `placeCell`/`removeCell`
+  // do not do this for you: in the app it is the picking layer's job, and a
+  // script driving the scene directly has to take that job on.
+  const topology = (fn) => () => {
+    fn();
+    rebuildGhosts();
+  };
+
   const beats = [
     [0.04, () => void (tray.exploded = true)],
-    [0.22, () => added.push(placeCell(neighbours[0][0], neighbours[0][1], "hex-tb-carrier-solid"))],
-    [0.30, () => added.push(placeCell(neighbours[1][0], neighbours[1][1], "hex-tb-carrier-solid"))],
-    [0.37, () => { setCapAt(tray, capSlots[0], kindFor(capSlots[0], 0)); caps.push(capSlots[0]); }],
-    [0.43, () => { setCapAt(tray, capSlots[1], kindFor(capSlots[1], 1)); caps.push(capSlots[1]); }],
-    [0.49, () => { setCapAt(tray, capSlots[2], kindFor(capSlots[2], 2)); caps.push(capSlots[2]); }],
+    [0.22, topology(() => added.push(placeCell(neighbours[0][0], neighbours[0][1], "hex-tb-carrier-solid")))],
+    [0.30, topology(() => added.push(placeCell(neighbours[1][0], neighbours[1][1], "hex-tb-carrier-solid")))],
+    [0.37, topology(() => { setCapAt(tray, capSlots[0], kindFor(capSlots[0], 0)); caps.push(capSlots[0]); })],
+    [0.43, topology(() => { setCapAt(tray, capSlots[1], kindFor(capSlots[1], 1)); caps.push(capSlots[1]); })],
+    [0.49, topology(() => { setCapAt(tray, capSlots[2], kindFor(capSlots[2], 2)); caps.push(capSlots[2]); })],
     [0.60, () => void (tray.exploded = false)],
-    [0.70, () => setCapAt(tray, capSlots[0], null)],
-    [0.75, () => setCapAt(tray, capSlots[1], null)],
-    [0.80, () => setCapAt(tray, capSlots[2], null)],
-    [0.86, () => { for (const [k, v] of cells) if (v === added[0]) removeCell(k); }],
-    [0.92, () => { for (const [k, v] of cells) if (v === added[1]) removeCell(k); }],
+    [0.70, topology(() => setCapAt(tray, capSlots[0], null))],
+    [0.75, topology(() => setCapAt(tray, capSlots[1], null))],
+    [0.80, topology(() => setCapAt(tray, capSlots[2], null))],
+    [0.86, topology(() => { for (const [k, v] of cells) if (v === added[0]) removeCell(k); })],
+    [0.92, topology(() => { for (const [k, v] of cells) if (v === added[1]) removeCell(k); })],
   ];
 
   await new Promise((resolve) => {
