@@ -85,6 +85,13 @@ type ManifestPart = {
   bboxMm: { x: number; y: number; z: number };
   borderEdges: number;
   files: Record<string, { path: string; bytes: number; sha256: string }>;
+  /** Rotations the exporter baked in to make the part print-ready. EMPTY for a
+   *  part left in its CAD pose. Read by the README so it can state which of the
+   *  two a downloader is holding, rather than guessing on their behalf. */
+  printOrientation?: { axis: string; degrees: number }[];
+  /** Whether a human has checked that rotation. False everywhere as of release
+   *  2026-07-31, which is exactly why the README says to verify before slicing. */
+  printOrientationReviewed?: boolean;
 };
 type Manifest = { parts: ManifestPart[]; failures: unknown[] };
 
@@ -240,7 +247,10 @@ async function main() {
   for (const [setName, set] of Object.entries(SETS)) {
     const names = set.parts(manifest);
     const zip = new JSZip();
-    zip.file("README.txt", setReadme(set.label, names));
+    // The README describes the parts it actually ships with, so it is handed
+    // the manifest rows for exactly those names, not the whole manifest.
+    const setParts = manifest.parts.filter((p) => names.includes(p.part));
+    zip.file("README.txt", setReadme(set.label, names, setParts));
     zip.file("LICENSE.txt", LICENSE_TXT);
     for (const name of names) {
       const part = manifest.parts.find((p) => p.part === name);
@@ -285,7 +295,43 @@ function ascii(s: string): string {
     .trim();
 }
 
-function setReadme(label: string, names: string[]): string {
+/** How the shipped meshes are posed, stated from the manifest rather than
+ *  asserted. Splits the set into "already rotated for printing" and "still in
+ *  its CAD pose", and says plainly whether a human has checked either. */
+function orientationNote(parts: ManifestPart[]): string[] {
+  const rotated = parts.filter((p) => (p.printOrientation?.length ?? 0) > 0);
+  const reviewed = parts.filter((p) => p.printOrientationReviewed);
+  const total = parts.length;
+
+  if (rotated.length === 0) {
+    return [
+      "Every part is exported in its CAD orientation. Check each one sits on a",
+      "flat face before slicing.",
+    ];
+  }
+
+  const lines = [
+    `Orientation: ${rotated.length} of the ${total} parts are exported already`,
+    `rotated for printing; the remaining ${total - rotated.length} are in their CAD`,
+    "orientation.",
+  ];
+  if (reviewed.length < rotated.length) {
+    lines.push(
+      "",
+      "Those rotations are derived automatically and have NOT been reviewed by",
+      "hand. Check every part sits on a flat face before slicing.",
+    );
+  } else {
+    lines.push("", "Check each part sits on a flat face before slicing.");
+  }
+  return lines;
+}
+
+function setReadme(
+  label: string,
+  names: string[],
+  parts: ManifestPart[],
+): string {
   return [
     `${label}`,
     "",
@@ -313,8 +359,15 @@ function setReadme(label: string, names: string[]): string {
     ),
     "",
     `Hex bases print ${HEX_ORIENTATION.value}. ${ascii(HEX_ORIENTATION.why)}`,
-    "Parts are exported in their CAD orientation; check each one sits on its",
-    "flat face before slicing.",
+    "",
+    // CORRECTED 2026-08-03. The 2026-07-31 release says flatly that "parts are
+    // exported in their CAD orientation". That is wrong for a third of the set:
+    // 16 of the 53 carry a baked -90 degree X rotation from the exporter. Worse,
+    // it points the reader at the wrong risk. The risk is not that nothing was
+    // rotated, it is that the rotations are DERIVED and every part in the
+    // manifest still has printOrientationReviewed = false. Counted from the
+    // manifest rather than typed in, so the sentence cannot drift from the set.
+    ...orientationNote(parts),
     "",
     "Full spec: https://academy.onethousanddrones.com/hex",
     "",
