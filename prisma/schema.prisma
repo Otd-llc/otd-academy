@@ -277,6 +277,32 @@ model PassWaitlist {
   createdAt DateTime @default(now())
 }
 
+// "Tell me when the next hex release lands." Anonymous email capture, offered
+// AFTER a download has already started — never before it.
+//
+// That ordering is the whole design. The files are CC BY and the `Source:` URL
+// inside every published LICENSE.txt points at /hex, so someone arriving there
+// is often following an attribution link from a remix. Greeting them with a
+// wall would be hostile to the licence's own purpose, and gating a set that is
+// already one public URL away would be theatre. So the download is ungated and
+// this is the ask on the far side of it.
+//
+// Mirrors PassWaitlist deliberately (unique email, optional userId stamped when
+// there is a session, upsert makes a repeat submit a no-op). `release` records
+// WHICH release they downloaded when they asked, so a future "the new set is
+// out" send can tell a first-timer from someone already on their third.
+model HexReleaseNotify {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  userId    String?
+  /** The release segment they were downloading when they signed up. */
+  release   String
+  createdAt DateTime @default(now())
+  /** Once-only ledger for the "next release is out" send, same shape as
+   *  WaitlistSignup.notifiedAt: null = owed, set = sent. */
+  notifiedAt DateTime?
+}
+
 // Stripe webhook idempotency (GTM Phase 3): record each processed event id so a
 // redelivered event is a no-op (the create() unique-violation = already handled).
 model ProcessedStripeEvent {

@@ -38,6 +38,7 @@ import type { Metadata } from "next";
 
 import { ConfiguratorLink } from "@/components/hex/ConfiguratorLink";
 import { HexConfiguratorFrame } from "@/components/hex/HexConfiguratorFrame";
+import { ReleaseNotify } from "@/components/hex/ReleaseNotify";
 import { ThemedLoop } from "@/components/hex/ThemedLoop";
 import { ARRANGEMENTS, HexLattice } from "@/components/hex/HexLattice";
 import { env } from "@/env";
@@ -227,7 +228,10 @@ export default function HexPage() {
         {/* Downloads and licence, immediately under the fold line. Someone who
             arrived to fetch files never has to hunt for them. */}
         <div className="mt-8 grid gap-x-14 gap-y-10 lg:grid-cols-2">
-          <div>
+          {/* The capture is a WRAPPER, not a sibling: it watches for a click on
+              a download anchor and only then reveals a field. It never touches
+              the anchor's default action, so nothing here can delay the file. */}
+          <ReleaseNotify release={HEX_RELEASE}>
             <ul className="border-t border-panel-border/60">
               {files.map((f) => (
                 <li key={f.name}>
@@ -263,7 +267,7 @@ export default function HexPage() {
               immutable, so a link you save today keeps resolving to the
               geometry you downloaded.
             </p>
-          </div>
+          </ReleaseNotify>
 
           <div>
             <Heading>Licence</Heading>
