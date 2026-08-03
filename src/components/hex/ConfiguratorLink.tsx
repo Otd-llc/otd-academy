@@ -8,10 +8,18 @@
 // is somebody clicking through from the spec page to the configurator. That
 // makes this the click worth instrumenting.
 //
-// It is also a CROSS-PROPERTY hop: the configurator is a separate deploy on
-// another domain, so nothing on the far side can report the arrival back to
-// this page. Firing on click here is the only place the two halves can be
-// joined, which is why this is a client component at all.
+// It is also a CROSS-PROPERTY hop: the configurator is a separate deploy, so
+// nothing on the far side can report the arrival back to this page. Firing on
+// click here is the only place the two halves can be joined, which is why this
+// is a client component at all.
+//
+// On the id handoff: academy.onethousanddrones.com and demo.onethousanddrones.com
+// are sub-domains of ONE registrable domain, and PostHog's cookie is written to
+// `.onethousanddrones.com`, so the person id already crosses on its own. The
+// explicit `?ph_did=` is therefore belt-and-braces for identity -- but it is
+// NOT redundant, because it is also the configurator's consent signal: that app
+// has no banner and refuses to initialise without it (see bioscale-viz
+// `src/analytics.ts`).
 //
 // A plain <a>, not next/link: the destination is another origin.
 import { trackCtaClicked } from "@/lib/analytics-client";
@@ -41,7 +49,7 @@ export function ConfiguratorLink({
   // Done on CLICK rather than at render because the id is only knowable in the
   // browser: baking it into the href server-side would put one visitor's id in
   // a cached/prerendered page and hand it to everyone who saw it after.
-  async function handoff(e: React.MouseEvent<HTMLAnchorElement>) {
+  function handoff(e: React.MouseEvent<HTMLAnchorElement>) {
     trackCtaClicked("hex_configurator", { placement });
 
     // Let the browser do its normal thing for new-tab / middle / modified
@@ -57,23 +65,33 @@ export function ConfiguratorLink({
       return;
     }
 
-    let target = href;
-    try {
-      const ph = await getPosthog();
-      const id = ph?.get_distinct_id?.();
-      if (id) {
-        const url = new URL(href);
-        url.searchParams.set(CROSS_DOMAIN_PARAM, id);
-        target = url.toString();
-      }
-    } catch {
-      // No id, or posthog unavailable: fall through to the plain href. The
-      // link working matters more than the join.
-    }
-    if (target === href) return; // nothing added; let the default click run
-
+    // preventDefault MUST be synchronous. This was `async` with the
+    // preventDefault after `await getPosthog()`, and by then the browser has
+    // already followed the link -- the id was appended to a URL nobody
+    // navigated to. It worked locally, where the promise happened to resolve
+    // inside the same task, and silently did nothing in production. A await
+    // before preventDefault is not a slow path, it is a dead one.
     e.preventDefault();
-    window.location.assign(target);
+
+    void (async () => {
+      let target = href;
+      try {
+        const ph = await getPosthog();
+        const id = ph?.get_distinct_id?.();
+        if (id) {
+          const url = new URL(href);
+          url.searchParams.set(CROSS_DOMAIN_PARAM, id);
+          target = url.toString();
+        }
+      } catch {
+        // No id, or posthog unavailable (declined consent, blocked): fall
+        // through to the plain href.
+      }
+      // Always navigates, on every path. Having cancelled the default, this
+      // function now OWNS the navigation: an early return or an unhandled
+      // throw above would leave the visitor on a link that does nothing.
+      window.location.assign(target);
+    })();
   }
 
   return (
