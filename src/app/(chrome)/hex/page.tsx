@@ -1,7 +1,7 @@
 // `/hex` — the Hex Cluster spec, license and attribution target.
 //
-// THIS URL IS NOT A CHOICE. Every published .3mf/.stl/.step in release
-// 2026-07-31 carries an immutable LICENSE.txt reading
+// THIS URL IS NOT A CHOICE. Every published .3mf/.stl/.step, in EVERY release
+// (2026-07-31 and 2026-08-03), carries an immutable LICENSE.txt reading
 //   Source: https://academy.onethousanddrones.com/hex
 // and those objects ship `Cache-Control: immutable, max-age=31536000`. The
 // release is CC BY 4.0, so mandated attribution is the entire return on it;

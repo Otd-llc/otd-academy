@@ -26,15 +26,24 @@
 
 /** Immutable release segment of the published mesh set. Mirrors
  *  `PRINTABLES_RELEASE` in `scripts/upload-printables.ts` — the R2 keys and the
- *  LICENSE.txt inside every published file are stamped with it. */
-export const HEX_RELEASE = "2026-07-31";
+ *  LICENSE.txt inside every published file are stamped with it.
+ *
+ *  2026-08-03 supersedes 2026-07-31, which is NOT deleted: the keys are
+ *  immutable and carry a one-year cache header, so any URL already in the wild
+ *  keeps resolving. Two things were wrong with that release and neither could be
+ *  edited in place — the twelve FEMALE dovetail caps exported upside down (the
+ *  exporter applied one X rotation to the whole cap family, which is correct for
+ *  the male half and inverts the female one), and its README named PLA. Both are
+ *  fixed here. */
+export const HEX_RELEASE = "2026-08-03";
 
 /** The configurator (a separate deploy). Also the URL printed in the release
  *  README and on every build sheet. */
 export const HEX_CONFIGURATOR_URL = "https://demo.onethousanddrones.com/hex";
 
 /** Number of parts in the published set (`build/printables/manifest.json`,
- *  release 2026-07-31; TB-1-POWER withheld on disclosure grounds). */
+ *  TB-1-POWER withheld on disclosure grounds). Unchanged across both releases:
+ *  2026-08-03 re-cut the geometry, it did not add or drop a part. */
 export const HEX_PART_COUNT = 53;
 
 /** Sizes of the published downloads, so the page can tell someone what a tap
@@ -45,7 +54,7 @@ export const HEX_PART_COUNT = 53;
  *  the meshes mints a new release, which is when these get updated alongside
  *  HEX_RELEASE. Measured from the published objects, not estimated. */
 export const HEX_RELEASE_FILES = {
-  set: { bytes: 13_682_756, label: "13.7 MB" },
+  set: { bytes: 13_688_628, label: "13.7 MB" },
   license: { bytes: 836, label: "836 B" },
 } as const;
 
@@ -74,7 +83,11 @@ export const HEX_PRINT_PARAMS: SpecRow[] = [
  *  not a suggestion. */
 export const HEX_CLEARANCE: SpecRow[] = [
   { label: "Design gap", value: "0.25 mm", aside: "0.010 in" },
-  { label: "FDM convention", value: "0.2–0.3 mm snug", aside: "0.5 mm general" },
+  {
+    label: "FDM convention",
+    value: "0.2–0.3 mm snug",
+    aside: "0.5 mm general",
+  },
   { label: "PETG shrinkage", value: "0.3–0.6%", aside: "up to ~0.8%" },
 ];
 
