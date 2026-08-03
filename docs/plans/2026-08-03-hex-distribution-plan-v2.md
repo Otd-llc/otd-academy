@@ -27,11 +27,13 @@ Recorded so the same plan is not rewritten a third time.
    into a catalog with **nothing buyable**: zero purchases to date, L1.01 free
    and alone, L1.02+ unpublished with price unset. The gate is a buyable
    catalog, not "the files exist".
-2. **It assumed an empty field.** Honeycomb Storage Wall already occupies hex +
-   tapered dovetail + printed mounting, at a **40.88 mm** pitch, with a large
-   accessory ecosystem on both Printables and MakerWorld. Multiboard occupies
-   structural modular building. Neither is a niche to enter; both are graphs to
-   join or to be ignored beside.
+2. **It said nothing about who else is in the space.** The v1 validation
+   answered this with "Honeycomb Storage Wall already occupies hex + tapered
+   dovetail + printed mounting", and **that answer was wrong**. See §1a: it
+   compared a shape to a shape and missed that the two systems work by
+   completely different mechanisms. The correction is recorded below because the
+   wrong version was repeated into two revisions of this plan before the owner
+   caught it.
 3. **It treated attribution as the return.** On-platform, CC BY attribution
    renders as a **remix link back to the source model**, not a link to your
    domain. "Mandated attribution drives traffic to the academy" is largely
@@ -46,6 +48,44 @@ Recorded so the same plan is not rewritten a third time.
    Every "we will see whether it converts" step in v1 was unimplementable.
 6. **One workstream referenced a lesson step that does not exist** (an L1.01
    "breadboard holder insert download"). It was never in the authored content.
+
+---
+
+## 1a. Hex Cluster is not a Honeycomb Storage Wall competitor
+
+Corrected 2026-08-03 by the owner, after this claim survived a four-agent
+validation and two drafts of this plan. It is written out in full so the
+comparison is not made a fourth time.
+
+| | Honeycomb Storage Wall | Hex Cluster |
+| --- | --- | --- |
+| What you print | A honeycomb **sheet**, a mounting surface | **Tiles**, and nothing else |
+| What the hex is | A socket array on a panel | The structural unit itself |
+| The joint | An accessory's clip snapping into a cell | Tile dovetails to **tile**, on all six edges |
+| Load path | Accessory → sheet → wall | Tile → tile, **in-plane**; the tiled layout is one rigid body |
+| Cell size | 40.88 mm | 76.20 mm |
+| Where it lives | On a wall | On a bench |
+
+**The 40.88 mm "tapered dovetail" everyone cites is the accessory's clip**, the
+thing that holds a paint bottle into a cell. It is not a tile-to-tile joint,
+because HSW tiles do not join to each other: the sheet is printed as a sheet.
+
+So the overlap with Hex Cluster is *hexagons*, *3D printed* and *modular*. That
+is a resemblance in shape, not in mechanism, and it does not make the field
+crowded. Two systems can both be hexagonal and share no engineering problem at
+all: a socket array and a tessellating structural joint solve different things.
+
+**The mistake to avoid repeating:** the validation compared silhouettes. Before
+asserting that anything occupies this space again, state its **load path**. If
+the load path is different, it is a different system, whatever it looks like in
+a thumbnail.
+
+**What this changes.** "The field is crowded" was carrying real weight in v1 and
+in the first draft of this plan, and it should not have been. It does not mean
+distribution is easy; it means the argument for distribution has to rest on
+something real. The genuine constraints below stand on their own: nothing is
+buyable (Gate B), and nothing is measurable (Gate A). Neither of those had
+anything to do with HSW.
 
 ---
 
@@ -83,40 +123,54 @@ This is the gate v1 skipped, and it is not a distribution task at all.
   re-spend it later.
 - **Success criterion:** a signed-out visitor can reach a purchase.
 
-### Gate C — inherit a remix graph instead of starting one (cheapest reach)
+### Gate C — an adapter into an existing ecosystem: DROPPED for now
 
-The single highest-leverage distribution action available, and it is a
-half-day of CAD, not a campaign.
+This was the headline recommendation in the first draft of this plan. It is
+withdrawn, for two independent reasons, either of which is sufficient.
 
-The Hex Cluster pitch is **76.20 mm**; HSW is **40.88 mm**. They are not
-pitch-compatible, so this is not a re-pitch and the standard does not change.
-What is available is a **connector**:
+**1. Its premise was the crowded-field claim, and that claim was wrong (§1a).**
+The adapter was pitched as a way to "inherit a remix graph instead of starting
+one at zero", on the assumption that HSW and Multiboard already occupied this
+space. HSW does not: it is a mounting sheet, not a tessellating joint. An
+adapter into a system that solves a different problem is not defensive
+positioning, it is just a part.
 
-- **Multiconnect is a generic connector explicitly for "Multiboard or
-  Honeycomb"** and ships modeling files organised as modular bricks for exactly
-  this purpose. One Multiconnect-compatible back plate on a hex tile reaches
-  **both** ecosystems with one part.
-- **HSW publishes dimension PDFs and STEP files** so third parties can build
-  compatible models. The interface is documented; no reverse-engineering is
-  required.
-- A remix of an existing, heavily-downloaded model enters that model's remix
-  graph on day one, which is the mechanism v1 was trying to buy with volume.
+**2. Both candidate systems are NonCommercial, so we could not ship it anyway.**
+Checked 2026-08-03:
 
-**Deliverable:** one part, `Hex-TB-Adapter-Multiconnect`, and a listing that is
-a remix rather than a new model. Ship it through the existing printables
-pipeline so it inherits the release, the licence and the `/hex` attribution.
+| System | Licence |
+| --- | --- |
+| Multiconnect (David D) | **CC BY-NC-SA** |
+| Honeycomb Storage Wall (RostaP, 2021) | **CC BY-NC 4.0** |
 
-**Caveat to check before building:** confirm the licence on the Multiconnect
-modeling files permits a derivative and what it requires in return. CC BY-NC or
-SA would change the answer. This is a five-minute check and it must happen
-first.
+A derivative of either would have to ship NC, and Share-Alike for Multiconnect.
+That conflicts with the CC BY 4.0 the Hex Cluster release is already published
+under, and it drags a non-commercial restriction onto an asset whose entire
+purpose is feeding a paid catalog. It would also mean one part of the release
+carrying different terms from the rest, which is precisely the unscoped-licence
+defect already fixed on the build sheet.
 
-### Gate D — the listing wave (only after A, B and C)
+**The one route that might survive**, if an adapter is ever wanted: design to
+**published dimensions** rather than remixing their geometry. HSW publishes
+dimension PDFs so third parties can build compatible parts, and dimensions
+themselves are not copyrightable; their STEP files are. Clean-room from the
+dimension sheet is a materially different risk profile from remixing the mesh.
+That is a judgement call for the owner and, if it ever matters commercially,
+for someone qualified to give it. **Do not start CAD on the assumption it is
+fine.**
+
+**What replaces this gate: nothing.** Reach has to be earned by the object
+being good and by the listing being found, not by attaching to somebody else's
+graph. Which makes Gate B the whole ballgame.
+
+### Gate D — the listing wave (only after A and B)
 
 - Time listings to land **together**, since the spike is short and simultaneous
   listings compound within it.
-- List the **adapter** and the **complete set** as separate models. The adapter
-  is the one with a remix graph to enter; the set is the one with depth.
+- Lead with what the system actually is: **a bench mounting standard where the
+  tiles carry load through each other.** Not "hex storage". The nearest-looking
+  systems solve a different problem (§1a), so a description that leans on the
+  resemblance invites the wrong comparison and loses on it.
 - Put the configurator link above the fold in every description. That link, not
   the CC BY attribution, is the actual channel back.
 - Expect a ~7-day window. Decide in advance what "worked" means, in the numbers
@@ -126,10 +180,14 @@ first.
 
 ## 3. What not to do
 
-- **Do not re-pitch the standard to 40.88 mm.** The 76.20 mm pitch is load
+- **Do not re-pitch the standard to match anyone.** The 76.20 mm pitch is load
   bearing: it is the hex across-flats plus the 0.25 mm design gap, it is
   toleranced against PETG shrinkage, and it is already published in immutable
-  files. Compatibility comes from a connector, not from moving the grid.
+  files. There is also nothing to match: the systems it would be matched to are
+  mounting sheets, not tessellating joints (§1a).
+- **Do not describe it as storage, or position it against storage walls.** It is
+  a mounting standard whose tiles carry load through each other. Describing it
+  by what it resembles invites a comparison it does not need to win.
 - **Do not gate any part of the release.** Already settled, and the reasoning
   holds: a teaser set cannot rank, and enforcement against a printed functional
   object is thin. Lead capture belongs on the configurator's "save your build",
@@ -151,15 +209,26 @@ first.
 2. **Analytics vendor for `bioscale-viz`.** PostHog matches the academy and
    makes the funnel joinable across the two properties; anything else leaves the
    hop unjoined and Gate A only half-satisfied.
-3. **Does the adapter ship under the Hex Cluster release, or as its own model?**
-   Under the release keeps one licence and one attribution target; separate lets
-   it be listed and versioned on its own cadence.
+3. **Is an adapter wanted at all, now that its premise is gone (§1a) and both
+   candidate systems are NonCommercial (Gate C)?** If yes, the only viable route
+   is clean-room from published dimensions, and that is a risk call rather than
+   an engineering one.
 
 ---
 
 ## 5. Sources
 
-Third-party facts above were verified rather than recalled:
+Third-party facts above were verified rather than recalled. The one that was
+NOT verified, and was wrong, is recorded in §1a: "HSW occupies hex + tapered
+dovetail" came from a validation pass that compared shapes, survived into two
+drafts, and was corrected by the owner. Licences below were checked on
+2026-08-03; **the model pages themselves return 403 to automated fetches**, so
+these are search-surfaced and worth a human glance before anything is built on
+them.
+
+- Multiconnect (David D): **CC BY-NC-SA**
+- Honeycomb Storage Wall (RostaP, 2021): **CC BY-NC 4.0**
+
 
 - [Multiconnect — generic connector for Multiboard (MakerWorld)](https://makerworld.com/en/models/642696-multiconnect-generic-connector-for-multiboard)
 - [Multiconnect for Multiboard v2 — modeling files (MakerWorld)](https://makerworld.com/en/models/645768-multiconnect-for-multiboard-v2-modeling-files)

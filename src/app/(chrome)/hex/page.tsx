@@ -22,6 +22,7 @@
 // conditional is a NEXT_PUBLIC env var, inlined at build.
 import type { Metadata } from "next";
 
+import { ConfiguratorLink } from "@/components/hex/ConfiguratorLink";
 import { HexBodyGlyph } from "@/components/hex/HexBodyGlyph";
 import {
   HEX_CLEARANCE,
@@ -321,12 +322,13 @@ export default function HexPage() {
           {/* Both classes: `.glass-button-cta` only overrides the fill, so the
               radius, elevation and the shared focus-visible ring come from
               `.glass-button`. Alone it would ship a CTA with no keyboard focus. */}
-          <a
+          <ConfiguratorLink
             href={HEX_CONFIGURATOR_URL}
+            placement="footer_cta"
             className="glass-button glass-button-cta inline-flex items-center px-6 py-3 font-mono text-sm uppercase tracking-[0.16em]"
           >
             Open the configurator
-          </a>
+          </ConfiguratorLink>
         </p>
       </section>
     </main>
