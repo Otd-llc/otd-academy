@@ -25,6 +25,10 @@ export interface OpenOptions {
    *  out of the button that opened it. Absent for a programmatic open (a deep
    *  link), which fades in instead. */
   originRect?: DOMRect | null;
+  /** A saved build's SHARE CODE to open, never a payload. The host resolves it
+   *  to a payload plus the six identity parameters, so a recall link stays
+   *  short and the build never appears in the academy's own address bar. */
+  build?: string | null;
 }
 
 export interface HexConfiguratorApi {

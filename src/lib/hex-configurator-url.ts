@@ -12,6 +12,7 @@
 // moved off 3000 for exactly this) or at a LAN address for handset testing.
 import { env } from "@/env";
 import { HEX_CONFIGURATOR_URL } from "@/lib/hex-spec";
+import type { HexRecall } from "@/lib/hex-recall";
 
 /** Origin only, no path, no trailing slash. The frame builds its own path. */
 export function hexConfiguratorOrigin(): string {
@@ -44,10 +45,32 @@ export function hexConfiguratorSrc(opts?: {
   /** Encoded build payload, placed in the FRAGMENT so it never reaches an
    *  access log, a Referer header, or PostHog's `$current_url`. */
   payload?: string | null;
+  /** A saved build's identity, so a recalled cluster prints as CONTROLLED
+   *  rather than as an anonymous copy of itself. All six fields or none: the
+   *  type has no optional members, so a caller cannot drop one silently. */
+  recall?: HexRecall | null;
 }): string {
   const url = new URL("/hex", hexConfiguratorOrigin());
   url.searchParams.set("embed", "1");
   if (opts?.distinctId) url.searchParams.set("ph_did", opts.distinctId);
+
+  if (opts?.recall) {
+    const r = opts.recall;
+    // The short keys the configurator reads in `adoptReturnLink`. It requires
+    // ALL of them and rejects the recall outright if one is missing, so these
+    // are written unconditionally -- including `n`, which is legitimately empty
+    // for a build saved without a name and must still be PRESENT.
+    url.searchParams.set("d", r.drawingLabel);
+    url.searchParams.set("r", r.revLabel);
+    url.searchParams.set("s", r.shareCode);
+    // `h` ties the identity to the payload. Without it the configurator's check
+    // is vacuous and a recalled build prints UNCONTROLLED with no error.
+    url.searchParams.set("h", r.payloadHash);
+    url.searchParams.set("n", r.name);
+    url.searchParams.set("t", r.savedAt);
+  }
+
   const base = url.toString();
+  // Query BEFORE the fragment: everything after '#' is fragment.
   return opts?.payload ? `${base}#${opts.payload}` : base;
 }
