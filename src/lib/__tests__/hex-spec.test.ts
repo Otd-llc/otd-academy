@@ -28,7 +28,9 @@ import {
 /** Every string a visitor can read, flattened. */
 function renderedStrings(): string[] {
   const fromRows = (rows: SpecRow[]) =>
-    rows.flatMap((r) => [r.label, r.value, r.aside].filter(Boolean) as string[]);
+    rows.flatMap(
+      (r) => [r.label, r.value, r.aside].filter(Boolean) as string[],
+    );
   return [
     ...fromRows(HEX_PRINT_PARAMS),
     ...fromRows(HEX_CLEARANCE),
@@ -63,9 +65,10 @@ describe("the slicer band matches the build sheet's PARAMS", () => {
   });
 
   it("names PETG, not PLA", () => {
-    // The shipped 2026-07-31 README says PLA. The owner confirmed PETG, and the
-    // 0.25 mm gap is toleranced against PETG shrinkage. That release is
-    // immutable, so this page is the authority — it must not repeat the error.
+    // The 2026-07-31 README said PLA. The owner confirmed PETG, and the 0.25 mm
+    // gap is toleranced against PETG shrinkage. That release is immutable and
+    // stays wrong; 2026-08-03 carries the correction, and this page is the
+    // authority either way — it must not repeat the error.
     expect(valueOf(HEX_PRINT_PARAMS, "Material")).toBe("FDM PETG");
     expect(renderedStrings().join(" ")).not.toMatch(/\bPLA\b/);
   });
@@ -107,13 +110,15 @@ describe("licence", () => {
     expect(HEX_LICENSE.credit).toContain(
       "https://academy.onethousanddrones.com/hex",
     );
-    expect(HEX_LICENSE.deed).toBe("https://creativecommons.org/licenses/by/4.0/");
+    expect(HEX_LICENSE.deed).toBe(
+      "https://creativecommons.org/licenses/by/4.0/",
+    );
   });
 });
 
 describe("release + configurator constants", () => {
   it("match what upload-printables.ts stamps and the sheet prints", () => {
-    expect(HEX_RELEASE).toBe("2026-07-31");
+    expect(HEX_RELEASE).toBe("2026-08-03");
     expect(HEX_CONFIGURATOR_URL).toBe("https://demo.onethousanddrones.com/hex");
   });
 });

@@ -1,0 +1,80 @@
+﻿// The published part list, as the SLUGS the R2 keys actually use.
+//
+// Generated from `build/printables/manifest.json` in the hex-cluster repo,
+// minus the parts withheld on disclosure grounds, and sorted. Regenerate it
+// alongside HEX_RELEASE whenever the meshes are re-cut.
+//
+// WHY A LIST AT ALL, when the download proxy already validates a name grammar.
+// The grammar answers "is this a well-formed slug", which is enough when the
+// caller names one file and a miss is a 404. The custom pack endpoint takes
+// FIFTY-THREE names at once and fans them out into R2 reads, so a grammar-only
+// check would let a caller spray arbitrary well-formed slugs and use the
+// response as a probe for what exists. Membership answers "is this one of ours",
+// which is the question that actually bounds the work.
+//
+// It is also what lets the pack README list what is inside without a round trip
+// to the manifest, which does not ship with the app.
+export const HEX_PART_SLUGS = [
+  "dovetail-cap-double-f-1h",
+  "dovetail-cap-double-f-2h",
+  "dovetail-cap-double-f-3h",
+  "dovetail-cap-double-f-solid",
+  "dovetail-cap-double-m-1h",
+  "dovetail-cap-double-m-2h",
+  "dovetail-cap-double-m-3h",
+  "dovetail-cap-double-m-solid",
+  "dovetail-cap-single-f-1h",
+  "dovetail-cap-single-f-solid",
+  "dovetail-cap-single-m-1h",
+  "dovetail-cap-single-m-solid",
+  "hex-tb-carrier-bot-parts-tray",
+  "hex-tb-carrier-bot-parts-tray-lid",
+  "hex-tb-carrier-bot-solid",
+  "hex-tb-carrier-left-parts-tray",
+  "hex-tb-carrier-left-parts-tray-lid",
+  "hex-tb-carrier-left-solid",
+  "hex-tb-carrier-parts-tray",
+  "hex-tb-carrier-parts-tray-lid",
+  "hex-tb-carrier-right-parts-tray",
+  "hex-tb-carrier-right-parts-tray-lid",
+  "hex-tb-carrier-right-solid",
+  "hex-tb-carrier-solid",
+  "hex-tb-carrier-top-parts-tray",
+  "hex-tb-carrier-top-parts-tray-lid",
+  "hex-tb-carrier-top-solid",
+  "hex-tb-corner-f-solid",
+  "hex-tb-corner-m-solid",
+  "hex-tb-half-bot-1h",
+  "hex-tb-half-bot-2h",
+  "hex-tb-half-bot-3h",
+  "hex-tb-half-bot-solid",
+  "hex-tb-half-left-1h",
+  "hex-tb-half-left-2h",
+  "hex-tb-half-left-3h",
+  "hex-tb-half-left-solid",
+  "hex-tb-half-right-1h",
+  "hex-tb-half-right-2h",
+  "hex-tb-half-right-3h",
+  "hex-tb-half-right-solid",
+  "hex-tb-half-top-1h",
+  "hex-tb-half-top-2h",
+  "hex-tb-half-top-3h",
+  "hex-tb-half-top-solid",
+  "hex-tb-main",
+  "hex-tb-spike-ball-joint",
+  "hex-tb-spike-ball-platform-solid",
+  "hex-tb-spike-ball-zip-1h",
+  "hex-tb-spike-ball-zip-single",
+  "hex-tb-spike-platform-lrg",
+  "hex-tb-spike-platform-sm",
+  "hex-tb-spike-solid",
+] as const;
+
+export type HexPartSlug = (typeof HEX_PART_SLUGS)[number];
+
+const SLUG_SET: ReadonlySet<string> = new Set(HEX_PART_SLUGS);
+
+/** Membership, not shape. See the note above. */
+export function isHexPartSlug(value: string): value is HexPartSlug {
+  return SLUG_SET.has(value);
+}

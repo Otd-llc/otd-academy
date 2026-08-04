@@ -1,7 +1,7 @@
 // `/hex` — the Hex Cluster spec, license and attribution target.
 //
-// THIS URL IS NOT A CHOICE. Every published .3mf/.stl/.step in release
-// 2026-07-31 carries an immutable LICENSE.txt reading
+// THIS URL IS NOT A CHOICE. Every published .3mf/.stl/.step, in EVERY release
+// (2026-07-31 and 2026-08-03), carries an immutable LICENSE.txt reading
 //   Source: https://academy.onethousanddrones.com/hex
 // and those objects ship `Cache-Control: immutable, max-age=31536000`. The
 // release is CC BY 4.0, so mandated attribution is the entire return on it;
@@ -38,6 +38,7 @@ import type { Metadata } from "next";
 
 import { ConfiguratorLink } from "@/components/hex/ConfiguratorLink";
 import { HexConfiguratorFrame } from "@/components/hex/HexConfiguratorFrame";
+import { ReleaseNotify } from "@/components/hex/ReleaseNotify";
 import { ThemedLoop } from "@/components/hex/ThemedLoop";
 import { ARRANGEMENTS, HexLattice } from "@/components/hex/HexLattice";
 import { env } from "@/env";
@@ -201,10 +202,25 @@ export default function HexPage() {
 
           <div className="absolute inset-0 flex items-end">
             <div className="w-full p-6 sm:p-12">
-              <h1 className="title-hero">Hex Cluster.</h1>
-              <p className="mt-3 max-w-xl font-serif text-base leading-relaxed text-text">
-                A printable mounting standard. {HEX_PART_COUNT} parts,{" "}
-                {HEX_LICENSE.name}.
+              {/* The house hero, composed from the shared recipes rather than
+                  a bare Bebas string: mono eyebrow, `.accent` for the ivory →
+                  gold alternation across the content words, and `.tdot` for the
+                  hollow title period. A literal full stop renders as a solid
+                  ivory block at this size, which is why the outline glyph
+                  exists. */}
+              <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+                &#9656; Open hardware release
+              </p>
+              <h1 className="title-hero mt-3">
+                Hex <span className="accent">cluster</span>
+                <span className="tdot">.</span>
+              </h1>
+              <p className="mt-4 max-w-xl font-serif text-[15px] leading-relaxed text-text">
+                A printable mounting standard.{" "}
+                <span className="font-numeral tabular-nums">
+                  {HEX_PART_COUNT}
+                </span>{" "}
+                parts, {HEX_LICENSE.name}.
               </p>
               {/* ConfiguratorLink, not a plain href to `?open=1`: on THIS page
                   the deep-link effect has already run, so a same-page query
@@ -227,7 +243,10 @@ export default function HexPage() {
         {/* Downloads and licence, immediately under the fold line. Someone who
             arrived to fetch files never has to hunt for them. */}
         <div className="mt-8 grid gap-x-14 gap-y-10 lg:grid-cols-2">
-          <div>
+          {/* The capture is a WRAPPER, not a sibling: it watches for a click on
+              a download anchor and only then reveals a field. It never touches
+              the anchor's default action, so nothing here can delay the file. */}
+          <ReleaseNotify release={HEX_RELEASE}>
             <ul className="border-t border-panel-border/60">
               {files.map((f) => (
                 <li key={f.name}>
@@ -263,7 +282,7 @@ export default function HexPage() {
               immutable, so a link you save today keeps resolving to the
               geometry you downloaded.
             </p>
-          </div>
+          </ReleaseNotify>
 
           <div>
             <Heading>Licence</Heading>
