@@ -43,7 +43,14 @@ export const HEX_CONFIGURATOR_URL = "https://demo.onethousanddrones.com/hex";
 
 /** Number of parts in the published set (`build/printables/manifest.json`,
  *  TB-1-POWER withheld on disclosure grounds). Unchanged across both releases:
- *  2026-08-03 re-cut the geometry, it did not add or drop a part. */
+ *  2026-08-03 re-cut the geometry, it did not add or drop a part.
+ *
+ *  NOT PAGE COPY, deliberately. /hex used to print it three times -- in the
+ *  hero line, in the spec list and on the download row -- and the set grows
+ *  whenever a part is added, so every one of those was a promise the page could
+ *  not keep on its own. The count now exists only where it is CHECKED: the pack
+ *  test asserts it against HEX_PART_SLUGS.length, so a mismatch fails the suite
+ *  instead of shipping a wrong number to a reader. */
 export const HEX_PART_COUNT = 53;
 
 /** Sizes of the published downloads, so the page can tell someone what a tap
