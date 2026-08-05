@@ -31,6 +31,11 @@ const W = 1280;
 const H = 800;
 const SECONDS = 10;
 
+/** How far to lift the cluster in frame, as a fraction of the camera distance.
+ *  Owner note: "too much empty space at the top and the bottom of the video
+ *  distracts from the text. So, just move the scene up a smidge." */
+const FRAME_LIFT = 0.06;
+
 // BOTH themes, for the same reason the stills are shot twice: a clip recorded on
 // deep space is a black slab on the ivory theme.
 const THEME = process.argv[2] === "light" ? "light" : "dark";
@@ -70,7 +75,7 @@ await page.addStyleTag({
 // measured the trim first, so the framing pass -- which places the neighbours to
 // size the shot and then takes them away again -- was inside the recorded window
 // and appeared as a phantom beat at four seconds.
-await page.evaluate(async () => {
+await page.evaluate(async (FRAME_LIFT) => {
   const { placeCell, removeCell, cells } = await import("/src/hex/cells.ts");
   const { ghosts, rebuildGhosts } = await import("/src/hex/ghosts.ts");
   const { controls, cellsContainer } = await import("/src/hex/scene.ts");
@@ -106,6 +111,18 @@ await page.evaluate(async () => {
   // two thirds further out and shrank the subject to a thumbnail.
   controls.dollyTo(controls.distance * 1.06, false);
 
+  // LIFT THE SUBJECT IN FRAME. fitToSphere centres the cluster, which left dead
+  // space above it and put the bottom of the clip right against the copy below
+  // the hero. A focal offset shifts the view without rotating it, so the
+  // framing changes and the orbit does not.
+  //
+  // In world units along the camera's local axes, so it is expressed as a
+  // fraction of the fitted distance and survives any change to the dolly above.
+  // POSITIVE Y raises the subject in the image. Measured, not assumed: the
+  // first take used the negative and pushed the cluster to the bottom of the
+  // frame, which is the opposite of what was asked for.
+  controls.setFocalOffset(0, controls.distance * FRAME_LIFT, 0, false);
+
   // Back to the opening state.
   tray.exploded = false;
   for (const key of [...cells.keys()])
@@ -120,7 +137,7 @@ await page.evaluate(async () => {
     ].some(([q, r]) => g.slot.q === q && g.slot.r === r);
   }
   await new Promise((r) => requestAnimationFrame(() => r(null)));
-});
+}, FRAME_LIFT);
 await page.waitForTimeout(1200); // let the collapse settle before recording
 
 const trimMs = Date.now() - contextStart;
