@@ -1,5 +1,22 @@
 // A short silent loop of the configurator, for the /hex hero.
 //
+// DRIVEN FRAME BY FRAME ON A VIRTUAL CLOCK, not screencast in real time.
+//
+// The screencast version recorded whatever the machine managed and then asked
+// ffmpeg to retime it to ten seconds. Measured, headless WebGL runs this scene
+// at about 0.7 fps, so the choreography took 423 SECONDS and was compressed to
+// 10 -- a 38x speed-up. ffmpeg kept roughly one captured frame in thirty-five
+// and stretched the rest, which is three complaints in one number: the explode
+// played 38x too fast whatever it was authored at, the kept frames were unevenly
+// spaced so the motion juddered, and the exact loop frame was unlikely to
+// survive the selection.
+//
+// So the page's clock is replaced with one this script advances. Each captured
+// frame is exactly 1/30 of a SCENE second regardless of how long it took to
+// render, the camera is placed absolutely rather than damped toward a target,
+// and the frames are encoded at 30fps with no retime at all. Wall-clock speed
+// stops being able to affect the result.
+//
 // WHY THE FIRST TAKE RAN AT ABOUT HALF A FRAME PER SECOND. The app has an
 // idle-frame skip: `tick()` runs rAF continuously, but `renderer.render()` only
 // fires while there is "active work" -- a lerp in flight, controls damping, or
@@ -15,7 +32,7 @@
 // parts tray, and the camera completes exactly one revolution, so the last frame
 // meets the first.
 import { chromium } from "playwright";
-import { mkdirSync, readdirSync, rmSync } from "node:fs";
+import { mkdirSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 
@@ -23,8 +40,9 @@ const APP = "http://localhost:5180/hex";
 const RAW =
   "C:/Users/raven/AppData/Local/Temp/claude/c--zzz-project-foundry/6b77be38-fe0b-4908-93a5-9783a0347c55/scratchpad/hexvid";
 const OUT = "public/hex";
+const FRAMES = `${RAW}/frames`;
 rmSync(RAW, { recursive: true, force: true });
-mkdirSync(RAW, { recursive: true });
+mkdirSync(FRAMES, { recursive: true });
 mkdirSync(OUT, { recursive: true });
 
 const W = 1280;
@@ -42,12 +60,36 @@ const THEME = process.argv[2] === "light" ? "light" : "dark";
 const suffix = THEME === "light" ? "-light" : "";
 
 const browser = await chromium.launch();
-const contextStart = Date.now();
-const ctx = await browser.newContext({
-  viewport: { width: W, height: H },
-  recordVideo: { dir: RAW, size: { width: W, height: H } },
-});
+const ctx = await browser.newContext({ viewport: { width: W, height: H } });
 const page = await ctx.newPage();
+page.on("console", (m) => {
+  const t = m.text();
+  if (t.startsWith("[capture]") || t.startsWith("loop does not close")) {
+    console.log(t);
+  }
+});
+
+// THE CLOCK, installed before any app code runs.
+//
+// Everything the app animates -- the explode lerp, camera damping, the render
+// budget -- reads performance.now(). Handing it a clock this script advances by
+// exactly one frame's worth per captured frame makes scene time independent of
+// how long a frame actually takes to draw.
+await page.addInitScript(() => {
+  const real = performance.now.bind(performance);
+  let virtual = 0;
+  let driving = false;
+  window.__clock = {
+    start() {
+      virtual = real();
+      driving = true;
+    },
+    advance(ms) {
+      virtual += ms;
+    },
+  };
+  performance.now = () => (driving ? virtual : real());
+});
 // Pin the theme BEFORE boot: the app resolves it in a no-flash inline script,
 // and Playwright's default colorScheme is light.
 await page.addInitScript((t) => {
@@ -63,11 +105,20 @@ await page.waitForTimeout(11000); // three.js, models, first paint
 // ALL app chrome goes. This clip is about the geometry: the brand lockup and the
 // edit/export controls are the page's job, not the loop's, and at hero size they
 // read as clutter someone has to look past.
+//
+// A NAMED LIST GOES STALE. #hex-palette and #hex-compass are here because the
+// list did not have them and the clip shipped with the placement menu and the
+// north arrow sitting in frame -- the palette was rebuilt under a new id and the
+// compass did not exist when this was written. Anything the app adds to the DOM
+// in future is in the same position, so the belt-and-braces rule below hides
+// every direct child of <body> that is not the canvas, and the named ids stay
+// only for the ones nested deeper.
 await page.addStyleTag({
   content: `
+    body > *:not(canvas):not(script) { display: none !important; }
     #header, #toolbar, #inspector, #idle-prompt, #ghost-tip, #hint,
     #crosshair, #action-sheet, #export-modal, .long-press-indicator,
-    #loading { display: none !important; }
+    #hex-palette, #hex-compass, #loading { display: none !important; }
   `,
 });
 
@@ -169,9 +220,14 @@ await page.waitForFunction(
   { timeout: 15000, polling: 120 },
 );
 
-const trimMs = Date.now() - contextStart;
+// `--frames=N` caps the run for a quick look at the opening without paying for
+// the whole clip; the encode is skipped when it is set.
+const capArg = process.argv.find((a) => a.startsWith("--frames="));
+const TOTAL = capArg ? Number(capArg.slice(9)) : SECONDS * 30;
 
-const actualMs = await page.evaluate(async (seconds) => {
+// SETUP: hand the page a stepper it can be driven with, rather than letting it
+// run the clip on its own clock.
+await page.evaluate(async (total) => {
   const { placeCell, removeCell, cells, slotHasAnyCell } =
     await import("/src/hex/cells.ts");
   const { slotsForCell, defaultKindForSlot, setCapAt, isCapAvailable } =
@@ -188,42 +244,18 @@ const actualMs = await page.evaluate(async (seconds) => {
     [-1, 1],
   ];
 
-  // One full revolution across the clip, so the last frame meets the first.
-  const RATE = (2 * Math.PI) / seconds; // rad/s
-  const t0 = performance.now();
-  let done = false;
-  let last = t0;
-
-  // The camera and the render budget are driven from one rAF loop. Without the
-  // bump the app stops drawing the moment nothing is lerping, which is what made
-  // the first take a slideshow.
-  // The turn is ACCUMULATED and clamped to exactly one revolution, rather than
-  // left to a fixed rate for a fixed duration. Timers slip under a page that is
-  // rendering every frame and cloning meshes, so the real runtime overran the
-  // planned twelve seconds every time -- and an overrun at a fixed rate means
-  // more than 360 degrees, which is precisely what stops the last frame meeting
-  // the first. Clamping makes the loop close whatever the clock does.
-  let turned = 0;
-  (function spin(now) {
-    const dt = Math.min((now - last) / 1000, 1 / 30);
-    last = now;
-    const step = Math.min(RATE * dt, 2 * Math.PI - turned);
-    if (step > 0) {
-      controls.rotate(step, 0, false);
-      turned += step;
-    }
-    bumpRender(10);
-    if (!done) requestAnimationFrame(spin);
-  })(t0);
-
+  // THE CAMERA IS DRIVEN FROM OUTSIDE NOW, one absolute angle per captured
+  // frame, so the rAF spin that used to accumulate a turn against wall-clock dt
+  // is gone with the clock it depended on. What it worked around -- timers
+  // slipping under a page rendering at 1280x800 while being screencast -- can no
+  // longer happen: nothing here reads real time.
   // BEATS FIRE ON ROTATION ANGLE, NOT ON THE CLOCK.
   //
   // Every wall-clock version of this drifted. setTimeout is throttled hard on a
   // page rendering every frame at 1280x800 while Playwright screencasts it, so a
   // ten-second plan took sixteen and the beats slid out from under the camera.
-  // Keying them to accumulated azimuth makes the two impossible to separate:
-  // whatever the frame rate does, the lid opens at the same point in the turn,
-  // and the clip always ends where it started.
+  // The stepper passes the fraction directly, so a beat and the camera angle
+  // are read from the same number and cannot drift apart.
   const caps = [];
   const added = [];
   const fired = new Set();
@@ -312,12 +344,59 @@ const actualMs = await page.evaluate(async (seconds) => {
   // The two kept are the slots the choreography is about to fill, which is the
   // pair that actually carries meaning: a marked empty slot, then a tile
   // snapping into precisely that slot. The other four were decoration.
+  // REMOVED, not hidden. Setting `visible = false` does not survive: the app
+  // runs its own visibility pass over every ghost -- it decides which candidate
+  // a slot shows -- and that pass turns them all back on, so the clip opened on
+  // all six wires the limit exists to prevent. Detaching the extras puts them
+  // beyond anything that could re-show them.
+  // Driven off the SCENE GROUP, not the exported `ghosts` array.
+  //
+  // Measured: at frame 0 the rendered group held six objects and NONE of them
+  // were entries in the array this script imported -- `mine: 0` -- so limiting
+  // the array detached six things the renderer never had and left the six it
+  // did. Every earlier attempt to fix the opening frame was aimed at objects
+  // that were not on screen, which is why the count logged 2 while the picture
+  // showed 6. Each ghost root carries its own `userData.ghost`, so the slot can
+  // be read off whatever is actually in the group, whoever created it.
+  const ghostGroupNode = () => {
+    let n = tray.scene.baseTopExplode;
+    while (n.parent) n = n.parent;
+    return n.children.find((c) => c.name === "ghosts") ?? null;
+  };
+
+  const wantedRoot = (o) => {
+    const slot = o?.userData?.ghost?.slot;
+    return !!slot && neighbours.some(([q, r]) => slot.q === q && slot.r === r);
+  };
+
   const limitGhosts = () => {
-    for (const g of ghosts) {
-      g.root.visible = neighbours.some(
-        ([q, r]) => g.slot.q === q && g.slot.r === r,
-      );
+    const group = ghostGroupNode();
+    if (!group) return;
+    for (const root of [...group.children]) {
+      if (wantedRoot(root)) root.visible = true;
+      else group.remove(root);
     }
+  };
+
+  /** Filter the group's `add` ONCE, instead of sweeping it every frame.
+   *
+   *  Sweeping is a race and it was being lost: the app rebuilds its ghosts
+   *  during the animation frames between the step and the shutter, so a limit
+   *  applied before the paint is undone by the time the frame is read, and a
+   *  limit applied after it only wins if no rebuild happens to follow. Both
+   *  were tried; both produced a six-wire opening frame intermittently.
+   *
+   *  Refusing the object at the door is not timing-dependent: whatever rebuilds,
+   *  and whenever, only the two slots this clip is framed around get in. */
+  const sealGhostGroup = () => {
+    const group = ghostGroupNode();
+    if (!group || group.userData.__sealed) return;
+    group.userData.__sealed = true;
+    const add = group.add.bind(group);
+    group.add = (...objs) => {
+      const keep = objs.filter(wantedRoot);
+      return keep.length ? add(...keep) : group;
+    };
   };
 
   const topology = (fn) => () => {
@@ -365,105 +444,143 @@ const actualMs = await page.evaluate(async (seconds) => {
     ],
   ];
 
-  await new Promise((resolve) => {
-    const poll = setInterval(() => {
-      const f = turned / (2 * Math.PI);
-      for (const [mark, fn] of beats) {
-        if (f >= mark && !fired.has(mark)) {
-          fired.add(mark);
-          try {
-            fn();
-          } catch {
-            /* a beat must never strand the recording */
-          }
+  // The camera is PLACED, not nudged. `controls.rotate` accumulates and then
+  // damps toward the result, so the visible angle trails the commanded one and
+  // the last frame lands a fraction short of the first. An absolute angle per
+  // frame closes the revolution exactly: frame `total` would be the opening
+  // angle again, which is why it is never rendered.
+  const az0 = controls.azimuthAngle;
+  const polar0 = controls.polarAngle;
+
+  window.__step = (i) => {
+    const f = i / total;
+    for (const [mark, fn] of beats) {
+      if (f >= mark && !fired.has(mark)) {
+        fired.add(mark);
+        try {
+          fn();
+        } catch {
+          /* a beat must never strand the recording */
         }
       }
-      if (f >= 1) {
-        clearInterval(poll);
-        resolve(null);
-      }
-    }, 50);
-  });
-  // LET THE CAMERA ARRIVE, not just the commanded turn.
-  //
-  // The turn is clamped to exactly one revolution, so the COMMAND closes. The
-  // camera does not: camera-controls smooth-damps toward what it was told, so
-  // when the last radian is issued the visible camera is still catching up, and
-  // the final frame sits a fraction of a degree short of the first. That shows
-  // up as the tray's rim outlined in a first-vs-last difference -- a uniform
-  // silhouette shift, which is what a small camera offset looks like and what a
-  // scene-state mismatch does not.
-  //
-  // A flat 400ms was not enough for a 0.18s smoothTime plus the drag constant.
-  // Poll the angle instead: three reads with no measurable change is arrived.
-  await (async () => {
-    let still = 0;
-    let prev = controls.azimuthAngle;
-    for (let i = 0; i < 120 && still < 3; i++) {
-      await sleep(30);
-      const now = controls.azimuthAngle;
-      still = Math.abs(now - prev) < 1e-5 ? still + 1 : 0;
-      prev = now;
     }
-  })();
-  await sleep(200); // and the final removal's own settle
-  done = true;
-  // Caps and neighbours must ALL be gone by here, or the closing frame does not
-  // match the opening one and the loop visibly jumps.
-  if (cells.size !== 1)
-    console.warn("loop does not close: cells =", cells.size);
-  // The rim of the tray was not lining up between the first and last frames,
-  // and the camera clamp rules the camera out -- so report the SCENE against
-  // the state the clip opened in, per axis, rather than trusting "every beat is
-  // undone by a later one".
-  const closing = snapshot();
-  const drift = closing.lift.map((v, i) =>
-    Number((v - opening.lift[i]).toFixed(6)),
-  );
-  if (
-    closing.cells !== opening.cells ||
-    closing.caps !== opening.caps ||
-    drift.some((d) => d !== 0)
-  ) {
-    console.warn(
-      "loop does not close:",
-      JSON.stringify({ opening, closing, liftDrift: drift }),
-    );
-  }
-  // The REAL elapsed time, returned so the trim is exact. Neither guess worked:
-  // measuring from context creation assumed recording starts there (it does not,
-  // and the beats landed 4.4s late), and trimming a fixed 12s off the end cut the
-  // opening off whenever the beats overran their budget. The page is the only
-  // thing that knows how long it actually took.
-  return performance.now() - t0;
-}, SECONDS);
+    // EVERY FRAME, because a one-off limit does not hold. rebuildGhosts()
+    // recreates all six whenever the topology changes, and the app calls it on
+    // its own as well -- so detaching the extras once at setup left the clip
+    // opening on six wires anyway. Re-applying per frame is the only version
+    // that survives whatever the app decides to rebuild, and it costs nothing:
+    // it is a visibility flag on at most a handful of objects.
+    limitGhosts();
+    if (i < 2) {
+      console.log(
+        `[capture] ghosts total=${ghosts.length} attached=${ghosts.filter((g) => g.root.parent).length} visible=${ghosts.filter((g) => g.root.parent && g.root.visible).length}`,
+      );
+    }
+    controls.rotateTo(az0 + 2 * Math.PI * f, polar0, false);
+    bumpRender(4);
+  };
 
-await ctx.close(); // flushes the video
+  // Applied AFTER the paint, immediately before the shutter. Limiting at step
+  // time does not hold: the app rebuilds its ghosts during the two animation
+  // frames between the step and the screenshot, so the group is back to six by
+  // the time it is captured. This is the last write before the frame is read.
+  window.__limit = () => {
+    sealGhostGroup();
+    limitGhosts();
+  };
+
+  // Scene-graph truth, read AFTER the app has painted rather than at step time.
+  // The step-time count and the rendered image disagreed, and only a probe on
+  // the far side of the paint can say which one the renderer actually saw.
+  // Counts what the RENDERER sees, which is the only count that ever mattered.
+  // The exported `ghosts` array disagreed with the group on frame 0 -- it
+  // reported two attached while six drew -- so nothing derived from it is
+  // evidence about the picture.
+  window.__probe = () => {
+    const group = ghostGroupNode();
+    return {
+      rendered: group ? group.children.filter((c) => c.visible).length : -1,
+    };
+  };
+
+  window.__closure = () => {
+    const closing = snapshot();
+    return {
+      opening,
+      closing,
+      liftDrift: closing.lift.map((v, k) =>
+        Number((v - opening.lift[k]).toFixed(6)),
+      ),
+    };
+  };
+}, TOTAL);
+
+// DRIVE IT. One captured frame is exactly one scene frame: fire the beats due
+// at this fraction, advance the clock by 1/30 of a second, let the app render,
+// and take the shot. However long that takes in real time is irrelevant.
+await page.evaluate(() => window.__clock.start());
+const paint = () =>
+  page.evaluate(
+    () =>
+      new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
+  );
+
+for (let i = 0; i < TOTAL; i++) {
+  await page.evaluate((n) => window.__step(n), i);
+  await page.evaluate((ms) => window.__clock.advance(ms), 1000 / 30);
+  await paint();
+  // Re-apply the ghost limit on the far side of the paint, then let the app
+  // draw once more so the removal is in the framebuffer the shutter reads.
+  await page.evaluate(() => window.__limit());
+  await paint();
+  // Frame 0 is the frame the loop returns to, so it is the one worth asserting:
+  // it must open on the two wires, not the app's full ring of six.
+  if (i === 0) {
+    const { rendered } = await page.evaluate(() => window.__probe());
+    console.log(`[capture] frame 0 ghost wires: ${rendered}`);
+    if (rendered !== 2) {
+      console.warn(`[capture] EXPECTED 2 ghost wires at frame 0, got ${rendered}`);
+    }
+  }
+  await page.screenshot({
+    path: `${FRAMES}/f${String(i).padStart(4, "0")}.png`,
+  });
+  if (i % 60 === 0) console.log(`[capture] frame ${i}/${TOTAL}`);
+}
+
+const closure = await page.evaluate(() => window.__closure());
+if (
+  closure.closing.cells !== closure.opening.cells ||
+  closure.closing.caps !== closure.opening.caps ||
+  closure.liftDrift.some((d) => d !== 0)
+) {
+  console.warn("loop does not close:", JSON.stringify(closure));
+}
+
+await ctx.close();
 await browser.close();
 
-const raw = join(
-  RAW,
-  readdirSync(RAW).find((f) => f.endsWith(".webm")),
-);
-const trim = (trimMs / 1000).toFixed(2);
+if (capArg) {
+  console.log(`stopped after ${TOTAL} frames (--frames), no encode`);
+  process.exit(0);
+}
 
-// Two encodes: MP4/H.264 is the safe default and the only thing some older
-// Safari builds will autoplay; WebM is smaller where it is supported.
-// `faststart` puts the index at the front so playback can begin early.
+// ENCODE THE FRAMES AS THEY ARE. No setpts, no trim, no boot to cut off: the
+// capture produced exactly SECONDS * 30 frames of scene time, so the clip is
+// already the right length and every frame is a real render at an even spacing.
+//
+// The retime this replaces is what made the loop judder -- it kept about one
+// captured frame in thirty-five out of a source whose real frame times varied
+// with whatever the machine was doing.
 execFileSync("ffmpeg", [
   "-y",
   "-loglevel",
   "error",
-  "-sseof",
-  `-${(actualMs / 1000).toFixed(2)}`,
+  "-framerate",
+  "30",
   "-i",
-  raw,
+  `${FRAMES}/f%04d.png`,
   "-an",
-  // Retimed to a fixed length. The capture rate is whatever the machine managed;
-  // the hero wants a predictable loop, and a pure speed change keeps every frame
-  // real rather than interpolating new ones.
-  "-vf",
-  `setpts=${(SECONDS / (actualMs / 1000)).toFixed(4)}*PTS,fps=30`,
   "-c:v",
   "libx264",
   "-preset",
@@ -472,24 +589,13 @@ execFileSync("ffmpeg", [
   "31",
   "-pix_fmt",
   "yuv420p",
-  // LOOPING IS A SEEK BACK TO ZERO, and how cheap that is depends on the
-  // encode. Measured, the CONTENT closes: the final frame best-matches head
-  // frame 0 out of the first forty, mean |diff| 1.19/255, with the next
-  // candidate no better. So a visible hitch at the loop point is the decoder
-  // rewinding, not the choreography failing to return.
-  //
-  // A keyframe every second gives it a near one to rewind to instead of
-  // decoding forward from a single IDR at the start, and make_zero drops the
-  // edit-list offset that otherwise makes the first frame arrive late.
+  // A keyframe a second, so rewinding to zero lands on a near one rather than
+  // decoding forward from a single IDR.
   "-g",
   "30",
-  "-avoid_negative_ts",
-  "make_zero",
   // START AT ZERO. Without these the muxer writes a start_time of 0.066s -- two
-  // frames at 30fps, the B-frame reorder delay carried as a container offset.
-  // A player rewinding to 0 then waits for it, which is the hitch; measured on
-  // the shipped clip before this line existed. `-avoid_negative_ts make_zero`
-  // alone did NOT clear it.
+  // frames at 30fps, the B-frame reorder delay carried as a container offset --
+  // and a player rewinding waits for it every lap.
   "-muxdelay",
   "0",
   "-muxpreload",
@@ -498,44 +604,22 @@ execFileSync("ffmpeg", [
   "+faststart",
   `${OUT}/configurator${suffix}.mp4`,
 ]);
+
+// The poster is a real frame from the middle of the clip, not a re-render.
 execFileSync("ffmpeg", [
   "-y",
   "-loglevel",
   "error",
-  "-sseof",
-  `-${(actualMs / 1000).toFixed(2)}`,
   "-i",
-  raw,
-  "-an",
-  "-vf",
-  `setpts=${(SECONDS / (actualMs / 1000)).toFixed(4)}*PTS,fps=30`,
-  "-c:v",
-  "libvpx-vp9",
-  "-crf",
-  "36",
-  "-b:v",
-  "0",
-  "-row-mt",
-  "1",
-  `${OUT}/configurator${suffix}.webm`,
-]);
-execFileSync("ffmpeg", [
-  "-y",
-  "-loglevel",
-  "error",
-  "-ss",
-  "5",
-  "-i",
-  `${OUT}/configurator${suffix}.mp4`,
-  "-frames:v",
-  "1",
+  `${FRAMES}/f${String(Math.floor((SECONDS * 30) / 2)).padStart(4, "0")}.png`,
+  "-q:v",
+  "4",
   `${OUT}/configurator${suffix}-poster.jpg`,
 ]);
 
-console.log(`trimmed ${trim}s of boot`);
+console.log(`${SECONDS * 30} frames of scene time, encoded 1:1 at 30fps`);
 for (const f of [
   `configurator${suffix}.mp4`,
-  `configurator${suffix}.webm`,
   `configurator${suffix}-poster.jpg`,
 ]) {
   const { size } = await import("node:fs").then((m) =>
