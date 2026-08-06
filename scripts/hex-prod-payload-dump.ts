@@ -14,6 +14,15 @@
  * Output is one payload per line, prefixed by its cell count, so the consumer
  * can pair a size with a shape.
  */
+
+// A FILE WITH NO TOP-LEVEL IMPORT OR EXPORT IS A SCRIPT, NOT A MODULE, so its
+// `main` lands in the global scope and collides with every sibling that does the
+// same -- "Duplicate function implementation", from tsc, in the Next build, on
+// files nobody touched. hex-prod-tokens.ts escapes it only by accident, because
+// it happens to import node:zlib at the top. This costs nothing and makes the
+// next throwaway script safe.
+export {};
+
 async function main() {
   const { db: prisma } = await import("@/lib/db");
 
