@@ -67,9 +67,12 @@
 
   /* elevation scale — S1 deep drop for cards/panels, a smaller raise for buttons +
      the sticky header; rim = the lit top edge that pairs with a drop. */
-  --elev-card: 0 26px 50px -12px rgba(0, 0, 0, 0.95), 0 10px 18px -8px rgba(0, 0, 0, 0.85);
+  --elev-card:
+    0 26px 50px -12px rgba(0, 0, 0, 0.95), 0 10px 18px -8px rgba(0, 0, 0, 0.85);
   --elev-raise: 0 8px 20px -6px rgba(0, 0, 0, 0.85);
-  --rim-hi: inset 0 1px 0 rgba(232, 184, 101, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --rim-hi:
+    inset 0 1px 0 rgba(232, 184, 101, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 
   --color-command-gold: #c8963e;
   --color-gold-light: #e8b865;
@@ -165,7 +168,12 @@
   --color-navy-dark: #ffffff; /* CHROME fill (.glass-card) → white panel + hairline */
   --color-panel-border: #d9d2c2; /* warm hairline (the PDF HAIR) */
   --color-diagram-surface: #e9dfc9; /* SVG object body → warm beige material on ivory (NOT white) */
-  --board-halo: rgba(0, 0, 0, 0.2); /* board halo inverts to a soft dark shadow on paper */
+  --board-halo: rgba(
+    0,
+    0,
+    0,
+    0.2
+  ); /* board halo inverts to a soft dark shadow on paper */
 
   /* Faceted-scene ramps. The slate ramp LIGHTENS (a lit object on paper); the gold
      ramp deepens like every other gold. The in-screen world stays a screen: --glass
@@ -219,7 +227,9 @@
   /* elevation — heavy black drops read as dirt on ivory; soft warm-gray instead.
      The lit rim is invisible on white, so it's dropped to a transparent no-op
      (keeps the `var(--elev-card), var(--rim-hi)` shorthand list valid). */
-  --elev-card: 0 18px 40px -16px rgba(40, 34, 22, 0.18), 0 6px 14px -8px rgba(40, 34, 22, 0.12);
+  --elev-card:
+    0 18px 40px -16px rgba(40, 34, 22, 0.18),
+    0 6px 14px -8px rgba(40, 34, 22, 0.12);
   --elev-raise: 0 6px 16px -8px rgba(40, 34, 22, 0.14);
   --rim-hi: 0 0 transparent;
 }
@@ -258,9 +268,18 @@ body {
   --tex-dot: 0.045;
   --tex-line: 0.03;
   background-image:
-    radial-gradient(rgb(var(--tex-rgb) / var(--tex-dot)) 0.5px, transparent 0.7px),
-    repeating-linear-gradient(0deg, transparent 0 2px, rgb(var(--tex-rgb) / var(--tex-line)) 2px 3px);
-  background-size: 7px 7px, auto;
+    radial-gradient(
+      rgb(var(--tex-rgb) / var(--tex-dot)) 0.5px,
+      transparent 0.7px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 2px,
+      rgb(var(--tex-rgb) / var(--tex-line)) 2px 3px
+    );
+  background-size:
+    7px 7px,
+    auto;
   --backdrop-mask: linear-gradient(
     180deg,
     rgba(0, 0, 0, 1) 0%,
@@ -297,22 +316,87 @@ body {
    isolation those values escape to the page and paint OVER the sticky header
    (z-20). `isolation: isolate` traps the whole internal z-range so the comb
    subducts under the header. Shared by the hub, /courses skill tree + paths. */
-.gh { isolation: isolate; }
-.gh-node { position: absolute; display: block; text-decoration: none; text-align: center; container-type: inline-size; }
-.gh-hex { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.gh-hex polygon { fill: var(--color-deep-space); stroke: var(--color-panel-border); stroke-width: 3; vector-effect: non-scaling-stroke; transition: stroke 0.15s; }
-.gh-node:hover .gh-hex polygon { stroke: var(--color-gold-light); }
+.gh {
+  isolation: isolate;
+}
+.gh-node {
+  position: absolute;
+  display: block;
+  text-decoration: none;
+  text-align: center;
+  container-type: inline-size;
+}
+.gh-hex {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.gh-hex polygon {
+  fill: var(--color-deep-space);
+  stroke: var(--color-panel-border);
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+  transition: stroke 0.15s;
+}
+.gh-node:hover .gh-hex polygon {
+  stroke: var(--color-gold-light);
+}
 /* the stage number is a big OUTLINE figure that owns the top third (font-size set
    inline per-hex by the component so it scales with the measured width). Decorative
    — the link's aria-label already names the stage. */
-.gh-num { position: absolute; left: 0; right: 0; top: 12%; z-index: 0; pointer-events: none; font-family: var(--font-numeral); font-weight: 800; letter-spacing: 0.02em; line-height: 1; color: transparent; -webkit-text-stroke: 1.75px color-mix(in srgb, var(--color-gold-light) 34%, transparent); }
+.gh-num {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 12%;
+  z-index: 0;
+  pointer-events: none;
+  font-family: var(--font-numeral);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1.75px
+    color-mix(in srgb, var(--color-gold-light) 34%, transparent);
+}
 /* title + lead, centred in the lower two-thirds */
-.gh-m { position: absolute; left: 0; right: 0; top: 64%; transform: translateY(-50%); z-index: 1; padding: 0 13%; }
-.gh-m > .gh-title { display: block; }
+.gh-m {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 64%;
+  transform: translateY(-50%);
+  z-index: 1;
+  padding: 0 13%;
+}
+.gh-m > .gh-title {
+  display: block;
+}
 /* type scales with the hex (cqw = 1% of the cell width) so cells stay legible all
    the way down to the two-up phone size, bounded by a px floor + ceiling. */
-.gh-title { font-family: var(--font-display), sans-serif; font-size: clamp(14px, 10cqw, 32px); letter-spacing: 0.04em; line-height: 0.9; color: var(--color-gray-1); margin-bottom: 8px; overflow-wrap: break-word; hyphens: auto; text-wrap: balance; }
-.gh-lead { font-family: var(--font-serif), serif; font-size: clamp(11px, 4.8cqw, 15px); line-height: 1.5; color: #d8d8d8; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.gh-title {
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(14px, 10cqw, 32px);
+  letter-spacing: 0.04em;
+  line-height: 0.9;
+  color: var(--color-gray-1);
+  margin-bottom: 8px;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  text-wrap: balance;
+}
+.gh-lead {
+  font-family: var(--font-serif), serif;
+  font-size: clamp(11px, 4.8cqw, 15px);
+  line-height: 1.5;
+  color: #d8d8d8;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 /* small cells can't fit a 2-line description at a legible size without truncating
    it — drop it (full text is on the stage page), re-centre the title, and lift the
    chip off the narrow bottom point. The lead only returns once a cell is wide
@@ -322,21 +406,65 @@ body {
      number anchored in the upper third, then title + chip as a tight centred pair,
      instead of leaving the title + chip at their full-layout spots with a hole in
      between where the lead used to be. */
-  .gh-lead { display: none; }
-  .gh-num { top: 17%; }
-  .gh-title { font-size: clamp(15px, 13cqw, 25px); margin-bottom: 0; }
-  .gh-m { top: 57%; }
-  .gh-status { bottom: 22%; }
+  .gh-lead {
+    display: none;
+  }
+  .gh-num {
+    top: 17%;
+  }
+  .gh-title {
+    font-size: clamp(15px, 13cqw, 25px);
+    margin-bottom: 0;
+  }
+  .gh-m {
+    top: 57%;
+  }
+  .gh-status {
+    bottom: 22%;
+  }
 }
 /* status as a chip pinned to the lower point */
-.gh-status { position: absolute; left: 0; right: 0; bottom: 13%; display: flex; justify-content: center; z-index: 1; }
-.gh-chip { font-family: var(--font-mono), monospace; font-weight: 700; font-size: clamp(8px, 3.2cqw, 10px); letter-spacing: 0.16em; text-transform: uppercase; padding: clamp(2px, 1.3cqw, 4px) clamp(7px, 4cqw, 13px); border-radius: 999px; white-space: nowrap; }
-.gh-node.pending .gh-chip { border: 1px solid color-mix(in srgb, var(--color-command-gold) 45%, transparent); color: var(--color-command-gold); }
-.gh-node.done .gh-hex polygon { fill: url(#gh-honey); stroke: #eab94d; }
-.gh-node.done .gh-num { -webkit-text-stroke-color: rgba(20, 13, 2, 0.44); }
-.gh-node.done .gh-title { color: #140d02; }
-.gh-node.done .gh-lead { color: #281d06; }
-.gh-node.done .gh-chip { background: #241b06; color: var(--color-gold-light); }
+.gh-status {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 13%;
+  display: flex;
+  justify-content: center;
+  z-index: 1;
+}
+.gh-chip {
+  font-family: var(--font-mono), monospace;
+  font-weight: 700;
+  font-size: clamp(8px, 3.2cqw, 10px);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: clamp(2px, 1.3cqw, 4px) clamp(7px, 4cqw, 13px);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.gh-node.pending .gh-chip {
+  border: 1px solid
+    color-mix(in srgb, var(--color-command-gold) 45%, transparent);
+  color: var(--color-command-gold);
+}
+.gh-node.done .gh-hex polygon {
+  fill: url(#gh-honey);
+  stroke: #eab94d;
+}
+.gh-node.done .gh-num {
+  -webkit-text-stroke-color: rgba(20, 13, 2, 0.44);
+}
+.gh-node.done .gh-title {
+  color: #140d02;
+}
+.gh-node.done .gh-lead {
+  color: #281d06;
+}
+.gh-node.done .gh-chip {
+  background: #241b06;
+  color: var(--color-gold-light);
+}
 /* a cell sits above its neighbours when current or hovered, so its glow / brighter
    border isn't covered by the later-drawn adjacent hex on the shared edges. */
 /* No z-index on a measured cell. It used to lift the current/hovered hex above its
@@ -344,16 +472,62 @@ body {
    to near, and the components set an inline z-index from that same depth order, so a
    class rule here would fight it. (A stacking context on a cell was also what made
    the old per-cell prism impossible to order correctly.) */
-.gh-node.current .gh-hex polygon { stroke: var(--color-command-gold); filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-command-gold) 60%, transparent)); animation: gh-pulse 1.8s ease-in-out infinite; }
-.gh-node.current .gh-num { -webkit-text-stroke-color: color-mix(in srgb, var(--color-command-gold) 52%, transparent); }
-.gh-node.current .gh-title { color: var(--color-command-gold); }
-.gh-node.current .gh-chip { background: var(--color-command-gold); color: var(--color-deep-space); }
-.gh-node.blocked .gh-hex polygon { stroke: var(--color-alert-red); }
-.gh-node.blocked .gh-num { -webkit-text-stroke-color: color-mix(in srgb, var(--color-alert-red) 40%, transparent); }
-.gh-node.blocked .gh-title { color: var(--color-alert-red); }
-.gh-node.blocked .gh-chip { border: 1px solid color-mix(in srgb, var(--color-alert-red) 50%, transparent); color: var(--color-alert-red); }
-@keyframes gh-pulse { 0%, 100% { filter: drop-shadow(0 0 0 color-mix(in srgb, var(--color-command-gold) 0%, transparent)); } 50% { filter: drop-shadow(0 0 11px color-mix(in srgb, var(--color-command-gold) 70%, transparent)); } }
-@media (prefers-reduced-motion: reduce) { .gh-node.current .gh-hex polygon { animation: none; } }
+.gh-node.current .gh-hex polygon {
+  stroke: var(--color-command-gold);
+  filter: drop-shadow(
+    0 0 8px color-mix(in srgb, var(--color-command-gold) 60%, transparent)
+  );
+  animation: gh-pulse 1.8s ease-in-out infinite;
+}
+.gh-node.current .gh-num {
+  -webkit-text-stroke-color: color-mix(
+    in srgb,
+    var(--color-command-gold) 52%,
+    transparent
+  );
+}
+.gh-node.current .gh-title {
+  color: var(--color-command-gold);
+}
+.gh-node.current .gh-chip {
+  background: var(--color-command-gold);
+  color: var(--color-deep-space);
+}
+.gh-node.blocked .gh-hex polygon {
+  stroke: var(--color-alert-red);
+}
+.gh-node.blocked .gh-num {
+  -webkit-text-stroke-color: color-mix(
+    in srgb,
+    var(--color-alert-red) 40%,
+    transparent
+  );
+}
+.gh-node.blocked .gh-title {
+  color: var(--color-alert-red);
+}
+.gh-node.blocked .gh-chip {
+  border: 1px solid color-mix(in srgb, var(--color-alert-red) 50%, transparent);
+  color: var(--color-alert-red);
+}
+@keyframes gh-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(
+      0 0 0 color-mix(in srgb, var(--color-command-gold) 0%, transparent)
+    );
+  }
+  50% {
+    filter: drop-shadow(
+      0 0 11px color-mix(in srgb, var(--color-command-gold) 70%, transparent)
+    );
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gh-node.current .gh-hex polygon {
+    animation: none;
+  }
+}
 
 /* PhaseComb — connected zig-zag phase breadcrumb at the foot of a lesson
    (components/guide/PhaseComb.tsx; sandbox winner "G6" of the ortho-3D rounds,
@@ -369,84 +543,292 @@ body {
 /* The container's aspect ratio and cell width come from the component (--pc-ar /
    --pc-cw), computed from the stage count, so a 9-stage comb is as correct as the
    8-stage one and neither is stretched. The fallbacks are the 8-stage values. */
-.pc-comb { position: relative; width: 100%; max-width: 340px; margin: 0 auto; aspect-ratio: var(--pc-ar, 300 / 62.354); list-style: none; padding: 0; container-type: inline-size; isolation: isolate; }
-.pc-node { position: absolute; width: var(--pc-cw, 16%); aspect-ratio: 48 / 41.57; display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; }
-.pc-node svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.pc-comb {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto;
+  aspect-ratio: var(--pc-ar, 300 / 62.354);
+  list-style: none;
+  padding: 0;
+  container-type: inline-size;
+  isolation: isolate;
+}
+.pc-node {
+  position: absolute;
+  width: var(--pc-cw, 16%);
+  aspect-ratio: 48 / 41.57;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+.pc-node svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
 /* ONE-POINT PAINT ORDER. Each hex draws its prism slab and its face as two svgs.
    Because the casts converge on the centre of the run, hexes on the right cast
    LEFT, so no DOM order occludes correctly — these z-indexes do it instead. They
    sort across every hex at once (the comb isolates; .pc-node must NOT create a
    stacking context, so keep transform/filter/opacity/z-index off it), which puts
    every slab under every face. The numeral + abbr sit at 2, above both. */
-.pc-node .pc-slab { z-index: 0; }
-.pc-node .pc-face { z-index: 1; }
+.pc-node .pc-slab {
+  z-index: 0;
+}
+.pc-node .pc-face {
+  z-index: 1;
+}
 /* prism parts: face (pc-top), the converging side faces (pc-side, field-filled =
    the solid slab), inset rim (pc-rim). Default stroke = pending. */
-.pc-node .pc-top { fill: var(--color-deep-space); stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 1.1; stroke-linejoin: round; transition: stroke 0.4s, fill 0.4s; }
-.pc-node .pc-side { fill: var(--color-deep-space); stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 0.5; stroke-linejoin: round; transition: stroke 0.4s; }
-.pc-node .pc-rim { fill: none; stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent); stroke-width: 0.4; opacity: 0.75; transition: stroke 0.4s; }
-.pc-num { position: relative; z-index: 2; font-family: var(--font-numeral); font-weight: 800; font-size: 5.1cqw; line-height: 1; color: var(--color-muted); transition: color 0.4s; }
+.pc-node .pc-top {
+  fill: var(--color-deep-space);
+  stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent);
+  stroke-width: 1.1;
+  stroke-linejoin: round;
+  transition:
+    stroke 0.4s,
+    fill 0.4s;
+}
+.pc-node .pc-side {
+  fill: var(--color-deep-space);
+  stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent);
+  stroke-width: 0.5;
+  stroke-linejoin: round;
+  transition: stroke 0.4s;
+}
+.pc-node .pc-rim {
+  fill: none;
+  stroke: color-mix(in srgb, var(--color-panel-border) 75%, transparent);
+  stroke-width: 0.4;
+  opacity: 0.75;
+  transition: stroke 0.4s;
+}
+.pc-num {
+  position: relative;
+  z-index: 2;
+  font-family: var(--font-numeral);
+  font-weight: 800;
+  font-size: 5.1cqw;
+  line-height: 1;
+  color: var(--color-muted);
+  transition: color 0.4s;
+}
 /* three-letter stage label under the numeral, TOP comb only (mono, quieter than
    the numeral — G6 tucks it well under the big number). Tones track the numeral
    so it reads on every hex fill. 2.5cqw matches the label's PROPORTION on a
    phone-width comb (where the 9px floor puts it at ~2.5% of the comb), so the
    desktop label is at least as large as mobile instead of shrinking to 1.4%.
    The 9px floor still holds it legible on the very narrowest combs. */
-.pc-abbr { position: relative; z-index: 2; font-family: var(--font-mono); font-weight: 700; font-size: max(2.5cqw, 9px); letter-spacing: 0.12em; line-height: 1; margin-top: 0.7cqw; color: var(--color-muted); transition: color 0.4s; }
-.pc-node.complete .pc-abbr { color: var(--color-deep-space); }
-.pc-node.current .pc-abbr { color: var(--color-gold-light); }
-.pc-node.viewing .pc-abbr { color: var(--color-gold-light); }
-.pc-node.blocked .pc-abbr { color: var(--color-alert-red); }
-.pc-node.complete .pc-top { fill: url(#pc-honey); }
-.pc-node.complete :is(.pc-top, .pc-side, .pc-rim) { stroke: var(--color-command-gold); }
-.pc-node.complete .pc-num { color: var(--color-deep-space); }
-.pc-node.current :is(.pc-top, .pc-side, .pc-rim) { stroke: var(--color-command-gold); }
-.pc-node.current .pc-num { color: var(--color-gold-light); }
-.pc-node.blocked :is(.pc-top, .pc-side, .pc-rim) { stroke: var(--color-alert-red); }
-.pc-node.blocked .pc-num { color: var(--color-alert-red); }
-.pc-node:hover :is(.pc-top, .pc-side, .pc-rim) { stroke: var(--color-gold-light); }
-.pc-node:focus-visible { outline: none; }
-.pc-node:focus-visible :is(.pc-top, .pc-side, .pc-rim) { stroke: var(--color-gold-light); }
-.pc-node:focus-visible .pc-top { stroke-width: 1.5; }
+.pc-abbr {
+  position: relative;
+  z-index: 2;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: max(2.5cqw, 9px);
+  letter-spacing: 0.12em;
+  line-height: 1;
+  margin-top: 0.7cqw;
+  color: var(--color-muted);
+  transition: color 0.4s;
+}
+.pc-node.complete .pc-abbr {
+  color: var(--color-deep-space);
+}
+.pc-node.current .pc-abbr {
+  color: var(--color-gold-light);
+}
+.pc-node.viewing .pc-abbr {
+  color: var(--color-gold-light);
+}
+.pc-node.blocked .pc-abbr {
+  color: var(--color-alert-red);
+}
+.pc-node.complete .pc-top {
+  fill: url(#pc-honey);
+}
+.pc-node.complete :is(.pc-top, .pc-side, .pc-rim) {
+  stroke: var(--color-command-gold);
+}
+.pc-node.complete .pc-num {
+  color: var(--color-deep-space);
+}
+.pc-node.current :is(.pc-top, .pc-side, .pc-rim) {
+  stroke: var(--color-command-gold);
+}
+.pc-node.current .pc-num {
+  color: var(--color-gold-light);
+}
+.pc-node.blocked :is(.pc-top, .pc-side, .pc-rim) {
+  stroke: var(--color-alert-red);
+}
+.pc-node.blocked .pc-num {
+  color: var(--color-alert-red);
+}
+.pc-node:hover :is(.pc-top, .pc-side, .pc-rim) {
+  stroke: var(--color-gold-light);
+}
+.pc-node:focus-visible {
+  outline: none;
+}
+.pc-node:focus-visible :is(.pc-top, .pc-side, .pc-rim) {
+  stroke: var(--color-gold-light);
+}
+.pc-node:focus-visible .pc-top {
+  stroke-width: 1.5;
+}
 /* the viewed card reads as "current" — a bolder gold face line (+ gold numeral)
    regardless of its fill. No outer emphasis ring: the hexes tessellate, so any
    ring drawn outside the face bleeds onto the neighbours as stray gold nubs. */
-.pc-node.viewing :is(.pc-top, .pc-side, .pc-rim) { stroke: var(--color-command-gold); }
-.pc-node.viewing .pc-top { stroke-width: 1.5; }
+.pc-node.viewing :is(.pc-top, .pc-side, .pc-rim) {
+  stroke: var(--color-command-gold);
+}
+.pc-node.viewing .pc-top {
+  stroke-width: 1.5;
+}
 
 /* header variant: just the comb, centered. It orients by the ringed current
    hex; the stage name + phase already live in the PageHeader right below, so a
    name/step tag here would be redundant. No buttons (those are the footer). */
-.pc-header { display: flex; justify-content: center; }
+.pc-header {
+  display: flex;
+  justify-content: center;
+}
 /* header comb expands well past the compact footer to fill the desktop space,
    capped so the tessellated chain doesn't grow too tall; scales down below it. */
-.pc-header .pc-comb { max-width: 700px; }
+.pc-header .pc-comb {
+  max-width: 700px;
+}
 
 /* prev / next control row under the comb. The forward cue lives here (not on a
    hex): the Next button subtly breathes a gold box-glow and drifts its arrow, so
    it's unmistakable where to go. Prev is a quiet sibling. */
-.pc-nav { display: flex; align-items: center; gap: 14px; width: 100%; max-width: 520px; margin: 1.5rem auto 0; }
-.pc-btn { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.14em; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; border: 1px solid var(--color-panel-border); border-radius: var(--radius); padding: 9px 14px; color: var(--color-muted); transition: color 0.2s, border-color 0.2s, box-shadow 0.2s; }
-.pc-btn-prev:hover, .pc-btn-prev:focus-visible { outline: none; border-color: var(--color-command-gold); color: var(--color-gold-light); }
-.pc-btn-next { margin-left: auto; border-color: var(--color-command-gold); color: var(--color-command-gold); background: color-mix(in srgb, var(--color-command-gold) 8%, transparent); animation: pc-nextbtn 2.6s ease-in-out infinite; }
-.pc-btn-next:hover, .pc-btn-next:focus-visible { outline: none; color: var(--color-gold-light); border-color: var(--color-gold-light); }
-.pc-btn-next .pc-arw { display: inline-block; animation: pc-arwdrift 2.2s ease-in-out infinite; }
-@keyframes pc-nextbtn { 0%, 100% { box-shadow: 0 0 0 0 rgba(232, 184, 101, 0); border-color: var(--color-command-gold); } 50% { box-shadow: 0 0 14px -3px rgba(232, 184, 101, 0.7); border-color: var(--color-gold-light); } }
-@keyframes pc-arwdrift { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
-@media (prefers-reduced-motion: reduce) { .pc-btn-next, .pc-btn-next .pc-arw { animation: none; } }
+.pc-nav {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 520px;
+  margin: 1.5rem auto 0;
+}
+.pc-btn {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 11px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--color-panel-border);
+  border-radius: var(--radius);
+  padding: 9px 14px;
+  color: var(--color-muted);
+  transition:
+    color 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.pc-btn-prev:hover,
+.pc-btn-prev:focus-visible {
+  outline: none;
+  border-color: var(--color-command-gold);
+  color: var(--color-gold-light);
+}
+.pc-btn-next {
+  margin-left: auto;
+  border-color: var(--color-command-gold);
+  color: var(--color-command-gold);
+  background: color-mix(in srgb, var(--color-command-gold) 8%, transparent);
+  animation: pc-nextbtn 2.6s ease-in-out infinite;
+}
+.pc-btn-next:hover,
+.pc-btn-next:focus-visible {
+  outline: none;
+  color: var(--color-gold-light);
+  border-color: var(--color-gold-light);
+}
+.pc-btn-next .pc-arw {
+  display: inline-block;
+  animation: pc-arwdrift 2.2s ease-in-out infinite;
+}
+@keyframes pc-nextbtn {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(232, 184, 101, 0);
+    border-color: var(--color-command-gold);
+  }
+  50% {
+    box-shadow: 0 0 14px -3px rgba(232, 184, 101, 0.7);
+    border-color: var(--color-gold-light);
+  }
+}
+@keyframes pc-arwdrift {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pc-btn-next,
+  .pc-btn-next .pc-arw {
+    animation: none;
+  }
+}
 
 /* sign-in "check your email" pulse — a soft ring off the mail glyph (B1). */
-.pc-pulse { position: relative; width: 54px; height: 54px; display: grid; place-items: center; }
-.pc-pulse::after { content: ""; position: absolute; inset: 0; border: 1.5px solid var(--color-gold-light); border-radius: 50%; animation: pc-ring 1.9s ease-out infinite; }
-@keyframes pc-ring { 0% { transform: scale(0.7); opacity: 0.75; } 100% { transform: scale(1.7); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .pc-pulse::after { animation: none; } }
+.pc-pulse {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+}
+.pc-pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1.5px solid var(--color-gold-light);
+  border-radius: 50%;
+  animation: pc-ring 1.9s ease-out infinite;
+}
+@keyframes pc-ring {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pc-pulse::after {
+    animation: none;
+  }
+}
 /* SkillHoneycomb (/courses) extends the build-guide honeycomb with two additive
    modifiers (the skill tree has 8 node states to the hub's 4 — see SkillHoneycomb).
    sk-dim: recede the not-yet-reachable states (sign-in / premium / coming-soon).
    sk-goal: the path's destination build (or a capstone) gets a gold halo. */
-.gh-node.sk-dim { opacity: 0.6; }
-.gh-node.sk-dim:hover { opacity: 1; }
-.gh-node.sk-goal .gh-hex polygon { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--color-command-gold) 45%, transparent)); }
+.gh-node.sk-dim {
+  opacity: 0.6;
+}
+.gh-node.sk-dim:hover {
+  opacity: 1;
+}
+.gh-node.sk-goal .gh-hex polygon {
+  filter: drop-shadow(
+    0 0 10px color-mix(in srgb, var(--color-command-gold) 45%, transparent)
+  );
+}
 
 /* HexPrismScene — every prism of a comb in ONE svg, three-point perspective
    (sandbox "T3", 2026-07-20). Replaces the per-cell oblique cast + the
@@ -454,23 +836,77 @@ body {
    scene paints far to near instead. Colour is token-only, so the comb flips with
    the theme — the old `.gh-3d` rules baked #eab94d and never did.
    The cells' HTML content is billboarded OVER this by the components. */
-.ghp { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-.ghp-face { fill: var(--color-deep-space); stroke: var(--color-panel-border); stroke-linejoin: round; transition: stroke 0.15s; }
-.ghp-side { fill: var(--color-deep-space); stroke: var(--color-panel-border); stroke-linejoin: round; transition: stroke 0.15s; }
-.ghp-cell.done .ghp-face { fill: url(#ghp-honey); }
-.ghp-cell.done :is(.ghp-face, .ghp-side) { stroke: var(--color-command-gold); }
-.ghp-cell.current :is(.ghp-face, .ghp-side) { stroke: var(--color-command-gold); }
-.ghp-cell.current .ghp-face { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-command-gold) 60%, transparent)); animation: gh-pulse 1.8s ease-in-out infinite; }
-.ghp-cell.blocked :is(.ghp-face, .ghp-side) { stroke: var(--color-alert-red); }
-.ghp-cell.dim { opacity: 0.6; }
-.ghp-cell.hot :is(.ghp-face, .ghp-side) { stroke: var(--color-gold-light); }
+.ghp {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.ghp-face {
+  fill: var(--color-deep-space);
+  stroke: var(--color-panel-border);
+  stroke-linejoin: round;
+  transition: stroke 0.15s;
+}
+.ghp-side {
+  fill: var(--color-deep-space);
+  stroke: var(--color-panel-border);
+  stroke-linejoin: round;
+  transition: stroke 0.15s;
+}
+.ghp-cell.done .ghp-face {
+  fill: url(#ghp-honey);
+}
+.ghp-cell.done :is(.ghp-face, .ghp-side) {
+  stroke: var(--color-command-gold);
+}
+.ghp-cell.current :is(.ghp-face, .ghp-side) {
+  stroke: var(--color-command-gold);
+}
+.ghp-cell.current .ghp-face {
+  filter: drop-shadow(
+    0 0 8px color-mix(in srgb, var(--color-command-gold) 60%, transparent)
+  );
+  animation: gh-pulse 1.8s ease-in-out infinite;
+}
+.ghp-cell.blocked :is(.ghp-face, .ghp-side) {
+  stroke: var(--color-alert-red);
+}
+.ghp-cell.dim {
+  opacity: 0.6;
+}
+.ghp-cell.hot :is(.ghp-face, .ghp-side) {
+  stroke: var(--color-gold-light);
+}
 /* the go-further comb: stroke is the track accent, dim at rest, lit on hover */
-.ghp-cell.track :is(.ghp-face, .ghp-side) { stroke: var(--accent); stroke-opacity: 0.5; transition: stroke-opacity 0.18s ease, filter 0.18s ease; }
-.ghp-cell.track.flag :is(.ghp-face, .ghp-side) { stroke-opacity: 0.72; }
-.ghp-cell.track.flag .ghp-face { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-command-gold) 32%, transparent)); }
-.ghp-cell.track.hot :is(.ghp-face, .ghp-side) { stroke-opacity: 1; }
-.ghp-cell.track.hot .ghp-face { filter: drop-shadow(0 0 11px var(--accent)); }
-@media (prefers-reduced-motion: reduce) { .ghp-cell.current .ghp-face { animation: none; } }
+.ghp-cell.track :is(.ghp-face, .ghp-side) {
+  stroke: var(--accent);
+  stroke-opacity: 0.5;
+  transition:
+    stroke-opacity 0.18s ease,
+    filter 0.18s ease;
+}
+.ghp-cell.track.flag :is(.ghp-face, .ghp-side) {
+  stroke-opacity: 0.72;
+}
+.ghp-cell.track.flag .ghp-face {
+  filter: drop-shadow(
+    0 0 6px color-mix(in srgb, var(--color-command-gold) 32%, transparent)
+  );
+}
+.ghp-cell.track.hot :is(.ghp-face, .ghp-side) {
+  stroke-opacity: 1;
+}
+.ghp-cell.track.hot .ghp-face {
+  filter: drop-shadow(0 0 11px var(--accent));
+}
+@media (prefers-reduced-motion: reduce) {
+  .ghp-cell.current .ghp-face {
+    animation: none;
+  }
+}
 
 /* Ortho-3D prism shell (`HexPrism`, sandbox winner H4+K10, 2026-07-07) — the
    /courses combs render each hex as a thin prism: opaque face (gh-top), a
@@ -479,47 +915,137 @@ body {
    `.gh-hex polygon` rules stay untouched. Occlusion rides per-cell zIndex
    (grows with `left`, set inline by the components) — no hover/current z bumps,
    exactly the approved sandbox render. */
-.gh-3d .gh-top { fill: var(--color-deep-space); stroke: var(--color-panel-border); stroke-width: 3; vector-effect: non-scaling-stroke; transition: stroke 0.15s; }
-.gh-3d .gh-cast { fill: none; stroke: var(--color-panel-border); stroke-width: 1.25; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; transition: stroke 0.15s; }
-.gh-3d .gh-side { fill: var(--color-deep-space); stroke: var(--color-panel-border); stroke-width: 1.25; stroke-linejoin: round; vector-effect: non-scaling-stroke; transition: stroke 0.15s; }
-.gh-node.done .gh-3d .gh-top { fill: url(#gh-honey); stroke: #eab94d; }
-.gh-node.done .gh-3d :is(.gh-cast, .gh-side) { stroke: #eab94d; }
-.gh-node.current .gh-3d :is(.gh-top, .gh-cast, .gh-side) { stroke: var(--color-command-gold); }
-.gh-node.current .gh-3d .gh-top { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-command-gold) 60%, transparent)); animation: gh-pulse 1.8s ease-in-out infinite; }
-.gh-node.blocked .gh-3d :is(.gh-top, .gh-cast, .gh-side) { stroke: var(--color-alert-red); }
-.gh-node:hover .gh-3d :is(.gh-top, .gh-cast, .gh-side) { stroke: var(--color-gold-light); }
-.gh-node.sk-goal .gh-3d .gh-top { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--color-command-gold) 45%, transparent)); }
-@media (prefers-reduced-motion: reduce) { .gh-node.current .gh-3d .gh-top { animation: none; } }
+.gh-3d .gh-top {
+  fill: var(--color-deep-space);
+  stroke: var(--color-panel-border);
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+  transition: stroke 0.15s;
+}
+.gh-3d .gh-cast {
+  fill: none;
+  stroke: var(--color-panel-border);
+  stroke-width: 1.25;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  transition: stroke 0.15s;
+}
+.gh-3d .gh-side {
+  fill: var(--color-deep-space);
+  stroke: var(--color-panel-border);
+  stroke-width: 1.25;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  transition: stroke 0.15s;
+}
+.gh-node.done .gh-3d .gh-top {
+  fill: url(#gh-honey);
+  stroke: #eab94d;
+}
+.gh-node.done .gh-3d :is(.gh-cast, .gh-side) {
+  stroke: #eab94d;
+}
+.gh-node.current .gh-3d :is(.gh-top, .gh-cast, .gh-side) {
+  stroke: var(--color-command-gold);
+}
+.gh-node.current .gh-3d .gh-top {
+  filter: drop-shadow(
+    0 0 8px color-mix(in srgb, var(--color-command-gold) 60%, transparent)
+  );
+  animation: gh-pulse 1.8s ease-in-out infinite;
+}
+.gh-node.blocked .gh-3d :is(.gh-top, .gh-cast, .gh-side) {
+  stroke: var(--color-alert-red);
+}
+.gh-node:hover .gh-3d :is(.gh-top, .gh-cast, .gh-side) {
+  stroke: var(--color-gold-light);
+}
+.gh-node.sk-goal .gh-3d .gh-top {
+  filter: drop-shadow(
+    0 0 10px color-mix(in srgb, var(--color-command-gold) 45%, transparent)
+  );
+}
+@media (prefers-reduced-motion: reduce) {
+  .gh-node.current .gh-3d .gh-top {
+    animation: none;
+  }
+}
 
 /* path-direction arrows (K10: 12 × 10 triangle, base 7 off the seam, on the
    destination face). Gold = traversed (source done); dim = ahead. Hovering or
    focusing a hex lights ITS outgoing arrow (the .hot class, set by the
    component) so the next step reads off the hover. Overlay sits above every
    prism cell and never intercepts the pointer. */
-.sk-arw { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 500; }
+.sk-arw {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 500;
+}
 /* z-index note: this used to be 10000, because cell wrappers carried zIndex ≈ their
    `left` for the old cast-occlusion order and reached 700+ on wide layouts. Cells now
    carry their DEPTH order instead — one per cell, so a comb of 22 tops out at 22 —
    and the overlay only has to clear that. */
-.sk-arw path { transition: fill 0.15s, filter 0.15s; animation: sk-arwdrift 2.6s ease-in-out infinite; }
-.sk-arw g.on path { fill: var(--color-command-gold); }
-.sk-arw g.off path { fill: color-mix(in srgb, var(--color-panel-border) 90%, transparent); }
-.sk-arw g.hot path { fill: var(--color-gold-light); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-gold-light) 70%, transparent)); }
+.sk-arw path {
+  transition:
+    fill 0.15s,
+    filter 0.15s;
+  animation: sk-arwdrift 2.6s ease-in-out infinite;
+}
+.sk-arw g.on path {
+  fill: var(--color-command-gold);
+}
+.sk-arw g.off path {
+  fill: color-mix(in srgb, var(--color-panel-border) 90%, transparent);
+}
+.sk-arw g.hot path {
+  fill: var(--color-gold-light);
+  filter: drop-shadow(
+    0 0 6px color-mix(in srgb, var(--color-gold-light) 70%, transparent)
+  );
+}
 /* the subtle forward drift (the footer Next-arrow motif, quieter): each arrow
    breathes ~3px along its own flow direction (the parent g carries the
    rotation, so translateX IS the path direction). Staggered per-arrow via an
    inline animation-delay so the path reads as a slow wave. */
-@keyframes sk-arwdrift { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(3px); } }
-@media (prefers-reduced-motion: reduce) { .sk-arw path { animation: none; } }
+@keyframes sk-arwdrift {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk-arw path {
+    animation: none;
+  }
+}
 
 /* sk-lean — the /courses comb drops the tagline (long technical titles + a
    chip already fill the face; the lead made the lower point crowd the pill —
    owner note 2026-07-07). Number anchors higher, title + chip re-center. */
-.sk-lean .gh-num { top: 17%; }
-.sk-lean .gh-m { top: 55%; }
-.sk-lean .gh-title { margin-bottom: 0; font-size: clamp(15px, 10.5cqw, 30px); }
-.sk-lean .gh-lead { display: none; }
-.sk-lean .gh-status { bottom: 20%; }
+.sk-lean .gh-num {
+  top: 17%;
+}
+.sk-lean .gh-m {
+  top: 55%;
+}
+.sk-lean .gh-title {
+  margin-bottom: 0;
+  font-size: clamp(15px, 10.5cqw, 30px);
+}
+.sk-lean .gh-lead {
+  display: none;
+}
+.sk-lean .gh-status {
+  bottom: 20%;
+}
 
 /* Board art on the /courses comb (sandbox rounds A-J, owner-locked 2026-07-25).
    The finished-board render sits in the upper half of each face, the ordinal
@@ -596,17 +1122,22 @@ body {
   transform: scale(1);
 }
 @media (prefers-reduced-motion: reduce) {
-  .gh-art { transition: none; }
+  .gh-art {
+    transition: none;
+  }
 }
-
 
 /* Every stage done. Nothing is current, so nothing holds full size on its own:
    the tiles all rest a size larger instead of the comb having no focal point.
    The hexes also leave the gold wash for the verified channel — eight washed
    faces at once is warmer than the wash was tuned for, and a finished build is
    the success state `status-green` exists for. */
-.comb-complete { --tile-rest: 0.81; }
-.comb-complete .ghp-cell.done .ghp-face { fill: var(--color-deep-space); }
+.comb-complete {
+  --tile-rest: 0.81;
+}
+.comb-complete .ghp-cell.done .ghp-face {
+  fill: var(--color-deep-space);
+}
 .comb-complete .ghp-cell.done :is(.ghp-face, .ghp-side) {
   stroke: var(--color-status-green);
 }
@@ -635,7 +1166,11 @@ body {
 .gh-art-soon-fill {
   position: absolute;
   inset: 0;
-  background-color: color-mix(in srgb, var(--color-command-gold) 88%, var(--color-deep-space));
+  background-color: color-mix(
+    in srgb,
+    var(--color-command-gold) 88%,
+    var(--color-deep-space)
+  );
   -webkit-mask-size: contain;
   mask-size: contain;
   -webkit-mask-position: center;
@@ -655,10 +1190,18 @@ body {
    skill tree hides `.gh-lead` entirely (`.sk-lean`), so a dark tagline could
    never show there. */
 .ghp-cell.done .ghp-face {
-  fill: color-mix(in srgb, var(--color-command-gold) 14%, var(--color-deep-space));
+  fill: color-mix(
+    in srgb,
+    var(--color-command-gold) 14%,
+    var(--color-deep-space)
+  );
 }
-.gh-node.done .gh-title { color: var(--color-title); }
-.gh-node.done .gh-lead { color: var(--color-muted); }
+.gh-node.done .gh-title {
+  color: var(--color-title);
+}
+.gh-node.done .gh-lead {
+  color: var(--color-muted);
+}
 .gh-node.done .gh-chip {
   background: var(--color-command-gold);
   color: var(--color-deep-space);
@@ -668,7 +1211,11 @@ body {
    under the artwork on first paint. */
 .gh-node.done .gh-hex polygon,
 .gh-node.done .gh-3d .gh-top {
-  fill: color-mix(in srgb, var(--color-command-gold) 14%, var(--color-deep-space));
+  fill: color-mix(
+    in srgb,
+    var(--color-command-gold) 14%,
+    var(--color-deep-space)
+  );
   stroke: var(--color-command-gold);
 }
 
@@ -676,67 +1223,282 @@ body {
    (one per other build) in the honeycomb language, laid out by the shared
    measured `computeLayout` so the rows tessellate. The track colour rides in on
    the inline `--accent` custom property; the stroke is dim at rest, lit on hover. */
-.phex { position: relative; display: flex; align-items: center; justify-content: center; aspect-ratio: 1 / 1.1547; container-type: inline-size; text-decoration: none; }
+.phex {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1.1547;
+  container-type: inline-size;
+  text-decoration: none;
+}
 /* small inset so tessellated neighbours read as distinct hexes (a thin seam),
    not one merged comb. */
-.phex-hex { position: absolute; inset: 3px; overflow: visible; }
+.phex-hex {
+  position: absolute;
+  inset: 3px;
+  overflow: visible;
+}
 /* the stroke is DIM at rest (so no single track colour — esp. blue — shouts) and
    lights to full + a soft glow on hover/focus. */
-.phex-hex polygon { fill: var(--color-deep-space); stroke: var(--accent); stroke-opacity: 0.5; stroke-width: 2; vector-effect: non-scaling-stroke; transition: stroke-opacity 0.18s ease, filter 0.18s ease; }
-.phex:hover .phex-hex polygon, .phex:focus-visible .phex-hex polygon { stroke-opacity: 1; filter: drop-shadow(0 0 11px var(--accent)); }
-.phex.flag .phex-hex polygon { stroke-opacity: 0.72; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-command-gold) 32%, transparent)); }
-.phex.flag:hover .phex-hex polygon, .phex.flag:focus-visible .phex-hex polygon { stroke-opacity: 1; filter: drop-shadow(0 0 14px color-mix(in srgb, var(--color-command-gold) 60%, transparent)); }
-.phex:focus-visible { outline: none; }
-.phex-inner { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: clamp(6px, 4cqw, 13px); padding: 0 15%; text-align: center; }
-.phex-eyebrow { font-family: var(--font-mono), monospace; font-size: clamp(8px, 3.4cqw, 11px); letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); }
-.phex-title { font-family: var(--font-display), sans-serif; font-size: clamp(16px, 11.5cqw, 30px); line-height: 0.92; letter-spacing: 0.03em; color: var(--color-gray-1); transition: color 0.18s ease; }
-.phex:hover .phex-title { color: #fff; }
-.phex-chip { font-family: var(--font-mono), monospace; font-weight: 700; font-size: clamp(9px, 3.7cqw, 12px); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: clamp(3px, 1.7cqw, 6px) clamp(11px, 5.2cqw, 18px); }
-@media (prefers-reduced-motion: reduce) { .phex-hex polygon { transition: none; } }
+.phex-hex polygon {
+  fill: var(--color-deep-space);
+  stroke: var(--accent);
+  stroke-opacity: 0.5;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  transition:
+    stroke-opacity 0.18s ease,
+    filter 0.18s ease;
+}
+.phex:hover .phex-hex polygon,
+.phex:focus-visible .phex-hex polygon {
+  stroke-opacity: 1;
+  filter: drop-shadow(0 0 11px var(--accent));
+}
+.phex.flag .phex-hex polygon {
+  stroke-opacity: 0.72;
+  filter: drop-shadow(
+    0 0 6px color-mix(in srgb, var(--color-command-gold) 32%, transparent)
+  );
+}
+.phex.flag:hover .phex-hex polygon,
+.phex.flag:focus-visible .phex-hex polygon {
+  stroke-opacity: 1;
+  filter: drop-shadow(
+    0 0 14px color-mix(in srgb, var(--color-command-gold) 60%, transparent)
+  );
+}
+.phex:focus-visible {
+  outline: none;
+}
+.phex-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(6px, 4cqw, 13px);
+  padding: 0 15%;
+  text-align: center;
+}
+.phex-eyebrow {
+  font-family: var(--font-mono), monospace;
+  font-size: clamp(8px, 3.4cqw, 11px);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.phex-title {
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(16px, 11.5cqw, 30px);
+  line-height: 0.92;
+  letter-spacing: 0.03em;
+  color: var(--color-gray-1);
+  transition: color 0.18s ease;
+}
+.phex:hover .phex-title {
+  color: #fff;
+}
+.phex-chip {
+  font-family: var(--font-mono), monospace;
+  font-weight: 700;
+  font-size: clamp(9px, 3.7cqw, 12px);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: clamp(3px, 1.7cqw, 6px) clamp(11px, 5.2cqw, 18px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .phex-hex polygon {
+    transition: none;
+  }
+}
 /* prism parts inside a path hex ride the track accent, dim at rest, lit on
    hover/focus — mirroring the flat .phex-hex polygon rules above. Flag rules
    MUST follow the plain hover rules (equal specificity, order decides). */
-.phex .gh-3d :is(.gh-top, .gh-cast, .gh-side) { stroke: var(--accent); stroke-opacity: 0.5; transition: stroke-opacity 0.18s ease, filter 0.18s ease; }
-.phex:hover .gh-3d :is(.gh-top, .gh-cast, .gh-side), .phex:focus-visible .gh-3d :is(.gh-top, .gh-cast, .gh-side) { stroke-opacity: 1; }
-.phex:hover .gh-3d .gh-top, .phex:focus-visible .gh-3d .gh-top { filter: drop-shadow(0 0 11px var(--accent)); }
-.phex.flag .gh-3d :is(.gh-top, .gh-cast, .gh-side) { stroke-opacity: 0.72; }
-.phex.flag .gh-3d .gh-top { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-command-gold) 32%, transparent)); }
-.phex.flag:hover .gh-3d :is(.gh-top, .gh-cast, .gh-side), .phex.flag:focus-visible .gh-3d :is(.gh-top, .gh-cast, .gh-side) { stroke-opacity: 1; }
-.phex.flag:hover .gh-3d .gh-top, .phex.flag:focus-visible .gh-3d .gh-top { filter: drop-shadow(0 0 14px color-mix(in srgb, var(--color-command-gold) 60%, transparent)); }
+.phex .gh-3d :is(.gh-top, .gh-cast, .gh-side) {
+  stroke: var(--accent);
+  stroke-opacity: 0.5;
+  transition:
+    stroke-opacity 0.18s ease,
+    filter 0.18s ease;
+}
+.phex:hover .gh-3d :is(.gh-top, .gh-cast, .gh-side),
+.phex:focus-visible .gh-3d :is(.gh-top, .gh-cast, .gh-side) {
+  stroke-opacity: 1;
+}
+.phex:hover .gh-3d .gh-top,
+.phex:focus-visible .gh-3d .gh-top {
+  filter: drop-shadow(0 0 11px var(--accent));
+}
+.phex.flag .gh-3d :is(.gh-top, .gh-cast, .gh-side) {
+  stroke-opacity: 0.72;
+}
+.phex.flag .gh-3d .gh-top {
+  filter: drop-shadow(
+    0 0 6px color-mix(in srgb, var(--color-command-gold) 32%, transparent)
+  );
+}
+.phex.flag:hover .gh-3d :is(.gh-top, .gh-cast, .gh-side),
+.phex.flag:focus-visible .gh-3d :is(.gh-top, .gh-cast, .gh-side) {
+  stroke-opacity: 1;
+}
+.phex.flag:hover .gh-3d .gh-top,
+.phex.flag:focus-visible .gh-3d .gh-top {
+  filter: drop-shadow(
+    0 0 14px color-mix(in srgb, var(--color-command-gold) 60%, transparent)
+  );
+}
 
 /* QuizBlock — the in-guide comprehension check, "hex node" design: each option is
    a small hexagon wired on a vertical net; the right pick fills honey-gold, a wrong
    pick is red-stroked + struck + ruled out. State rides on `data-st`
    (ok | bad | dim) — colour is always paired with the hex fill + strike (never
    colour alone). The question numeral (Saira) sits in the fieldset's left gutter. */
-.qzh-opts { position: relative; display: flex; flex-direction: column; }
-.qzh-opts::before { content: ""; position: absolute; left: 13px; top: 18px; bottom: 18px; width: 2px; background: color-mix(in srgb, var(--color-panel-border) 55%, transparent); }
-.qzh-opt { position: relative; z-index: 1; display: flex; align-items: center; gap: 14px; width: 100%; padding: 9px 4px; text-align: left; background: none; border: 0; cursor: pointer; color: var(--color-muted); font-family: var(--font-serif), serif; font-size: 0.875rem; line-height: 1.4; transition: color 0.15s ease; }
-.qzh-opt:disabled { cursor: default; }
-.qzh-hex { position: relative; width: 28px; height: 32px; flex: none; display: grid; place-items: center; }
-.qzh-hex svg { position: absolute; inset: 0; height: 100%; width: 100%; }
-.qzh-hex polygon { fill: var(--color-deep-space); stroke: var(--color-panel-border); stroke-width: 2; transition: stroke 0.2s ease, fill 0.2s ease; }
-.qzh-hex b { position: relative; font-family: var(--font-display), sans-serif; font-weight: 400; font-size: 0.8rem; color: var(--color-gold-dim); transition: color 0.2s ease; }
-.qzh-opt:not(:disabled):hover { color: var(--color-gray-1); }
-.qzh-opt:not(:disabled):hover .qzh-hex polygon { stroke: var(--color-gold-light); }
-.qzh-opt[data-st="ok"] .qzh-hex polygon { fill: url(#quiz-honey); stroke: var(--color-command-gold); }
-.qzh-opt[data-st="ok"] .qzh-hex b { color: #140d02; }
-.qzh-opt[data-st="ok"] { color: var(--color-gold-light); }
-.qzh-opt[data-st="bad"] .qzh-hex polygon { stroke: var(--color-alert-red); }
-.qzh-opt[data-st="bad"] .qzh-hex b { color: var(--color-alert-red); }
+.qzh-opts {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.qzh-opts::before {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 18px;
+  bottom: 18px;
+  width: 2px;
+  background: color-mix(in srgb, var(--color-panel-border) 55%, transparent);
+}
+.qzh-opt {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 9px 4px;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--color-muted);
+  font-family: var(--font-serif), serif;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  transition: color 0.15s ease;
+}
+.qzh-opt:disabled {
+  cursor: default;
+}
+.qzh-hex {
+  position: relative;
+  width: 28px;
+  height: 32px;
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.qzh-hex svg {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+}
+.qzh-hex polygon {
+  fill: var(--color-deep-space);
+  stroke: var(--color-panel-border);
+  stroke-width: 2;
+  transition:
+    stroke 0.2s ease,
+    fill 0.2s ease;
+}
+.qzh-hex b {
+  position: relative;
+  font-family: var(--font-display), sans-serif;
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--color-gold-dim);
+  transition: color 0.2s ease;
+}
+.qzh-opt:not(:disabled):hover {
+  color: var(--color-gray-1);
+}
+.qzh-opt:not(:disabled):hover .qzh-hex polygon {
+  stroke: var(--color-gold-light);
+}
+.qzh-opt[data-st="ok"] .qzh-hex polygon {
+  fill: url(#quiz-honey);
+  stroke: var(--color-command-gold);
+}
+.qzh-opt[data-st="ok"] .qzh-hex b {
+  color: #140d02;
+}
+.qzh-opt[data-st="ok"] {
+  color: var(--color-gold-light);
+}
+.qzh-opt[data-st="bad"] .qzh-hex polygon {
+  stroke: var(--color-alert-red);
+}
+.qzh-opt[data-st="bad"] .qzh-hex b {
+  color: var(--color-alert-red);
+}
 /* Ruled-out option text: token, not the old hardcoded #7a4a48 (2.75:1 on
    deep-space, failed AA, and had no light override). The strike-through keeps
    the state non-color-alone; the coral token reads in both themes. */
-.qzh-opt[data-st="bad"] { color: var(--color-alert-red); text-decoration: line-through; }
-.qzh-opt[data-st="dim"] { opacity: 0.45; }
+.qzh-opt[data-st="bad"] {
+  color: var(--color-alert-red);
+  text-decoration: line-through;
+}
+.qzh-opt[data-st="dim"] {
+  opacity: 0.45;
+}
 /* Visible keyboard focus on quiz/survey options (they had NO focus-visible rule
    anywhere — UA default only, inconsistent with every other control). */
-.qzh-opt:focus-visible { outline: 2px solid var(--color-gold-light); outline-offset: 2px; }
-@keyframes qzh-pop { 0% { transform: scale(1); } 45% { transform: scale(1.07); } 100% { transform: scale(1); } }
-@keyframes qzh-nudge { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
-.qzh-opt[data-st="ok"] .qzh-hex { animation: qzh-pop 0.3s ease; }
-.qzh-opt[data-st="bad"] .qzh-hex { animation: qzh-nudge 0.26s ease; }
-@media (prefers-reduced-motion: reduce) { .qzh-opt, .qzh-hex, .qzh-hex polygon, .qzh-hex b { transition: none; animation: none !important; } }
+.qzh-opt:focus-visible {
+  outline: 2px solid var(--color-gold-light);
+  outline-offset: 2px;
+}
+@keyframes qzh-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.07);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes qzh-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+.qzh-opt[data-st="ok"] .qzh-hex {
+  animation: qzh-pop 0.3s ease;
+}
+.qzh-opt[data-st="bad"] .qzh-hex {
+  animation: qzh-nudge 0.26s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .qzh-opt,
+  .qzh-hex,
+  .qzh-hex polygon,
+  .qzh-hex b {
+    transition: none;
+    animation: none !important;
+  }
+}
 
 /* The +XP tick (design §9.3): on a correct-answer award a gold "+N XP" floats up
    and fades (the .xp-pop layer) while a quiet persistent marker keeps the earned
@@ -755,35 +1517,197 @@ body {
    RADII scale with `--pop-r` (set from badge size in PatchBadge, default 1) so small
    badges do not blow out. */
 @keyframes patch-pop-breathe {
-  0%, 100% { filter: brightness(1.15) saturate(1.28) drop-shadow(0 1.5px 2px rgba(22, 16, 8, 0.34)) drop-shadow(0 0 calc(1.5px * var(--pop-r, 1)) var(--patch-glow)) drop-shadow(0 0 calc(3px * var(--pop-r, 1)) color-mix(in srgb, var(--patch-glow) 35%, transparent)); }
-  50%      { filter: brightness(1.19) saturate(1.34) drop-shadow(0 1.5px 2px rgba(22, 16, 8, 0.34)) drop-shadow(0 0 calc(2px * var(--pop-r, 1)) var(--patch-glow)) drop-shadow(0 0 calc(6px * var(--pop-r, 1)) color-mix(in srgb, var(--patch-glow) 52%, transparent)); }
+  0%,
+  100% {
+    filter: brightness(1.15) saturate(1.28)
+      drop-shadow(0 1.5px 2px rgba(22, 16, 8, 0.34))
+      drop-shadow(0 0 calc(1.5px * var(--pop-r, 1)) var(--patch-glow))
+      drop-shadow(
+        0 0 calc(3px * var(--pop-r, 1))
+          color-mix(in srgb, var(--patch-glow) 35%, transparent)
+      );
+  }
+  50% {
+    filter: brightness(1.19) saturate(1.34)
+      drop-shadow(0 1.5px 2px rgba(22, 16, 8, 0.34))
+      drop-shadow(0 0 calc(2px * var(--pop-r, 1)) var(--patch-glow))
+      drop-shadow(
+        0 0 calc(6px * var(--pop-r, 1))
+          color-mix(in srgb, var(--patch-glow) 52%, transparent)
+      );
+  }
 }
-.patch-pop { animation: patch-pop-breathe 3.4s ease-in-out infinite; }
+.patch-pop {
+  animation: patch-pop-breathe 3.4s ease-in-out infinite;
+}
 @media (prefers-reduced-motion: reduce) {
   .patch-pop {
     animation: none;
-    filter: brightness(1.16) saturate(1.3) drop-shadow(0 1.5px 2px rgba(22, 16, 8, 0.34)) drop-shadow(0 0 calc(1.5px * var(--pop-r, 1)) var(--patch-glow)) drop-shadow(0 0 calc(4px * var(--pop-r, 1)) color-mix(in srgb, var(--patch-glow) 42%, transparent));
+    filter: brightness(1.16) saturate(1.3)
+      drop-shadow(0 1.5px 2px rgba(22, 16, 8, 0.34))
+      drop-shadow(0 0 calc(1.5px * var(--pop-r, 1)) var(--patch-glow))
+      drop-shadow(
+        0 0 calc(4px * var(--pop-r, 1))
+          color-mix(in srgb, var(--patch-glow) 42%, transparent)
+      );
   }
 }
 
-@keyframes fanfare-drop { from { opacity: 0; transform: translateY(-100%); } to { opacity: 1; transform: none; } }
-@keyframes fanfare-up { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-100%); } }
-.fanfare-drop { animation: fanfare-drop .34s cubic-bezier(.2, .85, .25, 1) both; }
-.fanfare-up { animation: fanfare-up .3s cubic-bezier(.4, 0, 1, 1) both; }
-@media (prefers-reduced-motion: reduce) { .fanfare-drop, .fanfare-up { animation-duration: .01ms; } }
+@keyframes fanfare-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fanfare-up {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+.fanfare-drop {
+  animation: fanfare-drop 0.34s cubic-bezier(0.2, 0.85, 0.25, 1) both;
+}
+.fanfare-up {
+  animation: fanfare-up 0.3s cubic-bezier(0.4, 0, 1, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fanfare-drop,
+  .fanfare-up {
+    animation-duration: 0.01ms;
+  }
+}
 
-.xp-pop { animation-duration: 1.5s; animation-fill-mode: forwards; }
-@keyframes xp-pop-1 { 0%{opacity:0;transform:translateY(4px) scale(.9)} 16%{opacity:1;transform:translateY(-1px) scale(1.08)} 40%{opacity:1;transform:translateY(-3px) scale(1)} 100%{opacity:0;transform:translateY(-28px) scale(1)} }
-.xp-pop.v1 { animation-name: xp-pop-1; animation-timing-function: cubic-bezier(.16,.84,.44,1); }
-@keyframes xp-pop-2 { 0%{opacity:0;transform:translateY(0)} 18%{opacity:1} 100%{opacity:0;transform:translateY(-54px)} }
-.xp-pop.v2 { animation-name: xp-pop-2; animation-duration: 2.1s; animation-timing-function: ease-out; }
-@keyframes xp-pop-3 { 0%{opacity:0;transform:scale(.4)} 28%{opacity:1;transform:scale(1.5)} 44%{transform:scale(1)} 74%{opacity:1;transform:translateY(-6px)} 100%{opacity:0;transform:translateY(-26px)} }
-.xp-pop.v3 { animation-name: xp-pop-3; animation-timing-function: ease-out; }
-@keyframes xp-pop-4 { 0%{opacity:0;transform:translateY(6px);filter:brightness(2.6)} 20%{opacity:1;filter:brightness(1.9)} 60%{filter:brightness(1)} 100%{opacity:0;transform:translateY(-24px);filter:brightness(1)} }
-.xp-pop.v4 { animation-name: xp-pop-4; animation-timing-function: ease-out; }
-@keyframes xp-pop-5 { 0%{opacity:0;transform:translateY(0) scale(.8)} 25%{opacity:1;transform:translateY(-20px) scale(1.1)} 45%{transform:translateY(-6px) scale(1)} 62%{transform:translateY(-13px)} 100%{opacity:0;transform:translateY(-4px)} }
-.xp-pop.v5 { animation-name: xp-pop-5; animation-duration: 1.3s; animation-timing-function: ease-in-out; }
-@media (prefers-reduced-motion: reduce) { .xp-pop { display: none; } }
+.xp-pop {
+  animation-duration: 1.5s;
+  animation-fill-mode: forwards;
+}
+@keyframes xp-pop-1 {
+  0% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.9);
+  }
+  16% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.08);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-28px) scale(1);
+  }
+}
+.xp-pop.v1 {
+  animation-name: xp-pop-1;
+  animation-timing-function: cubic-bezier(0.16, 0.84, 0.44, 1);
+}
+@keyframes xp-pop-2 {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-54px);
+  }
+}
+.xp-pop.v2 {
+  animation-name: xp-pop-2;
+  animation-duration: 2.1s;
+  animation-timing-function: ease-out;
+}
+@keyframes xp-pop-3 {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  28% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
+  44% {
+    transform: scale(1);
+  }
+  74% {
+    opacity: 1;
+    transform: translateY(-6px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-26px);
+  }
+}
+.xp-pop.v3 {
+  animation-name: xp-pop-3;
+  animation-timing-function: ease-out;
+}
+@keyframes xp-pop-4 {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+    filter: brightness(2.6);
+  }
+  20% {
+    opacity: 1;
+    filter: brightness(1.9);
+  }
+  60% {
+    filter: brightness(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-24px);
+    filter: brightness(1);
+  }
+}
+.xp-pop.v4 {
+  animation-name: xp-pop-4;
+  animation-timing-function: ease-out;
+}
+@keyframes xp-pop-5 {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.8);
+  }
+  25% {
+    opacity: 1;
+    transform: translateY(-20px) scale(1.1);
+  }
+  45% {
+    transform: translateY(-6px) scale(1);
+  }
+  62% {
+    transform: translateY(-13px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+.xp-pop.v5 {
+  animation-name: xp-pop-5;
+  animation-duration: 1.3s;
+  animation-timing-function: ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .xp-pop {
+    display: none;
+  }
+}
 
 /* Scroll reveal — sections tagged `data-reveal` fade + rise once as they enter
    the viewport, driven by a CSS scroll timeline (no JS). Guarded by @supports so
@@ -843,7 +1767,8 @@ body {
      floating `.glass-popover` keeps its denser fill for legibility over content. */
   .glass-card {
     background: var(--color-deep-space);
-    border: 1px solid color-mix(in srgb, var(--color-command-gold) 22%, transparent);
+    border: 1px solid
+      color-mix(in srgb, var(--color-command-gold) 22%, transparent);
     border-radius: 14px;
     box-shadow: var(--elev-card), var(--rim-hi);
   }
@@ -861,7 +1786,8 @@ body {
     );
     backdrop-filter: blur(22px) saturate(1.1);
     -webkit-backdrop-filter: blur(22px) saturate(1.1);
-    border: 1px solid color-mix(in srgb, var(--color-command-gold) 40%, transparent);
+    border: 1px solid
+      color-mix(in srgb, var(--color-command-gold) 40%, transparent);
     border-radius: 14px;
     box-shadow: var(--elev-card), var(--rim-hi);
   }
@@ -933,7 +1859,11 @@ body {
 
   .glass-button-danger {
     color: var(--color-danger-coral);
-    border-color: color-mix(in srgb, var(--color-danger-coral) 35%, transparent);
+    border-color: color-mix(
+      in srgb,
+      var(--color-danger-coral) 35%,
+      transparent
+    );
   }
   .glass-button-danger:hover:not(:disabled) {
     background: linear-gradient(
@@ -942,7 +1872,11 @@ body {
       color-mix(in srgb, var(--color-bg-2) 35%, transparent) 100%
     );
     color: var(--color-danger-hover);
-    border-color: color-mix(in srgb, var(--color-danger-coral) 65%, transparent);
+    border-color: color-mix(
+      in srgb,
+      var(--color-danger-coral) 65%,
+      transparent
+    );
   }
 
   .section-band {
@@ -952,7 +1886,8 @@ body {
       color-mix(in srgb, var(--color-command-gold) 2%, transparent) 60%,
       transparent 100%
     );
-    border-bottom: 1px solid color-mix(in srgb, var(--color-command-gold) 18%, transparent);
+    border-bottom: 1px solid
+      color-mix(in srgb, var(--color-command-gold) 18%, transparent);
   }
 
   .gold-glow {
@@ -1196,7 +2131,8 @@ body {
 
   /* callout — full-border advisory tile with severity tints + mono label. */
   .callout {
-    border: 1px solid color-mix(in srgb, var(--color-command-gold) 30%, transparent);
+    border: 1px solid
+      color-mix(in srgb, var(--color-command-gold) 30%, transparent);
     border-radius: 8px;
     background: color-mix(in srgb, var(--color-command-gold) 6%, transparent);
     padding: 1.1rem 1.4rem;
@@ -1221,7 +2157,11 @@ body {
     color: var(--color-alert-red);
   }
   .callout.warn {
-    border-color: color-mix(in srgb, var(--color-command-gold) 30%, transparent);
+    border-color: color-mix(
+      in srgb,
+      var(--color-command-gold) 30%,
+      transparent
+    );
     background: color-mix(in srgb, var(--color-command-gold) 6%, transparent);
   }
   .callout.warn .callout-label {
@@ -1287,7 +2227,8 @@ body {
   }
   .table-tech td {
     padding: 0.6rem 0.85rem;
-    border-bottom: 1px solid color-mix(in srgb, var(--color-muted) 10%, transparent);
+    border-bottom: 1px solid
+      color-mix(in srgb, var(--color-muted) 10%, transparent);
     vertical-align: middle;
     color: var(--color-muted);
   }
@@ -1408,12 +2349,28 @@ body {
    cell's opaque backdrop never fades and never reveals the connector behind it
    (the generic `pulse` keyframe dims opacity, which let the line show through). */
 @keyframes gs-pulse {
-  0%, 100% { filter: drop-shadow(0 0 2px color-mix(in srgb, var(--color-command-gold) 40%, transparent)); }
-  50% { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-command-gold) 75%, transparent)); }
+  0%,
+  100% {
+    filter: drop-shadow(
+      0 0 2px color-mix(in srgb, var(--color-command-gold) 40%, transparent)
+    );
+  }
+  50% {
+    filter: drop-shadow(
+      0 0 8px color-mix(in srgb, var(--color-command-gold) 75%, transparent)
+    );
+  }
 }
-.gs-pulse { animation: gs-pulse 1.8s ease-in-out infinite; }
+.gs-pulse {
+  animation: gs-pulse 1.8s ease-in-out infinite;
+}
 @media (prefers-reduced-motion: reduce) {
-  .gs-pulse { animation: none; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--color-command-gold) 55%, transparent)); }
+  .gs-pulse {
+    animation: none;
+    filter: drop-shadow(
+      0 0 5px color-mix(in srgb, var(--color-command-gold) 55%, transparent)
+    );
+  }
 }
 
 /* Sign-in entrance — one orchestrated page-load reveal. Each cluster group
@@ -1618,5 +2575,24 @@ body {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   THE /hex HERO LOOP -- which of the two clips is on screen.
 
+   ThemedLoop mounts BOTH and lets this rule choose, because the swap has to
+   land in the same paint as the `data-theme` attribute the toggle sets. It used
+   to be a React remount of a single keyed <video>, which commits a frame later:
+   measured, the light clip was still painted at the instant the attribute said
+   dark (mean luma 219 against the dark clip's 15) and the right one arrived
+   ~49 ms after. That gap is the flicker.
 
+   Only the active clip carries preload="auto", so mounting both costs one extra
+   poster (~20 kB), not a second 350 kB download. */
+video[data-loop="light"] {
+  display: none;
+}
+:root[data-theme="light"] video[data-loop="light"] {
+  display: block;
+}
+:root[data-theme="light"] video[data-loop="dark"] {
+  display: none;
+}

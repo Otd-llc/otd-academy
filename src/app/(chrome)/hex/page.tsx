@@ -47,7 +47,6 @@ import {
   HEX_CONFIGURATOR_URL,
   HEX_LICENSE,
   HEX_ORIENTATION,
-  HEX_PART_COUNT,
   HEX_PITCH_MM,
   HEX_PRINT_PARAMS,
   HEX_RELEASE,
@@ -160,7 +159,7 @@ export default function HexPage() {
       name: "hex-cluster.zip",
       format: "ZIP",
       size: HEX_RELEASE_FILES.set.label,
-      desc: `All ${HEX_PART_COUNT} parts, 3MF and STL`,
+      desc: "Every part, 3MF and STL",
     },
     {
       href: printableLicenseUrl(HEX_RELEASE),
@@ -216,11 +215,7 @@ export default function HexPage() {
                 <span className="tdot">.</span>
               </h1>
               <p className="mt-4 max-w-xl font-serif text-[15px] leading-relaxed text-text">
-                A printable mounting standard.{" "}
-                <span className="font-numeral tabular-nums">
-                  {HEX_PART_COUNT}
-                </span>{" "}
-                parts, {HEX_LICENSE.name}.
+                A printable mounting standard, {HEX_LICENSE.name}.
               </p>
               {/* ConfiguratorLink, not a plain href to `?open=1`: on THIS page
                   the deep-link effect has already run, so a same-page query
@@ -337,7 +332,6 @@ export default function HexPage() {
                 {[
                   { label: "License", value: HEX_LICENSE.name },
                   { label: "Release", value: HEX_RELEASE },
-                  { label: "Parts", value: String(HEX_PART_COUNT) },
                   { label: "Material", value: "PETG" },
                 ].map((m) => (
                   <div
