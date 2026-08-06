@@ -138,7 +138,36 @@ await page.evaluate(async (FRAME_LIFT) => {
   }
   await new Promise((r) => requestAnimationFrame(() => r(null)));
 }, FRAME_LIFT);
-await page.waitForTimeout(1200); // let the collapse settle before recording
+// WAIT FOR REST, NOT FOR A NUMBER.
+//
+// This was a flat 1200ms, which was enough while the explode lerp settled in
+// about half a second. It is slower now, so a fixed wait started the recording
+// mid-collapse -- and a first frame caught mid-animation cannot match a last
+// frame at rest, which is the loop popping.
+//
+// Poll the actual thing: the tray's three explode groups are at rest when none
+// of them has moved between two reads.
+await page.waitForFunction(
+  async () => {
+    const { cells } = await import("/src/hex/cells.ts");
+    const tray = [...cells.values()][0];
+    if (!tray) return false;
+    const now = [
+      tray.scene.baseTopExplode.position.y,
+      tray.scene.insertExplode.position.y,
+      tray.scene.boardExplode.position.y,
+    ];
+    const prev = window.__restProbe ?? null;
+    window.__restProbe = now;
+    if (!prev) return false;
+    return (
+      now.every((v, i) => Math.abs(v - prev[i]) < 1e-6) &&
+      now.every((v) => Math.abs(v) < 1e-4)
+    );
+  },
+  null,
+  { timeout: 15000, polling: 120 },
+);
 
 const trimMs = Date.now() - contextStart;
 
@@ -198,6 +227,22 @@ const actualMs = await page.evaluate(async (seconds) => {
   const caps = [];
   const added = [];
   const fired = new Set();
+
+  /** What the frame actually shows, reduced to the things a loop has to match.
+   *  The clip is a closed loop by construction -- the camera is clamped to one
+   *  revolution and every beat is undone by a later one -- but "by
+   *  construction" is a claim, and a rim that does not quite line up is what it
+   *  looks like when the claim is wrong. */
+  const snapshot = () => ({
+    cells: cells.size,
+    caps: [...cells.values()].reduce((n, c) => n + c.caps.size, 0),
+    lift: [
+      tray.scene.baseTopExplode.position.y,
+      tray.scene.insertExplode.position.y,
+      tray.scene.boardExplode.position.y,
+    ].map((v) => Number(v.toFixed(6))),
+  });
+  const opening = snapshot();
 
   /** Cap slots on edges that are actually FREE.
    *
@@ -339,12 +384,52 @@ const actualMs = await page.evaluate(async (seconds) => {
       }
     }, 50);
   });
-  await sleep(400); // let the final removal settle before the loop point
+  // LET THE CAMERA ARRIVE, not just the commanded turn.
+  //
+  // The turn is clamped to exactly one revolution, so the COMMAND closes. The
+  // camera does not: camera-controls smooth-damps toward what it was told, so
+  // when the last radian is issued the visible camera is still catching up, and
+  // the final frame sits a fraction of a degree short of the first. That shows
+  // up as the tray's rim outlined in a first-vs-last difference -- a uniform
+  // silhouette shift, which is what a small camera offset looks like and what a
+  // scene-state mismatch does not.
+  //
+  // A flat 400ms was not enough for a 0.18s smoothTime plus the drag constant.
+  // Poll the angle instead: three reads with no measurable change is arrived.
+  await (async () => {
+    let still = 0;
+    let prev = controls.azimuthAngle;
+    for (let i = 0; i < 120 && still < 3; i++) {
+      await sleep(30);
+      const now = controls.azimuthAngle;
+      still = Math.abs(now - prev) < 1e-5 ? still + 1 : 0;
+      prev = now;
+    }
+  })();
+  await sleep(200); // and the final removal's own settle
   done = true;
   // Caps and neighbours must ALL be gone by here, or the closing frame does not
   // match the opening one and the loop visibly jumps.
   if (cells.size !== 1)
     console.warn("loop does not close: cells =", cells.size);
+  // The rim of the tray was not lining up between the first and last frames,
+  // and the camera clamp rules the camera out -- so report the SCENE against
+  // the state the clip opened in, per axis, rather than trusting "every beat is
+  // undone by a later one".
+  const closing = snapshot();
+  const drift = closing.lift.map((v, i) =>
+    Number((v - opening.lift[i]).toFixed(6)),
+  );
+  if (
+    closing.cells !== opening.cells ||
+    closing.caps !== opening.caps ||
+    drift.some((d) => d !== 0)
+  ) {
+    console.warn(
+      "loop does not close:",
+      JSON.stringify({ opening, closing, liftDrift: drift }),
+    );
+  }
   // The REAL elapsed time, returned so the trim is exact. Neither guess worked:
   // measuring from context creation assumed recording starts there (it does not,
   // and the beats landed 4.4s late), and trimming a fixed 12s off the end cut the
@@ -387,6 +472,28 @@ execFileSync("ffmpeg", [
   "31",
   "-pix_fmt",
   "yuv420p",
+  // LOOPING IS A SEEK BACK TO ZERO, and how cheap that is depends on the
+  // encode. Measured, the CONTENT closes: the final frame best-matches head
+  // frame 0 out of the first forty, mean |diff| 1.19/255, with the next
+  // candidate no better. So a visible hitch at the loop point is the decoder
+  // rewinding, not the choreography failing to return.
+  //
+  // A keyframe every second gives it a near one to rewind to instead of
+  // decoding forward from a single IDR at the start, and make_zero drops the
+  // edit-list offset that otherwise makes the first frame arrive late.
+  "-g",
+  "30",
+  "-avoid_negative_ts",
+  "make_zero",
+  // START AT ZERO. Without these the muxer writes a start_time of 0.066s -- two
+  // frames at 30fps, the B-frame reorder delay carried as a container offset.
+  // A player rewinding to 0 then waits for it, which is the hitch; measured on
+  // the shipped clip before this line existed. `-avoid_negative_ts make_zero`
+  // alone did NOT clear it.
+  "-muxdelay",
+  "0",
+  "-muxpreload",
+  "0",
   "-movflags",
   "+faststart",
   `${OUT}/configurator${suffix}.mp4`,
