@@ -35,6 +35,16 @@
 // its origin and `event.source === iframe.contentWindow`. Origin alone is not
 // enough: any other frame or popup on a permitted origin could otherwise post a
 // `save-request` this page would act on with the visitor's session.
+//
+// WHERE THE CLOSE CONTROL WENT. This used to open with a strip of academy chrome
+// -- "▸ CLUSTER CONFIGURATOR ... CLOSE" -- sitting between the app header and
+// the configurator's own toolbar. Three bands of chrome down the top of the
+// screen, the middle one holding a single word. The configurator now draws its
+// own close chip in that toolbar, in the row it belongs to, and says so with a
+// `hello` capability. The academy keeps a fallback close for exactly one case:
+// a child build that predates that chip (the two origins deploy separately, and
+// the iframe loads whatever the other one is serving right now). No `hello`
+// within `CLOSE_FALLBACK_MS` and the academy draws the control itself.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -52,6 +62,7 @@ import {
 } from "@/lib/hex-configurator-url";
 import type { HexRecall } from "@/lib/hex-recall";
 import {
+  CAP_CLOSE,
   CHANNEL,
   PROTOCOL_VERSION,
   parseMessage,
@@ -62,6 +73,12 @@ import { getPosthog } from "@/lib/posthog-client";
 /** Matches the transition durations below, and the `--hex-frame-*` timings. */
 const OPEN_MS = 340;
 const CLOSE_MS = 220;
+
+/** How long to wait for the child's `hello` before drawing a close control of
+ *  our own. Long enough that a current build never flashes one (its hello lands
+ *  with the handshake, inside a frame load), short enough that an old build does
+ *  not leave a mouse user stuck. */
+const CLOSE_FALLBACK_MS = 1500;
 
 /** The academy's own theme event, dispatched by ThemeToggle. Subscribed to
  *  rather than polled: the attribute on <html> is the source of truth and this
@@ -93,6 +110,14 @@ export function HexConfiguratorFrame({
    *  would leave someone who clicked "Open in the configurator" on a specific
    *  saved build staring at an empty bench with no explanation. */
   const [recallFailed, setRecallFailed] = useState(false);
+  /** The child said it draws its own close control. Sticky once true: a remount
+   *  re-announces it, and un-drawing a control the visitor has already seen
+   *  would be worse than drawing one they do not need. */
+  const [childCloses, setChildCloses] = useState(false);
+  const [fallbackClose, setFallbackClose] = useState(false);
+  /** Bumped on every `load` of the frame. The fallback timer hangs off THIS,
+   *  not off the panel opening — see the effect below. */
+  const [loadCount, setLoadCount] = useState(0);
   /** Bumped to remount the iframe, which is the only reload available across
    *  origins. Part of the `key`, so it also resets the handshake. */
   const [reloadKey, setReloadKey] = useState(0);
@@ -373,6 +398,9 @@ export function HexConfiguratorFrame({
       if (!message) return;
 
       switch (message.type) {
+        case "hello":
+          if (message.capabilities.includes(CAP_CLOSE)) setChildCloses(true);
+          break;
         case "save-request":
           // Opens a panel. It does NOT save: the write is behind a click on a
           // form in this document.
@@ -385,14 +413,32 @@ export function HexConfiguratorFrame({
           setContextLost(true);
           break;
         default:
-          // `ready` / `saved` / `save-failed` / `save-cancelled` are ours to
-          // send, not to receive.
+          // `ready` / `set-theme` / `saved` / `save-failed` / `save-cancelled`
+          // are ours to send, not to receive.
           break;
       }
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [enabled, origin, close]);
+
+  // -- the close fallback ------------------------------------------------
+  //
+  // Timed from the frame's LOAD, not from the panel opening. Measured against a
+  // cold dev build of the child, the difference is the whole feature: a slow
+  // bundle took about five seconds to boot, so a timer started at open drew a
+  // second close control that then vanished when the real `hello` landed --
+  // two close buttons, one of them a flicker. After `load` the child's module
+  // has executed, so `hello` follows in milliseconds and this timer only ever
+  // expires on a build that genuinely cannot close itself.
+  useEffect(() => {
+    if (loadCount === 0 || childCloses) return;
+    const t = window.setTimeout(
+      () => setFallbackClose(true),
+      CLOSE_FALLBACK_MS,
+    );
+    return () => window.clearTimeout(t);
+  }, [loadCount, childCloses]);
 
   // -- the handshake -----------------------------------------------------
   //
@@ -410,6 +456,9 @@ export function HexConfiguratorFrame({
 
   const onFrameLoad = useCallback(() => {
     setContextLost(false);
+    // A remount is a different build's chance to answer for itself.
+    setFallbackClose(false);
+    setLoadCount((n) => n + 1);
     handshake();
     // A module script has executed by the time `load` fires, so one post is
     // enough in theory. The retry costs a single message and covers the case
@@ -475,9 +524,34 @@ export function HexConfiguratorFrame({
             style={{ display: phase === "open" ? "flex" : "none" }}
             className="fixed inset-x-0 bottom-0 top-[var(--hex-frame-top,3.5rem)] z-30 flex-col bg-deep-space outline-none"
           >
-            <FrameToolbar onClose={close} recallFailed={recallFailed} />
-
             <div className="relative flex-1">
+              {/* Everything the academy still draws over the frame, stacked at
+                  the top-left -- the opposite end of the band from the child's
+                  toolbar, so neither can ever cover the other. Empty in the
+                  normal case, which is the point of the pass. */}
+              <div className="pointer-events-none absolute left-[18px] top-[18px] z-10 flex max-w-[min(24rem,calc(100%-6rem))] flex-col items-start gap-2">
+                {fallbackClose && !childCloses && (
+                  <button
+                    type="button"
+                    onClick={close}
+                    aria-label="Close the configurator"
+                    className="pointer-events-auto flex h-[38px] min-w-[38px] items-center justify-center rounded-[9px] border border-command-gold/30 bg-deep-space px-3 font-mono text-[15px] leading-none text-muted transition-colors hover:border-command-gold hover:text-gold-light focus-visible:border-command-gold focus-visible:text-gold-light focus-visible:outline-none"
+                  >
+                    ✕
+                  </button>
+                )}
+                {recallFailed && (
+                  // A saved build that cannot be reopened is worth saying out
+                  // loud, but it is not an error state for the page: the
+                  // configurator below is perfectly usable. Framed by a gold
+                  // accent bar rather than a filled card.
+                  <p className="pointer-events-auto border-l-2 border-l-command-gold bg-deep-space/95 py-1 pl-3 font-serif text-xs text-muted">
+                    That saved build could not be opened. It may have been
+                    archived.
+                  </p>
+                )}
+              </div>
+
               {src && (
                 <iframe
                   // Remounting is the reload: `contentWindow.location.reload()`
@@ -542,39 +616,6 @@ function FramePortal({ children }: { children: React.ReactNode }) {
   useEffect(() => setMounted(true), []);
   if (!mounted) return null;
   return createPortal(children, document.body);
-}
-
-/** A hairline strip, not a filled bar: the frame is an instrument on the field,
- *  and a toolbar with a fill would read as a second site header. */
-function FrameToolbar({
-  onClose,
-  recallFailed,
-}: {
-  onClose: () => void;
-  recallFailed: boolean;
-}) {
-  return (
-    <div className="flex shrink-0 items-center gap-4 border-b border-panel-border/60 px-4 py-2 sm:px-6">
-      <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
-        ▸ Cluster configurator
-      </span>
-      {recallFailed && (
-        // One line, in the strip that is already there. A saved build that
-        // cannot be reopened is worth saying out loud, but it is not an error
-        // state for the whole page: the configurator below is perfectly usable.
-        <span className="font-serif text-xs text-muted">
-          That saved build could not be opened. It may have been archived.
-        </span>
-      )}
-      <button
-        type="button"
-        onClick={onClose}
-        className="ml-auto font-mono text-[10px] uppercase tracking-[0.2em] text-muted underline underline-offset-4 hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
-      >
-        Close
-      </button>
-    </div>
-  );
 }
 
 /**

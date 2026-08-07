@@ -28,7 +28,14 @@
 export const CHANNEL = "otd-hex";
 
 /** Bump when a message shape changes incompatibly. Both copies must move
- *  together; the mismatch path is a fallback, not an error to swallow. */
+ *  together; the mismatch path is a fallback, not an error to swallow.
+ *
+ *  ADDING A MESSAGE TYPE IS NOT INCOMPATIBLE and must NOT bump this. `parseMessage`
+ *  already returns null for a type it does not know, so an older peer ignores a
+ *  new message instead of breaking on it — which is the property `hello` relies
+ *  on to tell an old child build from a new one. Bumping for an additive type
+ *  would do the opposite: it would make every OLD message unreadable to the new
+ *  peer, i.e. break the thing that still works. */
 export const PROTOCOL_VERSION = 1;
 
 /**
@@ -128,6 +135,29 @@ export type ContextLost = {
   type: "context-lost";
 };
 
+/**
+ * Child -> parent, once, right after it accepts the handshake: what this build
+ * of the configurator can do for itself.
+ *
+ * It exists because the two sides deploy separately and the parent embeds
+ * whatever the OTHER origin is serving right now. The academy stopped drawing a
+ * close control of its own once the configurator grew one — so without this
+ * message, the window between the academy's deploy and the configurator's (or a
+ * cached old child bundle) is a panel a mouse cannot close. The parent shows its
+ * own fallback close unless a `hello` says it does not need to.
+ *
+ * Capabilities are strings, not booleans, so the next one costs no message.
+ */
+export type Hello = {
+  channel: typeof CHANNEL;
+  protocolVersion: number;
+  type: "hello";
+  capabilities: string[];
+};
+
+/** The child draws its own close control, so the parent must not draw one. */
+export const CAP_CLOSE = "close";
+
 export type HexMessage =
   | Ready
   | SetTheme
@@ -136,7 +166,8 @@ export type HexMessage =
   | SaveFailed
   | SaveCancelled
   | CloseRequest
-  | ContextLost;
+  | ContextLost
+  | Hello;
 
 const isStr = (v: unknown): v is string => typeof v === "string" && v.length > 0;
 const isTheme = (v: unknown): v is "dark" | "light" =>
@@ -191,6 +222,10 @@ export function parseMessage(data: unknown): HexMessage | null {
       return isStr(d.requestId) && isStr(d.code) ? (d as unknown as SaveFailed) : null;
     case "save-cancelled":
       return isStr(d.requestId) ? (d as unknown as SaveCancelled) : null;
+    case "hello":
+      return Array.isArray(d.capabilities) && d.capabilities.every(isStr)
+        ? (d as unknown as Hello)
+        : null;
     case "close-request":
     case "context-lost":
       return d as unknown as HexMessage;

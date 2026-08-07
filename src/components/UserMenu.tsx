@@ -9,6 +9,12 @@
 // role warrants, and a gold "Sign out". Theme lives in the header toggle, so it
 // is intentionally not duplicated here.
 //
+// IT CARRIES ACCOUNT DESTINATIONS ONLY. The site nav lives in the header's
+// collapsed menu (HeaderMenu) at narrow widths and in the inline row at wide
+// ones. The two menus sit side by side on a phone deliberately: one answers
+// "where can I go", the other "what about me", and splitting them keeps either
+// list short enough to scan.
+//
 // Native dropdown via <details> (no portal/library); a pointerdown-outside
 // effect closes it. The sign-out action is a server action passed by the layout
 // so this client component never imports @/auth.
@@ -150,9 +156,13 @@ export function UserMenu({
       >
         <span className="sr-only">Signed in as {email}. Open account menu</span>
         <Avatar image={image} initial={initial} className="h-7 w-7" text="text-sm" />
+        {/* The name is the first thing to go on a narrow header: at 375px this
+            trigger shares the row with the theme toggle and the collapsed nav
+            menu, and the avatar already identifies the account. The screen
+            reader still gets the full "Signed in as …" label above. */}
         <span
           aria-hidden
-          className="max-w-[8rem] truncate font-mono text-[10px] uppercase tracking-[0.1em] text-text"
+          className="hidden max-w-[8rem] truncate font-mono text-[10px] uppercase tracking-[0.1em] text-text @min-[30rem]:inline"
         >
           {firstName}
         </span>
@@ -168,7 +178,10 @@ export function UserMenu({
 
       {/* D5 — hairline panel on deep space (chrome popover, but grouped by gold
           hairlines rather than a navy fill). */}
-      <div className="absolute right-0 z-40 mt-2 w-60 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-md border border-panel-border bg-deep-space shadow-[var(--elev-card)]">
+      {/* `max-h` + scroll: an ADMIN's panel is the account rows plus six
+          operator rows, which already runs past the bottom of a 667px phone
+          viewport. Nothing about this is new, it was just never bounded. */}
+      <div className="absolute right-0 z-40 mt-2 max-h-[min(70vh,34rem)] w-60 max-w-[calc(100vw-1.5rem)] overflow-y-auto overscroll-contain rounded-md border border-panel-border bg-deep-space shadow-[var(--elev-card)]">
         <div className="flex items-center gap-3 border-b border-panel-border/70 p-3.5">
           <Avatar
             image={image}

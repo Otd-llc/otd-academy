@@ -1,7 +1,7 @@
 "use client";
 
-// Primary app navigation — Projects / Curriculum (admin) + Courses / Library /
-// Parts (all) + Learn (signed-in only).
+// Primary app navigation, INLINE ONLY — Projects / Curriculum (admin) + Courses
+// / Pricing / Library / Tools / Parts / Hex (all) + Learn (signed-in only).
 //
 // A tiny `"use client"` island so it can read `usePathname()` and highlight the
 // active route in `text-command-gold` (the rest stay muted with a gold hover).
@@ -11,16 +11,17 @@
 // them to /learn; we hide those unless `role` is ADMIN. The Courses index and the
 // Parts catalog are PUBLIC (read-only for everyone), so those links show for all,
 // including anonymous visitors. Learn is each user's own dashboard, so it only
-// shows once `signedIn`.
+// shows once `signedIn`. The link set + the active rule live in
+// `@/lib/nav-links`, shared with the collapsed menu and the account menu.
 //
-// Active matching: the projects dashboard ("/") is the home for the whole
-// `/projects/*` tree as well, so it stays active on any project detail route;
-// "/curriculum" and "/parts" match their own prefixes.
+// SHAPE: one row, always. This component renders the inline row and NOTHING
+// else — when the row does not fit it is simply absent, and the same links are
+// in the header's collapsed menu (HeaderMenu) instead. It used to carry its own
+// hamburger plus a one-line clipped row with a fade mask, which let the header
+// wrap to a second full-width row on anything narrow.
 //
-// Mobile shape: the row is clipped to ONE line (a right fade hints at more) and a
-// hamburger reveals the full nav in a dropdown card; from `sm` up the whole nav
-// sits inline with no toggle. Keeps the mobile header a single tidy line instead
-// of an unpredictable multi-row wrap.
+// The fit threshold is a CONTAINER query keyed to the link count — see
+// `inlineNavClass` for why it is neither a viewport breakpoint nor a measurement.
 //
 // TWO ENTRY POINTS, because of what each one is allowed to read:
 //
@@ -41,47 +42,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
 
-const LINKS = [
-  { href: "/", label: "Projects", adminOnly: true },
-  { href: "/curriculum", label: "Curriculum", adminOnly: true },
-  { href: "/courses", label: "Courses", adminOnly: false },
-  { href: "/pricing", label: "Pricing", adminOnly: false },
-  { href: "/library", label: "Library", adminOnly: false },
-  { href: "/tools", label: "Tools", adminOnly: false },
-  { href: "/learn", label: "Learn", adminOnly: false },
-  { href: "/parts", label: "Parts", adminOnly: false },
-  // Points at the academy's own /hex page, NOT straight out to the
-  // configurator. The whole strategy is maker -> academy, and a nav item that
-  // fires a visitor to another domain is a leak in the one place every page
-  // carries. /hex explains the standard, serves the downloads and carries the
-  // configurator CTA, so the click still gets there, one step later and
-  // measurable (the CTA is instrumented; a raw external nav link would not be).
-  { href: "/hex", label: "Hex", adminOnly: false },
-] as const;
-
-// `pathname` is null in the static shell, where the URL is not knowable — then
-// nothing is highlighted, which is the correct answer rather than a guess.
-function isActive(pathname: string | null, href: string): boolean {
-  if (pathname === null) return false;
-  if (href === "/") {
-    // The dashboard owns "/" and the whole project tree.
-    return pathname === "/" || pathname.startsWith("/projects");
-  }
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-function visibleLinks(role?: string | null, signedIn?: boolean) {
-  const isAdmin = role === "ADMIN";
-  return LINKS.filter((link) => {
-    // Admin-only links (Projects / Curriculum) show only for ADMINs.
-    if (link.adminOnly && !isAdmin) return false;
-    // Learn is the personal dashboard — hide it from anonymous visitors.
-    if (link.href === "/learn" && !signedIn) return false;
-    return true;
-  });
-}
+import {
+  inlineNavClass,
+  isNavActive,
+  visibleNavLinks,
+  type NavLink,
+} from "@/lib/nav-links";
 
 // Prerender-safe: no request data, so it is legal in the static shell / a Suspense
 // fallback. Anonymous link set, nothing highlighted.
@@ -89,7 +56,7 @@ export function MainNavStatic({ className }: { className?: string }) {
   return (
     <MainNavView
       className={className}
-      links={visibleLinks(null, false)}
+      links={visibleNavLinks(null, false)}
       pathname={null}
     />
   );
@@ -107,7 +74,7 @@ export function MainNav({
   return (
     <MainNavView
       className={className}
-      links={visibleLinks(role, signedIn)}
+      links={visibleNavLinks(role, signedIn)}
       pathname={usePathname()}
     />
   );
@@ -119,79 +86,31 @@ function MainNavView({
   pathname,
 }: {
   className?: string;
-  links: readonly { href: string; label: string }[];
+  links: readonly NavLink[];
   pathname: string | null;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  // Close the mobile dropdown on Escape or an outside click.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    const onDown = (e: PointerEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    document.addEventListener("pointerdown", onDown);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.removeEventListener("pointerdown", onDown);
-    };
-  }, [open]);
-
-  const tone = (active: boolean) => (active ? "text-command-gold" : "text-muted");
-
   return (
-    <div ref={ref} className={`relative${className ? ` ${className}` : ""}`}>
-      <nav
-        aria-label="Primary"
-        className="flex max-h-5 flex-wrap items-center gap-x-5 gap-y-1 overflow-hidden pr-9 font-mono text-xs uppercase tracking-wider [mask-image:linear-gradient(90deg,#000_84%,transparent)] sm:max-h-none sm:overflow-visible sm:pr-0 sm:[mask-image:none]"
-      >
-        {links.map((link) => {
-          const active = isActive(pathname, link.href);
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              aria-current={active ? "page" : undefined}
-              className={`transition-colors hover:text-command-gold ${tone(active)}`}
-            >
-              {link.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Mobile-only toggle. Hidden from sm up, where the nav sits inline. */}
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        aria-label={open ? "Close navigation" : "More navigation"}
-        className="absolute right-0 top-1/2 -translate-y-1/2 px-1 text-lg leading-none text-command-gold hover:text-gold-light focus-visible:outline-none sm:hidden"
-      >
-        {open ? "✕" : "≡"}
-      </button>
-
-      {open ? (
-        <div className="absolute right-0 top-full z-30 mt-2 min-w-44 overflow-hidden rounded border border-panel-border bg-deep-space shadow-[var(--elev-raise)] sm:hidden">
-          {links.map((link, i) => {
-            const active = isActive(pathname, link.href);
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                aria-current={active ? "page" : undefined}
-                onClick={() => setOpen(false)}
-                className={`block px-4 py-2.5 font-mono text-xs uppercase tracking-wider transition-colors hover:bg-command-gold/[0.06] ${i === 0 ? "" : "border-t border-panel-border"} ${tone(active)}`}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
-        </div>
-      ) : null}
-    </div>
+    <nav
+      aria-label="Primary"
+      className={`${inlineNavClass(links.length)} items-center gap-x-5 font-mono text-xs uppercase tracking-wider${
+        className ? ` ${className}` : ""
+      }`}
+    >
+      {links.map((link) => {
+        const active = isNavActive(pathname, link.href);
+        return (
+          <Link
+            key={link.href}
+            href={link.href}
+            aria-current={active ? "page" : undefined}
+            className={`transition-colors hover:text-command-gold focus-visible:text-command-gold focus-visible:outline-none ${
+              active ? "text-command-gold" : "text-muted"
+            }`}
+          >
+            {link.label}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
