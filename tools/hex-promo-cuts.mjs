@@ -91,6 +91,20 @@ const PRESETS = {
 // decision, not a quality one: 300 frames of 960px lossy WebP is several MB,
 // which is a slow README. Halving the rate and scaling down holds it near 1 MB
 // and the loop is slow enough that 15fps does not read as choppy.
+//
+// READMES BAKE THE DARK FIELD IN, deliberately, and two rejected alternatives
+// are why. A dark cut plus an ivory cut switched by `<picture>` on
+// `prefers-color-scheme` LOOKS correct and is not: that media query reports the
+// OS preference while GitHub has its own theme picker, so a viewer on
+// GitHub-dark with a light OS gets the ivory image on a dark page. GitHub's
+// `#gh-dark-mode-only` fragments do follow its own theme but are deprecated and
+// GitHub-only, so a README rendered on npm or a blog loses them.
+//
+// A transparent capture fixes both and costs too much: measured on the same 300
+// frames, alpha came out at 2023 KB against 587 KB opaque, and quality is nearly
+// irrelevant to that (q55 saved only 107 KB) because per-frame alpha defeats the
+// inter-frame compression. Dropping to 12fps/640 still left 1337 KB. Roughly
+// double the bytes on every README view was not worth it.
 const WEBP = { fps: 15, width: 720, quality: 72 };
 
 const arg = (name) => process.argv.find((a) => a.startsWith(`--${name}=`));
@@ -209,8 +223,7 @@ async function frame(page, { dolly, lift }, stayWide) {
       const inNeighbours = (q, r) =>
         neighbours.some(([nq, nr]) => nq === q && nr === r);
 
-      for (const [q, r] of neighbours)
-        placeCell(q, r, "hex-tb-carrier-solid");
+      for (const [q, r] of neighbours) placeCell(q, r, "hex-tb-carrier-solid");
       tray.exploded = true;
       rebuildGhosts();
       await new Promise((r) => requestAnimationFrame(() => r(null)));
@@ -250,7 +263,9 @@ async function frame(page, { dolly, lift }, stayWide) {
           setCapAt(
             tray,
             spec,
-            i === 0 && isCapAvailable(corner) ? corner : defaultKindForSlot(spec),
+            i === 0 && isCapAvailable(corner)
+              ? corner
+              : defaultKindForSlot(spec),
           );
           taken.push(spec);
         }
@@ -337,6 +352,39 @@ async function waitForRest(page) {
   );
 }
 
+/** Snap the explode groups to exactly home before recording starts.
+ *
+ *  THE REST POLL IS NOT ENOUGH ON ITS OWN. Every run here leaves a residual
+ *  after the poll passes: on the shipped presets it is around 1e-4 scene units,
+ *  small enough that the seam check clears it, and it was recorded for a while
+ *  as an unexplained curiosity rather than a defect.
+ *
+ *  A transparent-background variant tried during the README work (since dropped
+ *  on size) left 5.9e-3, forty times larger, which is about 5.9 mm on a 76 mm
+ *  tile: frame 0 opened with the tray visibly proud while frame 299 sat flush,
+ *  and the seam check failed outright at 0.859 against a quietest ordinary step
+ *  of 0.733. Same latent bug, one run away from shipping.
+ *
+ *  Whatever lets the value grow between the poll passing and the snapshot being
+ *  taken, the opening state is not a measurement: it is a known quantity. The
+ *  tray is collapsed, so home is zero. Setting it is stable rather than a fight
+ *  with the app, because `exploded = false` means the lerp's own target is zero
+ *  too; this only removes the dependency on it having arrived. */
+async function forceCollapsed(page) {
+  return page.evaluate(async () => {
+    const { cells } = await import("/src/hex/cells.ts");
+    const tray = [...cells.values()][0];
+    const groups = [
+      tray.scene.baseTopExplode,
+      tray.scene.insertExplode,
+      tray.scene.boardExplode,
+    ];
+    for (const g of groups) g.position.y = 0;
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    return groups.map((g) => Number(g.position.y.toFixed(6)));
+  });
+}
+
 /** Install the per-frame stepper. Byte-for-byte the choreography hex-video.mjs
  *  ships, because the cuts are the SAME loop at other aspect ratios -- a cut
  *  that told a different story would stop being a cut. */
@@ -410,7 +458,9 @@ async function installStepper(page, total) {
     };
     const wantedRoot = (o) => {
       const slot = o?.userData?.ghost?.slot;
-      return !!slot && neighbours.some(([q, r]) => slot.q === q && slot.r === r);
+      return (
+        !!slot && neighbours.some(([q, r]) => slot.q === q && slot.r === r)
+      );
     };
     const limitGhosts = () => {
       const group = ghostGroupNode();
@@ -445,7 +495,11 @@ async function installStepper(page, total) {
         0.22,
         topology(() =>
           added.push(
-            placeCell(neighbours[0][0], neighbours[0][1], "hex-tb-carrier-solid"),
+            placeCell(
+              neighbours[0][0],
+              neighbours[0][1],
+              "hex-tb-carrier-solid",
+            ),
           ),
         ),
       ],
@@ -453,7 +507,11 @@ async function installStepper(page, total) {
         0.3,
         topology(() =>
           added.push(
-            placeCell(neighbours[1][0], neighbours[1][1], "hex-tb-carrier-solid"),
+            placeCell(
+              neighbours[1][0],
+              neighbours[1][1],
+              "hex-tb-carrier-solid",
+            ),
           ),
         ),
       ],
@@ -620,7 +678,8 @@ async function extentOverTurn(page, steps = 24) {
       const o = new Array(16).fill(0);
       for (let c = 0; c < 4; c++)
         for (let r = 0; r < 4; r++)
-          for (let k = 0; k < 4; k++) o[c * 4 + r] += a[k * 4 + r] * b[c * 4 + k];
+          for (let k = 0; k < 4; k++)
+            o[c * 4 + r] += a[k * 4 + r] * b[c * 4 + k];
       return o;
     };
     const apply = (m, x, y, z) => {
@@ -639,14 +698,22 @@ async function extentOverTurn(page, steps = 24) {
     // backdrop is supposed to run off the edges.
     const root = cellsContainer;
 
-    const box = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+    const box = {
+      minX: Infinity,
+      maxX: -Infinity,
+      minY: Infinity,
+      maxY: -Infinity,
+    };
     for (let s = 0; s < steps; s++) {
       controls.rotateTo(az0 + (2 * Math.PI * s) / steps, polar0, false);
       controls.update(1 / 30);
       bumpRender(2);
       await new Promise((r) => requestAnimationFrame(() => r(null)));
       cam.updateMatrixWorld(true);
-      const vp = mulMat(cam.projectionMatrix.elements, cam.matrixWorldInverse.elements);
+      const vp = mulMat(
+        cam.projectionMatrix.elements,
+        cam.matrixWorldInverse.elements,
+      );
 
       root.traverseVisible((o) => {
         // Ghosts are already detached in the probe; anything still drawing and
@@ -716,6 +783,12 @@ mkdirSync(FRAMES, { recursive: true });
 const { ctx, page } = await boot(browser, preset);
 await frame(page, preset, false);
 await waitForRest(page);
+const home = await forceCollapsed(page);
+if (home.some((v) => v !== 0)) {
+  console.warn(
+    `[capture] explode groups did not snap home: ${JSON.stringify(home)}`,
+  );
+}
 await installStepper(page, TOTAL);
 
 await page.evaluate(() => window.__clock.start());
@@ -735,7 +808,9 @@ for (let i = 0; i < TOTAL; i++) {
     const { rendered } = await page.evaluate(() => window.__probe());
     console.log(`[capture] frame 0 ghost wires: ${rendered}`);
     if (rendered !== 2) {
-      console.warn(`[capture] EXPECTED 2 ghost wires at frame 0, got ${rendered}`);
+      console.warn(
+        `[capture] EXPECTED 2 ghost wires at frame 0, got ${rendered}`,
+      );
     }
   }
   await page.screenshot({
@@ -753,6 +828,26 @@ for (let i = 0; i < TOTAL; i++) {
 // every single run. A check that always fires is worse than no check, because
 // it teaches whoever sees it to scroll past the one time it means something.
 const closure = await page.evaluate(() => window.__closure());
+
+await ctx.close();
+await browser.close();
+
+// NEITHER CHECK MEANS ANYTHING ON A CAPPED RUN. `--frames` stops part-way
+// through the choreography, so the tiles the reverse beats would have removed
+// are still standing and the topology check is guaranteed to fire; the seam
+// check is worse, because it samples an ordinary pair at 0.9 of the total and
+// reads frame N+1, which does not exist, so ffmpeg failed with "No such file"
+// and took the whole run down at the finish line. A check that always fires on
+// a legitimate mode is noise, and a check that crashes it is a defect.
+if (capArg) {
+  console.log(
+    `stopped after ${TOTAL} frames (--frames), no encode, no closure or seam check`,
+  );
+  process.exit(0);
+}
+
+// TOPOLOGY must match exactly. A tile or a cap left over is a hard defect and
+// there is no tolerance at which half a cap is acceptable.
 if (
   closure.closing.cells !== closure.opening.cells ||
   closure.closing.caps !== closure.opening.caps
@@ -761,14 +856,6 @@ if (
 }
 console.log(`[closure] lift residual ${JSON.stringify(closure.liftDrift)}`);
 seamCheck(FRAMES, TOTAL);
-
-await ctx.close();
-await browser.close();
-
-if (capArg) {
-  console.log(`stopped after ${TOTAL} frames (--frames), no encode`);
-  process.exit(0);
-}
 
 const base = `${OUT}/hex-${presetArg}${suffix}`;
 const emitted = [];
