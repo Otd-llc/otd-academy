@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CAP_CLOSE,
   CHANNEL,
   PROTOCOL_VERSION,
   isPlausibleOtdOrigin,
@@ -108,6 +109,34 @@ describe("parseMessage — save-request is validated, not cast", () => {
   it("requires a requestId, or a stale reply cannot be told from a live one", () => {
     expect(parseMessage({ ...saveRequest, requestId: "" })).toBeNull();
     expect(parseMessage({ ...saveRequest, requestId: undefined })).toBeNull();
+  });
+});
+
+describe("parseMessage — hello, the capability announcement", () => {
+  const hello = (capabilities: unknown) => ({
+    ...base,
+    type: "hello",
+    capabilities,
+  });
+
+  it("accepts a list of strings, and nothing else", () => {
+    expect(parseMessage(hello([CAP_CLOSE]))?.type).toBe("hello");
+    // An empty list is meaningful: a child that announces itself but claims
+    // nothing. The parent keeps drawing its own close, which is correct.
+    expect(parseMessage(hello([]))?.type).toBe("hello");
+    expect(parseMessage(hello(CAP_CLOSE))).toBeNull();
+    expect(parseMessage(hello([1]))).toBeNull();
+    expect(parseMessage(hello(undefined))).toBeNull();
+  });
+
+  it("leaves an unknown type unparsed rather than fatal", () => {
+    // Why adding `hello` did NOT bump PROTOCOL_VERSION: a peer that predates a
+    // message type already ignores it here. Bumping instead would make every
+    // message unreadable to the older peer, including the ones that still work.
+    expect(parseMessage({ ...base, type: "a-type-from-the-future" })).toBeNull();
+    expect(readVersion({ ...base, type: "a-type-from-the-future" })).toBe(
+      PROTOCOL_VERSION,
+    );
   });
 });
 
