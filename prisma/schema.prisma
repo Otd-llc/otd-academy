@@ -1501,7 +1501,17 @@ model HexClusterRevision {
   // unverifiable here by design. NOT unique per cluster: A -> B -> A must give
   // Rev C carrying Rev A's hash.
   payloadHash String
-  // EncodedState.v at save time. A number, not a shape. Also client-supplied.
+  // The configurator's WIRE version for `payload` -- 1 or 2 -- at save time. A
+  // number, not a shape, and client-supplied.
+  //
+  // NOT the canonical state version, which this comment used to name and which
+  // is a constant 1 by design: canon.ts hashes it, so moving it would renumber
+  // every drawing. v2 is a palette encoding that expands to the same v1 shape.
+  //
+  // The academy WRITES this and never reads it. Deliberate: the payload is
+  // opaque here, and knowing how to interpret the version is exactly the
+  // coupling the opaque-payload rule exists to prevent. The CHECK is >= 1, so a
+  // future version needs no migration on this side.
   schemaVersion Int
   // What the SCENE said, captured at save time and not reconstructible later.
   // Required. Shape pinned in design §4.1, validated on write.

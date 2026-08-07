@@ -10,6 +10,12 @@
  * Opens a READ ONLY transaction and only ever SELECTs. Throwaway: delete once
  * the encoding question is settled.
  */
+
+// See the note in hex-prod-payload-dump.ts: with no top-level import or export
+// this file is a SCRIPT, so `main` is global and collides with any sibling that
+// declares one. It did, and it broke a Vercel build on a docs-only PR.
+export {};
+
 async function main() {
   // The repo's own client: Prisma 7 requires an adapter, chosen by URL in
   // src/lib/db-adapter.ts (node-postgres for localhost, Neon serverless for a

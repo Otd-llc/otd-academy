@@ -1,7 +1,25 @@
 # Hex share-URL: scannable sheets, shorter payloads, identity fixes
 
-**Status:** planned, not started. Three adversarial validation rounds run
-(2026-08-06); this is plan v4, incorporating all findings.
+**Status: ALL ITEMS SHIPPED OR CUT (2026-08-06).** Item 1 merged as bioscale-viz
+PR #18 and is live. Items 0 and 2-8 are on bioscale-viz `fix/sheet-url-and-identity`
+(PR #19), unmerged. Three corrections to this document are marked **[CORRECTED]**
+below — two of its measurements did not survive execution.
+
+| item | outcome | commit |
+| --- | --- | --- |
+| 0 — per-test timeouts | shipped; the premise was wrong, see [CORRECTED] | `1d1cce2` |
+| 1 — merge ghost-wire-audit | **merged and deployed**, PR #18 | `2757c0a` |
+| 2 — `.qr-url` as an anchor | shipped | `92ab94c` |
+| 3 — caption honesty + quiet zone | shipped | `8284b90` |
+| 4 — `u=` save pre-flight | shipped | `0ac59dd` |
+| 5 — three identity forks | shipped, all mutation-checked | `488ce88` |
+| 8 — freeze the token corpus | shipped, before item 6 as required | `5455528` |
+| 6 — v2 palette wire format | shipped; saving overstated here, see [CORRECTED] | `472abd4` |
+| 7 — telemetry | **mostly cut**, one event kept | `3e5d428` |
+
+**Three adversarial validation rounds** were run before execution (2026-08-06);
+this was plan v4. What follows is the plan as written, annotated where execution
+disproved it.
 **Repos:** `bioscale-viz` (configurator, most of the work) · `project-foundry`
 (academy — doc edits only; **no code change and no deploy needed**, proven below).
 
@@ -75,6 +93,30 @@ by re-running under 8 burner processes, which reproduces exactly 4 timeouts —
 `cap-collision.test.ts:221/:233/:255` and `history.test.ts:134`, **zero
 assertion failures**). Idle margins: `MAX_HISTORY` 4394-4588 ms, cap-collision
 3766-4693 ms, both against 5000 ms.
+
+> **[CORRECTED] on execution — two claims here did not hold.**
+>
+> 1. **"22 files" is right; the hazard note in §5 saying 21 tracked files is
+>    WRONG.** There are **22 tracked** test files. The 22nd is
+>    `src/analytics.test.ts`, tracked since PR #11, at depth 1 — and a
+>    `git ls-files 'src/**/*.test.ts'` pathspec drops depth-1 files, which is
+>    exactly how "21" was derived. **There is no stray file.** Do not go hunting
+>    for one.
+> 2. **The red-under-load condition could not be reproduced.** 8 burners: no
+>    inflation at all. 36 burners on 12 cores: `MAX_HISTORY` reached 4724 ms,
+>    still under 5000. A stashed A/B at 48 burners with the timeouts REMOVED was
+>    **still green**. So the timeouts are correct-by-construction — raising a
+>    budget cannot fail a passing test — but they are not a proven fix for a
+>    reproduced failure.
+>
+> **CI has since answered the real question.** These four tests ran on a GitHub
+> runner for the first time in PR #18 and passed comfortably: 22 files / 284
+> tests, **9.16 s of total test time**, faster than the local box. The
+> smaller-runner worry was unfounded.
+>
+> Separately, one unattended local `pnpm test` hit **71 s** of test time, a 5.5×
+> inflation, and passed — which is the contention evidence the burners failed to
+> manufacture.
 
 **The claimed `history.test.ts` perf regression does NOT exist — refuted.**
 Controlled interleaved A/B in an isolated worktree at `ef72cb4` (the commit
@@ -328,9 +370,33 @@ a scannable sheet unscannable** in 2560 sweep rows or 4000 adversarial trials.
 | 31 cells (377 ch) | 377 | **233** | v16 → v12 | 0.616 |
 | 35 cells (401 ch) | 401 | **244** | v16 → v12 | 0.616 |
 
+> **[CORRECTED] on execution — this table is optimistic.** Re-measured against
+> the same four prod payloads, using the shipped `toWireV2` rather than an
+> estimate:
+>
+> | cells | JSON v1 → v2 | **payload v1 → v2** | QR | mm/module |
+> |---|---|---|---|---|
+> | 35 | 3307 → 537 (**84%**) | **401 → 276 (31%)** | v16 → v13 | 0.497 → 0.581 |
+> | 31 | 2923 → 501 (**83%**) | **377 → 262 (31%)** | v16 → v13 | 0.497 → 0.581 |
+> | 4 | 503 → 292 (42%) | 268 → 197 (26%) | v13 → v11 | 0.581 → 0.655 |
+> | 4 | 441 → 146 (67%) | 210 → 136 (35%) | v11 → v9 | 0.655 → 0.750 |
+>
+> **The gap is the two columns.** Deflate ALREADY exploits the repetition the
+> palette removes, so an 84% saving on the raw JSON is worth **31%** once both
+> sides are compressed. The drop is **three** QR versions, not four. The
+> original table almost certainly compared pre-deflate sizes while labelling
+> them payload characters.
+>
+> Still worth shipping — a third off the payload and 0.497 → 0.581 mm/module —
+> but quote 31%, not 40%.
+
 **Headroom correction:** this buys **98-240 cells depending on shape**, NOT 512.
 512 cells is unscannable in every shape including the palette's best case
 (uniform-512 = 1384 ch = v31 = 0.289 mm). Do not repeat the "to 512" claim.
+
+> **[CORRECTED] again:** the 98-240 figure rests on the same pre-deflate
+> arithmetic as the table above and was **not** re-derived. Treat it as unproven
+> and re-measure before repeating it.
 
 **Separable free win:** dropping `_doc` is **36-70% of the entire saving** on
 real prod builds. `canonicalize()` drops it (`canon.ts:170`) and
@@ -408,6 +474,30 @@ annotation proof is a scratchpad PDF; nothing re-checks it in CI) · item 3's
 threshold (`sheet:check` asserts CSS declarations, not caption behaviour, and
 nothing measures mm/module) · item 4 (no test named) · item 7.
 
+> **What execution actually added.** Every item above now has coverage except
+> the one that genuinely cannot have it in CI:
+>
+> - item 2: five assertions in `check-sheet.mjs`'s **unsaved** pass (anchor,
+>   href contains `#`, `target`, `rel`, label length), plus `.qr-url` in the
+>   approved spec and `SELECTOR_MAP` — `sheet:check` went 1987/1987 across 71
+>   rules to **2012/2012 across 72**. The reference markup gained an `<a>`, not
+>   a `<div>`, so `display: block` cannot be satisfied for free.
+> - item 3: `qr.test.ts` cross-checks the reported version against the viewBox
+>   of the symbol actually inlined (`V = (width − 19) / 4`), and pins v21/v22
+>   either side of the threshold. The quiet zone was measured in a real browser:
+>   14 px exactly, 4.14X at v4, masthead unchanged at 193.19 px with **3.8 px**
+>   of slack left.
+> - item 4: three tests, and the fix was **mutation-checked**.
+> - item 7: mostly **cut** — see the item.
+> - item 2's printed `/Link` annotation remains the one unverified claim. It
+>   still rests on a scratchpad PDF.
+>
+> **Mutation-checking found a worthless test.** A companion assertion for item 4
+> (`not.toBe('capture-failed')`) passed with the fix removed, because the
+> un-gated result is `navigating` — which is also not `capture-failed`. It would
+> have passed against the bug it existed to catch. Deleted, with the reasoning
+> left in the file. Every item-5 fix was then mutation-checked the same way.
+
 ---
 
 ## 4. Cut — do not re-litigate without new evidence
@@ -431,9 +521,17 @@ coordinates (measured 0-1%).
 - **Shared worktree.** Another session created — and later deleted —
   `src/hex/_allparts.local.test.ts` in `c:\zzz\otd\bioscale-viz` during
   validation. It matches vitest's `src/**/*.test.ts` glob, so whether it exists
-  changes what `pnpm test` collects. Tracked test files: **21** at branch tip
-  (a "22" anywhere is counting that stray). Use your own `git worktree`, and
+  changes what `pnpm test` collects. ~~Tracked test files: **21** at branch tip
+  (a "22" anywhere is counting that stray).~~ Use your own `git worktree`, and
   diff `<base>..<head>` before merging.
+
+  > **[CORRECTED]: 22 tracked, and no stray.** The 22nd is
+  > `src/analytics.test.ts` (tracked since PR #11, depth 1). A
+  > `git ls-files 'src/**/*.test.ts'` pathspec silently drops depth-1 files —
+  > that is where "21" came from, not from a stray. The shared-worktree warning
+  > itself was borne out in the strongest possible way: during execution a
+  > concurrent session opened PR #18 and **merged it**, 41 seconds before doing
+  > the same to academy PR #451.
 - Local `main` (`cc7c390`) is **behind** `origin/main` (`9c8b776`); `local-main`
   (`f7e3488`) is a third stale ref; the `c:\zzz\bioscale-glyph` worktree holds a
   stale `main`.

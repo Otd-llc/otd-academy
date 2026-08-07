@@ -791,24 +791,35 @@ not be built:
 
 ### 7.1 A saved sheet's QR is always `/c/<shareCode>`
 
-Measured at the approved 78 px box (`docs/build-sheet-spec.css:104`,
-`export.css:322-326`), with `margin: 1` (`qr.ts:20`), at 96 CSS px/inch:
+> **SUPERSEDED 2026-08-06 — the box doubled.** Everything below was measured at
+> a 78 px box, which is no longer what ships: bioscale-viz PR #18 took `.qr` to
+> **156 px** (41.28 mm) after a prod census found that the largest stored build
+> printed at **0.249 mm/module and scanned on nothing**. The conclusion survives
+> — a saved sheet's QR is still always `/c/<shareCode>`, and the size is still
+> not derived from the payload — but every number in the original table is half
+> the current one. The recomputed figures are below it. See
+> `docs/plans/2026-08-06-hex-share-url.md`.
 
-| version | modules + quiet zone | mm/module at 78 px | px for 0.40 mm |
+Printed module size is `mm = 41.275 / (19 + 4V)` at the **156 px** box, with
+`margin: 1` (`qr.ts`), at 96 CSS px/inch:
+
+| version | modules + quiet zone | mm/module at 156 px | (was, at 78 px) |
 | --- | --- | --- | --- |
-| V14 (typical) | 75 | **0.275** | 113 |
-| V17 | 87 | 0.237 | 132 |
-| V25 | 119 | 0.173 | 180 |
+| V4 (a saved `/c/` code) | 35 | **1.179** | 0.590 |
+| V13 | 71 | 0.581 | 0.291 |
+| V16 (largest prod build) | 83 | **0.497** | 0.249 |
+| V21 (the ceiling) | 103 | 0.401 | 0.200 |
+| V22 | 107 | 0.386 — fails | 0.193 |
 
-**Every size already fails a 0.4 mm/module rule, including typical.** Holding it
-needs 113 px at V14 and 180 px at V25 against a 78 px approved box — at V25 the
-`.sheet-id` band narrows ~17%, which is a masthead redesign of a locked pick.
+At 156 px the scannable ceiling is **V21**. The largest build in production is
+V16, so every stored build now clears it; at 78 px none of them did.
 
-Therefore: **do not derive the size.** A saved sheet's QR encodes
-`/c/<shareCode>` — ~61 bytes, V4-M, 33 modules, **0.63 mm/module at 78 px** — and
-the approved box is left alone. An unsaved sheet keeps the payload QR and prints
+**Do not derive the size** — still true, and for the original reason. A saved
+sheet's QR encodes `/c/<shareCode>`: 62 bytes, exactly V4-M's byte capacity, 33
+modules, **1.18 mm/module**. An unsaved sheet keeps the payload QR and prints
 `UNCONTROLLED`, which is the regime where a large cluster's code being marginal
-is honest rather than misleading.
+is honest rather than misleading — and past V21 the caption now says so instead
+of promising a scan.
 
 **Sizing caveats to carry forward.** The 0.4 mm/module figure is a common
 industry rule of thumb; it is **not** in the repo and not in ISO 18004's text as
@@ -1098,7 +1109,8 @@ returns a **BigInt** through Prisma and `JSON.stringify` throws, and
 new tab; `/welcome` is not the sign-in landing and `proxy.ts` sends no
 `callbackUrl`; the `u=` QR is unusable from five cells; `HAS_COMPRESSION` is the
 wrong detect and Chrome 80–102 hangs the modal; `generateQRSVG` throws
-uncaught on over-capacity; at 78 px every QR size fails 0.4 mm/module.
+uncaught on over-capacity; at 78 px every QR size fails 0.4 mm/module (the box
+is 156 px since 2026-08-06, where everything up to V21 clears it).
 
 Design changes: identity is now **bound to the content hash** (§2.1), which
 fixes the unreachable saved regime, the forged-`?s=` hole and the 44-call-site
