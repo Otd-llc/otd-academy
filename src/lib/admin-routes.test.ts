@@ -39,10 +39,25 @@ describe("hex spec page gating", () => {
     expect(isAdminOnlyPath("/hex")).toBe(false);
   });
 
-  it("opens exactly that page, not a prefix", () => {
-    // Nothing is nested under /hex today. A child must be added deliberately.
+  it("opens its share card, INCLUDING the build-hashed path Next serves", () => {
+    // The served path is not the file name. Next appends a build hash, so the
+    // page emits `/hex/opengraph-image-1qmjwd?<hash>`, and an equality check on
+    // the bare name let the real request 307 to /sign-in while the tidy one
+    // passed. The hashed form is the case that matters; the bare one is kept so
+    // a future Next that drops the suffix does not silently close the card.
+    expect(isPublicPath("/hex/opengraph-image-1qmjwd")).toBe(true);
+    expect(isPublicPath("/hex/opengraph-image")).toBe(true);
+    expect(isAdminOnlyPath("/hex/opengraph-image-1qmjwd")).toBe(false);
+  });
+
+  it("opens exactly that page and its card, not a prefix", () => {
+    // Any further child must be added deliberately, one segment at a time.
     expect(isPublicPath("/hex/parts")).toBe(false);
     expect(isPublicPath("/hex/2026-07-31/downloads")).toBe(false);
+    expect(isPublicPath("/hex/opengraph-image/raw")).toBe(false);
+    // A segment that merely STARTS with the name is not the card.
+    expect(isPublicPath("/hex/opengraph-images")).toBe(false);
+    expect(isPublicPath("/hex/opengraph-image-1qmjwd/raw")).toBe(false);
   });
 
   it("does not leak the signed-in hex-cluster surfaces", () => {

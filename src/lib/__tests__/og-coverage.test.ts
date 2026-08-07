@@ -42,6 +42,11 @@ const OG_FILES = [
   "library/[slug]/opengraph-image.tsx",
   "tools/[slug]/opengraph-image.tsx",
   "parts/[id]/opengraph-image.tsx",
+  // /hex is a public route family like any other, and the one whose link
+  // travels furthest: it is the CC BY attribution target named in the
+  // LICENSE.txt inside every published mesh, so its share card is seen by
+  // people who arrived from someone else's remix rather than from this site.
+  "hex/opengraph-image.tsx",
 ];
 
 describe("og:image coverage", () => {

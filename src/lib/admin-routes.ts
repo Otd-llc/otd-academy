@@ -104,11 +104,28 @@ export function isPublicPath(pathname: string): boolean {
   // LICENSE.txt reading `Source: https://academy.onethousanddrones.com/hex`,
   // and CC BY makes attribution the whole return on the release. A 307 to
   // /sign-in here means every attribution in the wild points at nothing.
-  // EXACTLY one segment, matching the URL those files cite. Nothing is nested
-  // under it today, and a gate that admits paths which do not exist is a gate
-  // that will admit the wrong one later — add the segment here deliberately if
-  // /hex ever grows a child.
-  if (segments.length === 1 && top === "hex") return true;
+  // The URL those files cite, plus its share card and nothing else. This was
+  // exactly one segment, with a note to add any child deliberately; the card is
+  // that child. It has to be named because a nested OG route inherits its
+  // prefix only where the prefix itself is open, and this one was pinned to a
+  // single segment. Left out, the card 307s to /sign-in and every share of the
+  // attribution target previews the sign-in page, which is the failure this
+  // whole rule exists to prevent, one level down.
+  //
+  // MATCHED AS A PREFIX, because the served path is not `opengraph-image`. Next
+  // appends a build hash, so the real request is for something like
+  // `/hex/opengraph-image-1qmjwd?27f4a0eba33f3bf3`, and an equality check on the
+  // bare name still returned 307 against the URL the page actually emits. Read
+  // the `og:image` out of the rendered head rather than assuming the file name
+  // is the route. Both metadata-image names are covered so adding a
+  // twitter-image later does not reopen the same hole.
+  if (top === "hex") {
+    return (
+      segments.length === 1 ||
+      (segments.length === 2 &&
+        /^(opengraph|twitter)-image(-[a-z0-9]+)?$/i.test(segments[1]))
+    );
+  }
   // The public page for one saved hex cluster (/c/[shareCode]). It is what a
   // printed build sheet's QR points at, so it MUST render signed-out — a
   // scanned sheet that 307s to /sign-in is a dead drawing. The unguessable
