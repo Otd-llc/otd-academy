@@ -82,6 +82,22 @@ const PRESETS = {
   square: { w: 1080, h: 1080, dolly: 1.24, lift: 0 },
   // 4:5 -- LinkedIn and Instagram feed.
   portrait: { w: 1080, h: 1350, dolly: 1.24, lift: 0 },
+  // FOR A CROPPED BAND, not a full frame. The apex home section and the
+  // academy /hex hero both show this clip through `object-fit: cover` on a
+  // roughly 2.4:1 slice of a 16:9 source, which throws away about 13% off the
+  // top and bottom. `wide` carries 12.4% vertical margin, so the crop ate all
+  // of it: measured on the real page, the floating lid was sliced off at the
+  // top during the exploded beat and the returning tiles were cut at the
+  // bottom. Dollying out buys margin the crop can spend.
+  //
+  // 1.65 SERVES THE ACADEMY HERO AND NOT THE APEX BAND, which is a measurement
+  // rather than a preference. At a 1440 viewport the academy hero renders the
+  // clip 1392x783 and shows 580 of it, keeping 74% of the height. The apex band
+  // renders it 1369x770 and shows 460, keeping 60%. Clearing the apex crop would
+  // need a dolly near 2.07, which shrinks the cluster to a speck; that band was
+  // framed around the hero loop, whose content is short, and the orbit's whole
+  // point is vertical travel. The hero loop stays on apex.
+  band: { w: 1920, h: 1080, dolly: 1.65, lift: 0 },
   // 16:10 at README width. Captured small on purpose: this one becomes an
   // animated WebP, where every pixel is bytes in someone's README render.
   readme: { w: 960, h: 600, dolly: 1.24, lift: 0.03 },
