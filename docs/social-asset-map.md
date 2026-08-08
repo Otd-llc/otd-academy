@@ -79,7 +79,7 @@ guidance; re-check before trusting them, because they move.
 **The clips carry no audio stream at all.** Not a silent track: no audio stream,
 because the encoder is invoked with `-an`. X and LinkedIn take silent video
 without complaint. YouTube's published spec asks for AAC-LC at 48 kHz, and
-whether it rejects an audioless MP4 outright is **not verified here** — assume a
+whether it rejects an audioless MP4 outright is **not verified here**. Assume a
 silent AAC track is needed for Shorts until someone tries it. Adding one is a
 one-line encoder change.
 
