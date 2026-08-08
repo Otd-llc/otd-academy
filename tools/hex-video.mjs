@@ -59,7 +59,20 @@ const FRAME_LIFT = 0.06;
 const THEME = process.argv[2] === "light" ? "light" : "dark";
 const suffix = THEME === "light" ? "-light" : "";
 
-const browser = await chromium.launch();
+// LAUNCHED ON THE REAL GPU, and this is worth 25x.
+//
+// Headless Chromium silently falls back to SwiftShader, its software
+// rasteriser, and this scene renders a 2048x2048 shadow map every frame. Timed
+// over 20 frames at 1920x1080: 8508 ms/frame on SwiftShader against 342 ms on
+// the machine's Intel UHD through ANGLE's GL backend. That is the difference
+// between 43 minutes and 2 minutes for one 300-frame preset.
+//
+// It looked like a capture-rate problem and was a renderer problem. Check
+// WEBGL_debug_renderer_info if a run is ever slow again: if the string says
+// SwiftShader, these flags are not taking.
+const GPU_ARGS = ["--use-angle=gl", "--enable-gpu", "--ignore-gpu-blocklist"];
+
+const browser = await chromium.launch({ args: GPU_ARGS });
 const ctx = await browser.newContext({ viewport: { width: W, height: H } });
 const page = await ctx.newPage();
 page.on("console", (m) => {
@@ -539,7 +552,9 @@ for (let i = 0; i < TOTAL; i++) {
     const { rendered } = await page.evaluate(() => window.__probe());
     console.log(`[capture] frame 0 ghost wires: ${rendered}`);
     if (rendered !== 2) {
-      console.warn(`[capture] EXPECTED 2 ghost wires at frame 0, got ${rendered}`);
+      console.warn(
+        `[capture] EXPECTED 2 ghost wires at frame 0, got ${rendered}`,
+      );
     }
   }
   await page.screenshot({

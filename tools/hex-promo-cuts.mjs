@@ -112,7 +112,68 @@ const flag = (name) => process.argv.includes(`--${name}`);
 
 const PROBE = flag("probe");
 const THEME = flag("light") ? "light" : "dark";
-const suffix = THEME === "light" ? "-light" : "";
+
+// `--choreo=orbit` is the second loop: it opens PLAN VIEW on a single tile,
+// lays three more into the tiling, tips over to the shipped three-quarter view,
+// and does the explode / lid / cap work while the camera comes round, then
+// undoes all of it and tips back to plan.
+//
+// ADDITIVE. The default `hero` path below is the loop the /hex page ships and is
+// left byte-identical; orbit gets its own setup, its own beats and its own
+// camera function rather than growing conditionals inside the shipped one.
+//
+// The loop still closes by construction: azimuth completes exactly one
+// revolution across the whole clip whatever the polar is doing, every placement
+// has a matching removal, and the polar curve starts and ends on the same value.
+const CHOREO = arg("choreo")?.split("=")[1] ?? "hero";
+if (!["hero", "orbit"].includes(CHOREO)) {
+  console.error(`unknown --choreo "${CHOREO}". One of: hero, orbit`);
+  process.exit(1);
+}
+const suffix = `${CHOREO === "orbit" ? "-orbit" : ""}${THEME === "light" ? "-light" : ""}`;
+
+// Plan view is NOT polar 0. camera-controls degenerates as the polar angle
+// approaches the pole (the azimuth has no meaning when you are looking straight
+// down an axis, and the up-vector flips), so this is a steep view rather than a
+// literal top-down one. It still reads as plan.
+const POLAR_PLAN = 0.14;
+
+// ORBIT NEEDS ITS OWN DOLLY, and overrides rather than edits the hero numbers,
+// which are tuned and shipped. This choreography puts FOUR tiles on screen and
+// spends a third of the clip in plan view, where flat tiles spread wider than
+// the three-quarter stack does. Probed at the hero dollies every preset still
+// cleared, but thinly: 0.075 on wide and 0.084 on readme, against the ~0.10 the
+// hero set holds. One value covers all five because the required correction
+// landed within a percent of itself on every preset (1.037 to 1.063).
+const ORBIT_DOLLY = 1.3;
+const presetFor = (p) =>
+  CHOREO === "orbit" ? { ...p, dolly: ORBIT_DOLLY } : p;
+
+/** Where the camera sits in its tip-over, as a fraction of the clip.
+ *
+ *  Plan while the tiles go down, three-quarter for the work, plan again at the
+ *  end so the last frame matches the first. Smoothstep on the two transitions:
+ *  a linear ramp starts and stops abruptly, and on a slow orbit that reads as
+ *  the camera being yanked. */
+const smoothstep = (t) => t * t * (3 - 2 * t);
+function orbitPolar(f, polar34) {
+  const ramp = (a, b) =>
+    smoothstep(Math.min(1, Math.max(0, (f - a) / (b - a))));
+  if (f < 0.2) return POLAR_PLAN;
+  if (f < 0.34) return POLAR_PLAN + (polar34 - POLAR_PLAN) * ramp(0.2, 0.34);
+  if (f < 0.84) return polar34;
+  if (f < 0.96) return polar34 + (POLAR_PLAN - polar34) * ramp(0.84, 0.96);
+  return POLAR_PLAN;
+}
+
+// The opening cluster: ONE tile, so the loop never shows an empty frame. The
+// other three arrive on beats and leave again before the end.
+const ORBIT_OPENING = [0, 0];
+const ORBIT_ADDED = [
+  [1, 0, "hex-tb-carrier-solid"],
+  [-1, 1, "hex-tb-carrier-solid"],
+  [0, -1, "hex-tb-carrier-parts-tray"],
+];
 
 const presetArg = arg("preset")?.split("=")[1];
 if (!PROBE && !arg("check") && !presetArg) {
@@ -581,6 +642,464 @@ async function installStepper(page, total) {
   }, total);
 }
 
+/** Wait until the APP has stopped moving the camera.
+ *
+ *  waitForRest watches the explode groups, which is a scene question. This is a
+ *  camera question, and they are not the same: the app's own render loop ticks
+ *  `tickAutoFit()` and `tickViewBias()` every frame, and both lerp the camera
+ *  and the orbit target independently of anything this script commands.
+ *
+ *  That is what broke the orbit loop. Setup frames against the widest state,
+ *  four tiles with the stack exploded, then strips back to one tile for the
+ *  opening. The app immediately starts easing the camera toward the one-tile
+ *  pose, so frame 0 was captured mid-lerp while frame 299 had long since
+ *  converged: measured, the cluster rendered 204x190 px at the start and
+ *  268x242 px at the end, a 31% difference, with `controls.distance` reporting
+ *  the SAME value at both ends because the drift lives in the app's lerps
+ *  rather than in the orbit rig.
+ *
+ *  Polling the rendered camera matrix rather than `controls` is the point: the
+ *  controls readout is what was asked for, and this is what was done. */
+async function waitForCameraRest(page) {
+  await page.waitForFunction(
+    async () => {
+      const { controls } = await import("/src/hex/scene.ts");
+      const { bumpRender } = await import("/src/hex/main.ts");
+      bumpRender(4);
+      const cam = controls.camera;
+      cam.updateMatrixWorld(true);
+      const now = [...cam.matrixWorld.elements].map((v) =>
+        Number(v.toFixed(6)),
+      );
+      const prev = window.__camProbe ?? null;
+      window.__camProbe = now;
+      if (!prev) return false;
+      return now.every((v, i) => v === prev[i]);
+    },
+    null,
+    { timeout: 20000, polling: 150 },
+  );
+}
+
+/** ORBIT: build the cluster and frame it.
+ *
+ *  Framed at the THREE-QUARTER polar even though the clip opens in plan,
+ *  because that is where the tall content lives: the exploded stack and the
+ *  caps only exist in that half of the loop, and plan view of four flat tiles
+ *  is the wider-but-shorter case. The probe measures both polars and the dolly
+ *  is set from whichever loses. */
+async function frameOrbit(page, { dolly, lift }, stayWide) {
+  return page.evaluate(
+    async ({ dolly, lift, stayWide, opening, added, plan }) => {
+      const { placeCell, removeCell, cells, slotHasAnyCell, setCarrierFill } =
+        await import("/src/hex/cells.ts");
+      const { ghosts, rebuildGhosts } = await import("/src/hex/ghosts.ts");
+      const { controls, cellsContainer } = await import("/src/hex/scene.ts");
+
+      // READ BEFORE ANYTHING MOVES THE CAMERA. Setup finishes by rotating to
+      // plan for the opening frame, and the stepper used to read
+      // `controls.polarAngle` for its three-quarter angle at that point, by
+      // which time it WAS plan. polarAt() therefore ran plan to plan and the
+      // camera never tipped over: the whole clip rendered in plan view, which
+      // is the one thing this choreography exists to not do.
+      const polar34 = controls.polarAngle;
+
+      const tray = placeCell(
+        opening[0],
+        opening[1],
+        "hex-tb-carrier-parts-tray",
+      );
+      for (const [q, r, carrier] of added) placeCell(q, r, carrier);
+      setCarrierFill(tray, true);
+      tray.exploded = true;
+      rebuildGhosts();
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+
+      await controls.fitToSphere(cellsContainer, false);
+      controls.dollyTo(controls.distance * dolly, false);
+      controls.setFocalOffset(0, controls.distance * lift, 0, false);
+
+      // The pose this function COMMANDS, handed to the stepper rather than
+      // re-read there. Reading `controls` later samples a moving target: the
+      // app's intro and autofit lerps are still in flight, so the same code
+      // produced az 0 / dist 0.4886 on one run and az -0.95 / dist 0.635 on the
+      // next. Two runs happened to land settled and looked like a working
+      // configuration; they were lucky draws off a race.
+      const commanded = {
+        polar34,
+        dist0: controls.distance,
+        az0: controls.azimuthAngle,
+      };
+
+      if (stayWide) {
+        await new Promise((r) => setTimeout(r, 2500));
+        const { slotsForCell, defaultKindForSlot, setCapAt, isCapAvailable } =
+          await import("/src/hex/caps.ts");
+        const { HEX_NEIGHBORS } = await import("/src/hex/types.ts");
+        const taken = [];
+        for (let i = 0; i < 3; i++) {
+          const spec = slotsForCell(tray, {
+            hasNeighborOnEdge: (edgeIdx) => {
+              const n = HEX_NEIGHBORS[edgeIdx];
+              return !!n && slotHasAnyCell(tray.q + n.dq, tray.r + n.dr);
+            },
+          }).find((s) => !taken.some((t) => t.slotId === s.slotId));
+          if (!spec) break;
+          const corner = {
+            shape: spec.shape,
+            variant: "corner",
+            gender: spec.gender,
+          };
+          setCapAt(
+            tray,
+            spec,
+            i === 0 && isCapAvailable(corner)
+              ? corner
+              : defaultKindForSlot(spec),
+          );
+          taken.push(spec);
+        }
+        rebuildGhosts();
+        let node = tray.scene.baseTopExplode;
+        while (node.parent) node = node.parent;
+        const group = node.children.find((c) => c.name === "ghosts");
+        if (group) for (const root of [...group.children]) group.remove(root);
+        await new Promise((r) => setTimeout(r, 1500));
+        return { caps: tray.caps.size, ...commanded };
+      }
+
+      // Back to the opening state: one tile, collapsed, no lid, no ghosts. The
+      // ghosts are dropped entirely for this choreography. In plan view the
+      // full ring sits around a single tile and reads as a target reticle
+      // rather than an affordance, and the tiles that arrive are the point.
+      tray.exploded = false;
+      // WAIT FOR THE LID TO ARRIVE BEFORE TAKING IT AWAY. The framing pass above
+      // sets fill true, which starts an async glTF load; asking for it to be
+      // false while that load is still in flight removes nothing, and the mesh
+      // then mounts during the capture itself. Measured, the opening frame
+      // carried a `Hex-TB-Carrier-Parts-Tray-Lid` the closing frame did not,
+      // 249 meshes against 248, and per-frame enforcement could not win because
+      // the mount landed after the last write and before the shutter.
+      {
+        const t0 = performance.now();
+        while (
+          tray.scene.boardExplode.children.length === 0 &&
+          performance.now() - t0 < 5000
+        ) {
+          await new Promise((r) => setTimeout(r, 50));
+        }
+      }
+      // THE LID STAYS MOUNTED FOR THE WHOLE CLIP, and that is the fix rather
+      // than a compromise. Toggling it was a race nothing could win: the mesh
+      // arrives from an async glTF load, and it kept landing between the last
+      // write of a frame and the shutter, so the opening frame carried a lid
+      // the closing frame did not (249 meshes against 248) no matter how often
+      // the state was re-asserted. Keeping it mounted removes the whole class
+      // of bug, and it costs nothing visually: the explode LIFTS the lid clear
+      // of the tray, which is what "the lid comes off" looks like anyway.
+      tray.carrierFilled = false;
+      setCarrierFill(tray, true);
+      for (const key of [...cells.keys()])
+        if (cells.get(key) !== tray) removeCell(key);
+      rebuildGhosts();
+      // Same seal as the stepper: `visible = false` on the exported array does
+      // not survive the app's own visibility pass, and this is the state frame
+      // 0 is captured from.
+      {
+        let node = tray.scene.baseTopExplode;
+        while (node.parent) node = node.parent;
+        const group = node.children.find((c) => c.name === "ghosts");
+        if (group) {
+          group.userData.__sealed = true;
+          group.add = () => group;
+          for (const root of [...group.children]) group.remove(root);
+        }
+      }
+      void ghosts;
+      controls.dampingFactor = 1;
+      controls.draggingDampingFactor = 1;
+      controls.rotateTo(controls.azimuthAngle, plan, false);
+      controls.update(1 / 30);
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      return { caps: 0, ...commanded };
+    },
+    {
+      dolly,
+      lift,
+      stayWide,
+      opening: ORBIT_OPENING,
+      added: ORBIT_ADDED,
+      plan: POLAR_PLAN,
+    },
+  );
+}
+
+/** ORBIT: the per-frame stepper.
+ *
+ *  NO GHOSTS IN THIS VERSION. A decision-story variant was attempted, where a
+ *  ghost lights one slot, moves to another, and only then does the part drop.
+ *  It is the better film and it is not shipped here: driving the app's ghost
+ *  lifecycle from outside fought its own rebuild and visibility passes, and the
+ *  ghosts never survived to the shutter. The supported lever is
+ *  `setRevealActive` + `setDemoHoveredGhost`, which is what the app's own intro
+ *  demo uses; that is the way in when it is picked up again. Until then the
+ *  ring is off, because in plan view six wireframes around a single tile read
+ *  as a targeting reticle rather than an affordance.
+ */
+async function installOrbitStepper(page, total, planPolar, pose) {
+  await page.evaluate(
+    async ({ total, added: ADDED, planPolar, pose }) => {
+      const { placeCell, removeCell, cells, slotHasAnyCell, setCarrierFill } =
+        await import("/src/hex/cells.ts");
+      const { slotsForCell, defaultKindForSlot, setCapAt, isCapAvailable } =
+        await import("/src/hex/caps.ts");
+      const { HEX_NEIGHBORS } = await import("/src/hex/types.ts");
+      const { rebuildGhosts } = await import("/src/hex/ghosts.ts");
+      const { controls } = await import("/src/hex/scene.ts");
+      const { bumpRender } = await import("/src/hex/main.ts");
+
+      const tray = [...cells.values()][0];
+      tray.exploded = false;
+
+      // THE LID STATE IS ENFORCED EVERY FRAME, not set once.
+      //
+      // Forcing it off at install is not enough and the log above proves it:
+      // `carrierFilled=false board=0` at install, and the opening frame still
+      // rendered the lid. The framing pass sets fill TRUE to size the widest
+      // moment, which starts an async glTF load, and that load lands afterwards
+      // and mounts the mesh without rechecking the flag it was requested under.
+      // So the beats below only declare intent and this reconciles it, which
+      // also heals any later arrival rather than racing it once.
+      // ONE OWNER FOR THE LID STATE. It was being set in the stepper's opening
+      // block AND reconciled per frame with the opposite intent, which is how a
+      // fix and its own undo ended up in the same function.
+      let wantFill = true;
+      const enforceFill = () => {
+        if (tray.carrierFilled !== wantFill) setCarrierFill(tray, wantFill);
+        // Deliberately NOT re-checking the mounted mesh count here. Doing so
+        // rebuilt boardExplode every frame and put a lift residual back into
+        // the closure check; the mount race is handled once, before capture.
+      };
+      const caps = [];
+      const placed = [];
+      const fired = new Set();
+
+      const snapshot = () => ({
+        cells: cells.size,
+        caps: [...cells.values()].reduce((n, c) => n + c.caps.size, 0),
+        lift: [
+          tray.scene.baseTopExplode.position.y,
+          tray.scene.insertExplode.position.y,
+          tray.scene.boardExplode.position.y,
+        ].map((v) => Number(v.toFixed(6))),
+      });
+      const opening = snapshot();
+
+      // Removing the ghosts is not enough on its own: the app rebuilds them on
+      // every topology change and again on its own schedule, in the animation
+      // frames between the step and the shutter. Refusing them at the door is
+      // not timing-dependent, so the group's `add` becomes a no-op.
+      const ghostGroup = () => {
+        let node = tray.scene.baseTopExplode;
+        while (node.parent) node = node.parent;
+        return node.children.find((c) => c.name === "ghosts") ?? null;
+      };
+      const killGhosts = () => {
+        const group = ghostGroup();
+        if (!group) return;
+        if (!group.userData.__sealed) {
+          group.userData.__sealed = true;
+          group.add = () => group;
+        }
+        for (const root of [...group.children]) group.remove(root);
+      };
+      const topology = (fn) => () => {
+        fn();
+        rebuildGhosts();
+        killGhosts();
+      };
+
+      const addCap = (i) => {
+        const spec = slotsForCell(tray, {
+          hasNeighborOnEdge: (edgeIdx) => {
+            const n = HEX_NEIGHBORS[edgeIdx];
+            return !!n && slotHasAnyCell(tray.q + n.dq, tray.r + n.dr);
+          },
+        }).find((s) => !caps.some((c) => c.slotId === s.slotId));
+        if (!spec) return;
+        const corner = {
+          shape: spec.shape,
+          variant: "corner",
+          gender: spec.gender,
+        };
+        setCapAt(
+          tray,
+          spec,
+          i === 0 && isCapAvailable(corner) ? corner : defaultKindForSlot(spec),
+        );
+        caps.push(spec);
+      };
+
+      const beats = [
+        // Plan view: the tiling grows. This is the half a top-down camera is
+        // actually good for, because the dovetail pattern is a plan drawing.
+        [
+          0.05,
+          topology(() =>
+            placed.push(placeCell(ADDED[0][0], ADDED[0][1], ADDED[0][2])),
+          ),
+        ],
+        [
+          0.11,
+          topology(() =>
+            placed.push(placeCell(ADDED[1][0], ADDED[1][1], ADDED[1][2])),
+          ),
+        ],
+        [
+          0.17,
+          topology(() =>
+            placed.push(placeCell(ADDED[2][0], ADDED[2][1], ADDED[2][2])),
+          ),
+        ],
+        // Three-quarter: the work. Lid on, explode, cap round the perimeter.
+        [0.44, () => void (tray.exploded = true)],
+        [0.52, topology(() => addCap(0))],
+        [0.57, topology(() => addCap(1))],
+        [0.62, topology(() => addCap(2))],
+        // And every one of those undone, which is what closes the loop.
+        [0.68, topology(() => caps[0] && setCapAt(tray, caps[0], null))],
+        [0.72, topology(() => caps[1] && setCapAt(tray, caps[1], null))],
+        [0.76, topology(() => caps[2] && setCapAt(tray, caps[2], null))],
+        [0.8, () => void (tray.exploded = false)],
+        // Tiles come back up as the camera tips back to plan.
+        [
+          0.89,
+          topology(() => {
+            for (const [k, v] of cells) if (v === placed[2]) removeCell(k);
+          }),
+        ],
+        [
+          0.92,
+          topology(() => {
+            for (const [k, v] of cells) if (v === placed[1]) removeCell(k);
+          }),
+        ],
+        [
+          0.95,
+          topology(() => {
+            for (const [k, v] of cells) if (v === placed[0]) removeCell(k);
+          }),
+        ],
+      ];
+
+      // Damping off: this choreography moves the POLAR as well as the azimuth,
+      // so an eased camera trails the commanded one and the loop point drifts.
+      // Every frame commands an absolute angle, which is the whole reason the
+      // hero comment says the camera is placed rather than nudged.
+      controls.dampingFactor = 1;
+      controls.draggingDampingFactor = 1;
+
+      // ASSERTED FROM THE COMMANDED POSE, never re-read. See frameOrbit.
+      const { polar34, az0, dist0 } = pose;
+      window.__azWant = az0;
+      controls.minDistance = dist0;
+      controls.maxDistance = dist0;
+      // DISTANCE IS PART OF THE POSE, not just the angles. The app runs
+      // `autoFitIfClipped`, which fires when it judges the cluster to be
+      // clipped, and that judgement depends on the VIEWPORT: wide carries a
+      // 0.519 horizontal margin and never trips it, while vertical (0.133) and
+      // readme (0.118) do. Re-asserting only azimuth and polar therefore closed
+      // the loop on wide and left it open on the tight aspects, which is
+      // exactly what shipped: seam 0.152 against 1.939 and 1.810 on identical
+      // choreography. Pinning the distance every frame removes the difference.
+      const smoothstep = (t) => t * t * (3 - 2 * t);
+      const polarAt = (f) => {
+        const ramp = (a, b) =>
+          smoothstep(Math.min(1, Math.max(0, (f - a) / (b - a))));
+        if (f < 0.2) return planPolar;
+        if (f < 0.34)
+          return planPolar + (polar34 - planPolar) * ramp(0.2, 0.34);
+        if (f < 0.84) return polar34;
+        if (f < 0.96) return polar34 + (planPolar - polar34) * ramp(0.84, 0.96);
+        return planPolar;
+      };
+
+      // The app's render loop ticks autoFit and viewBias on every animation
+      // frame, including the one between the step and the shutter, so the pose
+      // is re-applied as the last write before the frame is read.
+      let lastF = 0;
+      const placeCamera = (f) => {
+        window.__azWant = az0 + 2 * Math.PI * f;
+        controls.rotateTo(az0 + 2 * Math.PI * f, polarAt(f), false);
+        controls.dollyTo(dist0, false);
+        // NON-ZERO DELTA. `update(0)` does not advance the interpolation, so the
+        // commanded pose was never applied on the frame it was commanded for:
+        // frame 0 rendered at az -0.95 while the loop wanted 0, a 54 degree
+        // error, and only frames after it looked right because the app's own
+        // render loop dragged the camera onto target over the following frames.
+        // That is the entire seam: 150 and 299 matched their targets exactly,
+        // frame 0 did not. With damping off a single real delta lands it.
+        controls.update(1);
+      };
+
+      window.__step = (i) => {
+        const f = i / total;
+        lastF = f;
+        for (const [mark, fn] of beats) {
+          if (f >= mark && !fired.has(mark)) {
+            fired.add(mark);
+            try {
+              fn();
+            } catch {
+              /* a beat must never strand the recording */
+            }
+          }
+        }
+        enforceFill();
+        killGhosts();
+        placeCamera(f);
+        bumpRender(4);
+      };
+      window.__limit = () => {
+        enforceFill();
+        killGhosts();
+        placeCamera(lastF);
+      };
+      window.__probe = () => ({ rendered: 0 });
+      // A FULL DESCRIPTION OF WHAT IS DRAWN, so the two ends of the loop can be
+      // diffed as data instead of argued about from screenshots. Child counts
+      // already matched at both ends while the tray's insert was visibly
+      // present at frame 0 and gone at frame 299, so the interesting state is
+      // per-mesh: visibility, whether the geometry still has vertices, and
+      // which material it is using.
+      window.__cam = () => ({
+        polar: Number(controls.polarAngle.toFixed(5)),
+        az: Number(controls.azimuthAngle.toFixed(5)),
+        // What the loop ASKED for, beside what the camera did. Comparing these
+        // is what found the seam after four rounds of comparing scene state
+        // that always matched: frame 0 rendered 54 degrees off the commanded
+        // azimuth while every later frame was exact.
+        azWant: Number(window.__azWant.toFixed(5)),
+        dist: Number(controls.distance.toFixed(5)),
+        cells: cells.size,
+        caps: tray.caps.size,
+        fill: !!tray.carrierFilled,
+      });
+      window.__closure = () => {
+        const closing = snapshot();
+        return {
+          opening,
+          closing,
+          liftDrift: closing.lift.map((v, k) =>
+            Number((v - opening.lift[k]).toFixed(6)),
+          ),
+        };
+      };
+    },
+    { total, added: ORBIT_ADDED, planPolar, pose },
+  );
+}
+
 /** Mean absolute difference between two frames, 0-255. */
 function frameDiff(a, b) {
   const out = execFileSync(
@@ -643,7 +1162,20 @@ if (checkArg) {
   process.exit(seamCheck(dir, TOTAL) ? 0 : 1);
 }
 
-const browser = await chromium.launch();
+// LAUNCHED ON THE REAL GPU, and this is worth 25x.
+//
+// Headless Chromium silently falls back to SwiftShader, its software
+// rasteriser, and this scene renders a 2048x2048 shadow map every frame. Timed
+// over 20 frames at 1920x1080: 8508 ms/frame on SwiftShader against 342 ms on
+// the machine's Intel UHD through ANGLE's GL backend. That is the difference
+// between 43 minutes and 2 minutes for one 300-frame preset.
+//
+// It looked like a capture-rate problem and was a renderer problem. Check
+// WEBGL_debug_renderer_info if a run is ever slow again: if the string says
+// SwiftShader, these flags are not taking.
+const GPU_ARGS = ["--use-angle=gl", "--enable-gpu", "--ignore-gpu-blocklist"];
+
+const browser = await chromium.launch({ args: GPU_ARGS });
 
 /** Project every rendered vertex to NDC at `steps` azimuths around a full turn
  *  and return the extreme corner reached at any of them.
@@ -665,84 +1197,97 @@ const browser = await chromium.launch();
  *  Plain arithmetic on `.elements` rather than an `import("three")` -- a bare
  *  specifier does not resolve at runtime here, and nothing below needs more of
  *  the library than a 4x4 multiply. */
-async function extentOverTurn(page, steps = 24) {
-  return page.evaluate(async (steps) => {
-    const { controls, cellsContainer } = await import("/src/hex/scene.ts");
-    const { bumpRender } = await import("/src/hex/main.ts");
-    const cam = controls.camera;
-    const az0 = controls.azimuthAngle;
-    const polar0 = controls.polarAngle;
+async function extentOverTurn(page, steps = 24, polars = null) {
+  return page.evaluate(
+    async ({ steps, polars }) => {
+      const { controls, cellsContainer } = await import("/src/hex/scene.ts");
+      const { bumpRender } = await import("/src/hex/main.ts");
+      const cam = controls.camera;
+      // ASSERTED FROM THE COMMANDED POSE, never re-read. See frameOrbit.
+      const { polar34, az0, dist0 } = pose;
+      window.__azWant = az0;
+      controls.minDistance = dist0;
+      controls.maxDistance = dist0;
+      const polar0 = controls.polarAngle;
 
-    // Column-major, same convention as THREE's `.elements`.
-    const mulMat = (a, b) => {
-      const o = new Array(16).fill(0);
-      for (let c = 0; c < 4; c++)
-        for (let r = 0; r < 4; r++)
-          for (let k = 0; k < 4; k++)
-            o[c * 4 + r] += a[k * 4 + r] * b[c * 4 + k];
-      return o;
-    };
-    const apply = (m, x, y, z) => {
-      const w = m[3] * x + m[7] * y + m[11] * z + m[15];
-      return [
-        (m[0] * x + m[4] * y + m[8] * z + m[12]) / w,
-        (m[1] * x + m[5] * y + m[9] * z + m[13]) / w,
-      ];
-    };
+      // Column-major, same convention as THREE's `.elements`.
+      const mulMat = (a, b) => {
+        const o = new Array(16).fill(0);
+        for (let c = 0; c < 4; c++)
+          for (let r = 0; r < 4; r++)
+            for (let k = 0; k < 4; k++)
+              o[c * 4 + r] += a[k * 4 + r] * b[c * 4 + k];
+        return o;
+      };
+      const apply = (m, x, y, z) => {
+        const w = m[3] * x + m[7] * y + m[11] * z + m[15];
+        return [
+          (m[0] * x + m[4] * y + m[8] * z + m[12]) / w,
+          (m[1] * x + m[5] * y + m[9] * z + m[13]) / w,
+        ];
+      };
 
-    // THE CLUSTER, NOT THE SCENE ROOT. Walking up to the root and traversing
-    // that returned -Infinity on every preset: the scene also holds the
-    // environment -- ground plane, backdrop -- whose corners sit behind the
-    // camera, where the perspective divide flips sign and the "extent" becomes
-    // meaningless. The cluster is also the only thing the framing is about; the
-    // backdrop is supposed to run off the edges.
-    const root = cellsContainer;
+      // THE CLUSTER, NOT THE SCENE ROOT. Walking up to the root and traversing
+      // that returned -Infinity on every preset: the scene also holds the
+      // environment -- ground plane, backdrop -- whose corners sit behind the
+      // camera, where the perspective divide flips sign and the "extent" becomes
+      // meaningless. The cluster is also the only thing the framing is about; the
+      // backdrop is supposed to run off the edges.
+      const root = cellsContainer;
 
-    const box = {
-      minX: Infinity,
-      maxX: -Infinity,
-      minY: Infinity,
-      maxY: -Infinity,
-    };
-    for (let s = 0; s < steps; s++) {
-      controls.rotateTo(az0 + (2 * Math.PI * s) / steps, polar0, false);
-      controls.update(1 / 30);
-      bumpRender(2);
-      await new Promise((r) => requestAnimationFrame(() => r(null)));
-      cam.updateMatrixWorld(true);
-      const vp = mulMat(
-        cam.projectionMatrix.elements,
-        cam.matrixWorldInverse.elements,
-      );
+      const box = {
+        minX: Infinity,
+        maxX: -Infinity,
+        minY: Infinity,
+        maxY: -Infinity,
+      };
+      // ORBIT tips the camera during the clip, so a single polar is not the
+      // whole silhouette: plan view of four flat tiles is wide and short, the
+      // three-quarter view of an exploded stack is narrow and tall. Measuring one
+      // of them would clear a framing that clips in the other.
+      const rings = polars && polars.length ? [polar0, ...polars] : [polar0];
+      for (const polar of rings)
+        for (let s = 0; s < steps; s++) {
+          controls.rotateTo(az0 + (2 * Math.PI * s) / steps, polar, false);
+          controls.update(1 / 30);
+          bumpRender(2);
+          await new Promise((r) => requestAnimationFrame(() => r(null)));
+          cam.updateMatrixWorld(true);
+          const vp = mulMat(
+            cam.projectionMatrix.elements,
+            cam.matrixWorldInverse.elements,
+          );
 
-      root.traverseVisible((o) => {
-        // Ghosts are already detached in the probe; anything still drawing and
-        // carrying geometry is content the frame has to hold.
-        if (!o.isMesh || !o.geometry) return;
-        if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
-        const bb = o.geometry.boundingBox;
-        if (!bb) return;
-        const m = o.matrixWorld.elements;
-        for (let i = 0; i < 8; i++) {
-          const lx = i & 1 ? bb.max.x : bb.min.x;
-          const ly = i & 2 ? bb.max.y : bb.min.y;
-          const lz = i & 4 ? bb.max.z : bb.min.z;
-          const w = m[3] * lx + m[7] * ly + m[11] * lz + m[15];
-          const wx = (m[0] * lx + m[4] * ly + m[8] * lz + m[12]) / w;
-          const wy = (m[1] * lx + m[5] * ly + m[9] * lz + m[13]) / w;
-          const wz = (m[2] * lx + m[6] * ly + m[10] * lz + m[14]) / w;
-          const [nx, ny] = apply(vp, wx, wy, wz);
-          if (nx < box.minX) box.minX = nx;
-          if (nx > box.maxX) box.maxX = nx;
-          if (ny < box.minY) box.minY = ny;
-          if (ny > box.maxY) box.maxY = ny;
+          root.traverseVisible((o) => {
+            // Ghosts are already detached in the probe; anything still drawing and
+            // carrying geometry is content the frame has to hold.
+            if (!o.isMesh || !o.geometry) return;
+            if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+            const bb = o.geometry.boundingBox;
+            if (!bb) return;
+            const m = o.matrixWorld.elements;
+            for (let i = 0; i < 8; i++) {
+              const lx = i & 1 ? bb.max.x : bb.min.x;
+              const ly = i & 2 ? bb.max.y : bb.min.y;
+              const lz = i & 4 ? bb.max.z : bb.min.z;
+              const w = m[3] * lx + m[7] * ly + m[11] * lz + m[15];
+              const wx = (m[0] * lx + m[4] * ly + m[8] * lz + m[12]) / w;
+              const wy = (m[1] * lx + m[5] * ly + m[9] * lz + m[13]) / w;
+              const wz = (m[2] * lx + m[6] * ly + m[10] * lz + m[14]) / w;
+              const [nx, ny] = apply(vp, wx, wy, wz);
+              if (nx < box.minX) box.minX = nx;
+              if (nx > box.maxX) box.maxX = nx;
+              if (ny < box.minY) box.minY = ny;
+              if (ny > box.maxY) box.maxY = ny;
+            }
+          });
         }
-      });
-    }
-    controls.rotateTo(az0, polar0, false);
-    controls.update(1 / 30);
-    return box;
-  }, steps);
+      controls.rotateTo(az0, polar0, false);
+      controls.update(1 / 30);
+      return box;
+    },
+    { steps, polars },
+  );
 }
 
 // ---- probe: measure every preset over a full revolution -----------------
@@ -752,8 +1297,15 @@ if (PROBE) {
   let clipped = 0;
   for (const [name, preset] of Object.entries(PRESETS)) {
     const { ctx, page } = await boot(browser, preset);
-    const { caps } = await frame(page, preset, true);
-    const box = await extentOverTurn(page);
+    const { caps } =
+      CHOREO === "orbit"
+        ? await frameOrbit(page, presetFor(preset), true)
+        : await frame(page, preset, true);
+    const box = await extentOverTurn(
+      page,
+      24,
+      CHOREO === "orbit" ? [POLAR_PLAN] : null,
+    );
     // Worst approach to any edge over the whole turn. Negative means the
     // geometry left the frame at some azimuth.
     const marginX = 1 - Math.max(Math.abs(box.minX), Math.abs(box.maxX));
@@ -764,7 +1316,7 @@ if (PROBE) {
     // is no longer the thing being judged.
     await page.screenshot({ path: `${dir}/${name}-${THEME}.png` });
     console.log(
-      `${name.padEnd(9)} ${preset.w}x${preset.h}  dolly=${preset.dolly} lift=${preset.lift}` +
+      `${name.padEnd(9)} ${preset.w}x${preset.h}  dolly=${presetFor(preset).dolly} lift=${preset.lift}` +
         `  caps=${caps}  marginX=${marginX.toFixed(3)} marginY=${marginY.toFixed(3)}` +
         `${bad ? "  <-- CLIPS" : ""}`,
     );
@@ -776,35 +1328,87 @@ if (PROBE) {
 
 // ---- a cut ---------------------------------------------------------------
 const preset = PRESETS[presetArg];
-const FRAMES = `${RAW}/${presetArg}-${THEME}`;
+const FRAMES = `${RAW}/${presetArg}-${CHOREO}-${THEME}`;
 rmSync(FRAMES, { recursive: true, force: true });
 mkdirSync(FRAMES, { recursive: true });
 
 const { ctx, page } = await boot(browser, preset);
-await frame(page, preset, false);
+let ORBIT_POSE = {};
+if (CHOREO === "orbit") {
+  ORBIT_POSE = await frameOrbit(page, presetFor(preset), false);
+} else {
+  await frame(page, preset, false);
+}
 await waitForRest(page);
 const home = await forceCollapsed(page);
+// The scene is settled; the CAMERA may not be. Orbit strips the cluster back
+// after framing against the widest state, which leaves the app's autofit and
+// view-bias lerps still running into frame 0.
+await waitForCameraRest(page);
 if (home.some((v) => v !== 0)) {
   console.warn(
     `[capture] explode groups did not snap home: ${JSON.stringify(home)}`,
   );
 }
-await installStepper(page, TOTAL);
+if (CHOREO === "orbit") {
+  await installOrbitStepper(page, TOTAL, POLAR_PLAN, ORBIT_POSE);
+} else {
+  await installStepper(page, TOTAL);
+}
 
-await page.evaluate(() => window.__clock.start());
 const paint = () =>
   page.evaluate(
     () =>
       new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
   );
 
+// WARM THE OPENING FRAME UNTIL IT STOPS MOVING.
+//
+// Frame 0 was rendering at az -0.95 while the loop commanded 0, a 54 degree
+// error, while frames 150 and 299 matched their targets exactly. Commanding the
+// pose harder did not fix it (`rotateTo` with no transition, a real delta on
+// `update`, distance clamped): the app's own render loop keeps adjusting the
+// camera for the first frames after setup, and one commanded frame is not
+// enough to win. Later frames look correct only because they have had dozens of
+// paints to converge.
+//
+// So the opening frame gets the same treatment: drive it, paint, repeat, until
+// the commanded and actual azimuth agree. This runs BEFORE the clock starts, so
+// it costs no scene time and the capture still begins at f=0.
+if (CHOREO === "orbit") {
+  let settled = false;
+  for (let w = 0; w < 60 && !settled; w++) {
+    await page.evaluate(() => window.__step(0));
+    await paint();
+    await page.evaluate(() => window.__limit());
+    await paint();
+    settled = await page.evaluate(async () => {
+      const { controls } = await import("/src/hex/scene.ts");
+      return Math.abs(controls.azimuthAngle - window.__azWant) < 1e-4;
+    });
+  }
+  if (!settled) {
+    console.warn(
+      "[capture] opening frame never converged on the commanded pose",
+    );
+  } else {
+    console.log("[capture] opening frame converged");
+  }
+}
+
+await page.evaluate(() => window.__clock.start());
 for (let i = 0; i < TOTAL; i++) {
   await page.evaluate((n) => window.__step(n), i);
   await page.evaluate((ms) => window.__clock.advance(ms), 1000 / 30);
   await paint();
   await page.evaluate(() => window.__limit());
   await paint();
-  if (i === 0) {
+  if (CHOREO === "orbit" && (i === 0 || i === TOTAL - 1)) {
+    console.log(
+      `[cam ${i}] ${JSON.stringify(await page.evaluate(() => window.__cam()))}`,
+    );
+  }
+  if (i === 0 && CHOREO !== "orbit") {
     const { rendered } = await page.evaluate(() => window.__probe());
     console.log(`[capture] frame 0 ghost wires: ${rendered}`);
     if (rendered !== 2) {
