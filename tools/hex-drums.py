@@ -144,6 +144,57 @@ def membrane(dur, f0, f1, noise=0.5, lp=1800, curve=3.2, partials=(1.0, 1.58, 2.
     return out
 
 
+
+def saturate(buf, drive=2.2, mix=0.7):
+    """Soft saturation, for HARMONICS rather than loudness.
+
+    A 60 Hz fundamental put through a nonlinearity generates 120, 180, 240 Hz.
+    That is the cheapest honest way to fill the low-mid body a synthesised hit
+    lacks, and it is why a saturated kick reads as bigger on a small speaker
+    even though the sub is unchanged: the speaker cannot move 60 Hz but it can
+    move the harmonics, and the ear infers the fundamental from them.
+    """
+    return [b * (1 - mix) + math.tanh(b * drive) * mix for b in buf]
+
+
+def thunder_hit(dur, f0, f1, body=0.55, lp=1500, sat=2.4, seed=3):
+    """A big drum with a chest, not just a floor.
+
+    The measurement that prompted this: 86% of the bed's energy sat below
+    200 Hz with 0.7% between 500 and 1500, which is a scooped spectrum. Scooped
+    reads as HOLLOW, and the leftover top over an empty middle reads as TINNY.
+    Thunder is broadband; it is not a sine with the mids removed.
+
+    Three parts, where the old membrane had one and a half:
+      1. a pitch-swept fundamental, mostly on its own harmonics, swept SLOWLY
+         so it stays low long enough to be felt rather than clicking past
+      2. a NOISE BODY that lasts the whole decay, bandpassed into the chest
+         range, which is the rumble the old hits had no equivalent of
+      3. saturation across the sum, generating the harmonic ladder that lets a
+         phone speaker imply the bottom it cannot reproduce
+    """
+    n = int(dur * SR)
+    rng = random.Random(seed)
+    e = env(n, 0.001, dur * 0.55, 2.6)
+    body_e = env(n, 0.004, dur * 0.7, 2.0)
+    out = []
+    p1 = p2 = 0.0
+    prev_in = prev_out = 0.0
+    for i in range(n):
+        t = i / n
+        # Slow sweep: a fast one is a click, a slow one is a boom.
+        f = f1 + (f0 - f1) * math.exp(-2.6 * t)
+        p1 += 2 * math.pi * f / SR
+        p2 += 2 * math.pi * f * 1.5 / SR
+        tone = math.sin(p1) + 0.18 * math.sin(p2)
+        x = rng.uniform(-1, 1)
+        y = 0.86 * (prev_out + x - prev_in)
+        prev_in, prev_out = x, y
+        out.append(tone * e[i] * 0.75 + y * body_e[i] * body)
+    out = lowpass(out, lp)
+    return saturate(out, drive=sat, mix=0.72)
+
+
 def shaker(dur=0.07, seed=0, lo=2600, hi=9000, gain=0.22):
     """Bandpassed noise. Raw white noise is what made the old one hiss."""
     rng = random.Random(seed)
@@ -253,7 +304,7 @@ BASS_MODES = {
 }
 
 
-def bass_layer(seconds, mode):
+def bass_layer(seconds, mode, build_mode="riser", drop_mode="layers"):
     n = int(round(seconds * SR))
     buf = [0.0] * n
     bars = int(round(seconds / BAR))
@@ -269,10 +320,22 @@ def bass_layer(seconds, mode):
             place(buf, bass_note(BAR * 1.15, f, gain=g, curve=0.5, lp=140), b, 1.0)
         elif mode == "808":
             g = (0.45, 0.65, 0.75, 1.0, 0.6)[stage]
-            f = fourth if stage == 3 else root
+            # WHERE THE DROP GOES. A fourth down is the default and reads as a
+            # resolution; an octave down reads as the floor giving way, which
+            # is a different feeling for the same beat.
+            drop_f = root * 0.5 if drop_mode == "octave" else fourth
+            f = drop_f if stage == 3 else root
             place(buf, bass_note(BAR * 0.8, f, f_from=f * 1.6, gain=g), b, 1.0)
-            if stage >= 2:
+            if stage >= 2 and stage != 3:
                 place(buf, bass_note(BEAT * 1.2, f, gain=g * 0.5), b + BEAT * 2.5, 1.0)
+            # A sub that FALLS through the drop rather than landing on it.
+            if stage == 3 and drop_mode == "subfall":
+                place(buf, bass_note(BAR * 1.4, root * 0.5, f_from=root * 3.0,
+                                     gain=1.0, curve=0.8), b, 1.0)
+            # The build bar's bass climbs instead of restating the root.
+            if stage == 2 and build_mode == "sweep":
+                place(buf, bass_note(BAR, root * 1.5, f_from=root,
+                                     gain=g * 0.9, curve=0.4), b, 1.0)
         elif mode == "swell":
             g = (0.22, 0.4, 0.62, 0.95, 0.45)[stage]
             place(buf, bass_note(BAR * 1.2, root, gain=g, curve=0.35, lp=130), b, 1.0)
@@ -321,6 +384,66 @@ KITS = {
         desc="Big, wide, few hits. Every strike lands like a door closing.",
         space=0.38, decay=0.68, kick=(0.9, 130, 48, 1.0), tom=(1.1, 165, 72),
         conga=None, shaker_div=0, riser=True, drop_layers=3,
+    ),
+    "808-thunder": dict(
+        desc="Broadband hits with a real chest. The scooped middle filled in.",
+        space=0.30, decay=0.60, kick=(0.9, 120, 44, 1.0), tom=(0.9, 170, 80),
+        conga=None, shaker_div=0, riser=True, drop_layers=2, bass="808",
+        thunder=True, body=0.55, sat=2.4, hit_lp=1500,
+    ),
+    "808-storm": dict(
+        desc="Heaviest of the set. More noise body, more drive, longer decay.",
+        space=0.34, decay=0.66, kick=(1.2, 135, 40, 1.0), tom=(1.2, 185, 76),
+        conga=None, shaker_div=0, riser=True, drop_layers=2, bass="808",
+        thunder=True, body=0.8, sat=3.2, hit_lp=1900,
+    ),
+    "808-chest": dict(
+        desc="Mid-forward. Less sub, more of the 200 to 800 band you feel in the ribs.",
+        space=0.26, decay=0.55, kick=(0.85, 150, 58, 1.0), tom=(0.85, 210, 95),
+        conga=None, shaker_div=0, riser=True, drop_layers=2, bass="808",
+        thunder=True, body=0.7, sat=2.8, hit_lp=2400,
+    ),
+    "808-deeproll": dict(
+        desc="Slow sweep, long tail, minimal top. The most distant thunder.",
+        space=0.40, decay=0.72, kick=(1.4, 100, 34, 1.0), tom=(1.4, 150, 62),
+        conga=None, shaker_div=0, riser=True, drop_layers=2, bass="808",
+        thunder=True, body=0.5, sat=2.0, hit_lp=900,
+    ),
+    "808-roll": dict(
+        desc="Accelerating tom roll into the drop. The gap closes and the ear sees it coming.",
+        space=0.30, decay=0.58, kick=(0.7, 100, 40, 0.9), tom=(0.7, 160, 78),
+        conga=None, shaker_div=0, riser=True, bass="808",
+        build_mode="roll", drop_mode="layers", drop_layers=3,
+    ),
+    "808-hush": dict(
+        desc="Everything stops for a beat, then the drop lands out of silence.",
+        space=0.30, decay=0.58, kick=(0.7, 100, 40, 0.9), tom=(0.7, 160, 78),
+        conga=None, shaker_div=0, riser=True, bass="808",
+        build_mode="hush", drop_mode="layers", drop_layers=3,
+    ),
+    "808-sweep": dict(
+        desc="The bass climbs a fifth through the build and gives way an octave on the drop.",
+        space=0.30, decay=0.58, kick=(0.7, 100, 40, 0.9), tom=(0.7, 160, 78),
+        conga=None, shaker_div=0, riser=True, bass="808",
+        build_mode="sweep", drop_mode="octave", drop_layers=3,
+    ),
+    "808-double": dict(
+        desc="Riser in, then two impacts an eighth apart. The second confirms the first.",
+        space=0.30, decay=0.58, kick=(0.7, 100, 40, 0.9), tom=(0.7, 160, 78),
+        conga=None, shaker_div=0, riser=True, bass="808",
+        build_mode="riser", drop_mode="double", drop_layers=2,
+    ),
+    "808-fall": dict(
+        desc="Roll in, and the sub FALLS through the drop instead of landing on it.",
+        space=0.30, decay=0.58, kick=(0.7, 100, 40, 0.9), tom=(0.7, 160, 78),
+        conga=None, shaker_div=0, riser=True, bass="808",
+        build_mode="roll", drop_mode="subfall", drop_layers=2,
+    ),
+    "808-hush-double": dict(
+        desc="Silence, then a double impact. The most dramatic pairing of the six.",
+        space=0.30, decay=0.58, kick=(0.7, 100, 40, 0.9), tom=(0.7, 160, 78),
+        conga=None, shaker_div=0, riser=True, bass="808",
+        build_mode="hush", drop_mode="double", drop_layers=3,
     ),
     "sparse-drone": dict(
         desc="Sparse drums over a sustained root. The bass is the floor, the drums are events on it.",
@@ -405,30 +528,53 @@ def build(seconds, kit_name):
         LP = k.get("lp", 900)
         PART = k.get("partials", (1.0, 1.41))
         kick_gain = kg * (0.6, 0.85, 0.9, 1.0, 0.7)[stage]
-        place(buf, membrane(kd, kf0, kf1, noise=0.35, lp=LP, partials=PART,
-                            res=RES, res_dur=kd * 3.0), b, kick_gain)
+        TH = k.get("thunder", False)
+        HLP, BODY, SAT = k.get("hit_lp", 1500), k.get("body", 0.55), k.get("sat", 2.4)
+        hit = (lambda d_, a, b_, sd=0: thunder_hit(d_, a, b_, BODY, HLP, SAT, sd)) if TH else \
+              (lambda d_, a, b_, sd=0: membrane(d_, a, b_, noise=0.35, lp=LP,
+                                                partials=PART, res=RES, res_dur=d_ * 3.0))
+        place(buf, hit(kd, kf0, kf1, 3), b, kick_gain)
         kick_times.append(b)
         if stage >= 1 and not k.get("sparse_hits"):
-            place(buf, membrane(kd * 0.7, kf0, kf1, noise=0.3, lp=LP, partials=PART,
-                                res=RES * 0.6, res_dur=kd * 2.0),
-                  b + BEAT * 2, kick_gain * 0.55)
+            place(buf, hit(kd * 0.7, kf0, kf1, 5), b + BEAT * 2, kick_gain * 0.55)
             kick_times.append(b + BEAT * 2)
+
+        # THE DOUBLE. Two impacts an eighth apart: the first lands, the second
+        # confirms it. Reads harder than one hit at the same level.
+        if stage == 3 and DROP == "double":
+            for j in range(2):
+                place(buf, membrane(kd * 1.1, kf0 * 1.15, kf1, noise=0.7, lp=LP + 400,
+                                    partials=(1.0, 1.58, 2.3), res=RES, res_dur=kd * 3.0),
+                      b + j * (BEAT * 0.5), 0.9 - 0.15 * j)
 
         if stage == 3:
             for j in range(k["drop_layers"]):
-                place(buf, membrane(kd * 1.2, kf0 * (1 + 0.25 * j), kf1, noise=0.7,
-                                    lp=LP + 500 * j, partials=(1.0, 1.58, 2.3),
-                                    res=RES * (1.0 if j == 0 else 0.0),
-                                    res_dur=kd * 4.0), b, 0.85 - 0.18 * j)
+                place(buf, hit(kd * 1.25, kf0 * (1 + 0.22 * j), kf1, 11 + j), b,
+                      0.9 - 0.16 * j)
 
-        if k["riser"] and stage == 2:
+        BUILD = k.get("build_mode", "riser")
+        DROP = k.get("drop_mode", "layers")
+
+        if k["riser"] and stage == 2 and BUILD in ("riser", "sweep"):
             place(buf, riser(1.5), b + BAR - 1.5, 1.0)
+
+        # ACCELERANDO. Hits crowding together is the oldest tension device
+        # there is, and it works because the ear extrapolates the gap closing
+        # and expects the collision before it arrives.
+        if stage == 2 and BUILD == "roll":
+            t = b
+            gap = BEAT * 0.75
+            g = 0.28
+            while t < b + BAR - 0.02:
+                place(buf, membrane(0.26, 210, 105, noise=0.5, lp=LP * 1.8), t, g)
+                gap *= 0.74
+                g = min(0.85, g * 1.24)
+                t += gap
 
         if k["tom"]:
             td, tf0, tf1 = k["tom"]
             if stage >= 1 and not k.get("sparse_hits"):
-                place(buf, membrane(td, tf0, tf1, noise=0.45, lp=LP * 1.6, res=RES * 0.5,
-                                    res_dur=td * 2.2), b + BEAT * 1.5, 0.42 + 0.09 * stage)
+                place(buf, hit(td, tf0, tf1, 21), b + BEAT * 1.5, 0.42 + 0.09 * stage)
             if stage >= 2 or (k.get("sparse_hits") and stage >= 1):
                 place(buf, membrane(td, tf0 * 0.8, tf1 * 0.82, noise=0.45, lp=LP * 1.6,
                                     res=RES * 0.5, res_dur=td * 2.2),
@@ -457,6 +603,21 @@ def build(seconds, kit_name):
                     continue
                 place(buf, shaker(seed=int(t * 997)), t, sh * (1.0 if j % 2 else 0.55))
 
+    # THE HUSH. Everything stops for the last beat of the build, so the drop
+    # arrives out of silence. It is the most effective tension device available
+    # and it costs nothing: the ear reads the gap as the held breath. Applied to
+    # the DRY bed so the reverb tail cuts with it, which is what makes it read
+    # as a stop rather than a duck.
+    if k.get("build_mode") == "hush":
+        for bar_i in range(int(round(seconds / BAR))):
+            if bar_i % PHRASE_BARS != 2:
+                continue
+            b = bar_i * BAR
+            s0, s1 = int((b + BAR - BEAT) * SR), int((b + BAR) * SR)
+            for i in range(s0, min(s1, len(buf))):
+                t = (i - s0) / max(1, s1 - s0)
+                buf[i] *= max(0.0, 1.0 - t * 1.15)
+
     # TWO LAPS, KEEP THE SECOND. Adding a scaled copy of the tail back onto the
     # head is an approximation, and it showed: on the sparsest kits the seam
     # step was 105 and 218 against p99s of 81 and 161, an audible tick in the
@@ -471,7 +632,11 @@ def build(seconds, kit_name):
     # floor. Ducking it under every kick is what lets a strike still read as an
     # attack rather than merging with the note underneath it.
     if k.get("bass"):
-        bass = sidechain(bass_layer(seconds, k["bass"]), kick_times)
+        bass = sidechain(
+            bass_layer(seconds, k["bass"], k.get("build_mode", "riser"),
+                       k.get("drop_mode", "layers")),
+            kick_times,
+        )
         buf = [buf[i] + bass[i] * 0.55 for i in range(len(buf))]
     peak = max(abs(v) for v in buf) or 1.0
     # Gentle drive only. Normalising to the drop would duck every other bar to
