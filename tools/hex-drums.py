@@ -88,7 +88,28 @@ def env(n, attack, decay, curve=3.0):
 
 
 # ------------------------------------------------------------ instruments ---
-def membrane(dur, f0, f1, noise=0.5, lp=1800, curve=3.2, partials=(1.0, 1.58, 2.14)):
+def resonance(dur, f, gain=0.35, curve=1.4, detune=1.006):
+    """The shell ringing on after the strike.
+
+    A taiko is a hollowed trunk, and most of what makes a big one sound BIG is
+    the long low boom that keeps going once the stick has gone. The membrane
+    function models the head hit and nothing else, which is why the first taiko
+    kit read as loud rather than deep. This is a slowly-decaying low pair,
+    detuned against itself so it beats gently instead of sitting dead still.
+    """
+    n = int(dur * SR)
+    e = env(n, 0.004, dur * 0.8, curve)
+    out = []
+    p1 = p2 = 0.0
+    for i in range(n):
+        p1 += 2 * math.pi * f / SR
+        p2 += 2 * math.pi * f * detune / SR
+        out.append((math.sin(p1) + math.sin(p2) * 0.8) * e[i] * gain * 0.5)
+    return lowpass(out, f * 4)
+
+
+def membrane(dur, f0, f1, noise=0.5, lp=1800, curve=3.2, partials=(1.0, 1.58, 2.14),
+             res=0.0, res_dur=0.0):
     """A drum head rather than a tone.
 
     The partial ratios are deliberately NON-INTEGER. A harmonic stack sounds
@@ -112,7 +133,15 @@ def membrane(dur, f0, f1, noise=0.5, lp=1800, curve=3.2, partials=(1.0, 1.58, 2.
         if i < hit:
             v += rng.uniform(-1, 1) * (1 - i / hit) * noise * 2.2
         out.append(v * e[i] * 0.42)
-    return lowpass(out, lp)
+    out = lowpass(out, lp)
+    if res > 0.0:
+        tail = resonance(res_dur or dur * 2.4, f1 * 0.85, gain=res)
+        for i, v in enumerate(tail):
+            if i < len(out):
+                out[i] += v
+            else:
+                out.append(v)
+    return out
 
 
 def shaker(dur=0.07, seed=0, lo=2600, hi=9000, gain=0.22):
@@ -190,6 +219,37 @@ KITS = {
         space=0.38, decay=0.68, kick=(0.9, 130, 48, 1.0), tom=(1.1, 165, 72),
         conga=None, shaker_div=0, riser=True, drop_layers=3,
     ),
+    "taiko-odaiko": dict(
+        desc="Odaiko. The lowest fundamental of the set and a very long ring. The biggest drum in the room.",
+        space=0.42, decay=0.74, kick=(1.3, 95, 34, 1.0), tom=(1.5, 120, 52),
+        conga=None, shaker_div=0, riser=True, drop_layers=3, res=0.55, lp=520,
+    ),
+    "taiko-hall": dict(
+        desc="Same drum, much bigger room. The tail is most of what you hear.",
+        space=0.58, decay=0.86, kick=(1.0, 120, 44, 1.0), tom=(1.2, 150, 66),
+        conga=None, shaker_div=0, riser=True, drop_layers=3, res=0.34, lp=700,
+    ),
+    "taiko-sub": dict(
+        desc="A sub layer under every strike, tuned to where a phone can actually move air.",
+        # 30 Hz was the first guess and it was wasted energy: the resonance sits
+        # at f1 * 0.85, so a 30 Hz fundamental rings at 25 Hz, under almost every
+        # phone and laptop speaker. Measured, it had LESS usable sub than odaiko
+        # despite the name. 52 Hz rings at 44 Hz, which small speakers reproduce.
+        space=0.34, decay=0.66, kick=(1.1, 110, 52, 1.0), tom=(1.3, 135, 62),
+        conga=None, shaker_div=0, riser=True, drop_layers=4, res=0.62, lp=460,
+    ),
+    "taiko-wide": dict(
+        desc="Fewer strikes, maximum air. Two hits a bar and a long decay between them.",
+        space=0.50, decay=0.80, kick=(1.4, 100, 36, 1.0), tom=(1.6, 128, 55),
+        conga=None, shaker_div=0, riser=False, drop_layers=2, res=0.5, lp=560,
+        sparse_hits=True,
+    ),
+    "taiko-shell": dict(
+        desc="Woodier. More body in the mid, so the strike has grain as well as depth.",
+        space=0.36, decay=0.70, kick=(1.0, 125, 46, 1.0), tom=(1.15, 175, 78),
+        conga=None, shaker_div=0, riser=True, drop_layers=3, res=0.40, lp=1100,
+        partials=(1.0, 1.47, 2.09, 2.78),
+    ),
     "driver": dict(
         desc="Tighter and busier. Sixteenth shaker, dry, keeps a scroll moving.",
         space=0.14, decay=0.40, kick=(0.5, 115, 46, 0.95), tom=(0.42, 200, 100),
@@ -212,26 +272,36 @@ def build(seconds, kit_name):
         b = bar_i * BAR
         stage = bar_i % PHRASE_BARS  # 0 sparse 1 stated 2 build 3 DROP 4 release
         kd, kf0, kf1, kg = k["kick"]
+        RES = k.get("res", 0.0)
+        LP = k.get("lp", 900)
+        PART = k.get("partials", (1.0, 1.41))
         kick_gain = kg * (0.6, 0.85, 0.9, 1.0, 0.7)[stage]
-        place(buf, membrane(kd, kf0, kf1, noise=0.35, lp=900, partials=(1.0, 1.41)), b, kick_gain)
-        if stage >= 1:
-            place(buf, membrane(kd * 0.7, kf0, kf1, noise=0.3, lp=900, partials=(1.0, 1.41)),
+        place(buf, membrane(kd, kf0, kf1, noise=0.35, lp=LP, partials=PART,
+                            res=RES, res_dur=kd * 3.0), b, kick_gain)
+        if stage >= 1 and not k.get("sparse_hits"):
+            place(buf, membrane(kd * 0.7, kf0, kf1, noise=0.3, lp=LP, partials=PART,
+                                res=RES * 0.6, res_dur=kd * 2.0),
                   b + BEAT * 2, kick_gain * 0.55)
 
         if stage == 3:
             for j in range(k["drop_layers"]):
                 place(buf, membrane(kd * 1.2, kf0 * (1 + 0.25 * j), kf1, noise=0.7,
-                                    lp=1400 + 400 * j, partials=(1.0, 1.58, 2.3)), b, 0.85 - 0.18 * j)
+                                    lp=LP + 500 * j, partials=(1.0, 1.58, 2.3),
+                                    res=RES * (1.0 if j == 0 else 0.0),
+                                    res_dur=kd * 4.0), b, 0.85 - 0.18 * j)
 
         if k["riser"] and stage == 2:
             place(buf, riser(1.5), b + BAR - 1.5, 1.0)
 
         if k["tom"]:
             td, tf0, tf1 = k["tom"]
-            if stage >= 1:
-                place(buf, membrane(td, tf0, tf1, noise=0.45), b + BEAT * 1.5, 0.42 + 0.09 * stage)
-            if stage >= 2:
-                place(buf, membrane(td, tf0 * 0.8, tf1 * 0.82, noise=0.45), b + BEAT * 3.5, 0.40 + 0.09 * stage)
+            if stage >= 1 and not k.get("sparse_hits"):
+                place(buf, membrane(td, tf0, tf1, noise=0.45, lp=LP * 1.6, res=RES * 0.5,
+                                    res_dur=td * 2.2), b + BEAT * 1.5, 0.42 + 0.09 * stage)
+            if stage >= 2 or (k.get("sparse_hits") and stage >= 1):
+                place(buf, membrane(td, tf0 * 0.8, tf1 * 0.82, noise=0.45, lp=LP * 1.6,
+                                    res=RES * 0.5, res_dur=td * 2.2),
+                      b + BEAT * (2 if k.get("sparse_hits") else 3.5), 0.40 + 0.09 * stage)
             if stage == 4:
                 for j, g in enumerate((0.5, 0.6, 0.72, 0.82)):
                     place(buf, membrane(td * 0.7, tf0 * (1.25 - 0.12 * j), tf1, noise=0.5),
