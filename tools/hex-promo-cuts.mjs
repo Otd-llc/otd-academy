@@ -39,7 +39,14 @@ const RAW =
   "C:/Users/raven/AppData/Local/Temp/claude/c--zzz-project-foundry/72976a86-a815-4dda-92f1-e921b785f9be/scratchpad/hexcuts";
 const OUT = "C:/zzz/_hex-promo";
 
-const SECONDS = 10;
+// 10 s is 5 bars of 4/4 at 120 BPM, which is why it is the default: the beats
+// below are laid on that grid so a scored version lands its drops on
+// downbeats. Any override should stay a whole number of bars (an even number
+// of seconds at 120 BPM) or the audio seam will click even though the video
+// seam does not.
+const SECONDS = Number(
+  process.argv.find((a) => a.startsWith("--seconds="))?.split("=")[1] ?? 10,
+);
 
 // `dolly` multiplies the fitted distance: BIGGER pulls the camera back. `lift`
 // raises the subject in frame as a fraction of that distance, POSITIVE up.
@@ -1017,9 +1024,18 @@ async function installOrbitStepper(page, total, planPolar, pose) {
       // Plan view holds for half the clip, because the deciding is the story
       // and it needs dwell. The middle beat of each placement, the change of
       // mind, is the one that makes it read as a choice rather than a sequence.
+      // ON A 120 BPM GRID. Beat = 0.5 s, bar = 2 s, and the default 10 s clip is
+      // 5 bars. Expressed as fractions so the grid survives a `--seconds`
+      // override of a whole number of bars.
+      //
+      // The placements land on bar downbeats (2.0 s, 4.0 s) and the explode on
+      // bar 4 (6.0 s); the caps walk in on beats and the ending runs on eighths
+      // as a fill. Before this they sat at 1.9 / 3.6 / 4.6 with gaps of 1.7 and
+      // 1.0, which is unscoreable: anyone writing to it would have to follow
+      // arbitrary times instead of a bar line.
       const beats = [
         [
-          0.04,
+          0.05,
           () =>
             show(
               [
@@ -1031,7 +1047,7 @@ async function installOrbitStepper(page, total, planPolar, pose) {
         ],
         [0.1, () => hover(0, -1)],
         [0.15, () => hover(1, 0)],
-        [0.19, () => place(0, 0.19)],
+        [0.2, () => place(0, 0.2)],
 
         [
           0.25,
@@ -1044,33 +1060,33 @@ async function installOrbitStepper(page, total, planPolar, pose) {
               [1, -1],
             ),
         ],
-        [0.31, () => hover(-1, 1)],
-        [0.36, () => place(1, 0.36)],
+        [0.3, () => hover(-1, 1)],
+        [0.4, () => place(1, 0.4)],
 
-        [0.41, () => show([[0, -1]], [0, -1])],
-        [0.46, () => place(2, 0.46)],
-        [0.5, () => show([])],
+        [0.45, () => show([[0, -1]], [0, -1])],
+        [0.5, () => place(2, 0.5)],
+        [0.55, () => show([])],
 
-        [0.62, () => void (tray.exploded = true)],
-        [0.66, () => addCap(0)],
+        [0.6, () => void (tray.exploded = true)],
+        [0.65, () => addCap(0)],
         [0.7, () => addCap(1)],
-        [0.74, () => addCap(2)],
+        [0.75, () => addCap(2)],
         [
-          0.78,
+          0.8,
           () => {
             if (caps[0]) setCapAt(tray, caps[0], null);
             applyGhosts();
           },
         ],
         [
-          0.81,
+          0.825,
           () => {
             if (caps[1]) setCapAt(tray, caps[1], null);
             applyGhosts();
           },
         ],
         [
-          0.84,
+          0.85,
           () => {
             if (caps[2]) setCapAt(tray, caps[2], null);
             applyGhosts();
@@ -1079,8 +1095,8 @@ async function installOrbitStepper(page, total, planPolar, pose) {
         [0.86, () => void (tray.exploded = false)],
 
         [0.9, () => lift(placed[2], 0.9)],
-        [0.93, () => lift(placed[1], 0.93)],
-        [0.96, () => lift(placed[0], 0.96)],
+        [0.925, () => lift(placed[1], 0.925)],
+        [0.95, () => lift(placed[0], 0.95)],
       ];
 
       controls.dampingFactor = 1;
@@ -1092,8 +1108,10 @@ async function installOrbitStepper(page, total, planPolar, pose) {
       const polarAt = (f) => {
         const ramp = (a, b) =>
           smoothstep(Math.min(1, Math.max(0, (f - a) / (b - a))));
-        if (f < 0.5) return planPolar;
-        if (f < 0.6) return planPolar + (polar34 - planPolar) * ramp(0.5, 0.6);
+        // Tips in the bar between the last placement and the explode, and back
+        // during the closing fill.
+        if (f < 0.55) return planPolar;
+        if (f < 0.6) return planPolar + (polar34 - planPolar) * ramp(0.55, 0.6);
         if (f < 0.86) return polar34;
         if (f < 0.96) return polar34 + (planPolar - polar34) * ramp(0.86, 0.96);
         return planPolar;
