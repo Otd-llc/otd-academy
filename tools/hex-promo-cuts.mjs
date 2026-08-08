@@ -331,31 +331,23 @@ async function frame(page, { dolly, lift }, stayWide) {
           taken.push(spec);
         }
         rebuildGhosts();
-        // DETACHED FROM THE RENDERED GROUP, not hidden via the exported array.
-        // Both shortcuts fail here for reasons hex-video.mjs already paid for:
-        // the app runs its own visibility pass and turns `visible = false` back
-        // on, and the exported `ghosts` array is not what the renderer holds
-        // (measured: two attached in the array while six drew). During a capture
-        // a per-frame limiter papers over both; a probe screenshots once, 2.5s
-        // later, so it has to remove them for good.
-        let node = tray.scene.baseTopExplode;
-        while (node.parent) node = node.parent;
-        const group = node.children.find((c) => c.name === "ghosts");
-        if (group) {
-          for (const root of [...group.children]) {
-            const slot = root?.userData?.ghost?.slot;
-            if (slot && inNeighbours(slot.q, slot.r)) root.visible = true;
-            else group.remove(root);
+        // Detached from the rendered group rather than hidden: the app runs its
+        // own visibility pass and turns `visible = false` back on, and a probe
+        // screenshots once, well after, so it has to remove them for good.
+        {
+          let node = tray.scene.baseTopExplode;
+          while (node.parent) node = node.parent;
+          const group = node.children.find((c) => c.name === "ghosts");
+          if (group) {
+            for (const root of [...group.children]) {
+              const slot = root?.userData?.ghost?.slot;
+              if (slot && inNeighbours(slot.q, slot.r)) root.visible = true;
+              else group.remove(root);
+            }
           }
         }
         // A beat for the caps just requested to arrive and draw.
         await new Promise((r) => setTimeout(r, 1500));
-        // REPORTED, NOT EYEBALLED, and this is not a formality: reading the
-        // probe frames I concluded the caps were not placing at all, because I
-        // could not find one in the picture. The count says three, every
-        // preset. A cap on a far edge is small and can sit behind the exploded
-        // lid, so "I cannot see one" and "there is not one" are different
-        // observations and only one of them is cheap to get right.
         return { caps: tray.caps.size };
       }
 
@@ -725,6 +717,16 @@ async function frameOrbit(page, { dolly, lift }, stayWide) {
       // produced az 0 / dist 0.4886 on one run and az -0.95 / dist 0.635 on the
       // next. Two runs happened to land settled and looked like a working
       // configuration; they were lucky draws off a race.
+      // A fit against an empty container silently yields a useless distance
+      // (0.065 against the real 0.489) and captures a blank clip, which is what
+      // a dev server started with bare `npx vite` produced: the workspace did
+      // not resolve, no templates loaded, and every frame came out identical.
+      // Started through the repo's own `pnpm dev` it is fine.
+      if (cellsContainer.children.length === 0) {
+        throw new Error(
+          `frameOrbit: cellsContainer is empty (cells=${cells.size}). Templates did not load; start the dev server with \`pnpm dev\`.`,
+        );
+      }
       const commanded = {
         polar34,
         dist0: controls.distance,
@@ -802,20 +804,16 @@ async function frameOrbit(page, { dolly, lift }, stayWide) {
       for (const key of [...cells.keys()])
         if (cells.get(key) !== tray) removeCell(key);
       rebuildGhosts();
-      // Same seal as the stepper: `visible = false` on the exported array does
-      // not survive the app's own visibility pass, and this is the state frame
-      // 0 is captured from.
-      {
-        let node = tray.scene.baseTopExplode;
-        while (node.parent) node = node.parent;
-        const group = node.children.find((c) => c.name === "ghosts");
-        if (group) {
-          group.userData.__sealed = true;
-          group.add = () => group;
-          for (const root of [...group.children]) group.remove(root);
-        }
-      }
-      void ghosts;
+      // NO SEAL. An earlier no-ghost version replaced the group's `add` with a
+      // no-op right here, and with the story driving ghosts that is fatal and
+      // completely silent: `rebuildGhosts()` still creates the visuals, still
+      // sets their slots and `root.visible`, so every readout reported two
+      // ghosts shown and one hovered while `ghostGroup.add(root)` discarded the
+      // roots and nothing reached the screen. The stepper hides what it does
+      // not want through `root.visible`, which is the app's own lever, and the
+      // pass that would overwrite it (`updateGhostVisibilityForCursor`) runs
+      // only on pointer movement, which a headless capture never generates.
+      for (const g of ghosts) g.root.visible = false;
       controls.dampingFactor = 1;
       controls.draggingDampingFactor = 1;
       controls.rotateTo(controls.azimuthAngle, plan, false);
@@ -836,15 +834,27 @@ async function frameOrbit(page, { dolly, lift }, stayWide) {
 
 /** ORBIT: the per-frame stepper.
  *
- *  NO GHOSTS IN THIS VERSION. A decision-story variant was attempted, where a
- *  ghost lights one slot, moves to another, and only then does the part drop.
- *  It is the better film and it is not shipped here: driving the app's ghost
- *  lifecycle from outside fought its own rebuild and visibility passes, and the
- *  ghosts never survived to the shutter. The supported lever is
- *  `setRevealActive` + `setDemoHoveredGhost`, which is what the app's own intro
- *  demo uses; that is the way in when it is picked up again. Until then the
- *  ring is off, because in plan view six wireframes around a single tile read
- *  as a targeting reticle rather than an affordance.
+ *  THE PLACEMENTS ARE A DECISION, NOT A DEMO. A ghost lights on one slot, the
+ *  attention moves to another as if the viewer changed their mind, and only
+ *  then does the part drop. Tiles that simply appear on a timer read as a
+ *  screensaver; this reads as someone choosing.
+ *
+ *  DRIVEN THROUGH THE APP'S OWN API, which is what a first attempt got wrong.
+ *  That version fought the ghost system from outside: it removed roots from the
+ *  scene group and overrode the group's `add` to filter them. Neither is
+ *  necessary. `root.visible` is the lever the app itself uses, and the pass
+ *  that overwrites it, `updateGhostVisibilityForCursor`, runs only from
+ *  picking.ts on pointer movement. A headless capture generates no pointer
+ *  events, so visibility set here simply stays set. `setRevealActive` gives the
+ *  unpicked candidates their brighter resting material and
+ *  `setDemoHoveredGhost` promotes one to hover, which is exactly the pair the
+ *  app's intro demo uses to light slots without placing anything.
+ *
+ *  THE DROP IS AUTHORED HERE AND THE APP DOES NOT DO IT. There is no bounce,
+ *  pop or spawn animation anywhere in the hex source; the only motion a real
+ *  placement produces is `focusOnPlacedCell`, a camera translate that
+ *  re-centres on the new cell. So the overshoot below is a capture-only
+ *  flourish. If the app ever grows a real one, delete this and drive that.
  */
 async function installOrbitStepper(page, total, planPolar, pose) {
   await page.evaluate(
@@ -854,32 +864,13 @@ async function installOrbitStepper(page, total, planPolar, pose) {
       const { slotsForCell, defaultKindForSlot, setCapAt, isCapAvailable } =
         await import("/src/hex/caps.ts");
       const { HEX_NEIGHBORS } = await import("/src/hex/types.ts");
-      const { rebuildGhosts } = await import("/src/hex/ghosts.ts");
+      const { ghosts, rebuildGhosts, setDemoHoveredGhost, setRevealActive } =
+        await import("/src/hex/ghosts.ts");
       const { controls } = await import("/src/hex/scene.ts");
       const { bumpRender } = await import("/src/hex/main.ts");
 
       const tray = [...cells.values()][0];
       tray.exploded = false;
-
-      // THE LID STATE IS ENFORCED EVERY FRAME, not set once.
-      //
-      // Forcing it off at install is not enough and the log above proves it:
-      // `carrierFilled=false board=0` at install, and the opening frame still
-      // rendered the lid. The framing pass sets fill TRUE to size the widest
-      // moment, which starts an async glTF load, and that load lands afterwards
-      // and mounts the mesh without rechecking the flag it was requested under.
-      // So the beats below only declare intent and this reconciles it, which
-      // also heals any later arrival rather than racing it once.
-      // ONE OWNER FOR THE LID STATE. It was being set in the stepper's opening
-      // block AND reconciled per frame with the opposite intent, which is how a
-      // fix and its own undo ended up in the same function.
-      let wantFill = true;
-      const enforceFill = () => {
-        if (tray.carrierFilled !== wantFill) setCarrierFill(tray, wantFill);
-        // Deliberately NOT re-checking the mounted mesh count here. Doing so
-        // rebuilt boardExplode every frame and put a lift residual back into
-        // the closure check; the mount race is handled once, before capture.
-      };
       const caps = [];
       const placed = [];
       const fired = new Set();
@@ -895,29 +886,94 @@ async function installOrbitStepper(page, total, planPolar, pose) {
       });
       const opening = snapshot();
 
-      // Removing the ghosts is not enough on its own: the app rebuilds them on
-      // every topology change and again on its own schedule, in the animation
-      // frames between the step and the shutter. Refusing them at the door is
-      // not timing-dependent, so the group's `add` becomes a no-op.
-      const ghostGroup = () => {
-        let node = tray.scene.baseTopExplode;
-        while (node.parent) node = node.parent;
-        return node.children.find((c) => c.name === "ghosts") ?? null;
+      // ---- lid ------------------------------------------------------------
+      // Mounted for the whole clip. It arrives from an async glTF load that
+      // kept landing between the last write of a frame and the shutter, so
+      // toggling it left the opening frame carrying a lid the closing frame did
+      // not. The explode lifts it clear anyway, so nothing is lost.
+      let wantFill = true;
+      const enforceFill = () => {
+        if (tray.carrierFilled !== wantFill) setCarrierFill(tray, wantFill);
       };
-      const killGhosts = () => {
-        const group = ghostGroup();
-        if (!group) return;
-        if (!group.userData.__sealed) {
-          group.userData.__sealed = true;
-          group.add = () => group;
+
+      // ---- ghosts ----------------------------------------------------------
+      // `visibleSlots` is the intent; `applyGhosts` makes it true. Re-applied
+      // every frame because `rebuildGhosts()` recreates every root on any
+      // topology change and they come back visible.
+      setRevealActive(true);
+      let visibleSlots = [];
+      let hoverSlot = null;
+      const applyGhosts = () => {
+        let hovered = null;
+        for (const gv of ghosts) {
+          const on = visibleSlots.some(
+            ([q, r]) => gv.slot.q === q && gv.slot.r === r,
+          );
+          gv.root.visible = on;
+          if (
+            on &&
+            hoverSlot &&
+            gv.slot.q === hoverSlot[0] &&
+            gv.slot.r === hoverSlot[1]
+          ) {
+            hovered = gv;
+          }
         }
-        for (const root of [...group.children]) group.remove(root);
+        setDemoHoveredGhost(hovered);
       };
-      const topology = (fn) => () => {
-        fn();
+      const show = (slots, hover = null) => {
+        visibleSlots = slots;
+        hoverSlot = hover;
+        applyGhosts();
+      };
+      const hover = (q, r) => {
+        hoverSlot = [q, r];
+        applyGhosts();
+      };
+
+      // ---- the authored drop -----------------------------------------------
+      const anims = [];
+      const easeOutBack = (t) => {
+        const c1 = 1.70158;
+        const c3 = c1 + 1;
+        return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+      };
+      const DROP_H = 0.055;
+      const tween = (from, to, fn) => anims.push({ from, to, fn });
+      const runAnims = (f) => {
+        for (const a of anims) {
+          if (f < a.from || a.done) continue;
+          const t = Math.min(1, (f - a.from) / (a.to - a.from));
+          a.fn(t);
+          if (t >= 1) a.done = true;
+        }
+      };
+
+      const place = (i, at) => {
+        const [q, r, carrier] = ADDED[i];
+        const cell = placeCell(q, r, carrier);
+        placed.push(cell);
+        cell.scene.cellGroup.position.y = DROP_H;
+        // Ends at EXACTLY 0. The loop closes on this, so an eased-but-unsnapped
+        // tail is a seam.
+        tween(at, at + 0.03, (t) => {
+          cell.scene.cellGroup.position.y =
+            t >= 1 ? 0 : DROP_H * (1 - easeOutBack(t));
+        });
+        show([]);
         rebuildGhosts();
-        killGhosts();
+        applyGhosts();
       };
+
+      const lift = (cell, at) =>
+        tween(at, at + 0.025, (t) => {
+          cell.scene.cellGroup.position.y = DROP_H * t * t;
+          if (t >= 1) {
+            for (const [k, v] of cells) if (v === cell) removeCell(k);
+            rebuildGhosts();
+            applyGhosts();
+          }
+        });
 
       const addCap = (i) => {
         const spec = slotsForCell(tray, {
@@ -938,107 +994,101 @@ async function installOrbitStepper(page, total, planPolar, pose) {
           i === 0 && isCapAvailable(corner) ? corner : defaultKindForSlot(spec),
         );
         caps.push(spec);
+        rebuildGhosts();
+        applyGhosts();
       };
 
+      // Plan view holds for half the clip, because the deciding is the story
+      // and it needs dwell. The middle beat of each placement, the change of
+      // mind, is the one that makes it read as a choice rather than a sequence.
       const beats = [
-        // Plan view: the tiling grows. This is the half a top-down camera is
-        // actually good for, because the dovetail pattern is a plan drawing.
         [
-          0.05,
-          topology(() =>
-            placed.push(placeCell(ADDED[0][0], ADDED[0][1], ADDED[0][2])),
-          ),
+          0.04,
+          () =>
+            show(
+              [
+                [1, 0],
+                [0, -1],
+              ],
+              [1, 0],
+            ),
+        ],
+        [0.1, () => hover(0, -1)],
+        [0.15, () => hover(1, 0)],
+        [0.19, () => place(0, 0.19)],
+
+        [
+          0.25,
+          () =>
+            show(
+              [
+                [-1, 1],
+                [1, -1],
+              ],
+              [1, -1],
+            ),
+        ],
+        [0.31, () => hover(-1, 1)],
+        [0.36, () => place(1, 0.36)],
+
+        [0.41, () => show([[0, -1]], [0, -1])],
+        [0.46, () => place(2, 0.46)],
+        [0.5, () => show([])],
+
+        [0.62, () => void (tray.exploded = true)],
+        [0.66, () => addCap(0)],
+        [0.7, () => addCap(1)],
+        [0.74, () => addCap(2)],
+        [
+          0.78,
+          () => {
+            if (caps[0]) setCapAt(tray, caps[0], null);
+            applyGhosts();
+          },
         ],
         [
-          0.11,
-          topology(() =>
-            placed.push(placeCell(ADDED[1][0], ADDED[1][1], ADDED[1][2])),
-          ),
+          0.81,
+          () => {
+            if (caps[1]) setCapAt(tray, caps[1], null);
+            applyGhosts();
+          },
         ],
         [
-          0.17,
-          topology(() =>
-            placed.push(placeCell(ADDED[2][0], ADDED[2][1], ADDED[2][2])),
-          ),
+          0.84,
+          () => {
+            if (caps[2]) setCapAt(tray, caps[2], null);
+            applyGhosts();
+          },
         ],
-        // Three-quarter: the work. Lid on, explode, cap round the perimeter.
-        [0.44, () => void (tray.exploded = true)],
-        [0.52, topology(() => addCap(0))],
-        [0.57, topology(() => addCap(1))],
-        [0.62, topology(() => addCap(2))],
-        // And every one of those undone, which is what closes the loop.
-        [0.68, topology(() => caps[0] && setCapAt(tray, caps[0], null))],
-        [0.72, topology(() => caps[1] && setCapAt(tray, caps[1], null))],
-        [0.76, topology(() => caps[2] && setCapAt(tray, caps[2], null))],
-        [0.8, () => void (tray.exploded = false)],
-        // Tiles come back up as the camera tips back to plan.
-        [
-          0.89,
-          topology(() => {
-            for (const [k, v] of cells) if (v === placed[2]) removeCell(k);
-          }),
-        ],
-        [
-          0.92,
-          topology(() => {
-            for (const [k, v] of cells) if (v === placed[1]) removeCell(k);
-          }),
-        ],
-        [
-          0.95,
-          topology(() => {
-            for (const [k, v] of cells) if (v === placed[0]) removeCell(k);
-          }),
-        ],
+        [0.86, () => void (tray.exploded = false)],
+
+        [0.9, () => lift(placed[2], 0.9)],
+        [0.93, () => lift(placed[1], 0.93)],
+        [0.96, () => lift(placed[0], 0.96)],
       ];
 
-      // Damping off: this choreography moves the POLAR as well as the azimuth,
-      // so an eased camera trails the commanded one and the loop point drifts.
-      // Every frame commands an absolute angle, which is the whole reason the
-      // hero comment says the camera is placed rather than nudged.
       controls.dampingFactor = 1;
       controls.draggingDampingFactor = 1;
 
-      // ASSERTED FROM THE COMMANDED POSE, never re-read. See frameOrbit.
       const { polar34, az0, dist0 } = pose;
       window.__azWant = az0;
-      controls.minDistance = dist0;
-      controls.maxDistance = dist0;
-      // DISTANCE IS PART OF THE POSE, not just the angles. The app runs
-      // `autoFitIfClipped`, which fires when it judges the cluster to be
-      // clipped, and that judgement depends on the VIEWPORT: wide carries a
-      // 0.519 horizontal margin and never trips it, while vertical (0.133) and
-      // readme (0.118) do. Re-asserting only azimuth and polar therefore closed
-      // the loop on wide and left it open on the tight aspects, which is
-      // exactly what shipped: seam 0.152 against 1.939 and 1.810 on identical
-      // choreography. Pinning the distance every frame removes the difference.
       const smoothstep = (t) => t * t * (3 - 2 * t);
       const polarAt = (f) => {
         const ramp = (a, b) =>
           smoothstep(Math.min(1, Math.max(0, (f - a) / (b - a))));
-        if (f < 0.2) return planPolar;
-        if (f < 0.34)
-          return planPolar + (polar34 - planPolar) * ramp(0.2, 0.34);
-        if (f < 0.84) return polar34;
-        if (f < 0.96) return polar34 + (planPolar - polar34) * ramp(0.84, 0.96);
+        if (f < 0.5) return planPolar;
+        if (f < 0.6) return planPolar + (polar34 - planPolar) * ramp(0.5, 0.6);
+        if (f < 0.86) return polar34;
+        if (f < 0.96) return polar34 + (planPolar - polar34) * ramp(0.86, 0.96);
         return planPolar;
       };
 
-      // The app's render loop ticks autoFit and viewBias on every animation
-      // frame, including the one between the step and the shutter, so the pose
-      // is re-applied as the last write before the frame is read.
       let lastF = 0;
       const placeCamera = (f) => {
         window.__azWant = az0 + 2 * Math.PI * f;
         controls.rotateTo(az0 + 2 * Math.PI * f, polarAt(f), false);
         controls.dollyTo(dist0, false);
-        // NON-ZERO DELTA. `update(0)` does not advance the interpolation, so the
-        // commanded pose was never applied on the frame it was commanded for:
-        // frame 0 rendered at az -0.95 while the loop wanted 0, a 54 degree
-        // error, and only frames after it looked right because the app's own
-        // render loop dragged the camera onto target over the following frames.
-        // That is the entire seam: 150 and 299 matched their targets exactly,
-        // frame 0 did not. With damping off a single real delta lands it.
+        // Non-zero delta: `update(0)` does not advance the interpolation.
         controls.update(1);
       };
 
@@ -1055,35 +1105,37 @@ async function installOrbitStepper(page, total, planPolar, pose) {
             }
           }
         }
+        runAnims(f);
         enforceFill();
-        killGhosts();
+        applyGhosts();
         placeCamera(f);
         bumpRender(4);
       };
       window.__limit = () => {
         enforceFill();
-        killGhosts();
+        applyGhosts();
         placeCamera(lastF);
       };
-      window.__probe = () => ({ rendered: 0 });
-      // A FULL DESCRIPTION OF WHAT IS DRAWN, so the two ends of the loop can be
-      // diffed as data instead of argued about from screenshots. Child counts
-      // already matched at both ends while the tray's insert was visibly
-      // present at frame 0 and gone at frame 299, so the interesting state is
-      // per-mesh: visibility, whether the geometry still has vertices, and
-      // which material it is using.
+      window.__probe = () => ({
+        rendered: ghosts.filter((g) => g.root.visible).length,
+      });
       window.__cam = () => ({
         polar: Number(controls.polarAngle.toFixed(5)),
         az: Number(controls.azimuthAngle.toFixed(5)),
-        // What the loop ASKED for, beside what the camera did. Comparing these
-        // is what found the seam after four rounds of comparing scene state
-        // that always matched: frame 0 rendered 54 degrees off the commanded
-        // azimuth while every later frame was exact.
         azWant: Number(window.__azWant.toFixed(5)),
         dist: Number(controls.distance.toFixed(5)),
         cells: cells.size,
         caps: tray.caps.size,
         fill: !!tray.carrierFilled,
+        // Intent beside actual, for the ghosts too. Comparing what was asked
+        // for against what happened is what found the camera seam after four
+        // rounds of comparing state that always matched.
+        ghostWant: visibleSlots.length,
+        ghostShown: ghosts.filter((g) => g.root.visible).length,
+        hoverShown: ghosts.filter((g) => g.state === "hover").length,
+        dropY: [...cells.values()].map((c) =>
+          Number(c.scene.cellGroup.position.y.toFixed(5)),
+        ),
       });
       window.__closure = () => {
         const closing = snapshot();
@@ -1203,11 +1255,6 @@ async function extentOverTurn(page, steps = 24, polars = null) {
       const { controls, cellsContainer } = await import("/src/hex/scene.ts");
       const { bumpRender } = await import("/src/hex/main.ts");
       const cam = controls.camera;
-      // ASSERTED FROM THE COMMANDED POSE, never re-read. See frameOrbit.
-      const { polar34, az0, dist0 } = pose;
-      window.__azWant = az0;
-      controls.minDistance = dist0;
-      controls.maxDistance = dist0;
       const polar0 = controls.polarAngle;
 
       // Column-major, same convention as THREE's `.elements`.
@@ -1403,7 +1450,10 @@ for (let i = 0; i < TOTAL; i++) {
   await paint();
   await page.evaluate(() => window.__limit());
   await paint();
-  if (CHOREO === "orbit" && (i === 0 || i === TOTAL - 1)) {
+  if (
+    CHOREO === "orbit" &&
+    [0, 15, 18, 33, 36, 48, 84, TOTAL - 1].includes(i)
+  ) {
     console.log(
       `[cam ${i}] ${JSON.stringify(await page.evaluate(() => window.__cam()))}`,
     );
