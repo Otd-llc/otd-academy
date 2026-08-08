@@ -187,6 +187,109 @@ def reverb(buf, mix=0.25, decay=0.55):
     return [buf[i] * (1 - mix) + acc[i] * mix for i in range(n)]
 
 
+
+# ------------------------------------------------------------------ bass ----
+# A SEPARATE CHANNEL, not a deeper drum. The drums own the transient and the
+# bass owns the sustain; trying to get both from one hit is what makes a mix
+# sound like a synth patch rather than a rhythm section.
+#
+# Tuned to A1 = 55 Hz. Low enough to be felt, high enough that a phone speaker
+# renders SOMETHING of it rather than nothing (the taiko-sub lesson: energy at
+# 25 Hz is energy nobody hears).
+A1 = 55.0
+BASS_ROOT = A1
+
+
+def bass_note(dur, f, f_from=None, gain=1.0, curve=1.6, lp=150):
+    """A sub note, optionally gliding into pitch.
+
+    Two detuned sines rather than one: a single sine at 55 Hz is a test tone,
+    and the slow beating between a pair is most of what makes it read as an
+    instrument. Lowpassed hard, because anything above ~150 Hz here fights the
+    toms for the same space.
+    """
+    n = int(dur * SR)
+    e = env(n, 0.008, dur * 0.75, curve)
+    out = []
+    p1 = p2 = 0.0
+    for i in range(n):
+        t = i / n
+        # Glide is exponential, so it lands on pitch early and holds.
+        fr = f if f_from is None else f + (f_from - f) * math.exp(-6.0 * t)
+        p1 += 2 * math.pi * fr / SR
+        p2 += 2 * math.pi * fr * 1.004 / SR
+        out.append((math.sin(p1) + 0.7 * math.sin(p2)) * e[i] * gain * 0.5)
+    return lowpass(out, lp)
+
+
+def sidechain(buf, hit_times, depth=0.72, dur=0.3):
+    """Duck the bass under every kick.
+
+    Without this the sub and the kick occupy the same instant and the kick
+    stops reading as an attack: you hear one muddy low event instead of a
+    strike over a note. Ducking is what lets both exist. The recovery is
+    exponential, which is what gives the bass its characteristic pump.
+    """
+    n = len(buf)
+    gain = [1.0] * n
+    w = int(dur * SR)
+    for t in hit_times:
+        start = int(t * SR)
+        for i in range(w):
+            k = (start + i) % n
+            g = 1.0 - depth * math.exp(-4.0 * i / w)
+            if g < gain[k]:
+                gain[k] = g
+    return [buf[i] * gain[i] for i in range(n)]
+
+
+# Each mode is a different bass PART over the same drums, not a different tone.
+BASS_MODES = {
+    "drone": "Sustained root under the whole loop, swelling with the arc.",
+    "808": "Pitched notes on the bar lines, dropping a fourth for the explode.",
+    "swell": "One long breath: rises through the build, peaks on the drop, falls away.",
+    "pulse": "A short note on every kick. The most rhythmic of the five.",
+    "drop": "Silent until the explode, then a single sub fall. Maximum contrast.",
+}
+
+
+def bass_layer(seconds, mode):
+    n = int(round(seconds * SR))
+    buf = [0.0] * n
+    bars = int(round(seconds / BAR))
+    root, fourth = BASS_ROOT, BASS_ROOT * 0.75  # a fourth down for the drop
+
+    for bar_i in range(bars):
+        b = bar_i * BAR
+        stage = bar_i % PHRASE_BARS
+        if mode == "drone":
+            g = (0.30, 0.42, 0.55, 0.85, 0.5)[stage]
+            f = fourth if stage == 3 else root
+            # Overlaps the next bar so there is no gap at the bar line.
+            place(buf, bass_note(BAR * 1.15, f, gain=g, curve=0.5, lp=140), b, 1.0)
+        elif mode == "808":
+            g = (0.45, 0.65, 0.75, 1.0, 0.6)[stage]
+            f = fourth if stage == 3 else root
+            place(buf, bass_note(BAR * 0.8, f, f_from=f * 1.6, gain=g), b, 1.0)
+            if stage >= 2:
+                place(buf, bass_note(BEAT * 1.2, f, gain=g * 0.5), b + BEAT * 2.5, 1.0)
+        elif mode == "swell":
+            g = (0.22, 0.4, 0.62, 0.95, 0.45)[stage]
+            place(buf, bass_note(BAR * 1.2, root, gain=g, curve=0.35, lp=130), b, 1.0)
+        elif mode == "pulse":
+            g = (0.4, 0.55, 0.65, 0.9, 0.5)[stage]
+            f = fourth if stage == 3 else root
+            place(buf, bass_note(BEAT * 1.1, f, gain=g), b, 1.0)
+            if stage >= 1:
+                place(buf, bass_note(BEAT * 0.9, f, gain=g * 0.7), b + BEAT * 2, 1.0)
+        elif mode == "drop":
+            if stage == 3:
+                # One event: a fall from well above the root down through it.
+                place(buf, bass_note(BAR * 1.6, fourth, f_from=root * 2.6,
+                                     gain=1.0, curve=0.9, lp=150), b, 1.0)
+    return buf
+
+
 def place(buf, sound, at_s, gain=1.0):
     """Mix a hit in, WRAPPING any tail past the end back to the head."""
     start = int(at_s * SR)
@@ -218,6 +321,31 @@ KITS = {
         desc="Big, wide, few hits. Every strike lands like a door closing.",
         space=0.38, decay=0.68, kick=(0.9, 130, 48, 1.0), tom=(1.1, 165, 72),
         conga=None, shaker_div=0, riser=True, drop_layers=3,
+    ),
+    "sparse-drone": dict(
+        desc="Sparse drums over a sustained root. The bass is the floor, the drums are events on it.",
+        space=0.30, decay=0.58, kick=(0.7, 100, 40, 0.9), tom=(0.7, 160, 78),
+        conga=None, shaker_div=0, riser=False, drop_layers=2, bass="drone",
+    ),
+    "sparse-808": dict(
+        desc="Sparse drums with pitched sub notes on the bar lines, dropping a fourth for the explode.",
+        space=0.30, decay=0.58, kick=(0.7, 100, 40, 0.9), tom=(0.7, 160, 78),
+        conga=None, shaker_div=0, riser=False, drop_layers=2, bass="808",
+    ),
+    "sparse-swell": dict(
+        desc="Sparse drums over one long bass breath that peaks on the drop.",
+        space=0.32, decay=0.60, kick=(0.7, 100, 40, 0.9), tom=(0.7, 160, 78),
+        conga=None, shaker_div=0, riser=True, drop_layers=2, bass="swell",
+    ),
+    "sparse-pulse": dict(
+        desc="Sparse drums with a short sub note on every kick. The most rhythmic of the bass set.",
+        space=0.28, decay=0.55, kick=(0.7, 100, 40, 0.9), tom=(0.7, 160, 78),
+        conga=None, shaker_div=0, riser=False, drop_layers=2, bass="pulse",
+    ),
+    "sparse-drop": dict(
+        desc="Sparse drums, no bass at all until the explode, then one sub fall. Maximum contrast.",
+        space=0.32, decay=0.60, kick=(0.7, 100, 40, 0.9), tom=(0.7, 160, 78),
+        conga=None, shaker_div=0, riser=True, drop_layers=3, bass="drop",
     ),
     "taiko-odaiko": dict(
         desc="Odaiko. The lowest fundamental of the set and a very long ring. The biggest drum in the room.",
@@ -267,6 +395,7 @@ def build(seconds, kit_name):
     k = KITS[kit_name]
     n = int(round(seconds * SR))
     buf = [0.0] * n
+    kick_times = []
 
     for bar_i in range(int(round(seconds / BAR))):
         b = bar_i * BAR
@@ -278,10 +407,12 @@ def build(seconds, kit_name):
         kick_gain = kg * (0.6, 0.85, 0.9, 1.0, 0.7)[stage]
         place(buf, membrane(kd, kf0, kf1, noise=0.35, lp=LP, partials=PART,
                             res=RES, res_dur=kd * 3.0), b, kick_gain)
+        kick_times.append(b)
         if stage >= 1 and not k.get("sparse_hits"):
             place(buf, membrane(kd * 0.7, kf0, kf1, noise=0.3, lp=LP, partials=PART,
                                 res=RES * 0.6, res_dur=kd * 2.0),
                   b + BEAT * 2, kick_gain * 0.55)
+            kick_times.append(b + BEAT * 2)
 
         if stage == 3:
             for j in range(k["drop_layers"]):
@@ -334,6 +465,14 @@ def build(seconds, kit_name):
     # there is nothing to approximate. Busy kits hid this; silence exposes it.
     wet = reverb(buf + buf, mix=k["space"], decay=k["decay"])
     buf = wet[len(buf):]
+
+    # BASS IS ADDED AFTER THE REVERB, and stays dry. Sub through a room is mud:
+    # the reverb tail smears the low end across the bar and the kick loses its
+    # floor. Ducking it under every kick is what lets a strike still read as an
+    # attack rather than merging with the note underneath it.
+    if k.get("bass"):
+        bass = sidechain(bass_layer(seconds, k["bass"]), kick_times)
+        buf = [buf[i] + bass[i] * 0.55 for i in range(len(buf))]
     peak = max(abs(v) for v in buf) or 1.0
     # Gentle drive only. Normalising to the drop would duck every other bar to
     # make room for one hit, flattening the arc that is the point.
