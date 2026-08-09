@@ -28,8 +28,21 @@ that is genuinely usable, since lossy artefacts sit mostly above the range that
 carries weight. If it turns out to be the limit, the escalation is OAuth, not
 more processing.
 
+PROVENANCE IS MERGED, NEVER OVERWRITTEN, and that is a bug fix rather than a
+preference. This script used to rebuild `provenance.json` from a fresh LIVE
+SEARCH on every `--fetch` and `json.dump` the result over the old file. Freesound
+ranks by rating, so the result set moves: any sound downloaded on an earlier run
+that had since slipped out of the top results kept its `.ogg` on disk and
+silently lost its licence record. Found 2026-08-09 with **11 orphaned files** --
+audio on disk, destined for published video, with no CC0 evidence behind it.
+
+The audit trail is the entire point of this file, so it now only ever grows, and
+`--reconcile` fails if a single audio file on disk has no record.
+
     python tools/hex-samples.py --list          # show candidates, download none
-    python tools/hex-samples.py --fetch         # download the picks
+    python tools/hex-samples.py --fetch         # download the picks, MERGE provenance
+    python tools/hex-samples.py --reconcile     # every file on disk has a record? exit 1 if not
+    python tools/hex-samples.py --backfill      # re-fetch records for orphaned files, by id
 """
 
 import argparse
@@ -136,6 +149,68 @@ def search(role, token, limit=6):
     return out[:limit]
 
 
+PROV_PATH = os.path.join(OUT_DIR, "provenance.json")
+AUDIO_EXT = (".ogg", ".mp3", ".wav")
+
+
+def load_prov():
+    if not os.path.exists(PROV_PATH):
+        return {}
+    with open(PROV_PATH, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_prov(prov):
+    """MERGE, never clobber. Keyed by id within a role, so a re-fetch updates a
+    record in place and a record this run did not see survives untouched."""
+    old = load_prov()
+    for role, records in prov.items():
+        by_id = {r["id"]: r for r in old.get(role, [])}
+        for r in records:
+            by_id[r["id"]] = r
+        old[role] = sorted(by_id.values(), key=lambda r: r["id"])
+    with open(PROV_PATH, "w", encoding="utf-8") as f:
+        json.dump(old, f, indent=2)
+    return sum(len(v) for v in old.values())
+
+
+def on_disk():
+    """Every audio file under OUT_DIR as (role, id). The `wav/` subdirectories
+    hold decoded derivatives of the same ids, so they resolve to the same record
+    rather than needing one of their own."""
+    found = set()
+    for root, _dirs, files in os.walk(OUT_DIR):
+        rel = os.path.relpath(root, OUT_DIR).replace("\\", "/")
+        role = rel.split("/")[0]
+        if role in (".", ""):
+            continue
+        for f in files:
+            if f.lower().endswith(AUDIO_EXT):
+                found.add((role, os.path.splitext(f)[0]))
+    return found
+
+
+def orphans():
+    """Files on disk with no provenance record. This is the licence gap."""
+    prov = load_prov()
+    have = {(role, str(r["id"])) for role, rs in prov.items() for r in rs}
+    return sorted(f for f in on_disk() if f not in have)
+
+
+def sound_by_id(sound_id, token):
+    """One sound's metadata, for backfilling a record whose file we already
+    have. Re-checks the licence exactly as `search` does -- a backfill is not a
+    reason to trust anything more than a search result."""
+    s = get(
+        f"/sounds/{sound_id}/",
+        {"fields": "id,name,license,duration,samplerate,username,url"},
+        token,
+    )
+    if CC0 not in (s.get("license") or ""):
+        raise ValueError(f"licence is {s.get('license')}, not CC0")
+    return s
+
+
 def fetch(role, sounds):
     d = os.path.join(OUT_DIR, role)
     os.makedirs(d, exist_ok=True)
@@ -171,9 +246,61 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--fetch", action="store_true")
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--reconcile", action="store_true")
+    ap.add_argument("--backfill", action="store_true")
     a = ap.parse_args()
+
+    # --reconcile needs no network and no key, so it can run as a check.
+    if a.reconcile:
+        missing = orphans()
+        for role, sid in missing:
+            print(f"  ! {role}/{sid}: audio on disk, NO provenance record")
+        n = sum(len(v) for v in load_prov().values())
+        print(
+            f"\n{len(on_disk())} audio ids on disk, {n} provenance records, "
+            f"{len(missing)} orphaned"
+        )
+        raise SystemExit(1 if missing else 0)
+
     token = key()
     os.makedirs(OUT_DIR, exist_ok=True)
+
+    if a.backfill:
+        missing = orphans()
+        if not missing:
+            print("nothing orphaned")
+            raise SystemExit(0)
+        add, failed = {}, []
+        for role, sid in missing:
+            try:
+                s = sound_by_id(sid, token)
+            except Exception as e:
+                print(f"  ! {role}/{sid}: {e}")
+                failed.append((role, sid))
+                continue
+            add.setdefault(role, []).append(
+                {
+                    "id": s["id"],
+                    "name": s["name"],
+                    "uploader": s["username"],
+                    "license": s["license"],
+                    "page": s["url"],
+                    "file": f"{sid}.ogg",
+                    "duration": round(s["duration"], 3),
+                    "samplerate": s["samplerate"],
+                    "backfilled": True,
+                }
+            )
+            print(f"  + {role}/{sid}  {s['name'][:44]}")
+        total = save_prov(add) if add else sum(len(v) for v in load_prov().values())
+        print(f"\n{sum(len(v) for v in add.values())} backfilled, {total} records total")
+        if failed:
+            # A file whose licence cannot be re-established is the thing this
+            # tool exists to prevent shipping. Loud, and non-zero.
+            print(f"STILL UNVERIFIED ({len(failed)}): {failed}")
+            raise SystemExit(1)
+        raise SystemExit(0)
+
     all_prov = {}
     for role in ROLES:
         print(f"== {role}")
@@ -190,8 +317,9 @@ if __name__ == "__main__":
                     f"ch{s['channels']}  {s['name'][:46]}"
                 )
     if a.fetch:
-        p = os.path.join(OUT_DIR, "provenance.json")
-        with open(p, "w", encoding="utf-8") as f:
-            json.dump(all_prov, f, indent=2)
-        n = sum(len(v) for v in all_prov.values())
-        print(f"\n{n} samples, all CC0, provenance written to {p}")
+        n = save_prov(all_prov)
+        new = sum(len(v) for v in all_prov.values())
+        print(f"\n{new} samples this run, all CC0. {n} records total in {PROV_PATH}")
+        left = orphans()
+        if left:
+            print(f"! {len(left)} files still have no record — run --backfill")

@@ -2127,16 +2127,44 @@ if (capArg) {
   process.exit(0);
 }
 
-// TOPOLOGY must match exactly. A tile or a cap left over is a hard defect and
-// there is no tolerance at which half a cap is acceptable.
+// THE GATES STOP THE RUN. THEY DID NOT, AND THAT WAS THE DEFECT.
+//
+// Both of these checks existed and both only *reported*: topology was a
+// `console.warn`, `seamCheck`'s return value was discarded at the call site, and
+// the encode ran on the next line either way. So a cut whose loop visibly
+// jumped, or that ended holding a cap it started without, was written to disk,
+// muxed, and shipped, with the evidence sitting in scrollback nobody re-reads.
+//
+// A gate that records a number and lets the artefact through is not a gate. It
+// is a log line with ambitions. Found by an adversarial review on 2026-08-09,
+// after fourteen self-audit passes had listed both of these as "built".
+//
+// Checked BEFORE the encode: a failed capture should not produce a deliverable
+// at all. `--force` still encodes, because a broken cut is exactly what you want
+// to look at when working out why it broke.
+const failures = [];
 if (
   closure.closing.cells !== closure.opening.cells ||
   closure.closing.caps !== closure.opening.caps
 ) {
-  console.warn("LOOP DOES NOT CLOSE (topology):", JSON.stringify(closure));
+  failures.push(`topology does not close: ${JSON.stringify(closure)}`);
 }
 console.log(`[closure] lift residual ${JSON.stringify(closure.liftDrift)}`);
-seamCheck(FRAMES, TOTAL);
+if (!seamCheck(FRAMES, TOTAL)) {
+  failures.push("loop seam is louder than the quietest ordinary step");
+}
+
+if (failures.length) {
+  for (const f of failures) console.error(`[GATE FAILED] ${f}`);
+  if (!flag("force")) {
+    console.error(
+      `\n${failures.length} gate(s) failed — NOT encoding. ` +
+        `Frames are in ${FRAMES} for inspection; re-run with --force to encode anyway.`,
+    );
+    process.exit(1);
+  }
+  console.error("\n--force: encoding a cut that failed its gates.");
+}
 
 const base = `${OUT}/hex-${presetArg}${suffix}`;
 const emitted = [];
