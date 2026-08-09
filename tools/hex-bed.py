@@ -397,6 +397,78 @@ KITS = {
         space=0.16, sub=0.55,
         snap_riser="reverse/wav/37405.wav", snap_riser_gain=0.7,
     ),
+    "rd-revtaiko": dict(
+        desc="A long taiko played backwards. The same trick that fixed the SNAP arrival, at drop scale.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        snap_riser="taiko/wav/801857.wav", snap_reverse=True, snap_riser_gain=0.8,
+        space=0.16, sub=0.55,
+        riser="taiko/wav/347126.wav", riser_reverse=True, riser_gain=0.8,
+    ),
+    "rd-revtom": dict(
+        desc="A reversed tom. Darker and shorter than the taiko.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        snap_riser="taiko/wav/801857.wav", snap_reverse=True, snap_riser_gain=0.8,
+        space=0.16, sub=0.55,
+        riser="tom/wav/459226.wav", riser_reverse=True, riser_gain=0.9,
+    ),
+    "rd-subrise": dict(
+        desc="A reversed kick: almost pure low end swelling into the hit.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        snap_riser="taiko/wav/801857.wav", snap_reverse=True, snap_riser_gain=0.8,
+        space=0.16, sub=0.55,
+        riser="kick/wav/78815.wav", riser_reverse=True, riser_gain=0.95,
+    ),
+    "rd-hard": dict(
+        desc="Hardstyle atmos swell. Tonal, so it builds pitch as well as level.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        snap_riser="taiko/wav/801857.wav", snap_reverse=True, snap_riser_gain=0.8,
+        space=0.16, sub=0.55,
+        riser="riser2/wav/561254.wav", riser_gain=0.75,
+    ),
+    "rd-scifi": dict(
+        desc="Scifi riser tension, lowpassed to 3 kHz to take the edge off.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        snap_riser="taiko/wav/801857.wav", snap_reverse=True, snap_riser_gain=0.8,
+        space=0.16, sub=0.55,
+        riser="riser2/wav/691006.wav", riser_lp=3000, riser_gain=0.7,
+    ),
+    "rd-simple": dict(
+        desc="Simple riser, lowpassed. Conventional and clean.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        snap_riser="taiko/wav/801857.wav", snap_reverse=True, snap_riser_gain=0.8,
+        space=0.16, sub=0.55,
+        riser="riser2/wav/840719.wav", riser_lp=3500, riser_gain=0.8,
+    ),
+    "rd-revbass": dict(
+        desc="A reversed bass swell. Low and wide, stays out of the top.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        snap_riser="taiko/wav/801857.wav", snap_reverse=True, snap_riser_gain=0.8,
+        space=0.16, sub=0.55,
+        riser="reverse/wav/503812.wav", riser_gain=0.85,
+    ),
+    "rd-none": dict(
+        desc="No riser into the drop at all. The drums and the gap carry it.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        snap_riser="taiko/wav/801857.wav", snap_reverse=True, snap_riser_gain=0.8,
+        space=0.16, sub=0.55,
+        riser="kick/wav/78815.wav", no_riser=True,
+    ),
     "kick-led": dict(
         desc="Kick forward, taiko answering. Tighter and more modern.",
         kick="kick/wav/584787.wav", hit="taiko/wav/801832.wav",
@@ -588,6 +660,11 @@ def build(seconds, kit_name, open_beat="soft"):
     # THE SNAP ARRIVAL IS SHAPED, not just chosen. Reversing a warm musical hit
     # gives a warm swell; the noisy reverses in the library arrive harsh because
     # they are mostly top end. Lowpassing is the other half of the same fix.
+    if "riser" in S:
+        if k.get("riser_reverse"):
+            S["riser"] = S["riser"][::-1]
+        if k.get("riser_lp"):
+            S["riser"] = lowpass(S["riser"], k["riser_lp"])
     if "snap_riser" in S:
         if k.get("snap_reverse"):
             S["snap_riser"] = S["snap_riser"][::-1]
