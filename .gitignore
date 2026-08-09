@@ -155,4 +155,18 @@ _worker-map.log
 
 # tools/*.py leave these behind on every run.
 __pycache__/
-dev-hex.log
+*.log
+
+# The otd-promo plan set. This repo is PUBLIC, and while most of what these
+# documents contain is already public here (CLAUDE.md states the db:pull-prod
+# restore and the L2.01 safety hold; three existing plan docs name the
+# authjs.session-token technique), they also name a PRIVATE repo's planned
+# existence and aggregate the rest into one tidy operational picture. Same
+# treatment the 13 plan docs above already get.
+#
+# The classification guard does NOT catch this class of document: it triggers on
+# a filename token or a CLASSIFICATION: banner, and these carry neither. That is
+# a real gap, not a reason to skip the ignore.
+/docs/plans/2026-08-09-otd-promo-repo-design.md
+/docs/plans/2026-08-09-otd-promo-validation-log.md
+/docs/plans/2026-08-09-otd-promo-handoff.md
