@@ -33,15 +33,21 @@
 //   node tools/hex-promo-cuts.mjs --preset=wide --choreo=orbit --text
 //                                                         cut with the type burned in
 //
-// `--text` IS FOR THE SOCIAL CUTS AND NOT FOR `band` OR `readme`, which is a
-// composition constraint rather than a rule the tool enforces. `band` is shown
-// through `object-fit: cover` on a ~2.4:1 slice, which throws away 13% off each
-// end on the academy hero and 20% on the apex section; the grid's top row sits
-// at 14% of frame height, so the words survive one crop by a single percent and
-// lose the other outright. Both of those surfaces also carry their own headline
-// copy, which the type would talk over. `readme` is a 720px animated WebP where
-// the byte budget is someone else's page load, and high-contrast type on every
-// frame is exactly what defeats inter-frame compression.
+// `--text` WORKS ON EVERY PRESET, but two of them need knowing about.
+//
+// `band` is the only preset nobody ever sees whole: it is shown through
+// `object-fit: cover` on a ~2.4:1 slice, 13% off each end on the academy hero
+// and 20% on the apex section. Type on it needs a much deeper vertical safe
+// margin, which is what `textSafe` on that preset is for -- at the ordinary 7%
+// the top row centres at 21% of frame height and apex cuts straight through it.
+//
+// `readme` becomes a 720px animated WebP, where high-contrast type on every
+// frame is exactly what defeats inter-frame compression. Expect it to grow; the
+// size is printed on every run, so read it rather than assume it.
+//
+// Neither of those is a page swap. Both surfaces carry their own headline copy,
+// so a text cut for them is an ADDITIONAL file to choose from, not a
+// replacement for the clean one the pages ship.
 import { chromium } from "playwright";
 import { mkdirSync, rmSync, statSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -120,7 +126,28 @@ const PRESETS = {
   // Same 1920x1080 aspect as `wide`, and orbit overrides every preset to one
   // dolly, so it must take the same limit. The probe measured band at its own
   // 1.45 dolly, which is further back and therefore optimistic.
-  band: { markMult: 2.41, w: 1920, h: 1080, dolly: 1.65, lift: 0 },
+  // `textSafe` 24 IS THE WHOLE REASON TYPE CAN GO ON THIS ONE. Everything else
+  // uses the 7% margin the composition was designed at; band is the only preset
+  // nobody ever sees whole. The academy hero keeps 74% of the height and the
+  // apex section keeps 60%, so the binding crop is apex: 20% off each end. At a
+  // 7% margin the grid's top row centres at 21% of frame height, which apex
+  // cuts through. 24% clears the worse crop with 2% to spare and still leaves
+  // three usable rows.
+  band: {
+    markMult: 2.41,
+    w: 1920,
+    h: 1080,
+    dolly: 1.65,
+    lift: 0,
+    textSafe: 24,
+    // FOLLOWS FROM `textSafe`, and was found the hard way. Pulling the bottom
+    // row up by 17% to clear the crop puts a centred download icon straight
+    // through the front tile of the cluster -- the ordinary 7% margin had left
+    // it just below. The LEFT THIRD of this frame is empty at every azimuth,
+    // because landscape pays for the explode's height in empty sides, so the
+    // icon moves there and stacks under FREE.
+    textDl: { cell: "c-bl", align: "" },
+  },
   // 16:10 at README width. Captured small on purpose: this one becomes an
   // animated WebP, where every pixel is bytes in someone's README render.
   readme: { markMult: 2.41, w: 960, h: 600, dolly: 1.24, lift: 0.03 },
@@ -1654,7 +1681,7 @@ async function installCues(page, preset, seconds) {
   const fonts = await displayFonts();
   const px = (k) => Math.round(Math.min(preset.w, preset.h) * TEXT_SCALE[k]);
   const ready = await page.evaluate(
-    async ({ fonts, size, seconds }) => {
+    async ({ fonts, size, seconds, safe, dl }) => {
       const D = "<span class='tdot'>.</span>";
       const style = document.createElement("style");
       // Everything is scoped under #hexcue. The app has its own stylesheet and
@@ -1666,7 +1693,7 @@ async function installCues(page, preset, seconds) {
 @font-face{font-family:'Space Mono';font-style:normal;font-weight:400;font-display:block;
   src:url(data:font/woff2;base64,${fonts.mono}) format('woff2')}
 #hexcue{position:fixed;inset:0;z-index:2147483000;pointer-events:none;display:grid;
-  grid-template-columns:7% 1fr 1fr 1fr 7%;grid-template-rows:7% 1fr 1fr 1fr 7%;
+  grid-template-columns:7% 1fr 1fr 1fr 7%;grid-template-rows:${safe}% 1fr 1fr 1fr ${safe}%;
   --command-gold:#c8963e;--gold-light:#e8b865;--title:#f1ece0;--muted:#aaa}
 #hexcue .cue{opacity:0;align-self:center;min-width:0}
 #hexcue .c-tl{grid-area:2/2/3/4} #hexcue .c-tr{grid-area:2/3/3/5}
@@ -1701,6 +1728,9 @@ async function installCues(page, preset, seconds) {
 @keyframes hxRelease{from{letter-spacing:-.32em;transform:scale(.72);opacity:0;filter:blur(7px)}
   60%{letter-spacing:.02em;opacity:1;filter:blur(0)}to{letter-spacing:-.01em;transform:scale(1)}}
 #hexcue .dl{display:flex;flex-direction:column;align-items:center;gap:${size.gap}px}
+/* The icon column follows its cue's alignment. Left-aligning the cue alone does
+   nothing, because the flex column centres its own children regardless. */
+#hexcue .cue:not(.centre) .dl{align-items:flex-start}
 #hexcue .dl svg{width:${size.icon}px;height:auto;overflow:visible}
 #hexcue .dl .stem,#hexcue .dl .head,#hexcue .dl .tray{fill:none;stroke-width:3.4;
   stroke-linecap:square;stroke-linejoin:miter;vector-effect:non-scaling-stroke}
@@ -1755,9 +1785,9 @@ async function installCues(page, preset, seconds) {
         {
           t: 8.0,
           d: 1.9,
-          cell: "c-band",
+          cell: dl.cell,
           anim: "dl",
-          align: "centre",
+          align: dl.align,
           html: `<div class="dl">${DL_SVG}<div class="dl-url">academy.onethousanddrones.com/hex</div></div>`,
         },
       ];
@@ -1811,6 +1841,17 @@ async function installCues(page, preset, seconds) {
       });
       document.body.appendChild(layer);
 
+      // A cue that outlasts the clip cannot fade out inside its own window, so
+      // it would carry type onto the last frame and step at the seam. Caught
+      // here rather than discovered in a seam number 300 frames later.
+      const over = CUES.filter((c) => c.t - (c.lead ?? 0) + c.d > seconds);
+      if (over.length) {
+        throw new Error(
+          `cue sheet runs past the ${seconds}s clip: ` +
+            over.map((c) => `${c.word ?? "icon"}@${c.t}+${c.d}`).join(", "),
+        );
+      }
+
       const FADE = 0.28;
       // CSS `ease-out` is cubic-bezier(0,0,.58,1). Newton on x, which converges
       // in a handful of steps over [0,1] and costs nothing five times a frame.
@@ -1836,12 +1877,26 @@ async function installCues(page, preset, seconds) {
         CUES.forEach((c, i) => {
           const el = els[i];
           const start = c.t - (c.lead ?? 0);
-          // WRAP. A window whose fade runs past the end of the clip is showing,
-          // at the top of the next lap, the tail the loop point just left.
-          let local = t - start;
-          if (local < -FADE) local = t + seconds - start;
-          const held = local >= 0 && local < c.d + FADE;
-          el.classList.toggle("on", local >= 0 && local < c.d);
+          const local = t - start;
+          // THE FADE LIVES INSIDE THE WINDOW, so every cue is fully gone by its
+          // own `end` and the clip's last frame carries no type at all.
+          //
+          // It used to fade out AFTER the window and wrap the tail round to the
+          // top of the next lap, which made the seam continuous but put FREE and
+          // the download URL on frame 0 at ~87% -- the loop's first frame, and
+          // the still a feed shows before play. Every alternative that keeps a
+          // post-window fade AND a clean frame 0 is worse: truncating it leaves a
+          // step at the seam, and compressing it into the 0.067 s left after 9.9
+          // is a two-frame blink while the picture around it flows.
+          //
+          // The cost is 0.28 s of the 1.9 s hold, and it lands somewhere useful:
+          // PRINT now dims as SNAP arrives instead of both sitting at full
+          // opacity, and the download dissolves just after its second hit lands
+          // rather than snapping off.
+          const held = local >= 0 && local < c.d;
+          // ONE CLASS, not two. `.held` existed to outlast `.on` so an animation
+          // would not drop its fill mid-fade; with the fade inside the window
+          // there is nothing left to outlast.
           el.classList.toggle("held", held);
           if (!held) {
             el.style.opacity = "0";
@@ -1850,7 +1905,7 @@ async function installCues(page, preset, seconds) {
           el.style.opacity = String(
             Math.min(
               easeOut(Math.min(1, local / FADE)),
-              easeOut(Math.min(1, (c.d + FADE - local) / FADE)),
+              easeOut(Math.min(1, (c.d - local) / FADE)),
             ),
           );
           // SCRUB, DO NOT PLAY. `pause()` is what makes this deterministic: a
@@ -1890,6 +1945,10 @@ async function installCues(page, preset, seconds) {
     {
       fonts,
       seconds,
+      // Vertical safe margin. The horizontal one stays 7% on every preset
+      // because `object-fit: cover` on a wider-than-tall slice crops HEIGHT.
+      safe: preset.textSafe ?? 7,
+      dl: preset.textDl ?? { cell: "c-band", align: "centre" },
       size: {
         word: px("word"),
         big: px("big"),

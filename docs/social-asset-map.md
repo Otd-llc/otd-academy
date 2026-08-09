@@ -115,13 +115,33 @@ The sign-off is the gesture rather than a caption that says "get the files".
 Periods are hollow -- transparent fill over a stroke -- and take the opposite
 colour to their word: ivory word, gold stop; gold word, ivory stop.
 
-**Type goes on the four social cuts only.** Not `band`: it is shown through
-`object-fit: cover` on a ~2.4:1 slice, which discards 13% off each end on the
-academy hero and 20% on apex, while the grid's top row sits at 14% of frame
-height -- the words clear one crop by a single percent and lose the other
-outright. Both of those surfaces also carry their own headline copy. Not
-`readme`: high-contrast type on every frame is exactly what defeats the
-inter-frame compression an animated WebP depends on.
+**Every cue fades out inside its own window**, so the clip's last frame carries
+no type and the loop's first frame is clean. The first version faded out _after_
+the window and wrapped the tail round to the next lap, which made the seam
+continuous but put FREE and the download URL on frame 0 at ~87% -- the still a
+feed shows before play. Every alternative that keeps a post-window fade and a
+clean frame 0 is worse: truncating it steps at the seam, and compressing it into
+the 0.067 s left after 9.9 is a two-frame blink while the picture flows. The
+cost is 0.28 s off a 1.9 s hold, and it lands somewhere useful -- PRINT dims as
+SNAP arrives, and the download dissolves just after its second hit.
+
+**`band` and `readme` can carry type, but they are ADDITIONAL files, not page
+swaps.** Both surfaces ship a clean cut and supply their own headline copy;
+`public/hex/configurator*.mp4` and the four README WebPs are untouched.
+
+`band` is the only preset nobody ever sees whole -- `object-fit: cover` on a
+~2.4:1 slice, 13% off each end on the academy hero and 20% on apex -- so it
+takes a **24% vertical safe margin** (`textSafe`) instead of the usual 7%. At 7%
+the top row centres at 21% of frame height and apex cuts straight through it.
+That fix creates a second one: pulling the bottom row up 17% puts a centred
+download icon through the front tile of the cluster, where the 7% margin had
+left it just below. The icon moves to the empty left third (`textDl`), which is
+empty at every azimuth because landscape pays for the explode's height in empty
+sides.
+
+`readme` becomes a 720 px animated WebP, where high-contrast type on every frame
+is what defeats the inter-frame compression the format depends on. The size is
+printed on every run -- read it rather than assume it.
 
 Sizes scale off the **short axis**, not the width. Scaling by width is right for
 the three portrait-or-square formats, whose width _is_ the short axis, and wrong
@@ -176,6 +196,10 @@ without a click; measured on the 30 s vertical, every lap reads -13.6 dB mean.
 | Academy `/hex` hero | `hex-band-orbit.mp4` + `-light`      | Shipped. `band` is framed for a **cropped** surface: the hero is `object-fit: cover` at 58vh and discards ~13% top and bottom.                                           |
 | Apex home band      | `hex-wide.mp4` (**hero**, not orbit) | Deliberate. That band keeps only ~60% of the height; the orbit's vertical travel gets sliced. Clearing it needs a dolly near 2.07, which shrinks the cluster to a speck. |
 | GitHub READMEs (×4) | `hex-readme-orbit.webp` (720×450)    | README markdown will not autoplay a repo-hosted mp4; it renders as a dead link. Animated WebP is the only format that plays inline.                                      |
+
+`-orbit-text` variants of both exist and are **not** what these surfaces ship.
+They are there to be chosen deliberately -- on a page that drops its own
+headline, or a README that wants the words carried by the image.
 
 ## Stills
 
