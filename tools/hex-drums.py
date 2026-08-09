@@ -213,27 +213,44 @@ def riser(dur=1.5, seed=7):
     return [v * 0.30 for v in bandpass(raw, 300, 6000)]
 
 
-def reverb(buf, mix=0.25, decay=0.55):
-    """Schroeder: parallel combs into series allpasses.
+def reverb(buf, mix=0.25, decay=0.55, room=1.0, damp=0.42):
+    """Schroeder-Moorer: damped parallel combs into series allpasses.
 
-    Nothing in nature is dry, and dryness was most of why the first bed sounded
-    synthetic. The tail WRAPS to the head of the buffer, so the room does not
-    truncate at the loop point.
+    THE DAMPING IS THE POINT, and its absence is what made every kit sound
+    metallic. An undamped comb re-injects the full signal on every pass, so the
+    highs recirculate forever and the delay's resonant peaks ring: that is how
+    you build a tin can, not a room. A real surface absorbs treble on every
+    bounce, so each reflection returns duller than the last. One lowpass inside
+    each feedback loop is the whole difference between "hall" and "trashcan".
+
+    `room` scales the delay lengths. The old fixed set ran 33 to 47 ms, which is
+    a small hard space, and small hard spaces are alleyways. Above about 1.6
+    this reads as a hall.
+
+    Eight combs rather than four, on mutually prime lengths, so the resonant
+    peaks of one do not stack on another's. Four allpasses rather than two, for
+    enough diffusion that individual reflections stop being audible as echoes.
     """
     n = len(buf)
-    combs = [(1687, 0.805), (1601, 0.827), (2053, 0.783), (2251, 0.764)]
+    base = [1214, 1293, 1390, 1475, 1548, 1622, 1694, 1759]
+    combs = [max(64, int(d * room)) for d in base]
+    fb = 0.80 + 0.16 * decay
     acc = [0.0] * n
-    for delay, fb in combs:
-        g = fb * decay
+    for delay in combs:
         d = [0.0] * n
+        store = 0.0
         for i in range(n):
-            d[i] = buf[i] + g * d[i - delay]
+            out = d[i - delay]
+            # One-pole lowpass INSIDE the loop: this is the absorption.
+            store = out * (1 - damp) + store * damp
+            d[i] = buf[i] + store * fb
         for i in range(n):
-            acc[i] += d[i] * 0.25
-    for delay, g in ((347, 0.7), (113, 0.7)):
+            acc[i] += d[i] * 0.125
+    for delay, g in ((605, 0.7), (480, 0.7), (371, 0.7), (245, 0.7)):
+        dl = max(32, int(delay * room))
         out = [0.0] * n
         for i in range(n):
-            out[i] = -g * acc[i] + acc[i - delay] + g * out[i - delay]
+            out[i] = -g * acc[i] + acc[i - dl] + g * out[i - dl]
         acc = out
     return [buf[i] * (1 - mix) + acc[i] * mix for i in range(n)]
 
@@ -385,6 +402,41 @@ KITS = {
         space=0.38, decay=0.68, kick=(0.9, 130, 48, 1.0), tom=(1.1, 165, 72),
         conga=None, shaker_div=0, riser=True, drop_layers=3,
     ),
+    "chest-hall": dict(
+        desc="CHEST in a hall. Long damped reflections instead of a small hard room.",
+        space=0.30, decay=0.60, kick=(0.85, 150, 58, 1.0), tom=(0.85, 210, 95),
+        conga=None, shaker_div=0, riser=True, drop_layers=2, bass="808",
+        thunder=True, body=0.7, sat=2.0, hit_lp=2400,
+        room=1.9, damp=0.52, open_beat="hit",
+    ),
+    "chest-open": dict(
+        desc="CHEST in a hall, with the downbeat of the loop removed so it flows through.",
+        space=0.30, decay=0.60, kick=(0.85, 150, 58, 1.0), tom=(0.85, 210, 95),
+        conga=None, shaker_div=0, riser=True, drop_layers=2, bass="808",
+        thunder=True, body=0.7, sat=2.0, hit_lp=2400,
+        room=1.9, damp=0.52, open_beat="none",
+    ),
+    "chest-soft": dict(
+        desc="CHEST in a hall, opening beat at 42% so the seam is felt rather than struck.",
+        space=0.30, decay=0.60, kick=(0.85, 150, 58, 1.0), tom=(0.85, 210, 95),
+        conga=None, shaker_div=0, riser=True, drop_layers=2, bass="808",
+        thunder=True, body=0.7, sat=2.0, hit_lp=2400,
+        room=1.9, damp=0.52, open_beat="soft",
+    ),
+    "chest-dry": dict(
+        desc="CHEST barely wet. Almost no room at all, for a bed that sits under speech.",
+        space=0.30, decay=0.60, kick=(0.85, 150, 58, 1.0), tom=(0.85, 210, 95),
+        conga=None, shaker_div=0, riser=True, drop_layers=2, bass="808",
+        thunder=True, body=0.7, sat=1.8, hit_lp=2400,
+        room=1.2, damp=0.60, open_beat="soft",
+    ),
+    "chest-cave": dict(
+        desc="CHEST in a much larger, darker space. Heavy absorption, very long tail.",
+        space=0.30, decay=0.60, kick=(0.85, 150, 58, 1.0), tom=(0.85, 210, 95),
+        conga=None, shaker_div=0, riser=True, drop_layers=2, bass="808",
+        thunder=True, body=0.7, sat=1.7, hit_lp=2400,
+        room=2.6, damp=0.66, open_beat="soft",
+    ),
     "808-thunder": dict(
         desc="Broadband hits with a real chest. The scooped middle filled in.",
         space=0.30, decay=0.60, kick=(0.9, 120, 44, 1.0), tom=(0.9, 170, 80),
@@ -533,8 +585,17 @@ def build(seconds, kit_name):
         hit = (lambda d_, a, b_, sd=0: thunder_hit(d_, a, b_, BODY, HLP, SAT, sd)) if TH else \
               (lambda d_, a, b_, sd=0: membrane(d_, a, b_, noise=0.35, lp=LP,
                                                 partials=PART, res=RES, res_dur=d_ * 3.0))
-        place(buf, hit(kd, kf0, kf1, 3), b, kick_gain)
-        kick_times.append(b)
+        # THE FIRST BEAT OF THE LOOP is the one the ear judges the seam by. A
+        # full-strength strike at t=0 arrives on top of the previous lap's
+        # decaying tail and reads as a restart rather than a continuation, which
+        # is what "the first beat needs to go" describes. `open_beat` lets it be
+        # dropped entirely, softened, or left alone.
+        OPEN = k.get("open_beat", "hit")
+        first = bar_i == 0
+        if not (first and OPEN == "none"):
+            g = kick_gain * (0.42 if (first and OPEN == "soft") else 1.0)
+            place(buf, hit(kd, kf0, kf1, 3), b, g)
+            kick_times.append(b)
         if stage >= 1 and not k.get("sparse_hits"):
             place(buf, hit(kd * 0.7, kf0, kf1, 5), b + BEAT * 2, kick_gain * 0.55)
             kick_times.append(b + BEAT * 2)
@@ -624,7 +685,8 @@ def build(seconds, kit_name):
     # quiet. Running the reverb across two laps and discarding the first means
     # the tail arriving at the loop point IS the tail that just left it, so
     # there is nothing to approximate. Busy kits hid this; silence exposes it.
-    wet = reverb(buf + buf, mix=k["space"], decay=k["decay"])
+    wet = reverb(buf + buf, mix=k["space"], decay=k["decay"],
+                 room=k.get("room", 1.6), damp=k.get("damp", 0.45))
     buf = wet[len(buf):]
 
     # BASS IS ADDED AFTER THE REVERB, and stays dry. Sub through a room is mud:
