@@ -148,3 +148,7 @@ _worker-map.log
 # here, this stops authored lesson prose and exam ANSWER KEYS from reaching a
 # PUBLIC repo. The real protection is the default target, not this line.
 /content/
+
+# Freesound API key. Lives outside the repo (C:/zzz/_hex-promo/.freesound-key);
+# this entry is belt-and-braces in case a copy ever lands here.
+.freesound-key
