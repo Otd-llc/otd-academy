@@ -102,6 +102,69 @@ KITS = {
         reverse="reverse/wav/503812.wav", pre_gap=0.5,
         gong="gong/wav/696209.wav", subdrop="subdrop/wav/338869.wav",
     ),
+    "snap-clave": dict(
+        desc="A clave on the beat. Near-instant attack, wooden, cuts through without foley.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", riser="sub/wav/754771.wav",
+        subdrop="subdrop/wav/338869.wav",
+        space=0.16, sub=0.55,
+        snap="rim/wav/368521.wav", snap_gain=0.55,
+    ),
+    "snap-clave-hot": dict(
+        desc="The same clave, louder, so the beat reads as an event rather than a detail.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", riser="sub/wav/754771.wav",
+        subdrop="subdrop/wav/338869.wav",
+        space=0.16, sub=0.55,
+        snap="rim/wav/368521.wav", snap_gain=0.95,
+    ),
+    "snap-switch": dict(
+        desc="A switch flip. Mechanical rather than musical: it sounds like something latching.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", riser="sub/wav/754771.wav",
+        subdrop="subdrop/wav/338869.wav",
+        space=0.16, sub=0.55,
+        snap="snap/wav/278205.wav", snap_gain=0.8,
+    ),
+    "snap-case": dict(
+        desc="A case closing. The shortest of the set and the most percussive of the mechanisms.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", riser="sub/wav/754771.wav",
+        subdrop="subdrop/wav/338869.wav",
+        space=0.16, sub=0.55,
+        snap="snap/wav/835523.wav", snap_gain=0.85,
+    ),
+    "snap-lever": dict(
+        desc="A lever throw. Longer, with some travel before it seats.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", riser="sub/wav/754771.wav",
+        subdrop="subdrop/wav/338869.wav",
+        space=0.16, sub=0.55,
+        snap="snap/wav/827344.wav", snap_gain=0.9,
+    ),
+    "snap-lock": dict(
+        desc="A door lock. The heaviest, and the most obviously a recording of a real object.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", riser="sub/wav/754771.wav",
+        subdrop="subdrop/wav/338869.wav",
+        space=0.16, sub=0.55,
+        snap="snap/wav/140561.wav", snap_gain=0.6,
+    ),
+    "snap-none": dict(
+        desc="The chosen bed with no snap accent, for comparison.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", riser="sub/wav/754771.wav",
+        subdrop="subdrop/wav/338869.wav",
+        space=0.16, sub=0.55,
+        
+    ),
     "kick-led": dict(
         desc="Kick forward, taiko answering. Tighter and more modern.",
         kick="kick/wav/584787.wav", hit="taiko/wav/801832.wav",
@@ -178,6 +241,21 @@ def place_ramp(buf, snd, end_s, g0, g1, curve=2.2):
         buf[(start + i) % n] += v * (g0 + (g1 - g0) * (t**curve))
 
 
+def place_peak(buf, snd, at_s, gain=1.0):
+    """Place so the sample's LOUDEST MOMENT lands on the beat, not its first
+    sample.
+
+    Recordings of mechanisms carry leading silence: measured on this set, the
+    toggle switches peak 267 and 387 ms in, and a case latch 121 ms in, while
+    the claves peak in 6 to 8 ms. Aligning by the start would put the audible
+    click a third of a beat late at 120 BPM, which reads as sloppy timing
+    rather than as a late sample. Aligning by the peak makes any of them
+    usable, whatever silence they were recorded with.
+    """
+    peak_i = max(range(len(snd)), key=lambda i: abs(snd[i])) if snd else 0
+    place(buf, snd, at_s - peak_i / SR, gain)
+
+
 def sub_note(dur, f, gain=1.0, curve=1.6):
     """Sine sub. Kept synthetic on purpose: a sine is exactly what a synth is
     good at, and it is the one element the sampled rounds never faulted."""
@@ -239,7 +317,7 @@ def build(seconds, kit_name, open_beat="soft"):
     S = {r: read_wav(os.path.join(SAMPLES, k[r])) for r in ("kick", "hit", "alt", "low", "drop", "riser")}
     # Optional drama parts. Absent means that kit simply does not use it, which
     # is how the variants stay comparable: the accent beats below never change.
-    for r in ("reverse", "fill", "gong", "subdrop"):
+    for r in ("reverse", "fill", "gong", "subdrop", "snap"):
         if k.get(r):
             S[r] = read_wav(os.path.join(SAMPLES, k[r]))
     # REVERSING TURNS A DECAY INTO A SWELL, which is the whole reverse-riser
@@ -280,6 +358,13 @@ def build(seconds, kit_name, open_beat="soft"):
             place(buf, S["alt"], b + BEAT * 3.5, 0.45 + 0.1 * stage)
         if stage >= 2:
             place(buf, S["low"], b + BEAT * 2.75, 0.4)
+
+        # THE SNAP BEAT. The word at 4.0 s is two halves meeting, so this beat
+        # gets its own accent on top of the kick: a mechanism closing rather
+        # than another drum. Peak-aligned, because these are recordings of real
+        # objects and they do not all start when they sound.
+        if stage == 2 and "snap" in S:
+            place_peak(buf, S["snap"], b, k.get("snap_gain", 0.7))
 
         # ---- the build ------------------------------------------------------
         # GAP is the device, not the volume. A short silence before the drop
