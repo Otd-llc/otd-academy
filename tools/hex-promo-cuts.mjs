@@ -33,6 +33,7 @@
 import { chromium } from "playwright";
 import { mkdirSync, rmSync, statSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 
 const APP = "http://localhost:5180/hex";
 const RAW =
@@ -69,7 +70,7 @@ const SECONDS = Number(
 // there to show.
 const PRESETS = {
   // 16:9 -- apex hero, YouTube.
-  wide: { w: 1920, h: 1080, dolly: 1.22, lift: 0.03 },
+  wide: { markMult: 2.41, w: 1920, h: 1080, dolly: 1.22, lift: 0.03 },
   // ---- aspect <= 1: fitToSphere fits to WIDTH, and lift is measured in a
   // distance that is now much larger, so BOTH hero numbers have to change.
   //
@@ -84,11 +85,11 @@ const PRESETS = {
   //
   // DOLLY GOES OUT for margin. At 1.0 the neighbour tiles already touch both
   // side edges, and the widest beat of the choreography is wider still.
-  vertical: { w: 1080, h: 1920, dolly: 1.24, lift: 0 },
+  vertical: { markMult: 2.24, w: 1080, h: 1920, dolly: 1.24, lift: 0 },
   // 1:1 -- X and LinkedIn feed.
-  square: { w: 1080, h: 1080, dolly: 1.24, lift: 0 },
+  square: { markMult: 2.26, w: 1080, h: 1080, dolly: 1.24, lift: 0 },
   // 4:5 -- LinkedIn and Instagram feed.
-  portrait: { w: 1080, h: 1350, dolly: 1.24, lift: 0 },
+  portrait: { markMult: 2.25, w: 1080, h: 1350, dolly: 1.24, lift: 0 },
   // FOR A CROPPED BAND, not a full frame. The apex home section and the
   // academy /hex hero both show this clip through `object-fit: cover` on a
   // roughly 2.4:1 slice of a 16:9 source, which throws away about 13% off the
@@ -104,10 +105,13 @@ const PRESETS = {
   // need a dolly near 2.07, which shrinks the cluster to a speck; that band was
   // framed around the hero loop, whose content is short, and the orbit's whole
   // point is vertical travel. The hero loop stays on apex.
-  band: { w: 1920, h: 1080, dolly: 1.65, lift: 0 },
+  // Same 1920x1080 aspect as `wide`, and orbit overrides every preset to one
+  // dolly, so it must take the same limit. The probe measured band at its own
+  // 1.45 dolly, which is further back and therefore optimistic.
+  band: { markMult: 2.41, w: 1920, h: 1080, dolly: 1.65, lift: 0 },
   // 16:10 at README width. Captured small on purpose: this one becomes an
   // animated WebP, where every pixel is bytes in someone's README render.
-  readme: { w: 960, h: 600, dolly: 1.24, lift: 0.03 },
+  readme: { markMult: 2.41, w: 960, h: 600, dolly: 1.24, lift: 0.03 },
 };
 
 // The animated-WebP recipe, README preset only. 15fps and 720px are a size
@@ -148,12 +152,19 @@ const THEME = flag("light") ? "light" : "dark";
 // The loop still closes by construction: azimuth completes exactly one
 // revolution across the whole clip whatever the polar is doing, every placement
 // has a matching removal, and the polar curve starts and ends on the same value.
+// `--ground-mark` lays the brand mark ON THE FLOOR of the 3D scene rather
+// than compositing it over the picture afterwards. That is the whole point: in
+// the opening plan view it reads flat and square, and as the camera tips to
+// three quarters it foreshortens with the floor, because it IS the floor. An
+// overlay cannot do that; it would sit still while everything under it moved.
+const GROUND_MARK = flag("ground-mark");
+const GROUND_OPACITY = Number(arg("mark-opacity")?.split("=")[1] ?? 0.13);
 const CHOREO = arg("choreo")?.split("=")[1] ?? "hero";
 if (!["hero", "orbit"].includes(CHOREO)) {
   console.error(`unknown --choreo "${CHOREO}". One of: hero, orbit`);
   process.exit(1);
 }
-const suffix = `${CHOREO === "orbit" ? "-orbit" : ""}${THEME === "light" ? "-light" : ""}`;
+const suffix = `${CHOREO === "orbit" ? "-orbit" : ""}${GROUND_MARK ? "-mark" : ""}${THEME === "light" ? "-light" : ""}`;
 
 // Plan view is NOT polar 0. camera-controls degenerates as the polar angle
 // approaches the pole (the azimuth has no meaning when you are looking straight
@@ -1186,6 +1197,102 @@ async function installOrbitStepper(page, total, planPolar, pose) {
   );
 }
 
+/** Lay the brand mark on the scene's floor.
+ *
+ *  THREE IS REACHED THROUGH VITE'S DEP CACHE. A bare `import("three")` inside
+ *  page.evaluate cannot resolve: Vite rewrites bare specifiers only in files it
+ *  serves, and an evaluated string is not one. `/node_modules/.vite/deps/three.js`
+ *  is the pre-bundled copy the app itself loads, so it is the same instance
+ *  rather than a second copy of the library.
+ *
+ *  The SVG arrives as a data URI from Node instead of a path, because the mark
+ *  lives outside the dev server's root and would 404. Drawn into a canvas at a
+ *  generous size, since this is stretched across a floor and a small texture
+ *  reads as mush at grazing angles.
+ *
+ *  Sits just ABOVE the shadow catcher and just BELOW the tiles, unlit and with
+ *  depth writes off, so the cluster occludes it naturally and it never z-fights
+ *  the plane it rests on.
+ */
+async function addGroundMark(page, svgDataUri, opacity, mult) {
+  return page.evaluate(
+    async ({ uri, opacity, mult }) => {
+      const THREE = await import("/node_modules/.vite/deps/three.js");
+      const { scene, cellsContainer } = await import("/src/hex/scene.ts");
+
+      const img = new Image();
+      await new Promise((res, rej) => {
+        img.onload = res;
+        img.onerror = rej;
+        img.src = uri;
+      });
+      const S = 2048;
+      const cv = document.createElement("canvas");
+      cv.width = cv.height = S;
+      const ctx = cv.getContext("2d");
+      // Contain, centred: the mark keeps its aspect on a square texture.
+      // FULL BLEED on the texture. The span solve already accounts for the
+      // artwork filling it, so holding back 8% here would just waste the
+      // headroom that was measured.
+      const r = Math.min(S / img.width, S / img.height);
+      const w = img.width * r;
+      const h = img.height * r;
+      ctx.drawImage(img, (S - w) / 2, (S - h) / 2, w, h);
+
+      // THE FOOTER'S FALLOFF, ported. The academy footer masks its bee with
+      // `linear-gradient(135deg, .32 -> .55 at 45% -> solid at 85%)`, so the
+      // mark is faintest at the top left and resolves toward the bottom right
+      // rather than sitting at one flat value. Same stops here, applied to the
+      // texture's ALPHA via destination-in, which is the canvas equivalent of a
+      // CSS mask. Doing it in the texture rather than with a second plane keeps
+      // it one draw and keeps it correct under perspective: the falloff is
+      // painted on the floor, so it foreshortens with the floor.
+      ctx.globalCompositeOperation = "destination-in";
+      const grad = ctx.createLinearGradient(0, 0, S, S);
+      grad.addColorStop(0.0, "rgba(0,0,0,0.32)");
+      grad.addColorStop(0.45, "rgba(0,0,0,0.55)");
+      grad.addColorStop(0.85, "rgba(0,0,0,1)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, S, S);
+      ctx.globalCompositeOperation = "source-over";
+
+      const tex = new THREE.CanvasTexture(cv);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 8;
+
+      // Sized off the CLUSTER, not a constant: the mark should frame whatever
+      // the choreography builds rather than a number that happens to fit today.
+      const box = new THREE.Box3().setFromObject(cellsContainer);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      // PER-PRESET, MEASURED. Binary-searched for the largest span whose
+      // artwork stays inside the frame at sixteen azimuths across the full
+      // revolution AND at both polars, with a 0.02 margin. The previous 2.6
+      // was set from a SINGLE azimuth and clipped at others: a floor plane's
+      // projected extent swings as the camera comes round, so one rotation
+      // proves nothing. Vertical is the tightest aspect and wide the loosest.
+      const span = Math.max(size.x, size.z) * mult || 0.6;
+
+      const mat = new THREE.MeshBasicMaterial({
+        map: tex,
+        transparent: true,
+        opacity,
+        depthWrite: false,
+        toneMapped: false,
+      });
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(span, span), mat);
+      plane.name = "ground-mark";
+      plane.rotation.x = -Math.PI / 2;
+      // Above the shadow catcher, below the tiles' own base.
+      plane.position.y = 0.0006;
+      plane.renderOrder = -1;
+      scene.add(plane);
+      return { span: Number(span.toFixed(4)), textured: !!tex.image };
+    },
+    { uri: svgDataUri, opacity, mult },
+  );
+}
+
 /** Mean absolute difference between two frames, 0-255. */
 function frameDiff(a, b) {
   const out = execFileSync(
@@ -1409,7 +1516,10 @@ if (PROBE) {
 
 // ---- a cut ---------------------------------------------------------------
 const preset = PRESETS[presetArg];
-const FRAMES = `${RAW}/${presetArg}-${CHOREO}-${THEME}`;
+// The mark belongs in the scratch path too. Without it a ground-mark run and
+// a plain one of the same preset share a directory, so whichever ran last
+// silently defines what gets encoded.
+const FRAMES = `${RAW}/${presetArg}-${CHOREO}${GROUND_MARK ? "-mark" : ""}-${THEME}`;
 rmSync(FRAMES, { recursive: true, force: true });
 mkdirSync(FRAMES, { recursive: true });
 
@@ -1419,6 +1529,22 @@ if (CHOREO === "orbit") {
   ORBIT_POSE = await frameOrbit(page, presetFor(preset), false);
 } else {
   await frame(page, preset, false);
+}
+// AFTER framing, BEFORE the clock starts: the plane is scene furniture, so it
+// must exist while the camera pose is being settled, not appear mid-recording.
+if (GROUND_MARK) {
+  const svg = readFileSync("C:/zzz/_hex-promo/brand/otd-icon-gold.svg", "utf8")
+    .replace(/>\s+</g, "><")
+    .trim();
+  const info = await addGroundMark(
+    page,
+    "data:image/svg+xml," + encodeURIComponent(svg),
+    GROUND_OPACITY,
+    preset.markMult,
+  );
+  console.log(
+    `[capture] ground mark span ${info.span} textured=${info.textured}`,
+  );
 }
 await waitForRest(page);
 const home = await forceCollapsed(page);
