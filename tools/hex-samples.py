@@ -33,11 +33,21 @@ preference. This script used to rebuild `provenance.json` from a fresh LIVE
 SEARCH on every `--fetch` and `json.dump` the result over the old file. Freesound
 ranks by rating, so the result set moves: any sound downloaded on an earlier run
 that had since slipped out of the top results kept its `.ogg` on disk and
-silently lost its licence record. Found 2026-08-09 with **11 orphaned files** --
+silently lost its licence record. Found 2026-08-09 with **12 orphaned files** --
 audio on disk, destined for published video, with no CC0 evidence behind it.
 
+(Twelve, not eleven. A first count compared sound ids GLOBALLY and got 11,
+because `impact/749957` has a record filed under a different role. Orphaning is
+per (role, id): the same sound in two roles needs a record in both. The check
+below is role-aware for that reason.)
+
 The audit trail is the entire point of this file, so it now only ever grows, and
-`--reconcile` fails if a single audio file on disk has no record.
+`--reconcile` fails if a single audio file on disk has no record -- and refuses
+to pass at all if there is no sample tree, because a green check on an empty
+machine is the failure this gate exists to prevent.
+
+NOTE ON THE COUNT IT PRINTS: it reports (role, id) PLACEMENTS, not distinct
+sounds. 98 placements over 92 distinct sounds; six ids appear under two roles.
 
     python tools/hex-samples.py --list          # show candidates, download none
     python tools/hex-samples.py --fetch         # download the picks, MERGE provenance
@@ -252,12 +262,25 @@ if __name__ == "__main__":
 
     # --reconcile needs no network and no key, so it can run as a check.
     if a.reconcile:
+        # A GREEN CHECK ON AN EMPTY MACHINE IS THE FAILURE MODE THIS EXISTS TO
+        # PREVENT. `os.walk` on a missing directory yields nothing and
+        # `load_prov()` returns {} when the file is absent, so the whole gate
+        # used to pass with "0 on disk, 0 records, 0 orphaned" -- on any fresh
+        # clone, any CI runner, and the promo repo this is destined for. The one
+        # standing licence check was green precisely where it had nothing to
+        # check.
+        if not os.path.isdir(OUT_DIR):
+            raise SystemExit(f"! no sample tree at {OUT_DIR} - nothing to reconcile")
+        if not on_disk():
+            raise SystemExit(f"! {OUT_DIR} contains no audio - refusing to pass")
         missing = orphans()
         for role, sid in missing:
             print(f"  ! {role}/{sid}: audio on disk, NO provenance record")
         n = sum(len(v) for v in load_prov().values())
         print(
-            f"\n{len(on_disk())} audio ids on disk, {n} provenance records, "
+            f"\n{len(on_disk())} (role,id) placements over "
+            f"{len({sid for _r, sid in on_disk()})} distinct sounds, "
+            f"{n} provenance records, "
             f"{len(missing)} orphaned"
         )
         raise SystemExit(1 if missing else 0)

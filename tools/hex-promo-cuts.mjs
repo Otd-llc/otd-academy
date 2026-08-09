@@ -49,7 +49,7 @@
 // so a text cut for them is an ADDITIONAL file to choose from, not a
 // replacement for the clean one the pages ship.
 import { chromium } from "playwright";
-import { mkdirSync, rmSync, statSync } from "node:fs";
+import { mkdirSync, renameSync, rmSync, statSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
@@ -139,6 +139,15 @@ const PRESETS = {
     h: 1080,
     dolly: 1.65,
     lift: 0,
+    // Shown through `object-fit: cover`, never whole -- so the orbit dolly
+    // override must not touch it. See `presetFor`.
+    cropped: true,
+    // The fraction of frame HEIGHT the academy /hex hero actually shows,
+    // measured on the real page at a 1440 viewport: it renders the clip
+    // 1392x783 and displays 580 of it. The probe gates against this, not
+    // against the full frame. Apex crops harder still (~0.60) and is why the
+    // apex band ships the `hero` choreography instead.
+    visible: 0.74,
     textSafe: 24,
     // FOLLOWS FROM `textSafe`, and was found the hard way. Pulling the bottom
     // row up by 17% to clear the crop puts a centred download icon straight
@@ -227,8 +236,22 @@ const POLAR_PLAN = 0.14;
 // hero set holds. One value covers all five because the required correction
 // landed within a percent of itself on every preset (1.037 to 1.063).
 const ORBIT_DOLLY = 1.3;
+// `cropped` PRESETS KEEP THEIR OWN DOLLY. The orbit override exists because the
+// choreography puts four tiles on screen and spends a third of the clip in plan
+// view, where flat tiles spread wider than the three-quarter stack does -- so a
+// single value covers the presets that are shown WHOLE.
+//
+// `band` is not shown whole, and overriding it was a live defect. With the
+// framing gate finally able to run (it had never executed -- see
+// `extentOverTurn`), band measured marginY 0.142, i.e. geometry reaching 0.858
+// of half-height, against an academy hero that crops to 0.74 and an apex band
+// that crops to 0.60. The cluster was being sliced on a page that is live.
+//
+// 1.65 is the value already in the table, already justified by measurement, and
+// already documented as clearing the hero but not apex. The override was
+// throwing it away.
 const presetFor = (p) =>
-  CHOREO === "orbit" ? { ...p, dolly: ORBIT_DOLLY } : p;
+  CHOREO === "orbit" && !p.cropped ? { ...p, dolly: ORBIT_DOLLY } : p;
 
 /** Where the camera sits in its tip-over, as a fraction of the clip.
  *
@@ -1449,6 +1472,17 @@ async function extentOverTurn(page, steps = 24, polars = null) {
       const { bumpRender } = await import("/src/hex/main.ts");
       const cam = controls.camera;
       const polar0 = controls.polarAngle;
+      // THIS LINE IS THE WHOLE GATE. Without it `az0` is an unbound identifier
+      // and the evaluate throws `ReferenceError: az0 is not defined` on its
+      // first iteration -- so the framing check has NEVER run, on any preset,
+      // since it was written. It only executes under `--probe`, which nobody
+      // had run since, so nothing reported it and §10.2 listed it as "built".
+      //
+      // It is the check that exists because framing measured at ONE azimuth
+      // shipped a cut with the geometry clipped at others. A gate written to
+      // catch a defect that already shipped, itself broken, silently, for its
+      // whole life. Confirmed at runtime 2026-08-09, then fixed.
+      const az0 = controls.azimuthAngle;
 
       // Column-major, same convention as THREE's `.elements`.
       const mulMat = (a, b) => {
@@ -1548,8 +1582,16 @@ if (PROBE) {
     );
     // Worst approach to any edge over the whole turn. Negative means the
     // geometry left the frame at some azimuth.
+    //
+    // MEASURED AGAINST THE VISIBLE WINDOW, NOT THE FRAME. A preset shown through
+    // `object-fit: cover` never displays its full height, so margin against the
+    // frame answers a question nobody asked. `band` measured a comfortable
+    // marginY of 0.142 against the frame while the academy hero -- which keeps
+    // 0.74 of the height -- was slicing the cluster. The gate said fine; the
+    // page did not. Per-preset `visible` makes the gate measure what ships.
+    const visY = preset.visible ?? 1;
     const marginX = 1 - Math.max(Math.abs(box.minX), Math.abs(box.maxX));
-    const marginY = 1 - Math.max(Math.abs(box.minY), Math.abs(box.maxY));
+    const marginY = visY - Math.max(Math.abs(box.minY), Math.abs(box.maxY));
     const bad = marginX < 0 || marginY < 0;
     if (bad) clipped++;
     // The still is kept as a sanity check on what the numbers describe, but it
@@ -1934,8 +1976,26 @@ async function installCues(page, preset, seconds) {
       const box = layer.getBoundingClientRect();
       return {
         cues: CUES.length,
-        bebas: document.fonts.check(`${size.big}px 'Bebas Neue'`),
-        mono: document.fonts.check(`${size.url}px 'Space Mono'`),
+        // `document.fonts.check()` ALONE IS NOT A GATE. It returns TRUE when no
+        // `@font-face` matches the family at all -- verified in Playwright: on a
+        // page with `document.fonts.size === 0`, `check('1em "Bebas Neue"')` is
+        // true. It answers "is anything blocking this render?", not "did my font
+        // load". So it goes green in exactly the case it exists to catch: the
+        // data URI malformed, the family misspelled, the face never registered.
+        //
+        // The real test is that the face EXISTS in the registry and is loaded.
+        // `check()` is kept as the third condition because it still catches a
+        // face that is registered but unresolved.
+        bebas: [...document.fonts].some(
+          (f) => f.family === "Bebas Neue" && f.status === "loaded",
+        ),
+        mono: [...document.fonts].some(
+          (f) => f.family === "Space Mono" && f.status === "loaded",
+        ),
+        registered: document.fonts.size,
+        resolves:
+          document.fonts.check(`${size.big}px 'Bebas Neue'`) &&
+          document.fonts.check(`${size.url}px 'Space Mono'`),
         shown:
           getComputedStyle(layer).display !== "none" &&
           box.width > 0 &&
@@ -1958,7 +2018,13 @@ async function installCues(page, preset, seconds) {
       },
     },
   );
-  if (!ready.bebas || !ready.mono || !ready.shown) {
+  if (
+    !ready.bebas ||
+    !ready.mono ||
+    !ready.shown ||
+    !ready.resolves ||
+    ready.registered < 2
+  ) {
     throw new Error(
       `[text] cue layer not ready: ${JSON.stringify(ready)} -- ` +
         "the burn would ship with no type, or in a fallback face",
@@ -2157,17 +2223,41 @@ if (!seamCheck(FRAMES, TOTAL)) {
 if (failures.length) {
   for (const f of failures) console.error(`[GATE FAILED] ${f}`);
   if (!flag("force")) {
+    // KEEP THE EVIDENCE. The frame dir is `rmSync`d at the top of every run of
+    // the same preset, so "inspect the frames" was advice the next run
+    // destroyed -- including the re-run you would do to reproduce the failure.
+    const kept = `${FRAMES}-failed-${Date.now()}`;
+    try {
+      renameSync(FRAMES, kept);
+    } catch {
+      /* the frames are diagnostic, not the deliverable; never mask the failure */
+    }
     console.error(
       `\n${failures.length} gate(s) failed — NOT encoding. ` +
-        `Frames are in ${FRAMES} for inspection; re-run with --force to encode anyway.`,
+        `Frames kept at ${kept}; re-run with --force to encode anyway.`,
     );
     process.exit(1);
   }
+  // --force ENCODES BUT STILL FAILS. It used to fall through to a plain exit 0
+  // with the artefact at the ordinary path and nothing to distinguish it, so a
+  // batch loop, a wrapper, or a later mux could not tell a forced cut from a
+  // clean one. The defect had moved out of the discarded boolean and into here.
   console.error("\n--force: encoding a cut that failed its gates.");
+  process.exitCode = 1;
 }
 
 const base = `${OUT}/hex-${presetArg}${suffix}`;
 const emitted = [];
+// A sidecar, not a renamed output: the filename is what every consumer and the
+// manifest key are built from, and renaming it would break them in a way that
+// looks like a missing file rather than a failed gate.
+if (failures.length) {
+  writeFileSync(
+    `${base}.GATE-FAILED.txt`,
+    `${new Date().toISOString()}\nforced past ${failures.length} failed gate(s):\n` +
+      failures.map((f) => `  - ${f}\n`).join(""),
+  );
+}
 
 // Encoded 1:1 at 30fps. No setpts, no trim: the capture produced exactly
 // SECONDS * 30 frames of SCENE time, so it is already the right length and
