@@ -52,6 +52,56 @@ KITS = {
         drop="impact/wav/718004.wav", riser="sub/wav/754771.wav",
         space=0.16, sub=0.55,
     ),
+    "taiko-reverse": dict(
+        desc="Reverse swell running into the drop. No gap: the swell hands straight over.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", riser="sub/wav/754771.wav",
+        space=0.16, sub=0.55,
+        reverse="reverse/wav/503812.wav",
+    ),
+    "taiko-hush": dict(
+        desc="Reverse swell, then a BEAT OF SILENCE, then the drop. The gap is the trick.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", riser="sub/wav/754771.wav",
+        space=0.16, sub=0.55,
+        reverse="reverse/wav/503812.wav", pre_gap=0.5,
+    ),
+    "taiko-roll": dict(
+        desc="Accelerando snare fill through the build bar, velocity ramping into the hit.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", riser="sub/wav/754771.wav",
+        space=0.16, sub=0.55,
+        fill="roll/wav/809821.wav",  # steady, not front-loaded
+    ),
+    "taiko-gong": dict(
+        desc="A crash layered on the drop, so the impact has a top as well as a bottom.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", riser="sub/wav/754771.wav",
+        space=0.16, sub=0.55,
+        gong="gong/wav/696209.wav",
+    ),
+    "taiko-subdrop": dict(
+        desc="A sub drop under the impact. Felt rather than heard.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", riser="sub/wav/754771.wav",
+        space=0.16, sub=0.55,
+        subdrop="subdrop/wav/338869.wav",
+    ),
+    "taiko-max": dict(
+        desc="Everything: roll in, swell, silence, then impact with crash and sub together.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", riser="sub/wav/754771.wav",
+        space=0.16, sub=0.55,
+        fill="roll/wav/809827.wav", reverse_fill=True,
+        reverse="reverse/wav/503812.wav", pre_gap=0.5,
+        gong="gong/wav/696209.wav", subdrop="subdrop/wav/338869.wav",
+    ),
     "kick-led": dict(
         desc="Kick forward, taiko answering. Tighter and more modern.",
         kick="kick/wav/584787.wav", hit="taiko/wav/801832.wav",
@@ -84,7 +134,17 @@ def read_wav(path):
         raw = [(raw[i] + raw[i + 1]) * 0.5 for i in range(0, len(raw), 2)]
     if sr != SR:  # the fetch normalises to 48k, so this is a guard not a resampler
         raise SystemExit(f"{path} is {sr} Hz, expected {SR}")
-    return [v / 32768.0 for v in raw]
+    out = [v / 32768.0 for v in raw]
+    # NORMALISE ON LOAD, so a placement gain means the same thing whatever the
+    # source was recorded at. Uploads vary enormously: the kick and taiko arrive
+    # at peak 1.00 while the snare fills peak at 0.40 and one is at 0.02. Before
+    # this, `gain=0.75` on a quiet fill produced something five times below the
+    # bed and inaudible, which reads as "the variant does nothing" rather than
+    # "the sample was quiet".
+    peak = max((abs(v) for v in out), default=0.0)
+    if peak > 1e-6:
+        out = [v / peak for v in out]
+    return out
 
 
 def place(buf, snd, at_s, gain=1.0):
@@ -99,6 +159,23 @@ def place_end(buf, snd, end_s, gain=1.0):
     """Place so the sound ENDS at `end_s`. Risers are positioned by their
     landing, never their start: the point of a riser is what it arrives on."""
     place(buf, snd, end_s - len(snd) / SR, gain)
+
+
+def place_ramp(buf, snd, end_s, g0, g1, curve=2.2):
+    """Place a sustained sample so it ENDS at `end_s`, rising from g0 to g1.
+
+    A steady snare fill at a flat level is a texture; the same fill with its
+    level climbing is a BUILD. This is the velocity ramp a player would
+    perform, applied as a gain envelope because the sample is already recorded
+    at one dynamic. The curve is exponential so most of the growth happens late,
+    which is what makes the arrival feel inevitable rather than linear.
+    """
+    n = len(buf)
+    start = int((end_s - len(snd) / SR) * SR)
+    L = len(snd)
+    for i, v in enumerate(snd):
+        t = i / max(1, L - 1)
+        buf[(start + i) % n] += v * (g0 + (g1 - g0) * (t**curve))
 
 
 def sub_note(dur, f, gain=1.0, curve=1.6):
@@ -160,6 +237,19 @@ def reverb(buf, mix, decay=0.5, room=1.7, damp=0.5):
 def build(seconds, kit_name, open_beat="soft"):
     k = KITS[kit_name]
     S = {r: read_wav(os.path.join(SAMPLES, k[r])) for r in ("kick", "hit", "alt", "low", "drop", "riser")}
+    # Optional drama parts. Absent means that kit simply does not use it, which
+    # is how the variants stay comparable: the accent beats below never change.
+    for r in ("reverse", "fill", "gong", "subdrop"):
+        if k.get(r):
+            S[r] = read_wav(os.path.join(SAMPLES, k[r]))
+    # REVERSING TURNS A DECAY INTO A SWELL, which is the whole reverse-riser
+    # trick and it costs one list slice. Needed because most "fill" and "roll"
+    # uploads are front-loaded: they start loud and decay. Placed to land on the
+    # drop and given a rising ramp, a front-loaded sample fights the ramp, and
+    # the result measured as a 2% contribution that was placed perfectly and
+    # could not be heard.
+    if k.get("reverse_fill") and "fill" in S:
+        S["fill"] = S["fill"][::-1]
     n = int(round(seconds * SR))
     buf = [0.0] * n
     sub = [0.0] * n
@@ -191,13 +281,39 @@ def build(seconds, kit_name, open_beat="soft"):
         if stage >= 2:
             place(buf, S["low"], b + BEAT * 2.75, 0.4)
 
-        # The riser LANDS on the drop rather than starting near it.
+        # ---- the build ------------------------------------------------------
+        # GAP is the device, not the volume. A short silence before the drop
+        # makes the hit land harder than any amount of extra level, because the
+        # ear reads the pause as the held breath. Everything that builds is
+        # positioned to END at the gap rather than run through it.
+        gap = k.get("pre_gap", 0.0)
+        landing = b + BAR - gap
+
         if stage == 2:
-            place_end(buf, S["riser"], b + BAR, 0.85)
+            if "reverse" in S:
+                # A back-loaded swell placed by its END, so its peak coincides
+                # with the moment the music stops.
+                place_end(buf, S["reverse"], landing, 0.9)
+            else:
+                place_end(buf, S["riser"], landing, 0.85)
+
+            if "fill" in S:
+                # ACCELERANDO BY VELOCITY. Measured first at a flat 0.75 and it
+                # contributed +0.0026 RMS against a bed of 0.148, about 2%:
+                # placed correctly and completely inaudible. It needs both real
+                # gain and a rising envelope, because a fill at constant level
+                # is a texture rather than a build.
+                place_ramp(buf, S["fill"], landing, 0.25, 2.4)
 
         if stage == 3:
+            # LAYERED. A drop is several things arriving together rather than
+            # one thing arriving loudly: body, skin, top, and something felt.
             place(buf, S["drop"], b, 1.0)
             place(buf, S["hit"], b, 0.7)
+            if "gong" in S:
+                place(buf, S["gong"], b, 0.55)
+            if "subdrop" in S:
+                place(buf, S["subdrop"], b, 0.8)
             place(buf, S["kick"], b + BEAT * 2.5, 0.55)
             kicks.append(b + BEAT * 2.5)
 
@@ -211,6 +327,21 @@ def build(seconds, kit_name, open_beat="soft"):
         sub_seg = sub_note(BAR * 0.85, f, gain=g)
         for i, v in enumerate(sub_seg):
             sub[(int(b * SR) + i) % n] += v
+
+    # THE STOPDOWN. Cut everything for the last fraction of the build bar so the
+    # drop arrives out of nothing. Applied to the DRY bed, before the reverb, so
+    # the room cuts with it: a gap that still has reverb ringing through it is
+    # not a gap, it is a duck.
+    gap = k.get("pre_gap", 0.0)
+    if gap > 0:
+        for bar_i in range(int(round(seconds / BAR))):
+            if bar_i % PHRASE_BARS != 2:
+                continue
+            end = (bar_i + 1) * BAR
+            s0, s1 = int((end - gap) * SR), int(end * SR)
+            for i in range(s0, min(s1, len(buf))):
+                t = (i - s0) / max(1, s1 - s0)
+                buf[i] *= max(0.0, 1.0 - t * 1.6)
 
     # Two laps through the reverb, second kept, so the tail arriving at the loop
     # point is the one that just left it.

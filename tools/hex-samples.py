@@ -51,6 +51,17 @@ ROLES = {
     "tom": ["floor tom hit", "low tom", "tom drum hit"],
     "impact": ["cinematic impact boom", "deep impact hit", "boom hit"],
     "sub": ["sub bass hit", "808 sub", "low sine boom"],
+    # ---- the trailer vocabulary, added after a research pass -------------
+    # Reversed material leading INTO a gap is the standard way to make a hit
+    # land harder: the swell builds expectation and the silence sharpens it.
+    "reverse": ["reverse cymbal", "reversed swell", "backwards riser"],
+    # A roll fills space and, ramped in velocity, reads as accelerando.
+    "roll": ["drum roll", "snare roll", "taiko roll"],
+    # Metallic punctuation over the drop, which is what stops a big hit
+    # sounding like nothing but low end.
+    "gong": ["gong hit", "cymbal crash", "metal impact"],
+    # Felt rather than heard, under the impact.
+    "subdrop": ["sub drop", "bass drop boom", "low frequency rumble"],
 }
 
 

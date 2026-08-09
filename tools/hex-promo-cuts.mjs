@@ -158,7 +158,10 @@ const THEME = flag("light") ? "light" : "dark";
 // three quarters it foreshortens with the floor, because it IS the floor. An
 // overlay cannot do that; it would sit still while everything under it moved.
 const GROUND_MARK = flag("ground-mark");
-const GROUND_OPACITY = Number(arg("mark-opacity")?.split("=")[1] ?? 0.13);
+// 0.20 read as a floor decal and 0.13 was still too present. At 0.07 the
+// mark is something you notice on the second watch, which is what a
+// watermark is for.
+const GROUND_OPACITY = Number(arg("mark-opacity")?.split("=")[1] ?? 0.07);
 const CHOREO = arg("choreo")?.split("=")[1] ?? "hero";
 if (!["hero", "orbit"].includes(CHOREO)) {
   console.error(`unknown --choreo "${CHOREO}". One of: hero, orbit`);
