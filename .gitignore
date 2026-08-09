@@ -152,3 +152,7 @@ _worker-map.log
 # Freesound API key. Lives outside the repo (C:/zzz/_hex-promo/.freesound-key);
 # this entry is belt-and-braces in case a copy ever lands here.
 .freesound-key
+
+# tools/*.py leave these behind on every run.
+__pycache__/
+dev-hex.log

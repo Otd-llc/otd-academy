@@ -30,10 +30,22 @@
 //   node tools/hex-promo-cuts.mjs --preset=vertical        one cut, dark
 //   node tools/hex-promo-cuts.mjs --preset=readme --light  one cut, ivory
 //   node tools/hex-promo-cuts.mjs --preset=square --frames=60   short look, no encode
+//   node tools/hex-promo-cuts.mjs --preset=wide --choreo=orbit --text
+//                                                         cut with the type burned in
+//
+// `--text` IS FOR THE SOCIAL CUTS AND NOT FOR `band` OR `readme`, which is a
+// composition constraint rather than a rule the tool enforces. `band` is shown
+// through `object-fit: cover` on a ~2.4:1 slice, which throws away 13% off each
+// end on the academy hero and 20% on the apex section; the grid's top row sits
+// at 14% of frame height, so the words survive one crop by a single percent and
+// lose the other outright. Both of those surfaces also carry their own headline
+// copy, which the type would talk over. `readme` is a 720px animated WebP where
+// the byte budget is someone else's page load, and high-contrast type on every
+// frame is exactly what defeats inter-frame compression.
 import { chromium } from "playwright";
 import { mkdirSync, rmSync, statSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const APP = "http://localhost:5180/hex";
 const RAW =
@@ -167,7 +179,12 @@ if (!["hero", "orbit"].includes(CHOREO)) {
   console.error(`unknown --choreo "${CHOREO}". One of: hero, orbit`);
   process.exit(1);
 }
-const suffix = `${CHOREO === "orbit" ? "-orbit" : ""}${GROUND_MARK ? "-mark" : ""}${THEME === "light" ? "-light" : ""}`;
+// `--text` burns the approved kinetic cue sheet into the frames. See
+// `installCues` for the whole rationale; the short version is that the type is
+// composited by the browser in the same page the WebGL renders in, and every
+// animation is SCRUBBED to the frame's scene time rather than played.
+const TEXT = flag("text");
+const suffix = `${CHOREO === "orbit" ? "-orbit" : ""}${GROUND_MARK ? "-mark" : ""}${TEXT ? "-text" : ""}${THEME === "light" ? "-light" : ""}`;
 
 // Plan view is NOT polar 0. camera-controls degenerates as the polar angle
 // approaches the pole (the azimuth has no meaning when you are looking straight
@@ -275,7 +292,12 @@ async function boot(browser, { w, h }) {
 
   await page.addStyleTag({
     content: `
-      body > *:not(canvas):not(script) { display: none !important; }
+      /* #hexcue is the burned-in text layer and is OURS, not the app's. The
+         blanket rule below is deliberately indiscriminate so it survives the
+         next widget the configurator grows, which means it also swallows
+         anything we add afterwards: the layer mounted, sized, and animated
+         correctly and rendered nothing at all. */
+      body > *:not(canvas):not(script):not(#hexcue) { display: none !important; }
       #header, #toolbar, #inspector, #idle-prompt, #ghost-tip, #hint,
       #crosshair, #action-sheet, #export-modal, .long-press-indicator,
       #hex-palette, #hex-compass, #loading { display: none !important; }
@@ -1517,12 +1539,383 @@ if (PROBE) {
   process.exit(clipped ? 1 : 0);
 }
 
+// ---- the kinetic text, burned in ------------------------------------------
+//
+// THE APPROVED SPEC LIVES IN `C:/zzz/_hex-promo/final-preview.html` AND THE CSS
+// BELOW IS COPIED FROM IT, not rewritten from the same intent. The preview is
+// what was judged: five cues on strikes in the bed, PRINT 2.0, SNAP 4.0 with a
+// 0.3 s lead so the halves MEET on the beat, GROW 6.0 growing through the drop,
+// FREE and the actuated download sharing 8.0. Reconstructing the rules would
+// silently ship something adjacent to what was signed off.
+//
+// COMPOSITED BY THE BROWSER, NOT IN POST. The layer is injected into the page
+// the scene is already rendering in, so one screenshot carries picture and type
+// together. Rendering a transparent overlay separately and compositing with
+// ffmpeg would double the render and add a second copy of the cue sheet to keep
+// in sync.
+//
+// EVERY ANIMATION IS SCRUBBED, NEVER PLAYED, and that is the load-bearing part.
+// The capture replaces `performance.now` with a clock it advances by hand, and
+// a frame can take any amount of wall time to draw. An animation left running
+// would land wherever REAL time reached, which is precisely the judder the
+// virtual clock exists to remove. So each animation is paused and its
+// `currentTime` pinned to the frame's scene time. `Animation.currentTime` is
+// measured from the start of the delay, so the per-character stagger and the
+// download's 0.1 s offset come out right without special handling.
+//
+// Opacity is computed rather than transitioned for the same reason: a CSS
+// transition has no seek.
+//
+// TWO DELIBERATE DEPARTURES FROM THE PREVIEW, both about the loop seam, which
+// the preview never had to survive because a <video> in a page just jumps:
+//
+//   1. The animations bind to `.held` rather than `.on`. In the preview,
+//      removing `.on` at the end of a window drops the animation and the
+//      element snaps back to its static style mid-fade -- PRINT's characters
+//      vanish outright (their base rule is `opacity:0`) and the download arrow
+//      POPS BACK to full opacity, because its last keyframe faded it out and
+//      that fill is what just went away. Binding to `.held`, which already
+//      outlasts the window for GROW's sustained scale, lets every cue fade out
+//      from the state it ended on.
+//   2. Cue time WRAPS. The last window ends at 9.9 and its 0.28 s fade runs to
+//      10.18, past the end of a 10 s clip. Truncating it puts a hard step at
+//      the seam. Evaluating each cue at both `t` and `t + SECONDS` instead
+//      means frame 0 shows the tail the previous lap was still fading, so the
+//      seam is continuous by construction -- the same trick the audio bed uses
+//      when it renders two laps and keeps the second.
+//
+// SIZES ARE RATIOS OF THE SHORT AXIS, taken from the preview's computed pixels.
+// The preview sized type with `clamp(26px,7.4vw,52px)` against a 460 px stage,
+// where `vw` is the BROWSER's width and not the stage's, so on any real desktop
+// every clamp pinned to its maximum: 52 px of type over 460 px of picture. The
+// ratios below are those measured pairs.
+//
+// THE SHORT AXIS, NOT THE WIDTH, and the first render is why. Scaling by width
+// is right for the three portrait-or-square formats -- their width IS the short
+// axis -- and wrong for 16:9, where it multiplies everything by 1.78: the words
+// came out at 217 px instead of 122, and the download icon at 359 px instead of
+// 202, which put the arrow straight through the front tile of the cluster. The
+// short axis is what actually constrains a caption laid over a centred subject,
+// and it also keeps the whole set at one absolute type size, which matters when
+// four cuts of the same clip are seen next to each other.
+const TEXT_SCALE = {
+  word: 52 / 460,
+  big: 66 / 460,
+  icon: 86 / 460,
+  url: 11 / 460,
+  gap: 9.6 / 460,
+};
+const FONT_DIR = "C:/zzz/_hex-promo/fonts";
+// Google's own CSS endpoint, fetched ONCE and cached outside the repo. A render
+// must not depend on the network, and a webfont served over http from the
+// remote CSS would also be a different file on a different day.
+const FONT_SRC = {
+  bebas: "family=Bebas+Neue",
+  mono: "family=Space+Mono:wght@400",
+};
+
+async function displayFonts() {
+  const out = {};
+  for (const [name, q] of Object.entries(FONT_SRC)) {
+    const cached = `${FONT_DIR}/${name}.woff2`;
+    if (!existsSync(cached)) {
+      const ua =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+        "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+      // The User-Agent decides the format Google serves. Without a modern one
+      // it hands back TTF, which is four times the bytes for the same glyphs.
+      const css = await (
+        await fetch(`https://fonts.googleapis.com/css2?${q}&display=swap`, {
+          headers: { "User-Agent": ua },
+        })
+      ).text();
+      const blocks = css.split("@font-face");
+      const latin =
+        blocks.find((b) => /U\+0000-00FF/.test(b)) ?? blocks[blocks.length - 1];
+      const url = latin.match(/url\((https:[^)]+\.woff2)\)/)?.[1];
+      if (!url) throw new Error(`no woff2 for ${name} in Google's CSS`);
+      mkdirSync(FONT_DIR, { recursive: true });
+      writeFileSync(
+        cached,
+        Buffer.from(
+          await (
+            await fetch(url, { headers: { "User-Agent": ua } })
+          ).arrayBuffer(),
+        ),
+      );
+      console.log(`[text] cached ${name}.woff2`);
+    }
+    out[name] = readFileSync(cached).toString("base64");
+  }
+  return out;
+}
+
+async function installCues(page, preset, seconds) {
+  const fonts = await displayFonts();
+  const px = (k) => Math.round(Math.min(preset.w, preset.h) * TEXT_SCALE[k]);
+  const ready = await page.evaluate(
+    async ({ fonts, size, seconds }) => {
+      const D = "<span class='tdot'>.</span>";
+      const style = document.createElement("style");
+      // Everything is scoped under #hexcue. The app has its own stylesheet and
+      // bare class names like `.half` are not ours to claim; the id also wins
+      // specificity outright, so nothing the page ships can reach in.
+      style.textContent = `
+@font-face{font-family:'Bebas Neue';font-style:normal;font-weight:400;font-display:block;
+  src:url(data:font/woff2;base64,${fonts.bebas}) format('woff2')}
+@font-face{font-family:'Space Mono';font-style:normal;font-weight:400;font-display:block;
+  src:url(data:font/woff2;base64,${fonts.mono}) format('woff2')}
+#hexcue{position:fixed;inset:0;z-index:2147483000;pointer-events:none;display:grid;
+  grid-template-columns:7% 1fr 1fr 1fr 7%;grid-template-rows:7% 1fr 1fr 1fr 7%;
+  --command-gold:#c8963e;--gold-light:#e8b865;--title:#f1ece0;--muted:#aaa}
+#hexcue .cue{opacity:0;align-self:center;min-width:0}
+#hexcue .c-tl{grid-area:2/2/3/4} #hexcue .c-tr{grid-area:2/3/3/5}
+#hexcue .c-bl{grid-area:4/2/5/4} #hexcue .c-br{grid-area:4/3/5/5}
+#hexcue .c-band{grid-area:4/2/5/5;align-self:end}
+#hexcue .right{text-align:right} #hexcue .centre{text-align:center}
+#hexcue .k-grow{display:inline-block} #hexcue .k-mask{display:block}
+#hexcue .an-mask .k-mask{overflow:hidden}
+#hexcue .k-word{font-family:'Bebas Neue',sans-serif;font-weight:400;line-height:.84;
+  letter-spacing:-.01em;color:var(--title);-webkit-text-stroke:.04em currentColor;
+  paint-order:stroke fill;text-shadow:0 2px 26px rgba(0,0,0,.8);font-size:${size.word}px}
+#hexcue .big .k-word{font-size:${size.big}px}
+#hexcue .k-word .accent{color:var(--command-gold)}
+#hexcue .tdot{-webkit-text-fill-color:transparent;-webkit-text-stroke-width:.05em;text-shadow:none}
+#hexcue .k-word .tdot{-webkit-text-stroke-color:var(--command-gold)}
+#hexcue .k-word .accent .tdot{-webkit-text-stroke-color:var(--title)}
+#hexcue .p2 .ch{opacity:0;display:inline-block}
+#hexcue .cue.held.p2 .ch{animation:hxKeyStrike .13s cubic-bezier(.3,1.5,.5,1) both}
+@keyframes hxKeyStrike{from{opacity:0;transform:translateY(-28%) scaleY(1.25)}to{opacity:1;transform:none}}
+#hexcue .s1 .half{position:absolute;inset:0;display:block}
+#hexcue .s1 .half.l{clip-path:inset(0 50% 0 0)} #hexcue .s1 .half.r{clip-path:inset(0 0 0 50%)}
+#hexcue .s1 .k-word{position:relative}
+#hexcue .cue.held.s1 .half.l{animation:hxSnapL .3s cubic-bezier(.85,0,.15,1) both}
+#hexcue .cue.held.s1 .half.r{animation:hxSnapR .3s cubic-bezier(.85,0,.15,1) both}
+@keyframes hxSnapL{from{transform:translateX(-42%);opacity:0}to{transform:none;opacity:1}}
+@keyframes hxSnapR{from{transform:translateX(42%);opacity:0}to{transform:none;opacity:1}}
+#hexcue .cue.held.an-mask .k-word{animation:hxMaskUp .5s cubic-bezier(.16,.84,.28,1) both}
+@keyframes hxMaskUp{from{transform:translateY(105%)}to{transform:translateY(0)}}
+#hexcue .cue[data-hold="1"].held .k-grow{animation:hxGrowHold var(--hold,1.9s) linear both}
+@keyframes hxGrowHold{from{transform:scale(1)}to{transform:scale(var(--growTo,1.34))}}
+#hexcue .cue.held.f1 .k-word{animation:hxRelease .66s cubic-bezier(.16,1.1,.3,1) both}
+@keyframes hxRelease{from{letter-spacing:-.32em;transform:scale(.72);opacity:0;filter:blur(7px)}
+  60%{letter-spacing:.02em;opacity:1;filter:blur(0)}to{letter-spacing:-.01em;transform:scale(1)}}
+#hexcue .dl{display:flex;flex-direction:column;align-items:center;gap:${size.gap}px}
+#hexcue .dl svg{width:${size.icon}px;height:auto;overflow:visible}
+#hexcue .dl .stem,#hexcue .dl .head,#hexcue .dl .tray{fill:none;stroke-width:3.4;
+  stroke-linecap:square;stroke-linejoin:miter;vector-effect:non-scaling-stroke}
+#hexcue .dl .stem,#hexcue .dl .head{stroke:var(--title)}
+#hexcue .dl .tray{stroke:var(--command-gold);transform-origin:center bottom}
+#hexcue .cue.held .dl .arrow{animation:hxDlDrop 1.05s cubic-bezier(.5,0,.6,1) .1s 2 both}
+@keyframes hxDlDrop{0%{transform:translateY(-34%);opacity:0}26%{opacity:1}
+  46%{transform:translateY(0);opacity:1}58%{transform:translateY(0);opacity:1}
+  72%{transform:translateY(6%);opacity:0}100%{transform:translateY(6%);opacity:0}}
+#hexcue .cue.held .dl .tray{animation:hxDlHit 1.05s ease-out .1s 2 both}
+@keyframes hxDlHit{0%,44%{stroke:var(--command-gold);transform:scaleY(1)}
+  50%{stroke:var(--gold-light);transform:scaleY(.72)}
+  62%{stroke:var(--command-gold);transform:scaleY(1)}
+  100%{stroke:var(--command-gold);transform:scaleY(1)}}
+#hexcue .dl-url{font-family:'Space Mono',monospace;font-size:${size.url}px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--muted)}
+#hexcue .cue.held .dl-url{animation:hxFadeUp .5s ease-out .5s both}
+@keyframes hxFadeUp{from{opacity:0;transform:translateY(30%)}to{opacity:1;transform:none}}`;
+      document.head.appendChild(style);
+
+      const DL_SVG = `<svg viewBox="0 0 60 54" aria-hidden="true">
+        <g class="arrow"><path class="stem" d="M30 4 V30"/><path class="head" d="M18 20 L30 32 L42 20"/></g>
+        <path class="tray" d="M10 40 V48 H50 V40"/></svg>`;
+      const CUES = [
+        { t: 2.0, d: 1.9, cell: "c-tl", anim: "p2", word: "PRINT" + D },
+        {
+          t: 4.0,
+          d: 1.9,
+          lead: 0.3,
+          cell: "c-br",
+          anim: "s1",
+          word: "SNAP" + D,
+          align: "right",
+        },
+        {
+          t: 6.0,
+          d: 1.9,
+          cell: "c-tr",
+          anim: "an-mask",
+          word: "GROW" + D,
+          align: "right",
+          hold: 1.34,
+        },
+        {
+          t: 8.0,
+          d: 1.9,
+          cell: "c-tl",
+          anim: "f1",
+          word: "<span class='accent'>FREE" + D + "</span>",
+          big: 1,
+        },
+        {
+          t: 8.0,
+          d: 1.9,
+          cell: "c-band",
+          anim: "dl",
+          align: "centre",
+          html: `<div class="dl">${DL_SVG}<div class="dl-url">academy.onethousanddrones.com/hex</div></div>`,
+        },
+      ];
+
+      const layer = document.createElement("div");
+      layer.id = "hexcue";
+      const els = CUES.map((c) => {
+        const d = document.createElement("div");
+        d.className = `cue ${c.cell} ${c.anim} ${c.align ?? ""} ${c.big ? "big" : ""}`;
+        if (c.html) {
+          d.innerHTML = c.html;
+        } else {
+          d.innerHTML = `<div class="k-grow"><div class="k-mask"><div class="k-word">${c.word}</div></div></div>`;
+          if (c.hold) {
+            d.dataset.hold = "1";
+            d.style.setProperty("--hold", `${c.d}s`);
+            d.style.setProperty("--growTo", String(c.hold));
+            d.querySelector(".k-grow").style.transformOrigin =
+              c.align === "right" ? "right center" : "left center";
+          }
+          const w = d.querySelector(".k-word");
+          if (c.anim === "p2") {
+            // Split TEXT NODES ONLY, so the accent span and the hollow period
+            // survive the per-character wrapping.
+            const walk = (n) => {
+              if (n.nodeType === 3) {
+                const f = document.createDocumentFragment();
+                for (const ch of n.textContent) {
+                  const s = document.createElement("span");
+                  s.className = "ch";
+                  s.textContent = ch;
+                  f.appendChild(s);
+                }
+                n.replaceWith(f);
+              } else [...n.childNodes].forEach(walk);
+            };
+            walk(w);
+            const cs = [...w.querySelectorAll(".ch")];
+            const per = (c.d * 0.42) / Math.max(1, cs.length);
+            cs.forEach((ch, i) => (ch.style.animationDelay = `${i * per}s`));
+          }
+          if (c.anim === "s1") {
+            const inner = w.innerHTML;
+            w.innerHTML =
+              `<span class="half l">${inner}</span><span class="half r">${inner}</span>` +
+              `<span style="visibility:hidden">${inner}</span>`;
+          }
+        }
+        layer.appendChild(d);
+        return d;
+      });
+      document.body.appendChild(layer);
+
+      const FADE = 0.28;
+      // CSS `ease-out` is cubic-bezier(0,0,.58,1). Newton on x, which converges
+      // in a handful of steps over [0,1] and costs nothing five times a frame.
+      const easeOut = (x) => {
+        const cx = 3 * 0,
+          bx = 3 * (0.58 - 0) - cx,
+          ax = 1 - cx - bx;
+        const cy = 3 * 0,
+          by = 3 * (1 - 0) - cy,
+          ay = 1 - cy - by;
+        let t = x;
+        for (let i = 0; i < 8; i++) {
+          const fx = ((ax * t + bx) * t + cx) * t - x;
+          const dx = (3 * ax * t + 2 * bx) * t + cx;
+          if (Math.abs(dx) < 1e-9) break;
+          t -= fx / dx;
+        }
+        return ((ay * t + by) * t + cy) * t;
+      };
+
+      /** Put every cue at exactly scene time `t`. One call per captured frame. */
+      window.__cueFrame = (t) => {
+        CUES.forEach((c, i) => {
+          const el = els[i];
+          const start = c.t - (c.lead ?? 0);
+          // WRAP. A window whose fade runs past the end of the clip is showing,
+          // at the top of the next lap, the tail the loop point just left.
+          let local = t - start;
+          if (local < -FADE) local = t + seconds - start;
+          const held = local >= 0 && local < c.d + FADE;
+          el.classList.toggle("on", local >= 0 && local < c.d);
+          el.classList.toggle("held", held);
+          if (!held) {
+            el.style.opacity = "0";
+            return;
+          }
+          el.style.opacity = String(
+            Math.min(
+              easeOut(Math.min(1, local / FADE)),
+              easeOut(Math.min(1, (c.d + FADE - local) / FADE)),
+            ),
+          );
+          // SCRUB, DO NOT PLAY. `pause()` is what makes this deterministic: a
+          // running animation would advance during the screenshot's own paint.
+          for (const a of el.getAnimations({ subtree: true })) {
+            a.pause();
+            try {
+              a.currentTime = local * 1000;
+            } catch {
+              /* a finished animation can refuse a seek; its fill already holds */
+            }
+          }
+        });
+      };
+
+      // Both faces must be RASTERISED before the first frame, not merely
+      // requested. `font-display:block` keeps the invisible-text period open
+      // rather than flashing a fallback, so a race here would burn blank words
+      // into the opening seconds and nothing would report it.
+      await document.fonts.load(`${size.big}px 'Bebas Neue'`);
+      await document.fonts.load(`${size.url}px 'Space Mono'`);
+      await document.fonts.ready;
+      // THE LAYER MUST BE ON SCREEN, and that is checked rather than assumed:
+      // the capture's chrome-hiding rule swallowed it on the first run and the
+      // result was a clean render with no type and no error anywhere.
+      const box = layer.getBoundingClientRect();
+      return {
+        cues: CUES.length,
+        bebas: document.fonts.check(`${size.big}px 'Bebas Neue'`),
+        mono: document.fonts.check(`${size.url}px 'Space Mono'`),
+        shown:
+          getComputedStyle(layer).display !== "none" &&
+          box.width > 0 &&
+          box.height > 0,
+      };
+    },
+    {
+      fonts,
+      seconds,
+      size: {
+        word: px("word"),
+        big: px("big"),
+        icon: px("icon"),
+        url: px("url"),
+        gap: px("gap"),
+      },
+    },
+  );
+  if (!ready.bebas || !ready.mono || !ready.shown) {
+    throw new Error(
+      `[text] cue layer not ready: ${JSON.stringify(ready)} -- ` +
+        "the burn would ship with no type, or in a fallback face",
+    );
+  }
+  console.log(
+    `[text] ${ready.cues} cues, word ${px("word")}px, big ${px("big")}px, fonts ok`,
+  );
+}
+
 // ---- a cut ---------------------------------------------------------------
 const preset = PRESETS[presetArg];
 // The mark belongs in the scratch path too. Without it a ground-mark run and
 // a plain one of the same preset share a directory, so whichever ran last
 // silently defines what gets encoded.
-const FRAMES = `${RAW}/${presetArg}-${CHOREO}${GROUND_MARK ? "-mark" : ""}-${THEME}`;
+const FRAMES = `${RAW}/${presetArg}-${CHOREO}${GROUND_MARK ? "-mark" : ""}${TEXT ? "-text" : ""}-${THEME}`;
 rmSync(FRAMES, { recursive: true, force: true });
 mkdirSync(FRAMES, { recursive: true });
 
@@ -1606,12 +1999,24 @@ if (CHOREO === "orbit") {
   }
 }
 
+// LAST, and after the camera has settled. The layer is DOM, not scene furniture
+// -- unlike the ground mark it cannot affect framing, fit, or rest -- so it goes
+// in once nothing is still measuring the picture, and before a single frame is
+// taken.
+if (TEXT) await installCues(page, preset, SECONDS);
+
 await page.evaluate(() => window.__clock.start());
 for (let i = 0; i < TOTAL; i++) {
   await page.evaluate((n) => window.__step(n), i);
   await page.evaluate((ms) => window.__clock.advance(ms), 1000 / 30);
   await paint();
   await page.evaluate(() => window.__limit());
+  // BEFORE the closing paint, not after. The text has to be composited by the
+  // same frame the screenshot rasterises, and adding a paint of its own after
+  // `__limit` would hand the app's camera lerps two more ticks per frame.
+  if (TEXT) {
+    await page.evaluate((t) => window.__cueFrame(t), (i * SECONDS) / TOTAL);
+  }
   await paint();
   if (
     CHOREO === "orbit" &&
