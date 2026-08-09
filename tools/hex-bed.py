@@ -165,6 +165,238 @@ KITS = {
         space=0.16, sub=0.55,
         
     ),
+    "sw-none": dict(
+        desc="No riser at all. The build carries on drums alone, which is the most restrained option.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        space=0.16, sub=0.55,
+        riser="sub/wav/754771.wav", no_riser=True,
+    ),
+    "sw-revcym": dict(
+        desc="A reversed cymbal instead of the whoosh. Metallic and musical rather than sound-design.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        space=0.16, sub=0.55,
+        riser="reverse/wav/418724.wav",
+    ),
+    "sw-revbass": dict(
+        desc="A reversed bass swell. Low and wide, so it builds without occupying the top.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        space=0.16, sub=0.55,
+        riser="reverse/wav/503812.wav",
+    ),
+    "sw-swell": dict(
+        desc="A short back-loaded swell. Arrives late and gets out of the way.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        space=0.16, sub=0.55,
+        riser="reverse/wav/37405.wav",
+    ),
+    "sw-scifi": dict(
+        desc="A long reversed sci-fi sweep. The most cinematic and the most obviously an effect.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        space=0.16, sub=0.55,
+        riser="reverse/wav/493974.wav",
+    ),
+    "sw-roll": dict(
+        desc="A taiko roll in place of a riser. Percussion builds it rather than an effect.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        space=0.16, sub=0.55,
+        riser="sub/wav/754771.wav", no_riser=True, fill="roll/wav/809821.wav",
+    ),
+    "sw-quiet": dict(
+        desc="The original whoosh, pulled well back so it supports rather than announces.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        space=0.16, sub=0.55,
+        riser="sub/wav/754771.wav", riser_gain=0.35,
+    ),
+    "sw-orig": dict(
+        desc="The current whoosh at full level, for comparison.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        space=0.16, sub=0.55,
+        riser="sub/wav/754771.wav",
+    ),
+    "r-none": dict(
+        desc="No riser into the drop. Only the short rise landing on SNAP.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        # A genuine BACK-loaded swell. The whoosh tried first is front-loaded,
+        # so ending it on the beat put its energy 1.6 s early and the climb
+        # into SNAP measured 0.36, i.e. falling.
+        snap_riser="reverse/wav/37405.wav",
+        space=0.16, sub=0.55,
+        riser="sub/wav/754771.wav", no_riser=True,
+    ),
+    "r-simple": dict(
+        desc="Simple Riser. A long clean back-loaded build, the most conventional of the set.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        # A genuine BACK-loaded swell. The whoosh tried first is front-loaded,
+        # so ending it on the beat put its energy 1.6 s early and the climb
+        # into SNAP measured 0.36, i.e. falling.
+        snap_riser="reverse/wav/37405.wav",
+        space=0.16, sub=0.55,
+        riser="riser2/wav/840719.wav",
+    ),
+    "r-scifi2": dict(
+        desc="Scifi Riser Tension. Longest and most dramatic, peaks hard into the drop.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        # A genuine BACK-loaded swell. The whoosh tried first is front-loaded,
+        # so ending it on the beat put its energy 1.6 s early and the climb
+        # into SNAP measured 0.36, i.e. falling.
+        snap_riser="reverse/wav/37405.wav",
+        space=0.16, sub=0.55,
+        riser="riser2/wav/691006.wav",
+    ),
+    "r-hard": dict(
+        desc="A hardstyle atmos swell. Tonal rather than noise, so it builds pitch as well as level.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        # A genuine BACK-loaded swell. The whoosh tried first is front-loaded,
+        # so ending it on the beat put its energy 1.6 s early and the climb
+        # into SNAP measured 0.36, i.e. falling.
+        snap_riser="reverse/wav/37405.wav",
+        space=0.16, sub=0.55,
+        riser="riser2/wav/561254.wav",
+    ),
+    "r-sweep": dict(
+        desc="A plain sweep. Quiet and wide, more of a bed than an announcement.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        # A genuine BACK-loaded swell. The whoosh tried first is front-loaded,
+        # so ending it on the beat put its energy 1.6 s early and the climb
+        # into SNAP measured 0.36, i.e. falling.
+        snap_riser="reverse/wav/37405.wav",
+        space=0.16, sub=0.55,
+        riser="riser2/wav/503815.wav",
+    ),
+    "r-revcym": dict(
+        desc="A reversed cymbal. Metallic and musical rather than sound-design.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        # A genuine BACK-loaded swell. The whoosh tried first is front-loaded,
+        # so ending it on the beat put its energy 1.6 s early and the climb
+        # into SNAP measured 0.36, i.e. falling.
+        snap_riser="reverse/wav/37405.wav",
+        space=0.16, sub=0.55,
+        riser="reverse/wav/418724.wav",
+    ),
+    "r-revbass": dict(
+        desc="A reversed bass swell. Low and wide, builds without occupying the top.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        # A genuine BACK-loaded swell. The whoosh tried first is front-loaded,
+        # so ending it on the beat put its energy 1.6 s early and the climb
+        # into SNAP measured 0.36, i.e. falling.
+        snap_riser="reverse/wav/37405.wav",
+        space=0.16, sub=0.55,
+        riser="reverse/wav/503812.wav",
+    ),
+    "r-roll": dict(
+        desc="A taiko roll instead of any effect. Percussion builds it.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        # A genuine BACK-loaded swell. The whoosh tried first is front-loaded,
+        # so ending it on the beat put its energy 1.6 s early and the climb
+        # into SNAP measured 0.36, i.e. falling.
+        snap_riser="reverse/wav/37405.wav",
+        space=0.16, sub=0.55,
+        riser="sub/wav/754771.wav", no_riser=True, fill="roll/wav/809821.wav",
+    ),
+    "sa-none": dict(
+        desc="Nothing lands on SNAP. The kick alone marks it.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        riser="riser2/wav/561254.wav",
+        space=0.16, sub=0.55,
+        
+    ),
+    "sa-sub": dict(
+        desc="A rising sine. No noise anywhere in it, so it cannot be harsh.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        riser="riser2/wav/561254.wav",
+        space=0.16, sub=0.55,
+        snap_sub=True, snap_riser_gain=0.85,
+    ),
+    "sa-revtaiko": dict(
+        desc="A taiko hit played backwards. Warm, tuned, and unmistakably a drum.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        riser="riser2/wav/561254.wav",
+        space=0.16, sub=0.55,
+        snap_riser="taiko/wav/801857.wav", snap_reverse=True, snap_riser_gain=0.8,
+    ),
+    "sa-revtom": dict(
+        desc="A low tom reversed. Darker than the taiko and slower to arrive.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        riser="riser2/wav/561254.wav",
+        space=0.16, sub=0.55,
+        snap_riser="tom/wav/685559.wav", snap_reverse=True, snap_riser_gain=0.85,
+    ),
+    "sa-revkick": dict(
+        desc="A kick reversed. Almost pure low end swelling up into the beat.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        riser="riser2/wav/561254.wav",
+        space=0.16, sub=0.55,
+        snap_riser="kick/wav/78815.wav", snap_reverse=True, snap_riser_gain=0.9,
+    ),
+    "sa-revcym": dict(
+        desc="A reversed cymbal, lowpassed hard so the top is gone.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        riser="riser2/wav/561254.wav",
+        space=0.16, sub=0.55,
+        snap_riser="reverse/wav/418724.wav", snap_lp=1400, snap_riser_gain=0.7,
+    ),
+    "sa-tamed": dict(
+        desc="The harsh one from last round, lowpassed to 700 Hz. Same shape, no fizz.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        riser="riser2/wav/561254.wav",
+        space=0.16, sub=0.55,
+        snap_riser="reverse/wav/37405.wav", snap_lp=700, snap_riser_gain=0.6,
+    ),
+    "sa-harsh": dict(
+        desc="The harsh one, unchanged, so the difference is audible.",
+        kick="kick/wav/78815.wav", hit="taiko/wav/801857.wav",
+        alt="taiko/wav/801832.wav", low="tom/wav/685559.wav",
+        drop="impact/wav/718004.wav", subdrop="subdrop/wav/338869.wav",
+        riser="riser2/wav/561254.wav",
+        space=0.16, sub=0.55,
+        snap_riser="reverse/wav/37405.wav", snap_riser_gain=0.7,
+    ),
     "kick-led": dict(
         desc="Kick forward, taiko answering. Tighter and more modern.",
         kick="kick/wav/584787.wav", hit="taiko/wav/801832.wav",
@@ -239,6 +471,31 @@ def place_ramp(buf, snd, end_s, g0, g1, curve=2.2):
     for i, v in enumerate(snd):
         t = i / max(1, L - 1)
         buf[(start + i) % n] += v * (g0 + (g1 - g0) * (t**curve))
+
+
+def lowpass(buf, cutoff):
+    """One-pole. Takes the fizz off a noisy sample without changing its shape."""
+    a = math.exp(-2 * math.pi * cutoff / SR)
+    y = 0.0
+    out = []
+    for x in buf:
+        y = (1 - a) * x + a * y
+        out.append(y)
+    return out
+
+
+def sub_rise(dur, f0=38.0, f1=92.0, gain=0.8):
+    """A rising sine. The one arrival that CANNOT be harsh, because it has no
+    noise in it at all: harshness lives in the top, and this has no top."""
+    n = int(dur * SR)
+    out = []
+    ph = 0.0
+    for i in range(n):
+        t = i / n
+        f = f0 + (f1 - f0) * (t**1.7)
+        ph += 2 * math.pi * f / SR
+        out.append(math.sin(ph) * (t**2.0) * gain)
+    return out
 
 
 def place_peak(buf, snd, at_s, gain=1.0):
@@ -317,7 +574,7 @@ def build(seconds, kit_name, open_beat="soft"):
     S = {r: read_wav(os.path.join(SAMPLES, k[r])) for r in ("kick", "hit", "alt", "low", "drop", "riser")}
     # Optional drama parts. Absent means that kit simply does not use it, which
     # is how the variants stay comparable: the accent beats below never change.
-    for r in ("reverse", "fill", "gong", "subdrop", "snap"):
+    for r in ("reverse", "fill", "gong", "subdrop", "snap", "snap_riser"):
         if k.get(r):
             S[r] = read_wav(os.path.join(SAMPLES, k[r]))
     # REVERSING TURNS A DECAY INTO A SWELL, which is the whole reverse-riser
@@ -328,6 +585,14 @@ def build(seconds, kit_name, open_beat="soft"):
     # could not be heard.
     if k.get("reverse_fill") and "fill" in S:
         S["fill"] = S["fill"][::-1]
+    # THE SNAP ARRIVAL IS SHAPED, not just chosen. Reversing a warm musical hit
+    # gives a warm swell; the noisy reverses in the library arrive harsh because
+    # they are mostly top end. Lowpassing is the other half of the same fix.
+    if "snap_riser" in S:
+        if k.get("snap_reverse"):
+            S["snap_riser"] = S["snap_riser"][::-1]
+        if k.get("snap_lp"):
+            S["snap_riser"] = lowpass(S["snap_riser"], k["snap_lp"])
     n = int(round(seconds * SR))
     buf = [0.0] * n
     sub = [0.0] * n
@@ -359,10 +624,14 @@ def build(seconds, kit_name, open_beat="soft"):
         if stage >= 2:
             place(buf, S["low"], b + BEAT * 2.75, 0.4)
 
-        # THE SNAP BEAT. The word at 4.0 s is two halves meeting, so this beat
-        # gets its own accent on top of the kick: a mechanism closing rather
-        # than another drum. Peak-aligned, because these are recordings of real
-        # objects and they do not all start when they sound.
+        # THE SNAP BEAT gets its own riser, landing ON it. The word at 4.0 s is
+        # two halves meeting, and a short rise that arrives exactly there gives
+        # the picture something to snap TO. Placed by its end, like every riser
+        # here: what a riser is for is the thing it arrives on.
+        if stage == 2 and k.get("snap_sub"):
+            place_end(buf, sub_rise(0.9), b, k.get("snap_riser_gain", 0.7))
+        elif stage == 2 and "snap_riser" in S:
+            place_end(buf, S["snap_riser"], b, k.get("snap_riser_gain", 0.7))
         if stage == 2 and "snap" in S:
             place_peak(buf, S["snap"], b, k.get("snap_gain", 0.7))
 
@@ -375,12 +644,14 @@ def build(seconds, kit_name, open_beat="soft"):
         landing = b + BAR - gap
 
         if stage == 2:
-            if "reverse" in S:
+            if k.get("no_riser"):
+                pass  # the build carries on drums alone
+            elif "reverse" in S:
                 # A back-loaded swell placed by its END, so its peak coincides
                 # with the moment the music stops.
-                place_end(buf, S["reverse"], landing, 0.9)
+                place_end(buf, S["reverse"], landing, k.get("riser_gain", 0.9))
             else:
-                place_end(buf, S["riser"], landing, 0.85)
+                place_end(buf, S["riser"], landing, k.get("riser_gain", 0.85))
 
             if "fill" in S:
                 # ACCELERANDO BY VELOCITY. Measured first at a flat 0.75 and it

@@ -69,6 +69,13 @@ ROLES = {
     # The percussive alternative: a rim or a block reads as a hard edge
     # without sounding like a foley effect dropped on top of the music.
     "rim": ["rimshot", "woodblock hit", "clave hit"],
+    # ---- more risers ----------------------------------------------------
+    # The first pass surfaced one family of whooshes. These queries reach for
+    # different shapes: tonal uplifters, tension beds, air, and short sweeps
+    # that can lead into a beat rather than into the drop.
+    "riser2": ["uplifter riser", "tension riser build", "sweep up transition"],
+    "whoosh": ["whoosh short", "air swoosh pass by", "fast whoosh transition"],
+    "tension": ["tension drone build", "suspense swell", "atmospheric rise"],
 }
 
 
