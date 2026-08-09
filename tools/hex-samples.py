@@ -76,6 +76,13 @@ ROLES = {
     "riser2": ["uplifter riser", "tension riser build", "sweep up transition"],
     "whoosh": ["whoosh short", "air swoosh pass by", "fast whoosh transition"],
     "tension": ["tension drone build", "suspense swell", "atmospheric rise"],
+    # ---- impulse responses, for real convolution reverb ------------------
+    # A recorded space beats any algorithm for realism, and ffmpeg's `afir`
+    # convolves with one directly. OpenAIR has a bigger library but its licences
+    # vary per item; pulling IRs through the same CC0-verified path as
+    # everything else keeps one rule instead of two.
+    "ir": ["impulse response hall", "impulse response reverb church",
+           "impulse response room sweep"],
 }
 
 
@@ -104,7 +111,7 @@ def search(role, token, limit=6):
                 {
                     "query": q,
                     # The ONLY working licence filter. See the module docstring.
-                    "filter": 'license:"Creative Commons 0" duration:[0.1 TO 8]',
+                    "filter": 'license:"Creative Commons 0" duration:[0.1 TO 12]',
                     "fields": "id,name,license,duration,samplerate,channels,username,previews,url",
                     "sort": "rating_desc",
                     "page_size": 12,
