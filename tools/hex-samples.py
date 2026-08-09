@@ -62,6 +62,13 @@ ROLES = {
     "gong": ["gong hit", "cymbal crash", "metal impact"],
     # Felt rather than heard, under the impact.
     "subdrop": ["sub drop", "bass drop boom", "low frequency rumble"],
+    # ---- the SNAP beat --------------------------------------------------
+    # The word at 4.0 s is two halves meeting, so the sound wants to be a
+    # mechanism closing rather than a drum: a latch, a lock, a hard click.
+    "snap": ["latch click", "lock mechanism click", "snap click sharp"],
+    # The percussive alternative: a rim or a block reads as a hard edge
+    # without sounding like a foley effect dropped on top of the music.
+    "rim": ["rimshot", "woodblock hit", "clave hit"],
 }
 
 
