@@ -21,7 +21,9 @@
 // check is a real signal, and posthog-js attaches $current_url, so it is
 // distinguishable from the same event fired inside a guide card.
 
+import { cacheLife, cacheTag } from "next/cache";
 import { db } from "@/lib/db";
+import { ONE_HOUR, TAG_PROJECTS, guideContentTag } from "@/lib/cache-profile";
 import { QuizBlock, type QuizQuestion } from "@/components/guide/QuizBlock";
 
 const PROJECT_SLUG = "l1-01-wroom-breakout";
@@ -38,8 +40,27 @@ type RawQuestion = {
   explain?: string;
 };
 
-/** The published card's quiz question, or null if anything about it moved. */
+/**
+ * The published card's quiz question, or null if anything about it moved.
+ *
+ * CACHED, and that is not an optimisation. `/beta` prerenders as a static shell
+ * under Cache Components, and an uncached read here fails the BUILD: Prisma
+ * reaches for `randomBytes`, and a Server Component may not touch a random
+ * value during prerender before reading uncached or Request data. The choice is
+ * cache it or make the whole landing page dynamic, and a campaign's front door
+ * should be a static shell.
+ *
+ * No arguments, so the repo's cache-key bounding law has nothing to bound: the
+ * slug and stage are constants, and one route cannot mint one entry per garbage
+ * URL. Tagged so an edit to the sourcing card busts it through the same
+ * `invalidateGuideContent` path the guide pages already use, which is what
+ * keeps "this is a real question from the course" true rather than stale.
+ */
 async function loadCheck(): Promise<{ prompt: string; question: QuizQuestion } | null> {
+  "use cache";
+  cacheLife(ONE_HOUR);
+  cacheTag(TAG_PROJECTS, guideContentTag(PROJECT_SLUG));
+
   const project = await db.project.findFirst({
     where: { slug: PROJECT_SLUG },
     select: { publishedRevisionId: true },
