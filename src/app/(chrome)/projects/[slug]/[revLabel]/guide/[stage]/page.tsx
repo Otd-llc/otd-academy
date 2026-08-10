@@ -31,6 +31,8 @@ import {
 import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/PageHeader";
 import { GuideBlocks } from "@/components/guide/GuideBlocks";
+import { FeedbackBox } from "@/components/library/FeedbackBox";
+import { courseFeedbackRef } from "@/lib/feedback-ref";
 import { resolveInlineDiagrams } from "@/lib/inline-diagrams";
 import {
   cachedGuideStage,
@@ -798,6 +800,22 @@ export default async function GuideCardPage({
       {stageGate && (
         <StageGate completion={stageGate.completion} widget={stageGate.widget} />
       )}
+
+      {/* Per-card feedback — the beta's only inbound channel from a learner who
+          is actually stuck. It sits between the teaching content and the nav
+          because that is where someone gives up: they have read the card, it did
+          not land, and the next thing they touch is the Next button.
+
+          Until this, the box existed but was mounted ONLY on Library
+          mini-lessons, so a learner working a course guide had no way to report
+          anything at all. Routes to admin triage, never a public thread. */}
+      <FeedbackBox
+        pageRef={courseFeedbackRef(project.slug, stage)}
+        signedIn={!!sessionEmail}
+        returnTo={`/projects/${project.slug}/${encodeURIComponent(revision.label)}/guide/${stage}`}
+        label="Report a problem with this card"
+        placeholder="What was confusing, wrong, or missing here? Concrete beats polite."
+      />
 
       {/* Phase breadcrumb — the connected zig-zag comb (each hex links to its
           stage card) + a prev/next control row. The Next button subtly breathes

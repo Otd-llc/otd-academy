@@ -15,6 +15,7 @@ import { withTxRetry } from "@/lib/tx-retry";
 import { recordCourseExamPass } from "@/lib/logbook/guide-awards";
 import { afterAward } from "@/lib/logbook/after-award";
 import { COURSE_EXAM_XP } from "@/lib/logbook/economy";
+import { capture } from "@/lib/analytics";
 
 // The stored question shape (answer key included). Validated on read so a
 // malformed bank fails loudly rather than leaking an unexpected field.
@@ -147,6 +148,27 @@ export async function submitExam(
   );
 
   revalidatePath(`/learn/${result.slug}`);
+
+  // Funnel: the exam hop. Emitted on BOTH outcomes — a beta's most useful number
+  // is where people stop, and an event that only fires on success cannot show a
+  // failure rate. `certificate_shared` is not a substitute either: it fires only
+  // if the learner chooses to share, which is a different question entirely.
+  //
+  // After commit, best-effort, and a no-op when PostHog is unconfigured.
+  try {
+    capture(
+      "exam_submitted",
+      {
+        projectSlug: result.slug,
+        passed: result.passed,
+        score: result.score,
+        total: result.total,
+      },
+      user.id,
+    );
+  } catch {
+    // never block the exam result on telemetry
+  }
 
   // Course XP: COURSE_EXAM_PASS on a genuine pass (design Phase 2). After commit,
   // best-effort — XP/telemetry never blocks the result. Idempotent (a re-pass

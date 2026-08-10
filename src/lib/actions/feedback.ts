@@ -8,6 +8,7 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { capture } from "@/lib/analytics";
+import { parseFeedbackRef } from "@/lib/feedback-ref";
 import { requireAdmin, currentUserId } from "@/lib/auth-helpers";
 import {
   submitFeedback,
@@ -25,17 +26,33 @@ const submitSchema = z.object({
 
 // The XP dedupe is per (userId, pageRef), so an UNVALIDATED pageRef made "once
 // per page" really "once per arbitrary string" — a script could farm the daily
-// FEEDBACK_SUBMIT cap with fabricated refs (+ junk rows up to the row cap).
-// The only real surface is the Library lesson page (`library/<slug>`), so the
-// ref must resolve to a published lesson.
+// FEEDBACK_SUBMIT cap with fabricated refs (+ junk rows up to the row cap). So
+// the ref must both PARSE (shape — see parseFeedbackRef) and RESOLVE (the thing
+// it names actually exists and is published).
+//
+// Two surfaces now: Library mini-lessons (`library/<slug>`) and course guide
+// stage cards (`course/<slug>/<STAGE>`). The course surface exists because a
+// learner working through a guide previously had no way to report anything —
+// the box was only ever mounted on the Library.
 async function pageRefIsReal(pageRef: string): Promise<boolean> {
-  const m = pageRef.match(/^library\/([a-z0-9-]{1,120})$/);
-  if (!m) return false;
-  const lesson = await db.miniLesson.findFirst({
-    where: { slug: m[1]!, published: true },
+  const ref = parseFeedbackRef(pageRef);
+  if (!ref) return false;
+
+  if (ref.kind === "library") {
+    const lesson = await db.miniLesson.findFirst({
+      where: { slug: ref.slug, published: true },
+      select: { id: true },
+    });
+    return lesson !== null;
+  }
+
+  // A course card is only a real target once the project has a published
+  // revision — an unpublished board has no guide a learner could be reading.
+  const project = await db.project.findFirst({
+    where: { slug: ref.slug, publishedRevisionId: { not: null } },
     select: { id: true },
   });
-  return lesson !== null;
+  return project !== null;
 }
 
 export async function submitLessonFeedback(
