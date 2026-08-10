@@ -44,6 +44,11 @@ export function isPublicPath(pathname: string): boolean {
   // The public /pricing page (the storefront landing) is crawlable + must render
   // signed-out (the top of the purchase funnel).
   if (top === "pricing") return true;
+  // The L1.01 beta landing page — the TOP of the beta funnel. Every visitor the
+  // campaign sends is anonymous by definition, so a gate here would 307 the whole
+  // campaign to /sign-in. It would also fail invisibly to anyone checking the
+  // page while signed in, which is everyone who built it.
+  if (top === "beta") return true;
   // Post-checkout confirmation (/checkout/success?session_id=...) — the BOTTOM of
   // the funnel. Must render without a session: a buyer's cookie can be absent/
   // expired at the Stripe redirect, and bouncing them to /sign-in right after they

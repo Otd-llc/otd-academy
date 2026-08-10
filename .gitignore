@@ -148,3 +148,4 @@ _worker-map.log
 # here, this stops authored lesson prose and exam ANSWER KEYS from reaching a
 # PUBLIC repo. The real protection is the default target, not this line.
 /content/
+
