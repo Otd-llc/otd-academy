@@ -33,8 +33,16 @@ const SECONDS = 2.0;
 export function ParallaxStage({ id, w = 880 }: { id: string; w?: number }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const typeRef = useRef<HTMLDivElement>(null);
+  // A GENUINE latest-value ref: the scene effect below depends on [w, h] only,
+  // so switching profile must not tear down and rebuild WebGL, and the render
+  // loop has to read the current one. Only the WRITE moves - doing it during
+  // render is the violation, because a render can be discarded and the write
+  // is not undone. After commit is both legal and correct here: the loop reads
+  // it on the next frame either way.
   const profRef = useRef(byId(id));
-  profRef.current = byId(id);
+  useEffect(() => {
+    profRef.current = byId(id);
+  }, [id]);
   const [ready, setReady] = useState(false);
   const h = Math.round((w * 9) / 16);
 

@@ -77,8 +77,13 @@ export function PirouetteStage({
   showType?: boolean;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
+  // Latest-value ref, written AFTER commit rather than during render: the scene
+  // effect depends on [w, h] only, so changing profile must not rebuild WebGL,
+  // but a render that gets discarded must not leave its write behind either.
   const profRef = useRef(profile);
-  profRef.current = profile;
+  useEffect(() => {
+    profRef.current = profile;
+  }, [profile]);
   const [ready, setReady] = useState(false);
   const h = Math.round((w * 9) / 16);
 

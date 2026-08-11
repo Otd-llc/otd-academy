@@ -11,7 +11,7 @@
 // puts it on the safe line at 92% instead of floating at 77% with a dead band
 // underneath it.
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { TEXT_SCALE, cueCss } from "../capture/cut/cue-layer";
 import { SPECS, placeEarn, type Format } from "../capture/cut/earn-place";
 import { byId } from "./layouts";
@@ -59,11 +59,20 @@ export function SpaceStage({
   const outW = spec ? spec.w : w;
   const h = spec ? spec.h : Math.round((w * 9) / 16);
   const layout = byId(id);
-  const cert = format ? placeEarn(format).card : layout.cert;
-  const layoutRef = useRef(layout);
-  layoutRef.current = layout;
-  const certRef = useRef(cert);
-  certRef.current = cert;
+  // NO "latest value" REF HERE. This is a pure function of `id` and `format`,
+  // which are already the effect's dependencies, so the effect can close over
+  // it and re-runs exactly when it changes. The ref dance was solving a
+  // staleness problem that does not exist, and writing ref.current during
+  // render is a real rule violation rather than a lint nit: under the compiler
+  // a render can be discarded and the write is not undone.
+  //
+  // MEMOISED because it is a DEPENDENCY. placeEarn returns a fresh object every
+  // call, so as a raw dep it would differ on every render and tear down and
+  // rebuild the WebGL context each time.
+  const cert = useMemo(
+    () => (format ? placeEarn(format).card : byId(id).cert),
+    [format, id],
+  );
 
   useEffect(() => {
     let disposed = false;
@@ -110,7 +119,7 @@ export function SpaceStage({
       const img = tex.image as { width?: number; height?: number } | undefined;
       const cardAr = img?.width && img?.height ? img.width / img.height : CARD_AR_FALLBACK;
 
-      const L = certRef.current;
+      const L = cert;
       const cw = (L.w / 100) * FW;
       const ch = cw / cardAr;
       const cx = ((L.left + L.w / 2) / 100) * FW - FW / 2;
@@ -182,7 +191,7 @@ export function SpaceStage({
       cleanup();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [outW, h, capture, format, id]);
+  }, [outW, h, capture, format, id, cert]);
 
   return (
     <div

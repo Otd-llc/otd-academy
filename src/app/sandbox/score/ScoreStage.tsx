@@ -45,9 +45,15 @@ export function ScoreStage({ groups }: { groups: Group[] }) {
   const all = groups.flatMap((g) => g.tracks);
   const [track, setTrack] = useState(all[0].id);
   const [playing, setPlaying] = useState(false);
-  const [loaded, setLoaded] = useState(0);
+  const [decoded, setDecoded] = useState<ReadonlySet<string>>(() => new Set());
+  const loaded = decoded.size;
+  // Latest-value ref, written AFTER commit. The audio graph is built once and
+  // its callbacks outlive any single render, so they need the current track;
+  // writing during render is what was wrong, not the ref.
   const trackRef = useRef(track);
-  trackRef.current = track;
+  useEffect(() => {
+    trackRef.current = track;
+  }, [track]);
 
   useEffect(() => {
     const ctx = new AudioContext();
@@ -63,7 +69,14 @@ export function ScoreStage({ groups }: { groups: Group[] }) {
           const b = await ctx.decodeAudioData(await r.arrayBuffer());
           if (dead) return;
           bufs.current[t.id] = b;
-          setLoaded((n) => n + 1);
+          // WHICH ids decoded, not just HOW MANY. The buttons disable
+          // themselves until their own buffer exists, and they were reading
+          // `bufs.current` during render to decide - a ref read in render,
+          // which is also simply wrong: a ref mutation does not re-render, so
+          // a button only ever un-disabled as a side effect of some OTHER
+          // track's count bumping this state. State carries the same fact and
+          // makes the button update when its own track is ready.
+          setDecoded((s) => (s.has(t.id) ? s : new Set(s).add(t.id)));
         } catch {
           /* a track that will not decode stays unplayable */
         }
@@ -229,7 +242,7 @@ export function ScoreStage({ groups }: { groups: Group[] }) {
                 type="button"
                 data-track={t.id}
                 title={t.note}
-                disabled={!bufs.current[t.id] && loaded < all.length}
+                disabled={!decoded.has(t.id)}
                 className={track === t.id ? btnOn : btn}
                 onClick={() => swap(t.id)}
               >
