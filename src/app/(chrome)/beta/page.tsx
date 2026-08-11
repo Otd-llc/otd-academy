@@ -85,30 +85,6 @@ export default function BetaPage() {
         </div>
       </div>
 
-      <ul className="mt-14 border-t border-panel-border/60">
-        {[
-          [
-            "You design it",
-            "Requirements to bring-up across eight gated cards. You draw the schematic, lay out the board, and run the checks. Not a kit walkthrough.",
-          ],
-          [
-            "It costs nothing",
-            "L1.01 is free and stays free. No card, no trial. An email link is the whole sign-up.",
-          ],
-          [
-            "We want the bad news",
-            "Every card carries a report box. Tell us what confused you, what you expected instead, and above all where you stopped.",
-          ],
-        ].map(([heading, body]) => (
-          <li key={heading} className="border-b border-panel-border/60 py-5">
-            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
-              ▸ {heading}
-            </p>
-            <p className="mt-2 text-sm text-text">{body}</p>
-          </li>
-        ))}
-      </ul>
-
       {/* Reads the question out of the published card, and renders it with the
           real QuizBlock in its pure self-check mode. Nothing is recorded. */}
       <BetaCheckSection guideHref={guideHref("SCHEMATIC")} />
