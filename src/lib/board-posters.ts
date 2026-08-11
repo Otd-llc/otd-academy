@@ -1,3 +1,5 @@
+import { optimized } from "./optimized-asset";
+
 // Slugs with a baked ortho poster in /public/board-posters/<slug>.png. The
 // /learn ladder and the board hero show the finished-board graphic ONLY for
 // these — the ladder's layout (the selected board breaks the frame) depends on
@@ -5,8 +7,13 @@
 // onError fallback. Add a slug here when its <slug>.png poster lands.
 export const BOARD_POSTER_SLUGS = new Set<string>(["l1-01-wroom-breakout"]);
 
+/**
+ * Through the optimizer (see `optimized-asset.ts`): the poster is a 1782px
+ * square painted into a box that never exceeds 437 CSS px. The ghost below is
+ * deliberately NOT, because resampling an alpha map changes what it draws.
+ */
 export function boardPoster(slug: string): string | null {
-  return BOARD_POSTER_SLUGS.has(slug) ? `/board-posters/${slug}.png` : null;
+  return BOARD_POSTER_SLUGS.has(slug) ? optimized(`/board-posters/${slug}.png`) : null;
 }
 
 // The COMB camera. /courses sits its boards on hex faces, and the owner picked a
@@ -40,5 +47,5 @@ export const COMB_STANDIN_GHOST =
   "/board-posters/comb/ghost/l1-01-wroom-breakout.png";
 
 export function combPoster(slug: string): string | null {
-  return COMB_POSTER_SLUGS.has(slug) ? `/board-posters/comb/${slug}.png` : null;
+  return COMB_POSTER_SLUGS.has(slug) ? optimized(`/board-posters/comb/${slug}.png`) : null;
 }

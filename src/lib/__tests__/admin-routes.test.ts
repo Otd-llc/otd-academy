@@ -103,6 +103,13 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/briefs/learner")).toBe(true);
   });
 
+  it("admits the public /beta landing page (the whole point is signed-out arrivals)", () => {
+    // Every visitor the beta campaign sends is anonymous by definition. Without
+    // this the campaign 307s to /sign-in and the landing page is never seen —
+    // and it fails invisibly to anyone testing while signed in.
+    expect(isPublicPath("/beta")).toBe(true);
+  });
+
   it("admits the public /verify route (third-party certificate checks)", () => {
     // Middleware passes the pathname only (no query string).
     expect(isPublicPath("/verify")).toBe(true);

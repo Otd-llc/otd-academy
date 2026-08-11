@@ -271,6 +271,52 @@ export async function advanceEnrollment(
     }
   }
 
+  // Funnel: every successful advance, naming both stages.
+  //
+  // `board_activated` above fires exactly once per learner, at DRC_GERBER, so on
+  // its own it cannot answer the question a beta exists to answer: WHERE do
+  // people stop. A learner stalled at SCHEMATIC and one stalled at LAYOUT are
+  // the same row without this. `xp_earned` is a near-proxy but carries only an
+  // amount, which makes recovering the stage inference rather than measurement.
+  //
+  // A blocked advance emits nothing — `outcome.ok` is false on a gate refusal,
+  // and a refusal is not progress.
+  if (outcome.ok) {
+    try {
+      capture(
+        "stage_advanced",
+        {
+          projectSlug: outcome.slug,
+          fromStage: outcome.fromStage,
+          toStage: outcome.toStage,
+        },
+        user.id,
+      );
+    } catch {
+      // never block the advance on telemetry
+    }
+  }
+
+  // Funnel: the learner finished the course. The terminal advance is the moment
+  // the enrollment flips to COMPLETED (see the `terminal` branch in the tx), and
+  // until now nothing marked it: the last event on the happy path was
+  // `board_activated`, three stages earlier, and `certificate_shared` only fires
+  // if they choose to share. Completion rate is the beta's headline number.
+  if (outcome.ok && outcome.toStage === "REVISION") {
+    try {
+      capture(
+        "course_completed",
+        {
+          projectSlug: outcome.slug,
+          level: outcome.slug.startsWith("l1-") ? "L1" : undefined,
+        },
+        user.id,
+      );
+    } catch {
+      // never block the advance on telemetry
+    }
+  }
+
   // Course XP: STAGE_CLEAR for the stage just cleared (design Phase 2). After
   // commit, best-effort — XP/telemetry never blocks the advance. Idempotent on the
   // dedupeKey, so a retried advance can't double-pay.

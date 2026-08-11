@@ -64,6 +64,18 @@ export function ExamForm({
 
   return (
     <div className="space-y-6">
+      {/* The honey gradient the selected hex fills with. `.qzh-hex polygon`
+          references `url(#quiz-honey)`, so without this def a picked option
+          renders an EMPTY hex and looks like nothing happened. QuizBlock ships
+          the same def for the same reason. */}
+      <svg width="0" height="0" aria-hidden className="absolute">
+        <defs>
+          <linearGradient id="quiz-honey" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#eab94d" />
+            <stop offset="1" stopColor="#b07f31" />
+          </linearGradient>
+        </defs>
+      </svg>
       {questions.map((q, qi) => {
         const newSection = q.section && q.section !== questions[qi - 1]?.section;
         return (
@@ -73,25 +85,58 @@ export function ExamForm({
                 // {q.section}
               </p>
             )}
-            <fieldset className="space-y-3 border-t border-panel-border/60 pt-5">
-              <legend className="font-serif text-base leading-relaxed text-gray-1">
+            <fieldset className="border-t border-panel-border/60 pt-5">
+              <legend className="font-serif text-base leading-relaxed text-text">
                 {qi + 1}. {q.prompt}
               </legend>
-              {q.options.map((opt, oi) => (
-                <label
-                  key={oi}
-                  className="flex cursor-pointer items-center gap-2 font-mono text-sm text-gray-1"
-                >
-                  <input
-                    type="radio"
-                    name={q.id}
-                    checked={answers[q.id] === oi}
-                    onChange={() => setAnswers((a) => ({ ...a, [q.id]: oi }))}
-                    disabled={locked}
-                  />
-                  {opt}
-                </label>
-              ))}
+              {/* HONEYCOMB OPTIONS, the same language the guide's quiz uses.
+                  This screen rendered a native <input type="radio"> with
+                  `text-gray-1` labels — a legacy token the design system
+                  reserves for un-migrated internal screens, never a public one.
+                  So the FINAL EXAM was the single assessment surface that did
+                  not look like the product, while the inline checks a learner
+                  meets on every card did. Same interaction, one visual language
+                  now. The `.qzh-*` recipes already exist in globals.css and are
+                  reused verbatim rather than reinvented. */}
+              <div
+                className="qzh-opts mt-3"
+                // The question id, addressable. The native radios carried it as
+                // `name`; the honeycomb buttons do not, and without it nothing
+                // outside React can tell which question it is looking at.
+                data-qid={q.id}
+                role="radiogroup"
+                aria-label={`Question ${qi + 1} answer options`}
+              >
+                {q.options.map((opt, oi) => {
+                  const picked = answers[q.id] === oi;
+                  return (
+                    <button
+                      key={oi}
+                      type="button"
+                      role="radio"
+                      aria-checked={picked}
+                      // aria-disabled, not `disabled`: disabling the button you
+                      // just clicked ejects keyboard focus to <body>. QuizBlock
+                      // learned this; the click guard below does the work.
+                      aria-disabled={locked}
+                      data-st={picked ? "ok" : undefined}
+                      className="qzh-opt"
+                      onClick={() => {
+                        if (locked) return;
+                        setAnswers((a) => ({ ...a, [q.id]: oi }));
+                      }}
+                    >
+                      <span className="qzh-hex" aria-hidden="true">
+                        <svg viewBox="0 0 28 32" preserveAspectRatio="none">
+                          <polygon points="14,1 27,8 27,24 14,31 1,24 1,8" />
+                        </svg>
+                        <b>{String.fromCharCode(65 + oi)}</b>
+                      </span>
+                      <span>{opt}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </fieldset>
           </Fragment>
         );

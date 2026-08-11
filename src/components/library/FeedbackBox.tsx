@@ -14,25 +14,37 @@ import { useFanfare } from "@/components/logbook/Fanfare";
 export function FeedbackBox({
   pageRef,
   signedIn,
+  returnTo,
+  label = "Suggest an improvement",
+  placeholder = "What would make this lesson clearer or more correct?",
 }: {
   pageRef: string;
   signedIn: boolean;
+  /**
+   * Where to send the visitor back to after signing in. Required for any surface
+   * whose URL cannot be rebuilt from the pageRef — a course guide card lives at
+   * /projects/<slug>/<revLabel>/guide/<stage>, and the ref carries no revLabel.
+   * Defaults to the Library path, which is what the ref does describe.
+   */
+  returnTo?: string;
+  label?: string;
+  placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [body, setBody] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [xp, setXp] = useState(0);
   const fanfare = useFanfare();
-  const slug = pageRef.replace(/^library\//, "");
+  const back = returnTo ?? `/library/${pageRef.replace(/^library\//, "")}`;
 
   if (!signedIn) {
     return (
       <div className="mt-10 border-t border-panel-border/60 pt-4">
         <Link
-          href={`/sign-in?callbackUrl=/library/${slug}`}
+          href={`/sign-in?callbackUrl=${encodeURIComponent(back)}`}
           className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted transition-colors hover:text-command-gold"
         >
-          ▸ Sign in to suggest an improvement
+          ▸ Sign in to {label.toLowerCase()}
         </Link>
       </div>
     );
@@ -46,7 +58,7 @@ export function FeedbackBox({
           onClick={() => setOpen(true)}
           className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted transition-colors hover:text-command-gold focus-visible:text-command-gold focus-visible:outline-none"
         >
-          ▸ Suggest an improvement
+          ▸ {label}
         </button>
       </div>
     );
@@ -73,7 +85,7 @@ export function FeedbackBox({
   return (
     <div className="mt-10 border-t border-panel-border/60 pt-4">
       <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
-        ▸ Suggest an improvement
+        ▸ {label}
       </p>
       {status === "done" ? (
         <p className="mt-3 flex items-center gap-3 font-mono text-xs uppercase tracking-wider text-status-green">
@@ -87,7 +99,7 @@ export function FeedbackBox({
             onChange={(e) => setBody(e.target.value)}
             rows={3}
             maxLength={2000}
-            placeholder="What would make this lesson clearer or more correct?"
+            placeholder={placeholder}
             className="w-full resize-y border-0 border-b border-panel-border bg-transparent px-0 py-1 font-serif text-sm text-text placeholder:text-muted focus:border-command-gold focus:outline-none"
           />
           <div className="mt-3 flex flex-wrap items-center gap-4">

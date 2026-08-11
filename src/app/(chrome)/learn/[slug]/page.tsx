@@ -18,6 +18,7 @@ import { PhaseComb } from "@/components/guide/PhaseComb";
 import { getArtifactRenderUrl } from "@/lib/actions/uploads";
 import { renderBoundsSchema, type RenderBounds } from "@/lib/schemas/part-asset";
 import { ChevronLeftIcon } from "@/components/icons";
+import { boardPoster } from "@/lib/board-posters";
 
 function guideHref(slug: string, revLabel: string, stage: string): string {
   return `/projects/${slug}/${encodeURIComponent(revLabel)}/guide/${stage}`;
@@ -219,7 +220,11 @@ export default async function LearnerBoardPage({
             {/* board — mobile #3 */}
             {boardModel ? (
               <div className="order-3">
-                <ClickToLoadBoard poster={`/board-posters/${project.slug}.png`} src={boardModel.src} bounds={boardModel.bounds} />
+                {/* boardPoster(), not a literal. This built the path inline and
+                    so bypassed the helper entirely — it kept serving the raw
+                    1782px PNG after the helper started routing through the
+                    optimizer, and TypeScript had nothing to say about it. */}
+                <ClickToLoadBoard poster={boardPoster(project.slug)} src={boardModel.src} bounds={boardModel.bounds} />
               </div>
             ) : isAdmin ? (
               <div className="order-3 flex flex-col items-center justify-center gap-2 rounded border border-dashed border-panel-border bg-deep-space/40 px-6 py-8 text-center">

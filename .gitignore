@@ -170,3 +170,6 @@ __pycache__/
 /docs/plans/2026-08-09-otd-promo-repo-design.md
 /docs/plans/2026-08-09-otd-promo-validation-log.md
 /docs/plans/2026-08-09-otd-promo-handoff.md
+
+# Local-only capture inputs (sandbox); never shipped
+public/_capture/
