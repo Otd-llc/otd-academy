@@ -59,27 +59,25 @@ export function stageArtSource(stage: Stage): string | null {
 // Regenerate with `pnpm tsx scripts/make-stage-ghosts.ts` whenever a stage tile is
 // re-rendered; that script carries the measurements the treatment rests on.
 //
-// NOT THROUGH THE OPTIMIZER, unlike stageArt above, and this is a measurement
-// rather than caution. A ghost is an alpha map normalised to a target mean
-// density, and RESAMPLING A SPARSE MAP RAISES THAT MEAN: thin strokes spread
-// into the empty pixels around them. Measured mean alpha, source -> 384px:
+// NOT THROUGH THE OPTIMIZER, unlike stageArt above.
 //
-//   LAYOUT        0.251 -> 0.690   +174.9%
-//   DRC_GERBER    0.236 -> 0.634   +169.0%
-//   SCHEMATIC     0.268 -> 0.510    +90.5%
-//   BOM_SOURCING  0.254 -> 0.460    +81.2%
-//   (the four kicad renders are dense and drift under 11%)
+// An earlier version of this comment said resampling raises a sparse mask's
+// mean alpha by up to 175% and that shrinking one was therefore unsafe. That
+// number is real but it describes SHARP'S RESAMPLER ACTING ON THE FILE, and it
+// is not what anyone sees: the browser was already downsampling these to the
+// cell on every view. Painting both variants through this comb's own CSS at the
+// largest box they ever fill, the difference in painted density is at most
+// 0.22%. The masks are not fragile in the way that comment claimed.
 //
-// A lossy encode does it too, at full size and with no resize at all
-// (LAYOUT +132.7%). Those four are exactly the sparse plots make-stage-ghosts
-// singles out: "cutting LAYOUT or DRC_GERBER would delete four fifths of the
-// artwork". Nearly tripling a mask's density is a different drawing, and
-// because a mask failure resolves to transparent rather than to a broken image,
-// the comb would just quietly change weight with nothing to catch it.
+// They are still not routed through the optimizer, for a plainer reason: they
+// are already AT display size. make-stage-ghosts.ts now caps every ghost at 896
+// device px (the 437 CSS px box on a 2x screen) and keeps the smaller file, so
+// there is nothing left for a resize to reclaim. On four of the nine a resize
+// makes the file BIGGER — replacing hard edges with intermediate values costs
+// more than the pixels save — and the script discards those.
 //
-// The correct way to make a smaller ghost is to regenerate it at the target
-// size with make-stage-ghosts.ts, which renormalises density AFTER computing
-// coverage. That is a separate change to that script, not a URL swap here.
+// Regenerate with `pnpm tsx scripts/make-stage-ghosts.ts`; the cap runs after
+// the density normalisation, never before.
 export function stageArtGhost(stage: Stage): string | null {
   return STAGE_ART[stage] ? `/guide-stages/ghost/${stage}.png` : null;
 }
