@@ -119,9 +119,32 @@ def measure(src, ir_path, wet, comp):
     return json.loads(txt[start : end + 1])
 
 
-def apply(src, dst, ir_path, wet, comp, m):
+def achievable_target(m):
+    """The loudest integrated level reachable with LINEAR gain alone.
+
+    WHY THIS EXISTS. loudnorm's `linear=true` is a REQUEST, not a guarantee: if
+    the linear gain needed would breach the true-peak ceiling, it silently falls
+    back to dynamic normalisation and compresses its way there. That is exactly
+    what the arrangement must not spend.
+
+    The academy bed measured -22.87 LUFS at -7.40 dBTP. Reaching -14 needs
+    +8.87 dB, but only +6.40 dB fits under -1 dBTP, so the last 2.47 dB came out
+    of the dynamics: every one of the four landings was pinned flat at the
+    limiter ceiling, EARN/LEARN collapsed from 1.49x to 1.01x, and crest fell
+    from 16.3 to 13.2 dB. A four-landing arc levelled into one loud bar.
+
+    So compute what linear gain can actually buy and take that. A promo that
+    plays 2 dB quieter is a promo; one whose payoff no longer lands is not.
+    Platforms only turn DOWN material that is louder than target, so the cost of
+    the shortfall is small and the cost of the squash is the whole idea.
+    """
+    # loudnorm reports its measurements as STRINGS in the JSON.
+    return float(m["input_i"]) + (TARGET_TP - float(m["input_tp"]))
+
+
+def apply(src, dst, ir_path, wet, comp, m, target_i):
     g = chain(ir_path, wet, comp) + (
-        f"loudnorm=I={TARGET_I}:TP={TARGET_TP}:LRA={TARGET_LRA}"
+        f"loudnorm=I={target_i}:TP={TARGET_TP}:LRA={TARGET_LRA}"
         f":measured_I={m['input_i']}:measured_TP={m['input_tp']}"
         f":measured_LRA={m['input_lra']}:measured_thresh={m['input_thresh']}"
         f":offset={m['target_offset']}:linear=true[out]"
@@ -139,13 +162,23 @@ def apply(src, dst, ir_path, wet, comp, m):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--kit", default="rd-revtaiko")
+    # The finishing chain is not Hex-specific: convolution, glue, true peak and
+    # R128 are the same engineering whatever the bed is. The academy cut has its
+    # own arrangement (tools/academy-bed.py) but wants this identical chain, so
+    # the only thing that needed to change was the filename it looks for.
+    ap.add_argument("--prefix", default="hex-bed", help="bed filename stem, e.g. academy-bed")
     ap.add_argument("--ir", default="579154", help="impulse response id, or 'none'")
     ap.add_argument("--wet", type=float, default=0.22)
     ap.add_argument("--no-comp", action="store_true")
+    # ON BY DEFAULT, because silently trading the arrangement for 2 dB is the
+    # kind of thing that only gets noticed after the cut is delivered. Pass
+    # --no-preserve-arc to accept the dynamic fallback and hit -14 exactly.
+    ap.add_argument("--preserve-arc", action="store_true", default=True)
+    ap.add_argument("--no-preserve-arc", dest="preserve_arc", action="store_false")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
 
-    src = f"{KITS_DIR}/hex-bed-{a.kit}.wav"
+    src = f"{KITS_DIR}/{a.prefix}-{a.kit}.wav"
     if not os.path.exists(src):
         raise SystemExit(f"no such bed: {src}")
     ir_path = None if a.ir == "none" else f"{IR_DIR}/{a.ir}.wav"
@@ -158,11 +191,19 @@ if __name__ == "__main__":
     double(src, tmp2)
 
     m = measure(tmp2, ir_path, a.wet, not a.no_comp)
-    apply(tmp2, tmpm, ir_path, a.wet, not a.no_comp, m)
+    reach = achievable_target(m)
+    target_i = TARGET_I
+    note = "linear"
+    if a.preserve_arc and reach < TARGET_I:
+        target_i = round(reach, 2)
+        note = f"linear-capped, {TARGET_I - target_i:+.2f} dB short of {TARGET_I}"
+    elif reach < TARGET_I:
+        note = f"DYNAMIC fallback, {TARGET_I - reach:.2f} dB beyond linear reach"
+    apply(tmp2, tmpm, ir_path, a.wet, not a.no_comp, m, target_i)
 
     # KEEP THE SECOND LAP. The first one rings out of silence; the second rings
     # out of the first, which is what the loop point will actually hear.
-    out = a.out or f"{KITS_DIR}/hex-bed-{a.kit}-master.wav"
+    out = a.out or f"{KITS_DIR}/{a.prefix}-{a.kit}-master.wav"
     run(["ffmpeg", "-y", "-loglevel", "error", "-ss", str(lap), "-t", str(lap),
          "-i", tmpm, "-c:a", "pcm_s16le", out])
     for f in (tmp2, tmpm):
@@ -170,7 +211,7 @@ if __name__ == "__main__":
             os.remove(f)
     print(
         f"{out}\n  measured in  {m['input_i']} LUFS, TP {m['input_tp']} dBTP\n"
-        f"  target       {TARGET_I} LUFS, TP {TARGET_TP} dBTP\n"
+        f"  target       {target_i} LUFS, TP {TARGET_TP} dBTP  ({note})\n"
         f"  reverb       {'none' if not ir_path else os.path.basename(ir_path)} wet {a.wet}\n"
         f"  compression  {'off' if a.no_comp else '1.6:1 @ -12 dB, no makeup'}"
     )

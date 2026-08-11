@@ -106,6 +106,53 @@ ROLES = {
     # everything else keeps one rule instead of two.
     "ir": ["impulse response hall", "impulse response reverb church",
            "impulse response room sweep"],
+    # ---- A KIT THAT CAN KEEP TIME ----------------------------------------
+    # The library had kick, taiko, tom, impact and sub: everything needed to
+    # land a hit and nothing needed to hold a groove. That is why the academy
+    # beds came out as four events with air between them instead of a jingle,
+    # and no amount of rearranging fixes a missing backbeat. A beat-driven cut
+    # needs a snare on 2 and 4, hats subdividing, and something to clap.
+    # "snare drum hit" / "acoustic snare one shot" / "snare hit dry" returned
+    # toms, a ride and a kick: Freesound's CC0 drum packs upload as whole kits
+    # with the instrument only in the filename, so a generic phrase ranks the
+    # wrong member of the pack. Naming the machine finds the one-shot.
+    "snare": ["808 snare", "snare rimshot sample", "trap snare one shot"],
+    "hat": ["closed hi hat", "hi hat closed one shot", "hihat tight"],
+    "openhat": ["open hi hat", "open hihat cymbal", "hi hat open one shot"],
+    "clap": ["hand clap one shot", "clap percussion single", "808 clap"],
+    "shaker": ["shaker percussion", "tambourine shake", "maraca shake"],
+    "crash": ["crash cymbal hit", "cymbal crash one shot", "splash cymbal"],
+    # 808s glide and sustain, which is what carries a bass line rather than
+    # merely punctuating it.
+    "sub808": ["808 bass drum", "808 kick long", "808 sub bass note"],
+    # ---- THE ACADEMY PALETTE: the bench, not the temple ------------------
+    # The academy cut has to be distinctly different from Hex while staying in
+    # the same family. Family comes from what they SHARE: 120 BPM, the same arc
+    # shape, the same sine sub underneath, the same convolved room, the same
+    # finishing chain. Difference has to come from the MATERIAL, because that is
+    # the only axis left, and reusing Hex's taiko and gong was why the first
+    # academy beds sounded like Hex with the parts moved around.
+    #
+    # So the material is the subject. The lesson is building a circuit board, so
+    # the kit is a workshop: struck metal instead of struck skin, switchgear
+    # instead of woodblock, an electrical arc instead of a cymbal swell. An
+    # anvil and a taiko are both a big low strike with a long tail, which is why
+    # this stays in the family rather than becoming a different genre.
+    "anvil": ["anvil hit", "blacksmith hammer anvil", "metal anvil strike"],
+    "hammer": ["hammer hit metal", "sledgehammer impact", "hammer strike metal"],
+    # The LEARN landing: a mechanism committing, which is what clicking the last
+    # answer on an exam is. Switchgear reads as a decision; a woodblock reads as
+    # a percussion instrument.
+    "relay": ["relay click", "contactor switch clunk", "toggle switch click"],
+    # The riser into EARN: an arc rising instead of a cymbal reversing.
+    "spark": ["electric spark zap", "capacitor discharge", "electric arc buzz"],
+    # Movement between landings, so the bed sounds powered rather than played.
+    # "servo motor move" / "stepper motor sound" / "robot servo whir" all
+    # returned ZERO under the CC0 filter. Aimed at tools a workshop actually
+    # has instead of the robotics vocabulary, which is where the recordings are.
+    "servo": ["power drill", "electric drill tool", "cordless drill"],
+    # Punctuation. Dropped tools and struck bench metal, the workshop's rimshot.
+    "clank": ["metal tool drop", "workshop metal clank", "metal wrench drop"],
 }
 
 
