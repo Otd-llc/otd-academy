@@ -145,7 +145,16 @@ async function main() {
       await page.waitForTimeout(250); // let the token flip settle
       await hideOverlays(page);
       const out = path.join(OUT, `${basename}-light.png`);
-      await figure.screenshot({ path: out, type: "png" });
+      // Through the encoder, not straight to disk. Playwright writes at a low
+      // compression level; the dark rasters shrank by roughly half at level 9
+      // for identical pixels, and there is no reason these should not.
+      //
+      // NOT SIZE-CAPPED, unlike the dark ones. Those feed a social card whose
+      // box is a known 480x420, so 960 is provably enough. These are the PRINT
+      // rasters react-pdf embeds, and the page size that will be printed at is
+      // not something this script knows.
+      const shot = await figure.screenshot({ type: "png" });
+      writeFileSync(out, await sharp(shot).png({ compressionLevel: 9 }).toBuffer());
       n++;
       console.log(`  ${basename}-light.png`);
     }
