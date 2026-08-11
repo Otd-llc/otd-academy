@@ -30,16 +30,42 @@
 //   node tools/hex-promo-cuts.mjs --preset=vertical        one cut, dark
 //   node tools/hex-promo-cuts.mjs --preset=readme --light  one cut, ivory
 //   node tools/hex-promo-cuts.mjs --preset=square --frames=60   short look, no encode
+//   node tools/hex-promo-cuts.mjs --preset=wide --choreo=orbit --text
+//                                                         cut with the type burned in
+//
+// `--text` WORKS ON EVERY PRESET, but two of them need knowing about.
+//
+// `band` is the only preset nobody ever sees whole: it is shown through
+// `object-fit: cover` on a ~2.4:1 slice, 13% off each end on the academy hero
+// and 20% on the apex section. Type on it needs a much deeper vertical safe
+// margin, which is what `textSafe` on that preset is for -- at the ordinary 7%
+// the top row centres at 21% of frame height and apex cuts straight through it.
+//
+// `readme` becomes a 720px animated WebP, where high-contrast type on every
+// frame is exactly what defeats inter-frame compression. Expect it to grow; the
+// size is printed on every run, so read it rather than assume it.
+//
+// Neither of those is a page swap. Both surfaces carry their own headline copy,
+// so a text cut for them is an ADDITIONAL file to choose from, not a
+// replacement for the clean one the pages ship.
 import { chromium } from "playwright";
-import { mkdirSync, rmSync, statSync } from "node:fs";
+import { mkdirSync, renameSync, rmSync, statSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const APP = "http://localhost:5180/hex";
 const RAW =
   "C:/Users/raven/AppData/Local/Temp/claude/c--zzz-project-foundry/72976a86-a815-4dda-92f1-e921b785f9be/scratchpad/hexcuts";
 const OUT = "C:/zzz/_hex-promo";
 
-const SECONDS = 10;
+// 10 s is 5 bars of 4/4 at 120 BPM, which is why it is the default: the beats
+// below are laid on that grid so a scored version lands its drops on
+// downbeats. Any override should stay a whole number of bars (an even number
+// of seconds at 120 BPM) or the audio seam will click even though the video
+// seam does not.
+const SECONDS = Number(
+  process.argv.find((a) => a.startsWith("--seconds="))?.split("=")[1] ?? 10,
+);
 
 // `dolly` multiplies the fitted distance: BIGGER pulls the camera back. `lift`
 // raises the subject in frame as a fraction of that distance, POSITIVE up.
@@ -62,7 +88,7 @@ const SECONDS = 10;
 // there to show.
 const PRESETS = {
   // 16:9 -- apex hero, YouTube.
-  wide: { w: 1920, h: 1080, dolly: 1.22, lift: 0.03 },
+  wide: { markMult: 2.41, w: 1920, h: 1080, dolly: 1.22, lift: 0.03 },
   // ---- aspect <= 1: fitToSphere fits to WIDTH, and lift is measured in a
   // distance that is now much larger, so BOTH hero numbers have to change.
   //
@@ -77,11 +103,11 @@ const PRESETS = {
   //
   // DOLLY GOES OUT for margin. At 1.0 the neighbour tiles already touch both
   // side edges, and the widest beat of the choreography is wider still.
-  vertical: { w: 1080, h: 1920, dolly: 1.24, lift: 0 },
+  vertical: { markMult: 2.24, w: 1080, h: 1920, dolly: 1.24, lift: 0 },
   // 1:1 -- X and LinkedIn feed.
-  square: { w: 1080, h: 1080, dolly: 1.24, lift: 0 },
+  square: { markMult: 2.26, w: 1080, h: 1080, dolly: 1.24, lift: 0 },
   // 4:5 -- LinkedIn and Instagram feed.
-  portrait: { w: 1080, h: 1350, dolly: 1.24, lift: 0 },
+  portrait: { markMult: 2.25, w: 1080, h: 1350, dolly: 1.24, lift: 0 },
   // FOR A CROPPED BAND, not a full frame. The apex home section and the
   // academy /hex hero both show this clip through `object-fit: cover` on a
   // roughly 2.4:1 slice of a 16:9 source, which throws away about 13% off the
@@ -97,10 +123,43 @@ const PRESETS = {
   // need a dolly near 2.07, which shrinks the cluster to a speck; that band was
   // framed around the hero loop, whose content is short, and the orbit's whole
   // point is vertical travel. The hero loop stays on apex.
-  band: { w: 1920, h: 1080, dolly: 1.65, lift: 0 },
+  // Same 1920x1080 aspect as `wide`, and orbit overrides every preset to one
+  // dolly, so it must take the same limit. The probe measured band at its own
+  // 1.45 dolly, which is further back and therefore optimistic.
+  // `textSafe` 24 IS THE WHOLE REASON TYPE CAN GO ON THIS ONE. Everything else
+  // uses the 7% margin the composition was designed at; band is the only preset
+  // nobody ever sees whole. The academy hero keeps 74% of the height and the
+  // apex section keeps 60%, so the binding crop is apex: 20% off each end. At a
+  // 7% margin the grid's top row centres at 21% of frame height, which apex
+  // cuts through. 24% clears the worse crop with 2% to spare and still leaves
+  // three usable rows.
+  band: {
+    markMult: 2.41,
+    w: 1920,
+    h: 1080,
+    dolly: 1.65,
+    lift: 0,
+    // Shown through `object-fit: cover`, never whole -- so the orbit dolly
+    // override must not touch it. See `presetFor`.
+    cropped: true,
+    // The fraction of frame HEIGHT the academy /hex hero actually shows,
+    // measured on the real page at a 1440 viewport: it renders the clip
+    // 1392x783 and displays 580 of it. The probe gates against this, not
+    // against the full frame. Apex crops harder still (~0.60) and is why the
+    // apex band ships the `hero` choreography instead.
+    visible: 0.74,
+    textSafe: 24,
+    // FOLLOWS FROM `textSafe`, and was found the hard way. Pulling the bottom
+    // row up by 17% to clear the crop puts a centred download icon straight
+    // through the front tile of the cluster -- the ordinary 7% margin had left
+    // it just below. The LEFT THIRD of this frame is empty at every azimuth,
+    // because landscape pays for the explode's height in empty sides, so the
+    // icon moves there and stacks under FREE.
+    textDl: { cell: "c-bl", align: "" },
+  },
   // 16:10 at README width. Captured small on purpose: this one becomes an
   // animated WebP, where every pixel is bytes in someone's README render.
-  readme: { w: 960, h: 600, dolly: 1.24, lift: 0.03 },
+  readme: { markMult: 2.41, w: 960, h: 600, dolly: 1.24, lift: 0.03 },
 };
 
 // The animated-WebP recipe, README preset only. 15fps and 720px are a size
@@ -141,12 +200,27 @@ const THEME = flag("light") ? "light" : "dark";
 // The loop still closes by construction: azimuth completes exactly one
 // revolution across the whole clip whatever the polar is doing, every placement
 // has a matching removal, and the polar curve starts and ends on the same value.
+// `--ground-mark` lays the brand mark ON THE FLOOR of the 3D scene rather
+// than compositing it over the picture afterwards. That is the whole point: in
+// the opening plan view it reads flat and square, and as the camera tips to
+// three quarters it foreshortens with the floor, because it IS the floor. An
+// overlay cannot do that; it would sit still while everything under it moved.
+const GROUND_MARK = flag("ground-mark");
+// 0.20 read as a floor decal and 0.13 was still too present. At 0.07 the
+// mark is something you notice on the second watch, which is what a
+// watermark is for.
+const GROUND_OPACITY = Number(arg("mark-opacity")?.split("=")[1] ?? 0.07);
 const CHOREO = arg("choreo")?.split("=")[1] ?? "hero";
 if (!["hero", "orbit"].includes(CHOREO)) {
   console.error(`unknown --choreo "${CHOREO}". One of: hero, orbit`);
   process.exit(1);
 }
-const suffix = `${CHOREO === "orbit" ? "-orbit" : ""}${THEME === "light" ? "-light" : ""}`;
+// `--text` burns the approved kinetic cue sheet into the frames. See
+// `installCues` for the whole rationale; the short version is that the type is
+// composited by the browser in the same page the WebGL renders in, and every
+// animation is SCRUBBED to the frame's scene time rather than played.
+const TEXT = flag("text");
+const suffix = `${CHOREO === "orbit" ? "-orbit" : ""}${GROUND_MARK ? "-mark" : ""}${TEXT ? "-text" : ""}${THEME === "light" ? "-light" : ""}`;
 
 // Plan view is NOT polar 0. camera-controls degenerates as the polar angle
 // approaches the pole (the azimuth has no meaning when you are looking straight
@@ -162,8 +236,22 @@ const POLAR_PLAN = 0.14;
 // hero set holds. One value covers all five because the required correction
 // landed within a percent of itself on every preset (1.037 to 1.063).
 const ORBIT_DOLLY = 1.3;
+// `cropped` PRESETS KEEP THEIR OWN DOLLY. The orbit override exists because the
+// choreography puts four tiles on screen and spends a third of the clip in plan
+// view, where flat tiles spread wider than the three-quarter stack does -- so a
+// single value covers the presets that are shown WHOLE.
+//
+// `band` is not shown whole, and overriding it was a live defect. With the
+// framing gate finally able to run (it had never executed -- see
+// `extentOverTurn`), band measured marginY 0.142, i.e. geometry reaching 0.858
+// of half-height, against an academy hero that crops to 0.74 and an apex band
+// that crops to 0.60. The cluster was being sliced on a page that is live.
+//
+// 1.65 is the value already in the table, already justified by measurement, and
+// already documented as clearing the hero but not apex. The override was
+// throwing it away.
 const presetFor = (p) =>
-  CHOREO === "orbit" ? { ...p, dolly: ORBIT_DOLLY } : p;
+  CHOREO === "orbit" && !p.cropped ? { ...p, dolly: ORBIT_DOLLY } : p;
 
 /** Where the camera sits in its tip-over, as a fraction of the clip.
  *
@@ -254,7 +342,12 @@ async function boot(browser, { w, h }) {
 
   await page.addStyleTag({
     content: `
-      body > *:not(canvas):not(script) { display: none !important; }
+      /* #hexcue is the burned-in text layer and is OURS, not the app's. The
+         blanket rule below is deliberately indiscriminate so it survives the
+         next widget the configurator grows, which means it also swallows
+         anything we add afterwards: the layer mounted, sized, and animated
+         correctly and rendered nothing at all. */
+      body > *:not(canvas):not(script):not(#hexcue) { display: none !important; }
       #header, #toolbar, #inspector, #idle-prompt, #ghost-tip, #hint,
       #crosshair, #action-sheet, #export-modal, .long-press-indicator,
       #hex-palette, #hex-compass, #loading { display: none !important; }
@@ -1017,9 +1110,18 @@ async function installOrbitStepper(page, total, planPolar, pose) {
       // Plan view holds for half the clip, because the deciding is the story
       // and it needs dwell. The middle beat of each placement, the change of
       // mind, is the one that makes it read as a choice rather than a sequence.
+      // ON A 120 BPM GRID. Beat = 0.5 s, bar = 2 s, and the default 10 s clip is
+      // 5 bars. Expressed as fractions so the grid survives a `--seconds`
+      // override of a whole number of bars.
+      //
+      // The placements land on bar downbeats (2.0 s, 4.0 s) and the explode on
+      // bar 4 (6.0 s); the caps walk in on beats and the ending runs on eighths
+      // as a fill. Before this they sat at 1.9 / 3.6 / 4.6 with gaps of 1.7 and
+      // 1.0, which is unscoreable: anyone writing to it would have to follow
+      // arbitrary times instead of a bar line.
       const beats = [
         [
-          0.04,
+          0.05,
           () =>
             show(
               [
@@ -1031,7 +1133,7 @@ async function installOrbitStepper(page, total, planPolar, pose) {
         ],
         [0.1, () => hover(0, -1)],
         [0.15, () => hover(1, 0)],
-        [0.19, () => place(0, 0.19)],
+        [0.2, () => place(0, 0.2)],
 
         [
           0.25,
@@ -1044,33 +1146,33 @@ async function installOrbitStepper(page, total, planPolar, pose) {
               [1, -1],
             ),
         ],
-        [0.31, () => hover(-1, 1)],
-        [0.36, () => place(1, 0.36)],
+        [0.3, () => hover(-1, 1)],
+        [0.4, () => place(1, 0.4)],
 
-        [0.41, () => show([[0, -1]], [0, -1])],
-        [0.46, () => place(2, 0.46)],
-        [0.5, () => show([])],
+        [0.45, () => show([[0, -1]], [0, -1])],
+        [0.5, () => place(2, 0.5)],
+        [0.55, () => show([])],
 
-        [0.62, () => void (tray.exploded = true)],
-        [0.66, () => addCap(0)],
+        [0.6, () => void (tray.exploded = true)],
+        [0.65, () => addCap(0)],
         [0.7, () => addCap(1)],
-        [0.74, () => addCap(2)],
+        [0.75, () => addCap(2)],
         [
-          0.78,
+          0.8,
           () => {
             if (caps[0]) setCapAt(tray, caps[0], null);
             applyGhosts();
           },
         ],
         [
-          0.81,
+          0.825,
           () => {
             if (caps[1]) setCapAt(tray, caps[1], null);
             applyGhosts();
           },
         ],
         [
-          0.84,
+          0.85,
           () => {
             if (caps[2]) setCapAt(tray, caps[2], null);
             applyGhosts();
@@ -1079,8 +1181,8 @@ async function installOrbitStepper(page, total, planPolar, pose) {
         [0.86, () => void (tray.exploded = false)],
 
         [0.9, () => lift(placed[2], 0.9)],
-        [0.93, () => lift(placed[1], 0.93)],
-        [0.96, () => lift(placed[0], 0.96)],
+        [0.925, () => lift(placed[1], 0.925)],
+        [0.95, () => lift(placed[0], 0.95)],
       ];
 
       controls.dampingFactor = 1;
@@ -1092,8 +1194,10 @@ async function installOrbitStepper(page, total, planPolar, pose) {
       const polarAt = (f) => {
         const ramp = (a, b) =>
           smoothstep(Math.min(1, Math.max(0, (f - a) / (b - a))));
-        if (f < 0.5) return planPolar;
-        if (f < 0.6) return planPolar + (polar34 - planPolar) * ramp(0.5, 0.6);
+        // Tips in the bar between the last placement and the explode, and back
+        // during the closing fill.
+        if (f < 0.55) return planPolar;
+        if (f < 0.6) return planPolar + (polar34 - planPolar) * ramp(0.55, 0.6);
         if (f < 0.86) return polar34;
         if (f < 0.96) return polar34 + (planPolar - polar34) * ramp(0.86, 0.96);
         return planPolar;
@@ -1165,6 +1269,102 @@ async function installOrbitStepper(page, total, planPolar, pose) {
       };
     },
     { total, added: ORBIT_ADDED, planPolar, pose },
+  );
+}
+
+/** Lay the brand mark on the scene's floor.
+ *
+ *  THREE IS REACHED THROUGH VITE'S DEP CACHE. A bare `import("three")` inside
+ *  page.evaluate cannot resolve: Vite rewrites bare specifiers only in files it
+ *  serves, and an evaluated string is not one. `/node_modules/.vite/deps/three.js`
+ *  is the pre-bundled copy the app itself loads, so it is the same instance
+ *  rather than a second copy of the library.
+ *
+ *  The SVG arrives as a data URI from Node instead of a path, because the mark
+ *  lives outside the dev server's root and would 404. Drawn into a canvas at a
+ *  generous size, since this is stretched across a floor and a small texture
+ *  reads as mush at grazing angles.
+ *
+ *  Sits just ABOVE the shadow catcher and just BELOW the tiles, unlit and with
+ *  depth writes off, so the cluster occludes it naturally and it never z-fights
+ *  the plane it rests on.
+ */
+async function addGroundMark(page, svgDataUri, opacity, mult) {
+  return page.evaluate(
+    async ({ uri, opacity, mult }) => {
+      const THREE = await import("/node_modules/.vite/deps/three.js");
+      const { scene, cellsContainer } = await import("/src/hex/scene.ts");
+
+      const img = new Image();
+      await new Promise((res, rej) => {
+        img.onload = res;
+        img.onerror = rej;
+        img.src = uri;
+      });
+      const S = 2048;
+      const cv = document.createElement("canvas");
+      cv.width = cv.height = S;
+      const ctx = cv.getContext("2d");
+      // Contain, centred: the mark keeps its aspect on a square texture.
+      // FULL BLEED on the texture. The span solve already accounts for the
+      // artwork filling it, so holding back 8% here would just waste the
+      // headroom that was measured.
+      const r = Math.min(S / img.width, S / img.height);
+      const w = img.width * r;
+      const h = img.height * r;
+      ctx.drawImage(img, (S - w) / 2, (S - h) / 2, w, h);
+
+      // THE FOOTER'S FALLOFF, ported. The academy footer masks its bee with
+      // `linear-gradient(135deg, .32 -> .55 at 45% -> solid at 85%)`, so the
+      // mark is faintest at the top left and resolves toward the bottom right
+      // rather than sitting at one flat value. Same stops here, applied to the
+      // texture's ALPHA via destination-in, which is the canvas equivalent of a
+      // CSS mask. Doing it in the texture rather than with a second plane keeps
+      // it one draw and keeps it correct under perspective: the falloff is
+      // painted on the floor, so it foreshortens with the floor.
+      ctx.globalCompositeOperation = "destination-in";
+      const grad = ctx.createLinearGradient(0, 0, S, S);
+      grad.addColorStop(0.0, "rgba(0,0,0,0.32)");
+      grad.addColorStop(0.45, "rgba(0,0,0,0.55)");
+      grad.addColorStop(0.85, "rgba(0,0,0,1)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, S, S);
+      ctx.globalCompositeOperation = "source-over";
+
+      const tex = new THREE.CanvasTexture(cv);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 8;
+
+      // Sized off the CLUSTER, not a constant: the mark should frame whatever
+      // the choreography builds rather than a number that happens to fit today.
+      const box = new THREE.Box3().setFromObject(cellsContainer);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      // PER-PRESET, MEASURED. Binary-searched for the largest span whose
+      // artwork stays inside the frame at sixteen azimuths across the full
+      // revolution AND at both polars, with a 0.02 margin. The previous 2.6
+      // was set from a SINGLE azimuth and clipped at others: a floor plane's
+      // projected extent swings as the camera comes round, so one rotation
+      // proves nothing. Vertical is the tightest aspect and wide the loosest.
+      const span = Math.max(size.x, size.z) * mult || 0.6;
+
+      const mat = new THREE.MeshBasicMaterial({
+        map: tex,
+        transparent: true,
+        opacity,
+        depthWrite: false,
+        toneMapped: false,
+      });
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(span, span), mat);
+      plane.name = "ground-mark";
+      plane.rotation.x = -Math.PI / 2;
+      // Above the shadow catcher, below the tiles' own base.
+      plane.position.y = 0.0006;
+      plane.renderOrder = -1;
+      scene.add(plane);
+      return { span: Number(span.toFixed(4)), textured: !!tex.image };
+    },
+    { uri: svgDataUri, opacity, mult },
   );
 }
 
@@ -1272,6 +1472,17 @@ async function extentOverTurn(page, steps = 24, polars = null) {
       const { bumpRender } = await import("/src/hex/main.ts");
       const cam = controls.camera;
       const polar0 = controls.polarAngle;
+      // THIS LINE IS THE WHOLE GATE. Without it `az0` is an unbound identifier
+      // and the evaluate throws `ReferenceError: az0 is not defined` on its
+      // first iteration -- so the framing check has NEVER run, on any preset,
+      // since it was written. It only executes under `--probe`, which nobody
+      // had run since, so nothing reported it and §10.2 listed it as "built".
+      //
+      // It is the check that exists because framing measured at ONE azimuth
+      // shipped a cut with the geometry clipped at others. A gate written to
+      // catch a defect that already shipped, itself broken, silently, for its
+      // whole life. Confirmed at runtime 2026-08-09, then fixed.
+      const az0 = controls.azimuthAngle;
 
       // Column-major, same convention as THREE's `.elements`.
       const mulMat = (a, b) => {
@@ -1371,8 +1582,16 @@ if (PROBE) {
     );
     // Worst approach to any edge over the whole turn. Negative means the
     // geometry left the frame at some azimuth.
+    //
+    // MEASURED AGAINST THE VISIBLE WINDOW, NOT THE FRAME. A preset shown through
+    // `object-fit: cover` never displays its full height, so margin against the
+    // frame answers a question nobody asked. `band` measured a comfortable
+    // marginY of 0.142 against the frame while the academy hero -- which keeps
+    // 0.74 of the height -- was slicing the cluster. The gate said fine; the
+    // page did not. Per-preset `visible` makes the gate measure what ships.
+    const visY = preset.visible ?? 1;
     const marginX = 1 - Math.max(Math.abs(box.minX), Math.abs(box.maxX));
-    const marginY = 1 - Math.max(Math.abs(box.minY), Math.abs(box.maxY));
+    const marginY = visY - Math.max(Math.abs(box.minY), Math.abs(box.maxY));
     const bad = marginX < 0 || marginY < 0;
     if (bad) clipped++;
     // The still is kept as a sanity check on what the numbers describe, but it
@@ -1389,9 +1608,439 @@ if (PROBE) {
   process.exit(clipped ? 1 : 0);
 }
 
+// ---- the kinetic text, burned in ------------------------------------------
+//
+// THE APPROVED SPEC LIVES IN `C:/zzz/_hex-promo/final-preview.html` AND THE CSS
+// BELOW IS COPIED FROM IT, not rewritten from the same intent. The preview is
+// what was judged: five cues on strikes in the bed, PRINT 2.0, SNAP 4.0 with a
+// 0.3 s lead so the halves MEET on the beat, GROW 6.0 growing through the drop,
+// FREE and the actuated download sharing 8.0. Reconstructing the rules would
+// silently ship something adjacent to what was signed off.
+//
+// COMPOSITED BY THE BROWSER, NOT IN POST. The layer is injected into the page
+// the scene is already rendering in, so one screenshot carries picture and type
+// together. Rendering a transparent overlay separately and compositing with
+// ffmpeg would double the render and add a second copy of the cue sheet to keep
+// in sync.
+//
+// EVERY ANIMATION IS SCRUBBED, NEVER PLAYED, and that is the load-bearing part.
+// The capture replaces `performance.now` with a clock it advances by hand, and
+// a frame can take any amount of wall time to draw. An animation left running
+// would land wherever REAL time reached, which is precisely the judder the
+// virtual clock exists to remove. So each animation is paused and its
+// `currentTime` pinned to the frame's scene time. `Animation.currentTime` is
+// measured from the start of the delay, so the per-character stagger and the
+// download's 0.1 s offset come out right without special handling.
+//
+// Opacity is computed rather than transitioned for the same reason: a CSS
+// transition has no seek.
+//
+// TWO DELIBERATE DEPARTURES FROM THE PREVIEW, both about the loop seam, which
+// the preview never had to survive because a <video> in a page just jumps:
+//
+//   1. The animations bind to `.held` rather than `.on`. In the preview,
+//      removing `.on` at the end of a window drops the animation and the
+//      element snaps back to its static style mid-fade -- PRINT's characters
+//      vanish outright (their base rule is `opacity:0`) and the download arrow
+//      POPS BACK to full opacity, because its last keyframe faded it out and
+//      that fill is what just went away. Binding to `.held`, which already
+//      outlasts the window for GROW's sustained scale, lets every cue fade out
+//      from the state it ended on.
+//   2. Cue time WRAPS. The last window ends at 9.9 and its 0.28 s fade runs to
+//      10.18, past the end of a 10 s clip. Truncating it puts a hard step at
+//      the seam. Evaluating each cue at both `t` and `t + SECONDS` instead
+//      means frame 0 shows the tail the previous lap was still fading, so the
+//      seam is continuous by construction -- the same trick the audio bed uses
+//      when it renders two laps and keeps the second.
+//
+// SIZES ARE RATIOS OF THE SHORT AXIS, taken from the preview's computed pixels.
+// The preview sized type with `clamp(26px,7.4vw,52px)` against a 460 px stage,
+// where `vw` is the BROWSER's width and not the stage's, so on any real desktop
+// every clamp pinned to its maximum: 52 px of type over 460 px of picture. The
+// ratios below are those measured pairs.
+//
+// THE SHORT AXIS, NOT THE WIDTH, and the first render is why. Scaling by width
+// is right for the three portrait-or-square formats -- their width IS the short
+// axis -- and wrong for 16:9, where it multiplies everything by 1.78: the words
+// came out at 217 px instead of 122, and the download icon at 359 px instead of
+// 202, which put the arrow straight through the front tile of the cluster. The
+// short axis is what actually constrains a caption laid over a centred subject,
+// and it also keeps the whole set at one absolute type size, which matters when
+// four cuts of the same clip are seen next to each other.
+const TEXT_SCALE = {
+  word: 52 / 460,
+  big: 66 / 460,
+  icon: 86 / 460,
+  url: 11 / 460,
+  gap: 9.6 / 460,
+};
+const FONT_DIR = "C:/zzz/_hex-promo/fonts";
+// Google's own CSS endpoint, fetched ONCE and cached outside the repo. A render
+// must not depend on the network, and a webfont served over http from the
+// remote CSS would also be a different file on a different day.
+const FONT_SRC = {
+  bebas: "family=Bebas+Neue",
+  mono: "family=Space+Mono:wght@400",
+};
+
+async function displayFonts() {
+  const out = {};
+  for (const [name, q] of Object.entries(FONT_SRC)) {
+    const cached = `${FONT_DIR}/${name}.woff2`;
+    if (!existsSync(cached)) {
+      const ua =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+        "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+      // The User-Agent decides the format Google serves. Without a modern one
+      // it hands back TTF, which is four times the bytes for the same glyphs.
+      const css = await (
+        await fetch(`https://fonts.googleapis.com/css2?${q}&display=swap`, {
+          headers: { "User-Agent": ua },
+        })
+      ).text();
+      const blocks = css.split("@font-face");
+      const latin =
+        blocks.find((b) => /U\+0000-00FF/.test(b)) ?? blocks[blocks.length - 1];
+      const url = latin.match(/url\((https:[^)]+\.woff2)\)/)?.[1];
+      if (!url) throw new Error(`no woff2 for ${name} in Google's CSS`);
+      mkdirSync(FONT_DIR, { recursive: true });
+      writeFileSync(
+        cached,
+        Buffer.from(
+          await (
+            await fetch(url, { headers: { "User-Agent": ua } })
+          ).arrayBuffer(),
+        ),
+      );
+      console.log(`[text] cached ${name}.woff2`);
+    }
+    out[name] = readFileSync(cached).toString("base64");
+  }
+  return out;
+}
+
+async function installCues(page, preset, seconds) {
+  const fonts = await displayFonts();
+  const px = (k) => Math.round(Math.min(preset.w, preset.h) * TEXT_SCALE[k]);
+  const ready = await page.evaluate(
+    async ({ fonts, size, seconds, safe, dl }) => {
+      const D = "<span class='tdot'>.</span>";
+      const style = document.createElement("style");
+      // Everything is scoped under #hexcue. The app has its own stylesheet and
+      // bare class names like `.half` are not ours to claim; the id also wins
+      // specificity outright, so nothing the page ships can reach in.
+      style.textContent = `
+@font-face{font-family:'Bebas Neue';font-style:normal;font-weight:400;font-display:block;
+  src:url(data:font/woff2;base64,${fonts.bebas}) format('woff2')}
+@font-face{font-family:'Space Mono';font-style:normal;font-weight:400;font-display:block;
+  src:url(data:font/woff2;base64,${fonts.mono}) format('woff2')}
+#hexcue{position:fixed;inset:0;z-index:2147483000;pointer-events:none;display:grid;
+  grid-template-columns:7% 1fr 1fr 1fr 7%;grid-template-rows:${safe}% 1fr 1fr 1fr ${safe}%;
+  --command-gold:#c8963e;--gold-light:#e8b865;--title:#f1ece0;--muted:#aaa}
+#hexcue .cue{opacity:0;align-self:center;min-width:0}
+#hexcue .c-tl{grid-area:2/2/3/4} #hexcue .c-tr{grid-area:2/3/3/5}
+#hexcue .c-bl{grid-area:4/2/5/4} #hexcue .c-br{grid-area:4/3/5/5}
+#hexcue .c-band{grid-area:4/2/5/5;align-self:end}
+#hexcue .right{text-align:right} #hexcue .centre{text-align:center}
+#hexcue .k-grow{display:inline-block} #hexcue .k-mask{display:block}
+#hexcue .an-mask .k-mask{overflow:hidden}
+#hexcue .k-word{font-family:'Bebas Neue',sans-serif;font-weight:400;line-height:.84;
+  letter-spacing:-.01em;color:var(--title);-webkit-text-stroke:.04em currentColor;
+  paint-order:stroke fill;text-shadow:0 2px 26px rgba(0,0,0,.8);font-size:${size.word}px}
+#hexcue .big .k-word{font-size:${size.big}px}
+#hexcue .k-word .accent{color:var(--command-gold)}
+#hexcue .tdot{-webkit-text-fill-color:transparent;-webkit-text-stroke-width:.05em;text-shadow:none}
+#hexcue .k-word .tdot{-webkit-text-stroke-color:var(--command-gold)}
+#hexcue .k-word .accent .tdot{-webkit-text-stroke-color:var(--title)}
+#hexcue .p2 .ch{opacity:0;display:inline-block}
+#hexcue .cue.held.p2 .ch{animation:hxKeyStrike .13s cubic-bezier(.3,1.5,.5,1) both}
+@keyframes hxKeyStrike{from{opacity:0;transform:translateY(-28%) scaleY(1.25)}to{opacity:1;transform:none}}
+#hexcue .s1 .half{position:absolute;inset:0;display:block}
+#hexcue .s1 .half.l{clip-path:inset(0 50% 0 0)} #hexcue .s1 .half.r{clip-path:inset(0 0 0 50%)}
+#hexcue .s1 .k-word{position:relative}
+#hexcue .cue.held.s1 .half.l{animation:hxSnapL .3s cubic-bezier(.85,0,.15,1) both}
+#hexcue .cue.held.s1 .half.r{animation:hxSnapR .3s cubic-bezier(.85,0,.15,1) both}
+@keyframes hxSnapL{from{transform:translateX(-42%);opacity:0}to{transform:none;opacity:1}}
+@keyframes hxSnapR{from{transform:translateX(42%);opacity:0}to{transform:none;opacity:1}}
+#hexcue .cue.held.an-mask .k-word{animation:hxMaskUp .5s cubic-bezier(.16,.84,.28,1) both}
+@keyframes hxMaskUp{from{transform:translateY(105%)}to{transform:translateY(0)}}
+#hexcue .cue[data-hold="1"].held .k-grow{animation:hxGrowHold var(--hold,1.9s) linear both}
+@keyframes hxGrowHold{from{transform:scale(1)}to{transform:scale(var(--growTo,1.34))}}
+#hexcue .cue.held.f1 .k-word{animation:hxRelease .66s cubic-bezier(.16,1.1,.3,1) both}
+@keyframes hxRelease{from{letter-spacing:-.32em;transform:scale(.72);opacity:0;filter:blur(7px)}
+  60%{letter-spacing:.02em;opacity:1;filter:blur(0)}to{letter-spacing:-.01em;transform:scale(1)}}
+#hexcue .dl{display:flex;flex-direction:column;align-items:center;gap:${size.gap}px}
+/* The icon column follows its cue's alignment. Left-aligning the cue alone does
+   nothing, because the flex column centres its own children regardless. */
+#hexcue .cue:not(.centre) .dl{align-items:flex-start}
+#hexcue .dl svg{width:${size.icon}px;height:auto;overflow:visible}
+#hexcue .dl .stem,#hexcue .dl .head,#hexcue .dl .tray{fill:none;stroke-width:3.4;
+  stroke-linecap:square;stroke-linejoin:miter;vector-effect:non-scaling-stroke}
+#hexcue .dl .stem,#hexcue .dl .head{stroke:var(--title)}
+#hexcue .dl .tray{stroke:var(--command-gold);transform-origin:center bottom}
+#hexcue .cue.held .dl .arrow{animation:hxDlDrop 1.05s cubic-bezier(.5,0,.6,1) .1s 2 both}
+@keyframes hxDlDrop{0%{transform:translateY(-34%);opacity:0}26%{opacity:1}
+  46%{transform:translateY(0);opacity:1}58%{transform:translateY(0);opacity:1}
+  72%{transform:translateY(6%);opacity:0}100%{transform:translateY(6%);opacity:0}}
+#hexcue .cue.held .dl .tray{animation:hxDlHit 1.05s ease-out .1s 2 both}
+@keyframes hxDlHit{0%,44%{stroke:var(--command-gold);transform:scaleY(1)}
+  50%{stroke:var(--gold-light);transform:scaleY(.72)}
+  62%{stroke:var(--command-gold);transform:scaleY(1)}
+  100%{stroke:var(--command-gold);transform:scaleY(1)}}
+#hexcue .dl-url{font-family:'Space Mono',monospace;font-size:${size.url}px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--muted)}
+#hexcue .cue.held .dl-url{animation:hxFadeUp .5s ease-out .5s both}
+@keyframes hxFadeUp{from{opacity:0;transform:translateY(30%)}to{opacity:1;transform:none}}`;
+      document.head.appendChild(style);
+
+      const DL_SVG = `<svg viewBox="0 0 60 54" aria-hidden="true">
+        <g class="arrow"><path class="stem" d="M30 4 V30"/><path class="head" d="M18 20 L30 32 L42 20"/></g>
+        <path class="tray" d="M10 40 V48 H50 V40"/></svg>`;
+      const CUES = [
+        { t: 2.0, d: 1.9, cell: "c-tl", anim: "p2", word: "PRINT" + D },
+        {
+          t: 4.0,
+          d: 1.9,
+          lead: 0.3,
+          cell: "c-br",
+          anim: "s1",
+          word: "SNAP" + D,
+          align: "right",
+        },
+        {
+          t: 6.0,
+          d: 1.9,
+          cell: "c-tr",
+          anim: "an-mask",
+          word: "GROW" + D,
+          align: "right",
+          hold: 1.34,
+        },
+        {
+          t: 8.0,
+          d: 1.9,
+          cell: "c-tl",
+          anim: "f1",
+          word: "<span class='accent'>FREE" + D + "</span>",
+          big: 1,
+        },
+        {
+          t: 8.0,
+          d: 1.9,
+          cell: dl.cell,
+          anim: "dl",
+          align: dl.align,
+          html: `<div class="dl">${DL_SVG}<div class="dl-url">academy.onethousanddrones.com/hex</div></div>`,
+        },
+      ];
+
+      const layer = document.createElement("div");
+      layer.id = "hexcue";
+      const els = CUES.map((c) => {
+        const d = document.createElement("div");
+        d.className = `cue ${c.cell} ${c.anim} ${c.align ?? ""} ${c.big ? "big" : ""}`;
+        if (c.html) {
+          d.innerHTML = c.html;
+        } else {
+          d.innerHTML = `<div class="k-grow"><div class="k-mask"><div class="k-word">${c.word}</div></div></div>`;
+          if (c.hold) {
+            d.dataset.hold = "1";
+            d.style.setProperty("--hold", `${c.d}s`);
+            d.style.setProperty("--growTo", String(c.hold));
+            d.querySelector(".k-grow").style.transformOrigin =
+              c.align === "right" ? "right center" : "left center";
+          }
+          const w = d.querySelector(".k-word");
+          if (c.anim === "p2") {
+            // Split TEXT NODES ONLY, so the accent span and the hollow period
+            // survive the per-character wrapping.
+            const walk = (n) => {
+              if (n.nodeType === 3) {
+                const f = document.createDocumentFragment();
+                for (const ch of n.textContent) {
+                  const s = document.createElement("span");
+                  s.className = "ch";
+                  s.textContent = ch;
+                  f.appendChild(s);
+                }
+                n.replaceWith(f);
+              } else [...n.childNodes].forEach(walk);
+            };
+            walk(w);
+            const cs = [...w.querySelectorAll(".ch")];
+            const per = (c.d * 0.42) / Math.max(1, cs.length);
+            cs.forEach((ch, i) => (ch.style.animationDelay = `${i * per}s`));
+          }
+          if (c.anim === "s1") {
+            const inner = w.innerHTML;
+            w.innerHTML =
+              `<span class="half l">${inner}</span><span class="half r">${inner}</span>` +
+              `<span style="visibility:hidden">${inner}</span>`;
+          }
+        }
+        layer.appendChild(d);
+        return d;
+      });
+      document.body.appendChild(layer);
+
+      // A cue that outlasts the clip cannot fade out inside its own window, so
+      // it would carry type onto the last frame and step at the seam. Caught
+      // here rather than discovered in a seam number 300 frames later.
+      const over = CUES.filter((c) => c.t - (c.lead ?? 0) + c.d > seconds);
+      if (over.length) {
+        throw new Error(
+          `cue sheet runs past the ${seconds}s clip: ` +
+            over.map((c) => `${c.word ?? "icon"}@${c.t}+${c.d}`).join(", "),
+        );
+      }
+
+      const FADE = 0.28;
+      // CSS `ease-out` is cubic-bezier(0,0,.58,1). Newton on x, which converges
+      // in a handful of steps over [0,1] and costs nothing five times a frame.
+      const easeOut = (x) => {
+        const cx = 3 * 0,
+          bx = 3 * (0.58 - 0) - cx,
+          ax = 1 - cx - bx;
+        const cy = 3 * 0,
+          by = 3 * (1 - 0) - cy,
+          ay = 1 - cy - by;
+        let t = x;
+        for (let i = 0; i < 8; i++) {
+          const fx = ((ax * t + bx) * t + cx) * t - x;
+          const dx = (3 * ax * t + 2 * bx) * t + cx;
+          if (Math.abs(dx) < 1e-9) break;
+          t -= fx / dx;
+        }
+        return ((ay * t + by) * t + cy) * t;
+      };
+
+      /** Put every cue at exactly scene time `t`. One call per captured frame. */
+      window.__cueFrame = (t) => {
+        CUES.forEach((c, i) => {
+          const el = els[i];
+          const start = c.t - (c.lead ?? 0);
+          const local = t - start;
+          // THE FADE LIVES INSIDE THE WINDOW, so every cue is fully gone by its
+          // own `end` and the clip's last frame carries no type at all.
+          //
+          // It used to fade out AFTER the window and wrap the tail round to the
+          // top of the next lap, which made the seam continuous but put FREE and
+          // the download URL on frame 0 at ~87% -- the loop's first frame, and
+          // the still a feed shows before play. Every alternative that keeps a
+          // post-window fade AND a clean frame 0 is worse: truncating it leaves a
+          // step at the seam, and compressing it into the 0.067 s left after 9.9
+          // is a two-frame blink while the picture around it flows.
+          //
+          // The cost is 0.28 s of the 1.9 s hold, and it lands somewhere useful:
+          // PRINT now dims as SNAP arrives instead of both sitting at full
+          // opacity, and the download dissolves just after its second hit lands
+          // rather than snapping off.
+          const held = local >= 0 && local < c.d;
+          // ONE CLASS, not two. `.held` existed to outlast `.on` so an animation
+          // would not drop its fill mid-fade; with the fade inside the window
+          // there is nothing left to outlast.
+          el.classList.toggle("held", held);
+          if (!held) {
+            el.style.opacity = "0";
+            return;
+          }
+          el.style.opacity = String(
+            Math.min(
+              easeOut(Math.min(1, local / FADE)),
+              easeOut(Math.min(1, (c.d - local) / FADE)),
+            ),
+          );
+          // SCRUB, DO NOT PLAY. `pause()` is what makes this deterministic: a
+          // running animation would advance during the screenshot's own paint.
+          for (const a of el.getAnimations({ subtree: true })) {
+            a.pause();
+            try {
+              a.currentTime = local * 1000;
+            } catch {
+              /* a finished animation can refuse a seek; its fill already holds */
+            }
+          }
+        });
+      };
+
+      // Both faces must be RASTERISED before the first frame, not merely
+      // requested. `font-display:block` keeps the invisible-text period open
+      // rather than flashing a fallback, so a race here would burn blank words
+      // into the opening seconds and nothing would report it.
+      await document.fonts.load(`${size.big}px 'Bebas Neue'`);
+      await document.fonts.load(`${size.url}px 'Space Mono'`);
+      await document.fonts.ready;
+      // THE LAYER MUST BE ON SCREEN, and that is checked rather than assumed:
+      // the capture's chrome-hiding rule swallowed it on the first run and the
+      // result was a clean render with no type and no error anywhere.
+      const box = layer.getBoundingClientRect();
+      return {
+        cues: CUES.length,
+        // `document.fonts.check()` ALONE IS NOT A GATE. It returns TRUE when no
+        // `@font-face` matches the family at all -- verified in Playwright: on a
+        // page with `document.fonts.size === 0`, `check('1em "Bebas Neue"')` is
+        // true. It answers "is anything blocking this render?", not "did my font
+        // load". So it goes green in exactly the case it exists to catch: the
+        // data URI malformed, the family misspelled, the face never registered.
+        //
+        // The real test is that the face EXISTS in the registry and is loaded.
+        // `check()` is kept as the third condition because it still catches a
+        // face that is registered but unresolved.
+        bebas: [...document.fonts].some(
+          (f) => f.family === "Bebas Neue" && f.status === "loaded",
+        ),
+        mono: [...document.fonts].some(
+          (f) => f.family === "Space Mono" && f.status === "loaded",
+        ),
+        registered: document.fonts.size,
+        resolves:
+          document.fonts.check(`${size.big}px 'Bebas Neue'`) &&
+          document.fonts.check(`${size.url}px 'Space Mono'`),
+        shown:
+          getComputedStyle(layer).display !== "none" &&
+          box.width > 0 &&
+          box.height > 0,
+      };
+    },
+    {
+      fonts,
+      seconds,
+      // Vertical safe margin. The horizontal one stays 7% on every preset
+      // because `object-fit: cover` on a wider-than-tall slice crops HEIGHT.
+      safe: preset.textSafe ?? 7,
+      dl: preset.textDl ?? { cell: "c-band", align: "centre" },
+      size: {
+        word: px("word"),
+        big: px("big"),
+        icon: px("icon"),
+        url: px("url"),
+        gap: px("gap"),
+      },
+    },
+  );
+  if (
+    !ready.bebas ||
+    !ready.mono ||
+    !ready.shown ||
+    !ready.resolves ||
+    ready.registered < 2
+  ) {
+    throw new Error(
+      `[text] cue layer not ready: ${JSON.stringify(ready)} -- ` +
+        "the burn would ship with no type, or in a fallback face",
+    );
+  }
+  console.log(
+    `[text] ${ready.cues} cues, word ${px("word")}px, big ${px("big")}px, fonts ok`,
+  );
+}
+
 // ---- a cut ---------------------------------------------------------------
 const preset = PRESETS[presetArg];
-const FRAMES = `${RAW}/${presetArg}-${CHOREO}-${THEME}`;
+// The mark belongs in the scratch path too. Without it a ground-mark run and
+// a plain one of the same preset share a directory, so whichever ran last
+// silently defines what gets encoded.
+const FRAMES = `${RAW}/${presetArg}-${CHOREO}${GROUND_MARK ? "-mark" : ""}${TEXT ? "-text" : ""}-${THEME}`;
 rmSync(FRAMES, { recursive: true, force: true });
 mkdirSync(FRAMES, { recursive: true });
 
@@ -1401,6 +2050,22 @@ if (CHOREO === "orbit") {
   ORBIT_POSE = await frameOrbit(page, presetFor(preset), false);
 } else {
   await frame(page, preset, false);
+}
+// AFTER framing, BEFORE the clock starts: the plane is scene furniture, so it
+// must exist while the camera pose is being settled, not appear mid-recording.
+if (GROUND_MARK) {
+  const svg = readFileSync("C:/zzz/_hex-promo/brand/otd-icon-gold.svg", "utf8")
+    .replace(/>\s+</g, "><")
+    .trim();
+  const info = await addGroundMark(
+    page,
+    "data:image/svg+xml," + encodeURIComponent(svg),
+    GROUND_OPACITY,
+    preset.markMult,
+  );
+  console.log(
+    `[capture] ground mark span ${info.span} textured=${info.textured}`,
+  );
 }
 await waitForRest(page);
 const home = await forceCollapsed(page);
@@ -1459,12 +2124,24 @@ if (CHOREO === "orbit") {
   }
 }
 
+// LAST, and after the camera has settled. The layer is DOM, not scene furniture
+// -- unlike the ground mark it cannot affect framing, fit, or rest -- so it goes
+// in once nothing is still measuring the picture, and before a single frame is
+// taken.
+if (TEXT) await installCues(page, preset, SECONDS);
+
 await page.evaluate(() => window.__clock.start());
 for (let i = 0; i < TOTAL; i++) {
   await page.evaluate((n) => window.__step(n), i);
   await page.evaluate((ms) => window.__clock.advance(ms), 1000 / 30);
   await paint();
   await page.evaluate(() => window.__limit());
+  // BEFORE the closing paint, not after. The text has to be composited by the
+  // same frame the screenshot rasterises, and adding a paint of its own after
+  // `__limit` would hand the app's camera lerps two more ticks per frame.
+  if (TEXT) {
+    await page.evaluate((t) => window.__cueFrame(t), (i * SECONDS) / TOTAL);
+  }
   await paint();
   if (
     CHOREO === "orbit" &&
@@ -1516,19 +2193,71 @@ if (capArg) {
   process.exit(0);
 }
 
-// TOPOLOGY must match exactly. A tile or a cap left over is a hard defect and
-// there is no tolerance at which half a cap is acceptable.
+// THE GATES STOP THE RUN. THEY DID NOT, AND THAT WAS THE DEFECT.
+//
+// Both of these checks existed and both only *reported*: topology was a
+// `console.warn`, `seamCheck`'s return value was discarded at the call site, and
+// the encode ran on the next line either way. So a cut whose loop visibly
+// jumped, or that ended holding a cap it started without, was written to disk,
+// muxed, and shipped, with the evidence sitting in scrollback nobody re-reads.
+//
+// A gate that records a number and lets the artefact through is not a gate. It
+// is a log line with ambitions. Found by an adversarial review on 2026-08-09,
+// after fourteen self-audit passes had listed both of these as "built".
+//
+// Checked BEFORE the encode: a failed capture should not produce a deliverable
+// at all. `--force` still encodes, because a broken cut is exactly what you want
+// to look at when working out why it broke.
+const failures = [];
 if (
   closure.closing.cells !== closure.opening.cells ||
   closure.closing.caps !== closure.opening.caps
 ) {
-  console.warn("LOOP DOES NOT CLOSE (topology):", JSON.stringify(closure));
+  failures.push(`topology does not close: ${JSON.stringify(closure)}`);
 }
 console.log(`[closure] lift residual ${JSON.stringify(closure.liftDrift)}`);
-seamCheck(FRAMES, TOTAL);
+if (!seamCheck(FRAMES, TOTAL)) {
+  failures.push("loop seam is louder than the quietest ordinary step");
+}
+
+if (failures.length) {
+  for (const f of failures) console.error(`[GATE FAILED] ${f}`);
+  if (!flag("force")) {
+    // KEEP THE EVIDENCE. The frame dir is `rmSync`d at the top of every run of
+    // the same preset, so "inspect the frames" was advice the next run
+    // destroyed -- including the re-run you would do to reproduce the failure.
+    const kept = `${FRAMES}-failed-${Date.now()}`;
+    try {
+      renameSync(FRAMES, kept);
+    } catch {
+      /* the frames are diagnostic, not the deliverable; never mask the failure */
+    }
+    console.error(
+      `\n${failures.length} gate(s) failed — NOT encoding. ` +
+        `Frames kept at ${kept}; re-run with --force to encode anyway.`,
+    );
+    process.exit(1);
+  }
+  // --force ENCODES BUT STILL FAILS. It used to fall through to a plain exit 0
+  // with the artefact at the ordinary path and nothing to distinguish it, so a
+  // batch loop, a wrapper, or a later mux could not tell a forced cut from a
+  // clean one. The defect had moved out of the discarded boolean and into here.
+  console.error("\n--force: encoding a cut that failed its gates.");
+  process.exitCode = 1;
+}
 
 const base = `${OUT}/hex-${presetArg}${suffix}`;
 const emitted = [];
+// A sidecar, not a renamed output: the filename is what every consumer and the
+// manifest key are built from, and renaming it would break them in a way that
+// looks like a missing file rather than a failed gate.
+if (failures.length) {
+  writeFileSync(
+    `${base}.GATE-FAILED.txt`,
+    `${new Date().toISOString()}\nforced past ${failures.length} failed gate(s):\n` +
+      failures.map((f) => `  - ${f}\n`).join(""),
+  );
+}
 
 // Encoded 1:1 at 30fps. No setpts, no trim: the capture produced exactly
 // SECONDS * 30 frames of SCENE time, so it is already the right length and
