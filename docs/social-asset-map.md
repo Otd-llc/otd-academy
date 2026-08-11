@@ -18,7 +18,7 @@ pnpm dev                                  # in Otd-llc/bioscale-viz, NOT `npx vi
 node tools/hex-promo-cuts.mjs --preset=<p> --choreo=orbit --text   # silent loop + type
 python tools/hex-bed.py --kit rd-revtaiko                          # arrange the bed
 python tools/hex-master.py --kit rd-revtaiko                       # finish it
-node tools/hex-social-master.mjs --preset=<p> --laps=3 --text      # loop + bed -> master
+node tools/hex-social-master.mjs --preset=<p> --laps=1 --text      # loop + bed -> master
 ```
 
 Masters land in `C:/zzz/_hex-promo/social/`. Post those, not the raw cuts: the
@@ -166,10 +166,39 @@ wrong one is the most likely way to waste the asset.
 Masters are H.264 + AAC-LC 48 kHz, `yuv420p`. Runtime is whole laps of the 10 s
 loop: because the cuts are verified exact loops, concatenating them is seamless
 by construction and costs a stream copy rather than a longer capture. Measured
-on the 30 s vertical master, the lap join reads 0.209 against ordinary
-frame-to-frame steps of 0.173 to 0.179. Platform specs
+on a three-lap vertical master before those files were retired, the lap join
+read 0.209 against ordinary frame-to-frame steps of 0.173 to 0.179, which is the
+evidence that the loop is exact enough to leave to the player. Platform specs
 below were verified 2026-08-08 against each platform's current published
 guidance; re-check before trusting them, because they move.
+
+### One lap, not three, and why that reversed
+
+This file used to be a 30 s three-lap master, on the reasoning that "a 10 s clip
+gives retention almost nothing to measure". That reasoning was wrong, and the
+correction comes from YouTube's own documentation rather than from a blog. Since
+31 March 2025:
+
+> Views count the number of times a Short **starts to play or replay**, with no
+> minimum watch time requirement.
+> [YouTube Help](https://support.google.com/youtube/answer/10059070?hl=en)
+
+A 10 s Short is not unmeasured. It loops, and every loop counts again. Baking
+three laps into one file converts replays the platform counts separately into a
+single long play, so pre-looping gives away the one thing an exact loop is good
+for. These cuts are verified exact loops, which makes them the assets that
+benefit most from being left alone.
+
+Two honest caveats. Third-party analyses put the observed band around 20-45 s
+and report a length-banded retention gate (roughly 65% under 30 s against 50%
+for 30-60 s), so a longer cut is judged on a lower bar; those are not YouTube's
+numbers. And YouTube separated raw views from **engaged views** in 2025, with
+engaged views driving monetisation, so loop-inflated view counts are confirmed
+while loop-driven reach is not. Settle it on the account, not on the argument:
+post both and read engaged views and retention back.
+
+The 30 s files are deleted. `--laps=<n>` still works if a longer runtime is ever
+wanted; nothing about the tiler changed.
 
 **Post the `-text` cut.** A feed viewer scrolls past with the sound off, so the
 burned-in words are the only copy that reaches them. The clean cut without `-text`
@@ -177,7 +206,7 @@ exists for a surface that supplies its own headline.
 
 | Platform | Placement      | File                                                   | Why this one                                                                                                                                                                                                                  |
 | -------- | -------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| YouTube  | Shorts         | `social/hex-vertical-30s-text.mp4` (1080×1920, 3 laps) | Shorts is strictly 9:16; a landscape or square upload is **not** classified as a Short at all, whatever its length. Three laps because max is 3 min since Oct 2024 and a 10 s clip gives retention almost nothing to measure. |
+| YouTube  | Shorts         | `social/hex-vertical-10s-text.mp4` (1080×1920, 1 lap)  | Shorts is strictly 9:16; a landscape or square upload is **not** classified as a Short at all, whatever its length. ONE lap, and the player does the repeating. See the note below. |
 | YouTube  | Regular upload | `social/hex-wide-10s-text.mp4` (1920×1080)             | Standard 16:9.                                                                                                                                                                                                                |
 | X        | Feed post      | `social/hex-square-10s-text.mp4` (1080×1080)           | X supports any ratio from 1:3 to 3:1; square wins the most feed height per width on mobile. Free accounts cap at 140 s.                                                                                                       |
 | X        | Landscape      | `social/hex-wide-10s-text.mp4`                         | When the post sits beside 16:9 media or a link card.                                                                                                                                                                          |
@@ -187,7 +216,8 @@ exists for a surface that supplies its own headline.
 Built by `node tools/hex-social-master.mjs --preset=<p> --laps=<n> --text`, which
 tiles the verified loop with `concat` (stream copy, no generation loss) and the
 one-lap mastered bed with `-stream_loop`. Both are exact loops, so N laps join
-without a click; measured on the 30 s vertical, every lap reads -13.6 dB mean.
+without a click; measured on a three-lap vertical before it was retired, every
+lap read -13.6 dB mean.
 
 ## Page embeds, not social
 
