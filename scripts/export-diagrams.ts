@@ -103,6 +103,8 @@ async function main() {
 
   const manifest: Entry[] = [];
   const stale: string[] = [];
+  /** basename -> sha of the committed .webp. Populated only under --check. */
+  const onDisk = new Map<string, string>();
 
   for (const basename of names) {
     await page.goto(`${BASE}/diagram-render/${basename}`, { waitUntil: "networkidle", timeout: 60_000 });
@@ -123,10 +125,21 @@ async function main() {
 
     if (CHECK) {
       // CI-portable check: confirm the diagram renders + carries alt, and a
-      // committed image exists. Do NOT re-encode and byte-compare pixels — WebP
-      // bytes differ across OS/font rendering, so a hash gate would fail every
-      // cross-platform CI run. Pixel staleness relies on local re-export.
+      // committed image exists. Do NOT RE-ENCODE and byte-compare pixels — WebP
+      // bytes differ across OS/font rendering, so a re-encode gate would fail
+      // every cross-platform CI run. Pixel staleness relies on local re-export.
+      //
+      // HASHING THE COMMITTED FILE IS A DIFFERENT THING, and it IS portable:
+      // no encoder runs, so the same bytes give the same digest on every
+      // platform. It is done here because the field had drifted on 7 of 86
+      // entries and nothing had ever noticed — `hash` was written on export and
+      // then dropped by the comparison below, so it recorded a claim that was
+      // never checked against the file it described.
       if (!existsSync(file)) stale.push(`${basename}: missing exported image`);
+      else {
+        const actual = sha(readFileSync(file));
+        onDisk.set(basename, actual);
+      }
       manifest.push({ basename, image: rel, alt, hash: "" });
     } else {
       const png = await figure.screenshot({ type: "png" });
@@ -152,11 +165,35 @@ async function main() {
       );
     if (norm(committed) !== norm(manifest))
       stale.push("manifest out of date (a diagram was added/renamed or its alt text changed) — run `pnpm diagrams:export`");
+
+    // The hash, verified against the bytes on disk. Encoder-free on both sides,
+    // so it says nothing about how the file was made and everything about
+    // whether the manifest still describes it.
+    //
+    // REFUSE TO PASS ON AN EMPTY SET. If nothing resolved, this loop would find
+    // no mismatches and report success having compared nothing — the exact
+    // green-check-on-an-empty-machine this check exists to prevent.
+    if (!onDisk.size) {
+      stale.push("hash verification compared 0 files — refusing to report the manifest clean");
+    } else {
+      for (const e of committed) {
+        const actual = onDisk.get(e.basename);
+        if (actual === undefined) continue; // absence is already reported above
+        if (!e.hash) stale.push(`${e.basename}: manifest carries no hash`);
+        else if (e.hash !== actual) {
+          stale.push(`${e.basename}: manifest hash ${e.hash} but the committed .webp is ${actual}`);
+        }
+      }
+    }
+
     if (stale.length) {
       console.error("Diagram export check FAILED:\n" + stale.map((s) => "  - " + s).join("\n") + "\n\nRun `pnpm diagrams:export` and commit the result.");
       process.exit(1);
     }
-    console.log(`Diagram export check OK (${manifest.length} diagrams; presence + alt verified).`);
+    console.log(
+      `Diagram export check OK (${manifest.length} diagrams; presence + alt verified, ` +
+        `${onDisk.size} image hashes matched the manifest).`,
+    );
   } else if (ONLY) {
     console.log(`\nSingle-diagram validation run for "${ONLY}" done. Manifest NOT written (partial run).`);
   } else {
