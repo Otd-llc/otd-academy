@@ -22,16 +22,22 @@ export function ClickToLoadBoard({
   bounds,
   heightClass = "h-80 lg:h-96",
 }: {
-  poster: string;
+  /** `null` when this board has no baked poster — same outcome the img's
+   *  onError already produces, expressed before the request instead of after
+   *  it. The callers now pass `boardPoster(slug)`, which is nullable. */
+  poster: string | null;
   src: string | null;
   bounds: RenderBounds | null;
   heightClass?: string;
 }) {
   const [live, setLive] = useState(false);
 
-  if (live && src) {
+  if ((live || !poster) && src) {
     return <ModelViewerLazy src={src} bounds={bounds} hero heightClass={heightClass} />;
   }
+  // No poster and no model: nothing to show, and an <img src=""> would request
+  // the current page and paint a broken-image glyph.
+  if (!poster) return null;
 
   return (
     <button

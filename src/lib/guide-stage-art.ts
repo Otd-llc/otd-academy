@@ -17,6 +17,7 @@
 // the same shape of work whatever the board; a per-board set can key off the slug
 // later without changing the callers.
 import type { Stage } from "@prisma/client";
+import { optimized } from "./optimized-asset";
 
 const STAGE_ART: Partial<Record<Stage, string>> = {
   REQUIREMENTS: "/guide-stages/REQUIREMENTS.png",
@@ -29,7 +30,20 @@ const STAGE_ART: Partial<Record<Stage, string>> = {
   BRINGUP: "/guide-stages/BRINGUP.png",
 };
 
+/**
+ * THROUGH THE OPTIMIZER. These are 1113px and 1782px squares painted into a box
+ * that measures at most 437 CSS px, so most of every tile's weight is
+ * resolution nobody asked for: REQUIREMENTS goes 133,721 -> 34,960 bytes at
+ * w=1080, and it content-negotiates WebP on top. The source PNGs stay exactly
+ * as they are; only the URL the browser fetches changes.
+ */
 export function stageArt(stage: Stage): string | null {
+  const src = STAGE_ART[stage];
+  return src ? optimized(src) : null;
+}
+
+/** The unoptimized path, for a server-side reader that needs the file itself. */
+export function stageArtSource(stage: Stage): string | null {
   return STAGE_ART[stage] ?? null;
 }
 
@@ -44,6 +58,28 @@ export function stageArt(stage: Stage): string | null {
 //
 // Regenerate with `pnpm tsx scripts/make-stage-ghosts.ts` whenever a stage tile is
 // re-rendered; that script carries the measurements the treatment rests on.
+//
+// NOT THROUGH THE OPTIMIZER, unlike stageArt above, and this is a measurement
+// rather than caution. A ghost is an alpha map normalised to a target mean
+// density, and RESAMPLING A SPARSE MAP RAISES THAT MEAN: thin strokes spread
+// into the empty pixels around them. Measured mean alpha, source -> 384px:
+//
+//   LAYOUT        0.251 -> 0.690   +174.9%
+//   DRC_GERBER    0.236 -> 0.634   +169.0%
+//   SCHEMATIC     0.268 -> 0.510    +90.5%
+//   BOM_SOURCING  0.254 -> 0.460    +81.2%
+//   (the four kicad renders are dense and drift under 11%)
+//
+// A lossy encode does it too, at full size and with no resize at all
+// (LAYOUT +132.7%). Those four are exactly the sparse plots make-stage-ghosts
+// singles out: "cutting LAYOUT or DRC_GERBER would delete four fifths of the
+// artwork". Nearly tripling a mask's density is a different drawing, and
+// because a mask failure resolves to transparent rather than to a broken image,
+// the comb would just quietly change weight with nothing to catch it.
+//
+// The correct way to make a smaller ghost is to regenerate it at the target
+// size with make-stage-ghosts.ts, which renormalises density AFTER computing
+// coverage. That is a separate change to that script, not a URL swap here.
 export function stageArtGhost(stage: Stage): string | null {
   return STAGE_ART[stage] ? `/guide-stages/ghost/${stage}.png` : null;
 }

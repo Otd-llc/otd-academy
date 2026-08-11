@@ -22,6 +22,7 @@ import { GoldenReferencePanel } from "@/components/GoldenReferencePanel";
 import { ClickToLoadBoard } from "@/components/learn/ClickToLoadBoard";
 import { getArtifactRenderUrl } from "@/lib/actions/uploads";
 import { renderBoundsSchema, type RenderBounds } from "@/lib/schemas/part-asset";
+import { boardPoster } from "@/lib/board-posters";
 
 export default async function LessonCompletePage({
   params,
@@ -224,7 +225,9 @@ export default async function LessonCompletePage({
           className="signin-rise w-full max-w-2xl"
           style={{ animationDelay: "170ms" }}
         >
-          <ClickToLoadBoard poster={`/board-posters/${project.slug}.png`} src={boardModel.src} bounds={boardModel.bounds} heightClass="h-80" />
+          {/* boardPoster(), not a literal — the inline path bypassed the helper
+              and kept the unoptimized 1782px PNG. */}
+          <ClickToLoadBoard poster={boardPoster(project.slug)} src={boardModel.src} bounds={boardModel.bounds} heightClass="h-80" />
         </div>
       )}
 
