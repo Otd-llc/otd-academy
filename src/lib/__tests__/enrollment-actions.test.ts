@@ -19,6 +19,12 @@ vi.mock("next/cache", () => ({
 const mockAuth = vi.fn<() => Promise<unknown>>();
 vi.mock("@/auth", () => ({ auth: () => mockAuth() }));
 
+// Spy the funnel emitter rather than PostHog itself: `capture` is already a hard
+// no-op without a key, so without this the assertions below would pass whether
+// or not the call site exists. Hoisted so the mock factory can see it.
+const { captureSpy } = vi.hoisted(() => ({ captureSpy: vi.fn() }));
+vi.mock("@/lib/analytics", () => ({ capture: captureSpy }));
+
 import type { Stage } from "@prisma/client";
 import { db } from "@/lib/db";
 import {
@@ -142,6 +148,70 @@ describe("advanceEnrollment", () => {
   test("refuses to advance past the terminal stage", async () => {
     const projectId = await enrollmentAt("REVISION");
     await expect(advanceEnrollment({ projectId })).rejects.toThrow(/final stage/i);
+  });
+});
+
+// Per-stage drop-off is the single most useful number a beta produces, and
+// `board_activated` alone cannot give it: it fires once, at DRC_GERBER, so a
+// learner who stalls at SCHEMATIC and one who stalls at LAYOUT are the same
+// row. `xp_earned` is a near-proxy but carries only an amount, so reading the
+// stage back out of it is inference rather than measurement.
+describe("advanceEnrollment — funnel instrumentation", () => {
+  test("a successful advance emits stage_advanced naming both stages", async () => {
+    captureSpy.mockClear();
+    const projectId = await enrollmentAt("REQUIREMENTS");
+    await addQuizPass(projectId, "REQUIREMENTS");
+    const project = await db.project.findUniqueOrThrow({
+      where: { id: projectId },
+      select: { slug: true },
+    });
+
+    await advanceEnrollment({ projectId });
+
+    const call = captureSpy.mock.calls.find((c) => c[0] === "stage_advanced");
+    expect(call, "no stage_advanced event was emitted").toBeDefined();
+    expect(call![1]).toMatchObject({
+      projectSlug: project.slug,
+      fromStage: "REQUIREMENTS",
+      toStage: "BOM_SOURCING",
+    });
+    expect(call![2]).toBe(userId);
+  });
+
+  test("a BLOCKED advance emits nothing — a gate refusal is not progress", async () => {
+    captureSpy.mockClear();
+    const projectId = await enrollmentAt("REQUIREMENTS"); // no quiz pass
+    const r = await advanceEnrollment({ projectId });
+    expect(r.ok).toBe(false);
+    expect(captureSpy.mock.calls.filter((c) => c[0] === "stage_advanced")).toHaveLength(0);
+    expect(captureSpy.mock.calls.filter((c) => c[0] === "course_completed")).toHaveLength(0);
+  });
+
+  test("the terminal advance emits course_completed as well as stage_advanced", async () => {
+    captureSpy.mockClear();
+    const projectId = await enrollmentAt("BRINGUP");
+    await addQuizPass(projectId, "BRINGUP");
+    const project = await db.project.findUniqueOrThrow({
+      where: { id: projectId },
+      select: { slug: true },
+    });
+
+    await advanceEnrollment({ projectId });
+
+    const done = captureSpy.mock.calls.find((c) => c[0] === "course_completed");
+    expect(done, "no course_completed event on the terminal advance").toBeDefined();
+    expect(done![1]).toMatchObject({ projectSlug: project.slug });
+    expect(done![2]).toBe(userId);
+    // Still a stage advance too; the two are not alternatives.
+    expect(captureSpy.mock.calls.some((c) => c[0] === "stage_advanced")).toBe(true);
+  });
+
+  test("a NON-terminal advance does not emit course_completed", async () => {
+    captureSpy.mockClear();
+    const projectId = await enrollmentAt("REQUIREMENTS");
+    await addQuizPass(projectId, "REQUIREMENTS");
+    await advanceEnrollment({ projectId });
+    expect(captureSpy.mock.calls.filter((c) => c[0] === "course_completed")).toHaveLength(0);
   });
 });
 

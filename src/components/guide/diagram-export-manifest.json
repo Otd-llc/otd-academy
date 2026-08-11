@@ -21,7 +21,7 @@
     "basename": "hasl-vs-enig",
     "image": "/guide-diagrams/hasl-vs-enig.webp",
     "alt": "Two cross-sections under the WROOM module's fine-pitch pads. With HASL the solder is domed at uneven heights, so the module tilts and one pad never makes contact, leaving a gap where no joint forms. With ENIG the finish is flat, so the module sits level and every pad meets it.",
-    "hash": "62c19eed6f56"
+    "hash": "1fd4cbdcbfbe"
   },
   {
     "basename": "two-layer-cross-section",
@@ -57,31 +57,31 @@
     "basename": "adc1-pin-map",
     "image": "/guide-diagrams/adc1-pin-map.webp",
     "alt": "ADC pin map. GPIO 1 to 10 are ADC1 and stay usable for analog input. GPIO 11 to 20 are ADC2 and are claimed by the radio, so they read garbage while Wi-Fi is on. For analog reads, stick to ADC1, GPIO 1 to 10.",
-    "hash": "12d93eecbf92"
+    "hash": "c376566c4a29"
   },
   {
     "basename": "antenna-keepout",
     "image": "/guide-diagrams/antenna-keepout.webp",
     "alt": "Top view of the carrier board: the ESP32-S3-WROOM-1 module (U1) sits at the board edge with its PCB antenna overhanging the top edge inside a dashed no-copper keep-out; the module's pads sit below the keep-out on the ground pour, which fills the rest of the board.",
-    "hash": "723d75dcbd20"
+    "hash": "f26ff107ea1c"
   },
   {
     "basename": "decoupling-placement",
     "image": "/guide-diagrams/decoupling-placement.webp",
     "alt": "Decoupling capacitor placement decides whether it works. Case one, the cap right at the IC pin, makes a small current loop: a short path with low inductance, so the cap dumps current fast. Case two, the same cap placed far from the pin, makes a big loop: a long path whose trace inductance chokes the fast current. Same cap and same schematic; placement is everything.",
-    "hash": "e958394ed52a"
+    "hash": "c67220da5fde"
   },
   {
     "basename": "schematic-conventions",
     "image": "/guide-diagrams/schematic-conventions.webp",
     "alt": "Schematic-drawing conventions: signal flows left to right, supply symbols (3V3) point up and grounds (GND) point down, parts are grouped by sub-circuit, and a decoupling capacitor sits right at the IC power pin. The worked example shows the 3V3 supply entering the top of an IC, signal in from the left and out to the right, ground leaving the bottom, and the decoupling cap branching off the supply at the pin.",
-    "hash": "64840c2a83bf"
+    "hash": "cd8a9871f4c2"
   },
   {
     "basename": "bringup-ladder",
     "image": "/guide-diagrams/bringup-ladder.webp",
     "alt": "Bring-up is a ladder of five rungs in order: one, no shorts, the meter stays silent; two, the 3.3 V rail, TP1 reads about 3.3 V; three, LED1 lit, the power LED is on; four, the board enumerates, the host sees the S3; five, LED2 blinks, your code blinks it and the board is alive. If any rung fails, stop and fix it before the next. All five rungs clear means log the board BROUGHT_UP.",
-    "hash": "9f0d54dc0c96"
+    "hash": "3a87f5c58b0b"
   },
   {
     "basename": "bringup-probe-points",
@@ -99,7 +99,7 @@
     "basename": "mu-rhythm-erd",
     "image": "/guide-diagrams/mu-rhythm-erd.webp",
     "alt": "Contralateral mu-rhythm desynchronization: when a person imagines moving their left hand, the mu rhythm over the right sensorimotor cortex (electrode C4) drops in amplitude in an event-related desynchronization, while the left-hemisphere rhythm at electrode C3 keeps idling at full amplitude. Detecting which side quieted reveals which hand was imagined.",
-    "hash": "bff303d525ae"
+    "hash": "21506d13a597"
   },
   {
     "basename": "eeg-bci-pipeline",

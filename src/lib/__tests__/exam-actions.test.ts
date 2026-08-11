@@ -18,6 +18,12 @@ vi.mock("next/cache", () => ({
 const mockAuth = vi.fn<() => Promise<unknown>>();
 vi.mock("@/auth", () => ({ auth: () => mockAuth() }));
 
+// Spy the funnel emitter rather than PostHog itself: `capture` is already a hard
+// no-op without a key, so without this the assertions below would pass whether
+// or not the call site exists. Hoisted so the mock factory can see it.
+const { captureSpy } = vi.hoisted(() => ({ captureSpy: vi.fn() }));
+vi.mock("@/lib/analytics", () => ({ capture: captureSpy }));
+
 import type { EnrollmentStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getExam, submitExam } from "@/lib/actions/exam";
@@ -174,6 +180,55 @@ describe("submitExam", () => {
     await expect(
       submitExam({ projectId: pid, answers: { q1: 1, q2: 0 } }),
     ).rejects.toThrow(/finish the board/i);
+  });
+});
+
+// The beta needs a completion rate, and a completion rate needs the exam hop
+// emitted. Before this, `submitExam` fired nothing at all: every learner who
+// took the final and every learner who never opened it looked identical in the
+// funnel. `certificate_shared` is not a substitute — it only fires if they
+// choose to share.
+describe("submitExam — funnel instrumentation", () => {
+  test("a pass emits exam_submitted with passed:true, the score, and the slug", async () => {
+    captureSpy.mockClear();
+    const pid = await makeExamEnrollment("COMPLETED");
+    const project = await db.project.findUniqueOrThrow({
+      where: { id: pid },
+      select: { slug: true },
+    });
+
+    await submitExam({ projectId: pid, answers: { q1: 1, q2: 0 } });
+
+    const call = captureSpy.mock.calls.find((c) => c[0] === "exam_submitted");
+    expect(call, "no exam_submitted event was emitted").toBeDefined();
+    expect(call![1]).toMatchObject({
+      projectSlug: project.slug,
+      passed: true,
+      score: 2,
+      total: 2,
+    });
+    // Tied to the person, or it cannot be joined to the rest of their funnel.
+    expect(call![2]).toBe(userId);
+  });
+
+  test("a FAIL is emitted too — the drop-off is the point of measuring", async () => {
+    captureSpy.mockClear();
+    const pid = await makeExamEnrollment("COMPLETED");
+
+    await submitExam({ projectId: pid, answers: { q1: 0, q2: 1 } });
+
+    const call = captureSpy.mock.calls.find((c) => c[0] === "exam_submitted");
+    expect(call, "no exam_submitted event was emitted on a failing attempt").toBeDefined();
+    expect(call![1]).toMatchObject({ passed: false, score: 0, total: 2 });
+  });
+
+  test("a refused submission emits nothing", async () => {
+    captureSpy.mockClear();
+    const pid = await makeExamEnrollment("IN_PROGRESS");
+    await expect(
+      submitExam({ projectId: pid, answers: { q1: 1, q2: 0 } }),
+    ).rejects.toThrow();
+    expect(captureSpy.mock.calls.filter((c) => c[0] === "exam_submitted")).toHaveLength(0);
   });
 });
 
