@@ -149,3 +149,6 @@ _worker-map.log
 # PUBLIC repo. The real protection is the default target, not this line.
 /content/
 
+
+# Local-only capture inputs (sandbox); never shipped
+public/_capture/

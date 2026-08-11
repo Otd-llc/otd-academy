@@ -104,6 +104,17 @@ export function isPublicPath(pathname: string): boolean {
   // via a headless browser with no session). The page itself 404s in production
   // unless DIAGRAM_EXPORT is set, so exposing the prefix is safe.
   if (top === "diagram-render") return true;
+  // Dev-only capture surface, on the same footing as diagram-render above: the
+  // promo renderer drives these pages with a headless browser that has no
+  // session, so a gate here 307s every frame to /sign-in. Every page under
+  // /sandbox opens with `if (process.env.NODE_ENV === "production") notFound()`,
+  // so the prefix cannot resolve in production whatever this says.
+  //
+  // Stated permanently rather than as a temporary hole. It was carrying a
+  // "revert before commit" marker, which is a note to a person rather than a
+  // property of the code: the exemption is genuinely needed every time the film
+  // is rendered, and a line nobody reverts is a line nobody has justified.
+  if (top === "sandbox") return true;
   // The Hex Cluster spec + attribution page (/hex). This one is not a
   // preference: every published .3mf/.stl/.step carries an immutable
   // LICENSE.txt reading `Source: https://academy.onethousanddrones.com/hex`,
