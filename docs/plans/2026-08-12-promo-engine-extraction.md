@@ -1,96 +1,136 @@
 # Extracting the promo motion engine to `otd-promo`
 
-**Status:** scoped, not started. **Owner go-ahead required before any merge.**
-**Written:** 2026-08-12. **Source branch:** `feat/logbook-cut-sandbox` @ `51c66514`.
+**Status:** scoped. Re-scoped 2026-08-12 after reading the target repo — the
+first version of this plan was written before, and was wrong about the shape.
+**Owner go-ahead required before any merge.**
+**Source:** `feat/logbook-cut-sandbox` @ `e0e90adc` (academy).
+**Target:** `Otd-llc/otd-promo`, default branch `main`, currently on
+`feat/hex-score` @ `16bcb6e`.
 
 ## Why this is urgent rather than tidy
 
-The Logbook cut lives in `src/app/sandbox/logbook-cut/`, and **every `/sandbox/*`
-route is dev-guarded and deleted before its PR** — that is the standing
-convention and it has been honoured on every previous round. About 1,500 lines
-of the code in there is not about the Logbook at all: it is a general motion
-system that took a full session and a dozen paid-for traps to get right.
+`/sandbox/*` routes are dev-guarded and **deleted before their PR** — that is the
+standing convention and every previous round honoured it. About 1,500 lines of
+`src/app/sandbox/logbook-cut/` is not about the Logbook at all: it is a general
+motion system that cost a session and a dozen paid-for traps.
 
-If the sandbox is deleted before the engine moves, the engine goes with it and
-the next film starts from `transition: opacity 0.2s` again.
+If the sandbox is deleted first, the engine goes with it. **The extraction
+happens before the mp4 render, not after.**
 
-**So the extraction happens BEFORE the mp4 render, not after.**
+## What I got wrong the first time
 
-## What is actually reusable
+I scoped a greenfield package. `otd-promo` is not greenfield:
 
-Sorted by value, all of it currently in `src/app/sandbox/logbook-cut/`:
+- **`core/` already holds a motion kit** — `transitions/` (14 transitions as
+  data, alignment first-class, plus a canvas glitch compositor), `type/cues.mjs`
+  (the kinetic cue layer, five entrances, "subject-agnostic by subtraction"),
+  `render/profiles.mjs`, and a Python `audio/` + `score/` engine.
+- **`core/` is `.mjs` with JSDoc typedefs, not TypeScript.**
+- **There is a real boundary gate**, `pnpm boundary:check`: no file under `core/`
+  may import anything resolving outside it, and Python there may carry no
+  absolute path literal and no by-path import escape hatch.
+- **A film is a data-only cut sheet** under `subjects/<subject>/cuts/`, per
+  `subjects/academy/cuts/l101-beta.mjs`: no functions, no renderer imports,
+  behaviour named by id.
 
-| file | reusable? | what it is |
-| --- | --- | --- |
-| `motion.ts` | **entirely** | 10 enter/exit moves, 13 motions (incl. 4 Ken Burns), 5 cameras, 4 parallax depths, per-part place/size, fit-to-frame sizing, one composed transform. Zero Logbook knowledge. |
-| `tuning.ts` | **most** | 11 word entrances, 7 word exits, 3 flows, word positions, `preRoll`. The `Jaunty` set is patch-specific and stays behind. |
-| `LogbookType.tsx` | **most** | The kinetic type layer. Rename; it is not Logbook-specific. |
-| `LogbookLive.tsx` | **the harness only** | `useSceneClock` (scrub + IntersectionObserver + 30fps), `usePin` (the double pin), the stage box. The four scenes are the film and stay. |
-| `round/page.tsx` | **as a pattern** | The round-page shape: one scrollable list, recipes counted off the scheme, `?t=` freeze, `?only=` isolate. |
-| `beats.ts`, `mixes.ts`, `assembly.ts`, `candidates.ts` | **no** | These are the Logbook film. They become the first *consumer* of the engine. |
-| `quiz-select/` | **no — different destination** | The winner (`others` + `typeon`) ships into this repo's `globals.css`. It is a product change, not a promo one. |
+So this is a **merge into an existing kit**, and the shape below replaces the
+one in the first draft.
 
-## Target shape in `otd-promo`
+## Three real consequences
 
-    packages/motion/
-      moves.ts        Move, moveVec, moveMask
-      motions.ts      Motion, motionVec  (incl. Ken Burns)
-      camera.ts       Camera, Parallax, cameraVec, parallaxVec, DEPTH
-      fit.ts          INTRINSIC / FILL / fitScale  (per-consumer registry)
-      compose.ts      Vec, add, partStyle
-      type/           Kinetic, KineticOut, kineticCss, outStyle, kineticLead
-      harness/        useSceneClock, usePin, Stage
-      round/          the bench + round page shapes
+**1. The type work EXTENDS `core/type/cues.mjs`; it must not become a second
+type system.** That file has five entrances and the grid. The Logbook round
+produced eleven entrances and — the genuinely new part — **seven exits**, plus
+`kineticLead` per entrance and the `preRoll`. Exits are new to the kit entirely:
+`cues.mjs` has no concept of a word leaving, because the beta film never gave
+one. That is the single most valuable thing going in.
 
-`fit.ts` is the one that needs a real interface change: `INTRINSIC` and `FILL`
-are keyed by the Logbook's four part ids. In the package they take a
-caller-supplied registry.
+**2. `Move` and `Transition` are different axes and both must survive.** A
+transition cuts between two shots. A `Move` brings ONE part in or out inside a
+shot. `push-l` as a transition means the whole frame slides; `push-l` as a move
+means the ring does. They will look like duplicates in review and are not.
+
+**3. TypeScript to `.mjs` is the largest single cost, and it is not mechanical.**
+`motion.ts` is typed with `React.CSSProperties`, which is also a boundary
+problem: `core/` cannot depend on React. In `.mjs` the return becomes a plain
+style object and the React dependency disappears — so the conversion and the
+boundary fix are the same edit, which is an argument for doing it rather than
+against.
+
+## Target shape
+
+    core/motion/           NEW. No overlap with transitions/.
+      moves.mjs            10 enter/exit moves; moveVec, moveMask
+      motions.mjs          13 motions incl. 4 Ken Burns; motionVec
+      camera.mjs           5 cameras, 4 parallax depths; cameraVec, parallaxVec
+      fit.mjs              fitScale — takes a caller-supplied registry
+      compose.mjs          Vec, add, partStyle (one composed transform)
+    core/type/cues.mjs     EXTENDED: +6 entrances, +7 exits, kineticLead, preRoll
+    core/harness/          NEW
+      clock.mjs            scrub clock: seek, IntersectionObserver, 30fps
+      pin.mjs              the double pin (see traps)
+    subjects/academy/cuts/logbook.mjs   the film, data only
+
+Staying in the academy: `beats.ts`, `mixes.ts`, `assembly.ts`, `candidates.ts`
+become the cut sheet's content; `quiz-select/` is a **product** change to
+`globals.css`, not a promo one, and does not move at all.
 
 ## Tasks
 
-1. **Create the package skeleton** in `otd-promo` with its own tsconfig + build.
-   No behaviour yet.
-2. **Move `motion.ts` verbatim**, then split into `moves/motions/camera/fit/
-   compose`. Keep every comment — the comments are most of the value, and
-   several of them are the only record of a trap.
-3. **Generalise `fit.ts`** to take a registry rather than a fixed `PartId` union.
-4. **Move the type layer**; drop the `arrangement` prop (a Logbook concept) in
-   favour of an explicit slot.
-5. **Move the harness.** `usePin`'s `data-anim-at` contract comes with it.
-6. **Point `logbook-cut` at the package** and delete the moved files.
-7. **PROVE IT BY RE-RENDER.** See below.
-8. **Thin skill** in `Otd-llc/otd-skills` — the round protocol and the traps that
-   are not visible in the code. The skill is the small half; the package is the
-   deliverable.
+1. Branch off `otd-promo` main. **Do not build on `feat/hex-score`** without
+   checking whether it is landing first.
+2. `core/motion/` — convert `motion.ts` to `.mjs` + JSDoc, splitting as above.
+   Keep every comment; several are the only record of a trap.
+3. `fit.mjs` — take a registry rather than a fixed `PartId` union.
+4. Extend `core/type/cues.mjs` with the six new entrances and the seven exits.
+   **Read its header first**: its values were judged in a preview and shipped,
+   and are explicitly not up for casual revision.
+5. `core/harness/` — the clock and the pin.
+6. `pnpm boundary:check` **and** `boundary:selftest` green.
+7. Academy side: point `logbook-cut` at the package, delete the moved files.
+8. Prove it (below).
+9. Thin skill in `Otd-llc/otd-skills`: the round protocol and the traps that are
+   invisible in the code. The skill is the small half.
 
-## The acceptance test, and it is not a checklist
+## The acceptance test
 
-`otd-promo`'s own precedent is that an extraction was proven **byte-identical by
-re-render**, not by paperwork ([[otd-promo-repo-plan]]). Same standard here:
+`otd-promo`'s own precedent is an extraction proven **byte-identical by
+re-render**, not by paperwork. Same standard, with one honest substitution:
+`tools/promo/render-cut.mjs` lives on `feat/platform-safe-areas`, **not on this
+branch**, so the mp4 comparison is not runnable here yet.
 
-    # before
-    node tools/promo/render-cut.mjs <scratch-a> wide
-    # after the extraction, same commit of the film, same seed
-    node tools/promo/render-cut.mjs <scratch-b> wide
-    # the two mp4s must hash identically
+Until it is, the equivalent check is available and is not weak: freeze the round
+page at a fixed set of scene times and compare screenshots **pixel for pixel**
+before and after. The clock is deterministic by construction, so identical
+inputs must produce identical frames; any difference is a real behaviour change.
 
-If they do not hash the same, the extraction changed the film and is not done.
-A visual diff is not sufficient — the whole point of the scrub-never-play clock
-is that the render is deterministic, so an extraction that preserves it must
-reproduce it exactly.
+    node <shoot>.mjs --before   # 30 cuts x 4 times, hashed
+    # extract
+    node <shoot>.mjs --after
+    # every hash must match
 
-A cheaper intermediate check, for use during the move: freeze the round page at
-a fixed set of times and compare screenshots pixel-for-pixel.
+Take the BEFORE hashes **before touching anything**.
 
-## Constraints
+## Constraints and traps
 
-- `otd-promo` is a **separate repo** (`Otd-llc/otd-promo`). Branch off its main.
-- **Do not merge either side without the maintainer's explicit go-ahead.**
-- The academy side is a stacked change on `feat/logbook-cut-sandbox`. Watch the
-  known trap: a stacked PR targets its parent branch, and after the parent is
-  squashed it must be re-based with `gh pr edit --base main` or it stays
-  CONFLICTING and CI never fires.
-- The bed track is running concurrently in the `C:/zzz/pf-bed` worktree on
-  `promo/logbook-bed`. It only touches `tools/logbook-bed.py` and files outside
-  the repo, so the two tracks do not collide — but **do not commit from the
-  wrong worktree**; another session sharing a tree is how commits bleed.
+- Do not merge either side without the maintainer's explicit go-ahead.
+- The academy side is stacked on `feat/logbook-cut-sandbox`. Known trap: a
+  stacked PR targets its parent, and after the parent is squashed it needs
+  `gh pr edit --base main` or it stays CONFLICTING and CI never fires.
+- The bed track runs concurrently in `C:/zzz/pf-bed` on `promo/logbook-bed`.
+  Disjoint scope, but do not commit from the wrong worktree.
+
+### A finding for the bed track
+
+**`tools/logbook-bed.py` could not move into `core/` as written.** It breaks the
+boundary rule twice, and in exactly the two ways that rule was written to catch:
+it loads `hex-bed.py` through `spec_from_file_location`, and it inherits
+`SAMPLES = "C:/zzz/_hex-promo/samples"` — a module-level absolute path literal
+pointing at a scratch directory outside every repository, on one machine, with no
+backup. `core/README.md` cites that exact line as the leak that motivated the
+check.
+
+That is fine where it is: it is academy tooling, not `core/`. But if the bed is
+ever meant to live in `otd-promo`, it has to take its sample root as an argument
+and import through the package rather than by path. Worth knowing before anyone
+tries to move it in a hurry.

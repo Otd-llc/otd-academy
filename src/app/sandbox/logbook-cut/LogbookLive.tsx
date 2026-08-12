@@ -172,10 +172,6 @@ function usePin(host: React.RefObject<HTMLElement | null>, t: number, ...deps: u
   useIso(() => {
     const el = host.current;
     if (!el) return;
-    el.querySelectorAll(".xp-pop").forEach((n) => {
-      n.classList.remove("v2", "v3", "v4", "v5");
-      n.classList.add("v1");
-    });
     // PIN TWICE, AND THE SECOND ONE IS THE ONE THAT WORKS.
     //
     // A state change made in this same tick - the quiz being clicked - does not
@@ -186,6 +182,26 @@ function usePin(host: React.RefObject<HTMLElement | null>, t: number, ...deps: u
     // which is exactly the failure the freeze param exists to prevent. The rAF
     // pass runs after the commit, when there is something to seek.
     const pin = () => {
+      // INSIDE the pin, and the pin re-runs once the scenes exist.
+      //
+      // XpTick picks its float variant with Math.random() at mount, which is
+      // right for a page and fatal for a film. Forcing it to v1 was already
+      // here - as a single call BEFORE the pin - and it never fired, because
+      // the stage renders nothing until its `mounted` flag flips: the first
+      // commit has no scenes, so the query matched an empty tree, and the
+      // second commit mounted a tick with a random variant that nothing ever
+      // corrected.
+      //
+      // Measured, not suspected. Hashing 120 frozen frames twice left 24 of
+      // them differing, and dumping getAnimations() at capture showed one run
+      // holding `xp-pop-2` where the other held `xp-pop-1`. Every screenshot in
+      // this sandbox has been rolling a die, and an mp4 render would have
+      // inherited it - one Math.random() leaking through the whole
+      // scrub-never-play contract.
+      el.querySelectorAll(".xp-pop").forEach((n) => {
+        n.classList.remove("v2", "v3", "v4", "v5");
+        n.classList.add("v1");
+      });
       for (const a of el.getAnimations({ subtree: true })) {
         const target = (a.effect as KeyframeEffect | null)?.target ?? null;
         if (!target) continue;
@@ -200,8 +216,26 @@ function usePin(host: React.RefObject<HTMLElement | null>, t: number, ...deps: u
         }
       }
     };
+    // AND THE FRAME IS NOT SETTLED UNTIL THE SECOND PASS HAS RUN.
+    //
+    // Between the two passes the animations are live on wall clock, so a
+    // screenshot taken in that window catches them wherever real time reached.
+    // Measured, not suspected: hashing 120 frozen frames twice, 24 of them
+    // differed between two identical runs - almost all at t=1.6, a tenth of a
+    // second after the quiz click, which is precisely the gap. Every screenshot
+    // in this sandbox was a coin toss in that window and looked fine because
+    // the odds were good.
+    //
+    // `data-settled` is the contract a capture waits on. It is cleared at the
+    // top of every pin cycle and set after the rAF pass, so it means "this
+    // frame is fully seeked" rather than "this element exists". The render pass
+    // needs the same signal, so it is owed anyway.
+    el.removeAttribute("data-settled");
     pin();
-    const raf = requestAnimationFrame(pin);
+    const raf = requestAnimationFrame(() => {
+      pin();
+      el.setAttribute("data-settled", "1");
+    });
     return () => cancelAnimationFrame(raf);
     // The caller spreads its own deps; `host` is a stable ref.
   }, [t, ...deps]);
@@ -472,7 +506,10 @@ export function LogbookLive({
     setMounted(true);
   }, []);
 
-  usePin(hostRef, t, arrangement, tuning.kinetic, tuning.jaunty);
+  // `mounted` is a REQUIRED dep, not a tidy one: the first commit renders no
+  // scenes, so a pin that ran only then would query an empty tree and never see
+  // the animations it exists to seek.
+  usePin(hostRef, t, arrangement, tuning.kinetic, tuning.jaunty, mounted);
 
   const win = (i: number): [number, number] =>
     [armAt(i), i + 1 < BEATS.length ? armAt(i + 1) : SECONDS] as [number, number];
