@@ -81,7 +81,14 @@ const EVENTS: Ev[] = [
   { at: 8.5, label: "plate" },
 ];
 
-export type BedKit = { id: string; title: string; note: string };
+export type BedKit = {
+  id: string;
+  title: string;
+  note: string;
+  /** Heading printed above the first entry carrying it. Two axes are on this
+   *  page and they must not read as one flat menu - see the list below. */
+  group?: string;
+};
 
 const W = 880;
 const WAVE_H = 116;
@@ -577,14 +584,24 @@ export function BedRig({
       {/* ---- the kits ---- */}
       <div className="mt-8 border-t border-panel-border/60 pt-5">
         <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
-          &#9656; the five kits &middot; swap while it runs
+          &#9656; the bed &middot; swap while it runs
         </p>
         <ul className="mt-3 grid gap-2">
-          {kits.map((k) => {
+          {kits.map((k, i) => {
             const kp = peaks[k.id];
             const bad = kp ? checksOf(kp.map((v) => v / (kp[4] || 1))).filter((c) => !c.ok) : [];
+            // A GROUP HEADING WHERE THE AXIS CHANGES. The palette variants and
+            // the compositions are not the same kind of thing and must not read
+            // as one list of twenty options: the first group is one arrangement
+            // in five costumes, the second is ten arrangements in one costume.
+            const head = k.group && k.group !== kits[i - 1]?.group ? k.group : null;
             return (
               <li key={k.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                {head ? (
+                  <p className="mt-4 w-full border-t border-panel-border/50 pt-3 font-mono text-[10px] uppercase tracking-[0.22em] text-signal-blue">
+                    {head}
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   className={kit === k.id ? btnOn : btn}
