@@ -103,7 +103,24 @@ const PRESETS = {
   //
   // DOLLY GOES OUT for margin. At 1.0 the neighbour tiles already touch both
   // side edges, and the widest beat of the choreography is wider still.
-  vertical: { markMult: 2.24, w: 1080, h: 1920, dolly: 1.24, lift: 0 },
+  // CHROME IS NOT A CROP, and that distinction is why this preset needs its own
+  // margins. `textSafe` exists for surfaces shown through `object-fit: cover`,
+  // where the frame is genuinely cut off. A Short is shown WHOLE; the platform
+  // draws its own furniture on top of it. Measured on the shipped vertical
+  // master, the type ran to 93% across and 93% down, which put SNAP and GROW
+  // under the action rail and buried FREE - the download, the entire point of
+  // the film - under the title and description.
+  //
+  // The numbers are the ones measured for the academy cut: the action rail
+  // occupies from 83.3% across, the caption block from 74% down, the header the
+  // top 11.5%. 3% of breathing room is added on the two sides carrying
+  // furniture, because type stopping exactly at a button still reads as crowded
+  // by it. Shorts, Reels and TikTok all share this layout closely enough that
+  // one set of insets serves all three.
+  vertical: {
+    markMult: 2.24, w: 1080, h: 1920, dolly: 1.24, lift: 0,
+    chrome: { top: 11.5, right: 19.7, bottom: 26, left: 5.6 },
+  },
   // 1:1 -- X and LinkedIn feed.
   square: { markMult: 2.26, w: 1080, h: 1080, dolly: 1.24, lift: 0 },
   // 4:5 -- LinkedIn and Instagram feed.
@@ -1723,8 +1740,18 @@ async function installCues(page, preset, seconds) {
   const fonts = await displayFonts();
   const px = (k) => Math.round(Math.min(preset.w, preset.h) * TEXT_SCALE[k]);
   const ready = await page.evaluate(
-    async ({ fonts, size, seconds, safe, dl }) => {
+    async ({ fonts, size, seconds, safe, dl, chrome }) => {
       const D = "<span class='tdot'>.</span>";
+      // The four grid margins. With no `chrome` this is exactly what the grid
+      // was before - 7% sides, `safe` top and bottom - so every preset except
+      // the vertical one renders unchanged, and that is checkable rather than
+      // asserted.
+      const ins = {
+        top: chrome?.top ?? safe,
+        right: chrome?.right ?? 7,
+        bottom: chrome?.bottom ?? safe,
+        left: chrome?.left ?? 7,
+      };
       const style = document.createElement("style");
       // Everything is scoped under #hexcue. The app has its own stylesheet and
       // bare class names like `.half` are not ours to claim; the id also wins
@@ -1735,7 +1762,8 @@ async function installCues(page, preset, seconds) {
 @font-face{font-family:'Space Mono';font-style:normal;font-weight:400;font-display:block;
   src:url(data:font/woff2;base64,${fonts.mono}) format('woff2')}
 #hexcue{position:fixed;inset:0;z-index:2147483000;pointer-events:none;display:grid;
-  grid-template-columns:7% 1fr 1fr 1fr 7%;grid-template-rows:${safe}% 1fr 1fr 1fr ${safe}%;
+  grid-template-columns:${ins.left}% 1fr 1fr 1fr ${ins.right}%;
+    grid-template-rows:${ins.top}% 1fr 1fr 1fr ${ins.bottom}%;
   --command-gold:#c8963e;--gold-light:#e8b865;--title:#f1ece0;--muted:#aaa}
 #hexcue .cue{opacity:0;align-self:center;min-width:0}
 #hexcue .c-tl{grid-area:2/2/3/4} #hexcue .c-tr{grid-area:2/3/3/5}
@@ -1894,6 +1922,51 @@ async function installCues(page, preset, seconds) {
         );
       }
 
+      // TYPE MUST CLEAR THE PLATFORM'S FURNITURE, asserted here on real DOM
+      // rects rather than checked afterwards on pixels. The shipped vertical
+      // master had SNAP and GROW under the action rail and FREE under the
+      // caption block, and nothing in the pipeline noticed, because nothing in
+      // the pipeline knew where the furniture is.
+      //
+      // MEASURED IN THE DOM ON PURPOSE. Differencing a text render against a
+      // clean one seems like the obvious check and is not usable: both are
+      // encoded separately, so adding type changes the encoder's bit allocation
+      // across the WHOLE frame and the difference lights up hardware edges far
+      // from any glyph. It reported the type reaching 87% when the type stopped
+      // at 80%. A rect cannot be wrong that way.
+      //
+      // Scale transforms are included via getBoundingClientRect, which reports
+      // the post-transform box, so GROW's hold is measured at its grown size.
+      if (chrome) {
+        const vw = window.innerWidth, vh = window.innerHeight;
+        const held = [];
+        els.forEach((d, i) => {
+          d.classList.add("held");
+          const r = d.getBoundingClientRect();
+          const inner = d.firstElementChild?.getBoundingClientRect() ?? r;
+          const box = {
+            x1: Math.max(r.right, inner.right) / vw,
+            y1: Math.max(r.bottom, inner.bottom) / vh,
+            y0: Math.min(r.top, inner.top) / vh,
+          };
+          const what = CUES[i].word?.replace(/<[^>]*>/g, "") ?? "download";
+          if (box.x1 > (100 - chrome.right) / 100 + 0.002)
+            held.push(`${what} reaches ${(box.x1 * 100).toFixed(1)}% across`);
+          if (box.y1 > (100 - chrome.bottom) / 100 + 0.002)
+            held.push(`${what} reaches ${(box.y1 * 100).toFixed(1)}% down`);
+          if (box.y0 < chrome.top / 100 - 0.002)
+            held.push(`${what} starts at ${(box.y0 * 100).toFixed(1)}% down`);
+          d.classList.remove("held");
+        });
+        if (held.length) {
+          throw new Error(
+            "type runs into the platform chrome: " + held.join("; ") +
+            ` (allowed: ${chrome.left}% to ${100 - chrome.right}% across, ` +
+            `${chrome.top}% to ${100 - chrome.bottom}% down)`,
+          );
+        }
+      }
+
       const FADE = 0.28;
       // CSS `ease-out` is cubic-bezier(0,0,.58,1). Newton on x, which converges
       // in a handful of steps over [0,1] and costs nothing five times a frame.
@@ -2008,6 +2081,10 @@ async function installCues(page, preset, seconds) {
       // Vertical safe margin. The horizontal one stays 7% on every preset
       // because `object-fit: cover` on a wider-than-tall slice crops HEIGHT.
       safe: preset.textSafe ?? 7,
+      // Per-side insets for platform furniture. Only the vertical cut sets
+      // these; everywhere else it is undefined and the grid falls back to what
+      // it always was.
+      chrome: preset.chrome ?? null,
       dl: preset.textDl ?? { cell: "c-band", align: "centre" },
       size: {
         word: px("word"),
