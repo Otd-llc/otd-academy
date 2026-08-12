@@ -1461,15 +1461,127 @@ body {
   outline: 2px solid var(--color-gold-light);
   outline-offset: 2px;
 }
-@keyframes qzh-pop {
-  0% {
-    transform: scale(1);
+/* THE PICK, AND THE VERDICT (owner-picked 2026-08-12, from /sandbox/quiz-select).
+   Selection = "the others stand down": the chosen node barely moves, and what
+   animates is the two rows nobody picked, fading back in sequence like a rack
+   powering down. The answer is defined by CONTRAST rather than by emphasis, and
+   it is the only candidate that does anything about the rows nobody chose.
+   Verdict = "type it on": the mono line prints left to right behind a hard clip
+   edge, the way a readout does, and the explanation fades in under it once it
+   has finished.
+
+   WHY IT WAS WORTH CHANGING. This is the most-repeated interaction in the
+   Academy - 207 questions across 69 library lessons, plus every stage gate -
+   and what shipped before was a 0.3s scale pop with two 0.2s transitions under
+   it. Nothing connected the pick to the verdict, so the fill, the label, the
+   rule-outs and the "powered" line all simply became true at once. The second
+   line is the TEACHING, the only place a learner is told why they were right,
+   and it arrived with no more ceremony than a layout shift.
+
+   KEYFRAMES, NOT TRANSITIONS, and the transitions have to be switched OFF on
+   the states that animate. Transitions sit ABOVE animations in the cascade, so
+   a running transition on `fill` overrides the keyframe for its whole 0.2s -
+   the animation would appear to do nothing until the transition finished. They
+   are disabled per STATE rather than globally so the hover transition on an
+   unanswered option survives, which is the only state where hover means
+   anything.
+
+   The wrong-pick nudge below is untouched: no candidate in that round ever
+   answered incorrectly, so nothing there was judged and nothing there changes. */
+.qzh-opt[data-st="ok"],
+.qzh-opt[data-st="dim"],
+.qzh-opt[data-st="ok"] .qzh-hex polygon,
+.qzh-opt[data-st="ok"] .qzh-hex b {
+  transition: none;
+}
+.qzh-opt[data-st="ok"] .qzh-hex polygon {
+  fill: url(#quiz-honey);
+  animation: qs-fill 0.2s ease-out both;
+}
+@keyframes qs-fill {
+  from {
+    fill-opacity: 0;
+    stroke: var(--color-panel-border);
   }
-  45% {
-    transform: scale(1.07);
+  to {
+    fill-opacity: 1;
+    stroke: var(--color-command-gold);
   }
-  100% {
-    transform: scale(1);
+}
+.qzh-opt[data-st="ok"] .qzh-hex b {
+  animation: qs-ink 0.14s linear both 0.1s;
+}
+@keyframes qs-ink {
+  from {
+    color: var(--color-gold-dim);
+  }
+  to {
+    color: #140d02;
+  }
+}
+.qzh-opt[data-st="ok"] {
+  animation: qs-lit 0.26s linear both;
+}
+@keyframes qs-lit {
+  from {
+    color: var(--color-muted);
+  }
+  to {
+    color: var(--color-gold-light);
+  }
+}
+/* The rack powering down. Staggered by position, so it reads as a sequence
+   rather than as three things dimming together. */
+.qzh-opt[data-st="dim"] {
+  animation: qs-stand 0.34s ease-out both;
+}
+.qzh-opt[data-st="dim"]:nth-of-type(2) {
+  animation-delay: 0.1s;
+}
+.qzh-opt[data-st="dim"]:nth-of-type(3) {
+  animation-delay: 0.2s;
+}
+.qzh-opt[data-st="dim"]:nth-of-type(4) {
+  animation-delay: 0.3s;
+}
+@keyframes qs-stand {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0.45;
+    transform: translateX(-4px);
+  }
+}
+/* SCOPED TO A SOLVED QUESTION with :has(). The same `role="status"` region
+   carries the "not quite, ruled out" message on a wrong pick, and typing that
+   on was never judged - a miss should not get the same ceremony as a solve. */
+fieldset:has(.qzh-opt[data-st="ok"]) [role="status"] > div > p:first-child {
+  animation: qv-type 0.42s steps(22, end) both 0.14s;
+}
+/* A CLIP, NOT A MASK GRADIENT. Animating the stops of a linear-gradient mask
+   renders nothing for the whole run and then snaps, because two gradients are
+   not reliably interpolated stop-for-stop. An inset is a length, it
+   interpolates, and its hard edge is what makes this read as a readout printing
+   rather than as text fading in. */
+@keyframes qv-type {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+fieldset:has(.qzh-opt[data-st="ok"]) [role="status"] > div > p:last-child {
+  animation: qv-why 0.3s ease-out both 0.5s;
+}
+@keyframes qv-why {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 @keyframes qzh-nudge {
@@ -1484,9 +1596,11 @@ body {
     transform: translateX(3px);
   }
 }
-.qzh-opt[data-st="ok"] .qzh-hex {
-  animation: qzh-pop 0.3s ease;
-}
+/* The chosen node's scale pop is GONE, not merely restyled. The picked
+   selection defines the answer by what happens to the OTHER rows, and a pop on
+   the winner competes with that - it was the loudest thing in a moment whose
+   whole idea is that the winner barely moves. Its keyframes went with it, so
+   nothing is left naming an animation that does not exist. */
 .qzh-opt[data-st="bad"] .qzh-hex {
   animation: qzh-nudge 0.26s ease;
 }
@@ -1494,7 +1608,12 @@ body {
   .qzh-opt,
   .qzh-hex,
   .qzh-hex polygon,
-  .qzh-hex b {
+  .qzh-hex b,
+  /* The verdict lines are new here and the guard did NOT reach them: they are
+     paragraphs inside the status region, not part of the option. A clip-path
+     type-on left running under reduced motion is exactly the kind of thing this
+     block exists to stop. */
+  [role="status"] > div > p {
     transition: none;
     animation: none !important;
   }
