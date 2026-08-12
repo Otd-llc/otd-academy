@@ -60,6 +60,21 @@ const KITS: BedKit[] = [
     // when that stops being true, and the A/B is one click.
     note: "The same kit through tools/hex-master.py: church-IR convolution, gentle glue, true-peak limit, -14.25 LUFS (linear, capped 0.25 dB short of -14 rather than falling back to dynamic). A/B it against the raw plate above.",
   },
+  {
+    id: "plate-soft",
+    title: "Plate / soft",
+    note: "Plate with the soft-clip drive at 0.6 instead of 1.1. Same arrangement, same samples - this is the curve the arrangement WROTE, rather than a compressed version of it: rms error against 0.55/0.78/0.70/1.00 falls 0.073 to 0.030, crest rises 13.7 to 15.8 dB.",
+  },
+  {
+    id: "plate-soft-master",
+    title: "Plate / soft, master",
+    // THE DECISION THIS PAGE NOW EXISTS TO SETTLE. Two mastered candidates that
+    // differ by one number in the generator, and the trade is not free: the
+    // honest curve is 1.9 dB quieter in a feed, and platforms only ever turn
+    // material DOWN, so nothing gives that back. Numbers cannot answer it -
+    // 2 dB of level against 2 dB of crest is a listening call.
+    note: "The honest curve, mastered: -16.16 LUFS (linear, 2.16 dB short of -14) against plate's -14.25. THE TRADE: the authored weight curve and 2 dB more crest, for 1.9 dB less loudness in the feed. Nothing turns that back up. A/B against plate / master.",
+  },
 ];
 
 export default function BedCutPage() {

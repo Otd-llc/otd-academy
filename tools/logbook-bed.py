@@ -147,6 +147,43 @@ KITS = {
     ),
 }
 
+# PLATE, WITH THE CLIPPER GOT OUT OF THE WAY. Same arrangement, same samples,
+# same everything - only the soft-clip drive comes down, from 1.1 to 0.6, which
+# keeps the peaks inside tanh's near-linear region instead of up on its knee.
+#
+# It exists because plate is the picked kit and it is the ONE kit the clipper
+# is hurting: its arrangement writes 0.556/0.791/0.645 against a curve of
+# 0.55/0.78/0.70, which is very nearly exact, and the clipper then delivers
+# 0.656/0.861/0.740. At drive 0.6 the delivered curve lands back on the
+# authored one (rms error 0.069 -> ~0.029, measured by re-clipping the
+# recovered pre-clip buffer).
+#
+# IT COSTS LOUDNESS, AND THE FIRST GUESS ABOUT WHICH WAY WAS BACKWARDS. The
+# obvious reasoning - "a lower peak leaves the master more linear gain to
+# apply" - is wrong, because the clipper was buying loudness by raising RMS
+# against the peak. Backing it off raises crest, and crest is exactly what
+# linear gain runs out of true-peak room against. Measured through the same
+# chain:
+#
+#                     rms err     crest      master reaches
+#     plate            0.073     13.70 dB    -14.25 LUFS (0.25 short)
+#     plate-soft       0.030     15.66 dB    -16.16 LUFS (2.16 short)
+#
+# So the trade is real and it is a trade: the authored curve, 2 dB more crest,
+# and 1.9 dB quieter in the feed. Platforms only turn material DOWN, never up
+# (YouTube's normalisation is one-directional), so the shortfall is not
+# corrected for us - it simply plays quieter than the clip before it.
+#
+# That is a listening call, not an arithmetic one, which is why this ships as
+# a SECOND kit rather than as an edit to the first.
+KITS["plate-soft"] = dict(
+    KITS["plate"],
+    drive=0.6,
+    desc="Plate with the soft clipper backed off (drive 1.1 -> 0.6). The same "
+         "arrangement, delivering the weight curve it actually wrote instead of "
+         "a compressed version of it. A/B against plate.",
+)
+
 ROLES = ("kick", "hit", "alt", "low", "drop", "click", "gong", "subdrop", "riser")
 EXTRA = ("reverse", "wheel", "sweep")
 
@@ -289,7 +326,28 @@ def build(kit_name):
     buf = [buf[i] + sub[i] * k["sub"] for i in range(n)]
 
     peak = max(abs(v) for v in buf) or 1.0
-    return [math.tanh(v * (1.1 / peak)) * 0.82 for v in buf]
+    # THE SOFT CLIPPER IS LOAD-BEARING, AND THAT WAS NOT THE PLAN.
+    #
+    # `tanh` compresses, so it lifts every quiet event relative to the loudest
+    # one. Measured by inverting it off the rendered files (atanh(y/0.82)
+    # recovers the pre-clip buffer exactly), the curve the ARRANGEMENT writes
+    # and the curve that SHIPS are not the same curve, and the gap is large:
+    #
+    #                 authored          delivered @1.1     rms err vs curve
+    #     plate     .556/.791/.645    .656/.861/.740      0.028 -> 0.069
+    #     forge     .453/.637/.506    .560/.742/.616      0.130 -> 0.046
+    #     machine   .384/.531/.365    .498/.657/.476      0.225 -> 0.130
+    #     quiet     .431/.602/.450    .551/.724/.572      0.165 -> 0.070
+    #
+    # Read that carefully: for three kits the clipper is what BRINGS them to the
+    # curve. Their placement gains were tuned against the rendered output, so
+    # the compression is silently part of the arrangement - drop the drive and
+    # they get WORSE, not better. Only `plate` writes the curve honestly in the
+    # arrangement (0.028) and then has it inflated by the clipper (0.069).
+    #
+    # So the drive is per-kit rather than a constant, and nothing is retuned by
+    # fiat: 1.1 is the default and every existing kit keeps its rendered sound.
+    return [math.tanh(v * (k.get("drive", 1.1) / peak)) * 0.82 for v in buf]
 
 
 def landing_peaks(s):
