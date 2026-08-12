@@ -17,6 +17,7 @@
 // collects page errors cannot tell a warning it should ignore from the one it
 // should not.
 import { Suspense } from "react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { LogbookLive, type FilmLesson } from "./LogbookLive";
@@ -60,6 +61,16 @@ export default function LogbookCutSandbox({ searchParams }: { searchParams: Para
         dismiss <span className="font-mono">X</span> and a &ldquo;View in
         Logbook&rdquo; belong on a page and read as a screenshot in a film &mdash;
         and it is a looking question, not a reading one.
+      </p>
+
+      <p className="mt-4 font-mono text-xs text-muted">
+        Owner picked B and C on 2026-08-11 &middot;{" "}
+        <Link
+          href="/sandbox/logbook-cut/combo"
+          className="text-command-gold hover:text-gold-light"
+        >
+          round two, the three ways to combine them &rarr;
+        </Link>
       </p>
 
       <Suspense

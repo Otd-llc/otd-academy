@@ -32,8 +32,16 @@ import {
 } from "@/lib/logbook/economy";
 import { ROADMAP_PATCHES, artForBadge } from "@/lib/logbook/patches";
 
-/** How the real components are staged. See LogbookLive. */
-export type Arrangement = "page" | "rail" | "emblem";
+/** How the real components are staged. See LogbookLive.
+ *
+ *  ROUND ONE: page / rail / emblem. ROUND TWO is three readings of "B and C"
+ *  together (owner, 2026-08-11), which is a real question rather than a
+ *  splitting of the difference: B's claim is CONTINUITY (one surface, no cuts,
+ *  the product does the work) and C's is AUSTERITY (film scale, no page around
+ *  it). Those can be combined by stripping the chrome off the continuous
+ *  surface, by moving from one to the other across the clip, or by running both
+ *  registers at once - and they look nothing like each other. */
+export type Arrangement = "page" | "rail" | "emblem" | "strip" | "morph" | "split";
 
 export const SECONDS = 10;
 /** The reveal is armed slightly BEFORE the downbeat so its first frames are
@@ -141,5 +149,26 @@ export const ARRANGEMENTS: { id: Arrangement; label: string; note: string }[] = 
     label: "C / emblem space",
     note:
       "The same real components with every page around them removed: the tick, the wing, the twelve-wing ladder and the patch, at film scale on deep space. The type carries the story and the components are the picture. Furthest from the product, closest to a title sequence.",
+  },
+];
+
+export const COMBOS: { id: Arrangement; label: string; note: string }[] = [
+  {
+    id: "strip",
+    label: "D / the rail, stripped",
+    note:
+      "B's choreography at C's scale. The standing rail never leaves and never cuts, but its text column is switched off and the ring runs at film size, so what persists is the ring, the wing and the FL chip - which is the emblem C was reaching for, except it is the real component still keeping score. The type says the title and the total, because the rail no longer does.",
+  },
+  {
+    id: "morph",
+    label: "E / product becomes insignia",
+    note:
+      "B first, C last, in one continuous move rather than a cut. Beat one is the rail at product size with its text column on, and it reads as a screenshot on purpose. Across the next two bars it scales up and sheds the text, and by 8.0 the ring is a halo behind the patch. The clip argues that the badge came out of the product, because you watch it happen.",
+  },
+  {
+    id: "split",
+    label: "F / two registers at once",
+    note:
+      "The rail sits small in the corner keeping score for the whole clip - B's promise, kept literally - while the beat plays large beside it at C's scale: the tick, the wing, the ladder, the patch. Nothing ever replaces anything. The cost is that neither register gets the whole frame, so the ladder is the five-rank rolodex here rather than all twelve.",
   },
 ];

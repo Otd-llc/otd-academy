@@ -89,13 +89,20 @@ export function LogbookType({
   );
 }
 
+/** Where the type goes, which is a property of where the SUBJECT is rather than
+ *  of the arrangement's name. `split` keeps the bottom band but only 40% of it,
+ *  because its emblem holds the right half all the way down. */
+const SLOT: Record<Arrangement, string> = {
+  page: "left:7%;bottom:9.5%;max-width:62%",
+  rail: "left:7%;bottom:9.5%;max-width:62%",
+  emblem: "left:7%;bottom:auto;top:34%;max-width:38%",
+  strip: "left:7%;bottom:auto;top:34%;max-width:38%",
+  morph: "left:7%;bottom:9.5%;max-width:56%",
+  split: "left:7%;bottom:9.5%;max-width:40%",
+};
+
 function css(id: string, arrangement: Arrangement, size: { word: number; url: number }) {
-  // The subject holds the middle in two of the three, so the type takes the
-  // bottom band there and a left column in the third.
-  const block =
-    arrangement === "emblem"
-      ? `left:7%;bottom:auto;top:34%;max-width:38%`
-      : `left:7%;bottom:9.5%;max-width:62%`;
+  const block = SLOT[arrangement];
   return `
 #${id}{--command-gold:#c8963e;--gold-light:#e8b865;--title:#f1ece0;--muted:#aaa;--gray-3:#555;
   line-height:normal}
