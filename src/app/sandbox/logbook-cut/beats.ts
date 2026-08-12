@@ -249,7 +249,11 @@ export const QUIET_BEFORE = XP_AFTER - QUIZ_XP;
 /** Four words, no sub-lines. The `line` field is kept empty rather than removed
  *  so the type layer stays one component; `bare` is what suppresses it. */
 export const QUIET_BEATS: Beat[] = [
-  { at: 2.0, word: "READ", line: "" },
+  // LEARN, not READ (owner, 2026-08-12). The rename was applied to `BEATS[0]`,
+  // which is the ARC round's sheet and is not what ships - `quiet` is what THE
+  // CUT renders, so the shipping film still said READ for a day. Caught by the
+  // concurrent bed session watching the real cut rather than the sheet I edited.
+  { at: 2.0, word: "LEARN", line: "" },
   { at: 4.0, word: "GAIN", line: "" },
   { at: 6.0, word: "RANK", line: "" },
   { at: 8.0, word: "PATCHES", line: "" },
