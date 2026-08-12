@@ -49,6 +49,7 @@ import { XpTick } from "@/components/library/XpTick";
 import { LEVELS } from "@/lib/logbook/economy";
 import { ROADMAP_PATCHES, artForBadge } from "@/lib/logbook/patches";
 import type { LearnLibraryStanding } from "@/lib/logbook/load";
+import { QuizBlock } from "@/components/guide/QuizBlock";
 import {
   AFTER,
   AWARD,
@@ -56,9 +57,11 @@ import {
   BEFORE,
   LEAD,
   PATCH,
+  QUIZ_XP,
   SECONDS,
   XP_AFTER,
   XP_BEFORE,
+  arcSheet,
   armAt,
   bandPct,
   num,
@@ -71,6 +74,9 @@ import { LogbookType } from "./LogbookType";
 const useIso = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 export type FilmLesson = { slug: string; title: string; clusterLabel: string | null };
+/** Shape-compatible with QuizBlock's own QuizQuestion, parsed server-side out of
+ *  the lesson's contentBlocks. Real questions, real answer indices. */
+export type FilmQuestion = { q: string; options: string[]; answer: number; explain?: string };
 
 const IN = 0.22;
 const OUT = 0.14;
@@ -274,6 +280,7 @@ export function LogbookLive({
   lesson,
   libraryTotal,
   libraryDone,
+  questions = [],
   fixedT,
   w = 880,
 }: {
@@ -281,6 +288,8 @@ export function LogbookLive({
   lesson: FilmLesson;
   libraryTotal: number;
   libraryDone: number;
+  /** The arc round only. The lesson's real quiz, parsed server-side. */
+  questions?: FilmQuestion[];
   /** Freeze the clock. Without it a capture lands wherever wall time was. */
   fixedT?: number;
   w?: number;
@@ -387,7 +396,29 @@ export function LogbookLive({
     art: artForBadge(p.key),
   }));
 
-  const rail = { level, xp, band, nextMinXp, nextLevel, title: LEVELS[level - 1].title };
+  // THE ARC RUNS ITS OWN ARITHMETIC, because its totals depend on how many
+  // questions the lesson actually has - three fives is not the same film as two.
+  // Everything is still derived: `before` comes backwards off the FL6 floor, so
+  // the last award of bar one and the crossing are the same instant.
+  const arc = arcSheet(questions.length);
+  const arcXp =
+    arc.before +
+    QUIZ_XP * arc.ticks.filter((x) => t >= x).length +
+    (t >= 2 ? XP_AFTER - arc.before - QUIZ_XP * arc.ticks.length : 0);
+  const arcLevel = t >= 2 ? AFTER.level : BEFORE.level;
+  const arcNext = LEVELS.find((l) => l.level === arcLevel + 1) ?? null;
+  const arcRail: Rail = {
+    level: arcLevel,
+    title: LEVELS[arcLevel - 1].title,
+    xp: arcXp,
+    // Full on the downbeat, then handing over to the new band - the same read
+    // the other rounds give the crossing, moved to where the arc puts it.
+    band: t >= 2 ? 1 - ramp(t, 2.0, 3.2) : bandPct(arcXp, BEFORE.level),
+    nextMinXp: arcNext?.minXp ?? null,
+    nextLevel: arcNext?.level ?? null,
+  };
+
+  const rail: Rail = { level, xp, band, nextMinXp, nextLevel, title: LEVELS[level - 1].title };
 
   const scenes = (
     <>
@@ -422,11 +453,19 @@ export function LogbookLive({
         <StripScene t={t} win={win} rail={rail} />
       ) : arrangement === "morph" ? (
         <MorphScene t={t} win={win} rail={rail} />
-      ) : (
+      ) : arrangement === "split" ? (
         <SplitScene t={t} win={win} rail={rail} lesson={lesson} />
+      ) : (
+        <ArcScene t={t} rail={arcRail} questions={questions} sheet={arc} lesson={lesson} />
       )}
 
-      <LogbookType arrangement={arrangement} t={t} w={w} h={h} />
+      <LogbookType
+        arrangement={arrangement}
+        t={t}
+        w={w}
+        h={h}
+        beats={arrangement === "arc" ? arc.beats : BEATS}
+      />
     </>
   );
 
@@ -1022,5 +1061,253 @@ function SplitScene({
         </div>
       </div>
     </>
+  );
+}
+
+// ---- round three: E, with the lesson at the front ---------------------------
+//
+// Bar one stops establishing and starts CAUSING. The real QuizBlock, the
+// lesson's real questions, answered correctly on the half-beats, and the rail
+// beside it counting the five XP each pick pays. The read award lands on 2.0
+// and that is the frame where the total crosses the FL6 floor, the ring closes
+// and the wing changes - one instant, not three near-misses.
+//
+// FROM 2.0 THIS IS E, UNCHANGED: the rail slides into the left, scales, sheds
+// its text column, and ends as a dimmed halo behind the patch.
+
+/** Drives the REAL QuizBlock by clicking its REAL options.
+ *
+ *  WHY CLICKING RATHER THAN A PROP. QuizBlock has no "show this as answered"
+ *  input, and inventing one would mean shipping a fork of the assessment
+ *  component so a promo could pose with it. It grades on pick, so the film
+ *  picks. It is safe to drive because with no `context` and no `logbook` the
+ *  component is a pure self-check - its own header calls that the editor-preview
+ *  case - so not one of these clicks reaches a server action.
+ *
+ *  FORWARD-ONLY, WHICH IS WHAT SCRUBBING NEEDS. A click is not seekable
+ *  backwards, so the rule is stated as a target ("how many should be solved by
+ *  now") and reconciled: solve any that are behind, and on a wrap - target back
+ *  to zero - press the component's own Start over. Frames are rendered in
+ *  ascending t, so the target only ever grows within a lap. */
+function QuizScroll({
+  t,
+  questions,
+  ticks,
+}: {
+  t: number;
+  questions: FilmQuestion[];
+  ticks: number[];
+}) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+
+  useIso(() => {
+    const root = innerRef.current;
+    if (!root) return;
+    const target = ticks.filter((x) => t >= x).length;
+    if (target === 0) {
+      const over = Array.from(root.querySelectorAll("button")).find(
+        (b) => b.textContent?.trim() === "Start over",
+      );
+      over?.click();
+      return;
+    }
+    const fields = Array.from(root.querySelectorAll("fieldset"));
+    fields.forEach((f, i) => {
+      if (i >= target || f.querySelector('[data-st="ok"]')) return;
+      const opts = f.querySelectorAll<HTMLButtonElement>(".qzh-opt");
+      opts[questions[i].answer]?.click();
+    });
+  }, [t, questions, ticks]);
+
+  // The scroll is written straight to the DOM rather than held in state: the
+  // content grows as each explanation appears, so the travel has to be measured
+  // every frame, and a setState here would be a render per frame for a number
+  // React never needs to see.
+  useIso(() => {
+    const inner = innerRef.current;
+    const box = boxRef.current;
+    if (!inner || !box) return;
+    const max = Math.max(0, inner.scrollHeight - box.clientHeight);
+    inner.style.transform = `translateY(${-max * ramp(t, 0.15, 1.7)}px)`;
+  }, [t]);
+
+  return (
+    <div
+      ref={boxRef}
+      style={{
+        position: "absolute",
+        left: "5%",
+        // Below the type layer's running index, which sits at 7%. At 9% the
+        // quiz's own "Quick check" eyebrow ran straight through it.
+        top: "15%",
+        width: "42%",
+        bottom: "9%",
+        overflow: "hidden",
+        WebkitMaskImage: "linear-gradient(180deg,transparent,#000 13%,#000 84%,transparent)",
+        maskImage: "linear-gradient(180deg,transparent,#000 13%,#000 84%,transparent)",
+      }}
+    >
+      <div ref={innerRef} style={{ willChange: "transform" }}>
+        <QuizBlock prompt="Quick check" questions={questions} />
+      </div>
+    </div>
+  );
+}
+
+function ArcScene({
+  t,
+  rail,
+  questions,
+  sheet,
+  lesson,
+}: {
+  t: number;
+  rail: Rail;
+  questions: FilmQuestion[];
+  sheet: ReturnType<typeof arcSheet>;
+  lesson: FilmLesson;
+}) {
+  const grow = 1 + 0.32 * ramp(t, 2.2, 4.0) + 0.36 * ramp(t, 4.6, 6.4) + 0.12 * ramp(t, 7.6, 8.4);
+  const textOp = 1 - ramp(t, 4.2, 5.6);
+  const payoff = ramp(t, 7.8, 8.5);
+  // The rail crosses the frame once, between the lesson and the morph. It is
+  // the same continuous move E already makes, given somewhere to start.
+  const railLeft = 50 - 49 * ramp(t, 1.8, 2.9);
+  const subject: React.CSSProperties = {
+    position: "absolute",
+    left: `${railLeft}%`,
+    top: 0,
+    bottom: 0,
+    width: "44%",
+    display: "grid",
+    placeItems: "center",
+    padding: "14% 0 26%",
+  };
+  // All six LOCKED on the PATCHES beat: the wall is the shape of the thing, and
+  // the one that lights up is the next beat's job. Wings is left out because
+  // this beat's line says six clusters, six patches, and seven tiles would make
+  // that a lie on screen.
+  const wall: PatchEntry[] = ROADMAP_PATCHES.filter((p) => p.key.startsWith("cluster:")).map(
+    (p) => ({
+      key: p.key,
+      label: p.label,
+      howToEarn: p.howToEarn,
+      earned: false,
+      art: artForBadge(p.key),
+    }),
+  );
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        ["--rail-text-op" as string]: String(textOp),
+      }}
+    >
+      {/* BAR ONE: the lesson.
+          NOT `armAt(0)`. That is 0 by design - beat one's picture is up from
+          frame zero and only its WORD waits for the downbeat - so a window of
+          `0 .. armAt(0) + 0.5` closed the quiz at 0.5s. The XP kept counting,
+          because the clicks were landing on a component nobody could see, which
+          is exactly the failure that looks like a styling problem. The lesson
+          holds until the word takes over. */}
+      <div style={{ opacity: fade(t, 0, 2.15), pointerEvents: "none" }}>
+        <QuizScroll t={t} questions={questions} ticks={sheet.ticks} />
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          left: `${railLeft + 4}%`,
+          top: "13%",
+          opacity: fade(t, 0, 2.15),
+          pointerEvents: "none",
+        }}
+      >
+        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+          {lesson.clusterLabel ?? "The Library"}
+        </p>
+        <p className="mt-0.5 font-display text-lg leading-tight tracking-wide text-title">
+          {lesson.title}
+        </p>
+      </div>
+
+      {/* The rail, present from frame zero, counting what the picks pay. */}
+      <div style={{ ...subject, pointerEvents: "none" }}>
+        <div
+          data-rail
+          style={{
+            transform: `scale(${grow}) translateX(${(1 - textOp) * RAIL_RECENTRE}px)`,
+            transformOrigin: "center",
+            opacity: 1 - 0.78 * payoff,
+          }}
+        >
+          <TheRail rail={rail} />
+        </div>
+      </div>
+
+      {/* One tick per correct pick, in a row UNDER the rail. They were stacked
+          beside it and landed on top of the rank title - the rail's text column
+          is the one part of that half of the frame that is already occupied. */}
+      {sheet.ticks.map((x, i) => (
+        <div
+          key={x}
+          data-anim-at={x}
+          style={{
+            position: "absolute",
+            left: `${railLeft + 4 + i * 13}%`,
+            top: "63%",
+            opacity: fade(t, x, x + 0.9),
+            transform: "scale(1.6)",
+            transformOrigin: "left top",
+            pointerEvents: "none",
+          }}
+        >
+          <XpTick amount={QUIZ_XP} />
+        </div>
+      ))}
+
+      {/* 4.0 RANK: where FL6 sits among twelve. */}
+      <div
+        data-anim-at={3.65}
+        style={{
+          position: "absolute",
+          right: "5%",
+          top: "44%",
+          transform: `translateY(-50%) translateX(${(1 - ramp(t, 3.65, 4.3)) * 10}%)`,
+          opacity: fade(t, 3.65, 5.65),
+          pointerEvents: "none",
+        }}
+      >
+        <LadderColumn level={rail.level} span={5} />
+      </div>
+
+      {/* 6.0 PATCHES: the wall, all six still locked. */}
+      <div
+        data-anim-at={5.65}
+        style={{
+          position: "absolute",
+          right: "3%",
+          top: "44%",
+          width: "52%",
+          transform: "translateY(-50%)",
+          opacity: fade(t, 5.65, 7.65),
+          pointerEvents: "none",
+        }}
+      >
+        <PatchWall entries={wall} />
+      </div>
+
+      {/* 8.0 EARNED: the one that lands, over the ring it came out of. */}
+      <div
+        data-anim-at={7.65}
+        style={{ ...subject, opacity: fade(t, 7.65, SECONDS), pointerEvents: "none" }}
+      >
+        <div style={{ transform: `scale(${0.7 + 0.3 * payoff})` }}>
+          <PatchBadge art={PATCH.art} earned size={186} />
+        </div>
+      </div>
+    </div>
   );
 }
