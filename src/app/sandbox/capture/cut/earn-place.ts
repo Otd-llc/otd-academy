@@ -105,7 +105,29 @@ export const SPECS: Record<Format, Spec> = {
   // 2.4:1 slice, so re-rendering it at 640 tall would letterbox the subject
   // rather than crop it, which is the opposite of what the surface does. safe
   // 24 is what clears the worse of the two crops that use it.
-  band: { w: 1920, h: 1080, safe: 24, wordScale: 1.34, cardW: 46, mode: "column", card: { left: 46, top: 18 } },
+  //
+  // BAND'S CARD IS CENTRED, and wide's is not. Measured as the luminance
+  // centroid of each beat in the typeless cut:
+  //
+  //   gerber stack 50.5%   exploded 48.5%   board 51.3%   certificate 69.0%
+  //
+  // The geometry averages 50.1% and the certificate sits 18.9 points right of
+  // it, because wide's layout puts the card beside a left type column while the
+  // 3D rig centres its own subject. In a full 16:9 frame that reads as
+  // composition. In the band it reads as the shot JUMPING sideways on the last
+  // beat, because the band crops hard and shifts the clip, so the eye is
+  // tracking one position.
+  //
+  // left 27 puts the card's centre at 50, on the geometry.
+  //
+  // THIS ASSUMES THE TYPELESS RENDER, which is what the band surface uses: the
+  // apex section supplies its own headline over the clip. A centred card and
+  // this format's left type column would overlap, so if a band cut is ever
+  // rendered WITH type, the type has to move rather than the card moving back.
+  band: {
+    w: 1920, h: 1080, safe: 24, wordScale: 1.34, cardW: 46, mode: "column",
+    card: { left: 27, top: 18 },
+  },
   // ---- aspect at or below 1. The left column does not exist here, and the
   // word no longer has to hold one side on its own, so it drops back to the
   // base size. At 1.34 it spanned the full width on all three and left nothing
