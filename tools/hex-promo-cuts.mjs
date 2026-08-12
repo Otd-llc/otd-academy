@@ -111,15 +111,23 @@ const PRESETS = {
   // under the action rail and buried FREE - the download, the entire point of
   // the film - under the title and description.
   //
-  // The numbers are the ones measured for the academy cut: the action rail
-  // occupies from 83.3% across, the caption block from 74% down, the header the
-  // top 11.5%. 3% of breathing room is added on the two sides carrying
-  // furniture, because type stopping exactly at a button still reads as crowded
-  // by it. Shorts, Reels and TikTok all share this layout closely enough that
-  // one set of insets serves all three.
+  // The side and top numbers are the ones measured for the academy cut: the
+  // action rail occupies from 83.3% across, the header the top 11.5%. 3% of
+  // breathing room is added on the two sides carrying furniture, because type
+  // stopping exactly at a button still reads as crowded by it. Shorts, Reels and
+  // TikTok share this layout closely enough that one set serves all three.
+  //
+  // THE BOTTOM IS 16, NOT THE 26 THE CAPTION BLOCK WOULD IMPLY, and that one is
+  // judged rather than measured. Clearing the caption band outright put the URL
+  // at 74% and lifted the download tray to the same height as the cluster, so
+  // the tray collided with the bottom hex and the lower third of the frame sat
+  // empty. Checked against the real UI on a phone, 16 still clears the title row
+  // by a margin comparable to the sides, and it puts the tray back under the
+  // subject where it reads as part of the picture. Lower is what actually risks
+  // a clip, because a device with a taller title row eats it.
   vertical: {
     markMult: 2.24, w: 1080, h: 1920, dolly: 1.24, lift: 0,
-    chrome: { top: 11.5, right: 19.7, bottom: 26, left: 5.6 },
+    chrome: { top: 11.5, right: 19.7, bottom: 16, left: 5.6 },
   },
   // 1:1 -- X and LinkedIn feed.
   square: { markMult: 2.26, w: 1080, h: 1080, dolly: 1.24, lift: 0 },
