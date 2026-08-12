@@ -22,12 +22,34 @@
 //
 // ASCII only.
 
-/** How the word arrives. `rise` is what every round so far used. */
-export type Kinetic = "rise" | "strike" | "snap" | "mask" | "release";
+import type { Camera, Motion, Parallax, PartId, PartSpec } from "./motion";
+
+/** How the word arrives. `rise` is what every round so far used; the four after
+ *  it are the film's own, ported from cue-layer; the last six are new. */
+export type Kinetic =
+  | "rise"
+  | "strike"
+  | "snap"
+  | "mask"
+  | "release"
+  | "drop"
+  | "blur"
+  | "track"
+  | "wipe"
+  | "flap"
+  | "stretch";
+
+/**
+ * How it LEAVES, which until now was "it does not".
+ *
+ * Every round so far unmounted the outgoing word the instant the next beat
+ * armed, so under `snappy` - a tenth of a beat - the word simply vanished. That
+ * is a cut, and a cut is a legitimate choice, but it was never a choice: it was
+ * the absence of one. `none` is that behaviour, named.
+ */
+export type KineticOut = "none" | "fade" | "lift" | "sink" | "wipe" | "collapse" | "blur";
 /** Where the word sits. */
 export type WordPos = "lower-left" | "corners" | "centre-low";
-/** How one subject hands over to the next. */
-export type Transition = "crossfade" | "wipe" | "push" | "scale";
 /** The shape of the beat: lead, entrance length, exit length. */
 export type Flow = "even" | "snappy" | "breath";
 /** The moment the patch stops being locked. */
@@ -47,10 +69,30 @@ export type Jaunty =
 
 export type Tuning = {
   kinetic: Kinetic;
+  kineticOut: KineticOut;
   pos: WordPos;
-  transition: Transition;
   flow: Flow;
   jaunty: Jaunty;
+  /** A LAYOUTS id from motion.ts: place, size, enter, exit and motion for all
+   *  four parts as one composition. */
+  layout: string;
+  /** Override every part's motion with one value, so dynamics can be judged on
+   *  its own. "auto" leaves each part with whatever its layout gave it. */
+  motionAll: Motion | "auto";
+  parallax: Parallax;
+  camera: Camera;
+  /** The bench's per-part axis. Empty for every other surface. */
+  part?: PartId;
+  partOver?: Partial<PartSpec>;
+  /**
+   * Render ONE part, for the whole clip, and nothing else.
+   *
+   * Judging a part's place, size and entrance means watching that part, not
+   * waiting two beats for it and then losing it. It is also what makes the
+   * per-part axes affordable: nine live ten-second cuts on one page is a
+   * slideshow of dropped frames, and nine live rings is not.
+   */
+  solo?: PartId;
 };
 
 /**
@@ -64,10 +106,14 @@ export type Tuning = {
  */
 export const DEFAULT_TUNING: Tuning = {
   kinetic: "rise",
+  kineticOut: "none",
   pos: "corners",
-  transition: "crossfade",
   flow: "snappy",
   jaunty: "plate",
+  layout: "centred",
+  motionAll: "auto",
+  parallax: "off",
+  camera: "locked",
 };
 
 /** The locked patch's idle loop, seconds. Load-bearing: the idle has to be at
@@ -187,10 +233,59 @@ export const POSITIONS: { id: WordPos; label: string; note: string }[] = [
 export const KINETICS: { id: Kinetic; label: string; note: string }[] = [
   { id: "rise", label: "rise", note: "Fade and lift. What every round so far used. Neutral, and the only one that says nothing about the word." },
   { id: "strike", label: "key strike", note: "Per character, struck down onto the line with a slight vertical squash. The film's DESIGN cue. Reads as typing, so it suits a word that is a verb." },
-  { id: "snap", label: "snap", note: "Two halves arriving from opposite sides and meeting on the beat. The film's BUILD cue, and the only one that lands ON the downbeat rather than after it." },
-  { id: "mask", label: "mask up", note: "Rises out of its own baseline. The film's LEARN cue. Cleanest of the four and the most typographic." },
+  { id: "snap", label: "snap", note: "Two halves arriving from opposite sides and meeting on the beat. The film's BUILD cue, and the only one that lands ON the downbeat rather than after it - which is what snappy flow is doing everywhere else." },
+  { id: "mask", label: "mask up", note: "Rises out of its own baseline. The film's LEARN cue. Cleanest of the five and the most typographic." },
   { id: "release", label: "release", note: "Comes forward from slightly small and behind. The film's EARN cue, which is the one it uses for the payoff." },
+  { id: "drop", label: "drop", note: "Per character, falling in from well above with a small bounce at the bottom. The strike with weight added: it reads as letters landing rather than as a key being hit." },
+  { id: "blur", label: "focus pull", note: "Resolves out of blur. The only entrance that suggests a lens, which either ties the type to the picture or announces that there is no lens anywhere else in the film." },
+  { id: "track", label: "tracking in", note: "Starts wide-tracked and closes to its set width. The oldest title-sequence move there is, and it needs the longest window: at a tenth of a beat it just looks like a glitch." },
+  { id: "wipe", label: "wipe", note: "A hard-edged mask crossing the word left to right. The same gesture the patch plating uses, which is the argument for it: one film, one way of revealing things." },
+  { id: "flap", label: "split flap", note: "Per character, each rotating in on its own axis like a departure board. The most mechanical of the eleven and the one that most obviously belongs to an aviation ladder." },
+  { id: "stretch", label: "stretch", note: "Squeezed narrow and released to width. Cheap, loud, and legible at any size - the one that survives being 90 pixels wide in a feed." },
 ];
+
+export const KINETIC_OUTS: { id: KineticOut; label: string; note: string }[] = [
+  { id: "none", label: "cut", note: "It is simply not there on the next frame. What every round so far did without deciding to. Hardest and most musical, and it wastes the frames it could have used." },
+  { id: "fade", label: "fade", note: "The safe one. Reads as nothing having happened, which under a snappy cut is exactly the point." },
+  { id: "lift", label: "lift out", note: "Rises as it goes, so the word leaves the way it came and the beat closes symmetrically." },
+  { id: "sink", label: "sink", note: "Drops away instead. Reads as the word being replaced rather than as it finishing." },
+  { id: "wipe", label: "wipe out", note: "The mask keeps travelling, so a wipe in and a wipe out are ONE gesture crossing the frame rather than two events." },
+  { id: "collapse", label: "tracking out", note: "The letters close up as it fades. Pairs with tracking-in and looks wrong after anything else." },
+  { id: "blur", label: "defocus", note: "Goes soft on the way out. Only honest if the entrance was a focus pull." },
+];
+
+/**
+ * The exit, as COMPUTED STYLE rather than a keyframe.
+ *
+ * An entrance can be a keyframe because it starts when its element mounts. An
+ * exit cannot: the element is being replaced, so there is no mount to hang an
+ * animation on, and a keyframe would have to be started by the very state
+ * change that removes it. `p` runs 0 (just left) to 1 (gone) and every value
+ * below is a pure function of it, which is also the only form that seeks.
+ */
+export function outStyle(kind: KineticOut, p: number): React.CSSProperties {
+  if (kind === "none") return { display: "none" };
+  const e = p * p * (3 - 2 * p);
+  switch (kind) {
+    case "lift":
+      return { opacity: 1 - e, transform: `translateY(${-e * 26}%)` };
+    case "sink":
+      return { opacity: 1 - e, transform: `translateY(${e * 26}%)` };
+    case "wipe": {
+      const edge = 100 - 132 * e;
+      return {
+        WebkitMaskImage: `linear-gradient(94deg,#000 ${edge}%,transparent ${edge + 24}%)`,
+        maskImage: `linear-gradient(94deg,#000 ${edge}%,transparent ${edge + 24}%)`,
+      };
+    }
+    case "collapse":
+      return { opacity: 1 - e, letterSpacing: `${-e * 0.14}em` };
+    case "blur":
+      return { opacity: 1 - e, filter: `blur(${e * 9}px)` };
+    default:
+      return { opacity: 1 - e };
+  }
+}
 
 /** CSS for every kinetic, scoped to one type layer's id. The stage pins these,
  *  and `Animation.currentTime` includes the delay, so the per-character stagger
@@ -222,13 +317,60 @@ export function kineticCss(id: string): string {
 #${id} .k-release .k-line{animation:ltRelease .66s cubic-bezier(.16,1.1,.3,1) both}
 @keyframes ltRelease{from{opacity:0;transform:translateY(14%) scale(.86)}
   to{opacity:1;transform:none}}
+
+#${id} .k-drop .ch{opacity:0;display:inline-block;
+  animation:ltDrop .34s cubic-bezier(.3,1.4,.45,1) both}
+@keyframes ltDrop{0%{opacity:0;transform:translateY(-120%)}
+  62%{opacity:1;transform:translateY(6%)}
+  100%{opacity:1;transform:none}}
+
+#${id} .k-blur .k-line{animation:ltBlur .46s cubic-bezier(.2,.8,.3,1) both}
+@keyframes ltBlur{from{opacity:0;filter:blur(14px)}to{opacity:1;filter:blur(0)}}
+
+#${id} .k-track .k-line{animation:ltTrack .62s cubic-bezier(.16,.86,.26,1) both}
+@keyframes ltTrack{from{opacity:0;letter-spacing:.42em}
+  to{opacity:1;letter-spacing:normal}}
+
+#${id} .k-wipe .k-line{animation:ltWipe .44s cubic-bezier(.4,0,.2,1) both}
+@keyframes ltWipe{
+  from{-webkit-mask-image:linear-gradient(94deg,#000 -32%,transparent -2%);
+       mask-image:linear-gradient(94deg,#000 -32%,transparent -2%)}
+  to{-webkit-mask-image:linear-gradient(94deg,#000 132%,transparent 162%);
+     mask-image:linear-gradient(94deg,#000 132%,transparent 162%)}}
+
+#${id} .k-flap .ch{display:inline-block;transform-origin:50% 0;
+  animation:ltFlap .3s cubic-bezier(.35,0,.2,1) both}
+@keyframes ltFlap{0%{opacity:0;transform:perspective(420px) rotateX(-92deg)}
+  72%{opacity:1;transform:perspective(420px) rotateX(11deg)}
+  100%{opacity:1;transform:none}}
+
+#${id} .k-stretch .k-line{animation:ltStretch .4s cubic-bezier(.2,1.1,.3,1) both}
+@keyframes ltStretch{from{opacity:0;transform:scaleX(.34)}
+  to{opacity:1;transform:scaleX(1)}}
 `;
 }
 
-/** `snap` needs the word twice and `strike` needs it per character, so the lead
- *  a kinetic wants differs. SNAP is the one that has to MEET on the beat. */
+/** The lead a kinetic wants, so it LANDS on the beat instead of starting there.
+ *  Roughly its own duration for the ones that resolve rather than arrive; zero
+ *  for the ones whose first frame is already legible. */
 export const kineticLead = (k: Kinetic): number =>
-  k === "snap" ? 0.3 : k === "mask" ? 0.5 : k === "release" ? 0.25 : 0;
+  ({
+    snap: 0.3,
+    mask: 0.5,
+    release: 0.25,
+    track: 0.45,
+    blur: 0.3,
+    wipe: 0.28,
+    drop: 0.2,
+    flap: 0.24,
+    stretch: 0.22,
+    rise: 0,
+    strike: 0,
+  })[k] ?? 0;
+
+/** Which kinetics build the word out of characters. Only these need the split,
+ *  and splitting the others would break `letter-spacing` and the masks. */
+export const isPerChar = (k: Kinetic) => k === "strike" || k === "drop" || k === "flap";
 
 // ---- the patch flip ---------------------------------------------------------
 
@@ -440,57 +582,9 @@ export function jauntyCss(): string {
   );
 }
 
-// ---- transitions ------------------------------------------------------------
-
-export const TRANSITIONS: { id: Transition; label: string; note: string }[] = [
-  { id: "crossfade", label: "crossfade", note: "What every round so far used. Nothing moves; one picture is simply replaced. Invisible, which is either the point or the problem." },
-  { id: "wipe", label: "alpha wipe", note: "Each subject dissolves rightward under a moving mask, the way the quiz already leaves. One language for every handoff instead of one exception." },
-  { id: "push", label: "push", note: "The outgoing subject leaves to the left and the incoming one arrives from the right. Direction makes the cut feel like progress, at the cost of two things moving at once." },
-  { id: "scale", label: "scale through", note: "Outgoing shrinks away, incoming comes forward. Reads as depth rather than as sequence; the risk is that everything looks like it is on the same z axis." },
-];
-
-/**
- * The subject's own style for a transition, given its window.
- *
- * OPACITY IS COMPUTED, never transitioned, and so is every transform here: the
- * stage seeks, and a CSS transition cannot be seeked.
- */
-export function subjectStyle(
-  tr: Transition,
-  t: number,
-  from: number,
-  to: number,
-  f: FlowSpec,
-): React.CSSProperties {
-  const inP = clamp01((t - from) / f.inDur);
-  const outP = clamp01((t - (to - f.outDur)) / f.outDur);
-  const vis = t < from || t >= to ? 0 : Math.min(inP, 1 - outP);
-  if (vis <= 0) return { opacity: 0 };
-
-  if (tr === "wipe") {
-    // Opaque edge walks off to the left, so the RIGHT of the picture goes
-    // first and the whole thing drifts that way as it leaves.
-    const edge = 118 - 150 * outP;
-    return {
-      opacity: inP,
-      WebkitMaskImage: `linear-gradient(90deg,#000 ${edge}%,transparent ${edge + 26}%)`,
-      maskImage: `linear-gradient(90deg,#000 ${edge}%,transparent ${edge + 26}%)`,
-      transform: `translateX(${outP * 7}%)`,
-    };
-  }
-  if (tr === "push") {
-    return {
-      opacity: vis,
-      transform: `translateX(${(1 - inP) * 9 - outP * 9}%)`,
-    };
-  }
-  if (tr === "scale") {
-    return {
-      opacity: vis,
-      transform: `scale(${0.9 + 0.1 * inP - 0.12 * outP})`,
-    };
-  }
-  return { opacity: vis };
-}
+// The old global `transition` axis is GONE, not renamed. It applied one
+// handover to all four subjects, and the ask that replaced it - position, size
+// and transitions per part - cannot be expressed that way. Its four behaviours
+// survive as `Move` values in motion.ts, where each part chooses its own.
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));

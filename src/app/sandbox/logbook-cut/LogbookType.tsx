@@ -24,18 +24,27 @@ import { useEffect, useId, useRef } from "react";
 import { TEXT_SCALE } from "../capture/cut/cue-layer";
 import { BEATS, LABEL, PAYOFF, type Arrangement, type Beat } from "./beats";
 import {
+  isPerChar,
   kineticCss,
   kineticLead,
+  outStyle,
   wordBox,
   type Kinetic,
+  type KineticOut,
   type WordPos,
 } from "./tuning";
+
+const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
 
 /** The word, built the way its entrance needs it: one run, per character, or
  *  twice over for the two halves that have to meet. */
 function Word({ text, kinetic }: { text: string; kinetic: Kinetic }) {
   const dot = <span className="tdot">.</span>;
-  if (kinetic === "strike") {
+  if (isPerChar(kinetic)) {
+    // The stagger is per kinetic: a key strike is fast and tight, a drop has
+    // weight and wants more air, a split flap is a board and reads best when
+    // the characters are almost - but not quite - simultaneous.
+    const step = kinetic === "drop" ? 0.055 : kinetic === "flap" ? 0.038 : 0.045;
     const chars = [...text, "."];
     return (
       <>
@@ -43,7 +52,7 @@ function Word({ text, kinetic }: { text: string; kinetic: Kinetic }) {
           <span
             key={`${c}${i}`}
             className={`ch${c === "." ? " tdot" : ""}`}
-            style={{ animationDelay: `${(i * 0.045).toFixed(3)}s` }}
+            style={{ animationDelay: `${(i * step).toFixed(3)}s` }}
           >
             {c}
           </span>
@@ -83,6 +92,8 @@ export function LogbookType({
   beats = BEATS,
   bare = false,
   kinetic = "rise",
+  kineticOut = "none",
+  outDur = 0.22,
   pos,
 }: {
   arrangement: Arrangement;
@@ -98,6 +109,11 @@ export function LogbookType({
   bare?: boolean;
   /** How the word arrives. See tuning.ts. */
   kinetic?: Kinetic;
+  /** How it leaves. `none` is a hard cut, which is what every round before this
+   *  one did without deciding to. */
+  kineticOut?: KineticOut;
+  /** The flow's exit length, which is how long the outgoing word has. */
+  outDur?: number;
   /** Where it sits. Omit to use the per-arrangement slot below. */
   pos?: WordPos;
 }) {
@@ -124,8 +140,18 @@ export function LogbookType({
   // Mount at `at - lead`, not at `at`: an entrance that has to LAND on the beat
   // has to start before it.
   const lead = kineticLead(kinetic);
-  const active = beats.reduce((acc, b, i) => (t >= b.at - lead ? i : acc), -1);
+  const startOf = (i: number) => beats[i].at - lead;
+  const active = beats.reduce((acc, b, i) => (t >= startOf(i) ? i : acc), -1);
   const beat = active >= 0 ? beats[active] : null;
+
+  // THE OUTGOING WORD IS A SECOND ELEMENT, not the same one animating backwards.
+  // React unmounts it the moment the next beat arms, so an exit has no mount to
+  // hang a keyframe on; it is rendered alongside for `outDur` and its style is
+  // computed from t. `data-anim-at` still points at its OWN start so the pin
+  // leaves its entrance settled rather than replaying it under the exit.
+  const prev = active - 1;
+  const outP = active > 0 ? clamp01((t - startOf(active)) / Math.max(0.001, outDur)) : 1;
+  const leaving = kineticOut !== "none" && prev >= 0 && outP < 1 ? beats[prev] : null;
 
   return (
     <div ref={hostRef} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
@@ -139,13 +165,29 @@ export function LogbookType({
           </div>
         )}
 
+        {leaving ? (
+          <div
+            className="lt-term"
+            key={`o${prev}${kinetic}`}
+            data-anim-at={startOf(prev)}
+            style={{
+              ...(pos ? wordBox(pos, prev) : undefined),
+              ...outStyle(kineticOut, outP),
+            }}
+          >
+            <p className={`lt-h k-${kinetic}`}>
+              <Word text={leaving.word} kinetic={kinetic} />
+            </p>
+          </div>
+        ) : null}
+
         {beat ? (
           // The key remounts the block per beat so the entrance restarts, and
           // `data-anim-at` is what the stage pins it against.
           <div
             className="lt-term"
             key={`b${active}${kinetic}`}
-            data-anim-at={beat.at - lead}
+            data-anim-at={startOf(active)}
             style={pos ? wordBox(pos, active) : undefined}
           >
             <p className={`lt-h k-${kinetic}`}>
