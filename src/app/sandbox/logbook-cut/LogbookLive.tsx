@@ -570,6 +570,8 @@ export function LogbookLive({
         }
         bare={arrangement === "quiet"}
         kinetic={arrangement === "quiet" ? tuning.kinetic : "rise"}
+        kineticPerBeat={arrangement === "quiet" ? tuning.kineticPerBeat : undefined}
+        preRoll={arrangement === "quiet" ? (tuning.preRoll ?? 0) : 0}
         kineticOut={arrangement === "quiet" ? tuning.kineticOut : "none"}
         outDur={FLOWS[tuning.flow].outDur}
         pos={arrangement === "quiet" ? tuning.pos : undefined}
@@ -1542,7 +1544,16 @@ function QuietScene({
   // Each subject holds until the next one arms, then hands over across one
   // `outDur`, so there is never a gap and never a stack - and changing the flow
   // moves all four together instead of leaving one behind.
-  const starts = [0, 4.0 - f.lead, 6.0 - f.lead, 8.0 - f.lead];
+  // THE PICTURE LANDS BEFORE THE SOUND DOES.
+  //
+  // Standard practice in animation and in scoring: a visual hit reads as
+  // simultaneous with a beat when it arrives two to four frames EARLIER, and
+  // never a frame later. At 30fps that is 0.067s to 0.133s, so the default is
+  // 0.1 - and it is a whole-cut constant rather than a per-part nudge, because
+  // what is being offset is the picture against the bed, not one shot against
+  // another.
+  const pre = tuning.preRoll ?? 0;
+  const starts = [0, 4.0 - f.lead - pre, 6.0 - f.lead - pre, 8.0 - f.lead - pre];
   const ends = [
     starts[1] + f.outDur,
     starts[2] + f.outDur,

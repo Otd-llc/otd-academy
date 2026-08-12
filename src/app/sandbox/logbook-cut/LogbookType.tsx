@@ -92,6 +92,8 @@ export function LogbookType({
   beats = BEATS,
   bare = false,
   kinetic = "rise",
+  kineticPerBeat,
+  preRoll = 0,
   kineticOut = "none",
   outDur = 0.22,
   pos,
@@ -109,6 +111,11 @@ export function LogbookType({
   bare?: boolean;
   /** How the word arrives. See tuning.ts. */
   kinetic?: Kinetic;
+  /** Per beat, overriding the above. Lets a cut change texture on one beat the
+   *  way the bed does at its third landing. */
+  kineticPerBeat?: Kinetic[];
+  /** Seconds the picture runs ahead of the bed. */
+  preRoll?: number;
   /** How it leaves. `none` is a hard cut, which is what every round before this
    *  one did without deciding to. */
   kineticOut?: KineticOut;
@@ -137,10 +144,14 @@ export function LogbookType({
     return () => el.remove();
   }, [id, arrangement, w, h]);
 
-  // Mount at `at - lead`, not at `at`: an entrance that has to LAND on the beat
-  // has to start before it.
-  const lead = kineticLead(kinetic);
-  const startOf = (i: number) => beats[i].at - lead;
+  // Mount at `at - lead - preRoll`, not at `at`. Two separate reasons stacked:
+  // an entrance that has to LAND on the beat has to start before it by its own
+  // duration, and the landing itself belongs a couple of frames AHEAD of the
+  // bed. The lead is per beat because a cut may change the word's texture from
+  // one beat to the next, and a tracking-in needs half a second where a strike
+  // needs none.
+  const kOf = (i: number) => kineticPerBeat?.[i] ?? kinetic;
+  const startOf = (i: number) => beats[i].at - kineticLead(kOf(i)) - preRoll;
   const active = beats.reduce((acc, b, i) => (t >= startOf(i) ? i : acc), -1);
   const beat = active >= 0 ? beats[active] : null;
 
@@ -175,8 +186,8 @@ export function LogbookType({
               ...outStyle(kineticOut, outP),
             }}
           >
-            <p className={`lt-h k-${kinetic}`}>
-              <Word text={leaving.word} kinetic={kinetic} />
+            <p className={`lt-h k-${kOf(prev)}`}>
+              <Word text={leaving.word} kinetic={kOf(prev)} />
             </p>
           </div>
         ) : null}
@@ -186,12 +197,12 @@ export function LogbookType({
           // `data-anim-at` is what the stage pins it against.
           <div
             className="lt-term"
-            key={`b${active}${kinetic}`}
+            key={`b${active}${kOf(active)}`}
             data-anim-at={startOf(active)}
             style={pos ? wordBox(pos, active) : undefined}
           >
-            <p className={`lt-h k-${kinetic}`}>
-              <Word text={beat.word} kinetic={kinetic} />
+            <p className={`lt-h k-${kOf(active)}`}>
+              <Word text={beat.word} kinetic={kOf(active)} />
             </p>
             {bare ? null : <p className="lt-b">{beat.line}</p>}
           </div>
