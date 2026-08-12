@@ -1,257 +1,455 @@
-// SANDBOX - ten MIXED cuts. DEV ONLY.
+// SANDBOX - thirty cuts. DEV ONLY.
 //
-// WHAT WAS WRONG WITH THE FIRST TEN. Each of them applied one verb to all four
-// beats: everything climbed, or everything slid, or everything held. That is
-// not a cut, it is a filter - and "I like climb, but not all shots should be
-// climbing" is the correct read of it. The machinery could always express a
-// different treatment per beat; the candidates just never used it, because they
-// set `motionAll`, which overrides the whole scheme by design.
+// ONE LIST, NO TABS, NO AXES. Scroll and pick.
 //
-// ---------------------------------------------------------------------------
-// THE FOUR BEATS HAVE FOUR DIFFERENT JOBS, and that is what a mix is for.
+// WHAT WAS WRONG WITH EVERY ROUND BEFORE THIS ONE: each cut applied one idea to
+// all four beats, and the rounds themselves varied one thing at a time. That is
+// a filter and a spreadsheet, not thirty films. These use the whole toolbox at
+// once - ten moves, thirteen motions, eleven word entrances, seven word exits,
+// five cameras, four parallax depths, three flows, and per-beat pacing - and
+// they differ in HOW MANY of each they spend as much as in which.
 //
-//   READ    the quiz     Text. It has to be READ, so its arrival must not
-//                        compete with reading it and it must sit still while it
-//                        is up. It is also the only beat that hands from a page
-//                        to an emblem, so its exit is the one real scene change.
+// FIXED ACROSS ALL THIRTY, because they are settled:
+//   * the patch flip is `plate`, picked in the flip round
+//   * the picture runs 0.1s (three frames) ahead of the bed
+//   * every part is FIT to the frame rather than hand-scaled, so `size` below
+//     is an emphasis multiplier on top of a fit, not a pixel guess
 //
-//   GAIN    the ring     A disc whose INTERNAL animation is the event - the
-//                        band draws itself. An entrance with any energy of its
-//                        own steps on that. It wants to be placed and then left
-//                        alone. Bed weight 0.78.
+// THE READ AREA IS ON THE GRID NOW. The click is at 1.0 or 1.5 - beat three or
+// beat four of bar one - and the XP tick clears before the bar line so the
+// downbeat belongs to the word. It used to pop on the click and hold to 2.6,
+// which meant its float was still running while READ landed, and the two events
+// smeared into each other. That was the disjointedness.
 //
-//   RANK    the wheel    THE DIP. Bed weight 0.70, and it escalates by changing
-//                        colour to a dry mechanical click rather than by
-//                        getting louder, because the event is small and precise.
-//                        The picture should get SMALLER and more mechanical
-//                        here, not bigger. Every mix below honours this.
-//
-//   PATCH   the patch    Bed weight 1.00, the biggest thing in the piece. It is
-//                        the only beat that has earned an overshoot, and in
-//                        most of these it is the only one that gets one.
-//
-// So the useful question is not "which verb" but "which verb WHERE", and each
-// mix below is a different rule for deciding that.
+// THE THREE HANDOVERS ARE THE REAL SUBJECT. read->gain, gain->rank and
+// rank->patch are three separate edits and there is no reason they should be
+// the same edit. A cut where the quiz wipes off and the ring grows in, and then
+// the ring lifts and the wheel drops, has three distinct joins; a cut where
+// everything crossfades has none. Each row below states its three.
 //
 // ASCII only.
 
 import { DEFAULT_TUNING, type Tuning } from "./tuning";
-import type { PartSpec, Scheme } from "./motion";
+import { PARTS, type Motion, type Move, type Place, type PartSpec, type Scheme } from "./motion";
+import type { Kinetic, KineticOut, WordPos } from "./tuning";
 import type { Candidate } from "./candidates";
 
-/** Three frames at 30fps: the picture runs that far ahead of the bed. */
-const PRE = 0.1;
+/** [place, size, enter, exit, motion, inDur?, outDur?] */
+type Row = [Place, number, Move, Move, Motion, number?, number?];
 
-const p = (
-  place: PartSpec["place"],
-  size: number,
-  enter: PartSpec["enter"],
-  exit: PartSpec["exit"],
-  motion: PartSpec["motion"],
-  dur?: { in?: number; out?: number },
-): PartSpec => ({
-  place,
-  size,
-  enter,
-  exit,
-  motion,
-  ...(dur?.in !== undefined ? { inDur: dur.in } : null),
-  ...(dur?.out !== undefined ? { outDur: dur.out } : null),
+const row = (r: Row): PartSpec => ({
+  place: r[0],
+  size: r[1],
+  enter: r[2],
+  exit: r[3],
+  motion: r[4],
+  ...(r[5] !== undefined ? { inDur: r[5] } : null),
+  ...(r[6] !== undefined ? { outDur: r[6] } : null),
 });
 
-const mix = (
-  id: string,
+const SLIDES: Move[] = ["push-l", "push-r", "push-u", "push-d"];
+
+/** The recipe is COUNTED off the scheme, not typed alongside it. A label that
+ *  is asserted drifts from the thing it labels the first time a value changes;
+ *  one that is derived cannot. */
+function recipe(s: Scheme, tn: Tuning): string {
+  const moves = PARTS.flatMap((p) => [s[p].enter, s[p].exit]);
+  const n = (f: (m: Move) => boolean) => moves.filter(f).length;
+  const kens = PARTS.filter((p) => s[p].motion.startsWith("ken-")).length;
+  const bits = [
+    n((m) => SLIDES.includes(m)) ? `${n((m) => SLIDES.includes(m))} slide` : null,
+    n((m) => m === "fade") ? `${n((m) => m === "fade")} fade` : null,
+    n((m) => m === "wipe-r") ? `${n((m) => m === "wipe-r")} wipe` : null,
+    n((m) => m === "iris") ? `${n((m) => m === "iris")} iris` : null,
+    n((m) => m === "grow" || m === "shrink") ? `${n((m) => m === "grow" || m === "shrink")} scale` : null,
+    n((m) => m === "swing") ? `${n((m) => m === "swing")} swing` : null,
+    kens ? `${kens} ken burns` : null,
+    tn.camera !== "locked" ? tn.camera : null,
+    tn.parallax !== "off" ? `plx ${tn.parallax}` : null,
+  ].filter(Boolean);
+  return bits.join(" · ");
+}
+
+/** The three joins, named, because they are three separate edits. */
+function joins(s: Scheme): string {
+  const j = (a: (typeof PARTS)[number], b: (typeof PARTS)[number]) =>
+    `${s[a].exit}->${s[b].enter}`;
+  return `${j("quiz", "ring")}  ${j("ring", "ladder")}  ${j("ladder", "patch")}`;
+}
+
+let n = 0;
+const cut = (
   name: string,
   thesis: string,
-  note: string,
-  scheme: Scheme,
-  t: Partial<Tuning>,
-): Candidate => ({
-  id,
-  name,
-  thesis,
-  note,
-  tuning: {
+  rows: [Row, Row, Row, Row],
+  tn: Partial<Tuning> & { words: Kinetic[]; out: KineticOut },
+): Candidate => {
+  n += 1;
+  const scheme: Scheme = {
+    quiz: row(rows[0]),
+    ring: row(rows[1]),
+    ladder: row(rows[2]),
+    patch: row(rows[3]),
+  };
+  const { words, out, ...rest } = tn;
+  const tuning: Tuning = {
     ...DEFAULT_TUNING,
-    preRoll: PRE,
-    motionAll: "auto", // NEVER set on a mix; it would flatten the whole point
+    preRoll: 0.1,
+    jaunty: "plate",
+    motionAll: "auto",
+    quizClick: 1.5,
+    kinetic: words[0],
+    kineticPerBeat: words,
+    kineticOut: out,
     scheme,
-    ...t,
-  },
-});
+    ...rest,
+  };
+  return {
+    id: `c${String(n).padStart(2, "0")}`,
+    name: `${String(n).padStart(2, "0")} / ${name}`,
+    thesis,
+    note: `${recipe(scheme, tuning)}    |    ${joins(scheme)}`,
+    tuning,
+  };
+};
+
+const P = (pos: WordPos) => ({ pos });
 
 export const MIXES: Candidate[] = [
-  mix(
-    "handoff",
-    "11 / Handoff",
-    "Each beat enters from wherever the last one left.",
-    "The exits and entrances are matched into one continuous gesture: the quiz wipes off to the right and the ring arrives from the right; the ring lifts away and the wheel comes up from below it; the wheel drops out and the patch is the only thing that grows. Four different moves, one travelling logic. Beat three is small and mechanical because the bed dips there.",
-    {
-      quiz: p("centre", 0.98, "fade", "wipe-r", "hold", { in: 0.4 }),
-      ring: p("centre", 1.04, "push-r", "push-u", "hold"),
-      ladder: p("centre", 0.88, "push-u", "push-d", "hold", { in: 0.16 }),
-      patch: p("centre", 1.2, "grow", "fade", "settle", { in: 0.34 }),
-    },
-    { kinetic: "mask", kineticPerBeat: ["mask", "rise", "flap", "release"], kineticOut: "fade" },
+  cut(
+    "Still water",
+    "No slides at all. Four fades, one slow push on the quiz.",
+    [
+      ["centre", 1, "fade", "fade", "ken-in-l", 0.4],
+      ["centre", 1, "fade", "fade", "hold"],
+      ["centre", 1, "fade", "fade", "hold", 0.2],
+      ["centre", 1.1, "fade", "fade", "breathe", 0.3],
+    ],
+    { words: ["mask", "rise", "flap", "release"], out: "fade", flow: "even" },
   ),
-
-  mix(
-    "climb-twice",
-    "12 / Climb, twice",
-    "Only the two things that are about going up actually go up.",
-    "The note you gave, taken literally. The ring and the wheel rise, because rank is the thing they mean; the quiz sits still because it is being read, and the patch does not climb at all - it arrives and stays, because it is the destination rather than the journey. The camera tilts only while the two climbing beats are on screen.",
-    {
-      quiz: p("centre", 0.98, "fade", "fade", "hold", { in: 0.38 }),
-      ring: p("low", 1.02, "push-u", "push-u", "rise"),
-      ladder: p("high", 0.9, "push-u", "fade", "rise", { in: 0.2 }),
-      patch: p("centre", 1.22, "iris", "fade", "settle"),
-    },
-    { camera: "tilt", kinetic: "mask", kineticOut: "lift", jaunty: "unfurl" },
+  cut(
+    "One slide",
+    "The film's only lateral move is the quiz leaving.",
+    [
+      ["centre", 1, "fade", "push-l", "ken-in-r", 0.38, 0.34],
+      ["centre", 1, "grow", "fade", "hold"],
+      ["centre", 1, "fade", "fade", "hold", 0.18],
+      ["centre", 1.12, "fade", "fade", "settle", 0.28],
+    ],
+    { words: ["wipe", "release", "flap", "stretch"], out: "fade", flow: "even" },
   ),
-
-  mix(
-    "one-slide",
-    "13 / One slide",
-    "There is exactly one slide in the whole film, and it is the scene change.",
-    "A slide used once is a decision; a slide used four times is a template. The only lateral move in the cut is the quiz leaving, which is the one genuine change of place - page to emblem. After that everything arrives on the spot: the ring grows, the wheel drops in, the patch is plated. Bets that scarcity is what makes a move read.",
-    {
-      quiz: p("centre", 0.98, "fade", "push-l", "hold", { in: 0.36, out: 0.34 }),
-      ring: p("centre", 1.04, "grow", "fade", "hold"),
-      ladder: p("centre", 0.88, "push-d", "fade", "hold", { in: 0.18 }),
-      patch: p("centre", 1.18, "fade", "fade", "breathe"),
-    },
-    { kinetic: "wipe", kineticOut: "fade", jaunty: "plate" },
+  cut(
+    "Two slides",
+    "The quiz leaves left and the wheel arrives from below.",
+    [
+      ["centre", 1, "fade", "push-l", "ken-in-l", 0.36, 0.3],
+      ["centre", 1.02, "grow", "fade", "push-in"],
+      ["centre", 1, "push-u", "fade", "hold", 0.16],
+      ["centre", 1.12, "grow", "fade", "settle", 0.28],
+    ],
+    { words: ["mask", "release", "flap", "drop"], out: "fade", flow: "snappy" },
   ),
-
-  mix(
-    "rest-hit",
-    "14 / Rest, hit, rest, hit",
+  cut(
+    "Three slides",
+    "Every join but the last one travels.",
+    [
+      ["centre", 1, "fade", "push-l", "ken-in-r", 0.34, 0.28],
+      ["centre", 1.02, "push-r", "push-u", "hold"],
+      ["centre", 1, "push-u", "fade", "rise", 0.16],
+      ["centre", 1.14, "grow", "fade", "settle", 0.26],
+    ],
+    { words: ["snap", "mask", "flap", "release"], out: "sink", flow: "snappy" },
+  ),
+  cut(
+    "All slide",
+    "Eight slides. On the page to lose the argument visibly.",
+    [
+      ["centre", 1, "push-r", "push-l", "drift-l", 0.3, 0.26],
+      ["centre", 1.02, "push-r", "push-u", "drift-r"],
+      ["centre", 1, "push-d", "push-d", "hold", 0.14],
+      ["centre", 1.12, "push-u", "push-l", "settle", 0.24],
+    ],
+    { words: ["snap", "snap", "flap", "drop"], out: "sink", flow: "snappy", camera: "pan" },
+  ),
+  cut(
+    "Fade and slide",
+    "Half the joins dissolve, half of them move.",
+    [
+      ["centre", 1, "fade", "push-l", "ken-in-l", 0.4, 0.3],
+      ["centre", 1.04, "push-r", "fade", "hold"],
+      ["centre", 1, "fade", "push-u", "hold", 0.18],
+      ["centre", 1.12, "push-d", "fade", "settle", 0.26],
+    ],
+    { words: ["mask", "rise", "flap", "release"], out: "fade", flow: "even" },
+  ),
+  cut(
+    "Wipe language",
+    "The plating is a wipe, so everything else is too.",
+    [
+      ["centre", 1, "wipe-r", "wipe-r", "ken-in-r", 0.42, 0.32],
+      ["centre", 1.02, "wipe-r", "wipe-r", "hold"],
+      ["centre", 1, "wipe-r", "wipe-r", "hold", 0.2],
+      ["centre", 1.12, "wipe-r", "fade", "breathe", 0.3],
+    ],
+    { words: ["wipe", "wipe", "wipe", "wipe"], out: "wipe", flow: "even" },
+  ),
+  cut(
+    "Iris",
+    "Everything grows out of the centre of what preceded it.",
+    [
+      ["centre", 1, "fade", "iris", "ken-out-l", 0.38, 0.3],
+      ["centre", 1.02, "iris", "iris", "hold"],
+      ["centre", 1, "iris", "iris", "hold", 0.2],
+      ["centre", 1.14, "iris", "fade", "settle", 0.3],
+    ],
+    { words: ["release", "release", "flap", "release"], out: "fade", flow: "even" },
+  ),
+  cut(
+    "Scale only",
+    "Nothing translates. Depth is the only axis.",
+    [
+      ["centre", 1, "grow", "shrink", "ken-in-l", 0.4, 0.3],
+      ["centre", 1.04, "grow", "shrink", "push-in"],
+      ["centre", 0.98, "grow", "shrink", "hold", 0.2],
+      ["centre", 1.16, "grow", "fade", "settle", 0.28],
+    ],
+    { words: ["stretch", "release", "flap", "stretch"], out: "fade", camera: "creep-in" },
+  ),
+  cut(
+    "Ken Burns throughout",
+    "Every beat is a camera move. No two go the same way.",
+    [
+      ["centre", 1, "fade", "fade", "ken-in-l", 0.4],
+      ["centre", 1.02, "fade", "fade", "ken-out-r"],
+      ["centre", 1, "fade", "fade", "ken-in-r", 0.2],
+      ["centre", 1.12, "fade", "fade", "ken-out-l", 0.3],
+    ],
+    { words: ["mask", "mask", "flap", "release"], out: "fade", flow: "breath" },
+  ),
+  cut(
+    "Ken Burns once",
+    "One camera move, on the only beat that is a photograph.",
+    [
+      ["centre", 1, "fade", "wipe-r", "ken-in-l", 0.42, 0.32],
+      ["centre", 1.02, "grow", "fade", "hold"],
+      ["centre", 1, "push-u", "fade", "hold", 0.16],
+      ["centre", 1.12, "grow", "fade", "hold", 0.26],
+    ],
+    { words: ["mask", "release", "flap", "drop"], out: "fade", flow: "snappy" },
+  ),
+  cut(
+    "Weight",
+    "The bed's 0.55 / 0.78 / 0.70 / 1.00 in size and in energy.",
+    [
+      ["centre", 0.92, "fade", "fade", "ken-in-r", 0.44],
+      ["centre", 1.04, "grow", "fade", "push-in"],
+      ["centre", 0.88, "push-d", "fade", "hold", 0.15, 0.12],
+      ["centre", 1.22, "grow", "fade", "settle", 0.26],
+    ],
+    { words: ["rise", "release", "flap", "stretch"], out: "fade", flow: "snappy" },
+  ),
+  cut(
+    "Climb, twice",
+    "Only the two things that mean climbing actually climb.",
+    [
+      ["centre", 1, "fade", "fade", "ken-in-l", 0.38],
+      ["low", 1.02, "push-u", "push-u", "rise"],
+      ["high", 1, "push-u", "fade", "rise", 0.2],
+      ["centre", 1.14, "iris", "fade", "settle"],
+    ],
+    { words: ["mask", "mask", "flap", "release"], out: "lift", camera: "tilt" },
+  ),
+  cut(
+    "Rest, hit, rest, hit",
     "Alternate. Motion means nothing unless something is still.",
-    "Beats one and three are dead still and beats two and four move, so the rhythm comes from contrast rather than from constant activity. It also happens to match the bed: the two struck landings are the ones that move, and the dry click at beat three sits in stillness. The word alternates with it - cut in, then a soft one, then cut, then the payoff.",
-    {
-      quiz: p("centre", 0.98, "fade", "fade", "hold", { in: 0.3 }),
-      ring: p("centre", 1.06, "grow", "shrink", "push-in"),
-      ladder: p("centre", 0.86, "fade", "fade", "hold", { in: 0.14 }),
-      // Arrives downward and is caught by `settle`, which is the damped sine -
-      // the closest this vocabulary gets to a struck landing.
-      patch: p("centre", 1.24, "push-d", "fade", "settle", { in: 0.3 }),
-    },
-    {
-      kinetic: "strike",
-      kineticPerBeat: ["strike", "release", "wipe", "drop"],
-      kineticOut: "none",
-      jaunty: "charge",
-    },
+    [
+      ["centre", 1, "fade", "fade", "hold", 0.3],
+      ["centre", 1.04, "grow", "shrink", "push-in"],
+      ["centre", 0.96, "fade", "fade", "hold", 0.14],
+      ["centre", 1.16, "push-d", "fade", "settle", 0.3],
+    ],
+    { words: ["strike", "release", "wipe", "drop"], out: "none", flow: "snappy" },
   ),
-
-  mix(
-    "weight",
-    "15 / Weight",
-    "The bed's 0.55 / 0.78 / 0.70 / 1.00, in size and in energy.",
-    "Not just the sizes - the ENTRANCE energy follows the same curve, and it dips at three the way the bed does. Quiz fades in quietly, ring grows, wheel arrives smaller and drier than the ring did, patch is oversized and is the only overshoot in the film. The one candidate where you could mute the audio and still read the arrangement.",
-    {
-      quiz: p("centre", 0.94, "fade", "fade", "hold", { in: 0.42 }),
-      ring: p("centre", 1.06, "grow", "fade", "push-in"),
-      ladder: p("centre", 0.84, "push-d", "fade", "hold", { in: 0.15, out: 0.12 }),
-      patch: p("centre", 1.3, "grow", "fade", "settle", { in: 0.26 }),
-    },
-    {
-      kinetic: "rise",
-      kineticPerBeat: ["rise", "release", "flap", "stretch"],
-      kineticOut: "fade",
-      jaunty: "stamp",
-    },
+  cut(
+    "Two languages",
+    "Product half soft, insignia half mechanical.",
+    [
+      ["centre", 1, "fade", "fade", "ken-in-l", 0.4],
+      ["centre", 1.02, "grow", "fade", "breathe"],
+      ["centre", 1, "push-u", "push-u", "hold", 0.14],
+      ["centre", 1.14, "iris", "fade", "hold", 0.28],
+    ],
+    { words: ["blur", "blur", "flap", "flap"], out: "fade" },
   ),
-
-  mix(
-    "two-tongues",
-    "16 / Two languages",
-    "The product half moves softly. The insignia half moves mechanically.",
-    "A split that says which half of the film is UI and which is heraldry. The quiz and the ring - both real product surfaces - fade and grow, with soft type. The wheel and the patch - both emblems - flap, push and plate, with mechanical type. Two vocabularies, one per half, rather than one vocabulary or four.",
-    {
-      quiz: p("centre", 0.98, "fade", "fade", "hold", { in: 0.4 }),
-      ring: p("centre", 1.04, "grow", "fade", "breathe"),
-      ladder: p("centre", 0.88, "push-u", "push-u", "hold", { in: 0.14 }),
-      patch: p("centre", 1.2, "iris", "fade", "hold", { in: 0.28 }),
-    },
-    {
-      kinetic: "blur",
-      kineticPerBeat: ["blur", "blur", "flap", "flap"],
-      kineticOut: "fade",
-      jaunty: "plate",
-    },
+  cut(
+    "Setup and payoff",
+    "Three beats underplayed to buy the fourth.",
+    [
+      ["centre", 0.88, "fade", "fade", "ken-in-r", 0.28],
+      ["centre", 0.92, "fade", "fade", "hold", 0.24],
+      ["centre", 0.86, "fade", "fade", "hold", 0.18],
+      ["centre", 1.3, "grow", "fade", "settle", 0.36],
+    ],
+    { words: ["wipe", "wipe", "wipe", "drop"], out: "none", flow: "snappy" },
   ),
-
-  mix(
-    "setup",
-    "17 / Setup and payoff",
-    "Three beats deliberately underplayed so the fourth is enormous.",
-    "Everything before the patch is small, quiet and centred - no camera, no drift, short entrances, nothing above 1.0. Then the patch arrives at 1.35 with the only overshoot, the only motion, and the loudest word. The risk is honest: three understated beats is close to three boring ones, and this is on the page to find out where that line is.",
-    {
-      quiz: p("centre", 0.9, "fade", "fade", "hold", { in: 0.28 }),
-      ring: p("centre", 0.94, "fade", "fade", "hold", { in: 0.24 }),
-      ladder: p("centre", 0.8, "fade", "fade", "hold", { in: 0.18 }),
-      patch: p("centre", 1.35, "grow", "fade", "settle", { in: 0.36 }),
-    },
-    {
-      kinetic: "wipe",
-      kineticPerBeat: ["wipe", "wipe", "wipe", "drop"],
-      kineticOut: "none",
-      jaunty: "charge",
-    },
-  ),
-
-  mix(
-    "zigzag",
-    "18 / Zigzag",
+  cut(
+    "Zigzag",
     "Four places, four entrances, and the eye traces a Z.",
-    "The most composed of the ten: the quiz sits low, the ring high, the wheel low again, the patch centred, and each enters along the axis it lives on. The motion differs per beat too - drift, hold, rise, settle - so no two beats share a verb anywhere. Busiest of the mixes and the one most likely to fight the corner words.",
-    {
-      quiz: p("low", 0.96, "push-u", "push-d", "drift-r", { in: 0.36 }),
-      ring: p("high", 1.02, "push-d", "push-u", "hold"),
-      ladder: p("low", 0.86, "push-u", "fade", "rise", { in: 0.16 }),
-      patch: p("centre", 1.22, "grow", "fade", "settle", { in: 0.3 }),
-    },
-    {
-      kinetic: "snap",
-      kineticPerBeat: ["snap", "mask", "flap", "release"],
-      kineticOut: "sink",
-      parallax: "subtle",
-      camera: "pan",
-      jaunty: "spin",
-    },
+    [
+      ["low", 1, "push-u", "push-d", "drift-r", 0.36],
+      ["high", 1.02, "push-d", "push-u", "hold"],
+      ["low", 1, "push-u", "fade", "rise", 0.16],
+      ["centre", 1.14, "grow", "fade", "settle", 0.3],
+    ],
+    { words: ["snap", "mask", "flap", "release"], out: "sink", camera: "pan", parallax: "subtle" },
   ),
-
-  mix(
-    "pace",
-    "19 / Pace",
-    "The first half breathes, the second half cuts.",
-    "Timing is the thing that varies rather than direction. The quiz gets a long 0.45s arrival because it has to be read; the ring gets a moderate one; the wheel snaps in at 0.12s because it is the dry mechanical beat; the patch arrives fast and then holds the longest. Same verbs throughout, four different tempos - the mix that argues pacing carries more than choreography.",
-    {
-      quiz: p("centre", 0.98, "fade", "fade", "hold", { in: 0.45, out: 0.3 }),
-      ring: p("centre", 1.04, "grow", "fade", "push-in", { in: 0.3 }),
-      ladder: p("centre", 0.86, "grow", "fade", "hold", { in: 0.12, out: 0.1 }),
-      patch: p("centre", 1.22, "grow", "fade", "hold", { in: 0.2 }),
-    },
-    { kinetic: "mask", kineticOut: "fade", jaunty: "plate" },
+  cut(
+    "Pace",
+    "Same verbs, four tempos. Pacing over choreography.",
+    [
+      ["centre", 1, "fade", "fade", "ken-in-l", 0.45, 0.3],
+      ["centre", 1.02, "grow", "fade", "push-in", 0.3],
+      ["centre", 1, "grow", "fade", "hold", 0.12, 0.1],
+      ["centre", 1.14, "grow", "fade", "hold", 0.2],
+    ],
+    { words: ["mask", "release", "flap", "drop"], out: "fade" },
   ),
-
-  mix(
-    "rhyme-mixed",
-    "20 / Rhyme, then break it",
-    "Three beats share a shape. The fourth deliberately does not.",
-    "The circle runs through the first three - the ring, the wing's roundel, the wheel of wings - all arriving with an iris so each grows out of the last. Then the patch is a pentagon and arrives completely differently, plated rather than grown, because the whole point of a rhyme is the line that breaks it. The quiz opens on a wipe so the circles start clean.",
+  cut(
+    "Rhyme, then break it",
+    "Three circles on an iris, then a pentagon that arrives differently.",
+    [
+      ["centre", 1, "wipe-r", "wipe-r", "ken-out-r", 0.4],
+      ["centre", 1.02, "iris", "fade", "hold"],
+      ["centre", 1, "iris", "fade", "hold", 0.18],
+      ["centre", 1.16, "fade", "fade", "breathe", 0.2],
+    ],
+    { words: ["wipe", "release", "release", "stretch"], out: "fade" },
+  ),
+  cut(
+    "Handoff",
+    "Each beat enters from wherever the last one left.",
+    [
+      ["centre", 1, "fade", "wipe-r", "ken-in-r", 0.4],
+      ["centre", 1.02, "push-r", "push-u", "hold"],
+      ["centre", 1, "push-u", "push-d", "hold", 0.16],
+      ["centre", 1.14, "grow", "fade", "settle", 0.34],
+    ],
+    { words: ["mask", "rise", "flap", "release"], out: "fade" },
+  ),
+  cut(
+    "Deep",
+    "Three planes and a slow push. Nothing else has to move.",
+    [
+      ["centre", 1, "fade", "fade", "ken-in-l", 0.42],
+      ["centre", 1.02, "grow", "fade", "breathe"],
+      ["centre", 1, "fade", "fade", "breathe", 0.2],
+      ["centre", 1.14, "grow", "fade", "breathe", 0.3],
+    ],
+    { words: ["blur", "blur", "blur", "release"], out: "blur", flow: "breath", camera: "creep-in", parallax: "deep" },
+  ),
+  cut(
+    "Wide open",
+    "Every beat pulls back, so the last frame is the most open.",
+    [
+      ["centre", 1, "grow", "fade", "ken-out-l", 0.4],
+      ["centre", 1.02, "grow", "fade", "ken-out-r"],
+      ["centre", 1, "grow", "fade", "pull-back", 0.2],
+      ["centre", 1.12, "grow", "fade", "ken-out-l", 0.3],
+    ],
+    { words: ["release", "release", "flap", "release"], out: "fade", camera: "creep-out" },
+  ),
+  cut(
+    "Feed",
+    "Sound off, thumb moving, probably cropped square.",
+    [
+      ["centre", 1.02, "fade", "fade", "ken-in-l", 0.3],
+      ["centre", 1.06, "grow", "fade", "push-in"],
+      ["centre", 1.02, "grow", "fade", "hold", 0.14],
+      ["centre", 1.2, "grow", "fade", "push-in", 0.24],
+    ],
+    { words: ["stretch", "stretch", "stretch", "stretch"], out: "none", flow: "snappy", ...P("centre-low") },
+  ),
+  cut(
+    "Departure board",
+    "One mechanism, four times: everything flips.",
+    [
+      ["centre", 1, "fade", "push-u", "ken-in-r", 0.36],
+      ["centre", 1.02, "push-d", "push-u", "hold"],
+      ["centre", 1, "push-d", "push-u", "hold", 0.16],
+      ["centre", 1.14, "push-d", "fade", "hold", 0.26],
+    ],
+    { words: ["flap", "flap", "flap", "flap"], out: "sink" },
+  ),
+  cut(
+    "Swing",
+    "Things arrive on a hinge rather than on a rail.",
+    [
+      ["centre", 1, "fade", "swing", "ken-in-l", 0.4, 0.32],
+      ["centre", 1.02, "swing", "fade", "hold"],
+      ["centre", 1, "swing", "swing", "hold", 0.2],
+      ["centre", 1.14, "swing", "fade", "settle", 0.3],
+    ],
+    { words: ["drop", "release", "flap", "drop"], out: "fade", flow: "even" },
+  ),
+  cut(
+    "Early call",
+    "The answer lands two beats before the word instead of one.",
+    [
+      ["centre", 1, "fade", "wipe-r", "ken-in-l", 0.4, 0.3],
+      ["centre", 1.02, "grow", "fade", "hold"],
+      ["centre", 1, "push-u", "fade", "hold", 0.16],
+      ["centre", 1.14, "grow", "fade", "settle", 0.28],
+    ],
+    { words: ["mask", "release", "flap", "release"], out: "fade", quizClick: 1.0 },
+  ),
+  cut(
+    "Long read",
+    "The quiz gets the slowest arrival in the film, because it is text.",
+    [
+      ["centre", 1, "fade", "fade", "ken-in-r", 0.6, 0.34],
+      ["centre", 1.02, "grow", "fade", "hold", 0.26],
+      ["centre", 1, "grow", "fade", "hold", 0.14],
+      ["centre", 1.14, "grow", "fade", "settle", 0.22],
+    ],
+    { words: ["track", "release", "flap", "drop"], out: "collapse", flow: "breath" },
+  ),
+  cut(
+    "Corner to corner",
+    "The word crosses the frame, the pictures stay put.",
+    [
+      ["centre", 1, "fade", "fade", "ken-in-l", 0.4],
+      ["centre", 1.02, "grow", "fade", "hold"],
+      ["centre", 1, "grow", "fade", "hold", 0.18],
+      ["centre", 1.14, "grow", "fade", "settle", 0.28],
+    ],
+    { words: ["snap", "mask", "flap", "drop"], out: "lift", ...P("corners"), parallax: "subtle", camera: "pan" },
+  ),
+  cut(
+    "Drift",
+    "Everything is slowly going somewhere, nothing arrives hard.",
+    [
+      ["centre", 1, "fade", "fade", "drift-l", 0.42],
+      ["centre", 1.02, "fade", "fade", "drift-r"],
+      ["centre", 1, "fade", "fade", "sway", 0.2],
+      ["centre", 1.12, "fade", "fade", "drift-l", 0.3],
+    ],
+    { words: ["blur", "rise", "flap", "release"], out: "blur", flow: "breath", parallax: "subtle", camera: "pan" },
+  ),
+  cut(
+    "Everything",
+    "One of each. The maximalist control.",
+    [
+      ["low", 1, "wipe-r", "push-l", "ken-in-l", 0.36, 0.28],
+      ["high", 1.04, "iris", "shrink", "push-in"],
+      ["centre", 1, "push-u", "swing", "rise", 0.16],
+      ["centre", 1.18, "grow", "fade", "settle", 0.3],
+    ],
     {
-      quiz: p("centre", 0.98, "wipe-r", "wipe-r", "hold", { in: 0.4 }),
-      ring: p("centre", 1.04, "iris", "fade", "hold"),
-      ladder: p("centre", 0.88, "iris", "fade", "hold", { in: 0.18 }),
-      patch: p("centre", 1.24, "fade", "fade", "breathe", { in: 0.2 }),
-    },
-    {
-      kinetic: "release",
-      kineticPerBeat: ["wipe", "release", "release", "stretch"],
-      kineticOut: "fade",
-      jaunty: "plate",
+      words: ["wipe", "release", "flap", "drop"],
+      out: "sink",
+      flow: "snappy",
+      camera: "tilt",
+      parallax: "deep",
     },
   ),
 ];
