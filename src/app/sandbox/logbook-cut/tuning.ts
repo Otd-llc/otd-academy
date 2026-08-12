@@ -81,6 +81,25 @@ export type Tuning = {
   motionAll: Motion | "auto";
   parallax: Parallax;
   camera: Camera;
+  /**
+   * Seconds the PICTURE runs ahead of the bed.
+   *
+   * Not a fudge factor. A visual hit reads as simultaneous with a beat when it
+   * lands two to four frames early and never a frame late, which at the 30fps
+   * this film renders at is 0.067 to 0.133s. Every round before this one landed
+   * exactly on the downbeat, which is measurably correct and feels late.
+   */
+  preRoll?: number;
+  /**
+   * A kinetic per beat, so a cut can change the word's TEXTURE on one beat
+   * rather than only its size.
+   *
+   * The bed already does this: its four landings weigh 0.55, 0.78, 0.70, 1.00,
+   * and the dip at the third is deliberate - it escalates by swapping a struck
+   * hit for a dry mechanical click. A picture that escalates only by getting
+   * bigger contradicts its own soundtrack on that beat.
+   */
+  kineticPerBeat?: Kinetic[];
   /** The bench's per-part axis. Empty for every other surface. */
   part?: PartId;
   partOver?: Partial<PartSpec>;
