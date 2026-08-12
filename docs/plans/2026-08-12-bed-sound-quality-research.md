@@ -222,6 +222,50 @@ Several are things we have said internally.
   window either way. Keep it, describe it as informed convention, do not claim a
   standard.
 
+## 6b. Key and mode — a second, narrower round
+
+Asked after the serious set came back "cool, but ominous." Two direct lookups
+rather than a fan-out, because the question is narrow.
+
+**Key is not the lever, and this is settled rather than arguable.** Powell &
+Dibben, *Key-Mood Association: A Self Perpetuating Myth*, Musicae Scientiae
+9(2), 2005: on an equal-tempered instrument listeners cannot identify mood from
+key or key from mood, and a piece's perceived mood does not change when it is
+transposed. About three-quarters of people questioned *believed* they had
+key-mood associations, and those beliefs correlated strongly with late
+eighteenth-century published key characters — sharps bright, flats mellow. Those
+characters were real, and they were artifacts of **unequal temperaments**, where
+the quality of the major third varied around the circle of fifths. Equal
+temperament removes the mechanism. Every oscillator in `logbook-comp.py` is
+equal-tempered, so moving the root from A to C to F# transposes the register and
+changes nothing else.
+
+**Mode is the lever, and it has an order.** Temperley & Tan, *Emotional
+Connotations of Diatonic Modes*, Music Perception 30(3): the same melodies
+rendered in six modes over a fixed tonic, judged pairwise for which is happier.
+The result follows line-of-fifths order — **Ionian, Mixolydian, Dorian, Aeolian,
+Phrygian**, happiest to saddest — with happiness rising as scale degrees are
+raised. Lydian is the one exception, rated less happy than Ionian despite being
+"higher".
+
+The serious set was written in **aeolian: second-saddest of the six**. That is
+not a subtle mis-set, it is two full steps below where "serious, professional,
+but fun" sits. Mixolydian restores the major third and major sixth and lowers
+only the seventh, which is why film scoring reaches for it for confident and
+heroic without the saccharine of straight major.
+
+**The implementation caveat that nearly made this a no-op:** the serious set
+voices almost everything in open fifths, and a bare fifth is exactly the
+interval that refuses to declare a mode. Relabelling the scale under a
+fifths-only arrangement would have changed almost nothing audible. The third is
+the note that *carries* mode, so bright modes re-admit it to the sequence
+figure. Removing the third and then choosing the second-saddest scale is, between
+them, the whole of why round two read ominous.
+
+Seven variants rendered, mode as the only variable. Two of the round-two
+measurement flags cleared as a side effect, because admitting the third changes
+which partials peak inside the landing windows.
+
 ## 7. Open, needs empirical work
 
 - Upload → download → listen at the loop seam, per platform. The only way to close §3.

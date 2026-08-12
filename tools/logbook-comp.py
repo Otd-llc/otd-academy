@@ -247,6 +247,41 @@ DORIAN = [0, 2, 3, 5, 7, 9, 10, 12]
 # defense register - "not sad" and "grave" are different requests. The natural
 # minor sixth is the one note that separates them.
 AEOLIAN = [0, 2, 3, 5, 7, 8, 10, 12]
+MIXOLYDIAN = [0, 2, 4, 5, 7, 9, 10, 12]
+IONIAN = [0, 2, 4, 5, 7, 9, 11, 12]
+
+MODES = {
+    "aeolian": AEOLIAN,
+    "dorian": DORIAN,
+    "mixolydian": MIXOLYDIAN,
+    "ionian": IONIAN,
+}
+
+# THE MODE IS THE DIAL, AND THE KEY IS NOT.
+#
+# "Ominous" is a mode problem, and it is worth writing down why the obvious
+# other answer is a dead end. Powell & Dibben (2005), "Key-Mood Association: A
+# Self Perpetuating Myth", Musicae Scientiae: on an equal-tempered instrument
+# listeners cannot identify mood from key or key from mood, and transposing a
+# piece does not change its perceived mood. Historical key characters were real
+# but they were artifacts of UNEQUAL temperaments, and they do not survive equal
+# temperament. Every oscillator in this file is equal-tempered, so moving the
+# root from A to C to F# transposes the register and changes nothing else.
+#
+# Mode does the work instead, and it has an ordering. Temperley & Tan,
+# "Emotional Connotations of Diatonic Modes", Music Perception 30(3): the same
+# melodies rendered in six modes on a fixed tonic, judged pairwise for which is
+# happier, come out in line-of-fifths order - Ionian, Mixolydian, Dorian,
+# Aeolian, Phrygian, happiest to saddest, with happiness rising as scale degrees
+# are raised (Lydian is the exception, less happy than Ionian).
+#
+# The serious set is in AEOLIAN, which is the second-saddest of the six. That is
+# not a subtle mis-set: it is two full steps down that ordering from where
+# "serious, professional, but fun" sits. Mixolydian is the answer the ordering
+# gives - major third and major sixth restored, only the seventh still lowered,
+# which is why film scoring reaches for it when it wants confident and heroic
+# without the saccharine of straight major.
+_MODE = [AEOLIAN]
 
 
 def deg(i, mode=DORIAN):
@@ -258,8 +293,34 @@ def low(i):
     """A degree in the register the serious set lives in: an octave below the
     root rather than an octave above it. Everything in round one sat at +12 or
     +24, which is a range that sounds capable and young. This is the same
-    material a twelfth lower."""
-    return deg(i, AEOLIAN) - 12
+    material a twelfth lower.
+
+    Reads the current mode, so a composition is written once and heard in any
+    of them."""
+    return deg(i, _MODE[0]) - 12
+
+
+def bright():
+    """True when the current mode has a MAJOR third.
+
+    THIS IS LOAD-BEARING AND IT IS EASY TO MISS. The serious set voices almost
+    everything in open fifths, which is exactly the interval that refuses to
+    declare a mode - so changing the mode underneath a fifths-only arrangement
+    changes almost nothing you can hear. The third is the note that CARRIES the
+    mode, and the reason round two came out ominous is that it removed the third
+    and then set the remaining notes to the second-saddest scale there is.
+    Getting the ominousness out means re-admitting the third, not just relabelling
+    the scale.
+    """
+    return _MODE[0][2] == 4
+
+
+def seq_bars():
+    """The sequence's harmony. In a bright mode the third is added to the bare
+    fifths, so the mode is audible in the figure rather than only in the motif."""
+    if bright():
+        return [[0, 2, 4], [0, 2, 4], [2, 4, 6], [1, 3, 5], [0, 2, 4, 7]]
+    return [[0, 4], [0, 4], [2, 6], [1, 5], [0, 4, 7]]
 
 
 def warm(buf, cutoff=1400.0):
@@ -852,7 +913,7 @@ def _serious_perc(buf, S, i, at, w, kicks, heavy=1.0):
 # The figure the sequence-family shares: EIGHTHS, NOT SIXTEENTHS. Halving the
 # rate is most of the seriousness - a sixteenth pattern is busy by nature and
 # busy is the opposite of the brief.
-SEQ_BARS = [[0, 4], [0, 4], [2, 6], [1, 5], [0, 4, 7]]
+# Now returned by seq_bars(), which adds the third in a bright mode.
 
 # Four notes, aeolian, low. Same shape as round one's motif - stated, answered,
 # inverted, resolved - so it is recognisably the same idea and not a new one.
@@ -863,7 +924,7 @@ MOT_RES = [0, 4, 7, 9]
 
 
 def _seq_figure(buf, bar_i, gain=1.0, oct_up=12):
-    ch = SEQ_BARS[bar_i]
+    ch = seq_bars()[bar_i]
     step = BEAT / 2
     for s in range(8):
         t = bar_i * BAR + s * step
@@ -889,7 +950,7 @@ def comp_keel(S):
         _serious_perc(buf, S, i, at, WEIGHT[i + 1], kicks)
     place(buf, pedal(1.9, low(0) + 12, gain=0.24), PLATE)
     place(buf, _LB.tail(S["sweep"], 0.9), PLATE, 0.3)
-    bass = bass_plan(n, [(b * BAR, low(SEQ_BARS[b][0]), BAR * 0.9, 0.9)
+    bass = bass_plan(n, [(b * BAR, low(seq_bars()[b][0]), BAR * 0.9, 0.9)
                          for b in range(5)])
     return finish(buf, bass, kicks, space=0.22, sub_gain=0.8)
 
@@ -995,7 +1056,7 @@ def comp_watch(S):
     step = BEAT / 2
     bplan = []
     for bar_i in range(5):
-        ch = SEQ_BARS[bar_i]
+        ch = seq_bars()[bar_i]
         for s in range(8):
             t = bar_i * BAR + s * step
             if t >= SECONDS:
@@ -1016,8 +1077,8 @@ def comp_watch(S):
         place(buf, warm(voice(1.0 if i < 3 else 1.8, midi(low(replies[i]) + 12),
                               gain=w * 0.42, wave="open", atk=0.012, dec=0.6,
                               sus=0.35), 1000.0), at + BEAT * 0.5)
-        bplan.append((at, low(SEQ_BARS[i + 1][0]), BAR * 0.9, 0.85 + 0.15 * w))
-    bplan.insert(0, (0.0, low(SEQ_BARS[0][0]), BAR * 0.9, 0.6))
+        bplan.append((at, low(seq_bars()[i + 1][0]), BAR * 0.9, 0.85 + 0.15 * w))
+    bplan.insert(0, (0.0, low(seq_bars()[0][0]), BAR * 0.9, 0.6))
     place(buf, pedal(1.8, low(0) + 12, gain=0.22), PLATE)
     place(buf, _LB.tail(S["sweep"], 0.9), PLATE, 0.3)
     return finish(buf, bass_plan(n, bplan), kicks, space=0.22, sub_gain=0.8)
@@ -1069,7 +1130,7 @@ def comp_hull(S):
     step = BEAT / 2
     figs = (MOT, MOT_ANS, MOT_INV, MOT_RES)
     for bar_i in range(5):
-        ch = SEQ_BARS[bar_i]
+        ch = seq_bars()[bar_i]
         for s in range(8):
             t = bar_i * BAR + s * step
             if t >= SECONDS or (bar_i >= 1 and s in (1, 2, 3)):
@@ -1136,6 +1197,23 @@ def comp_anchor(S):
     return finish(buf, bass, kicks, space=0.34, sub_gain=0.9)
 
 
+def in_mode(fn, mode_name):
+    """The same composition, in another mode. ONE variable.
+
+    The serious set is written once and heard in several scales rather than
+    rewritten per mode, so an A/B between two of these compares the mode and
+    nothing else - the same control the fixed palette gives the compositions.
+    """
+    def run(S):
+        prev = _MODE[0]
+        _MODE[0] = MODES[mode_name]
+        try:
+            return fn(S)
+        finally:
+            _MODE[0] = prev
+    return run
+
+
 COMPS = {
     "strike": (comp_strike, "The control: the arrangement we already have, at the honest drive. Percussion only, no tonal content beyond the sub."),
     "ladder": (comp_ladder, "PITCH IS RANK. Each landing steps up the mode and the wheel runs the ladder. The film's own idea, as music."),
@@ -1158,6 +1236,20 @@ COMPS = {
     "standard": (comp_standard, "MOTIF x SEQUENCE. The figure is the machine's top line rather than a layer above it - a signature buried in working material rather than a slogan over it."),
     "hull": (comp_hull, "ALL THREE at weight: sequence idles and stops, motif answers into the stop, bass plays its root. Listen hard for three ideas competing instead of one with three parts."),
     "anchor": (comp_anchor, "THE LIMIT CASE. One low pedal for ten seconds, three motif fragments, almost no percussion. The dip is a silence rather than a smaller sound."),
+
+    # Round three: the same serious arrangements, moved UP the mode ordering.
+    # Aeolian is the second-saddest of the six diatonic modes and that is why
+    # round two reads ominous; mixolydian keeps the weight and drops the gloom.
+    # Register, timbre, bass and percussion are untouched - mode is the only
+    # variable, and in a bright mode the sequence figure re-admits the third,
+    # without which the change would be inaudible under open fifths.
+    "standard-mixo": (in_mode(comp_standard, "mixolydian"), "STANDARD in mixolydian. Major third and sixth restored, only the seventh still lowered - the mode film scoring uses for confident and heroic without the saccharine of straight major."),
+    "hull-mixo": (in_mode(comp_hull, "mixolydian"), "HULL in mixolydian. All three ideas at weight, two steps up the happiness ordering from where round two sat."),
+    "brief-mixo": (in_mode(comp_brief, "mixolydian"), "BRIEF in mixolydian. The mnemonic answering every downbeat, in the mode that reads as capable rather than as a warning."),
+    "grave-mixo": (in_mode(comp_grave, "mixolydian"), "GRAVE in mixolydian - which makes the name a lie, and that is the point: same slow low four notes, no longer funereal."),
+    "keel-mixo": (in_mode(comp_keel, "mixolydian"), "KEEL in mixolydian. The idling machine with the third in it, so the figure has a mode at all."),
+    "standard-dor": (in_mode(comp_standard, "dorian"), "STANDARD in dorian - the halfway house. Minor third kept, major sixth restored: serious with a shade of hope, one step up from aeolian rather than two."),
+    "hull-dor": (in_mode(comp_hull, "dorian"), "HULL in dorian. If mixolydian reads too pleased with itself, this is the same weight one step darker."),
 }
 
 

@@ -186,6 +186,62 @@ const KITS: BedKit[] = [
     title: "Anchor",
     note: "THE LIMIT CASE. One low pedal for the full ten seconds, three fragments of the motif, almost no percussion, and the third landing's dip is a SILENCE rather than a smaller sound. If this is too little it tells you how much of the others is load-bearing; if it is not, it tells you the rest are overwritten.",
   },
+
+  // ROUND THREE. "The serious set is cool, but ominous." Ominous is a MODE
+  // problem, and the obvious other answer is a dead end worth recording:
+  // Powell & Dibben (2005) found that on an equal-tempered instrument listeners
+  // cannot identify mood from key or key from mood, and transposing does not
+  // change perceived mood - historical key characters were artifacts of unequal
+  // temperament and do not survive ET. Every oscillator here is ET, so moving
+  // the root from A to C to F# changes register and nothing else.
+  //
+  // Mode does the work and it has an ORDER. Temperley & Tan, Music Perception
+  // 30(3), rendered the same melodies in six modes on a fixed tonic and had
+  // listeners judge which was happier: they come out in line-of-fifths order,
+  // Ionian / Mixolydian / Dorian / Aeolian / Phrygian, happiest to saddest.
+  // Round two is in AEOLIAN - second-saddest of the six. Not a subtle mis-set.
+  //
+  // Only the mode changes below. Same register, same timbre, same bass, same
+  // percussion. One caveat that is load-bearing: in a bright mode the sequence
+  // figure re-admits the THIRD, because open fifths refuse to declare a mode
+  // and relabelling the scale under a fifths-only arrangement would have been
+  // inaudible.
+  {
+    id: "comp-standard-mixo",
+    title: "Standard / mixo",
+    group: "round three · same music, moved up the mode ordering",
+    note: "STANDARD in mixolydian. Major third and major sixth restored, only the seventh still lowered - the mode film scoring reaches for when it wants confident and heroic without the saccharine of straight major. Two steps up the happiness ordering from round two, with none of the weight given back.",
+  },
+  {
+    id: "comp-hull-mixo",
+    title: "Hull / mixo",
+    note: "HULL in mixolydian. All three ideas at weight, no longer in a warning. The mode change also cleaned its measurement - 0.092 and flagging in aeolian, 0.040 and clean here - because admitting the third changes which partials peak in the landing windows.",
+  },
+  {
+    id: "comp-grave-mixo",
+    title: "Grave / mixo",
+    note: "GRAVE in mixolydian, which makes the name a lie and that is rather the point: the same slow low four notes, no longer funereal. Curve error 0.027 over the bass floor - the tightest arrangement in this round.",
+  },
+  {
+    id: "comp-brief-mixo",
+    title: "Brief / mixo",
+    note: "BRIEF in mixolydian. The mnemonic answering on every downbeat, in the mode that reads as capable rather than as a threat. Still the candidate that cuts down cleanest to a stinger.",
+  },
+  {
+    id: "comp-keel-mixo",
+    title: "Keel / mixo",
+    note: "KEEL in mixolydian. The idling machine with a third in it, so the figure finally has a mode at all rather than bare fifths - and the flag it carried in aeolian is gone.",
+  },
+  {
+    id: "comp-standard-dor",
+    title: "Standard / dorian",
+    note: "THE HALFWAY HOUSE. Minor third kept, major sixth restored: one step up from aeolian rather than two. If mixolydian reads too pleased with itself, this is where serious-with-a-shade-of-hope actually lives - and it is where round one already was, now at round two's weight.",
+  },
+  {
+    id: "comp-hull-dor",
+    title: "Hull / dorian",
+    note: "HULL one step darker than mixolydian. Curve error 0.024 over the bass floor, the tightest arrangement of all twenty-five. The summed 'dip missing' flag is the bass floor again, not the writing.",
+  },
 ];
 
 export default function BedCutPage() {
