@@ -193,7 +193,7 @@ export const SELECTS: SelectAnim[] = [
   },
   {
     id: "others",
-    label: "05 / the others stand down",
+    label: "05 / the others stand down  [PICKED]",
     note:
       "The picked node barely moves. What animates is everything ELSE - the remaining options fade back in sequence, top to bottom, like a rack powering down. Defines the answer by contrast rather than by emphasis, and it is the only candidate that does something about the two rows nobody chose. Needs the dim state, so it only reads once the question is solved.",
     dur: 0.66,
@@ -348,7 +348,7 @@ ${WHY}{animation:qv-rise .32s cubic-bezier(.2,.9,.3,1) both .38s}
   },
   {
     id: "typeon",
-    label: "03 / type it on",
+    label: "03 / type it on  [PICKED]",
     note:
       "The mono line wipes on left to right under a hard-edged mask, the way a readout prints, and the explanation fades under it. Mono type is the one face in this system that can be revealed a character at a time without looking like a gimmick, because it is already monospaced.",
     dur: 0.78,
@@ -431,3 +431,29 @@ ${WHY}{animation:qv-fade3 .3s ease-out both .46s}
 ];
 
 export const verdictById = (id?: string) => VERDICTS.find((v) => v.id === id) ?? VERDICTS[0];
+
+/**
+ * SETTLED, 2026-08-12, and this is what ships.
+ *
+ *   selection  `others`  - the chosen node barely moves; what animates is the
+ *                          two rows nobody picked, standing down in sequence.
+ *                          The answer is defined by contrast rather than by
+ *                          emphasis, and it is the only candidate that does
+ *                          anything about the rows nobody chose.
+ *   verdict    `typeon`  - the mono line prints on left to right behind a hard
+ *                          clip edge, the way a readout does, and the
+ *                          explanation fades in under it once it has finished.
+ *                          Mono is the one face in this system that can be
+ *                          revealed a character at a time without reading as a
+ *                          gimmick, because it is already monospaced.
+ *
+ * TO SHIP: concatenate `PICKED_CSS`, strip the `[data-qsel="others"] ` and
+ * `[data-qver="typeon"] ` prefixes, and paste into the QuizBlock section of
+ * globals.css in place of the current qzh-pop / qzh-nudge block. The
+ * reduced-motion guard already at the end of that section covers all of it, and
+ * nothing in the component changes.
+ */
+export const PICKED_SELECT = "others";
+export const PICKED_VERDICT = "typeon";
+export const PICKED_CSS = () =>
+  `${selectById(PICKED_SELECT).css}\n${verdictById(PICKED_VERDICT).css}`;

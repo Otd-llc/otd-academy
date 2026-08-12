@@ -88,6 +88,25 @@ const make = (
   } satisfies Tuning,
 });
 
+/**
+ * PICKED, 2026-08-12: E, swing out and drop in.
+ *
+ * The badge swings away and the question falls into its place. It rhymes the
+ * seam with the join before it - the patch ARRIVED by pushing down, so the quiz
+ * arriving the same way makes the loop point echo the beat that preceded it,
+ * and it is the variant that most hides the fact that a loop happened at all.
+ *
+ * This is now THE CUT. Anything that renders the film reads it from here rather
+ * than re-deriving a tuning, so a later change moves the render with it.
+ */
+export const THE_CUT_ID = "seam-drop";
+
+export const THE_CUT = (): Candidate => {
+  const c = ASSEMBLY.find((a) => a.id === THE_CUT_ID);
+  if (!c) throw new Error(`the picked cut ${THE_CUT_ID} is not in ASSEMBLY`);
+  return c;
+};
+
 export const ASSEMBLY: Candidate[] = [
   make(
     "seam-swing",
@@ -124,7 +143,7 @@ export const ASSEMBLY: Candidate[] = [
   ),
   make(
     "seam-drop",
-    "E / swing out, drop in",
+    "E / swing out, drop in  [PICKED]",
     "The badge swings away and the question falls into its place.",
     "Rhymes the seam with the join before it: the patch arrived by pushing DOWN, so the quiz arriving the same way makes the loop point echo the beat that preceded it. The most continuous of the five and the one that most hides the fact that a loop happened.",
     "push-d",
