@@ -112,7 +112,9 @@ export type Beat = {
 export const BEATS: Beat[] = [
   {
     at: 2.0,
-    word: "READ",
+    // LEARN, not READ (owner, 2026-08-12). Reading is what you do to a page;
+    // learning is what the quiz proves you did, and the beat is the quiz.
+    word: "LEARN",
     line: `${XP.LESSON_PER_MIN_FULL} XP a minute, ${QUIZ_XP} more for the quiz. That lesson paid ${AWARD}.`,
   },
   {

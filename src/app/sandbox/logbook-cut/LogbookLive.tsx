@@ -176,19 +176,33 @@ function usePin(host: React.RefObject<HTMLElement | null>, t: number, ...deps: u
       n.classList.remove("v2", "v3", "v4", "v5");
       n.classList.add("v1");
     });
-    for (const a of el.getAnimations({ subtree: true })) {
-      const target = (a.effect as KeyframeEffect | null)?.target ?? null;
-      if (!target) continue;
-      const owner = target.closest("[data-anim-at]") as HTMLElement | null;
-      const at = Number(owner?.dataset.animAt ?? 0);
-      a.pause();
-      try {
-        // `CSSNumberish` in the current lib.dom; the browser takes plain ms.
-        (a as unknown as { currentTime: number }).currentTime = Math.max(0, (t - at) * 1000);
-      } catch {
-        /* an animation can be replaced mid-pin; the next frame re-pins it */
+    // PIN TWICE, AND THE SECOND ONE IS THE ONE THAT WORKS.
+    //
+    // A state change made in this same tick - the quiz being clicked - does not
+    // commit until after the effects return, so the animations that state
+    // selects do not exist yet and pinning now finds nothing. A running loop
+    // hides it because the next tick corrects it; a FROZEN frame has no next
+    // tick, so `?t=` screenshots came back with the animation already over,
+    // which is exactly the failure the freeze param exists to prevent. The rAF
+    // pass runs after the commit, when there is something to seek.
+    const pin = () => {
+      for (const a of el.getAnimations({ subtree: true })) {
+        const target = (a.effect as KeyframeEffect | null)?.target ?? null;
+        if (!target) continue;
+        const owner = target.closest("[data-anim-at]") as HTMLElement | null;
+        const at = Number(owner?.dataset.animAt ?? 0);
+        a.pause();
+        try {
+          // `CSSNumberish` in the current lib.dom; the browser takes plain ms.
+          (a as unknown as { currentTime: number }).currentTime = Math.max(0, (t - at) * 1000);
+        } catch {
+          /* an animation can be replaced mid-pin; the next pass re-pins it */
+        }
       }
-    }
+    };
+    pin();
+    const raf = requestAnimationFrame(pin);
+    return () => cancelAnimationFrame(raf);
     // The caller spreads its own deps; `host` is a stable ref.
   }, [t, ...deps]);
 }
