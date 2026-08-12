@@ -75,6 +75,47 @@ export type FilmLesson = { slug: string; title: string; clusterLabel: string | n
 const IN = 0.22;
 const OUT = 0.14;
 
+/**
+ * THE PRODUCT-UI EQUIVALENT OF `bare`.
+ *
+ * A diagram had a `bare` prop, because a diagram was built knowing it would be
+ * exported on its own. StandingRail was not: its second child is the title,
+ * the next-rank line and the XP total, and on a page that is the whole point.
+ * In a frame where the TYPE already says "1,100 XP is Instrument Rated", it is
+ * the same sentence twice - the two-titles-and-two-captions problem the cluster
+ * explainer hit, arriving from a component that has no switch for it.
+ *
+ * So the switch is here, keyed off a data attribute the sandbox sets, and it is
+ * two rules rather than a fork of the component. Reaching past a component is
+ * worth a note every time; this is the note.
+ *
+ * `off` hides it outright (D). The custom property fades it (E), because
+ * `display` cannot be animated and, more to the point, a transition cannot be
+ * seeked - the opacity is computed from scene time like everything else here.
+ */
+// `antialiased` is not a preference here. A scaled layer keeps subpixel text
+// rendering, and at 0.82 the rail's title came back with red and blue fringing
+// down one edge - fine on a page nobody scales, and a compression artifact
+// waiting to happen on a 30 fps encode. Grayscale AA removes it.
+const RAIL_CHROME = `
+[data-rail]{-webkit-font-smoothing:antialiased}
+[data-rail-text="off"] [data-rail] button{gap:0}
+[data-rail-text="off"] [data-rail] button > div:nth-child(2){display:none}
+[data-rail] button > div:nth-child(2){opacity:var(--rail-text-op,1)}
+`;
+
+/** How far right the ring has to move to sit in the middle of the frame once
+ *  the text column beside it is invisible. Measured off the rendered button:
+ *  ring block 168, gap 24, text ~200, so the button's centre is 112px right of
+ *  the ring's. Opacity does not free layout, so E has to do this by hand -
+ *  otherwise the emblem it spends ten seconds becoming ends up off-centre. */
+const RAIL_RECENTRE = 112;
+
+/** StandingRail's own height with the ring and the FL chip, unscaled. Measured,
+ *  because a scaled element keeps its layout box and the column under it has to
+ *  be told what the scale actually occupies. */
+const RAIL_H = 190;
+
 /** Computed, never transitioned. See the header. */
 function fade(t: number, from: number, to: number) {
   if (t < from || t >= to) return 0;
@@ -346,8 +387,11 @@ export function LogbookLive({
     art: artForBadge(p.key),
   }));
 
+  const rail = { level, xp, band, nextMinXp, nextLevel, title: LEVELS[level - 1].title };
+
   const scenes = (
     <>
+      <style>{RAIL_CHROME}</style>
       {arrangement === "page" ? (
         <PageScene
           t={t}
@@ -372,8 +416,14 @@ export function LogbookLive({
           nextLevel={nextLevel}
           lesson={lesson}
         />
-      ) : (
+      ) : arrangement === "emblem" ? (
         <EmblemScene t={t} win={win} level={level} />
+      ) : arrangement === "strip" ? (
+        <StripScene t={t} win={win} rail={rail} />
+      ) : arrangement === "morph" ? (
+        <MorphScene t={t} win={win} rail={rail} />
+      ) : (
+        <SplitScene t={t} win={win} rail={rail} lesson={lesson} />
       )}
 
       <LogbookType arrangement={arrangement} t={t} w={w} h={h} />
@@ -655,6 +705,320 @@ function EmblemScene({
         <div style={{ display: "grid", justifyItems: "center", gap: 12 }}>
           <PatchBadge art={PATCH.art} earned size={196} />
           <p className="font-display text-2xl tracking-wide text-title">{PATCH.label}</p>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ---- round two: B and C together ------------------------------------------
+//
+// Three readings, because "combine them" is a question and not an instruction.
+// B's claim is CONTINUITY - one surface, no cuts, the product doing the work.
+// C's is AUSTERITY - film scale, nothing of the page left. D strips the
+// continuous surface, E travels from one to the other, F runs both at once.
+//
+// NONE OF THE THREE MOUNTS THE FANFARE, which is not an omission: A was the
+// only arrangement that did, and the banner is the one component on this stage
+// whose dwell and countdown are wall-clock timers inside itself. Dropping A
+// takes the last unscrubbable thing out of the film, so every frame of every
+// one of these comes from a seek.
+
+type Rail = {
+  level: number;
+  title: string;
+  xp: number;
+  band: number;
+  nextMinXp: number | null;
+  nextLevel: number | null;
+};
+
+function TheRail({ rail }: { rail: Rail }) {
+  return (
+    <StandingRail
+      level={rail.level}
+      title={rail.title}
+      xp={rail.xp}
+      nextMinXp={rail.nextMinXp}
+      nextLevel={rail.nextLevel}
+      bandPct={rail.band}
+    />
+  );
+}
+
+// ---- D: the rail, stripped --------------------------------------------------
+
+function StripScene({
+  t,
+  win,
+  rail,
+}: {
+  t: number;
+  win: (i: number) => [number, number];
+  rail: Rail;
+}) {
+  // The ring gives up a third of its size on the RANK downbeat so the ladder
+  // has somewhere to be. It never leaves, which is B's whole claim.
+  const open = ramp(t, 5.65, 6.3);
+  const s = 1.95 - 0.6 * open;
+  const slotH = 132 * open;
+  return (
+    <div
+      data-rail-text="off"
+      style={{
+        position: "absolute",
+        right: "5%",
+        top: 0,
+        bottom: 0,
+        width: "60%",
+        display: "grid",
+        placeItems: "center",
+        pointerEvents: "none",
+      }}
+    >
+      {/* width:100% so the slot below is as wide as the BOX, not as wide as the
+          ring. Without it the twelve-wing row was laid out against a 330px
+          column, overflowed both sides, and lost FL10 to FL12 off the frame. */}
+      <div style={{ display: "grid", justifyItems: "center", gap: 10, width: "100%" }}>
+        <div style={{ height: RAIL_H * s, display: "grid", placeItems: "center" }}>
+          <div data-rail style={{ transform: `scale(${s})`, transformOrigin: "center" }}>
+            <TheRail rail={rail} />
+          </div>
+        </div>
+
+        <div style={{ position: "relative", height: slotH, width: "100%" }}>
+          <div
+            data-anim-at={BEATS[2].at - LEAD}
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "grid",
+              placeItems: "center",
+              opacity: fade(t, armAt(2), armAt(3)),
+            }}
+          >
+            <LadderRow level={rail.level} size={21} />
+          </div>
+          <div
+            data-anim-at={BEATS[3].at - LEAD}
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "grid",
+              placeItems: "center",
+              opacity: fade(t, armAt(3), SECONDS),
+              transform: `scale(${0.76 + 0.24 * ramp(t, 7.65, 8.3)})`,
+            }}
+          >
+            <PatchBadge art={PATCH.art} earned size={118} />
+          </div>
+        </div>
+      </div>
+
+      {/* The award, over the ring's shoulder, on bar one only. */}
+      <div
+        data-anim-at={0}
+        style={{
+          position: "absolute",
+          right: "6%",
+          top: "13%",
+          opacity: fade(t, ...win(0)),
+          transform: "scale(2)",
+          transformOrigin: "right top",
+        }}
+      >
+        <XpTick amount={AWARD} />
+      </div>
+    </div>
+  );
+}
+
+// ---- E: product becomes insignia -------------------------------------------
+
+function MorphScene({
+  t,
+  win,
+  rail,
+}: {
+  t: number;
+  win: (i: number) => [number, number];
+  rail: Rail;
+}) {
+  // Three ramps rather than one, so the growth happens BETWEEN beats and the
+  // downbeats themselves stay still. 1.80 is the ceiling and it is arithmetic,
+  // not taste: the rail is 190px unscaled and the usable height here is 351.
+  const grow = 1 + 0.32 * ramp(t, 2.2, 4.0) + 0.36 * ramp(t, 4.6, 6.4) + 0.12 * ramp(t, 7.6, 8.4);
+  const textOp = 1 - ramp(t, 4.2, 5.6);
+  const payoff = ramp(t, 7.8, 8.5);
+  // The subject holds the left of the frame, not the middle, which is what buys
+  // the ladder a column instead of a collision.
+  const subject: React.CSSProperties = {
+    position: "absolute",
+    left: "3%",
+    top: 0,
+    bottom: 0,
+    width: "56%",
+    display: "grid",
+    placeItems: "center",
+    // PERCENTAGE PADDING RESOLVES AGAINST WIDTH, not height - which is why the
+    // first pass, reasoned about as a share of the frame's height, put the ring
+    // 30px off the top edge instead of centred. These are tuned against the
+    // rendered frame rather than derived.
+    padding: "14% 0 26%",
+  };
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        pointerEvents: "none",
+        ["--rail-text-op" as string]: String(textOp),
+      }}
+    >
+      <div style={subject}>
+        <div
+          data-rail
+          style={{
+            transform: `scale(${grow}) translateX(${(1 - textOp) * RAIL_RECENTRE}px)`,
+            transformOrigin: "center",
+            // Dimmed, not removed. The ring is the halo the patch sits in, and
+            // the argument of this arrangement is that you watched it get there.
+            // 0.78 rather than 0.68 because the wing's feather tips reach wider
+            // than the patch and were reading as something stuck to its side.
+            opacity: 1 - 0.78 * payoff,
+          }}
+        >
+          <TheRail rail={rail} />
+        </div>
+      </div>
+
+      {/* THE ROLODEX, NOT THE TWELVE-WING ROW, and the reason is worth keeping:
+          the first cut put the row across the top and the growing ring simply
+          ate it - twelve wings and a ring at 1.8 do not both fit a 549px frame,
+          whatever you do with them. A frame holds one big thing. That is the
+          strongest argument D has, and it is why E and F both pay this price. */}
+      <div
+        data-anim-at={BEATS[2].at - LEAD}
+        style={{
+          position: "absolute",
+          right: "4%",
+          top: "44%",
+          transform: `translateY(-50%) translateX(${(1 - ramp(t, 5.65, 6.3)) * 10}%)`,
+          opacity: fade(t, armAt(2), SECONDS),
+        }}
+      >
+        <LadderColumn level={rail.level} span={5} />
+      </div>
+
+      <div
+        data-anim-at={BEATS[3].at - LEAD}
+        style={{ ...subject, opacity: fade(t, armAt(3), SECONDS) }}
+      >
+        <div style={{ transform: `scale(${0.7 + 0.3 * payoff})` }}>
+          <PatchBadge art={PATCH.art} earned size={186} />
+        </div>
+      </div>
+
+      <div
+        data-anim-at={0}
+        style={{
+          position: "absolute",
+          left: "6%",
+          top: "13%",
+          opacity: fade(t, ...win(0)),
+          transform: "scale(1.9)",
+          transformOrigin: "left top",
+        }}
+      >
+        <XpTick amount={AWARD} />
+      </div>
+    </div>
+  );
+}
+
+// ---- F: two registers at once -----------------------------------------------
+
+function SplitScene({
+  t,
+  win,
+  rail,
+  lesson,
+}: {
+  t: number;
+  win: (i: number) => [number, number];
+  rail: Rail;
+  lesson: FilmLesson;
+}) {
+  const box: React.CSSProperties = {
+    position: "absolute",
+    right: "5%",
+    top: 0,
+    bottom: 0,
+    width: "46%",
+    display: "grid",
+    placeItems: "center",
+    pointerEvents: "none",
+  };
+  return (
+    <>
+      {/* The score keeper. Full product chrome, deliberately small, never
+          touched by a beat - the one thing in the frame that does not change
+          is the thing the film is about. */}
+      <div
+        data-rail
+        style={{
+          position: "absolute",
+          left: "7%",
+          top: "16%",
+          transform: "scale(0.82)",
+          transformOrigin: "left top",
+          pointerEvents: "none",
+        }}
+      >
+        <TheRail rail={rail} />
+      </div>
+
+      <div style={{ ...box, opacity: fade(t, ...win(0)) }} data-anim-at={0}>
+        <div style={{ display: "grid", justifyItems: "center", gap: 10 }}>
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+            {lesson.clusterLabel ?? "The Library"}
+          </p>
+          <p className="max-w-[300px] text-center font-display text-xl leading-tight tracking-wide text-title">
+            {lesson.title}
+          </p>
+          <div style={{ transform: "scale(2.4)", marginTop: 14 }}>
+            <XpTick amount={AWARD} />
+          </div>
+        </div>
+      </div>
+
+      <div style={{ ...box, opacity: fade(t, ...win(1)) }} data-anim-at={BEATS[1].at - LEAD}>
+        <div style={{ display: "grid", justifyItems: "center", gap: 12 }}>
+          <RankWing level={rail.level} size={92} />
+          <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-command-gold">
+            FL{rail.level} &middot; {rail.title}
+          </p>
+        </div>
+      </div>
+
+      {/* The five-rank rolodex, not the twelve-wing row: half a frame cannot
+          hold twelve wings at a size anyone can read, and shrinking them to fit
+          would be the ladder beat losing the argument to the layout. */}
+      <div style={{ ...box, opacity: fade(t, ...win(2)) }} data-anim-at={BEATS[2].at - LEAD}>
+        <LadderColumn level={rail.level} span={5} />
+      </div>
+
+      <div style={{ ...box, opacity: fade(t, ...win(3)) }} data-anim-at={BEATS[3].at - LEAD}>
+        <div
+          style={{
+            display: "grid",
+            justifyItems: "center",
+            gap: 12,
+            transform: `scale(${0.78 + 0.22 * ramp(t, 7.65, 8.3)})`,
+          }}
+        >
+          <PatchBadge art={PATCH.art} earned size={168} />
+          <p className="font-display text-xl tracking-wide text-title">{PATCH.label}</p>
         </div>
       </div>
     </>
