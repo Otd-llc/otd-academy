@@ -57,19 +57,23 @@ export type Tuning = {
  * What the quiet round ships with, so the bench always has a baseline that is
  * the thing being changed rather than one more option.
  *
- * OWNER PICKS, 2026-08-11: `snappy` and `corners`. Everything else is still the
- * default rather than a decision - the flip is being chosen from a wider set,
- * and transition and kinetic were not called, which under `snappy` matters less
- * than it did: at a 0.1s handover the four transitions are 100ms apart from
- * each other and the cut is doing the work.
+ * OWNER PICKS: `snappy` and `corners` (2026-08-11), `plating` (2026-08-12).
+ * Transition and kinetic were never called and stay at their defaults, which
+ * under `snappy` matters less than it did: at a 0.1s handover the four
+ * transitions are 100ms apart from each other and the cut is doing the work.
  */
 export const DEFAULT_TUNING: Tuning = {
   kinetic: "rise",
   pos: "corners",
   transition: "crossfade",
   flow: "snappy",
-  jaunty: "jaunty",
+  jaunty: "plate",
 };
+
+/** The locked patch's idle loop, seconds. Load-bearing: the idle has to be at
+ *  REST on the frame the flip starts, so the flip is pinned one whole period
+ *  after it. See `jauntyCss`. */
+export const WAIT_PERIOD = 2.2;
 
 // ---- flow -------------------------------------------------------------------
 
@@ -416,10 +420,22 @@ export function jauntyCss(): string {
     ).join("\n") +
     `
 /* The locked patch, "animated" while it waits: a slow tilt, not a glow, so it
-   reads as something not yet yours rather than as a button. */
-@keyframes jkWait{0%,100%{transform:translateY(0) rotate(-1.6deg)}
-  50%{transform:translateY(-4px) rotate(1.6deg)}}
-.j-wait{animation:jkWait 2.2s ease-in-out infinite}
+   reads as something not yet yours rather than as a button.
+
+   IT RESTS AT 0% AND 100%, and the tilt lives at the quarters. The first
+   version put the extremes on the boundary, which meant the idle handed over
+   to the flip from wherever its loop happened to be - a visible snap into every
+   candidate's first keyframe, and a fatal one for plating, whose whole claim is
+   that the badge does not move. Resting on the boundary lets the flip be pinned
+   one whole period later and start from exactly where the idle left.
+
+   NO BACKTICKS ANYWHERE IN THIS STRING. It is a template literal, so a backtick
+   in a CSS comment terminates it and the file stops parsing - the same note
+   cue-layer.ts carries, earned twice now. */
+@keyframes jkWait{0%,100%{transform:none}
+  25%{transform:translateY(-3px) rotate(-1.5deg)}
+  75%{transform:translateY(3px) rotate(1.5deg)}}
+.j-wait{animation:jkWait ${WAIT_PERIOD}s ease-in-out infinite}
 `
   );
 }

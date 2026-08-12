@@ -58,6 +58,7 @@ import {
   subjectBox,
   subjectScale,
   subjectStyle,
+  WAIT_PERIOD,
   type JauntySpec,
   type Kinetic,
   type Tuning,
@@ -1261,8 +1262,11 @@ export function PatchFlip({
     <div className={gold ? `j-${spec.id}` : undefined} data-anim-at={at}>
       {/* The idle stops the moment the flip starts; two animations writing the
           same transform property fight, and the later one wins even while the
-          earlier is still filling. */}
-      <div className={gold ? undefined : "j-wait"} data-anim-at={at - 2}>
+          earlier is still filling.
+          Pinned ONE WHOLE PERIOD before the flip, so it is at rest on the frame
+          the flip takes over. Its keyframes rest at 0% and 100% for exactly
+          this. */}
+      <div className={gold ? undefined : "j-wait"} data-anim-at={at - WAIT_PERIOD}>
         <div style={{ position: "relative", display: "grid", placeItems: "center" }}>
           <PatchBadge art={PATCH.art} earned={false} size={size} />
           <div
