@@ -22,7 +22,7 @@
 //
 // ASCII only.
 
-import type { Camera, Motion, Parallax, PartId, PartSpec } from "./motion";
+import type { Camera, Motion, Parallax, PartId, PartSpec, Scheme } from "./motion";
 
 /** How the word arrives. `rise` is what every round so far used; the four after
  *  it are the film's own, ported from cue-layer; the last six are new. */
@@ -76,6 +76,10 @@ export type Tuning = {
   /** A LAYOUTS id from motion.ts: place, size, enter, exit and motion for all
    *  four parts as one composition. */
   layout: string;
+  /** A candidate's OWN per-beat composition, overriding `layout` entirely.
+   *  Presets are four answers to "what does the cut do"; this is for a cut that
+   *  wants a different answer on each beat, which is what mixing means. */
+  scheme?: Scheme;
   /** Override every part's motion with one value, so dynamics can be judged on
    *  its own. "auto" leaves each part with whatever its layout gave it. */
   motionAll: Motion | "auto";
