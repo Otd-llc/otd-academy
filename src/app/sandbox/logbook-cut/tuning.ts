@@ -94,6 +94,9 @@ export type Tuning = {
    * exactly on the downbeat, which is measurably correct and feels late.
    */
   preRoll?: number;
+  /** Scene time of the quiz's one click, on the 120 BPM grid. 1.5 is the last
+   *  beat of bar one; 1.0 is the beat before that. */
+  quizClick?: number;
   /**
    * A kinetic per beat, so a cut can change the word's TEXTURE on one beat
    * rather than only its size.

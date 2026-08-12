@@ -68,6 +68,7 @@ import {
   applyOverride,
   cameraVec,
   DEPTH,
+  fitScale,
   layoutById,
   parallaxVec,
   partStyle,
@@ -251,6 +252,13 @@ const RAIL_RECENTRE = 112;
 const QUIET_CSS = `
 [data-quiz-bare] .title-rule{display:none}
 [data-quiz-bare] section > div:last-child{display:none}
+/* XpTick draws the award TWICE on purpose: a floating pop that rises and fades,
+   and a quiet persistent marker that stays on the row afterwards. On a page
+   that is right - the value must survive the animation and reduced motion hides
+   the float entirely. In a frame at 2x it is two "+5 XP" forty pixels apart.
+   The film keeps the float, because the film IS the moment; the residue has
+   nowhere to sit once the quiz has left. */
+[data-xp-film] > span > span:first-child{display:none}
 ${jauntyCss()}`;
 
 /** StandingRail's own height with the ring and the FL chip, unscaled. Measured,
@@ -1186,8 +1194,14 @@ function SplitScene({
 // which is nearly a second of empty frame - in a feed that is where the viewer
 // leaves. Each subject now leaves as the next arrives.
 
-const CAR_ROW = 52;
+// BIGGER AT SOURCE, not scaled up afterwards. The wheel is the only part made
+// of text rows, and 10px mono blown up by a transform is a blurry 10px mono.
+// Growing the row, the wing and the type instead means the fit scale is doing
+// less work and the glyphs are rasterised at the size they are seen.
+const CAR_ROW = 74;
 const CAR_WIN = 5;
+const CAR_WING = 38;
+const CAR_TEXT = 300;
 
 /** The ladder as a WHEEL rather than a list: it spins up from FL1, overshoots,
  *  and settles on the learner's rank. The wobble is a damped sine of scene time
@@ -1254,19 +1268,23 @@ function RankCarousel({ t, level, from }: { t: number; level: number; from: numb
               >
                 {/* The marker points at the row from OUTSIDE it. On the right it
                     sat past a title that wraps, so it read as detached. */}
-                <span className="w-3 font-mono text-xs text-command-gold">
+                <span
+                  className="font-mono text-command-gold"
+                  style={{ width: 18, fontSize: 17 }}
+                >
                   {mine && d < 0.5 ? "▸" : ""}
                 </span>
                 <div style={{ transform: `scale(${scale})`, transformOrigin: "center" }}>
-                  <RankWing level={l.level} size={26} earned={l.level <= level} />
+                  <RankWing level={l.level} size={CAR_WING} earned={l.level <= level} />
                 </div>
-                {/* 215, not 170: "FL6 - INSTRUMENT RATED" wrapped at 170 and the
-                    settled row was the one row tall enough to break the wheel. */}
-                <div style={{ width: 215 }}>
+                {/* Wide enough that "FL6 - INSTRUMENT RATED" cannot wrap: a
+                    wrapped title is the one row tall enough to break the wheel. */}
+                <div style={{ width: CAR_TEXT }}>
                   <p
-                    className={`font-mono text-[11px] uppercase tracking-[0.12em] ${
+                    className={`font-mono uppercase tracking-[0.12em] ${
                       d < 0.5 ? "text-command-gold" : "text-muted"
                     }`}
+                    style={{ fontSize: 15, whiteSpace: "nowrap" }}
                   >
                     FL{l.level} &middot; {l.title}
                   </p>
@@ -1506,7 +1524,13 @@ function QuietScene({
   // `subjectScale` folds in the second reason: `corners` hands the top and the
   // bottom of the frame to the word, and the ring and the carousel were both
   // taller than what was left.
-  const k = (w / 880) * subjectScale(tuning.pos);
+  const h = Math.round((w * 9) / 16);
+  // WHERE THE ANSWER LANDS, on the 120 BPM grid. 1.5 is the last beat of bar
+  // one, so the click is a call and READ on the bar line is the answer, one
+  // beat apart. 1.0 puts two clear beats between them instead. Both are on the
+  // grid; neither is where it was, which was "wherever 1.0 plus a 1.5s float
+  // happened to finish".
+  const click = tuning.quizClick ?? 1.5;
 
   // ONE click, on the real option. Same forward-only reconcile the arc uses:
   // state the target, fix it up, and press the component's own Start over when
@@ -1514,7 +1538,7 @@ function QuietScene({
   useIso(() => {
     const root = quizRef.current;
     if (!root || !question) return;
-    if (t < QUIET_CLICK) {
+    if (t < click) {
       const over = Array.from(root.querySelectorAll("button")).find(
         (b) => b.textContent?.trim() === "Start over",
       );
@@ -1524,7 +1548,7 @@ function QuietScene({
     const field = root.querySelector("fieldset");
     if (!field || field.querySelector('[data-st="ok"]')) return;
     field.querySelectorAll<HTMLButtonElement>(".qzh-opt")[question.answer]?.click();
-  }, [t, question]);
+  }, [t, question, click]);
 
   const f = FLOWS[tuning.flow];
   // The composition, then the two overrides the bench can apply on top of it:
@@ -1568,31 +1592,27 @@ function QuietScene({
   const SOLO_WINDOW: [number, number] = [0.5, SECONDS - 0.4];
   const shot = (i: number): React.CSSProperties => {
     const id = PARTS[i];
-    if (tuning.solo) {
-      if (tuning.solo !== id) return { opacity: 0, pointerEvents: "none" };
-      return partStyle(
-        scheme[id],
-        t,
-        SOLO_WINDOW[0],
-        SOLO_WINDOW[1],
-        f.inDur,
-        f.outDur,
-        cam,
-        tuning.parallax,
-      ).style;
-    }
-    return partStyle(scheme[id], t, starts[i], ends[i], f.inDur, f.outDur, cam, tuning.parallax)
-      .style;
+    // THE FIT IS FOLDED INTO THE SPEC'S SIZE, not applied as a second wrapper.
+    // A nested scale multiplies in the wrong order against the entrance and the
+    // camera, so the entrance ends up scaled by the fit and a `grow` reads at a
+    // different depth on a half-width stage than on a full one.
+    const sized = { ...scheme[id], size: scheme[id].size * fitScale(id, w, h) };
+    const [from, to] = tuning.solo ? SOLO_WINDOW : ([starts[i], ends[i]] as const);
+    if (tuning.solo && tuning.solo !== id) return { opacity: 0, pointerEvents: "none" };
+    return partStyle(sized, t, from, to, f.inDur, f.outDur, cam, tuning.parallax).style;
   };
 
+  // THE BOX IS THE WHOLE FRAME NOW, and the fit fractions keep each part clear
+  // of the corners instead of a band doing it. Two things fall out: `place`
+  // offsets become percentages of the FRAME rather than of a band that changed
+  // size with the word position, and a part can be as tall as it needs to be
+  // without the word's corner deciding for it.
   const centre: React.CSSProperties = {
     position: "absolute",
-    left: "7%",
-    right: "7%",
+    inset: 0,
     display: "grid",
     placeItems: "center",
     pointerEvents: "none",
-    ...subjectBox(tuning.pos),
   };
 
   // GAIN: the ring DRAWS ITSELF to where the learner now is, then the rank
@@ -1612,18 +1632,25 @@ function QuietScene({
 
       {/* READ */}
       <div data-quiz-bare style={{ ...centre, ...shot(0) }}>
-        <div ref={quizRef} style={{ width: 560, transform: `scale(${k})` }}>
+        <div ref={quizRef} style={{ width: 560 }}>
           {question ? <QuizBlock prompt="Quick check" questions={[question]} /> : null}
         </div>
       </div>
+      {/* THE TICK IS ON THE GRID AND CLEARS BEFORE THE DOWNBEAT.
+          It used to pop on the click and hold to 2.6, so its float was still
+          running while READ landed at 1.9 and the two events smeared into one
+          another. Now it lands on its beat and is gone by 1.9, which leaves the
+          downbeat to the word - a call on the last beat of the bar, the answer
+          on the bar line. */}
       <div
-        data-anim-at={QUIET_CLICK}
+        data-xp-film
+        data-anim-at={click}
         style={{
           position: "absolute",
           right: "12%",
-          top: "34%",
-          opacity: fade(t, QUIET_CLICK, 2.6),
-          transform: `scale(${2.1 * k})`,
+          top: "31%",
+          opacity: fade(t, click, click + 0.75),
+          transform: `scale(${2.1 * fitScale("quiz", w, h)})`,
           transformOrigin: "right top",
           pointerEvents: "none",
         }}
@@ -1633,7 +1660,7 @@ function QuietScene({
 
       {/* GAIN */}
       <div data-rail-text="off" style={{ ...centre, ...shot(1) }}>
-        <div data-rail style={{ transform: `scale(${1.85 * k})`, transformOrigin: "center" }}>
+        <div data-rail>
           <StandingRail
             level={gainLevel}
             title={LEVELS[gainLevel - 1].title}
@@ -1647,17 +1674,15 @@ function QuietScene({
 
       {/* RANK */}
       <div style={{ ...centre, ...shot(2) }}>
-        <div style={{ transform: `scale(${1.35 * k})`, transformOrigin: "center" }}>
-          {/* +0.12, not +0.35: under `snappy` the arm is only a tenth of a beat
-              before the word, and a third of a second of a parked wheel is the
-              whole gap that flow was chosen to remove. */}
-          <RankCarousel t={t} level={AFTER.level} from={starts[2] + 0.12} />
-        </div>
+        {/* +0.12, not +0.35: under `snappy` the arm is only a tenth of a beat
+            before the word, and a third of a second of a parked wheel is the
+            whole gap that flow was chosen to remove. */}
+        <RankCarousel t={t} level={AFTER.level} from={starts[2] + 0.12} />
       </div>
 
       {/* PATCHES */}
       <div style={{ ...centre, ...shot(3) }}>
-        <PatchFlip t={t} at={FLIP} spec={spec} size={Math.round(210 * k)} />
+        <PatchFlip t={t} at={FLIP} spec={spec} size={210} />
       </div>
     </>
   );

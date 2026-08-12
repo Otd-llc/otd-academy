@@ -164,7 +164,11 @@ export type Motion =
   | "rise"
   | "sway"
   | "settle"
-  | "breathe";
+  | "breathe"
+  | "ken-in-l"
+  | "ken-in-r"
+  | "ken-out-l"
+  | "ken-out-r";
 
 export const MOTIONS: { id: Motion; label: string; note: string }[] = [
   { id: "hold", label: "hold", note: "Dead still once it arrives. The only one that makes the WORD the moving thing." },
@@ -176,6 +180,16 @@ export const MOTIONS: { id: Motion; label: string; note: string }[] = [
   { id: "sway", label: "sway", note: "A slow lateral oscillation. Alive rather than directional; too much of it on a small object looks like a loading spinner." },
   { id: "settle", label: "settle", note: "Arrives still moving and decelerates into place over half a second, then holds. The one that makes an entrance feel like weight." },
   { id: "breathe", label: "breathe", note: "A scale oscillation slower than the bar, so no two beats catch it at the same phase. Reads as alive without reading as animated." },
+  // KEN BURNS. Zoom and pan together and in the same direction for the whole
+  // shot, which is the entire trick: either alone reads as an effect, and the
+  // two combined read as a camera. Four of them because the DIRECTION is the
+  // choice - a push that drifts left and a push that drifts right feel like
+  // different shots, and a pull-back ends wider than it began, which is what
+  // you want on the beat that hands over to something bigger.
+  { id: "ken-in-l", label: "Ken Burns, in left", note: "Pushes in and drifts left across the whole beat. On the quiz this is the difference between a screenshot and a shot." },
+  { id: "ken-in-r", label: "Ken Burns, in right", note: "The same push drifting the other way, which matters when the next subject arrives from the right." },
+  { id: "ken-out-l", label: "Ken Burns, out left", note: "Starts tight and opens up. Ends wider than it began, so the frame is at its most open exactly when it hands over." },
+  { id: "ken-out-r", label: "Ken Burns, out right", note: "Opening while drifting right. The calmest of the four and the only one that gives ground to whatever comes next." },
 ];
 
 /** `p` is 0 at the start of the part's window and 1 at the end; `dt` is seconds
@@ -198,9 +212,68 @@ function motionVec(m: Motion, p: number, dt: number): Vec {
       return { ...ZERO, y: wobble(dt, 11, 5) * 3.5, s: 1 + wobble(dt, 11, 5) * 0.03 };
     case "breathe":
       return { ...ZERO, s: 1 + Math.sin(dt * 0.9) * 0.018 };
+    // Zoom AND pan, same direction, whole shot. 10% over the beat is the usual
+    // documentary figure; the 2.4% lateral is small on purpose, because a pan
+    // that outruns its zoom stops reading as a camera and starts reading as a
+    // slide.
+    case "ken-in-l":
+      return { ...ZERO, s: 1 + 0.1 * p, x: -2.4 * p, y: -1.2 * p };
+    case "ken-in-r":
+      return { ...ZERO, s: 1 + 0.1 * p, x: 2.4 * p, y: -1.2 * p };
+    case "ken-out-l":
+      return { ...ZERO, s: 1.1 - 0.1 * p, x: -2.4 * p, y: 1 * p };
+    case "ken-out-r":
+      return { ...ZERO, s: 1.1 - 0.1 * p, x: 2.4 * p, y: 1 * p };
     default:
       return ZERO;
   }
+}
+
+// ---- fitting a part to the frame it is in -----------------------------------
+//
+// THE OLD WAY WAS ONE SCALE FOR EVERYTHING: `(w / 880) * 0.8`, which is correct
+// only at the width it was tuned at and treats four differently-shaped subjects
+// as though they were one. The wheel suffered worst - it is the only part built
+// out of TEXT ROWS, so it is the first to stop being legible, and it was being
+// shrunk by the same factor as a 210px badge that reads fine at any size.
+//
+// Each part now declares what it actually is and how much of the frame it may
+// have, and the scale is derived. Widening a stage or changing the word's
+// position re-fits everything instead of needing the numbers re-tuned.
+
+/** Natural pixel size of each part at scale 1, measured off the rendered DOM. */
+export const INTRINSIC: Record<PartId, { w: number; h: number }> = {
+  quiz: { w: 560, h: 330 },
+  ring: { w: 190, h: 205 },
+  ladder: { w: 430, h: 370 },
+  patch: { w: 210, h: 250 },
+};
+
+/**
+ * The share of the frame each part may occupy.
+ *
+ * The wheel gets the most and the patch the least, which is the opposite of
+ * their bed weights and is correct: the patch is one dense shape that reads at
+ * any size, and the wheel is five rows of 10px mono that does not. Legibility
+ * and emphasis are different axes, and sizing by emphasis alone is what made
+ * the wheel unreadable.
+ */
+export const FILL: Record<PartId, { w: number; h: number }> = {
+  // 0.56 tall, not 0.66. The quiz is the only part wide AND tall enough to
+  // reach a corner, and at 0.66 it ran under the word: READ sat on top of the
+  // "Quick check" eyebrow. Losing a tenth of the height clears the corner
+  // bands, and the quiz is the part that can most afford it - it is already the
+  // biggest thing in the film.
+  quiz: { w: 0.66, h: 0.56 },
+  ring: { w: 0.46, h: 0.62 },
+  ladder: { w: 0.68, h: 0.9 },
+  patch: { w: 0.38, h: 0.56 },
+};
+
+export function fitScale(id: PartId, frameW: number, frameH: number): number {
+  const i = INTRINSIC[id];
+  const f = FILL[id];
+  return Math.min((frameW * f.w) / i.w, (frameH * f.h) / i.h);
 }
 
 // ---- camera and parallax ----------------------------------------------------
