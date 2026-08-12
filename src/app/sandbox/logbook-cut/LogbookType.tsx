@@ -22,18 +22,22 @@
 
 import { useEffect, useId, useRef } from "react";
 import { TEXT_SCALE } from "../capture/cut/cue-layer";
-import { BEATS, LABEL, PAYOFF, type Arrangement } from "./beats";
+import { BEATS, LABEL, PAYOFF, type Arrangement, type Beat } from "./beats";
 
 export function LogbookType({
   arrangement,
   t,
   w,
   h,
+  beats = BEATS,
 }: {
   arrangement: Arrangement;
   t: number;
   w: number;
   h: number;
+  /** The arc round rewrites the words, because its numbers depend on how many
+   *  questions the lesson actually has. Defaults to the shared sheet. */
+  beats?: Beat[];
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const raw = useId();
@@ -54,8 +58,8 @@ export function LogbookType({
     return () => el.remove();
   }, [id, arrangement, w, h]);
 
-  const active = BEATS.reduce((acc, b, i) => (t >= b.at ? i : acc), -1);
-  const beat = active >= 0 ? BEATS[active] : null;
+  const active = beats.reduce((acc, b, i) => (t >= b.at ? i : acc), -1);
+  const beat = active >= 0 ? beats[active] : null;
 
   return (
     <div ref={hostRef} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
@@ -65,7 +69,7 @@ export function LogbookType({
         <div className="lt-eyebrow">
           <span className="lt-idx">{String(Math.max(0, active) + 1).padStart(2, "0")}</span>
           <span className="lt-sep">/</span>
-          <span className="lt-idx lt-dim">{String(BEATS.length).padStart(2, "0")}</span>
+          <span className="lt-idx lt-dim">{String(beats.length).padStart(2, "0")}</span>
           <span className="lt-label">{LABEL}</span>
         </div>
 
@@ -99,6 +103,7 @@ const SLOT: Record<Arrangement, string> = {
   strip: "left:7%;bottom:auto;top:34%;max-width:38%",
   morph: "left:7%;bottom:9.5%;max-width:56%",
   split: "left:7%;bottom:9.5%;max-width:40%",
+  arc: "left:7%;bottom:9.5%;max-width:46%",
 };
 
 function css(id: string, arrangement: Arrangement, size: { word: number; url: number }) {

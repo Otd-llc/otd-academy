@@ -41,7 +41,14 @@ import { ROADMAP_PATCHES, artForBadge } from "@/lib/logbook/patches";
  *  it). Those can be combined by stripping the chrome off the continuous
  *  surface, by moving from one to the other across the clip, or by running both
  *  registers at once - and they look nothing like each other. */
-export type Arrangement = "page" | "rail" | "emblem" | "strip" | "morph" | "split";
+export type Arrangement =
+  | "page"
+  | "rail"
+  | "emblem"
+  | "strip"
+  | "morph"
+  | "split"
+  | "arc";
 
 export const SECONDS = 10;
 /** The reveal is armed slightly BEFORE the downbeat so its first frames are
@@ -151,6 +158,78 @@ export const ARRANGEMENTS: { id: Arrangement; label: string; note: string }[] = 
       "The same real components with every page around them removed: the tick, the wing, the twelve-wing ladder and the patch, at film scale on deep space. The type carries the story and the components are the picture. Furthest from the product, closest to a title sequence.",
   },
 ];
+
+// ---- round three: E, with the lesson at the front --------------------------
+//
+// THE STORY ARC, owner 2026-08-11: you do lessons in the Library, you gain XP,
+// you gain rank, and there are patches. So bar one stops being an empty
+// establishing bar and becomes the thing that causes everything after it - a
+// quiz being answered, correctly, one question at a time.
+//
+// THE QUESTIONS ARE THE REAL ONES, parsed out of the lesson's own contentBlocks,
+// and the component answering them is the real `QuizBlock`. That is safe to
+// drive because QuizBlock only touches the server when it is handed a `context`
+// (the stage gate) or a `logbook` (the XP wiring); with neither it is a pure
+// self-check, which is exactly the "editor preview" case its own header calls
+// out. Every pick below is a real click on a real option.
+//
+// WHY LIBRARY QUIZ QUESTIONS AND NOT EXAM ONES. A mini-lesson's quiz is already
+// on a public page - anyone reading the lesson sees it - so putting one in a
+// promo shows the free thing off. Exam banks are the opposite: their answer
+// keys gate the /verify certificates. Nothing here reads an Exam.
+
+/** How the four downbeats map to the owner's arc. Bar one is the lesson now, so
+ *  the words move up: the XP the quiz paid, the rank it bought, the wall it
+ *  belongs to, and the one patch that lands. */
+export function arcSheet(nQuestions: number) {
+  const quiz = nQuestions * QUIZ_XP;
+  const award = quiz + READ_XP;
+  /** Derived BACKWARDS from the threshold, so the ring closing, the chip
+   *  flipping and the last XP landing are all the same instant rather than
+   *  three things that nearly line up. */
+  const before = XP_AFTER - award;
+  const beats: Beat[] = [
+    {
+      at: 2.0,
+      word: "XP",
+      line: `${QUIZ_XP} a question, ${READ_XP} for the read. That lesson paid ${award}.`,
+    },
+    {
+      at: 4.0,
+      word: "RANK",
+      line: `${num(XP_AFTER)} XP is ${AFTER.title}, ${AFTER.level} of ${LEVELS.length}. ${TOP.title} is ${num(TOP.minXp)}.`,
+    },
+    {
+      at: 6.0,
+      word: "PATCHES",
+      line: `Six clusters, six patches. One for finishing each of them.`,
+    },
+    {
+      at: 8.0,
+      word: "EARNED",
+      // One line, not two. The longer version wrapped and orphaned "it."
+      line: `${PATCH.label}. Every lesson in the cluster, plus ${PATCH.xp} XP.`,
+    },
+  ];
+  // On the half-beats of bar one at 120 BPM, which is where the ear expects
+  // them. The last lands at 1.6 so it has cleared before the downbeat.
+  const ticks = Array.from({ length: nQuestions }, (_, i) =>
+    nQuestions === 1 ? 1.0 : 0.5 + (i * 1.1) / (nQuestions - 1),
+  );
+  return { quiz, award, before, beats, ticks };
+}
+
+/** The film answers at most three questions. Not a data limit - a bar limit:
+ *  four half-beats is what bar one has, and a fourth tick would land on the
+ *  downbeat the word needs. */
+export const ARC_MAX_Q = 3;
+
+export const ARC: { id: Arrangement; label: string; note: string } = {
+  id: "arc",
+  label: "E+ / the lesson, then the morph",
+  note:
+    "E unchanged from 2.0 on - the rail scaling, shedding its text column, ending as a halo behind the patch - with bar one now carrying the cause rather than establishing. The real QuizBlock, the lesson's real questions, answered correctly on the half-beats, five XP each, and the read award landing on the downbeat exactly as the total crosses into FL6.",
+};
 
 export const COMBOS: { id: Arrangement; label: string; note: string }[] = [
   {
