@@ -25,11 +25,16 @@ const useIso = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 export function SelectStage({
   anim,
+  verdict,
   question,
   fixedT,
   w = 520,
 }: {
   anim: SelectAnim;
+  /** How the "powered / why" block arrives. Independent of the pick, because
+   *  they are two halves of the same moment and only one of them was ever
+   *  animated. */
+  verdict?: SelectAnim;
   question: QuizQuestion;
   fixedT?: number;
   w?: number;
@@ -113,6 +118,7 @@ export function SelectStage({
     <div
       ref={host}
       data-qsel={anim.id}
+      data-qver={verdict?.id}
       style={{
         position: "relative",
         width: "100%",
@@ -123,6 +129,7 @@ export function SelectStage({
       }}
     >
       <style>{anim.css}</style>
+      {verdict ? <style>{verdict.css}</style> : null}
       <div style={{ width: w, maxWidth: "100%" }}>
         <QuizBlock prompt="Quick check" questions={[question]} />
       </div>

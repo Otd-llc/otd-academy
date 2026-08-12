@@ -272,3 +272,162 @@ export const SELECTS: SelectAnim[] = [
 ];
 
 export const selectById = (id?: string) => SELECTS.find((s) => s.id === id) ?? SELECTS[0];
+
+// ---------------------------------------------------------------------------
+// HOW THE VERDICT ARRIVES
+//
+// Picked, 2026-08-12: the SELECTION is `others` - the chosen node barely moves
+// and what animates is the two rows nobody picked, standing down in sequence.
+// That leaves the second half of the moment open, and it is the half that was
+// never animated at all: "POWERED - LOCKED IN." plus the explanation simply
+// exist on the next frame.
+//
+// It matters more than it looks. The explanation is the TEACHING - it is the
+// only place in the interaction where the learner is told why they were right -
+// and today it arrives with no more ceremony than a layout shift. It also
+// arrives at the exact moment three other things are happening, which is why
+// the whole beat reads as mush.
+//
+// THE MARKUP IS ALREADY THERE and needs nothing new: QuizBlock renders
+//   <div role="status"><div class="mt-3 space-y-1"><p>powered</p><p>why</p></div></div>
+// inside the fieldset, and it mounts on the solve. Every rule below hangs off
+// that, so shipping one is the same globals.css paste as the selection.
+//
+// ONE TRAP, PAID FOR: the block MOUNTS when the question is solved, so a
+// height animation moves the "1 / 1 correct" footer under it. Anything that
+// animates height has to be judged for that, not just for how it reads - which
+// is why `unfold` is on the page rather than assumed to be fine.
+
+export type VerdictAnim = SelectAnim;
+
+const wrapV = (id: string, body: string) =>
+  body.replace(/%S%/g, `[data-qver="${id}"]`);
+
+/** The two lines, addressed without touching the component. */
+const LINE = `%S% [role="status"] > div > p:first-child`;
+const WHY = `%S% [role="status"] > div > p:last-child`;
+
+export const VERDICTS: VerdictAnim[] = [
+  {
+    id: "none",
+    label: "00 / what ships today",
+    note:
+      "It is simply there on the next frame, at the same instant as the fill, the label and the rule-outs. Four things becoming true at once is the definition of the mush this round exists to fix.",
+    dur: 0,
+    css: wrapV("none", ``),
+  },
+  {
+    id: "quiet",
+    label: "01 / quiet",
+    note:
+      "A 0.3s fade on the whole block, starting a beat after the pick so it is second rather than simultaneous. The control: if nothing below beats a plain fade that merely waits its turn, the answer was ordering all along, not animation.",
+    dur: 0.5,
+    css: wrapV(
+      "quiet",
+      `
+%S% [role="status"] > div{animation:qv-fade .3s ease-out both .2s}
+@keyframes qv-fade{from{opacity:0}to{opacity:1}}
+`,
+    ),
+  },
+  {
+    id: "stagger",
+    label: "02 / verdict, then reason",
+    note:
+      "The two lines are two different things - a state and a lesson - so they arrive as two events, the mono verdict first and the explanation a beat behind it. The one that most respects that the second line is the teaching.",
+    dur: 0.72,
+    css: wrapV(
+      "stagger",
+      `
+${LINE}{animation:qv-rise .26s cubic-bezier(.2,.9,.3,1) both .16s}
+${WHY}{animation:qv-rise .32s cubic-bezier(.2,.9,.3,1) both .38s}
+@keyframes qv-rise{from{opacity:0;transform:translateY(6px)}
+  to{opacity:1;transform:none}}
+`,
+    ),
+  },
+  {
+    id: "typeon",
+    label: "03 / type it on",
+    note:
+      "The mono line wipes on left to right under a hard-edged mask, the way a readout prints, and the explanation fades under it. Mono type is the one face in this system that can be revealed a character at a time without looking like a gimmick, because it is already monospaced.",
+    dur: 0.78,
+    css: wrapV(
+      "typeon",
+      `
+/* CLIP-PATH, NOT A MASK GRADIENT. The first version animated the stops of a
+   linear-gradient mask and rendered nothing for the whole run: two gradients
+   are not reliably interpolated stop-for-stop, so it held the from-value and
+   then snapped. clip-path inset() is a length and interpolates properly - and
+   it is what gives the reveal a hard edge, which is the point of a readout
+   printing rather than fading. */
+${LINE}{animation:qv-type .42s steps(22,end) both .14s}
+@keyframes qv-type{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+${WHY}{animation:qv-fade2 .3s ease-out both .5s}
+@keyframes qv-fade2{from{opacity:0}to{opacity:1}}
+`,
+    ),
+  },
+  {
+    id: "glyph",
+    label: "04 / the glyph leads",
+    note:
+      "The hex glyph that opens the line is the same shape as the node that just filled, so it lands first and at scale, and the words track out from behind it. The only candidate that ties the verdict to the thing it is a verdict ON.",
+    dur: 0.8,
+    css: wrapV(
+      "glyph",
+      `
+${LINE}{position:relative;animation:qv-track .38s cubic-bezier(.2,.9,.3,1) both .26s}
+@keyframes qv-track{from{opacity:0;letter-spacing:.5em}
+  to{opacity:1;letter-spacing:.18em}}
+${LINE}::before{content:"";position:absolute;left:-2px;top:50%;width:11px;height:12px;
+  margin-top:-6px;background:var(--color-command-gold);
+  clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
+  animation:qv-glyph .3s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes qv-glyph{from{opacity:0;transform:scale(.3)}
+  60%{opacity:1;transform:scale(1.25)}to{opacity:1;transform:scale(1)}}
+${WHY}{animation:qv-fade3 .3s ease-out both .46s}
+@keyframes qv-fade3{from{opacity:0}to{opacity:1}}
+`,
+    ),
+  },
+  {
+    id: "unfold",
+    label: "05 / unfold",
+    note:
+      "The block grows from zero height, so the row physically opens to make room for it. The most satisfying of the six and the only one that MOVES THE PAGE - the correct counter below shifts down as it opens, which on a three-question card happens three times. On the page to be judged for that, not just for how it reads.",
+    dur: 0.66,
+    css: wrapV(
+      "unfold",
+      `
+%S% [role="status"] > div{overflow:hidden;
+  animation:qv-unfold .4s cubic-bezier(.25,.9,.3,1) both .12s}
+@keyframes qv-unfold{from{opacity:0;max-height:0;transform:translateY(-4px)}
+  to{opacity:1;max-height:9rem;transform:none}}
+`,
+    ),
+  },
+  {
+    id: "wire",
+    label: "06 / down the wire",
+    note:
+      "A gold rule draws left to right under the option row and the verdict rises behind it, so the line reads as the bus carrying the result on rather than as text appearing. Matches the wired-net drawing the options already sit on, which is the argument for it over the plain fade.",
+    dur: 0.74,
+    css: wrapV(
+      "wire",
+      `
+%S% [role="status"] > div{position:relative;
+  animation:qv-rise2 .3s cubic-bezier(.2,.9,.3,1) both .22s}
+@keyframes qv-rise2{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+%S% [role="status"] > div::before{content:"";position:absolute;left:0;right:0;top:-6px;
+  height:1px;background:linear-gradient(90deg,var(--color-command-gold),
+    color-mix(in srgb,var(--color-command-gold) 0%,transparent));
+  transform-origin:left;
+  animation:qv-rule .34s cubic-bezier(.4,0,.2,1) both}
+@keyframes qv-rule{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+`,
+    ),
+  },
+];
+
+export const verdictById = (id?: string) => VERDICTS.find((v) => v.id === id) ?? VERDICTS[0];
