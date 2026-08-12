@@ -51,6 +51,18 @@ import { ROADMAP_PATCHES, artForBadge } from "@/lib/logbook/patches";
 import type { LearnLibraryStanding } from "@/lib/logbook/load";
 import { QuizBlock } from "@/components/guide/QuizBlock";
 import {
+  DEFAULT_TUNING,
+  FLOWS,
+  jauntyById,
+  jauntyCss,
+  subjectBox,
+  subjectStyle,
+  type JauntySpec,
+  type Kinetic,
+  type Tuning,
+  type WordPos,
+} from "./tuning";
+import {
   AFTER,
   AWARD,
   BEATS,
@@ -74,6 +86,60 @@ import { LogbookType } from "./LogbookType";
 /** useLayoutEffect, minus the server warning. The pin MUST run before paint or
  *  the frame a beat mounts on shows one unpinned frame of its animation. */
 const useIso = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+/** The scene clock: a loop, or a frozen instant. Shared by the full stage and
+ *  the bench's small tiles so a tile cannot drift from the film it is judging. */
+function useSceneClock(cycle: number, fixedT?: number) {
+  const [tick, setTick] = useState(0);
+  const frozen = fixedT !== undefined;
+  useEffect(() => {
+    if (frozen) return;
+    let raf = 0;
+    const start = performance.now();
+    const step = (now: number) => {
+      setTick(((now - start) / 1000) % cycle);
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [frozen, cycle]);
+  return fixedT ?? tick;
+}
+
+/**
+ * THE CLOCK OWNS EVERY ANIMATION UNDER `host`. Pause, then pin currentTime to
+ * time-since-the-beat-this-element-belongs-to. Elements tag themselves with
+ * `data-anim-at`; anything untagged runs from zero.
+ *
+ * The XpTick's float variant is picked with Math.random() at mount, which is
+ * right for a page and wrong for a film - two renders of the same frame would
+ * differ. Pinning it to v1 here is the same deliberate reach past a component
+ * that ClusterLive makes for useScrollReveal, and for the same reason.
+ */
+function usePin(host: React.RefObject<HTMLElement | null>, t: number, ...deps: unknown[]) {
+  useIso(() => {
+    const el = host.current;
+    if (!el) return;
+    el.querySelectorAll(".xp-pop").forEach((n) => {
+      n.classList.remove("v2", "v3", "v4", "v5");
+      n.classList.add("v1");
+    });
+    for (const a of el.getAnimations({ subtree: true })) {
+      const target = (a.effect as KeyframeEffect | null)?.target ?? null;
+      if (!target) continue;
+      const owner = target.closest("[data-anim-at]") as HTMLElement | null;
+      const at = Number(owner?.dataset.animAt ?? 0);
+      a.pause();
+      try {
+        // `CSSNumberish` in the current lib.dom; the browser takes plain ms.
+        (a as unknown as { currentTime: number }).currentTime = Math.max(0, (t - at) * 1000);
+      } catch {
+        /* an animation can be replaced mid-pin; the next frame re-pins it */
+      }
+    }
+    // The caller spreads its own deps; `host` is a stable ref.
+  }, [t, ...deps]);
+}
 
 export type FilmLesson = { slug: string; title: string; clusterLabel: string | null };
 /** Shape-compatible with QuizBlock's own QuizQuestion, parsed server-side out of
@@ -134,16 +200,7 @@ const RAIL_RECENTRE = 112;
 const QUIET_CSS = `
 [data-quiz-bare] .title-rule{display:none}
 [data-quiz-bare] section > div:last-child{display:none}
-@keyframes qWait{0%,100%{transform:translateY(0) rotate(-1.6deg)}
-  50%{transform:translateY(-4px) rotate(1.6deg)}}
-@keyframes qJaunty{0%{transform:scale(.84) rotate(-6deg)}
-  40%{transform:scale(1.17) rotate(5deg)}
-  62%{transform:scale(.95) rotate(-2.5deg)}
-  80%{transform:scale(1.05) rotate(1deg)}
-  100%{transform:scale(1) rotate(0)}}
-.q-wait{animation:qWait 2.2s ease-in-out infinite}
-.q-jaunty{animation:qJaunty .62s cubic-bezier(.2,.9,.25,1) both}
-`;
+${jauntyCss()}`;
 
 /** StandingRail's own height with the ring and the FL chip, unscaled. Measured,
  *  because a scaled element keeps its layout box and the column under it has to
@@ -309,6 +366,7 @@ export function LogbookLive({
   libraryTotal,
   libraryDone,
   questions = [],
+  tuning = DEFAULT_TUNING,
   fixedT,
   w = 880,
 }: {
@@ -318,18 +376,16 @@ export function LogbookLive({
   libraryDone: number;
   /** The arc round only. The lesson's real quiz, parsed server-side. */
   questions?: FilmQuestion[];
+  /** The quiet round's four tuning axes. See tuning.ts. */
+  tuning?: Tuning;
   /** Freeze the clock. Without it a capture lands wherever wall time was. */
   fixedT?: number;
   w?: number;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
-  // The running clock and the frozen one are the same value DERIVED, not one
-  // state pushed into the other: `setT(fixedT)` inside the effect was a
-  // setState-in-effect, and worse, it made the freeze arrive a render late.
-  const [tick, setTick] = useState(0);
   const h = Math.round((w * 9) / 16);
   const frozen = fixedT !== undefined;
-  const t = fixedT ?? tick;
+  const t = useSceneClock(SECONDS, fixedT);
 
   // CLIENT ONLY, and not out of laziness. XpTick picks its float variant with
   // Math.random() at mount, which is correct for a page and produces a real
@@ -343,47 +399,7 @@ export function LogbookLive({
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (frozen) return;
-    let raf = 0;
-    const start = performance.now();
-    const step = (now: number) => {
-      setTick(((now - start) / 1000) % SECONDS);
-      raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [frozen]);
-
-  // THE CLOCK OWNS EVERY ANIMATION UNDER THE STAGE. Pause, then pin
-  // currentTime to time-since-the-beat-this-element-belongs-to. Elements tag
-  // themselves with data-anim-at; anything untagged runs from zero.
-  //
-  // The XpTick's float variant is picked with Math.random() at mount, which is
-  // right for a page and wrong for a film - two renders of the same frame would
-  // differ. Pinning it to v1 here is the same deliberate reach past a component
-  // that ClusterLive makes for useScrollReveal, and for the same reason.
-  useIso(() => {
-    const host = hostRef.current;
-    if (!host) return;
-    host.querySelectorAll(".xp-pop").forEach((el) => {
-      el.classList.remove("v2", "v3", "v4", "v5");
-      el.classList.add("v1");
-    });
-    for (const a of host.getAnimations({ subtree: true })) {
-      const target = (a.effect as KeyframeEffect | null)?.target ?? null;
-      if (!target) continue;
-      const owner = target.closest("[data-anim-at]") as HTMLElement | null;
-      const at = Number(owner?.dataset.animAt ?? 0);
-      a.pause();
-      try {
-        // `CSSNumberish` in the current lib.dom; the browser takes plain ms.
-        (a as unknown as { currentTime: number }).currentTime = Math.max(0, (t - at) * 1000);
-      } catch {
-        /* an animation can be replaced mid-pin; the next frame re-pins it */
-      }
-    }
-  }, [t, arrangement]);
+  usePin(hostRef, t, arrangement, tuning.kinetic, tuning.jaunty);
 
   const win = (i: number): [number, number] =>
     [armAt(i), i + 1 < BEATS.length ? armAt(i + 1) : SECONDS] as [number, number];
@@ -485,7 +501,7 @@ export function LogbookLive({
       ) : arrangement === "split" ? (
         <SplitScene t={t} win={win} rail={rail} lesson={lesson} />
       ) : arrangement === "quiet" ? (
-        <QuietScene t={t} question={questions[0]} />
+        <QuietScene t={t} question={questions[0]} tuning={tuning} w={w} />
       ) : (
         <ArcScene t={t} rail={arcRail} questions={questions} sheet={arc} lesson={lesson} />
       )}
@@ -499,6 +515,8 @@ export function LogbookLive({
           arrangement === "arc" ? arc.beats : arrangement === "quiet" ? QUIET_BEATS : BEATS
         }
         bare={arrangement === "quiet"}
+        kinetic={arrangement === "quiet" ? tuning.kinetic : "rise"}
+        pos={arrangement === "quiet" ? tuning.pos : undefined}
       />
     </>
   );
@@ -1198,8 +1216,154 @@ function RankCarousel({ t, level, from }: { t: number; level: number; from: numb
   );
 }
 
-function QuietScene({ t, question }: { t: number; question?: FilmQuestion }) {
+/**
+ * The patch flip, on its own so the bench can loop six of them side by side.
+ *
+ * TWO REAL RENDERS, CROSSFADED, not a tween. `PatchBadge` draws locked and
+ * earned as different pictures - dim plus desaturate against a gold scene - and
+ * there is no colour to interpolate between them. `goldAt` is where in the
+ * animation the swap hides: at the top of a stamp's impact, at the edge-on
+ * frame of a card flip, and at zero for the ones that never occlude themselves.
+ */
+export function PatchFlip({
+  t,
+  at,
+  spec,
+  size = 210,
+}: {
+  t: number;
+  at: number;
+  spec: JauntySpec;
+  size?: number;
+}) {
+  const gold = t >= at;
+  return (
+    <div className={gold ? `j-${spec.id}` : undefined} data-anim-at={at}>
+      {/* The idle stops the moment the flip starts; two animations writing the
+          same transform property fight, and the later one wins even while the
+          earlier is still filling. */}
+      <div className={gold ? undefined : "j-wait"} data-anim-at={at - 2}>
+        <div style={{ position: "relative", display: "grid", placeItems: "center" }}>
+          <PatchBadge art={PATCH.art} earned={false} size={size} />
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "grid",
+              placeItems: "center",
+              opacity: clamp01((t - (at + spec.goldAt * spec.dur)) / 0.08),
+            }}
+          >
+            <PatchBadge art={PATCH.art} earned size={size} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The type layer alone, over an empty frame, for judging an ENTRANCE.
+ *
+ * A kinetic is a property of one word arriving, and putting five complete cuts
+ * on a page to compare five entrances means watching four subjects you are not
+ * judging and paying for four QuizBlocks and four carousels to do it. This runs
+ * the same clock and the same words with the picture removed.
+ */
+export function WordTile({
+  kinetic,
+  pos = "lower-left",
+  w = 420,
+  fixedT,
+}: {
+  kinetic: Kinetic;
+  pos?: WordPos;
+  w?: number;
+  /** Freeze, so a screenshot lands on a chosen frame of the entrance. */
+  fixedT?: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const t = useSceneClock(SECONDS, fixedT);
+  usePin(ref, t, kinetic);
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: "relative",
+        width: "100%",
+        aspectRatio: "16 / 9",
+        background: "var(--color-deep-space, #08090d)",
+        overflow: "hidden",
+      }}
+    >
+      <LogbookType
+        arrangement="quiet"
+        t={t}
+        w={w}
+        h={Math.round((w * 9) / 16)}
+        beats={QUIET_BEATS}
+        bare
+        kinetic={kinetic}
+        pos={pos}
+      />
+    </div>
+  );
+}
+
+/** One candidate, looping on its own short clock, for the bench grid. */
+export function FlipTile({
+  spec,
+  size = 150,
+  fixedT,
+}: {
+  spec: JauntySpec;
+  size?: number;
+  /** Freeze. The tile's own cycle is 2.6s with the flip at 1.0, so 1.0 to 1.9
+   *  is the part worth stopping on. */
+  fixedT?: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const CYCLE = 2.6;
+  const AT = 1.0;
+  const t = useSceneClock(CYCLE, fixedT);
+  usePin(ref, t, spec.id);
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: "relative",
+        display: "grid",
+        placeItems: "center",
+        height: size + 60,
+        background: "var(--color-deep-space, #08090d)",
+        overflow: "hidden",
+      }}
+    >
+      <style>{QUIET_CSS}</style>
+      <PatchFlip t={t} at={AT} spec={spec} size={size} />
+    </div>
+  );
+}
+
+function QuietScene({
+  t,
+  question,
+  tuning,
+  w,
+}: {
+  t: number;
+  question?: FilmQuestion;
+  tuning: Tuning;
+  w: number;
+}) {
   const quizRef = useRef<HTMLDivElement>(null);
+  // EVERY SUBJECT SCALES WITH THE FRAME, because half of them are sized in
+  // pixels that do not know how wide the frame is. The type already scales off
+  // `w`; the quiz is page-sized prose, the ring is 168px of SVG and the patch
+  // is a `size` in pixels. On the bench, where a stage is half width, the
+  // unscaled version put a ring twice too big over a quiz clipped mid
+  // explanation - the composition being judged was not the composition.
+  const k = w / 880;
 
   // ONE click, on the real option. Same forward-only reconcile the arc uses:
   // state the target, fix it up, and press the component's own Start over when
@@ -1219,46 +1383,46 @@ function QuietScene({ t, question }: { t: number; question?: FilmQuestion }) {
     field.querySelectorAll<HTMLButtonElement>(".qzh-opt")[question.answer]?.click();
   }, [t, question]);
 
-  // The dissolve. A horizontal mask whose opaque edge walks off to the left, so
-  // the RIGHT of the quiz goes first and the whole thing drifts that way as it
-  // leaves - "fade alpha to the right" as a wipe rather than a plain fade.
-  const wipe = ramp(t, 2.4, 3.6);
-  const edge = 118 - 150 * wipe;
+  const f = FLOWS[tuning.flow];
+  // THE FOUR SUBJECT WINDOWS, DERIVED FROM THE FLOW rather than written out.
+  // Each subject holds until the next one arms, then hands over across one
+  // `outDur`, so there is never a gap and never a stack - and changing the flow
+  // moves all four together instead of leaving one behind.
+  const starts = [0, 4.0 - f.lead, 6.0 - f.lead, 8.0 - f.lead];
+  const ends = [
+    starts[1] + f.outDur,
+    starts[2] + f.outDur,
+    starts[3] + f.outDur,
+    SECONDS,
+  ];
+  const shot = (i: number) => subjectStyle(tuning.transition, t, starts[i], ends[i], f);
+
   const centre: React.CSSProperties = {
     position: "absolute",
     left: "7%",
     right: "7%",
-    top: "10%",
-    bottom: "27%",
     display: "grid",
     placeItems: "center",
     pointerEvents: "none",
+    ...subjectBox(tuning.pos),
   };
 
   // GAIN: the ring DRAWS ITSELF to where the learner now is, then the rank
   // changes under it. Not a claim that one question filled a band - the sweep
   // is a reveal and it lands on the true value, which after the click is the
   // top of FL5 and the floor of FL6 at the same time.
-  const gained = t >= 5.4;
-  const gainLevel = gained ? AFTER.level : BEFORE.level;
+  const gainLevel = t >= starts[1] + 1.75 ? AFTER.level : BEFORE.level;
 
+  // The flip sits on a MUSICAL position, half a bar after the word, so it does
+  // not slide around when the flow changes. Everything else here is relative.
   const FLIP = 8.5;
-  const gold = t >= FLIP;
+  const spec = jauntyById(tuning.jaunty);
 
   return (
     <>
       {/* READ */}
-      <div
-        data-quiz-bare
-        style={{
-          ...centre,
-          opacity: fade(t, 0, 3.72),
-          WebkitMaskImage: `linear-gradient(90deg,#000 ${edge}%,transparent ${edge + 26}%)`,
-          maskImage: `linear-gradient(90deg,#000 ${edge}%,transparent ${edge + 26}%)`,
-          transform: `translateX(${wipe * 7}%)`,
-        }}
-      >
-        <div ref={quizRef} style={{ width: "min(560px, 100%)" }}>
+      <div data-quiz-bare style={{ ...centre, ...shot(0) }}>
+        <div ref={quizRef} style={{ width: 560, transform: `scale(${k})` }}>
           {question ? <QuizBlock prompt="Quick check" questions={[question]} /> : null}
         </div>
       </div>
@@ -1269,7 +1433,7 @@ function QuietScene({ t, question }: { t: number; question?: FilmQuestion }) {
           right: "12%",
           top: "34%",
           opacity: fade(t, QUIET_CLICK, 2.6),
-          transform: "scale(2.1)",
+          transform: `scale(${2.1 * k})`,
           transformOrigin: "right top",
           pointerEvents: "none",
         }}
@@ -1278,52 +1442,29 @@ function QuietScene({ t, question }: { t: number; question?: FilmQuestion }) {
       </div>
 
       {/* GAIN */}
-      <div
-        data-rail-text="off"
-        style={{ ...centre, opacity: fade(t, 3.65, 5.78) }}
-      >
-        <div data-rail style={{ transform: "scale(1.85)", transformOrigin: "center" }}>
+      <div data-rail-text="off" style={{ ...centre, ...shot(1) }}>
+        <div data-rail style={{ transform: `scale(${1.85 * k})`, transformOrigin: "center" }}>
           <StandingRail
             level={gainLevel}
             title={LEVELS[gainLevel - 1].title}
             xp={XP_AFTER}
             nextMinXp={null}
             nextLevel={null}
-            bandPct={ramp(t, 4.05, 5.25)}
+            bandPct={ramp(t, starts[1] + 0.4, starts[1] + 1.6)}
           />
         </div>
       </div>
 
       {/* RANK */}
-      <div style={{ ...centre, opacity: fade(t, 5.68, 7.78) }}>
-        <div style={{ transform: "scale(1.35)", transformOrigin: "center" }}>
-          <RankCarousel t={t} level={AFTER.level} from={6.0} />
+      <div style={{ ...centre, ...shot(2) }}>
+        <div style={{ transform: `scale(${1.35 * k})`, transformOrigin: "center" }}>
+          <RankCarousel t={t} level={AFTER.level} from={starts[2] + 0.35} />
         </div>
       </div>
 
       {/* PATCHES */}
-      <div style={{ ...centre, opacity: fade(t, 7.68, SECONDS) }}>
-        <div className={gold ? "q-jaunty" : undefined} data-anim-at={FLIP}>
-          <div className={gold ? undefined : "q-wait"} data-anim-at={7.68}>
-            <div style={{ position: "relative", display: "grid", placeItems: "center" }}>
-              <PatchBadge art={PATCH.art} earned={false} size={210} />
-              {/* The gold one on top of the locked one rather than a tween: two
-                  different renders, and a crossfade between them is what a
-                  "turns to gold" actually is. */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  display: "grid",
-                  placeItems: "center",
-                  opacity: clamp01((t - FLIP) / 0.1),
-                }}
-              >
-                <PatchBadge art={PATCH.art} earned size={210} />
-              </div>
-            </div>
-          </div>
-        </div>
+      <div style={{ ...centre, ...shot(3) }}>
+        <PatchFlip t={t} at={FLIP} spec={spec} size={Math.round(210 * k)} />
       </div>
     </>
   );
