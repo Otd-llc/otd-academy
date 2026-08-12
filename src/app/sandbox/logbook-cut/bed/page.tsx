@@ -46,7 +46,19 @@ const KITS: BedKit[] = [
   {
     id: "plate",
     title: "Plate",
-    note: "Built around the LAST event rather than the biggest one: the 8.0 drop is pulled back and the 8.5 plating gets a real swell, so the film resolves on the badge becoming yours instead of on it arriving.",
+    note: "PICKED (owner, 2026-08-12), for its pacing. Built around the LAST event rather than the biggest one: the 8.0 drop is pulled back and the 8.5 plating gets a real swell, so the film resolves on the badge becoming yours instead of on it arriving.",
+  },
+  {
+    id: "plate-master",
+    title: "Plate / master",
+    // THE POINT OF AUDITIONING THE MASTER HERE. The finishing chain is where an
+    // arrangement gets quietly levelled - convolution, glue compression and a
+    // limiter all trade dynamics for loudness, and loudnorm's `linear=true` is a
+    // request rather than a guarantee. Measured, this one held: the six peaks
+    // moved by at most 0.009 relative to PATCH and crest fell 0.56 dB. Left on
+    // the page anyway, because the next kit or the next chain change is exactly
+    // when that stops being true, and the A/B is one click.
+    note: "The same kit through tools/hex-master.py: church-IR convolution, gentle glue, true-peak limit, -14.25 LUFS (linear, capped 0.25 dB short of -14 rather than falling back to dynamic). A/B it against the raw plate above.",
   },
 ];
 
