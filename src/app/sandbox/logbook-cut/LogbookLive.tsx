@@ -57,6 +57,8 @@ import {
   BEFORE,
   LEAD,
   PATCH,
+  QUIET_BEATS,
+  QUIET_CLICK,
   QUIZ_XP,
   SECONDS,
   XP_AFTER,
@@ -116,6 +118,32 @@ const RAIL_CHROME = `
  *  the ring's. Opacity does not free layout, so E has to do this by hand -
  *  otherwise the emblem it spends ten seconds becoming ends up off-centre. */
 const RAIL_RECENTRE = 112;
+
+/**
+ * The quiet round's own rules. Two of them switch OFF product chrome the film
+ * has no use for; two are the animations the owner asked for by name.
+ *
+ * `qWait` is the locked patch "animated" while it waits - a slow breathing
+ * tilt, not a glow, so it reads as something not yet yours rather than as a
+ * button. `qJaunty` is the moment it becomes yours: an overshoot in scale AND
+ * rotation, which is what makes it jaunty rather than merely large.
+ *
+ * Both are keyframes rather than transitions, because a transition has no seek
+ * and this stage pins every animation's currentTime to scene time.
+ */
+const QUIET_CSS = `
+[data-quiz-bare] .title-rule{display:none}
+[data-quiz-bare] section > div:last-child{display:none}
+@keyframes qWait{0%,100%{transform:translateY(0) rotate(-1.6deg)}
+  50%{transform:translateY(-4px) rotate(1.6deg)}}
+@keyframes qJaunty{0%{transform:scale(.84) rotate(-6deg)}
+  40%{transform:scale(1.17) rotate(5deg)}
+  62%{transform:scale(.95) rotate(-2.5deg)}
+  80%{transform:scale(1.05) rotate(1deg)}
+  100%{transform:scale(1) rotate(0)}}
+.q-wait{animation:qWait 2.2s ease-in-out infinite}
+.q-jaunty{animation:qJaunty .62s cubic-bezier(.2,.9,.25,1) both}
+`;
 
 /** StandingRail's own height with the ring and the FL chip, unscaled. Measured,
  *  because a scaled element keeps its layout box and the column under it has to
@@ -423,6 +451,7 @@ export function LogbookLive({
   const scenes = (
     <>
       <style>{RAIL_CHROME}</style>
+      <style>{QUIET_CSS}</style>
       {arrangement === "page" ? (
         <PageScene
           t={t}
@@ -455,6 +484,8 @@ export function LogbookLive({
         <MorphScene t={t} win={win} rail={rail} />
       ) : arrangement === "split" ? (
         <SplitScene t={t} win={win} rail={rail} lesson={lesson} />
+      ) : arrangement === "quiet" ? (
+        <QuietScene t={t} question={questions[0]} />
       ) : (
         <ArcScene t={t} rail={arcRail} questions={questions} sheet={arc} lesson={lesson} />
       )}
@@ -464,7 +495,10 @@ export function LogbookLive({
         t={t}
         w={w}
         h={h}
-        beats={arrangement === "arc" ? arc.beats : BEATS}
+        beats={
+          arrangement === "arc" ? arc.beats : arrangement === "quiet" ? QUIET_BEATS : BEATS
+        }
+        bare={arrangement === "quiet"}
       />
     </>
   );
@@ -1058,6 +1092,237 @@ function SplitScene({
         >
           <PatchBadge art={PATCH.art} earned size={168} />
           <p className="font-display text-xl tracking-wide text-title">{PATCH.label}</p>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ---- round four: one thing at a time ----------------------------------------
+//
+// "Too much going on." Every earlier round put two or three things in a frame
+// and asked the eye to rank them; this one holds ONE subject per beat and hands
+// off between them, so nothing ever competes.
+//
+// THE HANDOFFS OVERLAP BY A TENTH OF A SECOND and the gaps are zero. An earlier
+// cut let the quiz finish dissolving at 2.8 and brought the ring up at 3.65,
+// which is nearly a second of empty frame - in a feed that is where the viewer
+// leaves. Each subject now leaves as the next arrives.
+
+const CAR_ROW = 52;
+const CAR_WIN = 5;
+
+/** The ladder as a WHEEL rather than a list: it spins up from FL1, overshoots,
+ *  and settles on the learner's rank. The wobble is a damped sine of scene time
+ *  - a pure function of t, so it seeks like everything else here. A spring
+ *  integrated frame to frame would not. */
+function RankCarousel({ t, level, from }: { t: number; level: number; from: number }) {
+  const settle = ramp(t, from, from + 0.8);
+  const wob =
+    t >= from ? Math.max(0, 1 - (t - from) / 1.2) * Math.sin((t - from) * 10) * 0.42 : 0;
+  const focus = (level - 1) * settle + wob;
+  return (
+    <div style={{ position: "relative", height: CAR_ROW * CAR_WIN }}>
+      {/* The focus band the real rank ladder draws. Without it the wheel is a
+          list that happens to be moving; with it, it is a rolodex stopping. */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: -14,
+          right: -14,
+          top: "50%",
+          height: CAR_ROW,
+          transform: "translateY(-50%)",
+          borderTop: "1px solid rgba(200,150,62,.25)",
+          borderBottom: "1px solid rgba(200,150,62,.25)",
+          background: "rgba(200,150,62,.06)",
+          borderRadius: 4,
+        }}
+      />
+      <div
+        style={{
+          height: CAR_ROW * CAR_WIN,
+          overflow: "hidden",
+          WebkitMaskImage: "linear-gradient(180deg,transparent,#000 22%,#000 78%,transparent)",
+          maskImage: "linear-gradient(180deg,transparent,#000 22%,#000 78%,transparent)",
+        }}
+      >
+        <div
+          style={{
+            transform: `translateY(${CAR_ROW * ((CAR_WIN - 1) / 2 - focus)}px)`,
+            willChange: "transform",
+          }}
+        >
+          {LEVELS.map((l, i) => {
+            const d = Math.abs(i - focus);
+            const scale = d < 1 ? 1 + 0.85 * (1 - d) : 1;
+            const mine = l.level === level;
+            return (
+              <div
+                key={l.level}
+                style={{
+                  height: CAR_ROW,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 12,
+                  opacity: Math.max(0.16, 1 - d * 0.34),
+                }}
+              >
+                {/* The marker points at the row from OUTSIDE it. On the right it
+                    sat past a title that wraps, so it read as detached. */}
+                <span className="w-3 font-mono text-xs text-command-gold">
+                  {mine && d < 0.5 ? "▸" : ""}
+                </span>
+                <div style={{ transform: `scale(${scale})`, transformOrigin: "center" }}>
+                  <RankWing level={l.level} size={26} earned={l.level <= level} />
+                </div>
+                {/* 215, not 170: "FL6 - INSTRUMENT RATED" wrapped at 170 and the
+                    settled row was the one row tall enough to break the wheel. */}
+                <div style={{ width: 215 }}>
+                  <p
+                    className={`font-mono text-[11px] uppercase tracking-[0.12em] ${
+                      d < 0.5 ? "text-command-gold" : "text-muted"
+                    }`}
+                  >
+                    FL{l.level} &middot; {l.title}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuietScene({ t, question }: { t: number; question?: FilmQuestion }) {
+  const quizRef = useRef<HTMLDivElement>(null);
+
+  // ONE click, on the real option. Same forward-only reconcile the arc uses:
+  // state the target, fix it up, and press the component's own Start over when
+  // the lap wraps.
+  useIso(() => {
+    const root = quizRef.current;
+    if (!root || !question) return;
+    if (t < QUIET_CLICK) {
+      const over = Array.from(root.querySelectorAll("button")).find(
+        (b) => b.textContent?.trim() === "Start over",
+      );
+      over?.click();
+      return;
+    }
+    const field = root.querySelector("fieldset");
+    if (!field || field.querySelector('[data-st="ok"]')) return;
+    field.querySelectorAll<HTMLButtonElement>(".qzh-opt")[question.answer]?.click();
+  }, [t, question]);
+
+  // The dissolve. A horizontal mask whose opaque edge walks off to the left, so
+  // the RIGHT of the quiz goes first and the whole thing drifts that way as it
+  // leaves - "fade alpha to the right" as a wipe rather than a plain fade.
+  const wipe = ramp(t, 2.4, 3.6);
+  const edge = 118 - 150 * wipe;
+  const centre: React.CSSProperties = {
+    position: "absolute",
+    left: "7%",
+    right: "7%",
+    top: "10%",
+    bottom: "27%",
+    display: "grid",
+    placeItems: "center",
+    pointerEvents: "none",
+  };
+
+  // GAIN: the ring DRAWS ITSELF to where the learner now is, then the rank
+  // changes under it. Not a claim that one question filled a band - the sweep
+  // is a reveal and it lands on the true value, which after the click is the
+  // top of FL5 and the floor of FL6 at the same time.
+  const gained = t >= 5.4;
+  const gainLevel = gained ? AFTER.level : BEFORE.level;
+
+  const FLIP = 8.5;
+  const gold = t >= FLIP;
+
+  return (
+    <>
+      {/* READ */}
+      <div
+        data-quiz-bare
+        style={{
+          ...centre,
+          opacity: fade(t, 0, 3.72),
+          WebkitMaskImage: `linear-gradient(90deg,#000 ${edge}%,transparent ${edge + 26}%)`,
+          maskImage: `linear-gradient(90deg,#000 ${edge}%,transparent ${edge + 26}%)`,
+          transform: `translateX(${wipe * 7}%)`,
+        }}
+      >
+        <div ref={quizRef} style={{ width: "min(560px, 100%)" }}>
+          {question ? <QuizBlock prompt="Quick check" questions={[question]} /> : null}
+        </div>
+      </div>
+      <div
+        data-anim-at={QUIET_CLICK}
+        style={{
+          position: "absolute",
+          right: "12%",
+          top: "34%",
+          opacity: fade(t, QUIET_CLICK, 2.6),
+          transform: "scale(2.1)",
+          transformOrigin: "right top",
+          pointerEvents: "none",
+        }}
+      >
+        <XpTick amount={QUIZ_XP} />
+      </div>
+
+      {/* GAIN */}
+      <div
+        data-rail-text="off"
+        style={{ ...centre, opacity: fade(t, 3.65, 5.78) }}
+      >
+        <div data-rail style={{ transform: "scale(1.85)", transformOrigin: "center" }}>
+          <StandingRail
+            level={gainLevel}
+            title={LEVELS[gainLevel - 1].title}
+            xp={XP_AFTER}
+            nextMinXp={null}
+            nextLevel={null}
+            bandPct={ramp(t, 4.05, 5.25)}
+          />
+        </div>
+      </div>
+
+      {/* RANK */}
+      <div style={{ ...centre, opacity: fade(t, 5.68, 7.78) }}>
+        <div style={{ transform: "scale(1.35)", transformOrigin: "center" }}>
+          <RankCarousel t={t} level={AFTER.level} from={6.0} />
+        </div>
+      </div>
+
+      {/* PATCHES */}
+      <div style={{ ...centre, opacity: fade(t, 7.68, SECONDS) }}>
+        <div className={gold ? "q-jaunty" : undefined} data-anim-at={FLIP}>
+          <div className={gold ? undefined : "q-wait"} data-anim-at={7.68}>
+            <div style={{ position: "relative", display: "grid", placeItems: "center" }}>
+              <PatchBadge art={PATCH.art} earned={false} size={210} />
+              {/* The gold one on top of the locked one rather than a tween: two
+                  different renders, and a crossfade between them is what a
+                  "turns to gold" actually is. */}
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "grid",
+                  placeItems: "center",
+                  opacity: clamp01((t - FLIP) / 0.1),
+                }}
+              >
+                <PatchBadge art={PATCH.art} earned size={210} />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </>

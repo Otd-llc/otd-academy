@@ -48,7 +48,8 @@ export type Arrangement =
   | "strip"
   | "morph"
   | "split"
-  | "arc";
+  | "arc"
+  | "quiet";
 
 export const SECONDS = 10;
 /** The reveal is armed slightly BEFORE the downbeat so its first frames are
@@ -229,6 +230,38 @@ export const ARC: { id: Arrangement; label: string; note: string } = {
   label: "E+ / the lesson, then the morph",
   note:
     "E unchanged from 2.0 on - the rail scaling, shedding its text column, ending as a halo behind the patch - with bar one now carrying the cause rather than establishing. The real QuizBlock, the lesson's real questions, answered correctly on the half-beats, five XP each, and the read award landing on the downbeat exactly as the total crosses into FL6.",
+};
+
+// ---- round four: one thing at a time ---------------------------------------
+//
+// "Too much going on" (owner, 2026-08-11). Every round so far put two or three
+// things in a frame and asked the eye to rank them. This one holds exactly one
+// subject per beat, four words, and NO second line under any of them.
+//
+// THE ONE CLICK CROSSES THE THRESHOLD, which is why a single question is enough
+// to justify what the ring does next. `before` is derived backwards off the FL6
+// floor by one quiz award, so answering one question really is the five XP that
+// takes 1,095 to 1,100. Nothing is inflated to make the beat land.
+export const QUIET_BEFORE = XP_AFTER - QUIZ_XP;
+
+/** Four words, no sub-lines. The `line` field is kept empty rather than removed
+ *  so the type layer stays one component; `bare` is what suppresses it. */
+export const QUIET_BEATS: Beat[] = [
+  { at: 2.0, word: "READ", line: "" },
+  { at: 4.0, word: "GAIN", line: "" },
+  { at: 6.0, word: "RANK", line: "" },
+  { at: 8.0, word: "PATCHES", line: "" },
+];
+
+/** When the single answer lands. Half a bar in: late enough that the question
+ *  has been read, early enough that the tick clears before the word. */
+export const QUIET_CLICK = 1.0;
+
+export const QUIET: { id: Arrangement; label: string; note: string } = {
+  id: "quiet",
+  label: "G / one thing at a time",
+  note:
+    "One subject per beat and four words with nothing under them. A single real question, one click, five XP; the quiz dissolves rightward as READ lands. The ring draws itself and the rank changes on GAIN. The ladder spins in and settles on RANK. On PATCHES a locked patch waits, then flips to gold. The running index is gone too - it was one more thing on screen.",
 };
 
 export const COMBOS: { id: Arrangement; label: string; note: string }[] = [
