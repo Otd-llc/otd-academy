@@ -136,6 +136,56 @@ const KITS: BedKit[] = [
     title: "Duet",
     note: "Call and response. Percussion states, a pitched voice replies half a beat later, which makes the quiz's one click at 1.5 the grammatical subject of the whole piece. The cost is that little lands cleanly on a downbeat except the answer - that is either the idea or the problem.",
   },
+
+  // ROUND TWO. Owner kept duet, motif and sequence, and asked for more bass,
+  // gravity and seriousness - a defense company. "More serious" is not a note
+  // you can act on; four specific things are, and all eight below change all
+  // four: register (an octave to a twelfth lower), mode (aeolian - dorian's
+  // raised sixth is what keeps a piece from reading sad, and "not sad" is not
+  // "grave"), harmony (open fifths, which decline to be major or minor), and
+  // bass that is PLAYED and saturated so its harmonics land in the 250-700 Hz
+  // band a phone can actually reproduce.
+  {
+    id: "comp-keel",
+    title: "Keel",
+    group: "the serious set · defense register · round two · READ THE CHECK CAVEAT",
+    note: "SEQUENCE taken down. The idling machine an octave lower, eighths instead of sixteenths, on open fifths. What was a console ticking over becomes something with a displacement - a figure you feel rather than follow. CHECK CAVEAT: flags 'learn < gain' here, but that is the bass floor being measured, not the writing - with the bass removed it is 0.619 / 0.831 / 0.776, curve error 0.058.",
+  },
+  {
+    id: "comp-grave",
+    title: "Grave",
+    note: "MOTIF taken down and slowed. The four notes on whole beats instead of half beats, an octave lower, every one doubled by the bass. Slow is the other half of serious: the round-one motif moved at the speed of a jingle because it was written as one.",
+  },
+  {
+    id: "comp-sentry",
+    title: "Sentry",
+    note: "DUET taken down. The answer comes back BELOW the call instead of above it, so the reply is heavier than the question. That inversion is most of why it reads as authority rather than as conversation. CHECK CAVEAT: the heavier-reply idea is itself what trips 'learn < gain' - a low reply under the first landing IS louder than the second landing. Over the bass floor, 0.615 / 0.650 / 0.590. The flattest climb of the set, by construction.",
+  },
+  {
+    id: "comp-brief",
+    title: "Brief",
+    note: "MOTIF x DUET. The percussion asks on every downbeat and the mnemonic is the ANSWER, half a beat later, every time - four statements of one figure in four harmonic positions. The combination with the most to gain, and the one that cuts down cleanest: the reply plus its call is a three-second stinger.",
+  },
+  {
+    id: "comp-watch",
+    title: "Watch",
+    note: "SEQUENCE x DUET. The machine idles the whole way through and STOPS for half a beat at each landing; something answers into the hole it leaves. The call is the silence. A running figure cannot make room by getting louder - it makes room by stopping. CHECK CAVEAT: flags on the summed audio; over the bass floor it is 0.611 / 0.810 / 0.760, curve error 0.046 - one of the cleanest arrangements in the set.",
+  },
+  {
+    id: "comp-standard",
+    title: "Standard",
+    note: "MOTIF x SEQUENCE. The figure is not laid over the machine, it IS the machine's top line - picked out louder at each landing. One texture, two readings. The claim: a mnemonic buried in working material convinces more than one announced over it, which is the difference between a signature and a slogan.",
+  },
+  {
+    id: "comp-hull",
+    title: "Hull",
+    note: "ALL THREE at weight. Sequence idles and stops, motif answers into the stop, bass plays the motif's root underneath. The honest risk of any combination is three ideas competing instead of one idea with three parts - this is the one to listen hardest for that. CHECK CAVEAT: flags 'dip missing' on the summed audio, but over the bass floor it measures 0.587 / 0.795 / 0.739 for a curve error of 0.028 - the tightest ARRANGEMENT of all eighteen. Whether that survives the bass is the listening question.",
+  },
+  {
+    id: "comp-anchor",
+    title: "Anchor",
+    note: "THE LIMIT CASE. One low pedal for the full ten seconds, three fragments of the motif, almost no percussion, and the third landing's dip is a SILENCE rather than a smaller sound. If this is too little it tells you how much of the others is load-bearing; if it is not, it tells you the rest are overwritten.",
+  },
 ];
 
 export default function BedCutPage() {
@@ -177,6 +227,15 @@ export default function BedCutPage() {
             <b className="text-title">Grid clicks are the ear&rsquo;s marker
             lines.</b> A blip on each of the six events, sample-accurate. A bed
             that sounds early against them is early.
+          </li>
+          <li>
+            <b className="text-title">On the serious set, the check measures
+            the bass.</b> Peak-in-a-window assumes the landing IS the peak, which
+            it is in a percussion bed and is not once a sustained saturated low
+            end raises the floor in every window. Four of round two flag on the
+            summed audio and measure clean with the bass removed &mdash; those
+            carry the dry numbers in their note. Trust the flag on rounds one
+            and two&rsquo;s percussion pieces; read the caveat on the bass-forward ones.
           </li>
           <li>
             <b className="text-title">The curve is checked, not eyeballed.</b>{" "}

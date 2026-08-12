@@ -116,6 +116,16 @@ def table(wave):
         "hollow": [(h, 1.0 / (h * h)) for h in range(1, 13, 2)],
         # A struck/metallic set: inharmonic-ish ratios, for the mnemonic.
         "bell": [(1, 1.0), (2, 0.6), (3, 0.32), (4.2, 0.28), (5.4, 0.18), (6.8, 0.1)],
+        # ---- the serious end of the shelf --------------------------------
+        # A steep rolloff: fundamental-dominant with just enough second and
+        # third to have a body. This is what a low note needs to read as WEIGHT
+        # rather than as mud - the partials that make a saw exciting at A4 are
+        # the ones that make it a smear at A1.
+        "dark": [(1, 1.0), (2, 0.34), (3, 0.14), (4, 0.06), (5, 0.03)],
+        # Fifth-heavy, no third at all. An organ stop, and the reason it reads
+        # as institutional rather than as happy or sad: a bare fifth refuses to
+        # declare a mode.
+        "open": [(1, 1.0), (2, 0.5), (3, 0.42), (4, 0.2), (6, 0.14), (8, 0.07)],
     }[wave]
     t = [0.0] * TABLE_N
     for h, a in harm:
@@ -232,11 +242,93 @@ def glide(dur, f0, f1, gain=1.0, wave="saw", n=7, cents=14.0, curve=2.0):
 # keeps it from reading as sad, which a badge-earning film is not.
 ROOT = 45  # A2
 DORIAN = [0, 2, 3, 5, 7, 9, 10, 12]
+# AEOLIAN FOR THE SERIOUS SET. Dorian's raised sixth is what keeps it from
+# reading as sad, which was right for a badge-earning film and is wrong for a
+# defense register - "not sad" and "grave" are different requests. The natural
+# minor sixth is the one note that separates them.
+AEOLIAN = [0, 2, 3, 5, 7, 8, 10, 12]
 
 
-def deg(i):
+def deg(i, mode=DORIAN):
     """Scale degree i (may exceed an octave) as a MIDI note."""
-    return ROOT + 12 * (i // 7) + DORIAN[i % 7]
+    return ROOT + 12 * (i // 7) + mode[i % 7]
+
+
+def low(i):
+    """A degree in the register the serious set lives in: an octave below the
+    root rather than an octave above it. Everything in round one sat at +12 or
+    +24, which is a range that sounds capable and young. This is the same
+    material a twelfth lower."""
+    return deg(i, AEOLIAN) - 12
+
+
+def warm(buf, cutoff=1400.0):
+    """Take the top off. A low saw with its upper partials intact is a buzz, and
+    a defense register is not a buzz."""
+    return lowpass(buf, cutoff)
+
+
+def saturate(buf, amount=0.4, k=3.2):
+    """HARMONICS SO THE BASS SURVIVES A PHONE.
+
+    Handsets roll off below roughly 150-200 Hz, so the sub is largely not
+    reproduced where most of this gets watched - and "more bass" delivered as
+    more energy under 100 Hz is more of something the listener's speaker will
+    never make. Saturating a sine generates odd harmonics: at a 55 Hz
+    fundamental the third and fifth land at 165 and 275 Hz, inside the 250-700 Hz
+    band where a small speaker can actually put out level, and the ear infers
+    the missing fundamental from them.
+
+    So this is not a distortion effect. It is the only way the gravity travels.
+    """
+    return [v * (1 - amount) + math.tanh(v * k) * amount * 0.7 for v in buf]
+
+
+def pedal(dur, m, gain=0.3, wave="open"):
+    """A held low note. The oldest way to make something sound consequential:
+    one pitch that does not move while everything above it does."""
+    return warm(voice(dur, midi(m), gain=gain, wave=wave, n=5, cents=5.0,
+                      atk=0.25, dec=3.0, sus=0.85, rel=0.7, drift=0.2), 900.0)
+
+
+def bass_note(dur, m, gain=0.8):
+    """The bass as a PLAYED note rather than a fixed sub plan, so harmony and
+    low end move together. Saturated, per the note above."""
+    v = voice(dur, midi(m), gain=gain, wave="dark", n=3, cents=4.0,
+              atk=0.006, dec=0.55, sus=0.35, rel=0.25, drift=0.15)
+    return saturate(warm(v, 700.0), 0.45)
+
+
+def bass_plan(n, plan, gain=1.0):
+    """(time, midi, dur, gain) -> a buffer, wrapped at the loop point.
+
+    NOTHING IS ALLOWED TO SUSTAIN THROUGH THE PLATING. A bass note under the
+    8.0 landing that runs 1.6 s is still at full level at 8.5, and the sidechain
+    cannot help because there is no kick at 8.5 to duck it - so the plating
+    measured 0.964 against a PATCH of 1.000, i.e. the payoff and the landing
+    were the same size and the piece had nowhere left to go. Any note overlapping
+    the plating is faded across the half beat before it.
+    """
+    out = [0.0] * n
+    fade_from, fade_to = PLATE - BEAT * 0.5, PLATE + 0.35
+    for t, m, d, g in plan:
+        # THE BASS FOLLOWS THE CURVE TOO, and forgetting that is what inverted
+        # four of these on the first render. A flat-gain bass line is as loud
+        # under LEARN as under PATCH, and once the bass is the loudest thing in
+        # the window it is the bass being measured, not the landing - keel came
+        # back with LEARN 0.652 over GAIN 0.609 while the same arrangement
+        # measured 0.619 against 0.831 with the bass taken out. The low end is
+        # part of the arrangement, so it is subject to the arrangement's shape.
+        w = WEIGHT.get(int(t // BAR) % 5, 0.42)
+        v = bass_note(d, m, gain=g * gain * (0.35 + 0.65 * w))
+        s = int(t * SR)
+        for i, x in enumerate(v):
+            k = (s + i) % n
+            ts = k / SR
+            if fade_from <= ts < fade_to:
+                x *= max(0.28, 1.0 - (ts - fade_from) / (fade_to - fade_from))
+            out[k] += x
+    return out
 
 
 def scaffold(buf, S, click_gain=0.42, kick=True):
@@ -254,6 +346,21 @@ def scaffold(buf, S, click_gain=0.42, kick=True):
     return kicks
 
 
+# THE ARRANGEMENT WITHOUT ITS BASS, kept by finish() for the report.
+#
+# PEAK-IN-A-WINDOW STOPS MEASURING THE LANDINGS ONCE THE BASS IS LOUD. A
+# sustained, saturated low end raises the level inside EVERY window, so the
+# landings have less room to separate above it and the measured ratios compress
+# toward each other - the curve looks broken when the arrangement is fine. Round
+# one never hit this because its sub was quiet and its landings were the peak.
+#
+# So the serious set is measured twice: what ships, and the same arrangement
+# with the bass taken out. The second is where "did I write the curve" actually
+# gets answered; the first is what a listener's meter sees. A big gap between
+# them is not a defect, it is a description of how bass-forward the piece is.
+_DRY = []
+
+
 def finish(buf, sub, kicks, space=0.24, sub_gain=0.5):
     """The common ending: loop-safe reverb, sidechain, soft clip.
 
@@ -264,10 +371,15 @@ def finish(buf, sub, kicks, space=0.24, sub_gain=0.5):
     n = len(buf)
     wet = reverb(buf + buf, space)
     buf = wet[n:]
+    dry = list(buf)
     if sub:
         sub = sidechain(sub, kicks)
         buf = [buf[i] + sub[i] * sub_gain for i in range(n)]
     peak = max(abs(v) for v in buf) or 1.0
+    # The dry copy is clipped at the SAME drive, so the two measurements are
+    # comparable rather than one being a louder version of the other.
+    dpk = max(abs(v) for v in dry) or 1.0
+    _DRY[:] = [math.tanh(v * (DRIVE / dpk)) * OUT for v in dry]
     return [math.tanh(v * (DRIVE / peak)) * OUT for v in buf]
 
 
@@ -683,6 +795,347 @@ def comp_duet(S):
     return finish(buf, sub_line(n), kicks)
 
 
+# ---- round two: the serious set ---------------------------------------------
+#
+# Owner, 2026-08-12: duet, motif and sequence are the interesting three - more
+# bass, gravity, seriousness, "this is a defense company."
+#
+# WHAT THAT CHANGES, CONCRETELY, because "make it more serious" is not a note you
+# can act on and four specific things are:
+#
+#   REGISTER. Round one put every pitched voice at +12 or +24 above a root of
+#   A2. That range sounds capable and young. All of these sit an octave to a
+#   twelfth lower, where the same intervals read as consequential.
+#
+#   MODE. Dorian's raised sixth was chosen so the film would not read as sad.
+#   "Not sad" and "grave" are different requests, and that one note is the
+#   difference, so the serious set is aeolian.
+#
+#   HARMONY. Open fifths and octaves, mostly. A bare fifth declines to be major
+#   or minor, which is why it is the sound of institutions - and it leaves the
+#   low end uncluttered in a way a triad at this register cannot.
+#
+#   BASS THAT TRAVELS. "More bass" delivered as more energy below 100 Hz is more
+#   of something a phone will never reproduce. The bass here is PLAYED (harmony
+#   and low end move together) and saturated, so its third and fifth harmonics
+#   land in the 250-700 Hz band a small speaker can actually drive and the ear
+#   infers the fundamental. See saturate().
+#
+# Three are the interesting three, taken down. Four are the combinations asked
+# for. One is the austere extreme, because a defense register's strongest move
+# is usually restraint and the set should contain its own limit case.
+
+
+def _serious_perc(buf, S, i, at, w, kicks, heavy=1.0):
+    """The percussion floor the serious set shares: dry, low, and less of it.
+    Round one's layered five-sample drop is a trailer move; this keeps the body
+    and drops the top, because a bright transient is the fastest way to make a
+    low arrangement sound like a toy again."""
+    place(buf, S["kick"], at, w * 1.05 * heavy)
+    kicks.append(at)
+    if i == 2:
+        place(buf, S["click"], at, w * 0.34)
+    else:
+        place(buf, S["low"], at, w * 0.6 * heavy)
+    if i == 3:
+        # PULLED WAY BACK, and this is the lesson round one already taught twice.
+        # A loud bass floor raises the level in EVERY measuring window, so the
+        # landings have less room to separate above it - and a fully layered
+        # drop on top of that floor does not read as "the heaviest landing", it
+        # reads as the only one. First cut measured LEARN at 0.364 against a
+        # curve asking 0.55. The curve says PATCH is 1.28x GAIN; the payload has
+        # to be sized to that, not to how big a drop can be made.
+        place(buf, S["drop"], at, w * 0.34 * heavy)
+        place(buf, S["subdrop"], at, w * 0.4 * heavy)
+
+
+# The figure the sequence-family shares: EIGHTHS, NOT SIXTEENTHS. Halving the
+# rate is most of the seriousness - a sixteenth pattern is busy by nature and
+# busy is the opposite of the brief.
+SEQ_BARS = [[0, 4], [0, 4], [2, 6], [1, 5], [0, 4, 7]]
+
+# Four notes, aeolian, low. Same shape as round one's motif - stated, answered,
+# inverted, resolved - so it is recognisably the same idea and not a new one.
+MOT = [0, 4, 2, 7]
+MOT_ANS = [7, 4, 5, 2]
+MOT_INV = [7, 3, 5, 0]
+MOT_RES = [0, 4, 7, 9]
+
+
+def _seq_figure(buf, bar_i, gain=1.0, oct_up=12):
+    ch = SEQ_BARS[bar_i]
+    step = BEAT / 2
+    for s in range(8):
+        t = bar_i * BAR + s * step
+        if t >= SECONDS:
+            break
+        m = low(ch[s % len(ch)]) + oct_up
+        g = (0.34 if s == 0 else 0.2 if s % 2 == 0 else 0.13) * gain
+        place(buf, warm(voice(0.3, midi(m), gain=g, wave="dark", n=4, cents=6.0,
+                              atk=0.006, dec=0.18, sus=0.15, rel=0.09), 1100.0), t)
+
+
+def comp_keel(S):
+    """SEQUENCE, TAKEN DOWN. The same idling machine an octave lower, in eighths
+    instead of sixteenths, on open fifths. What was a console ticking over
+    becomes something with a displacement - the figure is now in the register
+    where you feel it rather than follow it."""
+    n = int(round(SECONDS * SR))
+    buf = [0.0] * n
+    kicks = scaffold(buf, S, click_gain=0.34)
+    for bar_i in range(5):
+        _seq_figure(buf, bar_i, gain=0.85 + 0.3 * WEIGHT.get(bar_i, 0.4))
+    for i, at in enumerate(LANDINGS):
+        _serious_perc(buf, S, i, at, WEIGHT[i + 1], kicks)
+    place(buf, pedal(1.9, low(0) + 12, gain=0.24), PLATE)
+    place(buf, _LB.tail(S["sweep"], 0.9), PLATE, 0.3)
+    bass = bass_plan(n, [(b * BAR, low(SEQ_BARS[b][0]), BAR * 0.9, 0.9)
+                         for b in range(5)])
+    return finish(buf, bass, kicks, space=0.22, sub_gain=0.8)
+
+
+def comp_grave(S):
+    """MOTIF, TAKEN DOWN AND SLOWED. The four notes on whole beats rather than
+    half beats, an octave lower, each one doubled by the bass. Slower is the
+    other half of serious: the round-one motif moved at the speed of a jingle
+    because it was written as one."""
+    n = int(round(SECONDS * SR))
+    buf = [0.0] * n
+    kicks = scaffold(buf, S, click_gain=0.36)
+    figs = (MOT, MOT_ANS, MOT_INV, MOT_RES)
+    bplan = []
+    for i, (at, notes) in enumerate(zip(LANDINGS, figs)):
+        w = WEIGHT[i + 1]
+        if i == 3:
+            place(buf, warm(chord(2.0, [low(d) + 12 for d in notes], gain=w * 0.4,
+                                  wave="open", atk=0.02, dec=1.3, sus=0.5), 1200.0), at)
+            bplan.append((at, low(notes[0]), BAR * 0.95, 1.0))
+        else:
+            for j, d in enumerate(notes[:3]):
+                place(buf, warm(voice(0.8, midi(low(d) + 12),
+                                      gain=w * (0.46 if j == 0 else 0.36),
+                                      wave="dark", atk=0.008, dec=0.5, sus=0.3),
+                                1300.0), at + j * BEAT)
+                bplan.append((at + j * BEAT, low(d), BEAT * 0.9, 0.55 + 0.2 * w))
+        _serious_perc(buf, S, i, at, w, kicks)
+    place(buf, pedal(1.8, low(0), gain=0.26), PLATE)
+    place(buf, _LB.tail(S["sweep"], 0.9), PLATE, 0.28)
+    return finish(buf, bass_plan(n, bplan), kicks, space=0.26, sub_gain=0.85)
+
+
+def comp_sentry(S):
+    """DUET, TAKEN DOWN. Percussion states and the answer comes back a fifth
+    below rather than an octave above - the reply is now heavier than the call,
+    which inverts round one's relationship and is most of why it reads as
+    authority instead of as conversation."""
+    n = int(round(SECONDS * SR))
+    buf = [0.0] * n
+    kicks = scaffold(buf, S, click_gain=0.46)
+    place(buf, warm(voice(0.9, midi(low(0)), gain=0.3, wave="open", atk=0.01,
+                          dec=0.6, sus=0.3), 800.0), ANSWER + BEAT * 0.5)
+    replies = [4, 2, 5, 0]
+    bplan = [(ANSWER + BEAT * 0.5, low(0), BEAT, 0.7)]
+    for i, at in enumerate(LANDINGS):
+        w = WEIGHT[i + 1]
+        _serious_perc(buf, S, i, at, w, kicks)
+        d = replies[i]
+        place(buf, warm(voice(1.0 if i < 3 else 1.9, midi(low(d) + 12),
+                              gain=w * 0.4, wave="open", atk=0.01, dec=0.6,
+                              sus=0.35), 1000.0), at + BEAT * 0.5)
+        bplan.append((at + BEAT * 0.5, low(d), BAR * 0.7, 0.75 + 0.25 * w))
+    place(buf, pedal(1.7, low(0), gain=0.24), PLATE)
+    place(buf, _LB.tail(S["sweep"], 0.9), PLATE, 0.3)
+    return finish(buf, bass_plan(n, bplan), kicks, space=0.26, sub_gain=0.85)
+
+
+def comp_brief(S):
+    """MOTIF x DUET. The percussion asks on every downbeat and THE MNEMONIC IS
+    THE ANSWER, half a beat later, every time. Four statements of the same
+    figure in four harmonic positions, each one arriving as a reply rather than
+    as an announcement.
+
+    This is the combination with the most to gain: duet gives the motif a
+    reason to keep recurring, and the motif gives duet something worth
+    repeating. It is also the one that would cut down cleanest - the reply
+    alone, with its call, is a three-second stinger."""
+    n = int(round(SECONDS * SR))
+    buf = [0.0] * n
+    kicks = scaffold(buf, S, click_gain=0.44)
+    figs = (MOT, MOT_ANS, MOT_INV, MOT_RES)
+    step = BEAT * 0.5
+    bplan = []
+    for i, (at, notes) in enumerate(zip(LANDINGS, figs)):
+        w = WEIGHT[i + 1]
+        _serious_perc(buf, S, i, at, w, kicks)
+        # The reply begins half a beat after the call and IS the figure.
+        for j, d in enumerate(notes[: 4 if i == 3 else 3]):
+            place(buf, warm(voice(0.55 if i < 3 else 1.1, midi(low(d) + 12),
+                                  gain=w * (0.46 if j == 0 else 0.34),
+                                  wave="dark", atk=0.007, dec=0.34, sus=0.25),
+                            1300.0), at + BEAT * 0.5 + j * step)
+        bplan.append((at + BEAT * 0.5, low(notes[0]), BAR * 0.8, 0.8 + 0.2 * w))
+    # The plating answers one last time, unaccompanied.
+    for j, d in enumerate(MOT):
+        place(buf, warm(voice(0.5, midi(low(d) + 12), gain=0.22, wave="open",
+                              dec=0.4, sus=0.25), 1100.0), PLATE + j * (BEAT * 0.3))
+    place(buf, _LB.tail(S["sweep"], 0.9), PLATE, 0.28)
+    return finish(buf, bass_plan(n, bplan), kicks, space=0.24, sub_gain=0.85)
+
+
+def comp_watch(S):
+    """SEQUENCE x DUET. The machine idles all the way through, and at each
+    landing IT STOPS for half a beat and something answers into the hole it
+    leaves. The call is the silence.
+
+    A running figure cannot make room by getting louder; it makes room by
+    stopping, which is the one gesture round one's sequence never had."""
+    n = int(round(SECONDS * SR))
+    buf = [0.0] * n
+    kicks = scaffold(buf, S, click_gain=0.36)
+    step = BEAT / 2
+    bplan = []
+    for bar_i in range(5):
+        ch = SEQ_BARS[bar_i]
+        for s in range(8):
+            t = bar_i * BAR + s * step
+            if t >= SECONDS:
+                break
+            # THE HOLE: the first beat of each landing bar is left empty so the
+            # answer has somewhere to be.
+            if bar_i >= 1 and s in (1, 2):
+                continue
+            m = low(ch[s % len(ch)]) + 12
+            g = 0.3 if s == 0 else 0.18 if s % 2 == 0 else 0.12
+            place(buf, warm(voice(0.3, midi(m), gain=g, wave="dark", n=4,
+                                  atk=0.006, dec=0.18, sus=0.15, rel=0.09),
+                            1100.0), t)
+    replies = [4, 2, 5, 0]
+    for i, at in enumerate(LANDINGS):
+        w = WEIGHT[i + 1]
+        _serious_perc(buf, S, i, at, w, kicks)
+        place(buf, warm(voice(1.0 if i < 3 else 1.8, midi(low(replies[i]) + 12),
+                              gain=w * 0.42, wave="open", atk=0.012, dec=0.6,
+                              sus=0.35), 1000.0), at + BEAT * 0.5)
+        bplan.append((at, low(SEQ_BARS[i + 1][0]), BAR * 0.9, 0.85 + 0.15 * w))
+    bplan.insert(0, (0.0, low(SEQ_BARS[0][0]), BAR * 0.9, 0.6))
+    place(buf, pedal(1.8, low(0) + 12, gain=0.22), PLATE)
+    place(buf, _LB.tail(S["sweep"], 0.9), PLATE, 0.3)
+    return finish(buf, bass_plan(n, bplan), kicks, space=0.22, sub_gain=0.8)
+
+
+def comp_standard(S):
+    """MOTIF x SEQUENCE. The figure is not laid on top of the machine, it is the
+    machine's TOP LINE - the sequence runs underneath and the motif's four notes
+    are picked out of it, louder, at each landing. One texture, two readings.
+
+    The claim is that a mnemonic buried in working material is more convincing
+    than one announced over it, which is roughly the difference between a
+    signature and a slogan."""
+    n = int(round(SECONDS * SR))
+    buf = [0.0] * n
+    kicks = scaffold(buf, S, click_gain=0.34)
+    for bar_i in range(5):
+        _seq_figure(buf, bar_i, gain=0.6)
+    figs = (MOT, MOT_ANS, MOT_INV, MOT_RES)
+    step = BEAT * 0.5
+    bplan = []
+    for i, (at, notes) in enumerate(zip(LANDINGS, figs)):
+        w = WEIGHT[i + 1]
+        _serious_perc(buf, S, i, at, w, kicks, heavy=0.92)
+        for j, d in enumerate(notes[: 4 if i == 3 else 3]):
+            place(buf, warm(voice(0.6 if i < 3 else 1.4, midi(low(d) + 24),
+                                  gain=w * (0.4 if j == 0 else 0.29),
+                                  wave="open", atk=0.007, dec=0.4, sus=0.28),
+                            1500.0), at + j * step)
+        bplan.append((at, low(notes[0]), BAR * 0.9, 0.85 + 0.15 * w))
+    bplan.insert(0, (0.0, low(0), BAR * 0.9, 0.55))
+    place(buf, pedal(1.8, low(0) + 12, gain=0.22), PLATE)
+    place(buf, _LB.tail(S["sweep"], 0.9), PLATE, 0.28)
+    return finish(buf, bass_plan(n, bplan), kicks, space=0.24, sub_gain=0.82)
+
+
+def comp_hull(S):
+    """ALL THREE, AT WEIGHT. The sequence idles and stops; the motif answers into
+    the stop; the bass plays the motif's root under it. Duet's structure,
+    sequence's continuity, motif's figure, in the lowest register any of these
+    use.
+
+    The honest risk of a combination is that it is three ideas competing rather
+    than one idea with three parts, and this is the one to listen to hardest for
+    that."""
+    n = int(round(SECONDS * SR))
+    buf = [0.0] * n
+    kicks = scaffold(buf, S, click_gain=0.4)
+    step = BEAT / 2
+    figs = (MOT, MOT_ANS, MOT_INV, MOT_RES)
+    for bar_i in range(5):
+        ch = SEQ_BARS[bar_i]
+        for s in range(8):
+            t = bar_i * BAR + s * step
+            if t >= SECONDS or (bar_i >= 1 and s in (1, 2, 3)):
+                continue
+            place(buf, warm(voice(0.28, midi(low(ch[s % len(ch)]) + 12),
+                                  gain=0.26 if s == 0 else 0.13, wave="dark",
+                                  n=4, atk=0.006, dec=0.16, sus=0.13, rel=0.08),
+                            1000.0), t)
+    bplan = [(0.0, low(0), BAR * 0.9, 0.6)]
+    for i, (at, notes) in enumerate(zip(LANDINGS, figs)):
+        w = WEIGHT[i + 1]
+        _serious_perc(buf, S, i, at, w, kicks, heavy=1.05)
+        for j, d in enumerate(notes[: 4 if i == 3 else 3]):
+            place(buf, warm(voice(0.6 if i < 3 else 1.5, midi(low(d) + 12),
+                                  gain=w * (0.44 if j == 0 else 0.32),
+                                  wave="open", atk=0.008, dec=0.42, sus=0.3),
+                            1200.0), at + BEAT * 0.5 + j * step)
+        bplan.append((at, low(notes[0]), BAR * 0.95, 0.9 + 0.1 * w))
+    place(buf, pedal(2.0, low(0), gain=0.28), PLATE)
+    place(buf, _LB.tail(S["sweep"], 0.9), PLATE, 0.3)
+    return finish(buf, bass_plan(n, bplan), kicks, space=0.24, sub_gain=0.9)
+
+
+def comp_anchor(S):
+    """THE LIMIT CASE. One low pedal for the whole ten seconds, three fragments
+    of the motif, and almost no percussion. Gravity by subtraction.
+
+    A serious register's strongest move is restraint, and a set that explores
+    seriousness without containing its own extreme has not actually bracketed
+    the question. If this is too little, it says how much of the others is
+    load-bearing; if it is not, it says the rest were overwritten."""
+    n = int(round(SECONDS * SR))
+    buf = [0.0] * n
+    # QUIETER PICKUP THAN THE OTHERS, because austerity changes what a pickup
+    # competes with. Everywhere else the click sits under a landing built of
+    # three or four sounds; here the landing is one kick and a reply that
+    # arrives at 2.25 - outside the window that measures 2.0 - so at the shared
+    # 0.5 the pickup out-peaked the landing it exists to lead into.
+    kicks = scaffold(buf, S, click_gain=0.34, kick=True)
+    # The pedal runs the entire clip and wraps, so the loop has no seam at all.
+    ped = pedal(SECONDS + 1.2, low(0), gain=0.34)
+    for i, v in enumerate(ped):
+        buf[i % n] += v
+    for i, at in enumerate(LANDINGS):
+        w = WEIGHT[i + 1]
+        place(buf, S["kick"], at, w * 0.92)
+        kicks.append(at)
+        if i == 2:
+            place(buf, S["click"], at, w * 0.4)
+        if i == 3:
+            place(buf, S["drop"], at, w * 0.38)
+            place(buf, S["subdrop"], at, w * 0.46)
+        # Three notes only, and the third landing gets none - the dip is a
+        # silence here rather than a smaller sound.
+        if i != 2:
+            d = (MOT[0], MOT[1], MOT[3])[min(i if i < 2 else i - 1, 2)]
+            place(buf, warm(voice(1.3, midi(low(d) + 12), gain=w * 0.4,
+                                  wave="open", atk=0.03, dec=0.9, sus=0.4),
+                            1000.0), at + BEAT * 0.5)
+    place(buf, _LB.tail(S["sweep"], 0.9), PLATE, 0.34)
+    bass = bass_plan(n, [(0.0, low(0), BAR * 1.8, 0.7),
+                         (LANDINGS[1], low(0), BAR * 1.8, 0.8),
+                         (LANDINGS[3], low(0), BAR * 1.4, 1.0)])
+    return finish(buf, bass, kicks, space=0.34, sub_gain=0.9)
+
+
 COMPS = {
     "strike": (comp_strike, "The control: the arrangement we already have, at the honest drive. Percussion only, no tonal content beyond the sub."),
     "ladder": (comp_ladder, "PITCH IS RANK. Each landing steps up the mode and the wheel runs the ladder. The film's own idea, as music."),
@@ -694,14 +1147,30 @@ COMPS = {
     "motif": (comp_motif, "Four notes: stated, answered, inverted, resolved. The only one built to survive being cut down to a 3s stinger or a 1s ping."),
     "mechanism": (comp_mechanism, "No tonal centre at all. Relays and ticks, escalating by DENSITY. The one that could not be mistaken for another brand's bed."),
     "duet": (comp_duet, "Call and response. Percussion states, a voice replies half a beat later, making the quiz's click the subject of the piece."),
+
+    # Round two: aeolian, an octave to a twelfth lower, open fifths, played and
+    # saturated bass. The three the owner kept, taken down - then combined.
+    "keel": (comp_keel, "SEQUENCE taken down. The idling machine an octave lower, eighths not sixteenths, on open fifths - a figure you feel rather than follow."),
+    "grave": (comp_grave, "MOTIF taken down and slowed. Whole beats, an octave lower, every note doubled by the bass. Slow is the other half of serious."),
+    "sentry": (comp_sentry, "DUET taken down. The answer comes back BELOW the call instead of above it, so the reply is heavier than the question."),
+    "brief": (comp_brief, "MOTIF x DUET. The percussion asks and the mnemonic answers, every downbeat. The combination with the most to gain, and the one that cuts down cleanest to a stinger."),
+    "watch": (comp_watch, "SEQUENCE x DUET. The machine idles all the way through and STOPS for half a beat at each landing; something answers into the hole. The call is the silence."),
+    "standard": (comp_standard, "MOTIF x SEQUENCE. The figure is the machine's top line rather than a layer above it - a signature buried in working material rather than a slogan over it."),
+    "hull": (comp_hull, "ALL THREE at weight: sequence idles and stops, motif answers into the stop, bass plays its root. Listen hard for three ideas competing instead of one with three parts."),
+    "anchor": (comp_anchor, "THE LIMIT CASE. One low pedal for ten seconds, three motif fragments, almost no percussion. The dip is a silence rather than a smaller sound."),
 }
 
 
-def report(name, s):
+def curve_of(s):
     pk = dict(landing_peaks(s))
     patch = pk["patch"] or 1.0
     rel = {k: v / patch for k, v in pk.items()}
     err = math.sqrt(sum((rel[k] - t) ** 2 for k, t in CURVE.items()) / len(CURVE))
+    return rel, err
+
+
+def report(name, s):
+    rel, err = curve_of(s)
     rms = math.sqrt(sum(v * v for v in s) / len(s))
     crest = 20 * math.log10(max(abs(v) for v in s) / rms)
     flags = []
@@ -715,6 +1184,13 @@ def report(name, s):
     print("  " + "  ".join(f"{k}={rel[k]:.3f}" for k in
                            ("answer", "learn", "gain", "rank", "patch", "plate")))
     print(f"  curve err {err:.4f}" + ("   *** " + ", ".join(flags) if flags else "   curve clean"))
+    if _DRY:
+        drel, derr = curve_of(_DRY)
+        # Only worth printing when the bass is actually moving the answer.
+        if abs(derr - err) > 0.012:
+            print("  over the bass floor: "
+                  + "  ".join(f"{k}={drel[k]:.3f}" for k in ("learn", "gain", "rank", "patch"))
+                  + f"   curve err {derr:.4f}")
     return err
 
 
