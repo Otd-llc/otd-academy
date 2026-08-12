@@ -261,7 +261,7 @@ export const QUIET: { id: Arrangement; label: string; note: string } = {
   id: "quiet",
   label: "G / one thing at a time",
   note:
-    "One subject per beat and four words with nothing under them. A single real question, one click, five XP; the quiz dissolves rightward as READ lands. The ring draws itself and the rank changes on GAIN. The ladder spins in and settles on RANK. On PATCHES a locked patch waits, then flips to gold. The running index is gone too - it was one more thing on screen.",
+    "One subject per beat and four words with nothing under them. A single real question, one click, five XP. The ring draws itself and the rank changes on GAIN. The ladder spins up and settles on RANK. On PATCHES a locked patch waits, and the gold is PLATED across it on a diagonal while the badge itself never moves. The running index is gone too - it was one more thing on screen. Tuned 2026-08-12: snappy flow, opposite corners, plating.",
 };
 
 export const COMBOS: { id: Arrangement; label: string; note: string }[] = [
