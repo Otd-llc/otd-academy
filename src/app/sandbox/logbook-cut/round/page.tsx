@@ -12,10 +12,21 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { parseGuideBlocks } from "@/lib/guide-blocks-parse";
 import { LogbookLive, type FilmLesson, type FilmQuestion } from "../LogbookLive";
-import { CANDIDATES, candidateById } from "../candidates";
+import { PARTS } from "../motion";
+import { CANDIDATES } from "../candidates";
+import { MIXES } from "../mixes";
 import { QUIET_BEATS } from "../beats";
 
-type Params = Promise<{ t?: string; only?: string }>;
+// Round three is the DEFAULT, because round two's ten each applied one verb to
+// all four beats - a filter rather than a cut. Round two stays reachable, since
+// "everything climbs" is the thing "only these two climb" has to beat.
+const SETS = {
+  mixed: { label: "mixed", list: MIXES },
+  uniform: { label: "one idea each", list: CANDIDATES },
+} as const;
+type SetId = keyof typeof SETS;
+
+type Params = Promise<{ t?: string; only?: string; set?: string }>;
 
 export default function RoundPage({ searchParams }: { searchParams: Params }) {
   if (process.env.NODE_ENV === "production") notFound();
@@ -30,11 +41,17 @@ export default function RoundPage({ searchParams }: { searchParams: Params }) {
 
       <p className="mt-3 max-w-3xl font-serif text-base text-text">
         Whole cuts, judged whole. The bench asked ten questions separately, and a
-        film is not the sum of ten independent answers &mdash; the plating is the
-        right flip beside a still frame and the wrong one beside a whip pan, and
-        a tenth-of-a-second handover is right when nothing else moves and
-        unreadable under a travelling layout. Each of these has a thesis and
-        loses or wins on it.
+        film is not the sum of ten independent answers.
+      </p>
+      <p className="mt-3 max-w-3xl font-serif text-base text-text">
+        The <b className="text-title">mixed</b> set is round three, and it is the
+        default. Round two&rsquo;s ten each applied ONE verb to all four beats
+        &mdash; everything climbed, or everything slid &mdash; which is a filter
+        rather than a cut. These vary per beat, because the four beats have four
+        different jobs: the quiz has to be <i>read</i>, the ring&rsquo;s own band
+        animation is the event and an energetic entrance steps on it, the wheel
+        is the bed&rsquo;s dip and should get smaller and drier rather than
+        bigger, and the patch is the only beat that has earned an overshoot.
       </p>
 
       <section className="mt-6 border-y border-panel-border/60 py-4">
@@ -108,8 +125,10 @@ async function Body({ searchParams }: { searchParams: Params }) {
   const sp = await searchParams;
   const fixedT =
     sp.t !== undefined && Number.isFinite(Number(sp.t)) ? Number(sp.t) : undefined;
-  const only = candidateById(sp.only);
-  const shown = only ? [only] : CANDIDATES;
+  const setId: SetId = sp.set === "uniform" ? "uniform" : "mixed";
+  const list = SETS[setId].list;
+  const only = list.find((c) => c.id === sp.only) ?? null;
+  const shown = only ? [only] : list;
 
   const found = await findQuestion();
   if (!found) {
@@ -123,13 +142,24 @@ async function Body({ searchParams }: { searchParams: Params }) {
 
   return (
     <>
-      <nav className="mt-6 flex flex-wrap gap-x-4 gap-y-2">
-        <Link prefetch={false} href="?"
+      <nav className="mt-6 flex flex-wrap items-baseline gap-x-4 gap-y-2 border-b border-panel-border/60 pb-3">
+        {(Object.keys(SETS) as SetId[]).map((s) => (
+          <Link prefetch={false} key={s} href={`?set=${s}`}
+            className={`font-mono text-[11px] uppercase tracking-[0.14em] ${
+              s === setId ? "text-command-gold" : "text-muted hover:text-gold-light"
+            }`}>
+            {SETS[s].label} ({SETS[s].list.length})
+          </Link>
+        ))}
+      </nav>
+
+      <nav className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+        <Link prefetch={false} href={`?set=${setId}`}
           className={`font-mono text-[11px] uppercase tracking-[0.14em] ${only ? "text-muted hover:text-gold-light" : "text-command-gold"}`}>
           all ten
         </Link>
-        {CANDIDATES.map((c) => (
-          <Link prefetch={false} key={c.id} href={`?only=${c.id}`}
+        {list.map((c) => (
+          <Link prefetch={false} key={c.id} href={`?set=${setId}&only=${c.id}`}
             className={`font-mono text-[11px] uppercase tracking-[0.14em] ${
               only?.id === c.id ? "text-command-gold" : "text-muted hover:text-gold-light"
             }`}>
@@ -143,11 +173,19 @@ async function Body({ searchParams }: { searchParams: Params }) {
           <li key={c.id} className="border-b border-panel-border/60 py-7">
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
               <p className="title-card">{c.name}</p>
-              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-gray-3">
-                {c.tuning.flow} &middot; {c.tuning.layout} &middot; {c.tuning.motionAll}{" "}
-                &middot; {c.tuning.kinetic}
-                {c.tuning.kineticPerBeat ? "*" : ""} / {c.tuning.kineticOut} &middot;{" "}
-                {c.tuning.camera} &middot; plx {c.tuning.parallax} &middot; {c.tuning.jaunty}
+              {/* Per BEAT, not per cut: the whole point of a mix is that these
+                  four rows differ, so the label has to be able to show that. */}
+              <p className="font-mono text-[10px] uppercase leading-relaxed tracking-[0.1em] text-gray-3">
+                {c.tuning.scheme
+                  ? PARTS.map((id, i) => {
+                      const s = c.tuning.scheme![id];
+                      return `${QUIET_BEATS[i].word.toLowerCase()} ${s.size.toFixed(2)} ${s.enter}/${s.exit} ${s.motion}${s.inDur ? ` ${s.inDur}s` : ""}`;
+                    }).join("  |  ")
+                  : `${c.tuning.layout} · ${c.tuning.motionAll} · one verb throughout`}
+                <br />
+                {c.tuning.kineticPerBeat?.join("/") ?? c.tuning.kinetic} out{" "}
+                {c.tuning.kineticOut} &middot; {c.tuning.camera} &middot; plx{" "}
+                {c.tuning.parallax} &middot; flip {c.tuning.jaunty}
               </p>
             </div>
             <p className="mt-1 max-w-3xl font-serif text-base text-title">{c.thesis}</p>

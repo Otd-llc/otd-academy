@@ -1530,7 +1530,10 @@ function QuietScene({
   // The composition, then the two overrides the bench can apply on top of it:
   // one motion for every part (so dynamics can be judged on its own), and one
   // part's spec (so a part can be judged on its own).
-  let scheme = layoutById(tuning.layout).scheme;
+  // A candidate's own per-beat composition wins over the preset. `motionAll`
+  // still overrides both, which is what the bench's dynamics round needs - and
+  // is exactly why the first ten candidates all moved uniformly: they set it.
+  let scheme = tuning.scheme ?? layoutById(tuning.layout).scheme;
   if (tuning.motionAll !== "auto") {
     scheme = Object.fromEntries(
       PARTS.map((p) => [p, { ...scheme[p], motion: tuning.motionAll as Motion }]),

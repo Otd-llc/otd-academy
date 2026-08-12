@@ -264,6 +264,17 @@ export type PartSpec = {
   enter: Move;
   exit: Move;
   motion: Motion;
+  /**
+   * Per-beat pacing, overriding the flow.
+   *
+   * The flow sets one entrance length for the whole cut, which is the same
+   * mistake as one motion for the whole cut: a quiz has to be READ and wants a
+   * slow arrival, and the patch is the loudest event in the film and wants a
+   * fast one. A cut whose four beats are paced identically is set to music
+   * rather than cut to it.
+   */
+  inDur?: number;
+  outDur?: number;
 };
 
 export type PartStyle = {
@@ -291,8 +302,10 @@ export function partStyle(
   parallax: Parallax,
 ): PartStyle {
   if (t < from || t >= to) return { style: { opacity: 0 }, hidden: true };
-  const inP = clamp01((t - from) / inDur);
-  const outP = clamp01((t - (to - outDur)) / outDur);
+  const din = spec.inDur ?? inDur;
+  const dout = spec.outDur ?? outDur;
+  const inP = clamp01((t - from) / din);
+  const outP = clamp01((t - (to - dout)) / dout);
   const p = clamp01((t - from) / Math.max(0.001, to - from));
 
   const off = placeOffset(spec.place);
