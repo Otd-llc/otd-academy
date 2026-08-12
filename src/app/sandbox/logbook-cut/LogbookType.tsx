@@ -30,6 +30,7 @@ export function LogbookType({
   w,
   h,
   beats = BEATS,
+  bare = false,
 }: {
   arrangement: Arrangement;
   t: number;
@@ -38,6 +39,10 @@ export function LogbookType({
   /** The arc round rewrites the words, because its numbers depend on how many
    *  questions the lesson actually has. Defaults to the shared sheet. */
   beats?: Beat[];
+  /** The word and the payoff, nothing else. No line under the word and no
+   *  running index - both are things on screen, and the quiet round's whole
+   *  brief is that there were too many of those. */
+  bare?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const raw = useId();
@@ -66,12 +71,14 @@ export function LogbookType({
       <div id={id} style={{ position: "absolute", inset: 0 }}>
         {/* Held for the whole clip. A viewer who joins three seconds in should
             still know what they are looking at. */}
-        <div className="lt-eyebrow">
-          <span className="lt-idx">{String(Math.max(0, active) + 1).padStart(2, "0")}</span>
-          <span className="lt-sep">/</span>
-          <span className="lt-idx lt-dim">{String(beats.length).padStart(2, "0")}</span>
-          <span className="lt-label">{LABEL}</span>
-        </div>
+        {bare ? null : (
+          <div className="lt-eyebrow">
+            <span className="lt-idx">{String(Math.max(0, active) + 1).padStart(2, "0")}</span>
+            <span className="lt-sep">/</span>
+            <span className="lt-idx lt-dim">{String(beats.length).padStart(2, "0")}</span>
+            <span className="lt-label">{LABEL}</span>
+          </div>
+        )}
 
         {beat ? (
           // `data-anim-at` is what the stage pins the entrance against, and the
@@ -81,7 +88,7 @@ export function LogbookType({
               {beat.word}
               <span className="tdot">.</span>
             </p>
-            <p className="lt-b">{beat.line}</p>
+            {bare ? null : <p className="lt-b">{beat.line}</p>}
           </div>
         ) : null}
 
@@ -104,6 +111,8 @@ const SLOT: Record<Arrangement, string> = {
   morph: "left:7%;bottom:9.5%;max-width:56%",
   split: "left:7%;bottom:9.5%;max-width:40%",
   arc: "left:7%;bottom:9.5%;max-width:46%",
+  // No line under it, so the word can sit on the baseline the URL leaves.
+  quiet: "left:7%;bottom:11%;max-width:60%",
 };
 
 function css(id: string, arrangement: Arrangement, size: { word: number; url: number }) {
