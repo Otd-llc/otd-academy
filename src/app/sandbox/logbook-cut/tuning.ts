@@ -31,7 +31,19 @@ export type Transition = "crossfade" | "wipe" | "push" | "scale";
 /** The shape of the beat: lead, entrance length, exit length. */
 export type Flow = "even" | "snappy" | "breath";
 /** The moment the patch stops being locked. */
-export type Jaunty = "jaunty" | "pop" | "stamp" | "swing" | "spring" | "flip";
+export type Jaunty =
+  | "jaunty"
+  | "pop"
+  | "stamp"
+  | "swing"
+  | "spring"
+  | "flip"
+  | "plate"
+  | "spin"
+  | "tilt"
+  | "charge"
+  | "clunk"
+  | "unfurl";
 
 export type Tuning = {
   kinetic: Kinetic;
@@ -41,13 +53,21 @@ export type Tuning = {
   jaunty: Jaunty;
 };
 
-/** What the quiet round ships with today, so the bench always has a baseline
- *  that is the thing being changed rather than a fifth option. */
+/**
+ * What the quiet round ships with, so the bench always has a baseline that is
+ * the thing being changed rather than one more option.
+ *
+ * OWNER PICKS, 2026-08-11: `snappy` and `corners`. Everything else is still the
+ * default rather than a decision - the flip is being chosen from a wider set,
+ * and transition and kinetic were not called, which under `snappy` matters less
+ * than it did: at a 0.1s handover the four transitions are 100ms apart from
+ * each other and the cut is doing the work.
+ */
 export const DEFAULT_TUNING: Tuning = {
   kinetic: "rise",
-  pos: "lower-left",
+  pos: "corners",
   transition: "crossfade",
-  flow: "even",
+  flow: "snappy",
   jaunty: "jaunty",
 };
 
@@ -93,19 +113,33 @@ export const FLOWS: Record<Flow, FlowSpec & { label: string; note: string }> = {
  *  on consecutive cues, which reads as a handoff rather than as a caption that
  *  moved. It costs vertical room, so the subject box tightens under it. */
 export function wordBox(pos: WordPos, i: number): React.CSSProperties {
+  // EVERY SIDE IS STATED, including the ones being given up. `.lt-term` carries
+  // a `left` and a `bottom` from the arrangement's slot rule, and an inline
+  // style that only sets `right` does not remove them: the box then spans both
+  // edges, gets clamped by max-width, and the word lands NEAR the middle with
+  // its text right-aligned inside a box that is not where it looks. Two of the
+  // four corners came out centred that way, which reads as a taste problem and
+  // is a specificity one.
   if (pos === "centre-low") {
-    return { left: 0, right: 0, bottom: "11%", textAlign: "center" };
+    return {
+      left: 0,
+      right: 0,
+      top: "auto",
+      bottom: "11%",
+      maxWidth: "none",
+      textAlign: "center",
+    };
   }
   if (pos === "corners") {
     const corner = [
-      { left: "7%", top: "8%" },
-      { right: "7%", bottom: "11%", textAlign: "right" as const },
-      { right: "7%", top: "8%", textAlign: "right" as const },
-      { left: "7%", bottom: "11%" },
+      { left: "7%", right: "auto", top: "8%", bottom: "auto" },
+      { left: "auto", right: "7%", top: "auto", bottom: "11%", textAlign: "right" as const },
+      { left: "auto", right: "7%", top: "8%", bottom: "auto", textAlign: "right" as const },
+      { left: "7%", right: "auto", top: "auto", bottom: "11%" },
     ][i % 4];
     return { maxWidth: "46%", ...corner };
   }
-  return { left: "7%", bottom: "11%", maxWidth: "60%" };
+  return { left: "7%", right: "auto", top: "auto", bottom: "11%", maxWidth: "60%" };
 }
 
 /** The subject's box has to give the word somewhere to be. Corners take the top
@@ -115,6 +149,16 @@ export function subjectBox(pos: WordPos): React.CSSProperties {
     ? { top: "21%", bottom: "27%" }
     : { top: "10%", bottom: "27%" };
 }
+
+/**
+ * And the subjects have to FIT that box.
+ *
+ * Corners leaves 286px of a 549px frame. The ring is 190px at 1.85 (352) and
+ * the carousel is five 52px rows at 1.35 (351); both overflowed into the very
+ * bands the word had just been given, which is a layout that looks like a
+ * position choice and is actually a size one. 0.8 brings both to 281.
+ */
+export const subjectScale = (pos: WordPos): number => (pos === "corners" ? 0.8 : 1);
 
 export const POSITIONS: { id: WordPos; label: string; note: string }[] = [
   {
@@ -194,6 +238,16 @@ export type JauntySpec = {
   goldAt: number;
   keyframes: string;
   timing: string;
+  /**
+   * HOW the gold arrives, which is a different question from how the badge
+   * MOVES and the reason twelve candidates are not twelve easings.
+   *
+   * `fade` swaps the two renders in 80ms, hidden by whatever the movement is
+   * doing at `goldAt` - an impact, an edge-on frame, or nothing at all.
+   * `wipe` plates the gold across the locked patch on a diagonal, so the badge
+   * can stay perfectly still and still visibly become yours. Defaults to fade.
+   */
+  reveal?: "fade" | "wipe";
 };
 
 export const JAUNTIES: JauntySpec[] = [
@@ -264,7 +318,7 @@ export const JAUNTIES: JauntySpec[] = [
   {
     id: "flip",
     label: "card flip",
-    note: "Turns edge-on and comes back gold, so the swap happens at the one frame where neither face is visible. The only one where locked and earned are the same object rather than a crossfade.",
+    note: "Turns edge-on and comes back gold, so the swap happens at the one frame where neither face is visible. Locked and earned are the same object rather than a crossfade.",
     dur: 0.56,
     goldAt: 0.5,
     timing: "cubic-bezier(.45,0,.25,1)",
@@ -272,6 +326,81 @@ export const JAUNTIES: JauntySpec[] = [
       50%{transform:perspective(700px) rotateY(90deg)}
       78%{transform:perspective(700px) rotateY(-12deg)}
       100%{transform:perspective(700px) rotateY(0deg)}`,
+  },
+
+  // ---- six more, 2026-08-11. Not six easings: four of these move the badge a
+  // way none of the first six do, and two change HOW THE GOLD ARRIVES, which is
+  // the axis inside the axis.
+  {
+    id: "plate",
+    label: "plating",
+    note: "The badge does not move at all. The gold sweeps across it on a diagonal, the way plating goes on, and only then does it take one small breath. The quietest possible reading of earning something, and the only candidate that would survive next to a busy frame.",
+    dur: 0.8,
+    goldAt: 0,
+    reveal: "wipe",
+    timing: "cubic-bezier(.3,.8,.3,1)",
+    keyframes: `0%,62%{transform:scale(1)}
+      78%{transform:scale(1.06)}
+      100%{transform:scale(1)}`,
+  },
+  {
+    id: "spin",
+    label: "spin",
+    note: "A full turn in the plane of the frame while it grows. Reads as a medal being flipped up and caught. The most celebratory of the twelve and the one most likely to look cheap on the twentieth viewing.",
+    dur: 0.66,
+    goldAt: 0.42,
+    timing: "cubic-bezier(.22,.85,.28,1)",
+    keyframes: `0%{transform:rotate(0deg) scale(.72)}
+      70%{transform:rotate(342deg) scale(1.08)}
+      88%{transform:rotate(356deg) scale(.98)}
+      100%{transform:rotate(360deg) scale(1)}`,
+  },
+  {
+    id: "tilt",
+    label: "tilt flip",
+    note: "The card flip turned ninety degrees: top over bottom rather than side to side. Same trick, and it reads heavier because the badge appears to fall forward rather than to rotate.",
+    dur: 0.58,
+    goldAt: 0.5,
+    timing: "cubic-bezier(.45,0,.25,1)",
+    keyframes: `0%{transform:perspective(700px) rotateX(0deg)}
+      50%{transform:perspective(700px) rotateX(88deg)}
+      78%{transform:perspective(700px) rotateX(-11deg)}
+      100%{transform:perspective(700px) rotateX(0deg)}`,
+  },
+  {
+    id: "charge",
+    label: "charge",
+    note: "Two small pulses that do not land, then a third that does, with the gold arriving on the hit. Anticipation is the only thing on this page that makes the moment feel EARNED rather than granted, and the cost is that it needs the longest window.",
+    dur: 0.94,
+    goldAt: 0.6,
+    timing: "linear",
+    keyframes: `0%{transform:scale(1)}
+      12%{transform:scale(1.05)} 22%{transform:scale(1)}
+      36%{transform:scale(1.08)} 48%{transform:scale(.97)}
+      60%{transform:scale(1.22)} 74%{transform:scale(.98)}
+      86%{transform:scale(1.03)} 100%{transform:scale(1)}`,
+  },
+  {
+    id: "clunk",
+    label: "clunk",
+    note: "Arrives from below at an angle and stops dead. No overshoot anywhere, which is the point: everything else on this page bounces, and a thing that simply ARRIVES reads as heavier than a thing that wobbles.",
+    dur: 0.34,
+    goldAt: 0.55,
+    timing: "cubic-bezier(.16,.9,.3,1)",
+    keyframes: `0%{transform:translate(-14%,26%) rotate(-11deg) scale(.9);opacity:.4}
+      100%{transform:translate(0,0) rotate(0) scale(1);opacity:1}`,
+  },
+  {
+    id: "unfurl",
+    label: "unfurl",
+    note: "Opens vertically from a closed line, like a pennant dropping. Suits the pennant and shield silhouettes and fights the pentagon a little. The gold is already there as it opens, so nothing is hidden.",
+    dur: 0.62,
+    goldAt: 0,
+    timing: "cubic-bezier(.2,.95,.3,1)",
+    keyframes: `0%{transform:scaleY(.04) scaleX(.9)}
+      58%{transform:scaleY(1.12) scaleX(1.02)}
+      80%{transform:scaleY(.96) scaleX(.99)}
+      100%{transform:scaleY(1) scaleX(1)}`,
   },
 ];
 

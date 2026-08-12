@@ -56,6 +56,7 @@ import {
   jauntyById,
   jauntyCss,
   subjectBox,
+  subjectScale,
   subjectStyle,
   type JauntySpec,
   type Kinetic,
@@ -1135,10 +1136,15 @@ const CAR_WIN = 5;
  *  - a pure function of t, so it seeks like everything else here. A spring
  *  integrated frame to frame would not. */
 function RankCarousel({ t, level, from }: { t: number; level: number; from: number }) {
+  // IT STARTS AT FL3, NOT FL1, and that is a picture decision. The window shows
+  // five rows with the focused one in the middle, so a wheel parked on the
+  // first rank has nothing above it and reads as broken rather than as the
+  // bottom of a ladder. Index 2 is the first position with a full window.
+  const START = 2;
   const settle = ramp(t, from, from + 0.8);
   const wob =
     t >= from ? Math.max(0, 1 - (t - from) / 1.2) * Math.sin((t - from) * 10) * 0.42 : 0;
-  const focus = (level - 1) * settle + wob;
+  const focus = START + (level - 1 - START) * settle + wob;
   return (
     <div style={{ position: "relative", height: CAR_ROW * CAR_WIN }}>
       {/* The focus band the real rank ladder draws. Without it the wheel is a
@@ -1237,6 +1243,20 @@ export function PatchFlip({
   size?: number;
 }) {
   const gold = t >= at;
+  // Two ways for the gold to arrive. `fade` swaps the renders in 80ms, hidden
+  // by whatever the movement is doing at `goldAt`. `wipe` plates it across on a
+  // diagonal, driven by scene time rather than by a keyframe, so a badge that
+  // never moves can still visibly become yours.
+  const p = clamp01((t - at) / spec.dur);
+  const edge = -30 + 130 * p;
+  const goldStyle: React.CSSProperties =
+    spec.reveal === "wipe"
+      ? {
+          opacity: 1,
+          WebkitMaskImage: `linear-gradient(118deg,#000 ${edge}%,transparent ${edge + 30}%)`,
+          maskImage: `linear-gradient(118deg,#000 ${edge}%,transparent ${edge + 30}%)`,
+        }
+      : { opacity: clamp01((t - (at + spec.goldAt * spec.dur)) / 0.08) };
   return (
     <div className={gold ? `j-${spec.id}` : undefined} data-anim-at={at}>
       {/* The idle stops the moment the flip starts; two animations writing the
@@ -1251,7 +1271,7 @@ export function PatchFlip({
               inset: 0,
               display: "grid",
               placeItems: "center",
-              opacity: clamp01((t - (at + spec.goldAt * spec.dur)) / 0.08),
+              ...goldStyle,
             }}
           >
             <PatchBadge art={PATCH.art} earned size={size} />
@@ -1363,7 +1383,11 @@ function QuietScene({
   // is a `size` in pixels. On the bench, where a stage is half width, the
   // unscaled version put a ring twice too big over a quiz clipped mid
   // explanation - the composition being judged was not the composition.
-  const k = w / 880;
+  //
+  // `subjectScale` folds in the second reason: `corners` hands the top and the
+  // bottom of the frame to the word, and the ring and the carousel were both
+  // taller than what was left.
+  const k = (w / 880) * subjectScale(tuning.pos);
 
   // ONE click, on the real option. Same forward-only reconcile the arc uses:
   // state the target, fix it up, and press the component's own Start over when
@@ -1458,7 +1482,10 @@ function QuietScene({
       {/* RANK */}
       <div style={{ ...centre, ...shot(2) }}>
         <div style={{ transform: `scale(${1.35 * k})`, transformOrigin: "center" }}>
-          <RankCarousel t={t} level={AFTER.level} from={starts[2] + 0.35} />
+          {/* +0.12, not +0.35: under `snappy` the arm is only a tenth of a beat
+              before the word, and a third of a second of a parked wheel is the
+              whole gap that flow was chosen to remove. */}
+          <RankCarousel t={t} level={AFTER.level} from={starts[2] + 0.12} />
         </div>
       </div>
 
