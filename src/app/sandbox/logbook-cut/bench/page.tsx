@@ -51,7 +51,12 @@ const AXES: { id: Axis; label: string; blurb: string }[] = [
   { id: "transition", label: "2 / transitions", blurb: "What the handover itself looks like." },
   { id: "kinetic", label: "3 / word kinetics", blurb: "How the word arrives. Type layer only." },
   { id: "position", label: "4 / word position", blurb: "Where the word sits, and what that costs the picture." },
-  { id: "jaunty", label: "5 / the patch flip", blurb: "Six ways to stop being locked." },
+  {
+    id: "jaunty",
+    label: "5 / the patch flip",
+    blurb:
+      "Twelve ways to stop being locked. Two of them plate the gold on rather than swapping it.",
+  },
 ];
 
 type Params = Promise<Record<string, string | undefined>>;
