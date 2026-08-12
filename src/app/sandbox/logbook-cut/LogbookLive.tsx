@@ -57,13 +57,25 @@ import {
   jauntyCss,
   subjectBox,
   subjectScale,
-  subjectStyle,
   WAIT_PERIOD,
   type JauntySpec,
   type Kinetic,
+  type KineticOut,
   type Tuning,
   type WordPos,
 } from "./tuning";
+import {
+  applyOverride,
+  cameraVec,
+  DEPTH,
+  layoutById,
+  parallaxVec,
+  partStyle,
+  PARTS,
+  type Motion,
+  type Parallax,
+  type Vec,
+} from "./motion";
 import {
   AFTER,
   AWARD,
@@ -508,6 +520,9 @@ export function LogbookLive({
         <ArcScene t={t} rail={arcRail} questions={questions} sheet={arc} lesson={lesson} />
       )}
 
+      {/* Solo is about one PART, so the words come off - otherwise the thing
+          moving in the corner of every tile is the thing you are not judging. */}
+      {tuning.solo ? null : (
       <LogbookType
         arrangement={arrangement}
         t={t}
@@ -518,8 +533,11 @@ export function LogbookLive({
         }
         bare={arrangement === "quiet"}
         kinetic={arrangement === "quiet" ? tuning.kinetic : "rise"}
+        kineticOut={arrangement === "quiet" ? tuning.kineticOut : "none"}
+        outDur={FLOWS[tuning.flow].outDur}
         pos={arrangement === "quiet" ? tuning.pos : undefined}
       />
+      )}
     </>
   );
 
@@ -1224,6 +1242,58 @@ function RankCarousel({ t, level, from }: { t: number; level: number; from: numb
 }
 
 /**
+ * THE THING PARALLAX SEPARATES AGAINST.
+ *
+ * Parallax is not an effect you can apply to one layer: it is the same motion
+ * at different rates, so a film with a single plane has nothing to be parallax
+ * BETWEEN. The subject and the word were already two; this is the third, and it
+ * is deliberately almost nothing - a hex lattice and a dust field at a few
+ * percent opacity, both drawn in CSS so there is no asset to ship and nothing
+ * to load before a frame can be captured.
+ *
+ * At `off` it does not render at all rather than rendering still. An invisible
+ * layer that still costs a composite on every frame is the kind of thing that
+ * turns up later as a mysterious four milliseconds.
+ */
+function Backdrop({ t, cam, parallax }: { t: number; cam: Vec; parallax: Parallax }) {
+  if (parallax === "off") return null;
+  const v = parallaxVec(parallax, DEPTH.backdrop, cam);
+  const drift = Math.sin(t * 0.22) * 0.6;
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "absolute",
+        inset: "-8%",
+        pointerEvents: "none",
+        transform: `translate(${(v.x + drift).toFixed(3)}%, ${v.y.toFixed(3)}%)`,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          opacity: 0.5,
+          backgroundImage:
+            "radial-gradient(circle at 50% 50%, rgba(200,150,62,.16) 0 1px, transparent 1.4px)",
+          backgroundSize: "46px 46px",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          opacity: 0.35,
+          backgroundImage:
+            "radial-gradient(circle at 50% 50%, rgba(241,236,224,.1) 0 1px, transparent 1.6px)",
+          backgroundSize: "137px 119px",
+        }}
+      />
+    </div>
+  );
+}
+
+/**
  * The patch flip, on its own so the bench can loop six of them side by side.
  *
  * TWO REAL RENDERS, CROSSFADED, not a tween. `PatchBadge` draws locked and
@@ -1296,11 +1366,15 @@ export function PatchFlip({
  */
 export function WordTile({
   kinetic,
+  kineticOut = "none",
+  outDur = 0.1,
   pos = "lower-left",
   w = 420,
   fixedT,
 }: {
   kinetic: Kinetic;
+  kineticOut?: KineticOut;
+  outDur?: number;
   pos?: WordPos;
   w?: number;
   /** Freeze, so a screenshot lands on a chosen frame of the entrance. */
@@ -1328,6 +1402,8 @@ export function WordTile({
         beats={QUIET_BEATS}
         bare
         kinetic={kinetic}
+        kineticOut={kineticOut}
+        outDur={outDur}
         pos={pos}
       />
     </div>
@@ -1412,6 +1488,19 @@ function QuietScene({
   }, [t, question]);
 
   const f = FLOWS[tuning.flow];
+  // The composition, then the two overrides the bench can apply on top of it:
+  // one motion for every part (so dynamics can be judged on its own), and one
+  // part's spec (so a part can be judged on its own).
+  let scheme = layoutById(tuning.layout).scheme;
+  if (tuning.motionAll !== "auto") {
+    scheme = Object.fromEntries(
+      PARTS.map((p) => [p, { ...scheme[p], motion: tuning.motionAll as Motion }]),
+    ) as typeof scheme;
+  }
+  if (tuning.part && tuning.partOver) {
+    scheme = applyOverride(scheme, tuning.part, tuning.partOver);
+  }
+  const cam = cameraVec(tuning.camera, t, SECONDS);
   // THE FOUR SUBJECT WINDOWS, DERIVED FROM THE FLOW rather than written out.
   // Each subject holds until the next one arms, then hands over across one
   // `outDur`, so there is never a gap and never a stack - and changing the flow
@@ -1423,7 +1512,27 @@ function QuietScene({
     starts[3] + f.outDur,
     SECONDS,
   ];
-  const shot = (i: number) => subjectStyle(tuning.transition, t, starts[i], ends[i], f);
+  // SOLO gives the chosen part the whole clip and hides the rest, so a place,
+  // a size or an entrance can be looked at instead of waited for.
+  const SOLO_WINDOW: [number, number] = [0.5, SECONDS - 0.4];
+  const shot = (i: number): React.CSSProperties => {
+    const id = PARTS[i];
+    if (tuning.solo) {
+      if (tuning.solo !== id) return { opacity: 0, pointerEvents: "none" };
+      return partStyle(
+        scheme[id],
+        t,
+        SOLO_WINDOW[0],
+        SOLO_WINDOW[1],
+        f.inDur,
+        f.outDur,
+        cam,
+        tuning.parallax,
+      ).style;
+    }
+    return partStyle(scheme[id], t, starts[i], ends[i], f.inDur, f.outDur, cam, tuning.parallax)
+      .style;
+  };
 
   const centre: React.CSSProperties = {
     position: "absolute",
@@ -1448,6 +1557,8 @@ function QuietScene({
 
   return (
     <>
+      <Backdrop t={t} cam={cam} parallax={tuning.parallax} />
+
       {/* READ */}
       <div data-quiz-bare style={{ ...centre, ...shot(0) }}>
         <div ref={quizRef} style={{ width: 560, transform: `scale(${k})` }}>
