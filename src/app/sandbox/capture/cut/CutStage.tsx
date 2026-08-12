@@ -30,7 +30,7 @@
 
 import { useEffect, useRef } from "react";
 import { CUES, TEXT_SCALE, cueCss } from "./cue-layer";
-import { SPECS, formatFor, placeEarn, type Format } from "./earn-place";
+import { SPECS, formatFor, insets, placeEarn, type Format } from "./earn-place";
 import { byId, progress, type Align } from "../../junction/transitions";
 import { GH, GW, drawGlitch } from "../../junction/glitch";
 
@@ -172,7 +172,9 @@ export function CutStage({
 
       const placed = placeEarn(format);
       const style = document.createElement("style");
-      style.textContent = cueCss(size, safe, placed);
+      // Per-side gutters, so the grid corners clear the platform's own
+      // furniture. `c-br` is where BUILD sits and where the action rail is.
+      style.textContent = cueCss(size, insets(spec), placed);
       root.appendChild(style);
 
       // ── picture ──────────────────────────────────────────────────────────
