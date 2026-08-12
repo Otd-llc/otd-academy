@@ -103,20 +103,57 @@ const useIso = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 /** The scene clock: a loop, or a frozen instant. Shared by the full stage and
  *  the bench's small tiles so a tile cannot drift from the film it is judging. */
-function useSceneClock(cycle: number, fixedT?: number) {
+function useSceneClock(
+  cycle: number,
+  fixedT?: number,
+  /** Pass the stage's own element and the clock only runs while it is on
+   *  screen. Optional so a caller without a ref keeps the old behaviour. */
+  host?: React.RefObject<HTMLElement | null>,
+) {
   const [tick, setTick] = useState(0);
   const frozen = fixedT !== undefined;
+  // A stage with no host observes nothing and is always live.
+  const [live, setLive] = useState(!host);
+
+  // OFF-SCREEN STAGES MUST STOP, and this is the whole reason the bench felt
+  // broken rather than slow. Every tile was a 60fps loop calling setState, and
+  // one setState per frame re-renders that tile's QuizBlock, its 44-line ring
+  // and its twelve-wing carousel. The per-part round has fifteen tiles and
+  // shows three, so twelve invisible stages were saturating the main thread -
+  // and a server navigation cannot get a slot on a saturated main thread, so
+  // clicking an axis looked like a link that does not work.
   useEffect(() => {
-    if (frozen) return;
+    const el = host?.current;
+    if (!el || frozen) return;
+    const io = new IntersectionObserver(
+      ([e]) => setLive(e.isIntersecting),
+      // A little early, so a tile is already running by the time it is worth
+      // looking at rather than starting its cycle under the reader's eye.
+      { rootMargin: "160px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [host, frozen]);
+
+  useEffect(() => {
+    if (frozen || !live) return;
     let raf = 0;
+    let last = -Infinity;
     const start = performance.now();
     const step = (now: number) => {
-      setTick(((now - start) / 1000) % cycle);
       raf = requestAnimationFrame(step);
+      // 30fps, which is not a compromise: the film is rendered at 30, so the
+      // preview and the deliverable are sampling the same clock. Halving the
+      // rate halves the React renders AND the getAnimations() sweep the pin
+      // does, which is the expensive half.
+      if (now - last < 33) return;
+      last = now;
+      setTick(((now - start) / 1000) % cycle);
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [frozen, cycle]);
+  }, [frozen, live, cycle]);
+
   return fixedT ?? tick;
 }
 
@@ -399,7 +436,7 @@ export function LogbookLive({
   const hostRef = useRef<HTMLDivElement>(null);
   const h = Math.round((w * 9) / 16);
   const frozen = fixedT !== undefined;
-  const t = useSceneClock(SECONDS, fixedT);
+  const t = useSceneClock(SECONDS, fixedT, hostRef);
 
   // CLIENT ONLY, and not out of laziness. XpTick picks its float variant with
   // Math.random() at mount, which is correct for a page and produces a real
@@ -1381,7 +1418,7 @@ export function WordTile({
   fixedT?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const t = useSceneClock(SECONDS, fixedT);
+  const t = useSceneClock(SECONDS, fixedT, ref);
   usePin(ref, t, kinetic);
   return (
     <div
@@ -1425,7 +1462,7 @@ export function FlipTile({
   const ref = useRef<HTMLDivElement>(null);
   const CYCLE = 2.6;
   const AT = 1.0;
-  const t = useSceneClock(CYCLE, fixedT);
+  const t = useSceneClock(CYCLE, fixedT, ref);
   usePin(ref, t, spec.id);
   return (
     <div

@@ -1,4 +1,4 @@
-﻿// SANDBOX - the tuning bench for the quiet cut. DEV ONLY.
+// SANDBOX - the tuning bench for the quiet cut. DEV ONLY.
 //
 // TEN AXES, ONE AT A TIME. That is a performance decision as much as an
 // editorial one: a full stage is a live 60fps loop carrying a QuizBlock, a
@@ -127,6 +127,50 @@ function pick<T extends string>(raw: string | undefined, allowed: readonly T[], 
   return (allowed as readonly string[]).includes(raw ?? "") ? (raw as T) : fallback;
 }
 
+/**
+ * The shortest real question in the Fundamentals cluster, found ONCE.
+ *
+ * Every axis link is a server navigation, and this scan pulls `contentBlocks`
+ * for twelve lessons and JSON-parses all of it. Doing that again on each click
+ * put hundreds of milliseconds of pure repetition in front of a page whose only
+ * change is one query-string value. The corpus does not move while a dev server
+ * is up, so the module holds it: restart the server to re-read it.
+ */
+let CACHE: { lesson: FilmLesson; question: FilmQuestion } | null = null;
+
+async function findQuestion() {
+  if (CACHE) return CACHE;
+  const rows = await db.miniLesson.findMany({
+    where: { published: true, accessTier: "PUBLIC", cluster: "fundamentals" },
+    orderBy: { clusterOrdinal: "asc" },
+    select: { slug: true, title: true, contentBlocks: true },
+    take: 12,
+  });
+  let lesson: FilmLesson | null = null;
+  let question: FilmQuestion | null = null;
+  for (const r of rows) {
+    const qsx = parseGuideBlocks(r.contentBlocks)
+      .blocks.filter((b) => b.type === "quiz")
+      .flatMap((b) => (b.type === "quiz" ? b.questions : []))
+      .filter(
+        (q): q is FilmQuestion =>
+          Array.isArray(q.options) && q.options.length >= 2 && typeof q.answer === "number",
+      );
+    for (const q of qsx) {
+      const worse =
+        question &&
+        q.options.length * 100 + q.q.length >=
+          question.options.length * 100 + question.q.length;
+      if (worse) continue;
+      question = q;
+      lesson = { slug: r.slug, title: r.title, clusterLabel: "Fundamentals" };
+    }
+  }
+  if (!lesson || !question) return null;
+  CACHE = { lesson, question };
+  return CACHE;
+}
+
 async function Body({ searchParams }: { searchParams: Params }) {
   const sp = await searchParams;
   const axis = pick<Axis>(sp.axis, AXES.map((a) => a.id), "flow");
@@ -165,34 +209,9 @@ async function Body({ searchParams }: { searchParams: Params }) {
       ...over,
     }).toString();
 
-  const where = { published: true, accessTier: "PUBLIC" as const };
-  const rows = await db.miniLesson.findMany({
-    where: { ...where, cluster: "fundamentals" },
-    orderBy: { clusterOrdinal: "asc" },
-    select: { slug: true, title: true, contentBlocks: true },
-    take: 12,
-  });
-
-  let lesson: FilmLesson | null = null;
-  let question: FilmQuestion | null = null;
-  for (const r of rows) {
-    const qsx = parseGuideBlocks(r.contentBlocks)
-      .blocks.filter((b) => b.type === "quiz")
-      .flatMap((b) => (b.type === "quiz" ? b.questions : []))
-      .filter(
-        (q): q is FilmQuestion =>
-          Array.isArray(q.options) && q.options.length >= 2 && typeof q.answer === "number",
-      );
-    for (const q of qsx) {
-      const worse =
-        question &&
-        q.options.length * 100 + q.q.length >=
-          question.options.length * 100 + question.q.length;
-      if (worse) continue;
-      question = q;
-      lesson = { slug: r.slug, title: r.title, clusterLabel: "Fundamentals" };
-    }
-  }
+  const found = await findQuestion();
+  const lesson = found?.lesson ?? null;
+  const question = found?.question ?? null;
 
   if (!lesson || !question) {
     return (
@@ -226,8 +245,7 @@ async function Body({ searchParams }: { searchParams: Params }) {
     <>
       <nav className="mt-6 flex flex-wrap gap-x-4 gap-y-2 border-y border-panel-border/60 py-3">
         {AXES.map((a) => (
-          <Link
-            key={a.id}
+          <Link prefetch={false} key={a.id}
             href={`?${qs({ axis: a.id })}`}
             className={`font-mono text-[11px] uppercase tracking-[0.14em] ${
               a.id === axis ? "text-command-gold" : "text-muted hover:text-gold-light"
@@ -317,7 +335,7 @@ async function Body({ searchParams }: { searchParams: Params }) {
               <li key={m.id}>
                 <Stage tuning={{ ...base, motionAll: m.id, solo: part }} w={340} />
                 <p className="mt-2">
-                  <Link href={`?${qs({ motion: m.id })}`}
+                  <Link prefetch={false} href={`?${qs({ motion: m.id })}`}
                     className={`title-card ${base.motionAll === m.id ? "text-command-gold" : ""}`}>
                     {m.label}
                   </Link>
@@ -368,7 +386,7 @@ async function Body({ searchParams }: { searchParams: Params }) {
               <div className="border border-panel-border/50"><WordTile kinetic={x.id} kineticOut={base.kineticOut} pos={base.pos}
                 fixedT={fixedT} w={360} outDur={FLOWS[base.flow].outDur} /></div>
               <p className="mt-2">
-                <Link href={`?${qs({ kinetic: x.id })}`}
+                <Link prefetch={false} href={`?${qs({ kinetic: x.id })}`}
                   className={`title-card ${base.kinetic === x.id ? "text-command-gold" : ""}`}>
                   {x.label}
                 </Link>
@@ -386,7 +404,7 @@ async function Body({ searchParams }: { searchParams: Params }) {
               <div className="border border-panel-border/50"><WordTile kinetic={base.kinetic} kineticOut={x.id} pos={base.pos}
                 fixedT={fixedT} w={360} outDur={FLOWS[base.flow].outDur} /></div>
               <p className="mt-2">
-                <Link href={`?${qs({ kineticOut: x.id })}`}
+                <Link prefetch={false} href={`?${qs({ kineticOut: x.id })}`}
                   className={`title-card ${base.kineticOut === x.id ? "text-command-gold" : ""}`}>
                   {x.label}
                 </Link>
@@ -403,7 +421,7 @@ async function Body({ searchParams }: { searchParams: Params }) {
             <li key={j.id}>
               <div className="border border-panel-border/50"><FlipTile spec={j} fixedT={fixedT} /></div>
               <p className="mt-2 flex items-baseline justify-between gap-2">
-                <Link href={`?${qs({ jaunty: j.id })}`}
+                <Link prefetch={false} href={`?${qs({ jaunty: j.id })}`}
                   className={`title-card ${base.jaunty === j.id ? "text-command-gold" : ""}`}>
                   {j.label}
                 </Link>
@@ -416,7 +434,7 @@ async function Body({ searchParams }: { searchParams: Params }) {
       ) : null}
 
       <p className="mt-10 font-mono text-xs text-muted">
-        <Link href="/sandbox/logbook-cut/quiet" className="text-command-gold hover:text-gold-light">
+        <Link prefetch={false} href="/sandbox/logbook-cut/quiet" className="text-command-gold hover:text-gold-light">
           the cut as it stands
         </Link>{" "}
         &middot; <code>?t=</code> freezes every stage &middot; delete this route before the PR
@@ -429,7 +447,7 @@ function PartPicker({ part, qs }: { part: PartId; qs: (o: Record<string, string>
   return (
     <p className="mt-5 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] uppercase tracking-[0.14em]">
       {PARTS.map((p) => (
-        <Link key={p} href={`?${qs({ part: p })}`}
+        <Link prefetch={false} key={p} href={`?${qs({ part: p })}`}
           className={p === part ? "text-command-gold" : "text-muted hover:text-gold-light"}>
           {PART_LABEL[p]}
         </Link>
@@ -452,7 +470,7 @@ function Cell({
     <li>
       {children}
       <p className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
-        <Link href={href} className={`title-card ${on ? "text-command-gold" : ""}`}>
+        <Link prefetch={false} href={href} className={`title-card ${on ? "text-command-gold" : ""}`}>
           {on ? "▸ " : ""}
           {label}
         </Link>
