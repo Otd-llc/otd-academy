@@ -87,10 +87,72 @@ export const OUTRO: Variant[] = [
   { id: "stack", name: "Stacked CTA", claim: "The gold action ladder: primary, secondary, quiet link. Never a blue action to differentiate." },
 ];
 
+
+/** GHOST - ten. The stage's ghost map is a LUMINANCE-derived mask of the real
+ *  artifact, painted in one colour, so it is the drawing itself rather than a
+ *  silhouette. That is why it can carry a whole frame: it says what this stage
+ *  produces without handing the artifact over, which is exactly the register an
+ *  intro wants. Round 2 had one treatment of it; these are ten. */
+export const GHOST: Variant[] = [
+  { id: "centre", name: "Centre", claim: "Huge, centred, copy over it. Round 2's version, kept as the control." },
+  { id: "offset", name: "Offset", claim: "Ghost pushed right, copy in a clean left column. The legible one - nothing sits over anything." },
+  { id: "bleed", name: "Bleed", claim: "Oversized and cropped by the frame, so it reads as a detail of something bigger." },
+  { id: "duo", name: "Duo", claim: "Ghost large behind, the real artifact small and solid in front. What it will be, over what it is now." },
+  { id: "sweep", name: "Sweep", claim: "A gold sweep crosses the frame and the ghost exists only where it has passed. The drawing arrives by being surveyed." },
+  { id: "outline", name: "Outline", claim: "Ghost at its faintest inside a hairline frame. The document-index register: evidence, filed." },
+  { id: "fill", name: "Fill", claim: "The ghost plates with gold from the bottom as the piece runs. Borrows the film's plating language directly." },
+  { id: "grid", name: "Grid", claim: "Ghost over an engineering-paper field. The most literal reading of the whole visual system." },
+  { id: "hex", name: "Hex", claim: "Ghost masked into the brand hex at size. Strongest identity of the ten." },
+  { id: "strata", name: "Strata", claim: "Sliced into horizontal bands that land in sequence, so the drawing assembles rather than appears." },
+];
+
+
+/** COMB WALK - ten, on the REAL comb.
+ *  Round 2's comb was a hand-drawn polygon wearing the right colours, which is
+ *  the thing the design law calls out by name: the honeycomb already exists as
+ *  `.gh-node` / `.gh-hex` / `.comb-num` / `.gh-chip` in globals.css plus a
+ *  `HexPrism` component, and reinventing it means the video drifts from the
+ *  product the first time either changes. These use the real classes and the
+ *  real prism, so the styling is whatever the hub's styling currently is.
+ *  What varies is the WALK: how the lit cell gets from the last stage to this. */
+export const COMBWALK: Variant[] = [
+  { id: "step", name: "Step", claim: "The fill hands over from the previous cell to this one. The plainest walk, and the one that reads at any size." },
+  { id: "sweep", name: "Sweep", claim: "A gold sweep crosses the whole comb and leaves the current cell lit behind it. One gesture rather than two events." },
+  { id: "trail", name: "Trail", claim: "Every completed cell lights in sequence up to this one. Says how far you have come, not just where you are." },
+  { id: "arrow", name: "Arrow", claim: "The seam arrow between the two cells fires, then the fill lands. Uses the comb's own path-direction language." },
+  { id: "drop", name: "Drop", claim: "The current cell drops onto the comb from above and seats. The prism's 3D face makes the landing read." },
+  { id: "pulse", name: "Pulse", claim: "The current cell pulses once at the beat instead of filling. The lightest touch of the ten." },
+  { id: "focus", name: "Focus", claim: "The whole comb sits dim and the current cell resolves to full. Depth of field rather than fill." },
+  { id: "zoom", name: "Zoom", claim: "The comb pushes in on the current cell as it lights, so the card ends on the one hex that matters." },
+  { id: "count", name: "Count", claim: "The Saira watermark counts up to this stage's ordinal as the fill arrives. The numeral does the walking." },
+  { id: "unmask", name: "Unmask", claim: "The current cell's artifact tile unmasks inside the hex. What this stage produces, revealed as you arrive at it." },
+];
+
+
+/** HAIRLINE - ten variations of the lower third that won round 2's set.
+ *  The hairline IS the house treatment: a rule on the bare field, a mono label,
+ *  a value. So these vary the RULE - how it arrives, what it does while the
+ *  label is up, and how it takes the label away again. */
+export const HAIRLINE: Variant[] = [
+  { id: "grow", name: "Grow", claim: "The rule draws left to right, label above, value below. Round 2's version, as the control." },
+  { id: "split", name: "Split", claim: "The rule opens from the centre outward. Symmetrical, and the label lands in the gap it makes." },
+  { id: "under", name: "Underline", claim: "Label and value arrive first, the rule strikes underneath them last. The rule confirms rather than announces." },
+  { id: "between", name: "Between", claim: "The rule sits between label and value and pushes them apart as it grows. The typography is spaced BY the rule." },
+  { id: "tick", name: "Tick", claim: "A short tick at the left grows into the full rule. Reads as a measurement being taken." },
+  { id: "double", name: "Double", claim: "Two rules, the second offset and dim. Depth without a box, which is the whole trick of this system." },
+  { id: "bracket", name: "Bracket", claim: "The rule turns a corner and runs up the left. Frames two sides, encloses none." },
+  { id: "scale", name: "Scale", claim: "The rule carries minor ticks like a ruler edge. The most instrument-like of the ten." },
+  { id: "trace", name: "Trace", claim: "The rule is a PCB trace: it steps at 45 degrees partway. The one that could only belong to this company." },
+  { id: "weight", name: "Weight", claim: "The rule arrives thin and thickens to full weight. Quietest arrival, strongest final state." },
+];
+
 export const PIECES = {
   intro: { name: "Intro / artifact", seconds: 3.5, variants: INTRO },
+  ghost: { name: "Intro / ghost", seconds: 3.5, variants: GHOST },
   section: { name: "Section / comb", seconds: 1.8, variants: SECTION },
+  combwalk: { name: "Section / comb walk", seconds: 2.2, variants: COMBWALK },
   lower: { name: "Lower third", seconds: 4, variants: LOWER },
+  hairline: { name: "Lower / hairline", seconds: 4, variants: HAIRLINE },
   outro: { name: "Outro / ladder", seconds: 8, variants: OUTRO },
 } as const;
 

@@ -42,20 +42,35 @@ export const END_SCREEN_WINDOW = { minSeconds: 5, maxSeconds: 20 };
 export const MIN_ELEMENT_PX = 300;
 
 /**
- * Four reserved wells for 16:9, as fractions.
+ * THREE reserved wells for 16:9, as fractions.
  *
  * Two-up on the right for video/playlist cards, one lower-left for the
- * subscribe badge, one upper-left kept clear for a channel element. The left
- * column is deliberately narrow: the outro's own copy lives in the centre-left
- * gutter between them, which is the widest continuous run of frame that no
- * element wants.
+ * subscribe badge. YouTube allows up to four elements, and the fourth would be
+ * a channel element - we deliberately do not reserve one.
+ *
+ * OWNER DECISION 2026-08-13: subscribe + two videos, and the upper-left region
+ * that a channel element would have taken is OURS, for graphics. Reserving a
+ * well nobody intends to fill is not caution, it is a hole in the composition:
+ * the frame loses its whole top-left quadrant to negative space that no element
+ * will ever occupy.
+ *
+ * The outro's copy still lives in the centre gutter between the left and right
+ * columns; `GRAPHICS_16X9` below is the reclaimed area.
  */
 export const WELLS_16X9: Record<string, Well> = {
   video1: { x: 0.60, y: 0.13, w: 0.30, h: 0.34 },
   video2: { x: 0.60, y: 0.53, w: 0.30, h: 0.34 },
-  channel: { x: 0.10, y: 0.13, w: 0.16, h: 0.28 },
   subscribe: { x: 0.10, y: 0.60, w: 0.16, h: 0.27 },
 };
+
+/**
+ * The upper-left area freed by not reserving a channel element.
+ *
+ * Ours to compose into: a comb, a stage artifact, a rank wing, a plate. Stated
+ * as a region rather than left implicit, so a treatment can be checked against
+ * it the same way the wells are.
+ */
+export const GRAPHICS_16X9: Well = { x: 0.07, y: 0.10, w: 0.22, h: 0.40 };
 
 /**
  * The player's own bottom bar (progress + controls) on hover.

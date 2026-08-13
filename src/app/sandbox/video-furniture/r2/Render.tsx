@@ -21,25 +21,31 @@ import { STAGE_LABELS } from "@/lib/stages";
 import { combAbbr } from "@/lib/phase-comb";
 import { stageArt, stageArtGhost } from "@/lib/guide-stage-art";
 import { STAGE_ORDER } from "../furniture";
-import { WELLS_16X9, PLAYER_BAR_BOTTOM } from "../youtube";
+import { WELLS_16X9, GRAPHICS_16X9, PLAYER_BAR_BOTTOM } from "../youtube";
+import { furnitureOutStack, exitP, type FurnitureOut } from "./exits";
+import { PIECES, type PieceKey } from "./variants";
+import { Ghost, CombWalk, Hairline } from "./Render2";
 
 // ---- easing ----------------------------------------------------------------
-const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
-const seg = (t: number, a: number, b: number) => clamp01((t - a) / (b - a));
-const outCubic = (p: number) => 1 - Math.pow(1 - p, 3);
-const outExpo = (p: number) => (p >= 1 ? 1 : 1 - Math.pow(2, -10 * p));
-const inOut = (t: number, a: number, b: number, c: number, d: number) =>
+export const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+export const seg = (t: number, a: number, b: number) => clamp01((t - a) / (b - a));
+export const outCubic = (p: number) => 1 - Math.pow(1 - p, 3);
+export const outExpo = (p: number) => (p >= 1 ? 1 : 1 - Math.pow(2, -10 * p));
+export const inOut = (t: number, a: number, b: number, c: number, d: number) =>
   Math.min(outCubic(seg(t, a, b)), 1 - outCubic(seg(t, c, d)));
 
-const GOLD = "var(--color-command-gold)";
-const TITLE = "var(--color-title)";
-const TEXT = "var(--color-text)";
-const MUTED = "var(--color-muted)";
-const FIELD = "var(--color-deep-space)";
-const HAIR = "var(--color-panel-border)";
+export const GOLD = "var(--color-command-gold)";
+export const TITLE = "var(--color-title)";
+export const TEXT = "var(--color-text)";
+export const MUTED = "var(--color-muted)";
+export const FIELD = "var(--color-deep-space)";
+export const HAIR = "var(--color-panel-border)";
 
 export type VProps = {
   piece: string;
+  /** How the piece LEAVES, as a STACK applied outermost first. Defaulted, never
+   *  absent - a piece with no exit is the fade nobody chose. */
+  exit?: FurnitureOut[];
   variant: string;
   stage: Stage;
   title: string;
@@ -49,7 +55,13 @@ export type VProps = {
 };
 
 export function PieceFrame(p: VProps) {
-  return (
+  // THE EXIT IS APPLIED HERE, ONCE, for every piece. Doing it per-variant is how
+  // ten treatments end up with nine fades and one considered ending.
+  const seconds = (PIECES[p.piece as PieceKey] ?? PIECES.intro).seconds;
+  // One wrapper per stacked exit, outermost first. See furnitureOutStack for
+  // why this is nesting rather than a merged style object.
+  const layers = furnitureOutStack(p.exit?.length ? p.exit : ["settle"], exitP(p.t, seconds));
+  const body = (
     <div
       data-furniture
       style={{
@@ -62,16 +74,28 @@ export function PieceFrame(p: VProps) {
       }}
     >
       {p.piece === "intro" ? <Intro {...p} /> : null}
+      {p.piece === "ghost" ? <Ghost {...p} /> : null}
+      {p.piece === "combwalk" ? <CombWalk {...p} /> : null}
+      {p.piece === "hairline" ? <Hairline {...p} /> : null}
       {p.piece === "section" ? <Section {...p} /> : null}
       {p.piece === "lower" ? <Lower {...p} /> : null}
       {p.piece === "outro" ? <Outro {...p} /> : null}
     </div>
   );
+
+  return layers.reduceRight(
+    (inner, style, i) => (
+      <div key={i} style={{ position: "absolute", inset: 0, ...style }}>
+        {inner}
+      </div>
+    ),
+    body,
+  );
 }
 
 // ---- shared ----------------------------------------------------------------
 
-function Eyebrow({ children, o = 1, size = 1.35 }: { children: React.ReactNode; o?: number; size?: number }) {
+export function Eyebrow({ children, o = 1, size = 1.35 }: { children: React.ReactNode; o?: number; size?: number }) {
   return (
     <div
       style={{
@@ -88,7 +112,7 @@ function Eyebrow({ children, o = 1, size = 1.35 }: { children: React.ReactNode; 
   );
 }
 
-function Title({ children, size = 4, o = 1, dy = 0 }: { children: React.ReactNode; size?: number; o?: number; dy?: number }) {
+export function Title({ children, size = 4, o = 1, dy = 0 }: { children: React.ReactNode; size?: number; o?: number; dy?: number }) {
   return (
     <h1
       style={{
@@ -109,7 +133,7 @@ function Title({ children, size = 4, o = 1, dy = 0 }: { children: React.ReactNod
 
 /** The signature readout. Saira, tabular, gold - for ANY number, including a
  *  small inline one. */
-function Num({ children, size = 6, color = GOLD }: { children: React.ReactNode; size?: number; color?: string }) {
+export function Num({ children, size = 6, color = GOLD }: { children: React.ReactNode; size?: number; color?: string }) {
   return (
     <span
       style={{
@@ -127,13 +151,13 @@ function Num({ children, size = 6, color = GOLD }: { children: React.ReactNode; 
   );
 }
 
-function Hair({ p = 1, w = 0.14, color = GOLD }: { p?: number; w?: number; color?: string }) {
+export function Hair({ p = 1, w = 0.14, color = GOLD }: { p?: number; w?: number; color?: string }) {
   return <div style={{ height: `${w}cqw`, width: `${p * 100}%`, background: color }} />;
 }
 
 /** The brand hex, using the real polygon geometry the `.gh-hex` SVG uses rather
  *  than a clip-path lookalike. */
-function Hex({
+export function Hex({
   children,
   size,
   filled,
@@ -163,7 +187,7 @@ function Hex({
 }
 
 /** The eight-stage comb, in the product's own hex language. */
-function Comb({ stage, size, lit = 1, prev }: { stage: Stage; size: number; lit?: number; prev?: Stage }) {
+export function Comb({ stage, size, lit = 1, prev }: { stage: Stage; size: number; lit?: number; prev?: Stage }) {
   const i = STAGE_ORDER.indexOf(stage);
   const pi = prev ? STAGE_ORDER.indexOf(prev) : -1;
   return (
@@ -198,7 +222,7 @@ function Comb({ stage, size, lit = 1, prev }: { stage: Stage; size: number; lit?
 /** The guide hub's stage anatomy. `kind` is REQUIRED, not defaulted: the first
  *  pass hardcoded the chip to "current" and rendered a row of three stages all
  *  claiming to be current, which is a card that lies about where the viewer is. */
-function GuideHex({
+export function GuideHex({
   stage,
   size,
   num,
@@ -274,7 +298,9 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
   const eye = outCubic(seg(t, 0.3, 1));
   const dy = (1 - words) * 2;
   const fade = outCubic(seg(t, 0, 1.2));
-  const out = 1 - outCubic(seg(t, 3.05, 3.5));
+  // No local fade: the frame wrapper owns the exit now, so a variant that also
+  // faded would double the ending and make every exit look like a fade.
+  const out = 1;
 
   const art_ = (style: React.CSSProperties) =>
     art ? (
@@ -734,6 +760,33 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
 
   // Every ladder keeps the four element regions clear; the copy lives in the
   // centre gutter between them.
+  // The reclaimed upper-left. Owner decision 2026-08-13: three elements
+  // (subscribe + two videos), no channel element, so this quadrant is OURS -
+  // and a region nobody composes into is just a hole where a fourth well used
+  // to be imagined. It carries the comb: the map the learner already reads.
+  const graphics_ = () => (
+    <div
+      style={{
+        position: "absolute",
+        left: `${GRAPHICS_16X9.x * 100}%`,
+        top: `${GRAPHICS_16X9.y * 100}%`,
+        width: `${GRAPHICS_16X9.w * 100}%`,
+        height: `${GRAPHICS_16X9.h * 100}%`,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        gap: "1.2cqh",
+        opacity: outCubic(seg(t, 0.6, 1.8)),
+      }}
+    >
+      <Eyebrow size={1}>the build</Eyebrow>
+      <Comb stage={stage} size={2.4} lit={1} />
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.85cqw", letterSpacing: "0.18em", textTransform: "uppercase", color: MUTED }}>
+        {STAGE_LABELS[stage]} done
+      </div>
+    </div>
+  );
+
   const wells_ = () =>
     guides ? (
       <>
@@ -960,6 +1013,7 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       {wells_()}
+      {graphics_()}
       {body()}
     </div>
   );

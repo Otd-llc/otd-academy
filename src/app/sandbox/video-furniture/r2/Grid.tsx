@@ -19,6 +19,7 @@ import { STAGE_LABELS } from "@/lib/stages";
 import { STAGE_ORDER, SAMPLE_TITLE } from "../furniture";
 import { PIECES, PIECE_KEYS, type PieceKey } from "./variants";
 import { PieceFrame } from "./Render";
+import { EXITS, type FurnitureOut } from "./exits";
 
 const LONGEST =
   "Solder the board: heavy parts, passives, and a drag-solder pass (plus the hot-air option)";
@@ -32,6 +33,11 @@ export function Grid({ piece }: { piece: PieceKey }) {
   const [longest, setLongest] = useState(false);
   const [guides, setGuides] = useState(true);
   const [wide, setWide] = useState(false);
+  // The exit is a first-class dial, not a per-variant afterthought. Every piece
+  // arrived with intent and left with a fade until this existed.
+  const [exit, setExit] = useState<FurnitureOut[]>(["settle"]);
+  const toggleExit = (id: FurnitureOut) =>
+    setExit((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   const raf = useRef<number | null>(null);
   const t0 = useRef(0);
 
@@ -136,6 +142,47 @@ export function Grid({ piece }: { piece: PieceKey }) {
         </div>
       </div>
 
+      {/* Exits STACK. Each selected one wraps the piece in its own layer, applied
+          outermost first, so `shutter + fade` is a hard edge closing over
+          something that is also going rather than one overriding the other. */}
+      <div className="mb-4 border-b border-panel-border/60 pb-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">exit stack</span>
+          {EXITS.map((x) => {
+            const on = exit.includes(x.id);
+            const order = exit.indexOf(x.id) + 1;
+            return (
+              <button
+                key={x.id}
+                type="button"
+                onClick={() => toggleExit(x.id)}
+                title={x.note}
+                className={`border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.16em] focus-visible:outline-none focus-visible:border-command-gold ${
+                  on
+                    ? "border-command-gold text-command-gold"
+                    : "border-panel-border text-muted hover:border-gold-light hover:text-gold-light"
+                }`}
+              >
+                {on ? <span className="font-numeral tabular-nums">{order} </span> : null}
+                {x.label}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setExit([])}
+            className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted underline-offset-4 hover:text-gold-light focus-visible:outline-none focus-visible:text-gold-light"
+          >
+            clear
+          </button>
+        </div>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          {exit.length === 0
+            ? "No exit selected, so the piece simply stops. Pick one or several; the number on each is its layer order."
+            : exit.map((id) => EXITS.find((x) => x.id === id)?.note).join(" ")}
+        </p>
+      </div>
+
       <ul className={`grid gap-x-6 gap-y-8 ${wide ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
         {def.variants.map((v) => (
           <li key={v.id} className="min-w-0">
@@ -157,6 +204,7 @@ export function Grid({ piece }: { piece: PieceKey }) {
                 title={title}
                 lesson="L1.02 / ESP-NOW Link"
                 t={t}
+                exit={exit}
                 guides={guides && piece === "outro"}
               />
             </div>
