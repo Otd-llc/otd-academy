@@ -253,6 +253,48 @@ fifth banned effect with it. `furniture.ts` kept only what round 2 imports;
 outro work wants them. `/sandbox/video-furniture` is now an index of the seven
 round 2 pieces.
 
+## Found while building the chapter indicator, NOT fixed
+
+Recorded rather than repaired, because each is outside the piece that surfaced
+it and two of them are product-wide. Ranked by how much they cost if ignored.
+
+**1. `tabular-nums` on `--font-numeral` is a no-op in ~94 places, and some of
+them have CHANGING numerals.** Saira Condensed has proportional digits and no
+`tnum` feature, so every `fontVariantNumeric: "tabular-nums"` on that face does
+nothing. Where the numeral is static this is merely untrue; where it CHANGES,
+the readout visibly reflows. The live ones worth looking at first:
+`src/components/tools/calc-ui.tsx` (digits change per keystroke - the worst
+case), `src/components/guide/IslandRail.tsx` (a sticky meter whose numeral
+changes on every scroll), `src/components/library/XpTick.tsx` (an animated XP
+pop). The fix per case is a fixed-width box or Bebas, whose digits ARE uniform;
+the fix that does NOT work is the property already there. Three docs assert the
+false rule and should be corrected with the code: `docs/diagrams/diagram-standards.md`,
+`docs/plans/2026-07-20-guide-signpost-system.md`, and this round's own
+`r2/variants.ts` LOWER comment.
+
+**2. `formats.ts` ships the OPTIMISTIC 9:16 safe area as its only row.** Its
+`{ top: 0.08, right: 0.13, bottom: 0.2 }` with no `left` is close to section
+9.7's optimistic Shorts figures, while the conservative row is
+`0.1500 / 0.3500 / 0.0444 / 0.1778`. The deltas are large: top 134 px, bottom
+288 px at 1080x1920. Section 9.3 names that file and says to make the 9:16
+inset an L-shape; that is action 12 and it is not done. The comment at the top
+of the file ("no platform publishes its chrome") is now factually false -
+section 9.2 gives the URL of the Google asset that was pixel-measured - and is
+probably why the stale numbers survived.
+
+**3. `formats.ts` models no 16:9 safe area at all,** while `youtube.ts` models a
+caption band, a player bar and now a graphics-safe inset. Two modules, two
+incompatible models of the same delivery, no shared constant.
+
+**4. The outro gutter overruns the reserved wells.** `Render.tsx`'s outro copy
+box spans x [0.29, 0.63] while `WELLS_16X9.video*` start at x 0.60 - an overrun
+of 0.03 of width, 57.6 px at 1920 - contradicting the same file's comment that
+the copy "lives in the centre gutter between them". The text is centre-aligned
+so glyphs may not reach the edge, but the guarantee is geometric nowhere.
+
+**5. Section 6 of the research doc was superseded by section 9 and never
+marked.** Now marked. It is the traceable origin of item 2's stale numbers.
+
 ## Known open items
 
 - `intro/bleed` reports a collision that is a false positive: `objectFit:

@@ -414,6 +414,15 @@ centred in 1080 x 1920**, i.e. top 8%, bottom 23%, left 6%, right 17%. The right
 rail and bottom caption stack mean **a vertical safe area is not an inset** -
 anchor left and treat the bottom quarter as unusable.
 
+> **SUPERSEDED by section 9.2/9.7, 2026-08-13.** These 9:16 numbers are the
+> community-measured ones; section 9 measured the same geometry from Google's
+> OWN published safe-zone asset and from live players, and its preamble claims
+> precedence - but this paragraph was never edited to match, so a reader landing
+> here got the old figures with no marker. **The top differs by roughly 2x**
+> (8% here, 15% there) and the bottom by 12 points of frame height (23% vs 35%).
+> Use section 9.7's table. This paragraph is the traceable origin of
+> `formats.ts`'s stale `top: 0.08`.
+
 **Condensed all-caps is defensible for glanced display type** - Sawyer et al.
 found uppercase **26% faster** and condensed **11.2% slower** for glance reading,
 which is what a title card is. It is a liability for small type and for
