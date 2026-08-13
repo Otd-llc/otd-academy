@@ -51,8 +51,16 @@ to how the whole academy loads a face, not a sandbox change.
 
 **Next, in order of leverage** (from the research action list):
 
-- **Drop the ban-list effects:** `blur`, `swipe off`, `combwalk/count`; decide
-  on `settle` (it scales, which the identity rejects).
+- **Action 4, the ban-list effects** - landed in `3d487aee`. `blur`, `swipe
+  off`, `settle out` and `combwalk/count` are gone; `settle` was decided
+  against (it scales) and the default exit is now the named `DEFAULT_EXIT =
+  "fade"`. The three Carbon productive curves are in as CONTROL POINTS with a
+  `bezier()` evaluator verified against the browser's own implementation to
+  5.6e-7 - that evaluator is what the mixer's curve control should consume, so
+  do not write a second one. `outro/count` was deliberately KEPT: a static
+  `04 / 09` readout is not a counting numeral and is the device 2.6 asks for.
+  The fifth banned item, the hex entrance `rotate(-12deg)`, exists only in
+  ROUND 1 and was left alone (see below).
 - **Add the persistent `NN / NN` chapter indicator** - signalling and segmenting
   at zero motion budget, and nothing else in the set does it.
 - **Move lower thirds out of `y in [0.70, 0.92]`** (the CEA-708 caption band).
@@ -174,6 +182,43 @@ These were each paid for once. They are not preferences.
 - **Declare deliberate overlaps in the DOM** (`data-backdrop`), so intent is
   reviewable in the diff, and have the checker REPORT them rather than drop
   them.
+
+## The vocabulary audit, and what it found beyond the named five
+
+Action 4 names five effects. Auditing every animated transform in round 2
+against the permitted vocabulary in 2.5 rather than against that list turns up
+more, and they are bigger than the five. None of this is fixed.
+
+**1. The slow push is forbidden, and it is everywhere.** Fourteen call sites
+(ten in `Render.tsx`, four in `Render2.tsx`) animate
+`scale(1 + push * 0.03..0.05)` where `push = seg(t, 0, 3.5)` - a Ken Burns
+creep on the artifact across the whole shot. **Scale is on the forbidden list**,
+and a slow zoom on a detailed render is also close to worst-case content for a
+block-transform codec, which is the same argument that killed the animated comb.
+This is the single most widespread violation in the set and it survived the
+research round because the report enumerated effects by NAME and this one has
+no name; it is just how every intro was built.
+
+**2. Research action 3, "stop animating the comb", is missing from the action
+list above.** It is item 3 of the research's own numbered list and it never made
+it into this file's next-steps. The whole `combwalk` set exists to animate the
+honeycomb, which 1.1 rejects three independent ways. Taking that action deletes
+or rebuilds all nine remaining treatments, which is why it wants an owner
+decision rather than a quiet edit - and why the individual comb violations below
+were not fixed piecemeal.
+
+**3. Individual comb treatments that break the vocabulary anyway:**
+`pulse` scales on a cosine (scale + oscillation), `zoom` scales, and `drop`
+translates `16cqmin`, which is about **172 px at a 1080 short edge** against
+the report's own guidance of **travel <= 16 px at 1080p** - off by an order of
+magnitude. All three are inside the set that action 3 would remove.
+
+**4. Round 1 is still live** at `/sandbox/video-furniture` and still carries the
+fifth banned item, the hex entrance `scale(0.6..1) rotate(-12deg)`. The
+convention is that rounds are deleted before the PR, so this was left rather
+than repaired. **Decide: delete round 1 now, or repair a round that is going to
+be deleted?** Deleting is the convention; it is also the only way the
+`rotate(-12deg)` line actually stops existing.
 
 ## Known open items
 

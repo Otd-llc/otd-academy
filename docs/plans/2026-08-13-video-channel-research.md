@@ -461,8 +461,11 @@ In rough order of leverage:
    strips. **Leaves one owner decision: self-host
    `SairaCondensed-ExtraBold.ttf` to make `zero` live?**
 3. **Stop animating the comb.** Static, current cell lit, changes on cut.
-4. **Drop `blur`, `swipe off`, `count`; reconsider `settle`.** Add the Carbon
-   productive curves as the default pair.
+4. ~~**Drop `blur`, `swipe off`, `count`; reconsider `settle`.** Add the Carbon
+   productive curves as the default pair.~~ **DONE** (`3d487aee`). The wider
+   audit this prompted found the un-named violations recorded in the mixer
+   plan: a `scale` push at fourteen call sites, and `drop` travelling ~172 px
+   against this report's own 16 px ceiling.
 5. **Add a persistent `NN / NN` chapter indicator.** Highest value per unit of
    effort in the whole report.
 6. **Move lower thirds out of `y in [0.70, 0.92]`.**
