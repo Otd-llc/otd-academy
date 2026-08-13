@@ -433,3 +433,124 @@ In rough order of leverage:
 8. **`preRoll` becomes per accent class**, not a global constant.
 9. **Fix `#9c7016`** (light-mode track, not this one).
 10. **Confirm the 5-bar loop** in the existing bed.
+
+---
+
+## 9. Platform geometry, measured rather than cited
+
+The fifth agent did not take blog numbers. It downloaded Google's own published
+safe-zone PNGs and read their alpha channels, and drove Playwright at the live
+players to measure chrome. That distinction is why this section outranks every
+safe-area table we have used so far.
+
+### 9.1 YouTube's chrome is a CONSTANT, not a fraction
+
+`[MEASURED]` The bottom control row sits **62 CSS px** from the player bottom,
+and it does not scale with the player. So the share of OUR frame it eats is
+inversely proportional to how big the player is:
+
+| Player | Chrome | % of frame height |
+| --- | ---: | ---: |
+| Fullscreen 1080p | 62 px | **5.74 %** |
+| Theater | 62 px | 6.81 % |
+| Default watch @1920 viewport | 62 px | **8.20 %** |
+| ~1366 laptop (derived) | 62 px | **~12.9 %** |
+| Mobile web, inline | 48 top / 44 bottom | **21.7 % / 19.9 %** |
+
+**This inverts the usual trap.** The instinct is to size for fullscreen; our
+audience is instructional and skews laptop, so the default-window viewer is the
+one to protect. Size the 16:9 bottom inset for the SMALL player.
+
+Caveat the agent flagged honestly: the player carried ten live experiment
+classes, including `ytp-disable-bottom-gradient` (the 98 px scrim is currently
+OFF) and `ytp-delhi-modern-compact-controls` (implying a taller non-compact arm
+exists). **62 px is an experiment-arm measurement, not a constant of nature.**
+
+### 9.2 The official geometry, from Google's own assets
+
+`[OFFICIAL-ASSET]` Measured from the alpha channel of
+`services.google.com/fh/files/misc/youtubesafezoneoverlay_vertical_final.png`:
+
+| 9:16 (1080x1920) | Top | Bottom | Left | Right |
+| --- | ---: | ---: | ---: | ---: |
+| Google vertical template | **288** | **672** | **48** | **192** |
+| Meta Reels + Stories (unified Mar 2026) | 269 | **672** | 65 | 65 |
+
+Safe box 840 x 960 - exactly 77.8 % of width and **50.0 % of height**.
+
+**Google and Meta independently land on a 672 px bottom.** Two platforms, two
+methods, same number. That is the strongest signal in the round for a default.
+
+### 9.3 A flat four-side inset is the wrong model
+
+Neither official template is a rectangle:
+
+- **TikTok's right rail is not a column.** About 120 px above the vertical
+  midpoint and 300 px below it, because the action rail sits in the lower half.
+  `[3P]`
+- **Google's 16:9 template has an upper notch** - rows 38-132 masked outside
+  x 496-1443 for the headline and badge. `[OFFICIAL-ASSET]`
+
+Our `formats.ts` models `safe` as four scalars. **Make the 9:16 inset an
+L-shape.** A flat rectangle either over-reserves (surrendering the whole lower
+left of a TikTok frame) or under-reserves (clipping into Google's notch).
+
+### 9.4 What the outro may no longer assume
+
+- **End screens do not render on mobile web at all**, iPad excepted.
+  `[OFFICIAL-TEXT]`
+- YouTube documents end-screen rendering as **explicitly non-deterministic**:
+  "may not always show, or may show differently than designed... based on
+  performance, viewer behavior, device, and context." `[OFFICIAL-TEXT]`
+
+**So the outro must read as complete with no end-screen elements present.** Ours
+composes around reserved wells; it must also be right when nothing lands in
+them. That is a stronger requirement than the one we built to.
+
+### 9.5 Format drift since we last looked
+
+- **Instagram Feed VIDEO ads are now 9:16**, not 4:5 or 1:1. 4:5 survives as an
+  IMAGE format (1440x1800). `[OFFICIAL-TEXT]`
+- **The IG profile grid moved 1:1 to 3:4.** A 4:5 crop of 1080x1920 keeps
+  **y 285-1635**; anything needed in the grid or home feed must sit inside that
+  band, which is TIGHTER vertically than the Reels safe zone.
+- **Meta unified Stories and Reels in March 2026** - Stories tightened from 20 %
+  to 35 % bottom. Cached 14/20 guidance is now wrong.
+- **Shorts went to 3 minutes**, with a 60 s playback cap in the Shorts feed and
+  an overlay at 50 s.
+- **YouTube now accepts Opus and Eclipsa Audio** alongside AAC-LC.
+
+### 9.6 Encode targets
+
+`[OFFICIAL-TEXT]` YouTube: MP4, moov atom at front, **no edit lists**, H.264
+High, 2 consecutive B-frames, closed GOP at half the frame rate, CABAC, 4:2:0.
+**1080p SDR: 8 Mbps at 24-30 fps, 12 Mbps at 48-60.** Audio 48 kHz, stereo
+384 kbps.
+
+**No video platform publishes a LUFS target.** Every figure in circulation is
+reverse-engineered. YouTube attenuates but never boosts; Meta's xHE-AAC is
+adaptive, bidirectional, and deliberately declines to name a number; TikTok is in
+direct conflict across sources. Encode a **band of -14 to -16 LUFS, -1.0 dBTP**,
+widest for TikTok.
+
+### 9.7 The revised inset table
+
+Conservative = official or asset-derived. Optimistic = live measurement. Encode
+both, because the gap between them is the honest uncertainty.
+
+| Format | Side | Conservative | Optimistic |
+| --- | --- | ---: | ---: |
+| YouTube 16:9 desktop | bottom | **12.9 %** (laptop window) | 5.74 % (fullscreen) |
+| YouTube 16:9 mobile web | top / bottom | 21.7 % / 19.9 % | 0 (controls autohide) |
+| Shorts 9:16 | T/B/L/R px | **288 / 672 / 48 / 192** | 184 / 294 / 44 / 132 |
+| Reels 9:16 | T/B/L/R px | **269 / 672 / 65 / 65** | 250 / 280 / 60 / 90 |
+| TikTok 9:16 | T/B/L/R px | **254 / 707 / 122 / 300** | 120 / 250 / 60 / 100 |
+| TikTok right rail | - | **L-shaped**: ~120 above midpoint, ~300 below | - |
+| YouTube 1:1 | T/B/L/R px | 48 / 390 / 48 / 101 | - |
+| 4:5 crop of a 9:16 | keep | y 285-1635 | - |
+
+Added to the action list in section 8:
+
+11. **Size the 16:9 bottom inset for the SMALL player (12.9 %), not fullscreen.**
+12. **Make the 9:16 inset an L-shape**; 672 px bottom as the default.
+13. **The outro must be complete with no end-screen elements rendered.**
