@@ -74,6 +74,27 @@ type Spec = {
   mode: "column" | "stack";
   /** Column mode only: the card's own position, percent. */
   card?: { left: number; top: number };
+  /**
+   * WHAT THE PLATFORM PAINTS ON TOP, per side, as a percentage of the frame.
+   *
+   * `safe` is our own margin. This is different: it is the region a feed app
+   * covers with its OWN furniture, and no amount of composing inside `safe`
+   * helps if the app draws a like button over it. Observed on the real posts:
+   * BUILD sat behind the right-hand action rail, and the URL was behind the
+   * channel name and caption.
+   *
+   * The published figures disagree, because they are measured differently and
+   * they move with app releases. For 1080x1920 the range across sources is:
+   *
+   *   TikTok   top 130-140  bottom 250-400  left 60  right 180 (action rail)
+   *   Reels    top 108-220  bottom 320-500  left 60  right ---
+   *   Shorts   top ---      bottom ~320     left --- right ---
+   *
+   * These take the WORST of each side, so one export survives all three rather
+   * than needing a cut per app. That costs frame area, which is the trade: the
+   * alternative is type nobody can read.
+   */
+  chrome?: { top?: number; right?: number; bottom?: number; left?: number };
 };
 
 export const SPECS: Record<Format, Spec> = {
@@ -84,15 +105,94 @@ export const SPECS: Record<Format, Spec> = {
   // 2.4:1 slice, so re-rendering it at 640 tall would letterbox the subject
   // rather than crop it, which is the opposite of what the surface does. safe
   // 24 is what clears the worse of the two crops that use it.
-  band: { w: 1920, h: 1080, safe: 24, wordScale: 1.34, cardW: 46, mode: "column", card: { left: 46, top: 18 } },
+  //
+  // BAND'S CARD IS CENTRED, and wide's is not. Measured as the luminance
+  // centroid of each beat in the typeless cut:
+  //
+  //   gerber stack 50.5%   exploded 48.5%   board 51.3%   certificate 69.0%
+  //
+  // The geometry averages 50.1% and the certificate sits 18.9 points right of
+  // it, because wide's layout puts the card beside a left type column while the
+  // 3D rig centres its own subject. In a full 16:9 frame that reads as
+  // composition. In the band it reads as the shot JUMPING sideways on the last
+  // beat, because the band crops hard and shifts the clip, so the eye is
+  // tracking one position.
+  //
+  // left 27 puts the card's centre at 50, on the geometry.
+  //
+  // THIS ASSUMES THE TYPELESS RENDER, which is what the band surface uses: the
+  // apex section supplies its own headline over the clip. A centred card and
+  // this format's left type column would overlap, so if a band cut is ever
+  // rendered WITH type, the type has to move rather than the card moving back.
+  band: {
+    w: 1920, h: 1080, safe: 24, wordScale: 1.34, cardW: 46, mode: "column",
+    card: { left: 27, top: 18 },
+  },
   // ---- aspect at or below 1. The left column does not exist here, and the
   // word no longer has to hold one side on its own, so it drops back to the
   // base size. At 1.34 it spanned the full width on all three and left nothing
   // for the card.
-  vertical: { w: 1080, h: 1920, safe: 8, wordScale: 1, cardW: 78, mode: "stack" },
-  square: { w: 1080, h: 1080, safe: 8, wordScale: 1, cardW: 52, mode: "stack" },
+  //
+  // VERTICAL AND PORTRAIT CARRY CHROME INSETS. Those are the two that go to
+  // Shorts, Reels and TikTok, where the app draws over the frame. Percentages
+  // of 1080x1920: right 180px = 16.7%, bottom 500px = 26.0%, top 220px = 11.5%,
+  // left 60px = 5.6% (already inside the 7% gutter, so it changes nothing).
+  // cardW 70, down from 78. With the right rail taken out the usable width is
+  // 100 - 5.6 - 16.7 = 77.7%, and a 78% card spans 83.3% once the 6 degree lean
+  // is counted (AABB width is cardW x 1.0685 for this aspect). It would have sat
+  // under the rail on one side. 70 spans 74.8% and fits with room.
+  vertical: {
+    w: 1080, h: 1920, safe: 8, wordScale: 1, cardW: 70, mode: "stack",
+    chrome: { top: 11.5, right: 16.7, bottom: 26, left: 5.6 },
+  },
+  // PORTRAIT CARRIES NO CHROME, and that is a considered call rather than an
+  // omission. 4:5 is a FEED asset (LinkedIn and the Instagram feed), and both
+  // render the caption BELOW the media rather than over it. The reels furniture
+  // belongs to the 9:16 player.
+  //
+  // Applying it here anyway was tried and does not survive arithmetic: a 26%
+  // bottom inset leaves 62.5% of usable height against 66.2% of content, so the
+  // stack cannot fit at all, and holding a 3% gap would force the certificate
+  // from 72% down to about 52%. Shrinking the payoff by a third to dodge
+  // furniture that is not on this surface is the wrong trade.
+  //
+  // If a 4:5 cut ever gets posted INTO reels, it wants the vertical treatment
+  // and a smaller card, not this one.
   portrait: { w: 1080, h: 1350, safe: 8, wordScale: 1, cardW: 72, mode: "stack" },
+  // Square goes to the X and LinkedIn feeds, which overlay nothing on the video
+  // itself, so it keeps the full frame. Adding insets here would shrink the
+  // composition to buy protection from furniture that is not there.
+  square: { w: 1080, h: 1080, safe: 8, wordScale: 1, cardW: 52, mode: "stack" },
 };
+
+/**
+ * Extra room above the platform's caption block, on top of clearing it.
+ *
+ * Clearing the furniture by a pixel is not the same as looking clear of it. The
+ * first pass put the link's box at 74.4% against a caption line at 74.0%, a
+ * margin of eight pixels on a 1920-tall frame, which reads as "nearly covered"
+ * rather than as a decision. Three percent of the height is the tasteful
+ * distance: enough that the URL and the ask above it read as a pair sitting
+ * above the furniture.
+ */
+const BREATHE = 3;
+
+/** The effective margin per side: our own safe row, or the platform's furniture,
+ *  whichever eats more. Where there IS furniture at the bottom, add the
+ *  breathing room, because that edge is the one with copy against it. */
+export function insets(s: Spec) {
+  const c = s.chrome ?? {};
+  return {
+    top: Math.max(s.safe, c.top ?? 0),
+    // The rail gets the breathing room too. Right-aligned type in the corner
+    // cell sits flush against whatever the gutter is, so a bare 16.7% put
+    // BUILD's hollow period about ten pixels off the rail: clear, and reading
+    // as nearly covered.
+    right: c.right ? Math.max(7, c.right) + BREATHE : 7,
+    bottom: c.bottom ? Math.max(s.safe, c.bottom) + BREATHE : s.safe,
+    left: Math.max(7, c.left ?? 0),
+  };
+}
 
 /** Percent of frame WIDTH and HEIGHT. `top`/`left` are the ELEMENT's, not the
  *  ink's, because that is what CSS takes. */
@@ -130,8 +230,9 @@ export function placeEarn(format: Format): Placed {
   const aabbH = pctH(cardWpx * SIN + cardHpx * COS);
   const elemFromAabb = (aabbTop: number) => aabbTop + (aabbH - pctH(cardHpx)) / 2;
 
-  const top = s.safe;
-  const bottom = 100 - s.safe;
+  const in_ = insets(s);
+  const top = in_.top;
+  const bottom = 100 - in_.bottom;
 
   if (s.mode === "column") {
     // Bottom anchored at a constant gap, which IS the locked rule.
@@ -146,9 +247,9 @@ export function placeEarn(format: Format): Placed {
     const wordInkTop = wordInkBottom - wordInk;
     const c = s.card ?? { left: 46, top: 18 };
     return {
-      word: { left: 7, top: wordInkTop - wordTopOff },
-      ask: { left: 7, top: askTop },
-      link: { left: 7, top: linkInkTop - linkTopOff },
+      word: { left: in_.left, top: wordInkTop - wordTopOff },
+      ask: { left: in_.left, top: askTop },
+      link: { left: in_.left, top: linkInkTop - linkTopOff },
       card: { left: c.left, top: c.top, w: s.cardW, lean: LEAN },
       ink: {
         wordTop: wordInkTop,
@@ -167,6 +268,20 @@ export function placeEarn(format: Format): Placed {
   // rule can serve 1:1, 4:5 and 9:16, whose leftovers differ by a factor of two.
   const total = wordInk + aabbH + askH + linkInk;
   const gap = (bottom - top - total) / 3;
+  // REFUSE AN IMPOSSIBLE LAYOUT. A negative gap means the four elements do not
+  // fit the usable box and are overlapping, and the renderer will draw that
+  // quite happily. Worse, a check that compares the render against this rule's
+  // own intent PASSES it, because the overlap was faithfully reproduced. Caught
+  // exactly that way: portrait solved to -1.23 with the ask sitting on the link
+  // and every drift reading 0.00.
+  if (gap < 2) {
+    throw new Error(
+      `placeEarn("${format}"): the stack does not fit. Usable height is ` +
+        `${(bottom - top).toFixed(1)}% and the content needs ${total.toFixed(1)}%, ` +
+        `leaving ${gap.toFixed(2)}% per gap. Shrink cardW (currently ${s.cardW}) ` +
+        `or reduce the chrome inset.`,
+    );
+  }
   const wordInkTop = top;
   const wordInkBottom = wordInkTop + wordInk;
   const cardAabbTop = wordInkBottom + gap;
@@ -175,10 +290,18 @@ export function placeEarn(format: Format): Placed {
   const linkInkTop = askBottom + gap;
 
   return {
-    word: { left: 7, top: wordInkTop - wordTopOff },
-    ask: { left: 7, top: askTop },
-    link: { left: 7, top: linkInkTop - linkTopOff },
-    card: { left: (100 - s.cardW) / 2, top: elemFromAabb(cardAabbTop), w: s.cardW, lean: LEAN },
+    word: { left: in_.left, top: wordInkTop - wordTopOff },
+    ask: { left: in_.left, top: askTop },
+    link: { left: in_.left, top: linkInkTop - linkTopOff },
+    // Centred in the SAFE box, not the frame. With a 16.7% right inset a
+    // frame-centred card sits under the action rail on one side while leaving
+    // dead space on the other.
+    card: {
+      left: in_.left + (100 - in_.left - in_.right - s.cardW) / 2,
+      top: elemFromAabb(cardAabbTop),
+      w: s.cardW,
+      lean: LEAN,
+    },
     ink: {
       wordTop: wordInkTop,
       wordBottom: wordInkBottom,
