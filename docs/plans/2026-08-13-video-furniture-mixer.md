@@ -61,9 +61,20 @@ to how the whole academy loads a face, not a sandbox change.
   `04 / 09` readout is not a counting numeral and is the device 2.6 asks for.
   The fifth banned item, the hex entrance `rotate(-12deg)`, exists only in
   ROUND 1 and was left alone (see below).
-- **Add the persistent `NN / NN` chapter indicator** - signalling and segmenting
-  at zero motion budget, and nothing else in the set does it.
-- **Move lower thirds out of `y in [0.70, 0.92]`** (the CEA-708 caption band).
+- **Action 6 + 11, the caption band** - landed in `772e83fd`. Lower thirds sat
+  at y = 0.83, inside the CEA-708 band. `LOWER_THIRD_BOTTOM` is now DERIVED
+  from `CAPTION_BAND_16X9` plus clearance rather than typed, and the binding
+  constraint has changed: the band starts at 0.72 while the player bar reaches
+  only 0.129, so clearing the band clears the bar and the bar no longer decides
+  the position. `PLAYER_BAR_BOTTOM` 0.12 -> a measured 0.129 (the small player,
+  not fullscreen). Verified across the whole scrub of all 20 variants, 1620
+  frames, worst edge y = 0.7000, zero in the band; mutation tested.
+- **The slow push is gone** (`1f9b45c9`) - see the audit section below for what
+  it cost and why the codec number is the last reason rather than the first.
+- **Round 1 is deleted** (`b296f0f0`), and the fifth banned effect with it.
+- **NEXT: the persistent `NN / NN` chapter indicator** - signalling (0.70) and
+  segmenting (0.67) at zero motion budget, and nothing else in the set does it.
+  Nothing blocks it now.
 - Then the mixer itself, below.
 
 ---
@@ -189,7 +200,16 @@ Action 4 names five effects. Auditing every animated transform in round 2
 against the permitted vocabulary in 2.5 rather than against that list turns up
 more, and they are bigger than the five. None of this is fixed.
 
-**1. The slow push is forbidden, and it is everywhere.** Fourteen call sites
+**1. The slow push is forbidden, and it is everywhere.** RESOLVED in
+`1f9b45c9` - removed, and the measurement is recorded here because the codec
+argument turned out to be true but modest and the temptation was to oversell
+it. Same treatment, 105 frames at 1920x1080, identical encode at CRF 20:
+**1233 kbps with the push against 1082 without, so +14.0% of the bitrate was
+buying nothing.** After the strip the render is BYTE-IDENTICAL to pinning
+`push` to zero, which is what proves the edit removed the motion and nothing
+else. Two static base crops (`scale(1.08)`, `scale(1.25)`) were KEPT: a
+transform that does not change over time is layout, not a gesture. Original
+finding follows. Fourteen call sites
 (ten in `Render.tsx`, four in `Render2.tsx`) animate
 `scale(1 + push * 0.03..0.05)` where `push = seg(t, 0, 3.5)` - a Ken Burns
 creep on the artifact across the whole shot. **Scale is on the forbidden list**,
@@ -200,7 +220,11 @@ research round because the report enumerated effects by NAME and this one has
 no name; it is just how every intro was built.
 
 **2. Research action 3, "stop animating the comb", is missing from the action
-list above.** It is item 3 of the research's own numbered list and it never made
+list above.** DEFERRED by the owner 2026-08-13: the comb sets may not be used
+at all and would be restyled first, so patching them now is thrown-away work.
+The two animated scales still in the sandbox - `section/guide-solo`'s hex seat
+and `combwalk/pulse` - sit inside that deferral and are deliberate, not
+oversights. It is item 3 of the research's own numbered list and it never made
 it into this file's next-steps. The whole `combwalk` set exists to animate the
 honeycomb, which 1.1 rejects three independent ways. Taking that action deletes
 or rebuilds all nine remaining treatments, which is why it wants an owner
@@ -213,12 +237,12 @@ translates `16cqmin`, which is about **172 px at a 1080 short edge** against
 the report's own guidance of **travel <= 16 px at 1080p** - off by an order of
 magnitude. All three are inside the set that action 3 would remove.
 
-**4. Round 1 is still live** at `/sandbox/video-furniture` and still carries the
-fifth banned item, the hex entrance `scale(0.6..1) rotate(-12deg)`. The
-convention is that rounds are deleted before the PR, so this was left rather
-than repaired. **Decide: delete round 1 now, or repair a round that is going to
-be deleted?** Deleting is the convention; it is also the only way the
-`rotate(-12deg)` line actually stops existing.
+**4. Round 1** - RESOLVED. Deleted in `b296f0f0` (1160 lines), which took the
+fifth banned effect with it. `furniture.ts` kept only what round 2 imports;
+`youtube.ts` kept INTACT including the exports only round 1 used, because
+`outroFits` and the end-screen window are research expressed as code and the
+outro work wants them. `/sandbox/video-furniture` is now an index of the seven
+round 2 pieces.
 
 ## Known open items
 

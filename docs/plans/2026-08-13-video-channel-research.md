@@ -461,6 +461,10 @@ In rough order of leverage:
    strips. **Leaves one owner decision: self-host
    `SairaCondensed-ExtraBold.ttf` to make `zero` live?**
 3. **Stop animating the comb.** Static, current cell lit, changes on cut.
+   **DEFERRED by the owner 2026-08-13:** the comb sets may not be used at all
+   and would be restyled first, so patching them now is work that gets thrown
+   away. The two animated scales left in the sandbox (`section/guide-solo`'s
+   hex seat and `combwalk/pulse`) sit inside that deferral.
 4. ~~**Drop `blur`, `swipe off`, `count`; reconsider `settle`.** Add the Carbon
    productive curves as the default pair.~~ **DONE** (`3d487aee`). The wider
    audit this prompted found the un-named violations recorded in the mixer
@@ -468,7 +472,11 @@ In rough order of leverage:
    against this report's own 16 px ceiling.
 5. **Add a persistent `NN / NN` chapter indicator.** Highest value per unit of
    effort in the whole report.
-6. **Move lower thirds out of `y in [0.70, 0.92]`.**
+6. ~~**Move lower thirds out of `y in [0.70, 0.92]`.**~~ **DONE** (`772e83fd`).
+   `LOWER_THIRD_BOTTOM` is derived from the band rather than typed, and the
+   binding constraint is now the caption band, not the player bar. Verified
+   across the whole scrub of all 20 variants (1620 frames): worst edge
+   y = 0.7000, zero in the band.
 7. **Beds become unmastered stems.** Only finished programs get `loudnorm`.
 8. **`preRoll` becomes per accent class**, not a global constant.
 9. **Fix `#9c7016`** (light-mode track, not this one).
@@ -591,6 +599,8 @@ both, because the gap between them is the honest uncertainty.
 
 Added to the action list in section 8:
 
-11. **Size the 16:9 bottom inset for the SMALL player (12.9 %), not fullscreen.**
+11. ~~**Size the 16:9 bottom inset for the SMALL player (12.9 %), not
+    fullscreen.**~~ **DONE** (`772e83fd`): `PLAYER_BAR_BOTTOM` 0.12 -> 0.129,
+    with the experiment-arm caveat kept in the comment.
 12. **Make the 9:16 inset an L-shape**; 672 px bottom as the default.
 13. **The outro must be complete with no end-screen elements rendered.**
