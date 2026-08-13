@@ -711,6 +711,17 @@ export function LogbookLive({
           right: `${inset.right * 100}%`,
           bottom: `${inset.bottom * 100}%`,
           left: `${inset.left * 100}%`,
+          // A GUARANTEE, NOT A TUNING. `fitScale` sizes a part against its
+          // DECLARED intrinsic, so containment is only ever as honest as that
+          // number - and that number has now been wrong three times in three
+          // different ways. Clipping at the safe boundary makes the worst case
+          // a part that is visibly cut off, which gets noticed and fixed,
+          // rather than a part that quietly paints underneath the platform's
+          // own UI, which does not.
+          //
+          // Only when a safe area is declared; without one this box is the
+          // frame, which the stage already clips.
+          overflow: safe ? "hidden" : undefined,
         }}
       >
         {!mounted ? null : arrangement === "page" ? (
@@ -1308,13 +1319,32 @@ function SplitScene({
 const CAR_ROW = 74;
 const CAR_WIN = 5;
 const CAR_WING = 38;
-const CAR_TEXT = 300;
+// 330, NOT 300. The comment on the old value said "wide enough that
+// 'FL6 - INSTRUMENT RATED' cannot wrap" and it was sized against exactly that
+// title. The longest one in LEVELS is FL10 - INSTRUMENT INSTRUCTOR: 28
+// characters at 15px mono is ~252px, but the 0.12em tracking adds ~1.8px a
+// character and takes it to ~302 - just over. `whiteSpace: nowrap` then does
+// what it is asked to and lets the excess SPILL, out of the title box, out of
+// the row, and past the width `INTRINSIC.ladder` promises. On 16:9 it fell in
+// the slack; on 9:16 the measured ink reached 216px on a 204px frame.
+const CAR_TEXT = 330;
 
 /** The ladder as a WHEEL rather than a list: it spins up from FL1, overshoots,
  *  and settles on the learner's rank. The wobble is a damped sine of scene time
  *  - a pure function of t, so it seeks like everything else here. A spring
  *  integrated frame to frame would not. */
-function RankCarousel({ t, level, from }: { t: number; level: number; from: number }) {
+function RankCarousel({
+  t,
+  level,
+  from,
+  compact = false,
+}: {
+  t: number;
+  level: number;
+  from: number;
+  /** Narrow frame: drop the rank titles. See the note by CAR_TEXT below. */
+  compact?: boolean;
+}) {
   // IT STARTS AT FL3, NOT FL1, and that is a picture decision. The window shows
   // five rows with the focused one in the middle, so a wheel parked on the
   // first rank has nothing above it and reads as broken rather than as the
@@ -1385,15 +1415,24 @@ function RankCarousel({ t, level, from }: { t: number; level: number; from: numb
                   <RankWing level={l.level} size={CAR_WING} earned={l.level <= level} />
                 </div>
                 {/* Wide enough that "FL6 - INSTRUMENT RATED" cannot wrap: a
-                    wrapped title is the one row tall enough to break the wheel. */}
-                <div style={{ width: CAR_TEXT }}>
+                    wrapped title is the one row tall enough to break the wheel.
+                    COMPACT DROPS THE TITLE ENTIRELY, and that is a composition
+                    decision rather than a fit. The titles are what make this row
+                    480px wide, and 480px scaled into a 177px portrait safe box
+                    is 15px mono at a third size - present, unreadable, and
+                    pushing the wheel out of the frame. The beat is a ladder
+                    spinning up and settling; the flight levels carry that on
+                    their own and the wings carry the rest. Reading twelve rank
+                    names was never the job of a two-second shot. */}
+                <div style={{ width: compact ? 52 : CAR_TEXT }}>
                   <p
                     className={`font-mono uppercase tracking-[0.12em] ${
                       d < 0.5 ? "text-command-gold" : "text-muted"
                     }`}
-                    style={{ fontSize: 15, whiteSpace: "nowrap" }}
+                    style={{ fontSize: compact ? 17 : 15, whiteSpace: "nowrap" }}
                   >
-                    FL{l.level} &middot; {l.title}
+                    FL{l.level}
+                    {compact ? null : <> &middot; {l.title}</>}
                   </p>
                 </div>
               </div>
@@ -1639,6 +1678,9 @@ function QuietScene({
   // bottom of the frame to the word, and the ring and the carousel were both
   // taller than what was left.
   const h = hIn ?? Math.round((w * 9) / 16);
+  // A frame narrower than 6:5 cannot hold the wide furniture this cut was
+  // composed with. Only ever true when the caller opted into fitting.
+  const narrow = fitted && w / h < 1.2;
   // WHERE THE ANSWER LANDS, on the 120 BPM grid. 1.5 is the last beat of bar
   // one, so the click is a call and READ on the bar line is the answer, one
   // beat apart. 1.0 puts two clear beats between them instead. Both are on the
@@ -1710,7 +1752,7 @@ function QuietScene({
     // A nested scale multiplies in the wrong order against the entrance and the
     // camera, so the entrance ends up scaled by the fit and a `grow` reads at a
     // different depth on a half-width stage than on a full one.
-    const sized = { ...scheme[id], size: scheme[id].size * fitScale(id, w, h, fitted) };
+    const sized = { ...scheme[id], size: scheme[id].size * fitScale(id, w, h, fitted, narrow) };
     const [from, to] = tuning.solo ? SOLO_WINDOW : ([starts[i], ends[i]] as const);
     if (tuning.solo && tuning.solo !== id) return { opacity: 0, pointerEvents: "none" };
     return partStyle(sized, t, from, to, f.inDur, f.outDur, cam, tuning.parallax).style;
@@ -1791,7 +1833,7 @@ function QuietScene({
         {/* +0.12, not +0.35: under `snappy` the arm is only a tenth of a beat
             before the word, and a third of a second of a parked wheel is the
             whole gap that flow was chosen to remove. */}
-        <RankCarousel t={t} level={AFTER.level} from={starts[2] + 0.12} />
+        <RankCarousel t={t} level={AFTER.level} from={starts[2] + 0.12} compact={narrow} />
       </div>
 
       {/* PATCHES */}

@@ -252,7 +252,15 @@ export const INTRINSIC: Record<PartId, { w: number; h: number }> = {
   // 9/16 of w - so the width figure was load-bearing nowhere and simply wrong.
   // Under aspect-adapted fill it becomes the binding constraint and the row
   // overflowed the frame on 1:1 and 4:5.
-  ladder: { w: 450, h: 370 },
+  // 480, and this one is READ OFF `offsetWidth`, which is layout and therefore
+  // immune to the ancestor transform - the only measurement of the three that
+  // could not be fooled. The history is worth keeping because each wrong value
+  // was wrong in a different way: 430 was a guess, 450 came from a bounding
+  // rect that had the text overflow baked into it, and 410 was arithmetic over
+  // the box model that simply under-counted. The rows lay out at 452, and the
+  // FL10 row - the longest title - at 480. The part must be fitted to its
+  // WIDEST row or that row leaves the frame, which is exactly what 9:16 showed.
+  ladder: { w: 480, h: 370 },
   patch: { w: 210, h: 250 },
 };
 
@@ -291,6 +299,18 @@ export const FILL: Record<PartId, { w: number; h: number }> = {
  * completely empty - a 16:9-sized subject marooned in the middle of a portrait
  * picture. That is exactly what the first format preview showed.
  */
+/**
+ * What a part measures once a narrow frame has taken its wide furniture off.
+ *
+ * The wheel drops its rank titles in portrait, which takes the row from 480px
+ * to about 140. Sizing it against 480 afterwards is the same class of error as
+ * the wrong intrinsic - it fits a part that is no longer there, and the wheel
+ * comes out around a third smaller than the frame could carry.
+ */
+export const INTRINSIC_COMPACT: Partial<Record<PartId, { w: number; h: number }>> = {
+  ladder: { w: 140, h: 370 },
+};
+
 export function fillFor(id: PartId, aspect: number): { w: number; h: number } {
   const f = FILL[id];
   if (aspect >= 1.2) return f;
@@ -315,8 +335,9 @@ export function fitScale(
   frameW: number,
   frameH: number,
   adapt = false,
+  compact = false,
 ): number {
-  const i = INTRINSIC[id];
+  const i = (compact && INTRINSIC_COMPACT[id]) || INTRINSIC[id];
   const f = adapt ? fillFor(id, frameW / frameH) : FILL[id];
   return Math.min((frameW * f.w) / i.w, (frameH * f.h) / i.h);
 }
