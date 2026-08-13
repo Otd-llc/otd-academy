@@ -1,4 +1,27 @@
-﻿// SANDBOX - the motion system for the quiet cut. DEV ONLY.
+﻿// The motion system for the quiet cut. DEV/EXPORT ONLY.
+//
+// THIS FILE HAS A TWIN, AND NOTHING KEEPS THEM IN STEP.
+//
+// `Otd-llc/otd-promo` carries the same system as `core/motion/*.mjs` - moves,
+// motions, camera, fit, compose, frame - ported there so future films can use
+// it without the academy. This copy did NOT go away, because the four scenes
+// beside it render real product components (QuizBlock, StandingRail,
+// RankWing, PatchBadge) and cannot move to a repo that has no Next app. So the
+// academy renders the film with THIS, and the promo repo drives the page over
+// HTTP.
+//
+// They agree today - the port was accepted on 16 sampled frames coming back
+// byte-identical across four aspects - and nothing enforces that they keep
+// agreeing. There is no build step, no test and no gate spanning the two
+// repositories. A change made HERE is invisible over there, and a change made
+// THERE is invisible here until a future film renders differently for reasons
+// nobody can find.
+//
+// KNOWN AND ACCEPTED, deliberately, not overlooked (owner, 2026-08-13). The
+// real fix is for the academy to consume otd-promo as a package, which needs a
+// private-registry or workspace link that does not exist yet. Until then: if
+// you change this file, change `core/motion/` too, and re-run the frame-hash
+// check - it is the only thing that would catch the drift.
 //
 // A PLAIN MODULE. Everything here is a pure function of scene time, and that is
 // not a style preference: the render pass SEEKS, so a value that depends on the

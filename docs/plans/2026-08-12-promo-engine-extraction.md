@@ -228,3 +228,41 @@ The extraction is now bigger than "the motion system", and the format work is
 the more reusable half — every future OTD film needs shapes and safe areas, and
 only this one needs a rank wheel. **Re-scope before starting, and take the
 BEFORE hashes at two sizes rather than one.**
+
+---
+
+## Outcome, 2026-08-13: done, with one thing knowingly left
+
+The extraction landed. `otd-promo` main now carries `core/motion/{moves,motions,
+camera,fit,compose,frame}`, `core/harness/{clock,pin}`, the extended
+`core/type/cues.mjs`, the Logbook cut sheet, and the capture script at
+`subjects/academy/capture-logbook.mjs`. Six PRs.
+
+**The split that settled it.** The ENGINE moved; the SCENES did not. They render
+real product components — `QuizBlock`, `StandingRail`, `RankWing`, `PatchBadge` —
+and that is the film's whole argument: it shows what a learner actually sees
+rather than a redrawing of it. Copies in the promo repo would be forks, and the
+first time one drifted the promo would advertise something that no longer
+exists. `otd-promo` drives the academy page over HTTP instead, which is what its
+own README means by "drives real browsers at real apps".
+
+The academy capture surface therefore moved OUT of `/sandbox` to
+`(bare)/film-render/[cut]`, on the same footing as `(internal)/diagram-render/
+[key]`, and the twelve audition rounds were deleted as the convention requires.
+
+**Accepted the way this plan asked for it:** frame hashes taken before, the move
+made, then a full re-render — 16 sampled frames across four aspects, every one
+byte-identical, all four mp4s at their previous sizes.
+
+### The one thing left, deliberately
+
+**`motion.ts` now exists twice** — here and as `core/motion/*.mjs` — and nothing
+keeps them in step. No build step, no test, no gate spans the two repositories.
+They agree today and only because they were just checked.
+
+The fix is for the academy to consume `otd-promo` as a package, which needs a
+private registry or a workspace link that does not exist. Owner's call
+(2026-08-13) is to note it and move on rather than build that now. Until it
+exists, the rule is written at the top of `motion.ts`: change one, change the
+other, and re-run the frame-hash check, because it is the only thing that would
+catch the drift.
