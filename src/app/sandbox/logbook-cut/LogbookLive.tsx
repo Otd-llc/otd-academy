@@ -1333,6 +1333,21 @@ const CAR_WING = 38;
 // looking question. 0.58 is where 9:16 landed once its wrapping was fixed.
 const QUIZ_NARROW_TYPE = 0.58;
 
+/**
+ * And a smaller one again for a TALL frame.
+ *
+ * A single narrow cap still leaves 9:16 reading bigger than the others, because
+ * "same type size" and "same share of the frame" are not the same thing: at
+ * 0.58 the quiz fills 97% of the width on 9:16 against 66% on 1:1. Nearly edge
+ * to edge is what reads as huge on a phone, whatever the measured type size
+ * says. 0.52 takes it to about 85% and leaves the margin the other shapes have.
+ *
+ * The threshold is 0.7, which is between 4:5 (0.80) and 9:16 (0.5625), so this
+ * reaches the one shape it is meant to and nothing else.
+ */
+const QUIZ_TALL_TYPE = 0.52;
+const QUIZ_TALL_BELOW = 0.7;
+
 const CAR_TEXT = 330;
 
 /** The ladder as a WHEEL rather than a list: it spins up from FL1, overshoots,
@@ -1766,7 +1781,9 @@ function QuietScene({
     // decides how much SPACE the quiz gets and this decides how big the words
     // are, which are two different questions.
     let s = fitScale(id, w, h, fitted, narrow);
-    if (narrow && id === "quiz") s = Math.min(s, QUIZ_NARROW_TYPE);
+    if (narrow && id === "quiz") {
+      s = Math.min(s, w / h < QUIZ_TALL_BELOW ? QUIZ_TALL_TYPE : QUIZ_NARROW_TYPE);
+    }
     const sized = { ...scheme[id], size: scheme[id].size * s };
     const [from, to] = tuning.solo ? SOLO_WINDOW : ([starts[i], ends[i]] as const);
     if (tuning.solo && tuning.solo !== id) return { opacity: 0, pointerEvents: "none" };
