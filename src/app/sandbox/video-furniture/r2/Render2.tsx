@@ -12,7 +12,7 @@ import type React from "react";
 import { STAGE_LABELS } from "@/lib/stages";
 import { stageArt, stageArtGhost } from "@/lib/guide-stage-art";
 import { STAGE_ORDER } from "../furniture";
-import { PLAYER_BAR_BOTTOM } from "../youtube";
+import { LOWER_THIRD_BOTTOM } from "../youtube";
 import { CombCell } from "./RealComb";
 import { ts, hw } from "./units";
 import {
@@ -388,7 +388,7 @@ export function Hairline({ variant, t }: VProps) {
   const life = inOut(t, 0, 0.6, 3.4, 4);
   const grow = outExpo(seg(t, 0.1, 0.95));
   const late = outCubic(seg(t, 0.45, 1.3));
-  const bottom = PLAYER_BAR_BOTTOM * 100 + 5;
+  const bottom = LOWER_THIRD_BOTTOM * 100;
   const LABEL = "U2 / regulator";
   const VALUE = "AP2112K-3.3";
 
@@ -412,7 +412,7 @@ export function Hairline({ variant, t }: VProps) {
   switch (variant) {
     case "split":
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           {label(late)}
           <div style={{ marginTop: "0.7cqh", display: "flex", justifyContent: "center" }}>
             <div style={{ width: `${grow * 100}%`, height: "0.12cqw", background: GOLD }} />
@@ -422,7 +422,7 @@ export function Hairline({ variant, t }: VProps) {
       );
     case "under":
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           {label(outCubic(seg(t, 0, 0.5)))}
           <div style={{ marginTop: "0.5cqh" }}>{value(outCubic(seg(t, 0.15, 0.7)))}</div>
           <div style={{ marginTop: "0.7cqh" }}>
@@ -432,7 +432,7 @@ export function Hairline({ variant, t }: VProps) {
       );
     case "between":
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           {label()}
           <div style={{ height: `${0.4 + grow * 1.1}cqh` }} />
           <Hair p={grow} w={0.12} />
@@ -442,7 +442,7 @@ export function Hairline({ variant, t }: VProps) {
       );
     case "tick":
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           {label(late)}
           <div style={{ marginTop: "0.7cqh", display: "flex", alignItems: "center" }}>
             <div style={{ width: "0.16cqw", height: "1.1cqh", background: GOLD }} />
@@ -453,7 +453,7 @@ export function Hairline({ variant, t }: VProps) {
       );
     case "double":
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           {label(late)}
           <div style={{ marginTop: "0.7cqh" }}>
             <Hair p={grow} w={0.12} />
@@ -466,7 +466,7 @@ export function Hairline({ variant, t }: VProps) {
       );
     case "bracket":
       return (
-        <div style={{ ...base, display: "flex", gap: "1.2cqw" }}>
+        <div data-lower-third style={{ ...base, display: "flex", gap: "1.2cqw" }}>
           <div style={{ width: "0.12cqw", height: `${grow * 7}cqh`, background: GOLD, alignSelf: "flex-end" }} />
           <div style={{ flex: 1 }}>
             {label(late)}
@@ -479,7 +479,7 @@ export function Hairline({ variant, t }: VProps) {
       );
     case "scale":
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           {label(late)}
           <div style={{ marginTop: "0.7cqh", width: `${grow * 100}%` }}>
             <div style={{ height: "0.12cqw", background: GOLD }} />
@@ -494,7 +494,7 @@ export function Hairline({ variant, t }: VProps) {
       );
     case "trace":
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           {label(late)}
           <div style={{ marginTop: "0.7cqh", height: "2.2cqh", position: "relative", overflow: "hidden" }}>
             <svg viewBox="0 0 100 8" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: `${grow * 100}%`, height: "100%" }}>
@@ -506,7 +506,7 @@ export function Hairline({ variant, t }: VProps) {
       );
     case "weight":
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           {label(late)}
           <div style={{ marginTop: "0.7cqh" }}>
             <Hair p={1} w={0.04 + grow * 0.16} />
@@ -517,7 +517,7 @@ export function Hairline({ variant, t }: VProps) {
     case "grow":
     default:
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           {label(late)}
           <div style={{ marginTop: "0.7cqh" }}>
             <Hair p={grow} w={0.12} />

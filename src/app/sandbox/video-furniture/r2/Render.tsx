@@ -21,7 +21,7 @@ import { STAGE_LABELS } from "@/lib/stages";
 import { combAbbr } from "@/lib/phase-comb";
 import { stageArt, stageArtGhost } from "@/lib/guide-stage-art";
 import { STAGE_ORDER } from "../furniture";
-import { WELLS_16X9, GRAPHICS_16X9, PLAYER_BAR_BOTTOM } from "../youtube";
+import { WELLS_16X9, GRAPHICS_16X9, LOWER_THIRD_BOTTOM } from "../youtube";
 import { furnitureOutStack, exitP, DEFAULT_EXIT, type FurnitureOut } from "./exits";
 import { PIECES, type PieceKey } from "./variants";
 import { Ghost, CombWalk, Hairline } from "./Render2";
@@ -652,7 +652,7 @@ function Section({ variant, stage, t }: VProps) {
       return centre(<Comb stage={stage} size={6} lit={lit} prev={prev} />);
     case "band-comb":
       return (
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: `${PLAYER_BAR_BOTTOM * 100 + 5}cqh`, opacity: life }}>
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: `${LOWER_THIRD_BOTTOM * 100}cqh`, opacity: life }}>
           <div style={{ borderTop: `0.18cqw solid ${GOLD}`, paddingTop: "1.4cqh", marginLeft: "6cqw", marginRight: "6cqw", display: "flex", alignItems: "center", gap: "2cqw" }}>
             <Hex size={5} filled>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.2), fontWeight: 700, color: FIELD }}>{combAbbr(stage)}</span>
@@ -749,7 +749,7 @@ function Lower({ variant, t }: VProps) {
   const s = L_SAMPLE[variant] ?? L_SAMPLE.hairline;
   const life = inOut(t, 0, 0.6, 3.3, 4);
   const grow = outExpo(seg(t, 0.1, 0.95));
-  const bottom = PLAYER_BAR_BOTTOM * 100 + 5;
+  const bottom = LOWER_THIRD_BOTTOM * 100;
   const base: React.CSSProperties = { position: "absolute", left: "6cqw", bottom: `${bottom}cqh`, opacity: life };
 
   const label_ = (color: string = GOLD) => (
@@ -777,7 +777,7 @@ function Lower({ variant, t }: VProps) {
   switch (variant) {
     case "accent":
       return (
-        <div style={{ ...base, borderLeft: `0.3cqw solid ${GOLD}`, paddingLeft: "1.6cqw" }}>
+        <div data-lower-third style={{ ...base, borderLeft: `0.3cqw solid ${GOLD}`, paddingLeft: "1.6cqw" }}>
           {label_()}
           <div style={{ marginTop: "0.5cqh" }}>
             {value_()}
@@ -786,7 +786,7 @@ function Lower({ variant, t }: VProps) {
       );
     case "bracket":
       return (
-        <div style={{ ...base, width: "42cqw" }}>
+        <div data-lower-third style={{ ...base, width: "42cqw" }}>
           <Hair p={grow} w={0.1} />
           <div style={{ padding: "1.1cqh 0" }}>
             {label_()}
@@ -799,7 +799,7 @@ function Lower({ variant, t }: VProps) {
       );
     case "masthead":
       return (
-        <div style={{ ...base, width: "44cqw" }}>
+        <div data-lower-third style={{ ...base, width: "44cqw" }}>
           <div style={{ borderTop: `0.22cqw solid ${GOLD}`, paddingTop: "1.1cqh" }}>
             {label_()}
             <div style={{ marginTop: "0.5cqh" }}>
@@ -810,7 +810,7 @@ function Lower({ variant, t }: VProps) {
       );
     case "readout":
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           <div style={{ display: "flex", alignItems: "baseline", gap: "0.8cqw" }}>
             <Num size={7}>{s.num}</Num>
             <Num size={3.4}>{s.unit}</Num>
@@ -822,7 +822,7 @@ function Lower({ variant, t }: VProps) {
       );
     case "badge":
       return (
-        <div style={{ ...base, display: "flex", alignItems: "center", gap: "1.4cqw" }}>
+        <div data-lower-third style={{ ...base, display: "flex", alignItems: "center", gap: "1.4cqw" }}>
           <div style={{ border: `0.1cqw solid ${GOLD}`, padding: "0.6cqh 1cqw", fontFamily: "var(--font-mono)", fontSize: ts(1.3), letterSpacing: "0.16em", color: GOLD }}>
             {s.label}
           </div>
@@ -836,7 +836,7 @@ function Lower({ variant, t }: VProps) {
       );
     case "tag":
       return (
-        <div style={{ ...base, display: "flex", alignItems: "stretch", gap: "1cqw" }}>
+        <div data-lower-third style={{ ...base, display: "flex", alignItems: "stretch", gap: "1cqw" }}>
           <div style={{ border: `0.1cqw solid ${GOLD}`, display: "grid", placeItems: "center", padding: "0 1cqw" }}>
             <Num size={2.2}>{s.label}</Num>
           </div>
@@ -854,7 +854,7 @@ function Lower({ variant, t }: VProps) {
       );
     case "warn":
       return (
-        <div style={{ ...base, borderLeft: "0.3cqw solid var(--color-danger-coral)", paddingLeft: "1.6cqw" }}>
+        <div data-lower-third style={{ ...base, borderLeft: "0.3cqw solid var(--color-danger-coral)", paddingLeft: "1.6cqw" }}>
           {label_("var(--color-danger-coral)")}
           <div style={{ marginTop: "0.5cqh" }}>
             {value_()}
@@ -863,7 +863,7 @@ function Lower({ variant, t }: VProps) {
       );
     case "fail":
       return (
-        <div style={{ ...base, display: "flex", alignItems: "center", gap: "1.2cqw", borderTop: "0.18cqw solid var(--color-alert-red)", paddingTop: "1.1cqh", width: "40cqw" }}>
+        <div data-lower-third style={{ ...base, display: "flex", alignItems: "center", gap: "1.2cqw", borderTop: "0.18cqw solid var(--color-alert-red)", paddingTop: "1.1cqh", width: "40cqw" }}>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.1), letterSpacing: "0.24em", color: "var(--color-alert-red)" }}>
             {s.label}
           </span>
@@ -872,7 +872,7 @@ function Lower({ variant, t }: VProps) {
       );
     case "pass":
       return (
-        <div style={{ ...base, display: "flex", alignItems: "center", gap: "1.2cqw", borderTop: "0.18cqw solid var(--color-status-green)", paddingTop: "1.1cqh", width: "40cqw" }}>
+        <div data-lower-third style={{ ...base, display: "flex", alignItems: "center", gap: "1.2cqw", borderTop: "0.18cqw solid var(--color-status-green)", paddingTop: "1.1cqh", width: "40cqw" }}>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.1), letterSpacing: "0.24em", color: "var(--color-status-green)" }}>
             {s.label}
           </span>
@@ -882,7 +882,7 @@ function Lower({ variant, t }: VProps) {
     case "hairline":
     default:
       return (
-        <div style={{ ...base, width: "42cqw" }}>
+        <div data-lower-third style={{ ...base, width: "42cqw" }}>
           {label_()}
           <div style={{ marginTop: "0.7cqh" }}>
             <Hair p={grow} w={0.12} />

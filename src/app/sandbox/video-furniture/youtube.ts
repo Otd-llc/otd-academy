@@ -75,12 +75,58 @@ export const GRAPHICS_16X9: Well = { x: 0.07, y: 0.10, w: 0.22, h: 0.40 };
 /**
  * The player's own bottom bar (progress + controls) on hover.
  *
- * Judgement, not spec: roughly the bottom tenth on desktop, more on mobile
- * where the scrubber sits higher. A LOWER THIRD is the piece this bites - put
- * one in the last 10% and it reads fine in the editor and sits behind the
- * scrubber the moment a viewer moves the mouse.
+ * MEASURED, no longer judgement: the control row sits **62 CSS px** from the
+ * player bottom and does NOT scale with the player, so the share of OUR frame
+ * it eats is inversely proportional to how big the player is:
+ *
+ *   fullscreen 1080p   5.74 %
+ *   theater            6.81 %
+ *   default @1920      8.20 %
+ *   ~1366 laptop      12.9 %
+ *   mobile web        19.9 %
+ *
+ * This inverts the usual instinct. Sizing for fullscreen protects the viewer
+ * we have least of; an instructional channel skews laptop, so the number below
+ * is the SMALL player, not the big one.
+ *
+ * Caveat carried forward honestly: 62 px was read off a player running ten
+ * live experiment classes, including one implying a taller non-compact control
+ * arm exists. It is an experiment-arm measurement, not a constant of nature.
  */
-export const PLAYER_BAR_BOTTOM = 0.12;
+export const PLAYER_BAR_BOTTOM = 0.129;
+
+/**
+ * The CEA-708 caption band, and why it outranks the player bar.
+ *
+ * Current graphics-safe standards are 5% inset (EBU R95, ITU-R BT.1848-1,
+ * SMPTE ST 2046-1) - the 80%/80% pair is pre-2009 analogue convention. EXCEPT
+ * for captions: CEA-708 still renders inside the old 80x80 box, so on TV and
+ * OTT the caption band lands at roughly **y 0.72 to 0.90, centre width**.
+ *
+ * THAT BAND IS NOT OURS. It belongs to a caption renderer we do not control
+ * and cannot see while composing, and a viewer with captions on is exactly the
+ * viewer least able to afford a collision.
+ */
+export const CAPTION_BAND_16X9 = { top: 0.72, bottom: 0.90 };
+
+/**
+ * A margin, so a rounding difference in either number cannot put type back
+ * inside the band. Two points of frame, not a guess dressed as precision.
+ */
+const CAPTION_CLEARANCE = 0.02;
+
+/**
+ * Where a lower third's BOTTOM edge may sit, as a share of frame measured up
+ * from the bottom.
+ *
+ * NOTE WHICH CONSTRAINT BINDS. Ours used to be positioned off
+ * `PLAYER_BAR_BOTTOM`, which put it at about y = 0.83 - inside the caption
+ * band. The band starts at 0.72 and the player bar only reaches 0.129, so
+ * clearing the band clears the bar automatically and the bar is no longer what
+ * decides this. Deriving the number rather than typing 30 is the point: if
+ * either measurement is revised, the furniture moves with it.
+ */
+export const LOWER_THIRD_BOTTOM = 1 - CAPTION_BAND_16X9.top + CAPTION_CLEARANCE;
 
 /** Does an outro of this length fit the end-screen rules? */
 export function outroFits(outroSeconds: number, videoSeconds: number) {
