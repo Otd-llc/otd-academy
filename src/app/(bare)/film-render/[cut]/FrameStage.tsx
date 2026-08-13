@@ -1,6 +1,6 @@
 "use client";
 
-// SANDBOX - one stage, one shape, full viewport, driven from outside. DEV ONLY.
+// One stage, one shape, full viewport, driven from outside. DEV/EXPORT ONLY.
 //
 // THE CAPTURE SURFACE. Everything else in this sandbox is for looking at; this
 // route exists so a renderer can walk the film frame by frame at delivery size.
@@ -28,9 +28,13 @@
 // ASCII only.
 
 import { useEffect, useRef, useState } from "react";
-import { LogbookLive, type FilmLesson, type FilmQuestion } from "../LogbookLive";
-import { THE_CUT } from "../assembly";
-import { FORMATS, type FormatId } from "../formats/formats";
+import {
+  LogbookLive,
+  type FilmLesson,
+  type FilmQuestion,
+} from "@/app/sandbox/logbook-cut/LogbookLive";
+import { THE_CUT } from "@/app/sandbox/logbook-cut/assembly";
+import { FORMATS, type FormatId } from "@/app/sandbox/logbook-cut/formats/formats";
 
 declare global {
   interface Window {

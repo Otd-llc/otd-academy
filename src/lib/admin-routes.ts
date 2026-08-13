@@ -115,6 +115,19 @@ export function isPublicPath(pathname: string): boolean {
   // property of the code: the exemption is genuinely needed every time the film
   // is rendered, and a line nobody reverts is a line nobody has justified.
   if (top === "sandbox") return true;
+  // The film capture surface (/film-render/[cut]), which otd-promo drives the
+  // same way the diagram exporter drives diagram-render. It is NOT under
+  // /sandbox on purpose: sandbox routes are audition surfaces and are deleted
+  // before their PR, and deleting this one would delete the film's ability to
+  // be re-rendered.
+  //
+  // ONE DIFFERENCE FROM /sandbox WORTH STATING. Sandbox pages 404 in production
+  // unconditionally, so that prefix cannot resolve there whatever this says.
+  // This one is gated on `NODE_ENV === production && !FILM_EXPORT`, exactly like
+  // diagram-render's DIAGRAM_EXPORT - so it CAN resolve in a production build,
+  // deliberately, when someone is capturing from one. The env var is the gate;
+  // this line only stops the auth redirect from 307ing every frame to /sign-in.
+  if (top === "film-render") return true;
   // The Hex Cluster spec + attribution page (/hex). This one is not a
   // preference: every published .3mf/.stl/.step carries an immutable
   // LICENSE.txt reading `Source: https://academy.onethousanddrones.com/hex`,
