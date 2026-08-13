@@ -104,9 +104,11 @@ The tail-wrap works: last and first sample differ by 6e-5, a continuous waveform
 rather than a butt-splice. AAC's added samples are priming the decoder's edit list
 absorbs, leaving a step at −44 dBFS. Inaudible.
 
-**Still open:** this is ffmpeg's encoder talking to ffmpeg's decoder, both of which
-honour the metadata. A platform pipeline that strips it would behave worse. Risk is
-small rather than unknown. Closing it needs upload → download → listen.
+**CLOSED 2026-08-12.** The owner uploaded a cut, looped it on the platform and
+confirmed the seam. The local round trip was ffmpeg talking to ffmpeg — both
+honouring priming metadata — so it lowered the risk without closing it; a real
+upload was the only thing that could, and it came back clean. The tail-wrap
+approach is now verified end to end rather than by inference.
 
 ---
 
@@ -268,7 +270,7 @@ which partials peak inside the landing windows.
 
 ## 7. Open, needs empirical work
 
-- Upload → download → listen at the loop seam, per platform. The only way to close §3.
+- ~~Upload → download → listen at the loop seam.~~ **Done 2026-08-12, clean.**
 - Whether the ADAA1 change is audible on this material.
 - Whether plate or plate-soft is the one. Numbers cannot settle 2 dB of level
   against 2 dB of crest.

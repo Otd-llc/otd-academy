@@ -134,3 +134,77 @@ That is fine where it is: it is academy tooling, not `core/`. But if the bed is
 ever meant to live in `otd-promo`, it has to take its sample root as an argument
 and import through the package rather than by path. Worth knowing before anyone
 tries to move it in a hurry.
+
+---
+
+## Addendum, 2026-08-12: what the FORMAT round added after this was scoped
+
+This plan was written against `e0e90adc`, before the film was re-framed for the
+delivery shapes. Since then the bed track added **413 lines to the two files
+this plan moves** (`motion.ts` +107, `LogbookLive.tsx` +337) and three new
+files. None of it is Logbook-specific, all of it is engine, and **it is inside
+the sandbox that gets deleted before the PR** — so it is in exactly the danger
+this plan exists to prevent, and the target shape above does not mention it.
+
+### New surface in `motion.ts` → `core/motion/fit.mjs`
+
+- `fillFor(id, aspect)` — the fill shares reshaped for the frame. The shares
+  were judged on 16:9, where the word costs the subject WIDTH; rotate the frame
+  and the word bands move to the top and bottom. Because `fitScale` takes the
+  MINIMUM of two constraints, leaving them fixed marooned a 16:9-sized subject
+  in the middle of a portrait frame.
+- `INTRINSIC_COMPACT` — what a part measures once a narrow frame has taken its
+  wide furniture off. Sizing a part against furniture it no longer has is the
+  same error one layer up.
+- `fitScale(..., adapt, compact)` — both new arguments default OFF, which is
+  what keeps the pixel-identical acceptance test below meaningful.
+
+### New surface in `LogbookLive.tsx` → `core/harness/` (and a new concept)
+
+- **`aspect`** — a real re-frame, not a crop. Defaults to 16/9.
+- **`safe`** — platform chrome as fractions, applied as ONE INSET on the whole
+  scene. Every position inside is already a percentage, so the inset makes them
+  resolve against the usable rectangle with nothing downstream changed. This is
+  a concept `core/` does not have at all today and it belongs there, not here.
+  It also CLIPS, deliberately: a fit is only as honest as its intrinsic, and the
+  worst case should be a visibly cut part rather than one painting under the
+  platform's UI.
+- **Narrow-frame content rules** — a narrow frame gets DIFFERENT content, not
+  smaller content (drop the long labels; give reflowing prose its own measure).
+  Genuinely general, and the least obvious thing in the whole round.
+- **Composition rules as SHARES**, never absolute scale. See the trap below.
+
+### New files
+
+- `formats/formats.ts` — the delivery shapes and their safe areas, single-sourced
+  so the preview, the capture route and the renderer cannot drift. Data only;
+  it is a cut-sheet sibling and belongs under `subjects/`.
+- `frame/` — the capture surface: one stage, full viewport, `window.__seek`,
+  no chrome. The renderer's half of the `[data-settled]` contract.
+- `tools/logbook-render.mjs` — capture + encode + the gates. `core/` has no
+  renderer today; `otd-promo`'s own `render-cut.mjs` lives on
+  `feat/platform-safe-areas`, so **check that branch before building a second
+  one** — the names suggest it may already solve the safe-area half.
+
+### The trap this round paid for, which the acceptance test would NOT have caught
+
+A composition rule written as an ABSOLUTE SCALE produced exactly the approved
+frame in a preview at a fifth of delivery size, and encoded the subject at 16%
+of the frame at 1080. The pixel-identical screenshot check above compares a
+render to itself at ONE size; it cannot see a resolution-dependent rule. **Add a
+second check at delivery size**, or carry the rule as a share of the frame and
+gate on the measured share the way `logbook-render.mjs` now does.
+
+Two more worth carrying into the port, both the same failure class: a declared
+intrinsic that was wrong three times in three different ways before
+`offsetWidth` settled it, and a clearance that is fine at the frame you sample
+and 35px short at the worst instant of the shot. **Measure the output, at
+delivery size, across the shot.** Codified as `otd-promo-film` in
+`Otd-llc/otd-skills` (PR #8).
+
+### Consequence for sequencing
+
+The extraction is now bigger than "the motion system", and the format work is
+the more reusable half — every future OTD film needs shapes and safe areas, and
+only this one needs a rank wheel. **Re-scope before starting, and take the
+BEFORE hashes at two sizes rather than one.**
