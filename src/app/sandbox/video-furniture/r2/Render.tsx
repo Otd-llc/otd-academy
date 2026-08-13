@@ -381,7 +381,16 @@ export function GuideHex({
 function Intro({ variant, stage, title, lesson, t }: VProps) {
   const art = stageArt(stage);
   const ghost = stageArtGhost(stage);
-  const push = seg(t, 0, 3.5);
+  // The slow `push` scale stood here and drove a 3-5% zoom on the artifact
+  // across every intro. Removed: scale is on the forbidden vocabulary, and
+  // coherence (d=0.86, the strongest effect in the report) says decorative
+  // motion is exactly the thing to delete - the push carried no information.
+  // Measured cost at fixed CRF 20, same treatment, 105 frames at 1920x1080:
+  // 1233 kbps with it against 1082 without, so +14.0% of the bitrate bought
+  // nothing. That number is real but modest and is the LAST reason, not the
+  // first. If a frame reads dead without it, the permitted vocabulary already
+  // answers that and these pieces already do it: the gold hairline arriving is
+  // a state change on a stationary element.
   const rule = outExpo(seg(t, 0.5, 1.5));
   const words = outCubic(seg(t, 0.75, 1.9));
   const eye = outCubic(seg(t, 0.3, 1));
@@ -436,7 +445,7 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
     case "left":
       return wrap(
         <>
-          {art_({ left: "-3cqw", top: "50cqh", width: "50cqw", height: "86cqh", transform: `translateY(-50%) scale(${1 + push * 0.04})` })}
+          {art_({ left: "-3cqw", top: "50cqh", width: "50cqw", height: "86cqh", transform: "translateY(-50%)" })}
           {scrim("r")}
           {copy_({ right: "8cqw", top: "50cqh", width: "44cqw", transform: "translateY(-50%)" })}
         </>,
@@ -444,7 +453,7 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
     case "bleed":
       return wrap(
         <>
-          {art_({ right: "-16cqw", top: "44cqh", width: "72cqw", height: "112cqh", transform: `translateY(-50%) scale(${1 + push * 0.05})` })}
+          {art_({ right: "-16cqw", top: "44cqh", width: "72cqw", height: "112cqh", transform: "translateY(-50%)" })}
           {/* DELIBERATE: bleed is the variant where the artifact runs under the
               type. The scrim is what makes that legible, so it is stronger here
               and the overlap is declared rather than argued about. */}
@@ -467,7 +476,7 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
               opacity: fade,
             }}
           >
-            {art_({ inset: "6%", width: "88%", height: "88%", transform: `scale(${1 + push * 0.03})` })}
+            {art_({ inset: "6%", width: "88%", height: "88%" })}
           </div>
           {copy_({ left: "7cqw", top: "50cqh", width: "40cqw", transform: "translateY(-50%)" })}
         </>,
@@ -485,7 +494,7 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
                 background: "color-mix(in oklab, var(--color-gold-dim) 14%, transparent)",
               }}
             >
-              {art_({ inset: 0, width: "100%", height: "100%", transform: `scale(${1.08 + push * 0.04})` })}
+              {art_({ inset: 0, width: "100%", height: "100%", transform: `scale(1.08)` })}
             </div>
           </div>
           {copy_({ left: "7cqw", top: "50cqh", width: "40cqw", transform: "translateY(-50%)" })}
@@ -495,7 +504,7 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
       return wrap(
         <>
           <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "26cqw", overflow: "hidden", opacity: fade }}>
-            {art_({ inset: 0, width: "100%", height: "100%", transform: `scale(${1.25 + push * 0.04})` })}
+            {art_({ inset: 0, width: "100%", height: "100%", transform: `scale(1.25)` })}
           </div>
           <div style={{ position: "absolute", right: "26cqw", top: 0, bottom: 0, width: "0.12cqw", background: HAIR, opacity: fade }} />
           {copy_({ left: "7cqw", top: "50cqh", width: "58cqw", transform: "translateY(-50%)" }, 4.2)}
@@ -513,7 +522,7 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
                 top: "50cqh",
                 width: "62cqw",
                 height: "92cqh",
-                transform: `translate(-50%,-50%) scale(${1 + push * 0.03})`,
+                transform: "translate(-50%,-50%)",
                 background: GOLD,
                 opacity: 0.16 * fade,
                 WebkitMaskImage: `url(${ghost})`,
@@ -533,7 +542,7 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
     case "corner":
       return wrap(
         <>
-          {art_({ right: "6cqw", top: "8cqh", width: "26cqw", height: "34cqh", transform: `scale(${1 + push * 0.03})` })}
+          {art_({ right: "6cqw", top: "8cqh", width: "26cqw", height: "34cqh" })}
           {copy_({ left: "7cqw", bottom: "12cqh", width: "62cqw" }, 4.6)}
         </>,
       );
@@ -541,7 +550,7 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
       return wrap(
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "2cqh" }}>
           <div style={{ position: "relative", width: "34cqw", height: "34cqh" }}>
-            {art_({ inset: 0, width: "100%", height: "100%", transform: `scale(${1 + push * 0.03})` })}
+            {art_({ inset: 0, width: "100%", height: "100%" })}
           </div>
           <div style={{ width: "26cqw" }}>
             <Hair p={rule} />
@@ -560,7 +569,7 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
       return wrap(
         <>
           <div style={{ position: "absolute", left: 0, top: "58cqh", width: `${outExpo(seg(t, 0.2, 1.2)) * 100}%`, height: "0.12cqw", background: "var(--color-gold-dim)" }} />
-          {art_({ right: "8cqw", bottom: "42cqh", width: "34cqw", height: "44cqh", transform: `scale(${1 + push * 0.03})` })}
+          {art_({ right: "8cqw", bottom: "42cqh", width: "34cqw", height: "44cqh" })}
           {copy_({ left: "8cqw", top: "64cqh", width: "50cqw" }, 3.2)}
         </>,
       );
@@ -568,7 +577,7 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
     default:
       return wrap(
         <>
-          {art_({ right: "-3cqw", top: "50cqh", width: "50cqw", height: "86cqh", transform: `translateY(-50%) scale(${1 + push * 0.04})` })}
+          {art_({ right: "-3cqw", top: "50cqh", width: "50cqw", height: "86cqh", transform: "translateY(-50%)" })}
           {scrim("l")}
           {copy_({ left: "8cqw", top: "50cqh", width: "44cqw", transform: "translateY(-50%)" })}
         </>,

@@ -33,7 +33,7 @@ export function Ghost({ variant, stage, title, lesson, t }: VProps) {
   const g = stageArtGhost(stage);
   const art = stageArt(stage);
   const fade = outCubic(seg(t, 0, 1.2));
-  const push = seg(t, 0, 3.5);
+  // See Render.tsx for why the `push` scale is gone.
   const rule = outExpo(seg(t, 0.5, 1.5));
   const words = outCubic(seg(t, 0.75, 1.9));
   const eye = outCubic(seg(t, 0.3, 1));
@@ -83,21 +83,21 @@ export function Ghost({ variant, stage, title, lesson, t }: VProps) {
     top: "50cqh",
     width: "62cqw",
     height: "92cqh",
-    transform: `translate(-50%,-50%) scale(${1 + push * 0.03})`,
+    transform: "translate(-50%,-50%)",
   };
 
   switch (variant) {
     case "offset":
       return (
         <>
-          {ghostBox({ right: "2cqw", top: "50cqh", width: "44cqw", height: "84cqh", transform: `translateY(-50%) scale(${1 + push * 0.03})` }, 0.3 * fade)}
+          {ghostBox({ right: "2cqw", top: "50cqh", width: "44cqw", height: "84cqh", transform: "translateY(-50%)" }, 0.3 * fade)}
           {copy({ left: "8cqw", top: "50cqh", width: "42cqw", transform: "translateY(-50%)" })}
         </>
       );
     case "bleed":
       return (
         <>
-          {ghostBox({ left: "34cqw", top: "50cqh", width: "96cqw", height: "150cqh", transform: `translateY(-50%) scale(${1 + push * 0.04})` }, 0.2 * fade)}
+          {ghostBox({ left: "34cqw", top: "50cqh", width: "96cqw", height: "150cqh", transform: "translateY(-50%)" }, 0.2 * fade)}
           {copy({ left: "7cqw", bottom: "13cqh", width: "42cqw" }, 3.4)}
         </>
       );
@@ -118,7 +118,7 @@ export function Ghost({ variant, stage, title, lesson, t }: VProps) {
                 width: "26cqw",
                 height: "40cqh",
                 objectFit: "contain",
-                transform: `translateY(-50%) scale(${1 + push * 0.03})`,
+                transform: "translateY(-50%)",
                 opacity: 0.95 * fade,
               }}
             />
