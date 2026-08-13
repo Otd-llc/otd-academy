@@ -245,7 +245,14 @@ function motionVec(m: Motion, p: number, dt: number): Vec {
 export const INTRINSIC: Record<PartId, { w: number; h: number }> = {
   quiz: { w: 560, h: 330 },
   ring: { w: 190, h: 205 },
-  ladder: { w: 430, h: 370 },
+  // 450, not 430. Re-measured off the rendered DOM 2026-08-12: the widest row
+  // is the marker, the wing at its focused scale and a 300px no-wrap title, and
+  // it comes to 450. The 20px shortfall never showed on 16:9 because the HEIGHT
+  // term always wins there - 0.9/370 beats 0.68/430 at every width when h is
+  // 9/16 of w - so the width figure was load-bearing nowhere and simply wrong.
+  // Under aspect-adapted fill it becomes the binding constraint and the row
+  // overflowed the frame on 1:1 and 4:5.
+  ladder: { w: 450, h: 370 },
   patch: { w: 210, h: 250 },
 };
 
@@ -270,9 +277,47 @@ export const FILL: Record<PartId, { w: number; h: number }> = {
   patch: { w: 0.38, h: 0.56 },
 };
 
-export function fitScale(id: PartId, frameW: number, frameH: number): number {
-  const i = INTRINSIC[id];
+/**
+ * FILL, ADAPTED TO THE FRAME'S SHAPE.
+ *
+ * The shares above were judged on 16:9, where the word sits in a corner and
+ * therefore costs the subject WIDTH. Rotate the frame and that stops being
+ * true: on 9:16 the word bands are at the top and the bottom, the sides are
+ * free, and the subject should have nearly the whole width.
+ *
+ * Leaving them fixed is not a small error, because `fitScale` takes the MINIMUM
+ * of the two constraints and on a narrow frame the width term wins by a mile: a
+ * 9:16 panel 204px wide fits the ring at scale 0.49 with the vertical space
+ * completely empty - a 16:9-sized subject marooned in the middle of a portrait
+ * picture. That is exactly what the first format preview showed.
+ */
+export function fillFor(id: PartId, aspect: number): { w: number; h: number } {
   const f = FILL[id];
+  if (aspect >= 1.2) return f;
+  // Square is partway to portrait; below 0.8 take the full adaptation.
+  const k = aspect >= 0.8 ? (1.2 - aspect) / 0.4 : 1;
+  return {
+    // Toward the whole width, because the sides are no longer spoken for.
+    w: f.w + (0.94 - f.w) * k,
+    // And give a little height back, because the word is now above and below.
+    h: f.h * (1 - 0.16 * k),
+  };
+}
+
+/**
+ * @param adapt reshape the fill for the frame's aspect. OFF by default, so
+ *   every existing caller renders exactly what it rendered before - the
+ *   extraction's acceptance test is pixel-identical screenshots, and changing
+ *   the default here would fail it for the wrong reason.
+ */
+export function fitScale(
+  id: PartId,
+  frameW: number,
+  frameH: number,
+  adapt = false,
+): number {
+  const i = INTRINSIC[id];
+  const f = adapt ? fillFor(id, frameW / frameH) : FILL[id];
   return Math.min((frameW * f.w) / i.w, (frameH * f.h) / i.h);
 }
 

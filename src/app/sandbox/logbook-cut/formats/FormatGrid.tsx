@@ -80,7 +80,10 @@ const FORMATS: Fmt[] = [
     where: "Instagram / Facebook feed",
     aspect: 4 / 5,
     w: 238,
-    safe: { bottom: 0.06 },
+    // A modest bottom band: the feed puts the caption and the account row under
+    // the video rather than over it, but the last 6% is where a "see more"
+    // overlay lands and it is where the payoff URL was sitting.
+    safe: { bottom: 0.08 },
   },
   {
     id: "9x16",
@@ -94,6 +97,10 @@ const FORMATS: Fmt[] = [
     safe: { bottom: 0.2, right: 0.13, top: 0.08 },
   },
 ];
+
+/** No platform chrome, but still opt in to aspect-adaptive sizing - otherwise a
+ *  square frame renders a 16:9-sized subject with the sides empty. */
+const SAFE_NONE = {};
 
 const mod = (n: number, m: number) => ((n % m) + m) % m;
 
@@ -284,6 +291,11 @@ export function FormatGrid({
                 fixedT={t}
                 w={f.w}
                 aspect={f.aspect}
+                // THE SAME NUMBERS DRIVE THE COMPOSITION AND THE OVERLAY. If
+                // the hatching were decoration drawn over a layout that did not
+                // know about it, the preview would show the problem and the
+                // encode would still have it.
+                safe={f.safe ?? SAFE_NONE}
               />
               {safe && f.safe ? (
                 <div className="pointer-events-none absolute inset-0" aria-hidden>

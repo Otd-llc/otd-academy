@@ -477,6 +477,7 @@ export function LogbookLive({
   fixedT,
   w = 880,
   aspect = 16 / 9,
+  safe,
 }: {
   arrangement: Arrangement;
   lesson: FilmLesson;
@@ -502,9 +503,36 @@ export function LogbookLive({
    * actually show.
    */
   aspect?: number;
+  /**
+   * Fractions of the frame the platform's own chrome covers, which the
+   * composition must stay out of.
+   *
+   * IT IS APPLIED AS AN INSET ON THE WHOLE SCENE, not as a per-part nudge, and
+   * that is what makes it cheap. Every corner in the type layer is already
+   * expressed as a percentage - `left:7%`, `top:8%`, `bottom:11%` - so insetting
+   * the layer makes those same percentages resolve against the SAFE box and not
+   * one of them has to change. Without it the 9:16 preview put the word inside
+   * the caption band at the top and ran the wheel into the action rail on the
+   * right, which is not a placement bug, it is percentages resolving against
+   * the wrong rectangle.
+   *
+   * Undefined means no inset and no adaptation - the frame behaves exactly as
+   * it did before this prop existed.
+   */
+  safe?: { top?: number; right?: number; bottom?: number; left?: number };
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const h = Math.round(w / aspect);
+  // The box the composition may actually use.
+  const inset = {
+    top: safe?.top ?? 0,
+    right: safe?.right ?? 0,
+    bottom: safe?.bottom ?? 0,
+    left: safe?.left ?? 0,
+  };
+  const fitted = Boolean(safe);
+  const fw = Math.round(w * (1 - inset.left - inset.right));
+  const fh = Math.round(h * (1 - inset.top - inset.bottom));
   const frozen = fixedT !== undefined;
   const t = useSceneClock(SECONDS, fixedT, hostRef);
 
@@ -625,7 +653,7 @@ export function LogbookLive({
       ) : arrangement === "split" ? (
         <SplitScene t={t} win={win} rail={rail} lesson={lesson} />
       ) : arrangement === "quiet" ? (
-        <QuietScene t={t} question={questions[0]} tuning={tuning} w={w} />
+        <QuietScene t={t} question={questions[0]} tuning={tuning} w={fw} h={fh} fitted={fitted} />
       ) : (
         <ArcScene t={t} rail={arcRail} questions={questions} sheet={arc} lesson={lesson} />
       )}
@@ -636,8 +664,8 @@ export function LogbookLive({
       <LogbookType
         arrangement={arrangement}
         t={t}
-        w={w}
-        h={h}
+        w={fw}
+        h={fh}
         beats={
           arrangement === "arc" ? arc.beats : arrangement === "quiet" ? QUIET_BEATS : BEATS
         }
@@ -672,11 +700,25 @@ export function LogbookLive({
         transform: "translateZ(0)",
       }}
     >
-      {!mounted ? null : arrangement === "page" ? (
-        <FanfareProvider>{scenes}</FanfareProvider>
-      ) : (
-        scenes
-      )}
+      {/* THE SAFE INSET IS A BOX, NOT A SET OF NUDGES. Everything inside is
+          positioned in percentages, so one inset moves the whole composition
+          into the usable rectangle and nothing downstream has to know. With no
+          `safe` prop the wrapper is `inset: 0` and this is a no-op div. */}
+      <div
+        style={{
+          position: "absolute",
+          top: `${inset.top * 100}%`,
+          right: `${inset.right * 100}%`,
+          bottom: `${inset.bottom * 100}%`,
+          left: `${inset.left * 100}%`,
+        }}
+      >
+        {!mounted ? null : arrangement === "page" ? (
+          <FanfareProvider>{scenes}</FanfareProvider>
+        ) : (
+          scenes
+        )}
+      </div>
     </div>
   );
 }
@@ -1572,11 +1614,18 @@ function QuietScene({
   question,
   tuning,
   w,
+  h: hIn,
+  fitted = false,
 }: {
   t: number;
   question?: FilmQuestion;
   tuning: Tuning;
   w: number;
+  /** The usable height. Given explicitly now, because it is no longer always
+   *  9/16 of the width - the frame can be square or portrait. */
+  h?: number;
+  /** Reshape each part's fill for the frame's aspect. See fitScale. */
+  fitted?: boolean;
 }) {
   const quizRef = useRef<HTMLDivElement>(null);
   // EVERY SUBJECT SCALES WITH THE FRAME, because half of them are sized in
@@ -1589,7 +1638,7 @@ function QuietScene({
   // `subjectScale` folds in the second reason: `corners` hands the top and the
   // bottom of the frame to the word, and the ring and the carousel were both
   // taller than what was left.
-  const h = Math.round((w * 9) / 16);
+  const h = hIn ?? Math.round((w * 9) / 16);
   // WHERE THE ANSWER LANDS, on the 120 BPM grid. 1.5 is the last beat of bar
   // one, so the click is a call and READ on the bar line is the answer, one
   // beat apart. 1.0 puts two clear beats between them instead. Both are on the
@@ -1661,7 +1710,7 @@ function QuietScene({
     // A nested scale multiplies in the wrong order against the entrance and the
     // camera, so the entrance ends up scaled by the fit and a `grow` reads at a
     // different depth on a half-width stage than on a full one.
-    const sized = { ...scheme[id], size: scheme[id].size * fitScale(id, w, h) };
+    const sized = { ...scheme[id], size: scheme[id].size * fitScale(id, w, h, fitted) };
     const [from, to] = tuning.solo ? SOLO_WINDOW : ([starts[i], ends[i]] as const);
     if (tuning.solo && tuning.solo !== id) return { opacity: 0, pointerEvents: "none" };
     return partStyle(sized, t, from, to, f.inDur, f.outDur, cam, tuning.parallax).style;
@@ -1715,7 +1764,7 @@ function QuietScene({
           right: "12%",
           top: "31%",
           opacity: fade(t, click, click + 0.75),
-          transform: `scale(${2.1 * fitScale("quiz", w, h)})`,
+          transform: `scale(${2.1 * fitScale("quiz", w, h, fitted)})`,
           transformOrigin: "right top",
           pointerEvents: "none",
         }}
