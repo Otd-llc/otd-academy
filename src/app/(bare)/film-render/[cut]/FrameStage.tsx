@@ -32,9 +32,9 @@ import {
   LogbookLive,
   type FilmLesson,
   type FilmQuestion,
-} from "@/app/sandbox/logbook-cut/LogbookLive";
-import { THE_CUT } from "@/app/sandbox/logbook-cut/assembly";
-import { FORMATS, type FormatId } from "@/app/sandbox/logbook-cut/formats/formats";
+} from "./LogbookLive";
+import { THE_CUT } from "./assembly";
+import { FORMATS, type FormatId } from "./formats/formats";
 
 declare global {
   interface Window {

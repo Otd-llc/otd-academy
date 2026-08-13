@@ -28,8 +28,8 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { db } from "@/lib/db";
 import { parseGuideBlocks } from "@/lib/guide-blocks-parse";
-import type { FilmLesson, FilmQuestion } from "@/app/sandbox/logbook-cut/LogbookLive";
-import { FORMATS, type FormatId } from "@/app/sandbox/logbook-cut/formats/formats";
+import type { FilmLesson, FilmQuestion } from "./LogbookLive";
+import { FORMATS, type FormatId } from "./formats/formats";
 import { FrameStage } from "./FrameStage";
 
 /** The cuts this surface can render. One today; the list is the point. */

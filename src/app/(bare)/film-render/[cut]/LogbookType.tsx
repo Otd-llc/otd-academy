@@ -21,7 +21,21 @@
 // ASCII only.
 
 import { useEffect, useId, useRef } from "react";
-import { TEXT_SCALE } from "../capture/cut/cue-layer";
+/**
+ * Type sizes as a share of the frame's height, ported from the beta film's
+ * `cue-layer.ts` rather than imported from it.
+ *
+ * THE FILM MUST NOT DEPEND ON A SANDBOX. cue-layer lives under
+ * /sandbox/capture, is shared by eight other audition surfaces, and every one
+ * of them is deleted before its own PR - so an import across that line is a
+ * build that breaks on somebody else's cleanup. Three numbers are cheaper to
+ * carry than that coupling.
+ *
+ * `word` is the only one this film uses; `big` and `url` come along so the
+ * ratios stay readable next to each other, which is the whole reason they are
+ * written as fractions of 460 rather than as decimals.
+ */
+const TEXT_SCALE = { word: 52 / 460, big: 79 / 460, url: 11 / 460 };
 import { BEATS, LABEL, PAYOFF, type Arrangement, type Beat } from "./beats";
 import {
   isPerChar,
