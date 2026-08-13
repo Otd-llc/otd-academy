@@ -26,6 +26,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LogbookLive, type FilmLesson, type FilmQuestion } from "../LogbookLive";
 import { THE_CUT } from "../assembly";
+import { FORMATS } from "./formats";
 
 const SECONDS = 10;
 const FPS = 30;
@@ -40,62 +41,6 @@ const EVENTS = [
   { at: 6.0, label: "RANK" },
   { at: 8.0, label: "PATCH" },
   { at: 8.5, label: "plate" },
-];
-
-type Fmt = {
-  id: string;
-  label: string;
-  px: string;
-  where: string;
-  aspect: number;
-  w: number;
-  /** Fractions of the frame the platform's own chrome tends to cover. */
-  safe?: { bottom?: number; right?: number; top?: number };
-};
-
-// Widths are display sizes, not delivery sizes - the delivery pixels are in
-// `px` and the encode reads those. What matters here is that all four are
-// legible side by side.
-const FORMATS: Fmt[] = [
-  {
-    id: "16x9",
-    label: "16:9",
-    px: "1920 x 1080",
-    where: "YouTube, X, LinkedIn, site embed",
-    aspect: 16 / 9,
-    w: 360,
-  },
-  {
-    id: "1x1",
-    label: "1:1",
-    px: "1080 x 1080",
-    where: "feed square, LinkedIn, X",
-    aspect: 1,
-    w: 258,
-  },
-  {
-    id: "4x5",
-    label: "4:5",
-    px: "1080 x 1350",
-    where: "Instagram / Facebook feed",
-    aspect: 4 / 5,
-    w: 238,
-    // A modest bottom band: the feed puts the caption and the account row under
-    // the video rather than over it, but the last 6% is where a "see more"
-    // overlay lands and it is where the payoff URL was sitting.
-    safe: { bottom: 0.08 },
-  },
-  {
-    id: "9x16",
-    label: "9:16",
-    px: "1080 x 1920",
-    where: "Shorts, Reels, TikTok",
-    aspect: 9 / 16,
-    w: 206,
-    // The band a caption block and the action rail tend to occupy. Cited
-    // ranges vary and no platform publishes it; these are the common ones.
-    safe: { bottom: 0.2, right: 0.13, top: 0.08 },
-  },
 ];
 
 /** No platform chrome, but still opt in to aspect-adaptive sizing - otherwise a
