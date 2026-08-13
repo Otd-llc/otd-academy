@@ -56,9 +56,28 @@ export const ENTRIES: { id: EntryKind; label: string; note: string }[] = [
   { id: "push", label: "push apart", note: "The rule grows and drives the type away from it, so the typography is spaced BY the gesture." },
 ];
 
+/**
+ * The named parts a treatment exposes for an effect to drive.
+ *
+ * WITHOUT THIS the stack can only animate the piece as one object, and every
+ * treatment's internal choreography - the rule arriving before the label, the
+ * label before the value - collapses into a single fade. That choreography is
+ * the thing worth dialling, so it has to be addressable.
+ *
+ * `piece` is the whole assembly and is the default, so an effect that does not
+ * care still works.
+ */
+export type EntryTarget = "piece" | "rule" | "label" | "value";
+
+/** The addressable parts, for a picker. Derived nowhere else so the union and
+ *  the list cannot drift apart. */
+export const TARGETS = ["piece", "rule", "label", "value"] as const satisfies readonly EntryTarget[];
+
 /** One effect in a stack. Durations and offsets are in BEATS, never seconds. */
 export type EntryEffect = {
   kind: EntryKind;
+  /** Which named part this effect drives. */
+  target: EntryTarget;
   /** Cubic bezier control points, `[x1, y1, x2, y2]`. Data, not a name. */
   curve: readonly number[];
   /** How long it takes, in beats. */
@@ -70,9 +89,10 @@ export type EntryEffect = {
 };
 
 /** A sensible effect, so adding one to a stack does not require six decisions. */
-export function defaultEffect(kind: EntryKind): EntryEffect {
+export function defaultEffect(kind: EntryKind, target: EntryTarget = "piece"): EntryEffect {
   return {
     kind,
+    target,
     curve: CURVES.entrance,
     durationBeats: kind === "cut" ? 0 : 2,
     offsetBeats: 0,
@@ -139,8 +159,39 @@ export function entryStyle(kind: EntryKind, p: number): React.CSSProperties {
  * does.
  */
 export function entryStack(stack: EntryEffect[], t: number, bpm?: number): React.CSSProperties[] {
-  return stack.map((e) => entryStyle(e.kind, entryProgress(e, t, bpm)));
+  return stack.filter((e) => e.target === "piece").map((e) => entryStyle(e.kind, entryProgress(e, t, bpm)));
 }
+
+/**
+ * The style for one NAMED PART at `t`, merged across every effect aimed at it.
+ *
+ * Merging rather than nesting because a part is a single element: opacities
+ * multiply the way nested opacity would, and a second `clipPath` on one element
+ * would silently overwrite the first, so the last one aimed at a part wins and
+ * the UI is what should prevent the collision.
+ */
+export function partStyle(
+  stack: EntryEffect[],
+  target: EntryTarget,
+  t: number,
+  bpm?: number,
+): React.CSSProperties {
+  const out: React.CSSProperties = {};
+  for (const e of stack) {
+    if (e.target !== target) continue;
+    const s = entryStyle(e.kind, entryProgress(e, t, bpm));
+    if (s.opacity !== undefined) {
+      out.opacity = (out.opacity === undefined ? 1 : Number(out.opacity)) * Number(s.opacity);
+    }
+    if (s.clipPath) out.clipPath = s.clipPath;
+    if (s.transform) out.transform = [out.transform, s.transform].filter(Boolean).join(" ");
+  }
+  return out;
+}
+
+/** Does this stack drive the named part at all? */
+export const drives = (stack: EntryEffect[], target: EntryTarget) =>
+  stack.some((e) => e.target === target);
 
 /**
  * The default entry stack: a dissolve over two beats.
@@ -148,4 +199,20 @@ export function entryStack(stack: EntryEffect[], t: number, bpm?: number): React
  * Named, so it is a chosen arrival rather than the one that happens when nobody
  * decides - the same distinction `DEFAULT_EXIT` makes on the other side.
  */
-export const DEFAULT_ENTRY: EntryEffect[] = [defaultEffect("fade")];
+export const DEFAULT_ENTRY: EntryEffect[] = [defaultEffect("fade", "piece")];
+
+/**
+ * The hairline set expressed as DATA rather than as ten hand-tuned windows.
+ *
+ * This is the conversion that proves the mixer controls anything: the rule
+ * arrives on its own effect, the label and value on theirs, and every number
+ * below is a beat the owner can drag. The windows it replaces were
+ * (0.1, 0.95) for the rule and (0.45, 1.3) for the type - 1.7 beats starting
+ * at 0.2, and 1.7 beats starting at 0.9 - neither on any legal grid.
+ */
+export const HAIRLINE_ENTRY: EntryEffect[] = [
+  { ...defaultEffect("fade", "piece"), durationBeats: 1 },
+  { ...defaultEffect("rule", "rule"), durationBeats: 2 },
+  { ...defaultEffect("fade", "label"), durationBeats: 1, offsetBeats: 1 },
+  { ...defaultEffect("fade", "value"), durationBeats: 1, offsetBeats: 1 },
+];

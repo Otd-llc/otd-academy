@@ -20,8 +20,9 @@ import { STAGE_ORDER, SAMPLE_TITLE } from "../furniture";
 import { PIECES, PIECE_KEYS, type PieceKey } from "./variants";
 import { PieceFrame } from "./Render";
 import { DEFAULT_EXIT, type FurnitureOut } from "./exits";
-import { DEFAULT_ENTRY, type EntryEffect } from "./entries";
+import { DEFAULT_ENTRY, HAIRLINE_ENTRY, type EntryEffect } from "./entries";
 import { Mixer } from "./Mixer";
+import { TYPES, TYPE_KEYS, type VideoType } from "./videotypes";
 
 const LONGEST =
   "Solder the board: heavy parts, passives, and a drag-solder pass (plus the hot-air option)";
@@ -41,7 +42,13 @@ export function Grid({ piece }: { piece: PieceKey }) {
   // The ENTRY stack, the other half of the dimension. Both live in the mixer
   // column now rather than in the page's top bar, so the transport and the
   // controls it is read against are one object.
-  const [entry, setEntry] = useState<EntryEffect[]>(DEFAULT_ENTRY);
+  // `hairline` is the converted set, so it starts from a stack that actually
+  // describes it rather than from a bare fade.
+  const [entry, setEntry] = useState<EntryEffect[]>(piece === "hairline" ? HAIRLINE_ENTRY : DEFAULT_ENTRY);
+  // The TYPE scopes the round: which pieces are relevant, which shapes ship,
+  // and what furniture this type needs that nobody has built.
+  const [vtype, setVtype] = useState<VideoType>("tutorial");
+  const spec = TYPES[vtype];
   const raf = useRef<number | null>(null);
   const t0 = useRef(0);
 
@@ -135,6 +142,59 @@ export function Grid({ piece }: { piece: PieceKey }) {
           not jump when the controls appear. `lg:items-start` is load-bearing:
           grid items stretch by default, which leaves `position: sticky` nothing
           to slide against. */}
+      {/* TABS ARE THE VIDEO TYPES. Six, closed, from the research - the 127
+          planned videos are not one kind of thing, and the furniture differs
+          sharply between them. */}
+      <div className="mb-4 border-b border-panel-border/60 pb-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+            &#9656; video type
+          </span>
+          {TYPE_KEYS.map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setVtype(k)}
+              className={`border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.16em] focus-visible:border-command-gold focus-visible:outline-none ${
+                k === vtype
+                  ? "border-command-gold text-command-gold"
+                  : "border-panel-border text-muted hover:border-gold-light hover:text-gold-light"
+              }`}
+            >
+              {TYPES[k].name}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-sm leading-relaxed text-muted">{spec.furniture}</p>
+        <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
+          shapes {spec.shapes.join(" / ")} &middot; uses {spec.pieces.length} pieces
+          {spec.pieces.includes(piece) ? "" : " · THIS TYPE DOES NOT USE THIS PIECE"}
+        </p>
+        {spec.missing.length ? (
+          <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-danger-coral">
+            not built: {spec.missing.join(" &middot; ")}
+          </p>
+        ) : null}
+        {spec.directions.length > 1 ? (
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
+              directions
+            </span>
+            {spec.directions.map((d) => (
+              <button
+                key={d.id}
+                type="button"
+                title={d.note}
+                onClick={() => setEntry(d.entry)}
+                className="border border-panel-border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-muted hover:border-gold-light hover:text-gold-light focus-visible:border-command-gold focus-visible:outline-none"
+              >
+                {d.id}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
       <ul className={`grid gap-x-6 gap-y-8 ${wide ? "lg:grid-cols-1" : "lg:grid-cols-2"}`}>
         {def.variants.map((v) => (

@@ -35,6 +35,8 @@ import {
 } from "@/app/sandbox/video-furniture/youtube";
 import { STAGE_ORDER } from "@/app/sandbox/video-furniture/furniture";
 import { PIECES } from "@/app/sandbox/video-furniture/r2/variants";
+import { assertNoAccumulation, TYPES } from "@/app/sandbox/video-furniture/r2/videotypes";
+import { isFrameLegal, onGrid, BPM, finestStep } from "@/app/sandbox/video-furniture/r2/meter";
 
 const MUTATE = process.argv.includes("--mutate");
 const ORIGIN = process.env.FURNITURE_ORIGIN ?? "http://localhost:3010";
@@ -149,6 +151,37 @@ async function main() {
         const shift = Math.abs(before.x0 - after.x0) * VIEW.width;
         if (!MUTATE && shift > 16) {
           fail(`chapter/${variant} @ ${stage}: line shifts ${shift.toFixed(0)}px at the cut (ceiling 16px)`);
+        }
+      }
+    }
+  }
+
+  // ---- 2b. THE MIXER'S OWN INVARIANTS, headless ----------------------------
+  // These need no browser and are the cheapest checks in the file, which is
+  // exactly why they are worth having: the rules they enforce are the ones that
+  // decay silently.
+  assertions += 1;
+  if (!isFrameLegal(BPM)) fail(`meter: ${BPM} BPM is not frame-legal at 24/30/60`);
+
+  // The non-accumulation rule, which used to be prose in a plan - the form a
+  // convention takes right before it erodes.
+  const accum = assertNoAccumulation();
+  assertions += 1;
+  for (const a of accum) fail(`videotypes: ${a}`);
+
+  // Every seeded direction must be dialable: durations on the legal grid for
+  // the tempo. At 120 BPM that is whole beats and triplets - a beat is 15
+  // frames at 30 fps and cannot be halved.
+  for (const spec of Object.values(TYPES)) {
+    for (const d of spec.directions) {
+      for (const e of d.entry) {
+        assertions += 1;
+        const ok = onGrid(e.durationBeats) && onGrid(e.offsetBeats);
+        if (MUTATE ? ok : !ok) {
+          fail(
+            `videotypes/${spec.id}/${d.id}: ${e.kind} -> ${e.target} is off the frame grid ` +
+              `(dur ${e.durationBeats}, offset ${e.offsetBeats} beats; finest legal step is ${finestStep()})`,
+          );
         }
       }
     }

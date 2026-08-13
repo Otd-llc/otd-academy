@@ -33,6 +33,7 @@ import { STAGE_ORDER } from "../furniture";
 import { WELLS_16X9, GRAPHICS_16X9, LOWER_THIRD_BOTTOM } from "../youtube";
 import { furnitureOutStack, exitP, DEFAULT_EXIT, type FurnitureOut } from "./exits";
 import { entryStack, DEFAULT_ENTRY, type EntryEffect } from "./entries";
+import { EntryProvider } from "./Part";
 import { PIECES, type PieceKey } from "./variants";
 import { Ghost, CombWalk, Hairline } from "./Render2";
 import { Chapter } from "./Chapter";
@@ -146,13 +147,20 @@ export function PieceFrame(p: VProps) {
     </div>
   );
 
-  return layers.reduceRight(
+  const wrapped = layers.reduceRight(
     (inner, style, i) => (
-      <div key={i} style={{ position: "absolute", inset: 0, ...style }}>
+      <div key={i} data-fx-layer={i} style={{ position: "absolute", inset: 0, ...style }}>
         {inner}
       </div>
     ),
     body,
+  );
+  // The provider sits OUTSIDE the wrappers so a part can be driven whether or
+  // not the piece as a whole is.
+  return (
+    <EntryProvider stack={p.entry ?? DEFAULT_ENTRY} t={p.t}>
+      {wrapped}
+    </EntryProvider>
   );
 }
 

@@ -14,6 +14,7 @@ import { stageArt, stageArtGhost } from "@/lib/guide-stage-art";
 import { STAGE_ORDER } from "../furniture";
 import { LOWER_THIRD_BOTTOM } from "../youtube";
 import { CombCell } from "./RealComb";
+import { Part } from "./Part";
 import { ts, hw } from "./units";
 import {
   seg, outCubic, outExpo, entryP,
@@ -384,28 +385,46 @@ export function CombWalk({ variant, stage, t, aspect = 16 / 9 }: VProps) {
 // The rule is the subject. Each variant changes how it arrives and what it does
 // to the type around it.
 
+/**
+ * HAIRLINE, CONVERTED TO DATA. This set is the proof that a treatment reduces
+ * to a stack, and it was chosen because all ten of its variants are one
+ * question - how does the rule arrive - so what differs between them is SHAPE,
+ * which stays in the component, while TIMING leaves entirely.
+ *
+ * WHAT CAME OUT, and why it had to: `life` (0, 0.6), `grow` (0.1, 0.95) and
+ * `late` (0.45, 1.3) were three hand-tuned windows with two hardcoded curves.
+ * Leaving them in place while the mixer added its own stack on top would mean
+ * the owner drags a curve and watches it fight a curve already baked in - the
+ * mixer's central control controlling nothing. So the treatment now renders AT
+ * REST and the stack drives it, through the named parts below.
+ *
+ * The rule's own `p` is gone with them: a rule is drawn at full width and the
+ * `rule` channel clips it, which is the same gesture expressed as data.
+ */
 export function Hairline({ variant, t }: VProps) {
-  const life = entryP(t, 0, 0.6);
-  const grow = outExpo(seg(t, 0.1, 0.95));
-  const late = outCubic(seg(t, 0.45, 1.3));
+  // At rest. Every value that used to be a function of `t` is now 1, and the
+  // arrival lives in the entry stack where it can be dialled.
+  const life = 1;
+  const grow = 1;
+  const late = 1;
   const bottom = LOWER_THIRD_BOTTOM * 100;
   const LABEL = "U2 / regulator";
   const VALUE = "AP2112K-3.3";
 
   const label = (o = 1) => (
-    <div style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.1), letterSpacing: "0.24em", textTransform: "uppercase", color: GOLD, opacity: o }}>
+    <Part name="label" style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.1), letterSpacing: "0.24em", textTransform: "uppercase", color: GOLD, opacity: o }}>
       {LABEL}
-    </div>
+    </Part>
   );
   // A part number, so Saira rather than Bebas: in Bebas `0` and `O` are the
   // same drawing, and `AP2112K-3.3` carries no lexical context to recover a
   // misread from. Measurements are on `Desig` in Render.tsx.
   const value = (o = 1) => (
-    <div style={{ lineHeight: 1.1 }}>
-      <Desig size={2} color={TEXT} o={o}>
+    <Part name="value" style={{ lineHeight: 1.1, opacity: o }}>
+      <Desig size={2} color={TEXT}>
         {VALUE}
       </Desig>
-    </div>
+    </Part>
   );
   const base: React.CSSProperties = { position: "absolute", left: "6cqw", bottom: `${bottom}cqh`, opacity: life, width: "42cqw" };
 
@@ -415,7 +434,7 @@ export function Hairline({ variant, t }: VProps) {
         <div data-lower-third style={base}>
           {label(late)}
           <div style={{ marginTop: "0.7cqh", display: "flex", justifyContent: "center" }}>
-            <div style={{ width: `${grow * 100}%`, height: "0.12cqw", background: GOLD }} />
+            <Part name="rule" style={{ width: "100%", height: hw(0.12), background: GOLD }} />
           </div>
           <div style={{ marginTop: "0.7cqh" }}>{value(late)}</div>
         </div>
@@ -423,10 +442,14 @@ export function Hairline({ variant, t }: VProps) {
     case "under":
       return (
         <div data-lower-third style={base}>
-          {label(outCubic(seg(t, 0, 0.5)))}
-          <div style={{ marginTop: "0.5cqh" }}>{value(outCubic(seg(t, 0.15, 0.7)))}</div>
+          {/* `under`'s claim is that the rule confirms rather than announces -
+              type first, rule last. That is an ORDERING, which is now an offset
+              in the entry stack rather than two hardcoded windows here. The
+              variant keeps its SHAPE; the mixer owns its timing. */}
+          {label()}
+          <div style={{ marginTop: "0.5cqh" }}>{value()}</div>
           <div style={{ marginTop: "0.7cqh" }}>
-            <Hair p={outExpo(seg(t, 0.7, 1.5))} w={0.12} />
+            <Part name="rule"><Hair p={grow} w={0.12} /></Part>
           </div>
         </div>
       );
@@ -435,7 +458,7 @@ export function Hairline({ variant, t }: VProps) {
         <div data-lower-third style={base}>
           {label()}
           <div style={{ height: `${0.4 + grow * 1.1}cqh` }} />
-          <Hair p={grow} w={0.12} />
+          <Part name="rule"><Hair p={grow} w={0.12} /></Part>
           <div style={{ height: `${0.4 + grow * 1.1}cqh` }} />
           {value()}
         </div>
@@ -446,7 +469,7 @@ export function Hairline({ variant, t }: VProps) {
           {label(late)}
           <div style={{ marginTop: "0.7cqh", display: "flex", alignItems: "center" }}>
             <div style={{ width: "0.16cqw", height: "1.1cqh", background: GOLD }} />
-            <div style={{ width: `${grow * 100}%`, height: "0.12cqw", background: GOLD }} />
+            <Part name="rule" style={{ width: "100%", height: hw(0.12), background: GOLD }} />
           </div>
           <div style={{ marginTop: "0.7cqh" }}>{value(late)}</div>
         </div>
@@ -456,9 +479,9 @@ export function Hairline({ variant, t }: VProps) {
         <div data-lower-third style={base}>
           {label(late)}
           <div style={{ marginTop: "0.7cqh" }}>
-            <Hair p={grow} w={0.12} />
+            <Part name="rule"><Hair p={grow} w={0.12} /></Part>
             <div style={{ marginTop: "0.35cqh", marginLeft: "1.2cqw" }}>
-              <Hair p={grow * 0.72} w={0.08} color="var(--color-gold-dim)" />
+              <Part name="rule"><Hair p={grow * 0.72} w={0.08} color="var(--color-gold-dim)" /></Part>
             </div>
           </div>
           <div style={{ marginTop: "0.8cqh" }}>{value(late)}</div>
@@ -471,7 +494,7 @@ export function Hairline({ variant, t }: VProps) {
           <div style={{ flex: 1 }}>
             {label(late)}
             <div style={{ marginTop: "0.7cqh" }}>
-              <Hair p={grow} w={0.12} />
+              <Part name="rule"><Hair p={grow} w={0.12} /></Part>
             </div>
             <div style={{ marginTop: "0.7cqh" }}>{value(late)}</div>
           </div>
@@ -509,7 +532,7 @@ export function Hairline({ variant, t }: VProps) {
         <div data-lower-third style={base}>
           {label(late)}
           <div style={{ marginTop: "0.7cqh" }}>
-            <Hair p={1} w={0.04 + grow * 0.16} />
+            <Part name="rule"><Hair p={1} w={0.04 + grow * 0.16} /></Part>
           </div>
           <div style={{ marginTop: "0.7cqh" }}>{value(late)}</div>
         </div>
@@ -520,7 +543,7 @@ export function Hairline({ variant, t }: VProps) {
         <div data-lower-third style={base}>
           {label(late)}
           <div style={{ marginTop: "0.7cqh" }}>
-            <Hair p={grow} w={0.12} />
+            <Part name="rule"><Hair p={grow} w={0.12} /></Part>
           </div>
           <div style={{ marginTop: "0.7cqh" }}>{value(late)}</div>
         </div>

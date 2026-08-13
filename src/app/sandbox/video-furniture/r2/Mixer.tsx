@@ -31,7 +31,7 @@
 // ASCII only.
 
 import { CurveEditor } from "./CurveEditor";
-import { ENTRIES, defaultEffect, entryProgress, type EntryEffect, type EntryKind } from "./entries";
+import { ENTRIES, TARGETS, defaultEffect, entryProgress, type EntryEffect, type EntryKind, type EntryTarget } from "./entries";
 import { EXITS, type FurnitureOut } from "./exits";
 import { BPM, beats, snapBeats, finestStep, framesPerBeat, ACCENT_CLASSES, type AccentClass } from "./meter";
 
@@ -94,6 +94,7 @@ function EffectRow({
       <div className="flex items-baseline justify-between gap-2">
         <span className={LABEL}>
           <span>{index + 1}</span> {meta?.label ?? effect.kind}
+          <span className="text-muted"> &rarr; {effect.target}</span>
         </span>
         <span className="flex items-center gap-2">
           {/* Order is the applied order, so moving a row is a real edit, not a
@@ -126,6 +127,22 @@ function EffectRow({
               onChange={(offsetBeats) => onChange({ ...effect, offsetBeats })}
             />
           </div>
+          {/* WHICH PART, so a stack can choreograph a treatment rather than
+              only fade it in as one object. */}
+          <label className="mt-3 block">
+            <span className={SUB}>drives</span>
+            <select
+              value={effect.target}
+              onChange={(e) => onChange({ ...effect, target: e.target.value as EntryTarget })}
+              className="mt-1 w-full border border-panel-border bg-transparent px-2 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-text focus:border-command-gold focus:outline-none"
+            >
+              {TARGETS.map((tg) => (
+                <option key={tg} value={tg} className="bg-deep-space">
+                  {tg}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="mt-3 block">
             <span className={SUB}>accent / pre-roll</span>
             <select

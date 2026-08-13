@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import type { Stage } from "@prisma/client";
 import { PieceFrame } from "../Render";
 import { PIECES, type PieceKey } from "../variants";
+import { DEFAULT_ENTRY, HAIRLINE_ENTRY } from "../entries";
 import { SAMPLE_TITLE } from "../../furniture";
 import { STAGE_LABELS } from "@/lib/stages";
 
@@ -94,6 +95,10 @@ export function FrameOne({
       style={{ position: "fixed", inset: 0, background: "var(--color-deep-space)" }}
     >
       <PieceFrame
+        // The measurement surface must render what the round renders, or it
+        // measures a piece nobody is looking at. `hairline` is the converted
+        // set and carries its own stack.
+        entry={key === "hairline" ? HAIRLINE_ENTRY : DEFAULT_ENTRY}
         piece={key}
         variant={variant}
         stage={st}
