@@ -204,6 +204,7 @@ export function Grid({ piece }: { piece: PieceKey }) {
                 title={title}
                 lesson="L1.02 / ESP-NOW Link"
                 t={t}
+                aspect={16 / 9}
                 exit={exit}
                 guides={guides && piece === "outro"}
               />

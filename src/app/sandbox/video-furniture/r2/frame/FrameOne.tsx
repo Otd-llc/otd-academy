@@ -39,9 +39,18 @@ export function FrameOne({
 }) {
   const [t, setT] = useState(0);
   const [settled, setSettled] = useState(false);
+  // The frame IS the viewport on this surface, so this is the delivery aspect.
+  const [aspect, setAspect] = useState(16 / 9);
   const key = (piece in PIECES ? piece : "intro") as PieceKey;
   const def = PIECES[key];
   const st = stage as Stage;
+
+  useEffect(() => {
+    const read = () => setAspect(window.innerWidth / window.innerHeight);
+    read();
+    window.addEventListener("resize", read);
+    return () => window.removeEventListener("resize", read);
+  }, []);
 
   useEffect(() => {
     window.__seek = (next: number) => {
@@ -84,6 +93,7 @@ export function FrameOne({
         title={title}
         lesson="L1.02 / ESP-NOW Link"
         t={t}
+        aspect={aspect}
         guides={guides}
       />
     </div>

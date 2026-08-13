@@ -25,6 +25,7 @@ import { WELLS_16X9, GRAPHICS_16X9, PLAYER_BAR_BOTTOM } from "../youtube";
 import { furnitureOutStack, exitP, type FurnitureOut } from "./exits";
 import { PIECES, type PieceKey } from "./variants";
 import { Ghost, CombWalk, Hairline } from "./Render2";
+import { ts, hw } from "./units";
 
 // ---- easing ----------------------------------------------------------------
 export const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -51,6 +52,9 @@ export type VProps = {
   title: string;
   lesson: string;
   t: number;
+  /** frame width / height. Needed only where a GROUP of physically-sized
+   *  elements has to fit the frame - see CombWalk. */
+  aspect?: number;
   guides?: boolean;
 };
 
@@ -100,7 +104,7 @@ export function Eyebrow({ children, o = 1, size = 1.35 }: { children: React.Reac
     <div
       style={{
         fontFamily: "var(--font-mono)",
-        fontSize: `${size}cqw`,
+        fontSize: ts(size),
         letterSpacing: "0.24em",
         textTransform: "uppercase",
         color: GOLD,
@@ -117,7 +121,7 @@ export function Title({ children, size = 4, o = 1, dy = 0 }: { children: React.R
     <h1
       style={{
         fontFamily: "var(--font-display)",
-        fontSize: `${size}cqw`,
+        fontSize: ts(size),
         lineHeight: 1.08,
         letterSpacing: "0.005em",
         color: TITLE,
@@ -139,7 +143,7 @@ export function Num({ children, size = 6, color = GOLD }: { children: React.Reac
       style={{
         fontFamily: "var(--font-numeral)",
         fontWeight: 800,
-        fontSize: `${size}cqw`,
+        fontSize: ts(size),
         fontVariantNumeric: "tabular-nums",
         letterSpacing: "0.02em",
         color,
@@ -202,7 +206,7 @@ export function Comb({ stage, size, lit = 1, prev }: { stage: Stage; size: numbe
             <span
               style={{
                 fontFamily: "var(--font-mono)",
-                fontSize: `${size * 0.25}cqw`,
+                fontSize: ts(size * 0.25),
                 letterSpacing: "0.06em",
                 fontWeight: on > 0.5 ? 700 : 400,
                 color: on > 0.5 ? FIELD : done ? GOLD : MUTED,
@@ -262,7 +266,7 @@ export function GuideHex({
         <div
           style={{
             fontFamily: "var(--font-display)",
-            fontSize: `${size * 0.115}cqw`,
+            fontSize: ts(size * 0.115),
             color: kind === "current" ? TITLE : MUTED,
             lineHeight: 1.05,
           }}
@@ -272,7 +276,7 @@ export function GuideHex({
         <div
           style={{
             fontFamily: "var(--font-mono)",
-            fontSize: `${size * 0.055}cqw`,
+            fontSize: ts(size * 0.055),
             letterSpacing: "0.2em",
             textTransform: "uppercase",
             color: accent,
@@ -536,7 +540,7 @@ function Section({ variant, stage, t }: VProps) {
                     {String(n + 1).padStart(2, "0")}
                   </Num>
                 </Hex>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.75cqw", letterSpacing: "0.18em", color: n === i ? GOLD : MUTED }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: ts(0.75), letterSpacing: "0.18em", color: n === i ? GOLD : MUTED }}>
                   {combAbbr(s)}
                 </span>
               </div>
@@ -557,11 +561,11 @@ function Section({ variant, stage, t }: VProps) {
         <div style={{ position: "absolute", left: 0, right: 0, bottom: `${PLAYER_BAR_BOTTOM * 100 + 5}cqh`, opacity: life }}>
           <div style={{ borderTop: `0.18cqw solid ${GOLD}`, paddingTop: "1.4cqh", marginLeft: "6cqw", marginRight: "6cqw", display: "flex", alignItems: "center", gap: "2cqw" }}>
             <Hex size={5} filled>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "1.2cqw", fontWeight: 700, color: FIELD }}>{combAbbr(stage)}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.2), fontWeight: 700, color: FIELD }}>{combAbbr(stage)}</span>
             </Hex>
             <div>
               <Eyebrow size={1.1}>stage</Eyebrow>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: "2.6cqw", color: TITLE, lineHeight: 1.05 }}>{STAGE_LABELS[stage]}</div>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: ts(2.6), color: TITLE, lineHeight: 1.05 }}>{STAGE_LABELS[stage]}</div>
             </div>
           </div>
         </div>
@@ -570,7 +574,7 @@ function Section({ variant, stage, t }: VProps) {
       return centre(
         <div style={{ textAlign: "center" }}>
           <Num size={14}>{num}</Num>
-          <div style={{ marginTop: "1cqh", fontFamily: "var(--font-display)", fontSize: "3cqw", color: TITLE }}>{STAGE_LABELS[stage]}</div>
+          <div style={{ marginTop: "1cqh", fontFamily: "var(--font-display)", fontSize: ts(3), color: TITLE }}>{STAGE_LABELS[stage]}</div>
           <div style={{ marginTop: "0.8cqh", display: "flex", justifyContent: "center" }}>
             <div style={{ width: "12cqw" }}>
               <Hair p={lit} />
@@ -587,7 +591,7 @@ function Section({ variant, stage, t }: VProps) {
             <Comb stage={stage} size={5} lit={lit} />
           </div>
           <div style={{ position: "absolute", left: 0, right: 0, top: "58cqh", textAlign: "center" }}>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: "2.4cqw", color: TITLE }}>{STAGE_LABELS[stage]}</div>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: ts(2.4), color: TITLE }}>{STAGE_LABELS[stage]}</div>
           </div>
         </div>
       );
@@ -596,7 +600,7 @@ function Section({ variant, stage, t }: VProps) {
       return centre(
         <div style={{ textAlign: "center" }}>
           <Comb stage={stage} size={7} lit={lit} />
-          <div style={{ marginTop: "2.4cqh", fontFamily: "var(--font-display)", fontSize: "2.6cqw", color: TITLE }}>{STAGE_LABELS[stage]}</div>
+          <div style={{ marginTop: "2.4cqh", fontFamily: "var(--font-display)", fontSize: ts(2.6), color: TITLE }}>{STAGE_LABELS[stage]}</div>
         </div>,
       );
   }
@@ -625,12 +629,12 @@ function Lower({ variant, t }: VProps) {
   const base: React.CSSProperties = { position: "absolute", left: "6cqw", bottom: `${bottom}cqh`, opacity: life };
 
   const label_ = (color: string = GOLD) => (
-    <div style={{ fontFamily: "var(--font-mono)", fontSize: "1.1cqw", letterSpacing: "0.24em", textTransform: "uppercase", color }}>
+    <div style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.1), letterSpacing: "0.24em", textTransform: "uppercase", color }}>
       {s.label}
     </div>
   );
   const value_ = (size = 2, color: string = TEXT) => (
-    <div style={{ fontFamily: "var(--font-display)", fontSize: `${size}cqw`, color, lineHeight: 1.1 }}>{s.value}</div>
+    <div style={{ fontFamily: "var(--font-display)", fontSize: ts(size), color, lineHeight: 1.1 }}>{s.value}</div>
   );
 
   switch (variant) {
@@ -682,7 +686,7 @@ function Lower({ variant, t }: VProps) {
     case "badge":
       return (
         <div style={{ ...base, display: "flex", alignItems: "center", gap: "1.4cqw" }}>
-          <div style={{ border: `0.1cqw solid ${GOLD}`, padding: "0.6cqh 1cqw", fontFamily: "var(--font-mono)", fontSize: "1.3cqw", letterSpacing: "0.16em", color: GOLD }}>
+          <div style={{ border: `0.1cqw solid ${GOLD}`, padding: "0.6cqh 1cqw", fontFamily: "var(--font-mono)", fontSize: ts(1.3), letterSpacing: "0.16em", color: GOLD }}>
             {s.label}
           </div>
           <div style={{ width: "30cqw" }}>
@@ -699,7 +703,7 @@ function Lower({ variant, t }: VProps) {
           <div style={{ border: `0.1cqw solid ${GOLD}`, display: "grid", placeItems: "center", padding: "0 1cqw" }}>
             <Num size={2.2}>{s.label}</Num>
           </div>
-          <div style={{ display: "flex", alignItems: "center", fontFamily: "var(--font-mono)", fontSize: "1.5cqw", letterSpacing: "0.1em", color: TEXT }}>
+          <div style={{ display: "flex", alignItems: "center", fontFamily: "var(--font-mono)", fontSize: ts(1.5), letterSpacing: "0.1em", color: TEXT }}>
             {s.value}
           </div>
         </div>
@@ -716,19 +720,19 @@ function Lower({ variant, t }: VProps) {
     case "fail":
       return (
         <div style={{ ...base, display: "flex", alignItems: "center", gap: "1.2cqw", borderTop: "0.18cqw solid var(--color-alert-red)", paddingTop: "1.1cqh", width: "40cqw" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "1.1cqw", letterSpacing: "0.24em", color: "var(--color-alert-red)" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.1), letterSpacing: "0.24em", color: "var(--color-alert-red)" }}>
             {s.label}
           </span>
-          <span style={{ fontFamily: "var(--font-display)", fontSize: "2cqw", color: TITLE }}>{s.value}</span>
+          <span style={{ fontFamily: "var(--font-display)", fontSize: ts(2), color: TITLE }}>{s.value}</span>
         </div>
       );
     case "pass":
       return (
         <div style={{ ...base, display: "flex", alignItems: "center", gap: "1.2cqw", borderTop: "0.18cqw solid var(--color-status-green)", paddingTop: "1.1cqh", width: "40cqw" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "1.1cqw", letterSpacing: "0.24em", color: "var(--color-status-green)" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.1), letterSpacing: "0.24em", color: "var(--color-status-green)" }}>
             {s.label}
           </span>
-          <span style={{ fontFamily: "var(--font-display)", fontSize: "2cqw", color: TITLE }}>{s.value}</span>
+          <span style={{ fontFamily: "var(--font-display)", fontSize: ts(2), color: TITLE }}>{s.value}</span>
         </div>
       );
     case "hairline":
@@ -781,7 +785,7 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
     >
       <Eyebrow size={1}>the build</Eyebrow>
       <Comb stage={stage} size={2.4} lit={1} />
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.85cqw", letterSpacing: "0.18em", textTransform: "uppercase", color: MUTED }}>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: ts(0.85), letterSpacing: "0.18em", textTransform: "uppercase", color: MUTED }}>
         {STAGE_LABELS[stage]} done
       </div>
     </div>
@@ -803,7 +807,7 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
               display: "grid",
               placeItems: "center",
               fontFamily: "var(--font-mono)",
-              fontSize: "0.85cqw",
+              fontSize: ts(0.85),
               letterSpacing: "0.2em",
               textTransform: "uppercase",
               color: `color-mix(in oklab, ${GOLD} 55%, transparent)`,
@@ -832,7 +836,7 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
   );
 
   const url_ = (o: number = late) => (
-    <div style={{ fontFamily: "var(--font-mono)", fontSize: "1.2cqw", letterSpacing: "0.16em", textTransform: "uppercase", color: GOLD, opacity: o }}>
+    <div style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.2), letterSpacing: "0.16em", textTransform: "uppercase", color: GOLD, opacity: o }}>
       {URL}
     </div>
   );
@@ -849,7 +853,7 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
                 return (
                   <div key={s} style={{ display: "flex", alignItems: "center", gap: "0.9cqw" }}>
                     <div style={{ width: "2.2cqw", height: "0.14cqw", background: done ? GOLD : HAIR }} />
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "1.05cqw", letterSpacing: "0.16em", color: done ? GOLD : MUTED, opacity: outCubic(seg(t, 0.8 + n * 0.18, 1.6 + n * 0.18)) }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.05), letterSpacing: "0.16em", color: done ? GOLD : MUTED, opacity: outCubic(seg(t, 0.8 + n * 0.18, 1.6 + n * 0.18)) }}>
                       {STAGE_LABELS[s]}
                     </span>
                   </div>
@@ -868,7 +872,7 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
             <div style={{ marginTop: "1.4cqh", display: "flex", justifyContent: "center" }}>
               <Comb stage={next} size={3} lit={outCubic(seg(t, 1, 2))} prev={stage} />
             </div>
-            <div style={{ marginTop: "1.4cqh", fontFamily: "var(--font-display)", fontSize: "2.4cqw", color: TITLE }}>{STAGE_LABELS[next]}</div>
+            <div style={{ marginTop: "1.4cqh", fontFamily: "var(--font-display)", fontSize: ts(2.4), color: TITLE }}>{STAGE_LABELS[next]}</div>
             <div style={{ marginTop: "1.2cqh" }}>
               {url_()}
             </div>
@@ -880,12 +884,12 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
             <Eyebrow>stage</Eyebrow>
             <div style={{ marginTop: "0.8cqh", display: "flex", alignItems: "baseline", justifyContent: "center", gap: "0.5cqw" }}>
               <Num size={7}>{String(i + 1).padStart(2, "0")}</Num>
-              <span style={{ fontFamily: "var(--font-numeral)", fontSize: "3cqw", color: MUTED }}>/</span>
+              <span style={{ fontFamily: "var(--font-numeral)", fontSize: ts(3), color: MUTED }}>/</span>
               <Num size={4} color={MUTED}>
                 {String(STAGE_ORDER.length).padStart(2, "0")}
               </Num>
             </div>
-            <div style={{ marginTop: "0.8cqh", fontFamily: "var(--font-mono)", fontSize: "1.1cqw", letterSpacing: "0.2em", color: MUTED }}>
+            <div style={{ marginTop: "0.8cqh", fontFamily: "var(--font-mono)", fontSize: ts(1.1), letterSpacing: "0.2em", color: MUTED }}>
               {STAGE_LABELS[stage]}
             </div>
             <div style={{ marginTop: "1.6cqh" }}>
@@ -899,12 +903,12 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
             <div style={{ display: "flex", flexDirection: "column", gap: "1.2cqh" }}>
               <div>
                 <Eyebrow size={1.1}>just finished</Eyebrow>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: "1.9cqw", color: MUTED }}>{STAGE_LABELS[stage]}</div>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: ts(1.9), color: MUTED }}>{STAGE_LABELS[stage]}</div>
               </div>
               <Hair p={rule} w={0.1} />
               <div>
                 <Eyebrow size={1.1}>next</Eyebrow>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: "2.6cqw", color: TITLE }}>{STAGE_LABELS[next]}</div>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: ts(2.6), color: TITLE }}>{STAGE_LABELS[next]}</div>
               </div>
               {url_()}
             </div>
@@ -932,10 +936,10 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
         return (
           gutter_(<>
             <Eyebrow>the gate ahead</Eyebrow>
-            <div style={{ marginTop: "1.2cqh", fontFamily: "var(--font-display)", fontSize: "2.4cqw", color: TITLE, lineHeight: 1.1 }}>
+            <div style={{ marginTop: "1.2cqh", fontFamily: "var(--font-display)", fontSize: ts(2.4), color: TITLE, lineHeight: 1.1 }}>
               {STAGE_LABELS[next]}
             </div>
-            <div style={{ marginTop: "1cqh", fontFamily: "var(--font-serif)", fontSize: "1.25cqw", color: MUTED, lineHeight: 1.4 }}>
+            <div style={{ marginTop: "1cqh", fontFamily: "var(--font-serif)", fontSize: ts(1.25), color: MUTED, lineHeight: 1.4 }}>
               opens when this stage passes clean
             </div>
             <div style={{ marginTop: "1.4cqh" }}>
@@ -946,13 +950,13 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
       case "url":
         return (
           gutter_(<>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: "2.6cqw", color: GOLD, letterSpacing: "0.01em" }}>{URL}</div>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: ts(2.6), color: GOLD, letterSpacing: "0.01em" }}>{URL}</div>
             <div style={{ marginTop: "1.2cqh", display: "flex", justifyContent: "center" }}>
               <div style={{ width: "62%" }}>
                 <Hair p={rule} />
               </div>
             </div>
-            <div style={{ marginTop: "1.2cqh", fontFamily: "var(--font-mono)", fontSize: "1.05cqw", letterSpacing: "0.18em", color: MUTED, opacity: late }}>
+            <div style={{ marginTop: "1.2cqh", fontFamily: "var(--font-mono)", fontSize: ts(1.05), letterSpacing: "0.18em", color: MUTED, opacity: late }}>
               next &middot; {STAGE_LABELS[next]}
             </div>
           </>)
@@ -960,7 +964,7 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
       case "quiet":
         return (
           gutter_(<>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: "2.2cqw", color: TITLE }}>{STAGE_LABELS[next]}</div>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: ts(2.2), color: TITLE }}>{STAGE_LABELS[next]}</div>
             <div style={{ marginTop: "1.4cqh", display: "flex", justifyContent: "center" }}>
               <div style={{ width: "50%" }}>
                 <Hair p={rule} w={0.1} />
@@ -976,13 +980,13 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
           gutter_(<>
             <Eyebrow>keep going</Eyebrow>
             <div style={{ marginTop: "1.4cqh", display: "flex", flexDirection: "column", gap: "0.9cqh", alignItems: "center" }}>
-              <div style={{ background: GOLD, color: FIELD, fontFamily: "var(--font-mono)", fontSize: "1.15cqw", letterSpacing: "0.18em", textTransform: "uppercase", padding: "0.9cqh 1.8cqw" }}>
+              <div style={{ background: GOLD, color: FIELD, fontFamily: "var(--font-mono)", fontSize: ts(1.15), letterSpacing: "0.18em", textTransform: "uppercase", padding: "0.9cqh 1.8cqw" }}>
                 start {STAGE_LABELS[next]}
               </div>
-              <div style={{ border: `0.1cqw solid ${GOLD}`, color: GOLD, fontFamily: "var(--font-mono)", fontSize: "1.05cqw", letterSpacing: "0.18em", textTransform: "uppercase", padding: "0.8cqh 1.6cqw", opacity: late }}>
+              <div style={{ border: `0.1cqw solid ${GOLD}`, color: GOLD, fontFamily: "var(--font-mono)", fontSize: ts(1.05), letterSpacing: "0.18em", textTransform: "uppercase", padding: "0.8cqh 1.6cqw", opacity: late }}>
                 the whole build
               </div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.95cqw", letterSpacing: "0.16em", color: MUTED, opacity: late }}>{URL}</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: ts(0.95), letterSpacing: "0.16em", color: MUTED, opacity: late }}>{URL}</div>
             </div>
           </>)
         );
@@ -991,7 +995,7 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
         return (
           gutter_(<>
             <Eyebrow>next in the build</Eyebrow>
-            <div style={{ marginTop: "1.3cqh", fontFamily: "var(--font-display)", fontSize: "2.8cqw", color: TITLE, lineHeight: 1.1 }}>
+            <div style={{ marginTop: "1.3cqh", fontFamily: "var(--font-display)", fontSize: ts(2.8), color: TITLE, lineHeight: 1.1 }}>
               {STAGE_LABELS[next]}
             </div>
             <div style={{ marginTop: "1.4cqh", display: "flex", justifyContent: "center" }}>
@@ -1002,7 +1006,7 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
             <div style={{ marginTop: "1.5cqh" }}>
               {url_()}
             </div>
-            <div style={{ marginTop: "0.8cqh", fontFamily: "var(--font-serif)", fontSize: "1.1cqw", color: MUTED, opacity: late }}>
+            <div style={{ marginTop: "0.8cqh", fontFamily: "var(--font-serif)", fontSize: ts(1.1), color: MUTED, opacity: late }}>
               {lesson}
             </div>
           </>)

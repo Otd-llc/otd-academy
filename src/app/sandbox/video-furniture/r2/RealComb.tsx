@@ -25,6 +25,7 @@ import type { Stage } from "@prisma/client";
 import { HexPrism } from "@/components/guide/GuideHoneycomb";
 import { STAGE_LABELS } from "@/lib/stages";
 import { stageArt, stageArtGhost } from "@/lib/guide-stage-art";
+import { ts, hw } from "./units";
 
 export type CellKind = "done" | "current" | "blocked" | "pending";
 
@@ -35,40 +36,40 @@ export function CombCell({
   stage,
   num,
   kind,
-  box,
+  w,
   showArt,
   chip,
 }: {
   stage: Stage;
   num: string;
   kind: CellKind;
-  /** In container units (cqw / cqh), because everything here is a share. */
-  box: { left: number; top: number; w: number };
+  /** Cell width as a share of the frame SHORT edge (`cqmin`).
+   *
+   *  Short edge, not width. A hex carries a Saira numeral across its whole face,
+   *  so it is type as much as it is graphic - size it against the long edge and
+   *  it shrinks by 1.78x in portrait while the numeral inside it does not. That
+   *  mismatch is exactly what the unit fix was for. See `units.ts`. */
+  w: number;
   showArt?: boolean;
   chip?: string;
 }) {
   const art = kind === "done" || kind === "current" ? stageArt(stage) : null;
   const ghost = stageArtGhost(stage);
   return (
+    // A relatively-positioned box the `.gh-node` fills. The node itself is
+    // `position: absolute` in globals.css, so it needs a positioned parent -
+    // and giving it one lets the COMB be laid out as a flex row instead of by
+    // absolute-left arithmetic. That removes the last place two container units
+    // could be mixed: every distance in the comb is now cqmin.
+    <div style={{ position: "relative", width: `${w}cqmin`, height: `${w * RATIO}cqmin`, flex: "0 0 auto" }}>
     <div
       className={`gh-node ${kind}`}
-      style={{
-        left: `${box.left}cqw`,
-        // CENTRED BY TRANSFORM, not by arithmetic. A hex's height is a multiple
-        // of its WIDTH (cqw), and `top` is a share of HEIGHT (cqh) - so
-        // `top: 50 - height/2` silently mixes two units and lands the comb off
-        // centre by however far the frame is from square. At 16:9 that was
-        // about 5% of the frame, low. translateY(-50%) needs no aspect at all.
-        top: `${box.top}cqh`,
-        transform: "translateY(-50%)",
-        width: `${box.w}cqw`,
-        height: `${box.w * RATIO}cqw`,
-      }}
+      style={{ position: "absolute", inset: 0 }}
     >
       <HexPrism className="gh-hex" />
       {/* The ordinal is a watermark spanning the face, sized off the cell width,
           exactly as the hub does it. */}
-      <span className="comb-num" aria-hidden style={{ fontSize: `${box.w * 0.98}cqw` }}>
+      <span className="comb-num" aria-hidden style={{ fontSize: `${w * 0.98}cqmin` }}>
         {num}
       </span>
       {showArt && art ? (
@@ -94,6 +95,7 @@ export function CombCell({
           <span className="gh-chip">{chip}</span>
         </span>
       ) : null}
+    </div>
     </div>
   );
 }

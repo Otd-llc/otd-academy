@@ -13,7 +13,8 @@ import { STAGE_LABELS } from "@/lib/stages";
 import { stageArt, stageArtGhost } from "@/lib/guide-stage-art";
 import { STAGE_ORDER } from "../furniture";
 import { PLAYER_BAR_BOTTOM } from "../youtube";
-import { CombCell, RATIO as HEX_RATIO } from "./RealComb";
+import { CombCell } from "./RealComb";
+import { ts, hw } from "./units";
 import {
   seg, outCubic, outExpo, inOut,
   GOLD, TITLE, TEXT, MUTED, HAIR,
@@ -252,20 +253,39 @@ export function Ghost({ variant, stage, title, lesson, t }: VProps) {
 // real `HexPrism`. Nothing here styles a hexagon; it only decides which cell is
 // lit and how the light gets there.
 
-export function CombWalk({ variant, stage, t }: VProps) {
+export function CombWalk({ variant, stage, t, aspect = 16 / 9 }: VProps) {
   const i = STAGE_ORDER.indexOf(stage);
   const prev = Math.max(0, i - 1);
   const life = inOut(t, 0, 0.5, 1.8, 2.2);
   const walk = outCubic(seg(t, 0.35, 1.15));
 
-  const N = STAGE_ORDER.length;
-  const W = variant === "zoom" ? 10.5 + walk * 4 : 10.5;
-  const stepX = W * 0.75;
-  const total = stepX * (N - 1) + W;
-  const centreOfCur = -total / 2 + i * stepX + W / 2;
-  const left0 = 50 - total / 2 - (variant === "zoom" ? centreOfCur * walk : 0);
-  // The cell centres on this line; CombCell does the -50% itself.
-  const topPct = 50;
+  // Every distance here is cqmin - a share of the frame's SHORT edge. The comb
+  // is laid out as a centred flex row rather than by absolute-left arithmetic,
+  // which is what previously let a cqw width sit next to a cqh top and land the
+  // whole comb off centre. A flex row needs no aspect and no arithmetic.
+  const W = variant === "zoom" ? 18 + walk * 7 : 18;
+  // Pointy-top hexes tessellate at 3/4 of their width. The negative margin is
+  // what makes it a honeycomb rather than hexagons in a line.
+  const OVERLAP = -W * 0.25;
+
+  // A COMB OF EIGHT IS A LAYOUT, NOT A TYPE ELEMENT - and the two want opposite
+  // things here. Sizing the cells against the short edge is what keeps the
+  // numeral inside them legible at any aspect, but eight of them then need
+  // ~1212 px of width and a portrait frame has 1080. The first version simply
+  // ran off both edges.
+  //
+  // Shrinking the comb to fit would undo the whole unit fix. So the cells keep
+  // their physical size and the COMB is windowed instead: show as many as fit,
+  // centred on the current stage. A viewer sees where they are and what is
+  // adjacent, which is what the card is for; seeing all eight is not.
+  const frameWidthCqmin = aspect >= 1 ? 100 * aspect : 100;
+  const step = W * 0.75;
+  const fits = Math.max(3, Math.floor((frameWidthCqmin * 0.92 - W) / step) + 1);
+  const total = STAGE_ORDER.length;
+  const span = Math.min(total, fits);
+  // Keep the current cell inside the window, and the window inside the comb.
+  const from = Math.max(0, Math.min(total - span, i - Math.floor((span - 1) / 2)));
+  const shown = STAGE_ORDER.slice(from, from + span);
 
   const kindOf = (n: number): "done" | "current" | "blocked" | "pending" => {
     switch (variant) {
@@ -278,7 +298,7 @@ export function CombWalk({ variant, stage, t }: VProps) {
         if (n === prev) return walk > 0.5 ? "done" : "current";
         return n < i ? "done" : "pending";
       case "sweep": {
-        const front = walk * N;
+        const front = walk * STAGE_ORDER.length;
         return n < front ? (n === i ? "current" : "done") : "pending";
       }
       default:
@@ -287,62 +307,69 @@ export function CombWalk({ variant, stage, t }: VProps) {
   };
 
   const cellStyle = (n: number): React.CSSProperties => {
-    if (variant === "drop" && n === i) return { transform: `translateY(${(1 - walk) * -16}cqh)`, opacity: walk };
+    if (variant === "drop" && n === i) return { transform: `translateY(${(1 - walk) * -16}cqmin)`, opacity: walk };
     if (variant === "pulse" && n === i) {
       const active = t > 0.5 && t < 1.5 ? 1 : 0;
       return { transform: `scale(${1 + 0.08 * active * Math.max(0, Math.cos((t - 0.65) * Math.PI * 2.4))})` };
     }
-    if (variant === "focus" && n !== i) return { opacity: 0.3, filter: "blur(0.1cqw)" };
+    if (variant === "focus" && n !== i) return { opacity: 0.3, filter: "blur(0.1cqmin)" };
     return {};
   };
 
+  // `zoom` slides the row so the current cell ends centred.
+  const shift = variant === "zoom" ? -(i - from - (span - 1) / 2) * step * walk : 0;
+
   return (
-    <div className="gh" style={{ position: "absolute", inset: 0, opacity: life }}>
-      {STAGE_ORDER.map((s, n) => (
-        <div key={s} style={{ position: "absolute", inset: 0, ...cellStyle(n) }}>
-          <CombCell
-            stage={s}
-            num={String(n + 1).padStart(2, "0")}
-            kind={kindOf(n)}
-            box={{ left: left0 + n * stepX, top: topPct, w: W }}
-            showArt={variant === "unmask" && n === i && walk > 0.35}
-            chip={n === i ? "current" : undefined}
-          />
-        </div>
-      ))}
+    <div
+      className="gh"
+      style={{
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        opacity: life,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", transform: `translateX(${shift}cqmin)` }}>
+        {shown.map((s, k) => {
+          const n = from + k;
+          return (
+          <div
+            key={s}
+            style={{
+              marginLeft: k === 0 ? 0 : `${OVERLAP}cqmin`,
+              display: "flex",
+              ...cellStyle(n),
+            }}
+          >
+            <CombCell
+              stage={s}
+              num={String(n + 1).padStart(2, "0")}
+              kind={kindOf(n)}
+              w={W}
+              showArt={variant === "unmask" && n === i && walk > 0.35}
+              chip={n === i ? "current" : undefined}
+            />
+          </div>
+          );
+        })}
+      </div>
 
       {variant === "arrow" ? (
-        // ANCHORED TO THE COMB IN cqw ONLY. `.comb-num` is a watermark spanning
-        // the whole hex face, so anything inside the comb's vertical span
-        // overlaps a numeral - the arrow has to clear the cells entirely. And
-        // computing "below the cells" from a cqh number needs the frame aspect,
-        // which is the unit trap that put the comb 5% low in the first place.
-        // This wrapper is the cells' own box, in their own units.
         <div
           style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            top: "50cqh",
-            height: `${W * HEX_RATIO}cqw`,
-            transform: "translateY(-50%)",
+            marginTop: `${W * 0.18}cqmin`,
+            width: `${W * 0.5 * outExpo(seg(t, 0.25, 0.9))}cqmin`,
+            height: "0.2cqmin",
+            background: GOLD,
           }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              left: `${left0 + prev * stepX + W * 0.84}cqw`,
-              top: `${W * HEX_RATIO + 1.4}cqw`,
-              width: `${stepX * 0.45 * outExpo(seg(t, 0.25, 0.9))}cqw`,
-              height: "0.16cqw",
-              background: GOLD,
-            }}
-          />
-        </div>
+        />
       ) : null}
 
       {variant === "count" ? (
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: "10cqh", textAlign: "center" }}>
+        <div style={{ marginTop: `${W * 0.16}cqmin` }}>
           <Num size={5}>{String(Math.round(1 + walk * i)).padStart(2, "0")}</Num>
         </div>
       ) : null}
@@ -364,12 +391,12 @@ export function Hairline({ variant, t }: VProps) {
   const VALUE = "AP2112K-3.3";
 
   const label = (o = 1) => (
-    <div style={{ fontFamily: "var(--font-mono)", fontSize: "1.1cqw", letterSpacing: "0.24em", textTransform: "uppercase", color: GOLD, opacity: o }}>
+    <div style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.1), letterSpacing: "0.24em", textTransform: "uppercase", color: GOLD, opacity: o }}>
       {LABEL}
     </div>
   );
   const value = (o = 1) => (
-    <div style={{ fontFamily: "var(--font-display)", fontSize: "2cqw", color: TEXT, opacity: o, lineHeight: 1.1 }}>{VALUE}</div>
+    <div style={{ fontFamily: "var(--font-display)", fontSize: ts(2), color: TEXT, opacity: o, lineHeight: 1.1 }}>{VALUE}</div>
   );
   const base: React.CSSProperties = { position: "absolute", left: "6cqw", bottom: `${bottom}cqh`, opacity: life, width: "42cqw" };
 
