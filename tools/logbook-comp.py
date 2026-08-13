@@ -1211,6 +1211,100 @@ def comp_anchor(S):
     return finish(buf, bass, kicks, space=0.34, sub_gain=0.9)
 
 
+# ---- round five: variations on keel / mixolydian ----------------------------
+#
+# Owner picked keel in mixolydian and asked for variations, so the base is held
+# and ONE property of the figure moves at a time. Everything outside the figure
+# - percussion, bass, pedal, plating, mode, register of the harmony - is
+# untouched, which is what makes these comparable to each other and to the base.
+#
+# WHAT IS ACTUALLY VARIABLE IN AN IDLING MACHINE. The composition's argument is
+# that something was already running before the film started. That leaves four
+# real dials and one false one. The real ones: how finely it subdivides, what
+# shape the figure traces, what register it runs in, and what its timbre does
+# over ten seconds. The false one is loudness - a machine that gets louder is
+# not idling any more, it is performing, which is a different composition and
+# already exists as fanfare.
+
+
+def keel_figure(buf, bar_i, spec, gain=1.0):
+    """One bar of the figure, under a spec. See KEEL_VARS."""
+    if bar_i in spec.get("skip", ()):
+        return
+    ch = seq_bars()[bar_i]
+    div = spec.get("div", 8)
+    step = BAR / div
+    per_beat = max(1, div // 4)
+    dur = min(0.34, step * 1.35)
+    for s in range(div):
+        t = bar_i * BAR + s * step + spec.get("shift", 0.0)
+        if t >= SECONDS:
+            break
+        # CONTOUR IS AN INDEX FUNCTION, not a second note list, so every shape
+        # runs over whatever harmony the bar already has and a mode change still
+        # reaches all of them.
+        c = spec.get("contour", "cycle")
+        n = len(ch)
+        if c == "fall":
+            idx = (n - 1) - (s % n)
+        elif c == "pendulum":
+            span = max(1, 2 * n - 2)
+            k = s % span
+            idx = k if k < n else span - k
+        else:
+            idx = s % n
+        oct_up = spec.get("oct", 12)
+        # A leap every fourth note, for the variation that wants range rather
+        # than a run.
+        if spec.get("leap") and s % 4 == 3:
+            oct_up += 12
+        # RISE walks up an octave across the bar instead of cycling in place.
+        if c == "rise" and div >= 8:
+            oct_up += 12 * (s // (div // 2))
+        g = (0.34 if s == 0 else 0.2 if s % per_beat == 0 else 0.13) * gain
+        # A filter that OPENS across the clip is escalation without volume -
+        # the one way an idle can build and still be an idle.
+        c0, c1 = spec.get("filter", (1100.0, 1100.0))
+        cut = c0 + (c1 - c0) * (t / SECONDS)
+        place(buf, warm(voice(dur, midi(low(ch[idx]) + oct_up), gain=g,
+                              wave=spec.get("wave", "dark"), n=4, cents=6.0,
+                              atk=0.006, dec=min(0.2, dur * 0.6), sus=0.15,
+                              rel=0.09), cut), t)
+
+
+def comp_keel_var(spec):
+    """keel, with one property of the figure changed."""
+    def run(S):
+        n = int(round(SECONDS * SR))
+        buf = [0.0] * n
+        kicks = scaffold(buf, S, click_gain=0.34)
+        for bar_i in range(5):
+            keel_figure(buf, bar_i, spec, gain=0.85 + 0.3 * WEIGHT.get(bar_i, 0.4))
+        for i, at in enumerate(LANDINGS):
+            _serious_perc(buf, S, i, at, WEIGHT[i + 1], kicks)
+        place(buf, pedal(1.9, low(0) + 12, gain=0.24), PLATE)
+        place(buf, _LB.tail(S["sweep"], 0.9), PLATE, 0.3)
+        bass = bass_plan(n, [(b * BAR, low(seq_bars()[b][0]), BAR * 0.9, 0.9)
+                             for b in range(5)])
+        return finish(buf, bass, kicks, space=0.22, sub_gain=0.8)
+    return run
+
+
+KEEL_VARS = {
+    "k-16th": (dict(div=16), "SIXTEENTHS. Twice the rate of the base - the machine running hot. The risk it takes is that busy is the opposite of the brief, and this is where you find out how much of keel's gravity was the SPACING rather than the register."),
+    "k-quarter": (dict(div=4), "QUARTERS. Half the rate: the gravest possible idle, one note a beat and nothing between. If keel was still too busy, this is the answer."),
+    "k-triplet": (dict(div=12), "TRIPLETS. Twelve to the bar instead of eight, so the figure rolls rather than marches. The one variation that changes the FEEL of the pulse rather than its density."),
+    "k-sync": (dict(div=8, shift=BEAT * 0.25), "SYNCOPATED. The same eighths displaced a sixteenth late, so the figure pushes against the landings instead of agreeing with them. The landings stay exactly where they are - only the machine is off the grid."),
+    "k-rise": (dict(div=8, contour="rise"), "ASCENDING. The figure climbs an octave across each bar instead of cycling in place. The film is about a ladder; this is the only keel that goes anywhere."),
+    "k-fall": (dict(div=8, contour="fall"), "DESCENDING. The mirror, and worth hearing because falling reads as settling rather than as climbing - which may suit a bed whose job is to sit under a picture that does the climbing."),
+    "k-pendulum": (dict(div=8, contour="pendulum"), "UP AND BACK. Neither climbing nor settling - the figure turns around at the top, which is what an instrument actually doing something looks like rather than one going somewhere."),
+    "k-wide": (dict(div=8, leap=True), "LEAPS. Every fourth note jumps an octave, so the figure has range instead of being a run. More obviously a MELODY, less obviously a mechanism."),
+    "k-deep": (dict(div=8, oct=0), "AN OCTAVE DOWN. The figure in the bass's own register rather than above it. The limit of 'more weight' for this composition - at some point the figure stops being a figure and becomes the low end."),
+    "k-open": (dict(div=8, filter=(500.0, 2600.0)), "THE FILTER OPENS. Same notes, same gains: the lowpass travels from 500 Hz to 2.6 kHz across the ten seconds, so the piece escalates by BRIGHTNESS and never by volume. The only variation whose build survives the weight curve untouched."),
+    "k-bell": (dict(div=8, wave="bell"), "STRUCK, NOT BOWED. The same figure on the bell timbre - inharmonic partials, faster decay. Turns the idle into something being counted out rather than something running."),
+}
+
+
 def in_mode(fn, mode_name):
     """The same composition, in another mode. ONE variable.
 
@@ -1284,6 +1378,12 @@ COMPS = {
     "anchor-mixo": (in_mode(comp_anchor, "mixolydian"), "ANCHOR in mixolydian. The limit case, lit: one pedal and three fragments, no longer a dirge."),
     "brief-dor": (in_mode(comp_brief, "dorian"), "BRIEF in dorian. The stinger candidate at the halfway house - the version most likely to survive being the thing you hear every time."),
 }
+
+# Round five: eleven variations on keel / mixolydian, one property each. Built
+# from the table rather than written out, so a twelfth is a line and the base
+# cannot drift away from its variations.
+for _name, (_spec, _desc) in KEEL_VARS.items():
+    COMPS[_name] = (in_mode(comp_keel_var(_spec), "mixolydian"), _desc)
 
 
 def curve_of(s):

@@ -302,6 +302,75 @@ const KITS: BedKit[] = [
     title: "Anchor / mixo",
     note: "The limit case, lit: one pedal and three fragments, no longer a dirge. WORTH KNOWING: anchor originally used only root, fifth and octave - intervals that are identical in every diatonic mode - so its first mixolydian render came back byte-identical to the aeolian one. Its fragments now include the THIRD, which is the note that carries mode at all.",
   },
+
+  // ROUND FIVE: variations on keel / mixolydian. The base is held and ONE
+  // property of the figure moves at a time - percussion, bass, pedal, plating,
+  // mode and harmonic register are untouched in all eleven.
+  //
+  // Keel's argument is that something was already running before the film
+  // started, which leaves four real dials and one false one. Real: how finely
+  // it subdivides, what shape the figure traces, what register it runs in, and
+  // what its timbre does across ten seconds. False: loudness - a machine that
+  // gets louder is not idling, it is performing, and that composition already
+  // exists as fanfare.
+  {
+    id: "comp-k-quarter",
+    title: "Keel / quarters",
+    group: "variations on KEEL / MIXO · rate (base = Keel / mixo, above)",
+    note: "HALF THE RATE. One note a beat and nothing between - the gravest possible idle. If keel still felt busy this is the answer, and it is the variation that most trusts the picture to carry the ten seconds.",
+  },
+  {
+    id: "comp-k-triplet",
+    title: "Keel / triplets",
+    note: "TWELVE TO THE BAR instead of eight, so the figure rolls rather than marches. The only variation that changes the FEEL of the pulse rather than its density - everything else here is more or less of the same motion.",
+  },
+  {
+    id: "comp-k-16th",
+    title: "Keel / sixteenths",
+    note: "TWICE THE RATE - the machine running hot. It takes a real risk, since busy is the opposite of the brief, and it is where you find out how much of keel's gravity was the SPACING rather than the register.",
+  },
+  {
+    id: "comp-k-sync",
+    title: "Keel / syncopated",
+    group: "variations on KEEL / MIXO · placement and contour",
+    note: "The same eighths displaced a sixteenth late, so the figure PUSHES against the landings instead of agreeing with them. The landings do not move - only the machine comes off the grid, which is the difference between a bed that follows the cut and one with its own opinion.",
+  },
+  {
+    id: "comp-k-rise",
+    title: "Keel / ascending",
+    note: "The figure climbs an octave across each bar instead of cycling in place. The film is about a rank ladder, and this is the only keel that actually goes anywhere - ladder's argument, made inside a machine instead of on top of one.",
+  },
+  {
+    id: "comp-k-fall",
+    title: "Keel / descending",
+    note: "The mirror. Worth hearing because falling reads as SETTLING rather than as climbing, which may be the better job for a bed sitting under a picture that already does the climbing.",
+  },
+  {
+    id: "comp-k-pendulum",
+    title: "Keel / pendulum",
+    note: "Up and back. Neither climbing nor settling - the figure turns around at the top, which is what an instrument doing something looks like as against one going somewhere.",
+  },
+  {
+    id: "comp-k-wide",
+    title: "Keel / leaps",
+    note: "Every fourth note jumps an octave, so the figure has RANGE instead of being a run. More obviously a melody, less obviously a mechanism - the point on the dial where keel stops being keel.",
+  },
+  {
+    id: "comp-k-deep",
+    title: "Keel / deep",
+    group: "variations on KEEL / MIXO · register and timbre",
+    note: "An octave down, into the bass's own register rather than above it. The limit of 'more weight' for this composition: at some point the figure stops being a figure and becomes the low end, and this is where you hear whether it has crossed that line.",
+  },
+  {
+    id: "comp-k-open",
+    title: "Keel / filter opens",
+    note: "SAME NOTES, SAME GAINS. The lowpass travels 500 Hz to 2.6 kHz across the ten seconds, so the piece escalates by BRIGHTNESS and never by volume - the only variation whose build leaves the weight curve completely untouched. Escalate-by-colour-not-volume, which is what the curve's dip already encodes, applied to timbre.",
+  },
+  {
+    id: "comp-k-bell",
+    title: "Keel / struck",
+    note: "The same figure on the bell timbre: inharmonic partials, faster decay. Turns the idle into something being COUNTED OUT rather than something running - closer to an instrument reading back than to an engine.",
+  },
 ];
 
 export default function BedCutPage() {
