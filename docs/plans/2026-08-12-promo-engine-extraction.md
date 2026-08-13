@@ -181,10 +181,30 @@ this plan exists to prevent, and the target shape above does not mention it.
   it is a cut-sheet sibling and belongs under `subjects/`.
 - `frame/` — the capture surface: one stage, full viewport, `window.__seek`,
   no chrome. The renderer's half of the `[data-settled]` contract.
-- `tools/logbook-render.mjs` — capture + encode + the gates. `core/` has no
-  renderer today; `otd-promo`'s own `render-cut.mjs` lives on
-  `feat/platform-safe-areas`, so **check that branch before building a second
-  one** — the names suggest it may already solve the safe-area half.
+- `tools/logbook-render.mjs` — capture + encode + the gates.
+
+### CHECKED THE TARGET REPO, 2026-08-12 — two corrections to this plan
+
+**`feat/platform-safe-areas` does not exist.** The branches are `main`,
+`feat/motion-kit`, `feat/cut-sheet-and-motion-kit` and `feat/score-engine`.
+Whatever this plan meant by that name, do not wait for it.
+
+**The motion extraction is ALREADY DONE, on `feat/motion-kit`** — it carries
+`core/motion/{moves,motions,camera,fit,compose}.mjs` and
+`core/harness/{clock,pin}.mjs`, i.e. the target shape above. So the task is no
+longer "extract"; it is **reconcile**. That branch was cut before the format
+round, and its `fit.mjs` exports `fitScale(reg, id, frameW, frameH)` with no
+`adapt`, no `compact`, no `fillFor` and no `INTRINSIC_COMPACT`. Its own comment
+says a fit written "from memory is how a part ends up cropped on one aspect and
+swimming on another" — the problem is named there and not yet solved.
+
+**And `core/audio/master.py` on `main` has the bug we just fixed here.** It has
+`achievable_target()`, so it solves the true-peak condition by construction —
+and its `plan()` then INFERS the mode from that arithmetic and returns a string.
+It never reads `normalization_type` back from ffmpeg, so it cannot see the
+SECOND condition (`measured_lra <= target_lra`). Our beds measure LRA 8.4–8.8
+against a ceiling of 9.0. The canonical engine is one bed away from a silent
+squash it would report as `"linear"`.
 
 ### The trap this round paid for, which the acceptance test would NOT have caught
 
