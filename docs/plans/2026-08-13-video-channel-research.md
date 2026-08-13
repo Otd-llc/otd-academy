@@ -79,6 +79,37 @@ misread from - nobody recovers `C11` read as `CII` the way they recover a
 misread `the`. **Designators, values and warnings go in Saira Condensed with
 `font-feature-settings: "zero" 1, "tnum" 1`. Bebas is for words, not parts.**
 
+> **CORRECTION, 2026-08-13, from measuring the fonts we actually SERVE** (the
+> swap is built; commit `06240264`). The table above is right about the files
+> and wrong about the delivery, and the real argument is stronger than the one
+> stated.
+>
+> - **The advance/cap numbers reproduce exactly** against the CDN-served fonts:
+>   Bebas 0.600, Saira 0.752, Arial 1.010. Nothing to change.
+> - **The decisive fact is not the slashed zero. In Bebas, `0` and `O` are the
+>   SAME DRAWING** - identical ink and identical advance at delivery size
+>   (15.36/15.36) and at 300px (120.00/120.00), control pair differing at both.
+>   A Bebas `C0` and a Bebas `CO` are one picture; no size, weight, contrast or
+>   hold duration separates them. This needs no font feature, which is why the
+>   swap stands on its own.
+> - **`zero` is STRIPPED IN DELIVERY and does nothing today.** The upstream
+>   `SairaCondensed-ExtraBold.ttf` carries it in GSUB (`aalt case ccmp dnom frac
+>   liga locl ordn salt sups titl zero`), but the Google Fonts css2 API that
+>   `globals.css` imports serves a woff2 without it: `0` is pixel-identical with
+>   the feature on and off via the CDN, and DIFFERS when the upstream file is
+>   injected directly. **Self-hosting that one file is what makes it work** -
+>   an open owner decision, since `--font-numeral` is a product-wide token.
+>   Saira's plain `0` is only ~6% narrower than its `O`, so the slashed glyph is
+>   the difference between "distinguishable" and "unmistakable".
+> - **`tnum` is not in the family at all**, and Saira's digits are PROPORTIONAL
+>   (nine distinct advances; `1` is 53% narrower than `8`). Bebas's are
+>   perfectly uniform. So `tabular-nums` on `--font-numeral` is a no-op
+>   everywhere it appears, product included, and **a numeral that CHANGES in
+>   Saira will reflow as it changes** - tolerable only because counting numerals
+>   are already banned.
+> - **Space Mono is already designator-safe** (`0`/`O`, `1`/`I`, `1`/`l` all
+>   differ, both weights), so mono labels needed no change.
+
 ### 1.5 Light-mode gold fails AA, and its own comment says otherwise
 
 **Re-verified locally, not taken on trust.** `globals.css:206` reads
@@ -413,6 +444,8 @@ Recorded because they are what we would otherwise have built on.
 | "LRA is a useful spec for stings" | **False, and EBU says so.** Use max short-term |
 | "Cut on the blink" (Murch) | **Craft.** Influential, unfalsified, unsupported |
 | Template-video reach statistics (18% penalty, 42% engagement gap, etc.) | **Likely fabricated.** Appeared only on AI-written SEO pages citing nothing |
+| "Saira Condensed gives us a slashed zero" (this report, 1.4) | **True of the FILE, false of what we SERVE.** Google Fonts strips `zero` from the woff2; measured on/off pixel-identical via CDN, differs with the upstream TTF |
+| "Set `tnum` on our numerals" (this report, 1.4) | **The feature does not exist in the family**, and Saira's digits are proportional. Every `tabular-nums` on `--font-numeral` is a no-op |
 
 ---
 
@@ -422,7 +455,11 @@ In rough order of leverage:
 
 1. **Re-base every size constant on `min(w, h)`.** This is a correctness fix, not
    a preference, and it probably retires the per-format type fudge factors.
-2. **Designators and values move to Saira Condensed with `zero` on.**
+2. ~~**Designators and values move to Saira Condensed with `zero` on.**~~ **DONE**
+   (`06240264`), with the correction in 1.4: the swap is justified by `0` and
+   `O` being one drawing in Bebas, not by the slashed zero, which the CDN
+   strips. **Leaves one owner decision: self-host
+   `SairaCondensed-ExtraBold.ttf` to make `zero` live?**
 3. **Stop animating the comb.** Static, current cell lit, changes on cut.
 4. **Drop `blur`, `swipe off`, `count`; reconsider `settle`.** Add the Carbon
    productive curves as the default pair.

@@ -23,16 +23,34 @@ Read in this order:
   type-size ratio between 16:9 and 9:16 is 1.000 across 15 sampled cases, down
   from a measured 0.563. The comb was rebuilt as a centred flex row and windows
   itself when eight cells will not fit (8 at 16:9, 6 at 9:16, same 194 px cell).
+- **Action 2, designators out of Bebas** - landed in `06240264`. Values are
+  classified by KIND (`part` -> Saira via the new `Desig`, `words` -> Bebas)
+  rather than by slot, and the classification is declared in the DOM as
+  `data-kind` so a check can assert on intent. Verified with a CDP
+  `getPlatformFontsForNode` pass over all 42 fragments in both themes at
+  1920x1080 - the font PAINTED, not the CSS family - and mutation tested twice.
+  **Read the correction in the research doc's 1.4 before touching type again:**
+  the swap is justified by `0` and `O` being literally the same drawing in
+  Bebas; the slashed zero the report recommended is stripped by the Google
+  Fonts CDN and does nothing, and `tnum` does not exist in the family, so every
+  `tabular-nums` on `--font-numeral` is a no-op.
 - The measurement rigs live in the session scratchpad, not the repo:
-  `unit-check.mjs` (size parity across aspects) and `pixdiff.mjs` (how much the
-  16:9 render actually moved). **Worth porting into the repo** if the mixer is
-  going to keep changing sizes.
+  `unit-check.mjs` (size parity across aspects), `pixdiff.mjs` (how much the
+  16:9 render actually moved), and from this round `font-metrics.mjs`,
+  `zero-decisive.mjs`, `bebas-oh-zero.mjs` and `face-check.mjs` (the CDP
+  painted-font assertion + its mutation flag). **Worth porting into the repo** -
+  `face-check.mjs` in particular, because it is now the only thing standing
+  between the type system and a silent regression.
+
+**Open decision for the owner (blocks nothing):** self-host
+`SairaCondensed-ExtraBold.ttf` so `font-feature-settings: "zero" 1` starts
+working? Saira's plain `0` is only ~6% narrower than its `O`; the slashed glyph
+is the difference between distinguishable and unmistakable on a part number.
+The cost is that `--font-numeral` is a product-wide token, so this is a change
+to how the whole academy loads a face, not a sandbox change.
 
 **Next, in order of leverage** (from the research action list):
 
-- **Bebas -&gt; Saira for designators.** Highest value of what remains. `C11`
-  misread as `CII` has no lexical context to recover from, and Bebas has no
-  slashed zero and a 0.600 advance/cap ratio. Currently `--font-display`.
 - **Drop the ban-list effects:** `blur`, `swipe off`, `combwalk/count`; decide
   on `settle` (it scales, which the identity rejects).
 - **Add the persistent `NN / NN` chapter indicator** - signalling and segmenting
