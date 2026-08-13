@@ -476,6 +476,7 @@ export function LogbookLive({
   tuning = DEFAULT_TUNING,
   fixedT,
   w = 880,
+  aspect = 16 / 9,
 }: {
   arrangement: Arrangement;
   lesson: FilmLesson;
@@ -488,9 +489,22 @@ export function LogbookLive({
   /** Freeze the clock. Without it a capture lands wherever wall time was. */
   fixedT?: number;
   w?: number;
+  /**
+   * Frame shape, width over height. 16/9 by default, so nothing that existed
+   * before this prop changes.
+   *
+   * ADDED FOR THE FORM-FACTOR CHECK, and it has to be a real re-frame rather
+   * than a crop. Every subject here is sized by `fitScale(id, w, h)` and the
+   * type layer places words in CORNERS off the same w and h - so center-cropping
+   * a 16:9 render to 9:16 would not deliver a vertical cut of this film, it
+   * would deliver a vertical cut with the words missing. Passing the real aspect
+   * lets the fit and the corners resolve against the frame the platform will
+   * actually show.
+   */
+  aspect?: number;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
-  const h = Math.round((w * 9) / 16);
+  const h = Math.round(w / aspect);
   const frozen = fixedT !== undefined;
   const t = useSceneClock(SECONDS, fixedT, hostRef);
 
@@ -652,7 +666,7 @@ export function LogbookLive({
       style={{
         position: "relative",
         width: "100%",
-        aspectRatio: "16 / 9",
+        aspectRatio: String(aspect),
         background: "var(--color-deep-space, #08090d)",
         overflow: "hidden",
         transform: "translateZ(0)",
