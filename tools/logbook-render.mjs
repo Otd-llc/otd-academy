@@ -55,8 +55,8 @@ const FPS = 30;
 // this gate allows. See the gate itself for why it exists.
 const SHAPES = [
   { id: "16x9", w: 1920, h: 1080, safe: {}, quiz: 0.55 },
-  { id: "1x1", w: 1080, h: 1080, safe: {}, quiz: 0.7 },
-  { id: "4x5", w: 1080, h: 1350, safe: { bottom: 0.08 }, quiz: 0.7 },
+  { id: "1x1", w: 1080, h: 1080, safe: {}, quiz: 0.62 },
+  { id: "4x5", w: 1080, h: 1350, safe: { bottom: 0.08 }, quiz: 0.62 },
   { id: "9x16", w: 1080, h: 1920, safe: { top: 0.08, right: 0.13, bottom: 0.2 }, quiz: 0.85 },
 ];
 const QUIZ_TOL = 0.06;

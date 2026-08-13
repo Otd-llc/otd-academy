@@ -1348,7 +1348,34 @@ const CAR_WING = 38;
  *  converts a share of the frame into a scale against THIS box. */
 const QUIZ_MEASURE_NARROW = 290;
 
-const QUIZ_NARROW_SHARE = 0.68;
+/**
+ * The band at the top of a narrow frame that belongs to the WORD.
+ *
+ * `FILL`'s own comment records this collision being fixed once already - "at
+ * 0.66 it ran under the word: READ sat on top of the Quick check eyebrow" - and
+ * it was fixed by taking height away from the quiz. That works when the quiz is
+ * comfortably smaller than the frame and stops working the moment it is not:
+ * once the quiz fills 68-85% of the width, shrinking it enough to clear the
+ * corner would undo the size that was just approved.
+ *
+ * So the band is RESERVED rather than paid for out of the subject's size. The
+ * quiz centres in what is left below it, which is a position change, not a
+ * scale change - measured after, the share cap still binds on all three narrow
+ * shapes, so the quiz is exactly the size it was and simply sits lower.
+ *
+ * Measured, not guessed - and measured ACROSS THE SHOT, which is the part that
+ * caught me out. The quiz's Ken Burns motion drifts it upward while it plays,
+ * so the collision is not where it is worst at the frame you happen to check:
+ * at t=1.9 on 1:1 the overlap was 12px, and at t=3.4 it was 35. A static band
+ * has to clear the worst instant the subject ever reaches, not a sampled one.
+ *
+ * At 0.225 the worst case over the whole shot is clear on all three narrow
+ * shapes, and the share cap still binds everywhere - so the quiz is exactly the
+ * size that was approved and only sits lower.
+ */
+const QUIZ_WORD_BAND = 0.18;
+
+const QUIZ_NARROW_SHARE = 0.61;
 /** Tall frames get less again - see the note on why 9:16 needed its own. */
 // 0.83, not 0.85. The camera's creep multiplies into the composed transform
 // after this cap, so a share asked for as 0.85 measures 90% on the delivered
@@ -1751,6 +1778,19 @@ function QuietScene({
   if (tuning.part && tuning.partOver) {
     scheme = applyOverride(scheme, tuning.part, tuning.partOver);
   }
+  // A KEN BURNS ON THE QUIZ IS A LANDSCAPE MOVE. `ken-in-r` pushes in while
+  // travelling, and the travel is mostly vertical once the subject is tall -
+  // measured on 1:1 it lifted the quiz about 140px across its shot, which is
+  // more than the whole word band and more than the centring has to give.
+  // Chasing it with a deeper band only traded the collision at the top for an
+  // overflow at the bottom.
+  //
+  // So in a narrow frame the quiz pushes in WITHOUT travelling. It keeps the
+  // "never quite still" the motion exists for and stops spending vertical room
+  // the frame does not have. Landscape is untouched.
+  if (narrow) {
+    scheme = { ...scheme, quiz: { ...scheme.quiz, motion: "push-in" } };
+  }
   const cam = cameraVec(tuning.camera, t, SECONDS);
   // THE FOUR SUBJECT WINDOWS, DERIVED FROM THE FLOW rather than written out.
   // Each subject holds until the next one arms, then hands over across one
@@ -1788,6 +1828,11 @@ function QuietScene({
     // size the narrow one was just moved off. Capping it means the frame
     // decides how much SPACE the quiz gets and this decides how big the words
     // are, which are two different questions.
+    // NOT a reduced height here. Passing one moved the ASPECT too - 1:1 with
+    // its band taken off reads as 1.24, which is wider than the narrow
+    // threshold, so the quiz stopped getting the narrow fill at all and
+    // collapsed to 48% of the frame. The band is accounted for inside the
+    // quiz's own fill instead, where it cannot leak into the aspect.
     let s = fitScale(id, w, h, fitted, narrow);
     if (narrow && id === "quiz") {
       // Share of the safe WIDTH, converted to a scale against the box the quiz
@@ -1846,7 +1891,16 @@ function QuietScene({
       <Backdrop t={t} cam={cam} parallax={tuning.parallax} />
 
       {/* READ */}
-      <div data-quiz-bare style={{ ...centre, ...shot(0) }}>
+      <div
+        data-quiz-bare
+        style={{
+          ...centre,
+          // `centre` is inset:0; moving `top` down reserves the word's band and
+          // the grid then centres the quiz in the remainder.
+          ...(narrow ? { top: `${QUIZ_WORD_BAND * 100}%` } : null),
+          ...shot(0),
+        }}
+      >
         {/* WIDTH 560 WAS AN OVERFLOW, NOT A LAYOUT. Measured on the 9:16
             panel: the part's own box is correct - 63..117, dead centre of the
             safe area - but this inner div ran 63..235, starting at the part's

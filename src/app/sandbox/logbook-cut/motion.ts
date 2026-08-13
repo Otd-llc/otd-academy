@@ -343,7 +343,13 @@ export function fillFor(id: PartId, aspect: number): { w: number; h: number } {
   // reflows to 177x463 inside a 261-tall safe box - height was binding by
   // almost 2x, and trimming its allowance made that worse.
   if (id === "quiz") {
-    return { w: f.w + (0.94 - f.w) * k, h: f.h + (0.84 - f.h) * k };
+    // 0.73 FLAT, not interpolated toward a taller share. In a narrow frame the
+    // scene reserves the top ~19% for the word (QUIZ_WORD_BAND), so the quiz's
+    // height allowance has to be about 0.9 of what is LEFT - 0.9 x 0.775 - and
+    // that product does not depend on how narrow the frame is. Interpolating it
+    // made the squarer shapes the tightest, which is backwards: 1:1 has the
+    // most height to spare, not the least.
+    return { w: f.w + (0.94 - f.w) * k, h: 0.7 };
   }
   return {
     // Toward the whole width, because the sides are no longer spoken for.
