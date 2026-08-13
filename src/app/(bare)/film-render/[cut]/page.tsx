@@ -35,13 +35,35 @@ import { FrameStage } from "./FrameStage";
 /** The cuts this surface can render. One today; the list is the point. */
 const CUTS = ["logbook"] as const;
 
-export default function FilmRenderPage({
+export default async function FilmRenderPage({
   params,
   searchParams,
 }: {
   params: Promise<{ cut: string }>;
   searchParams: Promise<{ fmt?: string }>;
 }) {
+  // `connection()` here is about DETERMINISM, not about the gate. Both halves of
+  // that sentence were measured, because the first version of this comment
+  // claimed it was load-bearing for the gate and that was simply false.
+  //
+  // What it does NOT do:
+  //   - It does not produce the 404. Under PPR the response status belongs to
+  //     the prerendered shell, which is committed before anything here resolves.
+  //     The refusal happens in `src/proxy.ts` (@/lib/dev-only-routes).
+  //   - It is not what makes FILM_EXPORT work. Built both ways against a local
+  //     production build with the flag set at RUNTIME only: the film renders
+  //     either way.
+  //
+  // What it does, measured once each way on 2026-08-13: without it, loading this
+  // route in a real browser throws React #419 - "the server could not finish this
+  // Suspense boundary" - and React silently falls back to CLIENT rendering. The
+  // page still appears, which is why this would never show up as a failure. But
+  // this surface exists to be photographed a frame at a time by
+  // `otd-promo/subjects/academy/capture-logbook.mjs`, and a silent switch to a
+  // different rendering path is exactly the kind of nondeterminism that pipeline
+  // spent a whole round chasing. With the await, no page errors.
+  await connection();
+
   // FILM_EXPORT rather than a bare dev check, so a production build can be
   // captured deliberately without the route being reachable by accident.
   if (process.env.NODE_ENV === "production" && !process.env.FILM_EXPORT) {

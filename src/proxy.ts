@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { legacySlugRedirect } from "@/lib/legacy-slug-redirect";
 import { resolveRouteGate } from "@/lib/route-gate";
+import { isDevOnlyBlocked } from "@/lib/dev-only-routes";
 
 // Auth.js v5's bare `auth` export only attaches `req.auth` to the request — it
 // does not redirect unauthenticated users on its own. Wrap it so unauth requests
@@ -27,6 +28,20 @@ import { resolveRouteGate } from "@/lib/route-gate";
 // /sign-in for signed-out visitors and silently fail to load.
 export default auth((req) => {
   const { pathname } = req.nextUrl;
+
+  // Dev-only surfaces (/sandbox, /diagram-render, /film-render) are refused here
+  // and NOT in the page, because a page cannot do it. Under cacheComponents the
+  // response status belongs to the prerendered shell, which is committed before
+  // the page's `notFound()` has answered — so those routes served the 404 body
+  // with status 200 in production until this line existed. Middleware is the
+  // last point where a real 404 is still possible. Pure + unit-tested:
+  // @/lib/dev-only-routes, which carries the measurements.
+  //
+  // First, ahead of the legacy redirect and the auth gate: a dev-only route
+  // should not be redirected somewhere on its way to being refused.
+  if (isDevOnlyBlocked(pathname)) {
+    return new NextResponse(null, { status: 404 });
+  }
 
   // Legacy `foundry-` slug URLs (pre-rename) 308 → their prefix-free form so
   // indexed/bookmarked project links keep resolving. Runs BEFORE the auth gate so
