@@ -314,12 +314,20 @@ export const INTRINSIC_COMPACT: Partial<Record<PartId, { w: number; h: number }>
   // because prose set to a narrower measure runs longer. Fitting reflowed text
   // against its wide-frame height is how you get a column that overflows the
   // bottom instead of the right.
-  // 236 x 350: the measured reflow, chosen so the box's own proportion is close
-  // to a portrait safe area. Prose area is roughly conserved when you change
-  // the measure - 177x463 and 236x350 are within a few percent of the same
-  // area - so picking the width whose reflowed shape MATCHES the frame is what
-  // lets the fit use both dimensions instead of being throttled by one.
-  quiz: { w: 236, h: 350 },
+  // 290 x 281, measured. The table this came from, for the 9:16 safe box of
+  // 177 x 261 - measure, reflowed box, resulting type size, and how the longest
+  // option wraps:
+  //
+  //     236   236x320   69% of base   option wraps to THREE lines
+  //     260   260x281   64%           two
+  //     290   290x281   58%           two
+  //     320   320x273   52%           two
+  //
+  // 236 was cramped for one specific reason: the longest option needed three
+  // lines. It drops to two at 260 and stays there. Past 260 the rendered box
+  // always fills 94% of the width and the only thing that changes is the type
+  // size, so the measure is really a type-size dial once the wrapping is fixed.
+  quiz: { w: 290, h: 281 },
 };
 
 export function fillFor(id: PartId, aspect: number): { w: number; h: number } {

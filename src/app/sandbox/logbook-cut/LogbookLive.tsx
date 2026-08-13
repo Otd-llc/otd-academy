@@ -1327,6 +1327,12 @@ const CAR_WING = 38;
 // what it is asked to and lets the excess SPILL, out of the title box, out of
 // the row, and past the width `INTRINSIC.ladder` promises. On 16:9 it fell in
 // the slack; on 9:16 the measured ink reached 216px on a 204px frame.
+// The quiz's type size in any frame narrower than 6:5, as a fraction of its
+// base. The one taste number in the fitting path: everything else here is
+// measured or derived, and this is "how big should the words be", which is a
+// looking question. 0.58 is where 9:16 landed once its wrapping was fixed.
+const QUIZ_NARROW_TYPE = 0.58;
+
 const CAR_TEXT = 330;
 
 /** The ladder as a WHEEL rather than a list: it spins up from FL1, overshoots,
@@ -1752,7 +1758,16 @@ function QuietScene({
     // A nested scale multiplies in the wrong order against the entrance and the
     // camera, so the entrance ends up scaled by the fit and a `grow` reads at a
     // different depth on a half-width stage than on a full one.
-    const sized = { ...scheme[id], size: scheme[id].size * fitScale(id, w, h, fitted, narrow) };
+    // ONE TYPE SIZE ACROSS THE SHAPES, not one per frame. Left to the fit, the
+    // quiz renders at 58% of base on 9:16 and 77% on 1:1 - the same words at
+    // noticeably different sizes depending on which crop you happen to be
+    // looking at, and the wider frames land on exactly the "huge on mobile"
+    // size the narrow one was just moved off. Capping it means the frame
+    // decides how much SPACE the quiz gets and this decides how big the words
+    // are, which are two different questions.
+    let s = fitScale(id, w, h, fitted, narrow);
+    if (narrow && id === "quiz") s = Math.min(s, QUIZ_NARROW_TYPE);
+    const sized = { ...scheme[id], size: scheme[id].size * s };
     const [from, to] = tuning.solo ? SOLO_WINDOW : ([starts[i], ends[i]] as const);
     if (tuning.solo && tuning.solo !== id) return { opacity: 0, pointerEvents: "none" };
     return partStyle(sized, t, from, to, f.inDur, f.outDur, cam, tuning.parallax).style;
@@ -1812,14 +1827,20 @@ function QuietScene({
             spills, and every pixel it spills goes one direction: right. That
             is the whole of "the quiz is too far right".
 
-            `maxWidth: 100%` is the fix, and it is the one that makes the prose
-            REFLOW to the frame instead of being scaled down inside it - which
-            is what a narrow frame needed anyway. The narrower base width in a
-            narrow frame is paired with INTRINSIC_COMPACT.quiz so the fit sizes
-            against the box that actually exists; without that pairing the
-            reflow just makes it smaller, which was the previous mistake one
-            layer up. */}
-        <div ref={quizRef} style={{ width: narrow ? 236 : 560, maxWidth: "100%" }}>
+            The real fix turned out to be one line up, on the TRACK - see the
+            note on `centre`. `maxWidth: 100%` was tried here first and had to
+            come back out: clamping the box to the container means the measure
+            can never exceed the frame, so the type can never be smaller than
+            1:1 with it, and a 9:16 frame was stuck reflowing to 177 and running
+            463px tall. The measure is a TYPE-SIZE dial and clamping it takes
+            the dial away.
+
+            So the box is allowed to be wider than its area and the scale brings
+            it back - paired with INTRINSIC_COMPACT.quiz so the fit sizes
+            against the box that actually exists. The bounded track keeps it
+            centred while it overflows, and the safe-area clip is the backstop
+            if any of that is ever wrong again. */}
+        <div ref={quizRef} style={{ width: narrow ? 290 : 560 }}>
           {question ? <QuizBlock prompt="Quick check" questions={[question]} /> : null}
         </div>
       </div>
