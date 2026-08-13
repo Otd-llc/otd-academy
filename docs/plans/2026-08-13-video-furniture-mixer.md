@@ -1,11 +1,44 @@
 # The video furniture mixer, and the pipeline it feeds
 
-**Status:** plan. Written 2026-08-13 at the end of a long session, deliberately,
-so the next one starts from an artifact rather than from someone's memory of a
-conversation.
+**Status:** plan. Written 2026-08-13 so the next session starts from an artifact
+rather than from someone's memory of a conversation.
 
-**Branch:** `promo/video-furniture`. Rounds 1 and 2 are committed there
-(`caa72f67`, `a69ca135`, `5582f384`).
+**Branch:** `promo/video-furniture`, 7 commits off `main`, pushed, no PR.
+
+## START HERE
+
+Read in this order:
+
+1. **`2026-08-13-video-channel-research.md`** - what is true, graded. Its
+   section 8 is a numbered action list; items 1-3 of that list are DONE (see
+   below), the rest are not.
+2. **This file** - what to build.
+3. Then run the sandbox: `/sandbox/video-furniture/r2/intro` (and `/ghost`,
+   `/section`, `/combwalk`, `/lower`, `/hairline`, `/outro`).
+
+**Already done, do not redo:**
+
+- **Action 1, the short-edge unit fix** - landed in `e74a1083`. Type and stroke
+  weights now size against `min(width, height)` via `r2/units.ts`. Verified:
+  type-size ratio between 16:9 and 9:16 is 1.000 across 15 sampled cases, down
+  from a measured 0.563. The comb was rebuilt as a centred flex row and windows
+  itself when eight cells will not fit (8 at 16:9, 6 at 9:16, same 194 px cell).
+- The measurement rigs live in the session scratchpad, not the repo:
+  `unit-check.mjs` (size parity across aspects) and `pixdiff.mjs` (how much the
+  16:9 render actually moved). **Worth porting into the repo** if the mixer is
+  going to keep changing sizes.
+
+**Next, in order of leverage** (from the research action list):
+
+- **Bebas -&gt; Saira for designators.** Highest value of what remains. `C11`
+  misread as `CII` has no lexical context to recover from, and Bebas has no
+  slashed zero and a 0.600 advance/cap ratio. Currently `--font-display`.
+- **Drop the ban-list effects:** `blur`, `swipe off`, `combwalk/count`; decide
+  on `settle` (it scales, which the identity rejects).
+- **Add the persistent `NN / NN` chapter indicator** - signalling and segmenting
+  at zero motion budget, and nothing else in the set does it.
+- **Move lower thirds out of `y in [0.70, 0.92]`** (the CEA-708 caption band).
+- Then the mixer itself, below.
 
 ---
 
