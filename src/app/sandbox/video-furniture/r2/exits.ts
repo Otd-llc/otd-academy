@@ -15,21 +15,45 @@
 import type React from "react";
 import { outStyle, KINETIC_OUTS, type KineticOut } from "@/app/(bare)/film-render/[cut]/tuning";
 
+/**
+ * THE PERMITTED VOCABULARY (research 2.5), which this file now enforces rather
+ * than merely offering.
+ *
+ *   allowed    cut, wipe along an axis, register (a short single-axis
+ *              translation with opacity), dissolve, state change on a
+ *              stationary element.
+ *   forbidden  scale, rotate, 3D, bounce, overshoot, elastic, anticipation,
+ *              morph, blur, parallax, full-frame movement, particle, glow,
+ *              gradient sweep, animated lattice, per-character reveal,
+ *              counting numerals, whoosh.
+ *
+ * Three exits were removed against that list, not softened:
+ *
+ *   `blur` / "defocus"  - from the film's seven. Guarantees illegibility for
+ *     the whole transition, which is a straight transient-information tax
+ *     (2.2): motion still resolving while the viewer reads costs working
+ *     memory. It is filtered out of the import below rather than deleted from
+ *     the film, whose own cut may still want it over a word.
+ *   `swipe off`  - full-frame movement, which is a vestibular trigger, and it
+ *     reads as slide-deck software.
+ *   `settle out` - contracts as it fades. Scale and overshoot are the playful
+ *     register the identity explicitly rejects, and this was the DEFAULT, so
+ *     the banned gesture was on every piece nobody had configured.
+ *
+ * What survives is `cut` (2.6 wants the chapter boundary to be exactly this),
+ * `fade` (dissolve), `lift` / `sink` (register), `wipe` and `collapse`, plus
+ * the two clip-based furniture exits, which are wipes along an axis.
+ */
+const BANNED_KINETIC: KineticOut[] = ["blur"];
+
 /** Exits that only make sense for a whole assembly rather than a word. */
 export type FurnitureOut =
   | KineticOut
-  | "swipe"
   | "shutter"
-  | "drain"
-  | "settle";
+  | "drain";
 
 export const EXITS: { id: FurnitureOut; label: string; note: string }[] = [
-  ...KINETIC_OUTS,
-  {
-    id: "swipe",
-    label: "swipe off",
-    note: "The whole assembly leaves sideways as one object. Reads as a card being taken away rather than a word ending.",
-  },
+  ...KINETIC_OUTS.filter((k) => !BANNED_KINETIC.includes(k.id)),
   {
     id: "shutter",
     label: "shutter",
@@ -40,12 +64,75 @@ export const EXITS: { id: FurnitureOut; label: string; note: string }[] = [
     label: "drain",
     note: "Clips from the bottom up, so the type drains out of its own baseline. Pairs with anything that grew upward.",
   },
-  {
-    id: "settle",
-    label: "settle out",
-    note: "Contracts slightly and fades, as though the frame is releasing it. The quietest of the four and the safest under a cut.",
-  },
 ];
+
+/**
+ * The default exit, named rather than assumed.
+ *
+ * It used to be `settle`, which scales. The replacement is a dissolve, and the
+ * distinction that matters is that this is a CHOSEN fade and not the fade you
+ * get when nobody decides: of the permitted vocabulary it is the only member
+ * that finishes without moving anything, so it is the one that costs a reader
+ * nothing while they are still reading (2.2). A piece that wants a gesture
+ * should say so.
+ */
+export const DEFAULT_EXIT: FurnitureOut = "fade";
+
+/**
+ * IBM Carbon PRODUCTIVE easing (research 2.4) - the register that matches
+ * "console, not corporate", as opposed to the expressive set.
+ *
+ * Stored as control points rather than as a name, because the mixer's whole
+ * premise is that a curve is DATA the owner can drag. A named easing list is
+ * where a mixing table stops being one.
+ */
+export const CURVES = {
+  entrance: [0, 0, 0.38, 0.9],
+  exit: [0.2, 0, 1, 0.9],
+  standard: [0.2, 0, 0.38, 0.9],
+} as const;
+
+/**
+ * Evaluate a CSS-form cubic bezier as a pure function of `p`.
+ *
+ * `cubic-bezier(x1,y1,x2,y2)` is a parametric curve, so getting `y` for a given
+ * `x` means solving for the parameter first. Newton with a bisection fallback,
+ * both deterministic: the same `p` returns the same number on every call, which
+ * is what keeps a seek reproducible. No wall clock, no state, no `transition`.
+ */
+export function bezier([x1, y1, x2, y2]: readonly number[], p: number): number {
+  if (p <= 0) return 0;
+  if (p >= 1) return 1;
+  const cx = 3 * x1;
+  const bx = 3 * (x2 - x1) - cx;
+  const ax = 1 - cx - bx;
+  const cy = 3 * y1;
+  const by = 3 * (y2 - y1) - cy;
+  const ay = 1 - cy - by;
+  const fx = (t: number) => ((ax * t + bx) * t + cx) * t;
+  const dfx = (t: number) => (3 * ax * t + 2 * bx) * t + cx;
+
+  let t = p;
+  for (let i = 0; i < 8; i += 1) {
+    const err = fx(t) - p;
+    if (Math.abs(err) < 1e-7) break;
+    const d = dfx(t);
+    if (Math.abs(d) < 1e-7) break;
+    t -= err / d;
+  }
+  if (t < 0 || t > 1) {
+    // Newton left the interval; bisect, which cannot.
+    let lo = 0;
+    let hi = 1;
+    t = p;
+    for (let i = 0; i < 24; i += 1) {
+      t = (lo + hi) / 2;
+      if (fx(t) < p) lo = t;
+      else hi = t;
+    }
+  }
+  return ((ay * t + by) * t + cy) * t;
+}
 
 /**
  * Exit style at progress `p`, where 0 is "just started leaving" and 1 is gone.
@@ -56,10 +143,12 @@ export const EXITS: { id: FurnitureOut; label: string; note: string }[] = [
  * asked for.
  */
 export function furnitureOut(kind: FurnitureOut, p: number): React.CSSProperties {
-  const e = p * p * (3 - 2 * p);
+  // Was a smoothstep, which is symmetrical and therefore leaves as slowly as it
+  // arrives. Carbon's productive EXIT curve starts faster and finishes flat,
+  // which is what "get out of the reader's way" looks like as a number, and it
+  // is the same data the mixer will hand around.
+  const e = bezier(CURVES.exit, p);
   switch (kind) {
-    case "swipe":
-      return { opacity: 1 - e * 0.85, transform: `translateX(${-e * 14}%)` };
     case "shutter": {
       const edge = 100 - 100 * e;
       return { clipPath: `inset(0 ${100 - edge}% 0 0)` };
@@ -68,8 +157,6 @@ export function furnitureOut(kind: FurnitureOut, p: number): React.CSSProperties
       const edge = 100 * e;
       return { clipPath: `inset(${edge}% 0 0 0)`, opacity: 1 - e * 0.25 };
     }
-    case "settle":
-      return { opacity: 1 - e, transform: `scale(${1 - e * 0.035})` };
     default:
       return outStyle(kind as KineticOut, p);
   }

@@ -19,7 +19,7 @@ import { STAGE_LABELS } from "@/lib/stages";
 import { STAGE_ORDER, SAMPLE_TITLE } from "../furniture";
 import { PIECES, PIECE_KEYS, type PieceKey } from "./variants";
 import { PieceFrame } from "./Render";
-import { EXITS, type FurnitureOut } from "./exits";
+import { EXITS, DEFAULT_EXIT, type FurnitureOut } from "./exits";
 
 const LONGEST =
   "Solder the board: heavy parts, passives, and a drag-solder pass (plus the hot-air option)";
@@ -35,7 +35,7 @@ export function Grid({ piece }: { piece: PieceKey }) {
   const [wide, setWide] = useState(false);
   // The exit is a first-class dial, not a per-variant afterthought. Every piece
   // arrived with intent and left with a fade until this existed.
-  const [exit, setExit] = useState<FurnitureOut[]>(["settle"]);
+  const [exit, setExit] = useState<FurnitureOut[]>([DEFAULT_EXIT]);
   const toggleExit = (id: FurnitureOut) =>
     setExit((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   const raf = useRef<number | null>(null);

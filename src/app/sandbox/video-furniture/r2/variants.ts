@@ -124,8 +124,13 @@ export const COMBWALK: Variant[] = [
   { id: "pulse", name: "Pulse", claim: "The current cell pulses once at the beat instead of filling. The lightest touch of the ten." },
   { id: "focus", name: "Focus", claim: "The whole comb sits dim and the current cell resolves to full. Depth of field rather than fill." },
   { id: "zoom", name: "Zoom", claim: "The comb pushes in on the current cell as it lights, so the card ends on the one hex that matters." },
-  { id: "count", name: "Count", claim: "The Saira watermark counts up to this stage's ordinal as the fill arrives. The numeral does the walking." },
   { id: "unmask", name: "Unmask", claim: "The current cell's artifact tile unmasks inside the hex. What this stage produces, revealed as you arrive at it." },
+  // `count` was here - a Saira watermark counting up to the stage ordinal as
+  // the fill arrived. Dropped against the ban list: counting numerals are the
+  // motion-graphics-template default, and the value is transient - unreadable
+  // until it stops, so only the final frame carries meaning. `outro/count`
+  // survives and is a DIFFERENT device: a static `04 / 09` readout, which is
+  // the one piece of furniture research 2.6 affirmatively recommends.
 ];
 
 

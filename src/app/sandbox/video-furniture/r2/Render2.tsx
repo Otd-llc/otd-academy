@@ -368,11 +368,13 @@ export function CombWalk({ variant, stage, t, aspect = 16 / 9 }: VProps) {
         />
       ) : null}
 
-      {variant === "count" ? (
-        <div style={{ marginTop: `${W * 0.16}cqmin` }}>
-          <Num size={5}>{String(Math.round(1 + walk * i)).padStart(2, "0")}</Num>
-        </div>
-      ) : null}
+      {/* The `count` treatment lived here: a Saira watermark counting up to the
+          stage ordinal as the fill arrived. Removed against the ban list - a
+          counting numeral is the motion-graphics-template default, and it is
+          transient information, so the value is unreadable until it stops and
+          the only frame that carries meaning is the last one. Note this is NOT
+          the same device as `outro/count`, which is a STATIC `04 / 09` readout
+          and is the one thing research 2.6 actively asks for. */}
     </div>
   );
 }

@@ -22,7 +22,7 @@ import { combAbbr } from "@/lib/phase-comb";
 import { stageArt, stageArtGhost } from "@/lib/guide-stage-art";
 import { STAGE_ORDER } from "../furniture";
 import { WELLS_16X9, GRAPHICS_16X9, PLAYER_BAR_BOTTOM } from "../youtube";
-import { furnitureOutStack, exitP, type FurnitureOut } from "./exits";
+import { furnitureOutStack, exitP, DEFAULT_EXIT, type FurnitureOut } from "./exits";
 import { PIECES, type PieceKey } from "./variants";
 import { Ghost, CombWalk, Hairline } from "./Render2";
 import { ts, hw } from "./units";
@@ -45,7 +45,8 @@ export const HAIR = "var(--color-panel-border)";
 export type VProps = {
   piece: string;
   /** How the piece LEAVES, as a STACK applied outermost first. Defaulted, never
-   *  absent - a piece with no exit is the fade nobody chose. */
+   *  absent - see DEFAULT_EXIT, which is a chosen fade rather than the fade
+   *  you get when nobody decides. */
   exit?: FurnitureOut[];
   variant: string;
   stage: Stage;
@@ -64,7 +65,7 @@ export function PieceFrame(p: VProps) {
   const seconds = (PIECES[p.piece as PieceKey] ?? PIECES.intro).seconds;
   // One wrapper per stacked exit, outermost first. See furnitureOutStack for
   // why this is nesting rather than a merged style object.
-  const layers = furnitureOutStack(p.exit?.length ? p.exit : ["settle"], exitP(p.t, seconds));
+  const layers = furnitureOutStack(p.exit?.length ? p.exit : [DEFAULT_EXIT], exitP(p.t, seconds));
   const body = (
     <div
       data-furniture
