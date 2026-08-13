@@ -106,9 +106,17 @@ export function isPublicPath(pathname: string): boolean {
   if (top === "diagram-render") return true;
   // Dev-only capture surface, on the same footing as diagram-render above: the
   // promo renderer drives these pages with a headless browser that has no
-  // session, so a gate here 307s every frame to /sign-in. Every page under
-  // /sandbox opens with `if (process.env.NODE_ENV === "production") notFound()`,
-  // so the prefix cannot resolve in production whatever this says.
+  // session, so a gate here 307s every frame to /sign-in.
+  //
+  // WHAT ACTUALLY KEEPS /sandbox OFF PRODUCTION IS THE MIDDLEWARE, not the
+  // pages. This comment used to read "every page under /sandbox opens with
+  // notFound(), so the prefix cannot resolve in production whatever this says",
+  // which was measurably false. A page-level `notFound()` sets a 404 STATUS only
+  // where the route renders per request; where Next prerenders it, the 404 body
+  // is served with 200. /sandbox/share-cards answered 200 in production until
+  // 2026-08-13 for exactly that reason. The refusal now happens in `src/proxy.ts`
+  // via `isDevOnlyBlocked` (@/lib/dev-only-routes), which runs before any
+  // response is committed. Do not restore the "cannot resolve" claim.
   //
   // Stated permanently rather than as a temporary hole. It was carrying a
   // "revert before commit" marker, which is a note to a person rather than a
