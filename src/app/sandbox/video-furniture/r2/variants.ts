@@ -151,6 +151,28 @@ export const HAIRLINE: Variant[] = [
   { id: "weight", name: "Weight", claim: "The rule arrives thin and thickens to full weight. Quietest arrival, strongest final state." },
 ];
 
+/** CHAPTER - the persistent indicator, and the only piece here that never
+ *  leaves. Six treatments spanning TWO open questions at once, because they
+ *  cannot be answered separately.
+ *
+ *  WHERE: research says "top right" in prose; Google's own 16:9 template masks
+ *  both top corners in the upper band (rows 38-132 outside x 496-1443) and
+ *  leaves only the centre. Those disagree, and the notch's provenance is the
+ *  weaker of the two, so the round ships both and the owner looks.
+ *
+ *  WHAT: whether a chapter position needs a NUMBER at all. `segments` argues it
+ *  does not - eight ticks with one lit is pure signalling with no transient
+ *  information and no changing numeral to go wrong. Worth seeing before
+ *  assuming digits are required. */
+export const CHAPTER: Variant[] = [
+  { id: "corner", name: "Corner", claim: "Top right, mono, `03 / 08`, nothing else. The research's literal recommendation, and the control the other five are judged against." },
+  { id: "notch", name: "Notch-safe", claim: "Top CENTRE, inside the band Google's own template leaves usable. Picking this one means the measured notch outranks the recommendation's wording." },
+  { id: "labelled", name: "Labelled", claim: "`STAGE 03 / 08 · LAYOUT` on one line: the design system's own progress recipe, so the video and the app say position the same way." },
+  { id: "rule", name: "On a rule", claim: "The count sitting under a short gold rule. The masthead treatment shrunk to chrome, for when the bare numerals read as debug output." },
+  { id: "segments", name: "Segments", claim: "Eight ticks, the current one gold, NO numerals. Signalling with nothing to read and nothing to reflow - the argument that a chapter needs a position, not a number." },
+  { id: "badge", name: "Badge", claim: "The count inside a square registration tag. Squarest, most instrument-like, and the most ink of the six on screen at all times." },
+];
+
 export const PIECES = {
   intro: { name: "Intro / artifact", seconds: 3.5, variants: INTRO },
   ghost: { name: "Intro / ghost", seconds: 3.5, variants: GHOST },
@@ -159,6 +181,9 @@ export const PIECES = {
   lower: { name: "Lower third", seconds: 4, variants: LOWER },
   hairline: { name: "Lower / hairline", seconds: 4, variants: HAIRLINE },
   outro: { name: "Outro / ladder", seconds: 8, variants: OUTRO },
+  // Seconds are the AUDITION length, not a duration - this piece is persistent.
+  // The cut at t=2.0 is there so the round shows the one thing it does: change.
+  chapter: { name: "Chapter indicator", seconds: 4, variants: CHAPTER },
 } as const;
 
 export type PieceKey = keyof typeof PIECES;

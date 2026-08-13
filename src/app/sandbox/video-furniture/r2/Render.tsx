@@ -25,6 +25,7 @@ import { WELLS_16X9, GRAPHICS_16X9, LOWER_THIRD_BOTTOM } from "../youtube";
 import { furnitureOutStack, exitP, DEFAULT_EXIT, type FurnitureOut } from "./exits";
 import { PIECES, type PieceKey } from "./variants";
 import { Ghost, CombWalk, Hairline } from "./Render2";
+import { Chapter } from "./Chapter";
 import { ts, hw } from "./units";
 
 // ---- easing ----------------------------------------------------------------
@@ -85,6 +86,7 @@ export function PieceFrame(p: VProps) {
       {p.piece === "section" ? <Section {...p} /> : null}
       {p.piece === "lower" ? <Lower {...p} /> : null}
       {p.piece === "outro" ? <Outro {...p} /> : null}
+      {p.piece === "chapter" ? <Chapter {...p} /> : null}
     </div>
   );
 

@@ -96,6 +96,52 @@ export const GRAPHICS_16X9: Well = { x: 0.07, y: 0.10, w: 0.22, h: 0.40 };
 export const PLAYER_BAR_BOTTOM = 0.129;
 
 /**
+ * The player's chrome at the TOP, which had no constant until a top-anchored
+ * element needed one.
+ *
+ * `PLAYER_BAR_BOTTOM` above has existed since this file was written and its own
+ * comment transcribes the mobile-web BOTTOM figure of 19.9% from the measured
+ * table - while silently dropping the TOP figure of 21.7% from the same row.
+ * Nothing needed it, so nothing noticed. A persistent indicator in the top
+ * corner sits underneath YouTube's own title, kebab and cast icons on mobile
+ * web whenever the controls are up, and 21.7% is more hostile to it than any
+ * end-screen well.
+ *
+ * Stated as the honest band rather than one number: the controls autohide, so
+ * the optimistic case really is zero, and the conservative case really is a
+ * fifth of the frame.
+ */
+export const PLAYER_BAR_TOP = { conservative: 0.217, optimistic: 0 };
+
+/**
+ * The upper band Google's own 16:9 safe-zone template masks.
+ *
+ * Measured from the alpha channel of the published overlay: rows 38-132 are
+ * masked OUTSIDE x 496-1443, i.e. in that top band only the centre is safe,
+ * because Google reserves both top corners for a headline and a badge.
+ *
+ * THIS IS THE ONE MEASUREMENT THAT ARGUES AGAINST "top right", which is what
+ * the research recommends in prose. It is recorded as a constant rather than
+ * settled in an argument, because the sandbox convention is that the owner
+ * decides a visual question by looking - so the round ships both a top-right
+ * treatment and a notch-honouring one.
+ *
+ * Provenance caveat, kept because it is the reason this is a choice and not a
+ * rule: the vertical template's numbers name the asset they came from, and
+ * this one does not, so it is the weaker of the two official-asset claims.
+ */
+export const NOTCH_16X9 = { top: 0.0352, bottom: 0.1222, left: 0.2583, right: 0.7516 };
+
+/**
+ * Graphics/title safe, which was prose in this file and a number nowhere.
+ *
+ * EBU R95, ITU-R BT.1848-1 and SMPTE ST 2046-1 all agree: action safe is a
+ * 3.5% inset, graphics/title safe is 5%. The 80%/80% pair everyone half
+ * remembers is pre-2009 analogue convention.
+ */
+export const GRAPHICS_SAFE_INSET = 0.05;
+
+/**
  * The CEA-708 caption band, and why it outranks the player bar.
  *
  * Current graphics-safe standards are 5% inset (EBU R95, ITU-R BT.1848-1,
