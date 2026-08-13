@@ -1327,25 +1327,33 @@ const CAR_WING = 38;
 // what it is asked to and lets the excess SPILL, out of the title box, out of
 // the row, and past the width `INTRINSIC.ladder` promises. On 16:9 it fell in
 // the slack; on 9:16 the measured ink reached 216px on a 204px frame.
-// The quiz's type size in any frame narrower than 6:5, as a fraction of its
-// base. The one taste number in the fitting path: everything else here is
-// measured or derived, and this is "how big should the words be", which is a
-// looking question. 0.58 is where 9:16 landed once its wrapping was fixed.
-const QUIZ_NARROW_TYPE = 0.58;
+// How much of the frame's WIDTH the quiz may fill, in a narrow shape.
+//
+// A SHARE, NOT A SCALE, and getting that wrong is the most expensive mistake in
+// this file. These were absolute scale multipliers - 0.58 and 0.52 - and they
+// looked perfect in the preview grid and encoded TINY. The preview panels are
+// about a fifth of delivery size, so at 177px wide the fit wanted 0.574 and a
+// cap of 0.52 barely bit; at 1080 wide the same fit wants 3.05 and the cap
+// slammed it to 0.52, rendering the quiz at 16% of the frame instead of 85%.
+//
+// Any tuning written in absolute pixels or absolute scale is resolution
+// dependent, and a preview at a different size than the deliverable will not
+// show it. Expressed as a share of the safe width, the number means the same
+// thing at 177px and at 1080px, which is what a composition rule has to do.
+//
+// The measures (290, 560) and the intrinsics are NOT this mistake: those are
+// the unscaled layout box, so they fix characters-per-line and stay correct at
+// any delivery size.
+/** The reflow measure in a narrow frame. One definition: the cap below
+ *  converts a share of the frame into a scale against THIS box. */
+const QUIZ_MEASURE_NARROW = 290;
 
-/**
- * And a smaller one again for a TALL frame.
- *
- * A single narrow cap still leaves 9:16 reading bigger than the others, because
- * "same type size" and "same share of the frame" are not the same thing: at
- * 0.58 the quiz fills 97% of the width on 9:16 against 66% on 1:1. Nearly edge
- * to edge is what reads as huge on a phone, whatever the measured type size
- * says. 0.52 takes it to about 85% and leaves the margin the other shapes have.
- *
- * The threshold is 0.7, which is between 4:5 (0.80) and 9:16 (0.5625), so this
- * reaches the one shape it is meant to and nothing else.
- */
-const QUIZ_TALL_TYPE = 0.52;
+const QUIZ_NARROW_SHARE = 0.68;
+/** Tall frames get less again - see the note on why 9:16 needed its own. */
+// 0.83, not 0.85. The camera's creep multiplies into the composed transform
+// after this cap, so a share asked for as 0.85 measures 90% on the delivered
+// frame. Measured and corrected rather than reasoned about.
+const QUIZ_TALL_SHARE = 0.83;
 const QUIZ_TALL_BELOW = 0.7;
 
 const CAR_TEXT = 330;
@@ -1782,7 +1790,10 @@ function QuietScene({
     // are, which are two different questions.
     let s = fitScale(id, w, h, fitted, narrow);
     if (narrow && id === "quiz") {
-      s = Math.min(s, w / h < QUIZ_TALL_BELOW ? QUIZ_TALL_TYPE : QUIZ_NARROW_TYPE);
+      // Share of the safe WIDTH, converted to a scale against the box the quiz
+      // actually lays out at. Resolution independent by construction.
+      const share = w / h < QUIZ_TALL_BELOW ? QUIZ_TALL_SHARE : QUIZ_NARROW_SHARE;
+      s = Math.min(s, (share * w) / QUIZ_MEASURE_NARROW);
     }
     const sized = { ...scheme[id], size: scheme[id].size * s };
     const [from, to] = tuning.solo ? SOLO_WINDOW : ([starts[i], ends[i]] as const);
@@ -1857,7 +1868,7 @@ function QuietScene({
             against the box that actually exists. The bounded track keeps it
             centred while it overflows, and the safe-area clip is the backstop
             if any of that is ever wrong again. */}
-        <div ref={quizRef} style={{ width: narrow ? 290 : 560 }}>
+        <div ref={quizRef} style={{ width: narrow ? QUIZ_MEASURE_NARROW : 560 }}>
           {question ? <QuizBlock prompt="Quick check" questions={[question]} /> : null}
         </div>
       </div>

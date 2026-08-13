@@ -51,12 +51,15 @@ const FPS = 30;
 // Delivery sizes. Kept in step with src/app/sandbox/logbook-cut/formats/formats.ts
 // by the gate below rather than by hoping - a renderer that disagrees with the
 // preview is a renderer that ships a film nobody approved.
+// `quiz` is the share of the SAFE WIDTH the quiz must fill, with the tolerance
+// this gate allows. See the gate itself for why it exists.
 const SHAPES = [
-  { id: "16x9", w: 1920, h: 1080 },
-  { id: "1x1", w: 1080, h: 1080 },
-  { id: "4x5", w: 1080, h: 1350 },
-  { id: "9x16", w: 1080, h: 1920 },
+  { id: "16x9", w: 1920, h: 1080, safe: {}, quiz: 0.55 },
+  { id: "1x1", w: 1080, h: 1080, safe: {}, quiz: 0.7 },
+  { id: "4x5", w: 1080, h: 1350, safe: { bottom: 0.08 }, quiz: 0.7 },
+  { id: "9x16", w: 1080, h: 1920, safe: { top: 0.08, right: 0.13, bottom: 0.2 }, quiz: 0.85 },
 ];
+const QUIZ_TOL = 0.06;
 
 const arg = (k, d) => {
   const hit = process.argv.find((a) => a.startsWith(`--${k}=`));
@@ -138,6 +141,42 @@ for (const shape of SHAPES) {
     bg: getComputedStyle(document.querySelector("[data-logbook-stage]")).backgroundColor,
   }));
   if (theme.attr !== "dark") throw new Error(`${shape.id}: theme is ${theme.attr}, expected dark`);
+
+  // THE COMPOSITION MUST SURVIVE THE JUMP TO DELIVERY SIZE, and this gate
+  // exists because it did not.
+  //
+  // The quiz's size cap was written as an absolute scale multiplier. In the
+  // preview grid - panels about a fifth of delivery size - it produced exactly
+  // the composition that got approved. At 1080 the fit wanted a scale of 3.05
+  // and the same cap slammed it to 0.52, so the quiz encoded at 16% of the
+  // frame instead of 85%. Four finished mp4s, all wrong, and nothing in the
+  // preview could have shown it.
+  //
+  // So the renderer measures the real composition at the real size and refuses
+  // to encode if it has moved. Any tuning written in absolute pixels or scale
+  // is resolution dependent; this is the thing that catches the next one.
+  await page.evaluate(() => window.__seek(1.0));
+  await page.waitForSelector("[data-logbook-stage][data-settled]");
+  const share = await page.evaluate((sf) => {
+    const st = document.querySelector("[data-logbook-stage]");
+    const sr = st.getBoundingClientRect();
+    const safeW = sr.width * (1 - (sf.left ?? 0) - (sf.right ?? 0));
+    const inner = st.querySelector("[data-quiz-bare] > div");
+    return inner ? inner.getBoundingClientRect().width / safeW : null;
+  }, shape.safe);
+  if (share === null) throw new Error(`${shape.id}: no quiz box to measure`);
+  const off = Math.abs(share - shape.quiz);
+  console.log(
+    `[${shape.id}] quiz fills ${(share * 100).toFixed(0)}% of safe width (expected ${(shape.quiz * 100).toFixed(0)}%)`,
+  );
+  if (off > QUIZ_TOL) {
+    throw new Error(
+      `${shape.id}: quiz fills ${(share * 100).toFixed(0)}% of the safe width, expected ` +
+        `${(shape.quiz * 100).toFixed(0)}% +/- ${(QUIZ_TOL * 100).toFixed(0)}. The composition ` +
+        `approved in the preview is not the composition at delivery size - check for a tuning ` +
+        `written in absolute pixels or absolute scale.`,
+    );
+  }
 
   // THE VIEWPORT MUST BE THE FRAME. If the page has a scrollbar or the stage
   // measured something else, every frame is subtly the wrong composition and it
