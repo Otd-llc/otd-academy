@@ -1769,6 +1769,22 @@ function QuietScene({
     display: "grid",
     placeItems: "center",
     pointerEvents: "none",
+    // THE TRACK, NOT THE ITEM, WAS THE THING OVERFLOWING.
+    //
+    // A grid with no explicit template sizes its implicit column to max-content.
+    // With a 380px child in a 177px container that track is 380 wide, it
+    // overflows the container to the RIGHT, and `place-items: center` then
+    // faithfully centres the item inside the 380px TRACK rather than inside the
+    // frame. Everything downstream looked right and measured wrong: the part's
+    // own box sat dead centre of the safe area while its contents began at that
+    // box's left edge and ran out of the picture. `maxWidth: 100%` did not bite
+    // either, because 100% resolved against the oversized track.
+    //
+    // `minmax(0, 1fr)` is the whole fix: the track can no longer exceed the
+    // container, so the item clamps, the prose reflows, and centring means what
+    // it says. Only under `fitted` - it changes what a too-wide part does, and
+    // the 16:9 cut has already been judged.
+    ...(fitted ? { gridTemplateColumns: "minmax(0, 1fr)" } : null),
   };
 
   // GAIN: the ring DRAWS ITSELF to where the learner now is, then the rank
@@ -1788,7 +1804,22 @@ function QuietScene({
 
       {/* READ */}
       <div data-quiz-bare style={{ ...centre, ...shot(0) }}>
-        <div ref={quizRef} style={{ width: 560 }}>
+        {/* WIDTH 560 WAS AN OVERFLOW, NOT A LAYOUT. Measured on the 9:16
+            panel: the part's own box is correct - 63..117, dead centre of the
+            safe area - but this inner div ran 63..235, starting at the part's
+            LEFT EDGE and spilling 58px past the frame. A 560px box inside a
+            177px grid area does not centre-and-overflow-evenly, it pins and
+            spills, and every pixel it spills goes one direction: right. That
+            is the whole of "the quiz is too far right".
+
+            `maxWidth: 100%` is the fix, and it is the one that makes the prose
+            REFLOW to the frame instead of being scaled down inside it - which
+            is what a narrow frame needed anyway. The narrower base width in a
+            narrow frame is paired with INTRINSIC_COMPACT.quiz so the fit sizes
+            against the box that actually exists; without that pairing the
+            reflow just makes it smaller, which was the previous mistake one
+            layer up. */}
+        <div ref={quizRef} style={{ width: narrow ? 236 : 560, maxWidth: "100%" }}>
           {question ? <QuizBlock prompt="Quick check" questions={[question]} /> : null}
         </div>
       </div>
@@ -1806,6 +1837,11 @@ function QuietScene({
           right: "12%",
           top: "31%",
           opacity: fade(t, click, click + 0.75),
+          // NOT the compact fit. The tick is a fixed badge pinned to the right of
+          // the frame, not reflowing prose, so scaling it against the quiz's
+          // REFLOWED box made it grow by 2.2x in portrait and run off the edge.
+          // It follows the quiz's wide-frame fit, which is what it was sized
+          // against when its 2.1 was chosen.
           transform: `scale(${2.1 * fitScale("quiz", w, h, fitted)})`,
           transformOrigin: "right top",
           pointerEvents: "none",

@@ -309,6 +309,17 @@ export const FILL: Record<PartId, { w: number; h: number }> = {
  */
 export const INTRINSIC_COMPACT: Partial<Record<PartId, { w: number; h: number }>> = {
   ladder: { w: 140, h: 370 },
+  // The quiz reflows to 380 in a narrow frame rather than being a 560 box
+  // scaled down, so it is fitted against 380 - and against a TALLER height,
+  // because prose set to a narrower measure runs longer. Fitting reflowed text
+  // against its wide-frame height is how you get a column that overflows the
+  // bottom instead of the right.
+  // 236 x 350: the measured reflow, chosen so the box's own proportion is close
+  // to a portrait safe area. Prose area is roughly conserved when you change
+  // the measure - 177x463 and 236x350 are within a few percent of the same
+  // area - so picking the width whose reflowed shape MATCHES the frame is what
+  // lets the fit use both dimensions instead of being throttled by one.
+  quiz: { w: 236, h: 350 },
 };
 
 export function fillFor(id: PartId, aspect: number): { w: number; h: number } {
@@ -316,6 +327,16 @@ export function fillFor(id: PartId, aspect: number): { w: number; h: number } {
   if (aspect >= 1.2) return f;
   // Square is partway to portrait; below 0.8 take the full adaptation.
   const k = aspect >= 0.8 ? (1.2 - aspect) / 0.4 : 1;
+  // THE QUIZ GOES THE OTHER WAY ON HEIGHT, and getting this backwards is what
+  // kept it tiny. Every other part is a fixed shape competing with word bands
+  // that move to the top and bottom in portrait, so they give height back. The
+  // quiz is REFLOWING PROSE: narrow it and it runs longer, so a portrait frame
+  // is exactly where it needs MORE height, not less. Measured at 9:16 it
+  // reflows to 177x463 inside a 261-tall safe box - height was binding by
+  // almost 2x, and trimming its allowance made that worse.
+  if (id === "quiz") {
+    return { w: f.w + (0.94 - f.w) * k, h: f.h + (0.84 - f.h) * k };
+  }
   return {
     // Toward the whole width, because the sides are no longer spoken for.
     w: f.w + (0.94 - f.w) * k,
