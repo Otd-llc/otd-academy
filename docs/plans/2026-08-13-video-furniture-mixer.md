@@ -3,15 +3,19 @@
 **Status:** plan. Written 2026-08-13 so the next session starts from an artifact
 rather than from someone's memory of a conversation.
 
-**Branch:** `promo/video-furniture`, 7 commits off `main`, pushed, no PR.
+**Branch:** `promo/video-furniture`, pushed, no PR. Updated through
+`77533a56`.
 
 ## START HERE
 
 Read in this order:
 
 1. **`2026-08-13-video-channel-research.md`** - what is true, graded. Its
-   section 8 is a numbered action list; items 1-3 of that list are DONE (see
-   below), the rest are not.
+   section 8 is a numbered action list. Items **1, 2, 4, 6 and 11 are DONE**
+   and item **3 is DEFERRED by the owner**; each is annotated in place with the
+   commit. Read 1.4's correction block before touching type: two of that
+   report's own font recommendations do not survive contact with the fonts we
+   actually serve.
 2. **This file** - what to build.
 3. Then run the sandbox: `/sandbox/video-furniture/r2/intro` (and `/ghost`,
    `/section`, `/combwalk`, `/lower`, `/hairline`, `/outro`).
@@ -81,12 +85,17 @@ to how the whole academy loads a face, not a sandbox change.
 
 ## What exists already
 
-- **`src/app/sandbox/video-furniture/`** - round 1 (four pieces, three
-  treatments each) and `r2/` (seven sets, ten treatments each).
-- **`r2/exits.ts`** - the exit vocabulary. The film's seven (`outStyle` imported
-  from `(bare)/film-render/[cut]/tuning.ts`) plus four furniture-specific ones,
-  and `furnitureOutStack`, which composes a stack by NESTING one wrapper per
-  effect. Two `clipPath`s do not compose on one element; nesting does.
+- **`src/app/sandbox/video-furniture/`** - `page.tsx` is an INDEX of the round 2
+  pieces; round 1 was deleted in `b296f0f0`. `r2/` is seven sets, ten treatments
+  each except `combwalk`, which is nine since `count` was banned.
+- **`r2/exits.ts`** - the exit vocabulary, which now ENFORCES the permitted list
+  rather than merely offering it. Six of the film's seven (`blur` is filtered
+  out at import, not deleted from the film) plus two furniture-specific ones;
+  `swipe` and `settle` were removed as forbidden. Also `DEFAULT_EXIT`, the
+  Carbon productive `CURVES` as control points, and `bezier()`, the pure
+  evaluator the mixer's curve control should consume instead of a second one.
+  `furnitureOutStack` composes a stack by NESTING one wrapper per effect: two
+  `clipPath`s do not compose on one element; nesting does.
 - **`r2/RealComb.tsx`** - the product's own `.gh-node` markup with the real
   `HexPrism`, so the comb in a video is the comb in the app.
 - **`r2/frame/`** - one treatment, full viewport, `window.__seek(t)` +
