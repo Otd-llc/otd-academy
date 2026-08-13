@@ -19,7 +19,9 @@ import { STAGE_LABELS } from "@/lib/stages";
 import { STAGE_ORDER, SAMPLE_TITLE } from "../furniture";
 import { PIECES, PIECE_KEYS, type PieceKey } from "./variants";
 import { PieceFrame } from "./Render";
-import { EXITS, DEFAULT_EXIT, type FurnitureOut } from "./exits";
+import { DEFAULT_EXIT, type FurnitureOut } from "./exits";
+import { DEFAULT_ENTRY, type EntryEffect } from "./entries";
+import { Mixer } from "./Mixer";
 
 const LONGEST =
   "Solder the board: heavy parts, passives, and a drag-solder pass (plus the hot-air option)";
@@ -36,8 +38,10 @@ export function Grid({ piece }: { piece: PieceKey }) {
   // The exit is a first-class dial, not a per-variant afterthought. Every piece
   // arrived with intent and left with a fade until this existed.
   const [exit, setExit] = useState<FurnitureOut[]>([DEFAULT_EXIT]);
-  const toggleExit = (id: FurnitureOut) =>
-    setExit((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  // The ENTRY stack, the other half of the dimension. Both live in the mixer
+  // column now rather than in the page's top bar, so the transport and the
+  // controls it is read against are one object.
+  const [entry, setEntry] = useState<EntryEffect[]>(DEFAULT_ENTRY);
   const raf = useRef<number | null>(null);
   const t0 = useRef(0);
 
@@ -97,22 +101,6 @@ export function Grid({ piece }: { piece: PieceKey }) {
           >
             {playing ? "pause" : "play"}
           </button>
-          <label className="flex min-w-[260px] flex-1 items-center gap-3">
-            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">t</span>
-            <input
-              type="range"
-              min={0}
-              max={def.seconds}
-              step={0.01}
-              value={t}
-              onChange={(e) => {
-                setPlaying(false);
-                setT(Number(e.target.value));
-              }}
-              className="flex-1 accent-[var(--color-command-gold)]"
-            />
-            <span className="w-14 font-numeral text-sm tabular-nums text-command-gold">{t.toFixed(2)}s</span>
-          </label>
           <select
             value={stage}
             onChange={(e) => setStage(e.target.value as Stage)}
@@ -142,48 +130,13 @@ export function Grid({ piece }: { piece: PieceKey }) {
         </div>
       </div>
 
-      {/* Exits STACK. Each selected one wraps the piece in its own layer, applied
-          outermost first, so `shutter + fade` is a hard edge closing over
-          something that is also going rather than one overriding the other. */}
-      <div className="mb-4 border-b border-panel-border/60 pb-4">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">exit stack</span>
-          {EXITS.map((x) => {
-            const on = exit.includes(x.id);
-            const order = exit.indexOf(x.id) + 1;
-            return (
-              <button
-                key={x.id}
-                type="button"
-                onClick={() => toggleExit(x.id)}
-                title={x.note}
-                className={`border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.16em] focus-visible:outline-none focus-visible:border-command-gold ${
-                  on
-                    ? "border-command-gold text-command-gold"
-                    : "border-panel-border text-muted hover:border-gold-light hover:text-gold-light"
-                }`}
-              >
-                {on ? <span className="font-numeral tabular-nums">{order} </span> : null}
-                {x.label}
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => setExit([])}
-            className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted underline-offset-4 hover:text-gold-light focus-visible:outline-none focus-visible:text-gold-light"
-          >
-            clear
-          </button>
-        </div>
-        <p className="mt-2 text-sm leading-relaxed text-muted">
-          {exit.length === 0
-            ? "No exit selected, so the piece simply stops. Pick one or several; the number on each is its layer order."
-            : exit.map((id) => EXITS.find((x) => x.id === id)?.note).join(" ")}
-        </p>
-      </div>
-
-      <ul className={`grid gap-x-6 gap-y-8 ${wide ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
+      {/* WORK AREA LEFT, MIXER RIGHT. The treatment grid narrows rather than
+          moves - one column fewer, same place - so the thing being judged does
+          not jump when the controls appear. `lg:items-start` is load-bearing:
+          grid items stretch by default, which leaves `position: sticky` nothing
+          to slide against. */}
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+      <ul className={`grid gap-x-6 gap-y-8 ${wide ? "lg:grid-cols-1" : "lg:grid-cols-2"}`}>
         {def.variants.map((v) => (
           <li key={v.id} className="min-w-0">
             {/* id ABOVE the frame, never inside it */}
@@ -206,6 +159,7 @@ export function Grid({ piece }: { piece: PieceKey }) {
                 t={t}
                 aspect={16 / 9}
                 exit={exit}
+                entry={entry}
                 guides={guides && piece === "outro"}
               />
             </div>
@@ -213,6 +167,20 @@ export function Grid({ piece }: { piece: PieceKey }) {
           </li>
         ))}
       </ul>
+
+      <Mixer
+        t={t}
+        seconds={def.seconds}
+        onSeek={(next) => {
+          setPlaying(false);
+          setT(next);
+        }}
+        entry={entry}
+        setEntry={setEntry}
+        exit={exit}
+        setExit={setExit}
+      />
+      </div>
     </main>
   );
 }

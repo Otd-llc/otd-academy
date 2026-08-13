@@ -16,7 +16,7 @@ import { LOWER_THIRD_BOTTOM } from "../youtube";
 import { CombCell } from "./RealComb";
 import { ts, hw } from "./units";
 import {
-  seg, outCubic, outExpo, inOut,
+  seg, outCubic, outExpo, entryP,
   GOLD, TITLE, TEXT, MUTED, HAIR,
   Eyebrow, Title, Num, Desig, Hair,
   type VProps,
@@ -256,7 +256,7 @@ export function Ghost({ variant, stage, title, lesson, t }: VProps) {
 export function CombWalk({ variant, stage, t, aspect = 16 / 9 }: VProps) {
   const i = STAGE_ORDER.indexOf(stage);
   const prev = Math.max(0, i - 1);
-  const life = inOut(t, 0, 0.5, 1.8, 2.2);
+  const life = entryP(t, 0, 0.5);
   const walk = outCubic(seg(t, 0.35, 1.15));
 
   // Every distance here is cqmin - a share of the frame's SHORT edge. The comb
@@ -385,7 +385,7 @@ export function CombWalk({ variant, stage, t, aspect = 16 / 9 }: VProps) {
 // to the type around it.
 
 export function Hairline({ variant, t }: VProps) {
-  const life = inOut(t, 0, 0.6, 3.4, 4);
+  const life = entryP(t, 0, 0.6);
   const grow = outExpo(seg(t, 0.1, 0.95));
   const late = outCubic(seg(t, 0.45, 1.3));
   const bottom = LOWER_THIRD_BOTTOM * 100;

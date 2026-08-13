@@ -32,6 +32,7 @@ import { stageArt, stageArtGhost } from "@/lib/guide-stage-art";
 import { STAGE_ORDER } from "../furniture";
 import { WELLS_16X9, GRAPHICS_16X9, LOWER_THIRD_BOTTOM } from "../youtube";
 import { furnitureOutStack, exitP, DEFAULT_EXIT, type FurnitureOut } from "./exits";
+import { entryStack, DEFAULT_ENTRY, type EntryEffect } from "./entries";
 import { PIECES, type PieceKey } from "./variants";
 import { Ghost, CombWalk, Hairline } from "./Render2";
 import { Chapter } from "./Chapter";
@@ -42,8 +43,29 @@ export const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 export const seg = (t: number, a: number, b: number) => clamp01((t - a) / (b - a));
 export const outCubic = (p: number) => 1 - Math.pow(1 - p, 3);
 export const outExpo = (p: number) => (p >= 1 ? 1 : 1 - Math.pow(2, -10 * p));
+/**
+ * DEPRECATED, and kept only so the deprecation is visible at every call site.
+ *
+ * `inOut` fuses an entrance and an exit into ONE number. That was fine while a
+ * treatment owned its whole life, and it is exactly wrong now: the exit is a
+ * pulled-out dimension the owner dials from the exit stack, and an exit baked
+ * into an entrance driver is one the stack cannot see, cannot change and
+ * cannot turn off. Every piece using this ALSO gets the frame-level exit, so
+ * they double-fade - section fades locally at 1.35 while the frame exit starts
+ * at 1.25, lower at 3.3 against 3.45, hairline 3.4 against 3.45, combwalk 1.8
+ * against 1.65.
+ *
+ * Use `entryP` and let `PieceFrame` own the exit.
+ */
 export const inOut = (t: number, a: number, b: number, c: number, d: number) =>
   Math.min(outCubic(seg(t, a, b)), 1 - outCubic(seg(t, c, d)));
+
+/**
+ * Arrival progress, 0 to 1. The entrance half of the old `inOut`, with the exit
+ * half deliberately absent: a piece arrives here and LEAVES through the exit
+ * stack, which is the only place an exit should live.
+ */
+export const entryP = (t: number, a: number, b: number) => outCubic(seg(t, a, b));
 
 export const GOLD = "var(--color-command-gold)";
 export const TITLE = "var(--color-title)";
@@ -58,6 +80,11 @@ export type VProps = {
    *  absent - see DEFAULT_EXIT, which is a chosen fade rather than the fade
    *  you get when nobody decides. */
   exit?: FurnitureOut[];
+  /** How the piece ARRIVES, as a STACK applied outermost first. The entrance
+   *  was baked into each treatment until the mixer pulled it out - the same
+   *  mistake the exit had, and for the same reason: a dimension hidden inside
+   *  sixty variants is a dimension nobody can dial. */
+  entry?: EntryEffect[];
   variant: string;
   stage: Stage;
   title: string;
@@ -88,9 +115,14 @@ export function PieceFrame(p: VProps) {
   const seconds = (PIECES[p.piece as PieceKey] ?? PIECES.intro).seconds;
   // One wrapper per stacked exit, outermost first. See furnitureOutStack for
   // why this is nesting rather than a merged style object.
-  const layers = PERSISTENT.has(p.piece)
+  const outLayers = PERSISTENT.has(p.piece)
     ? []
     : furnitureOutStack(p.exit?.length ? p.exit : [DEFAULT_EXIT], exitP(p.t, seconds));
+  // Entry wrappers sit INSIDE the exit wrappers: a piece that is arriving and
+  // a piece that is leaving are two gestures on one object, and the exit owns
+  // the outer coordinate space because it acts on the assembly as a whole.
+  const inLayers = entryStack(p.entry ?? DEFAULT_ENTRY, p.t);
+  const layers = [...outLayers, ...inLayers];
   const body = (
     <div
       data-furniture
@@ -266,8 +298,19 @@ export function Desig({
   );
 }
 
+/**
+ * A rule.
+ *
+ * `w` is authored in the 16:9 `cqw` scale like every other size in this
+ * sandbox, and is emitted through `hw()`. It used to emit `${w}cqw` directly,
+ * which quietly bypassed BOTH fixes this round shipped: the short-edge
+ * conversion, so every rule in the set was 1.78x wrong in one delivery, and the
+ * 2px-at-1080 codec floor, so a thin rule could land sub-pixel and produce
+ * exactly the ringing `hw()` exists to prevent. The helpers were correct and
+ * the one component that draws most of the rules did not call them.
+ */
 export function Hair({ p = 1, w = 0.14, color = GOLD }: { p?: number; w?: number; color?: string }) {
-  return <div style={{ height: `${w}cqw`, width: `${p * 100}%`, background: color }} />;
+  return <div style={{ height: hw(w), width: `${p * 100}%`, background: color }} />;
 }
 
 /** The brand hex, using the real polygon geometry the `.gh-hex` SVG uses rather
@@ -614,7 +657,7 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
 // ---- SECTION (10) -----------------------------------------------------------
 
 function Section({ variant, stage, t }: VProps) {
-  const life = inOut(t, 0, 0.55, 1.35, 1.8);
+  const life = entryP(t, 0, 0.55);
   const lit = outCubic(seg(t, 0.35, 1));
   const i = STAGE_ORDER.indexOf(stage);
   const num = String(i + 1).padStart(2, "0");
@@ -773,7 +816,7 @@ const L_SAMPLE: Record<string, LowerSample> = {
 
 function Lower({ variant, t }: VProps) {
   const s = L_SAMPLE[variant] ?? L_SAMPLE.hairline;
-  const life = inOut(t, 0, 0.6, 3.3, 4);
+  const life = entryP(t, 0, 0.6);
   const grow = outExpo(seg(t, 0.1, 0.95));
   const bottom = LOWER_THIRD_BOTTOM * 100;
   const base: React.CSSProperties = { position: "absolute", left: "6cqw", bottom: `${bottom}cqh`, opacity: life };

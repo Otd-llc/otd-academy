@@ -113,19 +113,28 @@ export function bezier([x1, y1, x2, y2]: readonly number[], p: number): number {
   const dfx = (t: number) => (3 * ax * t + 2 * bx) * t + cx;
 
   let t = p;
+  let converged = false;
   for (let i = 0; i < 8; i += 1) {
     const err = fx(t) - p;
-    if (Math.abs(err) < 1e-7) break;
+    if (Math.abs(err) < 1e-7) {
+      converged = true;
+      break;
+    }
     const d = dfx(t);
+    // A VANISHING DERIVATIVE IS NOT CONVERGENCE. This used to `break` here and
+    // return the value at whatever `t` Newton had reached, which is simply a
+    // wrong answer delivered confidently. It never showed up because the only
+    // curves in the file were Carbon's three, where it cannot happen - and it
+    // becomes reachable the moment a draggable editor can produce x1 = x2 = 0.
     if (Math.abs(d) < 1e-7) break;
     t -= err / d;
   }
-  if (t < 0 || t > 1) {
-    // Newton left the interval; bisect, which cannot.
+  if (!converged || t < 0 || t > 1) {
+    // Bisection cannot stall and cannot leave the interval. `fx` is monotonic
+    // in t for any CSS-legal curve (x1, x2 in [0,1]), so this always converges.
     let lo = 0;
     let hi = 1;
-    t = p;
-    for (let i = 0; i < 24; i += 1) {
+    for (let i = 0; i < 40; i += 1) {
       t = (lo + hi) / 2;
       if (fx(t) < p) lo = t;
       else hi = t;
