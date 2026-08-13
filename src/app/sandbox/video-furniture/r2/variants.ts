@@ -167,7 +167,7 @@ export const HAIRLINE: Variant[] = [
 export const CHAPTER: Variant[] = [
   { id: "corner", name: "Corner", claim: "Top right, mono, `03 / 08`, nothing else. The research's literal recommendation, and the control the other five are judged against." },
   { id: "notch", name: "Notch-safe", claim: "Top CENTRE, inside the band Google's own template leaves usable. Picking this one means the measured notch outranks the recommendation's wording." },
-  { id: "labelled", name: "Labelled", claim: "`STAGE 03 / 08 · LAYOUT` on one line: the design system's own progress recipe, so the video and the app say position the same way." },
+  { id: "labelled", name: "Labelled", claim: "`STAGE 04 / 08 . LAYOUT` on one line: the design system's own progress recipe, in the app's own stage order. The label is reserved at its widest so the line cannot shift when the stage name changes length." },
   { id: "rule", name: "On a rule", claim: "The count sitting under a short gold rule. The masthead treatment shrunk to chrome, for when the bare numerals read as debug output." },
   { id: "segments", name: "Segments", claim: "Eight ticks, the current one gold, NO numerals. Signalling with nothing to read and nothing to reflow - the argument that a chapter needs a position, not a number." },
   { id: "badge", name: "Badge", claim: "The count inside a square registration tag. Squarest, most instrument-like, and the most ink of the six on screen at all times." },

@@ -13,20 +13,36 @@
 // AGAINST anything extraneous - so a persistent element is either useful 100%
 // of the time or clutter 100% of the time. There is no middle.
 //
-// WHY IT IS MONO AND NOT THE NUMERAL FACE. The research says "a persistent MONO
-// chapter indicator", and that word is load-bearing rather than stylistic:
-//   - Saira Condensed's digits are PROPORTIONAL - nine distinct advances, `1`
-//     is 53% narrower than `8` - and the family ships no `tnum`, so
-//     `tabular-nums` on `--font-numeral` is a no-op. A readout that CHANGES
-//     would reflow on every chapter boundary. Space Mono is monospaced by
-//     definition, so the problem does not need solving, it does not exist.
-//   - Bebas is out on sight: its `0` and `O` are the same drawing, so `08` and
-//     `O8` are one picture.
-//   - Condensed faces measure 11.2% SLOWER for glance reading and are a
-//     liability for small alphanumerics, which is exactly what this is.
-// Space Mono was measured designator-safe on `0`/`O`, `1`/`I` and `1`/`l` at
-// both weights. This is the one place the house "every number is Saira" rule
-// is deliberately not applied, and the reason is measurement, not taste.
+// WHY IT IS MONO AND NOT THE NUMERAL FACE.
+//
+// The decisive reason is the design system's own scoping, which is one citation
+// and settles it. `globals.css` defines Saira as "the dedicated DISPLAY NUMERAL
+// face (big hex/stat number-heroes + instrument readouts)" and says in the same
+// breath that "codes/labels still Space Mono", with the token itself commented
+// "Display numerals ONLY (hex number-heroes)". A ~25 px persistent corner chrome
+// is a label, not a number-hero. That is the argument.
+//
+// THIS DOES NOT CONTRADICT `outro/count`, which sets the same `NN / NN` glyphs
+// in Saira. That one is a hero-scale readout at `ts(7)` and lands squarely in
+// "number-hero"; this one is chrome at `ts(1.3)`. Same string, different job,
+// and the system already draws the line by SIZE and ROLE rather than by glyph.
+//
+// Two supporting facts, ranked honestly BELOW the citation because neither is
+// sufficient on its own:
+//   - Bebas cannot render it at all: its `0` and `O` are the same drawing, so
+//     `08` and `O8` are one picture. (True, but Bebas was never a candidate.)
+//   - Space Mono measured designator-safe on `0`/`O`, `1`/`I` and `1`/`l` at
+//     both weights, which a face carrying a chapter number has to be.
+//
+// AND ONE ARGUMENT DELIBERATELY WITHDRAWN. An earlier version of this comment
+// led with "Saira's digits are proportional, so a changing readout would
+// reflow". That is true of the font and irrelevant here: the change is a CUT,
+// so there is no in-between frame in which anything is seen to move, and in the
+// one variant where a digit-width change would displace neighbouring ink
+// (`labelled`) the stage name changes at the same instant and re-lays the line
+// out regardless. The reflow argument buys zero pixels in all six variants. It
+// is recorded as withdrawn rather than deleted, because it is the kind of
+// plausible reason that gets re-invented by the next person to read this file.
 //
 // WHY IT DOES NOT ANIMATE. "Changing on a cut" is a state change on a
 // stationary element, which the permitted vocabulary allows. Tweening, rolling
@@ -121,12 +137,31 @@ function Count({ i, n, size = 1.3 }: { i: number; n: number; size?: number }) {
   );
 }
 
+/** The widest label the indicator can ever be asked to show. Used as a layout
+ *  strut so the line cannot change width at a cut. */
+const LONGEST_LABEL = STAGE_ORDER.map((s) => STAGE_LABELS[s]).reduce(
+  (a, b) => (b.length > a.length ? b : a),
+  "",
+);
+
 export function Chapter({ variant, stage, t }: VProps) {
   const n = STAGE_ORDER.length;
-  const base = Math.max(0, STAGE_ORDER.indexOf(stage));
+  const at = STAGE_ORDER.indexOf(stage);
+  // NOT `Math.max(0, indexOf)`. That turned any stage this piece does not
+  // number - REVISION is a legal `Stage` and the frame route validates nothing,
+  // so `?stage=REVISION` and `?stage=banana` both reach here - into a confident
+  // `01 / 08 REQUIREMENTS`. A chapter indicator that invents a chapter is worse
+  // than one that is absent, because only the absence is visible.
+  if (at < 0) return null;
+  const base = at;
   // The cut. A step function of t, so a frame at t=1.9 and a frame at t=2.1 are
   // two different pictures and every frame between them is one or the other.
-  const i = t >= CUT_AT ? Math.min(n - 1, base + 1) : base;
+  // MODULO, not `Math.min`. Clamping meant that at the final stage the "after"
+  // index equalled the "before" index, so picking BRINGUP gave an audition of a
+  // cutting indicator that never cuts - and the check missed it because it ran
+  // at the default stage. Wrapping is honest for an audition surface: the point
+  // is to show the change, and 08 -> 01 shows it.
+  const i = t >= CUT_AT ? (base + 1) % n : base;
   const label = STAGE_LABELS[STAGE_ORDER[i]];
 
   switch (variant) {
@@ -163,9 +198,31 @@ export function Chapter({ variant, stage, t }: VProps) {
           </Run>
           <Count i={i} n={n} />
           <Run size={1.05} color={MUTED} track="0.24em">
-            {" · "}
-            {label}
+            {" "}
+            &middot;{" "}
           </Run>
+          {/* THE LABEL IS RESERVED AT ITS LONGEST, and this is not tidiness.
+              The block is right-anchored with `nowrap`, so a label that changes
+              LENGTH at the cut drags the whole line - every glyph including the
+              count - sideways. Measured across the reachable transitions that is
+              up to ~102 px at 1920, against the research's own ceiling of 16 px
+              travel at 1080p: 6.4x over, and the exact reflow this file's
+              earlier mono argument claimed to have made impossible. Monospace
+              pins DIGITS; it does nothing for a variable-length word.
+
+              The strut reserves the widest real label in the actual font at the
+              actual tracking, so no magic constant can drift out of date. Grid
+              overlay, both cells in the same track, the strut hidden. */}
+          <span style={{ display: "inline-grid", verticalAlign: "baseline" }}>
+            <Run size={1.05} color={MUTED} track="0.24em">
+              <span style={{ gridArea: "1 / 1", visibility: "hidden" }} aria-hidden>
+                {LONGEST_LABEL}
+              </span>
+            </Run>
+            <Run size={1.05} color={MUTED} track="0.24em">
+              <span style={{ gridArea: "1 / 1", textAlign: "left" }}>{label}</span>
+            </Run>
+          </span>
         </div>
       );
 
@@ -174,8 +231,13 @@ export function Chapter({ variant, stage, t }: VProps) {
     case "rule":
       return (
         <div data-chapter style={{ ...topRight, display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-          <div style={{ width: "12cqw", height: hw(0.12), background: GOLD }} />
-          <div style={{ marginTop: "0.9cqh" }}>
+          {/* Both measures are TYPOGRAPHIC - a rule bound to the type beneath it
+              and the leading under that rule - so both go through `ts()`. In
+              `cqw`/`cqh` the rule was 69% wider than its count at 16:9 and 5%
+              narrower at 9:16, inverting the relationship, and the leading
+              nearly doubled against type that had not changed size. */}
+          <div style={{ width: ts(9), height: hw(0.12), background: GOLD }} />
+          <div style={{ marginTop: ts(0.5) }}>
             <Count i={i} n={n} />
           </div>
         </div>
@@ -186,15 +248,28 @@ export function Chapter({ variant, stage, t }: VProps) {
     // question entirely - worth seeing before assuming a number is required.
     case "segments":
       return (
-        <div data-chapter style={{ ...topRight, display: "flex", alignItems: "center", gap: "0.5cqw" }}>
+        <div data-chapter style={{ ...topRight, display: "flex", alignItems: "center", gap: ts(0.38) }}>
           {STAGE_ORDER.map((s, k) => (
             <div
               key={s}
               style={{
-                width: "1.6cqw",
-                height: hw(0.16),
-                background: k === i ? GOLD : "var(--color-gold-dim)",
-                opacity: k === i ? 1 : 0.55,
+                // The tick's height is protected by `hw()`; its LENGTH has to
+                // be protected by `ts()` or the mark's proportion distorts by
+                // the same 1.78x the unit fix exists to prevent.
+                width: ts(1.2),
+                // THE CURRENT TICK IS TALLER, not merely a different colour.
+                // Hue plus alpha were the only two channels carrying the whole
+                // signal, and measured against the field the seven unlit ticks
+                // sat at 1.88:1 on dark and 1.51:1 on light while lit-vs-unlit
+                // fell to 2.75:1 on light - under the 3:1 non-text floor, in the
+                // one theme a geometry check cannot see. When the unlit ticks
+                // vanish, "the 4th of 8" degrades to "a gold dash", and position
+                // out of eight is the entire information content of this
+                // variant. Height is a channel that survives both a contrast
+                // failure and a greyscale re-encode.
+                height: k === i ? hw(0.34) : hw(0.16),
+                background: k === i ? GOLD : MUTED,
+                opacity: k === i ? 1 : 0.8,
               }}
             />
           ))}
@@ -211,7 +286,10 @@ export function Chapter({ variant, stage, t }: VProps) {
             style={{
               display: "inline-block",
               border: `${hw(0.08)} solid ${GOLD}`,
-              padding: "0.7cqh 1.1cqw",
+              // Padding around type is a typographic measure. Mixing `cqh` and
+              // `cqw` made the square tag a DIFFERENT SHAPE per aspect (h:v 2.8
+              // at 16:9, 0.9 at 9:16) around type that had not changed size.
+              padding: `${ts(0.5)} ${ts(0.8)}`,
             }}
           >
             <Count i={i} n={n} size={1.2} />

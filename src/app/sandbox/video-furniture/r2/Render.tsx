@@ -9,10 +9,19 @@
 // instead of the decontamination backlog catching it later.
 //
 // FOUR FACES, FOUR JOBS. Bebas (`--font-display`) for titles, Saira
-// (`--font-numeral`) for every number including small inline ones, Space Mono
-// (`--font-mono`) for eyebrows and labels, Lora (`--font-serif`) for the reading
-// voice. Round 1 set numbers in mono, which is the one substitution the system
-// specifically calls out.
+// (`--font-numeral`) for the NUMBER-HERO - a big hex/stat readout - Space Mono
+// (`--font-mono`) for eyebrows, labels and console chrome, Lora
+// (`--font-serif`) for the reading voice. Round 1 set number-heroes in mono,
+// which is the substitution the system calls out.
+//
+// THE LINE IS SIZE AND ROLE, NOT GLYPH. globals.css scopes Saira to "big
+// hex/stat number-heroes + instrument readouts" and says "codes/labels still
+// Space Mono" in the same breath. So `outro/count` sets `NN / NN` in Saira at
+// ts(7) because it is a hero, and `Chapter` sets the same glyphs in mono at
+// ts(1.3) because it is chrome. That is not two rules; it is one rule applied
+// to two sizes. This paragraph used to read "Saira for every number including
+// small inline ones", which contradicted the chapter piece the moment it
+// landed.
 //
 // ASCII only.
 
@@ -60,13 +69,28 @@ export type VProps = {
   guides?: boolean;
 };
 
+/**
+ * Pieces that do NOT take an exit, because they never leave.
+ *
+ * `PieceFrame` used to apply the exit stack to every piece without exception,
+ * which is right for a timed insert and precisely wrong for a persistent one:
+ * the chapter indicator - whose entire premise is that it stays on screen -
+ * dissolved out over the last 0.55 s of its own audition, by default, including
+ * under the measurement rig. The round was asking the owner to judge a
+ * persistent element by watching it exit.
+ */
+const PERSISTENT: ReadonlySet<string> = new Set(["chapter"]);
+
 export function PieceFrame(p: VProps) {
-  // THE EXIT IS APPLIED HERE, ONCE, for every piece. Doing it per-variant is how
-  // ten treatments end up with nine fades and one considered ending.
+  // THE EXIT IS APPLIED HERE, ONCE, for every piece that HAS one. Doing it
+  // per-variant is how ten treatments end up with nine fades and one considered
+  // ending; doing it to a persistent piece is how it stops being persistent.
   const seconds = (PIECES[p.piece as PieceKey] ?? PIECES.intro).seconds;
   // One wrapper per stacked exit, outermost first. See furnitureOutStack for
   // why this is nesting rather than a merged style object.
-  const layers = furnitureOutStack(p.exit?.length ? p.exit : [DEFAULT_EXIT], exitP(p.t, seconds));
+  const layers = PERSISTENT.has(p.piece)
+    ? []
+    : furnitureOutStack(p.exit?.length ? p.exit : [DEFAULT_EXIT], exitP(p.t, seconds));
   const body = (
     <div
       data-furniture

@@ -143,6 +143,13 @@ export function bezier([x1, y1, x2, y2]: readonly number[], p: number): number {
  * asked for.
  */
 export function furnitureOut(kind: FurnitureOut, p: number): React.CSSProperties {
+  // IDENTITY BEFORE THE WINDOW OPENS, and this guard is load-bearing rather
+  // than defensive. The film's `none` ("cut") returns `{ display: "none" }`
+  // WITHOUT consulting `p`, so applying it unconditionally - which is exactly
+  // what this module's own contract promises callers they may do - blanked the
+  // piece from t=0 for the entire scrub. The exit the research names for a
+  // chapter boundary was the one exit that made the piece invisible.
+  if (p <= 0) return {};
   // Was a smoothstep, which is symmetrical and therefore leaves as slowly as it
   // arrives. Carbon's productive EXIT curve starts faster and finishes flat,
   // which is what "get out of the reader's way" looks like as a number, and it
@@ -183,7 +190,8 @@ export function furnitureOutStack(kinds: FurnitureOut[], p: number): React.CSSPr
  * Progress through the exit window at scene time `t`.
  *
  * Returns 0 while the piece is still on screen, so a caller can apply the style
- * unconditionally and get an identity transform for most of the shot.
+ * unconditionally and get an identity transform for most of the shot - a
+ * promise `furnitureOut` now actually keeps at p=0; see the guard there.
  */
 export function exitP(t: number, seconds: number, dur = 0.55) {
   const start = seconds - dur;

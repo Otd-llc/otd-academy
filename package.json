@@ -24,7 +24,8 @@
     "check:classification": "node scripts/check-classification.mjs",
     "test:classification": "node --test scripts/check-classification.test.mjs scripts/classify-stash.test.mjs",
     "classify:stash": "node scripts/classify-stash.mjs",
-    "pdf:external": "tsx scripts/render-external-doc.tsx"
+    "pdf:external": "tsx scripts/render-external-doc.tsx",
+    "furniture:check": "tsx scripts/check-video-furniture.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",

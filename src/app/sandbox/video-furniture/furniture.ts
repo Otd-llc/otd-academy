@@ -20,6 +20,7 @@
 // ASCII only.
 
 import type { Stage } from "@prisma/client";
+import { STAGE_ORDER as CANONICAL_STAGE_ORDER } from "@/lib/stages";
 
 /** A real title from the shot list, per stage, for honest measurement. */
 export const SAMPLE_TITLE: Partial<Record<Stage, string>> = {
@@ -35,13 +36,21 @@ export const SAMPLE_TITLE: Partial<Record<Stage, string>> = {
   BRINGUP: "Flash the board and watch it come alive",
 };
 
-export const STAGE_ORDER: Stage[] = [
-  "REQUIREMENTS",
-  "SCHEMATIC",
-  "BOM_SOURCING",
-  "LAYOUT",
-  "DRC_GERBER",
-  "ORDERING",
-  "ASSEMBLY",
-  "BRINGUP",
-];
+/**
+ * The build stages, in order, as the FURNITURE numbers them.
+ *
+ * DERIVED, not retyped. This used to be a hand-maintained copy and it had
+ * drifted: it listed SCHEMATIC at index 1 and BOM_SOURCING at 2, while the
+ * canonical order in `@/lib/stages` has them the other way round. Nothing
+ * noticed while the sandbox only ever LIT a cell - the comb looks fine in any
+ * order. The chapter indicator is the first piece to render an ORDINAL from
+ * this list, which is what turned a dormant divergence into a video that
+ * numbers two of eight stages differently from the app teaching them.
+ *
+ * REVISION is filtered out the same way and for the same reason the product
+ * does it (`GUIDE_STAGES` in the guide blocks): counting it would make every
+ * card read `/ 9` for a curriculum a learner experiences as eight.
+ */
+export const STAGE_ORDER: Stage[] = CANONICAL_STAGE_ORDER.filter(
+  (s): s is Stage => s !== "REVISION",
+);
