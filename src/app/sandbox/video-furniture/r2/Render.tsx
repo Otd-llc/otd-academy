@@ -135,8 +135,20 @@ export function Title({ children, size = 4, o = 1, dy = 0 }: { children: React.R
   );
 }
 
-/** The signature readout. Saira, tabular, gold - for ANY number, including a
- *  small inline one. */
+/** The signature readout. Saira, gold - for ANY number, including a small
+ *  inline one.
+ *
+ *  `tabular-nums` below is INERT and is kept only because the design system
+ *  asks for it by name. Measured: Saira Condensed's digit advances at 200px are
+ *  95.8 63.8 91.2 88.6 94.6 91.8 95 85.4 97.8 95 - nine distinct widths, `1`
+ *  53% narrower than `8` - and the family ships no `tnum` feature in GSUB, so
+ *  there is nothing for the property to switch on. Bebas, by contrast, is
+ *  already perfectly tabular (every digit 80).
+ *
+ *  CONSEQUENCE, and it is a real one: a numeral that CHANGES over time in this
+ *  face will reflow as it changes. That is survivable here only because
+ *  counting numerals are on the research ban list; if a counter ever comes
+ *  back, it needs a per-digit fixed-width span, not this component. */
 export function Num({ children, size = 6, color = GOLD }: { children: React.ReactNode; size?: number; color?: string }) {
   return (
     <span
@@ -148,6 +160,78 @@ export function Num({ children, size = 6, color = GOLD }: { children: React.Reac
         letterSpacing: "0.02em",
         color,
         lineHeight: 1,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+/**
+ * Bebas cap height / em = 0.700; Saira Condensed 800 = 0.690. Swapping the face
+ * at an unchanged `font-size` therefore shrinks the cap by 1.45%, which is
+ * invisible on its own and becomes a mystery the third time someone asks why
+ * the lower third looks smaller than it used to. Hold the cap instead.
+ */
+const CAP_MATCH = 0.700 / 0.690;
+
+/**
+ * A DESIGNATOR or a VALUE: `AP2112K-3.3`, `10 uF / 16 V / X7R`, `SS34`.
+ * Alphanumeric, and critically WITHOUT LEXICAL CONTEXT - nobody recovers a
+ * misread `C11` the way they recover a misread `the`.
+ *
+ * WHY THIS IS NOT BEBAS, measured rather than cited: in Bebas Neue the glyphs
+ * `0` and `O` are THE SAME DRAWING. Identical ink and identical advance
+ * (15.36/15.36 at delivery size, 120.00/120.00 at 300px), with a control pair
+ * differing at both sizes. So a Bebas `C0` and a Bebas `CO` are not merely hard
+ * to tell apart, they are the same picture, and no size, weight, contrast or
+ * hold duration can separate them. Saira draws them differently (advance 18.39
+ * vs 19.47). That is the whole argument; the counter-width one below is a
+ * bonus.
+ *
+ * Advance-per-cap, measured from the served fonts: Bebas 0.600, Saira 0.752,
+ * Arial 1.010. Legibility at threshold is limited by counter width, so the
+ * swap buys about 25% more of it at the same cap height.
+ *
+ * `"zero" 1` IS CURRENTLY INERT and is set deliberately anyway. The upstream
+ * SairaCondensed-ExtraBold.ttf carries `zero` in GSUB (aalt case ccmp dnom frac
+ * liga locl ordn salt sups titl zero), but the Google Fonts css2 API strips it
+ * from the woff2 that globals.css actually loads: rendering `0` with the
+ * feature on and off is pixel-identical via the CDN and DIFFERS when the
+ * upstream TTF is injected directly. Self-hosting that file is what makes this
+ * line start working; until then the swap stands on `0` != `O`, which needs no
+ * feature at all.
+ *
+ * WORDS DO NOT COME HERE. `USB differential pair` is prose and belongs in
+ * Bebas. Bebas is for words, not parts.
+ */
+export function Desig({
+  children,
+  size = 2,
+  color = TEXT,
+  o = 1,
+}: {
+  children: React.ReactNode;
+  size?: number;
+  color?: string;
+  o?: number;
+}) {
+  return (
+    <span
+      // Declared so the face check can assert on INTENT rather than on a
+      // guessed selector, and so a reviewer sees the classification in the diff.
+      data-kind="part"
+      style={{
+        fontFamily: "var(--font-numeral)",
+        fontWeight: 800,
+        fontSize: ts(size * CAP_MATCH),
+        // Opens the counters a little further, which is the axis that actually
+        // limits reading an alphanumeric run at threshold.
+        letterSpacing: "0.02em",
+        fontFeatureSettings: '"zero" 1',
+        color,
+        opacity: o,
+        lineHeight: 1.1,
       }}
     >
       {children}
@@ -608,17 +692,47 @@ function Section({ variant, stage, t }: VProps) {
 
 // ---- LOWER THIRD (10) -------------------------------------------------------
 
-const L_SAMPLE: Record<string, { label: string; value: string; num?: string; unit?: string }> = {
-  hairline: { label: "U2 / regulator", value: "AP2112K-3.3" },
-  accent: { label: "net class", value: "USB differential pair" },
-  bracket: { label: "keep-out", value: "antenna clearance zone" },
-  masthead: { label: "this pass", value: "drag-solder the fine pitch" },
-  readout: { label: "recommended supply", value: "", num: "2.42", unit: "A" },
-  badge: { label: "C11", value: "10 uF / 16 V / X7R" },
-  tag: { label: "D2", value: "SS34 schottky" },
-  warn: { label: "polarised", value: "D2 and C11 fail loudly if reversed" },
-  fail: { label: "DRC", value: "3 clearance violations" },
-  pass: { label: "ERC", value: "clean, 0 errors" },
+/**
+ * A lower third's value is not one kind of thing, and the face follows the
+ * KIND rather than the slot. `part` is a designator or a value - alphanumeric,
+ * no lexical context, set in Saira via `Desig`. `words` is prose, and prose
+ * stays in Bebas, which is what Bebas is for. A row may carry both, in that
+ * order, because a part followed by its plain-language name is how the BOM
+ * itself reads.
+ *
+ * Labels are untouched: they are Space Mono, and mono was measured clean on
+ * every confusable pair that matters (`0`/`O`, `1`/`I`, `1`/`l` all differ).
+ */
+type LowerSample = {
+  label: string;
+  /** Designator / value. Saira. */
+  part?: string;
+  /** Prose. Bebas. */
+  words?: string;
+  num?: string;
+  unit?: string;
+};
+
+const L_SAMPLE: Record<string, LowerSample> = {
+  hairline: { label: "U2 / regulator", part: "AP2112K-3.3" },
+  accent: { label: "net class", words: "USB differential pair" },
+  bracket: { label: "keep-out", words: "antenna clearance zone" },
+  masthead: { label: "this pass", words: "drag-solder the fine pitch" },
+  readout: { label: "recommended supply", num: "2.42", unit: "A" },
+  badge: { label: "C11", part: "10 uF / 16 V / X7R" },
+  tag: { label: "D2", part: "SS34", words: "schottky" },
+  // Was "D2 and C11 fail loudly if reversed" - one sentence, so the two
+  // designators inside it inherited the sentence's face. Leading with the parts
+  // is both the correct typography and the better furniture: a warning names
+  // what it is about before it explains itself.
+  warn: { label: "polarised", part: "D2 / C11", words: "fail loudly if reversed" },
+  // A COUNT is not prose, even inside a phrase. Set whole in Bebas, "clean, 0
+  // errors" renders as "CLEAN, O ERRORS" - the 0/O collision, live, in a gate
+  // result where the number IS the payload. The design system separately says
+  // an inline count takes the numeral face. Both point the same way: lead with
+  // the count, in Saira, and let the noun stay prose.
+  fail: { label: "DRC", part: "3", words: "clearance violations" },
+  pass: { label: "ERC", part: "0", words: "errors" },
 };
 
 function Lower({ variant, t }: VProps) {
@@ -633,8 +747,21 @@ function Lower({ variant, t }: VProps) {
       {s.label}
     </div>
   );
+  // One renderer, two faces, chosen by the KIND of each fragment rather than by
+  // the variant. A row carrying both sets the part first and the words after it.
   const value_ = (size = 2, color: string = TEXT) => (
-    <div style={{ fontFamily: "var(--font-display)", fontSize: ts(size), color, lineHeight: 1.1 }}>{s.value}</div>
+    <div style={{ display: "flex", alignItems: "baseline", gap: "0.7cqw", lineHeight: 1.1 }}>
+      {s.part ? (
+        <Desig size={size} color={color}>
+          {s.part}
+        </Desig>
+      ) : null}
+      {s.words ? (
+        <span data-kind="words" style={{ fontFamily: "var(--font-display)", fontSize: ts(size), color }}>
+          {s.words}
+        </span>
+      ) : null}
+    </div>
   );
 
   switch (variant) {
@@ -703,8 +830,15 @@ function Lower({ variant, t }: VProps) {
           <div style={{ border: `0.1cqw solid ${GOLD}`, display: "grid", placeItems: "center", padding: "0 1cqw" }}>
             <Num size={2.2}>{s.label}</Num>
           </div>
-          <div style={{ display: "flex", alignItems: "center", fontFamily: "var(--font-mono)", fontSize: ts(1.5), letterSpacing: "0.1em", color: TEXT }}>
-            {s.value}
+          {/* Deliberately NOT moved to Saira. This line is Space Mono, and mono
+              measured clean on every confusable pair that matters (`0`/`O`,
+              `1`/`I`, `1`/`l` all differ, at both sizes). The defect being
+              fixed elsewhere is specific to Bebas, where `0` and `O` are one
+              drawing; applying the swap here would be following the rule past
+              its reason, and this variant's whole claim is that it reads the
+              way a BOM reads. */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5cqw", fontFamily: "var(--font-mono)", fontSize: ts(1.5), letterSpacing: "0.1em", color: TEXT }}>
+            {[s.part, s.words].filter(Boolean).join(" ")}
           </div>
         </div>
       );
@@ -723,7 +857,7 @@ function Lower({ variant, t }: VProps) {
           <span style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.1), letterSpacing: "0.24em", color: "var(--color-alert-red)" }}>
             {s.label}
           </span>
-          <span style={{ fontFamily: "var(--font-display)", fontSize: ts(2), color: TITLE }}>{s.value}</span>
+          {value_(2, TITLE)}
         </div>
       );
     case "pass":
@@ -732,7 +866,7 @@ function Lower({ variant, t }: VProps) {
           <span style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.1), letterSpacing: "0.24em", color: "var(--color-status-green)" }}>
             {s.label}
           </span>
-          <span style={{ fontFamily: "var(--font-display)", fontSize: ts(2), color: TITLE }}>{s.value}</span>
+          {value_(2, TITLE)}
         </div>
       );
     case "hairline":

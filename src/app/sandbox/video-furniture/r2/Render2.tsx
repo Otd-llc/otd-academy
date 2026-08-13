@@ -18,7 +18,7 @@ import { ts, hw } from "./units";
 import {
   seg, outCubic, outExpo, inOut,
   GOLD, TITLE, TEXT, MUTED, HAIR,
-  Eyebrow, Title, Num, Hair,
+  Eyebrow, Title, Num, Desig, Hair,
   type VProps,
 } from "./Render";
 
@@ -395,8 +395,15 @@ export function Hairline({ variant, t }: VProps) {
       {LABEL}
     </div>
   );
+  // A part number, so Saira rather than Bebas: in Bebas `0` and `O` are the
+  // same drawing, and `AP2112K-3.3` carries no lexical context to recover a
+  // misread from. Measurements are on `Desig` in Render.tsx.
   const value = (o = 1) => (
-    <div style={{ fontFamily: "var(--font-display)", fontSize: ts(2), color: TEXT, opacity: o, lineHeight: 1.1 }}>{VALUE}</div>
+    <div style={{ lineHeight: 1.1 }}>
+      <Desig size={2} color={TEXT} o={o}>
+        {VALUE}
+      </Desig>
+    </div>
   );
   const base: React.CSSProperties = { position: "absolute", left: "6cqw", bottom: `${bottom}cqh`, opacity: life, width: "42cqw" };
 
