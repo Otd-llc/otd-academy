@@ -1,0 +1,435 @@
+# Video channel research: what the evidence actually says
+
+Synthesis of a five-agent research round, 2026-08-13. Companion to
+`2026-08-13-video-furniture-mixer.md`, which is the build plan.
+
+**How to read this.** Every claim carries a grade. `[HARD]` = peer-reviewed or a
+published standard. `[SOFT]` = industry practice with a traceable number.
+`[CRAFT]` = convention, no evidence base. `[FAILS]` = widely repeated, does not
+survive checking. The last category is as valuable as the first: it is the list
+of things we would otherwise have built on.
+
+**The agents were not trusted blind.** One recommendation from an earlier round
+this project ran was contradicted by our own measurement for 3 of 5 cases. Two
+claims below were re-verified locally before being written down, and are marked.
+
+---
+
+## 1. Things we have already built that this contradicts
+
+Listed first because they are the expensive ones.
+
+### 1.1 Do not animate the honeycomb
+
+The `combwalk` set animates the comb. Flagged three independent ways:
+
+- It is the enumerated AI-tech-video cliché (particle systems, pulsing node
+  graphics, animated lattices). `[CRAFT]`
+- A moving repeating high-frequency pattern is close to worst-case content for a
+  block-transform codec, and aliases. `[HARD — codec behaviour]`
+- Pattern motion across a large share of the field is a vestibular trigger.
+  `[CRAFT — Val Head, authoritative practitioner]`
+
+**Keep the honeycomb. Do not animate the honeycomb.** A static comb with the
+current cell lit, changing on a cut, delivers the same information.
+
+### 1.2 Effects on the ban list that we shipped
+
+| Ours | Why it goes |
+| --- | --- |
+| `combwalk/count` (counting numerals) | Motion-graphics-template default; transient - the value is not readable until it stops |
+| `blur` exit | Guarantees illegibility during the transition; straight transient-information penalty |
+| `swipe off` exit | Full-frame slide: vestibular trigger, and reads as slide-deck software |
+| `settle` exit (scale) | Scale/overshoot is the playful register the identity explicitly rejects |
+| hex entrance `rotate(-12deg)` | Rotation is not in the permitted vocabulary |
+
+### 1.3 The base unit is wrong, and this is the big one
+
+**Every size constant must be a share of `min(width, height)` - the frame SHORT
+edge - not of frame height.** `[HARD]`
+
+BBC specifies subtitle size as **6.667% of frame height for landscape** and
+**3.75% for 9:16**. Those are not two opinions; they are the same physical size.
+At 1920x1080 and at 1080x1920 both resolve to a **72 px em**. The invariant is
+the short edge.
+
+Our furniture sizes in `cqw` - container WIDTH - which is the long edge at 16:9
+and the short edge at 9:16. Carrying one constant across both therefore ships
+type **1.78x wrong** in one of them. This is almost certainly the real cause of
+the per-format type fudge factors the Logbook film needed (`QUIZ_NARROW_TYPE`
+0.58, `QUIZ_TALL_TYPE` 0.52): those numbers are close to 1/1.78 = 0.56, which
+means we were hand-tuning our way around a unit bug rather than fixing it.
+
+### 1.4 Bebas has no slashed zero, and a 0.60 width-to-cap ratio
+
+Measured from the repo's own TTFs. `[HARD - direct measurement]`
+
+| | Bebas Neue | Saira Condensed XB | Roman reference |
+| --- | ---: | ---: | ---: |
+| advance `H` / capHeight | **0.600** | 0.754 | ~1.00 |
+| slashed-zero feature | **none** | `zero` present | - |
+
+Legibility at threshold is limited by counter width, not cap height, so a
+condensed face needs scaling up to recover: **Bebas x1.67, Saira Condensed
+x1.33**.
+
+**Consequence for our lower thirds:** they set values like `AP2112K-3.3` in
+`--font-display` (Bebas). A part designator has no lexical context to recover a
+misread from - nobody recovers `C11` read as `CII` the way they recover a
+misread `the`. **Designators, values and warnings go in Saira Condensed with
+`font-feature-settings: "zero" 1, "tnum" 1`. Bebas is for words, not parts.**
+
+### 1.5 Light-mode gold fails AA, and its own comment says otherwise
+
+**Re-verified locally, not taken on trust.** `globals.css:206` reads
+`--color-command-gold: #9c7016; /* small gold text needs ~4.5:1 on ivory */`.
+
+Computed WCAG ratios against `#faf7f0`:
+
+| colour | ratio | AA body (4.5) |
+| --- | ---: | --- |
+| `#9c7016` (shipped) | **4.14** | FAIL |
+| `#946a12` | 4.53 | pass |
+| `#8f6510` | 4.86 | pass |
+
+Dark-mode gold `#c8963e` on `#08090d` measures **7.48** and clears AAA. Only the
+light token is wrong. Belongs to the light-mode track, not to this one, but it
+is a live product defect with a false comment attached.
+
+---
+
+## 2. Motion: what the research supports
+
+### 2.1 The numbers
+
+Mayer's meta-analytic medians `[HARD]`:
+
+| Principle | Median d | Meaning for furniture |
+| --- | ---: | --- |
+| **Coherence** (delete extraneous) | **0.86** | The strongest effect. Decorative motion is the thing being deleted |
+| **Signalling** (highlight essential) | **0.70** | Motion that POINTS is strongly positive |
+| **Segmenting** (break into parts) | **0.67** | A chapter card is a research-supported device |
+| Redundancy (on-screen text duplicating narration) | **0.10** | A transcribing lower third buys nothing |
+
+Seductive-details meta-analysis (177 effect sizes, 50 studies): **g = -0.16**,
+mediated specifically through extraneous cognitive load. `[HARD]` Note this is
+**small**. The case against decoration is cumulative and identity-based, not a
+cliff - worth stating honestly rather than overselling.
+
+**Redundancy has a boundary condition that rescues our use case:** the effect is
+diminished or reversed when on-screen text is *short, reworded, or a technical
+term*. A lower third reading `TQFP-48` while narration says "the quad flat pack"
+is fine and probably good. One that transcribes the sentence is dead weight.
+
+### 2.2 Transient information
+
+Motion that is still finishing while the viewer is reading is a working-memory
+tax. `[HARD]` **Reveal-then-hold beats reveal-during-read.** This is the direct
+argument against blur-in, per-character reveal, and long decelerating tails.
+
+### 2.3 Short and long form want OPPOSITE things
+
+Lang's Limited Capacity work: as edit rate rises, arousal and **visual** memory
+rise, while **verbal** memory falls; memory is worst when material is both
+arousing and fast-paced. `[HARD]`
+
+Instruction is verbal-propositional. **The fast-cut grammar of a Short must not
+leak into the lesson.** One identity, two tempos - not one motion system scaled.
+
+### 2.4 Curves and durations to encode
+
+IBM Carbon *productive* easing `[SPEC]`, which is the register that matches
+"console, not corporate":
+
+```
+entrance  cubic-bezier(0, 0, 0.38, 0.9)
+exit      cubic-bezier(0.2, 0, 1, 0.9)
+standard  cubic-bezier(0.2, 0, 0.38, 0.9)
+```
+
+Durations: 70 / 110 / 150 / 240 / 400 / 700 ms, scaled by distance travelled.
+NN/g: 100-500 ms overall, entrances slightly longer than exits. `[CRAFT]`
+
+Ratios: **exit = 0.6-0.7 x entrance** · stagger 100-150 ms · travel &lt;= 16 px at
+1080p · total entrance &lt;= 800 ms including stagger.
+
+Hold time, from BBC subtitle guidance `[HARD]`:
+
+```
+hold = DUR_ACQUIRE + max(DUR_MIN, chars / CPS)
+DUR_ACQUIRE = 0.4 s   // the eye has to land after a cut
+DUR_MIN     = 1.0 s
+CPS_PROSE   = 15      // BBC 180 wpm
+CPS_TECHNICAL = 12    // designators, values, part numbers
+```
+plus the entrance duration, because nothing is readable mid-transition.
+
+### 2.5 The permitted vocabulary
+
+**Allowed:** cut · wipe along axis · register (short single-axis translation with
+opacity) · dissolve · state change (colour/weight/opacity on a stationary
+element).
+
+**Forbidden:** scale, rotate, 3D, bounce, overshoot, elastic, anticipation,
+morph, blur, parallax, full-frame movement, particle, glow, gradient sweep,
+animated lattice, per-character reveal, counting numerals, whoosh.
+
+### 2.6 The highest-value thing we are not doing
+
+**A persistent mono chapter indicator** - `03 / 08`, top right, no animation,
+changing on cut. It delivers signalling (0.70) and segmenting (0.67) at zero
+motion budget, and almost nobody does it.
+
+And: **the chapter card should be a hard cut to a static frame.** It is the one
+piece of furniture with affirmative research behind it, and it earns that by
+being a boundary rather than a performance.
+
+---
+
+## 3. Audio
+
+### 3.1 We are mastering the wrong object
+
+Platforms normalize **per video, one gain offset for the whole file**. A bed's
+absolute LUFS is meaningless inside a mix; what matters is its level **in LU
+relative to the voice**, and the loudness of the finished program. `[HARD]`
+
+**Beds ship as unmastered stems at a documented reference level. Only the
+finished program gets `loudnorm`.** Our existing bed at -16.94 LUFS is ~3 dB
+below a -14 neighbour, and **YouTube attenuates but does not boost** - so that
+deficit is unrecoverable for a standalone promo.
+
+### 3.2 Integrated LUFS is invalid for a 2-second sting, and EBU says so
+
+BS.1770 gating uses 400 ms blocks; a 2 s sting yields ~17 of them, and LRA is
+explicitly useless below ~1 minute. **EBU R128 s1** is the short-form supplement:
+characterise by **Max Short-term &lt;= target + 5 LU**, **max true peak -1 dBTP**,
+and **drop LRA entirely**. `[HARD]`
+
+### 3.3 Two ffmpeg traps, one of which we did not know
+
+- `loudnorm` defaults **`dual_mono=false`**. A mono render measures ~**3 LU**
+  quieter than it will play. `[HARD]`
+- `loudnorm` defaults **`tp=-2.0`**, not -1.0.
+- **`linear=true` has a THIRD silent-fallback condition we had not recorded:** it
+  reverts to dynamic if the resulting true peak would exceed target, as well as
+  the LRA condition we already knew. Read `normalization_type` from the JSON;
+  never infer. (We already do this - the guard was added this month.)
+
+### 3.4 BPM must be frame-legal
+
+Frames per beat = `fps x 60 / BPM`. Non-integer means every accent rounds to a
+fractional frame - a +/-1 frame jitter exactly the size of the effect we are
+trying to control.
+
+For integer frames per beat at 24, 30 **and** 60 fps, BPM must divide 360:
+**40, 45, 60, 72, 90, 120, 180**.
+
+**128 BPM - the reflex tempo - is frame-illegal at every common rate.** 120 is
+legal. 112.5 is the only tempo giving a clean binary frame grid (32/16/8 frames
+per beat/eighth/sixteenth) at 60 fps.
+
+**Observation about our existing bed:** 10 s at 120 BPM is **5 bars**. Five is
+not a phrase length. Either it is 4 bars plus a 2 s tail, or there is an odd bar
+in the loop. Worth confirming, because everything downstream inherits that phrase
+math.
+
+### 3.5 One tempo, varied by subdivision
+
+Fix 120 BPM across the whole system and vary energy by accent grid, not tempo:
+
+| Format | Grid | Interval | Frames @60 |
+| --- | --- | ---: | ---: |
+| Short-form | 1/8 | 0.250 s | 15 |
+| Long-form outro | 1/4 | 0.500 s | 30 |
+| Long-form body | 1/2 | 1.000 s | 60 |
+| Long-form bed | 1 bar | 2.000 s | 120 |
+
+Same tempo, key, mode and frame grid: a 4:1 energy range with zero identity
+drift, and every asset stays beat-matchable to every other.
+
+### 3.6 Do not put music under technical narration
+
+The strongest single result in the round, and it points against a bed.
+
+Moreno &amp; Mayer (2000): narrated animations with background music performed
+**worse on both retention and transfer**; median transfer decrement **d = 1.11**.
+`[HARD]` The field effect is much smaller - a 2023 meta-analysis of 71 effect
+sizes gives **g = -0.19** `[HARD]` - but the direction is consistent, and it is
+worse for fast/loud music and for lyrics.
+
+**Music as punctuation, not wallpaper.** Stings at boundaries, a bed after the
+teaching ends, and beds only under sections with no speech.
+
+If a bed must run under speech: the ANSI S3.5 octave-band importance function
+puts **72% of speech intelligibility in the 1k / 2k / 4k octaves**. Carve
+**700 Hz - 5.6 kHz, deepest at 2 kHz**. Better, since we synthesise rather than
+license: **compose the hole in** - band-limit the pads so there is nothing to
+duck.
+
+### 3.7 Mode: our ordering is right, one distinction is not
+
+Temperley &amp; Tan (2013) is the correct source and our reading of it is broadly
+right, with one correction that matters:
+
+- **Ionian is measured happiest. Lydian is the explicit EXCEPTION** to the
+  raise-the-scale-degrees rule and is *less* happy than Ionian. Every chart that
+  puts Lydian at the top of a brightness axis is repeating theory, not
+  measurement. `[HARD]`
+- **The Lydian/Mixolydian ordering is unstable** - almost half of participants
+  ordered them opposite to prediction. **Do not automate an affect decision on
+  that distinction.** `[HARD]`
+- Key-mood association remains a confirmed myth (Powell &amp; Dibben 2005): no
+  ability to identify mood from key or key from mood, and no perceived mood
+  change under transposition. Transpose freely. `[HARD]`
+
+Design rule from Husain/Thompson/Schellenberg: **tempo drives arousal, mode
+drives valence, and the two dissociate.** `[HARD]`
+
+### 3.8 Transitions
+
+`[CRAFT]` throughout - there is no measurement literature on transition sound.
+
+**Use:** silence before impact (the one device with a perceptual basis - contrast
+is real) · filter open (reads as mechanism coming online, on-brand) ·
+downlifter for exits.
+
+**Avoid:** reverse cymbal (explicitly tired) · stock white-noise riser · braaam
+(also reads ominous, which the brief forbids) · tape stop (reads as a joke).
+
+**One device per boundary.** Riser + impact + reverse cymbal is the signature of
+stock-library editing.
+
+---
+
+## 4. Sync: our practice is right, the usual explanation is backwards
+
+Craft blogs say "cut early because the brain processes visuals faster than
+audio." **That is inverted.** `[FAILS]` Audio reaches cortex **30-50 ms faster**
+(cochlea to brainstem ~8-10 ms; V1 onset 50-70 ms). That is *why* the visual
+must lead.
+
+Four real anchors, all `[HARD]`: the point of subjective simultaneity sits at
+visual-lead; Vatakis &amp; Spence found piano clips need visual lead for perceived
+simultaneity, and that JNDs are larger for music than speech; the temporal
+binding window is asymmetric and favours visual-lead (~273 ms vs ~198 ms); and
+negative mean asynchrony shows humans spontaneously tap *ahead* of a metronome.
+
+**Answering the agent's open question:** our 2-4 frame finding was measured at
+**30 fps**, which is **67-133 ms** - larger than the AV-latency explanation
+covers. So something else is doing most of the work, and the likely cause is
+**perceptual attack time**: both the audio event and the visual event have a
+perceptual centre later than their physical onset, and its position depends on
+attack/rise time.
+
+**Consequence: the offset is a property of the accent's attack, not a global
+constant.** A percussive hit's P-centre is near its onset; a filtered or soft
+accent's is tens of ms later. `preRoll` should be per accent class in the mixer,
+not one number.
+
+---
+
+## 5. Channel: the video types
+
+The 127 planned videos are **not one type**. They are six, and the furniture
+differs sharply:
+
+| Type | Furniture consequence |
+| --- | --- |
+| Explainer | diagrams, no step counter |
+| Walkthrough | cursor highlight, callouts, no step counter |
+| Tutorial | step counter, chapters == steps |
+| **Build-along ("with me")** | all of the above **plus** "pause here" cards, progress bar, real-time vs speed-up label, timer |
+| Technique demo | macro insert, spec chip, before/after |
+| Troubleshooting | symptom -&gt; cause -&gt; fix card triad |
+
+Deciding which each of the 127 is, before production, is what makes the
+furniture spec finite.
+
+**Derived vertical clips must DROP most furniture, not reflow it:** no intro
+sting, no lower third, no chapter cards, no end screen. Those consume the 0-3 s
+window that decides the clip. They need instead: hook text in the first 2 s,
+burned-in captions, a cover frame, a loop point, and a CTA in pixels - because
+end screens are a 16:9 affordance that does not exist on Shorts.
+
+**Two platform features we were not using:** YouTube **Shows** natively stacks
+videos into seasons with episode numbers - the shape a 127-video curriculum wants
+- and **Corrections** fixes an error via a description line without re-uploading
+or losing view count. For a channel teaching people to build hardware that can
+hurt them, the second is not optional.
+
+**Intro length.** Direction is well supported, magnitude is invented. Netflix's
+Skip Intro is pressed ~136 M times/day and was built because ~15% of viewers were
+manually scrubbing the first five minutes `[SOFT]`. Every specific retention
+percentage in circulation traces to content marketing. **Take the direction:
+1-2 s (half a bar to a bar at 120), placed after the hook, not before it.**
+
+---
+
+## 6. Safe areas and legibility
+
+**The current standards are 93% / 90%, not the 80% / 90% pair we might remember**
+- EBU R95, ITU-R BT.1848-1 and SMPTE ST 2046-1 all agree: action safe = 3.5%
+inset, graphics/title safe = 5% inset. `[HARD]` The 80%/80% pair is pre-2009
+analogue convention, **except** for CEA-708 captions, which still render inside
+the old 80x80 box - so on TV/OTT the caption band is roughly
+**y in [0.72, 0.90], centre width**, and that band is not ours.
+
+Our lower thirds currently sit at about y = 0.83. **Inside the caption band.**
+
+9:16 platform chrome (community-measured, no vendor spec, so treat as a starting
+point and re-measure): union of TikTok/Reels/Shorts is roughly **900 x 1400
+centred in 1080 x 1920**, i.e. top 8%, bottom 23%, left 6%, right 17%. The right
+rail and bottom caption stack mean **a vertical safe area is not an inset** -
+anchor left and treat the bottom quarter as unusable.
+
+**Condensed all-caps is defensible for glanced display type** - Sawyer et al.
+found uppercase **26% faster** and condensed **11.2% slower** for glance reading,
+which is what a title card is. It is a liability for small type and for
+alphanumerics. `[HARD]`
+
+**Case B is the finding that constrains us:** a 16:9 video played inline in a
+portrait feed, sized to BBC's own landscape rule, lands at **16.3 arcmin** -
+exactly on the ISO 9241-303 minimum with nothing spare, and it cannot be fixed by
+sizing without exceeding BBC's own ceiling. **Do not design the 16:9 cut for
+phone reading, and never put a part designator only in the 16:9 version.**
+
+---
+
+## 7. Claims that did not survive checking
+
+Recorded because they are what we would otherwise have built on.
+
+| Claim | Verdict |
+| --- | --- |
+| "Cut early because the brain processes visuals faster than audio" | **Backwards.** Audio is 30-50 ms faster to cortex. Practice right, mechanism inverted |
+| "Lydian is the brightest mode" | **False.** Ionian measured happiest; Lydian is the explicit exception |
+| "Lydian vs Mixolydian differ reliably" | **Not supported.** Population splits ~50/50 |
+| "60-80 BPM is optimal for focus" | **Folklore.** Same family as the Mozart Effect |
+| "Musical keys have characteristic moods" | **Myth, confirmed** (Powell &amp; Dibben) |
+| "-14 LUFS is YouTube's official standard" | **Half true.** It is a playback reference, not published by YouTube, and not an upload requirement |
+| "All short-form platforms normalize to -14" | **Not established.** Meta and TikTok publish nothing; third-party figures span -10 to -16 |
+| "Intros reduce retention by X%" | **Direction supported, magnitude invented** |
+| "LRA is a useful spec for stings" | **False, and EBU says so.** Use max short-term |
+| "Cut on the blink" (Murch) | **Craft.** Influential, unfalsified, unsupported |
+| Template-video reach statistics (18% penalty, 42% engagement gap, etc.) | **Likely fabricated.** Appeared only on AI-written SEO pages citing nothing |
+
+---
+
+## 8. What to do about it
+
+In rough order of leverage:
+
+1. **Re-base every size constant on `min(w, h)`.** This is a correctness fix, not
+   a preference, and it probably retires the per-format type fudge factors.
+2. **Designators and values move to Saira Condensed with `zero` on.**
+3. **Stop animating the comb.** Static, current cell lit, changes on cut.
+4. **Drop `blur`, `swipe off`, `count`; reconsider `settle`.** Add the Carbon
+   productive curves as the default pair.
+5. **Add a persistent `NN / NN` chapter indicator.** Highest value per unit of
+   effort in the whole report.
+6. **Move lower thirds out of `y in [0.70, 0.92]`.**
+7. **Beds become unmastered stems.** Only finished programs get `loudnorm`.
+8. **`preRoll` becomes per accent class**, not a global constant.
+9. **Fix `#9c7016`** (light-mode track, not this one).
+10. **Confirm the 5-bar loop** in the existing bed.
