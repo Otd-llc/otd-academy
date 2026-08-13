@@ -19,9 +19,16 @@ import { PIECES, type PieceKey } from "../variants";
 import { SAMPLE_TITLE } from "../../furniture";
 import { STAGE_LABELS } from "@/lib/stages";
 
-// No `declare global` here. Round 1's frame already declares `__seek` and
-// `__pieceInfo` on Window, and a second declaration with a different shape is a
-// merge conflict at the type level rather than two independent surfaces.
+// This `declare global` used to live in ROUND 1's frame, and this file
+// deliberately did not repeat it - two declarations with different shapes are a
+// conflict at the type level rather than two independent surfaces. Round 1 has
+// been deleted, so it moves here, to the only surface that still drives a seek.
+declare global {
+  interface Window {
+    __seek?: (t: number) => void;
+    __pieceInfo?: () => { piece: string; variant: string; seconds: number; w: number; h: number };
+  }
+}
 
 const LONGEST =
   "Solder the board: heavy parts, passives, and a drag-solder pass (plus the hot-air option)";
