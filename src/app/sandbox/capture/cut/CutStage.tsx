@@ -30,7 +30,7 @@
 
 import { useEffect, useRef } from "react";
 import { CUES, TEXT_SCALE, cueCss } from "./cue-layer";
-import { SPECS, formatFor, placeEarn, type Format } from "./earn-place";
+import { SPECS, formatFor, insets, placeEarn, type Format } from "./earn-place";
 import { byId, progress, type Align } from "../../junction/transitions";
 import { GH, GW, drawGlitch } from "../../junction/glitch";
 
@@ -56,10 +56,14 @@ export const SECONDS = 10;
 // margin changes, so re-rendering the picture for it would be two identical
 // files. Wide keeps the unsuffixed names it already has.
 const pictureFor = (format: Format) => {
-  const f = format === "band" ? "wide" : format;
-  const s = f === "wide" ? "" : `-${f}`;
+  // Band shares wide's HANDOFF, because that half is the 3D rig and the rig
+  // centres its own subject identically at both. It needs its own FINISH: the
+  // certificate is centred for band and offset for wide, and that is the whole
+  // point of the band variant.
+  const handoff = format === "band" || format === "wide" ? "" : `-${format}`;
+  const s = format === "wide" ? "" : `-${format}`;
   return [
-    { at: 0.0, src: `/_capture/cut/handoff${s}.mp4`, from: 0.0 },
+    { at: 0.0, src: `/_capture/cut/handoff${handoff}.mp4`, from: 0.0 },
     // 1.6, not 0.4. Reading the exam from almost the start of the clip left
     // only four tenths of head, so the LEARN join could barely be pulled
     // earlier. The push-in is 4.6 s from scale 1 to 1.07, so entering at 1.6
@@ -172,7 +176,9 @@ export function CutStage({
 
       const placed = placeEarn(format);
       const style = document.createElement("style");
-      style.textContent = cueCss(size, safe, placed);
+      // Per-side gutters, so the grid corners clear the platform's own
+      // furniture. `c-br` is where BUILD sits and where the action rail is.
+      style.textContent = cueCss(size, insets(spec), placed);
       root.appendChild(style);
 
       // ── picture ──────────────────────────────────────────────────────────

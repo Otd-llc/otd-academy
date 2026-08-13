@@ -134,7 +134,17 @@ export const TEXT_SCALE = { word: 52 / 460, big: 79 / 460, url: 11 / 460 };
 
 export function cueCss(
   size: { word: number; big: number; url: number },
-  safe: number,
+  /**
+   * The gutters, as percentages. A NUMBER is the old symmetric form: that many
+   * percent off the top and bottom, 7 off each side.
+   *
+   * An OBJECT is per side, and it exists because the platform furniture is not
+   * symmetric. The right-hand action rail on Shorts, Reels and TikTok covers
+   * roughly 16.7% of a 1080-wide frame, and `c-br` puts BUILD exactly there;
+   * the caption and channel name eat the bottom quarter, which is where the
+   * link sat. A single `safe` cannot express either.
+   */
+  safe: number | { top: number; right: number; bottom: number; left: number },
   /**
    * The EARN beat's three slots, resolved for this frame's aspect. Omit and
    * they fall back to their grid cells, which is what the sandboxes that only
@@ -142,6 +152,12 @@ export function cueCss(
    */
   placed?: { word: Place; ask: Place; link: Place },
 ): string {
+  // One shape for both call styles, so every existing caller keeps working.
+  const g =
+    typeof safe === "number"
+      ? { top: safe, right: 7, bottom: safe, left: 7 }
+      : safe;
+
   // Absolute, so they leave the grid entirely. A grid cell is a fixed fraction
   // of the frame and the certificate is not, so on any aspect but the one it
   // was designed at, a cell and the card drift apart.
@@ -168,7 +184,8 @@ export function cueCss(
    of them. .k-word overrides this with its own .84 and is unaffected. */
 #cuelayer{position:absolute;inset:0;z-index:50;pointer-events:none;display:grid;
   line-height:normal;
-  grid-template-columns:7% 1fr 1fr 1fr 7%;grid-template-rows:${safe}% 1fr 1fr 1fr ${safe}%;
+  grid-template-columns:${g.left}% 1fr 1fr 1fr ${g.right}%;
+  grid-template-rows:${g.top}% 1fr 1fr 1fr ${g.bottom}%;
   --command-gold:#c8963e;--gold-light:#e8b865;--title:#f1ece0;--muted:#aaa}
 #cuelayer .cue{opacity:0;align-self:center;min-width:0}
 #cuelayer .c-tl{grid-area:2/2/3/4} #cuelayer .c-tr{grid-area:2/3/3/5}
