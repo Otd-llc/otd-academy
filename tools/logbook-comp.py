@@ -249,12 +249,19 @@ DORIAN = [0, 2, 3, 5, 7, 9, 10, 12]
 AEOLIAN = [0, 2, 3, 5, 7, 8, 10, 12]
 MIXOLYDIAN = [0, 2, 4, 5, 7, 9, 10, 12]
 IONIAN = [0, 2, 4, 5, 7, 9, 11, 12]
+LYDIAN = [0, 2, 4, 6, 7, 9, 11, 12]
+PHRYGIAN = [0, 1, 3, 5, 7, 8, 10, 12]
 
+# In the order Temperley & Tan measured, happiest first. Locrian is left out:
+# its fifth is diminished, so a composition voiced on open fifths has no stable
+# fifth to voice ON - it is not a mood option here, it is a broken one.
 MODES = {
-    "aeolian": AEOLIAN,
-    "dorian": DORIAN,
-    "mixolydian": MIXOLYDIAN,
     "ionian": IONIAN,
+    "lydian": LYDIAN,
+    "mixolydian": MIXOLYDIAN,
+    "dorian": DORIAN,
+    "aeolian": AEOLIAN,
+    "phrygian": PHRYGIAN,
 }
 
 # THE MODE IS THE DIAL, AND THE KEY IS NOT.
@@ -1185,8 +1192,15 @@ def comp_anchor(S):
             place(buf, S["subdrop"], at, w * 0.46)
         # Three notes only, and the third landing gets none - the dip is a
         # silence here rather than a smaller sound.
+        #
+        # ROOT, THIRD, FIFTH - and the THIRD is not optional. The first cut used
+        # the motif's first, second and fourth degrees, which are root, fifth
+        # and octave: intervals that are IDENTICAL in every diatonic mode. So
+        # anchor had no mode at all, and its mixolydian render came back
+        # byte-identical to its aeolian one. A mode variant that is the same
+        # file is worse than no variant, because it looks like a choice.
         if i != 2:
-            d = (MOT[0], MOT[1], MOT[3])[min(i if i < 2 else i - 1, 2)]
+            d = (MOT[0], MOT[2], MOT[1])[min(i if i < 2 else i - 1, 2)]
             place(buf, warm(voice(1.3, midi(low(d) + 12), gain=w * 0.4,
                                   wave="open", atk=0.03, dec=0.9, sus=0.4),
                             1000.0), at + BEAT * 0.5)
@@ -1250,6 +1264,25 @@ COMPS = {
     "keel-mixo": (in_mode(comp_keel, "mixolydian"), "KEEL in mixolydian. The idling machine with the third in it, so the figure has a mode at all."),
     "standard-dor": (in_mode(comp_standard, "dorian"), "STANDARD in dorian - the halfway house. Minor third kept, major sixth restored: serious with a shade of hope, one step up from aeolian rather than two."),
     "hull-dor": (in_mode(comp_hull, "dorian"), "HULL in dorian. If mixolydian reads too pleased with itself, this is the same weight one step darker."),
+
+    # THE FULL SWEEP, on the two strongest arrangements. Six diatonic modes minus
+    # locrian, in the order Temperley & Tan measured them, so the ordering can be
+    # heard end to end rather than argued about - including the two ends nobody
+    # is going to pick, because a sweep that omits its extremes does not tell you
+    # where the middle is.
+    "standard-ion": (in_mode(comp_standard, "ionian"), "STANDARD in ionian - straight major, the happiest of the six. Almost certainly too pleased with itself for a defense brand; here so the top of the range is audible rather than assumed."),
+    "standard-lyd": (in_mode(comp_standard, "lydian"), "STANDARD in lydian. The raised fourth - wonder and altitude rather than confidence. Rated LESS happy than ionian despite being higher up the ordering, which is the one place the line-of-fifths rule breaks."),
+    "standard-phr": (in_mode(comp_standard, "phrygian"), "STANDARD in phrygian - the flat SECOND. Saddest of the six and frankly menacing. The far end of the sweep, for calibration: if aeolian read ominous, this is what ominous actually is."),
+    "hull-ion": (in_mode(comp_hull, "ionian"), "HULL in ionian. The full weight of all three ideas, in straight major."),
+    "hull-lyd": (in_mode(comp_hull, "lydian"), "HULL in lydian. Weight plus altitude - the closest this set gets to aspirational without going saccharine."),
+    "hull-phr": (in_mode(comp_hull, "phrygian"), "HULL in phrygian. The bottom of the range, for calibration."),
+
+    # Mixolydian for the three serious arrangements that had not had it yet, so
+    # the brighter option exists for every one of them.
+    "sentry-mixo": (in_mode(comp_sentry, "mixolydian"), "SENTRY in mixolydian. The heavier-than-the-call reply, without the gloom that made it read as a warning."),
+    "watch-mixo": (in_mode(comp_watch, "mixolydian"), "WATCH in mixolydian. The machine stops and something confident answers into the hole."),
+    "anchor-mixo": (in_mode(comp_anchor, "mixolydian"), "ANCHOR in mixolydian. The limit case, lit: one pedal and three fragments, no longer a dirge."),
+    "brief-dor": (in_mode(comp_brief, "dorian"), "BRIEF in dorian. The stinger candidate at the halfway house - the version most likely to survive being the thing you hear every time."),
 }
 
 

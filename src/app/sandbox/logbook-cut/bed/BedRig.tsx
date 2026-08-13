@@ -90,8 +90,11 @@ export type BedKit = {
   group?: string;
 };
 
-const W = 880;
-const WAVE_H = 116;
+// Narrower than it was, to buy the picker a column. The frame still reads at
+// 720 and `w` is passed to LogbookLive so its fit-to-frame maths matches the
+// pixels rather than a remembered number.
+const W = 720;
+const WAVE_H = 96;
 
 /** Peak in a 0.25s window at each event - the browser's copy of the Python
  *  `landing_peaks()`, deliberately the same definition so the two agree. */
@@ -122,6 +125,21 @@ function checksOf(p: number[]) {
   ];
 }
 
+/** Rms distance from the design curve, over the four landings. The single
+ *  number the picker shows, because it is the whole judgement this rig makes. */
+function curveErr(p: number[]) {
+  const patch = p[4] || 1;
+  let sum = 0;
+  let n = 0;
+  EVENTS.forEach((e, i) => {
+    if (e.target === undefined) return;
+    const d = p[i] / patch - e.target;
+    sum += d * d;
+    n += 1;
+  });
+  return Math.sqrt(sum / Math.max(1, n));
+}
+
 const mod = (n: number, m: number) => ((n % m) + m) % m;
 
 export function BedRig({
@@ -143,6 +161,9 @@ export function BedRig({
   const anchorT = useRef(0);
   const rafRef = useRef(0);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  /** In-flight decodes, so a click and the background sweep cannot fetch the
+   *  same 960 KB twice. */
+  const inflight = useRef<Map<string, Promise<void>>>(new Map());
   /** Read inside the rAF, so changing the nudge does not restart the audio. */
   const offRef = useRef(0);
 
@@ -182,6 +203,31 @@ export function BedRig({
 
   // ---- load ----------------------------------------------------------------
 
+  /** Decode one candidate, at most once, whoever asks first. Both the
+   *  background sweep and a click land here, so a clicked-but-undecoded
+   *  candidate is fetched immediately instead of waiting its turn. */
+  const ensure = useCallback(async (id: string) => {
+    const ctx = ctxRef.current;
+    if (!ctx || bufs.current[id]) return;
+    const flight = inflight.current;
+    if (flight.has(id)) return flight.get(id);
+    const job = (async () => {
+      try {
+        const res = await fetch(`/_capture/logbook-beds/${id}.wav`);
+        const buf = await ctx.decodeAudioData(await res.arrayBuffer());
+        bufs.current[id] = buf;
+        setPeaks((p) => ({ ...p, [id]: peaksOf(buf) }));
+        setReady((r) => ({ ...r, [id]: true }));
+      } catch {
+        /* a candidate that will not decode stays unplayable and says so */
+      } finally {
+        flight.delete(id);
+      }
+    })();
+    flight.set(id, job);
+    return job;
+  }, []);
+
   useEffect(() => {
     let dead = false;
     const ctx = new AudioContext();
@@ -213,18 +259,15 @@ export function BedRig({
     }
     clickBuf.current = cb;
 
+    // A BACKGROUND SWEEP, NOT A GATE. Thirty-odd candidates at ~960 KB each is
+    // thirty megabytes and thirty decodes; waiting for all of them before the
+    // page is usable would make the first click take half a minute. So this
+    // walks the list quietly to fill in every curve number, and `ensure()`
+    // below jumps the queue for whatever gets clicked.
     void (async () => {
       for (const k of kits) {
-        try {
-          const res = await fetch(`/_capture/logbook-beds/${k.id}.wav`);
-          const buf = await ctx.decodeAudioData(await res.arrayBuffer());
-          if (dead) return;
-          bufs.current[k.id] = buf;
-          setPeaks((p) => ({ ...p, [k.id]: peaksOf(buf) }));
-          setReady((r) => ({ ...r, [k.id]: true }));
-        } catch {
-          /* a kit that will not decode stays unplayable and says so */
-        }
+        if (dead) return;
+        await ensure(k.id);
       }
     })();
 
@@ -233,7 +276,7 @@ export function BedRig({
       cancelAnimationFrame(rafRef.current);
       void ctx.close();
     };
-  }, [kits]);
+  }, [kits, ensure]);
 
   // ---- the waveform --------------------------------------------------------
 
@@ -404,9 +447,15 @@ export function BedRig({
   const pick = useCallback(
     (id: string) => {
       setKit(id);
-      if (playing) startAt(t, clicks, id);
+      const go = () => {
+        if (playing) startAt(t, clicks, id);
+      };
+      // Already decoded: swap on this frame, which is the whole point of the
+      // rig. Not yet: jump it to the front of the queue and swap when it lands.
+      if (bufs.current[id]) go();
+      else void ensure(id).then(go);
     },
-    [playing, startAt, t, clicks],
+    [playing, startAt, t, clicks, ensure],
   );
 
   const toggleClicks = useCallback(() => {
@@ -445,11 +494,21 @@ export function BedRig({
   const rel = p ? p.map((v) => v / patchPeak) : null;
   const checks = rel ? checksOf(rel) : null;
   const failed = checks?.filter((c) => !c.ok) ?? [];
+  const current = kits.find((k) => k.id === kit);
 
   return (
-    <div>
-      <div style={{ width: W, maxWidth: "100%" }}>
-        <div className="border border-panel-border/50">
+    // TWO COLUMNS, AND THE LEFT ONE STICKS. With thirty-odd candidates the old
+    // single column put the picker below the fold, so choosing meant scrolling
+    // away from the only thing that can answer the question - you were picking
+    // a bed by reading about it. The frame, the transport and the waveform now
+    // stay put while the list scrolls beside them.
+    //
+    // The prose moved with it: a note renders only for the SELECTED entry, under
+    // the frame. Thirty paragraphs stacked in a list is not a menu, and the note
+    // is wanted at the moment you are listening rather than while scanning.
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_292px] lg:items-start">
+      <div className="lg:sticky lg:top-4">
+        <div className="border border-panel-border/50" style={{ maxWidth: W }}>
           <LogbookLive
             arrangement="quiet"
             lesson={lesson}
@@ -462,8 +521,7 @@ export function BedRig({
           />
         </div>
 
-        {/* ---- transport ---- */}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-1.5" style={{ maxWidth: W }}>
           <button
             type="button"
             className={playing ? btnOn : btn}
@@ -472,29 +530,39 @@ export function BedRig({
           >
             {playing ? "Stop" : "Play"}
           </button>
-          <button type="button" className={btn} onClick={() => seek(0)}>
+          <button type="button" className={small} onClick={() => seek(0)}>
             Top
           </button>
-          <span className="font-numeral text-sm tabular-nums text-command-gold">
-            {t.toFixed(3)}s
-          </span>
-          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-gray-3">
-            f{Math.round(t * FPS).toString().padStart(3, "0")}
-          </span>
           <button type="button" className={small} onClick={() => seek(t - FRAME)}>
             &minus;1f
           </button>
           <button type="button" className={small} onClick={() => seek(t + FRAME)}>
             +1f
           </button>
+          <span className="font-numeral text-sm tabular-nums text-command-gold">
+            {t.toFixed(3)}s
+          </span>
           <button
             type="button"
-            className={clicks ? btnOn : btn}
+            className={clicks ? btnOn : small}
             onClick={toggleClicks}
             title="A blip on each of the six events. The ear's version of the marker lines."
           >
-            Grid clicks
+            Grid
           </button>
+          {EVENTS.map((e) => (
+            <button
+              key={e.label}
+              type="button"
+              className={small}
+              // A quarter second BEFORE the event, so a jump shows the approach
+              // rather than the aftermath.
+              onClick={() => seek(e.at - 0.25)}
+              title={`jump to ${e.at.toFixed(1)}s`}
+            >
+              {e.label}
+            </button>
+          ))}
         </div>
 
         <input
@@ -504,65 +572,12 @@ export function BedRig({
           step={FRAME}
           value={t}
           onChange={(e) => seek(Number(e.target.value))}
-          className="mt-3 w-full accent-command-gold"
+          className="mt-2 w-full accent-command-gold"
+          style={{ maxWidth: W }}
           aria-label="scrub"
         />
 
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
-            jump
-          </span>
-          {EVENTS.map((e) => (
-            <button
-              key={e.label}
-              type="button"
-              className={small}
-              // Land a quarter second BEFORE the event, so the jump shows the
-              // approach rather than the aftermath.
-              onClick={() => seek(e.at - 0.25)}
-            >
-              {e.label} {e.at.toFixed(1)}
-            </button>
-          ))}
-        </div>
-
-        {/* ---- the nudge ---- */}
-        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-panel-border/60 pt-3">
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
-            A/V nudge
-          </span>
-          <input
-            type="range"
-            min={-120}
-            max={120}
-            step={1}
-            value={offsetMs}
-            onChange={(e) => setAv((a) => ({ ...a, off: Number(e.target.value) }))}
-            className="w-56 accent-signal-blue"
-            aria-label="audio video nudge"
-          />
-          <span className="font-numeral text-sm tabular-nums text-signal-blue">
-            {offsetMs > 0 ? "+" : ""}
-            {offsetMs} ms
-          </span>
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-gray-3">
-            {(offsetMs / (1000 / FPS)).toFixed(2)} frames &middot; picture{" "}
-            {offsetMs === 0 ? "level" : offsetMs > 0 ? "ahead" : "behind"}
-          </span>
-          <button
-            type="button"
-            className={small}
-            onClick={() => setAv((a) => ({ ...a, off: -Math.round(a.lat ?? 0) }))}
-          >
-            reset to &minus;latency
-          </button>
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-gray-3">
-            measured output latency {latencyMs === null ? "?" : latencyMs.toFixed(1)} ms
-          </span>
-        </div>
-
-        {/* ---- the waveform ---- */}
-        <div className="relative mt-4 overflow-x-auto">
+        <div className="mt-2 overflow-x-auto" style={{ maxWidth: W }}>
           <div className="relative" style={{ width: W, height: WAVE_H }}>
             <canvas ref={canvasRef} style={{ width: W, height: WAVE_H, display: "block" }} />
             <div
@@ -574,124 +589,128 @@ export function BedRig({
             />
           </div>
         </div>
-        <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.16em] text-gray-3">
-          <span className="text-command-gold">solid gold</span> = the bed hits &middot;{" "}
-          <span className="text-signal-blue">dashed blue</span> = where the WORD lands, {PRE.toFixed(2)}s /{" "}
-          {Math.round(PRE * FPS)} frames earlier, by design
-        </p>
+
+        <div className="mt-2 flex flex-wrap items-center gap-2" style={{ maxWidth: W }}>
+          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
+            nudge
+          </span>
+          <input
+            type="range"
+            min={-120}
+            max={120}
+            step={1}
+            value={offsetMs}
+            onChange={(e) => setAv((a) => ({ ...a, off: Number(e.target.value) }))}
+            className="w-36 accent-signal-blue"
+            aria-label="audio video nudge"
+          />
+          <span className="font-numeral text-sm tabular-nums text-signal-blue">
+            {offsetMs > 0 ? "+" : ""}
+            {offsetMs} ms
+          </span>
+          <button
+            type="button"
+            className={small}
+            onClick={() => setAv((a) => ({ ...a, off: -Math.round(a.lat ?? 0) }))}
+          >
+            &minus;latency
+          </button>
+          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-gray-3">
+            <span className="text-command-gold">gold</span> = bed hits &middot;{" "}
+            <span className="text-signal-blue">blue</span> = word lands{" "}
+            {Math.round(PRE * FPS)}f earlier
+          </span>
+        </div>
+
+        {/* The selected candidate, and only it: prose and numbers together. */}
+        <div className="mt-4 border-t border-panel-border/60 pt-3" style={{ maxWidth: W }}>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <p className="title-card">{current?.title ?? kit}</p>
+            {rel ? (
+              <span
+                className={`font-mono text-[10px] uppercase tracking-[0.16em] ${
+                  failed.length ? "text-danger-coral" : "text-status-green"
+                }`}
+              >
+                {failed.length
+                  ? `${failed.length} fail: ${failed.map((c) => c.id).join(", ")}`
+                  : "curve clean"}
+              </span>
+            ) : (
+              <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-gray-3">
+                decoding&hellip;
+              </span>
+            )}
+            {rel ? (
+              <span className="font-mono text-[11px] tabular-nums text-muted">
+                {EVENTS.map((e, i) => `${e.label} ${rel[i].toFixed(2)}`).join("   ")}
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-1 max-w-3xl font-serif text-sm text-muted">{current?.note}</p>
+        </div>
       </div>
 
-      {/* ---- the kits ---- */}
-      <div className="mt-8 border-t border-panel-border/60 pt-5">
-        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
-          &#9656; the bed &middot; swap while it runs
-        </p>
-        <ul className="mt-3 grid gap-2">
-          {kits.map((k, i) => {
-            const kp = peaks[k.id];
-            const bad = kp ? checksOf(kp.map((v) => v / (kp[4] || 1))).filter((c) => !c.ok) : [];
-            // A GROUP HEADING WHERE THE AXIS CHANGES. The palette variants and
-            // the compositions are not the same kind of thing and must not read
-            // as one list of twenty options: the first group is one arrangement
-            // in five costumes, the second is ten arrangements in one costume.
-            const head = k.group && k.group !== kits[i - 1]?.group ? k.group : null;
-            return (
-              <li key={k.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                {head ? (
-                  <p className="mt-4 w-full border-t border-panel-border/50 pt-3 font-mono text-[10px] uppercase tracking-[0.22em] text-signal-blue">
-                    {head}
-                  </p>
-                ) : null}
-                <button
-                  type="button"
-                  className={kit === k.id ? btnOn : btn}
-                  disabled={!ready[k.id]}
-                  onClick={() => pick(k.id)}
-                  style={{ minWidth: 108 }}
+      {/* ---- the picker ---- */}
+      <div className="lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:pr-1">
+        {kits.map((k, i) => {
+          const kp = peaks[k.id];
+          const kerr = kp ? curveErr(kp) : null;
+          const bad = kp ? checksOf(kp.map((v) => v / (kp[4] || 1))).filter((c) => !c.ok) : [];
+          const head = k.group && k.group !== kits[i - 1]?.group ? k.group : null;
+          const on = kit === k.id;
+          return (
+            <div key={k.id}>
+              {head ? (
+                <p className="mt-4 border-t border-panel-border/50 pb-1 pt-3 font-mono text-[9px] uppercase leading-tight tracking-[0.16em] text-signal-blue">
+                  {head}
+                </p>
+              ) : null}
+              {/* NOT DISABLED WHILE UNDECODED. Disabling it was the obvious
+                  thing and it is wrong here: the sweep fills in from the top,
+                  so the entries a listener most wants to reach - the newest
+                  ones, at the bottom - would be the last to become clickable.
+                  A click jumps the queue instead. */}
+              <button
+                type="button"
+                onClick={() => pick(k.id)}
+                className={`flex w-full items-baseline justify-between gap-2 rounded border px-2 py-1 text-left transition-colors ${
+                  on
+                    ? "border-command-gold bg-command-gold/15"
+                    : "border-transparent hover:border-panel-border"
+                } ${ready[k.id] ? "" : "opacity-60"}`}
+              >
+                <span
+                  className={`truncate font-mono text-[11px] uppercase tracking-[0.08em] ${
+                    on ? "text-command-gold" : "text-text"
+                  }`}
                 >
                   {k.title}
-                </button>
-                {!ready[k.id] ? (
-                  <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-gray-3">
-                    decoding&hellip;
-                  </span>
-                ) : bad.length ? (
-                  <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-danger-coral">
-                    {bad.length} check{bad.length > 1 ? "s" : ""} fail: {bad.map((c) => c.id).join(", ")}
-                  </span>
-                ) : (
-                  <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-status-green">
-                    curve clean
-                  </span>
-                )}
-                <span className="font-serif text-sm text-muted">{k.note}</span>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-
-      {/* ---- the measurement ---- */}
-      <div className="mt-8 border-t border-panel-border/60 pt-5">
-        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
-          &#9656; {kit} &middot; peak in a 0.25s window, relative to PATCH
-        </p>
-        {!rel ? (
-          <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-gray-3">
-            decoding&hellip;
-          </p>
-        ) : (
-          <>
-            <table className="mt-3 font-mono text-[11px]">
-              <thead>
-                <tr className="text-left text-gray-3">
-                  <th className="pr-6 font-normal uppercase tracking-[0.16em]">event</th>
-                  <th className="pr-6 font-normal uppercase tracking-[0.16em]">measured</th>
-                  <th className="pr-6 font-normal uppercase tracking-[0.16em]">curve</th>
-                  <th className="font-normal uppercase tracking-[0.16em]">delta</th>
-                </tr>
-              </thead>
-              <tbody className="tabular-nums">
-                {EVENTS.map((e, i) => {
-                  const v = rel[i];
-                  const d = e.target === undefined ? null : v - e.target;
-                  return (
-                    <tr key={e.label}>
-                      <td className="pr-6 text-text">
-                        {e.label} <span className="text-gray-3">{e.at.toFixed(1)}s</span>
-                      </td>
-                      <td className="pr-6 text-command-gold">{v.toFixed(3)}</td>
-                      <td className="pr-6 text-muted">
-                        {e.target === undefined ? "-" : e.target.toFixed(2)}
-                      </td>
-                      <td className={d === null ? "text-gray-3" : Math.abs(d) > 0.12 ? "text-danger-coral" : "text-muted"}>
-                        {d === null ? "-" : `${d > 0 ? "+" : ""}${d.toFixed(3)}`}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <ul className="mt-4 grid gap-1">
-              {checks?.map((c) => (
-                <li key={c.id} className="font-mono text-[11px]">
-                  <span className={c.ok ? "text-status-green" : "text-danger-coral"}>
-                    {c.ok ? "PASS" : "FAIL"}
-                  </span>{" "}
-                  <span className="text-text">{c.id}</span>{" "}
-                  <span className="text-gray-3">&mdash; {c.note}</span>
-                </li>
-              ))}
-            </ul>
-            {failed.length ? (
-              <p className="mt-3 max-w-3xl border border-danger-coral/40 bg-danger-coral/5 p-2 font-serif text-sm text-danger-coral">
-                This kit contradicts the curve it was written to. The dip at RANK is
-                deliberate; nothing else on this list is.
-              </p>
-            ) : null}
-          </>
-        )}
+                </span>
+                {/* THE ONE NUMBER WORTH SEEING WHILE SCANNING. Curve error is the
+                    whole judgement this rig makes, so it is the only thing in the
+                    row besides the name - coloured rather than explained, because
+                    a menu is for choosing and the reading happens on the left. */}
+                <span
+                  className={`shrink-0 font-mono text-[10px] tabular-nums ${
+                    kerr === null
+                      ? "text-gray-3"
+                      : bad.length
+                        ? "text-danger-coral"
+                        : kerr < 0.05
+                          ? "text-status-green"
+                          : "text-muted"
+                  }`}
+                >
+                  {kerr === null ? "···" : kerr.toFixed(3)}
+                  {bad.length ? " !" : ""}
+                </span>
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
+

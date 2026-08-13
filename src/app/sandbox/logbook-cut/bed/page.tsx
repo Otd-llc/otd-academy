@@ -187,67 +187,127 @@ const KITS: BedKit[] = [
     note: "THE LIMIT CASE. One low pedal for the full ten seconds, three fragments of the motif, almost no percussion, and the third landing's dip is a SILENCE rather than a smaller sound. If this is too little it tells you how much of the others is load-bearing; if it is not, it tells you the rest are overwritten.",
   },
 
-  // ROUND THREE. "The serious set is cool, but ominous." Ominous is a MODE
-  // problem, and the obvious other answer is a dead end worth recording:
-  // Powell & Dibben (2005) found that on an equal-tempered instrument listeners
-  // cannot identify mood from key or key from mood, and transposing does not
-  // change perceived mood - historical key characters were artifacts of unequal
-  // temperament and do not survive ET. Every oscillator here is ET, so moving
-  // the root from A to C to F# changes register and nothing else.
+  // ROUND THREE AND FOUR: THE MODE SWEEP.
+  //
+  // "The serious set is cool, but ominous." Ominous is a MODE problem, and the
+  // obvious other answer is a dead end worth recording. Powell & Dibben (2005):
+  // on an equal-tempered instrument listeners cannot identify mood from key or
+  // key from mood, and transposing does not change perceived mood. Historical
+  // key characters were real and were artifacts of UNEQUAL temperaments; ET
+  // removes the mechanism. Every oscillator here is ET, so A to C to F# changes
+  // register and nothing else.
   //
   // Mode does the work and it has an ORDER. Temperley & Tan, Music Perception
-  // 30(3), rendered the same melodies in six modes on a fixed tonic and had
-  // listeners judge which was happier: they come out in line-of-fifths order,
-  // Ionian / Mixolydian / Dorian / Aeolian / Phrygian, happiest to saddest.
-  // Round two is in AEOLIAN - second-saddest of the six. Not a subtle mis-set.
+  // 30(3): the same melodies in six modes over a fixed tonic, judged pairwise
+  // for which is happier, come out in line-of-fifths order - Ionian, Mixolydian,
+  // Dorian, Aeolian, Phrygian, happiest to saddest. Round two is in AEOLIAN,
+  // second-saddest of the six. Not a subtle mis-set.
   //
-  // Only the mode changes below. Same register, same timbre, same bass, same
-  // percussion. One caveat that is load-bearing: in a bright mode the sequence
-  // figure re-admits the THIRD, because open fifths refuse to declare a mode
-  // and relabelling the scale under a fifths-only arrangement would have been
-  // inaudible.
+  // Mode is the ONLY variable below: same register, timbre, bass, percussion,
+  // written once and run through one wrapper. One caveat is load-bearing - in a
+  // bright mode the sequence figure re-admits the THIRD, because open fifths
+  // refuse to declare a mode and relabelling the scale under a fifths-only
+  // arrangement would have been inaudible.
+  //
+  // The two sweep groups run happiest-first and omit AEOLIAN, which is the
+  // serious set above - listing it twice would be two entries pointing at one
+  // render. Locrian is absent for a different reason: its fifth is diminished,
+  // and this music is voiced on open fifths, so it has no stable fifth to voice
+  // on. Not a mood option, a broken one.
   {
-    id: "comp-standard-mixo",
-    title: "Standard / mixo",
-    group: "round three · same music, moved up the mode ordering",
-    note: "STANDARD in mixolydian. Major third and major sixth restored, only the seventh still lowered - the mode film scoring reaches for when it wants confident and heroic without the saccharine of straight major. Two steps up the happiness ordering from round two, with none of the weight given back.",
+    id: "comp-hull-ion",
+    title: "Hull / ionian",
+    group: "sweep · HULL, happiest first (aeolian = Hull, above)",
+    note: "Straight major. The top of the ordering, here so it is audible rather than assumed - almost certainly too pleased with itself for a defense brand, but you cannot know where the middle is without hearing both ends.",
+  },
+  {
+    id: "comp-hull-lyd",
+    title: "Hull / lydian",
+    note: "The raised fourth: altitude and wonder rather than confidence. Rated LESS happy than ionian despite sitting higher up the line of fifths, which is the one place the ordering breaks. The closest this set gets to aspirational without going saccharine.",
   },
   {
     id: "comp-hull-mixo",
-    title: "Hull / mixo",
-    note: "HULL in mixolydian. All three ideas at weight, no longer in a warning. The mode change also cleaned its measurement - 0.092 and flagging in aeolian, 0.040 and clean here - because admitting the third changes which partials peak in the landing windows.",
-  },
-  {
-    id: "comp-grave-mixo",
-    title: "Grave / mixo",
-    note: "GRAVE in mixolydian, which makes the name a lie and that is rather the point: the same slow low four notes, no longer funereal. Curve error 0.027 over the bass floor - the tightest arrangement in this round.",
-  },
-  {
-    id: "comp-brief-mixo",
-    title: "Brief / mixo",
-    note: "BRIEF in mixolydian. The mnemonic answering on every downbeat, in the mode that reads as capable rather than as a threat. Still the candidate that cuts down cleanest to a stinger.",
-  },
-  {
-    id: "comp-keel-mixo",
-    title: "Keel / mixo",
-    note: "KEEL in mixolydian. The idling machine with a third in it, so the figure finally has a mode at all rather than bare fifths - and the flag it carried in aeolian is gone.",
-  },
-  {
-    id: "comp-standard-dor",
-    title: "Standard / dorian",
-    note: "THE HALFWAY HOUSE. Minor third kept, major sixth restored: one step up from aeolian rather than two. If mixolydian reads too pleased with itself, this is where serious-with-a-shade-of-hope actually lives - and it is where round one already was, now at round two's weight.",
+    title: "Hull / mixolydian",
+    note: "Major third and sixth restored, only the seventh lowered - the mode film scoring reaches for when it wants confident and heroic without the saccharine of straight major. The mode change also cleaned its measurement: 0.092 and flagging in aeolian, 0.040 and clean here, because admitting the third changes which partials peak in the landing windows.",
   },
   {
     id: "comp-hull-dor",
     title: "Hull / dorian",
-    note: "HULL one step darker than mixolydian. Curve error 0.024 over the bass floor, the tightest arrangement of all twenty-five. The summed 'dip missing' flag is the bass floor again, not the writing.",
+    note: "One step darker than mixolydian: minor third kept, major sixth restored. Curve error 0.024 over the bass floor - the tightest arrangement anywhere in this rig. The summed 'dip missing' flag is the bass floor again, not the writing.",
+  },
+  {
+    id: "comp-hull-phr",
+    title: "Hull / phrygian",
+    note: "The flat SECOND. Saddest of the six and frankly menacing - the bottom of the range, for calibration. If aeolian read ominous, this is what ominous actually is.",
+  },
+  {
+    id: "comp-standard-ion",
+    title: "Standard / ionian",
+    group: "sweep · STANDARD, happiest first (aeolian = Standard, above)",
+    note: "Straight major on the signature-buried-in-working-material arrangement.",
+  },
+  {
+    id: "comp-standard-lyd",
+    title: "Standard / lydian",
+    note: "Raised fourth - wonder and altitude on a figure that is otherwise all business.",
+  },
+  {
+    id: "comp-standard-mixo",
+    title: "Standard / mixolydian",
+    note: "Two steps up the ordering from round two with none of the weight given back. If one mode is the answer to “serious, professional, but fun”, the ordering says it is this one.",
+  },
+  {
+    id: "comp-standard-dor",
+    title: "Standard / dorian",
+    note: "THE HALFWAY HOUSE. Minor third kept, major sixth restored: one step up from aeolian rather than two. Where round one already was, now carrying round two's weight - and if mixolydian reads too pleased with itself, this is where serious-with-a-shade-of-hope actually lives.",
+  },
+  {
+    id: "comp-standard-phr",
+    title: "Standard / phrygian",
+    note: "The bottom of the range, for calibration.",
+  },
+  {
+    id: "comp-grave-mixo",
+    title: "Grave / mixo",
+    group: "mixolydian for the rest of the serious set",
+    note: "GRAVE in mixolydian, which makes the name a lie and that is rather the point: the same slow low four notes, no longer funereal. Curve error 0.027 over the bass floor.",
+  },
+  {
+    id: "comp-brief-mixo",
+    title: "Brief / mixo",
+    note: "The mnemonic answering on every downbeat, in the mode that reads as capable rather than as a threat. Still the candidate that cuts down cleanest to a stinger.",
+  },
+  {
+    id: "comp-brief-dor",
+    title: "Brief / dorian",
+    note: "The stinger candidate at the halfway house. If one of these becomes the thing you hear on every lesson completion, it is most likely this one - dorian survives repetition better than either end of the range.",
+  },
+  {
+    id: "comp-keel-mixo",
+    title: "Keel / mixo",
+    note: "The idling machine with a third in it, so the figure finally has a mode at all rather than bare fifths - and the flag it carried in aeolian is gone.",
+  },
+  {
+    id: "comp-sentry-mixo",
+    title: "Sentry / mixo",
+    note: "The heavier-than-the-call reply without the gloom that made it read as a warning. Still carries its climb flag, and that flag IS the idea: a reply pitched below its call is louder than the landing after it.",
+  },
+  {
+    id: "comp-watch-mixo",
+    title: "Watch / mixo",
+    note: "The machine stops for half a beat and something confident answers into the hole. 0.041 over the bass floor.",
+  },
+  {
+    id: "comp-anchor-mixo",
+    title: "Anchor / mixo",
+    note: "The limit case, lit: one pedal and three fragments, no longer a dirge. WORTH KNOWING: anchor originally used only root, fifth and octave - intervals that are identical in every diatonic mode - so its first mixolydian render came back byte-identical to the aeolian one. Its fragments now include the THIRD, which is the note that carries mode at all.",
   },
 ];
 
 export default function BedCutPage() {
   if (process.env.NODE_ENV === "production") notFound();
   return (
-    <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
         &#9656; THE LOGBOOK &middot; bed against picture
       </p>
