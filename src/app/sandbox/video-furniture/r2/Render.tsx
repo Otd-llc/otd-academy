@@ -1107,13 +1107,8 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
             </div>
           </>)
         );
-      case "ladder-both":
-    case "ladder-detent":
-    case "ladder-reticle":
-    case "ladder-vise":
-    case "ladder-trace":
-    case "ladder-trace-lock":
-    case "ladder-crosshair": {
+      case "ladder-trace-lock":
+    case "ladder-trace-vise": {
       // THE OWNER'S COMPOSITION. The comb is the ladder: there is no separate
       // rung list, no "next lesson" line competing with it, and the three
       // end-screen wells are left genuinely empty.
@@ -1161,22 +1156,16 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
       // makes it read as a mechanism rather than as easing - and because it is a
       // step function of `t` it seeks perfectly: every frame between two stops is
       // the same picture, by construction.
-      const detented = variant === "ladder-detent";
+      // No detent on either survivor: the acquisition is what carries the
+      // landing now, so the travel stays smooth and lets the lock be the event.
+      const detented = false;
       const raw = outCubic(seg(t, 0.9, 2.6));
       const STOPS = 8;
       const travel = detented ? Math.round(raw * STOPS) / STOPS : raw;
       // The lock closes AFTER the run has arrived, not during: a reticle that
       // grips a moving target is a reticle that has not locked onto anything.
       const lockP = outCubic(seg(t, 2.5, 3.3));
-      const lockKind = (
-        {
-          "ladder-reticle": "reticle",
-          "ladder-vise": "vise",
-          "ladder-trace": "trace",
-          "ladder-trace-lock": "trace-lock",
-          "ladder-crosshair": "crosshair",
-        } as const
-      )[variant as "ladder-reticle" | "ladder-vise" | "ladder-trace" | "ladder-trace-lock" | "ladder-crosshair"] ?? "none";
+      const lockKind = variant === "ladder-trace-vise" ? "trace-vise" : "trace-lock";
       const landed = i + Math.min(1, i + 1 <= STAGE_ORDER.length - 1 ? 1 : 0) * travel;
       // The finished cell is marked done AS THE RUN PASSES IT, not at t=0 and not
       // at the end: the mark is the event the scroll exists to deliver.

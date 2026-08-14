@@ -126,7 +126,7 @@ export function Carousel({
    */
   centreOn?: number;
   /** A target-lock treatment drawn over the cell the run is landing on. */
-  lock?: "none" | "reticle" | "scan" | "crosshair" | "trace" | "vise" | "trace-lock";
+  lock?: "none" | "reticle" | "scan" | "crosshair" | "trace" | "vise" | "trace-lock" | "trace-vise";
   /** Lock progress, 0 to 1. A pure function of `t` supplied by the caller. */
   lockP?: number;
 }) {
@@ -294,9 +294,13 @@ export function Carousel({
               // Closed all the way they merge with the traced hex and the held
               // state shows no grip at all - the whole acquisition disappears
               // into a slightly brighter outline the moment it finishes.
-              const rest = lock === "trace-lock" ? 1.07 : 1;
-              const gp = lock === "trace-lock" ? gripP : lockP;
-              const grow = rest + (1 - gp) * (lock === "vise" ? 0.9 : 0.38);
+              const combined = lock === "trace-lock" || lock === "trace-vise";
+              const viseLike = lock === "vise" || lock === "trace-vise";
+              const rest = combined ? 1.07 : 1;
+              const gp = combined ? gripP : lockP;
+              // A vise travels from further out, so the two halves are SEEN to
+              // close rather than simply resolving into place.
+              const grow = rest + (1 - gp) * (viseLike ? 0.9 : 0.38);
               const pts = ptsAt(grow);
               const wgt = Math.max(2, spineStroke("face", b.w) * 1.15);
               return (
@@ -324,7 +328,7 @@ export function Carousel({
                       <div style={{ position: "absolute", left: cx - wgt / 2, top: 0, height: (b.top + b.h / 2) * lockP, width: wgt, background: GOLD_TOK, opacity: lockP }} />
                     </>
                   ) : null}
-                  {lock === "reticle" || lock === "scan" || lock === "trace" || lock === "vise" || lock === "trace-lock" ? (
+                  {lock === "reticle" || lock === "scan" || lock === "trace" || lock === "vise" || lock === "trace-lock" || lock === "trace-vise" ? (
                     <svg
                       viewBox={`0 0 ${cwEff} ${height}`}
                       style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
@@ -342,7 +346,7 @@ export function Carousel({
                           trace describes the hex, the brackets take hold of it -
                           so the second reads as arriving on something already
                           found, rather than as two effects sharing a frame. */}
-                      {lock === "trace-lock" ? (
+                      {lock === "trace-lock" || lock === "trace-vise" ? (
                         <polygon
                           points={ptsAt(1)}
                           fill="none"
@@ -362,16 +366,10 @@ export function Carousel({
                         strokeLinecap={lock === "trace" ? "round" : "square"}
                         pathLength={600}
                         strokeDasharray={
-                          lock === "trace"
-                            ? `${600 * lockP} 600`
-                            : lock === "trace-lock"
-                              ? "34 66"
-                            : lock === "vise"
-                              ? "150 150"
-                              : "34 66"
+                          lock === "trace" ? `${600 * lockP} 600` : viseLike ? "150 150" : "34 66"
                         }
-                        strokeDashoffset={lock === "trace" ? 0 : lock === "vise" ? -75 : -17}
-                        opacity={lock === "trace" ? 1 : lock === "trace-lock" ? gripP : lockP}
+                        strokeDashoffset={lock === "trace" ? 0 : viseLike ? -75 : -17}
+                        opacity={lock === "trace" ? 1 : combined ? gripP : lockP}
                       />
                     </svg>
                   ) : null}

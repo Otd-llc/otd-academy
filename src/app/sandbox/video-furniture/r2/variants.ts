@@ -92,15 +92,17 @@ export const LOWER: Variant[] = [
  *  comb's own six corners rather than a shape of its own - square brackets on a
  *  hexagonal comb read as a crop marquee from some other application - and none
  *  springs or overshoots, both being on the forbidden list. */
+/** OUTRO / LADDER - two acquisitions left, both built on the same sequence.
+ *  The outline finds the hex, then something takes hold of it. What differs is
+ *  the grip: six corner brackets, or two half-hex jaws closing from the sides.
+ *  Everything else is gone - `smooth`, `detent`, `reticle`, `vise` and `trace`
+ *  alone, and `crosshair` - because the sequence beat all of them and a round
+ *  that keeps its losers stops being a choice. */
 export const OUTRO: Variant[] = [
-  { id: "ladder-both", name: "Smooth", claim: "One eased ramp to the next stage and nothing else. The control: travel, no acquisition." },
-  { id: "ladder-detent", name: "Detent", claim: "The run quantised to eighths of a cell, so it clicks across like a knob finding its stops. The mechanism is in the MOVEMENT; nothing is drawn." },
-  { id: "ladder-reticle", name: "Corner brackets", claim: "Six brackets converge from outside onto the hex's own vertices and hold. The comb is gripped." },
-  { id: "ladder-vise", name: "Vise", claim: "Two half-hex brackets travel in from left and right and close on the cell. Reads as something being seated rather than something being sighted." },
-  { id: "ladder-trace", name: "Trace", claim: "The outline draws itself once around the perimeter and stays. The hex is described rather than clamped - the quietest of the six." },
-  { id: "ladder-trace-lock", name: "Trace and grip", claim: "Both, in sequence: the outline draws itself around the hex, then the six brackets converge onto it. Find, then take hold - rather than two effects sharing a frame." },
-  { id: "ladder-crosshair", name: "Crosshair", claim: "Two hairlines run in from the frame edges and stop dead on the cell's centre. Nothing surrounds the hex; the frame points at it." },
+  { id: "ladder-trace-lock", name: "Trace and grip", claim: "The outline draws itself around the hex, then six brackets converge onto its vertices and hold, resting just proud of the line. Find, then take hold." },
+  { id: "ladder-trace-vise", name: "Trace and vise", claim: "The same find, a different hold: two half-hex jaws travel in from left and right and close on the cell. Reads as seating rather than sighting, and the longer travel makes the closing legible." },
 ];
+
 
 
 
