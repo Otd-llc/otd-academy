@@ -1196,8 +1196,20 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
               : n === i + 1 && doneAt
                 ? "current"
                 : "pending",
+        // ONE cell says NEXT, and only the one that IS next. Both arms of the
+        // last ternary returned "next", so every pending stage carried the
+        // label - which makes the word meaningless exactly where the whole
+        // composition is trying to point.
         statusText:
-          n < i ? "done" : n === i ? (doneAt ? "done" : "here") : n === i + 1 && doneAt ? "next" : "next",
+          n < i
+            ? "done"
+            : n === i
+              ? doneAt
+                ? "done"
+                : "here"
+              : n === i + 1
+                ? "next"
+                : "locked",
       }));
       return (
         <>
