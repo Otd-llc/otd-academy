@@ -627,74 +627,76 @@ const STAGE_QUESTION: Partial<Record<string, string>> = {
  * an annotation over a bare field would audition the thing that never happens.
  */
 /**
- * A LABEL OVER LIVE WORK, built to the house rules rather than invented.
+ * THE CALLOUT LABEL, in the two forms the label round took.
  *
- * The design law says floating chrome is NOT a filled box: it is a deep-space
- * surface, a hairline frame in the channel colour, and  elevation.
- * The dim and the shadow do the lifting, never a fill. It says badges are SQUARE
- * - the mono registration-tag look - and never pill-rounded. And it says a mono
- * label leads with a triangle: the eyebrow form is .
+ * TAB hangs off the mark and shares its edge, so the pointer and the name are
+ * one object rather than a caption parked nearby. It brings its own ground - a
+ * solid bar with the text knocked out - which is why it cannot be lost over
+ * copper whatever the frame is showing.
  *
- * What this replaces was an ad-hoc  ring standing in for a border,
- * no triangle, and a tone picked by hand at each call site. Tone is a CHANNEL
- * here - gold for information, coral for a destructive warning, red for a failed
- * gate, green for a passed one - so it is a prop rather than a decision repeated
- * five times.
+ * DISPLAY refuses a frame entirely: Bebas at size with a dark halo, reading as
+ * a title rather than a tag. It is the right form where there is no mark edge to
+ * attach to, and it is the riskier of the two because the halo is its only
+ * ground.
+ *
+ * This replaces a bordered `Tag`, which was a box - and the design law is
+ * explicit that content groups with hairlines on the bare field and never in a
+ * filled card. Rebuilding that box with correct tokens made it a well-built
+ * instance of the thing the law rejects, which is why the round was run at all.
  */
-function Tag({
+function CalloutLabel({
   children,
+  x,
+  y,
   o = 1,
-  tone = "gold",
-  lead = true,
-  size = 1.2,
+  tone = GOLD,
+  form = "tab",
+  from,
 }: {
   children: React.ReactNode;
+  /** Where the label sits, as a share of frame. */
+  x: number;
+  y: number;
   o?: number;
-  tone?: "gold" | "coral" | "fail" | "pass";
-  lead?: boolean;
-  size?: number;
+  tone?: string;
+  form?: "tab" | "display";
+  /** Length of the connector back to the mark, in cqw. Tab only. */
+  from?: number;
 }) {
-  const colour =
-    tone === "coral"
-      ? "var(--color-danger-coral)"
-      : tone === "fail"
-        ? "var(--color-alert-red)"
-        : tone === "pass"
-          ? "var(--color-status-green)"
-          : GOLD;
+  const MONO: React.CSSProperties = {
+    fontFamily: "var(--font-mono)",
+    fontWeight: 700,
+    fontSize: ts(1.3),
+    letterSpacing: "0.22em",
+    textTransform: "uppercase",
+    lineHeight: 1,
+    whiteSpace: "nowrap",
+  };
+  if (form === "display") {
+    return (
+      <div style={{ position: "absolute", left: `${x}cqw`, top: `${y}cqh`, opacity: o }}>
+        <span
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: ts(2.9),
+            color: tone === GOLD ? TITLE : tone,
+            lineHeight: 1,
+            textShadow: `0 0 ${hw(1)} ${FIELD}, 0 0 ${hw(0.4)} ${FIELD}, 0 0 ${hw(0.18)} ${FIELD}`,
+          }}
+        >
+          {children}
+        </span>
+      </div>
+    );
+  }
   return (
-    <span
-      style={{
-        display: "inline-block",
-        background: FIELD,
-        border: `${hw(0.12)} solid ${colour}`,
-        boxShadow: "var(--elev-card)",
-        padding: "0.7cqh 1.2cqw",
-        fontFamily: "var(--font-mono)",
-        fontSize: ts(size),
-        letterSpacing: "0.24em",
-        textTransform: "uppercase",
-        color: colour,
-        lineHeight: 1,
-        whiteSpace: "nowrap",
-        opacity: o,
-      }}
-    >
-      {lead ? "▸ " : null}
-      {children}
-    </span>
+    <div style={{ position: "absolute", left: `${x}cqw`, top: `${y}cqh`, display: "flex", alignItems: "center", opacity: o }}>
+      <span style={{ width: `${from ?? 3}cqw`, height: hw(0.3), background: tone }} />
+      <span style={{ ...MONO, color: FIELD, background: tone, padding: "0.9cqh 1.4cqw" }}>{children}</span>
+    </div>
   );
 }
 
-/**
- * A HEX OUTLINE over live work.
- *
- * An svg polygon in a PIXEL-unit viewBox, because the two obvious alternatives
- * both fail: a CSS `border` under a hex `clip-path` is cut away by the clip and
- * survives only where the polygon meets the box edge, and `non-scaling-stroke`
- * with `pathLength` does not compose. Both were shipped and both had to be
- * fixed; this is the form that works, so it lives in one place now.
- */
 function HexMark({
   px,
   py,
@@ -1246,9 +1248,7 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
               </svg>
             );
           })()}
-          <div style={{ position: 'absolute', left: (px * 100 + 9) + 'cqw', top: (py * 100 - 15) + 'cqh', opacity: o * grip }}>
-            <Tag o={o * grip}>ground pour</Tag>
-          </div>
+          <CalloutLabel x={px * 100 + 5.6} y={py * 100 - 3} o={o * grip}>ground pour</CalloutLabel>
         </>
       ) : null}
 
@@ -1272,9 +1272,7 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
               o={o * clamp01((grip - k * 0.12) / 0.5)}
             />
           ))}
-          <div style={{ position: 'absolute', left: '34cqw', top: '24cqh', opacity: o * grip }}>
-            <Tag o={o * grip}>decoupling &middot; 3</Tag>
-          </div>
+          <CalloutLabel x={58} y={30} o={o * grip} form="display">decoupling &middot; 3</CalloutLabel>
         </>
       ) : null}
 
@@ -1293,10 +1291,8 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
             opacity: o * grip,
           }}
         >
-          <Tag o={o * grip}>USB connector</Tag>
-          <span aria-hidden style={{ color: GOLD, fontFamily: "var(--font-mono)", fontSize: ts(1.6) }}>
-            &rarr;
-          </span>
+          <span />
+          <CalloutLabel x={62} y={40} o={o * grip} form="display">USB connector &rarr;</CalloutLabel>
         </div>
       ) : null}
 
@@ -1334,7 +1330,7 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
             }}
           />
           <div style={{ position: "absolute", left: `${px * 100 - 4}cqw`, top: `${py * 100 - 19}cqh`, opacity: o * grip }}>
-            <Tag o={o * grip}>node</Tag>
+            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: ts(1.1), letterSpacing: "0.22em", textTransform: "uppercase", color: FIELD, background: GOLD, padding: "0.5cqh 0.9cqw" }}>node</span>
             <div style={{ marginTop: "0.5cqh" }}>
               <Num size={2.4}>2.42 A</Num>
             </div>
@@ -1347,9 +1343,7 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
       {kind === "callout" && variant === "warn" ? (
         <>
           <HexMark px={px} py={py} aspect={aspect} scale={grip} colour="var(--color-danger-coral)" o={o * grip} w={0.011} />
-          <div style={{ position: 'absolute', left: (px * 100 + 8) + 'cqw', top: (py * 100 - 15) + 'cqh', opacity: o * grip }}>
-            <Tag o={o * grip} tone="coral">live at 240 V</Tag>
-          </div>
+          <CalloutLabel x={px * 100 + 5.6} y={py * 100 - 3} o={o * grip} tone="var(--color-danger-coral)">live at 240 V</CalloutLabel>
         </>
       ) : null}
 
