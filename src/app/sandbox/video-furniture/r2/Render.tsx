@@ -625,7 +625,7 @@ const STAGE_QUESTION: Partial<Record<string, string>> = {
  * The work surface below is a stand-in, and it is deliberately BUSY. Auditioning
  * an annotation over a bare field would audition the thing that never happens.
  */
-function Annotate({ variant, stage, t, kind }: VProps & { kind: "callout" | "pause" | "beforeafter" }) {
+function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind: "callout" | "pause" | "beforeafter" }) {
   const art = stageArt(stage);
   const inP = outCubic(seg(t, 0.3, 1.0));
   // The grip closes after the mark has arrived, same order as the outro's lock:
@@ -663,29 +663,54 @@ function Annotate({ variant, stage, t, kind }: VProps & { kind: "callout" | "pau
             aria-hidden
           >
             {(() => {
+              // THE SHIPPED LOCK'S GEOMETRY, read from CombLock rather than
+              // re-derived - which is what the first attempt did, and it came
+              // out as two enormous arcs that looked nothing like the thing on
+              // the site. Same constants, same dash pattern; only the driver
+              // differs, because a page runs it once on mount as a CSS
+              // animation and a frame has to seek it from .
+              const STANDOFF = 0.9;
+              // 1.07 on the site, where a cell is 200-360px and 7% is a clear
+              // 20px of daylight. At annotation scale 7% is under a pixel, so
+              // the jaws landed ON the trace and the two read as one dashed
+              // outline. The standoff has to be a share of the MARK, not a
+              // constant carried over from a much bigger object.
+              const REST = 1.2;
+              // ASPECT-CORRECTED. The svg is a 0-100 square viewBox with
+              // , so x maps to width and y to
+              // height independently - a hex written with equal user-unit radii
+              // comes out stretched by the frame aspect, which is what made the
+              // outline read as a squashed dashed blob. Same mistake the lattice
+              // made; the fix is to write the radii in the space they land in.
+              const rw = 7;
+              const rh = rw * 1.1547 * aspect;
               const hexAt = (g: number) => {
-                const rw = 6 * g;
-                const rh = 11 * g;
                 const cx = px * 100;
                 const cy = py * 100;
                 return [
-                  [cx, cy - rh],
-                  [cx + rw, cy - rh / 2],
-                  [cx + rw, cy + rh / 2],
-                  [cx, cy + rh],
-                  [cx - rw, cy + rh / 2],
-                  [cx - rw, cy - rh / 2],
+                  [cx, cy - rh * g],
+                  [cx + rw * g, cy - (rh * g) / 2],
+                  [cx + rw * g, cy + (rh * g) / 2],
+                  [cx, cy + rh * g],
+                  [cx - rw * g, cy + (rh * g) / 2],
+                  [cx - rw * g, cy - (rh * g) / 2],
                 ]
                   .map(([x, y]) => x.toFixed(2) + ',' + y.toFixed(2))
                   .join(' ');
               };
-              // Trace leads, jaws follow: find, then take hold.
-              const traceP = Math.min(1, grip / 0.6);
-              const gripP = Math.max(0, (grip - 0.45) / 0.55);
+              // Trace first, jaws after: 0.62s then 0.5s at +0.34s on the site,
+              // expressed here as the same proportions of the lock window.
+              const traceP = clamp01(grip / 0.62);
+              const jawP = clamp01((grip - 0.34) / 0.5);
+              // The jaws travel by SCALING about the cell centre, exactly as
+              // the shipped one does - not by recomputing their points.
+              const from = (1 + STANDOFF) / REST;
+              const scale = from + (1 - from) * jawP;
+              const cx = px * 100;
+              const cy = py * 100;
               return (
                 <>
-                  {/* Dark ground first, so the mark survives gold copper. */}
-                  <polygon points={hexAt(1)} fill="none" stroke={FIELD} strokeWidth={16} strokeOpacity={0.9} vectorEffect="non-scaling-stroke" />
+                  <polygon points={hexAt(1)} fill="none" stroke={FIELD} strokeWidth={11} strokeOpacity={0.9} vectorEffect="non-scaling-stroke" strokeDasharray={600} strokeDashoffset={600 * (1 - traceP)} pathLength={600} />
                   <polygon
                     points={hexAt(1)}
                     fill="none"
@@ -694,34 +719,13 @@ function Annotate({ variant, stage, t, kind }: VProps & { kind: "callout" | "pau
                     strokeLinecap="round"
                     vectorEffect="non-scaling-stroke"
                     pathLength={600}
-                    strokeDasharray={(600 * traceP) + ' 600'}
-                    opacity={0.85}
+                    strokeDasharray={600}
+                    strokeDashoffset={600 * (1 - traceP)}
                   />
-                  {/* The jaws rest PROUD of the outline, or the grip vanishes
-                      into the line it just drew. */}
-                  <polygon
-                    points={hexAt(1.12 + (1 - gripP) * 0.7)}
-                    fill="none"
-                    stroke={FIELD}
-                    strokeWidth={16}
-                    strokeOpacity={0.9}
-                    vectorEffect="non-scaling-stroke"
-                    pathLength={600}
-                    strokeDasharray="150 150"
-                    strokeDashoffset={-75}
-                    opacity={gripP}
-                  />
-                  <polygon
-                    points={hexAt(1.12 + (1 - gripP) * 0.7)}
-                    fill="none"
-                    stroke={GOLD}
-                    strokeWidth={5}
-                    vectorEffect="non-scaling-stroke"
-                    pathLength={600}
-                    strokeDasharray="150 150"
-                    strokeDashoffset={-75}
-                    opacity={gripP}
-                  />
+                  <g style={{ transform: 'scale(' + scale + ')', transformOrigin: cx + 'px ' + cy + 'px', opacity: jawP }}>
+                    <polygon points={hexAt(REST)} fill="none" stroke={FIELD} strokeWidth={11} strokeOpacity={0.9} vectorEffect="non-scaling-stroke" pathLength={600} strokeDasharray="150 150" strokeDashoffset={-75} />
+                    <polygon points={hexAt(REST)} fill="none" stroke={GOLD} strokeWidth={5} strokeLinecap="square" vectorEffect="non-scaling-stroke" pathLength={600} strokeDasharray="150 150" strokeDashoffset={-75} />
+                  </g>
                 </>
               );
             })()}
@@ -1012,7 +1016,7 @@ function IntroShort({ variant, stage, t, aspect = 16 / 9 }: VProps) {
     "\")";
 
   // Where the words go, given how much room the mark is taking.
-  const copyTop = stacked ? "16cqh" : "22cqh";
+  const copyTop = wash === "subject" ? (stacked ? "30cqh" : "34cqh") : stacked ? "16cqh" : "22cqh";
   const copyLeft = "8cqw";
   const copyRight = stacked ? "8cqw" : "34cqw";
 
@@ -1041,10 +1045,47 @@ function IntroShort({ variant, stage, t, aspect = 16 / 9 }: VProps) {
             aria-hidden
             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.16 * inP }}
           />
-          <div aria-hidden style={{ position: "absolute", right: "6cqw", top: "6cqh", width: "7cqw", height: "12cqh", opacity: inP }}>
-            <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
+          {/* THE LOCKUP: mark left, two lines right. The mono line names the
+              company and the display line names the thing, with the operative
+              half in gold. It is the same object the site header uses, so a
+              viewer meets one lockup across the whole system rather than a
+              logo arranged differently everywhere it appears. */}
+          <div
+            style={{
+              position: "absolute",
+              left: "7cqw",
+              top: "7cqh",
+              display: "flex",
+              alignItems: "center",
+              gap: "2cqw",
+              opacity: inP,
+            }}
+          >
+            <svg viewBox={BRANDMARK_VIEWBOX} aria-hidden style={{ height: ts(5.4), width: "auto", display: "block" }}>
               <path d={BRANDMARK_PATH} fill={GOLD} />
             </svg>
+            <div>
+              <div
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: ts(1.15),
+                  letterSpacing: "0.34em",
+                  textTransform: "uppercase",
+                  color: MUTED,
+                  lineHeight: 1,
+                }}
+              >
+                One Thousand Drones
+              </div>
+              <div style={{ marginTop: "1.1cqh", lineHeight: 1 }}>
+                <span style={{ fontFamily: "var(--font-display)", fontSize: ts(2.9), color: TITLE, letterSpacing: "0.01em" }}>
+                  {STAGE_LABELS[stage].split(" ")[0]}{" "}
+                </span>
+                <span style={{ fontFamily: "var(--font-display)", fontSize: ts(2.9), color: GOLD, letterSpacing: "0.01em" }}>
+                  {STAGE_LABELS[stage].split(" ").slice(1).join(" ") || "BUILD"}
+                </span>
+              </div>
+            </div>
           </div>
         </>
       ) : null}
@@ -1066,7 +1107,9 @@ function IntroShort({ variant, stage, t, aspect = 16 / 9 }: VProps) {
 
       {/* KNOCKOUT is rendered with the copy, because the words ARE the holes. */}
       <div style={{ position: "absolute", left: copyLeft, right: copyRight, top: copyTop, opacity: inP }}>
-        <Eyebrow o={inP}>{wash === "answer" ? "the finding" : "the question"}</Eyebrow>
+        {wash === "subject" ? null : (
+          <Eyebrow o={inP}>{wash === "answer" ? "the finding" : "the question"}</Eyebrow>
+        )}
         <div style={{ marginTop: "2cqh", position: "relative" }}>
           {wash === "knockout" ? (
             // THE WORDS ARE HOLES IN THE MARK. One object rather than two
