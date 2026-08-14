@@ -448,22 +448,19 @@ body {
     color-mix(in srgb, var(--color-command-gold) 45%, transparent);
   color: var(--color-command-gold);
 }
-.gh-node.done .gh-hex polygon {
-  fill: url(#gh-honey);
-  stroke: #eab94d;
-}
+/* A completed cell's shell + ink used to be defined here for a HONEY PLATE: a
+   `url(#gh-honey)` gradient fill with near-black ink on top. Two things were wrong.
+   The gradient does not exist - `SpineCombScene` ships no such def, so the reference
+   dangled. And the treatment was superseded: the completed cell takes a 14% gold WASH
+   over deep space now, which needs ivory-and-muted ink, not near-black. Both live
+   further down as a single definition. This block only ever appeared to work because
+   that one restates the same selectors and wins on source order. */
 .gh-node.done .gh-num {
-  -webkit-text-stroke-color: rgba(20, 13, 2, 0.44);
-}
-.gh-node.done .gh-title {
-  color: #140d02;
-}
-.gh-node.done .gh-lead {
-  color: #281d06;
-}
-.gh-node.done .gh-chip {
-  background: #241b06;
-  color: var(--color-gold-light);
+  -webkit-text-stroke-color: color-mix(
+    in srgb,
+    var(--color-command-gold) 34%,
+    transparent
+  );
 }
 /* a cell sits above its neighbours when current or hovered, so its glow / brighter
    border isn't covered by the later-drawn adjacent hex on the shared edges. */
@@ -856,9 +853,13 @@ body {
   stroke-linejoin: round;
   transition: stroke 0.15s;
 }
-.ghp-cell.done .ghp-face {
-  fill: url(#ghp-honey);
-}
+/* NO `fill: url(#ghp-honey)` HERE. It used to be, and it was a landmine: the three
+   spine combs draw through `SpineCombScene`, which ships no such gradient, so the
+   reference dangled. It looked fine only because the completed-cell rule further down
+   restates this exact selector with a `color-mix` wash and wins on source order.
+   Reordering or deduplicating that block would have blanked every completed hex on the
+   hub and the skill tree, with nothing pointing at the cause. The wash below is the
+   single definition. */
 .ghp-cell.done :is(.ghp-face, .ghp-side) {
   stroke: var(--color-command-gold);
 }
@@ -908,124 +909,11 @@ body {
   }
 }
 
-/* Ortho-3D prism shell (`HexPrism`, sandbox winner H4+K10, 2026-07-07) — the
-   /courses combs render each hex as a thin prism: opaque face (gh-top), a
-   down-right cast (gh-cast lines) whose faces fill with the field color
-   (gh-side, the solid slab). Scoped under .gh-3d so the hub's flat
-   `.gh-hex polygon` rules stay untouched. Occlusion rides per-cell zIndex
-   (grows with `left`, set inline by the components) — no hover/current z bumps,
-   exactly the approved sandbox render. */
-.gh-3d .gh-top {
-  fill: var(--color-deep-space);
-  stroke: var(--color-panel-border);
-  stroke-width: 3;
-  vector-effect: non-scaling-stroke;
-  transition: stroke 0.15s;
-}
-.gh-3d .gh-cast {
-  fill: none;
-  stroke: var(--color-panel-border);
-  stroke-width: 1.25;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
-  transition: stroke 0.15s;
-}
-.gh-3d .gh-side {
-  fill: var(--color-deep-space);
-  stroke: var(--color-panel-border);
-  stroke-width: 1.25;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-  transition: stroke 0.15s;
-}
-.gh-node.done .gh-3d .gh-top {
-  fill: url(#gh-honey);
-  stroke: #eab94d;
-}
-.gh-node.done .gh-3d :is(.gh-cast, .gh-side) {
-  stroke: #eab94d;
-}
-.gh-node.current .gh-3d :is(.gh-top, .gh-cast, .gh-side) {
-  stroke: var(--color-command-gold);
-}
-.gh-node.current .gh-3d .gh-top {
-  filter: drop-shadow(
-    0 0 8px color-mix(in srgb, var(--color-command-gold) 60%, transparent)
-  );
-  animation: gh-pulse 1.8s ease-in-out infinite;
-}
-.gh-node.blocked .gh-3d :is(.gh-top, .gh-cast, .gh-side) {
-  stroke: var(--color-alert-red);
-}
-.gh-node:hover .gh-3d :is(.gh-top, .gh-cast, .gh-side) {
-  stroke: var(--color-gold-light);
-}
-.gh-node.sk-goal .gh-3d .gh-top {
-  filter: drop-shadow(
-    0 0 10px color-mix(in srgb, var(--color-command-gold) 45%, transparent)
-  );
-}
-@media (prefers-reduced-motion: reduce) {
-  .gh-node.current .gh-3d .gh-top {
-    animation: none;
-  }
-}
-
-/* path-direction arrows (K10: 12 × 10 triangle, base 7 off the seam, on the
-   destination face). Gold = traversed (source done); dim = ahead. Hovering or
-   focusing a hex lights ITS outgoing arrow (the .hot class, set by the
-   component) so the next step reads off the hover. Overlay sits above every
-   prism cell and never intercepts the pointer. */
-.sk-arw {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  pointer-events: none;
-  z-index: 500;
-}
-/* z-index note: this used to be 10000, because cell wrappers carried zIndex ≈ their
-   `left` for the old cast-occlusion order and reached 700+ on wide layouts. Cells now
-   carry their DEPTH order instead — one per cell, so a comb of 22 tops out at 22 —
-   and the overlay only has to clear that. */
-.sk-arw path {
-  transition:
-    fill 0.15s,
-    filter 0.15s;
-  animation: sk-arwdrift 2.6s ease-in-out infinite;
-}
-.sk-arw g.on path {
-  fill: var(--color-command-gold);
-}
-.sk-arw g.off path {
-  fill: color-mix(in srgb, var(--color-panel-border) 90%, transparent);
-}
-.sk-arw g.hot path {
-  fill: var(--color-gold-light);
-  filter: drop-shadow(
-    0 0 6px color-mix(in srgb, var(--color-gold-light) 70%, transparent)
-  );
-}
-/* the subtle forward drift (the footer Next-arrow motif, quieter): each arrow
-   breathes ~3px along its own flow direction (the parent g carries the
-   rotation, so translateX IS the path direction). Staggered per-arrow via an
-   inline animation-delay so the path reads as a slow wave. */
-@keyframes sk-arwdrift {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  50% {
-    transform: translateX(3px);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sk-arw path {
-    animation: none;
-  }
-}
+/* The `.gh-3d` prism parts and the `.sk-arw` path arrows used to sit here. Both
+   belong to the THREE-POINT grid comb, which no production surface renders any more,
+   and both now live in `/sandbox/comb`'s own injected stylesheet beside the control
+   that still draws them. They were being served to every visitor of every page for
+   nothing. */
 
 /* sk-lean — the /courses comb drops the tagline (long technical titles + a
    chip already fill the face; the lead made the lower point crowd the pill —
@@ -1059,7 +947,29 @@ body {
    neighbouring cell, and painted through `background-clip: text` so the ink can
    fall off down the face rather than sit flat. The gradient is the DARK value;
    the light override below re-points it, because the same alpha that is quiet on
-   deep space is loud on ivory (rounds F-G). */
+   deep space is loud on ivory (rounds F-G).
+
+   THE ALPHA IS A LEGIBILITY NUMBER, NOT A TASTE ONE. It was 32% (dark) / 20%
+   (light), and 32% FAILED WCAG AA on the lead: the gradient runs transparent at
+   the top of the face to full strength at the BOTTOM, which is exactly where the
+   title, the lead and the chip sit, so the loudest part of a decorative watermark
+   was directly behind the only type on the cell.
+
+   Measured by photographing the composited backdrop with the type hidden and
+   taking the WORST pixel in each glyph box — not by reading the face fill off
+   getComputedStyle, which is what an earlier pass did and which reports a
+   backdrop nobody actually sees. Dark, worst-pixel, on a done cell:
+
+     alpha   title   lead
+      32%     9.17   4.19   <- fails AA (4.5)
+      24%    10.44   4.89
+      18%    11.26   5.40
+      14%    11.93   5.81   <- shipped
+      10%    12.50   6.22
+
+   Light was never the failing case (8.88 at 32%), and is set to the same number
+   for one value rather than two. Harness: sandbox scratch script
+   `_measure-contrast.mjs`; re-run it before changing this. */
 .comb-num {
   position: absolute;
   inset: 0;
@@ -1078,7 +988,7 @@ body {
   background-image: linear-gradient(
     to bottom,
     transparent 0%,
-    color-mix(in srgb, var(--color-gold-light) 32%, transparent) 100%
+    color-mix(in srgb, var(--color-gold-light) 14%, transparent) 100%
   );
   -webkit-background-clip: text;
   background-clip: text;
@@ -1087,7 +997,7 @@ body {
   background-image: linear-gradient(
     to bottom,
     transparent 8%,
-    color-mix(in srgb, var(--color-gold-light) 20%, transparent) 100%
+    color-mix(in srgb, var(--color-gold-light) 14%, transparent) 100%
   );
 }
 
@@ -1144,6 +1054,45 @@ body {
 .comb-complete .gh-node.done .gh-chip {
   background: var(--color-status-green);
   color: var(--color-deep-space);
+}
+
+/* The artwork LAYER, over the whole comb.
+   The spine combs (build-guide hub, /courses skill tree) hoist their board / stage
+   tile out of the cells into this sibling. A cell is an absolutely-positioned,
+   z-indexed box, which is a stacking context, so art parented inside one can never
+   rise above the NEXT cell's outline — and at the sizes a vertical spine uses, those
+   outlines cut straight across the boards. Hover cannot come through the layer
+   (`pointer-events: none`), so the components mirror the cell's hover as a `hot`
+   class here instead. */
+.gh-art-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.gh-art-layer .gh-node {
+  pointer-events: none;
+}
+.gh-art-layer .gh-node.hot .gh-art {
+  transform: scale(1);
+}
+/* A receded course brightens its BOARD with its text. `.gh-node.sk-dim:hover` cannot
+   fire in here (the layer is `pointer-events: none`), so without this the title and
+   chip jump to full opacity on hover while the board stays at 60% - which is exactly
+   what happens on /courses for every Premium / Sign in / Soon cell. */
+.gh-art-layer .gh-node.sk-dim.hot {
+  opacity: 1;
+}
+/* Admin chrome, above the artwork. Unlike the art layer this one DOES take pointer
+   events, because its whole job is to be clicked. */
+.gh-admin-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+}
+.gh-admin-layer > * {
+  pointer-events: auto;
 }
 
 /* Not reached yet: the artifact as a gold GHOST. One treatment for both combs --
@@ -1219,138 +1168,116 @@ body {
   stroke: var(--color-command-gold);
 }
 
-/* PathHoneycomb — the /courses "Go further" destinations: track-stroked hexes
-   (one per other build) in the honeycomb language, laid out by the shared
-   measured `computeLayout` so the rows tessellate. The track colour rides in on
-   the inline `--accent` custom property; the stroke is dim at rest, lit on hover. */
+/* PathHoneycomb -- the /courses "Go further" destinations.
+
+   WHAT IT WAS. A 4-up TESSELLATED grid of filled-card hexes under the three-point
+   camera: every cell drew its own shell (a flat `.phex-hex` polygon before the
+   measure, its own `.gh-3d` prism after it), so the comb was a set of little cards
+   that happened to be hex-shaped, and the content inside one was a title over a
+   pill-shaped count chip.
+
+   WHAT IT IS. A laced ONE-POINT ribbon that collapses to a vertical spine on
+   narrow screens. The hexes overlap by a quarter of their width and are drawn once,
+   all together, by the shared scene svg (`SpineCombScene`, the `.ghp-*` rules
+   above) -- which is why nothing here draws a shell any more, and why the track
+   accent, the flag glow and the hover light all live on `.ghp-cell.track`. A cell
+   is now a transparent hit box billboarded over that scene, and everything it
+   carries is type.
+
+   WHAT THE TYPE IS. The /hex release band applied to a hex: the destination's name
+   held between two accent hairlines, its track as an eyebrow above, its count as a
+   quiet mono line below. Picked in `/sandbox/path/g5`, option G5d ("the document
+   band"), 2026-08-13, against five other devices the house already ships.
+
+   Sizes are container-query units off the cell, because a cell on this comb runs
+   from about 120px on a phone to about 340px in the desktop column, and a fixed px
+   stack would be either illegible at one end or absurd at the other. The block is
+   62% of the cell so it sits in the hex's widest band and never in its points.
+
+   The old block broke two house rules and neither survives here: the count chip
+   carried a full pill radius, which the corner language bans outright, and the
+   hover title set a literal white, which the `[data-theme="light"]` token block
+   could not re-point and so needed a second override to correct. Hover is
+   `--color-gold-light` now, which INVERTS on its own, and that light correction is
+   deleted along with the rule that earned it. */
 .phex {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 1 / 1.1547;
   container-type: inline-size;
   text-decoration: none;
 }
-/* small inset so tessellated neighbours read as distinct hexes (a thin seam),
-   not one merged comb. */
-.phex-hex {
-  position: absolute;
-  inset: 3px;
-  overflow: visible;
-}
-/* the stroke is DIM at rest (so no single track colour — esp. blue — shouts) and
-   lights to full + a soft glow on hover/focus. */
-.phex-hex polygon {
-  fill: var(--color-deep-space);
-  stroke: var(--accent);
-  stroke-opacity: 0.5;
-  stroke-width: 2;
-  vector-effect: non-scaling-stroke;
-  transition:
-    stroke-opacity 0.18s ease,
-    filter 0.18s ease;
-}
-.phex:hover .phex-hex polygon,
-.phex:focus-visible .phex-hex polygon {
-  stroke-opacity: 1;
-  filter: drop-shadow(0 0 11px var(--accent));
-}
-.phex.flag .phex-hex polygon {
-  stroke-opacity: 0.72;
-  filter: drop-shadow(
-    0 0 6px color-mix(in srgb, var(--color-command-gold) 32%, transparent)
-  );
-}
-.phex.flag:hover .phex-hex polygon,
-.phex.flag:focus-visible .phex-hex polygon {
-  stroke-opacity: 1;
-  filter: drop-shadow(
-    0 0 14px color-mix(in srgb, var(--color-command-gold) 60%, transparent)
-  );
-}
+/* No ring on the hit box: it is a rectangle around a hex that overlaps its
+   neighbours, so the browser default traces a shape the eye cannot find. Focus is
+   expressed on the content block instead, where it traces the band. */
 .phex:focus-visible {
   outline: none;
 }
 .phex-inner {
   position: relative;
   z-index: 1;
+  width: 62%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(6px, 4cqw, 13px);
-  padding: 0 15%;
+  gap: clamp(4px, 2.4cqw, 9px);
   text-align: center;
 }
+.phex:focus-visible .phex-inner {
+  outline: 2px solid var(--color-gold-light);
+  outline-offset: clamp(5px, 3cqw, 12px);
+}
+/* THE EYEBROW IS NOT ACCENT-COLOURED, AND THAT IS A CONTRAST DECISION, NOT A TASTE
+   ONE. It rode `var(--accent)` in the sandbox, which is per-TRACK, so its contrast
+   changed with the destination. Measured worst-pixel against the composited backdrop:
+   `gold-dim` (the no-track fallback, used by Bench Tools) came out at 3.74 on deep
+   space and 2.21 on ivory, and `command-gold` (the ACT track) at 4.14 on ivory. Three
+   AA failures, all of them invisible unless you measure the surface per track.
+
+   `gold-dim` is a de-emphasis token; using it as label text was the root error. The
+   track is still unmistakable because the accent owns the hex STROKE and both band
+   hairlines, which are decorative and carry no contrast floor. Re-measure with the
+   scratch harness before re-pointing this. */
 .phex-eyebrow {
   font-family: var(--font-mono), monospace;
-  font-size: clamp(8px, 3.4cqw, 11px);
+  font-size: clamp(7px, 2.9cqw, 10px);
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--color-muted);
+}
+/* The band itself: two accent hairlines and nothing else. A boundary without a
+   box, which is the trick the whole hairline system is built on. */
+.phex-band {
+  width: 100%;
+  padding: clamp(4px, 2.6cqw, 10px) 0;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
 }
 .phex-title {
   font-family: var(--font-display), sans-serif;
-  font-size: clamp(16px, 11.5cqw, 30px);
-  line-height: 0.92;
+  font-size: clamp(13px, 8.4cqw, 26px);
+  line-height: 0.94;
   letter-spacing: 0.03em;
-  color: var(--color-gray-1);
+  color: var(--color-title);
+  text-wrap: balance;
   transition: color 0.18s ease;
 }
-.phex:hover .phex-title {
-  color: #fff;
+.phex:hover .phex-title,
+.phex:focus-visible .phex-title {
+  color: var(--color-gold-light);
 }
-.phex-chip {
+.phex-count {
   font-family: var(--font-mono), monospace;
-  font-weight: 700;
-  font-size: clamp(9px, 3.7cqw, 12px);
-  letter-spacing: 0.16em;
+  font-size: clamp(7px, 2.6cqw, 10px);
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  padding: clamp(3px, 1.7cqw, 6px) clamp(11px, 5.2cqw, 18px);
+  color: var(--color-muted);
 }
 @media (prefers-reduced-motion: reduce) {
-  .phex-hex polygon {
+  .phex-title {
     transition: none;
   }
-}
-/* prism parts inside a path hex ride the track accent, dim at rest, lit on
-   hover/focus — mirroring the flat .phex-hex polygon rules above. Flag rules
-   MUST follow the plain hover rules (equal specificity, order decides). */
-.phex .gh-3d :is(.gh-top, .gh-cast, .gh-side) {
-  stroke: var(--accent);
-  stroke-opacity: 0.5;
-  transition:
-    stroke-opacity 0.18s ease,
-    filter 0.18s ease;
-}
-.phex:hover .gh-3d :is(.gh-top, .gh-cast, .gh-side),
-.phex:focus-visible .gh-3d :is(.gh-top, .gh-cast, .gh-side) {
-  stroke-opacity: 1;
-}
-.phex:hover .gh-3d .gh-top,
-.phex:focus-visible .gh-3d .gh-top {
-  filter: drop-shadow(0 0 11px var(--accent));
-}
-.phex.flag .gh-3d :is(.gh-top, .gh-cast, .gh-side) {
-  stroke-opacity: 0.72;
-}
-.phex.flag .gh-3d .gh-top {
-  filter: drop-shadow(
-    0 0 6px color-mix(in srgb, var(--color-command-gold) 32%, transparent)
-  );
-}
-.phex.flag:hover .gh-3d :is(.gh-top, .gh-cast, .gh-side),
-.phex.flag:focus-visible .gh-3d :is(.gh-top, .gh-cast, .gh-side) {
-  stroke-opacity: 1;
-}
-.phex.flag:hover .gh-3d .gh-top,
-.phex.flag:focus-visible .gh-3d .gh-top {
-  filter: drop-shadow(
-    0 0 14px color-mix(in srgb, var(--color-command-gold) 60%, transparent)
-  );
 }
 
 /* QuizBlock — the in-guide comprehension check, "hex node" design: each option is
@@ -2612,10 +2539,6 @@ fieldset:has(.qzh-opt[data-st="ok"]) [role="status"] > div > p:last-child {
 :root[data-theme="light"] .gh-lead {
   /* #d8d8d8 bright-on-dark → dark ink on paper */
   color: var(--color-text);
-}
-:root[data-theme="light"] .phex:hover .phex-title {
-  /* #fff brightest-on-dark → the darkest ink on light */
-  color: var(--color-title);
 }
 :root[data-theme="light"] .table-tech td .ref {
   color: var(--color-title);
