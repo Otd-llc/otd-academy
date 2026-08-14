@@ -603,69 +603,120 @@ function IntroShort({ variant, stage, t, aspect = 16 / 9 }: VProps) {
   const inP = outCubic(seg(t, 0, 0.7));
   const parts = outCubic(seg(t, 0.9, 2.1));
   const late = outCubic(seg(t, 1.6, 2.6));
-  // THE MARK IS THE AXIS. Every option carries it; what differs is how loudly.
-  const mark = variant.replace("mark-", "") as "wash" | "corner" | "hero" | "hex" | "bleed";
-  // The vertical is composed, not reflowed - the lesson intro's thirds became
-  // two narrow columns the moment it tried to stretch into 9:16.
+  // WASH IS THE DIRECTION. What varies is where it sits, how much is in frame,
+  // and - the half worth a round - what it is made of. Every option is the same
+  // drawing at the same faintness; none may become a second logo competing with
+  // the question for the eye.
+  const wash = variant.replace("wash-", "").replace("wash", "") || "plain";
+  // The vertical is composed, not reflowed.
   const stacked = tall;
-
-  const Mark = ({ o, style }: { o: number; style: React.CSSProperties }) => (
-    <div style={{ position: "absolute", opacity: o, ...style }} aria-hidden>
-      <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
-        <defs>
-          <linearGradient id={`ms-${mark}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor={GOLD} stopOpacity={0.55} />
-            <stop offset="55%" stopColor={GOLD} />
-            <stop offset="100%" stopColor="var(--color-gold-light)" />
-          </linearGradient>
-        </defs>
-        <path d={BRANDMARK_PATH} fill={`url(#ms-${mark})`} />
-      </svg>
-    </div>
-  );
+  const MARK_SVG =
+    "url(\"data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      "<svg xmlns='http://www.w3.org/2000/svg' viewBox='" +
+        BRANDMARK_VIEWBOX +
+        "'><path d='" +
+        BRANDMARK_PATH +
+        "' fill='black'/></svg>",
+    ) +
+    "\")";
 
   // Where the words go, given how much room the mark is taking.
-  const copyTop = mark === "hero" ? (stacked ? "40cqh" : "46cqh") : stacked ? "16cqh" : "22cqh";
-  const copyLeft = mark === "bleed" && !stacked ? "34cqw" : "8cqw";
-  const copyRight = mark === "corner" && !stacked ? "34cqw" : "8cqw";
+  const copyTop = stacked ? "16cqh" : "22cqh";
+  const copyLeft = "8cqw";
+  const copyRight = stacked ? "8cqw" : wash === "right" ? "42cqw" : "34cqw";
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      {mark === "wash" ? (
-        // Enormous, faint, bled off two edges. Reads as a field rather than a
-        // logo, so nothing competes with the question for the eye.
-        <Mark o={0.07 * inP} style={{ left: "-18cqw", top: "-14cqh", width: "92cqw", height: "128cqh" }} />
+      {/* BANDS - the abdomen stripes only, spanning the frame. The mark
+          reduced to the hairline language the rest of the set is built from. */}
+      {wash === "bands" ? (
+        <div style={{ position: "absolute", inset: 0, opacity: 0.15 * inP, overflow: "hidden" }} aria-hidden>
+          {[0, 1, 2, 3].map((k) => (
+            <div
+              key={k}
+              style={{
+                position: "absolute",
+                left: "-6cqw",
+                right: "-6cqw",
+                top: `${28 + k * 14}cqh`,
+                height: `${3.4 - k * 0.4}cqh`,
+                background: GOLD,
+                borderRadius: "50%",
+              }}
+            />
+          ))}
+        </div>
       ) : null}
-      {mark === "bleed" ? (
-        <Mark o={0.9 * inP} style={{ left: "-26cqw", top: stacked ? "4cqh" : "-8cqh", width: "62cqw", height: "116cqh" }} />
+
+      {/* NEGATIVE - a hole in the light rather than a drawing on the dark. */}
+      {wash === "negative" ? (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: 0.14 * inP,
+            background: GOLD,
+            WebkitMaskImage: `linear-gradient(#000,#000), ${MARK_SVG}`,
+            maskImage: `linear-gradient(#000,#000), ${MARK_SVG}`,
+            WebkitMaskComposite: "xor",
+            maskComposite: "exclude",
+            WebkitMaskSize: "auto, 78cqw",
+            maskSize: "auto, 78cqw",
+            WebkitMaskPosition: "center, 8cqw -6cqh",
+            maskPosition: "center, 8cqw -6cqh",
+            WebkitMaskRepeat: "no-repeat, no-repeat",
+            maskRepeat: "no-repeat, no-repeat",
+          }}
+        />
       ) : null}
-      {mark === "corner" ? (
-        <Mark o={inP} style={{ right: "6cqw", top: "5cqh", width: stacked ? "16cqw" : "9cqw", height: stacked ? "9cqh" : "16cqh" }} />
+
+      {/* GRID INSIDE - engineering paper, visible only within the silhouette. */}
+      {wash === "grid" ? (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            left: "-14cqw",
+            top: "-10cqh",
+            width: "88cqw",
+            height: "126cqh",
+            opacity: 0.55 * inP,
+            backgroundImage: `linear-gradient(to right, ${GOLD} ${hw(0.05)}, transparent ${hw(0.05)}), linear-gradient(to bottom, ${GOLD} ${hw(0.05)}, transparent ${hw(0.05)})`,
+            backgroundSize: "2.6cqw 2.6cqw",
+            WebkitMaskImage: MARK_SVG,
+            maskImage: MARK_SVG,
+            WebkitMaskSize: "contain",
+            maskSize: "contain",
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+          }}
+        />
       ) : null}
-      {mark === "hero" ? (
-        <Mark o={inP} style={{ left: "50%", transform: "translateX(-50%)", top: stacked ? "12cqh" : "8cqh", width: stacked ? "44cqw" : "22cqw", height: stacked ? "24cqh" : "34cqh" }} />
+
+      {wash === "plain" || wash === "right" || wash === "crop" ? (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            opacity: 0.07 * inP,
+            ...(wash === "right"
+              ? { right: "-18cqw", top: "-14cqh", width: "92cqw", height: "128cqh", transform: "scaleX(-1)" }
+              : wash === "crop"
+                ? { left: "-34cqw", top: "16cqh", width: "180cqw", height: "160cqh" }
+                : { left: "-18cqw", top: "-14cqh", width: "92cqw", height: "128cqh" }),
+          }}
+        >
+          <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
+            <path d={BRANDMARK_PATH} fill={GOLD} />
+          </svg>
+        </div>
       ) : null}
 
       <div style={{ position: "absolute", left: copyLeft, right: copyRight, top: copyTop, opacity: inP }}>
         <Eyebrow o={inP}>the question</Eyebrow>
         <div style={{ marginTop: "2cqh", position: "relative" }}>
-          {mark === "hex" ? (
-            // The framing IS the mark's silhouette: identity carried by
-            // structure rather than by a logo placed on top of one.
-            <>
-              <div
-                aria-hidden
-                style={{
-                  position: "absolute",
-                  inset: "-8cqh -5cqw",
-                  border: `${hw(0.1)} solid ${GOLD}`,
-                  clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
-                  opacity: 0.4 * inP,
-                }}
-              />
-              <Mark o={0.5 * inP} style={{ left: "-4cqw", top: "-11cqh", width: "10cqw", height: "14cqh" }} />
-            </>
-          ) : null}
           <Title size={stacked ? 3.4 : 3.8} o={inP}>
             {q}
           </Title>
@@ -677,7 +728,7 @@ function IntroShort({ variant, stage, t, aspect = 16 / 9 }: VProps) {
           position: "absolute",
           left: copyLeft,
           right: "8cqw",
-          top: stacked ? "58cqh" : mark === "hero" ? "68cqh" : "46cqh",
+          top: stacked ? "58cqh" : "48cqh",
           opacity: parts,
         }}
       >

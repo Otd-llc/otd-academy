@@ -134,13 +134,18 @@ export const CHAPTER: Variant[] = [
  *  course device: three nouns before the process is the largest opening effect
  *  available (d = 0.75) for any instructional video. "In this stage" becomes
  *  "in this video" and nothing else changes. */
+/** INTRO / SHORT - wash is the direction. The mark owns the field without ever
+ *  competing to be read. These vary where it sits, how much of it is in frame,
+ *  and - the half worth a round - what it is made OF. */
 export const INTRO_SHORT: Variant[] = [
-  { id: "mark-wash", name: "Wash", claim: "The mark enormous and faint behind everything, bled off two edges. The field stops being empty without anything competing to be read - the cheapest way to own a frame." },
-  { id: "mark-corner", name: "Corner chrome", claim: "Small, top right, at chrome scale. Present on every frame and never the subject; the treatment a channel can run for a hundred videos without tiring." },
-  { id: "mark-hero", name: "Hero", claim: "The mark at size above the question, gradient on. Strongest identity, and the most seconds spent on something that is not the video." },
-  { id: "mark-hex", name: "Hex frame", claim: "The stylised hex framing IS the mark's silhouette - the question sits inside it. Identity carried by structure rather than by a logo placed on top of one." },
-  { id: "mark-bleed", name: "Bleed", claim: "Oversized and cropped hard by the left edge, so only a wing and the crown are in frame. Confident rather than decorative, and it survives a 9:16 crop better than a centred mark." },
+  { id: "wash", name: "Wash", claim: "The control: enormous, faint, bled off the top and left. The field stops being empty and nothing competes with the question." },
+  { id: "wash-right", name: "Mirrored", claim: "Flipped to the right so the copy owns the left and the reading eye starts on words rather than on a wing." },
+  { id: "wash-crop", name: "Detail", claim: "Cropped so hard that only the abdomen bands are in frame. Stops reading as a bee and starts reading as texture - identity by pattern rather than by logo." },
+  { id: "wash-negative", name: "Negative", claim: "The mark CUT OUT of a gold field rather than drawn on a dark one. A hole in the light: the opposite gesture, and the most confident thing here." },
+  { id: "wash-grid", name: "Grid inside", claim: "Engineering paper visible ONLY inside the mark's silhouette. Two house signatures made into one object rather than layered - the field is the brand and the brand is the field." },
+  { id: "wash-bands", name: "Bands", claim: "Only the abdomen stripes, huge, spanning the frame as horizontal rules. The mark reduced to the hairline language everything else is built from - a logo you cannot quite see but can definitely recognise." },
 ];
+
 
 
 /** OUTRO / SHORT - and its job is not to end.
