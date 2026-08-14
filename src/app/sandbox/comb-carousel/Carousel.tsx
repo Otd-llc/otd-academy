@@ -53,11 +53,18 @@ export type ArtMode = "kind" | "lit-only" | "always-ghost" | "art-only";
 export type Veil = { top: number; bottom: number } | null;
 
 /** The ghost treatments on audition. Only this varies between the options. */
-export type Ghost = "alpha" | "flat" | "narrow" | "veil";
+export type Ghost = "alpha" | "narrow" | "veil";
 
 export const GHOSTS: { id: Ghost; name: string; claim: string }[] = [
   { id: "alpha", name: "Alpha only", claim: "The ghosts keep their prism and their content and simply recede. The plainest reading of the brief, and the control the other three are judged against." },
-  { id: "flat", name: "No prism", claim: "Ghosts lose the cast and keep the outline, so depth belongs to the window alone. The three lit cells are the only solid objects on screen." },
+  // `flat` / "No prism" WAS here and is deleted rather than left on the board. It
+  // claimed the ghosts lose their cast and keep their outline, and it never did that:
+  // `SpineCombScene` has no mode that omits the side quads, and `.ghp-cell.dim` - the
+  // only recede it had - fades the whole group, sides included. Once the per-cell
+  // `alpha` fix landed it got worse: an inline opacity out-specifies the `dim` class
+  // rule, so the option rendered pixel-identical to `alpha`. An audition option that
+  // does not do what its card says is worse than no option, because the pick it
+  // produces is a pick against a description.
   { id: "narrow", name: "Type drops", claim: "Ghosts keep the hex and lose the title and chip. Says how long the course is without asking anyone to read eight things they are not on." },
   { id: "veil", name: "Veiled ends", claim: "Alpha, plus a gradient that takes the run out at the top and bottom of the viewport. The comb reads as continuing past the frame rather than stopping." },
 ];
@@ -142,11 +149,7 @@ export function Carousel({
             // the cell's HTML opacity reaches its type and its artwork and never its
             // hex, so a ghost sat outlined at full strength around faded contents -
             // which is not what any of these treatments claims to do.
-            cells={cells.map((c, i) => ({
-              kind: c.kind,
-              dim: ghost === "flat" && !isLit(win, i),
-              alpha: ghostAlpha(win, i),
-            }))}
+            cells={cells.map((c, i) => ({ kind: c.kind, alpha: ghostAlpha(win, i) }))}
             hot={null}
           />
         ) : null}
@@ -178,7 +181,12 @@ export function Carousel({
                       long it is, without asking anyone to read eight things they are
                       not on. */}
                   {lit || (ghost !== "narrow" && art !== "art-only") ? (
-                    <>
+                    // A ghost's type is DECORATION - it says how long the run is, and
+                    // at the falloff's own numbers it is under AA from one ring out
+                    // and at 1.28:1 on the floor. Exposing unreadable text to a screen
+                    // reader is the worst of both: too faint to read, fully announced.
+                    // `.comb-num` is already aria-hidden for the same reason.
+                    <div aria-hidden={!lit || undefined} style={{ display: "contents" }}>
                       <span className="gh-m">
                         <span className="gh-title">{c.title}</span>
                         {c.lead ? <span className="gh-lead">{c.lead}</span> : null}
@@ -186,7 +194,7 @@ export function Carousel({
                       <span className="gh-status">
                         <span className="gh-chip">{c.statusText}</span>
                       </span>
-                    </>
+                    </div>
                   ) : null}
                 </div>
               );

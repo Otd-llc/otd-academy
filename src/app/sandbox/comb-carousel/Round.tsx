@@ -109,7 +109,11 @@ export function Round() {
               <span className="title-card text-[15px]">{g.name}</span>
             </div>
             <div className="mt-2 border border-panel-border/60">
-              <Carousel cells={cells} current={current} ghost={g.id} />
+              {/* 720, not the old 520: `fitWindowCell(520)` solves to ~153px, under
+                  the 200px container-query breakpoint where globals.css switches to
+                  the COMPACT card and hides the lead. A pick made against that is a
+                  pick against a card that does not ship. */}
+              <Carousel cells={cells} current={current} ghost={g.id} viewH={720} />
             </div>
             <p className="mt-2 text-sm leading-relaxed text-muted">{g.claim}</p>
             <button

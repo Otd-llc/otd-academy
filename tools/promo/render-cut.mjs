@@ -91,6 +91,22 @@ const ctx = await browser.newContext({
   colorScheme: "dark",
   locale: "en-US",
   timezoneId: "UTC",
+  // REDUCED MOTION IS A SEEKABILITY CONTROL HERE, not an accessibility courtesy.
+  //
+  // The film's contract is that every animated value is a pure function of `t`, so a
+  // frame at t=1.4 is the same picture every time it is asked for. Product CSS the
+  // film composes does not honour that on its own: the honeycomb's current cell runs
+  // `animation: gh-pulse 1.8s infinite` on the WALL CLOCK, and `.gh-art` and the
+  // prism strokes carry 0.28s and 0.15s transitions that fire whenever a cell's kind
+  // changes. Two grabs of the same nominal frame differ - the same class of failure
+  // already measured once as 24 of 120 frozen frames not matching on a re-hash.
+  //
+  // globals.css already switches all three off under `prefers-reduced-motion`. The
+  // escape hatch existed and this pipeline simply never pulled it, while
+  // `scripts/export-diagrams.ts` has been pulling it for the diagram exporter all
+  // along. Pausing animations after the fact only reaches the trees we know to walk;
+  // this reaches any product CSS the film ever composes.
+  reducedMotion: "reduce",
 });
 const page = await ctx.newPage();
 const errors = [];
