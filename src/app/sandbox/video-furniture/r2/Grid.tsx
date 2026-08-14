@@ -220,7 +220,7 @@ export function Grid({ piece }: { piece: PieceKey }) {
                 aspect={16 / 9}
                 exit={exit}
                 entry={entry}
-                guides={guides && piece === "outro"}
+                guides={guides && (piece === "outro" || piece === "intro")}
               />
             </div>
             <p className="mt-2 text-sm leading-relaxed text-muted">{v.claim}</p>

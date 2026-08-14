@@ -547,7 +547,12 @@ function PartNames({
                 >
                   {String(k + 1).padStart(2, "0")}
                 </span>
-                <span style={{ flex: centre ? "0 0 auto" : 1, height: hw(0.1), background: HAIR, alignSelf: "center", minWidth: centre ? "2cqw" : undefined }} />
+                {/* A FIXED rule, not a flexing one. Letting it flex pushed every
+                    name to the right edge, so the numbers ran down a left margin
+                    and the names down a right one with a ragged gutter between -
+                    two alignments where the list wants one. A manifest reads
+                    number, tick, name, and the names line up. */}
+                <span style={{ width: "3.2cqw", height: hw(0.1), background: HAIR, alignSelf: "center", flex: "0 0 auto" }} />
               </>
             ) : null}
             <span
@@ -568,33 +573,39 @@ function PartNames({
   );
 }
 
-function Intro({ variant, stage, title, lesson, t }: VProps) {
-  // THE OUTRO'S MIRROR. Same hex, same gutter, same scroll, same trace-and-vise
-  // lock - and the only difference is where it lands. The outro travels from the
-  // stage just finished to the NEXT one; the intro travels from the stage BEFORE
-  // to the one this video is about. Arriving is handing over, run backwards.
+function Intro({ variant, stage, title, lesson, t, guides }: VProps) {
+  // THE GRID. Thirds, and the composition is placed ON them rather than near
+  // them. An intro is not an end screen, so none of YouTube's reserved wells
+  // apply and the whole frame is available - which is exactly when a layout
+  // drifts into "roughly left" and "roughly right" unless the lines are named.
   //
-  // Everything the outro round settled comes with it rather than being decided
-  // again: sized off the viewport not the column, `show` filling the box with the
-  // window, type cell-relative through `.comb-video`, the wells left empty, the
-  // lock drawn behind the artwork and resting proud of the outline.
-  const i = Math.max(0, STAGE_ORDER.indexOf(stage));
-  const from = Math.max(0, i - 1);
-  // Every option now names the parts; what differs is how they are presented.
+  //   comb    centred on the FIRST vertical third, so the run has the left
+  //           column to itself and the current hex sits on the frame's own
+  //           centre line.
+  //   mark    centred on the SECOND vertical third, its foot resting on the
+  //           first horizontal third.
+  //   names   hung from that same horizontal third, in the mark's column.
+  //
+  // Three anchors, two of them shared, so the right-hand group reads as one
+  // object rather than two things that happen to be stacked.
+  const V1 = 100 / 3;
+  const V2 = 200 / 3;
+  const H1 = 100 / 3;
+  const COMB_W = 27;
+  const RIGHT_W = 30;
+
   const centre = variant === "parts-centre";
   const stepped = variant === "parts-step";
   const numbered = variant === "parts-numbered";
   const titled = variant === "parts-titled";
-  const cold = false;
 
+  const i = Math.max(0, STAGE_ORDER.indexOf(stage));
+  const from = Math.max(0, i - 1);
   const inP = outCubic(seg(t, 0, 0.8));
-  const travel = cold ? 1 : outCubic(seg(t, 0.5, 2.1));
+  const travel = outCubic(seg(t, 0.5, 2.1));
   const landed = from + (i - from) * travel;
-  // The lock closes once the run has arrived. On the cold open there is no
-  // travel, so it closes immediately and the first frame is already the answer.
-  const lockP = outCubic(seg(t, cold ? 0.25 : 2.0, cold ? 1.0 : 2.8));
+  const lockP = outCubic(seg(t, 2.0, 2.8));
   const late = outCubic(seg(t, 1.4, 2.4));
-  // One unhurried dissolve, and it is the only thing that happens to the names.
   const parts = outCubic(seg(t, 0.6, 1.8));
 
   const cells: CombCell2[] = STAGE_ORDER.map((s, n) => ({
@@ -608,57 +619,12 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      {/* The mark, in the same well the outro uses, so a viewer meets the same
-          object at both ends of the video. */}
+      {/* THE COMB, on the first third. */}
       <div
         style={{
           position: "absolute",
-          left: `${GRAPHICS_16X9.x * 100}cqw`,
-          top: `${GRAPHICS_16X9.y * 100}cqh`,
-          width: `${GRAPHICS_16X9.w * 100}cqw`,
-          height: `${GRAPHICS_16X9.h * 100}cqh`,
-          // A COLUMN, not a centred grid. Both children centred in the same cell
-          // stacked the title straight over the mark. The mark also has to give
-          // ground when a title is present - it cannot hold the whole well and
-          // leave room underneath it.
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          opacity: inP,
-        }}
-      >
-        <svg
-          viewBox={BRANDMARK_VIEWBOX}
-          style={{
-            width: centre ? "100%" : "46%",
-            height: "auto",
-            display: "block",
-          }}
-          aria-hidden
-        >
-          <defs>
-            <linearGradient id="intro-mk" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor={GOLD} />
-              <stop offset="100%" stopColor="var(--color-gold-light)" />
-            </linearGradient>
-          </defs>
-          <path d={BRANDMARK_PATH} fill="url(#intro-mk)" />
-        </svg>
-        {/* PRE-TRAINING. The nouns.
-            This block is deliberately the SLOWEST object in the opening: a list
-            of names is verbal-propositional in the purest form, and fast-cut
-            grammar raises visual memory while LOWERING verbal memory. `held` is
-            therefore the option the evidence endorses, and `stepped` is the one
-            that has to justify the motion it spends. */}
-        {!centre ? <PartNames stage={stage} p={parts} t={t} stepped={stepped} numbered={numbered} titled={titled} /> : null}
-      </div>
-
-      <div
-        style={{
-          position: "absolute",
-          left: "30cqw",
-          width: "29cqw",
+          left: `${V1 / 2 - COMB_W / 2}cqw`,
+          width: `${COMB_W}cqw`,
           top: 0,
           height: "100cqh",
           opacity: inP,
@@ -669,21 +635,68 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
           current={i}
           centreOn={landed}
           ghost="veil"
-          veil={{ top: 20, bottom: 70 }}
+          veil={{ top: 18, bottom: 74 }}
           art="art-only"
-          show={4.6}
+          show={4.2}
           lock="trace-vise"
           lockP={lockP}
           video
         />
       </div>
 
-      {centre ? (
-        <div style={{ position: "absolute", left: "8cqw", right: "8cqw", bottom: "16cqh", opacity: parts }}>
-          <PartNames stage={stage} p={parts} t={t} stepped={stepped} numbered={numbered} titled={titled} centre />
-        </div>
-      ) : null}
+      {/* THE MARK, on the second third, resting its foot on the first
+          horizontal third - same gradient as the outro, so a viewer meets the
+          same object at both ends of the video. */}
+      <div
+        style={{
+          position: "absolute",
+          left: `${V2 - RIGHT_W / 2}cqw`,
+          width: `${RIGHT_W}cqw`,
+          top: `${H1 - 22}cqh`,
+          height: "22cqh",
+          display: "grid",
+          placeItems: "end center",
+          opacity: inP,
+        }}
+      >
+        <svg
+          viewBox={BRANDMARK_VIEWBOX}
+          style={{ width: "52%", height: "auto", display: "block" }}
+          aria-hidden
+        >
+          <defs>
+            <linearGradient id="intro-mk" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor={GOLD} stopOpacity={0.55} />
+              <stop offset="55%" stopColor={GOLD} />
+              <stop offset="100%" stopColor="var(--color-gold-light)" />
+            </linearGradient>
+          </defs>
+          <path d={BRANDMARK_PATH} fill="url(#intro-mk)" />
+        </svg>
+      </div>
 
+      {/* THE NAMES, hung from the same horizontal third, in the mark's column. */}
+      <div
+        style={{
+          position: "absolute",
+          left: `${V2 - RIGHT_W / 2}cqw`,
+          width: `${RIGHT_W}cqw`,
+          top: `${H1 + 4}cqh`,
+        }}
+      >
+        <PartNames
+          stage={stage}
+          p={parts}
+          t={t}
+          stepped={stepped}
+          numbered={numbered}
+          titled={titled}
+          centre={centre}
+        />
+      </div>
+
+      {/* The address on the foot, centred on the frame rather than the column -
+          it belongs to the video, not to the right-hand group. */}
       <div
         style={{
           position: "absolute",
@@ -696,6 +709,25 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
       >
         <Eyebrow o={late}>{URL}</Eyebrow>
       </div>
+
+      {/* The thirds, drawn on request, so the placement is checkable rather
+          than eyeballed. Same switch the outro uses for its reserved wells. */}
+      {guides ? (
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+          {[V1, V2].map((x) => (
+            <div
+              key={`v${x}`}
+              style={{ position: "absolute", left: `${x}cqw`, top: 0, bottom: 0, width: hw(0.06), background: "var(--color-signal-blue)", opacity: 0.5 }}
+            />
+          ))}
+          {[H1, 200 / 3].map((y) => (
+            <div
+              key={`h${y}`}
+              style={{ position: "absolute", top: `${y}cqh`, left: 0, right: 0, height: hw(0.06), background: "var(--color-signal-blue)", opacity: 0.5 }}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
