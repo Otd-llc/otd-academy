@@ -522,12 +522,12 @@ function PartNames({
         </div>
       ) : null}
       <Eyebrow o={stepped ? 1 : p}>{titled ? "in this stage" : "in this stage"}</Eyebrow>
-      <div style={{ marginTop: "1.6cqh" }}>
+      <div style={{ marginTop: "2.6cqh" }}>
         {names.map((n, k) => (
           <div
             key={n}
             style={{
-              marginTop: "0.9cqh",
+              marginTop: "2.1cqh",
               display: "flex",
               alignItems: "baseline",
               justifyContent: centre ? "center" : "flex-start",
@@ -540,7 +540,7 @@ function PartNames({
                 <span
                   style={{
                     fontFamily: "var(--font-mono)",
-                    fontSize: ts(1.1),
+                    fontSize: ts(1.7),
                     letterSpacing: "0.2em",
                     color: GOLD,
                   }}
@@ -552,13 +552,13 @@ function PartNames({
                     and the names down a right one with a ragged gutter between -
                     two alignments where the list wants one. A manifest reads
                     number, tick, name, and the names line up. */}
-                <span style={{ width: "3.2cqw", height: hw(0.1), background: HAIR, alignSelf: "center", flex: "0 0 auto" }} />
+                <span style={{ width: "4.4cqw", height: hw(0.14), background: HAIR, alignSelf: "center", flex: "0 0 auto" }} />
               </>
             ) : null}
             <span
               style={{
                 fontFamily: "var(--font-display)",
-                fontSize: ts(numbered ? 1.9 : 2.1),
+                fontSize: ts(numbered ? 3.0 : 3.2),
                 color: TITLE,
                 lineHeight: 1.15,
                 whiteSpace: "nowrap",
@@ -592,11 +592,11 @@ function Intro({ variant, stage, title, lesson, t, guides }: VProps) {
   const V2 = 200 / 3;
   const H1 = 100 / 3;
   const COMB_W = 27;
-  const RIGHT_W = 30;
+  const RIGHT_W = 34;
 
   const centre = variant === "parts-centre";
-  const stepped = variant === "parts-step";
-  const numbered = variant === "parts-numbered";
+  const stepped = variant === "parts-step" || variant === "parts-manifest-step";
+  const numbered = variant === "parts-numbered" || variant === "parts-manifest-step";
   const titled = variant === "parts-titled";
 
   const i = Math.max(0, STAGE_ORDER.indexOf(stage));
@@ -652,8 +652,8 @@ function Intro({ variant, stage, title, lesson, t, guides }: VProps) {
           position: "absolute",
           left: `${V2 - RIGHT_W / 2}cqw`,
           width: `${RIGHT_W}cqw`,
-          top: `${H1 - 22}cqh`,
-          height: "22cqh",
+          top: `${H1 - 26}cqh`,
+          height: "26cqh",
           display: "grid",
           placeItems: "end center",
           opacity: inP,
@@ -661,7 +661,11 @@ function Intro({ variant, stage, title, lesson, t, guides }: VProps) {
       >
         <svg
           viewBox={BRANDMARK_VIEWBOX}
-          style={{ width: "52%", height: "auto", display: "block" }}
+          // CONSTRAINED BY HEIGHT, not width. The mark is taller than it is
+          // wide, so sizing it to 76% of a 34cqw column made it ~55cqh tall
+          // inside a 27cqh box and it was cropped at the crown. Its box is
+          // height-bounded, so the fit has to be too.
+          style={{ height: "100%", width: "auto", maxWidth: "100%", display: "block" }}
           aria-hidden
         >
           <defs>

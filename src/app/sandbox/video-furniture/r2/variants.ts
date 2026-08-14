@@ -29,12 +29,11 @@ export type Variant = { id: string; name: string; claim: string };
  *  fast-cut grammar raises visual memory while LOWERING verbal memory. Every
  *  option below has to answer for the motion it spends on the naming block. */
 export const INTRO: Variant[] = [
-  { id: "parts-hold", name: "Held", claim: "All three arrive together on one unhurried dissolve and never move again. The control, and the option the verbal-memory finding most obviously endorses." },
-  { id: "parts-step", name: "Stepped", claim: "One noun a beat, each landing on a cut and then holding. Reads as a list being set down rather than appearing - at the cost of motion on the one block the evidence says to keep still. Worth seeing before it is ruled out." },
-  { id: "parts-numbered", name: "Manifest", claim: "The same three, numbered in mono and hung on a rule. Reads as a parts list rather than a title stack, which is what it literally is." },
-  { id: "parts-titled", name: "Stage and parts", claim: "The stage name above the nouns, so the frame says where you are AND what is in it. The most information, and the busiest." },
-  { id: "parts-centre", name: "Under the comb", claim: "Names centred beneath the comb instead of beside it, full width. Frees the left well for the mark alone and puts the nouns on the reading axis." },
+  { id: "parts-manifest-step", name: "Manifest, stepped", claim: "Both: numbered and hung on a tick, arriving one noun a beat on a CUT rather than a fade. Sized to fill the column it sits in - the previous cut left the right two thirds mostly field." },
+  { id: "parts-numbered", name: "Manifest, held", claim: "The same list, all three at once on one dissolve. The control, and the option the verbal-memory finding endorses - a list of names is verbal-propositional in the purest form." },
+  { id: "parts-titled", name: "Stage and parts", claim: "The stage name above the nouns. The most information, and the only variant that fills the lower right." },
 ];
+
 
 
 
