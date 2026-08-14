@@ -625,6 +625,116 @@ const STAGE_QUESTION: Partial<Record<string, string>> = {
  * The work surface below is a stand-in, and it is deliberately BUSY. Auditioning
  * an annotation over a bare field would audition the thing that never happens.
  */
+/**
+ * A LABEL OVER LIVE WORK, built to the house rules rather than invented.
+ *
+ * The design law says floating chrome is NOT a filled box: it is a deep-space
+ * surface, a hairline frame in the channel colour, and  elevation.
+ * The dim and the shadow do the lifting, never a fill. It says badges are SQUARE
+ * - the mono registration-tag look - and never pill-rounded. And it says a mono
+ * label leads with a triangle: the eyebrow form is .
+ *
+ * What this replaces was an ad-hoc  ring standing in for a border,
+ * no triangle, and a tone picked by hand at each call site. Tone is a CHANNEL
+ * here - gold for information, coral for a destructive warning, red for a failed
+ * gate, green for a passed one - so it is a prop rather than a decision repeated
+ * five times.
+ */
+function Tag({
+  children,
+  o = 1,
+  tone = "gold",
+  lead = true,
+  size = 1.2,
+}: {
+  children: React.ReactNode;
+  o?: number;
+  tone?: "gold" | "coral" | "fail" | "pass";
+  lead?: boolean;
+  size?: number;
+}) {
+  const colour =
+    tone === "coral"
+      ? "var(--color-danger-coral)"
+      : tone === "fail"
+        ? "var(--color-alert-red)"
+        : tone === "pass"
+          ? "var(--color-status-green)"
+          : GOLD;
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        background: FIELD,
+        border: `${hw(0.12)} solid ${colour}`,
+        boxShadow: "var(--elev-card)",
+        padding: "0.7cqh 1.2cqw",
+        fontFamily: "var(--font-mono)",
+        fontSize: ts(size),
+        letterSpacing: "0.24em",
+        textTransform: "uppercase",
+        color: colour,
+        lineHeight: 1,
+        whiteSpace: "nowrap",
+        opacity: o,
+      }}
+    >
+      {lead ? "▸ " : null}
+      {children}
+    </span>
+  );
+}
+
+/**
+ * A HEX OUTLINE over live work.
+ *
+ * An svg polygon in a PIXEL-unit viewBox, because the two obvious alternatives
+ * both fail: a CSS `border` under a hex `clip-path` is cut away by the clip and
+ * survives only where the polygon meets the box edge, and `non-scaling-stroke`
+ * with `pathLength` does not compose. Both were shipped and both had to be
+ * fixed; this is the form that works, so it lives in one place now.
+ */
+function HexMark({
+  px,
+  py,
+  aspect,
+  scale = 1,
+  colour,
+  o,
+  w = 0.009,
+}: {
+  px: number;
+  py: number;
+  aspect: number;
+  scale?: number;
+  colour: string;
+  o: number;
+  w?: number;
+}) {
+  const W = 1000 * aspect;
+  const H = 1000;
+  const cx = px * W;
+  const cy = py * H;
+  const rw = H * 0.1 * scale;
+  const rh = rw * 1.1547;
+  const pts = [
+    [cx, cy - rh],
+    [cx + rw, cy - rh / 2],
+    [cx + rw, cy + rh / 2],
+    [cx, cy + rh],
+    [cx - rw, cy + rh / 2],
+    [cx - rw, cy - rh / 2],
+  ]
+    .map(([x, y]) => x.toFixed(2) + ',' + y.toFixed(2))
+    .join(' ');
+  return (
+    <svg viewBox={'0 0 ' + W + ' ' + H} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: o }} aria-hidden>
+      <polygon points={pts} fill="none" stroke={FIELD} strokeWidth={H * w * 3} strokeOpacity={0.85} />
+      <polygon points={pts} fill="none" stroke={colour} strokeWidth={H * w} />
+    </svg>
+  );
+}
+
 function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind: "callout" | "pause" | "beforeafter" }) {
   const art = stageArt(stage);
   const inP = outCubic(seg(t, 0.3, 1.0));
@@ -703,8 +813,8 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
               </svg>
             );
           })()}
-          <div style={{ position: 'absolute', left: (px * 100 + 9) + 'cqw', top: (py * 100 - 15) + 'cqh', opacity: o * grip, padding: '0.6cqh 1.1cqw', background: FIELD, boxShadow: '0 0 0 ' + hw(0.1) + ' ' + GOLD }}>
-            <Eyebrow o={o * grip}>ground pour</Eyebrow>
+          <div style={{ position: 'absolute', left: (px * 100 + 9) + 'cqw', top: (py * 100 - 15) + 'cqh', opacity: o * grip }}>
+            <Tag o={o * grip}>ground pour</Tag>
           </div>
         </>
       ) : null}
@@ -719,25 +829,18 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
             [0.47, 0.47],
             [0.55, 0.38],
           ].map(([gx, gy], k) => (
-            <div
+            <HexMark
               key={k}
-              aria-hidden
-              style={{
-                position: "absolute",
-                left: `${gx * 100}cqw`,
-                top: `${gy * 100}cqh`,
-                width: "3cqw",
-                height: "5.4cqh",
-                transform: "translate(-50%,-50%)",
-                border: `${hw(0.34)} solid ${GOLD}`,
-                clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
-                filter: `drop-shadow(0 0 ${hw(0.5)} ${FIELD})`,
-                opacity: o * clamp01((grip - k * 0.12) / 0.5),
-              }}
+              px={gx}
+              py={gy}
+              aspect={aspect}
+              scale={0.42}
+              colour={GOLD}
+              o={o * clamp01((grip - k * 0.12) / 0.5)}
             />
           ))}
-          <div style={{ position: "absolute", left: "36cqw", top: "26cqh", opacity: o * grip, padding: "0.6cqh 1.1cqw", background: FIELD, boxShadow: `0 0 0 ${hw(0.1)} ${GOLD}` }}>
-            <Eyebrow o={o * grip}>decoupling &middot; 3</Eyebrow>
+          <div style={{ position: 'absolute', left: '34cqw', top: '24cqh', opacity: o * grip }}>
+            <Tag o={o * grip}>decoupling &middot; 3</Tag>
           </div>
         </>
       ) : null}
@@ -755,12 +858,9 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
             alignItems: "center",
             gap: "1cqw",
             opacity: o * grip,
-            background: FIELD,
-            padding: "0.8cqh 1.4cqw",
-            borderLeft: `${hw(0.4)} solid ${GOLD}`,
           }}
         >
-          <Eyebrow o={o * grip}>USB connector</Eyebrow>
+          <Tag o={o * grip}>USB connector</Tag>
           <span aria-hidden style={{ color: GOLD, fontFamily: "var(--font-mono)", fontSize: ts(1.6) }}>
             &rarr;
           </span>
@@ -800,8 +900,8 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
               opacity: o,
             }}
           />
-          <div style={{ position: "absolute", left: `${px * 100 - 4}cqw`, top: `${py * 100 - 19}cqh`, opacity: o * grip, background: FIELD, padding: "0.7cqh 1.2cqw", boxShadow: `0 0 0 ${hw(0.1)} ${GOLD}` }}>
-            <Eyebrow o={o * grip}>node</Eyebrow>
+          <div style={{ position: "absolute", left: `${px * 100 - 4}cqw`, top: `${py * 100 - 19}cqh`, opacity: o * grip }}>
+            <Tag o={o * grip}>node</Tag>
             <div style={{ marginTop: "0.5cqh" }}>
               <Num size={2.4}>2.42 A</Num>
             </div>
@@ -813,25 +913,9 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
           warning that looks like a label does not get read. */}
       {kind === "callout" && variant === "warn" ? (
         <>
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              left: `${px * 100}cqw`,
-              top: `${py * 100}cqh`,
-              width: `${9 * grip}cqw`,
-              height: `${16 * grip}cqh`,
-              transform: "translate(-50%,-50%)",
-              border: `${hw(0.4)} solid var(--color-danger-coral)`,
-              clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
-              filter: `drop-shadow(0 0 ${hw(0.6)} ${FIELD})`,
-              opacity: o * grip,
-            }}
-          />
-          <div style={{ position: "absolute", left: `${px * 100 + 7}cqw`, top: `${py * 100 - 14}cqh`, opacity: o * grip, background: FIELD, padding: "0.7cqh 1.2cqw", boxShadow: `0 0 0 ${hw(0.12)} var(--color-danger-coral)` }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.2), letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--color-danger-coral)" }}>
-              live at 240 V
-            </span>
+          <HexMark px={px} py={py} aspect={aspect} scale={grip} colour="var(--color-danger-coral)" o={o * grip} w={0.011} />
+          <div style={{ position: 'absolute', left: (px * 100 + 8) + 'cqw', top: (py * 100 - 15) + 'cqh', opacity: o * grip }}>
+            <Tag o={o * grip} tone="coral">live at 240 V</Tag>
           </div>
         </>
       ) : null}
