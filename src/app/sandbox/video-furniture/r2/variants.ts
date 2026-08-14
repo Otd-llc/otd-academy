@@ -160,13 +160,22 @@ export const CHAPTER: Variant[] = [
  *
  *  Which means the cost is measurable rather than arguable, and it was measured:
  *  same treatment, same encode, CRF 20, 105 frames at 1920x1080. */
+/** INTRO / SHORT. Static wash leads, so these are the ones that question the
+ *  premise rather than decorate it.
+ *
+ *  What is settled: the subject is the QUESTION, the nouns do the pre-training,
+ *  no comb, and it must read MUTED because YouTube's own feed autoplays it
+ *  silent with captions over the top. What is not settled is whether the mark
+ *  should be a backdrop at all - three of these say no. */
 export const INTRO_SHORT: Variant[] = [
-  { id: "wash", name: "Static", claim: "The control. Nothing moves; the mark is a field. Cheapest possible, and the bar everything else has to beat." },
-  { id: "wash-state", name: "State change", claim: "The wash steps to a heavier weight on a beat. ZERO motion vectors - the codec sees one new keyframe and static either side. The permitted vocabulary allows exactly this: a state change on a stationary element." },
-  { id: "wash-plate", name: "Plate", claim: "Gold rises through the silhouette from the foot. ONE moving boundary, everything either side static - a wipe along an axis, and it borrows the film's own plating language." },
-  { id: "wash-sweep", name: "Sweep", claim: "A hard edge crosses once and the wash exists only behind it. The same family as plate on the other axis; arrival by survey rather than by fade." },
-  { id: "wash-trace", name: "Trace", claim: "A hairline travels the mark's outline once and stops. One small element over a static field, and it reuses the trace gesture the intro and outro already speak." },
+  { id: "wash", name: "Static wash", claim: "The leader. Mark enormous and faint behind the words; nothing moves." },
+  { id: "knockout", name: "Knockout", claim: "The question is CUT OUT of the wash rather than set on top of it - the words are holes in the mark. One object instead of two stacked, and it cannot be misread as a logo with text over it." },
+  { id: "subject", name: "The board", claim: "The wash is not the mark at all: it is the actual artifact this stage produces, ghosted. The field becomes evidence rather than branding, and the mark retires to a corner tag." },
+  { id: "seam", name: "Hex seam", claim: "The frame split along a hex edge - question above the seam, names below. The identity is carried by the CUT rather than by a drawing, which is the cheapest possible way to be recognisable." },
+  { id: "bare", name: "Type only", claim: "No wash, no mark, no ornament. Coherence is d = 0.86 and says delete the extraneous; this is that argument taken all the way, and nothing else here has tested it." },
+  { id: "answer", name: "Answer first", claim: "Leads with the ANSWER instead of the question - the finding rather than the symptom. Riskier and more arresting, and it is the only option that does not assume the viewer already has the problem." },
 ];
+
 
 
 

@@ -577,6 +577,20 @@ function PartNames({
   );
 }
 
+/** The FINDING per stage, for the option that leads with the answer rather
+ *  than the symptom. Written as a claim, not a topic - "your ground pour is the
+ *  antenna" is a hook; "ground pours" is a label. */
+const STAGE_ANSWER: Partial<Record<string, string>> = {
+  REQUIREMENTS: "Your power budget is three numbers, not one.",
+  BOM_SOURCING: "The part you cannot buy is not a part.",
+  SCHEMATIC: "The cap belongs to the pin, not to the rail.",
+  LAYOUT: "Your ground pour is an antenna.",
+  DRC_GERBER: "The fab checks less than you think.",
+  ORDERING: "The stack-up decides your impedance, not your traces.",
+  ASSEMBLY: "Heat kills more parts than solder does.",
+  BRINGUP: "Measure the rail before you blame the code.",
+};
+
 /** A sample symptom per stage, so the question is a real one. */
 const STAGE_QUESTION: Partial<Record<string, string>> = {
   REQUIREMENTS: "How much current does this thing actually need?",
@@ -637,25 +651,21 @@ function Annotate({ variant, stage, t, kind }: VProps & { kind: "callout" | "pau
 
       {kind === "callout" && variant === "ring" ? (
         <>
-          {/* AN SVG POLYGON, not a bordered box under a clip-path. A CSS border
-              is drawn on the box and the clip then cuts it away, so a hex
-              clip-path over a border leaves only the slivers where the polygon
-              happens to meet the box edge - which is what the first cut of this
-              did, and it read as two stray tick marks on a PCB. */}
+          {/* THE SAME LOCK THE LESSON PAIR USES, at annotation scale. Trace the
+              hex, then close two half-hex jaws onto it - one gesture the viewer
+              has already been taught by the intro and outro, rather than a
+              second thing that also means "look here". A vocabulary is only a
+              vocabulary if it is reused. */}
           <svg
             viewBox="0 0 100 100"
             preserveAspectRatio="none"
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: o * grip }}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: o }}
             aria-hidden
           >
-            {/* TWO PASSES: a dark ground, then the gold on top of it. A gold
-                mark on a gold PCB is invisible, and the whole distinction of
-                this set is that it fires over work whose contrast is not ours.
-                Nothing here may assume the field is dark. */}
-            <polygon
-              points={(() => {
-                const rw = 6 + (1 - grip) * 4;
-                const rh = 11 + (1 - grip) * 7;
+            {(() => {
+              const hexAt = (g: number) => {
+                const rw = 6 * g;
+                const rh = 11 * g;
                 const cx = px * 100;
                 const cy = py * 100;
                 return [
@@ -668,37 +678,55 @@ function Annotate({ variant, stage, t, kind }: VProps & { kind: "callout" | "pau
                 ]
                   .map(([x, y]) => x.toFixed(2) + ',' + y.toFixed(2))
                   .join(' ');
-              })()}
-              fill="none"
-              stroke={FIELD}
-              strokeWidth={14}
-              strokeOpacity={0.9}
-              vectorEffect="non-scaling-stroke"
-            />
-            <polygon
-              points={(() => {
-                const rw = 6 + (1 - grip) * 4;
-                const rh = 11 + (1 - grip) * 7;
-                const cx = px * 100;
-                const cy = py * 100;
-                return [
-                  [cx, cy - rh],
-                  [cx + rw, cy - rh / 2],
-                  [cx + rw, cy + rh / 2],
-                  [cx, cy + rh],
-                  [cx - rw, cy + rh / 2],
-                  [cx - rw, cy - rh / 2],
-                ]
-                  .map(([x, y]) => x.toFixed(2) + ',' + y.toFixed(2))
-                  .join(' ');
-              })()}
-              fill="none"
-              stroke={GOLD}
-              strokeWidth={5}
-              vectorEffect="non-scaling-stroke"
-            />
+              };
+              // Trace leads, jaws follow: find, then take hold.
+              const traceP = Math.min(1, grip / 0.6);
+              const gripP = Math.max(0, (grip - 0.45) / 0.55);
+              return (
+                <>
+                  {/* Dark ground first, so the mark survives gold copper. */}
+                  <polygon points={hexAt(1)} fill="none" stroke={FIELD} strokeWidth={16} strokeOpacity={0.9} vectorEffect="non-scaling-stroke" />
+                  <polygon
+                    points={hexAt(1)}
+                    fill="none"
+                    stroke={GOLD}
+                    strokeWidth={5}
+                    strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
+                    pathLength={600}
+                    strokeDasharray={(600 * traceP) + ' 600'}
+                    opacity={0.85}
+                  />
+                  {/* The jaws rest PROUD of the outline, or the grip vanishes
+                      into the line it just drew. */}
+                  <polygon
+                    points={hexAt(1.12 + (1 - gripP) * 0.7)}
+                    fill="none"
+                    stroke={FIELD}
+                    strokeWidth={16}
+                    strokeOpacity={0.9}
+                    vectorEffect="non-scaling-stroke"
+                    pathLength={600}
+                    strokeDasharray="150 150"
+                    strokeDashoffset={-75}
+                    opacity={gripP}
+                  />
+                  <polygon
+                    points={hexAt(1.12 + (1 - gripP) * 0.7)}
+                    fill="none"
+                    stroke={GOLD}
+                    strokeWidth={5}
+                    vectorEffect="non-scaling-stroke"
+                    pathLength={600}
+                    strokeDasharray="150 150"
+                    strokeDashoffset={-75}
+                    opacity={gripP}
+                  />
+                </>
+              );
+            })()}
           </svg>
-          <div style={{ position: "absolute", left: (px * 100 + 8) + 'cqw', top: (py * 100 - 14) + 'cqh', opacity: o * grip, padding: '0.6cqh 1.1cqw', background: FIELD, boxShadow: '0 0 0 ' + hw(0.06) + ' ' + GOLD }}>
+          <div style={{ position: 'absolute', left: (px * 100 + 9) + 'cqw', top: (py * 100 - 15) + 'cqh', opacity: o * grip, padding: '0.6cqh 1.1cqw', background: FIELD, boxShadow: '0 0 0 ' + hw(0.1) + ' ' + GOLD }}>
             <Eyebrow o={o * grip}>ground pour</Eyebrow>
           </div>
         </>
@@ -961,6 +989,7 @@ function Annotate({ variant, stage, t, kind }: VProps & { kind: "callout" | "pau
 function IntroShort({ variant, stage, t, aspect = 16 / 9 }: VProps) {
   const tall = aspect < 1;
   const q = STAGE_QUESTION[stage] ?? "";
+  const art = stageArt(stage);
   const inP = outCubic(seg(t, 0, 0.7));
   const parts = outCubic(seg(t, 0.9, 2.1));
   const late = outCubic(seg(t, 1.6, 2.6));
@@ -989,99 +1018,82 @@ function IntroShort({ variant, stage, t, aspect = 16 / 9 }: VProps) {
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      {/* THE WASH. Every option is the same silhouette at the same faintness;
-          what differs is how much of it is allowed to move, and each was chosen
-          against the codec rule that killed the lattice. */}
-      {(() => {
-        const BOX: React.CSSProperties = {
-          position: "absolute",
-          left: "-18cqw",
-          top: "-14cqh",
-          width: "92cqw",
-          height: "128cqh",
-        };
-        // STATE steps once, on a beat. A step function of `t`, so there is no
-        // in-between frame and therefore nothing for the codec to track.
-        const stepped = t >= 1.5;
-        // PLATE and SWEEP each move exactly ONE boundary.
-        const plate = outCubic(seg(t, 0.6, 2.4));
-        const sweep = outExpo(seg(t, 0.5, 2.2));
-        // TRACE moves one thin element over an otherwise static field.
-        const trace = outCubic(seg(t, 0.6, 2.6));
+      {/* THE FIELD. Three of these argue the mark should not be a backdrop. */}
+      {wash === "plain" ? (
+        <div
+          aria-hidden
+          style={{ position: "absolute", left: "-18cqw", top: "-14cqh", width: "92cqw", height: "128cqh", opacity: 0.07 * inP }}
+        >
+          <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
+            <path d={BRANDMARK_PATH} fill={GOLD} />
+          </svg>
+        </div>
+      ) : null}
 
-        if (wash === "state") {
-          return (
-            <div aria-hidden style={{ ...BOX, opacity: (stepped ? 0.11 : 0.05) * inP }}>
-              <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
-                <path d={BRANDMARK_PATH} fill={GOLD} />
-              </svg>
-            </div>
-          );
-        }
-
-        if (wash === "plate") {
-          return (
-            <div aria-hidden style={BOX}>
-              <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
-                <defs>
-                  <clipPath id="wash-plate-clip" clipPathUnits="objectBoundingBox">
-                    <rect x="0" y={1 - plate} width="1" height={plate} />
-                  </clipPath>
-                </defs>
-                <path d={BRANDMARK_PATH} fill={GOLD} opacity={0.04 * inP} />
-                <g clipPath="url(#wash-plate-clip)">
-                  <path d={BRANDMARK_PATH} fill={GOLD} opacity={0.12 * inP} />
-                </g>
-              </svg>
-            </div>
-          );
-        }
-
-        if (wash === "sweep") {
-          return (
-            <div aria-hidden style={{ ...BOX, clipPath: `inset(0 ${(1 - sweep) * 100}% 0 0)`, opacity: 0.08 * inP }}>
-              <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
-                <path d={BRANDMARK_PATH} fill={GOLD} />
-              </svg>
-            </div>
-          );
-        }
-
-        if (wash === "trace") {
-          return (
-            <div aria-hidden style={BOX}>
-              <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
-                <path d={BRANDMARK_PATH} fill={GOLD} opacity={0.05 * inP} />
-                <path
-                  d={BRANDMARK_PATH}
-                  fill="none"
-                  stroke={GOLD}
-                  strokeWidth={4}
-                  vectorEffect="non-scaling-stroke"
-                  pathLength={1000}
-                  strokeDasharray={`${trace * 1000} 1000`}
-                  opacity={0.55 * inP}
-                />
-              </svg>
-            </div>
-          );
-        }
-
-        return (
-          <div aria-hidden style={{ ...BOX, opacity: 0.07 * inP }}>
+      {/* THE BOARD. The field is evidence rather than branding: the actual
+          artifact this stage produces, ghosted, with the mark demoted to a tag. */}
+      {wash === "subject" && art ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={art}
+            alt=""
+            aria-hidden
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.16 * inP }}
+          />
+          <div aria-hidden style={{ position: "absolute", right: "6cqw", top: "6cqh", width: "7cqw", height: "12cqh", opacity: inP }}>
             <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
               <path d={BRANDMARK_PATH} fill={GOLD} />
             </svg>
           </div>
-        );
-      })()}
+        </>
+      ) : null}
 
+      {/* HEX SEAM. Identity carried by the CUT rather than by a drawing - the
+          cheapest possible way to be recognisable, and it costs no ink at all. */}
+      {wash === "seam" ? (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: GOLD,
+            opacity: 0.05 * inP,
+            clipPath: "polygon(0 0, 100% 0, 100% 34%, 62% 46%, 0 34%)",
+          }}
+        />
+      ) : null}
+
+      {/* KNOCKOUT is rendered with the copy, because the words ARE the holes. */}
       <div style={{ position: "absolute", left: copyLeft, right: copyRight, top: copyTop, opacity: inP }}>
-        <Eyebrow o={inP}>the question</Eyebrow>
+        <Eyebrow o={inP}>{wash === "answer" ? "the finding" : "the question"}</Eyebrow>
         <div style={{ marginTop: "2cqh", position: "relative" }}>
-          <Title size={stacked ? 3.4 : 3.8} o={inP}>
-            {q}
-          </Title>
+          {wash === "knockout" ? (
+            // THE WORDS ARE HOLES IN THE MARK. One object rather than two
+            // stacked, so it cannot be misread as a logo with text over it.
+            <div
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: ts(stacked ? 3.4 : 3.8),
+                lineHeight: 1.08,
+                color: "transparent",
+                opacity: inP,
+                backgroundImage: `url("data:image/svg+xml;utf8,${encodeURIComponent(
+                  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='${BRANDMARK_VIEWBOX}'><path d='${BRANDMARK_PATH}' fill='%23c8963e'/></svg>`,
+                )}")`,
+                backgroundSize: "150cqw auto",
+                backgroundPosition: "-20cqw -30cqh",
+                WebkitBackgroundClip: "text",
+                backgroundClip: "text",
+              }}
+            >
+              {q}
+            </div>
+          ) : (
+            <Title size={stacked ? 3.4 : 3.8} o={inP}>
+              {wash === "answer" ? STAGE_ANSWER[stage] ?? q : q}
+            </Title>
+          )}
         </div>
       </div>
 
