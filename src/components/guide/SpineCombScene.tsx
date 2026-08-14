@@ -46,6 +46,17 @@ export interface HexPrismCellState {
   accent?: string;
   /** that comb's flagship sits a little brighter than its siblings at rest. */
   flag?: boolean;
+  /**
+   * Per-cell opacity, 0..1. Undefined means opaque.
+   *
+   * `dim` is a fixed 60% recede and is the right answer for a cell the viewer cannot
+   * reach yet. This is for a caller that needs a CONTINUOUS one - the alpha carousel
+   * ghosts its off-window cells on a falloff, and without this the prisms are the one
+   * part of a cell that cannot recede: the scene is a single svg, so HTML opacity on
+   * the cell reaches its type and its artwork and never its hex. That left a ghost
+   * outlined at full strength around faded contents.
+   */
+  alpha?: number;
 }
 
 /** The six side quads of one prism: each near edge swept to its far counterpart. */
@@ -120,11 +131,18 @@ export function SpineCombScene({
       .filter(Boolean)
       .join(" ");
   };
-  /** `.ghp-cell.track` strokes `var(--accent)`, so it has to reach the group. */
-  const accentOf = (i: number) =>
-    cells[i]?.accent
-      ? ({ "--accent": cells[i]!.accent } as React.CSSProperties)
-      : undefined;
+  /**
+   * Per-cell group style: the track accent, which `.ghp-cell.track` strokes through
+   * `var(--accent)` and therefore has to reach the group, plus any continuous alpha.
+   */
+  const styleOf = (i: number): React.CSSProperties | undefined => {
+    const c = cells[i];
+    if (!c) return undefined;
+    const st: React.CSSProperties = {};
+    if (c.accent) (st as Record<string, string>)["--accent"] = c.accent;
+    if (c.alpha !== undefined && c.alpha < 1) st.opacity = c.alpha;
+    return Object.keys(st).length ? st : undefined;
+  };
 
   return (
     <svg
@@ -159,7 +177,7 @@ export function SpineCombScene({
           const c = cls(s.i);
           if (!c) return null;
           return (
-            <g key={`slab-${s.i}`} className={c} style={accentOf(s.i)}>
+            <g key={`slab-${s.i}`} className={c} style={styleOf(s.i)}>
               <path className="ghp-side" d={svgPath(s.rear)} strokeWidth={swSide} />
               {sides(s).map((q, k) => (
                 <path key={k} className="ghp-side" d={svgPath(q)} strokeWidth={swSide} />
@@ -182,7 +200,7 @@ export function SpineCombScene({
         const c = cls(s.i);
         if (!c) return null;
         return (
-          <g key={`face-${s.i}`} className={c} style={accentOf(s.i)}>
+          <g key={`face-${s.i}`} className={c} style={styleOf(s.i)}>
             <path className="ghp-face" d={svgPath(s.face)} strokeWidth={swFace} />
           </g>
         );

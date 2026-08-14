@@ -45,6 +45,7 @@ export function Round() {
   }, [light]);
 
   const cells: Cell[] = STAGES.map((s, i) => ({
+    stage: s as Cell["stage"],
     num: String(i + 1).padStart(2, "0"),
     title: STAGE_LABELS[s],
     lead: LEADS[s] ?? "",

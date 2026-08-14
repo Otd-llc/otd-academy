@@ -21,7 +21,9 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { SpineCombScene } from "@/components/guide/SpineCombScene";
-import { placeSpine, projectSpine, SPINE_CLIP } from "@/lib/comb-spine";
+import { StageTile } from "@/components/guide/GuideHoneycomb";
+import type { GuideStage } from "@/lib/guide-templates/stage-skeletons";
+import { placeSpine, projectSpine, SPINE_CLIP, SPINE_MAX_CELL } from "@/lib/comb-spine";
 import { combWindow, centreOffset, fitWindowCell, ghostAlpha, isLit } from "@/lib/comb-carousel";
 
 
@@ -30,12 +32,25 @@ import { combWindow, centreOffset, fitWindowCell, ghostAlpha, isLit } from "@/li
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 export type Cell = {
+  /** The real stage, so the cell can draw its real artifact tile. */
+  stage: GuideStage;
   num: string;
   title: string;
   lead: string;
   kind: "done" | "current" | "blocked" | "pending";
   statusText: string;
 };
+
+/**
+ * What the ART does outside the window.
+ *
+ * The artwork is the reason a hex reads as a STAGE rather than as a numbered cell, so
+ * how it ghosts is a separate question from how the type and the prism ghost.
+ */
+export type ArtMode = "kind" | "lit-only" | "always-ghost" | "art-only";
+
+/** How far the veil eats the run at each end, as a share of the viewport. */
+export type Veil = { top: number; bottom: number } | null;
 
 /** The ghost treatments on audition. Only this varies between the options. */
 export type Ghost = "alpha" | "flat" | "narrow" | "veil";
@@ -52,11 +67,16 @@ export function Carousel({
   current,
   ghost,
   viewH = 520,
+  veil,
+  art = "kind",
 }: {
   cells: Cell[];
   current: number;
   ghost: Ghost;
   viewH?: number;
+  /** Overrides the `veil` ghost's fixed gradient, for the veil round. */
+  veil?: Veil;
+  art?: ArtMode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [cw, setCw] = useState(0);
@@ -77,7 +97,14 @@ export function Carousel({
   // the window would make the cells jump as the current one advanced.
   // Sized from the VIEWPORT, not the column: see `fitWindowCell`. Clamped to the
   // column so a narrow rail never overflows sideways.
-  const w = cw > 0 ? Math.min(fitWindowCell(viewH), cw / 1.5) : 0;
+  // Capped at the shipped maximum, and floored so the cell never drops under the
+  // 200px container-query breakpoint if the frame allows it: below that width
+  // globals.css switches to the COMPACT card - it hides `.gh-lead` outright and
+  // re-places the number, title and chip - so a round rendering under 200px is
+  // auditioning a different card from the one that ships.
+  const raw = Math.min(fitWindowCell(viewH), cw / 1.5, SPINE_MAX_CELL);
+  const w = cw > 0 ? raw : 0;
+  const compact = w > 0 && w < 200;
   const { boxes, height } = placeSpine(cells.length, w, cw);
   const solids = projectSpine(boxes, cw, height);
   const win = combWindow(cells.length, current);
@@ -93,14 +120,12 @@ export function Carousel({
         overflow: "hidden",
         // The veil takes the run out at both ends, so it reads as continuing past the
         // frame. A hard edge reads as the course stopping there.
-        ...(ghost === "veil"
-          ? {
-              WebkitMaskImage:
-                "linear-gradient(to bottom, transparent 0%, #000 22%, #000 78%, transparent 100%)",
-              maskImage:
-                "linear-gradient(to bottom, transparent 0%, #000 22%, #000 78%, transparent 100%)",
-            }
-          : {}),
+        ...(() => {
+          const v = veil ?? (ghost === "veil" ? { top: 22, bottom: 78 } : null);
+          if (!v) return {};
+          const g = `linear-gradient(to bottom, transparent 0%, #000 ${v.top}%, #000 ${v.bottom}%, transparent 100%)`;
+          return { WebkitMaskImage: g, maskImage: g };
+        })(),
       }}
     >
       <div className="gh" style={{ position: "absolute", left: 0, right: 0, top: dy, height }}>
@@ -113,9 +138,14 @@ export function Carousel({
             // `dim` is the scene's own recede state, so a ghost that drops its prism
             // asks the shipped component for that rather than inventing a second
             // vocabulary for the same idea.
+            // The PRISMS recede too. Without an alpha here the scene is one svg and
+            // the cell's HTML opacity reaches its type and its artwork and never its
+            // hex, so a ghost sat outlined at full strength around faded contents -
+            // which is not what any of these treatments claims to do.
             cells={cells.map((c, i) => ({
               kind: c.kind,
               dim: ghost === "flat" && !isLit(win, i),
+              alpha: ghostAlpha(win, i),
             }))}
             hot={null}
           />
@@ -147,7 +177,7 @@ export function Carousel({
                   {/* `narrow` drops the type on the ghosts: the run still says how
                       long it is, without asking anyone to read eight things they are
                       not on. */}
-                  {lit || ghost !== "narrow" ? (
+                  {lit || (ghost !== "narrow" && art !== "art-only") ? (
                     <>
                       <span className="gh-m">
                         <span className="gh-title">{c.title}</span>
@@ -162,7 +192,54 @@ export function Carousel({
               );
             })
           : null}
+
+        {/* THE ARTWORK, in a layer of its own, exactly as the shipped comb does it.
+            It has to sit above EVERY hex, not just its own: a cell is an absolutely
+            positioned z-indexed box, which is a stacking context, so art parented
+            inside one can never rise above the next cell's outline and at spine sizes
+            those outlines cut straight across the boards.
+
+            The first cut of this round omitted the layer entirely, which is why the
+            hexes had no icons - the cells carried their number, title and chip and
+            nothing else. */}
+        {measured ? (
+          <div className="gh-art-layer">
+            {cells.map((c, i) => {
+              const b = boxes[i]!;
+              const lit = isLit(win, i);
+              if (art === "lit-only" && !lit) return null;
+              // `always-ghost` forces the unreached treatment on every off-window
+              // cell, so the run reads as one drawing rather than as a mix of
+              // photographs and ghosts.
+              const kind = !lit && art === "always-ghost" ? "pending" : c.kind;
+              return (
+                <div
+                  key={i}
+                  className={`gh-node ${kind}`}
+                  style={{
+                    position: "absolute",
+                    left: b.left,
+                    top: b.top,
+                    width: b.w,
+                    height: b.h,
+                    opacity: ghostAlpha(win, i),
+                  }}
+                >
+                  <StageTile stage={c.stage} kind={kind} />
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
+      {compact ? (
+        <p
+          className="font-mono text-[9px] uppercase tracking-[0.16em] text-danger-coral"
+          style={{ position: "absolute", left: 6, bottom: 4, zIndex: 9 }}
+        >
+          compact card &middot; cell {Math.round(w)}px &lt; 200px
+        </p>
+      ) : null}
     </div>
   );
 }

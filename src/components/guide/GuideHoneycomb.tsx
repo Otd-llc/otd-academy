@@ -222,7 +222,10 @@ const TILE_SCALE = 1.6;
 const TILE_W = 94 * TILE_SCALE;
 const TILE_H = 58 * TILE_SCALE;
 
-function StageTile({ stage, kind }: { stage: GuideStage; kind: HoneycombStage["kind"] }) {
+// Exported so a sandbox round can put the REAL tile on a carousel rather than
+// redrawing it. A redrawn tile drifts from this one the first time either changes,
+// and the ghost's masking rule below is exactly the kind of detail a redraw loses.
+export function StageTile({ stage, kind }: { stage: GuideStage; kind: HoneycombStage["kind"] }) {
   const src = stageArt(stage);
   const ghostSrc = stageArtGhost(stage);
   if (!src || !ghostSrc) return null;
