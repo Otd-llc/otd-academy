@@ -649,7 +649,7 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
         />
       ) : null}
 
-      {kind === "callout" && variant === "ring" ? (
+      {kind === "callout" && variant === "region" ? (
         <>
           {/* THE SAME LOCK THE LESSON PAIR USES, at annotation scale. Trace the
               hex, then close two half-hex jaws onto it - one gesture the viewer
@@ -709,7 +709,134 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
         </>
       ) : null}
 
-      {kind === "callout" && variant === "bracket" ? (
+      {/* GROUP - one label serving several marks. A ring per item would read
+          as three unrelated callouts rather than one set, so the members get a
+          light tick each and the label belongs to the group. */}
+      {kind === "callout" && variant === "group" ? (
+        <>
+          {[
+            [0.38, 0.4],
+            [0.47, 0.47],
+            [0.55, 0.38],
+          ].map(([gx, gy], k) => (
+            <div
+              key={k}
+              aria-hidden
+              style={{
+                position: "absolute",
+                left: `${gx * 100}cqw`,
+                top: `${gy * 100}cqh`,
+                width: "3cqw",
+                height: "5.4cqh",
+                transform: "translate(-50%,-50%)",
+                border: `${hw(0.34)} solid ${GOLD}`,
+                clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
+                filter: `drop-shadow(0 0 ${hw(0.5)} ${FIELD})`,
+                opacity: o * clamp01((grip - k * 0.12) / 0.5),
+              }}
+            />
+          ))}
+          <div style={{ position: "absolute", left: "36cqw", top: "26cqh", opacity: o * grip, padding: "0.6cqh 1.1cqw", background: FIELD, boxShadow: `0 0 0 ${hw(0.1)} ${GOLD}` }}>
+            <Eyebrow o={o * grip}>decoupling &middot; 3</Eyebrow>
+          </div>
+        </>
+      ) : null}
+
+      {/* OFF-SCREEN - the only callout whose subject cannot be seen. An edge
+          marker pointing at where the thing would be, so the frame stays honest
+          about the fact that it is not showing it. */}
+      {kind === "callout" && variant === "offscreen" ? (
+        <div
+          style={{
+            position: "absolute",
+            right: 0,
+            top: "44cqh",
+            display: "flex",
+            alignItems: "center",
+            gap: "1cqw",
+            opacity: o * grip,
+            background: FIELD,
+            padding: "0.8cqh 1.4cqw",
+            borderLeft: `${hw(0.4)} solid ${GOLD}`,
+          }}
+        >
+          <Eyebrow o={o * grip}>USB connector</Eyebrow>
+          <span aria-hidden style={{ color: GOLD, fontFamily: "var(--font-mono)", fontSize: ts(1.6) }}>
+            &rarr;
+          </span>
+        </div>
+      ) : null}
+
+      {/* MEASUREMENT - a value anchored to a PLACE. Same content the lower-third
+          `measure` carries; only the anchor differs, which is why it should end
+          up one component with two anchors rather than two that drift. */}
+      {kind === "callout" && variant === "measure" ? (
+        <>
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: `${px * 100}cqw`,
+              top: `${py * 100}cqh`,
+              width: "1.6cqw",
+              height: "1.6cqw",
+              transform: "translate(-50%,-50%)",
+              border: `${hw(0.34)} solid ${GOLD}`,
+              borderRadius: "50%",
+              filter: `drop-shadow(0 0 ${hw(0.5)} ${FIELD})`,
+              opacity: o * grip,
+            }}
+          />
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: `${px * 100}cqw`,
+              top: `${py * 100 - 10}cqh`,
+              width: hw(0.34),
+              height: `${grip * 10}cqh`,
+              background: GOLD,
+              boxShadow: `0 0 0 ${hw(0.14)} ${FIELD}`,
+              opacity: o,
+            }}
+          />
+          <div style={{ position: "absolute", left: `${px * 100 - 4}cqw`, top: `${py * 100 - 19}cqh`, opacity: o * grip, background: FIELD, padding: "0.7cqh 1.2cqw", boxShadow: `0 0 0 ${hw(0.1)} ${GOLD}` }}>
+            <Eyebrow o={o * grip}>node</Eyebrow>
+            <div style={{ marginTop: "0.5cqh" }}>
+              <Num size={2.4}>2.42 A</Num>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {/* WARNING - the coral channel. Deliberately unlike a label, because a
+          warning that looks like a label does not get read. */}
+      {kind === "callout" && variant === "warn" ? (
+        <>
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: `${px * 100}cqw`,
+              top: `${py * 100}cqh`,
+              width: `${9 * grip}cqw`,
+              height: `${16 * grip}cqh`,
+              transform: "translate(-50%,-50%)",
+              border: `${hw(0.4)} solid var(--color-danger-coral)`,
+              clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
+              filter: `drop-shadow(0 0 ${hw(0.6)} ${FIELD})`,
+              opacity: o * grip,
+            }}
+          />
+          <div style={{ position: "absolute", left: `${px * 100 + 7}cqw`, top: `${py * 100 - 14}cqh`, opacity: o * grip, background: FIELD, padding: "0.7cqh 1.2cqw", boxShadow: `0 0 0 ${hw(0.12)} var(--color-danger-coral)` }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.2), letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--color-danger-coral)" }}>
+              live at 240 V
+            </span>
+          </div>
+        </>
+      ) : null}
+
+      {kind === "callout" && variant === "element" ? (
         <>
           {[
             [-1, -1],
@@ -745,7 +872,7 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
         </>
       ) : null}
 
-      {kind === "callout" && variant === "lead" ? (
+      {kind === "callout" && variant === "point" ? (
         <>
           {/* Nothing overlaps the work. The only option that guarantees it. */}
           <div
@@ -808,7 +935,7 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
         </div>
       ) : null}
 
-      {kind === "callout" && variant === "underline" ? (
+      {kind === "callout" && variant === "__retired" ? (
         <>
           {/* Cannot cover what it points at, which is the one thing every other
               callout risks. */}
@@ -883,7 +1010,7 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
         </>
       ) : null}
 
-      {kind === "beforeafter" && variant === "split" ? (
+      {kind === "beforeafter" && variant === "compare" ? (
         <>
           <div style={{ position: "absolute", inset: 0, clipPath: "inset(0 0 0 50%)", background: FIELD, opacity: 0.55 }} aria-hidden />
           <div aria-hidden style={{ position: "absolute", left: "50cqw", top: 0, bottom: 0, width: hw(0.16), background: GOLD, opacity: o }} />
@@ -896,7 +1023,7 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
         </>
       ) : null}
 
-      {kind === "beforeafter" && variant === "cut" ? (
+      {kind === "beforeafter" && variant === "__cut" ? (
         <>
           {/* A step function: one state or the other, never a blend. The
               cheapest thing in the set to encode. */}
@@ -910,7 +1037,7 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
         </>
       ) : null}
 
-      {kind === "beforeafter" && variant === "toggle" ? (
+      {kind === "beforeafter" && variant === "__toggle" ? (
         (() => {
           // Across and back, twice. A pure function of `t` - a triangle wave,
           // not an oscillator with state.
@@ -925,7 +1052,18 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
         })()
       ) : null}
 
-      {kind === "beforeafter" && variant === "wipe" ? (
+      {/* REVEAL - a dissolve, because NOTHING changed except what is being
+          shown. A wipe would claim the board turned into its own layer stack. */}
+      {kind === "beforeafter" && variant === "reveal" ? (
+        <>
+          <div aria-hidden style={{ position: "absolute", inset: 0, background: FIELD, opacity: 0.55 * (1 - grip) }} />
+          <div style={{ position: "absolute", left: "6cqw", bottom: "12cqh", opacity: o }}>
+            <Eyebrow o={o}>{grip > 0.5 ? "copper, shown" : "copper, hidden"}</Eyebrow>
+          </div>
+        </>
+      ) : null}
+
+      {kind === "beforeafter" && variant === "chrono" ? (
         <>
           {/* The fix is on the other side of a hard edge. A wipe along an axis
               is permitted vocabulary, so this costs nothing to add. */}

@@ -429,6 +429,15 @@ export function Hairline({ variant, t }: VProps) {
   const base: React.CSSProperties = { position: "absolute", left: "6cqw", bottom: `${bottom}cqh`, opacity: life, width: "42cqw" };
 
   switch (variant) {
+    // The lower-third round has been retyped by JOB - part, measure, term,
+    // source, gate, warn - and those treatments are the next round. Until then
+    // an unknown id renders the house treatment rather than nothing, so the
+    // piece is never blank while its taxonomy is ahead of its drawings.
+    case "measure":
+    case "term":
+    case "source":
+    case "gate":
+    case "warn":
     case "split":
       return (
         <div data-lower-third style={base}>

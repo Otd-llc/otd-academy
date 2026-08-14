@@ -51,18 +51,24 @@ export const INTRO: Variant[] = [
  *  and everything here inherits what the intro and outro settled: type sized
  *  against the frame, the caption band cleared, designators in Saira, and
  *  timing as data rather than hand-tuned windows. */
+/** LOWER THIRD - SIX JOBS.
+ *
+ *  Every one is TERM-SHAPED rather than a sentence, and that is a research
+ *  constraint rather than a house style: a lower third that transcribes
+ *  narration buys nothing (redundancy, d = 0.10), while short, reworded or
+ *  technical text is fine and probably good. `TQFP-48` while the narration says
+ *  "the quad flat pack" earns its place; a sentence does not.
+ *
+ *  `part` is the converted, data-driven set. The rest are first treatments. */
 export const LOWER: Variant[] = [
-  { id: "hairline", name: "Hairline", claim: "A gold rule with a mono label above and a Saira value below. The house treatment, and the control." },
-  { id: "under", name: "Underline", claim: "Type first, rule last - it confirms rather than announces. The ordering is an offset in the entry stack now, not two hardcoded windows." },
-  { id: "between", name: "Between", claim: "The rule sits between label and value and spaces them apart. The typography is set BY the gesture." },
-  { id: "accent", name: "Accent bar", claim: "A gold left-accent bar, no box. The sanctioned not-a-box framing, so it stays legible over a busy canvas." },
-  { id: "bracket", name: "Brackets", claim: "Top and bottom bracket rules only. Frames without enclosing; the lightest thing that still groups." },
-  { id: "tag", name: "Ref tag", claim: "Designator in a square tag, part and value on one mono line. Closest to how the BOM itself reads." },
-  { id: "readout", name: "Readout", claim: "The instrument treatment: Saira value at scale, mono unit and label beneath. For a measurement, not a name." },
-  { id: "scale", name: "Scale", claim: "The rule carries minor ticks like a ruler edge. The most instrument-like, and the one that could only belong to this company." },
-  { id: "warn", name: "Warning", claim: "The coral destructive channel on a hairline. Deliberately unlike a label, because a warning that looks like one is not read." },
-  { id: "pass", name: "Gate pass", claim: "Status-green on a hairline for a check coming back clean, with alert-red as its failing twin. Never decorative." },
+  { id: "part", name: "Part", claim: "Designator and value - `U2 / AP2112K-3.3`. The house treatment: a gold rule, a mono label, the value in Saira because `0` and `O` are one drawing in Bebas." },
+  { id: "measure", name: "Measurement", claim: "A number with a unit, instrument-style. The same content a `callout/measure` carries, anchored to the frame instead of to a place - one component, two anchors, or they drift." },
+  { id: "term", name: "Term", claim: "The first use of a piece of jargon, defined in one line. The only type here that is allowed to be a sentence, because a definition is not a transcription." },
+  { id: "source", name: "Source", claim: "A datasheet, a standard, a page. A channel teaching hardware that can hurt people cites constantly, and a citation is an E-E-A-T signal as well as a courtesy." },
+  { id: "gate", name: "Gate state", claim: "ERC and DRC, pass and fail. Status-green and alert-red, and both stay a border and a label - never a flooded panel, never decorative." },
+  { id: "warn", name: "Warning", claim: "The coral destructive channel. Same job as `callout/warn` at the frame edge rather than on a point." },
 ];
+
 
 
 /** OUTRO / LADDER - ten ways to make the end screen curriculum.
@@ -213,12 +219,26 @@ export const OUTRO_SHORT: Variant[] = [
 /** CALLOUT - signalling, which is d = 0.70 and the one principle that says
  *  motion is POSITIVE rather than a cost. Everything else in the set spends
  *  motion on transitions; this is the only piece that spends it on POINTING. */
+/** CALLOUT - SEVEN JOBS, not seven styles.
+ *
+ *  The form follows the job, and the jobs are genuinely different: a hex ring
+ *  around a single pad would cover the pad, and brackets around a pour would
+ *  imply a rectangle where there is a shape. Signalling is d = 0.70 and is the
+ *  one principle saying motion is POSITIVE - but only motion that POINTS, which
+ *  means pointing correctly is the whole job.
+ *
+ *  `region` is settled: the trace-and-vise hex, ported from the carousel that
+ *  actually renders it. The rest are first treatments awaiting their own round. */
 export const CALLOUT: Variant[] = [
-  { id: "ring", name: "Hex ring", claim: "A hex closes on the thing and holds. The trace-and-vise gesture at annotation scale, so a viewer who has seen the intro already knows what it means." },
-  { id: "bracket", name: "Corner brackets", claim: "Four brackets grip a region instead of ringing it. Better on a rectangular thing - a footprint, a dialog, a field in a form - and it never implies a circle where there is a pad." },
-  { id: "lead", name: "Leader", claim: "A hairline runs in from the frame edge and stops on the point, label at its root. The only option that guarantees nothing overlaps the work." },
-  { id: "underline", name: "Underline", claim: "A rule under the thing rather than around it, label riding the rule. The quietest, and the only one that cannot cover what it points at." },
+  { id: "region", name: "Region", claim: "TAKEN. The trace-and-vise hex closes on an area - a pour, a keep-out, a zone. Same gesture the intro and outro use, so a viewer has already been taught it." },
+  { id: "point", name: "Point", claim: "A pad, a via, a single pin. The mark must NOT cover the thing, which rules out anything that encloses it - so a leader arrives from outside and stops short." },
+  { id: "element", name: "Element", claim: "A menu item, a dialog, a field. Rectangular, because a hex around a button implies a circle where there is a rectangle." },
+  { id: "group", name: "Group", claim: "\"These three caps.\" One label serving several marks - a ring per item reads as three unrelated callouts rather than one set." },
+  { id: "offscreen", name: "Off-screen", claim: "The target is not in frame: an edge indicator pointing at where it would be. The only callout whose subject cannot be seen." },
+  { id: "measure", name: "Measurement", claim: "A value anchored to a place - `2.42 A` at this node. Carries a number, so it is a readout with a position rather than a mark with a label." },
+  { id: "warn", name: "Warning", claim: "\"Do not probe here.\" The coral destructive channel, deliberately unlike a label, because a warning that looks like a label is not read." },
 ];
+
 
 /** PAUSE - the one device that is an INSTRUCTION TO THE TRANSPORT rather than
  *  information. Stop, do the thing, come back. A build-along without it is a
@@ -233,12 +253,20 @@ export const PAUSE: Variant[] = [
 /** BEFORE AND AFTER - a wipe along an axis is already permitted vocabulary, so
  *  this costs nothing to add and is the natural shape for a repair. What varies
  *  is whether the viewer sees the CHANGE or is shown two states. */
+/** BEFORE AND AFTER - THREE FAMILIES, and the distinction is factual rather
+ *  than stylistic.
+ *
+ *  What the two states MEAN decides whether a given motion is honest. A wipe
+ *  implies one thing BECAME the other; a split implies they coexist; a dissolve
+ *  implies nothing changed but the view. Using a wipe for a comparison is an
+ *  error about the content, not a preference about the transition - which is
+ *  why these are separate types rather than variants of one. */
 export const BEFORE_AFTER: Variant[] = [
-  { id: "wipe", name: "Wipe", claim: "A hard edge travels across and the fix is on the other side of it. One gesture; the change is seen rather than remembered." },
-  { id: "split", name: "Split", claim: "A static divider with both states held either side. Nothing moves, so both can be studied - the only option that survives a paused frame." },
-  { id: "cut", name: "Cut", claim: "A hard cut between the two with a mono label. The cheapest to encode by a distance, and the research says a boundary earns its keep by being a boundary." },
-  { id: "toggle", name: "Toggle", claim: "The wipe runs across and back twice. The difference is compared rather than merely shown - at the cost of being the busiest thing in the set." },
+  { id: "chrono", name: "Chronological", claim: "Broken becomes fixed. A wipe is right here BECAUSE it implies time passing - the state on the left genuinely turned into the state on the right." },
+  { id: "compare", name: "Comparative", claim: "Option A against option B, neither of them \"before\". A static split, because a wipe would falsely claim one became the other." },
+  { id: "reveal", name: "Revelatory", claim: "Hidden becomes shown - a layer, a 3D view, silkscreen off. A dissolve or a mask, because NOTHING changed except what you are being shown." },
 ];
+
 
 export const PIECES = {
   intro: { name: "Intro / LESSON", seconds: 3.5, variants: INTRO },
