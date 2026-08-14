@@ -73,31 +73,60 @@ export function Carousel({
   cells,
   current,
   ghost,
-  viewH = 520,
+  viewH,
   veil,
   art = "kind",
+  width,
+  video = false,
 }: {
   cells: Cell[];
   current: number;
   ghost: Ghost;
+  /**
+   * Viewport height in px. OMIT IT to measure the container instead, which is what
+   * any caller sized in container units must do: a fixed px height inside a
+   * `cqh`-sized box is the same category of error as a fixed px width.
+   */
   viewH?: number;
   /** Overrides the `veil` ghost's fixed gradient, for the veil round. */
   veil?: Veil;
   art?: ArtMode;
+  /**
+   * Width in px, supplied rather than measured.
+   *
+   * Every comb in this codebase measures its own container with a ResizeObserver and
+   * renders nothing at zero. That is right on a page and wrong in a frame-grab
+   * pipeline, where the size is KNOWN (1920x1080) and a render that waits for a
+   * measurement is a render that can screenshot empty. Passing it in makes the frame
+   * deterministic from the first paint.
+   */
+  width?: number;
+  /** Lifts the comb's px-clamped type ceilings for a video frame. */
+  video?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [cw, setCw] = useState(0);
+  const [ch, setCh] = useState(0);
 
   const measure = useCallback(() => {
     const el = ref.current;
-    if (el) setCw(el.clientWidth);
+    if (!el) return;
+    setCw(el.clientWidth);
+    setCh(el.clientHeight);
   }, []);
   useIsoLayoutEffect(() => {
+    if (width !== undefined && viewH !== undefined) return;
     measure();
     const ro = new ResizeObserver(measure);
     if (ref.current) ro.observe(ref.current);
     return () => ro.disconnect();
-  }, [measure]);
+  }, [measure, width, viewH]);
+  const cwEff = width ?? cw;
+  // SHARES OF THE FRAME, NEVER PIXELS. An absolute height here is the same error
+  // as an absolute width: the ladder passed 702px, computed against a 1080 frame,
+  // and every treatment tile in the round is a fraction of that - so the comb laid
+  // out a full-frame run inside a thumbnail and collapsed into a sliver.
+  const vh = viewH ?? ch;
 
   // The run is laid out WHOLE - every cell at its true position - and then slid, so a
   // ghost sits exactly where it will sit when the window reaches it. Laying out only
@@ -109,13 +138,13 @@ export function Carousel({
   // globals.css switches to the COMPACT card - it hides `.gh-lead` outright and
   // re-places the number, title and chip - so a round rendering under 200px is
   // auditioning a different card from the one that ships.
-  const raw = Math.min(fitWindowCell(viewH), cw / 1.5, SPINE_MAX_CELL);
-  const w = cw > 0 ? raw : 0;
+  const raw = Math.min(fitWindowCell(vh), cwEff / 1.5, SPINE_MAX_CELL);
+  const w = cwEff > 0 ? raw : 0;
   const compact = w > 0 && w < 200;
-  const { boxes, height } = placeSpine(cells.length, w, cw);
-  const solids = projectSpine(boxes, cw, height);
+  const { boxes, height } = placeSpine(cells.length, w, cwEff);
+  const solids = projectSpine(boxes, cwEff, height);
   const win = combWindow(cells.length, current);
-  const dy = w > 0 ? centreOffset(win.current, w, viewH) : 0;
+  const dy = w > 0 ? centreOffset(win.current, w, vh) : 0;
   const measured = boxes.length === cells.length && height > 0;
 
   return (
@@ -123,7 +152,9 @@ export function Carousel({
       ref={ref}
       style={{
         position: "relative",
-        height: viewH,
+        // Only set a height when one was GIVEN. A caller sized in container units
+        // supplies its own via CSS and this must not overwrite it with a number.
+        ...(viewH !== undefined ? { height: viewH } : { height: "100%" }),
         overflow: "hidden",
         // The veil takes the run out at both ends, so it reads as continuing past the
         // frame. A hard edge reads as the course stopping there.
@@ -135,11 +166,11 @@ export function Carousel({
         })(),
       }}
     >
-      <div className="gh" style={{ position: "absolute", left: 0, right: 0, top: dy, height }}>
+      <div className={`gh${video ? " comb-video" : ""}`} style={{ position: "absolute", left: 0, right: 0, top: dy, height }}>
         {measured && solids.length > 0 ? (
           <SpineCombScene
             solids={solids}
-            sceneW={cw}
+            sceneW={cwEff}
             sceneH={height}
             cellW={w}
             // `dim` is the scene's own recede state, so a ghost that drops its prism

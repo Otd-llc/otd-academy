@@ -37,6 +37,8 @@ import { EntryProvider } from "./Part";
 import { PIECES, type PieceKey } from "./variants";
 import { Ghost, CombWalk, Hairline } from "./Render2";
 import { Chapter } from "./Chapter";
+import { Carousel, type Cell as CombCell2 } from "@/app/sandbox/comb-carousel/Carousel";
+import { BRANDMARK_PATH, BRANDMARK_VIEWBOX } from "@/lib/pdf/certificate-content";
 import { ts, hw } from "./units";
 
 // ---- easing ----------------------------------------------------------------
@@ -1099,7 +1101,81 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
             </div>
           </>)
         );
-      case "count":
+      case "ladder": {
+      // THE OWNER'S COMPOSITION. The comb is the ladder: there is no separate
+      // rung list, no "next lesson" line competing with it, and the three
+      // end-screen wells are left genuinely empty.
+      //
+      // SIZED OFF 702, NOT 1080, and that is the whole trick. Centred in a full
+      // frame the next lit cell runs to y 0.924 - straight through the CEA-708
+      // caption band at 0.72-0.90 that the lower thirds were just moved out of,
+      // and on into the player bar. Solving the window against the top 65% puts
+      // the run's foot at 0.70 and leaves the band alone.
+      //
+      // WIDTH IS PASSED, NOT MEASURED. Every comb in the codebase measures its
+      // container with a ResizeObserver and draws nothing at zero, which in a
+      // frame-grab pipeline is a render that can screenshot empty.
+      const gut = 0.31; // the centre gutter, x 0.29 to 0.60
+      const ladderCells: CombCell2[] = STAGE_ORDER.map((s, n) => ({
+        stage: s as CombCell2["stage"],
+        num: String(n + 1).padStart(2, "0"),
+        title: STAGE_LABELS[s],
+        lead: "",
+        kind: n < i ? "done" : n === i ? "current" : "pending",
+        statusText: n < i ? "done" : n === i ? "here" : "next",
+      }));
+      return (
+        <>
+          {/* The mark, in the quadrant reclaimed by not reserving a channel
+              element. An inline path rather than the raster: crisp at any
+              delivery size, one token for its colour, and nothing to fetch. */}
+          <div
+            style={{
+              position: "absolute",
+              left: `${GRAPHICS_16X9.x * 100}cqw`,
+              top: `${GRAPHICS_16X9.y * 100}cqh`,
+              width: `${GRAPHICS_16X9.w * 100}cqw`,
+              opacity: inP,
+            }}
+          >
+            <svg
+              viewBox={BRANDMARK_VIEWBOX}
+              style={{ width: "58%", height: "auto", display: "block" }}
+              aria-hidden
+            >
+              <path d={BRANDMARK_PATH} fill={GOLD} />
+            </svg>
+            <div style={{ marginTop: "2.2cqh" }}>
+              <Hair p={rule} w={0.12} />
+            </div>
+            <div style={{ marginTop: "1.4cqh" }}>
+              <Eyebrow o={late}>{URL}</Eyebrow>
+            </div>
+          </div>
+
+          {/* The comb, down the gutter between the reserved wells. */}
+          <div
+            style={{
+              position: "absolute",
+              left: "29cqw",
+              width: `${gut * 100}cqw`,
+              top: "5cqh",
+              // 65cqh, not 702px: the run's foot lands at y 0.70 and leaves the
+              // CEA-708 caption band (0.72-0.90) alone, at ANY delivery size.
+              height: "65cqh",
+              opacity: inP,
+            }}
+          >
+            {/* NO width, NO viewH. Both are shares of the frame, expressed on the
+                wrapper in container units, and the carousel measures the box it is
+                given. Passing pixels computed against 1920x1080 laid a full-frame
+                run out inside a thumbnail. */}
+            <Carousel cells={ladderCells} current={i} ghost="veil" art="art-only" video />
+          </div>
+        </>
+      );
+    }
+    case "count":
         return (
           gutter_(<>
             <Eyebrow>stage</Eyebrow>
@@ -1238,7 +1314,14 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       {wells_()}
-      {graphics_()}
+      {/* `ladder` OWNS the whole frame, so it does not get the shared graphics
+          block on top of it. Every other variant composes AROUND that block - a
+          comb strip, the stage label and "THE BUILD" in the reclaimed upper-left -
+          and the ladder puts the OTD mark in exactly that well and the comb in the
+          gutter. Rendering both stacks two compositions in one frame: the mark
+          landed on top of the wordmark and the strip repeated, in miniature, the
+          thing the comb is already saying at size. */}
+      {variant === "ladder" ? null : graphics_()}
       {body()}
     </div>
   );

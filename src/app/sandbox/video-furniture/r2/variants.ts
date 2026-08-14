@@ -85,6 +85,7 @@ export const OUTRO: Variant[] = [
   { id: "url", name: "URL first", claim: "The payoff address is the hero and the ladder is the support. For videos that arrive from search." },
   { id: "quiet", name: "Quiet", claim: "One line, one rule, one address. Everything else is negative space for the four elements." },
   { id: "stack", name: "Stacked CTA", claim: "The gold action ladder: primary, secondary, quiet link. Never a blue action to differentiate." },
+  { id: "ladder", name: "The ladder", claim: "The owner's composition: the build-guide comb as an art-only carousel down the centre gutter, the OTD mark top-left in the reclaimed graphics well, and all three end-screen wells left empty. The comb IS the ladder." },
 ];
 
 
