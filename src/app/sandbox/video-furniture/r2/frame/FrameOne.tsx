@@ -98,7 +98,7 @@ export function FrameOne({
         // The measurement surface must render what the round renders, or it
         // measures a piece nobody is looking at. `hairline` is the converted
         // set and carries its own stack.
-        entry={key === "hairline" ? HAIRLINE_ENTRY : DEFAULT_ENTRY}
+        entry={key === "lower" ? HAIRLINE_ENTRY : DEFAULT_ENTRY}
         piece={key}
         variant={variant}
         stage={st}

@@ -35,7 +35,7 @@ import { furnitureOutStack, exitP, DEFAULT_EXIT, type FurnitureOut } from "./exi
 import { entryStack, DEFAULT_ENTRY, type EntryEffect } from "./entries";
 import { EntryProvider } from "./Part";
 import { PIECES, type PieceKey } from "./variants";
-import { Ghost, CombWalk, Hairline } from "./Render2";
+import { CombWalk, Hairline } from "./Render2";
 import { Chapter } from "./Chapter";
 import { Carousel, type Cell as CombCell2 } from "@/app/sandbox/comb-carousel/Carousel";
 import { BRANDMARK_PATH, BRANDMARK_VIEWBOX } from "@/lib/pdf/certificate-content";
@@ -145,11 +145,9 @@ export function PieceFrame(p: VProps) {
       }}
     >
       {p.piece === "intro" ? <Intro {...p} /> : null}
-      {p.piece === "ghost" ? <Ghost {...p} /> : null}
       {p.piece === "combwalk" ? <CombWalk {...p} /> : null}
-      {p.piece === "hairline" ? <Hairline {...p} /> : null}
       {p.piece === "section" ? <Section {...p} /> : null}
-      {p.piece === "lower" ? <Lower {...p} /> : null}
+      {p.piece === "lower" ? <Hairline {...p} /> : null}
       {p.piece === "outro" ? <Outro {...p} /> : null}
       {p.piece === "chapter" ? <Chapter {...p} /> : null}
     </div>

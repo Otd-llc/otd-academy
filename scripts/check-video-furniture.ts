@@ -88,7 +88,7 @@ async function main() {
   const page = await ctx.newPage();
 
   // ---- 1. CHAPTER: geometry across the whole scrub -------------------------
-  const chapterVariants = PIECES.chapter.variants.map((v) => v.id);
+  const chapterVariants = PIECES.chapter.variants.map((v: { id: string }) => v.id);
   for (const variant of chapterVariants) {
     await page.goto(`${FRAME}?piece=chapter&variant=${variant}`, { waitUntil: "networkidle" });
     await page.evaluate(() => document.fonts.ready);
@@ -188,7 +188,7 @@ async function main() {
   }
 
   // ---- 3. LOWER THIRDS: out of the caption band ----------------------------
-  for (const piece of ["lower", "hairline"] as const) {
+  for (const piece of ["lower"] as const) {
     for (const v of PIECES[piece].variants) {
       await page.goto(`${FRAME}?piece=${piece}&variant=${v.id}`, { waitUntil: "networkidle" });
       await page.evaluate(() => document.fonts.ready);

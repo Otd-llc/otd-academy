@@ -59,18 +59,27 @@ export const SECTION: Variant[] = [
  *  pill radius, square badges, values in Saira with tabular-nums, mono labels,
  *  `.` never an em-dash, and the coral channel for a destructive warning while
  *  alert-red stays for a genuine failure. */
+/** LOWER THIRD - ONE round, consolidated. `lower` and `hairline` were two sets
+ *  auditioning the same piece: twenty treatments, and the second was ten
+ *  variations of the first's winner. That is a round that was never closed.
+ *
+ *  So this is the merged set, cut to the treatments that differ STRUCTURALLY,
+ *  and everything here inherits what the intro and outro settled: type sized
+ *  against the frame, the caption band cleared, designators in Saira, and
+ *  timing as data rather than hand-tuned windows. */
 export const LOWER: Variant[] = [
-  { id: "hairline", name: "Hairline", claim: "A gold rule with a mono label above and a Saira value below. The document-index row, as furniture." },
+  { id: "hairline", name: "Hairline", claim: "A gold rule with a mono label above and a Saira value below. The house treatment, and the control." },
+  { id: "under", name: "Underline", claim: "Type first, rule last - it confirms rather than announces. The ordering is an offset in the entry stack now, not two hardcoded windows." },
+  { id: "between", name: "Between", claim: "The rule sits between label and value and spaces them apart. The typography is set BY the gesture." },
   { id: "accent", name: "Accent bar", claim: "A gold left-accent bar, no box. The sanctioned not-a-box framing, so it stays legible over a busy canvas." },
   { id: "bracket", name: "Brackets", claim: "Top and bottom bracket rules only. Frames without enclosing; the lightest thing that still groups." },
-  { id: "masthead", name: "Masthead", claim: "A gold top-rule with the label riding it. Reads as a document header rather than a caption." },
-  { id: "readout", name: "Readout", claim: "The instrument treatment: Saira value at scale, mono unit and label beneath. For a measurement, not a name." },
-  { id: "badge", name: "Badge and line", claim: "A square mono badge plus a value on a rule. Square is the registration-tag corner language, never a pill." },
   { id: "tag", name: "Ref tag", claim: "Designator in a square tag, part and value on one mono line. Closest to how the BOM itself reads." },
-  { id: "warn", name: "Warning", claim: "The coral destructive channel on a hairline. Deliberately unlike a label, because a warning that looks like a label is not read." },
-  { id: "fail", name: "Gate fail", claim: "Alert-red, reserved for a genuine gate state: ERC, DRC, a failed continuity check. Never decorative." },
-  { id: "pass", name: "Gate pass", claim: "Status-green on a hairline, the pass-side parallel. For the moment a check comes back clean." },
+  { id: "readout", name: "Readout", claim: "The instrument treatment: Saira value at scale, mono unit and label beneath. For a measurement, not a name." },
+  { id: "scale", name: "Scale", claim: "The rule carries minor ticks like a ruler edge. The most instrument-like, and the one that could only belong to this company." },
+  { id: "warn", name: "Warning", claim: "The coral destructive channel on a hairline. Deliberately unlike a label, because a warning that looks like one is not read." },
+  { id: "pass", name: "Gate pass", claim: "Status-green on a hairline for a check coming back clean, with alert-red as its failing twin. Never decorative." },
 ];
+
 
 /** OUTRO / LADDER - ten ways to make the end screen curriculum.
  *  All of them keep YouTube's four element regions clear; they differ in what
@@ -113,25 +122,6 @@ export const OUTRO: Variant[] = [
 
 
 
-/** GHOST - ten. The stage's ghost map is a LUMINANCE-derived mask of the real
- *  artifact, painted in one colour, so it is the drawing itself rather than a
- *  silhouette. That is why it can carry a whole frame: it says what this stage
- *  produces without handing the artifact over, which is exactly the register an
- *  intro wants. Round 2 had one treatment of it; these are ten. */
-export const GHOST: Variant[] = [
-  { id: "centre", name: "Centre", claim: "Huge, centred, copy over it. Round 2's version, kept as the control." },
-  { id: "offset", name: "Offset", claim: "Ghost pushed right, copy in a clean left column. The legible one - nothing sits over anything." },
-  { id: "bleed", name: "Bleed", claim: "Oversized and cropped by the frame, so it reads as a detail of something bigger." },
-  { id: "duo", name: "Duo", claim: "Ghost large behind, the real artifact small and solid in front. What it will be, over what it is now." },
-  { id: "sweep", name: "Sweep", claim: "A gold sweep crosses the frame and the ghost exists only where it has passed. The drawing arrives by being surveyed." },
-  { id: "outline", name: "Outline", claim: "Ghost at its faintest inside a hairline frame. The document-index register: evidence, filed." },
-  { id: "fill", name: "Fill", claim: "The ghost plates with gold from the bottom as the piece runs. Borrows the film's plating language directly." },
-  { id: "grid", name: "Grid", claim: "Ghost over an engineering-paper field. The most literal reading of the whole visual system." },
-  { id: "hex", name: "Hex", claim: "Ghost masked into the brand hex at size. Strongest identity of the ten." },
-  { id: "strata", name: "Strata", claim: "Sliced into horizontal bands that land in sequence, so the drawing assembles rather than appears." },
-];
-
-
 /** COMB WALK - ten, on the REAL comb.
  *  Round 2's comb was a hand-drawn polygon wearing the right colours, which is
  *  the thing the design law calls out by name: the honeycomb already exists as
@@ -159,52 +149,24 @@ export const COMBWALK: Variant[] = [
 ];
 
 
-/** HAIRLINE - ten variations of the lower third that won round 2's set.
- *  The hairline IS the house treatment: a rule on the bare field, a mono label,
- *  a value. So these vary the RULE - how it arrives, what it does while the
- *  label is up, and how it takes the label away again. */
-export const HAIRLINE: Variant[] = [
-  { id: "grow", name: "Grow", claim: "The rule draws left to right, label above, value below. Round 2's version, as the control." },
-  { id: "split", name: "Split", claim: "The rule opens from the centre outward. Symmetrical, and the label lands in the gap it makes." },
-  { id: "under", name: "Underline", claim: "Label and value arrive first, the rule strikes underneath them last. The rule confirms rather than announces." },
-  { id: "between", name: "Between", claim: "The rule sits between label and value and pushes them apart as it grows. The typography is spaced BY the rule." },
-  { id: "tick", name: "Tick", claim: "A short tick at the left grows into the full rule. Reads as a measurement being taken." },
-  { id: "double", name: "Double", claim: "Two rules, the second offset and dim. Depth without a box, which is the whole trick of this system." },
-  { id: "bracket", name: "Bracket", claim: "The rule turns a corner and runs up the left. Frames two sides, encloses none." },
-  { id: "scale", name: "Scale", claim: "The rule carries minor ticks like a ruler edge. The most instrument-like of the ten." },
-  { id: "trace", name: "Trace", claim: "The rule is a PCB trace: it steps at 45 degrees partway. The one that could only belong to this company." },
-  { id: "weight", name: "Weight", claim: "The rule arrives thin and thickens to full weight. Quietest arrival, strongest final state." },
-];
-
-/** CHAPTER - the persistent indicator, and the only piece here that never
- *  leaves. Six treatments spanning TWO open questions at once, because they
- *  cannot be answered separately.
- *
- *  WHERE: research says "top right" in prose; Google's own 16:9 template masks
- *  both top corners in the upper band (rows 38-132 outside x 496-1443) and
- *  leaves only the centre. Those disagree, and the notch's provenance is the
- *  weaker of the two, so the round ships both and the owner looks.
- *
- *  WHAT: whether a chapter position needs a NUMBER at all. `segments` argues it
- *  does not - eight ticks with one lit is pure signalling with no transient
- *  information and no changing numeral to go wrong. Worth seeing before
- *  assuming digits are required. */
+/** CHAPTER - the persistent indicator, and the only piece that never leaves.
+ *  Six treatments spanning two open questions: WHERE it sits (research says top
+ *  right; Google's own template masks both top corners and leaves the centre),
+ *  and WHETHER a chapter position needs a NUMBER at all. */
 export const CHAPTER: Variant[] = [
-  { id: "corner", name: "Corner", claim: "Top right, mono, `03 / 08`, nothing else. The research's literal recommendation, and the control the other five are judged against." },
-  { id: "notch", name: "Notch-safe", claim: "Top CENTRE, inside the band Google's own template leaves usable. Picking this one means the measured notch outranks the recommendation's wording." },
-  { id: "labelled", name: "Labelled", claim: "`STAGE 04 / 08 . LAYOUT` on one line: the design system's own progress recipe, in the app's own stage order. The label is reserved at its widest so the line cannot shift when the stage name changes length." },
-  { id: "rule", name: "On a rule", claim: "The count sitting under a short gold rule. The masthead treatment shrunk to chrome, for when the bare numerals read as debug output." },
-  { id: "segments", name: "Segments", claim: "Eight ticks, the current one gold, NO numerals. Signalling with nothing to read and nothing to reflow - the argument that a chapter needs a position, not a number." },
-  { id: "badge", name: "Badge", claim: "The count inside a square registration tag. Squarest, most instrument-like, and the most ink of the six on screen at all times." },
+  { id: "corner", name: "Corner", claim: "Top right, mono, `03 / 08`, nothing else. The research's literal recommendation, and the control." },
+  { id: "notch", name: "Notch-safe", claim: "Top CENTRE, inside the band Google's own template leaves usable. Picking it means the measured notch outranks the recommendation's wording." },
+  { id: "labelled", name: "Labelled", claim: "`STAGE 03 / 08 . LAYOUT` on one line, in the app's own stage order, with the label reserved at its widest so the line cannot shift." },
+  { id: "rule", name: "On a rule", claim: "The count under a short gold rule. The masthead treatment shrunk to chrome." },
+  { id: "segments", name: "Segments", claim: "Eight ticks, the current one taller and gold, NO numerals. Signalling with nothing to read and nothing to reflow." },
+  { id: "badge", name: "Badge", claim: "The count inside a square registration tag. Squarest, and the most ink on screen at all times." },
 ];
 
 export const PIECES = {
   intro: { name: "Intro / artifact", seconds: 3.5, variants: INTRO },
-  ghost: { name: "Intro / ghost", seconds: 3.5, variants: GHOST },
   section: { name: "Section / comb", seconds: 1.8, variants: SECTION },
   combwalk: { name: "Section / comb walk", seconds: 2.2, variants: COMBWALK },
   lower: { name: "Lower third", seconds: 4, variants: LOWER },
-  hairline: { name: "Lower / hairline", seconds: 4, variants: HAIRLINE },
   outro: { name: "Outro / ladder", seconds: 8, variants: OUTRO },
   // Seconds are the AUDITION length, not a duration - this piece is persistent.
   // The cut at t=2.0 is there so the round shows the one thing it does: change.

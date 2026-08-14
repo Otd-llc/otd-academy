@@ -43,6 +43,22 @@ export type Direction = {
   entry: EntryEffect[];
 };
 
+/**
+ * WHICH TYPES SHIP VERTICAL, and why it is not all of them.
+ *
+ * Owner's decision, recorded here because it is a content judgement that the
+ * furniture has to obey rather than a furniture judgement: THE COURSE VIDEOS
+ * ARE 16:9 ONLY. A tutorial, a build-along and a walkthrough cover small things
+ * - a pad, a via, a net name, a menu - that need a big screen to see and
+ * follow, so a vertical cut would be legible as video and useless as
+ * instruction. The short forms - explainer, technique demo, troubleshooting -
+ * do ship vertical, because an explanation survives the crop where a procedure
+ * does not.
+ *
+ * This is load-bearing for the furniture: research 5 says a vertical clip must
+ * DROP most furniture rather than reflow it, and now only three of the six
+ * types ever have to.
+ */
 export type TypeSpec = {
   id: VideoType;
   name: string;
@@ -72,7 +88,7 @@ export const TYPES: Record<VideoType, TypeSpec> = {
     id: "explainer",
     name: "Explainer",
     furniture: "Diagrams, no step counter. The chapter indicator does the segmenting.",
-    pieces: ["intro", "ghost", "section", "lower", "hairline", "outro", "chapter"],
+    pieces: ["intro", "section", "lower", "outro", "chapter"],
     shapes: ["16:9", "9:16"],
     missing: [],
     directions: [baseline],
@@ -81,7 +97,9 @@ export const TYPES: Record<VideoType, TypeSpec> = {
     id: "walkthrough",
     name: "Walkthrough",
     furniture: "Cursor highlight and callouts, no step counter - it is a tour, not a procedure.",
-    pieces: ["intro", "section", "lower", "hairline", "outro", "chapter"],
+    pieces: ["intro", "section", "lower", "outro", "chapter"],
+    // 16:9 only: a walkthrough is a tour of a real screen, and the screen does
+    // not fit a phone any better than the procedure does.
     shapes: ["16:9"],
     missing: ["cursor highlight", "callout pointer"],
     directions: [baseline],
@@ -90,8 +108,13 @@ export const TYPES: Record<VideoType, TypeSpec> = {
     id: "tutorial",
     name: "Tutorial",
     furniture: "Step counter, and chapters ARE the steps - the two must not disagree.",
-    pieces: ["intro", "section", "lower", "hairline", "outro", "chapter"],
-    shapes: ["16:9", "9:16"],
+    pieces: ["intro", "section", "lower", "outro", "chapter"],
+    // 16:9 ONLY. Owner's call, and it is about the CONTENT rather than the
+    // furniture: a course video covers small things - a pad, a via, a net name -
+    // that need a big screen to see and follow. A vertical cut of one would be
+    // legible as video and useless as instruction. The short forms below can
+    // ship vertical because they are explanations, not procedures.
+    shapes: ["16:9"],
     missing: ["step counter"],
     directions: [
       baseline,
@@ -107,7 +130,8 @@ export const TYPES: Record<VideoType, TypeSpec> = {
     name: "Build-along",
     furniture:
       "Everything a tutorial has, plus pause-here cards, a progress bar, a real-time versus speed-up label and a timer. The heaviest type by a distance.",
-    pieces: ["intro", "section", "lower", "hairline", "outro", "chapter"],
+    pieces: ["intro", "section", "lower", "outro", "chapter"],
+    // 16:9 only, for the same reason as the tutorial and more so.
     shapes: ["16:9"],
     missing: ["pause-here card", "progress bar", "real-time / speed-up label", "timer"],
     directions: [baseline],
@@ -116,7 +140,7 @@ export const TYPES: Record<VideoType, TypeSpec> = {
     id: "technique",
     name: "Technique demo",
     furniture: "Macro insert, spec chip, before/after. Short, and the lower third carries the spec.",
-    pieces: ["intro", "lower", "hairline", "outro", "chapter"],
+    pieces: ["intro", "lower", "outro", "chapter"],
     shapes: ["16:9", "9:16"],
     missing: ["macro insert frame", "before/after wipe"],
     directions: [baseline],
@@ -125,8 +149,9 @@ export const TYPES: Record<VideoType, TypeSpec> = {
     id: "troubleshoot",
     name: "Troubleshooting",
     furniture: "A symptom -> cause -> fix card triad. The gate states already exist as lower thirds.",
-    pieces: ["intro", "lower", "hairline", "outro", "chapter"],
-    shapes: ["16:9"],
+    pieces: ["intro", "lower", "outro", "chapter"],
+    // Short enough to travel: a symptom and its fix is an explanation.
+    shapes: ["16:9", "9:16"],
     missing: ["symptom / cause / fix triad"],
     directions: [baseline],
   },

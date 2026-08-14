@@ -36,6 +36,11 @@ export function Grid({ piece }: { piece: PieceKey }) {
   const [longest, setLongest] = useState(false);
   const [guides, setGuides] = useState(true);
   const [wide, setWide] = useState(false);
+  // 9:16, so a piece can be JUDGED vertical rather than assumed to survive the
+  // crop. Only three of the six video types ever ship vertical - the course
+  // types are 16:9 only, because a procedure covering a pad or a net name needs
+  // a big screen - so this is a toggle rather than a second permanent column.
+  const [tall, setTall] = useState(false);
   // The exit is a first-class dial, not a per-variant afterthought. Every piece
   // arrived with intent and left with a fade until this existed.
   const [exit, setExit] = useState<FurnitureOut[]>([DEFAULT_EXIT]);
@@ -44,7 +49,7 @@ export function Grid({ piece }: { piece: PieceKey }) {
   // controls it is read against are one object.
   // `hairline` is the converted set, so it starts from a stack that actually
   // describes it rather than from a bare fade.
-  const [entry, setEntry] = useState<EntryEffect[]>(piece === "hairline" ? HAIRLINE_ENTRY : DEFAULT_ENTRY);
+  const [entry, setEntry] = useState<EntryEffect[]>(piece === "lower" ? HAIRLINE_ENTRY : DEFAULT_ENTRY);
   // The TYPE scopes the round: which pieces are relevant, which shapes ship,
   // and what furniture this type needs that nobody has built.
   const [vtype, setVtype] = useState<VideoType>("tutorial");
@@ -124,6 +129,7 @@ export function Grid({ piece }: { piece: PieceKey }) {
             ["longest title", longest, setLongest],
             ["wells", guides, setGuides],
             ["2 up", wide, setWide],
+            ["9:16", tall, setTall],
           ].map(([label, val, set]) => (
             <label key={String(label)} className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
               <input
@@ -197,7 +203,7 @@ export function Grid({ piece }: { piece: PieceKey }) {
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
       <ul className={`grid gap-x-6 gap-y-8 ${wide ? "lg:grid-cols-1" : "lg:grid-cols-2"}`}>
-        {def.variants.map((v) => (
+        {def.variants.map((v: { id: string; name: string; claim: string }) => (
           <li key={v.id} className="min-w-0">
             {/* id ABOVE the frame, never inside it */}
             <div className="flex items-baseline gap-2">
@@ -208,7 +214,7 @@ export function Grid({ piece }: { piece: PieceKey }) {
             </div>
             <div
               className="relative mt-2 w-full border border-panel-border/60"
-              style={{ aspectRatio: "16 / 9" }}
+              style={{ aspectRatio: tall ? "9 / 16" : "16 / 9", maxWidth: tall ? "22rem" : undefined, marginInline: tall ? "auto" : undefined }}
             >
               <PieceFrame
                 piece={piece}
@@ -217,7 +223,7 @@ export function Grid({ piece }: { piece: PieceKey }) {
                 title={title}
                 lesson="L1.02 / ESP-NOW Link"
                 t={t}
-                aspect={16 / 9}
+                aspect={tall ? 9 / 16 : 16 / 9}
                 exit={exit}
                 entry={entry}
                 guides={guides && (piece === "outro" || piece === "intro")}
