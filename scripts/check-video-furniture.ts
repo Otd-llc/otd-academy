@@ -187,6 +187,36 @@ async function main() {
     }
   }
 
+  // ---- 2c. THE LOOP SEAM ---------------------------------------------------
+  // A vertical short LOOPS - Shorts counts every replay as a view, Instagram
+  // counts replays inside watch time - so the outro's job is not to end but to
+  // cut back to the first frame invisibly. That is a measurable property, and
+  // measuring it is the only way "it loops nicely" stops being a feeling.
+  //
+  // Compared as PIXELS, at 9:16, because that is the delivery the loop is for.
+  for (const variant of PIECES["outro-short"].variants.map((v: { id: string }) => v.id)) {
+    const tallCtx = await browser.newContext({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
+    const tp = await tallCtx.newPage();
+    await tp.goto(`${FRAME}?piece=intro-short&variant=question`, { waitUntil: "networkidle" });
+    await tp.evaluate(() => document.fonts.ready);
+    await seek(tp, 0);
+    const first = await tp.screenshot();
+    await tp.goto(`${FRAME}?piece=outro-short&variant=${variant}`, { waitUntil: "networkidle" });
+    await tp.evaluate(() => document.fonts.ready);
+    await seek(tp, PIECES["outro-short"].seconds);
+    const last = await tp.screenshot();
+    await tallCtx.close();
+
+    assertions += 1;
+    const same = Buffer.compare(first, last) === 0;
+    if (MUTATE ? same : !same) {
+      fail(
+        `outro-short/${variant}: the last frame does not match the intro's first, so the loop shows a cut. ` +
+          `Everything must retire before the seam.`,
+      );
+    }
+  }
+
   // ---- 3. LOWER THIRDS: out of the caption band ----------------------------
   for (const piece of ["lower"] as const) {
     for (const v of PIECES[piece].variants) {

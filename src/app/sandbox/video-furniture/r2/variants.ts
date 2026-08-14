@@ -162,12 +162,52 @@ export const CHAPTER: Variant[] = [
   { id: "badge", name: "Badge", claim: "The count inside a square registration tag. Squarest, and the most ink on screen at all times." },
 ];
 
+/** INTRO / SHORT - the generic opener. THE SUBJECT IS THE QUESTION.
+ *
+ *  A lesson intro's subject is the comb: where you are in a build. A short has
+ *  no position in a sequence, so the comb would be a map of somewhere the video
+ *  is not. What a short DOES have is a question - and for the troubleshooting
+ *  type the symptom IS the hook, which is the one place where the honest
+ *  opening and the effective one are the same sentence.
+ *
+ *  The naming block carries over unchanged, because pre-training is not a
+ *  course device: three nouns before the process is the largest opening effect
+ *  available (d = 0.75) for any instructional video. "In this stage" becomes
+ *  "in this video" and nothing else changes. */
+export const INTRO_SHORT: Variant[] = [
+  { id: "question", name: "The question", claim: "The symptom as a headline, the three names beneath it. No comb - a short is not a stage - and hex elements only as framing." },
+  { id: "question-hex", name: "Question in a hex", claim: "The same, with the question set inside a stylised hex rather than on a rule. Strongest identity; costs the most room, which is the wrong currency at 9:16." },
+  { id: "question-tall", name: "Question, stacked", claim: "Composed for the VERTICAL rather than reflowed into it: question at the top third, names down the middle, everything on one column. The 16:9 cut of this is the compromise, not the other way round." },
+];
+
+/** OUTRO / SHORT - and its job is not to end.
+ *
+ *  Shorts count every REPLAY as a view and Instagram counts replays inside
+ *  watch time, so a vertical short that loops cleanly is watched more than one
+ *  that stops. There is also nothing to hand over to: end screens do not render
+ *  on mobile web at all, and Shorts, Reels and TikTok have no end-screen
+ *  equivalent whatsoever - so the CTA has to be in pixels we control.
+ *
+ *  Which makes the brief precise rather than vague: the LAST FRAME HAS TO CUT
+ *  BACK TO THE FIRST INVISIBLY. That is a measurable property, not a feeling,
+ *  and `furniture:check` measures it. */
+export const OUTRO_SHORT: Variant[] = [
+  { id: "loop", name: "Loop", claim: "Resolves to the same field the intro opens on, so the cut back to frame 0 is invisible. Address and follow prompt in pixels, because no end-screen element exists on any vertical surface." },
+  { id: "loop-mark", name: "Loop on the mark", claim: "The same, landing on the brandmark alone - so the seam is the mark, and a viewer who loops twice sees it twice rather than seeing a join." },
+];
+
 export const PIECES = {
-  intro: { name: "Intro / artifact", seconds: 3.5, variants: INTRO },
+  intro: { name: "Intro / LESSON", seconds: 3.5, variants: INTRO },
   section: { name: "Section / comb", seconds: 1.8, variants: SECTION },
   combwalk: { name: "Section / comb walk", seconds: 2.2, variants: COMBWALK },
   lower: { name: "Lower third", seconds: 4, variants: LOWER },
-  outro: { name: "Outro / ladder", seconds: 8, variants: OUTRO },
+  outro: { name: "Outro / LESSON", seconds: 8, variants: OUTRO },
+  // THE GENERIC PAIR. No comb - a short is not a stage of a build, so the map
+  // means nothing - but stylised hex ELEMENTS are fair game as framing.
+  // These ship 9:16 as well, and the vertical is a SEPARATE composition rather
+  // than a reflow.
+  "intro-short": { name: "Intro / SHORT", seconds: 3.5, variants: INTRO_SHORT },
+  "outro-short": { name: "Outro / SHORT", seconds: 4, variants: OUTRO_SHORT },
   // Seconds are the AUDITION length, not a duration - this piece is persistent.
   // The cut at t=2.0 is there so the round shows the one thing it does: change.
   chapter: { name: "Chapter indicator", seconds: 4, variants: CHAPTER },

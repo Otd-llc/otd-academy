@@ -115,7 +115,7 @@ export type VProps = {
  * click it - and YouTube's own end-screen elements sit on top of it for the
  * whole window. It was fading out at `seconds - 0.55` like every timed insert.
  */
-const PERSISTENT: ReadonlySet<string> = new Set(["chapter", "outro"]);
+const PERSISTENT: ReadonlySet<string> = new Set(["chapter", "outro", "outro-short"]);
 
 export function PieceFrame(p: VProps) {
   // THE EXIT IS APPLIED HERE, ONCE, for every piece that HAS one. Doing it
@@ -150,6 +150,8 @@ export function PieceFrame(p: VProps) {
       {p.piece === "lower" ? <Hairline {...p} /> : null}
       {p.piece === "outro" ? <Outro {...p} /> : null}
       {p.piece === "chapter" ? <Chapter {...p} /> : null}
+      {p.piece === "intro-short" ? <IntroShort {...p} /> : null}
+      {p.piece === "outro-short" ? <OutroShort {...p} /> : null}
     </div>
   );
 
@@ -566,6 +568,157 @@ function PartNames({
             </span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/** A sample symptom per stage, so the question is a real one. */
+const STAGE_QUESTION: Partial<Record<string, string>> = {
+  REQUIREMENTS: "How much current does this thing actually need?",
+  BOM_SOURCING: "Why is my part suddenly 30 weeks out?",
+  SCHEMATIC: "Where does the decoupling cap really go?",
+  LAYOUT: "Why does my board reset when the motor starts?",
+  DRC_GERBER: "What is the fab actually checking?",
+  ORDERING: "Which stack-up should I be asking for?",
+  ASSEMBLY: "How do I not cook a fine-pitch part?",
+  BRINGUP: "It powers up and does nothing. Now what?",
+};
+
+/**
+ * THE GENERIC OPENER. No comb.
+ *
+ * A short is not a stage of a build, so the stage map would be a picture of
+ * somewhere the video is not. The subject is the QUESTION instead - and for a
+ * troubleshooting short the symptom IS the hook, which is the one case where
+ * the honest opening and the effective one are the same sentence.
+ *
+ * The naming block is unchanged, because pre-training is not a course device.
+ * Stylised hex elements are allowed as FRAMING; the honeycomb as a map is not.
+ */
+function IntroShort({ variant, stage, t, aspect = 16 / 9 }: VProps) {
+  const tall = aspect < 1;
+  const q = STAGE_QUESTION[stage] ?? "";
+  const inP = outCubic(seg(t, 0, 0.7));
+  const parts = outCubic(seg(t, 0.9, 2.1));
+  const late = outCubic(seg(t, 1.6, 2.6));
+  const hexed = variant === "question-hex";
+  // The vertical is a SEPARATE composition, not a reflow: the research is
+  // explicit that a vertical clip drops furniture rather than resizing it, and
+  // the lesson intro's thirds became two narrow columns when it tried.
+  const stacked = tall || variant === "question-tall";
+
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div
+        style={{
+          position: "absolute",
+          left: stacked ? "8cqw" : "9cqw",
+          right: stacked ? "8cqw" : "46cqw",
+          top: stacked ? "14cqh" : "20cqh",
+          opacity: inP,
+        }}
+      >
+        <Eyebrow o={inP}>{hexed ? "the question" : "in this video"}</Eyebrow>
+        <div style={{ marginTop: "2cqh", position: "relative" }}>
+          {hexed ? (
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                inset: "-6cqh -4cqw",
+                border: `${hw(0.1)} solid ${GOLD}`,
+                clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
+                opacity: 0.35 * inP,
+              }}
+            />
+          ) : null}
+          <Title size={stacked ? 3.4 : 3.8} o={inP}>
+            {q}
+          </Title>
+        </div>
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          left: stacked ? "8cqw" : "56cqw",
+          right: "8cqw",
+          top: stacked ? "46cqh" : "26cqh",
+          opacity: parts,
+        }}
+      >
+        <PartNames stage={stage} p={parts} t={t} numbered />
+      </div>
+
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: "8cqh", textAlign: "center", opacity: late }}>
+        <Eyebrow o={late}>{URL}</Eyebrow>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * THE GENERIC CLOSER, whose job is NOT to end.
+ *
+ * Shorts count every replay as a view and Instagram counts replays inside watch
+ * time, so a vertical short that loops cleanly is watched more than one that
+ * stops. And there is nothing to hand over to: end screens never render on
+ * mobile web, and no vertical feed has an end-screen equivalent at all - so the
+ * call to action lives in pixels we control or it does not exist.
+ *
+ * Which makes the brief measurable rather than vague: the LAST FRAME MUST CUT
+ * BACK TO THE FIRST INVISIBLY. It resolves to the same field the intro opens
+ * on, and `furniture:check` compares the two.
+ */
+function OutroShort({ variant, t, aspect = 16 / 9 }: VProps) {
+  const tall = aspect < 1;
+  const inP = outCubic(seg(t, 0, 0.8));
+  // Everything RETIRES before the end, so the final frame is the bare field the
+  // intro opens on. A composition still on screen at the seam is a visible cut.
+  const out = 1 - outCubic(seg(t, 2.6, 3.6));
+  // `loop-mark` lands ON the mark - the CTA clears first and the mark holds
+  // alone - but it still has to clear before the seam. Keeping it up made the
+  // last frame a mark and the intro's first frame a bare field, so the loop
+  // showed a cut; the check caught it on its first run. The premise survives
+  // (the mark is the last thing you see) without breaking the loop.
+  const markOnly = variant === "loop-mark";
+  const markOut = markOnly ? 1 - outCubic(seg(t, 3.3, 3.9)) : out;
+
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: tall ? "30cqh" : "24cqh",
+          display: "grid",
+          placeItems: "center",
+          opacity: inP * markOut,
+          height: tall ? "22cqh" : "30cqh",
+        }}
+      >
+        <svg viewBox={BRANDMARK_VIEWBOX} style={{ height: "100%", width: "auto", maxWidth: "60%", display: "block" }} aria-hidden>
+          <defs>
+            <linearGradient id="short-mk" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor={GOLD} stopOpacity={0.55} />
+              <stop offset="55%" stopColor={GOLD} />
+              <stop offset="100%" stopColor="var(--color-gold-light)" />
+            </linearGradient>
+          </defs>
+          <path d={BRANDMARK_PATH} fill="url(#short-mk)" />
+        </svg>
+      </div>
+
+      {/* The CTA in pixels, because no vertical surface renders an end screen. */}
+      <div style={{ position: "absolute", left: 0, right: 0, top: tall ? "56cqh" : "60cqh", textAlign: "center", opacity: inP * out }}>
+        <Eyebrow o={inP * out}>follow for the whole build</Eyebrow>
+        <div style={{ marginTop: "2.2cqh" }}>
+          <Title size={tall ? 3 : 2.6} o={inP * out}>
+            {URL}
+          </Title>
+        </div>
       </div>
     </div>
   );
