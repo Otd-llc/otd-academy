@@ -1,8 +1,14 @@
 "use client";
 
 // HexPrismScene — every prism of a honeycomb grid, in ONE svg, in three-point
-// perspective. Shared by the build-guide hub (GuideHoneycomb), the /courses skill
-// tree (SkillHoneycomb) and the go-further comb (PathHoneycomb).
+// perspective.
+//
+// NO PRODUCTION CALLERS. All three combs (the build-guide hub, the /courses skill tree
+// and the go-further ribbon) moved to `SpineCombScene` and the one-point projection on
+// 2026-08-13. This is kept because `/sandbox/comb` renders it as the CONTROL the
+// vertical cuts were judged against, and that round is the record of the pick. Its CSS
+// (`.gh-3d`, `.sk-arw`) moved out of globals.css into the sandbox's own stylesheet, so
+// nothing here is served to a visitor any more.
 //
 // It replaces the per-cell `HexPrism` shell those three used to render inside each
 // cell. That arrangement could not survive a vanishing point: it drew a constant
@@ -20,6 +26,7 @@
 // Colour is entirely token-driven here, which also retires the baked `#eab94d` the
 // old `.gh-3d` rules carried — the comb now flips with the theme.
 
+import type { HexPrismCellState } from "@/components/guide/SpineCombScene";
 import {
   paintOrder,
   prismSides,
@@ -74,16 +81,6 @@ export function CombArrows({
   );
 }
 
-export interface HexPrismCellState {
-  /** the four honeycomb visual states, as the `.gh-node` classes use them. */
-  kind: "done" | "current" | "pending" | "blocked";
-  /** recede a cell the viewer cannot reach yet (the old `.gh-node.sk-dim`). */
-  dim?: boolean;
-  /** the go-further comb strokes by TRACK, not by completion state. */
-  accent?: string;
-  /** that comb's flagship sits a little brighter than its siblings at rest. */
-  flag?: boolean;
-}
 
 export function HexPrismScene({
   solids,
