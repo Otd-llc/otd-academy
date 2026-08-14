@@ -74,19 +74,22 @@ export const LOWER: Variant[] = [
 /** OUTRO / LADDER - ten ways to make the end screen curriculum.
  *  All of them keep YouTube's four element regions clear; they differ in what
  *  the viewer is told to do next, and how hard. */
+/** OUTRO / LADDER - the direction is taken, so these are variants OF it.
+ *  The previous ten auditioned what an outro should BE; that question is
+ *  answered - the comb is the ladder, the mark holds the reclaimed upper-left,
+ *  the wells stay empty. They live in the commits, not here.
+ *
+ *  What varies now is the MARK, because it is the one element with no product
+ *  precedent in this composition: the comb is the shipped comb and the address
+ *  is a mono eyebrow, but a brandmark at this size on a bare field is new. */
 export const OUTRO: Variant[] = [
-  { id: "next", name: "Next lesson", claim: "Names the next lesson in words. The plainest version of the ladder." },
-  { id: "rungs", name: "Rungs", claim: "The stage ladder drawn as rungs with the completed one struck gold. Progress made visible." },
-  { id: "comb", name: "Comb ahead", claim: "The build comb with this stage done and the next lit. Uses the map the learner already knows." },
-  { id: "count", name: "Count", claim: "A Saira `04 / 09` readout with the stage name. The instrument answer to where am I." },
-  { id: "two-up", name: "Two up", claim: "This lesson and the next, side by side on a rule. Comparison rather than instruction." },
-  { id: "path", name: "Path", claim: "The course path as a horizontal run of phex cells, current lit. Zoomed out one level from the build." },
-  { id: "gate", name: "Gate", claim: "Frames the next step as the gate it actually is: what must be true before it opens." },
-  { id: "url", name: "URL first", claim: "The payoff address is the hero and the ladder is the support. For videos that arrive from search." },
-  { id: "quiet", name: "Quiet", claim: "One line, one rule, one address. Everything else is negative space for the four elements." },
-  { id: "stack", name: "Stacked CTA", claim: "The gold action ladder: primary, secondary, quiet link. Never a blue action to differentiate." },
-  { id: "ladder", name: "The ladder", claim: "The owner's composition: the build-guide comb as an art-only carousel down the centre gutter, the OTD mark top-left in the reclaimed graphics well, and all three end-screen wells left empty. The comb IS the ladder." },
+  { id: "ladder", name: "Flat gold", claim: "The mark in solid command-gold. The plainest reading, and the control the rest are judged against." },
+  { id: "ladder-footer", name: "Footer gradient", claim: "The academy footer's own treatment: a 135-degree alpha ramp, faint at the top-left and brightening into the bottom-right. The mark the site already uses, at size." },
+  { id: "ladder-shift", name: "Highlight shift", claim: "A gold-to-gold-light ramp across the mark, so it reads as catching light rather than as printed. Subtle on purpose; a hard gradient is the AI-default tell." },
+  { id: "ladder-both", name: "Gradient and shift", claim: "The footer's alpha ramp and the highlight shift on the same axis, so the mark brightens and lifts together." },
+  { id: "ladder-hair", name: "On a rule", claim: "Flat gold with a gold hairline beneath it, the masthead treatment. Gives the upper-left a base line the comb can be read against." },
 ];
+
 
 
 /** GHOST - ten. The stage's ghost map is a LUMINANCE-derived mask of the real

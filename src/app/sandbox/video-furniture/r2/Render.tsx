@@ -1101,7 +1101,11 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
             </div>
           </>)
         );
-      case "ladder": {
+      case "ladder":
+    case "ladder-footer":
+    case "ladder-shift":
+    case "ladder-both":
+    case "ladder-hair": {
       // THE OWNER'S COMPOSITION. The comb is the ladder: there is no separate
       // rung list, no "next lesson" line competing with it, and the three
       // end-screen wells are left genuinely empty.
@@ -1116,6 +1120,23 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
       // container with a ResizeObserver and draws nothing at zero, which in a
       // frame-grab pipeline is a render that can screenshot empty.
       const gut = 0.31; // the centre gutter, x 0.29 to 0.60
+      // THE MARK'S TREATMENT, which is the only axis these variants differ on.
+      //
+      // `footer` is the academy footer's own: a 135-degree ALPHA ramp, faint at
+      // the top-left and brightening into the bottom-right. It is a mask, so the
+      // literal colours in it are alpha carriers rather than paint - the RGB
+      // channels are discarded before compositing - which is why a token would be
+      // wrong there rather than merely unnecessary.
+      //
+      // `shift` ramps the FILL from gold to gold-light across the same axis, so
+      // the mark reads as catching light rather than as printed. Both tokens, so
+      // it flips with the theme; a literal pair could not.
+      const wantsGradient = variant === "ladder-footer" || variant === "ladder-both";
+      const wantsShift = variant === "ladder-shift" || variant === "ladder-both";
+      const wantsRule = variant === "ladder-hair";
+      const markMask =
+        "linear-gradient(135deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0.55) 45%, #000 85%)";
+      const shiftId = `mk-${variant}`;
       const ladderCells: CombCell2[] = STAGE_ORDER.map((s, n) => ({
         stage: s as CombCell2["stage"],
         num: String(n + 1).padStart(2, "0"),
@@ -1146,11 +1167,31 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
           >
             <svg
               viewBox={BRANDMARK_VIEWBOX}
-              style={{ width: "100%", height: "auto", display: "block" }}
+              style={{
+                width: "100%",
+                height: "auto",
+                display: "block",
+                ...(wantsGradient
+                  ? { WebkitMaskImage: markMask, maskImage: markMask }
+                  : {}),
+              }}
               aria-hidden
             >
-              <path d={BRANDMARK_PATH} fill={GOLD} />
+              {wantsShift ? (
+                <defs>
+                  <linearGradient id={shiftId} x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor={GOLD} />
+                    <stop offset="100%" stopColor="var(--color-gold-light)" />
+                  </linearGradient>
+                </defs>
+              ) : null}
+              <path d={BRANDMARK_PATH} fill={wantsShift ? `url(#${shiftId})` : GOLD} />
             </svg>
+            {wantsRule ? (
+              <div style={{ width: "100%", marginTop: "2.4cqh" }}>
+                <Hair p={rule} w={0.12} />
+              </div>
+            ) : null}
           </div>
 
           {/* The comb, down the gutter between the reserved wells, and CENTRED IN
@@ -1205,16 +1246,16 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
           <div
             style={{
               position: "absolute",
-              // BOTTOM RIGHT, which also puts it in the one part of the frame
-              // nothing else is using: the wells sit above y 0.87 and the comb
-              // stops at 0.838, so the corner is free without crowding either.
-              right: `${GRAPHICS_SAFE_INSET * 100}cqw`,
-              // Just clear of the player's own control row, which is a CONSTANT
-              // 62 CSS px and therefore eats a bigger share of a small player -
-              // 12.9% in a laptop window, which is the viewer an instructional
-              // channel actually has.
-              bottom: "14cqh",
-              textAlign: "right",
+              left: 0,
+              right: 0,
+              // CENTRED AND LOWER. The comb's run now ends at y 0.838 and
+              // graphics-safe runs to 0.95, so the address sits in the middle of
+              // that band rather than crowding the hexes. It is inside the
+              // player's control row on a small player - that row is a constant
+              // 62 CSS px, so it takes 12.9% of a laptop-window frame - which is
+              // a deliberate trade for the placement, not an oversight.
+              bottom: "7cqh",
+              textAlign: "center",
               opacity: late,
             }}
           >
@@ -1369,7 +1410,11 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
           gutter. Rendering both stacks two compositions in one frame: the mark
           landed on top of the wordmark and the strip repeated, in miniature, the
           thing the comb is already saying at size. */}
-      {variant === "ladder" ? null : graphics_()}
+      {/* Matched by PREFIX, not equality. The suppression was written when
+          `ladder` was one variant; the moment it became a family the exact test
+          silently stopped covering four of the five and the shared block came
+          back on top of the mark. */}
+      {variant.startsWith("ladder") ? null : graphics_()}
       {body()}
     </div>
   );
