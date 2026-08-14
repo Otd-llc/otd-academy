@@ -1356,21 +1356,13 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
                   textAlign: "center",
                 }}
               >
-                <div
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontWeight: 700,
-                    fontSize: ts(1.05),
-                    letterSpacing: "0.22em",
-                    textTransform: "uppercase",
-                    color: FIELD,
-                    background: GOLD,
-                    padding: "0.5cqh 1cqw",
-                    lineHeight: 1,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  node
+                {/* The taken TAB form, with no connector - the leader below is
+                    already doing that job, so a second one would be a stray
+                    rule rather than an attachment. */}
+                <div style={{ position: "relative", height: ts(2.6) }}>
+                  <CalloutLabel x={0} y={0} o={1} from={0}>
+                    node
+                  </CalloutLabel>
                 </div>
                 {/* The value carries its own dark ground, because a gold numeral
                     over a light schematic is the exact failure this set keeps
@@ -1437,9 +1429,7 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
               }}
             />
           ))}
-          <div style={{ position: "absolute", left: `${px * 100 + 9}cqw`, top: `${py * 100 - 16}cqh`, opacity: o * grip }}>
-            <Eyebrow o={o * grip}>ground pour</Eyebrow>
-          </div>
+          <CalloutLabel x={px * 100 + 9} y={py * 100 - 13} o={o * grip}>ground pour</CalloutLabel>
         </>
       ) : null}
 
@@ -1452,7 +1442,11 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
               position: "absolute",
               left: `${px * 100}cqw`,
               top: `${py * 100}cqh`,
-              width: `${grip * (100 - px * 100 - 6)}cqw`,
+              // STOPS AT THE LABEL, not at the frame edge. The leader used to
+              // run the full width and the tab now sits on it, so the line
+              // carried on past the label and out of frame - a pointer that
+              // points through the thing it is pointing with.
+              width: `${grip * 10}cqw`,
               height: hw(0.4),
               background: GOLD,
               boxShadow: `0 0 0 ${hw(0.16)} ${FIELD}`,
@@ -1473,9 +1467,7 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
               opacity: o * grip,
             }}
           />
-          <div style={{ position: "absolute", right: "6cqw", top: `${py * 100 - 6}cqh`, textAlign: "right", opacity: o * grip }}>
-            <Eyebrow o={o * grip}>ground pour</Eyebrow>
-          </div>
+          <CalloutLabel x={px * 100 + 10} y={py * 100 - 3} o={o * grip} from={0}>ground pour</CalloutLabel>
         </>
       ) : null}
 
@@ -1506,37 +1498,6 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
         </div>
       ) : null}
 
-      {kind === "callout" && variant === "__retired" ? (
-        <>
-          {/* Cannot cover what it points at, which is the one thing every other
-              callout risks. */}
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              left: `${px * 100 - 9}cqw`,
-              top: `${py * 100 + 11}cqh`,
-              width: `${grip * 18}cqw`,
-              height: hw(0.45),
-              background: GOLD,
-              boxShadow: `0 0 0 ${hw(0.18)} ${FIELD}`,
-              opacity: o,
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              left: `${px * 100 - 9}cqw`,
-              top: `${py * 100 + 13}cqh`,
-              opacity: o * grip,
-              padding: "0.5cqh 1cqw",
-              background: FIELD,
-            }}
-          >
-            <Eyebrow o={o * grip}>ground pour</Eyebrow>
-          </div>
-        </>
-      ) : null}
 
       {kind === "pause" && variant === "band" ? (
         <div style={{ position: "absolute", left: 0, right: 0, bottom: "16cqh", opacity: o }}>
@@ -1594,34 +1555,7 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
         </>
       ) : null}
 
-      {kind === "beforeafter" && variant === "__cut" ? (
-        <>
-          {/* A step function: one state or the other, never a blend. The
-              cheapest thing in the set to encode. */}
-          <div
-            aria-hidden
-            style={{ position: "absolute", inset: 0, background: FIELD, opacity: t >= 2.0 ? 0 : 0.55 }}
-          />
-          <div style={{ position: "absolute", left: "6cqw", bottom: "12cqh", opacity: o }}>
-            <Eyebrow o={o}>{t >= 2.0 ? "after" : "before"}</Eyebrow>
-          </div>
-        </>
-      ) : null}
 
-      {kind === "beforeafter" && variant === "__toggle" ? (
-        (() => {
-          // Across and back, twice. A pure function of `t` - a triangle wave,
-          // not an oscillator with state.
-          const cycle = clamp01(seg(t, 0.8, 3.4)) * 2;
-          const tri = cycle % 1 < 0.5 ? (cycle % 1) * 2 : 2 - (cycle % 1) * 2;
-          return (
-            <>
-              <div style={{ position: "absolute", inset: 0, clipPath: `inset(0 0 0 ${tri * 100}%)`, background: FIELD, opacity: 0.55 }} aria-hidden />
-              <div aria-hidden style={{ position: "absolute", left: `${tri * 100}cqw`, top: 0, bottom: 0, width: hw(0.16), background: GOLD, opacity: o }} />
-            </>
-          );
-        })()
-      ) : null}
 
       {/* REVEAL - a dissolve, because NOTHING changed except what is being
           shown. A wipe would claim the board turned into its own layer stack. */}
