@@ -2683,6 +2683,12 @@ video[data-loop="light"] {
      heavy as the stage name - the chip was competing with the thing it
      annotates. 3.4cqw puts it under a third, which is the relationship the
      shipped card has on a page. */
-  font-size: clamp(8px, 3.4cqw, 18px);
-  letter-spacing: 0.18em;
+  font-size: clamp(7px, 2.9cqw, 15px);
+  /* THE BOX WAS THE PROBLEM, NOT THE TYPE. Measured on the delivery frame the
+     text was already only 8.6px, but the chip's own em padding and wide tracking
+     made the tag 47px across for about 27px of glyphs - so it read as a heavy
+     lozenge rather than a status mark. Tightening the padding and the tracking
+     takes the box down without taking the type below where it can be read. */
+  padding: 0.2em 0.5em;
+  letter-spacing: 0.1em;
 }
