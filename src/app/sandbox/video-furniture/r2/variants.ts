@@ -22,18 +22,21 @@ export type Variant = { id: string; name: string; claim: string };
  *  The artifact tiles are renders of the actual thing each stage produces, so
  *  the question every variant answers differently is: how much of the frame does
  *  the evidence get, and where does the reading eye start? */
+/** INTRO - the outro's mirror, rebuilt on everything that round settled.
+ *  Same hex, same gutter, same scroll, same trace-and-vise lock. The ONE
+ *  difference is where it lands: the outro travels from the stage just finished
+ *  to the next one, and the intro travels from the stage BEFORE to the one this
+ *  video is about. Arriving is the same gesture as handing over, run backwards.
+ *
+ *  What varies between these is what the run is carrying when it arrives - the
+ *  research round on openings is out, so the treatments here are the ones that
+ *  differ structurally rather than decoratively. */
 export const INTRO: Variant[] = [
-  { id: "right", name: "Right half", claim: "Art owns the right, copy the left, a scrim guaranteeing the column. The safe one - it survives any tile silhouette." },
-  { id: "left", name: "Left half", claim: "Mirrored. Evidence first, then the words. Reads as a document opening on its figure." },
-  { id: "bleed", name: "Bleed", claim: "Art oversized and running off the right edge, copy low-left. Most cinematic; the artifact stops being a thumbnail." },
-  { id: "inset", name: "Inset frame", claim: "Art in a hairline-framed panel beside the copy. The document-index treatment, closest to the guide pages themselves." },
-  { id: "hex", name: "Hex mask", claim: "Art masked into the brand hex. Strongest identity, at the cost of cropping the artifact." },
-  { id: "strip", name: "Strip", claim: "A narrow full-height band of art on the right third. Quietest; leaves the most room for a long title." },
-  { id: "ghost", name: "Ghost", claim: "The stage's GHOST map, huge and faint behind centred copy. The artifact as watermark rather than subject." },
-  { id: "corner", name: "Corner", claim: "Small art top-right, big title bottom-left. Maximum type size - the one to pick if titles are the point." },
-  { id: "stack", name: "Stack", claim: "Art above, rule, title below, centred. The only variant that works unchanged in a square or vertical crop." },
-  { id: "datum", name: "Datum", claim: "A single gold rule crosses the frame and the art sits on it like a part on a bench. Most instrument-like." },
+  { id: "arrive", name: "Arrive", claim: "The mirror, exactly: the run scrolls down from the previous stage and the jaws close on THIS one. Nothing else on screen but the mark and the address. The control." },
+  { id: "arrive-title", name: "Arrive with title", claim: "The same arrival, with the lesson title set beside the comb in the space the outro leaves empty. Says what the video is, not just where it sits." },
+  { id: "arrive-cold", name: "Cold, then arrive", claim: "The comb is already settled on this stage when the frame opens, and only the lock runs. The fastest possible read - nothing travels, so the first frame is already the answer." },
 ];
+
 
 /** SECTION - the REAL honeycombs, not a redrawing.
  *  Two combs exist in the product: the build-guide hub (`.gh-*`, big info hexes

@@ -464,213 +464,126 @@ export function GuideHex({
 // ---- INTRO / ARTIFACT (10) --------------------------------------------------
 
 function Intro({ variant, stage, title, lesson, t }: VProps) {
-  const art = stageArt(stage);
-  const ghost = stageArtGhost(stage);
-  // The slow `push` scale stood here and drove a 3-5% zoom on the artifact
-  // across every intro. Removed: scale is on the forbidden vocabulary, and
-  // coherence (d=0.86, the strongest effect in the report) says decorative
-  // motion is exactly the thing to delete - the push carried no information.
-  // Measured cost at fixed CRF 20, same treatment, 105 frames at 1920x1080:
-  // 1233 kbps with it against 1082 without, so +14.0% of the bitrate bought
-  // nothing. That number is real but modest and is the LAST reason, not the
-  // first. If a frame reads dead without it, the permitted vocabulary already
-  // answers that and these pieces already do it: the gold hairline arriving is
-  // a state change on a stationary element.
-  const rule = outExpo(seg(t, 0.5, 1.5));
-  const words = outCubic(seg(t, 0.75, 1.9));
-  const eye = outCubic(seg(t, 0.3, 1));
-  const dy = (1 - words) * 2;
-  const fade = outCubic(seg(t, 0, 1.2));
-  // No local fade: the frame wrapper owns the exit now, so a variant that also
-  // faded would double the ending and make every exit look like a fade.
-  const out = 1;
+  // THE OUTRO'S MIRROR. Same hex, same gutter, same scroll, same trace-and-vise
+  // lock - and the only difference is where it lands. The outro travels from the
+  // stage just finished to the NEXT one; the intro travels from the stage BEFORE
+  // to the one this video is about. Arriving is handing over, run backwards.
+  //
+  // Everything the outro round settled comes with it rather than being decided
+  // again: sized off the viewport not the column, `show` filling the box with the
+  // window, type cell-relative through `.comb-video`, the wells left empty, the
+  // lock drawn behind the artwork and resting proud of the outline.
+  const i = Math.max(0, STAGE_ORDER.indexOf(stage));
+  const from = Math.max(0, i - 1);
+  const cold = variant === "arrive-cold";
 
-  const art_ = (style: React.CSSProperties) =>
-    art ? (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={art} alt="" style={{ position: "absolute", objectFit: "contain", opacity: 0.92 * fade, ...style }} />
-    ) : null;
+  const inP = outCubic(seg(t, 0, 0.8));
+  const travel = cold ? 1 : outCubic(seg(t, 0.5, 2.1));
+  const landed = from + (i - from) * travel;
+  // The lock closes once the run has arrived. On the cold open there is no
+  // travel, so it closes immediately and the first frame is already the answer.
+  const lockP = outCubic(seg(t, cold ? 0.25 : 2.0, cold ? 1.0 : 2.8));
+  const late = outCubic(seg(t, 1.4, 2.4));
 
-  const scrim = (dir: "l" | "r", strong = false) => (
-    <div
-      data-backdrop
-      style={{
-        position: "absolute",
-        inset: 0,
-        background: strong
-          ? `linear-gradient(${dir === "l" ? "90deg" : "270deg"}, ${FIELD} 42%, color-mix(in oklab, ${FIELD} 88%, transparent) 62%, color-mix(in oklab, ${FIELD} 45%, transparent) 82%)`
-          : `linear-gradient(${dir === "l" ? "90deg" : "270deg"}, ${FIELD} 30%, color-mix(in oklab, ${FIELD} 72%, transparent) 50%, transparent 68%)`,
-      }}
-    />
-  );
+  const cells: CombCell2[] = STAGE_ORDER.map((s, n) => ({
+    stage: s as CombCell2["stage"],
+    num: String(n + 1).padStart(2, "0"),
+    title: STAGE_LABELS[s],
+    lead: "",
+    kind: n < i ? "done" : n === i ? "current" : "pending",
+    statusText: n < i ? "done" : n === i ? "here" : n === i + 1 ? "next" : "locked",
+  }));
 
-  const copy_ = (style: React.CSSProperties, size = 3.4, align: "left" | "center" = "left") => (
-    <div style={{ position: "absolute", textAlign: align, ...style }}>
-      <Eyebrow o={eye}>
-        {lesson} &middot; {STAGE_LABELS[stage]}
-      </Eyebrow>
-      <div style={{ marginTop: "1.5cqh", display: "flex", justifyContent: align === "center" ? "center" : "flex-start" }}>
-        <div style={{ width: align === "center" ? "40%" : "100%" }}>
-          <Hair p={rule} />
-        </div>
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      {/* The mark, in the same well the outro uses, so a viewer meets the same
+          object at both ends of the video. */}
+      <div
+        style={{
+          position: "absolute",
+          left: `${GRAPHICS_16X9.x * 100}cqw`,
+          top: `${GRAPHICS_16X9.y * 100}cqh`,
+          width: `${GRAPHICS_16X9.w * 100}cqw`,
+          height: `${GRAPHICS_16X9.h * 100}cqh`,
+          // A COLUMN, not a centred grid. Both children centred in the same cell
+          // stacked the title straight over the mark. The mark also has to give
+          // ground when a title is present - it cannot hold the whole well and
+          // leave room underneath it.
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: inP,
+        }}
+      >
+        <svg
+          viewBox={BRANDMARK_VIEWBOX}
+          style={{
+            width: variant === "arrive-title" ? "54%" : "100%",
+            height: "auto",
+            display: "block",
+          }}
+          aria-hidden
+        >
+          <defs>
+            <linearGradient id="intro-mk" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor={GOLD} />
+              <stop offset="100%" stopColor="var(--color-gold-light)" />
+            </linearGradient>
+          </defs>
+          <path d={BRANDMARK_PATH} fill="url(#intro-mk)" />
+        </svg>
+        {variant === "arrive-title" ? (
+          <div style={{ marginTop: "2.2cqh", textAlign: "center", opacity: late }}>
+            <Eyebrow o={late}>{lesson}</Eyebrow>
+            <div style={{ marginTop: "1.2cqh" }}>
+              <Title size={2.4} o={late}>
+                {title}
+              </Title>
+            </div>
+          </div>
+        ) : null}
       </div>
-      <div style={{ marginTop: "1.8cqh" }}>
-        <Title size={size} o={words} dy={dy}>
-          {title}
-        </Title>
+
+      <div
+        style={{
+          position: "absolute",
+          left: "30cqw",
+          width: "29cqw",
+          top: 0,
+          height: "100cqh",
+          opacity: inP,
+        }}
+      >
+        <Carousel
+          cells={cells}
+          current={i}
+          centreOn={landed}
+          ghost="veil"
+          veil={{ top: 20, bottom: 70 }}
+          art="art-only"
+          show={4.6}
+          lock="trace-vise"
+          lockP={lockP}
+          video
+        />
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: "7cqh",
+          textAlign: "center",
+          opacity: late,
+        }}
+      >
+        <Eyebrow o={late}>{URL}</Eyebrow>
       </div>
     </div>
   );
-
-  const wrap = (children: React.ReactNode) => (
-    <div style={{ position: "absolute", inset: 0, opacity: out }}>{children}</div>
-  );
-
-  switch (variant) {
-    case "left":
-      return wrap(
-        <>
-          {art_({ left: "-3cqw", top: "50cqh", width: "50cqw", height: "86cqh", transform: "translateY(-50%)" })}
-          {scrim("r")}
-          {copy_({ right: "8cqw", top: "50cqh", width: "44cqw", transform: "translateY(-50%)" })}
-        </>,
-      );
-    case "bleed":
-      return wrap(
-        <>
-          {art_({ right: "-16cqw", top: "44cqh", width: "72cqw", height: "112cqh", transform: "translateY(-50%)" })}
-          {/* DELIBERATE: bleed is the variant where the artifact runs under the
-              type. The scrim is what makes that legible, so it is stronger here
-              and the overlap is declared rather than argued about. */}
-          {scrim("l", true)}
-          {copy_({ left: "7cqw", bottom: "13cqh", width: "44cqw" }, 3.6)}
-        </>,
-      );
-    case "inset":
-      return wrap(
-        <>
-          <div
-            style={{
-              position: "absolute",
-              right: "7cqw",
-              top: "50cqh",
-              transform: "translateY(-50%)",
-              width: "38cqw",
-              height: "70cqh",
-              border: `0.12cqw solid ${HAIR}`,
-              opacity: fade,
-            }}
-          >
-            {art_({ inset: "6%", width: "88%", height: "88%" })}
-          </div>
-          {copy_({ left: "7cqw", top: "50cqh", width: "40cqw", transform: "translateY(-50%)" })}
-        </>,
-      );
-    case "hex":
-      return wrap(
-        <>
-          <div style={{ position: "absolute", right: "9cqw", top: "50cqh", transform: "translateY(-50%)", opacity: fade }}>
-            <div
-              style={{
-                width: "30cqw",
-                height: "34.6cqw",
-                clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
-                position: "relative",
-                background: "color-mix(in oklab, var(--color-gold-dim) 14%, transparent)",
-              }}
-            >
-              {art_({ inset: 0, width: "100%", height: "100%", transform: `scale(1.08)` })}
-            </div>
-          </div>
-          {copy_({ left: "7cqw", top: "50cqh", width: "40cqw", transform: "translateY(-50%)" })}
-        </>,
-      );
-    case "strip":
-      return wrap(
-        <>
-          <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "26cqw", overflow: "hidden", opacity: fade }}>
-            {art_({ inset: 0, width: "100%", height: "100%", transform: `scale(1.25)` })}
-          </div>
-          <div style={{ position: "absolute", right: "26cqw", top: 0, bottom: 0, width: "0.12cqw", background: HAIR, opacity: fade }} />
-          {copy_({ left: "7cqw", top: "50cqh", width: "58cqw", transform: "translateY(-50%)" }, 4.2)}
-        </>,
-      );
-    case "ghost":
-      return wrap(
-        <>
-          {ghost ? (
-            <div
-              data-backdrop
-              style={{
-                position: "absolute",
-                left: "50cqw",
-                top: "50cqh",
-                width: "62cqw",
-                height: "92cqh",
-                transform: "translate(-50%,-50%)",
-                background: GOLD,
-                opacity: 0.16 * fade,
-                WebkitMaskImage: `url(${ghost})`,
-                maskImage: `url(${ghost})`,
-                WebkitMaskSize: "contain",
-                maskSize: "contain",
-                WebkitMaskRepeat: "no-repeat",
-                maskRepeat: "no-repeat",
-                WebkitMaskPosition: "center",
-                maskPosition: "center",
-              }}
-            />
-          ) : null}
-          {copy_({ left: "16cqw", right: "16cqw", top: "50cqh", transform: "translateY(-50%)" }, 3.6, "center")}
-        </>,
-      );
-    case "corner":
-      return wrap(
-        <>
-          {art_({ right: "6cqw", top: "8cqh", width: "26cqw", height: "34cqh" })}
-          {copy_({ left: "7cqw", bottom: "12cqh", width: "62cqw" }, 4.6)}
-        </>,
-      );
-    case "stack":
-      return wrap(
-        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "2cqh" }}>
-          <div style={{ position: "relative", width: "34cqw", height: "34cqh" }}>
-            {art_({ inset: 0, width: "100%", height: "100%" })}
-          </div>
-          <div style={{ width: "26cqw" }}>
-            <Hair p={rule} />
-          </div>
-          <Eyebrow o={eye}>
-            {lesson} &middot; {STAGE_LABELS[stage]}
-          </Eyebrow>
-          <div style={{ maxWidth: "72cqw", textAlign: "center" }}>
-            <Title size={3} o={words} dy={dy}>
-              {title}
-            </Title>
-          </div>
-        </div>,
-      );
-    case "datum":
-      return wrap(
-        <>
-          <div style={{ position: "absolute", left: 0, top: "58cqh", width: `${outExpo(seg(t, 0.2, 1.2)) * 100}%`, height: "0.12cqw", background: "var(--color-gold-dim)" }} />
-          {art_({ right: "8cqw", bottom: "42cqh", width: "34cqw", height: "44cqh" })}
-          {copy_({ left: "8cqw", top: "64cqh", width: "50cqw" }, 3.2)}
-        </>,
-      );
-    case "right":
-    default:
-      return wrap(
-        <>
-          {art_({ right: "-3cqw", top: "50cqh", width: "50cqw", height: "86cqh", transform: "translateY(-50%)" })}
-          {scrim("l")}
-          {copy_({ left: "8cqw", top: "50cqh", width: "44cqw", transform: "translateY(-50%)" })}
-        </>,
-      );
-  }
 }
-
-// ---- SECTION (10) -----------------------------------------------------------
 
 function Section({ variant, stage, t }: VProps) {
   const life = entryP(t, 0, 0.55);
