@@ -82,6 +82,7 @@ export function Carousel({
   video = false,
   show,
   centreOn,
+  complete = false,
   lock = "none",
   lockP = 1,
 }: {
@@ -125,6 +126,17 @@ export function Carousel({
    * run sits on `current`, which is every static case.
    */
   centreOn?: number;
+  /**
+   * The finished state, which the product already owns.
+   *
+   * `.comb-complete` swaps every done cell onto the VERIFIED channel - green
+   * strokes, green chips, a deep-space face - and lifts the artwork's rest
+   * scale. It exists because a comb with nothing current has no focal point
+   * otherwise, and it has a light-theme companion written specifically so the
+   * finished state survives the theme flip. Reaching for it is the difference
+   * between a celebration and a second one invented alongside it.
+   */
+  complete?: boolean;
   /** A target-lock treatment drawn over the cell the run is landing on. */
   lock?: "none" | "reticle" | "scan" | "crosshair" | "trace" | "vise" | "trace-lock" | "trace-vise";
   /** Lock progress, 0 to 1. A pure function of `t` supplied by the caller. */
@@ -190,7 +202,7 @@ export function Carousel({
         })(),
       }}
     >
-      <div className={`gh${video ? " comb-video" : ""}`} style={{ position: "absolute", left: 0, right: 0, top: dy, height }}>
+      <div className={`gh${video ? " comb-video" : ""}${complete ? " comb-complete" : ""}`} style={{ position: "absolute", left: 0, right: 0, top: dy, height }}>
         {measured && solids.length > 0 ? (
           <SpineCombScene
             solids={solids}

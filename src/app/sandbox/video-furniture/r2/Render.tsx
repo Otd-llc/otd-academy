@@ -1160,7 +1160,13 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
       const detented = false;
       const raw = outCubic(seg(t, 0.9, 2.6));
       const STOPS = 8;
-      const travel = detented ? Math.round(raw * STOPS) / STOPS : raw;
+      // THE LAST STAGE HAS NOWHERE TO HAND OVER TO, and that is the ending
+      // rather than a gap to fill. Owner's call: let it end. So the run does not
+      // travel, every cell goes done, and the comb switches to the product's own
+      // finished state - green strokes, green chips - which exists precisely
+      // because a comb with nothing current has no focal point otherwise.
+      const finale = i >= STAGE_ORDER.length - 1;
+      const travel = finale ? 0 : detented ? Math.round(raw * STOPS) / STOPS : raw;
       // The lock closes AFTER the run has arrived, not during: a reticle that
       // grips a moving target is a reticle that has not locked onto anything.
       const lockP = outCubic(seg(t, 2.5, 3.3));
@@ -1168,14 +1174,20 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
       const landed = i + Math.min(1, i + 1 <= STAGE_ORDER.length - 1 ? 1 : 0) * travel;
       // The finished cell is marked done AS THE RUN PASSES IT, not at t=0 and not
       // at the end: the mark is the event the scroll exists to deliver.
-      const doneAt = travel >= 0.55;
+      const doneAt = finale ? outCubic(seg(t, 0.9, 2.2)) >= 0.5 : travel >= 0.55;
       const ladderCells: CombCell2[] = STAGE_ORDER.map((s, n) => ({
         stage: s as CombCell2["stage"],
         num: String(n + 1).padStart(2, "0"),
         title: STAGE_LABELS[s],
         lead: "",
         kind:
-          n < i
+          finale
+            ? doneAt
+              ? "done"
+              : n < i
+                ? "done"
+                : "current"
+            : n < i
             ? "done"
             : n === i
               ? doneAt
@@ -1189,7 +1201,13 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
         // label - which makes the word meaningless exactly where the whole
         // composition is trying to point.
         statusText:
-          n < i
+          finale
+            ? doneAt
+              ? "done"
+              : n < i
+                ? "done"
+                : "here"
+            : n < i
             ? "done"
             : n === i
               ? doneAt
@@ -1286,8 +1304,9 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
               cells={ladderCells}
               // The WINDOW follows the landing cell so the run settles with the
               // next stage lit and centred; the POSITION is continuous.
-              current={Math.min(i + 1, STAGE_ORDER.length - 1)}
-              centreOn={landed}
+              current={finale ? i : Math.min(i + 1, STAGE_ORDER.length - 1)}
+              centreOn={finale ? i : landed}
+              complete={finale && doneAt}
               lock={lockKind}
               lockP={lockP}
               ghost="veil"
