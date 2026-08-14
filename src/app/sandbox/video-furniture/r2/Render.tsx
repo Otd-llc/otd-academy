@@ -482,6 +482,92 @@ const STAGE_PARTS: Partial<Record<string, string[]>> = {
   BRINGUP: ["Rail check", "Continuity", "First light"],
 };
 
+/**
+ * The nouns, five ways.
+ *
+ * One component rather than five branches inside the intro, because what varies
+ * between the options is entirely the PRESENTATION of the same three names -
+ * and putting that in one place is what stops "manifest" and "held" drifting
+ * into two different type scales.
+ */
+function PartNames({
+  stage,
+  p,
+  t,
+  stepped,
+  numbered,
+  titled,
+  centre,
+}: {
+  stage: Stage;
+  p: number;
+  t: number;
+  stepped?: boolean;
+  numbered?: boolean;
+  titled?: boolean;
+  centre?: boolean;
+}) {
+  const names = STAGE_PARTS[stage] ?? [];
+  // STEPPED lands one noun a beat, each on a CUT rather than a fade: a step
+  // function of `t`, which is the permitted state change and which also means
+  // every frame between two names is one picture or the other, never a blur.
+  const shown = (n: number) => (stepped ? (t >= 1.0 + n * 0.5 ? 1 : 0) : p);
+  return (
+    <div style={{ marginTop: centre ? 0 : "3cqh", textAlign: centre ? "center" : "left", opacity: stepped ? 1 : p }}>
+      {titled ? (
+        <div style={{ marginBottom: "1.4cqh", opacity: p }}>
+          <Title size={2.6} o={p}>
+            {STAGE_LABELS[stage]}
+          </Title>
+        </div>
+      ) : null}
+      <Eyebrow o={stepped ? 1 : p}>{titled ? "in this stage" : "in this stage"}</Eyebrow>
+      <div style={{ marginTop: "1.6cqh" }}>
+        {names.map((n, k) => (
+          <div
+            key={n}
+            style={{
+              marginTop: "0.9cqh",
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: centre ? "center" : "flex-start",
+              gap: "1.1cqw",
+              opacity: shown(k),
+            }}
+          >
+            {numbered ? (
+              <>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: ts(1.1),
+                    letterSpacing: "0.2em",
+                    color: GOLD,
+                  }}
+                >
+                  {String(k + 1).padStart(2, "0")}
+                </span>
+                <span style={{ flex: centre ? "0 0 auto" : 1, height: hw(0.1), background: HAIR, alignSelf: "center", minWidth: centre ? "2cqw" : undefined }} />
+              </>
+            ) : null}
+            <span
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: ts(numbered ? 1.9 : 2.1),
+                color: TITLE,
+                lineHeight: 1.15,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {n}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Intro({ variant, stage, title, lesson, t }: VProps) {
   // THE OUTRO'S MIRROR. Same hex, same gutter, same scroll, same trace-and-vise
   // lock - and the only difference is where it lands. The outro travels from the
@@ -494,7 +580,12 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
   // lock drawn behind the artwork and resting proud of the outline.
   const i = Math.max(0, STAGE_ORDER.indexOf(stage));
   const from = Math.max(0, i - 1);
-  const cold = variant === "arrive-cold";
+  // Every option now names the parts; what differs is how they are presented.
+  const centre = variant === "parts-centre";
+  const stepped = variant === "parts-step";
+  const numbered = variant === "parts-numbered";
+  const titled = variant === "parts-titled";
+  const cold = false;
 
   const inP = outCubic(seg(t, 0, 0.8));
   const travel = cold ? 1 : outCubic(seg(t, 0.5, 2.1));
@@ -540,7 +631,7 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
         <svg
           viewBox={BRANDMARK_VIEWBOX}
           style={{
-            width: variant === "arrive-title" || variant === "arrive-parts" ? "46%" : "100%",
+            width: centre ? "100%" : "46%",
             height: "auto",
             display: "block",
           }}
@@ -554,43 +645,13 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
           </defs>
           <path d={BRANDMARK_PATH} fill="url(#intro-mk)" />
         </svg>
-        {/* PRE-TRAINING. Three nouns, held. This block is deliberately the
-            SLOWEST, most static object in the opening: a list of names is
-            verbal-propositional in the purest form, and fast-cut grammar raises
-            visual memory while LOWERING verbal memory. So the names arrive on one
-            unhurried dissolve, together, and then do not move again - even if
-            everything around them is quick. */}
-        {variant === "arrive-parts" ? (
-          <div style={{ marginTop: "3cqh", textAlign: "center", opacity: parts }}>
-            <Eyebrow o={parts}>in this stage</Eyebrow>
-            <div style={{ marginTop: "1.6cqh" }}>
-              {(STAGE_PARTS[stage] ?? []).map((n) => (
-                <div key={n} style={{ marginTop: "0.9cqh" }}>
-                  <span
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: ts(2.1),
-                      color: TITLE,
-                      lineHeight: 1.15,
-                    }}
-                  >
-                    {n}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        {variant === "arrive-title" ? (
-          <div style={{ marginTop: "2.2cqh", textAlign: "center", opacity: late }}>
-            <Eyebrow o={late}>{lesson}</Eyebrow>
-            <div style={{ marginTop: "1.2cqh" }}>
-              <Title size={2.4} o={late}>
-                {title}
-              </Title>
-            </div>
-          </div>
-        ) : null}
+        {/* PRE-TRAINING. The nouns.
+            This block is deliberately the SLOWEST object in the opening: a list
+            of names is verbal-propositional in the purest form, and fast-cut
+            grammar raises visual memory while LOWERING verbal memory. `held` is
+            therefore the option the evidence endorses, and `stepped` is the one
+            that has to justify the motion it spends. */}
+        {!centre ? <PartNames stage={stage} p={parts} t={t} stepped={stepped} numbered={numbered} titled={titled} /> : null}
       </div>
 
       <div
@@ -616,6 +677,12 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
           video
         />
       </div>
+
+      {centre ? (
+        <div style={{ position: "absolute", left: "8cqw", right: "8cqw", bottom: "16cqh", opacity: parts }}>
+          <PartNames stage={stage} p={parts} t={t} stepped={stepped} numbered={numbered} titled={titled} centre />
+        </div>
+      ) : null}
 
       <div
         style={{

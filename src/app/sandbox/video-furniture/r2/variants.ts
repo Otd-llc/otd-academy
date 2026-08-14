@@ -18,25 +18,24 @@
 
 export type Variant = { id: string; name: string; claim: string };
 
-/** INTRO / ARTIFACT - ten ways to put the real stage artifact against a title.
- *  The artifact tiles are renders of the actual thing each stage produces, so
- *  the question every variant answers differently is: how much of the frame does
- *  the evidence get, and where does the reading eye start? */
-/** INTRO - the outro's mirror, rebuilt on everything that round settled.
- *  Same hex, same gutter, same scroll, same trace-and-vise lock. The ONE
- *  difference is where it lands: the outro travels from the stage just finished
- *  to the next one, and the intro travels from the stage BEFORE to the one this
- *  video is about. Arriving is the same gesture as handing over, run backwards.
+/** INTRO / NAME THE PARTS - taken. The comb arrives on the current stage and
+ *  three nouns name what it teaches.
  *
- *  What varies between these is what the run is carrying when it arrives - the
- *  research round on openings is out, so the treatments here are the ones that
- *  differ structurally rather than decoratively. */
+ *  Pre-training is the largest opening effect available (median d = 0.75,
+ *  against signalling 0.70 and segmenting 0.67) and the only one that is
+ *  specifically an opening device. So the direction is settled; what these
+ *  audition is HOW the names are presented, which is where the second finding
+ *  bites: a list of names is verbal-propositional in the purest form, and
+ *  fast-cut grammar raises visual memory while LOWERING verbal memory. Every
+ *  option below has to answer for the motion it spends on the naming block. */
 export const INTRO: Variant[] = [
-  { id: "arrive", name: "Arrive", claim: "The mirror, exactly: the run scrolls down from the previous stage and the jaws close on THIS one. Nothing else on screen but the mark and the address. The control." },
-  { id: "arrive-title", name: "Arrive with title", claim: "The same arrival, with the lesson title set beside the comb in the space the outro leaves empty. Says what the video is, not just where it sits." },
-  { id: "arrive-parts", name: "Name the parts", claim: "The evidence-backed one. Pre-training is d=0.75 - larger than signalling or segmenting, and the only one of the three that is specifically an opening device. Three nouns, held and static, before any process is shown. It is a hook, a pre-training treatment and a signalling frame at once." },
-  { id: "arrive-cold", name: "Cold, then arrive", claim: "The comb is already settled on this stage when the frame opens, and only the lock runs. The fastest possible read - nothing travels, so the first frame is already the answer." },
+  { id: "parts-hold", name: "Held", claim: "All three arrive together on one unhurried dissolve and never move again. The control, and the option the verbal-memory finding most obviously endorses." },
+  { id: "parts-step", name: "Stepped", claim: "One noun a beat, each landing on a cut and then holding. Reads as a list being set down rather than appearing - at the cost of motion on the one block the evidence says to keep still. Worth seeing before it is ruled out." },
+  { id: "parts-numbered", name: "Manifest", claim: "The same three, numbered in mono and hung on a rule. Reads as a parts list rather than a title stack, which is what it literally is." },
+  { id: "parts-titled", name: "Stage and parts", claim: "The stage name above the nouns, so the frame says where you are AND what is in it. The most information, and the busiest." },
+  { id: "parts-centre", name: "Under the comb", claim: "Names centred beneath the comb instead of beside it, full width. Frees the left well for the mark alone and puts the nouns on the reading axis." },
 ];
+
 
 
 /** SECTION - the REAL honeycombs, not a redrawing.
