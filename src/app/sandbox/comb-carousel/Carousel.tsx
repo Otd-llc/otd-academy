@@ -23,7 +23,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { SpineCombScene } from "@/components/guide/SpineCombScene";
 import { StageTile } from "@/components/guide/GuideHoneycomb";
 import type { GuideStage } from "@/lib/guide-templates/stage-skeletons";
-import { placeSpine, projectSpine, spineStroke, SPINE_CLIP, SPINE_MAX_CELL } from "@/lib/comb-spine";
+import { placeSpine, projectSpine, spineStroke, SPINE_CLIP, SPINE_MAX_CELL, SPINE_UNIT_CORNERS } from "@/lib/comb-spine";
 import { combWindow, centreOffset, fitWindowCell, ghostAlpha, isLit } from "@/lib/comb-carousel";
 
 const GOLD_TOK = "var(--color-command-gold)";
@@ -126,7 +126,7 @@ export function Carousel({
    */
   centreOn?: number;
   /** A target-lock treatment drawn over the cell the run is landing on. */
-  lock?: "none" | "reticle" | "scan" | "corners";
+  lock?: "none" | "reticle" | "scan" | "crosshair" | "trace" | "vise";
   /** Lock progress, 0 to 1. A pure function of `t` supplied by the caller. */
   lockP?: number;
 }) {
@@ -265,33 +265,30 @@ export function Carousel({
           ? (() => {
               const b = boxes[win.current];
               if (!b) return null;
-              // Converges from outside the cell onto its edge. A pure lerp on an
-              // eased `p`, so it seeks; nothing springs and nothing overshoots,
-              // both of which are on the forbidden list.
-              const out = (1 - lockP) * b.w * 0.42;
-              const armW = b.w * 0.26;
-              const armH = b.h * 0.22;
-              // Same helper the prisms stroke with, so the reticle is the same
-              // weight as the comb it is gripping at every cell size, and it
-              // carries the codec floor with it.
-              const wgt = `${Math.max(2, spineStroke("face", b.w) * 1.15)}px`;
-              const arm = (x: number, y: number, hFlip: boolean, vFlip: boolean) => (
-                <div
-                  key={`${x}-${y}`}
-                  style={{
-                    position: "absolute",
-                    left: x,
-                    top: y,
-                    width: armW,
-                    height: armH,
-                    borderTop: vFlip ? undefined : `${wgt} solid ${GOLD_TOK}`,
-                    borderBottom: vFlip ? `${wgt} solid ${GOLD_TOK}` : undefined,
-                    borderLeft: hFlip ? undefined : `${wgt} solid ${GOLD_TOK}`,
-                    borderRight: hFlip ? `${wgt} solid ${GOLD_TOK}` : undefined,
-                    opacity: lockP,
-                  }}
-                />
-              );
+              // CONVERGES AS A HEX, because the thing it is gripping is one.
+              // Square brackets on a hexagonal comb read as a crop marquee from
+              // some other application; the lock has to be cut from the same six
+              // corners the cell is, which is why it uses `SPINE_UNIT_CORNERS`
+              // rather than a shape of its own.
+              //
+              // The bracket EFFECT comes from a dash pattern rather than from six
+              // separately positioned arms: `pathLength` normalises the outline to
+              // 600 regardless of cell size, so six dashes at a 100 interval land
+              // one per edge and the gaps sit on the vertices. That also means the
+              // gripped shape and the drawn shape can never disagree.
+              const cx = b.left + b.w / 2;
+              const cy = b.top + b.h / 2;
+              const ptsAt = (g: number) =>
+                SPINE_UNIT_CORNERS.map(([ux, uy]) => {
+                  const x = b.left + ux * b.w;
+                  const y = b.top + uy * b.h;
+                  return `${(cx + (x - cx) * g).toFixed(2)},${(cy + (y - cy) * g).toFixed(2)}`;
+                }).join(" ");
+              // `vise` closes from further out, so the two halves are seen to
+              // travel rather than simply resolving.
+              const grow = 1 + (1 - lockP) * (lock === "vise" ? 0.9 : 0.38);
+              const pts = ptsAt(grow);
+              const wgt = Math.max(2, spineStroke("face", b.w) * 1.15);
               return (
                 <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 7 }}>
                   {lock === "scan" ? (
@@ -307,13 +304,46 @@ export function Carousel({
                       }}
                     />
                   ) : null}
-                  {(lock === "reticle" || lock === "corners" || lock === "scan") ? (
+                  {/* CROSSHAIR - two hairlines run in from the frame edges and
+                      stop on the cell's own centre. Nothing surrounds the hex;
+                      the frame points at it. */}
+                  {lock === "crosshair" ? (
                     <>
-                      {arm(b.left - out, b.top - out, false, false)}
-                      {arm(b.left + b.w - armW + out, b.top - out, true, false)}
-                      {arm(b.left - out, b.top + b.h - armH + out, false, true)}
-                      {arm(b.left + b.w - armW + out, b.top + b.h - armH + out, true, true)}
+                      <div style={{ position: "absolute", left: 0, top: cy - wgt / 2, width: (b.left + b.w / 2) * lockP, height: wgt, background: GOLD_TOK, opacity: lockP }} />
+                      <div style={{ position: "absolute", right: 0, top: cy - wgt / 2, width: (cwEff - b.left - b.w / 2) * lockP, height: wgt, background: GOLD_TOK, opacity: lockP }} />
+                      <div style={{ position: "absolute", left: cx - wgt / 2, top: 0, height: (b.top + b.h / 2) * lockP, width: wgt, background: GOLD_TOK, opacity: lockP }} />
                     </>
+                  ) : null}
+                  {lock === "reticle" || lock === "scan" || lock === "trace" || lock === "vise" ? (
+                    <svg
+                      viewBox={`0 0 ${cwEff} ${height}`}
+                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+                      aria-hidden
+                    >
+                      {/* TRACE draws the outline ONCE around the perimeter and
+                          holds it - the hex is described rather than clamped.
+                          VISE closes two half-hex brackets in from left and
+                          right. RETICLE and SCAN keep the six corner brackets.
+                          One polygon, three dash regimes: the shape can never
+                          disagree with itself. */}
+                      <polygon
+                        points={lock === "trace" ? ptsAt(1) : pts}
+                        fill="none"
+                        stroke={GOLD_TOK}
+                        strokeWidth={wgt}
+                        strokeLinecap={lock === "trace" ? "round" : "square"}
+                        pathLength={600}
+                        strokeDasharray={
+                          lock === "trace"
+                            ? `${600 * lockP} 600`
+                            : lock === "vise"
+                              ? "150 150"
+                              : "34 66"
+                        }
+                        strokeDashoffset={lock === "trace" ? 0 : lock === "vise" ? -75 : -17}
+                        opacity={lock === "trace" ? 1 : lockP}
+                      />
+                    </svg>
                   ) : null}
                 </div>
               );

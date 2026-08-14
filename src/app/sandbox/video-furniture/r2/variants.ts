@@ -87,13 +87,20 @@ export const LOWER: Variant[] = [
  *  mechanism rather than a flourish, and none of them springs or overshoots -
  *  both are on the forbidden list, and a detent is a step function anyway,
  *  which is what makes it read as mechanical rather than as easing. */
+/** OUTRO / LADDER - the composition is settled; what varies is HOW IT ACQUIRES.
+ *  Six DIFFERENT mechanisms, not one dressed six ways. Every one is cut from the
+ *  comb's own six corners rather than a shape of its own - square brackets on a
+ *  hexagonal comb read as a crop marquee from some other application - and none
+ *  springs or overshoots, both being on the forbidden list. */
 export const OUTRO: Variant[] = [
-  { id: "ladder-both", name: "Smooth", claim: "One eased ramp from the finished stage to the next. The control: no mechanism, just travel." },
-  { id: "ladder-detent", name: "Detent", claim: "The run advances in discrete steps rather than gliding - quantised to eighths of a cell, so it clicks its way across like a knob finding its stops. A step function, so it seeks exactly." },
-  { id: "ladder-reticle", name: "Target lock", claim: "Smooth travel, then four corner brackets converge from outside the hex onto its edge and hold. The comb is scanned and then gripped." },
-  { id: "ladder-scan", name: "Scan and lock", claim: "A gold line sweeps down the landing hex as the brackets close on it. The reticle acquires rather than simply appearing." },
-  { id: "ladder-snap", name: "Detent and lock", claim: "Both mechanisms at once: it clicks across on detents and the brackets grip on the last one. The most instrument-like of the five, and the busiest." },
+  { id: "ladder-both", name: "Smooth", claim: "One eased ramp to the next stage and nothing else. The control: travel, no acquisition." },
+  { id: "ladder-detent", name: "Detent", claim: "The run quantised to eighths of a cell, so it clicks across like a knob finding its stops. The mechanism is in the MOVEMENT; nothing is drawn." },
+  { id: "ladder-reticle", name: "Corner brackets", claim: "Six brackets converge from outside onto the hex's own vertices and hold. The comb is gripped." },
+  { id: "ladder-vise", name: "Vise", claim: "Two half-hex brackets travel in from left and right and close on the cell. Reads as something being seated rather than something being sighted." },
+  { id: "ladder-trace", name: "Trace", claim: "The outline draws itself once around the perimeter and stays. The hex is described rather than clamped - the quietest of the six." },
+  { id: "ladder-crosshair", name: "Crosshair", claim: "Two hairlines run in from the frame edges and stop dead on the cell's centre. Nothing surrounds the hex; the frame points at it." },
 ];
+
 
 
 
