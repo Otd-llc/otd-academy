@@ -137,14 +137,26 @@ export const CHAPTER: Variant[] = [
 /** INTRO / SHORT - wash is the direction. The mark owns the field without ever
  *  competing to be read. These vary where it sits, how much of it is in frame,
  *  and - the half worth a round - what it is made OF. */
+/** INTRO / SHORT - wash is the direction, and the grid is the interesting half.
+ *
+ *  THE LIFECYCLE, which is the point: for most of its life this IS the plain
+ *  wash - a solid mark, faint, owning the field. Only at the end does it
+ *  abstract, resolving into a hex lattice whose cells then discharge away down
+ *  the grid and vanish. The transition is the mark taking itself apart.
+ *
+ *  ON THE VOCABULARY. "animated lattice" is on the forbidden list, and this is
+ *  one - flagged rather than quietly built past. The ban targets the ambient
+ *  pulsing node-graphic that runs under an entire AI-tech video as decoration;
+ *  this fires ONCE, as an exit, and is over. That is a judgement about intent
+ *  rather than a loophole, and it should be overturned if it reads as the
+ *  cliche the ban exists to prevent. */
 export const INTRO_SHORT: Variant[] = [
-  { id: "wash", name: "Wash", claim: "The control: enormous, faint, bled off the top and left. The field stops being empty and nothing competes with the question." },
-  { id: "wash-right", name: "Mirrored", claim: "Flipped to the right so the copy owns the left and the reading eye starts on words rather than on a wing." },
-  { id: "wash-crop", name: "Detail", claim: "Cropped so hard that only the abdomen bands are in frame. Stops reading as a bee and starts reading as texture - identity by pattern rather than by logo." },
-  { id: "wash-negative", name: "Negative", claim: "The mark CUT OUT of a gold field rather than drawn on a dark one. A hole in the light: the opposite gesture, and the most confident thing here." },
-  { id: "wash-grid", name: "Grid inside", claim: "Engineering paper visible ONLY inside the mark's silhouette. Two house signatures made into one object rather than layered - the field is the brand and the brand is the field." },
-  { id: "wash-bands", name: "Bands", claim: "Only the abdomen stripes, huge, spanning the frame as horizontal rules. The mark reduced to the hairline language everything else is built from - a logo you cannot quite see but can definitely recognise." },
+  { id: "wash", name: "Wash", claim: "The control: enormous, faint, bled off the top and left. No lattice at all - the baseline the others have to beat." },
+  { id: "hexgrid-fine", name: "Hex lattice, fine", claim: "Solid for most of its life, then resolves into a fine hex lattice and discharges away. Finest cell: reads as texture dissolving rather than as a diagram." },
+  { id: "hexgrid-mid", name: "Hex lattice, medium", claim: "The same at a mid cell size, where individual cells are legible AS hexes - the brand shape doing the abstracting rather than an anonymous mesh." },
+  { id: "hexgrid-coarse", name: "Hex lattice, coarse", claim: "Few, large cells. The most graphic and the cheapest to encode; closest to the honeycomb the rest of the system is built from." },
 ];
+
 
 
 

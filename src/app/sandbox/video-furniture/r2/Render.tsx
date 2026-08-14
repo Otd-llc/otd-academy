@@ -609,6 +609,111 @@ const STAGE_QUESTION: Partial<Record<string, string>> = {
  * The work surface below is a stand-in, and it is deliberately BUSY. Auditioning
  * an annotation over a bare field would audition the thing that never happens.
  */
+/**
+ * THE MARK, TAKING ITSELF APART.
+ *
+ * For most of its life it is the plain wash: a solid silhouette, faint, owning
+ * the field. Then it resolves into a hex lattice and the cells discharge away
+ * down the grid and vanish.
+ *
+ * EVERY CELL IS A PURE FUNCTION OF `t` AND ITS OWN INDEX. There is no particle
+ * system and no simulation - a cell's delay comes from its position, so the
+ * whole lattice is reproducible at any seek and a frame at t=2.4 is the same
+ * picture every time it is asked for. That is what lets it ship in a set whose
+ * first rule is scrub-never-play.
+ *
+ * The discharge runs DOWN AND RIGHT, on the lattice's own axes rather than on
+ * the frame's, so the cells travel along the grid instead of across it.
+ */
+function HexLattice({ cell, t, o }: { cell: number; t: number; o: number }) {
+  // Phases, in scene seconds. Solid, then outline, then discharge.
+  const dissolve = outCubic(seg(t, 2.0, 2.6));
+  const discharge = outCubic(seg(t, 2.5, 3.4));
+
+  const W = 100;
+  const H = 100;
+  const rx = cell;
+  const ry = cell * 1.1547;
+  const cols = Math.ceil(W / (rx * 1.5)) + 2;
+  const rows = Math.ceil(H / ry) + 2;
+
+  const cells: { x: number; y: number; d: number }[] = [];
+  for (let c = 0; c < cols; c += 1) {
+    for (let r = 0; r < rows; r += 1) {
+      const x = c * rx * 1.5;
+      const y = r * ry + (c % 2 ? ry / 2 : 0);
+      // The delay is the cell's own position, so the discharge sweeps rather
+      // than firing at once - and it is deterministic, which a random seed
+      // would not be.
+      cells.push({ x, y, d: (x / W) * 0.55 + (y / H) * 0.45 });
+    }
+  }
+
+  const hex = (x: number, y: number) =>
+    [
+      [x, y - ry / 2],
+      [x + rx / 2, y - ry / 4],
+      [x + rx / 2, y + ry / 4],
+      [x, y + ry / 2],
+      [x - rx / 2, y + ry / 4],
+      [x - rx / 2, y - ry / 4],
+    ]
+      .map(([a, b]) => a.toFixed(2) + "," + b.toFixed(2))
+      .join(" ");
+
+  return (
+    // SLICE, NOT NONE. A square viewBox stretched over a 16:9 frame shears every
+    // cell into a zigzag - the lattice rendered as chevrons rather than hexes on
+    // the first attempt. Slicing keeps the cells regular and lets the grid
+    // overflow instead, which is what a wash wants anyway.
+    <svg
+      viewBox="0 0 100 100"
+      preserveAspectRatio="xMidYMid slice"
+      style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+      aria-hidden
+    >
+      <defs>
+        <mask id="hexwash-mask">
+          <rect x="0" y="0" width="100" height="100" fill="black" />
+          <svg x="-14" y="-10" width="88" height="126" viewBox={BRANDMARK_VIEWBOX} preserveAspectRatio="xMidYMid meet">
+            <path d={BRANDMARK_PATH} fill="white" />
+          </svg>
+        </mask>
+      </defs>
+
+      {/* THE SOLID. Present for most of the piece, gone by the time the lattice
+          has resolved - the two never both read as the subject. */}
+      <g mask="url(#hexwash-mask)" opacity={o * (1 - dissolve)}>
+        <rect x="0" y="0" width="100" height="100" fill={GOLD} opacity={0.09} />
+      </g>
+
+      {/* THE LATTICE. Masked by the same silhouette, so the cells only exist
+          where the mark is - the grid is the mark rather than a grid over it. */}
+      <g mask="url(#hexwash-mask)">
+        {cells.map((c, k) => {
+          // Each cell's own progress through the discharge, delayed by where it
+          // is. Clamped, so a cell is never asked for a negative phase.
+          const p = clamp01((discharge - c.d) / 0.45);
+          if (dissolve <= 0) return null;
+          const dx = p * 26;
+          const dy = p * 14;
+          return (
+            <polygon
+              key={k}
+              points={hex(c.x + dx, c.y + dy)}
+              fill="none"
+              stroke={GOLD}
+              strokeWidth={0.28}
+              vectorEffect="non-scaling-stroke"
+              opacity={o * dissolve * (1 - p) * 0.5}
+            />
+          );
+        })}
+      </g>
+    </svg>
+  );
+}
+
 function Annotate({ variant, stage, t }: VProps) {
   const art = stageArt(stage);
   const inP = outCubic(seg(t, 0.3, 1.0));
@@ -843,7 +948,7 @@ function IntroShort({ variant, stage, t, aspect = 16 / 9 }: VProps) {
   // and - the half worth a round - what it is made of. Every option is the same
   // drawing at the same faintness; none may become a second logo competing with
   // the question for the eye.
-  const wash = variant.replace("wash-", "").replace("wash", "") || "plain";
+  const wash = variant === "wash" ? "plain" : variant;
   // The vertical is composed, not reflowed.
   const stacked = tall;
   const MARK_SVG =
@@ -860,95 +965,33 @@ function IntroShort({ variant, stage, t, aspect = 16 / 9 }: VProps) {
   // Where the words go, given how much room the mark is taking.
   const copyTop = stacked ? "16cqh" : "22cqh";
   const copyLeft = "8cqw";
-  const copyRight = stacked ? "8cqw" : wash === "right" ? "42cqw" : "34cqw";
+  const copyRight = stacked ? "8cqw" : "34cqw";
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      {/* BANDS - the abdomen stripes only, spanning the frame. The mark
-          reduced to the hairline language the rest of the set is built from. */}
-      {wash === "bands" ? (
-        <div style={{ position: "absolute", inset: 0, opacity: 0.15 * inP, overflow: "hidden" }} aria-hidden>
-          {[0, 1, 2, 3].map((k) => (
-            <div
-              key={k}
-              style={{
-                position: "absolute",
-                left: "-6cqw",
-                right: "-6cqw",
-                top: `${28 + k * 14}cqh`,
-                height: `${3.4 - k * 0.4}cqh`,
-                background: GOLD,
-                borderRadius: "50%",
-              }}
-            />
-          ))}
-        </div>
-      ) : null}
-
-      {/* NEGATIVE - a hole in the light rather than a drawing on the dark. */}
-      {wash === "negative" ? (
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            inset: 0,
-            opacity: 0.14 * inP,
-            background: GOLD,
-            WebkitMaskImage: `linear-gradient(#000,#000), ${MARK_SVG}`,
-            maskImage: `linear-gradient(#000,#000), ${MARK_SVG}`,
-            WebkitMaskComposite: "xor",
-            maskComposite: "exclude",
-            WebkitMaskSize: "auto, 78cqw",
-            maskSize: "auto, 78cqw",
-            WebkitMaskPosition: "center, 8cqw -6cqh",
-            maskPosition: "center, 8cqw -6cqh",
-            WebkitMaskRepeat: "no-repeat, no-repeat",
-            maskRepeat: "no-repeat, no-repeat",
-          }}
+      {wash.startsWith("hexgrid") ? (
+        <HexLattice
+          cell={wash === "hexgrid-fine" ? 2.6 : wash === "hexgrid-coarse" ? 7.5 : 4.6}
+          t={t}
+          o={inP}
         />
-      ) : null}
-
-      {/* GRID INSIDE - engineering paper, visible only within the silhouette. */}
-      {wash === "grid" ? (
+      ) : (
         <div
           aria-hidden
           style={{
             position: "absolute",
-            left: "-14cqw",
-            top: "-10cqh",
-            width: "88cqw",
-            height: "126cqh",
-            opacity: 0.55 * inP,
-            backgroundImage: `linear-gradient(to right, ${GOLD} ${hw(0.05)}, transparent ${hw(0.05)}), linear-gradient(to bottom, ${GOLD} ${hw(0.05)}, transparent ${hw(0.05)})`,
-            backgroundSize: "2.6cqw 2.6cqw",
-            WebkitMaskImage: MARK_SVG,
-            maskImage: MARK_SVG,
-            WebkitMaskSize: "contain",
-            maskSize: "contain",
-            WebkitMaskRepeat: "no-repeat",
-            maskRepeat: "no-repeat",
-          }}
-        />
-      ) : null}
-
-      {wash === "plain" || wash === "right" || wash === "crop" ? (
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
+            left: "-18cqw",
+            top: "-14cqh",
+            width: "92cqw",
+            height: "128cqh",
             opacity: 0.07 * inP,
-            ...(wash === "right"
-              ? { right: "-18cqw", top: "-14cqh", width: "92cqw", height: "128cqh", transform: "scaleX(-1)" }
-              : wash === "crop"
-                ? { left: "-34cqw", top: "16cqh", width: "180cqw", height: "160cqh" }
-                : { left: "-18cqw", top: "-14cqh", width: "92cqw", height: "128cqh" }),
           }}
         >
           <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
             <path d={BRANDMARK_PATH} fill={GOLD} />
           </svg>
         </div>
-      ) : null}
+      )}
 
       <div style={{ position: "absolute", left: copyLeft, right: copyRight, top: copyTop, opacity: inP }}>
         <Eyebrow o={inP}>the question</Eyebrow>
