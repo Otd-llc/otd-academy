@@ -98,6 +98,7 @@ export const OUTRO: Variant[] = [
   { id: "ladder-reticle", name: "Corner brackets", claim: "Six brackets converge from outside onto the hex's own vertices and hold. The comb is gripped." },
   { id: "ladder-vise", name: "Vise", claim: "Two half-hex brackets travel in from left and right and close on the cell. Reads as something being seated rather than something being sighted." },
   { id: "ladder-trace", name: "Trace", claim: "The outline draws itself once around the perimeter and stays. The hex is described rather than clamped - the quietest of the six." },
+  { id: "ladder-trace-lock", name: "Trace and grip", claim: "Both, in sequence: the outline draws itself around the hex, then the six brackets converge onto it. Find, then take hold - rather than two effects sharing a frame." },
   { id: "ladder-crosshair", name: "Crosshair", claim: "Two hairlines run in from the frame edges and stop dead on the cell's centre. Nothing surrounds the hex; the frame points at it." },
 ];
 

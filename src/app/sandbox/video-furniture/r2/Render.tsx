@@ -1112,6 +1112,7 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
     case "ladder-reticle":
     case "ladder-vise":
     case "ladder-trace":
+    case "ladder-trace-lock":
     case "ladder-crosshair": {
       // THE OWNER'S COMPOSITION. The comb is the ladder: there is no separate
       // rung list, no "next lesson" line competing with it, and the three
@@ -1172,9 +1173,10 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
           "ladder-reticle": "reticle",
           "ladder-vise": "vise",
           "ladder-trace": "trace",
+          "ladder-trace-lock": "trace-lock",
           "ladder-crosshair": "crosshair",
         } as const
-      )[variant as "ladder-reticle" | "ladder-vise" | "ladder-trace" | "ladder-crosshair"] ?? "none";
+      )[variant as "ladder-reticle" | "ladder-vise" | "ladder-trace" | "ladder-trace-lock" | "ladder-crosshair"] ?? "none";
       const landed = i + Math.min(1, i + 1 <= STAGE_ORDER.length - 1 ? 1 : 0) * travel;
       // The finished cell is marked done AS THE RUN PASSES IT, not at t=0 and not
       // at the end: the mark is the event the scroll exists to deliver.

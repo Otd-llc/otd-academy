@@ -126,7 +126,7 @@ export function Carousel({
    */
   centreOn?: number;
   /** A target-lock treatment drawn over the cell the run is landing on. */
-  lock?: "none" | "reticle" | "scan" | "crosshair" | "trace" | "vise";
+  lock?: "none" | "reticle" | "scan" | "crosshair" | "trace" | "vise" | "trace-lock";
   /** Lock progress, 0 to 1. A pure function of `t` supplied by the caller. */
   lockP?: number;
 }) {
@@ -286,7 +286,17 @@ export function Carousel({
                 }).join(" ");
               // `vise` closes from further out, so the two halves are seen to
               // travel rather than simply resolving.
-              const grow = 1 + (1 - lockP) * (lock === "vise" ? 0.9 : 0.38);
+              // The trace leads and the brackets follow, so the sequence reads
+              // as find-then-grip rather than as two things happening at once.
+              const traceP = Math.min(1, lockP / 0.6);
+              const gripP = Math.max(0, (lockP - 0.45) / 0.55);
+              // The brackets REST PROUD of the outline rather than flush on it.
+              // Closed all the way they merge with the traced hex and the held
+              // state shows no grip at all - the whole acquisition disappears
+              // into a slightly brighter outline the moment it finishes.
+              const rest = lock === "trace-lock" ? 1.07 : 1;
+              const gp = lock === "trace-lock" ? gripP : lockP;
+              const grow = rest + (1 - gp) * (lock === "vise" ? 0.9 : 0.38);
               const pts = ptsAt(grow);
               const wgt = Math.max(2, spineStroke("face", b.w) * 1.15);
               return (
@@ -314,7 +324,7 @@ export function Carousel({
                       <div style={{ position: "absolute", left: cx - wgt / 2, top: 0, height: (b.top + b.h / 2) * lockP, width: wgt, background: GOLD_TOK, opacity: lockP }} />
                     </>
                   ) : null}
-                  {lock === "reticle" || lock === "scan" || lock === "trace" || lock === "vise" ? (
+                  {lock === "reticle" || lock === "scan" || lock === "trace" || lock === "vise" || lock === "trace-lock" ? (
                     <svg
                       viewBox={`0 0 ${cwEff} ${height}`}
                       style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
@@ -326,6 +336,24 @@ export function Carousel({
                           right. RETICLE and SCAN keep the six corner brackets.
                           One polygon, three dash regimes: the shape can never
                           disagree with itself. */}
+                      {/* TRACE + LOCK is two passes on the same six corners: the
+                          outline draws itself around the perimeter at rest size,
+                          and the brackets converge onto it from outside. The
+                          trace describes the hex, the brackets take hold of it -
+                          so the second reads as arriving on something already
+                          found, rather than as two effects sharing a frame. */}
+                      {lock === "trace-lock" ? (
+                        <polygon
+                          points={ptsAt(1)}
+                          fill="none"
+                          stroke={GOLD_TOK}
+                          strokeWidth={wgt}
+                          strokeLinecap="round"
+                          pathLength={600}
+                          strokeDasharray={`${600 * traceP} 600`}
+                          opacity={0.85}
+                        />
+                      ) : null}
                       <polygon
                         points={lock === "trace" ? ptsAt(1) : pts}
                         fill="none"
@@ -336,12 +364,14 @@ export function Carousel({
                         strokeDasharray={
                           lock === "trace"
                             ? `${600 * lockP} 600`
+                            : lock === "trace-lock"
+                              ? "34 66"
                             : lock === "vise"
                               ? "150 150"
                               : "34 66"
                         }
                         strokeDashoffset={lock === "trace" ? 0 : lock === "vise" ? -75 : -17}
-                        opacity={lock === "trace" ? 1 : lockP}
+                        opacity={lock === "trace" ? 1 : lock === "trace-lock" ? gripP : lockP}
                       />
                     </svg>
                   ) : null}
