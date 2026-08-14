@@ -907,6 +907,21 @@ body {
   .ghp-cell.current .ghp-face {
     animation: none;
   }
+  /* THE STROKE TRANSITIONS BELONG HERE TOO, and their absence was measurable.
+     `.ghp-face` and `.ghp-side` carry `transition: stroke 0.15s`, so a cell
+     whose kind changes tweens its outline over WALL-CLOCK time. The frame
+     renderer seeks - it sets a time, waits one animation frame for
+     `[data-settled]`, and photographs - so a 150ms tween is still running when
+     the shutter opens, and the same nominal frame comes out different depending
+     on how long the seek took. Grabbing t=1.7 twice, with a seek elsewhere in
+     between, produced two different pictures until this was added.
+     The pulse and the artwork transition were already switched off here; these
+     two were simply missed, and nothing had exercised a kind CHANGE mid-scrub
+     before the outro's comb started marking a stage done as it passed. */
+  .ghp-face,
+  .ghp-side {
+    transition: none;
+  }
 }
 
 /* The `.gh-3d` prism parts and the `.sk-arw` path arrows used to sit here. Both

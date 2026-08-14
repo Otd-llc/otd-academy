@@ -23,8 +23,10 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { SpineCombScene } from "@/components/guide/SpineCombScene";
 import { StageTile } from "@/components/guide/GuideHoneycomb";
 import type { GuideStage } from "@/lib/guide-templates/stage-skeletons";
-import { placeSpine, projectSpine, SPINE_CLIP, SPINE_MAX_CELL } from "@/lib/comb-spine";
+import { placeSpine, projectSpine, spineStroke, SPINE_CLIP, SPINE_MAX_CELL } from "@/lib/comb-spine";
 import { combWindow, centreOffset, fitWindowCell, ghostAlpha, isLit } from "@/lib/comb-carousel";
+
+const GOLD_TOK = "var(--color-command-gold)";
 
 
 // Same guard the shipped comb uses: it defines this locally rather than exporting it,
@@ -80,6 +82,8 @@ export function Carousel({
   video = false,
   show,
   centreOn,
+  lock = "none",
+  lockP = 1,
 }: {
   cells: Cell[];
   current: number;
@@ -121,6 +125,10 @@ export function Carousel({
    * run sits on `current`, which is every static case.
    */
   centreOn?: number;
+  /** A target-lock treatment drawn over the cell the run is landing on. */
+  lock?: "none" | "reticle" | "scan" | "corners";
+  /** Lock progress, 0 to 1. A pure function of `t` supplied by the caller. */
+  lockP?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [cw, setCw] = useState(0);
@@ -246,6 +254,70 @@ export function Carousel({
                 </div>
               );
             })
+          : null}
+
+        {/* THE LOCK, over the cell the run is landing on.
+            It reads the cell's REAL box out of the same `boxes` the scene was
+            projected from, so the reticle cannot drift from the hex it is
+            supposed to be gripping - which it would the moment anyone changed
+            the nestle ratio if this were positioned by hand. */}
+        {measured && lock !== "none"
+          ? (() => {
+              const b = boxes[win.current];
+              if (!b) return null;
+              // Converges from outside the cell onto its edge. A pure lerp on an
+              // eased `p`, so it seeks; nothing springs and nothing overshoots,
+              // both of which are on the forbidden list.
+              const out = (1 - lockP) * b.w * 0.42;
+              const armW = b.w * 0.26;
+              const armH = b.h * 0.22;
+              // Same helper the prisms stroke with, so the reticle is the same
+              // weight as the comb it is gripping at every cell size, and it
+              // carries the codec floor with it.
+              const wgt = `${Math.max(2, spineStroke("face", b.w) * 1.15)}px`;
+              const arm = (x: number, y: number, hFlip: boolean, vFlip: boolean) => (
+                <div
+                  key={`${x}-${y}`}
+                  style={{
+                    position: "absolute",
+                    left: x,
+                    top: y,
+                    width: armW,
+                    height: armH,
+                    borderTop: vFlip ? undefined : `${wgt} solid ${GOLD_TOK}`,
+                    borderBottom: vFlip ? `${wgt} solid ${GOLD_TOK}` : undefined,
+                    borderLeft: hFlip ? undefined : `${wgt} solid ${GOLD_TOK}`,
+                    borderRight: hFlip ? `${wgt} solid ${GOLD_TOK}` : undefined,
+                    opacity: lockP,
+                  }}
+                />
+              );
+              return (
+                <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 7 }}>
+                  {lock === "scan" ? (
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: b.left,
+                        width: b.w,
+                        top: b.top + b.h * lockP,
+                        height: `${Math.max(2, spineStroke("face", b.w))}px`,
+                        background: GOLD_TOK,
+                        opacity: lockP < 1 ? 0.9 : 0,
+                      }}
+                    />
+                  ) : null}
+                  {(lock === "reticle" || lock === "corners" || lock === "scan") ? (
+                    <>
+                      {arm(b.left - out, b.top - out, false, false)}
+                      {arm(b.left + b.w - armW + out, b.top - out, true, false)}
+                      {arm(b.left - out, b.top + b.h - armH + out, false, true)}
+                      {arm(b.left + b.w - armW + out, b.top + b.h - armH + out, true, true)}
+                    </>
+                  ) : null}
+                </div>
+              );
+            })()
           : null}
 
         {/* THE ARTWORK, in a layer of its own, exactly as the shipped comb does it.

@@ -1107,11 +1107,11 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
             </div>
           </>)
         );
-      case "ladder":
-    case "ladder-footer":
-    case "ladder-shift":
-    case "ladder-both":
-    case "ladder-hair": {
+      case "ladder-both":
+    case "ladder-detent":
+    case "ladder-reticle":
+    case "ladder-scan":
+    case "ladder-snap": {
       // THE OWNER'S COMPOSITION. The comb is the ladder: there is no separate
       // rung list, no "next lesson" line competing with it, and the three
       // end-screen wells are left genuinely empty.
@@ -1137,9 +1137,10 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
       // `shift` ramps the FILL from gold to gold-light across the same axis, so
       // the mark reads as catching light rather than as printed. Both tokens, so
       // it flips with the theme; a literal pair could not.
-      const wantsGradient = variant === "ladder-footer" || variant === "ladder-both";
-      const wantsShift = variant === "ladder-shift" || variant === "ladder-both";
-      const wantsRule = variant === "ladder-hair";
+      // The mark is settled: the footer's ramp AND the highlight shift, together.
+      const wantsGradient = true;
+      const wantsShift = true;
+      const wantsRule = false;
       const markMask =
         "linear-gradient(135deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0.55) 45%, #000 85%)";
       const shiftId = `mk-${variant}`;
@@ -1154,7 +1155,23 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
       // full cell - and that is the trade taken for it.
       //
       // Pure function of `t`, like everything else: one eased ramp, no state.
-      const travel = outCubic(seg(t, 0.9, 2.6));
+      // HOW IT LANDS. A detent QUANTISES the travel into stops, which is what
+      // makes it read as a mechanism rather than as easing - and because it is a
+      // step function of `t` it seeks perfectly: every frame between two stops is
+      // the same picture, by construction.
+      const detented = variant === "ladder-detent" || variant === "ladder-snap";
+      const raw = outCubic(seg(t, 0.9, 2.6));
+      const STOPS = 8;
+      const travel = detented ? Math.round(raw * STOPS) / STOPS : raw;
+      // The lock closes AFTER the run has arrived, not during: a reticle that
+      // grips a moving target is a reticle that has not locked onto anything.
+      const lockP = outCubic(seg(t, 2.5, 3.3));
+      const lockKind =
+        variant === "ladder-reticle" || variant === "ladder-snap"
+          ? "reticle"
+          : variant === "ladder-scan"
+            ? "scan"
+            : "none";
       const landed = i + Math.min(1, i + 1 <= STAGE_ORDER.length - 1 ? 1 : 0) * travel;
       // The finished cell is marked done AS THE RUN PASSES IT, not at t=0 and not
       // at the end: the mark is the event the scroll exists to deliver.
@@ -1266,6 +1283,8 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
               // next stage lit and centred; the POSITION is continuous.
               current={Math.min(i + 1, STAGE_ORDER.length - 1)}
               centreOn={landed}
+              lock={lockKind}
+              lockP={lockP}
               ghost="veil"
               veil={{ top: 20, bottom: 70 }}
               art="art-only"

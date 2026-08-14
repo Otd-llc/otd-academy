@@ -82,9 +82,19 @@ export const LOWER: Variant[] = [
  *  What varies now is the MARK, because it is the one element with no product
  *  precedent in this composition: the comb is the shipped comb and the address
  *  is a mono eyebrow, but a brandmark at this size on a bare field is new. */
+/** OUTRO / LADDER - the composition is settled; what varies is HOW IT LANDS.
+ *  The brief was "like a click and target lock", so every option here is a
+ *  mechanism rather than a flourish, and none of them springs or overshoots -
+ *  both are on the forbidden list, and a detent is a step function anyway,
+ *  which is what makes it read as mechanical rather than as easing. */
 export const OUTRO: Variant[] = [
-  { id: "ladder-both", name: "Gradient and shift", claim: "The taken direction. The comb is the ladder; the mark carries the footer's 135-degree alpha ramp and a gold-to-gold-light shift on the same axis, so it brightens and lifts together. The comb SCROLLS on entry from the stage just finished to the next one, marking the finished cell done as it passes." },
+  { id: "ladder-both", name: "Smooth", claim: "One eased ramp from the finished stage to the next. The control: no mechanism, just travel." },
+  { id: "ladder-detent", name: "Detent", claim: "The run advances in discrete steps rather than gliding - quantised to eighths of a cell, so it clicks its way across like a knob finding its stops. A step function, so it seeks exactly." },
+  { id: "ladder-reticle", name: "Target lock", claim: "Smooth travel, then four corner brackets converge from outside the hex onto its edge and hold. The comb is scanned and then gripped." },
+  { id: "ladder-scan", name: "Scan and lock", claim: "A gold line sweeps down the landing hex as the brackets close on it. The reticle acquires rather than simply appearing." },
+  { id: "ladder-snap", name: "Detent and lock", claim: "Both mechanisms at once: it clicks across on detents and the brackets grip on the last one. The most instrument-like of the five, and the busiest." },
 ];
+
 
 
 
