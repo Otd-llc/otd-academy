@@ -2692,3 +2692,67 @@ video[data-loop="light"] {
   padding: 0.2em 0.5em;
   letter-spacing: 0.1em;
 }
+
+/* ---------------------------------------------------------------------------
+   .comb-lock — the current-cell marker, promoted from the video-furniture round
+   (`ladder-trace-vise`).
+
+   ONCE, THEN HELD. Both animations use `forwards` and neither iterates. The comb
+   already carries one infinite wall-clock animation and it is the reason a frame
+   grab of a comb differs from the last unless reduced motion is forced; this one
+   ends, on purpose.
+
+   The trace runs first and the jaws close after it, with the delay doing the
+   work: fire them together and the two cancel, because the eye has one thing to
+   watch and two things happen to it.
+   --------------------------------------------------------------------------- */
+.comb-lock {
+  pointer-events: none;
+  /* Above the cell's own type, BELOW the artwork layer at 6. The art overhangs
+     its hex deliberately, and a lock painted over it draws the grip in front of
+     the board it is gripping. */
+  z-index: 5;
+}
+@keyframes comb-lock-trace {
+  from {
+    stroke-dashoffset: 600;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes comb-lock-close {
+  from {
+    transform: scale(var(--lock-from));
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.comb-lock-trace {
+  stroke-dasharray: 600;
+  animation: comb-lock-trace 0.62s cubic-bezier(0, 0, 0.38, 0.9) forwards;
+}
+.comb-lock-jaws {
+  opacity: 0;
+  animation: comb-lock-close 0.5s cubic-bezier(0, 0, 0.38, 0.9) 0.34s forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* The SETTLED state, painted outright. The marker says which stage you are on,
+     and that is information rather than decoration - it does not get switched
+     off with the motion, it just stops arriving. */
+  .comb-lock-trace {
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+  .comb-lock-jaws {
+    opacity: 1;
+    transform: scale(1);
+    animation: none;
+  }
+}

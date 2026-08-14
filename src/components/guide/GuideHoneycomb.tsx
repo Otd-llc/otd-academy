@@ -27,6 +27,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import type { GuideStage } from "@/lib/guide-templates/stage-skeletons";
 import { stageArt, stageArtGhost } from "@/lib/guide-stage-art";
 import { SpineCombScene } from "@/components/guide/SpineCombScene";
+import { CombLock } from "@/components/guide/CombLock";
 import { fitCellWidth, placeSpine, projectSpine, SPINE_CLIP } from "@/lib/comb-spine";
 import {
   HEX_CAM_S5,
@@ -319,6 +320,13 @@ export function GuideHoneycomb({
           hot={hot}
         />
       ) : null}
+      {/* THE CURRENT-CELL MARKER. Once on mount, then held - it says which stage
+          you are on, so it is a state rather than a gesture. */}
+      {(() => {
+        const ci = stages.findIndex((s) => s.kind === "current");
+        const cb = ci >= 0 ? boxes[ci] : null;
+        return cb && solids.length > 0 ? <CombLock box={cb} sceneW={cw} sceneH={height} /> : null;
+      })()}
       {stages.map((s, i) => {
         const b = boxes[i];
         if (!b) return null;

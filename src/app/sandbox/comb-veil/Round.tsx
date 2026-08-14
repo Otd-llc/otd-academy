@@ -22,6 +22,7 @@ import { useEffect, useState } from "react";
 import { STAGE_LABELS, STAGE_ORDER } from "@/lib/stages";
 import { Carousel, type ArtMode, type Cell, type Veil } from "../comb-carousel/Carousel";
 import { combWindow } from "@/lib/comb-carousel";
+import { CombLock } from "@/components/guide/CombLock";
 
 const LEADS: Record<string, string> = {
   REQUIREMENTS: "What the board has to do",
@@ -176,6 +177,23 @@ export function Round() {
           <span className="text-command-gold"> &middot; no previous, so current plus two</span>
         ) : null}
       </p>
+
+      {/* THE PROMOTED MARKER, on its own. `GuideHoneycomb` only renders on an
+          auth-gated project page, so without this the product component would
+          ship having been typechecked and never looked at. Reload to replay it:
+          it runs once on mount and holds, which is the behaviour being checked. */}
+      <div className="mt-8 border-y border-panel-border/60 py-5">
+        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+          &#9656; current-cell marker &middot; promoted
+        </p>
+        <p className="mt-1 text-sm leading-relaxed text-muted">
+          The picked lock as it runs on the SITE: once on mount, then held. Reload the page to
+          replay it.
+        </p>
+        <div style={{ position: "relative", width: 320, height: 380, marginTop: 12 }}>
+          <CombLock box={{ left: 30, top: 30, w: 260, h: 300 }} sceneW={320} sceneH={380} />
+        </div>
+      </div>
 
       <ul className="mt-8 grid gap-x-6 gap-y-10 lg:grid-cols-2">
         {TREATMENTS.map((tr) => (
