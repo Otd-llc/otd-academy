@@ -108,8 +108,14 @@ export type VProps = {
  * dissolved out over the last 0.55 s of its own audition, by default, including
  * under the measurement rig. The round was asking the owner to judge a
  * persistent element by watching it exit.
+ *
+ * THE OUTRO IS THE SAME CASE and was missed. An end screen arrives and HOLDS
+ * until the video stops; there is no frame after it to cut to, so an exit
+ * animates the composition away while the viewer is still deciding whether to
+ * click it - and YouTube's own end-screen elements sit on top of it for the
+ * whole window. It was fading out at `seconds - 0.55` like every timed insert.
  */
-const PERSISTENT: ReadonlySet<string> = new Set(["chapter"]);
+const PERSISTENT: ReadonlySet<string> = new Set(["chapter", "outro"]);
 
 export function PieceFrame(p: VProps) {
   // THE EXIT IS APPLIED HERE, ONCE, for every piece that HAS one. Doing it
@@ -1137,13 +1143,39 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
       const markMask =
         "linear-gradient(135deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0.55) 45%, #000 85%)";
       const shiftId = `mk-${variant}`;
+      // THE ENTRY IS A SCROLL, and it lands on NEXT rather than on the stage the
+      // video just covered. An outro's job is not to say where you were - the
+      // whole video said that - it is to hand over. So the run arrives centred on
+      // the finished stage, travels one cell, and settles on what comes next.
+      //
+      // This is deliberate motion, not decoration: the report's strongest
+      // positive is signalling (median d = 0.70) and this is motion that POINTS.
+      // It is also the one gesture here that is not a register - the travel is a
+      // full cell - and that is the trade taken for it.
+      //
+      // Pure function of `t`, like everything else: one eased ramp, no state.
+      const travel = outCubic(seg(t, 0.9, 2.6));
+      const landed = i + Math.min(1, i + 1 <= STAGE_ORDER.length - 1 ? 1 : 0) * travel;
+      // The finished cell is marked done AS THE RUN PASSES IT, not at t=0 and not
+      // at the end: the mark is the event the scroll exists to deliver.
+      const doneAt = travel >= 0.55;
       const ladderCells: CombCell2[] = STAGE_ORDER.map((s, n) => ({
         stage: s as CombCell2["stage"],
         num: String(n + 1).padStart(2, "0"),
         title: STAGE_LABELS[s],
         lead: "",
-        kind: n < i ? "done" : n === i ? "current" : "pending",
-        statusText: n < i ? "done" : n === i ? "here" : "next",
+        kind:
+          n < i
+            ? "done"
+            : n === i
+              ? doneAt
+                ? "done"
+                : "current"
+              : n === i + 1 && doneAt
+                ? "current"
+                : "pending",
+        statusText:
+          n < i ? "done" : n === i ? (doneAt ? "done" : "here") : n === i + 1 && doneAt ? "next" : "next",
       }));
       return (
         <>
@@ -1230,7 +1262,10 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
                 beneath it. */}
             <Carousel
               cells={ladderCells}
-              current={i}
+              // The WINDOW follows the landing cell so the run settles with the
+              // next stage lit and centred; the POSITION is continuous.
+              current={Math.min(i + 1, STAGE_ORDER.length - 1)}
+              centreOn={landed}
               ghost="veil"
               veil={{ top: 20, bottom: 70 }}
               art="art-only"

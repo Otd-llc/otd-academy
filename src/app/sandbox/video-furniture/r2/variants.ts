@@ -83,12 +83,9 @@ export const LOWER: Variant[] = [
  *  precedent in this composition: the comb is the shipped comb and the address
  *  is a mono eyebrow, but a brandmark at this size on a bare field is new. */
 export const OUTRO: Variant[] = [
-  { id: "ladder", name: "Flat gold", claim: "The mark in solid command-gold. The plainest reading, and the control the rest are judged against." },
-  { id: "ladder-footer", name: "Footer gradient", claim: "The academy footer's own treatment: a 135-degree alpha ramp, faint at the top-left and brightening into the bottom-right. The mark the site already uses, at size." },
-  { id: "ladder-shift", name: "Highlight shift", claim: "A gold-to-gold-light ramp across the mark, so it reads as catching light rather than as printed. Subtle on purpose; a hard gradient is the AI-default tell." },
-  { id: "ladder-both", name: "Gradient and shift", claim: "The footer's alpha ramp and the highlight shift on the same axis, so the mark brightens and lifts together." },
-  { id: "ladder-hair", name: "On a rule", claim: "Flat gold with a gold hairline beneath it, the masthead treatment. Gives the upper-left a base line the comb can be read against." },
+  { id: "ladder-both", name: "Gradient and shift", claim: "The taken direction. The comb is the ladder; the mark carries the footer's 135-degree alpha ramp and a gold-to-gold-light shift on the same axis, so it brightens and lifts together. The comb SCROLLS on entry from the stage just finished to the next one, marking the finished cell done as it passes." },
 ];
+
 
 
 

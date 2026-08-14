@@ -79,6 +79,7 @@ export function Carousel({
   width,
   video = false,
   show,
+  centreOn,
 }: {
   cells: Cell[];
   current: number;
@@ -111,6 +112,15 @@ export function Carousel({
    * 200px floor where the comb switches to its compact layout.
    */
   show?: number;
+  /**
+   * A FRACTIONAL centre, for scrolling between cells.
+   *
+   * `current` stays an integer because the WINDOW is a set of cells - you cannot
+   * light half a hex - but the run's position is continuous, so an entry that
+   * travels from one stage to the next needs the two separated. Omit it and the
+   * run sits on `current`, which is every static case.
+   */
+  centreOn?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [cw, setCw] = useState(0);
@@ -150,7 +160,7 @@ export function Carousel({
   const { boxes, height } = placeSpine(cells.length, w, cwEff);
   const solids = projectSpine(boxes, cwEff, height);
   const win = combWindow(cells.length, current);
-  const dy = w > 0 ? centreOffset(win.current, w, vh) : 0;
+  const dy = w > 0 ? centreOffset(centreOn ?? win.current, w, vh) : 0;
   const measured = boxes.length === cells.length && height > 0;
 
   return (

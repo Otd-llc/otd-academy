@@ -2654,8 +2654,18 @@ video[data-loop="light"] {
    already scales the type through `10cqw`; a ceiling is all that was wanted.
    --------------------------------------------------------------------------- */
 .comb-video .gh-title {
-  font-size: clamp(14px, 10cqw, 44px);
+  /* CELL-RELATIVE, and that IS frame-relative here, because the cell is itself
+     solved as a share of the frame. An earlier cut reached for `cqmin` thinking
+     it meant the frame; it does not - container units resolve against the
+     nearest container, which is the CELL, so `3.4cqmin` was 8.6px and clamped
+     the title down rather than up. The ceiling is only there to stop a very
+     large cell running away. */
+  font-size: clamp(14px, 11cqw, 60px);
 }
 .comb-video .gh-chip {
-  font-size: clamp(8px, 3.2cqw, 13px);
+  /* The worst of the two: 3.2cqw of a 253px cell is 8.1px, which is 0.74% of a
+     1080 frame - less than half the smallest size anything else in this set
+     authors. 5.5cqw puts it near 14px at delivery. */
+  font-size: clamp(9px, 5.5cqw, 30px);
+  letter-spacing: 0.18em;
 }
