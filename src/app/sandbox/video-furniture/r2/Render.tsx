@@ -30,7 +30,7 @@ import { STAGE_LABELS } from "@/lib/stages";
 import { combAbbr } from "@/lib/phase-comb";
 import { stageArt, stageArtGhost } from "@/lib/guide-stage-art";
 import { STAGE_ORDER } from "../furniture";
-import { WELLS_16X9, GRAPHICS_16X9, LOWER_THIRD_BOTTOM } from "../youtube";
+import { WELLS_16X9, GRAPHICS_16X9, GRAPHICS_SAFE_INSET, LOWER_THIRD_BOTTOM } from "../youtube";
 import { furnitureOutStack, exitP, DEFAULT_EXIT, type FurnitureOut } from "./exits";
 import { entryStack, DEFAULT_ENTRY, type EntryEffect } from "./entries";
 import { EntryProvider } from "./Part";
@@ -1205,14 +1205,16 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
           <div
             style={{
               position: "absolute",
-              left: 0,
-              right: 0,
+              // BOTTOM RIGHT, which also puts it in the one part of the frame
+              // nothing else is using: the wells sit above y 0.87 and the comb
+              // stops at 0.838, so the corner is free without crowding either.
+              right: `${GRAPHICS_SAFE_INSET * 100}cqw`,
               // Just clear of the player's own control row, which is a CONSTANT
               // 62 CSS px and therefore eats a bigger share of a small player -
               // 12.9% in a laptop window, which is the viewer an instructional
               // channel actually has.
               bottom: "14cqh",
-              textAlign: "center",
+              textAlign: "right",
               opacity: late,
             }}
           >
