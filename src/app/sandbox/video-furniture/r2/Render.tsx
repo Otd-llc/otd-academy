@@ -1174,7 +1174,22 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
       const landed = i + Math.min(1, i + 1 <= STAGE_ORDER.length - 1 ? 1 : 0) * travel;
       // The finished cell is marked done AS THE RUN PASSES IT, not at t=0 and not
       // at the end: the mark is the event the scroll exists to deliver.
-      const doneAt = finale ? outCubic(seg(t, 0.9, 2.2)) >= 0.5 : travel >= 0.55;
+      // THE FINALE HOLDS, THEN TURNS, AND TURNS IN ORDER.
+      //
+      // A HELD BEAT first: the jaws seat at 3.3 and nothing changes until 3.7.
+      // Letting the last hex sit gold after it is gripped is what makes the turn
+      // an event - fire them together and the grip and the completion cancel,
+      // because the eye has one thing to watch and two things happen to it.
+      //
+      // Then a STAGGER, propagating UP the run from the stage just finished. A
+      // simultaneous flip reads as a switch being thrown; one cell at a time
+      // reads as the ladder completing, which is the thing that actually
+      // happened. 0.09s a cell is under a sixteenth at 120 BPM, so the whole
+      // sweep lands inside one beat and does not become a performance.
+      const TURN0 = 3.7;
+      const TURN_STEP = 0.09;
+      const turnedAt = (n: number) => t >= TURN0 + (i - n) * TURN_STEP;
+      const doneAt = finale ? t >= TURN0 : travel >= 0.55;
       const ladderCells: CombCell2[] = STAGE_ORDER.map((s, n) => ({
         stage: s as CombCell2["stage"],
         num: String(n + 1).padStart(2, "0"),
@@ -1182,10 +1197,10 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
         lead: "",
         kind:
           finale
-            ? doneAt
+            ? turnedAt(n)
               ? "done"
               : n < i
-                ? "done"
+                ? "current"
                 : "current"
             : n < i
             ? "done"
@@ -1202,7 +1217,7 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
         // composition is trying to point.
         statusText:
           finale
-            ? doneAt
+            ? turnedAt(n)
               ? "done"
               : n < i
                 ? "done"
@@ -1306,7 +1321,9 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
               // next stage lit and centred; the POSITION is continuous.
               current={finale ? i : Math.min(i + 1, STAGE_ORDER.length - 1)}
               centreOn={finale ? i : landed}
-              complete={finale && doneAt}
+              // The container class lands only once every cell has turned, so
+              // the sweep is per-cell and the finished STATE arrives as one thing.
+              complete={finale && turnedAt(0)}
               lock={lockKind}
               lockP={lockP}
               ghost="veil"
