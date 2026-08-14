@@ -463,6 +463,25 @@ export function GuideHex({
 
 // ---- INTRO / ARTIFACT (10) --------------------------------------------------
 
+/**
+ * The concepts each stage teaches, as NOUNS.
+ *
+ * Pre-training is naming the main concepts before showing the process, and it is
+ * the largest opening effect available (median d = 0.75, against signalling 0.70
+ * and segmenting 0.67). Nouns, not verbs: the finding is about knowing what the
+ * parts ARE, not what happens to them.
+ */
+const STAGE_PARTS: Partial<Record<string, string[]>> = {
+  REQUIREMENTS: ["Power budget", "Interface list", "Form factor"],
+  BOM_SOURCING: ["Package", "Tolerance", "Lead time"],
+  SCHEMATIC: ["Decoupling", "Feedback divider", "Net class"],
+  LAYOUT: ["Ground pour", "Differential pair", "Keep-out"],
+  DRC_GERBER: ["Clearance", "Annular ring", "Aperture"],
+  ORDERING: ["Stack-up", "Panelisation", "Finish"],
+  ASSEMBLY: ["Paste stencil", "Reflow profile", "Drag solder"],
+  BRINGUP: ["Rail check", "Continuity", "First light"],
+};
+
 function Intro({ variant, stage, title, lesson, t }: VProps) {
   // THE OUTRO'S MIRROR. Same hex, same gutter, same scroll, same trace-and-vise
   // lock - and the only difference is where it lands. The outro travels from the
@@ -484,6 +503,8 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
   // travel, so it closes immediately and the first frame is already the answer.
   const lockP = outCubic(seg(t, cold ? 0.25 : 2.0, cold ? 1.0 : 2.8));
   const late = outCubic(seg(t, 1.4, 2.4));
+  // One unhurried dissolve, and it is the only thing that happens to the names.
+  const parts = outCubic(seg(t, 0.6, 1.8));
 
   const cells: CombCell2[] = STAGE_ORDER.map((s, n) => ({
     stage: s as CombCell2["stage"],
@@ -519,7 +540,7 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
         <svg
           viewBox={BRANDMARK_VIEWBOX}
           style={{
-            width: variant === "arrive-title" ? "54%" : "100%",
+            width: variant === "arrive-title" || variant === "arrive-parts" ? "46%" : "100%",
             height: "auto",
             display: "block",
           }}
@@ -533,6 +554,33 @@ function Intro({ variant, stage, title, lesson, t }: VProps) {
           </defs>
           <path d={BRANDMARK_PATH} fill="url(#intro-mk)" />
         </svg>
+        {/* PRE-TRAINING. Three nouns, held. This block is deliberately the
+            SLOWEST, most static object in the opening: a list of names is
+            verbal-propositional in the purest form, and fast-cut grammar raises
+            visual memory while LOWERING verbal memory. So the names arrive on one
+            unhurried dissolve, together, and then do not move again - even if
+            everything around them is quick. */}
+        {variant === "arrive-parts" ? (
+          <div style={{ marginTop: "3cqh", textAlign: "center", opacity: parts }}>
+            <Eyebrow o={parts}>in this stage</Eyebrow>
+            <div style={{ marginTop: "1.6cqh" }}>
+              {(STAGE_PARTS[stage] ?? []).map((n) => (
+                <div key={n} style={{ marginTop: "0.9cqh" }}>
+                  <span
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: ts(2.1),
+                      color: TITLE,
+                      lineHeight: 1.15,
+                    }}
+                  >
+                    {n}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {variant === "arrive-title" ? (
           <div style={{ marginTop: "2.2cqh", textAlign: "center", opacity: late }}>
             <Eyebrow o={late}>{lesson}</Eyebrow>
@@ -901,6 +949,8 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
   const inP = outCubic(seg(t, 0.1, 1.1));
   const rule = outExpo(seg(t, 0.5, 1.6));
   const late = outCubic(seg(t, 1.4, 2.4));
+  // One unhurried dissolve, and it is the only thing that happens to the names.
+  const parts = outCubic(seg(t, 0.6, 1.8));
   const i = STAGE_ORDER.indexOf(stage);
   const next = STAGE_ORDER[Math.min(i + 1, STAGE_ORDER.length - 1)];
 

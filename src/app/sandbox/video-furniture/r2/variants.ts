@@ -34,6 +34,7 @@ export type Variant = { id: string; name: string; claim: string };
 export const INTRO: Variant[] = [
   { id: "arrive", name: "Arrive", claim: "The mirror, exactly: the run scrolls down from the previous stage and the jaws close on THIS one. Nothing else on screen but the mark and the address. The control." },
   { id: "arrive-title", name: "Arrive with title", claim: "The same arrival, with the lesson title set beside the comb in the space the outro leaves empty. Says what the video is, not just where it sits." },
+  { id: "arrive-parts", name: "Name the parts", claim: "The evidence-backed one. Pre-training is d=0.75 - larger than signalling or segmenting, and the only one of the three that is specifically an opening device. Three nouns, held and static, before any process is shown. It is a hook, a pre-training treatment and a signalling frame at once." },
   { id: "arrive-cold", name: "Cold, then arrive", claim: "The comb is already settled on this stage when the frame opens, and only the lock runs. The fastest possible read - nothing travels, so the first frame is already the answer." },
 ];
 
