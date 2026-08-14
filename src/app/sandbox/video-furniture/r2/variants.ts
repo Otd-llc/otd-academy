@@ -60,14 +60,41 @@ export const INTRO: Variant[] = [
  *  "the quad flat pack" earns its place; a sentence does not.
  *
  *  `part` is the converted, data-driven set. The rest are first treatments. */
+/** LOWER THIRD - three options per JOB.
+ *
+ *  The six types are settled; these are their rounds. Every option obeys the
+ *  same law - hairlines on the bare field, no filled cards, mono labels, Saira
+ *  only where a number is the hero, `\u00b7` never an em-dash - so what varies
+ *  is structure rather than styling.
+ *
+ *  Each type's third option is deliberately the one that argues with the other
+ *  two, because a round of three near-identical treatments is not a choice. */
 export const LOWER: Variant[] = [
-  { id: "part", name: "Part", claim: "Designator and value - `U2 / AP2112K-3.3`. The house treatment: a gold rule, a mono label, the value in Saira because `0` and `O` are one drawing in Bebas." },
-  { id: "measure", name: "Measurement", claim: "A number with a unit, instrument-style. The same content a `callout/measure` carries, anchored to the frame instead of to a place - one component, two anchors, or they drift." },
-  { id: "term", name: "Term", claim: "The first use of a piece of jargon, defined in one line. The only type here that is allowed to be a sentence, because a definition is not a transcription." },
-  { id: "source", name: "Source", claim: "A datasheet, a standard, a page. A channel teaching hardware that can hurt people cites constantly, and a citation is an E-E-A-T signal as well as a courtesy." },
-  { id: "gate", name: "Gate state", claim: "ERC and DRC, pass and fail. Status-green and alert-red, and both stay a border and a label - never a flooded panel, never decorative." },
-  { id: "warn", name: "Warning", claim: "The coral destructive channel. Same job as `callout/warn` at the frame edge rather than on a point." },
+  { id: "part-rule", name: "Part / rule", claim: "Mono label, gold rule, designator in Saira beneath. The document-index row as furniture." },
+  { id: "part-tag", name: "Part / ref tag", claim: "Designator in a square tag, part number on a mono line beside it. Closest to how the BOM itself reads." },
+  { id: "part-lead", name: "Part / value first", claim: "The part number at size with the designator demoted to a caption. Argues that the viewer is looking up a part, not a reference." },
+
+  { id: "measure-hero", name: "Measure / hero", claim: "The signature readout: Saira at scale, unit beside it, mono label above. The number IS the subject." },
+  { id: "measure-line", name: "Measure / on a line", claim: "Label, rule, value on one horizontal run. Takes a third of the height, which is what a mid-video insert can afford." },
+  { id: "measure-delta", name: "Measure / against", claim: "The value with what it was, struck through. A measurement in a repair video is usually a COMPARISON, and the other two hide that." },
+
+  { id: "term-stack", name: "Term / stacked", claim: "Bebas term, Lora definition beneath. The reading voice, used in the one place a sentence is legal." },
+  { id: "term-inline", name: "Term / inline", claim: "Term and definition on one line, the term in gold. Half the height and it still reads." },
+  { id: "term-eyebrow", name: "Term / defined", claim: "The term as the eyebrow and the definition as the statement, so the DEFINITION is the thing on screen rather than the word." },
+
+  { id: "source-rule", name: "Source / rule", claim: "A quiet hairline and a mono citation. The register a footnote should have." },
+  { id: "source-tag", name: "Source / standard", claim: "The standard in a square tag, the section beside it. Scannable when the standard is the thing being cited repeatedly." },
+  { id: "source-corner", name: "Source / corner", claim: "Small, in the corner, out of the lower third entirely. A citation is an obligation rather than a message - it does not need the good real estate." },
+
+  { id: "gate-rule", name: "Gate / rule", claim: "A tone-coloured rule, mono state, result beside it. Status as a border and a label, never a flood." },
+  { id: "gate-badge", name: "Gate / badge", claim: "A square badge in the status channel with the count beside it. The most scannable, and the closest to how the app shows a gate." },
+  { id: "gate-count", name: "Gate / count", claim: "The error COUNT as the hero in Saira, tone-coloured, with the gate name beneath. A failing gate is a number before it is a word." },
+
+  { id: "warn-bar", name: "Warn / accent bar", claim: "The coral left-accent bar. The sanctioned not-a-box framing, deliberately unlike the labels it sits among." },
+  { id: "warn-stencil", name: "Warn / stencil", claim: "Knocked out of solid coral. The inversion that lost the label round may win here, because a warning is the one thing that should be unmissable." },
+  { id: "warn-brackets", name: "Warn / brackets", claim: "Coral rules above and below, nothing at the sides. Frames the warning without boxing it, and stays legible over a busy canvas." },
 ];
+
 
 
 
@@ -283,14 +310,25 @@ export const BEFORE_AFTER: Variant[] = [
  *  re-teaching: a label over live work cannot borrow contrast from a background
  *  it does not control, so "no box" cannot mean "no ground". Each option below
  *  solves that differently, and one of them refuses to. */
+/** LABEL - two directions taken, so these are variations OF them.
+ *
+ *  TAB attaches the label to the mark: it shares the hex's edge, so the pointer
+ *  and the name are one object. DISPLAY refuses a frame entirely and sets the
+ *  name as a title, which is a different claim about what a callout is.
+ *
+ *  Both carry the constraint the whole set keeps re-teaching - a label over live
+ *  work cannot borrow contrast from a background it does not control - and they
+ *  solve it differently: the tab brings its own ground, the display carries a
+ *  halo. Which of those survives copper is the thing to watch. */
 export const LABEL: Variant[] = [
-  { id: "stencil", name: "Stencil", claim: "Dark text knocked OUT of a solid gold bar. The only option that inverts rather than framing - maximum contrast over any background, and it cannot be lost in copper because it is not gold-on-something." },
-  { id: "tab", name: "Tab", claim: "A flag hanging off the hex itself, sharing its edge. The label is part of the mark rather than a caption sitting near it." },
-  { id: "manifest", name: "Manifest", claim: "A mono ordinal, a tick, then the name - the same language the intro's parts list uses. Reuses a shape the viewer has already been taught rather than inventing a fifth one." },
-  { id: "display", name: "Display", claim: "Bebas at size, no frame at all. Reads as a TITLE rather than a tag, which is a different claim about what a callout is." },
-  { id: "hexchip", name: "Hex chip", claim: "The label inside a small hex rather than a rectangle. The brand shape as the container - the one framing that could only belong to this company." },
-  { id: "masthead", name: "Masthead", claim: "A gold top-rule with the label under it. Kept as the control: it is the framing the design law names first." },
+  { id: "tab", name: "Tab, solid", claim: "Gold bar hanging off the hex, dark text knocked out of it. Brings its own ground, so it cannot be lost whatever is underneath." },
+  { id: "tab-outline", name: "Tab, outline", claim: "The same tab as a hairline frame on deep-space rather than a gold fill - quieter, and it keeps the gold for the mark instead of spending it on the caption." },
+  { id: "tab-under", name: "Tab, under", claim: "Hangs beneath the hex instead of beside it. Frees the horizontal, which matters at 9:16 where there is none to spare." },
+  { id: "display", name: "Display", claim: "Bebas at size, no frame, a dark halo doing the work. Reads as a title rather than a tag." },
+  { id: "display-rule", name: "Display on a rule", claim: "The same title with a gold rule beneath it, running back toward the mark. The rule connects the name to the thing without enclosing either." },
+  { id: "display-eyebrow", name: "Display, led", claim: "A mono eyebrow above the title - the house two-line lockup, so a callout reads like every other piece of OTD furniture rather than like a caption." },
 ];
+
 
 
 export const PIECES = {
