@@ -789,7 +789,12 @@ export default async function GuideHubPage({
             {allCells.filter(Boolean).length} complete
           </span>
         </div>
-        <div className="mt-6 -mx-4 sm:mx-0">
+        {/* NO edge bleed. This wrapper used to carry `-mx-4 sm:mx-0`, which cancelled the
+        page gutter on small screens so the old 3-up tessellated grid could buy back
+        two gutters' worth of width. A single-file spine is capped at 360px a cell
+        and centred, so the bleed bought nothing and only jammed the hexes against
+        both screen edges. The page's own `px-4 sm:px-6` is the gutter now. */}
+        <div className="mt-6">
           <GuideHoneycomb
             slug={project.slug}
             revLabel={revision.label}
