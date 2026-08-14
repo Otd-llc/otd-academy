@@ -1107,8 +1107,7 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
             </div>
           </>)
         );
-      case "ladder-trace-lock":
-    case "ladder-trace-vise": {
+      case "ladder-trace-vise": {
       // THE OWNER'S COMPOSITION. The comb is the ladder: there is no separate
       // rung list, no "next lesson" line competing with it, and the three
       // end-screen wells are left genuinely empty.
@@ -1165,7 +1164,7 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
       // The lock closes AFTER the run has arrived, not during: a reticle that
       // grips a moving target is a reticle that has not locked onto anything.
       const lockP = outCubic(seg(t, 2.5, 3.3));
-      const lockKind = variant === "ladder-trace-vise" ? "trace-vise" : "trace-lock";
+      const lockKind = "trace-vise" as const;
       const landed = i + Math.min(1, i + 1 <= STAGE_ORDER.length - 1 ? 1 : 0) * travel;
       // The finished cell is marked done AS THE RUN PASSES IT, not at t=0 and not
       // at the end: the mark is the event the scroll exists to deliver.

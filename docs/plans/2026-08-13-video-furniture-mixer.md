@@ -253,6 +253,20 @@ fifth banned effect with it. `furniture.ts` kept only what round 2 imports;
 outro work wants them. `/sandbox/video-furniture` is now an index of the seven
 round 2 pieces.
 
+## Where the pieces stand
+
+| piece | state |
+| --- | --- |
+| outro | **TAKEN** - `ladder-trace-vise`. The comb IS the ladder: OTD mark in the reclaimed upper-left, the carousel down the centre gutter in `art-only`, all three end-screen wells left empty, address bottom-centre. Entry SCROLLS from the stage just finished to the next one, marking the finished cell done as it passes, then the outline traces the landing hex and two half-hex jaws close on it. No exit: an outro arrives and holds. |
+| chapter | six treatments, no pick |
+| intro / ghost / section / lower / hairline | ten treatments each, no pick |
+| combwalk | nine, and DEFERRED by the owner - the comb sets may not be used |
+
+THE PIPELINE IS GATED, and this is the order it gates in: visuals per type, then
+sound, then format, then encode. Only the outro has a direction, so only the
+outro is through phase one. Doing sound before the visuals are picked is how the
+Logbook cut ended up re-tuning composition after the bed was mastered.
+
 ## Found while building the chapter indicator, NOT fixed
 
 Recorded rather than repaired, because each is outside the piece that surfaced

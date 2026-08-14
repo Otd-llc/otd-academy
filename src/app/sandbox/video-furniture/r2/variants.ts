@@ -98,10 +98,13 @@ export const LOWER: Variant[] = [
  *  Everything else is gone - `smooth`, `detent`, `reticle`, `vise` and `trace`
  *  alone, and `crosshair` - because the sequence beat all of them and a round
  *  that keeps its losers stops being a choice. */
+/** OUTRO / LADDER - taken. One entry, because the direction is decided and a
+ *  round that keeps its losers has stopped being a choice. The corner-bracket
+ *  sibling lives in the commits. */
 export const OUTRO: Variant[] = [
-  { id: "ladder-trace-lock", name: "Trace and grip", claim: "The outline draws itself around the hex, then six brackets converge onto its vertices and hold, resting just proud of the line. Find, then take hold." },
-  { id: "ladder-trace-vise", name: "Trace and vise", claim: "The same find, a different hold: two half-hex jaws travel in from left and right and close on the cell. Reads as seating rather than sighting, and the longer travel makes the closing legible." },
+  { id: "ladder-trace-vise", name: "Trace and vise", claim: "The outline draws itself around the hex, then two half-hex jaws travel in from left and right and close on it, resting just proud of the line. Find, then seat." },
 ];
+
 
 
 
