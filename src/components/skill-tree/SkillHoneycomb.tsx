@@ -25,6 +25,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { HexShell, RATIO } from "@/components/guide/GuideHoneycomb";
 import { SpineCombScene } from "@/components/guide/SpineCombScene";
+import { CombLock } from "@/components/guide/CombLock";
 import { fitCellWidth, placeSpine, projectSpine, SPINE_CLIP } from "@/lib/comb-spine";
 import { Tooltip } from "@/components/Tooltip";
 import { AdminTierToggle } from "@/components/skill-tree/AdminTierToggle";
@@ -268,6 +269,13 @@ export function SkillHoneycomb({ nodes, goalSlug, viewer }: SkillHoneycombProps)
         />
       ) : null}
 
+      {/* The current-cell marker, same component the build-guide comb uses, so
+          all three site combs mark "you are here" the same way. */}
+      {(() => {
+        const ci = nodes.findIndex((n) => hexKind(n) === "current");
+        const cb = ci >= 0 ? boxes[ci] : null;
+        return cb && solids.length > 0 ? <CombLock box={cb} sceneW={cw} sceneH={height} /> : null;
+      })()}
       {nodes.map((node, i) => {
         const b = boxes[i];
         const num = String(i + 1).padStart(2, "0");
@@ -392,7 +400,14 @@ export function SkillHoneycomb({ nodes, goalSlug, viewer }: SkillHoneycombProps)
           crawlers, and a board floating over it would land nowhere. */}
       {measured ? (
         <div className="gh-art-layer">
-          {nodes.map((node, i) => {
+          {/* The current-cell marker, same component the build-guide comb uses, so
+          all three site combs mark "you are here" the same way. */}
+      {(() => {
+        const ci = nodes.findIndex((n) => hexKind(n) === "current");
+        const cb = ci >= 0 ? boxes[ci] : null;
+        return cb && solids.length > 0 ? <CombLock box={cb} sceneW={cw} sceneH={height} /> : null;
+      })()}
+      {nodes.map((node, i) => {
             const b = boxes[i];
             if (!b) return null;
             return (
@@ -427,7 +442,14 @@ export function SkillHoneycomb({ nodes, goalSlug, viewer }: SkillHoneycombProps)
           toggle sits in, so it was buried (still clickable, just invisible). */}
       {viewer.isAdmin && measured ? (
         <div className="gh-admin-layer">
-          {nodes.map((node, i) => {
+          {/* The current-cell marker, same component the build-guide comb uses, so
+          all three site combs mark "you are here" the same way. */}
+      {(() => {
+        const ci = nodes.findIndex((n) => hexKind(n) === "current");
+        const cb = ci >= 0 ? boxes[ci] : null;
+        return cb && solids.length > 0 ? <CombLock box={cb} sceneW={cw} sceneH={height} /> : null;
+      })()}
+      {nodes.map((node, i) => {
             const b = boxes[i];
             if (!b) return null;
             return (

@@ -45,6 +45,7 @@ import type { Stage } from "@prisma/client";
 import { stageArt, stageArtGhost } from "@/lib/guide-stage-art";
 import { COMB_STANDIN_GHOST, combPoster } from "@/lib/board-posters";
 import { buildCombScene } from "@/components/guide/GuideHoneycomb";
+import { CombLock } from "@/components/guide/CombLock";
 import { HexPrismScene } from "@/components/guide/HexPrismScene";
 import { OnePointScene } from "./OnePointScene";
 import {
@@ -347,6 +348,15 @@ export function CombStage({
           strokeMult={strokeMult}
         />
       ) : null}
+      {/* The current-cell marker, so the picked lock is visible on the surface
+          the combs are actually judged on. `/courses` cannot show it signed out
+          - nothing is `current` - and the build-guide hub is auth-gated, so
+          without this it exists only in the video round. */}
+      {(() => {
+        const ci = kinds.findIndex((k) => k.kind === "current");
+        const cb = ci >= 0 ? boxes[ci] : null;
+        return cb && solids.length > 0 ? <CombLock box={cb} sceneW={cw} sceneH={height} /> : null;
+      })()}
       {boxes.map((b, i) => (
         <div
           key={i}
