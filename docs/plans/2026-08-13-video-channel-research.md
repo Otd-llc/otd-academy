@@ -701,3 +701,83 @@ inference, not documentation.
 65 px** - exactly the asset-derived row in 9.2. That row is now **text-confirmed
 by Meta**, and the 672 px bottom has three independent derivations.
 
+---
+
+## 12. What technical channels actually do, and where the comb fits
+
+Structural survey. Chapter timestamps rather than frame analysis, so it is
+harder evidence than a viewing impression: a chapter list encodes exactly how
+long before content starts.
+
+### 12.1 Intro bloat is measurable on one channel over time
+
+| video | first named topic |
+| --- | ---: |
+| Phil's Lab #5 (2020) | **0:00** |
+| Phil's Lab #65 (2022) | 3:54 |
+| Phil's Lab #170 (2026) | **6:29** |
+
+Same channel, same host, six years. The 2026 video spends 15% of a 41-minute
+runtime before its first named topic. Nobody set a budget, so it grew. Set one.
+
+For contrast: Altium Academy 0:29, EEVblog 0:31 (greeting plus jingle), Branch
+Education 0:00 with an interrogative as chapter one, Practical Engineering
+opening on substance - *"Concrete is the second-most-consumed substance on our
+planet"* - with no greeting, no name, and the topic unnamed for a long while.
+
+### 12.2 THE HONEYCOMB IS THE ROADMAP, AND THAT IS THE FINDING
+
+The survey names nine opening shapes. Eight are content-order decisions that
+survive our motion vocabulary unchanged - what dies is the STING, not the shape.
+The ninth is the roadmap chapter, and it is where the comb earns its keep:
+
+> A static honeycomb of build stages, present as a fixed plate, with today's cell
+> changing state, is exactly "state change on a stationary element". You get an
+> agenda in about 1.5 s instead of 150 s.
+
+Phil's Lab #65 spends **2m28s** on "What You'll Learn" for a video whose TITLE
+already promised it. That is the same information twice, and it converts to a
+static stage map. This is independent agreement with 11.2: the opening's job on
+a reference channel is a map.
+
+### 12.3 Brand as a CONDITION, not an event - and a real conflict with 11.3
+
+The survey's rule: a persistent corner mark costs zero seconds, never animates,
+and is legal. *"Any element identical across every video carries zero information
+in the exact window where information density decides retention. Put the brand
+where it is free, never where it is expensive."*
+
+**This conflicts with 11.3 and the conflict is not resolved.** Teixeira measured
+that BRIEF REPEATED appearances beat both sustained presence and no brand at
+all - and a persistent corner mark is sustained presence by definition. One says
+hold it quietly forever, the other says pulse it and never hold. Both are
+defensible; they are not the same instruction. **Decide it deliberately rather
+than by whichever was read last.**
+
+### 12.4 The vertical rule that falls out
+
+**The 16:9 opening should be built so its first 2.5 s lifts intact as the
+vertical opening.** Result-then-rewind and cold-open-on-artifact satisfy that;
+title card, greeting, roadmap and fact-cascade do not - all four spend the entire
+decision window on runway.
+
+### 12.5 What the field does badly
+
+Worth copying the inverse of: chapters named for the producer (`Intro`, `Outro`)
+rather than for content, which makes the skip decision HARDER; the roadmap
+chapter re-promising the title; no chapters at all, which is hostile for a
+reference channel whose viewer needs to land on one topic six months later; the
+ritual greeting, a twenty-year-old radio convention inherited without the
+habituated audience that paid for it; front-loaded sponsor reads inside the
+window that decides whether anyone sees the sponsor; and nobody re-cutting the
+opening for vertical.
+
+### 12.6 A caution about this section own sources
+
+Its 9:16 figures - *"50-60% of drop-off in the first three seconds"*, *"a hook in
+the first 2 s retains 19% more"* - come from SEO marketing pages, and section
+11.7 grades that entire family **FAILS** for traceability. The STRUCTURAL survey
+here is sound and its sources are chapter lists and a published script. The
+retention percentages inside it are not, and are recorded as unusable rather
+than quietly averaged with the measured ones.
+
