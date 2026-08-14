@@ -29,10 +29,9 @@ export type Variant = { id: string; name: string; claim: string };
  *  fast-cut grammar raises visual memory while LOWERING verbal memory. Every
  *  option below has to answer for the motion it spends on the naming block. */
 export const INTRO: Variant[] = [
-  { id: "parts-manifest-step", name: "Manifest, stepped", claim: "Both: numbered and hung on a tick, arriving one noun a beat on a CUT rather than a fade. Sized to fill the column it sits in - the previous cut left the right two thirds mostly field." },
-  { id: "parts-numbered", name: "Manifest, held", claim: "The same list, all three at once on one dissolve. The control, and the option the verbal-memory finding endorses - a list of names is verbal-propositional in the purest form." },
-  { id: "parts-titled", name: "Stage and parts", claim: "The stage name above the nouns. The most information, and the only variant that fills the lower right." },
+  { id: "parts-numbered", name: "Manifest, held", claim: "Taken. The comb arrives on this stage in the left third; the mark and a numbered list of what the stage teaches sit on the second third. All three names land together on one dissolve and then hold - a list of names is verbal-propositional in the purest form, and motion on it costs verbal memory. The stepped and titled siblings live in the commits." },
 ];
+
 
 
 
