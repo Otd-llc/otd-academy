@@ -656,80 +656,53 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
               has already been taught by the intro and outro, rather than a
               second thing that also means "look here". A vocabulary is only a
               vocabulary if it is reused. */}
-          <svg
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: o }}
-            aria-hidden
-          >
-            {(() => {
-              // THE SHIPPED LOCK'S GEOMETRY, read from CombLock rather than
-              // re-derived - which is what the first attempt did, and it came
-              // out as two enormous arcs that looked nothing like the thing on
-              // the site. Same constants, same dash pattern; only the driver
-              // differs, because a page runs it once on mount as a CSS
-              // animation and a frame has to seek it from .
-              const STANDOFF = 0.9;
-              // 1.07 on the site, where a cell is 200-360px and 7% is a clear
-              // 20px of daylight. At annotation scale 7% is under a pixel, so
-              // the jaws landed ON the trace and the two read as one dashed
-              // outline. The standoff has to be a share of the MARK, not a
-              // constant carried over from a much bigger object.
-              const REST = 1.2;
-              // ASPECT-CORRECTED. The svg is a 0-100 square viewBox with
-              // , so x maps to width and y to
-              // height independently - a hex written with equal user-unit radii
-              // comes out stretched by the frame aspect, which is what made the
-              // outline read as a squashed dashed blob. Same mistake the lattice
-              // made; the fix is to write the radii in the space they land in.
-              const rw = 7;
-              const rh = rw * 1.1547 * aspect;
-              const hexAt = (g: number) => {
-                const cx = px * 100;
-                const cy = py * 100;
-                return [
-                  [cx, cy - rh * g],
-                  [cx + rw * g, cy - (rh * g) / 2],
-                  [cx + rw * g, cy + (rh * g) / 2],
-                  [cx, cy + rh * g],
-                  [cx - rw * g, cy + (rh * g) / 2],
-                  [cx - rw * g, cy - (rh * g) / 2],
-                ]
-                  .map(([x, y]) => x.toFixed(2) + ',' + y.toFixed(2))
-                  .join(' ');
-              };
-              // Trace first, jaws after: 0.62s then 0.5s at +0.34s on the site,
-              // expressed here as the same proportions of the lock window.
-              const traceP = clamp01(grip / 0.62);
-              const jawP = clamp01((grip - 0.34) / 0.5);
-              // The jaws travel by SCALING about the cell centre, exactly as
-              // the shipped one does - not by recomputing their points.
-              const from = (1 + STANDOFF) / REST;
-              const scale = from + (1 - from) * jawP;
-              const cx = px * 100;
-              const cy = py * 100;
-              return (
-                <>
-                  <polygon points={hexAt(1)} fill="none" stroke={FIELD} strokeWidth={11} strokeOpacity={0.9} vectorEffect="non-scaling-stroke" strokeDasharray={600} strokeDashoffset={600 * (1 - traceP)} pathLength={600} />
-                  <polygon
-                    points={hexAt(1)}
-                    fill="none"
-                    stroke={GOLD}
-                    strokeWidth={5}
-                    strokeLinecap="round"
-                    vectorEffect="non-scaling-stroke"
-                    pathLength={600}
-                    strokeDasharray={600}
-                    strokeDashoffset={600 * (1 - traceP)}
-                  />
-                  <g style={{ transform: 'scale(' + scale + ')', transformOrigin: cx + 'px ' + cy + 'px', opacity: jawP }}>
-                    <polygon points={hexAt(REST)} fill="none" stroke={FIELD} strokeWidth={11} strokeOpacity={0.9} vectorEffect="non-scaling-stroke" pathLength={600} strokeDasharray="150 150" strokeDashoffset={-75} />
-                    <polygon points={hexAt(REST)} fill="none" stroke={GOLD} strokeWidth={5} strokeLinecap="square" vectorEffect="non-scaling-stroke" pathLength={600} strokeDasharray="150 150" strokeDashoffset={-75} />
-                  </g>
-                </>
-              );
-            })()}
-          </svg>
+          {(() => {
+            // THE ACTUAL trace-vise, ported from  rather than
+            // re-derived. Three earlier attempts failed for one reason: they
+            // used  with , and
+            // those do not compose - the dash is applied in the scaled space, so
+            //  stops meaning "the whole perimeter" and the outline came out
+            // as disconnected segments.
+            //
+            // The real one has no such attribute. Its viewBox is in PIXEL units,
+            // so stroke widths and dash lengths are already in the space they
+            // are drawn in. That is the whole trick, and it also removes the
+            // aspect-stretch problem for free.
+            const W = 1000 * aspect;
+            const H = 1000;
+            const cx = px * W;
+            const cy = py * H;
+            const rw = H * 0.1;
+            const rh = rw * 1.1547;
+            const ptsAt = (g: number) =>
+              [
+                [cx, cy - rh * g],
+                [cx + rw * g, cy - (rh * g) / 2],
+                [cx + rw * g, cy + (rh * g) / 2],
+                [cx, cy + rh * g],
+                [cx - rw * g, cy + (rh * g) / 2],
+                [cx - rw * g, cy - (rh * g) / 2],
+              ]
+                .map(([x, y]) => x.toFixed(2) + ',' + y.toFixed(2))
+                .join(' ');
+            // Same proportions the carousel uses: trace leads, jaws follow.
+            const traceP = Math.min(1, grip / 0.6);
+            const gripP = Math.max(0, (grip - 0.45) / 0.55);
+            // The jaws rest PROUD and travel from further out, so the two halves
+            // are seen to close rather than simply resolving.
+            const grow = 1.07 + (1 - gripP) * 0.9;
+            const wgt = H * 0.009;
+            return (
+              <svg viewBox={'0 0 ' + W + ' ' + H} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: o }} aria-hidden>
+                {/* A dark ground under each pass, because this one is drawn over
+                    gold copper rather than over deep-space. */}
+                <polygon points={ptsAt(1)} fill="none" stroke={FIELD} strokeWidth={wgt * 3} strokeOpacity={0.85} strokeLinecap="round" pathLength={600} strokeDasharray={600 * traceP + ' 600'} />
+                <polygon points={ptsAt(1)} fill="none" stroke={GOLD} strokeWidth={wgt} strokeLinecap="round" pathLength={600} strokeDasharray={600 * traceP + ' 600'} opacity={0.85} />
+                <polygon points={ptsAt(grow)} fill="none" stroke={FIELD} strokeWidth={wgt * 3} strokeOpacity={0.85} strokeLinecap="square" pathLength={600} strokeDasharray="150 150" strokeDashoffset={-75} opacity={gripP} />
+                <polygon points={ptsAt(grow)} fill="none" stroke={GOLD} strokeWidth={wgt} strokeLinecap="square" pathLength={600} strokeDasharray="150 150" strokeDashoffset={-75} opacity={gripP} />
+              </svg>
+            );
+          })()}
           <div style={{ position: 'absolute', left: (px * 100 + 9) + 'cqw', top: (py * 100 - 15) + 'cqh', opacity: o * grip, padding: '0.6cqh 1.1cqw', background: FIELD, boxShadow: '0 0 0 ' + hw(0.1) + ' ' + GOLD }}>
             <Eyebrow o={o * grip}>ground pour</Eyebrow>
           </div>
