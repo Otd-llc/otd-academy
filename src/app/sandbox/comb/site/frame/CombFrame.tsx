@@ -103,9 +103,11 @@ export function CombFrame({
           </div>
         ) : null}
 
-        {/* The real wrapper: the comb bleeds to the screen edge on a phone (the
-            negative margin cancels the main's px-4) and sits in the column above it. */}
-        <div className={`${comb === "guide" ? "mt-6 " : ""}-mx-4 sm:mx-0`}>
+        {/* The real wrapper. No edge bleed: the `-mx-4 sm:mx-0` that used to be here
+            (and on both real pages) existed so the 3-up grid could reclaim the page
+            gutter on a phone. The spine is capped and centred, so it only pushed the
+            hexes into the screen edges. */}
+        <div className={comb === "guide" ? "mt-6" : undefined}>
           <CombStage
             variant={variant}
             comb={comb}
