@@ -1128,49 +1128,95 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
         <>
           {/* The mark, in the quadrant reclaimed by not reserving a channel
               element. An inline path rather than the raster: crisp at any
-              delivery size, one token for its colour, and nothing to fetch. */}
+              delivery size, one token for its colour, and nothing to fetch.
+              Sized to its well rather than to a fraction of it - the rule and
+              the address that used to sit under it have moved out, so the mark
+              is the only thing here and it can have the room. */}
           <div
             style={{
               position: "absolute",
               left: `${GRAPHICS_16X9.x * 100}cqw`,
               top: `${GRAPHICS_16X9.y * 100}cqh`,
               width: `${GRAPHICS_16X9.w * 100}cqw`,
+              height: `${GRAPHICS_16X9.h * 100}cqh`,
+              display: "grid",
+              placeItems: "center",
               opacity: inP,
             }}
           >
             <svg
               viewBox={BRANDMARK_VIEWBOX}
-              style={{ width: "58%", height: "auto", display: "block" }}
+              style={{ width: "100%", height: "auto", display: "block" }}
               aria-hidden
             >
               <path d={BRANDMARK_PATH} fill={GOLD} />
             </svg>
-            <div style={{ marginTop: "2.2cqh" }}>
-              <Hair p={rule} w={0.12} />
-            </div>
-            <div style={{ marginTop: "1.4cqh" }}>
-              <Eyebrow o={late}>{URL}</Eyebrow>
-            </div>
           </div>
 
-          {/* The comb, down the gutter between the reserved wells. */}
+          {/* The comb, down the gutter between the reserved wells, and CENTRED IN
+              THE FRAME: the wrapper is the full height, so the carousel's own
+              centring puts the current cell's middle exactly on y 0.5.
+
+              `show={3}` fills the box with the WINDOW rather than the window plus
+              a margin of ghosts. That is worth about 18% on the cell, which is the
+              difference between a card that reads and one under the 200px floor
+              where the comb collapses to its compact layout - the state that made
+              the titles burst their hexes. The veil still takes the run out at
+              both ends, so the ghosts are implied rather than cropped. */}
           <div
             style={{
               position: "absolute",
-              left: "29cqw",
-              width: `${gut * 100}cqw`,
-              top: "5cqh",
-              // 65cqh, not 702px: the run's foot lands at y 0.70 and leaves the
-              // CEA-708 caption band (0.72-0.90) alone, at ANY delivery size.
-              height: "65cqh",
+              left: "30cqw",
+              width: "29cqw",
+              top: 0,
+              height: "100cqh",
               opacity: inP,
             }}
           >
-            {/* NO width, NO viewH. Both are shares of the frame, expressed on the
-                wrapper in container units, and the carousel measures the box it is
-                given. Passing pixels computed against 1920x1080 laid a full-frame
-                run out inside a thumbnail. */}
-            <Carousel cells={ladderCells} current={i} ghost="veil" art="art-only" video />
+            {/* The veil's solid band ends at 70%, which is just past the current
+                cell's own foot, so the run fades from immediately below the window
+                rather than through it.
+
+                `show` is 4.6, not 3, and that number is the whole negotiation
+                between two of the owner's instructions. Centred and filled with
+                the window alone, the cell solves to the 360px cap, the third hex
+                reaches y 0.98, and there is NO band left for a bottom address
+                above the player bar - which is a constant 62 CSS px and takes
+                12.9% of a laptop-window frame. At 4.6 the cell is 253px - still
+                well over the 200px compact floor, and larger than the 211px the
+                sandbox round was judged at - the current cell stays EXACTLY
+                centred, and the run's foot lands at 0.838 with the address clear
+                beneath it. */}
+            <Carousel
+              cells={ladderCells}
+              current={i}
+              ghost="veil"
+              veil={{ top: 20, bottom: 70 }}
+              art="art-only"
+              show={4.6}
+              video
+            />
+          </div>
+
+          {/* The address, centred along the foot. It is the one thing every viewer
+              must be able to act on, and 9.4 is explicit that end-screen elements
+              may never render at all - so the CTA lives in pixels we control, not
+              in a well YouTube may leave empty. Above the player bar. */}
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              // Just clear of the player's own control row, which is a CONSTANT
+              // 62 CSS px and therefore eats a bigger share of a small player -
+              // 12.9% in a laptop window, which is the viewer an instructional
+              // channel actually has.
+              bottom: "14cqh",
+              textAlign: "center",
+              opacity: late,
+            }}
+          >
+            <Eyebrow o={late}>{URL}</Eyebrow>
           </div>
         </>
       );

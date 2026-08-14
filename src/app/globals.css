@@ -2642,27 +2642,20 @@ video[data-loop="light"] {
 /* ---------------------------------------------------------------------------
    .comb-video — the honeycomb at VIDEO size.
 
-   The comb's type is clamped in PIXELS: `.gh-title` tops out at 32px, `.gh-lead`
-   at 15px and `.gh-chip` at 10px. On a page those ceilings are right, because a
-   cell never exceeds 360px and the numbers were tuned against it. In a 1920x1080
-   frame they are the wrong unit entirely: 10px is 0.93% of frame height, and the
-   smallest type anything else in the video-furniture set authors is ts(0.85),
-   which is 1.51% — so the chip ships about 1.6x below the floor of its own set.
+   The comb's type ceilings are tuned for a 360px cell on a page: `.gh-title` tops
+   out at 32px and `.gh-chip` at 10px. In a 1920x1080 frame those read small — the
+   chip lands at 0.93% of frame height against a set whose smallest authored size
+   is 1.51%. This lifts the CEILINGS only.
 
-   Geometry and artwork already scale, because both are shares of the cell. Only
-   the type needed a scope, and this is it: the same rules, with the ceilings
-   lifted and expressed against the frame's short edge so they hold at 9:16 too.
-
-   The lead is dropped rather than enlarged. An outro is glanced at, and 2.5s of
-   end screen is not where anyone reads a second line.
+   It deliberately does NOT touch the floors or the `cqw` term. An earlier cut set
+   the ceiling in `cqmin`, which resolves against the frame rather than the cell:
+   on a small cell that made `clamp()` return its 14px MINIMUM and pinned a 14px
+   title inside a 61px hex, so the titles wrapped and burst their hexes. The cell
+   already scales the type through `10cqw`; a ceiling is all that was wanted.
    --------------------------------------------------------------------------- */
 .comb-video .gh-title {
-  font-size: clamp(14px, 10cqw, 3.2cqmin);
-}
-.comb-video .gh-lead {
-  display: none;
+  font-size: clamp(14px, 10cqw, 44px);
 }
 .comb-video .gh-chip {
-  font-size: clamp(8px, 3.2cqw, 1.5cqmin);
-  letter-spacing: 0.18em;
+  font-size: clamp(8px, 3.2cqw, 13px);
 }

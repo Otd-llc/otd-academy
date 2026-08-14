@@ -78,6 +78,7 @@ export function Carousel({
   art = "kind",
   width,
   video = false,
+  show,
 }: {
   cells: Cell[];
   current: number;
@@ -103,6 +104,13 @@ export function Carousel({
   width?: number;
   /** Lifts the comb's px-clamped type ceilings for a video frame. */
   video?: boolean;
+  /**
+   * How many cells span the viewport. Default 3.6, so the nearest ghosts break the
+   * edges. Pass 3 to fill the box with the WINDOW itself: the cells come out about
+   * 18% larger, which is the difference between a readable card and one under the
+   * 200px floor where the comb switches to its compact layout.
+   */
+  show?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [cw, setCw] = useState(0);
@@ -133,14 +141,12 @@ export function Carousel({
   // the window would make the cells jump as the current one advanced.
   // Sized from the VIEWPORT, not the column: see `fitWindowCell`. Clamped to the
   // column so a narrow rail never overflows sideways.
-  // Capped at the shipped maximum, and floored so the cell never drops under the
-  // 200px container-query breakpoint if the frame allows it: below that width
-  // globals.css switches to the COMPACT card - it hides `.gh-lead` outright and
-  // re-places the number, title and chip - so a round rendering under 200px is
-  // auditioning a different card from the one that ships.
-  const raw = Math.min(fitWindowCell(vh), cwEff / 1.5, SPINE_MAX_CELL);
+  // Capped at the shipped maximum. Keep an eye on the 200px container-query
+  // breakpoint: below it globals.css switches to the COMPACT card, which hides the
+  // lead and re-places the number, title and chip. `show` is the knob that buys
+  // headroom when a box is short.
+  const raw = Math.min(fitWindowCell(vh, show), cwEff / 1.5, SPINE_MAX_CELL);
   const w = cwEff > 0 ? raw : 0;
-  const compact = w > 0 && w < 200;
   const { boxes, height } = placeSpine(cells.length, w, cwEff);
   const solids = projectSpine(boxes, cwEff, height);
   const win = combWindow(cells.length, current);
@@ -271,14 +277,6 @@ export function Carousel({
           </div>
         ) : null}
       </div>
-      {compact ? (
-        <p
-          className="font-mono text-[9px] uppercase tracking-[0.16em] text-danger-coral"
-          style={{ position: "absolute", left: 6, bottom: 4, zIndex: 9 }}
-        >
-          compact card &middot; cell {Math.round(w)}px &lt; 200px
-        </p>
-      ) : null}
     </div>
   );
 }
