@@ -26,6 +26,7 @@ import type { CSSProperties } from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { HexShell } from "@/components/guide/GuideHoneycomb";
 import { SpineCombScene } from "@/components/guide/SpineCombScene";
+import { CombLock } from "@/components/guide/CombLock";
 import { COMB_CLIP, layoutComb, projectComb, POINTY_RATIO } from "@/lib/comb-ribbon";
 
 const useIsoLayoutEffect =
@@ -126,6 +127,26 @@ export function PathHoneycomb({
           hot={hot}
         />
       ) : null}
+
+      {/* The marker, on the flagship. This comb has no "current" - it is a set of
+
+          onward paths, not a run you are part-way down - so the thing worth
+
+          marking is the one the curriculum points at. */}
+
+      {(() => {
+
+        const fi = paths.findIndex((p) => p.isPrimary);
+
+        const fb = fi >= 0 ? layout.boxes[fi] : null;
+
+        return fb && measured && solids.length > 0 ? (
+
+          <CombLock box={fb} sceneW={cw} sceneH={layout.height} />
+
+        ) : null;
+
+      })()}
 
       {paths.map((p, i) => {
         const b = layout.boxes[i];
