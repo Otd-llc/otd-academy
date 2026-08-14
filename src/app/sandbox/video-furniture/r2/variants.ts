@@ -284,13 +284,14 @@ export const BEFORE_AFTER: Variant[] = [
  *  it does not control, so "no box" cannot mean "no ground". Each option below
  *  solves that differently, and one of them refuses to. */
 export const LABEL: Variant[] = [
-  { id: "masthead", name: "Masthead", claim: "A gold top-rule with the label riding under it, no sides and no bottom. The house document-header treatment, and the framing the law names first." },
-  { id: "accent", name: "Accent bar", claim: "A gold left-accent bar, text beside it. The sanctioned not-a-box framing; it groups without enclosing and it reads at any width." },
-  { id: "bracket", name: "Brackets", claim: "Top and bottom rules only. Frames on two sides, encloses on none - the lightest thing that still holds the words together." },
-  { id: "onrule", name: "On the leader", claim: "The label sits ON the leader line running back from the mark, so the pointer and the name are one object rather than a line that happens to end near a word." },
-  { id: "scrim", name: "Scrim only", claim: "No frame at all - just enough dim behind the words to read them. The most honest about the fact that a ground is needed, and the least ornamental." },
-  { id: "naked", name: "Naked", claim: "No frame, no scrim, gold on whatever is underneath. It will fail over copper, and it is here to prove the ground is load-bearing rather than decorative." },
+  { id: "stencil", name: "Stencil", claim: "Dark text knocked OUT of a solid gold bar. The only option that inverts rather than framing - maximum contrast over any background, and it cannot be lost in copper because it is not gold-on-something." },
+  { id: "tab", name: "Tab", claim: "A flag hanging off the hex itself, sharing its edge. The label is part of the mark rather than a caption sitting near it." },
+  { id: "manifest", name: "Manifest", claim: "A mono ordinal, a tick, then the name - the same language the intro's parts list uses. Reuses a shape the viewer has already been taught rather than inventing a fifth one." },
+  { id: "display", name: "Display", claim: "Bebas at size, no frame at all. Reads as a TITLE rather than a tag, which is a different claim about what a callout is." },
+  { id: "hexchip", name: "Hex chip", claim: "The label inside a small hex rather than a rectangle. The brand shape as the container - the one framing that could only belong to this company." },
+  { id: "masthead", name: "Masthead", claim: "A gold top-rule with the label under it. Kept as the control: it is the framing the design law names first." },
 ];
+
 
 export const PIECES = {
   intro: { name: "Intro / LESSON", seconds: 3.5, variants: INTRO },

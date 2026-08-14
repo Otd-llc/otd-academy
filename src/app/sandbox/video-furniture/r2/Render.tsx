@@ -145,7 +145,7 @@ export function PieceFrame(p: VProps) {
       }}
     >
       {p.piece === "intro" ? <Intro {...p} /> : null}
-      {p.piece === "lower" ? <Hairline {...p} /> : null}
+      {p.piece === "lower" ? <LowerThird {...p} /> : null}
       {p.piece === "outro" ? <Outro {...p} /> : null}
       {p.piece === "chapter" ? <Chapter {...p} /> : null}
       {p.piece === "intro-short" ? <IntroShort {...p} /> : null}
@@ -744,6 +744,160 @@ function HexMark({
  * it proves the ground is load-bearing rather than decorative, which is the
  * claim every other option is quietly making.
  */
+/**
+ * THE LOWER THIRDS, rebuilt to the house rules, one drawing per JOB.
+ *
+ * Read against the design law rather than restyled by eye, and the law decides
+ * most of it:
+ *
+ *   - HAIRLINES ON THE BARE FIELD, never a filled card. Every type here groups
+ *     with a gold rule on deep-space; not one draws a box.
+ *   - The mono eyebrow is the section lead - uppercase, 0.24em, gold, with the
+ *     house triangle.
+ *   - SAIRA IS THE NUMBER-HERO FACE AND NOTHING ELSE. `measure` gets it because
+ *     a measurement IS the signature readout; `part` gets it for the designator
+ *     because Bebas draws `0` and `O` identically; nothing else does.
+ *   - LORA IS THE READING VOICE, so `term` - the only type carrying a sentence -
+ *     is the only one that uses it. A definition is not a transcription, which
+ *     is why it is allowed to be prose at all.
+ *   - status-green and alert-red are a BORDER AND A LABEL, never a flood, and
+ *     `danger-coral` is the destructive channel distinct from a failed gate.
+ *   - `\u00b7` as the separator, never an em-dash, anywhere rendered.
+ *
+ * Every type sits above the CEA-708 caption band via `LOWER_THIRD_BOTTOM`.
+ */
+function LowerThird({ variant, t }: VProps) {
+  const life = outCubic(seg(t, 0, 0.6));
+  const rule = outExpo(seg(t, 0.1, 0.95));
+  const late = outCubic(seg(t, 0.45, 1.3));
+  const base: React.CSSProperties = {
+    position: "absolute",
+    left: "6cqw",
+    bottom: `${LOWER_THIRD_BOTTOM * 100}cqh`,
+    opacity: life,
+    width: "46cqw",
+  };
+  const Rule = ({ p = 1, tone = GOLD, w = 0.14 }: { p?: number; tone?: string; w?: number }) => (
+    <div style={{ height: hw(w), width: `${p * 100}%`, background: tone }} />
+  );
+
+  switch (variant) {
+    // A PART. Mono label, gold rule, designator in Saira - the only face whose
+    // `0` and `O` are different drawings, which a part number needs.
+    case "part":
+      return (
+        <div style={base}>
+          <Eyebrow o={late}>&#9656; U2 &middot; regulator</Eyebrow>
+          <div style={{ marginTop: "0.8cqh" }}>
+            <Rule p={rule} />
+          </div>
+          <div style={{ marginTop: "0.9cqh" }}>
+            <Desig size={2.2} color={TEXT} o={late}>
+              AP2112K-3.3
+            </Desig>
+          </div>
+        </div>
+      );
+
+    // A MEASUREMENT. The signature instrument readout: the number IS the hero,
+    // so this is the one type where Saira is used at scale.
+    case "measure":
+      return (
+        <div style={base}>
+          <Eyebrow o={late}>&#9656; quiescent draw</Eyebrow>
+          <div style={{ marginTop: "0.8cqh" }}>
+            <Rule p={rule} />
+          </div>
+          <div style={{ marginTop: "1.1cqh", display: "flex", alignItems: "baseline", gap: "0.8cqw" }}>
+            <Num size={5.2}>2.42</Num>
+            <Num size={2.4}>A</Num>
+          </div>
+        </div>
+      );
+
+    // A TERM. The only type carrying a sentence, so the only one in Lora - a
+    // definition is not a transcription, which is what makes prose legal here.
+    case "term":
+      return (
+        <div style={{ ...base, width: "52cqw" }}>
+          <Eyebrow o={late}>&#9656; term</Eyebrow>
+          <div style={{ marginTop: "0.8cqh" }}>
+            <Rule p={rule} />
+          </div>
+          <div style={{ marginTop: "1cqh" }}>
+            <Title size={2.2} o={late}>
+              Keep-out
+            </Title>
+          </div>
+          <div style={{ marginTop: "0.8cqh" }}>
+            <span style={{ fontFamily: "var(--font-serif)", fontSize: ts(1.35), color: MUTED, lineHeight: 1.45, opacity: late }}>
+              A region the router may not enter, whatever it costs.
+            </span>
+          </div>
+        </div>
+      );
+
+    // A SOURCE. The document-index register: mono throughout, middots between
+    // fields, and it reads the way a citation on the page reads.
+    case "source":
+      return (
+        <div style={{ ...base, width: "50cqw" }}>
+          <Rule p={rule} w={0.1} tone={HAIR} />
+          <div style={{ marginTop: "0.9cqh", opacity: late }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.15), letterSpacing: "0.16em", color: MUTED, lineHeight: 1.4 }}>
+              IPC-2221B &middot; &sect;6.3 &middot; conductor spacing
+            </span>
+          </div>
+        </div>
+      );
+
+    // A GATE. The status channel is a BORDER AND A LABEL, never a flooded
+    // panel - and the rule carries the tone so the state is legible before the
+    // word is read.
+    case "gate": {
+      const passed = t >= 2.0;
+      const tone = passed ? "var(--color-status-green)" : "var(--color-alert-red)";
+      return (
+        <div style={base}>
+          <Rule p={rule} tone={tone} w={0.18} />
+          <div style={{ marginTop: "0.9cqh", display: "flex", alignItems: "baseline", gap: "1.2cqw" }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.2), letterSpacing: "0.24em", textTransform: "uppercase", color: tone, opacity: late }}>
+              {passed ? "DRC pass" : "DRC fail"}
+            </span>
+            <span style={{ fontFamily: "var(--font-display)", fontSize: ts(2), color: TITLE, opacity: late }}>
+              {passed ? "clean, 0 errors" : "3 clearance violations"}
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    // A WARNING. The coral destructive channel, and a left-accent bar rather
+    // than a rule - deliberately unlike every other type here, because a
+    // warning that looks like a label is not read.
+    case "warn":
+    default:
+      return (
+        <div style={{ ...base, display: "flex", gap: "1.4cqw" }}>
+          <div style={{ width: hw(0.5), background: "var(--color-danger-coral)", opacity: rule }} />
+          <div>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: ts(1.2), letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--color-danger-coral)", opacity: late }}>
+              polarised
+            </span>
+            <div style={{ marginTop: "0.7cqh", display: "flex", alignItems: "baseline", gap: "0.7cqw" }}>
+              <Desig size={2} color={TEXT} o={late}>
+                D2 / C11
+              </Desig>
+              <span style={{ fontFamily: "var(--font-display)", fontSize: ts(2), color: TITLE, opacity: late }}>
+                fail loudly if reversed
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+  }
+}
+
 function LabelRound({ variant, stage, t, aspect = 16 / 9 }: VProps) {
   const art = stageArt(stage);
   const inP = outCubic(seg(t, 0.3, 1.0));
@@ -752,9 +906,22 @@ function LabelRound({ variant, stage, t, aspect = 16 / 9 }: VProps) {
   const o = inP * hold;
   const px = 0.42;
   const py = 0.46;
-  const TEXTY = { fontFamily: "var(--font-mono)", fontSize: ts(1.25), letterSpacing: "0.24em", textTransform: "uppercase" as const, color: GOLD, lineHeight: 1, whiteSpace: "nowrap" as const };
+
+  // BOLDER. Space Mono ships a 700, and the previous round set every label at
+  // 400 - which is the weight for an eyebrow on a quiet page, not for a mark
+  // that has to hold its own over a screencast.
+  const MONO = {
+    fontFamily: "var(--font-mono)",
+    fontWeight: 700,
+    fontSize: ts(1.35),
+    letterSpacing: "0.22em",
+    textTransform: "uppercase" as const,
+    lineHeight: 1,
+    whiteSpace: "nowrap" as const,
+  };
   const LX = `${px * 100 + 10}cqw`;
   const LY = `${py * 100 - 16}cqh`;
+  const WORD = "ground pour";
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
@@ -765,69 +932,80 @@ function LabelRound({ variant, stage, t, aspect = 16 / 9 }: VProps) {
       <HexMark px={px} py={py} aspect={aspect} scale={grip} colour={GOLD} o={o * grip} />
 
       <div style={{ position: "absolute", left: LX, top: LY, opacity: o * grip }}>
-        {variant === "masthead" ? (
-          <div>
-            <div style={{ height: hw(0.4), background: GOLD, marginBottom: "0.9cqh" }} />
-            <span style={TEXTY}>&#9656; ground pour</span>
+        {/* STENCIL - the only option that INVERTS rather than framing. Dark text
+            knocked out of a solid gold bar, so it cannot be lost in copper: it
+            is not gold-on-something, it is something-on-gold. */}
+        {variant === "stencil" ? (
+          <span style={{ ...MONO, background: GOLD, color: FIELD, padding: "0.9cqh 1.4cqw" }}>{WORD}</span>
+        ) : null}
+
+        {/* MANIFEST - the intro's parts-list language, reused rather than a
+            fifth framing invented. */}
+        {variant === "manifest" ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "1cqw" }}>
+            <span style={{ ...MONO, color: GOLD, textShadow: `0 0 ${hw(0.7)} ${FIELD}` }}>01</span>
+            <span style={{ width: "3.4cqw", height: hw(0.3), background: GOLD, boxShadow: `0 0 0 ${hw(0.12)} ${FIELD}` }} />
+            <span style={{ ...MONO, color: TITLE, textShadow: `0 0 ${hw(0.7)} ${FIELD}, 0 0 ${hw(0.3)} ${FIELD}` }}>{WORD}</span>
           </div>
         ) : null}
 
-        {variant === "accent" ? (
-          <div style={{ display: "flex", alignItems: "stretch", gap: "1cqw" }}>
-            <div style={{ width: hw(0.5), background: GOLD }} />
-            <span style={{ ...TEXTY, alignSelf: "center" }}>ground pour</span>
-          </div>
-        ) : null}
-
-        {variant === "bracket" ? (
-          <div>
-            <div style={{ height: hw(0.3), background: GOLD }} />
-            <div style={{ padding: "0.9cqh 0" }}>
-              <span style={TEXTY}>ground pour</span>
-            </div>
-            <div style={{ height: hw(0.3), background: GOLD }} />
-          </div>
-        ) : null}
-
-        {variant === "scrim" ? (
-          // No frame at all. The dim is doing the only job a frame was doing.
+        {/* DISPLAY - Bebas at size, no frame. A different claim about what a
+            callout is: a title rather than a tag. */}
+        {variant === "display" ? (
           <span
             style={{
-              ...TEXTY,
-              padding: "0.8cqh 1.2cqw",
-              background: FIELD,
-              opacity: 0.94,
-              boxShadow: `0 0 ${hw(1.2)} ${hw(0.6)} ${FIELD}`,
+              fontFamily: "var(--font-display)",
+              fontSize: ts(3.2),
+              color: TITLE,
+              lineHeight: 1,
+              textShadow: `0 0 ${hw(1)} ${FIELD}, 0 0 ${hw(0.4)} ${FIELD}`,
             }}
           >
-            ground pour
+            {WORD}
           </span>
         ) : null}
 
-        {variant === "naked" ? <span style={TEXTY}>ground pour</span> : null}
+        {/* HEX CHIP - the brand shape as the container. The one framing that
+            could only belong to this company. */}
+        {variant === "hexchip" ? (
+          <span
+            style={{
+              ...MONO,
+              color: FIELD,
+              background: GOLD,
+              padding: "1.1cqh 2.4cqw",
+              clipPath: "polygon(12% 0%, 88% 0%, 100% 50%, 88% 100%, 12% 100%, 0% 50%)",
+              display: "inline-block",
+            }}
+          >
+            {WORD}
+          </span>
+        ) : null}
+
+        {variant === "masthead" ? (
+          <div>
+            <div style={{ height: hw(0.4), background: GOLD, marginBottom: "0.9cqh" }} />
+            <span style={{ ...MONO, color: GOLD, textShadow: `0 0 ${hw(0.7)} ${FIELD}` }}>&#9656; {WORD}</span>
+          </div>
+        ) : null}
       </div>
 
-      {/* ON THE LEADER - the pointer and the name are ONE object, so it is
-          positioned from the mark rather than parked near it. */}
-      {variant === "onrule" ? (
-        <>
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              left: `${px * 100}cqw`,
-              top: `${py * 100 - 14}cqh`,
-              width: `${grip * 26}cqw`,
-              height: hw(0.34),
-              background: GOLD,
-              boxShadow: `0 0 0 ${hw(0.14)} ${FIELD}`,
-              opacity: o,
-            }}
-          />
-          <div style={{ position: "absolute", left: `${px * 100 + 1}cqw`, top: `${py * 100 - 18.5}cqh`, opacity: o * grip }}>
-            <span style={{ ...TEXTY, background: FIELD, padding: "0 0.6cqw" }}>ground pour</span>
-          </div>
-        </>
+      {/* TAB - hangs off the hex and shares its edge, so the label is part of
+          the mark rather than a caption near it. Positioned from the mark. */}
+      {variant === "tab" ? (
+        <div
+          style={{
+            position: "absolute",
+            left: `${px * 100 + 5.6}cqw`,
+            top: `${py * 100 - 3}cqh`,
+            display: "flex",
+            alignItems: "center",
+            opacity: o * grip,
+          }}
+        >
+          <span style={{ width: "3cqw", height: hw(0.3), background: GOLD }} />
+          <span style={{ ...MONO, background: GOLD, color: FIELD, padding: "0.9cqh 1.4cqw" }}>{WORD}</span>
+        </div>
       ) : null}
     </div>
   );
