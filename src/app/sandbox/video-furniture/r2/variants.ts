@@ -151,11 +151,9 @@ export const CHAPTER: Variant[] = [
  *  rather than a loophole, and it should be overturned if it reads as the
  *  cliche the ban exists to prevent. */
 export const INTRO_SHORT: Variant[] = [
-  { id: "wash", name: "Wash", claim: "The control: enormous, faint, bled off the top and left. No lattice at all - the baseline the others have to beat." },
-  { id: "hexgrid-fine", name: "Hex lattice, fine", claim: "Solid for most of its life, then resolves into a fine hex lattice and discharges away. Finest cell: reads as texture dissolving rather than as a diagram." },
-  { id: "hexgrid-mid", name: "Hex lattice, medium", claim: "The same at a mid cell size, where individual cells are legible AS hexes - the brand shape doing the abstracting rather than an anonymous mesh." },
-  { id: "hexgrid-coarse", name: "Hex lattice, coarse", claim: "Few, large cells. The most graphic and the cheapest to encode; closest to the honeycomb the rest of the system is built from." },
+  { id: "wash", name: "Wash", claim: "The mark enormous and faint, bled off the top and left. Static: the field stops being empty and nothing competes with the question." },
 ];
+
 
 
 
@@ -176,27 +174,46 @@ export const OUTRO_SHORT: Variant[] = [
   { id: "loop-mark", name: "Loop on the mark", claim: "The same, landing on the brandmark alone - so the seam is the mark, and a viewer who loops twice sees it twice rather than seeing a join." },
 ];
 
-/** ANNOTATE - the mid-video set, and the first furniture that fires OVER LIVE
- *  WORK rather than over a bare field.
+/** THE MID-VIDEO SET, and it is THREE devices rather than one.
  *
- *  That is the constraint the openers never had. A lower third sits on
- *  deep-space; a callout sits on a screencast of KiCad, where the background is
- *  someone else's contrast and changes every frame. So every treatment here
- *  carries its own ground - a hairline, a scrim, a bracket - and none of them
- *  relies on the field being dark.
+ *  They were built as a single `annotate` piece because they share a
+ *  constraint - each fires over LIVE WORK rather than a bare field, where the
+ *  background is someone else's contrast and changes every frame. But a shared
+ *  constraint is not a shared job: pointing at a thing, halting the viewer, and
+ *  showing a repair are three devices, and two of them had exactly one
+ *  treatment, which is not an audition.
  *
- *  WHY THESE FOUR. Signalling is d = 0.70, second only to coherence, and it is
- *  the one principle that says motion is POSITIVE rather than a cost: motion
- *  that POINTS helps. Everything built so far spends motion on transitions and
- *  none of it on directing attention, which is the gap. And 61% of interaction
- *  peaks accompany a visual transition, so a mid-video mark is also a scrub
- *  target - it should land on a boundary that means something. */
-export const ANNOTATE: Variant[] = [
-  { id: "callout-ring", name: "Callout, ring", claim: "A hex ring closes on the thing and holds, with a mono label on a leader. The trace-and-vise gesture at annotation scale, so a viewer who has seen the intro already knows what it means." },
-  { id: "callout-bracket", name: "Callout, brackets", claim: "Two corner brackets grip the region instead of ringing it - better on a rectangular thing like a footprint or a dialog, and it never implies a circle where there is a pad." },
-  { id: "callout-lead", name: "Callout, leader", claim: "A hairline runs in from the edge of frame and stops on the point, label at its root. Nothing overlaps the work at all, which is the only option that guarantees it." },
-  { id: "pause", name: "Pause here", claim: "The one piece that is an instruction to the transport rather than information: stop, do the thing, come back. A build-along without it is a video you cannot follow at the bench." },
-  { id: "wipe-before-after", name: "Before and after", claim: "A hard edge travels across and the fix is on the other side of it. A wipe along an axis is permitted vocabulary, so this costs nothing to add and is the natural shape for a repair." },
+ *  So each gets its own round. The constraint stays in all three: every
+ *  treatment carries its own ground, and none may assume the field is dark. */
+
+/** CALLOUT - signalling, which is d = 0.70 and the one principle that says
+ *  motion is POSITIVE rather than a cost. Everything else in the set spends
+ *  motion on transitions; this is the only piece that spends it on POINTING. */
+export const CALLOUT: Variant[] = [
+  { id: "ring", name: "Hex ring", claim: "A hex closes on the thing and holds. The trace-and-vise gesture at annotation scale, so a viewer who has seen the intro already knows what it means." },
+  { id: "bracket", name: "Corner brackets", claim: "Four brackets grip a region instead of ringing it. Better on a rectangular thing - a footprint, a dialog, a field in a form - and it never implies a circle where there is a pad." },
+  { id: "lead", name: "Leader", claim: "A hairline runs in from the frame edge and stops on the point, label at its root. The only option that guarantees nothing overlaps the work." },
+  { id: "underline", name: "Underline", claim: "A rule under the thing rather than around it, label riding the rule. The quietest, and the only one that cannot cover what it points at." },
+];
+
+/** PAUSE - the one device that is an INSTRUCTION TO THE TRANSPORT rather than
+ *  information. Stop, do the thing, come back. A build-along without it is a
+ *  video you cannot follow at the bench. What varies is how hard it stops you. */
+export const PAUSE: Variant[] = [
+  { id: "card", name: "Full stop", claim: "A centred card on its own ground, work dimmed behind it. Unmissable, and the only one that reads as a genuine halt rather than a suggestion." },
+  { id: "band", name: "Band", claim: "A band across the lower third. Stops short of covering the work, so a viewer who ignores it loses nothing - which is either the virtue or the flaw." },
+  { id: "corner", name: "Badge", claim: "A small square tag in the corner. The work stays entirely visible; this is a reminder rather than an instruction." },
+  { id: "dim", name: "Dim and hold", claim: "The whole frame drops to half and one line appears. Nothing is covered - the work is still readable underneath - but it is unmistakably paused." },
+];
+
+/** BEFORE AND AFTER - a wipe along an axis is already permitted vocabulary, so
+ *  this costs nothing to add and is the natural shape for a repair. What varies
+ *  is whether the viewer sees the CHANGE or is shown two states. */
+export const BEFORE_AFTER: Variant[] = [
+  { id: "wipe", name: "Wipe", claim: "A hard edge travels across and the fix is on the other side of it. One gesture; the change is seen rather than remembered." },
+  { id: "split", name: "Split", claim: "A static divider with both states held either side. Nothing moves, so both can be studied - the only option that survives a paused frame." },
+  { id: "cut", name: "Cut", claim: "A hard cut between the two with a mono label. The cheapest to encode by a distance, and the research says a boundary earns its keep by being a boundary." },
+  { id: "toggle", name: "Toggle", claim: "The wipe runs across and back twice. The difference is compared rather than merely shown - at the cost of being the busiest thing in the set." },
 ];
 
 export const PIECES = {
@@ -209,7 +226,10 @@ export const PIECES = {
   // than a reflow.
   "intro-short": { name: "Intro / SHORT", seconds: 3.5, variants: INTRO_SHORT },
   "outro-short": { name: "Outro / SHORT", seconds: 4, variants: OUTRO_SHORT },
-  annotate: { name: "Annotate / mid-video", seconds: 4, variants: ANNOTATE },
+  // Three devices, three rounds. They share a constraint, not a job.
+  callout: { name: "Callout / points at it", seconds: 4, variants: CALLOUT },
+  pause: { name: "Pause / halts you", seconds: 4, variants: PAUSE },
+  beforeafter: { name: "Before + after", seconds: 4, variants: BEFORE_AFTER },
   // Seconds are the AUDITION length, not a duration - this piece is persistent.
   // The cut at t=2.0 is there so the round shows the one thing it does: change.
   chapter: { name: "Chapter indicator", seconds: 4, variants: CHAPTER },

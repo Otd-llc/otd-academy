@@ -150,7 +150,9 @@ export function PieceFrame(p: VProps) {
       {p.piece === "chapter" ? <Chapter {...p} /> : null}
       {p.piece === "intro-short" ? <IntroShort {...p} /> : null}
       {p.piece === "outro-short" ? <OutroShort {...p} /> : null}
-      {p.piece === "annotate" ? <Annotate {...p} /> : null}
+      {p.piece === "callout" ? <Annotate {...p} kind="callout" /> : null}
+      {p.piece === "pause" ? <Annotate {...p} kind="pause" /> : null}
+      {p.piece === "beforeafter" ? <Annotate {...p} kind="beforeafter" /> : null}
     </div>
   );
 
@@ -609,112 +611,7 @@ const STAGE_QUESTION: Partial<Record<string, string>> = {
  * The work surface below is a stand-in, and it is deliberately BUSY. Auditioning
  * an annotation over a bare field would audition the thing that never happens.
  */
-/**
- * THE MARK, TAKING ITSELF APART.
- *
- * For most of its life it is the plain wash: a solid silhouette, faint, owning
- * the field. Then it resolves into a hex lattice and the cells discharge away
- * down the grid and vanish.
- *
- * EVERY CELL IS A PURE FUNCTION OF `t` AND ITS OWN INDEX. There is no particle
- * system and no simulation - a cell's delay comes from its position, so the
- * whole lattice is reproducible at any seek and a frame at t=2.4 is the same
- * picture every time it is asked for. That is what lets it ship in a set whose
- * first rule is scrub-never-play.
- *
- * The discharge runs DOWN AND RIGHT, on the lattice's own axes rather than on
- * the frame's, so the cells travel along the grid instead of across it.
- */
-function HexLattice({ cell, t, o }: { cell: number; t: number; o: number }) {
-  // Phases, in scene seconds. Solid, then outline, then discharge.
-  const dissolve = outCubic(seg(t, 2.0, 2.6));
-  const discharge = outCubic(seg(t, 2.5, 3.4));
-
-  const W = 100;
-  const H = 100;
-  const rx = cell;
-  const ry = cell * 1.1547;
-  const cols = Math.ceil(W / (rx * 1.5)) + 2;
-  const rows = Math.ceil(H / ry) + 2;
-
-  const cells: { x: number; y: number; d: number }[] = [];
-  for (let c = 0; c < cols; c += 1) {
-    for (let r = 0; r < rows; r += 1) {
-      const x = c * rx * 1.5;
-      const y = r * ry + (c % 2 ? ry / 2 : 0);
-      // The delay is the cell's own position, so the discharge sweeps rather
-      // than firing at once - and it is deterministic, which a random seed
-      // would not be.
-      cells.push({ x, y, d: (x / W) * 0.55 + (y / H) * 0.45 });
-    }
-  }
-
-  const hex = (x: number, y: number) =>
-    [
-      [x, y - ry / 2],
-      [x + rx / 2, y - ry / 4],
-      [x + rx / 2, y + ry / 4],
-      [x, y + ry / 2],
-      [x - rx / 2, y + ry / 4],
-      [x - rx / 2, y - ry / 4],
-    ]
-      .map(([a, b]) => a.toFixed(2) + "," + b.toFixed(2))
-      .join(" ");
-
-  return (
-    // SLICE, NOT NONE. A square viewBox stretched over a 16:9 frame shears every
-    // cell into a zigzag - the lattice rendered as chevrons rather than hexes on
-    // the first attempt. Slicing keeps the cells regular and lets the grid
-    // overflow instead, which is what a wash wants anyway.
-    <svg
-      viewBox="0 0 100 100"
-      preserveAspectRatio="xMidYMid slice"
-      style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
-      aria-hidden
-    >
-      <defs>
-        <mask id="hexwash-mask">
-          <rect x="0" y="0" width="100" height="100" fill="black" />
-          <svg x="-14" y="-10" width="88" height="126" viewBox={BRANDMARK_VIEWBOX} preserveAspectRatio="xMidYMid meet">
-            <path d={BRANDMARK_PATH} fill="white" />
-          </svg>
-        </mask>
-      </defs>
-
-      {/* THE SOLID. Present for most of the piece, gone by the time the lattice
-          has resolved - the two never both read as the subject. */}
-      <g mask="url(#hexwash-mask)" opacity={o * (1 - dissolve)}>
-        <rect x="0" y="0" width="100" height="100" fill={GOLD} opacity={0.09} />
-      </g>
-
-      {/* THE LATTICE. Masked by the same silhouette, so the cells only exist
-          where the mark is - the grid is the mark rather than a grid over it. */}
-      <g mask="url(#hexwash-mask)">
-        {cells.map((c, k) => {
-          // Each cell's own progress through the discharge, delayed by where it
-          // is. Clamped, so a cell is never asked for a negative phase.
-          const p = clamp01((discharge - c.d) / 0.45);
-          if (dissolve <= 0) return null;
-          const dx = p * 26;
-          const dy = p * 14;
-          return (
-            <polygon
-              key={k}
-              points={hex(c.x + dx, c.y + dy)}
-              fill="none"
-              stroke={GOLD}
-              strokeWidth={0.28}
-              vectorEffect="non-scaling-stroke"
-              opacity={o * dissolve * (1 - p) * 0.5}
-            />
-          );
-        })}
-      </g>
-    </svg>
-  );
-}
-
-function Annotate({ variant, stage, t }: VProps) {
+function Annotate({ variant, stage, t, kind }: VProps & { kind: "callout" | "pause" | "beforeafter" }) {
   const art = stageArt(stage);
   const inP = outCubic(seg(t, 0.3, 1.0));
   // The grip closes after the mark has arrived, same order as the outro's lock:
@@ -738,7 +635,7 @@ function Annotate({ variant, stage, t }: VProps) {
         />
       ) : null}
 
-      {variant === "callout-ring" ? (
+      {kind === "callout" && variant === "ring" ? (
         <>
           {/* AN SVG POLYGON, not a bordered box under a clip-path. A CSS border
               is drawn on the box and the clip then cuts it away, so a hex
@@ -807,7 +704,7 @@ function Annotate({ variant, stage, t }: VProps) {
         </>
       ) : null}
 
-      {variant === "callout-bracket" ? (
+      {kind === "callout" && variant === "bracket" ? (
         <>
           {[
             [-1, -1],
@@ -839,7 +736,7 @@ function Annotate({ variant, stage, t }: VProps) {
         </>
       ) : null}
 
-      {variant === "callout-lead" ? (
+      {kind === "callout" && variant === "lead" ? (
         <>
           {/* Nothing overlaps the work. The only option that guarantees it. */}
           <div
@@ -873,7 +770,7 @@ function Annotate({ variant, stage, t }: VProps) {
         </>
       ) : null}
 
-      {variant === "pause" ? (
+      {kind === "pause" && variant === "card" ? (
         <div
           style={{
             position: "absolute",
@@ -900,7 +797,124 @@ function Annotate({ variant, stage, t }: VProps) {
         </div>
       ) : null}
 
-      {variant === "wipe-before-after" ? (
+      {kind === "callout" && variant === "underline" ? (
+        <>
+          {/* Cannot cover what it points at, which is the one thing every other
+              callout risks. */}
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: `${px * 100 - 9}cqw`,
+              top: `${py * 100 + 11}cqh`,
+              width: `${grip * 18}cqw`,
+              height: hw(0.16),
+              background: GOLD,
+              boxShadow: `0 0 0 ${hw(0.1)} ${FIELD}`,
+              opacity: o,
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              left: `${px * 100 - 9}cqw`,
+              top: `${py * 100 + 13}cqh`,
+              opacity: o * grip,
+              padding: "0.5cqh 1cqw",
+              background: FIELD,
+            }}
+          >
+            <Eyebrow o={o * grip}>ground pour</Eyebrow>
+          </div>
+        </>
+      ) : null}
+
+      {kind === "pause" && variant === "band" ? (
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: "16cqh", opacity: o }}>
+          <div style={{ position: "absolute", inset: "-2cqh 0", background: FIELD, opacity: 0.86 }} aria-hidden />
+          <div style={{ position: "relative", textAlign: "center" }}>
+            <Eyebrow o={o}>pause here</Eyebrow>
+            <div style={{ marginTop: "1cqh" }}>
+              <Title size={2.4} o={o}>
+                Do this bit before you carry on
+              </Title>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {kind === "pause" && variant === "corner" ? (
+        <div
+          style={{
+            position: "absolute",
+            right: "6cqw",
+            top: "8cqh",
+            opacity: o,
+            border: `${hw(0.1)} solid ${GOLD}`,
+            background: FIELD,
+            padding: "1cqh 1.4cqw",
+          }}
+        >
+          <Eyebrow o={o}>pause here</Eyebrow>
+        </div>
+      ) : null}
+
+      {kind === "pause" && variant === "dim" ? (
+        <>
+          {/* Nothing is covered - the work stays readable underneath - but it is
+              unmistakably stopped. */}
+          <div style={{ position: "absolute", inset: 0, background: FIELD, opacity: 0.55 * o }} aria-hidden />
+          <div style={{ position: "absolute", left: 0, right: 0, top: "44cqh", textAlign: "center", opacity: o }}>
+            <Title size={3} o={o}>
+              Pause here
+            </Title>
+          </div>
+        </>
+      ) : null}
+
+      {kind === "beforeafter" && variant === "split" ? (
+        <>
+          <div style={{ position: "absolute", inset: 0, clipPath: "inset(0 0 0 50%)", background: FIELD, opacity: 0.55 }} aria-hidden />
+          <div aria-hidden style={{ position: "absolute", left: "50cqw", top: 0, bottom: 0, width: hw(0.16), background: GOLD, opacity: o }} />
+          <div style={{ position: "absolute", left: "6cqw", bottom: "12cqh", opacity: o }}>
+            <Eyebrow o={o}>after</Eyebrow>
+          </div>
+          <div style={{ position: "absolute", right: "6cqw", bottom: "12cqh", opacity: o }}>
+            <Eyebrow o={o}>before</Eyebrow>
+          </div>
+        </>
+      ) : null}
+
+      {kind === "beforeafter" && variant === "cut" ? (
+        <>
+          {/* A step function: one state or the other, never a blend. The
+              cheapest thing in the set to encode. */}
+          <div
+            aria-hidden
+            style={{ position: "absolute", inset: 0, background: FIELD, opacity: t >= 2.0 ? 0 : 0.55 }}
+          />
+          <div style={{ position: "absolute", left: "6cqw", bottom: "12cqh", opacity: o }}>
+            <Eyebrow o={o}>{t >= 2.0 ? "after" : "before"}</Eyebrow>
+          </div>
+        </>
+      ) : null}
+
+      {kind === "beforeafter" && variant === "toggle" ? (
+        (() => {
+          // Across and back, twice. A pure function of `t` - a triangle wave,
+          // not an oscillator with state.
+          const cycle = clamp01(seg(t, 0.8, 3.4)) * 2;
+          const tri = cycle % 1 < 0.5 ? (cycle % 1) * 2 : 2 - (cycle % 1) * 2;
+          return (
+            <>
+              <div style={{ position: "absolute", inset: 0, clipPath: `inset(0 0 0 ${tri * 100}%)`, background: FIELD, opacity: 0.55 }} aria-hidden />
+              <div aria-hidden style={{ position: "absolute", left: `${tri * 100}cqw`, top: 0, bottom: 0, width: hw(0.16), background: GOLD, opacity: o }} />
+            </>
+          );
+        })()
+      ) : null}
+
+      {kind === "beforeafter" && variant === "wipe" ? (
         <>
           {/* The fix is on the other side of a hard edge. A wipe along an axis
               is permitted vocabulary, so this costs nothing to add. */}
@@ -969,29 +983,21 @@ function IntroShort({ variant, stage, t, aspect = 16 / 9 }: VProps) {
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      {wash.startsWith("hexgrid") ? (
-        <HexLattice
-          cell={wash === "hexgrid-fine" ? 2.6 : wash === "hexgrid-coarse" ? 7.5 : 4.6}
-          t={t}
-          o={inP}
-        />
-      ) : (
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            left: "-18cqw",
-            top: "-14cqh",
-            width: "92cqw",
-            height: "128cqh",
-            opacity: 0.07 * inP,
-          }}
-        >
-          <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
-            <path d={BRANDMARK_PATH} fill={GOLD} />
-          </svg>
-        </div>
-      )}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: "-18cqw",
+          top: "-14cqh",
+          width: "92cqw",
+          height: "128cqh",
+          opacity: 0.07 * inP,
+        }}
+      >
+        <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
+          <path d={BRANDMARK_PATH} fill={GOLD} />
+        </svg>
+      </div>
 
       <div style={{ position: "absolute", left: copyLeft, right: copyRight, top: copyTop, opacity: inP }}>
         <Eyebrow o={inP}>the question</Eyebrow>
