@@ -69,31 +69,49 @@ export const INTRO: Variant[] = [
  *
  *  Each type's third option is deliberately the one that argues with the other
  *  two, because a round of three near-identical treatments is not a choice. */
+/** LOWER THIRD - three options per job, plus SIX NEW FORMS.
+ *
+ *  The six jobs are settled and their per-job options stand. What is added here
+ *  is a set of FORMS - shapes the whole family could take - auditioned on `part`
+ *  because it is the canonical one: whatever form wins can carry every job.
+ *
+ *  Two of them are the label round's winners applied down here, which is a
+ *  consistency argument worth testing rather than assuming: if a tab is right
+ *  for naming a thing on the board, it may be right for naming a thing at the
+ *  frame edge, and one vocabulary is better than two. */
 export const LOWER: Variant[] = [
   { id: "part-rule", name: "Part / rule", claim: "Mono label, gold rule, designator in Saira beneath. The document-index row as furniture." },
   { id: "part-tag", name: "Part / ref tag", claim: "Designator in a square tag, part number on a mono line beside it. Closest to how the BOM itself reads." },
-  { id: "part-lead", name: "Part / value first", claim: "The part number at size with the designator demoted to a caption. Argues that the viewer is looking up a part, not a reference." },
+  { id: "part-lead", name: "Part / value first", claim: "The part number at size with the designator demoted to a caption. Argues the viewer is looking up a part, not a reference." },
 
-  { id: "measure-hero", name: "Measure / hero", claim: "The signature readout: Saira at scale, unit beside it, mono label above. The number IS the subject." },
-  { id: "measure-line", name: "Measure / on a line", claim: "Label, rule, value on one horizontal run. Takes a third of the height, which is what a mid-video insert can afford." },
-  { id: "measure-delta", name: "Measure / against", claim: "The value with what it was, struck through. A measurement in a repair video is usually a COMPARISON, and the other two hide that." },
+  { id: "form-tab", name: "Form / tab", claim: "The callout's winning tab, at the frame edge: knocked out of a solid gold bar. Brings its own ground, so it survives any footage - and it makes the lower third and the callout one vocabulary." },
+  { id: "form-display", name: "Form / display", claim: "The callout's other winner: Bebas at size, no frame, a halo doing the work. The loudest thing the set can do at the bottom of a frame." },
+  { id: "form-ticker", name: "Form / ticker", claim: "One horizontal run, everything inline, a third of the height. For a video that needs a lower third up often rather than rarely." },
+  { id: "form-column", name: "Form / column", claim: "Rotated to the left EDGE, reading bottom-to-top. Costs no horizontal space at all, which is the one thing 9:16 has none of." },
+  { id: "form-bracket", name: "Form / bracketed", claim: "Held between two rules, nothing at the sides. Frames without boxing, and stays legible over a busy canvas." },
+  { id: "form-plate", name: "Form / plate", claim: "A deep-space plate with a gold top-rule - the masthead treatment at full width. The most readable over anything, and the most furniture." },
 
-  { id: "term-stack", name: "Term / stacked", claim: "Bebas term, Lora definition beneath. The reading voice, used in the one place a sentence is legal." },
-  { id: "term-inline", name: "Term / inline", claim: "Term and definition on one line, the term in gold. Half the height and it still reads." },
-  { id: "term-eyebrow", name: "Term / defined", claim: "The term as the eyebrow and the definition as the statement, so the DEFINITION is the thing on screen rather than the word." },
+  { id: "measure-hero", name: "Measure / hero", claim: "The signature readout: Saira at scale, unit beside it, mono label above." },
+  { id: "measure-line", name: "Measure / on a line", claim: "Label, rule, value on one horizontal run. A third of the height." },
+  { id: "measure-delta", name: "Measure / against", claim: "The value with what it was, struck through. A measurement in a repair video is usually a comparison." },
 
-  { id: "source-rule", name: "Source / rule", claim: "A quiet hairline and a mono citation. The register a footnote should have." },
-  { id: "source-tag", name: "Source / standard", claim: "The standard in a square tag, the section beside it. Scannable when the standard is the thing being cited repeatedly." },
-  { id: "source-corner", name: "Source / corner", claim: "Small, in the corner, out of the lower third entirely. A citation is an obligation rather than a message - it does not need the good real estate." },
+  { id: "term-stack", name: "Term / stacked", claim: "Bebas term, Lora definition beneath. The reading voice, in the one place a sentence is legal." },
+  { id: "term-inline", name: "Term / inline", claim: "Term and definition on one line, the term in gold." },
+  { id: "term-eyebrow", name: "Term / defined", claim: "The term as the eyebrow and the definition as the statement." },
 
-  { id: "gate-rule", name: "Gate / rule", claim: "A tone-coloured rule, mono state, result beside it. Status as a border and a label, never a flood." },
-  { id: "gate-badge", name: "Gate / badge", claim: "A square badge in the status channel with the count beside it. The most scannable, and the closest to how the app shows a gate." },
-  { id: "gate-count", name: "Gate / count", claim: "The error COUNT as the hero in Saira, tone-coloured, with the gate name beneath. A failing gate is a number before it is a word." },
+  { id: "source-rule", name: "Source / rule", claim: "A quiet hairline and a mono citation." },
+  { id: "source-tag", name: "Source / standard", claim: "The standard in a square tag, the section beside it." },
+  { id: "source-corner", name: "Source / corner", claim: "Small, in the corner, out of the lower third entirely." },
 
-  { id: "warn-bar", name: "Warn / accent bar", claim: "The coral left-accent bar. The sanctioned not-a-box framing, deliberately unlike the labels it sits among." },
-  { id: "warn-stencil", name: "Warn / stencil", claim: "Knocked out of solid coral. The inversion that lost the label round may win here, because a warning is the one thing that should be unmissable." },
-  { id: "warn-brackets", name: "Warn / brackets", claim: "Coral rules above and below, nothing at the sides. Frames the warning without boxing it, and stays legible over a busy canvas." },
+  { id: "gate-rule", name: "Gate / rule", claim: "A tone-coloured rule, mono state, result beside it." },
+  { id: "gate-badge", name: "Gate / badge", claim: "A square badge in the status channel with the count beside it." },
+  { id: "gate-count", name: "Gate / count", claim: "The error count as the hero in Saira. A failing gate is a number before it is a word." },
+
+  { id: "warn-bar", name: "Warn / accent bar", claim: "The coral left-accent bar." },
+  { id: "warn-stencil", name: "Warn / stencil", claim: "Knocked out of solid coral. Unmissable, which a warning should be." },
+  { id: "warn-brackets", name: "Warn / brackets", claim: "Coral rules above and below, nothing at the sides." },
 ];
+
 
 
 
@@ -200,14 +218,20 @@ export const CHAPTER: Variant[] = [
  *  no comb, and it must read MUTED because YouTube's own feed autoplays it
  *  silent with captions over the top. What is not settled is whether the mark
  *  should be a backdrop at all - three of these say no. */
+/** INTRO / SHORT - two taken. THE BOARD and STATIC WASH.
+ *
+ *  They disagree about what the field is for, which is why both survived: the
+ *  wash makes the field the BRAND, the board makes it the EVIDENCE. These are
+ *  variations within each, not a re-run of the question. */
 export const INTRO_SHORT: Variant[] = [
-  { id: "wash", name: "Static wash", claim: "The leader. Mark enormous and faint behind the words; nothing moves." },
-  { id: "knockout", name: "Knockout", claim: "The question is CUT OUT of the wash rather than set on top of it - the words are holes in the mark. One object instead of two stacked, and it cannot be misread as a logo with text over it." },
-  { id: "subject", name: "The board", claim: "The wash is not the mark at all: it is the actual artifact this stage produces, ghosted. The field becomes evidence rather than branding, and the mark retires to a corner tag." },
-  { id: "seam", name: "Hex seam", claim: "The frame split along a hex edge - question above the seam, names below. The identity is carried by the CUT rather than by a drawing, which is the cheapest possible way to be recognisable." },
-  { id: "bare", name: "Type only", claim: "No wash, no mark, no ornament. Coherence is d = 0.86 and says delete the extraneous; this is that argument taken all the way, and nothing else here has tested it." },
-  { id: "answer", name: "Answer first", claim: "Leads with the ANSWER instead of the question - the finding rather than the symptom. Riskier and more arresting, and it is the only option that does not assume the viewer already has the problem." },
+  { id: "subject", name: "Board", claim: "The artifact this stage produces, ghosted across the field, with the lockup top-left. Evidence rather than branding." },
+  { id: "subject-bleed", name: "Board, bled", claim: "The same board oversized and cropped by the frame, so it reads as a DETAIL of something bigger rather than a picture of a thing." },
+  { id: "subject-half", name: "Board, half", claim: "The board held to the right half at full strength instead of ghosted across the whole frame. Sharper evidence, less field to write on." },
+  { id: "wash", name: "Static wash", claim: "The mark enormous and faint, nothing moving. The cheapest frame in the set and the bar the others have to beat." },
+  { id: "wash-corner", name: "Wash, cornered", claim: "The same wash pushed into one corner so the reading column is clean field. Identity present, nothing behind the words." },
+  { id: "wash-board", name: "Wash and board", claim: "Both: the mark as the wash, the artifact as a solid inset. Argues they were never mutually exclusive - one is the field, the other is the subject." },
 ];
+
 
 
 

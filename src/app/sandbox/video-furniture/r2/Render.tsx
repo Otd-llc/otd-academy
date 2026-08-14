@@ -799,6 +799,111 @@ function LowerThird({ variant, t }: VProps) {
   const gTone = passed ? "var(--color-status-green)" : "var(--color-alert-red)";
 
   switch (variant) {
+    // ---- FORMS. Shapes the whole family could take, auditioned on `part`
+    // because it is the canonical job: whatever wins here can carry all six.
+    case "form-tab":
+      // The callout's winning tab, at the frame edge. One vocabulary across the
+      // set rather than two, and it brings its own ground.
+      return (
+        <div style={{ ...base, display: "flex", alignItems: "center", opacity: life }}>
+          <span style={{ width: "2.6cqw", height: hw(0.3), background: GOLD, opacity: rule }} />
+          <span style={{ display: "flex", alignItems: "baseline", gap: "1cqw", background: GOLD, padding: "1cqh 1.5cqw", opacity: late }}>
+            <Mono tone={FIELD} size={1.15}>U2</Mono>
+            <span style={{ fontFamily: "var(--font-numeral)", fontWeight: 800, fontSize: ts(2), color: FIELD, letterSpacing: "0.02em" }}>
+              AP2112K-3.3
+            </span>
+          </span>
+        </div>
+      );
+    case "form-display":
+      return (
+        <div style={base}>
+          <div style={{ opacity: late }}>
+            <Mono tone={GOLD} size={1.1}>&#9656; U2 &middot; regulator</Mono>
+          </div>
+          <div style={{ marginTop: "0.7cqh", opacity: late }}>
+            <span
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: ts(3.4),
+                color: TITLE,
+                lineHeight: 1,
+                textShadow: `0 0 ${hw(1)} ${FIELD}, 0 0 ${hw(0.4)} ${FIELD}`,
+              }}
+            >
+              AP2112K-3.3
+            </span>
+          </div>
+        </div>
+      );
+    case "form-ticker":
+      // One run, a third of the height. For a video that needs a lower third
+      // often rather than rarely.
+      return (
+        <div style={{ ...base, width: "62cqw", display: "flex", alignItems: "center", gap: "1.2cqw" }}>
+          <Mono o={late} size={1.05}>U2</Mono>
+          <span style={{ width: "2.4cqw", height: hw(0.12), background: HAIR, opacity: rule }} />
+          <Desig size={1.5} color={TEXT} o={late}>
+            AP2112K-3.3
+          </Desig>
+          <span style={{ width: "2.4cqw", height: hw(0.12), background: HAIR, opacity: rule }} />
+          <Mono o={late} tone={MUTED} size={1.05}>3.3 V &middot; 600 mA</Mono>
+        </div>
+      );
+    case "form-column":
+      // Rotated to the edge. Costs no horizontal space, which is the one thing
+      // a 9:16 frame has none of.
+      return (
+        <div
+          style={{
+            position: "absolute",
+            left: "4cqw",
+            bottom: `${LOWER_THIRD_BOTTOM * 100}cqh`,
+            opacity: life,
+            transform: "rotate(-90deg)",
+            transformOrigin: "left bottom",
+            display: "flex",
+            alignItems: "baseline",
+            gap: "1.2cqw",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <Mono o={late} size={1.05}>U2</Mono>
+          <Desig size={1.7} color={TEXT} o={late}>
+            AP2112K-3.3
+          </Desig>
+        </div>
+      );
+    case "form-bracket":
+      return (
+        <div style={base}>
+          <Rule p={rule} w={0.16} />
+          <div style={{ padding: "1cqh 0", display: "flex", alignItems: "baseline", gap: "1.2cqw" }}>
+            <Mono o={late} size={1.1}>U2</Mono>
+            <Desig size={2} color={TEXT} o={late}>
+              AP2112K-3.3
+            </Desig>
+          </div>
+          <Rule p={rule} w={0.16} />
+        </div>
+      );
+    case "form-plate":
+      // A deep-space plate with a gold top-rule: the masthead at full width.
+      // The most readable over anything, and the most furniture on screen.
+      return (
+        <div style={{ ...base, width: "56cqw" }}>
+          <Rule p={rule} w={0.24} />
+          <div style={{ background: FIELD, padding: "1.4cqh 1.6cqw", opacity: late }}>
+            <Mono size={1.05} tone={MUTED}>U2 &middot; regulator</Mono>
+            <div style={{ marginTop: "0.7cqh" }}>
+              <Desig size={2.3} color={TITLE}>
+                AP2112K-3.3
+              </Desig>
+            </div>
+          </div>
+        </div>
+      );
+
     // ---- PART -------------------------------------------------------------
     case "part-tag":
       return (
@@ -1638,11 +1743,18 @@ function IntroShort({ variant, stage, t, aspect = 16 / 9 }: VProps) {
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      {/* THE FIELD. Three of these argue the mark should not be a backdrop. */}
-      {wash === "plain" ? (
+      {/* THE FIELD. Two directions taken - the mark as the field, or the
+          artifact as the field - and these are variations within each. */}
+      {wash === "plain" || wash === "wash-corner" ? (
         <div
           aria-hidden
-          style={{ position: "absolute", left: "-18cqw", top: "-14cqh", width: "92cqw", height: "128cqh", opacity: 0.07 * inP }}
+          style={{
+            position: "absolute",
+            opacity: 0.07 * inP,
+            ...(wash === "wash-corner"
+              ? { right: "-10cqw", bottom: "-16cqh", width: "58cqw", height: "84cqh" }
+              : { left: "-18cqw", top: "-14cqh", width: "92cqw", height: "128cqh" }),
+          }}
         >
           <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
             <path d={BRANDMARK_PATH} fill={GOLD} />
@@ -1650,80 +1762,37 @@ function IntroShort({ variant, stage, t, aspect = 16 / 9 }: VProps) {
         </div>
       ) : null}
 
-      {/* THE BOARD. The field is evidence rather than branding: the actual
-          artifact this stage produces, ghosted, with the mark demoted to a tag. */}
-      {wash === "subject" && art ? (
-        <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={art}
-            alt=""
-            aria-hidden
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.16 * inP }}
-          />
-          {/* THE LOCKUP: mark left, two lines right. The mono line names the
-              company and the display line names the thing, with the operative
-              half in gold. It is the same object the site header uses, so a
-              viewer meets one lockup across the whole system rather than a
-              logo arranged differently everywhere it appears. */}
-          <div
-            style={{
-              position: "absolute",
-              left: "7cqw",
-              top: "7cqh",
-              display: "flex",
-              alignItems: "center",
-              gap: "2cqw",
-              opacity: inP,
-            }}
-          >
-            <svg viewBox={BRANDMARK_VIEWBOX} aria-hidden style={{ height: ts(5.4), width: "auto", display: "block" }}>
-              <path d={BRANDMARK_PATH} fill={GOLD} />
-            </svg>
-            <div>
-              <div
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: ts(1.15),
-                  letterSpacing: "0.34em",
-                  textTransform: "uppercase",
-                  color: MUTED,
-                  lineHeight: 1,
-                }}
-              >
-                One Thousand Drones
-              </div>
-              <div style={{ marginTop: "1.1cqh", lineHeight: 1 }}>
-                <span style={{ fontFamily: "var(--font-display)", fontSize: ts(2.9), color: TITLE, letterSpacing: "0.01em" }}>
-                  {STAGE_LABELS[stage].split(" ")[0]}{" "}
-                </span>
-                <span style={{ fontFamily: "var(--font-display)", fontSize: ts(2.9), color: GOLD, letterSpacing: "0.01em" }}>
-                  {STAGE_LABELS[stage].split(" ").slice(1).join(" ") || "BUILD"}
-                </span>
-              </div>
-            </div>
-          </div>
-        </>
-      ) : null}
-
-      {/* HEX SEAM. Identity carried by the CUT rather than by a drawing - the
-          cheapest possible way to be recognisable, and it costs no ink at all. */}
-      {wash === "seam" ? (
-        <div
+      {/* THE BOARD, three ways: ghosted across the field, bled so it reads as a
+          detail of something bigger, or held at strength in one half. */}
+      {art && (wash === "subject" || wash === "subject-bleed" || wash === "subject-half" || wash === "wash-board") ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={art}
+          alt=""
           aria-hidden
           style={{
             position: "absolute",
-            inset: 0,
-            background: GOLD,
-            opacity: 0.05 * inP,
-            clipPath: "polygon(0 0, 100% 0, 100% 34%, 62% 46%, 0 34%)",
+            ...(wash === "subject-bleed"
+              ? { left: "-24cqw", top: "-20cqh", width: "116cqw", height: "150cqh", opacity: 0.2 * inP, objectFit: "cover" }
+              : wash === "subject-half"
+                ? { right: 0, top: 0, width: "48cqw", height: "100cqh", opacity: 0.5 * inP, objectFit: "cover" }
+                : wash === "wash-board"
+                  ? { right: "6cqw", top: "22cqh", width: "30cqw", height: "44cqh", opacity: 0.85 * inP, objectFit: "contain" }
+                  : { inset: 0, width: "100%", height: "100%", opacity: 0.16 * inP, objectFit: "cover" }),
           }}
         />
       ) : null}
 
-      {/* KNOCKOUT is rendered with the copy, because the words ARE the holes. */}
+      {wash === "wash-board" ? (
+        <div aria-hidden style={{ position: "absolute", left: "-14cqw", top: "-10cqh", width: "78cqw", height: "112cqh", opacity: 0.06 * inP }}>
+          <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
+            <path d={BRANDMARK_PATH} fill={GOLD} />
+          </svg>
+        </div>
+      ) : null}
+
       <div style={{ position: "absolute", left: copyLeft, right: copyRight, top: copyTop, opacity: inP }}>
-        {wash === "subject" ? null : (
+        {wash.startsWith("subject") ? null : (
           <Eyebrow o={inP}>{wash === "answer" ? "the finding" : "the question"}</Eyebrow>
         )}
         <div style={{ marginTop: "2cqh", position: "relative" }}>
