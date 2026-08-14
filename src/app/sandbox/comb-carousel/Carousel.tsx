@@ -304,7 +304,13 @@ export function Carousel({
               const pts = ptsAt(grow);
               const wgt = Math.max(2, spineStroke("face", b.w) * 1.15);
               return (
-                <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 7 }}>
+                // UNDER THE ARTWORK, over the cell. The art layer is z-index 6 and
+                // deliberately overhangs its hex, so a lock at 7 drew its outline
+                // straight across the front of the artifact - the grip appeared to
+                // pass in front of the board it is supposed to be gripping. At 5 it
+                // sits above the cell's own type and behind the tile, which is the
+                // order the comb already uses for everything else.
+                <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 5 }}>
                   {lock === "scan" ? (
                     <div
                       style={{
