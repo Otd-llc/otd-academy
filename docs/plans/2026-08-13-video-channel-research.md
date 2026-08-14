@@ -613,3 +613,91 @@ Added to the action list in section 8:
     with the experiment-arm caveat kept in the comment.
 12. **Make the 9:16 inset an L-shape**; 672 px bottom as the default.
 13. **The outro must be complete with no end-screen elements rendered.**
+
+---
+
+## 10. The OPENING, measured against what platforms publish (2026-08-14)
+
+A second round, scoped to the first seconds. Same grading. It changes two things
+about the intro and confirms one number we had derived rather than read.
+
+### 10.1 The opening must read MUTED, and that is not a preference
+
+`[OFFICIAL]` YouTube's Home-feed inline player: videos *"begin to play on mute
+with captions auto-enabled."* So the surface that feeds a long-form video the
+most impressions plays it silent AND draws its own caption band over the
+opening, with no author control.
+
+`[OFFICIAL]` Reels/Facebook ads default to **sound ON**. Shorts-feed and TikTok
+FYP sound-on is universally assumed and **neither platform states it** - treat as
+unverified rather than repeating it.
+
+**Consequence: an opening whose meaning is carried by audio is invisible exactly
+where it is most often seen.** The picture has to say it alone.
+
+### 10.2 YouTube flattens a silence-then-sting by default
+
+`[OFFICIAL]` YouTube applies **Stable volume** by default - it *"continuously
+adjust[s] volume levels to reduce variations in sound"* - plus Voice boost and
+automatic mixing. Music videos are exempted; instructional content is not.
+
+Section 3.8 names *silence before impact* as the one transition device with a
+perceptual basis. **On YouTube, with default settings, that contrast is
+compressed away on the way to the viewer.** An opt-out exists (Studio →
+Settings → Channel → Advanced → uncheck "Let YouTube enhance audio quality") but
+it does not affect already-uploaded videos and it also removes viewer-side Voice
+boost, which is an accessibility loss on a technical channel.
+
+### 10.3 A sponsorship disclosure owns frames 0 to 10 s
+
+`[OFFICIAL]` For paid product placement YouTube *"automatically show[s] viewers a
+disclosure message for 10 seconds at the beginning of the video,"* and the policy
+covers **Shorts** as well as long-form. If the channel ever takes a part
+sponsorship, the platform's own chip lands directly on the hook window. Reserve
+for it rather than discover it.
+
+### 10.4 Frame 0 is not a cover, but the first HALF is harvestable
+
+`[OFFICIAL]` Shorts/Reels/TikTok all let the author pick or upload a cover - and
+YouTube's blog of 2026-07-24 now allows YPP creators to upload a custom Shorts
+thumbnail outright, which contradicts the still-live help page saying you cannot.
+**The help page is stale.**
+
+But `[OFFICIAL]` YouTube *video previews* are a 3-second clip and *"A clip from
+the first half of your video is automatically selected."* Machine-chosen,
+uncontrollable, silent. **No frame in the first half may be embarrassing as a
+silent three-second autoplay.**
+
+And `[OFFICIAL]` TikTok Ads Manager defaults a sub-video cover to *"the first
+frame of video"* - so frame 0 IS the cover on the paid surface.
+
+### 10.5 Loops, and what nobody publishes
+
+`[OFFICIAL]` Shorts count a view on every start OR replay; Instagram counts
+replays inside watch time; TikTok's ad metrics all state *"replays are
+excluded."* So a loop is free watch time on two platforms and invisible on the
+third - the same tactic, three accountings.
+
+**No platform publishes loop-point guidance, and none publishes how fast a
+viewer decides or how early watch time is weighted.** All three publish that
+COMPLETION is weighted. The step from that to "the first N seconds decide" is
+inference, not documentation.
+
+### 10.6 Added to section 7 - claims that did not survive
+
+| Claim | Verdict |
+| --- | --- |
+| "65% who watch 3 s watch to 10 s" (attributed to Facebook) | Not locatable on any Meta property. Marketing blogs only |
+| "63% of highest-CTR videos hook within 3 s" (attributed to TikTok) | Not on ads.tiktok.com or the newsroom. Unverified |
+| Meta's "3-second rule" | **Published guidance with zero evidence offered.** An instruction, not a finding |
+| TikTok's "50% of impact in 2 s / 90% of ad recall in 6 s" | Traces to a VENDOR-COMMISSIONED Ipsos study of PAID AD RECALL. Method and sample unpublished. Not a fact about a tutorial |
+| "You have 2 seconds before they leave" | Launders Krishnan & Sitaraman (ACM IMC 2012), which measures **startup LATENCY**, not content. Real study, wrong claim |
+| "Attention span is 8 seconds, less than a goldfish" | The 2015 Microsoft mis-citation, still circulating |
+
+### 10.7 One number upgraded
+
+`[OFFICIAL]` Meta states its Reels safe zone in words: *"roughly 14% of the top,
+35% of the bottom, and 6% on each side."* At 1080x1920 that is **269 / 672 / 65 /
+65 px** - exactly the asset-derived row in 9.2. That row is now **text-confirmed
+by Meta**, and the 672 px bottom has three independent derivations.
+
