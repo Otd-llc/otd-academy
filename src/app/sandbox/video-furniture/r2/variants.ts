@@ -36,23 +36,7 @@ export const INTRO: Variant[] = [
 
 
 
-/** SECTION - the REAL honeycombs, not a redrawing.
- *  Two combs exist in the product: the build-guide hub (`.gh-*`, big info hexes
- *  with a Saira number, title, lead and status chip) and the /courses path comb
- *  (`.phex-*`, eyebrow + title + chip). A section card's job is to say where in
- *  the build you are, and the comb already says that better than a label. */
-export const SECTION: Variant[] = [
-  { id: "guide-real", name: "Guide comb, verbatim", claim: "The actual GuideHoneycomb component, rendered into the frame. Whatever it looks like on the hub is what the video shows." },
-  { id: "guide-row", name: "Guide comb, one row", claim: "Three guide hexes: done, current, next. The comb cropped to the part that is about to matter." },
-  { id: "guide-solo", name: "Guide hex, solo", claim: "One full guide hex, big. Saira number, title, lead, status chip - the whole stage button as the card." },
-  { id: "path-strip", name: "Path comb strip", claim: "The /courses `.phex` treatment across the top. Where you are in the COURSE rather than the build." },
-  { id: "comb-8", name: "Full comb, eight", claim: "All eight stages tessellated, current lit. The whole map, once, so a viewer can place the video." },
-  { id: "comb-corner", name: "Comb, corner", claim: "The eight-hex comb small in the upper right, out of the work. Can fire mid-demonstration." },
-  { id: "comb-walk", name: "Comb walk", claim: "The comb with the lit cell advancing from the previous stage to this one. Motion carries the meaning." },
-  { id: "band-comb", name: "Band plus hex", claim: "A lower band with one hex on its left. Band legibility, comb identity." },
-  { id: "num", name: "Numeral", claim: "Saira stage number at hero scale with the label under it. No comb at all - the fastest read of the ten." },
-  { id: "rule-comb", name: "Rule and comb", claim: "A gold rule across the frame with the comb sitting on it, stage name below. The masthead treatment." },
-];
+
 
 /** LOWER THIRD - ten, written against the design law rather than around it.
  *  The bans that shape this set: no filled boxes (hairlines on the field), no
@@ -122,31 +106,7 @@ export const OUTRO: Variant[] = [
 
 
 
-/** COMB WALK - ten, on the REAL comb.
- *  Round 2's comb was a hand-drawn polygon wearing the right colours, which is
- *  the thing the design law calls out by name: the honeycomb already exists as
- *  `.gh-node` / `.gh-hex` / `.comb-num` / `.gh-chip` in globals.css plus a
- *  `HexPrism` component, and reinventing it means the video drifts from the
- *  product the first time either changes. These use the real classes and the
- *  real prism, so the styling is whatever the hub's styling currently is.
- *  What varies is the WALK: how the lit cell gets from the last stage to this. */
-export const COMBWALK: Variant[] = [
-  { id: "step", name: "Step", claim: "The fill hands over from the previous cell to this one. The plainest walk, and the one that reads at any size." },
-  { id: "sweep", name: "Sweep", claim: "A gold sweep crosses the whole comb and leaves the current cell lit behind it. One gesture rather than two events." },
-  { id: "trail", name: "Trail", claim: "Every completed cell lights in sequence up to this one. Says how far you have come, not just where you are." },
-  { id: "arrow", name: "Arrow", claim: "The seam arrow between the two cells fires, then the fill lands. Uses the comb's own path-direction language." },
-  { id: "drop", name: "Drop", claim: "The current cell drops onto the comb from above and seats. The prism's 3D face makes the landing read." },
-  { id: "pulse", name: "Pulse", claim: "The current cell pulses once at the beat instead of filling. The lightest touch of the ten." },
-  { id: "focus", name: "Focus", claim: "The whole comb sits dim and the current cell resolves to full. Depth of field rather than fill." },
-  { id: "zoom", name: "Zoom", claim: "The comb pushes in on the current cell as it lights, so the card ends on the one hex that matters." },
-  { id: "unmask", name: "Unmask", claim: "The current cell's artifact tile unmasks inside the hex. What this stage produces, revealed as you arrive at it." },
-  // `count` was here - a Saira watermark counting up to the stage ordinal as
-  // the fill arrived. Dropped against the ban list: counting numerals are the
-  // motion-graphics-template default, and the value is transient - unreadable
-  // until it stops, so only the final frame carries meaning. `outro/count`
-  // survives and is a DIFFERENT device: a static `04 / 09` readout, which is
-  // the one piece of furniture research 2.6 affirmatively recommends.
-];
+
 
 
 /** CHAPTER - the persistent indicator, and the only piece that never leaves.
@@ -175,10 +135,13 @@ export const CHAPTER: Variant[] = [
  *  available (d = 0.75) for any instructional video. "In this stage" becomes
  *  "in this video" and nothing else changes. */
 export const INTRO_SHORT: Variant[] = [
-  { id: "question", name: "The question", claim: "The symptom as a headline, the three names beneath it. No comb - a short is not a stage - and hex elements only as framing." },
-  { id: "question-hex", name: "Question in a hex", claim: "The same, with the question set inside a stylised hex rather than on a rule. Strongest identity; costs the most room, which is the wrong currency at 9:16." },
-  { id: "question-tall", name: "Question, stacked", claim: "Composed for the VERTICAL rather than reflowed into it: question at the top third, names down the middle, everything on one column. The 16:9 cut of this is the compromise, not the other way round." },
+  { id: "mark-wash", name: "Wash", claim: "The mark enormous and faint behind everything, bled off two edges. The field stops being empty without anything competing to be read - the cheapest way to own a frame." },
+  { id: "mark-corner", name: "Corner chrome", claim: "Small, top right, at chrome scale. Present on every frame and never the subject; the treatment a channel can run for a hundred videos without tiring." },
+  { id: "mark-hero", name: "Hero", claim: "The mark at size above the question, gradient on. Strongest identity, and the most seconds spent on something that is not the video." },
+  { id: "mark-hex", name: "Hex frame", claim: "The stylised hex framing IS the mark's silhouette - the question sits inside it. Identity carried by structure rather than by a logo placed on top of one." },
+  { id: "mark-bleed", name: "Bleed", claim: "Oversized and cropped hard by the left edge, so only a wing and the crown are in frame. Confident rather than decorative, and it survives a 9:16 crop better than a centred mark." },
 ];
+
 
 /** OUTRO / SHORT - and its job is not to end.
  *
@@ -198,8 +161,6 @@ export const OUTRO_SHORT: Variant[] = [
 
 export const PIECES = {
   intro: { name: "Intro / LESSON", seconds: 3.5, variants: INTRO },
-  section: { name: "Section / comb", seconds: 1.8, variants: SECTION },
-  combwalk: { name: "Section / comb walk", seconds: 2.2, variants: COMBWALK },
   lower: { name: "Lower third", seconds: 4, variants: LOWER },
   outro: { name: "Outro / LESSON", seconds: 8, variants: OUTRO },
   // THE GENERIC PAIR. No comb - a short is not a stage of a build, so the map

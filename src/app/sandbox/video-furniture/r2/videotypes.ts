@@ -88,7 +88,7 @@ export const TYPES: Record<VideoType, TypeSpec> = {
     id: "explainer",
     name: "Explainer",
     furniture: "Diagrams, no step counter. The chapter indicator does the segmenting.",
-    pieces: ["intro", "section", "lower", "outro", "chapter"],
+    pieces: ["intro", "lower", "outro", "chapter"],
     shapes: ["16:9", "9:16"],
     missing: [],
     directions: [baseline],
@@ -97,7 +97,7 @@ export const TYPES: Record<VideoType, TypeSpec> = {
     id: "walkthrough",
     name: "Walkthrough",
     furniture: "Cursor highlight and callouts, no step counter - it is a tour, not a procedure.",
-    pieces: ["intro", "section", "lower", "outro", "chapter"],
+    pieces: ["intro", "lower", "outro", "chapter"],
     // 16:9 only: a walkthrough is a tour of a real screen, and the screen does
     // not fit a phone any better than the procedure does.
     shapes: ["16:9"],
@@ -108,7 +108,7 @@ export const TYPES: Record<VideoType, TypeSpec> = {
     id: "tutorial",
     name: "Tutorial",
     furniture: "Step counter, and chapters ARE the steps - the two must not disagree.",
-    pieces: ["intro", "section", "lower", "outro", "chapter"],
+    pieces: ["intro", "lower", "outro", "chapter"],
     // 16:9 ONLY. Owner's call, and it is about the CONTENT rather than the
     // furniture: a course video covers small things - a pad, a via, a net name -
     // that need a big screen to see and follow. A vertical cut of one would be
@@ -130,7 +130,7 @@ export const TYPES: Record<VideoType, TypeSpec> = {
     name: "Build-along",
     furniture:
       "Everything a tutorial has, plus pause-here cards, a progress bar, a real-time versus speed-up label and a timer. The heaviest type by a distance.",
-    pieces: ["intro", "section", "lower", "outro", "chapter"],
+    pieces: ["intro", "lower", "outro", "chapter"],
     // 16:9 only, for the same reason as the tutorial and more so.
     shapes: ["16:9"],
     missing: ["pause-here card", "progress bar", "real-time / speed-up label", "timer"],

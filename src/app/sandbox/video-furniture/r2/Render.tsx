@@ -35,7 +35,7 @@ import { furnitureOutStack, exitP, DEFAULT_EXIT, type FurnitureOut } from "./exi
 import { entryStack, DEFAULT_ENTRY, type EntryEffect } from "./entries";
 import { EntryProvider } from "./Part";
 import { PIECES, type PieceKey } from "./variants";
-import { CombWalk, Hairline } from "./Render2";
+import { Hairline } from "./Render2";
 import { Chapter } from "./Chapter";
 import { Carousel, type Cell as CombCell2 } from "@/app/sandbox/comb-carousel/Carousel";
 import { BRANDMARK_PATH, BRANDMARK_VIEWBOX } from "@/lib/pdf/certificate-content";
@@ -145,8 +145,6 @@ export function PieceFrame(p: VProps) {
       }}
     >
       {p.piece === "intro" ? <Intro {...p} /> : null}
-      {p.piece === "combwalk" ? <CombWalk {...p} /> : null}
-      {p.piece === "section" ? <Section {...p} /> : null}
       {p.piece === "lower" ? <Hairline {...p} /> : null}
       {p.piece === "outro" ? <Outro {...p} /> : null}
       {p.piece === "chapter" ? <Chapter {...p} /> : null}
@@ -498,6 +496,7 @@ function PartNames({
   numbered,
   titled,
   centre,
+  label = "in this stage",
 }: {
   stage: Stage;
   p: number;
@@ -506,6 +505,8 @@ function PartNames({
   numbered?: boolean;
   titled?: boolean;
   centre?: boolean;
+  /** A short is not a stage, so it says so. */
+  label?: string;
 }) {
   const names = STAGE_PARTS[stage] ?? [];
   // STEPPED lands one noun a beat, each on a CUT rather than a fade: a step
@@ -521,7 +522,7 @@ function PartNames({
           </Title>
         </div>
       ) : null}
-      <Eyebrow o={stepped ? 1 : p}>{titled ? "in this stage" : "in this stage"}</Eyebrow>
+      <Eyebrow o={stepped ? 1 : p}>{label}</Eyebrow>
       <div style={{ marginTop: "2.6cqh" }}>
         {names.map((n, k) => (
           <div
@@ -602,36 +603,68 @@ function IntroShort({ variant, stage, t, aspect = 16 / 9 }: VProps) {
   const inP = outCubic(seg(t, 0, 0.7));
   const parts = outCubic(seg(t, 0.9, 2.1));
   const late = outCubic(seg(t, 1.6, 2.6));
-  const hexed = variant === "question-hex";
-  // The vertical is a SEPARATE composition, not a reflow: the research is
-  // explicit that a vertical clip drops furniture rather than resizing it, and
-  // the lesson intro's thirds became two narrow columns when it tried.
-  const stacked = tall || variant === "question-tall";
+  // THE MARK IS THE AXIS. Every option carries it; what differs is how loudly.
+  const mark = variant.replace("mark-", "") as "wash" | "corner" | "hero" | "hex" | "bleed";
+  // The vertical is composed, not reflowed - the lesson intro's thirds became
+  // two narrow columns the moment it tried to stretch into 9:16.
+  const stacked = tall;
+
+  const Mark = ({ o, style }: { o: number; style: React.CSSProperties }) => (
+    <div style={{ position: "absolute", opacity: o, ...style }} aria-hidden>
+      <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
+        <defs>
+          <linearGradient id={`ms-${mark}`} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor={GOLD} stopOpacity={0.55} />
+            <stop offset="55%" stopColor={GOLD} />
+            <stop offset="100%" stopColor="var(--color-gold-light)" />
+          </linearGradient>
+        </defs>
+        <path d={BRANDMARK_PATH} fill={`url(#ms-${mark})`} />
+      </svg>
+    </div>
+  );
+
+  // Where the words go, given how much room the mark is taking.
+  const copyTop = mark === "hero" ? (stacked ? "40cqh" : "46cqh") : stacked ? "16cqh" : "22cqh";
+  const copyLeft = mark === "bleed" && !stacked ? "34cqw" : "8cqw";
+  const copyRight = mark === "corner" && !stacked ? "34cqw" : "8cqw";
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      <div
-        style={{
-          position: "absolute",
-          left: stacked ? "8cqw" : "9cqw",
-          right: stacked ? "8cqw" : "46cqw",
-          top: stacked ? "14cqh" : "20cqh",
-          opacity: inP,
-        }}
-      >
-        <Eyebrow o={inP}>{hexed ? "the question" : "in this video"}</Eyebrow>
+      {mark === "wash" ? (
+        // Enormous, faint, bled off two edges. Reads as a field rather than a
+        // logo, so nothing competes with the question for the eye.
+        <Mark o={0.07 * inP} style={{ left: "-18cqw", top: "-14cqh", width: "92cqw", height: "128cqh" }} />
+      ) : null}
+      {mark === "bleed" ? (
+        <Mark o={0.9 * inP} style={{ left: "-26cqw", top: stacked ? "4cqh" : "-8cqh", width: "62cqw", height: "116cqh" }} />
+      ) : null}
+      {mark === "corner" ? (
+        <Mark o={inP} style={{ right: "6cqw", top: "5cqh", width: stacked ? "16cqw" : "9cqw", height: stacked ? "9cqh" : "16cqh" }} />
+      ) : null}
+      {mark === "hero" ? (
+        <Mark o={inP} style={{ left: "50%", transform: "translateX(-50%)", top: stacked ? "12cqh" : "8cqh", width: stacked ? "44cqw" : "22cqw", height: stacked ? "24cqh" : "34cqh" }} />
+      ) : null}
+
+      <div style={{ position: "absolute", left: copyLeft, right: copyRight, top: copyTop, opacity: inP }}>
+        <Eyebrow o={inP}>the question</Eyebrow>
         <div style={{ marginTop: "2cqh", position: "relative" }}>
-          {hexed ? (
-            <div
-              aria-hidden
-              style={{
-                position: "absolute",
-                inset: "-6cqh -4cqw",
-                border: `${hw(0.1)} solid ${GOLD}`,
-                clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
-                opacity: 0.35 * inP,
-              }}
-            />
+          {mark === "hex" ? (
+            // The framing IS the mark's silhouette: identity carried by
+            // structure rather than by a logo placed on top of one.
+            <>
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  inset: "-8cqh -5cqw",
+                  border: `${hw(0.1)} solid ${GOLD}`,
+                  clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
+                  opacity: 0.4 * inP,
+                }}
+              />
+              <Mark o={0.5 * inP} style={{ left: "-4cqw", top: "-11cqh", width: "10cqw", height: "14cqh" }} />
+            </>
           ) : null}
           <Title size={stacked ? 3.4 : 3.8} o={inP}>
             {q}
@@ -642,13 +675,13 @@ function IntroShort({ variant, stage, t, aspect = 16 / 9 }: VProps) {
       <div
         style={{
           position: "absolute",
-          left: stacked ? "8cqw" : "56cqw",
+          left: copyLeft,
           right: "8cqw",
-          top: stacked ? "46cqh" : "26cqh",
+          top: stacked ? "58cqh" : mark === "hero" ? "68cqh" : "46cqh",
           opacity: parts,
         }}
       >
-        <PartNames stage={stage} p={parts} t={t} numbered />
+        <PartNames stage={stage} p={parts} t={t} numbered label="what you will know" />
       </div>
 
       <div style={{ position: "absolute", left: 0, right: 0, bottom: "8cqh", textAlign: "center", opacity: late }}>
