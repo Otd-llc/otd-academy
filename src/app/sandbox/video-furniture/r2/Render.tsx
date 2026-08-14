@@ -671,8 +671,8 @@ function Annotate({ variant, stage, t, kind }: VProps & { kind: "callout" | "pau
               })()}
               fill="none"
               stroke={FIELD}
-              strokeWidth={1.5}
-              strokeOpacity={0.85}
+              strokeWidth={14}
+              strokeOpacity={0.9}
               vectorEffect="non-scaling-stroke"
             />
             <polygon
@@ -694,7 +694,7 @@ function Annotate({ variant, stage, t, kind }: VProps & { kind: "callout" | "pau
               })()}
               fill="none"
               stroke={GOLD}
-              strokeWidth={0.42}
+              strokeWidth={5}
               vectorEffect="non-scaling-stroke"
             />
           </svg>
@@ -721,11 +721,15 @@ function Annotate({ variant, stage, t, kind }: VProps & { kind: "callout" | "pau
                 top: `${py * 100 + sy * (11 + (1 - grip) * 6)}cqh`,
                 width: "3.4cqw",
                 height: "6cqh",
-                borderTop: sy < 0 ? `${hw(0.14)} solid ${GOLD}` : undefined,
-                borderBottom: sy > 0 ? `${hw(0.14)} solid ${GOLD}` : undefined,
-                borderLeft: sx < 0 ? `${hw(0.14)} solid ${GOLD}` : undefined,
-                borderRight: sx > 0 ? `${hw(0.14)} solid ${GOLD}` : undefined,
+                borderTop: sy < 0 ? `${hw(0.42)} solid ${GOLD}` : undefined,
+                borderBottom: sy > 0 ? `${hw(0.42)} solid ${GOLD}` : undefined,
+                borderLeft: sx < 0 ? `${hw(0.42)} solid ${GOLD}` : undefined,
+                borderRight: sx > 0 ? `${hw(0.42)} solid ${GOLD}` : undefined,
                 transform: "translate(-50%,-50%)",
+                // A DARK HALO, so the mark reads on gold copper as well as on a
+                // dark field. Annotation over live work cannot borrow contrast
+                // from a background it does not control.
+                filter: `drop-shadow(0 0 ${hw(0.5)} ${FIELD}) drop-shadow(0 0 ${hw(0.2)} ${FIELD})`,
                 opacity: o * grip,
               }}
             />
@@ -746,8 +750,9 @@ function Annotate({ variant, stage, t, kind }: VProps & { kind: "callout" | "pau
               left: `${px * 100}cqw`,
               top: `${py * 100}cqh`,
               width: `${grip * (100 - px * 100 - 6)}cqw`,
-              height: hw(0.12),
+              height: hw(0.4),
               background: GOLD,
+              boxShadow: `0 0 0 ${hw(0.16)} ${FIELD}`,
               opacity: o,
             }}
           />
@@ -757,10 +762,11 @@ function Annotate({ variant, stage, t, kind }: VProps & { kind: "callout" | "pau
               position: "absolute",
               left: `${px * 100}cqw`,
               top: `${py * 100}cqh`,
-              width: "1.4cqw",
-              height: "1.4cqw",
+              width: "1.8cqw",
+              height: "1.8cqw",
               transform: "translate(-50%,-50%)",
-              border: `${hw(0.14)} solid ${GOLD}`,
+              border: `${hw(0.42)} solid ${GOLD}`,
+              boxShadow: `0 0 0 ${hw(0.16)} ${FIELD}`,
               opacity: o * grip,
             }}
           />
@@ -808,9 +814,9 @@ function Annotate({ variant, stage, t, kind }: VProps & { kind: "callout" | "pau
               left: `${px * 100 - 9}cqw`,
               top: `${py * 100 + 11}cqh`,
               width: `${grip * 18}cqw`,
-              height: hw(0.16),
+              height: hw(0.45),
               background: GOLD,
-              boxShadow: `0 0 0 ${hw(0.1)} ${FIELD}`,
+              boxShadow: `0 0 0 ${hw(0.18)} ${FIELD}`,
               opacity: o,
             }}
           />
