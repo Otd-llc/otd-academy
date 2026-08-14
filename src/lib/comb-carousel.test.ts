@@ -3,7 +3,7 @@
 // is ahead, and a last cell spills into the next course rather than shrinking.
 
 import { describe, expect, it } from "vitest";
-import { combWindow, centreOffset, ghostAlpha, isLit, litBoxes, WINDOW } from "@/lib/comb-carousel";
+import { combWindow, centreOffset, fitWindowCell, ghostAlpha, isLit, litBoxes, WINDOW } from "@/lib/comb-carousel";
 import { placeSpine, SPINE_RATIO, SPINE_VSTEP } from "@/lib/comb-spine";
 
 describe("combWindow", () => {
@@ -95,6 +95,35 @@ describe("centreOffset", () => {
     const off = centreOffset(cur, cellW, viewH);
     const box = boxes[cur]!;
     expect(off + box.top + box.h / 2).toBeCloseTo(viewH / 2, 6);
+  });
+});
+
+describe("fitWindowCell", () => {
+  it("makes exactly `show` cells span the viewport", () => {
+    const viewH = 600;
+    for (const show of [3, 3.6, 5]) {
+      const w = fitWindowCell(viewH, show);
+      const h = w * SPINE_RATIO;
+      const extent = h * (SPINE_VSTEP * (show - 1) + 1);
+      expect(extent).toBeCloseTo(viewH, 6);
+    }
+  });
+
+  it("fits the whole window, which sizing from the column width does not", () => {
+    // The bug this exists to prevent: a cell sized to the column is far too big for a
+    // short viewport, and the three cells the carousel is for do not fit in frame.
+    const viewH = 520;
+    const w = fitWindowCell(viewH);
+    const { boxes } = placeSpine(9, w, w * 1.5);
+    const win = combWindow(9, 4);
+    const first = boxes[win.lit[0]!]!;
+    const last = boxes[win.lit[win.lit.length - 1]!]!;
+    const span = last.top + last.h - first.top;
+    expect(span).toBeLessThanOrEqual(viewH);
+  });
+
+  it("survives a zero viewport", () => {
+    expect(fitWindowCell(0)).toBe(0);
   });
 });
 

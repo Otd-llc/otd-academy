@@ -118,6 +118,28 @@ export function ghostAlpha(w: CombWindow, i: number, floor = 0.12, falloff = 0.5
 }
 
 /**
+ * The cell width that makes `show` cells span `viewH`.
+ *
+ * THE CAROUSEL SIZES FROM THE VIEWPORT, NOT THE COLUMN, and that is the difference
+ * between a carousel and a tall comb in a short box. `fitCellWidth` solves "the
+ * biggest hex that fits this WIDTH", which is right for a hub page that fills its
+ * column and lets the page scroll. Do that here and the cell comes out as wide as the
+ * column allows, one and a half cells fill the viewport, and the window the whole
+ * component exists to show does not fit inside it.
+ *
+ * The spine's extent is linear in the cell width, so this is a divide like its
+ * sibling: `show` cells span `RATIO * (VSTEP * (show - 1) + 1)` cell widths.
+ *
+ * `show` defaults slightly above the window so the nearest ghosts break the top and
+ * bottom edges. A window that exactly fills the frame reads as a three-stage course;
+ * the point of the ghosts is that the run continues.
+ */
+export function fitWindowCell(viewH: number, show: number = WINDOW + 0.6): number {
+  if (viewH <= 0 || show <= 0) return 0;
+  return viewH / (SPINE_RATIO * (SPINE_VSTEP * (show - 1) + 1));
+}
+
+/**
  * The boxes for a run, sliced to the lit window.
  *
  * For callers that want ONLY the three - a video frame at speaking size, where a
