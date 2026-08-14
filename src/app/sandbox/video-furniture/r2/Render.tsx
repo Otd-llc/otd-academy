@@ -1299,43 +1299,103 @@ function Annotate({ variant, stage, t, kind, aspect = 16 / 9 }: VProps & { kind:
       {/* MEASUREMENT - a value anchored to a PLACE. Same content the lower-third
           `measure` carries; only the anchor differs, which is why it should end
           up one component with two anchors rather than two that drift. */}
+      {/* MEASUREMENT. One readout, not three objects competing for the same
+          space - which is what the first cut was: a tab, a number and a leader
+          all landing on top of each other, with the value set in gold over a
+          light schematic and no ground at all.
+
+          Now: a ring on the node, a leader running up from it, and the label and
+          value together in a single block at the top of that leader. The leader
+          stops WHERE THE BLOCK BEGINS rather than running behind it, so nothing
+          crosses the number. */}
       {kind === "callout" && variant === "measure" ? (
-        <>
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              left: `${px * 100}cqw`,
-              top: `${py * 100}cqh`,
-              width: "1.6cqw",
-              height: "1.6cqw",
-              transform: "translate(-50%,-50%)",
-              border: `${hw(0.34)} solid ${GOLD}`,
-              borderRadius: "50%",
-              filter: `drop-shadow(0 0 ${hw(0.5)} ${FIELD})`,
-              opacity: o * grip,
-            }}
-          />
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              left: `${px * 100}cqw`,
-              top: `${py * 100 - 10}cqh`,
-              width: hw(0.34),
-              height: `${grip * 10}cqh`,
-              background: GOLD,
-              boxShadow: `0 0 0 ${hw(0.14)} ${FIELD}`,
-              opacity: o,
-            }}
-          />
-          <div style={{ position: "absolute", left: `${px * 100 - 4}cqw`, top: `${py * 100 - 19}cqh`, opacity: o * grip }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: ts(1.1), letterSpacing: "0.22em", textTransform: "uppercase", color: FIELD, background: GOLD, padding: "0.5cqh 0.9cqw" }}>node</span>
-            <div style={{ marginTop: "0.5cqh" }}>
-              <Num size={2.4}>2.42 A</Num>
-            </div>
-          </div>
-        </>
+        (() => {
+          const lx = px * 100;
+          const ly = py * 100;
+          const lead = 13;
+          return (
+            <>
+              {/* The node itself: a ring, not a filled dot - it marks a place
+                  without hiding what is at that place. */}
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  left: `${lx}cqw`,
+                  top: `${ly}cqh`,
+                  width: "1.5cqw",
+                  height: "1.5cqw",
+                  transform: "translate(-50%,-50%)",
+                  border: `${hw(0.32)} solid ${GOLD}`,
+                  borderRadius: "50%",
+                  boxShadow: `0 0 0 ${hw(0.16)} ${FIELD}`,
+                  opacity: o * grip,
+                }}
+              />
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  left: `${lx}cqw`,
+                  top: `${ly - lead * grip}cqh`,
+                  width: hw(0.32),
+                  height: `${lead * grip}cqh`,
+                  background: GOLD,
+                  boxShadow: `0 0 0 ${hw(0.14)} ${FIELD}`,
+                  opacity: o,
+                }}
+              />
+              {/* Label and value as ONE block, sitting on the leader's head. */}
+              <div
+                style={{
+                  position: "absolute",
+                  left: `${lx}cqw`,
+                  top: `${ly - lead}cqh`,
+                  transform: "translate(-50%, -100%)",
+                  opacity: o * grip,
+                  textAlign: "center",
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontWeight: 700,
+                    fontSize: ts(1.05),
+                    letterSpacing: "0.22em",
+                    textTransform: "uppercase",
+                    color: FIELD,
+                    background: GOLD,
+                    padding: "0.5cqh 1cqw",
+                    lineHeight: 1,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  node
+                </div>
+                {/* The value carries its own dark ground, because a gold numeral
+                    over a light schematic is the exact failure this set keeps
+                    producing. */}
+                <div
+                  style={{
+                    background: FIELD,
+                    padding: "0.8cqh 1cqw",
+                    borderLeft: `${hw(0.32)} solid ${GOLD}`,
+                    borderRight: `${hw(0.32)} solid ${GOLD}`,
+                    borderBottom: `${hw(0.32)} solid ${GOLD}`,
+                    display: "flex",
+                    alignItems: "baseline",
+                    justifyContent: "center",
+                    gap: "0.5cqw",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <Num size={2.6}>2.42</Num>
+                  <Num size={1.4}>A</Num>
+                </div>
+              </div>
+            </>
+          );
+        })()
       ) : null}
 
       {/* WARNING - the coral channel. Deliberately unlike a label, because a
