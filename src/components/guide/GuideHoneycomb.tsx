@@ -1,22 +1,33 @@
 "use client";
 
-// GuideHoneycomb — the build-guide hub as a page of big SYMMETRIC info-hexes that
-// TESSELLATE (shared edges, offset rows) and slink through in order. Each hex is
-// the full stage button: a big outline stage NUMBER owning the top third, then
-// title · lead · a status chip; the whole hex is the link.
-// Honey-filled when done, the current stage pulses, ahead stays dim. Each hex is
-// a thin ortho-3D prism (the shared /courses shell), and a small path arrow on
-// each seam shows the order: gold once the source stage is done, dim ahead.
+// GuideHoneycomb — the build-guide hub as a VERTICAL SPINE of big info-hexes: a
+// single file, laced edge to edge, alternating left and right down the page. Each hex
+// is the full stage button (ordinal watermark · the stage's artifact · title · lead ·
+// status chip) and the whole hex is the link. The current stage pulses, ahead stays
+// dim, done takes the gold wash.
 //
-// Layout is measured on the client: the hexes GROW to fill the available width
-// (3-ish per row on desktop, collapsing to a single full-width column on mobile),
-// so they never clip or overflow. Pointy-top regular hexes (height = width·√3⁻¹·2).
+// The geometry and the camera live in `lib/comb-spine.ts`; the prisms are drawn by
+// `SpineCombScene`. Read the notes in those two before changing anything here: the
+// projection is ONE-POINT, which is what lets a cell carry upright HTML at its true
+// size, and the scene is a silhouette rather than a wireframe because its slab layer
+// is masked by every face.
+//
+// There is NO direction indicator. A staggered single file has exactly one reading
+// order, so the shape says it once instead of a mark repeating it on every seam.
+//
+// This replaced a wide 3-up TESSELLATED grid under the three-point camera S5 (sandbox
+// rounds at /sandbox/comb, owner pick 2026-08-13). `computeLayout`, `HexPrism` and
+// `buildCombScene` below are that grid's machinery. NO PRODUCTION SURFACE CALLS THEM
+// any more — all three combs are one-point now — and they are kept only because
+// `/sandbox/comb` draws them as the control the vertical cuts were judged against.
+// `HexShell` and `RATIO` are the exceptions: those the live fallbacks still use.
 
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { GuideStage } from "@/lib/guide-templates/stage-skeletons";
 import { stageArt, stageArtGhost } from "@/lib/guide-stage-art";
-import { CombArrows, HexPrismScene } from "@/components/guide/HexPrismScene";
+import { SpineCombScene } from "@/components/guide/SpineCombScene";
+import { fitCellWidth, placeSpine, projectSpine, SPINE_CLIP } from "@/lib/comb-spine";
 import {
   HEX_CAM_S5,
   paintOrder,
@@ -68,6 +79,27 @@ const prismOff = ([x, y]: [number, number]): [number, number] => [
   x + PRISM_CAST,
   y + PRISM_CAST,
 ];
+
+/**
+ * A flat hex outline for the PRE-MEASURE state.
+ *
+ * The measured combs get their hexes from `SpineCombScene`, but that needs a measured
+ * container, so before hydration (and forever, with JS off) there is no scene. This is
+ * what the SSR fallback draws into. Deliberately flat: the ortho prism shell below is
+ * the three-point comb's, and its CSS now lives in the sandbox.
+ */
+export function HexShell({ className }: { className: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 100 115.47"
+      preserveAspectRatio="none"
+      aria-hidden
+    >
+      <polygon points={HEX_POINTS} />
+    </svg>
+  );
+}
 
 export function HexPrism({ className }: { className: string }) {
   return (
@@ -240,23 +272,15 @@ export function GuideHoneycomb({
   const href = (s: GuideStage) =>
     `/projects/${slug}/${encodeURIComponent(revLabel)}/guide/${s}`;
   const ref = useRef<HTMLDivElement>(null);
-  const [layout, setLayout] = useState<{ boxes: Box[]; height: number }>({
-    boxes: [],
-    height: 0,
-  });
-  // cw feeds the arrow overlay's viewBox; hot is the hex whose OUTGOING arrow
-  // lights (hover/focus) — same path-arrow model as SkillHoneycomb.
+  // container width; the spine solves everything else from it
   const [cw, setCw] = useState(0);
+  // the hovered/focused cell, which lights its own outline in the scene
   const [hot, setHot] = useState<number | null>(null);
 
   const measure = useCallback(() => {
     const el = ref.current;
-    if (!el) return;
-    // Lower minW than the default so phones pack 3-up (smaller, more compact
-    // hexes) instead of two big ones — the build guide now has 8 stages to show.
-    setCw(el.clientWidth);
-    setLayout(computeLayout(el.clientWidth, stages.length, { minW: 100 }));
-  }, [stages.length]);
+    if (el) setCw(el.clientWidth);
+  }, []);
 
   useIsoLayoutEffect(() => {
     measure();
@@ -265,7 +289,9 @@ export function GuideHoneycomb({
     return () => ro.disconnect();
   }, [measure]);
 
-  const scene = buildCombScene(layout.boxes, cw);
+  const w = cw > 0 ? fitCellWidth(stages.length, cw) : 0;
+  const { boxes, height } = placeSpine(stages.length, w, cw);
+  const solids = projectSpine(boxes, cw, height);
 
   // A comb with every stage done has no current cell, so nothing sits at full
   // size and nothing anchors it. That end state gets its own treatment: the
@@ -278,20 +304,21 @@ export function GuideHoneycomb({
     <div
       ref={ref}
       className={`gh${allDone ? " comb-complete" : ""}`}
-      style={{ position: "relative", height: scene.height }}
+      style={{ position: "relative", height }}
     >
-      {scene.solids.length > 0 ? (
-        <HexPrismScene
-          solids={scene.solids}
-          vb={scene.vb}
+      {solids.length > 0 ? (
+        <SpineCombScene
+          solids={solids}
+          sceneW={cw}
+          sceneH={height}
+          cellW={w}
           cells={stages.map((s) => ({ kind: s.kind }))}
           hot={hot}
         />
       ) : null}
       {stages.map((s, i) => {
-        const b = layout.boxes[i];
-        const style = scene.place(i);
-        if (!b || !style) return null;
+        const b = boxes[i];
+        if (!b) return null;
         return (
           <Link
             key={s.stage}
@@ -300,8 +327,23 @@ export function GuideHoneycomb({
             aria-label={`Stage ${s.num} — ${s.title} (${s.statusText})`}
             className={`gh-node ${s.kind}`}
             // The hex itself lives in the scene svg below this; what sits here is the
-            // cell's content, billboarded onto its projected face.
-            style={style}
+            // cell's content, at exactly its measured box. No transform and no scale:
+            // an unforeshortened one-point face carries upright HTML at true size,
+            // which is the whole reason this projection replaced the three-point grid.
+            style={{
+              position: "absolute",
+              left: b.left,
+              top: b.top,
+              width: b.w,
+              height: b.h,
+              zIndex: 2,
+              // Clipped to the hex, and this is a HIT-TEST fix, not a cosmetic one:
+              // the cells are rectangles that overlap their neighbours, all at the
+              // same z-index, so without it part of each cell's own visible face
+              // navigates to the NEXT stage. Never applied to the art layer, which
+              // deliberately overflows its hex.
+              clipPath: SPINE_CLIP,
+            }}
             onMouseEnter={() => setHot(i)}
             onMouseLeave={() => setHot((h) => (h === i ? null : h))}
             onFocus={() => setHot(i)}
@@ -318,11 +360,6 @@ export function GuideHoneycomb({
             >
               {s.num}
             </span>
-            {/* The stage's artifact, on the cells the learner has reached. A
-                locked stage stays type-only on purpose: showing the artifact of
-                work not yet done gives away the answer and flattens the ladder
-                into a gallery (sandbox round K, owner pick K5). */}
-            <StageTile stage={s.stage} kind={s.kind} />
             <span className="gh-m">
               <span className="gh-title">{s.title}</span>
               {s.lead ? <span className="gh-lead">{s.lead}</span> : null}
@@ -334,14 +371,38 @@ export function GuideHoneycomb({
         );
       })}
 
-      {/* Path-direction arrows — now drawn on the PROJECTED centres (see CombArrows),
-          because a seam that moved with the perspective takes its arrow with it. */}
-      <CombArrows
-        solids={scene.solids}
-        vb={scene.vb}
-        on={stages.map((s) => s.kind === "done")}
-        hot={hot}
-      />
+      {/* The artwork, in a LAYER of its own rather than inside each cell.
+          It has to sit above every hex in the comb, not just its own, and a cell is an
+          absolutely-positioned z-indexed box, which is a stacking context: art
+          parented inside one can never rise above the next cell's outline, so at spine
+          sizes those outlines cut straight across the boards. The layer takes no
+          pointer events and reads its hover state from the same `hot` index the scene
+          does, so hoisting it costs nothing behaviourally.
+
+          A locked stage still stays type-only on purpose: showing the artifact of work
+          not yet done gives away the answer and flattens the ladder into a gallery
+          (sandbox round K, owner pick K5). */}
+      <div className="gh-art-layer">
+        {stages.map((s, i) => {
+          const b = boxes[i];
+          if (!b) return null;
+          return (
+            <div
+              key={s.stage}
+              className={`gh-node ${s.kind}${hot === i ? " hot" : ""}`}
+              style={{
+                position: "absolute",
+                left: b.left,
+                top: b.top,
+                width: b.w,
+                height: b.h,
+              }}
+            >
+              <StageTile stage={s.stage} kind={s.kind} />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
