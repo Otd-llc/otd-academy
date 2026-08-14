@@ -150,6 +150,7 @@ export function PieceFrame(p: VProps) {
       {p.piece === "chapter" ? <Chapter {...p} /> : null}
       {p.piece === "intro-short" ? <IntroShort {...p} /> : null}
       {p.piece === "outro-short" ? <OutroShort {...p} /> : null}
+      {p.piece === "annotate" ? <Annotate {...p} /> : null}
     </div>
   );
 
@@ -597,6 +598,241 @@ const STAGE_QUESTION: Partial<Record<string, string>> = {
  * The naming block is unchanged, because pre-training is not a course device.
  * Stylised hex elements are allowed as FRAMING; the honeycomb as a map is not.
  */
+/**
+ * THE MID-VIDEO SET. The first furniture that fires over LIVE WORK.
+ *
+ * Every opener so far sits on deep-space, where the ground is ours. These sit
+ * on a screencast: the background is someone else's contrast and it changes
+ * every frame. So each treatment carries its OWN ground - a scrim, a hairline,
+ * a bracket - and none may assume the field is dark.
+ *
+ * The work surface below is a stand-in, and it is deliberately BUSY. Auditioning
+ * an annotation over a bare field would audition the thing that never happens.
+ */
+function Annotate({ variant, stage, t }: VProps) {
+  const art = stageArt(stage);
+  const inP = outCubic(seg(t, 0.3, 1.0));
+  // The grip closes after the mark has arrived, same order as the outro's lock:
+  // a reticle that grips a moving target has not locked onto anything.
+  const grip = outCubic(seg(t, 0.9, 1.7));
+  const hold = 1 - outCubic(seg(t, 3.2, 3.9));
+  const o = inP * hold;
+  // The point being annotated, as a share of frame.
+  const px = 0.46;
+  const py = 0.44;
+
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      {/* THE WORK. A stand-in for a screencast, and busy on purpose. */}
+      {art ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={art}
+          alt=""
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.55 }}
+        />
+      ) : null}
+
+      {variant === "callout-ring" ? (
+        <>
+          {/* AN SVG POLYGON, not a bordered box under a clip-path. A CSS border
+              is drawn on the box and the clip then cuts it away, so a hex
+              clip-path over a border leaves only the slivers where the polygon
+              happens to meet the box edge - which is what the first cut of this
+              did, and it read as two stray tick marks on a PCB. */}
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: o * grip }}
+            aria-hidden
+          >
+            {/* TWO PASSES: a dark ground, then the gold on top of it. A gold
+                mark on a gold PCB is invisible, and the whole distinction of
+                this set is that it fires over work whose contrast is not ours.
+                Nothing here may assume the field is dark. */}
+            <polygon
+              points={(() => {
+                const rw = 6 + (1 - grip) * 4;
+                const rh = 11 + (1 - grip) * 7;
+                const cx = px * 100;
+                const cy = py * 100;
+                return [
+                  [cx, cy - rh],
+                  [cx + rw, cy - rh / 2],
+                  [cx + rw, cy + rh / 2],
+                  [cx, cy + rh],
+                  [cx - rw, cy + rh / 2],
+                  [cx - rw, cy - rh / 2],
+                ]
+                  .map(([x, y]) => x.toFixed(2) + ',' + y.toFixed(2))
+                  .join(' ');
+              })()}
+              fill="none"
+              stroke={FIELD}
+              strokeWidth={1.5}
+              strokeOpacity={0.85}
+              vectorEffect="non-scaling-stroke"
+            />
+            <polygon
+              points={(() => {
+                const rw = 6 + (1 - grip) * 4;
+                const rh = 11 + (1 - grip) * 7;
+                const cx = px * 100;
+                const cy = py * 100;
+                return [
+                  [cx, cy - rh],
+                  [cx + rw, cy - rh / 2],
+                  [cx + rw, cy + rh / 2],
+                  [cx, cy + rh],
+                  [cx - rw, cy + rh / 2],
+                  [cx - rw, cy - rh / 2],
+                ]
+                  .map(([x, y]) => x.toFixed(2) + ',' + y.toFixed(2))
+                  .join(' ');
+              })()}
+              fill="none"
+              stroke={GOLD}
+              strokeWidth={0.42}
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+          <div style={{ position: "absolute", left: (px * 100 + 8) + 'cqw', top: (py * 100 - 14) + 'cqh', opacity: o * grip, padding: '0.6cqh 1.1cqw', background: FIELD, boxShadow: '0 0 0 ' + hw(0.06) + ' ' + GOLD }}>
+            <Eyebrow o={o * grip}>ground pour</Eyebrow>
+          </div>
+        </>
+      ) : null}
+
+      {variant === "callout-bracket" ? (
+        <>
+          {[
+            [-1, -1],
+            [1, -1],
+            [-1, 1],
+            [1, 1],
+          ].map(([sx, sy], k) => (
+            <div
+              key={k}
+              aria-hidden
+              style={{
+                position: "absolute",
+                left: `${px * 100 + sx * (7 + (1 - grip) * 4)}cqw`,
+                top: `${py * 100 + sy * (11 + (1 - grip) * 6)}cqh`,
+                width: "3.4cqw",
+                height: "6cqh",
+                borderTop: sy < 0 ? `${hw(0.14)} solid ${GOLD}` : undefined,
+                borderBottom: sy > 0 ? `${hw(0.14)} solid ${GOLD}` : undefined,
+                borderLeft: sx < 0 ? `${hw(0.14)} solid ${GOLD}` : undefined,
+                borderRight: sx > 0 ? `${hw(0.14)} solid ${GOLD}` : undefined,
+                transform: "translate(-50%,-50%)",
+                opacity: o * grip,
+              }}
+            />
+          ))}
+          <div style={{ position: "absolute", left: `${px * 100 + 9}cqw`, top: `${py * 100 - 16}cqh`, opacity: o * grip }}>
+            <Eyebrow o={o * grip}>ground pour</Eyebrow>
+          </div>
+        </>
+      ) : null}
+
+      {variant === "callout-lead" ? (
+        <>
+          {/* Nothing overlaps the work. The only option that guarantees it. */}
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: `${px * 100}cqw`,
+              top: `${py * 100}cqh`,
+              width: `${grip * (100 - px * 100 - 6)}cqw`,
+              height: hw(0.12),
+              background: GOLD,
+              opacity: o,
+            }}
+          />
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: `${px * 100}cqw`,
+              top: `${py * 100}cqh`,
+              width: "1.4cqw",
+              height: "1.4cqw",
+              transform: "translate(-50%,-50%)",
+              border: `${hw(0.14)} solid ${GOLD}`,
+              opacity: o * grip,
+            }}
+          />
+          <div style={{ position: "absolute", right: "6cqw", top: `${py * 100 - 6}cqh`, textAlign: "right", opacity: o * grip }}>
+            <Eyebrow o={o * grip}>ground pour</Eyebrow>
+          </div>
+        </>
+      ) : null}
+
+      {variant === "pause" ? (
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            transform: "translate(-50%,-50%)",
+            textAlign: "center",
+            opacity: o,
+          }}
+        >
+          {/* Its own ground, because it has to be readable over anything. */}
+          <div style={{ position: "absolute", inset: "-6cqh -8cqw", background: FIELD, opacity: 0.82 }} aria-hidden />
+          <div style={{ position: "relative" }}>
+            <Eyebrow o={o}>pause here</Eyebrow>
+            <div style={{ marginTop: "1.6cqh" }}>
+              <Title size={3.2} o={o}>
+                Do this bit before you carry on
+              </Title>
+            </div>
+            <div style={{ marginTop: "2cqh", display: "flex", justifyContent: "center" }}>
+              <div style={{ width: "22cqw", height: hw(0.14), background: GOLD }} />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {variant === "wipe-before-after" ? (
+        <>
+          {/* The fix is on the other side of a hard edge. A wipe along an axis
+              is permitted vocabulary, so this costs nothing to add. */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              clipPath: `inset(0 0 0 ${grip * 100}%)`,
+              background: FIELD,
+              opacity: 0.55,
+            }}
+            aria-hidden
+          />
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: `${grip * 100}cqw`,
+              top: 0,
+              bottom: 0,
+              width: hw(0.16),
+              background: GOLD,
+              opacity: o,
+            }}
+          />
+          <div style={{ position: "absolute", left: "6cqw", bottom: "12cqh", opacity: o }}>
+            <Eyebrow o={o}>after</Eyebrow>
+          </div>
+          <div style={{ position: "absolute", right: "6cqw", bottom: "12cqh", opacity: o }}>
+            <Eyebrow o={o}>before</Eyebrow>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 function IntroShort({ variant, stage, t, aspect = 16 / 9 }: VProps) {
   const tall = aspect < 1;
   const q = STAGE_QUESTION[stage] ?? "";

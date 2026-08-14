@@ -164,6 +164,29 @@ export const OUTRO_SHORT: Variant[] = [
   { id: "loop-mark", name: "Loop on the mark", claim: "The same, landing on the brandmark alone - so the seam is the mark, and a viewer who loops twice sees it twice rather than seeing a join." },
 ];
 
+/** ANNOTATE - the mid-video set, and the first furniture that fires OVER LIVE
+ *  WORK rather than over a bare field.
+ *
+ *  That is the constraint the openers never had. A lower third sits on
+ *  deep-space; a callout sits on a screencast of KiCad, where the background is
+ *  someone else's contrast and changes every frame. So every treatment here
+ *  carries its own ground - a hairline, a scrim, a bracket - and none of them
+ *  relies on the field being dark.
+ *
+ *  WHY THESE FOUR. Signalling is d = 0.70, second only to coherence, and it is
+ *  the one principle that says motion is POSITIVE rather than a cost: motion
+ *  that POINTS helps. Everything built so far spends motion on transitions and
+ *  none of it on directing attention, which is the gap. And 61% of interaction
+ *  peaks accompany a visual transition, so a mid-video mark is also a scrub
+ *  target - it should land on a boundary that means something. */
+export const ANNOTATE: Variant[] = [
+  { id: "callout-ring", name: "Callout, ring", claim: "A hex ring closes on the thing and holds, with a mono label on a leader. The trace-and-vise gesture at annotation scale, so a viewer who has seen the intro already knows what it means." },
+  { id: "callout-bracket", name: "Callout, brackets", claim: "Two corner brackets grip the region instead of ringing it - better on a rectangular thing like a footprint or a dialog, and it never implies a circle where there is a pad." },
+  { id: "callout-lead", name: "Callout, leader", claim: "A hairline runs in from the edge of frame and stops on the point, label at its root. Nothing overlaps the work at all, which is the only option that guarantees it." },
+  { id: "pause", name: "Pause here", claim: "The one piece that is an instruction to the transport rather than information: stop, do the thing, come back. A build-along without it is a video you cannot follow at the bench." },
+  { id: "wipe-before-after", name: "Before and after", claim: "A hard edge travels across and the fix is on the other side of it. A wipe along an axis is permitted vocabulary, so this costs nothing to add and is the natural shape for a repair." },
+];
+
 export const PIECES = {
   intro: { name: "Intro / LESSON", seconds: 3.5, variants: INTRO },
   lower: { name: "Lower third", seconds: 4, variants: LOWER },
@@ -174,6 +197,7 @@ export const PIECES = {
   // than a reflow.
   "intro-short": { name: "Intro / SHORT", seconds: 3.5, variants: INTRO_SHORT },
   "outro-short": { name: "Outro / SHORT", seconds: 4, variants: OUTRO_SHORT },
+  annotate: { name: "Annotate / mid-video", seconds: 4, variants: ANNOTATE },
   // Seconds are the AUDITION length, not a duration - this piece is persistent.
   // The cut at t=2.0 is there so the round shows the one thing it does: change.
   chapter: { name: "Chapter indicator", seconds: 4, variants: CHAPTER },

@@ -144,9 +144,26 @@ const LONGEST_LABEL = STAGE_ORDER.map((s) => STAGE_LABELS[s]).reduce(
   "",
 );
 
-export function Chapter({ variant, stage, t }: VProps) {
-  const n = STAGE_ORDER.length;
-  const at = STAGE_ORDER.indexOf(stage);
+/**
+ * ONE COMPONENT, TWO SCOPES.
+ *
+ * `stage` counts build stages: where this video sits in the eight-stage build.
+ * `step` counts videos: where this video sits in its lesson's playlist.
+ *
+ * They were nearly built as two components, and that would have been the error.
+ * A lesson is a PLAYLIST of short videos, so a video IS a step - "step 3 of 9"
+ * and "stage 04 / 08" are the same readout at two scopes, and two components
+ * drift until they disagree about where the viewer is. One component cannot.
+ */
+export type ChapterScope = "stage" | "step";
+
+export function Chapter({ variant, stage, t, scope = "stage", stepIndex = 2, stepCount = 6 }: VProps & {
+  scope?: ChapterScope;
+  stepIndex?: number;
+  stepCount?: number;
+}) {
+  const n = scope === "step" ? stepCount : STAGE_ORDER.length;
+  const at = scope === "step" ? stepIndex : STAGE_ORDER.indexOf(stage);
   // NOT `Math.max(0, indexOf)`. That turned any stage this piece does not
   // number - REVISION is a legal `Stage` and the frame route validates nothing,
   // so `?stage=REVISION` and `?stage=banana` both reach here - into a confident
@@ -162,7 +179,7 @@ export function Chapter({ variant, stage, t }: VProps) {
   // at the default stage. Wrapping is honest for an audition surface: the point
   // is to show the change, and 08 -> 01 shows it.
   const i = t >= CUT_AT ? (base + 1) % n : base;
-  const label = STAGE_LABELS[STAGE_ORDER[i]];
+  const label = scope === "step" ? STAGE_LABELS[stage] : STAGE_LABELS[STAGE_ORDER[i]];
 
   switch (variant) {
     // The research's literal recommendation: top right, mono, nothing else.
