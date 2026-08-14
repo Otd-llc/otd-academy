@@ -151,6 +151,7 @@ export function PieceFrame(p: VProps) {
       {p.piece === "intro-short" ? <IntroShort {...p} /> : null}
       {p.piece === "outro-short" ? <OutroShort {...p} /> : null}
       {p.piece === "callout" ? <Annotate {...p} kind="callout" /> : null}
+      {p.piece === "label" ? <LabelRound {...p} /> : null}
       {p.piece === "pause" ? <Annotate {...p} kind="pause" /> : null}
       {p.piece === "beforeafter" ? <Annotate {...p} kind="beforeafter" /> : null}
     </div>
@@ -732,6 +733,103 @@ function HexMark({
       <polygon points={pts} fill="none" stroke={FIELD} strokeWidth={H * w * 3} strokeOpacity={0.85} />
       <polygon points={pts} fill="none" stroke={colour} strokeWidth={H * w} />
     </svg>
+  );
+}
+
+/**
+ * THE LABEL ROUND. Six ways to name the thing, over the settled hex.
+ *
+ * All six carry the SAME words at the SAME size on the SAME mark, so what is
+ * being judged is the framing and nothing else. `naked` is in the set to lose:
+ * it proves the ground is load-bearing rather than decorative, which is the
+ * claim every other option is quietly making.
+ */
+function LabelRound({ variant, stage, t, aspect = 16 / 9 }: VProps) {
+  const art = stageArt(stage);
+  const inP = outCubic(seg(t, 0.3, 1.0));
+  const grip = outCubic(seg(t, 0.9, 1.7));
+  const hold = 1 - outCubic(seg(t, 3.2, 3.9));
+  const o = inP * hold;
+  const px = 0.42;
+  const py = 0.46;
+  const TEXTY = { fontFamily: "var(--font-mono)", fontSize: ts(1.25), letterSpacing: "0.24em", textTransform: "uppercase" as const, color: GOLD, lineHeight: 1, whiteSpace: "nowrap" as const };
+  const LX = `${px * 100 + 10}cqw`;
+  const LY = `${py * 100 - 16}cqh`;
+
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      {art ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={art} alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.55 }} />
+      ) : null}
+      <HexMark px={px} py={py} aspect={aspect} scale={grip} colour={GOLD} o={o * grip} />
+
+      <div style={{ position: "absolute", left: LX, top: LY, opacity: o * grip }}>
+        {variant === "masthead" ? (
+          <div>
+            <div style={{ height: hw(0.4), background: GOLD, marginBottom: "0.9cqh" }} />
+            <span style={TEXTY}>&#9656; ground pour</span>
+          </div>
+        ) : null}
+
+        {variant === "accent" ? (
+          <div style={{ display: "flex", alignItems: "stretch", gap: "1cqw" }}>
+            <div style={{ width: hw(0.5), background: GOLD }} />
+            <span style={{ ...TEXTY, alignSelf: "center" }}>ground pour</span>
+          </div>
+        ) : null}
+
+        {variant === "bracket" ? (
+          <div>
+            <div style={{ height: hw(0.3), background: GOLD }} />
+            <div style={{ padding: "0.9cqh 0" }}>
+              <span style={TEXTY}>ground pour</span>
+            </div>
+            <div style={{ height: hw(0.3), background: GOLD }} />
+          </div>
+        ) : null}
+
+        {variant === "scrim" ? (
+          // No frame at all. The dim is doing the only job a frame was doing.
+          <span
+            style={{
+              ...TEXTY,
+              padding: "0.8cqh 1.2cqw",
+              background: FIELD,
+              opacity: 0.94,
+              boxShadow: `0 0 ${hw(1.2)} ${hw(0.6)} ${FIELD}`,
+            }}
+          >
+            ground pour
+          </span>
+        ) : null}
+
+        {variant === "naked" ? <span style={TEXTY}>ground pour</span> : null}
+      </div>
+
+      {/* ON THE LEADER - the pointer and the name are ONE object, so it is
+          positioned from the mark rather than parked near it. */}
+      {variant === "onrule" ? (
+        <>
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: `${px * 100}cqw`,
+              top: `${py * 100 - 14}cqh`,
+              width: `${grip * 26}cqw`,
+              height: hw(0.34),
+              background: GOLD,
+              boxShadow: `0 0 0 ${hw(0.14)} ${FIELD}`,
+              opacity: o,
+            }}
+          />
+          <div style={{ position: "absolute", left: `${px * 100 + 1}cqw`, top: `${py * 100 - 18.5}cqh`, opacity: o * grip }}>
+            <span style={{ ...TEXTY, background: FIELD, padding: "0 0.6cqw" }}>ground pour</span>
+          </div>
+        </>
+      ) : null}
+    </div>
   );
 }
 

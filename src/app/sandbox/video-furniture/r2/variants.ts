@@ -268,6 +268,30 @@ export const BEFORE_AFTER: Variant[] = [
 ];
 
 
+/** LABEL - how a callout NAMES the thing it is pointing at.
+ *
+ *  Cross-cutting, so it gets its own round rather than being decided inside one
+ *  callout type: whatever wins applies to all seven.
+ *
+ *  THE BOX WAS THE PROBLEM. The design law is explicit that content groups with
+ *  hairlines on the bare field and never in a filled card, and it names the
+ *  not-a-box framings outright: a gold top-rule masthead, a left-accent bar, or
+ *  top-and-bottom bracket rules. A bordered tag is a box, and making it a nicer
+ *  bordered box does not stop it being one.
+ *
+ *  The constraint that makes this hard is the one this whole set keeps
+ *  re-teaching: a label over live work cannot borrow contrast from a background
+ *  it does not control, so "no box" cannot mean "no ground". Each option below
+ *  solves that differently, and one of them refuses to. */
+export const LABEL: Variant[] = [
+  { id: "masthead", name: "Masthead", claim: "A gold top-rule with the label riding under it, no sides and no bottom. The house document-header treatment, and the framing the law names first." },
+  { id: "accent", name: "Accent bar", claim: "A gold left-accent bar, text beside it. The sanctioned not-a-box framing; it groups without enclosing and it reads at any width." },
+  { id: "bracket", name: "Brackets", claim: "Top and bottom rules only. Frames on two sides, encloses on none - the lightest thing that still holds the words together." },
+  { id: "onrule", name: "On the leader", claim: "The label sits ON the leader line running back from the mark, so the pointer and the name are one object rather than a line that happens to end near a word." },
+  { id: "scrim", name: "Scrim only", claim: "No frame at all - just enough dim behind the words to read them. The most honest about the fact that a ground is needed, and the least ornamental." },
+  { id: "naked", name: "Naked", claim: "No frame, no scrim, gold on whatever is underneath. It will fail over copper, and it is here to prove the ground is load-bearing rather than decorative." },
+];
+
 export const PIECES = {
   intro: { name: "Intro / LESSON", seconds: 3.5, variants: INTRO },
   lower: { name: "Lower third", seconds: 4, variants: LOWER },
@@ -280,6 +304,7 @@ export const PIECES = {
   "outro-short": { name: "Outro / SHORT", seconds: 4, variants: OUTRO_SHORT },
   // Three devices, three rounds. They share a constraint, not a job.
   callout: { name: "Callout / points at it", seconds: 4, variants: CALLOUT },
+  label: { name: "Label / names it", seconds: 4, variants: LABEL },
   pause: { name: "Pause / halts you", seconds: 4, variants: PAUSE },
   beforeafter: { name: "Before + after", seconds: 4, variants: BEFORE_AFTER },
   // Seconds are the AUDITION length, not a duration - this piece is persistent.
