@@ -150,9 +150,24 @@ export const CHAPTER: Variant[] = [
  *  this fires ONCE, as an exit, and is over. That is a judgement about intent
  *  rather than a loophole, and it should be overturned if it reads as the
  *  cliche the ban exists to prevent. */
+/** INTRO / SHORT - the wash, and how much it is allowed to move.
+ *
+ *  The hex lattice was scrapped on encode cost: a moving high-frequency lattice
+ *  is close to worst-case content for a block-transform codec, the same argument
+ *  that killed the animated comb. So every option here is chosen against that
+ *  rule - a block codec is cheap when large areas are STATIC or move as ONE
+ *  coherent boundary, and expensive when many small details move independently.
+ *
+ *  Which means the cost is measurable rather than arguable, and it was measured:
+ *  same treatment, same encode, CRF 20, 105 frames at 1920x1080. */
 export const INTRO_SHORT: Variant[] = [
-  { id: "wash", name: "Wash", claim: "The mark enormous and faint, bled off the top and left. Static: the field stops being empty and nothing competes with the question." },
+  { id: "wash", name: "Static", claim: "The control. Nothing moves; the mark is a field. Cheapest possible, and the bar everything else has to beat." },
+  { id: "wash-state", name: "State change", claim: "The wash steps to a heavier weight on a beat. ZERO motion vectors - the codec sees one new keyframe and static either side. The permitted vocabulary allows exactly this: a state change on a stationary element." },
+  { id: "wash-plate", name: "Plate", claim: "Gold rises through the silhouette from the foot. ONE moving boundary, everything either side static - a wipe along an axis, and it borrows the film's own plating language." },
+  { id: "wash-sweep", name: "Sweep", claim: "A hard edge crosses once and the wash exists only behind it. The same family as plate on the other axis; arrival by survey rather than by fade." },
+  { id: "wash-trace", name: "Trace", claim: "A hairline travels the mark's outline once and stops. One small element over a static field, and it reuses the trace gesture the intro and outro already speak." },
 ];
+
 
 
 

@@ -962,7 +962,7 @@ function IntroShort({ variant, stage, t, aspect = 16 / 9 }: VProps) {
   // and - the half worth a round - what it is made of. Every option is the same
   // drawing at the same faintness; none may become a second logo competing with
   // the question for the eye.
-  const wash = variant === "wash" ? "plain" : variant;
+  const wash = variant === "wash" ? "plain" : variant.replace("wash-", "");
   // The vertical is composed, not reflowed.
   const stacked = tall;
   const MARK_SVG =
@@ -983,21 +983,92 @@ function IntroShort({ variant, stage, t, aspect = 16 / 9 }: VProps) {
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      <div
-        aria-hidden
-        style={{
+      {/* THE WASH. Every option is the same silhouette at the same faintness;
+          what differs is how much of it is allowed to move, and each was chosen
+          against the codec rule that killed the lattice. */}
+      {(() => {
+        const BOX: React.CSSProperties = {
           position: "absolute",
           left: "-18cqw",
           top: "-14cqh",
           width: "92cqw",
           height: "128cqh",
-          opacity: 0.07 * inP,
-        }}
-      >
-        <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
-          <path d={BRANDMARK_PATH} fill={GOLD} />
-        </svg>
-      </div>
+        };
+        // STATE steps once, on a beat. A step function of `t`, so there is no
+        // in-between frame and therefore nothing for the codec to track.
+        const stepped = t >= 1.5;
+        // PLATE and SWEEP each move exactly ONE boundary.
+        const plate = outCubic(seg(t, 0.6, 2.4));
+        const sweep = outExpo(seg(t, 0.5, 2.2));
+        // TRACE moves one thin element over an otherwise static field.
+        const trace = outCubic(seg(t, 0.6, 2.6));
+
+        if (wash === "state") {
+          return (
+            <div aria-hidden style={{ ...BOX, opacity: (stepped ? 0.11 : 0.05) * inP }}>
+              <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
+                <path d={BRANDMARK_PATH} fill={GOLD} />
+              </svg>
+            </div>
+          );
+        }
+
+        if (wash === "plate") {
+          return (
+            <div aria-hidden style={BOX}>
+              <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
+                <defs>
+                  <clipPath id="wash-plate-clip" clipPathUnits="objectBoundingBox">
+                    <rect x="0" y={1 - plate} width="1" height={plate} />
+                  </clipPath>
+                </defs>
+                <path d={BRANDMARK_PATH} fill={GOLD} opacity={0.04 * inP} />
+                <g clipPath="url(#wash-plate-clip)">
+                  <path d={BRANDMARK_PATH} fill={GOLD} opacity={0.12 * inP} />
+                </g>
+              </svg>
+            </div>
+          );
+        }
+
+        if (wash === "sweep") {
+          return (
+            <div aria-hidden style={{ ...BOX, clipPath: `inset(0 ${(1 - sweep) * 100}% 0 0)`, opacity: 0.08 * inP }}>
+              <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
+                <path d={BRANDMARK_PATH} fill={GOLD} />
+              </svg>
+            </div>
+          );
+        }
+
+        if (wash === "trace") {
+          return (
+            <div aria-hidden style={BOX}>
+              <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
+                <path d={BRANDMARK_PATH} fill={GOLD} opacity={0.05 * inP} />
+                <path
+                  d={BRANDMARK_PATH}
+                  fill="none"
+                  stroke={GOLD}
+                  strokeWidth={4}
+                  vectorEffect="non-scaling-stroke"
+                  pathLength={1000}
+                  strokeDasharray={`${trace * 1000} 1000`}
+                  opacity={0.55 * inP}
+                />
+              </svg>
+            </div>
+          );
+        }
+
+        return (
+          <div aria-hidden style={{ ...BOX, opacity: 0.07 * inP }}>
+            <svg viewBox={BRANDMARK_VIEWBOX} style={{ width: "100%", height: "100%", display: "block" }}>
+              <path d={BRANDMARK_PATH} fill={GOLD} />
+            </svg>
+          </div>
+        );
+      })()}
 
       <div style={{ position: "absolute", left: copyLeft, right: copyRight, top: copyTop, opacity: inP }}>
         <Eyebrow o={inP}>the question</Eyebrow>
