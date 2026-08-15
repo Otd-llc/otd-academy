@@ -28,6 +28,7 @@ import {
   HEX_ORIENTATION,
   HEX_PRINT_PARAMS,
 } from "@/lib/hex-spec";
+import { NEEDS_SUPPORT_SLUGS, needsSupport } from "@/lib/hex-support";
 
 /** ASCII-fold a string from the shared spec.
  *
@@ -88,16 +89,6 @@ const PRINT_LINES: readonly string[] = [
     `${p.label}: ${ascii(p.value)}${p.aside ? ` (${ascii(p.aside)})` : ""}`,
 );
 
-/** The two parts that rest on a line BY DESIGN, so nobody is surprised
- *  mid-print. Kept in sync with `orientationNote` in
- *  `scripts/upload-printables.ts`, which spells them as published names because
- *  it reads the manifest; here they are the slugs, because a slug is what a
- *  request and a `Placement` both carry. */
-const NEEDS_SUPPORT: ReadonlySet<string> = new Set([
-  "hex-tb-spike-solid",
-  "hex-tb-spike-ball-joint",
-]);
-
 /**
  * Does anything in this pack rest on a line, and therefore need supports?
  *
@@ -108,13 +99,14 @@ const NEEDS_SUPPORT: ReadonlySet<string> = new Set([
  * archive whatever it fits on, and this is the question that decides it. See the
  * design's section 5.
  *
- * Asked HERE rather than restated at the route, because `NEEDS_SUPPORT` is also
- * the set the warning text is derived from. Two copies would let "we shipped a
- * README" and "the README says supports" drift apart, which is the worst
- * possible pair to disagree: the box would look right and say nothing.
+ * A thin re-export of `needsSupport`, kept because the route and the tests reach
+ * for it by this name. The SET itself moved to `@/lib/hex-support`: once this
+ * question started choosing whether a README exists, a second copy of the list
+ * in the uploader stopped being a documentation problem and became a way to ship
+ * a bare file with nothing in it warning anybody.
  */
 export function packNeedsSupport(slugs: readonly string[]): boolean {
-  return slugs.some((s) => NEEDS_SUPPORT.has(s));
+  return needsSupport(slugs);
 }
 
 /** What to say about supports, given what is actually in the box.
@@ -128,7 +120,7 @@ function supportLines(
 ): string[] {
   const present = [
     ...new Set(
-      parts.filter((p) => NEEDS_SUPPORT.has(p.slug)).map((p) => ascii(p.label)),
+      parts.filter((p) => NEEDS_SUPPORT_SLUGS.has(p.slug)).map((p) => ascii(p.label)),
     ),
   ];
   if (present.length === 0) {
