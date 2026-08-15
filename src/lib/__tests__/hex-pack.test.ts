@@ -241,3 +241,40 @@ describe("quantities", () => {
     expect(!r.ok && r.problem).toBe("too-many");
   });
 });
+
+describe("the bed", () => {
+  it("defaults to 220 square when absent", () => {
+    const r = resolvePack({ release: RELEASE, parts: ONE });
+    expect(r.ok && r.request.bed).toEqual({ x: 220, y: 220 });
+  });
+
+  it("reads WxH", () => {
+    const r = resolvePack({ release: RELEASE, parts: ONE, plate: "350x350" });
+    expect(r.ok && r.request.bed).toEqual({ x: 350, y: 350 });
+  });
+
+  it("refuses a bed outside the sane range, or a non-integer", () => {
+    for (const p of [
+      "0x100",
+      "100x0",
+      "40x40",
+      "2000x2000",
+      "350",
+      "axb",
+      "350x350x350",
+    ]) {
+      expect(resolvePack({ release: RELEASE, parts: ONE, plate: p }).ok).toBe(
+        false,
+      );
+    }
+  });
+
+  it("says WHICH thing was malformed", () => {
+    // The bed is the one field a person edits by hand in a URL. Answering
+    // "bad-bed" rather than a generic refusal is not a leak: bed sizes are not
+    // secrets, unlike which part names are real.
+    expect(
+      resolvePack({ release: RELEASE, parts: ONE, plate: "40x40" }),
+    ).toEqual({ ok: false, problem: "bad-bed" });
+  });
+});

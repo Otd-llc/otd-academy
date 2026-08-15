@@ -39,17 +39,60 @@ export const MAX_PACK_INSTANCES = 250;
  *  never reaches arithmetic that would round it into something plausible. */
 const PART_TOKEN = /^([a-z0-9][a-z0-9-]*)(?::(\d+))?$/;
 
+/** The bed a pack is laid out for, in millimetres. */
+export type Bed = { x: number; y: number };
+
+/** Ships when the caller names no bed. Small enough to be right on almost any
+ *  printer; a larger bed only means fewer plates, never a failure. */
+export const DEFAULT_BED: Bed = { x: 220, y: 220 };
+
+/** Sane range for a consumer FDM bed. This is a LOOP BOUND and a CACHE KEY, not
+ *  merely a typo check: the packer iterates rows across it, and the response is
+ *  cached per URL. The floor is above the largest part (87.8 x 78 mm), so any
+ *  accepted bed can hold every part in the set -- which is what lets the bed
+ *  picker change the plate COUNT and never make a part unprintable.
+ *
+ *  Exported because the account setting must validate against these exact
+ *  numbers. A second copy of them somewhere else would drift, and the symptom
+ *  would be a bed the settings page accepts and the endpoint refuses. */
+export const BED_MIN = 100;
+export const BED_MAX = 1000;
+
+/** Two integers and nothing else -- no signs, no decimals, no third dimension.
+ *  `{1,4}` bounds the string before `Number` ever sees it. */
+const BED_RE = /^(\d{1,4})x(\d{1,4})$/;
+
 export type PackRequest = {
   release: string;
   format: PackFormat;
   parts: PackPart[];
+  bed: Bed;
 };
 
 export type PackProblem =
-  "bad-release" | "bad-format" | "empty" | "too-many" | "unknown-part";
+  | "bad-release"
+  | "bad-format"
+  | "bad-bed"
+  | "empty"
+  | "too-many"
+  | "unknown-part";
 
 export type PackResolution =
   { ok: true; request: PackRequest } | { ok: false; problem: PackProblem };
+
+/** Parse `350x350`, or null if it is anything else. An ABSENT bed is not an
+ *  error: links written before the bed existed must keep working, and the
+ *  default is the conservative choice, so they get more plates rather than a
+ *  refusal. */
+function parseBed(raw: string | null | undefined): Bed | null {
+  if (raw == null || raw === "") return DEFAULT_BED;
+  const m = BED_RE.exec(raw);
+  if (!m) return null;
+  const x = Number(m[1]);
+  const y = Number(m[2]);
+  if (x < BED_MIN || x > BED_MAX || y < BED_MIN || y > BED_MAX) return null;
+  return { x, y };
+}
 
 /** Parse `slug,slug:3,slug:6` into one line per distinct slug, or null if any
  *  token is malformed. A bare slug means one, so every link written before
@@ -92,6 +135,7 @@ export function resolvePack(input: {
   release?: string | null;
   format?: string | null;
   parts?: string | null;
+  plate?: string | null;
 }): PackResolution {
   const release = input.release ?? "";
   if (!RELEASE.test(release)) return { ok: false, problem: "bad-release" };
@@ -100,6 +144,9 @@ export function resolvePack(input: {
   if (!(PACK_FORMATS as readonly string[]).includes(format)) {
     return { ok: false, problem: "bad-format" };
   }
+
+  const bed = parseBed(input.plate);
+  if (bed === null) return { ok: false, problem: "bad-bed" };
 
   const parts = parseParts(input.parts ?? "");
   if (parts === null) return { ok: false, problem: "unknown-part" };
@@ -113,7 +160,7 @@ export function resolvePack(input: {
   if (!parts.every((p) => isHexPartSlug(p.slug)))
     return { ok: false, problem: "unknown-part" };
 
-  return { ok: true, request: { release, format, parts } };
+  return { ok: true, request: { release, format, parts, bed } };
 }
 
 /** How many physical objects a pack contains, which is not the same as how many
