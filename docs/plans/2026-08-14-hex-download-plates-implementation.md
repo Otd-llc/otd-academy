@@ -1015,6 +1015,13 @@ the server. **Extract that into a shared module rather than writing it twice** â
 disagreement between the label and the file is the worst failure this feature has, because
 it is invisible until someone counts.
 
+**Do not test that agreement by calling the packer twice and comparing.** That test is
+inert: V8's sort is stable, so the same input array yields the same answer whether or not
+the comparator is a total order. A4 shipped with exactly that mistake in the plan and it
+passed against a deliberately broken sort. Test it the way the failure actually happens â€”
+the SAME build with its parts in a DIFFERENT order, using parts of equal depth and
+different widths, since that is the only input that reaches the tiebreak.
+
 Keep: the in-sheet link under the BOM, now calling the same resolver.
 
 **Commit.**
