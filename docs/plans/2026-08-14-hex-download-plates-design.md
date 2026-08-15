@@ -99,16 +99,19 @@ Vocabulary: **plate**, not session. It is the word the slicer puts on screen.
 
 Placement went to sandbox rounds rather than being decided in prose:
 
-- **Round 01** (`bs-cap/sandbox-export-cta.html`, six placements, both themes) → **B**, the
-  two-row bar: heading keeps its own line, action row beneath, files left and sheet
-  actions right.
-- **Round 02** (`bs-cap/sandbox-export-cta-b.html`, five B variations, plus a narrow-width
-  toggle for the embedded case) → **B2**, plate count inside the button. The CTA reads
-  `↓ Download 15 parts · 1 plate`, with `for [bed ▾]` immediately after it, then a spacer,
-  then Print sheet and Share. Changing the bed visibly rewrites the button, which is the
-  cause-and-effect the whole session-splitting story depends on.
+- **Round 01** (six placements, both themes) → **B**, the two-row bar: heading keeps its
+  own line, action row beneath, files left and sheet actions right.
+- **Round 02** (five B variations, plus a narrow-width toggle for the embedded case) →
+  **B2**, plate count inside the button. The CTA reads `↓ Download 15 parts · 1 plate`,
+  with `for [bed ▾]` immediately after it, then a spacer, then Print sheet and Share.
+  Changing the bed visibly rewrites the button, which is the cause-and-effect the whole
+  session-splitting story depends on.
 
-Both sandbox files are deleted before the PR.
+Both sandbox files were untracked scratch in the `bs-cap` worktree and were deleted once
+the pick was made. **The surviving drawing of the picked variant is the B2 block in
+`bs-cap/docs/build-sheet-spec.css`**, which `pnpm sheet:check` enforces — so the decision
+outlives the file it was made in. Naming the deleted paths here would be a citation to
+nothing.
 
 ### 2. Bed size: one resolver, two stores
 

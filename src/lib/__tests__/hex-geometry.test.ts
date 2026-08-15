@@ -24,7 +24,38 @@ import { HEX_RELEASE } from "@/lib/hex-spec";
 // keys, and a second copy is a third spelling that could drift from both.
 import { slug } from "@/lib/r2";
 
+/**
+ * The release the CONFIGURATOR has transcribed this table for.
+ *
+ * A TRIPWIRE, not a fact this repo can look up. The configurator (`bs-cap`)
+ * carries a generated copy of `HEX_PART_BOX` and of `packPlates`, so it can put
+ * a plate count inside its download button. It pins that copy to a release, and
+ * it has tests that compare our real packer's answers against its own -- but
+ * those need both checkouts side by side, so they SKIP in its CI, and this repo
+ * has no configurator checkout either.
+ *
+ * That is the quiet-disagreement shape: we re-cut, both CIs stay green, the
+ * route stops plating anything whose release is not ours and serves a loose zip,
+ * and the configurator's button goes on claiming "3 plates" for a zip that has
+ * none. Nobody is paged, because nothing failed.
+ *
+ * So the number lives here as a constant a human must move. Bumping
+ * HEX_RELEASE without touching this line turns a silent cross-repo drift into a
+ * red test in the repo doing the bumping, which is the only side that knows it
+ * happened. Moving it is the moment to open the configurator's PR.
+ */
+const CONFIGURATOR_PINNED_RELEASE = "2026-08-03";
+
 describe("the geometry table", () => {
+  it("is still the release the configurator pinned its copy to", () => {
+    // Deliberately NOT a lookup of the configurator's own constant: reading it
+    // would make this pass automatically the moment someone regenerated over
+    // there, which is exactly the coordination this exists to force. If you are
+    // here because this failed, the fix is not to edit the number -- it is to
+    // re-run `pnpm hex:geometry` in bs-cap, ship that, and THEN edit it.
+    expect(HEX_GEOMETRY_RELEASE).toBe(CONFIGURATOR_PINNED_RELEASE);
+  });
+
   it("covers every published slug", () => {
     // Two transcriptions of the same manifest. A re-cut that regenerates one and
     // not the other is caught here rather than by a pack that overlaps parts --

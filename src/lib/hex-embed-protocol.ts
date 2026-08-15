@@ -157,7 +157,9 @@ export type SetBed = {
 /**
  * Child -> parent: the visitor picked this bed in the configurator.
  *
- * The one message that reaches a write (see the security model above). It exists
+ * One of the two messages that reach a write (see the security model above); the
+ * other is `promote-bed`, which is CONDITIONAL. This one is not: a pick is the
+ * visitor's deliberate choice and must win over whatever is stored. It exists
  * because the picker belongs at the point of use -- in the export bar, beside
  * Download -- while the value has to live on the ACCOUNT to survive a new
  * browser, and only the academy holds the session that can write it. A pick that
