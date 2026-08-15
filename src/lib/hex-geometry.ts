@@ -4,8 +4,17 @@
 // the mesh ships in: the minimum corner and the size, in millimetres. The packer
 // needs both -- the size to place, the minimum corner to turn a target position
 // into the translation that gets it there. `z0` is not always zero (one part's
-// mesh rests 0.144 mm above the bed), which is why the 3MF writer translates by
-// `-z0` instead of assuming a part is already seated.
+// mesh rests 0.144338 mm above its own origin), which is why the 3MF writer
+// translates by `-z0` instead of assuming a part is already seated.
+//
+// NOT ROUNDED, and that is a fix rather than an accident. Every value here is
+// the FULL double the mesh text parsed to. The writer seats a part by emitting
+// `-z0`, so a rounded `z0` does not tidy the table -- it leaves that one part
+// hanging above the bed while its neighbours sit on it, and Creality Print reads
+// a plate with one object at a different height as a multi-part body it offers
+// to fuse. Sixteen of the 53 parts have a non-zero `z0`; fifteen of those are
+// the exporter's own float noise (1e-19 to 2e-12 mm) and one, the spike ball
+// joint, is real. Long decimals below are that precision, not damage.
 //
 // REGENERATE THIS IN THE SAME COMMIT that re-cuts the meshes and bumps
 // HEX_RELEASE and HEX_PART_SLUGS:
@@ -26,6 +35,10 @@
 // The second table is the published SPELLING of each part, which the 3MF writer
 // puts on the `<object>` so a slicer's object list reads `Hex-TB-Main` rather
 // than `hex-tb-main`. It is recoverable at generation time and nowhere else.
+//
+// The third is the verbatim source text of each part's lowest vertex, kept so
+// the seat can be tested against what the MESH says rather than against what
+// this table believes. Nothing in the app reads it; the test suite does.
 import type { PartBox } from "@/lib/hex-plate";
 
 /** The mesh release these boxes were measured from.
@@ -36,59 +49,59 @@ import type { PartBox } from "@/lib/hex-plate";
 export const HEX_GEOMETRY_RELEASE = "2026-08-03";
 
 export const HEX_PART_BOX: Record<string, PartBox> = {
-  "dovetail-cap-double-f-1h": { x0: -35.5, y0: -25, z0: 0, dx: 71, dy: 25, dz: 5 },
-  "dovetail-cap-double-f-2h": { x0: -35.5, y0: -25, z0: 0, dx: 71, dy: 25, dz: 5 },
-  "dovetail-cap-double-f-3h": { x0: -35.5, y0: -25, z0: 0, dx: 71, dy: 25, dz: 5 },
+  "dovetail-cap-double-f-1h": { x0: -35.5, y0: -25, z0: -1e-15, dx: 71, dy: 25, dz: 5.000000000000001 },
+  "dovetail-cap-double-f-2h": { x0: -35.5, y0: -25, z0: -9.99999e-16, dx: 71, dy: 25, dz: 5.000000000000001 },
+  "dovetail-cap-double-f-3h": { x0: -35.5, y0: -25, z0: -1e-15, dx: 71, dy: 25, dz: 5.000000000000001 },
   "dovetail-cap-double-f-solid": { x0: -35.5, y0: -25, z0: 0, dx: 71, dy: 25, dz: 5 },
-  "dovetail-cap-double-m-1h": { x0: -35.846, y0: 0, z0: 0, dx: 71.692, dy: 25, dz: 4 },
-  "dovetail-cap-double-m-2h": { x0: -35.846, y0: 0, z0: 0, dx: 71.692, dy: 25, dz: 4 },
-  "dovetail-cap-double-m-3h": { x0: -35.846, y0: 0, z0: 0, dx: 71.692, dy: 25, dz: 4 },
-  "dovetail-cap-double-m-solid": { x0: -35.841, y0: 0, z0: 0, dx: 71.682, dy: 25, dz: 4 },
-  "dovetail-cap-single-f-1h": { x0: -18.405, y0: -25, z0: 0, dx: 36.809, dy: 25, dz: 5 },
-  "dovetail-cap-single-f-solid": { x0: -18.405, y0: -25, z0: 0, dx: 36.809, dy: 25, dz: 5 },
-  "dovetail-cap-single-m-1h": { x0: -17.255, y0: 0, z0: 0, dx: 34.51, dy: 25, dz: 4 },
-  "dovetail-cap-single-m-solid": { x0: -17.255, y0: 0, z0: 0, dx: 34.51, dy: 25, dz: 4 },
-  "hex-tb-carrier-bot-parts-tray": { x0: -36.229, y0: -33.5, z0: 0, dx: 72.457, dy: 31, dz: 19.667 },
-  "hex-tb-carrier-bot-parts-tray-lid": { x0: -28.013, y0: -24.897, z0: 0, dx: 56.025, dy: 15.093, dz: 10 },
-  "hex-tb-carrier-bot-solid": { x0: -36.229, y0: -33.5, z0: 0, dx: 72.457, dy: 31, dz: 6 },
-  "hex-tb-carrier-left-parts-tray": { x0: -33.814, y0: -33.875, z0: 0, dx: 31.447, dy: 67.75, dz: 19.667 },
-  "hex-tb-carrier-left-parts-tray-lid": { x0: -22.954, y0: -29.274, z0: 0, dx: 13.677, dy: 58.548, dz: 10 },
-  "hex-tb-carrier-left-solid": { x0: -33.814, y0: -33.875, z0: 0, dx: 31.447, dy: 67.75, dz: 6 },
-  "hex-tb-carrier-parts-tray": { x0: -38.682, y0: -33.5, z0: 0, dx: 77.365, dy: 67, dz: 15 },
-  "hex-tb-carrier-parts-tray-lid": { x0: -27.497, y0: -23.844, z0: 0, dx: 54.994, dy: 47.688, dz: 10 },
-  "hex-tb-carrier-right-parts-tray": { x0: 2.367, y0: -33.875, z0: 0, dx: 31.447, dy: 67.75, dz: 19.667 },
-  "hex-tb-carrier-right-parts-tray-lid": { x0: 9.277, y0: -29.274, z0: 0, dx: 13.677, dy: 58.548, dz: 10 },
-  "hex-tb-carrier-right-solid": { x0: 2.367, y0: -33.875, z0: 0, dx: 31.447, dy: 67.75, dz: 6 },
-  "hex-tb-carrier-solid": { x0: -38.682, y0: -33.5, z0: 0, dx: 77.365, dy: 67, dz: 3 },
-  "hex-tb-carrier-top-parts-tray": { x0: -37.383, y0: 0.5, z0: 0, dx: 74.767, dy: 33, dz: 19.667 },
-  "hex-tb-carrier-top-parts-tray-lid": { x0: -31.013, y0: 7.854, z0: 0, dx: 62.025, dy: 17.043, dz: 10 },
-  "hex-tb-carrier-top-solid": { x0: -37.383, y0: 0.5, z0: 0, dx: 74.767, dy: 33, dz: 6 },
-  "hex-tb-corner-f-solid": { x0: -21.621, y0: -33.615, z0: 0, dx: 43.242, dy: 37.615, dz: 30 },
-  "hex-tb-corner-m-solid": { x0: -14.875, y0: -25.764, z0: 0, dx: 29.75, dy: 27.764, dz: 30 },
-  "hex-tb-half-bot-1h": { x0: -39.976, y0: -40, z0: 0, dx: 79.951, dy: 39.875, dz: 35 },
-  "hex-tb-half-bot-2h": { x0: -39.976, y0: -40, z0: 0, dx: 79.952, dy: 39.875, dz: 35 },
-  "hex-tb-half-bot-3h": { x0: -39.976, y0: -40, z0: 0, dx: 79.952, dy: 39.875, dz: 35 },
-  "hex-tb-half-bot-solid": { x0: -39.976, y0: -40, z0: 0, dx: 79.952, dy: 39.875, dz: 35 },
-  "hex-tb-half-left-1h": { x0: -43.879, y0: -40, z0: 0, dx: 43.754, dy: 78, dz: 35 },
-  "hex-tb-half-left-2h": { x0: -43.879, y0: -40, z0: 0, dx: 43.754, dy: 78, dz: 35 },
-  "hex-tb-half-left-3h": { x0: -43.879, y0: -40, z0: 0, dx: 43.754, dy: 78, dz: 35 },
-  "hex-tb-half-left-solid": { x0: -43.879, y0: -40, z0: 0, dx: 43.754, dy: 78, dz: 35 },
-  "hex-tb-half-right-1h": { x0: -1.875, y0: -40, z0: 0, dx: 45.754, dy: 78, dz: 35 },
-  "hex-tb-half-right-2h": { x0: -1.875, y0: -40, z0: 0, dx: 45.754, dy: 78, dz: 35 },
-  "hex-tb-half-right-3h": { x0: -1.875, y0: -40, z0: 0, dx: 45.754, dy: 78, dz: 35 },
-  "hex-tb-half-right-solid": { x0: -1.875, y0: -40, z0: 0, dx: 45.754, dy: 78, dz: 35 },
-  "hex-tb-half-top-1h": { x0: -43.879, y0: -1.875, z0: 0, dx: 87.757, dy: 39.875, dz: 35 },
-  "hex-tb-half-top-2h": { x0: -43.879, y0: -1.875, z0: 0, dx: 87.757, dy: 39.875, dz: 35 },
-  "hex-tb-half-top-3h": { x0: -43.879, y0: -1.875, z0: 0, dx: 87.757, dy: 39.875, dz: 35 },
-  "hex-tb-half-top-solid": { x0: -43.879, y0: -1.875, z0: 0, dx: 87.757, dy: 39.875, dz: 35 },
-  "hex-tb-main": { x0: -43.879, y0: -40, z0: 0, dx: 87.757, dy: 78, dz: 33 },
-  "hex-tb-spike-ball-joint": { x0: 0, y0: -41.135, z0: 0.144, dx: 32, dy: 6.95, dz: 7.765 },
-  "hex-tb-spike-ball-platform-solid": { x0: -21.651, y0: -25, z0: 0, dx: 43.301, dy: 50, dz: 7.5 },
-  "hex-tb-spike-ball-zip-1h": { x0: -21.651, y0: -25, z0: 0, dx: 43.301, dy: 50, dz: 7.5 },
-  "hex-tb-spike-ball-zip-single": { x0: -8.66, y0: -10, z0: 0, dx: 17.321, dy: 20, dz: 11.598 },
-  "hex-tb-spike-platform-lrg": { x0: -40, y0: 22.572, z0: 0, dx: 36, dy: 31.177, dz: 26.5 },
-  "hex-tb-spike-platform-sm": { x0: -32, y0: 29.5, z0: 0, dx: 20, dy: 17.321, dz: 26.5 },
-  "hex-tb-spike-solid": { x0: 0, y0: -40.91, z0: 0, dx: 25, dy: 6.725, dz: 7.765 },
+  "dovetail-cap-double-m-1h": { x0: -35.8459, y0: 1.0989e-16, z0: -4.44089e-16, dx: 71.6918, dy: 25, dz: 4 },
+  "dovetail-cap-double-m-2h": { x0: -35.8459, y0: 1.0989e-16, z0: 0, dx: 71.6918, dy: 25, dz: 4 },
+  "dovetail-cap-double-m-3h": { x0: -35.8459, y0: 1.0989e-16, z0: -4.44089e-16, dx: 71.6918, dy: 25, dz: 4 },
+  "dovetail-cap-double-m-solid": { x0: -35.8409, y0: -2.18898e-20, z0: 0, dx: 71.6818, dy: 25, dz: 4 },
+  "dovetail-cap-single-f-1h": { x0: -18.4047, y0: -25, z0: 8.13152e-19, dx: 36.8094, dy: 25, dz: 5 },
+  "dovetail-cap-single-f-solid": { x0: -18.4047, y0: -25, z0: 8.13152e-19, dx: 36.8094, dy: 25, dz: 5 },
+  "dovetail-cap-single-m-1h": { x0: -17.255, y0: 1.0989e-16, z0: 0, dx: 34.51, dy: 25, dz: 4 },
+  "dovetail-cap-single-m-solid": { x0: -17.255, y0: 1.0989e-16, z0: 0, dx: 34.51, dy: 25, dz: 4 },
+  "hex-tb-carrier-bot-parts-tray": { x0: -36.2287, y0: -33.5, z0: -8.88178e-16, dx: 72.4574, dy: 31, dz: 19.6667 },
+  "hex-tb-carrier-bot-parts-tray-lid": { x0: -28.0126, y0: -24.8967, z0: 0, dx: 56.0252, dy: 15.092889999999999, dz: 10 },
+  "hex-tb-carrier-bot-solid": { x0: -36.2287, y0: -33.5, z0: 0, dx: 72.4574, dy: 31, dz: 6 },
+  "hex-tb-carrier-left-parts-tray": { x0: -33.8142, y0: -33.875, z0: 0, dx: 31.44693, dy: 67.75, dz: 19.6667 },
+  "hex-tb-carrier-left-parts-tray-lid": { x0: -22.9541, y0: -29.2739, z0: 0, dx: 13.677010000000001, dy: 58.5478, dz: 10 },
+  "hex-tb-carrier-left-solid": { x0: -33.8142, y0: -33.875, z0: 3.55271e-15, dx: 31.44693, dy: 67.75, dz: 5.9999999999999964 },
+  "hex-tb-carrier-parts-tray": { x0: -38.6825, y0: -33.5, z0: -5.32907e-15, dx: 77.365, dy: 67, dz: 15.000000000000005 },
+  "hex-tb-carrier-parts-tray-lid": { x0: -27.497, y0: -23.8438, z0: 0, dx: 54.994, dy: 47.6876, dz: 10 },
+  "hex-tb-carrier-right-parts-tray": { x0: 2.36727, y0: -33.875, z0: 0, dx: 31.44693, dy: 67.75, dz: 19.6667 },
+  "hex-tb-carrier-right-parts-tray-lid": { x0: 9.27709, y0: -29.2739, z0: 0, dx: 13.677010000000001, dy: 58.5478, dz: 10 },
+  "hex-tb-carrier-right-solid": { x0: 2.36727, y0: -33.875, z0: 0, dx: 31.44693, dy: 67.75, dz: 6 },
+  "hex-tb-carrier-solid": { x0: -38.6825, y0: -33.5, z0: 0, dx: 77.365, dy: 67, dz: 3 },
+  "hex-tb-carrier-top-parts-tray": { x0: -37.3834, y0: 0.5, z0: 0, dx: 74.7668, dy: 33, dz: 19.6667 },
+  "hex-tb-carrier-top-parts-tray-lid": { x0: -31.0126, y0: 7.85355, z0: 0, dx: 62.0252, dy: 17.04285, dz: 10 },
+  "hex-tb-carrier-top-solid": { x0: -37.3834, y0: 0.5, z0: 0, dx: 74.7668, dy: 33, dz: 6 },
+  "hex-tb-corner-f-solid": { x0: -21.6208, y0: -33.6146, z0: 0, dx: 43.2416, dy: 37.6146, dz: 30 },
+  "hex-tb-corner-m-solid": { x0: -14.875, y0: -25.7643, z0: 0, dx: 29.75, dy: 27.7643, dz: 30 },
+  "hex-tb-half-bot-1h": { x0: -39.9757, y0: -40, z0: 0, dx: 79.9514, dy: 39.875, dz: 35 },
+  "hex-tb-half-bot-2h": { x0: -39.9762, y0: -40, z0: 0, dx: 79.9519, dy: 39.875, dz: 35 },
+  "hex-tb-half-bot-3h": { x0: -39.9762, y0: -40, z0: 0, dx: 79.9519, dy: 39.875, dz: 35 },
+  "hex-tb-half-bot-solid": { x0: -39.9762, y0: -40, z0: 0, dx: 79.9519, dy: 39.875, dz: 35 },
+  "hex-tb-half-left-1h": { x0: -43.8786, y0: -40, z0: 0, dx: 43.7536, dy: 78, dz: 35 },
+  "hex-tb-half-left-2h": { x0: -43.8786, y0: -40, z0: 0, dx: 43.7536, dy: 78, dz: 35 },
+  "hex-tb-half-left-3h": { x0: -43.8786, y0: -40, z0: 0, dx: 43.7536, dy: 78, dz: 35 },
+  "hex-tb-half-left-solid": { x0: -43.8786, y0: -40, z0: 0, dx: 43.7536, dy: 78, dz: 35 },
+  "hex-tb-half-right-1h": { x0: -1.875, y0: -40, z0: 0, dx: 45.7536, dy: 78, dz: 35 },
+  "hex-tb-half-right-2h": { x0: -1.875, y0: -40, z0: 0, dx: 45.7536, dy: 78, dz: 35 },
+  "hex-tb-half-right-3h": { x0: -1.875, y0: -40, z0: 0, dx: 45.7536, dy: 78, dz: 35 },
+  "hex-tb-half-right-solid": { x0: -1.875, y0: -40, z0: 0, dx: 45.7536, dy: 78, dz: 35 },
+  "hex-tb-half-top-1h": { x0: -43.8786, y0: -1.875, z0: 0, dx: 87.7572, dy: 39.875, dz: 35 },
+  "hex-tb-half-top-2h": { x0: -43.8786, y0: -1.875, z0: 0, dx: 87.7572, dy: 39.875, dz: 35 },
+  "hex-tb-half-top-3h": { x0: -43.8786, y0: -1.875, z0: 0, dx: 87.7572, dy: 39.875, dz: 35 },
+  "hex-tb-half-top-solid": { x0: -43.8786, y0: -1.875, z0: 0, dx: 87.7572, dy: 39.875, dz: 35 },
+  "hex-tb-main": { x0: -43.8786, y0: -40, z0: 0, dx: 87.7572, dy: 78, dz: 33 },
+  "hex-tb-spike-ball-joint": { x0: -3.55271e-15, y0: -41.1351, z0: 0.144338, dx: 32, dy: 6.950200000000002, dz: 7.765422 },
+  "hex-tb-spike-ball-platform-solid": { x0: -21.6506, y0: -25, z0: 9.05942e-14, dx: 43.3012, dy: 50, dz: 7.499999999999909 },
+  "hex-tb-spike-ball-zip-1h": { x0: -21.6506, y0: -25, z0: 9.05942e-14, dx: 43.3012, dy: 50, dz: 7.499999999999909 },
+  "hex-tb-spike-ball-zip-single": { x0: -8.66025, y0: -10, z0: -1.77636e-15, dx: 17.3205, dy: 20, dz: 11.597500000000002 },
+  "hex-tb-spike-platform-lrg": { x0: -40, y0: 22.5715, z0: 3.55271e-15, dx: 36, dy: 31.177, dz: 26.499999999999996 },
+  "hex-tb-spike-platform-sm": { x0: -32, y0: 29.4997, z0: 0, dx: 20, dy: 17.320600000000002, dz: 26.5 },
+  "hex-tb-spike-solid": { x0: -2.44345e-15, y0: -40.91, z0: 1.90781e-12, dx: 25.000000000000004, dy: 6.725099999999998, dz: 7.7654299999980925 },
 };
 
 /** The PUBLISHED spelling of each part -- what a slicer shows in its object list
@@ -160,4 +173,79 @@ export const HEX_PART_NAME: Record<string, string> = {
   "hex-tb-spike-platform-lrg": "Hex-TB-Spike-Platform-Lrg",
   "hex-tb-spike-platform-sm": "Hex-TB-Spike-Platform-Sm",
   "hex-tb-spike-solid": "Hex-TB-Spike-Solid",
+};
+
+/** The VERBATIM `z` attribute of each part's LOWEST VERTEX, as the published
+ *  mesh spells it.
+ *
+ *  A SECOND TRANSCRIPTION of the fact `z0` records, and the redundancy is the
+ *  whole point. `z0` is this text parsed into a double by a script that used to
+ *  round it; this is the text, which no arithmetic can reach. The generator
+ *  refuses to write the pair if they disagree, and `__tests__/hex-3mf.test.ts`
+ *  builds a plate whose lowest vertex is THIS string and insists every part
+ *  lands at exactly z = 0 -- so the seat is checked against what the mesh says
+ *  rather than against what the table believes. Without it that test would be
+ *  circular: a table that quantised a part's floor would produce a fixture at
+ *  the same wrong height and seat perfectly against itself, which is precisely
+ *  how the real defect would have passed.
+ *
+ *  TEXT and not a number, because a number here would be this script's spelling
+ *  of the double and the spelling is what is under test. The exponential forms
+ *  (`8.13152e-19`) are the exporter's, not ours.
+ *
+ *  Nothing in the app reads this. The test suite does. */
+export const HEX_PART_MESH_BOTTOM: Record<string, string> = {
+  "dovetail-cap-double-f-1h": "-1e-15",
+  "dovetail-cap-double-f-2h": "-9.99999e-16",
+  "dovetail-cap-double-f-3h": "-1e-15",
+  "dovetail-cap-double-f-solid": "0",
+  "dovetail-cap-double-m-1h": "-4.44089e-16",
+  "dovetail-cap-double-m-2h": "0",
+  "dovetail-cap-double-m-3h": "-4.44089e-16",
+  "dovetail-cap-double-m-solid": "0",
+  "dovetail-cap-single-f-1h": "8.13152e-19",
+  "dovetail-cap-single-f-solid": "8.13152e-19",
+  "dovetail-cap-single-m-1h": "0",
+  "dovetail-cap-single-m-solid": "0",
+  "hex-tb-carrier-bot-parts-tray": "-8.88178e-16",
+  "hex-tb-carrier-bot-parts-tray-lid": "0",
+  "hex-tb-carrier-bot-solid": "0",
+  "hex-tb-carrier-left-parts-tray": "0",
+  "hex-tb-carrier-left-parts-tray-lid": "0",
+  "hex-tb-carrier-left-solid": "3.55271e-15",
+  "hex-tb-carrier-parts-tray": "-5.32907e-15",
+  "hex-tb-carrier-parts-tray-lid": "0",
+  "hex-tb-carrier-right-parts-tray": "0",
+  "hex-tb-carrier-right-parts-tray-lid": "0",
+  "hex-tb-carrier-right-solid": "0",
+  "hex-tb-carrier-solid": "0",
+  "hex-tb-carrier-top-parts-tray": "0",
+  "hex-tb-carrier-top-parts-tray-lid": "0",
+  "hex-tb-carrier-top-solid": "0",
+  "hex-tb-corner-f-solid": "0",
+  "hex-tb-corner-m-solid": "0",
+  "hex-tb-half-bot-1h": "0",
+  "hex-tb-half-bot-2h": "0",
+  "hex-tb-half-bot-3h": "0",
+  "hex-tb-half-bot-solid": "0",
+  "hex-tb-half-left-1h": "0",
+  "hex-tb-half-left-2h": "0",
+  "hex-tb-half-left-3h": "0",
+  "hex-tb-half-left-solid": "0",
+  "hex-tb-half-right-1h": "0",
+  "hex-tb-half-right-2h": "0",
+  "hex-tb-half-right-3h": "0",
+  "hex-tb-half-right-solid": "0",
+  "hex-tb-half-top-1h": "0",
+  "hex-tb-half-top-2h": "0",
+  "hex-tb-half-top-3h": "0",
+  "hex-tb-half-top-solid": "0",
+  "hex-tb-main": "0",
+  "hex-tb-spike-ball-joint": "0.144338",
+  "hex-tb-spike-ball-platform-solid": "9.05942e-14",
+  "hex-tb-spike-ball-zip-1h": "9.05942e-14",
+  "hex-tb-spike-ball-zip-single": "-1.77636e-15",
+  "hex-tb-spike-platform-lrg": "3.55271e-15",
+  "hex-tb-spike-platform-sm": "0",
+  "hex-tb-spike-solid": "1.90781e-12",
 };

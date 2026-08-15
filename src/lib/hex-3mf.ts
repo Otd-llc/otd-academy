@@ -89,13 +89,58 @@ function escapeXml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/** Four decimal places: a tenth of a micron, which is orders of magnitude below
- *  anything an FDM printer can express. Without it `0.1 + 0.2` arithmetic writes
- *  `44.00000000000001` into a transform -- not wrong, but bytes nobody needs and
- *  a diff nobody can read. `Math.round` returns `-0` for a small negative, and
- *  `String(-0)` is `"0"`, so a part already sitting at z = 0 gets a flat zero
- *  rather than the `-0` that reads as a mistake. */
-const n = (v: number) => String(Math.round(v * 1e4) / 1e4);
+/**
+ * One number of a transform: TWELVE SIGNIFICANT FIGURES, as a plain decimal.
+ *
+ * SIGNIFICANT FIGURES, NOT DECIMAL PLACES, and that distinction is the whole
+ * defect this replaced. The old rule was `Math.round(v * 1e4) / 1e4` -- four
+ * decimals, "a tenth of a micron, orders of magnitude below anything an FDM
+ * printer can express". True of a coordinate near 44 mm, where four decimals is
+ * eight significant figures. FALSE of the Z translation, which is small by
+ * construction: `Hex-TB-Spike-Ball-Joint` seats with `tz = -0.144338`, and four
+ * decimals wrote `-0.1443`, leaving the part 3.8e-5 mm above a bed every other
+ * object on the plate was sitting exactly on. Creality Print reads one object at
+ * a different height as a separate OBJECT and offers to fuse the whole plate
+ * into a single multi-part body -- which throws away the named parts list that
+ * is the entire reason this feature ships 3MF rather than STL. A fixed decimal
+ * count quantises coarsely exactly where the values are smallest, which is
+ * exactly where an equality invariant lives.
+ *
+ * TWELVE is chosen against the SOURCE, not against the printer. Every coordinate
+ * in the published meshes is about six-significant-figure text (`z="0.144338"`,
+ * `z="8.13152e-19"`), so twelve carries every digit the meshes state with six
+ * orders of magnitude to spare -- verified lossless across all 53 parts x 3
+ * minimum-corner axes. What it does drop is the noise OUR OWN arithmetic adds:
+ * `x - x0` is a subtraction of two doubles, and it produced a 17-digit
+ * `204.61919999999998` for 14 of the 45 coordinates on the sample plates.
+ * Rounding the seat is a bug; writing the sixteenth digit of a value known to
+ * six is merely bytes nobody needs and a diff nobody can read.
+ *
+ * PLAIN DECIMAL, never an exponent. `String` switches to exponential form below
+ * 1e-6, which the fifteen parts whose mesh bottom is float noise (1e-19 to
+ * 2e-12 mm) would hit. The meshes are full of exponential VERTEX text -- 3607 of
+ * them in the reference plate Creality Print opened correctly -- so its number
+ * lexer plainly handles the notation; but `transform` is a different attribute
+ * with its own type in the 3MF schema, no measurement covers it, and the
+ * reference plate's own transforms are plain decimals (`... 171.0101 -0.1443`).
+ * There is nothing to gain by being the first to try it.
+ *
+ * `-0` needs no special case: `Number::toString` of negative zero is `"0"`, so a
+ * part already sitting at z = 0 -- 37 of the 53 -- gets a flat zero rather than
+ * the `-0` that reads as a mistake. Non-finite values pass through as `"NaN"` /
+ * `"Infinity"` exactly as the old rule did; `hex-plate.ts` refuses a part with a
+ * non-finite size before a placement can reach here.
+ */
+const n = (v: number): string => {
+  const s = String(Number(v.toPrecision(12)));
+  // `String` writes one digit, then a fraction, then the exponent. A POSITIVE
+  // exponent would need the opposite expansion and is unreachable: `hex-pack.ts`
+  // caps a bed at BED_MAX = 1000 mm, so no coordinate here approaches the 1e21
+  // where `String` starts using one.
+  const e = /^(-?)(\d)(?:\.(\d+))?e-(\d+)$/.exec(s);
+  if (!e) return s;
+  return `${e[1]}0.${"0".repeat(Number(e[4]) - 1)}${e[2]}${e[3] ?? ""}`;
+};
 
 /**
  * Lift the single `<object>` out of a published part, renumbered and named.
@@ -198,10 +243,27 @@ export async function buildPlate3mf(
     }
     // The translation that carries the mesh's OWN minimum corner to the target,
     // and drops the part onto z = 0 whatever its authored height. `x - x0`, not
-    // `x`: a mesh carries its own origin, so `hex-tb-main` (x0 = -43.879) would
-    // land 43.879 mm left of where it was asked for. `-z0` is not decorative
-    // either -- `hex-tb-spike-ball-joint` rests 0.144 mm above its own origin,
-    // and without the term it prints floating.
+    // `x`: a mesh carries its own origin, so `hex-tb-main` (x0 = -43.8786) would
+    // land 43.8786 mm left of where it was asked for. `-z0` is not decorative
+    // either -- `hex-tb-spike-ball-joint` rests 0.144338 mm above its own
+    // origin, and without the term it prints floating.
+    //
+    // THE SEAT IS EXACT, and it is exact by ARITHMETIC rather than by tolerance.
+    // The slicer computes each vertex plus this translation; the mesh's lowest
+    // vertex IS `z0` (that is where the generator read it), so the sum it
+    // evaluates is `z0 + (-z0)`, and IEEE754 addition of a finite double and its
+    // own negation is exactly +0 -- no epsilon, no rounding mode, on every
+    // platform. That holds only while both halves are carried at full precision:
+    // `hex-geometry.ts` stores the unrounded double and `n` above writes it back
+    // without quantising, so the identity survives the round trip through text.
+    //
+    // A SNAP TO ZERO WAS CONSIDERED AND REJECTED. Forcing `tz` to `-z0` only
+    // when `|z0|` looks small, or clamping a computed seat to 0, would make a
+    // WRONG table produce a right-looking plate -- and the table WAS wrong about
+    // one part, with the only symptom a dialog in someone else's slicer. A snap
+    // would have hidden it and left the table wrong. The writer inherits the
+    // invariant from the data on purpose, so that the data is what has to be
+    // right and the geometry test is what says whether it is.
     items.push(
       `  <item objectid="${obj.id}" transform="1 0 0 0 1 0 0 0 1 ` +
         `${n(p.x - p.box.x0)} ${n(p.y - p.box.y0)} ${n(-p.box.z0)}" />`,

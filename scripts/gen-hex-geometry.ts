@@ -47,15 +47,22 @@ const OUT = join(REPO, "src", "lib", "hex-geometry.ts");
  * script measures the tessellated vertices inside the shipped 3MF; the manifest
  * records `printBboxMm`, the FreeCAD B-Rep solid's own BoundBox taken before it
  * was ever meshed (`tools/export_printables.py` in hex-cluster). Two things can
- * separate them honestly: each side rounds to 3 dp independently (up to 0.001),
- * and the 3MF stores coordinates as roughly 6-significant-figure text (up to
- * ~0.0002 across an 88 mm part). Anything past that is a real divergence -- a
- * mesh that no longer matches the solid it was cut from, or a manifest
- * describing a different cut than the files sitting beside it -- and either way
- * the table would be wrong about a part.
+ * separate them honestly: the MANIFEST rounds to 3 dp (up to 0.0005), and the
+ * 3MF stores coordinates as roughly 6-significant-figure text (up to ~0.0002
+ * across an 88 mm part). Anything past that is a real divergence -- a mesh that
+ * no longer matches the solid it was cut from, or a manifest describing a
+ * different cut than the files sitting beside it -- and either way the table
+ * would be wrong about a part.
  *
- * Measured 2026-08-14 against release 2026-08-03: all 53 parts agreed EXACTLY on
- * all three axes, so this tolerance has never had to absorb anything.
+ * ONE SIDE ROUNDS NOW, NOT TWO. This script used to round its own measurements
+ * to 3 dp as well, which made the two sides agree EXACTLY on all 53 parts x 3
+ * axes -- a suspiciously perfect result that was really just both sides landing
+ * on the same coarse grid. Carrying full precision (the seat fix; see `measure`)
+ * costs that exact agreement and buys a check that can actually see a
+ * sub-millimetre divergence. Measured 2026-08-15 against release 2026-08-03: the
+ * largest disagreement is 0.0005 mm (`Hex-TB-Spike-Ball-Zip-Single` dx, mesh
+ * 17.3205 vs manifest 17.321), i.e. exactly the manifest's own rounding, and
+ * nothing is near this bound.
  */
 const TOLERANCE_MM = 0.002;
 
@@ -66,6 +73,16 @@ type Box = {
   dx: number;
   dy: number;
   dz: number;
+  /** The VERBATIM `z` attribute of the lowest vertex in the mesh -- the source
+   *  text, never turned into a number on its way here.
+   *
+   *  Carried separately from `z0` on purpose. `z0` is that text parsed, and the
+   *  point of keeping both is that a rounding introduced anywhere in the numeric
+   *  path cannot reach the string: the two stop agreeing, and the check in
+   *  `main` says so. A table derived from one source and checked against nothing
+   *  agrees with itself forever, which is the same argument the manifest
+   *  cross-check is built on. */
+  z0Text: string;
 };
 
 type ManifestPart = {
@@ -89,7 +106,10 @@ const slugOf = (file: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9.-]+/g, "-");
 
-const round3 = (v: number) => Math.round(v * 1000) / 1000;
+/** Three significant figures, for a HUMAN-READABLE disagreement message only.
+ *  Nothing measured passes through here -- rounding a measurement is what this
+ *  file was fixed for. */
+const brief = (v: number) => v.toPrecision(3);
 
 /**
  * Measure one part's bounding box, asserting the source is shaped the way the
@@ -126,6 +146,7 @@ async function measure(file: string): Promise<Box> {
   let y1 = -Infinity;
   let z1 = -Infinity;
   let read = 0;
+  let z0Text = "";
   const re = /<vertex x="([-+\d.eE]+)" y="([-+\d.eE]+)" z="([-+\d.eE]+)"/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(model))) {
@@ -137,7 +158,14 @@ async function measure(file: string): Promise<Box> {
     if (x > x1) x1 = x;
     if (y < y0) y0 = y;
     if (y > y1) y1 = y;
-    if (z < z0) z0 = z;
+    if (z < z0) {
+      z0 = z;
+      // The SOURCE TEXT of the same vertex, kept beside the number it parsed to.
+      // Taken here rather than reconstructed afterwards: `String(z0)` would be
+      // this script's own spelling of the double, which is precisely the thing
+      // the cross-check in `main` is trying not to trust.
+      z0Text = m[3];
+    }
     if (z > z1) z1 = z;
   }
 
@@ -154,14 +182,34 @@ async function measure(file: string): Promise<Box> {
     );
   }
 
-  return {
-    x0: round3(x0),
-    y0: round3(y0),
-    z0: round3(z0),
-    dx: round3(x1 - x0),
-    dy: round3(y1 - y0),
-    dz: round3(z1 - z0),
-  };
+  // FULL DOUBLE PRECISION, deliberately, and this is the load-bearing line of
+  // the file.
+  //
+  // These numbers were rounded to 3 dp until 2026-08-15. `z0` is the value the
+  // 3MF writer negates to seat a part on the bed, so rounding it does not
+  // "tidy" anything -- it MOVES the part. `Hex-TB-Spike-Ball-Joint`'s mesh
+  // bottom is 0.144338 mm above its own origin (the upstream exporter's
+  // drop-to-bed used a slightly enlarged OCC bounding box for it), so a stored
+  // 0.144 left it floating 0.000338 mm while every other object on the plate sat
+  // at 0. Creality Print reads one object at a different height as a different
+  // OBJECT and offers to fuse the whole plate into a single multi-part body --
+  // which destroys the named-parts list that is the entire reason this feature
+  // ships 3MF instead of STL. Nothing about that dialog points back at a
+  // committed data file.
+  //
+  // `x0`/`y0` for the same reason one step weaker: they set where a part lands
+  // on the bed, so a 3 dp round quantised every plate's edge margin by up to
+  // 0.0005 mm (`Hex-TB-Main` measures -43.8786 and was stored as -43.879). No
+  // slicer notices that, but it is the same mistake and there is no reason to
+  // keep it.
+  //
+  // The sizes go the same way for consistency: a box whose corner is exact and
+  // whose size is rounded describes a maximum corner that is neither.
+  //
+  // COSTS NOTHING TO CARRY. Every coordinate in the source 3MF is about
+  // 6-significant-figure text, so the doubles here are short -- the longest
+  // number the table emits is 18 characters.
+  return { x0, y0, z0, dx: x1 - x0, dy: y1 - y0, dz: z1 - z0, z0Text };
 }
 
 // Wrapped in a function rather than run at the top level: this repo's package
@@ -195,6 +243,30 @@ async function main(): Promise<void> {
 
     const box = await measure(file);
 
+    // THE SEAT GATE, and it is the reason nothing rounds in `measure` any more.
+    //
+    // `z0` is what the 3MF writer negates to drop a part onto the bed, so the
+    // whole feature rests on it being the mesh's real minimum rather than a
+    // tidied version of it. Held to the SOURCE TEXT of the same vertex, which no
+    // arithmetic in this file touches: reintroduce a rounding anywhere in the
+    // numeric path and `0.144` stops equalling `Number("0.144338")` here, at
+    // generation time, before a wrong table can be committed.
+    //
+    // It fires on a REAL past defect rather than a hypothetical one. Stored as
+    // 0.144, `Hex-TB-Spike-Ball-Joint` seated 3.38e-4 mm above a bed every other
+    // object on the plate sat exactly on, and Creality Print answered by offering
+    // to fuse fifteen named parts into one multi-part body. The only symptom was
+    // a dialog in someone else's slicer.
+    if (Number(box.z0Text) !== box.z0) {
+      throw new Error(
+        `${file}: the mesh's lowest vertex reads z="${box.z0Text}" but the table ` +
+          `would record ${box.z0}. Something in this script is rounding a ` +
+          `measurement, and a part that does not seat at exactly zero is what ` +
+          `makes a slicer treat a plate as one multi-part object.\n\n` +
+          `Nothing was written.`,
+      );
+    }
+
     // The cross-check is part of the contract, not a nicety: a table derived
     // from one source, checked against nothing, agrees with itself forever. A
     // mesh with no manifest entry cannot be cross-checked at all, so it is
@@ -210,7 +282,7 @@ async function main(): Promise<void> {
       const delta = Math.abs(mine - theirs);
       if (delta > TOLERANCE_MM) {
         disagreements.push(
-          `${name} ${axis}: mesh ${mine} vs manifest ${theirs} (off by ${round3(delta)} mm)`,
+          `${name} ${axis}: mesh ${mine} vs manifest ${theirs} (off by ${brief(delta)} mm)`,
         );
       }
     }
@@ -266,6 +338,12 @@ async function main(): Promise<void> {
     .map(({ slug, name }) => `  "${slug}": ${JSON.stringify(name)},`)
     .join("\n");
 
+  // `JSON.stringify` for the same reason as the names: this is text lifted out
+  // of an XML attribute, not a number this script formatted.
+  const bottoms = rows
+    .map(({ slug, box }) => `  "${slug}": ${JSON.stringify(box.z0Text)},`)
+    .join("\n");
+
   writeFileSync(
     OUT,
     `// GENERATED by scripts/gen-hex-geometry.ts. Do not edit by hand.
@@ -274,8 +352,17 @@ async function main(): Promise<void> {
 // the mesh ships in: the minimum corner and the size, in millimetres. The packer
 // needs both -- the size to place, the minimum corner to turn a target position
 // into the translation that gets it there. \`z0\` is not always zero (one part's
-// mesh rests 0.144 mm above the bed), which is why the 3MF writer translates by
-// \`-z0\` instead of assuming a part is already seated.
+// mesh rests 0.144338 mm above its own origin), which is why the 3MF writer
+// translates by \`-z0\` instead of assuming a part is already seated.
+//
+// NOT ROUNDED, and that is a fix rather than an accident. Every value here is
+// the FULL double the mesh text parsed to. The writer seats a part by emitting
+// \`-z0\`, so a rounded \`z0\` does not tidy the table -- it leaves that one part
+// hanging above the bed while its neighbours sit on it, and Creality Print reads
+// a plate with one object at a different height as a multi-part body it offers
+// to fuse. Sixteen of the 53 parts have a non-zero \`z0\`; fifteen of those are
+// the exporter's own float noise (1e-19 to 2e-12 mm) and one, the spike ball
+// joint, is real. Long decimals below are that precision, not damage.
 //
 // REGENERATE THIS IN THE SAME COMMIT that re-cuts the meshes and bumps
 // HEX_RELEASE and HEX_PART_SLUGS:
@@ -296,6 +383,10 @@ async function main(): Promise<void> {
 // The second table is the published SPELLING of each part, which the 3MF writer
 // puts on the \`<object>\` so a slicer's object list reads \`Hex-TB-Main\` rather
 // than \`hex-tb-main\`. It is recoverable at generation time and nowhere else.
+//
+// The third is the verbatim source text of each part's lowest vertex, kept so
+// the seat can be tested against what the MESH says rather than against what
+// this table believes. Nothing in the app reads it; the test suite does.
 import type { PartBox } from "@/lib/hex-plate";
 
 /** The mesh release these boxes were measured from.
@@ -326,6 +417,29 @@ ${body}
  *  the R2 uploader's own \`slug()\` and insists it lands on its own key. */
 export const HEX_PART_NAME: Record<string, string> = {
 ${names}
+};
+
+/** The VERBATIM \`z\` attribute of each part's LOWEST VERTEX, as the published
+ *  mesh spells it.
+ *
+ *  A SECOND TRANSCRIPTION of the fact \`z0\` records, and the redundancy is the
+ *  whole point. \`z0\` is this text parsed into a double by a script that used to
+ *  round it; this is the text, which no arithmetic can reach. The generator
+ *  refuses to write the pair if they disagree, and \`__tests__/hex-3mf.test.ts\`
+ *  builds a plate whose lowest vertex is THIS string and insists every part
+ *  lands at exactly z = 0 -- so the seat is checked against what the mesh says
+ *  rather than against what the table believes. Without it that test would be
+ *  circular: a table that quantised a part's floor would produce a fixture at
+ *  the same wrong height and seat perfectly against itself, which is precisely
+ *  how the real defect would have passed.
+ *
+ *  TEXT and not a number, because a number here would be this script's spelling
+ *  of the double and the spelling is what is under test. The exponential forms
+ *  (\`8.13152e-19\`) are the exporter's, not ours.
+ *
+ *  Nothing in the app reads this. The test suite does. */
+export const HEX_PART_MESH_BOTTOM: Record<string, string> = {
+${bottoms}
 };
 `,
   );
