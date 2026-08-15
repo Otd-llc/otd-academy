@@ -40,6 +40,7 @@ import {
   reorderGuideCardsSchema,
 } from "@/lib/schemas/guide";
 import { composeGuide } from "@/lib/guide-templates/compose";
+import { withBlockIds } from "@/lib/guide-block-ids";
 
 const GUIDE_EXISTS_MESSAGE = "A guide already exists for this revision.";
 
@@ -117,7 +118,11 @@ export async function materializeGuide(input: unknown) {
                   eyebrow: c.eyebrow,
                   title: c.title,
                   lead: c.lead ?? null,
-                  contentBlocks: c.contentBlocks as Prisma.InputJsonValue,
+                  // Cards are born with block ids. A template composed today
+                  // never enters the "positional reference" era at all.
+                  contentBlocks: withBlockIds(
+                    c.contentBlocks,
+                  ) as Prisma.InputJsonValue,
                   isGate: c.isGate,
                   completionRef: (c.completionRef ??
                     Prisma.JsonNull) as Prisma.InputJsonValue,
@@ -175,7 +180,11 @@ export async function editGuideCard(input: unknown) {
         if (data.title !== undefined) patch.title = data.title;
         if (data.lead !== undefined) patch.lead = data.lead;
         if (data.contentBlocks !== undefined) {
-          patch.contentBlocks = data.contentBlocks as Prisma.InputJsonValue;
+          // Mint an id for any block that arrives without one. Idempotent, so an
+          // edit that did not touch the blocks does not churn their identities.
+          patch.contentBlocks = withBlockIds(
+            data.contentBlocks,
+          ) as Prisma.InputJsonValue;
         }
 
         return tx.guideCard.update({ where: { id: data.id }, data: patch });

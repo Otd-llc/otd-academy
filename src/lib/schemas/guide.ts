@@ -17,14 +17,38 @@ const cellSchema = z.object({
   tone: z.enum(["gold", "blue", "critical", "dim"]).optional(),
 });
 
+/**
+ * A STABLE IDENTITY for a block, so a reference to it survives an edit.
+ *
+ * WHAT BREAKS WITHOUT IT. Everything outside this table addresses blocks
+ * POSITIONALLY -- the video scripts in `docs/video/` cite "blocks [8]-[18] of the
+ * SCHEMATIC card", `writeGuideBlockMedia` takes a `blockIndex`, capture slots are
+ * numbered. Insert one callout at index 10 and every one of those references now
+ * points at different content, with no hash change, no parse error, and no signal
+ * of any kind. Across 127 planned videos that is a silent correctness failure
+ * with no detector.
+ *
+ * WHY IT IS OPTIONAL, AND MUST STAY OPTIONAL UNTIL THE BACKFILL IS DONE. The
+ * render path `safeParse`s a card and drops the WHOLE card on failure -- a
+ * lesson page renders empty, not degraded. Every block in prod today lacks an
+ * id, so making this required would blank every guide card in production the
+ * moment it deployed. Order of operations is: ship optional, mint on write,
+ * backfill (`scripts/backfill-block-ids.ts`), verify 100% coverage, and only
+ * then consider tightening.
+ *
+ * MINTED BY `withBlockIds` in `src/lib/guide-block-ids.ts`, which every write
+ * door runs. Do not mint inline -- the whole value is that one function decides.
+ */
+const blockId = z.uuid().optional();
+
 export const contentBlockSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("prose"), md: z.string().max(4000) }),
+  z.object({ type: z.literal("prose"), id: blockId, md: z.string().max(4000) }),
   // A section heading (semantic <h2>/<h3>) that breaks a long lesson into
   // scannable, snippet-eligible sections. `text` is plain (no markdown); `level`
   // defaults to 2, use 3 for a sub-heading. SEO: question-style h2s help
   // featured snippets / People-Also-Ask.
   z.object({
-    type: z.literal("heading"),
+    type: z.literal("heading"), id: blockId,
     text: z.string().trim().min(1).max(120),
     level: z.union([z.literal(2), z.literal(3)]).optional(),
   }),
@@ -33,7 +57,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // bad it is; the reason tells them what to do about it. Optional, so every
   // existing callout stays valid.
   z.object({
-    type: z.literal("callout"),
+    type: z.literal("callout"), id: blockId,
     severity: z.enum(["critical", "warn", "info"]),
     label: z.string().trim().min(1).max(120),
     body: z.string().max(2000),
@@ -44,7 +68,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // rather than guesses. Distinct from `steps` (a plain ordered list) on purpose:
   // `steps` stays exactly as authored everywhere it is already used.
   z.object({
-    type: z.literal("doSteps"),
+    type: z.literal("doSteps"), id: blockId,
     title: z.string().trim().min(1).max(120),
     body: z.string().max(2000),
     steps: z
@@ -64,7 +88,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // not be counted, ticked, or matched against the stage gate that asks for the
   // same three.
   z.object({
-    type: z.literal("traceList"),
+    type: z.literal("traceList"), id: blockId,
     headline: z.string().trim().min(1).max(120),
     body: z.string().max(2000),
     items: z
@@ -78,8 +102,8 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
       .min(1)
       .max(12),
   }),
-  z.object({ type: z.literal("steps"), ordered: z.boolean().default(true), items: z.array(z.string().max(500)).min(1) }),
-  z.object({ type: z.literal("table"), columns: z.array(z.string()).min(1), rows: z.array(z.array(cellSchema)) }),
+  z.object({ type: z.literal("steps"), id: blockId, ordered: z.boolean().default(true), items: z.array(z.string().max(500)).min(1) }),
+  z.object({ type: z.literal("table"), id: blockId, columns: z.array(z.string()).min(1), rows: z.array(z.array(cellSchema)) }),
   // bomTable — the revision's bill of materials, rendered LIVE from BomLine data
   // (refDes, qty, MPN, manufacturer, description, datasheet) at render time. Like
   // partModel it stores NO data itself — drop it in the BOM_SOURCING card and it
@@ -87,10 +111,10 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // `collapsed` renders the (heavy, jargon-dense) live BOM inside a closed
   // <details> disclosure — reference the learner opens when ready, not a wall
   // of part numbers greeting them on load.
-  z.object({ type: z.literal("bomTable"), caption: z.string().max(160).optional(), collapsed: z.boolean().optional() }),
-  z.object({ type: z.literal("termRef"), term: z.string().max(80) }),
+  z.object({ type: z.literal("bomTable"), id: blockId, caption: z.string().max(160).optional(), collapsed: z.boolean().optional() }),
+  z.object({ type: z.literal("termRef"), id: blockId, term: z.string().max(80) }),
   z.object({
-    type: z.literal("sourceRef"),
+    type: z.literal("sourceRef"), id: blockId,
     label: z.string().max(160),
     href: z.string().max(500).refine(
       // Reject a leading `//` (protocol-relative open-redirect, e.g. //evil.com)
@@ -105,7 +129,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // `mpn` has no min-length (mirrors termRef) so the editor's empty default is
   // schema-valid; an empty/unknown MPN simply renders nothing.
   z.object({
-    type: z.literal("partModel"),
+    type: z.literal("partModel"), id: blockId,
     mpn: z.string().trim().max(80),
     caption: z.string().max(160).optional(),
   }),
@@ -114,7 +138,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // empty (so the editor's blank default is valid and renders nothing). `alt` is
   // the required text alternative; `caption` is shown beneath the figure.
   z.object({
-    type: z.literal("image"),
+    type: z.literal("image"), id: blockId,
     src: z.string().max(500).refine(
       (v) => v === "" || /^(https?:\/\/|\/(?!\/))/.test(v),
       "src must be empty, http(s)://, or a root-relative path",
@@ -147,7 +171,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // description), so a card can stake out where real build footage will land and
   // the author fills the src in later — no block-type swap.
   z.object({
-    type: z.literal("video"),
+    type: z.literal("video"), id: blockId,
     src: z.string().max(500).refine(
       (v) => v === "" || /^(https?:\/\/|\/(?!\/))/.test(v),
       "src must be empty, http(s)://, or a root-relative path",
@@ -176,7 +200,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // schema-valid and an unfilled embed renders nothing; the Library save boundary
   // enforces non-empty for a published page. `start` is an optional seconds offset.
   z.object({
-    type: z.literal("youtube"),
+    type: z.literal("youtube"), id: blockId,
     videoId: z
       .string()
       .trim()
@@ -199,7 +223,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // Each question's `answer` indexes a real option (guarded below); `explain` is
   // revealed once the learner checks their answers.
   z.object({
-    type: z.literal("quiz"),
+    type: z.literal("quiz"), id: blockId,
     // Marks THE stage-gate quiz among possibly several quiz blocks in a card:
     // passing this one records the QuizPass the stage exit-gate checks. Other quiz
     // blocks are practice mini-quizzes — they still award per-pick XP, but don't
@@ -245,7 +269,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // <details>. `body` is prose (markdown source + inline [[term]] glossary, same
   // as a prose block). Keeps a beginner card readable while serving the curious.
   z.object({
-    type: z.literal("deepDive"),
+    type: z.literal("deepDive"), id: blockId,
     summary: z.string().trim().min(1).max(120),
     body: z.string().max(4000),
   }),
@@ -255,7 +279,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // is a small validated enum; the renderer resolves it to the right button +
   // handler (a client island).
   z.object({
-    type: z.literal("action"),
+    type: z.literal("action"), id: blockId,
     action: z.enum(["downloadKicadStarter", "downloadReferenceFiles"]),
     label: z.string().trim().min(1).max(120),
   }),
@@ -265,7 +289,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // rel="sponsored nofollow" link with an FTC disclosure. The actual affiliate URL
   // is NEVER stored in content — only the vendor key — so the IDs stay in env.
   z.object({
-    type: z.literal("vendorCta"),
+    type: z.literal("vendorCta"), id: blockId,
     vendor: z.enum(["pcbway-order", "jlcpcb", "digikey-bom", "amazon-bench"]),
     label: z.string().trim().min(1).max(120),
     sublabel: z.string().max(200).optional(),
@@ -279,7 +303,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // so the tag is NEVER in content. An item with no picks renders as plain text,
   // so the list stages cleanly and products fill in later.
   z.object({
-    type: z.literal("kit"),
+    type: z.literal("kit"), id: blockId,
     intro: z.string().max(300).optional(),
     items: z
       .array(
@@ -311,7 +335,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // (unknown slug → skipped on web, slug text in the PDF fallback), mirroring the
   // image/partModel resilience rule. `caption` overrides the default tool title.
   z.object({
-    type: z.literal("calculator"),
+    type: z.literal("calculator"), id: blockId,
     slug: z.string().trim().min(1).max(60),
     caption: z.string().max(200).optional(),
   }),
@@ -323,7 +347,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   // wouldn't read cleanly as. Author-controlled (admin) content, so the rendered
   // HTML is trusted.
   z.object({
-    type: z.literal("math"),
+    type: z.literal("math"), id: blockId,
     tex: z.string().trim().min(1).max(500),
     display: z.boolean().optional(),
     plain: z.string().max(500).optional(),
