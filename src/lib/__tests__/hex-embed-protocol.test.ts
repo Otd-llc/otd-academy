@@ -143,6 +143,24 @@ describe("parseMessage — hello, the capability announcement", () => {
       PROTOCOL_VERSION,
     );
   });
+
+  it("did NOT bump the version to add `promote-bed`, and must not", () => {
+    // The second additive type to ship on this channel, and the reasoning is
+    // unchanged from `hello`: a bump would make every OLD message unreadable to
+    // the new peer, i.e. break the ones that still work, in order to announce a
+    // message the old peer would have safely ignored. Pinned as a literal
+    // because "we thought about it and said 1" is the claim; a genuinely
+    // incompatible SHAPE change is free to move this line, and should have to.
+    expect(PROTOCOL_VERSION).toBe(1);
+    // Both halves of the compatibility story, on the same version: an old peer
+    // drops the new type (it lands in `default`, which is what
+    // "a-type-from-the-future" above stands in for), and a new peer still reads
+    // every message that predates it.
+    expect(parseMessage({ ...base, type: "bed-changed", bed: { x: 220, y: 220 } })?.type).toBe(
+      "bed-changed",
+    );
+    expect(readVersion({ ...base, type: "promote-bed" })).toBe(PROTOCOL_VERSION);
+  });
 });
 
 describe("parseMessage — the reply half", () => {
@@ -204,6 +222,7 @@ describe("parseMessage — the bed is two integers or nothing", () => {
   };
   const setBed = (bed: unknown) => ({ ...base, type: "set-bed", bed });
   const bedChanged = (bed: unknown) => ({ ...base, type: "bed-changed", bed });
+  const promoteBed = (bed: unknown) => ({ ...base, type: "promote-bed", bed });
 
   /** Every shape that must NOT reach the column, and the reason each one is
    *  here rather than "some bad values". */
@@ -238,7 +257,7 @@ describe("parseMessage — the bed is two integers or nothing", () => {
     expect((m as Ready).bed).toBeUndefined();
   });
 
-  it("carries a well-formed bed on all three of its carriers", () => {
+  it("carries a well-formed bed on all four of its carriers", () => {
     expect((parseMessage({ ...ready, bed: { x: 220, y: 220 } }) as Ready).bed).toEqual({
       x: 220,
       y: 220,
@@ -246,6 +265,7 @@ describe("parseMessage — the bed is two integers or nothing", () => {
     expect(parseMessage(setBed({ x: 350, y: 350 }))?.type).toBe("set-bed");
     // Non-square is a real bed, not a typo: plenty of machines are 300 x 250.
     expect(parseMessage(bedChanged({ x: 300, y: 250 }))?.type).toBe("bed-changed");
+    expect(parseMessage(promoteBed({ x: 235, y: 235 }))?.type).toBe("promote-bed");
   });
 
   it("accepts BOTH edges of the range and refuses one step outside either", () => {
@@ -257,10 +277,18 @@ describe("parseMessage — the bed is two integers or nothing", () => {
     expect(parseMessage(setBed({ x: BED_MAX, y: BED_MAX + 1 }))).toBeNull();
   });
 
-  it.each(BAD)("refuses %j on set-bed and on bed-changed (%s)", (bed, _why) => {
-    expect(parseMessage(setBed(bed))).toBeNull();
-    expect(parseMessage(bedChanged(bed))).toBeNull();
-  });
+  it.each(BAD)(
+    "refuses %j on set-bed, bed-changed and promote-bed (%s)",
+    (bed, _why) => {
+      expect(parseMessage(setBed(bed))).toBeNull();
+      expect(parseMessage(bedChanged(bed))).toBeNull();
+      // The SAME list, not a subset. `promote-bed` reaches the same two columns
+      // as `bed-changed`; validating it more loosely would be a second, weaker
+      // door into them, and the fact that its write is conditional does not make
+      // a NaN or a `{x,y,z}` any more acceptable inside the column.
+      expect(parseMessage(promoteBed(bed))).toBeNull();
+    },
+  );
 
   it.each(BAD)("refuses a handshake carrying %j (%s)", (bed, _why) => {
     // Optional does not mean lenient. `ready` is sent only by our own parent, so
@@ -274,7 +302,26 @@ describe("parseMessage — the bed is two integers or nothing", () => {
     // `message.bed` reach the write handler as undefined.
     expect(parseMessage({ ...base, type: "set-bed" })).toBeNull();
     expect(parseMessage({ ...base, type: "bed-changed" })).toBeNull();
+    expect(parseMessage({ ...base, type: "promote-bed" })).toBeNull();
     expect(parseMessage(bedChanged(undefined))).toBeNull();
+    expect(parseMessage(promoteBed(undefined))).toBeNull();
+  });
+
+  it("keeps promote-bed and bed-changed DISTINCT, because the type is the write rule", () => {
+    // The type is the only thing that separates a conditional write from an
+    // unconditional one. If parsing collapsed them — either direction — the
+    // receiver's switch would route on the wrong one: a promotion handled as a
+    // `bed-changed` overwrites the bed the visitor set on another device, which
+    // is the entire defect this message exists to close, and a pick handled as a
+    // promotion would silently ignore every change after the first.
+    const bed = { x: 300, y: 250 };
+    expect(parseMessage(promoteBed(bed))?.type).toBe("promote-bed");
+    expect(parseMessage(bedChanged(bed))?.type).toBe("bed-changed");
+    expect(parseMessage(promoteBed(bed))?.type).not.toBe("bed-changed");
+    expect(parseMessage(bedChanged(bed))?.type).not.toBe("promote-bed");
+    // And the bed survives intact on the way through, since the receiver writes
+    // exactly what it is handed.
+    expect((parseMessage(promoteBed(bed)) as { bed: unknown }).bed).toEqual(bed);
   });
 
   it("does not honour a bed on a message that does not carry one", () => {
@@ -313,6 +360,9 @@ describe("parseMessage — the bed is two integers or nothing", () => {
       { x: 300, y: 250 },
     ]) {
       expect(parseMessage(bedChanged(bed))).not.toBeNull();
+      // Both writing messages, because both are handed to an action that
+      // re-validates with `normalizeBed` and THROWS on a miss.
+      expect(parseMessage(promoteBed(bed))).not.toBeNull();
       expect(normalizeBed(bed.x, bed.y)).toEqual(bed);
     }
   });

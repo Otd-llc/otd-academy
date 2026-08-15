@@ -83,7 +83,75 @@ describe("the bed relay to the embedded configurator", () => {
     // The whole point of the account copy: a bed picked on a laptop is true on a
     // phone. Without this the pick lives only in the configurator's
     // localStorage, which is the store that does not travel.
-    expect(src).toMatch(/case\s+"bed-changed":[\s\S]{0,300}persistBed\(message\.bed\)/);
+    expect(src).toMatch(/case\s+"bed-changed":[\s\S]{0,400}persistBed\(message\.bed\)/);
     expect(src).toMatch(/setPrintBed\(bed\)/);
+  });
+});
+
+/** Source with comments removed, because the assertions below are about what the
+ *  code DOES. Without this, a comment saying "deliberately not `persistBed`"
+ *  fails a test asserting `persistBed` is not called there — the prose that
+ *  explains the rule would break the check that enforces it. */
+function stripComments(s: string): string {
+  return s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+}
+
+/** The body of one `switch` case, from its `case "x":` to its `break;`, code
+ *  only. */
+function caseBody(type: string): string {
+  const start = src.indexOf(`case "${type}":`);
+  expect(start, `no switch case for ${type} — the message is not handled`).toBeGreaterThan(-1);
+  const end = src.indexOf("break;", start);
+  expect(end).toBeGreaterThan(start);
+  return stripComments(src.slice(start, end));
+}
+
+/** The `promoteBed` callback's body, code only. */
+function promoteHandler(): string {
+  const start = src.indexOf("const promoteBed = useCallback(");
+  expect(start, "the promotion handler is gone").toBeGreaterThan(-1);
+  const end = src.indexOf("}, []);", start);
+  expect(end).toBeGreaterThan(start);
+  return stripComments(src.slice(start, end));
+}
+
+describe("the one-time promotion of this browser's bed", () => {
+  it("handles promote-bed at all", () => {
+    // Without a case here the message lands in `default` and the promotion the
+    // design promises never happens for anyone.
+    expect(caseBody("promote-bed")).toMatch(/promoteBed\(message\.bed\)/);
+  });
+
+  it("does NOT route a promotion through the unconditional write", () => {
+    // The mutation that reintroduces the whole defect, and it is a one-word
+    // edit: `persistBed` writes whatever it is handed, so a promotion sent on
+    // the child's BELIEF that the account is empty would overwrite the bed the
+    // visitor deliberately set on another device. The two paths must not touch.
+    expect(caseBody("promote-bed")).not.toMatch(/persistBed/);
+    expect(caseBody("promote-bed")).not.toMatch(/setPrintBed/);
+    expect(caseBody("bed-changed")).not.toMatch(/promoteBed|promotePrintBed/);
+  });
+
+  it("reaches the CONDITIONAL action, not the unconditional one", () => {
+    // `promotePrintBed` is the only writer whose SQL carries the null
+    // precondition. Swapping it for `setPrintBed` here compiles, passes a
+    // "promotion happened" assertion, and silently clobbers.
+    expect(promoteHandler()).toMatch(/promotePrintBed\(bed\)/);
+    expect(promoteHandler()).not.toMatch(/setPrintBed/);
+  });
+
+  it("records the promoted bed only when the write actually took", () => {
+    // A decline means the account holds something ELSE. Marking the child's bed
+    // as persisted anyway would hand a stale value to the next handshake and
+    // suppress a later identical pick from ever being written.
+    expect(promoteHandler()).toMatch(/if\s*\(\s*!promoted\s*\)\s*return/);
+  });
+
+  it("still has exactly one writer of accountBed after the promotion landed", () => {
+    // The single-writer invariant above, restated where it is easiest to break:
+    // a declined promotion returns the ACCOUNT's bed, and feeding that back into
+    // `accountBed` would put an inbound message on the path that posts `set-bed`
+    // straight back out at the frame that sent it.
+    expect((src.match(/setAccountBed\(/g) ?? []).length).toBe(1);
   });
 });
