@@ -11,6 +11,11 @@ import { describe, expect, it } from "vitest";
 import JSZip from "jszip";
 
 import { buildPlate3mf, extractObjectBlock } from "@/lib/hex-3mf";
+import {
+  HEX_PART_BOX,
+  HEX_PART_MESH_BOTTOM,
+  HEX_PART_NAME,
+} from "@/lib/hex-geometry";
 import type { Placement } from "@/lib/hex-plate";
 
 /** The exact shape every published part ships in -- one `<object id="1"
@@ -40,6 +45,33 @@ const source = (x: string) => `<?xml version="1.0" encoding="UTF-8"?>
 `;
 
 const SOURCE = source("0");
+
+/** A source mesh whose LOWEST VERTEX is a given `z` attribute, spelled verbatim.
+ *
+ *  Takes TEXT, not a number, and that is what makes the seat sweep below mean
+ *  anything. Fed `box.z0` it would be circular -- a table that quantised a
+ *  part's floor would produce a fixture at the same wrong height and seat
+ *  perfectly against itself, which is exactly how the real defect would have
+ *  passed. Fed the mesh's own `z="0.144338"` it is not. */
+const sourceAtZ = (z: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+ <resources>
+<object id="1" type="model">
+   <mesh>
+    <vertices>
+     <vertex x="0" y="0" z="${z}" />
+    </vertices>
+    <triangles>
+     <triangle v1="0" v2="0" v3="0" />
+    </triangles>
+   </mesh>
+</object>
+ </resources>
+ <build>
+  <item objectid="1" transform="1 0 0 0 1 0 0 0 1 0 0 0" />
+ </build>
+</model>
+`;
 
 /** TWO distinct meshes, because one cannot tell instancing from duplication:
  *  with a single slug, "one object per distinct part" and "one object, full
@@ -95,6 +127,58 @@ function itemNames(model: string): string[] {
     return name!;
   });
 }
+
+/** Every placed object's SEATED minimum Z, and the twelve numbers that put it
+ *  there.
+ *
+ *  THE ARITHMETIC A SLICER DOES, not the arithmetic the writer did: the lowest
+ *  vertex the document actually declares for the object, plus the translation
+ *  the build item actually carries, both read back out of the emitted text. A
+ *  check written against the writer's own intermediate values would agree with a
+ *  writer that quantises on the way out -- which is precisely the defect this
+ *  file gained these tests for. */
+function seats(model: string): { name: string; z: number; t: number[] }[] {
+  const byId = new Map<string, { name: string; minZ: number }>();
+  for (const m of model.matchAll(/<object\b([^>]*)>([\s\S]*?)<\/object>/g)) {
+    const id = /\bid="([^"]*)"/.exec(m[1])?.[1];
+    expect(id, "object with no id").toBeDefined();
+    let minZ = Infinity;
+    for (const v of m[2].matchAll(/<vertex\b[^>]*\bz="([^"]*)"/g)) {
+      const z = Number(v[1]);
+      if (z < minZ) minZ = z;
+    }
+    expect(Number.isFinite(minZ), `object ${id} declares no vertex`).toBe(true);
+    byId.set(id!, { name: /\bname="([^"]*)"/.exec(m[1])?.[1] ?? "(unnamed)", minZ });
+  }
+  return [...model.matchAll(/<item\b([^>]*)\/>/g)].map((m) => {
+    const id = /objectid="([^"]*)"/.exec(m[1])?.[1] ?? "";
+    const o = byId.get(id);
+    expect(o, `item points at object ${id}, which is not declared`).toBeDefined();
+    // 3MF transforms are 3x4, row-major, TRANSLATION LAST -- so `t[11]` is the
+    // Z term. Ours are pure translations; the identity 3x3 is asserted below,
+    // and a rotation would need the whole corner transformed rather than added.
+    const t = (/transform="([^"]*)"/.exec(m[1])?.[1] ?? "").trim().split(/\s+/).map(Number);
+    expect(t, `item ${id} transform`).toHaveLength(12);
+    return { name: o!.name, z: o!.minZ + t[11], t };
+  });
+}
+
+/** Every published part on ONE plate, which is the shape the defect appeared in:
+ *  a slicer only asks "should these be loaded as a single object with multiple
+ *  parts?" when the objects it is comparing sit at different heights. */
+const ALL = Object.entries(HEX_PART_BOX).map(([slug, box], i) => ({
+  slug,
+  name: HEX_PART_NAME[slug],
+  box,
+  x: 4 + i * 100,
+  y: 4,
+}));
+const ALL_SOURCES = new Map(
+  Object.keys(HEX_PART_BOX).map((slug) => [
+    slug,
+    sourceAtZ(HEX_PART_MESH_BOTTOM[slug]),
+  ]),
+);
 
 describe("extractObjectBlock", () => {
   it("lifts the object, renumbers it and names it", () => {
@@ -262,9 +346,9 @@ describe("buildPlate3mf", () => {
 
   it("translates a placement to its minimum corner and seats it on the bed", async () => {
     // tx = target - x0, NOT the target: the mesh carries its own origin, so a
-    // part whose box starts at -43.879 lands 43.879 mm left of where it was
+    // part whose box starts at -43.8786 lands 43.8786 mm left of where it was
     // asked for. tz = -z0 seats it on the bed -- one published part's mesh rests
-    // 0.144 mm above its own origin, and without the term it prints floating.
+    // 0.144338 mm above its own origin, and without the term it prints floating.
     //
     // Every term is a different number and no two are equal, so dropping ANY of
     // the three changes the string: without `- x0` it reads 4, with `+ x0` it
@@ -285,23 +369,123 @@ describe("buildPlate3mf", () => {
     expect(model).toContain('transform="1 0 0 0 1 0 0 0 1 7 13 0"');
   });
 
-  it("rounds the transform instead of writing float noise", async () => {
-    // 0.1 + 0.2 arithmetic in a coordinate produces `44.00000000000001`, which
-    // is not wrong but is a diff nobody can read and bytes nobody needs. Four
-    // decimals is a tenth of a micron -- far below anything an FDM printer can
-    // express -- and it is what the known-good reference plate carries
-    // (`... 216.8117 171.0101 -0.1443`).
+  it("drops the noise our own arithmetic adds, and not one source digit", async () => {
+    // TWO HALVES OF ONE RULE, and they pull in opposite directions, which is why
+    // they are asserted together.
+    //
+    // `0.1 + 0.2` is `0.30000000000000004`: a subtraction of two doubles, which
+    // is what `x - x0` is, writes a seventeenth digit into a value known to six.
+    // That is bytes nobody needs and a diff nobody can read, so twelve
+    // significant figures drops it.
+    //
+    // `z0 = 0.144338` is the OPPOSITE case wearing the same clothes. It is small,
+    // so a rule expressed in DECIMAL PLACES quantises it hard: the four decimals
+    // this file used to round to wrote `-0.1443` and left the part 3.8e-5 mm off
+    // the bed. Expressed in SIGNIFICANT FIGURES the same rule keeps every digit.
+    // If this test ever reads `-0.1443` again, the plate has the bug back.
     const model = await modelOf(
-      await buildPlate3mf([at("a", 0.1 + 0.2, 0, { x0: 0, y0: 0, z0: 0.14434 })], SOURCES),
+      await buildPlate3mf([at("a", 0.1 + 0.2, 0, { x0: 0, y0: 0, z0: 0.144338 })], SOURCES),
     );
-    expect(model).toContain('transform="1 0 0 0 1 0 0 0 1 0.3 0 -0.1443"');
+    expect(model).toContain('transform="1 0 0 0 1 0 0 0 1 0.3 0 -0.144338"');
+  });
+
+  it("writes a plain decimal rather than an exponent", async () => {
+    // Fifteen published parts have a mesh bottom that is the exporter's own
+    // float noise -- `hex-tb-spike-solid` sits 1.90781e-12 mm above its origin --
+    // seating those EXACTLY means a translation `String` would spell
+    // `1.90781e-12`. The published meshes are full of exponential vertex text
+    // and Creality Print reads them, so the notation is not exotic; but
+    // `transform` is a different attribute with its own type in the 3MF schema,
+    // no measurement covers it, and the reference plate's own transforms are
+    // plain decimals. Being the first to try it buys nothing.
+    const model = await modelOf(
+      await buildPlate3mf([at("a", 4, 4, { z0: 1.90781e-12 })], SOURCES),
+    );
+    expect(model).toContain(
+      'transform="1 0 0 0 1 0 0 0 1 4 4 -0.00000000000190781"',
+    );
+    expect(model).not.toMatch(/transform="[^"]*[eE][-+]/);
+  });
+
+  it("seats every published part at EXACTLY z = 0, on one plate", async () => {
+    // THE INVARIANT THE SLICER IS ACTUALLY TESTING. Creality Print V7.2.1 raises
+    // "Multi-part object detected -- This file contains several objects
+    // positioned at multiple heights" when one object on a plate does not sit
+    // where the others do, and answering "Yes" fuses fifteen separately-named
+    // parts into a single multi-part body. That destroys the named object list
+    // which is the entire reason this feature ships 3MF rather than STL.
+    //
+    // THE TOLERANCE IS ZERO, and that is a deliberate engineering choice rather
+    // than a slogan. Three things make it the honest threshold:
+    //
+    //   1. Zero is ACHIEVABLE here, exactly, on every platform. The sum below is
+    //      `z0 + (-z0)`, and IEEE754 addition of a finite double and its own
+    //      negation is exactly +0 -- no epsilon, no rounding mode, no accumulated
+    //      error, because there is no accumulation. It is an identity, not a
+    //      measurement. So an epsilon would not be buying safety; it would only
+    //      be declaring how much drift we intend to permit.
+    //   2. Any epsilon is a number someone widens. This bug shipped at 3.38e-4
+    //      mm precisely because "far below what an FDM printer can express" had
+    //      no defined edge. The measured band is wide and unhelpful: a plate
+    //      carrying 5.33e-15 mm of residual loads fine, 3.38e-4 does not, and
+    //      nobody knows where between them the slicer's own threshold sits. A
+    //      tolerance picked inside a band that wide is a guess wearing a number.
+    //   3. Zero is the only threshold that fails for the RIGHT REASON. A part
+    //      seated at anything other than 0 means either the table quantised the
+    //      mesh minimum or the writer quantised the translation -- both real
+    //      defects, neither of which has a benign magnitude.
+    //
+    // EACH FIXTURE'S LOWEST VERTEX IS THE MESH'S OWN TEXT, not the table's `z0`,
+    // and that is what stops this from being circular. `z0` is that text parsed
+    // by the script that used to round it, so a fixture built from `z0` would sit
+    // at the same wrong height as the translation meant to cancel it, seat
+    // perfectly against itself, and pass -- the real defect would have gone
+    // straight through. Measured rather than reasoned: with both shipped
+    // roundings restored and the fixture reading `box.z0`, this assertion
+    // PASSED. Reading `HEX_PART_MESH_BOTTOM`, it fails.
+    //
+    // The meshes themselves cannot be here -- they are a sibling checkout that
+    // never ships with the app -- so their lowest vertex travels as text
+    // instead, and the generator refuses to write the two if they disagree.
+    const model = await modelOf(await buildPlate3mf(ALL, ALL_SOURCES));
+    const placed = seats(model);
+    // WHICH PARTS were measured, not how many. `toHaveLength(ALL.length)` reads
+    // like a coverage check and is not one -- it compares the fixture against
+    // itself, so a fixture narrowed to a single part still satisfies it and the
+    // sweep silently stops covering 52 of the 53. Held to the published NAME
+    // table instead, which is the list this plate is supposed to be.
+    expect(placed.map((s) => s.name).sort()).toEqual(Object.values(HEX_PART_NAME).sort());
+    expect(placed.filter((s) => s.z !== 0).map((s) => `${s.name} at ${s.z} mm`)).toEqual([]);
+  });
+
+  it("writes every coordinate on a full plate as a plain finite decimal", async () => {
+    // Guards the seat assertion above from passing vacuously. `Number("")` is 0
+    // and `Number("NaN") + anything` is NaN, so a transform the writer mangled
+    // could still read back as a seat of 0 -- or as one that is simply not a
+    // number, which `!== 0` accepts. Every one of the 53 x 12 numbers has to be
+    // a plain decimal, and the 3x3 block has to still be the identity: this is a
+    // translation, and a rotation would move the part's lowest point somewhere
+    // the sum above never looks.
+    const model = await modelOf(await buildPlate3mf(ALL, ALL_SOURCES));
+    for (const s of seats(model)) {
+      expect(s.t.every(Number.isFinite), `${s.name} transform`).toBe(true);
+      expect(s.t.slice(0, 9), `${s.name} is not a pure translation`).toEqual([
+        1, 0, 0, 0, 1, 0, 0, 0, 1,
+      ]);
+    }
+    for (const m of model.matchAll(/transform="([^"]*)"/g)) {
+      for (const num of m[1].trim().split(/\s+/)) {
+        expect(num, `transform component ${num}`).toMatch(/^-?\d+(\.\d+)?$/);
+      }
+    }
   });
 
   it("writes a flat zero rather than a negative zero", async () => {
     // `-0` round-trips through JSON and most parsers, but it reads as a mistake
     // in a file people open in a text editor and it is not what the reference
     // carries. A part already sitting at z0 = 0 is the common case, so this is
-    // 51 of the 53 published parts.
+    // 37 of the 53 published parts -- the other 16 have a non-zero mesh bottom,
+    // 15 of them float noise and one, the spike ball joint, real.
     const model = await modelOf(await buildPlate3mf([at("a", 4, 4)], SOURCES));
     expect(model).toContain('transform="1 0 0 0 1 0 0 0 1 4 4 0"');
     expect(model).not.toContain("-0 ");
