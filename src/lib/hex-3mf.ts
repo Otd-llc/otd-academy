@@ -23,11 +23,49 @@ import JSZip from "jszip";
 
 import type { Bed } from "@/lib/hex-pack";
 import type { Placement } from "@/lib/hex-plate";
+import { HEX_LICENSE } from "@/lib/hex-spec";
 import {
   THUMBNAIL_PATH,
   THUMBNAIL_REL_TYPE,
   plateThumbnail,
 } from "@/lib/hex-thumbnail";
+
+/**
+ * The CLOSED set of `<model>` metadata names the 3MF core specification defines,
+ * spelled exactly as Table 3-1 of the *3MF Core Specification* spells them
+ * (3MFConsortium/spec_core).
+ *
+ * IT IS A CLOSED SET, and that is the whole reason this constant exists rather
+ * than the names being written inline. The same specification says: "Metadata in
+ * 3MF Documents without a namespace name MUST be restricted to names and values
+ * defined by this specification. If a name value is not defined in this
+ * specification, it MUST be prefixed with the namespace name of an XML namespace
+ * declaration on the <model> element."
+ *
+ * So an unqualified name that is not on this list is not a harmless extra field
+ * -- it is a non-conforming document. And a MISSPELLED core name is exactly
+ * that: `Licenceterms`, `CreatedDate` or `Designers` reads as a private
+ * extension carrying no namespace, which is the one thing that paragraph
+ * forbids. The failure is silent in every way that matters -- the XML is
+ * well-formed, the package opens, the slicer prints -- so nothing but a
+ * conformance checker or this list would ever notice.
+ *
+ * Exported so the guard test can hold every name this module writes to it
+ * without transcribing a second copy that would agree with itself forever.
+ */
+export const CORE_META = [
+  "Title",
+  "Designer",
+  "Description",
+  "Copyright",
+  "LicenseTerms",
+  "Rating",
+  "CreationDate",
+  "ModificationDate",
+  "Application",
+] as const;
+
+export type CoreMetaName = (typeof CORE_META)[number];
 
 /** `[Content_Types].xml` declares which file extensions the package may contain,
  *  so it is not boilerplate: an entry with an undeclared extension makes the
@@ -230,6 +268,14 @@ export function extractObjectBlock(
  *  posture is that a silently wrong plate is the worst outcome available. */
 export type PlateMeta = {
   bed: Bed;
+  /** The immutable published release the meshes came from, as `YYYY-MM-DD`.
+   *
+   *  REQUIRED, for the same reason `bed` is: it is the document's `CreationDate`
+   *  and `ModificationDate`, and the alternatives are a wall clock (which breaks
+   *  the response's identical-bytes promise from inside the file) or the DOS
+   *  epoch the zip entries carry (which would be reproducible and untrue). An
+   *  optional release would silently produce one of those. */
+  release: string;
   title?: string;
   credit?: string;
   description?: string;
@@ -316,31 +362,97 @@ export async function buildPlate3mf(
   // project files, which is tempting to copy and is outside the schema; the
   // reference plate that was actually opened in a slicer carries none, and an
   // item is printable by default, so it buys nothing and costs conformance.
+  // The document's OWN date, and the only honest deterministic answer to it.
+  //
+  // A wall clock is the obvious value and it is unavailable: this response is
+  // cached per URL and promises identical bytes, so `new Date()` here would
+  // break that promise from INSIDE the file, where no header comparison would
+  // ever look. The DOS epoch the zip entries carry would be reproducible and a
+  // lie.
+  //
+  // The RELEASE is neither. A plate is a derivative assembled on demand from an
+  // immutable published release; the geometry in this file really was created on
+  // that date, the date is already in the URL (so already in the cache key), and
+  // `hex-pack.ts` has already validated it as `^\d{4}-\d{2}-\d{2}$` -- a
+  // well-formed `xs:date`.
+  //
+  // CHECKED, not trusted, because the failure of a bad one is silent: an
+  // ill-formed date is still well-formed XML, so the package opens and only a
+  // conformance checker would ever say otherwise.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(meta.release)) {
+    throw new Error(`release ${meta.release} is not a plain ISO date`);
+  }
+
+  // NOTHING ON AN ITEM THAT THE CORE SPEC DOES NOT DEFINE. `<item>` allows
+  // `objectid`, `transform` and `partnumber`, plus attributes from OTHER
+  // namespaces. Creality Print writes an unqualified `printable="1"` in its own
+  // project files, which is tempting to copy and is outside the schema; the
+  // reference plate that was actually opened in a slicer carries none, and an
+  // item is printable by default, so it buys nothing and costs conformance.
+  //
+  // THE SAME RULE GOVERNS THE METADATA BLOCK BELOW, and it is stricter than it
+  // looks. The core spec defines a FIXED set of `<model>` metadata names --
+  // Title, Designer, Description, Copyright, LicenseTerms, Rating, CreationDate,
+  // ModificationDate, Application (Table 3-1) -- and states that "Metadata in 3MF
+  // Documents without a namespace name MUST be restricted to names and values
+  // defined by this specification. If a name value is not defined in this
+  // specification, it MUST be prefixed with the namespace name of an XML
+  // namespace declaration on the <model> element."
+  //
+  // So an unqualified name outside that list is not a harmless extra field: it
+  // is a non-conforming document. And a MISSPELLED core name is exactly that --
+  // `Licenceterms` or `CreatedDate` reads as a private extension with no
+  // namespace, which is the one thing the paragraph above forbids. `CORE_META`
+  // is the list, and the guard test holds every name written here to it.
+  const written: [CoreMetaName, string][] = [
+    ["Application", "One Thousand Drones -- Hex Cluster"],
+    ["Title", meta.title ?? "Hex Cluster plate"],
+    // Who made the parts. Truthful and constant: every mesh in every plate this
+    // route can assemble is ours.
+    ["Designer", HEX_LICENSE.holder],
+    // CC BY is a copyright LICENCE, not a waiver, so there IS a copyright to
+    // state, and stating it is what the licence's attribution condition is
+    // about. Derived from the shared spec rather than transcribed, so the file,
+    // the README and the /hex page cannot end up naming different holders.
+    [
+      "Copyright",
+      `Copyright ${HEX_LICENSE.holder}. Licensed ${HEX_LICENSE.name}.`,
+    ],
+    // The CC BY credit travels INSIDE the file, not only in the README beside
+    // it: a single .3mf gets dragged out of the zip and the notice is gone.
+    ["LicenseTerms", meta.credit ?? HEX_LICENSE.credit],
+    // Both dates are the release, and they are equal BY CONSTRUCTION rather
+    // than by copy-paste: the document is assembled from an immutable release
+    // and is never modified afterwards, so "created" and "last modified" name
+    // the same instant. A ModificationDate that drifted from CreationDate would
+    // be claiming an edit that never happened.
+    ["CreationDate", meta.release],
+    ["ModificationDate", meta.release],
+  ];
+  // `Description` is OMITTED rather than emptied when no caller supplies one: an
+  // empty `<metadata>` element is a claim that the description is blank, which
+  // is a different statement from not making one, and a test fixture has no
+  // notes to carry.
+  //
+  // It is where the one instruction whose absence costs a PRINT lives -- the
+  // support and orientation notes. Not the guarantee that a reader sees them:
+  // slicers surface metadata inconsistently, which is why the route ships a
+  // spike-bearing plate inside an archive with a README. This is what the file
+  // still says once it has been separated from that README.
+  if (meta.description) written.push(["Description", meta.description]);
+  // `Rating` is the one core name deliberately left out: there is nothing
+  // truthful to put in it, and an empty element is a claim rather than a
+  // silence.
+
   const model =
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
     // `unit` is not optional in practice: a 3MF without it defaults to MICRONS,
     // so a plate that forgets it arrives one thousandth of its size.
     `<model unit="millimeter" xml:lang="en-US" ` +
     `xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">\n` +
-    ` <metadata name="Application">One Thousand Drones -- Hex Cluster</metadata>\n` +
-    ` <metadata name="Title">${escapeXml(meta?.title ?? "Hex Cluster plate")}</metadata>\n` +
-    // The CC BY credit travels INSIDE the file, not only in the README beside
-    // it: a single .3mf gets dragged out of the zip and the notice is gone.
-    ` <metadata name="LicenseTerms">${escapeXml(meta?.credit ?? "CC BY 4.0")}</metadata>\n` +
-    // The same argument, applied to the one instruction whose absence costs a
-    // print rather than a licence breach: the support and orientation notes.
-    // `Description` is a core-spec metadata name, so this is conformant and
-    // free. It is NOT the guarantee that a reader sees the warning -- slicers
-    // surface metadata inconsistently -- which is why the route ships a
-    // spike-bearing plate inside an archive with a README. This is what the file
-    // still says when it has been separated from that README.
-    //
-    // Omitted rather than emptied when no caller supplies one: an empty
-    // `<metadata>` element is a claim that the description is blank, and a test
-    // fixture has no notes to carry.
-    (meta?.description
-      ? ` <metadata name="Description">${escapeXml(meta.description)}</metadata>\n`
-      : "") +
+    written
+      .map(([k, v]) => ` <metadata name="${k}">${escapeXml(v)}</metadata>\n`)
+      .join("") +
     ` <resources>\n${objects.join("\n")}\n </resources>\n` +
     ` <build>\n${items.join("\n")}\n </build>\n</model>\n`;
 

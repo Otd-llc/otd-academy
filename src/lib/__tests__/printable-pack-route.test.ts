@@ -491,6 +491,32 @@ describe("every plate carries a picture of itself", () => {
   });
 });
 
+describe("the plate states who made it and when", () => {
+  const modelOf = async (res: Response) =>
+    (await JSZip.loadAsync(await bodyOf(res)))
+      .file("3D/3dmodel.model")!
+      .async("string");
+
+  it("dates the document from the release in the URL", async () => {
+    // Threaded from the request, not hardcoded, and this is the row that proves
+    // it: `hex-3mf.test.ts` can only show the writer honours what it is handed.
+    const model = await modelOf(await call(`release=${RELEASE}&parts=hex-tb-main`));
+    expect(model).toContain(
+      `<metadata name="CreationDate">${RELEASE}</metadata>`,
+    );
+    expect(model).toContain(
+      `<metadata name="ModificationDate">${RELEASE}</metadata>`,
+    );
+  });
+
+  it("names the designer and the copyright holder", async () => {
+    const model = await modelOf(await call(`release=${RELEASE}&parts=hex-tb-main`));
+    expect(model).toContain('<metadata name="Designer">');
+    expect(model).toContain('<metadata name="Copyright">');
+    expect(model).toContain("One Thousand Drones, LLC");
+  });
+});
+
 describe("the name on the box matches what is in it", () => {
   it("counts INSTANCES in the filename, and ships that many", async () => {
     // The defect this route already shipped once: a filename saying six, a

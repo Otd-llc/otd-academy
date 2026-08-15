@@ -10,7 +10,8 @@
 import { describe, expect, it } from "vitest";
 import JSZip from "jszip";
 
-import { buildPlate3mf, extractObjectBlock } from "@/lib/hex-3mf";
+import { CORE_META, buildPlate3mf, extractObjectBlock } from "@/lib/hex-3mf";
+import { HEX_LICENSE } from "@/lib/hex-spec";
 import {
   HEX_PART_BOX,
   HEX_PART_MESH_BOTTOM,
@@ -104,6 +105,9 @@ const at = (
 
 /** The bed every fixture below is packed for, unless it says otherwise. */
 const BED = { x: 220, y: 220 };
+/** The release every fixture is dated from -- the one the geometry table was
+ *  measured on, so the same date the route really passes. */
+const RELEASE = "2026-08-03";
 
 /** `buildPlate3mf` with the bed filled in.
  *
@@ -117,7 +121,7 @@ const plate3mf = (
   placements: readonly Placement[],
   sources: ReadonlyMap<string, string>,
   meta: Partial<Parameters<typeof buildPlate3mf>[2]> = {},
-) => buildPlate3mf(placements, sources, { bed: BED, ...meta });
+) => buildPlate3mf(placements, sources, { bed: BED, release: RELEASE, ...meta });
 
 async function modelOf(buf: Buffer): Promise<string> {
   const zip = await JSZip.loadAsync(buf);
@@ -577,6 +581,111 @@ describe("buildPlate3mf", () => {
       '<metadata name="Title">Plate 1 of 3 &lt;hex&gt;</metadata>',
     );
     expect(model).toContain("CC BY 4.0 -- One Thousand Drones, LLC");
+  });
+
+  it("writes ONLY names the core spec defines, unqualified", async () => {
+    // THE GUARD THAT MAKES THE REST OF THIS BLOCK MEAN ANYTHING. The 3MF core
+    // spec defines a CLOSED set of `<model>` metadata names and says that an
+    // unqualified name outside it MUST instead be namespace-prefixed -- so a
+    // misspelling (`Licenceterms`, `CreatedDate`, `Designers`) is not a typo
+    // with a cosmetic cost: it is a private extension carrying no namespace,
+    // which makes the document non-conforming. The XML stays well-formed, the
+    // package still opens and the slicer still prints, so nothing else in this
+    // file or in any slicer would ever notice.
+    //
+    // Held against the IMPORTED list, never a transcribed one -- a second copy
+    // would agree with itself forever while the real one drifted.
+    const model = await modelOf(
+      await plate3mf([at("a", 4, 4)], SOURCES, { description: "d" }),
+    );
+    const names = [...model.matchAll(/<metadata name="([^"]*)"/g)].map(
+      (m) => m[1],
+    );
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
+      expect(CORE_META as readonly string[], name).toContain(name);
+      // Unqualified: a colon would be a namespace prefix, and a prefix that is
+      // not declared on `<model>` is a different non-conformance again.
+      expect(name, name).not.toContain(":");
+    }
+    // 3MF forbids duplicate metadata names on one element.
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("fills in every core field we can state truthfully", async () => {
+    const model = await modelOf(await plate3mf([at("a", 4, 4)], SOURCES));
+    expect(model).toContain(
+      '<metadata name="Designer">One Thousand Drones, LLC</metadata>',
+    );
+    expect(model).toContain(
+      '<metadata name="Copyright">Copyright One Thousand Drones, LLC. Licensed CC BY 4.0.</metadata>',
+    );
+    expect(model).toContain(
+      '<metadata name="Application">One Thousand Drones -- Hex Cluster</metadata>',
+    );
+    // Derived from the shared spec, not transcribed: the holder and the licence
+    // name come from `HEX_LICENSE`, so the file cannot name a different holder
+    // from the README or the /hex page.
+    expect(model).toContain(HEX_LICENSE.holder);
+    // `Rating` is deliberately absent -- there is nothing truthful to put in it,
+    // and an empty element is a claim rather than a silence.
+    expect(model).not.toContain('name="Rating"');
+  });
+
+  it("dates the document from the RELEASE, so a clock cannot get in", async () => {
+    // A wall clock is the obvious value and it is unavailable: the response is
+    // cached per URL and promises identical bytes, so `new Date()` here would
+    // break that promise from INSIDE the file where no header comparison would
+    // look. The release is a real date, it describes when this geometry was
+    // created, and it is already part of the URL.
+    const model = await modelOf(await plate3mf([at("a", 4, 4)], SOURCES));
+    expect(model).toContain(
+      `<metadata name="CreationDate">${RELEASE}</metadata>`,
+    );
+    // Equal by construction: the document is assembled and never modified, so a
+    // ModificationDate that differed would be claiming an edit that never
+    // happened.
+    expect(model).toContain(
+      `<metadata name="ModificationDate">${RELEASE}</metadata>`,
+    );
+    // And no year that is not the release's -- the sharpest form of "no clock".
+    expect(model).not.toMatch(
+      new RegExp(`name="(Creation|Modification)Date">(?!${RELEASE}<)`),
+    );
+  });
+
+  it("CONTROL: a different release really does change the dates", async () => {
+    // Without this row, "the dates are the release" is satisfied by a writer
+    // that hardcodes 2026-08-03 and ignores what it was handed.
+    const model = await modelOf(
+      await plate3mf([at("a", 4, 4)], SOURCES, { release: "2026-07-31" }),
+    );
+    expect(model).toContain(
+      '<metadata name="CreationDate">2026-07-31</metadata>',
+    );
+    expect(model).not.toContain(RELEASE);
+  });
+
+  it("refuses a release that is not a plain ISO date", async () => {
+    // Checked rather than trusted, because the failure is silent: an ill-formed
+    // date is still well-formed XML, so the package opens and only a conformance
+    // checker would ever say otherwise.
+    for (const bad of ["latest", "2026-8-3", "", "2026-08-03T00:00:00Z"]) {
+      await expect(
+        plate3mf([at("a", 4, 4)], SOURCES, { release: bad }),
+        bad,
+      ).rejects.toThrow(/ISO date/);
+    }
+  });
+
+  it("defaults LicenseTerms to the shared credit, not a bare licence name", async () => {
+    // A caller that forgets the credit used to get the string "CC BY 4.0",
+    // which names a licence and satisfies none of its attribution condition.
+    // The default is now the canonical line a remixer can copy verbatim.
+    const model = await modelOf(await plate3mf([at("a", 4, 4)], SOURCES));
+    expect(model).toContain(
+      `<metadata name="LicenseTerms">${HEX_LICENSE.credit}</metadata>`,
+    );
   });
 
   it("carries a description when one is given, and omits the element when not", async () => {

@@ -391,6 +391,12 @@ async function platedPack(
           // a re-read of the query: a thumbnail showing the right parts against
           // the wrong bed is a picture that disagrees with its own file.
           bed,
+          // The document's `CreationDate` and `ModificationDate`. The RELEASE,
+          // because a plate is a derivative assembled on demand from an
+          // immutable published set: the geometry in it really was created then,
+          // and it is the only date that is both true and the same on every
+          // request for this URL.
+          release,
           // The build's own name, then which plate of how many. ONE string for
           // the title and the filename, so a slicer's title bar and the file it
           // was opened from cannot be saying different things -- the same reason
