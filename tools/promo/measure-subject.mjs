@@ -8,17 +8,31 @@
 //
 // Measured as the luminance CENTROID of each frame, ignoring the near-black
 // field, which is what the eye reads as "where the thing is".
-import { createRequire } from "node:module";
 import { execFileSync } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, existsSync } from "node:fs";
 
-const req = createRequire("C:/zzz/pf-beta/package.json");
-const sharp = req("sharp");
+// Playwright and sharp are devDependencies of THIS repo, so they import normally.
+// These six files used to reach them through
+// `createRequire("C:/zzz/pf-beta/package.json")` -- a sibling repo that is not in
+// this tree and not on most machines. Two of the six are GATES
+// (measure-cut, chrome-overlay), so the hack did not merely break a renderer:
+// it broke the checkers while leaving the renderer working, which is the worst
+// possible way for a dependency to be missing.
+import sharp from "sharp";
 const OUT = process.argv[2];
 mkdirSync(OUT, { recursive: true });
 
 // The typeless picture, so the measurement is the SUBJECT and not the words.
-const SRC = "C:/zzz/_hex-promo/social/l101-beta-band-notype.mp4";
+// Rendered output, stored outside every repo -- overridable, and checked, so a
+// missing input fails here rather than as an empty centroid table that looks
+// like a measurement.
+const SRC = process.env.PROMO_SUBJECT_MP4 ?? "C:/zzz/_hex-promo/social/l101-beta-band-notype.mp4";
+if (!existsSync(SRC)) {
+  throw new Error(
+    `no such subject clip: ${SRC}. Set PROMO_SUBJECT_MP4 to the typeless render. ` +
+      `It is build output kept outside every repo, so a fresh checkout will not have it.`,
+  );
+}
 
 const BEATS = [
   { t: 1.0, what: "gerber stack, flat" },

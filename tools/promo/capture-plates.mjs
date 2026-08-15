@@ -13,10 +13,15 @@
 //
 //   node capture-plates.mjs <out-dir> <session-token> <exam-key.json> <format> [format ...]
 import { mkdirSync, readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 
-const req = createRequire("C:/zzz/pf-beta/package.json");
-const { chromium } = req("playwright");
+// Playwright and sharp are devDependencies of THIS repo, so they import normally.
+// These six files used to reach them through
+// `createRequire("C:/zzz/pf-beta/package.json")` -- a sibling repo that is not in
+// this tree and not on most machines. Two of the six are GATES
+// (measure-cut, chrome-overlay), so the hack did not merely break a renderer:
+// it broke the checkers while leaving the renderer working, which is the worst
+// possible way for a dependency to be missing.
+import { chromium } from "playwright";
 
 const OUT = process.argv[2];
 const TOKEN = process.argv[3];

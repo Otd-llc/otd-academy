@@ -15,11 +15,16 @@
 // CutStage's segment offsets are measured from them, so a format that changed
 // them would need its joins re-nudged from scratch.
 import { execFileSync } from "node:child_process";
-import { createRequire } from "node:module";
 import { mkdirSync, rmSync, existsSync } from "node:fs";
 
-const req = createRequire("C:/zzz/pf-beta/package.json");
-const { chromium } = req("playwright");
+// Playwright and sharp are devDependencies of THIS repo, so they import normally.
+// These six files used to reach them through
+// `createRequire("C:/zzz/pf-beta/package.json")` -- a sibling repo that is not in
+// this tree and not on most machines. Two of the six are GATES
+// (measure-cut, chrome-overlay), so the hack did not merely break a renderer:
+// it broke the checkers while leaving the renderer working, which is the worst
+// possible way for a dependency to be missing.
+import { chromium } from "playwright";
 
 const OUT = process.argv[2];
 const FORMAT = process.argv[3];
@@ -49,7 +54,17 @@ const HANDOFF_SECONDS = 8;
 const EXAM = 5.8;
 const PRE = 1.2;
 const CARD = 2.4;
-const PUB = "c:/zzz/pf-beta/public/_capture";
+// Capture plates live OUTSIDE this repo, in the beta app's public tree. Kept as
+// a DEFAULT rather than a constant so a machine without that checkout can point
+// at its own copy -- and so the failure is a sentence naming the fix instead of
+// an ENOENT forty lines later, on a path nothing explains.
+const PUB = process.env.PROMO_CAPTURE_DIR ?? "c:/zzz/pf-beta/public/_capture";
+if (!existsSync(PUB)) {
+  throw new Error(
+    `no capture plate directory at ${PUB}. Set PROMO_CAPTURE_DIR to wherever the ` +
+      `_capture plates live, or check the beta app out beside this repo.`,
+  );
+}
 // wide keeps the 2560x1440 plate it was always captured from; the narrow ones
 // are reflowed captures at their own viewport, because a centre crop of the
 // wide one slices every question in half.

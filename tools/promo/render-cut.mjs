@@ -11,11 +11,16 @@
 // true-peak limited, and loudness-capped at whatever linear gain could reach.
 // A second normalisation here would undo exactly the thing that was protected.
 import { mkdirSync, rmSync, existsSync } from "node:fs";
-import { createRequire } from "node:module";
 import { execFileSync, spawnSync } from "node:child_process";
 
-const req = createRequire("C:/zzz/pf-beta/package.json");
-const { chromium } = req("playwright");
+// Playwright and sharp are devDependencies of THIS repo, so they import normally.
+// These six files used to reach them through
+// `createRequire("C:/zzz/pf-beta/package.json")` -- a sibling repo that is not in
+// this tree and not on most machines. Two of the six are GATES
+// (measure-cut, chrome-overlay), so the hack did not merely break a renderer:
+// it broke the checkers while leaving the renderer working, which is the worst
+// possible way for a dependency to be missing.
+import { chromium } from "playwright";
 
 const OUT = process.argv[2];
 const FORMAT = process.argv[3];
@@ -38,9 +43,26 @@ const FRAMES = FPS * SECONDS;
 // THE LOCKED SCORE: half-time groove, saw-stab bass, stutter drop, rev-long as
 // the LEARN accent. Named in full rather than by a kit alias so the file the
 // film ships with is legible from the command that made it.
-const BED = "C:/zzz/_hex-promo/kits/jingle-half-time_saw-stab_stutter_rev-long-master.wav";
+//
+// Stored outside every repo, on one disk, so it is overridable and both halves
+// are checked. The raw twin's name is DERIVED from the master's, which means a
+// rename of one silently breaks the other -- worth failing on by name.
+const BED =
+  process.env.PROMO_BED_WAV ??
+  "C:/zzz/_hex-promo/kits/jingle-half-time_saw-stab_stutter_rev-long-master.wav";
 const BED_RAW = BED.replace("-master.wav", ".wav");
-if (!existsSync(BED)) throw new Error(`no such bed: ${BED}`);
+if (!existsSync(BED)) {
+  throw new Error(
+    `no such bed: ${BED}. Set PROMO_BED_WAV to the mastered kit wav. It lives ` +
+      `outside every repo, so a fresh checkout will not have it.`,
+  );
+}
+if (!existsSync(BED_RAW)) {
+  throw new Error(
+    `bed found but its unmastered twin is missing: ${BED_RAW}. Both are required. ` +
+      `The raw name is derived by dropping "-master", so a rename of one breaks this.`,
+  );
+}
 
 const dir = `${OUT}/cut-${FORMAT}${SUFFIX}`;
 rmSync(`${dir}/frames`, { recursive: true, force: true });
