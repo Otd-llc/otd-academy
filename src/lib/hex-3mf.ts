@@ -71,10 +71,10 @@ const ZIP_EPOCH = new Date(Date.UTC(1980, 0, 1));
  *  wrote gets escaped in turn, so the name reads back as the literal text
  *  `&lt;`. That ordering is the entire correctness argument for three lines.
  *
- *  No published slug needs any of this -- `PART_SLUG_RE` is `[a-z0-9][a-z0-9-]*`
- *  and none of those characters are special. It exists because the contract is
- *  "safe for any string": the title and the credit are prose, and the day a
- *  display name replaces the slug is the day it starts mattering. */
+ *  No published name needs any of this -- today they are all `[A-Za-z0-9-]` --
+ *  but they are FILENAMES from an exporter rather than a constrained slug, so
+ *  the next re-cut is free to produce one that does. The title and the credit
+ *  are prose and need it already. */
 function escapeXml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
@@ -152,13 +152,18 @@ export function extractObjectBlock(
  * entry THROWS rather than being skipped: a plate quietly missing one part is
  * the worst outcome available here, because the file opens, the object list
  * looks plausible, and you find out after the print.
+ *
+ * The SLUG identifies the mesh; the placement's `name` is what the object is
+ * called. They are not interchangeable -- the slug is a lossy projection of the
+ * published filename -- so a plate names its parts `Hex-TB-Main`, the way the
+ * reference plate does and the way the download page lists them.
  */
 export async function buildPlate3mf(
   placements: readonly Placement[],
   sources: ReadonlyMap<string, string>,
   meta?: { title?: string; credit?: string },
 ): Promise<Buffer> {
-  const ids = new Map<string, number>();
+  const objectBySlug = new Map<string, { id: number; name: string }>();
   const objects: string[] = [];
   const items: string[] = [];
 
@@ -167,12 +172,23 @@ export async function buildPlate3mf(
     // identical caps are one 300 KB mesh and six lines, not six copies. This is
     // also why mesh vertices are never rewritten -- a recentred mesh belongs to
     // one placement and could not be shared.
-    if (!ids.has(p.slug)) {
+    let obj = objectBySlug.get(p.slug);
+    if (!obj) {
       const src = sources.get(p.slug);
       if (!src) throw new Error(`no source mesh for ${p.slug}`);
-      const id = ids.size + 1;
-      ids.set(p.slug, id);
-      objects.push(extractObjectBlock(src, id, p.slug));
+      obj = { id: objectBySlug.size + 1, name: p.name };
+      objectBySlug.set(p.slug, obj);
+      objects.push(extractObjectBlock(src, obj.id, p.name));
+    } else if (obj.name !== p.name) {
+      // Instancing collapses every placement of a slug onto ONE object, so the
+      // first name silently wins and the rest are lost -- a plate where five of
+      // six identical caps are labelled with a name nobody passed. Callers build
+      // both fields from one table row, so this cannot happen from the route;
+      // it is checked because the failure is invisible in the output, not
+      // because it is expected.
+      throw new Error(
+        `${p.slug} is named both "${obj.name}" and "${p.name}" on one plate`,
+      );
     }
     // The translation that carries the mesh's OWN minimum corner to the target,
     // and drops the part onto z = 0 whatever its authored height. `x - x0`, not
@@ -181,7 +197,7 @@ export async function buildPlate3mf(
     // either -- `hex-tb-spike-ball-joint` rests 0.144 mm above its own origin,
     // and without the term it prints floating.
     items.push(
-      `  <item objectid="${ids.get(p.slug)}" transform="1 0 0 0 1 0 0 0 1 ` +
+      `  <item objectid="${obj.id}" transform="1 0 0 0 1 0 0 0 1 ` +
         `${n(p.x - p.box.x0)} ${n(p.y - p.box.y0)} ${n(-p.box.z0)}" />`,
     );
   }

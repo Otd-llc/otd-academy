@@ -52,12 +52,23 @@ const SOURCES = new Map([
 
 const BOX = { x0: 0, y0: 0, z0: 0, dx: 10, dy: 10, dz: 10 };
 
+/** The published display name for a slug, in the shape the real table has:
+ *  `hex-tb-main` maps to `Hex-TB-Main`, which no rule recovers from the slug.
+ *
+ *  DELIBERATELY DIFFERENT from the slug, and used as the default below so every
+ *  placement in this file carries a name it cannot be confused with. The writer
+ *  holds both fields and only one of them belongs in the object list; if the
+ *  fixtures named a part after its slug, the module could reach for either and
+ *  nothing here would notice. */
+const nameOf = (slug: string) => `Part-${slug.toUpperCase()}`;
+
 const at = (
   slug: string,
   x: number,
   y: number,
   box: Partial<typeof BOX> = {},
-): Placement => ({ slug, box: { ...BOX, ...box }, x, y });
+  name: string = nameOf(slug),
+): Placement => ({ slug, name, box: { ...BOX, ...box }, x, y });
 
 async function modelOf(buf: Buffer): Promise<string> {
   const zip = await JSZip.loadAsync(buf);
@@ -207,7 +218,46 @@ describe("buildPlate3mf", () => {
     const model = await modelOf(
       await buildPlate3mf([at("a", 4, 4), at("b", 20, 4), at("a", 40, 4)], SOURCES),
     );
-    expect(itemNames(model)).toEqual(["a", "b", "a"]);
+    expect(itemNames(model)).toEqual(["Part-A", "Part-B", "Part-A"]);
+  });
+
+  it("names each object with the published spelling, not the R2 slug", async () => {
+    // THE POINT OF 3MF. The object name is what a slicer shows in its object
+    // list, and it was measured surviving a Creality Print round trip -- all 15
+    // names in the known-good reference plate read back as `Hex-TB-Main`,
+    // `Dovetail-Cap-Single-F-Solid` and so on. The slug is a lossy projection of
+    // that filename, so shipping it hands somebody a list of lowercase hyphen
+    // soup for no gain.
+    //
+    // The NEGATIVE half is what makes this bite. A writer that emitted the slug
+    // would still produce a well-formed plate with one correctly-pointed object
+    // per part, and every other assertion in this file would pass.
+    const model = await modelOf(
+      await buildPlate3mf(
+        [at("a", 4, 4, {}, "Hex-TB-Main"), at("b", 20, 4, {}, "Dovetail-Cap-Single-F-Solid")],
+        SOURCES,
+      ),
+    );
+    expect(model).toContain('name="Hex-TB-Main"');
+    expect(model).toContain('name="Dovetail-Cap-Single-F-Solid"');
+    expect(model).not.toContain('name="a"');
+    expect(model).not.toContain('name="b"');
+  });
+
+  it("refuses one slug carrying two different names on a plate", async () => {
+    // Instancing collapses every placement of a slug onto ONE object, so two
+    // names for one mesh cannot both be written: the first silently wins and the
+    // rest are lost. The output is a well-formed plate with a part labelled
+    // something nobody asked for, which is invisible in every structural check.
+    //
+    // Unreachable from the route -- both fields come from one table row keyed by
+    // the slug -- so this guards the contract rather than an expected input.
+    await expect(
+      buildPlate3mf(
+        [at("a", 4, 4, {}, "Hex-TB-Main"), at("a", 20, 4, {}, "Hex-TB-Spare")],
+        SOURCES,
+      ),
+    ).rejects.toThrow(/named both/);
   });
 
   it("translates a placement to its minimum corner and seats it on the bed", async () => {

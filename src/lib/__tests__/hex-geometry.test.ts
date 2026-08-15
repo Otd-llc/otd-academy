@@ -8,11 +8,20 @@
 // because the meshes live in a sibling repo that never ships with the app.
 import { describe, expect, it } from "vitest";
 
-import { HEX_GEOMETRY_RELEASE, HEX_PART_BOX } from "@/lib/hex-geometry";
+import {
+  HEX_GEOMETRY_RELEASE,
+  HEX_PART_BOX,
+  HEX_PART_NAME,
+} from "@/lib/hex-geometry";
 import { BED_MIN } from "@/lib/hex-pack";
 import { HEX_PART_SLUGS } from "@/lib/hex-parts";
 import { PLATE_GAP } from "@/lib/hex-plate";
 import { HEX_RELEASE } from "@/lib/hex-spec";
+// THE REAL uploader transform, imported rather than re-typed. A local copy of
+// `slug()` here would agree with itself forever: the whole assertion is that the
+// generator's spelling of that transform still matches the one that mints the R2
+// keys, and a second copy is a third spelling that could drift from both.
+import { slug } from "@/lib/r2";
 
 describe("the geometry table", () => {
   it("covers every published slug", () => {
@@ -68,6 +77,45 @@ describe("the geometry table", () => {
       for (const axis of ["x0", "y0", "z0"] as const) {
         expect(Number.isFinite(box[axis]), `${slug}.${axis}`).toBe(true);
       }
+    }
+  });
+
+  it("names every part it has a box for, and no others", () => {
+    // Two tables generated from one pass over one directory, so they can only
+    // disagree if the generator was edited into disagreeing with itself -- but a
+    // box with no name is exactly the shape that tempts a caller into falling
+    // back to the slug, and a name with no box is a part the packer will never
+    // be asked to place. Held from BOTH sides, and against HEX_PART_SLUGS too,
+    // so a slug can go missing from either table and still be caught.
+    expect(Object.keys(HEX_PART_NAME).sort()).toEqual(
+      Object.keys(HEX_PART_BOX).sort(),
+    );
+    for (const s of HEX_PART_SLUGS) {
+      expect(HEX_PART_NAME[s], `no name for ${s}`).toBeTruthy();
+    }
+  });
+
+  it("gives every part the name its own R2 key was derived from", () => {
+    // THE INVARIANT THAT TIES THE TWO TOGETHER. The mesh is fetched by the KEY
+    // and the object is labelled with the NAME, and the only thing making those
+    // the same part is that the generator read them off one filename. Nothing
+    // downstream can check it: `Hex-TB-Main` and `Hex-TB-Spare` are equally
+    // plausible labels on a mesh fetched as `hex-tb-main`, and a plate carrying
+    // the wrong one opens perfectly and prints the wrong thing.
+    //
+    // Run through `slug()` from `@/lib/r2` -- the function that actually mints
+    // the published keys -- rather than through the generator's own copy of that
+    // transform, so a divergence between the two fails HERE instead of at a
+    // stranger's printer. That is a live risk rather than a theoretical one: the
+    // generator cannot import `slug()` (it would drag in `@/env` and validate
+    // the whole server environment to measure a directory of meshes), so a copy
+    // is unavoidable and this is what holds it honest.
+    //
+    // A re-cut that renamed `Hex-TB-Main.3mf` to `Hex_TB_Main.3mf` keeps the
+    // same slug and changes the name -- fine, and this passes. One that paired a
+    // name with someone else's row does not.
+    for (const [key, name] of Object.entries(HEX_PART_NAME)) {
+      expect(slug(name), `${key} is named ${name}`).toBe(key);
     }
   });
 

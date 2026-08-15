@@ -12,11 +12,24 @@ import {
   PlatePackError,
   PLATE_GAP,
   type PackInput,
+  type PartBox,
   type Placement,
   type PlatePackFailure,
 } from "@/lib/hex-plate";
 
 const box = (dx: number, dy: number) => ({ x0: 0, y0: 0, z0: 0, dx, dy, dz: 10 });
+
+/** A pack line. `name` defaults to the slug so the layout tests below read
+ *  exactly as they did -- the packer moves the name and never reads it, so a
+ *  distinct one would be noise in twenty assertions that are about geometry.
+ *  The two tests that ARE about the name pass one explicitly, and they are the
+ *  ones that would catch a packer reaching for the wrong field. */
+const part = (
+  slug: string,
+  qty: number,
+  b: Readonly<PartBox>,
+  name = slug,
+): PackInput => ({ slug, name, qty, box: b });
 
 const BED = { x: 220, y: 220 };
 
@@ -26,9 +39,9 @@ const BED = { x: 220, y: 220 };
  *  90s AND a 60, which is the only arrangement that can catch a shelf height
  *  tracking the LAST part placed instead of the DEEPEST. */
 const MIXED: PackInput[] = [
-  { slug: "tall", qty: 2, box: box(60, 90) },
-  { slug: "mid", qty: 4, box: box(50, 60) },
-  { slug: "short", qty: 6, box: box(60, 30) },
+  part("tall", 2, box(60, 90)),
+  part("mid", 4, box(50, 60)),
+  part("short", 6, box(60, 30)),
 ];
 
 /** The reason a call failed, or `"no-throw"`.
@@ -84,24 +97,24 @@ function expectInside(plates: readonly Placement[][], bed: { x: number; y: numbe
 
 describe("packing", () => {
   it("puts everything on one plate when it fits", () => {
-    const plates = packPlates([{ slug: "a", qty: 3, box: box(50, 50) }], BED);
+    const plates = packPlates([part("a", 3, box(50, 50))], BED);
     expect(plates).toHaveLength(1);
     expect(plates[0]).toHaveLength(3);
   });
 
   it("expands quantity into that many placements", () => {
-    const plates = packPlates([{ slug: "a", qty: 4, box: box(20, 20) }], BED);
+    const plates = packPlates([part("a", 4, box(20, 20))], BED);
     expect(plates.flat().map((p) => p.slug)).toEqual(["a", "a", "a", "a"]);
   });
 
   it("opens a new plate when the bed is full", () => {
     // Nine 100x100 parts cannot share a 220 bed: four per plate at most.
-    const plates = packPlates([{ slug: "a", qty: 9, box: box(100, 100) }], BED);
+    const plates = packPlates([part("a", 9, box(100, 100))], BED);
     expect(plates.length).toBeGreaterThan(2);
   });
 
   it("leaves a nozzle path between neighbours on the same plate", () => {
-    expectSeparated(packPlates([{ slug: "a", qty: 12, box: box(60, 40) }], BED));
+    expectSeparated(packPlates([part("a", 12, box(60, 40))], BED));
   });
 
   it("keeps rows apart when one row holds parts of different depths", () => {
@@ -125,7 +138,7 @@ describe("packing", () => {
   });
 
   it("keeps every placement inside the bed, margin included", () => {
-    expectInside(packPlates([{ slug: "a", qty: 20, box: box(37, 53) }], BED), BED);
+    expectInside(packPlates([part("a", 20, box(37, 53))], BED), BED);
   });
 
   it("accepts exactly the plate cap and refuses one item more", () => {
@@ -145,7 +158,7 @@ describe("packing", () => {
     // MAX_PLATES they would move with it, and a cap of 1000 would pass this with
     // 4000 items.
     expect(MAX_PLATES).toBe(20);
-    const at = packPlates([{ slug: "a", qty: 80, box: box(100, 100) }], BED);
+    const at = packPlates([part("a", 80, box(100, 100))], BED);
     expect(at).toHaveLength(MAX_PLATES);
     expect(at.flat()).toHaveLength(80);
     expectSeparated(at);
@@ -153,7 +166,7 @@ describe("packing", () => {
     // One item more, not one plate more: the boundary is crossed by the smallest
     // step a caller can take.
     expect(
-      reasonOf(() => packPlates([{ slug: "a", qty: 81, box: box(100, 100) }], BED)),
+      reasonOf(() => packPlates([part("a", 81, box(100, 100))], BED)),
     ).toBe("too-many-plates");
   });
 
@@ -161,7 +174,7 @@ describe("packing", () => {
     // The parameter as well as the constant -- the route may lower it, and A7
     // reads the reason to choose a status code.
     expect(() =>
-      packPlates([{ slug: "a", qty: 250, box: box(88, 78) }], { x: 100, y: 100 }, 20),
+      packPlates([part("a", 250, box(88, 78))], { x: 100, y: 100 }, 20),
     ).toThrow(/plate/i);
   });
 
@@ -185,6 +198,7 @@ describe("packing", () => {
     const input: PackInput[] = [
       {
         slug: "a",
+        name: "a",
         qty: 100_000,
         get box() {
           reads++;
@@ -204,7 +218,7 @@ describe("packing", () => {
     // it, and that is a fault worth hearing about rather than rounding away.
     for (const qty of [2.5, 0, -1, NaN, Infinity]) {
       expect(
-        reasonOf(() => packPlates([{ slug: "a", qty, box: box(50, 50) }], BED)),
+        reasonOf(() => packPlates([part("a", qty, box(50, 50))], BED)),
         `qty ${qty}`,
       ).toBe("bad-quantity");
     }
@@ -226,10 +240,10 @@ describe("packing", () => {
       ["+Infinity dx", Infinity, 40],
       ["+Infinity dy", 40, Infinity],
     ];
-    for (const [name, dx, dy] of bad) {
+    for (const [label, dx, dy] of bad) {
       expect(
-        reasonOf(() => packPlates([{ slug: "a", qty: 1, box: box(dx, dy) }], BED)),
-        name,
+        reasonOf(() => packPlates([part("a", 1, box(dx, dy))], BED)),
+        label,
       ).toBe("part-too-large");
     }
   });
@@ -238,10 +252,7 @@ describe("packing", () => {
     // The response is cached per URL, so the same request must produce the same
     // bytes. A Map iteration order or a sort that is not total would break this
     // silently and only for some users.
-    const input = [
-      { slug: "a", qty: 2, box: box(40, 40) },
-      { slug: "b", qty: 3, box: box(35, 60) },
-    ];
+    const input = [part("a", 2, box(40, 40)), part("b", 3, box(35, 60))];
     expect(JSON.stringify(packPlates(input, BED))).toBe(
       JSON.stringify(packPlates(input, BED)),
     );
@@ -261,8 +272,8 @@ describe("packing", () => {
     // breaks: under th-TH `"tray-lid".localeCompare("traylid")` is 0, so a
     // locale-sensitive tiebreak is not a total order at all on a host set that
     // way. An "a"/"b" pair cannot express that.
-    const a = { slug: "tray-lid", qty: 1, box: box(50, 40) };
-    const b = { slug: "traylid", qty: 1, box: box(30, 40) };
+    const a = part("tray-lid", 1, box(50, 40));
+    const b = part("traylid", 1, box(30, 40));
     expect(JSON.stringify(packPlates([a, b], BED))).toBe(
       JSON.stringify(packPlates([b, a], BED)),
     );
@@ -286,10 +297,57 @@ describe("packing", () => {
       packPlates(input, BED)
         .flat()
         .map((p) => p.slug);
-    const a = { slug: "Z-cap", qty: 1, box: box(50, 40) };
-    const b = { slug: "a-cap", qty: 1, box: box(30, 40) };
+    const a = part("Z-cap", 1, box(50, 40));
+    const b = part("a-cap", 1, box(30, 40));
     expect(order([a, b])).toEqual(["Z-cap", "a-cap"]);
     expect(order([b, a])).toEqual(["Z-cap", "a-cap"]);
+  });
+
+  it("carries the published name onto every placement it makes", () => {
+    // The name is the ONE thing the packer cannot reconstruct and the writer
+    // cannot do without: a slug is a lossy projection of the published filename,
+    // so a placement that arrives without a name leaves the 3MF writer nothing
+    // to put on the `<object>` but the slug -- which is exactly the object list
+    // the reference plate does NOT have.
+    //
+    // Asserted on EVERY placement, not the first, and across a quantity: the
+    // expansion pushes the same input object N times and the placement is built
+    // field by field, so a name dropped on the second instance is invisible in a
+    // qty-1 test.
+    const plates = packPlates(
+      [
+        part("hex-tb-main", 2, box(88, 76), "Hex-TB-Main"),
+        part("dovetail-cap-single-f-solid", 1, box(37, 25), "Dovetail-Cap-Single-F-Solid"),
+      ],
+      BED,
+    );
+    expect(plates.flat().map((p) => [p.slug, p.name])).toEqual([
+      ["hex-tb-main", "Hex-TB-Main"],
+      ["hex-tb-main", "Hex-TB-Main"],
+      ["dovetail-cap-single-f-solid", "Dovetail-Cap-Single-F-Solid"],
+    ]);
+  });
+
+  it("breaks ties by the slug, not by the published name", () => {
+    // The tiebreak is what makes the order TOTAL, and it has to be built on the
+    // field that identifies the mesh. Every other test here passes a name equal
+    // to its slug, so a comparator switched to `a.name < b.name` sails through
+    // all of them -- and then re-orders every plate the day a re-cut renames a
+    // file without changing its slug, silently changing the bytes at a cached
+    // URL.
+    //
+    // The names are the REVERSE order of the slugs, so the two rules disagree
+    // rather than merely differing: by slug it is a-then-z, by name z-then-a.
+    // Equal depths, because a tie is the only case where the tiebreak is read at
+    // all, and different widths so the two orders are visible in the layout.
+    const a = part("a-cap", 1, box(50, 40), "Z-Cap");
+    const z = part("z-cap", 1, box(30, 40), "A-Cap");
+    const order = (input: PackInput[]) =>
+      packPlates(input, BED)
+        .flat()
+        .map((p) => p.slug);
+    expect(order([a, z])).toEqual(["a-cap", "z-cap"]);
+    expect(order([z, a])).toEqual(["a-cap", "z-cap"]);
   });
 
   it("keeps the gap wide enough for a nozzle path", () => {
@@ -318,17 +376,17 @@ describe("packing", () => {
     // half could be deleted outright and the suite would stay green -- shipping a
     // plate with an over-tall part hanging off its far edge.
     const tooWide = () =>
-      packPlates([{ slug: "a", qty: 1, box: box(200, 20) }], { x: 100, y: 100 });
+      packPlates([part("a", 1, box(200, 20))], { x: 100, y: 100 });
     expect(tooWide).toThrow(PlatePackError);
     expect(tooWide).toThrow(/cannot fit/);
     expect(reasonOf(tooWide)).toBe("part-too-large");
 
     const tooTall = () =>
-      packPlates([{ slug: "a", qty: 1, box: box(20, 200) }], { x: 100, y: 100 });
+      packPlates([part("a", 1, box(20, 200))], { x: 100, y: 100 });
     expect(reasonOf(tooTall)).toBe("part-too-large");
 
     const tooMany = () =>
-      packPlates([{ slug: "a", qty: 250, box: box(88, 78) }], { x: 100, y: 100 }, 20);
+      packPlates([part("a", 250, box(88, 78))], { x: 100, y: 100 }, 20);
     expect(tooMany).toThrow(PlatePackError);
     expect(reasonOf(tooMany)).toBe("too-many-plates");
   });

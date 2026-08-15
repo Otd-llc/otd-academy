@@ -22,6 +22,10 @@
 // the hex-cluster manifest, which is the same geometry taken from the FreeCAD
 // solid rather than from the mesh. A table that agrees with itself and with
 // nothing else cannot get committed.
+//
+// The second table is the published SPELLING of each part, which the 3MF writer
+// puts on the `<object>` so a slicer's object list reads `Hex-TB-Main` rather
+// than `hex-tb-main`. It is recoverable at generation time and nowhere else.
 import type { PartBox } from "@/lib/hex-plate";
 
 /** The mesh release these boxes were measured from.
@@ -85,4 +89,75 @@ export const HEX_PART_BOX: Record<string, PartBox> = {
   "hex-tb-spike-platform-lrg": { x0: -40, y0: 22.572, z0: 0, dx: 36, dy: 31.177, dz: 26.5 },
   "hex-tb-spike-platform-sm": { x0: -32, y0: 29.5, z0: 0, dx: 20, dy: 17.321, dz: 26.5 },
   "hex-tb-spike-solid": { x0: 0, y0: -40.91, z0: 0, dx: 25, dy: 6.725, dz: 7.765 },
+};
+
+/** The PUBLISHED spelling of each part -- what a slicer shows in its object list
+ *  once a plate is opened.
+ *
+ *  Kept here because this is the only place it survives. The slug is a LOSSY
+ *  projection of the filename (lowercased, with everything outside
+ *  `[a-z0-9.-]` collapsed to a hyphen), so `hex-tb-main` cannot be turned back
+ *  into `Hex-TB-Main` by any rule -- only looked up. Measured against the
+ *  known-good reference plate: all 15 names survive a Creality Print round trip,
+ *  and carrying them is the whole argument for 3MF over STL.
+ *
+ *  A SEPARATE table rather than a field on the box, because `PartBox` is the
+ *  geometry the packer needs and a name is not geometry. Sharing a row would not
+ *  protect the pairing anyway -- a wrong name in the right row is still a wrong
+ *  name. What protects it is the guard test that runs every name back through
+ *  the R2 uploader's own `slug()` and insists it lands on its own key. */
+export const HEX_PART_NAME: Record<string, string> = {
+  "dovetail-cap-double-f-1h": "Dovetail-Cap-Double-F-1H",
+  "dovetail-cap-double-f-2h": "Dovetail-Cap-Double-F-2H",
+  "dovetail-cap-double-f-3h": "Dovetail-Cap-Double-F-3H",
+  "dovetail-cap-double-f-solid": "Dovetail-Cap-Double-F-Solid",
+  "dovetail-cap-double-m-1h": "Dovetail-Cap-Double-M-1H",
+  "dovetail-cap-double-m-2h": "Dovetail-Cap-Double-M-2H",
+  "dovetail-cap-double-m-3h": "Dovetail-Cap-Double-M-3H",
+  "dovetail-cap-double-m-solid": "Dovetail-Cap-Double-M-Solid",
+  "dovetail-cap-single-f-1h": "Dovetail-Cap-Single-F-1H",
+  "dovetail-cap-single-f-solid": "Dovetail-Cap-Single-F-Solid",
+  "dovetail-cap-single-m-1h": "Dovetail-Cap-Single-M-1H",
+  "dovetail-cap-single-m-solid": "Dovetail-Cap-Single-M-Solid",
+  "hex-tb-carrier-bot-parts-tray": "Hex-TB-Carrier-Bot-Parts-Tray",
+  "hex-tb-carrier-bot-parts-tray-lid": "Hex-TB-Carrier-Bot-Parts-Tray-Lid",
+  "hex-tb-carrier-bot-solid": "Hex-TB-Carrier-Bot-Solid",
+  "hex-tb-carrier-left-parts-tray": "Hex-TB-Carrier-Left-Parts-Tray",
+  "hex-tb-carrier-left-parts-tray-lid": "Hex-TB-Carrier-Left-Parts-Tray-Lid",
+  "hex-tb-carrier-left-solid": "Hex-TB-Carrier-Left-Solid",
+  "hex-tb-carrier-parts-tray": "Hex-TB-Carrier-Parts-Tray",
+  "hex-tb-carrier-parts-tray-lid": "Hex-TB-Carrier-Parts-Tray-Lid",
+  "hex-tb-carrier-right-parts-tray": "Hex-TB-Carrier-Right-Parts-Tray",
+  "hex-tb-carrier-right-parts-tray-lid": "Hex-TB-Carrier-Right-Parts-Tray-Lid",
+  "hex-tb-carrier-right-solid": "Hex-TB-Carrier-Right-Solid",
+  "hex-tb-carrier-solid": "Hex-TB-Carrier-Solid",
+  "hex-tb-carrier-top-parts-tray": "Hex-TB-Carrier-Top-Parts-Tray",
+  "hex-tb-carrier-top-parts-tray-lid": "Hex-TB-Carrier-Top-Parts-Tray-Lid",
+  "hex-tb-carrier-top-solid": "Hex-TB-Carrier-Top-Solid",
+  "hex-tb-corner-f-solid": "Hex-TB-Corner-F-Solid",
+  "hex-tb-corner-m-solid": "Hex-TB-Corner-M-Solid",
+  "hex-tb-half-bot-1h": "Hex-TB-Half-Bot-1H",
+  "hex-tb-half-bot-2h": "Hex-TB-Half-Bot-2H",
+  "hex-tb-half-bot-3h": "Hex-TB-Half-Bot-3H",
+  "hex-tb-half-bot-solid": "Hex-TB-Half-Bot-Solid",
+  "hex-tb-half-left-1h": "Hex-TB-Half-Left-1H",
+  "hex-tb-half-left-2h": "Hex-TB-Half-Left-2H",
+  "hex-tb-half-left-3h": "Hex-TB-Half-Left-3H",
+  "hex-tb-half-left-solid": "Hex-TB-Half-Left-Solid",
+  "hex-tb-half-right-1h": "Hex-TB-Half-Right-1H",
+  "hex-tb-half-right-2h": "Hex-TB-Half-Right-2H",
+  "hex-tb-half-right-3h": "Hex-TB-Half-Right-3H",
+  "hex-tb-half-right-solid": "Hex-TB-Half-Right-Solid",
+  "hex-tb-half-top-1h": "Hex-TB-Half-Top-1H",
+  "hex-tb-half-top-2h": "Hex-TB-Half-Top-2H",
+  "hex-tb-half-top-3h": "Hex-TB-Half-Top-3H",
+  "hex-tb-half-top-solid": "Hex-TB-Half-Top-Solid",
+  "hex-tb-main": "Hex-TB-Main",
+  "hex-tb-spike-ball-joint": "Hex-TB-Spike-Ball-Joint",
+  "hex-tb-spike-ball-platform-solid": "Hex-TB-Spike-Ball-Platform-Solid",
+  "hex-tb-spike-ball-zip-1h": "Hex-TB-Spike-Ball-Zip-1H",
+  "hex-tb-spike-ball-zip-single": "Hex-TB-Spike-Ball-Zip-Single",
+  "hex-tb-spike-platform-lrg": "Hex-TB-Spike-Platform-Lrg",
+  "hex-tb-spike-platform-sm": "Hex-TB-Spike-Platform-Sm",
+  "hex-tb-spike-solid": "Hex-TB-Spike-Solid",
 };

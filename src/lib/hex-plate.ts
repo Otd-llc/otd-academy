@@ -62,12 +62,25 @@ export const PLATE_GAP = 4;
  *  or normalisation written through a placement would edit the shared table and
  *  change the geometry for every later request on that instance. `hex-pack.ts`
  *  freezes `DEFAULT_BED` against exactly this hazard; this is the compile-time
- *  half of the same idea, at no runtime cost. */
-export type PackInput = { slug: string; qty: number; box: Readonly<PartBox> };
+ *  half of the same idea, at no runtime cost.
+ *
+ *  `name` is the PUBLISHED spelling (`Hex-TB-Main`), carried because nothing
+ *  downstream can recover it: the slug is a lossy projection of the filename, so
+ *  a writer holding only `hex-tb-main` has to either invent a capitalisation or
+ *  ship the slug. It is inert here -- the packer moves it, never reads it -- but
+ *  it is REQUIRED rather than optional, because the whole point is that a
+ *  caller cannot quietly fall back to the slug. */
+export type PackInput = {
+  slug: string;
+  name: string;
+  qty: number;
+  box: Readonly<PartBox>;
+};
 
 /** A placed part: `x`/`y` are the MINIMUM corner on the bed, not the centre. */
 export type Placement = {
   slug: string;
+  name: string;
   box: Readonly<PartBox>;
   x: number;
   y: number;
@@ -213,6 +226,13 @@ export function packPlates(
   // build spelled two ways -- so two people with the identical build would get
   // byte-different files, and each spelling would hold its own cache entry.
   //
+  // Broken on the SLUG, not on the display name, and the two are not the same
+  // order: `dovetail-cap-single-f-solid` and `Dovetail-Cap-Single-F-Solid` sort
+  // together only by accident, and a capital letter precedes every lowercase one
+  // by code unit. Sorting on the name would reorder every plate the day a re-cut
+  // renamed a file without changing its slug -- and the slug is what identifies
+  // the mesh, so it is what the total order has to be built on.
+  //
   // Compared by CODE UNIT, not by `localeCompare`. That reads the host's default
   // ICU locale, which is ambient state this module has no say in and which the
   // deployment can change underneath it -- and in several locales punctuation is
@@ -270,7 +290,7 @@ export function packPlates(
         `this build needs more than ${maxPlates} plates on a ${bed.x}x${bed.y} bed`,
       );
     }
-    plate.push({ slug: it.slug, box: it.box, x: cx, y: cy });
+    plate.push({ slug: it.slug, name: it.name, box: it.box, x: cx, y: cy });
     cx += dx + PLATE_GAP;
     // The TALLEST part in the row, not the last one. A row is a shelf: the next
     // row has to clear whatever is deepest on this one, so tracking only the
