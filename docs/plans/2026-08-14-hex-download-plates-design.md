@@ -120,9 +120,23 @@ resolveBedSize()
 ```
 
 Writes always hit both: picking in the export bar writes localStorage and, if signed in,
-the account. On sign-in, a local value is promoted once if the account has none. If both
-exist and disagree the account wins, and the picker says *"from your account"* in small
-text so the "220 here, 350 there" support question answers itself on screen.
+the account. On sign-in, a local value is promoted once if the account has none — and
+**that condition is checked at the database, not on the wire.** The configurator cannot
+check it. `Ready.bed` is optional and an absent one means *"no answer"*, which covers a
+signed-out visitor, an account with nothing stored, **and** an account read still in
+flight — `HexConfiguratorFrame` deliberately does not await `getPrintBed()`, so the panel
+never waits on a round trip, and a cold Neon wake takes seconds. Those are one wire state,
+so any child-side rule for separating them is a timer, and a read slower than the timer
+overwrites a bed the visitor set on another device.
+
+So the promotion rides its own message, `promote-bed`, and its write is a single
+conditional statement: store **only if both columns are still null**. The first
+implementation used a 4-second grace window in the configurator, cancelled by any inbound
+bed; that converted the race into a wait without removing it. See "The security property
+this feature changed" below.
+
+If both exist and disagree the account wins, and the picker says *"from your account"* in
+small text so the "220 here, 350 there" support question answers itself on screen.
 
 Because the value lives in two stores, **every read goes through that one function**.
 Nothing reads a store directly.
@@ -357,13 +371,16 @@ Unresolved and no longer load-bearing: the tester said *Creality Cloud*, the web
 cloud-slicing path, which is a different code path from the Creality Print desktop build
 all of this was measured against. Worth asking him, but nothing depends on the answer now.
 
-## The one security property this feature changed
+## The security property this feature changed
 
 `src/lib/hex-embed-protocol.ts` stated, as rule 3 of its own model, that **no message
-performs a write**. `bed-changed` writes: a bed chosen inside the configurator persists to
-the signed-in user's account.
+performs a write**. Two messages now write, and both write the same place: the two integer
+columns holding this visitor's print bed.
 
-That was a deliberate widening, and it is bounded on purpose:
+### `bed-changed` — the unconditional write
+
+A bed chosen inside the configurator persists to the signed-in user's account. That was a
+deliberate widening, and it is bounded on purpose:
 
 - the value is validated against `BED_MIN`/`BED_MAX`, the same bounds the endpoint and the
   settings action use, imported rather than restated;
@@ -375,10 +392,79 @@ That was a deliberate widening, and it is bounded on purpose:
 Worst case is a peer that has already cleared both gates setting a victim's bed to another
 legal bed. Reversible, non-destructive, and self-evident the next time they download.
 
+### `promote-bed` — the conditional write, and why the wire could not do this job
+
+The promotion above (§2) needs one fact the protocol cannot state: *does this account have
+a bed?* An absent `Ready.bed` is documented as "no answer", which merges "signed out",
+"nothing stored" and "the read has not landed yet" into one wire state on purpose — the
+child has to fall back to its own store in all three cases. The first implementation
+therefore promoted after a **4-second grace window**, cancelled by any inbound bed. That is
+a timing guess, not a rule: an account read slower than the window still clobbered a bed
+the visitor had deliberately set on another device, and the failure is silent, remote in
+time from its cause, and looks to the user like the setting "did not save".
+
+`promote-bed` says instead: *"this browser has a local bed and believes the account has
+none; store it only if that is true."* The academy evaluates the belief where it is
+knowable. `promotePrintBed` puts the condition in the `where`, which Prisma compiles to one
+statement:
+
+```sql
+UPDATE "public"."User" SET "printBedXMm" = $1, "printBedYMm" = $2
+ WHERE "id" = $3 AND "printBedXMm" IS NULL AND "printBedYMm" IS NULL
+```
+
+No read-then-write, so there is no window between deciding and writing. Under Postgres READ
+COMMITTED, a concurrent `UPDATE` of the same row blocks on the row lock and then
+re-evaluates that `WHERE` against the committed new version, so a second tab matches zero
+rows instead of overwriting the first. `count` is the answer, and it is returned to the
+caller rather than inferred.
+
+**What bounds it.** Everything that bounds `bed-changed`, plus a precondition — it is
+strictly the weaker of the two:
+
+- identical validation. `promote-bed` shares `parseMessage`'s `isBed` branch with `set-bed`
+  and `bed-changed`, and `promotePrintBed` re-validates with the same `normalizeBed` the
+  settings action uses. A promotion held to looser numbers would be a second, weaker door
+  into the same two columns;
+- it can only ever turn NULL into a legal bed. It cannot change a value, and `null` is
+  refused rather than treated as a clear, so the wire has no spelling for the one
+  destructive operation these columns have;
+- **both** columns null, not either: a half-null row is corrupt, and a cross-origin message
+  does not get to decide how to repair it;
+- the frame offers it once per page-load and drops a repeat, so it cannot be pumped;
+- a decline posts nothing back to the child, so `accountBed` keeps its single writer and no
+  inbound value reaches the path that posts `set-bed` out.
+
+Worst case is *strictly smaller* than `bed-changed`'s: a peer that has cleared both gates
+can set a bed on an account that had none — a state the visitor could reach by opening the
+picker, and one the account read would have overwritten anyway on the next signed-in visit.
+
 **Where the exception stops.** Nothing that creates a row, spends a quota, sends mail, or
 touches another person's data may ride this channel. If a future message wants any of
-those, it does not get to cite this precedent — the reasoning above turns on the write
+those, it does not get to cite either precedent — the reasoning above turns on the write
 being a single bounded integer pair on the sender's own account.
+
+And `promote-bed` specifically does **not** widen the precedent to "conditional writes are
+fine". It is admissible because the *unconditional* version of the same write was already
+admissible; the condition only removes reach. A conditional write to anything rule 3 still
+forbids is forbidden, and a message whose safety argument depends on its condition — rather
+than surviving without it — is a message that has not made the case.
+
+**Deploy order, and what is still open.** The academy half (the message, the conditional
+action, the frame wiring) is the receiver. The configurator half — deleting
+`PROMOTION_GRACE_MS` and sending `promote-bed` instead of a `bed-changed` — ships from
+`bioscale-viz` separately, and **until it does the race is still live**, because the child
+is still promoting through the unconditional path. Nothing regresses in the meantime: an
+academy that receives no `promote-bed` never promotes, and a configurator that sends one to
+an academy that predates it loses only the promotion. But this is not closed until the
+child stops guessing.
+
+**`PROTOCOL_VERSION` stays 1.** Adding a message type is additive by construction here: a
+peer that predates the type drops it in `parseMessage`'s `default`, so an academy that has
+not deployed this simply never promotes, and the child's local bed keeps laying out its own
+downloads. Bumping would make every message that still works unreadable to the new peer, in
+order to announce one the old peer would have safely ignored. The same reasoning `hello`
+shipped under, now with a test pinning the literal.
 
 ## Not in scope
 
