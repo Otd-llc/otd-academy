@@ -1,4 +1,4 @@
-// Deciding what goes in a custom pack, and what the request is allowed to ask
+﻿// Deciding what goes in a custom pack, and what the request is allowed to ask
 // for. Separated from the route so it can be unit-tested directly: a Next route
 // module may only export the handler names, and this is the part with rules.
 
@@ -28,29 +28,68 @@ export type PackPart = { slug: string; qty: number };
  *
  * MAX_PACK_PARTS bounds how many DISTINCT parts are named, which is what bounds
  * the R2 reads. It does not bound the work any more, because a quantity costs no
- * extra read but does cost an `<item>` line and a slot on a plate. Without this a
- * single `hex-tb-main:99999` turns one read into an unbounded document and an
- * unbounded number of plates.
+ * extra read but does cost an `<item>` line and a slot on a plate. This bounds
+ * exactly those two: the number of items, and therefore the SIZE of the document
+ * a single cheap GET can demand.
+ *
+ * It does NOT bound the PLATE COUNT, and the two are three orders of magnitude
+ * apart: 250 of the largest part (87.8 x 78 mm) is 63 plates on the default 220
+ * bed and 250 plates on a 100 mm one, each a separate 3MF carrying its own full
+ * copy of the mesh. That cap belongs at the route (Task A7), which is the first
+ * place both facts are in hand, and it has to run BEFORE any R2 read or the
+ * refusal costs more than the work it refuses. It cannot live here because it
+ * needs the per-part geometry table, which does not exist yet (Task A3).
  */
 export const MAX_PACK_INSTANCES = 250;
 
-/** A part token: a slug, optionally `:n`. `\d+` is deliberate -- it excludes a
- *  sign and a decimal point, so a malformed quantity fails the SHAPE check and
- *  never reaches arithmetic that would round it into something plausible. */
-const PART_TOKEN = /^([a-z0-9][a-z0-9-]*)(?::(\d+))?$/;
+/** The SHAPE of a part slug, as the R2 keys spell it. Exported because the test
+ *  that holds this grammar and `HEX_PART_SLUGS` to the same idea of a slug must
+ *  IMPORT it rather than transcribe it: a second copy agrees with itself forever
+ *  while the real one drifts, and the symptom is a published part the endpoint
+ *  refuses to name. One source string, both regexes. */
+const SLUG_SRC = "[a-z0-9][a-z0-9-]*";
+export const PART_SLUG_RE = new RegExp(`^${SLUG_SRC}$`);
+
+/** A part token: a slug, optionally `:n`.
+ *
+ *  `\d` is deliberate -- it excludes a sign and a decimal point, so a malformed
+ *  quantity fails the SHAPE check and never reaches arithmetic that would round
+ *  it into something plausible.
+ *
+ *  `{1,3}` is deliberate too, for the same reason `BED_RE` bounds its own digits.
+ *  `:0007` is seven and `:000...1` is one, so unbounded digits mean unbounded
+ *  SPELLINGS of one pack -- and the response is cached `public, max-age=86400`
+ *  keyed on the URL, so every spelling is a fresh cache entry holding identical
+ *  bytes. Three digits covers every quantity `MAX_PACK_INSTANCES` can accept and
+ *  still leaves room to overshoot it, so a plausible over-ask is refused by the
+ *  cap (an honest `too-many`) rather than by the grammar. Raising that cap past
+ *  999 means widening this, or the regex silently becomes the real limit. */
+const PART_TOKEN = new RegExp(`^(${SLUG_SRC})(?::(\\d{1,3}))?$`);
 
 /** The bed a pack is laid out for, in millimetres. */
 export type Bed = { x: number; y: number };
 
 /** Ships when the caller names no bed. Small enough to be right on almost any
- *  printer; a larger bed only means fewer plates, never a failure. */
-export const DEFAULT_BED: Bed = { x: 220, y: 220 };
+ *  printer; a larger bed only means fewer plates, never a failure.
+ *
+ *  FROZEN, and handed out only as a copy (see `parseBed`). A resolved bed
+ *  travels on to the packer and the README, so a clamp or a normalisation added
+ *  downstream would otherwise write straight into this object and change the
+ *  default for every later request on the same warm serverless instance -- one
+ *  user's bed silently becoming everyone's. The freeze makes that attempt a
+ *  throw instead of a drift nobody can reproduce. */
+export const DEFAULT_BED: Readonly<Bed> = Object.freeze({ x: 220, y: 220 });
 
 /** Sane range for a consumer FDM bed. This is a LOOP BOUND and a CACHE KEY, not
  *  merely a typo check: the packer iterates rows across it, and the response is
- *  cached per URL. The floor is above the largest part (87.8 x 78 mm), so any
- *  accepted bed can hold every part in the set -- which is what lets the bed
- *  picker change the plate COUNT and never make a part unprintable.
+ *  cached per URL.
+ *
+ *  The floor clears the largest part PLUS the gap the packer keeps on both
+ *  sides: `87.8 + 2 * PLATE_GAP = 95.8 <= 100`. State it that way and not as
+ *  "above the largest part" -- the sloppy version reads as 12 mm of headroom
+ *  when there is 4.2, so a later widening of the gap looks free and is not. It
+ *  is that gap-inclusive invariant that lets the bed picker change the plate
+ *  COUNT and never make a part unprintable.
  *
  *  Exported because the account setting must validate against these exact
  *  numbers. A second copy of them somewhere else would drift, and the symptom
@@ -85,7 +124,9 @@ export type PackResolution =
  *  default is the conservative choice, so they get more plates rather than a
  *  refusal. */
 function parseBed(raw: string | null | undefined): Bed | null {
-  if (raw == null || raw === "") return DEFAULT_BED;
+  // A COPY, never the shared constant -- see the note on DEFAULT_BED. Returning
+  // the object itself would hand every caller the same mutable default.
+  if (raw == null || raw === "") return { ...DEFAULT_BED };
   const m = BED_RE.exec(raw);
   if (!m) return null;
   const x = Number(m[1]);

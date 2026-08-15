@@ -80,6 +80,16 @@ export async function GET(req: NextRequest) {
     // One file per DISTINCT part. Quantity rides in the request but does not
     // change this zip: a second copy of an identical mesh is bytes nobody needs.
     // It is the plated 3MF path that turns a quantity into repeated items.
+    //
+    // INCONSISTENT ON PURPOSE, AND ONLY UNTIL TASK A7. The grammar now accepts
+    // `slug:n`, so `?parts=hex-tb-main:6` gets a zip whose FILENAME says six
+    // parts (`packFilename` counts instances), whose README lists one, and whose
+    // contents hold one mesh. Three different answers to "how many". Nothing
+    // here is the intended end state -- A7 replaces this loop with the packer and
+    // the plated 3MF writer, at which point the quantity becomes real items on
+    // real plates and all three agree. Phase A ships as ONE PR, so this is never
+    // a state a user sees; do not "fix" it by making the filename lie the other
+    // way, and do not read it as a decision.
     for (const part of parts) {
       const buf = await getR2ObjectBytes(
         printableKey(release, format, part.slug, format),

@@ -9,8 +9,12 @@ import { describe, expect, it } from "vitest";
 import { HEX_PART_SLUGS, isHexPartSlug } from "@/lib/hex-parts";
 import { HEX_PART_COUNT } from "@/lib/hex-spec";
 import {
+  BED_MAX,
+  BED_MIN,
+  DEFAULT_BED,
   MAX_PACK_INSTANCES,
   MAX_PACK_PARTS,
+  PART_SLUG_RE,
   packFilename,
   packReadme,
   resolvePack,
@@ -29,7 +33,12 @@ describe("the published part list", () => {
   });
 
   it("is slugs, not part names -- these have to match the R2 keys", () => {
-    for (const s of HEX_PART_SLUGS) expect(s).toMatch(/^[a-z0-9][a-z0-9-]*$/);
+    // The pattern is IMPORTED, never transcribed. This test is the only thing
+    // holding the grammar and the membership list to the same idea of what a
+    // slug is; a local copy of the regex would agree with itself forever while
+    // the real one drifted, and the symptom would be a published part the pack
+    // endpoint refuses to name.
+    for (const s of HEX_PART_SLUGS) expect(s).toMatch(PART_SLUG_RE);
   });
 
   it("has no duplicates", () => {
@@ -134,8 +143,12 @@ describe("resolvePack", () => {
     });
   });
 
-  it("checks membership BEFORE size, so a spray is cheap to refuse", () => {
-    // Ordering matters: an unknown name must cost a set lookup, never a read.
+  it("refuses well-formed names that are not published parts", () => {
+    // These two pass the SHAPE check and are under both caps, so membership is
+    // the only thing that can refuse them -- which is the point: a grammar
+    // alone would let a caller spray plausible slugs and read existence off the
+    // response. That membership runs before any R2 work is a property of the
+    // ROUTE, not of this function, and there is no route test yet to assert it.
     const r = resolvePack({
       release: RELEASE,
       format: "3mf",
@@ -232,6 +245,30 @@ describe("quantities", () => {
     }
   });
 
+  it("refuses a quantity with more digits than the cap can ever accept", () => {
+    // `:0007` is seven and `:000...1` is one, so without a digit bound the same
+    // pack has unlimited spellings. The response is cached `max-age=86400` keyed
+    // on the URL, so each spelling is a fresh cache entry for identical bytes.
+    for (const q of ["0000000001", "1000", "00250"]) {
+      expect(resolvePack({ release: RELEASE, parts: `${ONE}:${q}` }).ok).toBe(
+        false,
+      );
+    }
+  });
+
+  it("accepts EXACTLY MAX_PACK_INSTANCES -- the cap is inclusive", () => {
+    // The rejection test below proves 251 is refused. Without this one, an
+    // off-by-one that refused 250 too would pass the whole suite.
+    const r = resolvePack({
+      release: RELEASE,
+      parts: `${ONE}:${MAX_PACK_INSTANCES}`,
+    });
+    expect(r.ok).toBe(true);
+    expect(r.ok && r.request.parts).toEqual([
+      { slug: ONE, qty: MAX_PACK_INSTANCES },
+    ]);
+  });
+
   it("refuses more than MAX_PACK_INSTANCES total items", () => {
     const r = resolvePack({
       release: RELEASE,
@@ -248,9 +285,43 @@ describe("the bed", () => {
     expect(r.ok && r.request.bed).toEqual({ x: 220, y: 220 });
   });
 
+  it("hands out a COPY of the default, never the shared constant", () => {
+    // Two requests must not share one object. The resolved bed travels on to the
+    // packer and the README, so a clamp or a normalisation added downstream
+    // would otherwise write straight into the module-level default and change it
+    // for every later request on the same warm serverless instance -- one user's
+    // bed silently becoming everyone's, only under load, only in production.
+    const a = resolvePack({ release: RELEASE, parts: ONE });
+    const b = resolvePack({ release: RELEASE, parts: ONE });
+    expect(a.ok && b.ok).toBe(true);
+    if (!a.ok || !b.ok) return;
+    expect(a.request.bed).not.toBe(b.request.bed);
+    expect(a.request.bed).not.toBe(DEFAULT_BED);
+    expect(a.request.bed).toEqual(DEFAULT_BED);
+  });
+
+  it("freezes the default, so a regression is a throw and not a mystery", () => {
+    expect(Object.isFrozen(DEFAULT_BED)).toBe(true);
+  });
+
   it("reads WxH", () => {
     const r = resolvePack({ release: RELEASE, parts: ONE, plate: "350x350" });
     expect(r.ok && r.request.bed).toEqual({ x: 350, y: 350 });
+  });
+
+  it("accepts both ENDS of the range -- the bounds are inclusive", () => {
+    // The refusal list below only proves that values well outside the range are
+    // refused. A `<=` where a `<` belongs would turn the smallest legitimate bed
+    // into a 400 and still pass every other test here.
+    for (const n of [BED_MIN, BED_MAX]) {
+      const r = resolvePack({
+        release: RELEASE,
+        parts: ONE,
+        plate: `${n}x${n}`,
+      });
+      expect(r.ok).toBe(true);
+      expect(r.ok && r.request.bed).toEqual({ x: n, y: n });
+    }
   });
 
   it("refuses a bed outside the sane range, or a non-integer", () => {
@@ -258,6 +329,10 @@ describe("the bed", () => {
       "0x100",
       "100x0",
       "40x40",
+      // The two values one step outside each bound, so an off-by-one is caught
+      // from both directions rather than only by the far-away cases.
+      `${BED_MIN - 1}x${BED_MIN - 1}`,
+      `${BED_MAX + 1}x${BED_MAX + 1}`,
       "2000x2000",
       "350",
       "axb",
