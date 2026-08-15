@@ -241,6 +241,11 @@ git commit -m "feat(hex): accept a bed size on the pack request"
 
 ### Task A3: The part geometry table
 
+> **Run A4 before this one.** A3's guard test needs `PLATE_GAP`, and the generated table
+> is typed by `PartBox`; both live in `hex-plate.ts`, which A4 creates. A4 has no
+> dependency in the other direction — its tests build synthetic boxes — so the packer goes
+> first and the data conforms to it.
+
 Bounding boxes are needed to pack, and parsing 130,000 vertices per part per request is not
 an option. Generate a table once, commit it, and check it in CI the way the part-slug list
 is checked.
@@ -307,10 +312,7 @@ writeFileSync(
 // the mesh ships in: the minimum corner and the size, in millimetres. The packer
 // needs both -- the size to place, the minimum corner to turn a target position
 // into the translation that gets it there.
-export type PartBox = {
-  x0: number; y0: number; z0: number;
-  dx: number; dy: number; dz: number;
-};
+import type { PartBox } from "@/lib/hex-plate";
 
 export const HEX_PART_BOX: Record<string, PartBox> = {
 ${rows.join("\\n")}
@@ -342,13 +344,18 @@ describe("the geometry table", () => {
     for (const s of HEX_PART_SLUGS) expect(HEX_PART_BOX[s]).toBeDefined();
   });
 
-  it("has no part larger than the smallest bed we accept", () => {
+  it("has no part too large for the smallest bed we accept, margin included", () => {
     // The design leans on this: a bed picker changes the plate COUNT and can
     // never make a part unprintable. If a future part breaks it, that promise
     // needs revisiting, not this assertion relaxing.
+    //
+    // The margin is part of the invariant, not decoration. The packer throws
+    // when `size + 2 * PLATE_GAP` exceeds the bed, so a bare `< BED_MIN` check
+    // would pass a 95 mm part and then 500 on a 100 mm bed. Derived from the
+    // two constants rather than typed as a number, so it tracks them.
     for (const s of HEX_PART_SLUGS) {
       const b = HEX_PART_BOX[s];
-      expect(Math.max(b.dx, b.dy)).toBeLessThan(100);
+      expect(Math.max(b.dx, b.dy)).toBeLessThanOrEqual(BED_MIN - 2 * PLATE_GAP);
     }
   });
 });
@@ -424,6 +431,23 @@ describe("packing", () => {
     }
   });
 
+  it("refuses to exceed the plate cap", () => {
+    // THE REAL BOUND ON THIS ENDPOINT. MAX_PACK_INSTANCES caps items, not
+    // plates, and the two are far apart: 250 of the largest part is 63 plates
+    // on the default 220 bed and 250 plates on a 100 mm bed -- each one a
+    // separate 3MF document carrying its own full copy of the mesh, from a
+    // single unauthenticated GET. Throwing here lets the route answer 400
+    // before it reads anything from R2.
+    expect(() =>
+      packPlates([{ slug: "a", qty: 250, box: box(88, 78) }], { x: 100, y: 100 }, 20),
+    ).toThrow(/plate/i);
+  });
+
+  it("allows exactly the plate cap", () => {
+    const at = packPlates([{ slug: "a", qty: 80, box: box(100, 100) }], { x: 220, y: 220 }, 20);
+    expect(at.length).toBeLessThanOrEqual(20);
+  });
+
   it("is deterministic", () => {
     // The response is cached per URL, so the same request must produce the same
     // bytes. A Map iteration order or a sort that is not total would break this
@@ -453,8 +477,18 @@ describe("packing", () => {
 //
 // DETERMINISM IS A REQUIREMENT, not a nicety. The pack response is cached per
 // URL, so identical requests must produce identical bytes.
-import type { PartBox } from "@/lib/hex-geometry";
 import type { Bed } from "@/lib/hex-pack";
+
+/** Axis-aligned bounding box of a part in its shipped print orientation: the
+ *  minimum corner and the size, in millimetres.
+ *
+ *  Declared HERE rather than beside the generated table, so the dependency runs
+ *  one way: the generated data conforms to what the packer needs, and the packer
+ *  does not import generated output to describe its own input. */
+export type PartBox = {
+  x0: number; y0: number; z0: number;
+  dx: number; dy: number; dz: number;
+};
 
 /** Margin at the bed edge and between parts, in mm. Enough for a skirt line and
  *  a nozzle path between neighbours. */
@@ -464,7 +498,16 @@ export type PackInput = { slug: string; qty: number; box: PartBox };
 /** A placed part: `x`/`y` are the MINIMUM corner on the bed, not the centre. */
 export type Placement = { slug: string; box: PartBox; x: number; y: number };
 
-export function packPlates(input: PackInput[], bed: Bed): Placement[][] {
+/** Most plates one request may produce. See the cap test for the arithmetic:
+ *  the instance cap does NOT imply a plate cap, and the gap between them is
+ *  three orders of magnitude of response size. */
+export const MAX_PLATES = 20;
+
+export function packPlates(
+  input: PackInput[],
+  bed: Bed,
+  maxPlates: number = MAX_PLATES,
+): Placement[][] {
   // Expand quantities, then sort by depth descending so each shelf is as full as
   // it can be. Ties break on slug so the order is TOTAL and the output is stable.
   const items: PackInput[] = [];
@@ -498,6 +541,11 @@ export function packPlates(input: PackInput[], bed: Bed): Placement[][] {
       rowH = 0;
     }
     if (cy + dy + PLATE_GAP > bed.y) newPlate();
+    // Checked as plates are opened rather than after the fact, so an abusive
+    // request costs the loop it has already run and nothing more.
+    if (plates.length >= maxPlates) {
+      throw new Error(`this build needs more than ${maxPlates} plates on a ${bed.x}x${bed.y} bed`);
+    }
     plate.push({ slug: it.slug, box: it.box, x: cx, y: cy });
     cx += dx + PLATE_GAP;
     rowH = Math.max(rowH, dy);
@@ -761,7 +809,11 @@ git commit -m "feat(hex): a README that states the bed, the plates and the cavea
 **Behaviour:**
 
 - Read `plate` from the query; pass it to `resolvePack`.
-- Fetch each DISTINCT slug from R2 once, sequentially (keep the existing comment's
+- **Pack BEFORE reading anything from R2.** `packPlates` needs only the geometry table, so
+  the plate cap can be enforced without a single network call. A request over the cap
+  answers 400 having done pure arithmetic. Reading first and counting after would let one
+  GET pull 53 objects out of R2 before we decide to refuse it.
+- Then fetch each DISTINCT slug from R2 once, sequentially (keep the existing comment's
   reasoning), unzip, and keep the `3D/3dmodel.model` string in a `Map`.
 - `packPlates` → if one plate, respond with the bare `.3mf`; if more, build a zip of
   `plates/plate-N-of-M.3mf` plus `README.txt` and `LICENSE.txt`.
