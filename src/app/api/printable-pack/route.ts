@@ -1,4 +1,4 @@
-// Zip up just the parts someone selected in the configurator.
+// Hand someone the parts they configured, arranged for their printer's bed.
 //
 // WHY THIS EXISTS. The published set is 53 parts and 13.7 MB. Someone who
 // configured a three-tile cluster needs six of them, and the alternative to this
@@ -18,6 +18,15 @@
 // Traversal is structurally impossible: `resolvePack` checks each name for
 // MEMBERSHIP of the published list, and the keys are rebuilt by the same helpers
 // the uploader used. Nothing from the request reaches a key.
+//
+// TWO SHAPES OF RESPONSE, and which one you get is decided before any byte is
+// read:
+//
+//   3MF, current release  ->  the parts PLATED. One plate is a bare .3mf; more
+//                             than one is a zip of plates/ plus README and
+//                             LICENSE. Quantity becomes real repeated items.
+//   anything else         ->  the LOOSE zip, one file per distinct part, which
+//                             is what this route has always served.
 import type { NextRequest } from "next/server";
 import JSZip from "jszip";
 
@@ -25,12 +34,121 @@ import { capture } from "@/lib/analytics";
 import { env } from "@/env";
 import { getR2ObjectBytes } from "@/lib/part-r2";
 import { HEX_LICENSE } from "@/lib/hex-spec";
-import { packFilename, resolvePack } from "@/lib/hex-pack";
-import { packReadme } from "@/lib/hex-pack-readme";
+import {
+  HEX_GEOMETRY_RELEASE,
+  HEX_PART_BOX,
+  HEX_PART_NAME,
+} from "@/lib/hex-geometry";
+import {
+  packFilename,
+  packInstances,
+  platePath,
+  resolvePack,
+  type Bed,
+  type PackFormat,
+  type PackPart,
+} from "@/lib/hex-pack";
+import { packReadme, plateReadme } from "@/lib/hex-pack-readme";
+import { buildPlate3mf, ZIP_EPOCH } from "@/lib/hex-3mf";
+import {
+  packPlates,
+  PlatePackError,
+  type PackInput,
+  type Placement,
+} from "@/lib/hex-plate";
 import { printableKey, printableLicenseKey } from "@/lib/r2";
 import { distinctIdFromCookies } from "@/lib/posthog-distinct-id";
 
 const SITE = "https://academy.onethousanddrones.com/hex";
+
+/** Where the configurator got the bed it is asking us to pack for. Analytics
+ *  only -- it changes no byte of the response. */
+const BED_SOURCES = ["account", "local", "default"] as const;
+type BedSource = (typeof BED_SOURCES)[number] | "unknown";
+
+/**
+ * Read `bedFrom`, and never trust it.
+ *
+ * An unrecognised value becomes the fixed token `"unknown"` rather than being
+ * passed through. Two reasons, and only one of them is tidiness: a query
+ * parameter forwarded verbatim into PostHog is an attacker-chosen property value
+ * of unbounded cardinality, i.e. a way to write arbitrary text into our
+ * analytics store and to shred a breakdown chart with a million one-row buckets.
+ *
+ * NOT a 400, unlike every other malformed field. This one cannot change a single
+ * byte of the response, and the configurator deploys separately from this route
+ * -- so refusing the download would mean denying someone their files because a
+ * field they cannot see picked up a fourth value we had not shipped yet.
+ */
+function readBedSource(raw: string | null): BedSource | undefined {
+  if (raw == null || raw === "") return undefined;
+  return (BED_SOURCES as readonly string[]).includes(raw)
+    ? (raw as BedSource)
+    : "unknown";
+}
+
+/** Join the request's parts to the geometry the packer needs.
+ *
+ *  Both tables are held to `HEX_PART_SLUGS` by the geometry guard test, and
+ *  `resolvePack` has already proved every slug is a member, so a miss here means
+ *  the committed tables and the published list have drifted apart. Checked
+ *  rather than assumed because the alternative failure is `undefined.dx`, which
+ *  surfaces as a TypeError with no clue in it. */
+function packInputs(parts: readonly PackPart[]): PackInput[] {
+  return parts.map((p) => {
+    const box = HEX_PART_BOX[p.slug];
+    const name = HEX_PART_NAME[p.slug];
+    if (!box || !name) {
+      throw new Error(`no geometry table row for ${p.slug}`);
+    }
+    return { slug: p.slug, name, qty: p.qty, box };
+  });
+}
+
+type Tracked = {
+  release: string;
+  format: PackFormat;
+  parts: readonly PackPart[];
+  bed: Bed;
+  bedSource: BedSource | undefined;
+  /** Absent when the response was not plated -- a loose zip has no plates, and
+   *  reporting 0 would drag every average toward it. */
+  plates?: number;
+  bytes: number;
+  sourceBytes: number;
+};
+
+function track(req: NextRequest, t: Tracked): void {
+  try {
+    capture(
+      "printable_pack_downloaded",
+      {
+        release: t.release,
+        format: t.format,
+        parts: t.parts.length,
+        // What they are about to PRINT, which is not the number of names: six
+        // of one cap is one part and six things on a bed.
+        instances: packInstances([...t.parts]),
+        plates: t.plates,
+        bed_x: t.bed.x,
+        bed_y: t.bed.y,
+        bed_source: t.bedSource,
+        bytes: t.bytes,
+        source_bytes: t.sourceBytes,
+        referrer: req.headers.get("referer") ?? undefined,
+      },
+      distinctIdFromCookies(req.cookies) ?? undefined,
+    );
+  } catch {
+    // Never let instrumentation break the thing it is instrumenting.
+  }
+}
+
+/** Assembled per request from a selection in the query, so the URL is stable but
+ *  the response is a derivative rather than a published artefact -- NOT
+ *  immutable, unlike the objects it is built from. A day absorbs a double-click
+ *  without pinning a zip in a CDN for a year. */
+const CACHE = "public, max-age=86400";
 
 export async function GET(req: NextRequest) {
   if (!env.R2_ENABLED || !env.R2_BUCKET) {
@@ -42,39 +160,281 @@ export async function GET(req: NextRequest) {
     release: q.get("release"),
     format: q.get("format"),
     parts: q.get("parts"),
+    plate: q.get("plate"),
   });
   // One status for every malformed request. The problem code is not echoed:
   // "unknown-part" vs "bad-format" would tell a prober which of its guesses was
   // a real part name, which is the only thing this endpoint could leak.
   if (!resolved.ok) return new Response("Bad request", { status: 400 });
 
-  const { release, format, parts } = resolved.request;
+  const { release, format, parts, bed } = resolved.request;
+  const bedSource = readBedSource(q.get("bedFrom"));
 
-  const zip = new JSZip();
+  // PLATING IS 3MF-ONLY. An STL is a flat triangle soup: no transforms, no
+  // units, no object names. Baking placements into its vertices would hand
+  // someone one anonymous blob where fifteen named parts used to be, so STL
+  // keeps shipping loose files and the configurator greys the bed picker out.
+  //
+  // AND ONLY FOR THE RELEASE THE GEOMETRY TABLE WAS MEASURED FROM. Release keys
+  // are immutable and old links stay alive, so `release=2026-07-31` is still a
+  // live request -- and 07-31's meshes are a DIFFERENT cut (twelve dovetail caps
+  // were exported upside down, which is why 08-03 exists). Packing those against
+  // 08-03's bounding boxes would place parts by numbers that do not describe
+  // them, and the symptom is parts overlapping in a stranger's slicer with
+  // nothing pointing back here. An old link therefore keeps getting exactly what
+  // it gets today: the loose zip. Nothing is refused, and nothing is plated
+  // against geometry we did not measure.
+  if (format !== "3mf" || release !== HEX_GEOMETRY_RELEASE) {
+    return looseZip(req, { release, format, parts, bed, bedSource });
+  }
+  return platedPack(req, { release, parts, bed, bedSource });
+}
+
+/**
+ * The plated path: pack, then read, then write.
+ *
+ * THE ORDER IS THE POINT. `packPlates` needs the committed geometry table and
+ * nothing else, so a request over the plate cap is refused on pure arithmetic
+ * with zero network calls. Reading first and counting after would let one
+ * unauthenticated GET pull 53 objects out of the bucket before we decided to
+ * refuse it -- which is the whole reason the cap exists.
+ */
+async function platedPack(
+  req: NextRequest,
+  ctx: {
+    release: string;
+    parts: PackPart[];
+    bed: Bed;
+    bedSource: BedSource | undefined;
+  },
+): Promise<Response> {
+  const { release, parts, bed, bedSource } = ctx;
+
+  let plates: Placement[][];
+  try {
+    plates = packPlates(packInputs(parts), bed);
+  } catch (err) {
+    const reason = err instanceof PlatePackError ? err.reason : null;
+    switch (reason) {
+      case "too-many-plates":
+        // THE CALLER'S REQUEST, and a legal one -- every name is a published
+        // part and the bed is inside the range we advertise. It is simply
+        // bigger than we will assemble in one response, and the two things they
+        // can do about it are a larger bed or fewer parts. So the message says
+        // that, instead of the flat "Bad request" the malformed cases get.
+        //
+        // That is a DELIBERATE widening of the one-status rule at the top of
+        // this file, and it costs one bit: a prober can tell "all your names
+        // were real, but too big" from "something was malformed". Acceptable
+        // because the thing it discloses is membership of a list that ships
+        // publicly as one 13.7 MB zip, and because the part withheld on
+        // disclosure grounds is not IN that list -- it answers exactly like an
+        // invented name does. Nothing here reaches the withheld set.
+        return new Response(
+          `${err instanceof Error ? err.message : "too many plates"}. ` +
+            "Choose a larger bed, or fewer parts.",
+          { status: 400 },
+        );
+      case "part-too-large":
+      // A published part does not fit a bed we said we accept. OURS, not the
+      // caller's: `BED_MIN` is chosen so the largest part clears it with the
+      // packer's gap counted twice, and the geometry guard test holds every
+      // part to that on both axes. Reaching it means the table, `BED_MIN` or
+      // `PLATE_GAP` drifted.
+      //
+      // 500 rather than 400 even though a bigger bed would sometimes work
+      // around it. The promise this feature is built on is that a bed choice
+      // changes the plate COUNT and can never make a part unprintable; if that
+      // is false, blaming the request would hide a broken invariant behind a
+      // client-side retry and nobody would ever be paged. A 5xx is also the
+      // only answer a CDN will not cache as an answer.
+      // falls through
+      case "bad-quantity":
+      // Unreachable through this route: the grammar in `hex-pack.ts` refuses a
+      // quantity that is not a positive whole number before we get here, so it
+      // means a caller skipped `resolvePack`. A programming fault, shaped like
+      // one.
+      // falls through
+      default:
+        // Includes the non-`PlatePackError` throws -- a missing geometry row,
+        // anything else unforeseen. All ours.
+        return new Response("Server error", { status: 500 });
+    }
+  }
+
+  const multi = plates.length > 1;
+  const sources = new Map<string, string>();
+  let licence: Buffer | null = null;
   let bytesIn = 0;
   try {
     // Sequential, deliberately. Fanning 53 reads at R2 in parallel to build one
     // response is a good way to turn one visitor into a burst; the parts are a
     // few hundred KB each and the wall-clock difference does not justify it.
+    // One read per DISTINCT part, however many of it are on the plates: the mesh
+    // is embedded once as an `<object>` and repeated as `<item>` lines.
+    for (const part of parts) {
+      const buf = await getR2ObjectBytes(
+        printableKey(release, "3mf", part.slug, "3mf"),
+      );
+      bytesIn += buf.byteLength;
+      const entry = (await JSZip.loadAsync(buf)).file("3D/3dmodel.model");
+      if (!entry) throw new Error(`${part.slug} carries no 3D/3dmodel.model`);
+      sources.set(part.slug, await entry.async("string"));
+    }
+    // Only when there is an archive to put it in. A single plate ships bare, and
+    // its CC BY notice travels INSIDE the file as `<metadata
+    // name="LicenseTerms">` -- which is also why a bare plate is licence-safe
+    // in a way a bare .stl would not be.
+    if (multi) licence = await getR2ObjectBytes(printableLicenseKey(release));
+  } catch {
+    // A part that is not in THIS release, or R2 unreachable, or a published
+    // object we cannot open. 404 for all three: from the caller's side the pack
+    // as asked for does not exist, and which of the three it was is not
+    // something they could act on.
+    return new Response("Not found", { status: 404 });
+  }
+
+  const built: Buffer[] = [];
+  try {
+    for (let i = 0; i < plates.length; i++) {
+      built.push(
+        await buildPlate3mf(plates[i], sources, {
+          title: `Hex Cluster plate ${i + 1} of ${plates.length}`,
+          credit: HEX_LICENSE.credit,
+        }),
+      );
+    }
+  } catch {
+    // The writer refuses a source that is not the uniform single-object shape it
+    // lifts from, and refuses a slug with no mesh. Both are our data, not the
+    // request.
+    return new Response("Server error", { status: 500 });
+  }
+
+  if (!multi) {
+    const out = built[0];
+    track(req, {
+      release,
+      format: "3mf",
+      parts,
+      bed,
+      bedSource,
+      plates: 1,
+      bytes: out.byteLength,
+      sourceBytes: bytesIn,
+    });
+    return new Response(new Uint8Array(out), {
+      headers: {
+        "Content-Type": "model/3mf",
+        "Content-Length": String(out.byteLength),
+        // `.3mf`, not `.zip`. A 3MF *is* a zip underneath, which is exactly why
+        // the extension has to be right: named `.zip` it opens in an archiver
+        // and shows the reader an XML file instead of their parts.
+        "Content-Disposition": `attachment; filename="${packFilename(parts, "3mf")}"`,
+        "Cache-Control": CACHE,
+      },
+    });
+  }
+
+  const zip = new JSZip();
+  // The directory entry is written EXPLICITLY, and only so its timestamp can be
+  // fixed: JSZip creates it implicitly for a nested path, stamped `new Date()`,
+  // which would leave the archive non-reproducible for the sake of one entry
+  // nobody reads. Same reasoning as inside each plate.
+  zip.file("plates/", null, { dir: true, date: ZIP_EPOCH });
+  built.forEach((buf, i) =>
+    zip.file(platePath(i + 1, plates.length), buf, { date: ZIP_EPOCH }),
+  );
+  zip.file(
+    "README.txt",
+    plateReadme({
+      release,
+      bed,
+      plates,
+      credit: HEX_LICENSE.credit,
+      specUrl: SITE,
+    }),
+    { date: ZIP_EPOCH },
+  );
+  // The published notice itself, not a regenerated copy: byte-identical to the
+  // one inside the full set and beside every single mesh.
+  //
+  // Checked rather than asserted. `multi` gated the read that fills it and the
+  // catch above owns every way that read can fail, so this is unreachable -- but
+  // the alternative to a check is `licence!`, and the failure that assertion
+  // waves through is a pack redistributing a CC BY work with the notice quietly
+  // missing. That is the one failure here we cannot let be silent.
+  if (!licence) return new Response("Server error", { status: 500 });
+  zip.file("LICENSE.txt", licence, { date: ZIP_EPOCH });
+
+  const out = await zip.generateAsync({
+    type: "nodebuffer",
+    compression: "DEFLATE",
+    // The meshes are already the bulk and compress poorly past this; level 9
+    // spends noticeably more CPU per request for a percent or two.
+    compressionOptions: { level: 6 },
+  });
+
+  track(req, {
+    release,
+    format: "3mf",
+    parts,
+    bed,
+    bedSource,
+    plates: plates.length,
+    bytes: out.byteLength,
+    sourceBytes: bytesIn,
+  });
+
+  return new Response(new Uint8Array(out), {
+    headers: {
+      "Content-Type": "application/zip",
+      "Content-Length": String(out.byteLength),
+      "Content-Disposition": `attachment; filename="${packFilename(parts)}"`,
+      "Cache-Control": CACHE,
+    },
+  });
+}
+
+/**
+ * The loose path: one published file per distinct part, in a zip.
+ *
+ * UNCHANGED, and that is the requirement rather than an accident. It is what
+ * `format=stl` gets and what every pre-plating link keeps getting: no packer, no
+ * bed, no plates. The bed still rides in the analytics because the caller stated
+ * it, but nothing here reads it.
+ *
+ * One byte-level exception, deliberately taken: the entries are stamped
+ * `ZIP_EPOCH` like every other zip this feature writes. JSZip otherwise stamps
+ * `new Date()`, so two identical requests a second apart produced different
+ * bytes for a response that is cached per URL and is meant to be a pure function
+ * of it. The CONTENTS -- which files, named how, holding what -- are what
+ * "unchanged" is about, and they are pinned by test.
+ */
+async function looseZip(
+  req: NextRequest,
+  ctx: {
+    release: string;
+    format: PackFormat;
+    parts: PackPart[];
+    bed: Bed;
+    bedSource: BedSource | undefined;
+  },
+): Promise<Response> {
+  const { release, format, parts, bed, bedSource } = ctx;
+
+  const zip = new JSZip();
+  let bytesIn = 0;
+  try {
+    // Sequential, deliberately -- see the note on the plated path.
     // One file per DISTINCT part. Quantity rides in the request but does not
     // change this zip: a second copy of an identical mesh is bytes nobody needs.
-    // It is the plated 3MF path that turns a quantity into repeated items.
-    //
-    // INCONSISTENT ON PURPOSE, AND ONLY UNTIL TASK A7. The grammar now accepts
-    // `slug:n`, so `?parts=hex-tb-main:6` gets a zip whose FILENAME says six
-    // parts (`packFilename` counts instances), whose README lists one, and whose
-    // contents hold one mesh. Three different answers to "how many". Nothing
-    // here is the intended end state -- A7 replaces this loop with the packer and
-    // the plated 3MF writer, at which point the quantity becomes real items on
-    // real plates and all three agree. Phase A ships as ONE PR, so this is never
-    // a state a user sees; do not "fix" it by making the filename lie the other
-    // way, and do not read it as a decision.
     for (const part of parts) {
       const buf = await getR2ObjectBytes(
         printableKey(release, format, part.slug, format),
       );
       bytesIn += buf.byteLength;
-      zip.file(`${format}/${part.slug}.${format}`, buf);
+      zip.file(`${format}/${part.slug}.${format}`, buf, { date: ZIP_EPOCH });
     }
 
     // The published notice itself, not a regenerated copy: byte-identical to the
@@ -82,6 +442,7 @@ export async function GET(req: NextRequest) {
     zip.file(
       "LICENSE.txt",
       await getR2ObjectBytes(printableLicenseKey(release)),
+      { date: ZIP_EPOCH },
     );
   } catch {
     // A part that is not in THIS release, or R2 unreachable. 404 is honest for
@@ -102,44 +463,31 @@ export async function GET(req: NextRequest) {
       credit: HEX_LICENSE.credit,
       specUrl: SITE,
     }),
+    { date: ZIP_EPOCH },
   );
 
   const out = await zip.generateAsync({
     type: "nodebuffer",
     compression: "DEFLATE",
-    // The meshes are already the bulk and compress poorly past this; level 9
-    // spends noticeably more CPU per request for a percent or two.
     compressionOptions: { level: 6 },
   });
 
-  try {
-    capture(
-      "printable_pack_downloaded",
-      {
-        release,
-        format,
-        parts: parts.length,
-        bytes: out.byteLength,
-        source_bytes: bytesIn,
-        referrer: req.headers.get("referer") ?? undefined,
-      },
-      distinctIdFromCookies(req.cookies) ?? undefined,
-    );
-  } catch {
-    // Never let instrumentation break the thing it is instrumenting.
-  }
+  track(req, {
+    release,
+    format,
+    parts,
+    bed,
+    bedSource,
+    bytes: out.byteLength,
+    sourceBytes: bytesIn,
+  });
 
   return new Response(new Uint8Array(out), {
     headers: {
       "Content-Type": "application/zip",
       "Content-Length": String(out.byteLength),
       "Content-Disposition": `attachment; filename="${packFilename(parts)}"`,
-      // NOT immutable, unlike the published objects. This is assembled per
-      // request from a selection in the query, so the URL is stable but the
-      // response is a derivative rather than a published artefact. A day is
-      // enough to absorb a double-click without pinning a zip in a CDN for a
-      // year.
-      "Cache-Control": "public, max-age=86400",
+      "Cache-Control": CACHE,
     },
   });
 }

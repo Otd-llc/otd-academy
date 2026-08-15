@@ -174,6 +174,18 @@ describe("packFilename", () => {
     ).toBe("hex-cluster-2-parts.zip");
   });
 
+  it("takes the extension, because a single plate is not a zip", () => {
+    // A build that fits one bed ships as a bare .3mf. Named `.zip` it opens in
+    // an archiver and shows the reader an XML file instead of their parts --
+    // and a 3MF really is a zip underneath, so nothing would error.
+    expect(packFilename([{ slug: ONE, qty: 1 }], "3mf")).toBe(
+      `hex-cluster-${ONE}.3mf`,
+    );
+    expect(packFilename([{ slug: ONE, qty: 6 }], "3mf")).toBe(
+      "hex-cluster-6-parts.3mf",
+    );
+  });
+
   it("counts INSTANCES, not names -- six of one part is not a one-part pack", () => {
     // The number in the filename is what the person is about to print. Naming
     // it after the distinct count would call a six-cap pack "1-part".

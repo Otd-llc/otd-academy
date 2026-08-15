@@ -211,11 +211,20 @@ export function packInstances(parts: PackPart[]): number {
   return parts.reduce((n, p) => n + p.qty, 0);
 }
 
-/** A stable, human-readable filename for the download. */
-export function packFilename(parts: PackPart[]): string {
+/** A stable, human-readable filename for the download.
+ *
+ *  `ext` is a PARAMETER because the response is not always a zip: a build that
+ *  fits one plate ships as a bare `.3mf`, with no archive around it. A hardcoded
+ *  `.zip` would put a 3MF document behind a name every unzipper on the planet
+ *  would try to open as an archive -- and "the filename disagrees with the
+ *  contents" is the defect this endpoint shipped once already. */
+export function packFilename(
+  parts: PackPart[],
+  ext: "zip" | "3mf" = "zip",
+): string {
   return parts.length === 1 && parts[0].qty === 1
-    ? `hex-cluster-${parts[0].slug}.zip`
-    : `hex-cluster-${packInstances(parts)}-parts.zip`;
+    ? `hex-cluster-${parts[0].slug}.${ext}`
+    : `hex-cluster-${packInstances(parts)}-parts.${ext}`;
 }
 
 /** Where a plate lives inside a multi-plate zip.

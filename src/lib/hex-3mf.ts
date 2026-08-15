@@ -53,8 +53,14 @@ const RELS =
  *  change?" comparison useless. JSZip reads the date through `getUTC*`, so a
  *  fixed UTC instant gives the same bytes on every host and in every timezone.
  *  1980-01-01 is the DOS epoch -- the earliest a zip can express, and the
- *  conventional "this file has no meaningful timestamp" value. */
-const ZIP_EPOCH = new Date(Date.UTC(1980, 0, 1));
+ *  conventional "this file has no meaningful timestamp" value.
+ *
+ *  EXPORTED so the OUTER zip of a multi-plate pack stamps the same instant. One
+ *  epoch and one reason: fixing the timestamps inside each plate and letting the
+ *  archive around them carry `new Date()` would leave the RESPONSE
+ *  non-reproducible while every file in it was reproducible, which is the worst
+ *  of both -- it reads as determinism and is not. */
+export const ZIP_EPOCH = new Date(Date.UTC(1980, 0, 1));
 
 /** Escape the five-ish characters XML cares about.
  *

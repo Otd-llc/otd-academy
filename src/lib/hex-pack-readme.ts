@@ -84,7 +84,8 @@ const PRINT_LINES: readonly string[] = [
   ...HEX_PRINT_PARAMS,
   ...HEX_CLEARANCE,
 ].map(
-  (p) => `${p.label}: ${ascii(p.value)}${p.aside ? ` (${ascii(p.aside)})` : ""}`,
+  (p) =>
+    `${p.label}: ${ascii(p.value)}${p.aside ? ` (${ascii(p.aside)})` : ""}`,
 );
 
 /** The two parts that rest on a line BY DESIGN, so nobody is surprised
