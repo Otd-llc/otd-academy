@@ -984,6 +984,18 @@ One resolver, and nothing reads a store directly.
 export function resolveBedSize(): { bed: Bed; source: 'account' | 'local' | 'default' }
 ```
 
+**This module must ALSO export `BED_MIN` and `BED_MAX`.** A10 made the academy's protocol
+file import them from `@/lib/hex-pack` so the bounds live in one place. That file is
+transcribed into this repo as `src/hex/embed-protocol.ts`, which has no `hex-pack` — so
+without those exports here, the configurator's copy does not compile. Same values, and a
+test should pin them equal across the boundary rather than trusting two literals.
+
+**Also unowned until now: the one-time promotion.** The design says a local value is
+promoted to the account once, on sign-in, when the account has none. The academy cannot do
+it — the local store is on this origin, not that one — so it belongs here, and no task
+named it. Promote on the first `ready` after a session where `resolveBedSize()` answers
+`local` and the account answers nothing.
+
 Writes go both ways: `localStorage` always, and a `bed-changed` message when embedded.
 Promote a local value once if the account has none.
 

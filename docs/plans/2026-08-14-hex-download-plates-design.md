@@ -288,6 +288,29 @@ Unresolved and no longer load-bearing: the tester said *Creality Cloud*, the web
 cloud-slicing path, which is a different code path from the Creality Print desktop build
 all of this was measured against. Worth asking him, but nothing depends on the answer now.
 
+## The one security property this feature changed
+
+`src/lib/hex-embed-protocol.ts` stated, as rule 3 of its own model, that **no message
+performs a write**. `bed-changed` writes: a bed chosen inside the configurator persists to
+the signed-in user's account.
+
+That was a deliberate widening, and it is bounded on purpose:
+
+- the value is validated against `BED_MIN`/`BED_MAX`, the same bounds the endpoint and the
+  settings action use, imported rather than restated;
+- the write is idempotent, and the frame suppresses a repeat of an identical value so one
+  slider drag cannot become a stream of writes;
+- the result is visible and undoable at `/account`;
+- the sender is already pinned by origin **and** `event.source`.
+
+Worst case is a peer that has already cleared both gates setting a victim's bed to another
+legal bed. Reversible, non-destructive, and self-evident the next time they download.
+
+**Where the exception stops.** Nothing that creates a row, spends a quota, sends mail, or
+touches another person's data may ride this channel. If a future message wants any of
+those, it does not get to cite this precedent — the reasoning above turns on the write
+being a single bounded integer pair on the sender's own account.
+
 ## Not in scope
 
 - Optimal (non-shelf) packing. The slicer does it better and it is one click.
