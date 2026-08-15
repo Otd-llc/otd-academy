@@ -77,12 +77,15 @@ export async function GET(req: NextRequest) {
     // Sequential, deliberately. Fanning 53 reads at R2 in parallel to build one
     // response is a good way to turn one visitor into a burst; the parts are a
     // few hundred KB each and the wall-clock difference does not justify it.
+    // One file per DISTINCT part. Quantity rides in the request but does not
+    // change this zip: a second copy of an identical mesh is bytes nobody needs.
+    // It is the plated 3MF path that turns a quantity into repeated items.
     for (const part of parts) {
       const buf = await getR2ObjectBytes(
-        printableKey(release, format, part, format),
+        printableKey(release, format, part.slug, format),
       );
       bytesIn += buf.byteLength;
-      zip.file(`${format}/${part}.${format}`, buf);
+      zip.file(`${format}/${part.slug}.${format}`, buf);
     }
 
     // The published notice itself, not a regenerated copy: byte-identical to the
@@ -109,10 +112,13 @@ export async function GET(req: NextRequest) {
         (p) =>
           `${p.label}: ${ascii(p.value)}${p.aside ? ` (${ascii(p.aside)})` : ""}`,
       ),
-      supportNote: parts.some((p) => NEEDS_SUPPORT.includes(p))
+      supportNote: parts.some((p) => NEEDS_SUPPORT.includes(p.slug))
         ? [
             "Support required -- " +
-              parts.filter((p) => NEEDS_SUPPORT.includes(p)).join(", ") +
+              parts
+                .filter((p) => NEEDS_SUPPORT.includes(p.slug))
+                .map((p) => p.slug)
+                .join(", ") +
               ".",
             "These are laid on their side on purpose: a spike is loaded along its",
             "axis, and lying down runs the layers ACROSS that load instead of",

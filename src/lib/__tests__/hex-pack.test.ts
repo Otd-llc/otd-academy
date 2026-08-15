@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import { HEX_PART_SLUGS, isHexPartSlug } from "@/lib/hex-parts";
 import { HEX_PART_COUNT } from "@/lib/hex-spec";
 import {
+  MAX_PACK_INSTANCES,
   MAX_PACK_PARTS,
   packFilename,
   packReadme,
@@ -55,7 +56,11 @@ describe("resolvePack", () => {
       parts: `${ONE},${TWO}`,
     });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.request.parts).toEqual([ONE, TWO]);
+    if (r.ok)
+      expect(r.request.parts).toEqual([
+        { slug: ONE, qty: 1 },
+        { slug: TWO, qty: 1 },
+      ]);
   });
 
   it("defaults to 3mf, the format that carries units and part names", () => {
@@ -103,12 +108,18 @@ describe("resolvePack", () => {
   });
 
   it("collapses duplicates instead of reading the same object twice", () => {
+    // One LINE per slug, however many times it is named -- that is what keeps
+    // the R2 fan-out equal to the number of distinct parts. The repeats are
+    // carried as a quantity now rather than discarded.
     const r = resolvePack({
       release: RELEASE,
       format: "3mf",
       parts: `${ONE},${ONE},${TWO}`,
     });
-    expect(r.ok && r.request.parts).toEqual([ONE, TWO]);
+    expect(r.ok && r.request.parts).toEqual([
+      { slug: ONE, qty: 2 },
+      { slug: TWO, qty: 1 },
+    ]);
   });
 
   it("caps the fan-out at the real part count", () => {
@@ -136,11 +147,26 @@ describe("resolvePack", () => {
 
 describe("packFilename", () => {
   it("names a single part after it", () => {
-    expect(packFilename([ONE])).toBe(`hex-cluster-${ONE}.zip`);
+    expect(packFilename([{ slug: ONE, qty: 1 }])).toBe(
+      `hex-cluster-${ONE}.zip`,
+    );
   });
 
   it("counts a multi-part pack", () => {
-    expect(packFilename([ONE, TWO])).toBe("hex-cluster-2-parts.zip");
+    expect(
+      packFilename([
+        { slug: ONE, qty: 1 },
+        { slug: TWO, qty: 1 },
+      ]),
+    ).toBe("hex-cluster-2-parts.zip");
+  });
+
+  it("counts INSTANCES, not names -- six of one part is not a one-part pack", () => {
+    // The number in the filename is what the person is about to print. Naming
+    // it after the distinct count would call a six-cap pack "1-part".
+    expect(packFilename([{ slug: ONE, qty: 6 }])).toBe(
+      "hex-cluster-6-parts.zip",
+    );
   });
 });
 
@@ -148,7 +174,10 @@ describe("packReadme", () => {
   const base = {
     release: RELEASE,
     format: "3mf" as const,
-    parts: [ONE, TWO],
+    parts: [
+      { slug: ONE, qty: 1 },
+      { slug: TWO, qty: 1 },
+    ],
     credit: "Hex Cluster by One Thousand Drones, LLC, licensed CC BY 4.0.",
     specUrl: "https://academy.onethousanddrones.com/hex",
     printLines: ["Material: FDM PETG"],
@@ -170,10 +199,45 @@ describe("packReadme", () => {
 
   it("lists every part it contains", () => {
     const out = packReadme(base);
-    for (const p of base.parts) expect(out).toContain(p);
+    for (const p of base.parts) expect(out).toContain(p.slug);
   });
 
   it("records the release, so a pack can be traced to its geometry", () => {
     expect(packReadme(base)).toContain(RELEASE);
+  });
+});
+
+describe("quantities", () => {
+  it("reads a bare slug as one", () => {
+    const r = resolvePack({ release: RELEASE, parts: ONE });
+    expect(r.ok && r.request.parts).toEqual([{ slug: ONE, qty: 1 }]);
+  });
+
+  it("reads slug:n", () => {
+    const r = resolvePack({ release: RELEASE, parts: `${ONE}:3` });
+    expect(r.ok && r.request.parts).toEqual([{ slug: ONE, qty: 3 }]);
+  });
+
+  it("sums a repeated slug rather than dropping one", () => {
+    // The old code Set-deduped, which silently lost the second mention.
+    const r = resolvePack({ release: RELEASE, parts: `${ONE}:2,${ONE}:3` });
+    expect(r.ok && r.request.parts).toEqual([{ slug: ONE, qty: 5 }]);
+  });
+
+  it("refuses a zero, a negative, or a non-integer quantity", () => {
+    for (const q of ["0", "-1", "1.5", "x"]) {
+      expect(resolvePack({ release: RELEASE, parts: `${ONE}:${q}` }).ok).toBe(
+        false,
+      );
+    }
+  });
+
+  it("refuses more than MAX_PACK_INSTANCES total items", () => {
+    const r = resolvePack({
+      release: RELEASE,
+      parts: `${ONE}:${MAX_PACK_INSTANCES},${TWO}:1`,
+    });
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.problem).toBe("too-many");
   });
 });
