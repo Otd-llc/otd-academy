@@ -102,6 +102,23 @@ const at = (
   name: string = nameOf(slug),
 ): Placement => ({ slug, name, box: { ...BOX, ...box }, x, y });
 
+/** The bed every fixture below is packed for, unless it says otherwise. */
+const BED = { x: 220, y: 220 };
+
+/** `buildPlate3mf` with the bed filled in.
+ *
+ *  The bed is REQUIRED on the real signature -- it is the outline the package
+ *  thumbnail draws the parts inside, and a default would be a silently wrong
+ *  picture rather than a compile error. It is also irrelevant to almost every
+ *  row in this file, which is about transforms, object ids and names. One
+ *  pass-through wrapper keeps each row stating only the thing it is about; the
+ *  thumbnail's own suite passes the bed explicitly, because there it matters. */
+const plate3mf = (
+  placements: readonly Placement[],
+  sources: ReadonlyMap<string, string>,
+  meta: Partial<Parameters<typeof buildPlate3mf>[2]> = {},
+) => buildPlate3mf(placements, sources, { bed: BED, ...meta });
+
 async function modelOf(buf: Buffer): Promise<string> {
   const zip = await JSZip.loadAsync(buf);
   const file = zip.file("3D/3dmodel.model");
@@ -286,7 +303,7 @@ describe("buildPlate3mf", () => {
     // mesh. Three placements over two parts, because with one part "per
     // distinct" and "one, full stop" are the same number.
     const model = await modelOf(
-      await buildPlate3mf([at("a", 4, 4), at("b", 20, 4), at("a", 40, 4)], SOURCES),
+      await plate3mf([at("a", 4, 4), at("b", 20, 4), at("a", 40, 4)], SOURCES),
     );
     expect(model.match(/<object /g)).toHaveLength(2);
     expect(model.match(/<item /g)).toHaveLength(3);
@@ -300,7 +317,7 @@ describe("buildPlate3mf", () => {
     // This resolves each item through the id table, so a collision fails and an
     // item ordered against the wrong mesh fails.
     const model = await modelOf(
-      await buildPlate3mf([at("a", 4, 4), at("b", 20, 4), at("a", 40, 4)], SOURCES),
+      await plate3mf([at("a", 4, 4), at("b", 20, 4), at("a", 40, 4)], SOURCES),
     );
     expect(itemNames(model)).toEqual(["Part-A", "Part-B", "Part-A"]);
   });
@@ -317,7 +334,7 @@ describe("buildPlate3mf", () => {
     // would still produce a well-formed plate with one correctly-pointed object
     // per part, and every other assertion in this file would pass.
     const model = await modelOf(
-      await buildPlate3mf(
+      await plate3mf(
         [at("a", 4, 4, {}, "Hex-TB-Main"), at("b", 20, 4, {}, "Dovetail-Cap-Single-F-Solid")],
         SOURCES,
       ),
@@ -337,7 +354,7 @@ describe("buildPlate3mf", () => {
     // Unreachable from the route -- both fields come from one table row keyed by
     // the slug -- so this guards the contract rather than an expected input.
     await expect(
-      buildPlate3mf(
+      plate3mf(
         [at("a", 4, 4, {}, "Hex-TB-Main"), at("a", 20, 4, {}, "Hex-TB-Spare")],
         SOURCES,
       ),
@@ -354,7 +371,7 @@ describe("buildPlate3mf", () => {
     // the three changes the string: without `- x0` it reads 4, with `+ x0` it
     // reads -6, without `- y0` it reads 9, without `- z0` it reads 0.
     const model = await modelOf(
-      await buildPlate3mf([at("a", 4, 9, { x0: -5, y0: -5, z0: 2 })], SOURCES),
+      await plate3mf([at("a", 4, 9, { x0: -5, y0: -5, z0: 2 })], SOURCES),
     );
     expect(model).toContain('transform="1 0 0 0 1 0 0 0 1 9 14 -2"');
   });
@@ -364,7 +381,7 @@ describe("buildPlate3mf", () => {
     // parts have a positive x0 (`hex-tb-carrier-right-parts-tray` starts at
     // +2.367), so the sign has to be right in both directions.
     const model = await modelOf(
-      await buildPlate3mf([at("a", 10, 20, { x0: 3, y0: 7, z0: 0 })], SOURCES),
+      await plate3mf([at("a", 10, 20, { x0: 3, y0: 7, z0: 0 })], SOURCES),
     );
     expect(model).toContain('transform="1 0 0 0 1 0 0 0 1 7 13 0"');
   });
@@ -384,7 +401,7 @@ describe("buildPlate3mf", () => {
     // the bed. Expressed in SIGNIFICANT FIGURES the same rule keeps every digit.
     // If this test ever reads `-0.1443` again, the plate has the bug back.
     const model = await modelOf(
-      await buildPlate3mf([at("a", 0.1 + 0.2, 0, { x0: 0, y0: 0, z0: 0.144338 })], SOURCES),
+      await plate3mf([at("a", 0.1 + 0.2, 0, { x0: 0, y0: 0, z0: 0.144338 })], SOURCES),
     );
     expect(model).toContain('transform="1 0 0 0 1 0 0 0 1 0.3 0 -0.144338"');
   });
@@ -399,7 +416,7 @@ describe("buildPlate3mf", () => {
     // no measurement covers it, and the reference plate's own transforms are
     // plain decimals. Being the first to try it buys nothing.
     const model = await modelOf(
-      await buildPlate3mf([at("a", 4, 4, { z0: 1.90781e-12 })], SOURCES),
+      await plate3mf([at("a", 4, 4, { z0: 1.90781e-12 })], SOURCES),
     );
     expect(model).toContain(
       'transform="1 0 0 0 1 0 0 0 1 4 4 -0.00000000000190781"',
@@ -447,7 +464,7 @@ describe("buildPlate3mf", () => {
     // The meshes themselves cannot be here -- they are a sibling checkout that
     // never ships with the app -- so their lowest vertex travels as text
     // instead, and the generator refuses to write the two if they disagree.
-    const model = await modelOf(await buildPlate3mf(ALL, ALL_SOURCES));
+    const model = await modelOf(await plate3mf(ALL, ALL_SOURCES));
     const placed = seats(model);
     // WHICH PARTS were measured, not how many. `toHaveLength(ALL.length)` reads
     // like a coverage check and is not one -- it compares the fixture against
@@ -466,7 +483,7 @@ describe("buildPlate3mf", () => {
     // a plain decimal, and the 3x3 block has to still be the identity: this is a
     // translation, and a rotation would move the part's lowest point somewhere
     // the sum above never looks.
-    const model = await modelOf(await buildPlate3mf(ALL, ALL_SOURCES));
+    const model = await modelOf(await plate3mf(ALL, ALL_SOURCES));
     for (const s of seats(model)) {
       expect(s.t.every(Number.isFinite), `${s.name} transform`).toBe(true);
       expect(s.t.slice(0, 9), `${s.name} is not a pure translation`).toEqual([
@@ -486,7 +503,7 @@ describe("buildPlate3mf", () => {
     // carries. A part already sitting at z0 = 0 is the common case, so this is
     // 37 of the 53 published parts -- the other 16 have a non-zero mesh bottom,
     // 15 of them float noise and one, the spike ball joint, real.
-    const model = await modelOf(await buildPlate3mf([at("a", 4, 4)], SOURCES));
+    const model = await modelOf(await plate3mf([at("a", 4, 4)], SOURCES));
     expect(model).toContain('transform="1 0 0 0 1 0 0 0 1 4 4 0"');
     expect(model).not.toContain("-0 ");
   });
@@ -496,19 +513,26 @@ describe("buildPlate3mf", () => {
     // file opens, the object list looks plausible, and the thing you needed is
     // simply not in the box. You find out after the print.
     await expect(
-      buildPlate3mf([at("a", 4, 4), at("missing", 20, 4)], SOURCES),
+      plate3mf([at("a", 4, 4), at("missing", 20, 4)], SOURCES),
     ).rejects.toThrow(/missing/);
   });
 
   it("is a readable 3MF package and carries nothing else", async () => {
-    // Exactly the three entries the reference has. An extra file is not
-    // harmless: `[Content_Types].xml` declares the extensions a package may
-    // contain, so anything with an undeclared extension makes the package
-    // non-conforming.
-    const zip = await JSZip.loadAsync(await buildPlate3mf([at("a", 4, 4)], SOURCES));
+    // The three entries the known-good reference plate has, PLUS the package
+    // thumbnail. An extra file is not harmless: `[Content_Types].xml` declares
+    // the extensions a package may contain, so anything with an undeclared
+    // extension makes the whole package non-conforming -- which is why the
+    // thumbnail arrived with a `png` default and a relationship, asserted
+    // below, rather than on its own.
+    //
+    // This list is CLOSED on purpose. The failure it catches is not "a file we
+    // meant to add"; it is a file that appears without either of the two
+    // declarations that make it legal.
+    const zip = await JSZip.loadAsync(await plate3mf([at("a", 4, 4)], SOURCES));
     const entries = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
     expect(entries.sort()).toEqual([
       "3D/3dmodel.model",
+      "Metadata/thumbnail.png",
       "[Content_Types].xml",
       "_rels/.rels",
     ]);
@@ -518,7 +542,7 @@ describe("buildPlate3mf", () => {
     // A 3MF with no `unit` defaults to MICRONS, so a plate that forgets it
     // arrives one thousandth of its size and reads as a corrupt mesh rather than
     // a missing attribute.
-    const model = await modelOf(await buildPlate3mf([at("a", 4, 4)], SOURCES));
+    const model = await modelOf(await plate3mf([at("a", 4, 4)], SOURCES));
     expect(model).toContain('unit="millimeter"');
     expect(model).toContain(
       'xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02"',
@@ -532,7 +556,7 @@ describe("buildPlate3mf", () => {
     // is outside the schema, and the reference plate that was actually opened in
     // a slicer does not carry one. Adding it buys nothing (an item is printable
     // by default) and costs conformance, so it stays out.
-    const model = await modelOf(await buildPlate3mf([at("a", 4, 4)], SOURCES));
+    const model = await modelOf(await plate3mf([at("a", 4, 4)], SOURCES));
     for (const m of model.matchAll(/<item\b([^>]*)\/>/g)) {
       const attrs = [...m[1].matchAll(/([a-zA-Z:]+)=/g)].map((a) => a[1]);
       expect(attrs).toEqual(["objectid", "transform"]);
@@ -544,7 +568,7 @@ describe("buildPlate3mf", () => {
     // inside the file, not only in the README beside it -- a single .3mf gets
     // dragged out of the zip and the notice is gone.
     const model = await modelOf(
-      await buildPlate3mf([at("a", 4, 4)], SOURCES, {
+      await plate3mf([at("a", 4, 4)], SOURCES, {
         title: "Plate 1 of 3 <hex>",
         credit: "CC BY 4.0 -- One Thousand Drones, LLC",
       }),
@@ -566,14 +590,14 @@ describe("buildPlate3mf", () => {
     // claim that there is nothing to say, which is a different statement from
     // not making one.
     const with_ = await modelOf(
-      await buildPlate3mf([at("a", 4, 4)], SOURCES, {
+      await plate3mf([at("a", 4, 4)], SOURCES, {
         description: "Support required -- Part-A & <friends>",
       }),
     );
     expect(with_).toContain(
       '<metadata name="Description">Support required -- Part-A &amp; &lt;friends&gt;</metadata>',
     );
-    const without = await modelOf(await buildPlate3mf([at("a", 4, 4)], SOURCES));
+    const without = await modelOf(await plate3mf([at("a", 4, 4)], SOURCES));
     expect(without).not.toContain('name="Description"');
   });
 
@@ -585,9 +609,9 @@ describe("buildPlate3mf", () => {
     // apart differ in their headers while the model inside is identical. A
     // comparison of the MODEL string would pass on that; only the bytes catch it.
     const plate = [at("a", 4, 4), at("b", 20, 4)];
-    const first = await buildPlate3mf(plate, SOURCES);
+    const first = await plate3mf(plate, SOURCES);
     await new Promise((r) => setTimeout(r, 2100));
-    const second = await buildPlate3mf(plate, SOURCES);
+    const second = await plate3mf(plate, SOURCES);
     expect(Buffer.compare(first, second)).toBe(0);
   });
 });

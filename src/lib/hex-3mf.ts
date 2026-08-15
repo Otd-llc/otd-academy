@@ -21,26 +21,50 @@
 // opens, looks plausible, and is missing a part.
 import JSZip from "jszip";
 
+import type { Bed } from "@/lib/hex-pack";
 import type { Placement } from "@/lib/hex-plate";
+import {
+  THUMBNAIL_PATH,
+  THUMBNAIL_REL_TYPE,
+  plateThumbnail,
+} from "@/lib/hex-thumbnail";
 
-/** Byte-identical to the one in every published part and in the known-good
- *  reference plate. `[Content_Types].xml` declares which file extensions the
- *  package may contain, so it is not boilerplate: an entry with an undeclared
- *  extension makes the whole package non-conforming. */
+/** `[Content_Types].xml` declares which file extensions the package may contain,
+ *  so it is not boilerplate: an entry with an undeclared extension makes the
+ *  whole package non-conforming.
+ *
+ *  `png` joins `rels` and `model` for the package thumbnail. That is the reason
+ *  this string is no longer byte-identical to the one in every published part --
+ *  the two other entries and their order are unchanged, and a reader that
+ *  ignores thumbnails sees exactly the package it saw before. */
 const CONTENT_TYPES =
   `<?xml version="1.0" encoding="UTF-8"?>\n` +
   `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
   `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml" />` +
   `<Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml" />` +
+  `<Default Extension="png" ContentType="image/png" />` +
   `</Types>`;
 
-/** The package's one relationship: which part is the 3D model. Without it a
- *  reader has a zip full of XML and no entry point. */
+/** The package's relationships: which part is the 3D model, and which part is
+ *  the picture of it.
+ *
+ *  THE MODEL ONE IS FIRST AND KEEPS ITS ID. Without it a reader has a zip full
+ *  of XML and no entry point; the thumbnail is additive, and a reader that does
+ *  not know the type ignores the second `<Relationship>` and behaves exactly as
+ *  it did before.
+ *
+ *  THE THUMBNAIL RELATIONSHIP HANGS OFF THE PACKAGE, not off the model part, and
+ *  the two are different things in OPC: a relationship declared here in
+ *  `_rels/.rels` is the PACKAGE thumbnail -- what Explorer, Finder and a slicer's
+ *  open dialog look for -- while the same type declared in
+ *  `3D/_rels/3dmodel.model.rels` would be a thumbnail OF THAT PART. */
 const RELS =
   `<?xml version="1.0" encoding="UTF-8"?>\n` +
   `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
   `<Relationship Target="/3D/3dmodel.model" Id="rel0" ` +
-  `Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel" /></Relationships>`;
+  `Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel" />` +
+  `<Relationship Target="/${THUMBNAIL_PATH}" Id="rel1" ` +
+  `Type="${THUMBNAIL_REL_TYPE}" /></Relationships>`;
 
 /** A FIXED timestamp on every zip entry, and the reason is the design's
  *  determinism requirement, not tidiness.
@@ -195,6 +219,22 @@ export function extractObjectBlock(
   );
 }
 
+/** What a caller has to say about the plate it is asking for.
+ *
+ *  `bed` is REQUIRED and everything else is optional, which is the opposite of
+ *  how it reads at first glance. The bed is not decoration: it is the outline in
+ *  the package thumbnail, and a thumbnail that shows the parts against the wrong
+ *  bed is a picture that quietly disagrees with the file it describes. Made
+ *  optional -- "draw the parts' own extent if nobody says" -- it would be a
+ *  silent wrong answer rather than a compile error, and this module's whole
+ *  posture is that a silently wrong plate is the worst outcome available. */
+export type PlateMeta = {
+  bed: Bed;
+  title?: string;
+  credit?: string;
+  description?: string;
+};
+
 /**
  * Write one plate: every distinct part once as an `<object>`, every placement as
  * an `<item>` carrying the translation that puts it there.
@@ -212,7 +252,7 @@ export function extractObjectBlock(
 export async function buildPlate3mf(
   placements: readonly Placement[],
   sources: ReadonlyMap<string, string>,
-  meta?: { title?: string; credit?: string; description?: string },
+  meta: PlateMeta,
 ): Promise<Buffer> {
   const objectBySlug = new Map<string, { id: number; name: string }>();
   const objects: string[] = [];
@@ -317,6 +357,15 @@ export async function buildPlate3mf(
   zip.file("_rels/.rels", RELS, { date: ZIP_EPOCH });
   zip.file("3D/", null, dir);
   zip.file("3D/3dmodel.model", model, { date: ZIP_EPOCH });
+  // The package thumbnail: a top-down plan of THIS plate, drawn from the same
+  // placements the build items above were written from. Registered in
+  // `[Content_Types].xml` and `_rels/.rels` at the top of this file -- all three
+  // or none, because a `Metadata/thumbnail.png` with no relationship is an
+  // orphan file that makes the package larger and shows nobody anything.
+  zip.file("Metadata/", null, dir);
+  zip.file(THUMBNAIL_PATH, plateThumbnail(placements, meta.bed), {
+    date: ZIP_EPOCH,
+  });
   return zip.generateAsync({
     type: "nodebuffer",
     compression: "DEFLATE",

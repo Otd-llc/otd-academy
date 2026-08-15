@@ -386,6 +386,11 @@ async function platedPack(
     for (let i = 0; i < plates.length; i++) {
       built.push(
         await buildPlate3mf(plates[i], sources, {
+          // What the plate was packed for, and therefore the outline the package
+          // thumbnail draws the parts inside. The same `bed` the packer used, not
+          // a re-read of the query: a thumbnail showing the right parts against
+          // the wrong bed is a picture that disagrees with its own file.
+          bed,
           // The build's own name, then which plate of how many. ONE string for
           // the title and the filename, so a slicer's title bar and the file it
           // was opened from cannot be saying different things -- the same reason

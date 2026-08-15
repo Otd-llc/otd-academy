@@ -391,6 +391,106 @@ describe("the download is named after the cluster", () => {
   });
 });
 
+// 3MF carries a PACKAGE THUMBNAIL through the OPC relationship type
+// `.../metadata/thumbnail`, with the image in `Metadata/`. That is CORE SPEC,
+// not a vendor extension, which is the whole reason it is worth carrying where
+// printer and process settings are not: Explorer, Finder and a slicer's open
+// dialog all read it, so a `.3mf` shows what is on it before anyone slices.
+//
+// Asserted at the ROUTE as well as in `hex-thumbnail.test.ts`, because the
+// picture being right and the package DECLARING it are two different failures
+// and the second one is silent -- an unregistered `Metadata/thumbnail.png` is an
+// orphan that makes the file bigger and shows nobody anything.
+describe("every plate carries a picture of itself", () => {
+  /** The three things that have to agree for a thumbnail to exist at all. */
+  async function thumbnailOf(zip: JSZip) {
+    const png = zip.file("Metadata/thumbnail.png");
+    const rels = await zip.file("_rels/.rels")!.async("string");
+    const types = await zip.file("[Content_Types].xml")!.async("string");
+    return {
+      png: png ? await png.async("nodebuffer") : null,
+      rels,
+      types,
+    };
+  }
+
+  const isPng = (b: Buffer | null) =>
+    b !== null &&
+    b.subarray(0, 8).equals(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    );
+
+  it("puts one in the bare .3mf, related and declared", async () => {
+    const res = await call(`release=${RELEASE}&parts=hex-tb-main:3`);
+    const zip = await JSZip.loadAsync(await bodyOf(res));
+    const t = await thumbnailOf(zip);
+    expect(isPng(t.png)).toBe(true);
+    expect(t.rels).toContain(
+      'Target="/Metadata/thumbnail.png" Id="rel1" ' +
+        'Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/thumbnail"',
+    );
+    expect(t.types).toContain(
+      '<Default Extension="png" ContentType="image/png" />',
+    );
+    // And the model is STILL the entry point: the thumbnail is additive, so the
+    // 3D relationship keeps its id and its place.
+    expect(t.rels).toContain('Target="/3D/3dmodel.model" Id="rel0"');
+  });
+
+  it("puts one in EVERY plate inside a zip", async () => {
+    // Per plate, not per pack. A plate is its own package and each one is a
+    // picture of what is on THAT bed.
+    const res = await call(
+      `release=${RELEASE}&parts=hex-tb-main:2&plate=100x100`,
+    );
+    const zip = await JSZip.loadAsync(await bodyOf(res));
+    const plates = Object.values(zip.files).filter(
+      (f) => !f.dir && f.name.startsWith("plates/"),
+    );
+    expect(plates).toHaveLength(2);
+    for (const entry of plates) {
+      const inner = await JSZip.loadAsync(await entry.async("nodebuffer"));
+      const t = await thumbnailOf(inner);
+      expect(isPng(t.png), entry.name).toBe(true);
+      expect(t.rels, entry.name).toContain("metadata/thumbnail");
+      // The model still reads, which is the thing a broken package would cost.
+      const model = await inner.file("3D/3dmodel.model")!.async("string");
+      expect(model, entry.name).toContain("<build>");
+      expect(model, entry.name).toContain('name="Hex-TB-Main"');
+    }
+  });
+
+  it("draws a DIFFERENT picture for a different bed", async () => {
+    // The bed the packer used is the outline the thumbnail draws, so two beds
+    // are two pictures. Without this row, "there is a PNG" is satisfied by a
+    // constant image baked into the bundle.
+    const png = async (q: string) => {
+      const zip = await JSZip.loadAsync(await bodyOf(await call(q)));
+      return zip.file("Metadata/thumbnail.png")!.async("nodebuffer");
+    };
+    const a = await png(`release=${RELEASE}&parts=hex-tb-main:3&plate=220x220`);
+    const b = await png(`release=${RELEASE}&parts=hex-tb-main:3&plate=350x350`);
+    expect(Buffer.compare(a, b)).not.toBe(0);
+  });
+
+  it("does not put one in the LOOSE zip, which has no plate to draw", async () => {
+    // The loose zip is a folder of published meshes, not a package and not a
+    // layout. There is nothing to be a top-down plan OF.
+    const res = await call(`release=${RELEASE}&format=stl&parts=hex-tb-main:6`);
+    expect(await entriesOf(res)).not.toContain("Metadata/thumbnail.png");
+  });
+
+  it("leaves the response byte-identical for the same URL twice", async () => {
+    // The thumbnail is inside the determinism promise, not beside it: a clock,
+    // a seed or a platform-dependent number in the PNG would break a promise
+    // the headers would never show.
+    const q = `release=${RELEASE}&parts=hex-tb-main:3&plate=350x350`;
+    const first = await bodyOf(await call(q));
+    const second = await bodyOf(await call(q));
+    expect(Buffer.compare(first, second)).toBe(0);
+  });
+});
+
 describe("the name on the box matches what is in it", () => {
   it("counts INSTANCES in the filename, and ships that many", async () => {
     // The defect this route already shipped once: a filename saying six, a
