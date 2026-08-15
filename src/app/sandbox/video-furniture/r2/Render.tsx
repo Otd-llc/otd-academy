@@ -768,6 +768,18 @@ function HexMark({
  *
  * Every type sits above the CEA-708 caption band via `LOWER_THIRD_BOTTOM`.
  */
+// EVERY BRANCH ROOT CARRIES `data-lower-third`, and that is load-bearing rather
+// than decorative: `scripts/check-video-furniture.ts` measures the marked box
+// against the caption band, so an unmarked branch is not an unchecked branch --
+// it is a branch that reports a PASS having measured nothing.
+//
+// That was live. This component replaced an earlier `Lower` that carried the
+// marker, the selector was never moved across, and for all 24 variants the band
+// assertion read null at every sample, left `worst` at 0, compared 0 > 0.72,
+// and passed. Under `--mutate` the band became 0 and `worst > 0` was also
+// false, so it was blind in both directions. Adding a variant without the
+// marker now FAILS the gate ("never rendered"), which is the backstop that
+// makes this comment enforceable instead of merely true.
 function LowerThird({ variant, t }: VProps) {
   const life = outCubic(seg(t, 0, 0.6));
   const rule = outExpo(seg(t, 0.1, 0.95));
@@ -805,7 +817,7 @@ function LowerThird({ variant, t }: VProps) {
       // The callout's winning tab, at the frame edge. One vocabulary across the
       // set rather than two, and it brings its own ground.
       return (
-        <div style={{ ...base, display: "flex", alignItems: "center", opacity: life }}>
+        <div data-lower-third style={{ ...base, display: "flex", alignItems: "center", opacity: life }}>
           <span style={{ width: "2.6cqw", height: hw(0.3), background: GOLD, opacity: rule }} />
           <span style={{ display: "flex", alignItems: "baseline", gap: "1cqw", background: GOLD, padding: "1cqh 1.5cqw", opacity: late }}>
             <Mono tone={FIELD} size={1.15}>U2</Mono>
@@ -817,7 +829,7 @@ function LowerThird({ variant, t }: VProps) {
       );
     case "form-display":
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           <div style={{ opacity: late }}>
             <Mono tone={GOLD} size={1.1}>&#9656; U2 &middot; regulator</Mono>
           </div>
@@ -840,7 +852,7 @@ function LowerThird({ variant, t }: VProps) {
       // One run, a third of the height. For a video that needs a lower third
       // often rather than rarely.
       return (
-        <div style={{ ...base, width: "62cqw", display: "flex", alignItems: "center", gap: "1.2cqw" }}>
+        <div data-lower-third style={{ ...base, width: "62cqw", display: "flex", alignItems: "center", gap: "1.2cqw" }}>
           <Mono o={late} size={1.05}>U2</Mono>
           <span style={{ width: "2.4cqw", height: hw(0.12), background: HAIR, opacity: rule }} />
           <Desig size={1.5} color={TEXT} o={late}>
@@ -855,6 +867,7 @@ function LowerThird({ variant, t }: VProps) {
       // a 9:16 frame has none of.
       return (
         <div
+          data-lower-third
           style={{
             position: "absolute",
             left: "4cqw",
@@ -876,7 +889,7 @@ function LowerThird({ variant, t }: VProps) {
       );
     case "form-bracket":
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           <Rule p={rule} w={0.16} />
           <div style={{ padding: "1cqh 0", display: "flex", alignItems: "baseline", gap: "1.2cqw" }}>
             <Mono o={late} size={1.1}>U2</Mono>
@@ -891,7 +904,7 @@ function LowerThird({ variant, t }: VProps) {
       // A deep-space plate with a gold top-rule: the masthead at full width.
       // The most readable over anything, and the most furniture on screen.
       return (
-        <div style={{ ...base, width: "56cqw" }}>
+        <div data-lower-third style={{ ...base, width: "56cqw" }}>
           <Rule p={rule} w={0.24} />
           <div style={{ background: FIELD, padding: "1.4cqh 1.6cqw", opacity: late }}>
             <Mono size={1.05} tone={MUTED}>U2 &middot; regulator</Mono>
@@ -907,7 +920,7 @@ function LowerThird({ variant, t }: VProps) {
     // ---- PART -------------------------------------------------------------
     case "part-tag":
       return (
-        <div style={{ ...base, display: "flex", alignItems: "center", gap: "1.2cqw" }}>
+        <div data-lower-third style={{ ...base, display: "flex", alignItems: "center", gap: "1.2cqw" }}>
           <Tagg o={late}>U2</Tagg>
           <Desig size={2} color={TEXT} o={late}>
             AP2112K-3.3
@@ -916,7 +929,7 @@ function LowerThird({ variant, t }: VProps) {
       );
     case "part-lead":
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           <Desig size={3} color={TITLE} o={late}>
             AP2112K-3.3
           </Desig>
@@ -932,7 +945,7 @@ function LowerThird({ variant, t }: VProps) {
     // ---- MEASURE ----------------------------------------------------------
     case "measure-line":
       return (
-        <div style={{ ...base, display: "flex", alignItems: "center", gap: "1.4cqw" }}>
+        <div data-lower-third style={{ ...base, display: "flex", alignItems: "center", gap: "1.4cqw" }}>
           <Mono o={late}>&#9656; draw</Mono>
           <div style={{ flex: 1, height: hw(0.12), background: HAIR, opacity: rule }} />
           <Num size={2.6}>2.42 A</Num>
@@ -940,7 +953,7 @@ function LowerThird({ variant, t }: VProps) {
       );
     case "measure-delta":
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           <Mono o={late}>&#9656; quiescent draw</Mono>
           <div style={{ marginTop: "0.8cqh" }}>
             <Rule p={rule} />
@@ -960,7 +973,7 @@ function LowerThird({ variant, t }: VProps) {
     // ---- TERM -------------------------------------------------------------
     case "term-inline":
       return (
-        <div style={{ ...base, width: "56cqw" }}>
+        <div data-lower-third style={{ ...base, width: "56cqw" }}>
           <Rule p={rule} />
           <div style={{ marginTop: "0.9cqh", opacity: late }}>
             <span style={{ fontFamily: "var(--font-display)", fontSize: ts(2), color: GOLD }}>Keep-out&nbsp;</span>
@@ -972,7 +985,7 @@ function LowerThird({ variant, t }: VProps) {
       );
     case "term-eyebrow":
       return (
-        <div style={{ ...base, width: "56cqw" }}>
+        <div data-lower-third style={{ ...base, width: "56cqw" }}>
           <Mono o={late}>&#9656; keep-out</Mono>
           <div style={{ marginTop: "0.8cqh" }}>
             <Rule p={rule} />
@@ -988,7 +1001,7 @@ function LowerThird({ variant, t }: VProps) {
     // ---- SOURCE -----------------------------------------------------------
     case "source-tag":
       return (
-        <div style={{ ...base, display: "flex", alignItems: "center", gap: "1.1cqw" }}>
+        <div data-lower-third style={{ ...base, display: "flex", alignItems: "center", gap: "1.1cqw" }}>
           <Tagg o={late} tone={MUTED}>IPC-2221B</Tagg>
           <Mono o={late} tone={MUTED} size={1.1}>
             &sect;6.3 &middot; conductor spacing
@@ -997,7 +1010,7 @@ function LowerThird({ variant, t }: VProps) {
       );
     case "source-corner":
       return (
-        <div style={{ position: "absolute", right: "5cqw", bottom: `${LOWER_THIRD_BOTTOM * 40}cqh`, opacity: life * late }}>
+        <div data-lower-third style={{ position: "absolute", right: "5cqw", bottom: `${LOWER_THIRD_BOTTOM * 40}cqh`, opacity: life * late }}>
           <Mono tone={MUTED} size={0.95}>
             IPC-2221B &sect;6.3
           </Mono>
@@ -1007,7 +1020,7 @@ function LowerThird({ variant, t }: VProps) {
     // ---- GATE -------------------------------------------------------------
     case "gate-badge":
       return (
-        <div style={{ ...base, display: "flex", alignItems: "center", gap: "1.2cqw" }}>
+        <div data-lower-third style={{ ...base, display: "flex", alignItems: "center", gap: "1.2cqw" }}>
           <Tagg o={late} tone={gTone}>
             {passed ? "DRC pass" : "DRC fail"}
           </Tagg>
@@ -1018,7 +1031,7 @@ function LowerThird({ variant, t }: VProps) {
       );
     case "gate-count":
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           <Rule p={rule} tone={gTone} w={0.18} />
           <div style={{ marginTop: "1cqh", display: "flex", alignItems: "baseline", gap: "1.2cqw" }}>
             <Num size={4.6} color={gTone}>
@@ -1039,7 +1052,7 @@ function LowerThird({ variant, t }: VProps) {
     // ---- WARN -------------------------------------------------------------
     case "warn-stencil":
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           <span style={{ display: "inline-block", background: CORAL, padding: "0.9cqh 1.4cqw", opacity: late }}>
             <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: ts(1.3), letterSpacing: "0.24em", textTransform: "uppercase", color: FIELD }}>
               polarised
@@ -1057,7 +1070,7 @@ function LowerThird({ variant, t }: VProps) {
       );
     case "warn-brackets":
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           <Rule p={rule} tone={CORAL} w={0.18} />
           <div style={{ padding: "1cqh 0", display: "flex", alignItems: "baseline", gap: "1.1cqw" }}>
             <Mono o={late} tone={CORAL}>polarised</Mono>
@@ -1070,7 +1083,7 @@ function LowerThird({ variant, t }: VProps) {
       );
     case "warn-bar":
       return (
-        <div style={{ ...base, display: "flex", gap: "1.4cqw" }}>
+        <div data-lower-third style={{ ...base, display: "flex", gap: "1.4cqw" }}>
           <div style={{ width: hw(0.5), background: CORAL, opacity: rule }} />
           <div>
             <Mono o={late} tone={CORAL}>polarised</Mono>
@@ -1089,7 +1102,7 @@ function LowerThird({ variant, t }: VProps) {
     // ---- the house treatments -------------------------------------------
     case "measure-hero":
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           <Mono o={late}>&#9656; quiescent draw</Mono>
           <div style={{ marginTop: "0.8cqh" }}>
             <Rule p={rule} />
@@ -1102,7 +1115,7 @@ function LowerThird({ variant, t }: VProps) {
       );
     case "term-stack":
       return (
-        <div style={{ ...base, width: "52cqw" }}>
+        <div data-lower-third style={{ ...base, width: "52cqw" }}>
           <Mono o={late}>&#9656; term</Mono>
           <div style={{ marginTop: "0.8cqh" }}>
             <Rule p={rule} />
@@ -1121,7 +1134,7 @@ function LowerThird({ variant, t }: VProps) {
       );
     case "source-rule":
       return (
-        <div style={{ ...base, width: "50cqw" }}>
+        <div data-lower-third style={{ ...base, width: "50cqw" }}>
           <Rule p={rule} w={0.1} tone={HAIR} />
           <div style={{ marginTop: "0.9cqh" }}>
             <Mono o={late} tone={MUTED} size={1.15}>
@@ -1132,7 +1145,7 @@ function LowerThird({ variant, t }: VProps) {
       );
     case "gate-rule":
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           <Rule p={rule} tone={gTone} w={0.18} />
           <div style={{ marginTop: "0.9cqh", display: "flex", alignItems: "baseline", gap: "1.2cqw" }}>
             <Mono o={late} tone={gTone}>{passed ? "DRC pass" : "DRC fail"}</Mono>
@@ -1145,7 +1158,7 @@ function LowerThird({ variant, t }: VProps) {
     case "part-rule":
     default:
       return (
-        <div style={base}>
+        <div data-lower-third style={base}>
           <Mono o={late}>&#9656; U2 &middot; regulator</Mono>
           <div style={{ marginTop: "0.8cqh" }}>
             <Rule p={rule} />
