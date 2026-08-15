@@ -1,0 +1,56 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>OTD capture calibration</title>
+<!--
+  Shot for 3 seconds at the head of EVERY take, fullscreen (F11), before KiCad
+  comes up.
+
+  WHY THIS EXISTS. The two capture faults that silently ruin a screencast cannot
+  be read off a metadata tag:
+
+  1. COLOR RANGE. `color_range=pc` in the file is a tag OBS writes from its own
+     config. If the GPU handed it Limited-range pixels, the blacks and whites
+     are already crushed and the tag still says `pc`. The only honest test is to
+     put known 0,0,0 and 255,255,255 on screen and measure what came back.
+
+  2. SCALING / DPI INTERPOLATION. A capture that is being resampled anywhere in
+     the chain (wrong base resolution, Windows display scaling, an OBS scale
+     filter left on) destroys 1px lines -- which is what a schematic is made of.
+     The hairline grid below is at the pixel Nyquist: if any resample happened,
+     it turns into grey mush and the measured line amplitude drops.
+
+  One target, both faults, three seconds. `pnpm video:verify-capture` reads them
+  back off the recorded file.
+
+  Pure CSS, no images, so it is diffable and cannot rot into a mystery binary.
+  ASCII only.
+-->
+<style>
+  html, body { margin: 0; padding: 0; background: #808080; height: 100%; overflow: hidden; }
+  body { display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; }
+  .patch { display: grid; place-items: end center; font: 12px/1 monospace; padding-bottom: 8px; }
+  /* The two that decide the range test. Nothing else on the target may be
+     darker than #000 or lighter than #fff, obviously, so YMIN/YMAX read these. */
+  .black  { background: #000000; color: #666; }
+  .white  { background: #ffffff; color: #999; }
+  .mid    { background: #808080; color: #ccc; }
+  /* The KiCad Default page colour, verbatim from a stock 10.0 colors/user.json
+     on the capture machine. Present so the take carries the real working
+     background next to a known reference. */
+  .page   { background: rgb(245, 244, 239); color: #888; }
+  /* Hairline grid at 1px on / 1px off. Survives a 1:1 capture; smears to a flat
+     grey the instant anything resamples. */
+  .lines  { background:
+      repeating-linear-gradient(to right, #000 0 1px, #fff 1px 2px);
+    color: #f00; }
+  .linesv { background:
+      repeating-linear-gradient(to bottom, #000 0 1px, #fff 1px 2px);
+    color: #f00; }
+  span { background: rgba(0,0,0,.55); color: #fff; padding: 2px 6px; }
+</style>
+<div class="patch black"><span>BLACK 0,0,0 -- YMIN must reach &lt;= 1</span></div>
+<div class="patch white"><span>WHITE 255,255,255 -- YMAX must reach &gt;= 254</span></div>
+<div class="patch mid"><span>MID 128</span></div>
+<div class="patch lines"><span>1px VERTICAL hairlines -- must stay black/white, not grey</span></div>
+<div class="patch linesv"><span>1px HORIZONTAL hairlines</span></div>
+<div class="patch page"><span>KiCad Default page rgb(245,244,239)</span></div>
