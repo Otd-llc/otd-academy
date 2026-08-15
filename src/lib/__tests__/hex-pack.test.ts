@@ -16,7 +16,7 @@ import {
   MAX_PACK_PARTS,
   PART_SLUG_RE,
   packFilename,
-  packReadme,
+  platePath,
   resolvePack,
 } from "@/lib/hex-pack";
 
@@ -183,40 +183,21 @@ describe("packFilename", () => {
   });
 });
 
-describe("packReadme", () => {
-  const base = {
-    release: RELEASE,
-    format: "3mf" as const,
-    parts: [
-      { slug: ONE, qty: 1 },
-      { slug: TWO, qty: 1 },
-    ],
-    credit: "Hex Cluster by One Thousand Drones, LLC, licensed CC BY 4.0.",
-    specUrl: "https://academy.onethousanddrones.com/hex",
-    printLines: ["Material: FDM PETG"],
-    supportNote: ["Every part here stands on a flat face."],
-  };
+// `packReadme` moved to `hex-pack-readme.ts` alongside the plated one, and its
+// tests moved with it -- see `hex-pack-readme.test.ts`.
 
-  it("carries the credit -- a pack is a redistribution of a CC BY work", () => {
-    // The one condition of the licence is that the attribution travels with the
-    // files. Shipping a subset without it would be us breaking the terms we ask
-    // every downstream remixer to keep, on our own work.
-    expect(packReadme(base)).toContain(base.credit);
+describe("platePath", () => {
+  it("names a plate one-based, with the total", () => {
+    expect(platePath(1, 3)).toBe("plates/plate-1-of-3.3mf");
+    expect(platePath(3, 3)).toBe("plates/plate-3-of-3.3mf");
   });
 
-  it("says plainly that it is a subset, and where the whole set is", () => {
-    const out = packReadme(base);
-    expect(out).toContain("SUBSET");
-    expect(out).toContain(base.specUrl);
-  });
-
-  it("lists every part it contains", () => {
-    const out = packReadme(base);
-    for (const p of base.parts) expect(out).toContain(p.slug);
-  });
-
-  it("records the release, so a pack can be traced to its geometry", () => {
-    expect(packReadme(base)).toContain(RELEASE);
+  it("is the ONE spelling the route and the README both use", () => {
+    // Pinned as a literal on purpose. The zip entry and the README line are
+    // written by different modules; if this string is ever edited, the literal
+    // above is the thing that has to be edited deliberately, rather than one of
+    // the two callers drifting and nobody noticing until someone opens the zip.
+    expect(platePath(2, 10)).toBe("plates/plate-2-of-10.3mf");
   });
 });
 

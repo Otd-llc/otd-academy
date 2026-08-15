@@ -218,45 +218,22 @@ export function packFilename(parts: PackPart[]): string {
     : `hex-cluster-${packInstances(parts)}-parts.zip`;
 }
 
-/** The README that travels inside a custom pack.
+/** Where a plate lives inside a multi-plate zip.
  *
- *  A pack is a REDISTRIBUTION of a CC BY work, and the licence's one condition
- *  is that the credit travels with it. Shipping a subset without the notice
- *  would be us breaking the terms we ask every downstream remixer to keep, on
- *  our own files. So every pack carries LICENSE.txt and this, which also says
- *  plainly that it is a subset and where the whole set lives. */
-export function packReadme(opts: {
-  release: string;
-  format: PackFormat;
-  parts: PackPart[];
-  credit: string;
-  specUrl: string;
-  printLines: string[];
-  supportNote: string[];
-}): string {
-  return [
-    "Hex Cluster -- selected parts",
-    "",
-    "Hex Cluster modular tile system -- One Thousand Drones, LLC",
-    opts.specUrl,
-    "",
-    `This is a SUBSET: ${opts.parts.length} of the published parts, as ${opts.format.toUpperCase()},`,
-    `chosen in the configurator. Release ${opts.release}. The complete set,`,
-    "every format, and the full specification are at the address above.",
-    "",
-    "Print settings:",
-    ...opts.printLines.map((l) => `  ${l}`),
-    "",
-    ...opts.supportNote,
-    "",
-    // Quantities are deliberately NOT listed here: this README travels with a
-    // zip that holds one file per part, so printing "x 3" would describe a box
-    // that has one. The plated README states quantities because its box has them.
-    `Parts (${opts.parts.length}):`,
-    ...opts.parts.map((p) => `  - ${p.slug}`),
-    "",
-    "Licensed CC BY 4.0 -- see LICENSE.txt.",
-    opts.credit,
-    "",
-  ].join("\n");
+ *  ONE function, called both by the route that WRITES the entry and by the
+ *  README that LISTS it. They sit either side of a module boundary and are
+ *  compared by a human holding a text file against a directory listing, so a
+ *  second spelling of this string would disagree in silence -- which is the
+ *  defect class this endpoint has already shipped once, a filename contradicting
+ *  its contents under a green suite, because nothing compared the two.
+ *
+ *  One-based and stated as "1 of 3", because it is read by a person: a folder of
+ *  three plates whose first file is `plate-0-of-3.3mf` invites the question of
+ *  where plate 3 went.
+ *
+ *  The README that travels beside these lives in `hex-pack-readme.ts`, which
+ *  imports this. The dependency runs that way and not back: this module is the
+ *  request grammar and knows nothing about prose. */
+export function platePath(index: number, total: number): string {
+  return `plates/plate-${index}-of-${total}.3mf`;
 }

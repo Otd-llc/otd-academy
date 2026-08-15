@@ -24,34 +24,13 @@ import JSZip from "jszip";
 import { capture } from "@/lib/analytics";
 import { env } from "@/env";
 import { getR2ObjectBytes } from "@/lib/part-r2";
-import { HEX_CLEARANCE, HEX_LICENSE, HEX_PRINT_PARAMS } from "@/lib/hex-spec";
-import { packFilename, packReadme, resolvePack } from "@/lib/hex-pack";
+import { HEX_LICENSE } from "@/lib/hex-spec";
+import { packFilename, resolvePack } from "@/lib/hex-pack";
+import { packReadme } from "@/lib/hex-pack-readme";
 import { printableKey, printableLicenseKey } from "@/lib/r2";
 import { distinctIdFromCookies } from "@/lib/posthog-distinct-id";
 
-/** ASCII-fold the spec strings. The archive is read in a terminal as often as a
- *  GUI, and the shared spec carries U+00D7 and U+00B0. */
-function ascii(s: string): string {
-  return (
-    s
-      .replace(/×/g, "x")
-      .replace(/°/g, " deg ")
-      .replace(/[–—]/g, "-")
-      .replace(/[^\x20-\x7e]/g, "")
-      // "240 °C" folds to "240  deg C" -- the degree sign already had a space
-      // before it. Collapse, or every temperature in the archive reads as a typo.
-      .replace(/\s+/g, " ")
-      .trim()
-  );
-}
-
 const SITE = "https://academy.onethousanddrones.com/hex";
-
-/** Named in the pack README for the same reason the release README names them:
- *  these two rest on a line by design and someone slicing them without support
- *  finds out the hard way. Kept in sync with `orientationNote` in
- *  scripts/upload-printables.ts. */
-const NEEDS_SUPPORT = ["hex-tb-spike-solid", "hex-tb-spike-ball-joint"];
 
 export async function GET(req: NextRequest) {
   if (!env.R2_ENABLED || !env.R2_BUCKET) {
@@ -110,6 +89,10 @@ export async function GET(req: NextRequest) {
     return new Response("Not found", { status: 404 });
   }
 
+  // The print settings, the orientation note and the support note are DERIVED
+  // inside `packReadme` from the shared spec, rather than composed here and
+  // passed in. Two READMEs ship from this route now, and a caller that assembles
+  // the prose is a caller that can assemble it two ways.
   zip.file(
     "README.txt",
     packReadme({
@@ -118,24 +101,6 @@ export async function GET(req: NextRequest) {
       parts,
       credit: HEX_LICENSE.credit,
       specUrl: SITE,
-      printLines: [...HEX_PRINT_PARAMS, ...HEX_CLEARANCE].map(
-        (p) =>
-          `${p.label}: ${ascii(p.value)}${p.aside ? ` (${ascii(p.aside)})` : ""}`,
-      ),
-      supportNote: parts.some((p) => NEEDS_SUPPORT.includes(p.slug))
-        ? [
-            "Support required -- " +
-              parts
-                .filter((p) => NEEDS_SUPPORT.includes(p.slug))
-                .map((p) => p.slug)
-                .join(", ") +
-              ".",
-            "These are laid on their side on purpose: a spike is loaded along its",
-            "axis, and lying down runs the layers ACROSS that load instead of",
-            "letting them peel apart. The cost is that they touch the bed along a",
-            "line, so give them supports or a brim.",
-          ]
-        : ["Every part here stands on a flat face. No supports needed."],
     }),
   );
 
