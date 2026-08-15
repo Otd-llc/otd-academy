@@ -23,10 +23,15 @@
 // read:
 //
 //   3MF, current release  ->  the parts PLATED. One plate is a bare .3mf; more
-//                             than one is a zip of plates/ plus README and
-//                             LICENSE. Quantity becomes real repeated items.
+//                             than one -- OR anything needing supports -- is a
+//                             zip of plates/ plus README and LICENSE. Quantity
+//                             becomes real repeated items.
 //   anything else         ->  the LOOSE zip, one file per distinct part, which
 //                             is what this route has always served.
+//
+// The two boxes hold different things, so their filenames COUNT different
+// things: a plate holds instances, the loose zip holds one file per name. That
+// is `PackContents`, and both are asserted in the route test.
 import type { NextRequest } from "next/server";
 import JSZip from "jszip";
 
@@ -48,7 +53,12 @@ import {
   type PackFormat,
   type PackPart,
 } from "@/lib/hex-pack";
-import { packReadme, plateReadme } from "@/lib/hex-pack-readme";
+import {
+  packNeedsSupport,
+  packReadme,
+  plateDescription,
+  plateReadme,
+} from "@/lib/hex-pack-readme";
 import { buildPlate3mf, ZIP_EPOCH } from "@/lib/hex-3mf";
 import {
   packPlates,
@@ -128,7 +138,7 @@ function track(req: NextRequest, t: Tracked): void {
         parts: t.parts.length,
         // What they are about to PRINT, which is not the number of names: six
         // of one cap is one part and six things on a bed.
-        instances: packInstances([...t.parts]),
+        instances: packInstances(t.parts),
         plates: t.plates,
         bed_x: t.bed.x,
         bed_y: t.bed.y,
@@ -230,6 +240,17 @@ async function platedPack(
         // publicly as one 13.7 MB zip, and because the part withheld on
         // disclosure grounds is not IN that list -- it answers exactly like an
         // invented name does. Nothing here reaches the withheld set.
+        //
+        // NAME THE CHANNEL PRECISELY, though, because it is not the same
+        // question as the paragraph above answers. What decides this response is
+        // aggregate FOOTPRINT against the bed, so binary-searching `plate=WxH`
+        // against a single published name recovers that name's bounding box to
+        // bed quantisation -- geometry, not merely existence. Harmless as
+        // written, because those boxes ship publicly inside a 13.7 MB download
+        // anyone can take; but the existence argument alone would NOT cover a
+        // future release that published a part's name while withholding its
+        // geometry, and reading it as though it did is exactly how a widening
+        // gets waved through on a precedent it never had.
         return new Response(
           `${err instanceof Error ? err.message : "too many plates"}. ` +
             "Choose a larger bed, or fewer parts.",
@@ -263,6 +284,28 @@ async function platedPack(
   }
 
   const multi = plates.length > 1;
+  // WHY ONE PLATE IS NOT ALWAYS A BARE FILE.
+  //
+  // The bare `.3mf` is the point of this feature -- an alpha tester asked for
+  // one file he could slice and print, and it is also the commonest response.
+  // But a bare file ships no README, and the README is where the SUPPORT NOTE
+  // lives: `hex-tb-spike-solid` and `hex-tb-spike-ball-joint` are laid on their
+  // side BY DESIGN, so they touch the bed along a line and need supports or a
+  // brim. Before plating, every download was a zip and that warning always
+  // travelled; the one-file case is the only way it could ever go missing, and
+  // the consequence of it going missing is a failed print.
+  //
+  // So the archive is conditional on the CONTENT, not on the plate count. A
+  // build with a spike in it gets the zip -- one extra click, and only in the
+  // case where there is something the person has to be told. Everything else
+  // still gets the one file.
+  //
+  // The `<metadata name="Description">` written into every plate carries the
+  // same two notes inside the file, but slicers surface metadata inconsistently,
+  // so it is the second line of defence and not the answer. Design, section 5.
+  const warned = packNeedsSupport(parts.map((p) => p.slug));
+  const archived = multi || warned;
+
   const sources = new Map<string, string>();
   let licence: Buffer | null = null;
   let bytesIn = 0;
@@ -281,11 +324,12 @@ async function platedPack(
       if (!entry) throw new Error(`${part.slug} carries no 3D/3dmodel.model`);
       sources.set(part.slug, await entry.async("string"));
     }
-    // Only when there is an archive to put it in. A single plate ships bare, and
-    // its CC BY notice travels INSIDE the file as `<metadata
-    // name="LicenseTerms">` -- which is also why a bare plate is licence-safe
-    // in a way a bare .stl would not be.
-    if (multi) licence = await getR2ObjectBytes(printableLicenseKey(release));
+    // Only when there is an archive to put it in. A bare plate ships its CC BY
+    // notice INSIDE the file as `<metadata name="LicenseTerms">` -- which is
+    // also why a bare plate is licence-safe in a way a bare .stl would not be.
+    if (archived) {
+      licence = await getR2ObjectBytes(printableLicenseKey(release));
+    }
   } catch {
     // A part that is not in THIS release, or R2 unreachable, or a published
     // object we cannot open. 404 for all three: from the caller's side the pack
@@ -301,6 +345,10 @@ async function platedPack(
         await buildPlate3mf(plates[i], sources, {
           title: `Hex Cluster plate ${i + 1} of ${plates.length}`,
           credit: HEX_LICENSE.credit,
+          // Per PLATE, not per pack: a plate with no spike on it says so, and
+          // the one that has them names them. A pack-wide note would tell four
+          // people out of five to support a part that is not in front of them.
+          description: plateDescription(plates[i]),
         }),
       );
     }
@@ -311,7 +359,7 @@ async function platedPack(
     return new Response("Server error", { status: 500 });
   }
 
-  if (!multi) {
+  if (!archived) {
     const out = built[0];
     track(req, {
       release,
@@ -330,13 +378,23 @@ async function platedPack(
         // `.3mf`, not `.zip`. A 3MF *is* a zip underneath, which is exactly why
         // the extension has to be right: named `.zip` it opens in an archiver
         // and shows the reader an XML file instead of their parts.
-        "Content-Disposition": `attachment; filename="${packFilename(parts, "3mf")}"`,
+        //
+        // INSTANCES, because a plate really does hold that many objects.
+        "Content-Disposition": `attachment; filename="${packFilename(parts, {
+          holds: "instances",
+          ext: "3mf",
+        })}"`,
         "Cache-Control": CACHE,
       },
     });
   }
 
   const zip = new JSZip();
+  // `plates/plate-1-of-1.3mf` in the one-plate-plus-warning case, which reads
+  // slightly oddly in a folder listing and is still the right answer: the README
+  // beside it lists its contents through the same `platePath`, so the two agree,
+  // and a reader who takes a second plate later meets the same naming.
+  //
   // The directory entry is written EXPLICITLY, and only so its timestamp can be
   // fixed: JSZip creates it implicitly for a nested path, stamped `new Date()`,
   // which would leave the archive non-reproducible for the sake of one entry
@@ -390,7 +448,10 @@ async function platedPack(
     headers: {
       "Content-Type": "application/zip",
       "Content-Length": String(out.byteLength),
-      "Content-Disposition": `attachment; filename="${packFilename(parts)}"`,
+      // INSTANCES: the plates inside really do carry that many objects.
+      "Content-Disposition": `attachment; filename="${packFilename(parts, {
+        holds: "instances",
+      })}"`,
       "Cache-Control": CACHE,
     },
   });
@@ -486,7 +547,20 @@ async function looseZip(
     headers: {
       "Content-Type": "application/zip",
       "Content-Length": String(out.byteLength),
-      "Content-Disposition": `attachment; filename="${packFilename(parts)}"`,
+      // FILES, not instances, and this is the count the loop above just wrote:
+      // one entry per DISTINCT part. Naming the box after the instance total
+      // shipped `?format=stl&parts=hex-tb-main:6` as `hex-cluster-6-parts.zip`
+      // holding one file, beside a README reading "1 of the published parts" --
+      // the filename said six, the README said one, the box held one.
+      //
+      // Fixed by counting what is in the box rather than by teaching the README
+      // to explain a six: this zip HAS one file per name, `packReadme` already
+      // counts names, and quantity legitimately does not change it (a second
+      // copy of an identical mesh is bytes nobody needs). Making the name agree
+      // with both is the smaller change and leaves one idea, not two.
+      "Content-Disposition": `attachment; filename="${packFilename(parts, {
+        holds: "files",
+      })}"`,
       "Cache-Control": CACHE,
     },
   });

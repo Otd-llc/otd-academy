@@ -167,7 +167,7 @@ export function extractObjectBlock(
 export async function buildPlate3mf(
   placements: readonly Placement[],
   sources: ReadonlyMap<string, string>,
-  meta?: { title?: string; credit?: string },
+  meta?: { title?: string; credit?: string; description?: string },
 ): Promise<Buffer> {
   const objectBySlug = new Map<string, { id: number; name: string }>();
   const objects: string[] = [];
@@ -225,6 +225,20 @@ export async function buildPlate3mf(
     // The CC BY credit travels INSIDE the file, not only in the README beside
     // it: a single .3mf gets dragged out of the zip and the notice is gone.
     ` <metadata name="LicenseTerms">${escapeXml(meta?.credit ?? "CC BY 4.0")}</metadata>\n` +
+    // The same argument, applied to the one instruction whose absence costs a
+    // print rather than a licence breach: the support and orientation notes.
+    // `Description` is a core-spec metadata name, so this is conformant and
+    // free. It is NOT the guarantee that a reader sees the warning -- slicers
+    // surface metadata inconsistently -- which is why the route ships a
+    // spike-bearing plate inside an archive with a README. This is what the file
+    // still says when it has been separated from that README.
+    //
+    // Omitted rather than emptied when no caller supplies one: an empty
+    // `<metadata>` element is a claim that the description is blank, and a test
+    // fixture has no notes to carry.
+    (meta?.description
+      ? ` <metadata name="Description">${escapeXml(meta.description)}</metadata>\n`
+      : "") +
     ` <resources>\n${objects.join("\n")}\n </resources>\n` +
     ` <build>\n${items.join("\n")}\n </build>\n</model>\n`;
 

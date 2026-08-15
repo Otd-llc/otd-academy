@@ -82,13 +82,20 @@ async function call(query: string): Promise<Response> {
 }
 
 const bodyOf = async (res: Response) => Buffer.from(await res.arrayBuffer());
-const entriesOf = async (res: Response) => {
-  const zip = await JSZip.loadAsync(await bodyOf(res));
-  return Object.values(zip.files)
+/** Collapse the README's hard wrap. It wraps at 72 columns because it is read in
+ *  a terminal, so a phrase is free to land across a line break; asserting on the
+ *  raw string would pin where the wrap happened to fall. */
+const flat = (s: string) => s.replace(/\s+/g, " ");
+/** The file entries of a loaded archive, directories excluded. Split out from
+ *  `entriesOf` because a `Response` body can only be read ONCE: a test that
+ *  wants both the listing and a file out of it has to load the zip itself. */
+const namesIn = (zip: JSZip) =>
+  Object.values(zip.files)
     .filter((f) => !f.dir)
     .map((f) => f.name)
     .sort();
-};
+const entriesOf = async (res: Response) =>
+  namesIn(await JSZip.loadAsync(await bodyOf(res)));
 
 beforeEach(() => {
   getBytes.mockReset();
@@ -227,6 +234,176 @@ describe("the name on the box matches what is in it", () => {
     expect(res.headers.get("content-disposition")).toBe(
       'attachment; filename="hex-cluster-hex-tb-main.3mf"',
     );
+  });
+
+  // THE LOOSE PATH'S NAME, which had no assertion at all until now -- every
+  // `content-disposition` row above this one is on a plated response. That gap
+  // is how the SAME defect this file was written to prevent shipped a second
+  // time on the other path: `packFilename` was changed to count INSTANCES while
+  // the loose zip kept writing one entry per DISTINCT part, so
+  // `?format=stl&parts=hex-tb-main:6` came back as `hex-cluster-6-parts.zip`
+  // holding one file, beside a README reading "1 of the published parts".
+  //
+  // Planned Task B1 makes it routine rather than exotic: it emits `:n`
+  // unconditionally with `format` as a separate option, so every STL download
+  // from a build with repeats would have carried a lying name.
+  describe("the loose zip's name counts the FILES it holds", () => {
+    /** The number a `hex-cluster-N-parts` name claims, or null if it names a
+     *  single part instead. Read off the header rather than restated, so the
+     *  cross-checks below compare the RESPONSE against the RESPONSE. */
+    const claimed = (res: Response): number | null => {
+      const m = /filename="hex-cluster-(\d+)-parts\.\w+"/.exec(
+        res.headers.get("content-disposition") ?? "",
+      );
+      return m ? Number(m[1]) : null;
+    };
+
+    it("names a single part after itself, however many were asked for", async () => {
+      const res = await call(
+        `release=${RELEASE}&format=stl&parts=hex-tb-main:6`,
+      );
+      expect(res.headers.get("content-disposition")).toBe(
+        'attachment; filename="hex-cluster-hex-tb-main.zip"',
+      );
+      // The box, so the name is checked against it and not against my
+      // arithmetic: one mesh, whatever the quantity said.
+      const meshes = (await entriesOf(res)).filter((n) =>
+        n.startsWith("stl/"),
+      );
+      expect(meshes).toEqual(["stl/hex-tb-main.stl"]);
+    });
+
+    it("counts the meshes in the zip, not the instances in the request", async () => {
+      const res = await call(
+        `release=${RELEASE}&format=stl&parts=hex-tb-main:6,dovetail-cap-single-m-solid:3`,
+      );
+      const zip = await JSZip.loadAsync(await bodyOf(res));
+      const meshes = namesIn(zip).filter((n) => n.startsWith("stl/"));
+      expect(meshes).toHaveLength(2);
+      // Name against box.
+      expect(claimed(res)).toBe(meshes.length);
+      // Name against the README, which is the third statement of the same
+      // number and the one the person actually reads. All three, because the
+      // defect was two of them agreeing while the third did not.
+      const readme = await zip.file("README.txt")!.async("string");
+      expect(readme).toContain(
+        `SUBSET: ${meshes.length} of the published parts`,
+      );
+    });
+
+    it("CONTROL: the SAME build as a plate counts INSTANCES instead", async () => {
+      // Without this row, "the loose zip counts files" is satisfied by a route
+      // that counts distinct parts everywhere -- which would put "2 parts" on a
+      // plate holding nine objects. Nine is the right answer for a box that
+      // holds nine things; two is the right answer for a box that holds two
+      // files; the point is that they differ.
+      const res = await call(
+        `release=${RELEASE}&parts=hex-tb-main:6,dovetail-cap-single-m-solid:3`,
+      );
+      expect(res.status).toBe(200);
+      expect(claimed(res)).toBe(9);
+    });
+
+    it("names a superseded release's zip the same way", async () => {
+      // The other way into the loose path: 3MF on a release the geometry table
+      // was not measured from. Same box, so the same count -- and it is served
+      // by the same function, which a reader has no way to know from the URL.
+      const res = await call(
+        `release=${OLD_RELEASE}&parts=hex-tb-main:6,dovetail-cap-single-m-solid:3`,
+      );
+      expect(res.headers.get("content-type")).toBe("application/zip");
+      expect(res.headers.get("content-disposition")).toBe(
+        'attachment; filename="hex-cluster-2-parts.zip"',
+      );
+    });
+  });
+});
+
+// I2. Two published parts rest on a LINE by design -- they are laid on their
+// side so the layers run ACROSS the load rather than peeling apart -- so they
+// need supports or a brim. Every download used to be a zip, so that warning
+// always travelled in the README. The bare single-plate `.3mf` this feature
+// added is the one shape that carries no README, and it is also the commonest
+// response, so the commonest download lost the warning and the consequence is a
+// failed print.
+//
+// The requirement is an OUTCOME: no download holding a support-requiring part
+// may leave without that warning in a form the person will actually meet. The
+// mechanism chosen is the archive, because it is the only one that guarantees
+// it -- `<metadata name="Description">` is carried too, but slicers surface
+// metadata inconsistently, so on its own it would be a warning nobody is shown.
+describe("a build that needs supports never ships without the warning", () => {
+  const SPIKE = "hex-tb-spike-solid";
+
+  it("ships a ONE-plate spike build in an archive, with the README", async () => {
+    const res = await call(`release=${RELEASE}&parts=${SPIKE}`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("application/zip");
+    const zip = await JSZip.loadAsync(await bodyOf(res));
+    expect(namesIn(zip)).toEqual([
+      "LICENSE.txt",
+      "README.txt",
+      "plates/plate-1-of-1.3mf",
+    ]);
+    const readme = await zip.file("README.txt")!.async("string");
+    expect(readme).toContain("Support required -- Hex-TB-Spike-Solid.");
+    expect(flat(readme)).toContain("give them supports or a brim");
+  });
+
+  it("warns even when the spike is one part among many", async () => {
+    // The realistic build. A cluster is mostly tiles and caps; the spike rides
+    // along, and it is exactly the part somebody would not think to check.
+    const res = await call(`release=${RELEASE}&parts=hex-tb-main:2,${SPIKE}`);
+    expect(res.headers.get("content-type")).toBe("application/zip");
+    const zip = await JSZip.loadAsync(await bodyOf(res));
+    expect(await zip.file("README.txt")!.async("string")).toContain(
+      "Support required -- Hex-TB-Spike-Solid.",
+    );
+  });
+
+  it("carries the same warning INSIDE the plate, for when the zip is gone", async () => {
+    // Belt and braces, not the guarantee: a `.3mf` gets dragged out of its zip
+    // and opened months later, and a file that carries its own instructions
+    // still has them then.
+    const res = await call(`release=${RELEASE}&parts=${SPIKE}`);
+    const zip = await JSZip.loadAsync(await bodyOf(res));
+    const plate = await zip
+      .file("plates/plate-1-of-1.3mf")!
+      .async("nodebuffer");
+    const model = await (await JSZip.loadAsync(plate))
+      .file("3D/3dmodel.model")!
+      .async("string");
+    expect(model).toContain('<metadata name="Description">');
+    expect(model).toContain("Support required -- Hex-TB-Spike-Solid.");
+    expect(flat(model)).toContain("keep every part flat on the bed");
+  });
+
+  it("names the archive after the build, and reports one plate", async () => {
+    const res = await call(`release=${RELEASE}&parts=${SPIKE}:2`);
+    expect(res.headers.get("content-disposition")).toBe(
+      'attachment; filename="hex-cluster-2-parts.zip"',
+    );
+    expect(captured.mock.calls[0][1]).toMatchObject({
+      plates: 1,
+      instances: 2,
+    });
+  });
+
+  it("CONTROL: a build with nothing to warn about is still ONE bare file", async () => {
+    // The one-file experience is the point of the feature, and this is what
+    // stops the fix above from quietly zipping everything. Without this row,
+    // "the spike build is a zip" passes just as well against a route that
+    // abandoned the bare plate altogether.
+    const res = await call(`release=${RELEASE}&parts=hex-tb-main:3`);
+    expect(res.headers.get("content-type")).toBe("model/3mf");
+    expect(res.headers.get("content-disposition")).toBe(
+      'attachment; filename="hex-cluster-3-parts.3mf"',
+    );
+    // And it says so inside the file, so the bare plate is not silent either.
+    const model = await (await JSZip.loadAsync(await bodyOf(res)))
+      .file("3D/3dmodel.model")!
+      .async("string");
+    expect(model).toContain("No supports needed");
   });
 });
 

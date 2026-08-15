@@ -205,26 +205,53 @@ export function resolvePack(input: {
 }
 
 /** How many physical objects a pack contains, which is not the same as how many
- *  parts it names -- the caps, the filename and the plate count all want this
- *  one and not `parts.length`. */
-export function packInstances(parts: PackPart[]): number {
+ *  parts it names -- the caps and the plate count both want this one and not
+ *  `parts.length`. */
+export function packInstances(parts: readonly PackPart[]): number {
   return parts.reduce((n, p) => n + p.qty, 0);
 }
+
+/** What the box a filename names actually HOLDS, and therefore what the number
+ *  in that name is counting.
+ *
+ *  The two response shapes hold different things, and the two counts are NOT the
+ *  same number. A plated pack holds one object per INSTANCE -- six caps are six
+ *  things arranged on a bed -- so its name counts instances. The loose zip holds
+ *  one published mesh per DISTINCT part however many were asked for, because a
+ *  second copy of an identical file is bytes nobody needs, so its name counts
+ *  FILES.
+ *
+ *  REQUIRED, with no default, and that is the whole point of the type. This
+ *  endpoint has shipped "the filename disagrees with the contents" twice --
+ *  first as a `.zip` name on a 3MF body, then as `hex-cluster-6-parts.zip`
+ *  around a single file, beside a README that said one -- and both times a
+ *  default was what let a response shape inherit an answer nobody had thought
+ *  about for it. A caller that adds a third shape now has to say which count it
+ *  means. Both current shapes assert their `Content-Disposition` in
+ *  `__tests__/printable-pack-route.test.ts`, which is what makes this checkable
+ *  rather than merely stated. */
+export type PackContents = "instances" | "files";
 
 /** A stable, human-readable filename for the download.
  *
  *  `ext` is a PARAMETER because the response is not always a zip: a build that
- *  fits one plate ships as a bare `.3mf`, with no archive around it. A hardcoded
- *  `.zip` would put a 3MF document behind a name every unzipper on the planet
- *  would try to open as an archive -- and "the filename disagrees with the
- *  contents" is the defect this endpoint shipped once already. */
+ *  fits one plate and carries no support warning ships as a bare `.3mf`, with no
+ *  archive around it. A hardcoded `.zip` would put a 3MF document behind a name
+ *  every unzipper on the planet would try to open as an archive. */
 export function packFilename(
-  parts: PackPart[],
-  ext: "zip" | "3mf" = "zip",
+  parts: readonly PackPart[],
+  opts: { holds: PackContents; ext?: "zip" | "3mf" },
 ): string {
-  return parts.length === 1 && parts[0].qty === 1
+  const n = opts.holds === "instances" ? packInstances(parts) : parts.length;
+  const ext = opts.ext ?? "zip";
+  // One thing in the box gets named after itself. Gated on `n`, not on
+  // `parts[0].qty`: on the loose path one NAME is one FILE whatever quantity was
+  // asked for, and on the plated path it is one object only when the quantity
+  // really is one. Deriving both branches from the same count is what stops the
+  // name and the number disagreeing.
+  return parts.length === 1 && n === 1
     ? `hex-cluster-${parts[0].slug}.${ext}`
-    : `hex-cluster-${packInstances(parts)}-parts.${ext}`;
+    : `hex-cluster-${n}-parts.${ext}`;
 }
 
 /** Where a plate lives inside a multi-plate zip.

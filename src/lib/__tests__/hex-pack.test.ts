@@ -159,18 +159,24 @@ describe("resolvePack", () => {
 });
 
 describe("packFilename", () => {
+  const INSTANCES = { holds: "instances" } as const;
+  const FILES = { holds: "files" } as const;
+
   it("names a single part after it", () => {
-    expect(packFilename([{ slug: ONE, qty: 1 }])).toBe(
+    expect(packFilename([{ slug: ONE, qty: 1 }], INSTANCES)).toBe(
       `hex-cluster-${ONE}.zip`,
     );
   });
 
   it("counts a multi-part pack", () => {
     expect(
-      packFilename([
-        { slug: ONE, qty: 1 },
-        { slug: TWO, qty: 1 },
-      ]),
+      packFilename(
+        [
+          { slug: ONE, qty: 1 },
+          { slug: TWO, qty: 1 },
+        ],
+        INSTANCES,
+      ),
     ).toBe("hex-cluster-2-parts.zip");
   });
 
@@ -178,20 +184,51 @@ describe("packFilename", () => {
     // A build that fits one bed ships as a bare .3mf. Named `.zip` it opens in
     // an archiver and shows the reader an XML file instead of their parts --
     // and a 3MF really is a zip underneath, so nothing would error.
-    expect(packFilename([{ slug: ONE, qty: 1 }], "3mf")).toBe(
-      `hex-cluster-${ONE}.3mf`,
-    );
-    expect(packFilename([{ slug: ONE, qty: 6 }], "3mf")).toBe(
-      "hex-cluster-6-parts.3mf",
+    expect(
+      packFilename([{ slug: ONE, qty: 1 }], { ...INSTANCES, ext: "3mf" }),
+    ).toBe(`hex-cluster-${ONE}.3mf`);
+    expect(
+      packFilename([{ slug: ONE, qty: 6 }], { ...INSTANCES, ext: "3mf" }),
+    ).toBe("hex-cluster-6-parts.3mf");
+  });
+
+  it("counts INSTANCES for a box that holds them -- six of one part is not a one-part pack", () => {
+    // The number in the filename is what the person is about to print. Naming a
+    // PLATE after the distinct count would call a six-cap plate "1-part".
+    expect(packFilename([{ slug: ONE, qty: 6 }], INSTANCES)).toBe(
+      "hex-cluster-6-parts.zip",
     );
   });
 
-  it("counts INSTANCES, not names -- six of one part is not a one-part pack", () => {
-    // The number in the filename is what the person is about to print. Naming
-    // it after the distinct count would call a six-cap pack "1-part".
-    expect(packFilename([{ slug: ONE, qty: 6 }])).toBe(
-      "hex-cluster-6-parts.zip",
+  it("counts FILES for a box that holds one per name", () => {
+    // THE DEFECT THIS PARAMETER EXISTS FOR. The loose zip holds one published
+    // mesh per distinct part however many were asked for, so an instance count
+    // on it named a box of one file "6-parts" while the README inside it said
+    // one. Six of one name is ONE file, and one file gets named after itself.
+    expect(packFilename([{ slug: ONE, qty: 6 }], FILES)).toBe(
+      `hex-cluster-${ONE}.zip`,
     );
+    expect(
+      packFilename(
+        [
+          { slug: ONE, qty: 6 },
+          { slug: TWO, qty: 3 },
+        ],
+        FILES,
+      ),
+    ).toBe("hex-cluster-2-parts.zip");
+  });
+
+  it("gives the SAME build two different names for two different boxes", () => {
+    // Stated as one assertion because the two counts being different is the
+    // whole reason the caller has to say which it means. A `holds` that were
+    // ignored would make these equal and every other row here would still pass.
+    const build = [
+      { slug: ONE, qty: 6 },
+      { slug: TWO, qty: 3 },
+    ];
+    expect(packFilename(build, INSTANCES)).toBe("hex-cluster-9-parts.zip");
+    expect(packFilename(build, FILES)).toBe("hex-cluster-2-parts.zip");
   });
 });
 

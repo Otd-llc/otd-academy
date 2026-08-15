@@ -98,6 +98,25 @@ const NEEDS_SUPPORT: ReadonlySet<string> = new Set([
   "hex-tb-spike-ball-joint",
 ]);
 
+/**
+ * Does anything in this pack rest on a line, and therefore need supports?
+ *
+ * EXPORTED because the route reads it to decide the SHAPE of the response, not
+ * only the prose. A build that fits one plate normally ships as a bare `.3mf`
+ * with no README at all -- which is the commonest download and the one place
+ * this warning could go missing. So a pack carrying a spike ships inside an
+ * archive whatever it fits on, and this is the question that decides it. See the
+ * design's section 5.
+ *
+ * Asked HERE rather than restated at the route, because `NEEDS_SUPPORT` is also
+ * the set the warning text is derived from. Two copies would let "we shipped a
+ * README" and "the README says supports" drift apart, which is the worst
+ * possible pair to disagree: the box would look right and say nothing.
+ */
+export function packNeedsSupport(slugs: readonly string[]): boolean {
+  return slugs.some((s) => NEEDS_SUPPORT.has(s));
+}
+
 /** What to say about supports, given what is actually in the box.
  *
  *  `label` is how the caller names its parts -- slugs in a loose zip, published
@@ -164,6 +183,31 @@ const PRESET_LINES: readonly string[] = [
       "slice.",
   ),
 ];
+
+/**
+ * The support and orientation notes, folded into one block for the plate's own
+ * `<metadata name="Description">`.
+ *
+ * BELT AND BRACES, and deliberately not the guarantee. `Description` is a
+ * core-spec 3MF metadata name, so carrying it is conformant and costs a few
+ * hundred bytes -- but slicers surface metadata inconsistently, and a warning
+ * the reader may never be shown cannot be the only copy of a warning whose
+ * absence costs a failed print. The guarantee is the README the route ships
+ * beside a spike-bearing plate; this is what still says it months later, when
+ * the `.3mf` has been dragged out of that zip and the README is long gone.
+ *
+ * Composed from the same two helpers the READMEs use, so the file and the text
+ * beside it cannot state different things about the same parts.
+ */
+export function plateDescription(
+  parts: readonly { slug: string; name: string }[],
+): string {
+  return [
+    ...supportLines(parts.map((p) => ({ slug: p.slug, label: p.name }))),
+    "",
+    ...ORIENTATION_LINES,
+  ].join("\n");
+}
 
 /**
  * The README that travels inside a LOOSE pack -- one file per named part.

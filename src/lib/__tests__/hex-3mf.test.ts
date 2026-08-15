@@ -371,6 +371,28 @@ describe("buildPlate3mf", () => {
     expect(model).toContain("CC BY 4.0 -- One Thousand Drones, LLC");
   });
 
+  it("carries a description when one is given, and omits the element when not", async () => {
+    // The support and orientation notes ride inside the file as core-spec
+    // `Description` metadata, so a plate separated from its README still says
+    // how to print it. Not the guarantee -- slicers surface metadata
+    // inconsistently, which is why the route ships a spike-bearing plate in an
+    // archive -- but it costs a few hundred bytes and outlives the zip.
+    //
+    // The NEGATIVE half matters: an empty `<metadata name="Description">` is a
+    // claim that there is nothing to say, which is a different statement from
+    // not making one.
+    const with_ = await modelOf(
+      await buildPlate3mf([at("a", 4, 4)], SOURCES, {
+        description: "Support required -- Part-A & <friends>",
+      }),
+    );
+    expect(with_).toContain(
+      '<metadata name="Description">Support required -- Part-A &amp; &lt;friends&gt;</metadata>',
+    );
+    const without = await modelOf(await buildPlate3mf([at("a", 4, 4)], SOURCES));
+    expect(without).not.toContain('name="Description"');
+  });
+
   it("produces the same bytes for the same plate", async () => {
     // DETERMINISM IS THE DESIGN'S PROMISE: the response is cached per URL, so
     // the same request must not produce a different file each time. It is not

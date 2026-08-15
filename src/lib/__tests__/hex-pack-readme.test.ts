@@ -14,7 +14,12 @@
 import { describe, expect, it } from "vitest";
 
 import { platePath } from "@/lib/hex-pack";
-import { packReadme, plateReadme } from "@/lib/hex-pack-readme";
+import {
+  packNeedsSupport,
+  packReadme,
+  plateDescription,
+  plateReadme,
+} from "@/lib/hex-pack-readme";
 import type { Placement } from "@/lib/hex-plate";
 import { HEX_LICENSE } from "@/lib/hex-spec";
 
@@ -109,6 +114,83 @@ describe("packReadme -- the loose-file zip", () => {
     // Read in Notepad and in terminals as often as in a GUI, and the shared spec
     // it is composed from carries U+00B0 and en dashes.
     expect(ASCII_ONLY.test(packReadme(base))).toBe(true);
+  });
+});
+
+describe("packNeedsSupport -- the question that decides the response SHAPE", () => {
+  // Not a prose helper. A build that fits one plate normally ships as a bare
+  // `.3mf` with no README, so this is what makes the route put a spike build in
+  // an archive instead and keep the warning with it.
+  it("says yes for either part that rests on a line", () => {
+    expect(packNeedsSupport(["hex-tb-spike-solid"])).toBe(true);
+    expect(packNeedsSupport(["hex-tb-spike-ball-joint"])).toBe(true);
+  });
+
+  it("says no for a build of flat-faced parts", () => {
+    // The CONTROL. Without it, a predicate stuck at `true` passes every row
+    // above -- and would zip every download, which is the thing this feature
+    // exists to stop doing.
+    expect(
+      packNeedsSupport(["hex-tb-main", "dovetail-cap-single-m-solid"]),
+    ).toBe(false);
+    expect(packNeedsSupport([])).toBe(false);
+  });
+
+  it("finds a spike among many parts, not only as the first one", () => {
+    expect(
+      packNeedsSupport(["hex-tb-main", "hex-tb-spike-solid", "hex-tb-main"]),
+    ).toBe(true);
+  });
+
+  it("is not fooled by a name that merely starts the same way", () => {
+    // Seven published slugs begin `hex-tb-spike-`, and only two of them rest on
+    // a line. A `startsWith` here would tell four people out of five to support
+    // a platform that sits flat.
+    expect(packNeedsSupport(["hex-tb-spike-platform-lrg"])).toBe(false);
+    expect(packNeedsSupport(["hex-tb-spike-ball-zip-single"])).toBe(false);
+  });
+});
+
+describe("plateDescription -- the notes carried INSIDE the plate", () => {
+  it("names the spike and says how to print it", () => {
+    const d = plateDescription([
+      { slug: "hex-tb-main", name: "Hex-TB-Main" },
+      { slug: "hex-tb-spike-solid", name: "Hex-TB-Spike-Solid" },
+    ]);
+    expect(d).toContain("Support required -- Hex-TB-Spike-Solid.");
+    expect(flat(d)).toContain("give them supports or a brim");
+  });
+
+  it("carries the orientation note too, which is true of every plate", () => {
+    const d = plateDescription([{ slug: "hex-tb-main", name: "Hex-TB-Main" }]);
+    expect(d).toContain("Orientation:");
+    expect(flat(d)).toContain("keep every part flat on the bed");
+  });
+
+  it("says plainly when nothing needs support", () => {
+    // The CONTROL: a description that always warned would satisfy the first row
+    // and would train people to ignore it.
+    const d = plateDescription([{ slug: "hex-tb-main", name: "Hex-TB-Main" }]);
+    expect(d).toContain("No supports needed");
+    expect(d).not.toContain("Support required");
+  });
+
+  it("uses the PUBLISHED spelling, matching the slicer's object list", () => {
+    const d = plateDescription([
+      { slug: "hex-tb-spike-solid", name: "Hex-TB-Spike-Solid" },
+    ]);
+    expect(d).toContain("Hex-TB-Spike-Solid");
+    expect(d).not.toContain("hex-tb-spike-solid");
+  });
+
+  it("is pure ASCII, because it is written into an XML attribute-free element", () => {
+    expect(
+      ASCII_ONLY.test(
+        plateDescription([
+          { slug: "hex-tb-spike-solid", name: "Hex-TB-Spike-Solid" },
+        ]),
+      ),
+    ).toBe(true);
   });
 });
 
