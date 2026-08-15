@@ -27,8 +27,15 @@ vi.mock("next/cache", () => ({
 const mockAuth = vi.fn<() => Promise<unknown>>();
 vi.mock("@/auth", () => ({ auth: () => mockAuth() }));
 
+import { PrismaClient } from "@prisma/client";
+
 import { db } from "@/lib/db";
-import { getPrintBed, setPrintBed } from "@/lib/actions/print-bed";
+import { makeAdapter } from "@/lib/db-adapter";
+import {
+  getPrintBed,
+  promotePrintBed,
+  setPrintBed,
+} from "@/lib/actions/print-bed";
 import { BED_MAX, BED_MIN } from "@/lib/print-bed";
 import { HEX_PART_SLUGS } from "@/lib/hex-parts";
 import { HEX_RELEASE } from "@/lib/hex-spec";
@@ -165,6 +172,163 @@ describe("setPrintBed", () => {
   test("getPrintBed refuses when signed out", async () => {
     mockAuth.mockResolvedValueOnce(null);
     await expect(getPrintBed()).rejects.toThrow();
+  });
+});
+
+// The promotion is the ONE write on this pair of columns that must be able to
+// lose. A bed stored in the configurator's localStorage is offered to the
+// account once, and the offer is made by a peer that CANNOT see the account: an
+// absent `Ready.bed` means "no answer", which covers "the read has not landed
+// yet". So "the account has none" is not knowable on the wire, and every test
+// below is about the write refusing itself rather than the sender being careful.
+describe("promotePrintBed — the conditional write", () => {
+  test("stores the bed when the account has none", async () => {
+    await setPrintBed(null);
+    const res = await promotePrintBed({ x: 350, y: 350 });
+    expect(res.promoted).toBe(true);
+    expect(res.bed).toEqual({ x: 350, y: 350 });
+    expect(await row()).toEqual({ printBedXMm: 350, printBedYMm: 350 });
+  });
+
+  test("is a NO-OP against an account that already has a bed, and leaves it intact", async () => {
+    // THE POINT OF THE WHOLE MESSAGE. This is the promotion arriving after the
+    // visitor has already set 235 on another device (or in this tab, moments
+    // ago) — the case the child's 4-second grace window could only make less
+    // likely, never impossible, because a slow account read is indistinguishable
+    // from no account bed at all.
+    await setPrintBed({ x: 235, y: 235 });
+    const res = await promotePrintBed({ x: 180, y: 180 });
+    expect(res.promoted).toBe(false);
+    // Not "did not report success" — DID NOT WRITE. An action that reported a
+    // decline and clobbered the column anyway would pass a `promoted` assertion
+    // and lose the visitor's setting, so the column is what is asserted.
+    expect(await row()).toEqual({ printBedXMm: 235, printBedYMm: 235 });
+    expect((await getPrintBed()).bed).toEqual({ x: 235, y: 235 });
+  });
+
+  test("a decline reports the bed that actually won", async () => {
+    // So the caller can tell "stored" from "declined, and here is what beat me"
+    // without a second round trip that could read a third value.
+    await setPrintBed({ x: 300, y: 250 });
+    const res = await promotePrintBed({ x: 220, y: 220 });
+    expect(res).toEqual({ promoted: false, bed: { x: 300, y: 250 } });
+  });
+
+  test("refuses a half-null row rather than repairing it", async () => {
+    // One column set and one null is a corrupt row, not a half-answer:
+    // `bedFromColumns` refuses to read it, and a cross-origin message is not the
+    // thing that should decide how to fix it. BOTH columns null, or nothing.
+    await db.user.update({
+      where: { id: userId },
+      data: { printBedXMm: 300, printBedYMm: null },
+    });
+    const res = await promotePrintBed({ x: 220, y: 220 });
+    expect(res.promoted).toBe(false);
+    expect(await row()).toEqual({ printBedXMm: 300, printBedYMm: null });
+    // And the decline reports null, because that IS what a reader gets from a
+    // corrupt row — not "300 by nothing".
+    expect(res.bed).toBeNull();
+    await setPrintBed(null);
+  });
+
+  test("two promotions racing cannot both win, and the loser writes nothing", async () => {
+    // The interleaving the design doc's "promoted once" cannot prevent on its
+    // own: two tabs, two local beds, one account. A read-then-write would let
+    // both read null and both write; a single conditional statement cannot.
+    await setPrintBed(null);
+    const results = await Promise.all([
+      promotePrintBed({ x: 180, y: 180 }),
+      promotePrintBed({ x: 350, y: 350 }),
+    ]);
+    const won = results.filter((r) => r.promoted);
+    const lost = results.filter((r) => !r.promoted);
+    expect(won).toHaveLength(1);
+    expect(lost).toHaveLength(1);
+    expect(await row()).toEqual({
+      printBedXMm: won[0].bed!.x,
+      printBedYMm: won[0].bed!.y,
+    });
+    // The loser must not report the value it tried to write.
+    expect(lost[0].bed).toEqual(won[0].bed);
+    await setPrintBed(null);
+  });
+
+  test("refuses every bed setPrintBed refuses, and writes nothing", async () => {
+    // Same validator, same throw. A promotion validated more loosely than a pick
+    // would be a second, weaker door into the same two columns.
+    await setPrintBed(null);
+    const bad: unknown[] = [
+      { x: BED_MIN - 1, y: 220 },
+      { x: 220, y: BED_MAX + 1 },
+      { x: 220.5, y: 220 },
+      { x: Number.NaN, y: 220 },
+      { x: Number.POSITIVE_INFINITY, y: 220 },
+      { x: "220", y: "220" },
+      { x: 220 },
+      {},
+      { x: null, y: null },
+    ];
+    for (const b of bad) {
+      await expect(promotePrintBed(b as never)).rejects.toThrow();
+    }
+    expect(await row()).toEqual({ printBedXMm: null, printBedYMm: null });
+  });
+
+  test("null is refused, never treated as a clear", async () => {
+    // `setPrintBed(null)` clears; a promotion of nothing is a broken caller.
+    // Giving the wire a spelling for "erase it" would hand it the one
+    // destructive operation these two columns have.
+    await setPrintBed({ x: 250, y: 250 });
+    await expect(promotePrintBed(null as never)).rejects.toThrow();
+    await expect(promotePrintBed(undefined as never)).rejects.toThrow();
+    expect(await row()).toEqual({ printBedXMm: 250, printBedYMm: 250 });
+    await setPrintBed(null);
+  });
+
+  test("refuses when signed out, and writes nothing", async () => {
+    const stored = await row();
+    mockAuth.mockResolvedValueOnce(null);
+    await expect(promotePrintBed({ x: 300, y: 300 })).rejects.toThrow();
+    expect(await row()).toEqual(stored);
+  });
+
+  test("the write is ONE statement with the nulls in it, not a read then a write", async () => {
+    // The atomicity claim, measured rather than reasoned about. A read-then-write
+    // has a window between deciding and writing; this asserts there is no such
+    // window because there is no separate read: Prisma compiles the `updateMany`
+    // to a single UPDATE carrying the IS NULL precondition, which Postgres
+    // re-evaluates against the committed row version after taking the row lock.
+    const captured: string[] = [];
+    const probe = new PrismaClient({
+      adapter: makeAdapter(process.env.DATABASE_URL!),
+      log: [{ emit: "event", level: "query" }],
+    });
+    (probe as unknown as { $on: (e: string, cb: (v: { query: string }) => void) => void }).$on(
+      "query",
+      (e) => captured.push(e.query),
+    );
+    try {
+      await probe.user.updateMany({
+        where: { id: userId, printBedXMm: null, printBedYMm: null },
+        data: { printBedXMm: 300, printBedYMm: 300 },
+      });
+    } finally {
+      await probe.$disconnect();
+    }
+
+    // Transaction framing and connection chatter are not statements.
+    const statements = captured.filter(
+      (q) => !/^\s*(BEGIN|COMMIT|ROLLBACK|DEALLOCATE|SET |SELECT 1\b)/i.test(q),
+    );
+    expect(statements).toHaveLength(1);
+    expect(statements[0]).toMatch(/^\s*UPDATE/i);
+    // Both columns, in the WHERE. Dropping either one makes the write
+    // unconditional in exactly the direction that loses data.
+    expect(statements[0]).toMatch(/printBedXMm"?\s+IS NULL/i);
+    expect(statements[0]).toMatch(/printBedYMm"?\s+IS NULL/i);
+    // No SELECT anywhere: a read-then-write is what this is not.
+    expect(statements.join("\n")).not.toMatch(/SELECT/i);
+    await setPrintBed(null);
   });
 });
 

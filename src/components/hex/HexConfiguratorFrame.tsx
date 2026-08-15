@@ -31,13 +31,16 @@
 // component opens a panel in the academy's own DOM. No message performs a
 // write; the write is gated on a click here, on a form the visitor can see.
 //
-// THE ONE EXCEPTION to "no message performs a write" is `bed-changed`. The print
-// bed the visitor picks in the configurator's export bar is written straight
-// through to their account here, with no click on this side, because the value
-// is bounded, idempotent, visible on /account and undoable there -- and because
-// a confirmation dialog for "which printer do you own" is chrome nobody reads.
-// The reasoning in full, and the line past which it stops applying, is in the
-// protocol's security model. Everything else still goes through a click.
+// THE TWO EXCEPTIONS to "no message performs a write" both write the same two
+// integer columns, the visitor's print bed. `bed-changed` writes it straight
+// through with no click on this side, because the value is bounded, idempotent,
+// visible on /account and undoable there -- and because a confirmation dialog
+// for "which printer do you own" is chrome nobody reads. `promote-bed` writes it
+// only if the account has none, decided in one conditional statement at the
+// database rather than by the child, which cannot see the account and cannot
+// tell "it has none" from "it has not answered yet". The reasoning in full, and
+// the line past which it stops applying, is in the protocol's security model.
+// Everything else still goes through a click.
 //
 // Every message is validated by `parseMessage`, and the peer is pinned by BOTH
 // its origin and `event.source === iframe.contentWindow`. Origin alone is not
@@ -64,7 +67,11 @@ import {
 } from "@/components/hex/hex-configurator-context";
 import { EmbeddedSavePanel } from "@/components/hex/EmbeddedSavePanel";
 import { loadHexRecall } from "@/lib/actions/hex-recall";
-import { getPrintBed, setPrintBed } from "@/lib/actions/print-bed";
+import {
+  getPrintBed,
+  promotePrintBed,
+  setPrintBed,
+} from "@/lib/actions/print-bed";
 import {
   hexConfiguratorOrigin,
   hexConfiguratorSrc,
@@ -155,6 +162,13 @@ export function HexConfiguratorFrame({
    *  session; it is also just what a picker emits when someone clicks the chip
    *  they are already on. */
   const persistedRef = useRef<string | null>(null);
+  /** A promotion has been offered on this page-load. The child already promotes
+   *  once and remembers it, but the guard belongs on this side too: the child is
+   *  the untrusted half of the channel, and without this a compromised one could
+   *  turn a message it is allowed to send into a stream of conditional writes.
+   *  Cleared on FAILURE only -- a decline is a real answer (the account has a
+   *  bed), and re-asking would never get a different one. */
+  const promotedRef = useRef(false);
 
   const origin = enabled ? hexConfiguratorOrigin() : "";
 
@@ -481,6 +495,47 @@ export function HexConfiguratorFrame({
     });
   }, []);
 
+  /**
+   * A bed this browser was already holding, offered to an account that may have
+   * none.
+   *
+   * NOT `persistBed`, and the difference is the whole message. A `bed-changed`
+   * is a choice the visitor made seconds ago and must win; a `promote-bed` is an
+   * older local value offered on the child's BELIEF that the account is empty --
+   * a belief it cannot check, because an absent `Ready.bed` means "no answer",
+   * which covers an account read still in flight. So the condition is not
+   * evaluated here either: `promotePrintBed` writes only if both columns are
+   * still null, in one statement, which is why a slow read can no longer clobber
+   * a bed the visitor set on another device.
+   *
+   * A DECLINE IS NOT AN ERROR and deliberately posts nothing back. The academy's
+   * own account read is already relayed as `set-bed` by the effect above, and
+   * that effect is driven by `accountBed`, which has exactly one writer. Letting
+   * a value the child sent reach `accountBed` -- even the account's own answer,
+   * returned to us -- would put an inbound message on the path that posts back
+   * out, which is the echo the single-writer rule exists to prevent.
+   *
+   * A failure is swallowed for the same reason `persistBed` swallows one: the
+   * common case is "signed out", which is exactly the state the child's own
+   * local store is for.
+   */
+  const promoteBed = useCallback((bed: Bed) => {
+    if (promotedRef.current) return;
+    promotedRef.current = true;
+    void promotePrintBed(bed)
+      .then(({ promoted }) => {
+        // Only when it TOOK. On a decline the account holds something else, and
+        // recording the child's bed here would hand a stale value to the next
+        // handshake and suppress a later identical pick from being written.
+        if (!promoted) return;
+        bedRef.current = bed;
+        persistedRef.current = `${bed.x}x${bed.y}`;
+      })
+      .catch(() => {
+        promotedRef.current = false;
+      });
+  }, []);
+
   // -- the inbound channel -----------------------------------------------
 
   useEffect(() => {
@@ -513,7 +568,14 @@ export function HexConfiguratorFrame({
         case "bed-changed":
           // The child owns the picker; the academy owns the account. Writing it
           // through here is what makes a bed picked on a laptop true on a phone.
+          // UNCONDITIONAL, and it stays that way: the visitor's newest choice
+          // wins, which is the one thing `promote-bed` must never do.
           persistBed(message.bed);
+          break;
+        case "promote-bed":
+          // Deliberately NOT `persistBed`. Same two columns, same bounds, but
+          // this one writes only into a null pair -- see `promoteBed`.
+          promoteBed(message.bed);
           break;
         default:
           // `ready` / `set-theme` / `set-bed` / `saved` / `save-failed` /
@@ -523,7 +585,7 @@ export function HexConfiguratorFrame({
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [enabled, origin, close, persistBed]);
+  }, [enabled, origin, close, persistBed, promoteBed]);
 
   // -- the close fallback ------------------------------------------------
   //

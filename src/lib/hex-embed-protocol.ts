@@ -22,16 +22,26 @@
 //   2. `parseMessage` VALIDATES. It does not cast. `share` in particular flows
 //      into a Prisma `where` clause that is not runtime-checked, so a
 //      non-string here is a filter-object injection.
-//   3. No message performs a write, with ONE bounded exception. A
-//      `save-request` may only open a panel; the write is gated on a click in
-//      the academy's own DOM, because it creates named, quota-bearing rows in
-//      the drawing register. `bed-changed` DOES write, to exactly one place:
-//      the two integer columns holding this visitor's print bed. It is allowed
-//      because that write is bounded by BED_MIN/BED_MAX, idempotent, visible on
-//      /account and undoable there -- and because the alternative, a
-//      confirmation dialog for "which printer do you own", is chrome nobody
-//      reads. Widen this to anything that creates a row, spends a quota, or
-//      touches another person's data and the rule is not bent, it is gone.
+//   3. No message performs a write, with TWO bounded exceptions -- and both
+//      write the SAME place: the two integer columns holding this visitor's
+//      print bed. A `save-request` is NOT one of them; it may only open a panel,
+//      and the write is gated on a click in the academy's own DOM, because it
+//      creates named, quota-bearing rows in the drawing register.
+//        - `bed-changed` writes UNCONDITIONALLY, because it is a choice the
+//          visitor just made in the picker. It is allowed because that write is
+//          bounded by BED_MIN/BED_MAX, idempotent, visible on /account and
+//          undoable there -- and because the alternative, a confirmation dialog
+//          for "which printer do you own", is chrome nobody reads.
+//        - `promote-bed` writes CONDITIONALLY: only if BOTH columns are still
+//          null, decided in one statement at the database. It is strictly
+//          weaker than `bed-changed` -- same columns, same bounds, plus a
+//          precondition -- and it exists precisely BECAUSE the child cannot be
+//          trusted with the condition: `Ready.bed` spells "no answer" and "no
+//          bed" the same way, so a child that waits for an answer and gives up
+//          would eventually overwrite a bed the visitor deliberately set. See
+//          `PromoteBed`.
+//      Widen this to anything that creates a row, spends a quota, or touches
+//      another person's data and the rule is not bent, it is gone.
 //
 // THE ONE IMPORT, and the only line the twin cannot share. `BED_MIN`/`BED_MAX`
 // come from the pack endpoint's own module rather than being restated here: a
@@ -105,7 +115,12 @@ export type Ready = {
    *  may have stored nothing, or the read may simply not have landed (it is a
    *  database round trip the frame refuses to block the open on). All three mean
    *  the same thing to the child, which is "resolve it yourself", so they share
-   *  one spelling. A late answer arrives as `set-bed`. */
+   *  one spelling. A late answer arrives as `set-bed`.
+   *
+   *  Which is why a child must never read an absent bed as "the account is
+   *  empty" and act on it. The one action that needs to know is the one-time
+   *  promotion of a local bed, and it asks with `promote-bed` instead, so the
+   *  condition is settled at the database where it is actually knowable. */
   bed?: Bed;
 };
 
@@ -153,6 +168,46 @@ export type BedChanged = {
   channel: typeof CHANNEL;
   protocolVersion: number;
   type: "bed-changed";
+  bed: Bed;
+};
+
+/**
+ * Child -> parent: "this browser has a local bed and believes the account has
+ * none; store it ONLY if that is true."
+ *
+ * The second half of that sentence is the message. It is a REQUEST TO WRITE
+ * UNDER A CONDITION the child is not able to evaluate, so the condition is
+ * evaluated where it is knowable -- in one conditional statement at the
+ * database, which either finds both columns null and writes, or finds a bed and
+ * does nothing.
+ *
+ * WHY IT CANNOT BE A `bed-changed`. The design says a locally-stored bed is
+ * promoted to the account once, on sign-in, when the account has none. Nothing
+ * on the wire tells the child that last part: `Ready.bed` is optional and an
+ * absent one means "no answer" -- signed out, nothing stored, OR an account read
+ * still in flight (the frame deliberately does not await it, and a cold database
+ * can take seconds). "The account has none" and "the account has not answered"
+ * are therefore the SAME wire state, and any child-side rule for telling them
+ * apart is a timer. A timer converts the race into a wait; a read slower than
+ * the wait still clobbers a bed the visitor set on another device. The condition
+ * has to travel WITH the write or it is a guess.
+ *
+ * DISTINCT FROM `bed-changed`, which stays exactly as it was: an unconditional
+ * write, because it carries a choice the visitor made in the picker seconds ago
+ * and their newest choice must win. Collapsing the two in either direction
+ * breaks one of them -- a conditional `bed-changed` would silently ignore every
+ * pick after the first, and an unconditional `promote-bed` is the bug this type
+ * exists to remove.
+ *
+ * NOT VERSION-BUMPING. A new type is additive by construction here (see
+ * `PROTOCOL_VERSION`): a parent that predates it drops it in `parseMessage`'s
+ * default, which costs the promotion and nothing else -- the child's local bed
+ * still lays out its own downloads.
+ */
+export type PromoteBed = {
+  channel: typeof CHANNEL;
+  protocolVersion: number;
+  type: "promote-bed";
   bed: Bed;
 };
 
@@ -237,6 +292,7 @@ export type HexMessage =
   | SetTheme
   | SetBed
   | BedChanged
+  | PromoteBed
   | SaveRequest
   | Saved
   | SaveFailed
@@ -329,10 +385,18 @@ export function parseMessage(data: unknown): HexMessage | null {
       return isTheme(d.theme) ? (d as unknown as SetTheme) : null;
     case "set-bed":
     case "bed-changed":
-      // Both REQUIRE a bed. A bed message with no bed is not a smaller
-      // instruction, it is a broken one -- and `bed-changed` is the single
-      // message on this channel that reaches a write.
-      return isBed(d.bed) ? (d as unknown as SetBed | BedChanged) : null;
+    case "promote-bed":
+      // All three REQUIRE a bed. A bed message with no bed is not a smaller
+      // instruction, it is a broken one -- and two of these three reach a write.
+      //
+      // ONE branch, not three, deliberately: the two inbound ones must be held
+      // to IDENTICAL numbers, because a `promote-bed` validated more loosely
+      // than a `bed-changed` would be a second, weaker door into the same two
+      // columns. What differs between them is what the RECEIVER does with the
+      // parsed message, which is decided by `type` and stays decided by `type`.
+      return isBed(d.bed)
+        ? (d as unknown as SetBed | BedChanged | PromoteBed)
+        : null;
     case "save-request": {
       // Every field, because `share` reaches a Prisma `where` unchecked and a
       // filter object there turns "the drawing whose code I hold" into "any of
