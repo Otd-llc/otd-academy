@@ -1,5 +1,19 @@
 # Video production pipeline — research, validation, and the pipeline that survived
 
+> ## ⚠ THIS DOC FAILED ITS OWN VALIDATION ROUND. READ THE HANDOFF FIRST.
+>
+> A second 5-agent adversarial round (2026-08-14, one lens each, read-only) returned
+> **~110 findings** against this document, including **three that refute its conclusion**
+> and **one that repeats, on a bigger number, the exact citation error §0 exists to
+> prosecute**.
+>
+> **Do not act on §3 (THE PIPELINE), §6 (what we are NOT building), or §7 (do-first)
+> without reading `2026-08-14-video-pipeline-handoff.md` first.** That file carries the
+> errata and the corrected state.
+>
+> §1 (the corrections) and §2 (the 4:2:0 measurement) largely survived and are still
+> the best record of what was measured. Everything downstream of them is suspect.
+
 **Date:** 2026-08-14
 **Branch:** `promo/video-furniture`
 **Scope:** how to actually produce ~127 instructional YouTube videos, solo, free tools only.
