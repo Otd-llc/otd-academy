@@ -1,6 +1,16 @@
 # Hex cluster downloads: plated 3MF, bed sizes, and a findable CTA
 
-**Status:** design validated 2026-08-14. Not implemented. One blocking test open.
+**Status:** design validated 2026-08-14. Gate **CLOSED** 2026-08-15 — the multi-plate
+question is answered and nothing here waits on further slicer testing (see *Why
+`all-plates.3mf` is dead*). **Phase A is IMPLEMENTED** on `feat/hex-plated-downloads`:
+the pack endpoint plates, the grammar carries quantity and a bed, the `User` bed
+preference and its settings UI exist, and the bed crosses the embed boundary. **Phase B
+(the configurator export bar, in `bs-cap`) is not started.**
+
+*This header read "Not implemented. One blocking test open." until 2026-08-15, on a
+branch where both halves of that were already false and where the gate section below had
+said "closed" for a day.*
+
 **Spans two repos:** the configurator UI lives in `bs-cap`; the pack endpoint and the
 account setting live here (`project-foundry`).
 
@@ -198,6 +208,10 @@ It must be **deterministic** — same parts + same bed produce the same bytes. T
 endpoint caches for a day keyed on the URL, so bed dimensions must be *in the query* or
 two people with different printers share a cache entry.
 
+> **Amended 2026-08-15** — see section 5. "Fits on one plate" is not quite the
+> condition: a single plate carrying a support-requiring part ships in the zip too, so
+> the README carrying that warning travels with it.
+
 ```
 fits on one plate  →  hex-cluster-15-parts.3mf        (bare file, no zip)
 
@@ -238,6 +252,61 @@ Over any cap is a 400 with a plain message, not a 40-plate zip.
 Every download's README states: the bed it was packed for, the plate count, what is on
 each plate with quantities, the spike support note, the orientation note, CC BY, and the
 line about individual files and the full set.
+
+#### The bare `.3mf` has no README, so the support note needs an owner
+
+Decided **2026-08-15**, in review of the Phase A implementation, and it amends the
+artifact sketch in section 3 above.
+
+The requirement above is unconditional and the one-file case broke it. A build that fits
+one plate ships as a bare `.3mf`; CC BY survives inside the file as `<metadata
+name="LicenseTerms">`, but the **spike support note does not**.
+`hex-tb-spike-solid` and `hex-tb-spike-ball-joint` are laid on their side by design — a
+spike is loaded along its axis, and lying down runs the layers across that load instead
+of letting them peel apart — so they touch the bed along a **line** and need supports or
+a brim. Before plating, every download was a zip and that warning always travelled. The
+commonest download had stopped carrying it, and the consequence is a failed print.
+
+**The requirement is an outcome, not a mechanism:** no download containing a
+support-requiring part may leave the user without that warning in a form they will
+actually encounter. Three candidates:
+
+| Option | Verdict |
+| --- | --- |
+| `<metadata name="Description">` in the 3MF carrying the folded support and orientation lines | Core-spec legal, lossless, keeps the one-file promise — but slicers surface metadata inconsistently, so on its own it is a warning the reader may never be shown. **Not sufficient alone.** |
+| Ship a single plate in a **zip** when a support-requiring part is present, bare otherwise | Costs one click, exactly and only when there is something the person has to be told. **Chosen.** |
+| Name the file `…-SUPPORTS-NEEDED.3mf`, or append the warning to the object name | Rejected. The filename does not survive a rename and cannot say *which* part or *what to do*; the object name is the published spelling that reads across to the spec page and the slicer's object list, and mangling it costs the thing 3MF was chosen for. |
+
+**Chosen: the archive is conditional on the CONTENT, not on the plate count**, with the
+`Description` metadata carried as well. The zip is the guarantee — a `README.txt` in a
+folder is a form people meet — and the in-file metadata is belt and braces for the plate
+that gets dragged out of that zip and opened months later. Neither alone is enough:
+metadata may never be surfaced, and a README gets separated from its file.
+
+This does **not** mean zipping everything. The one-file experience is the point of the
+feature (an alpha tester asked for exactly that), two of the fifty-three published parts
+are affected, and a typical cluster build — tiles, caps, dovetails — has none of them, so
+the common case is untouched.
+
+So the section-3 sketch reads, more precisely:
+
+```
+one plate, nothing needing support  ->  hex-cluster-15-parts.3mf   (bare file)
+one plate, a spike on it            ->  hex-cluster-15-parts.zip
+                                        +- plates/plate-1-of-1.3mf
+                                        +- README.txt
+                                        +- LICENSE.txt
+more than one plate                 ->  the zip, as before
+```
+
+`plate-1-of-1.3mf` reads slightly oddly in a folder listing and is still right: the
+README beside it lists its contents through the same helper the zip entry is named with,
+so the two cannot disagree.
+
+Implementation: `packNeedsSupport()` in `src/lib/hex-pack-readme.ts` is the single
+question, asked by the route to decide the response shape and by the prose to write the
+warning — one set, so "we shipped a README" and "the README says supports" cannot drift
+apart.
 
 In the UI, both strings are **conditional, not permanent furniture** (sandbox round 02
 picked B2, which renders neither by default):

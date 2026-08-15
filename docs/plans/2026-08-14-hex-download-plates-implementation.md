@@ -41,6 +41,20 @@ constrain the code.
 
 ## Phase A — academy (`project-foundry`). Ships first.
 
+> **PHASE A IS IMPLEMENTED** on `feat/hex-plated-downloads`. The code blocks below are
+> the plan **as written**, kept so the reasoning that produced them stays readable.
+> Several were **deliberately overruled during implementation**, each for a reason
+> recorded in a code comment; every one of those is annotated in place with a
+> `> **SHIPPED DIFFERENTLY**` note naming what shipped and why. They are not rewritten:
+> a plan silently edited to match its output stops being evidence of anything.
+>
+> **Where an annotation exists, the CODE is the spec.** Reading a stale block as the
+> spec is how a reader gets a confident wrong answer from a green repo.
+>
+> Annotated so far: **A1** (`packFilename`), **A4** (`localeCompare`), **A5**
+> (`printable="1"`, and the `replace()` renumbering), **A6** (two new exports), **A7**
+> (the test filename, and when a single plate is bare).
+
 ### Task A1: Quantity in the pack grammar
 
 **Files:**
@@ -153,6 +167,27 @@ export function packFilename(parts: PackPart[]): string {
     : `hex-cluster-${n}-parts.zip`;
 }
 ```
+
+> **SHIPPED DIFFERENTLY (2026-08-15).** This block counts instances
+> *unconditionally*, and it is wrong for one of the two response shapes — which is
+> exactly what shipped and what review caught. The **loose zip** (`format=stl`, and
+> `format=3mf` on a superseded release) writes **one entry per DISTINCT part**, so
+> `?format=stl&parts=hex-tb-main:6` came back as `hex-cluster-6-parts.zip` holding **one
+> file**, beside a README reading `1 of the published parts`. Filename said six, README
+> said one, box held one.
+>
+> The signature is now
+> `packFilename(parts, { holds: "instances" | "files"; ext?: "zip" | "3mf" })`, with
+> **no default on `holds`** — the caller that is about to fill the box says what it will
+> hold. `ext` was added later in A7 for the bare `.3mf`. The plated paths pass
+> `instances`, the loose path passes `files`, and **both** now assert their
+> `Content-Disposition` in the route test; until then every such assertion was on a
+> plated response, which is why the second lie survived a suite written to catch the
+> first.
+>
+> Note for **Task B1**: it emits `:n` unconditionally with `format` as a separate
+> option, so without this fix *every* STL download from a build with repeats would carry
+> a lying name.
 
 **Step 4: Run the tests.** Expected: PASS, including the pre-existing ones. Fix
 `packReadme`'s signature where the compiler points at it.
@@ -555,6 +590,31 @@ export function packPlates(
 }
 ```
 
+> **SHIPPED DIFFERENTLY.** Three things in this block were overruled; the reasons are in
+> `src/lib/hex-plate.ts`.
+>
+> 1. **`a.slug.localeCompare(b.slug)` is NOT what shipped.** `localeCompare` reads the
+>    host's default ICU locale — ambient state this module has no say in and the
+>    deployment can change underneath it — and in several locales **punctuation is
+>    ignorable**, so under `th-TH` `"tray-lid".localeCompare("traylid")` is `0`. Two
+>    distinct slugs comparing EQUAL destroys the totality that is the entire point of
+>    the tiebreak, and our slugs are hyphen-dense with one tie group of twelve. The
+>    failure would be per-host and invisible: **the same URL serving different bytes
+>    depending on where it was rendered**, under a response cached per URL. Shipped as a
+>    plain code-unit comparison,
+>    `a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0`. The same trap is documented on
+>    `tally()` in `hex-pack-readme.ts`, which faces it too.
+> 2. **The failures are typed, not stringly.** `packPlates` throws a `PlatePackError`
+>    carrying a `reason` (`part-too-large` / `too-many-plates` / `bad-quantity`), because
+>    the route has to map them to *different statuses* and a route that switches on the
+>    message wording turns a copy edit into a wrong status code.
+> 3. **The guards run before the expansion, not inside the placement loop.** Quantities,
+>    the total against an item ceiling, and the per-part size check are all done on the
+>    LINES first, so a five-million quantity is refused without allocating five million
+>    array elements. The size check is written as the negation of "it fits" rather than
+>    as "it is too big", because `NaN > bed.x` is false and the positive form waves a
+>    NaN-sized part straight through into a 3MF transform.
+
 **Step 4: Run. Expected PASS on all six.**
 
 **Step 5: Commit.**
@@ -735,6 +795,38 @@ export async function buildPlate3mf(
 }
 ```
 
+> **SHIPPED DIFFERENTLY.** Four things; the reasons are in `src/lib/hex-3mf.ts`.
+>
+> 1. **No `printable="1"` on `<item>`.** The core spec allows exactly `objectid`,
+>    `transform` and `partnumber` on an item, plus attributes from *other* namespaces.
+>    Creality Print writes an unqualified `printable="1"` in its own project files, which
+>    is what made it tempting — but it is outside the schema, the known-good reference
+>    plate that was actually opened in a slicer carries none, and an item is printable by
+>    default. It buys nothing and costs conformance. Pinned by a test that reads the
+>    attribute list off every emitted `<item>`.
+> 2. **`replace(/^<object id="\d+"/, …)` is NOT what shipped, and this is the silent
+>    one.** It assumes `id` is the first attribute, and `String.replace` **with no match
+>    returns the string unchanged** — so a source spelling its attributes in another
+>    order keeps `id="1"`, every object on the plate answers to 1, and every item points
+>    at the first mesh. Well-formed zip, well-formed XML, right number of items, wrong
+>    parts. The open tag is now **rebuilt** rather than patched: attributes are parsed,
+>    any existing `id`/`name` stripped (two `name` attributes on one element is not "last
+>    one wins", it is malformed XML a conforming parser rejects outright), and the tag
+>    re-emitted. It also refuses a self-closing `<object … />`, where `indexOf("</object>")`
+>    answers `-1` and the plan's arithmetic slices the first eight characters of the file
+>    straight into the document.
+> 3. **Objects are named by their PUBLISHED spelling, not the slug** — the plate carries
+>    a `name` field alongside `slug`, because the slug is a lossy projection of the
+>    filename and nothing downstream can recover `Hex-TB-Main` from `hex-tb-main`. Added
+>    in the follow-up commit *"carry the published part names onto the plate"*.
+> 4. **`ZIP_EPOCH`**, and explicit directory entries. JSZip stamps every entry with
+>    `new Date()`, so two identical requests a second apart produced byte-different
+>    files for a response cached per URL and meant to be a pure function of it.
+>
+> Later, for **I2** (2026-08-15): `meta` gained an optional `description`, emitted as
+> core-spec `<metadata name="Description">` and omitted entirely when absent. It carries
+> the support and orientation notes inside the file. See A6 and the design's section 5.
+
 **Step 4: Run. Expected PASS.**
 
 **Step 5: Commit.**
@@ -791,6 +883,22 @@ folder and the spec constants already imported by the route. Keep the existing
 support/orientation notes; add the bed line, the per-plate manifest, the "starting point"
 sentence and the preset-dialog note.
 
+> **SHIPPED WITH TWO MORE EXPORTS (2026-08-15, finding I2).** The module also exports:
+>
+> - **`packNeedsSupport(slugs)`** — read by the ROUTE to decide the *shape* of the
+>   response, not only the prose. A single plate normally ships as a bare `.3mf` with no
+>   README at all, which is the commonest download and the only place the spike support
+>   note could go missing; a pack carrying a spike now ships in an archive whatever it
+>   fits on. Exported from here rather than restated at the route so `NEEDS_SUPPORT` stays
+>   one set — two copies would let "we shipped a README" and "the README says supports"
+>   drift apart.
+> - **`plateDescription(parts)`** — the support and orientation notes folded for the
+>   plate's own `<metadata name="Description">` (A5), so a `.3mf` separated from its zip
+>   still carries them. Belt and braces, not the guarantee: slicers surface metadata
+>   inconsistently.
+>
+> Both are recorded in the design's section 5.
+
 **Step 4: Run. Step 5: Commit.**
 
 ```bash
@@ -805,6 +913,21 @@ git commit -m "feat(hex): a README that states the bed, the plates and the cavea
 **Files:**
 - Modify: `src/app/api/printable-pack/route.ts`
 - Test: `src/lib/__tests__/printable-download.test.ts` (extend)
+
+> **SHIPPED DIFFERENTLY.** Three corrections to the block below.
+>
+> 1. **The test file is `src/lib/__tests__/printable-pack-route.test.ts`**, and it is
+>    NEW, not an extension. `printable-download.test.ts` does not exist and never did —
+>    this route **had no test at all**, which is how a filename that disagreed with its
+>    own contents shipped under a green suite. Its header comment says so; read it before
+>    adding to it.
+> 2. **"If one plate, respond with the bare `.3mf`" is not the condition.** A single
+>    plate carrying `hex-tb-spike-solid` or `hex-tb-spike-ball-joint` ships in the zip
+>    too, because the bare file has no README and the README is where the support note
+>    lives. The predicate is `plates.length > 1 || packNeedsSupport(...)`. Design,
+>    section 5.
+> 3. **The filename call takes `PackContents`** — `{ holds: "instances", ext: "3mf" }` on
+>    the plated paths, `{ holds: "files" }` on the loose one. See the A1 annotation.
 
 **Behaviour:**
 
@@ -1002,6 +1125,12 @@ Promote a local value once if the account has none.
 Test each precedence branch, the promotion, and a corrupt localStorage value falling back
 to the default rather than throwing.
 
+**A THIRD gap of the same kind is recorded under B3** — the "shared module" that task
+asks for does not and cannot exist across the repo boundary, and the plan never said what
+B3 must transcribe in its place. Read that before starting either task: it decides how
+`Bed`, `PLATE_GAP`, `MAX_PLATES` and `HEX_GEOMETRY_RELEASE` cross, which overlaps with the
+`BED_MIN`/`BED_MAX` answer above.
+
 **Commit.**
 
 ```bash
@@ -1026,6 +1155,80 @@ Plate count in the label is computed client-side with the same shelf-pack arithm
 the server. **Extract that into a shared module rather than writing it twice** — a
 disagreement between the label and the file is the worst failure this feature has, because
 it is invisible until someone counts.
+
+---
+
+#### GAP: there is no shared module, and this task never said what it must transcribe
+
+*Recorded 2026-08-15 in review of Phase A. Joins the two gaps in B2 (the `BED_MIN` /
+`BED_MAX` re-export, and the one-time promotion). This one is bigger than either.*
+
+**"Extract into a shared module" cannot be taken literally.** `bs-cap` deploys separately
+and shares no package with this repo — the same constraint that makes `src/lib/hex-spec.ts`
+a *transcription plus a pin test* rather than an import. So B3 **transcribes**, and the
+only question is what holds the copy honest. Naming that is this task's real work, and the
+sentence above skips straight past it.
+
+**What has to travel, and what does not travel with it:**
+
+1. **`src/lib/hex-plate.ts`** — `packPlates`, `PLATE_GAP`, `MAX_PLATES`, `PartBox`, and
+   three things that are easy to lose in a retype and each silently change the answer:
+   the **code-unit** slug tiebreak (*not* `localeCompare` — see the A4 annotation), the
+   guards that run **before** quantities are expanded, and `rowH` tracking the **tallest**
+   part in a row rather than the last. It imports `type Bed` from `@/lib/hex-pack`, which
+   does not exist in `bs-cap` — **the same import problem that already bit the embed
+   protocol in A10** and that B2 solves by re-exporting `BED_MIN`/`BED_MAX` from
+   `src/hex/print-bed.ts`. `Bed` needs the same treatment.
+
+2. **`src/lib/hex-geometry.ts`** — 53 bounding boxes and 53 published names, and it is a
+   **GENERATED** file whose entire safety story is two things, **neither of which travels**:
+
+   - `scripts/gen-hex-geometry.ts`, which reads the mesh set out of the sibling
+     `hex-cluster` repo and cross-checks every box against `printBboxMm` in that repo's
+     manifest. `bs-cap` has no generator and no meshes.
+   - `src/lib/__tests__/hex-geometry.test.ts`, which holds the table to `HEX_PART_SLUGS`,
+     to a size limit **derived** from `BED_MIN - 2 * PLATE_GAP`, to `HEX_RELEASE`, and —
+     the load-bearing one — runs every published name through **`slug()` imported from
+     `@/lib/r2`**, the function that actually mints the R2 keys. `bs-cap` has none of
+     `HEX_PART_SLUGS`, `@/lib/r2` or `HEX_RELEASE`.
+
+   So a copy in `bs-cap` is a **third** transcription of the manifest with **no guard at
+   all** — weaker than either of the two here, and the one nobody would think to check.
+
+3. **`PLATE_GAP` (4) and `MAX_PLATES` (20) must match BY VALUE.** Not "be similar": the
+   gap is subtracted twice from the bed on both axes, so a 5 there and a 4 here shifts the
+   plate boundary for builds that sit near it, and a different `MAX_PLATES` moves where the
+   CTA should refuse.
+
+**Why this is the worst gap in the feature.** A copy that drifts **one re-cut behind**
+produces exactly the failure B3 itself names: the button says "1 plate" and the zip holds
+two, or the reverse. It is invisible until someone counts, it is silent in CI on both
+sides, and the geometry table is the *most* likely thing to drift — it is regenerated
+whenever the meshes are re-cut, and nothing in `bs-cap` would even know that happened.
+**Decide the mechanism before writing the transcription**, and write down what fails when
+it drifts. Whatever is chosen must fail *loudly on one side* rather than disagree quietly
+on both.
+
+#### Two more B3 has no instruction for, both introduced by Phase A
+
+- **The release gate.** `route.ts` plates only when the requested release equals
+  `HEX_GEOMETRY_RELEASE` (`2026-08-03`). Release keys are immutable and old links stay
+  live, so `release=2026-07-31` is a real request — and 07-31 is a *different cut* of the
+  meshes, which is why it deliberately falls through to the **loose zip**. If the
+  configurator ever requests a release other than the one it computed a plate count for,
+  **the button claims plates and the server returns a loose zip of distinct files.** B3
+  must either pin the release it requests to the one its geometry copy describes, or stop
+  claiming plates when they differ. `HEX_GEOMETRY_RELEASE` is therefore a **third** value
+  that has to cross the boundary, alongside `PLATE_GAP` and `MAX_PLATES`.
+
+- **The 20-plate cap.** The client can compute a count **above** `MAX_PLATES` and render a
+  perfectly plausible CTA that **400s** when clicked. The route answers with an actionable
+  message (*"…needs more than 20 plates on a 180x180 bed. Choose a larger bed, or fewer
+  parts."*) precisely so it can be shown — so B3 should render that state in the label
+  instead of shipping a button that fails. This is reachable with the published set: 53
+  parts on a 180 bed is well inside it, but a repeat-heavy build on a small bed is not.
+
+---
 
 **Do not test that agreement by calling the packer twice and comparing.** That test is
 inert: V8's sort is stable, so the same input array yields the same answer whether or not
@@ -1085,5 +1288,12 @@ git commit -m "chore(hex): remove the export CTA sandboxes"
    nothing off the bed. `c:\zzz\hex-cluster-plate-K2.3mf` is a known-good reference.
 4. Check the multi-plate path specifically by requesting a small bed (`plate=180x180`) for
    a large build, and confirm the zip's plate count matches the CTA label that produced it.
+   Also check the **cap**: a build the client computes as more than 20 plates must not
+   render a CTA that 400s (see the B3 gap).
+5. **Check a spike build.** `parts=hex-tb-spike-solid` fits one plate and must still come
+   back as a **zip** carrying `README.txt` with `Support required -- Hex-TB-Spike-Solid.`,
+   because a bare `.3mf` has no README to put it in. And check the control: a build with
+   no spike is still **one bare file**, which is the point of the feature. Design,
+   section 5.
 5. Both themes on the export bar, and the narrow width, which is what the embedded copy
    runs at.
