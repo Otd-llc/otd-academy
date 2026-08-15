@@ -10,23 +10,26 @@
 // what is on it before anyone opens a slicer.
 //
 // WHY A HAND-ROLLED ENCODER, and not `next/og` (which this repo already uses for
-// every opengraph card). MEASURED, not assumed -- see
-// `docs/plans/2026-08-15-hex-download-identity.md`, and the numbers are not
-// close:
+// every opengraph card, and which resolves to the bundled
+// `next/dist/compiled/@vercel/og`).
 //
-//   next/og (satori + resvg-wasm)   ~2.5 MB of wasm to instantiate, ~250 ms on a
-//                                   cold call, a 256x256 PNG in the tens of KB,
-//                                   and a rasteriser we would be trusting to be
-//                                   bit-stable across versions for a response
-//                                   that PROMISES identical bytes.
-//   this module                     ~200 lines, zero new dependencies, sub-
-//                                   millisecond, and a PNG measured in hundreds
-//                                   of bytes.
+// MEASURED, NOT ASSUMED. Both were built and timed on the same 14-placement
+// plate on a 220 mm bed, in this repo, on Node v24.5.0 -- see
+// `docs/plans/2026-08-15-hex-download-identity.md`:
 //
-// It is a diagram of axis-aligned rectangles. A general-purpose vector
-// rasteriser is the wrong tool for it by two orders of magnitude on every axis
-// that matters here, and the one axis it would win on -- anti-aliased curves --
-// does not arise.
+//                              bytes    cold      warm     runtime weight
+//   next/og (satori+resvg)     2,721    1142.8ms  11.87ms  resvg.wasm 1,378,357 B
+//                                                          + yoga.wasm 71,736 B
+//   this module                  496       3.2ms   1.05ms  none
+//
+// 5.5x smaller, 357x faster on a cold call, and 1.45 MB of wasm NOT instantiated
+// in a serverless function. Both are deterministic, so that was not what decided
+// it -- but determinism is a materially easier property to KEEP over two hundred
+// lines of our own arithmetic than over a rasteriser we would be trusting to
+// stay bit-stable across versions, for a response that promises identical bytes.
+//
+// This is a diagram of axis-aligned rectangles. The one axis a general-purpose
+// vector rasteriser would win on -- anti-aliased curves -- does not arise.
 //
 // DETERMINISM IS A REQUIREMENT, inherited from the response. The pack is cached
 // `public, max-age=86400` keyed on the URL and the design promises identical
