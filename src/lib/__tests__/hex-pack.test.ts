@@ -9,9 +9,14 @@ import { describe, expect, it } from "vitest";
 import { HEX_PART_SLUGS, isHexPartSlug } from "@/lib/hex-parts";
 import { HEX_PART_COUNT } from "@/lib/hex-spec";
 import {
+  BED_MAX,
+  BED_MIN,
+  DEFAULT_BED,
+  MAX_PACK_INSTANCES,
   MAX_PACK_PARTS,
+  PART_SLUG_RE,
   packFilename,
-  packReadme,
+  platePath,
   resolvePack,
 } from "@/lib/hex-pack";
 
@@ -28,7 +33,12 @@ describe("the published part list", () => {
   });
 
   it("is slugs, not part names -- these have to match the R2 keys", () => {
-    for (const s of HEX_PART_SLUGS) expect(s).toMatch(/^[a-z0-9][a-z0-9-]*$/);
+    // The pattern is IMPORTED, never transcribed. This test is the only thing
+    // holding the grammar and the membership list to the same idea of what a
+    // slug is; a local copy of the regex would agree with itself forever while
+    // the real one drifted, and the symptom would be a published part the pack
+    // endpoint refuses to name.
+    for (const s of HEX_PART_SLUGS) expect(s).toMatch(PART_SLUG_RE);
   });
 
   it("has no duplicates", () => {
@@ -55,7 +65,11 @@ describe("resolvePack", () => {
       parts: `${ONE},${TWO}`,
     });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.request.parts).toEqual([ONE, TWO]);
+    if (r.ok)
+      expect(r.request.parts).toEqual([
+        { slug: ONE, qty: 1 },
+        { slug: TWO, qty: 1 },
+      ]);
   });
 
   it("defaults to 3mf, the format that carries units and part names", () => {
@@ -103,12 +117,18 @@ describe("resolvePack", () => {
   });
 
   it("collapses duplicates instead of reading the same object twice", () => {
+    // One LINE per slug, however many times it is named -- that is what keeps
+    // the R2 fan-out equal to the number of distinct parts. The repeats are
+    // carried as a quantity now rather than discarded.
     const r = resolvePack({
       release: RELEASE,
       format: "3mf",
       parts: `${ONE},${ONE},${TWO}`,
     });
-    expect(r.ok && r.request.parts).toEqual([ONE, TWO]);
+    expect(r.ok && r.request.parts).toEqual([
+      { slug: ONE, qty: 2 },
+      { slug: TWO, qty: 1 },
+    ]);
   });
 
   it("caps the fan-out at the real part count", () => {
@@ -123,8 +143,12 @@ describe("resolvePack", () => {
     });
   });
 
-  it("checks membership BEFORE size, so a spray is cheap to refuse", () => {
-    // Ordering matters: an unknown name must cost a set lookup, never a read.
+  it("refuses well-formed names that are not published parts", () => {
+    // These two pass the SHAPE check and are under both caps, so membership is
+    // the only thing that can refuse them -- which is the point: a grammar
+    // alone would let a caller spray plausible slugs and read existence off the
+    // response. That membership runs before any R2 work is a property of the
+    // ROUTE, not of this function, and there is no route test yet to assert it.
     const r = resolvePack({
       release: RELEASE,
       format: "3mf",
@@ -135,45 +159,227 @@ describe("resolvePack", () => {
 });
 
 describe("packFilename", () => {
+  const INSTANCES = { holds: "instances" } as const;
+  const FILES = { holds: "files" } as const;
+
   it("names a single part after it", () => {
-    expect(packFilename([ONE])).toBe(`hex-cluster-${ONE}.zip`);
+    expect(packFilename([{ slug: ONE, qty: 1 }], INSTANCES)).toBe(
+      `hex-cluster-${ONE}.zip`,
+    );
   });
 
   it("counts a multi-part pack", () => {
-    expect(packFilename([ONE, TWO])).toBe("hex-cluster-2-parts.zip");
+    expect(
+      packFilename(
+        [
+          { slug: ONE, qty: 1 },
+          { slug: TWO, qty: 1 },
+        ],
+        INSTANCES,
+      ),
+    ).toBe("hex-cluster-2-parts.zip");
+  });
+
+  it("takes the extension, because a single plate is not a zip", () => {
+    // A build that fits one bed ships as a bare .3mf. Named `.zip` it opens in
+    // an archiver and shows the reader an XML file instead of their parts --
+    // and a 3MF really is a zip underneath, so nothing would error.
+    expect(
+      packFilename([{ slug: ONE, qty: 1 }], { ...INSTANCES, ext: "3mf" }),
+    ).toBe(`hex-cluster-${ONE}.3mf`);
+    expect(
+      packFilename([{ slug: ONE, qty: 6 }], { ...INSTANCES, ext: "3mf" }),
+    ).toBe("hex-cluster-6-parts.3mf");
+  });
+
+  it("counts INSTANCES for a box that holds them -- six of one part is not a one-part pack", () => {
+    // The number in the filename is what the person is about to print. Naming a
+    // PLATE after the distinct count would call a six-cap plate "1-part".
+    expect(packFilename([{ slug: ONE, qty: 6 }], INSTANCES)).toBe(
+      "hex-cluster-6-parts.zip",
+    );
+  });
+
+  it("counts FILES for a box that holds one per name", () => {
+    // THE DEFECT THIS PARAMETER EXISTS FOR. The loose zip holds one published
+    // mesh per distinct part however many were asked for, so an instance count
+    // on it named a box of one file "6-parts" while the README inside it said
+    // one. Six of one name is ONE file, and one file gets named after itself.
+    expect(packFilename([{ slug: ONE, qty: 6 }], FILES)).toBe(
+      `hex-cluster-${ONE}.zip`,
+    );
+    expect(
+      packFilename(
+        [
+          { slug: ONE, qty: 6 },
+          { slug: TWO, qty: 3 },
+        ],
+        FILES,
+      ),
+    ).toBe("hex-cluster-2-parts.zip");
+  });
+
+  it("gives the SAME build two different names for two different boxes", () => {
+    // Stated as one assertion because the two counts being different is the
+    // whole reason the caller has to say which it means. A `holds` that were
+    // ignored would make these equal and every other row here would still pass.
+    const build = [
+      { slug: ONE, qty: 6 },
+      { slug: TWO, qty: 3 },
+    ];
+    expect(packFilename(build, INSTANCES)).toBe("hex-cluster-9-parts.zip");
+    expect(packFilename(build, FILES)).toBe("hex-cluster-2-parts.zip");
   });
 });
 
-describe("packReadme", () => {
-  const base = {
-    release: RELEASE,
-    format: "3mf" as const,
-    parts: [ONE, TWO],
-    credit: "Hex Cluster by One Thousand Drones, LLC, licensed CC BY 4.0.",
-    specUrl: "https://academy.onethousanddrones.com/hex",
-    printLines: ["Material: FDM PETG"],
-    supportNote: ["Every part here stands on a flat face."],
-  };
+// `packReadme` moved to `hex-pack-readme.ts` alongside the plated one, and its
+// tests moved with it -- see `hex-pack-readme.test.ts`.
 
-  it("carries the credit -- a pack is a redistribution of a CC BY work", () => {
-    // The one condition of the licence is that the attribution travels with the
-    // files. Shipping a subset without it would be us breaking the terms we ask
-    // every downstream remixer to keep, on our own work.
-    expect(packReadme(base)).toContain(base.credit);
+describe("platePath", () => {
+  it("names a plate one-based, with the total", () => {
+    expect(platePath(1, 3)).toBe("plates/plate-1-of-3.3mf");
+    expect(platePath(3, 3)).toBe("plates/plate-3-of-3.3mf");
   });
 
-  it("says plainly that it is a subset, and where the whole set is", () => {
-    const out = packReadme(base);
-    expect(out).toContain("SUBSET");
-    expect(out).toContain(base.specUrl);
+  it("is the ONE spelling the route and the README both use", () => {
+    // Pinned as a literal on purpose. The zip entry and the README line are
+    // written by different modules; if this string is ever edited, the literal
+    // above is the thing that has to be edited deliberately, rather than one of
+    // the two callers drifting and nobody noticing until someone opens the zip.
+    expect(platePath(2, 10)).toBe("plates/plate-2-of-10.3mf");
+  });
+});
+
+describe("quantities", () => {
+  it("reads a bare slug as one", () => {
+    const r = resolvePack({ release: RELEASE, parts: ONE });
+    expect(r.ok && r.request.parts).toEqual([{ slug: ONE, qty: 1 }]);
   });
 
-  it("lists every part it contains", () => {
-    const out = packReadme(base);
-    for (const p of base.parts) expect(out).toContain(p);
+  it("reads slug:n", () => {
+    const r = resolvePack({ release: RELEASE, parts: `${ONE}:3` });
+    expect(r.ok && r.request.parts).toEqual([{ slug: ONE, qty: 3 }]);
   });
 
-  it("records the release, so a pack can be traced to its geometry", () => {
-    expect(packReadme(base)).toContain(RELEASE);
+  it("sums a repeated slug rather than dropping one", () => {
+    // The old code Set-deduped, which silently lost the second mention.
+    const r = resolvePack({ release: RELEASE, parts: `${ONE}:2,${ONE}:3` });
+    expect(r.ok && r.request.parts).toEqual([{ slug: ONE, qty: 5 }]);
+  });
+
+  it("refuses a zero, a negative, or a non-integer quantity", () => {
+    for (const q of ["0", "-1", "1.5", "x"]) {
+      expect(resolvePack({ release: RELEASE, parts: `${ONE}:${q}` }).ok).toBe(
+        false,
+      );
+    }
+  });
+
+  it("refuses a quantity with more digits than the cap can ever accept", () => {
+    // `:0007` is seven and `:000...1` is one, so without a digit bound the same
+    // pack has unlimited spellings. The response is cached `max-age=86400` keyed
+    // on the URL, so each spelling is a fresh cache entry for identical bytes.
+    for (const q of ["0000000001", "1000", "00250"]) {
+      expect(resolvePack({ release: RELEASE, parts: `${ONE}:${q}` }).ok).toBe(
+        false,
+      );
+    }
+  });
+
+  it("accepts EXACTLY MAX_PACK_INSTANCES -- the cap is inclusive", () => {
+    // The rejection test below proves 251 is refused. Without this one, an
+    // off-by-one that refused 250 too would pass the whole suite.
+    const r = resolvePack({
+      release: RELEASE,
+      parts: `${ONE}:${MAX_PACK_INSTANCES}`,
+    });
+    expect(r.ok).toBe(true);
+    expect(r.ok && r.request.parts).toEqual([
+      { slug: ONE, qty: MAX_PACK_INSTANCES },
+    ]);
+  });
+
+  it("refuses more than MAX_PACK_INSTANCES total items", () => {
+    const r = resolvePack({
+      release: RELEASE,
+      parts: `${ONE}:${MAX_PACK_INSTANCES},${TWO}:1`,
+    });
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.problem).toBe("too-many");
+  });
+});
+
+describe("the bed", () => {
+  it("defaults to 220 square when absent", () => {
+    const r = resolvePack({ release: RELEASE, parts: ONE });
+    expect(r.ok && r.request.bed).toEqual({ x: 220, y: 220 });
+  });
+
+  it("hands out a COPY of the default, never the shared constant", () => {
+    // Two requests must not share one object. The resolved bed travels on to the
+    // packer and the README, so a clamp or a normalisation added downstream
+    // would otherwise write straight into the module-level default and change it
+    // for every later request on the same warm serverless instance -- one user's
+    // bed silently becoming everyone's, only under load, only in production.
+    const a = resolvePack({ release: RELEASE, parts: ONE });
+    const b = resolvePack({ release: RELEASE, parts: ONE });
+    expect(a.ok && b.ok).toBe(true);
+    if (!a.ok || !b.ok) return;
+    expect(a.request.bed).not.toBe(b.request.bed);
+    expect(a.request.bed).not.toBe(DEFAULT_BED);
+    expect(a.request.bed).toEqual(DEFAULT_BED);
+  });
+
+  it("freezes the default, so a regression is a throw and not a mystery", () => {
+    expect(Object.isFrozen(DEFAULT_BED)).toBe(true);
+  });
+
+  it("reads WxH", () => {
+    const r = resolvePack({ release: RELEASE, parts: ONE, plate: "350x350" });
+    expect(r.ok && r.request.bed).toEqual({ x: 350, y: 350 });
+  });
+
+  it("accepts both ENDS of the range -- the bounds are inclusive", () => {
+    // The refusal list below only proves that values well outside the range are
+    // refused. A `<=` where a `<` belongs would turn the smallest legitimate bed
+    // into a 400 and still pass every other test here.
+    for (const n of [BED_MIN, BED_MAX]) {
+      const r = resolvePack({
+        release: RELEASE,
+        parts: ONE,
+        plate: `${n}x${n}`,
+      });
+      expect(r.ok).toBe(true);
+      expect(r.ok && r.request.bed).toEqual({ x: n, y: n });
+    }
+  });
+
+  it("refuses a bed outside the sane range, or a non-integer", () => {
+    for (const p of [
+      "0x100",
+      "100x0",
+      "40x40",
+      // The two values one step outside each bound, so an off-by-one is caught
+      // from both directions rather than only by the far-away cases.
+      `${BED_MIN - 1}x${BED_MIN - 1}`,
+      `${BED_MAX + 1}x${BED_MAX + 1}`,
+      "2000x2000",
+      "350",
+      "axb",
+      "350x350x350",
+    ]) {
+      expect(resolvePack({ release: RELEASE, parts: ONE, plate: p }).ok).toBe(
+        false,
+      );
+    }
+  });
+
+  it("says WHICH thing was malformed", () => {
+    // The bed is the one field a person edits by hand in a URL. Answering
+    // "bad-bed" rather than a generic refusal is not a leak: bed sizes are not
+    // secrets, unlike which part names are real.
+    expect(
+      resolvePack({ release: RELEASE, parts: ONE, plate: "40x40" }),
+    ).toEqual({ ok: false, problem: "bad-bed" });
   });
 });

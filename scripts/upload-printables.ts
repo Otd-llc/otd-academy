@@ -36,6 +36,9 @@ import {
   HEX_ORIENTATION,
   HEX_PRINT_PARAMS,
 } from "../src/lib/hex-spec";
+// Plain data, no env, so a static import is safe above the dotenv call below --
+// same reasoning as hex-spec. See that module on why the list lives in one place.
+import { NEEDS_SUPPORT_NAMES } from "../src/lib/hex-support";
 
 // Dynamic imports inside main() so dotenv populates process.env BEFORE
 // src/env.ts validates it at module-eval time (a static import would hoist
@@ -365,13 +368,16 @@ function orientationNote(parts: ManifestPart[]): string[] {
     );
   }
 
-  // The two parts that rest on a line by DESIGN, named so nobody is surprised
-  // mid-print. Owner decision 2026-08-03: keep the orientation, say it plainly.
-  // A spike carries load along its axis; printed upright the layers stack along
-  // that axis and peel apart, so both are laid down to run the layers across it.
-  // A lying cone touches the bed along a line no matter how it is turned.
-  const NEEDS_SUPPORT = ["Hex-TB-Spike-Solid", "Hex-TB-Spike-Ball-Joint"];
-  const present = NEEDS_SUPPORT.filter((n) => parts.some((p) => p.part === n));
+  // The parts that rest on a line by DESIGN, named so nobody is surprised
+  // mid-print. The list used to be a local const here AND a second one in
+  // src/lib/hex-pack-readme.ts, each asking the other to be kept in sync. It now
+  // lives once in @/lib/hex-support, because the download endpoint reads the same
+  // set to decide whether a single-plate build ships bare or inside an archive --
+  // so a re-cut that updated this file and not that one would ship a bare file
+  // with no warning in it at all. See that module's header.
+  const present = NEEDS_SUPPORT_NAMES.filter((n) =>
+    parts.some((p) => p.part === n),
+  );
   if (present.length > 0) {
     lines.push(
       "",

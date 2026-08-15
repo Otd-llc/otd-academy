@@ -6,14 +6,16 @@ import { PageHeader } from "@/components/PageHeader";
 import { AvatarUploader } from "@/components/account/AvatarUploader";
 import { EmailPreferences } from "@/components/account/EmailPreferences";
 import { ManageBillingButton } from "@/components/account/ManageBillingButton";
+import { PrintBedSetting } from "@/components/account/PrintBedSetting";
 import { DunningBanner } from "@/components/billing/DunningBanner";
 import { pastDueSubscription } from "@/lib/past-due-subscription";
 import { avatarSrc } from "@/lib/effective-avatar";
+import { bedFromColumns } from "@/lib/print-bed";
 
 // Signed-in account settings: your avatar (seeded from the sign-in provider,
-// overridable with an upload), a read-only identity summary, and your email
-// opt-in. Auth-gated by middleware; the redirect here is a defense-in-depth
-// backstop.
+// overridable with an upload), a read-only identity summary, your email opt-in,
+// and your print bed size. Auth-gated by middleware; the redirect here is a
+// defense-in-depth backstop.
 export const metadata: Metadata = {
   title: "Your account",
   robots: { index: false, follow: false },
@@ -34,6 +36,8 @@ export default async function AccountPage() {
       avatarUpdatedAt: true,
       emailConsent: true,
       stripeCustomerId: true,
+      printBedXMm: true,
+      printBedYMm: true,
     },
   });
   if (!user) redirect("/sign-in");
@@ -74,6 +78,19 @@ export default async function AccountPage() {
           through no matter what.
         </p>
         <EmailPreferences initialConsent={user.emailConsent} />
+      </section>
+
+      <section className="mt-10 border-t border-panel-border/60 pt-6">
+        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+          ▸ Printing
+        </p>
+        <p className="mt-1 font-serif text-sm text-muted">
+          The bed your 3D printer has. Hex cluster downloads arrive arranged for it,
+          on as few plates as it takes.
+        </p>
+        <PrintBedSetting
+          initialBed={bedFromColumns(user.printBedXMm, user.printBedYMm)}
+        />
       </section>
 
       {user.stripeCustomerId ? (

@@ -77,6 +77,19 @@ model User {
   onboardingGoal        String?
   onboardingGoalAt      DateTime?
 
+  // Print bed size in millimetres, used to lay out hex-cluster downloads. Both null
+  // = no stored choice: the configurator falls back to this browser's localStorage
+  // and then to a conservative default, so a signed-in user who never picked one is
+  // treated exactly like a signed-out one. Two nullable Ints rather than a prefs
+  // JSON: the pair is read together and never partially, and a typed column cannot
+  // drift the way an untyped blob does. Range is enforced in code against the pack
+  // endpoint's own BED_MIN/BED_MAX (src/lib/hex-pack.ts), not by a CHECK constraint
+  // — one copy of those numbers, so the settings page can never accept a bed the
+  // endpoint would then refuse. X and Y only, no Z: the tallest part is 35 mm, so a
+  // build-height field could never change an answer.
+  printBedXMm           Int?
+  printBedYMm           Int?
+
   // Logbook (XP progression) cached mirrors — recomputable from the XpEvent
   // ledger; updated transactionally with each award. currentThrough = the
   // stay-current window end (status only, design §6). logbookIntroSeenAt = the
