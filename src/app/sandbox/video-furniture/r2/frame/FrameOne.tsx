@@ -2,9 +2,24 @@
 
 // One treatment, full viewport, driven from outside.
 //
-// `data-settled` is set after a rAF FOLLOWING the seek, never in the same tick.
-// Between a state change and the paint that realises it there is a window where
-// a screenshot is a coin toss; the film found that the expensive way.
+// THE SETTLE CONTRACT IS THE PROMISE `__seek` RETURNS. Await it; the frame is
+// then safe to measure or photograph. There used to be two contracts in this
+// repo -- promise-await (`__cutSet`) and attribute-poll (`data-settled`) -- and
+// a consumer that picked the wrong one got a silent blind path rather than an
+// error. `__seek` now matches `__cutSet`, so there is one contract and one way
+// to be wrong.
+//
+// The promise resolves after the rAF FOLLOWING the paint that carries the seek,
+// never in the same tick. Between a state change and the paint that realises it
+// there is a window where a screenshot is a coin toss; the film found that the
+// expensive way.
+//
+// `data-settled` remains, carrying the settled `t`, but it is NOT the contract.
+// It is there so a human scrubbing this page in a browser can see which time
+// the frame is showing. Polling it is how the old blind path worked: the
+// attribute is present at mount, so `waitForSelector` returns instantly and
+// every sample reads frame 0 while every assertion still counts itself. Carrying
+// the value at least makes a poller's mistake visible instead of silent.
 //
 // This one does NOT pin the theme, unlike round 1's frame. The measurement rig
 // flips `data-theme` itself and compares the two renders, so pinning here would
@@ -12,7 +27,7 @@
 //
 // ASCII only.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Stage } from "@prisma/client";
 import { PieceFrame } from "../Render";
 import { PIECES, type PieceKey } from "../variants";
@@ -20,16 +35,13 @@ import { DEFAULT_ENTRY, HAIRLINE_ENTRY } from "../entries";
 import { SAMPLE_TITLE } from "../../furniture";
 import { STAGE_LABELS } from "@/lib/stages";
 
-// This `declare global` used to live in ROUND 1's frame, and this file
-// deliberately did not repeat it - two declarations with different shapes are a
-// conflict at the type level rather than two independent surfaces. Round 1 has
-// been deleted, so it moves here, to the only surface that still drives a seek.
-declare global {
-  interface Window {
-    __seek?: (t: number) => void;
-    __pieceInfo?: () => { piece: string; variant: string; seconds: number; w: number; h: number };
-  }
-}
+// The `declare global` for `__seek` used to live here AND in the film stage,
+// which is a conflict at the type level the moment the two shapes diverge --
+// exactly what happened when this surface started returning a promise. It now
+// lives once, in `src/types/capture-surface.d.ts`, alongside the reason.
+//
+// THIS FILE IS THE REFERENCE IMPLEMENTATION of that contract: `__seek` returns
+// a promise, resolved one frame after the paint that carries the seek.
 
 const LONGEST =
   "Solder the board: heavy parts, passives, and a drag-solder pass (plus the hot-air option)";
@@ -47,6 +59,9 @@ export function FrameOne({
 }) {
   const [t, setT] = useState(0);
   const [settled, setSettled] = useState(false);
+  // Resolver for the in-flight `__seek`. Held in a ref rather than state so
+  // resolving it cannot itself schedule a render.
+  const settleRef = useRef<(() => void) | null>(null);
   // The frame IS the viewport on this surface, so this is the delivery aspect.
   const [aspect, setAspect] = useState(16 / 9);
   const key = (piece in PIECES ? piece : "intro") as PieceKey;
@@ -61,10 +76,16 @@ export function FrameOne({
   }, []);
 
   useEffect(() => {
-    window.__seek = (next: number) => {
-      setSettled(false);
-      setT(next);
-    };
+    window.__seek = (next: number) =>
+      new Promise<void>((resolve) => {
+        // A seek that arrives while another is in flight resolves the old one
+        // rather than stranding its awaiter forever. A dropped promise in a
+        // capture loop reads as a hang with no message.
+        settleRef.current?.();
+        settleRef.current = resolve;
+        setSettled(false);
+        setT(next);
+      });
     window.__pieceInfo = () => ({
       piece: key,
       variant,
@@ -75,6 +96,9 @@ export function FrameOne({
     return () => {
       delete window.__seek;
       delete window.__pieceInfo;
+      // Unblock anyone mid-await on teardown, for the same reason.
+      settleRef.current?.();
+      settleRef.current = null;
     };
   }, [key, variant, def.seconds]);
 
@@ -84,6 +108,21 @@ export function FrameOne({
     return () => cancelAnimationFrame(id);
   }, [settled, t]);
 
+  // Resolve one frame AFTER `settled` commits, not in the rAF that requests it.
+  // The rAF above runs before the paint that carries the new time, so resolving
+  // there would hand back a promise that settles on the frame BEFORE the one
+  // asked for -- which is precisely the coin-toss screenshot this contract
+  // exists to remove.
+  useEffect(() => {
+    if (!settled || !settleRef.current) return;
+    const id = requestAnimationFrame(() => {
+      const resolve = settleRef.current;
+      settleRef.current = null;
+      resolve?.();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [settled]);
+
   // Measured against the LONGEST real title in the shot list. Measuring against
   // a short sample measures the sample.
   const title = LONGEST || SAMPLE_TITLE[st] || STAGE_LABELS[st];
@@ -91,7 +130,7 @@ export function FrameOne({
   return (
     <div
       data-piece-stage
-      {...(settled ? { "data-settled": "" } : {})}
+      {...(settled ? { "data-settled": String(t) } : {})}
       style={{ position: "fixed", inset: 0, background: "var(--color-deep-space)" }}
     >
       <PieceFrame

@@ -36,12 +36,14 @@ import {
 import { THE_CUT } from "./assembly";
 import { FORMATS, type FormatId } from "./formats/formats";
 
-declare global {
-  interface Window {
-    __seek?: (t: number) => void;
-    __filmInfo?: () => { fmt: string; w: number; h: number; seconds: number };
-  }
-}
+// `__seek` / `__filmInfo` are declared once, in `src/types/capture-surface.d.ts`.
+// Two `declare global` blocks for one global drift into incompatible shapes and
+// only announce it when somebody fixes one of them.
+//
+// This surface has NOT migrated to the promise form of the contract: the settle
+// signal is raised by `LogbookLive` (a child), and this route's renderer lives
+// in the extracted `otd-promo` repo, so the change cannot be verified from
+// here. Until it does, a driver here still waits on `[data-settled]`.
 
 export function FrameStage({
   fmt,
