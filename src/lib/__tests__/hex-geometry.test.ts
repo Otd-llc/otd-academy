@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 import {
   HEX_GEOMETRY_RELEASE,
   HEX_PART_BOX,
+  HEX_PART_MESH_BOTTOM,
   HEX_PART_NAME,
 } from "@/lib/hex-geometry";
 import { BED_MIN } from "@/lib/hex-pack";
@@ -51,8 +52,8 @@ describe("the geometry table", () => {
     // it happens to be long in.
     //
     // Headroom on the 2026-08-03 set: the largest footprint is hex-tb-main and
-    // the four hex-tb-half-top parts at 87.757 mm, against a limit of 92, so
-    // 4.243 mm to spare.
+    // the four hex-tb-half-top parts at 87.7572 mm, against a limit of 92, so
+    // 4.2428 mm to spare.
     const limit = BED_MIN - 2 * PLATE_GAP;
     for (const [slug, box] of Object.entries(HEX_PART_BOX)) {
       expect(Math.max(box.dx, box.dy), `${slug} footprint`).toBeLessThanOrEqual(
@@ -117,6 +118,78 @@ describe("the geometry table", () => {
     for (const [key, name] of Object.entries(HEX_PART_NAME)) {
       expect(slug(name), `${key} is named ${name}`).toBe(key);
     }
+  });
+
+  it("agrees with the mesh text about where every part's floor is", () => {
+    // The generator's own seat gate, repeated here so it also holds for a table
+    // nobody regenerated. `z0` is `HEX_PART_MESH_BOTTOM` parsed; a rounding
+    // introduced in the numeric path, or a value edited by hand into the file
+    // marked "do not edit by hand", breaks the pair. The whole feature rests on
+    // `z0` being the mesh's real minimum, because the writer negates it to seat
+    // the part -- 0.144 instead of 0.144338 is what left one object 3.38e-4 mm
+    // off a bed the rest of the plate sat on.
+    //
+    // Held from BOTH sides first: a floor with no box is a part the writer will
+    // never place, and a box with no floor is one the seat sweep in
+    // `hex-3mf.test.ts` would silently stop covering.
+    expect(Object.keys(HEX_PART_MESH_BOTTOM).sort()).toEqual(
+      Object.keys(HEX_PART_BOX).sort(),
+    );
+    for (const [slug, text] of Object.entries(HEX_PART_MESH_BOTTOM)) {
+      expect(Number(text), `${slug} floor text "${text}"`).toBe(
+        HEX_PART_BOX[slug].z0,
+      );
+    }
+  });
+
+  it("records the minimum corner unrounded, at the precision the mesh states it", () => {
+    // THE HALF OF THE SEAT INVARIANT THAT NOTHING ELSE IN CI CAN SEE.
+    //
+    // `hex-3mf.test.ts` proves the writer seats a part exactly where the table
+    // says its mesh bottom is. Whether the table is RIGHT about that is a
+    // question only the mesh can answer, and the meshes are a sibling checkout
+    // that never ships with the app. So the two values below are pinned: they
+    // are measurements, taken from release 2026-08-03, recorded here because
+    // this repo has nothing else to compare against.
+    //
+    // Both were rounded to 3 dp by the generator until 2026-08-15, and both
+    // spellings are quoted so a regression is obvious rather than arithmetic:
+    //
+    //   z0  Hex-TB-Spike-Ball-Joint.3mf's lowest vertex is verbatim
+    //       `<vertex x="25.5" y="-39.3851" z="0.144338" />`. Stored as 0.144, the
+    //       writer emitted `tz = -0.144` and left that one part 3.38e-4 mm above
+    //       a bed every other object on the plate sat exactly on -- which is what
+    //       made Creality Print offer to fuse the plate into one multi-part
+    //       object. It is the only part whose `z0` is anything but float noise,
+    //       because it is the only one whose upstream drop-to-bed used a slightly
+    //       enlarged OCC bounding box.
+    //
+    //   x0  Hex-TB-Main measures -43.8786 and was stored as -43.879. Independently
+    //       confirmed by the known-good reference plate, which was opened in
+    //       Creality Print V7.2.1 and places it with `tx = 47.8786` from a target
+    //       of 4 mm: 4 - (-43.8786). Nothing on a bed notices 0.4 micron, so this
+    //       one is pinned because it is the same mistake rather than because it
+    //       hurt.
+    //
+    // A re-cut that legitimately changes either number fails here. That is the
+    // intended behaviour: these are facts about a specific mesh set, the release
+    // stamp below is pinned for the same reason, and "re-measure it" is the
+    // correct response to both.
+    expect(HEX_PART_BOX["hex-tb-spike-ball-joint"].z0).toBe(0.144338);
+    expect(HEX_PART_BOX["hex-tb-main"].x0).toBe(-43.8786);
+
+    // And that the ball joint is still the ONLY part sitting meaningfully off
+    // its own origin. Without this, a re-cut could introduce a second such part
+    // and the pin above would keep passing while the new one went unexamined.
+    // 1e-11 mm separates the exporter's float noise (the largest is
+    // `hex-tb-spike-solid` at 1.90781e-12) from real geometry by two orders of
+    // magnitude on one side and eight on the other; it is a classifier here, NOT
+    // a seat tolerance. The seat tolerance is zero, and it lives in
+    // `hex-3mf.test.ts` with its own argument.
+    const real = Object.entries(HEX_PART_BOX)
+      .filter(([, box]) => Math.abs(box.z0) > 1e-11)
+      .map(([slug]) => slug);
+    expect(real).toEqual(["hex-tb-spike-ball-joint"]);
   });
 
   it("was regenerated for the release the app publishes", () => {
