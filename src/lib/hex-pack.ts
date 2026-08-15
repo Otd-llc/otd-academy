@@ -3,6 +3,7 @@
 // module may only export the handler names, and this is the part with rules.
 
 import { HEX_PART_SLUGS, isHexPartSlug } from "@/lib/hex-parts";
+import { resolvePackName } from "@/lib/hex-pack-name";
 
 /** Immutable release segment, e.g. `2026-07-31`. Same grammar as the proxy. */
 const RELEASE = /^\d{4}-\d{2}-\d{2}$/;
@@ -106,12 +107,19 @@ export type PackRequest = {
   format: PackFormat;
   parts: PackPart[];
   bed: Bed;
+  /** The build's own name, already sanitised into something a filesystem will
+   *  accept -- `OTD-Hex-Cluster` when the caller named nothing. Every filename
+   *  this request produces, inside the archive and out, is built from this ONE
+   *  string, so the download and the plates inside it cannot be named after
+   *  different things. */
+  stem: string;
 };
 
 export type PackProblem =
   | "bad-release"
   | "bad-format"
   | "bad-bed"
+  | "bad-name"
   | "empty"
   | "too-many"
   | "unknown-part";
@@ -177,6 +185,7 @@ export function resolvePack(input: {
   format?: string | null;
   parts?: string | null;
   plate?: string | null;
+  name?: string | null;
 }): PackResolution {
   const release = input.release ?? "";
   if (!RELEASE.test(release)) return { ok: false, problem: "bad-release" };
@@ -188,6 +197,16 @@ export function resolvePack(input: {
 
   const bed = parseBed(input.plate);
   if (bed === null) return { ok: false, problem: "bad-bed" };
+
+  // THE NAME IS VALIDATED HERE, with every other field, and not at the point it
+  // is written into a header. That is the whole reason it goes through
+  // `resolvePack` rather than being read off the query in the route: a field
+  // that is checked where it is USED gets checked once per use, and this one is
+  // used in five places (two header parameters, the zip entry names, the README
+  // manifest and the plate's `Title`). Checked once, at the door, it is a proven
+  // string everywhere downstream.
+  const name = resolvePackName(input.name);
+  if (!name.ok) return { ok: false, problem: "bad-name" };
 
   const parts = parseParts(input.parts ?? "");
   if (parts === null) return { ok: false, problem: "unknown-part" };
@@ -201,7 +220,7 @@ export function resolvePack(input: {
   if (!parts.every((p) => isHexPartSlug(p.slug)))
     return { ok: false, problem: "unknown-part" };
 
-  return { ok: true, request: { release, format, parts, bed } };
+  return { ok: true, request: { release, format, parts, bed, stem: name.stem } };
 }
 
 /** How many physical objects a pack contains, which is not the same as how many
@@ -237,10 +256,18 @@ export type PackContents = "instances" | "files";
  *  `ext` is a PARAMETER because the response is not always a zip: a build that
  *  fits one plate and carries no support warning ships as a bare `.3mf`, with no
  *  archive around it. A hardcoded `.zip` would put a 3MF document behind a name
- *  every unzipper on the planet would try to open as an archive. */
+ *  every unzipper on the planet would try to open as an archive.
+ *
+ *  `stem` is REQUIRED, with no default, for the same reason `holds` is. It used
+ *  to be the fixed literal `hex-cluster`; it is now the build's own name, and
+ *  the one thing a caller must not be able to do is quietly fall back to a
+ *  generic prefix on one response shape while the other two carry the person's
+ *  name. `resolvePack` produces exactly one stem per request -- already
+ *  sanitised, already defaulted to `OTD-Hex-Cluster` -- so a caller that has a
+ *  `PackRequest` has nothing to decide. */
 export function packFilename(
   parts: readonly PackPart[],
-  opts: { holds: PackContents; ext?: "zip" | "3mf" },
+  opts: { holds: PackContents; stem: string; ext?: "zip" | "3mf" },
 ): string {
   const n = opts.holds === "instances" ? packInstances(parts) : parts.length;
   const ext = opts.ext ?? "zip";
@@ -249,9 +276,14 @@ export function packFilename(
   // asked for, and on the plated path it is one object only when the quantity
   // really is one. Deriving both branches from the same count is what stops the
   // name and the number disagreeing.
+  //
+  // THE COUNT SURVIVES THE RENAME. Naming the file purely after the cluster
+  // would read better and would throw away the one property this endpoint has
+  // broken twice: the number on the box says what is in the box. The name goes
+  // in front of it, not instead of it.
   return parts.length === 1 && n === 1
-    ? `hex-cluster-${parts[0].slug}.${ext}`
-    : `hex-cluster-${n}-parts.${ext}`;
+    ? `${opts.stem}-${parts[0].slug}.${ext}`
+    : `${opts.stem}-${n}-parts.${ext}`;
 }
 
 /** Where a plate lives inside a multi-plate zip.
@@ -269,7 +301,18 @@ export function packFilename(
  *
  *  The README that travels beside these lives in `hex-pack-readme.ts`, which
  *  imports this. The dependency runs that way and not back: this module is the
- *  request grammar and knows nothing about prose. */
-export function platePath(index: number, total: number): string {
-  return `plates/plate-${index}-of-${total}.3mf`;
+ *  request grammar and knows nothing about prose.
+ *
+ *  THE STEM IS ON THE INNER FILE TOO, and that is a deliberate answer to "where
+ *  does the name stop". A plate is the file that gets dragged OUT of the zip and
+ *  onto a desktop, which is precisely where it loses the README, the folder and
+ *  every other clue about which build it belonged to -- the same argument that
+ *  puts `LicenseTerms` and `Description` inside the plate rather than only
+ *  beside it. Two builds' `plate-1-of-3.3mf` in one Downloads folder is a
+ *  collision and a mystery; `MY-CLUSTER-plate-1-of-3.3mf` is neither.
+ *
+ *  The `-plate-N-of-M` suffix stays where it is, AFTER the stem, so a directory
+ *  listing still sorts a build's plates together and in order. */
+export function platePath(index: number, total: number, stem: string): string {
+  return `plates/${stem}-plate-${index}-of-${total}.3mf`;
 }

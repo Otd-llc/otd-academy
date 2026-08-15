@@ -10,10 +10,19 @@
 // slugs; a plate's objects are named by their published spelling, so it names
 // those, and the list reads straight across to the slicer's object panel.
 //
-// PURE ASCII, deliberately. These are opened in Notepad and read in terminals at
-// least as often as in a GUI, and the shared spec is written for the WEB page --
-// it carries U+00D7, U+00B0 and en dashes. Fold them here rather than
-// ASCII-ifying the page, which is the one surface those glyphs are correct on.
+// PURE ASCII PROSE, deliberately. These are opened in Notepad and read in
+// terminals at least as often as in a GUI, and the shared spec is written for
+// the WEB page -- it carries U+00D7, U+00B0 and en dashes. Fold them here rather
+// than ASCII-ifying the page, which is the one surface those glyphs are correct
+// on.
+//
+// ONE EXCEPTION, and it is not a leak in the rule: the FILENAMES in the plate
+// manifest are printed verbatim, including a non-ASCII build name. A filename is
+// not prose -- it is a citation of a zip entry sitting beside this file, and the
+// pinned invariant is that the two agree exactly. Folding it here would produce
+// a README that names a file the archive does not contain, which is the precise
+// defect this feature has already shipped once. The file is written as UTF-8, so
+// the name renders wherever the person's own filesystem renders it.
 //
 // SEPARATE from `hex-pack.ts` so the dependency runs one way. This module reads
 // the spec constants, the geometry-bearing `Placement` and the plate naming; the
@@ -287,6 +296,11 @@ export function plateReadme(opts: {
   plates: readonly (readonly Placement[])[];
   credit: string;
   specUrl: string;
+  /** The build's name, as the filenames spell it. Taken as a parameter rather
+   *  than defaulted, so the manifest below cannot name a plate the zip does not
+   *  hold -- which is exactly what a default here would produce the first time a
+   *  caller forgot to pass one. */
+  stem: string;
 }): string {
   const plateCount = opts.plates.length;
   const instances = opts.plates.reduce((n, p) => n + p.length, 0);
@@ -314,7 +328,7 @@ export function plateReadme(opts: {
     // suite, because nothing compared the two.
     `Plates (${plateCount}):`,
     ...opts.plates.flatMap((plate, i) => [
-      `  ${platePath(i + 1, plateCount)} -- ${plural(plate.length, "part")}`,
+      `  ${platePath(i + 1, plateCount, opts.stem)} -- ${plural(plate.length, "part")}`,
       ...tally(plate).map((r) => `    ${r.qty} x ${ascii(r.name)}`),
     ]),
     "",

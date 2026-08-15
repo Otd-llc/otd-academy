@@ -50,9 +50,11 @@ import {
   platePath,
   resolvePack,
   type Bed,
+  type PackContents,
   type PackFormat,
   type PackPart,
 } from "@/lib/hex-pack";
+import { asciiStem, contentDisposition } from "@/lib/hex-pack-name";
 import {
   packNeedsSupport,
   packReadme,
@@ -90,6 +92,29 @@ type BedSource = (typeof BED_SOURCES)[number] | "unknown";
  * -- so refusing the download would mean denying someone their files because a
  * field they cannot see picked up a fourth value we had not shipped yet.
  */
+/**
+ * The `Content-Disposition` for a response, in both spellings of the name.
+ *
+ * ONE FUNCTION for all three response shapes, because the thing that goes wrong
+ * otherwise is not a crash: it is one shape quietly ending up with a different
+ * naming rule from the other two, which is a defect this endpoint has shipped
+ * twice under a green suite.
+ *
+ * The two filenames are built from the SAME template with two stems -- the real
+ * one and its ASCII fold -- so the count, the extension and the single-part rule
+ * cannot differ between the parameter a modern browser reads and the parameter
+ * an old one falls back to.
+ */
+function disposition(
+  parts: readonly PackPart[],
+  opts: { holds: PackContents; stem: string; ext?: "zip" | "3mf" },
+): string {
+  return contentDisposition({
+    filename: packFilename(parts, opts),
+    ascii: packFilename(parts, { ...opts, stem: asciiStem(opts.stem) }),
+  });
+}
+
 function readBedSource(raw: string | null): BedSource | undefined {
   if (raw == null || raw === "") return undefined;
   return (BED_SOURCES as readonly string[]).includes(raw)
@@ -157,7 +182,19 @@ function track(req: NextRequest, t: Tracked): void {
 /** Assembled per request from a selection in the query, so the URL is stable but
  *  the response is a derivative rather than a published artefact -- NOT
  *  immutable, unlike the objects it is built from. A day absorbs a double-click
- *  without pinning a zip in a CDN for a year. */
+ *  without pinning a zip in a CDN for a year.
+ *
+ *  THE BUILD NAME IS IN THE CACHE KEY, and it is there by being a QUERY
+ *  PARAMETER rather than by anything written here. That is the reason it is a
+ *  query parameter and not a header: this cache is keyed on the URL and nothing
+ *  else, so a name carried in, say, `X-Build-Name` would be invisible to it and
+ *  the first person to download a given build would decide what every later
+ *  person's file was called for the next 24 hours. The name is not decoration
+ *  either -- it is in the zip entry names, the README manifest and each plate's
+ *  `Title` -- so two people with the same parts and different names would be
+ *  served each other's BYTES, not merely each other's filename. No `Vary` is
+ *  needed for the same reason: nothing in this response is read from a request
+ *  header. */
 const CACHE = "public, max-age=86400";
 
 export async function GET(req: NextRequest) {
@@ -171,13 +208,18 @@ export async function GET(req: NextRequest) {
     format: q.get("format"),
     parts: q.get("parts"),
     plate: q.get("plate"),
+    // The build's own name, from the configurator. HOSTILE TEXT until
+    // `resolvePack` says otherwise -- it is about to become a filename and an
+    // HTTP header parameter. Everything that decides which is in
+    // `hex-pack-name.ts`; nothing here touches the raw string.
+    name: q.get("name"),
   });
   // One status for every malformed request. The problem code is not echoed:
   // "unknown-part" vs "bad-format" would tell a prober which of its guesses was
   // a real part name, which is the only thing this endpoint could leak.
   if (!resolved.ok) return new Response("Bad request", { status: 400 });
 
-  const { release, format, parts, bed } = resolved.request;
+  const { release, format, parts, bed, stem } = resolved.request;
   const bedSource = readBedSource(q.get("bedFrom"));
 
   // PLATING IS 3MF-ONLY. An STL is a flat triangle soup: no transforms, no
@@ -195,9 +237,9 @@ export async function GET(req: NextRequest) {
   // it gets today: the loose zip. Nothing is refused, and nothing is plated
   // against geometry we did not measure.
   if (format !== "3mf" || release !== HEX_GEOMETRY_RELEASE) {
-    return looseZip(req, { release, format, parts, bed, bedSource });
+    return looseZip(req, { release, format, parts, bed, bedSource, stem });
   }
-  return platedPack(req, { release, parts, bed, bedSource });
+  return platedPack(req, { release, parts, bed, bedSource, stem });
 }
 
 /**
@@ -216,9 +258,10 @@ async function platedPack(
     parts: PackPart[];
     bed: Bed;
     bedSource: BedSource | undefined;
+    stem: string;
   },
 ): Promise<Response> {
-  const { release, parts, bed, bedSource } = ctx;
+  const { release, parts, bed, bedSource, stem } = ctx;
 
   let plates: Placement[][];
   try {
@@ -343,7 +386,11 @@ async function platedPack(
     for (let i = 0; i < plates.length; i++) {
       built.push(
         await buildPlate3mf(plates[i], sources, {
-          title: `Hex Cluster plate ${i + 1} of ${plates.length}`,
+          // The build's own name, then which plate of how many. ONE string for
+          // the title and the filename, so a slicer's title bar and the file it
+          // was opened from cannot be saying different things -- the same reason
+          // the README lists plates through the helper that names them.
+          title: `${stem} -- plate ${i + 1} of ${plates.length}`,
           credit: HEX_LICENSE.credit,
           // Per PLATE, not per pack: a plate with no spike on it says so, and
           // the one that has them names them. A pack-wide note would tell four
@@ -380,10 +427,11 @@ async function platedPack(
         // and shows the reader an XML file instead of their parts.
         //
         // INSTANCES, because a plate really does hold that many objects.
-        "Content-Disposition": `attachment; filename="${packFilename(parts, {
+        "Content-Disposition": disposition(parts, {
           holds: "instances",
           ext: "3mf",
-        })}"`,
+          stem,
+        }),
         "Cache-Control": CACHE,
       },
     });
@@ -401,7 +449,7 @@ async function platedPack(
   // nobody reads. Same reasoning as inside each plate.
   zip.file("plates/", null, { dir: true, date: ZIP_EPOCH });
   built.forEach((buf, i) =>
-    zip.file(platePath(i + 1, plates.length), buf, { date: ZIP_EPOCH }),
+    zip.file(platePath(i + 1, plates.length, stem), buf, { date: ZIP_EPOCH }),
   );
   zip.file(
     "README.txt",
@@ -411,6 +459,10 @@ async function platedPack(
       plates,
       credit: HEX_LICENSE.credit,
       specUrl: SITE,
+      // The SAME stem the entries above were written with. The README's manifest
+      // and the zip's directory are compared by a human holding one against the
+      // other, so they are built from one value or they are not checkable at all.
+      stem,
     }),
     { date: ZIP_EPOCH },
   );
@@ -449,9 +501,7 @@ async function platedPack(
       "Content-Type": "application/zip",
       "Content-Length": String(out.byteLength),
       // INSTANCES: the plates inside really do carry that many objects.
-      "Content-Disposition": `attachment; filename="${packFilename(parts, {
-        holds: "instances",
-      })}"`,
+      "Content-Disposition": disposition(parts, { holds: "instances", stem }),
       "Cache-Control": CACHE,
     },
   });
@@ -480,9 +530,10 @@ async function looseZip(
     parts: PackPart[];
     bed: Bed;
     bedSource: BedSource | undefined;
+    stem: string;
   },
 ): Promise<Response> {
-  const { release, format, parts, bed, bedSource } = ctx;
+  const { release, format, parts, bed, bedSource, stem } = ctx;
 
   const zip = new JSZip();
   let bytesIn = 0;
@@ -558,9 +609,7 @@ async function looseZip(
       // counts names, and quantity legitimately does not change it (a second
       // copy of an identical mesh is bytes nobody needs). Making the name agree
       // with both is the smaller change and leaves one idea, not two.
-      "Content-Disposition": `attachment; filename="${packFilename(parts, {
-        holds: "files",
-      })}"`,
+      "Content-Disposition": disposition(parts, { holds: "files", stem }),
       "Cache-Control": CACHE,
     },
   });

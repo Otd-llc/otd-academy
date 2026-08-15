@@ -19,10 +19,15 @@ import {
   platePath,
   resolvePack,
 } from "@/lib/hex-pack";
+import { PACK_NAME_FALLBACK } from "@/lib/hex-pack-name";
 
 const RELEASE = "2026-07-31";
 const ONE = HEX_PART_SLUGS[0];
 const TWO = HEX_PART_SLUGS[1];
+/** A build name, in the shape the configurator really produces: caps, spaces,
+ *  and nothing that needs sanitising. Deliberately NOT the fallback, so a
+ *  `platePath` that ignored its stem would fail rather than coincide. */
+const STEM = "TB-1 POWER";
 
 describe("the published part list", () => {
   it("has exactly the number of parts the spec claims", () => {
@@ -159,13 +164,36 @@ describe("resolvePack", () => {
 });
 
 describe("packFilename", () => {
-  const INSTANCES = { holds: "instances" } as const;
-  const FILES = { holds: "files" } as const;
+  // The stem a request with no name resolves to, spelled through the constant
+  // rather than transcribed: the fallback and the filename that carries it must
+  // not be able to drift apart.
+  const INSTANCES = { holds: "instances", stem: PACK_NAME_FALLBACK } as const;
+  const FILES = { holds: "files", stem: PACK_NAME_FALLBACK } as const;
 
   it("names a single part after it", () => {
     expect(packFilename([{ slug: ONE, qty: 1 }], INSTANCES)).toBe(
-      `hex-cluster-${ONE}.zip`,
+      `${PACK_NAME_FALLBACK}-${ONE}.zip`,
     );
+  });
+
+  it("puts the BUILD's name in front, on both shapes", () => {
+    // The point of the stem. A person who named their cluster gets a download
+    // called after it, and the count -- which is what the box actually holds --
+    // stays behind it rather than being replaced by it.
+    const build = [
+      { slug: ONE, qty: 6 },
+      { slug: TWO, qty: 3 },
+    ];
+    expect(packFilename(build, { ...INSTANCES, stem: "TB-1 POWER" })).toBe(
+      "TB-1 POWER-9-parts.zip",
+    );
+    expect(
+      packFilename([{ slug: ONE, qty: 1 }], {
+        ...INSTANCES,
+        stem: "TB-1 POWER",
+        ext: "3mf",
+      }),
+    ).toBe(`TB-1 POWER-${ONE}.3mf`);
   });
 
   it("counts a multi-part pack", () => {
@@ -177,7 +205,7 @@ describe("packFilename", () => {
         ],
         INSTANCES,
       ),
-    ).toBe("hex-cluster-2-parts.zip");
+    ).toBe(`${PACK_NAME_FALLBACK}-2-parts.zip`);
   });
 
   it("takes the extension, because a single plate is not a zip", () => {
@@ -186,17 +214,17 @@ describe("packFilename", () => {
     // and a 3MF really is a zip underneath, so nothing would error.
     expect(
       packFilename([{ slug: ONE, qty: 1 }], { ...INSTANCES, ext: "3mf" }),
-    ).toBe(`hex-cluster-${ONE}.3mf`);
+    ).toBe(`${PACK_NAME_FALLBACK}-${ONE}.3mf`);
     expect(
       packFilename([{ slug: ONE, qty: 6 }], { ...INSTANCES, ext: "3mf" }),
-    ).toBe("hex-cluster-6-parts.3mf");
+    ).toBe(`${PACK_NAME_FALLBACK}-6-parts.3mf`);
   });
 
   it("counts INSTANCES for a box that holds them -- six of one part is not a one-part pack", () => {
     // The number in the filename is what the person is about to print. Naming a
     // PLATE after the distinct count would call a six-cap plate "1-part".
     expect(packFilename([{ slug: ONE, qty: 6 }], INSTANCES)).toBe(
-      "hex-cluster-6-parts.zip",
+      `${PACK_NAME_FALLBACK}-6-parts.zip`,
     );
   });
 
@@ -206,7 +234,7 @@ describe("packFilename", () => {
     // on it named a box of one file "6-parts" while the README inside it said
     // one. Six of one name is ONE file, and one file gets named after itself.
     expect(packFilename([{ slug: ONE, qty: 6 }], FILES)).toBe(
-      `hex-cluster-${ONE}.zip`,
+      `${PACK_NAME_FALLBACK}-${ONE}.zip`,
     );
     expect(
       packFilename(
@@ -216,7 +244,7 @@ describe("packFilename", () => {
         ],
         FILES,
       ),
-    ).toBe("hex-cluster-2-parts.zip");
+    ).toBe(`${PACK_NAME_FALLBACK}-2-parts.zip`);
   });
 
   it("gives the SAME build two different names for two different boxes", () => {
@@ -227,8 +255,8 @@ describe("packFilename", () => {
       { slug: ONE, qty: 6 },
       { slug: TWO, qty: 3 },
     ];
-    expect(packFilename(build, INSTANCES)).toBe("hex-cluster-9-parts.zip");
-    expect(packFilename(build, FILES)).toBe("hex-cluster-2-parts.zip");
+    expect(packFilename(build, INSTANCES)).toBe(`${PACK_NAME_FALLBACK}-9-parts.zip`);
+    expect(packFilename(build, FILES)).toBe(`${PACK_NAME_FALLBACK}-2-parts.zip`);
   });
 });
 
@@ -237,8 +265,8 @@ describe("packFilename", () => {
 
 describe("platePath", () => {
   it("names a plate one-based, with the total", () => {
-    expect(platePath(1, 3)).toBe("plates/plate-1-of-3.3mf");
-    expect(platePath(3, 3)).toBe("plates/plate-3-of-3.3mf");
+    expect(platePath(1, 3, STEM)).toBe(`plates/${STEM}-plate-1-of-3.3mf`);
+    expect(platePath(3, 3, STEM)).toBe(`plates/${STEM}-plate-3-of-3.3mf`);
   });
 
   it("is the ONE spelling the route and the README both use", () => {
@@ -246,7 +274,72 @@ describe("platePath", () => {
     // written by different modules; if this string is ever edited, the literal
     // above is the thing that has to be edited deliberately, rather than one of
     // the two callers drifting and nobody noticing until someone opens the zip.
-    expect(platePath(2, 10)).toBe("plates/plate-2-of-10.3mf");
+    expect(platePath(2, 10, STEM)).toBe(`plates/${STEM}-plate-2-of-10.3mf`);
+  });
+
+  it("carries the build's name onto the plate itself", () => {
+    // The plate is the file that gets dragged OUT of the zip, which is exactly
+    // where it loses the README and the folder. Two builds' `plate-1-of-3.3mf`
+    // in one Downloads folder is a collision; these are not.
+    expect(platePath(1, 3, "ALPHA")).not.toBe(platePath(1, 3, "BETA"));
+    expect(platePath(1, 3, "ALPHA")).toContain("ALPHA");
+  });
+
+  it("keeps the plate ordinal AFTER the name, so a listing still sorts", () => {
+    // `-plate-N-of-M` last is what keeps one build's plates adjacent and in
+    // order in a directory listing. Leading with the ordinal would interleave
+    // two builds extracted into the same folder.
+    const paths = [1, 2, 3].map((i) => platePath(i, 3, STEM));
+    expect([...paths].sort()).toEqual(paths);
+  });
+});
+
+describe("the build's name, as a request field", () => {
+  // Validated by `resolvePack` with every other field rather than at the point
+  // it is written into a header -- see `hex-pack-name.test.ts` for the sanitiser
+  // itself. What matters here is that the ROUTE'S grammar owns it, so the route
+  // never handles the raw string.
+
+  it("falls back when the caller names nothing", () => {
+    for (const name of [undefined, null, ""]) {
+      const r = resolvePack({ release: RELEASE, parts: ONE, name });
+      expect(r.ok && r.request.stem).toBe(PACK_NAME_FALLBACK);
+    }
+  });
+
+  it("carries a real name through to the request", () => {
+    const r = resolvePack({ release: RELEASE, parts: ONE, name: "TB-1 POWER" });
+    expect(r.ok && r.request.stem).toBe("TB-1 POWER");
+  });
+
+  it("REFUSES a name carrying a newline, rather than tidying it away", () => {
+    // The header injection. `resolvePack` is the door, so this never reaches a
+    // `Content-Disposition` builder that would have to be trusted to be the
+    // second line of defence.
+    expect(
+      resolvePack({
+        release: RELEASE,
+        parts: ONE,
+        name: "ok\r\nSet-Cookie: a=b",
+      }),
+    ).toEqual({ ok: false, problem: "bad-name" });
+  });
+
+  it("REFUSES a name longer than the field that could hold it", () => {
+    expect(
+      resolvePack({ release: RELEASE, parts: ONE, name: "A".repeat(121) }),
+    ).toEqual({ ok: false, problem: "bad-name" });
+  });
+
+  it("CONTROL: exactly at the bound is accepted", () => {
+    // Without this row, "121 is refused" passes just as well against a rule
+    // that refuses every name, or one off by one in the other direction.
+    const r = resolvePack({
+      release: RELEASE,
+      parts: ONE,
+      name: "A".repeat(120),
+    });
+    expect(r.ok && r.request.stem).toBe("A".repeat(120));
   });
 });
 
