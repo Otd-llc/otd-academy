@@ -1272,9 +1272,17 @@ git commit -m "feat(hex): explain the bed and the alternatives, only when it hel
 Delete `sandbox-export-cta.html` and `sandbox-export-cta-b.html`. Sandboxes are picked
 from, then removed before the PR.
 
+> **SHIPPED DIFFERENTLY (2026-08-15).** `git rm` would have failed: the two sandbox
+> files were never added to git. They were scratch, created to be looked at in a browser
+> and then thrown away, so they only ever existed on disk as untracked files. The
+> confirmation that matters is that they were untracked BEFORE deleting, checked three
+> ways (`git ls-files --error-unmatch` errors for both, `git log --all` finds nothing
+> across the shared `.git`, `git check-ignore` finds no rule that would have hidden a
+> tracked copy). Deleted from disk; the surviving drawing of the picked variant is the
+> B2 block in `docs/build-sheet-spec.css`, which now records their provenance.
+
 ```bash
-git rm sandbox-export-cta.html sandbox-export-cta-b.html
-git commit -m "chore(hex): remove the export CTA sandboxes"
+rm sandbox-export-cta.html sandbox-export-cta-b.html
 ```
 
 ---
