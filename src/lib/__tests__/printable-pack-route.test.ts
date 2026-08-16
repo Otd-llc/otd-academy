@@ -27,6 +27,10 @@ import type { NextRequest } from "next/server";
 
 import { HEX_GEOMETRY_RELEASE } from "@/lib/hex-geometry";
 import { MAX_PLATES, type PlatePackFailure } from "@/lib/hex-plate";
+import {
+  PACK_NAME_FALLBACK,
+  contentDisposition,
+} from "@/lib/hex-pack-name";
 
 const getBytes = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/part-r2", () => ({ getR2ObjectBytes: getBytes }));
@@ -35,6 +39,19 @@ const captured = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/analytics", () => ({ capture: captured }));
 
 const RELEASE = HEX_GEOMETRY_RELEASE;
+/** The stem a request with NO name resolves to. Spelled through the constant, so
+ *  a change to the fallback is a change to one string rather than to forty
+ *  literals that would each have to be found. */
+const FB = PACK_NAME_FALLBACK;
+/** The whole `Content-Disposition` a given filename should produce.
+ *
+ *  IMPORTED, not transcribed. The two-parameter form is pinned against literals
+ *  in `hex-pack-name.test.ts`; what these rows are for is the ROUTE -- that each
+ *  response shape names its box after the right thing and counts the right
+ *  number. Re-spelling the RFC 8187 encoder here would be a second copy that
+ *  agrees with itself while the real one drifts. */
+const disp = (filename: string, ascii: string = filename) =>
+  contentDisposition({ filename, ascii });
 /** The oldest published release. Its keys are immutable and its links are still
  *  live, but its meshes are a DIFFERENT cut from the one the geometry table was
  *  measured on. */
@@ -150,7 +167,7 @@ describe("one plate versus many", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("model/3mf");
     expect(res.headers.get("content-disposition")).toBe(
-      'attachment; filename="hex-cluster-3-parts.3mf"',
+      disp(`${FB}-3-parts.3mf`),
     );
     // A 3MF is a zip underneath, so "it parsed" proves nothing on its own --
     // what proves it is a PLATE and not a pack is the model part, and the
@@ -190,14 +207,313 @@ describe("one plate versus many", () => {
     expect(await entriesOf(res)).toEqual([
       "LICENSE.txt",
       "README.txt",
-      "plates/plate-1-of-2.3mf",
-      "plates/plate-2-of-2.3mf",
+      `plates/${FB}-plate-1-of-2.3mf`,
+      `plates/${FB}-plate-2-of-2.3mf`,
     ]);
   });
 
   it("reads the published LICENCE for a multi-plate pack", async () => {
     await call(`release=${RELEASE}&parts=hex-tb-main:2&plate=100x100`);
     expect(getBytes).toHaveBeenCalledWith(`printables/${RELEASE}/LICENSE.txt`);
+  });
+});
+
+// The build's own name, from the configurator, through every response shape.
+//
+// The sanitiser has its own file (`hex-pack-name.test.ts`); these rows are about
+// the ROUTE -- that the name reaches all three shapes and the plates inside the
+// zip, that a hostile one is refused before any R2 read, and that two names
+// really do produce two different responses rather than two labels on one.
+describe("the download is named after the cluster", () => {
+  const NAME = "TB-1 POWER";
+
+  it("names a bare plate after the build, in both parameters", async () => {
+    const res = await call(
+      `release=${RELEASE}&parts=hex-tb-main:3&name=${encodeURIComponent(NAME)}`,
+    );
+    expect(res.status).toBe(200);
+    // Pinned as a LITERAL here, once, rather than through `disp` -- so this row
+    // still fails if the header builder and the test helper drift together.
+    expect(res.headers.get("content-disposition")).toBe(
+      `attachment; filename="TB-1 POWER-3-parts.3mf"; ` +
+        `filename*=UTF-8''TB-1%20POWER-3-parts.3mf`,
+    );
+  });
+
+  it("names the zip, the plates inside it, and the README's manifest", async () => {
+    // ALL THREE, because the plate is the file that gets dragged out of the zip
+    // and onto a desktop -- which is exactly where it loses every other clue
+    // about which build it belonged to.
+    const res = await call(
+      `release=${RELEASE}&parts=hex-tb-main:2&plate=100x100&name=${encodeURIComponent(NAME)}`,
+    );
+    expect(res.headers.get("content-disposition")).toBe(
+      disp(`${NAME}-2-parts.zip`),
+    );
+    const zip = await JSZip.loadAsync(await bodyOf(res));
+    expect(namesIn(zip)).toEqual([
+      "LICENSE.txt",
+      "README.txt",
+      `plates/${NAME}-plate-1-of-2.3mf`,
+      `plates/${NAME}-plate-2-of-2.3mf`,
+    ]);
+    const readme = await zip.file("README.txt")!.async("string");
+    expect(readme).toContain(`plates/${NAME}-plate-1-of-2.3mf`);
+  });
+
+  it("names the LOOSE zip too, which never reaches the packer", async () => {
+    // The third shape. It is served by a different function, and "the name is
+    // on the plated paths" would pass with this one still saying `hex-cluster`.
+    const res = await call(
+      `release=${RELEASE}&format=stl&parts=hex-tb-main:6,dovetail-cap-single-m-solid:3&name=${encodeURIComponent(NAME)}`,
+    );
+    expect(res.headers.get("content-disposition")).toBe(
+      disp(`${NAME}-2-parts.zip`),
+    );
+  });
+
+  it("puts the name inside the plate, as its Title", async () => {
+    const res = await call(
+      `release=${RELEASE}&parts=hex-tb-main:3&name=${encodeURIComponent(NAME)}`,
+    );
+    const model = await (await JSZip.loadAsync(await bodyOf(res)))
+      .file("3D/3dmodel.model")!
+      .async("string");
+    expect(model).toContain(
+      `<metadata name="Title">${NAME} -- plate 1 of 1</metadata>`,
+    );
+  });
+
+  it("CONTROL: with NO name, every one of those is the fallback", async () => {
+    // Without this row, "the name appears" is satisfied by a route that puts
+    // the name everywhere AND by one that puts it nowhere, since the fallback
+    // rows elsewhere in this file would then be the only evidence either way.
+    const res = await call(
+      `release=${RELEASE}&parts=hex-tb-main:2&plate=100x100`,
+    );
+    expect(res.headers.get("content-disposition")).toBe(
+      disp(`${FB}-2-parts.zip`),
+    );
+    expect(namesIn(await JSZip.loadAsync(await bodyOf(res)))).toContain(
+      `plates/${FB}-plate-1-of-2.3mf`,
+    );
+  });
+
+  it("carries a non-ASCII name in filename*, and a NAME in filename", async () => {
+    // Not a dropped character and not a bare `-3-parts.3mf`: the ASCII half is
+    // the fallback name, because a count with no subject is not a filename.
+    const res = await call(
+      `release=${RELEASE}&parts=hex-tb-main:3&name=${encodeURIComponent("ハニカム")}`,
+    );
+    const cd = res.headers.get("content-disposition")!;
+    expect(cd).toContain(`filename="${FB}-3-parts.3mf"`);
+    expect(cd).toContain(
+      "filename*=UTF-8''%E3%83%8F%E3%83%8B%E3%82%AB%E3%83%A0-3-parts.3mf",
+    );
+    // And the zip entry / Title keep the real name.
+    const model = await (await JSZip.loadAsync(await bodyOf(res)))
+      .file("3D/3dmodel.model")!
+      .async("string");
+    expect(model).toContain("ハニカム -- plate 1 of 1");
+  });
+
+  it("round-trips a non-ASCII plate name through the zip", async () => {
+    // JSZip flags a non-ASCII entry name UTF-8 (general-purpose bit 11). If it
+    // did not, the README would cite a name no unzipper would write.
+    const res = await call(
+      `release=${RELEASE}&parts=hex-tb-main:2&plate=100x100&name=${encodeURIComponent("ハニカム")}`,
+    );
+    const zip = await JSZip.loadAsync(await bodyOf(res));
+    expect(namesIn(zip)).toContain("plates/ハニカム-plate-1-of-2.3mf");
+    const readme = await zip.file("README.txt")!.async("string");
+    expect(readme).toContain("plates/ハニカム-plate-1-of-2.3mf");
+  });
+
+  it("REFUSES a header-injecting name, having touched R2 zero times", async () => {
+    // The refusal runs in `resolvePack`, with every other field -- so it costs
+    // a string scan and never reaches the bucket, exactly like an unknown part
+    // name does.
+    const res = await call(
+      `release=${RELEASE}&parts=hex-tb-main&name=${encodeURIComponent("a\r\nSet-Cookie: x=1")}`,
+    );
+    expect(res.status).toBe(400);
+    expect(await res.text()).toBe("Bad request");
+    expect(getBytes).not.toHaveBeenCalled();
+    expect(captured).not.toHaveBeenCalled();
+  });
+
+  it("never lets a name out of the quoted-string, whatever it holds", async () => {
+    for (const raw of [
+      'x"; filename="evil.exe',
+      "../../etc/passwd",
+      "..\\..\\windows",
+      "CON",
+      "rig‮fm3.tmf",
+      "a".repeat(120),
+    ]) {
+      const res = await call(
+        `release=${RELEASE}&parts=hex-tb-main&name=${encodeURIComponent(raw)}`,
+      );
+      expect(res.status, raw).toBe(200);
+      const cd = res.headers.get("content-disposition")!;
+      expect(cd, raw).not.toMatch(/[\r\n]/);
+      expect(cd.split('"'), raw).toHaveLength(3);
+      expect(cd, raw).not.toMatch(/filename="[^"]*[\\/]/);
+    }
+  });
+
+  it("falls back for a name that sanitises down to nothing", async () => {
+    const res = await call(
+      `release=${RELEASE}&parts=hex-tb-main:3&name=${encodeURIComponent("...")}`,
+    );
+    expect(res.headers.get("content-disposition")).toBe(
+      disp(`${FB}-3-parts.3mf`),
+    );
+  });
+
+  it("changes the BYTES, not merely the label -- so the name is a cache key", async () => {
+    // The reason the name is a query parameter. This response is cached per URL
+    // for a day, and the stem is inside the zip entry names and each plate's
+    // `Title`; two builds with the same parts and different names are two
+    // different bodies, so sharing a cache entry would serve one person the
+    // other's file.
+    const q = `release=${RELEASE}&parts=hex-tb-main:2&plate=100x100&name=`;
+    const a = await bodyOf(await call(`${q}ALPHA`));
+    const b = await bodyOf(await call(`${q}BETA`));
+    expect(Buffer.compare(a, b)).not.toBe(0);
+  });
+
+  it("is byte-identical for the same URL twice, name included", async () => {
+    const q = `release=${RELEASE}&parts=hex-tb-main:2&plate=100x100&name=${encodeURIComponent(NAME)}`;
+    const first = await bodyOf(await call(q));
+    const second = await bodyOf(await call(q));
+    expect(Buffer.compare(first, second)).toBe(0);
+  });
+});
+
+// 3MF carries a PACKAGE THUMBNAIL through the OPC relationship type
+// `.../metadata/thumbnail`, with the image in `Metadata/`. That is CORE SPEC,
+// not a vendor extension, which is the whole reason it is worth carrying where
+// printer and process settings are not: Explorer, Finder and a slicer's open
+// dialog all read it, so a `.3mf` shows what is on it before anyone slices.
+//
+// Asserted at the ROUTE as well as in `hex-thumbnail.test.ts`, because the
+// picture being right and the package DECLARING it are two different failures
+// and the second one is silent -- an unregistered `Metadata/thumbnail.png` is an
+// orphan that makes the file bigger and shows nobody anything.
+describe("every plate carries a picture of itself", () => {
+  /** The three things that have to agree for a thumbnail to exist at all. */
+  async function thumbnailOf(zip: JSZip) {
+    const png = zip.file("Metadata/thumbnail.png");
+    const rels = await zip.file("_rels/.rels")!.async("string");
+    const types = await zip.file("[Content_Types].xml")!.async("string");
+    return {
+      png: png ? await png.async("nodebuffer") : null,
+      rels,
+      types,
+    };
+  }
+
+  const isPng = (b: Buffer | null) =>
+    b !== null &&
+    b.subarray(0, 8).equals(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    );
+
+  it("puts one in the bare .3mf, related and declared", async () => {
+    const res = await call(`release=${RELEASE}&parts=hex-tb-main:3`);
+    const zip = await JSZip.loadAsync(await bodyOf(res));
+    const t = await thumbnailOf(zip);
+    expect(isPng(t.png)).toBe(true);
+    expect(t.rels).toContain(
+      'Target="/Metadata/thumbnail.png" Id="rel1" ' +
+        'Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/thumbnail"',
+    );
+    expect(t.types).toContain(
+      '<Default Extension="png" ContentType="image/png" />',
+    );
+    // And the model is STILL the entry point: the thumbnail is additive, so the
+    // 3D relationship keeps its id and its place.
+    expect(t.rels).toContain('Target="/3D/3dmodel.model" Id="rel0"');
+  });
+
+  it("puts one in EVERY plate inside a zip", async () => {
+    // Per plate, not per pack. A plate is its own package and each one is a
+    // picture of what is on THAT bed.
+    const res = await call(
+      `release=${RELEASE}&parts=hex-tb-main:2&plate=100x100`,
+    );
+    const zip = await JSZip.loadAsync(await bodyOf(res));
+    const plates = Object.values(zip.files).filter(
+      (f) => !f.dir && f.name.startsWith("plates/"),
+    );
+    expect(plates).toHaveLength(2);
+    for (const entry of plates) {
+      const inner = await JSZip.loadAsync(await entry.async("nodebuffer"));
+      const t = await thumbnailOf(inner);
+      expect(isPng(t.png), entry.name).toBe(true);
+      expect(t.rels, entry.name).toContain("metadata/thumbnail");
+      // The model still reads, which is the thing a broken package would cost.
+      const model = await inner.file("3D/3dmodel.model")!.async("string");
+      expect(model, entry.name).toContain("<build>");
+      expect(model, entry.name).toContain('name="Hex-TB-Main"');
+    }
+  });
+
+  it("draws a DIFFERENT picture for a different bed", async () => {
+    // The bed the packer used is the outline the thumbnail draws, so two beds
+    // are two pictures. Without this row, "there is a PNG" is satisfied by a
+    // constant image baked into the bundle.
+    const png = async (q: string) => {
+      const zip = await JSZip.loadAsync(await bodyOf(await call(q)));
+      return zip.file("Metadata/thumbnail.png")!.async("nodebuffer");
+    };
+    const a = await png(`release=${RELEASE}&parts=hex-tb-main:3&plate=220x220`);
+    const b = await png(`release=${RELEASE}&parts=hex-tb-main:3&plate=350x350`);
+    expect(Buffer.compare(a, b)).not.toBe(0);
+  });
+
+  it("does not put one in the LOOSE zip, which has no plate to draw", async () => {
+    // The loose zip is a folder of published meshes, not a package and not a
+    // layout. There is nothing to be a top-down plan OF.
+    const res = await call(`release=${RELEASE}&format=stl&parts=hex-tb-main:6`);
+    expect(await entriesOf(res)).not.toContain("Metadata/thumbnail.png");
+  });
+
+  it("leaves the response byte-identical for the same URL twice", async () => {
+    // The thumbnail is inside the determinism promise, not beside it: a clock,
+    // a seed or a platform-dependent number in the PNG would break a promise
+    // the headers would never show.
+    const q = `release=${RELEASE}&parts=hex-tb-main:3&plate=350x350`;
+    const first = await bodyOf(await call(q));
+    const second = await bodyOf(await call(q));
+    expect(Buffer.compare(first, second)).toBe(0);
+  });
+});
+
+describe("the plate states who made it and when", () => {
+  const modelOf = async (res: Response) =>
+    (await JSZip.loadAsync(await bodyOf(res)))
+      .file("3D/3dmodel.model")!
+      .async("string");
+
+  it("dates the document from the release in the URL", async () => {
+    // Threaded from the request, not hardcoded, and this is the row that proves
+    // it: `hex-3mf.test.ts` can only show the writer honours what it is handed.
+    const model = await modelOf(await call(`release=${RELEASE}&parts=hex-tb-main`));
+    expect(model).toContain(
+      `<metadata name="CreationDate">${RELEASE}</metadata>`,
+    );
+    expect(model).toContain(
+      `<metadata name="ModificationDate">${RELEASE}</metadata>`,
+    );
+  });
+
+  it("names the designer and the copyright holder", async () => {
+    const model = await modelOf(await call(`release=${RELEASE}&parts=hex-tb-main`));
+    expect(model).toContain('<metadata name="Designer">');
+    expect(model).toContain('<metadata name="Copyright">');
+    expect(model).toContain("One Thousand Drones, LLC");
   });
 });
 
@@ -209,7 +525,7 @@ describe("the name on the box matches what is in it", () => {
       `release=${RELEASE}&parts=hex-tb-main:2&plate=100x100`,
     );
     expect(res.headers.get("content-disposition")).toBe(
-      'attachment; filename="hex-cluster-2-parts.zip"',
+      disp(`${FB}-2-parts.zip`),
     );
     const zip = await JSZip.loadAsync(await bodyOf(res));
     const readme = await zip.file("README.txt")!.async("string");
@@ -225,14 +541,14 @@ describe("the name on the box matches what is in it", () => {
     const inZip = Object.values(zip.files)
       .filter((f) => !f.dir && f.name.startsWith("plates/"))
       .map((f) => f.name);
-    const inReadme = readme.match(/plates\/plate-\d+-of-\d+\.3mf/g) ?? [];
+    const inReadme = readme.match(new RegExp(`plates/${FB}-plate-\\d+-of-\\d+\\.3mf`, "g")) ?? [];
     expect(inReadme.sort()).toEqual(inZip.sort());
   });
 
   it("names a single part after itself, with the right extension", async () => {
     const res = await call(`release=${RELEASE}&parts=hex-tb-main`);
     expect(res.headers.get("content-disposition")).toBe(
-      'attachment; filename="hex-cluster-hex-tb-main.3mf"',
+      disp(`${FB}-hex-tb-main.3mf`),
     );
   });
 
@@ -248,11 +564,11 @@ describe("the name on the box matches what is in it", () => {
   // unconditionally with `format` as a separate option, so every STL download
   // from a build with repeats would have carried a lying name.
   describe("the loose zip's name counts the FILES it holds", () => {
-    /** The number a `hex-cluster-N-parts` name claims, or null if it names a
+    /** The number a `<stem>-N-parts` name claims, or null if it names a
      *  single part instead. Read off the header rather than restated, so the
      *  cross-checks below compare the RESPONSE against the RESPONSE. */
     const claimed = (res: Response): number | null => {
-      const m = /filename="hex-cluster-(\d+)-parts\.\w+"/.exec(
+      const m = new RegExp(`filename="${FB}-(\\d+)-parts\\.\\w+"`).exec(
         res.headers.get("content-disposition") ?? "",
       );
       return m ? Number(m[1]) : null;
@@ -263,7 +579,7 @@ describe("the name on the box matches what is in it", () => {
         `release=${RELEASE}&format=stl&parts=hex-tb-main:6`,
       );
       expect(res.headers.get("content-disposition")).toBe(
-        'attachment; filename="hex-cluster-hex-tb-main.zip"',
+        disp(`${FB}-hex-tb-main.zip`),
       );
       // The box, so the name is checked against it and not against my
       // arithmetic: one mesh, whatever the quantity said.
@@ -313,7 +629,7 @@ describe("the name on the box matches what is in it", () => {
       );
       expect(res.headers.get("content-type")).toBe("application/zip");
       expect(res.headers.get("content-disposition")).toBe(
-        'attachment; filename="hex-cluster-2-parts.zip"',
+        disp(`${FB}-2-parts.zip`),
       );
     });
   });
@@ -343,7 +659,7 @@ describe("a build that needs supports never ships without the warning", () => {
     expect(namesIn(zip)).toEqual([
       "LICENSE.txt",
       "README.txt",
-      "plates/plate-1-of-1.3mf",
+      `plates/${FB}-plate-1-of-1.3mf`,
     ]);
     const readme = await zip.file("README.txt")!.async("string");
     expect(readme).toContain("Support required -- Hex-TB-Spike-Solid.");
@@ -368,7 +684,7 @@ describe("a build that needs supports never ships without the warning", () => {
     const res = await call(`release=${RELEASE}&parts=${SPIKE}`);
     const zip = await JSZip.loadAsync(await bodyOf(res));
     const plate = await zip
-      .file("plates/plate-1-of-1.3mf")!
+      .file(`plates/${FB}-plate-1-of-1.3mf`)!
       .async("nodebuffer");
     const model = await (await JSZip.loadAsync(plate))
       .file("3D/3dmodel.model")!
@@ -381,7 +697,7 @@ describe("a build that needs supports never ships without the warning", () => {
   it("names the archive after the build, and reports one plate", async () => {
     const res = await call(`release=${RELEASE}&parts=${SPIKE}:2`);
     expect(res.headers.get("content-disposition")).toBe(
-      'attachment; filename="hex-cluster-2-parts.zip"',
+      disp(`${FB}-2-parts.zip`),
     );
     expect(captured.mock.calls[0][1]).toMatchObject({
       plates: 1,
@@ -397,7 +713,7 @@ describe("a build that needs supports never ships without the warning", () => {
     const res = await call(`release=${RELEASE}&parts=hex-tb-main:3`);
     expect(res.headers.get("content-type")).toBe("model/3mf");
     expect(res.headers.get("content-disposition")).toBe(
-      'attachment; filename="hex-cluster-3-parts.3mf"',
+      disp(`${FB}-3-parts.3mf`),
     );
     // And it says so inside the file, so the bare plate is not silent either.
     const model = await (await JSZip.loadAsync(await bodyOf(res)))

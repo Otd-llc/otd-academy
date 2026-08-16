@@ -25,6 +25,10 @@ import { HEX_LICENSE } from "@/lib/hex-spec";
 
 const RELEASE = "2026-08-03";
 const SPEC_URL = "https://academy.onethousanddrones.com/hex";
+/** The build's name, as the zip entries spell it. NOT the fallback, so a README
+ *  that ignored the stem it was handed would list files the archive does not
+ *  hold rather than coincidentally agreeing with it. */
+const STEM = "TB-1 POWER";
 const BOX = { x0: 0, y0: 0, z0: 0, dx: 40, dy: 30, dz: 10 } as const;
 
 const at = (slug: string, name: string): Placement => ({
@@ -201,6 +205,7 @@ describe("plateReadme -- the plated zip", () => {
     plates: [[MAIN(), MAIN(), MAIN(), CAP(), CAP()], [CAP()]] as Placement[][],
     credit: HEX_LICENSE.credit,
     specUrl: SPEC_URL,
+    stem: STEM,
   };
   const txt = plateReadme(base);
   const spiked = plateReadme({
@@ -239,11 +244,11 @@ describe("plateReadme -- the plated zip", () => {
     // Pinned as literals AND against the shared helper. The literals catch both
     // sides drifting together; the helper catches an off-by-one that would list
     // a plate 0 of 2 in a folder holding plates 1 and 2.
-    expect(txt).toContain("plates/plate-1-of-2.3mf");
-    expect(txt).toContain("plates/plate-2-of-2.3mf");
-    expect(txt).toContain(platePath(1, 2));
-    expect(txt).toContain(platePath(2, 2));
-    expect(txt).not.toContain(platePath(0, 2));
+    expect(txt).toContain(`plates/${STEM}-plate-1-of-2.3mf`);
+    expect(txt).toContain(`plates/${STEM}-plate-2-of-2.3mf`);
+    expect(txt).toContain(platePath(1, 2, STEM));
+    expect(txt).toContain(platePath(2, 2, STEM));
+    expect(txt).not.toContain(platePath(0, 2, STEM));
   });
 
   it("names parts by their PUBLISHED spelling, matching the object list", () => {
@@ -322,7 +327,7 @@ describe("plateReadme -- the plated zip", () => {
     // everybody notices in the box.
     const one = plateReadme({ ...base, plates: [[MAIN()]] });
     expect(flat(one)).toContain("1 part on 1 plate,");
-    expect(one).toContain("plates/plate-1-of-1.3mf -- 1 part");
+    expect(one).toContain(`plates/${STEM}-plate-1-of-1.3mf -- 1 part`);
   });
 
   it("is pure ASCII", () => {
