@@ -323,18 +323,23 @@ export type PlateMeta = {
  * discards the rest. Omitting it would leave the object with no extruder
  * assignment on exactly the path where nothing else of ours survives.
  *
+ * ONE BLOCK PER PLACEMENT, matching one object per placement in the model. A
+ * shared object cannot carry per-copy settings or a per-copy name in this
+ * reader -- measured, and the reason instancing was removed. See the comment in
+ * `buildPlate3mf`.
+ *
  * IDS MUST BE UNIQUE, and this is the one failure here that is not silent: a
  * duplicated `<object id>` was MEASURED to abort the entire import with "The
  * file does not contain any geometry data" -- no partial load, no warning, no
- * file. They are unique by construction (`objectBySlug.size + 1`), and the guard
- * is here because the consequence is total rather than because it is expected.
+ * file. They are unique by construction (`placed.length + 1`), and the guard is
+ * here because the consequence is total rather than because it is expected.
  */
 function modelSettingsConfig(
-  objectBySlug: ReadonlyMap<string, { id: number; name: string }>,
+  placed: readonly { id: number; name: string; slug: string }[],
 ): string {
   const seen = new Set<number>();
   const blocks: string[] = [];
-  for (const [slug, obj] of objectBySlug) {
+  for (const { slug, ...obj } of placed) {
     if (seen.has(obj.id)) {
       throw new Error(
         `two objects share id ${obj.id}; a duplicate id makes the slicer refuse the whole file`,
@@ -374,33 +379,44 @@ export async function buildPlate3mf(
   // the one defect that ships looking correct, so it stops the build rather
   // than producing a plate that opens clean and prints at grid infill.
   assertPrintIntentIsSlicerLegal();
-  const objectBySlug = new Map<string, { id: number; name: string }>();
+  const placed: { id: number; name: string; slug: string }[] = [];
   const objects: string[] = [];
   const items: string[] = [];
 
   for (const p of placements) {
-    // INSTANCING: one object per DISTINCT slug, one item per placement. Six
-    // identical caps are one 300 KB mesh and six lines, not six copies. This is
-    // also why mesh vertices are never rewritten -- a recentred mesh belongs to
-    // one placement and could not be shared.
-    let obj = objectBySlug.get(p.slug);
-    if (!obj) {
-      const src = sources.get(p.slug);
-      if (!src) throw new Error(`no source mesh for ${p.slug}`);
-      obj = { id: objectBySlug.size + 1, name: p.name };
-      objectBySlug.set(p.slug, obj);
-      objects.push(extractObjectBlock(src, obj.id, p.name));
-    } else if (obj.name !== p.name) {
-      // Instancing collapses every placement of a slug onto ONE object, so the
-      // first name silently wins and the rest are lost -- a plate where five of
-      // six identical caps are labelled with a name nobody passed. Callers build
-      // both fields from one table row, so this cannot happen from the route;
-      // it is checked because the failure is invisible in the output, not
-      // because it is expected.
-      throw new Error(
-        `${p.slug} is named both "${obj.name}" and "${p.name}" on one plate`,
-      );
-    }
+    // ONE OBJECT PER PLACEMENT. Not per distinct slug.
+    //
+    // ============================================================
+    // THIS FILE USED TO INSTANCE, AND INSTANCING IS INCOMPATIBLE
+    // WITH PER-OBJECT SETTINGS. MEASURED, NOT REASONED.
+    // ============================================================
+    // Six identical caps used to be one 300 KB mesh and six `<item>` lines,
+    // which is the better file by every measure except the one that matters
+    // once `Metadata/model_settings.config` exists: in Creality Print 7.2.1
+    // ONLY THE FIRST INSTANCE gets the settings, and only the first gets the
+    // NAME. The rest arrive anonymous and unconfigured. Adding the settings
+    // therefore silently broke naming, which had worked before it.
+    //
+    // Declaring the copies properly does NOT rescue it. A probe carrying a
+    // `<plate>` block with one `<model_instance>` per copy -- the exact shape
+    // Creality writes in its own saves -- still left the second cap unnamed.
+    // So this is not a matter of writing the dialect more correctly; a shared
+    // object cannot carry per-copy identity in this reader.
+    //
+    // THE COST IS REAL AND IS ACCEPTED: a build with six identical caps now
+    // embeds the mesh six times. The alternative is a plate where five of six
+    // parts have no name and none of our print settings, and the failure is
+    // invisible until someone looks at their object list and wonders which
+    // anonymous solid is which.
+    //
+    // The old name-collision guard is gone with the sharing that needed it:
+    // nothing is collapsed any more, so no name can be silently overwritten by
+    // another placement's.
+    const src = sources.get(p.slug);
+    if (!src) throw new Error(`no source mesh for ${p.slug}`);
+    const obj = { id: placed.length + 1, name: p.name, slug: p.slug };
+    placed.push(obj);
+    objects.push(extractObjectBlock(src, obj.id, p.name));
     // The translation that carries the mesh's OWN minimum corner to the target,
     // and drops the part onto z = 0 whatever its authored height. `x - x0`, not
     // `x`: a mesh carries its own origin, so `hex-tb-main` (x0 = -43.8786) would
@@ -557,7 +573,7 @@ export async function buildPlate3mf(
   // part, it is a vendor side-car found by path. Readers that do not know it --
   // PrusaSlicer, Cura -- walk past it without complaint, which is what makes it
   // safe to carry for everyone.
-  zip.file(MODEL_SETTINGS_PATH, modelSettingsConfig(objectBySlug), {
+  zip.file(MODEL_SETTINGS_PATH, modelSettingsConfig(placed), {
     date: ZIP_EPOCH,
   });
   return zip.generateAsync({

@@ -307,18 +307,29 @@ describe("extractObjectBlock", () => {
 });
 
 describe("buildPlate3mf", () => {
-  it("emits one object per distinct part and one item per placement", async () => {
-    // INSTANCING, which is the reason mesh vertices are never rewritten: six
-    // identical caps are one object and six items, not six copies of a 300 KB
-    // mesh. Three placements over two parts, because with one part "per
-    // distinct" and "one, full stop" are the same number.
+  it("emits one object per PLACEMENT, so every copy can be named and configured", async () => {
+    // THIS ROW USED TO ASSERT THE OPPOSITE, and the change is measured rather
+    // than preferred. It read "one object per DISTINCT part": six identical caps
+    // were one mesh and six `<item>` lines, which is the smaller and better file
+    // right up until `model_settings.config` exists. In Creality Print 7.2.1
+    // ONLY THE FIRST INSTANCE of a shared object receives the settings, and only
+    // the first receives its NAME -- the rest arrive anonymous and unconfigured.
+    // Adding settings silently broke naming, which had worked before.
+    //
+    // Declaring the copies properly does not rescue it: a probe carrying a
+    // `<plate>` block with one `<model_instance>` per copy, the shape Creality
+    // writes in its own saves, still left the second cap unnamed.
+    //
+    // The cost is duplicated mesh, and it is the price of every part having an
+    // identity. Three placements over two parts, so "per placement" and "per
+    // distinct" give different numbers and this row can tell them apart.
     const model = await modelOf(
       await plate3mf([at("a", 4, 4), at("b", 20, 4), at("a", 40, 4)], SOURCES),
     );
-    expect(model.match(/<object /g)).toHaveLength(2);
+    expect(model.match(/<object /g)).toHaveLength(3);
     expect(model.match(/<item /g)).toHaveLength(3);
-    // And the mesh actually carried, not just the count: `a` twice and `b` once.
-    expect(model.match(/<vertex x="1"/g)).toHaveLength(1);
+    // The mesh really is carried twice now, not merely counted twice.
+    expect(model.match(/<vertex x="1"/g)).toHaveLength(2);
     expect(model.match(/<vertex x="2"/g)).toHaveLength(1);
   });
 
@@ -355,20 +366,28 @@ describe("buildPlate3mf", () => {
     expect(model).not.toContain('name="b"');
   });
 
-  it("refuses one slug carrying two different names on a plate", async () => {
-    // Instancing collapses every placement of a slug onto ONE object, so two
-    // names for one mesh cannot both be written: the first silently wins and the
-    // rest are lost. The output is a well-formed plate with a part labelled
-    // something nobody asked for, which is invisible in every structural check.
+  it("gives two copies of one part two named, separately configured objects", async () => {
+    // THIS ROW REPLACES A GUARD THAT NO LONGER HAS ANYTHING TO GUARD. It used to
+    // assert that one slug carrying two different names was REFUSED, because
+    // instancing collapsed every placement onto one object and the first name
+    // silently won. Nothing is collapsed now, so two names are simply two
+    // objects, and the throw would be refusing a request it can satisfy.
     //
-    // Unreachable from the route -- both fields come from one table row keyed by
-    // the slug -- so this guards the contract rather than an expected input.
-    await expect(
-      plate3mf(
-        [at("a", 4, 4, {}, "Hex-TB-Main"), at("a", 20, 4, {}, "Hex-TB-Spare")],
-        SOURCES,
-      ),
-    ).rejects.toThrow(/named both/);
+    // What replaces it is the defect the owner actually hit: a plate of two caps
+    // and a ball joint where one cap had no name and none of the settings.
+    const buf = await plate3mf(
+      [at("a", 4, 4, {}, "Hex-TB-Main"), at("a", 20, 4, {}, "Hex-TB-Spare")],
+      SOURCES,
+    );
+    const model = await modelOf(buf);
+    expect(itemNames(model)).toEqual(["Hex-TB-Main", "Hex-TB-Spare"]);
+
+    // ...and BOTH carry the settings, which is the half that was silently lost.
+    const zip = await JSZip.loadAsync(buf);
+    const cfg = await zip.file(MODEL_SETTINGS_PATH)!.async("string");
+    expect(cfg.match(/key="sparse_infill_pattern"/g)).toHaveLength(2);
+    expect(cfg).toContain('value="Hex-TB-Main"');
+    expect(cfg).toContain('value="Hex-TB-Spare"');
   });
 
   it("translates a placement to its minimum corner and seats it on the bed", async () => {

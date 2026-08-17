@@ -186,16 +186,26 @@ describe("one plate versus many", () => {
     );
   });
 
-  it("instances a quantity: one object, one item per copy", async () => {
-    // The reason vertices are never rewritten. Three caps are ONE mesh and
-    // three `<item>` lines, not three copies of a 300 KB mesh.
+  it("expands a quantity: one object AND one item per copy", async () => {
+    // THIS ROW USED TO ASSERT ONE OBJECT FOR THREE COPIES, which was the better
+    // file until per-object settings existed. Measured in Creality Print 7.2.1:
+    // when several `<item>`s share an object, only the FIRST gets the settings
+    // and only the first gets its NAME -- the rest arrive anonymous. The owner
+    // hit it as "one of my two caps has no name and no supports". Declaring the
+    // copies in a `<plate>` block, the way Creality writes its own saves, does
+    // not fix it either.
+    //
+    // So a quantity is now expanded rather than instanced. The archive barely
+    // notices: the duplicate meshes are byte-identical and deflate to almost
+    // nothing (six caps plus a ball joint measured 37.8 KB against 33 KB for
+    // two), because the 300 KB figure was always the uncompressed string.
     const res = await call(`release=${RELEASE}&parts=hex-tb-main:3`);
     const zip = await JSZip.loadAsync(await bodyOf(res));
     const model = await zip.file("3D/3dmodel.model")!.async("string");
-    expect(model.match(/<object\b/g)).toHaveLength(1);
+    expect(model.match(/<object\b/g)).toHaveLength(3);
     expect(model.match(/<item\b/g)).toHaveLength(3);
-    // Named for the slicer's object list, not slugged.
-    expect(model).toContain('name="Hex-TB-Main"');
+    // EVERY copy named, not just the first -- that is the defect this replaces.
+    expect(model.match(/name="Hex-TB-Main"/g)).toHaveLength(3);
   });
 
   it("serves MORE than one plate as a zip of plates plus the furniture", async () => {
