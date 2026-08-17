@@ -20,11 +20,58 @@
 // through the real `slug()` the R2 uploader mints keys with. A rename that
 // touches one and not the other fails that test rather than a stranger's print.
 //
-// WHY THESE TWO. A spike carries its load along its axis; printed upright, the
-// layers stack along that axis and peel apart. So both are laid on their side to
-// run the layers ACROSS the load, and the cost of that choice is that they touch
-// the bed along a line. Owner decision 2026-08-03: keep the orientation, say it
-// plainly. Every other part in the set stands on a flat face.
+// WHY THE FIRST TWO. A spike carries its load along its axis; printed upright,
+// the layers stack along that axis and peel apart. So both are laid on their
+// side to run the layers ACROSS the load, and the cost of that choice is that
+// they touch the bed along a line. Owner decision 2026-08-03: keep the
+// orientation, say it plainly.
+//
+// ===========================================================================
+// THIS FILE USED TO END "Every other part in the set stands on a flat face."
+// THAT WAS FALSE, and it was the premise the whole list rested on.
+// ===========================================================================
+// Corrected 2026-08-17 after measuring the REAL first-layer cross-section of all
+// 53 published meshes -- slicing the solid at the middle of the first layer and
+// filling the section by scanline, rather than summing the area of facets that
+// happen to point straight down.
+//
+// THE OLD METRIC COULD NOT SEE THE PARTS IT EXISTED TO FIND. A facet-normal sum
+// reports ZERO on a curved contact, because a ball rests on a point and nothing
+// there is level: it scored both spikes at 0.0 mm2 while their true footprint is
+// about 1 mm2. A measurement that reads clean on the worst parts in the set is
+// worse than none, and it is why five parts sat unflagged for a fortnight.
+//
+// Measured first layer, published release 2026-08-03, worst first:
+//
+//     0.10 mm2   Hex-TB-Spike-Solid                 (7.8 mm tall)
+//     0.33 mm2   Hex-TB-Spike-Ball-Joint            (7.8)
+//     6.74 mm2   Hex-TB-Spike-Ball-Zip-Single       (11.6)
+//    11.56 mm2   Hex-TB-Spike-Ball-Platform-Solid   (7.5)
+//    11.56 mm2   Hex-TB-Spike-Ball-Zip-1H           (7.5)
+//    19.58 mm2   Hex-TB-Corner-F-Solid              (30.0)
+//    19.58 mm2   Hex-TB-Corner-M-Solid              (30.0)
+//    -------- 25 mm2 threshold ------------------------------------
+//    39.17 mm2   the twelve Hex-TB-Half-* parts     (35.0)
+//   111.45 mm2   Hex-TB-Main                        (33.0)
+//
+// THE THRESHOLD IS 25 mm2 AND THE GAP BELOW IT IS THE ARGUMENT. Nothing sits
+// between 19.58 and 39.17, so the line is drawn through empty space rather than
+// through a judgement call about a part near the edge.
+//
+// THE TWELVE HALVES ARE DELIBERATELY LEFT OUT. 39 mm2 under a 35 mm part is thin
+// and it is not an oversight: `tools/check_orientation.py` in the hex-cluster
+// repo documents them as chosen exceptions, and its comment block explicitly
+// rejects the "a larger face exists, so it must be upside down" reasoning. They
+// are the designer's call, and a list that overrode it would be this file
+// deciding orientation, which is not its job.
+//
+// THE TWO CORNERS ARE HERE UNDER PROTEST, and the entry should be temporary.
+// 19.58 mm2 under a 30 mm part is not a pose anyone would choose; it is the
+// CAD pose surviving into the export because no rule was written for it. A
+// re-orientation onto the hex flank measures 407.9 and 649.0 mm2, which is the
+// actual fix. Until that ships as a new release, the file compensates for the
+// orientation with a brim -- so when it does ship, DELETE these two rows rather
+// than leaving them to put brims on parts that no longer need them.
 
 /**
  * ONE ROW PER PART, carrying both spellings and the sentence that belongs to it.
@@ -55,6 +102,45 @@ const NEEDS_SUPPORT = [
       "and the 28 mm shaft hangs in the air until roughly 1 mm up. It needs " +
       "supports. A brim will not help it: there is almost no perimeter for one " +
       "to hold on to.",
+  },
+  {
+    name: "Hex-TB-Spike-Ball-Zip-Single",
+    slug: "hex-tb-spike-ball-zip-single",
+    note:
+      "stands on about 7 sq mm and is 11.6 mm tall. That is enough to print " +
+      "and not enough to survive being nudged, so give it a brim.",
+  },
+  {
+    name: "Hex-TB-Spike-Ball-Platform-Solid",
+    slug: "hex-tb-spike-ball-platform-solid",
+    note:
+      "about 12 sq mm of first layer under a part with a lot of overhang " +
+      "above it. Brim, and leave supports on.",
+  },
+  {
+    name: "Hex-TB-Spike-Ball-Zip-1H",
+    slug: "hex-tb-spike-ball-zip-1h",
+    note:
+      "about 12 sq mm of first layer under a part with a lot of overhang " +
+      "above it. Brim, and leave supports on.",
+  },
+  {
+    name: "Hex-TB-Corner-F-Solid",
+    slug: "hex-tb-corner-f-solid",
+    note:
+      "stands 30 mm tall on about 20 sq mm, which is a tall part on a small " +
+      "foot. Print it with a brim. This is a property of the current cut " +
+      "rather than of the part, and a re-orientation onto its hex flank would " +
+      "give it 649 sq mm instead.",
+  },
+  {
+    name: "Hex-TB-Corner-M-Solid",
+    slug: "hex-tb-corner-m-solid",
+    note:
+      "stands 30 mm tall on about 20 sq mm, which is a tall part on a small " +
+      "foot. Print it with a brim. This is a property of the current cut " +
+      "rather than of the part, and a re-orientation onto its hex flank would " +
+      "give it 408 sq mm instead.",
   },
 ] as const;
 

@@ -39,11 +39,42 @@ describe("the support set", () => {
   });
 
   it("does not quietly cover every spike", () => {
-    // `hex-tb-spike-ball-platform-solid` and the platforms stand on a flat face.
     // Pinned because "it has spike in the name" is the obvious wrong rule, and
     // adopting it would archive downloads that need no archiving.
+    //
+    // THIS USED TO COMPARE COUNTS -- `spikes.length > NEEDS_SUPPORT_SLUGS.size`
+    // -- and that stopped meaning anything once the list gained two CORNERS, at
+    // which point seven flagged parts sat against seven spike-named ones and the
+    // row failed without a defect. A count is a proxy for the claim; these are
+    // the claim. The parts below are excluded on a MEASURED first layer of 250
+    // and 826 sq mm, which is the reason they need nothing, not their name.
     const spikes = HEX_PART_SLUGS.filter((s) => s.includes("spike"));
-    expect(spikes.length).toBeGreaterThan(NEEDS_SUPPORT_SLUGS.size);
-    expect(needsSupport(["hex-tb-spike-platform-lrg"])).toBe(false);
+    expect(spikes.length).toBeGreaterThan(0);
+    for (const stands of [
+      "hex-tb-spike-platform-lrg",
+      "hex-tb-spike-platform-sm",
+    ]) {
+      expect(spikes, `${stands} should be a real slug`).toContain(stands);
+      expect(needsSupport([stands])).toBe(false);
+    }
+  });
+
+  it("flags every part measured under the 25 sq mm threshold, and nothing above it", () => {
+    // The list is a claim about the published meshes, so it is pinned to the
+    // measurement that produced it rather than to itself. Five of these were
+    // missing for a fortnight because the old facet-normal metric scored curved
+    // contacts at zero; if a future re-cut changes a footprint, this row is
+    // where the list and the meshes stop agreeing.
+    expect([...NEEDS_SUPPORT_SLUGS].sort()).toEqual(
+      [
+        "hex-tb-corner-f-solid",
+        "hex-tb-corner-m-solid",
+        "hex-tb-spike-ball-joint",
+        "hex-tb-spike-ball-platform-solid",
+        "hex-tb-spike-ball-zip-1h",
+        "hex-tb-spike-ball-zip-single",
+        "hex-tb-spike-solid",
+      ].sort(),
+    );
   });
 });

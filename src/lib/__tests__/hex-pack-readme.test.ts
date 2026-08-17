@@ -147,11 +147,18 @@ describe("packNeedsSupport -- the question that decides the response SHAPE", () 
   });
 
   it("is not fooled by a name that merely starts the same way", () => {
-    // Seven published slugs begin `hex-tb-spike-`, and only two of them rest on
-    // a line. A `startsWith` here would tell four people out of five to support
-    // a platform that sits flat.
+    // Seven published slugs begin `hex-tb-spike-`, and five of them need
+    // something. A `startsWith` here would tell people to brim a platform that
+    // sits on 826 sq mm.
+    //
+    // `hex-tb-spike-ball-zip-single` USED TO BE ASSERTED false HERE, on the
+    // premise that only the two line-resting spikes needed anything. Measuring
+    // the real first-layer cross-section put it at 6.74 sq mm under an 11.6 mm
+    // part, so the row was asserting the defect. The two platforms are kept
+    // because they are measured at 826 and 250 sq mm, which is why they need
+    // nothing -- their NAME is not the reason and never was.
     expect(packNeedsSupport(["hex-tb-spike-platform-lrg"])).toBe(false);
-    expect(packNeedsSupport(["hex-tb-spike-ball-zip-single"])).toBe(false);
+    expect(packNeedsSupport(["hex-tb-spike-platform-sm"])).toBe(false);
   });
 });
 
