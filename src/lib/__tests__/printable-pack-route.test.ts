@@ -663,7 +663,10 @@ describe("a build that needs supports never ships without the warning", () => {
     ]);
     const readme = await zip.file("README.txt")!.async("string");
     expect(readme).toContain("Support required -- Hex-TB-Spike-Solid.");
-    expect(flat(readme)).toContain("give them supports or a brim");
+    // The remedy that fits THIS part. Asserting a generic phrase here is what
+    // let the README tell both spikes the same thing for months, including the
+    // one a brim cannot hold. See the sibling test in hex-pack-readme.test.ts.
+    expect(flat(readme)).toContain("Hex-TB-Spike-Solid rests on a thin line");
   });
 
   it("warns even when the spike is one part among many", async () => {

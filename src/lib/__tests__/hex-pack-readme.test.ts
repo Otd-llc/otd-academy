@@ -162,7 +162,55 @@ describe("plateDescription -- the notes carried INSIDE the plate", () => {
       { slug: "hex-tb-spike-solid", name: "Hex-TB-Spike-Solid" },
     ]);
     expect(d).toContain("Support required -- Hex-TB-Spike-Solid.");
-    expect(flat(d)).toContain("give them supports or a brim");
+    // The part it names, and the remedy that suits THAT part. This one rests on
+    // a line, so a brim is the useful thing.
+    expect(flat(d)).toContain("Hex-TB-Spike-Solid rests on a thin line");
+    expect(flat(d)).toContain("A brim is the useful thing here");
+  });
+
+  it("gives the two spikes DIFFERENT advice, because they have different problems", () => {
+    // THE POINT OF THE 2026-08-16 REWRITE. Both parts used to get one shared
+    // sentence ending "give them supports or a brim". Measured against the real
+    // meshes at a 0.2 mm first layer, the ball joint has 0.87 sq mm of contact
+    // and its shaft does not reach the plate at all -- so a brim, which needs a
+    // perimeter to hold, is the one remedy that cannot work on it. Telling both
+    // parts the same thing sent people to it anyway.
+    const ball = flat(
+      plateDescription([
+        { slug: "hex-tb-spike-ball-joint", name: "Hex-TB-Spike-Ball-Joint" },
+      ]),
+    );
+    const solid = flat(
+      plateDescription([
+        { slug: "hex-tb-spike-solid", name: "Hex-TB-Spike-Solid" },
+      ]),
+    );
+
+    expect(ball).toContain("rests on the BALL, not the shaft");
+    expect(ball).toContain("It needs supports.");
+    expect(ball).toContain("A brim will not help it");
+
+    expect(solid).toContain("A brim is the useful thing here");
+    expect(solid).not.toContain("A brim will not help it");
+
+    // Not merely different strings -- neither part's advice may appear on the
+    // other's plate, which is what a shared sentence would produce again.
+    expect(solid).not.toContain("rests on the BALL");
+    expect(ball).not.toContain("rests on a thin line");
+  });
+
+  it("carries the one slicer note worth carrying, and no print profile", () => {
+    // Both halves are counter-intuitive and cost a wasted plate to learn: a tree
+    // has nowhere to build at this scale, and PETG supports tear rather than
+    // snap, so less contact beats a wider gap. It stops there deliberately --
+    // this file asserts no printer profile anywhere else either.
+    const d = flat(
+      plateDescription([
+        { slug: "hex-tb-spike-solid", name: "Hex-TB-Spike-Solid" },
+      ]),
+    );
+    expect(d).toContain("normal or snug beats tree or organic");
+    expect(d).toContain("PETG supports tear rather than snap");
   });
 
   it("carries the orientation note too, which is true of every plate", () => {
@@ -301,10 +349,29 @@ describe("plateReadme -- the plated zip", () => {
   });
 
   it("names a repeated spike ONCE, not once per copy", () => {
-    // Two of them on that plate. "Hex-TB-Spike-Solid, Hex-TB-Spike-Solid" is
-    // what an undeduplicated filter produces, and six of a part is normal here.
-    // Two occurrences total: the plate manifest, and the note.
-    expect(spiked.match(/Hex-TB-Spike-Solid/g)).toHaveLength(2);
+    // "Hex-TB-Spike-Solid, Hex-TB-Spike-Solid" is what an undeduplicated filter
+    // produces, and six of a part is entirely normal on a plate.
+    //
+    // Asserted as INDEPENDENCE FROM THE COPY COUNT rather than as a fixed
+    // number. A literal count pins how many times the README happens to mention
+    // the part today, which is a different fact and one that legitimately
+    // changes: adding the per-part support note in 2026-08 moved it from 2 to 3
+    // and failed this test for no defect at all. Two plates differing ONLY in
+    // how many copies they hold cannot differ in how often the part is named.
+    const once = plateReadme({ ...base, plates: [[MAIN(), SPIKE()], [CAP()]] });
+    const sixTimes = plateReadme({
+      ...base,
+      plates: [
+        [MAIN(), SPIKE(), SPIKE(), SPIKE(), SPIKE(), SPIKE(), SPIKE()],
+        [CAP()],
+      ],
+    });
+    const count = (s: string) => (s.match(/Hex-TB-Spike-Solid/g) ?? []).length;
+
+    expect(count(sixTimes)).toBe(count(once));
+    expect(count(spiked)).toBe(count(once));
+    // And it is named at all -- an empty match would satisfy the equality above.
+    expect(count(once)).toBeGreaterThan(0);
   });
 
   it("carries the CC BY credit", () => {

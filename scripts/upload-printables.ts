@@ -38,7 +38,31 @@ import {
 } from "../src/lib/hex-spec";
 // Plain data, no env, so a static import is safe above the dotenv call below --
 // same reasoning as hex-spec. See that module on why the list lives in one place.
-import { NEEDS_SUPPORT_NAMES } from "../src/lib/hex-support";
+import {
+  NEEDS_SUPPORT_NAMES,
+  SUPPORT_NOTE,
+  SUPPORT_SLICER_NOTE,
+} from "../src/lib/hex-support";
+
+/** Hard-wrap for the archive README, which is read in Notepad and in terminals.
+ *  Neither reflows, so a long sentence is either cut off at the column or
+ *  scrolls sideways out of view. The academy's README module has its own copy of
+ *  this for the same reason; sharing it would mean importing a module that pulls
+ *  in the print spec to wrap a string. */
+function wrap72(text: string, indent = ""): string[] {
+  const out: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    if (line !== "" && `${indent}${line} ${word}`.length > 72) {
+      out.push(indent + line);
+      line = word;
+    } else {
+      line = line === "" ? word : `${line} ${word}`;
+    }
+  }
+  if (line !== "") out.push(indent + line);
+  return out;
+}
 
 // Dynamic imports inside main() so dotenv populates process.env BEFORE
 // src/env.ts validates it at module-eval time (a static import would hoist
@@ -382,11 +406,20 @@ function orientationNote(parts: ManifestPart[]): string[] {
     lines.push(
       "",
       `Support required -- ${present.join(", ")}.`,
-      "These are laid on their side on purpose: a spike is loaded along its axis,",
-      "and lying down runs the layers ACROSS that load instead of letting them",
-      "peel apart. The cost is that they touch the bed along a line, so give them",
-      "supports or a brim. Every other part stands on its own.",
+      "These lie on their side on purpose: a spike carries its load along its",
+      "axis, so printed upright the layers stack along that load and peel apart.",
+      "Lying down runs them ACROSS it. What that costs is what they stand on, and",
+      "it is not the same for both. Every other part stands on a flat face.",
+      "",
     );
+    // ONE ENTRY PER PART. The old note gave both the same sentence and sent
+    // everyone to a brim, which cannot hold a part with no perimeter on the
+    // plate. The measured figures live beside the list in src/lib/hex-support.
+    for (const name of present) {
+      const note = SUPPORT_NOTE[name];
+      if (note) lines.push(...wrap72(`${name} ${note}`, "  "));
+    }
+    lines.push("", ...wrap72(SUPPORT_SLICER_NOTE, ""));
   }
   return lines;
 }
