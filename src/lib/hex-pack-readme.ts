@@ -37,7 +37,12 @@ import {
   HEX_ORIENTATION,
   HEX_PRINT_PARAMS,
 } from "@/lib/hex-spec";
-import { NEEDS_SUPPORT_SLUGS, needsSupport } from "@/lib/hex-support";
+import {
+  NEEDS_SUPPORT_SLUGS,
+  SUPPORT_NOTE,
+  SUPPORT_SLICER_NOTE,
+  needsSupport,
+} from "@/lib/hex-support";
 
 /** ASCII-fold a string from the shared spec.
  *
@@ -127,23 +132,38 @@ export function packNeedsSupport(slugs: readonly string[]): boolean {
 function supportLines(
   parts: readonly { slug: string; label: string }[],
 ): string[] {
+  // Deduplicated by SLUG rather than by label, because the per-part note is
+  // keyed by slug: a plate holding six of one part must name it once, and must
+  // still find the sentence that belongs to it.
   const present = [
-    ...new Set(
-      parts.filter((p) => NEEDS_SUPPORT_SLUGS.has(p.slug)).map((p) => ascii(p.label)),
+    ...new Map(
+      parts
+        .filter((p) => NEEDS_SUPPORT_SLUGS.has(p.slug))
+        .map((p) => [p.slug, ascii(p.label)] as const),
     ),
   ];
   if (present.length === 0) {
     return ["Every part here stands on a flat face. No supports needed."];
   }
   return [
-    `Support required -- ${present.join(", ")}.`,
+    `Support required -- ${present.map(([, label]) => label).join(", ")}.`,
     ...wrap(
-      "These are laid on their side on purpose: a spike is loaded along its " +
-        "axis, and lying down runs the layers ACROSS that load instead of " +
-        "letting them peel apart. The cost is that they touch the bed along a " +
-        "line, so give them supports or a brim.",
+      "These lie on their side on purpose: a spike carries its load along its " +
+        "axis, so printed upright the layers stack along that load and peel " +
+        "apart. Lying down runs them ACROSS it. What that costs is what they " +
+        "stand on, and it is not the same for both.",
       "",
     ),
+    "",
+    // ONE ENTRY PER PART, because the old note gave them one shared sentence
+    // and it was wrong for the ball joint -- it sent people to a brim, which
+    // cannot hold a part with no perimeter on the plate. Measured figures live
+    // in `@/lib/hex-support` beside the list itself.
+    ...present.flatMap(([slug, label]) =>
+      SUPPORT_NOTE[slug] ? wrap(`${label} ${SUPPORT_NOTE[slug]}`, "  ") : [],
+    ),
+    "",
+    ...wrap(SUPPORT_SLICER_NOTE, ""),
   ];
 }
 
