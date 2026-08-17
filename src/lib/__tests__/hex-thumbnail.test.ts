@@ -15,6 +15,8 @@ import sharp from "sharp";
 import { inflateSync } from "node:zlib";
 
 import { HEX_PART_BOX, HEX_PART_NAME } from "@/lib/hex-geometry";
+import { HEX_PART_FAMILY } from "@/lib/hex-outlines";
+import { HEX_PART_FAMILIES } from "@/lib/hex-parts";
 import { packPlates } from "@/lib/hex-plate";
 import type { Placement } from "@/lib/hex-plate";
 import { THUMBNAIL_REL_TYPE, plateThumbnail } from "@/lib/hex-thumbnail";
@@ -22,15 +24,29 @@ import { THUMBNAIL_REL_TYPE, plateThumbnail } from "@/lib/hex-thumbnail";
 const BED = { x: 220, y: 220 };
 
 /** The palette, as `sharp` reports it. Named rather than repeated as literals,
- *  because half of these rows are about telling one of them from another. */
+ *  because half of these rows are about telling one gold from another and
+ *  `"221,172,87"` inline says nothing about which rung that is.
+ *
+ *  The six family rungs are one gold ladder, evenly spaced at 8 points of CIE L*
+ *  and running DARK to LIGHT in `HEX_PART_FAMILIES` order -- which is descending
+ *  part size, so the smallest parts get the most contrast against the bed. */
 const PAGE = "11,18,28";
 const BED_INK = "22,32,46";
 const BED_EDGE = "51,65,90";
-const PART = "200,162,74";
-const PART_EDGE = "240,216,155";
+const INK: Record<string, string> = {
+  base: "151,110,44",
+  insert: "175,130,53",
+  pcb: "200,150,62",
+  cap: "221,172,87",
+  spike: "236,197,128",
+  accessory: "243,222,182",
+};
+/** A placement whose slug is in no table. Deliberately off the gold ladder. */
+const NO_FAMILY = "125,134,152";
 
-/** Anything a part is drawn in: its fill and its one-pixel rule. */
-const PART_INKS = new Set([PART, PART_EDGE]);
+/** Anything a part is drawn in: the six family rungs plus the unclassified
+ *  slate. NOT the keyline, which is drawn in the page colour. */
+const PART_INKS = new Set([...Object.values(INK), NO_FAMILY]);
 
 const box = (dx: number, dy: number) => ({
   x0: 0,
@@ -41,7 +57,7 @@ const box = (dx: number, dy: number) => ({
   dz: 10,
 });
 /** A part with a slug the outline table has never heard of, so it falls back to
- *  its bounding box. Kept that way on purpose: the
+ *  its bounding box in the unclassified slate. Kept that way on purpose: the
  *  rows about placement, scale and clipping want a shape whose footprint is
  *  exactly its drawn extent, and a silhouette is not. */
 const at = (x: number, y: number, dx = 40, dy = 30): Placement => ({
@@ -95,9 +111,10 @@ async function pixels(png: Buffer) {
  *  recomputed from the module's own scale-and-round arithmetic -- which would
  *  make every row below agree with the code it is testing by construction.
  *
- *  Taken over "not bed, not bed edge, not page", so a part's own one-pixel rule
- *  counts as part of it -- otherwise the extent would be inset by a pixel and
- *  every corner these rows look at would be the wrong one. */
+ *  The keyline is drawn in the page colour INSIDE the part, so the extent is
+ *  taken over "not bed and not bed edge" rather than over the family ink; taking
+ *  it over the ink alone would shrink the box by the keyline and hide exactly the
+ *  corners these rows want to look at. */
 async function partBounds(png: Buffer) {
   const p = await pixels(png);
   let x0 = p.w;
@@ -116,6 +133,27 @@ async function partBounds(png: Buffer) {
     }
   }
   return { p, x0, y0, x1, y1 };
+}
+
+/** The part ink covering the most pixels in an image. */
+async function dominantInk(png: Buffer): Promise<string> {
+  const p = await pixels(png);
+  const tally = new Map<string, number>();
+  for (let y = 0; y < p.h; y++) {
+    for (let x = 0; x < p.w; x++) {
+      const c = p.rgb(x, y);
+      if (PART_INKS.has(c)) tally.set(c, (tally.get(c) ?? 0) + 1);
+    }
+  }
+  let best = "";
+  let most = 0;
+  for (const [c, n] of tally) {
+    if (n > most) {
+      most = n;
+      best = c;
+    }
+  }
+  return best;
 }
 
 describe("it is a PNG, by somebody else's reckoning", () => {
@@ -197,7 +235,7 @@ describe("it is a picture of THIS plate", () => {
     // One part in the FRONT-LEFT corner of the bed must appear in the BOTTOM
     // half of the image, and nowhere near the top.
     const p = await pixels(plateThumbnail([at(4, 4)], BED));
-    const gold = PART;
+    const gold = NO_FAMILY;
     const goldRows = [];
     for (let y = 0; y < p.h; y++) {
       for (let x = 0; x < p.w; x++) {
@@ -230,7 +268,7 @@ describe("it is a picture of THIS plate", () => {
     const rows: number[] = [];
     for (let y = 0; y < p.h; y++) {
       for (let x = 0; x < p.w; x++) {
-        if (p.rgb(x, y) === PART) {
+        if (p.rgb(x, y) === NO_FAMILY) {
           rows.push(y);
           break;
         }
@@ -245,8 +283,9 @@ describe("it is a picture of THIS plate", () => {
     // the bed and ignored the placements entirely passes every structural row
     // in this file and fails this one.
     //
-    // Counted over EVERY part ink, fill and rule alike, because a silhouette's
-    // rule is a bigger share of a small part than a rectangle's was.
+    // Counted over EVERY part ink rather than one gold, because there is no
+    // longer one gold: `REAL` is real slugs and lands on family rungs, while
+    // `at()` is an unknown slug and lands on the slate.
     const gold = async (ps: Placement[]) => {
       const p = await pixels(plateThumbnail(ps, BED));
       let n = 0;
@@ -271,7 +310,7 @@ describe("it is a picture of THIS plate", () => {
       const p = await pixels(plateThumbnail([at(4, 4)], bed));
       let n = 0;
       for (let y = 0; y < p.h; y++) {
-        for (let x = 0; x < p.w; x++) if (p.rgb(x, y) === PART) n++;
+        for (let x = 0; x < p.w; x++) if (p.rgb(x, y) === NO_FAMILY) n++;
       }
       return n;
     };
@@ -324,7 +363,7 @@ describe("it draws the PART, not the part's bounding box", () => {
     }
     const midX = Math.round((hex.x0 + hex.x1) / 2);
     const midY = Math.round((hex.y0 + hex.y1) / 2);
-    expect(hex.p.rgb(midX, midY)).toBe(PART);
+    expect(hex.p.rgb(midX, midY)).toBe(INK.base);
 
     // CONTROL: a part that really IS a rectangle still fills its corners.
     // Without this, "the corners are bed" is satisfied by a renderer that draws
@@ -413,7 +452,7 @@ describe("it draws the PART, not the part's bounding box", () => {
     // The fallback is deliberate -- a `Placement` is a plain object and the
     // packer will happily place one whose slug is not ours -- so it is pinned
     // rather than left to be discovered. A part with no outline is drawn as a
-    // full rectangle.
+    // full rectangle, in the slate that is visibly not a family.
     const b = await partBounds(plateThumbnail([at(8, 8, 60, 45)], BED));
     for (const [cx, cy] of [
       [b.x0, b.y0],
@@ -425,7 +464,75 @@ describe("it draws the PART, not the part's bounding box", () => {
     }
     const midX = Math.round((b.x0 + b.x1) / 2);
     const midY = Math.round((b.y0 + b.y1) / 2);
-    expect(b.p.rgb(midX, midY)).toBe(PART);
+    expect(b.p.rgb(midX, midY)).toBe(NO_FAMILY);
+  });
+});
+
+describe("it fills by part family", () => {
+  it("paints each family its own ink, and no two the same", async () => {
+    // A mapping collapsed to one value -- the commonest way this breaks, since
+    // every family resolving to the same lookup miss would still draw a
+    // perfectly good picture -- is caught by DISTINCTNESS, not by any one row.
+    const seen = new Map<string, string>();
+    for (const family of HEX_PART_FAMILIES) {
+      const slug = Object.keys(HEX_PART_FAMILY).find(
+        (s) => HEX_PART_FAMILY[s] === family,
+      );
+      // The ink the part is MOSTLY drawn in, not the ink at its centre: the
+      // centre of `dovetail-cap-double-f-1h` is its fastener hole, and reading a
+      // hole would make this row about the wrong thing.
+      const ink = await dominantInk(plateThumbnail([only(slug!)], BED));
+      expect(ink, `${family} (${slug}) was not painted`).toBe(INK[family]);
+      expect(
+        seen.has(ink),
+        `${family} shares an ink with ${seen.get(ink)}`,
+      ).toBe(false);
+      seen.set(ink, family);
+    }
+    expect(seen.size).toBe(HEX_PART_FAMILIES.length);
+  });
+
+  it("runs DARK to LIGHT in family order, so small parts get the contrast", async () => {
+    // The ordering is the design, not an accident of which hex string went
+    // where: `HEX_PART_FAMILIES` is descending part size, and the ramp is walked
+    // in that order so a spike -- 28 x 7 px on the default bed -- gets the most
+    // separation from the bed and a hex tile, which has thousands of pixels to
+    // spend, gets the least. Reversing it would hide the spikes.
+    //
+    // Measured off the RENDERED pixels rather than off the palette constant, so
+    // a palette reordered without the mapping being reordered fails here.
+    const lin = (c: number) => {
+      const v = c / 255;
+      return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    };
+    const luminance = (rgb: string) => {
+      const [r, g, b] = rgb.split(",").map(Number);
+      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    };
+    const ladder = HEX_PART_FAMILIES.map((f) => luminance(INK[f]));
+    for (let i = 1; i < ladder.length; i++) {
+      expect(ladder[i], `${HEX_PART_FAMILIES[i]}`).toBeGreaterThan(ladder[i - 1]);
+    }
+    // Every rung clears the bed by at least 3:1 -- the non-text contrast floor --
+    // so the DARKEST family is still a shape and not a stain.
+    const bed = luminance(BED_INK);
+    expect((ladder[0] + 0.05) / (bed + 0.05)).toBeGreaterThan(3);
+  });
+
+  it("puts two families on one plate as two different colours", async () => {
+    // The composition reading at a glance is the whole point of the fill, and it
+    // is a property of a PLATE, not of one part. A tile and a cap together must
+    // come out as two inks.
+    const plate = [only("hex-tb-main", 8, 8), only("dovetail-cap-double-f-3h", 8, 100)];
+    const p = await pixels(plateThumbnail(plate, BED));
+    const inks = new Set<string>();
+    for (let y = 0; y < p.h; y++) {
+      for (let x = 0; x < p.w; x++) {
+        const c = p.rgb(x, y);
+        if (PART_INKS.has(c)) inks.add(c);
+      }
+    }
+    expect(inks).toEqual(new Set([INK.base, INK.cap]));
   });
 });
 

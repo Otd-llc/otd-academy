@@ -1,12 +1,12 @@
-// The generated outline table.
+// The generated outline + family table.
 //
 // A generated file is only as good as the thing that checks it, and the checks
 // that can run HERE are not the ones the generator runs: it has the meshes and
 // can compare a traced shape against the solid it came from; this repo has only
 // the committed numbers. So these rows hold the table to things it cannot
-// satisfy by accident -- the published slug list, the release the app ships, and
-// the geometric invariant that a silhouette is exactly as big as the part
-// casting it.
+// satisfy by accident -- the published slug list, the release the app ships, the
+// six families the vocabulary defines, and the geometric invariant that a
+// silhouette is exactly as big as the part casting it.
 //
 // The reason it is worth this much: the failure mode is SILENT AND PRETTY. A
 // table of outlines that is subtly wrong still draws a picture. It draws the
@@ -18,9 +18,10 @@ import { HEX_PART_BOX } from "@/lib/hex-geometry";
 import {
   HEX_OUTLINE_RELEASE,
   HEX_OUTLINE_SCALE,
+  HEX_PART_FAMILY,
   HEX_PART_OUTLINE,
 } from "@/lib/hex-outlines";
-import { HEX_PART_SLUGS } from "@/lib/hex-parts";
+import { HEX_PART_FAMILIES, HEX_PART_SLUGS } from "@/lib/hex-parts";
 import { HEX_RELEASE } from "@/lib/hex-spec";
 
 /** Twice the signed area of a closed flat ring. Holes come out of the tracer
@@ -58,12 +59,52 @@ describe("the outline table", () => {
     for (const slug of HEX_PART_SLUGS) {
       expect(HEX_PART_OUTLINE[slug], `no outline for ${slug}`).toBeDefined();
       expect(HEX_PART_OUTLINE[slug].length, `${slug} has no rings`).toBeGreaterThan(0);
+      expect(HEX_PART_FAMILY[slug], `no family for ${slug}`).toBeDefined();
     }
     // And the same keys as the geometry table, so neither can grow a part the
     // other has never heard of.
     expect(Object.keys(HEX_PART_OUTLINE).sort()).toEqual(
       Object.keys(HEX_PART_BOX).sort(),
     );
+    expect(Object.keys(HEX_PART_FAMILY).sort()).toEqual(
+      Object.keys(HEX_PART_BOX).sort(),
+    );
+  });
+
+  it("gives every part one of the six families, and no other value", () => {
+    const known = new Set<string>(HEX_PART_FAMILIES);
+    for (const [slug, family] of Object.entries(HEX_PART_FAMILY)) {
+      expect(known.has(family), `${slug} is family "${family}"`).toBe(true);
+    }
+  });
+
+  it("puts a real number of parts in EVERY family, at the counts measured", () => {
+    // THE ROW THAT CAUGHT A REAL BUG. The lid rule was written
+    // `Hex-TB-Carrier-.*-Parts-Tray-Lid`, which needs a middle segment -- so it
+    // matched the four half-cell lids and MISSED `Hex-TB-Carrier-Parts-Tray-Lid`,
+    // which fell through to the next rule and became an insert. Every family was
+    // still occupied, every slug still had a family, and the only visible symptom
+    // was one hexagon painted one rung too dark.
+    //
+    // So the counts are pinned, not just the emptiness. They are measurements off
+    // the 2026-08-03 set and a re-cut that legitimately changes one fails here --
+    // which is the intended behaviour, the same argument the pinned `z0` in
+    // `hex-geometry.test.ts` is made on.
+    const counts: Record<string, number> = {};
+    for (const family of Object.values(HEX_PART_FAMILY)) {
+      counts[family] = (counts[family] ?? 0) + 1;
+    }
+    expect(counts).toEqual({
+      base: 17, // Hex-TB-Main + 16 half tiles
+      insert: 10, // 5 carriers x {solid, parts tray}
+      pcb: 5, // 5 carrier parts-tray lids
+      cap: 14, // 12 dovetail caps + 2 corner caps
+      spike: 4, // solid, ball joint, 2 platforms
+      accessory: 3, // ball platform, 2 ball zips
+    });
+    // Summing to the whole set is not implied by the six numbers above -- it is
+    // implied by them AND by nothing else existing, which is what this adds.
+    expect(Object.keys(HEX_PART_FAMILY)).toHaveLength(HEX_PART_SLUGS.length);
   });
 
   it("emits rings that are closed, integral, and inside the coordinate space", () => {

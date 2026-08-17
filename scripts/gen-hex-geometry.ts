@@ -31,6 +31,7 @@ import { fileURLToPath } from "node:url";
 
 import JSZip from "jszip";
 
+import { HEX_PART_FAMILIES, type HexPartFamily } from "@/lib/hex-parts";
 import { HEX_RELEASE } from "@/lib/hex-spec";
 
 // Paths are resolved from this FILE, not from the shell's working directory, so
@@ -48,9 +49,9 @@ const MESHES = join(PRINTABLES, "3mf");
 const MANIFEST = join(PRINTABLES, "manifest.json");
 const OUT = join(REPO, "src", "lib", "hex-geometry.ts");
 
-/** The second output: the top-down OUTLINE of every part. See the header this
- *  script writes into it for why it is a separate file rather than another field
- *  on `HEX_PART_BOX`. */
+/** The second output: the top-down OUTLINE of every part, and what family it
+ *  belongs to. See the header this script writes into it for why it is a
+ *  separate file rather than three more fields on `HEX_PART_BOX`. */
 const OUT_OUTLINES = join(REPO, "src", "lib", "hex-outlines.ts");
 
 /**
@@ -221,6 +222,67 @@ const slugOf = (file: string) =>
  *  Nothing measured passes through here -- rounding a measurement is what this
  *  file was fixed for. */
 const brief = (v: number) => v.toPrecision(3);
+
+/**
+ * What class of part a mesh file is, from its published name.
+ *
+ * ORDERED, FIRST MATCH WINS, and the order is the whole specification -- every
+ * rule below is a prefix of the one before it, so reordering them silently
+ * reclassifies parts. Read top to bottom.
+ *
+ * THE FILENAME IS THE ONLY IDENTITY AVAILABLE. The configurator derives the same
+ * six families from the glTF path a configured cell resolved to
+ * (`familyForPath` in `bs-cap-hex/src/hex/export/bom.ts`), but a printable is a
+ * file in a bucket: there is no cell, no slot and no template behind it. So the
+ * rules are written to agree with that function's tables part for part, and the
+ * two places they LOOK like they disagree are places where they do not:
+ *
+ *   - `Hex-TB-Corner-{F,M}-Solid` is a CAP, not a base. It is in `CAP_MODEL`
+ *     over there, under the `corner` cap variant, however much its name reads
+ *     like a structural piece.
+ *   - `Hex-TB-Carrier-*-Parts-Tray-Lid` is a PCB, not an insert. The lid slot is
+ *     `CARRIER_BOARD_MODEL`: it is the plate a board mounts to, and the tray it
+ *     closes is the insert. This is why the lid rule has to precede the general
+ *     carrier rule.
+ *
+ * TWO PARTS ARE IN NEITHER of the configurator's tables --
+ * `Hex-TB-Spike-Ball-Platform-Solid` and `Hex-TB-Spike-Ball-Zip-1H`. They ship as
+ * printables and the configurator cannot place them, so nothing over there
+ * classifies them at all. They are read the way their names read: something that
+ * fits ONTO a spike's ball is an accessory, and the ball JOINT itself is a spike
+ * variant (`SPIKE_MODEL['ball-joint']`), which is why the joint gets an exact
+ * rule of its own ahead of the general ball rule.
+ *
+ * NO FALLBACK, and that is the difference from the configurator's copy, which
+ * ends `return 'base'` so an unrecognised part still lands on a drawing. Here an
+ * unrecognised part means a re-cut introduced something these rules have never
+ * seen, and the honest answer is to stop: the alternative is fifty-three parts
+ * quietly becoming fifty-two families and one wrong one, in a data file nobody
+ * re-reads.
+ */
+function familyOf(name: string): HexPartFamily {
+  if (/^Dovetail-Cap-/.test(name)) return "cap";
+  if (/^Hex-TB-Corner-/.test(name)) return "cap";
+  // `.*` with no anchor between it and `Parts-Tray-Lid`, because the full-cell
+  // carrier is spelled `Hex-TB-Carrier-Parts-Tray-Lid` with NO middle segment
+  // at all, while the four halves are `Hex-TB-Carrier-Top-Parts-Tray-Lid` and
+  // friends. Requiring a hyphen there matched the four and missed the one, and
+  // the miss was invisible: it fell through to the next rule and became an
+  // insert. The per-family counts in the guard test are what pin it.
+  if (/^Hex-TB-Carrier-.*Parts-Tray-Lid$/.test(name)) return "pcb";
+  if (/^Hex-TB-Carrier-/.test(name)) return "insert";
+  if (/^Hex-TB-Spike-Ball-Joint$/.test(name)) return "spike";
+  if (/^Hex-TB-Spike-Ball-/.test(name)) return "accessory";
+  if (/^Hex-TB-Spike-/.test(name)) return "spike";
+  if (/^Hex-TB-Half-/.test(name)) return "base";
+  if (/^Hex-TB-Main$/.test(name)) return "base";
+  throw new Error(
+    `${name}: no family rule matches this part. A re-cut has introduced a part ` +
+      `shape these rules have never seen, and guessing would put it in the ` +
+      `wrong band on every thumbnail. Add a rule in familyOf() -- do NOT add a ` +
+      `catch-all.\n\nNothing was written.`,
+  );
+}
 
 /**
  * The part's vertical shadow, rasterised into a grid of `cols` x `rows` cells
@@ -707,6 +769,7 @@ async function main(): Promise<void> {
     slug: string;
     name: string;
     box: Box;
+    family: HexPartFamily;
     rings: Ring[];
   }[] = [];
   const bySlug = new Map<string, string>();
@@ -843,7 +906,25 @@ async function main(): Promise<void> {
     // recover the published spelling once this loop has thrown it away. It is
     // what a slicer shows in its object list, and carrying it is the whole
     // argument for 3MF over STL.
-    rows.push({ slug, name, box, rings });
+    //
+    // The FAMILY is picked up here for the same reason -- it is read off the
+    // filename, which nothing downstream still has.
+    rows.push({ slug, name, box, family: familyOf(name), rings });
+  }
+
+  // EVERY FAMILY MUST BE OCCUPIED. `familyOf` already refuses a part it does not
+  // recognise, which stops a part falling into no band; this stops the opposite
+  // and quieter fault -- a rule edited so that it shadows another, folding six
+  // bands into five and repainting a whole class of parts with no error
+  // anywhere. Both directions, because neither check sees the other's.
+  const counts = new Map<string, number>(HEX_PART_FAMILIES.map((f) => [f, 0]));
+  for (const r of rows) counts.set(r.family, (counts.get(r.family) ?? 0) + 1);
+  const empty = [...counts].filter(([, n]) => n === 0).map(([f]) => f);
+  if (empty.length > 0) {
+    throw new Error(
+      `no part was classified as: ${empty.join(", ")}. A family rule is ` +
+        `shadowing another one.\n\nNothing was written.`,
+    );
   }
 
   // A manifest part with no mesh means the two halves of the release disagree
@@ -998,6 +1079,10 @@ ${bottoms}
   // the two tables cannot describe different mesh sets -- which is the whole
   // reason this is one script writing two files rather than two scripts.
   // ---------------------------------------------------------------------
+  const families = rows
+    .map(({ slug, family }) => `  "${slug}": "${family}",`)
+    .join("\n");
+
   const outlines = rows
     .map(
       ({ slug, rings }) =>
@@ -1009,10 +1094,11 @@ ${bottoms}
     OUT_OUTLINES,
     `// GENERATED by scripts/gen-hex-geometry.ts. Do not edit by hand.
 //
-// What each published part LOOKS LIKE from above. It exists for one reader: the
-// 3MF package thumbnail (\`src/lib/hex-thumbnail.ts\`), which used to draw every
-// part as its bounding box and therefore drew a hex tile, a carrier tray and a
-// dovetail cap as three rectangles differing only in aspect ratio.
+// What each published part LOOKS LIKE from above, and what CLASS of part it is.
+// Both exist for one reader: the 3MF package thumbnail (\`src/lib/hex-thumbnail.ts\`),
+// which used to draw every part as its bounding box and therefore drew a hex
+// tile, a carrier tray and a dovetail cap as three rectangles differing only in
+// aspect ratio.
 //
 // A SEPARATE FILE FROM \`hex-geometry.ts\`, deliberately. That table is MIRRORED
 // by the configurator (\`bs-cap-hex/src/hex/hex-geometry.ts\`) and compared against
@@ -1052,8 +1138,9 @@ ${bottoms}
 // Every outline here was checked at generation time against three things it
 // could not satisfy by accident: that it reaches all four sides of its own
 // bounding box, that it covers a believable share of it, and that it costs fewer
-// than ${OUTLINE_MAX_POINTS} points. \`__tests__/hex-outlines.test.ts\` holds the table to
+// than ${OUTLINE_MAX_POINTS} points. \`__tests__/hex-outlines.test.ts\` holds the tables to
 // HEX_PART_SLUGS and the stamp below to HEX_RELEASE.
+import type { HexPartFamily } from "@/lib/hex-parts";
 
 /** The mesh release these outlines were traced from. Pinned to HEX_RELEASE by
  *  the guard test, for the same reason HEX_GEOMETRY_RELEASE is: a release bumped
@@ -1065,6 +1152,13 @@ export const HEX_OUTLINE_RELEASE = "${HEX_RELEASE}";
  *  box. Exported so the drawing code divides by the number the generator
  *  multiplied by, rather than by its own copy of it. */
 export const HEX_OUTLINE_SCALE = ${OUTLINE_SCALE};
+
+/** What class of part each slug is. See \`HexPartFamily\` for the vocabulary and
+ *  \`familyOf()\` in the generator for the rules -- which have NO catch-all, so a
+ *  part this table does not name is a part the generator refused to write. */
+export const HEX_PART_FAMILY: Record<string, HexPartFamily> = {
+${families}
+};
 
 /** Each part's top-down outline, as closed rings of \`x, y, x, y, ...\` integers
  *  in 0..HEX_OUTLINE_SCALE.
@@ -1090,6 +1184,9 @@ ${outlines}
   );
   console.log(
     `wrote ${totalRings} rings / ${totalPoints} points to ${OUT_OUTLINES}`,
+  );
+  console.log(
+    `families: ${[...counts].map(([f, n]) => `${f} ${n}`).join(", ")}`,
   );
 }
 

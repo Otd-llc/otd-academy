@@ -60,7 +60,12 @@
 import { constants, crc32, deflateSync } from "node:zlib";
 
 import type { Bed } from "@/lib/hex-pack";
-import { HEX_OUTLINE_SCALE, HEX_PART_OUTLINE } from "@/lib/hex-outlines";
+import {
+  HEX_OUTLINE_SCALE,
+  HEX_PART_FAMILY,
+  HEX_PART_OUTLINE,
+} from "@/lib/hex-outlines";
+import { HEX_PART_FAMILIES } from "@/lib/hex-parts";
 import type { Placement } from "@/lib/hex-plate";
 
 /** Where the image lives inside the 3MF package, and the relationship that
@@ -84,12 +89,47 @@ const SIZE = 256;
  *  landing on the image edge, where several shells crop it. */
 const MARGIN = 6;
 
-/** Five colours, in the house palette, and five is the whole design.
+/** Ten colours: the frame, one per part family, and one for a part with no
+ *  family.
+ *
+ *  ONE HUE, SIX VALUES, AND THAT IS THE WHOLE DESIGN.
+ *
+ *  GOLD ONLY, because the OTD vocabulary has exactly one accent. Blue is for
+ *  data and links and is always secondary; red means a critical state. Six
+ *  arbitrary hues would read as somebody else's product, and a red part on a
+ *  plate would be a warning about nothing.
+ *
+ *  VALUE, NOT HUE, because of the size. A spike is 25 x 6.7 mm, which on the
+ *  default 220 mm bed is 28 x 7 px. Hue discrimination collapses on shapes that
+ *  small -- small-field tritanopia is a property of normal vision, not a defect
+ *  -- while a lightness step survives down to a couple of pixels. So the six
+ *  families are six rungs of one gold ladder, evenly spaced at 8 points of CIE
+ *  L* from 49.3 to 89.3, with the third rung landing exactly on the house
+ *  command gold (#c8963e, L* 65.3). The darkest still clears the bed at 3.6:1
+ *  and the lightest reaches 12.5:1.
+ *
+ *  DARK TO LIGHT IN `HEX_PART_FAMILIES` ORDER, which is assembly order and --
+ *  because a part fitted later is a part fitted on the outside -- descending
+ *  part size. The second reading is the one that matters here: the smallest
+ *  parts get the lightest gold, i.e. the most contrast against the bed, which is
+ *  exactly where contrast is scarcest. Ordering the ramp the other way would
+ *  hide the spikes.
+ *
+ *  IT CANNOT FLIP WITH A THEME, so it does not try. This is a raster sealed
+ *  inside a file, and it will be looked at in a light file browser and a dark
+ *  one. Every contrast that matters is INTERNAL -- the picture paints its own
+ *  deep-space field edge to edge and nothing of the host shows through -- so the
+ *  only thing the host changes is how the tile separates from its surroundings.
+ *  Against light chrome the field is a near-black card at ~18:1. Against dark
+ *  chrome (Explorer's #202020, Finder's #1e1e1e) the field is DARKER than the
+ *  chrome, but only just, so the thing that reads as an object there is not the
+ *  page: it is the bed rectangle, which is why the 6 px margin and the lighter
+ *  bed edge stay. One treatment, no compromise in either direction, and no
+ *  reliance on a background we do not paint.
  *
  *  The image is flat colour, so an indexed PNG (colour type 3) stores one byte
  *  per pixel and deflate turns each run of identical bytes into almost nothing.
- *  A truecolour PNG of the same picture is three times the raw size for a
- *  picture that has five colours in it.
+ *  A truecolour PNG of the same picture is three times the raw size.
  *
  *  Ordered so index 0 is the page: `Uint8Array` starts zeroed, so the background
  *  fill is free and is not a step anybody can forget. */
@@ -97,15 +137,33 @@ const PALETTE: readonly (readonly [number, number, number])[] = [
   [0x0b, 0x12, 0x1c], // 0 -- outside the bed
   [0x16, 0x20, 0x2e], // 1 -- the bed
   [0x33, 0x41, 0x5a], // 2 -- the bed edge
-  [0xc8, 0xa2, 0x4a], // 3 -- a part
-  [0xf0, 0xd8, 0x9b], // 4 -- that part's edge
+  [0x97, 0x6e, 0x2c], // 3 -- base       L* 49.3
+  [0xaf, 0x82, 0x35], // 4 -- insert     L* 57.3
+  [0xc8, 0x96, 0x3e], // 5 -- pcb        L* 65.3  (command gold)
+  [0xdd, 0xac, 0x57], // 6 -- cap        L* 73.3
+  [0xec, 0xc5, 0x80], // 7 -- spike      L* 81.3
+  [0xf3, 0xde, 0xb6], // 8 -- accessory  L* 89.3
+  [0x7d, 0x86, 0x98], // 9 -- no family
 ];
 
 const PAGE = 0;
 const BED = 1;
 const BED_EDGE = 2;
-const PART = 3;
-const PART_EDGE = 4;
+/** The first family rung. Family `i` of `HEX_PART_FAMILIES` is `INK + i`. */
+const INK = 3;
+/** A part whose slug is in no table. Unreachable from the pack route, where
+ *  every placement came out of `HEX_PART_BOX` -- but a `Placement` is a plain
+ *  object anyone can build, and the honest answer to "which family is this" is
+ *  not to guess a gold. A desaturated slate is the one value in the picture that
+ *  is visibly outside the ladder, so an unclassified part looks unclassified
+ *  rather than looking like a `pcb`. */
+const NO_FAMILY = INK + HEX_PART_FAMILIES.length;
+
+/** Where each family sits on the ladder, resolved once at module load rather
+ *  than per part per plate. */
+const FAMILY_INK: Record<string, number> = Object.fromEntries(
+  HEX_PART_FAMILIES.map((family, i) => [family, INK + i]),
+);
 
 /** Smallest part, in pixels on each axis, that gets a keyline drawn inside its
  *  own outline.
@@ -361,7 +419,7 @@ export function plateThumbnail(
     const x = ox + Math.round(p.x * scale);
     // The flip: the part's FAR edge in bed space is its TOP edge in image space.
     const y = oy + bh - Math.round(p.y * scale) - h;
-    const ink = PART;
+    const ink = FAMILY_INK[HEX_PART_FAMILY[p.slug]] ?? NO_FAMILY;
     const rings = HEX_PART_OUTLINE[p.slug];
 
     // NO OUTLINE, OR AN OUTLINE TOO SMALL TO LAND ON A PIXEL, FALLS BACK TO THE
@@ -382,7 +440,7 @@ export function plateThumbnail(
     if (!rows) {
       canvas.fill(x, y, w, h, ink);
       if (w >= KEYLINE_MIN_PX && h >= KEYLINE_MIN_PX) {
-        canvas.stroke(x, y, w, h, PART_EDGE);
+        canvas.stroke(x, y, w, h, PAGE);
       }
       continue;
     }
@@ -394,9 +452,14 @@ export function plateThumbnail(
       }
     }
 
-    // The one-pixel rule the boxes used to carry, now following the silhouette
-    // rather than a rectangle: it separates parts that round into each other on
-    // a large bed, and it gives every outline a crisp edge.
+    // THE KEYLINE IS DARK, and that is a decision rather than a leftover. A pale
+    // rule -- what this drew until 2026-08-16 -- adds the same high value to
+    // every part's perimeter, and at 256 px a small part is nearly all
+    // perimeter, so the one channel carrying family identity would be washed out
+    // exactly where it is scarcest. Drawing it in the page colour instead does
+    // the two jobs a rule is actually for: it separates parts that round into
+    // each other on a large bed, and it gives every silhouette a crisp edge, at
+    // no cost to the value that names the part.
     if (w < KEYLINE_MIN_PX || h < KEYLINE_MIN_PX) continue;
     for (let r = 0; r < h; r++) {
       const spans = rows[r];
@@ -410,7 +473,7 @@ export function plateThumbnail(
             !covered(rows, r - 1, c) ||
             !covered(rows, r + 1, c)
           ) {
-            canvas.fill(c, y + r, 1, 1, PART_EDGE);
+            canvas.fill(c, y + r, 1, 1, PAGE);
           }
         }
       }
