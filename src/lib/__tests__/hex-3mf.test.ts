@@ -10,7 +10,13 @@
 import { describe, expect, it } from "vitest";
 import JSZip from "jszip";
 
-import { CORE_META, buildPlate3mf, extractObjectBlock } from "@/lib/hex-3mf";
+import {
+  CORE_META,
+  MODEL_SETTINGS_PATH,
+  ZIP_EPOCH,
+  buildPlate3mf,
+  extractObjectBlock,
+} from "@/lib/hex-3mf";
 import { HEX_LICENSE } from "@/lib/hex-spec";
 import {
   HEX_PART_BOX,
@@ -532,10 +538,17 @@ describe("buildPlate3mf", () => {
     // This list is CLOSED on purpose. The failure it catches is not "a file we
     // meant to add"; it is a file that appears without either of the two
     // declarations that make it legal.
+    //
+    // `model_settings.config` joined it deliberately and DID fail this row on
+    // the way in, which is the row doing its job. It differs from the thumbnail
+    // in one respect worth writing down: it needs the `config` default in
+    // `[Content_Types].xml` but NO relationship, because it is a vendor side-car
+    // found by path rather than an OPC-related part.
     const zip = await JSZip.loadAsync(await plate3mf([at("a", 4, 4)], SOURCES));
     const entries = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
     expect(entries.sort()).toEqual([
       "3D/3dmodel.model",
+      MODEL_SETTINGS_PATH,
       "Metadata/thumbnail.png",
       "[Content_Types].xml",
       "_rels/.rels",
@@ -722,5 +735,137 @@ describe("buildPlate3mf", () => {
     await new Promise((r) => setTimeout(r, 2100));
     const second = await plate3mf(plate, SOURCES);
     expect(Buffer.compare(first, second)).toBe(0);
+  });
+});
+
+/* ===========================================================================
+   THE PER-OBJECT PRINT SETTINGS.
+
+   These exist because alpha testers do not read the README and did not select
+   the infill the parts need. Every row below is about a behaviour MEASURED in
+   Creality Print 7.2.1 on 2026-08-17, not inferred from documentation, because
+   three research passes disagreed and two of them were wrong.
+   =========================================================================== */
+
+describe("Metadata/model_settings.config", () => {
+  const configOf = async (buf: Buffer): Promise<string> => {
+    const zip = await JSZip.loadAsync(buf);
+    const file = zip.file(MODEL_SETTINGS_PATH);
+    expect(file, MODEL_SETTINGS_PATH).not.toBeNull();
+    return file!.async("string");
+  };
+
+  it("gives every part the infill the parts are structurally chosen for", async () => {
+    // Gyroid is a torsion requirement here, not a preference. If this stops
+    // being written, the whole feature has lost its reason to exist.
+    const cfg = await configOf(
+      await plate3mf([at("a", 4, 4), at("b", 20, 4)], SOURCES),
+    );
+    expect(cfg.match(/key="sparse_infill_pattern" value="gyroid"/g)).toHaveLength(2);
+  });
+
+  it("spells the infill in the case the slicer's enum map uses", async () => {
+    // MEASURED: "Gyroid" is silently replaced with grid, behind a dialog that
+    // blames a version mismatch. The file looks right and prints weak.
+    const cfg = await configOf(await plate3mf([at("a", 4, 4)], SOURCES));
+    expect(cfg).toContain('value="gyroid"');
+    expect(cfg).not.toContain('value="Gyroid"');
+  });
+
+  it("carries extruder, the one key a geometry-only import preserves", async () => {
+    const cfg = await configOf(await plate3mf([at("a", 4, 4)], SOURCES));
+    expect(cfg).toContain('key="extruder" value="1"');
+  });
+
+  it("gives one object per DISTINCT part, matching the model's ids", async () => {
+    const buf = await plate3mf(
+      [at("a", 4, 4), at("b", 20, 4), at("a", 40, 4)],
+      SOURCES,
+    );
+    const cfg = await configOf(buf);
+    const model = await modelOf(buf);
+    const cfgIds = [...cfg.matchAll(/<object id="(\d+)"/g)].map((m) => m[1]);
+    const modelIds = [...model.matchAll(/<object id="(\d+)"/g)].map((m) => m[1]);
+    expect(cfgIds).toEqual(modelIds);
+    // An id in the config that names no object in the model is a settings block
+    // the slicer silently drops, and the object falls back to "Object_N".
+    expect(new Set(cfgIds).size).toBe(cfgIds.length);
+  });
+
+  it("names each object, so the slicer's object list is readable", async () => {
+    const cfg = await configOf(await plate3mf([at("a", 4, 4)], SOURCES));
+    expect(cfg).toContain('key="name" value="Part-A"');
+  });
+
+  it("escapes a name rather than emitting XML the parser will reject", async () => {
+    // Names reach here from published filenames. Expat rejects a raw & or <,
+    // and a rejected config is a refused import, not a degraded one.
+    const cfg = await configOf(
+      await plate3mf([at("a", 4, 4, {}, 'Cap & <Bracket>')], SOURCES),
+    );
+    expect(cfg).toContain("&amp;");
+    expect(cfg).not.toMatch(/value="Cap & </);
+  });
+
+  it("declares the config extension so the package stays OPC-conforming", async () => {
+    const zip = await JSZip.loadAsync(await plate3mf([at("a", 4, 4)], SOURCES));
+    const ct = await zip.file("[Content_Types].xml")!.async("string");
+    expect(ct).toContain('Extension="config"');
+  });
+
+  it("stays reproducible: the config carries the same fixed timestamp", async () => {
+    // The route promises identical bytes for identical requests. One entry
+    // stamped with a wall clock breaks that from inside the archive.
+    const zip = await JSZip.loadAsync(await plate3mf([at("a", 4, 4)], SOURCES));
+    expect(zip.file(MODEL_SETTINGS_PATH)!.date.getTime()).toBe(
+      ZIP_EPOCH.getTime(),
+    );
+  });
+});
+
+describe("support settings ride only on the parts that need them", () => {
+  const configOf = async (buf: Buffer): Promise<string> => {
+    const zip = await JSZip.loadAsync(buf);
+    return zip.file(MODEL_SETTINGS_PATH)!.async("string");
+  };
+
+  /** The real slug from `hex-support.ts`, not a stand-in: the point of the row
+   *  is that THESE two parts are the ones treated differently. */
+  const SPIKE = "hex-tb-spike-ball-joint";
+
+  it("switches support on for a line-resting part", async () => {
+    const sources = new Map([[SPIKE, source("1")]]);
+    const cfg = await configOf(
+      await plate3mf([at(SPIKE, 4, 4, {}, "Hex-TB-Spike-Ball-Joint")], sources),
+    );
+    expect(cfg).toContain('key="enable_support" value="1"');
+    expect(cfg).toContain('key="brim_type" value="outer_only"');
+  });
+
+  it("does NOT put support or a brim on a part that stands on a flat face", async () => {
+    // Restraint is the point. Support everywhere would be two dozen brims to
+    // cut off for the benefit of the two parts that need one.
+    const cfg = await configOf(await plate3mf([at("a", 4, 4)], SOURCES));
+    expect(cfg).not.toContain("enable_support");
+    expect(cfg).not.toContain("brim_type");
+  });
+
+  it("states the threshold angle rather than inheriting the user's profile", async () => {
+    // 30 is measured FROM HORIZONTAL, and every overhang figure this project
+    // has measured was scored against it. A profile set to 45 would change what
+    // "needs support" means after the fact.
+    const sources = new Map([[SPIKE, source("1")]]);
+    const cfg = await configOf(
+      await plate3mf([at(SPIKE, 4, 4, {}, "Hex-TB-Spike-Ball-Joint")], sources),
+    );
+    expect(cfg).toContain('key="support_threshold_angle" value="30"');
+  });
+
+  it("still gives the support part the same infill as everything else", async () => {
+    const sources = new Map([[SPIKE, source("1")]]);
+    const cfg = await configOf(
+      await plate3mf([at(SPIKE, 4, 4, {}, "Hex-TB-Spike-Ball-Joint")], sources),
+    );
+    expect(cfg).toContain('value="gyroid"');
   });
 });

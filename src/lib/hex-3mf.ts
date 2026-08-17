@@ -23,7 +23,12 @@ import JSZip from "jszip";
 
 import type { Bed } from "@/lib/hex-pack";
 import type { Placement } from "@/lib/hex-plate";
+import {
+  assertPrintIntentIsSlicerLegal,
+  intentFor,
+} from "@/lib/hex-print-intent";
 import { HEX_LICENSE } from "@/lib/hex-spec";
+import { NEEDS_SUPPORT_SLUGS } from "@/lib/hex-support";
 import {
   THUMBNAIL_PATH,
   THUMBNAIL_REL_TYPE,
@@ -81,6 +86,11 @@ const CONTENT_TYPES =
   `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml" />` +
   `<Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml" />` +
   `<Default Extension="png" ContentType="image/png" />` +
+  // `config` joins them for `Metadata/model_settings.config`. Declared even
+  // though neither Orca nor PrusaSlicer declares it in its own output and both
+  // read the part regardless: OPC requires a content type for every part, and
+  // the cost of being conforming where the vendors are not is one attribute.
+  `<Default Extension="config" ContentType="application/vnd.ms-printing.3dmanufacturing-3dmodel-settings+xml" />` +
   `</Types>`;
 
 /** The package's relationships: which part is the 3D model, and which part is
@@ -103,6 +113,10 @@ const RELS =
   `Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel" />` +
   `<Relationship Target="/${THUMBNAIL_PATH}" Id="rel1" ` +
   `Type="${THUMBNAIL_REL_TYPE}" /></Relationships>`;
+
+/** Where the Orca family looks for per-object settings. Exported so the tests
+ *  read the same string the writer does, rather than a second spelling of it. */
+export const MODEL_SETTINGS_PATH = "Metadata/model_settings.config";
 
 /** A FIXED timestamp on every zip entry, and the reason is the design's
  *  determinism requirement, not tidiness.
@@ -295,11 +309,71 @@ export type PlateMeta = {
  * published filename -- so a plate names its parts `Hex-TB-Main`, the way the
  * reference plate does and the way the download page lists them.
  */
+/**
+ * `Metadata/model_settings.config` -- the per-object print settings, in the
+ * Orca-family dialect.
+ *
+ * WHAT IT BUYS. The alpha reports were that nobody reads the README and nobody
+ * picks the infill, and gyroid on these parts is structural. Settings written
+ * here arrive without being read. See `hex-print-intent.ts` for what survives
+ * which load path and what was measured rather than assumed.
+ *
+ * `extruder` IS WRITTEN even though every plate is single-material, because it
+ * is the one key the slicer preserves across a geometry-only import while it
+ * discards the rest. Omitting it would leave the object with no extruder
+ * assignment on exactly the path where nothing else of ours survives.
+ *
+ * IDS MUST BE UNIQUE, and this is the one failure here that is not silent: a
+ * duplicated `<object id>` was MEASURED to abort the entire import with "The
+ * file does not contain any geometry data" -- no partial load, no warning, no
+ * file. They are unique by construction (`objectBySlug.size + 1`), and the guard
+ * is here because the consequence is total rather than because it is expected.
+ */
+function modelSettingsConfig(
+  objectBySlug: ReadonlyMap<string, { id: number; name: string }>,
+): string {
+  const seen = new Set<number>();
+  const blocks: string[] = [];
+  for (const [slug, obj] of objectBySlug) {
+    if (seen.has(obj.id)) {
+      throw new Error(
+        `two objects share id ${obj.id}; a duplicate id makes the slicer refuse the whole file`,
+      );
+    }
+    seen.add(obj.id);
+    const settings = intentFor(NEEDS_SUPPORT_SLUGS.has(slug));
+    const rows = [
+      ["name", obj.name],
+      ["extruder", "1"],
+      ...Object.entries(settings),
+    ];
+    blocks.push(
+      `  <object id="${obj.id}">\n` +
+        rows
+          .map(
+            ([k, v]) =>
+              `   <metadata key="${escapeXml(k)}" value="${escapeXml(v)}"/>\n`,
+          )
+          .join("") +
+        `  </object>`,
+    );
+  }
+  return (
+    `<?xml version="1.0" encoding="UTF-8"?>\n<config>\n` +
+    blocks.join("\n") +
+    `\n</config>\n`
+  );
+}
+
 export async function buildPlate3mf(
   placements: readonly Placement[],
   sources: ReadonlyMap<string, string>,
   meta: PlateMeta,
 ): Promise<Buffer> {
+  // Before anything is assembled. A value the slicer would silently rewrite is
+  // the one defect that ships looking correct, so it stops the build rather
+  // than producing a plate that opens clean and prints at grid infill.
+  assertPrintIntentIsSlicerLegal();
   const objectBySlug = new Map<string, { id: number; name: string }>();
   const objects: string[] = [];
   const items: string[] = [];
@@ -476,6 +550,14 @@ export async function buildPlate3mf(
   // orphan file that makes the package larger and shows nobody anything.
   zip.file("Metadata/", null, dir);
   zip.file(THUMBNAIL_PATH, plateThumbnail(placements, meta.bed), {
+    date: ZIP_EPOCH,
+  });
+  // The per-object print settings. Written LAST of the Metadata parts and with
+  // no relationship of its own: unlike the thumbnail this is not an OPC-related
+  // part, it is a vendor side-car found by path. Readers that do not know it --
+  // PrusaSlicer, Cura -- walk past it without complaint, which is what makes it
+  // safe to carry for everyone.
+  zip.file(MODEL_SETTINGS_PATH, modelSettingsConfig(objectBySlug), {
     date: ZIP_EPOCH,
   });
   return zip.generateAsync({
