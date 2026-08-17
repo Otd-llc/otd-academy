@@ -38,16 +38,29 @@
 // Three things are therefore true of everything below:
 //
 //   - NO CLOCK AND NO RANDOMNESS. PNG's optional `tIME` chunk is not written.
-//   - ONLY `+ - * /`, `Math.round`, `Math.floor`, `Math.min`, `Math.max`. Those
-//     are exactly specified by IEEE754 and by ECMA-262, so they give the same
-//     answer on every host. NO transcendental (`sin`, `pow`, `exp`): those are
-//     explicitly NOT required to be correctly rounded and are the one place a
-//     "floating-point path that varies by platform" actually lives.
+//   - ONLY `+ - * /`, `Math.round`, `Math.floor`, `Math.ceil`, `Math.min`,
+//     `Math.max`, and a numeric `Array.prototype.sort`. The five `Math`
+//     functions are exactly specified by ECMA-262 (`ceil` in the same clause as
+//     `floor`, as its mirror) and the arithmetic by IEEE 754, so they give the
+//     same answer on every host. NO transcendental (`sin`, `pow`, `exp`): those
+//     are explicitly NOT required to be correctly rounded and are the one place
+//     a "floating-point path that varies by platform" actually lives. `sort`
+//     with a subtractive comparator is a total order on the finite doubles this
+//     file produces, and V8's sort is stable, so ties do not move either.
 //   - THE DEFLATE OPTIONS ARE PINNED, not defaulted, so an upstream change to a
 //     default cannot silently change our bytes.
+//
+// WHY SILHOUETTES AND NOT RECTANGLES. Until 2026-08-16 every part was drawn as
+// its bounding box, so a hex tile, a carrier tray and a dovetail cap were three
+// rectangles differing only in aspect ratio: the picture said HOW MANY parts and
+// roughly where, and nothing about WHICH. The outlines come from
+// `hex-outlines.ts` and are true top-down shadows, so a hexagon is a hexagon,
+// a tray's dovetail tabs stand out where a tile's notches cut in, and a cap's
+// fastener holes are holes.
 import { constants, crc32, deflateSync } from "node:zlib";
 
 import type { Bed } from "@/lib/hex-pack";
+import { HEX_OUTLINE_SCALE, HEX_PART_OUTLINE } from "@/lib/hex-outlines";
 import type { Placement } from "@/lib/hex-plate";
 
 /** Where the image lives inside the 3MF package, and the relationship that
@@ -73,10 +86,10 @@ const MARGIN = 6;
 
 /** Five colours, in the house palette, and five is the whole design.
  *
- *  The image is flat rectangles, so an indexed PNG (colour type 3) stores one
- *  byte per pixel and deflate turns each run of identical bytes into almost
- *  nothing. A truecolour PNG of the same picture is three times the raw size for
- *  a picture that has five colours in it.
+ *  The image is flat colour, so an indexed PNG (colour type 3) stores one byte
+ *  per pixel and deflate turns each run of identical bytes into almost nothing.
+ *  A truecolour PNG of the same picture is three times the raw size for a
+ *  picture that has five colours in it.
  *
  *  Ordered so index 0 is the page: `Uint8Array` starts zeroed, so the background
  *  fill is free and is not a step anybody can forget. */
@@ -84,8 +97,8 @@ const PALETTE: readonly (readonly [number, number, number])[] = [
   [0x0b, 0x12, 0x1c], // 0 -- outside the bed
   [0x16, 0x20, 0x2e], // 1 -- the bed
   [0x33, 0x41, 0x5a], // 2 -- the bed edge
-  [0xc8, 0xa2, 0x4a], // 3 -- a part's footprint
-  [0xf0, 0xd8, 0x9b], // 4 -- that footprint's edge
+  [0xc8, 0xa2, 0x4a], // 3 -- a part
+  [0xf0, 0xd8, 0x9b], // 4 -- that part's edge
 ];
 
 const PAGE = 0;
@@ -93,6 +106,15 @@ const BED = 1;
 const BED_EDGE = 2;
 const PART = 3;
 const PART_EDGE = 4;
+
+/** Smallest part, in pixels on each axis, that gets a keyline drawn inside its
+ *  own outline.
+ *
+ *  The keyline costs a pixel all the way round, so below this it is not a
+ *  refinement -- it is most of the part. Five is the first size at which a
+ *  keylined part still has a 3 px core of its own family gold, which is the
+ *  thing the keyline exists to protect. */
+const KEYLINE_MIN_PX = 5;
 
 /** An 8-bit indexed canvas. Deliberately the simplest thing that can draw this:
  *  no state, no transform stack, and every write clipped, so nothing below has
@@ -132,6 +154,96 @@ class Canvas {
     this.fill(x, y, 1, h, colour);
     this.fill(x + w - 1, y, 1, h, colour);
   }
+}
+
+/**
+ * Which pixels of each row a part's outline covers, in image coordinates.
+ *
+ * A SCANLINE FILL, EVEN-ODD. The rings are closed loops in per-mille of the
+ * part's own footprint; this maps them into the rectangle the footprint landed
+ * in, then for each pixel row takes every crossing with every edge, sorts them,
+ * and keeps the odd-numbered intervals. Even-odd rather than nonzero because it
+ * needs no consistent winding: `hex-outlines.ts` traces holes and boundaries by
+ * the same walk and does not promise which way round either comes out, and a
+ * ring inside a ring is a hole under even-odd however it is wound.
+ *
+ * THE Y FLIP LIVES HERE, once. An outline's `y` is measured from the part's
+ * MINIMUM corner and grows away from the operator, exactly as `PartBox` does; an
+ * image's grows down. `y + h - v * h / SCALE` is that turn, and it is the only
+ * place in this file that knows about it.
+ *
+ * Returns one entry per row of the footprint, each a flat list of half-open
+ * `[from, to)` column pairs. Spans rather than a bitmap because the keyline pass
+ * needs to ask "is this column covered on the row above", and a handful of
+ * intervals answers that without allocating a second image per part.
+ */
+function outlineSpans(
+  rings: readonly (readonly number[])[],
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): number[][] {
+  // The rings in image space, computed once rather than per row.
+  const rx: number[][] = [];
+  const ry: number[][] = [];
+  for (const ring of rings) {
+    const a: number[] = [];
+    const b: number[] = [];
+    for (let i = 0; i < ring.length; i += 2) {
+      a.push(x + (ring[i] * w) / HEX_OUTLINE_SCALE);
+      b.push(y + h - (ring[i + 1] * h) / HEX_OUTLINE_SCALE);
+    }
+    rx.push(a);
+    ry.push(b);
+  }
+
+  const rows: number[][] = [];
+  for (let r = 0; r < h; r++) {
+    // The pixel CENTRE, so a shape decides a pixel by covering its middle. Any
+    // other convention makes a part one pixel bigger than its footprint on the
+    // side the rounding happened to favour.
+    const yc = y + r + 0.5;
+    const xs: number[] = [];
+    for (let k = 0; k < rx.length; k++) {
+      const a = rx[k];
+      const b = ry[k];
+      const n = a.length;
+      for (let i = 0, j = n - 1; i < n; j = i++) {
+        const y0 = b[j];
+        const y1 = b[i];
+        // Half-open in y, so a vertex shared by two edges is counted once and
+        // the crossing count stays even.
+        if ((y0 <= yc && y1 > yc) || (y1 <= yc && y0 > yc)) {
+          xs.push(a[j] + ((yc - y0) * (a[i] - a[j])) / (y1 - y0));
+        }
+      }
+    }
+    if (xs.length < 2) {
+      rows.push([]);
+      continue;
+    }
+    xs.sort((p, q) => p - q);
+    const spans: number[] = [];
+    for (let i = 0; i + 1 < xs.length; i += 2) {
+      const from = Math.ceil(xs[i] - 0.5);
+      const to = Math.ceil(xs[i + 1] - 0.5);
+      if (to > from) spans.push(from, to);
+    }
+    rows.push(spans);
+  }
+  return rows;
+}
+
+/** Is column `c` inside the part on row `r`? Rows off either end are outside,
+ *  which is what makes the top and bottom of a part get a keyline. */
+function covered(rows: number[][], r: number, c: number): boolean {
+  if (r < 0 || r >= rows.length) return false;
+  const spans = rows[r];
+  for (let i = 0; i < spans.length; i += 2) {
+    if (c >= spans[i] && c < spans[i + 1]) return true;
+  }
+  return false;
 }
 
 /** One PNG chunk: length, type, payload, CRC-32 of type+payload.
@@ -249,8 +361,60 @@ export function plateThumbnail(
     const x = ox + Math.round(p.x * scale);
     // The flip: the part's FAR edge in bed space is its TOP edge in image space.
     const y = oy + bh - Math.round(p.y * scale) - h;
-    canvas.fill(x, y, w, h, PART);
-    canvas.stroke(x, y, w, h, PART_EDGE);
+    const ink = PART;
+    const rings = HEX_PART_OUTLINE[p.slug];
+
+    // NO OUTLINE, OR AN OUTLINE TOO SMALL TO LAND ON A PIXEL, FALLS BACK TO THE
+    // FOOTPRINT. The first case is a placement whose slug is not ours; the
+    // second is real geometry on a very large bed -- at 1000 mm a spike is
+    // 6 x 2 px, and a shape can be thin enough to miss every pixel centre it
+    // passes. Drawing the box is the honest answer to both: it is where the part
+    // is, drawn as coarsely as the frame allows, rather than a part silently
+    // missing from a picture of the plate.
+    let rows: number[][] | null = null;
+    if (rings) {
+      rows = outlineSpans(rings, x, y, w, h);
+      let any = false;
+      for (const spans of rows) if (spans.length) any = true;
+      if (!any) rows = null;
+    }
+
+    if (!rows) {
+      canvas.fill(x, y, w, h, ink);
+      if (w >= KEYLINE_MIN_PX && h >= KEYLINE_MIN_PX) {
+        canvas.stroke(x, y, w, h, PART_EDGE);
+      }
+      continue;
+    }
+
+    for (let r = 0; r < h; r++) {
+      const spans = rows[r];
+      for (let i = 0; i < spans.length; i += 2) {
+        canvas.fill(spans[i], y + r, spans[i + 1] - spans[i], 1, ink);
+      }
+    }
+
+    // The one-pixel rule the boxes used to carry, now following the silhouette
+    // rather than a rectangle: it separates parts that round into each other on
+    // a large bed, and it gives every outline a crisp edge.
+    if (w < KEYLINE_MIN_PX || h < KEYLINE_MIN_PX) continue;
+    for (let r = 0; r < h; r++) {
+      const spans = rows[r];
+      for (let i = 0; i < spans.length; i += 2) {
+        const from = spans[i];
+        const to = spans[i + 1];
+        for (let c = from; c < to; c++) {
+          if (
+            c === from ||
+            c === to - 1 ||
+            !covered(rows, r - 1, c) ||
+            !covered(rows, r + 1, c)
+          ) {
+            canvas.fill(c, y + r, 1, 1, PART_EDGE);
+          }
+        }
+      }
+    }
   }
 
   return encodePng(canvas);

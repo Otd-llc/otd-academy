@@ -21,6 +21,17 @@ import { THUMBNAIL_REL_TYPE, plateThumbnail } from "@/lib/hex-thumbnail";
 
 const BED = { x: 220, y: 220 };
 
+/** The palette, as `sharp` reports it. Named rather than repeated as literals,
+ *  because half of these rows are about telling one of them from another. */
+const PAGE = "11,18,28";
+const BED_INK = "22,32,46";
+const BED_EDGE = "51,65,90";
+const PART = "200,162,74";
+const PART_EDGE = "240,216,155";
+
+/** Anything a part is drawn in: its fill and its one-pixel rule. */
+const PART_INKS = new Set([PART, PART_EDGE]);
+
 const box = (dx: number, dy: number) => ({
   x0: 0,
   y0: 0,
@@ -29,10 +40,24 @@ const box = (dx: number, dy: number) => ({
   dy,
   dz: 10,
 });
+/** A part with a slug the outline table has never heard of, so it falls back to
+ *  its bounding box. Kept that way on purpose: the
+ *  rows about placement, scale and clipping want a shape whose footprint is
+ *  exactly its drawn extent, and a silhouette is not. */
 const at = (x: number, y: number, dx = 40, dy = 30): Placement => ({
   slug: "a",
   name: "Part-A",
   box: box(dx, dy),
+  x,
+  y,
+});
+
+/** One real part, alone on the bed, at the size and position its own geometry
+ *  gives it. */
+const only = (slug: string, x = 8, y = 8): Placement => ({
+  slug,
+  name: HEX_PART_NAME[slug],
+  box: HEX_PART_BOX[slug],
   x,
   y,
 });
@@ -64,6 +89,33 @@ async function pixels(png: Buffer) {
       return [data[i], data[i + 1], data[i + 2]].join(",");
     },
   };
+}
+
+/** Where a single drawn part landed, found from the PICTURE rather than
+ *  recomputed from the module's own scale-and-round arithmetic -- which would
+ *  make every row below agree with the code it is testing by construction.
+ *
+ *  Taken over "not bed, not bed edge, not page", so a part's own one-pixel rule
+ *  counts as part of it -- otherwise the extent would be inset by a pixel and
+ *  every corner these rows look at would be the wrong one. */
+async function partBounds(png: Buffer) {
+  const p = await pixels(png);
+  let x0 = p.w;
+  let y0 = p.h;
+  let x1 = -1;
+  let y1 = -1;
+  // Only inside the bed: the page outside it is the same colour as a keyline.
+  for (let y = 1; y < p.h - 1; y++) {
+    for (let x = 1; x < p.w - 1; x++) {
+      const c = p.rgb(x, y);
+      if (c === BED_INK || c === BED_EDGE || c === PAGE) continue;
+      if (x < x0) x0 = x;
+      if (y < y0) y0 = y;
+      if (x > x1) x1 = x;
+      if (y > y1) y1 = y;
+    }
+  }
+  return { p, x0, y0, x1, y1 };
 }
 
 describe("it is a PNG, by somebody else's reckoning", () => {
@@ -145,7 +197,7 @@ describe("it is a picture of THIS plate", () => {
     // One part in the FRONT-LEFT corner of the bed must appear in the BOTTOM
     // half of the image, and nowhere near the top.
     const p = await pixels(plateThumbnail([at(4, 4)], BED));
-    const gold = "200,162,74";
+    const gold = PART;
     const goldRows = [];
     for (let y = 0; y < p.h; y++) {
       for (let x = 0; x < p.w; x++) {
@@ -178,7 +230,7 @@ describe("it is a picture of THIS plate", () => {
     const rows: number[] = [];
     for (let y = 0; y < p.h; y++) {
       for (let x = 0; x < p.w; x++) {
-        if (p.rgb(x, y) === "200,162,74") {
+        if (p.rgb(x, y) === PART) {
           rows.push(y);
           break;
         }
@@ -192,11 +244,14 @@ describe("it is a picture of THIS plate", () => {
     // The count of drawn pixels tracks what is on the bed. An encoder that drew
     // the bed and ignored the placements entirely passes every structural row
     // in this file and fails this one.
+    //
+    // Counted over EVERY part ink, fill and rule alike, because a silhouette's
+    // rule is a bigger share of a small part than a rectangle's was.
     const gold = async (ps: Placement[]) => {
       const p = await pixels(plateThumbnail(ps, BED));
       let n = 0;
       for (let y = 0; y < p.h; y++) {
-        for (let x = 0; x < p.w; x++) if (p.rgb(x, y) === "200,162,74") n++;
+        for (let x = 0; x < p.w; x++) if (PART_INKS.has(p.rgb(x, y))) n++;
       }
       return n;
     };
@@ -216,7 +271,7 @@ describe("it is a picture of THIS plate", () => {
       const p = await pixels(plateThumbnail([at(4, 4)], bed));
       let n = 0;
       for (let y = 0; y < p.h; y++) {
-        for (let x = 0; x < p.w; x++) if (p.rgb(x, y) === "200,162,74") n++;
+        for (let x = 0; x < p.w; x++) if (p.rgb(x, y) === PART) n++;
       }
       return n;
     };
@@ -249,13 +304,141 @@ describe("it is a picture of THIS plate", () => {
   });
 });
 
+describe("it draws the PART, not the part's bounding box", () => {
+  it("gives a hex tile no corners, and a rectangular cap four", async () => {
+    // THE ONE THAT MATTERS FOR THIS FEATURE. Every part used to be drawn as its
+    // footprint, so a hex tile, a carrier tray and a dovetail cap were three
+    // rectangles differing only in aspect ratio -- a picture that said how many
+    // parts and nothing about which.
+    //
+    // A hexagon's bounding box has four corners the hexagon does not reach. So:
+    // all four corners of the drawn extent are BED, and the middle is not.
+    const hex = await partBounds(plateThumbnail([only("hex-tb-main")], BED));
+    for (const [cx, cy] of [
+      [hex.x0, hex.y0],
+      [hex.x1, hex.y0],
+      [hex.x0, hex.y1],
+      [hex.x1, hex.y1],
+    ]) {
+      expect(hex.p.rgb(cx, cy), `corner ${cx},${cy}`).toBe(BED_INK);
+    }
+    const midX = Math.round((hex.x0 + hex.x1) / 2);
+    const midY = Math.round((hex.y0 + hex.y1) / 2);
+    expect(hex.p.rgb(midX, midY)).toBe(PART);
+
+    // CONTROL: a part that really IS a rectangle still fills its corners.
+    // Without this, "the corners are bed" is satisfied by a renderer that draws
+    // everything one size too small, or that lost the placements entirely.
+    const cap = await partBounds(
+      plateThumbnail([only("dovetail-cap-single-m-solid")], BED),
+    );
+    for (const [cx, cy] of [
+      [cap.x0, cap.y0],
+      [cap.x1, cap.y0],
+      [cap.x0, cap.y1],
+      [cap.x1, cap.y1],
+    ]) {
+      expect(cap.p.rgb(cx, cy), `corner ${cx},${cy}`).not.toBe(BED_INK);
+    }
+  });
+
+  it("draws a fastener hole as a hole", async () => {
+    // A solid cap and a 3H cap have the SAME outer boundary. Nothing but the
+    // holes tells them apart, which is exactly why a convex hull -- or any
+    // outer-ring-only representation -- would draw them identically.
+    const enclosedBed = async (slug: string) => {
+      const b = await partBounds(plateThumbnail([only(slug)], BED));
+      let n = 0;
+      for (let y = b.y0 + 1; y < b.y1; y++) {
+        for (let x = b.x0 + 1; x < b.x1; x++) {
+          if (b.p.rgb(x, y) === BED_INK) n++;
+        }
+      }
+      return n;
+    };
+    expect(await enclosedBed("dovetail-cap-double-f-3h")).toBeGreaterThan(0);
+    // CONTROL: its solid twin is the same rectangle with nothing punched out of
+    // it, so a renderer that simply leaves gaps everywhere fails here.
+    expect(await enclosedBed("dovetail-cap-double-f-solid")).toBe(0);
+  });
+
+  it("covers LESS of the footprint than a filled box would", async () => {
+    // The measurement behind the shape rows: a hex tile's shadow is about 72% of
+    // its bounding box, so a renderer that reverted to boxes would show ~100%
+    // here. Counted over the drawn extent found from the picture.
+    const b = await partBounds(plateThumbnail([only("hex-tb-main")], BED));
+    let drawn = 0;
+    for (let y = b.y0; y <= b.y1; y++) {
+      for (let x = b.x0; x <= b.x1; x++) {
+        if (b.p.rgb(x, y) !== BED_INK) drawn++;
+      }
+    }
+    const boxArea = (b.x1 - b.x0 + 1) * (b.y1 - b.y0 + 1);
+    expect(drawn / boxArea).toBeLessThan(0.85);
+    // And not a sliver: it is still most of the footprint.
+    expect(drawn / boxArea).toBeGreaterThan(0.55);
+  });
+
+  it("occupies EXACTLY the footprint the packer gave it", async () => {
+    // The silhouette is drawn INSIDE the rectangle the packer reserved, and it
+    // has to fill it: a shadow is exactly as wide and as deep as the part
+    // casting it, so a rendering that scaled the outline -- by dividing by the
+    // wrong constant, or by mixing per-mille with per-cent -- would draw every
+    // part concentrically small. That is invisible in isolation, because a
+    // smaller hexagon is still a hexagon.
+    //
+    // Measured against the SAME box drawn through the no-outline fallback, which
+    // fills its footprint by construction, rather than against a re-derivation
+    // of the module's own scale-and-round arithmetic. One pixel of slack because
+    // the silhouette meets its box at a vertex on some parts and along an edge
+    // on others, and the keyline eats a pixel differently in the two cases.
+    for (const slug of [
+      "dovetail-cap-single-m-solid",
+      "hex-tb-main",
+      "hex-tb-carrier-parts-tray",
+      "hex-tb-spike-solid",
+    ]) {
+      const real = only(slug, 8, 8);
+      const shape = await partBounds(plateThumbnail([real], BED));
+      const box = await partBounds(
+        plateThumbnail([{ ...real, slug: "not-a-published-slug" }], BED),
+      );
+      for (const side of ["x0", "y0", "x1", "y1"] as const) {
+        expect(Math.abs(shape[side] - box[side]), `${slug} ${side}`).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it("falls back to the footprint for a slug it does not know", async () => {
+    // The fallback is deliberate -- a `Placement` is a plain object and the
+    // packer will happily place one whose slug is not ours -- so it is pinned
+    // rather than left to be discovered. A part with no outline is drawn as a
+    // full rectangle.
+    const b = await partBounds(plateThumbnail([at(8, 8, 60, 45)], BED));
+    for (const [cx, cy] of [
+      [b.x0, b.y0],
+      [b.x1, b.y0],
+      [b.x0, b.y1],
+      [b.x1, b.y1],
+    ]) {
+      expect(b.p.rgb(cx, cy), `corner ${cx},${cy}`).not.toBe(BED_INK);
+    }
+    const midX = Math.round((b.x0 + b.x1) / 2);
+    const midY = Math.round((b.y0 + b.y1) / 2);
+    expect(b.p.rgb(midX, midY)).toBe(PART);
+  });
+});
+
 describe("it stays small", () => {
   it("is a few hundred bytes, not a few thousand", async () => {
     // The whole justification for not reaching for `next/og`: measured on this
     // same plate, satori + resvg produced 2,721 bytes in ~1,143 ms cold against
-    // 496 bytes in ~3 ms here. The bound is loose enough not to be a tripwire
-    // and tight enough to catch a change of format or a lost palette.
-    expect(plateThumbnail(REAL, BED).byteLength).toBeLessThan(2000);
+    // 496 bytes in ~3 ms here. Silhouettes cost roughly 2-3x the boxes they
+    // replaced -- the diagonals break the "this row repeats the last" matches
+    // deflate was living on -- so the bound moved from 2,000 to 3,000. Still
+    // loose enough not to be a tripwire and tight enough to catch a change of
+    // format or a lost palette.
+    expect(plateThumbnail(REAL, BED).byteLength).toBeLessThan(3000);
   });
 
   it("does not grow without bound with the part count", async () => {
