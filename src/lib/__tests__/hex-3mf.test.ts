@@ -17,6 +17,7 @@ import {
   buildPlate3mf,
   extractObjectBlock,
 } from "@/lib/hex-3mf";
+import { PRUSA_CONFIG_PATH } from "@/lib/hex-prusa-config";
 import { HEX_LICENSE } from "@/lib/hex-spec";
 import {
   HEX_PART_BOX,
@@ -563,10 +564,16 @@ describe("buildPlate3mf", () => {
     // in one respect worth writing down: it needs the `config` default in
     // `[Content_Types].xml` but NO relationship, because it is a vendor side-car
     // found by path rather than an OPC-related part.
+    //
+    // `Slic3r_PE_model.config` joined on the same terms and failed this row too.
+    // It needs NO new declaration at all: OPC declares content types by
+    // EXTENSION, and `config` was already defaulted for its Orca sibling. Two
+    // vendor side-cars, one extension, one declaration.
     const zip = await JSZip.loadAsync(await plate3mf([at("a", 4, 4)], SOURCES));
     const entries = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
     expect(entries.sort()).toEqual([
       "3D/3dmodel.model",
+      PRUSA_CONFIG_PATH,
       MODEL_SETTINGS_PATH,
       "Metadata/thumbnail.png",
       "[Content_Types].xml",
@@ -615,7 +622,7 @@ describe("buildPlate3mf", () => {
     expect(model).toContain("CC BY 4.0 -- One Thousand Drones, LLC");
   });
 
-  it("writes ONLY names the core spec defines, unqualified", async () => {
+  it("writes core metadata unqualified, and everything else namespaced", async () => {
     // THE GUARD THAT MAKES THE REST OF THIS BLOCK MEAN ANYTHING. The 3MF core
     // spec defines a CLOSED set of `<model>` metadata names and says that an
     // unqualified name outside it MUST instead be namespace-prefixed -- so a
@@ -634,14 +641,45 @@ describe("buildPlate3mf", () => {
       (m) => m[1],
     );
     expect(names.length).toBeGreaterThan(0);
+
+    // ONE RULE, BOTH HALVES. The spec's requirement is not "no prefixes" -- it is
+    // that a name outside the core set MUST carry one, declared on `<model>`.
+    // This row used to assert the first half only, which was sufficient while the
+    // document had nothing but `<model>` metadata. The Cura payload writes
+    // `cura:`-prefixed names on `<object>`, so asserting "no colons" would now
+    // reject a CONFORMING document and, worse, would have to be loosened to
+    // `not.toContain` nothing at all -- which is how a guard becomes decoration.
+    const modelTag = /<model\b[^>]*>/.exec(model)?.[0] ?? "";
     for (const name of names) {
-      expect(CORE_META as readonly string[], name).toContain(name);
-      // Unqualified: a colon would be a namespace prefix, and a prefix that is
-      // not declared on `<model>` is a different non-conformance again.
-      expect(name, name).not.toContain(":");
+      if (name.includes(":")) {
+        const prefix = name.slice(0, name.indexOf(":"));
+        // A prefix that is not declared on `<model>` is its own
+        // non-conformance, and `name` is typed `xs:QName` -- an unbound prefix
+        // is not a valid QName at all.
+        expect(modelTag, `xmlns:${prefix} must be declared on <model>`).toContain(
+          `xmlns:${prefix}=`,
+        );
+      } else {
+        // Unqualified, so it must be one of the closed core names. Held against
+        // the IMPORTED list, never a transcribed one -- a second copy would agree
+        // with itself forever while the real one drifted.
+        expect(CORE_META as readonly string[], name).toContain(name);
+      }
     }
-    // 3MF forbids duplicate metadata names on one element.
-    expect(new Set(names).size).toBe(names.length);
+
+    // 3MF forbids duplicate metadata names ON ONE ELEMENT, which is not the same
+    // as document-wide uniqueness: every object may carry its own
+    // `cura:infill_pattern`. Checked per element rather than globally, because
+    // the global version would fail on a legal plate the moment a second part
+    // needed the same setting.
+    const modelLevel = names.filter((n) => !n.startsWith("cura:"));
+    expect(new Set(modelLevel).size).toBe(modelLevel.length);
+    for (const block of model.matchAll(/<metadatagroup>([\s\S]*?)<\/metadatagroup>/g)) {
+      const inGroup = [...block[1].matchAll(/name="([^"]*)"/g)].map((m) => m[1]);
+      expect(new Set(inGroup).size, "duplicate name in one metadatagroup").toBe(
+        inGroup.length,
+      );
+    }
   });
 
   it("fills in every core field we can state truthfully", async () => {
@@ -773,6 +811,87 @@ describe("Metadata/model_settings.config", () => {
     expect(file, MODEL_SETTINGS_PATH).not.toBeNull();
     return file!.async("string");
   };
+
+  // ==========================================================================
+  // THE SUPPORT FAIL-SAFE
+  // ==========================================================================
+  // A mesh with a real facet on each side: triangle 0 faces DOWN, triangle 1
+  // faces UP. The order is deliberate -- the scan must SKIP the downward facet,
+  // so a painter that simply took the first triangle would paint the wrong one
+  // and this fixture is what notices. A downward painted facet is the one thing
+  // that would make the tripwire generate real support.
+  const TWO_SIDED = `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+ <resources>
+<object id="1" type="model">
+   <mesh>
+    <vertices>
+     <vertex x="0" y="0" z="0" /><vertex x="0" y="1" z="0" /><vertex x="1" y="0" z="0" />
+     <vertex x="0" y="0" z="1" /><vertex x="1" y="0" z="1" /><vertex x="0" y="1" z="1" />
+    </vertices>
+    <triangles>
+     <triangle v1="0" v2="1" v3="2" />
+     <triangle v1="3" v2="4" v3="5" />
+    </triangles>
+   </mesh>
+</object>
+ </resources>
+ <build>
+  <item objectid="1" transform="1 0 0 0 1 0 0 0 1 0 0 0" />
+ </build>
+</model>
+`;
+
+  /** REAL slugs, because the painter keys off `PART_REMEDY` -- the list the
+   *  SLICER produced. A fabricated slug would exercise the `?? false` fallback
+   *  rather than the decision the feature turns on. */
+  const PAINT_SOURCES = new Map([
+    ["hex-tb-spike-solid", TWO_SIDED],
+    ["hex-tb-spike-platform-lrg", TWO_SIDED],
+  ]);
+
+  it("paints ONE upward facet on a part the slicer said needs support", async () => {
+    // `File > Import` calls `config.reset()`, so a support part arrives with
+    // support off and nothing warns. A painted facet lives on
+    // `supported_facets` -- mesh data the reset never touches -- so it survives
+    // that path and makes the slicer raise "Support enforcers are used but
+    // support is not enabled".
+    //
+    // MEASURED in Creality Print 7.2.1, 2026-08-18, two controlled pairs: the
+    // painted file fires the modal AND still fires after Import, while its
+    // unpainted twin is silent; and with support ON the painted file slices
+    // IDENTICALLY to the unpainted one, so the paint costs the print nothing.
+    const model = await modelOf(
+      await plate3mf([at("hex-tb-spike-solid", 4, 4)], PAINT_SOURCES),
+    );
+    // EXACTLY ONE. Probe 5 painted all 420 facets of a cap, and a fully painted
+    // part generates real support -- the opposite of free.
+    expect(model.match(/paint_supports="4"/g)).toHaveLength(1);
+  });
+
+  it("paints the UPWARD facet, not merely the first one", async () => {
+    // The whole cost argument is that only DOWNWARD-facing painted area
+    // projects into the enforcer layers. Paint triangle 0 here and the tripwire
+    // starts generating support, silently, on every support part we ship.
+    const model = await modelOf(
+      await plate3mf([at("hex-tb-spike-solid", 4, 4)], PAINT_SOURCES),
+    );
+    expect(model).toContain(
+      '<triangle paint_supports="4" v1="3" v2="4" v3="5"',
+    );
+    expect(model).not.toMatch(/<triangle paint_supports="4" v1="0"/);
+  });
+
+  it("paints NOTHING on a part the slicer left alone", async () => {
+    // A tripwire on a part needing no support would fire the modal for a plate
+    // that is already correct -- a false alarm that trains people to switch
+    // support on globally, which is wrong for the 28 parts measured not to
+    // need it.
+    const model = await modelOf(
+      await plate3mf([at("hex-tb-spike-platform-lrg", 4, 4)], PAINT_SOURCES),
+    );
+    expect(model).not.toContain("paint_supports");
+  });
 
   it("gives every part the infill the parts are structurally chosen for", async () => {
     // Gyroid is a torsion requirement here, not a preference. If this stops

@@ -1,30 +1,52 @@
 // The same print intent, in PrusaSlicer's dialect.
 //
 // ===========================================================================
-// BUILT AND UNIT-TESTED. NOT WIRED IN, AND NOT PROVEN ON A REAL SLICER.
+// VERIFIED ON PRUSASLICER 2.9.6 AND CREALITY PRINT 7.2.1, 2026-08-18. WIRED IN.
 // ===========================================================================
-// Nothing calls `prusaModelConfig` yet. That is deliberate and it is the whole
-// disposition of this file: every byte below was derived from PrusaSlicer's own
-// source rather than from documentation, which makes it *specified* rather than
-// *verified*, and this project has been wrong about slicer behaviour twice
-// while feeling equally certain. See `hex-spike-support-facts` for both.
+// `prusa-slicer-console.exe` adjudicated this without a GUI, via
+// `scripts/hex-prusa-probe.ts`. Three files, one job each:
 //
-// WHAT SHIPPING IT BLIND WOULD COST. Today a PrusaSlicer user opens one of our
-// plates and gets geometry with no settings -- the Orca payload lives in
-// `Metadata/`, which PrusaSlicer never reads for us. That is a mild loss. If the
-// file below is malformed, they instead get a REFUSED IMPORT, because the reader
-// fails closed on exactly the two mistakes easiest to make here (see the traps).
-// So the downside of getting it wrong is worse than the upside of getting it
-// right, until someone opens one in PrusaSlicer and looks.
+//   CONTROL FIRST. `prusa-C-dupid-EXPECT-FAIL.3mf` was REFUSED:
+//     [error] Found duplicated object id
+//     [error] Error (parsing aborted) while parsing xml file at line 38
+//     [error] Archive does not contain a valid model config
+//     Loading of a model file failed.   (exit 1)
+//   So PrusaSlicer reads, parses AND VALIDATES this file. Without that, a clean
+//   load proves nothing -- it cannot be told from the file never being opened.
 //
-// Adding the file is already known safe for the CURRENT audience: a plate
-// carrying `model_settings.config` AND `Slic3r_PE_model.config` was MEASURED to
-// load in Creality Print 7.2.1 with the Orca settings applied. What is unproven
-// is only whether PrusaSlicer accepts OUR spelling of its own format.
+//   GEOMETRY SURVIVES A CONFIG BLOCK. `prusa-A-plate.3mf` loaded exit 0 with all
+//   five objects. P1 (WITH a config block, range 0..419) reported 420 facets --
+//   identical to P2, the same mesh with NO block. The trap in trap 0 is real but
+//   is fully answered by writing the range.
 //
-// TO SHIP IT: build one plate, open it in PrusaSlicer, confirm the object's
-// per-object overrides show the values, then call this from `buildPlate3mf`
-// beside `modelSettingsConfig` and add the entry to the archive.
+//   THE RANGE IS EXACT, AND AN OFF-BY-ONE IS VISIBLE:
+//     Q1 lastid 419 -> 420 facets, manifold yes
+//     Q2 lastid 209 -> 210 facets, manifold NO   (half a cap)
+//     Q3 lastid 418 -> 419 facets, manifold NO   (short by one, detectable)
+//   `lastid` is INCLUSIVE and off-by-one errors do not hide.
+//
+//   PER-OBJECT SETTINGS APPLY. Read back from PrusaSlicer's OWN re-emitted file
+//   (`--export-3mf`), which is stronger than any screenshot: brim on exactly
+//   {P3, P5}, support on exactly {P4, P5}, the infill trio on all four
+//   configured objects, none of it on P2. No global profile can produce that
+//   pattern. All eight keys retained, names intact, and `fill_density = 30%`
+//   round-tripped -- so the `%` really is required (a bare "30" becomes 3000%).
+//
+// THE CREALITY REGRESSION IS CLOSED TOO. The evidence once cited here -- "a
+// plate carrying both configs loaded fine in Creality Print 7.2.1" -- was
+// `probe-6-dualconfig.3mf`, whose Prusa config has NO `<volume>` element: the
+// very element this module emits. That measurement did not cover the file we
+// ship, and Creality Print is closed source with no CLI, so it took a human.
+// `prusa-A-plate.3mf` opened in Creality Print 7.2.1 with all five objects,
+// names intact, geometry intact and the Orca settings still applied (owner,
+// 2026-08-18). Adding the second side-car costs the majority audience nothing.
+//
+// WIRED IN at the archive assembly in `hex-3mf.ts`. `placed` carries
+// `triangleCount` -- counted from the EMITTED block, never the source, because
+// `lastid` describes triangles in the file we write -- plus the `PART_REMEDY`
+// flags, looked up ONCE so the two dialects cannot disagree about which parts
+// need support. Rollback is deleting one `zip.file(...)` line, which returns the
+// archive byte-identical.
 //
 // ---------------------------------------------------------------------------
 // VERIFIED AGAINST SOURCE, 2026-08-18 (prusa3d/PrusaSlicer, master)

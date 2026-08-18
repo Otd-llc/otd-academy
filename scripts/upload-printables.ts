@@ -480,10 +480,26 @@ function setReadme(
     //
     // CONSEQUENCE: editing `PRINT_INTENT_TABLE` makes every ALREADY-PUBLISHED
     // release's README disagree with every newly generated plate, silently, and
-    // nothing anywhere compares an R2 object against the running code. Changing
-    // those numbers therefore costs a new release segment -- or an accepted,
-    // written-down decision that the old releases now state the old advice.
-    // It is not free, and before the derivation it did not exist at all.
+    // nothing anywhere compares an R2 object against the running code.
+    //
+    // ==================================================================
+    // DECIDED, 2026-08-18 (owner): A RELEASE BUMP IS **NOT** REQUIRED.
+    // ==================================================================
+    // Pre-V1. No users, no configs in the wild -- so there is nobody holding a
+    // published release whose README could contradict what they download today.
+    // Editing the table is free RIGHT NOW, and re-cutting 161 objects to correct
+    // a sentence would be ceremony rather than care.
+    //
+    // WHAT ENDS THIS, and it is not a date. The moment a published release is in
+    // someone's hands -- the first real download of a release segment we do not
+    // control, the first saved build whose sheet cites one, V1 -- the trade
+    // inverts: an immutable README is then a promise made to a person, and the
+    // only ways to keep it are a new segment or an explicit correction. Whoever
+    // notices that has happened owns re-opening this comment.
+    //
+    // Recorded rather than deleted on purpose. A warning that is simply removed
+    // reads later as an oversight nobody weighed; this one was weighed, and the
+    // condition it was weighed under is written down beside it.
     ...HEX_PRINT_PARAMS.map(
       (p) =>
         `  ${p.label}: ${ascii(p.value)}${p.aside ? ` (${ascii(p.aside)})` : ""}`,
