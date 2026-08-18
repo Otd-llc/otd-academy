@@ -250,11 +250,15 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
     // far more than intended, and more aggressive than Cura's own default of
     // 50. That is a wrong print, not a missing setting.
     //
-    // The complement is easy arithmetic and is STILL not carried, because it
-    // would be a derived number asserted into a slicer nobody here has
-    // opened. `support_enable` alone leaves Cura on its own recommended 50,
-    // which is close to the 60 we would have asked for. Omission is the
-    // honest option until someone opens Cura.
+    // The complement is easy arithmetic and is STILL not carried, and the reason
+    // has changed now that Cura HAS been opened (2026-08-18): it is no longer
+    // "unverifiable", it is "unnecessary and in the safe direction".
+    // `support_enable` alone leaves Cura on its default 50, and because Cura's
+    // scale is inverted a LOWER number means MORE support -- so 50 is more
+    // conservative than the 60 our intent translates to. A Cura user gets
+    // slightly more support than strictly needed, never less. Carrying 60 would
+    // be a marginal saving in material bought with a derived number in a third
+    // dialect, which is not a trade this table makes.
     cura: null,
     label: "support threshold",
     display: "30 deg from horizontal",

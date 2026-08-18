@@ -58,20 +58,33 @@
 // having to dig out.
 //
 // ---------------------------------------------------------------------------
-// NOT YET OPENED IN CURA
+// MEASURED IN CURA, 2026-08-18 (owner, via `scripts/hex-cura-probe.ts`)
 // ---------------------------------------------------------------------------
-// Cura is not installed on this machine, so "Cura applies these" is a source
-// reading. The asymmetry is what makes shipping it defensible anyway: a Cura user
-// today gets geometry with NO settings, so the downside of a wrong key is that
-// they keep getting nothing, while the downside of a wrong VALUE would be a wrong
-// print — which is why `support_angle`, the one key whose number does not
-// transfer, is omitted rather than translated. See its row in
-// `PRINT_INTENT_TABLE`.
+// Every claim above stopped being a source reading:
 //
-// What DOES still need a human is the regression: `prusa-A-plate.3mf` opened in
-// Creality Print 7.2.1 proved the Prusa side-car costs the majority audience
-// nothing, and this block needs the same one open, because it is in a different
-// file.
+//   - Object names correct.
+//   - Per-object overrides listed on the two CONFIGURED objects and NONE on the
+//     control, whose `<metadatagroup>` was stripped after the writer ran. That
+//     control is what separates "our file set this" from "the profile is set
+//     that way"; without it the whole probe proves nothing.
+//   - `Generate Support` on the support part ONLY. A profile applies to the
+//     whole plate, so a per-object difference cannot come from one.
+//   - `Infill Density` reads 30. That was the one value that could be WRONG
+//     rather than merely absent -- Cura types it as a float, and a bare "30" is
+//     what it wants where Orca needs "30%" and Prusa multiplies a bare 30 into
+//     3000%. Confirmed as 30, not 3000 or 0.3.
+//   - Layer view visibly denser and thicker-walled than the control.
+//
+// And the regression the Prusa side-car needed is settled for this one too:
+// Creality Print 7.2.1 opened a plate carrying all three payloads with names,
+// geometry and Orca settings intact, and PrusaSlicer 2.9.6 loaded the same file
+// at exit 0 with its own per-object settings still applied on read-back.
+//
+// ONE BEHAVIOUR WORTH KNOWING: Cura drops the imported scene to the FRONT LEFT
+// rather than centring it the way Creality Print does. Harmless -- the layout was
+// never a promise -- but the plated README now names both behaviours, because a
+// reader whose slicer did something the README did not describe would reasonably
+// conclude the file was wrong.
 import { PRINT_INTENT_TABLE, type PrintIntentRow } from "@/lib/hex-print-intent";
 import { escapeXml } from "@/lib/hex-xml";
 
