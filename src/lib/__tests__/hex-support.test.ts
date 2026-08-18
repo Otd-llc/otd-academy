@@ -65,13 +65,14 @@ describe("the support set", () => {
     // missing for a fortnight because the old facet-normal metric scored curved
     // contacts at zero; if a future re-cut changes a footprint, this row is
     // where the list and the meshes stop agreeing.
+    // The list was SEVEN on the 08-03 cut and is three on 08-17. The four that
+    // left did so by being re-oriented, not re-judged: the corners went from
+    // 19.58 to 416.8 and 655.3 sq mm, the ball platform and zip-1H from 11.56 to
+    // 1623.8. The right fix for a part resting on almost nothing is the pose,
+    // not the profile, and this list is what to do when there is no better pose.
     expect([...NEEDS_SUPPORT_SLUGS].sort()).toEqual(
       [
-        "hex-tb-corner-f-solid",
-        "hex-tb-corner-m-solid",
         "hex-tb-spike-ball-joint",
-        "hex-tb-spike-ball-platform-solid",
-        "hex-tb-spike-ball-zip-1h",
         "hex-tb-spike-ball-zip-single",
         "hex-tb-spike-solid",
       ].sort(),

@@ -35,7 +35,35 @@
  *  exporter applied one X rotation to the whole cap family, which is correct for
  *  the male half and inverts the female one), and its README named PLA. Both are
  *  fixed here. */
-export const HEX_RELEASE = "2026-08-03";
+/** 2026-08-17 re-cuts the meshes again. What it changes, all of it orientation:
+ *
+ *  THE CAP FIX ABOVE ONLY FIXED HALF THE CAPS. 08-03's note says the twelve
+ *  FEMALE caps had exported upside down and were corrected. Measured on 08-03's
+ *  own meshes -- flat area at the extreme low against the extreme high, which is
+ *  a test holes cannot invert -- the females are indeed outward-face-down and
+ *  the six MALE variants are outward-face-up. The exporter mirrored the ROTATION
+ *  to match a mirrored part, and mirroring a rotation on an already-mirrored
+ *  part points the two outward faces in opposite directions. That is also the
+ *  "why do they alternate in the slicer?" the owner spotted. Both families now
+ *  carry the same entry, which is the fix stated as an assertion that they do
+ *  not differ.
+ *
+ *  FOUR PARTS WERE RESTING ON ALMOST NOTHING. Measured as a real first-layer
+ *  cross-section rather than by summing downward-facing facets (which reports
+ *  ZERO on a curved contact, and did): the two corners stood 30 mm tall on
+ *  19.58 sq mm, and the ball platform and zip-1H on 11.56. Re-oriented they
+ *  measure 416.8, 655.3 and 1623.8 sq mm. The corners rest on a HEX FLANK, a
+ *  pose no axis-aligned search can find, because a wedge's best face is not
+ *  perpendicular to any axis -- cluster the mesh by face normal instead.
+ *
+ *  Ten further parts (ball platforms, carrier solids, parts trays) were turned
+ *  onto their largest face. `Hex-TB-Spike-Ball-Zip-Single` was left alone at
+ *  6.74 sq mm: every candidate pose was swept and the best alternative is 13.40
+ *  sq mm at 17.3 mm tall, a worse aspect than 6.74 at 11.6. It keeps its brim.
+ *  Do not move a part without somewhere better to move it to.
+ *
+ *  NO GEOMETRY CHANGED. Owner constraint: the models are what they are. */
+export const HEX_RELEASE = "2026-08-17";
 
 /** The configurator (a separate deploy). Also the URL printed in the release
  *  README and on every build sheet. */

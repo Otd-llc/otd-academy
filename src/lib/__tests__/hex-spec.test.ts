@@ -118,7 +118,12 @@ describe("licence", () => {
 
 describe("release + configurator constants", () => {
   it("match what upload-printables.ts stamps and the sheet prints", () => {
-    expect(HEX_RELEASE).toBe("2026-08-03");
+    // A LITERAL, deliberately. The release string is a live R2 path prefix, and
+    // release keys are immutable -- bumping it without uploading that cut points
+    // every download at objects that do not exist. Pinning it here means the
+    // bump is always a conscious edit rather than a constant drifting under the
+    // uploader.
+    expect(HEX_RELEASE).toBe("2026-08-17");
     expect(HEX_CONFIGURATOR_URL).toBe("https://demo.onethousanddrones.com/hex");
   });
 });

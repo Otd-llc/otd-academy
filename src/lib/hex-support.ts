@@ -41,22 +41,32 @@
 // about 1 mm2. A measurement that reads clean on the worst parts in the set is
 // worse than none, and it is why five parts sat unflagged for a fortnight.
 //
-// Measured first layer, published release 2026-08-03, worst first:
+// Measured first layer, release 2026-08-17, worst first:
 //
 //     0.10 mm2   Hex-TB-Spike-Solid                 (7.8 mm tall)
 //     0.33 mm2   Hex-TB-Spike-Ball-Joint            (7.8)
 //     6.74 mm2   Hex-TB-Spike-Ball-Zip-Single       (11.6)
-//    11.56 mm2   Hex-TB-Spike-Ball-Platform-Solid   (7.5)
-//    11.56 mm2   Hex-TB-Spike-Ball-Zip-1H           (7.5)
-//    19.58 mm2   Hex-TB-Corner-F-Solid              (30.0)
-//    19.58 mm2   Hex-TB-Corner-M-Solid              (30.0)
 //    -------- 25 mm2 threshold ------------------------------------
 //    39.17 mm2   the twelve Hex-TB-Half-* parts     (35.0)
 //   111.45 mm2   Hex-TB-Main                        (33.0)
 //
 // THE THRESHOLD IS 25 mm2 AND THE GAP BELOW IT IS THE ARGUMENT. Nothing sits
-// between 19.58 and 39.17, so the line is drawn through empty space rather than
+// between 6.74 and 39.17, so the line is drawn through empty space rather than
 // through a judgement call about a part near the edge.
+//
+// FOUR PARTS LEFT THIS LIST BY BEING RE-ORIENTED, not by being re-judged. On the
+// 08-03 cut they measured 19.58, 19.58, 11.56 and 11.56 sq mm and were listed
+// here so the file could compensate with a brim. Re-cut for 08-17 they measure:
+//
+//    Hex-TB-Corner-M-Solid              19.58  ->   416.8 mm2
+//    Hex-TB-Corner-F-Solid              19.58  ->   655.3
+//    Hex-TB-Spike-Ball-Platform-Solid   11.56  ->  1623.8
+//    Hex-TB-Spike-Ball-Zip-1H           11.56  ->  1623.8
+//
+// A brim on any of them now would be waste, so the rows are gone. THE RIGHT FIX
+// FOR A PART RESTING ON ALMOST NOTHING IS THE POSE, NOT THE PROFILE; this list
+// is what to do when there is no better pose, which is the case for the three
+// that remain.
 //
 // THE TWELVE HALVES ARE DELIBERATELY LEFT OUT. 39 mm2 under a 35 mm part is thin
 // and it is not an oversight: `tools/check_orientation.py` in the hex-cluster
@@ -65,13 +75,10 @@
 // are the designer's call, and a list that overrode it would be this file
 // deciding orientation, which is not its job.
 //
-// THE TWO CORNERS ARE HERE UNDER PROTEST, and the entry should be temporary.
-// 19.58 mm2 under a 30 mm part is not a pose anyone would choose; it is the
-// CAD pose surviving into the export because no rule was written for it. A
-// re-orientation onto the hex flank measures 407.9 and 649.0 mm2, which is the
-// actual fix. Until that ships as a new release, the file compensates for the
-// orientation with a brim -- so when it does ship, DELETE these two rows rather
-// than leaving them to put brims on parts that no longer need them.
+// THE ONE THAT STAYED AND WHY. `Hex-TB-Spike-Ball-Zip-Single` is 6.74 sq mm and
+// was NOT re-oriented, which looks like an omission and is not: every candidate
+// pose was swept and the best alternative is 13.40 sq mm standing 17.3 mm tall,
+// a worse aspect than 6.74 at 11.6. There is no better face, so it keeps a brim.
 
 /**
  * ONE ROW PER PART, carrying both spellings and the sentence that belongs to it.
@@ -109,38 +116,6 @@ const NEEDS_SUPPORT = [
     note:
       "stands on about 7 sq mm and is 11.6 mm tall. That is enough to print " +
       "and not enough to survive being nudged, so give it a brim.",
-  },
-  {
-    name: "Hex-TB-Spike-Ball-Platform-Solid",
-    slug: "hex-tb-spike-ball-platform-solid",
-    note:
-      "about 12 sq mm of first layer under a part with a lot of overhang " +
-      "above it. Brim, and leave supports on.",
-  },
-  {
-    name: "Hex-TB-Spike-Ball-Zip-1H",
-    slug: "hex-tb-spike-ball-zip-1h",
-    note:
-      "about 12 sq mm of first layer under a part with a lot of overhang " +
-      "above it. Brim, and leave supports on.",
-  },
-  {
-    name: "Hex-TB-Corner-F-Solid",
-    slug: "hex-tb-corner-f-solid",
-    note:
-      "stands 30 mm tall on about 20 sq mm, which is a tall part on a small " +
-      "foot. Print it with a brim. This is a property of the current cut " +
-      "rather than of the part, and a re-orientation onto its hex flank would " +
-      "give it 649 sq mm instead.",
-  },
-  {
-    name: "Hex-TB-Corner-M-Solid",
-    slug: "hex-tb-corner-m-solid",
-    note:
-      "stands 30 mm tall on about 20 sq mm, which is a tall part on a small " +
-      "foot. Print it with a brim. This is a property of the current cut " +
-      "rather than of the part, and a re-orientation onto its hex flank would " +
-      "give it 408 sq mm instead.",
   },
 ] as const;
 
