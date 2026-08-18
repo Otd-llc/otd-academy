@@ -288,7 +288,7 @@ export default function HexPage() {
             <Heading>Licence</Heading>
             <p className="mt-4 font-serif text-base leading-relaxed text-text">
               {HEX_LICENSE.name}. Use it commercially, remix it, sell what you
-              print. Keep the credit.
+              print. Just credit us, like this:
             </p>
             <p className="mt-4 border-y border-command-gold/40 py-3 font-mono text-[11px] leading-relaxed text-title">
               {HEX_LICENSE.credit}
