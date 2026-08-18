@@ -1,6 +1,6 @@
 // Does every part the slicer flagged actually receive its support tripwire?
 //
-// Run:  pnpm tsx scripts/hex-paint-check.ts
+// Run:  pnpm hex:check      (or `pnpm hex:recut` to regenerate + check)
 //
 // WHY THIS IS A SCRIPT AND NOT A UNIT TEST. The check has to run against the
 // REAL published meshes, which live outside this repo (`../hex-cluster/build`).
@@ -10,10 +10,13 @@
 // none, which is the right call at request time (a missing tripwire must not
 // cost someone their download) and exactly why it needs a loud check somewhere.
 //
-// RUN IT AFTER ANY RE-CUT, beside the calibration plate. A re-orientation
-// changes which facets face up, and the whole cost argument rests on the
-// painted facet facing up: a DOWNWARD painted facet generates real support,
-// silently, on every plate carrying that part.
+// CHAINED TO THE REGENERATION, not left as a ritual. `pnpm hex:recut` runs
+// `hex:geometry` then this, in that order and as separate processes -- separate
+// because this imports the table the generator has just rewritten, and one
+// process would check the stale one. A re-orientation changes which facets face
+// up, and the whole cost argument rests on the painted facet facing up: a
+// DOWNWARD painted facet generates real support, silently, on every plate
+// carrying that part. That is not something to remember to check.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 

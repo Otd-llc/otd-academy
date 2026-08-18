@@ -486,12 +486,14 @@ function upwardFacetIndex(model: string): number {
  *
  * THE SILENCE IS COVERED ELSEWHERE, and not by the unit suite -- a fixture
  * cannot tell you a re-oriented part still has an upward facet. Run
- * `pnpm tsx scripts/hex-paint-check.ts`: it walks every part on the support
+ * `pnpm hex:check`, or `pnpm hex:recut` which chains it onto the table
+ * regeneration so a re-cut cannot land without it: it walks every part on the support
  * list against the REAL published meshes, recomputes the painted facet's normal
  * from the emitted bytes, and exits non-zero if any part paints nothing, paints
  * more than once, or paints something not facing up. 27 parts, all passing at
- * normal.z 0.999-1.000 on release 2026-08-17. RUN IT AFTER ANY RE-CUT, beside
- * the calibration plate, because a re-orientation changes which facets face up.
+ * normal.z 0.999-1.000 on release 2026-08-17. A re-orientation changes which
+ * facets face up, which is why the check is CHAINED to the regeneration rather
+ * than written down as something to remember.
  */
 function paintOneFacet(block: string): string {
   // NO CACHE. This memoised the index by SLUG, which is wrong the moment one
