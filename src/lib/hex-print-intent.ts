@@ -99,6 +99,22 @@ export type PrintIntentRow = {
   display: string;
   /** Which objects carry it -- and whether a reader sees it at all. */
   scope: "every" | "support" | "brim";
+  /**
+   * The same intent in PrusaSlicer's dialect, or `null` for "deliberately not
+   * carried".
+   *
+   * A SECOND KEY AND A SECOND VALUE, not just a rename, because the two forks
+   * disagree about more than spelling. Orca says "support is on" with
+   * `enable_support` plus a `support_type` naming an algorithm; PrusaSlicer
+   * splits the same idea across two booleans, and setting only the first gives
+   * you support ONLY where an enforcer says so -- which is off, for our
+   * purposes, while looking on.
+   *
+   * On the row rather than in a lookup table beside it, for the reason this
+   * whole module exists: a parallel map is a second place to edit and the one
+   * nobody remembers.
+   */
+  prusa: { key: string; value: string } | null;
 };
 
 export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
@@ -114,6 +130,7 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
   {
     key: "sparse_infill_pattern",
     value: "gyroid",
+    prusa: { key: "fill_pattern", value: "gyroid" },
     label: "infill",
     display: "gyroid",
     scope: "every",
@@ -121,6 +138,7 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
   {
     key: "sparse_infill_density",
     value: "30%",
+    prusa: { key: "fill_density", value: "30%" },
     label: "density",
     display: "30%",
     scope: "every",
@@ -133,6 +151,7 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
     // one fact with two values, a step less obvious.
     key: "wall_loops",
     value: "4",
+    prusa: { key: "perimeters", value: "4" },
     label: "perimeters",
     display: "4",
     scope: "every",
@@ -153,6 +172,7 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
   {
     key: "enable_support",
     value: "1",
+    prusa: { key: "support_material", value: "1" },
     label: "support",
     display: "on",
     scope: "support",
@@ -160,6 +180,12 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
   {
     key: "support_type",
     value: "normal(auto)",
+    // NOT A RENAME. PrusaSlicer has no `support_type` naming an algorithm; it
+    // splits the idea in two, and `support_material=1` ALONE means "support
+    // only where an enforcer says so" -- off, for our purposes, while reading as
+    // on. `support_material_auto=1` is the half that means "and find the
+    // overhangs yourself", which is what `normal(auto)` says over here.
+    prusa: { key: "support_material_auto", value: "1" },
     label: "support type",
     display: "normal, automatic",
     scope: "support",
@@ -167,6 +193,15 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
   {
     key: "support_threshold_angle",
     value: "30",
+    // SAME NUMBER, SAME DIRECTION, DIFFERENT DEFAULT. Both are measured from
+    // horizontal and both mean "support what lies within this angle of it", so
+    // 30 carries across unchanged. What does NOT carry across is the default:
+    // Orca ships 30, PrusaSlicer ships 0, and 0 there means "automatic
+    // detection (recommended)" rather than "never". So writing 30 into a Prusa
+    // file is an OVERRIDE of its recommended behaviour, not agreement with it.
+    // Stated anyway, and for the reason above: every overhang figure this
+    // project has measured was scored against 30.
+    prusa: { key: "support_material_threshold", value: "30" },
     label: "support threshold",
     display: "30 deg from horizontal",
     scope: "support",
@@ -193,6 +228,7 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
   {
     key: "brim_type",
     value: "outer_only",
+    prusa: { key: "brim_type", value: "outer_only" },
     label: "brim",
     display: "outer only",
     scope: "brim",
@@ -200,6 +236,7 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
   {
     key: "brim_width",
     value: "5",
+    prusa: { key: "brim_width", value: "5" },
     label: "brim width",
     display: "5 mm",
     scope: "brim",

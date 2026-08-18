@@ -42,6 +42,10 @@ const OK: PrintIntentRow = {
   label: "perimeters",
   display: "4",
   scope: "every",
+  // REQUIRED, with no default, so a new setting has to SAY whether it crosses
+  // the fork to PrusaSlicer. Inheriting null silently would be a setting the
+  // card promises and the Prusa file omits.
+  prusa: { key: "perimeters", value: "4" },
 };
 
 const rowsFor = (scope: PrintIntentRow["scope"]) =>

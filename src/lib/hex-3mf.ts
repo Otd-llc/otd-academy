@@ -156,8 +156,14 @@ export const ZIP_EPOCH = new Date(Date.UTC(1980, 0, 1));
  *  No published name needs any of this -- today they are all `[A-Za-z0-9-]` --
  *  but they are FILENAMES from an exporter rather than a constrained slug, so
  *  the next re-cut is free to produce one that does. The title and the credit
- *  are prose and need it already. */
-function escapeXml(s: string): string {
+ *  are prose and need it already.
+ *
+ *  EXPORTED for `hex-prusa-config.ts`, which writes a second per-object config
+ *  in PrusaSlicer's dialect and needs the identical escaping -- including the
+ *  quote, since both dialects carry their values in XML ATTRIBUTES. A second
+ *  escaper beside this one would be a second ampersand-ordering argument to get
+ *  right, and only one of the two would have this comment. */
+export function escapeXml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
