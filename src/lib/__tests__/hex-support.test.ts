@@ -66,6 +66,12 @@ describe("the support set", () => {
     // missing for a fortnight because the old facet-normal metric scored curved
     // contacts at zero; if a future re-cut changes a footprint, this row is
     // where the list and the meshes stop agreeing.
+    // COLLECTED FROM THE SLICER, not derived. A calibration plate carrying all
+    // 53 parts with no settings was opened in Creality Print and its warnings
+    // written down; 24 parts asked for support. This row is where that reading
+    // lives, so a re-cut that changes a pose and forgets to re-run the sweep
+    // fails here rather than in someone's print.
+    //
     // TWO CRITERIA, NOT ONE. A brim is decided by the FIRST LAYER; support is
     // decided by every layer above it. The corners carry 416.8 and 655.3 sq mm
     // of bed contact and need no brim at all, but Creality reports them as
@@ -74,8 +80,28 @@ describe("the support set", () => {
     // express either case.
     expect([...NEEDS_SUPPORT_SLUGS].sort()).toEqual(
       [
+        "hex-tb-carrier-bot-parts-tray-lid",
+        "hex-tb-carrier-parts-tray",
+        "hex-tb-carrier-parts-tray-lid",
+        "hex-tb-carrier-top-parts-tray-lid",
         "hex-tb-corner-f-solid",
         "hex-tb-corner-m-solid",
+        "hex-tb-half-bot-1h",
+        "hex-tb-half-bot-2h",
+        "hex-tb-half-bot-3h",
+        "hex-tb-half-bot-solid",
+        "hex-tb-half-left-1h",
+        "hex-tb-half-left-2h",
+        "hex-tb-half-left-3h",
+        "hex-tb-half-left-solid",
+        "hex-tb-half-right-1h",
+        "hex-tb-half-right-2h",
+        "hex-tb-half-right-3h",
+        "hex-tb-half-right-solid",
+        "hex-tb-half-top-1h",
+        "hex-tb-half-top-2h",
+        "hex-tb-half-top-3h",
+        "hex-tb-half-top-solid",
         "hex-tb-spike-ball-joint",
         "hex-tb-spike-ball-zip-single",
         "hex-tb-spike-solid",

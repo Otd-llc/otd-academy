@@ -32,58 +32,58 @@
 // orientation, say it plainly.
 //
 // ===========================================================================
-// THIS FILE USED TO END "Every other part in the set stands on a flat face."
-// THAT WAS FALSE, and it was the premise the whole list rested on.
 // ===========================================================================
-// Corrected 2026-08-17 after measuring the REAL first-layer cross-section of all
-// 53 published meshes -- slicing the solid at the middle of the first layer and
-// filling the section by scanline, rather than summing the area of facets that
-// happen to point straight down.
+// THIS LIST IS NOW THE SLICER'S ANSWER, NOT A MEASUREMENT OF OURS.
+// ===========================================================================
+// Two homemade metrics have been wrong about this set, both in the direction
+// that reads as a clean result:
 //
-// THE OLD METRIC COULD NOT SEE THE PARTS IT EXISTED TO FIND. A facet-normal sum
-// reports ZERO on a curved contact, because a ball rests on a point and nothing
-// there is level: it scored both spikes at 0.0 mm2 while their true footprint is
-// about 1 mm2. A measurement that reads clean on the worst parts in the set is
-// worse than none, and it is why five parts sat unflagged for a fortnight.
+//   A FACET-NORMAL FOOTPRINT scored curved contacts at ZERO, because a ball
+//   rests on a point and nothing there is level. It reported 0.0 sq mm for the
+//   two spikes -- the two parts everybody already knew were the worst here --
+//   and five badly seated parts sat unflagged behind that for a fortnight.
 //
-// Measured first layer, release 2026-08-17, worst first:
+//   A FLOATING-REGION DETECTOR (slice every layer, label the components, flag
+//   any that do not touch the layer below) called the corner poses CLEAN while
+//   Creality was flagging one of them. Softening it to a supported-FRACTION
+//   gave a number that still does not predict anything: against the real list
+//   below, the parts the slicer warns about span 0.0% to 72.3% and the parts it
+//   ignores span 0.0% to 98.7%. The two ranges overlap end to end. It was
+//   deleted rather than kept as a plausible-looking pre-flight check.
+//
+// So the list was collected by ASKING THE SLICER. A calibration plate carrying
+// every published part once, with NO settings of any kind -- the warning only
+// fires when support is off, so a plate carrying our own `enable_support` would
+// have silenced the thing it was built to measure -- was opened in Creality
+// Print 7.2.1 on 2026-08-17 and the warnings written down. 24 of 53 parts.
+//
+// REGENERATE THAT PLATE AND RE-RUN IT AFTER ANY RE-CUT. The script is small and
+// the alternative is guessing. A part's warning depends on its POSE, so a
+// re-orientation can add parts to this list as easily as remove them.
+//
+// WHAT THE SWEEP CORRECTED IN MY OWN GUESSES, both directions in one pass:
+// `Hex-TB-Corner-F-Solid` warns (I had added it on inference, then briefly
+// removed it on inference), and the LEFT and RIGHT tray lids do NOT warn even
+// though the plain, TOP and BOT lids all do. Neither is a rule anyone would
+// have derived; both came from opening the file.
+//
+// Measured first layer, release 2026-08-17, for the parts that need a BRIM --
+// a different question, decided by the first layer alone:
 //
 //     0.10 mm2   Hex-TB-Spike-Solid                 (7.8 mm tall)
 //     0.33 mm2   Hex-TB-Spike-Ball-Joint            (7.8)
 //     6.74 mm2   Hex-TB-Spike-Ball-Zip-Single       (11.6)
 //    -------- 25 mm2 threshold ------------------------------------
-//    39.17 mm2   the twelve Hex-TB-Half-* parts     (35.0)
+//    39.17 mm2   the sixteen Hex-TB-Half-* parts    (35.0)
 //   111.45 mm2   Hex-TB-Main                        (33.0)
 //
-// THE THRESHOLD IS 25 mm2 AND THE GAP BELOW IT IS THE ARGUMENT. Nothing sits
-// between 6.74 and 39.17, so the line is drawn through empty space rather than
-// through a judgement call about a part near the edge.
+// Nothing sits between 6.74 and 39.17, so that line runs through empty space
+// rather than through a judgement call about a part near the edge.
 //
-// FOUR PARTS LEFT THIS LIST BY BEING RE-ORIENTED, not by being re-judged. On the
-// 08-03 cut they measured 19.58, 19.58, 11.56 and 11.56 sq mm and were listed
-// here so the file could compensate with a brim. Re-cut for 08-17 they measure:
-//
-//    Hex-TB-Corner-M-Solid              19.58  ->   416.8 mm2
-//    Hex-TB-Corner-F-Solid              19.58  ->   655.3
-//    Hex-TB-Spike-Ball-Platform-Solid   11.56  ->  1623.8
-//    Hex-TB-Spike-Ball-Zip-1H           11.56  ->  1623.8
-//
-// A brim on any of them now would be waste, so the rows are gone. THE RIGHT FIX
-// FOR A PART RESTING ON ALMOST NOTHING IS THE POSE, NOT THE PROFILE; this list
-// is what to do when there is no better pose, which is the case for the three
-// that remain.
-//
-// THE TWELVE HALVES ARE DELIBERATELY LEFT OUT. 39 mm2 under a 35 mm part is thin
-// and it is not an oversight: `tools/check_orientation.py` in the hex-cluster
-// repo documents them as chosen exceptions, and its comment block explicitly
-// rejects the "a larger face exists, so it must be upside down" reasoning. They
-// are the designer's call, and a list that overrode it would be this file
-// deciding orientation, which is not its job.
-//
-// THE ONE THAT STAYED AND WHY. `Hex-TB-Spike-Ball-Zip-Single` is 6.74 sq mm and
-// was NOT re-oriented, which looks like an omission and is not: every candidate
-// pose was swept and the best alternative is 13.40 sq mm standing 17.3 mm tall,
-// a worse aspect than 6.74 at 11.6. There is no better face, so it keeps a brim.
+// `Hex-TB-Spike-Ball-Zip-Single` is the only part here needing a brim and NOT
+// support, and it was deliberately not re-oriented: every pose was swept and
+// the best alternative is 13.40 sq mm standing 17.3 mm tall, a worse aspect
+// than 6.74 at 11.6. There is no better face.
 
 /**
  * ONE ROW PER PART, carrying both spellings and the sentence that belongs to it.
@@ -98,6 +98,20 @@
  * a name ends up beside the wrong part's note -- and the note is the half a
  * reader acts on.
  */
+/** The sixteen hex halves. One shared sentence because they share one cause and
+ *  one remedy; sixteen hand-written variations would be sixteen chances to say
+ *  it slightly differently. */
+const HALF_NOTE =
+  "needs support switched on. It prints regions that begin with nothing " +
+  "beneath them. It does not need a brim: it stands on about 39 sq mm.";
+
+/** The carrier trays and the three lids the slicer flagged. Note that the LEFT
+ *  and RIGHT lids were on the same calibration plate and were NOT flagged, so
+ *  this is four specific parts rather than the tray family. */
+const TRAY_NOTE =
+  "needs support switched on. Parts of it print over open space. Adhesion is " +
+  "not the problem, so it takes no brim.";
+
 const NEEDS_SUPPORT = [
   {
     name: "Hex-TB-Spike-Solid",
@@ -148,6 +162,146 @@ const NEEDS_SUPPORT = [
     note:
       "has regions that begin with nothing beneath them, so it needs support " +
       "switched on. It does not need a brim: it stands on about 655 sq mm.",
+  },
+  {
+    name: "Hex-TB-Half-Bot-1H",
+    slug: "hex-tb-half-bot-1h",
+    support: true,
+    brim: false,
+    note: HALF_NOTE,
+  },
+  {
+    name: "Hex-TB-Half-Bot-2H",
+    slug: "hex-tb-half-bot-2h",
+    support: true,
+    brim: false,
+    note: HALF_NOTE,
+  },
+  {
+    name: "Hex-TB-Half-Bot-3H",
+    slug: "hex-tb-half-bot-3h",
+    support: true,
+    brim: false,
+    note: HALF_NOTE,
+  },
+  {
+    name: "Hex-TB-Half-Bot-Solid",
+    slug: "hex-tb-half-bot-solid",
+    support: true,
+    brim: false,
+    note: HALF_NOTE,
+  },
+  {
+    name: "Hex-TB-Half-Left-1H",
+    slug: "hex-tb-half-left-1h",
+    support: true,
+    brim: false,
+    note: HALF_NOTE,
+  },
+  {
+    name: "Hex-TB-Half-Left-2H",
+    slug: "hex-tb-half-left-2h",
+    support: true,
+    brim: false,
+    note: HALF_NOTE,
+  },
+  {
+    name: "Hex-TB-Half-Left-3H",
+    slug: "hex-tb-half-left-3h",
+    support: true,
+    brim: false,
+    note: HALF_NOTE,
+  },
+  {
+    name: "Hex-TB-Half-Left-Solid",
+    slug: "hex-tb-half-left-solid",
+    support: true,
+    brim: false,
+    note: HALF_NOTE,
+  },
+  {
+    name: "Hex-TB-Half-Right-1H",
+    slug: "hex-tb-half-right-1h",
+    support: true,
+    brim: false,
+    note: HALF_NOTE,
+  },
+  {
+    name: "Hex-TB-Half-Right-2H",
+    slug: "hex-tb-half-right-2h",
+    support: true,
+    brim: false,
+    note: HALF_NOTE,
+  },
+  {
+    name: "Hex-TB-Half-Right-3H",
+    slug: "hex-tb-half-right-3h",
+    support: true,
+    brim: false,
+    note: HALF_NOTE,
+  },
+  {
+    name: "Hex-TB-Half-Right-Solid",
+    slug: "hex-tb-half-right-solid",
+    support: true,
+    brim: false,
+    note: HALF_NOTE,
+  },
+  {
+    name: "Hex-TB-Half-Top-1H",
+    slug: "hex-tb-half-top-1h",
+    support: true,
+    brim: false,
+    note: HALF_NOTE,
+  },
+  {
+    name: "Hex-TB-Half-Top-2H",
+    slug: "hex-tb-half-top-2h",
+    support: true,
+    brim: false,
+    note: HALF_NOTE,
+  },
+  {
+    name: "Hex-TB-Half-Top-3H",
+    slug: "hex-tb-half-top-3h",
+    support: true,
+    brim: false,
+    note: HALF_NOTE,
+  },
+  {
+    name: "Hex-TB-Half-Top-Solid",
+    slug: "hex-tb-half-top-solid",
+    support: true,
+    brim: false,
+    note: HALF_NOTE,
+  },
+  {
+    name: "Hex-TB-Carrier-Parts-Tray",
+    slug: "hex-tb-carrier-parts-tray",
+    support: true,
+    brim: false,
+    note: TRAY_NOTE,
+  },
+  {
+    name: "Hex-TB-Carrier-Parts-Tray-Lid",
+    slug: "hex-tb-carrier-parts-tray-lid",
+    support: true,
+    brim: false,
+    note: TRAY_NOTE,
+  },
+  {
+    name: "Hex-TB-Carrier-Top-Parts-Tray-Lid",
+    slug: "hex-tb-carrier-top-parts-tray-lid",
+    support: true,
+    brim: false,
+    note: TRAY_NOTE,
+  },
+  {
+    name: "Hex-TB-Carrier-Bot-Parts-Tray-Lid",
+    slug: "hex-tb-carrier-bot-parts-tray-lid",
+    support: true,
+    brim: false,
+    note: TRAY_NOTE,
   },
 ] as const;
 
