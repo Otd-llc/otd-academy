@@ -84,13 +84,21 @@ function Section({
   title,
   children,
   className = "mt-12",
+  id,
 }: {
   title: string;
   children: React.ReactNode;
   className?: string;
+  /** Set only on sections something else on the page links to. `scroll-mt`
+   *  keeps the heading clear of the sticky header once jumped to; without it
+   *  the anchor lands with the title under the chrome. */
+  id?: string;
 }) {
   return (
-    <section className={`${className} border-t border-panel-border/60 pt-6`}>
+    <section
+      id={id}
+      className={`${className} scroll-mt-24 border-t border-panel-border/60 pt-6`}
+    >
       <Heading>{title}</Heading>
       <div className="mt-4">{children}</div>
     </section>
@@ -288,7 +296,14 @@ export default function HexPage() {
             <Heading>Licence</Heading>
             <p className="mt-4 font-serif text-base leading-relaxed text-text">
               {HEX_LICENSE.name}. Use it commercially, remix it, sell what you
-              print. Keep the credit.
+              print. Just credit us,{" "}
+              <a
+                href="#attribution"
+                className="text-command-gold underline underline-offset-4 hover:text-gold-light focus-visible:text-gold-light"
+              >
+                like this
+              </a>
+              .
             </p>
             <p className="mt-4 border-y border-command-gold/40 py-3 font-mono text-[11px] leading-relaxed text-title">
               {HEX_LICENSE.credit}
@@ -483,7 +498,7 @@ export default function HexPage() {
               </p>
             </Section>
 
-            <Section title="License and attribution">
+            <Section id="attribution" title="License and attribution">
               <div className="max-w-xl space-y-4 font-serif text-base leading-relaxed text-text">
                 <p>
                   The geometry is released under the{" "}
