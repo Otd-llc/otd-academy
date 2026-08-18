@@ -35,6 +35,7 @@ import {
   HEX_CLEARANCE,
   HEX_ORIENTATION,
   HEX_PRINT_PARAMS,
+  HEX_RELEASE,
 } from "../src/lib/hex-spec";
 // Plain data, no env, so a static import is safe above the dotenv call below --
 // same reasoning as hex-spec. See that module on why the list lives in one place.
@@ -78,7 +79,24 @@ const SOURCE_DIR = resolve(
 
 // Immutable release segment. Override to re-cut without clobbering a published
 // URL; bump it whenever the meshes change.
-const RELEASE = process.env.PRINTABLES_RELEASE ?? "2026-07-31";
+//
+// DERIVED FROM `HEX_RELEASE`, NOT SPELLED AGAIN. It used to be a literal, and
+// the literal said "2026-07-31" long after 2026-08-03 had shipped -- 08-03 was
+// published by passing PRINTABLES_RELEASE on the command line and nobody came
+// back for the default. So running this script the obvious way would have
+// written a fresh cut into a SUPERSEDED release prefix: the keys 08-03 links
+// point at would be untouched, the new meshes would land where nothing reads
+// them, and the only symptom is a release that appears to upload fine and
+// changes nothing.
+//
+// `hex-spec.test.ts` carried a row captioned "match what upload-printables.ts
+// stamps", which pinned `HEX_RELEASE` to a literal and never looked at this
+// file at all -- a pin between a constant and itself. Reading the constant
+// directly is the version of that intention which cannot drift.
+//
+// The env override stays, because re-cutting to a scratch prefix without
+// touching the app's notion of the current release is a real thing to want.
+const RELEASE = process.env.PRINTABLES_RELEASE ?? HEX_RELEASE;
 
 // EVERYTHING SHIPS FREE, as one set. There is deliberately no gated tier.
 //

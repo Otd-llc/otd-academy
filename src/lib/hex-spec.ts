@@ -89,7 +89,10 @@ export const HEX_PART_COUNT = 53;
  *  the meshes mints a new release, which is when these get updated alongside
  *  HEX_RELEASE. Measured from the published objects, not estimated. */
 export const HEX_RELEASE_FILES = {
-  set: { bytes: 13_688_628, label: "13.7 MB" },
+  // HEAD'd off the published objects for 2026-08-17, not carried over: the set
+  // is a zip of re-oriented meshes, so its size moved (13_688_628 on 08-03).
+  // The licence is byte-identical because the text did not change.
+  set: { bytes: 13_718_988, label: "13.1 MB" },
   license: { bytes: 836, label: "836 B" },
 } as const;
 
