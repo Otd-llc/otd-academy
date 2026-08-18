@@ -23,6 +23,11 @@ import JSZip from "jszip";
 
 import type { Bed } from "@/lib/hex-pack";
 import type { Placement } from "@/lib/hex-plate";
+import {
+  PRUSA_CONFIG_PATH,
+  countTriangles,
+  prusaModelConfig,
+} from "@/lib/hex-prusa-config";
 import { escapeXml } from "@/lib/hex-xml";
 import {
   intentFor,
@@ -540,7 +545,19 @@ export async function buildPlate3mf(
   // longer change what gets written. Worse, the throw landed in the route's bare
   // `catch {}` and became an unlogged 500, after the request had already paid
   // for every R2 read.
-  const placed: { id: number; name: string; slug: string }[] = [];
+  // ONE ROW PER OBJECT, carrying what BOTH dialects need. `triangleCount` and the
+  // remedy flags are here rather than looked up twice, because two independent
+  // lookups is a second place for the Orca and Prusa payloads to disagree about
+  // whether a part needs support -- the exact class of drift
+  // `PRINT_INTENT_TABLE` exists to end.
+  const placed: {
+    id: number;
+    name: string;
+    slug: string;
+    triangleCount: number;
+    support: boolean;
+    brim: boolean;
+  }[] = [];
   const objects: string[] = [];
   const items: string[] = [];
 
@@ -576,7 +593,6 @@ export async function buildPlate3mf(
     const src = sources.get(p.slug);
     if (!src) throw new Error(`no source mesh for ${p.slug}`);
     const obj = { id: placed.length + 1, name: p.name, slug: p.slug };
-    placed.push(obj);
     // ONLY the parts the SLICER said need support, from `hex-support.ts`. A
     // tripwire on a part that needs nothing would fire the modal for a plate
     // that is already correct -- a false alarm that trains people to switch
@@ -584,7 +600,19 @@ export async function buildPlate3mf(
     // need it. So the paint follows the collected list, never a guess.
     const needsPaint = PART_REMEDY[p.slug]?.support === true;
     const block = extractObjectBlock(src, obj.id, p.name);
-    objects.push(needsPaint ? paintOneFacet(block) : block);
+    const emitted = needsPaint ? paintOneFacet(block) : block;
+    objects.push(emitted);
+    // COUNTED FROM THE BLOCK WE EMIT, never from `src`. `lastid` describes
+    // triangles in `3D/3dmodel.model`, so it has to come from the string that
+    // BECOMES that file. Painting adds an ATTRIBUTE, not a triangle, so the
+    // count is the same either side of it -- but deriving it from the source
+    // would be depending on that rather than on the bytes.
+    placed.push({
+      ...obj,
+      triangleCount: countTriangles(emitted),
+      support: PART_REMEDY[p.slug]?.support === true,
+      brim: PART_REMEDY[p.slug]?.brim === true,
+    });
     // The translation that carries the mesh's OWN minimum corner to the target,
     // and drops the part onto z = 0 whatever its authored height. `x - x0`, not
     // `x`: a mesh carries its own origin, so `hex-tb-main` (x0 = -43.8786) would
@@ -741,6 +769,30 @@ export async function buildPlate3mf(
   // part, it is a vendor side-car found by path. Readers that do not know it --
   // PrusaSlicer, Cura -- walk past it without complaint, which is what makes it
   // safe to carry for everyone.
+  // ===================================================================
+  // THE PRUSASLICER PAYLOAD, alongside the Orca one. Both from ONE table.
+  // ===================================================================
+  // VERIFIED 2026-08-18. PrusaSlicer 2.9.6 via `prusa-slicer-console.exe`:
+  // geometry survives a config block (an object with a range reported the same
+  // facet count as the same mesh without one), `lastid` is inclusive and exact,
+  // an off-by-one is visible, and the per-object settings read back out of
+  // PrusaSlicer's OWN re-emitted file in exactly the pattern we wrote -- brim on
+  // the brim parts, support on the support parts, neither on the rest. A
+  // duplicate-id control was REFUSED, which is what makes those results mean
+  // anything. Creality Print 7.2.1 opened the same plate with all five objects,
+  // names and geometry intact and the Orca settings still applied -- the
+  // regression check the earlier `probe-6` evidence did NOT cover, because its
+  // Prusa config carried no `<volume>` element.
+  //
+  // `{ date: ZIP_EPOCH }` is not optional: one entry stamped `new Date()` breaks
+  // the response's identical-bytes promise from INSIDE the archive, where no
+  // header comparison would ever look.
+  //
+  // Rollback is deleting these three lines. Nothing else references the part --
+  // no relationship, no content-type change (`.config` is already declared by
+  // extension), no directory entry of its own -- so removing it returns the
+  // archive byte-identical.
+  zip.file(PRUSA_CONFIG_PATH, prusaModelConfig(placed), { date: ZIP_EPOCH });
   zip.file(MODEL_SETTINGS_PATH, modelSettingsConfig(placed), {
     date: ZIP_EPOCH,
   });

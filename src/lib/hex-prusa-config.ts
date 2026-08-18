@@ -1,7 +1,7 @@
 // The same print intent, in PrusaSlicer's dialect.
 //
 // ===========================================================================
-// VERIFIED ON PRUSASLICER 2.9.6, 2026-08-18. STILL NOT WIRED IN -- one check left.
+// VERIFIED ON PRUSASLICER 2.9.6 AND CREALITY PRINT 7.2.1, 2026-08-18. WIRED IN.
 // ===========================================================================
 // `prusa-slicer-console.exe` adjudicated this without a GUI, via
 // `scripts/hex-prusa-probe.ts`. Three files, one job each:
@@ -32,20 +32,21 @@
 //   pattern. All eight keys retained, names intact, and `fill_density = 30%`
 //   round-tripped -- so the `%` really is required (a bare "30" becomes 3000%).
 //
-// WHAT IS STILL OPEN, and why this stays unwired: THE CREALITY REGRESSION.
-// The evidence once cited here -- "a plate carrying both configs loaded fine in
-// Creality Print 7.2.1" -- was `probe-6-dualconfig.3mf`, whose Prusa config has
-// NO `<volume>` element. That is precisely the element this module now emits, so
-// the measurement on record does not cover the file we would ship, and Creality
-// Print is closed source with no CLI. Open `prusa-A-plate.3mf` in Creality Print
-// 7.2.1: five objects, names intact, geometry intact, and the Orca settings
-// (gyroid / 30% / 4) still applied. That one check is the whole remaining gate.
+// THE CREALITY REGRESSION IS CLOSED TOO. The evidence once cited here -- "a
+// plate carrying both configs loaded fine in Creality Print 7.2.1" -- was
+// `probe-6-dualconfig.3mf`, whose Prusa config has NO `<volume>` element: the
+// very element this module emits. That measurement did not cover the file we
+// ship, and Creality Print is closed source with no CLI, so it took a human.
+// `prusa-A-plate.3mf` opened in Creality Print 7.2.1 with all five objects,
+// names intact, geometry intact and the Orca settings still applied (owner,
+// 2026-08-18). Adding the second side-car costs the majority audience nothing.
 //
-// TO WIRE IT: `placed` carries `triangleCount` (from `countTriangles` on the
-// EMITTED block, not the source) plus the `PART_REMEDY` flags, then one line in
-// the archive assembly beside `MODEL_SETTINGS_PATH`, with `{ date: ZIP_EPOCH }`
-// or the response stops being byte-reproducible. Rollback is deleting that line,
-// which returns the archive byte-identical.
+// WIRED IN at the archive assembly in `hex-3mf.ts`. `placed` carries
+// `triangleCount` -- counted from the EMITTED block, never the source, because
+// `lastid` describes triangles in the file we write -- plus the `PART_REMEDY`
+// flags, looked up ONCE so the two dialects cannot disagree about which parts
+// need support. Rollback is deleting one `zip.file(...)` line, which returns the
+// archive byte-identical.
 //
 // ---------------------------------------------------------------------------
 // VERIFIED AGAINST SOURCE, 2026-08-18 (prusa3d/PrusaSlicer, master)

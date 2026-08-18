@@ -132,15 +132,25 @@ async function writeWith(file: string, buf: Buffer, cfg: string): Promise<void> 
 
 async function main(): Promise<void> {
   // ---------------------------------------------------------------- FILE A
+  // PUBLISHED NAMES, not probe labels. An earlier version used P1..P5 tags so
+  // each object could be identified on screen; they read as shipping names in
+  // the slicer's object list, which is exactly the confusion a probe should not
+  // introduce. Every object below is named the way a real download names it.
+  //
+  // The geometry comparator is therefore two DIFFERENT caps rather than the same
+  // mesh twice -- identical meshes would give identical names and be
+  // indistinguishable in the list. They are the male and female halves of the
+  // same cap, 420 and 404 triangles, adjacent on the bed: if a config block
+  // deletes geometry, the CONFIGURED one is missing and its unconfigured
+  // neighbour is not, which is still the only asymmetry on the plate.
+  const CONFIGURED = "dovetail-cap-single-m-solid";
+  const UNCONFIGURED = "dovetail-cap-single-f-solid";
   const aLines: Line[] = [
-    // THE SAME MESH TWICE, so the only difference between them is whether a
-    // config block names it. Two different caps would leave "which one
-    // vanished" partly a question about the meshes.
-    { slug: "dovetail-cap-single-m-solid", label: "P1-CAP-CONFIGURED" },
-    { slug: "dovetail-cap-single-m-solid", label: "P2-CAP-NO-CONFIG-BLOCK" },
-    { slug: "hex-tb-spike-ball-zip-single", label: "P3-BRIM-ONLY" },
-    { slug: "hex-tb-spike-ball-joint", label: "P4-SUPPORT-ONLY" },
-    { slug: "hex-tb-spike-solid", label: "P5-SUPPORT-AND-BRIM" },
+    { slug: CONFIGURED, label: HEX_PART_NAME[CONFIGURED] },
+    { slug: UNCONFIGURED, label: HEX_PART_NAME[UNCONFIGURED] },
+    { slug: "hex-tb-spike-ball-zip-single", label: HEX_PART_NAME["hex-tb-spike-ball-zip-single"] },
+    { slug: "hex-tb-spike-ball-joint", label: HEX_PART_NAME["hex-tb-spike-ball-joint"] },
+    { slug: "hex-tb-spike-solid", label: HEX_PART_NAME["hex-tb-spike-solid"] },
   ];
   const a = await buildPlate(aLines);
   const aObjs = objectsFromModel(a.model);
@@ -162,7 +172,7 @@ async function main(): Promise<void> {
 
   const full = prusaModelConfig(prusa);
   // P2 loses its whole block -- the geometry comparator.
-  const p2 = prusa.find((o) => o.name.startsWith("P2"))!;
+  const p2 = prusa.find((o) => o.name === HEX_PART_NAME[UNCONFIGURED])!;
   const aCfg = full.replace(
     new RegExp(`\\s*<object id="${p2.id}"[\\s\\S]*?</object>`),
     "",
@@ -172,6 +182,9 @@ async function main(): Promise<void> {
 
   // ---------------------------------------------------------------- FILE B
   const bLines: Line[] = [
+    // File B is a measuring instrument, never a stand-in for a download: three
+    // copies of ONE mesh whose only difference is a deliberately wrong range.
+    // These keep tags because the whole point is telling them apart.
     { slug: "dovetail-cap-single-m-solid", label: "Q1-FULL-RANGE" },
     { slug: "dovetail-cap-single-m-solid", label: "Q2-HALF-RANGE" },
     { slug: "dovetail-cap-single-m-solid", label: "Q3-SHORT-BY-ONE" },

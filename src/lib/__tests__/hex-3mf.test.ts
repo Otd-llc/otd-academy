@@ -17,6 +17,7 @@ import {
   buildPlate3mf,
   extractObjectBlock,
 } from "@/lib/hex-3mf";
+import { PRUSA_CONFIG_PATH } from "@/lib/hex-prusa-config";
 import { HEX_LICENSE } from "@/lib/hex-spec";
 import {
   HEX_PART_BOX,
@@ -563,10 +564,16 @@ describe("buildPlate3mf", () => {
     // in one respect worth writing down: it needs the `config` default in
     // `[Content_Types].xml` but NO relationship, because it is a vendor side-car
     // found by path rather than an OPC-related part.
+    //
+    // `Slic3r_PE_model.config` joined on the same terms and failed this row too.
+    // It needs NO new declaration at all: OPC declares content types by
+    // EXTENSION, and `config` was already defaulted for its Orca sibling. Two
+    // vendor side-cars, one extension, one declaration.
     const zip = await JSZip.loadAsync(await plate3mf([at("a", 4, 4)], SOURCES));
     const entries = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
     expect(entries.sort()).toEqual([
       "3D/3dmodel.model",
+      PRUSA_CONFIG_PATH,
       MODEL_SETTINGS_PATH,
       "Metadata/thumbnail.png",
       "[Content_Types].xml",
