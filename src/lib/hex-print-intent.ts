@@ -325,8 +325,16 @@ export const INTENT_BRIM_PARTS = byScope("brim");
  * of the support parts is worse still: that list lives in `hex-support.ts`
  * precisely because it used to live in two places, and restating it here would
  * rebuild the defect that file exists to prevent. Support needs no announcement
- * anyway -- on the normal path the slicer simply has it on, and on a
- * geometry-only import the enforcers make the slicer raise it itself.
+ * anyway -- on the normal path the slicer simply has it on.
+ *
+ * THAT SENTENCE USED TO CONTINUE "and on a geometry-only import the enforcers
+ * make the slicer raise it itself." IT WAS FALSE. There are no enforcers in the
+ * file, and there never have been. It was written in the present tense about a
+ * fail-safe that was designed and not built, and it survived a merge -- the
+ * third time this project has stated a slicer behaviour it had not opened. On a
+ * geometry-only import today, the settings are simply gone and NOTHING warns.
+ * That gap is real and currently uncovered; `scripts/hex-enforcer-probe.ts`
+ * builds the two files that decide how to close it.
  *
  * Shaped `{ label, value }` rather than as the row type, so the configurator's
  * strip -- which deploys separately and cannot import across the repo boundary --
