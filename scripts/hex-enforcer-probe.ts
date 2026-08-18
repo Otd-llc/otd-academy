@@ -178,8 +178,34 @@ async function write(
   console.log(`  wrote ${file}  ${buf.length} bytes`);
 }
 
-const cfg = (name: string) =>
-  `<?xml version="1.0" encoding="UTF-8"?>\n<config>\n  <object id="1">\n   <metadata key="name" value="${name}"/>\n   <metadata key="extruder" value="1"/>\n  </object>\n</config>\n`;
+/** Config for one object. `support` writes the shipping support trio, so the
+ *  C/D pair is the REAL shipping configuration rather than an approximation. */
+const cfg = (name: string, support = false) =>
+  `<?xml version="1.0" encoding="UTF-8"?>
+<config>
+  <object id="1">
+` +
+  `   <metadata key="name" value="${name}"/>
+` +
+  `   <metadata key="extruder" value="1"/>
+` +
+  `   <metadata key="sparse_infill_pattern" value="gyroid"/>
+` +
+  `   <metadata key="sparse_infill_density" value="30%"/>
+` +
+  `   <metadata key="wall_loops" value="4"/>
+` +
+  (support
+    ? `   <metadata key="enable_support" value="1"/>
+` +
+      `   <metadata key="support_type" value="normal(auto)"/>
+` +
+      `   <metadata key="support_threshold_angle" value="30"/>
+`
+    : "") +
+  `  </object>
+</config>
+`;
 
 async function main(): Promise<void> {
   const model = await loadMesh(SLUG);
@@ -211,30 +237,73 @@ async function main(): Promise<void> {
     cfg("B-CONTROL-UNPAINTED"),
   );
 
+  // ======================================================================
+  // C / D -- THE PAIR THAT MEASURES THE COST, and the reason A/B alone were
+  // not enough. A has support OFF, so "no support appeared" there is trivially
+  // true and proves nothing about the paint. The question that decides whether
+  // this ships is what the paint does when settings SURVIVE and support is ON,
+  // which is the normal path and the shipping configuration.
+  // ======================================================================
+  await write(
+    "enforcer-C-painted-SUPPORT-ON.3mf",
+    paintOne(model, idx).replace(
+      /(<object[^>]*id="1"[^>]*)>/,
+      '$1 name="C-PAINTED-SUPPORT-ON">',
+    ),
+    cfg("C-PAINTED-SUPPORT-ON", true),
+  );
+
+  await write(
+    "enforcer-D-unpainted-SUPPORT-ON.3mf",
+    model.replace(
+      /(<object[^>]*id="1"[^>]*)>/,
+      '$1 name="D-UNPAINTED-SUPPORT-ON">',
+    ),
+    cfg("D-UNPAINTED-SUPPORT-ON", true),
+  );
+
   console.log(`
 =========================================================================
-WHAT TO DO, in Creality Print 7.2.1. Open the app FIRST, empty plate.
+WHAT TO CHECK, in Creality Print 7.2.1
 =========================================================================
-1. Open  enforcer-B-control-unpainted-EXPECT-NO-MODAL.3mf  and Slice.
-     EXPECT: no modal. This is the control -- it proves any modal in step 2
-     came from the paint and not from the part or the profile.
+Open the app FIRST, empty plate, then open each file from inside it.
+(Launching by file association with the app closed is reported to wipe
+settings seconds after open -- do not test that way.)
 
-2. Open  enforcer-A-paint-one-UP-facet-EXPECT-MODAL.3mf  and Slice.
-     EXPECT: the modal "Support enforcers are used but support is not
-     enabled", naming A-ONE-UPWARD-FACET-PAINTED.
-     THEN DISMISS IT and look at the sliced preview.
-     EXPECT: NO support anywhere. That is the whole question -- a tripwire
-     that costs the print nothing. If support appears, the upward-facet
-     argument is wrong and the fail-safe needs a different placement.
+Four files, two questions.
 
-3. Still in A: File > Import the same file into a fresh project.
-     EXPECT: the modal still fires on Slice. Painted facets are mesh data,
-     so they should survive the import-path config reset. If they do NOT,
-     the fail-safe cannot work on the one path it exists for -- say so and
-     we ship prose instead.
+QUESTION 1 -- does one painted facet raise the alarm?   (B, then A)
 
-Report three yes/no answers: (1) control silent, (2) A fires + zero support,
-(3) A still fires after Import.
+  B  enforcer-B-control-unpainted-EXPECT-NO-MODAL.3mf    Slice.
+       EXPECT no modal. B is the control: it proves any modal in A came
+       from the paint, not from the part or your profile.
+
+  A  enforcer-A-paint-one-UP-facet-EXPECT-MODAL.3mf      Slice.
+       EXPECT the modal, naming A-ONE-UPWARD-FACET-PAINTED.
+
+  Then in A: File > Import the SAME file into a fresh project, slice again.
+       EXPECT the modal still fires. This is the path the fail-safe exists
+       for. If it does NOT fire here, the idea is dead and we ship prose.
+
+QUESTION 2 -- does it cost the print anything?          (D, then C)
+
+  Support is ON in both -- the normal path, and what we ship. Byte
+  identical but for the one painted facet.
+
+  D  enforcer-D-unpainted-SUPPORT-ON.3mf                 Slice.
+       Note where support goes, and the print time / material figure.
+
+  C  enforcer-C-painted-SUPPORT-ON.3mf                   Slice.
+       EXPECT IDENTICAL to D. If C has MORE support, the painted facet is
+       generating it and the upward-facet argument is wrong.
+
+TELL ME FOUR YES/NO:
+  1. B silent?
+  2. A fires?
+  3. A still fires after File > Import?
+  4. C identical to D?
+
+All four yes -> build it. Any no -> which one, and the design changes.
 =========================================================================`);
 }
 
