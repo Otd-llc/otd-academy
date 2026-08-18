@@ -114,6 +114,24 @@ const namesIn = (zip: JSZip) =>
 const entriesOf = async (res: Response) =>
   namesIn(await JSZip.loadAsync(await bodyOf(res)));
 
+/** THE PLATE, out of the archive that now always surrounds it.
+ *
+ *  EVERY response is a zip. The licence has to travel (owner, 2026-08-17: "zip
+ *  is not optional"), and the branch that served a lone plate bare had become
+ *  unreachable anyway -- a calibration sweep put 25 of 53 parts on the support
+ *  list, `hex-tb-main` among them, and that part is in nearly every build.
+ *
+ *  Rows about what the PLATE says reach through the box with this rather than
+ *  each re-deriving how to open it. It asserts there is exactly ONE, so a row
+ *  that silently read the first of several would fail rather than quietly test
+ *  a plate it did not name. Rows about the BOX keep using `entriesOf`. */
+async function plateOf(res: Response): Promise<JSZip> {
+  const outer = await JSZip.loadAsync(await bodyOf(res));
+  const plates = namesIn(outer).filter((n) => n.endsWith(".3mf"));
+  expect(plates, "expected exactly one plate in the archive").toHaveLength(1);
+  return JSZip.loadAsync(await outer.file(plates[0])!.async("nodebuffer"));
+}
+
 beforeEach(() => {
   getBytes.mockReset();
   captured.mockReset();
@@ -162,25 +180,40 @@ describe("pack BEFORE read -- the ordering IS the security property", () => {
 });
 
 describe("one plate versus many", () => {
-  it("serves ONE plate as a bare .3mf, with no archive around it", async () => {
+  it("serves ONE plate inside an archive, with the licence beside it", async () => {
     const res = await call(`release=${RELEASE}&parts=hex-tb-main:3`);
     expect(res.status).toBe(200);
-    expect(res.headers.get("content-type")).toBe("model/3mf");
+    expect(res.headers.get("content-type")).toBe("application/zip");
     expect(res.headers.get("content-disposition")).toBe(
-      disp(`${FB}-3-parts.3mf`),
+      disp(`${FB}-3-parts.zip`),
     );
-    // A 3MF is a zip underneath, so "it parsed" proves nothing on its own --
-    // what proves it is a PLATE and not a pack is the model part, and the
-    // absence of the README/LICENSE furniture a pack carries.
-    const names = await entriesOf(res);
-    expect(names).toContain("3D/3dmodel.model");
-    expect(names).not.toContain("README.txt");
-    expect(names.some((n) => n.startsWith("plates/"))).toBe(false);
+    // THIS ROW USED TO ASSERT THE OPPOSITE: a lone plate came back bare, and
+    // the absence of README/LICENSE was the proof it was a plate rather than a
+    // pack. Two things ended that. The licence has to travel -- these are CC BY
+    // works and the notice is the one condition -- and the branch had become
+    // unreachable anyway once the calibration sweep put 25 of 53 parts on the
+    // support list, `hex-tb-main` among them, which is in nearly every build.
+    // ONE read of the body, then both questions asked of it. A `Response` body
+    // can only be consumed once, so `entriesOf` followed by `plateOf` would
+    // hand the second an empty buffer -- the same trap the comment on
+    // `namesIn` above already records.
+    const outer = await JSZip.loadAsync(await bodyOf(res));
+    const names = namesIn(outer);
+    expect(names).toContain("LICENSE.txt");
+    expect(names).toContain("README.txt");
+    const inside = names.filter((n) => n.endsWith(".3mf"));
+    expect(inside).toHaveLength(1);
+    // and the plate inside really is a plate
+    const plate = await JSZip.loadAsync(
+      await outer.file(inside[0])!.async("nodebuffer"),
+    );
+    expect(namesIn(plate)).toContain("3D/3dmodel.model");
   });
 
-  it("reads each distinct part ONCE, and no licence for a bare plate", async () => {
+  it("reads each distinct part ONCE, and the licence exactly once", async () => {
     await call(`release=${RELEASE}&parts=hex-tb-main:3`);
-    expect(getBytes).toHaveBeenCalledTimes(1);
+    // TWO: the mesh, and the LICENCE that now travels with every download.
+    expect(getBytes).toHaveBeenCalledTimes(2);
     expect(getBytes).toHaveBeenCalledWith(
       `printables/${RELEASE}/3mf/hex-tb-main.3mf`,
     );
@@ -200,7 +233,7 @@ describe("one plate versus many", () => {
     // nothing (six caps plus a ball joint measured 37.8 KB against 33 KB for
     // two), because the 300 KB figure was always the uncompressed string.
     const res = await call(`release=${RELEASE}&parts=hex-tb-main:3`);
-    const zip = await JSZip.loadAsync(await bodyOf(res));
+    const zip = await plateOf(res);
     const model = await zip.file("3D/3dmodel.model")!.async("string");
     expect(model.match(/<object\b/g)).toHaveLength(3);
     expect(model.match(/<item\b/g)).toHaveLength(3);
@@ -245,8 +278,8 @@ describe("the download is named after the cluster", () => {
     // Pinned as a LITERAL here, once, rather than through `disp` -- so this row
     // still fails if the header builder and the test helper drift together.
     expect(res.headers.get("content-disposition")).toBe(
-      `attachment; filename="TB-1 POWER-3-parts.3mf"; ` +
-        `filename*=UTF-8''TB-1%20POWER-3-parts.3mf`,
+      `attachment; filename="TB-1 POWER-3-parts.zip"; ` +
+        `filename*=UTF-8''TB-1%20POWER-3-parts.zip`,
     );
   });
 
@@ -286,7 +319,7 @@ describe("the download is named after the cluster", () => {
     const res = await call(
       `release=${RELEASE}&parts=hex-tb-main:3&name=${encodeURIComponent(NAME)}`,
     );
-    const model = await (await JSZip.loadAsync(await bodyOf(res)))
+    const model = await (await plateOf(res))
       .file("3D/3dmodel.model")!
       .async("string");
     expect(model).toContain(
@@ -316,12 +349,12 @@ describe("the download is named after the cluster", () => {
       `release=${RELEASE}&parts=hex-tb-main:3&name=${encodeURIComponent("ハニカム")}`,
     );
     const cd = res.headers.get("content-disposition")!;
-    expect(cd).toContain(`filename="${FB}-3-parts.3mf"`);
+    expect(cd).toContain(`filename="${FB}-3-parts.zip"`);
     expect(cd).toContain(
-      "filename*=UTF-8''%E3%83%8F%E3%83%8B%E3%82%AB%E3%83%A0-3-parts.3mf",
+      "filename*=UTF-8''%E3%83%8F%E3%83%8B%E3%82%AB%E3%83%A0-3-parts.zip",
     );
     // And the zip entry / Title keep the real name.
-    const model = await (await JSZip.loadAsync(await bodyOf(res)))
+    const model = await (await plateOf(res))
       .file("3D/3dmodel.model")!
       .async("string");
     expect(model).toContain("ハニカム -- plate 1 of 1");
@@ -377,7 +410,7 @@ describe("the download is named after the cluster", () => {
       `release=${RELEASE}&parts=hex-tb-main:3&name=${encodeURIComponent("...")}`,
     );
     expect(res.headers.get("content-disposition")).toBe(
-      disp(`${FB}-3-parts.3mf`),
+      disp(`${FB}-3-parts.zip`),
     );
   });
 
@@ -430,9 +463,9 @@ describe("every plate carries a picture of itself", () => {
       Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     );
 
-  it("puts one in the bare .3mf, related and declared", async () => {
+  it("puts one in the plate, related and declared", async () => {
     const res = await call(`release=${RELEASE}&parts=hex-tb-main:3`);
-    const zip = await JSZip.loadAsync(await bodyOf(res));
+    const zip = await plateOf(res);
     const t = await thumbnailOf(zip);
     expect(isPng(t.png)).toBe(true);
     expect(t.rels).toContain(
@@ -475,7 +508,7 @@ describe("every plate carries a picture of itself", () => {
     // are two pictures. Without this row, "there is a PNG" is satisfied by a
     // constant image baked into the bundle.
     const png = async (q: string) => {
-      const zip = await JSZip.loadAsync(await bodyOf(await call(q)));
+      const zip = await plateOf(await call(q));
       return zip.file("Metadata/thumbnail.png")!.async("nodebuffer");
     };
     const a = await png(`release=${RELEASE}&parts=hex-tb-main:3&plate=220x220`);
@@ -503,9 +536,7 @@ describe("every plate carries a picture of itself", () => {
 
 describe("the plate states who made it and when", () => {
   const modelOf = async (res: Response) =>
-    (await JSZip.loadAsync(await bodyOf(res)))
-      .file("3D/3dmodel.model")!
-      .async("string");
+    (await plateOf(res)).file("3D/3dmodel.model")!.async("string");
 
   it("dates the document from the release in the URL", async () => {
     // Threaded from the request, not hardcoded, and this is the row that proves
@@ -558,7 +589,7 @@ describe("the name on the box matches what is in it", () => {
   it("names a single part after itself, with the right extension", async () => {
     const res = await call(`release=${RELEASE}&parts=hex-tb-main`);
     expect(res.headers.get("content-disposition")).toBe(
-      disp(`${FB}-hex-tb-main.3mf`),
+      disp(`${FB}-hex-tb-main.zip`),
     );
   });
 
@@ -685,8 +716,11 @@ describe("a build that needs supports never ships without the warning", () => {
     const res = await call(`release=${RELEASE}&parts=hex-tb-main:2,${SPIKE}`);
     expect(res.headers.get("content-type")).toBe("application/zip");
     const zip = await JSZip.loadAsync(await bodyOf(res));
+    // NAMES THE SPIKE, among however many others the sweep put on the list --
+    // `hex-tb-main` is on it now, so the sentence enumerates. What this row is
+    // about is that the spike is not the one that gets dropped.
     expect(await zip.file("README.txt")!.async("string")).toContain(
-      "Support required -- Hex-TB-Spike-Solid.",
+      "Hex-TB-Spike-Solid",
     );
   });
 
@@ -718,18 +752,25 @@ describe("a build that needs supports never ships without the warning", () => {
     });
   });
 
-  it("CONTROL: a build with nothing to warn about is still ONE bare file", async () => {
-    // The one-file experience is the point of the feature, and this is what
-    // stops the fix above from quietly zipping everything. Without this row,
-    // "the spike build is a zip" passes just as well against a route that
-    // abandoned the bare plate altogether.
-    const res = await call(`release=${RELEASE}&parts=hex-tb-main:3`);
-    expect(res.headers.get("content-type")).toBe("model/3mf");
-    expect(res.headers.get("content-disposition")).toBe(
-      disp(`${FB}-3-parts.3mf`),
+  it("CONTROL: a build with nothing to warn about says so, in the plate", async () => {
+    // THIS ROW USED TO ASSERT A BARE FILE. Its job was to stop the archive
+    // decision from quietly zipping everything, which it can no longer do
+    // because every download is a zip now -- the licence has to travel. What
+    // survives is the half that still discriminates: a build needing nothing
+    // must SAY so, or "the spike build warns" passes against a route that
+    // warns about everything.
+    //
+    // The fixture had to move too. `hex-tb-main` was the neutral part in every
+    // suite here, and the calibration sweep put the whole `base` family on the
+    // support list. A control has to actually be a control.
+    const res = await call(
+      `release=${RELEASE}&parts=hex-tb-spike-platform-lrg:3`,
     );
-    // And it says so inside the file, so the bare plate is not silent either.
-    const model = await (await JSZip.loadAsync(await bodyOf(res)))
+    expect(res.headers.get("content-type")).toBe("application/zip");
+    expect(res.headers.get("content-disposition")).toBe(
+      disp(`${FB}-3-parts.zip`),
+    );
+    const model = await (await plateOf(res))
       .file("3D/3dmodel.model")!
       .async("string");
     expect(model).toContain("No supports needed");
@@ -796,7 +837,7 @@ describe("a release the geometry table was not measured from", () => {
 
   it("CONTROL: the SAME request on the current release IS plated", async () => {
     const res = await call(`release=${RELEASE}&parts=hex-tb-main:2`);
-    expect(res.headers.get("content-type")).toBe("model/3mf");
+    expect(res.headers.get("content-type")).toBe("application/zip");
   });
 });
 

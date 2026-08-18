@@ -98,7 +98,10 @@
  * a name ends up beside the wrong part's note -- and the note is the half a
  * reader acts on.
  */
-/** The sixteen hex halves. One shared sentence because they share one cause and
+/** THE WHOLE BASE FAMILY: the sixteen halves and Hex-TB-Main, all seventeen of
+ *  them. Owner, 2026-08-17, after the calibration sweep: "any hex base at all,
+ *  of any type." That is a cleaner rule than a selection within the family, and
+ *  it matches the family count `gen-hex-geometry` reports exactly. One shared sentence because they share one cause and
  *  one remedy; sixteen hand-written variations would be sixteen chances to say
  *  it slightly differently. */
 const HALF_NOTE =
@@ -272,6 +275,15 @@ const NEEDS_SUPPORT = [
     name: "Hex-TB-Half-Top-Solid",
     slug: "hex-tb-half-top-solid",
     support: true,
+    brim: false,
+    note: HALF_NOTE,
+  },
+  {
+    name: "Hex-TB-Main",
+    slug: "hex-tb-main",
+    support: true,
+    // 111.45 sq mm on the bed, comfortably the largest footprint on this list.
+    // Adhesion was never its problem.
     brim: false,
     note: HALF_NOTE,
   },

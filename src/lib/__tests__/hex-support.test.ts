@@ -33,9 +33,12 @@ describe("the support set", () => {
 
   it("answers yes for a pack containing one, and no for one that does not", () => {
     expect(needsSupport(["hex-tb-main", "hex-tb-spike-solid"])).toBe(true);
-    expect(needsSupport(["hex-tb-main", "dovetail-cap-single-m-solid"])).toBe(
-      false,
-    );
+    // `hex-tb-main` is NOT a neutral part any more -- the calibration sweep put
+    // the whole `base` family on the list, Main included -- so the negative
+    // case needs a part that genuinely needs nothing.
+    expect(
+      needsSupport(["hex-tb-spike-platform-lrg", "dovetail-cap-single-m-solid"]),
+    ).toBe(false);
     expect(needsSupport([])).toBe(false);
   });
 
@@ -68,7 +71,8 @@ describe("the support set", () => {
     // where the list and the meshes stop agreeing.
     // COLLECTED FROM THE SLICER, not derived. A calibration plate carrying all
     // 53 parts with no settings was opened in Creality Print and its warnings
-    // written down; 24 parts asked for support. This row is where that reading
+    // written down; 25 parts asked for support -- the entire "base" family among
+    // them, which is a family rule rather than a selection inside one. This row is where that reading
     // lives, so a re-cut that changes a pose and forgets to re-run the sweep
     // fails here rather than in someone's print.
     //
@@ -102,6 +106,7 @@ describe("the support set", () => {
         "hex-tb-half-top-2h",
         "hex-tb-half-top-3h",
         "hex-tb-half-top-solid",
+        "hex-tb-main",
         "hex-tb-spike-ball-joint",
         "hex-tb-spike-ball-zip-single",
         "hex-tb-spike-solid",

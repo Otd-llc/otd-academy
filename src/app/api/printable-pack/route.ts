@@ -327,27 +327,28 @@ async function platedPack(
   }
 
   const multi = plates.length > 1;
-  // WHY ONE PLATE IS NOT ALWAYS A BARE FILE.
-  //
-  // The bare `.3mf` is the point of this feature -- an alpha tester asked for
-  // one file he could slice and print, and it is also the commonest response.
-  // But a bare file ships no README, and the README is where the SUPPORT NOTE
-  // lives: `hex-tb-spike-solid` and `hex-tb-spike-ball-joint` are laid on their
-  // side BY DESIGN, so they touch the bed along a line and need supports or a
-  // brim. Before plating, every download was a zip and that warning always
-  // travelled; the one-file case is the only way it could ever go missing, and
-  // the consequence of it going missing is a failed print.
-  //
-  // So the archive is conditional on the CONTENT, not on the plate count. A
-  // build with a spike in it gets the zip -- one extra click, and only in the
-  // case where there is something the person has to be told. Everything else
-  // still gets the one file.
-  //
-  // The `<metadata name="Description">` written into every plate carries the
-  // same two notes inside the file, but slicers surface metadata inconsistently,
-  // so it is the second line of defence and not the answer. Design, section 5.
   const warned = packNeedsSupport(parts.map((p) => p.slug));
-  const archived = multi || warned;
+  // EVERY DOWNLOAD IS AN ARCHIVE. This used to be `multi || warned`, so a
+  // single plate of parts that needed no warning came back as a bare `.3mf`.
+  // Two independent things killed that branch, and either alone would have.
+  //
+  // THE LICENCE HAS TO TRAVEL. Owner, 2026-08-17: "we also have a license file
+  // we need to include, so zip is not optional." These are CC BY works and the
+  // attribution is the one condition of the licence; a bare plate carried it
+  // only as `<metadata>` inside the file, which is real but is not the notice.
+  //
+  // AND THE BRANCH BECAME UNREACHABLE IN PRACTICE. The comment that stood here
+  // argued the bare file was "the commonest response" and that only a build
+  // containing a spike needed the zip. A calibration sweep -- every published
+  // part on one plate, opened in Creality Print, warnings written down -- put
+  // 25 of 53 parts on the support list, including `hex-tb-main`, which is in
+  // very nearly every build anyone assembles. So "everything else still gets
+  // the one file" had quietly become "almost nothing does". Keeping a branch
+  // alive for the cases that no longer occur is how a rarely-taken path rots.
+  //
+  // `multi` and `warned` are still computed: they decide what the README SAYS,
+  // which is a different question from what shape the box is.
+  const archived = true;
 
   const sources = new Map<string, string>();
   let licence: Buffer | null = null;
