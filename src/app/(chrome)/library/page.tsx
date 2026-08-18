@@ -16,6 +16,7 @@
 // per-cluster grabs + lose the interest signal). Featured/also-featured diagrams
 // are the lessons' OWN hero diagrams (firstDiagramSrc), rendered from a small
 // static-import map so the landing ships only those, not the whole registry.
+import { cache, Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import nextDynamic from "next/dynamic";
@@ -118,10 +119,8 @@ function ReadMin({ minutes }: { minutes: number }) {
 // read-time sits on the right as the row's affordance + merchandising nudge.
 function LibraryRow({
   lesson,
-  xp,
 }: {
   lesson: { slug: string; title: string; readingMinutes: number };
-  xp?: LessonXp;
 }) {
   return (
     <li>
@@ -133,16 +132,30 @@ function LibraryRow({
           {lesson.title}
         </span>
         <span className="flex shrink-0 items-baseline gap-2.5">
-          {xp ? (
-            <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted">
-              <span className="font-numeral tabular-nums text-command-gold">{xp.earnedToday}</span>
-              /{xp.maxToday} XP
-            </span>
-          ) : null}
+          {/* The XP chip is the ONLY personalised pixel in a row, so it gets its own
+              boundary: the row -- the crawlable link, and the reason this page exists --
+              prerenders into the static shell, and the chip streams in for a signed-in
+              reader. fallback={null} IS the anonymous row. Wrapping anything larger
+              would put the index itself behind a boundary, which is the bug this file
+              used to have (see LibraryIndexPage). */}
+          <Suspense fallback={null}>
+            <RowXp slug={lesson.slug} />
+          </Suspense>
           <ReadMin minutes={lesson.readingMinutes} />
         </span>
       </Link>
     </li>
+  );
+}
+
+async function RowXp({ slug }: { slug: string }) {
+  const xp = (await libraryPersonal())?.xpBySlug?.get(slug);
+  if (!xp) return null;
+  return (
+    <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted">
+      <span className="font-numeral tabular-nums text-command-gold">{xp.earnedToday}</span>
+      /{xp.maxToday} XP
+    </span>
   );
 }
 
@@ -343,25 +356,22 @@ function FreshRail({ items }: { items: FreshLesson[] }) {
 // One cluster's block in the deep index: a header (ordinal + Bebas label + blurb
 // + count + Field Guide) over a two-column serif row list. The "other" bucket
 // (no registry entry) renders as a trailing catch-all with no ordinal/download.
-function ClusterSection({
-  ordinal,
-  clusterKey,
-  list,
-  signedIn,
-  xpBySlug,
-  clusterStat,
+// The right-hand meta cluster shared by both the registry-cluster head and the
+// catch-all: count + optional progress + Field Guide. Two of those three are
+// personalised (the done/total stat, and the Field Guide CTA, which is
+// account-gated), so it renders from `personal` and is the only part of a cluster
+// head behind a boundary. It is ~1 kB, so sending it twice costs nothing.
+function ClusterMeta({
+  cluster,
+  count,
+  personal,
 }: {
-  ordinal: number | null;
-  clusterKey: string;
-  list: { slug: string; title: string; readingMinutes: number }[];
-  signedIn: boolean;
-  xpBySlug?: Map<string, LessonXp>;
-  clusterStat?: { done: number; total: number };
+  cluster: ReturnType<typeof clusterByKey>;
+  count: number;
+  personal: Personal | null;
 }) {
-  const cluster = clusterByKey(clusterKey);
-  // Count + optional progress + Field Guide, the right-hand meta cluster shared by
-  // both the registry-cluster head and the catch-all.
-  const meta = (
+  const clusterStat = cluster ? personal?.clusterStats?.get(cluster.key) : undefined;
+  return (
     <div className="flex shrink-0 items-center gap-3">
       {clusterStat ? (
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
@@ -372,18 +382,51 @@ function ClusterSection({
         </span>
       ) : null}
       <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
-        <span className="font-numeral tabular-nums text-sm text-command-gold">{list.length}</span>{" "}
-        {list.length === 1 ? "guide" : "guides"}
+        <span className="font-numeral tabular-nums text-sm text-command-gold">{count}</span>{" "}
+        {count === 1 ? "guide" : "guides"}
       </span>
       {cluster ? (
         <FieldGuideDownload
           guide={cluster.key}
           label="Field Guide"
           name={`the ${cluster.label} Field Guide`}
-          signedIn={signedIn}
+          signedIn={personal?.signedIn ?? false}
         />
       ) : null}
     </div>
+  );
+}
+
+async function PersonalClusterMeta({
+  clusterKey,
+  count,
+}: {
+  clusterKey: string;
+  count: number;
+}) {
+  return (
+    <ClusterMeta
+      cluster={clusterByKey(clusterKey)}
+      count={count}
+      personal={await libraryPersonal()}
+    />
+  );
+}
+
+function ClusterSection({
+  ordinal,
+  clusterKey,
+  list,
+}: {
+  ordinal: number | null;
+  clusterKey: string;
+  list: { slug: string; title: string; readingMinutes: number }[];
+}) {
+  const cluster = clusterByKey(clusterKey);
+  const meta = (
+    <Suspense fallback={<ClusterMeta cluster={cluster} count={list.length} personal={null} />}>
+      <PersonalClusterMeta clusterKey={clusterKey} count={list.length} />
+    </Suspense>
   );
   return (
     <section className="mb-12">
@@ -421,51 +464,285 @@ function ClusterSection({
       )}
       <ul className="mt-3 grid grid-cols-1 gap-x-10 sm:grid-cols-2">
         {list.map((l) => (
-          <LibraryRow key={l.slug} lesson={l} xp={xpBySlug?.get(l.slug)} />
+          <LibraryRow key={l.slug} lesson={l} />
         ))}
       </ul>
     </section>
   );
 }
 
+// Everything the signed-in Logbook overlay needs. `signedIn` is its own field
+// rather than `personal !== null`: a session with no email, or with no User row
+// behind it, is still signed in -- it just has no progress to show, which is the
+// behaviour this page has always had.
+type Personal = {
+  signedIn: boolean;
+  xpBySlug: Map<string, LessonXp> | null;
+  clusterStats: Map<string, { done: number; total: number }> | null;
+  logbookChip: { level: number; xpTotal: number } | null;
+  showIntro: boolean;
+  goalPhrase: string | null;
+  resume: Awaited<ReturnType<typeof getLibraryResume>>;
+  resumeLesson: LessonMeta | null;
+  followerEntries: PatchEntry[];
+};
+
+/**
+ * One request-scoped read of everything personalised on this page.
+ *
+ * ~76 boundaries call it -- the header, the intro, the masthead, the rail, 6 cluster
+ * metas and 69 row chips -- and React's per-request `cache()` collapses them into ONE
+ * `auth()` plus one set of queries, the same trick `currentAccount()` uses for the
+ * header islands. Returns null for an anonymous visitor, which is every boundary's
+ * fallback state.
+ *
+ * NOT `use cache`: it reads the session, which that directive forbids and which would
+ * serve one learner's progress to another (docs/caching.md, Law 4).
+ */
+const libraryPersonal = cache(async (): Promise<Personal | null> => {
+  const session = await auth();
+  if (!session?.user) return null;
+
+  const personal: Personal = {
+    signedIn: true,
+    xpBySlug: null,
+    clusterStats: null,
+    logbookChip: null,
+    showIntro: false,
+    goalPhrase: null,
+    resume: null,
+    resumeLesson: null,
+    followerEntries: [],
+  };
+
+  const user = session.user.email
+    ? await db.user.findUnique({
+        where: { email: session.user.email },
+        select: {
+          id: true,
+          xpTotal: true,
+          logbookIntroSeenAt: true,
+          onboardingGoal: true,
+        },
+      })
+    : null;
+  if (!user) return personal;
+
+  // Progress (one batched read) + the header chip + the one-time intro flag.
+  const lessons = await loadLessonMeta();
+  const progress = await getLibraryProgress(user.id, lessons, new Date());
+  personal.xpBySlug = progress.byLesson;
+  personal.clusterStats = progress.byCluster;
+  personal.logbookChip = { level: levelFor(user.xpTotal).level, xpTotal: user.xpTotal };
+  personal.showIntro = user.logbookIntroSeenAt == null;
+  personal.goalPhrase = GOAL_PHRASE[user.onboardingGoal ?? ""] ?? null;
+
+  // Resume state: the rail's also-featured becomes a "pick up where you left off"
+  // card (start / continue / next / restart). The lesson set comes from the same
+  // cached read the page renders from, so it costs no query of its own.
+  const allLessons = [...(await listPublishedByCluster()).values()].flat() as LessonMeta[];
+  if (allLessons.length === 0) return personal;
+  const resume = await getLibraryResume(
+    user.id,
+    allLessons.map((l) => l.slug),
+  );
+  personal.resume = resume;
+  if (!resume) return personal;
+  personal.resumeLesson = allLessons.find((l) => l.slug === resume.slug) ?? null;
+  personal.followerEntries = (
+    await db.badgeEarned.findMany({
+      where: { userId: user.id },
+      orderBy: { earnedAt: "desc" },
+      select: { badgeKey: true },
+    })
+  ).map((b) => buildEntry(b.badgeKey));
+  return personal;
+});
+
+// The page head. Personalised twice over: the dek changes, and a signed-in reader
+// gets a Logbook chip appended to the meta row.
+function LibraryHeader({
+  personal,
+  total,
+  clusterCount,
+  lastUpdated,
+}: {
+  personal: Personal | null;
+  total: number;
+  clusterCount: number;
+  lastUpdated: Date | undefined;
+}) {
+  const logbookChip = personal?.logbookChip ?? null;
+  return (
+    <PageHeader
+      eyebrow="LIBRARY"
+      title="Reference guides"
+      lead={
+        personal?.signedIn
+          ? "Concept explainers across six clusters: the ideas behind the builds. Pick up where you left off and earn patches as you go."
+          : "Concept explainers across six clusters: the ideas behind the builds. Free to read, no account needed."
+      }
+      meta={
+        total > 0
+          ? [
+              {
+                label: "Guides",
+                value: <span className="font-numeral tabular-nums text-command-gold">{total}</span>,
+              },
+              {
+                label: "Clusters",
+                value: (
+                  <span className="font-numeral tabular-nums text-command-gold">
+                    {clusterCount}
+                  </span>
+                ),
+              },
+              ...(lastUpdated ? [{ label: "Updated", value: monthYear(lastUpdated) }] : []),
+              ...(logbookChip
+                ? [
+                    {
+                      label: "Logbook",
+                      value: (
+                        <Link
+                          href="/logbook"
+                          className="text-text transition-colors hover:text-command-gold"
+                        >
+                          FL{logbookChip.level} ·{" "}
+                          <span className="font-numeral tabular-nums text-command-gold">
+                            {logbookChip.xpTotal}
+                          </span>{" "}
+                          XP
+                        </Link>
+                      ),
+                    },
+                  ]
+                : []),
+            ]
+          : []
+      }
+    />
+  );
+}
+
+async function PersonalHeader(props: {
+  total: number;
+  clusterCount: number;
+  lastUpdated: Date | undefined;
+}) {
+  return <LibraryHeader personal={await libraryPersonal()} {...props} />;
+}
+
+async function PersonalIntro() {
+  const personal = await libraryPersonal();
+  return personal?.showIntro ? <LogbookIntro goalPhrase={personal.goalPhrase} /> : null;
+}
+
+// Masthead: an anonymous visitor gets the featured guide (eyebrow -> bare diagram
+// banner -> text, owner pick V2c) alongside New & updated, then the rule. A signed-in
+// student skips it entirely -- their follower card below is the featured lesson -- and
+// just sees the deep index, so the personalised branch renders the 2rem of space the
+// grid used to carry as a conditional `mt-8`. Keeping that spacing HERE is what lets
+// the grid below hold one constant className, and therefore stay in the static shell.
+function Masthead({
+  lead,
+  fresh,
+  diagram,
+  signedIn,
+}: {
+  lead: LessonMeta | undefined;
+  fresh: FreshLesson[];
+  diagram: React.ReactNode;
+  signedIn: boolean;
+}) {
+  if (signedIn) return <div className="h-8" aria-hidden />;
+  return (
+    <>
+      {lead ? (
+        <div className="grid items-start gap-8 lg:grid-cols-[1.55fr_1fr]">
+          <FeaturedLead lesson={lead} signedIn={false} diagram={diagram} />
+          {fresh.length > 0 ? <FreshRail items={fresh} /> : null}
+        </div>
+      ) : null}
+      <div className="title-rule my-10" aria-hidden />
+    </>
+  );
+}
+
+async function PersonalMasthead(props: {
+  lead: LessonMeta | undefined;
+  fresh: FreshLesson[];
+  diagram: React.ReactNode;
+}) {
+  const personal = await libraryPersonal();
+  return <Masthead {...props} signedIn={personal?.signedIn ?? false} />;
+}
+
+// The sticky rail. Anonymous: the also-featured's portrait diagram + its text.
+// Signed-in with resume state: the follower card (rank ring, patches, resume CTA)
+// plus New & updated, which the masthead no longer carries for them.
+function Rail({
+  also,
+  alsoDiagram,
+  fresh,
+  personal,
+}: {
+  also: LessonMeta | undefined;
+  alsoDiagram: React.ReactNode;
+  fresh: FreshLesson[];
+  personal: Personal | null;
+}) {
+  const resume = personal?.resume ?? null;
+  const resumeLesson = personal?.resumeLesson ?? null;
+  const rc = resume ? RESUME_COPY[resume.mode] : null;
+  if (personal && resume && resumeLesson && rc) {
+    const flLevel = personal.logbookChip?.level ?? 1;
+    const flXp = personal.logbookChip?.xpTotal ?? 0;
+    const flCurMin = LEVELS[flLevel - 1]?.minXp ?? 0;
+    const flNextMin = LEVELS[flLevel]?.minXp ?? null;
+    const bandPct =
+      flNextMin != null ? Math.max(0, Math.min(1, (flXp - flCurMin) / (flNextMin - flCurMin))) : 1;
+    return (
+      <>
+        <FollowerCard
+          eyebrow={rc.eyebrow}
+          title={resumeLesson.title}
+          blurb={resume.mode === "restart" ? rc.note : resumeLesson.summary || rc.note}
+          href={`/library/${resumeLesson.slug}`}
+          cta={rc.cta}
+          clusterLabel={clusterByKey(resumeLesson.cluster)?.label ?? null}
+          readingMinutes={resumeLesson.readingMinutes}
+          level={flLevel}
+          rankTitle={LEVELS.find((l) => l.level === flLevel)?.title ?? ""}
+          xp={flXp}
+          bandPct={bandPct}
+          entries={personal.followerEntries}
+        >
+          {resumeLesson.diagramSrc ? <ResumeDiagram src={resumeLesson.diagramSrc} /> : null}
+        </FollowerCard>
+        {fresh.length > 0 ? <FreshRail items={fresh} /> : null}
+      </>
+    );
+  }
+  if (!also) return null;
+  return (
+    <>
+      {alsoDiagram ? <div>{alsoDiagram}</div> : null}
+      <RailAlso lesson={also} signedIn={personal?.signedIn ?? false} />
+    </>
+  );
+}
+
+async function PersonalRail(props: {
+  also: LessonMeta | undefined;
+  alsoDiagram: React.ReactNode;
+  fresh: FreshLesson[];
+}) {
+  return <Rail {...props} personal={await libraryPersonal()} />;
+}
+
 export default async function LibraryIndexPage() {
   const buckets = await listPublishedByCluster();
   const base = siteUrl();
-  // Field-guide downloads are account-gated (the compiled books are the lead
-  // magnet); a signed-in reader gets a one-click email, everyone else a prompt.
-  const session = await auth();
-  const signedIn = Boolean(session?.user);
-
-  // Signed-in Logbook overlay (design §9). STRICTLY ADDITIVE: the anonymous index
-  // stays byte-for-byte the shipped #293 layout. When signed in we load progress
-  // (one batched read) + the header chip + the one-time intro flag.
-  let xpBySlug: Map<string, LessonXp> | null = null;
-  let clusterStats: Map<string, { done: number; total: number }> | null = null;
-  let logbookChip: { level: number; xpTotal: number } | null = null;
-  let showIntro = false;
-  let goalPhrase: string | null = null;
-  let userId: string | null = null;
-  if (session?.user?.email) {
-    const user = await db.user.findUnique({
-      where: { email: session.user.email },
-      select: {
-        id: true,
-        xpTotal: true,
-        logbookIntroSeenAt: true,
-        onboardingGoal: true,
-      },
-    });
-    if (user) {
-      userId = user.id;
-      const lessons = await loadLessonMeta();
-      const progress = await getLibraryProgress(user.id, lessons, new Date());
-      xpBySlug = progress.byLesson;
-      clusterStats = progress.byCluster;
-      logbookChip = { level: levelFor(user.xpTotal).level, xpTotal: user.xpTotal };
-      showIntro = user.logbookIntroSeenAt == null;
-      goalPhrase = GOAL_PHRASE[user.onboardingGoal ?? ""] ?? null;
-    }
-  }
 
   // Flatten cluster-major (registry order, then the trailing "other" bucket) for
   // the ItemList JSON-LD, the catalog stats, and the merchandising helpers.
@@ -479,7 +756,7 @@ export default async function LibraryIndexPage() {
     allLessons.map((l) => ({ name: l.title, url: `${base}/library/${l.slug}` })),
   );
 
-  // Explicit max over EVERY lesson's updatedAt — the flat list is cluster-major,
+  // Explicit max over EVERY lesson's updatedAt -- the flat list is cluster-major,
   // not freshness-ordered, so row[0] would print a stale stamp.
   const lastUpdated = allLessons.reduce<Date | undefined>(
     (max, l) => (!max || l.updatedAt > max ? l.updatedAt : max),
@@ -494,107 +771,44 @@ export default async function LibraryIndexPage() {
   const leadDiagram = lead ? heroDiagram(lead.diagramSrc) : null;
   const alsoDiagram = also ? heroDiagram(also.diagramSrc) : null;
 
-  // Signed-in resume state: the rail's also-featured becomes a "pick up where you left
-  // off" card (start / continue / next / restart). Anonymous keeps the also-featured
-  // exactly as shipped.
-  const resume =
-    userId && allLessons.length > 0
-      ? await getLibraryResume(userId, allLessons.map((l) => l.slug))
-      : null;
-  const resumeLesson = resume ? (allLessons.find((l) => l.slug === resume.slug) ?? null) : null;
-  const railLesson = resumeLesson ?? also;
-  const railDiagram = resumeLesson
-    ? resumeLesson.diagramSrc
-      ? <ResumeDiagram src={resumeLesson.diagramSrc} />
-      : null
-    : alsoDiagram;
-
-  // Follower-card data (signed-in resume): the resume copy, a blurb (the lesson's own
-  // summary, or the meta note for start/restart), the learner's earned patches, and the
-  // rank-band fill for the XP ring.
-  const rc = resume ? RESUME_COPY[resume.mode] : null;
-  const followerBlurb =
-    resume && resumeLesson
-      ? resume.mode === "restart"
-        ? rc!.note
-        : resumeLesson.summary || rc!.note
-      : "";
-  const followerEntries: PatchEntry[] =
-    userId && resume
-      ? (
-          await db.badgeEarned.findMany({
-            where: { userId },
-            orderBy: { earnedAt: "desc" },
-            select: { badgeKey: true },
-          })
-        ).map((b) => buildEntry(b.badgeKey))
-      : [];
-  const flLevel = logbookChip?.level ?? 1;
-  const flXp = logbookChip?.xpTotal ?? 0;
-  const flCurMin = LEVELS[flLevel - 1]?.minXp ?? 0;
-  const flNextMin = LEVELS[flLevel]?.minXp ?? null;
-  const bandPct = flNextMin != null ? Math.max(0, Math.min(1, (flXp - flCurMin) / (flNextMin - flCurMin))) : 1;
-  const rankTitle = LEVELS.find((l) => l.level === flLevel)?.title ?? "";
-
   // Running ordinal for registry clusters only ("other" gets none).
   let ordinal = 0;
 
+  // NOTHING below awaits the session. Every personalised element sits behind its own
+  // <Suspense>, whose FALLBACK is the anonymous view -- and a Cache Components build
+  // prerenders fallbacks, so the whole index (69 crawlable lesson links) ships in the
+  // static shell while the personal bits stream in over it.
+  //
+  // This page used to `await auth()` at the top, which postponed the entire body: the
+  // prerendered shell was 48 kB of chrome with ZERO lesson links, and the index -- the
+  // SEO surface this site rests on -- was re-rendered on every request. Wrapping the
+  // WHOLE page in one boundary fixes the shell but then ships the index TWICE (measured:
+  // +45 kB gzipped per anonymous hit). Hence the granularity: a boundary goes around the
+  // smallest personalised thing, never around the index.
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <JsonLd data={listLd} />
-      <PageHeader
-        eyebrow="LIBRARY"
-        title="Reference guides"
-        lead={
-          signedIn
-            ? "Concept explainers across six clusters: the ideas behind the builds. Pick up where you left off and earn patches as you go."
-            : "Concept explainers across six clusters: the ideas behind the builds. Free to read, no account needed."
-        }
-        meta={
-          allLessons.length > 0
-            ? [
-                {
-                  label: "Guides",
-                  value: (
-                    <span className="font-numeral tabular-nums text-command-gold">
-                      {allLessons.length}
-                    </span>
-                  ),
-                },
-                {
-                  label: "Clusters",
-                  value: (
-                    <span className="font-numeral tabular-nums text-command-gold">
-                      {clusterCount}
-                    </span>
-                  ),
-                },
-                ...(lastUpdated ? [{ label: "Updated", value: monthYear(lastUpdated) }] : []),
-                ...(logbookChip
-                  ? [
-                      {
-                        label: "Logbook",
-                        value: (
-                          <Link
-                            href="/logbook"
-                            className="text-text transition-colors hover:text-command-gold"
-                          >
-                            FL{logbookChip.level} ·{" "}
-                            <span className="font-numeral tabular-nums text-command-gold">
-                              {logbookChip.xpTotal}
-                            </span>{" "}
-                            XP
-                          </Link>
-                        ),
-                      },
-                    ]
-                  : []),
-              ]
-            : []
-        }
-      />
 
-      {signedIn && showIntro ? <LogbookIntro goalPhrase={goalPhrase} /> : null}
+      <Suspense
+        fallback={
+          <LibraryHeader
+            personal={null}
+            total={allLessons.length}
+            clusterCount={clusterCount}
+            lastUpdated={lastUpdated}
+          />
+        }
+      >
+        <PersonalHeader
+          total={allLessons.length}
+          clusterCount={clusterCount}
+          lastUpdated={lastUpdated}
+        />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <PersonalIntro />
+      </Suspense>
 
       {allLessons.length === 0 ? (
         <p className="font-mono text-sm uppercase tracking-wider text-muted">
@@ -602,50 +816,24 @@ export default async function LibraryIndexPage() {
         </p>
       ) : (
         <>
-          {/* Masthead: anonymous visitors get the featured guide (eyebrow → bare diagram
-              banner → text, owner pick V2c) alongside New & updated. A signed-in student
-              skips it entirely — their follower card below is the featured lesson — and
-              just sees the deep index. */}
-          {signedIn ? null : lead ? (
-            <div className="grid items-start gap-8 lg:grid-cols-[1.55fr_1fr]">
-              <FeaturedLead lesson={lead} signedIn={signedIn} diagram={leadDiagram} />
-              {fresh.length > 0 ? <FreshRail items={fresh} /> : null}
-            </div>
-          ) : null}
-
-          {!signedIn ? <div className="title-rule my-10" aria-hidden /> : null}
+          <Suspense
+            fallback={<Masthead lead={lead} fresh={fresh} diagram={leadDiagram} signedIn={false} />}
+          >
+            <PersonalMasthead lead={lead} fresh={fresh} diagram={leadDiagram} />
+          </Suspense>
 
           {/* Split: sticky rail (student follower card + new & updated, or the anon
               also-featured) + the deep cluster index. */}
-          <div className={`grid gap-10 lg:grid-cols-[300px_1fr] ${signedIn ? "mt-8" : ""}`}>
-            {railLesson ? (
+          <div className="grid gap-10 lg:grid-cols-[300px_1fr]">
+            {also ? (
               <aside className="space-y-6 self-start lg:sticky lg:top-24">
-                {resume && resumeLesson && rc ? (
-                  <>
-                  <FollowerCard
-                    eyebrow={rc.eyebrow}
-                    title={resumeLesson.title}
-                    blurb={followerBlurb}
-                    href={`/library/${resumeLesson.slug}`}
-                    cta={rc.cta}
-                    clusterLabel={clusterByKey(resumeLesson.cluster)?.label ?? null}
-                    readingMinutes={resumeLesson.readingMinutes}
-                    level={flLevel}
-                    rankTitle={rankTitle}
-                    xp={flXp}
-                    bandPct={bandPct}
-                    entries={followerEntries}
-                  >
-                    {railDiagram}
-                  </FollowerCard>
-                  {fresh.length > 0 ? <FreshRail items={fresh} /> : null}
-                  </>
-                ) : (
-                  <>
-                    {railDiagram ? <div>{railDiagram}</div> : null}
-                    <RailAlso lesson={railLesson} signedIn={signedIn} />
-                  </>
-                )}
+                <Suspense
+                  fallback={
+                    <Rail also={also} alsoDiagram={alsoDiagram} fresh={fresh} personal={null} />
+                  }
+                >
+                  <PersonalRail also={also} alsoDiagram={alsoDiagram} fresh={fresh} />
+                </Suspense>
               </aside>
             ) : null}
 
@@ -653,17 +841,7 @@ export default async function LibraryIndexPage() {
               {sections.map(([key, list]) => {
                 const isRegistry = Boolean(clusterByKey(key));
                 const ord = isRegistry ? ++ordinal : null;
-                return (
-                  <ClusterSection
-                    key={key}
-                    ordinal={ord}
-                    clusterKey={key}
-                    list={list}
-                    signedIn={signedIn}
-                    xpBySlug={xpBySlug ?? undefined}
-                    clusterStat={clusterStats?.get(key)}
-                  />
-                );
+                return <ClusterSection key={key} ordinal={ord} clusterKey={key} list={list} />;
               })}
             </div>
           </div>
