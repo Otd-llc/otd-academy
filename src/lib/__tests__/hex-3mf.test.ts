@@ -10,7 +10,13 @@
 import { describe, expect, it } from "vitest";
 import JSZip from "jszip";
 
-import { CORE_META, buildPlate3mf, extractObjectBlock } from "@/lib/hex-3mf";
+import {
+  CORE_META,
+  MODEL_SETTINGS_PATH,
+  ZIP_EPOCH,
+  buildPlate3mf,
+  extractObjectBlock,
+} from "@/lib/hex-3mf";
 import { HEX_LICENSE } from "@/lib/hex-spec";
 import {
   HEX_PART_BOX,
@@ -301,18 +307,29 @@ describe("extractObjectBlock", () => {
 });
 
 describe("buildPlate3mf", () => {
-  it("emits one object per distinct part and one item per placement", async () => {
-    // INSTANCING, which is the reason mesh vertices are never rewritten: six
-    // identical caps are one object and six items, not six copies of a 300 KB
-    // mesh. Three placements over two parts, because with one part "per
-    // distinct" and "one, full stop" are the same number.
+  it("emits one object per PLACEMENT, so every copy can be named and configured", async () => {
+    // THIS ROW USED TO ASSERT THE OPPOSITE, and the change is measured rather
+    // than preferred. It read "one object per DISTINCT part": six identical caps
+    // were one mesh and six `<item>` lines, which is the smaller and better file
+    // right up until `model_settings.config` exists. In Creality Print 7.2.1
+    // ONLY THE FIRST INSTANCE of a shared object receives the settings, and only
+    // the first receives its NAME -- the rest arrive anonymous and unconfigured.
+    // Adding settings silently broke naming, which had worked before.
+    //
+    // Declaring the copies properly does not rescue it: a probe carrying a
+    // `<plate>` block with one `<model_instance>` per copy, the shape Creality
+    // writes in its own saves, still left the second cap unnamed.
+    //
+    // The cost is duplicated mesh, and it is the price of every part having an
+    // identity. Three placements over two parts, so "per placement" and "per
+    // distinct" give different numbers and this row can tell them apart.
     const model = await modelOf(
       await plate3mf([at("a", 4, 4), at("b", 20, 4), at("a", 40, 4)], SOURCES),
     );
-    expect(model.match(/<object /g)).toHaveLength(2);
+    expect(model.match(/<object /g)).toHaveLength(3);
     expect(model.match(/<item /g)).toHaveLength(3);
-    // And the mesh actually carried, not just the count: `a` twice and `b` once.
-    expect(model.match(/<vertex x="1"/g)).toHaveLength(1);
+    // The mesh really is carried twice now, not merely counted twice.
+    expect(model.match(/<vertex x="1"/g)).toHaveLength(2);
     expect(model.match(/<vertex x="2"/g)).toHaveLength(1);
   });
 
@@ -349,20 +366,28 @@ describe("buildPlate3mf", () => {
     expect(model).not.toContain('name="b"');
   });
 
-  it("refuses one slug carrying two different names on a plate", async () => {
-    // Instancing collapses every placement of a slug onto ONE object, so two
-    // names for one mesh cannot both be written: the first silently wins and the
-    // rest are lost. The output is a well-formed plate with a part labelled
-    // something nobody asked for, which is invisible in every structural check.
+  it("gives two copies of one part two named, separately configured objects", async () => {
+    // THIS ROW REPLACES A GUARD THAT NO LONGER HAS ANYTHING TO GUARD. It used to
+    // assert that one slug carrying two different names was REFUSED, because
+    // instancing collapsed every placement onto one object and the first name
+    // silently won. Nothing is collapsed now, so two names are simply two
+    // objects, and the throw would be refusing a request it can satisfy.
     //
-    // Unreachable from the route -- both fields come from one table row keyed by
-    // the slug -- so this guards the contract rather than an expected input.
-    await expect(
-      plate3mf(
-        [at("a", 4, 4, {}, "Hex-TB-Main"), at("a", 20, 4, {}, "Hex-TB-Spare")],
-        SOURCES,
-      ),
-    ).rejects.toThrow(/named both/);
+    // What replaces it is the defect the owner actually hit: a plate of two caps
+    // and a ball joint where one cap had no name and none of the settings.
+    const buf = await plate3mf(
+      [at("a", 4, 4, {}, "Hex-TB-Main"), at("a", 20, 4, {}, "Hex-TB-Spare")],
+      SOURCES,
+    );
+    const model = await modelOf(buf);
+    expect(itemNames(model)).toEqual(["Hex-TB-Main", "Hex-TB-Spare"]);
+
+    // ...and BOTH carry the settings, which is the half that was silently lost.
+    const zip = await JSZip.loadAsync(buf);
+    const cfg = await zip.file(MODEL_SETTINGS_PATH)!.async("string");
+    expect(cfg.match(/key="sparse_infill_pattern"/g)).toHaveLength(2);
+    expect(cfg).toContain('value="Hex-TB-Main"');
+    expect(cfg).toContain('value="Hex-TB-Spare"');
   });
 
   it("translates a placement to its minimum corner and seats it on the bed", async () => {
@@ -532,10 +557,17 @@ describe("buildPlate3mf", () => {
     // This list is CLOSED on purpose. The failure it catches is not "a file we
     // meant to add"; it is a file that appears without either of the two
     // declarations that make it legal.
+    //
+    // `model_settings.config` joined it deliberately and DID fail this row on
+    // the way in, which is the row doing its job. It differs from the thumbnail
+    // in one respect worth writing down: it needs the `config` default in
+    // `[Content_Types].xml` but NO relationship, because it is a vendor side-car
+    // found by path rather than an OPC-related part.
     const zip = await JSZip.loadAsync(await plate3mf([at("a", 4, 4)], SOURCES));
     const entries = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
     expect(entries.sort()).toEqual([
       "3D/3dmodel.model",
+      MODEL_SETTINGS_PATH,
       "Metadata/thumbnail.png",
       "[Content_Types].xml",
       "_rels/.rels",
@@ -722,5 +754,179 @@ describe("buildPlate3mf", () => {
     await new Promise((r) => setTimeout(r, 2100));
     const second = await plate3mf(plate, SOURCES);
     expect(Buffer.compare(first, second)).toBe(0);
+  });
+});
+
+/* ===========================================================================
+   THE PER-OBJECT PRINT SETTINGS.
+
+   These exist because alpha testers do not read the README and did not select
+   the infill the parts need. Every row below is about a behaviour MEASURED in
+   Creality Print 7.2.1 on 2026-08-17, not inferred from documentation, because
+   three research passes disagreed and two of them were wrong.
+   =========================================================================== */
+
+describe("Metadata/model_settings.config", () => {
+  const configOf = async (buf: Buffer): Promise<string> => {
+    const zip = await JSZip.loadAsync(buf);
+    const file = zip.file(MODEL_SETTINGS_PATH);
+    expect(file, MODEL_SETTINGS_PATH).not.toBeNull();
+    return file!.async("string");
+  };
+
+  it("gives every part the infill the parts are structurally chosen for", async () => {
+    // Gyroid is a torsion requirement here, not a preference. If this stops
+    // being written, the whole feature has lost its reason to exist.
+    const cfg = await configOf(
+      await plate3mf([at("a", 4, 4), at("b", 20, 4)], SOURCES),
+    );
+    expect(cfg.match(/key="sparse_infill_pattern" value="gyroid"/g)).toHaveLength(2);
+  });
+
+  it("gives every part the density and perimeters the infill was chosen against", async () => {
+    // 30% at four perimeters, and BOTH halves, because 30% was chosen against
+    // four -- stating either alone describes a part nobody tested. These come
+    // from `PRINT_INTENT_TABLE`, which the /hex print card and the archive
+    // README also render: this row is the one that checks the BYTES, so the
+    // three surfaces cannot agree with each other while disagreeing with the
+    // file. Release 2026-08-17 baked 15% at 2 walls under a README saying 30%
+    // at 4, and nothing caught it because nothing compared them.
+    const cfg = await configOf(
+      await plate3mf([at("a", 4, 4), at("b", 20, 4)], SOURCES),
+    );
+    expect(
+      cfg.match(/key="sparse_infill_density" value="30%"/g),
+    ).toHaveLength(2);
+    expect(cfg.match(/key="wall_loops" value="4"/g)).toHaveLength(2);
+  });
+
+  it("spells the infill in the case the slicer's enum map uses", async () => {
+    // MEASURED: "Gyroid" is silently replaced with grid, behind a dialog that
+    // blames a version mismatch. The file looks right and prints weak.
+    const cfg = await configOf(await plate3mf([at("a", 4, 4)], SOURCES));
+    expect(cfg).toContain('value="gyroid"');
+    expect(cfg).not.toContain('value="Gyroid"');
+  });
+
+  it("carries extruder, the one key a geometry-only import preserves", async () => {
+    const cfg = await configOf(await plate3mf([at("a", 4, 4)], SOURCES));
+    expect(cfg).toContain('key="extruder" value="1"');
+  });
+
+  it("gives one object per DISTINCT part, matching the model's ids", async () => {
+    const buf = await plate3mf(
+      [at("a", 4, 4), at("b", 20, 4), at("a", 40, 4)],
+      SOURCES,
+    );
+    const cfg = await configOf(buf);
+    const model = await modelOf(buf);
+    const cfgIds = [...cfg.matchAll(/<object id="(\d+)"/g)].map((m) => m[1]);
+    const modelIds = [...model.matchAll(/<object id="(\d+)"/g)].map((m) => m[1]);
+    expect(cfgIds).toEqual(modelIds);
+    // An id in the config that names no object in the model is a settings block
+    // the slicer silently drops, and the object falls back to "Object_N".
+    expect(new Set(cfgIds).size).toBe(cfgIds.length);
+  });
+
+  it("names each object, so the slicer's object list is readable", async () => {
+    const cfg = await configOf(await plate3mf([at("a", 4, 4)], SOURCES));
+    expect(cfg).toContain('key="name" value="Part-A"');
+  });
+
+  it("escapes a name rather than emitting XML the parser will reject", async () => {
+    // Names reach here from published filenames. Expat rejects a raw & or <,
+    // and a rejected config is a refused import, not a degraded one.
+    const cfg = await configOf(
+      await plate3mf([at("a", 4, 4, {}, 'Cap & <Bracket>')], SOURCES),
+    );
+    expect(cfg).toContain("&amp;");
+    expect(cfg).not.toMatch(/value="Cap & </);
+  });
+
+  it("declares the config extension so the package stays OPC-conforming", async () => {
+    const zip = await JSZip.loadAsync(await plate3mf([at("a", 4, 4)], SOURCES));
+    const ct = await zip.file("[Content_Types].xml")!.async("string");
+    expect(ct).toContain('Extension="config"');
+  });
+
+  it("stays reproducible: the config carries the same fixed timestamp", async () => {
+    // The route promises identical bytes for identical requests. One entry
+    // stamped with a wall clock breaks that from inside the archive.
+    const zip = await JSZip.loadAsync(await plate3mf([at("a", 4, 4)], SOURCES));
+    expect(zip.file(MODEL_SETTINGS_PATH)!.date.getTime()).toBe(
+      ZIP_EPOCH.getTime(),
+    );
+  });
+});
+
+describe("support settings ride only on the parts that need them", () => {
+  const configOf = async (buf: Buffer): Promise<string> => {
+    const zip = await JSZip.loadAsync(buf);
+    return zip.file(MODEL_SETTINGS_PATH)!.async("string");
+  };
+
+  /** The real slug from `hex-support.ts`, not a stand-in: the point of the row
+   *  is that THESE two parts are the ones treated differently. */
+  const SPIKE = "hex-tb-spike-ball-joint";
+
+  it("switches support on for a line-resting part", async () => {
+    const sources = new Map([[SPIKE, source("1")]]);
+    const cfg = await configOf(
+      await plate3mf([at(SPIKE, 4, 4, {}, "Hex-TB-Spike-Ball-Joint")], sources),
+    );
+    expect(cfg).toContain('key="enable_support" value="1"');
+    // AND NO BRIM. This part rests on the ball, with almost no perimeter for a
+    // brim to hold on to -- the two remedies are independent, and giving it one
+    // it cannot use was the defect that separating them fixed.
+    expect(cfg).not.toContain("brim_type");
+  });
+
+  it("gives a brim to a part that needs adhesion but not support", async () => {
+    const ZIP = "hex-tb-spike-ball-zip-single";
+    const sources = new Map([[ZIP, source("1")]]);
+    const cfg = await configOf(
+      await plate3mf([at(ZIP, 4, 4, {}, "Hex-TB-Spike-Ball-Zip-Single")], sources),
+    );
+    expect(cfg).toContain('key="brim_type" value="outer_only"');
+    expect(cfg).not.toContain("enable_support");
+  });
+
+  it("gives support to a corner without giving it a pointless brim", async () => {
+    // 416.8 sq mm on the bed, and Creality still reports it "has floating
+    // regions". Adhesion is not its problem; what happens above layer one is.
+    const C = "hex-tb-corner-m-solid";
+    const sources = new Map([[C, source("1")]]);
+    const cfg = await configOf(
+      await plate3mf([at(C, 4, 4, {}, "Hex-TB-Corner-M-Solid")], sources),
+    );
+    expect(cfg).toContain('key="enable_support" value="1"');
+    expect(cfg).not.toContain("brim_type");
+  });
+
+  it("does NOT put support or a brim on a part that stands on a flat face", async () => {
+    // Restraint is the point. Support everywhere would be two dozen brims to
+    // cut off for the benefit of the two parts that need one.
+    const cfg = await configOf(await plate3mf([at("a", 4, 4)], SOURCES));
+    expect(cfg).not.toContain("enable_support");
+    expect(cfg).not.toContain("brim_type");
+  });
+
+  it("states the threshold angle rather than inheriting the user's profile", async () => {
+    // 30 is measured FROM HORIZONTAL, and every overhang figure this project
+    // has measured was scored against it. A profile set to 45 would change what
+    // "needs support" means after the fact.
+    const sources = new Map([[SPIKE, source("1")]]);
+    const cfg = await configOf(
+      await plate3mf([at(SPIKE, 4, 4, {}, "Hex-TB-Spike-Ball-Joint")], sources),
+    );
+    expect(cfg).toContain('key="support_threshold_angle" value="30"');
+  });
+
+  it("still gives the support part the same infill as everything else", async () => {
+    const sources = new Map([[SPIKE, source("1")]]);
+    const cfg = await configOf(
+      await plate3mf([at(SPIKE, 4, 4, {}, "Hex-TB-Spike-Ball-Joint")], sources),
+    );
+    expect(cfg).toContain('value="gyroid"');
   });
 });

@@ -23,7 +23,12 @@ import JSZip from "jszip";
 
 import type { Bed } from "@/lib/hex-pack";
 import type { Placement } from "@/lib/hex-plate";
+import { escapeXml } from "@/lib/hex-xml";
+import {
+  intentFor,
+} from "@/lib/hex-print-intent";
 import { HEX_LICENSE } from "@/lib/hex-spec";
+import { PART_REMEDY } from "@/lib/hex-support";
 import {
   THUMBNAIL_PATH,
   THUMBNAIL_REL_TYPE,
@@ -81,6 +86,11 @@ const CONTENT_TYPES =
   `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml" />` +
   `<Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml" />` +
   `<Default Extension="png" ContentType="image/png" />` +
+  // `config` joins them for `Metadata/model_settings.config`. Declared even
+  // though neither Orca nor PrusaSlicer declares it in its own output and both
+  // read the part regardless: OPC requires a content type for every part, and
+  // the cost of being conforming where the vendors are not is one attribute.
+  `<Default Extension="config" ContentType="application/vnd.ms-printing.3dmanufacturing-3dmodel-settings+xml" />` +
   `</Types>`;
 
 /** The package's relationships: which part is the 3D model, and which part is
@@ -104,6 +114,10 @@ const RELS =
   `<Relationship Target="/${THUMBNAIL_PATH}" Id="rel1" ` +
   `Type="${THUMBNAIL_REL_TYPE}" /></Relationships>`;
 
+/** Where the Orca family looks for per-object settings. Exported so the tests
+ *  read the same string the writer does, rather than a second spelling of it. */
+export const MODEL_SETTINGS_PATH = "Metadata/model_settings.config";
+
 /** A FIXED timestamp on every zip entry, and the reason is the design's
  *  determinism requirement, not tidiness.
  *
@@ -124,32 +138,19 @@ const RELS =
  *  of both -- it reads as determinism and is not. */
 export const ZIP_EPOCH = new Date(Date.UTC(1980, 0, 1));
 
-/** Escape the five-ish characters XML cares about.
+/** Re-exported from `@/lib/hex-xml`, where it now lives.
  *
- *  Covers BOTH positions this module writes into -- a double-quoted attribute
- *  value and element text -- because one escaper that is a superset of each is
- *  easier to keep right than two that are each exactly minimal. `"` is only
- *  special in an attribute value; `>` is only special in text (and only in the
- *  `]]>` sequence); `&` and `<` are special everywhere. `'` is deliberately
- *  absent: every attribute this module writes is double-quoted, so an apostrophe
- *  needs no escape, and escaping it as `&apos;` is the one entity that is not in
- *  the HTML-compatible set.
+ *  MOVED TO A LEAF because two modules write per-object config into the same
+ *  archive -- this one in the Orca dialect, `hex-prusa-config.ts` in
+ *  PrusaSlicer's -- and both need identical escaping. The wiring step described
+ *  in that module's header has `buildPlate3mf` calling into it, which would make
+ *  `hex-3mf -> hex-prusa-config -> hex-3mf` a cycle. It resolved today only
+ *  because this was a hoisted `function` declaration; a leaf that imports
+ *  nothing cannot be in a cycle at all.
  *
- *  THE AMPERSAND GOES FIRST. Escape `<` first and the `&` in the `&lt;` you just
- *  wrote gets escaped in turn, so the name reads back as the literal text
- *  `&lt;`. That ordering is the entire correctness argument for three lines.
- *
- *  No published name needs any of this -- today they are all `[A-Za-z0-9-]` --
- *  but they are FILENAMES from an exporter rather than a constrained slug, so
- *  the next re-cut is free to produce one that does. The title and the credit
- *  are prose and need it already. */
-function escapeXml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+ *  Re-exported rather than relocated silently, so existing importers keep
+ *  working and the move stays one edit rather than a sweep. */
+export { escapeXml } from "@/lib/hex-xml";
 
 /**
  * One number of a transform: TWELVE SIGNIFICANT FIGURES, as a plain decimal.
@@ -295,38 +296,122 @@ export type PlateMeta = {
  * published filename -- so a plate names its parts `Hex-TB-Main`, the way the
  * reference plate does and the way the download page lists them.
  */
+/**
+ * `Metadata/model_settings.config` -- the per-object print settings, in the
+ * Orca-family dialect.
+ *
+ * WHAT IT BUYS. The alpha reports were that nobody reads the README and nobody
+ * picks the infill, and gyroid on these parts is structural. Settings written
+ * here arrive without being read. See `hex-print-intent.ts` for what survives
+ * which load path and what was measured rather than assumed.
+ *
+ * `extruder` IS WRITTEN even though every plate is single-material, because it
+ * is the one key the slicer preserves across a geometry-only import while it
+ * discards the rest. Omitting it would leave the object with no extruder
+ * assignment on exactly the path where nothing else of ours survives.
+ *
+ * ONE BLOCK PER PLACEMENT, matching one object per placement in the model. A
+ * shared object cannot carry per-copy settings or a per-copy name in this
+ * reader -- measured, and the reason instancing was removed. See the comment in
+ * `buildPlate3mf`.
+ *
+ * IDS MUST BE UNIQUE, and this is the one failure here that is not silent: a
+ * duplicated `<object id>` was MEASURED to abort the entire import with "The
+ * file does not contain any geometry data" -- no partial load, no warning, no
+ * file. They are unique by construction (`placed.length + 1`), and the guard is
+ * here because the consequence is total rather than because it is expected.
+ */
+function modelSettingsConfig(
+  placed: readonly { id: number; name: string; slug: string }[],
+): string {
+  const seen = new Set<number>();
+  const blocks: string[] = [];
+  for (const { slug, ...obj } of placed) {
+    if (seen.has(obj.id)) {
+      throw new Error(
+        `two objects share id ${obj.id}; a duplicate id makes the slicer refuse the whole file`,
+      );
+    }
+    seen.add(obj.id);
+    const settings = intentFor(
+      PART_REMEDY[slug] ?? { support: false, brim: false },
+    );
+    const rows = [
+      ["name", obj.name],
+      ["extruder", "1"],
+      ...Object.entries(settings),
+    ];
+    blocks.push(
+      `  <object id="${obj.id}">\n` +
+        rows
+          .map(
+            ([k, v]) =>
+              `   <metadata key="${escapeXml(k)}" value="${escapeXml(v)}"/>\n`,
+          )
+          .join("") +
+        `  </object>`,
+    );
+  }
+  return (
+    `<?xml version="1.0" encoding="UTF-8"?>\n<config>\n` +
+    blocks.join("\n") +
+    `\n</config>\n`
+  );
+}
+
 export async function buildPlate3mf(
   placements: readonly Placement[],
   sources: ReadonlyMap<string, string>,
   meta: PlateMeta,
 ): Promise<Buffer> {
-  const objectBySlug = new Map<string, { id: number; name: string }>();
+  // NO LEGALITY CHECK HERE ANY MORE, and its absence is deliberate.
+  //
+  // A value the slicer would silently rewrite is the one defect that ships
+  // looking correct, so it must stop the build -- and it does, at module scope
+  // in `hex-print-intent.ts`, which this file imports. Running it again here
+  // bought nothing: by the time a request reaches this line the frozen intent
+  // maps have long since been derived, so a check against the table could no
+  // longer change what gets written. Worse, the throw landed in the route's bare
+  // `catch {}` and became an unlogged 500, after the request had already paid
+  // for every R2 read.
+  const placed: { id: number; name: string; slug: string }[] = [];
   const objects: string[] = [];
   const items: string[] = [];
 
   for (const p of placements) {
-    // INSTANCING: one object per DISTINCT slug, one item per placement. Six
-    // identical caps are one 300 KB mesh and six lines, not six copies. This is
-    // also why mesh vertices are never rewritten -- a recentred mesh belongs to
-    // one placement and could not be shared.
-    let obj = objectBySlug.get(p.slug);
-    if (!obj) {
-      const src = sources.get(p.slug);
-      if (!src) throw new Error(`no source mesh for ${p.slug}`);
-      obj = { id: objectBySlug.size + 1, name: p.name };
-      objectBySlug.set(p.slug, obj);
-      objects.push(extractObjectBlock(src, obj.id, p.name));
-    } else if (obj.name !== p.name) {
-      // Instancing collapses every placement of a slug onto ONE object, so the
-      // first name silently wins and the rest are lost -- a plate where five of
-      // six identical caps are labelled with a name nobody passed. Callers build
-      // both fields from one table row, so this cannot happen from the route;
-      // it is checked because the failure is invisible in the output, not
-      // because it is expected.
-      throw new Error(
-        `${p.slug} is named both "${obj.name}" and "${p.name}" on one plate`,
-      );
-    }
+    // ONE OBJECT PER PLACEMENT. Not per distinct slug.
+    //
+    // ============================================================
+    // THIS FILE USED TO INSTANCE, AND INSTANCING IS INCOMPATIBLE
+    // WITH PER-OBJECT SETTINGS. MEASURED, NOT REASONED.
+    // ============================================================
+    // Six identical caps used to be one 300 KB mesh and six `<item>` lines,
+    // which is the better file by every measure except the one that matters
+    // once `Metadata/model_settings.config` exists: in Creality Print 7.2.1
+    // ONLY THE FIRST INSTANCE gets the settings, and only the first gets the
+    // NAME. The rest arrive anonymous and unconfigured. Adding the settings
+    // therefore silently broke naming, which had worked before it.
+    //
+    // Declaring the copies properly does NOT rescue it. A probe carrying a
+    // `<plate>` block with one `<model_instance>` per copy -- the exact shape
+    // Creality writes in its own saves -- still left the second cap unnamed.
+    // So this is not a matter of writing the dialect more correctly; a shared
+    // object cannot carry per-copy identity in this reader.
+    //
+    // THE COST IS REAL AND IS ACCEPTED: a build with six identical caps now
+    // embeds the mesh six times. The alternative is a plate where five of six
+    // parts have no name and none of our print settings, and the failure is
+    // invisible until someone looks at their object list and wonders which
+    // anonymous solid is which.
+    //
+    // The old name-collision guard is gone with the sharing that needed it:
+    // nothing is collapsed any more, so no name can be silently overwritten by
+    // another placement's.
+    const src = sources.get(p.slug);
+    if (!src) throw new Error(`no source mesh for ${p.slug}`);
+    const obj = { id: placed.length + 1, name: p.name, slug: p.slug };
+    placed.push(obj);
+    objects.push(extractObjectBlock(src, obj.id, p.name));
     // The translation that carries the mesh's OWN minimum corner to the target,
     // and drops the part onto z = 0 whatever its authored height. `x - x0`, not
     // `x`: a mesh carries its own origin, so `hex-tb-main` (x0 = -43.8786) would
@@ -476,6 +561,14 @@ export async function buildPlate3mf(
   // orphan file that makes the package larger and shows nobody anything.
   zip.file("Metadata/", null, dir);
   zip.file(THUMBNAIL_PATH, plateThumbnail(placements, meta.bed), {
+    date: ZIP_EPOCH,
+  });
+  // The per-object print settings. Written LAST of the Metadata parts and with
+  // no relationship of its own: unlike the thumbnail this is not an OPC-related
+  // part, it is a vendor side-car found by path. Readers that do not know it --
+  // PrusaSlicer, Cura -- walk past it without complaint, which is what makes it
+  // safe to carry for everyone.
+  zip.file(MODEL_SETTINGS_PATH, modelSettingsConfig(placed), {
     date: ZIP_EPOCH,
   });
   return zip.generateAsync({

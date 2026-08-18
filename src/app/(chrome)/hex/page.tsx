@@ -43,6 +43,11 @@ import { ThemedLoop } from "@/components/hex/ThemedLoop";
 import { ARRANGEMENTS, HexLattice } from "@/components/hex/HexLattice";
 import { env } from "@/env";
 import {
+  INTENT_EVERY_PART,
+  PRINT_INTENT_FACTS,
+  PRINT_INTENT_LEAD,
+} from "@/lib/hex-print-intent";
+import {
   HEX_CLEARANCE,
   HEX_CONFIGURATOR_URL,
   HEX_LICENSE,
@@ -416,6 +421,47 @@ export default function HexPage() {
               </div>
 
               <SpecRows rows={HEX_PRINT_PARAMS} />
+
+              {/* THE PRINT CARD. The subset of the band above that a download
+                already carries, rendered from `PRINT_INTENT_TABLE` -- the same
+                table that writes those settings into each plate's
+                `Metadata/model_settings.config`, that the archive README states,
+                and that the configurator's download strip pins itself against.
+
+                IT SITS UNDER THE BAND, not above it, because it is a
+                SUBTRACTION from it: these are the rows you can skip. Read
+                first, it would be three numbers with nothing to be a subset of.
+
+                REUSES `SpecRows` rather than getting a renderer of its own. The
+                facts arrive as `{ label, value }`, which is a `SpecRow` without
+                an aside, and a second row renderer inches from the first is how
+                two lists of the same shape end up looking like different kinds
+                of fact. */}
+              <h3 className="mt-9 font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
+                ▸ {PRINT_INTENT_LEAD}
+              </h3>
+              <div className="mt-4">
+                <SpecRows rows={PRINT_INTENT_FACTS.map((f) => ({ ...f }))} />
+              </div>
+              <p className="mt-3 max-w-xl font-serif text-sm leading-relaxed text-muted">
+                Those three ride inside every plate the configurator builds, so
+                you do not have to pick them. They arrive when you OPEN a plate:
+                double-click it onto an empty bed, or use Open Project. Bringing
+                one in through File, then Import, loads the shapes and drops the
+                settings, which is the slicer&rsquo;s choice rather than a broken
+                file. Set them yourself from the list above if you go that way.
+              </p>
+              {/* THE PATTERN NAME IS INTERPOLATED, not typed. It used to read
+                "Gyroid is the one to leave alone" as a bare literal, three lines
+                under a card that derives every other value -- so if the pattern
+                ever moved off gyroid this sentence became a hardcoded
+                contradiction sitting directly beneath the truth. */}
+              <p className="mt-3 max-w-xl font-serif text-sm leading-relaxed text-muted">
+                The <span className="font-numeral">{INTENT_EVERY_PART.sparse_infill_pattern}</span>{" "}
+                is the one to leave alone. These parts are loaded in torsion and
+                the pattern is the reason they hold, not a preference. Everything
+                else in the band above is yours.
+              </p>
 
               <h3 className="mt-9 font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
                 ▸ Clearance and tolerance

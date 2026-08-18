@@ -12,10 +12,11 @@ name: static
 #
 # Same reasoning as classification-guard.yml, which says so in its own header.
 #
-# Nothing here needs a database or a secret: `tsc` and `eslint` are static, and
-# `prisma validate` parses the schema without resolving the datasource URL. That
-# is what makes it safe to require -- it cannot fail on a cold Neon branch, a
-# playwright download, or a seed race.
+# Nothing here needs a database or a secret: `tsc` and `eslint` are static,
+# `prisma validate` parses the schema without resolving the datasource URL, and
+# the one vitest step below runs only files whose entire import graph is pure.
+# That is what makes it safe to require -- it cannot fail on a cold Neon branch,
+# a playwright download, or a seed race.
 #
 # The heavy half (migrate, seed, next build, the diagram gate, ~1930 tests) stays
 # in ci.yml and stays advisory until its flaky steps get the retry treatment that
@@ -44,3 +45,41 @@ jobs:
       # warnings stay visible without failing the run.
       - run: pnpm lint
       - run: pnpm prisma validate
+      # ======================================================================
+      # THE PRINT-INTENT PINS, IN A CHECK THAT ACTUALLY GATES A MERGE.
+      # ======================================================================
+      # These four files decide what is inside a file a customer downloads: the
+      # single `PRINT_INTENT_TABLE` every print-facing surface reads, the bytes
+      # `Metadata/model_settings.config` ends up carrying, the PrusaSlicer
+      # payload, and the transcription that holds the academy against the
+      # configurator's printed build sheet.
+      #
+      # They lived only in ci.yml's `build` job, which is NOT a required check on
+      # main -- so an edit could turn four assertions red and still merge and
+      # deploy with every required check green. Worse, ci.yml declares
+      # `concurrency: ci-shared-test-db` at workflow scope, so a queued run gets
+      # cancelled by a newer one and the red may never render at all (see #378).
+      #
+      # WHY THESE ARE SAFE TO REQUIRE, checked rather than assumed: not one
+      # module in their import graph touches `@/env`, `@/lib/db` or prisma, so
+      # they are all in vitest's "unit" project and lease no branch.
+      # `vitest.setup.unit.ts` only calls `loadBaseEnv()`, which no-ops when the
+      # env files are absent as they are here, and `vitest.global-setup.ts`
+      # returns early with no `TEST_DATABASE_POOL`. No secret is referenced.
+      #
+      # `--project unit` is deliberate: if one of these ever starts importing the
+      # real database it drops out of that project, vitest finds no matching
+      # files and FAILS here -- loudly, at the moment the assumption above stops
+      # holding, rather than silently widening a required check into one that
+      # needs a database.
+      #
+      # Keep this list explicit. `pnpm vitest run --project unit` with no paths
+      # would pull in ~1900 tests and every future unit file with them, which is
+      # how a fast required check becomes a slow flaky one.
+      - name: print-intent pins (pure specs, no DB, no secrets)
+        run: >
+          pnpm vitest run --project unit
+          src/lib/__tests__/hex-print-intent.test.ts
+          src/lib/__tests__/hex-prusa-config.test.ts
+          src/lib/__tests__/hex-spec.test.ts
+          src/lib/__tests__/hex-3mf.test.ts

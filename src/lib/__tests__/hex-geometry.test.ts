@@ -44,7 +44,7 @@ import { slug } from "@/lib/r2";
  * red test in the repo doing the bumping, which is the only side that knows it
  * happened. Moving it is the moment to open the configurator's PR.
  */
-const CONFIGURATOR_PINNED_RELEASE = "2026-08-03";
+const CONFIGURATOR_PINNED_RELEASE = "2026-08-17";
 
 describe("the geometry table", () => {
   it("is still the release the configurator pinned its copy to", () => {

@@ -38,6 +38,10 @@ import {
   HEX_PRINT_PARAMS,
 } from "@/lib/hex-spec";
 import {
+  PRINT_INTENT_FACTS,
+  PRINT_INTENT_LEAD,
+} from "@/lib/hex-print-intent";
+import {
   NEEDS_SUPPORT_SLUGS,
   SUPPORT_NOTE,
   SUPPORT_SLICER_NOTE,
@@ -102,6 +106,45 @@ const PRINT_LINES: readonly string[] = [
   (p) =>
     `${p.label}: ${ascii(p.value)}${p.aside ? ` (${ascii(p.aside)})` : ""}`,
 );
+
+/**
+ * The settings the PLATE ALREADY CARRIES, rendered from the same table that
+ * writes them into the file.
+ *
+ * ONE TABLE, TWO SURFACES, AND THAT IS THE WHOLE REASON THIS EXISTS. The plate
+ * beside this README bakes its infill, density and perimeters into
+ * `Metadata/model_settings.config`; this block states them; the /hex print card
+ * and the configurator's download strip state them too. All of it comes from
+ * `PRINT_INTENT_TABLE`. Before that table there were five copies and they had
+ * drifted -- the file baked 15% at 2 walls while this very README said 30%
+ * gyroid at 4 -- so a download shipped a text file contradicting the plate it
+ * was wrapped around. A reader who noticed had no way to tell which half was
+ * lying.
+ *
+ * PLATED READMEs ONLY. `packReadme` describes a zip of loose published meshes,
+ * which are served from R2 exactly as they were cut and carry no settings of any
+ * kind. Printing "already set in the file" over those would be false, and false
+ * in the direction that stops someone setting the one thing that matters.
+ *
+ * THE CAVEAT IS STATED, not buried. Settings ride an open-as-project and are
+ * discarded by `File > Import` -- measured in Creality Print 7.2.1, not inferred
+ * -- so a reader who imports and finds the slicer's own defaults instead has been
+ * told why, rather than left to conclude the claim was a lie.
+ */
+const INTENT_LINES: readonly string[] = [
+  `${ascii(PRINT_INTENT_LEAD)}:`,
+  ...PRINT_INTENT_FACTS.map((f) => `  ${ascii(f.label)}: ${ascii(f.value)}`),
+  "",
+  ...wrap(
+    "Those three are written into each plate, so you do not have to set them. " +
+      "They arrive when you OPEN the plate -- double-click it onto an empty " +
+      "bed, or use Open Project. Bringing it in through File > Import loads " +
+      "the shapes and drops the settings, which is the slicer's choice and not " +
+      "a broken file; set them yourself from the list above if you go that " +
+      "way. The rest of the profile below is yours to set either way.",
+    "",
+  ),
+];
 
 /**
  * Does anything in this pack rest on a line, and therefore need supports?
@@ -189,19 +232,31 @@ const ORIENTATION_LINES: readonly string[] = [
 /** The dialog Creality Print raises on a plain core 3MF.
  *
  *  Measured 2026-08-15 on V7.2.1 (see the design doc). It is not an error and it
- *  is not something we could suppress without shipping printer and process
- *  settings -- which belong to the person printing, not to us. Said plainly
- *  here, because an unexplained "this file is not from Creality Print" reads as
- *  a corrupt download and the support question that follows is unanswerable
- *  after the fact. */
+ *  is not something we could suppress without shipping a printer PROFILE --
+ *  which belongs to the person printing, not to us. Said plainly here, because
+ *  an unexplained "this file is not from Creality Print" reads as a corrupt
+ *  download and the support question that follows is unanswerable after the
+ *  fact.
+ *
+ *  THIS BLOCK USED TO SAY "geometry only, with no printer or process settings".
+ *  That was true when it was written and stopped being true the day a plate
+ *  started carrying `Metadata/model_settings.config`, and nobody noticed --
+ *  so the README asserted the file had no settings four lines above the block
+ *  listing the settings it has. What is actually absent is
+ *  `Metadata/project_settings.config`, the printer-and-process BUNDLE, and that
+ *  omission is deliberate: carrying it would overwrite the reader's own presets
+ *  with ours and raise a modified-G-code warning on top. Per-object settings
+ *  land without touching any of that, which is precisely why they are the ones
+ *  we ship. */
 const PRESET_LINES: readonly string[] = [
   "Opening a plate:",
   ...wrap(
     'Creality Print may say "This project file is not from Creality Print. ' +
       'Please select the printer preset." That is expected, not an error. ' +
-      "These files carry geometry only, with no printer or process settings, " +
-      "because those belong to you and to your machine. Pick your preset and " +
-      "slice.",
+      "A plate carries per-part settings and its own arrangement, but no " +
+      "printer or filament profile: those describe your machine, not this " +
+      "model, and writing ours over yours would be the wrong trade. Pick your " +
+      "preset and slice.",
   ),
 ];
 
@@ -369,6 +424,11 @@ export function plateReadme(opts: {
     "",
     "Print settings:",
     ...PRINT_LINES.map((l) => `  ${l}`),
+    "",
+    // AFTER the band, not before it. The band is the whole profile and this is
+    // the subset of it you can skip, so it only means anything once the reader
+    // has seen the list it is subtracting from.
+    ...INTENT_LINES,
     "",
     ...ORIENTATION_LINES,
     "",
