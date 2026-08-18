@@ -94,16 +94,41 @@ const CONSENT_THEME = {
     consentBannerDescription:
       "font-serif text-sm leading-relaxed text-muted",
     consentBannerFooter: "border-t border-panel-border/60",
-    // REJECT AND ACCEPT STAY THE SAME WEIGHT. One shared button class, and no
-    // `primaryButton` hint on the banner, so neither is nudged: under GDPR
-    // refusing has to be as easy as accepting, and a gold-filled Accept beside
-    // an outlined Reject is the dark pattern this house style would otherwise
-    // walk straight into. Gold outline is the secondary rung of the ladder and
-    // both actions sit on it.
+    // Accept carries the gold fill (owner decision, see `consentActions`), but
+    // Reject keeps the same face, size, tracking, radius and row position. Only
+    // the fill differs.
+    // THE LIGHT-THEME FILL IS DEEPER, AND THAT IS A CONTRAST FIX, NOT A TASTE
+    // ONE. Filled, this button paints `textOnPrimary` on `primary`. In dark
+    // that is near-black ink on #c8963e = 7.48:1, fine. In light it is cream on
+    // #9c7016 = 4.14:1, UNDER the WCAG AA 4.5 floor -- and mid-gold is awkward
+    // enough that flipping to dark ink instead only reaches 4.00:1. Neither
+    // foreground rescues that fill.
+    //
+    // So the fill deepens on light to --color-gold-light (#7e5610), which is
+    // the token's own emphasis value on ivory (the ramp INVERTS on light: gold
+    // emphasis goes deeper, not brighter). Cream on that measures 6.5:1.
+    // Verified by measurement, not arithmetic on paper.
     buttonPrimary:
-      "font-mono text-[11px] uppercase tracking-[0.16em] rounded-[6px]",
+      "font-mono text-[11px] uppercase tracking-[0.16em] rounded-[6px] [[data-theme='light']_&]:bg-gold-light",
+    // THE BORDER IS DELIBERATELY STRONGER THAN THE PANEL'S. Measured, this
+    // button's edge was 1.47:1 against the card in dark and 1.35:1 in light --
+    // it inherited `colors.border`, which is a panel hairline and too faint to
+    // read as a control edge.
+    //
+    // Full gold, not a fraction of it: at 70% the edge measured 4.07:1 on the
+    // dark field but only 2.53:1 on ivory, because the light gold sits closer
+    // to its own background. Full strength clears the floor in both (7.48 dark,
+    // 4.14 light).
+    //
+    // 3:1 IS NOT A NUMBER WE PICKED. It is the floor the Austrian DSB named in
+    // the ORF.at order as an explicit alternative to colouring every button
+    // identically ("either the same colour for all buttons, or colours meeting
+    // the ISO 9241-303 contrast recommendation"). It is also the WCAG 2.2
+    // non-text contrast threshold for UI component boundaries, so the same
+    // change answers the accessibility question and the consent-design one.
+    // Verified by measurement in both themes; see the commit message.
     buttonSecondary:
-      "font-mono text-[11px] uppercase tracking-[0.16em] rounded-[6px]",
+      "font-mono text-[11px] uppercase tracking-[0.16em] rounded-[6px] border-command-gold",
     // The vendor tag is a blue pill by default, the single most off-brand
     // thing on the page. Kept rather than hidden (`hideBranding` on
     // <ConsentBanner /> would remove it) and restyled to a small gold chip.
@@ -117,9 +142,39 @@ const CONSENT_THEME = {
     // and it flips with the theme like everything else here.
     consentBannerTag: "font-mono text-[10px] uppercase tracking-[0.18em]",
   },
-  // Stock button treatment: outlined, so nothing on this panel is a filled
-  // slab competing with the page's own CTA.
-  consentActions: { default: { mode: "stroke" } },
+  // OWNER DECISION (2026-08-18): Accept All takes the gold, not Customize.
+  //
+  // The stock policy pack hints `customize` as the primary action, which is why
+  // it was the only gold control on the panel while the two actual decisions
+  // either side of it were plain. The emphasis moves to `accept`, and Customize
+  // drops to a ghost so exactly one control is filled rather than two competing.
+  //
+  // WHAT WAS CHECKED FIRST, recorded so nobody re-litigates it from memory:
+  // GDPR Art 4(11)/7 and ePrivacy Art 5(3) contain no button-styling provision;
+  // the EDPB Cookie Banner Taskforce report §17 EXPRESSLY declined to impose a
+  // colour/contrast standard, and the only practice §18 calls manifestly
+  // unlawful is a reject button whose text is "unreadable to virtually any
+  // user" (ours measures 16.9:1). No EU authority has fined on prominence
+  // alone. The two adverse rulings that exist -- Austrian DSB/BVwG (ORF.at,
+  // non-final) and Belgian VRT (settlement, fine expressly refused) -- both
+  // involved a reject control that dissolved into the banner: the ORF one
+  // measured 1.13:1.
+  //
+  // The live objections, stated rather than buried: CNIL recommends both
+  // buttons be "mis en evidence de maniere identique", and EDPB Guidelines
+  // 03/2022 say that where one option IS highlighted it should be the most
+  // privacy-protective. Neither is binding law; CNIL calls its own
+  // recommendation "sans toutefois etre prescriptive" and 03/2022 is scoped to
+  // social media platforms. With no EU establishment there is no one-stop-shop,
+  // so the strictest national reading is the one that would apply.
+  //
+  // To restore equal weight later, this is a two-line revert: drop the `accept`
+  // entry below and remove `primaryButton` from <ConsentBanner />.
+  consentActions: {
+    default: { mode: "stroke" },
+    accept: { variant: "primary", mode: "filled" },
+    customize: { variant: "neutral", mode: "ghost" },
+  },
 } as const;
 
 export function ConsentProviders({ children }: { children: React.ReactNode }) {
@@ -132,7 +187,10 @@ export function ConsentProviders({ children }: { children: React.ReactNode }) {
       }}
     >
       <ConsentBridge />
-      <ConsentBanner />
+      {/* The primary-action hint, moved off `customize` and onto `accept`.
+          Without it the policy pack keeps pointing at Customize and the fill
+          above lands on a control the pack does not treat as primary. */}
+      <ConsentBanner primaryButton="accept" />
       {children}
     </ConsentManagerProvider>
   );
