@@ -408,13 +408,20 @@ export function plateReadme(opts: {
     ]),
     "",
     "The arrangement is a STARTING POINT, not a guarantee.",
-    // MEASURED, not hedging. Creality Print V7.2.1 centres an imported scene on
-    // the bed as a rigid group, and every slicer's auto-arrange is one click
-    // away, so an exact layout is a claim we could not keep even if we wanted
-    // to. What IS promised is the part that matters: it fits.
+    // MEASURED, not hedging, and measured in more than one slicer because they
+    // do not agree: Creality Print V7.2.1 centres an imported scene on the bed as
+    // a rigid group, and Cura drops it to the front left corner (observed
+    // 2026-08-18). Every slicer's auto-arrange is one click away on top of that,
+    // so an exact layout is a claim we could not keep even if we wanted to. What
+    // IS promised is the part that matters: it fits.
+    //
+    // Naming BOTH behaviours is deliberate. "Recentres" was true of the only
+    // slicer this had been opened in, and a reader whose slicer did something
+    // else would reasonably conclude the file was wrong.
     ...wrap(
-      "Slicers recentre the scene on the bed as they import it, and your own " +
-        "auto-arrange overrides this layout completely. Both are fine, and " +
+      "Slicers move the scene as they import it -- Creality Print centres it on " +
+        "the bed, Cura drops it to the front left -- and your own auto-arrange " +
+        "overrides this layout completely. All of that is fine, and " +
         "neither breaks anything. What the layout does promise is narrower: " +
         `everything on a plate fits the ${bed} bed named above, sitting flat, ` +
         `with ${PLATE_GAP} mm of clearance at the edges and between parts.`,
