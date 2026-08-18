@@ -50,7 +50,19 @@ function valueOf(rows: SpecRow[], label: string): string {
 }
 
 describe("the slicer band matches the build sheet's PARAMS", () => {
-  // html.ts:206-215 — one assertion per band cell, so a failure names the cell.
+  // bs-cap-hex src/hex/export/html.ts:272-282 (Perimeters :277, Infill :278) --
+  // one assertion per band cell, so a failure names the cell.
+  //
+  // THE LINE NUMBERS WERE 66 LINES STALE, and this whole mechanism is "a red
+  // test sends a human to that line in the other repo". A pointer that lands
+  // inside the wrong function taxes the single manual step the design rests on.
+  //
+  // NOTE FOR WHOEVER SEES THIS RED: `Perimeters` and `Infill` are no longer
+  // spelled in `hex-spec.ts` -- they DERIVE from `PRINT_INTENT_TABLE`. So the
+  // way to make this green is NOT to edit a literal here. Either the sheet
+  // moved (fix the table) or the table moved (fix the sheet) -- and changing
+  // the table changes `Metadata/model_settings.config` in every plate every
+  // customer downloads, plus both READMEs and the /hex card.
   it.each([
     ["Nozzle", "240 °C"],
     ["Bed", "70–85 °C"],

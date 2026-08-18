@@ -411,10 +411,36 @@ async function platedPack(
         }),
       );
     }
-  } catch {
-    // The writer refuses a source that is not the uniform single-object shape it
-    // lifts from, and refuses a slug with no mesh. Both are our data, not the
-    // request.
+  } catch (err) {
+    // ==================================================================
+    // LOG IT. THIS USED TO BE A BARE `catch {}` AND THE REASON DIED HERE.
+    // ==================================================================
+    // Every throw the plate writer can raise is a defect in OUR data, and each
+    // one is specific: a source that is not the uniform single-object shape it
+    // lifts from, a slug with no mesh, a malformed release, a duplicated object
+    // id -- and, once the Prusa payload is wired in, an object with no triangle
+    // count, which is the one whose alternative outcome is a customer's plate
+    // silently arriving empty.
+    //
+    // Discarding that message cost more than it looks. The failure is a 500 with
+    // no body, no log and no metric, raised AFTER the request has already read
+    // every mesh for the pack from R2 -- so the expensive part is paid, the
+    // cause is unknowable after the fact, and `track()` records only an absence.
+    // `hex-print-intent.ts` spends twelve lines arguing which of two error
+    // messages a bad table should produce; that argument had no audience at all
+    // while this line threw the string away.
+    //
+    // `console.error` rather than a telemetry call on purpose: this route has no
+    // error-reporting dependency today, and adding one here would be a bigger
+    // change than the fix. Vercel surfaces stderr in Runtime Logs, which is the
+    // difference between "unknowable" and "one search away".
+    console.error("[printable-pack] plate build failed", {
+      release,
+      stem,
+      parts: parts.map((p) => `${p.slug}:${p.qty}`).join(","),
+      bed: `${bed.x}x${bed.y}`,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return new Response("Server error", { status: 500 });
   }
 

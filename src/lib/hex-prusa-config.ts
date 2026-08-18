@@ -33,6 +33,9 @@
 //   src/libslic3r/PrintConfig.hpp   which config class each key belongs to
 //   src/libslic3r/Format/3mf.cpp    the exact file shape, and the two failures
 //
+// `fill_density` MUST carry its `%`. `handle_legacy` treats a bare "30" as the
+// pre-percent format and multiplies by 100, so it silently becomes "3000%".
+//
 // All eight keys are per-object settable, split the same way Orca splits them:
 // `fill_density` / `fill_pattern` / `perimeters` are `PrintRegionConfig` (per
 // object and per part), and `brim_type` / `brim_width` / `support_material` /
@@ -44,40 +47,96 @@
 // "fixes" one to match the other later.
 //
 // ===========================================================================
-// THE TWO TRAPS, both of which fail the WHOLE import rather than one setting
+// THE TRAPS. ONE OF THEM ALREADY CAUGHT ME, AND IT FAILS OPEN.
 // ===========================================================================
+//
+// 0. **A CONFIG BLOCK WITHOUT `<volume>` DELETES THE OBJECT'S GEOMETRY.** This
+//    file's first version asserted the opposite -- "no `<volume>` block needed,
+//    object metadata is stored without reference to it" -- and used that to
+//    justify not counting triangles. It is exactly backwards. The volume list is
+//    not metadata ABOUT volumes; it is the instruction that CREATES them:
+//
+//      if (obj_metadata != m_objects_metadata.end()) {
+//          ...apply object config...
+//          volumes_ptr = &obj_metadata->second.volumes;   // <- our list
+//      } else {
+//          volumes.emplace_back(0, triangles.size() - 1); // <- full geometry
+//      }
+//
+//    Writing a config block for an object is precisely what DISABLES the
+//    full-geometry fallback. An empty list means `_generate_volumes` iterates
+//    zero times, `add_volume` is never called, and the object ends with no mesh.
+//    `FileReader.cpp` then removes it as zero-volume and tells the user "Object
+//    size from file %s appears to be zero", blaming their model.
+//
+//    So the worst outcome here is NOT the refused import this header used to
+//    treat as the floor. It is a silent, mis-attributed deletion -- on a path
+//    where the Orca payload keeps working, so nobody would connect the two.
+//    `firstid`/`lastid` are INCLUSIVE, and both must be written: omitting them
+//    yields 0/0, i.e. a one-triangle object. An out-of-range id is fatal
+//    ("Found invalid triangle id"). That is why `triangleCount` is a required
+//    field below rather than an option -- the dangerous shape is unrepresentable.
 //
 // 1. `type` IS MANDATORY ON EVERY `<metadata>`, and Orca's dialect has no such
 //    attribute. `_handle_start_config_metadata` accepts exactly `object` or
 //    `volume` and otherwise calls `add_error("Found invalid metadata type")` and
-//    returns false. So the one thing you would naturally try -- reuse the Orca
-//    block and rename the keys -- produces a file PrusaSlicer refuses. This is
-//    the same shape of failure as Creality's duplicate `<object id>`: total, not
-//    partial, and therefore worth a test rather than a comment.
+//    returns false, which aborts the parse and fails the whole load. So the one
+//    thing you would naturally try -- reuse the Orca block and rename the keys --
+//    produces a file PrusaSlicer refuses.
 //
-// 2. AN `<object id>` THAT MATCHES NO MODEL OBJECT IS ALSO FATAL --
-//    `add_error("Cannot assign metadata to valid object id")`. The ids here are
-//    the ones written into `3D/3dmodel.model` by `hex-3mf.ts`, passed in rather
-//    than recomputed, so the two cannot drift; a second derivation of "what id
-//    did that object get" is exactly how they would.
+// 2. A DUPLICATE `<object id>` IS FATAL: `add_error("Found duplicated object
+//    id")`. An id matching NO model object is NOT fatal, contrary to this file's
+//    first version -- `_handle_start_config_object` inserts any id it is given,
+//    and the apply loop simply never visits an entry with no matching object. It
+//    is a silent no-op: geometry intact, settings absent. The guard below is
+//    still right; its old rationale was not.
 //
-// WHAT IS NOT NEEDED: a `<volume>` block. PrusaSlicer's own exporter writes one
-// per volume carrying `firstid`/`lastid` triangle ranges, and reading the
-// importer, object-level metadata is stored with no reference to it. We set
-// everything at object level, so no triangle indices have to be counted -- which
-// is the difference between this file being small and it needing to parse every
-// mesh it describes.
+// 3. AN UNKNOWN KEY IS FATAL, unlike Creality. `set_deserialize_raw` throws
+//    `UnknownOptionException` for any key not in `PrintConfigDef`, and 3mf.cpp
+//    does not catch it; the user gets "invalid configuration". A bad ENUM VALUE
+//    on a good key is substituted with the default, as in Orca, but Prusa at
+//    least surfaces the substitution.
 import { PRINT_INTENT_TABLE, type PrintIntentRow } from "@/lib/hex-print-intent";
-import { escapeXml } from "@/lib/hex-3mf";
+// FROM THE LEAF, not from `hex-3mf`. The wiring step described above has
+// `buildPlate3mf` calling into this module; importing back out of it would
+// close a cycle that resolves today only by the luck of a hoisted function
+// declaration.
+import { escapeXml } from "@/lib/hex-xml";
 
 /** One object's line in the config: the id it carries in `3dmodel.model`, its
- *  name, and which of the two independent remedies it was measured to need. */
+ *  name, how many triangles its mesh has, and which of the two independent
+ *  remedies it was measured to need. */
 export type PrusaObject = {
   id: number;
   name: string;
+  /**
+   * Triangles in THIS object's mesh in `3D/3dmodel.model`.
+   *
+   * REQUIRED, and that is the fix for trap 0. Writing an object's config block
+   * without a `<volume firstid lastid>` covering its whole mesh does not lose
+   * the settings -- it loses the GEOMETRY, because the volume list is what
+   * creates volumes and a config block suppresses the full-geometry fallback.
+   * Making this a required field means the caller cannot express the shape that
+   * silently empties a plate.
+   *
+   * Use `countTriangles` on the object's mesh XML rather than deriving it some
+   * other way: an off-by-one here is fatal at import ("Found invalid triangle
+   * id"), and a missing attribute is worse -- it defaults to 0, giving a
+   * one-triangle object that slices into nothing.
+   */
+  triangleCount: number;
   support: boolean;
   brim: boolean;
 };
+
+/** Count the triangles in one mesh's XML, the way the config file has to.
+ *
+ *  Counts `<triangle` opening tags. The 3MF core spec gives a triangle no
+ *  children, so it is always written as a self-closing element with attributes,
+ *  and a prefix match is both sufficient and robust to attribute order. */
+export function countTriangles(meshXml: string): number {
+  return (meshXml.match(/<triangle\b/g) ?? []).length;
+}
 
 export const PRUSA_CONFIG_PATH = "Metadata/Slic3r_PE_model.config";
 
@@ -96,10 +155,13 @@ function prusaRows(scope: PrintIntentRow["scope"]) {
 /**
  * `Metadata/Slic3r_PE_model.config` for one plate.
  *
- * Takes the ids from the caller for the reason in trap 2 above. `instancescount`
- * is written because PrusaSlicer's own exporter writes it; the importer ignores
- * it (its own comment says so), and it is here so a file of ours diffs cleanly
- * against a file of theirs rather than to satisfy the reader.
+ * Takes the ids from the caller so ours and `3dmodel.model`'s cannot drift.
+ *
+ * `instances_count` is written because PrusaSlicer's own exporter writes it. The
+ * importer ignores it -- its own comment says "Added because of github #3435,
+ * currently not used by PrusaSlicer". Note the attribute is `instances_count`,
+ * with the underscore; this file first wrote `instancescount`, which is not the
+ * constant in `3mf.cpp` and matched nothing.
  */
 export function prusaModelConfig(objects: readonly PrusaObject[]): string {
   const seen = new Set<number>();
@@ -123,14 +185,30 @@ export function prusaModelConfig(objects: readonly PrusaObject[]): string {
       ...(obj.brim ? prusaRows("brim") : []),
     ];
 
+    // TRAP 0. Refuse an object with no triangles rather than emit a block that
+    // would delete its mesh. `lastid` is INCLUSIVE, so a count of n spans 0..n-1
+    // and a count of 0 could only be written as 0..-1, which the importer
+    // rejects as an invalid triangle id -- if it even got that far.
+    if (!Number.isInteger(obj.triangleCount) || obj.triangleCount < 1) {
+      throw new Error(
+        `object ${obj.id} (${obj.name}) has no triangle count; a config block ` +
+          `without a volume range deletes the object's geometry`,
+      );
+    }
+
     blocks.push(
-      ` <object id="${obj.id}" instancescount="1">\n` +
+      ` <object id="${obj.id}" instances_count="1">\n` +
         rows
           .map(
             (r) =>
               `  <metadata type="object" key="${escapeXml(r.key)}" value="${escapeXml(r.value)}"/>\n`,
           )
           .join("") +
+        // THE WHOLE MESH AS ONE VOLUME. Without this the object arrives empty.
+        `  <volume firstid="0" lastid="${obj.triangleCount - 1}">\n` +
+        `   <metadata type="volume" key="name" value="${escapeXml(obj.name)}"/>\n` +
+        `   <metadata type="volume" key="volume_type" value="ModelPart"/>\n` +
+        `  </volume>\n` +
         ` </object>`,
     );
   }

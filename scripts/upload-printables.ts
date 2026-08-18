@@ -466,6 +466,24 @@ function setReadme(
     // text is corrected for the NEXT release. Composed from the SHARED spec
     // module so the archive and the page cannot drift apart.
     "Print settings:",
+    // ======================================================================
+    // THESE TWO ROWS ARE NOW DERIVED, AND THIS README IS IMMUTABLE.
+    // ======================================================================
+    // `HEX_PRINT_PARAMS` used to hardcode `Perimeters` and `Infill`. They now
+    // derive from `PRINT_INTENT_TABLE`, which is what stops the /hex card, both
+    // archive READMEs and the downloaded plate from disagreeing.
+    //
+    // The cost lands HERE, and it is easy to miss: this README is PUT to R2
+    // under `public, max-age=31536000, immutable`, inside a release prefix that
+    // is never overwritten. So the text below is frozen at publish time, while
+    // the table it derives from is not.
+    //
+    // CONSEQUENCE: editing `PRINT_INTENT_TABLE` makes every ALREADY-PUBLISHED
+    // release's README disagree with every newly generated plate, silently, and
+    // nothing anywhere compares an R2 object against the running code. Changing
+    // those numbers therefore costs a new release segment -- or an accepted,
+    // written-down decision that the old releases now state the old advice.
+    // It is not free, and before the derivation it did not exist at all.
     ...HEX_PRINT_PARAMS.map(
       (p) =>
         `  ${p.label}: ${ascii(p.value)}${p.aside ? ` (${ascii(p.aside)})` : ""}`,

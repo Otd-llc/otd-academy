@@ -243,6 +243,49 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
   },
 ];
 
+// ===========================================================================
+// THE GUARD RUNS HERE, AT MODULE SCOPE, AND THAT PLACEMENT IS THE WHOLE POINT.
+// ===========================================================================
+// It used to run inside `buildPlate3mf`, once per plate, on a live request. Two
+// things were wrong with that and both were invisible:
+//
+//   IT VALIDATED A SOURCE THE WRITER NO LONGER READS. The writer emits the
+//   FROZEN SNAPSHOTS `byScope` takes below; the guard reads the table. The only
+//   divergence a request-time check could observe is a post-load mutation of a
+//   table row -- which cannot change a single byte of the emitted file, because
+//   the snapshots were already taken. It could report defects that cannot ship
+//   and could not report the defect that ships.
+//
+//   ITS MESSAGE WENT NOWHERE. The route wraps `buildPlate3mf` in a bare
+//   `catch {}` and returns "Server error" with no logging. The twelve lines
+//   below arguing that the case check must precede the membership check exist
+//   solely to shape an error string -- and in production that string was
+//   assigned to nothing, after the request had already paid for ~13 MB of R2
+//   reads.
+//
+// Here, it runs at the exact moment the snapshots are taken from the table,
+// which is the only moment the two can disagree.
+//
+// MEASURED, not assumed -- the claim it replaced was wrong in exactly this way.
+// Capitalising the infill pattern and running `pnpm next build` exits 1 with:
+//
+//   Error: sparse_infill_pattern="Gyroid" has a capital letter. Orca's enum
+//   maps are lowercase and a case mismatch is substituted with the option
+//   default, silently.
+//   > Build error occurred
+//   Error: Failed to collect page data for /hex/opengraph-image-...
+//
+// Note WHERE it fires. Not because /hex prerenders -- `cacheComponents: true`
+// makes dynamic the default and /hex opts into no cache, so it very likely does
+// not. It fires because Next imports every page and route module while
+// COLLECTING PAGE DATA, whatever each one's render mode. That is a far more
+// robust hook than prerendering, and it is the reason the placement works.
+//
+// So a bad table fails the build, with the full message on stdout, inside the
+// `Vercel` check -- which is REQUIRED on main, where `pnpm vitest run` is not.
+// That is what the old comment claimed and never did.
+assertRowsAreSlicerLegal(PRINT_INTENT_TABLE);
+
 /** Collapse one scope's rows into the key/value map the 3MF writer emits.
  *
  *  FROZEN. These are module-level objects handed to a function that spreads them
@@ -314,9 +357,14 @@ export const PRINT_INTENT_LEAD = "Already set in the file, leave as is";
  * months later. The slicer will not raise it as an error; it substitutes a
  * default and blames a version mismatch.
  *
- * Throws rather than warns, and runs at build time rather than in a test alone,
- * because a warning in a server log is a warning nobody reads -- which is the
- * failure this whole module exists to route around.
+ * Throws rather than warns, and runs AT MODULE SCOPE above rather than in a test
+ * alone, because a warning in a server log is a warning nobody reads -- which is
+ * the failure this whole module exists to route around.
+ *
+ * This wrapper is kept for the tests and for anything that wants to re-check the
+ * real table by name. It is no longer called per request: see the block above
+ * the module-scope call for why that placement validated the wrong object and
+ * reported to nobody.
  */
 export function assertPrintIntentIsSlicerLegal(): void {
   assertRowsAreSlicerLegal(PRINT_INTENT_TABLE);

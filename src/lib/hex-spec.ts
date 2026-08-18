@@ -15,8 +15,8 @@
 // deliberately rather than a number drifting unnoticed.
 //
 // SOURCES (verified 2026-08-02)
-//   bioscale-viz/src/hex/export/html.ts:206-215   the PARAMS band
-//   bioscale-viz/src/hex/export/html.ts:299       assembly step 1 (orientation)
+//   bioscale-viz/src/hex/export/html.ts:272-282   the PARAMS band
+//   bioscale-viz/src/hex/export/html.ts:359       assembly step 1 (orientation)
 //   bioscale-viz/src/hex/export/html.ts:313-322   fabrication + clearance notes
 //   bioscale-viz/src/hex/types.ts:281-289         HEX_SIZE, HEX_GAP
 //

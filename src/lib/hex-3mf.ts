@@ -23,8 +23,8 @@ import JSZip from "jszip";
 
 import type { Bed } from "@/lib/hex-pack";
 import type { Placement } from "@/lib/hex-plate";
+import { escapeXml } from "@/lib/hex-xml";
 import {
-  assertPrintIntentIsSlicerLegal,
   intentFor,
 } from "@/lib/hex-print-intent";
 import { HEX_LICENSE } from "@/lib/hex-spec";
@@ -138,38 +138,19 @@ export const MODEL_SETTINGS_PATH = "Metadata/model_settings.config";
  *  of both -- it reads as determinism and is not. */
 export const ZIP_EPOCH = new Date(Date.UTC(1980, 0, 1));
 
-/** Escape the five-ish characters XML cares about.
+/** Re-exported from `@/lib/hex-xml`, where it now lives.
  *
- *  Covers BOTH positions this module writes into -- a double-quoted attribute
- *  value and element text -- because one escaper that is a superset of each is
- *  easier to keep right than two that are each exactly minimal. `"` is only
- *  special in an attribute value; `>` is only special in text (and only in the
- *  `]]>` sequence); `&` and `<` are special everywhere. `'` is deliberately
- *  absent: every attribute this module writes is double-quoted, so an apostrophe
- *  needs no escape, and escaping it as `&apos;` is the one entity that is not in
- *  the HTML-compatible set.
+ *  MOVED TO A LEAF because two modules write per-object config into the same
+ *  archive -- this one in the Orca dialect, `hex-prusa-config.ts` in
+ *  PrusaSlicer's -- and both need identical escaping. The wiring step described
+ *  in that module's header has `buildPlate3mf` calling into it, which would make
+ *  `hex-3mf -> hex-prusa-config -> hex-3mf` a cycle. It resolved today only
+ *  because this was a hoisted `function` declaration; a leaf that imports
+ *  nothing cannot be in a cycle at all.
  *
- *  THE AMPERSAND GOES FIRST. Escape `<` first and the `&` in the `&lt;` you just
- *  wrote gets escaped in turn, so the name reads back as the literal text
- *  `&lt;`. That ordering is the entire correctness argument for three lines.
- *
- *  No published name needs any of this -- today they are all `[A-Za-z0-9-]` --
- *  but they are FILENAMES from an exporter rather than a constrained slug, so
- *  the next re-cut is free to produce one that does. The title and the credit
- *  are prose and need it already.
- *
- *  EXPORTED for `hex-prusa-config.ts`, which writes a second per-object config
- *  in PrusaSlicer's dialect and needs the identical escaping -- including the
- *  quote, since both dialects carry their values in XML ATTRIBUTES. A second
- *  escaper beside this one would be a second ampersand-ordering argument to get
- *  right, and only one of the two would have this comment. */
-export function escapeXml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+ *  Re-exported rather than relocated silently, so existing importers keep
+ *  working and the move stays one edit rather than a sweep. */
+export { escapeXml } from "@/lib/hex-xml";
 
 /**
  * One number of a transform: TWELVE SIGNIFICANT FIGURES, as a plain decimal.
@@ -383,10 +364,16 @@ export async function buildPlate3mf(
   sources: ReadonlyMap<string, string>,
   meta: PlateMeta,
 ): Promise<Buffer> {
-  // Before anything is assembled. A value the slicer would silently rewrite is
-  // the one defect that ships looking correct, so it stops the build rather
-  // than producing a plate that opens clean and prints at grid infill.
-  assertPrintIntentIsSlicerLegal();
+  // NO LEGALITY CHECK HERE ANY MORE, and its absence is deliberate.
+  //
+  // A value the slicer would silently rewrite is the one defect that ships
+  // looking correct, so it must stop the build -- and it does, at module scope
+  // in `hex-print-intent.ts`, which this file imports. Running it again here
+  // bought nothing: by the time a request reaches this line the frozen intent
+  // maps have long since been derived, so a check against the table could no
+  // longer change what gets written. Worse, the throw landed in the route's bare
+  // `catch {}` and became an unlogged 500, after the request had already paid
+  // for every R2 read.
   const placed: { id: number; name: string; slug: string }[] = [];
   const objects: string[] = [];
   const items: string[] = [];

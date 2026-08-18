@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   PRUSA_CONFIG_PATH,
+  countTriangles,
   prusaModelConfig,
   type PrusaObject,
 } from "@/lib/hex-prusa-config";
@@ -17,6 +18,7 @@ import { PRINT_INTENT_TABLE } from "@/lib/hex-print-intent";
 const plain = (id = 1, name = "Hex-TB-Main"): PrusaObject => ({
   id,
   name,
+  triangleCount: 12,
   support: false,
   brim: false,
 });
@@ -29,16 +31,26 @@ describe("the file PrusaSlicer actually reads", () => {
     expect(PRUSA_CONFIG_PATH).toBe("Metadata/Slic3r_PE_model.config");
   });
 
-  it("puts type=\"object\" on EVERY metadata line", () => {
+  it("puts a legal type on EVERY metadata line", () => {
     // TRAP 1, AND IT IS FATAL. `_handle_start_config_metadata` accepts exactly
     // "object" or "volume" and otherwise calls add_error("Found invalid metadata
     // type") and returns false -- the whole import, not the one setting. Orca's
     // dialect has no `type` attribute at all, so the natural move (copy the Orca
     // block, rename the keys) produces a file PrusaSlicer refuses.
+    // EXACTLY `object` or `volume`, which is what the reader accepts -- object
+    // config on the object block, volume config inside the volume block. An
+    // earlier version asserted every line was `type="object"`, which stopped
+    // being true the moment the volume range was added and would have had to be
+    // loosened; asserting the real invariant instead means it never has to be.
     const cfg = prusaModelConfig([plain()]);
     const lines = cfg.match(/<metadata[^>]*\/>/g) ?? [];
     expect(lines.length).toBeGreaterThan(0);
-    for (const line of lines) expect(line).toContain('type="object"');
+    for (const line of lines) {
+      expect(line).toMatch(/ type="(object|volume)" /);
+    }
+    // And both kinds are present, so neither half can quietly disappear.
+    expect(cfg).toContain('<metadata type="object"');
+    expect(cfg).toContain('<metadata type="volume"');
   });
 
   it("refuses a duplicated object id rather than emitting it", () => {
@@ -57,6 +69,42 @@ describe("the file PrusaSlicer actually reads", () => {
     // The raw ampersand must not survive anywhere -- the ordering bug writes
     // `&amp;lt;`, which reads back as the literal text rather than the glyph.
     expect(cfg).not.toContain("&amp;lt;");
+  });
+});
+
+describe("the volume range, without which the object loses its mesh", () => {
+  // THE ERROR THIS FILE GOT WRONG FIRST TIME, and the only one here that fails
+  // OPEN. Writing an object's config block is what DISABLES PrusaSlicer's
+  // full-geometry fallback (`volumes.emplace_back(0, triangles.size() - 1)`);
+  // the `<volume>` list then IS the object's volumes. Omit it and the object
+  // arrives with no mesh, gets deleted as zero-volume, and the user is told
+  // their object's size appears to be zero -- on a path where the Orca payload
+  // still works, so nobody connects the two.
+  it("spans the whole mesh, with an INCLUSIVE lastid", () => {
+    const cfg = prusaModelConfig([{ ...plain(), triangleCount: 12 }]);
+    expect(cfg).toContain('<volume firstid="0" lastid="11">');
+  });
+
+  it("gives every object a volume block, not just the first", () => {
+    const cfg = prusaModelConfig([plain(1, "A"), plain(2, "B")]);
+    expect(cfg.match(/<volume firstid="0"/g)).toHaveLength(2);
+  });
+
+  it("refuses an object with no triangle count rather than emptying it", () => {
+    for (const bad of [0, -1, 1.5]) {
+      expect(() =>
+        prusaModelConfig([{ ...plain(), triangleCount: bad }]),
+      ).toThrow(/deletes the object's geometry/);
+    }
+  });
+
+  it("counts triangles the way the range has to be computed", () => {
+    const mesh =
+      '<mesh><triangles><triangle v1="0" v2="1" v3="2"/>' +
+      '<triangle v1="1" v2="2" v3="3"/></triangles></mesh>';
+    expect(countTriangles(mesh)).toBe(2);
+    // `<triangles>` is the CONTAINER and must not be counted as a triangle.
+    expect(countTriangles("<mesh><triangles></triangles></mesh>")).toBe(0);
   });
 });
 
@@ -94,11 +142,17 @@ describe("it says the same thing as the Orca payload, in Prusa's words", () => {
   });
 
   it("reads the SAME TABLE the Orca payload and the card read", () => {
+    // Guarded, for the same drain-to-zero reason as the block below: this loop
+    // `continue`s past every null, so an all-null table left it asserting
+    // nothing inside a test that still reported green.
     // The point of the whole exercise. Every Prusa key/value below comes from a
     // row that also carries the Orca spelling, so a change to one dialect cannot
     // leave the other behind -- which is the drift that shipped in 2026-08-17,
     // one repo boundary over.
-    const cfg = prusaModelConfig([{ id: 1, name: "n", support: true, brim: true }]);
+    const cfg = prusaModelConfig([
+      { id: 1, name: "n", triangleCount: 12, support: true, brim: true },
+    ]);
+    expect(PRINT_INTENT_TABLE.filter((r) => r.prusa !== null).length).toBeGreaterThan(0);
     for (const row of PRINT_INTENT_TABLE) {
       if (row.prusa === null) continue;
       expect(cfg).toContain(
@@ -133,6 +187,18 @@ const DELIBERATELY_DIFFERENT: Record<string, string> = {
 };
 
 describe("the two dialects cannot drift apart", () => {
+  // A FILTERED `it.each` REGISTERS ZERO TESTS ON AN EMPTY ARRAY, silently and
+  // greenly -- vitest's `each` is a bare `forEach` with no empty guard. The
+  // plausible edit is real: this module documents `prusa: null` as "deliberately
+  // not carried", so a future session backing the Prusa half out would set it
+  // across the table and drain three of these tests to nothing while the suite
+  // stayed green. Assert the population before trusting any test that iterates it.
+  it("actually has rows to check", () => {
+    expect(
+      PRINT_INTENT_TABLE.filter((r) => r.prusa !== null).length,
+    ).toBe(PRINT_INTENT_TABLE.length);
+  });
+
   it.each(PRINT_INTENT_TABLE.filter((r) => r.prusa !== null).map((r) => [r.key, r] as const))(
     "%s carries one value, not two",
     (key, row) => {
@@ -145,11 +211,23 @@ describe("the two dialects cannot drift apart", () => {
   );
 
   it("keeps the exception list honest", () => {
-    // A row listed here that no longer differs is a stale exemption, and a stale
-    // exemption is a hole in the check above.
+    // THIS USED TO CHECK ONLY THAT THE KEY EXISTED, while its comment claimed it
+    // caught stale exemptions. It did not touch either value. Worse, setting an
+    // exempted row's `prusa` to null dropped it from the `it.each` filter above
+    // -- so the row went unchecked entirely and this test still passed, which is
+    // the exact state it is named for.
     for (const key of Object.keys(DELIBERATELY_DIFFERENT)) {
       const row = PRINT_INTENT_TABLE.find((r) => r.key === key);
       expect(row, `${key} is exempted but not in the table`).toBeDefined();
+      expect(
+        row!.prusa,
+        `${key} is exempted from the equality check but carries no Prusa half, ` +
+          `so nothing checks it at all`,
+      ).not.toBeNull();
+      expect(
+        row!.prusa!.value,
+        `${key} is exempted but its two halves now agree -- drop the exemption`,
+      ).not.toBe(row!.value);
     }
   });
 });

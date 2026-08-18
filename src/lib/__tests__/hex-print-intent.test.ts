@@ -140,15 +140,40 @@ describe("what a reader is shown", () => {
 });
 
 describe("the surfaces cannot disagree with the file", () => {
-  it("the /hex spec card states the table's perimeters", () => {
+  // ==========================================================================
+  // THESE TWO USED TO BE TAUTOLOGIES, UNDER THIS EXACT HEADING.
+  // ==========================================================================
+  // They asserted `HEX_PRINT_PARAMS.find("Perimeters").value` equalled
+  // `INTENT_EVERY_PART.wall_loops` -- while `hex-spec.ts` DERIVES that row as
+  // literally that expression. `x === x`. No edit to the table could fail them,
+  // which meant the describe block named for the feature's headline claim was
+  // true by import rather than by test.
+  //
+  // The transcribed pin that does have teeth lives in `hex-spec.test.ts`, which
+  // holds `["Infill", "30% gyroid"]` against the build sheet in the other repo.
+  // Duplicating it here would just be the same assertion twice.
+  //
+  // WHAT IS ASSERTED INSTEAD IS THE ONE GAP NOTHING ELSE COVERS: the spec card
+  // is built from each row's SLICER value, and the print card from its DISPLAY
+  // value, and those are two separate fields on the row. Nothing structural
+  // stops `value: "25%"` sitting beside `display: "30%"` -- the file would print
+  // one density and the page would promise another, and every other test in this
+  // repo would stay green because each reads only its own field.
+  const factValue = (label: string) => {
+    const f = PRINT_INTENT_FACTS.find((x) => x.label === label);
+    if (!f) throw new Error(`no rendered fact labelled ${label}`);
+    return f.value;
+  };
+
+  it("the spec card's perimeters is the number the print card shows", () => {
     expect(HEX_PRINT_PARAMS.find((r) => r.label === "Perimeters")?.value).toBe(
-      INTENT_EVERY_PART.wall_loops,
+      factValue("perimeters"),
     );
   });
 
-  it("the /hex spec card states the table's density and pattern", () => {
+  it("the spec card's infill is the density and pattern the print card shows", () => {
     expect(HEX_PRINT_PARAMS.find((r) => r.label === "Infill")?.value).toBe(
-      `${INTENT_EVERY_PART.sparse_infill_density} ${INTENT_EVERY_PART.sparse_infill_pattern}`,
+      `${factValue("density")} ${factValue("infill")}`,
     );
   });
 

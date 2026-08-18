@@ -43,6 +43,7 @@ import { ThemedLoop } from "@/components/hex/ThemedLoop";
 import { ARRANGEMENTS, HexLattice } from "@/components/hex/HexLattice";
 import { env } from "@/env";
 import {
+  INTENT_EVERY_PART,
   PRINT_INTENT_FACTS,
   PRINT_INTENT_LEAD,
 } from "@/lib/hex-print-intent";
@@ -450,10 +451,16 @@ export default function HexPage() {
                 settings, which is the slicer&rsquo;s choice rather than a broken
                 file. Set them yourself from the list above if you go that way.
               </p>
+              {/* THE PATTERN NAME IS INTERPOLATED, not typed. It used to read
+                "Gyroid is the one to leave alone" as a bare literal, three lines
+                under a card that derives every other value -- so if the pattern
+                ever moved off gyroid this sentence became a hardcoded
+                contradiction sitting directly beneath the truth. */}
               <p className="mt-3 max-w-xl font-serif text-sm leading-relaxed text-muted">
-                Gyroid is the one to leave alone. These parts are loaded in
-                torsion and the pattern is the reason they hold, not a
-                preference. Everything else in the band above is yours.
+                The <span className="font-numeral">{INTENT_EVERY_PART.sparse_infill_pattern}</span>{" "}
+                is the one to leave alone. These parts are loaded in torsion and
+                the pattern is the reason they hold, not a preference. Everything
+                else in the band above is yours.
               </p>
 
               <h3 className="mt-9 font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
