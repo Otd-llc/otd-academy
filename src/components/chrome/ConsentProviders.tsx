@@ -41,12 +41,94 @@ import { ConsentBridge } from "@/components/chrome/ConsentBridge";
 // consent to categories we do not use would be its own kind of dishonest.
 const CONSENT_CATEGORIES = ["necessary", "measurement"] as const;
 
+// The banner, in the house console language instead of the vendor default.
+//
+// EVERY COLOUR IS ONE OF OUR CSS VARIABLES, NOT A HEX. c15t ships a `dark`
+// token group beside `colors`, and using it would mean maintaining a second
+// palette that flips on ITS trigger (a `.dark` class or prefers-color-scheme)
+// rather than on ours (`[data-theme]`). Feeding it `var(--color-*)` instead
+// means there is one palette, it is the site's, and the banner follows the
+// theme toggle for free.
+//
+// `textOnPrimary` IS SET EXPLICITLY AND MUST STAY THAT WAY. c15t derives it
+// from `primary` when omitted, and that derivation reads the colour to pick a
+// readable foreground -- which it cannot do with the string "var(--color-
+// command-gold)". Omitted, the accept button renders unreadable.
+const CONSENT_THEME = {
+  colors: {
+    primary: "var(--color-command-gold)",
+    primaryHover: "var(--color-gold-light)",
+    // Floating chrome is deep-space + a gold hairline + elevation over a
+    // dimmed backdrop, never a filled navy card (globals.css, 2026-07-09).
+    surface: "var(--color-deep-space)",
+    surfaceHover: "color-mix(in srgb, var(--color-command-gold) 6%, transparent)",
+    border: "color-mix(in srgb, var(--color-command-gold) 25%, transparent)",
+    borderHover: "var(--color-command-gold)",
+    text: "var(--color-title)",
+    textMuted: "var(--color-muted)",
+    textOnPrimary: "var(--color-deep-space)",
+    overlay: "color-mix(in srgb, var(--color-deep-space) 72%, transparent)",
+    switchTrack: "var(--color-panel-border)",
+    switchTrackActive: "var(--color-command-gold)",
+    switchThumb: "var(--color-deep-space)",
+  },
+  typography: {
+    // Lora is the reading voice; the title and the buttons take their own
+    // faces through slots below.
+    fontFamily: "var(--font-serif)",
+  },
+  // The restrained corner language: 6px for chrome, 8px for the panel. `full`
+  // exists only because the consent toggle is a switch and a switch is round;
+  // nothing else here may use it, and no button does.
+  radius: { sm: "4px", md: "6px", lg: "8px", full: "9999px" },
+  shadows: {
+    sm: "var(--elev-raise)",
+    md: "var(--elev-raise)",
+    lg: "var(--elev-card)",
+  },
+  slots: {
+    consentBannerCard:
+      "border border-command-gold/25 bg-deep-space [box-shadow:var(--elev-card)]",
+    consentBannerTitle:
+      "font-display text-2xl tracking-[0.04em] text-title",
+    consentBannerDescription:
+      "font-serif text-sm leading-relaxed text-muted",
+    consentBannerFooter: "border-t border-panel-border/60",
+    // REJECT AND ACCEPT STAY THE SAME WEIGHT. One shared button class, and no
+    // `primaryButton` hint on the banner, so neither is nudged: under GDPR
+    // refusing has to be as easy as accepting, and a gold-filled Accept beside
+    // an outlined Reject is the dark pattern this house style would otherwise
+    // walk straight into. Gold outline is the secondary rung of the ladder and
+    // both actions sit on it.
+    buttonPrimary:
+      "font-mono text-[11px] uppercase tracking-[0.16em] rounded-[6px]",
+    buttonSecondary:
+      "font-mono text-[11px] uppercase tracking-[0.16em] rounded-[6px]",
+    // The vendor tag is a blue pill by default, the single most off-brand
+    // thing on the page. Kept rather than hidden (`hideBranding` on
+    // <ConsentBanner /> would remove it) and restyled to a small gold chip.
+    //
+    // TYPOGRAPHY ONLY, NO COLOUR. c15t treats the branding tag as a
+    // PRIMARY-FILLED surface: it fills with `colors.primary` and colours its
+    // inner text with `colors.textOnPrimary`. Overriding just the tag's
+    // background to deep-space left those inner spans still painting
+    // textOnPrimary, which is also deep-space -- dark on dark, invisible.
+    // Taking the fill it is designed for gives gold-on-deep-space for free,
+    // and it flips with the theme like everything else here.
+    consentBannerTag: "font-mono text-[10px] uppercase tracking-[0.18em]",
+  },
+  // Stock button treatment: outlined, so nothing on this panel is a filled
+  // slab competing with the page's own CTA.
+  consentActions: { default: { mode: "stroke" } },
+} as const;
+
 export function ConsentProviders({ children }: { children: React.ReactNode }) {
   return (
     <ConsentManagerProvider
       options={{
         mode: "offline",
         consentCategories: [...CONSENT_CATEGORIES],
+        theme: CONSENT_THEME,
       }}
     >
       <ConsentBridge />
