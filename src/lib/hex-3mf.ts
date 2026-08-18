@@ -359,6 +359,170 @@ function modelSettingsConfig(
   );
 }
 
+/**
+ * THE SUPPORT FAIL-SAFE: one painted facet, so a stripped file still warns.
+ *
+ * ===========================================================================
+ * WHY THIS EXISTS. Per-object settings in `Metadata/model_settings.config` are
+ * discarded by `File > Import` -- the slicer parses them and then calls
+ * `config.reset()`. On that path a part that needs support silently arrives
+ * with support off, prints into thin air, and NOTHING says a word. That is the
+ * one gap the settings payload cannot close by itself.
+ *
+ * `paint_supports` lives on `ModelVolume::supported_facets`, which is MESH
+ * data. The config reset never touches it. So a painted facet survives the
+ * exact path that strips everything else, and `Print::validate()` raises:
+ *
+ *   "Support enforcers are used but support is not enabled. Please enable
+ *    support."  -- modal, naming our object, with a jump to the setting.
+ *
+ * ===========================================================================
+ * MEASURED 2026-08-18, Creality Print 7.2.1, four files, two controlled pairs.
+ * ===========================================================================
+ * Each pair byte-identical but for this one attribute:
+ *
+ *   A/B, support OFF -- B (unpainted) silent; A (one painted facet) FIRES.
+ *                       A still fires after `File > Import`. So the tripwire
+ *                       survives the path it exists for.
+ *   C/D, support ON  -- C (painted) sliced IDENTICALLY to D (unpainted).
+ *                       Same support, same places, same time. The paint is
+ *                       free on the normal path.
+ *
+ * That second pair is the one that decides shippability, and the first version
+ * of the probe could not have answered it: A and B both had support off, so
+ * "no support appeared" was true there for a trivial reason.
+ *
+ * WHY IT COSTS NOTHING, from source: OrcaSlicer projects only DOWNWARD-facing
+ * painted area into the enforcer layers --
+ *   `slice_mesh_slabs(custom_facets, zs, trafo, nullptr, &projected, ...)`
+ * where `nullptr` is `out_top`. An UPWARD-facing facet therefore contributes an
+ * empty polygon on every layer, while `has_facets(ENFORCER)` stays true.
+ *
+ * WHY PAINT RATHER THAN AN ENFORCER VOLUME. The volume route needs a components
+ * parent, child mesh objects, `<part subtype>` entries and a rewrite of object-id
+ * allocation -- against nine fatal load failures and one silent catastrophe:
+ * `ModelVolume::type_from_string` returns MODEL_PART for any unrecognised
+ * subtype, with its assert commented out. A typo there is a solid box fused into
+ * the customer's part that slices, prints, and warns nobody. This is one
+ * attribute on one triangle, with no such failure mode.
+ */
+const PAINT_ATTR = 'paint_supports="4"';
+
+/** How upward a normal must point before we call it upward. Well clear of
+ *  vertical (0) so no rounding can put the chosen facet on the downward side,
+ *  which is the only property the whole argument rests on. */
+const UPWARD_MIN = 0.9;
+
+/**
+ * Index of a comfortably upward-facing triangle, or -1 if the mesh has none.
+ *
+ * EXACT ARITHMETIC, NOT A HEURISTIC, and that distinction is load-bearing here.
+ * A facet-normal metric has already been wrong once in this project -- it tried
+ * to PREDICT WHERE SUPPORT WAS NEEDED and scored curved contacts at zero. This
+ * asks only which way one triangle points, which a cross product answers
+ * exactly. Nothing downstream needs the BEST facet, only one that faces up.
+ *
+ * Returns the MOST upward facet, not the first one over the line. Both are
+ * correct -- the design only needs "not downward" -- but the first qualifying
+ * facet on real parts comes back at normal.z 0.9024, right against the
+ * threshold, and WHICH facet that is depends on triangle ORDER. So a re-cut that
+ * merely reordered the mesh could move the paint. Taking the maximum is
+ * deterministic under reordering and lands at 0.99+ on the parts measured.
+ *
+ * The scan is not the expensive half either way: the vertex table has to be
+ * parsed in full regardless, so an early exit saved nothing worth having.
+ */
+function upwardFacetIndex(model: string): number {
+  const xs: number[] = [];
+  const ys: number[] = [];
+  const zs: number[] = [];
+  for (const m of model.matchAll(
+    /<vertex\s+x="([^"]+)"\s+y="([^"]+)"\s+z="([^"]+)"/g,
+  )) {
+    xs.push(Number(m[1]));
+    ys.push(Number(m[2]));
+    zs.push(Number(m[3]));
+  }
+  let i = -1;
+  let best = -1;
+  let bestUp = -Infinity;
+  for (const m of model.matchAll(
+    /<triangle\s+v1="(\d+)"\s+v2="(\d+)"\s+v3="(\d+)"/g,
+  )) {
+    i += 1;
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    const c = Number(m[3]);
+    if (xs[a] === undefined || xs[b] === undefined || xs[c] === undefined) {
+      continue;
+    }
+    const ux = xs[b] - xs[a];
+    const uy = ys[b] - ys[a];
+    const uz = zs[b] - zs[a];
+    const vx = xs[c] - xs[a];
+    const vy = ys[c] - ys[a];
+    const vz = zs[c] - zs[a];
+    const nx = uy * vz - uz * vy;
+    const ny = uz * vx - ux * vz;
+    const nz = ux * vy - uy * vx;
+    const len = Math.hypot(nx, ny, nz);
+    if (len === 0) continue;
+    const up = nz / len;
+    if (up > bestUp) {
+      bestUp = up;
+      best = i;
+    }
+  }
+  return bestUp >= UPWARD_MIN ? best : -1;
+}
+
+/**
+ * Paint one upward facet of an already-extracted object block.
+ *
+ * Returns the block UNCHANGED when the mesh has no upward-facing facet. That is
+ * a deliberate degrade rather than a throw: the fail-safe is a second line of
+ * defence, and refusing to build a plate because one part is unusually shaped
+ * would trade a real download for a hypothetical one.
+ *
+ * THE SILENCE IS COVERED ELSEWHERE, and not by the unit suite -- a fixture
+ * cannot tell you a re-oriented part still has an upward facet. Run
+ * `pnpm tsx scripts/hex-paint-check.ts`: it walks every part on the support
+ * list against the REAL published meshes, recomputes the painted facet's normal
+ * from the emitted bytes, and exits non-zero if any part paints nothing, paints
+ * more than once, or paints something not facing up. 27 parts, all passing at
+ * normal.z 0.999-1.000 on release 2026-08-17. RUN IT AFTER ANY RE-CUT, beside
+ * the calibration plate, because a re-orientation changes which facets face up.
+ */
+function paintOneFacet(block: string): string {
+  // NO CACHE. This memoised the index by SLUG, which is wrong the moment one
+  // slug can carry a different mesh -- across a re-cut, or across two tests in
+  // one file -- because a stale index is not a slow path, it is a DOWNWARD facet
+  // painted on a customer's part, generating support nobody asked for.
+  //
+  // Removed on that reasoning alone. To be accurate about what happened: I first
+  // blamed the cache for the failing suite and was wrong -- the real defect was
+  // the container-tag mismatch documented below, and removing the cache did not
+  // fix it. The cache was a real hazard and a bad diagnosis at the same time.
+  //
+  // The cost was never the argument: the scan exits at the first upward facet,
+  // against a request that already reads megabytes from R2 and DEFLATEs them.
+  const index = upwardFacetIndex(block);
+  if (index < 0) return block;
+  let seen = -1;
+  // MATCHES ON `v1=`, THE SAME SHAPE THE SCAN COUNTS. A bare `<triangle` also
+  // matches the `<triangles>` CONTAINER, so the painter numbered its facets one
+  // higher than the scan did and painted the triangle BEFORE the upward one. On
+  // a closed mesh that neighbour is very often downward-facing -- which is the
+  // single failure this design exists to avoid, because a painted downward facet
+  // generates real support, silently, on every part we ship. Two regexes that
+  // must agree about what counts as a triangle is a drift waiting to happen, so
+  // both sides key off `v1=`.
+  return block.replace(/<triangle(?=\s+v1=)/g, (m) => {
+    seen += 1;
+    return seen === index ? `<triangle ${PAINT_ATTR}` : m;
+  });
+}
+
 export async function buildPlate3mf(
   placements: readonly Placement[],
   sources: ReadonlyMap<string, string>,
@@ -411,7 +575,14 @@ export async function buildPlate3mf(
     if (!src) throw new Error(`no source mesh for ${p.slug}`);
     const obj = { id: placed.length + 1, name: p.name, slug: p.slug };
     placed.push(obj);
-    objects.push(extractObjectBlock(src, obj.id, p.name));
+    // ONLY the parts the SLICER said need support, from `hex-support.ts`. A
+    // tripwire on a part that needs nothing would fire the modal for a plate
+    // that is already correct -- a false alarm that trains people to switch
+    // support on globally, which is wrong for the 28 parts measured not to
+    // need it. So the paint follows the collected list, never a guess.
+    const needsPaint = PART_REMEDY[p.slug]?.support === true;
+    const block = extractObjectBlock(src, obj.id, p.name);
+    objects.push(needsPaint ? paintOneFacet(block) : block);
     // The translation that carries the mesh's OWN minimum corner to the target,
     // and drops the part onto z = 0 whatever its authored height. `x - x0`, not
     // `x`: a mesh carries its own origin, so `hex-tb-main` (x0 = -43.8786) would

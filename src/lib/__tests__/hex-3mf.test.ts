@@ -774,6 +774,87 @@ describe("Metadata/model_settings.config", () => {
     return file!.async("string");
   };
 
+  // ==========================================================================
+  // THE SUPPORT FAIL-SAFE
+  // ==========================================================================
+  // A mesh with a real facet on each side: triangle 0 faces DOWN, triangle 1
+  // faces UP. The order is deliberate -- the scan must SKIP the downward facet,
+  // so a painter that simply took the first triangle would paint the wrong one
+  // and this fixture is what notices. A downward painted facet is the one thing
+  // that would make the tripwire generate real support.
+  const TWO_SIDED = `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+ <resources>
+<object id="1" type="model">
+   <mesh>
+    <vertices>
+     <vertex x="0" y="0" z="0" /><vertex x="0" y="1" z="0" /><vertex x="1" y="0" z="0" />
+     <vertex x="0" y="0" z="1" /><vertex x="1" y="0" z="1" /><vertex x="0" y="1" z="1" />
+    </vertices>
+    <triangles>
+     <triangle v1="0" v2="1" v3="2" />
+     <triangle v1="3" v2="4" v3="5" />
+    </triangles>
+   </mesh>
+</object>
+ </resources>
+ <build>
+  <item objectid="1" transform="1 0 0 0 1 0 0 0 1 0 0 0" />
+ </build>
+</model>
+`;
+
+  /** REAL slugs, because the painter keys off `PART_REMEDY` -- the list the
+   *  SLICER produced. A fabricated slug would exercise the `?? false` fallback
+   *  rather than the decision the feature turns on. */
+  const PAINT_SOURCES = new Map([
+    ["hex-tb-spike-solid", TWO_SIDED],
+    ["hex-tb-spike-platform-lrg", TWO_SIDED],
+  ]);
+
+  it("paints ONE upward facet on a part the slicer said needs support", async () => {
+    // `File > Import` calls `config.reset()`, so a support part arrives with
+    // support off and nothing warns. A painted facet lives on
+    // `supported_facets` -- mesh data the reset never touches -- so it survives
+    // that path and makes the slicer raise "Support enforcers are used but
+    // support is not enabled".
+    //
+    // MEASURED in Creality Print 7.2.1, 2026-08-18, two controlled pairs: the
+    // painted file fires the modal AND still fires after Import, while its
+    // unpainted twin is silent; and with support ON the painted file slices
+    // IDENTICALLY to the unpainted one, so the paint costs the print nothing.
+    const model = await modelOf(
+      await plate3mf([at("hex-tb-spike-solid", 4, 4)], PAINT_SOURCES),
+    );
+    // EXACTLY ONE. Probe 5 painted all 420 facets of a cap, and a fully painted
+    // part generates real support -- the opposite of free.
+    expect(model.match(/paint_supports="4"/g)).toHaveLength(1);
+  });
+
+  it("paints the UPWARD facet, not merely the first one", async () => {
+    // The whole cost argument is that only DOWNWARD-facing painted area
+    // projects into the enforcer layers. Paint triangle 0 here and the tripwire
+    // starts generating support, silently, on every support part we ship.
+    const model = await modelOf(
+      await plate3mf([at("hex-tb-spike-solid", 4, 4)], PAINT_SOURCES),
+    );
+    expect(model).toContain(
+      '<triangle paint_supports="4" v1="3" v2="4" v3="5"',
+    );
+    expect(model).not.toMatch(/<triangle paint_supports="4" v1="0"/);
+  });
+
+  it("paints NOTHING on a part the slicer left alone", async () => {
+    // A tripwire on a part needing no support would fire the modal for a plate
+    // that is already correct -- a false alarm that trains people to switch
+    // support on globally, which is wrong for the 28 parts measured not to
+    // need it.
+    const model = await modelOf(
+      await plate3mf([at("hex-tb-spike-platform-lrg", 4, 4)], PAINT_SOURCES),
+    );
+    expect(model).not.toContain("paint_supports");
+  });
+
   it("gives every part the infill the parts are structurally chosen for", async () => {
     // Gyroid is a torsion requirement here, not a preference. If this stops
     // being written, the whole feature has lost its reason to exist.
