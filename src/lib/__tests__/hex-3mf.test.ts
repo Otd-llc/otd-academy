@@ -858,7 +858,32 @@ describe("support settings ride only on the parts that need them", () => {
       await plate3mf([at(SPIKE, 4, 4, {}, "Hex-TB-Spike-Ball-Joint")], sources),
     );
     expect(cfg).toContain('key="enable_support" value="1"');
+    // AND NO BRIM. This part rests on the ball, with almost no perimeter for a
+    // brim to hold on to -- the two remedies are independent, and giving it one
+    // it cannot use was the defect that separating them fixed.
+    expect(cfg).not.toContain("brim_type");
+  });
+
+  it("gives a brim to a part that needs adhesion but not support", async () => {
+    const ZIP = "hex-tb-spike-ball-zip-single";
+    const sources = new Map([[ZIP, source("1")]]);
+    const cfg = await configOf(
+      await plate3mf([at(ZIP, 4, 4, {}, "Hex-TB-Spike-Ball-Zip-Single")], sources),
+    );
     expect(cfg).toContain('key="brim_type" value="outer_only"');
+    expect(cfg).not.toContain("enable_support");
+  });
+
+  it("gives support to a corner without giving it a pointless brim", async () => {
+    // 416.8 sq mm on the bed, and Creality still reports it "has floating
+    // regions". Adhesion is not its problem; what happens above layer one is.
+    const C = "hex-tb-corner-m-solid";
+    const sources = new Map([[C, source("1")]]);
+    const cfg = await configOf(
+      await plate3mf([at(C, 4, 4, {}, "Hex-TB-Corner-M-Solid")], sources),
+    );
+    expect(cfg).toContain('key="enable_support" value="1"');
+    expect(cfg).not.toContain("brim_type");
   });
 
   it("does NOT put support or a brim on a part that stands on a flat face", async () => {

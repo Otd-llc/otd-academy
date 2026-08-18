@@ -1,4 +1,9 @@
-// The parts that rest on a LINE by design, and therefore need supports or a brim.
+// The parts that need SUPPORT, a BRIM, or both, and which of the two each one
+// needs. They are separate questions: a brim answers "will it stick to the bed"
+// and is decided by the first layer; support answers "is anything printing into
+// thin air" and is decided by every layer above it. No part here needs both for
+// the same reason, and bundling them put a pointless brim on a corner with
+// 417 sq mm of bed contact.
 //
 // ONE LIST, because as of the plated-download work this set no longer decides
 // only prose -- it decides the SHAPE of the response. A build that fits one plate
@@ -97,6 +102,8 @@ const NEEDS_SUPPORT = [
   {
     name: "Hex-TB-Spike-Solid",
     slug: "hex-tb-spike-solid",
+    support: true,
+    brim: true,
     note:
       "rests on a thin line, about 1 sq mm of first layer along its length. A " +
       "brim is the useful thing here, and supports are optional.",
@@ -104,6 +111,9 @@ const NEEDS_SUPPORT = [
   {
     name: "Hex-TB-Spike-Ball-Joint",
     slug: "hex-tb-spike-ball-joint",
+    support: true,
+    // A brim needs a perimeter to hold on to and this part has almost none.
+    brim: false,
     note:
       "rests on the BALL, not the shaft. Its first layer is about 0.9 sq mm, " +
       "and the 28 mm shaft hangs in the air until roughly 1 mm up. It needs " +
@@ -113,9 +123,31 @@ const NEEDS_SUPPORT = [
   {
     name: "Hex-TB-Spike-Ball-Zip-Single",
     slug: "hex-tb-spike-ball-zip-single",
+    support: false,
+    brim: true,
     note:
       "stands on about 7 sq mm and is 11.6 mm tall. That is enough to print " +
       "and not enough to survive being nudged, so give it a brim.",
+  },
+  {
+    name: "Hex-TB-Corner-M-Solid",
+    slug: "hex-tb-corner-m-solid",
+    support: true,
+    // 416.8 sq mm on the bed. It does not need help sticking; it needs help
+    // holding up the regions that start in mid-air.
+    brim: false,
+    note:
+      "has regions that begin with nothing beneath them, so it needs support " +
+      "switched on. It does not need a brim: it stands on about 417 sq mm.",
+  },
+  {
+    name: "Hex-TB-Corner-F-Solid",
+    slug: "hex-tb-corner-f-solid",
+    support: true,
+    brim: false,
+    note:
+      "has regions that begin with nothing beneath them, so it needs support " +
+      "switched on. It does not need a brim: it stands on about 655 sq mm.",
   },
 ] as const;
 
@@ -125,6 +157,16 @@ export const NEEDS_SUPPORT_NAMES = NEEDS_SUPPORT.map((p) => p.name);
 /** As SLUGS -- the spelling an R2 key, a pack request and a `Placement` use. */
 export const NEEDS_SUPPORT_SLUGS: ReadonlySet<string> = new Set(
   NEEDS_SUPPORT.map((p) => p.slug),
+);
+
+/** What each listed part actually needs, keyed by slug. Two independent flags,
+ *  because a brim answers "will it stick" and support answers "is anything
+ *  printing into thin air", and no part in this set needs both for the same
+ *  reason. */
+export const PART_REMEDY: Readonly<
+  Record<string, { support: boolean; brim: boolean }>
+> = Object.fromEntries(
+  NEEDS_SUPPORT.map((p) => [p.slug, { support: p.support, brim: p.brim }]),
 );
 
 /** Does anything in this pack rest on a line, and therefore need supports?

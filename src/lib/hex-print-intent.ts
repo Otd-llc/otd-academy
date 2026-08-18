@@ -91,6 +91,28 @@ export const INTENT_SUPPORT_PARTS: Readonly<Record<string, string>> = {
   enable_support: "1",
   support_type: "normal(auto)",
   support_threshold_angle: "30",
+};
+
+/**
+ * Added ONLY for the parts whose first layer is too small to hold them.
+ *
+ * SEPARATE FROM SUPPORT, and keeping them apart is the correction rather than a
+ * tidy-up. They answer different questions with different causes:
+ *
+ *   a brim   answers "will it stay stuck to the bed", and is decided by the
+ *            FIRST LAYER AREA;
+ *   support  answers "is anything printing into thin air", and is decided by
+ *            what happens at every layer ABOVE the first.
+ *
+ * Bundling them was wrong in both directions at once. `Hex-TB-Corner-M-Solid`
+ * has 416.8 sq mm of bed contact and wants no brim whatsoever, but Creality
+ * reports it "has floating regions" and asks for support. `Hex-TB-Spike-Ball-
+ * Joint` is the mirror image: it needs support badly and a brim cannot help it,
+ * because there is almost no perimeter for one to hold on to. One flag could not
+ * be right for both, and the version that bundled them put a pointless brim on
+ * the corner while it was on the list at all.
+ */
+export const INTENT_BRIM_PARTS: Readonly<Record<string, string>> = {
   brim_type: "outer_only",
   brim_width: "5",
 };
@@ -138,9 +160,15 @@ export function assertPrintIntentIsSlicerLegal(): void {
   }
 }
 
-/** The settings for one part, by whether it is one of the line-resting ones. */
-export function intentFor(needsSupport: boolean): Readonly<Record<string, string>> {
-  return needsSupport
-    ? { ...INTENT_EVERY_PART, ...INTENT_SUPPORT_PARTS }
-    : INTENT_EVERY_PART;
+/** The settings for one part: what everything gets, plus whichever of the two
+ *  independent remedies it has been measured to need. */
+export function intentFor(need: {
+  support: boolean;
+  brim: boolean;
+}): Readonly<Record<string, string>> {
+  return {
+    ...INTENT_EVERY_PART,
+    ...(need.support ? INTENT_SUPPORT_PARTS : {}),
+    ...(need.brim ? INTENT_BRIM_PARTS : {}),
+  };
 }

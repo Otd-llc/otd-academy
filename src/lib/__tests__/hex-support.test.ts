@@ -7,6 +7,7 @@ import { HEX_PART_SLUGS, isHexPartSlug } from "@/lib/hex-parts";
 import {
   NEEDS_SUPPORT_NAMES,
   NEEDS_SUPPORT_SLUGS,
+  PART_REMEDY,
   needsSupport,
 } from "@/lib/hex-support";
 import { slug } from "@/lib/r2";
@@ -59,23 +60,30 @@ describe("the support set", () => {
     }
   });
 
-  it("flags every part measured under the 25 sq mm threshold, and nothing above it", () => {
+  it("lists exactly the parts that need a remedy, and says which one", () => {
     // The list is a claim about the published meshes, so it is pinned to the
     // measurement that produced it rather than to itself. Five of these were
     // missing for a fortnight because the old facet-normal metric scored curved
     // contacts at zero; if a future re-cut changes a footprint, this row is
     // where the list and the meshes stop agreeing.
-    // The list was SEVEN on the 08-03 cut and is three on 08-17. The four that
-    // left did so by being re-oriented, not re-judged: the corners went from
-    // 19.58 to 416.8 and 655.3 sq mm, the ball platform and zip-1H from 11.56 to
-    // 1623.8. The right fix for a part resting on almost nothing is the pose,
-    // not the profile, and this list is what to do when there is no better pose.
+    // TWO CRITERIA, NOT ONE. A brim is decided by the FIRST LAYER; support is
+    // decided by every layer above it. The corners carry 416.8 and 655.3 sq mm
+    // of bed contact and need no brim at all, but Creality reports them as
+    // having floating regions, so they need support. The ball joint is the
+    // mirror image. A row that asserted only a footprint threshold could not
+    // express either case.
     expect([...NEEDS_SUPPORT_SLUGS].sort()).toEqual(
       [
+        "hex-tb-corner-f-solid",
+        "hex-tb-corner-m-solid",
         "hex-tb-spike-ball-joint",
         "hex-tb-spike-ball-zip-single",
         "hex-tb-spike-solid",
       ].sort(),
     );
+    // and the remedies are not interchangeable
+    expect(PART_REMEDY["hex-tb-corner-m-solid"]).toEqual({ support: true, brim: false });
+    expect(PART_REMEDY["hex-tb-spike-ball-joint"]).toEqual({ support: true, brim: false });
+    expect(PART_REMEDY["hex-tb-spike-ball-zip-single"]).toEqual({ support: false, brim: true });
   });
 });

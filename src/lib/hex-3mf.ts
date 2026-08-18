@@ -28,7 +28,7 @@ import {
   intentFor,
 } from "@/lib/hex-print-intent";
 import { HEX_LICENSE } from "@/lib/hex-spec";
-import { NEEDS_SUPPORT_SLUGS } from "@/lib/hex-support";
+import { PART_REMEDY } from "@/lib/hex-support";
 import {
   THUMBNAIL_PATH,
   THUMBNAIL_REL_TYPE,
@@ -346,7 +346,9 @@ function modelSettingsConfig(
       );
     }
     seen.add(obj.id);
-    const settings = intentFor(NEEDS_SUPPORT_SLUGS.has(slug));
+    const settings = intentFor(
+      PART_REMEDY[slug] ?? { support: false, brim: false },
+    );
     const rows = [
       ["name", obj.name],
       ["extruder", "1"],
