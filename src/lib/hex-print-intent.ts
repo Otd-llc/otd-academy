@@ -62,60 +62,212 @@ const LEGAL_SUPPORT_TYPE = new Set([
 ]);
 
 /**
- * What EVERY part on a plate is asked to print with.
+ * THE TABLE. One row per setting, and every surface that states a setting reads
+ * this and nothing else.
  *
- * Infill is the load-bearing one. Walls come with it because two perimeters is
- * what the density above was chosen against, and stating one without the other
- * describes a part nobody tested.
+ * WHY ONE TABLE, AND WHY IT IS NOT TIDINESS. The same three facts were written
+ * in five places -- here as slicer keys, in `hex-spec.ts` as the /hex spec
+ * card's `Infill` and `Perimeters` rows, in both archive READMEs through those,
+ * on the configurator's build sheet, and once more in the configurator's
+ * download strip -- and they had ALREADY DRIFTED. The plate baked 15% infill at
+ * 2 walls while every sentence beside it said 30% gyroid at 4 perimeters, so an
+ * archive shipped a README contradicting the file it was wrapped around.
+ * Nothing caught it, because nothing compared them. That is the
+ * `hex-support.ts` lesson arriving a second time, and this time it had shipped.
+ *
+ * `value` is what the SLICER parses: a literal from Orca's own enum maps,
+ * lowercase, checked by `assertPrintIntentIsSlicerLegal` below. `display` is the
+ * same fact spelled for a person. Two fields rather than one derived from the
+ * other, because they are genuinely different languages -- `sparse_infill_
+ * density` takes "30%" and so does a reader, but `wall_loops` takes "4" where
+ * every surface this project has ever printed calls it "perimeters".
+ *
+ * `scope` decides which objects on a plate carry the row AND, separately,
+ * whether a reader is ever shown it: only `every` rows are rendered. Support and
+ * brim rows still carry human text they do not currently use, because ONE ROW
+ * SHAPE is the point -- parallel structures are how a value ends up beside the
+ * wrong label, which is the failure `hex-support.ts` documents at length.
  */
-export const INTENT_EVERY_PART: Readonly<Record<string, string>> = {
-  sparse_infill_pattern: "gyroid",
-  sparse_infill_density: "15%",
-  wall_loops: "2",
+export type PrintIntentRow = {
+  /** Orca's key, as `Metadata/model_settings.config` spells it. */
+  key: string;
+  /** The literal the slicer parses. Lowercase; enum values are validated. */
+  value: string;
+  /** What a reader is told this setting is called. */
+  label: string;
+  /** What a reader is told it is set to. */
+  display: string;
+  /** Which objects carry it -- and whether a reader sees it at all. */
+  scope: "every" | "support" | "brim";
 };
 
-/**
- * Added ONLY for the parts that rest on a line, from `hex-support.ts`.
+export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
+  // =====================================================================
+  // EVERY PART ON THE PLATE.
+  //
+  // Infill is the load-bearing one, and it is a PATTERN requirement before
+  // it is a density one: these parts are loaded in torsion, and gyroid is
+  // what that choice was made for. Density and perimeters travel with it
+  // because 30% was chosen against four -- stating either alone describes a
+  // part nobody tested.
+  // =====================================================================
+  {
+    key: "sparse_infill_pattern",
+    value: "gyroid",
+    label: "infill",
+    display: "gyroid",
+    scope: "every",
+  },
+  {
+    key: "sparse_infill_density",
+    value: "30%",
+    label: "density",
+    display: "30%",
+    scope: "every",
+  },
+  {
+    // "perimeters", not "walls". The slicer's name for it is the `key` on the
+    // line above; the reader's name for it is whatever the build sheet and the
+    // /hex spec card have said all along, and those two surfaces sit inches
+    // from this one. One fact under two names on one page is the same defect as
+    // one fact with two values, a step less obvious.
+    key: "wall_loops",
+    value: "4",
+    label: "perimeters",
+    display: "4",
+    scope: "every",
+  },
+
+  // =====================================================================
+  // ONLY the parts that print into thin air, from `hex-support.ts`.
+  //
+  // NOT APPLIED TO EVERY PART, and the restraint is the point. Support is
+  // `normal(auto)` at a 30 degree threshold, so the slicer generates it where
+  // the geometry demands it and nowhere else.
+  //
+  // `support_threshold_angle` is STATED rather than left to the profile
+  // because 30 is measured FROM HORIZONTAL, and every overhang figure this
+  // project has measured was scored against that number. Inheriting a profile
+  // set to 45 would silently change what "needs support" means after the fact.
+  // =====================================================================
+  {
+    key: "enable_support",
+    value: "1",
+    label: "support",
+    display: "on",
+    scope: "support",
+  },
+  {
+    key: "support_type",
+    value: "normal(auto)",
+    label: "support type",
+    display: "normal, automatic",
+    scope: "support",
+  },
+  {
+    key: "support_threshold_angle",
+    value: "30",
+    label: "support threshold",
+    display: "30 deg from horizontal",
+    scope: "support",
+  },
+
+  // =====================================================================
+  // ONLY the parts whose first layer is too small to hold them.
+  //
+  // SEPARATE FROM SUPPORT, and keeping them apart is the correction rather
+  // than a tidy-up. They answer different questions with different causes:
+  //
+  //   a brim   answers "will it stay stuck to the bed", and is decided by the
+  //            FIRST LAYER AREA;
+  //   support  answers "is anything printing into thin air", and is decided
+  //            by what happens at every layer ABOVE the first.
+  //
+  // Bundling them was wrong in both directions at once. `Hex-TB-Corner-M-
+  // Solid` has 416.8 sq mm of bed contact and wants no brim whatsoever, but
+  // Creality reports it "has floating regions" and asks for support.
+  // `Hex-TB-Spike-Ball-Joint` is the mirror image: it needs support badly and
+  // a brim cannot help it, because there is almost no perimeter for one to
+  // hold on to. One flag could not be right for both.
+  // =====================================================================
+  {
+    key: "brim_type",
+    value: "outer_only",
+    label: "brim",
+    display: "outer only",
+    scope: "brim",
+  },
+  {
+    key: "brim_width",
+    value: "5",
+    label: "brim width",
+    display: "5 mm",
+    scope: "brim",
+  },
+];
+
+/** Collapse one scope's rows into the key/value map the 3MF writer emits.
  *
- * NOT APPLIED TO EVERY PART, and the restraint is the point. Support is
- * `normal(auto)` at a 30 degree threshold, so the slicer generates it where the
- * geometry demands it and nowhere else; a brim on all two dozen objects would be
- * two dozen brims to cut off for the benefit of the two that need one.
- *
- * `support_threshold_angle` is stated rather than left to the profile because 30
- * is measured FROM HORIZONTAL, and every overhang figure this project has
- * measured was scored against that number. Inheriting a profile set to 45 would
- * silently change what "needs support" means after the fact.
- */
-export const INTENT_SUPPORT_PARTS: Readonly<Record<string, string>> = {
-  enable_support: "1",
-  support_type: "normal(auto)",
-  support_threshold_angle: "30",
-};
+ *  FROZEN. These are module-level objects handed to a function that spreads them
+ *  into a per-object result on every request of a warm serverless instance, so a
+ *  mutation upstream would change what every later download bakes -- the class of
+ *  bug that reproduces for nobody. `DEFAULT_BED` in `hex-pack.ts` carries the
+ *  same freeze for the same reason. */
+function byScope(
+  scope: PrintIntentRow["scope"],
+): Readonly<Record<string, string>> {
+  return Object.freeze(
+    Object.fromEntries(
+      PRINT_INTENT_TABLE.filter((r) => r.scope === scope).map((r) => [
+        r.key,
+        r.value,
+      ]),
+    ),
+  );
+}
+
+/** What EVERY part on a plate is asked to print with. */
+export const INTENT_EVERY_PART = byScope("every");
+
+/** Added ONLY for the parts that print into thin air, from `hex-support.ts`. */
+export const INTENT_SUPPORT_PARTS = byScope("support");
+
+/** Added ONLY for the parts whose first layer is too small to hold them. */
+export const INTENT_BRIM_PARTS = byScope("brim");
 
 /**
- * Added ONLY for the parts whose first layer is too small to hold them.
+ * The settings a READER is shown, in the order the surfaces read them.
  *
- * SEPARATE FROM SUPPORT, and keeping them apart is the correction rather than a
- * tidy-up. They answer different questions with different causes:
+ * `every` rows only, and the filter is the whole argument. A brim is written for
+ * three measured parts and support for twenty-five, not for the plate, so a flat
+ * "brim 5 mm" on a card would be false of almost every build -- and a strip is
+ * worth nothing unless every line on it is true of the file just taken. A count
+ * of the support parts is worse still: that list lives in `hex-support.ts`
+ * precisely because it used to live in two places, and restating it here would
+ * rebuild the defect that file exists to prevent. Support needs no announcement
+ * anyway -- on the normal path the slicer simply has it on, and on a
+ * geometry-only import the enforcers make the slicer raise it itself.
  *
- *   a brim   answers "will it stay stuck to the bed", and is decided by the
- *            FIRST LAYER AREA;
- *   support  answers "is anything printing into thin air", and is decided by
- *            what happens at every layer ABOVE the first.
- *
- * Bundling them was wrong in both directions at once. `Hex-TB-Corner-M-Solid`
- * has 416.8 sq mm of bed contact and wants no brim whatsoever, but Creality
- * reports it "has floating regions" and asks for support. `Hex-TB-Spike-Ball-
- * Joint` is the mirror image: it needs support badly and a brim cannot help it,
- * because there is almost no perimeter for one to hold on to. One flag could not
- * be right for both, and the version that bundled them put a pointless brim on
- * the corner while it was on the list at all.
+ * Shaped `{ label, value }` rather than as the row type, so the configurator's
+ * strip -- which deploys separately and cannot import across the repo boundary --
+ * can pin a literal of exactly this shape against it.
  */
-export const INTENT_BRIM_PARTS: Readonly<Record<string, string>> = {
-  brim_type: "outer_only",
-  brim_width: "5",
-};
+export const PRINT_INTENT_FACTS: readonly { label: string; value: string }[] =
+  PRINT_INTENT_TABLE.filter((r) => r.scope === "every").map((r) => ({
+    label: r.label,
+    value: r.display,
+  }));
+
+/**
+ * The lead line above those facts, wherever they are shown.
+ *
+ * One clause, because it is read in the second after a download starts, which is
+ * not a moment anyone spends on a paragraph. It is not an instruction -- there is
+ * no step to take. It is here to stop someone re-slicing from habit and quietly
+ * replacing gyroid, which on these parts is a torsion requirement rather than a
+ * preference.
+ */
+export const PRINT_INTENT_LEAD = "Already set in the file, leave as is";
 
 /**
  * Refuse to build a plate whose settings the slicer would silently rewrite.
@@ -130,33 +282,89 @@ export const INTENT_BRIM_PARTS: Readonly<Record<string, string>> = {
  * failure this whole module exists to route around.
  */
 export function assertPrintIntentIsSlicerLegal(): void {
-  const pattern = INTENT_EVERY_PART.sparse_infill_pattern;
-  if (!LEGAL_INFILL.has(pattern)) {
+  assertRowsAreSlicerLegal(PRINT_INTENT_TABLE);
+}
+
+/**
+ * The same guard, over any row set. EXPORTED FOR THE TESTS, and that is not a
+ * convenience.
+ *
+ * Every branch below refuses a defect whose whole signature is that it ships
+ * looking correct: a substituted enum, a collapsed duplicate, a nameless row.
+ * A guard against silent failures that is itself only exercised by the one input
+ * known to pass is a guard nobody has ever seen work. Taking the rows as an
+ * argument is what lets a test hand it a bad table and watch it throw, instead
+ * of the suite asserting that today's good table is good.
+ */
+export function assertRowsAreSlicerLegal(
+  rows: readonly PrintIntentRow[],
+): void {
+  // Enum maps are all-lowercase, and "Gyroid" was MEASURED to degrade silently.
+  // Checked separately from set membership so the error names the real defect
+  // rather than listing legal values at someone who typed one of them in caps.
+  //
+  // Walks the ROWS, not the maps built from them. That covers every row including
+  // the brim ones, which the old loop skipped: it spread two of the three maps
+  // and nothing said the third was missing.
+  const seen = new Set<string>();
+  for (const row of rows) {
+    if (row.value !== row.value.toLowerCase()) {
+      throw new Error(
+        `${row.key}="${row.value}" has a capital letter. Orca's enum maps are ` +
+          `lowercase and a case mismatch is substituted with the option ` +
+          `default, silently.`,
+      );
+    }
+    // A DUPLICATE KEY COLLAPSES SILENTLY -- `Object.fromEntries` keeps the last
+    // one -- so two rows disagreeing about `wall_loops` would bake one of them
+    // and render the other, which is precisely the drift this table exists to
+    // end. Checked across ALL scopes: a key meaning one thing on every part and
+    // another on the brim parts is a question this shape cannot answer.
+    if (seen.has(row.key)) {
+      throw new Error(
+        `${row.key} appears twice in the intent table. One of the two would ` +
+          `be baked into the file and the other rendered beside it.`,
+      );
+    }
+    seen.add(row.key);
+    // An `every` row reaches a reader, so it must have something to say. An
+    // empty label renders as a bare number with nothing naming it.
+    if (row.scope === "every" && (row.label === "" || row.display === "")) {
+      throw new Error(
+        `${row.key} is shown to a reader and has no ` +
+          `${row.label === "" ? "label" : "display value"}.`,
+      );
+    }
+  }
+
+  // ==================================================================
+  // MEMBERSHIP LAST, AND THE ORDER IS THE POINT.
+  // ==================================================================
+  // The case check above and these two overlap on `sparse_infill_pattern`:
+  // "Gyroid" is both wrongly-cased AND absent from the legal set. Run this
+  // first -- as it was until this ordering was fixed -- and a capitalised value
+  // is reported as an unknown pattern, with the legal list printed at someone
+  // who typed one of them in caps. That is the message the case check exists to
+  // replace, and it was unreachable for the one key it was written for.
+  //
+  // So the specific diagnosis runs before the general one. A value that is
+  // BOTH miscased and genuinely unknown still fails; it just gets told about
+  // the capital letter first, which is the defect it more likely is.
+  const valueOf = (key: string) => rows.find((r) => r.key === key)?.value;
+
+  const pattern = valueOf("sparse_infill_pattern");
+  if (pattern !== undefined && !LEGAL_INFILL.has(pattern)) {
     throw new Error(
       `sparse_infill_pattern "${pattern}" is not a value Orca accepts. ` +
         `It would be silently replaced with grid. Legal: ${[...LEGAL_INFILL].join(", ")}`,
     );
   }
-  const support = INTENT_SUPPORT_PARTS.support_type;
-  if (!LEGAL_SUPPORT_TYPE.has(support)) {
+  const support = valueOf("support_type");
+  if (support !== undefined && !LEGAL_SUPPORT_TYPE.has(support)) {
     throw new Error(
       `support_type "${support}" is not a value Orca accepts. ` +
         `Legal: ${[...LEGAL_SUPPORT_TYPE].join(", ")}`,
     );
-  }
-  // Enum maps are all-lowercase, and "Gyroid" was MEASURED to degrade silently.
-  // Checked separately from set membership so the error names the real defect
-  // rather than listing legal values at someone who typed one of them in caps.
-  for (const [k, v] of Object.entries({
-    ...INTENT_EVERY_PART,
-    ...INTENT_SUPPORT_PARTS,
-  })) {
-    if (v !== v.toLowerCase()) {
-      throw new Error(
-        `${k}="${v}" has a capital letter. Orca's enum maps are lowercase and ` +
-          `a case mismatch is substituted with the option default, silently.`,
-      );
-    }
   }
 }
 

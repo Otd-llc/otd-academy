@@ -783,6 +783,23 @@ describe("Metadata/model_settings.config", () => {
     expect(cfg.match(/key="sparse_infill_pattern" value="gyroid"/g)).toHaveLength(2);
   });
 
+  it("gives every part the density and perimeters the infill was chosen against", async () => {
+    // 30% at four perimeters, and BOTH halves, because 30% was chosen against
+    // four -- stating either alone describes a part nobody tested. These come
+    // from `PRINT_INTENT_TABLE`, which the /hex print card and the archive
+    // README also render: this row is the one that checks the BYTES, so the
+    // three surfaces cannot agree with each other while disagreeing with the
+    // file. Release 2026-08-17 baked 15% at 2 walls under a README saying 30%
+    // at 4, and nothing caught it because nothing compared them.
+    const cfg = await configOf(
+      await plate3mf([at("a", 4, 4), at("b", 20, 4)], SOURCES),
+    );
+    expect(
+      cfg.match(/key="sparse_infill_density" value="30%"/g),
+    ).toHaveLength(2);
+    expect(cfg.match(/key="wall_loops" value="4"/g)).toHaveLength(2);
+  });
+
   it("spells the infill in the case the slicer's enum map uses", async () => {
     // MEASURED: "Gyroid" is silently replaced with grid, behind a dialog that
     // blames a version mismatch. The file looks right and prints weak.

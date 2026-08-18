@@ -24,6 +24,8 @@
 // The house ban is on EM dashes; do not "fix" these to hyphens or the two
 // surfaces stop matching.
 
+import { INTENT_EVERY_PART } from "@/lib/hex-print-intent";
+
 /** Immutable release segment of the published mesh set. Mirrors
  *  `PRINTABLES_RELEASE` in `scripts/upload-printables.ts` — the R2 keys and the
  *  LICENSE.txt inside every published file are stamped with it.
@@ -103,14 +105,35 @@ export type SpecRow = {
   aside?: string;
 };
 
-/** The slicer band, in the sheet's order. */
+/** The slicer band, in the sheet's order.
+ *
+ *  TWO OF THESE ROWS ARE DERIVED, NOT TRANSCRIBED, and the two are exactly the
+ *  ones a downloaded plate now sets for itself. `Perimeters` and `Infill` come
+ *  from `PRINT_INTENT_TABLE`, so this card cannot state a number the file
+ *  contradicts -- which it did: the file baked 15% at 2 walls while this band,
+ *  both archive READMEs and the build sheet all said 30% gyroid at 4, and
+ *  nothing compared them because nothing could.
+ *
+ *  THE PIN TEST STILL PINS THE SHEET, and that is the point rather than a
+ *  casualty. `hex-spec.test.ts` asserts these rows against the literals
+ *  transcribed from bioscale-viz `html.ts`, so changing the table now FAILS that
+ *  test until the sheet is changed to match. The two repos share no package and
+ *  cannot import each other; a failing transcription pin is the whole mechanism
+ *  keeping them honest, and deriving the value gives it something real to check
+ *  rather than a second copy agreeing with itself. */
 export const HEX_PRINT_PARAMS: SpecRow[] = [
   { label: "Material", value: "FDM PETG" },
   { label: "Nozzle", value: "240 °C" },
   { label: "Bed", value: "70–85 °C", aside: "brand-dependent" },
   { label: "Layer", value: "0.20 mm" },
-  { label: "Perimeters", value: "4" },
-  { label: "Infill", value: "30% gyroid" },
+  // `wall_loops` to the slicer, "Perimeters" to every surface a reader holds.
+  { label: "Perimeters", value: INTENT_EVERY_PART.wall_loops },
+  // Density then pattern, the order the sheet prints and the order it is said
+  // aloud. Both halves come from the table; neither is spelled here.
+  {
+    label: "Infill",
+    value: `${INTENT_EVERY_PART.sparse_infill_density} ${INTENT_EVERY_PART.sparse_infill_pattern}`,
+  },
   { label: "Speed", value: "40–50 mm/s" },
   { label: "Cooling", value: "~30%" },
   { label: "Filament", value: "dry before use" },
