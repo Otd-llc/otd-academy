@@ -159,6 +159,47 @@ async function RowXp({ slug }: { slug: string }) {
   );
 }
 
+// The Field Guide CTA is account-gated (a signed-in reader gets a one-click email,
+// everyone else a prompt), and it is the ONLY personalised leaf inside the masthead,
+// the rail and the cluster heads. Giving it its own boundary is what lets those three
+// blocks stay static: the anonymous button prerenders, and a signed-in reader's swaps
+// in place with no layout change.
+function FieldGuideCta({
+  guide,
+  label,
+  name,
+}: {
+  guide: string;
+  label: string;
+  name: string;
+}) {
+  return (
+    <Suspense fallback={<FieldGuideDownload guide={guide} label={label} name={name} signedIn={false} />}>
+      <PersonalFieldGuideCta guide={guide} label={label} name={name} />
+    </Suspense>
+  );
+}
+
+async function PersonalFieldGuideCta({
+  guide,
+  label,
+  name,
+}: {
+  guide: string;
+  label: string;
+  name: string;
+}) {
+  const personal = await libraryPersonal();
+  return (
+    <FieldGuideDownload
+      guide={guide}
+      label={label}
+      name={name}
+      signedIn={personal?.signedIn ?? false}
+    />
+  );
+}
+
 // The masthead lead: the flagship guide's TEXT (Bebas title, serif dek, mono
 // meta) with a read CTA + the guide's cluster Field Guide. Its diagram sits
 // BESIDE this in the masthead. No filled card; it sits on the bare field.
@@ -168,11 +209,9 @@ async function RowXp({ slug }: { slug: string }) {
 // HERO_DIAGRAMS — then it's just eyebrow → title, a clean degrade).
 function FeaturedLead({
   lesson,
-  signedIn,
   diagram,
 }: {
   lesson: LessonMeta;
-  signedIn: boolean;
   diagram?: React.ReactNode;
 }) {
   const cluster = clusterByKey(lesson.cluster);
@@ -219,11 +258,10 @@ function FeaturedLead({
             <span aria-hidden>→</span>
           </Link>
           {cluster ? (
-            <FieldGuideDownload
+            <FieldGuideCta
               guide={cluster.key}
               label={`${cluster.label} Field Guide`}
               name={`the ${cluster.label} Field Guide`}
-              signedIn={signedIn}
             />
           ) : null}
         </div>
@@ -235,7 +273,7 @@ function FeaturedLead({
 // The also-featured, living in the sticky rail beneath its portrait diagram: a
 // second flagship from a different cluster, carrying ITS cluster Field Guide (a
 // targeted conversion path, mirroring the featured lead).
-function RailAlso({ lesson, signedIn }: { lesson: LessonMeta; signedIn: boolean }) {
+function RailAlso({ lesson }: { lesson: LessonMeta }) {
   const cluster = clusterByKey(lesson.cluster);
   return (
     <div>
@@ -262,11 +300,10 @@ function RailAlso({ lesson, signedIn }: { lesson: LessonMeta; signedIn: boolean 
       </p>
       {cluster ? (
         <div className="mt-4">
-          <FieldGuideDownload
+          <FieldGuideCta
             guide={cluster.key}
             label={`${cluster.label} Field Guide`}
             name={`the ${cluster.label} Field Guide`}
-            signedIn={signedIn}
           />
         </div>
       ) : null}
@@ -356,60 +393,19 @@ function FreshRail({ items }: { items: FreshLesson[] }) {
 // One cluster's block in the deep index: a header (ordinal + Bebas label + blurb
 // + count + Field Guide) over a two-column serif row list. The "other" bucket
 // (no registry entry) renders as a trailing catch-all with no ordinal/download.
-// The right-hand meta cluster shared by both the registry-cluster head and the
-// catch-all: count + optional progress + Field Guide. Two of those three are
-// personalised (the done/total stat, and the Field Guide CTA, which is
-// account-gated), so it renders from `personal` and is the only part of a cluster
-// head behind a boundary. It is ~1 kB, so sending it twice costs nothing.
-function ClusterMeta({
-  cluster,
-  count,
-  personal,
-}: {
-  cluster: ReturnType<typeof clusterByKey>;
-  count: number;
-  personal: Personal | null;
-}) {
-  const clusterStat = cluster ? personal?.clusterStats?.get(cluster.key) : undefined;
+// A cluster's done/total, which only a signed-in reader has. It streams in ahead of
+// the static guide count, so it ADDS to the row rather than replacing anything.
+async function ClusterStat({ clusterKey }: { clusterKey: string }) {
+  const cluster = clusterByKey(clusterKey);
+  const stat = cluster ? (await libraryPersonal())?.clusterStats?.get(cluster.key) : undefined;
+  if (!stat) return null;
   return (
-    <div className="flex shrink-0 items-center gap-3">
-      {clusterStat ? (
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
-          <span className="font-numeral tabular-nums text-sm text-command-gold">
-            {clusterStat.done} / {clusterStat.total}
-          </span>{" "}
-          done
-        </span>
-      ) : null}
-      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
-        <span className="font-numeral tabular-nums text-sm text-command-gold">{count}</span>{" "}
-        {count === 1 ? "guide" : "guides"}
-      </span>
-      {cluster ? (
-        <FieldGuideDownload
-          guide={cluster.key}
-          label="Field Guide"
-          name={`the ${cluster.label} Field Guide`}
-          signedIn={personal?.signedIn ?? false}
-        />
-      ) : null}
-    </div>
-  );
-}
-
-async function PersonalClusterMeta({
-  clusterKey,
-  count,
-}: {
-  clusterKey: string;
-  count: number;
-}) {
-  return (
-    <ClusterMeta
-      cluster={clusterByKey(clusterKey)}
-      count={count}
-      personal={await libraryPersonal()}
-    />
+    <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
+      <span className="font-numeral tabular-nums text-sm text-command-gold">
+        {stat.done} / {stat.total}
+      </span>{" "}
+      done
+    </span>
   );
 }
 
@@ -423,10 +419,26 @@ function ClusterSection({
   list: { slug: string; title: string; readingMinutes: number }[];
 }) {
   const cluster = clusterByKey(clusterKey);
+  // Count + optional progress + Field Guide, the right-hand meta cluster shared by
+  // both the registry-cluster head and the catch-all. Static except for the two
+  // personalised leaves, each of which owns its boundary.
   const meta = (
-    <Suspense fallback={<ClusterMeta cluster={cluster} count={list.length} personal={null} />}>
-      <PersonalClusterMeta clusterKey={clusterKey} count={list.length} />
-    </Suspense>
+    <div className="flex shrink-0 items-center gap-3">
+      <Suspense fallback={null}>
+        <ClusterStat clusterKey={clusterKey} />
+      </Suspense>
+      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
+        <span className="font-numeral tabular-nums text-sm text-command-gold">{list.length}</span>{" "}
+        {list.length === 1 ? "guide" : "guides"}
+      </span>
+      {cluster ? (
+        <FieldGuideCta
+          guide={cluster.key}
+          label="Field Guide"
+          name={`the ${cluster.label} Field Guide`}
+        />
+      ) : null}
+    </div>
   );
   return (
     <section className="mb-12">
@@ -637,44 +649,35 @@ async function PersonalIntro() {
   return personal?.showIntro ? <LogbookIntro goalPhrase={personal.goalPhrase} /> : null;
 }
 
-// Masthead: an anonymous visitor gets the featured guide (eyebrow -> bare diagram
-// banner -> text, owner pick V2c) alongside New & updated, then the rule. A signed-in
-// student skips it entirely -- their follower card below is the featured lesson -- and
-// just sees the deep index, so the personalised branch renders the 2rem of space the
-// grid used to carry as a conditional `mt-8`. Keeping that spacing HERE is what lets
-// the grid below hold one constant className, and therefore stay in the static shell.
+// Masthead: the featured guide (eyebrow -> bare diagram banner -> text, owner pick
+// V2c) alongside New & updated, then the rule.
+//
+// It is deliberately NOT behind a boundary. A signed-in student used to skip it, which
+// meant the anonymous masthead would prerender into the shell and then be REMOVED when
+// the personalised stream landed -- a painted block vanishing under a reader who is
+// signed in. Rendering it for everyone costs a signed-in student one extra featured
+// card and buys three things: no swap, the masthead in the static shell, and its inline
+// hero SVG sent once per request instead of twice.
 function Masthead({
   lead,
   fresh,
   diagram,
-  signedIn,
 }: {
   lead: LessonMeta | undefined;
   fresh: FreshLesson[];
   diagram: React.ReactNode;
-  signedIn: boolean;
 }) {
-  if (signedIn) return <div className="h-8" aria-hidden />;
   return (
     <>
       {lead ? (
         <div className="grid items-start gap-8 lg:grid-cols-[1.55fr_1fr]">
-          <FeaturedLead lesson={lead} signedIn={false} diagram={diagram} />
+          <FeaturedLead lesson={lead} diagram={diagram} />
           {fresh.length > 0 ? <FreshRail items={fresh} /> : null}
         </div>
       ) : null}
       <div className="title-rule my-10" aria-hidden />
     </>
   );
-}
-
-async function PersonalMasthead(props: {
-  lead: LessonMeta | undefined;
-  fresh: FreshLesson[];
-  diagram: React.ReactNode;
-}) {
-  const personal = await libraryPersonal();
-  return <Masthead {...props} signedIn={personal?.signedIn ?? false} />;
 }
 
 // The sticky rail. Anonymous: the also-featured's portrait diagram + its text.
@@ -727,7 +730,7 @@ function Rail({
   return (
     <>
       {alsoDiagram ? <div>{alsoDiagram}</div> : null}
-      <RailAlso lesson={also} signedIn={personal?.signedIn ?? false} />
+      <RailAlso lesson={also} />
     </>
   );
 }
@@ -775,16 +778,21 @@ export default async function LibraryIndexPage() {
   let ordinal = 0;
 
   // NOTHING below awaits the session. Every personalised element sits behind its own
-  // <Suspense>, whose FALLBACK is the anonymous view -- and a Cache Components build
-  // prerenders fallbacks, so the whole index (69 crawlable lesson links) ships in the
-  // static shell while the personal bits stream in over it.
+  // <Suspense>, and a Cache Components build prerenders FALLBACKS -- which is what puts
+  // the whole index (69 crawlable lesson links) in the static shell.
   //
   // This page used to `await auth()` at the top, which postponed the entire body: the
   // prerendered shell was 48 kB of chrome with ZERO lesson links, and the index -- the
-  // SEO surface this site rests on -- was re-rendered on every request. Wrapping the
-  // WHOLE page in one boundary fixes the shell but then ships the index TWICE (measured:
-  // +45 kB gzipped per anonymous hit). Hence the granularity: a boundary goes around the
-  // smallest personalised thing, never around the index.
+  // SEO surface this site rests on -- was re-rendered on every request.
+  //
+  // Two rules earned the hard way, both measured:
+  //   1. A boundary goes around the SMALLEST personalised thing, never around the index.
+  //      One boundary round the whole page also fixes the shell, but ships the index
+  //      twice: +45 kB gzipped on every anonymous hit.
+  //   2. A fallback may ADD to what replaces it; it must not be a block that the
+  //      replacement REMOVES. A prerendered fallback is painted, so anything the
+  //      personalised render drops visibly disappears. Hence fallback={null} for the
+  //      rail, and a masthead that renders for everyone.
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <JsonLd data={listLd} />
@@ -816,22 +824,19 @@ export default async function LibraryIndexPage() {
         </p>
       ) : (
         <>
-          <Suspense
-            fallback={<Masthead lead={lead} fresh={fresh} diagram={leadDiagram} signedIn={false} />}
-          >
-            <PersonalMasthead lead={lead} fresh={fresh} diagram={leadDiagram} />
-          </Suspense>
+          <Masthead lead={lead} fresh={fresh} diagram={leadDiagram} />
 
           {/* Split: sticky rail (student follower card + new & updated, or the anon
               also-featured) + the deep cluster index. */}
           <div className="grid gap-10 lg:grid-cols-[300px_1fr]">
             {also ? (
               <aside className="space-y-6 self-start lg:sticky lg:top-24">
-                <Suspense
-                  fallback={
-                    <Rail also={also} alsoDiagram={alsoDiagram} fresh={fresh} personal={null} />
-                  }
-                >
+                {/* fallback={null}, NOT the anonymous rail. The rail is the other
+                    block whose two states differ in height, so prerendering the
+                    anonymous one would make it vanish under a signed-in reader. It
+                    carries a second inline hero SVG and no link the index does not
+                    already have, so streaming it costs nothing that matters. */}
+                <Suspense fallback={null}>
                   <PersonalRail also={also} alsoDiagram={alsoDiagram} fresh={fresh} />
                 </Suspense>
               </aside>
