@@ -23,6 +23,7 @@ import JSZip from "jszip";
 
 import type { Bed } from "@/lib/hex-pack";
 import type { Placement } from "@/lib/hex-plate";
+import { CURA_XMLNS, curaMetadataGroup, curaRowsFor } from "@/lib/hex-cura";
 import {
   PRUSA_CONFIG_PATH,
   countTriangles,
@@ -221,6 +222,11 @@ export function extractObjectBlock(
   model: string,
   id: number,
   name: string,
+  /** Cura's per-object rows for THIS part, from `curaRowsFor`. Defaulted to
+   *  empty so every existing caller and test keeps working unchanged, and so a
+   *  plate of parts Cura can be told nothing about is byte-identical to one
+   *  written before this payload existed. */
+  cura: readonly { key: string; value: string }[] = [],
 ): string {
   // `<object\b` and not `<object `, so an object tag broken across a line is
   // counted rather than missed. `</object>` cannot match it: the character after
@@ -259,6 +265,22 @@ export function extractObjectBlock(
   const attrs = open[1].replace(/\s+(?:id|name)\s*=\s*"[^"]*"/g, "");
   return (
     `<object id="${id}" name="${escapeXml(name)}"${attrs}>` +
+    // CURA'S PER-OBJECT SETTINGS GO HERE, BEFORE THE MESH, and the position is
+    // mandatory rather than tidy: `CT_Object` is an `xs:sequence` of
+    // `metadatagroup` (minOccurs 0) THEN a choice of `mesh | components`. After
+    // the mesh it would be schema-invalid.
+    //
+    // This is the one payload that lives INSIDE `3D/3dmodel.model`, the file every
+    // other slicer parses -- the others are side-cars under `Metadata/` that a
+    // foreign reader never opens. Verified before writing it: Orca's and Creality
+    // Print's `_handle_start_model_xml_element` is an if/else-if chain over
+    // fifteen tag names with NO `else` branch, so an unknown `<metadatagroup>`
+    // leaves `res == true` and `_stop_xml_parser()` is never called. The
+    // `<metadata>` children DO get routed to `_handle_start_metadata` -- the
+    // dispatch keys on element name with no parent context -- and that handler,
+    // plus `_handle_end_metadata`, contains ZERO `return false` paths in either
+    // fork. PrusaSlicer's is the same shape.
+    curaMetadataGroup(cura) +
     block.slice(open[0].length)
   );
 }
@@ -599,7 +621,18 @@ export async function buildPlate3mf(
     // support on globally, which is wrong for the 28 parts measured not to
     // need it. So the paint follows the collected list, never a guess.
     const needsPaint = PART_REMEDY[p.slug]?.support === true;
-    const block = extractObjectBlock(src, obj.id, p.name);
+    // Cura's per-object surface is narrower than the others -- no brim at all --
+    // so the rows are filtered by what Cura can actually apply, from the one
+    // table. `support` gates the support row exactly as the other dialects do.
+    const block = extractObjectBlock(
+      src,
+      obj.id,
+      p.name,
+      curaRowsFor({
+        support: PART_REMEDY[p.slug]?.support === true,
+        brim: PART_REMEDY[p.slug]?.brim === true,
+      }),
+    );
     const emitted = needsPaint ? paintOneFacet(block) : block;
     objects.push(emitted);
     // COUNTED FROM THE BLOCK WE EMIT, never from `src`. `lastid` describes
@@ -735,6 +768,18 @@ export async function buildPlate3mf(
     // `unit` is not optional in practice: a 3MF without it defaults to MICRONS,
     // so a plate that forgets it arrives one thousandth of its size.
     `<model unit="millimeter" xml:lang="en-US" ` +
+    // THE CURA NAMESPACE, declared on `<model>` because the core spec requires
+    // it there: a metadata name outside this specification "MUST be prefixed
+    // with the namespace name of an XML namespace declaration on the `<model>`
+    // element". `name` is typed `xs:QName`, and an unbound prefix is not a valid
+    // QName. Cura itself would work without it -- libSavitar hardcodes the bare
+    // `cura` prefix as a fallback -- but shipping a knowingly non-conforming
+    // document is not the trade this module makes anywhere else.
+    //
+    // Harmless to the readers that ignore it: Orca, Creality Print and
+    // PrusaSlicer all create their expat parser WITHOUT namespace processing and
+    // read `<model>` attributes by name, so an extra `xmlns:cura` is invisible.
+    `${CURA_XMLNS} ` +
     `xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">\n` +
     written
       .map(([k, v]) => ` <metadata name="${k}">${escapeXml(v)}</metadata>\n`)

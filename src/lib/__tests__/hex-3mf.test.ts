@@ -622,7 +622,7 @@ describe("buildPlate3mf", () => {
     expect(model).toContain("CC BY 4.0 -- One Thousand Drones, LLC");
   });
 
-  it("writes ONLY names the core spec defines, unqualified", async () => {
+  it("writes core metadata unqualified, and everything else namespaced", async () => {
     // THE GUARD THAT MAKES THE REST OF THIS BLOCK MEAN ANYTHING. The 3MF core
     // spec defines a CLOSED set of `<model>` metadata names and says that an
     // unqualified name outside it MUST instead be namespace-prefixed -- so a
@@ -641,14 +641,45 @@ describe("buildPlate3mf", () => {
       (m) => m[1],
     );
     expect(names.length).toBeGreaterThan(0);
+
+    // ONE RULE, BOTH HALVES. The spec's requirement is not "no prefixes" -- it is
+    // that a name outside the core set MUST carry one, declared on `<model>`.
+    // This row used to assert the first half only, which was sufficient while the
+    // document had nothing but `<model>` metadata. The Cura payload writes
+    // `cura:`-prefixed names on `<object>`, so asserting "no colons" would now
+    // reject a CONFORMING document and, worse, would have to be loosened to
+    // `not.toContain` nothing at all -- which is how a guard becomes decoration.
+    const modelTag = /<model\b[^>]*>/.exec(model)?.[0] ?? "";
     for (const name of names) {
-      expect(CORE_META as readonly string[], name).toContain(name);
-      // Unqualified: a colon would be a namespace prefix, and a prefix that is
-      // not declared on `<model>` is a different non-conformance again.
-      expect(name, name).not.toContain(":");
+      if (name.includes(":")) {
+        const prefix = name.slice(0, name.indexOf(":"));
+        // A prefix that is not declared on `<model>` is its own
+        // non-conformance, and `name` is typed `xs:QName` -- an unbound prefix
+        // is not a valid QName at all.
+        expect(modelTag, `xmlns:${prefix} must be declared on <model>`).toContain(
+          `xmlns:${prefix}=`,
+        );
+      } else {
+        // Unqualified, so it must be one of the closed core names. Held against
+        // the IMPORTED list, never a transcribed one -- a second copy would agree
+        // with itself forever while the real one drifted.
+        expect(CORE_META as readonly string[], name).toContain(name);
+      }
     }
-    // 3MF forbids duplicate metadata names on one element.
-    expect(new Set(names).size).toBe(names.length);
+
+    // 3MF forbids duplicate metadata names ON ONE ELEMENT, which is not the same
+    // as document-wide uniqueness: every object may carry its own
+    // `cura:infill_pattern`. Checked per element rather than globally, because
+    // the global version would fail on a legal plate the moment a second part
+    // needed the same setting.
+    const modelLevel = names.filter((n) => !n.startsWith("cura:"));
+    expect(new Set(modelLevel).size).toBe(modelLevel.length);
+    for (const block of model.matchAll(/<metadatagroup>([\s\S]*?)<\/metadatagroup>/g)) {
+      const inGroup = [...block[1].matchAll(/name="([^"]*)"/g)].map((m) => m[1]);
+      expect(new Set(inGroup).size, "duplicate name in one metadatagroup").toBe(
+        inGroup.length,
+      );
+    }
   });
 
   it("fills in every core field we can state truthfully", async () => {

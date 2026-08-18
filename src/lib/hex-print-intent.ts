@@ -115,6 +115,27 @@ export type PrintIntentRow = {
    * nobody remembers.
    */
   prusa: { key: string; value: string } | null;
+  /**
+   * The same intent in Cura's dialect, or `null` for "deliberately not carried".
+   *
+   * A THIRD KEY AND A THIRD VALUE, and more nulls than the other two, because
+   * Cura restricts per-object settings to those flagged `settable_per_mesh` in
+   * its own `fdmprinter.def.json`. Verified there, not assumed:
+   *
+   *   infill_pattern         enum  settable_per_mesh TRUE   (gyroid is an option)
+   *   infill_sparse_density  float settable_per_mesh TRUE   (percent, NO `%` sign)
+   *   wall_line_count        int   settable_per_mesh TRUE
+   *   support_enable         bool  settable_per_mesh TRUE   (`True`, Python-cased)
+   *   support_angle          float settable_per_mesh TRUE   -- omitted anyway, see below
+   *   support_type           enum  settable_per_mesh FALSE  -- and means something else
+   *   adhesion_type          enum  settable_per_mesh FALSE
+   *   brim_width             float settable_per_mesh FALSE
+   *   brim_line_count        int   settable_per_mesh FALSE
+   *
+   * SO THE WHOLE BRIM SCOPE IS `null`. Cura has no per-object brim at all;
+   * translating one would ship a setting that looks carried and does nothing.
+   */
+  cura: { key: string; value: string } | null;
 };
 
 export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
@@ -131,6 +152,7 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
     key: "sparse_infill_pattern",
     value: "gyroid",
     prusa: { key: "fill_pattern", value: "gyroid" },
+    cura: { key: "infill_pattern", value: "gyroid" },
     label: "infill",
     display: "gyroid",
     scope: "every",
@@ -139,6 +161,10 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
     key: "sparse_infill_density",
     value: "30%",
     prusa: { key: "fill_density", value: "30%" },
+    // NO `%`. Cura types this as a FLOAT, where Orca and Prusa both want a
+    // percent string -- and Prusa actively multiplies a bare number by 100.
+    // Three dialects, three spellings of one number.
+    cura: { key: "infill_sparse_density", value: "30" },
     label: "density",
     display: "30%",
     scope: "every",
@@ -152,6 +178,7 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
     key: "wall_loops",
     value: "4",
     prusa: { key: "perimeters", value: "4" },
+    cura: { key: "wall_line_count", value: "4" },
     label: "perimeters",
     display: "4",
     scope: "every",
@@ -173,6 +200,8 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
     key: "enable_support",
     value: "1",
     prusa: { key: "support_material", value: "1" },
+    // `True`, Python-cased -- Cura parses its own bool spelling, not `1`.
+    cura: { key: "support_enable", value: "True" },
     label: "support",
     display: "on",
     scope: "support",
@@ -186,6 +215,11 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
     // on. `support_material_auto=1` is the half that means "and find the
     // overhangs yourself", which is what `normal(auto)` says over here.
     prusa: { key: "support_material_auto", value: "1" },
+    // NOT CARRIED. Cura has no separate "and find the overhangs yourself"
+    // flag -- `support_enable` alone already means automatic support there.
+    // A key that does not exist would be parked in Cura's node metadata and
+    // silently never applied.
+    cura: null,
     label: "support type",
     display: "normal, automatic",
     scope: "support",
@@ -202,6 +236,26 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
     // Stated anyway, and for the reason above: every overhang figure this
     // project has measured was scored against 30.
     prusa: { key: "support_material_threshold", value: "30" },
+    // ====================================================================
+    // NOT CARRIED, AND THIS ONE IS A TRAP RATHER THAN AN ABSENCE.
+    // ====================================================================
+    // Cura HAS a per-mesh equivalent (`support_angle`) and the number would
+    // look like it transfers. It does not. Cura measures from VERTICAL and
+    // INVERTS the direction -- its own description: "At a value of 0 all
+    // overhangs are supported, 90 will not provide any support." Orca and
+    // Prusa measure from HORIZONTAL, where larger means MORE support.
+    //
+    // So our 30-from-horizontal is 60 in Cura's terms, and writing 30 there
+    // would ask for support on anything more than 30 degrees off vertical --
+    // far more than intended, and more aggressive than Cura's own default of
+    // 50. That is a wrong print, not a missing setting.
+    //
+    // The complement is easy arithmetic and is STILL not carried, because it
+    // would be a derived number asserted into a slicer nobody here has
+    // opened. `support_enable` alone leaves Cura on its own recommended 50,
+    // which is close to the 60 we would have asked for. Omission is the
+    // honest option until someone opens Cura.
+    cura: null,
     label: "support threshold",
     display: "30 deg from horizontal",
     scope: "support",
@@ -229,6 +283,8 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
     key: "brim_type",
     value: "outer_only",
     prusa: { key: "brim_type", value: "outer_only" },
+    // NOT CARRIED: `adhesion_type` is settable_per_mesh FALSE in Cura.
+    cura: null,
     label: "brim",
     display: "outer only",
     scope: "brim",
@@ -237,6 +293,9 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
     key: "brim_width",
     value: "5",
     prusa: { key: "brim_width", value: "5" },
+    // NOT CARRIED: `brim_width` is settable_per_mesh FALSE in Cura. There is
+    // no per-object brim in Cura at all.
+    cura: null,
     label: "brim width",
     display: "5 mm",
     scope: "brim",

@@ -46,6 +46,9 @@ const OK: PrintIntentRow = {
   // the fork to PrusaSlicer. Inheriting null silently would be a setting the
   // card promises and the Prusa file omits.
   prusa: { key: "perimeters", value: "4" },
+  // Also required, for the same reason: a new setting must SAY whether it
+  // crosses to Cura, whose per-object surface is narrower than the others.
+  cura: { key: "wall_line_count", value: "4" },
 };
 
 const rowsFor = (scope: PrintIntentRow["scope"]) =>
