@@ -11,71 +11,71 @@ produced them are named inline.
 
 ---
 
-## Decision 1 — capture at 2560x1440. Not 1920x1080.
+## Decision 1 — capture 1920x1080, NVENC H.264, 4:2:0
 
-**Recommendation: 2560x1440, uploaded natively. No downscale anywhere.**
+**Settled 2026-08-18 on the real rig, after three wrong answers. Read the whole
+section before changing it; each reversal below was paid for.**
 
-### The audience decides this, and it is a standing fact about the course
+### What actually decided it: the overlay, not the encoder
 
-**KiCad is desktop-only software. You cannot open it on a phone or a tablet.**
-Following one of these lessons therefore REQUIRES a computer, so every viewer of
-a course lesson video is sitting at one. There is no mobile audience for this
-material — not a small one, none — and any argument that trades sheet area for
-small-screen legibility is optimising for a viewer who cannot exist.
+**KeyViz composites a keystroke overlay on every frame, and at 3840x2160 that
+made movement visibly choppy on this machine.** The overlay is not optional for
+this material — the script teaches by keystroke (`M`, `R`, `X`, `Y`, `G`,
+Ctrl+F), so the viewer has to see the keys. That cost lands *upstream* of the
+encoder, which means no amount of encoder headroom fixes it and no synthetic
+encode benchmark can detect it. It was found by recording, not by measuring.
 
-This is not a per-video judgement call. It applies to all 128 course videos and it
-does not need re-deriving. (It is written down here because it was re-derived
-several times from first principles and came out wrong each time.)
+### The measurements, so nobody re-runs them
 
-A desktop viewer takes 1440p natively. So capture 1440 and upload 1440: more of
-the schematic on screen, at a size that is still comfortable, which for a CAD
-walkthrough is the thing of value.
-
-**Note what this retires.** The shot list's *"UI scale up one notch so menus are
-legible at 720p"* was written against a generic YouTube audience. A 720p rung is
-not the constraint for a desktop-only tool. Keep the UI at a natural scale and
-let the extra raster buy sheet area instead of magnification.
-
-### What must NOT regress: no resample, anywhere
-
-Measured on this machine, 2026-08-14 — resampling 1440 -> 1080 delivers hairlines
-at a fraction of full contrast:
-
-| Path | 1px wire contrast, as a fraction of a crisp line |
+| Config | Result |
 |---|---|
-| **native** | **100.0%** on all 14 lines |
-| 1440 -> 1080, lanczos | mean **63.1%**, worst 57.5% |
-| 1440 -> 1080, bicubic | mean **61.3%**, worst 54.5% |
+| 4K 4:4:4 x264 veryfast | 0.82x — below realtime |
+| 4K 4:2:0 x264 veryfast | 1.07x — below realtime in practice |
+| **4K 4:2:0 NVENC, sustained 8 min** | **1.78x, no thermal decay** |
+| Real 8-min OBS take at 4K | **0 dropped frames**, 14,446 captured |
+| 1080p 4:2:0 NVENC P7 CQ14 | **3.74x** |
 
-That measurement is about DOWNSCALING, and the conclusion it supports is
-"capture native, upload native" — not any particular raster size. A schematic is
-made of hairlines, and a 0.75 resample of a signal at the pixel Nyquist is
-information-destroying. So OBS base and output resolution must be equal, Windows
-display scaling must not be interposing, and no scale filter may be left on.
-`no_resample` measures the pixels of a hairline grid precisely so this cannot
+So **"4K is impossible" was wrong** — NVENC does it comfortably, and the CPU
+thermal risk that killed x264 does not apply because NVENC runs on a
+fixed-function GPU block. 4K is rejected on the overlay, not the encoder.
+
+### Why 4:2:0, having previously mandated 4:4:4
+
+The 4:4:4 rule came from a real measurement (a 4:2:0 round trip scores 37.40 dB
+against 65.72) — but that measures the **master**, and nobody watches the master.
+
+- YouTube's documented ingest spec is 4:2:0, and delivered renditions come back
+  4:2:0 whatever you upload. The 4:4:4 never reaches a viewer.
+- **H.264 High 4:4:4 Predictive is not loadable in most NLEs** — Premiere
+  silently converts it, Resolve free rejects it outright. A 4:4:4 master is a
+  master you cannot edit. (The handoff already said this about Resolve; it got
+  lost.)
+- No one has published an A/B of a 4:4:4 vs 4:2:0 master through YouTube's
+  transcode. The pro-4:4:4 claim is vendor-blog folklore with no measurement.
+
+What protects the thin lines is the **light canvas**: 4:2:0 keeps luma at full
+resolution, so dark strokes on a light page survive. Research section 2's own
+fairness note said exactly that.
+
+### Sheet area comes from the other knob
+
+Area in frame = capture pixels / UI scale. **Lower KiCad's UI scale and increase
+line weight** rather than raising the raster. The audience is desktop-only —
+KiCad cannot run on a phone or tablet, so there is no small-screen legibility
+floor to protect and the shot list's "legible at 720p" line is retired.
+
+**The single highest-value lever, and it is not a codec setting:** a 1px wire
+sits at the pixel Nyquist limit and is destroyed by luma-domain quantization
+before chroma is even relevant. Get features to **2-3px at delivery** — thicker
+lines, or zoom in — and it beats every encoder decision in this document.
+
+### No resample, anywhere. This is the one thing that must not regress
+
+Measured: a 0.75 downscale delivers 1px lines at **61-63%** of full contrast
+(lanczos 63.1% mean, bicubic 61.3%) against 100% native. So the Windows display
+resolution, the OBS base canvas and the OBS output resolution must **all** be
+1920x1080. `no_resample` measures a hairline grid in pixels so this cannot
 regress quietly.
-
-Below 1440, YouTube owns the rungs and does its own resampling. That is fine and
-outside our control; what matters is that we hand it a clean native master.
-
-**Honest limit on the measurement.** The test lines are synthetic and perfectly
-aligned, the best case for a native capture. Real KiCad output is antialiased and
-starts below 100%, so the true gap is narrower than 100 vs 62. The direction is
-not in doubt.
-
-### The cost, stated plainly
-
-1440p is 1.78x the pixels of 1080p: bigger masters, longer encodes, and a real
-risk that x264 CRF 12 at 4:4:4 cannot hold 30fps on this CPU. That last one is
-not a guess to argue about — `no_dropped_frames` in the gate catches it on take
-one, before any cutting time is spent.
-
-### The escape hatch, stated now so it is not quietly reversed later
-
-If a 9:16 cut ever needs screen content, **re-shoot that beat with KiCad windowed
-to 1080x1920** rather than cropping the master. A vertical crop of a schematic is
-unreadable at any source size. The furniture already renders natively at
-1080x1920.
 
 ## Decision 2 — light schematic canvas. KiCad's own default, untouched.
 
@@ -157,16 +157,16 @@ Set these in **Settings -> Output -> Output Mode: Advanced -> Recording**, and
 | Setting | Value | Why |
 |---|---|---|
 | Recording format | **mkv** | Crash-safe. Remux to MP4 later; research §1.16 reproduced that MKV->MP4 remux does *not* create VFR. |
-| Video encoder | **x264** (not NVENC) | Measured: libx264 beats NVENC at *every* bitrate on screen content, gap widening to +8.27 dB at 16 Mbps. The cited crossover came from one K-pop music video. |
-| Rate control | **CRF** | |
-| CRF | **12** | Measured: x264 4:4:4 CRF 12 = 88.5 KB/frame at 45.5 dB; bit-exact lossless is 141 KB. This is a master, not a delivery. |
-| CPU preset | **veryfast** | Measured: `veryslow` saves **0.9%** on static screen content and `slow`/`slower` are *larger*. Preset buys nothing here, so spend it on not dropping frames. |
-| Profile | **high444p** | Required for 4:4:4. |
-| x264 options | `deblock=-3:-3` | Reduced deblocking preserves 1px strokes; the default filter treats them as coding noise. **x264 writes this back as `deblock=1:-3:-3`** — the gate asserts the written form. |
+| Video encoder | **NVIDIA NVENC H.264** | Keeps the encode off the 45W CPU, which is what the KeyViz overlay and KiCad need. x264 measures better per bit on screen content, but the master is re-encoded by YouTube anyway and CPU headroom is the scarce resource here. |
+| Rate control | **CQP** | |
+| CQ Level | **14** | Measured 3.74x realtime at P7, so quality is affordable. This is a master, not a delivery. |
+| Preset | **P7 (slowest/best)** | Measured FASTER than P4 at 1080p (4.14x vs 3.46x), so the quality is free. |
+| Profile | **high** | |
+
 | Keyframe interval | **2 s** | Scrub-friendly in the editor. |
-| Base + Output resolution | **2560x1440** both | They must be equal. Any inequality is a resample, i.e. decision 1 thrown away. |
+| Base + Output resolution | **1920x1080** both | Must equal each other AND the Windows display resolution. Any inequality is a resample. |
 | FPS | **30**, Common values | `render-cut.mjs:34` is `const FPS = 30` and the furniture's beat constants are frame-denominated against it. |
-| Color format | **I444** | |
+| Color format | **NV12** | 4:2:0, per Decision 1. |
 | Color space | **Rec. 709** | OBS's `sRGB` and `709` are identical except one metadata tag; `video-matrices.c` collapses them to the same matrix. Pick the one that is not a lie. |
 | Color range | **Full** | YUV formats default to Partial. Left at Partial, RGB 0-255 is quantized into 219 luma levels before anything else happens. |
 

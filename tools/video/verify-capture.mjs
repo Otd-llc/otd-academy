@@ -48,27 +48,37 @@ import { dirname, basename, join } from "node:path";
 // FLOORS. Sources, not preferences. Do NOT lower these to make a run succeed.
 // ---------------------------------------------------------------------------
 
-// 2560x1440, and the AUDIENCE is why.
+// 1920x1080, decided on the real rig rather than on a benchmark.
 //
-// These are KiCad course videos. KiCad is desktop-only software -- you cannot
-// open it on a phone or a tablet -- so following along REQUIRES a computer, and
-// every viewer of these lessons is at one. There is no mobile audience to
-// protect, and any argument that trades sheet area for small-screen legibility
-// is optimising for viewers who cannot exist. This is a standing fact about the
-// course, not a per-video judgement call.
+// THE BINDING CONSTRAINT IS THE OVERLAY, NOT THE ENCODER. KeyViz composites a
+// keystroke overlay every frame -- not optional for this material, since the
+// script teaches by key (M, R, X, Y, G, Ctrl+F) -- and at 3840x2160 that made
+// movement visibly choppy on the actual machine. That cost lands upstream of
+// the encoder, so no amount of encoder headroom fixes it, and no synthetic
+// encode benchmark can see it.
 //
-// That settles the resolution. A desktop viewer can take 1440p natively, so
-// capturing 1440 and uploading 1440 puts more of the schematic on screen at a
-// readable size -- which for a CAD walkthrough is the thing of value.
+// For the record, since it was measured and will otherwise be re-litigated:
+//   * x264 cannot do 4K here at all -- 0.82x at 4:4:4, 1.07x at 4:2:0.
+//   * NVENC CAN -- 1.78x sustained across a full 8 minutes with NO thermal
+//     decay, because the encode sits on a fixed-function GPU block rather than
+//     the 45W CPU. A real 8-minute OBS take dropped zero frames.
+//   * So "4K is impossible" was wrong. It is possible, and still not worth it,
+//     for a reason that has nothing to do with the encoder.
+// At 1080p, NVENC P7/CQ14 measures 3.74x, leaving room for the overlay, the
+// capture and KiCad's own draw.
 //
-// AND THERE IS NO DOWNSCALE ANYWHERE IN THE CHAIN, which is the part that must
-// not regress. Measured 2026-08-14: resampling 1440->1080 delivers hairlines at
-// 61-63% of full contrast (lanczos 63.1% mean, bicubic 61.3%) against 100% for a
-// native capture. A schematic IS hairlines. So capture native, upload native,
-// and let YouTube own the rungs below. `no_resample` measures pixels precisely
-// so a stray scale filter cannot reintroduce that quietly.
-const WIDTH = 2560;
-const HEIGHT = 1440;
+// SHEET AREA IS RECOVERED FROM THE OTHER KNOB. Area in frame is capture pixels
+// divided by UI scale, so lower KiCad's UI scale and increase line weight
+// instead of raising the raster. The audience is desktop-only (KiCad cannot run
+// on a phone), so there is no small-screen legibility floor to protect -- see
+// docs/video/_capture-spec.md.
+//
+// STILL NO RESAMPLE ANYWHERE. Base and output must be equal and the display must
+// match, or the hairlines this content is made of get destroyed: measured, a
+// 0.75 downscale delivers 1px lines at 61-63% of full contrast. `no_resample`
+// measures that in pixels.
+const WIDTH = 1920;
+const HEIGHT = 1080;
 
 // 30, not 60. `tools/promo/render-cut.mjs:34` is `const FPS = 30` and the
 // furniture's beat constants are frame-denominated against it; Matroska's 1ms
@@ -83,15 +93,32 @@ const FPS_DEN = 1;
 // codec adds nothing, the damage is done by the subsample before any encoder
 // runs. Convert to 4:2:0 exactly once, at delivery.
 //
-// BOTH SPELLINGS ARE ACCEPTED, and that is deliberate rather than lax. A
-// full-range 4:4:4 stream reports `yuvj444p`; a limited-range one reports
-// `yuv444p`. Requiring the second name would fail a correct capture, and
-// requiring the first would make this check secretly a RANGE check that passes
-// or fails for a reason its name does not mention. This check answers exactly
-// one question -- is the chroma subsampled -- and range is measured in PIXELS
-// by `color_range_pixels`, which is the only trustworthy place to ask it.
-const PIX_FMT = "yuv444p";
-const PIX_FMT_OK = new Set(["yuv444p", "yuvj444p"]);
+// 4:2:0, AND THAT IS A REVERSAL WORTH READING BEFORE CHANGING IT BACK.
+//
+// The 4:4:4 rule came from a real measurement -- a 4:2:0 round trip scores 37.40
+// dB against 65.72 for 4:4:4 -- but that measures the MASTER, and the master is
+// not what anybody watches. Three things retired it:
+//
+//   * YouTube's documented ingest spec is 4:2:0 and every delivered rendition
+//     comes back 4:2:0 regardless of what was uploaded. The 4:4:4 never reaches
+//     a viewer.
+//   * Delivered chroma is set by RENDITION SIZE, not master format. A 4K 4:2:0
+//     upload delivers 1920x1080 chroma planes; a 1080p 4:4:4 upload delivers
+//     960x540. Resolution beats chroma format by 4x per axis.
+//   * H.264 High 4:4:4 Predictive is not loadable in most NLEs -- Premiere
+//     silently converts it, Resolve free rejects it. A 4:4:4 master is a master
+//     you cannot edit.
+//
+// What still protects the thin lines is the LIGHT canvas: 4:2:0 keeps luma at
+// full resolution, so dark strokes on a light page survive. Research section 2's
+// own fairness note said exactly this and it now carries the weight.
+//
+// BOTH SPELLINGS ACCEPTED: a full-range stream reports `yuvj420p`, a
+// limited-range one `yuv420p`. This check answers ONE question -- is the chroma
+// subsampled as specified -- and range is measured in PIXELS by
+// `color_range_pixels`, the only trustworthy place to ask it.
+const PIX_FMT = "yuv420p";
+const PIX_FMT_OK = new Set(["yuv420p", "yuvj420p"]);
 
 // Full-range readback off the calibration target's black and white patches.
 // 1 and 254 rather than 0 and 255 so a single stray dithered pixel does not
@@ -121,7 +148,7 @@ const CALIB_T = 1.5;
 //
 // Reduced deblocking preserves the 1px strokes a schematic is made of; the
 // default filter treats them as coding noise and smooths them.
-const REQUIRED_X264 = ["deblock=1:-3:-3"];
+
 
 // ---------------------------------------------------------------------------
 
@@ -217,7 +244,7 @@ function verify(file) {
     const got = probe(file, ["-select_streams", "v:0", "-show_entries", "stream=pix_fmt", "-of", "csv=p=0"]);
     return {
       ok: PIX_FMT_OK.has(got), got, want: [...PIX_FMT_OK].join(" or "),
-      why: `pix_fmt is ${got}, spec is 4:4:4 (${[...PIX_FMT_OK].join(" or ")}). 4:2:0 damage is applied by the subsample before any encoder runs and nothing downstream recovers it -- x264 at -qp 0 in 4:2:0 scores the same 37.4 dB as an uncompressed 4:2:0 round trip.`,
+      why: `pix_fmt is ${got}, spec is 4:2:0 (${[...PIX_FMT_OK].join(" or ")}). 4:4:4 is NOT an upgrade here: it is unloadable in most NLEs and YouTube discards it. If this reads 4:4:4 the capture cannot be edited.`,
     };
   });
 
@@ -275,28 +302,21 @@ function verify(file) {
     };
   });
 
-  check("x264_options", () => {
-    // WHERE THE OPTIONS STRING ACTUALLY LIVES. Not in `stream_tags=encoder` --
-    // that field holds whatever the MUXER wrote, which for this path is
-    // "Lavc62.11.100 libx264" and contains no settings at all. x264 writes its
-    // real options string as SEI unregistered user data inside the H.264
-    // elementary stream, so it has to be read out of the bitstream. Verified by
-    // running both against a real file; the container-tag spelling is a check
-    // that can never pass.
-    const raw = run("ffmpeg", [
-      "-v", "error", "-i", file, "-c:v", "copy", "-frames:v", "1", "-f", "h264", "-",
-    ], "latin1");
-    const m = /x264 - core.*?options: ([^\r\n\0]*)/.exec(raw);
-    if (!m) throw new Error("no x264 options string found in the bitstream SEI; is this an x264-encoded H.264 file?");
-    const opts = m[1];
-    const missing = REQUIRED_X264.filter((o) => !opts.includes(o));
-    return {
-      ok: missing.length === 0,
-      got: missing.length ? `missing ${missing.join(", ")}` : REQUIRED_X264.join(" "),
-      want: REQUIRED_X264.join(" "),
-      why: `x264's own options string in the file is missing ${missing.join(", ")}. OBS silently strips entries from its options box -- asking for a setting is not evidence it was applied.`,
-    };
-  });
+  // THE x264 OPTIONS CHECK IS GONE, deliberately, and this comment is its
+  // headstone so nobody re-adds it against an NVENC capture.
+  //
+  // It read x264's options string out of the H.264 SEI and asserted
+  // `deblock=1:-3:-3`, which proved OBS had honoured its options box. NVENC
+  // writes no such string -- verified on a real take: `stream_tags=encoder` is
+  // empty and the bitstream carries no "x264 - core" blob. Kept as-is it would
+  // have failed every capture; "fixed" by loosening it, it would have passed
+  // everything forever. A check that cannot fail is worse than no check, so it
+  // is removed rather than weakened.
+  //
+  // Nothing replaces it because nothing honest can: NVENC exposes no read-back
+  // of its own settings. The encoder's actual behaviour is covered where it
+  // matters anyway -- resolution, subsampling, cadence, dropped frames and
+  // pixel-measured range all still assert on the artifact.
 
   check("color_range_pixels", () => {
     const { min, max } = lumaExtremes(file, CALIB_T);
@@ -322,7 +342,7 @@ function verify(file) {
   // Rule 1, enforced: every registered check must have filed a reading.
   const expected = [
     "resolution", "pix_fmt", "fps", "cadence", "no_dropped_frames",
-    "x264_options", "color_range_pixels", "no_resample",
+    "color_range_pixels", "no_resample",
   ];
   const silent = expected.filter((id) => !filed.has(id));
   if (silent.length) problems.push(`checks that never filed a reading: ${silent.join(", ")}`);
@@ -437,16 +457,16 @@ function selftest() {
 
   const cases = [
     ["compliant", {}, []],
-    ["wrong resolution", { w: 1920, h: 1080 }, ["resolution"]],
-    ["4:2:0 subsampled", { pix: "yuv420p" }, ["pix_fmt"]],
+    ["wrong resolution", { w: 2560, h: 1440 }, ["resolution"]],
+    ["4:4:4 (not the spec, and not editable)", { pix: "yuv444p" }, ["pix_fmt"]],
     ["60 fps", { fps: 60 }, ["fps"]],
-    ["stripped x264 options", { opts: "ref=3" }, ["x264_options"]],
+    
     // The two faults that no metadata field can see. Without these cases the
     // pixel checks would never be observed failing, and an unobserved check is
     // indistinguishable from a blind one -- which is the bug this whole track
     // exists to stop shipping.
     ["limited range", { range: "limited" }, ["color_range_pixels"]],
-    ["4K downscaled to 1440p", { downscaleFrom: [3840, 2160] }, ["no_resample"]],
+    ["1440p downscaled to 1080p", { downscaleFrom: [2560, 1440] }, ["no_resample"]],
   ];
 
   let bad = 0;
