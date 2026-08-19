@@ -5,10 +5,24 @@
  *   pnpm furniture:render intro           one piece, every variant
  *   pnpm furniture:render lower form-tab  one piece, one variant
  *
- * Output: ProRes 4444 .mov, one per piece/variant, under OUT (default
- * C:/zzz/_video/furniture). Resolve decodes ProRes natively on Windows, it
- * carries an alpha channel, and it is an intermediate rather than a delivery
- * format, so the size is the right trade.
+ * Output: QuickTime Animation (qtrle) RGBA .mov, one per piece/variant/theme,
+ * under OUT (default C:/zzz/_video/furniture).
+ *
+ * WHY NOT THE SAME ENCODE AS THE OBS CAPTURE: H.264 4:2:0 cannot carry an alpha
+ * channel, and the furniture is useless without one.
+ *
+ * WHY NOT ProRes 4444, which was the first answer here: ProRes is a YUV format,
+ * so every frame took an RGB->YUV conversion, and swscale DITHERS on that
+ * conversion. It put a visible dot-matrix stipple through glyph fills, the bee's
+ * wing and the comb faces -- destroying exactly the flat solid areas this
+ * artwork is made of. The browser hands us perfect RGBA and nothing downstream
+ * wanted YUV; the conversion was pure loss for no gain.
+ *
+ * qtrle is RGBA and lossless, so the file is BIT-IDENTICAL to what Chromium
+ * rendered -- verified per render below, not assumed. Measured against the
+ * alternatives on one frame: qtrle 81 KB, utvideo 508 KB, ffv1 3 KB, all three
+ * bit-exact. ffv1 is dramatically smaller but Resolve does not read it happily;
+ * qtrle is a native NLE format.
  *
  * BOTH THEMES, EVERY PIECE. Each variant renders twice -- `data-theme="dark"`
  * and `data-theme="light"` -- because the furniture has to sit over screen
@@ -51,7 +65,7 @@
 
 import { spawn } from "node:child_process";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, existsSync, readFileSync } from "node:fs";
+import { mkdirSync, existsSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { chromium, type Page } from "playwright";
 import { PIECES, type PieceKey } from "@/app/sandbox/video-furniture/r2/variants";
@@ -87,11 +101,10 @@ function encoder(out: string, size: { width: number; height: number }, alpha: bo
   const ff = spawn("ffmpeg", [
     "-y", "-hide_banner", "-loglevel", "error",
     "-f", "image2pipe", "-framerate", String(FPS), "-i", "pipe:0",
-    "-c:v", "prores_ks", "-profile:v", "4444",
-    // yuva444p10le carries the alpha plane. Opaque pieces get a fully opaque
-    // one, which costs a little size and keeps ONE code path instead of two.
-    "-pix_fmt", alpha ? "yuva444p10le" : "yuv444p10le",
-    "-s", `${size.width}x${size.height}`,
+    // RGBA in, RGBA out, no colour conversion anywhere in the chain. `-s` is
+    // deliberately absent: the frames are already the right size and passing it
+    // invites a scaler that would resample the hairlines.
+    "-c:v", "qtrle", "-pix_fmt", "rgba",
     out,
   ], { stdio: ["pipe", "ignore", "pipe"] });
   let err = "";
@@ -171,6 +184,12 @@ async function main() {
 
     for (const variant of variants) {
       const themeFiles: Record<string, string> = {};
+      // ONE BAD VARIANT MUST NOT COST THE WHOLE BATCH. A previous run died on
+      // `lower/source-rule` with "__seek missing -- the page never mounted" and
+      // took every remaining piece with it, after 33 of ~160 clips. A render
+      // sweep is exactly the job where partial progress is worth keeping, so a
+      // failure is recorded against that variant and the sweep continues.
+      try {
       for (const theme of ["dark", "light"] as const) {
       const file = join(OUT, `${key}--${variant}--${theme}.mov`);
       themeFiles[theme] = file;
@@ -218,11 +237,13 @@ async function main() {
       });
 
       const { ff, done } = encoder(file, size, overlay);
+      let firstPng: Buffer | null = null;
       for (let i = 0; i < frames; i += 1) {
         await seek(page, i / FPS);
         // omitBackground only matters when the page itself is transparent --
         // which is what `?alpha=1` above arranges. Both halves, or neither works.
         const png = await page.screenshot({ omitBackground: overlay });
+        if (i === 0) firstPng = png;
         if (!ff.stdin.write(png)) await new Promise((r) => ff.stdin.once("drain", r));
       }
       ff.stdin.end();
@@ -231,6 +252,51 @@ async function main() {
 
       const got = inspect(file, overlay);
       const faults: string[] = [];
+
+      // PROVE THE ENCODE IS LOSSLESS, rather than trusting that qtrle is.
+      //
+      // The previous encoder (ProRes 4444) was YUV, and the RGB->YUV conversion
+      // dithered a dot-matrix stipple through every flat fill. Nothing in the
+      // old checks noticed: frame count, dimensions, alpha floor and luma spread
+      // were all correct on visibly damaged frames. So the pixels themselves are
+      // now compared -- frame 0 of the finished file against the exact PNG that
+      // went into it. Anything but a bit-identical match is a fault.
+      if (firstPng) {
+        // COMPARED AS RAW BYTES, not via psnr.
+        //
+        // The first attempt parsed ffmpeg's psnr output -- which ffmpeg writes to
+        // STDERR while execFileSync returns STDOUT, so it read an empty string
+        // and reported "psnr ?" on every file. It failed safe, but it was
+        // measuring nothing. Decoding both sides to raw RGBA and comparing
+        // buffers has no output to misparse: equal or not.
+        const tmpSrc = `${file}.src.png`;
+        try {
+          writeFileSync(tmpSrc, firstPng);
+          const raw = (f: string) =>
+            execFileSync("ffmpeg", ["-v", "error", "-i", f, "-frames:v", "1",
+              "-f", "rawvideo", "-pix_fmt", "rgba", "pipe:1"],
+              { maxBuffer: 64 * 1024 * 1024 }) as unknown as Buffer;
+          const fromFile = raw(file);
+          const fromSrc = raw(tmpSrc);
+          if (fromFile.length === 0 || fromSrc.length === 0) {
+            faults.push("could not decode frames for the lossless check; refusing to call it clean");
+          } else if (!fromFile.equals(fromSrc)) {
+            let diff = 0;
+            for (let i = 0; i < Math.min(fromFile.length, fromSrc.length); i += 1) {
+              if (fromFile[i] !== fromSrc[i]) diff += 1;
+            }
+            faults.push(
+              `ENCODE IS LOSSY -- ${diff} of ${fromSrc.length} bytes differ from the source PNG. ` +
+                `A colour conversion is damaging the artwork (this is what ProRes 4444's RGB->YUV dither did).`,
+            );
+          }
+        } catch (e) {
+          faults.push(`could not verify losslessness: ${(e as Error).message.slice(0, 120)}`);
+        } finally {
+          try { unlinkSync(tmpSrc); } catch {}
+        }
+      }
+
       if (got.frames !== frames) faults.push(`${got.frames} frames, expected ${frames}`);
       if (got.w !== size.width || got.h !== size.height) faults.push(`${got.w}x${got.h}, expected ${size.width}x${size.height}`);
       if (got.samples === 0) faults.push("no frames could be measured");
@@ -254,6 +320,13 @@ async function main() {
         );
       }
       } // theme loop
+      } catch (e) {
+        rendered += 1;
+        problems.push(`${key}/${variant}: RENDER THREW -- ${(e as Error).message.slice(0, 160)}`);
+        console.log(`  FAIL ${key}/${variant}: ${(e as Error).message.slice(0, 100)}`);
+        try { await ctx.close(); } catch {}
+        continue;
+      }
 
       // THE THEMING LAW, checked. Two themes that produce identical bytes mean
       // the variant painted a literal colour instead of a token.
