@@ -2696,7 +2696,17 @@ video[data-loop="light"] {
 
      The ceiling moves with it: 15px would bind long before a large cell needs
      it, and the title's own ceiling is 60px. */
-  font-size: clamp(9px, 4.6cqw, 25px);
+  /* RAISED AGAIN 2026-08-19, second owner call: 4.6cqw computed to 11.6px in a
+     1920 frame, which is 0.6% of frame height -- below the set's smallest
+     authored size and still unreadable at delivery. 6.5cqw lands ~16.4px, a
+     ratio of 0.59 against the title.
+
+     That is above the 5.5cqw noted as rejected, and it goes there deliberately.
+     The rejection stands on its own terms -- but it was measured with the old
+     em-based padding, and the box has since been tightened to 0.2em/0.5em. The
+     heaviness that reading was reacting to came from the lozenge, not the type.
+     If this reads as a second title, the fix is the box again, not the type. */
+  font-size: clamp(9px, 6.5cqw, 32px);
   /* THE BOX WAS THE PROBLEM, NOT THE TYPE. Measured on the delivery frame the
      text was already only 8.6px, but the chip's own em padding and wide tracking
      made the tag 47px across for about 27px of glyphs - so it read as a heavy
