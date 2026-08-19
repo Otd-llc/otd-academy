@@ -86,6 +86,40 @@ const VERTICAL = new Set<PieceKey>(["intro-short", "outro-short"]);
 const args = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const [onlyPiece, onlyVariant] = args;
 
+/**
+ * Pin every CSS animation's phase to the scrub time.
+ *
+ * THE BUG THIS FIXES. `globals.css` puts `animation: gh-pulse 1.8s ease-in-out
+ * infinite` on the CURRENT hex -- the selected cell's breathing glow. That is
+ * correct on the live site and wrong under a scrub: a CSS animation runs on
+ * WALL-CLOCK time, so each screenshot catches it at whatever phase the browser
+ * happened to be at, and the selected hex FLICKERS across the render. Measured
+ * on the outro: 16 alternating luma jumps in that region alone.
+ *
+ * The fix is not to kill the pulse -- that would drop a deliberate design
+ * element. `animation-delay: -Ts` starts the animation T seconds in the past, so
+ * paused at capture time its phase is exactly `T mod duration`. Phase becomes a
+ * pure function of `t`, which is the rule this whole surface runs on, and the
+ * pulse still animates correctly in the output.
+ *
+ * Works for ANY duration without knowing it, which matters because this has to
+ * cover animations nobody has enumerated.
+ */
+const pinAnimations = async (page: Page, t: number) => {
+  await page.evaluate((tt) => {
+    const ID = "__scrub_pin";
+    let el = document.getElementById(ID);
+    if (!el) {
+      el = document.createElement("style");
+      el.id = ID;
+      document.head.appendChild(el);
+    }
+    el.textContent =
+      `*, *::before, *::after { animation-delay: -${tt}s !important; ` +
+      `animation-play-state: paused !important; }`;
+  }, t);
+};
+
 const seek = async (page: Page, t: number) => {
   const ok = await page.evaluate(async (tt) => {
     const w = window as unknown as { __seek?: (n: number) => void | Promise<void> };
@@ -239,6 +273,7 @@ async function main() {
       const { ff, done } = encoder(file, size, overlay);
       let firstPng: Buffer | null = null;
       for (let i = 0; i < frames; i += 1) {
+        await pinAnimations(page, i / FPS);
         await seek(page, i / FPS);
         // omitBackground only matters when the page itself is transparent --
         // which is what `?alpha=1` above arranges. Both halves, or neither works.
@@ -248,10 +283,77 @@ async function main() {
       }
       ff.stdin.end();
       await done;
+
+      // DETERMINISM: re-render one mid-clip frame and demand it match.
+      //
+      // "Scrub, never play. Every animated value a pure function of t" is the
+      // rule this surface runs on, and until now nothing enforced it. A
+      // wall-clock CSS animation (`gh-pulse` on the current hex) sailed past
+      // every check and flickered through the finished outro. Anything driven by
+      // real time, a counter, or randomness produces a DIFFERENT frame the
+      // second time the same `t` is requested -- so asking twice is the whole
+      // test.
+      const midIdx = Math.floor(frames / 2);
+      let determinismFault: string | null = null;
+      try {
+        await pinAnimations(page, midIdx / FPS);
+        await seek(page, midIdx / FPS);
+        const again = await page.screenshot({ omitBackground: overlay });
+        // Seek by TIME, not with a select filter. qtrle is all-intra, so an
+        // input seek is frame-exact, and it avoids the filter-escaping that made
+        // the first attempt fail with an unreadable truncated error.
+        const fromFile = execFileSync("ffmpeg", ["-v", "error", "-ss", String(midIdx / FPS),
+          "-i", file, "-frames:v", "1", "-f", "image2", "-c:v", "png", "pipe:1"],
+          { maxBuffer: 64 * 1024 * 1024 }) as unknown as Buffer;
+        const decode = (buf: Buffer, name: string) => {
+          const tmp = `${file}.${name}.png`;
+          writeFileSync(tmp, buf);
+          try {
+            return execFileSync("ffmpeg", ["-v", "error", "-i", tmp, "-frames:v", "1",
+              "-f", "rawvideo", "-pix_fmt", "rgba", "pipe:1"], { maxBuffer: 64 * 1024 * 1024 }) as unknown as Buffer;
+          } finally { try { unlinkSync(tmp); } catch {} }
+        };
+        const a = decode(again, "again");
+        const b = decode(fromFile, "fromfile");
+        if (a.length && b.length && !a.equals(b)) {
+          let diff = 0;
+          for (let i = 0; i < Math.min(a.length, b.length); i += 1) if (a[i] !== b[i]) diff += 1;
+          // CALIBRATION, not a loosened bound. Do NOT raise this to make a run pass.
+          //
+          // Two-sided evidence sets it. The NOISE FLOOR: a clean re-render of
+          // intro/light differed by exactly 1 byte of 8,294,400 -- one
+          // antialiased subpixel the rasterizer rounded differently. Demanding
+          // bit-equality fails honest renders constantly, and a check that cries
+          // wolf gets ignored, which is how the real fault would slip through.
+          // The SIGNAL: the gh-pulse wall-clock animation this check exists to
+          // catch moved luma across a 300x300 region -- hundreds of thousands of
+          // bytes, four orders of magnitude above this bound.
+          //
+          // 0.001% of the frame is ~83 bytes at 1080p: 83x the observed noise,
+          // and ~1000x below anything a real animation produces. Nothing can hide
+          // in that gap.
+          const pct = (diff / b.length) * 100;
+          if (pct > 0.001) {
+            determinismFault = `NOT DETERMINISTIC -- re-rendering frame ${midIdx} gave ${diff} differing bytes ` +
+              `(${pct.toFixed(4)}% of the frame). Something is driven by wall-clock time, a counter, or ` +
+              `randomness rather than by t.`;
+          } else if (diff > 0) {
+            console.log(`         note ${diff} byte(s) differ on re-render (${pct.toFixed(5)}%) -- rasterizer noise, under the bound`);
+          }
+        }
+      } catch (e) {
+        determinismFault = `could not check determinism: ${(e as Error).message.slice(0, 100)}`;
+      }
+
+      // The page stays alive until here on purpose: the determinism check above
+      // needs to re-render a frame, and closing the context first is what made
+      // it report "Target page, context or browser has been closed" instead of
+      // a verdict.
       await ctx.close();
 
       const got = inspect(file, overlay);
       const faults: string[] = [];
+      if (determinismFault) faults.push(determinismFault);
 
       // PROVE THE ENCODE IS LOSSLESS, rather than trusting that qtrle is.
       //
