@@ -10,19 +10,18 @@
  * carries an alpha channel, and it is an intermediate rather than a delivery
  * format, so the size is the right trade.
  *
- * TWO CLASSES OF PIECE, and conflating them is the mistake this file exists to
- * prevent:
+ * EVERY PIECE IS AN OVERLAY. Owner ruling, and it is the strictly more useful
+ * default: a transparent render can always be given a ground in the NLE by
+ * laying a solid underneath it, but an opaque render cannot have transparency
+ * recovered from it. Rendering the intro and outro to alpha therefore costs
+ * nothing and buys the option of floating them over footage rather than cutting
+ * to a card.
  *
- *   FULL-FRAME (intro, outro, intro-short, outro-short) are standalone clips.
- *   They sit BEFORE and AFTER footage, not on top of it, and they keep their
- *   deep-space ground. Rendering these to alpha would be wrong.
- *
- *   OVERLAY (lower, chapter, callout, label, pause, beforeafter) sit ON TOP of
- *   the screencast and must carry transparency. These are rendered with
- *   `?alpha=1`, which drops the page's opaque ground, AND with Playwright's
- *   `omitBackground`. BOTH are required: the page really is opaque otherwise,
- *   so omitBackground alone still yields a black rectangle. That trap is
- *   documented in tools/hex-stills.mjs and was flagged in the pipeline handoff.
+ * Every piece is rendered with `?alpha=1`, which drops the page's opaque
+ * grounds, AND with Playwright's `omitBackground`. BOTH are required: the page
+ * really is opaque otherwise, so omitBackground alone still yields a black
+ * rectangle. That trap is documented in tools/hex-stills.mjs and was flagged in
+ * the pipeline handoff -- which named two opaque layers where there are four.
  *
  * SCRUBBED, NEVER PLAYED. Every frame comes from awaiting `__seek(t)`, the
  * promise contract in src/types/capture-surface.d.ts. A frame may be rendered
@@ -54,8 +53,6 @@ const FPS = 30;
 const WIDE = { width: 1920, height: 1080 };
 const TALL = { width: 1080, height: 1920 };
 
-/** The four standalone compositions. Everything else overlays. */
-const FULL_FRAME = new Set<PieceKey>(["intro", "outro", "intro-short", "outro-short"]);
 /** The 9:16 pieces. A short is a separate composition, not a reflow. */
 const VERTICAL = new Set<PieceKey>(["intro-short", "outro-short"]);
 
@@ -152,7 +149,7 @@ async function main() {
 
   for (const key of keys) {
     const def = PIECES[key];
-    const overlay = !FULL_FRAME.has(key);
+    const overlay = true; // owner ruling: every piece renders to alpha
     const size = VERTICAL.has(key) ? TALL : WIDE;
     const frames = Math.round(def.seconds * FPS);
     const variants = def.variants
