@@ -33,6 +33,9 @@ import { STAGE_ORDER } from "../furniture";
 import { WELLS_16X9, GRAPHICS_16X9, GRAPHICS_SAFE_INSET, LOWER_THIRD_BOTTOM } from "../youtube";
 import { furnitureOutStack, exitP, DEFAULT_EXIT, type FurnitureOut } from "./exits";
 import { entryStack, DEFAULT_ENTRY, type EntryEffect } from "./entries";
+// Windows below are written in BEATS, not seconds. See the block above each
+// treatment for why, and meter.ts for the tempo argument.
+import { beats } from "./meter";
 import { EntryProvider } from "./Part";
 import { PIECES, type PieceKey } from "./variants";
 import { Hairline } from "./Render2";
@@ -1964,12 +1967,31 @@ function Intro({ variant, stage, title, lesson, t, guides }: VProps) {
 
   const i = Math.max(0, STAGE_ORDER.indexOf(stage));
   const from = Math.max(0, i - 1);
-  const inP = outCubic(seg(t, 0, 0.8));
-  const travel = outCubic(seg(t, 0.5, 2.1));
+  // RETIMED ONTO THE BAR GRID, 2026-08-19. The windows below were seconds
+  // somebody liked once -- 0.8, 2.1, 2.8 -- and at 120 BPM none of them landed
+  // on a beat, let alone a downbeat. The piece also ran 3.5s, which is 1.75
+  // bars: it could not land on a downbeat even in principle. It is now 4.0s =
+  // 2 bars = 8 beats, and every window is expressed in beats so it retimes with
+  // the tempo instead of drifting away from its own bed.
+  //
+  //   beat 0-2   the comb arrives
+  //   beat 0-4   the run travels, LANDING on the bar-2 downbeat
+  //   beat 2-4   the three names dissolve together, landing on that same downbeat
+  //   beat 4-6   the lock closes
+  //   beat 5-7   the late element settles
+  //   beat 7-8   held
+  //
+  // THE NAMES STILL LAND TOGETHER AND THEN HOLD, which is the one thing here
+  // that is not free to change: the variant's claim rests on pre-training
+  // (median d = 0.75) and on motion over a naming block costing verbal memory.
+  // They now hold for 4 beats instead of 1.7s, so the retime strengthens that
+  // rather than trading against it.
+  const inP = outCubic(seg(t, beats(0), beats(2)));
+  const travel = outCubic(seg(t, beats(0), beats(4)));
   const landed = from + (i - from) * travel;
-  const lockP = outCubic(seg(t, 2.0, 2.8));
-  const late = outCubic(seg(t, 1.4, 2.4));
-  const parts = outCubic(seg(t, 0.6, 1.8));
+  const lockP = outCubic(seg(t, beats(4), beats(6)));
+  const late = outCubic(seg(t, beats(5), beats(7)));
+  const parts = outCubic(seg(t, beats(2), beats(4)));
 
   const cells: CombCell2[] = STAGE_ORDER.map((s, n) => ({
     stage: s as CombCell2["stage"],
@@ -2412,11 +2434,36 @@ function Lower({ variant, t }: VProps) {
 const URL = "academy.onethousanddrones.com";
 
 function Outro({ variant, stage, lesson, t, guides }: VProps) {
-  const inP = outCubic(seg(t, 0.1, 1.1));
-  const rule = outExpo(seg(t, 0.5, 1.6));
-  const late = outCubic(seg(t, 1.4, 2.4));
+  // RETIMED ONTO THE BAR GRID, 2026-08-19, and this one was the bad case.
+  //
+  // MEASURED before the change: every window finished by t=2.6s in an 8.0s
+  // piece, so the frame was FROZEN for the last 5.4 seconds -- 62% of the
+  // runtime, 0.000 frame-to-frame delta. The variant's claim describes "the
+  // outline draws itself, then two half-hex jaws travel in and close", and that
+  // whole sequence was over inside the first second. A 4-bar piece that
+  // finishes its choreography in half a bar is a defect, not a style.
+  //
+  // 8.0s at 120 BPM is exactly 4 bars / 16 beats, and academy-bed.py lands four
+  // events on four consecutive bar downbeats. So the choreography is spread to
+  // one landing per bar and they line up with the bed by construction:
+  //
+  //   beat  0-4   the comb arrives, the rule draws, the names dissolve
+  //               -> LANDS on the bar-2 downbeat
+  //   beat  4-8   the run travels one cell, the hand-over
+  //               -> LANDS on the bar-3 downbeat
+  //   beat  8-12  the jaws close on it
+  //               -> LANDS on the bar-4 downbeat
+  //   beat 12-14  the ladder turns, propagating up the run
+  //   beat 14-16  held, deliberately -- an outro should rest before the cut
+  //
+  // NO GESTURE IS NEW. Every effect that existed still exists and still does the
+  // same thing; only its window moved. That keeps this a timing fix rather than
+  // a design round, which the owner's picks reserve.
+  const inP = outCubic(seg(t, beats(0), beats(3)));
+  const rule = outExpo(seg(t, beats(1), beats(4)));
+  const late = outCubic(seg(t, beats(12), beats(14)));
   // One unhurried dissolve, and it is the only thing that happens to the names.
-  const parts = outCubic(seg(t, 0.6, 1.8));
+  const parts = outCubic(seg(t, beats(2), beats(4)));
   const i = STAGE_ORDER.indexOf(stage);
   const next = STAGE_ORDER[Math.min(i + 1, STAGE_ORDER.length - 1)];
 
@@ -2438,7 +2485,7 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
         flexDirection: "column",
         justifyContent: "center",
         gap: "1.2cqh",
-        opacity: outCubic(seg(t, 0.6, 1.8)),
+        opacity: outCubic(seg(t, beats(2), beats(4))),
       }}
     >
       <Eyebrow size={1}>the build</Eyebrow>
@@ -2587,7 +2634,7 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
       // No detent on either survivor: the acquisition is what carries the
       // landing now, so the travel stays smooth and lets the lock be the event.
       const detented = false;
-      const raw = outCubic(seg(t, 0.9, 2.6));
+      const raw = outCubic(seg(t, beats(4), beats(8)));
       const STOPS = 8;
       // THE LAST STAGE HAS NOWHERE TO HAND OVER TO, and that is the ending
       // rather than a gap to fill. Owner's call: let it end. So the run does not
@@ -2598,7 +2645,7 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
       const travel = finale ? 0 : detented ? Math.round(raw * STOPS) / STOPS : raw;
       // The lock closes AFTER the run has arrived, not during: a reticle that
       // grips a moving target is a reticle that has not locked onto anything.
-      const lockP = outCubic(seg(t, 2.5, 3.3));
+      const lockP = outCubic(seg(t, beats(8), beats(12)));
       const lockKind = "trace-vise" as const;
       const landed = i + Math.min(1, i + 1 <= STAGE_ORDER.length - 1 ? 1 : 0) * travel;
       // The finished cell is marked done AS THE RUN PASSES IT, not at t=0 and not
@@ -2615,7 +2662,7 @@ function Outro({ variant, stage, lesson, t, guides }: VProps) {
       // reads as the ladder completing, which is the thing that actually
       // happened. 0.09s a cell is under a sixteenth at 120 BPM, so the whole
       // sweep lands inside one beat and does not become a performance.
-      const TURN0 = 3.7;
+      const TURN0 = beats(12);
       const TURN_STEP = 0.09;
       const turnedAt = (n: number) => t >= TURN0 + (i - n) * TURN_STEP;
       const doneAt = finale ? t >= TURN0 : travel >= 0.55;

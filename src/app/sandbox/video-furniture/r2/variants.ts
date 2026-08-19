@@ -356,7 +356,9 @@ export const LABEL: Variant[] = [
 
 
 export const PIECES = {
-  intro: { name: "Intro / LESSON", seconds: 3.5, variants: INTRO },
+  // 4.0s = 2 bars at 120 BPM. It was 3.5s = 1.75 bars, which cannot land on a
+  // downbeat even in principle, so no bed could ever agree with it.
+  intro: { name: "Intro / LESSON", seconds: 4, variants: INTRO },
   lower: { name: "Lower third", seconds: 4, variants: LOWER },
   outro: { name: "Outro / LESSON", seconds: 8, variants: OUTRO },
   // THE GENERIC PAIR. No comb - a short is not a stage of a build, so the map
