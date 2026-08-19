@@ -14,15 +14,22 @@
 //
 // ASCII only.
 
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { FrameOne } from "./FrameOne";
 
-export default async function R2Frame({
-  searchParams,
-}: {
-  searchParams: Promise<{ piece?: string; variant?: string; stage?: string; guides?: string; alpha?: string }>;
-}) {
-  if (process.env.NODE_ENV === "production") notFound();
+type FrameParams = { piece?: string; variant?: string; stage?: string; guides?: string; alpha?: string };
+
+/**
+ * The runtime read, isolated.
+ *
+ * `searchParams` is Runtime data under Cache Components, so awaiting it in the
+ * route component makes the WHOLE page blocking -- nothing can be prerendered
+ * and Next reports the route as blocking in dev. Pushing the await into a child
+ * behind <Suspense> is the documented fix, and it is the same shape used
+ * elsewhere in this app.
+ */
+async function Frame({ searchParams }: { searchParams: Promise<FrameParams> }) {
   const sp = await searchParams;
   return (
     <FrameOne
@@ -32,5 +39,20 @@ export default async function R2Frame({
       guides={sp.guides === "1"}
       alpha={sp.alpha === "1"}
     />
+  );
+}
+
+export default function R2Frame({ searchParams }: { searchParams: Promise<FrameParams> }) {
+  if (process.env.NODE_ENV === "production") notFound();
+  return (
+    // THE FALLBACK PAINTS NOTHING, deliberately. A prerendered fallback IS
+    // painted, and this surface exists to be photographed -- anything drawn here
+    // could land in a frame grab or flash a ground behind a piece that is
+    // supposed to be transparent. `null` cannot. The capture rig waits for
+    // `window.__seek` to be installed before it shoots, which only happens once
+    // FrameOne has mounted and replaced this, so the wait is already correct.
+    <Suspense fallback={null}>
+      <Frame searchParams={searchParams} />
+    </Suspense>
   );
 }
