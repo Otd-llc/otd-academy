@@ -181,6 +181,17 @@ function probe(file, args) {
   return run("ffprobe", ["-v", "error", ...args, file]).trim();
 }
 
+/** signalstats YAVG over one cropped region. Used to identify the target. */
+function lumaMean(file, t, crop) {
+  const out = run("ffmpeg", [
+    "-hide_banner", "-nostats", "-loglevel", "error", "-ss", String(t), "-i", file,
+    "-frames:v", "1", "-vf", `crop=${crop},signalstats,metadata=print:file=-`, "-f", "null", "-",
+  ]);
+  const m = /YAVG=([\d.]+)/.exec(out);
+  if (!m) throw new Error(`no YAVG for crop ${crop} at t=${t}`);
+  return Number(m[1]);
+}
+
 /**
  * signalstats YMIN/YMAX over one frame, optionally cropped. Reads PIXELS.
  *
@@ -318,7 +329,40 @@ function verify(file) {
   // matters anyway -- resolution, subsampling, cadence, dropped frames and
   // pixel-measured range all still assert on the artifact.
 
+  // IS THE CALIBRATION TARGET ACTUALLY ON SCREEN?
+  //
+  // This check exists because the two below it passed THREE TIMES on takes that
+  // never showed the target. They read YMIN/YMAX off whatever happened to be at
+  // t=1.5s -- a dark OBS window gave 0, its white text gave 255, and a panel of
+  // UI text impersonated a hairline grid at 28. Both reported "ok" having
+  // verified nothing.
+  //
+  // The target's signature is unmistakable and cannot occur by accident: the
+  // top-left third is a BLACK patch (YAVG very low) and the top-middle third is
+  // a WHITE patch (YAVG very high) at the same instant. A desktop, an editor or
+  // a schematic does not do that.
+  //
+  // When the target is missing the two dependent checks now FAIL rather than
+  // guess, because "unverified" and "clean" must not look the same.
+  let calibPresent = false;
+  check("calibration_target", () => {
+    const third = Math.floor(WIDTH / 3);
+    const half = Math.floor(HEIGHT / 2);
+    const black = lumaMean(file, CALIB_T, `${third}:${half}:0:0`);
+    const white = lumaMean(file, CALIB_T, `${third}:${half}:${third}:0`);
+    calibPresent = black < 40 && white > 200;
+    return {
+      ok: calibPresent,
+      got: `black cell YAVG ${black.toFixed(1)}, white cell YAVG ${white.toFixed(1)}`,
+      want: "black cell < 40, white cell > 200",
+      why: `no calibration target at t=${CALIB_T}s (black cell ${black.toFixed(1)}, white cell ${white.toFixed(1)}). ` +
+        `Shoot docs/video/calibration/capture-calibration.html fullscreen for 3s at the head of the take. ` +
+        `Without it, colour range and resampling cannot be measured at all.`,
+    };
+  });
+
   check("color_range_pixels", () => {
+    if (!calibPresent) throw new Error("calibration target absent; a reading here would be of whatever was on screen");
     const { min, max } = lumaExtremes(file, CALIB_T);
     return {
       ok: min <= Y_MIN_CEIL && max >= Y_MAX_FLOOR,
@@ -329,6 +373,7 @@ function verify(file) {
 
   check("no_resample", () => {
     // Bottom-left cell of the calibration target: the 1px hairline grid.
+    if (!calibPresent) throw new Error("calibration target absent; the hairline grid is not on screen to measure");
     const crop = `${Math.floor(WIDTH / 3)}:${Math.floor(HEIGHT / 2)}:0:${Math.floor(HEIGHT / 2)}`;
     const { min, max } = lumaExtremes(file, CALIB_T, crop);
     return {
@@ -342,7 +387,7 @@ function verify(file) {
   // Rule 1, enforced: every registered check must have filed a reading.
   const expected = [
     "resolution", "pix_fmt", "fps", "cadence", "no_dropped_frames",
-    "color_range_pixels", "no_resample",
+    "calibration_target", "color_range_pixels", "no_resample",
   ];
   const silent = expected.filter((id) => !filed.has(id));
   if (silent.length) problems.push(`checks that never filed a reading: ${silent.join(", ")}`);
