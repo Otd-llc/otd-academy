@@ -51,11 +51,27 @@ export function FrameOne({
   variant,
   stage,
   guides,
+  alpha = false,
 }: {
   piece: string;
   variant: string;
   stage: string;
   guides: boolean;
+  /**
+   * Drop the deep-space ground so the frame can be photographed transparent.
+   *
+   * THE TRAP THIS EXISTS FOR, documented in tools/hex-stills.mjs and flagged in
+   * the pipeline handoff: this surface paints `--color-deep-space` across the
+   * whole viewport. Screenshot it with `omitBackground` and you still get an
+   * opaque frame, because the page really is opaque -- the result is a black
+   * rectangle where an overlay should be. Both the paint AND the screenshot
+   * option have to go for alpha to survive.
+   *
+   * Only OVERLAY pieces want this. The four full-frame compositions (intro,
+   * outro, and their short forms) are standalone clips that sit before and after
+   * footage rather than on top of it, and they should keep their ground.
+   */
+  alpha?: boolean;
 }) {
   const [t, setT] = useState(0);
   const [settled, setSettled] = useState(false);
@@ -67,6 +83,39 @@ export function FrameOne({
   const key = (piece in PIECES ? piece : "intro") as PieceKey;
   const def = PIECES[key];
   const st = stage as Stage;
+
+  // TRANSPARENCY IS LAYERED, and missing any layer yields a black rectangle
+  // that looks like a valid render until it reaches the timeline.
+  //
+  // There are THREE opaque grounds between this component and a transparent
+  // screenshot, not one:
+  //   1. this component's own root (handled by the `alpha` prop above),
+  //   2. `body { background-color: var(--color-deep-space) }` in globals.css,
+  //   3. the `.app-backdrop` element the root layout paints.
+  // Playwright's `omitBackground` only exposes what the PAGE leaves
+  // transparent, so it cannot help while any of these are painted.
+  //
+  // Scoped to alpha mode and reverted on cleanup, so the ordinary measurement
+  // and preview surfaces are untouched.
+  useEffect(() => {
+    if (!alpha) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const backdrop = document.querySelector<HTMLElement>(".app-backdrop");
+    const prev = {
+      html: html.style.background,
+      body: body.style.background,
+      backdrop: backdrop?.style.display,
+    };
+    html.style.background = "transparent";
+    body.style.background = "transparent";
+    if (backdrop) backdrop.style.display = "none";
+    return () => {
+      html.style.background = prev.html;
+      body.style.background = prev.body;
+      if (backdrop) backdrop.style.display = prev.backdrop ?? "";
+    };
+  }, [alpha]);
 
   useEffect(() => {
     const read = () => setAspect(window.innerWidth / window.innerHeight);
@@ -131,7 +180,7 @@ export function FrameOne({
     <div
       data-piece-stage
       {...(settled ? { "data-settled": String(t) } : {})}
-      style={{ position: "fixed", inset: 0, background: "var(--color-deep-space)" }}
+      style={{ position: "fixed", inset: 0, ...(alpha ? {} : { background: "var(--color-deep-space)" }) }}
     >
       <PieceFrame
         // The measurement surface must render what the round renders, or it
@@ -146,6 +195,7 @@ export function FrameOne({
         t={t}
         aspect={aspect}
         guides={guides}
+        alpha={alpha}
       />
     </div>
   );

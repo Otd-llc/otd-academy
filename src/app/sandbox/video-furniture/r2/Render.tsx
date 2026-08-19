@@ -93,6 +93,19 @@ export type VProps = {
   title: string;
   lesson: string;
   t: number;
+  /**
+   * Drop the piece's own ground so it can be exported with transparency.
+   *
+   * THIS IS THE FOURTH OPAQUE LAYER, and the one that is easiest to miss. The
+   * others (`html`, `body`, `.app-backdrop`) are page furniture; this one is
+   * inside the component and paints `FIELD` across the whole frame. An overlay
+   * exported without it is a black rectangle -- or, under `data-theme="light"`,
+   * a CREAM rectangle, since the deep-space token flips with the theme and the
+   * failure stops even looking like the failure you were expecting.
+   *
+   * Only OVERLAY pieces set this. The full-frame compositions keep their ground.
+   */
+  alpha?: boolean;
   /** frame width / height. Needed only where a GROUP of physically-sized
    *  elements has to fit the frame - see CombWalk. */
   aspect?: number;
@@ -140,7 +153,7 @@ export function PieceFrame(p: VProps) {
         inset: 0,
         containerType: "size",
         overflow: "hidden",
-        background: FIELD,
+        ...(p.alpha ? {} : { background: FIELD }),
         fontFamily: "var(--font-display)",
       }}
     >

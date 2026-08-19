@@ -26,6 +26,7 @@
     "classify:stash": "node scripts/classify-stash.mjs",
     "pdf:external": "tsx scripts/render-external-doc.tsx",
     "furniture:check": "tsx scripts/check-video-furniture.ts",
+    "furniture:render": "tsx scripts/render-furniture.ts",
     "video:verify-capture": "node tools/video/verify-capture.mjs",
     "video:verify-capture:selftest": "node tools/video/verify-capture.mjs --selftest"
   },
