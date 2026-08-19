@@ -299,16 +299,31 @@ function verify(file) {
 
   check("no_dropped_frames", () => {
     const { nominal, deltas } = cadence;
+    // THE FINAL INTERVAL IS EXCLUDED, and this is scoping rather than loosening.
+    //
+    // The last delta measures the moment Stop was pressed: OBS finalises the
+    // file and the closing interval routinely runs long. It is an artifact of
+    // how recording ends, not of the encoder failing to keep up, and the tail of
+    // every take is trimmed in the cut regardless. Observed on a real 4.2s
+    // calibration clip: exactly one 2-frame gap, at 98.4% of the way through.
+    //
+    // What is NOT done here: raising the 1.5-frame threshold. That would hide
+    // real drops everywhere to silence one artifact at the boundary. The bound
+    // stays; only the boundary sample is out of scope. Drops at any other
+    // position, including the head, still fail.
+    const inner = deltas.slice(0, -1);
     // A dropped frame shows up as a gap of two or more frame intervals. This is
     // the single most common way a screen capture is quietly ruined: OBS keeps
     // recording, the file plays, and the motion stutters where the encoder
     // could not keep up. It is invisible in every metadata field.
-    const gaps = deltas.filter((d) => d >= nominal * 1.5);
+    const gaps = inner.filter((d) => d >= nominal * 1.5);
     const worst = gaps.length ? Math.max(...gaps) : 0;
+    const tail = deltas[deltas.length - 1];
+    const tailNote = tail >= nominal * 1.5 ? `; tail ${tail.toFixed(0)}ms excluded (stop boundary)` : "";
     return {
       ok: gaps.length === 0,
-      got: `${gaps.length} gap(s)${gaps.length ? `, worst ${worst.toFixed(1)}ms (${(worst / nominal).toFixed(1)} frames)` : ""}`,
-      want: "no interval >= 1.5 frames",
+      got: `${gaps.length} gap(s)${gaps.length ? `, worst ${worst.toFixed(1)}ms (${(worst / nominal).toFixed(1)} frames)` : ""}${tailNote}`,
+      want: "no interval >= 1.5 frames, excluding the final one",
       why: `${gaps.length} dropped-frame gap(s), worst ${worst.toFixed(1)}ms. The encoder could not keep up with the capture. Lower the preset or the resolution and reshoot.`,
     };
   });
@@ -433,7 +448,7 @@ function selftest() {
   mkdirSync(dir, { recursive: true });
   const mk = (
     name,
-    { w = WIDTH, h = HEIGHT, fps = 30, pix = PIX_FMT, opts = "deblock=-3:-3", range = "full", downscaleFrom = null } = {},
+    { w = WIDTH, h = HEIGHT, fps = 30, pix = PIX_FMT, opts = "deblock=-3:-3", range = "full", downscaleFrom = null, dropFrames = null } = {},
   ) => {
     const out = join(dir, name);
     // `downscaleFrom` draws the target at a LARGER size and resamples it down
@@ -485,10 +500,15 @@ function selftest() {
       "-vf",
       [
         downscaleFrom ? `scale=${WIDTH}:${HEIGHT}:flags=lanczos` : null,
+        // Drops frames MID-CLIP, leaving a real PTS gap, so the dropped-frame
+        // check can be observed failing. Without this it was a check that had
+        // never been watched fail in the self-test.
+        dropFrames ? `select='not(between(n\,${dropFrames[0]}\,${dropFrames[1]}))'` : null,
         `scale=in_range=full:out_range=${range === "full" ? "full" : "limited"}`,
         `format=${pix}`,
       ].filter(Boolean).join(","),
       "-color_range", range === "full" ? "pc" : "tv",
+      ...(dropFrames ? ["-fps_mode", "passthrough"] : []),
       "-c:v", "libx264", "-preset", "ultrafast", "-qp", "0",
       // ffmpeg's -x264-params uses ':' as ITS OWN separator, so x264's native
       // `deblock=-3:-3` has to be escaped here. OBS's options box takes the
@@ -512,6 +532,9 @@ function selftest() {
     // exists to stop shipping.
     ["limited range", { range: "limited" }, ["color_range_pixels"]],
     ["1440p downscaled to 1080p", { downscaleFrom: [2560, 1440] }, ["no_resample"]],
+    // Mid-clip, NOT at the tail -- the tail is excluded by design and this
+    // fixture proves that exclusion did not blind the check everywhere else.
+    ["2 frames dropped mid-clip", { dropFrames: [44, 45] }, ["no_dropped_frames"]],
   ];
 
   let bad = 0;
