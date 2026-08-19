@@ -2683,7 +2683,20 @@ video[data-loop="light"] {
      heavy as the stage name - the chip was competing with the thing it
      annotates. 3.4cqw puts it under a third, which is the relationship the
      shipped card has on a page. */
-  font-size: clamp(7px, 2.9cqw, 15px);
+  /* RAISED 2026-08-19, on the owner's call that the tag was unreadable. At
+     2.9cqw the chip computed to 7.33px against a 27.8px title in a 1920 frame
+     -- a ratio of 0.26, and simply too small to read at delivery.
+
+     This crosses the 5.5cqw rejection noted above, and the reason it can: that
+     rejection was measured "with the chip's own em-based padding on top", and
+     the padding was subsequently tightened to 0.2em/0.5em (see below). The
+     heaviness came substantially from the box, and the box is now fixed -- so
+     the type can rise without the lozenge coming back. 4.6cqw is 0.42 of the
+     title, still comfortably under the half that read as a second title.
+
+     The ceiling moves with it: 15px would bind long before a large cell needs
+     it, and the title's own ceiling is 60px. */
+  font-size: clamp(9px, 4.6cqw, 25px);
   /* THE BOX WAS THE PROBLEM, NOT THE TYPE. Measured on the delivery frame the
      text was already only 8.6px, but the chip's own em padding and wide tracking
      made the tag 47px across for about 27px of glyphs - so it read as a heavy

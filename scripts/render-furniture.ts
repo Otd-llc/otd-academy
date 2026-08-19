@@ -116,7 +116,14 @@ const pinAnimations = async (page: Page, t: number) => {
     }
     el.textContent =
       `*, *::before, *::after { animation-delay: -${tt}s !important; ` +
-      `animation-play-state: paused !important; }`;
+      `animation-play-state: paused !important; ` +
+      // A TRANSITION IS HISTORY, AND A SCRUB HAS NONE. Pinning the animation
+      // phase does nothing for `transition`, which tweens from whatever the
+      // PREVIOUS value was over wall-clock time. Stepping to t=2.0 through 60
+      // frames and jumping straight to it therefore produce different pictures.
+      // `prefers-reduced-motion` covers the comb's own transitions; this covers
+      // every other one, including any added later.
+      `transition: none !important; }`;
   }, t);
 };
 
@@ -227,7 +234,18 @@ async function main() {
       for (const theme of ["dark", "light"] as const) {
       const file = join(OUT, `${key}--${variant}--${theme}.mov`);
       themeFiles[theme] = file;
-      const ctx = await browser.newContext({ viewport: size, deviceScaleFactor: 1 });
+      const ctx = await browser.newContext({
+      viewport: size,
+      deviceScaleFactor: 1,
+      // THE CODEBASE ALREADY SOLVED THE SCRUB PROBLEM -- behind this flag.
+      // globals.css disables the current-cell pulse and the `.ghp-face` /
+      // `.ghp-side` stroke transitions inside a `prefers-reduced-motion:
+      // reduce` block, with a comment recording that a 150ms tween left running
+      // when the shutter opens makes the same nominal frame come out different
+      // depending on how long the seek took. Not emulating the flag left every
+      // one of those guards inactive.
+      reducedMotion: "reduce",
+    });
       const page = await ctx.newPage();
       const pageErrors: string[] = [];
       page.on("pageerror", (e) => pageErrors.push(String(e)));
@@ -253,6 +271,13 @@ async function main() {
           #__next-build-watcher, [data-nextjs-dev-tools-button] { display: none !important; }
         `,
       });
+      // WAIT FOR THE CONTRACT TO EXIST, rather than assuming networkidle means
+      // mounted. `__seek` is installed by a React effect, and "no network
+      // activity" can happen before that effect runs -- which is why renders
+      // intermittently died with "__seek missing at t=0". A page that never
+      // mounts is still a failure; this just stops calling a race a failure.
+      await page.waitForFunction(() => typeof (window as unknown as { __seek?: unknown }).__seek === "function",
+        undefined, { timeout: 15000 });
       await page.evaluate(() => document.fonts.ready);
 
       // Assert it worked, rather than assume the selectors still match. Chrome
@@ -302,6 +327,11 @@ async function main() {
         // Seek by TIME, not with a select filter. qtrle is all-intra, so an
         // input seek is frame-exact, and it avoids the filter-escaping that made
         // the first attempt fail with an unreadable truncated error.
+        // `-ss idx/FPS` targets frame idx exactly -- VERIFIED against a
+        // sequential decode, where both `-ss 2.0` and `select=eq(n,60)` returned
+        // byte-identical copies of frame 60. A midpoint nudge was tried on the
+        // theory that a boundary seek is ambiguous; it is not, and it landed on
+        // idx+1, which reported a deterministic piece as 2.5% non-deterministic.
         const fromFile = execFileSync("ffmpeg", ["-v", "error", "-ss", String(midIdx / FPS),
           "-i", file, "-frames:v", "1", "-f", "image2", "-c:v", "png", "pipe:1"],
           { maxBuffer: 64 * 1024 * 1024 }) as unknown as Buffer;
@@ -426,7 +456,10 @@ async function main() {
         rendered += 1;
         problems.push(`${key}/${variant}: RENDER THREW -- ${(e as Error).message.slice(0, 160)}`);
         console.log(`  FAIL ${key}/${variant}: ${(e as Error).message.slice(0, 100)}`);
-        try { await ctx.close(); } catch {}
+        // No ctx.close() here: `ctx` is scoped inside the try and the close
+        // already happens on the success path. Referencing it here was a
+        // compile error, and closing a context that may never have opened is
+        // not something to paper over with a try/catch.
         continue;
       }
 
