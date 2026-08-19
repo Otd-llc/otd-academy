@@ -173,3 +173,7 @@ __pycache__/
 
 # Local-only capture inputs (sandbox); never shipped
 public/_capture/
+# Generated audition beds for the furniture preview; regenerate with
+# `python tools/furniture-bed.py`. Audio, and a dozen variants of it, does not
+# belong in a public repo.
+public/_beds/
