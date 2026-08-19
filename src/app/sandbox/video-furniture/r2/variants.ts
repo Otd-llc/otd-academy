@@ -356,9 +356,19 @@ export const LABEL: Variant[] = [
 
 
 export const PIECES = {
-  // 4.0s = 2 bars at 120 BPM. It was 3.5s = 1.75 bars, which cannot land on a
-  // downbeat even in principle, so no bed could ever agree with it.
-  intro: { name: "Intro / LESSON", seconds: 4, variants: INTRO },
+  // 2.0s = ONE BAR at 120 BPM. Owner's call 2026-08-19: go with the measured
+  // convention rather than the audio-logo convention.
+  //
+  // Measured across 89 videos / 18 technical channels, the median time to the
+  // first narrated word in this genre is 0.48s and 87% are under 4s -- Phil's
+  // Lab speaks at 0.24s, Bald Engineer's KiCad series at 0.08s. 4.0s was a good
+  // AUDIO LOGO (Netflix ~3s, HBO ~5s) and a bad technical-YouTube intro; those
+  // are different reference classes and the research answered them separately.
+  //
+  // One bar is the floor that keeps a grid: the landing sits at beat 3 (t=1.5s)
+  // and the last 500ms are the near-silence narration needs to start clean --
+  // forward masking decays over ~100-200ms, so 500 is comfortably clear.
+  intro: { name: "Intro / LESSON", seconds: 2, variants: INTRO },
   lower: { name: "Lower third", seconds: 4, variants: LOWER },
   outro: { name: "Outro / LESSON", seconds: 8, variants: OUTRO },
   // THE GENERIC PAIR. No comb - a short is not a stage of a build, so the map

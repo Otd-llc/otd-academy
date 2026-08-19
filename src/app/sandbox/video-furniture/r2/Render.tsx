@@ -1974,24 +1974,24 @@ function Intro({ variant, stage, title, lesson, t, guides }: VProps) {
   // 2 bars = 8 beats, and every window is expressed in beats so it retimes with
   // the tempo instead of drifting away from its own bed.
   //
-  //   beat 0-2   the comb arrives
-  //   beat 0-4   the run travels, LANDING on the bar-2 downbeat
-  //   beat 2-4   the three names dissolve together, landing on that same downbeat
-  //   beat 4-6   the lock closes
-  //   beat 5-7   the late element settles
-  //   beat 7-8   held
+  //   beat 0-1.5   the comb arrives
+  //   beat 0-2.5   the run travels
+  //   beat 1.5-3   the three names dissolve TOGETHER, landing at beat 3 (t=1.5s)
+  //   beat 2-3     the lock closes on them
+  //   beat 3-4     held, then faded -- this is the 500ms of near-silence the
+  //                narration needs to start clean
   //
   // THE NAMES STILL LAND TOGETHER AND THEN HOLD, which is the one thing here
   // that is not free to change: the variant's claim rests on pre-training
   // (median d = 0.75) and on motion over a naming block costing verbal memory.
   // They now hold for 4 beats instead of 1.7s, so the retime strengthens that
   // rather than trading against it.
-  const inP = outCubic(seg(t, beats(0), beats(2)));
-  const travel = outCubic(seg(t, beats(0), beats(4)));
+  const inP = outCubic(seg(t, beats(0), beats(1.5)));
+  const travel = outCubic(seg(t, beats(0), beats(2.5)));
   const landed = from + (i - from) * travel;
-  const lockP = outCubic(seg(t, beats(4), beats(6)));
-  const late = outCubic(seg(t, beats(5), beats(7)));
-  const parts = outCubic(seg(t, beats(2), beats(4)));
+  const lockP = outCubic(seg(t, beats(2), beats(3)));
+  const late = outCubic(seg(t, beats(2), beats(3.5)));
+  const parts = outCubic(seg(t, beats(1.5), beats(3)));
 
   const cells: CombCell2[] = STAGE_ORDER.map((s, n) => ({
     stage: s as CombCell2["stage"],

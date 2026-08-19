@@ -353,7 +353,9 @@ VOICES = {"marimba": lambda f, d: marimba(f, d, "marimba"),
 
 # bars, and where the payoff lands. Read off the retimed furniture.
 PIECES = {
-    "intro": dict(bars=2, payoff=BAR * 1),   # t=2.0, where the three names arrive
+    # ONE bar. The landing is at beat 3 (t=1.5s) where the names arrive, leaving
+    # the final 500ms to decay into the silence narration starts from.
+    "intro": dict(bars=1, payoff=BEAT * 3),
     "outro": dict(bars=4, payoff=BAR * 3),   # t=6.0, where the jaws close
 }
 
@@ -369,7 +371,7 @@ def figure(d, piece):
     scale, cad = d["scale"], d["cadence"]
     rng = np.random.default_rng(5)
     if piece == "intro":
-        degrees = [0, 2, 4, 6] if cad else [0, 2, 4]
+        degrees = [0, 2, 4] if cad else [0, 2]
         onsets = [BEAT * i for i in range(len(degrees))]
         land_deg = 4 if cad else 4          # bVII->I resolves onto the tonic above
     else:
