@@ -11,70 +11,71 @@ produced them are named inline.
 
 ---
 
-## Decision 1 — capture at 1920x1080. Not 2560x1440.
+## Decision 1 — capture at 2560x1440. Not 1920x1080.
 
-**Recommendation: 1920x1080, 1:1 with delivery.**
+**Recommendation: 2560x1440, uploaded natively. No downscale anywhere.**
 
-The research doc said 2560x1440; the shot list said 1920x1080. They were never
-reconciled.
+### The audience decides this, and it is a standing fact about the course
 
-### The measurement
+**KiCad is desktop-only software. You cannot open it on a phone or a tablet.**
+Following one of these lessons therefore REQUIRES a computer, so every viewer of
+a course lesson video is sitting at one. There is no mobile audience for this
+material — not a small one, none — and any argument that trades sheet area for
+small-screen legibility is optimising for a viewer who cannot exist.
 
-The comparison only means anything if **legibility is held constant**, and the shot list
-pins legibility explicitly: *"UI scale up one notch so menus are legible at 720p."* That
-target is a property of the **delivered** frame, so it is the same whatever you capture
-at. Holding it fixed forces the 1440p capture to run KiCad's UI **1.333x larger** — which
-means it carries the *same* glyph and stroke information as the 1080p capture, and then
-pays a 0.75 resample on the way out.
+This is not a per-video judgement call. It applies to all 128 course videos and it
+does not need re-deriving. (It is written down here because it was re-derived
+several times from first principles and came out wrong each time.)
 
-Rendering the same logical sheet at both sizes and measuring what reaches the delivered
-frame (`res-test.py` + `acutance.py`, method in the scratchpad, numbers below):
+A desktop viewer takes 1440p natively. So capture 1440 and upload 1440: more of
+the schematic on screen, at a size that is still comfortable, which for a CAD
+walkthrough is the thing of value.
+
+**Note what this retires.** The shot list's *"UI scale up one notch so menus are
+legible at 720p"* was written against a generic YouTube audience. A 720p rung is
+not the constraint for a desktop-only tool. Keep the UI at a natural scale and
+let the extra raster buy sheet area instead of magnification.
+
+### What must NOT regress: no resample, anywhere
+
+Measured on this machine, 2026-08-14 — resampling 1440 -> 1080 delivers hairlines
+at a fraction of full contrast:
 
 | Path | 1px wire contrast, as a fraction of a crisp line |
 |---|---|
-| **native 1920x1080** | **100.0%** on all 14 lines |
-| 2560x1440 -> 1080p, lanczos | mean **63.1%**, worst 57.5% |
-| 2560x1440 -> 1080p, bicubic | mean **61.3%**, worst 54.5% |
+| **native** | **100.0%** on all 14 lines |
+| 1440 -> 1080, lanczos | mean **63.1%**, worst 57.5% |
+| 1440 -> 1080, bicubic | mean **61.3%**, worst 54.5% |
 
-A hairline arrives at roughly **six tenths of its contrast** before 4:2:0 conversion and
-YouTube's transcode have taken their cuts. A schematic is made of hairlines.
+That measurement is about DOWNSCALING, and the conclusion it supports is
+"capture native, upload native" — not any particular raster size. A schematic is
+made of hairlines, and a 0.75 resample of a signal at the pixel Nyquist is
+information-destroying. So OBS base and output resolution must be equal, Windows
+display scaling must not be interposing, and no scale filter may be left on.
+`no_resample` measures the pixels of a hairline grid precisely so this cannot
+regress quietly.
 
-**Why amplitude and not PSNR.** PSNR between the downscaled and native renders reads 20.5
-dB, which looks damning, but it is not usable evidence: it conflates real blur with
-harmless sub-pixel phase, and would read badly even for a perfect resampler. Amplitude
-asks the question that decides legibility — *does the line still reach its colour* — and
-it is the number above.
+Below 1440, YouTube owns the rungs and does its own resampling. That is fine and
+outside our control; what matters is that we hand it a clean native master.
 
-**Honest limit on this measurement.** The test lines are synthetic and perfectly aligned,
-which is the best case for the native path. Real KiCad output is antialiased and starts
-below 100%, so the true gap is narrower than 100 vs 62. The *direction* is not in doubt:
-a 0.75 resample of a signal sitting at the pixel Nyquist is information-destroying, so the
-native path cannot come out behind.
+**Honest limit on the measurement.** The test lines are synthetic and perfectly
+aligned, the best case for a native capture. Real KiCad output is antialiased and
+starts below 100%, so the true gap is narrower than 100 vs 62. The direction is
+not in doubt.
 
-### The other way 1440p loses
+### The cost, stated plainly
 
-If instead you hold the **UI scale** fixed and capture 1440p, you get more content in
-frame at *smaller* delivered text — which fails the shot list's own "legible at 720p"
-bar. There is no setting at which 1440p wins.
-
-### What is NOT a reason to go 1440p
-
-- *"Uploading 1440p improves the 1080p rendition."* Research §1.16 grades this
-  **unverifiable in both directions** — Google publishes no transcode-ladder
-  documentation, so there is no primary source to argue it with either way. It cannot
-  carry an irreversible 127-video decision.
-- *"Reframe headroom in post."* The shot list forbids zoom effects and the surviving
-  motion rule is "hold static frames long enough to read". The format does not reframe.
+1440p is 1.78x the pixels of 1080p: bigger masters, longer encodes, and a real
+risk that x264 CRF 12 at 4:4:4 cannot hold 30fps on this CPU. That last one is
+not a guess to argue about — `no_dropped_frames` in the gate catches it on take
+one, before any cutting time is spent.
 
 ### The escape hatch, stated now so it is not quietly reversed later
 
-If a 9:16 cut ever needs screen content, **re-shoot that beat with KiCad windowed to
-1080x1920** rather than cropping the 16:9 master. A 9:16 crop of a 1080p frame is 607px
-of real width, and no capture resolution fixes that — a schematic cropped to a phone
-column is unreadable at any source size. The furniture already renders natively at
-1080x1920 (`check-video-furniture.ts` runs the loop-seam check at that viewport).
-
----
+If a 9:16 cut ever needs screen content, **re-shoot that beat with KiCad windowed
+to 1080x1920** rather than cropping the master. A vertical crop of a schematic is
+unreadable at any source size. The furniture already renders natively at
+1080x1920.
 
 ## Decision 2 — light schematic canvas. KiCad's own default, untouched.
 
@@ -163,7 +164,7 @@ Set these in **Settings -> Output -> Output Mode: Advanced -> Recording**, and
 | Profile | **high444p** | Required for 4:4:4. |
 | x264 options | `deblock=-3:-3` | Reduced deblocking preserves 1px strokes; the default filter treats them as coding noise. **x264 writes this back as `deblock=1:-3:-3`** — the gate asserts the written form. |
 | Keyframe interval | **2 s** | Scrub-friendly in the editor. |
-| Base + Output resolution | **1920x1080** both | They must be equal. Any inequality is a resample, i.e. decision 1 thrown away. |
+| Base + Output resolution | **2560x1440** both | They must be equal. Any inequality is a resample, i.e. decision 1 thrown away. |
 | FPS | **30**, Common values | `render-cut.mjs:34` is `const FPS = 30` and the furniture's beat constants are frame-denominated against it. |
 | Color format | **I444** | |
 | Color space | **Rec. 709** | OBS's `sRGB` and `709` are identical except one metadata tag; `video-matrices.c` collapses them to the same matrix. Pick the one that is not a lie. |
@@ -202,14 +203,15 @@ retake of one should not force a retake of the other.
    fullscreen, start recording, hold 3 s, then bring KiCad up. The gate reads its black,
    white and hairline patches back out of the file. Without it, two of the eight checks
    cannot run.
-3. **Confirm the legibility bar before the take, not after.** Grab one frame of the KiCad
-   window and look at it downscaled to 1280x720:
+3. **Confirm legibility before the take, not after.** Grab one frame and look at
+   it at 100%:
    ```powershell
-   ffmpeg -y -ss 5 -i <take>.mkv -frames:v 1 -vf scale=1280:720:flags=lanczos frame720.png
+   ffmpeg -y -ss 5 -i "<take>.mkv" -frames:v 1 frame-native.png
    ```
-   If a menu label is not comfortably readable in `frame720.png`, raise KiCad's UI scale
-   and reshoot. This is the shot list's own bar and it is far cheaper to fail here than
-   after the cut.
+   Judge it at native size on the monitor a learner would use. The old
+   "readable at 720p" bar came from assuming a mobile audience and no longer
+   applies — a desktop-only tool has desktop-only viewers. If the UI is
+   comfortable at 1440p and the sheet area is useful, you are done.
 
 ## After the take, before you cut
 

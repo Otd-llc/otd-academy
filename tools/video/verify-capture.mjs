@@ -48,15 +48,27 @@ import { dirname, basename, join } from "node:path";
 // FLOORS. Sources, not preferences. Do NOT lower these to make a run succeed.
 // ---------------------------------------------------------------------------
 
-// 1:1 with delivery. Measured 2026-08-14: a 2560x1440 capture downscaled 0.75
-// to 1080p delivers hairlines at 61-63% of full contrast (lanczos 63.1% mean,
-// 57.5% worst; bicubic 61.3% / 54.5%), against 100% for a native 1080p capture,
-// BEFORE 4:2:0 and YouTube's transcode take their cuts. Holding legibility
-// fixed -- which the shot list does, "legible at 720p" -- a 1440p capture must
-// run KiCad's UI 1.333x larger, so it carries the SAME glyph information and
-// then pays a resample for it. See docs/video/_capture-spec.md.
-const WIDTH = 1920;
-const HEIGHT = 1080;
+// 2560x1440, and the AUDIENCE is why.
+//
+// These are KiCad course videos. KiCad is desktop-only software -- you cannot
+// open it on a phone or a tablet -- so following along REQUIRES a computer, and
+// every viewer of these lessons is at one. There is no mobile audience to
+// protect, and any argument that trades sheet area for small-screen legibility
+// is optimising for viewers who cannot exist. This is a standing fact about the
+// course, not a per-video judgement call.
+//
+// That settles the resolution. A desktop viewer can take 1440p natively, so
+// capturing 1440 and uploading 1440 puts more of the schematic on screen at a
+// readable size -- which for a CAD walkthrough is the thing of value.
+//
+// AND THERE IS NO DOWNSCALE ANYWHERE IN THE CHAIN, which is the part that must
+// not regress. Measured 2026-08-14: resampling 1440->1080 delivers hairlines at
+// 61-63% of full contrast (lanczos 63.1% mean, bicubic 61.3%) against 100% for a
+// native capture. A schematic IS hairlines. So capture native, upload native,
+// and let YouTube own the rungs below. `no_resample` measures pixels precisely
+// so a stray scale filter cannot reintroduce that quietly.
+const WIDTH = 2560;
+const HEIGHT = 1440;
 
 // 30, not 60. `tools/promo/render-cut.mjs:34` is `const FPS = 30` and the
 // furniture's beat constants are frame-denominated against it; Matroska's 1ms
@@ -393,10 +405,16 @@ function selftest() {
     for (let y = chh; y < h; y += 1) {
       for (let x = 0; x < cw; x += 1) set(x, y, x % 2 === 0 ? 0 : 255); // hairlines
     }
-    const frames = Buffer.concat(Array.from({ length: fps * 3 }, () => buf));
+    // ONE frame on disk, looped by ffmpeg, rather than N frames down a pipe.
+    // At 2560x1440 a 3s pipe is ~1 GB and the 4K fixture ~2.2 GB, both over
+    // execFileSync's buffer cap -- the fixture would fail for a reason that has
+    // nothing to do with what is being tested.
+    const rawPath = out.replace(/\.mkv$/, ".raw");
+    writeFileSync(rawPath, buf);
     execFileSync("ffmpeg", [
       "-y", "-hide_banner", "-loglevel", "error",
-      "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", `${w}x${h}`, "-r", String(fps), "-i", "pipe:0",
+      "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", `${w}x${h}`, "-framerate", String(fps),
+      "-stream_loop", String(fps * 3 - 1), "-i", rawPath,
       // FULL range in and out, matching the capture spec. Without this the
       // RGB->YUV conversion crushes to 16-235 and the fixture is not compliant.
       "-vf",
@@ -413,13 +431,13 @@ function selftest() {
       // test file with ffmpeg, not part of the capture spec.
       "-x264-params", opts.replace(/(?<==-?\d+):(?=-?\d)/g, "\\:"),
       out,
-    ], { input: frames, stdio: ["pipe", "ignore", "pipe"], maxBuffer: 512 * 1024 * 1024 });
+    ], { stdio: ["ignore", "ignore", "pipe"] });
     return out;
   };
 
   const cases = [
     ["compliant", {}, []],
-    ["wrong resolution", { w: 2560, h: 1440 }, ["resolution"]],
+    ["wrong resolution", { w: 1920, h: 1080 }, ["resolution"]],
     ["4:2:0 subsampled", { pix: "yuv420p" }, ["pix_fmt"]],
     ["60 fps", { fps: 60 }, ["fps"]],
     ["stripped x264 options", { opts: "ref=3" }, ["x264_options"]],
@@ -428,7 +446,7 @@ function selftest() {
     // indistinguishable from a blind one -- which is the bug this whole track
     // exists to stop shipping.
     ["limited range", { range: "limited" }, ["color_range_pixels"]],
-    ["1440p downscaled to 1080p", { downscaleFrom: [2560, 1440] }, ["no_resample"]],
+    ["4K downscaled to 1440p", { downscaleFrom: [3840, 2160] }, ["no_resample"]],
   ];
 
   let bad = 0;
