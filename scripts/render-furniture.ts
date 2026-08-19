@@ -10,6 +10,19 @@
  * carries an alpha channel, and it is an intermediate rather than a delivery
  * format, so the size is the right trade.
  *
+ * BOTH THEMES, EVERY PIECE. Each variant renders twice -- `data-theme="dark"`
+ * and `data-theme="light"` -- because the furniture has to sit over screen
+ * content of either polarity. Dark-theme furniture carries light/gold elements
+ * for dark footage; light-theme furniture carries dark elements for a white
+ * KiCad canvas. Which one an editor reaches for is a per-shot decision, so both
+ * are produced and the choice happens on the timeline.
+ *
+ * AND THAT GIVES US A HARDCODED-COLOUR DETECTOR FOR FREE. `FrameOne` deliberately
+ * does not pin the theme -- its own comment says pinning "would quietly defeat
+ * the only check that catches a hardcoded colour". If a piece renders
+ * BYTE-IDENTICALLY in both themes, its colours did not come from tokens and the
+ * theming law was broken somewhere in that variant. That is asserted below.
+ *
  * EVERY PIECE IS AN OVERLAY. Owner ruling, and it is the strictly more useful
  * default: a transparent render can always be given a ground in the NLE by
  * laying a solid underneath it, but an opaque render cannot have transparency
@@ -38,7 +51,7 @@
 
 import { spawn } from "node:child_process";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, existsSync } from "node:fs";
+import { mkdirSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { chromium, type Page } from "playwright";
 import { PIECES, type PieceKey } from "@/app/sandbox/video-furniture/r2/variants";
@@ -157,7 +170,10 @@ async function main() {
       .filter((v: string) => !onlyVariant || v === onlyVariant);
 
     for (const variant of variants) {
-      const file = join(OUT, `${key}--${variant}.mov`);
+      const themeFiles: Record<string, string> = {};
+      for (const theme of ["dark", "light"] as const) {
+      const file = join(OUT, `${key}--${variant}--${theme}.mov`);
+      themeFiles[theme] = file;
       const ctx = await browser.newContext({ viewport: size, deviceScaleFactor: 1 });
       const page = await ctx.newPage();
       const pageErrors: string[] = [];
@@ -175,6 +191,9 @@ async function main() {
       // check still passed -- frame count, dimensions, alpha floor, luma spread
       // were all correct on a file with a cookie dialog in it. It was caught by
       // LOOKING at a composite, which is the only reason this exists.
+      // The surface does not pin the theme, by design. The rig sets it.
+      await page.evaluate((th) => document.documentElement.setAttribute("data-theme", th), theme);
+
       await page.addStyleTag({
         content: `
           [class*="c15t-"], nextjs-portal, [data-nextjs-toast],
@@ -224,17 +243,29 @@ async function main() {
       if (chrome.length) faults.push(`page chrome visible in the render: ${chrome.join(", ")}`);
 
       rendered += 1;
-      const tag = overlay ? "overlay" : "full   ";
       if (faults.length) {
-        problems.push(`${key}/${variant}: ${faults.join("; ")}`);
-        console.log(`  FAIL ${tag} ${key}/${variant}`);
+        problems.push(`${key}/${variant}/${theme}: ${faults.join("; ")}`);
+        console.log(`  FAIL ${key}/${variant}/${theme}`);
         for (const f of faults) console.log(`         !! ${f}`);
       } else {
         console.log(
-          `  ok   ${tag} ${key}/${variant}  ${got.frames}f ${got.w}x${got.h}` +
-            (overlay ? `  alpha floor ${got.alphaPct!.toFixed(1)}%` : "") +
-            `  luma spread ${got.spread.toFixed(1)}`,
+          `  ok   ${key}/${variant}/${theme.padEnd(5)}  ${got.frames}f ${got.w}x${got.h}` +
+            `  alpha floor ${got.alphaPct!.toFixed(1)}%  luma spread ${got.spread.toFixed(1)}`,
         );
+      }
+      } // theme loop
+
+      // THE THEMING LAW, checked. Two themes that produce identical bytes mean
+      // the variant painted a literal colour instead of a token.
+      try {
+        const a = readFileSync(themeFiles.dark);
+        const b = readFileSync(themeFiles.light);
+        if (a.length === b.length && a.equals(b)) {
+          problems.push(`${key}/${variant}: dark and light renders are BYTE-IDENTICAL -- hardcoded colour, not tokens`);
+          console.log(`  FAIL ${key}/${variant}: identical in both themes (hardcoded colour)`);
+        }
+      } catch (e) {
+        problems.push(`${key}/${variant}: could not compare themes -- ${(e as Error).message}`);
       }
     }
   }
