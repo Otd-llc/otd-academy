@@ -15,6 +15,18 @@ export const env = createEnv({
     // and requiring them would break `next build` everywhere they are unset.
     PROD_DATABASE_URL: z.url().optional(),
     PROD_DIRECT_URL: z.url().optional(),
+    // Supplied by Vercel: "production" | "preview" | "development", absent
+    // everywhere else. Declared here because PRODUCTION BEHAVIOUR branches on it
+    // -- it namespaces the abuse-limiter's Redis keys so Preview cannot drain
+    // Prod's counters (src/lib/abuse-policy.ts) -- and a variable that decides
+    // that should be listed among the things this app reads, not discovered by
+    // grep.
+    //
+    // Deliberately a plain optional string rather than z.enum: the value comes
+    // from the platform, and a schema that rejects a value Vercel decides to add
+    // later would fail env validation at import and take the site down for a
+    // naming change. Documented, not enforced.
+    VERCEL_ENV: z.string().optional(),
     // Read-only role for the standalone parts MCP server (Stage B). Optional:
     // only that server reads it (asserting its own presence + that it differs from
     // DATABASE_URL at startup); the Next app never uses it, so requiring it would
@@ -180,6 +192,7 @@ export const env = createEnv({
     NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
     DATABASE_URL: process.env.DATABASE_URL,
     DIRECT_URL: process.env.DIRECT_URL,
+    VERCEL_ENV: process.env.VERCEL_ENV,
     PROD_DATABASE_URL: process.env.PROD_DATABASE_URL,
     PROD_DIRECT_URL: process.env.PROD_DIRECT_URL,
     PARTS_MCP_DATABASE_URL: process.env.PARTS_MCP_DATABASE_URL,
