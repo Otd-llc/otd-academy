@@ -7,12 +7,14 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { ChevronLeftIcon } from "@/components/icons";
 import { NewRevisionForm } from "./_form";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 export default async function NewRevisionPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  await requireAdmin();
   const { slug } = await params;
   const project = await db.project.findUnique({
     where: { slug },

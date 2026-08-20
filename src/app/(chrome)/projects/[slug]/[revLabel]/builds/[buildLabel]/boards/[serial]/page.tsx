@@ -22,6 +22,7 @@ import {
   BoardStatusField,
 } from "./_header-fields";
 import { ChevronLeftIcon } from "@/components/icons";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 type Params = {
   slug: string;
@@ -39,6 +40,7 @@ export default async function BoardDetailPage({
 }: {
   params: Promise<Params>;
 }) {
+  await requireAdmin();
   const { slug, revLabel, buildLabel, serial } = await params;
   const decodedRev = decodeURIComponent(revLabel);
   const decodedBuild = decodeURIComponent(buildLabel);
