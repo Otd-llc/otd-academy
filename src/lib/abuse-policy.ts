@@ -102,9 +102,20 @@ export function clientIp(h: Headers): string | null {
   return first ? first : null;
 }
 
-/** Env-namespaced key prefix so Preview cannot drain Prod's counters (N1). */
+/** Env-namespaced key prefix so Preview cannot drain Prod's counters (N1).
+ *
+ *  Reads `process.env` directly even though VERCEL_ENV is now declared in
+ *  `@/env`. t3-env resolves its values ONCE, when the module first evaluates, so
+ *  `env.VERCEL_ENV` is a snapshot; `process.env.VERCEL_ENV` is live. Switching
+ *  this to the snapshot broke `abuse-policy.test.ts`, which sets the variable and
+ *  asserts the prefix follows it — and that test is right to: a namespace that
+ *  cannot be varied cannot be proven to separate Preview from Prod at all.
+ *
+ *  The declaration in @/env is still worth having. It documents that this app
+ *  reads the variable and what it decides; it is just not the right reader for a
+ *  value that has to be observed live. */
 export function nsPrefix(rule: RuleName): string {
-  return `otd:${env.VERCEL_ENV ?? "local"}:${rule}`;
+  return `otd:${process.env.VERCEL_ENV ?? "local"}:${rule}`;
 }
 
 // ── The check sets ───────────────────────────────────────────────────────────
