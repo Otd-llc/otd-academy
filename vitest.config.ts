@@ -41,6 +41,37 @@ const gatedBasenames = [
   ...(MCP_OFF ? ["parts-mcp-readonly.test.ts"] : []),
 ];
 
+// SAY SO. These files are EXCLUDED, not skipped -- vitest never sees them, so
+// they contribute nothing to the run summary: no skip count, no "todo", nothing.
+// In CI, where ci.yml sets R2_ENABLED: "false" on every step and never sets
+// PARTS_MCP_DATABASE_URL, that silently removes 59 test declarations from every
+// run -- part-assets-actions.test.ts alone is 31 -- and the summary reports a
+// clean sweep of what remains. The only way to notice was to read this file.
+//
+// A banner is not the same as running them (that needs an R2 test bucket and an
+// MCP role, which is an infrastructure decision, not a config one). It does mean
+// the number is on screen, so a 9th file joining the list is visible instead of
+// arriving unannounced.
+// Printed once, not once per project: this config is evaluated for each of the
+// two projects, and again in each worker. `VITEST_POOL_ID` is set only in
+// workers; the globalThis flag covers the repeat evaluations inside the main
+// process.
+const BANNER_ONCE = Symbol.for("otd.vitest.gatedBanner");
+const g = globalThis as unknown as Record<symbol, boolean>;
+if (gatedBasenames.length > 0 && !process.env.VITEST_POOL_ID && !g[BANNER_ONCE]) {
+  g[BANNER_ONCE] = true;
+  const why = [
+    R2_OFF ? "R2_ENABLED!=true or R2_BUCKET unset" : null,
+    MCP_OFF ? "PARTS_MCP_DATABASE_URL unset" : null,
+  ].filter(Boolean);
+  console.warn(
+    `\n[vitest] ${gatedBasenames.length} live-integration test file(s) EXCLUDED from this run` +
+      ` (${why.join("; ")}):\n` +
+      gatedBasenames.map((b) => `  - ${b}`).join("\n") +
+      `\n[vitest] They are excluded, not skipped -- they will NOT appear in the summary below.\n`,
+  );
+}
+
 // Partition test files into two projects by whether they touch the REAL database:
 //   • "db"   — imports `@/lib/db` and does NOT mock it. Each file leases its own
 //              Neon branch (vitest.setup.ts) so parallel DB files never share a
