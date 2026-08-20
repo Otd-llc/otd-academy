@@ -1,7 +1,12 @@
 // Branded email that delivers a gated Library field-guide download link. Pure
-// function -> unit-testable; the requestFieldGuide action builds this and POSTs
-// it to Resend. This is a TRANSACTIONAL message (the user asked for the guide),
-// so it is NOT gated by emailConsent, same as the magic-link email.
+// function -> unit-testable. This is a TRANSACTIONAL message (the user asked for
+// the guide), so it is NOT gated by emailConsent, same as the magic-link email.
+//
+// NOTE: nothing calls this today. It used to be built and POSTed to Resend by a
+// `requestFieldGuide` server action, but that action had no callers of its own
+// and was removed as dead code; this builder is kept because it is the finished,
+// tested article and the delivery path is expected to return. If it is still
+// unused next time someone reads this, delete it too.
 //
 // Same email constraints + quiet-on-brand bar as auth-magic-link-email.ts: table
 // layout, inline styles, system fonts, a bulletproof button, a real text/plain
