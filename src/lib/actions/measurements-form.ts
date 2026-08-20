@@ -91,57 +91,6 @@ export async function createMeasurementFormAction(
   }
 }
 
-export async function editMeasurementFormAction(
-  _prev: MeasurementFormState,
-  formData: FormData,
-): Promise<MeasurementFormState> {
-  const id = pickString(formData, "id");
-  if (!id) return { message: "Missing measurement id." };
-  const stageRaw = pickString(formData, "stage");
-  const step = pickString(formData, "step");
-  const expectedValue = pickString(formData, "expectedValue");
-  const actualValue = pickString(formData, "actualValue");
-  const unit = pickString(formData, "unit");
-  const resultRaw = pickString(formData, "result");
-  const notes = pickString(formData, "notes");
-
-  if (stageRaw && !(stageRaw in Stage)) return { message: "Invalid stage." };
-  if (resultRaw && !(resultRaw in MeasurementResult)) {
-    return { message: "Invalid result." };
-  }
-
-  try {
-    await editMeasurement({
-      id,
-      stage: stageRaw as Stage | undefined,
-      step,
-      expectedValue,
-      actualValue,
-      unit,
-      result: resultRaw,
-      notes,
-    });
-    return { ok: true };
-  } catch (err) {
-    if (err instanceof ZodError) return { errors: zodErrors(err) };
-    return { message: err instanceof Error ? err.message : "Unknown error" };
-  }
-}
-
-export async function deleteMeasurementFormAction(
-  _prev: MeasurementFormState,
-  formData: FormData,
-): Promise<MeasurementFormState> {
-  const id = pickString(formData, "id");
-  if (!id) return { message: "Missing measurement id." };
-  try {
-    await deleteMeasurement({ id });
-    return { ok: true };
-  } catch (err) {
-    return { message: err instanceof Error ? err.message : "Unknown error" };
-  }
-}
-
 // Bulk-paste parsing. Expected layout (header optional):
 //   stage \t step \t expected \t actual \t unit \t result
 // Empty cells map to `undefined` (the schema falls back / nulls accordingly).
